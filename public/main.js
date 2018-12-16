@@ -71,6 +71,8 @@ function main() {
 	
 	if (window.localStorage['warned']) warned = true;
 
+	if (window.location.search.indexOf("debug") > -1) DEBUG_MODE = true;
+
 	if (!window.fetch) {
 		fallbackRedirect();
 		return;
