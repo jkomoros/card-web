@@ -38,6 +38,7 @@ function extractSlideSlug() {
 }
 
 function fallbackRedirect(e) {
+	if (DEBUG_MODE) confirm("Error, falling back: " + e);
 	console.log(e);
 	redirectToSlides();
 }
