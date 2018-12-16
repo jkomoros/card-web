@@ -14,10 +14,10 @@ function slugToId(slug) {
 }
 
 function redirectToSlides(slideId) {
-	if (!slideId) slideId = "id.p";
+	if (!slideId) slideId = "p";
 	slideId = slugToId(slideId);
 	//If it's debug mode, then only navigate if they confirm
-	if (!DEBUG_MODE || confirm(slideId)) window.location.href = PRESENTATION_URL + "#slide=" + slideId;
+	if (!DEBUG_MODE || confirm(slideId)) window.location.href = PRESENTATION_URL + "#slide=id." + slideId;
 }
 
 function extractSlideSlug() {
