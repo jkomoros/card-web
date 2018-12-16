@@ -19,8 +19,17 @@ function extractSlideSlug() {
 	return pieces[1];
 }
 
+function fallbackRedirect() {
+	redirectToSlides();
+}
+
 function main() {
 	
+	if (!window.fetch) {
+		fallbackRedirect();
+		return;
+	}
+
 	var slug = extractSlideSlug();
 	redirectToSlides(slug);
 }
