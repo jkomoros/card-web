@@ -3,8 +3,19 @@ var PRESENTATION_URL = "https://docs.google.com/presentation/d/196n9NQEGJmdVxsSh
 
 var DEBUG_MODE = true;
 
+var SLIDE_DATA = null;
+
+function slugToId(slug) {
+	if (!SLIDE_DATA) return slug;
+	var index = SLIDE_DATA['slug_index'];
+	if (!index) return slug;
+	var newVal = index[slug];
+	return newVal ? newVal : slug;
+}
+
 function redirectToSlides(slideId) {
 	if (!slideId) slideId = "id.p";
+	slideId = slugToId(slideId);
 	//If it's debug mode, then only navigate if they confirm
 	if (!DEBUG_MODE || confirm(slideId)) window.location.href = PRESENTATION_URL + "#slide=" + slideId;
 }
@@ -34,7 +45,7 @@ function main() {
 	fetch("/slides.json").then(function(resp) {
 		resp.json().then(
 			function(json) {
-				console.log(json);
+				SLIDE_DATA = json;
 				var slug = extractSlideSlug();
 				redirectToSlides(slug);
 			}
