@@ -18,12 +18,25 @@
         body, #message { margin-top: 0; background: white; box-shadow: none; }
         body { border-top: 16px solid #ffa100; }
       }
+      #message .warn {display:none;}
+      #message.warn .warn {display:block;}
+      #message.warn .default {display:none;}
+      .right {text-align:right;}
     </style>
   </head>
   <body>
     <div id="message">
-      <h2>Welcome</h2>
-      <h1>This page will forward you to the actual content momentarily...</h1>
+      <div class="default">
+        <h2>Welcome</h2>
+        <h1>This page will forward you to the actual content momentarily...</h1>
+      </div>
+      <div class="warn">
+        <h2>Heads up: External Presentation</h2>
+        <h1>Just a heads up that the presentation you're about to view is a public presentation.</h1>
+        <div class="right">
+          <input type="submit" value="Got it" onclick="proceed()">
+        </div>
+      </div>
     </div>
   </body>
   <script type="text/javascript" src="/main.js"></script>

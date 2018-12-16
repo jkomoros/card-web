@@ -42,9 +42,28 @@ function fallbackRedirect(e) {
 	redirectToSlides();
 }
 
+var warned = false;
+
+function proceed() {
+	console.log("sup")
+	warned = true;
+	redirect();
+}
+
+function warn() {
+	if (warned) {
+		return true;
+	}
+	document.getElementById("message").className = "warn";
+	return false;
+}
+
 function redirect() {
 	//The main thing. Called once configuration has been loaded.
 	var result = extractSlideSlug();
+	if (result[1]) {
+		if (!warn()) return;
+	}
 	redirectToSlides(result[0]);
 }
 
