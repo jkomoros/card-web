@@ -45,8 +45,8 @@ function fallbackRedirect(e) {
 var warned = false;
 
 function proceed() {
-	console.log("sup")
 	warned = true;
+	window.localStorage['warned'] = true;
 	redirect();
 }
 
@@ -69,6 +69,8 @@ function redirect() {
 
 function main() {
 	
+	if (window.localStorage['warned']) warned = true;
+
 	if (!window.fetch) {
 		fallbackRedirect();
 		return;
