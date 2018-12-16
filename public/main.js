@@ -19,7 +19,8 @@ function extractSlideSlug() {
 	return pieces[1];
 }
 
-function fallbackRedirect() {
+function fallbackRedirect(e) {
+	console.log(e);
 	redirectToSlides();
 }
 
@@ -30,8 +31,18 @@ function main() {
 		return;
 	}
 
-	var slug = extractSlideSlug();
-	redirectToSlides(slug);
+	fetch("/slides.json").then(function(resp) {
+		resp.json().then(
+			function(json) {
+				console.log(json);
+				var slug = extractSlideSlug();
+				redirectToSlides(slug);
+			}
+		)
+	}).catch(
+		fallbackRedirect
+	)
+
 }
 
 main();
