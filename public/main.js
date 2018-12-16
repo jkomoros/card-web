@@ -3,15 +3,22 @@ var PRESENTATION_URL = "https://docs.google.com/presentation/d/196n9NQEGJmdVxsSh
 
 
 function fallbackRedirect() {
-	redirectToSlides("id.p");	
+
 }
 
 function redirectToSlides(slideId) {
+	if (!slideId) slideId = "id.p";
 	window.location.href = PRESENTATION_URL + "#slide=" + slideId;
 }
 
+function extractSlideSlug() {
+	return "";
+}
+
 function main() {
-	fallbackRedirect();
+	
+	var slug = extractSlideSlug();
+	redirectToSlides(slug);
 }
 
 main();
