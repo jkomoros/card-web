@@ -1,7 +1,7 @@
 
 var PRESENTATION_URL = "https://docs.google.com/presentation/d/196n9NQEGJmdVxsShE3b8dBz8UUIee4oC7e8SC193HcQ/present"
 
-var DEBUG_MODE = true;
+var DEBUG_MODE = false;
 
 var SLIDE_DATA = null;
 
@@ -42,6 +42,12 @@ function fallbackRedirect(e) {
 	redirectToSlides();
 }
 
+function redirect() {
+	//The main thing. Called once configuration has been loaded.
+	var result = extractSlideSlug();
+	redirectToSlides(result[0]);
+}
+
 function main() {
 	
 	if (!window.fetch) {
@@ -53,9 +59,7 @@ function main() {
 		resp.json().then(
 			function(json) {
 				SLIDE_DATA = json;
-				var result = extractSlideSlug();
-				console.log(result);
-				redirectToSlides(result[0]);
+				redirect();
 			}
 		)
 	}).catch(
