@@ -6,7 +6,7 @@
 			"title": "The Cynefin model of problem spaces",
 			"sectionname": "Half-Baked",
 			"updated": false,
-			"slugs": "",
+			"slugs": "the-cynefin-model",
 			"links": [
 				"g487aed6370_0_61",
 				"g487aed6370_0_30",
@@ -157,7 +157,7 @@
 			"title": "Humans are biased away from complex problem spaces",
 			"sectionname": "Half-Baked",
 			"updated": false,
-			"slugs": "",
+			"slugs": "humans-dislike-complex",
 			"links": [
 				"g487aed6370_0_40"
 			],
@@ -1062,7 +1062,7 @@
 			"title": "When is preventative maintenance worth it?",
 			"sectionname": "Half-Baked",
 			"updated": false,
-			"slugs": "",
+			"slugs": "team-culture-preventative-maintenance-worth-it",
 			"links": [
 				"g487aed6370_0_207",
 				"g487aed6370_0_176",
@@ -1078,7 +1078,7 @@
 			"title": "Stakes are often inadvertently high",
 			"sectionname": "Half-Baked",
 			"updated": false,
-			"slugs": "",
+			"slugs": "inadvertently-high-stakes",
 			"links": [
 				"g487aed6370_0_171",
 				"g487aed6370_0_35",
@@ -1145,7 +1145,7 @@
 			"title": "Over-extending informal leverage points breaks them",
 			"sectionname": "Half-Baked",
 			"updated": false,
-			"slugs": "",
+			"slugs": "informal-authority-overextension",
 			"links": [
 				"g4871092f30_0_1571",
 				"g48845643ff_0_311",
@@ -1494,7 +1494,7 @@
 			"title": "Agents are human-scale systems with intrinsic motivation",
 			"sectionname": "Half-Baked",
 			"updated": false,
-			"slugs": "",
+			"slugs": "agents-are-systems-with-motivation",
 			"links": [
 				"g48845643ff_0_126"
 			],
@@ -1532,7 +1532,7 @@
 			"title": "Everyone will react negatively when surprised in high stakes",
 			"sectionname": "Half-Baked",
 			"updated": false,
-			"slugs": "",
+			"slugs": "high-stakes-are-emotionally-intense",
 			"links": [
 				"g487aed6370_0_181",
 				"g48a31f22cb_0_20"
@@ -1588,7 +1588,7 @@
 			"title": "Rate of Surprise tells you how complex the problem space is",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "rate-of-surprise",
 			"links": [],
 			"inbound_links": [
 				"g487aed6370_0_141",
@@ -1601,7 +1601,7 @@
 			"title": "Bad ideas look good from a distance",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "ideas-look-bad-from-distance",
 			"links": [],
 			"inbound_links": [
 				"g487aed6370_0_5"
@@ -1613,7 +1613,7 @@
 			"title": "Ignoring hidden forces is a recipe for disaster",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "ignoring-hidden-forces-disaster",
 			"links": [
 				"g48845643ff_0_255"
 			],
@@ -1628,7 +1628,7 @@
 			"title": "It’s not possible to create a thriving engine in a lab",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "cant-create-engine-in-lab",
 			"links": [
 				"g48845643ff_0_111"
 			],
@@ -1645,7 +1645,7 @@
 			"title": "Friction takes energy to overcome",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "friction-takes-energy-to-overcome",
 			"links": [
 				"g487aed6370_0_0",
 				"g48845643ff_0_260"
@@ -1662,7 +1662,7 @@
 			"title": "Progress requires a constant influx of energy",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "progress-takes-energy",
 			"links": [
 				"g4871092f30_0_1541",
 				"g48a31f22cb_0_45"
@@ -1677,7 +1677,7 @@
 			"title": "Strategy vs tactics is a matter of perspective",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "strategy-vs-tactics-perspective",
 			"links": [
 				"g487aed6370_0_151"
 			]
@@ -1688,7 +1688,7 @@
 			"title": "Process amount should be proportional to complicatedness",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "process-proportional-complicatedness",
 			"links": [],
 			"inbound_links": [
 				"g487aed6370_0_306"
@@ -1700,7 +1700,7 @@
 			"title": "Decision Making is not a magic moment",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "decision-making-not-magic",
 			"links": [
 				"g4871092f30_0_1561",
 				"g487aed6370_0_71"
@@ -1712,7 +1712,7 @@
 			"title": "Culture can be thought of as an ecosystem",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "culture-as-ecosystem",
 			"links": [],
 			"inbound_links": [
 				"g487aed6370_0_271"
@@ -1724,7 +1724,7 @@
 			"title": "Constraints come in different flavors",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "types-of-constraints",
 			"links": [
 				"g48845643ff_0_60",
 				"g487aed6370_0_161",
@@ -1744,7 +1744,7 @@
 			"title": "The types of compounding effects",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "compounding-effects-list",
 			"links": [
 				"g487aed6370_0_10"
 			],
@@ -1759,7 +1759,7 @@
 			"title": "Systems will resist obvious external forces",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "systems-resist-obvious-forces",
 			"links": [
 				"g487aed6370_0_236",
 				"g487aed6370_0_301"
@@ -1775,7 +1775,7 @@
 			"title": "Runways are not just about funding",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "runways-capital",
 			"links": [
 				"g48845643ff_0_234",
 				"g48845643ff_0_311"
@@ -1790,10 +1790,11 @@
 			"title": "‘Always’ rules are better than ‘sometimes’ rules",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "always-rules-better-than-sometimes-rules",
 			"links": [],
 			"inbound_links": [
-				"g48845643ff_0_105"
+				"g48845643ff_0_105",
+				"g4a85094c68_0_50"
 			]
 		},
 		"g48845643ff_0_105": {
@@ -1802,7 +1803,7 @@
 			"title": "Start with loose structure and tighten as you learn more",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "start-loose-structure-then-tighten",
 			"links": [
 				"g4a3ed6c576_4_5",
 				"g487aed6370_0_306",
@@ -1819,9 +1820,12 @@
 			"title": "Focus on problems that give you energy",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "focus-where-give-energy,highest-and-best-use",
 			"links": [
 				"g48845643ff_0_132"
+			],
+			"inbound_links": [
+				"g4a85094c68_0_45"
 			]
 		},
 		"g48845643ff_0_144": {
@@ -1830,7 +1834,7 @@
 			"title": "Ecosystems’ intrinsic energy comes from incentives",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "ecosystem-energy-incentives",
 			"links": [
 				"g48845643ff_0_132"
 			]
@@ -1841,7 +1845,7 @@
 			"title": "Don’t try to create intrinsic energy",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "dont-create-intrinsic-energy",
 			"links": [
 				"g48845643ff_0_155"
 			]
@@ -1852,7 +1856,7 @@
 			"title": "What humans ",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "instinctive-vs-aspirational-self",
 			"links": [
 				"g48845643ff_0_95",
 				"g4871092f30_0_1526"
@@ -1864,7 +1868,7 @@
 			"title": "The self-sustaining flame",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "self-sustaining-flame",
 			"links": [],
 			"inbound_links": [
 				"g48845643ff_0_155"
@@ -1876,7 +1880,7 @@
 			"title": "Feedback loops create compounding effects",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "feedback-loops-compounding-effects",
 			"links": [
 				"g48845643ff_0_173",
 				"g487aed6370_0_321"
@@ -1888,7 +1892,7 @@
 			"title": "Continuous processes avoid shocks, keeping the current loops",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "continuous-processes-continuous",
 			"links": []
 		},
 		"g48a31f22cb_0_30": {
@@ -1897,7 +1901,7 @@
 			"title": "The best leads are strong fuzzy pattern matchers",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "leads-fuzzy-pattern-matching",
 			"links": [
 				"g48845643ff_0_403",
 				"g48845643ff_0_185",
@@ -1914,7 +1918,7 @@
 			"title": "Mentoring is win-win-win",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "mentoring-win-win-win",
 			"links": [
 				"g48a31f22cb_0_40",
 				"g48a31f22cb_0_30"
@@ -1930,7 +1934,7 @@
 			"title": "Talking helps distill intuition to insight",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "talking-distills-intuition-insight",
 			"links": [
 				"g487aed6370_0_50"
 			],
@@ -1944,7 +1948,7 @@
 			"title": "Going too deep can create non-compounding islands",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "too-deep-fragmentation",
 			"links": [
 				"g4a3ed6c576_0_44"
 			],
@@ -1958,7 +1962,7 @@
 			"title": "Developers will use platforms in ways you didn’t anticipate",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "developers-use-unanticipated",
 			"links": [
 				"g48a31f22cb_0_45",
 				"g487aed6370_0_0"
@@ -1973,7 +1977,7 @@
 			"title": "Giving something a name makes it A Thing",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "names-make-a-thing",
 			"links": []
 		},
 		"g48845643ff_0_388": {
@@ -1982,7 +1986,7 @@
 			"title": "Debt comes in many forms",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "types-of-debt",
 			"links": [
 				"g487aed6370_0_207"
 			]
@@ -1993,7 +1997,7 @@
 			"title": "Structurally create opportunities for dissent",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "create-opportunities-dissent",
 			"links": []
 		},
 		"g48845643ff_0_428": {
@@ -2002,7 +2006,7 @@
 			"title": "Actions matter more than words",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "actions-matter-more",
 			"links": []
 		},
 		"g48845643ff_0_438": {
@@ -2011,7 +2015,7 @@
 			"title": "Getting yourself out a rut",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "getting-out-of-rut",
 			"links": []
 		},
 		"g48845643ff_0_433": {
@@ -2020,7 +2024,7 @@
 			"title": "Dissonance is stressful and expensive",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "dissonance-is-stressful",
 			"links": [
 				"g487aed6370_0_306"
 			]
@@ -2031,7 +2035,7 @@
 			"title": "Process Should Only Retroactively Pave Cowpaths",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "process-pave-cowpaths",
 			"links": [
 				"g487aed6370_0_306",
 				"g4871092f30_0_1581",
@@ -2047,7 +2051,7 @@
 			"title": "Credibility is informal authority",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "credibility-informal-authority",
 			"links": [],
 			"inbound_links": [
 				"g487aed6370_0_301",
@@ -2062,7 +2066,7 @@
 			"title": "Cultures can be bottoms-up or tops-down",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "culture-bottoms-up-top-down",
 			"links": [
 				"g487aed6370_0_281",
 				"g487aed6370_0_40"
@@ -2078,7 +2082,7 @@
 			"title": "Resilient systems can weather discontinuities better",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "resilient-systems-weather-discontinuities",
 			"links": [
 				"g487aed6370_0_241",
 				"g48a31f22cb_0_55",
@@ -2094,7 +2098,7 @@
 			"title": "In bottoms-up cultures, coordination is impossibly expensive",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "bottoms-up-coordination-expensive",
 			"links": [],
 			"inbound_links": [
 				"g48a31f22cb_0_55"
@@ -2106,18 +2110,27 @@
 			"title": "Support for nuanced approach needs to come from the top",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "support-nuance-from-top",
 			"links": [
 				"g48845643ff_0_311"
 			]
 		},
-		"g48845643ff_0_204": {
+		"g4871092f30_0_1566": {
 			"index": 143,
+			"id": "g4871092f30_0_1566",
+			"title": "Leads need to support the nuanced superpowers\t",
+			"sectionname": "Barely Edible",
+			"updated": false,
+			"slugs": "",
+			"links": []
+		},
+		"g48845643ff_0_204": {
+			"index": 144,
 			"id": "g48845643ff_0_204",
 			"title": "A successful engine changes the incentives around it",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "gravity-well",
 			"links": [
 				"g48845643ff_0_209",
 				"g4a3ed6c576_0_14"
@@ -2127,12 +2140,12 @@
 			]
 		},
 		"g48845643ff_0_209": {
-			"index": 144,
+			"index": 145,
 			"id": "g48845643ff_0_209",
 			"title": "Analyzing an engine requires seeing trends over time",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "analyze-engines-over-time",
 			"links": [
 				"g487aed6370_0_321"
 			],
@@ -2141,12 +2154,12 @@
 			]
 		},
 		"g48845643ff_0_215": {
-			"index": 145,
+			"index": 146,
 			"id": "g48845643ff_0_215",
 			"title": "Heroism is a form of unsustainable extrinsic energy",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "heroism-unsustainable",
 			"links": [],
 			"inbound_links": [
 				"g487aed6370_0_296",
@@ -2156,21 +2169,21 @@
 			]
 		},
 		"g48845643ff_0_281": {
-			"index": 146,
+			"index": 147,
 			"id": "g48845643ff_0_281",
 			"title": "The more energy in a system, the bigger its adjacent possible",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "energy-bigger-adjacent-possible",
 			"links": []
 		},
 		"g48845643ff_0_265": {
-			"index": 147,
+			"index": 148,
 			"id": "g48845643ff_0_265",
 			"title": "Abstract ideas are harder to communicate at scale",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "communicating-abstract-ideas-scale",
 			"links": [
 				"g48845643ff_0_459"
 			],
@@ -2181,12 +2194,12 @@
 			]
 		},
 		"g48845643ff_0_459": {
-			"index": 148,
+			"index": 149,
 			"id": "g48845643ff_0_459",
 			"title": "North stars don’t have to be socialized widely to be effective",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "north-stars-dont-need-much-socialization",
 			"links": [
 				"g487aed6370_0_81"
 			],
@@ -2194,22 +2207,13 @@
 				"g48845643ff_0_265"
 			]
 		},
-		"g4871092f30_0_1566": {
-			"index": 149,
-			"id": "g4871092f30_0_1566",
-			"title": "Leads need to support the nuanced superpowers\t",
-			"sectionname": "Barely Edible",
-			"updated": false,
-			"slugs": "",
-			"links": []
-		},
 		"g48845643ff_0_479": {
 			"index": 150,
 			"id": "g48845643ff_0_479",
 			"title": "Beware doing non-scalable things",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "beware-non-scalable",
 			"links": [
 				"g48845643ff_0_215"
 			]
@@ -2220,7 +2224,7 @@
 			"title": "Rubrics can help systematize thinking",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "rubrics-systematize-thinking",
 			"links": []
 		},
 		"g48845643ff_1_40": {
@@ -2229,7 +2233,7 @@
 			"title": "Polarities are difficult to keep in balance",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "polarities-in-balance",
 			"links": []
 		},
 		"g487aed6370_0_226": {
@@ -2238,7 +2242,7 @@
 			"title": "The McNamara Fallacy",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "mcnamara-fallacy",
 			"links": [
 				"g48845643ff_0_265"
 			]
@@ -2249,7 +2253,7 @@
 			"title": "In complexity, teams need maneuvering room",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "complexity-manuevering-room",
 			"links": [
 				"g4a5429b3f0_0_0",
 				"g4871092f30_0_1561"
@@ -2261,7 +2265,7 @@
 			"title": "Open Source does not necessarily mean open",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "open-source-vs-open",
 			"links": [],
 			"inbound_links": [
 				"g4a6111ef7e_0_20",
@@ -2274,7 +2278,7 @@
 			"title": "The incentives of #1 and #2 are different than the rest",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "incentives-different-at-top",
 			"links": [],
 			"inbound_links": [
 				"g4a6111ef7e_0_10",
@@ -2287,7 +2291,7 @@
 			"title": "Gravity wells are most common when two big players join in",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "gravity-wells-with-two-players",
 			"links": [
 				"g4a41d8c468_1_62"
 			]
@@ -2298,7 +2302,7 @@
 			"title": "Open-source-from-first-commit minimizes discontinuities",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "open-from-first-commit",
 			"links": [
 				"g48a31f22cb_0_10",
 				"g48845643ff_0_519",
@@ -2314,7 +2318,7 @@
 			"title": "Public discussion lists are good accelerants",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "public-discussion-accelerant",
 			"links": [
 				"g48845643ff_0_191",
 				"g4a6111ef7e_0_30",
@@ -2328,7 +2332,7 @@
 			"title": "Projects with thriving communities are safer bets",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "thriving-communities-safe-bets",
 			"links": [
 				"g4a6111ef7e_0_35",
 				"g4a6111ef7e_0_40"
@@ -2344,7 +2348,7 @@
 			"title": "Ability to successfully fork is a measure of openness",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "ability-to-fork-openness",
 			"links": [
 				"g4a6111ef7e_0_20",
 				"g4a6111ef7e_0_15",
@@ -2361,7 +2365,7 @@
 			"title": "Tackling a problem too early is 10x more expensive",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "tackling-problem-too-early-expensive",
 			"links": [
 				"g48845643ff_0_121",
 				"g48a31f22cb_0_50",
@@ -2391,7 +2395,7 @@
 			"title": "Agents give too much weight to short-term considerations",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "agents-focus-on-short-term",
 			"links": [
 				"g48a31f22cb_0_45",
 				"g4a41d8c468_1_17",
@@ -2405,7 +2409,7 @@
 			"title": "Aligning incentives: what starts as a bonus becomes primary",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "aligning-incentives-bonus-to-primary",
 			"links": []
 		},
 		"g4a7499c914_0_5": {
@@ -2414,7 +2418,7 @@
 			"title": "In complexity, assume there aren’t any big bold bets",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "complexity-no-big-bold-bets",
 			"links": []
 		},
 		"g4a7499c914_0_10": {
@@ -2423,7 +2427,7 @@
 			"title": "If you have informal authority, acting like it can give you more",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "informal-authority-behavior-can-create-more",
 			"links": []
 		},
 		"g4a7499c914_0_15": {
@@ -2432,7 +2436,7 @@
 			"title": "Success begets success",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "success-begets-success",
 			"links": []
 		},
 		"g4a7499c914_0_20": {
@@ -2441,7 +2445,7 @@
 			"title": "Passion blinds you to more sustainable solutions",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "passion-blinds",
 			"links": [],
 			"inbound_links": [
 				"g4a7499c914_0_26",
@@ -2455,7 +2459,7 @@
 			"title": "Teams motivated by passion become more passionate",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "passionate-teams-become-more-passionate",
 			"links": [
 				"g4a7499c914_0_20",
 				"g4a7499c914_0_31"
@@ -2471,7 +2475,7 @@
 			"title": "Setbacks for passionate teams are crushing",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "passion-crushing-setbacks",
 			"links": [
 				"g4a7499c914_0_20",
 				"g4a7499c914_0_26"
@@ -2487,7 +2491,7 @@
 			"title": "Passionate teams isolate themselves",
 			"sectionname": "Barely Edible",
 			"updated": false,
-			"slugs": "",
+			"slugs": "passionate-teams-isolate-themselves",
 			"links": [
 				"g4a7499c914_0_26",
 				"g4a7499c914_0_20",
@@ -3340,8 +3344,133 @@
 				"g4a6111ef7e_0_0"
 			]
 		},
-		"g48845643ff_0_342": {
+		"g4a85094c68_0_0": {
+			"index": 252,
+			"id": "g4a85094c68_0_0",
+			"title": "Pragmatic optimism vs cynical idealism",
+			"sectionname": "Stubs",
+			"updated": false,
+			"slugs": "",
+			"links": [
+				"g4a85094c68_0_5"
+			]
+		},
+		"g4a85094c68_0_5": {
 			"index": 253,
+			"id": "g4a85094c68_0_5",
+			"title": "The perfect option doesn’t exist",
+			"sectionname": "Stubs",
+			"updated": false,
+			"slugs": "",
+			"links": [],
+			"inbound_links": [
+				"g4a85094c68_0_0"
+			]
+		},
+		"g4a85094c68_0_10": {
+			"index": 254,
+			"id": "g4a85094c68_0_10",
+			"title": "Vacations for leads should be a blip",
+			"sectionname": "Stubs",
+			"updated": false,
+			"slugs": "",
+			"links": [],
+			"inbound_links": [
+				"g4a85094c68_0_15"
+			]
+		},
+		"g4a85094c68_0_15": {
+			"index": 255,
+			"id": "g4a85094c68_0_15",
+			"title": "Attempting to lead via heroism builds unsustainable teams",
+			"sectionname": "Stubs",
+			"updated": false,
+			"slugs": "",
+			"links": [
+				"g4a85094c68_0_10"
+			]
+		},
+		"g4a85094c68_0_20": {
+			"index": 256,
+			"id": "g4a85094c68_0_20",
+			"title": "Understanding systems is like understanding recursion",
+			"sectionname": "Stubs",
+			"updated": false,
+			"slugs": "",
+			"links": []
+		},
+		"g4a85094c68_0_25": {
+			"index": 257,
+			"id": "g4a85094c68_0_25",
+			"title": "VC funding is crowdsourcing search in the adjacent possible",
+			"sectionname": "Stubs",
+			"updated": false,
+			"slugs": "",
+			"links": [
+				"g4a85094c68_0_30"
+			]
+		},
+		"g4a85094c68_0_30": {
+			"index": 258,
+			"id": "g4a85094c68_0_30",
+			"title": "Finding PMF is winning the lottery",
+			"sectionname": "Stubs",
+			"updated": false,
+			"slugs": "",
+			"links": [],
+			"inbound_links": [
+				"g4a85094c68_0_25"
+			]
+		},
+		"g4a85094c68_0_35": {
+			"index": 259,
+			"id": "g4a85094c68_0_35",
+			"title": "Leads should repeat their north star ad nauseum",
+			"sectionname": "Stubs",
+			"updated": false,
+			"slugs": "",
+			"links": []
+		},
+		"g4a85094c68_0_40": {
+			"index": 260,
+			"id": "g4a85094c68_0_40",
+			"title": "Allowing incremental work minimizes activation energy",
+			"sectionname": "Stubs",
+			"updated": false,
+			"slugs": "",
+			"links": [
+				"g4a85094c68_0_45"
+			]
+		},
+		"g4a85094c68_0_45": {
+			"index": 261,
+			"id": "g4a85094c68_0_45",
+			"title": "The flow state is like a drug",
+			"sectionname": "Stubs",
+			"updated": false,
+			"slugs": "",
+			"links": [
+				"g48845643ff_0_138"
+			],
+			"inbound_links": [
+				"g4a85094c68_0_40",
+				"g4a85094c68_0_50"
+			]
+		},
+		"g4a85094c68_0_50": {
+			"index": 262,
+			"id": "g4a85094c68_0_50",
+			"title": "Time-box your flow state",
+			"sectionname": "Stubs",
+			"updated": false,
+			"slugs": "",
+			"links": [
+				"g4a85094c68_0_45",
+				"g48845643ff_0_90"
+			]
+		},
+		"g48845643ff_0_342": {
+			"index": 264,
 			"id": "g48845643ff_0_342",
 			"title": "Go slow to go fast",
 			"sectionname": "Random Thoughts",
@@ -3350,7 +3479,7 @@
 			"links": []
 		},
 		"g48845643ff_0_352": {
-			"index": 254,
+			"index": 265,
 			"id": "g48845643ff_0_352",
 			"title": "Wording implying zero-sum framings is suspect",
 			"sectionname": "Random Thoughts",
@@ -3359,7 +3488,7 @@
 			"links": []
 		},
 		"g48845643ff_0_569": {
-			"index": 255,
+			"index": 266,
 			"id": "g48845643ff_0_569",
 			"title": "Picking the most user value...",
 			"sectionname": "Random Thoughts",
@@ -3368,7 +3497,7 @@
 			"links": []
 		},
 		"g48845643ff_0_413": {
-			"index": 256,
+			"index": 267,
 			"id": "g48845643ff_0_413",
 			"title": "Silicon valley’s technical hubris",
 			"sectionname": "Random Thoughts",
@@ -3380,7 +3509,7 @@
 			]
 		},
 		"g48845643ff_0_544": {
-			"index": 257,
+			"index": 268,
 			"id": "g48845643ff_0_544",
 			"title": "Hope is not a strategy",
 			"sectionname": "Random Thoughts",
@@ -3392,7 +3521,7 @@
 			]
 		},
 		"g48845643ff_0_559": {
-			"index": 258,
+			"index": 269,
 			"id": "g48845643ff_0_559",
 			"title": "Ask if someone wants solutions or sympathy",
 			"sectionname": "Random Thoughts",
@@ -3401,7 +3530,7 @@
 			"links": []
 		},
 		"g48845643ff_0_286": {
-			"index": 259,
+			"index": 270,
 			"id": "g48845643ff_0_286",
 			"title": "An aggregator is an ecosystem with one primary beneficiary",
 			"sectionname": "Random Thoughts",
@@ -3410,7 +3539,7 @@
 			"links": []
 		},
 		"g4a3ed6c576_8_0": {
-			"index": 260,
+			"index": 271,
 			"id": "g4a3ed6c576_8_0",
 			"title": "Most good ideas have some kind of compounding effect",
 			"sectionname": "Random Thoughts",
@@ -3421,7 +3550,7 @@
 			]
 		},
 		"g4a41d8c468_1_7": {
-			"index": 261,
+			"index": 272,
 			"id": "g4a41d8c468_1_7",
 			"title": "Starting with a whitelist makes solutions unscalable",
 			"sectionname": "Random Thoughts",
@@ -3430,7 +3559,7 @@
 			"links": []
 		},
 		"g4a41d8c468_1_12": {
-			"index": 262,
+			"index": 273,
 			"id": "g4a41d8c468_1_12",
 			"title": "Threat models should include how motivated attacker is",
 			"sectionname": "Random Thoughts",
@@ -3439,7 +3568,7 @@
 			"links": []
 		},
 		"g4a7499c914_0_36": {
-			"index": 263,
+			"index": 274,
 			"id": "g4a7499c914_0_36",
 			"title": "New mediums unlock new insights",
 			"sectionname": "Random Thoughts",
@@ -3448,7 +3577,7 @@
 			"links": []
 		},
 		"g48845643ff_0_499": {
-			"index": 264,
+			"index": 275,
 			"id": "g48845643ff_0_499",
 			"title": "A problem is hard if it can be reduced to a hard problem",
 			"sectionname": "Random Thoughts",
@@ -3458,6 +3587,7 @@
 		}
 	},
 	"slug_index": {
+		"the-cynefin-model": "g487aed6370_0_25",
 		"complex-complicated": "g487aed6370_0_45",
 		"everything-is-complex": "g487aed6370_0_40",
 		"critical-thinking": "g487aed6370_0_106",
@@ -3465,6 +3595,7 @@
 		"insights-distill-complexity": "g487aed6370_0_50",
 		"lenses-mine-insights": "g487aed6370_0_111",
 		"curiosity": "g487aed6370_0_141",
+		"humans-dislike-complex": "g487aed6370_0_55",
 		"black-and-white": "g487aed6370_0_66",
 		"detail-illusion": "g487aed6370_0_71",
 		"time-exponential": "g48845643ff_0_121",
@@ -3512,9 +3643,12 @@
 		"us-vs-them-is-toxic": "g487aed6370_0_191",
 		"us-vs-them-risk-factors": "g487aed6370_0_201",
 		"team-culture-preventative-maintenance": "g487aed6370_0_207",
+		"team-culture-preventative-maintenance-worth-it": "g487aed6370_0_212",
+		"inadvertently-high-stakes": "g487aed6370_0_181",
 		"privilege-as-power-differential": "g487aed6370_0_186",
 		"strong-opinions-weakly-held": "g487aed6370_0_131",
 		"squelching-dissent": "g487aed6370_0_136",
+		"informal-authority-overextension": "g487aed6370_0_301",
 		"lens-list": "g487aed6370_0_116",
 		"cuj-lens": "g4a3ed6c576_0_34",
 		"parallels-constraints": "g48a31f22cb_0_72",
@@ -3534,9 +3668,80 @@
 		"human-problems-are-complex": "g487aed6370_0_96",
 		"nudges-look-like-luck": "g48845643ff_0_276",
 		"one-on-one-magic": "g487aed6370_0_196",
+		"agents-are-systems-with-motivation": "g48a31f22cb_0_45",
 		"motivated-agents-search-adjacent-possible": "g48845643ff_0_443",
+		"high-stakes-are-emotionally-intense": "g48a31f22cb_0_25",
 		"gravitational-forces": "g48845643ff_0_255",
-		"goodharts-law": "g48845643ff_0_250"
+		"goodharts-law": "g48845643ff_0_250",
+		"rate-of-surprise": "g4871092f30_0_1581",
+		"ideas-look-bad-from-distance": "g48a31f22cb_0_15",
+		"ignoring-hidden-forces-disaster": "g48845643ff_0_270",
+		"cant-create-engine-in-lab": "g48845643ff_0_155",
+		"friction-takes-energy-to-overcome": "g4871092f30_0_1541",
+		"progress-takes-energy": "g48845643ff_0_260",
+		"strategy-vs-tactics-perspective": "g487aed6370_0_246",
+		"process-proportional-complicatedness": "g4871092f30_0_1536",
+		"decision-making-not-magic": "g4871092f30_0_1551",
+		"culture-as-ecosystem": "g487aed6370_0_276",
+		"types-of-constraints": "g48845643ff_0_66",
+		"compounding-effects-list": "g487aed6370_0_15",
+		"systems-resist-obvious-forces": "g48845643ff_0_244",
+		"runways-capital": "g48845643ff_0_239",
+		"always-rules-better-than-sometimes-rules": "g48845643ff_0_90",
+		"start-loose-structure-then-tighten": "g48845643ff_0_105",
+		"focus-where-give-energy": "g48845643ff_0_138",
+		"highest-and-best-use": "g48845643ff_0_138",
+		"ecosystem-energy-incentives": "g48845643ff_0_144",
+		"dont-create-intrinsic-energy": "g48845643ff_0_150",
+		"instinctive-vs-aspirational-self": "g48845643ff_0_100",
+		"self-sustaining-flame": "g48845643ff_0_111",
+		"feedback-loops-compounding-effects": "g48845643ff_0_167",
+		"continuous-processes-continuous": "g48845643ff_0_332",
+		"leads-fuzzy-pattern-matching": "g48a31f22cb_0_30",
+		"mentoring-win-win-win": "g48a31f22cb_0_35",
+		"talking-distills-intuition-insight": "g48a31f22cb_0_40",
+		"too-deep-fragmentation": "g4a3ed6c576_0_39",
+		"developers-use-unanticipated": "g4a3ed6c576_0_44",
+		"names-make-a-thing": "g48845643ff_0_337",
+		"types-of-debt": "g48845643ff_0_388",
+		"create-opportunities-dissent": "g48845643ff_0_423",
+		"actions-matter-more": "g48845643ff_0_428",
+		"getting-out-of-rut": "g48845643ff_0_438",
+		"dissonance-is-stressful": "g48845643ff_0_433",
+		"process-pave-cowpaths": "g4871092f30_0_1531",
+		"credibility-informal-authority": "g48845643ff_0_311",
+		"culture-bottoms-up-top-down": "g48a31f22cb_0_55",
+		"resilient-systems-weather-discontinuities": "g4a3ed6c576_4_0",
+		"bottoms-up-coordination-expensive": "g487aed6370_0_281",
+		"support-nuance-from-top": "g48845643ff_0_301",
+		"gravity-well": "g48845643ff_0_204",
+		"analyze-engines-over-time": "g48845643ff_0_209",
+		"heroism-unsustainable": "g48845643ff_0_215",
+		"energy-bigger-adjacent-possible": "g48845643ff_0_281",
+		"communicating-abstract-ideas-scale": "g48845643ff_0_265",
+		"north-stars-dont-need-much-socialization": "g48845643ff_0_459",
+		"beware-non-scalable": "g48845643ff_0_479",
+		"rubrics-systematize-thinking": "g48845643ff_0_504",
+		"polarities-in-balance": "g48845643ff_1_40",
+		"mcnamara-fallacy": "g487aed6370_0_226",
+		"complexity-manuevering-room": "g48845643ff_1_25",
+		"open-source-vs-open": "g4a6111ef7e_0_15",
+		"incentives-different-at-top": "g4a41d8c468_1_62",
+		"gravity-wells-with-two-players": "g4a6111ef7e_0_10",
+		"open-from-first-commit": "g4a6111ef7e_0_20",
+		"public-discussion-accelerant": "g4a6111ef7e_0_25",
+		"thriving-communities-safe-bets": "g4a6111ef7e_0_30",
+		"ability-to-fork-openness": "g4a6111ef7e_0_40",
+		"tackling-problem-too-early-expensive": "g4a6111ef7e_0_5",
+		"agents-focus-on-short-term": "g4a41d8c468_1_47",
+		"aligning-incentives-bonus-to-primary": "g4a7499c914_0_0",
+		"complexity-no-big-bold-bets": "g4a7499c914_0_5",
+		"informal-authority-behavior-can-create-more": "g4a7499c914_0_10",
+		"success-begets-success": "g4a7499c914_0_15",
+		"passion-blinds": "g4a7499c914_0_20",
+		"passionate-teams-become-more-passionate": "g4a7499c914_0_26",
+		"passion-crushing-setbacks": "g4a7499c914_0_31",
+		"passionate-teams-isolate-themselves": "g4a7499c914_0_47"
 	},
-	"date": "2018-12-17T00:58:48.065Z"
+	"date": "2018-12-17T14:08:43.429Z"
 }
