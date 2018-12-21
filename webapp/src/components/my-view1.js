@@ -11,6 +11,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 import { html } from '@polymer/lit-element';
 import { PageViewElement } from './page-view-element.js';
 
+//Components needed by this
+import './base-card.js';
+
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
 
@@ -18,6 +21,7 @@ class MyView1 extends PageViewElement {
   render() {
     return html`
       ${SharedStyles}
+      <base-card title="Test card" body="This is the body"></base-card>
       <section>
         <h2>Static page</h2>
         <p>This is a text-only page.</p>
