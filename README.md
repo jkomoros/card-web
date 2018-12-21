@@ -24,3 +24,20 @@ Install firebase tools:
 
 `firebase use complexity-compendium`
 
+
+## New webapp
+
+### Developing
+
+`cd webapp`
+
+`polymer serve`
+
+### Deploying
+
+TODO
+
+### Setting up a new computer
+
+See above, also `cd webapp`, `npm install`
+
