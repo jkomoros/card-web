@@ -21,7 +21,12 @@ class MyView1 extends PageViewElement {
   render() {
     return html`
       ${SharedStyles}
-      <base-card title="Test card" body="This is the body"></base-card>
+      <base-card>
+        <h1>This is some content</h1>
+        <section>
+          This is other content
+        </section>
+      </base-card>
     `;
   }
 }
