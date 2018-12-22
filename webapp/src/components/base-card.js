@@ -1,8 +1,8 @@
 import { LitElement, html } from '@polymer/lit-element';
 
 // This element is *not* connected to the Redux store.
-class BaseCard extends LitElement {
-  render() {
+export class BaseCard extends LitElement {
+  baseRender(innerTemplate) {
     return html`
       <style>
         :host {
@@ -23,16 +23,11 @@ class BaseCard extends LitElement {
         }
       </style>
       <div class="container">
-        <slot></slot>
+        ${innerTemplate}
       </div>
     `;
   }
 
-  static get properties() {
-    return {
-      title: { type: String }
-    }
-  }
 }
 
 window.customElements.define('base-card', BaseCard);
