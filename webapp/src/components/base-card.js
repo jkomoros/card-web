@@ -7,10 +7,10 @@ class BaseCard extends LitElement {
       <style>
 
         @import url('https://fonts.googleapis.com/css?family=Raleway:400,700');
+        @import url('https://fonts.googleapis.com/css?family=Source+Sans+Pro');
 
         :host {
           display:block;
-          color:red;
           background-color: #FCFCFC;
           height: 540px;
           width: 960px;
@@ -29,6 +29,12 @@ class BaseCard extends LitElement {
           font-family: 'Raleway', sans-serif;
           font-weight:bold;
           color: #5e2b97;
+        }
+
+        ::slotted(section) {
+          font-family: 'Source Sans Pro', sans-serif;
+          font-size: 18px;
+          color:#7f7f7f;
         }
       </style>
       <div class="container">
