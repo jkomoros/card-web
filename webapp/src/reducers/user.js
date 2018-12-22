@@ -17,7 +17,7 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         pending:false,
-        user: userInfo(action.user)
+        user: action.user
       }
     case SIGNIN_FAILURE:
       return {
@@ -38,15 +38,6 @@ const app = (state = INITIAL_STATE, action) => {
       }
     default:
       return state;
-  }
-}
-
-const userInfo = (info) => {
-  return {
-    uid: info.uid,
-    photoURL: info.photoURL,
-    displayName: info.displayName,
-    email: info.email
   }
 }
 
