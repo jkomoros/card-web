@@ -66,7 +66,7 @@ const activeCardSelector =  state => state.data.activeCardId;
 export const cardSelector = createSelector(
   cardsSelector,
   activeCardSelector,
-  (cards, activeCard) => cards[activeCard]
+  (cards, activeCard) => cards[activeCard] || {}
 );
 
 const idCollectionSelector = state => state.data.collection;
