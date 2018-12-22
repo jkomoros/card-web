@@ -24,6 +24,26 @@ export const navigatePathTo = (path, silent) => (dispatch) => {
     dispatch(navigate(decodeURIComponent(path)));
 }
 
+export const navigateToNextCard = () => (dispatch, getState) => {
+  const state = getState();
+  let index = state.data.activeCardIndex;
+  index++;
+  const collection = state.data.collection;
+  let newId = collection[index];
+  if (!newId) return;
+  dispatch(navigateToCard(newId));
+}
+
+export const navigateToPreviousCard = () => (dipsatch, getState) => {
+  const state = getState();
+  let index = state.data.activeCardIndex;
+  index--;
+  const collection = state.data.collection;
+  let newId = collection[index];
+  if (!newId) return;
+  dispatch(navigateToCard(newId));
+}
+
 export const navigateToCard = (cardOrId, silent) => (dispatch) => {
   let id = cardOrId
   if (typeof cardOrId === 'object') {
