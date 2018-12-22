@@ -54,6 +54,16 @@ class CardView extends connect(store)(PageViewElement) {
     if (changedProps.has('_cardIdOrSlug')) {
       store.dispatch(showCard(this._cardIdOrSlug));
     }
+    if (changedProps.has('_card') && this._card) {
+      //Ensure that the article name that we're shwoing--no matter how they
+      //havigated here--is the preferred slug name.
+      if (this._card.name != this._cardIdOrSlug) {
+        const newLocation = `/c/${this._card.name}`
+        window.history.pushState({}, '', newLocation);
+        //Deliberately do not call the navigate sction cretator, since this
+        //should be a no-op.
+      }
+    }
   }
 }
 
