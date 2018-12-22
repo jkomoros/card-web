@@ -8,12 +8,15 @@ export const signIn = () => (dispatch) => {
   dispatch({type:SIGNIN_USER});
 
   let provider = new firebase.auth.GoogleAuthProvider();
-  firebase.auth().signInWithPopup(provider).then(result => {
-    dispatch(signInSuccess(result.user))
-  }).catch(err => {
-    dispatch({type:SIGNIN_FAILURE, error: err})
-  })
 
+  firebase.auth().signInWithPopup(provider).catch(err => {
+    dispatch({type:SIGNIN_FAILURE, error: err})
+  });
+
+}
+
+export const signOutSuccess = () => {
+  return {type: SIGNOUT_SUCCESS}
 }
 
 export const signInSuccess = (firebaseUser) => {
@@ -35,5 +38,5 @@ const _userInfo = (info) => {
 export const signOut = () => (dispatch) => {
   dispatch({type:SIGNOUT_USER})
 
-  firebase.auth().signOut().then(response => dispatch({type:SIGNOUT_SUCCESS}));
+  firebase.auth().signOut();
 }

@@ -13,6 +13,8 @@ store.addReducers({
 
 import {
   signIn,
+  signInSuccess,
+  signOutSuccess,
   signOut
 } from '../actions/user.js';
 
@@ -42,6 +44,18 @@ class UserChip extends connect(store)(LitElement) {
         }
       </div>
       `;
+  }
+
+  firstUpdated() {
+    firebase.auth().onAuthStateChanged(this._handleAuthStateChanged);
+  }
+
+  _handleAuthStateChanged(user) {
+    if (user) {
+      store.dispatch(signInSuccess(user))
+    } else {
+      store.dispatch(signOutSuccess());
+    }
   }
 
   _handleSignInClick(e) {
