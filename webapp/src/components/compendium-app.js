@@ -30,6 +30,8 @@ import { loadAll } from '../actions/data.js';
 // These are the actions needed by this element.
 import {
   navigated,
+  navigateToNextCard,
+  navigateToPreviousCard,
   updateOffline,
   updateDrawerState
 } from '../actions/app.js';
@@ -250,7 +252,26 @@ class CompendiumApp extends connect(store)(LitElement) {
     installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
     installMediaQueryWatcher(`(min-width: 460px)`,
         () => store.dispatch(updateDrawerState(false)));
+    window.addEventListener('keyup', this._handleKeyPressed);
     store.dispatch(loadAll());
+  }
+
+  _handleKeyPressed(e) {
+    switch (e.key) {
+      case "ArrowDown":
+      case "ArrowRight":
+      case " ":
+        e.stopPropagation();
+        e.preventDefault();
+        store.dispatch(navigateToNextCard());
+        break;
+      case "ArrowUp":
+      case "ArrowLeft":
+        e.stopPropagation();
+        e.preventDefault();
+        store.dispatch(navigateToPreviousCard());
+        break;
+    }
   }
 
   updated(changedProps) {

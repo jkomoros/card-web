@@ -34,7 +34,7 @@ export const navigateToNextCard = () => (dispatch, getState) => {
   dispatch(navigateToCard(newId));
 }
 
-export const navigateToPreviousCard = () => (dipsatch, getState) => {
+export const navigateToPreviousCard = () => (dispatch, getState) => {
   const state = getState();
   let index = state.data.activeCardIndex;
   index--;
