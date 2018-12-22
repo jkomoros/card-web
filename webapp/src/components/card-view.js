@@ -48,7 +48,6 @@ class CardView extends connect(store)(PageViewElement) {
   stateChanged(state) {
     this._card = cardSelector(state);
     this._cardIdOrSlug = this.extractPageExtra(state.app.pageExtra);
-    this._slugIndex = state.data.slugIndex;
   }
 
   updated(changedProps) {
