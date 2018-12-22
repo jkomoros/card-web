@@ -55,7 +55,7 @@ class CardThumbnail extends LitElement {
 
   updated(changedProps) {
     if (changedProps.has('selected') && this.selected) {
-      this.scrollIntoView({behavior:"auto", block:"center"});
+      this.scrollIntoView({behavior:"auto", block:"nearest"});
     }
   }
 
