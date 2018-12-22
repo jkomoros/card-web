@@ -6,13 +6,31 @@ export const loadAll = () => async (dispatch, getState) => {
   dispatch(showNewCard())
 }
 
+const CARDS_COLLECTION = 'cards';
+
+const db = firebase.firestore();
+
+db.settings({
+  timestampsInSnapshots:true,
+})
+
 async function loadCards() {
-  const resp = await fetch(`/src/data/cards.json`);
-  const data = await resp.json();
+
+  const snapshot = await db.collection(CARDS_COLLECTION).get();
+
+  let cards = {};
+
+  snapshot.forEach((doc) => {
+    let id = doc.id;
+    let card = doc.data();
+    card.id = id;
+    console.log(card);
+    cards[id] = card
+  })
+
   return {
     type: UPDATE_CARDS,
-    cards: data.cards,
-    slugIndex: extractSlugIndex(data.cards)
+    cards,
   }
 }
 
@@ -32,17 +50,3 @@ export const showNewCard = () => (dispatch, getState) => {
   dispatch(showCard(keys[0]))
 }
 
-const extractSlugIndex = cards => {
-  let result = {};
-
-  Object.keys(cards).forEach(key => {
-    let card = cards[key];
-    let slugs = card.slugs.split(",");
-    if (!slugs) return;
-    for (let val of slugs) {
-      result[val] = key;
-    }
-  })
-
-  return result;
-}

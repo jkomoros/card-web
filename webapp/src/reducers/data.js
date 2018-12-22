@@ -16,7 +16,7 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         cards: {...state.cards, ...action.cards},
-        slugIndex: {...state.slugIndex, ...action.slugIndex},
+        slugIndex: {...state.slugIndex, ...extractSlugIndex(action.cards)},
         collection: extendCollection(state.collection, Object.keys(action.cards))
       }
     case SHOW_CARD:
@@ -29,6 +29,22 @@ const app = (state = INITIAL_STATE, action) => {
     default:
       return state;
   }
+}
+
+const extractSlugIndex = cards => {
+  let result = {};
+
+  Object.keys(cards).forEach(key => {
+    let card = cards[key];
+    let slugs = card.slugs;
+    if (typeof slugs !== 'object') slugs = slugs.split(",");
+    if (!slugs) return;
+    for (let val of slugs) {
+      result[val] = key;
+    }
+  })
+
+  return result;
 }
 
 const extendCollection = (collection, newItems) => {
