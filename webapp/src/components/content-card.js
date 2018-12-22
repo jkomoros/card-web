@@ -17,6 +17,7 @@ class ContentCard extends LitElement {
           font-weight:bold;
           color: var(--app-primary-color);
           margin-top:0;
+          font-size:32px;
         }
 
         * {
