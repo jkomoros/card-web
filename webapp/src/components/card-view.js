@@ -23,7 +23,7 @@ import './content-card.js';
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
 
-class MyView1 extends connect(store)(PageViewElement) {
+class CardView extends connect(store)(PageViewElement) {
   render() {
     return html`
       ${SharedStyles}
@@ -43,4 +43,4 @@ class MyView1 extends connect(store)(PageViewElement) {
   }
 }
 
-window.customElements.define('my-view1', MyView1);
+window.customElements.define('card-view', CardView);
