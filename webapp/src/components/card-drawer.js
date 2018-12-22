@@ -24,7 +24,7 @@ class CardDrawer extends connect(store)(LitElement) {
       </style>
       <div class='container'>
       ${repeat(this._collection, (i) => i.id, (i, index) => html`
-        <card-thumbnail @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .title=${i.title} .selected=${i.id == this._activeCard}></card-thumbnail>`)}
+        <card-thumbnail @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .title=${i.title} .selected=${i.id == this._activeCardId}></card-thumbnail>`)}
       </div>
     `;
   }
@@ -35,13 +35,13 @@ class CardDrawer extends connect(store)(LitElement) {
 
   static get properties() { return {
     _collection: { type: Array },
-    _activeCard: { type: String }
+    _activeCardId: { type: String }
   }}
 
   // This is called every time something is updated in the store.
   stateChanged(state) {
     this._collection = collectionSelector(state);
-    this._activeCard = state.data.activeCard;
+    this._activeCardId = state.data.activeCardId;
   }
 }
 
