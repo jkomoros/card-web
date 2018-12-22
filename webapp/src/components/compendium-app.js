@@ -206,7 +206,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 
     <!-- Main content -->
     <main role="main" class="main-content">
-      <my-view1 class="page" ?active="${this._page === 'view1'}"></my-view1>
+      <my-view1 class="page" ?active="${this._page === 'view1'}" .card=${this._card}></my-view1>
       <my-view2 class="page" ?active="${this._page === 'view2'}"></my-view2>
       <my-view3 class="page" ?active="${this._page === 'view3'}"></my-view3>
       <my-view404 class="page" ?active="${this._page === 'view404'}"></my-view404>
@@ -227,7 +227,8 @@ class CompendiumApp extends connect(store)(LitElement) {
       _page: { type: String },
       _drawerOpened: { type: Boolean },
       _snackbarOpened: { type: Boolean },
-      _offline: { type: Boolean }
+      _offline: { type: Boolean },
+      _card: { type: Boolean }
     }
   }
 
@@ -269,6 +270,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     this._offline = state.app.offline;
     this._snackbarOpened = state.app.snackbarOpened;
     this._drawerOpened = state.app.drawerOpened;
+    this._card = state.app.card;
   }
 }
 
