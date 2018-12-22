@@ -24,6 +24,14 @@ export const navigatePathTo = (path, silent) => (dispatch) => {
     dispatch(navigate(decodeURIComponent(path)));
 }
 
+export const navigateToCard = (cardOrId, silent) => (dispatch) => {
+  let id = cardOrId
+  if (typeof cardOrId === 'object') {
+    id = cardOrId.name;
+  }
+  dispatch(navigatePathTo('/c/' + id, silent));
+}
+
 export const navigate = (path) => (dispatch) => {
 
   // Extract the page name from path.

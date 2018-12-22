@@ -20,7 +20,7 @@ import { cardSelector } from '../reducers/data.js'
 import { showCard } from '../actions/data.js'
 
 import {
-  navigatePathTo
+  navigateToCard
 } from '../actions/app.js';
 
 //Components needed by this
@@ -90,7 +90,7 @@ class CardView extends connect(store)(PageViewElement) {
       if (this._card.name != this._cardIdOrSlug) {
         //Deliberately do not call the navigate sction cretator, since this
         //should be a no-op.
-        store.dispatch(navigatePathTo(`/c/${this._card.name}`, true));
+        store.dispatch(navigateToCard(this._card, true));
       }
     }
   }
