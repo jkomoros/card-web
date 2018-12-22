@@ -5,7 +5,7 @@ const INITIAL_STATE = {
   cards:{},
   slugIndex: {},
   collection: [],
-  activeCard: "",
+  activeCardId: "",
   activeCardIndex: -1,
 }
 
@@ -23,7 +23,7 @@ const app = (state = INITIAL_STATE, action) => {
       let id = idForActiveCard(state, action.card)
       return {
         ...state,
-        activeCard:id,
+        activeCardId:id,
         activeCardIndex: indexForActiveCard(state.collection, id),
       }
     default:
@@ -61,7 +61,7 @@ const indexForActiveCard = (collection, id) => {
 }
 
 const cardsSelector =  state => state.data.cards;
-const activeCardSelector =  state => state.data.activeCard;
+const activeCardSelector =  state => state.data.activeCardId;
 
 export const cardSelector = createSelector(
   cardsSelector,
