@@ -27,8 +27,13 @@ class ContentCard extends LitElement {
         }
 
         a {
+          color: var(--app-primary-color);
+        }
+
+        a[card] {
           color: var(--app-secondary-color);
         }
+
       </style>
       <base-card>
         <h1>${this.title}</h1>
