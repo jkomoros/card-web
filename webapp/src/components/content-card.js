@@ -19,7 +19,7 @@ class ContentCard extends LitElement {
           margin-top:0;
         }
 
-        ::slotted(*) {
+        * {
           font-family: 'Source Sans Pro', sans-serif;
           font-size: 22px;
           color: var(--app-dark-text-color);
