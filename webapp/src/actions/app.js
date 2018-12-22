@@ -15,6 +15,7 @@ export const OPEN_SNACKBAR = 'OPEN_SNACKBAR';
 export const CLOSE_SNACKBAR = 'CLOSE_SNACKBAR';
 
 export const navigate = (path) => (dispatch) => {
+
   // Extract the page name from path.
   const page = path === '/' ? 'c' : path.slice(1);
 
@@ -26,7 +27,14 @@ export const navigate = (path) => (dispatch) => {
   dispatch(updateDrawerState(false));
 };
 
-const loadPage = (page) => (dispatch) => {
+const loadPage = (pathname) => (dispatch) => {
+
+  //pathname is the whole path minus starting '/', like 'c/VIEW_ID'
+  let pieces = pathname.split("/")
+
+  let page = pieces[0];
+  let pageExtra = pieces.length < 2 ? '' : pieces.slice(1).join("/");
+
   switch(page) {
     case 'c':
       import('../components/card-view.js').then((module) => {
@@ -45,13 +53,14 @@ const loadPage = (page) => (dispatch) => {
       import('../components/my-view404.js');
   }
 
-  dispatch(updatePage(page));
+  dispatch(updatePage(page, pageExtra));
 };
 
-const updatePage = (page) => {
+const updatePage = (page, pageExtra) => {
   return {
     type: UPDATE_PAGE,
-    page
+    page,
+    pageExtra
   };
 };
 

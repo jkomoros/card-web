@@ -18,6 +18,7 @@ import {
 
 const INITIAL_STATE = {
   page: '',
+  pageExtra: '',
   offline: false,
   drawerOpened: false,
   snackbarOpened: false,
@@ -28,7 +29,8 @@ const app = (state = INITIAL_STATE, action) => {
     case UPDATE_PAGE:
       return {
         ...state,
-        page: action.page
+        page: action.page,
+        pageExtra: action.pageExtra
       };
     case UPDATE_OFFLINE:
       return {
