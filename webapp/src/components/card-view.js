@@ -30,9 +30,37 @@ class CardView extends connect(store)(PageViewElement) {
   render() {
     return html`
       ${SharedStyles}
-      <card-drawer></card-drawer>
-      <content-card title="${this._card.title}" body="${this._card.body}">
-      </content-card>
+      <style>
+        :host {
+          position: absolute;
+          height: 100%;
+          width: 100%;
+        }
+        .container {
+          display:flex;
+          height:100%;
+          width:100%;
+        }
+
+        card-drawer {
+          width: 300px;
+        }
+
+        .card {
+          flex-grow:1;
+          display:flex;
+          flex-direction:column;
+          justify-content:center;
+          align-items: center;
+        }
+      </style>
+      <div class='container'>
+        <card-drawer></card-drawer>
+        <div class='card'>
+          <content-card title="${this._card.title}" body="${this._card.body}">
+          </content-card>
+        </div>
+      </div>
     `;
   }
 
