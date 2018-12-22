@@ -37,7 +37,7 @@ class CardView extends connect(store)(PageViewElement) {
   static get properties() {
     return {
       _card: { type: Object },
-      _cardId: { type: String }
+      _cardIdOrSlug: { type: String }
     }
   }
 
@@ -47,12 +47,13 @@ class CardView extends connect(store)(PageViewElement) {
 
   stateChanged(state) {
     this._card = cardSelector(state);
-    this._cardId = this.extractPageExtra(state.app.pageExtra);
+    this._cardIdOrSlug = this.extractPageExtra(state.app.pageExtra);
+    this._slugIndex = state.data.slugIndex;
   }
 
   updated(changedProps) {
-    if (changedProps.has('_cardId')) {
-      store.dispatch(showCard(this._cardId));
+    if (changedProps.has('_cardIdOrSlug')) {
+      store.dispatch(showCard(this._cardIdOrSlug));
     }
   }
 }
