@@ -25,8 +25,11 @@ class CardThumbnail extends LitElement {
           box-shadow: var(--card-shadow);
           margin:0.5em;
         }
+        .selected h3 {
+          color: var(--app-primary-color);
+        }
       </style>
-      <div class="">
+      <div class="${this.selected ? "selected" : ""}">
         <h3>${this.title}</h3>
       </div>
     `;

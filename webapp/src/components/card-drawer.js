@@ -20,18 +20,20 @@ class CardDrawer extends connect(store)(LitElement) {
       </style>
       <div class='container'>
       ${repeat(this._collection, (i) => i.id, (i, index) => html`
-        <card-thumbnail .title=${i.title}></card-thumbnail>`)}
+        <card-thumbnail .title=${i.title} .selected=${i.id == this._activeCard}></card-thumbnail>`)}
       </div>
     `;
   }
 
   static get properties() { return {
-    _collection: { type: Array }
+    _collection: { type: Array },
+    _activeCard: { type: String }
   }}
 
   // This is called every time something is updated in the store.
   stateChanged(state) {
     this._collection = collectionSelector(state);
+    this._activeCard = state.data.activeCard;
   }
 }
 
