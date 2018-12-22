@@ -50,9 +50,19 @@ class ContentCard extends LitElement {
     }
   }
 
+  _updateA(a) {
+    if (a.href) {
+      a.target = "_blank";
+    }
+    var card = a.getAttribute('card');
+    if (!card) return;
+    a.href = "/c/" + card;
+  }
+
   _makeSection(body) {
     const section = document.createElement("section");
     section.innerHTML = body;
+    section.querySelectorAll('a').forEach(this._updateA)
     return section;
   }
 }
