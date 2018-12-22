@@ -5,7 +5,8 @@ const INITIAL_STATE = {
   cards:{},
   slugIndex: {},
   collection: [],
-  activeCard: ""
+  activeCard: "",
+  activeCardIndex: -1,
 }
 
 const app = (state = INITIAL_STATE, action) => {
@@ -19,9 +20,11 @@ const app = (state = INITIAL_STATE, action) => {
         collection: extendCollection(state.collection, Object.keys(action.cards))
       }
     case SHOW_CARD:
+      let id = idForActiveCard(state, action.card)
       return {
         ...state,
-        activeCard:idForActiveCard(state, action.card)
+        activeCard:id,
+        activeCardIndex: indexForActiveCard(state.collection, id),
       }
     default:
       return state;
@@ -50,6 +53,12 @@ const extendCollection = (collection, newItems) => {
 }
 
 const idForActiveCard = (state, idOrSlug) => state.slugIndex[idOrSlug] || idOrSlug;
+const indexForActiveCard = (collection, id) => {
+  for (let i = 0; i < collection.length; i++) {
+    if (collection[i] == id) return i;
+  }
+  return -1;
+}
 
 const cardsSelector =  state => state.data.cards;
 const activeCardSelector =  state => state.data.activeCard;
