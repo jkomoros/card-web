@@ -41,6 +41,12 @@ class CardThumbnail extends LitElement {
     selected: { type: Boolean }
   }};
 
+  updated(changedProps) {
+    if (changedProps.has('selected') && this.selected) {
+      this.scrollIntoView({behavior:"auto", block:"center"});
+    }
+  }
+
 }
 
 window.customElements.define('card-thumbnail', CardThumbnail);
