@@ -8,12 +8,19 @@ class CardThumbnail extends LitElement {
   render() {
     return html`
       <style>
+
+        div:hover h3 {
+          color: var(--app-secondary-color);
+        }
+
         h3 {
           color: var(--app-dark-text-color);
           text-align:center;
           font-size: 14px;
         }
+
         div {
+          cursor:pointer;
           padding: 0.5em;
           height: 6em;
           width: 12em;
@@ -36,7 +43,7 @@ class CardThumbnail extends LitElement {
   }
 
   static get properties() { return {
-    /* The total number of clicks you've done. */
+    id: {type: String},
     title: { type: String },
     selected: { type: Boolean }
   }};
