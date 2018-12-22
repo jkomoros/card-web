@@ -14,7 +14,7 @@ class BaseCard extends LitElement {
           background-color: #FCFCFC;
           height: 540px;
           width: 960px;
-          box-shadow: 0 1px 6px #CCC;
+          box-shadow: 0 2px 6px #CCC;
           box-sizing: border-box;
           padding: 23px 33px;
           margin:2em auto;
