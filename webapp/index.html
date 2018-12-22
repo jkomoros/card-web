@@ -117,6 +117,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     <noscript>
       Please enable JavaScript to view this website.
     </noscript>
+    <script src="https://www.gstatic.com/firebasejs/5.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.7.0/firebase-auth.js"></script>
+    <script>
+      // Initialize Firebase
+      var config = {
+        apiKey: "AIzaSyApU8WmBkOLnqlCD6sRnbZgj3EUybOOZ54",
+        authDomain: "complexity-compendium.firebaseapp.com",
+        databaseURL: "https://complexity-compendium.firebaseio.com",
+        projectId: "complexity-compendium",
+        storageBucket: "complexity-compendium.appspot.com",
+        messagingSenderId: "711980530249"
+      };
+      firebase.initializeApp(config);
+    </script>
     <!-- Load webcomponents-loader.js to check and load any polyfills your browser needs -->
     <script src="node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js"></script>
     <!-- Built with love using PWA Starter Kit -->
