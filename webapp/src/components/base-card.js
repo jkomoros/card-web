@@ -5,13 +5,16 @@ class BaseCard extends LitElement {
   render() {
     return html`
       <style>
+
+        @import url('https://fonts.googleapis.com/css?family=Raleway:400,700');
+
         :host {
           display:block;
           color:red;
-          background-color: #F3F3F3;
+          background-color: #FCFCFC;
           height: 540px;
           width: 960px;
-          box-shadow: 0 2px 5px #CCC;
+          box-shadow: 0 1px 6px #CCC;
           
         }
 
@@ -20,6 +23,12 @@ class BaseCard extends LitElement {
           width:100%;
           box-sizing: border-box;
           margin: 23px 33px;
+        }
+
+        ::slotted(h1) {
+          font-family: 'Raleway', sans-serif;
+          font-weight:bold;
+          color: #5e2b97;
         }
       </style>
       <div class="container">
