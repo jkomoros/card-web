@@ -36,7 +36,7 @@ class CardThumbnail extends LitElement {
           color: var(--app-primary-color);
         }
       </style>
-      <div class="${this.selected ? "selected" : ""}">
+      <div @click=${this._handleClick} class="${this.selected ? "selected" : ""}">
         <h3>${this.title}</h3>
       </div>
     `;
@@ -47,6 +47,11 @@ class CardThumbnail extends LitElement {
     title: { type: String },
     selected: { type: Boolean }
   }};
+
+  _handleClick(e) {
+    e.stopPropagation();
+    this.dispatchEvent(new CustomEvent("thumbnail-tapped", {composed:true}))
+  }
 
   updated(changedProps) {
     if (changedProps.has('selected') && this.selected) {

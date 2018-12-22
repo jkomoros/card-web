@@ -20,7 +20,7 @@ class CardDrawer extends connect(store)(LitElement) {
       </style>
       <div class='container'>
       ${repeat(this._collection, (i) => i.id, (i, index) => html`
-        <card-thumbnail @click=${this._thumbnailActivatedHandler} .id=${i.id} .title=${i.title} .selected=${i.id == this._activeCard}></card-thumbnail>`)}
+        <card-thumbnail @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .title=${i.title} .selected=${i.id == this._activeCard}></card-thumbnail>`)}
       </div>
     `;
   }
