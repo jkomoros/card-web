@@ -21,7 +21,7 @@ export const navigatePathTo = (path, silent) => (dispatch) => {
       return;
     }
     window.history.pushState({}, '', path);
-    dispatch(navigate(decodeURIComponent(path)));
+    dispatch(navigated(decodeURIComponent(path)));
 }
 
 export const navigateToNextCard = () => (dispatch, getState) => {
@@ -52,7 +52,7 @@ export const navigateToCard = (cardOrId, silent) => (dispatch) => {
   dispatch(navigatePathTo('/c/' + id, silent));
 }
 
-export const navigate = (path) => (dispatch) => {
+export const navigated = (path) => (dispatch) => {
 
   // Extract the page name from path.
   const page = path === '/' ? 'c' : path.slice(1);

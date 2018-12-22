@@ -29,7 +29,7 @@ import { loadAll } from '../actions/data.js';
 
 // These are the actions needed by this element.
 import {
-  navigate,
+  navigated,
   updateOffline,
   updateDrawerState
 } from '../actions/app.js';
@@ -246,7 +246,7 @@ class CompendiumApp extends connect(store)(LitElement) {
   }
 
   firstUpdated() {
-    installRouter((location) => store.dispatch(navigate(decodeURIComponent(location.pathname))));
+    installRouter((location) => store.dispatch(navigated(decodeURIComponent(location.pathname))));
     installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
     installMediaQueryWatcher(`(min-width: 460px)`,
         () => store.dispatch(updateDrawerState(false)));
