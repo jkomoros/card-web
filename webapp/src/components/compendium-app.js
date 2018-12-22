@@ -58,6 +58,9 @@ class CompendiumApp extends connect(store)(LitElement) {
         --app-section-even-color: #f7f7f7;
         --app-section-odd-color: white;
 
+        --card-color: #FCFCFC;
+        --card-shadow: 0 2px 6px #CCC;
+
         --app-header-background-color: white;
         --app-header-text-color: var(--app-dark-text-color);
         --app-header-selected-color: var(--app-primary-color);

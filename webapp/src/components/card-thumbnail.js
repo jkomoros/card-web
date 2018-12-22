@@ -7,7 +7,26 @@ import { LitElement, html } from '@polymer/lit-element';
 class CardThumbnail extends LitElement {
   render() {
     return html`
-      <div>
+      <style>
+        h3 {
+          color: var(--app-dark-text-color);
+          text-align:center;
+          font-size: 14px;
+        }
+        div {
+          padding: 0.5em;
+          height: 6em;
+          width: 12em;
+          overflow:hidden;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          background-color: var(--card-color);
+          box-shadow: var(--card-shadow);
+          margin:0.5em;
+        }
+      </style>
+      <div class="">
         <h3>${this.title}</h3>
       </div>
     `;
