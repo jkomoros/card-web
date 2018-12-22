@@ -4,8 +4,8 @@ import {BaseCard} from './base-card.js';
 
 // This element is *not* connected to the Redux store.
 class ContentCard extends BaseCard {
-  render() {
-    let inner = html`
+  innerRender() {
+    return html`
       <style>
 
         @import url('https://fonts.googleapis.com/css?family=Raleway:400,700');
@@ -38,7 +38,6 @@ class ContentCard extends BaseCard {
       <h1>${this.title}</h1>
       ${this._makeSection(this.body)}
     `;
-    return this.baseRender(inner);
   }
 
   static get properties() {

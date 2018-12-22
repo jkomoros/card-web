@@ -2,7 +2,7 @@ import { LitElement, html } from '@polymer/lit-element';
 
 // This element is *not* connected to the Redux store.
 export class BaseCard extends LitElement {
-  baseRender(innerTemplate) {
+  render() {
     return html`
       <style>
         :host {
@@ -23,9 +23,14 @@ export class BaseCard extends LitElement {
         }
       </style>
       <div class="container">
-        ${innerTemplate}
+        ${this.innerRender()}
       </div>
     `;
+  }
+
+  innerRender() {
+    //Subclasess override this
+    return "";
   }
 
 }
