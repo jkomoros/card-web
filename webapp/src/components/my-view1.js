@@ -21,8 +21,7 @@ class MyView1 extends PageViewElement {
   render() {
     return html`
       ${SharedStyles}
-      <content-card title="${this.card.title}">
-        ${this.card.body}
+      <content-card title="${this.card.title}" body="${this.card.body}">
       </content-card>
     `;
   }

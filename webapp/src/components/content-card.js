@@ -32,9 +32,7 @@ class ContentCard extends LitElement {
       </style>
       <base-card>
         <h1>${this.title}</h1>
-        <section>
-          <slot></slot>
-        </section>
+        ${this._makeSection(this.body)}
       </base-card>
     `;
   }
@@ -42,8 +40,14 @@ class ContentCard extends LitElement {
   static get properties() {
     return {
       title: { type: String },
-      body: {type: String}
+      body: { type: String },
     }
+  }
+
+  _makeSection(body) {
+    const section = document.createElement("section");
+    section.innerHTML = body;
+    return section;
   }
 }
 
