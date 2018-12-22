@@ -21,6 +21,7 @@ import { showCard } from '../actions/data.js'
 
 //Components needed by this
 import './content-card.js';
+import './card-drawer.js';
 
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
@@ -29,6 +30,7 @@ class CardView extends connect(store)(PageViewElement) {
   render() {
     return html`
       ${SharedStyles}
+      <card-drawer></card-drawer>
       <content-card title="${this._card.title}" body="${this._card.body}">
       </content-card>
     `;

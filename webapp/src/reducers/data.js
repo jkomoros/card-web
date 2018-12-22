@@ -60,4 +60,13 @@ export const cardSelector = createSelector(
   (cards, activeCard) => cards[activeCard]
 );
 
+const idCollectionSelector = state => state.data.collection;
+
+export const collectionSelector = createSelector(
+  cardsSelector,
+  idCollectionSelector,
+  (cards, collection) => collection.map(id => cards[id]),
+)
+
+
 export default app;
