@@ -1,5 +1,6 @@
 import { LitElement, html } from '@polymer/lit-element';
 import { connect } from 'pwa-helpers/connect-mixin.js';
+import { repeat } from 'lit-html/directives/repeat';
 
 // This element is connected to the Redux store.
 import { store } from '../store.js';
@@ -12,7 +13,10 @@ class CardDrawer extends connect(store)(LitElement) {
   render() {
     console.log(this._collection);
     return html`
-      <card-thumbnail .title=${this._collection[0].title}></card-thumbnail>
+      <ul>
+      ${repeat(this._collection, (i) => i.id, (i, index) => html`
+        <card-thumbnail .title=${i.title}></card-thumbnail>`)}
+      </ul>
     `;
   }
 
