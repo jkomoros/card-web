@@ -43,6 +43,7 @@ import '@polymer/app-layout/app-scroll-effects/effects/waterfall.js';
 import '@polymer/app-layout/app-toolbar/app-toolbar.js';
 import { menuIcon } from './my-icons.js';
 import './snack-bar.js';
+import './user-chip.js';
 
 class CompendiumApp extends connect(store)(LitElement) {
   render() {
@@ -197,6 +198,7 @@ class CompendiumApp extends connect(store)(LitElement) {
       <app-toolbar class="toolbar-top">
         <button class="menu-btn" title="Menu" @click="${this._menuButtonClicked}">${menuIcon}</button>
         <div main-title>${this.appTitle}</div>
+        <user-chip></user-chip>
       </app-toolbar>
 
       <!-- This gets hidden on a small screen-->
