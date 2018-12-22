@@ -42,10 +42,6 @@ class CardView extends connect(store)(PageViewElement) {
           width:100%;
         }
 
-        card-drawer {
-          width: 300px;
-        }
-
         .card {
           flex-grow:1;
           display:flex;
