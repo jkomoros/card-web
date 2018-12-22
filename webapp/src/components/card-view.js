@@ -17,6 +17,8 @@ import { store } from '../store.js';
 
 import { cardSelector } from '../reducers/data.js'
 
+import { showCard } from '../actions/data.js'
+
 //Components needed by this
 import './content-card.js';
 
@@ -34,12 +36,24 @@ class CardView extends connect(store)(PageViewElement) {
 
   static get properties() {
     return {
-      _card: { type: Object }
+      _card: { type: Object },
+      _cardId: { type: String }
     }
+  }
+
+  extractPageExtra(pageExtra) {
+    return pageExtra.split("/")[0];
   }
 
   stateChanged(state) {
     this._card = cardSelector(state);
+    this._cardId = this.extractPageExtra(state.app.pageExtra);
+  }
+
+  updated(changedProps) {
+    if (changedProps.has('_cardId')) {
+      store.dispatch(showCard(this._cardId));
+    }
   }
 }
 

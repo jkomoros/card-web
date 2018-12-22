@@ -53,12 +53,13 @@ const loadPage = (pathname) => (dispatch) => {
       import('../components/my-view404.js');
   }
 
-  dispatch(updatePage(page, pageExtra));
+  dispatch(updatePage(pathname, page, pageExtra));
 };
 
-const updatePage = (page, pageExtra) => {
+const updatePage = (location, page, pageExtra) => {
   return {
     type: UPDATE_PAGE,
+    location,
     page,
     pageExtra
   };

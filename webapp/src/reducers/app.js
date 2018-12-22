@@ -17,6 +17,7 @@ import {
 } from '../actions/app.js';
 
 const INITIAL_STATE = {
+  location: '',
   page: '',
   pageExtra: '',
   offline: false,
@@ -29,6 +30,7 @@ const app = (state = INITIAL_STATE, action) => {
     case UPDATE_PAGE:
       return {
         ...state,
+        location: action.location,
         page: action.page,
         pageExtra: action.pageExtra
       };
