@@ -11,12 +11,17 @@ import { collectionSelector } from '../reducers/data.js'
 
 class CardDrawer extends connect(store)(LitElement) {
   render() {
-    console.log(this._collection);
     return html`
-      <ul>
+      <style>
+        .container {
+          overflow:scroll;
+          max-height:100%;
+        }
+      </style>
+      <div class='container'>
       ${repeat(this._collection, (i) => i.id, (i, index) => html`
         <card-thumbnail .title=${i.title}></card-thumbnail>`)}
-      </ul>
+      </div>
     `;
   }
 
