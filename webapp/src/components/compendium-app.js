@@ -43,9 +43,9 @@ class CompendiumApp extends connect(store)(LitElement) {
         --app-drawer-width: 256px;
         display: block;
 
-        --app-primary-color: #E91E63;
-        --app-secondary-color: #293237;
-        --app-dark-text-color: var(--app-secondary-color);
+        --app-primary-color: #5e2b97;
+        --app-secondary-color: #009688;
+        --app-dark-text-color: #7f7f7f;
         --app-light-text-color: white;
         --app-section-even-color: #f7f7f7;
         --app-section-odd-color: white;

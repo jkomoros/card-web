@@ -28,13 +28,13 @@ class BaseCard extends LitElement {
         ::slotted(h1) {
           font-family: 'Raleway', sans-serif;
           font-weight:bold;
-          color: #5e2b97;
+          color: var(--app-primary-color);
         }
 
         ::slotted(section) {
           font-family: 'Source Sans Pro', sans-serif;
           font-size: 18px;
-          color:#7f7f7f;
+          color: var(--app-dark-text-color);
         }
       </style>
       <div class="container">
