@@ -3,6 +3,7 @@ import { createSelector } from 'reselect';
 
 const INITIAL_STATE = {
   cards:{},
+  slugIndex: {},
   activeCard: ""
 }
 
@@ -12,7 +13,8 @@ const app = (state = INITIAL_STATE, action) => {
     case UPDATE_CARDS:
       return {
         ...state,
-        cards: {...state.cards, ...action.cards}
+        cards: {...state.cards, ...action.cards},
+        slugIndex: {...state.slugIndex, ...action.slugIndex}
       }
     case SHOW_CARD:
       return {
