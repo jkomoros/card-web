@@ -19,11 +19,29 @@ import {
 class UserChip extends connect(store)(LitElement) {
   render() {
     return html`
-      ${this._pending ? '***' : ''}
-      ${this._user
-        ? html`<span>${this._user.displayName}</span><button @click=${this._handleSignOutClick}>Sign Out</button>`
-        : html`<button @click=${this._handleSignInClick}>Sign In</button>`
-      }`;
+      <style>
+        div {
+          display:flex;
+          justify-content:center;
+          align-items:center;
+        }
+        img {
+          --user-image-size: 48px;
+          height:var(--user-image-size);
+          width: var(--user-image-size);
+          border-radius:calc(var(--user-image-size) / 2);
+          margin: calc(var(--user-image-size) / 4);
+          cursor:pointer;
+        }
+      </style>
+      <div>
+        ${this._pending ? '***' : ''}
+        ${this._user
+          ? html`<img title='${this._user.displayName + ' - ' + this._user.email + ' - Click to sign out'}' src='${this._user.photoURL}' @click=${this._handleSignOutClick}>`
+          : html`<button @click=${this._handleSignInClick}>Sign In</button>`
+        }
+      </div>
+      `;
   }
 
   _handleSignInClick(e) {
