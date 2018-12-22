@@ -11,13 +11,43 @@ store.addReducers({
   user
 });
 
+import {
+  signIn,
+  signOut
+} from '../actions/user.js';
 
 class UserChip extends connect(store)(LitElement) {
   render() {
     return html`
-      :-D
-    `;
+      ${this._pending ? '***' : ''}
+      ${this._user
+        ? html`<span>${this._user.displayName}</span><button @click=${this._handleSignOutClick}>Sign Out</button>`
+        : html`<button @click=${this._handleSignInClick}>Sign In</button>`
+      }`;
   }
+
+  _handleSignInClick(e) {
+    store.dispatch(signIn());
+  }
+
+  _handleSignOutClick(e) {
+    store.dispatch(signOut());
+  }
+
+  static get properties() {
+    return {
+      _pending: { type: Boolean },
+      _user: { type: Object },
+      _error: { type: Object }
+    }
+  }
+
+  stateChanged(state) {
+    this._pending = state.user.pending;
+    this._user = state.user.user;
+    this._error = state.user.error;
+  }
+
 
 }
 
