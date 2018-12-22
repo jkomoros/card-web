@@ -5,7 +5,6 @@ import './base-card.js';
 // This element is *not* connected to the Redux store.
 class ContentCard extends LitElement {
   render() {
-    const subTemplate = html(this.body);
     return html`
       <style>
 
