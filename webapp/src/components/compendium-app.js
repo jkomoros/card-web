@@ -278,7 +278,6 @@ class CompendiumApp extends connect(store)(LitElement) {
     this._offline = state.app.offline;
     this._snackbarOpened = state.app.snackbarOpened;
     this._drawerOpened = state.app.drawerOpened;
-    this._card = state.app.card;
   }
 }
 

@@ -19,12 +19,14 @@ const app = (state = INITIAL_STATE, action) => {
     case SHOW_CARD:
       return {
         ...state,
-        activeCard:action.card
+        activeCard:idForActiveCard(state, action.card)
       }
     default:
       return state;
   }
 }
+
+const idForActiveCard = (state, idOrSlug) => state.slugIndex[idOrSlug] || idOrSlug;
 
 const cardsSelector =  state => state.data.cards;
 const activeCardSelector =  state => state.data.activeCard;
