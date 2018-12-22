@@ -10,6 +10,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 import { html } from '@polymer/lit-element';
 import { PageViewElement } from './page-view-element.js';
+import { connect } from 'pwa-helpers/connect-mixin.js';
+
+// This element is connected to the Redux store.
+import { store } from '../store.js';
+
+import { cardSelector } from '../reducers/data.js'
 
 //Components needed by this
 import './content-card.js';
@@ -17,19 +23,23 @@ import './content-card.js';
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
 
-class MyView1 extends PageViewElement {
+class MyView1 extends connect(store)(PageViewElement) {
   render() {
     return html`
       ${SharedStyles}
-      <content-card title="${this.card.title}" body="${this.card.body}">
+      <content-card title="${this._card.title}" body="${this._card.body}">
       </content-card>
     `;
   }
 
   static get properties() {
     return {
-      card: { type: Object }
+      _card: { type: Object }
     }
+  }
+
+  stateChanged(state) {
+    this._card = cardSelector(state);
   }
 }
 

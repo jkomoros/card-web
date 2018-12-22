@@ -19,6 +19,14 @@ import { updateMetadata } from 'pwa-helpers/metadata.js';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
+// We are lazy loading its reducer.
+import data from '../reducers/data.js';
+store.addReducers({
+  data
+});
+
+import { loadAll } from '../actions/data.js';
+
 // These are the actions needed by this element.
 import {
   navigate,
@@ -206,7 +214,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 
     <!-- Main content -->
     <main role="main" class="main-content">
-      <my-view1 class="page" ?active="${this._page === 'view1'}" .card=${this._card}></my-view1>
+      <my-view1 class="page" ?active="${this._page === 'view1'}"></my-view1>
       <my-view2 class="page" ?active="${this._page === 'view2'}"></my-view2>
       <my-view3 class="page" ?active="${this._page === 'view3'}"></my-view3>
       <my-view404 class="page" ?active="${this._page === 'view404'}"></my-view404>
@@ -228,7 +236,6 @@ class CompendiumApp extends connect(store)(LitElement) {
       _drawerOpened: { type: Boolean },
       _snackbarOpened: { type: Boolean },
       _offline: { type: Boolean },
-      _card: { type: Boolean }
     }
   }
 
@@ -244,6 +251,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
     installMediaQueryWatcher(`(min-width: 460px)`,
         () => store.dispatch(updateDrawerState(false)));
+    store.dispatch(loadAll());
   }
 
   updated(changedProps) {
