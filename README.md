@@ -37,6 +37,15 @@ Install firebase tools:
 
 TODO
 
+
+### Backing up
+
+Instructions are here: https://firebase.google.com/docs/firestore/manage-data/export-import (see that for initial set up)
+
+Run `gcloud config set project complexity-compendium`
+
+Run `gcloud beta firestore export gs://complexity-compendium-backup`
+
 ### Setting up a new computer
 
 See above, also `cd webapp`, `npm install`
