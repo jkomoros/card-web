@@ -59,7 +59,7 @@ class CardView extends connect(store)(PageViewElement) {
       //havigated here--is the preferred slug name.
       if (this._card.name != this._cardIdOrSlug) {
         const newLocation = `/c/${this._card.name}`
-        window.history.pushState({}, '', newLocation);
+        window.history.replaceState({}, '', newLocation);
         //Deliberately do not call the navigate sction cretator, since this
         //should be a no-op.
       }
