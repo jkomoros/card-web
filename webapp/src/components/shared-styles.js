@@ -17,21 +17,6 @@ export const SharedStyles = html`
     box-sizing: border-box;
   }
 
-  section {
-    padding: 24px;
-    background: var(--app-section-odd-color);
-  }
-
-  section > * {
-    max-width: 600px;
-    margin-right: auto;
-    margin-left: auto;
-  }
-
-  section:nth-of-type(even) {
-    background: var(--app-section-even-color);
-  }
-
   h2 {
     font-size: 24px;
     text-align: center;

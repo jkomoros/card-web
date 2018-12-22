@@ -35,6 +35,7 @@ class BaseCard extends LitElement {
           font-family: 'Source Sans Pro', sans-serif;
           font-size: 18px;
           color: var(--app-dark-text-color);
+          background-color:transparent;
         }
       </style>
       <div class="container">
