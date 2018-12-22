@@ -7,6 +7,10 @@ import { store } from '../store.js';
 
 import './card-thumbnail.js';
 
+import {
+  navigate,
+} from '../actions/app.js';
+
 import { collectionSelector } from '../reducers/data.js'
 
 class CardDrawer extends connect(store)(LitElement) {
@@ -26,7 +30,9 @@ class CardDrawer extends connect(store)(LitElement) {
   }
 
   _thumbnailActivatedHandler(e) {
-    console.log(e);
+    const newLocation = `/c/${e.target.id}`
+    window.history.pushState({}, '', newLocation);
+    store.dispatch(navigate(decodeURIComponent(location.pathname)));
   }
 
   static get properties() { return {
