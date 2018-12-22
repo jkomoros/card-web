@@ -8,7 +8,7 @@ import { store } from '../store.js';
 import './card-thumbnail.js';
 
 import {
-  navigate,
+  navigatePathTo
 } from '../actions/app.js';
 
 import { collectionSelector } from '../reducers/data.js'
@@ -30,9 +30,7 @@ class CardDrawer extends connect(store)(LitElement) {
   }
 
   _thumbnailActivatedHandler(e) {
-    const newLocation = `/c/${e.target.id}`
-    window.history.pushState({}, '', newLocation);
-    store.dispatch(navigate(decodeURIComponent(location.pathname)));
+    store.dispatch(navigatePathTo(`/c/${e.target.id}`));
   }
 
   static get properties() { return {

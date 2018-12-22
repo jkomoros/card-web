@@ -19,6 +19,10 @@ import { cardSelector } from '../reducers/data.js'
 
 import { showCard } from '../actions/data.js'
 
+import {
+  navigatePathTo
+} from '../actions/app.js';
+
 //Components needed by this
 import './content-card.js';
 import './card-drawer.js';
@@ -84,10 +88,9 @@ class CardView extends connect(store)(PageViewElement) {
       //Ensure that the article name that we're shwoing--no matter how they
       //havigated here--is the preferred slug name.
       if (this._card.name != this._cardIdOrSlug) {
-        const newLocation = `/c/${this._card.name}`
-        window.history.replaceState({}, '', newLocation);
         //Deliberately do not call the navigate sction cretator, since this
         //should be a no-op.
+        store.dispatch(navigatePathTo(`/c/${this._card.name}`, true));
       }
     }
   }
