@@ -6,7 +6,8 @@ import { store } from '../store.js';
 
 import {
   editingFinish,
-  editingCommit
+  editingCommit,
+  titleUpdated,
 } from '../actions/editor.js';
 
 class CardEditor extends connect(store)(LitElement) {
@@ -15,7 +16,7 @@ class CardEditor extends connect(store)(LitElement) {
      <button @click='${this._handleCancel}'>Cancel</button>
      <button @click='${this._handleCommit}'>Save</button>
       <h3>Editor</h3>
-      Title:<input type='text' value='${this._card.title}'></input>
+      Title:<input type='text' @input='${this._handleTitleUpdated}' value='${this._card.title}'></input>
       Body:
       <textarea>
         ${this._card.body}
@@ -35,6 +36,12 @@ class CardEditor extends connect(store)(LitElement) {
 
   shouldUpdate() {
     return this._active;
+  }
+
+  _handleTitleUpdated(e) {
+    let ele = e.path[0];
+    let title = ele.value;
+    store.dispatch(titleUpdated(ele.value));
   }
 
   _handleCommit(e) {

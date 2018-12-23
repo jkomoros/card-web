@@ -1,5 +1,6 @@
 export const EDITING_START = 'EDITING_START';
 export const EDITING_FINISH = 'EDITING_FINISH';
+export const EDITING_TITLE_UPDATED = 'EDITING_TITLE_UPDATED';
 
 import {
   userMayEdit
@@ -53,4 +54,11 @@ export const editingCommit = () => (dispatch, getState) => {
 
 export const editingFinish = () => {
   return {type: EDITING_FINISH}
+}
+
+export const titleUpdated = (newTitle) => {
+  return {
+    type: EDITING_TITLE_UPDATED,
+    title:newTitle,
+  }
 }

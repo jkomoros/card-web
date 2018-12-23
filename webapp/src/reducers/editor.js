@@ -1,4 +1,8 @@
-import { EDITING_START, EDITING_FINISH } from '../actions/editor.js';
+import { 
+  EDITING_START,
+  EDITING_FINISH,
+  EDITING_TITLE_UPDATED,
+} from '../actions/editor.js';
 
 const INITIAL_STATE = {
   editing: false,
@@ -18,6 +22,12 @@ const app = (state = INITIAL_STATE, action) => {
         ...state,
         editing:false,
         card: null
+      }
+    case EDITING_TITLE_UPDATED:
+      if (!state.card) return state;
+      return {
+        ...state,
+        card: {...state.card, title:action.title},
       }
     default:
       return state;
