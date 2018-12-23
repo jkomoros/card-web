@@ -1,8 +1,17 @@
 export const EDITING_START = 'EDITING_START';
 export const EDITING_FINISH = 'EDITING_FINISH';
 
-export const editingStart = () => {
-  return {type: EDITING_START}
+import {
+  userMayEdit
+} from '../reducers/user.js';
+
+export const editingStart = () => (dispatch, getState) => {
+  const state = getState();
+  if (!userMayEdit(state)) {
+    console.warn("This user is not allowed to edit!")
+    return;
+  }
+  dispatch({type: EDITING_START});
 }
 
 export const editingFinish = () => {
