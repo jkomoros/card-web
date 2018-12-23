@@ -15,7 +15,12 @@ export const OPEN_SNACKBAR = 'OPEN_SNACKBAR';
 export const CLOSE_SNACKBAR = 'CLOSE_SNACKBAR';
 
 //if silent is true, then just passively updates the URL to reflect what it should be.
-export const navigatePathTo = (path, silent) => (dispatch) => {
+export const navigatePathTo = (path, silent) => (dispatch, getState) => {
+    const state = getState();
+    if (state.editor.editing) {
+      console.log("Can't navigate while editing");
+      return;
+    }
     if (silent) {
       window.history.replaceState({}, '', path);
       return;
