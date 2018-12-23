@@ -9,6 +9,10 @@ import {
   cardSelector
 } from '../reducers/data.js'
 
+import {
+  modifyCard
+} from './data.js';
+
 export const editingStart = () => (dispatch, getState) => {
   const state = getState();
   if (!userMayEdit(state)) {
@@ -21,6 +25,29 @@ export const editingStart = () => (dispatch, getState) => {
     return;
   }
   dispatch({type: EDITING_START, card: card});
+}
+
+export const editingCommit = () => (dispatch, getState) => {
+  const state = getState();
+  if (!userMayEdit(state)) {
+    console.warn("This user isn't allowed to edit!");
+    return;
+  }
+  const underlyingCard = cardSelector(state);
+  if (!underlyingCard || !underlyingCard.id) {
+    console.warn("That card isn't legal");
+    return;
+  }
+
+  const updatedCard = state.editor.card;
+
+  let update = {};
+
+  if (updatedCard.title != underlyingCard.title) update.title = updatedCard.title;
+  if (updatedCard.body != underlyingCard.body) update.body = updatedCard.body;
+
+  dispatch(modifyCard(underlyingCard, update, false));
+
 }
 
 export const editingFinish = () => {

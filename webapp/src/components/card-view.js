@@ -21,7 +21,8 @@ import { showCard } from '../actions/data.js'
 
 import {
   editingStart,
-  editingFinish
+  editingFinish,
+  editingCommit
 } from '../actions/editor.js';
 
 import {
@@ -117,7 +118,7 @@ class CardView extends connect(store)(PageViewElement) {
   }
 
   _handleCommitEditor(e) {
-    console.log("Save clicked");
+    store.dispatch(editingCommit());
   }
 
   _handleCloseEditor(e) {

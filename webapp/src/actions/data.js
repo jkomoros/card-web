@@ -12,6 +12,10 @@ import {
   CARD_UPDATES_COLLECTION
 } from './database.js';
 
+import {
+  editingFinish
+} from './editor.js';
+
 const LEGAL_UPDATE_FIELDS = new Map([
   ['title', true],
   ['body', true]
@@ -70,7 +74,7 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
   batch.set(updateRef, updateObject);
   batch.update(cardRef, cardUpdateObject);
 
-  batch.commit().then(() => dispatch(modiifyCardSuccess()))
+  batch.commit().then(() => dispatch(modifyCardSuccess()))
     .catch(err => dispatch(modifyCardFailure()))
 
 }
@@ -122,10 +126,14 @@ const modifyCardAction = (cardId) => {
   }
 }
 
-const modiifyCardSuccess = () => {
-  return {
-    type:MODIFY_CARD_SUCCESS,
+const modifyCardSuccess = () => (dispatch, getState) => {
+  const state = getState();
+  if (state.editor.editing) {
+    dispatch(editingFinish());
   }
+  dispatch({
+    type:MODIFY_CARD_SUCCESS,
+  })
 }
 
 const modifyCardFailure = (err) => {
