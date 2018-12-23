@@ -11,7 +11,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 import { LitElement, html } from '@polymer/lit-element';
 import { setPassiveTouchGestures } from '@polymer/polymer/lib/utils/settings.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
-import { installMediaQueryWatcher } from 'pwa-helpers/media-query.js';
 import { installOfflineWatcher } from 'pwa-helpers/network.js';
 import { installRouter } from 'pwa-helpers/router.js';
 import { updateMetadata } from 'pwa-helpers/metadata.js';
@@ -39,13 +38,10 @@ import {
   navigateToNextCard,
   navigateToPreviousCard,
   updateOffline,
-  updateDrawerState
 } from '../actions/app.js';
 
 // These are the elements needed by this element.
-import '@polymer/app-layout/app-drawer/app-drawer.js';
 import '@polymer/app-layout/app-header/app-header.js';
-import '@polymer/app-layout/app-scroll-effects/effects/waterfall.js';
 import '@polymer/app-layout/app-toolbar/app-toolbar.js';
 import { menuIcon } from './my-icons.js';
 import './snack-bar.js';
@@ -214,14 +210,6 @@ class CompendiumApp extends connect(store)(LitElement) {
       </nav>
     </app-header>
 
-    <!-- Drawer content -->
-    <app-drawer .opened="${this._drawerOpened}"
-        @opened-changed="${this._drawerOpenedChanged}">
-      <nav class="drawer-list">
-        <a ?selected="${this._page === 'c'}" href="/c">Explore</a>
-      </nav>
-    </app-drawer>
-
     <!-- Main content -->
     <main role="main" class="main-content">
       <card-view class="page" ?active="${this._page === 'c'}"></card-view>
@@ -237,7 +225,6 @@ class CompendiumApp extends connect(store)(LitElement) {
     return {
       appTitle: { type: String },
       _page: { type: String },
-      _drawerOpened: { type: Boolean },
       _snackbarOpened: { type: Boolean },
       _offline: { type: Boolean },
       _editing: { type: Boolean },
@@ -255,8 +242,6 @@ class CompendiumApp extends connect(store)(LitElement) {
   firstUpdated() {
     installRouter((location) => store.dispatch(navigated(decodeURIComponent(location.pathname))));
     installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
-    installMediaQueryWatcher(`(min-width: 460px)`,
-        () => store.dispatch(updateDrawerState(false)));
     window.addEventListener('keyup', e => this._handleKeyPressed(e));
     connectLiveCards(store);
     connectLiveSections(store);
@@ -308,7 +293,6 @@ class CompendiumApp extends connect(store)(LitElement) {
     this._page = state.app.page;
     this._offline = state.app.offline;
     this._snackbarOpened = state.app.snackbarOpened;
-    this._drawerOpened = state.app.drawerOpened;
     this._editing = state.editor.editing;
     this._devMode = DEV_MODE;
   }

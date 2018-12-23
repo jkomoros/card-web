@@ -13,7 +13,6 @@ import {
   UPDATE_OFFLINE,
   OPEN_SNACKBAR,
   CLOSE_SNACKBAR,
-  UPDATE_DRAWER_STATE
 } from '../actions/app.js';
 
 const INITIAL_STATE = {
@@ -21,7 +20,6 @@ const INITIAL_STATE = {
   page: '',
   pageExtra: '',
   offline: false,
-  drawerOpened: false,
   snackbarOpened: false,
 };
 
@@ -38,11 +36,6 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         offline: action.offline
-      };
-    case UPDATE_DRAWER_STATE:
-      return {
-        ...state,
-        drawerOpened: action.opened
       };
     case OPEN_SNACKBAR:
       return {
