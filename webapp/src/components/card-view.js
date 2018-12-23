@@ -70,7 +70,7 @@ class CardView extends connect(store)(PageViewElement) {
         <div class='card'>
           <content-card title="${this._card.title}" body="${this._card.body}">
           </content-card>
-          <card-editor ?active=${this._editing}></card-editor>
+          <card-editor ?active=${this._editing} .card=${this._card}></card-editor>
         </div>
       </div>
     `;
