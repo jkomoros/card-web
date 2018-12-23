@@ -46,6 +46,13 @@ Run `gcloud config set project complexity-compendium`
 
 Run `gcloud beta firestore export gs://complexity-compendium-backup`
 
+
+### Restoring a back up
+
+Run `gcloud config set project dev-complexity-compendium` (if running in devmode)
+
+Run `gcloud beta firestore import gs://complexity-compendium-backup/[EXPORT_PREFIX]/` where EXPORT-PREFIX is the name of the folder you want to import.
+
 ### Setting up a new computer
 
 See above, also `cd webapp`, `npm install`

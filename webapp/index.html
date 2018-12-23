@@ -121,15 +121,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     <script src="https://www.gstatic.com/firebasejs/5.7.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/5.7.0/firebase-firestore.js"></script>
     <script>
+      var DEV_MODE = false;
+      var config;
+      if (location.hostname == 'localhost' || location.hostname == '127.0.0.1') DEV_MODE = true;
+      if (DEV_MODE) {
+        config = {
+            apiKey: "AIzaSyAMJMN0rfauE1fNmZtSktR1c9pOhjbj5wM",
+            authDomain: "dev-complexity-compendium.firebaseapp.com",
+            databaseURL: "https://dev-complexity-compendium.firebaseio.com",
+            projectId: "dev-complexity-compendium",
+            storageBucket: "dev-complexity-compendium.appspot.com",
+            messagingSenderId: "833356784081"
+        };
+      } else {
+        config = {
+          apiKey: "AIzaSyApU8WmBkOLnqlCD6sRnbZgj3EUybOOZ54",
+          authDomain: "complexity-compendium.firebaseapp.com",
+          databaseURL: "https://complexity-compendium.firebaseio.com",
+          projectId: "complexity-compendium",
+          storageBucket: "complexity-compendium.appspot.com",
+          messagingSenderId: "711980530249"
+        };
+      }
       // Initialize Firebase
-      var config = {
-        apiKey: "AIzaSyApU8WmBkOLnqlCD6sRnbZgj3EUybOOZ54",
-        authDomain: "complexity-compendium.firebaseapp.com",
-        databaseURL: "https://complexity-compendium.firebaseio.com",
-        projectId: "complexity-compendium",
-        storageBucket: "complexity-compendium.appspot.com",
-        messagingSenderId: "711980530249"
-      };
       firebase.initializeApp(config);
     </script>
     <!-- Load webcomponents-loader.js to check and load any polyfills your browser needs -->

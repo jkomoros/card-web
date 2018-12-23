@@ -202,6 +202,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     <!-- Header -->
     <app-header condenses reveals effects="waterfall">
       <app-toolbar class="toolbar-top">
+        ${this._devMode ? html`<span style='color:red;'>DEVMODE</span>` : ""}
         <button class="menu-btn" title="Menu" @click="${this._menuButtonClicked}">${menuIcon}</button>
         <div main-title>${this.appTitle}</div>
         <user-chip></user-chip>
@@ -240,6 +241,7 @@ class CompendiumApp extends connect(store)(LitElement) {
       _snackbarOpened: { type: Boolean },
       _offline: { type: Boolean },
       _editing: { type: Boolean },
+      _devMode: { type: Boolean },
     }
   }
 
@@ -308,6 +310,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     this._snackbarOpened = state.app.snackbarOpened;
     this._drawerOpened = state.app.drawerOpened;
     this._editing = state.editor.editing;
+    this._devMode = DEV_MODE;
   }
 }
 
