@@ -20,14 +20,12 @@ import { cardSelector } from '../reducers/data.js'
 import { showCard } from '../actions/data.js'
 
 import {
-  editingStart,
-  editingFinish,
-  editingCommit
-} from '../actions/editor.js';
-
-import {
   userMayEdit
 } from '../reducers/user.js';
+
+import {
+  editingStart
+} from '../actions/editor.js';
 
 import {
   navigateToCard
@@ -87,7 +85,7 @@ class CardView extends connect(store)(PageViewElement) {
           <div class='actions'>
             <button ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>Edit</button>
           </div>
-          <card-editor ?active=${this._editing} .card=${this._editingCard} @commit-editor='${this._handleCommitEditor}' @close-editor='${this._handleCloseEditor}'></card-editor>
+          <card-editor ?active=${this._editing} ></card-editor>
         </div>
       </div>
     `;
@@ -115,14 +113,6 @@ class CardView extends connect(store)(PageViewElement) {
     if (parts[1] == 'edit') editing = true;
 
     return [cardId, editing]
-  }
-
-  _handleCommitEditor(e) {
-    store.dispatch(editingCommit());
-  }
-
-  _handleCloseEditor(e) {
-    store.dispatch(editingFinish())
   }
 
   _handleEditClicked(e) {
