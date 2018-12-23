@@ -94,10 +94,6 @@ class CompendiumApp extends connect(store)(LitElement) {
         font-family: 'Pacifico';
         text-transform: lowercase;
         font-size: 30px;
-        /* In the narrow layout, the toolbar is offset by the width of the
-        drawer button, and the text looks not centered. Add a padding to
-        match that button */
-        padding-right: 44px;
       }
 
       .toolbar-list {
@@ -117,36 +113,6 @@ class CompendiumApp extends connect(store)(LitElement) {
         border-bottom: 4px solid var(--app-header-selected-color);
       }
 
-      .menu-btn {
-        background: none;
-        border: none;
-        fill: var(--app-header-text-color);
-        cursor: pointer;
-        height: 44px;
-        width: 44px;
-      }
-
-      .drawer-list {
-        box-sizing: border-box;
-        width: 100%;
-        height: 100%;
-        padding: 24px;
-        background: var(--app-drawer-background-color);
-        position: relative;
-      }
-
-      .drawer-list > a {
-        display: block;
-        text-decoration: none;
-        color: var(--app-drawer-text-color);
-        line-height: 40px;
-        padding: 0 24px;
-      }
-
-      .drawer-list > a[selected] {
-        color: var(--app-drawer-selected-color);
-      }
-
       /* Workaround for IE11 displaying <main> as inline */
       main {
         display: block;
@@ -163,13 +129,6 @@ class CompendiumApp extends connect(store)(LitElement) {
 
       .page[active] {
         display: block;
-      }
-
-      footer {
-        padding: 24px;
-        background: var(--app-drawer-background-color);
-        color: var(--app-drawer-text-color);
-        text-align: center;
       }
 
       /* Wide layout: when the viewport width is bigger than 460px, layout
@@ -199,7 +158,6 @@ class CompendiumApp extends connect(store)(LitElement) {
     <app-header>
       <app-toolbar class="toolbar-top">
         ${this._devMode ? html`<span style='color:red;'>DEVMODE</span>` : ""}
-        <button class="menu-btn" title="Menu" @click="${this._menuButtonClicked}">${menuIcon}</button>
         <div main-title>${this.appTitle}</div>
         <user-chip></user-chip>
       </app-toolbar>
