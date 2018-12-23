@@ -27,6 +27,10 @@ import {
 import './content-card.js';
 import './card-drawer.js';
 
+import {
+  modifyCard
+} from '../actions/data.js';
+
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
 
@@ -69,6 +73,12 @@ class CardView extends connect(store)(PageViewElement) {
       _card: { type: Object },
       _cardIdOrSlug: { type: String }
     }
+  }
+
+  modifyTitle() {
+    let title = prompt("What should the new title be for this card?", this._card.title);
+    if (!title) return;
+    store.dispatch(modifyCard(this._card, {title:title}, false));
   }
 
   extractPageExtra(pageExtra) {

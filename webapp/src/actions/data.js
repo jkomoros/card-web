@@ -27,9 +27,14 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
     return;
   }
 
-  for (let key in Object.keys(update)) {
+  if (!card || !card.id) {
+    console.log("No id on card");
+    return;
+  }
+
+  for (let key of Object.keys(update)) {
     if (!LEGAL_UPDATE_FIELDS.has(key)) {
-      console.log("Illegal field in update: " + key);
+      console.log("Illegal field in update: " + key, update);
       return;
     }
   }
@@ -60,9 +65,9 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 
   let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
 
-  let updateRef = cardRef.collection(CARD_UPDATES_COLLECTION).doc(Date.now());
+  let updateRef = cardRef.collection(CARD_UPDATES_COLLECTION).doc('' + Date.now());
 
-  batch.add(updateRef, updateObject);
+  batch.set(updateRef, updateObject);
   batch.update(cardRef, cardUpdateObject);
 
   batch.commit().then(() => dispatch(modiifyCardSuccess()))
