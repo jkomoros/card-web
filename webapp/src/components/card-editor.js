@@ -39,6 +39,7 @@ class CardEditor extends connect(store)(LitElement) {
   }
 
   _handleTitleUpdated(e) {
+    if (!this._active) return;
     let ele = e.path[0];
     let title = ele.value;
     store.dispatch(titleUpdated(ele.value));
