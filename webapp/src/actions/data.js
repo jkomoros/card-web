@@ -50,6 +50,47 @@ export const connectLiveSections = (store) => {
   })
 }
 
+const randomCharSet = "abcdef0123456789"
+
+const randomString = (length) => {
+  let text = "";
+  for (let i = 0; i < length; i++) {
+    text += randomCharSet.charAt(Math.floor(Math.random() * randomCharSet.length));
+  }
+  return text;
+}
+
+export const newCard = (section, id) => {
+
+  //newCard creates and inserts a new card in the givne section with the given id.
+
+  if (!section) section = 'stubs';
+  if (!id) id = randomString(6);
+
+  let obj = {
+    created: new Date(),
+    updated: new Date(),
+    updated_substantive: new Date(),
+    title: "",
+    body: "",
+    links: [],
+    links_inbound: [],
+    notes: "",
+    slugs: [],
+    name: id,
+    tags: []
+  }
+
+  let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
+
+  let sectionRef = db.collection(SECTIONS_COLLECTION).doc(starterCard.section);
+
+  //TODO: do a transaction here.
+  //Check ot make sure that cardDoc id does not currently exist.
+  //Then put the starter card, and add its id to the end of the section's cards list.
+}
+
+
 export const updateSections = (sections) => {
   return {
     type: UPDATE_SECTIONS,
