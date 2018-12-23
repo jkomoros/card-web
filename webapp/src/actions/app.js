@@ -28,8 +28,9 @@ export const navigateToNextCard = () => (dispatch, getState) => {
   const state = getState();
   let index = state.data.activeCardIndex;
   index++;
-  const collection = state.data.collection;
-  let newId = collection[index];
+  const collection = state.data.sections[state.data.activeSectionId];
+  if (!collection) return;
+  let newId = collection.cards[index];
   if (!newId) return;
   dispatch(navigateToCard(newId));
 }
@@ -38,8 +39,9 @@ export const navigateToPreviousCard = () => (dispatch, getState) => {
   const state = getState();
   let index = state.data.activeCardIndex;
   index--;
-  const collection = state.data.collection;
-  let newId = collection[index];
+  const collection = state.data.sections[state.data.activeSectionId];
+  if (!collection) return;
+  let newId = collection.cards[index];
   if (!newId) return;
   dispatch(navigateToCard(newId));
 }
