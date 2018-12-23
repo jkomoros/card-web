@@ -5,7 +5,8 @@ import {
   updateSections
 } from './data.js';
 
-const CARDS_COLLECTION = 'cards';
+export const CARDS_COLLECTION = 'cards';
+export const CARD_UPDATES_COLLECTION = 'updates';
 const SECTIONS_COLLECTION = 'sections';
 
 db.settings({

@@ -2,8 +2,80 @@ export const UPDATE_CARDS = 'UPDATE_CARDS';
 export const UPDATE_SECTIONS = 'UPDATE_SECTIONS';
 export const SHOW_CARD = 'SHOW_CARD';
 export const SHOW_SECTION = 'SHOW_SECTION';
+export const MODIFY_CARD = 'MODIFY_CARD';
+export const MODIFY_CARD_SUCCESS = 'MODIFY_CARD_SUCCESS';
+export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
 
-export const newCard = (section, id) => {
+import {
+  db,
+  CARDS_COLLECTION,
+  CARD_UPDATES_COLLECTION
+} from './database.js';
+
+const LEGAL_UPDATE_FIELDS = new Map([
+  ['title', true],
+  ['body', true]
+]);
+
+export const modifyCard = (card, update, substantive) => (dispatch, getState) => {
+
+  //Check to make sure card sin't being modified
+  const state = getState();
+
+  if (state.data.cardModificationPending) {
+    console.log("Can't modify card; another card is being modified.")
+    return;
+  }
+
+  for (let key in Object.keys(update)) {
+    if (!LEGAL_UPDATE_FIELDS.has(key)) {
+      console.log("Illegal field in update: " + key);
+      return;
+    }
+  }
+
+  dispatch(modifyCardAction(card.id));
+
+  let updateObject = {
+    ...update,
+    substantive: substantive,
+    timestamp: new Date()
+  }
+
+  let cardUpdateObject = {
+    updated: new Date()
+  }
+  if (substantive) cardUpdateObject.updated_substantive = new Date();
+
+  if (update.body) {
+    cardUpdateObject.body = body;
+    cardUpdateObject.links = extractCardLinks(update.body);
+  }
+
+  if (update.title) {
+    cardUpdateObject.title = update.title;
+  }
+
+  let batch = db.batch();
+
+  let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
+
+  let updateRef = cardRef.collection(CARD_UPDATES_COLLECTION).doc(Date.now());
+
+  batch.add(updateRef, updateObject);
+  batch.update(cardRef, cardUpdateObject);
+
+  batch.commit().then(() => dispatch(modiifyCardSuccess()))
+    .catch(err => dispatch(modifyCardFailure()))
+
+}
+
+const extractCardLinks = (body) => {
+  let ele = document.createElement("section");
+  return ele.querySelectorAll("a[card]").map(link => link.getAttribute('card'))
+}
+
+export const createCard = (section, id) => {
 
   //newCard creates and inserts a new card in the givne section with the given id.
 
@@ -32,6 +104,26 @@ export const newCard = (section, id) => {
   //TODO: do a transaction here.
   //Check ot make sure that cardDoc id does not currently exist.
   //Then put the starter card, and add its id to the end of the section's cards list.
+}
+
+const modifyCardAction = (cardId) => {
+  return {
+    type: MODIFY_CARD,
+    cardId,
+  }
+}
+
+const modiifyCardSuccess = () => {
+  return {
+    type:MODIFY_CARD_SUCCESS,
+  }
+}
+
+const modifyCardFailure = (err) => {
+  return {
+    type: MODIFY_CARD_FAILURE,
+    error: err,
+  }
 }
 
 

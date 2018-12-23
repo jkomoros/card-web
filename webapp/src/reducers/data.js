@@ -1,4 +1,12 @@
-import { UPDATE_CARDS, UPDATE_SECTIONS, SHOW_CARD, SHOW_SECTION } from '../actions/data.js';
+import { 
+  UPDATE_CARDS,
+  UPDATE_SECTIONS,
+  SHOW_CARD,
+  SHOW_SECTION,
+  MODIFY_CARD,
+  MODIFY_CARD_SUCCESS,
+  MODIFY_CARD_FAILURE
+} from '../actions/data.js';
 import { createSelector } from 'reselect';
 
 const INITIAL_STATE = {
@@ -8,6 +16,9 @@ const INITIAL_STATE = {
   activeSectionId: "",
   activeCardId: "",
   activeCardIndex: -1,
+  //The modification that is pending
+  cardModificationPending: "",
+  cardModificationError: null
 }
 
 const app = (state = INITIAL_STATE, action) => {
@@ -39,6 +50,23 @@ const app = (state = INITIAL_STATE, action) => {
         activeCardIndex: -1,
         activeSectionId: action.section
       })
+    case MODIFY_CARD:
+      return {
+        ...state,
+        cardModificationPending: action.cardId,
+        cardModificationError: null,
+      } 
+    case MODIFY_CARD_SUCCESS:
+      return {
+        ...state,
+        cardModificationPending: "",
+      }
+    case MODIFY_CARD_FAILURE:
+      return {
+        ...state,
+        cardModificationPending: "",
+        cardModificationError: action.error
+      }
     default:
       return state;
   }
