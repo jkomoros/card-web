@@ -20,6 +20,11 @@ import { cardSelector } from '../reducers/data.js'
 import { showCard } from '../actions/data.js'
 
 import {
+  editingStart,
+  editingFinish
+} from '../actions/editor.js';
+
+import {
   navigateToCard
 } from '../actions/app.js';
 
@@ -100,16 +105,17 @@ class CardView extends connect(store)(PageViewElement) {
   }
 
   _handleCloseEditor(e) {
-    store.dispatch(navigateToCard(this._card, false));
+    store.dispatch(editingFinish())
+  }
+
+  _handleStartEditor() {
+    store.dispatch(editingStart())
   }
 
   stateChanged(state) {
     this._card = cardSelector(state);
-    let cardId;
-    let editing;
-    [cardId, editing] = this.extractPageExtra(state.app.pageExtra);
-    this._cardIdOrSlug = cardId;
-    this._editing = editing;
+    this._cardIdOrSlug = this.extractPageExtra(state.app.pageExtra)[0];
+    this._editing = state.editor.editing;
   }
 
   updated(changedProps) {
