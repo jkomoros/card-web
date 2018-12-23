@@ -16,7 +16,7 @@ class CardEditor extends connect(store)(LitElement) {
      <button @click='${this._handleCancel}'>Cancel</button>
      <button @click='${this._handleCommit}'>Save</button>
       <h3>Editor</h3>
-      Title:<input type='text' @input='${this._handleTitleUpdated}' value='${this._card.title}'></input>
+      Title:<input type='text' @input='${this._handleTitleUpdated}' .value=${this._card.title}></input>
       Body:
       <textarea>
         ${this._card.body}
