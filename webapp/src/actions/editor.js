@@ -15,7 +15,12 @@ export const editingStart = () => (dispatch, getState) => {
     console.warn("This user is not allowed to edit!")
     return;
   }
-  dispatch({type: EDITING_START, card: cardSelector(state)});
+  const card = cardSelector(state)
+  if (!card || !card.id) {
+    console.warn("There doesn't appear to be an active card.");
+    return;
+  }
+  dispatch({type: EDITING_START, card: card});
 }
 
 export const editingFinish = () => {
