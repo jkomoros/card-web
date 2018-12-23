@@ -89,28 +89,36 @@ export const importCards = (cards) => {
   //we now have a set of transformed cards to add directly in (with their id),
   //and a list of cards per section to overwrite the current things with.
 
-  let batch = db.batch();
+  let mainBatch = db.batch();
+  let slideUpdatesBatch = db.batch();
 
   for (let key of Object.keys(transformedCards)) {
     let card = transformedCards[key];
     let ref = db.collection(CARDS_COLLECTION).doc(key);
-    batch.set(ref, card);
+    mainBatch.set(ref, card);
     let update = {
       substantive: true,
       timestamp: new Date(),
       import: true
     }
     let updateRef = ref.collection(CARD_UPDATES_COLLECTION).doc('' + Date.now());
-    batch.set(updateRef, update);
+    slideUpdatesBatch.set(updateRef, update);
   }
 
   for (let key of Object.keys(sections)) {
     let sectionCards = sections[key];
     let ref = db.collection(SECTIONS_COLLECTION).doc(key);
-    batch.update(ref, {cards:sectionCards});
+    mainBatch.update(ref, {cards:sectionCards});
   }
 
-  batch.commit().then(() => console.log("Done!"))
+
+  mainBatch.commit().then(() => {
+    console.log("Main batch Done!");
+    slideUpdatesBatch.commit().then(() => {
+      console.log("Slide update batch done");
+    });
+  })
+
 
 }
 
