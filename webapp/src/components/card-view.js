@@ -86,7 +86,7 @@ class CardView extends connect(store)(PageViewElement) {
           <div class='actions'>
             <button ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>Edit</button>
           </div>
-          <card-editor ?active=${this._editing} .card=${this._card} @close-editor='${this._handleCloseEditor}'></card-editor>
+          <card-editor ?active=${this._editing} .card=${this._editingCard} @close-editor='${this._handleCloseEditor}'></card-editor>
         </div>
       </div>
     `;
@@ -128,9 +128,10 @@ class CardView extends connect(store)(PageViewElement) {
   }
 
   stateChanged(state) {
+    this._editingCard = state.editor.card;
     this._card = cardSelector(state);
     this._cardIdOrSlug = this.extractPageExtra(state.app.pageExtra)[0];
-    this._editing = state.editor.editing;
+    this._editing = state.editor.editing;     
     this._userMayEdit = userMayEdit(state);
   }
 

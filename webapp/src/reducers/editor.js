@@ -1,7 +1,8 @@
 import { EDITING_START, EDITING_FINISH } from '../actions/editor.js';
 
 const INITIAL_STATE = {
-  editing: false
+  editing: false,
+  card: null,
 }
 
 const app = (state = INITIAL_STATE, action) => {
@@ -9,12 +10,14 @@ const app = (state = INITIAL_STATE, action) => {
     case EDITING_START:
       return {
         ...state,
-        editing: true
+        editing: true,
+        card: action.card
       }
     case EDITING_FINISH:
       return {
         ...state,
-        editing:false
+        editing:false,
+        card: null
       }
     default:
       return state;
