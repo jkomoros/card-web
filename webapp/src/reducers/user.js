@@ -41,4 +41,7 @@ const app = (state = INITIAL_STATE, action) => {
   }
 }
 
+//TODO: more resilient testing
+export const userMayEdit = state => state.user && state.user.user && state.user.user.uid == 'TPo5MOn6rNX9k8K1bbejuBNk4Dr2';
+
 export default app;

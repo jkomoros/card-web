@@ -25,6 +25,10 @@ import {
 } from '../actions/editor.js';
 
 import {
+  userMayEdit
+} from '../reducers/user.js';
+
+import {
   navigateToCard
 } from '../actions/app.js';
 
@@ -69,6 +73,10 @@ class CardView extends connect(store)(PageViewElement) {
         card-editor[active] {
           display:block;
         }
+
+        [hidden] {
+          display:none;
+        }
       </style>
       <div class='container'>
         <card-drawer></card-drawer>
@@ -76,7 +84,7 @@ class CardView extends connect(store)(PageViewElement) {
           <content-card title="${this._card.title}" body="${this._card.body}">
           </content-card>
           <div class='actions'>
-            <button @click='${this._handleEditClicked}'>Edit</button>
+            <button ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>Edit</button>
           </div>
           <card-editor ?active=${this._editing} .card=${this._card} @close-editor='${this._handleCloseEditor}'></card-editor>
         </div>
@@ -88,7 +96,8 @@ class CardView extends connect(store)(PageViewElement) {
     return {
       _card: { type: Object },
       _cardIdOrSlug: { type: String },
-      _editing: {type: Boolean }
+      _editing: {type: Boolean },
+      _userMayEdit: { type: Boolean }
     }
   }
 
@@ -122,6 +131,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._card = cardSelector(state);
     this._cardIdOrSlug = this.extractPageExtra(state.app.pageExtra)[0];
     this._editing = state.editor.editing;
+    this._userMayEdit = userMayEdit(state);
   }
 
   updated(changedProps) {
