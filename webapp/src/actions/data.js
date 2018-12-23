@@ -60,6 +60,62 @@ const randomString = (length) => {
   return text;
 }
 
+export const doImport = () => {
+
+  fetch(`/src/data/cards.json`).then(resp => {
+    resp.json().then(data => importCards(data.cards));
+  })
+}
+
+export const importCards = (cards) => {
+  //Designed for one-time bulk import
+
+  let transformedCards = {}
+
+  let sections = {};
+
+  for (let key of Object.keys(cards).sort((a,b) => cards[a].index - cards[b].index)) {
+    let card = transformImportCard(cards[key]);
+
+    let sectionName = card.section;
+    let section = sections[sectionName] || [];
+    section.push(key);
+    sections[sectionName] = section;
+
+    transformedCards[key] = card;
+  } 
+
+  //we now have a set of transformed cards to add directly in (with their id),
+  //and a list of cards per section to overwrite the current things with.
+
+  //TODO: do a batch import into firebase.
+
+}
+
+const transformImportSectionName = (legacySectionName) => {
+  if (!legacySectionName) return "stubs";
+  legacySectionName = legacySectionName.toLowerCase();
+  return legacySectionName.split(" ").join("-");
+}
+
+const transformImportCard = (legacyCard) => {
+  return {
+    created: new Date(),
+    updated: new Date(),
+    updated_substantive: new Date(),
+    title: legacyCard.title || "",
+    body: legacyCard.body || "",
+    links: legacyCard.links || [],
+    links_inbound: legacyCard.inbound_links || [],
+    slugs: legacyCard.slugs ? legacyCard.slugs.split(",") : [],
+    notes: legacyCard.notes || "",
+    tags: legacyCard.tags || [],
+    section: transformImportSectionName(legacyCard.sectionname),
+    name: legacyCard.name || ""
+  }
+}
+
+
 export const newCard = (section, id) => {
 
   //newCard creates and inserts a new card in the givne section with the given id.
@@ -72,6 +128,7 @@ export const newCard = (section, id) => {
     updated: new Date(),
     updated_substantive: new Date(),
     title: "",
+    section: section,
     body: "",
     links: [],
     links_inbound: [],

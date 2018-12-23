@@ -27,7 +27,8 @@ store.addReducers({
 
 import { 
   connectLiveCards,
-  connectLiveSections
+  connectLiveSections,
+  doImport
 } from '../actions/data.js';
 
 // These are the actions needed by this element.
@@ -254,6 +255,9 @@ class CompendiumApp extends connect(store)(LitElement) {
     window.addEventListener('keyup', this._handleKeyPressed);
     connectLiveCards(store);
     connectLiveSections(store);
+
+    //Temporary, do import on boot
+    doImport();
   }
 
   _handleKeyPressed(e) {
