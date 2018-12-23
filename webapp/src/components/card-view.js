@@ -70,7 +70,7 @@ class CardView extends connect(store)(PageViewElement) {
         <div class='card'>
           <content-card title="${this._card.title}" body="${this._card.body}">
           </content-card>
-          <card-editor ?active=${this._editing} .card=${this._card}></card-editor>
+          <card-editor ?active=${this._editing} .card=${this._card} @close-editor='${this._handleCloseEditor}'></card-editor>
         </div>
       </div>
     `;
@@ -97,6 +97,10 @@ class CardView extends connect(store)(PageViewElement) {
     if (parts[1] == 'edit') editing = true;
 
     return [cardId, editing]
+  }
+
+  _handleCloseEditor(e) {
+    store.dispatch(navigateToCard(this._card, false));
   }
 
   stateChanged(state) {
