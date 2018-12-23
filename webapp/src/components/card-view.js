@@ -26,6 +26,7 @@ import {
 //Components needed by this
 import './content-card.js';
 import './card-drawer.js';
+import './card-editor.js';
 
 import {
   modifyCard
@@ -57,12 +58,19 @@ class CardView extends connect(store)(PageViewElement) {
           justify-content:center;
           align-items: center;
         }
+        card-editor {
+          display:none;
+        }
+        card-editor[active] {
+          display:block;
+        }
       </style>
       <div class='container'>
         <card-drawer></card-drawer>
         <div class='card'>
           <content-card title="${this._card.title}" body="${this._card.body}">
           </content-card>
+          <card-editor ?active=${this._editing}></card-editor>
         </div>
       </div>
     `;
@@ -71,7 +79,8 @@ class CardView extends connect(store)(PageViewElement) {
   static get properties() {
     return {
       _card: { type: Object },
-      _cardIdOrSlug: { type: String }
+      _cardIdOrSlug: { type: String },
+      _editing: {type: Boolean }
     }
   }
 
@@ -82,12 +91,21 @@ class CardView extends connect(store)(PageViewElement) {
   }
 
   extractPageExtra(pageExtra) {
-    return pageExtra.split("/")[0];
+    let parts = pageExtra.split("/");
+    let cardId = parts[0];
+    let editing = false;
+    if (parts[1] == 'edit') editing = true;
+
+    return [cardId, editing]
   }
 
   stateChanged(state) {
     this._card = cardSelector(state);
-    this._cardIdOrSlug = this.extractPageExtra(state.app.pageExtra);
+    let cardId;
+    let editing;
+    [cardId, editing] = this.extractPageExtra(state.app.pageExtra);
+    this._cardIdOrSlug = cardId;
+    this._editing = editing;
   }
 
   updated(changedProps) {
