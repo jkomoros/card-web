@@ -25,7 +25,7 @@ store.addReducers({
   data
 });
 
-import { loadAll } from '../actions/data.js';
+import { connectLiveCards } from '../actions/data.js';
 
 // These are the actions needed by this element.
 import {
@@ -249,7 +249,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     installMediaQueryWatcher(`(min-width: 460px)`,
         () => store.dispatch(updateDrawerState(false)));
     window.addEventListener('keyup', this._handleKeyPressed);
-    store.dispatch(loadAll());
+    connectLiveCards(store);
   }
 
   _handleKeyPressed(e) {
