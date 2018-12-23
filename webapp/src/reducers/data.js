@@ -37,8 +37,8 @@ const extractSlugIndex = cards => {
   Object.keys(cards).forEach(key => {
     let card = cards[key];
     let slugs = card.slugs;
-    if (typeof slugs !== 'object') slugs = slugs.split(",");
     if (!slugs) return;
+    if (typeof slugs !== 'object') slugs = slugs.split(",");
     for (let val of slugs) {
       result[val] = key;
     }
