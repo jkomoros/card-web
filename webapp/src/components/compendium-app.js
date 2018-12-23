@@ -239,6 +239,7 @@ class CompendiumApp extends connect(store)(LitElement) {
       _drawerOpened: { type: Boolean },
       _snackbarOpened: { type: Boolean },
       _offline: { type: Boolean },
+      _editing: { type: Boolean },
     }
   }
 
@@ -254,7 +255,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
     installMediaQueryWatcher(`(min-width: 460px)`,
         () => store.dispatch(updateDrawerState(false)));
-    window.addEventListener('keyup', this._handleKeyPressed);
+    window.addEventListener('keyup', e => this._handleKeyPressed(e));
     connectLiveCards(store);
     connectLiveSections(store);
 
@@ -263,6 +264,8 @@ class CompendiumApp extends connect(store)(LitElement) {
   }
 
   _handleKeyPressed(e) {
+    //Don't move the slide selection when editing!
+    if (this._editing) return;
     switch (e.key) {
       case "ArrowDown":
       case "ArrowRight":
@@ -304,6 +307,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     this._offline = state.app.offline;
     this._snackbarOpened = state.app.snackbarOpened;
     this._drawerOpened = state.app.drawerOpened;
+    this._editing = state.editor.editing;
   }
 }
 
