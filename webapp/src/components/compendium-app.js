@@ -257,7 +257,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     connectLiveSections(store);
 
     //Temporary, do import on boot
-    doImport();
+    //doImport();
   }
 
   _handleKeyPressed(e) {

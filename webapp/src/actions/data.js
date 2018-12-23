@@ -88,7 +88,21 @@ export const importCards = (cards) => {
   //we now have a set of transformed cards to add directly in (with their id),
   //and a list of cards per section to overwrite the current things with.
 
-  //TODO: do a batch import into firebase.
+  let batch = db.batch();
+
+  for (let key of Object.keys(transformedCards)) {
+    let card = transformedCards[key];
+    let ref = db.collection(CARDS_COLLECTION).doc(key);
+    batch.set(ref, card);
+  }
+
+  for (let key of Object.keys(sections)) {
+    let sectionCards = sections[key];
+    let ref = db.collection(SECTIONS_COLLECTION).doc(key);
+    batch.update(ref, {cards:sectionCards});
+  }
+
+  batch.commit().then(() => console.log("Done!"))
 
 }
 
