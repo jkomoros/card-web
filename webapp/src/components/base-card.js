@@ -24,6 +24,15 @@ export class BaseCard extends LitElement {
         .container.editing > *{
           opacity:0.7;
         }
+
+        .container.editing a {
+          cursor:not-allowed;
+        }
+
+        .container.editing a[target=_blank] {
+          cursor:pointer;
+        }
+
       </style>
       <div class="container ${this.editing ? 'editing' : ''}">
         ${this.innerRender()}
@@ -47,6 +56,8 @@ export class BaseCard extends LitElement {
     if (!this.editing) return;
     let ele = e.path[0];
     if (ele.localName != 'a') return;
+    //Links that will open a new tab are fine
+    if (ele.target == "_blank") return;
     e.preventDefault();
 
   }
