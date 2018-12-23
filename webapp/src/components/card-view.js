@@ -80,7 +80,7 @@ class CardView extends connect(store)(PageViewElement) {
       <div class='container'>
         <card-drawer></card-drawer>
         <div class='card'>
-          <content-card title="${this._displayCard.title}" body="${this._displayCard.body}">
+          <content-card .editing=${this._editing} title="${this._displayCard.title}" body="${this._displayCard.body}">
           </content-card>
           <div class='actions'>
             <button ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>Edit</button>

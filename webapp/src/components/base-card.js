@@ -19,10 +19,13 @@ export class BaseCard extends LitElement {
         .container {
           height:100%;
           width:100%;
+        }
 
+        .container.editing > *{
+          opacity:0.7;
         }
       </style>
-      <div class="container">
+      <div class="container ${this.editing ? 'editing' : ''}">
         ${this.innerRender()}
       </div>
     `;
@@ -31,6 +34,12 @@ export class BaseCard extends LitElement {
   innerRender() {
     //Subclasess override this
     return "";
+  }
+
+  static get properties() {
+    return {
+      editing : { type:Boolean }
+    }
   }
 
 }
