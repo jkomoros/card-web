@@ -32,7 +32,7 @@ export const connectLiveCards = (store) => {
 }
 
 export const connectLiveSections = (store) => {
-  db.collection(SECTIONS_COLLECTION).onSnapshot(snapshot => {
+  db.collection(SECTIONS_COLLECTION).orderBy('order').onSnapshot(snapshot => {
 
     let sections = {};
 
