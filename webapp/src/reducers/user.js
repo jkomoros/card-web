@@ -42,6 +42,22 @@ const app = (state = INITIAL_STATE, action) => {
 }
 
 //TODO: more resilient testing
-export const userMayEdit = state => state.user && state.user.user && state.user.user.uid == 'TPo5MOn6rNX9k8K1bbejuBNk4Dr2';
+export const userMayEdit = state => {
+  if (!state.user) return false;
+  if (!state.user.user) return false;
+
+  const allowedIDs = [
+    'TPo5MOn6rNX9k8K1bbejuBNk4Dr2', //Production main account
+    'KteKDU7UnHfkLcXAyZXbQ6kRAk13' //dev- main account
+  ]
+
+  let uid = state.user.user.uid;
+
+  for (let val of Object.values(allowedIDs)) {
+    if (val == uid) return true;
+  }
+
+  return false;
+};
 
 export default app;
