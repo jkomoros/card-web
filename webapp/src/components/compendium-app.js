@@ -200,7 +200,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     </style>
 
     <!-- Header -->
-    <app-header condenses reveals effects="waterfall">
+    <app-header>
       <app-toolbar class="toolbar-top">
         ${this._devMode ? html`<span style='color:red;'>DEVMODE</span>` : ""}
         <button class="menu-btn" title="Menu" @click="${this._menuButtonClicked}">${menuIcon}</button>
