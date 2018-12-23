@@ -1,7 +1,9 @@
 export const UPDATE_CARDS = 'UPDATE_CARDS';
+export const UPDATE_SECTIONS = 'UPDATE_SECTIONS';
 export const SHOW_CARD = 'SHOW_CARD';
 
 const CARDS_COLLECTION = 'cards';
+const SECTIONS_COLLECTION = 'sections';
 
 const db = firebase.firestore();
 
@@ -26,6 +28,32 @@ export const connectLiveCards = (store) => {
     store.dispatch(updateCards(cards));
 
   });
+}
+
+export const connectLiveSections = (store) => {
+  db.collection(SECTIONS_COLLECTION).onSnapshot(snapshot => {
+
+    let sections = {};
+
+    snapshot.docChanges().forEach(change => {
+      if (change.type === 'removed') return;
+      let doc = change.doc;
+      let id = doc.id;
+      let section = doc.data();
+      section.id = id;
+      sections[id] = section;
+    })
+
+    store.dispatch(updateSections(sections));
+
+  })
+}
+
+export const updateSections = (sections) => {
+  return {
+    type: UPDATE_SECTIONS,
+    sections,
+  }
 }
 
 export const updateCards = (cards) => {
