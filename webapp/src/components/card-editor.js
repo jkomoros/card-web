@@ -8,6 +8,7 @@ import {
   editingFinish,
   editingCommit,
   titleUpdated,
+  bodyUpdated,
 } from '../actions/editor.js';
 
 class CardEditor extends connect(store)(LitElement) {
@@ -18,9 +19,7 @@ class CardEditor extends connect(store)(LitElement) {
       <h3>Editor</h3>
       Title:<input type='text' @input='${this._handleTitleUpdated}' .value=${this._card.title}></input>
       Body:
-      <textarea>
-        ${this._card.body}
-      </textarea>
+      <textarea @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
     `;
   }
 
@@ -43,6 +42,13 @@ class CardEditor extends connect(store)(LitElement) {
     let ele = e.path[0];
     let title = ele.value;
     store.dispatch(titleUpdated(ele.value));
+  }
+
+  _handleBodyUpdated(e) {
+    if (!this._active) return;
+    let ele = e.path[0];
+    let body = ele.value;
+    store.dispatch(bodyUpdated(ele.value));
   }
 
   _handleCommit(e) {

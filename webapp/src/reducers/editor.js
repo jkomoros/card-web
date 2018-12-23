@@ -2,6 +2,7 @@ import {
   EDITING_START,
   EDITING_FINISH,
   EDITING_TITLE_UPDATED,
+  EDITING_BODY_UPDATED,
 } from '../actions/editor.js';
 
 const INITIAL_STATE = {
@@ -28,6 +29,12 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         card: {...state.card, title:action.title},
+      }
+    case EDITING_BODY_UPDATED:
+      if (!state.card) return state;
+      return {
+        ...state,
+        card: {...state.card, body:action.body},
       }
     default:
       return state;

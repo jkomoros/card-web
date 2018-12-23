@@ -1,6 +1,7 @@
 export const EDITING_START = 'EDITING_START';
 export const EDITING_FINISH = 'EDITING_FINISH';
 export const EDITING_TITLE_UPDATED = 'EDITING_TITLE_UPDATED';
+export const EDITING_BODY_UPDATED = 'EDITING_BODY_UPDATED';
 
 import {
   userMayEdit
@@ -60,5 +61,12 @@ export const titleUpdated = (newTitle) => {
   return {
     type: EDITING_TITLE_UPDATED,
     title:newTitle,
+  }
+}
+
+export const bodyUpdated = (newBody) => {
+  return {
+    type: EDITING_BODY_UPDATED,
+    body: newBody
   }
 }
