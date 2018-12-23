@@ -77,7 +77,11 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 
 const extractCardLinks = (body) => {
   let ele = document.createElement("section");
-  return ele.querySelectorAll("a[card]").map(link => link.getAttribute('card'))
+  ele.innerHTML = body;
+  let result = [];
+  let nodes = ele.querySelectorAll("a[card]");
+  nodes.forEach(link => result.push(link.getAttribute('card')));
+  return result;
 }
 
 export const createCard = (section, id) => {
