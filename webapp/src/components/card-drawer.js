@@ -17,20 +17,39 @@ class CardDrawer extends connect(store)(LitElement) {
   render() {
     return html`
       <style>
-        .container {
+        .scrolling {
           overflow:scroll;
           max-height:100%;
+          flex-grow:1;
+        }
+        .container {
+          max-height:100%;
+          display:flex;
+          flex-direction:column;
         }
       </style>
       <div class='container'>
-      ${repeat(this._collection, (i) => i.id, (i, index) => html`
-        <card-thumbnail @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .title=${i.title} .selected=${i.id == this._activeCardId}></card-thumbnail>`)}
+        <div class='controls'>
+          <strong>Section</strong>
+          <select @change=${this._handleChange}>
+            <option>Foo</option>
+            <option>Bar</option>
+          </select>
+        </div>
+        <div class='scrolling'>
+        ${repeat(this._collection, (i) => i.id, (i, index) => html`
+          <card-thumbnail @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .title=${i.title} .selected=${i.id == this._activeCardId}></card-thumbnail>`)}
+        </div>
       </div>
     `;
   }
 
   _thumbnailActivatedHandler(e) {
     store.dispatch(navigateToCard(e.target.id));
+  }
+
+  _handleChange(e) {
+    console.log(e);
   }
 
   static get properties() { return {
