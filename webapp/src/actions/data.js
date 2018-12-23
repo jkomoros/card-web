@@ -36,11 +36,19 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
     return;
   }
 
+  let keysCount = 0;
+
   for (let key of Object.keys(update)) {
+    keysCount++;
     if (!LEGAL_UPDATE_FIELDS.has(key)) {
       console.log("Illegal field in update: " + key, update);
       return;
     }
+  }
+
+  if (keysCount == 0) {
+    console.log("Nothing changed in update!");
+    return;
   }
 
   dispatch(modifyCardAction(card.id));
