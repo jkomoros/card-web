@@ -86,7 +86,7 @@ class CardView extends connect(store)(PageViewElement) {
           <div class='actions'>
             <button ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>Edit</button>
           </div>
-          <card-editor ?active=${this._editing} .card=${this._editingCard} @close-editor='${this._handleCloseEditor}'></card-editor>
+          <card-editor ?active=${this._editing} .card=${this._editingCard} @commit-editor='${this._handleCommitEditor}' @close-editor='${this._handleCloseEditor}'></card-editor>
         </div>
       </div>
     `;
@@ -114,6 +114,10 @@ class CardView extends connect(store)(PageViewElement) {
     if (parts[1] == 'edit') editing = true;
 
     return [cardId, editing]
+  }
+
+  _handleCommitEditor(e) {
+    console.log("Save clicked");
   }
 
   _handleCloseEditor(e) {
