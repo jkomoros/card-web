@@ -1,6 +1,7 @@
 export const UPDATE_CARDS = 'UPDATE_CARDS';
 export const UPDATE_SECTIONS = 'UPDATE_SECTIONS';
 export const SHOW_CARD = 'SHOW_CARD';
+export const SHOW_SECTION = 'SHOW_SECTION';
 
 const CARDS_COLLECTION = 'cards';
 const SECTIONS_COLLECTION = 'sections';

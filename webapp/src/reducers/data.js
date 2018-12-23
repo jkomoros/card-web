@@ -1,4 +1,4 @@
-import { UPDATE_CARDS, UPDATE_SECTIONS, SHOW_CARD } from '../actions/data.js';
+import { UPDATE_CARDS, UPDATE_SECTIONS, SHOW_CARD, SHOW_SECTION } from '../actions/data.js';
 import { createSelector } from 'reselect';
 
 const INITIAL_STATE = {
@@ -12,23 +12,32 @@ const INITIAL_STATE = {
 
 const app = (state = INITIAL_STATE, action) => {
   let json, value;
-  console.log(state, action);
   switch (action.type) {
     case UPDATE_CARDS:
-      return ensureActiveCards({
+      return ensureActiveCard({
         ...state,
         cards: {...state.cards, ...action.cards},
         slugIndex: {...state.slugIndex, ...extractSlugIndex(action.cards)},
       })
     case UPDATE_SECTIONS:
-      return ensureActiveCards({
+      return ensureActiveCard({
         ...state,
         sections: {...state.sections, ...action.sections}
       })
     case SHOW_CARD:
-      return ensureActiveCards({
+      return ensureActiveCard({
         ...state,
         activeCardId:idForActiveCard(state, action.card)
+      })
+    case SHOW_SECTION:
+      //Skip if we're already there
+      if (action.section == state.activeSectionId) return state;
+      return ensureActiveCard({
+        ...state,
+        //Clear out the card, ensureActiveCard will select one for us.
+        activeCardId: "",
+        activeCardIndex: -1,
+        activeSectionId: action.section
       })
     default:
       return state;
@@ -37,8 +46,19 @@ const app = (state = INITIAL_STATE, action) => {
 
 //When the show_card is called, the underlying sections/cards data might not
 //exist, so every time we update any three of those, we run it through this.
-const ensureActiveCards = (state) => {
-  let id = idForActiveCard(state, state.activeCardId);
+const ensureActiveCard = (state) => {
+
+  let id = state.activeCardId;
+
+  if (!id && state.activeSectionId) {
+    //We might have just switched to a different section
+    let section = state.sections[state.activeSectionId];
+    if (section && section.cards) {
+      id = section.cards[0];
+    }
+  }
+
+  id = idForActiveCard(state, state.activeCardId);
   let sectionId = sectionForActiveCard(state, id);
   let section = state.sections[sectionId]
   let collection = [];
