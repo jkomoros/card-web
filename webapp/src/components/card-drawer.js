@@ -32,8 +32,10 @@ class CardDrawer extends connect(store)(LitElement) {
         <div class='controls'>
           <strong>Section</strong>
           <select @change=${this._handleChange}>
-            <option>Foo</option>
-            <option>Bar</option>
+
+            ${repeat(Object.values(this._sections), (item) => item.id, (item, index) => html`
+              <option value="${item.id}" ?selected=${item.id == this._activeSectionId}>${item.title}</option>
+              `)}
           </select>
         </div>
         <div class='scrolling'>
@@ -54,13 +56,18 @@ class CardDrawer extends connect(store)(LitElement) {
 
   static get properties() { return {
     _collection: { type: Array },
-    _activeCardId: { type: String }
+    _activeCardId: { type: String },
+    _activeSectionId: { type: String },
+    _sections: { type: Object }
+
   }}
 
   // This is called every time something is updated in the store.
   stateChanged(state) {
     this._collection = collectionSelector(state);
     this._activeCardId = state.data.activeCardId;
+    this._activeSectionId = state.data.activeSectionId;
+    this._sections = state.data.sections;
   }
 }
 
