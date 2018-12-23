@@ -29,7 +29,7 @@ import {
   connectLiveCards,
   connectLiveSections,
   doImport
-} from '../actions/data.js';
+} from '../actions/database.js';
 
 // These are the actions needed by this element.
 import {
