@@ -46,12 +46,17 @@ export const navigateToPreviousCard = () => (dispatch, getState) => {
   dispatch(navigateToCard(newId));
 }
 
+export const urlForCard = (idOrName, edit) => {
+  return '/c/' + idOrName + (edit ? '/edit' : '');
+}
+
 export const navigateToCard = (cardOrId, silent) => (dispatch) => {
   let id = cardOrId
   if (typeof cardOrId === 'object') {
     id = cardOrId.name;
   }
-  dispatch(navigatePathTo('/c/' + id, silent));
+  let path = urlForCard(id, false);
+  dispatch(navigatePathTo(path, silent));
 }
 
 export const navigated = (path) => (dispatch) => {
