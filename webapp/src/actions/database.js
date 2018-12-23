@@ -95,6 +95,13 @@ export const importCards = (cards) => {
     let card = transformedCards[key];
     let ref = db.collection(CARDS_COLLECTION).doc(key);
     batch.set(ref, card);
+    let update = {
+      substantive: true,
+      timestamp: new Date(),
+      import: true
+    }
+    let updateRef = ref.collection(CARD_UPDATES_COLLECTION).doc('' + Date.now());
+    batch.set(updateRef, update);
   }
 
   for (let key of Object.keys(sections)) {
@@ -121,6 +128,7 @@ const transformImportCard = (legacyCard) => {
     title: legacyCard.title || "",
     body: legacyCard.body || "",
     links: legacyCard.links || [],
+    imported: true,
     links_inbound: legacyCard.inbound_links || [],
     slugs: legacyCard.slugs ? legacyCard.slugs.split(",") : [],
     notes: legacyCard.notes || "",
