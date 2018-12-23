@@ -11,6 +11,10 @@ import {
   navigateToCard
 } from '../actions/app.js';
 
+import {
+  showSection
+} from '../actions/data.js';
+
 import { collectionSelector } from '../reducers/data.js'
 
 class CardDrawer extends connect(store)(LitElement) {
@@ -51,7 +55,8 @@ class CardDrawer extends connect(store)(LitElement) {
   }
 
   _handleChange(e) {
-    console.log(e);
+    let ele = e.path[0];
+    store.dispatch(showSection(ele.value));
   }
 
   static get properties() { return {

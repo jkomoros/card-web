@@ -71,6 +71,13 @@ export const showCard = (cardId) => {
   }
 }
 
+export const showSection = (sectionId) => {
+  return {
+    type: SHOW_SECTION,
+    section: sectionId
+  }
+}
+
 export const showNewCard = () => (dispatch, getState) => {
 
   const cards = getState().data.cards;

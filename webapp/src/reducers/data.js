@@ -58,7 +58,7 @@ const ensureActiveCard = (state) => {
     }
   }
 
-  id = idForActiveCard(state, state.activeCardId);
+  id = idForActiveCard(state, id);
   let sectionId = sectionForActiveCard(state, id);
   let section = state.sections[sectionId]
   let collection = [];
