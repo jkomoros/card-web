@@ -42,6 +42,19 @@ export class BaseCard extends LitElement {
     }
   }
 
+  _handleClick(e) {
+    //We only cancel link following if editing is true
+    if (!this.editing) return;
+    let ele = e.path[0];
+    if (ele.localName != 'a') return;
+    e.preventDefault();
+
+  }
+
+  firstUpdated(changedProps) {
+    this.addEventListener('click', e => this._handleClick(e))
+  }
+
 }
 
 window.customElements.define('base-card', BaseCard);
