@@ -84,7 +84,7 @@ class CardView extends connect(store)(PageViewElement) {
     if (changedProps.has('_cardIdOrSlug')) {
       store.dispatch(showCard(this._cardIdOrSlug));
     }
-    if (changedProps.has('_card') && this._card) {
+    if (changedProps.has('_card') && this._card && this._card.name) {
       //Ensure that the article name that we're shwoing--no matter how they
       //havigated here--is the preferred slug name.
       if (this._card.name != this._cardIdOrSlug) {
