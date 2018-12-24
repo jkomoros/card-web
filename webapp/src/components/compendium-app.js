@@ -111,8 +111,8 @@ class CompendiumApp extends connect(store)(LitElement) {
       }
 
       [main-title] {
-        font-family: 'Pacifico';
-        text-transform: lowercase;
+        font-family: 'Raleway';
+        font-weight:bold;
         font-size: 30px;
       }
 
