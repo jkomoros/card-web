@@ -8,12 +8,12 @@ export class BaseCard extends LitElement {
         :host {
           display:block;
           background-color: var(--card-color);
-          height: 540px;
-          width: 960px;
+          height: 24.54em;
+          width: 43.63em;
           box-shadow: var(--card-shadow);
           box-sizing: border-box;
-          padding: 23px 33px;
-          margin:2em auto;
+          padding: 1em 1.45em;
+          line-height:1.4;
         }
 
         .container {

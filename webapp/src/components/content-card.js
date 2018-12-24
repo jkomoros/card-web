@@ -13,18 +13,18 @@ class ContentCard extends BaseCard {
           font-weight:bold;
           color: var(--app-primary-color);
           margin-top:0;
-          font-size:32px;
+          font-size:1.45em;
         }
 
         section {
           font-family: 'Source Sans Pro', sans-serif;
-          font-size: 22px;
+          font-size: 1em;
           color: var(--app-dark-text-color);
           background-color:transparent;
         }
 
         .small {
-          font-size:16px;
+          font-size:0.72em;
         }
 
         a {

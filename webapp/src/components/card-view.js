@@ -72,6 +72,10 @@ class CardView extends connect(store)(PageViewElement) {
           display:block;
         }
 
+        content-card {
+          font-size:22px;
+        }
+
         [hidden] {
           display:none;
         }
