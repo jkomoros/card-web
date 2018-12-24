@@ -14,6 +14,7 @@ export class BaseCard extends LitElement {
           box-sizing: border-box;
           padding: 1em 1.45em;
           line-height:1.4;
+          position:relative;
         }
 
         .container {
