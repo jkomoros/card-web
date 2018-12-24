@@ -39,7 +39,7 @@ export const ButtonSharedStyles = html`
 
   label {
     font-size:0.75em;
-    color: var(--app-subtle-dark-text-color);
+    color: var(--app-dark-text-color-light);
     font-weight:normal;
     margin:0;
     margin-top:1em;

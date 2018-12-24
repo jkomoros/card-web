@@ -58,13 +58,16 @@ class CompendiumApp extends connect(store)(LitElement) {
         display: block;
 
         --app-primary-color: #5e2b97;
+        --app-primary-color-light: #bc9ae2;
         --app-secondary-color: #009688;
+        --app-secondary-color-light: #00dac6;
+
         --app-dark-text-color: #7f7f7f;
         --app-light-text-color: white;
         --app-section-even-color: #f7f7f7;
         --app-section-odd-color: white;
 
-        --app-subtle-dark-text-color: #AAA;
+        --app-dark-text-color-light: #AAA;
 
         --app-header-font-family: 'Raleway';
         --app-default-font-family: 'Source Sans Pro';

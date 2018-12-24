@@ -39,12 +39,12 @@ class CardDrawer extends connect(store)(LitElement) {
           padding:0.5em;
           box-sizing:border-box;
           flex-direction:column;
-          border-bottom:1px solid var(--app-subtle-dark-text-color);
+          border-bottom:1px solid var(--app-dark-text-color-light);
         }
         .controls label {
           margin:0;
           font-weight:normal;
-          color: var(--app-subtle-dark-text-color);
+          color: var(--app-dark-text-color-light);
         }
       </style>
       <div class='container'>

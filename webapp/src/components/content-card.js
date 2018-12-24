@@ -31,8 +31,16 @@ class ContentCard extends BaseCard {
           color: var(--app-primary-color);
         }
 
+        a:visited {
+          color: var(--app-primary-color-light);
+        }
+
         a[card] {
           color: var(--app-secondary-color);
+        }
+
+        a[card]:visited {
+          color: var(--app-secondary-color-light);
         }
 
         .loading {
