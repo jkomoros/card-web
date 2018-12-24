@@ -83,11 +83,15 @@ class CardView extends connect(store)(PageViewElement) {
           font-size:22px;
         }
 
+        .container.editing .actions {
+          display:none;
+        }
+
         [hidden] {
           display:none;
         }
       </style>
-      <div class='container'>
+      <div class='container${this._editing ? ' editing' : ''}'>
         <card-drawer></card-drawer>
         <div class='card'>
           <content-card .editing=${this._editing} title="${this._displayCard && this._displayCard.title ? this._displayCard.title : ""}" body="${this._displayCard && this._displayCard.body ? this._displayCard.body : ""}">
