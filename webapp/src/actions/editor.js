@@ -4,6 +4,7 @@ export const EDITING_TITLE_UPDATED = 'EDITING_TITLE_UPDATED';
 export const EDITING_BODY_UPDATED = 'EDITING_BODY_UPDATED';
 export const EDITING_SECTION_UPDATED = 'EDITING_SECTION_UPDATED';
 export const EDITING_SLUG_ADDED = 'EDITING_SLUG_ADDED';
+export const EDITING_NAME_UPDATED = 'EDITING_NAME_UPDATED';
 
 import {
   userMayEdit
@@ -85,5 +86,12 @@ export const slugAdded = (newSlug) => {
   return {
     type: EDITING_SLUG_ADDED,
     slug: newSlug
+  }
+}
+
+export const nameUpdated = (newName) => {
+  return {
+    type: EDITING_NAME_UPDATED,
+    name: newName
   }
 }

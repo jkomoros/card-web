@@ -17,6 +17,7 @@ import {
   titleUpdated,
   bodyUpdated,
   sectionUpdated,
+  nameUpdated,
 } from '../actions/editor.js';
 
 import {
@@ -104,7 +105,7 @@ class CardEditor extends connect(store)(LitElement) {
             </div>
             <div>
               <Label>Slugs</label>
-              <select .value=${this._card.name}>
+              <select .value=${this._card.name} @change='${this._handleNameUpdated}'>
                 ${repeat([this._card.id, ...this._card.slugs], (item) => item, (item, index) => html`
                 <option value="${item}" ?selected=${item == this._card.name}>${item}</option>`)}
               </select>
@@ -153,6 +154,12 @@ class CardEditor extends connect(store)(LitElement) {
     if (!this._active) return;
     let ele = e.path[0];
     store.dispatch(sectionUpdated(ele.value));
+  }
+
+  _handleNameUpdated(e) {
+    if (!this._active) return;
+    let ele = e.path[0];
+    store.dispatch(nameUpdated(ele.value));
   }
 
   _handleAddSlug(e) {

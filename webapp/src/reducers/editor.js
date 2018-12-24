@@ -5,6 +5,7 @@ import {
   EDITING_BODY_UPDATED,
   EDITING_SECTION_UPDATED,
   EDITING_SLUG_ADDED,
+  EDITING_NAME_UPDATED
 } from '../actions/editor.js';
 
 const INITIAL_STATE = {
@@ -49,6 +50,12 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         card: {...state.card, slugs: [...state.card.slugs, action.slug]}
+      }
+    case EDITING_NAME_UPDATED:
+      if (!state.card) return state;
+      return {
+        ...state,
+        card: {...state.card, name:action.name}
       }
     default:
       return state;
