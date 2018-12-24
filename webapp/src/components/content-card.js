@@ -35,8 +35,13 @@ class ContentCard extends BaseCard {
           color: var(--app-secondary-color);
         }
 
+        .loading {
+          font-style:italic;
+          opacity: 0.5;
+        }
+
       </style>
-      <h1>${this.title}</h1>
+      <h1>${this.title ? this.title : html`<span class='loading'>Loading...<span>`}</h1>
       ${this._makeSection(this.body)}
     `;
   }
@@ -58,6 +63,9 @@ class ContentCard extends BaseCard {
   }
 
   _makeSection(body) {
+    if (!body) {
+      return html`<span class='loading'>Loading...</span>`
+    }
     const section = document.createElement("section");
     section.innerHTML = body;
     section.querySelectorAll('a').forEach(this._updateA)
