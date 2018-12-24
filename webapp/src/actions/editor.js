@@ -5,6 +5,7 @@ export const EDITING_BODY_UPDATED = 'EDITING_BODY_UPDATED';
 export const EDITING_SECTION_UPDATED = 'EDITING_SECTION_UPDATED';
 export const EDITING_SLUG_ADDED = 'EDITING_SLUG_ADDED';
 export const EDITING_NAME_UPDATED = 'EDITING_NAME_UPDATED';
+export const EDITING_SUBSTANTIVE_UPDATED = 'EDITING_SUBSTANTIVE_UPDATED';
 
 import {
   userMayEdit
@@ -94,5 +95,12 @@ export const nameUpdated = (newName) => {
   return {
     type: EDITING_NAME_UPDATED,
     name: newName
+  }
+}
+
+export const substantiveUpdated = (checked) => {
+  return {
+    type: EDITING_SUBSTANTIVE_UPDATED,
+    checked,
   }
 }

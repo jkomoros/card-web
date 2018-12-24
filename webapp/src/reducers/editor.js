@@ -5,7 +5,8 @@ import {
   EDITING_BODY_UPDATED,
   EDITING_SECTION_UPDATED,
   EDITING_SLUG_ADDED,
-  EDITING_NAME_UPDATED
+  EDITING_NAME_UPDATED,
+  EDITING_SUBSTANTIVE_UPDATED
 } from '../actions/editor.js';
 
 const INITIAL_STATE = {
@@ -62,6 +63,11 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         card: {...state.card, name:action.name}
+      }
+    case EDITING_SUBSTANTIVE_UPDATED:
+      return {
+        ...state,
+        substantive: action.checked
       }
     default:
       return state;
