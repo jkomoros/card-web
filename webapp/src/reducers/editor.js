@@ -3,6 +3,7 @@ import {
   EDITING_FINISH,
   EDITING_TITLE_UPDATED,
   EDITING_BODY_UPDATED,
+  EDITING_SECTION_UPDATED
 } from '../actions/editor.js';
 
 const INITIAL_STATE = {
@@ -35,6 +36,12 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         card: {...state.card, body:action.body},
+      }
+    case EDITING_SECTION_UPDATED:
+      if (!state.card) return state;
+      return {
+        ...state,
+        card: {...state.card, section:action.section}
       }
     default:
       return state;

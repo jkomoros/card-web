@@ -1,5 +1,6 @@
 import { LitElement, html } from '@polymer/lit-element';
 import { connect } from 'pwa-helpers/connect-mixin.js';
+import { repeat } from 'lit-html/directives/repeat';
 
 // This element is connected to the Redux store.
 import { store } from '../store.js';
@@ -11,6 +12,7 @@ import {
   editingCommit,
   titleUpdated,
   bodyUpdated,
+  sectionUpdated,
 } from '../actions/editor.js';
 
 import {
@@ -45,6 +47,11 @@ class CardEditor extends connect(store)(LitElement) {
           font-size:0.8em;
           border-bottom:1px solid var(--app-dark-text-color);
           width: 100%;
+        }
+
+        .inputs > div {
+          display:flex;
+          flex-direction:column;
         }
 
         textarea {
@@ -83,6 +90,13 @@ class CardEditor extends connect(store)(LitElement) {
             <label>Body</label>
             <textarea @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
           </div>
+          <div>
+            <label>Section</label>
+            <select @change='${this._handleSectionUpdated}' .value=${this._card.section}>
+              ${repeat(Object.values(this._sections), (item) => item, (item, index) => html`
+              <option value="${item.id}" ?selected=${item.id == this._activeSectionId}>${item.title}</option>`)}
+            </select>
+          </div>
         </div>
         <div class='buttons'>
           <h3>Editing</h3>
@@ -95,12 +109,14 @@ class CardEditor extends connect(store)(LitElement) {
 
   static get properties() { return {
     _card: { type: Object },
-    _active: {type: Boolean }
+    _active: {type: Boolean },
+    _sections: {type: Object }
   }}
 
   stateChanged(state) {
     this._card= state.editor.card;
-    this._active = state.editor.editing;     
+    this._active = state.editor.editing;
+    this._sections = state.data.sections;
   }
 
   shouldUpdate() {
@@ -110,15 +126,19 @@ class CardEditor extends connect(store)(LitElement) {
   _handleTitleUpdated(e) {
     if (!this._active) return;
     let ele = e.path[0];
-    let title = ele.value;
     store.dispatch(titleUpdated(ele.value));
   }
 
   _handleBodyUpdated(e) {
     if (!this._active) return;
     let ele = e.path[0];
-    let body = ele.value;
     store.dispatch(bodyUpdated(ele.value));
+  }
+
+  _handleSectionUpdated(e) {
+    if (!this._active) return;
+    let ele = e.path[0];
+    store.dispatch(sectionUpdated(ele.value));
   }
 
   _handleCommit(e) {

@@ -2,6 +2,7 @@ export const EDITING_START = 'EDITING_START';
 export const EDITING_FINISH = 'EDITING_FINISH';
 export const EDITING_TITLE_UPDATED = 'EDITING_TITLE_UPDATED';
 export const EDITING_BODY_UPDATED = 'EDITING_BODY_UPDATED';
+export const EDITING_SECTION_UPDATED = 'EDITING_SECTION_UPDATED';
 
 import {
   userMayEdit
@@ -47,6 +48,7 @@ export const editingCommit = () => (dispatch, getState) => {
 
   if (updatedCard.title != underlyingCard.title) update.title = updatedCard.title;
   if (updatedCard.body != underlyingCard.body) update.body = updatedCard.body;
+  if (updatedCard.section != underlyingCard.section) update.section = updatedCard.section;
 
   //modifyCard will fail if the update is a no-op.
   dispatch(modifyCard(underlyingCard, update, false));
@@ -68,5 +70,12 @@ export const bodyUpdated = (newBody) => {
   return {
     type: EDITING_BODY_UPDATED,
     body: newBody
+  }
+}
+
+export const sectionUpdated = (newSection) => {
+  return {
+    type: EDITING_SECTION_UPDATED,
+    section: newSection
   }
 }
