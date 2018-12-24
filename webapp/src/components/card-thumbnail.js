@@ -36,8 +36,22 @@ class CardThumbnail extends LitElement {
         .selected h3 {
           color: var(--app-primary-color);
         }
+
+        div.section-head {
+          background-color: var(--app-primary-color);
+        }
+
+        div.section-head h3 {
+          color: var(--app-light-text-color);
+        }
+
+        div.section-head:hover h3 {
+          color: var(--app-primary-color-light);
+        }
+
+
       </style>
-      <div @click=${this._handleClick} class="${this.selected ? "selected" : ""}">
+      <div @click=${this._handleClick} class="${this.selected ? "selected" : ""} ${this.cardType}">
         <h3>${this.title}</h3>
       </div>
     `;
@@ -46,7 +60,8 @@ class CardThumbnail extends LitElement {
   static get properties() { return {
     id: {type: String},
     title: { type: String },
-    selected: { type: Boolean }
+    selected: { type: Boolean },
+    cardType: { type: String}
   }};
 
   _handleClick(e) {

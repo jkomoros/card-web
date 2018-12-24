@@ -58,7 +58,7 @@ class CardDrawer extends connect(store)(LitElement) {
         </div>
         <div class='scrolling'>
         ${repeat(this._collection, (i) => i.id, (i, index) => html`
-          <card-thumbnail @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .title=${i.title} .selected=${i.id == this._activeCardId}></card-thumbnail>`)}
+          <card-thumbnail @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .title=${i.title} .cardType=${i.card_type} .selected=${i.id == this._activeCardId}></card-thumbnail>`)}
         </div>
       </div>
     `;
