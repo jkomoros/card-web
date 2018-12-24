@@ -152,6 +152,17 @@ class CardView extends connect(store)(PageViewElement) {
     this._userMayEdit = userMayEdit(state);
   }
 
+  _ensureUrlShowsName() {
+    //Ensure that the article name that we're shwoing--no matter how they
+    //havigated here--is the preferred slug name.
+    if (!this._card || !this._card.name) return;
+    if (this._card.name != this._cardIdOrSlug) {
+      //Deliberately do not call the navigate sction cretator, since this
+      //should be a no-op.
+      store.dispatch(navigateToCard(this._card, true));
+    }
+  }
+
   updated(changedProps) {
     if (changedProps.has('_cardIdOrSlug')) {
       if (this._cardIdOrSlug) {
@@ -161,14 +172,13 @@ class CardView extends connect(store)(PageViewElement) {
         store.dispatch(navigateToCard(''));
       }
     }
+    if (changedProps.has('_editing') && !this._editing) {
+      //Verify that our URL shows the canoncial name, which may have just
+      //changed when edited.
+      this._ensureUrlShowsName();
+    }
     if (changedProps.has('_card') && this._card && this._card.name) {
-      //Ensure that the article name that we're shwoing--no matter how they
-      //havigated here--is the preferred slug name.
-      if (this._card.name != this._cardIdOrSlug) {
-        //Deliberately do not call the navigate sction cretator, since this
-        //should be a no-op.
-        store.dispatch(navigateToCard(this._card, true));
-      }
+      this._ensureUrlShowsName();
     }
   }
 }
