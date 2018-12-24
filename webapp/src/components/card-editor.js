@@ -62,7 +62,7 @@ class CardEditor extends connect(store)(LitElement) {
 
         .inputs h5 {
           font-size:0.75em;
-          color: var(--app-dark-text-color);
+          color: var(--app-subtle-dark-text-color);
           font-weight:normal;
           margin:0;
           margin-top:1em;

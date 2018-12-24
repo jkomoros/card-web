@@ -31,10 +31,22 @@ class CardDrawer extends connect(store)(LitElement) {
           display:flex;
           flex-direction:column;
         }
+        .controls {
+          display:flex;
+          padding:0.25em;
+          box-sizing:border-box;
+          flex-direction:column;
+          border-bottom:1px solid var(--app-subtle-dark-text-color);
+        }
+        .controls h5 {
+          margin:0;
+          font-weight:normal;
+          color: var(--app-subtle-dark-text-color);
+        }
       </style>
       <div class='container'>
         <div class='controls'>
-          <strong>Section</strong>
+          <h5>Section</h5>
           <select @change=${this._handleChange}>
 
             ${repeat(Object.values(this._sections), (item) => item.id, (item, index) => html`
