@@ -179,6 +179,7 @@ class CompendiumApp extends connect(store)(LitElement) {
       <main role="main" class="main-content">
         <card-view class="page" ?active="${this._page === 'c'}"></card-view>
         <my-view404 class="page" ?active="${this._page === 'view404'}"></my-view404>
+        <maintenance-view class='page' ?active="${this._page === 'maintenance'}"></maintenance-view>
       </main>
     </div>
     <snack-bar ?active="${this._snackbarOpened}">

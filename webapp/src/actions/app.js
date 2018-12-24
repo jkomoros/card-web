@@ -89,11 +89,8 @@ const loadPage = (pathname) => (dispatch) => {
         // navigating to view1 after my-view1.js is loaded.
       });
       break;
-    case 'view2':
-      import('../components/my-view2.js');
-      break;
-    case 'view3':
-      import('../components/my-view3.js');
+    case 'maintenance':
+      import('../components/maintenance-view.js');
       break;
     default:
       page = 'view404';
