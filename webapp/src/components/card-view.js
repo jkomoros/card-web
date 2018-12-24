@@ -32,7 +32,7 @@ import {
 } from '../actions/app.js';
 
 //Components needed by this
-import './content-card.js';
+import './card-renderer.js';
 import './card-drawer.js';
 import './card-editor.js';
 
@@ -81,11 +81,11 @@ class CardView extends connect(store)(PageViewElement) {
           flex-grow:1;
         }
 
-        content-card {
+        card-renderer {
           font-size:22px;
         }
 
-        .editing content-card {
+        .editing card-renderer {
           font-size:16px;
         }
 
@@ -100,8 +100,7 @@ class CardView extends connect(store)(PageViewElement) {
       <div class='container${this._editing ? ' editing' : ''}'>
         <card-drawer></card-drawer>
         <div class='card'>
-          <content-card .editing=${this._editing} title="${this._displayCard && this._displayCard.title ? this._displayCard.title : ""}" body="${this._displayCard && this._displayCard.body ? this._displayCard.body : ""}">
-          </content-card>
+          <card-renderer .editing=${this._editing} .card=${this._displayCard}></card-renderer>
           <div class='actions'>
             <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
           </div>
