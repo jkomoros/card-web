@@ -212,7 +212,7 @@ class CompendiumApp extends connect(store)(LitElement) {
   firstUpdated() {
     installRouter((location) => store.dispatch(navigated(decodeURIComponent(location.pathname))));
     installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
-    window.addEventListener('keyup', e => this._handleKeyPressed(e));
+    window.addEventListener('keydown', e => this._handleKeyPressed(e));
     connectLiveCards(store);
     connectLiveSections(store);
   }
