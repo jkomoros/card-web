@@ -49,7 +49,6 @@ class CardView extends connect(store)(PageViewElement) {
       ${SharedStyles}
       <style>
         :host {
-          position: absolute;
           height: 100%;
           width: 100%;
         }

@@ -75,6 +75,13 @@ class CompendiumApp extends connect(store)(LitElement) {
         --app-drawer-selected-color: #78909C;
       }
 
+      .container {
+        height:100vh;
+        width: 100vw;
+        display:flex;
+        flex-direction:column;
+      }
+
       app-header {
         position: fixed;
         top: 0;
@@ -119,8 +126,8 @@ class CompendiumApp extends connect(store)(LitElement) {
       }
 
       .main-content {
-        padding-top: 64px;
-        min-height: 100vh;
+        flex-grow:1;
+        overflow:hidden;
       }
 
       .page {
@@ -154,26 +161,27 @@ class CompendiumApp extends connect(store)(LitElement) {
       }
     </style>
 
-    <!-- Header -->
-    <app-header>
-      <app-toolbar class="toolbar-top">
-        ${this._devMode ? html`<span style='color:red;'>DEVMODE</span>` : ""}
-        <div main-title>${this.appTitle}</div>
-        <user-chip></user-chip>
-      </app-toolbar>
+    <div class='container'>
+      <!-- Header -->
+      <app-header>
+        <app-toolbar class="toolbar-top">
+          ${this._devMode ? html`<span style='color:red;'>DEVMODE</span>` : ""}
+          <div main-title>${this.appTitle}</div>
+          <user-chip></user-chip>
+        </app-toolbar>
 
-      <!-- This gets hidden on a small screen-->
-      <nav class="toolbar-list">
-        <a ?selected="${this._page === 'c'}" href="/c">Explore</a>
-      </nav>
-    </app-header>
+        <!-- This gets hidden on a small screen-->
+        <nav class="toolbar-list">
+          <a ?selected="${this._page === 'c'}" href="/c">Explore</a>
+        </nav>
+      </app-header>
 
-    <!-- Main content -->
-    <main role="main" class="main-content">
-      <card-view class="page" ?active="${this._page === 'c'}"></card-view>
-      <my-view404 class="page" ?active="${this._page === 'view404'}"></my-view404>
-    </main>
-
+      <!-- Main content -->
+      <main role="main" class="main-content">
+        <card-view class="page" ?active="${this._page === 'c'}"></card-view>
+        <my-view404 class="page" ?active="${this._page === 'view404'}"></my-view404>
+      </main>
+    </div>
     <snack-bar ?active="${this._snackbarOpened}">
         You are now ${this._offline ? 'offline' : 'online'}.</snack-bar>
     `;
