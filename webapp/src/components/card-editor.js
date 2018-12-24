@@ -119,14 +119,14 @@ class CardEditor extends connect(store)(LitElement) {
               </select>
               <button @click='${this._handleAddSlug}'>+</button>
             </div>
-            <div>
-              <label>Substantive</label>
-              <input type='checkbox' .checked=${this._substantive} @change='${this._handleSubstantiveChanged}'></input>
-            </div>
           </div>
         </div>
         <div class='buttons'>
           <h3>Editing</h3>
+          <div>
+            <label>Substantive</label>
+            <input type='checkbox' .checked=${this._substantive} @change='${this._handleSubstantiveChanged}'></input>
+          </div>
           <button class='round' @click='${this._handleCancel}'>${cancelIcon}</button>
           <button class='round primary' @click='${this._handleCommit}'>${saveIcon}</button>
         </div>
