@@ -112,6 +112,7 @@ export const createCard = (section, id) => {
     body: "",
     links: [],
     links_inbound: [],
+    card_type: 'content',
     notes: "",
     slugs: [],
     name: id,
