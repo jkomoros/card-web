@@ -7,9 +7,15 @@ import { store } from '../store.js';
 
 import './card-thumbnail.js';
 
+import { plusIcon } from './my-icons.js';
+
 import {
   navigateToCard
 } from '../actions/app.js';
+
+import {
+  userMayEdit
+} from '../reducers/user.js';
 
 import {
   showSection
@@ -18,10 +24,13 @@ import {
 import { collectionSelector } from '../reducers/data.js'
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
+import { SharedStyles } from './shared-styles.js';
+
 
 class CardDrawer extends connect(store)(LitElement) {
   render() {
     return html`
+      ${SharedStyles}
       ${ButtonSharedStyles}
       <style>
         .scrolling {
@@ -46,6 +55,11 @@ class CardDrawer extends connect(store)(LitElement) {
           font-weight:normal;
           color: var(--app-dark-text-color-light);
         }
+        button {
+          position: absolute;
+          left: 1em;
+          bottom: 1em;
+        }
       </style>
       <div class='container'>
         <div class='controls'>
@@ -60,6 +74,7 @@ class CardDrawer extends connect(store)(LitElement) {
         ${repeat(this._collection, (i) => i.id, (i, index) => html`
           <card-thumbnail @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${i.title} .cardType=${i.card_type} .selected=${i.id == this._activeCardId}></card-thumbnail>`)}
         </div>
+        <button class='round' @click='${this._handleAddSlide}' ?hidden='${!this._userMayEdit}'>${plusIcon}</button>
       </div>
     `;
   }
@@ -67,6 +82,10 @@ class CardDrawer extends connect(store)(LitElement) {
   _thumbnailActivatedHandler(e) {
     let ele = e.target;
     store.dispatch(navigateToCard(ele.name || ele.id));
+  }
+
+  _handleAddSlide(e) {
+    console.log("Add slide tapped");
   }
 
   _handleChange(e) {
@@ -78,8 +97,8 @@ class CardDrawer extends connect(store)(LitElement) {
     _collection: { type: Array },
     _activeCardId: { type: String },
     _activeSectionId: { type: String },
-    _sections: { type: Object }
-
+    _sections: { type: Object },
+    _userMayEdit: { type: Boolean}
   }}
 
   // This is called every time something is updated in the store.
@@ -88,6 +107,7 @@ class CardDrawer extends connect(store)(LitElement) {
     this._activeCardId = state.data.activeCardId;
     this._activeSectionId = state.data.activeSectionId;
     this._sections = state.data.sections;
+    this._userMayEdit = userMayEdit(state);
   }
 }
 
