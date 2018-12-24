@@ -154,7 +154,12 @@ class CardView extends connect(store)(PageViewElement) {
 
   updated(changedProps) {
     if (changedProps.has('_cardIdOrSlug')) {
-      store.dispatch(showCard(this._cardIdOrSlug));
+      if (this._cardIdOrSlug) {
+        store.dispatch(showCard(this._cardIdOrSlug))
+      } else {
+        //Dispatching to '' will use default;
+        store.dispatch(navigateToCard(''));
+      }
     }
     if (changedProps.has('_card') && this._card && this._card.name) {
       //Ensure that the article name that we're shwoing--no matter how they

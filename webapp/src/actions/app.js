@@ -13,6 +13,9 @@ export const UPDATE_OFFLINE = 'UPDATE_OFFLINE';
 export const OPEN_SNACKBAR = 'OPEN_SNACKBAR';
 export const CLOSE_SNACKBAR = 'CLOSE_SNACKBAR';
 
+//This is the card that is loaded if we weren't passed anything
+const DEFAULT_CARD = 'section-half-baked';
+
 //if silent is true, then just passively updates the URL to reflect what it should be.
 export const navigatePathTo = (path, silent) => (dispatch, getState) => {
     const state = getState();
@@ -52,6 +55,7 @@ export const navigateToPreviousCard = () => (dispatch, getState) => {
 
 export const urlForCard = (cardOrId, edit) => {
   let id = cardOrId
+  if (!id) id = DEFAULT_CARD;
   if (typeof cardOrId === 'object') {
     id = cardOrId.name;
   }
