@@ -23,6 +23,10 @@ export const SharedStyles = html`
     color: var(--app-dark-text-color);
   }
 
+  [hidden] {
+    display:none;
+  }
+
   @media (min-width: 460px) {
     h2 {
       font-size: 36px;

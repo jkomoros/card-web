@@ -41,6 +41,8 @@ const app = (state = INITIAL_STATE, action) => {
   }
 }
 
+export const userIsAdmin = state => userMayEdit(state);
+
 //TODO: more resilient testing
 export const userMayEdit = state => {
   if (!state.user) return false;
