@@ -8,6 +8,10 @@ import { store } from '../store.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
+  addSlug,
+} from '../actions/data.js';
+
+import {
   editingFinish,
   editingCommit,
   titleUpdated,
@@ -90,12 +94,19 @@ class CardEditor extends connect(store)(LitElement) {
             <label>Body</label>
             <textarea @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
           </div>
-          <div>
-            <label>Section</label>
-            <select @change='${this._handleSectionUpdated}' .value=${this._card.section}>
-              ${repeat(Object.values(this._sections), (item) => item, (item, index) => html`
-              <option value="${item.id}" ?selected=${item.id == this._activeSectionId}>${item.title}</option>`)}
-            </select>
+          <div class='row'>
+            <div>
+              <label>Section</label>
+              <select @change='${this._handleSectionUpdated}' .value=${this._card.section}>
+                ${repeat(Object.values(this._sections), (item) => item, (item, index) => html`
+                <option value="${item.id}" ?selected=${item.id == this._activeSectionId}>${item.title}</option>`)}
+              </select>
+            </div>
+            <div>
+              <Label>Slugs</label>
+              <select></select>
+              <button @click='${this._handleAddSlug}'>+</button>
+            </div>
           </div>
         </div>
         <div class='buttons'>
@@ -139,6 +150,16 @@ class CardEditor extends connect(store)(LitElement) {
     if (!this._active) return;
     let ele = e.path[0];
     store.dispatch(sectionUpdated(ele.value));
+  }
+
+  _handleAddSlug(e) {
+    if (!this._active) return;
+    if (!this._card) return;
+    let id = this._card.id;
+    let ele = e.path[0];
+    let value = prompt("Slug to add:");
+    if (!value) return;
+    store.dispatch(addSlug(id, value));
   }
 
   _handleCommit(e) {

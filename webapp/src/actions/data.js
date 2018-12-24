@@ -139,7 +139,7 @@ export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
     let slugs = doc.data().slugs || [];
 
     var newArray = [...slugs, newSlug];
-    transaction.update(cardRef, {slugs: newArray});
+    transaction.update(cardRef, {slugs: newArray, updated: new Date()});
   });
 
   let state = getState();
