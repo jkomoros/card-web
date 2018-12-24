@@ -13,6 +13,10 @@ import {
 } from './database.js';
 
 import {
+  navigateToCard
+} from './app.js';
+
+import {
   editingFinish
 } from './editor.js';
 
@@ -96,7 +100,7 @@ const extractCardLinks = (body) => {
   return result;
 }
 
-export const createCard = (section, id) => {
+export const createCard = (section, id) => async (dispatch) => {
 
   //newCard creates and inserts a new card in the givne section with the given id.
 
@@ -121,11 +125,26 @@ export const createCard = (section, id) => {
 
   let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
 
+  let doc = await cardDocRef.get();
+
+  if (doc.exists) {
+    console.log("Add failed: a card with that ID already exists");
+    return;
+  }
+
   let sectionRef = db.collection(SECTIONS_COLLECTION).doc(starterCard.section);
 
-  //TODO: do a transaction here.
-  //Check ot make sure that cardDoc id does not currently exist.
-  //Then put the starter card, and add its id to the end of the section's cards list.
+  await db.runTransaction(async transaction => {
+    let sectionDoc = await transaction.get(sectionRef);
+    if (!sectionDoc.exists) {
+      throw "Doc doesn't exist!"
+    }
+    var newArray = [...sectionDoc.cards, id];
+    transaction.update(sectionRef, {cards: newArray});
+    transaction.set(cardDocRef, obj);
+  })
+
+  dispatch(navigateToCard(id));
 }
 
 const modifyCardAction = (cardId) => {
