@@ -49,10 +49,13 @@ class CardThumbnail extends LitElement {
           color: var(--app-primary-color-light);
         }
 
+        .empty {
+          opacity:0.5;
+        }
 
       </style>
       <div @click=${this._handleClick} class="${this.selected ? "selected" : ""} ${this.cardType}">
-        <h3>${this.title}</h3>
+        <h3>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>
       </div>
     `;
   }
