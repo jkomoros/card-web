@@ -6,15 +6,37 @@ import './content-card.js';
 export class CardRenderer extends LitElement {
   render() {
     return html`
-      <content-card .editing=${this.editing} title="${this.card && this.card.title ? this.card.title : ""}" body="${this.card && this.card.body ? this.card.body : ""}"></content-card>
+      <content-card .editing=${this.editing} title="${this._title}" body="${this._body}"></content-card>
     `;
   }
 
   static get properties() {
     return {
       editing : { type:Boolean },
-      card: { type: Object }
+      card: { type: Object },
+      _title: { type:String },
+      _body: { type:String },
+      _subtitle: { type:String },
+      _cardType: {type:String},
     }
+  }
+
+  update(changedProps) {
+    if (changedProps.has('card')) {
+      if (this.card) {
+        this._cardType = this.card.cardType || 'content';
+        this._title = this.card.title || '';
+        this._body = this.card.body || '';
+        this._subtlte = this.card.subtitle || '';
+      } else {
+        this._cardType = '';
+        this._title = '';
+        this._body = '';
+        this._subtitle = '';
+      }
+      
+    }
+    super.update(changedProps);
   }
 
 }
