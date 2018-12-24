@@ -23,6 +23,9 @@ export const ButtonSharedStyles = html`
     cursor: pointer;
     margin: 0.5em;
   }
+  button.primary {
+    background: var(--app-primary-color);
+  }
   button.round {
     border-radius:50%;
   }

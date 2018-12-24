@@ -13,12 +13,17 @@ import {
   bodyUpdated,
 } from '../actions/editor.js';
 
+import {
+  saveIcon,
+  cancelIcon
+} from './my-icons.js';
+
 class CardEditor extends connect(store)(LitElement) {
   render() {
     return html`
       ${ButtonSharedStyles}
-     <button @click='${this._handleCancel}'>Cancel</button>
-     <button @click='${this._handleCommit}'>Save</button>
+     <button class='round' @click='${this._handleCancel}'>${cancelIcon}</button>
+     <button class='round primary' @click='${this._handleCommit}'>${saveIcon}</button>
       <h3>Editor</h3>
       Title:<input type='text' @input='${this._handleTitleUpdated}' .value=${this._card.title}></input>
       Body:
