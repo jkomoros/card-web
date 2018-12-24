@@ -178,13 +178,16 @@ class CompendiumApp extends connect(store)(LitElement) {
 
   static get properties() {
     return {
-      appTitle: { type: String },
       _page: { type: String },
       _snackbarOpened: { type: Boolean },
       _offline: { type: Boolean },
       _editing: { type: Boolean },
       _devMode: { type: Boolean },
     }
+  }
+
+  get appTitle() {
+    return "The Complexity Compendium";
   }
 
   constructor() {
