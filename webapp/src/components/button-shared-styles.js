@@ -36,5 +36,13 @@ export const ButtonSharedStyles = html`
     box-shadow: 0 6px 6px #999;
     background: var(--app-secondary-color);
   }
+  
+  label {
+    font-size:0.75em;
+    color: var(--app-subtle-dark-text-color);
+    font-weight:normal;
+    margin:0;
+    margin-top:1em;
+  }
 </style>
 `;

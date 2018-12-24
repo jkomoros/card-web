@@ -17,9 +17,12 @@ import {
 
 import { collectionSelector } from '../reducers/data.js'
 
+import { ButtonSharedStyles } from './button-shared-styles.js';
+
 class CardDrawer extends connect(store)(LitElement) {
   render() {
     return html`
+      ${ButtonSharedStyles}
       <style>
         .scrolling {
           overflow:scroll;
@@ -38,7 +41,7 @@ class CardDrawer extends connect(store)(LitElement) {
           flex-direction:column;
           border-bottom:1px solid var(--app-subtle-dark-text-color);
         }
-        .controls h5 {
+        .controls label {
           margin:0;
           font-weight:normal;
           color: var(--app-subtle-dark-text-color);
@@ -46,9 +49,8 @@ class CardDrawer extends connect(store)(LitElement) {
       </style>
       <div class='container'>
         <div class='controls'>
-          <h5>Section</h5>
+          <label>Section</label>
           <select @change=${this._handleChange}>
-
             ${repeat(Object.values(this._sections), (item) => item.id, (item, index) => html`
               <option value="${item.id}" ?selected=${item.id == this._activeSectionId}>${item.title}</option>
               `)}

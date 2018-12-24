@@ -60,14 +60,6 @@ class CardEditor extends connect(store)(LitElement) {
           flex-direction:column;
         }
 
-        .inputs h5 {
-          font-size:0.75em;
-          color: var(--app-subtle-dark-text-color);
-          font-weight:normal;
-          margin:0;
-          margin-top:1em;
-        }
-
         .buttons {
           display:flex;
           flex-direction:row;
@@ -84,11 +76,11 @@ class CardEditor extends connect(store)(LitElement) {
       <div class='container'>
         <div class='inputs'>
           <div>
-            <h5>Title</h5>
+            <label>Title</label>
             <input type='text' @input='${this._handleTitleUpdated}' .value=${this._card.title}></input>
           </div>
           <div class='flex body'>
-            <h5>Body</h5>
+            <label>Body</label>
             <textarea @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
           </div>
         </div>
