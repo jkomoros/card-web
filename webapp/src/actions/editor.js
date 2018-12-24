@@ -54,7 +54,7 @@ export const editingCommit = () => (dispatch, getState) => {
   if (updatedCard.name != underlyingCard.section) update.name = updatedCard.name;
 
   //modifyCard will fail if the update is a no-op.
-  dispatch(modifyCard(underlyingCard, update, false));
+  dispatch(modifyCard(underlyingCard, update, state.editor.substantive));
 
 }
 

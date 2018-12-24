@@ -11,6 +11,7 @@ import {
 const INITIAL_STATE = {
   editing: false,
   card: null,
+  substantive: false,
 }
 
 const app = (state = INITIAL_STATE, action) => {
@@ -19,13 +20,15 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         editing: true,
-        card: action.card
+        card: action.card,
+        substantive: false,
       }
     case EDITING_FINISH:
       return {
         ...state,
         editing:false,
-        card: null
+        card: null,
+        substantive:false,
       }
     case EDITING_TITLE_UPDATED:
       if (!state.card) return state;
