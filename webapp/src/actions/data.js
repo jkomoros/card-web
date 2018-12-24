@@ -28,7 +28,8 @@ import {
 
 const LEGAL_UPDATE_FIELDS = new Map([
   ['title', true],
-  ['body', true]
+  ['body', true],
+  ['name', true],
 ]);
 
 export const modifyCard = (card, update, substantive) => (dispatch, getState) => {
@@ -81,6 +82,11 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 
   if (update.title) {
     cardUpdateObject.title = update.title;
+  }
+
+  if (update.name) {
+    //TODO: really we should verify that this name is legal--that is, either the id or one of the slugs.
+    cardUpdateObject.name = update.name;
   }
 
   let batch = db.batch();
