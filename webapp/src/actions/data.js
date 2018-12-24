@@ -124,7 +124,7 @@ export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
     return;
   }
 
-  let snapshot = await db.collection(CARDS_COLLECTION).where('slugs', 'array_contains', newSlug).get();
+  let snapshot = await db.collection(CARDS_COLLECTION).where('slugs', 'array-contains', newSlug).get();
   if (snapshot.size > 0) {
     console.log('Another document already has that slug');
     return;
