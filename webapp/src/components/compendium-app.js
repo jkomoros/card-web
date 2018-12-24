@@ -60,6 +60,9 @@ class CompendiumApp extends connect(store)(LitElement) {
         --app-section-even-color: #f7f7f7;
         --app-section-odd-color: white;
 
+        --app-header-font-family: 'Raleway';
+        --app-default-font-family: 'Source Sans Pro';
+
         --card-color: #FCFCFC;
         --card-shadow: 0 2px 6px #CCC;
 
@@ -111,7 +114,7 @@ class CompendiumApp extends connect(store)(LitElement) {
       }
 
       [main-title] {
-        font-family: 'Raleway';
+        font-family: var(--app-header-font-family);
         font-weight:bold;
         font-size: 30px;
       }

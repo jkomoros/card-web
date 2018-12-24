@@ -17,6 +17,7 @@ class CardThumbnail extends LitElement {
           color: var(--app-dark-text-color);
           text-align:center;
           font-size: 14px;
+          font-family: var(--app-header-font-family);
         }
 
         div {
