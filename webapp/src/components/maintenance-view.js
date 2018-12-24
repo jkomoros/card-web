@@ -7,6 +7,10 @@ import { store } from '../store.js';
 
 import { userIsAdmin } from '../reducers/user.js';
 
+import {
+  doImport
+} from '../actions/maintenance.js';
+
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
 
@@ -22,6 +26,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
         </section>
         <section ?hidden=${!this._isAdmin}>
           <p>You're an admin!</p>
+          <button @click='${this._handleDoImport}'>Do import</button>
         </section>
       </section>
     `
@@ -35,6 +40,10 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 
   stateChanged(state) {
     this._isAdmin = userIsAdmin(state);
+  }
+
+  _handleDoImport(e) {
+    doImport();
   }
 
 }
