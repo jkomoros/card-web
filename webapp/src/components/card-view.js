@@ -43,10 +43,13 @@ import {
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
 
+import { ButtonSharedStyles } from './button-shared-styles.js';
+
 class CardView extends connect(store)(PageViewElement) {
   render() {
     return html`
       ${SharedStyles}
+      ${ButtonSharedStyles}
       <style>
         :host {
           height: 100%;

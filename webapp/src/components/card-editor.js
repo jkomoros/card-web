@@ -4,6 +4,8 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
+import { ButtonSharedStyles } from './button-shared-styles.js';
+
 import {
   editingFinish,
   editingCommit,
@@ -14,6 +16,7 @@ import {
 class CardEditor extends connect(store)(LitElement) {
   render() {
     return html`
+      ${ButtonSharedStyles}
      <button @click='${this._handleCancel}'>Cancel</button>
      <button @click='${this._handleCommit}'>Save</button>
       <h3>Editor</h3>

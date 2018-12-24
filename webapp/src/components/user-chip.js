@@ -18,9 +18,12 @@ import {
   signOut
 } from '../actions/user.js';
 
+import { ButtonSharedStyles } from './button-shared-styles.js';
+
 class UserChip extends connect(store)(LitElement) {
   render() {
     return html`
+      ${ButtonSharedStyles}
       <style>
         div {
           display:flex;
