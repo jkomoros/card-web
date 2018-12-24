@@ -18,7 +18,8 @@ import {
 } from '../reducers/user.js';
 
 import {
-  showSection
+  showSection,
+  createCard
 } from '../actions/data.js';
 
 import { collectionSelector } from '../reducers/data.js'
@@ -85,7 +86,7 @@ class CardDrawer extends connect(store)(LitElement) {
   }
 
   _handleAddSlide(e) {
-    console.log("Add slide tapped");
+    store.dispatch(createCard(this._activeSectionId));
   }
 
   _handleChange(e) {

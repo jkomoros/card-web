@@ -9,7 +9,8 @@ export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
 import {
   db,
   CARDS_COLLECTION,
-  CARD_UPDATES_COLLECTION
+  CARD_UPDATES_COLLECTION,
+  SECTIONS_COLLECTION
 } from './database.js';
 
 import {
@@ -19,6 +20,10 @@ import {
 import {
   editingFinish
 } from './editor.js';
+
+import {
+  randomString
+} from './maintenance.js';
 
 const LEGAL_UPDATE_FIELDS = new Map([
   ['title', true],
@@ -132,14 +137,14 @@ export const createCard = (section, id) => async (dispatch) => {
     return;
   }
 
-  let sectionRef = db.collection(SECTIONS_COLLECTION).doc(starterCard.section);
+  let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
 
   await db.runTransaction(async transaction => {
     let sectionDoc = await transaction.get(sectionRef);
     if (!sectionDoc.exists) {
       throw "Doc doesn't exist!"
     }
-    var newArray = [...sectionDoc.cards, id];
+    var newArray = [...sectionDoc.data().cards, id];
     transaction.update(sectionRef, {cards: newArray});
     transaction.set(cardDocRef, obj);
   })

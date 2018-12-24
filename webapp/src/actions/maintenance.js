@@ -7,7 +7,7 @@ import {
 
 const randomCharSet = "abcdef0123456789"
 
-const randomString = (length) => {
+export const randomString = (length) => {
   let text = "";
   for (let i = 0; i < length; i++) {
     text += randomCharSet.charAt(Math.floor(Math.random() * randomCharSet.length));
