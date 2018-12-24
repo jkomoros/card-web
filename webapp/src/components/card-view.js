@@ -83,6 +83,10 @@ class CardView extends connect(store)(PageViewElement) {
           font-size:22px;
         }
 
+        .editing content-card {
+          font-size:16px;
+        }
+
         .container.editing .actions {
           display:none;
         }
