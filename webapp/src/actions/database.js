@@ -7,7 +7,7 @@ import {
 
 export const CARDS_COLLECTION = 'cards';
 export const CARD_UPDATES_COLLECTION = 'updates';
-const SECTIONS_COLLECTION = 'sections';
+export const SECTIONS_COLLECTION = 'sections';
 
 db.settings({
   timestampsInSnapshots:true,
