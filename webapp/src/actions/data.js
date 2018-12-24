@@ -65,7 +65,7 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
   if (substantive) cardUpdateObject.updated_substantive = new Date();
 
   if (update.body) {
-    cardUpdateObject.body = body;
+    cardUpdateObject.body = update.body;
     cardUpdateObject.links = extractCardLinks(update.body);
   }
 
