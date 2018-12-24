@@ -37,6 +37,10 @@ import './card-drawer.js';
 import './card-editor.js';
 
 import {
+  addToCartIcon
+} from './my-icons.js';
+
+import {
   modifyCard
 } from '../actions/data.js';
 
@@ -89,7 +93,7 @@ class CardView extends connect(store)(PageViewElement) {
           <content-card .editing=${this._editing} title="${this._displayCard && this._displayCard.title ? this._displayCard.title : ""}" body="${this._displayCard && this._displayCard.body ? this._displayCard.body : ""}">
           </content-card>
           <div class='actions'>
-            <button ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>Edit</button>
+            <button ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${addToCartIcon}</button>
           </div>
           <card-editor ?active=${this._editing} ></card-editor>
         </div>
