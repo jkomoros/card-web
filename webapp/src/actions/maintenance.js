@@ -38,18 +38,22 @@ export const addSectionHeaderCards = () => {
   halfBakedCard.title = "Half-Baked";
   halfBakedCard.subtitle = "Ideas that are probably as baked as they’re going to get in this collection";
   halfBakedCard.card_type = 'section-head';
+  halfBakedCard.section = 'half-baked';
 
   barelyEdibleCard.title = "Barely Edible";
   barelyEdibleCard.subtitle = "Ideas that have some detail roughed in, but not organized for clarity yet";
   barelyEdibleCard.card_type = 'section-head';
+  barelyEdibleCard.section = 'barely-edible';
 
   stubsCard.title = "Stubs";
   stubsCard.subtitle = "Points that I plan to develop more, but haven’t yet";
   stubsCard.card_type = 'section-head';
+  stubsCard.section = 'stubs';
 
   randomThoughtsCard.title = "Random Thoughts";
   randomThoughtsCard.subtitle = "A parking lot for early stage thoughts that might be dupes or not worth developing";
   randomThoughtsCard.card_type = 'section-head';
+  randomThoughtsCard.section = 'random-thoughts'
 
   batch.set(db.collection(CARDS_COLLECTION).doc(halfBakedCard.name), halfBakedCard);
   batch.set(db.collection(CARDS_COLLECTION).doc(barelyEdibleCard.name), barelyEdibleCard);
