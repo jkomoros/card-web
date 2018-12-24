@@ -10,7 +10,8 @@ import { userIsAdmin } from '../reducers/user.js';
 import {
   doImport,
   addCardTypeToImportedCards,
-  addSectionHeaderCards
+  addSectionHeaderCards,
+  addTwoOldMaintenanceTasks
 } from '../actions/maintenance.js';
 
 // These are the shared styles needed by this element.
@@ -30,7 +31,8 @@ class MaintenanceView extends connect(store)(PageViewElement) {
           <p>You're an admin!</p>
           <button @click='${this._handleDoImport}'>Do import</button><br />
           <button @click='${this._handleAddCardTypeToImportedCards}'>Add card_type to imported cards</button> <br />
-          <button @click='${this._handleAddSectionHeaderCards}'>Add Section Header Cards</button>
+          <button @click='${this._handleAddSectionHeaderCards}'>Add Section Header Cards</button><br />
+          <button @click='${this._handleAddTwoOldMaintenanceTasks}'>Add Two Old Maintenance Tasks</button>
         </section>
       </section>
     `
@@ -56,6 +58,10 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 
   _handleAddSectionHeaderCards(e) {
     addSectionHeaderCards();
+  }
+
+  _handleAddTwoOldMaintenanceTasks(e) {
+    addTwoOldMaintenanceTasks();
   }
 
 }

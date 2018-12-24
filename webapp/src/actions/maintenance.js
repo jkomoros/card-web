@@ -2,7 +2,8 @@
 import {
   db,
   CARDS_COLLECTION,
-  SECTIONS_COLLECTION
+  SECTIONS_COLLECTION,
+  MAINTENANCE_COLLECTION
 } from './database.js';
 
 const randomCharSet = "abcdef0123456789"
@@ -15,19 +16,67 @@ export const randomString = (length) => {
   return text;
 }
 
-export const addCardTypeToImportedCards = () => {
+const checkMaintenanceTaskHasBeenRun = async (taskName) => {
+  let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
+
+  let doc = await ref.get();
+
+  if (doc.exists) {
+    if (!window.confirm("This task has been run before on this database. Do you want to run it again?")) {
+      throw taskName + " has been run before and the user didn't want to run again"
+    }
+  }
+
+  return
+}
+
+const maintenanceTaskRun = async (taskName) => {
+  db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: new Date()});
+}
+
+export const addTwoOldMaintenanceTasks = async () => {
+
+  let maintenanceName = 'add-two-old-maintenance-tasks';
+
+  //This task is run because 
+
+  await checkMaintenanceTaskHasBeenRun(maintenanceName);
+
+  await maintenanceTaskRun('add-card-type-to-imported-cards');
+  await maintenanceTaskRun('add-section-header-cards');
+
+  await maintenanceTaskRun(maintenanceName);
+  console.log("Done!")
+
+
+}
+
+export const addCardTypeToImportedCards = async () => {
+
+  let maintenanceName = 'add-card-type-to-imported-cards';
+
+  await checkMaintenanceTaskHasBeenRun(maintenanceName);
+
   let batch = db.batch();
 
   db.collection(CARDS_COLLECTION).where('imported', '==', true).get().then(snapshot => {
     snapshot.forEach(doc => {
       batch.update(doc.ref, {'card_type': 'content'})
     });
-    batch.commit().then(() => console.log('Updated!'));
+    batch.commit().then(() => {
+      maintenanceTaskRun(maintenanceName);
+      console.log('Updated!')
+    });
   })
 
 }
 
-export const addSectionHeaderCards = () => {
+export const addSectionHeaderCards = async () => {
+
+  let maintenanceName = 'add-section-header-cards';
+
+  await checkMaintenanceTaskHasBeenRun(maintenanceName);
+
   let batch = db.batch();
 
   let halfBakedCard = newCard('section-half-baked');
@@ -65,7 +114,10 @@ export const addSectionHeaderCards = () => {
   batch.update(db.collection(SECTIONS_COLLECTION).doc('stubs'), {start_cards: [stubsCard.name]})
   batch.update(db.collection(SECTIONS_COLLECTION).doc('random-thoughts'), {start_cards: [randomThoughtsCard.name]})
 
-  batch.commit().then(() => console.log("Updated!"));
+  batch.commit().then(() => {
+    maintenanceTaskRun(maintenanceName);
+    console.log("Updated!")
+  });
 
 }
 
