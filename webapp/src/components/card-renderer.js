@@ -31,7 +31,7 @@ export class CardRenderer extends LitElement {
   update(changedProps) {
     if (changedProps.has('card')) {
       if (this.card) {
-        this._cardType = this.card.cardType || 'content';
+        this._cardType = this.card.card_type || 'content';
         this._title = this.card.title || '';
         this._body = this.card.body || '';
         this._subtitle = this.card.subtitle || '';
