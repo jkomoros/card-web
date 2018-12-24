@@ -59,6 +59,7 @@ class CardThumbnail extends LitElement {
 
   static get properties() { return {
     id: {type: String},
+    name: { type:String },
     title: { type: String },
     selected: { type: Boolean },
     cardType: { type: String}
