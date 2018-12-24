@@ -18,7 +18,8 @@ import {
 } from './app.js';
 
 import {
-  editingFinish
+  editingFinish,
+  slugAdded
 } from './editor.js';
 
 import {
@@ -103,6 +104,50 @@ const extractCardLinks = (body) => {
   let nodes = ele.querySelectorAll("a[card]");
   nodes.forEach(link => result.push(link.getAttribute('card')));
   return result;
+}
+
+export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
+ 
+  if (!newSlug) {
+    console.log("Must provide a slug");
+    return;
+  }
+
+  newSlug = newSlug.toLowerCase();
+  newSlug = newSlug.split(" ").join("-");
+  newSlug = newSlug.split("_").join("-");
+
+  let doc = await db.collection(CARDS_COLLECTION).doc(newSlug).get();
+
+  if (doc.exists) {
+    console.log("That slug is already the id of another item");
+    return;
+  }
+
+  let snapshot = await db.collection(CARDS_COLLECTION).where('slugs', 'array_contains', newSlug).get();
+  if (snapshot.size > 0) {
+    console.log('Another document already has that slug');
+    return;
+  }
+
+  await db.runTransaction(async transaction => {
+    let cardRef = db.collection(CARDS_COLLECTION).doc(cardId);
+    let doc = await transaction.get(cardRef);
+    if (!doc.exists) {
+      throw "Doc doesn't exist!"
+    }
+    let slugs = doc.data().slugs || [];
+
+    var newArray = [...slugs, newSlug];
+    transaction.update(cardRef, {slugs: newArray});
+  });
+
+  let state = getState();
+  if (state.editor.card && state.editor.card.id == cardId) {
+    //We're editing this card, update it in the state.
+    dispatch(slugAdded(newSlug))
+  }
+
 }
 
 export const createCard = (section, id) => async (dispatch) => {

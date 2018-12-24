@@ -3,6 +3,7 @@ export const EDITING_FINISH = 'EDITING_FINISH';
 export const EDITING_TITLE_UPDATED = 'EDITING_TITLE_UPDATED';
 export const EDITING_BODY_UPDATED = 'EDITING_BODY_UPDATED';
 export const EDITING_SECTION_UPDATED = 'EDITING_SECTION_UPDATED';
+export const EDITING_SLUG_ADDED = 'EDITING_SLUG_ADDED';
 
 import {
   userMayEdit
@@ -77,5 +78,12 @@ export const sectionUpdated = (newSection) => {
   return {
     type: EDITING_SECTION_UPDATED,
     section: newSection
+  }
+}
+
+export const slugAdded = (newSlug) => {
+  return {
+    type: EDITING_SLUG_ADDED,
+    slug: newSlug
   }
 }

@@ -3,7 +3,8 @@ import {
   EDITING_FINISH,
   EDITING_TITLE_UPDATED,
   EDITING_BODY_UPDATED,
-  EDITING_SECTION_UPDATED
+  EDITING_SECTION_UPDATED,
+  EDITING_SLUG_ADDED,
 } from '../actions/editor.js';
 
 const INITIAL_STATE = {
@@ -42,6 +43,12 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         card: {...state.card, section:action.section}
+      }
+    case EDITING_SLUG_ADDED:
+      if (!state.card) return state;
+      return {
+        ...state,
+        card: {...state.card, slugs: [...state.card.slugs, action.slug]}
       }
     default:
       return state;
