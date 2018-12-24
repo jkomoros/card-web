@@ -28,7 +28,7 @@ class UserChip extends connect(store)(LitElement) {
           align-items:center;
         }
         img {
-          --user-image-size: 48px;
+          --user-image-size: 36px;
           height:var(--user-image-size);
           width: var(--user-image-size);
           border-radius:calc(var(--user-image-size) / 2);

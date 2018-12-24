@@ -41,9 +41,6 @@ import {
 } from '../actions/app.js';
 
 // These are the elements needed by this element.
-import '@polymer/app-layout/app-header/app-header.js';
-import '@polymer/app-layout/app-toolbar/app-toolbar.js';
-import { menuIcon } from './my-icons.js';
 import './snack-bar.js';
 import './user-chip.js';
 
@@ -82,15 +79,31 @@ class CompendiumApp extends connect(store)(LitElement) {
         flex-direction:column;
       }
 
-      app-header {
-        position: fixed;
-        top: 0;
-        left: 0;
+      .header {
+        padding: 0 1em;
+        box-sizing:border-box;
+        display:flex;
+        flex-direction:row;
+        align-items: center;
         width: 100%;
         text-align: center;
         background-color: var(--app-header-background-color);
         color: var(--app-header-text-color);
         border-bottom: 1px solid #eee;
+      }
+
+      .spacer {
+        flex-grow:1;
+      }
+
+      .toolbar-list {
+        align-self: flex-end;
+      }
+
+      .dev {
+        font-size: 18px;
+        color: red;
+        font-weight:bold;
       }
 
       .toolbar-top {
@@ -101,10 +114,6 @@ class CompendiumApp extends connect(store)(LitElement) {
         font-family: 'Pacifico';
         text-transform: lowercase;
         font-size: 30px;
-      }
-
-      .toolbar-list {
-        display: none;
       }
 
       .toolbar-list > a {
@@ -137,44 +146,21 @@ class CompendiumApp extends connect(store)(LitElement) {
       .page[active] {
         display: block;
       }
-
-      /* Wide layout: when the viewport width is bigger than 460px, layout
-      changes to a wide layout. */
-      @media (min-width: 460px) {
-        .toolbar-list {
-          display: block;
-        }
-
-        .menu-btn {
-          display: none;
-        }
-
-        .main-content {
-          padding-top: 107px;
-        }
-
-        /* The drawer button isn't shown in the wide layout, so we don't
-        need to offset the title */
-        [main-title] {
-          padding-right: 0px;
-        }
-      }
     </style>
 
     <div class='container'>
       <!-- Header -->
-      <app-header>
-        <app-toolbar class="toolbar-top">
-          ${this._devMode ? html`<span style='color:red;'>DEVMODE</span>` : ""}
-          <div main-title>${this.appTitle}</div>
-          <user-chip></user-chip>
-        </app-toolbar>
-
-        <!-- This gets hidden on a small screen-->
+      <div class='header'>
+        <div main-title>${this.appTitle}</div>
+        <div class='spacer'></div>
         <nav class="toolbar-list">
           <a ?selected="${this._page === 'c'}" href="/c">Explore</a>
         </nav>
-      </app-header>
+        <div class='spacer dev'>
+          ${this._devMode ? html`DEVMODE` : ""}
+        </div>
+        <user-chip></user-chip>
+      </div>
 
       <!-- Main content -->
       <main role="main" class="main-content">
