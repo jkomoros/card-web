@@ -144,6 +144,9 @@ export const cardSelector = createSelector(
 const idCollectionSelector = state => {
   let section = state.data.sections[state.data.activeSectionId];
   if (!section) return [];
+  if (section.start_cards) {
+    return [...section.start_cards, ...section.cards];
+  }
   return section.cards;
 };
 
