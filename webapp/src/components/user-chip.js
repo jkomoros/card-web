@@ -39,7 +39,7 @@ class UserChip extends connect(store)(LitElement) {
       <div>
         ${this._pending ? '***' : ''}
         ${this._user
-          ? html`<img title='${this._user.displayName + ' - ' + this._user.email + ' - Click to sign out'}' src='${this._user.photoURL}' @click=${this._handleSignOutClick}>`
+          ? html`<span>${this._user.displayName}</span> <img title='${this._user.displayName + ' - ' + this._user.email + ' - Click to sign out'}' src='${this._user.photoURL}' @click=${this._handleSignOutClick}>`
           : html`<button @click=${this._handleSignInClick}>Sign In</button>`
         }
       </div>
