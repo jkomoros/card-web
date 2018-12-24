@@ -104,7 +104,10 @@ class CardEditor extends connect(store)(LitElement) {
             </div>
             <div>
               <Label>Slugs</label>
-              <select></select>
+              <select .value=${this._card.name}>
+                ${repeat([this._card.id, ...this._card.slugs], (item) => item, (item, index) => html`
+                <option value="${item}" ?selected=${item == this._card.name}>${item}</option>`)}
+              </select>
               <button @click='${this._handleAddSlug}'>+</button>
             </div>
           </div>
