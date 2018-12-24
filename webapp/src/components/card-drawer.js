@@ -36,7 +36,7 @@ class CardDrawer extends connect(store)(LitElement) {
         }
         .controls {
           display:flex;
-          padding:0.25em;
+          padding:0.5em;
           box-sizing:border-box;
           flex-direction:column;
           border-bottom:1px solid var(--app-subtle-dark-text-color);

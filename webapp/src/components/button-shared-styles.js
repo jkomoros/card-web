@@ -36,7 +36,7 @@ export const ButtonSharedStyles = html`
     box-shadow: 0 6px 6px #999;
     background: var(--app-secondary-color);
   }
-  
+
   label {
     font-size:0.75em;
     color: var(--app-subtle-dark-text-color);
@@ -44,5 +44,14 @@ export const ButtonSharedStyles = html`
     margin:0;
     margin-top:1em;
   }
+
+  select {
+    border:0;
+    font-size:16px;
+    font-family:var( --app-default-font-family);
+    -webkit-appearance:none;
+    background-color:transparent;
+  }
+
 </style>
 `;
