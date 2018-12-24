@@ -77,6 +77,7 @@ class CardView extends connect(store)(PageViewElement) {
         }
         card-editor[active] {
           display:block;
+          width:100%;
           flex-grow:1;
         }
 
