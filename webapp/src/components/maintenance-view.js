@@ -8,7 +8,8 @@ import { store } from '../store.js';
 import { userIsAdmin } from '../reducers/user.js';
 
 import {
-  doImport
+  doImport,
+  addCardTypeToImportedCards
 } from '../actions/maintenance.js';
 
 // These are the shared styles needed by this element.
@@ -26,7 +27,8 @@ class MaintenanceView extends connect(store)(PageViewElement) {
         </section>
         <section ?hidden=${!this._isAdmin}>
           <p>You're an admin!</p>
-          <button @click='${this._handleDoImport}'>Do import</button>
+          <button @click='${this._handleDoImport}'>Do import</button><br />
+          <button @click='${this._handleAddCardTypeToImportedCards}'>Add card_type to imported cards</button>
         </section>
       </section>
     `
@@ -44,6 +46,10 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 
   _handleDoImport(e) {
     doImport();
+  }
+
+  _handleAddCardTypeToImportedCards(e) {
+    addCardTypeToImportedCards();
   }
 
 }

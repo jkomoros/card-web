@@ -1,6 +1,7 @@
 
 import {
-  db
+  db,
+  CARDS_COLLECTION
 } from './database.js';
 
 const randomCharSet = "abcdef0123456789"
@@ -12,6 +13,19 @@ const randomString = (length) => {
   }
   return text;
 }
+
+export const addCardTypeToImportedCards = () => {
+  let batch = db.batch();
+
+  db.collection(CARDS_COLLECTION).where('imported', '==', true).get().then(snapshot => {
+    snapshot.forEach(doc => {
+      batch.update(doc.ref, {'card_type': 'content'})
+    });
+    batch.commit().then(() => console.log('Updated!'));
+  })
+
+}
+
 
 export const doImport = () => {
 
