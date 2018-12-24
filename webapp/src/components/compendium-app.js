@@ -26,6 +26,10 @@ store.addReducers({
   editor
 });
 
+import {
+  cardSelector
+} from '../reducers/data.js';
+
 import { 
   connectLiveCards,
   connectLiveSections,
@@ -183,11 +187,12 @@ class CompendiumApp extends connect(store)(LitElement) {
       _offline: { type: Boolean },
       _editing: { type: Boolean },
       _devMode: { type: Boolean },
+      _card: { type: Object }
     }
   }
 
   get appTitle() {
-    return "The Complexity Compendium";
+    return "Complexity Compendium";
   }
 
   constructor() {
@@ -229,8 +234,8 @@ class CompendiumApp extends connect(store)(LitElement) {
   }
 
   updated(changedProps) {
-    if (changedProps.has('_page')) {
-      const pageTitle = this.appTitle + ' - ' + this._page;
+    if (changedProps.has('_card')) {
+      const pageTitle = this.appTitle + (this._card ? ' - ' + this._card.title : "");
       updateMetadata({
         title: pageTitle,
         description: pageTitle
@@ -248,6 +253,7 @@ class CompendiumApp extends connect(store)(LitElement) {
   }
 
   stateChanged(state) {
+    this._card = cardSelector(state);
     this._page = state.app.page;
     this._offline = state.app.offline;
     this._snackbarOpened = state.app.snackbarOpened;
