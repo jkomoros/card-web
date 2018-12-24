@@ -122,7 +122,8 @@ class CompendiumApp extends connect(store)(LitElement) {
       [main-title] {
         font-family: var(--app-header-font-family);
         font-weight:bold;
-        font-size: 30px;
+        font-size: 26px;
+        color: var(--app-primary-color);
       }
 
       .toolbar-list > a {
