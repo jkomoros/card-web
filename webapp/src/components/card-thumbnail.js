@@ -62,17 +62,22 @@ class CardThumbnail extends LitElement {
     name: { type:String },
     title: { type: String },
     selected: { type: Boolean },
-    cardType: { type: String}
+    cardType: { type: String},
+    _selectedViaClick: { type: Boolean },
   }};
 
   _handleClick(e) {
     e.stopPropagation();
+    this._selectedViaClick = true;
     this.dispatchEvent(new CustomEvent("thumbnail-tapped", {composed:true}))
   }
 
   updated(changedProps) {
     if (changedProps.has('selected') && this.selected) {
-      this.scrollIntoView({behavior:"auto", block:"nearest"});
+      if (!this._selectedViaClick) {
+        this.scrollIntoView({behavior:"auto", block:"center", });
+      }
+      this._selectedViaClick = false;
     }
   }
 
