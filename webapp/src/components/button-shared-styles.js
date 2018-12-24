@@ -16,7 +16,7 @@ export const ButtonSharedStyles = html`
     font-size: inherit;
     vertical-align: middle;
     color: var(--app-light-text-color);
-    background: var(--app-secondary-color);
+    background: var(--app-dark-text-color);
     padding: 0.5em;
     box-shadow: 0 2px 2px #999;
     border: none;
@@ -30,10 +30,8 @@ export const ButtonSharedStyles = html`
     fill: var(--app-light-text-color);
   }
   button:hover {
-    box-shadow: 0 4px 4px #999;
-  }
-  button:hover svg {
-    fill: var(--app-primary-color);
+    box-shadow: 0 6px 6px #999;
+    background: var(--app-secondary-color);
   }
 </style>
 `;
