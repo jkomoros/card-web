@@ -47,9 +47,12 @@ const app = (state = INITIAL_STATE, action) => {
       }
     case EDITING_SLUG_ADDED:
       if (!state.card) return state;
+      //If the name was just the id, auto-select this name
+      let name = state.card.name;
+      if (state.card.name == state.card.id) name = action.slug;
       return {
         ...state,
-        card: {...state.card, slugs: [...state.card.slugs, action.slug]}
+        card: {...state.card, slugs: [...state.card.slugs, action.slug], name: name}
       }
     case EDITING_NAME_UPDATED:
       if (!state.card) return state;
