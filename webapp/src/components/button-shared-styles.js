@@ -23,6 +23,9 @@ export const ButtonSharedStyles = html`
     cursor: pointer;
     margin: 0.5em;
   }
+  button.round {
+    border-radius:50%;
+  }
   button svg {
     fill: var(--app-light-text-color);
   }
