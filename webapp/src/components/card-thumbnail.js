@@ -45,8 +45,12 @@ class CardThumbnail extends LitElement {
           color: var(--app-light-text-color);
         }
 
-        div.section-head:hover h3 {
+        div.section-head.selected h3 {
           color: var(--app-primary-color-light);
+        }
+
+        div.section-head:hover h3 {
+          color: var(--app-primary-color-subtle);
         }
 
         .empty {
