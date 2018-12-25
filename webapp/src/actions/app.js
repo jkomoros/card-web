@@ -13,6 +13,10 @@ export const UPDATE_OFFLINE = 'UPDATE_OFFLINE';
 export const OPEN_SNACKBAR = 'OPEN_SNACKBAR';
 export const CLOSE_SNACKBAR = 'CLOSE_SNACKBAR';
 
+import {
+  collectionForActiveSectionSelector
+} from '../reducers/data.js';
+
 //This is the card that is loaded if we weren't passed anything
 const DEFAULT_CARD = 'section-half-baked';
 
@@ -35,9 +39,9 @@ export const navigateToNextCard = () => (dispatch, getState) => {
   const state = getState();
   let index = state.data.activeCardIndex;
   index++;
-  const collection = state.data.sections[state.data.activeSectionId];
+  const collection = collectionForActiveSectionSelector(state);
   if (!collection) return;
-  let newId = collection.cards[index];
+  let newId = collection[index];
   if (!newId) return;
   dispatch(navigateToCard(newId));
 }
@@ -46,9 +50,9 @@ export const navigateToPreviousCard = () => (dispatch, getState) => {
   const state = getState();
   let index = state.data.activeCardIndex;
   index--;
-  const collection = state.data.sections[state.data.activeSectionId];
+  const collection = collectionForActiveSectionSelector(state);
   if (!collection) return;
-  let newId = collection.cards[index];
+  let newId = collection[index];
   if (!newId) return;
   dispatch(navigateToCard(newId));
 }

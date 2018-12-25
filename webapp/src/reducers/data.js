@@ -74,27 +74,23 @@ const app = (state = INITIAL_STATE, action) => {
 
 //When the show_card is called, the underlying sections/cards data might not
 //exist, so every time we update any three of those, we run it through this.
-const ensureActiveCard = (state) => {
+const ensureActiveCard = (dataState) => {
 
-  let id = state.activeCardId;
+  let id = dataState.activeCardId;
 
-  if (!id && state.activeSectionId) {
+  if (!id && dataState.activeSectionId) {
     //We might have just switched to a different section
-    let section = state.sections[state.activeSectionId];
-    if (section && section.cards) {
-      id = section.cards[0];
+    let collection = collectionForSectionDataState(dataState, dataState.activeSectionId);
+    if (collection) {
+      id = collection[0];
     }
   }
 
-  id = idForActiveCard(state, id);
-  let sectionId = sectionForActiveCard(state, id);
-  let section = state.sections[sectionId]
-  let collection = [];
-  if (section) {
-    collection = section.cards;
-  }
+  id = idForActiveCard(dataState, id);
+  let sectionId = sectionForActiveCard(dataState, id);
+  let collection = collectionForSectionDataState(dataState, sectionId);
   return {
-    ...state,
+    ...dataState,
     activeCardId:id,
     activeSectionId: sectionId,
     activeCardIndex: indexForActiveCard(collection, id),
@@ -141,18 +137,26 @@ export const cardSelector = createSelector(
   (cards, activeCard) => cards[activeCard] || {}
 );
 
-const idCollectionSelector = state => {
-  let section = state.data.sections[state.data.activeSectionId];
+const collectionForSectionDataState = (dataState, sectionId) => {
+  let section = dataState.sections[sectionId];
   if (!section) return [];
   if (section.start_cards) {
     return [...section.start_cards, ...section.cards];
   }
   return section.cards;
+}
+
+const collectionForSection = (state, sectionId) => {
+  return collectionForSectionDataState(state.data, sectionId);
+}
+
+export const collectionForActiveSectionSelector = state => {
+  return collectionForSection(state, state.data.activeSectionId);
 };
 
 export const collectionSelector = createSelector(
   cardsSelector,
-  idCollectionSelector,
+  collectionForActiveSectionSelector,
   (cards, collection) => collection.map(id => cards[id]),
 )
 
