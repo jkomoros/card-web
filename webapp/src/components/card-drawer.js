@@ -19,7 +19,8 @@ import {
 
 import {
   showSection,
-  createCard
+  createCard,
+  reorderCard,
 } from '../actions/data.js';
 
 import { collectionSelector } from '../reducers/data.js'
@@ -147,9 +148,10 @@ class CardDrawer extends connect(store)(LitElement) {
   }
 
   _handleDrop(e) {
-    let ele = e.path[0];
-    ele.classList.remove('drag-active');
-    console.log('Dropped', e, this._dragging);
+    let target = e.path[0];
+    target.classList.remove('drag-active');
+    let thumbnail = this._dragging;
+    store.dispatch(reorderCard(thumbnail.card, target.index));
   }
 
   _handleChange(e) {
