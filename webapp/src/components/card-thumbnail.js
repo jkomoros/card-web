@@ -81,6 +81,10 @@ class CardThumbnail extends LitElement {
   }
 
   _handleDragStart(e) {
+    //For some reason elements with shadow DOM did not appear to be draggable,
+    //so instead of dragging just card-thumbnail and having card-drawer manage
+    //all of it, we'll drag our inner and tell the drawer above that we were
+    //dragged. Most of the logic goes there.
     this.dispatchEvent(new CustomEvent("dragging-started", {composed:true}));
   }
 
