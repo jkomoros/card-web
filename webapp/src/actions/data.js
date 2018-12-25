@@ -103,6 +103,76 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 
 }
 
+export const reorderCard = (card, newIndex) => async (dispatch, getState) => {
+
+  const state = getState();
+
+  if (!card || !card.id || !card.section) {
+    console.log("That card isn't valid");
+    return
+  }
+
+  let section = state.data.sections[card.section];
+
+  if (!section) {
+    console.log("That card's section was not valid");
+    return;
+  }
+
+  //newIndex is relative to the overall collection size; redo to be newIndex
+  let startCards = section.start_cards || [];
+  let effectiveIndex = newIndex - startCards.length;
+
+  if (effectiveIndex < 0) {
+    console.log("Effective index is less than 0");
+    return;
+  }
+
+  if (effectiveIndex > (section.cards.length - 1)) {
+    console.log("Effective index is greater than length");
+    return;
+  }
+
+  await db.runTransaction(async transaction => {
+    let sectionRef = db.collection(SECTIONS_COLLECTION).doc(card.section);
+    let doc = await transaction.get(sectionRef);
+    if (!doc.exists) {
+      throw "Doc doesn't exist!"
+    }
+    let cards = doc.data().cards || [];
+    let trimmedCards = [];
+    let foundInSection = false;
+    for (let val of Object.values(cards)) {
+      if (val == card.id) {
+        if (foundInSection) {
+          throw "Card was found in the section cards list twice";
+        }
+        foundInSection = true;
+        continue;
+      }
+      trimmedCards.push(val);
+    }
+
+    if (!foundInSection) throw "Card was not found in section's card list";
+
+    let result;
+
+    if (effectiveIndex == 0) {
+      result = [card.id, ...trimmedCards];
+    } else if (effectiveIndex >= trimmedCards.length) {
+      result = [...trimmedCards, card.id];
+    } else {
+      result = [...trimmedCards.slice(0,effectiveIndex), card.id, ...trimmedCards.slice(effectiveIndex)];
+    }
+
+    transaction.update(sectionRef, {cards: result});
+  });
+
+  //We don't need to tell the store anything, because firestore will tell it
+  //automatically.
+
+}
+
 const extractCardLinks = (body) => {
   let ele = document.createElement("section");
   ele.innerHTML = body;

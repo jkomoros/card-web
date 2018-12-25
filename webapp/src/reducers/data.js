@@ -137,13 +137,17 @@ export const cardSelector = createSelector(
   (cards, activeCard) => cards[activeCard] || {}
 );
 
-const collectionForSectionDataState = (dataState, sectionId) => {
-  let section = dataState.sections[sectionId];
+export const collectionFromSection = (section) => {
   if (!section) return [];
   if (section.start_cards) {
     return [...section.start_cards, ...section.cards];
   }
-  return section.cards;
+  return section.cards
+}
+
+const collectionForSectionDataState = (dataState, sectionId) => {
+  let section = dataState.sections[sectionId];
+  return collectionFromSection(section);
 }
 
 const collectionForSection = (state, sectionId) => {
