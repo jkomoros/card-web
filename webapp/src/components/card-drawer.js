@@ -61,8 +61,29 @@ class CardDrawer extends connect(store)(LitElement) {
           left: 1em;
           bottom: 1em;
         }
+
+        .dragging .spacer {
+          /* When dragging, move these on top to give htem a bigger drop target (even if it isn't that visible) */
+          position:relative;
+          z-index:10000;
+        }
+
+        .spacer {
+          /* Big drop target, but no change in layout */
+          height:3em;
+          margin-bottom:-3em;
+          margin-left: 1em;
+          margin-right: 1em;
+        }
+
+        .spacer.drag-active {
+          /* Get some space in the layout and render a bar */
+          border-top: 1px solid var(--app-dark-text-color);
+          margin-top: 1.5em;
+          margin-bottom:-2em;
+        }
       </style>
-      <div class='container'>
+      <div class='container ${this._dragging ? 'dragging' : ''}'>
         <div class='controls'>
           <label>Section</label>
           <select @change=${this._handleChange}>
@@ -73,7 +94,8 @@ class CardDrawer extends connect(store)(LitElement) {
         </div>
         <div class='scrolling'>
         ${repeat(this._collection, (i) => i.id, (i, index) => html`
-          <card-thumbnail @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${i.title} .cardType=${i.card_type} .selected=${i.id == this._activeCardId}></card-thumbnail>`)}
+          <div class='spacer' .index=${index}' @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
+          <card-thumbnail @dragging-started='${this._handleDraggingStarted}' @dragging-ended='${this._handleDraggingEnded}' .userMayEdit=${this._userMayEdit} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${i.title} .cardType=${i.card_type} .selected=${i.id == this._activeCardId}></card-thumbnail>`)}
         </div>
         <button class='round' @click='${this._handleAddSlide}' ?hidden='${!this._userMayEdit}'>${plusIcon}</button>
       </div>
@@ -89,6 +111,35 @@ class CardDrawer extends connect(store)(LitElement) {
     store.dispatch(createCard(this._activeSectionId));
   }
 
+  _handleDragEnter(e) {
+    let ele = e.path[0];
+    ele.classList.add('drag-active')
+  }
+
+  _handleDragLeave(e) {
+    let ele = e.path[0];
+    ele.classList.remove('drag-active');
+  }
+
+  _handleDraggingStarted(e) {
+    this._dragging = true;
+  }
+
+  _handleDraggingEnded(e) {
+    this._dragging = false;
+  }
+
+  _handleDragOver(e) {
+    //Necessary to say that this is a valid drop target
+    e.preventDefault();
+  }
+
+  _handleDrop(e) {
+    let ele = e.path[0];
+    ele.classList.remove('drag-active');
+    console.log('Dropped', e);
+  }
+
   _handleChange(e) {
     let ele = e.path[0];
     store.dispatch(showSection(ele.value));
@@ -99,7 +150,8 @@ class CardDrawer extends connect(store)(LitElement) {
     _activeCardId: { type: String },
     _activeSectionId: { type: String },
     _sections: { type: Object },
-    _userMayEdit: { type: Boolean}
+    _userMayEdit: { type: Boolean},
+    _dragging: {type: Boolean},
   }}
 
   // This is called every time something is updated in the store.

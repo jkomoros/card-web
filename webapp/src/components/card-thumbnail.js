@@ -58,7 +58,7 @@ class CardThumbnail extends LitElement {
         }
 
       </style>
-      <div @click=${this._handleClick} class="${this.selected ? "selected" : ""} ${this.cardType}">
+      <div @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' class="${this.selected ? "selected" : ""} ${this.cardType}">
         <h3>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>
       </div>
     `;
@@ -70,6 +70,7 @@ class CardThumbnail extends LitElement {
     title: { type: String },
     selected: { type: Boolean },
     cardType: { type: String},
+    userMayEdit: {type: Boolean},
     _selectedViaClick: { type: Boolean },
   }};
 
@@ -77,6 +78,14 @@ class CardThumbnail extends LitElement {
     e.stopPropagation();
     this._selectedViaClick = true;
     this.dispatchEvent(new CustomEvent("thumbnail-tapped", {composed:true}))
+  }
+
+  _handleDragStart(e) {
+    this.dispatchEvent(new CustomEvent("dragging-started", {composed:true}));
+  }
+
+  _handleDragEnd(e) {
+    this.dispatchEvent(new CustomEvent('dragging-ended', {composed:true}));
   }
 
   updated(changedProps) {
