@@ -96,7 +96,7 @@ class CardDrawer extends connect(store)(LitElement) {
         <div class='scrolling'>
         ${repeat(this._collection, (i) => i.id, (i, index) => html`
           <div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
-          <card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this._userMayEdit} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${i.title} .cardType=${i.card_type} .selected=${i.id == this._activeCardId}></card-thumbnail>`)}
+          <card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this._userMayEdit} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${i.title} .cardType=${i.card_type} .selected=${i.id == this._activeCardId} .index=${index}></card-thumbnail>`)}
         </div>
         <button class='round' @click='${this._handleAddSlide}' ?hidden='${!this._userMayEdit}'>${plusIcon}</button>
       </div>
@@ -151,7 +151,12 @@ class CardDrawer extends connect(store)(LitElement) {
     let target = e.path[0];
     target.classList.remove('drag-active');
     let thumbnail = this._dragging;
-    store.dispatch(reorderCard(thumbnail.card, target.index));
+    let index = target.index;
+    //reorderCard expects the index to insert to be after popping the item out
+    //first--which means that if you drag it down to below where it was
+    //before, it's off by one.
+    if (thumbnail.index <= target.index) index--;
+    store.dispatch(reorderCard(thumbnail.card, index));
   }
 
   _handleChange(e) {
