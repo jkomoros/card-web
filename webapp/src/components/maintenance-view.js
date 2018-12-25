@@ -1,6 +1,7 @@
 import { html } from '@polymer/lit-element';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
+import { repeat } from 'lit-html/directives/repeat';
 
 // This element is connected to the Redux store.
 import { store } from '../store.js';
@@ -9,9 +10,7 @@ import { userIsAdmin } from '../reducers/user.js';
 
 import {
   doImport,
-  addCardTypeToImportedCards,
-  addSectionHeaderCards,
-  addTwoOldMaintenanceTasks
+  tasks
 } from '../actions/maintenance.js';
 
 // These are the shared styles needed by this element.
@@ -30,9 +29,9 @@ class MaintenanceView extends connect(store)(PageViewElement) {
         <section ?hidden=${!this._isAdmin}>
           <p>You're an admin!</p>
           <button @click='${this._handleDoImport}'>Do import</button><br />
-          <button @click='${this._handleAddCardTypeToImportedCards}'>Add card_type to imported cards</button> <br />
-          <button @click='${this._handleAddSectionHeaderCards}'>Add Section Header Cards</button><br />
-          <button @click='${this._handleAddTwoOldMaintenanceTasks}'>Add Two Old Maintenance Tasks</button>
+          ${repeat(Object.keys(tasks), (item) => item, (item, index) => html`
+              <button value="${item}" @click='${this._handleClick}'>${item}</button><br />
+          `)}
         </section>
       </section>
     `
@@ -52,16 +51,15 @@ class MaintenanceView extends connect(store)(PageViewElement) {
     doImport();
   }
 
-  _handleAddCardTypeToImportedCards(e) {
-    addCardTypeToImportedCards();
-  }
-
-  _handleAddSectionHeaderCards(e) {
-    addSectionHeaderCards();
-  }
-
-  _handleAddTwoOldMaintenanceTasks(e) {
-    addTwoOldMaintenanceTasks();
+  _handleClick(e) {
+    let ele = e.path[0];
+    let value = ele.value;
+    let func = tasks[value];
+    if (!func) {
+      console.log("That func isn't defined");
+      return;
+    }
+    func();
   }
 
 }

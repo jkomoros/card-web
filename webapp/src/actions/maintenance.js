@@ -34,28 +34,28 @@ const maintenanceTaskRun = async (taskName) => {
   db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: new Date()});
 }
 
-export const addTwoOldMaintenanceTasks = async () => {
+const ADD_TWO_OLD_MAINTENANCE_TASKS = 'add-two-old-maintenance-tasks';
 
-  let maintenanceName = 'add-two-old-maintenance-tasks';
+export const addTwoOldMaintenanceTasks = async () => {
 
   //This task is run because 
 
-  await checkMaintenanceTaskHasBeenRun(maintenanceName);
+  await checkMaintenanceTaskHasBeenRun(ADD_TWO_OLD_MAINTENANCE_TASKS);
 
   await maintenanceTaskRun('add-card-type-to-imported-cards');
   await maintenanceTaskRun('add-section-header-cards');
 
-  await maintenanceTaskRun(maintenanceName);
+  await maintenanceTaskRun(ADD_TWO_OLD_MAINTENANCE_TASKS);
   console.log("Done!")
 
 
 }
 
+const ADD_CARD_TYPE_TO_IMPORTED_CARDS = 'add-card-type-to-imported-cards';
+
 export const addCardTypeToImportedCards = async () => {
 
-  let maintenanceName = 'add-card-type-to-imported-cards';
-
-  await checkMaintenanceTaskHasBeenRun(maintenanceName);
+  await checkMaintenanceTaskHasBeenRun(ADD_CARD_TYPE_TO_IMPORTED_CARDS);
 
   let batch = db.batch();
 
@@ -64,18 +64,18 @@ export const addCardTypeToImportedCards = async () => {
       batch.update(doc.ref, {'card_type': 'content'})
     });
     batch.commit().then(() => {
-      maintenanceTaskRun(maintenanceName);
+      maintenanceTaskRun(ADD_CARD_TYPE_TO_IMPORTED_CARDS);
       console.log('Updated!')
     });
   })
 
 }
 
+const ADD_SECTION_HEADER_CARDS = 'add-section-header-cards';
+
 export const addSectionHeaderCards = async () => {
 
-  let maintenanceName = 'add-section-header-cards';
-
-  await checkMaintenanceTaskHasBeenRun(maintenanceName);
+  await checkMaintenanceTaskHasBeenRun(ADD_SECTION_HEADER_CARDS);
 
   let batch = db.batch();
 
@@ -115,7 +115,7 @@ export const addSectionHeaderCards = async () => {
   batch.update(db.collection(SECTIONS_COLLECTION).doc('random-thoughts'), {start_cards: [randomThoughtsCard.name]})
 
   batch.commit().then(() => {
-    maintenanceTaskRun(maintenanceName);
+    maintenanceTaskRun(ADD_SECTION_HEADER_CARDS);
     console.log("Updated!")
   });
 
@@ -215,4 +215,10 @@ const transformImportCard = (legacyCard) => {
     section: transformImportSectionName(legacyCard.sectionname),
     name: legacyCard.name || ""
   }
+}
+
+export const tasks = {
+  [ADD_TWO_OLD_MAINTENANCE_TASKS]: addTwoOldMaintenanceTasks,
+  [ADD_CARD_TYPE_TO_IMPORTED_CARDS]: addCardTypeToImportedCards,
+  [ADD_SECTION_HEADER_CARDS]: addSectionHeaderCards,
 }
