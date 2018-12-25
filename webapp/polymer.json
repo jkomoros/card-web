@@ -1,6 +1,6 @@
 {
   "entrypoint": "index.html",
-  "shell": "src/components/my-app.js",
+  "shell": "src/components/compendium-app.js",
   "sources": [
     "images/**/*"
   ],
