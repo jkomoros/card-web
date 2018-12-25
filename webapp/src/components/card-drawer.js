@@ -95,7 +95,7 @@ class CardDrawer extends connect(store)(LitElement) {
         <div class='scrolling'>
         ${repeat(this._collection, (i) => i.id, (i, index) => html`
           <div class='spacer' .index=${index}' @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
-          <card-thumbnail @dragging-started='${this._handleDraggingStarted}' @dragging-ended='${this._handleDraggingEnded}' .userMayEdit=${this._userMayEdit} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${i.title} .cardType=${i.card_type} .selected=${i.id == this._activeCardId}></card-thumbnail>`)}
+          <card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .userMayEdit=${this._userMayEdit} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${i.title} .cardType=${i.card_type} .selected=${i.id == this._activeCardId}></card-thumbnail>`)}
         </div>
         <button class='round' @click='${this._handleAddSlide}' ?hidden='${!this._userMayEdit}'>${plusIcon}</button>
       </div>
@@ -121,11 +121,15 @@ class CardDrawer extends connect(store)(LitElement) {
     ele.classList.remove('drag-active');
   }
 
-  _handleDraggingStarted(e) {
+  _handleDragStart(e) {
+    //For some reason elements with shadow DOM did not appear to be draggable,
+    //so instead of dragging just card-thumbnail and having card-drawer manage
+    //all of it, draggable is set on the inner of the thumbnail; but all other
+    //logic goes in here.
     this._dragging = true;
   }
 
-  _handleDraggingEnded(e) {
+  _handleDragEnd(e) {
     this._dragging = false;
   }
 

@@ -58,7 +58,7 @@ class CardThumbnail extends LitElement {
         }
 
       </style>
-      <div @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' class="${this.selected ? "selected" : ""} ${this.cardType}">
+      <div @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="${this.selected ? "selected" : ""} ${this.cardType}">
         <h3>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>
       </div>
     `;
@@ -78,18 +78,6 @@ class CardThumbnail extends LitElement {
     e.stopPropagation();
     this._selectedViaClick = true;
     this.dispatchEvent(new CustomEvent("thumbnail-tapped", {composed:true}))
-  }
-
-  _handleDragStart(e) {
-    //For some reason elements with shadow DOM did not appear to be draggable,
-    //so instead of dragging just card-thumbnail and having card-drawer manage
-    //all of it, we'll drag our inner and tell the drawer above that we were
-    //dragged. Most of the logic goes there.
-    this.dispatchEvent(new CustomEvent("dragging-started", {composed:true}));
-  }
-
-  _handleDragEnd(e) {
-    this.dispatchEvent(new CustomEvent('dragging-ended', {composed:true}));
   }
 
   updated(changedProps) {
