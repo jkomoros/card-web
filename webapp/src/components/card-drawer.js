@@ -94,7 +94,7 @@ class CardDrawer extends connect(store)(LitElement) {
         </div>
         <div class='scrolling'>
         ${repeat(this._collection, (i) => i.id, (i, index) => html`
-          <div class='spacer' .index=${index}' @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
+          <div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
           <card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .userMayEdit=${this._userMayEdit} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${i.title} .cardType=${i.card_type} .selected=${i.id == this._activeCardId}></card-thumbnail>`)}
         </div>
         <button class='round' @click='${this._handleAddSlide}' ?hidden='${!this._userMayEdit}'>${plusIcon}</button>
@@ -126,11 +126,19 @@ class CardDrawer extends connect(store)(LitElement) {
     //so instead of dragging just card-thumbnail and having card-drawer manage
     //all of it, draggable is set on the inner of the thumbnail; but all other
     //logic goes in here.
-    this._dragging = true;
+
+    let thumbnail = null;
+    for (let item of Object.values(e.path)) {
+      if (item.localName == 'card-thumbnail') {
+        thumbnail = item;
+      }
+    }
+
+    this._dragging = thumbnail;
   }
 
   _handleDragEnd(e) {
-    this._dragging = false;
+    this._dragging = null;
   }
 
   _handleDragOver(e) {
@@ -141,7 +149,7 @@ class CardDrawer extends connect(store)(LitElement) {
   _handleDrop(e) {
     let ele = e.path[0];
     ele.classList.remove('drag-active');
-    console.log('Dropped', e);
+    console.log('Dropped', e, this._dragging);
   }
 
   _handleChange(e) {
