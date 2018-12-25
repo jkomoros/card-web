@@ -8,7 +8,7 @@ Webapp to support complexitycompendium.com
 `polymer serve`
 
 ### Deploying
-
+`polymer build`
 `firebase use complexity-compendium`
 `firebase deploy`
 
