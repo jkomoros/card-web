@@ -10,6 +10,7 @@ import {
   db,
   CARDS_COLLECTION,
   CARD_UPDATES_COLLECTION,
+  SECTION_UPDATES_COLLECTION,
   SECTIONS_COLLECTION
 } from './database.js';
 
@@ -164,8 +165,9 @@ export const reorderCard = (card, newIndex) => async (dispatch, getState) => {
     } else {
       result = [...trimmedCards.slice(0,effectiveIndex), card.id, ...trimmedCards.slice(effectiveIndex)];
     }
-
-    transaction.update(sectionRef, {cards: result});
+    transaction.update(sectionRef, {cards: result, updated: new Date()});
+    let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
+    transaction.set(sectionUpdateRef, {timestamp: new Date(), cards: result});
   });
 
   //We don't need to tell the store anything, because firestore will tell it
@@ -266,7 +268,9 @@ export const createCard = (section, id) => async (dispatch) => {
       throw "Doc doesn't exist!"
     }
     var newArray = [...sectionDoc.data().cards, id];
-    transaction.update(sectionRef, {cards: newArray});
+    transaction.update(sectionRef, {cards: newArray, updated: new Date()});
+    let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
+    transaction.set(sectionUpdateRef, {timestamp: new Date(), cards: result});
     transaction.set(cardDocRef, obj);
   })
 

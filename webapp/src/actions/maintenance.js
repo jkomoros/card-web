@@ -3,6 +3,7 @@ import {
   db,
   CARDS_COLLECTION,
   SECTIONS_COLLECTION,
+  SECTION_UPDATES_COLLECTION,
   MAINTENANCE_COLLECTION
 } from './database.js';
 
@@ -32,6 +33,32 @@ const checkMaintenanceTaskHasBeenRun = async (taskName) => {
 
 const maintenanceTaskRun = async (taskName) => {
   db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: new Date()});
+}
+
+
+const ADD_SECTION_UPDATES_LOG = 'add-section-updates-log';
+
+export const addSectionUpdatesLog = async() => {
+
+  await checkMaintenanceTaskHasBeenRun(ADD_SECTION_UPDATES_LOG);
+
+  let batch = db.batch();
+
+  //Technically this shoudl be a transaction, but meh.
+
+  let snapshot = await db.collection(SECTIONS_COLLECTION).get();
+
+  snapshot.forEach(doc => {
+    batch.update(doc.ref, {updated: new Date()});
+    let sectionUpdateRef = doc.ref.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
+    batch.set(sectionUpdateRef, {timestamp: new Date, cards: doc.data().cards});
+  })
+
+  await batch.commit();
+
+  await maintenanceTaskRun(ADD_SECTION_UPDATES_LOG);
+  console.log('Done!');
+
 }
 
 const ADD_TWO_OLD_MAINTENANCE_TASKS = 'add-two-old-maintenance-tasks';
@@ -221,4 +248,5 @@ export const tasks = {
   [ADD_TWO_OLD_MAINTENANCE_TASKS]: addTwoOldMaintenanceTasks,
   [ADD_CARD_TYPE_TO_IMPORTED_CARDS]: addCardTypeToImportedCards,
   [ADD_SECTION_HEADER_CARDS]: addSectionHeaderCards,
+  [ADD_SECTION_UPDATES_LOG]: addSectionUpdatesLog,
 }
