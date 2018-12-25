@@ -117,6 +117,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       //Deliberately only do devmode if the host is localhost. If you want it
       //in local mode, just do 127.0.0.1 instead.
       if (location.hostname == 'localhost') DEV_MODE = true;
+      if (location.hostname.indexOf('dev-') >= 0) DEV_MODE = true;
       if (DEV_MODE) {
         config = {
             apiKey: "AIzaSyAMJMN0rfauE1fNmZtSktR1c9pOhjbj5wM",
