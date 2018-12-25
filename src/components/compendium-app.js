@@ -94,14 +94,19 @@ class CompendiumApp extends connect(store)(LitElement) {
       .header {
         padding: 0 1em;
         box-sizing:border-box;
-        display:flex;
-        flex-direction:row;
-        align-items: center;
+
         width: 100%;
         text-align: center;
         background-color: var(--app-header-background-color);
         color: var(--app-header-text-color);
         border-bottom: 1px solid #eee;
+      }
+
+      .header > .inner {
+        /* bug in many browsers with nested flexboxes; splitting like this fixes it. See issue #25 */
+        display:flex;
+        flex-direction:row;
+        align-items: center; 
       }
 
       .spacer {
@@ -164,15 +169,17 @@ class CompendiumApp extends connect(store)(LitElement) {
     <div class='container'>
       <!-- Header -->
       <div class='header'>
-        <div main-title>${this.appTitle}</div>
-        <div class='spacer'></div>
-        <nav class="toolbar-list">
-          <a ?selected="${this._page === 'c'}" href="/c">Explore</a>
-        </nav>
-        <div class='spacer dev'>
-          ${this._devMode ? html`DEVMODE` : ""}
+        <div class='inner'>
+          <div main-title>${this.appTitle}</div>
+          <div class='spacer'></div>
+          <nav class="toolbar-list">
+            <a ?selected="${this._page === 'c'}" href="/c">Explore</a>
+          </nav>
+          <div class='spacer dev'>
+            ${this._devMode ? html`DEVMODE` : ""}
+          </div>
+          <user-chip></user-chip>
         </div>
-        <user-chip></user-chip>
       </div>
 
       <!-- Main content -->
