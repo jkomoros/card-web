@@ -71,6 +71,9 @@ class CardThumbnail extends LitElement {
     selected: { type: Boolean },
     cardType: { type: String},
     userMayEdit: {type: Boolean},
+    //Card isn't used for much, except a a place for the container to stash
+    //the whole card (for convenience with dragging).
+    card: {type: Object},
     _selectedViaClick: { type: Boolean },
   }};
 
