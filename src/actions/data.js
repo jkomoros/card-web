@@ -270,7 +270,7 @@ export const createCard = (section, id) => async (dispatch) => {
     var newArray = [...sectionDoc.data().cards, id];
     transaction.update(sectionRef, {cards: newArray, updated: new Date()});
     let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
-    transaction.set(sectionUpdateRef, {timestamp: new Date(), cards: result});
+    transaction.set(sectionUpdateRef, {timestamp: new Date(), cards: newArray});
     transaction.set(cardDocRef, obj);
   })
 
