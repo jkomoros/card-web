@@ -228,12 +228,21 @@ export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
 
 }
 
-export const createCard = (section, id) => async (dispatch) => {
+export const createCard = (section, id) => async (dispatch, getState) => {
 
   //newCard creates and inserts a new card in the givne section with the given id.
 
   if (!section) section = 'stubs';
   if (!id) id = randomString(6);
+
+  let state = getState();
+
+  let appendMiddle = false; 
+  let appendIndex = 0;
+  if (state.data.activeSectionId == section) {
+    appendMiddle = true;
+    appendIndex = state.data.activeCardIndex;
+  }
 
   let obj = {
     created: new Date(),
@@ -268,6 +277,10 @@ export const createCard = (section, id) => async (dispatch) => {
       throw "Doc doesn't exist!"
     }
     var newArray = [...sectionDoc.data().cards, id];
+    if (appendMiddle) {
+      let current = sectionDoc.data().cards;
+      newArray = [...current.slice(0,appendIndex), id, ...current.slice(appendIndex)];
+    }
     transaction.update(sectionRef, {cards: newArray, updated: new Date()});
     let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
     transaction.set(sectionUpdateRef, {timestamp: new Date(), cards: newArray});
