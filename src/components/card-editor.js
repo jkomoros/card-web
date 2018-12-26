@@ -32,6 +32,10 @@ class CardEditor extends connect(store)(LitElement) {
       ${ButtonSharedStyles}
       <style>
 
+        :host {
+          position:relative;
+        }
+
         .container {
           width: 100%;
           height:100%;
@@ -39,6 +43,7 @@ class CardEditor extends connect(store)(LitElement) {
           flex-direction: column;
           padding:1em;
           box-sizing:border-box;
+          position:absolute;
         }
 
         .inputs {
