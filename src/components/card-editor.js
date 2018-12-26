@@ -159,25 +159,25 @@ class CardEditor extends connect(store)(LitElement) {
 
   _handleTitleUpdated(e) {
     if (!this._active) return;
-    let ele = e.path[0];
+    let ele = e.composedPath()[0];
     store.dispatch(titleUpdated(ele.value));
   }
 
   _handleBodyUpdated(e) {
     if (!this._active) return;
-    let ele = e.path[0];
+    let ele = e.composedPath()[0];
     store.dispatch(bodyUpdated(ele.value));
   }
 
   _handleSectionUpdated(e) {
     if (!this._active) return;
-    let ele = e.path[0];
+    let ele = e.composedPath()[0];
     store.dispatch(sectionUpdated(ele.value));
   }
 
   _handleNameUpdated(e) {
     if (!this._active) return;
-    let ele = e.path[0];
+    let ele = e.composedPath()[0];
     store.dispatch(nameUpdated(ele.value));
   }
 
@@ -185,7 +185,7 @@ class CardEditor extends connect(store)(LitElement) {
     if (!this._active) return;
     if (!this._card) return;
     let id = this._card.id;
-    let ele = e.path[0];
+    let ele = e.composedPath()[0];
     let value = prompt("Slug to add:");
     if (!value) return;
     store.dispatch(addSlug(id, value));
@@ -193,7 +193,7 @@ class CardEditor extends connect(store)(LitElement) {
 
   _handleSubstantiveChanged(e) {
     if (!this._active) return;
-    let ele = e.path[0];
+    let ele = e.composedPath()[0];
     store.dispatch(substantiveUpdated(ele.checked));
   }
 

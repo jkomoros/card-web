@@ -52,7 +52,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
   }
 
   _handleClick(e) {
-    let ele = e.path[0];
+    let ele = e.composedPath()[0];
     let value = ele.value;
     let func = tasks[value];
     if (!func) {

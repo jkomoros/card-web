@@ -116,12 +116,12 @@ class CardDrawer extends connect(store)(LitElement) {
   }
 
   _handleDragEnter(e) {
-    let ele = e.path[0];
+    let ele = e.composedPath()[0];
     ele.classList.add('drag-active')
   }
 
   _handleDragLeave(e) {
-    let ele = e.path[0];
+    let ele = e.composedPath()[0];
     ele.classList.remove('drag-active');
   }
 
@@ -151,7 +151,7 @@ class CardDrawer extends connect(store)(LitElement) {
   }
 
   _handleDrop(e) {
-    let target = e.path[0];
+    let target = e.composedPath()[0];
     target.classList.remove('drag-active');
     let thumbnail = this._dragging;
     let index = target.index;
@@ -163,7 +163,7 @@ class CardDrawer extends connect(store)(LitElement) {
   }
 
   _handleChange(e) {
-    let ele = e.path[0];
+    let ele = e.composedPath()[0];
     store.dispatch(showSection(ele.value));
   }
 

@@ -55,7 +55,7 @@ export class BaseCard extends LitElement {
   _handleClick(e) {
     //We only cancel link following if editing is true
     if (!this.editing) return;
-    let ele = e.path[0];
+    let ele = e.composedPath()[0];
     if (ele.localName != 'a') return;
     //Links that will open a new tab are fine
     if (ele.target == "_blank") return;
