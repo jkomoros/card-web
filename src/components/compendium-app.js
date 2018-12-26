@@ -14,6 +14,7 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 import { installOfflineWatcher } from 'pwa-helpers/network.js';
 import { installRouter } from 'pwa-helpers/router.js';
 import { updateMetadata } from 'pwa-helpers/metadata.js';
+import { repeat } from 'lit-html/directives/repeat';
 
 // This element is connected to the Redux store.
 import { store } from '../store.js';
@@ -27,7 +28,8 @@ store.addReducers({
 });
 
 import {
-  cardSelector
+  cardSelector,
+  collectionFromSection
 } from '../reducers/data.js';
 
 import { 
@@ -41,6 +43,7 @@ import {
   navigateToNextCard,
   navigateToPreviousCard,
   updateOffline,
+  urlForCard,
 } from '../actions/app.js';
 
 // These are the elements needed by this element.
@@ -174,7 +177,12 @@ class CompendiumApp extends connect(store)(LitElement) {
           <div main-title>${this.appTitle}</div>
           <div class='spacer'></div>
           <nav class="toolbar-list">
-            <a ?selected="${this._page === 'c'}" href="/c">Explore</a>
+            ${this._sections && Object.keys(this._sections).length > 0 ? 
+              html`${repeat(Object.values(this._sections), (item) => item.id, (item, index) => html`
+              <a ?selected=${this._page === 'c' && item.id == this._activeSectionId} href='${urlForCard(collectionFromSection(item)[0])}'>${item.title}</a>
+              `)}` :
+              html`<a ?selected="${this._page === 'c'}" href="/c">Explore</a>`
+            }
           </nav>
           <div class='spacer dev'>
             ${this._devMode ? html`DEVMODE` : ""}
@@ -202,7 +210,9 @@ class CompendiumApp extends connect(store)(LitElement) {
       _offline: { type: Boolean },
       _editing: { type: Boolean },
       _devMode: { type: Boolean },
-      _card: { type: Object }
+      _card: { type: Object },
+      _sections : {type: Object},
+      _activeSectionId: {type:String},
     }
   }
 
@@ -271,6 +281,8 @@ class CompendiumApp extends connect(store)(LitElement) {
     this._snackbarOpened = state.app.snackbarOpened;
     this._editing = state.editor.editing;
     this._devMode = DEV_MODE;
+    this._sections = state.data.sections;
+    this._activeSectionId = state.data.activeSectionId;
   }
 }
 
