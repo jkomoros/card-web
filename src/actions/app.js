@@ -37,7 +37,7 @@ export const navigatePathTo = (path, silent) => (dispatch, getState) => {
 
 export const navigateToChangesNumDays = (numDays) => (dispatch) => {
   if (!numDays) numDays = 1;
-  dispatch(navigatePathTo('/changes/' + numDays));
+  dispatch(navigatePathTo('/changes/' + numDays + '/days'));
 }
 
 export const navigateToNextCard = () => (dispatch, getState) => {

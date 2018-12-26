@@ -7,8 +7,6 @@ import {
 
 export const fetchRecentChanges = (numDays) => (dispatch, getState) => {
 
-  //TODO: actually fetch stuff
-
   let today = new Date();
   let earlier = new Date();
   earlier.setDate(earlier.getDate() - numDays);

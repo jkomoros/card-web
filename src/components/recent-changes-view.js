@@ -32,12 +32,13 @@ class RecentChangesView extends connect(store)(PageViewElement) {
 
   extractPageExtra(pageExtra) {
     let parts = pageExtra.split("/");
-    let firstPart = parts[0];
-    if (!firstPart) {
+    if (parts.length < 2) {
       return -1;
     }
-    let numDays = parseInt(firstPart);
-    return numDays;
+    if (parts[1].toLowerCase(0)!="days") {
+      return -1;
+    }
+    return parseInt(parts[0]);
   }
 
   static get properties() {
