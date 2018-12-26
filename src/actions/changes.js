@@ -1,40 +1,40 @@
-export const UPDATE_CHANGES_NUM_DAYS = 'UPDATE_CHANGES_NUM_DAYS';
+export const UPDATE_CHANGES_CARDS= 'UPDATE_CHANGES_CARDS';
 
-export const updateNumDays(numDays) 
+import {
+  db,
+  CARDS_COLLECTION
+} from './database.js';
 
-export const signIn = () => (dispatch) => {
-  dispatch({type:SIGNIN_USER});
+export const fetchRecentChanges = (numDays) => (dispatch, getState) => {
 
-  let provider = new firebase.auth.GoogleAuthProvider();
+  //TODO: actually fetch stuff
 
-  firebase.auth().signInWithPopup(provider).catch(err => {
-    dispatch({type:SIGNIN_FAILURE, error: err})
-  });
+  let today = new Date();
+  let earlier = new Date();
+  earlier.setDate(earlier.getDate() - numDays);
+
+  let updateField = 'updated_substantive'
+
+  db.collection(CARDS_COLLECTION).where(updateField, '<=', today).where(updateField, ">=", earlier).orderBy(updateField, 'desc').get().then(snapshot => {
+    let result = {}
+    snapshot.forEach(doc => {
+      let obj = doc.data();
+      obj.id = doc.id;
+      let arr = result[obj.section];
+      if (!arr) {
+        arr = [];
+        result[obj.section] = arr;
+      }
+      arr.push(obj);
+    })
+    dispatch(updateChangesCards(result));
+  })
 
 }
 
-export const signOutSuccess = () => {
-  return {type: SIGNOUT_SUCCESS}
-}
-
-export const signInSuccess = (firebaseUser) => {
+const updateChangesCards = (cardsBySection) => {
   return {
-    type: SIGNIN_SUCCESS,
-    user: _userInfo(firebaseUser)
+    type: UPDATE_CHANGES_CARDS,
+    cardsBySection
   }
-}
-
-const _userInfo = (info) => {
-  return {
-    uid: info.uid,
-    photoURL: info.photoURL,
-    displayName: info.displayName,
-    email: info.email
-  }
-}
-
-export const signOut = () => (dispatch) => {
-  dispatch({type:SIGNOUT_USER})
-
-  firebase.auth().signOut();
 }

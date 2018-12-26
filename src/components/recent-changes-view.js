@@ -11,6 +11,10 @@ store.addReducers({
 });
 
 import {
+  fetchRecentChanges 
+} from '../actions/changes.js';
+
+import {
   navigateToChangesNumDays
 } from '../actions/app.js';
 
@@ -38,18 +42,22 @@ class RecentChangesView extends connect(store)(PageViewElement) {
 
   static get properties() {
     return {
-      _numDays: {type: Number}
+      _numDays: {type: Number},
+      _cardsBySection: {type: Object}
     }
   }
 
   stateChanged(state) {
     this._numDays = this.extractPageExtra(state.app.pageExtra);
+    this._cardsBySection = state.changes.cardsBySection;
   }
 
   updated(changedProps) {
     if(changedProps.has('_numDays')) {
       if (this._numDays < 0) {
         store.dispatch(navigateToChangesNumDays(7));
+      } else {
+        store.dispatch(fetchRecentChanges(this._numDays));
       }
     }
   }
