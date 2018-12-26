@@ -155,6 +155,7 @@ class CompendiumApp extends connect(store)(LitElement) {
       .main-content {
         flex-grow:1;
         overflow:hidden;
+        position:relative;
       }
 
       .page {
