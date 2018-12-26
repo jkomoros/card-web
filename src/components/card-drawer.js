@@ -38,28 +38,19 @@ class CardDrawer extends connect(store)(LitElement) {
         :host {
           max-height:100%;
         }
+
         .scrolling {
           overflow:scroll;
           max-height:100%;
           flex-grow:1;
         }
+
         .container {
           height:100%;
           display:flex;
           flex-direction:column;
         }
-        .controls {
-          display:flex;
-          padding:0.5em;
-          box-sizing:border-box;
-          flex-direction:column;
-          border-bottom:1px solid var(--app-dark-text-color-light);
-        }
-        .controls label {
-          margin:0;
-          font-weight:normal;
-          color: var(--app-dark-text-color-light);
-        }
+
         button {
           position: absolute;
           left: 1em;
@@ -88,14 +79,6 @@ class CardDrawer extends connect(store)(LitElement) {
         }
       </style>
       <div class='container ${this._dragging ? 'dragging' : ''}'>
-        <div class='controls'>
-          <label>Section</label>
-          <select @change=${this._handleChange}>
-            ${repeat(Object.values(this._sections), (item) => item.id, (item, index) => html`
-              <option value="${item.id}" ?selected=${item.id == this._activeSectionId}>${item.title}</option>
-              `)}
-          </select>
-        </div>
         <div class='scrolling'>
         ${repeat(this._collection, (i) => i.id, (i, index) => html`
           <div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
@@ -171,7 +154,6 @@ class CardDrawer extends connect(store)(LitElement) {
     _collection: { type: Array },
     _activeCardId: { type: String },
     _activeSectionId: { type: String },
-    _sections: { type: Object },
     _userMayEdit: { type: Boolean},
     _dragging: {type: Boolean},
   }}
@@ -181,7 +163,6 @@ class CardDrawer extends connect(store)(LitElement) {
     this._collection = collectionSelector(state);
     this._activeCardId = state.data.activeCardId;
     this._activeSectionId = state.data.activeSectionId;
-    this._sections = state.data.sections;
     this._userMayEdit = userMayEdit(state);
   }
 }
