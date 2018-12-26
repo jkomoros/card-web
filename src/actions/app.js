@@ -35,6 +35,11 @@ export const navigatePathTo = (path, silent) => (dispatch, getState) => {
     dispatch(navigated(decodeURIComponent(path)));
 }
 
+export const navigateToChangesNumDays = (numDays) => (dispatch) => {
+  if (!numDays) numDays = 1;
+  dispatch(navigatePathTo('/changes/' + numDays));
+}
+
 export const navigateToNextCard = () => (dispatch, getState) => {
   const state = getState();
   let index = state.data.activeCardIndex;
