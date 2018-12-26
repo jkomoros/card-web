@@ -35,13 +35,16 @@ class CardDrawer extends connect(store)(LitElement) {
       ${SharedStyles}
       ${ButtonSharedStyles}
       <style>
+        :host {
+          max-height:100%;
+        }
         .scrolling {
           overflow:scroll;
           max-height:100%;
           flex-grow:1;
         }
         .container {
-          max-height:100%;
+          height:100%;
           display:flex;
           flex-direction:column;
         }

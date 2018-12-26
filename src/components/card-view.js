@@ -58,6 +58,7 @@ class CardView extends connect(store)(PageViewElement) {
         :host {
           height: 100%;
           width: 100%;
+          position:absolute;
         }
         .container {
           display:flex;
