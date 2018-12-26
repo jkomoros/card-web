@@ -97,6 +97,9 @@ const loadPage = (pathname) => (dispatch) => {
         // navigating to view1 after my-view1.js is loaded.
       });
       break;
+    case 'changes':
+      import('../components/recent-changes-view.js');
+      break;
     case 'maintenance':
       import('../components/maintenance-view.js');
       break;

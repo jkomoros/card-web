@@ -183,6 +183,7 @@ class CompendiumApp extends connect(store)(LitElement) {
               `)}` :
               html`<a ?selected="${this._page === 'c'}" href="/c">Explore</a>`
             }
+            <a ?selected="${this._page === 'changes'}" href="/changes">Recent Changes</a>
           </nav>
           <div class='spacer dev'>
             ${this._devMode ? html`DEVMODE` : ""}
@@ -194,6 +195,7 @@ class CompendiumApp extends connect(store)(LitElement) {
       <!-- Main content -->
       <main role="main" class="main-content">
         <card-view class="page" ?active="${this._page === 'c'}"></card-view>
+        <recent-changes-view class="page" ?active="${this._page === 'changes'}"></recent-changes-view>
         <my-view404 class="page" ?active="${this._page === 'view404'}"></my-view404>
         <maintenance-view class='page' ?active="${this._page === 'maintenance'}"></maintenance-view>
       </main>
