@@ -33,6 +33,9 @@ class RecentChangesView extends connect(store)(PageViewElement) {
           height:100%;
           width:100%;
         }
+        .container.fetching {
+          opacity:0.5;
+        }
       </style>
       <h2>Recent Changes</h2>
       <label>Number of Days to Show</label>
@@ -44,14 +47,14 @@ class RecentChangesView extends connect(store)(PageViewElement) {
         <option value='365' ?selected='${this._numDays == 365}'>Last Year</option>
         <option value='300000000' ?selected='${this._numDays == 300000000}'>Forever</option>
       </select>
-      <div class='container'>
+      <div class='container ${this._fetching ? 'fetching' : ''}'>
         ${Object.entries(this._sections).map((item) => {
           return html`<div>
           <h3>${item[1].title}</h3>
             ${this._changesForSection(item[0])}
           </div>`
         })}
-      <div>
+      </div>
     `
   }
 
@@ -92,7 +95,8 @@ class RecentChangesView extends connect(store)(PageViewElement) {
     return {
       _numDays: {type: Number},
       _cardsBySection: {type: Object},
-      _sections: { type:Object }
+      _sections: { type:Object },
+      _fetching: {type:Boolean}
     }
   }
 
@@ -100,6 +104,7 @@ class RecentChangesView extends connect(store)(PageViewElement) {
     this._numDays = this.extractPageExtra(state.app.pageExtra);
     this._cardsBySection = state.changes.cardsBySection;
     this._sections = state.data.sections;
+    this._fetching = state.changes.fetching;
   }
 
   updated(changedProps) {

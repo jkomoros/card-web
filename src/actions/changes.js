@@ -1,11 +1,21 @@
 export const UPDATE_CHANGES_CARDS= 'UPDATE_CHANGES_CARDS';
+export const CHANGES_FETCHING='CHANGES_FETCHING';
 
 import {
   db,
   CARDS_COLLECTION
 } from './database.js';
 
+const fetching = (isFetching) => {
+  return {
+    type: CHANGES_FETCHING,
+    isFetching 
+  }
+}
+
 export const fetchRecentChanges = (numDays) => (dispatch, getState) => {
+
+  dispatch(fetching(true));
 
   let today = new Date();
   let earlier = new Date();
@@ -26,6 +36,9 @@ export const fetchRecentChanges = (numDays) => (dispatch, getState) => {
       arr.push(obj);
     })
     dispatch(updateChangesCards(result));
+  }).catch(err => {
+    console.log(err);
+    dispatch(fetching(false))
   })
 
 }
