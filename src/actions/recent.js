@@ -1,5 +1,5 @@
-export const UPDATE_CHANGES_CARDS= 'UPDATE_CHANGES_CARDS';
-export const CHANGES_FETCHING='CHANGES_FETCHING';
+export const UPDATE_RECENT_CARDS= 'UPDATE_RECENT_CARDS';
+export const RECENT_FETCHING='RECENT_FETCHING';
 
 import {
   db,
@@ -8,7 +8,7 @@ import {
 
 const fetching = (isFetching) => {
   return {
-    type: CHANGES_FETCHING,
+    type: RECENT_FETCHING,
     isFetching 
   }
 }
@@ -45,7 +45,7 @@ export const fetchRecentChanges = (numDays) => (dispatch, getState) => {
 
 const updateChangesCards = (cardsBySection) => {
   return {
-    type: UPDATE_CHANGES_CARDS,
+    type: UPDATE_RECENT_CARDS,
     cardsBySection
   }
 }

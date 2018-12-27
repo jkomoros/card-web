@@ -1,7 +1,7 @@
 import {
-  UPDATE_CHANGES_CARDS,
-  CHANGES_FETCHING
-} from '../actions/changes.js';
+  UPDATE_RECENT_CARDS,
+  RECENT_FETCHING
+} from '../actions/recent.js';
 
 const INITIAL_STATE = {
   cardsBySection: {},
@@ -10,13 +10,13 @@ const INITIAL_STATE = {
 
 const app = (state = INITIAL_STATE, action) => {
   switch (action.type) {
-    case UPDATE_CHANGES_CARDS:
+    case UPDATE_RECENT_CARDS:
       return {
         ...state,
         cardsBySection: action.cardsBySection,
         fetching: false
       }
-    case CHANGES_FETCHING:
+    case RECENT_FETCHING:
       return {
         ...state,
         fetching: action.isFetching

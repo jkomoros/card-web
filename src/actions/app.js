@@ -37,7 +37,7 @@ export const navigatePathTo = (path, silent) => (dispatch, getState) => {
 
 export const navigateToChangesNumDays = (numDays) => (dispatch) => {
   if (!numDays) numDays = 1;
-  dispatch(navigatePathTo('/changes/' + numDays + '/days'));
+  dispatch(navigatePathTo('/recent/' + numDays + '/days'));
 }
 
 export const navigateToNextCard = () => (dispatch, getState) => {
@@ -102,7 +102,7 @@ const loadPage = (pathname) => (dispatch) => {
         // navigating to view1 after my-view1.js is loaded.
       });
       break;
-    case 'changes':
+    case 'recent':
       import('../components/recent-changes-view.js');
       break;
     case 'maintenance':

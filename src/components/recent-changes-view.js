@@ -5,14 +5,14 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
-import changes from '../reducers/changes.js';
+import recent from '../reducers/recent.js';
 store.addReducers({
-  changes
+  recent
 });
 
 import {
   fetchRecentChanges 
-} from '../actions/changes.js';
+} from '../actions/recent.js';
 
 import {
   navigateToChangesNumDays,
@@ -188,9 +188,9 @@ class RecentChangesView extends connect(store)(PageViewElement) {
 
   stateChanged(state) {
     this._numDays = this.extractPageExtra(state.app.pageExtra);
-    this._cardsBySection = state.changes.cardsBySection;
+    this._cardsBySection = state.recent.cardsBySection;
     this._sections = state.data.sections;
-    this._fetching = state.changes.fetching;
+    this._fetching = state.recent.fetching;
   }
 
   updated(changedProps) {
