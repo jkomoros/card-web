@@ -15,7 +15,8 @@ import {
 } from '../actions/changes.js';
 
 import {
-  navigateToChangesNumDays
+  navigateToChangesNumDays,
+  urlForCard
 } from '../actions/app.js';
 
 // These are the shared styles needed by this element.
@@ -25,9 +26,35 @@ class RecentChangesView extends connect(store)(PageViewElement) {
   render() {
     return html`
       ${SharedStyles}
+      <style>
+        :host {
+          overflow:scroll;
+          height:100%;
+          width:100%;
+        }
+      </style>
       <h2>Recent Changes</h2>
-      <p>This is where recent changes will go, I guess.</p>
+      <div class='container'>
+        ${Object.entries(this._sections).map((item) => {
+          return html`<div>
+          <h3>${item[1].title}</h3>
+            ${this._changesForSection(item[0])}
+          </div>`
+        })}
+      <div>
     `
+  }
+
+  _changesForSection(sectionName) {
+    const items = this._cardsBySection[sectionName];
+    if (!items) {
+      return html`<em>No changes</em>`;
+    }
+    return html`<ul>
+      ${items.map(item => {
+        return html`<li><a href='${urlForCard(item.id)}'>${item.title ? item.title : html`<em>Untitled</em>`}</a></li>`
+      })}
+    <ul>`;
   }
 
   extractPageExtra(pageExtra) {
@@ -44,13 +71,15 @@ class RecentChangesView extends connect(store)(PageViewElement) {
   static get properties() {
     return {
       _numDays: {type: Number},
-      _cardsBySection: {type: Object}
+      _cardsBySection: {type: Object},
+      _sections: { type:Object }
     }
   }
 
   stateChanged(state) {
     this._numDays = this.extractPageExtra(state.app.pageExtra);
     this._cardsBySection = state.changes.cardsBySection;
+    this._sections = state.data.sections;
   }
 
   updated(changedProps) {
