@@ -13,7 +13,7 @@ export const fetchRecentChanges = (numDays) => (dispatch, getState) => {
 
   let updateField = 'updated_substantive'
 
-  db.collection(CARDS_COLLECTION).where(updateField, '<=', today).where(updateField, ">=", earlier).orderBy(updateField, 'desc').get().then(snapshot => {
+  db.collection(CARDS_COLLECTION).where('card_type', '==', 'content').where(updateField, '<=', today).where(updateField, ">=", earlier).orderBy(updateField, 'desc').get().then(snapshot => {
     let result = {}
     snapshot.forEach(doc => {
       let obj = doc.data();
