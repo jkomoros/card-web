@@ -60,13 +60,31 @@ class RecentChangesView extends connect(store)(PageViewElement) {
   _changesForSection(sectionName) {
     const items = this._cardsBySection[sectionName];
     if (!items) {
-      return html`<em>No changes</em>`;
+      return html`<em>No items</em>`;
     }
-    return html`<ul>
-      ${items.map(item => {
-        return html`<li><a card='${item.id}' href='${urlForCard(item.id)}'>${item.title ? item.title : html`<em>Untitled</em>`}</a><em>${this._prettyDate(item.updated_substantive)}</em></li>`
-      })}
-    <ul>`;
+    let sections = {};
+    let currentDate = this._prettyDate(items[0]);
+    let currentSection = [];
+    sections[currentDate] = currentSection;
+
+    for (let item of Object.values(items)) {
+      let prettyDate = this._prettyDate(item);
+      if (prettyDate != currentDate) {
+        currentSection = [];
+        currentDate = prettyDate;
+        sections[currentDate] = currentSection;
+      }
+      let result = html`<li><a card='${item.id}' href='${urlForCard(item.id)}'>${item.title ? item.title : html`<em>Untitled</em>`}</a><em></li>`;
+      currentSection.push(result);
+    }
+
+    console.log(sections);
+
+    return html`${Object.keys(sections).map(key => {
+      return html`<h4>${key}</h4>
+       <ul>
+        ${sections[key]}
+       </ul>`}) }`
   }
 
   _handleNumDaysChanged(e) {
@@ -74,9 +92,10 @@ class RecentChangesView extends connect(store)(PageViewElement) {
     store.dispatch(navigateToChangesNumDays(parseInt(ele.value)));
   }
 
-  _prettyDate(timestamp) {
+  _prettyDate(item) {
+    let timestamp = item.updated_substantive;
     var d = timestamp.toDate();
-    return d.toLocaleString();
+    return d.toDateString();
   }
 
   extractPageExtra(pageExtra) {
