@@ -24,6 +24,7 @@ import { SharedStyles } from './shared-styles.js';
 
 class RecentChangesView extends connect(store)(PageViewElement) {
   render() {
+    console.log(this._numDays);
     return html`
       ${SharedStyles}
       <style>
@@ -34,6 +35,15 @@ class RecentChangesView extends connect(store)(PageViewElement) {
         }
       </style>
       <h2>Recent Changes</h2>
+      <label>Number of Days to Show</label>
+      <select @change='${this._handleNumDaysChanged}'>
+        <option value='1' ?selected='${this._numDays == 1}'>Last Day</option>
+        <option value='7' ?selected='${this._numDays == 7}'>Last Week</option>
+        <option value='30' ?selected='${this._numDays == 30}'>Last Month</option>
+        <option value='90' ?selected='${this._numDays == 90}'>Last Three Months</option>
+        <option value='365' ?selected='${this._numDays == 365}'>Last Year</option>
+        <option value='300000000' ?selected='${this._numDays == 300000000}'>Forever</option>
+      </select>
       <div class='container'>
         ${Object.entries(this._sections).map((item) => {
           return html`<div>
@@ -55,6 +65,11 @@ class RecentChangesView extends connect(store)(PageViewElement) {
         return html`<li><a card='${item.id}' href='${urlForCard(item.id)}'>${item.title ? item.title : html`<em>Untitled</em>`}</a><em>${this._prettyDate(item.updated_substantive)}</em></li>`
       })}
     <ul>`;
+  }
+
+  _handleNumDaysChanged(e) {
+    let ele = e.composedPath()[0];
+    store.dispatch(navigateToChangesNumDays(parseInt(ele.value)));
   }
 
   _prettyDate(timestamp) {
