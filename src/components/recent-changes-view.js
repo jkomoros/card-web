@@ -47,20 +47,77 @@ class RecentChangesView extends connect(store)(PageViewElement) {
         <option value='300000000' ?selected='${this._numDays == 300000000}'>Forever</option>
       </select>
       <div class='container ${this._fetching ? 'fetching' : ''}'>
-        ${Object.entries(this._sections).map((item) => {
-          return html`<div>
-          <h3>${item[1].title}</h3>
-            ${this._changesForSection(item[0])}
-          </div>`
-        })}
+        ${this._renderChanges()}
       </div>
     `
+  }
+
+  _renderChanges() {
+    let daysBySection = {};
+    Object.entries(this._sections).forEach(info => {
+      daysBySection[info[1].title] = this._changesForSection(info[0]);
+    })
+
+    let dayKeysInOrder = [];
+
+    for (let sectionDay of Object.values(daysBySection)) {
+      dayKeysInOrder = this._mergeSortedArrays(dayKeysInOrder, Object.keys(sectionDay));
+    }
+
+    return dayKeysInOrder.map(day => this._changesForDay(day, daysBySection));
+
+  }
+
+  _changesForDay(day, sections) {
+    let items  = [];
+
+    for (let section of Object.keys(sections)) {
+      let dayItems = sections[section][day];
+      if (!dayItems) continue;
+      items.push(html`<h4>${section}</h4><ul>${dayItems}</ul>`)
+    }
+
+
+    return html`<h3>${day}</h3>${items}`;
+  }
+
+  _mergeSortedArrays(left, right) {
+    let a = left.slice();
+    let b = right.slice();
+     var result = [];
+      while(a.length || b.length) {
+          if(typeof a[0] === 'undefined') {
+              result.push(b[0]);
+              b.splice(0,1);
+          } else if(new Date(a[0]) < new Date(b[0])){
+              result.push(b[0]);
+              b.splice(0,1);
+          } else {
+              result.push(a[0]);
+              a.splice(0,1);
+          }
+      }
+      return this._unique(result);
+  }
+
+  _unique(sortedArray) {
+    //Assuming a sorted array, returns an array like this one but with only one of each unique key;
+    let result = [];
+    let lastItem = null;
+    for (let item of sortedArray) {
+      if (lastItem == item) {
+        continue;
+      }
+      lastItem = item;
+      result.push(item);
+    }
+    return result;
   }
 
   _changesForSection(sectionName) {
     const items = this._cardsBySection[sectionName];
     if (!items) {
-      return html`<em>No items</em>`;
+      return {};
     }
     let sections = {};
     let currentDate = this._prettyDate(items[0]);
@@ -78,13 +135,7 @@ class RecentChangesView extends connect(store)(PageViewElement) {
       currentSection.push(result);
     }
 
-    console.log(sections);
-
-    return html`${Object.keys(sections).map(key => {
-      return html`<h4>${key}</h4>
-       <ul>
-        ${sections[key]}
-       </ul>`}) }`
+    return sections;
   }
 
   _handleNumDaysChanged(e) {
