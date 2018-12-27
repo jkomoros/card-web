@@ -134,6 +134,10 @@ class CompendiumApp extends connect(store)(LitElement) {
         font-family: var(--app-header-font-family);
         font-weight:bold;
         font-size: 26px;
+        color: var(--app-dark-text-color-light);
+      }
+
+      [main-title] span {
         color: var(--app-primary-color);
       }
 
@@ -174,7 +178,7 @@ class CompendiumApp extends connect(store)(LitElement) {
       <!-- Header -->
       <div class='header'>
         <div class='inner'>
-          <div main-title>${this.appTitle}</div>
+          <div main-title>The <span>Compendium</span></div>
           <div class='spacer'></div>
           <nav class="toolbar-list">
             ${this._sections && Object.keys(this._sections).length > 0 ? 
@@ -219,7 +223,7 @@ class CompendiumApp extends connect(store)(LitElement) {
   }
 
   get appTitle() {
-    return "Complexity Compendium";
+    return "The Compendium";
   }
 
   constructor() {
