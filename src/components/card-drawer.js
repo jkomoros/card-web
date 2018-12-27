@@ -63,6 +63,10 @@ class CardDrawer extends connect(store)(LitElement) {
           z-index:10000;
         }
 
+        .reordering {
+          opacity:0.7;
+        }
+
         .spacer {
           /* Big drop target, but no change in layout */
           height:3em;
@@ -78,7 +82,7 @@ class CardDrawer extends connect(store)(LitElement) {
           margin-bottom:-2em;
         }
       </style>
-      <div class='container ${this._dragging ? 'dragging' : ''}'>
+      <div class='container ${this._dragging ? 'dragging' : ''}${this._reorderPending ? 'reordering':''}'>
         <div class='scrolling'>
         ${repeat(this._collection, (i) => i.id, (i, index) => html`
           <div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
@@ -156,6 +160,7 @@ class CardDrawer extends connect(store)(LitElement) {
     _activeSectionId: { type: String },
     _userMayEdit: { type: Boolean},
     _dragging: {type: Boolean},
+    _reorderPending: {type:Boolean}
   }}
 
   // This is called every time something is updated in the store.
@@ -164,6 +169,7 @@ class CardDrawer extends connect(store)(LitElement) {
     this._activeCardId = state.data.activeCardId;
     this._activeSectionId = state.data.activeSectionId;
     this._userMayEdit = userMayEdit(state);
+    this._reorderPending = state.data.reorderPending;
   }
 }
 

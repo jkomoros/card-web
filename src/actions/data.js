@@ -5,6 +5,7 @@ export const SHOW_SECTION = 'SHOW_SECTION';
 export const MODIFY_CARD = 'MODIFY_CARD';
 export const MODIFY_CARD_SUCCESS = 'MODIFY_CARD_SUCCESS';
 export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
+export const REORDER_STATUS = 'REORDER_STATUS';
 
 import {
   db,
@@ -134,6 +135,8 @@ export const reorderCard = (card, newIndex) => async (dispatch, getState) => {
     return;
   }
 
+  dispatch(reorderStatus(true));
+
   await db.runTransaction(async transaction => {
     let sectionRef = db.collection(SECTIONS_COLLECTION).doc(card.section);
     let doc = await transaction.get(sectionRef);
@@ -168,7 +171,7 @@ export const reorderCard = (card, newIndex) => async (dispatch, getState) => {
     transaction.update(sectionRef, {cards: result, updated: new Date()});
     let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
     transaction.set(sectionUpdateRef, {timestamp: new Date(), cards: result});
-  });
+  }).then(() => dispatch(reorderStatus(false))).catch(() => dispatch(reorderStatus(false)));
 
   //We don't need to tell the store anything, because firestore will tell it
   //automatically.
@@ -314,6 +317,12 @@ const modifyCardFailure = (err) => {
   }
 }
 
+export const reorderStatus = (pending) => {
+  return {
+    type: REORDER_STATUS,
+    pending
+  }
+}
 
 export const updateSections = (sections) => {
   return {

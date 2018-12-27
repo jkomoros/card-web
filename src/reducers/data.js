@@ -5,7 +5,8 @@ import {
   SHOW_SECTION,
   MODIFY_CARD,
   MODIFY_CARD_SUCCESS,
-  MODIFY_CARD_FAILURE
+  MODIFY_CARD_FAILURE,
+  REORDER_STATUS
 } from '../actions/data.js';
 import { createSelector } from 'reselect';
 
@@ -18,7 +19,8 @@ const INITIAL_STATE = {
   activeCardIndex: -1,
   //The modification that is pending
   cardModificationPending: "",
-  cardModificationError: null
+  cardModificationError: null,
+  reorderPending: false
 }
 
 const app = (state = INITIAL_STATE, action) => {
@@ -66,6 +68,11 @@ const app = (state = INITIAL_STATE, action) => {
         ...state,
         cardModificationPending: "",
         cardModificationError: action.error
+      }
+    case REORDER_STATUS:
+      return {
+        ...state,
+        reorderPending: action.pending
       }
     default:
       return state;
