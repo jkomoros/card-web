@@ -38,10 +38,15 @@ class RecentChangesView extends connect(store)(PageViewElement) {
         }
         h3 {
           margin-bottom:0;
+          color: var(--app-secondary-color);
         }
         h4 {
           margin-top:0;
           margin-bottom:0;
+          color: var(--app-dark-text-color);
+        }
+        h4 span {
+          color: var(--app-primary-color);
         }
         ul {
           margin:0;
@@ -86,7 +91,7 @@ class RecentChangesView extends connect(store)(PageViewElement) {
     for (let section of Object.keys(sections)) {
       let dayItems = sections[section][day];
       if (!dayItems) continue;
-      items.push(html`<h4>${section}</h4><ul>${dayItems}</ul>`)
+      items.push(html`<h4><em>New and updated in</em> <span>${section}</span></h4><ul>${dayItems}</ul>`)
     }
 
 
