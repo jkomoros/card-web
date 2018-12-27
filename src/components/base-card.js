@@ -1,9 +1,12 @@
 import { LitElement, html } from '@polymer/lit-element';
 
+import { SharedStyles } from './shared-styles.js';
+
 // This element is *not* connected to the Redux store.
 export class BaseCard extends LitElement {
   render() {
     return html`
+      ${SharedStyles}
       <style>
         :host {
           display:block;

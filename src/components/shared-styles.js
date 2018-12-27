@@ -27,6 +27,22 @@ export const SharedStyles = html`
     display:none;
   }
 
+  a {
+    color: var(--app-primary-color);
+  }
+
+  a:visited {
+    color: var(--app-primary-color-light);
+  }
+
+  a[card] {
+    color: var(--app-secondary-color);
+  }
+
+  a[card]:visited {
+    color: var(--app-secondary-color-light);
+  }
+
   @media (min-width: 460px) {
     h2 {
       font-size: 36px;

@@ -30,22 +30,6 @@ class ContentCard extends BaseCard {
           font-size:0.72em;
         }
 
-        a {
-          color: var(--app-primary-color);
-        }
-
-        a:visited {
-          color: var(--app-primary-color-light);
-        }
-
-        a[card] {
-          color: var(--app-secondary-color);
-        }
-
-        a[card]:visited {
-          color: var(--app-secondary-color-light);
-        }
-
         .loading {
           font-style:italic;
           opacity: 0.5;
