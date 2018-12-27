@@ -52,9 +52,14 @@ class RecentChangesView extends connect(store)(PageViewElement) {
     }
     return html`<ul>
       ${items.map(item => {
-        return html`<li><a href='${urlForCard(item.id)}'>${item.title ? item.title : html`<em>Untitled</em>`}</a></li>`
+        return html`<li><a href='${urlForCard(item.id)}'>${item.title ? item.title : html`<em>Untitled</em>`}</a><em>${this._prettyDate(item.updated_substantive)}</em></li>`
       })}
     <ul>`;
+  }
+
+  _prettyDate(timestamp) {
+    var d = timestamp.toDate();
+    return d.toLocaleString();
   }
 
   extractPageExtra(pageExtra) {
