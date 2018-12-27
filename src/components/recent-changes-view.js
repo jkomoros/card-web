@@ -31,9 +31,21 @@ class RecentChangesView extends connect(store)(PageViewElement) {
           overflow:scroll;
           height:100%;
           width:100%;
+          padding:2em;
         }
         .container.fetching {
           opacity:0.5;
+        }
+        h3 {
+          margin-bottom:0;
+        }
+        h4 {
+          margin-top:0;
+          margin-bottom:0;
+        }
+        ul {
+          margin:0;
+          margin-bottom: 1em;
         }
       </style>
       <h2>Recent Changes</h2>
