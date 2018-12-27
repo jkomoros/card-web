@@ -24,7 +24,6 @@ import { SharedStyles } from './shared-styles.js';
 
 class RecentChangesView extends connect(store)(PageViewElement) {
   render() {
-    console.log(this._numDays);
     return html`
       ${SharedStyles}
       <style>
