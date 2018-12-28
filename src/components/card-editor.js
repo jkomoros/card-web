@@ -19,6 +19,7 @@ import {
   sectionUpdated,
   nameUpdated,
   substantiveUpdated,
+  fullBleedUpdated
 } from '../actions/editor.js';
 
 import {
@@ -124,6 +125,10 @@ class CardEditor extends connect(store)(LitElement) {
               </select>
               <button @click='${this._handleAddSlug}'>+</button>
             </div>
+            <div>
+              <label>Full Bleed</label>
+              <input type='checkbox' ?checked='${this._card.full_bleed}' @change='${this._handleFullBleedUpdated}'></input>
+            </div>
           </div>
         </div>
         <div class='buttons'>
@@ -189,6 +194,12 @@ class CardEditor extends connect(store)(LitElement) {
     let value = prompt("Slug to add:");
     if (!value) return;
     store.dispatch(addSlug(id, value));
+  }
+
+  _handleFullBleedUpdated(e) {
+    if(!this._active) return; 
+    let ele = e.composedPath()[0];
+    store.dispatch(fullBleedUpdated(ele.checked));
   }
 
   _handleSubstantiveChanged(e) {

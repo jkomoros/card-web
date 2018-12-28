@@ -6,6 +6,7 @@ export const EDITING_SECTION_UPDATED = 'EDITING_SECTION_UPDATED';
 export const EDITING_SLUG_ADDED = 'EDITING_SLUG_ADDED';
 export const EDITING_NAME_UPDATED = 'EDITING_NAME_UPDATED';
 export const EDITING_SUBSTANTIVE_UPDATED = 'EDITING_SUBSTANTIVE_UPDATED';
+export const EDITING_FULL_BLEED_UPDATED = 'EDITING_FULL_BLEED_UPDATED';
 
 import {
   userMayEdit
@@ -53,6 +54,7 @@ export const editingCommit = () => (dispatch, getState) => {
   if (updatedCard.body != underlyingCard.body) update.body = updatedCard.body;
   if (updatedCard.section != underlyingCard.section) update.section = updatedCard.section;
   if (updatedCard.name != underlyingCard.section) update.name = updatedCard.name;
+  if (updatedCard.full_bleed != underlyingCard.full_bleed) update.full_bleed = updatedCard.full_bleed;
 
   //modifyCard will fail if the update is a no-op.
   dispatch(modifyCard(underlyingCard, update, state.editor.substantive));
@@ -102,5 +104,12 @@ export const substantiveUpdated = (checked) => {
   return {
     type: EDITING_SUBSTANTIVE_UPDATED,
     checked,
+  }
+}
+
+export const fullBleedUpdated = (fullBleed) => {
+  return {
+    type: EDITING_FULL_BLEED_UPDATED,
+    fullBleed
   }
 }

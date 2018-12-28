@@ -32,6 +32,7 @@ const LEGAL_UPDATE_FIELDS = new Map([
   ['title', true],
   ['body', true],
   ['name', true],
+  ['full_bleed', true]
 ]);
 
 export const modifyCard = (card, update, substantive) => (dispatch, getState) => {
@@ -89,6 +90,10 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
   if (update.name) {
     //TODO: really we should verify that this name is legal--that is, either the id or one of the slugs.
     cardUpdateObject.name = update.name;
+  }
+
+  if (update.full_bleed !== undefined) {
+    cardUpdateObject.full_bleed = update.full_bleed;
   }
 
   let batch = db.batch();
