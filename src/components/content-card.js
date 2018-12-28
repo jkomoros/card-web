@@ -9,7 +9,7 @@ let blankTemplate = html`<span class='loading'>Content goes here...</span>`
 export class ContentCard extends BaseCard {
   innerRender() {
     return html`
-      <h1>${this.title ? this.title : this._emptyTemplate}</h1>
+      <h1>${this.title ? this.title : (this.fullBleed ? '' : this._emptyTemplate)}</h1>
       ${this._makeSection(this.body)}
     `;
   }
