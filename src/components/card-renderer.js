@@ -2,6 +2,7 @@ import { LitElement, html } from '@polymer/lit-element';
 
 import './content-card.js';
 import './section-head-card.js';
+import './centered-card.js';
 
 // This element is *not* connected to the Redux store.
 export class CardRenderer extends LitElement {
@@ -14,6 +15,7 @@ export class CardRenderer extends LitElement {
       </style>
       <section-head-card ?hidden=${this._cardType != 'section-head'} .title=${this._title} .subtitle=${this._subtitle}></section-head-card>
       <content-card ?hidden=${this._cardType != 'content'} .editing=${this.editing} .id=${this._cardId} title="${this._title}" body="${this._body}"></content-card>
+      <centered-card ?hidden=${this._cardType != 'centered'} body=${this._body}></centered-card>
     `;
   }
 
