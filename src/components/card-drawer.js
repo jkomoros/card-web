@@ -86,11 +86,23 @@ class CardDrawer extends connect(store)(LitElement) {
         <div class='scrolling'>
         ${repeat(this._collection, (i) => i.id, (i, index) => html`
           <div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
-          <card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this._userMayEdit} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${i.title} .cardType=${i.card_type} .selected=${i.id == this._activeCardId} .index=${index}></card-thumbnail>`)}
+          <card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this._userMayEdit} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this._activeCardId} .index=${index}></card-thumbnail>`)}
         </div>
         <button class='round' @click='${this._handleAddSlide}' ?hidden='${!this._userMayEdit}'>${plusIcon}</button>
       </div>
     `;
+  }
+
+  _titleForCard(card) {
+    if (card.title) return card.title;
+    //It' sonly legal to not have a title if you're full-bleed;
+    if (!card.full_bleed) return "";
+    if (!card.body) return "";
+    let section = document.createElement('section');
+    section.innerHTML = card.body;
+    let ele = section.querySelector('strong');
+    if (!ele) ele = section;
+    return ele.innerText.split("\n")[0];
   }
 
   _thumbnailActivatedHandler(e) {
