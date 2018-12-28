@@ -9,33 +9,6 @@ let blankTemplate = html`<span class='loading'>Content goes here...</span>`
 export class ContentCard extends BaseCard {
   innerRender() {
     return html`
-      <style>
-
-        h1 {
-          font-family: 'Raleway', sans-serif;
-          font-weight:bold;
-          color: var(--app-primary-color);
-          margin-top:0;
-          font-size:1.45em;
-        }
-
-        section {
-          font-family: 'Source Sans Pro', sans-serif;
-          font-size: 1em;
-          color: var(--app-dark-text-color);
-          background-color:transparent;
-        }
-
-        .small {
-          font-size:0.72em;
-        }
-
-        .loading {
-          font-style:italic;
-          opacity: 0.5;
-        }
-
-      </style>
       <h1>${this.title ? this.title : this._emptyTemplate}</h1>
       ${this._makeSection(this.body)}
     `;

@@ -43,12 +43,6 @@ export const SharedStyles = html`
     color: var(--app-secondary-color-light);
   }
 
-  @media (min-width: 460px) {
-    h2 {
-      font-size: 36px;
-    }
-  }
-
   .circle {
     display: block;
     width: 64px;

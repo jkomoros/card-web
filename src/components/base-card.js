@@ -37,6 +37,46 @@ export class BaseCard extends LitElement {
           cursor:pointer;
         }
 
+        h1, h2, h3{
+          font-family: 'Raleway', sans-serif;
+          font-weight:bold;
+          margin-top:0;
+        }
+
+        h1 {
+          color: var(--app-primary-color);
+          font-size: 1.45em;
+        }
+
+        h2 {
+          color: var(--app-dark-text-color);
+          font-size: 1.25em;
+        }
+
+        h3 {
+          color: var(--app-dark-text-color);
+          font-size: 1.1em;
+        }
+
+        h1 strong, h2 strong, h3 strong {
+          color: var(--app-primary-color);
+        }
+
+        section {
+          font-family: 'Source Sans Pro', sans-serif;
+          font-size: 1em;
+          color: var(--app-dark-text-color);
+          background-color:transparent;
+        }
+
+        .small {
+          font-size:0.72em;
+        }
+        .loading {
+          font-style:italic;
+          opacity: 0.5;
+        }
+
       </style>
       <div class="container ${this.editing ? 'editing' : ''}">
         ${this.innerRender()}
