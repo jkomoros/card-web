@@ -98,6 +98,10 @@ class CardEditor extends connect(store)(LitElement) {
           align-items:center;
         }
 
+        .inputs .row > div {
+          flex-grow:1;
+        }
+
       </style>
       <div class='container'>
         <div class='inputs'>
