@@ -13,7 +13,7 @@ export class CardRenderer extends LitElement {
         }
       </style>
       <section-head-card ?hidden=${this._cardType != 'section-head'} .title=${this._title} .subtitle=${this._subtitle}></section-head-card>
-      <content-card ?hidden=${this._cardType != 'content'} .editing=${this.editing} .id=${this._cardId} title="${this._title}" body="${this._body}"></content-card>
+      <content-card ?hidden=${this._cardType != 'content'} .editing=${this.editing} .id=${this._cardId} title="${this._title}" body="${this._body}" .fullBleed=${this._fullBleed}></content-card>
     `;
   }
 
@@ -26,6 +26,7 @@ export class CardRenderer extends LitElement {
       _subtitle: { type:String },
       _cardType: {type:String},
       _cardId: {type: String},
+      _fullBleed: {type: Boolean},
     }
   }
 
@@ -47,12 +48,14 @@ export class CardRenderer extends LitElement {
         this._body = this.card.body || '';
         this._subtitle = this.card.subtitle || '';
         this._cardId = this.card.id;
+        this._fullBleed = this.card.full_bleed ? true : false;
       } else {
         this._cardType = '';
         this._title = '';
         this._body = '';
         this._subtitle = '';
         this._cardId = '';
+        this._fullBleed = false;
       }
       
     }

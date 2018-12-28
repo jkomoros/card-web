@@ -19,6 +19,7 @@ export class ContentCard extends BaseCard {
       title: { type: String },
       body: { type: String },
       id: {type: String},
+      fullBleed: {type: String}
     }
   }
 
@@ -41,7 +42,8 @@ export class ContentCard extends BaseCard {
     }
     const section = document.createElement("section");
     section.innerHTML = body;
-    section.querySelectorAll('a').forEach(this._updateA)
+    section.querySelectorAll('a').forEach(this._updateA);
+    if(this.fullBleed) section.className = "full-bleed";
     return section;
   }
 }
