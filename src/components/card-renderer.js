@@ -31,10 +31,22 @@ export class CardRenderer extends LitElement {
     }
   }
 
+  _normalizeCardType(cardType) {
+    switch (cardType){
+      case "section-head":
+        return "section-head";
+      case 'centered':
+        return 'centered';
+      case "content":
+      default:
+        return "content";
+    }
+  }
+
   update(changedProps) {
     if (changedProps.has('card')) {
       if (this.card) {
-        this._cardType = this.card.card_type || 'content';
+        this._cardType = this._normalizeCardType(this.card.card_type);
         this._title = this.card.title || '';
         this._body = this.card.body || '';
         this._subtitle = this.card.subtitle || '';
