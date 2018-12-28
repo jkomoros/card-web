@@ -23,6 +23,7 @@ export class BaseCard extends LitElement {
         .container {
           height:100%;
           width:100%;
+          position:relative;
         }
 
         .container.editing > *{
@@ -67,6 +68,18 @@ export class BaseCard extends LitElement {
           font-size: 1em;
           color: var(--app-dark-text-color);
           background-color:transparent;
+        }
+
+        section.full-bleed {
+          top:0;
+          left:0;
+          height:100%;
+          width:100%;
+          position:absolute;
+          display:flex;
+          flex-direction:column;
+          justify-content:center;
+          align-items:center;
         }
 
         .small {
