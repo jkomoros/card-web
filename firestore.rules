@@ -18,7 +18,8 @@ service cloud.firestore {
     }
     //The only two fields that can be updated are messages and resolved
     match /threads/{thread} {
-    	allow create, update : if request.auth.uid != null;
+    	allow create: if request.auth.uid != null && request.auth.uid == request.resource.data.author;
+    	allow update : if request.auth.uid != null;
     }
   }
 }
