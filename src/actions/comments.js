@@ -1,7 +1,10 @@
 export const OPEN_COMMENTS_PANEL = 'OPEN_COMMENTS_PANEL';
 export const CLOSE_COMMENTS_PANEL = 'CLOSE_COMMENTS_PANEL';
+//This apends the threads in the whole local collection for all cards
 export const COMMENTS_UPDATE_THREADS = 'COMMENTS_UPDATE_THREADS';
 export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
+//This is a list of the thread_ids for all top-level threads in this card.
+export const COMMENTS_UPDATE_CARD_THREADS = 'COMMENTS_UPDATE_CARD_THREADS';
 
 import {
   db,
@@ -98,5 +101,14 @@ export const updateMessages = (messages) => {
   return {
     type: COMMENTS_UPDATE_MESSAGES,
     messages
+  }
+}
+
+export const updateCardThreads = (threadsToAdd, threadsToRemove, firstUpdate) => {
+  return {
+    type: COMMENTS_UPDATE_CARD_THREADS,
+    threadsToAdd,
+    threadsToRemove,
+    firstUpdate
   }
 }

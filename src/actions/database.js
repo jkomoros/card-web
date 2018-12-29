@@ -7,7 +7,8 @@ import {
 
 import {
   updateMessages,
-  updateThreads
+  updateThreads,
+  updateCardThreads
 } from './comments.js';
 
 export const CARDS_COLLECTION = 'cards';
@@ -52,19 +53,26 @@ export const connectLiveThreads = (store, cardId) => {
     liveThreadsUnsubscribe();
     liveThreadsUnsubscribe = null;
   }
+  let firstUpdate = true;
   liveThreadsUnsubscribe = db.collection(THREADS_COLLECTION).where('card', '==', cardId).onSnapshot(snapshot => {
     let threads = {};
-
+    let threadsToAdd = [];
+    let threadsToRemove = [];
     snapshot.docChanges().forEach(change => {
-      if (change.type === 'removed') return;
+      if (change.type === 'removed') {
+        threadsToRemove.push(doc.id);
+        return;
+      }
       let doc = change.doc;
       let id = doc.id;
       let thread = doc.data();
       thread.id = id;
+      threadsToAdd.push(id);
       threads[id] = thread;
     })
-
     store.dispatch(updateThreads(threads));
+    store.dispatch(updateCardThreads(threadsToAdd, threadsToRemove, firstUpdate))
+    firstUpdate = false;
   })
 }
 
