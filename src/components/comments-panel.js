@@ -15,10 +15,20 @@ class CommentsPanel extends connect(store)(LitElement) {
           max-width: 6em;
         }
       </style>
-      <div class='container'>
+      <div ?hidden=${!this._open} class='container'>
         This is a comments panel
       </div>
     `;
+  }
+
+  static get properties() {
+    return {
+      _open: {type: Boolean}
+    }
+  }
+
+  stateUpated(state) {
+    this._open = state.app.commentsPanelOpened;
   }
 }
 
