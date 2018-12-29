@@ -69,7 +69,8 @@ export const createThread = (message) => (dipstch, getState) => {
     card: card.id,
     parent_message: '',
     messages: [messageId],
-    resolved: false
+    resolved: false,
+    deleted: false
   })
 
   //No need to do anything else currently because we don' thave a
