@@ -12,11 +12,12 @@ service cloud.firestore {
     match /authors/{author} {
     	allow write: if request.auth.uid == author;
     }
-    match /messages {
-    	allow create, update: if request.auth.uid == resource.data.author;
+    match /messages/{message} {
+      allow create: if request.auth.uid == request.resource.data.author;
+    	allow update: if request.auth.uid == resource.data.author;
     }
     //The only two fields that can be updated are messages and resolved
-    match /threads {
+    match /threads/{thread} {
     	allow create, update : if request.auth.uid != null;
     }
   }
