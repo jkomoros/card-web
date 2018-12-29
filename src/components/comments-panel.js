@@ -9,6 +9,10 @@ import { commentIcon } from './my-icons.js';
 import { SharedStyles } from './shared-styles.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
+import {
+  createThread
+} from '../actions/comments.js';
+
 class CommentsPanel extends connect(store)(LitElement) {
   render() {
     return html`
@@ -47,7 +51,7 @@ class CommentsPanel extends connect(store)(LitElement) {
   }
 
   _handleCreateThreadClicked(e) {
-    console.warn("Not yet implemented");
+    store.dispatch(createThread(prompt('Message for new thread:')));
   }
 
   stateChanged(state) {
