@@ -88,7 +88,7 @@ export const connectLiveAuthors = (store) => {
       let id = doc.id;
       let author = doc.data();
       author.id = id;
-      author[id] = author;
+      authors[id] = author;
     })
 
     store.dispatch(updateAuthors(authors));
