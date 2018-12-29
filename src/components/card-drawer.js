@@ -82,7 +82,7 @@ class CardDrawer extends connect(store)(LitElement) {
           margin-bottom:-2em;
         }
       </style>
-      <div class='container ${this._dragging ? 'dragging' : ''}${this._reorderPending ? 'reordering':''}'>
+      <div ?hidden='${this._noCards}' class='container ${this._dragging ? 'dragging' : ''}${this._reorderPending ? 'reordering':''}'>
         <div class='scrolling'>
         ${repeat(this._collection, (i) => i.id, (i, index) => html`
           <div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
@@ -172,12 +172,14 @@ class CardDrawer extends connect(store)(LitElement) {
     _activeSectionId: { type: String },
     _userMayEdit: { type: Boolean},
     _dragging: {type: Boolean},
-    _reorderPending: {type:Boolean}
+    _reorderPending: {type:Boolean},
+    _noCards: {type:Boolean},
   }}
 
   // This is called every time something is updated in the store.
   stateChanged(state) {
     this._collection = collectionSelector(state);
+    this._noCards = this._collection && this._collection.length ? false : true;
     this._activeCardId = state.data.activeCardId;
     this._activeSectionId = state.data.activeSectionId;
     this._userMayEdit = userMayEdit(state);
