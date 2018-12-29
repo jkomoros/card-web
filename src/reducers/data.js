@@ -1,6 +1,7 @@
 import { 
   UPDATE_CARDS,
   UPDATE_SECTIONS,
+  UPDATE_AUTHORS,
   SHOW_CARD,
   SHOW_SECTION,
   MODIFY_CARD,
@@ -12,6 +13,7 @@ import { createSelector } from 'reselect';
 
 const INITIAL_STATE = {
   cards:{},
+  authors:{},
   sections: {},
   slugIndex: {},
   activeSectionId: "",
@@ -37,6 +39,11 @@ const app = (state = INITIAL_STATE, action) => {
         ...state,
         sections: {...state.sections, ...action.sections}
       })
+    case UPDATE_AUTHORS:
+      return {
+        ...state,
+        authors: {...state.authors, ...action.authors},
+      }
     case SHOW_CARD:
       return ensureActiveCard({
         ...state,

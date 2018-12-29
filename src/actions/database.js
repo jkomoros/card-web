@@ -2,7 +2,8 @@ export const db = firebase.firestore();
 
 import {
   updateCards,
-  updateSections
+  updateSections,
+  updateAuthors
 } from './data.js';
 
 import {
@@ -74,6 +75,25 @@ export const connectLiveThreads = (store, cardId) => {
     store.dispatch(updateCardThreads(threadsToAdd, threadsToRemove, firstUpdate))
     firstUpdate = false;
   })
+}
+
+export const connectLiveAuthors = (store) => {
+  db.collection(AUTHORS_COLLECTION).onSnapshot(snapshot => {
+
+    let authors = {};
+
+    snapshot.docChanges().forEach(change => {
+      if (change.type === 'removed') return;
+      let doc = change.doc;
+      let id = doc.id;
+      let author = doc.data();
+      author.id = id;
+      author[id] = author;
+    })
+
+    store.dispatch(updateAuthors(authors));
+
+  });
 }
 
 export const connectLiveCards = (store) => {

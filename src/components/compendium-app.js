@@ -35,6 +35,7 @@ import {
 import { 
   connectLiveCards,
   connectLiveSections,
+  connectLiveAuthors
 } from '../actions/database.js';
 
 // These are the actions needed by this element.
@@ -240,6 +241,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     window.addEventListener('keydown', e => this._handleKeyPressed(e));
     connectLiveCards(store);
     connectLiveSections(store);
+    connectLiveAuthors(store);
   }
 
   _handleKeyPressed(e) {

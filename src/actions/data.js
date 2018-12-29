@@ -1,5 +1,6 @@
 export const UPDATE_CARDS = 'UPDATE_CARDS';
 export const UPDATE_SECTIONS = 'UPDATE_SECTIONS';
+export const UPDATE_AUTHORS= 'UPDATE_AUTHORS';
 export const SHOW_CARD = 'SHOW_CARD';
 export const SHOW_SECTION = 'SHOW_SECTION';
 export const MODIFY_CARD = 'MODIFY_CARD';
@@ -383,6 +384,13 @@ export const updateSections = (sections) => {
   return {
     type: UPDATE_SECTIONS,
     sections,
+  }
+}
+
+export const updateAuthors = (authors) => {
+  return {
+    type: UPDATE_AUTHORS,
+    authors
   }
 }
 
