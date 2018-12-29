@@ -13,6 +13,15 @@ import {
   createThread
 } from '../actions/comments.js';
 
+import {
+  connectLiveMessages,
+  connectLiveThreads
+} from '../actions/database.js';
+
+import {
+  cardSelector
+} from '../reducers/data.js';
+
 class CommentsPanel extends connect(store)(LitElement) {
   render() {
     return html`
@@ -46,7 +55,8 @@ class CommentsPanel extends connect(store)(LitElement) {
 
   static get properties() {
     return {
-      _open: {type: Boolean}
+      _open: {type: Boolean},
+      _card: {type: Object},
     }
   }
 
@@ -56,6 +66,16 @@ class CommentsPanel extends connect(store)(LitElement) {
 
   stateChanged(state) {
     this._open = state.comments.panelOpen;
+    this._card = cardSelector(state);
+  }
+
+  updated(changedProps) {
+    if (changedProps.has('_card')) {
+      if (this._card && this._card.id) {
+        connectLiveMessages(store, this._card.id);
+        connectLiveThreads(store, this._card.id);
+      }
+    }
   }
 }
 

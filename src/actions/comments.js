@@ -1,5 +1,7 @@
 export const OPEN_COMMENTS_PANEL = 'OPEN_COMMENTS_PANEL';
 export const CLOSE_COMMENTS_PANEL = 'CLOSE_COMMENTS_PANEL';
+export const COMMENTS_UPDATE_THREADS = 'COMMENTS_UPDATE_THREADS';
+export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
 
 import {
   db,
@@ -80,5 +82,19 @@ export const openCommentsPanel = () => {
 export const closeCommentsPanel = () => {
   return {
     type: CLOSE_COMMENTS_PANEL
+  }
+}
+
+export const updateThreads = (threads) => {
+  return {
+    type: COMMENTS_UPDATE_THREADS,
+    threads
+  }
+}
+
+export const updateMessages = (messages) => {
+  return {
+    type: COMMENTS_UPDATE_MESSAGES,
+    messages
   }
 }
