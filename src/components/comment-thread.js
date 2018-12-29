@@ -7,8 +7,29 @@ import './comment-message.js';
 class CommentThread extends LitElement {
   render() {
     return html`
+      <style>
+        .container {
+          cursor:pointer;
+          padding: 0.5em;
+          height: 6em;
+          width: 12em;
+          overflow:hidden;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          background-color: var(--card-color);
+          box-shadow: var(--card-shadow);
+          margin:0.5em;
+          box-sizing:border-box;
+        }
+        comment-message {
+          border-bottom:1px solid (--app-divider-color);
+        }
+      </style>
+      <div class='container'>
         ${repeat(this.thread.messages, (message) => message.id, (item, index) => html`
                 <comment-message .message=${item}></comment-message>`)}
+      </div>
     `;
   }
 
