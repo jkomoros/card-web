@@ -59,6 +59,7 @@ export const userMayComment = state => userId(state) != "";
 
 //TODO: more resilient testing
 export const userMayEdit = state => {
+  //This list is also recreated in firestore.rules
   const allowedIDs = [
     'TPo5MOn6rNX9k8K1bbejuBNk4Dr2', //Production main account
     'KteKDU7UnHfkLcXAyZXbQ6kRAk13' //dev- main account
