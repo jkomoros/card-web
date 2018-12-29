@@ -87,7 +87,8 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
     cardUpdateObject.title = update.title;
   }
 
-  if (update.name !== undefined) {
+  //It's never legal to not have a name, so only update if it's not falsey.
+  if (update.name) {
     //TODO: really we should verify that this name is legal--that is, either the id or one of the slugs.
     cardUpdateObject.name = update.name;
   }
