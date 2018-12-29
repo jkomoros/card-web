@@ -120,7 +120,7 @@ class CardView extends connect(store)(PageViewElement) {
           </div>
           <card-editor ?active=${this._editing} ></card-editor>
         </div>
-        <comments-panel></comments-panel>
+        <comments-panel .active=${this.active}></comments-panel>
       </div>
     `;
   }

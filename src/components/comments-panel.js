@@ -22,7 +22,11 @@ import {
   cardSelector
 } from '../reducers/data.js';
 
-class CommentsPanel extends connect(store)(LitElement) {
+import {
+  PageViewElement
+} from './page-view-element.js';
+
+class CommentsPanel extends connect(store)(PageViewElement) {
   render() {
     return html`
       ${SharedStyles}
