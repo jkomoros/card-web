@@ -32,7 +32,7 @@ export const connectLiveMessages = (store, cardId) => {
     liveMessagesUnsubscribe();
     liveMessagesUnsubscribe = null;
   }
-  liveMessagesUnsubscribe = db.collection(MESSAGES_COLLECTION).where('card', '==', cardId).onSnapshot(snapshot => {
+  liveMessagesUnsubscribe = db.collection(MESSAGES_COLLECTION).where('card', '==', cardId).where('deleted', '==', false).onSnapshot(snapshot => {
     let messages = {};
 
     snapshot.docChanges().forEach(change => {
@@ -54,7 +54,7 @@ export const connectLiveThreads = (store, cardId) => {
     liveThreadsUnsubscribe = null;
   }
   let firstUpdate = true;
-  liveThreadsUnsubscribe = db.collection(THREADS_COLLECTION).where('card', '==', cardId).onSnapshot(snapshot => {
+  liveThreadsUnsubscribe = db.collection(THREADS_COLLECTION).where('card', '==', cardId).where('deleted', '==', false).onSnapshot(snapshot => {
     let threads = {};
     let threadsToAdd = [];
     let threadsToRemove = [];
