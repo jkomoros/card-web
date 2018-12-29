@@ -23,7 +23,7 @@ const INITIAL_STATE = {
   pageExtra: '',
   offline: false,
   snackbarOpened: false,
-  commentsPanelOpen: false,
+  commentsPanelOpen: true,
 };
 
 const app = (state = INITIAL_STATE, action) => {
