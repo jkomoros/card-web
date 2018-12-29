@@ -9,7 +9,6 @@ class CommentThread extends LitElement {
     return html`
       <style>
         .container {
-          cursor:pointer;
           padding: 0.5em;
           width: 12em;
           overflow:hidden;
