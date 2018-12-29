@@ -14,6 +14,10 @@ import {
 } from '../actions/comments.js';
 
 import {
+  composedThreadsSelector
+} from '../reducers/comments.js';
+
+import {
   connectLiveMessages,
   connectLiveThreads
 } from '../actions/database.js';
@@ -61,6 +65,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
     return {
       _open: {type: Boolean},
       _card: {type: Object},
+      _composedThreads: {type: Array},
     }
   }
 
@@ -71,6 +76,8 @@ class CommentsPanel extends connect(store)(PageViewElement) {
   stateChanged(state) {
     this._open = state.comments.panelOpen;
     this._card = cardSelector(state);
+    this._composedThreads = composedThreadsSelector(state);
+    console.log(this._composedThreads);
   }
 
   updated(changedProps) {

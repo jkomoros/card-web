@@ -15,7 +15,7 @@ const INITIAL_STATE = {
   panelOpen: true,
   messages: {},
   threads: {},
-  cardThreads: []
+  card_threads: []
 }
 
 const app = (state = INITIAL_STATE, action) => {
@@ -45,16 +45,46 @@ const app = (state = INITIAL_STATE, action) => {
       if (action.firstUpdate) {
         newThreads = [...action.threadsToAdd];
       } else {
-        newThreads = arrayUnion(state.cardThreads, action.threadsToAdd);
+        newThreads = arrayUnion(state.card_threads, action.threadsToAdd);
         newThreads = arrayRemove(newThreads, action.threadsToRemove);
       }
       return {
         ...state,
-        cardThreads: newThreads
+        card_threads: newThreads
       }
     default:
       return state;
   }
+}
+
+export const composedThreadsSelector = state => {
+  let result = [];
+  for (let threadId of Object.values(state.comments.card_threads)) {
+    let thread = composedThread(threadId, state.comments.threads, state.comments.messages) 
+    //It's possible that the thread has been deleted
+    if (thread) result.push(thread);
+  }
+  return result;
+
+}
+
+const composedThread = (threadId, threads, messages) => {
+  let originalThread = threads[threadId];
+  if (!originalThread) return null;
+  let thread = {...originalThread};
+  let expandedMessages = [];
+  for (let messageId of Object.values(thread.messages)) {
+    let message = composedMessage(messageId, threads, messages);
+    if (message) expandedMessages.push(message);
+  }
+  //TODO: also expand author
+  thread.messages = expandedMessages;
+  return thread;
+}
+
+const composedMessage = (messageId, threads, messages) => {
+  //TODO: return composed children for threads if there are parents
+  return messages[messageId] || {};
 }
 
 export default app;
