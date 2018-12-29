@@ -24,7 +24,7 @@ import {
 
 import {
   randomString
-} from './maintenance.js';
+} from './util.js';
 
 export const createThread = (message) => (dipstch, getState) => {
   const state = getState();

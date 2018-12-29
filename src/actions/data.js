@@ -26,7 +26,7 @@ import {
 
 import {
   randomString
-} from './maintenance.js';
+} from './util.js';
 
 const LEGAL_UPDATE_FIELDS = new Map([
   ['title', true],

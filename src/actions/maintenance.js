@@ -7,18 +7,9 @@ import {
   MAINTENANCE_COLLECTION
 } from './database.js';
 
-const randomCharSet = "abcdef0123456789"
-
-export const randomString = (length, charSet) => {
-  if (!charSet) {
-    charSet = randomCharSet;
-  }
-  let text = "";
-  for (let i = 0; i < length; i++) {
-    text += randomCharSet.charAt(Math.floor(Math.random() * randomCharSet.length));
-  }
-  return text;
-}
+import {
+  randomString
+} from './util.js';
 
 const checkMaintenanceTaskHasBeenRun = async (taskName) => {
   let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
