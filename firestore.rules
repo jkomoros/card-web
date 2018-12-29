@@ -4,5 +4,14 @@ service cloud.firestore {
       allow read: if true;
       allow write: if request.auth.uid == 'TPo5MOn6rNX9k8K1bbejuBNk4Dr2';
     }
+    match /authors/{author} {
+    	allow write: if request.auth.uid == author;
+    }
+    match /messages {
+    	allow write: if request.auth.uid == resource.data.author;
+    }
+    match /threads {
+    	allow write: if request.auth.uid != null;
+    }
   }
 }
