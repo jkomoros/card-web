@@ -32,6 +32,7 @@ const LEGAL_UPDATE_FIELDS = new Map([
   ['title', true],
   ['body', true],
   ['name', true],
+  ['section', true],
   ['full_bleed', true]
 ]);
 
@@ -93,6 +94,13 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
     cardUpdateObject.name = update.name;
   }
 
+  let sectionUpdated = false;
+
+  if (update.section !== undefined) {
+    cardUpdateObject.section = update.section;
+    sectionUpdated = true;
+  }
+
   if (update.full_bleed !== undefined) {
     cardUpdateObject.full_bleed = update.full_bleed;
   }
@@ -105,6 +113,40 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 
   batch.set(updateRef, updateObject);
   batch.update(cardRef, cardUpdateObject);
+
+  if (sectionUpdated) {
+    //Need to update the section objects too.
+    let newSection = cardUpdateObject.section;
+    if (newSection) {
+      let newSectionRef = db.collection(SECTIONS_COLLECTION).doc(newSection);
+      let newSectionUpdateRef = newSectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
+      let newSectionObject = {
+        cards: firebase.firestore.FieldValue.arrayUnion(card.id),
+        updated: new Date()
+      }
+      let newSectionUpdateObject = {
+        timestamp: new Date(),
+        add_card: card.id
+      }
+      batch.update(newSectionRef, newSectionObject);
+      batch.set(newSectionUpdateRef, newSectionUpdateObject);
+    }
+    let oldSection = card.section;
+    if (oldSection) {
+      let oldSectionRef = db.collection(SECTIONS_COLLECTION).doc(oldSection);
+      let oldSectionUpdateRef = oldSectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
+      let oldSectionObject = {
+        cards: firebase.firestore.FieldValue.arrayRemove(card.id),
+        updated: new Date()
+      }
+      let oldSectionUpdateObject = {
+        timestamp: new Date(),
+        remove_card: card.id
+      }
+      batch.update(oldSectionRef, oldSectionObject);
+      batch.set(oldSectionUpdateRef, oldSectionUpdateObject);
+    }
+  }
 
   batch.commit().then(() => dispatch(modifyCardSuccess()))
     .catch(err => dispatch(modifyCardFailure()))
