@@ -1,0 +1,18 @@
+{
+  "indexes": [
+    {
+      "collectionId": "cards",
+      "state": "READY",
+      "fields": [
+        {
+          "fieldPath": "card_type",
+          "mode": "ASCENDING"
+        },
+        {
+          "fieldPath": "updated_substantive",
+          "mode": "DESCENDING"
+        }
+      ]
+    }
+  ]
+}
