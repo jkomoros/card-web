@@ -60,11 +60,11 @@ export const connectLiveThreads = (store, cardId) => {
     let threadsToAdd = [];
     let threadsToRemove = [];
     snapshot.docChanges().forEach(change => {
+      let doc = change.doc;
       if (change.type === 'removed') {
         threadsToRemove.push(doc.id);
         return;
       }
-      let doc = change.doc;
       let id = doc.id;
       let thread = doc.data();
       thread.id = id;
