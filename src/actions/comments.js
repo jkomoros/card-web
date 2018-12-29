@@ -2,6 +2,10 @@ export const OPEN_COMMENTS_PANEL = 'OPEN_COMMENTS_PANEL';
 export const CLOSE_COMMENTS_PANEL = 'CLOSE_COMMENTS_PANEL';
 
 import {
+  db
+} from './database.js';
+
+import {
   cardSelector
 } from '../reducers/data.js';
 

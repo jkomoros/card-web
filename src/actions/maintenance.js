@@ -9,7 +9,10 @@ import {
 
 const randomCharSet = "abcdef0123456789"
 
-export const randomString = (length) => {
+export const randomString = (length, charSet) => {
+  if (!charSet) {
+    charSet = randomCharSet;
+  }
   let text = "";
   for (let i = 0; i < length; i++) {
     text += randomCharSet.charAt(Math.floor(Math.random() * randomCharSet.length));
