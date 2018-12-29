@@ -75,7 +75,7 @@ export const createThread = (message) => (dipstch, getState) => {
 
   //No need to do anything else currently because we don' thave a
   //pendingCreateThread property on state.
-  batch.commmit().catch(err => console.warn("Couldn't create thread: ", err));
+  batch.commit().catch(err => console.warn("Couldn't create thread: ", err));
 
 }
 
