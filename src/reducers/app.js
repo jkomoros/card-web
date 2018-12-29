@@ -13,6 +13,8 @@ import {
   UPDATE_OFFLINE,
   OPEN_SNACKBAR,
   CLOSE_SNACKBAR,
+  OPEN_COMMENTS_PANEL,
+  CLOSE_COMMENTS_PANEL
 } from '../actions/app.js';
 
 const INITIAL_STATE = {
@@ -21,6 +23,7 @@ const INITIAL_STATE = {
   pageExtra: '',
   offline: false,
   snackbarOpened: false,
+  commentsPanelOpened: false,
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -47,6 +50,16 @@ const app = (state = INITIAL_STATE, action) => {
         ...state,
         snackbarOpened: false
       };
+    case OPEN_COMMENTS_PANEL:
+      return {
+        ...state,
+        commentsPanelOpened: true
+      }
+    case CLOSE_COMMENTS_PANEL:
+      return {
+        ...state,
+        commentsPanelOpened: false
+      }
     default:
       return state;
   }
