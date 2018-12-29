@@ -108,7 +108,7 @@ class CardView extends connect(store)(PageViewElement) {
           <card-renderer .editing=${this._editing} .card=${this._displayCard}></card-renderer>
           <div class='actions'>
             <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
-            <button class='round' @click='${this._handleCommentsClicked}''>${forumIcon}</button>
+            <button class='round ${this._commentsPanelOpen ? 'selected' : ''}' @click='${this._handleCommentsClicked}''>${forumIcon}</button>
           </div>
           <card-editor ?active=${this._editing} ></card-editor>
         </div>

@@ -26,6 +26,9 @@ export const ButtonSharedStyles = html`
   button.primary {
     background: var(--app-primary-color);
   }
+  button.selected {
+    background: var(--app-secondary-color-light);
+  }
   button.round {
     border-radius:50%;
   }
