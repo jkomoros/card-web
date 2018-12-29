@@ -20,6 +20,10 @@ class CardThumbnail extends LitElement {
           font-family: var(--app-header-font-family);
         }
 
+        div:hover {
+          border:2px solid var(--app-secondary-color);
+        }
+
         div {
           cursor:pointer;
           padding: 0.5em;
@@ -32,13 +36,23 @@ class CardThumbnail extends LitElement {
           background-color: var(--card-color);
           box-shadow: var(--card-shadow);
           margin:0.5em;
+          box-sizing:border-box;
         }
+
+        .selected {
+          border:2px solid var(--app-primary-color);
+        }
+
         .selected h3 {
           color: var(--app-primary-color);
         }
 
         div.section-head {
           background-color: var(--app-primary-color);
+        }
+
+        div.section-head.selected {
+          border: 2px solid var(--app-light-text-color);
         }
 
         div.section-head h3 {
@@ -51,6 +65,10 @@ class CardThumbnail extends LitElement {
 
         div.section-head:hover h3 {
           color: var(--app-primary-color-subtle);
+        }
+
+        div.section-head:hover {
+          border:2px solid var(--app-primary-color-subtle);
         }
 
         .empty {
