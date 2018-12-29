@@ -51,7 +51,7 @@ class CommentsPanel extends connect(store)(LitElement) {
   }
 
   stateChanged(state) {
-    this._open = state.app.commentsPanelOpen;
+    this._open = state.comments.panelOpen;
   }
 }
 

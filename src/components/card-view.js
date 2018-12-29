@@ -28,10 +28,13 @@ import {
 } from '../actions/editor.js';
 
 import {
-  navigateToCard,
+  navigateToCard
+} from '../actions/app.js';
+
+import {
   openCommentsPanel,
   closeCommentsPanel
-} from '../actions/app.js';
+} from '../actions/comments.js';
 
 //Components needed by this
 import './card-renderer.js';
@@ -47,6 +50,11 @@ import {
 import {
   modifyCard
 } from '../actions/data.js';
+
+import comments from '../reducers/comments.js';
+store.addReducers({
+  comments
+});
 
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
@@ -108,7 +116,7 @@ class CardView extends connect(store)(PageViewElement) {
           <card-renderer .editing=${this._editing} .card=${this._displayCard}></card-renderer>
           <div class='actions'>
             <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
-            <button class='round ${this._commentsPanelOpen ? 'selected' : ''}' @click='${this._handleCommentsClicked}''>${forumIcon}</button>
+            <button class='round ${this._commentsPanelOpen ? 'selected' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
           </div>
           <card-editor ?active=${this._editing} ></card-editor>
         </div>
@@ -152,6 +160,7 @@ class CardView extends connect(store)(PageViewElement) {
   }
 
   _handleCommentsClicked(e) {
+    console.log(e);
     if (this._commentsPanelOpen) {
       store.dispatch(closeCommentsPanel());
     } else {
@@ -166,7 +175,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._cardIdOrSlug = this.extractPageExtra(state.app.pageExtra)[0];
     this._editing = state.editor.editing;     
     this._userMayEdit = userMayEdit(state);
-    this._commentsPanelOpen = state.app.commentsPanelOpen;
+    this._commentsPanelOpen = state.comments.panelOpen;
   }
 
   _ensureUrlShowsName() {
