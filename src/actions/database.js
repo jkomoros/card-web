@@ -10,6 +10,9 @@ export const CARD_UPDATES_COLLECTION = 'updates';
 export const SECTION_UPDATES_COLLECTION = 'updates';
 export const SECTIONS_COLLECTION = 'sections';
 export const MAINTENANCE_COLLECTION = 'maintenance_tasks';
+export const AUTHORS_COLLECTION = 'authors';
+export const THREADS_COLLECTION = 'threads';
+export const MESSAGES_COLLECTION = 'messages';
 
 db.settings({
   timestampsInSnapshots:true,

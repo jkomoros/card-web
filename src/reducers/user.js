@@ -41,21 +41,34 @@ const app = (state = INITIAL_STATE, action) => {
   }
 }
 
+export const firebaseUser = state => {
+  if (!state.user) return null;
+  if (!state.user.user) return null;
+  return state.user.user;
+}
+
+export const userId = state => {
+  let user = firebaseUser(state);
+  if (!user) return "";
+  return user.uid;
+}
+
 export const userIsAdmin = state => userMayEdit(state);
 
-export const userMayComment = state => userMayEdit(state);
+export const userMayComment = state => userId(state) != "";
 
 //TODO: more resilient testing
 export const userMayEdit = state => {
-  if (!state.user) return false;
-  if (!state.user.user) return false;
-
   const allowedIDs = [
     'TPo5MOn6rNX9k8K1bbejuBNk4Dr2', //Production main account
     'KteKDU7UnHfkLcXAyZXbQ6kRAk13' //dev- main account
   ]
 
-  let uid = state.user.user.uid;
+  let uid = userId(state);
+
+  if (!uid) {
+    return false;
+  }
 
   for (let val of Object.values(allowedIDs)) {
     if (val == uid) return true;
