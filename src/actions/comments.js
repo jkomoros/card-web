@@ -70,6 +70,8 @@ export const createThread = (message) => (dipstch, getState) => {
     parent_message: '',
     messages: [messageId],
     author: user.uid,
+    created: new Date(),
+    updated: new Date(),
     resolved: false,
     deleted: false
   })
