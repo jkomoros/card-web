@@ -127,6 +127,14 @@ const extractSlugIndex = cards => {
   return result;
 }
 
+export const authorForId = (state, authorId) => {
+  let author = state.data.authors[authorId];
+  if (!author){
+    return {displayName: "Unknown user"}
+  }
+  return author;
+}
+
 const idForActiveCard = (state, idOrSlug) => state.slugIndex[idOrSlug] || idOrSlug;
 
 const sectionForActiveCard = (state, id) => {

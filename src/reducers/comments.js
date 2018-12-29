@@ -11,6 +11,10 @@ import {
   arrayRemove
 } from '../actions/util.js';
 
+import {
+  authorForId
+} from './data.js';
+
 const INITIAL_STATE = {
   panelOpen: true,
   messages: {},
@@ -60,7 +64,7 @@ const app = (state = INITIAL_STATE, action) => {
 export const composedThreadsSelector = state => {
   let result = [];
   for (let threadId of Object.values(state.comments.card_threads)) {
-    let thread = composedThread(threadId, state.comments.threads, state.comments.messages) 
+    let thread = composedThread(threadId, state) 
     //It's possible that the thread has been deleted
     if (thread) result.push(thread);
   }
@@ -68,23 +72,25 @@ export const composedThreadsSelector = state => {
 
 }
 
-const composedThread = (threadId, threads, messages) => {
-  let originalThread = threads[threadId];
+const composedThread = (threadId, state) => {
+  let originalThread = state.comments.threads[threadId];
   if (!originalThread) return null;
   let thread = {...originalThread};
   let expandedMessages = [];
   for (let messageId of Object.values(thread.messages)) {
-    let message = composedMessage(messageId, threads, messages);
+    let message = composedMessage(messageId, state);
     if (message) expandedMessages.push(message);
   }
-  //TODO: also expand author
   thread.messages = expandedMessages;
   return thread;
 }
 
-const composedMessage = (messageId, threads, messages) => {
+const composedMessage = (messageId, state) => {
   //TODO: return composed children for threads if there are parents
-  return messages[messageId] || {};
+  let message =  state.comments.messages[messageId];
+  if (!message) return {};
+  message.author = authorForId(state, message.author);
+  return message;
 }
 
 export default app;
