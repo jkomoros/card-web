@@ -12,11 +12,19 @@ class CommentsPanel extends connect(store)(LitElement) {
       ${SharedStyles}
       <style>
         .container {
-          max-width: 6em;
+          width: 6em;
+          height:100%;
+          padding:0.5em;
+          border-left: 1px solid var(--app-divider-color);
+        }
+        h3 {
+          margin:0;
+          font-weight:normal;
+          color: var(--app-dark-text-color-light);
         }
       </style>
       <div ?hidden=${!this._open} class='container'>
-        This is a comments panel
+        <h3>Comments</h3>
       </div>
     `;
   }

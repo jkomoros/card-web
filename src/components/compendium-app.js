@@ -71,6 +71,7 @@ class CompendiumApp extends connect(store)(LitElement) {
         --app-section-odd-color: white;
 
         --app-dark-text-color-light: #AAA;
+        --app-divider-color: #eee;
 
         --app-header-font-family: 'Raleway';
         --app-default-font-family: 'Source Sans Pro';
@@ -102,7 +103,7 @@ class CompendiumApp extends connect(store)(LitElement) {
         text-align: center;
         background-color: var(--app-header-background-color);
         color: var(--app-header-text-color);
-        border-bottom: 1px solid #eee;
+        border-bottom: 1px solid var(--app-divider-color);
       }
 
       .header > .inner {

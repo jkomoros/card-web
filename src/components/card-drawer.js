@@ -49,6 +49,7 @@ class CardDrawer extends connect(store)(LitElement) {
           height:100%;
           display:flex;
           flex-direction:column;
+          border-right: 1px solid var(--app-divider-color);
         }
 
         button {
