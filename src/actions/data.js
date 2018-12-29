@@ -97,6 +97,13 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
   let sectionUpdated = false;
 
   if (update.section !== undefined) {
+    if (!update.section) {
+      if (!confirm("Orphaning this card will cause it to not be findable except with a direct link. OK?")) {
+        console.log("User aborted because didn't confirm orphaning");
+        dispatch(modifyCardFailure());
+        return; 
+      }
+    }
     cardUpdateObject.section = update.section;
     sectionUpdated = true;
   }
