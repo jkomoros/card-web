@@ -23,7 +23,7 @@ const INITIAL_STATE = {
   pageExtra: '',
   offline: false,
   snackbarOpened: false,
-  commentsPanelOpened: false,
+  commentsPanelOpen: false,
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -53,12 +53,12 @@ const app = (state = INITIAL_STATE, action) => {
     case OPEN_COMMENTS_PANEL:
       return {
         ...state,
-        commentsPanelOpened: true
+        commentsPanelOpen: true
       }
     case CLOSE_COMMENTS_PANEL:
       return {
         ...state,
-        commentsPanelOpened: false
+        commentsPanelOpen: false
       }
     default:
       return state;

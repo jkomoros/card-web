@@ -27,8 +27,8 @@ class CommentsPanel extends connect(store)(LitElement) {
     }
   }
 
-  stateUpated(state) {
-    this._open = state.app.commentsPanelOpened;
+  stateChanged(state) {
+    this._open = state.app.commentsPanelOpen;
   }
 }
 

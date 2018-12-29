@@ -28,7 +28,9 @@ import {
 } from '../actions/editor.js';
 
 import {
-  navigateToCard
+  navigateToCard,
+  openCommentsPanel,
+  closeCommentsPanel
 } from '../actions/app.js';
 
 //Components needed by this
@@ -38,7 +40,8 @@ import './card-editor.js';
 import './comments-panel.js';
 
 import {
-  editIcon
+  editIcon,
+  forumIcon
 } from './my-icons.js';
 
 import {
@@ -105,6 +108,7 @@ class CardView extends connect(store)(PageViewElement) {
           <card-renderer .editing=${this._editing} .card=${this._displayCard}></card-renderer>
           <div class='actions'>
             <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
+            <button class='round' @click='${this._handleCommentsClicked}''>${forumIcon}</button>
           </div>
           <card-editor ?active=${this._editing} ></card-editor>
         </div>
@@ -121,6 +125,7 @@ class CardView extends connect(store)(PageViewElement) {
       _userMayEdit: { type: Boolean },
       _displayCard: { type: Object },
       _editingCard: { type: Object },
+      _commentsPanelOpen: {type: Boolean},
     }
   }
 
@@ -146,6 +151,14 @@ class CardView extends connect(store)(PageViewElement) {
     store.dispatch(editingStart())
   }
 
+  _handleCommentsClicked(e) {
+    if (this._commentsPanelOpen) {
+      store.dispatch(closeCommentsPanel());
+    } else {
+      store.dispatch(openCommentsPanel());
+    }
+  }
+
   stateChanged(state) {
     this._editingCard = state.editor.card;
     this._card = cardSelector(state);
@@ -153,6 +166,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._cardIdOrSlug = this.extractPageExtra(state.app.pageExtra)[0];
     this._editing = state.editor.editing;     
     this._userMayEdit = userMayEdit(state);
+    this._commentsPanelOpen = state.app.commentsPanelOpen;
   }
 
   _ensureUrlShowsName() {
