@@ -1,10 +1,13 @@
 import { LitElement, html } from '@polymer/lit-element';
 import { connect } from 'pwa-helpers/connect-mixin.js';
+import { repeat } from 'lit-html/directives/repeat';
 
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
 import { commentIcon } from './my-icons.js';
+
+import './comment-thread.js';
 
 import { SharedStyles } from './shared-styles.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
@@ -56,6 +59,8 @@ class CommentsPanel extends connect(store)(PageViewElement) {
       </style>
       <div ?hidden=${!this._open} class='container'>
         <h3>Comments</h3>
+        ${repeat(this._composedThreads, (thread) => thread.id, (item, index) => html`
+                <comment-thread .thread=${item}></comment-thread>`)}
         <button class='round' @click='${this._handleCreateThreadClicked}'>${commentIcon}</button>
       </div>
     `;
@@ -77,7 +82,6 @@ class CommentsPanel extends connect(store)(PageViewElement) {
     this._open = state.comments.panelOpen;
     this._card = cardSelector(state);
     this._composedThreads = composedThreadsSelector(state);
-    console.log(this._composedThreads);
   }
 
   updated(changedProps) {
