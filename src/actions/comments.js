@@ -58,13 +58,15 @@ export const createThread = (message) => (dipstch, getState) => {
     message: message,
     author: user.uid,
     created: new Date(),
-    updated: new Date()
+    updated: new Date(),
+    deleted: false
   })
 
   batch.set(db.collection(THREADS_COLLECTION).doc(threadId), {
     card: card.id,
     parent_message: '',
-    messages: [messageId]
+    messages: [messageId],
+    resolved: false
   })
 
   //No need to do anything else currently because we don' thave a
