@@ -118,7 +118,7 @@ class CardEditor extends connect(store)(LitElement) {
               <label>Section</label>
               <select @change='${this._handleSectionUpdated}' .value=${this._card.section}>
                 ${repeat(Object.values(this._sections), (item) => item, (item, index) => html`
-                <option value="${item.id}" ?selected=${item.id == this._activeSectionId}>${item.title}</option>`)}
+                <option value="${item.id}" ?selected=${item.id == this._card.section}>${item.title}</option>`)}
               </select>
             </div>
             <div>
