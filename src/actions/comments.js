@@ -26,7 +26,65 @@ import {
   randomString
 } from './util.js';
 
-export const createThread = (message) => (dipstch, getState) => {
+const ensureAuthor = (batch, user) => {
+  batch.set(db.collection(AUTHORS_COLLECTION).doc(user.uid), {
+    updated: new Date(),
+    photoURL: user.photoURL,
+    displayName: user.displayName
+  })
+}
+
+export const addMessage = (thread, message) => (dispatch, getState) => {
+  const state = getState();
+  const card = cardSelector(state);
+  if (!card || !card.id) {
+    console.warn("No active card!");
+    return;
+  }
+  if (!userMayComment(state)) {
+    console.warn("You must be signed in to comment!");
+    return;
+  }
+
+  if (!thread || !thread.id) {
+    console.warn("No thread!");
+    return;
+  }
+  
+  let user = firebaseUser(state);
+
+  if (!user) {
+    console.warn("No uid");
+    return;
+  }
+
+  let messageId = randomString(16);
+  let threadId = thread.id;
+
+  let batch = db.batch();
+
+  ensureAuthor(batch, user);
+
+  batch.update(db.collection(THREADS_COLLECTION).doc(threadId), {
+    updated: new Date(),
+    messages: firebase.firestore.FieldValue.arrayUnion(messageId)
+  })
+
+  batch.set(db.collection(MESSAGES_COLLECTION).doc(messageId), {
+    card: card.id,
+    message: message,
+    thread: threadId,
+    author: user.uid,
+    created: new Date(),
+    updated: new Date(),
+    deleted: false
+  })
+
+  batch.commit();
+
+}
+
+export const createThread = (message) => (dispatch, getState) => {
   const state = getState();
   const card = cardSelector(state);
   if (!card || !card.id) {
@@ -50,15 +108,13 @@ export const createThread = (message) => (dipstch, getState) => {
   let batch = db.batch();
 
   //Ensure we have this user's picture
-  batch.set(db.collection(AUTHORS_COLLECTION).doc(user.uid), {
-    updated: new Date(),
-    photoURL: user.photoURL,
-    displayName: user.displayName
-  })
+  ensureAuthor(batch, user);
 
+  //Duplicated in addMessage.
   batch.set(db.collection(MESSAGES_COLLECTION).doc(messageId), {
     card: card.id,
     message: message,
+    thread: threadId,
     author: user.uid,
     created: new Date(),
     updated: new Date(),
