@@ -38,3 +38,9 @@ export const arrayUnion = (arr, items) => {
 	}	
 	return result;
 }
+
+//date may be a firestore timestamp or a date object.
+export const prettyTime = (date) => {
+	if (typeof date.toDate == 'function') date = date.toDate();
+	return date.toDateString();
+}
