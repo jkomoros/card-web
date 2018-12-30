@@ -82,6 +82,7 @@ const composedThread = (threadId, state) => {
     if (message) expandedMessages.push(message);
   }
   thread.messages = expandedMessages;
+  thread.author = authorForId(state, originalThread.author);
   return thread;
 }
 

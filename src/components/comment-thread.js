@@ -59,7 +59,7 @@ class CommentThread extends LitElement {
           <div class='flex'>
             <button class='small' @click=${this._handleZippyClicked}>${this._expanded ? arrowDownIcon : arrowRightIcon}</button>
           </div>
-          <button class='small' .disabled=${uidMayResolveThread(this.userId, this.thread)} @click=${this._handleResolveClicked}>${checkCircleOutlineIcon}</button>
+          <button class='small' ?disabled='${!uidMayResolveThread(this.userId, this.thread)}' @click=${this._handleResolveClicked}>${checkCircleOutlineIcon}</button>
         </div>
         <div class='content ${this._expanded ? 'expanded' :''}'>
           ${repeat(this.thread.messages, (message) => message.id, (item, index) => html`
