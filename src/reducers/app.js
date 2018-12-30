@@ -20,7 +20,8 @@ const INITIAL_STATE = {
   page: '',
   pageExtra: '',
   offline: false,
-  snackbarOpened: false
+  snackbarOpened: false,
+  cardInfoPanelOpen: false
 };
 
 const app = (state = INITIAL_STATE, action) => {
