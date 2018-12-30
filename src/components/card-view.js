@@ -30,7 +30,9 @@ import {
 import {
   navigateToCard,
   openCommentsPanel,
-  closeCommentsPanel
+  closeCommentsPanel,
+  openCardInfoPanel,
+  closeCardInfoPanel
 } from '../actions/app.js';
 
 //Components needed by this
@@ -41,7 +43,8 @@ import './comments-panel.js';
 
 import {
   editIcon,
-  forumIcon
+  forumIcon,
+  infoIcon
 } from './my-icons.js';
 
 import {
@@ -119,6 +122,7 @@ class CardView extends connect(store)(PageViewElement) {
           <div class='actions'>
             <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
             <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._activeCardHasComments ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
+            <button class='round ${this._cardInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCardInfoClicked}'>${infoIcon}</button>
           </div>
           <card-editor ?active=${this._editing} ></card-editor>
         </div>
@@ -136,6 +140,7 @@ class CardView extends connect(store)(PageViewElement) {
       _displayCard: { type: Object },
       _editingCard: { type: Object },
       _commentsPanelOpen: {type: Boolean},
+      _cardInfoPanelOpen: {type: Boolean},
       _activeCardHasComments: {type:Boolean},
     }
   }
@@ -170,6 +175,14 @@ class CardView extends connect(store)(PageViewElement) {
     }
   }
 
+  _handleCardInfoClicked(e) {
+    if (this._cardInfoPanelOpen) {
+      store.dispatch(closeCardInfoPanel());
+    } else {
+      store.dispatch(openCardInfoPanel());
+    }
+  }
+
   stateChanged(state) {
     this._editingCard = state.editor.card;
     this._card = cardSelector(state);
@@ -178,6 +191,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._editing = state.editor.editing;     
     this._userMayEdit = userMayEdit(state);
     this._commentsPanelOpen = state.app.commentsPanelOpen;
+    this._cardInfoPanelOpen = state.app.cardInfoPanelOpen;
     this._activeCardHasComments = activeCardHasComments(state);
   }
 
