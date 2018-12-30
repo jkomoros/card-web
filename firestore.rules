@@ -15,7 +15,7 @@ service cloud.firestore {
     	allow write: if request.auth.uid == author;
     }
     match /messages/{message} {
-      allow create: if request.auth.uid == request.resource.data.author;
+      allow create: if request.auth.uid != null && if request.auth.uid == request.resource.data.author;
     	allow update: if request.auth.uid == resource.data.author;
     }
     //The only two fields that can be updated are messages and resolved
