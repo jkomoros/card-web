@@ -30,6 +30,9 @@ export const ButtonSharedStyles = html`
   button.primary {
     background: var(--app-primary-color);
   }
+  button.primary.selected {
+    background: var(--app-primary-color-light);
+  }
   button.selected {
     background: var(--app-secondary-color-light);
   }

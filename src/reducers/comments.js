@@ -61,6 +61,8 @@ const app = (state = INITIAL_STATE, action) => {
   }
 }
 
+export const activeCardHasComments = state => state.comments.card_threads && state.comments.card_threads.length > 0;
+
 export const composedThreadsSelector = state => {
   let result = [];
   for (let threadId of Object.values(state.comments.card_threads)) {

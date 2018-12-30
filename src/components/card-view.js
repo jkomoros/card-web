@@ -51,6 +51,10 @@ import {
   modifyCard
 } from '../actions/data.js';
 
+import {
+  activeCardHasComments
+} from '../reducers/comments.js';
+
 import comments from '../reducers/comments.js';
 store.addReducers({
   comments
@@ -116,7 +120,7 @@ class CardView extends connect(store)(PageViewElement) {
           <card-renderer .editing=${this._editing} .card=${this._displayCard}></card-renderer>
           <div class='actions'>
             <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
-            <button class='round ${this._commentsPanelOpen ? 'selected' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
+            <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._activeCardHasComments ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
           </div>
           <card-editor ?active=${this._editing} ></card-editor>
         </div>
@@ -134,6 +138,7 @@ class CardView extends connect(store)(PageViewElement) {
       _displayCard: { type: Object },
       _editingCard: { type: Object },
       _commentsPanelOpen: {type: Boolean},
+      _activeCardHasComments: {type:Boolean},
     }
   }
 
@@ -160,7 +165,6 @@ class CardView extends connect(store)(PageViewElement) {
   }
 
   _handleCommentsClicked(e) {
-    console.log(e);
     if (this._commentsPanelOpen) {
       store.dispatch(closeCommentsPanel());
     } else {
@@ -176,6 +180,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._editing = state.editor.editing;     
     this._userMayEdit = userMayEdit(state);
     this._commentsPanelOpen = state.comments.panelOpen;
+    this._activeCardHasComments = activeCardHasComments(state);
   }
 
   _ensureUrlShowsName() {
