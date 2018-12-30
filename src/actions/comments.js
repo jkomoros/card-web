@@ -23,6 +23,7 @@ import {
 
 import {
   userMayComment,
+  userMayResolveThread,
   firebaseUser
 } from '../reducers/user.js';
 
@@ -38,9 +39,34 @@ const ensureAuthor = (batch, user) => {
   })
 }
 
+export const resolveThread = (thread) => (dispatch) => {
+  if (!thread || !thread.id) {
+    console.log("No thread provided");
+    return;
+  }
+
+  if (!userMayResolveThread(thread)) {
+    console.log("The user isn't allowd to resolve that thread");
+    return;
+  }
+
+  let batch = db.batch();
+
+  batch.update(db.collection(THREADS_COLLECTION).doc(thread.id), {
+    resolved: true,
+    updated: new Date()
+  });
+
+  batch.commit();
+
+}
+
 export const editMessage = (message, newMessage) => (dispatch) => {
   
-  if (!message || !message.id);
+  if (!message || !message.id) {
+    console.log("No message provided");
+    return;
+  }
 
   let batch = db.batch();
 

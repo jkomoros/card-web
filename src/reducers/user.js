@@ -53,6 +53,14 @@ export const userId = state => {
   return user.uid;
 }
 
+export const userMayResolveThread = (state, thread) => {
+  if (userIsAdmin(state)) return true;
+  if (!userMayComment(state)) return false;
+  if (!thread || typeof thread !== 'object') return false;
+  let uid = userId(state);
+  return uid == thread.author.id;
+}
+
 export const userIsAdmin = state => userMayEdit(state);
 
 export const userMayComment = state => userId(state) != "";
