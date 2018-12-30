@@ -40,6 +40,7 @@ import './card-renderer.js';
 import './card-drawer.js';
 import './card-editor.js';
 import './comments-panel.js';
+import './card-info-panel.js';
 
 import {
   editIcon,
@@ -126,6 +127,7 @@ class CardView extends connect(store)(PageViewElement) {
           </div>
           <card-editor ?active=${this._editing} ></card-editor>
         </div>
+        <card-info-panel .active=${this.active}></card-info-panel>
         <comments-panel .active=${this.active}></comments-panel>
       </div>
     `;
