@@ -34,6 +34,21 @@ const ensureAuthor = (batch, user) => {
   })
 }
 
+export const editMessage = (message, newMessage) => (dispatch) => {
+  
+  if (!message || !message.id);
+
+  let batch = db.batch();
+
+  batch.update(db.collection(MESSAGES_COLLECTION).doc(message.id), {
+    message: newMessage,
+    updated: new Date()
+  });
+
+  batch.commit();
+
+}
+
 export const addMessage = (thread, message) => (dispatch, getState) => {
   const state = getState();
   const card = cardSelector(state);
