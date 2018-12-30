@@ -46,6 +46,10 @@ class UserChip extends connect(store)(LitElement) {
           margin: calc(var(--user-image-size) / 4);
           cursor:pointer;
         }
+        img:hover {
+          opacity:0.5;
+          filter: saturate(0%);
+        }
       </style>
       <div>
         ${this._pending ? '***' : ''}
