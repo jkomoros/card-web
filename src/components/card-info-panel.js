@@ -13,6 +13,10 @@ import {
   PageViewElement
 } from './page-view-element.js';
 
+import {
+  prettyTime
+} from '../actions/util.js';
+
 class CardInfoPanel extends connect(store)(PageViewElement) {
   render() {
     return html`
@@ -55,6 +59,14 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
         <div>
           <h4>Section</h4>
           <p>${this._sectionTitle}</p>
+        </div>
+        <div>
+          <h4>Last Updated</h4>
+          <p>${prettyTime(this._card.updated_substantive)}</p>
+        </div>
+        <div>
+          <h4>Created</h4>
+          <p>${prettyTime(this._card.created)}</p>
         </div>
       </div>
     `;
