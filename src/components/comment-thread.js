@@ -3,16 +3,21 @@ import { repeat } from 'lit-html/directives/repeat';
 
 import './comment-message.js';
 
+import { ButtonSharedStyles } from './button-shared-styles.js';
+import { replyIcon } from './my-icons.js';
+
 // This element is *not* connected to the Redux store.
 class CommentThread extends LitElement {
   render() {
     return html`
+      ${ButtonSharedStyles}
       <style>
         .container {
           padding: 0.5em;
           width: 12em;
           overflow:hidden;
           display:flex;
+          flex-direction:column;
           align-items:center;
           justify-content:center;
           background-color: var(--card-color);
@@ -23,10 +28,19 @@ class CommentThread extends LitElement {
         comment-message {
           border-bottom:1px solid (--app-divider-color);
         }
+        .buttons {
+          display:flex;
+          flex-direction:row;
+          justify-content:flex-end;
+          width:100%;
+        }
       </style>
       <div class='container'>
         ${repeat(this.thread.messages, (message) => message.id, (item, index) => html`
                 <comment-message .message=${item}></comment-message>`)}
+        <div class='buttons'>
+          <button class='small' @click=${this._handleAddMessage}>${replyIcon}</button>
+        </div>
       </div>
     `;
   }
@@ -35,6 +49,10 @@ class CommentThread extends LitElement {
     return {
       thread: { type: Object },
     }
+  }
+
+  _handleAddMessage(e) {
+    console.log("Not yet implemented");
   }
 }
 

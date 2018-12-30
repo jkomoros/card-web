@@ -40,6 +40,22 @@ export const ButtonSharedStyles = html`
     background: var(--app-secondary-color);
   }
 
+  button.small {
+    background:transparent;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  button.small svg {
+    fill: var(--app-dark-text-color);
+    height:18px;
+    width:18px;
+  }
+
+  button.small:hover svg {
+    fill: var(--app-dark-text-color-light);
+  }
+
   label {
     font-size:0.75em;
     color: var(--app-dark-text-color-light);
