@@ -1,5 +1,18 @@
 export const db = firebase.firestore();
 
+db.settings({
+  timestampsInSnapshots:true,
+})
+
+firebase.firestore().enablePersistence()
+  .catch(function(err) {
+      if (err.code == 'failed-precondition') {
+        console.warn("Offline doesn't work because multiple tabs are open or something else")
+      } else if (err.code == 'unimplemented') {
+        console.warn("This browser doesn't support offline storage")
+      }
+  });
+
 import {
   updateCards,
   updateSections,
@@ -20,10 +33,6 @@ export const MAINTENANCE_COLLECTION = 'maintenance_tasks';
 export const AUTHORS_COLLECTION = 'authors';
 export const THREADS_COLLECTION = 'threads';
 export const MESSAGES_COLLECTION = 'messages';
-
-db.settings({
-  timestampsInSnapshots:true,
-})
 
 let liveMessagesUnsubscribe = null;
 let liveThreadsUnsubscribe = null;
