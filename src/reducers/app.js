@@ -14,7 +14,9 @@ import {
   OPEN_SNACKBAR,
   CLOSE_SNACKBAR,
   OPEN_COMMENTS_PANEL,
-  CLOSE_COMMENTS_PANEL
+  CLOSE_COMMENTS_PANEL,
+  OPEN_CARD_INFO_PANEL,
+  CLOSE_CARD_INFO_PANEL
 } from '../actions/app.js';
 
 const INITIAL_STATE = {
@@ -52,14 +54,28 @@ const app = (state = INITIAL_STATE, action) => {
         snackbarOpened: false
       };
     case OPEN_COMMENTS_PANEL:
+      //Only one of cardInfo and comments panels can be open at a time.
       return {
         ...state,
-        commentsPanelOpen: true
+        commentsPanelOpen: true,
+        cardInfoPanelOpen: false
       }
     case CLOSE_COMMENTS_PANEL:
       return {
         ...state,
         commentsPanelOpen: false
+      }
+    case OPEN_CARD_INFO_PANEL:
+      //Only one of cardInfo and comments panels can be open at a time.
+      return {
+        ...state,
+        cardInfoPanelOpen: true,
+        commentsPanelOpen: false
+      }
+    case CLOSE_CARD_INFO_PANEL:
+      return {
+        ...state,
+        cardInfoPanelOpen: false
       }
     default:
       return state;

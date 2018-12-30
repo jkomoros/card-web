@@ -14,6 +14,8 @@ export const OPEN_SNACKBAR = 'OPEN_SNACKBAR';
 export const CLOSE_SNACKBAR = 'CLOSE_SNACKBAR';
 export const OPEN_COMMENTS_PANEL = 'OPEN_COMMENTS_PANEL';
 export const CLOSE_COMMENTS_PANEL = 'CLOSE_COMMENTS_PANEL';
+export const OPEN_CARD_INFO_PANEL = 'OPEN_CARD_INFO_PANEL';
+export const CLOSE_CARD_INFO_PANEL = 'CLOSE_CARD_INFO_PANEL';
 
 import {
   collectionForActiveSectionSelector
@@ -158,5 +160,17 @@ export const openCommentsPanel = () => {
 export const closeCommentsPanel = () => {
   return {
     type: CLOSE_COMMENTS_PANEL
+  }
+}
+
+export const openCardInfoPanel = () => {
+  return {
+    type: OPEN_CARD_INFO_PANEL
+  }
+}
+
+export const closeCardInfoPanel = () => {
+  return {
+    type: CLOSE_CARD_INFO_PANEL
   }
 }
