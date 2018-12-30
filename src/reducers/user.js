@@ -53,27 +53,24 @@ export const userId = state => {
   return user.uid;
 }
 
-export const userMayResolveThread = (state, thread) => {
-  if (userIsAdmin(state)) return true;
-  if (!userMayComment(state)) return false;
+
+export const uidMayResolveThread = (uid, thread) => {
+  if (uidIsAdmin(uid)) return true;
+  if (!uidMayComment(uid)) return false;
   if (!thread || typeof thread !== 'object') return false;
-  let uid = userId(state);
   return uid == thread.author.id;
 }
 
-export const userIsAdmin = state => userMayEdit(state);
+export const uidIsAdmin = uid => uidMayEdit(uid);
 
-export const userMayComment = state => userId(state) != "";
+export const uidMayComment = uid => uid != "";
 
-//TODO: more resilient testing
-export const userMayEdit = state => {
+export const uidMayEdit = uid => {
   //This list is also recreated in firestore.rules
   const allowedIDs = [
     'TPo5MOn6rNX9k8K1bbejuBNk4Dr2', //Production main account
     'KteKDU7UnHfkLcXAyZXbQ6kRAk13' //dev- main account
   ]
-
-  let uid = userId(state);
 
   if (!uid) {
     return false;
@@ -84,6 +81,12 @@ export const userMayEdit = state => {
   }
 
   return false;
-};
+}
+
+export const userMayResolveThread = (state, thread) => uidMayResolveThread(userId(state));
+export const userMayComment = state => uidMayComment(userId(state));
+export const userIsAdmin = state => uidrMayEdit(userId(state));
+export const userMayEdit = state => uidMayEdit(userId(state));
+
 
 export default app;
