@@ -27,6 +27,7 @@ class CommentMessage extends LitElement {
         .row {
           display:flex;
           flex-direction:row;
+          align-items:center;
           width:100%;
         }
 

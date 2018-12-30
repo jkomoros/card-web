@@ -18,7 +18,7 @@ class AuthorChip extends LitElement {
           height:var(--user-image-size);
           width: var(--user-image-size);
           border-radius:calc(var(--user-image-size) / 2);
-          margin: calc(var(--user-image-size) / 4);
+          margin-right: calc(var(--user-image-size) / 4);
           cursor:pointer;
         }
         span {
