@@ -15,7 +15,8 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 import {
   createThread,
   addMessage,
-  editMessage
+  editMessage,
+  resolveThread
 } from '../actions/comments.js';
 
 import {
@@ -103,7 +104,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
   }
 
   _handleResolveThread(e) {
-    console.warn("not yet implemented");
+    store.dispatch(resolveThread(e.detail.thread));
   }
 
   stateChanged(state) {

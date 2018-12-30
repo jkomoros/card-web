@@ -83,7 +83,7 @@ export const uidMayEdit = uid => {
   return false;
 }
 
-export const userMayResolveThread = (state, thread) => uidMayResolveThread(userId(state));
+export const userMayResolveThread = (state, thread) => uidMayResolveThread(userId(state), thread);
 export const userMayComment = state => uidMayComment(userId(state));
 export const userIsAdmin = state => uidrMayEdit(userId(state));
 export const userMayEdit = state => uidMayEdit(userId(state));

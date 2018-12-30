@@ -39,7 +39,7 @@ const ensureAuthor = (batch, user) => {
   })
 }
 
-export const resolveThread = (thread) => (dispatch) => {
+export const resolveThread = (thread) => (dispatch, getState) => {
   const state = getState();
 
   if (!thread || !thread.id) {
