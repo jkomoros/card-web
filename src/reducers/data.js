@@ -143,6 +143,12 @@ const sectionForActiveCard = (state, id) => {
   return card.section;
 }
 
+export const sectionTitle = (state, sectionId) => {
+  let section = state.data.sections[sectionId];
+  if (!section) return "";
+  return section.title;
+}
+
 const indexForActiveCard = (collection, id) => {
   for (let i = 0; i < collection.length; i++) {
     if (collection[i] == id) return i;
