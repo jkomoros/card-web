@@ -74,7 +74,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
         <h3>Comments</h3>
         <div class='comments'>
         ${repeat(this._composedThreads, (thread) => thread.id, (item, index) => html`
-                <comment-thread .userId=${this._userId} .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @resolve-thread=${this._handleResolveThread}.userMayComment=${this._userMayComment}></comment-thread>`)}
+                <comment-thread .userId=${this._userId} .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @resolve-thread=${this._handleResolveThread} .userMayComment=${this._userMayComment}></comment-thread>`)}
         </div>
         <button class='round' ?disabled='${!this._userMayComment}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${addCommentIcon}</button>
       </div>
