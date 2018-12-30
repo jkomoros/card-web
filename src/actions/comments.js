@@ -105,6 +105,7 @@ export const editMessage = (message, newMessage) => (dispatch, getState) => {
 
   batch.update(db.collection(MESSAGES_COLLECTION).doc(message.id), {
     message: newMessage,
+    deleted: false,
     updated: new Date()
   });
 
