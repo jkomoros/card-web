@@ -12,6 +12,10 @@ import {
   prettyTime
 } from '../actions/util.js';
 
+import {
+  uidMayEditMessage
+} from '../reducers/user.js';
+
 // This element is *not* connected to the Redux store.
 class CommentMessage extends LitElement {
   render() {
@@ -47,7 +51,7 @@ class CommentMessage extends LitElement {
       <div class='container'>
         <div class='row'>
           <author-chip .author=${this.message.author}></author-chip>
-          <button class='small' @click=${this._handleEditClicked} ?hidden=${!this._userMayEdit()}>${editIcon}</button>
+          <button class='small' @click=${this._handleEditClicked} ?hidden=${!uidMayEditMessage(this.userId, this.message)}>${editIcon}</button>
         </div>
         <span>${prettyTime(this.message.updated)}</span>
         <div>
@@ -61,12 +65,6 @@ class CommentMessage extends LitElement {
     let message = prompt("What is your new response?", this.message.message);
     if (!message || message == this.message.message) return;
     this.dispatchEvent(new CustomEvent('edit-message', {composed:true, detail: {message: this.message, newMessage:message}}));
-  }
-
-  _userMayEdit() {
-    if (!this.message) return false;
-    if (!this.message.author) return false;
-    return this.message.author.id == this.userId;
   }
 
   static get properties() {

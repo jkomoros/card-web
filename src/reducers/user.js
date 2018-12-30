@@ -65,6 +65,12 @@ export const uidIsAdmin = uid => uidMayEdit(uid);
 
 export const uidMayComment = uid => uid != "";
 
+export const uidMayEditMessage = (uid, message) => {
+  if (uidIsAdmin(uid)) return true;
+  if (!message || !message.author || !message.author.id) return false;
+  return uid == message.author.id;
+}
+
 export const uidMayEdit = uid => {
   //This list is also recreated in firestore.rules
   const allowedIDs = [
@@ -84,6 +90,7 @@ export const uidMayEdit = uid => {
 }
 
 export const userMayResolveThread = (state, thread) => uidMayResolveThread(userId(state), thread);
+export const userMayEditMessage = (state, message) => uidMayEditMessage(userId(state), message);
 export const userMayComment = state => uidMayComment(userId(state));
 export const userIsAdmin = state => uidrMayEdit(userId(state));
 export const userMayEdit = state => uidMayEdit(userId(state));
