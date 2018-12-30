@@ -20,6 +20,15 @@ class CommentMessage extends LitElement {
       <style>
         :host {
           font-size: 0.85em;
+          display:block;
+          border-bottom:1px solid var(--app-divider-color);
+          width:100%;
+          padding-bottom:0.5em;
+          margin-bottom:0.5em;
+        }
+        
+        .container {
+          width:100%;
         }
         span {
           color: var(--app-dark-text-color-light);
@@ -35,7 +44,7 @@ class CommentMessage extends LitElement {
           flex-grow:1;
         }
       </style>
-      <div>
+      <div class='container'>
         <div class='row'>
           <author-chip .author=${this.message.author}></author-chip>
           <button class='small' @click=${this._handleEditClicked} ?hidden=${!this._userMayEdit()}>${editIcon}</button>

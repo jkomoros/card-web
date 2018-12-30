@@ -29,12 +29,6 @@ class CommentThread extends LitElement {
           margin:0.5em;
           box-sizing:border-box;
         }
-        comment-message {
-          border-bottom:1px solid var(--app-divider-color);
-          width:100%;
-          padding-bottom:0.5em;
-          margin-bottom:0.5em;
-        }
         .buttons {
           display:flex;
           flex-direction:row;
@@ -46,6 +40,7 @@ class CommentThread extends LitElement {
         }
         .content {
           display:none;
+          width:100%;
         }
         .content.expanded {
           display:block;
