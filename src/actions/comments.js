@@ -18,6 +18,10 @@ import {
 } from '../reducers/data.js';
 
 import {
+  firebase
+} from './database.js';
+
+import {
   userMayComment,
   firebaseUser
 } from '../reducers/user.js';

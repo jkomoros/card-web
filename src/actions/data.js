@@ -9,6 +9,10 @@ export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
 export const REORDER_STATUS = 'REORDER_STATUS';
 
 import {
+  firebase
+} from './database.js';
+
+import {
   db,
   CARDS_COLLECTION,
   CARD_UPDATES_COLLECTION,

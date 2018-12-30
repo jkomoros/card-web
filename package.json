@@ -24,6 +24,7 @@
     "@polymer/lit-element": "^0.6.5",
     "@polymer/polymer": "^3.1.0",
     "@webcomponents/webcomponentsjs": "^2.0.0",
+    "firebase": "^5.7.2",
     "pwa-helpers": "^0.9.0",
     "redux": "^4.0.0",
     "redux-thunk": "^2.3.0",

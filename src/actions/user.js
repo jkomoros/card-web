@@ -4,6 +4,10 @@ export const SIGNIN_FAILURE = 'SIGNIN_FAILURE';
 export const SIGNOUT_USER = 'SIGNOUT_USER';
 export const SIGNOUT_SUCCESS = 'SIGNOUT_SUCCESS';
 
+import {
+  firebase 
+} from './database.js';
+
 export const signIn = () => (dispatch) => {
   dispatch({type:SIGNIN_USER});
 
