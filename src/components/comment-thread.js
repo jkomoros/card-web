@@ -40,7 +40,7 @@ class CommentThread extends LitElement {
         ${repeat(this.thread.messages, (message) => message.id, (item, index) => html`
                 <comment-message .message=${item}></comment-message>`)}
         <div class='buttons'>
-          <button class='small' disabled='${!this.userMayComment}' title='${this.userMayComment ? 'Reply' : 'Sign in to reply'}' @click=${this._handleAddMessage}>${replyIcon}</button>
+          <button class='small' ?disabled='${!this.userMayComment}' title='${this.userMayComment ? 'Reply' : 'Sign in to reply'}' @click=${this._handleAddMessage}>${replyIcon}</button>
         </div>
       </div>
     `;
