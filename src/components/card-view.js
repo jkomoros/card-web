@@ -88,6 +88,7 @@ class CardView extends connect(store)(PageViewElement) {
           flex-direction:column;
           justify-content:center;
           align-items: center;
+          background-color: var(--app-divider-color);
         }
         card-editor {
           display:none;
