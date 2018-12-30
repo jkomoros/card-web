@@ -59,7 +59,7 @@ class CommentMessage extends LitElement {
         </div>
         <span>${prettyTime(this.message.updated)}</span>
         <div>
-          ${this.message.message}
+          ${this.message.deleted ? html`<em>This message has been deleted.</em>` : this.message.message}
         </div>
       </div>
     `;

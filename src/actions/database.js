@@ -77,7 +77,8 @@ export const connectLiveMessages = (store, cardId) => {
     liveMessagesUnsubscribe();
     liveMessagesUnsubscribe = null;
   }
-  liveMessagesUnsubscribe = db.collection(MESSAGES_COLLECTION).where('card', '==', cardId).where('deleted', '==', false).onSnapshot(snapshot => {
+  //Deliberately DO fetch deleted messages, so we can render stubs for them.
+  liveMessagesUnsubscribe = db.collection(MESSAGES_COLLECTION).where('card', '==', cardId).onSnapshot(snapshot => {
     let messages = {};
 
     snapshot.docChanges().forEach(change => {
