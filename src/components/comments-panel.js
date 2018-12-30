@@ -14,7 +14,8 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
   createThread,
-  addMessage
+  addMessage,
+  editMessage
 } from '../actions/comments.js';
 
 import {
@@ -31,7 +32,8 @@ import {
 } from '../reducers/data.js';
 
 import {
-  userMayComment
+  userMayComment,
+  userId
 } from '../reducers/user.js';
 
 import {
@@ -65,7 +67,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
       <div ?hidden=${!this._open} class='container'>
         <h3>Comments</h3>
         ${repeat(this._composedThreads, (thread) => thread.id, (item, index) => html`
-                <comment-thread .thread=${item} @add-message='${this._handleAddMessage}' .userMayComment=${this._userMayComment}></comment-thread>`)}
+                <comment-thread .userId=${this._userId} .thread=${item} @add-message='${this._handleAddMessage}' @edit-message=${this._handleEditMessage} .userMayComment=${this._userMayComment}></comment-thread>`)}
         <button class='round' ?disabled='${!this._userMayComment}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${addCommentIcon}</button>
       </div>
     `;
@@ -76,7 +78,8 @@ class CommentsPanel extends connect(store)(PageViewElement) {
       _open: {type: Boolean},
       _card: {type: Object},
       _composedThreads: {type: Array},
-      _userMayComment: { type: Boolean}
+      _userMayComment: { type: Boolean},
+      _userId : { type:String }
     }
   }
 
@@ -88,11 +91,16 @@ class CommentsPanel extends connect(store)(PageViewElement) {
     store.dispatch(addMessage(e.detail.thread, e.detail.message));
   }
 
+  _handleEditMessage(e) {
+    store.dispatch(editMessage(e.detail.message, e.detail.newMessage));
+  }
+
   stateChanged(state) {
     this._open = state.comments.panelOpen;
     this._card = cardSelector(state);
     this._composedThreads = composedThreadsSelector(state);
     this._userMayComment = userMayComment(state);
+    this._userId = userId(state);
   }
 
   updated(changedProps) {

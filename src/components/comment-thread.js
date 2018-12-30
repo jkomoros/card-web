@@ -57,7 +57,7 @@ class CommentThread extends LitElement {
         </div>
         <div class='content ${this._expanded ? 'expanded' :''}'>
           ${repeat(this.thread.messages, (message) => message.id, (item, index) => html`
-          <comment-message .message=${item}></comment-message>`)}
+          <comment-message .message=${item} .userId=${this.userId}></comment-message>`)}
           <div class='buttons'>
             <button class='small' ?disabled='${!this.userMayComment}' title='${this.userMayComment ? 'Reply' : 'Sign in to reply'}' @click=${this._handleAddMessage}>${replyIcon}</button>
           </div>
@@ -70,6 +70,7 @@ class CommentThread extends LitElement {
     return {
       thread: { type: Object },
       userMayComment: {type:Boolean},
+      userId: { type: String },
       _expanded: {type: Boolean}
     }
   }
