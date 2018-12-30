@@ -13,7 +13,8 @@ import { SharedStyles } from './shared-styles.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
-  createThread
+  createThread,
+  addMessage
 } from '../actions/comments.js';
 
 import {
@@ -60,7 +61,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
       <div ?hidden=${!this._open} class='container'>
         <h3>Comments</h3>
         ${repeat(this._composedThreads, (thread) => thread.id, (item, index) => html`
-                <comment-thread .thread=${item}></comment-thread>`)}
+                <comment-thread .thread=${item} @add-message='${this._handleAddMessage}'></comment-thread>`)}
         <button class='round' @click='${this._handleCreateThreadClicked}'>${commentIcon}</button>
       </div>
     `;
@@ -76,6 +77,10 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 
   _handleCreateThreadClicked(e) {
     store.dispatch(createThread(prompt('Message for new thread:')));
+  }
+
+  _handleAddMessage(e) {
+    store.dispatch(addMessage(e.detail.thread, e.detail.message));
   }
 
   stateChanged(state) {

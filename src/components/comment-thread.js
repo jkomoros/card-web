@@ -52,7 +52,8 @@ class CommentThread extends LitElement {
   }
 
   _handleAddMessage(e) {
-    console.log("Not yet implemented");
+    let message = prompt("What is your reply?");
+    this.dispatchEvent(new CustomEvent('add-message', {composed:true, detail: {message: message, thread: this.thread}}));
   }
 }
 
