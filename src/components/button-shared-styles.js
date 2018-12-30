@@ -51,6 +51,7 @@ export const ButtonSharedStyles = html`
   button.small {
     background:transparent;
     padding: 0;
+    margin:0;
     box-shadow: none;
   }
 
