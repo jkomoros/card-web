@@ -1,27 +1,44 @@
 service cloud.firestore {
   match /databases/{database}/documents {
 
-  	function userIsAdmin() {
-  		//The admin uid for both staging and production firebases.
-  		//Similar logic is in /reducers/user.js
-  		return request.auth.uid == 'TPo5MOn6rNX9k8K1bbejuBNk4Dr2' || request.auth.uid == 'KteKDU7UnHfkLcXAyZXbQ6kRAk13';
-  	}
+    function userIsAdmin() {
+      return request.auth.uid == 'TPo5MOn6rNX9k8K1bbejuBNk4Dr2' || request.auth.uid == 'KteKDU7UnHfkLcXAyZXbQ6kRAk13';
+    }
+    
+    function editAddsMessage() {
+      //TODO: Also check that the first parts are the same.
+      return request.resource.data.messages.length == resource.data.messages.length + 1;
+    }
+    
+    function loggedIn() {
+      return request.auth.uid != null;
+    }
+    
+    function createIsAuthor() {
+      return loggedIn() && request.auth.uid == request.resource.data.author;
+    }
+    
+    function updateIsAuthor() {
+      return loggedIn() && request.auth.uid == resource.data.author;
+    }
 
     match /{document=**} {
       allow read: if true;
       allow write: if userIsAdmin();
     }
+    
     match /authors/{author} {
-    	allow write: if request.auth.uid == author;
+      allow write: if request.auth.uid == author;
     }
+    
     match /messages/{message} {
-      allow create: if request.auth.uid != null && if request.auth.uid == request.resource.data.author;
-    	allow update: if request.auth.uid == resource.data.author;
+      allow create: if createIsAuthor();
+      allow update: if updateIsAuthor();
     }
-    //The only two fields that can be updated are messages and resolved
+    
     match /threads/{thread} {
-    	allow create: if request.auth.uid != null && request.auth.uid == request.resource.data.author;
-    	allow update : if request.auth.uid != null;
+      allow create : if createIsAuthor();
+      allow update : if updateIsAuthor() || (loggedIn() && editAddsMessage());
     }
   }
 }
