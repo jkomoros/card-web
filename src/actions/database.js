@@ -99,7 +99,7 @@ export const connectLiveThreads = (store, cardId) => {
     liveThreadsUnsubscribe = null;
   }
   let firstUpdate = true;
-  liveThreadsUnsubscribe = db.collection(THREADS_COLLECTION).where('card', '==', cardId).where('deleted', '==', false).onSnapshot(snapshot => {
+  liveThreadsUnsubscribe = db.collection(THREADS_COLLECTION).where('card', '==', cardId).where('deleted', '==', false).where('resolved', '==', false).onSnapshot(snapshot => {
     let threads = {};
     let threadsToAdd = [];
     let threadsToRemove = [];
