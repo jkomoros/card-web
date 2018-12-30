@@ -23,6 +23,10 @@ export const ButtonSharedStyles = html`
     cursor: pointer;
     margin: 0.5em;
   }
+  button:disabled {
+    background-color: var(--app-dark-text-color-light);
+  }
+
   button.primary {
     background: var(--app-primary-color);
   }
@@ -35,7 +39,7 @@ export const ButtonSharedStyles = html`
   button svg {
     fill: var(--app-light-text-color);
   }
-  button:hover {
+  button:enabled:hover {
     box-shadow: 0 6px 6px #999;
     background: var(--app-secondary-color);
   }
@@ -56,7 +60,7 @@ export const ButtonSharedStyles = html`
     width:18px;
   }
 
-  button.small:hover svg {
+  button.small:enabled:hover svg {
     fill: var(--app-dark-text-color-light);
   }
 
