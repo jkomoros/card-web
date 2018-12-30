@@ -4,7 +4,11 @@ import { repeat } from 'lit-html/directives/repeat';
 import './comment-message.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
-import { replyIcon } from './my-icons.js';
+import { 
+  replyIcon,
+  arrowRightIcon,
+  arrowDownIcon
+} from './my-icons.js';
 
 // This element is *not* connected to the Redux store.
 class CommentThread extends LitElement {
@@ -37,12 +41,26 @@ class CommentThread extends LitElement {
           justify-content:flex-end;
           width:100%;
         }
+        .buttons.left {
+          justify-content:flex-start;
+        }
+        .content {
+          display:none;
+        }
+        .content.expanded {
+          display:block;
+        }
       </style>
       <div class='container'>
-        ${repeat(this.thread.messages, (message) => message.id, (item, index) => html`
-                <comment-message .message=${item}></comment-message>`)}
-        <div class='buttons'>
-          <button class='small' ?disabled='${!this.userMayComment}' title='${this.userMayComment ? 'Reply' : 'Sign in to reply'}' @click=${this._handleAddMessage}>${replyIcon}</button>
+        <div class='buttons left'>
+          <button class='small' @click=${this._handleZippyClicked}>${this._expanded ? arrowDownIcon : arrowRightIcon}</button>
+        </div>
+        <div class='content ${this._expanded ? 'expanded' :''}'>
+          ${repeat(this.thread.messages, (message) => message.id, (item, index) => html`
+          <comment-message .message=${item}></comment-message>`)}
+          <div class='buttons'>
+            <button class='small' ?disabled='${!this.userMayComment}' title='${this.userMayComment ? 'Reply' : 'Sign in to reply'}' @click=${this._handleAddMessage}>${replyIcon}</button>
+          </div>
         </div>
       </div>
     `;
@@ -51,8 +69,17 @@ class CommentThread extends LitElement {
   static get properties() {
     return {
       thread: { type: Object },
-      userMayComment: {type:Boolean}
+      userMayComment: {type:Boolean},
+      _expanded: {type: Boolean}
     }
+  }
+
+  firstUpdated() {
+    this._expanded = true;
+  }
+
+  _handleZippyClicked(e) {
+    this._expanded = !this._expanded;
   }
 
   _handleAddMessage(e) {
