@@ -66,7 +66,7 @@ export const resolveThread = (thread) => (dispatch, getState) => {
 
 export const deleteMessage = (message) => (dispatch, getState) => {
   const state = getState();
-  if (!userMayEditMessage(message)) {
+  if (!userMayEditMessage(state, message)) {
     console.log("User isn't allowed to edit that message!");
     return;
   }
