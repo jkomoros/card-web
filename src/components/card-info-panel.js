@@ -1,5 +1,6 @@
 import { LitElement, html } from '@polymer/lit-element';
 import { connect } from 'pwa-helpers/connect-mixin.js';
+import { repeat } from 'lit-html/directives/repeat';
 
 // This element is connected to the Redux store.
 import { store } from '../store.js';
@@ -42,6 +43,10 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
         div>p {
           margin:0;
         }
+        div>ul {
+          margin:0;
+          padding-inline-start: 1.2em;
+        }
         .container > div {
           margin: 0.5em 0;
         }
@@ -49,12 +54,19 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
       <div class='container' ?hidden=${!this._open}>
         <h3>Card Info</h3>
         <div>
+          <h4>ID</h4>
+          <p>${this._card.id}</p>
+        </div>
+        <div>
           <h4>Name</h4>
           <p>${this._card.name}</p>
         </div>
         <div>
-          <h4>ID</h4>
-          <p>${this._card.id}</p>
+          <h4>Slugs</h4>
+          ${this._card && this._card.slugs && this._card.slugs.length 
+            ? html`<ul>${this._card.slugs.map((item) => html`<li>${item}</li>`)}</ul>`
+            : html`<p><em>No slugs</em></p>`
+          }
         </div>
         <div>
           <h4>Section</h4>
