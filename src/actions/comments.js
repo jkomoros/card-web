@@ -24,6 +24,7 @@ import {
 import {
   userMayComment,
   userMayResolveThread,
+  userMayEditMessage,
   firebaseUser
 } from '../reducers/user.js';
 
@@ -63,8 +64,15 @@ export const resolveThread = (thread) => (dispatch, getState) => {
 
 }
 
-export const editMessage = (message, newMessage) => (dispatch) => {
+export const editMessage = (message, newMessage) => (dispatch, getState) => {
   
+  const state = getState();
+
+  if (!userMayEditMessage(state, message)) {
+    console.log("User isn't allowed to edit that message!");
+    return;
+  }
+
   if (!message || !message.id) {
     console.log("No message provided");
     return;
