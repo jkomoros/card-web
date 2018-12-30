@@ -23,10 +23,10 @@ class CommentMessage extends LitElement {
           display:block;
           border-bottom:1px solid var(--app-divider-color);
           width:100%;
-          padding-bottom:0.5em;
-          margin-bottom:0.5em;
+          padding-bottom:0.25em;
+          margin-bottom:0.25em;
         }
-        
+
         .container {
           width:100%;
         }
