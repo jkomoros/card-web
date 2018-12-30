@@ -65,6 +65,10 @@ class CommentsPanel extends connect(store)(PageViewElement) {
           height:100%;
           width:100%;
         }
+        .comments > p {
+          color: var(--app-dark-text-color-light);
+          margin:0;
+        }
         h3 {
           margin:0;
           font-weight:normal;
@@ -79,8 +83,11 @@ class CommentsPanel extends connect(store)(PageViewElement) {
       <div ?hidden=${!this._open} class='container'>
         <h3>Comments</h3>
         <div class='comments'>
-        ${this._composedThreads.map( (item) => html`
-                <comment-thread .userId=${this._userId} .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @delete-message=${this._handleDeleteMessage} @resolve-thread=${this._handleResolveThread} .userMayComment=${this._userMayComment}></comment-thread>`)}
+        ${this._composedThreads.length
+          ? html`${this._composedThreads.map( (item) => html`
+                <comment-thread .userId=${this._userId} .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @delete-message=${this._handleDeleteMessage} @resolve-thread=${this._handleResolveThread} .userMayComment=${this._userMayComment}></comment-thread>`)}`
+          : html`<p><em>No comments yet.</em></p><p><em>You should leave one!</em></p>`
+        }
         <div class='spacer'></spacer>
         </div>
         <button class='round' ?disabled='${!this._userMayComment}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${addCommentIcon}</button>
