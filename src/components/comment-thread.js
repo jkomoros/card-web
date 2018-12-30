@@ -7,8 +7,13 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 import { 
   replyIcon,
   arrowRightIcon,
-  arrowDownIcon
+  arrowDownIcon,
+  checkCircleOutlineIcon
 } from './my-icons.js';
+
+import {
+  uidMayResolveThread
+} from '../reducers/user.js';
 
 // This element is *not* connected to the Redux store.
 class CommentThread extends LitElement {
@@ -45,10 +50,16 @@ class CommentThread extends LitElement {
         .content.expanded {
           display:block;
         }
+        .flex {
+          flex-grow:1;
+        }
       </style>
       <div class='container'>
-        <div class='buttons left'>
-          <button class='small' @click=${this._handleZippyClicked}>${this._expanded ? arrowDownIcon : arrowRightIcon}</button>
+        <div class='buttons'>
+          <div class='flex'>
+            <button class='small' @click=${this._handleZippyClicked}>${this._expanded ? arrowDownIcon : arrowRightIcon}</button>
+          </div>
+          <button class='small' .disabled=${uidMayResolveThread(this.userId, this.thread)} @click=${this._handleResolveClicked}>${checkCircleOutlineIcon}</button>
         </div>
         <div class='content ${this._expanded ? 'expanded' :''}'>
           ${repeat(this.thread.messages, (message) => message.id, (item, index) => html`
@@ -76,6 +87,10 @@ class CommentThread extends LitElement {
 
   _handleZippyClicked(e) {
     this._expanded = !this._expanded;
+  }
+
+  _handleResolveClicked(e) {
+    console.warn("Not yet implemented");
   }
 
   _handleAddMessage(e) {
