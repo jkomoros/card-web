@@ -6,8 +6,7 @@ service cloud.firestore {
     }
     
     function editAddsMessage() {
-      //TODO: Also check that the first parts are the same.
-      return request.resource.data.messages.size() == resource.data.messages.size() + 1;
+      return request.resource.data.messages.size() == resource.data.messages.size() + 1 && request.resource.data.messages[0:resource.data.messages.size()] == resource.data.messages;
     }
     
     function loggedIn() {
