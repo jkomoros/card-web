@@ -6,6 +6,10 @@ import { repeat } from 'lit-html/directives/repeat';
 import { store } from '../store.js';
 
 import {
+  helpIcon
+} from './my-icons.js';
+
+import {
   cardSelector,
   sectionTitle
 } from '../reducers/data.js';
@@ -22,6 +26,17 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
   render() {
     return html`
       <style>
+
+        .help {
+          margin-left:0.5em;
+        }
+
+        .help svg {
+          height:1.0em;
+          width:1.0em;
+          fill: var(--app-dark-text-color-light);
+        }
+
         .container {
           min-width: 12em;
           height:100%;
@@ -54,7 +69,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
       <div class='container' ?hidden=${!this._open}>
         <h3>Card Info</h3>
         <div>
-          <h4>ID</h4>
+          <h4>ID<span class='help' title="The underlying id of this card, which never changes.">${helpIcon}</span></h4>
           <p>${this._card.id}</p>
         </div>
         <div>
