@@ -90,7 +90,7 @@ class CommentThread extends LitElement {
   }
 
   _handleResolveClicked(e) {
-    console.warn("Not yet implemented");
+    this.dispatchEvent(new CustomEvent('resolve-thread', {composed: true, detail:{thread: this.thread}}));
   }
 
   _handleAddMessage(e) {

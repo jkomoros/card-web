@@ -40,12 +40,14 @@ const ensureAuthor = (batch, user) => {
 }
 
 export const resolveThread = (thread) => (dispatch) => {
+  const state = getState();
+
   if (!thread || !thread.id) {
     console.log("No thread provided");
     return;
   }
 
-  if (!userMayResolveThread(thread)) {
+  if (!userMayResolveThread(state, thread)) {
     console.log("The user isn't allowd to resolve that thread");
     return;
   }
