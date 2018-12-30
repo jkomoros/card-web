@@ -49,7 +49,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
       ${ButtonSharedStyles}
       <style>
         .container {
-          min-width: 6em;
+          min-width: 12em;
           height:100%;
           padding:0.5em;
           border-left: 1px solid var(--app-divider-color);

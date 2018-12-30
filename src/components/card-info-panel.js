@@ -17,11 +17,21 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
     return html`
       <style>
         .container {
-          min-width:6em;
+          min-width: 12em;
+          height:100%;
+          padding:0.5em;
+          border-left: 1px solid var(--app-divider-color);
+          position:relative;
+        }
+
+        h3 {
+          margin:0;
+          font-weight:normal;
+          color: var(--app-dark-text-color-light);
         }
       </style>
       <div class='container' ?hidden=${!this._open}>
-        <h2>This is an info panel</h2>
+        <h3>Card Info</h3>
       </div>
     `;
   }
