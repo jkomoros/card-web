@@ -87,9 +87,10 @@ const composedThread = (threadId, state) => {
 
 const composedMessage = (messageId, state) => {
   //TODO: return composed children for threads if there are parents
-  let message =  state.comments.messages[messageId];
-  if (!message) return {};
-  message.author = authorForId(state, message.author);
+  let originalMessage =  state.comments.messages[messageId];
+  if (!originalMessage) return {};
+  let message = {...originalMessage};
+  message.author = authorForId(state, originalMessage.author);
   return message;
 }
 
