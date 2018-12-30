@@ -64,6 +64,29 @@ export const resolveThread = (thread) => (dispatch, getState) => {
 
 }
 
+export const deleteMessage = (message) => (dispatch, getState) => {
+  const state = getState();
+  if (!userMayEditMessage(message)) {
+    console.log("User isn't allowed to edit that message!");
+    return;
+  }
+
+  if (!message || !message.id) {
+    console.log("No message provided!");
+    return;
+  }
+
+  let batch = db.batch();
+
+  batch.update(db.collection(MESSAGES_COLLECTION).doc(message.id), {
+    message: "",
+    deleted: true,
+    updated: new Date()
+  })
+
+  batch.commit();
+}
+
 export const editMessage = (message, newMessage) => (dispatch, getState) => {
   
   const state = getState();
