@@ -40,6 +40,10 @@ export const ButtonSharedStyles = html`
     background: var(--app-secondary-color);
   }
 
+  button.small:disabled svg {
+    fill: var(--app-dark-text-color-light);
+  }
+
   button.small {
     background:transparent;
     padding: 0;

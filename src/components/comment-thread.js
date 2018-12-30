@@ -27,6 +27,7 @@ class CommentThread extends LitElement {
         }
         comment-message {
           border-bottom:1px solid (--app-divider-color);
+          width:100%;
         }
         .buttons {
           display:flex;
@@ -39,7 +40,7 @@ class CommentThread extends LitElement {
         ${repeat(this.thread.messages, (message) => message.id, (item, index) => html`
                 <comment-message .message=${item}></comment-message>`)}
         <div class='buttons'>
-          <button class='small' @click=${this._handleAddMessage}>${replyIcon}</button>
+          <button class='small' disabled='${!this.userMayComment}' title='${this.userMayComment ? 'Reply' : 'Sign in to reply'}' @click=${this._handleAddMessage}>${replyIcon}</button>
         </div>
       </div>
     `;
@@ -48,11 +49,13 @@ class CommentThread extends LitElement {
   static get properties() {
     return {
       thread: { type: Object },
+      userMayComment: {type:Boolean}
     }
   }
 
   _handleAddMessage(e) {
     let message = prompt("What is your reply?");
+    if (!message) return;
     this.dispatchEvent(new CustomEvent('add-message', {composed:true, detail: {message: message, thread: this.thread}}));
   }
 }

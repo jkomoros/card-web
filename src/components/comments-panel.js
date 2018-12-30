@@ -31,6 +31,10 @@ import {
 } from '../reducers/data.js';
 
 import {
+  userMayComment
+} from '../reducers/user.js';
+
+import {
   PageViewElement
 } from './page-view-element.js';
 
@@ -61,7 +65,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
       <div ?hidden=${!this._open} class='container'>
         <h3>Comments</h3>
         ${repeat(this._composedThreads, (thread) => thread.id, (item, index) => html`
-                <comment-thread .thread=${item} @add-message='${this._handleAddMessage}'></comment-thread>`)}
+                <comment-thread .thread=${item} @add-message='${this._handleAddMessage}' .userMayComment=${this._userMayComment}></comment-thread>`)}
         <button class='round' @click='${this._handleCreateThreadClicked}'>${commentIcon}</button>
       </div>
     `;
@@ -72,6 +76,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
       _open: {type: Boolean},
       _card: {type: Object},
       _composedThreads: {type: Array},
+      _userMayComment: { type: Boolean}
     }
   }
 
@@ -87,6 +92,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
     this._open = state.comments.panelOpen;
     this._card = cardSelector(state);
     this._composedThreads = composedThreadsSelector(state);
+    this._userMayComment = userMayComment(state);
   }
 
   updated(changedProps) {
