@@ -11,6 +11,9 @@ class CommentMessage extends LitElement {
   render() {
     return html`
       <style>
+        :host {
+          font-size: 0.85em;
+        }
         span {
           color: var(--app-dark-text-color-light);
         }
