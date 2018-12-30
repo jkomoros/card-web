@@ -69,7 +69,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
       <div class='container' ?hidden=${!this._open}>
         <h3>Card Info</h3>
         <div>
-          <h4>ID<span class='help' title="The underlying id of this card, which never changes.">${helpIcon}</span></h4>
+          <h4>ID${this._help('The underlying id of this card, which never changes.')}</h4>
           <p>${this._card.id}</p>
         </div>
         <div>
@@ -105,6 +105,10 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
       _card: {type: Object},
       _sectionTitle: { type: String}
     }
+  }
+
+  _help(message) {
+    return html`<span class='help' title="${message}">${helpIcon}</span>`
   }
 
   stateChanged(state) {
