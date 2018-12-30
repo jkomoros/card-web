@@ -1,5 +1,3 @@
-export const OPEN_COMMENTS_PANEL = 'OPEN_COMMENTS_PANEL';
-export const CLOSE_COMMENTS_PANEL = 'CLOSE_COMMENTS_PANEL';
 //This apends the threads in the whole local collection for all cards
 export const COMMENTS_UPDATE_THREADS = 'COMMENTS_UPDATE_THREADS';
 export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
@@ -215,18 +213,6 @@ export const createThread = (message) => (dispatch, getState) => {
   //pendingCreateThread property on state.
   batch.commit().catch(err => console.warn("Couldn't create thread: ", err));
 
-}
-
-export const openCommentsPanel = () => {
-  return {
-    type: OPEN_COMMENTS_PANEL
-  }
-}
-
-export const closeCommentsPanel = () => {
-  return {
-    type: CLOSE_COMMENTS_PANEL
-  }
 }
 
 export const updateThreads = (threads) => {

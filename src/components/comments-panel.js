@@ -119,7 +119,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
   }
 
   stateChanged(state) {
-    this._open = state.comments.panelOpen;
+    this._open = state.app.commentsPanelOpen;
     this._card = cardSelector(state);
     this._composedThreads = composedThreadsSelector(state);
     this._userMayComment = userMayComment(state);

@@ -1,6 +1,4 @@
 import { 
-  OPEN_COMMENTS_PANEL,
-  CLOSE_COMMENTS_PANEL,
   COMMENTS_UPDATE_THREADS,
   COMMENTS_UPDATE_MESSAGES,
   COMMENTS_UPDATE_CARD_THREADS
@@ -16,7 +14,6 @@ import {
 } from './data.js';
 
 const INITIAL_STATE = {
-  panelOpen: true,
   messages: {},
   threads: {},
   card_threads: []
@@ -24,16 +21,6 @@ const INITIAL_STATE = {
 
 const app = (state = INITIAL_STATE, action) => {
   switch (action.type) {
-    case OPEN_COMMENTS_PANEL:
-      return {
-        ...state,
-        panelOpen: true
-      }
-    case CLOSE_COMMENTS_PANEL:
-      return {
-        ...state,
-        panelOpen: false
-      }
     case COMMENTS_UPDATE_MESSAGES: 
       return {
         ...state,

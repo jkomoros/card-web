@@ -28,13 +28,10 @@ import {
 } from '../actions/editor.js';
 
 import {
-  navigateToCard
-} from '../actions/app.js';
-
-import {
+  navigateToCard,
   openCommentsPanel,
   closeCommentsPanel
-} from '../actions/comments.js';
+} from '../actions/app.js';
 
 //Components needed by this
 import './card-renderer.js';
@@ -180,7 +177,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._cardIdOrSlug = this.extractPageExtra(state.app.pageExtra)[0];
     this._editing = state.editor.editing;     
     this._userMayEdit = userMayEdit(state);
-    this._commentsPanelOpen = state.comments.panelOpen;
+    this._commentsPanelOpen = state.app.commentsPanelOpen;
     this._activeCardHasComments = activeCardHasComments(state);
   }
 
