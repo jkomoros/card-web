@@ -5,7 +5,7 @@ import { repeat } from 'lit-html/directives/repeat';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
-import { commentIcon } from './my-icons.js';
+import { addCommentIcon } from './my-icons.js';
 
 import './comment-thread.js';
 
@@ -66,7 +66,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
         <h3>Comments</h3>
         ${repeat(this._composedThreads, (thread) => thread.id, (item, index) => html`
                 <comment-thread .thread=${item} @add-message='${this._handleAddMessage}' .userMayComment=${this._userMayComment}></comment-thread>`)}
-        <button class='round' ?disabled='${!this._userMayComment}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${commentIcon}</button>
+        <button class='round' ?disabled='${!this._userMayComment}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${addCommentIcon}</button>
       </div>
     `;
   }
