@@ -16,6 +16,10 @@ store.addReducers({
 });
 
 import {
+  personIcon
+} from './my-icons.js';
+
+import {
   signIn,
   signInSuccess,
   signOutSuccess,
@@ -47,7 +51,7 @@ class UserChip extends connect(store)(LitElement) {
         ${this._pending ? '***' : ''}
         ${this._user
           ? html`<span>${this._user.displayName}</span> <img title='${this._user.displayName + ' - ' + this._user.email + ' - Click to sign out'}' src='${this._user.photoURL}' @click=${this._handleSignOutClick}>`
-          : html`<button @click=${this._handleSignInClick}>Sign In</button>`
+          : html`<span>Sign in with your Google Account</span><button class='round' @click=${this._handleSignInClick}>${personIcon}</button>`
         }
       </div>
       `;
