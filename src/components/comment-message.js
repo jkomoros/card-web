@@ -5,7 +5,8 @@ import './author-chip.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
-  editIcon
+  editIcon,
+  deleteForeverIcon
 } from './my-icons.js';
 
 import {
@@ -51,7 +52,10 @@ class CommentMessage extends LitElement {
       <div class='container'>
         <div class='row'>
           <author-chip .author=${this.message.author}></author-chip>
-          <button class='small' @click=${this._handleEditClicked} ?hidden=${!uidMayEditMessage(this.userId, this.message)}>${editIcon}</button>
+          <div ?hidden=${!uidMayEditMessage(this.userId, this.message)}>
+            <button class='small' @click=${this._handleDeleteClicked}>${deleteForeverIcon}</button>
+            <button class='small' @click=${this._handleEditClicked}>${editIcon}</button>
+          </div>
         </div>
         <span>${prettyTime(this.message.updated)}</span>
         <div>
@@ -65,6 +69,13 @@ class CommentMessage extends LitElement {
     let message = prompt("What is your new response?", this.message.message);
     if (!message || message == this.message.message) return;
     this.dispatchEvent(new CustomEvent('edit-message', {composed:true, detail: {message: this.message, newMessage:message}}));
+  }
+
+  _handleDeleteClicked(e) {
+    if (!confirm("Delete this message forever? This action cannot be undone.")) {
+      return;
+    }
+    this.dispatchEvent(new CustomEvent('delete-message', {composed: true, detail: {message: this.message}}));
   }
 
   static get properties() {
