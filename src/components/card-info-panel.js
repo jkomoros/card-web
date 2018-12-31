@@ -28,13 +28,13 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
       <style>
 
         .help {
-          margin-left:0.5em;
+          margin-left:0.4em;
         }
 
         .help svg {
-          height:1.0em;
-          width:1.0em;
-          fill: var(--app-dark-text-color-light);
+          height:1.3em;
+          width:1.3em;
+          fill: var(--app-dark-text-color-subtle);
         }
 
         .container {

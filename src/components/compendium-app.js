@@ -76,6 +76,7 @@ class CompendiumApp extends connect(store)(LitElement) {
         --app-section-odd-color: white;
 
         --app-dark-text-color-light: #AAA;
+        --app-dark-text-color-subtle: #CCC;
         --app-divider-color: #eee;
 
         --app-header-font-family: 'Raleway';
