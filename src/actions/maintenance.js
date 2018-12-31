@@ -40,17 +40,22 @@ export const updateInboundLinks = async() => {
 
   let snapshot = await db.collection(CARDS_COLLECTION).get();
 
-  snapshot.forEach(async doc => {
+  let counter = 0;
+  let size = snapshot.size;
+
+  for (let doc of snapshot.docs) {
+    counter++;
     let linkingCardsSnapshot = await db.collection(CARDS_COLLECTION).where("links", "array-contains", doc.id).get();
     let linkingCardsIds = [];
     linkingCardsSnapshot.forEach(linkingCard => {
       linkingCardsIds.push(linkingCard.id);
     })
-    await doc.update({
+    await doc.ref.update({
       updated_inbound_links: new Date(),
       links_inbound: linkingCardsIds,
     })
-  });
+    console.log("Processed " + doc.id + ' (' + counter + '/' + size + ')' );
+  }
 
   console.log("Done!");
 
