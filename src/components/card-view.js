@@ -115,6 +115,29 @@ class CardView extends connect(store)(PageViewElement) {
         [hidden] {
           display:none;
         }
+
+        card-renderer {
+          font-size:20px;
+        }
+
+        @media (max-width: 1290px) {
+          card-renderer {
+            font-size:16px;
+          }
+        }
+
+        @media (min-width: 1400px) and (max-width: 1580px) {
+          card-renderer {
+            font-size:22px;
+          }
+        }
+
+        @media (min-width:1580px) {
+          card-renderer {
+            font-size:26px;
+          }
+        }
+
       </style>
       <div class='container${this._editing ? ' editing' : ''}'>
         <card-drawer></card-drawer>
