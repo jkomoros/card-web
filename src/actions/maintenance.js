@@ -1,7 +1,6 @@
 
 import {
   db,
-  firebase,
   CARDS_COLLECTION,
   SECTIONS_COLLECTION,
   SECTION_UPDATES_COLLECTION,
@@ -53,7 +52,6 @@ export const updateInboundLinks = async() => {
     })
     await doc.ref.update({
       updated_links_inbound: new Date(),
-      updated_inbound_links: firebase.firestore.FieldValue.delete(),
       links_inbound: linkingCardsIds,
     })
     console.log("Processed " + doc.id + ' (' + counter + '/' + size + ')' );
