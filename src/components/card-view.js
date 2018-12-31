@@ -120,11 +120,25 @@ class CardView extends connect(store)(PageViewElement) {
           font-size:20px;
         }
 
-        @media (max-width: 1290px) {
+        @media (max-width: 960px) {
+          card-renderer {
+            font-size: 10px;
+          }
+        }
+
+        @media (min-width: 960px) and (max-width: 1130px) {
+          card-renderer {
+            font-size:12px;
+          }
+        }
+
+        @media (min-width: 1130px) and (max-width: 1310px) {
           card-renderer {
             font-size:16px;
           }
         }
+
+        //Default size here
 
         @media (min-width: 1400px) and (max-width: 1580px) {
           card-renderer {
