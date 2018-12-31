@@ -92,7 +92,7 @@ export const uidMayEdit = uid => {
 export const userMayResolveThread = (state, thread) => uidMayResolveThread(userId(state), thread);
 export const userMayEditMessage = (state, message) => uidMayEditMessage(userId(state), message);
 export const userMayComment = state => uidMayComment(userId(state));
-export const userIsAdmin = state => uidrMayEdit(userId(state));
+export const userIsAdmin = state => uidMayEdit(userId(state));
 export const userMayEdit = state => uidMayEdit(userId(state));
 
 
