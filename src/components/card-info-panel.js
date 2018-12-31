@@ -69,22 +69,22 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
       <div class='container' ?hidden=${!this._open}>
         <h3>Card Info</h3>
         <div>
-          <h4>ID${this._help('The underlying id of this card, which never changes.')}</h4>
+          <h4>ID${this._help('The underlying id of this card, which never changes. Navigating to this name will always come here')}</h4>
           <p>${this._card.id}</p>
         </div>
         <div>
-          <h4>Name</h4>
+          <h4>Name${this._help(`The preferred name for this card, which will show up in the URL when you visit. Must be either the id or one of the slugs`)}</h4>
           <p>${this._card.name}</p>
         </div>
         <div>
-          <h4>Slugs</h4>
+          <h4>Slugs${this._help('The alternate names that will navigate to this card.')}</h4>
           ${this._card && this._card.slugs && this._card.slugs.length 
             ? html`<ul>${this._card.slugs.map((item) => html`<li>${item}</li>`)}</ul>`
             : html`<p><em>No slugs</em></p>`
           }
         </div>
         <div>
-          <h4>Section</h4>
+          <h4>Section${this._help('The collection that this card lives in.')}</h4>
           <p>${this._sectionTitle}</p>
         </div>
         <div>
