@@ -29,6 +29,32 @@ const maintenanceTaskRun = async (taskName) => {
   db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: new Date()});
 }
 
+const UPDATE_INBOUND_LINKS = 'update-inbound-links';
+
+export const updateInboundLinks = async() => {
+
+  //This task is designed to run as often as you want, so we don't check if we've run it and mark as run.
+
+  //This isn't dont in a transaction, which is OK because it's just a
+  //convenience cache.
+
+  let snapshot = await db.collection(CARDS_COLLECTION).get();
+
+  snapshot.forEach(async doc => {
+    let linkingCardsSnapshot = await db.collection(CARDS_COLLECTION).where("links", "array-contains", doc.id).get();
+    let linkingCardsIds = [];
+    linkingCardsSnapshot.forEach(linkingCard => {
+      linkingCardsIds.push(linkingCard.id);
+    })
+    await doc.update({
+      updated_inbound_links: new Date(),
+      links_inbound: linkingCardsIds,
+    })
+  });
+
+  console.log("Done!");
+
+}
 
 const ADD_SECTION_UPDATES_LOG = 'add-section-updates-log';
 
@@ -243,4 +269,5 @@ export const tasks = {
   [ADD_CARD_TYPE_TO_IMPORTED_CARDS]: addCardTypeToImportedCards,
   [ADD_SECTION_HEADER_CARDS]: addSectionHeaderCards,
   [ADD_SECTION_UPDATES_LOG]: addSectionUpdatesLog,
+  [UPDATE_INBOUND_LINKS]: updateInboundLinks,
 }
