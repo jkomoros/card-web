@@ -5,6 +5,8 @@ import { repeat } from 'lit-html/directives/repeat';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
+import { SharedStyles } from './shared-styles.js';
+
 import {
   helpIcon,
   warningIcon
@@ -30,6 +32,7 @@ import {
 class CardInfoPanel extends connect(store)(PageViewElement) {
   render() {
     return html`
+    ${SharedStyles}
       <style>
 
         .help {
