@@ -2,7 +2,8 @@
   "entrypoint": "index.html",
   "shell": "src/components/compendium-app.js",
   "sources": [
-    "images/**/*"
+    "images/**/*",
+    "fonts/**/*"
   ],
   "extraDependencies": [
     "manifest.json",
