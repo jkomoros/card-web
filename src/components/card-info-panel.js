@@ -95,6 +95,13 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
           <h4>Created</h4>
           <p>${prettyTime(this._card.created)}</p>
         </div>
+        <div>
+          <h4>Cards That Link Here${this._help('Note: this property is re-calculated on a schedule and may not be up to date.')}</h4>
+          ${this._card && this._card.links_inbound && this._card.links_inbound.length 
+            ? html`<ul>${this._card.links_inbound.map((item) => html`<li>${item}</li>`)}</ul>`
+            : html`<p><em>No cards link to this one.</em></p>`
+          }
+        </div>
       </div>
     `;
   }
