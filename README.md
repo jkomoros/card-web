@@ -12,6 +12,11 @@ Webapp to support complexitycompendium.com
 `firebase use complexity-compendium`
 `firebase deploy`
 
+Do a backup (descrbied in next section)
+
+`git tag deploy-2018-12-31-1` (where last number is the number of deploys today)
+`git push origin deploy-2018-12-31-1`
+
 ### Backing up
 
 Instructions are here: https://firebase.google.com/docs/firestore/manage-data/export-import (see that for initial set up)
