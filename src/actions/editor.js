@@ -189,6 +189,10 @@ const cleanUpTopLevelHTML = (html, tag = 'p') => {
       let inner = child.innerHTML;
       inner = inner.trim();
       child.innerHTML = inner;
+
+      if (child.localName == "ol" || child.localName == "ul") {
+        child.innerHTML = cleanUpTopLevelHTML(child.innerHTML, 'li');
+      }
     }
 
   }
