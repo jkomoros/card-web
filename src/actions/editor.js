@@ -61,7 +61,25 @@ export const editingCommit = () => (dispatch, getState) => {
 
 }
 
-const normalizeBodyHTML = (html) => {
+const normalizeLink = (a) => {
+  //Modifies the element in place
+  if (!a) return;
+  let href = a.href;
+  if (href.startsWith('http:')) return;
+  if (href.startsWith('/')) return;
+  a.setAttribute('card', href);
+  a.href = "";
+}
+
+const normalizeBodyHTML = (html, fromContentEditable) => {
+
+  //normalizeBodyHTML makes sure that the html is well formatted. It first
+  //does basic string processing to clean it up, but then if
+  //fromContentEditable is true does more invasive processing that includes
+  //parsing the markup. If fromContentEditable is false, then we assume that
+  //it's possible that the markup is currently not valid html (for example, it
+  //ends with "<a hre").
+
   //normalizeBodyHTML should do processing on the HTML (that comes potentially
   //from contentEditable) to represent it in a sane, simple way that should
   //ideally not change the display of the content, just structure the markup
@@ -72,7 +90,14 @@ const normalizeBodyHTML = (html) => {
   html = html.split("</p>").join("</p>\n");
   html = html.split("\n\n").join("\n");
 
-  return html;
+  if (!fromContentEditable) return html;
+
+  let section = document.createElement("section");
+  section.innerHTML = html;
+
+  section.querySelectorAll('a').forEach(normalizeLink);
+
+  return section.innerHTML;
 }
 
 export const editingFinish = () => {
@@ -89,7 +114,7 @@ export const titleUpdated = (newTitle) => {
 export const bodyUpdated = (newBody, fromContentEditable) => {
   return {
     type: EDITING_BODY_UPDATED,
-    body: normalizeBodyHTML(newBody),
+    body: normalizeBodyHTML(newBody, fromContentEditable),
     fromContentEditable
   }
 }
