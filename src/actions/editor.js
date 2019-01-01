@@ -51,10 +51,19 @@ export const editingCommit = () => (dispatch, getState) => {
   let update = {};
 
   if (updatedCard.title != underlyingCard.title) update.title = updatedCard.title;
-  if (updatedCard.body != underlyingCard.body) update.body = normalizeBodyHTML(updatedCard.body);
   if (updatedCard.section != underlyingCard.section) update.section = updatedCard.section;
   if (updatedCard.name != underlyingCard.section) update.name = updatedCard.name;
   if (updatedCard.full_bleed != underlyingCard.full_bleed) update.full_bleed = updatedCard.full_bleed;
+  if (updatedCard.body != underlyingCard.body) {
+    let normalizedBody;
+    try {    
+      normalizedBody = normalizeBodyHTML(updatedCard.body);
+    } catch(err) {
+      alert("Couldn't save: invalid HTML: " + err);
+      return;
+    }
+    update.body = normalizedBody;
+  }
 
   //modifyCard will fail if the update is a no-op.
   dispatch(modifyCard(underlyingCard, update, state.editor.substantive));
