@@ -247,16 +247,26 @@ const extractCardLinks = (body) => {
   return result;
 }
 
+const slugRegularExpression = /^[a-zA-Z0-9-_]+$/;
+
+const normalizeSlug(slug) {
+  slug = slug.toLowerCase();
+  slug = slug.split(" ").join("-");
+  slug = slug.split("_").join("-");
+
+  if (slugRegularExpression.test(slug)) slug = "";
+
+  return slug
+}
+
 export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
  
+  newSlug = normalizeSlug(newSlug)
+
   if (!newSlug) {
-    console.log("Must provide a slug");
+    console.log("Must provide a legal slug");
     return;
   }
-
-  newSlug = newSlug.toLowerCase();
-  newSlug = newSlug.split(" ").join("-");
-  newSlug = newSlug.split("_").join("-");
 
   let doc = await db.collection(CARDS_COLLECTION).doc(newSlug).get();
 
@@ -297,6 +307,13 @@ export const createCard = (section, id) => async (dispatch, getState) => {
 
   if (!section) section = 'stubs';
   if (!id) id = randomString(6);
+
+  id = normalizeSlug(id);
+
+  if (!id) {
+    console.log("Id provided was not legal");
+    return;
+  }
 
   let state = getState();
 
