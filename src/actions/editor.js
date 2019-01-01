@@ -230,6 +230,11 @@ const normalizeBodyHTML = (html) => {
   html = cleanUpHTMLDeep(html);
 
   html = html.split("</p>").join("</p>\n");
+  html = html.split("<ul>").join("<ul>\n");
+  html = html.split("</ul>").join("</ul>\n");
+  html = html.split("<ol>").join("<ol>\n");
+  html = html.split("</ol>").join("</ol>\n");
+  html = html.split("</li>").join("</li>\n");
   html = html.split("<b>").join("<strong>");
   html = html.split("</b>").join("</strong>");
   html = html.split("<i>").join("<em>");
