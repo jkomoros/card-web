@@ -32,7 +32,9 @@ import {
   openCommentsPanel,
   closeCommentsPanel,
   openCardInfoPanel,
-  closeCardInfoPanel
+  closeCardInfoPanel,
+  openCardsDrawerPanel,
+  closeCardsDrawerPanel
 } from '../actions/app.js';
 
 //Components needed by this
@@ -45,7 +47,8 @@ import './card-info-panel.js';
 import {
   editIcon,
   forumIcon,
-  infoIcon
+  infoIcon,
+  viewDayIcon
 } from './my-icons.js';
 
 import {
@@ -164,9 +167,10 @@ class CardView extends connect(store)(PageViewElement) {
         <div class='card'>
           <card-renderer .editing=${this._editing} .card=${this._displayCard} .fromContentEditable=${this._fromContentEditable} @body-updated=${this._handleBodyUpdated}></card-renderer>
           <div class='actions'>
-            <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
+            <button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${viewDayIcon}</button>
             <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._activeCardHasComments ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
             <button class='round ${this._cardInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCardInfoClicked}'>${infoIcon}</button>
+            <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
           </div>
           <card-editor ?active=${this._editing} ></card-editor>
         </div>
@@ -186,6 +190,7 @@ class CardView extends connect(store)(PageViewElement) {
       _editingCard: { type: Object },
       _commentsPanelOpen: {type: Boolean},
       _cardInfoPanelOpen: {type: Boolean},
+      _cardsDrawerPanelOpen: {type: Boolean},
       _activeCardHasComments: {type:Boolean},
       _fromContentEditable: {type:Boolean}
     }
@@ -233,6 +238,14 @@ class CardView extends connect(store)(PageViewElement) {
     }
   }
 
+  _handleCardsDrawerClicked(e) {
+    if (this._cardsDrawerPanelOpen) {
+      store.dispatch(closeCardsDrawerPanel());
+    } else {
+      store.dispatch(openCardsDrawerPanel());
+    }
+  }
+
   stateChanged(state) {
     this._editingCard = state.editor.card;
     this._card = cardSelector(state);
@@ -244,6 +257,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._cardInfoPanelOpen = state.app.cardInfoPanelOpen;
     this._activeCardHasComments = activeCardHasComments(state);
     this._fromContentEditable = state.editor.fromContentEditable;
+    this._cardsDrawerPanelOpen = state.app.cardsDrawerPanelOpen;
   }
 
   _ensureUrlShowsName() {
