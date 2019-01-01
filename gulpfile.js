@@ -12,7 +12,7 @@ const gulp = require('gulp');
 const rename = require('gulp-rename');
 const replace = require('gulp-replace');
 const del = require('del');
-const exec = require('child_process').exec;
+const run = require('gulp-run-command').default;
 
 const FIREBASE_PROD_PROJECT = 'complexity-compendium';
 const FIREBASE_DEV_PROJECT = 'dev-complexity-compendium';
@@ -23,26 +23,15 @@ const FIREBASE_DEPLOY_TASK = 'firebase-deploy';
 const GCLOUD_USE_PROD_TASK = 'gcloud-use-prod';
 const GCLOUD_BACKUP_TASK = 'gcloud-backup';
 
-const makeExecutor = cmd => {
-  return function (cb) {
-    console.log("Running " + cmd)
-    exec(cmd, function (err, stdout, stderr) {
-      console.log(stdout);
-      console.log(stderr);
-      cb(err);
-    })
-  };
-}
+gulp.task(POLYMER_BUILD_TASK, run('polymer build'));
 
-gulp.task(POLYMER_BUILD_TASK, makeExecutor('polymer build'));
+gulp.task(FIREBASE_USE_PROD_TASK, run('firebase use ' + FIREBASE_PROD_PROJECT ));
 
-gulp.task(FIREBASE_USE_PROD_TASK, makeExecutor('firebase use ' + FIREBASE_PROD_PROJECT ));
+gulp.task(FIREBASE_DEPLOY_TASK, run('firebase deploy'));
 
-gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor('firebase deploy'));
+gulp.task(GCLOUD_USE_PROD_TASK, run('gcloud config set project ' + FIREBASE_PROD_PROJECT));
 
-gulp.task(GCLOUD_USE_PROD_TASK, makeExecutor('gcloud config set project ' + FIREBASE_PROD_PROJECT));
-
-gulp.task(GCLOUD_BACKUP_TASK, makeExecutor('gcloud beta firestore export gs://complexity-compendium-backup'));
+gulp.task(GCLOUD_BACKUP_TASK, run('gcloud beta firestore export gs://complexity-compendium-backup'));
 
 gulp.task('backup', 
   gulp.series(
