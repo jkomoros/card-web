@@ -181,6 +181,11 @@ class CardEditor extends connect(store)(LitElement) {
     //active. But most of the time we don't want to do anything.
     if (!this._active) return;
     if (!e.metaKey && !e.ctrlKey) return;
+
+    //TODO: bail if a content editable region isn't selected. This isn't THAT
+    //big of a deal as long as we use execCommand, because those will just
+    //fail if the selection isn't in a contentEditable region.
+
     switch (e.key) {
       case 'b':
         document.execCommand('bold');
