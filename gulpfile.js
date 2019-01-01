@@ -20,6 +20,8 @@ const FIREBASE_DEV_PROJECT = 'dev-complexity-compendium';
 const POLYMER_BUILD_TASK = 'polymer-build';
 const FIREBASE_USE_PROD_TASK = 'firebase-use-prod';
 const FIREBASE_DEPLOY_TASK = 'firebase-deploy';
+const GCLOUD_USE_PROD_TASK = 'gcloud-use-prod';
+const GCLOUD_BACKUP_TASK = 'gcloud-backup';
 
 const makeExecutor = cmd => {
   return function (cb) {
@@ -38,11 +40,23 @@ gulp.task(FIREBASE_USE_PROD_TASK, makeExecutor('firebase use ' + FIREBASE_PROD_P
 
 gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor('firebase deploy'));
 
+gulp.task(GCLOUD_USE_PROD_TASK, makeExecutor('gcloud config set project ' + FIREBASE_PROD_PROJECT));
+
+gulp.task(GCLOUD_BACKUP_TASK, makeExecutor('gcloud beta firestore export gs://complexity-compendium-backup'));
+
+gulp.task('backup', 
+  gulp.series(
+    GCLOUD_USE_PROD_TASK,
+    GCLOUD_BACKUP_TASK,
+  )
+);
+
 gulp.task('deploy', 
   gulp.series(
     POLYMER_BUILD_TASK,
     FIREBASE_USE_PROD_TASK,
-    FIREBASE_DEPLOY_TASK
+    FIREBASE_DEPLOY_TASK,
+    'backup'
   )
 );
 
