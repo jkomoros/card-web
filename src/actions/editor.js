@@ -69,6 +69,19 @@ export const replaceAsWithCardLinks = (body) => {
   return body;
 }
 
+const fixUpLinkHref = (cardLink) => {
+  
+  let href = cardLink.getAttribute('href');
+
+  if (!href) return;
+  if (href.startsWith('/')) return;
+  if (href.startsWith('http:')) return;
+
+  cardLink.setAttribute('card', href);
+  cardLink.removeAttribute('href');
+
+}
+
 const normalizeBodyHTML = (html, fromContentEditable) => {
 
   //normalizeBodyHTML makes sure that the html is well formatted. It first
@@ -94,12 +107,21 @@ const normalizeBodyHTML = (html, fromContentEditable) => {
   //Remove any extra linke breaks (which we might have added)
   html = html.split("\n\n").join("\n");
 
-  //TODO: remove the fromContentEditable property if we contine to no longer
-  //need it.
-
   html = replaceAsWithCardLinks(html);
 
-  return html;
+  if (!fromContentEditable) return html;
+
+  //This is the part where we do live-node fix-ups of stuff that
+  //contenteditable might have erroneously spewed in.
+
+  let section = document.createElement("section");
+  section.innerHTML = html;
+
+  //createLink will have <a href='cardid'>. We will have changed the <a> to
+  //<card-link> already, but the href should be a card attribute.
+  section.querySelectorAll('card-link').forEach(fixUpLinkHref);
+
+  return section.innerHTML;
 }
 
 export const editingFinish = () => {
