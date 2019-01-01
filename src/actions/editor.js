@@ -169,12 +169,17 @@ const cleanUpHTMLDeep = (html) => {
         child.textContent = '\n';
       } else {
         //TODO: here replace the node with a <p> with the text content.
+        let p = document.createElement('p');
+        p.innerText = child.textContent.trim();
+        child.parentNode.replaceChild(p, child);
+        //Deliberately drop dwon into the next processing step.
+        child = p;
       }
-      continue;
     }
     if (child.nodeType == 1) {
       if (child.localName == 'p') {
         let inner = child.innerHTML;
+        inner = inner.trim();
         inner = inner.split("\n").join("");
         child.innerHTML = inner;
       }
@@ -208,6 +213,9 @@ const normalizeBodyHTML = (html) => {
 
   //Ensure that after every block element we have a new line. Don't worry
   //about putting in extra; we'll remove them in the next step.
+
+  html = cleanUpHTMLDeep(html);
+
   html = html.split("</p>").join("</p>\n");
   html = html.split("<b>").join("<strong>");
   html = html.split("</b>").join("</strong>");
@@ -217,7 +225,7 @@ const normalizeBodyHTML = (html) => {
   //Remove any extra linke breaks (which we might have added)
   html = removeDoubleLineBreaks(html);
 
-  html = cleanUpHTMLDeep(html);
+  
 
   return normalizeBodyFromContentEditable(html);
 
