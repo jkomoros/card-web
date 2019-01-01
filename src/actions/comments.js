@@ -127,6 +127,11 @@ export const addMessage = (thread, message) => (dispatch, getState) => {
     console.warn("No thread!");
     return;
   }
+
+  if (!message) {
+    console.warn("No message provided");
+    return;
+  }
   
   let user = firebaseUser(state);
 
@@ -170,6 +175,11 @@ export const createThread = (message) => (dispatch, getState) => {
   }
   if (!userMayComment(state)) {
     console.warn("You must be signed in to comment!");
+    return;
+  }
+
+  if (!message) {
+    console.warn("Empty message");
     return;
   }
   
