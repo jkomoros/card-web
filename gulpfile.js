@@ -105,8 +105,8 @@ gulp.task('tag-release',
 
 gulp.task('release', 
   gulp.series(
-    'deploy',
     'backup',
+    'deploy',
     'tag-release'
   )
 );
