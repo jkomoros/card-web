@@ -12,6 +12,39 @@ const gulp = require('gulp');
 const rename = require('gulp-rename');
 const replace = require('gulp-replace');
 const del = require('del');
+const exec = require('child_process').exec;
+
+const FIREBASE_PROD_PROJECT = 'complexity-compendium';
+const FIREBASE_DEV_PROJECT = 'dev-complexity-compendium';
+
+const POLYMER_BUILD_TASK = 'polymer-build';
+const FIREBASE_USE_PROD_TASK = 'firebase-use-prod';
+const FIREBASE_DEPLOY_TASK = 'firebase-deploy';
+
+const makeExecutor = cmd => {
+  return function (cb) {
+    console.log("Running " + cmd)
+    exec(cmd, function (err, stdout, stderr) {
+      console.log(stdout);
+      console.log(stderr);
+      cb(err);
+    })
+  };
+}
+
+gulp.task(POLYMER_BUILD_TASK, makeExecutor('polymer build'));
+
+gulp.task(FIREBASE_USE_PROD_TASK, makeExecutor('firebase use ' + FIREBASE_PROD_PROJECT ));
+
+gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor('firebase deploy'));
+
+gulp.task('deploy', 
+  gulp.series(
+    POLYMER_BUILD_TASK,
+    FIREBASE_USE_PROD_TASK,
+    FIREBASE_DEPLOY_TASK
+  )
+);
 
 /**
  * Cleans the prpl-server build in the server directory.
