@@ -81,7 +81,7 @@ const replaceAsWithCardLinks = (body) => {
 const replaceCardLinksWithAs = (body) => {
   //Inverse of replaceAwsWithCardLinks
   body = body.split("<card-link").join("<a");
-  body = body.split("</card-link>").join("</a");
+  body = body.split("</card-link>").join("</a>");
   return body;
 }
 
