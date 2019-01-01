@@ -8,6 +8,10 @@ import {
 } from './database.js';
 
 import {
+  normalizeBodyHTML
+} from './editor.js';
+
+import {
   randomString
 } from './util.js';
 
@@ -27,6 +31,32 @@ const checkMaintenanceTaskHasBeenRun = async (taskName) => {
 
 const maintenanceTaskRun = async (taskName) => {
   db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: new Date()});
+}
+
+const NORMALIZE_CONTENT_BODY = 'normalize-content-body';
+
+export const normalizeContentBody = async() => {
+  await checkMaintenanceTaskHasBeenRun(NORMALIZE_CONTENT_BODY);
+
+  let snapshot = await db.collection(CARDS_COLLECTION).get();
+
+  let counter = 0;
+  let size = snapshot.size;
+
+  for (let doc of snapshot.docs) {
+    counter++;
+    let body = doc.data().body;
+    if (body) {
+      await doc.ref.update({
+        body: normalizeBodyHTML(body),
+        updated_normalize_body: new Date(),
+      })
+    }
+    console.log("Processed " + doc.id + ' (' + counter + '/' + size + ')' );
+  }
+
+  await maintenanceTaskRun(NORMALIZE_CONTENT_BODY);
+  console.log('Done!');
 }
 
 const UPDATE_INBOUND_LINKS = 'update-inbound-links';
@@ -275,4 +305,5 @@ export const tasks = {
   [ADD_SECTION_HEADER_CARDS]: addSectionHeaderCards,
   [ADD_SECTION_UPDATES_LOG]: addSectionUpdatesLog,
   [UPDATE_INBOUND_LINKS]: updateInboundLinks,
+  [NORMALIZE_CONTENT_BODY]: normalizeContentBody,
 }
