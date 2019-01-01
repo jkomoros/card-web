@@ -208,7 +208,7 @@ const removeDoubleLineBreaks = (html) => {
   return html;
 }
 
-const normalizeBodyHTML = (html) => {
+export const normalizeBodyHTML = (html) => {
 
   //normalizeBodyHTML makes sure that the html is well formatted. It first
   //does basic string processing to clean it up, and then does node

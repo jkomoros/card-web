@@ -5,7 +5,8 @@ import {BaseCard} from './base-card.js';
 import './card-link.js';
 
 import {
-  normalizeBodyToContentEditable
+  normalizeBodyToContentEditable,
+  normalizeBodyHTML
 } from '../actions/editor.js';
 
 let loadingTemplate = html`<span class='loading'>Loading...<span>`
@@ -51,6 +52,7 @@ export class ContentCard extends BaseCard {
     }
     const section = document.createElement("section");
     this._sectionElement = section;
+    body = normalizeBodyHTML(body);
     if (this.editing) {
       section.contentEditable = "true";
       section.addEventListener('input', this._bodyChanged.bind(this));
