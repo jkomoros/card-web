@@ -22,6 +22,24 @@ const FIREBASE_USE_PROD_TASK = 'firebase-use-prod';
 const FIREBASE_DEPLOY_TASK = 'firebase-deploy';
 const GCLOUD_USE_PROD_TASK = 'gcloud-use-prod';
 const GCLOUD_BACKUP_TASK = 'gcloud-backup';
+const MAKE_TAG_TASK = 'make-tag';
+const PUSH_TAG_TASK = 'push-tag';
+
+const pad = (num) => {
+  let str =  '' + num;
+  if (str.length < 2) {
+    str = "0" + str;
+  }
+  return str
+}
+
+const releaseTag = () =>{
+  let d = new Date();
+  return 'deploy-' + d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate() + "-" + d.getHours() + "-" + pad(d.getMinutes());
+}
+
+const RELEASE_TAG = releaseTag();
+
 
 gulp.task(POLYMER_BUILD_TASK, run('polymer build'));
 
@@ -33,6 +51,18 @@ gulp.task(GCLOUD_USE_PROD_TASK, run('gcloud config set project ' + FIREBASE_PROD
 
 gulp.task(GCLOUD_BACKUP_TASK, run('gcloud beta firestore export gs://complexity-compendium-backup'));
 
+gulp.task(MAKE_TAG_TASK, run('git tag "' + RELEASE_TAG + '"'));
+
+gulp.task(PUSH_TAG_TASK, run('git push origin "' + RELEASE_TAG + '"'));
+
+gulp.task('deploy', 
+  gulp.series(
+    POLYMER_BUILD_TASK,
+    FIREBASE_USE_PROD_TASK,
+    FIREBASE_DEPLOY_TASK
+  )
+);
+
 gulp.task('backup', 
   gulp.series(
     GCLOUD_USE_PROD_TASK,
@@ -40,12 +70,18 @@ gulp.task('backup',
   )
 );
 
-gulp.task('deploy', 
+gulp.task('tag-release', 
   gulp.series(
-    POLYMER_BUILD_TASK,
-    FIREBASE_USE_PROD_TASK,
-    FIREBASE_DEPLOY_TASK,
-    'backup'
+    MAKE_TAG_TASK,
+    PUSH_TAG_TASK
+  )
+);
+
+gulp.task('release', 
+  gulp.series(
+    'deploy',
+    'backup',
+    'tag-release'
   )
 );
 

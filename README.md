@@ -10,14 +10,11 @@ The project is messy, with lots of intricate details and designs captured as a m
 `polymer serve`
 
 ### Deploying
-`polymer build`
-`firebase use complexity-compendium`
-`firebase deploy`
+`gulp deploy`
 
-Do a backup (descrbied in next section)
+If you want to also tag release and backup (recommended), run:
 
-`git tag deploy-2018-12-31-1` (where last number is the number of deploys today)
-`git push origin deploy-2018-12-31-1`
+`gulp release`
 
 ### Backing up
 
@@ -26,6 +23,8 @@ Instructions are here: https://firebase.google.com/docs/firestore/manage-data/ex
 Run `gcloud config set project complexity-compendium`
 
 Run `gcloud beta firestore export gs://complexity-compendium-backup`
+
+Also can just run `gulp backup`
 
 ### Restoring a back up
 
