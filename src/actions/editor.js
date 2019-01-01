@@ -159,9 +159,9 @@ export const normalizeBodyToContentEditable = (html) => {
 
 }
 
-const cleanUpHTMLDeep = (html) => {
+const cleanUpTopLevelHTML = (html, tag = 'p', defaultTextContent = '\n') => {
   //Does deeper changes that require parsing.
-  //1) make sure all text in top body is within a p tag.
+  //1) make sure all text in top is within a p tag.
   //2) make sure that p elements don't have any line breaks inside.
   let section = document.createElement('section');
   section.innerHTML = html;
@@ -170,29 +170,26 @@ const cleanUpHTMLDeep = (html) => {
     if (child.nodeType == 3) {
       if (isWhitespace(child.textContent)) {
         //It's all text content, just replace it with a single line break
-        child.textContent = '\n';
+        child.textContent = defaultTextContent;
       } else {
         //TODO: here replace the node with a <p> with the text content.
-        let p = document.createElement('p');
-        p.innerText = child.textContent.trim();
-        child.parentNode.replaceChild(p, child);
+        let ele = document.createElement(tag);
+        ele.innerText = child.textContent.trim();
+        child.parentNode.replaceChild(ele, child);
         //Deliberately drop dwon into the next processing step.
-        child = p;
+        child = ele;
       }
     }
     if (child.nodeType == 1) {
-      if (child.localName == 'p') {
-
-        if (isWhitespace(child.innerText)) {
-          child.parentNode.removeChild(child);
-          continue;
-        }
-
-        let inner = child.innerHTML;
-        inner = inner.trim();
-        inner = inner.split("\n").join("");
-        child.innerHTML = inner;
+      if (isWhitespace(child.innerText)) {
+        child.parentNode.removeChild(child);
+        continue;
       }
+
+      let inner = child.innerHTML;
+      inner = inner.trim();
+      inner = inner.split("\n").join("");
+      child.innerHTML = inner;
     }
 
   }
@@ -227,7 +224,7 @@ const normalizeBodyHTML = (html) => {
   //If you have a link at the end and hit enter, it puts in a <br> in a <p>.
   html = html.split("<br>").join("");
 
-  html = cleanUpHTMLDeep(html);
+  html = cleanUpTopLevelHTML(html);
 
   html = html.split("</p>").join("</p>\n");
   html = html.split("<ul>").join("<ul>\n");
