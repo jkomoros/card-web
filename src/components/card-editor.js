@@ -194,7 +194,12 @@ class CardEditor extends connect(store)(LitElement) {
         document.execCommand('italic');
         return killEvent(e);
       case 'k':
-        document.execCommand('createLink', null, prompt("Where should the URL point?"));
+        let href = prompt("Where should the URL point?")
+        if (href) {
+          document.execCommand('createLink', null, href);
+        } else {
+          document.execCommand('unlink');
+        }
         return killEvent(e);
     }
   }

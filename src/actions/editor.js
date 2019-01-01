@@ -70,7 +70,7 @@ export const editingCommit = () => (dispatch, getState) => {
 
 }
 
-export const replaceAsWithCardLinks = (body) => {
+const replaceAsWithCardLinks = (body) => {
   //Replaces all a's with card-links.
   //TODO: consider modifying the actual nodes in place, which is more robust.;
   body = body.split("<a").join("<card-link");
@@ -78,7 +78,14 @@ export const replaceAsWithCardLinks = (body) => {
   return body;
 }
 
-const fixUpLinkHref = (cardLink) => {
+const replaceCardLinksWithAs = (body) => {
+  //Inverse of replaceAwsWithCardLinks
+  body = body.split("<card-link").join("<a");
+  body = body.split("</card-link>").join("</a");
+  return body;
+}
+
+const hrefToCardAttribute = (cardLink) => {
   
   let href = cardLink.getAttribute('href');
 
@@ -88,6 +95,63 @@ const fixUpLinkHref = (cardLink) => {
 
   cardLink.setAttribute('card', href);
   cardLink.removeAttribute('href');
+
+}
+
+const cardAttributeToHref = (a) => {
+
+  let card = a.getAttribute('card');
+
+  if (!card) return;
+
+  a.setAttribute('href', card);
+  a.removeAttribute('card');
+
+}
+
+const normalizeBodyFromContentEditable = (html) => {
+
+  //Rewrite elements from content editable form to canonical form (which is
+  //primarily replacing <a>'s with <card-link>.)
+
+  //This transform should be the inverse, semantically, of normalizeBodyFromCotentEditable
+
+  html = replaceAsWithCardLinks(html);
+
+  //This is the part where we do live-node fix-ups of stuff that
+  //contenteditable might have erroneously spewed in.
+
+  let section = document.createElement("section");
+  //TODO: catch syntax errors
+  section.innerHTML = html;
+
+  //createLink will have <a href='cardid'>. We will have changed the <a> to
+  //<card-link> already, but the href should be a card attribute.
+  section.querySelectorAll('card-link').forEach(hrefToCardAttribute);
+
+  return section.innerHTML;
+}
+
+export const normalizeBodyToContentEditable = (html) => {
+  //inverse transform of normalizeBodyFromContentEditable. contentEditable
+  //expects links to be, for example, actual link elements. We only do
+  //transforms that are necessary for Chrome's content editable to understand
+  //our content. For example, although Chrome's content editable places <b>'s,
+  //it understands that <strong>'s are the same thing for the purpose of
+  //unbolding.
+
+  html = replaceCardLinksWithAs(html);
+
+  //This is the part where we do live-node fix-ups of stuff that
+  //contenteditable might have erroneously spewed in.
+
+  let section = document.createElement("section");
+  //TODO: catch syntax errors
+  section.innerHTML = html;
+
+  section.querySelectorAll('a').forEach(cardAttributeToHref);
+
+  return section.innerHTML;
 
 }
 
@@ -115,20 +179,8 @@ const normalizeBodyHTML = (html) => {
   //Remove any extra linke breaks (which we might have added)
   html = html.split("\n\n").join("\n");
 
-  html = replaceAsWithCardLinks(html);
+  return normalizeBodyFromContentEditable(html);
 
-  //This is the part where we do live-node fix-ups of stuff that
-  //contenteditable might have erroneously spewed in.
-
-  let section = document.createElement("section");
-  //TODO: catch syntax errors
-  section.innerHTML = html;
-
-  //createLink will have <a href='cardid'>. We will have changed the <a> to
-  //<card-link> already, but the href should be a card attribute.
-  section.querySelectorAll('card-link').forEach(fixUpLinkHref);
-
-  return section.innerHTML;
 }
 
 export const editingFinish = () => {

@@ -5,7 +5,7 @@ import {BaseCard} from './base-card.js';
 import './card-link.js';
 
 import {
-  replaceAsWithCardLinks
+  normalizeBodyToContentEditable
 } from '../actions/editor.js';
 
 let loadingTemplate = html`<span class='loading'>Loading...<span>`
@@ -54,8 +54,9 @@ export class ContentCard extends BaseCard {
     if (this.editing) {
       section.contentEditable = "true";
       section.addEventListener('input', this._bodyChanged.bind(this));
+      body = normalizeBodyToContentEditable(body);
     }
-    section.innerHTML = replaceAsWithCardLinks(body);
+    section.innerHTML = body;
     if(this.fullBleed) section.className = "full-bleed";
     return section;
   }
