@@ -90,6 +90,8 @@ const normalizeBodyHTML = (html, fromContentEditable) => {
   html = html.split("</p>").join("</p>\n");
   html = html.split("<b>").join("<strong>");
   html = html.split("</b>").join("</strong>");
+  html = html.split("<i>").join("<em>");
+  html = html.split("</i>").join("</em>");
 
   //Remove any extra linke breaks (which we might have added)
   html = html.split("\n\n").join("\n");

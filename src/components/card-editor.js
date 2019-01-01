@@ -185,6 +185,9 @@ class CardEditor extends connect(store)(LitElement) {
       case 'b':
         document.execCommand('bold');
         return killEvent(e);
+      case 'i':
+        document.execCommand('italic');
+        return killEvent(e);
     }
   }
 
