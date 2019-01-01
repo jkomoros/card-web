@@ -20,6 +20,10 @@ import {
   modifyCard
 } from './data.js';
 
+import {
+  isWhitespace
+} from './util.js';
+
 export const editingStart = () => (dispatch, getState) => {
   const state = getState();
   if (!userMayEdit(state)) {
@@ -164,7 +168,7 @@ const cleanUpHTMLDeep = (html) => {
   let children = section.childNodes;
   for (let child of Object.values(children)) {
     if (child.nodeType == 3) {
-      if (/^\s+$/.test(child.textContent)) {
+      if (isWhitespace(child.textContent)) {
         //It's all text content, just replace it with a single line break
         child.textContent = '\n';
       } else {
@@ -178,6 +182,12 @@ const cleanUpHTMLDeep = (html) => {
     }
     if (child.nodeType == 1) {
       if (child.localName == 'p') {
+
+        if (isWhitespace(child.innerText)) {
+          child.parentNode.removeChild(child);
+          continue;
+        }
+
         let inner = child.innerHTML;
         inner = inner.trim();
         inner = inner.split("\n").join("");
@@ -213,6 +223,9 @@ const normalizeBodyHTML = (html) => {
 
   //Ensure that after every block element we have a new line. Don't worry
   //about putting in extra; we'll remove them in the next step.
+
+  //If you have a link at the end and hit enter, it puts in a <br> in a <p>.
+  html = html.split("<br>").join("");
 
   html = cleanUpHTMLDeep(html);
 

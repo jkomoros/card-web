@@ -52,3 +52,7 @@ export const killEvent = (e) => {
 	}
 	return true;
 }
+
+export const isWhitespace = (s) => {
+	return /^\s*$/.test(s)
+}
