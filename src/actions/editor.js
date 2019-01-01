@@ -62,6 +62,16 @@ export const editingCommit = () => (dispatch, getState) => {
 }
 
 const normalizeBodyHTML = (html) => {
+  //normalizeBodyHTML should do processing on the HTML (that comes potentially
+  //from contentEditable) to represent it in a sane, simple way that should
+  //ideally not change the display of the content, just structure the markup
+  //differently.
+
+  //Ensure that after every block element we have a new line. Don't worry
+  //about putting in extra; we'll remove them in the next step.
+  html = html.split("</p>").join("</p>\n");
+  html = html.split("\n\n").join("\n");
+
   return html;
 }
 
