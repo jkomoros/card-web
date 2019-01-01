@@ -91,6 +91,12 @@ class CardView extends connect(store)(PageViewElement) {
           align-items: center;
           background-color: var(--app-divider-color);
         }
+
+        .actions {
+          /* This is a hack to allow the information/edit buttons to be on top of a section-head-card container. See #44. */
+          z-index: 1;
+        }
+
         card-editor {
           display:none;
         }
