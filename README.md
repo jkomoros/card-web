@@ -28,6 +28,12 @@ Also can just run `gulp backup`
 
 ### Restoring a back up
 
+Every so often it makes sense to reset the dev database with the most recent prod backup.
+
+Do that with `gulp reset-dev`.
+
+That does some combination of the following:
+
 Run `gcloud config set project dev-complexity-compendium` (if running in devmode)
 
 Run `gcloud beta firestore import gs://complexity-compendium-backup/[EXPORT_PREFIX]/` where EXPORT-PREFIX is the name of the folder you want to import.
