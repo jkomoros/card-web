@@ -35,6 +35,7 @@ class CardEditor extends connect(store)(LitElement) {
 
         :host {
           position:relative;
+          background-color: white;
         }
 
         .container {
