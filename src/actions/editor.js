@@ -155,6 +155,44 @@ export const normalizeBodyToContentEditable = (html) => {
 
 }
 
+const cleanUpHTMLDeep = (html) => {
+  //Does deeper changes that require parsing.
+  //1) make sure all text in top body is within a p tag.
+  //2) make sure that p elements don't have any line breaks inside.
+  let section = document.createElement('section');
+  section.innerHTML = html;
+  let children = section.childNodes;
+  for (let child of Object.values(children)) {
+    if (child.nodeType == 3) {
+      if (/^\s+$/.test(child.textContent)) {
+        //It's all text content, just replace it with a single line break
+        child.textContent = '\n';
+      } else {
+        //TODO: here replace the node with a <p> with the text content.
+      }
+      continue;
+    }
+    if (child.nodeType == 1) {
+      if (child.localName == 'p') {
+        let inner = child.innerHTML;
+        inner = inner.split("\n").join("");
+        child.innerHTML = inner;
+      }
+    }
+
+  }
+
+  return section.innerHTML;
+
+}
+
+const removeDoubleLineBreaks = (html) => {
+  while (html.indexOf("\n\n") >= 0) {
+    html = html.split("\n\n").join("\n");
+  }
+  return html;
+}
+
 const normalizeBodyHTML = (html) => {
 
   //normalizeBodyHTML makes sure that the html is well formatted. It first
@@ -177,7 +215,9 @@ const normalizeBodyHTML = (html) => {
   html = html.split("</i>").join("</em>");
 
   //Remove any extra linke breaks (which we might have added)
-  html = html.split("\n\n").join("\n");
+  html = removeDoubleLineBreaks(html);
+
+  html = cleanUpHTMLDeep(html);
 
   return normalizeBodyFromContentEditable(html);
 
