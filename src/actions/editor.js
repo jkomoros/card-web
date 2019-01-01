@@ -88,6 +88,10 @@ const normalizeBodyHTML = (html, fromContentEditable) => {
   //Ensure that after every block element we have a new line. Don't worry
   //about putting in extra; we'll remove them in the next step.
   html = html.split("</p>").join("</p>\n");
+  html = html.split("<b>").join("<strong>");
+  html = html.split("</b>").join("</strong>");
+
+  //Remove any extra linke breaks (which we might have added)
   html = html.split("\n\n").join("\n");
 
   if (!fromContentEditable) return html;

@@ -27,6 +27,10 @@ import {
   cancelIcon
 } from './my-icons.js';
 
+import {
+  killEvent
+} from '../actions/util.js';
+
 class CardEditor extends connect(store)(LitElement) {
   render() {
     return html`
@@ -166,6 +170,22 @@ class CardEditor extends connect(store)(LitElement) {
 
   shouldUpdate() {
     return this._active;
+  }
+
+  firstUpdated(changedProps) {
+    document.addEventListener('keydown', e => this._handleKeyDown(e));
+  }
+
+  _handleKeyDown(e) {
+    //We have to hook this to issue content editable commands when we're
+    //active. But most of the time we don't want to do anything.
+    if (!this._active) return;
+    if (!e.metaKey && !e.ctrlKey) return;
+    switch (e.key) {
+      case 'b':
+        document.execCommand('bold');
+        return killEvent(e);
+    }
   }
 
   _handleTitleUpdated(e) {

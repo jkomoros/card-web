@@ -45,3 +45,10 @@ export const prettyTime = (date) => {
 	if (typeof date.toDate == 'function') date = date.toDate();
 	return date.toDateString();
 }
+
+export const killEvent = (e) => {
+	if (e) {
+		e.preventDefault();
+	}
+	return true;
+}
