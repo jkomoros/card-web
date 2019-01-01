@@ -48,6 +48,9 @@ class CommentsPanel extends connect(store)(PageViewElement) {
       ${SharedStyles}
       ${ButtonSharedStyles}
       <style>
+        :host {
+          overflow:hidden;
+        }
         .container {
           min-width: 12em;
           height:100%;
