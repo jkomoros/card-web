@@ -159,7 +159,7 @@ export const normalizeBodyToContentEditable = (html) => {
 
 }
 
-const cleanUpTopLevelHTML = (html, tag = 'p', defaultTextContent = '\n') => {
+const cleanUpTopLevelHTML = (html, tag = 'p') => {
   //Does deeper changes that require parsing.
   //1) make sure all text in top is within a p tag.
   //2) make sure that p elements don't have any line breaks inside.
