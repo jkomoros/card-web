@@ -33,6 +33,7 @@ const app = (state = INITIAL_STATE, action) => {
         editing:false,
         card: null,
         substantive:false,
+        fromContentEditable: false,
       }
     case EDITING_TITLE_UPDATED:
       if (!state.card) return state;
