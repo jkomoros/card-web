@@ -61,16 +61,12 @@ export const editingCommit = () => (dispatch, getState) => {
 
 }
 
-const normalizeLink = (a) => {
-  //Modifies the element in place
-  if (!a) return;
-  //Can't access href directly because it will be modified to be a legal URL,
-  //and we WANT the invalid string.
-  let href = a.getAttribute('href');
-  if (href.startsWith('http:')) return;
-  if (href.startsWith('/')) return;
-  a.setAttribute('card', href);
-  a.removeAttribute('href');
+export const replaceAsWithCardLinks = (body) => {
+  //Replaces all a's with card-links.
+  //TODO: consider modifying the actual nodes in place, which is more robust.;
+  body = body.split("<a").join("<card-link");
+  body = body.split("</a>").join("</card-link>");
+  return body;
 }
 
 const normalizeBodyHTML = (html, fromContentEditable) => {
@@ -98,14 +94,10 @@ const normalizeBodyHTML = (html, fromContentEditable) => {
   //Remove any extra linke breaks (which we might have added)
   html = html.split("\n\n").join("\n");
 
-  if (!fromContentEditable) return html;
+  //TODO: remove the fromContentEditable property if we contine to no longer
+  //need it.
 
-  let section = document.createElement("section");
-  section.innerHTML = html;
-
-  section.querySelectorAll('a').forEach(normalizeLink);
-
-  html = section.innerHTML;
+  html = replaceAsWithCardLinks(html);
 
   return html;
 }

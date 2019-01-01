@@ -29,12 +29,8 @@ export class BaseCard extends LitElement {
           opacity:0.7;
         }
 
-        .container.editing a {
-          cursor:not-allowed;
-        }
-
-        .container.editing a[target=_blank] {
-          cursor:pointer;
+        .container.editing card-link[card] {
+          --card-link-cursor:not-allowed;
         }
 
         h1, h2, h3{

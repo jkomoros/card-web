@@ -2,6 +2,12 @@ import { LitElement, html } from '@polymer/lit-element';
 
 import {BaseCard} from './base-card.js';
 
+import './card-link.js';
+
+import {
+  replaceAsWithCardLinks
+} from '../actions/editor.js';
+
 let loadingTemplate = html`<span class='loading'>Loading...<span>`
 let blankTemplate = html`<span class='loading'>Content goes here...</span>`
 
@@ -29,15 +35,6 @@ export class ContentCard extends BaseCard {
     this.dispatchEvent(new CustomEvent('body-updated', {composed:true, detail: {html: this._sectionElement.innerHTML}}));
   }
 
-  _updateA(a) {
-    if (a.href) {
-      a.target = "_blank";
-    }
-    var card = a.getAttribute('card');
-    if (!card) return;
-    a.href = "/c/" + card;
-  }
-
   get _emptyTemplate() {
     return this.id ? blankTemplate : loadingTemplate;
   }
@@ -58,8 +55,7 @@ export class ContentCard extends BaseCard {
       section.contentEditable = "true";
       section.addEventListener('input', this._bodyChanged.bind(this));
     }
-    section.innerHTML = body;
-    section.querySelectorAll('a').forEach(this._updateA);
+    section.innerHTML = replaceAsWithCardLinks(body);
     if(this.fullBleed) section.className = "full-bleed";
     return section;
   }
