@@ -244,6 +244,7 @@ const normalizeBodyHTML = (html) => {
   html = html.split("</ul>").join("</ul>\n");
   html = html.split("<ol>").join("<ol>\n");
   html = html.split("</ol>").join("</ol>\n");
+  html = html.split("<li>").join("\t<li>");
   html = html.split("</li>").join("</li>\n");
 
   //Remove any extra linke breaks (which we might have added)
