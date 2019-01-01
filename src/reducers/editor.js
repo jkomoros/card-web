@@ -12,6 +12,7 @@ import {
 
 const INITIAL_STATE = {
   editing: false,
+  fromContentEditable: false,
   card: null,
   substantive: false,
 }
@@ -24,6 +25,7 @@ const app = (state = INITIAL_STATE, action) => {
         editing: true,
         card: action.card,
         substantive: false,
+        fromContentEditable: false,
       }
     case EDITING_FINISH:
       return {
@@ -43,6 +45,7 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         card: {...state.card, body:action.body},
+        fromContentEditable: action.fromContentEditable
       }
     case EDITING_SECTION_UPDATED:
       if (!state.card) return state;

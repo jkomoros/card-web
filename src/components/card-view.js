@@ -162,7 +162,7 @@ class CardView extends connect(store)(PageViewElement) {
       <div class='container${this._editing ? ' editing' : ''}'>
         <card-drawer></card-drawer>
         <div class='card'>
-          <card-renderer .editing=${this._editing} .card=${this._displayCard}></card-renderer>
+          <card-renderer .editing=${this._editing} .card=${this._displayCard} .fromContentEditable=${this._fromContentEditable} @body-updated=${this._handleBodyUpdated}></card-renderer>
           <div class='actions'>
             <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
             <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._activeCardHasComments ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
@@ -187,6 +187,7 @@ class CardView extends connect(store)(PageViewElement) {
       _commentsPanelOpen: {type: Boolean},
       _cardInfoPanelOpen: {type: Boolean},
       _activeCardHasComments: {type:Boolean},
+      _fromContentEditable: {type:Boolean}
     }
   }
 
@@ -210,6 +211,10 @@ class CardView extends connect(store)(PageViewElement) {
       return this._handleCloseEditor(e);
     }
     store.dispatch(editingStart())
+  }
+
+  _handleBodyUpdated(e) {
+    this.shadowRoot.querySelector('card-editor').bodyUpdatedFromContentEditable(e.detail.html);
   }
 
   _handleCommentsClicked(e) {
@@ -238,6 +243,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._commentsPanelOpen = state.app.commentsPanelOpen;
     this._cardInfoPanelOpen = state.app.cardInfoPanelOpen;
     this._activeCardHasComments = activeCardHasComments(state);
+    this._fromContentEditable = state.editor.fromContentEditable;
   }
 
   _ensureUrlShowsName() {

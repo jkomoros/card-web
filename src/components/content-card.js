@@ -19,8 +19,14 @@ export class ContentCard extends BaseCard {
       title: { type: String },
       body: { type: String },
       id: {type: String},
-      fullBleed: {type: String}
+      fullBleed: {type: String},
+      fromContentEditable: {type:Boolean},
+      _sectionElement: {type:Object}
     }
+  }
+
+  _bodyChanged(e) {
+    this.dispatchEvent(new CustomEvent('body-updated', {composed:true, detail: {html: this._sectionElement.innerHTML}}));
   }
 
   _updateA(a) {
@@ -37,10 +43,21 @@ export class ContentCard extends BaseCard {
   }
 
   _makeSection(body) {
+    //If the update to body came from contentEditable then don't change it,
+    //the state is already in it. If we were to update it, the selection state
+    //would reset and defocus.
+    if (this.fromContentEditable && this._sectionElement) {
+      return this._sectionElement;
+    }
     if (!body) {
       return this._emptyTemplate;
     }
     const section = document.createElement("section");
+    this._sectionElement = section;
+    if (this.editing) {
+      section.contentEditable = "true";
+      section.addEventListener('input', this._bodyChanged.bind(this));
+    }
     section.innerHTML = body;
     section.querySelectorAll('a').forEach(this._updateA);
     if(this.fullBleed) section.className = "full-bleed";

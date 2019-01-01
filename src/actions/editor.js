@@ -61,6 +61,10 @@ export const editingCommit = () => (dispatch, getState) => {
 
 }
 
+const normalizeBodyHTML = (html) => {
+  return html;
+}
+
 export const editingFinish = () => {
   return {type: EDITING_FINISH}
 }
@@ -72,10 +76,11 @@ export const titleUpdated = (newTitle) => {
   }
 }
 
-export const bodyUpdated = (newBody) => {
+export const bodyUpdated = (newBody, fromContentEditable) => {
   return {
     type: EDITING_BODY_UPDATED,
-    body: newBody
+    body: normalizeBodyHTML(newBody),
+    fromContentEditable
   }
 }
 
