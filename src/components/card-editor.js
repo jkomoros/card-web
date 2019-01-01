@@ -194,10 +194,10 @@ class CardEditor extends connect(store)(LitElement) {
         document.execCommand('italic');
         return killEvent(e);
       case '7':
-        document.execCommand('insertUnorderedList');
+        document.execCommand('insertOrderedList');
         return killEvent(e);
       case '8':
-        document.execCommand('insertOrderedList');
+        document.execCommand('insertUnorderedList');
         return killEvent(e);
       case 'k':
         let href = prompt("Where should the URL point?")
