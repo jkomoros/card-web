@@ -16,7 +16,9 @@ import {
   OPEN_COMMENTS_PANEL,
   CLOSE_COMMENTS_PANEL,
   OPEN_CARD_INFO_PANEL,
-  CLOSE_CARD_INFO_PANEL
+  CLOSE_CARD_INFO_PANEL,
+  OPEN_CARDS_DRAWER_PANEL,
+  CLOSE_CARDS_DRAWER_PANEL
 } from '../actions/app.js';
 
 const INITIAL_STATE = {
@@ -26,7 +28,8 @@ const INITIAL_STATE = {
   offline: false,
   snackbarOpened: false,
   commentsPanelOpen: true,
-  cardInfoPanelOpen: false
+  cardInfoPanelOpen: false,
+  cardsDrawerPanelOpen: true
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -76,6 +79,16 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         cardInfoPanelOpen: false
+      }
+    case OPEN_CARDS_DRAWER_PANEL:
+      return {
+        ...state,
+        cardsDrawerPanelOpen: true
+      }
+    case CLOSE_CARDS_DRAWER_PANEL: 
+      return {
+        ...state,
+        cardsDrawerPanelOpen: false
       }
     default:
       return state;

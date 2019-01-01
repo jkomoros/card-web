@@ -16,6 +16,8 @@ export const OPEN_COMMENTS_PANEL = 'OPEN_COMMENTS_PANEL';
 export const CLOSE_COMMENTS_PANEL = 'CLOSE_COMMENTS_PANEL';
 export const OPEN_CARD_INFO_PANEL = 'OPEN_CARD_INFO_PANEL';
 export const CLOSE_CARD_INFO_PANEL = 'CLOSE_CARD_INFO_PANEL';
+export const OPEN_CARDS_DRAWER_PANEL = 'OPEN_CARDS_DRAWER_PANEL';
+export const CLOSE_CARDS_DRAWER_PANEL = 'CLOSE_CARDS_DRAWER_PANEL';
 
 import {
   collectionForActiveSectionSelector
@@ -172,5 +174,17 @@ export const openCardInfoPanel = () => {
 export const closeCardInfoPanel = () => {
   return {
     type: CLOSE_CARD_INFO_PANEL
+  }
+}
+
+export const openCardsDrawerPanel = () => {
+  return {
+    type: OPEN_CARDS_DRAWER_PANEL
+  }
+}
+
+export const closeCardsDrawerPanel = () => {
+  return {
+    type: CLOSE_CARDS_DRAWER_PANEL
   }
 }
