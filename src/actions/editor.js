@@ -51,7 +51,7 @@ export const editingCommit = () => (dispatch, getState) => {
   let update = {};
 
   if (updatedCard.title != underlyingCard.title) update.title = updatedCard.title;
-  if (updatedCard.body != underlyingCard.body) update.body = updatedCard.body;
+  if (updatedCard.body != underlyingCard.body) update.body = normalizeBodyHTML(updatedCard.body);
   if (updatedCard.section != underlyingCard.section) update.section = updatedCard.section;
   if (updatedCard.name != underlyingCard.section) update.name = updatedCard.name;
   if (updatedCard.full_bleed != underlyingCard.full_bleed) update.full_bleed = updatedCard.full_bleed;
@@ -82,14 +82,13 @@ const fixUpLinkHref = (cardLink) => {
 
 }
 
-const normalizeBodyHTML = (html, fromContentEditable) => {
+const normalizeBodyHTML = (html) => {
 
   //normalizeBodyHTML makes sure that the html is well formatted. It first
-  //does basic string processing to clean it up, but then if
-  //fromContentEditable is true does more invasive processing that includes
-  //parsing the markup. If fromContentEditable is false, then we assume that
-  //it's possible that the markup is currently not valid html (for example, it
-  //ends with "<a hre").
+  //does basic string processing to clean it up, and then does node
+  //modification. Thus, it assumes the HTML is always valid. This is true if
+  //the html is coming directly from a contentEditable, or if it's the final
+  //stage before commit.
 
   //normalizeBodyHTML should do processing on the HTML (that comes potentially
   //from contentEditable) to represent it in a sane, simple way that should
@@ -109,12 +108,11 @@ const normalizeBodyHTML = (html, fromContentEditable) => {
 
   html = replaceAsWithCardLinks(html);
 
-  if (!fromContentEditable) return html;
-
   //This is the part where we do live-node fix-ups of stuff that
   //contenteditable might have erroneously spewed in.
 
   let section = document.createElement("section");
+  //TODO: catch syntax errors
   section.innerHTML = html;
 
   //createLink will have <a href='cardid'>. We will have changed the <a> to
@@ -138,7 +136,7 @@ export const titleUpdated = (newTitle) => {
 export const bodyUpdated = (newBody, fromContentEditable) => {
   return {
     type: EDITING_BODY_UPDATED,
-    body: normalizeBodyHTML(newBody, fromContentEditable),
+    body: fromContentEditable ? normalizeBodyHTML(newBody) : newBody,
     fromContentEditable
   }
 }
