@@ -64,11 +64,13 @@ export const editingCommit = () => (dispatch, getState) => {
 const normalizeLink = (a) => {
   //Modifies the element in place
   if (!a) return;
-  let href = a.href;
+  //Can't access href directly because it will be modified to be a legal URL,
+  //and we WANT the invalid string.
+  let href = a.getAttribute('href');
   if (href.startsWith('http:')) return;
   if (href.startsWith('/')) return;
   a.setAttribute('card', href);
-  a.href = "";
+  a.removeAttribute('href');
 }
 
 const normalizeBodyHTML = (html, fromContentEditable) => {
@@ -103,7 +105,9 @@ const normalizeBodyHTML = (html, fromContentEditable) => {
 
   section.querySelectorAll('a').forEach(normalizeLink);
 
-  return section.innerHTML;
+  html = section.innerHTML;
+
+  return html;
 }
 
 export const editingFinish = () => {

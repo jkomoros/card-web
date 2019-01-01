@@ -193,6 +193,9 @@ class CardEditor extends connect(store)(LitElement) {
       case 'i':
         document.execCommand('italic');
         return killEvent(e);
+      case 'k':
+        document.execCommand('createLink', null, prompt("Where should the URL point?"));
+        return killEvent(e);
     }
   }
 
