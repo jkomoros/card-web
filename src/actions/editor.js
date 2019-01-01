@@ -169,16 +169,16 @@ const cleanUpTopLevelHTML = (html, tag = 'p', defaultTextContent = '\n') => {
   for (let child of Object.values(children)) {
     if (child.nodeType == 3) {
       if (isWhitespace(child.textContent)) {
-        //It's all text content, just replace it with a single line break
-        child.textContent = defaultTextContent;
-      } else {
-        //TODO: here replace the node with a <p> with the text content.
-        let ele = document.createElement(tag);
-        ele.innerText = child.textContent.trim();
-        child.parentNode.replaceChild(ele, child);
-        //Deliberately drop dwon into the next processing step.
-        child = ele;
+        //It's all text content, just get rid of it
+        child.parentNode.removeChild(child);
+        continue;
       }
+      //OK, it's not all whitespace, so wrap it in a default element.
+      let ele = document.createElement(tag);
+      ele.innerText = child.textContent.trim();
+      child.parentNode.replaceChild(ele, child);
+      //Deliberately drop dwon into the next processing step.
+      child = ele;
     }
     if (child.nodeType == 1) {
       if (isWhitespace(child.innerText)) {
@@ -188,7 +188,6 @@ const cleanUpTopLevelHTML = (html, tag = 'p', defaultTextContent = '\n') => {
 
       let inner = child.innerHTML;
       inner = inner.trim();
-      inner = inner.split("\n").join("");
       child.innerHTML = inner;
     }
 
@@ -221,26 +220,30 @@ const normalizeBodyHTML = (html) => {
   //Ensure that after every block element we have a new line. Don't worry
   //about putting in extra; we'll remove them in the next step.
 
+  //Do all gross tag replacements
+
   //If you have a link at the end and hit enter, it puts in a <br> in a <p>.
   html = html.split("<br>").join("");
+  html = html.split("<b>").join("<strong>");
+  html = html.split("</b>").join("</strong>");
+  html = html.split("<i>").join("<em>");
+  html = html.split("</i>").join("</em>");
+
+  //Remove all line breaks. We'll put them back in.
+  html = html.split("\n").join("");
 
   html = cleanUpTopLevelHTML(html);
 
+  //Add in line breaks
   html = html.split("</p>").join("</p>\n");
   html = html.split("<ul>").join("<ul>\n");
   html = html.split("</ul>").join("</ul>\n");
   html = html.split("<ol>").join("<ol>\n");
   html = html.split("</ol>").join("</ol>\n");
   html = html.split("</li>").join("</li>\n");
-  html = html.split("<b>").join("<strong>");
-  html = html.split("</b>").join("</strong>");
-  html = html.split("<i>").join("<em>");
-  html = html.split("</i>").join("</em>");
 
   //Remove any extra linke breaks (which we might have added)
-  html = removeDoubleLineBreaks(html);
-
-  
+  //html = removeDoubleLineBreaks(html);
 
   return normalizeBodyFromContentEditable(html);
 
