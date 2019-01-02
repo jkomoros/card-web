@@ -11,11 +11,14 @@ export class BaseCard extends LitElement {
         :host {
           display:block;
           background-color: var(--card-color);
-          height: 24.54em;
+          
+          /* These 3 values are duplicated in card-view _resizeCard calculation */
           width: 43.63em;
+          height: 24.54em;
+          padding: 1em 1.45em;
+
           box-shadow: var(--card-shadow);
           box-sizing: border-box;
-          padding: 1em 1.45em;
           line-height:1.4;
           position:relative;
         }

@@ -146,39 +146,8 @@ class CardView extends connect(store)(PageViewElement) {
         }
 
         card-renderer {
+          /* this will be overridden via an explicit property set directly on card-renderer */
           font-size:20px;
-        }
-
-        @media (max-width: 960px) {
-          card-renderer {
-            font-size: 10px;
-          }
-        }
-
-        @media (min-width: 960px) and (max-width: 1130px) {
-          card-renderer {
-            font-size:12px;
-          }
-        }
-
-        @media (min-width: 1130px) and (max-width: 1310px) {
-          card-renderer {
-            font-size:16px;
-          }
-        }
-
-        //Default size here
-
-        @media (min-width: 1400px) and (max-width: 1580px) {
-          card-renderer {
-            font-size:22px;
-          }
-        }
-
-        @media (min-width:1580px) {
-          card-renderer {
-            font-size:26px;
-          }
         }
 
       </style>
@@ -335,7 +304,32 @@ class CardView extends connect(store)(PageViewElement) {
   }
 
   _resizeCard() {
-    console.warn("not yet implemented");
+    let fontSize = 20;
+    const canvas = this.shadowRoot.getElementById("canvas");
+    if (!canvas) {
+      console.warn("Couldn't find canvas element");
+      return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+
+    //TODO: do calculation for height and width and take the fontSize that's smaller.
+    const widthPaddingInPx = 100;
+    //Next two come from the style for base-card
+    const cardWidthInEms = 43.63;
+    const cardWidthPaddingInEms = 2 * (1.45);
+    const totalCardWidthInEms = cardWidthInEms + cardWidthPaddingInEms;
+
+    let targetWidth = rect.width - widthPaddingInPx;
+    fontSize = Math.round(targetWidth / totalCardWidthInEms);
+
+    const renderer = this.shadowRoot.querySelector('card-renderer');
+    if (!renderer) {
+      console.warn("Couldn't find card-renderer to update its size");
+      return;
+    }
+
+    renderer.style.fontSize = '' + fontSize + 'px';
   }
 
   updated(changedProps) {
@@ -355,7 +349,7 @@ class CardView extends connect(store)(PageViewElement) {
     if (changedProps.has('_card') && this._card && this._card.name) {
       this._ensureUrlShowsName();
     }
-    if (this._changedPropsAffectCanvasSize(changedProps)) this._resizeCard();
+    if (this._changedPropsAffectCanvasSize(changedProps)) Promise.resolve().then(() => this._resizeCard());
   }
 }
 
