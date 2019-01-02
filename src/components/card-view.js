@@ -168,11 +168,40 @@ class CardView extends connect(store)(PageViewElement) {
           font-size:20px;
         }
 
+        #portrait-message {
+          display:none;
+        }
+
+        #portrait-message > div {
+          margin:5em;
+        }
+
+        @media (orientation:portrait) {
+
+          .mobile #portrait-message {
+            position:absolute;
+            height:100%;
+            width:100%;
+            background-color:#000000CC;
+            color: white;
+            font-size:36px;
+            display:flex;
+            justify-content:center;
+            align-items: center;
+            z-index:1;
+            text-align:center;
+          }
+
+        }
+
       </style>
-      <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''}'>
+      <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
         <card-drawer></card-drawer>
         <div id='center'>
           <div id='canvas'>
+            <div id='portrait-message'>
+              <div>Rotate your phone to landscape mode</div>
+            </div>
             <div class='presentation-actions' ?hidden=${!this._presentationMode}>
               <button class='round' @click=${this._handleBackClicked}>${arrowBackIcon}</button>
               <button class='round' @click=${this._handleForwardClicked}>${arrowForwardIcon}</button>
