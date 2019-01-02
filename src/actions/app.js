@@ -224,3 +224,8 @@ export const lockPresentationMode = () => {
     type: LOCK_PRESENTATION_MODE
   }
 }
+
+export const lockPresentationModeOn = () => (dispatch) => {
+  dispatch(enablePresentationMode());
+  dispatch(lockPresentationMode());
+}
