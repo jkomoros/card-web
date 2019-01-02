@@ -71,6 +71,10 @@ store.addReducers({
   comments
 });
 
+import {
+  cardsDrawerPanelShowing
+} from '../reducers/app.js';
+
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
 
@@ -212,7 +216,7 @@ class CardView extends connect(store)(PageViewElement) {
       _editingCard: { type: Object },
       _commentsPanelOpen: {type: Boolean},
       _cardInfoPanelOpen: {type: Boolean},
-      _cardsDrawerPanelOpen: {type: Boolean},
+      _cardsDrawerPanelShowing: {type: Boolean},
       _headerPanelOpen: {type: Boolean},
       _activeCardHasComments: {type:Boolean},
       _fromContentEditable: {type:Boolean},
@@ -298,7 +302,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._cardInfoPanelOpen = state.app.cardInfoPanelOpen;
     this._activeCardHasComments = activeCardHasComments(state);
     this._fromContentEditable = state.editor.fromContentEditable;
-    this._cardsDrawerPanelOpen = state.app.cardsDrawerPanelOpen;
+    this._cardsDrawerPanelShowing = cardsDrawerPanelShowing(state);
     this._presentationMode = state.app.presentationMode;
   }
 
@@ -318,7 +322,7 @@ class CardView extends connect(store)(PageViewElement) {
       '_headerPanelOpen',
       '_commentsPanelOpen',
       '_cardInfoPanelOpen',
-      '_cardsDrawerPanelOpen',
+      '_cardsDrawerPanelShowing',
       '_editing'
     ]
     for (let item of sizeProps) {
