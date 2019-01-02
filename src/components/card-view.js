@@ -34,7 +34,9 @@ import {
   openCardInfoPanel,
   closeCardInfoPanel,
   openCardsDrawerPanel,
-  closeCardsDrawerPanel
+  closeCardsDrawerPanel,
+  enablePresentationMode,
+  disablePresentationMode
 } from '../actions/app.js';
 
 //Components needed by this
@@ -48,7 +50,8 @@ import {
   editIcon,
   forumIcon,
   infoIcon,
-  viewDayIcon
+  viewDayIcon,
+  fullScreenIcon
 } from './my-icons.js';
 
 import {
@@ -167,6 +170,7 @@ class CardView extends connect(store)(PageViewElement) {
         <div class='card'>
           <card-renderer .editing=${this._editing} .card=${this._displayCard} .fromContentEditable=${this._fromContentEditable} @body-updated=${this._handleBodyUpdated}></card-renderer>
           <div class='actions' ?hidden=${this._presentationMode}>
+            <button class='round ${this._presentationMode ? 'selected' : ''}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
             <button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${viewDayIcon}</button>
             <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._activeCardHasComments ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
             <button class='round ${this._cardInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCardInfoClicked}'>${infoIcon}</button>
@@ -244,6 +248,14 @@ class CardView extends connect(store)(PageViewElement) {
       store.dispatch(closeCardsDrawerPanel());
     } else {
       store.dispatch(openCardsDrawerPanel());
+    }
+  }
+
+  _handlePresentationModeClicked(e) {
+    if (this._presentationMode) {
+      store.dispatch(disablePresentationMode());
+    } else {
+      store.dispatch(enablePresentationMode());
     }
   }
 
