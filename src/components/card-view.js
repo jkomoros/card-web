@@ -132,7 +132,7 @@ class CardView extends connect(store)(PageViewElement) {
           flex-direction:column;
         }
 
-        .actions {
+        .actions, .presentation-actions {
           /* This is a hack to allow the information/edit buttons to be on top of a section-head-card container. See #44. */
           z-index: 1;
         }
