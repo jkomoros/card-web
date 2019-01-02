@@ -95,6 +95,9 @@ class CardView extends connect(store)(PageViewElement) {
 
         #canvas {
           flex-grow:1;
+          /* The next two properties mean that we take up as much space as we're given, and our content doesn't create a floor of size */
+          flex-basis:1;
+          overflow:hidden;
           display:flex;
           flex-direction:column;
           justify-content:center;
