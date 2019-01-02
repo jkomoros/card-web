@@ -1,11 +1,11 @@
 {
-  "name": "My App",
-  "short_name": "My App",
-  "description": "My App description",
+  "name": "The Compendium",
+  "short_name": "The Compendium",
+  "description": "A set of inter-linked cards about handling complexity",
   "start_url": "/",
   "display": "standalone",
-  "theme_color": "#3f51b5",
-  "background_color": "#3f51b5",
+  "theme_color": "#5e2b97",
+  "background_color": "#eee",
   "icons": [
     {
       "src": "images/manifest/icon-192x192.png",
