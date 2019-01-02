@@ -23,6 +23,7 @@ export const CLOSE_CARDS_DRAWER_PANEL = 'CLOSE_CARDS_DRAWER_PANEL';
 export const ENABLE_PRESENTATION_MODE = 'ENABLE_PRESENTATION_MODE';
 export const DISABLE_PRESENTATION_MODE = 'DISABLE_PRESENTATION_MODE';
 export const LOCK_PRESENTATION_MODE = 'LOCK_PRESENTATION_MODE';
+export const UNLOCK_PRESENTATION_MODE = 'UNLOCK_PRESENTATION_MODE';
 
 import {
   collectionForActiveSectionSelector
@@ -207,15 +208,17 @@ export const closeCardsDrawerPanel = () => {
 }
 
 
-export const enablePresentationMode = () => {
+export const enablePresentationMode = (force) => {
   return {
-    type: ENABLE_PRESENTATION_MODE
+    type: ENABLE_PRESENTATION_MODE,
+    force
   }
 }
 
-export const disablePresentationMode = () => {
+export const disablePresentationMode = (force) => {
   return {
-    type: DISABLE_PRESENTATION_MODE
+    type: DISABLE_PRESENTATION_MODE,
+    force
   }
 }
 
@@ -225,7 +228,18 @@ export const lockPresentationMode = () => {
   }
 }
 
-export const lockPresentationModeOn = () => (dispatch) => {
-  dispatch(enablePresentationMode());
-  dispatch(lockPresentationMode());
+const unlockPresentationMode = () => {
+  return {
+    type: UNLOCK_PRESENTATION_MODE
+  }
 }
+
+export const lockPresentationModeTo = (on) => (dispatch) => {
+  dispatch(lockPresentationMode());
+  if (on) {
+    dispatch(enablePresentationMode(true));
+  } else {
+    dispathc(disablePresentationMode(true));
+  }
+}
+
