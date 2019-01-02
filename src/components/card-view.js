@@ -310,6 +310,24 @@ class CardView extends connect(store)(PageViewElement) {
     }
   }
 
+  _changedPropsAffectCanvasSize(changedProps) {
+    let sizeProps = [
+      '_headerPanelOpen',
+      '_commentsPanelOpen',
+      '_cardInfoPanelOpen',
+      '_cardsDrawerPanelOpen',
+      '_editing'
+    ]
+    for (let item of sizeProps) {
+      if (changedProps.has(item)) return true;
+    }
+    return false;
+  }
+
+  _resizeCard() {
+    console.warn("not yet implemented");
+  }
+
   updated(changedProps) {
     if (changedProps.has('_cardIdOrSlug')) {
       if (this._cardIdOrSlug) {
@@ -327,6 +345,7 @@ class CardView extends connect(store)(PageViewElement) {
     if (changedProps.has('_card') && this._card && this._card.name) {
       this._ensureUrlShowsName();
     }
+    if (this._changedPropsAffectCanvasSize(changedProps)) this._resizeCard();
   }
 }
 
