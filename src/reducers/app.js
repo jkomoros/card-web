@@ -22,7 +22,8 @@ import {
   OPEN_CARDS_DRAWER_PANEL,
   CLOSE_CARDS_DRAWER_PANEL,
   ENABLE_PRESENTATION_MODE,
-  DISABLE_PRESENTATION_MODE
+  DISABLE_PRESENTATION_MODE,
+  LOCK_PRESENTATION_MODE
 } from '../actions/app.js';
 
 import {
@@ -44,7 +45,8 @@ const INITIAL_STATE = {
   commentsPanelOpen: COMMENTS_PANEL_DEFAULT_VALUE,
   cardInfoPanelOpen: CARD_INFO_PANEL_DEFAULT_VALUE,
   cardsDrawerPanelOpen: CARDS_DRAWER_PANEL_DEFAULT_VALUE,
-  presentationMode: false
+  presentationMode: false,
+  presentationModeLocked: false
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -116,6 +118,7 @@ const app = (state = INITIAL_STATE, action) => {
         cardsDrawerPanelOpen: false
       }
     case ENABLE_PRESENTATION_MODE:
+      if (state.presentationModeLocked) return {...state};
       return {
         ...state,
         headerPanelOpen: false,
@@ -125,6 +128,7 @@ const app = (state = INITIAL_STATE, action) => {
         presentationMode: true
       }
     case DISABLE_PRESENTATION_MODE:
+      if (state.presentationModeLocked) return {...state};
       return {
         ...state,
         headerPanelOpen: HEADER_PANEL_DEFAULT_VALUE,
@@ -132,6 +136,11 @@ const app = (state = INITIAL_STATE, action) => {
         commentsPanelOpen: COMMENTS_PANEL_DEFAULT_VALUE,
         cardInfoPanelOpen: CARD_INFO_PANEL_DEFAULT_VALUE,
         presentationMode:false
+      }
+    case LOCK_PRESENTATION_MODE:
+      return {
+        ...state,
+        presentationModeLocked:true,
       }
     default:
       return state;
