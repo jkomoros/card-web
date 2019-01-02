@@ -216,6 +216,7 @@ class CardView extends connect(store)(PageViewElement) {
       _editingCard: { type: Object },
       _commentsPanelOpen: {type: Boolean},
       _cardInfoPanelOpen: {type: Boolean},
+      _cardsDrawerPanelOpen: {type:Boolean},
       _cardsDrawerPanelShowing: {type: Boolean},
       _headerPanelOpen: {type: Boolean},
       _activeCardHasComments: {type:Boolean},
@@ -300,6 +301,8 @@ class CardView extends connect(store)(PageViewElement) {
     this._headerPanelOpen = state.app.headerPanelOpen;
     this._commentsPanelOpen = state.app.commentsPanelOpen;
     this._cardInfoPanelOpen = state.app.cardInfoPanelOpen;
+    //Note: do NOT use this for whether the panel is showing.
+    this._cardsDrawerPanelOpen = state.app.cardsDrawerPanelOpen;
     this._activeCardHasComments = activeCardHasComments(state);
     this._fromContentEditable = state.editor.fromContentEditable;
     this._cardsDrawerPanelShowing = cardsDrawerPanelShowing(state);
