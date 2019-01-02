@@ -239,7 +239,7 @@ export const lockPresentationModeTo = (on) => (dispatch) => {
   if (on) {
     dispatch(enablePresentationMode(true));
   } else {
-    dispathc(disablePresentationMode(true));
+    dispatch(disablePresentationMode(true));
   }
 }
 
