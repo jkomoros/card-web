@@ -36,7 +36,9 @@ import {
   openCardsDrawerPanel,
   closeCardsDrawerPanel,
   enablePresentationMode,
-  disablePresentationMode
+  disablePresentationMode,
+  navigateToNextCard,
+  navigateToPreviousCard
 } from '../actions/app.js';
 
 //Components needed by this
@@ -51,7 +53,9 @@ import {
   forumIcon,
   infoIcon,
   viewDayIcon,
-  fullScreenIcon
+  fullScreenIcon,
+  arrowBackIcon,
+  arrowForwardIcon
 } from './my-icons.js';
 
 import {
@@ -175,6 +179,8 @@ class CardView extends connect(store)(PageViewElement) {
         <card-drawer></card-drawer>
         <div class='card'>
           <div class='presentation-actions' ?hidden=${!this._presentationMode}>
+            <button class='round' @click=${this._handleBackClicked}>${arrowBackIcon}</button>
+            <button class='round' @click=${this._handleForwardClicked}>${arrowForwardIcon}</button>
             <button class='round ${this._presentationMode ? 'selected' : ''}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
           </div>
           <card-renderer .editing=${this._editing} .card=${this._displayCard} .fromContentEditable=${this._fromContentEditable} @body-updated=${this._handleBodyUpdated}></card-renderer>
@@ -266,6 +272,14 @@ class CardView extends connect(store)(PageViewElement) {
     } else {
       store.dispatch(enablePresentationMode());
     }
+  }
+
+  _handleBackClicked(e) {
+    store.dispatch(navigateToPreviousCard());
+  }
+
+  _handleForwardClicked(e) {
+    store.dispatch(navigateToNextCard());
   }
 
   stateChanged(state) {
