@@ -174,11 +174,11 @@ class CardView extends connect(store)(PageViewElement) {
             <div class='presentation-actions' ?hidden=${!this._presentationMode}>
               <button class='round' @click=${this._handleBackClicked}>${arrowBackIcon}</button>
               <button class='round' @click=${this._handleForwardClicked}>${arrowForwardIcon}</button>
-              <button class='round ${this._presentationMode ? 'selected' : ''}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
+              <button class='round ${this._presentationMode ? 'selected' : ''}' @click=${this._handlePresentationModeClicked} ?hidden='${this._presentationModeLocked}'>${fullScreenIcon}</button>
             </div>
             <card-renderer .editing=${this._editing} .card=${this._displayCard} .fromContentEditable=${this._fromContentEditable} @body-updated=${this._handleBodyUpdated}></card-renderer>
             <div class='actions' ?hidden=${this._presentationMode}>
-              <button class='round ${this._presentationMode ? 'selected' : ''}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
+              <button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._presentationModeLocked}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
               <button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${viewDayIcon}</button>
               <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._activeCardHasComments ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
               <button class='round ${this._cardInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCardInfoClicked}'>${infoIcon}</button>
@@ -208,7 +208,8 @@ class CardView extends connect(store)(PageViewElement) {
       _headerPanelOpen: {type: Boolean},
       _activeCardHasComments: {type:Boolean},
       _fromContentEditable: {type:Boolean},
-      _presentationMode: {type:Boolean}
+      _presentationMode: {type:Boolean},
+      _presentationModeLocked: {type: Boolean}
     }
   }
 
@@ -294,6 +295,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._fromContentEditable = state.editor.fromContentEditable;
     this._cardsDrawerPanelShowing = cardsDrawerPanelShowing(state);
     this._presentationMode = state.app.presentationMode;
+    this._presentationModeLocked = state.app.presentationModeLocked;
   }
 
   _ensureUrlShowsName() {
