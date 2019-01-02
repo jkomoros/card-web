@@ -328,6 +328,7 @@ export const createCard = (section, id) => async (dispatch, getState) => {
     created: new Date(),
     updated: new Date(),
     updated_substantive: new Date(),
+    star_count: 0,
     title: "",
     section: section,
     body: "",

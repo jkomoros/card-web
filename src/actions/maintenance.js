@@ -33,6 +33,27 @@ const maintenanceTaskRun = async (taskName) => {
   db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: new Date()});
 }
 
+const ADD_STAR_COUNT = 'add-star-count';
+
+export const addStarCount = async() => {
+
+  await checkMaintenanceTaskHasBeenRun(ADD_STAR_COUNT);
+
+  let batch = db.batch();
+
+  let snapshot = await db.collection(CARDS_COLLECTION).get();
+
+  snapshot.forEach(doc => {
+    batch.update(doc.ref, {'star_count': 0})
+  });
+
+  await batch.commit();
+
+  await maintenanceTaskRun(ADD_STAR_COUNT);
+  console.log('done!');
+
+}
+
 const NORMALIZE_CONTENT_BODY = 'normalize-content-body';
 
 export const normalizeContentBody = async() => {
@@ -306,4 +327,5 @@ export const tasks = {
   [ADD_SECTION_UPDATES_LOG]: addSectionUpdatesLog,
   [UPDATE_INBOUND_LINKS]: updateInboundLinks,
   [NORMALIZE_CONTENT_BODY]: normalizeContentBody,
+  [ADD_STAR_COUNT]: addStarCount,
 }
