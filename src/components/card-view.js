@@ -334,7 +334,7 @@ class CardView extends connect(store)(PageViewElement) {
     const rect = canvas.getBoundingClientRect();
 
 
-    const paddingInPx = 100;
+    const paddingInPx = Math.round(rect.width / 12);
     //Next two come from the style for base-card
     const cardWidthInEms = 43.63;
     const cardWidthPaddingInEms = 2 * (1.45);
