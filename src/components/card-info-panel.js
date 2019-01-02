@@ -46,7 +46,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
         }
 
         .container {
-          min-width: 12em;
+          width: 13em;
           height:100%;
           padding:0.5em;
           border-left: 1px solid var(--app-divider-color);
