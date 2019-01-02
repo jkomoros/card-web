@@ -279,7 +279,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 
   updated(changedProps) {
     if (changedProps.has('_card')) {
-      const pageTitle = this.appTitle + (this._card ? ' - ' + this._card.title : "");
+      const pageTitle = this.appTitle + (this._card.title ? ' - ' + this._card.title : "");
       updateMetadata({
         title: pageTitle,
         description: pageTitle
