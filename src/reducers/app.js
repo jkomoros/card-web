@@ -18,8 +18,14 @@ import {
   OPEN_CARD_INFO_PANEL,
   CLOSE_CARD_INFO_PANEL,
   OPEN_CARDS_DRAWER_PANEL,
-  CLOSE_CARDS_DRAWER_PANEL
+  CLOSE_CARDS_DRAWER_PANEL,
+  ENABLE_PRESENTATION_MODE,
+  DISABLE_PRESENTATION_MODE
 } from '../actions/app.js';
+
+const COMMENTS_PANEL_DEFAULT_VALUE = true;
+const CARD_INFO_PANEL_DEFAULT_VALUE = false;
+const CARDS_DRAWER_PANEL_DEFAULT_VALUE = true;
 
 const INITIAL_STATE = {
   location: '',
@@ -27,9 +33,10 @@ const INITIAL_STATE = {
   pageExtra: '',
   offline: false,
   snackbarOpened: false,
-  commentsPanelOpen: true,
-  cardInfoPanelOpen: false,
-  cardsDrawerPanelOpen: true
+  commentsPanelOpen: COMMENTS_PANEL_DEFAULT_VALUE,
+  cardInfoPanelOpen: CARD_INFO_PANEL_DEFAULT_VALUE,
+  cardsDrawerPanelOpen: CARDS_DRAWER_PANEL_DEFAULT_VALUE,
+  presentationMode: false
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -89,6 +96,22 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         cardsDrawerPanelOpen: false
+      }
+    case ENABLE_PRESENTATION_MODE:
+      return {
+        ...state,
+        cardsDrawerPanelOpen: false,
+        cardInfoPanelOpen: false,
+        commentsPanelOpen: false,
+        presentationMode: true
+      }
+    case DISABLE_PRESENTATION_MODE:
+      return {
+        ...state,
+        cardsDrawerPanelOpen: CARDS_DRAWER_PANEL_DEFAULT_VALUE,
+        commentsPanelOpen: COMMENTS_PANEL_DEFAULT_VALUE,
+        cardInfoPanelOpen: CARD_INFO_PANEL_DEFAULT_VALUE,
+        presentationMode:false
       }
     default:
       return state;

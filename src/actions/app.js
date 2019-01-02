@@ -18,6 +18,8 @@ export const OPEN_CARD_INFO_PANEL = 'OPEN_CARD_INFO_PANEL';
 export const CLOSE_CARD_INFO_PANEL = 'CLOSE_CARD_INFO_PANEL';
 export const OPEN_CARDS_DRAWER_PANEL = 'OPEN_CARDS_DRAWER_PANEL';
 export const CLOSE_CARDS_DRAWER_PANEL = 'CLOSE_CARDS_DRAWER_PANEL';
+export const ENABLE_PRESENTATION_MODE = 'ENABLE_PRESENTATION_MODE';
+export const DISABLE_PRESENTATION_MODE = 'DISABLE_PRESENTATION_MODE';
 
 import {
   collectionForActiveSectionSelector
@@ -186,5 +188,18 @@ export const openCardsDrawerPanel = () => {
 export const closeCardsDrawerPanel = () => {
   return {
     type: CLOSE_CARDS_DRAWER_PANEL
+  }
+}
+
+
+export const enablePresentationMode = () => {
+  return {
+    type: ENABLE_PRESENTATION_MODE
+  }
+}
+
+export const disablePresentationMode = () => {
+  return {
+    type: DISABLE_PRESENTATION_MODE
   }
 }
