@@ -52,6 +52,7 @@ class CardDrawer extends connect(store)(LitElement) {
         .container {
           height:100%;
           display:flex;
+          width: 13em;
           flex-direction:column;
           border-right: 1px solid var(--app-divider-color);
         }
