@@ -248,7 +248,7 @@ class CompendiumApp extends connect(store)(LitElement) {
   firstUpdated() {
     installRouter((location) => store.dispatch(navigated(decodeURIComponent(location.pathname))));
     installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
-    installMediaQueryWatcher(`(max-width: 460px)`,(isMobile) => {
+    installMediaQueryWatcher(`(max-width: 900px)`,(isMobile) => {
       store.dispatch(turnMobileMode(isMobile))
     });
     window.addEventListener('keydown', e => this._handleKeyPressed(e));
