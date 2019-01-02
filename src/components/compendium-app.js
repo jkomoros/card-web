@@ -83,7 +83,9 @@ class CompendiumApp extends connect(store)(LitElement) {
         --app-default-font-family: 'Source Sans Pro';
 
         --card-color: #FCFCFC;
-        --card-shadow: 0 2px 6px #CCC;
+        --shadow-color: #CCC;
+        --card-shadow-first-part: 0 2px 6px;
+        --card-shadow: var(--card-shadow-first-part) var(--shadow-color);
 
         --app-header-background-color: white;
         --app-header-text-color: var(--app-dark-text-color);

@@ -18,7 +18,7 @@ export const ButtonSharedStyles = html`
     color: var(--app-light-text-color);
     background: var(--app-dark-text-color);
     padding: 0.5em;
-    box-shadow: 0 2px 2px #999;
+    box-shadow: 0 2px 2px var(--shadow-color);
     border: none;
     cursor: pointer;
     margin: 0.5em;
@@ -43,7 +43,7 @@ export const ButtonSharedStyles = html`
     fill: var(--app-light-text-color);
   }
   button:hover {
-    box-shadow: 0 6px 6px #999;
+    box-shadow: 0 6px 6px var(--shadow-color);
     background: var(--app-secondary-color);
   }
 

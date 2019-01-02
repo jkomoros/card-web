@@ -114,6 +114,16 @@ class CardView extends connect(store)(PageViewElement) {
           background-color: var(--app-divider-color);
         }
 
+        .presenting #canvas {
+          background-color: var(--app-dark-text-color);
+        }
+
+        .presenting {
+          --shadow-color:#444;
+          /* have to redefine it because it uses the variables at the site where it's derived */
+          --card-shadow: var(--card-shadow-first-part) var(--shadow-color);
+        }
+
         .presentation-actions {
           position:absolute;
           bottom:0.5em;
@@ -157,7 +167,7 @@ class CardView extends connect(store)(PageViewElement) {
         }
 
       </style>
-      <div class='container${this._editing ? ' editing' : ''}'>
+      <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''}'>
         <card-drawer></card-drawer>
         <div id='center'>
           <div id='canvas'>
