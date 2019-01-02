@@ -109,7 +109,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
   }
 
   _handleCreateThreadClicked(e) {
-    store.dispatch(createThread(prompt('Message for new thread:')));
+    store.dispatch(createThread(prompt('Message for new thread: (markdown formatting is supported)')));
   }
 
   _handleAddMessage(e) {

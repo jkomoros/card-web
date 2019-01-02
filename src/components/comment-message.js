@@ -17,6 +17,9 @@ import {
   uidMayEditMessage
 } from '../reducers/user.js';
 
+import snarkdown from 'snarkdown';
+import dompurify from 'dompurify';
+
 // This element is *not* connected to the Redux store.
 class CommentMessage extends LitElement {
   render() {
@@ -59,14 +62,22 @@ class CommentMessage extends LitElement {
         </div>
         <span>${prettyTime(this.message.updated)}</span>
         <div>
-          ${this.message.deleted ? html`<em>This message has been deleted.</em>` : this.message.message}
+          ${this.message.deleted ? html`<em>This message has been deleted.</em>` : this._makeCommentDiv(this.message.message)}
         </div>
       </div>
     `;
   }
 
+  _makeCommentDiv(message) {
+    let div = document.createElement('div');
+    let html = snarkdown(message);
+    let sanitizedHTML = dompurify.sanitize(html);
+    div.innerHTML = sanitizedHTML;
+    return div;
+  }
+
   _handleEditClicked(e) {
-    let message = prompt("What is your new response?", this.message.message);
+    let message = prompt("What is your new response? (Markdown is supported?)", this.message.message);
     if (!message || message == this.message.message) return;
     this.dispatchEvent(new CustomEvent('edit-message', {composed:true, detail: {message: this.message, newMessage:message}}));
   }

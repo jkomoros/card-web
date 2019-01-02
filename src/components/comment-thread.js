@@ -94,7 +94,7 @@ class CommentThread extends LitElement {
   }
 
   _handleAddMessage(e) {
-    let message = prompt("What is your reply?");
+    let message = prompt("What is your reply? (Markdown formatting is supported)");
     if (!message) return;
     this.dispatchEvent(new CustomEvent('add-message', {composed:true, detail: {message: message, thread: this.thread}}));
   }
