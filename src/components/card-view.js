@@ -210,6 +210,7 @@ class CardView extends connect(store)(PageViewElement) {
       _commentsPanelOpen: {type: Boolean},
       _cardInfoPanelOpen: {type: Boolean},
       _cardsDrawerPanelOpen: {type: Boolean},
+      _headerPanelOpen: {type: Boolean},
       _activeCardHasComments: {type:Boolean},
       _fromContentEditable: {type:Boolean},
       _presentationMode: {type:Boolean}
@@ -289,6 +290,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._cardIdOrSlug = this.extractPageExtra(state.app.pageExtra)[0];
     this._editing = state.editor.editing;     
     this._userMayEdit = userMayEdit(state);
+    this._headerPanelOpen = state.app.headerPanelOpen;
     this._commentsPanelOpen = state.app.commentsPanelOpen;
     this._cardInfoPanelOpen = state.app.cardInfoPanelOpen;
     this._activeCardHasComments = activeCardHasComments(state);
