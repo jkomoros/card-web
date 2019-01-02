@@ -114,6 +114,7 @@ const app = (state = INITIAL_STATE, action) => {
     case ENABLE_PRESENTATION_MODE:
       return {
         ...state,
+        headerPanelOpen: false,
         cardsDrawerPanelOpen: false,
         cardInfoPanelOpen: false,
         commentsPanelOpen: false,
@@ -122,6 +123,7 @@ const app = (state = INITIAL_STATE, action) => {
     case DISABLE_PRESENTATION_MODE:
       return {
         ...state,
+        headerPanelOpen: HEADER_PANEL_DEFAULT_VALUE,
         cardsDrawerPanelOpen: CARDS_DRAWER_PANEL_DEFAULT_VALUE,
         commentsPanelOpen: COMMENTS_PANEL_DEFAULT_VALUE,
         cardInfoPanelOpen: CARD_INFO_PANEL_DEFAULT_VALUE,
