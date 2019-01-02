@@ -98,6 +98,12 @@ class CardView extends connect(store)(PageViewElement) {
           background-color: var(--app-divider-color);
         }
 
+        .presentation-actions {
+          position:absolute;
+          top:0.5em;
+          left:0.5em;
+        }
+
         .actions {
           /* This is a hack to allow the information/edit buttons to be on top of a section-head-card container. See #44. */
           z-index: 1;
@@ -168,6 +174,9 @@ class CardView extends connect(store)(PageViewElement) {
       <div class='container${this._editing ? ' editing' : ''}'>
         <card-drawer></card-drawer>
         <div class='card'>
+          <div class='presentation-actions' ?hidden=${!this._presentationMode}>
+            <button class='round ${this._presentationMode ? 'selected' : ''}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
+          </div>
           <card-renderer .editing=${this._editing} .card=${this._displayCard} .fromContentEditable=${this._fromContentEditable} @body-updated=${this._handleBodyUpdated}></card-renderer>
           <div class='actions' ?hidden=${this._presentationMode}>
             <button class='round ${this._presentationMode ? 'selected' : ''}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
