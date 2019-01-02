@@ -93,7 +93,7 @@ class CardView extends connect(store)(PageViewElement) {
           width:100%;
         }
 
-        .card {
+        #canvas {
           flex-grow:1;
           display:flex;
           flex-direction:column;
@@ -177,7 +177,7 @@ class CardView extends connect(store)(PageViewElement) {
       </style>
       <div class='container${this._editing ? ' editing' : ''}'>
         <card-drawer></card-drawer>
-        <div class='card'>
+        <div id='canvas'>
           <div class='presentation-actions' ?hidden=${!this._presentationMode}>
             <button class='round' @click=${this._handleBackClicked}>${arrowBackIcon}</button>
             <button class='round' @click=${this._handleForwardClicked}>${arrowForwardIcon}</button>
