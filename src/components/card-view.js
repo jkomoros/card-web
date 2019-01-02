@@ -321,15 +321,28 @@ class CardView extends connect(store)(PageViewElement) {
 
     const rect = canvas.getBoundingClientRect();
 
-    //TODO: do calculation for height and width and take the fontSize that's smaller.
-    const widthPaddingInPx = 100;
+
+    const paddingInPx = 100;
     //Next two come from the style for base-card
     const cardWidthInEms = 43.63;
     const cardWidthPaddingInEms = 2 * (1.45);
-    const totalCardWidthInEms = cardWidthInEms + cardWidthPaddingInEms;
 
-    let targetWidth = rect.width - widthPaddingInPx;
-    fontSize = Math.round(targetWidth / totalCardWidthInEms);
+    const cardHeightInEms = 24.54;
+    const cardHeightPaddingInEms = 2 * (1.0);
+
+    const totalCardWidthInEms = cardWidthInEms + cardWidthPaddingInEms;
+    const totalCardHeighInEms = cardHeightInEms + cardHeightPaddingInEms;
+
+    let targetWidth = rect.width - paddingInPx;
+    //TODO: take into account size of actions bar.
+    let targetHeight = rect.height - paddingInPx;
+
+    let widthFontSize = Math.round(targetWidth / totalCardWidthInEms);
+    let heightFontSize = Math.round(targetHeight / totalCardHeighInEms);
+
+    //Pick the smaller of the two
+    fontSize = widthFontSize;
+    if (heightFontSize < fontSize) fontSize = heightFontSize;
 
     const renderer = this.shadowRoot.querySelector('card-renderer');
     if (!renderer) {
