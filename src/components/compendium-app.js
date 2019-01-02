@@ -183,7 +183,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 
     <div class='container'>
       <!-- Header -->
-      <div class='header'>
+      <div class='header' ?hidden=${!this._headerPanelOpen}>
         <div class='inner'>
           <div main-title>The <span>Compendium</span></div>
           <div class='spacer'></div>
@@ -220,6 +220,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     return {
       _page: { type: String },
       _snackbarOpened: { type: Boolean },
+      _headerPanelOpen: {type: Boolean },
       _offline: { type: Boolean },
       _editing: { type: Boolean },
       _devMode: { type: Boolean },
@@ -290,6 +291,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 
   stateChanged(state) {
     this._card = cardSelector(state);
+    this._headerPanelOpen = state.app.headerPanelOpen;
     this._page = state.app.page;
     this._offline = state.app.offline;
     this._snackbarOpened = state.app.snackbarOpened;

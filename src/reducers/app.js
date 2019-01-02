@@ -13,6 +13,8 @@ import {
   UPDATE_OFFLINE,
   OPEN_SNACKBAR,
   CLOSE_SNACKBAR,
+  OPEN_HEADER_PANEL,
+  CLOSE_HEADER_PANEL,
   OPEN_COMMENTS_PANEL,
   CLOSE_COMMENTS_PANEL,
   OPEN_CARD_INFO_PANEL,
@@ -23,6 +25,7 @@ import {
   DISABLE_PRESENTATION_MODE
 } from '../actions/app.js';
 
+const HEADER_PANEL_DEFAULT_VALUE = true;
 const COMMENTS_PANEL_DEFAULT_VALUE = true;
 const CARD_INFO_PANEL_DEFAULT_VALUE = false;
 const CARDS_DRAWER_PANEL_DEFAULT_VALUE = true;
@@ -33,6 +36,7 @@ const INITIAL_STATE = {
   pageExtra: '',
   offline: false,
   snackbarOpened: false,
+  headerPanelOpen: HEADER_PANEL_DEFAULT_VALUE,
   commentsPanelOpen: COMMENTS_PANEL_DEFAULT_VALUE,
   cardInfoPanelOpen: CARD_INFO_PANEL_DEFAULT_VALUE,
   cardsDrawerPanelOpen: CARDS_DRAWER_PANEL_DEFAULT_VALUE,
@@ -63,6 +67,16 @@ const app = (state = INITIAL_STATE, action) => {
         ...state,
         snackbarOpened: false
       };
+    case OPEN_HEADER_PANEL:
+      return {
+        ...state,
+        headerPanelOpen: true
+      }
+    case CLOSE_HEADER_PANEL: 
+      return {
+        ...state,
+        headerPanelOpen: false
+      }
     case OPEN_COMMENTS_PANEL:
       //Only one of cardInfo and comments panels can be open at a time.
       return {

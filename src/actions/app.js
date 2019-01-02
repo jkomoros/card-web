@@ -12,6 +12,8 @@ export const UPDATE_PAGE = 'UPDATE_PAGE';
 export const UPDATE_OFFLINE = 'UPDATE_OFFLINE';
 export const OPEN_SNACKBAR = 'OPEN_SNACKBAR';
 export const CLOSE_SNACKBAR = 'CLOSE_SNACKBAR';
+export const OPEN_HEADER_PANEL = 'OPEN_HEADER_PANEL';
+export const CLOSE_HEADER_PANEL = 'CLOSE_HEADER_PANEL';
 export const OPEN_COMMENTS_PANEL = 'OPEN_COMMENTS_PANEL';
 export const CLOSE_COMMENTS_PANEL = 'CLOSE_COMMENTS_PANEL';
 export const OPEN_CARD_INFO_PANEL = 'OPEN_CARD_INFO_PANEL';
@@ -154,6 +156,18 @@ export const updateOffline = (offline) => (dispatch, getState) => {
     offline
   });
 };
+
+export const openHeaderPanel = () => {
+  return {
+    type: OPEN_HEADER_PANEL
+  }
+}
+
+export const closeHeaderPanel = () => {
+  return {
+    type: CLOSE_HEADER_PANEL
+  }
+}
 
 export const openCommentsPanel = () => {
   return {
