@@ -353,6 +353,10 @@ class CardView extends connect(store)(PageViewElement) {
     renderer.style.fontSize = '' + fontSize + 'px';
   }
 
+  firstUpdated(changedProps) {
+    window.addEventListener('resize', e => this._resizeCard());
+  }
+
   updated(changedProps) {
     if (changedProps.has('_cardIdOrSlug')) {
       if (this._cardIdOrSlug) {
