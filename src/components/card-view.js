@@ -128,6 +128,8 @@ class CardView extends connect(store)(PageViewElement) {
           position:absolute;
           bottom:0.5em;
           right:0.5em;
+          display:flex;
+          flex-direction:column;
         }
 
         .actions {
