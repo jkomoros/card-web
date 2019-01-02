@@ -23,8 +23,8 @@ import {
   CLOSE_CARDS_DRAWER_PANEL,
   ENABLE_PRESENTATION_MODE,
   DISABLE_PRESENTATION_MODE,
-  LOCK_PRESENTATION_MODE,
-  UNLOCK_PRESENTATION_MODE
+  ENABLE_MOBILE_MODE,
+  DISABLE_MOBILE_MODE
 } from '../actions/app.js';
 
 import {
@@ -47,7 +47,7 @@ const INITIAL_STATE = {
   cardInfoPanelOpen: CARD_INFO_PANEL_DEFAULT_VALUE,
   cardsDrawerPanelOpen: CARDS_DRAWER_PANEL_DEFAULT_VALUE,
   presentationMode: false,
-  presentationModeLocked: false
+  mobileMode: false
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -119,7 +119,6 @@ const app = (state = INITIAL_STATE, action) => {
         cardsDrawerPanelOpen: false
       }
     case ENABLE_PRESENTATION_MODE:
-      if (state.presentationModeLocked && !action.force) return {...state};
       return {
         ...state,
         headerPanelOpen: false,
@@ -129,7 +128,6 @@ const app = (state = INITIAL_STATE, action) => {
         presentationMode: true
       }
     case DISABLE_PRESENTATION_MODE:
-      if (state.presentationModeLocked && !action.force) return {...state};
       return {
         ...state,
         headerPanelOpen: HEADER_PANEL_DEFAULT_VALUE,
@@ -138,15 +136,15 @@ const app = (state = INITIAL_STATE, action) => {
         cardInfoPanelOpen: CARD_INFO_PANEL_DEFAULT_VALUE,
         presentationMode:false
       }
-    case LOCK_PRESENTATION_MODE:
+    case ENABLE_MOBILE_MODE: 
       return {
         ...state,
-        presentationModeLocked:true,
+        mobileMode: true
       }
-    case UNLOCK_PRESENTATION_MODE:
+    case DISABLE_MOBILE_MODE:
       return {
         ...state,
-        presentationModeLocked:false,
+        mobileMode: false
       }
     default:
       return state;

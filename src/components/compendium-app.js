@@ -50,7 +50,7 @@ import {
   navigateToPreviousCard,
   updateOffline,
   urlForCard,
-  lockPresentationModeForMobile
+  turnMobileMode
 } from '../actions/app.js';
 
 // These are the elements needed by this element.
@@ -249,7 +249,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     installRouter((location) => store.dispatch(navigated(decodeURIComponent(location.pathname))));
     installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
     installMediaQueryWatcher(`(max-width: 460px)`,(isMobile) => {
-      store.dispatch(lockPresentationModeForMobile(isMobile))
+      store.dispatch(turnMobileMode(isMobile))
     });
     window.addEventListener('keydown', e => this._handleKeyPressed(e));
     connectLiveCards(store);
