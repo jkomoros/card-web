@@ -25,6 +25,10 @@ import {
   DISABLE_PRESENTATION_MODE
 } from '../actions/app.js';
 
+import {
+  collectionSelector
+} from './data.js';
+
 const HEADER_PANEL_DEFAULT_VALUE = true;
 const COMMENTS_PANEL_DEFAULT_VALUE = true;
 const CARD_INFO_PANEL_DEFAULT_VALUE = false;
@@ -133,5 +137,13 @@ const app = (state = INITIAL_STATE, action) => {
       return state;
   }
 };
+
+//The cardsDrawerPanel hides itself when there are no cards to show (that is,
+//for orphaned cards). This is the logic that decides if it's open based on state.
+export const cardsDrawerPanelShowing = state => {
+  let collection = collectionSelector(state);
+  if (!collection || !collection.length) return false;
+  return state.app.cardsDrawerPanelOpen;
+}
 
 export default app;
