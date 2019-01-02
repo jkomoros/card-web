@@ -378,7 +378,8 @@ class CardView extends connect(store)(PageViewElement) {
 
     let targetWidth = rect.width - paddingInPx;
     //TODO: take into account size of actions bar.
-    let targetHeight = rect.height - paddingInPx;
+    //On small screens don't worry about any vertical padding.
+    let targetHeight = rect.height - (this._mobileMode ? 0 : paddingInPx);
 
     let widthFontSize = Math.round(targetWidth / totalCardWidthInEms);
     let heightFontSize = Math.round(targetHeight / totalCardHeighInEms);
