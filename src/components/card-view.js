@@ -97,10 +97,16 @@ class CardView extends connect(store)(PageViewElement) {
           width:100%;
         }
 
-        #canvas {
+        #center {
           flex-grow:1;
           /* The next property means that we take up as much space as we're given, and our content doesn't create a floor of size */
           overflow:hidden;
+          display:flex;
+          flex-direction:column;
+        }
+
+        #canvas {
+          flex-grow: 1;
           display:flex;
           flex-direction:column;
           justify-content:center;
@@ -125,7 +131,8 @@ class CardView extends connect(store)(PageViewElement) {
         card-editor[active] {
           display:block;
           width:100%;
-          flex-grow:1;
+          /*TODO: this is a total hack. I don't know why flex-grow:1 doesn't do the right thing.*/
+          height: 300px;
         }
 
         card-renderer {
@@ -152,19 +159,21 @@ class CardView extends connect(store)(PageViewElement) {
       </style>
       <div class='container${this._editing ? ' editing' : ''}'>
         <card-drawer></card-drawer>
-        <div id='canvas'>
-          <div class='presentation-actions' ?hidden=${!this._presentationMode}>
-            <button class='round' @click=${this._handleBackClicked}>${arrowBackIcon}</button>
-            <button class='round' @click=${this._handleForwardClicked}>${arrowForwardIcon}</button>
-            <button class='round ${this._presentationMode ? 'selected' : ''}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
-          </div>
-          <card-renderer .editing=${this._editing} .card=${this._displayCard} .fromContentEditable=${this._fromContentEditable} @body-updated=${this._handleBodyUpdated}></card-renderer>
-          <div class='actions' ?hidden=${this._presentationMode}>
-            <button class='round ${this._presentationMode ? 'selected' : ''}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
-            <button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${viewDayIcon}</button>
-            <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._activeCardHasComments ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
-            <button class='round ${this._cardInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCardInfoClicked}'>${infoIcon}</button>
-            <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
+        <div id='center'>
+          <div id='canvas'>
+            <div class='presentation-actions' ?hidden=${!this._presentationMode}>
+              <button class='round' @click=${this._handleBackClicked}>${arrowBackIcon}</button>
+              <button class='round' @click=${this._handleForwardClicked}>${arrowForwardIcon}</button>
+              <button class='round ${this._presentationMode ? 'selected' : ''}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
+            </div>
+            <card-renderer .editing=${this._editing} .card=${this._displayCard} .fromContentEditable=${this._fromContentEditable} @body-updated=${this._handleBodyUpdated}></card-renderer>
+            <div class='actions' ?hidden=${this._presentationMode}>
+              <button class='round ${this._presentationMode ? 'selected' : ''}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
+              <button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${viewDayIcon}</button>
+              <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._activeCardHasComments ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
+              <button class='round ${this._cardInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCardInfoClicked}'>${infoIcon}</button>
+              <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
+            </div>
           </div>
           <card-editor ?active=${this._editing} ></card-editor>
         </div>
