@@ -12,6 +12,7 @@ import { LitElement, html } from '@polymer/lit-element';
 import { setPassiveTouchGestures } from '@polymer/polymer/lib/utils/settings.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 import { installOfflineWatcher } from 'pwa-helpers/network.js';
+import { installMediaQueryWatcher } from 'pwa-helpers/media-query.js';
 import { installRouter } from 'pwa-helpers/router.js';
 import { updateMetadata } from 'pwa-helpers/metadata.js';
 import { repeat } from 'lit-html/directives/repeat';
@@ -49,6 +50,7 @@ import {
   navigateToPreviousCard,
   updateOffline,
   urlForCard,
+  lockPresentationModeForMobile
 } from '../actions/app.js';
 
 // These are the elements needed by this element.
@@ -246,6 +248,9 @@ class CompendiumApp extends connect(store)(LitElement) {
   firstUpdated() {
     installRouter((location) => store.dispatch(navigated(decodeURIComponent(location.pathname))));
     installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
+    installMediaQueryWatcher(`(max-width: 460px)`,(isMobile) => {
+      store.dispatch(lockPresentationModeForMobile(isMobile))
+    });
     window.addEventListener('keydown', e => this._handleKeyPressed(e));
     connectLiveCards(store);
     connectLiveSections(store);

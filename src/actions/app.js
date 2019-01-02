@@ -228,6 +228,14 @@ export const lockPresentationMode = () => {
   }
 }
 
+export const lockPresentationModeForMobile = (mobile) => (dispatch) => {
+  if (mobile) {
+    dispatch(lockPresentationModeTo(true));
+    return;
+  }
+  dispatch(unlockPresentationMode());
+}
+
 const unlockPresentationMode = () => {
   return {
     type: UNLOCK_PRESENTATION_MODE
