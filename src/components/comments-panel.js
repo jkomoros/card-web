@@ -52,7 +52,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
           overflow:hidden;
         }
         .container {
-          min-width: 12em;
+          min-width: 13em;
           height:100%;
           padding:0.5em;
           border-left: 1px solid var(--app-divider-color);
