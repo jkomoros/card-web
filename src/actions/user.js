@@ -87,16 +87,16 @@ export const addStar = (cardToStar) => (dispatch, getState) => {
     return;
   }
 
-  let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
-  let starRef = db.collection(STARS_COLLECTION).doc(idForPersonalCardInfo(uid, card.id));
+  let cardRef = db.collection(CARDS_COLLECTION).doc(cardToStar.id);
+  let starRef = db.collection(STARS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToStar.id));
 
   db.runTransaction(async transaction => {
     let cardDoc = await transaction.get(cardRef);
-    if (!sectionDoc.exists) {
+    if (!cardDoc.exists) {
       throw "Doc doesn't exist!"
     }
     let newStarCount = (cardDoc.data().star_count || 0) + 1;
     transaction.update(cardRef, {star_count: newStarCount});
-    transaction.set(starRef, {timestamp: new Date(), owner: uid, card:card.id});
+    transaction.set(starRef, {created: new Date(), owner: uid, card:cardToStar.id});
   })
 }
