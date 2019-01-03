@@ -266,7 +266,7 @@ class CardView extends connect(store)(PageViewElement) {
 
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer></card-drawer>
+        <card-drawer .editable=${true}></card-drawer>
         <div id='center'>
           <div id='canvas'>
             <div id='portrait-message'>
