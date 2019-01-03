@@ -35,7 +35,8 @@ import {
   addStar,
   removeStar,
   markRead,
-  markUnread
+  markUnread,
+  AUTO_MARK_READ_DELAY
 } from '../actions/user.js';
 
 import {
@@ -224,8 +225,7 @@ class CardView extends connect(store)(PageViewElement) {
         .auto-read.pending {
           display:block;
           animation-name: autoread;
-          /* TODO: set this based on the live variable */
-          animation-duration: 5s;
+          animation-duration: ${AUTO_MARK_READ_DELAY / 1000 }s;
           animation-timing-function: linear;
         }
 
