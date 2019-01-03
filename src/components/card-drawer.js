@@ -92,7 +92,7 @@ class CardDrawer extends connect(store)(LitElement) {
         <div class='scrolling'>
         ${repeat(this._collection, (i) => i.id, (i, index) => html`
           <div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
-          <card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this._userMayEdit} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this._activeCardId} .index=${index}></card-thumbnail>`)}
+          <card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this._userMayEdit} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this._activeCardId} .index=${index} .starred=${this._stars[i.id] || false}></card-thumbnail>`)}
         </div>
         <button class='round' @click='${this._handleAddSlide}' ?hidden='${!this._userMayEdit}'>${plusIcon}</button>
       </div>
@@ -174,6 +174,7 @@ class CardDrawer extends connect(store)(LitElement) {
 
   static get properties() { return {
     _collection: { type: Array },
+    _stars: { type: Object },
     _activeCardId: { type: String },
     _activeSectionId: { type: String },
     _userMayEdit: { type: Boolean},
@@ -186,6 +187,7 @@ class CardDrawer extends connect(store)(LitElement) {
   // This is called every time something is updated in the store.
   stateChanged(state) {
     this._collection = collectionSelector(state);
+    this._stars = state.user.stars;
     this._activeCardId = state.data.activeCardId;
     this._activeSectionId = state.data.activeSectionId;
     this._userMayEdit = userMayEdit(state);

@@ -86,7 +86,7 @@ class CardThumbnail extends LitElement {
       </style>
       <div @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="${this.selected ? "selected" : ""} ${this.cardType}">
         <h3>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>
-        <star-count .count=${this.card.star_count || 0}></star-count>
+        <star-count .count=${this.card.star_count || 0} .highlighted=${this.starred}></star-count>
       </div>
     `;
   }
@@ -101,6 +101,7 @@ class CardThumbnail extends LitElement {
     //Card isn't used for much, except a a place for the container to stash
     //the whole card (for convenience with dragging).
     card: {type: Object},
+    starred: {type:Boolean},
     index: {type: Number},
     _selectedViaClick: { type: Boolean },
   }};
