@@ -6,67 +6,11 @@ import {
 
 import { SharedStyles } from './shared-styles.js';
 
-class StarCount extends LitElement {
-  render() {
-    return html`
-    ${SharedStyles}
-    <style>
-      :host {
-        display:block;
-        font-size:0.8em;
-      }
+import { CardDecorator } from './card-decorator.js';
 
-      div {
-        display:flex;
-        flex-direction:row;
-        align-items:center;
-        color: var(--app-dark-text-color-light);
-      }
-
-      div.light {
-        color: var(--app-light-text-color);
-      }
-
-      div.highlighted {
-        color: var(--app-primary-color-subtle);
-      }
-
-      div.light.highlighted {
-        color: var(--app-primary-color-light);
-      }
-
-      svg {
-        height: 1em;
-        width: 1em;
-        fill: var(--app-dark-text-color-light);
-      }
-
-      div.light svg {
-        fill: var(--app-light-text-color);
-      }
-
-      div.highlighted svg {
-        fill: var(--app-primary-color-subtle);
-      }
-
-      div.highlighted.light {
-        fill: var(--app-primary-color-light);
-      }
-    </style>
-    <div ?hidden='${!this.hasStars}' class='stars ${this.highlighted ? 'highlighted' : ''} ${this.light ? 'light' : ''}'>${starIcon} <span>${this.count}</span></div>
-    `;
-  }
-
-  get hasStars() {
-    return this.count && this.count > 0;
-  }
-
-  static get properties() {
-    return {
-      count: { type: Number },
-      highlighted: { type: Boolean},
-      light: { type:Boolean }
-    }
+class StarCount extends CardDecorator {
+  innerRender() {
+    return html`${starIcon} <span>${this.count}</span>`;
   }
 }
 
