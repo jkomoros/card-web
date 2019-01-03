@@ -79,7 +79,7 @@ class CardThumbnail extends LitElement {
 
         star-count {
           position:absolute;
-          bottom: 0.25em;
+          top: 0.25em;
           right: 0.25em;
         }
 

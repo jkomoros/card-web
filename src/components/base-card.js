@@ -92,7 +92,7 @@ export class BaseCard extends LitElement {
 
         star-count {
           position:absolute;
-          bottom:0.5em;
+          top:0.5em;
           right:0.5em;
         }
 
