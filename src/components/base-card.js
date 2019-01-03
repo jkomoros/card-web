@@ -2,6 +2,8 @@ import { LitElement, html } from '@polymer/lit-element';
 
 import { SharedStyles } from './shared-styles.js';
 
+import './star-count.js';
+
 // This element is *not* connected to the Redux store.
 export class BaseCard extends LitElement {
   render() {
@@ -88,9 +90,16 @@ export class BaseCard extends LitElement {
           opacity: 0.5;
         }
 
+        star-count {
+          position:absolute;
+          bottom:0.5em;
+          right:0.5em;
+        }
+
       </style>
       <div class="container ${this.editing ? 'editing' : ''}">
         ${this.innerRender()}
+        <star-count .count=${this.starCount}></star-count>
       </div>
     `;
   }
@@ -102,7 +111,8 @@ export class BaseCard extends LitElement {
 
   static get properties() {
     return {
-      editing : { type:Boolean }
+      editing : { type:Boolean },
+      starCount: { type:Number }
     }
   }
 
