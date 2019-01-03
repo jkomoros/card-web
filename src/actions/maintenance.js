@@ -33,6 +33,27 @@ const maintenanceTaskRun = async (taskName) => {
   db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: new Date()});
 }
 
+const ADD_THREAD_COUNT = 'add-thread-count';
+
+export const addThreadCount = async() => {
+
+  await checkMaintenanceTaskHasBeenRun(ADD_THREAD_COUNT);
+
+  let batch = db.batch();
+
+  let snapshot = await db.collection(CARDS_COLLECTION).get();
+
+  snapshot.forEach(doc => {
+    batch.update(doc.ref, {'thread_count': 0})
+  });
+
+  await batch.commit();
+
+  await maintenanceTaskRun(ADD_THREAD_COUNT);
+  console.log('done!');
+
+}
+
 const ADD_STAR_COUNT = 'add-star-count';
 
 export const addStarCount = async() => {
@@ -328,4 +349,5 @@ export const tasks = {
   [UPDATE_INBOUND_LINKS]: updateInboundLinks,
   [NORMALIZE_CONTENT_BODY]: normalizeContentBody,
   [ADD_STAR_COUNT]: addStarCount,
+  [ADD_THREAD_COUNT]: addThreadCount,
 }
