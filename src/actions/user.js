@@ -4,11 +4,14 @@ export const SIGNIN_FAILURE = 'SIGNIN_FAILURE';
 export const SIGNOUT_USER = 'SIGNOUT_USER';
 export const SIGNOUT_SUCCESS = 'SIGNOUT_SUCCESS';
 export const UPDATE_STARS = 'UPDATE_STARS';
+export const UPDATE_READS = 'UPDATE_READS';
 
 import {
   firebase,
   connectLiveStars,
-  disconnectLiveStars
+  disconnectLiveStars,
+  connectLiveReads,
+  disconnectLiveReads
 } from './database.js';
 
 import {
@@ -18,7 +21,8 @@ import {
 import {
   db,
   CARDS_COLLECTION,
-  STARS_COLLECTION
+  STARS_COLLECTION,
+  READS_COLLECTION
 } from './database.js';
 
 import {
@@ -39,6 +43,7 @@ export const signIn = () => (dispatch) => {
 export const signOutSuccess = () => (dispatch) =>  {
   dispatch({type: SIGNOUT_SUCCESS});
   disconnectLiveStars();
+  disconnectLiveReads();
 }
 
 export const signInSuccess = (firebaseUser, store) => (dispatch) => {
@@ -48,6 +53,7 @@ export const signInSuccess = (firebaseUser, store) => (dispatch) => {
     user: info,
   });
   connectLiveStars(store,info.uid);
+  connectLiveReads(store,info.uid);
 }
 
 const _userInfo = (info) => {
@@ -132,5 +138,57 @@ export const removeStar = (cardToStar) => (dispatch, getState) => {
     transaction.update(cardRef, {star_count: newStarCount});
     transaction.delete(starRef);
   })
+
+}
+
+export const updateReads = (readsToAdd = [], readsToRemove = []) => {
+  return {
+    type: UPDATE_READS,
+    readsToAdd,
+    readsToRemove
+  }
+}
+
+export const markRead = (cardToMarkRead) => (dispatch, getState) => {
+
+  if (!cardToMarkRead || !cardToMarkRead.id) {
+    console.log("Invalid card provided");
+    return;
+  }
+
+  const state = getState();
+  let uid = userId(state);
+
+  if (!uid) {
+    console.log("Not logged in");
+    return;
+  }
+
+  let readRef = db.collection(READ).doc(idForPersonalCardInfo(uid, cardToMarkRead.id));
+
+  let batch = db.batch();
+  batch.update(readRef, {created: new Date(), owner: uid, card: cardToMarkRead.id});
+  batch.commit();
+}
+
+export const markUnread = (cardToMarkUnread) => (dispatch, getState) => {
+  if (!cardToStar || !cardToStar.id) {
+    console.log("Invalid card provided");
+    return;
+  }
+
+  const state = getState();
+  let uid = userId(state);
+
+  if (!uid) {
+    console.log("Not logged in");
+    return;
+  }
+
+  let readRef = db.collection(READ).doc(idForPersonalCardInfo(uid, cardToMarkRead.id));
+
+  let batch = db.batch();
+  batch.delete(readRef);
+  batch.commit();
 
 }

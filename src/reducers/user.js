@@ -4,7 +4,8 @@ import {
   SIGNIN_FAILURE,
   SIGNOUT_USER,
   SIGNOUT_SUCCESS,
-  UPDATE_STARS
+  UPDATE_STARS,
+  UPDATE_READS,
 } from '../actions/user.js';
 
 import {
@@ -17,6 +18,7 @@ const INITIAL_STATE = {
   pending: false,
   error: null,
   stars : {},
+  reads: {},
 }
 
 const app = (state = INITIAL_STATE, action) => {
@@ -31,7 +33,8 @@ const app = (state = INITIAL_STATE, action) => {
         ...state,
         pending:false,
         user: action.user,
-        stars: {}
+        stars: {},
+        reads: {}
       }
     case SIGNIN_FAILURE:
       return {
@@ -50,11 +53,17 @@ const app = (state = INITIAL_STATE, action) => {
         pending:false,
         user: null,
         stars: {},
+        reads: {}
       }
     case UPDATE_STARS:
       return {
         ...state,
         stars: setUnion(setRemove(state.stars, action.starsToRemove), action.starsToAdd)
+      }
+    case UPDATE_READS:
+      return {
+        ...state,
+        reads: setUnion(setRemove(state.reads, action.readsToRemove), action.readsToAdd)
       }
     default:
       return state;
@@ -75,6 +84,10 @@ export const userId = state => {
 
 export const cardHasStar = (state, cardId) => {
   return state.user.stars[cardId] || false;
+}
+
+export const cardHasRead = (state, cardId) => {
+  return state.user.reads[cardId] || false
 }
 
 export const uidMayResolveThread = (uid, thread) => {

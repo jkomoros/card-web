@@ -62,6 +62,7 @@ import {
 
 import {
   updateStars,
+  updateReads,
 } from './user.js';
 
 export const CARDS_COLLECTION = 'cards';
@@ -73,10 +74,12 @@ export const AUTHORS_COLLECTION = 'authors';
 export const THREADS_COLLECTION = 'threads';
 export const MESSAGES_COLLECTION = 'messages';
 export const STARS_COLLECTION = 'stars';
+export const READS_COLLECTION = 'reads';
 
 let liveMessagesUnsubscribe = null;
 let liveThreadsUnsubscribe = null;
 let liveStarsUnsubscribe = null;
+let liveReadsUnsubscribe = null;
 
 export const connectLiveMessages = (store, cardId) => {
   if (liveMessagesUnsubscribe) {
@@ -150,6 +153,31 @@ export const connectLiveStars = (store, uid) => {
       starsToAdd.push(doc.data().card);
     })
     store.dispatch(updateStars(starsToAdd, starsToRemove));
+  })
+}
+
+export const disconnectLiveReads = () => {
+  if (liveReadsUnsubscribe) {
+    liveReadsUnsubscribe();
+    liveReadsUnsubscribe = null;
+  }
+}
+
+export const connectLiveReads = (store, uid) => {
+  disconnectLiveReads();
+  liveReadsUnsubscribe = db.collection(READS_COLLECTION).where('owner', '==', uid).onSnapshot( snapshot => {
+    let reads = {};
+    let readsToAdd = [];
+    let readsToRemove = [];
+    snapshot.docChanges().forEach(change => {
+      let doc = change.doc;
+      if (change.type === 'removed') {
+        readsToRemove.push(doc.data().card);
+        return;
+      }
+      readsToAdd.push(doc.data().card);
+    })
+    store.dispatch(updateReads(readsToAdd, readsToRemove));
   })
 }
 
