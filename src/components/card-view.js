@@ -186,6 +186,7 @@ class CardView extends connect(store)(PageViewElement) {
           display: none;
           height: 100%;
           width: 100%;
+          border-radius: 50%;
           position: absolute;
           top: 0;
           left: 0;
@@ -203,10 +204,10 @@ class CardView extends connect(store)(PageViewElement) {
 
         @keyframes autoread {
           from {
-            transform: translateY(100%);
+            transform: scale(1.0);
           }
           to {
-            transform: translateY(0%);
+            transform: scale(0.0);
           }
         }
 
