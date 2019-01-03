@@ -164,7 +164,7 @@ export const markRead = (cardToMarkRead) => (dispatch, getState) => {
     return;
   }
 
-  let readRef = db.collection(READ).doc(idForPersonalCardInfo(uid, cardToMarkRead.id));
+  let readRef = db.collection(READS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToMarkRead.id));
 
   let batch = db.batch();
   batch.update(readRef, {created: new Date(), owner: uid, card: cardToMarkRead.id});
@@ -172,7 +172,7 @@ export const markRead = (cardToMarkRead) => (dispatch, getState) => {
 }
 
 export const markUnread = (cardToMarkUnread) => (dispatch, getState) => {
-  if (!cardToStar || !cardToStar.id) {
+  if (!cardToMarkUnread || !cardToMarkUnread.id) {
     console.log("Invalid card provided");
     return;
   }
@@ -185,7 +185,7 @@ export const markUnread = (cardToMarkUnread) => (dispatch, getState) => {
     return;
   }
 
-  let readRef = db.collection(READ).doc(idForPersonalCardInfo(uid, cardToMarkRead.id));
+  let readRef = db.collection(READS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToMarkUnread.id));
 
   let batch = db.batch();
   batch.delete(readRef);
