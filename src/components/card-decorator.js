@@ -58,7 +58,7 @@ export class CardDecorator extends LitElement {
   }
 
   innerRender() {
-    return html``;
+    return html`<span>#${this.count}</span>`;
   }
 
   get doShow() {

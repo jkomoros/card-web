@@ -3,6 +3,7 @@ import { LitElement, html } from '@polymer/lit-element';
 import './star-count.js';
 import './read-decorator.js';
 import './thread-count.js';
+import './card-decorator.js';
 
 // This is a reusable element. It is not connected to the store. You can
 // imagine that it could just as well be a third-party element that you
@@ -97,12 +98,19 @@ class CardThumbnail extends LitElement {
           right: 0.25em;
         }
 
+        card-decorator {
+          position: absolute;
+          bottom:0.25em;
+          left: 0.25em;
+        }
+
       </style>
       <div @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="${this.selected ? "selected" : ""} ${this.cardType}">
         <h3>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>
         <star-count .count=${this.card.star_count || 0} .highlighted=${this.starred} .light=${this.cardType != 'content'}></star-count>
         <read-decorator .visible=${this.read} .light=${this.cardType != 'content'}></read-decorator>
         <thread-count .count=${this.card.thread_count || 0} .light=${this.cardType != 'content'}></thread-count>
+        <card-decorator .count=${this.index + 1} .light=${this.cardType != 'content'}></card-decorator>
       </div>
     `;
   }
