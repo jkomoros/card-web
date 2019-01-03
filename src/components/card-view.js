@@ -270,7 +270,7 @@ class CardView extends connect(store)(PageViewElement) {
 
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer .editable=${true} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''}></card-drawer>
+        <card-drawer .editable=${true} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .stars=${this._stars} .reads=${this._reads}></card-drawer>
         <div id='center'>
           <div id='canvas'>
             <div id='portrait-message'>
@@ -328,6 +328,8 @@ class CardView extends connect(store)(PageViewElement) {
       _cardHasStar: {type: Boolean},
       _cardIsRead: {type: Boolean},
       _collection: {type: Array},
+      _stars: {type: Object},
+      _reads: {type: Object},
     }
   }
 
@@ -436,6 +438,8 @@ class CardView extends connect(store)(PageViewElement) {
     this._cardHasStar = cardHasStar(state, this._card ? this._card.id : "");
     this._cardIsRead = cardIsRead(state, this._card ? this._card.id : "");
     this._collection = collectionSelector(state);
+    this._stars = state.user.stars;
+    this._reads = state.user.reads;
   }
 
   _ensureUrlShowsName() {

@@ -89,7 +89,7 @@ class CardDrawer extends connect(store)(LitElement) {
         <div class='scrolling'>
         ${repeat(this.collection, (i) => i.id, (i, index) => html`
           <div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
-          <card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this._allowEdits} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this.selectedCardId} .index=${index} .starred=${this._stars[i.id] || false} .read=${this._reads[i.id] || false}></card-thumbnail>`)}
+          <card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this._allowEdits} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this.selectedCardId} .index=${index} .starred=${this.stars[i.id] || false} .read=${this.reads[i.id] || false}></card-thumbnail>`)}
         </div>
         <button class='round' @click='${this._handleAddSlide}' ?hidden='${!this._allowEdits}'>${plusIcon}</button>
       </div>
@@ -100,6 +100,8 @@ class CardDrawer extends connect(store)(LitElement) {
     super();
 
     this.collection = [];
+    this.stars = {};
+    this.reads = {};
   }
 
   _titleForCard(card) {
@@ -189,8 +191,8 @@ class CardDrawer extends connect(store)(LitElement) {
     editable: { type: Boolean},
     collection: { type: Array },
     selectedCardId: { type:String },
-    _stars: { type: Object },
-    _reads: { type: Object },
+    stars: { type: Object },
+    reads: { type: Object },
     _activeSectionId: { type: String },
     _userMayEdit: { type: Boolean},
     _dragging: {type: Boolean},
@@ -201,8 +203,6 @@ class CardDrawer extends connect(store)(LitElement) {
 
   // This is called every time something is updated in the store.
   stateChanged(state) {
-    this._stars = state.user.stars;
-    this._reads = state.user.reads;
     this._activeSectionId = state.data.activeSectionId;
     this._userMayEdit = userMayEdit(state);
     this._reorderPending = state.data.reorderPending;
