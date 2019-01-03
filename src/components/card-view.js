@@ -182,6 +182,34 @@ class CardView extends connect(store)(PageViewElement) {
           font-size:20px;
         }
 
+        .auto-read {
+          display: none;
+          height: 100%;
+          width: 100%;
+          position: absolute;
+          top: 0;
+          left: 0;
+          z-index:1;
+          background-color:#FFFFFF66;
+        }
+
+        .auto-read.pending {
+          display:block;
+          animation-name: autoread;
+          /* TODO: set this based on the live variable */
+          animation-duration: 5s;
+          animation-timing-function: linear;
+        }
+
+        @keyframes autoread {
+          from {
+            transform: translateY(100%);
+          }
+          to {
+            transform: translateY(0%);
+          }
+        }
+
         #portrait-message {
           display:none;
         }
@@ -228,7 +256,7 @@ class CardView extends connect(store)(PageViewElement) {
               <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._activeCardHasComments ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
               <button class='round ${this._cardInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCardInfoClicked}'>${infoIcon}</button>
               <button class='round ${this._cardHasStar ? 'selected' : ''}' @click='${this._handleStarClicked}' ?disabled='${!this._userMayStar}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
-              <button class='round ${this._cardIsRead ? 'selected' : ''}' @click='${this._handleReadClicked}' ?disabled='${!this._userMayMarkRead}'>${visibilityIcon}</button>
+              <button class='round ${this._cardIsRead ? 'selected' : ''}' @click='${this._handleReadClicked}' ?disabled='${!this._userMayMarkRead}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
               <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
             </div>
           </div>
@@ -248,6 +276,7 @@ class CardView extends connect(store)(PageViewElement) {
       _userMayEdit: { type: Boolean },
       _userMayStar: { type: Boolean },
       _userMayMarkRead: { type: Boolean },
+      _autoMarkReadPending : { type: Boolean},
       _displayCard: { type: Object },
       _editingCard: { type: Object },
       _commentsPanelOpen: {type: Boolean},
@@ -354,6 +383,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._editing = state.editor.editing; 
     this._userMayStar  =  userMayStar(state);
     this._userMayMarkRead =  userMayMarkRead(state);
+    this._autoMarkReadPending = state.user.autoMarkReadPending;
     this._userMayEdit = userMayEdit(state);
     this._headerPanelOpen = state.app.headerPanelOpen;
     this._commentsPanelOpen = state.app.commentsPanelOpen;

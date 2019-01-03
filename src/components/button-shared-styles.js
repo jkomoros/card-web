@@ -22,6 +22,8 @@ export const ButtonSharedStyles = html`
     border: none;
     cursor: pointer;
     margin: 0.5em;
+    position: relative;
+    overflow: hidden;
   }
   button:disabled {
     background-color: var(--app-dark-text-color-light);

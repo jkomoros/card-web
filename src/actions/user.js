@@ -192,6 +192,7 @@ export const markActiveCardReadIfLoggedIn = () => (dispatch, getState) => {
   if (!uid) return;
   const activeCard = cardSelector(state);
   if (!activeCard) return;
+  dispatch({type: AUTO_MARK_READ_PENDING_CHANGED, pending: false});
   dispatch(markRead(activeCard, true));
 }
 
