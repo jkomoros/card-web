@@ -22,7 +22,9 @@ import { showCard } from '../actions/data.js'
 import {
   userMayEdit,
   cardHasStar,
-  cardIsRead
+  cardIsRead,
+  userMayStar,
+  userMayMarkRead
 } from '../reducers/user.js';
 
 import {
@@ -225,8 +227,8 @@ class CardView extends connect(store)(PageViewElement) {
               <button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${viewDayIcon}</button>
               <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._activeCardHasComments ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
               <button class='round ${this._cardInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCardInfoClicked}'>${infoIcon}</button>
-              <button class='round ${this._cardHasStar ? 'selected' : ''}' @click='${this._handleStarClicked}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
-              <button class='round ${this._cardIsRead ? 'selected' : ''}' @click='${this._handleReadClicked}'>${visibilityIcon}</button>
+              <button class='round ${this._cardHasStar ? 'selected' : ''}' @click='${this._handleStarClicked}' ?disabled='${!this._userMayStar}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
+              <button class='round ${this._cardIsRead ? 'selected' : ''}' @click='${this._handleReadClicked}' ?disabled='${!this._userMayMarkRead}'>${visibilityIcon}</button>
               <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
             </div>
           </div>
@@ -244,6 +246,8 @@ class CardView extends connect(store)(PageViewElement) {
       _cardIdOrSlug: { type: String },
       _editing: {type: Boolean },
       _userMayEdit: { type: Boolean },
+      _userMayStar: { type: Boolean },
+      _userMayMarkRead: { type: Boolean },
       _displayCard: { type: Object },
       _editingCard: { type: Object },
       _commentsPanelOpen: {type: Boolean},
@@ -347,7 +351,9 @@ class CardView extends connect(store)(PageViewElement) {
     this._card = cardSelector(state);
     this._displayCard = this._editingCard ? this._editingCard : this._card;
     this._cardIdOrSlug = this.extractPageExtra(state.app.pageExtra)[0];
-    this._editing = state.editor.editing;     
+    this._editing = state.editor.editing; 
+    this._userMayStar  =  userMayStar(state);
+    this._userMayMarkRead =  userMayMarkRead(state);
     this._userMayEdit = userMayEdit(state);
     this._headerPanelOpen = state.app.headerPanelOpen;
     this._commentsPanelOpen = state.app.commentsPanelOpen;

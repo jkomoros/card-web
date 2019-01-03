@@ -130,6 +130,8 @@ export const userMayEditMessage = (state, message) => uidMayEditMessage(userId(s
 export const userMayComment = state => uidMayComment(userId(state));
 export const userIsAdmin = state => uidMayEdit(userId(state));
 export const userMayEdit = state => uidMayEdit(userId(state));
+export const userMayStar = state => uidMayComment(userId(state));
+export const userMayMarkRead = state => uidMayComment(userId(state));
 
 
 export default app;
