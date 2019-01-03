@@ -167,7 +167,7 @@ export const markRead = (cardToMarkRead) => (dispatch, getState) => {
   let readRef = db.collection(READS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToMarkRead.id));
 
   let batch = db.batch();
-  batch.update(readRef, {created: new Date(), owner: uid, card: cardToMarkRead.id});
+  batch.set(readRef, {created: new Date(), owner: uid, card: cardToMarkRead.id});
   batch.commit();
 }
 
