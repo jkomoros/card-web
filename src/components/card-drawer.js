@@ -26,8 +26,6 @@ import {
   reorderCard,
 } from '../actions/data.js';
 
-import { collectionSelector } from '../reducers/data.js'
-
 import { ButtonSharedStyles } from './button-shared-styles.js';
 import { SharedStyles } from './shared-styles.js';
 
@@ -89,13 +87,19 @@ class CardDrawer extends connect(store)(LitElement) {
       </style>
       <div ?hidden='${!this._showing}' class='container ${this._dragging ? 'dragging' : ''}${this._reorderPending ? 'reordering':''}'>
         <div class='scrolling'>
-        ${repeat(this._collection, (i) => i.id, (i, index) => html`
+        ${repeat(this.collection, (i) => i.id, (i, index) => html`
           <div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
           <card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this._allowEdits} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this._activeCardId} .index=${index} .starred=${this._stars[i.id] || false} .read=${this._reads[i.id] || false}></card-thumbnail>`)}
         </div>
         <button class='round' @click='${this._handleAddSlide}' ?hidden='${!this._allowEdits}'>${plusIcon}</button>
       </div>
     `;
+  }
+
+  constructor() {
+    super();
+
+    this.collection = [];
   }
 
   _titleForCard(card) {
@@ -183,7 +187,7 @@ class CardDrawer extends connect(store)(LitElement) {
     //editable doesn't mean it IS editable; just that if the userMayEdit this
     //instantiaion of hte drawer should allow edits.
     editable: { type: Boolean},
-    _collection: { type: Array },
+    collection: { type: Array },
     _stars: { type: Object },
     _reads: { type: Object },
     _activeCardId: { type: String },
@@ -197,7 +201,6 @@ class CardDrawer extends connect(store)(LitElement) {
 
   // This is called every time something is updated in the store.
   stateChanged(state) {
-    this._collection = collectionSelector(state);
     this._stars = state.user.stars;
     this._reads = state.user.reads;
     this._activeCardId = state.data.activeCardId;

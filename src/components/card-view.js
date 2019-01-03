@@ -76,6 +76,10 @@ import {
   modifyCard
 } from '../actions/data.js';
 
+import { 
+  collectionSelector
+} from '../reducers/data.js'
+
 import {
   activeCardHasComments
 } from '../reducers/comments.js';
@@ -266,7 +270,7 @@ class CardView extends connect(store)(PageViewElement) {
 
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer .editable=${true}></card-drawer>
+        <card-drawer .editable=${true} .collection=${this._collection}></card-drawer>
         <div id='center'>
           <div id='canvas'>
             <div id='portrait-message'>
@@ -323,6 +327,7 @@ class CardView extends connect(store)(PageViewElement) {
       _mobileMode: {type: Boolean},
       _cardHasStar: {type: Boolean},
       _cardIsRead: {type: Boolean},
+      _collection: {type: Array},
     }
   }
 
@@ -430,6 +435,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._mobileMode = state.app.mobileMode;
     this._cardHasStar = cardHasStar(state, this._card ? this._card.id : "");
     this._cardIsRead = cardIsRead(state, this._card ? this._card.id : "");
+    this._collection = collectionSelector(state);
   }
 
   _ensureUrlShowsName() {
