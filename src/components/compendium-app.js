@@ -96,6 +96,8 @@ class CompendiumApp extends connect(store)(LitElement) {
         --app-drawer-background-color: var(--app-secondary-color);
         --app-drawer-text-color: var(--app-light-text-color);
         --app-drawer-selected-color: #78909C;
+
+        --transition-fade: 0.25s linear;
       }
 
       .container {

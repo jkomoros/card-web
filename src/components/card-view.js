@@ -144,6 +144,12 @@ class CardView extends connect(store)(PageViewElement) {
           right:0.5em;
           display:flex;
           flex-direction:column;
+          opacity: 0.3;
+          transition: opacity var(--transition-fade);
+        }
+
+        .presenting .actions:hover {
+          opacity:1.0;
         }
 
 
