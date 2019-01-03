@@ -6,6 +6,7 @@ service cloud.firestore {
     }
     
     function editAddsMessage() {
+      //TODO: Also check that the first parts are the same.
       return request.resource.data.messages.size() == resource.data.messages.size() + 1 && request.resource.data.messages[0:resource.data.messages.size()] == resource.data.messages;
     }
     
@@ -13,8 +14,16 @@ service cloud.firestore {
       return request.auth.uid != null;
     }
     
+    function createIsOwner() {
+      return loggedIn() && request.auth.uid == request.resource.data.owner;
+    }
+    
     function createIsAuthor() {
       return loggedIn() && request.auth.uid == request.resource.data.author;
+    }
+    
+    function updateIsOwner() {
+      return loggedIn() && request.auth.uid == resource.data.owner;
     }
     
     function updateIsAuthor() {
@@ -38,6 +47,13 @@ service cloud.firestore {
     match /threads/{thread} {
       allow create : if createIsAuthor();
       allow update : if updateIsAuthor() || (loggedIn() && editAddsMessage());
+    }
+    
+    match /stars/{star} {
+      allow create: if createIsOwner();
+      allow update: if updateIsOwner();
+      allow delete: if updateIsOwner();
+      allow read: if updateIsOwner();
     }
   }
 }
