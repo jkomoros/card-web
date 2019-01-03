@@ -138,7 +138,7 @@ class CardView extends connect(store)(PageViewElement) {
           --card-shadow: var(--card-shadow-first-part) var(--shadow-color);
         }
 
-        .presentation-actions {
+        .presenting .actions {
           position:absolute;
           bottom:0.5em;
           right:0.5em;
@@ -146,14 +146,35 @@ class CardView extends connect(store)(PageViewElement) {
           flex-direction:column;
         }
 
-        .actions, .presentation-actions {
+
+        .presenting .actions > div {
+          display:flex;
+          flex-direction: column;
+        }
+
+        .actions{
           /* This is a hack to allow the information/edit buttons to be on top of a section-head-card container. See #44. */
           z-index: 1;
+          display:flex;
+          flex-direction:row;
+        }
+
+        .actions .next-prev {
+          display:none;
+        }
+
+        .presenting .actions .next-prev {
+          display:flex;
+        }
+
+        .presenting .actions .panels {
+          display:none;
         }
 
         card-editor {
           display:none;
         }
+
         card-editor[active] {
           display:block;
           width:100%;
@@ -245,20 +266,25 @@ class CardView extends connect(store)(PageViewElement) {
             <div id='portrait-message'>
               <div>Rotate your phone to landscape mode</div>
             </div>
-            <div class='presentation-actions' ?hidden=${!this._presentationMode}>
-              <button class='round' @click=${this._handleBackClicked}>${arrowBackIcon}</button>
-              <button class='round' @click=${this._handleForwardClicked}>${arrowForwardIcon}</button>
-              <button class='round ${this._presentationMode ? 'selected' : ''}' @click=${this._handlePresentationModeClicked} ?hidden='${this._mobileMode}'>${fullScreenIcon}</button>
-            </div>
             <card-renderer .editing=${this._editing} .card=${this._displayCard} .fromContentEditable=${this._fromContentEditable} @body-updated=${this._handleBodyUpdated}></card-renderer>
-            <div class='actions' ?hidden=${this._presentationMode}>
-              <button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
-              <button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${viewDayIcon}</button>
-              <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._activeCardHasComments ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
-              <button class='round ${this._cardInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCardInfoClicked}'>${infoIcon}</button>
-              <button class='round ${this._cardHasStar ? 'selected' : ''}' @click='${this._handleStarClicked}' ?disabled='${!this._userMayStar}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
-              <button class='round ${this._cardIsRead ? 'selected' : ''}' @click='${this._handleReadClicked}' ?disabled='${!this._userMayMarkRead}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
-              <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
+            <div class='actions'>
+              <div class='presentation'>
+                <button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
+              </div>
+              <div class='panels'>
+                <button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${viewDayIcon}</button>
+                <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._activeCardHasComments ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
+                <button class='round ${this._cardInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCardInfoClicked}'>${infoIcon}</button>
+              </div>
+              <div class='modify'>
+                <button class='round ${this._cardHasStar ? 'selected' : ''}' @click='${this._handleStarClicked}' ?disabled='${!this._userMayStar}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
+                <button class='round ${this._cardIsRead ? 'selected' : ''}' @click='${this._handleReadClicked}' ?disabled='${!this._userMayMarkRead}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
+                <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
+              </div>
+              <div class='next-prev'>
+                <button class='round' @click=${this._handleBackClicked}>${arrowBackIcon}</button>
+                <button class='round' @click=${this._handleForwardClicked}>${arrowForwardIcon}</button>
+              </div>
             </div>
           </div>
           <card-editor ?active=${this._editing} ></card-editor>
