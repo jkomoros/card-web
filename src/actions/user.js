@@ -158,9 +158,17 @@ export const updateReads = (readsToAdd = [], readsToRemove = []) => {
 
 let autoMarkReadTimeoutId = null;
 
-export const scheduleAutoMarkRead = () => (dispatch) => {
+export const scheduleAutoMarkRead = () => (dispatch, getState) => {
 
   cancelPendingAutoMarkRead();
+
+  const state = getState();
+  const uid = userId(state);
+  if (!uid) return;
+
+  const activeCard = cardSelector(state);
+  if (!activeCard) return;
+  if (cardIsRead(state, activeCard.id)) return;
 
   autoMarkReadTimeoutId = setTimeout(() => dispatch(markActiveCardReadIfLoggedIn()), AUTO_MARK_READ_DELAY);
 }
