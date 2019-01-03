@@ -80,10 +80,6 @@ import {
   collectionSelector
 } from '../reducers/data.js'
 
-import {
-  activeCardHasComments
-} from '../reducers/comments.js';
-
 import comments from '../reducers/comments.js';
 store.addReducers({
   comments
@@ -283,7 +279,7 @@ class CardView extends connect(store)(PageViewElement) {
               </div>
               <div class='panels'>
                 <button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${viewDayIcon}</button>
-                <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._activeCardHasComments ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
+                <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._card.thread_count > 0 ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
                 <button class='round ${this._cardInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCardInfoClicked}'>${infoIcon}</button>
               </div>
               <div class='modify'>
@@ -321,7 +317,6 @@ class CardView extends connect(store)(PageViewElement) {
       _cardsDrawerPanelOpen: {type:Boolean},
       _cardsDrawerPanelShowing: {type: Boolean},
       _headerPanelOpen: {type: Boolean},
-      _activeCardHasComments: {type:Boolean},
       _fromContentEditable: {type:Boolean},
       _presentationMode: {type:Boolean},
       _mobileMode: {type: Boolean},
@@ -430,7 +425,6 @@ class CardView extends connect(store)(PageViewElement) {
     this._cardInfoPanelOpen = state.app.cardInfoPanelOpen;
     //Note: do NOT use this for whether the panel is showing.
     this._cardsDrawerPanelOpen = state.app.cardsDrawerPanelOpen;
-    this._activeCardHasComments = activeCardHasComments(state);
     this._fromContentEditable = state.editor.fromContentEditable;
     this._cardsDrawerPanelShowing = cardsDrawerPanelShowing(state);
     this._presentationMode = state.app.presentationMode;
