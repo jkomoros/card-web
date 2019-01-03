@@ -73,6 +73,9 @@ export const userId = state => {
   return user.uid;
 }
 
+export const cardHasStar = (state, cardId) => {
+  return state.user.stars[cardId] || false;
+}
 
 export const uidMayResolveThread = (uid, thread) => {
   if (uidIsAdmin(uid)) return true;

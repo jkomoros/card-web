@@ -20,12 +20,17 @@ import { cardSelector } from '../reducers/data.js'
 import { showCard } from '../actions/data.js'
 
 import {
-  userMayEdit
+  userMayEdit,
+  cardHasStar
 } from '../reducers/user.js';
 
 import {
   editingStart
 } from '../actions/editor.js';
+
+import {
+  addStar
+} from '../actions/user.js';
 
 import {
   navigateToCard,
@@ -55,7 +60,9 @@ import {
   viewDayIcon,
   fullScreenIcon,
   arrowBackIcon,
-  arrowForwardIcon
+  arrowForwardIcon,
+  starIcon,
+  starBorderIcon
 } from './my-icons.js';
 
 import {
@@ -213,6 +220,7 @@ class CardView extends connect(store)(PageViewElement) {
               <button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${viewDayIcon}</button>
               <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._activeCardHasComments ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
               <button class='round ${this._cardInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCardInfoClicked}'>${infoIcon}</button>
+              <button class='round ${this._cardHasStar ? 'selected' : ''}' @click='${this._handleStarClicked}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
               <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
             </div>
           </div>
@@ -240,7 +248,8 @@ class CardView extends connect(store)(PageViewElement) {
       _activeCardHasComments: {type:Boolean},
       _fromContentEditable: {type:Boolean},
       _presentationMode: {type:Boolean},
-      _mobileMode: {type: Boolean}
+      _mobileMode: {type: Boolean},
+      _cardHasStar: {type: Boolean}
     }
   }
 
@@ -310,6 +319,14 @@ class CardView extends connect(store)(PageViewElement) {
     store.dispatch(navigateToNextCard());
   }
 
+  _handleStarClicked(e) {
+    if (this._cardHasStar) {
+      console.warn("Unstarring not yet implemented");
+    } else {
+      store.dispatch(addStar(this._card));
+    }
+  }
+
   stateChanged(state) {
     this._editingCard = state.editor.card;
     this._card = cardSelector(state);
@@ -327,6 +344,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._cardsDrawerPanelShowing = cardsDrawerPanelShowing(state);
     this._presentationMode = state.app.presentationMode;
     this._mobileMode = state.app.mobileMode;
+    this._cardHasStar = cardHasStar(state, this._card ? this._card.id : "");
   }
 
   _ensureUrlShowsName() {
