@@ -23,8 +23,16 @@ class StarCount extends LitElement {
         color: var(--app-dark-text-color-light);
       }
 
+      div.light {
+        color: var(--app-light-text-color);
+      }
+
       div.highlighted {
         color: var(--app-primary-color-subtle);
+      }
+
+      div.light.highlighted {
+        color: var(--app-primary-color-light);
       }
 
       svg {
@@ -33,11 +41,19 @@ class StarCount extends LitElement {
         fill: var(--app-dark-text-color-light);
       }
 
+      div.light svg {
+        fill: var(--app-light-text-color);
+      }
+
       div.highlighted svg {
         fill: var(--app-primary-color-subtle);
       }
+
+      div.highlighted.light {
+        fill: var(--app-primary-color-light);
+      }
     </style>
-    <div ?hidden='${!this.hasStars}' class='stars ${this.highlighted ? 'highlighted' : ''}'>${starIcon} <span>${this.count}</span></div>
+    <div ?hidden='${!this.hasStars}' class='stars ${this.highlighted ? 'highlighted' : ''} ${this.light ? 'light' : ''}'>${starIcon} <span>${this.count}</span></div>
     `;
   }
 
@@ -48,7 +64,8 @@ class StarCount extends LitElement {
   static get properties() {
     return {
       count: { type: Number },
-      highlighted: { type: Boolean}
+      highlighted: { type: Boolean},
+      light: { type:Boolean }
     }
   }
 }
