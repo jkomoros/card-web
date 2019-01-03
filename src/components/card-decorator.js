@@ -53,7 +53,7 @@ export class CardDecorator extends LitElement {
         fill: var(--app-primary-color-light);
       }
     </style>
-    <div ?hidden='${!this.hasCount}' class='${this.highlighted ? 'highlighted' : ''} ${this.light ? 'light' : ''}'>${this.innerRender()}</div>
+    <div ?hidden='${!this.doShow}' class='${this.highlighted ? 'highlighted' : ''} ${this.light ? 'light' : ''}'>${this.innerRender()}</div>
     `;
   }
 
@@ -61,13 +61,14 @@ export class CardDecorator extends LitElement {
     return html``;
   }
 
-  get hasCount() {
-    return this.count && this.count > 0;
+  get doShow() {
+    return this.visible || (this.count && this.count > 0);
   }
 
   static get properties() {
     return {
       count: { type: Number },
+      visible: { type: Boolean},
       highlighted: { type: Boolean},
       light: { type:Boolean }
     }
