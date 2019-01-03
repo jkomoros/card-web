@@ -4,9 +4,12 @@ import {
   starIcon,
 } from './my-icons.js';
 
+import { SharedStyles } from './shared-styles.js';
+
 class StarCount extends LitElement {
   render() {
     return html`
+    ${SharedStyles}
     <style>
       :host {
         display:block;
