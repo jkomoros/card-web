@@ -100,3 +100,37 @@ export const addStar = (cardToStar) => (dispatch, getState) => {
     transaction.set(starRef, {created: new Date(), owner: uid, card:cardToStar.id});
   })
 }
+
+export const removeStar = (cardToStar) => (dispatch, getState) => {
+  if (!cardToStar || !cardToStar.id) {
+    console.log("Invalid card provided");
+    return;
+  }
+
+  const state = getState();
+  let uid = userId(state);
+
+  if (!uid) {
+    console.log("Not logged in");
+    return;
+  }
+
+  let cardRef = db.collection(CARDS_COLLECTION).doc(cardToStar.id);
+  let starRef = db.collection(STARS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToStar.id));
+
+  db.runTransaction(async transaction => {
+    let cardDoc = await transaction.get(cardRef);
+    if (!cardDoc.exists) {
+      throw "Doc doesn't exist!"
+    }
+    let starDoc = await(transaction.get(starRef));
+    if (!starDoc.exists) {
+      throw "Star doesn't exist!";
+    }
+    let newStarCount = (cardDoc.data().star_count || 0) - 1;
+    if (newStarCount < 0) newStarCount = 0;
+    transaction.update(cardRef, {star_count: newStarCount});
+    transaction.delete(starRef);
+  })
+
+}

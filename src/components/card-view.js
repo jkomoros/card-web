@@ -29,7 +29,8 @@ import {
 } from '../actions/editor.js';
 
 import {
-  addStar
+  addStar,
+  removeStar
 } from '../actions/user.js';
 
 import {
@@ -321,7 +322,7 @@ class CardView extends connect(store)(PageViewElement) {
 
   _handleStarClicked(e) {
     if (this._cardHasStar) {
-      console.warn("Unstarring not yet implemented");
+      store.dispatch(removeStar(this._card));
     } else {
       store.dispatch(addStar(this._card));
     }
