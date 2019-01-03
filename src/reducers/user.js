@@ -86,7 +86,7 @@ export const cardHasStar = (state, cardId) => {
   return state.user.stars[cardId] || false;
 }
 
-export const cardHasRead = (state, cardId) => {
+export const cardIsRead = (state, cardId) => {
   return state.user.reads[cardId] || false
 }
 

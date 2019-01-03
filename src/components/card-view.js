@@ -21,7 +21,8 @@ import { showCard } from '../actions/data.js'
 
 import {
   userMayEdit,
-  cardHasStar
+  cardHasStar,
+  cardIsRead
 } from '../reducers/user.js';
 
 import {
@@ -30,7 +31,9 @@ import {
 
 import {
   addStar,
-  removeStar
+  removeStar,
+  markRead,
+  markUnread
 } from '../actions/user.js';
 
 import {
@@ -63,7 +66,8 @@ import {
   arrowBackIcon,
   arrowForwardIcon,
   starIcon,
-  starBorderIcon
+  starBorderIcon,
+  visibilityIcon
 } from './my-icons.js';
 
 import {
@@ -222,6 +226,7 @@ class CardView extends connect(store)(PageViewElement) {
               <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._activeCardHasComments ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
               <button class='round ${this._cardInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCardInfoClicked}'>${infoIcon}</button>
               <button class='round ${this._cardHasStar ? 'selected' : ''}' @click='${this._handleStarClicked}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
+              <button class='round ${this._cardIsRead ? 'selected' : ''}' @click='${this._handleReadClicked}'>${visibilityIcon}</button>
               <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
             </div>
           </div>
@@ -250,7 +255,8 @@ class CardView extends connect(store)(PageViewElement) {
       _fromContentEditable: {type:Boolean},
       _presentationMode: {type:Boolean},
       _mobileMode: {type: Boolean},
-      _cardHasStar: {type: Boolean}
+      _cardHasStar: {type: Boolean},
+      _cardIsRead: {type: Boolean},
     }
   }
 
@@ -328,6 +334,14 @@ class CardView extends connect(store)(PageViewElement) {
     }
   }
 
+  _handleReadClicked(e) {
+    if (this._cardIsRead) {
+      store.dispatch(markUnread(this._card));
+    } else {
+      store.dispatch(markRead(this._card));
+    }
+  }
+
   stateChanged(state) {
     this._editingCard = state.editor.card;
     this._card = cardSelector(state);
@@ -346,6 +360,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._presentationMode = state.app.presentationMode;
     this._mobileMode = state.app.mobileMode;
     this._cardHasStar = cardHasStar(state, this._card ? this._card.id : "");
+    this._cardIsRead = cardIsRead(state, this._card ? this._card.id : "");
   }
 
   _ensureUrlShowsName() {
