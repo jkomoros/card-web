@@ -1,5 +1,6 @@
 import { LitElement, html } from '@polymer/lit-element';
 
+import './star-count.js';
 
 // This is a reusable element. It is not connected to the store. You can
 // imagine that it could just as well be a third-party element that you
@@ -37,6 +38,7 @@ class CardThumbnail extends LitElement {
           box-shadow: var(--card-shadow);
           margin:0.5em;
           box-sizing:border-box;
+          position:relative;
         }
 
         .selected {
@@ -75,9 +77,16 @@ class CardThumbnail extends LitElement {
           opacity:0.5;
         }
 
+        star-count {
+          position:absolute;
+          bottom: 0.25em;
+          right: 0.25em;
+        }
+
       </style>
       <div @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="${this.selected ? "selected" : ""} ${this.cardType}">
         <h3>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>
+        <star-count .count=${this.card.star_count || 0}></star-count>
       </div>
     `;
   }
