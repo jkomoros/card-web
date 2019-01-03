@@ -24,6 +24,7 @@ export const ButtonSharedStyles = html`
     margin: 0.5em;
     position: relative;
     overflow: hidden;
+    transition: background-color var(--transition-fade), color var(--transition-fade), box-shadow var(--transition-fade);
   }
   button:disabled {
     background-color: var(--app-dark-text-color-light);
