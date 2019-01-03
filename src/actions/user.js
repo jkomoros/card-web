@@ -17,7 +17,8 @@ import {
 } from './database.js';
 
 import {
-  userId
+  userId,
+  cardIsRead,
 } from '../reducers/user.js';
 
 import {
@@ -179,10 +180,10 @@ export const markActiveCardReadIfLoggedIn = () => (dispatch, getState) => {
   if (!uid) return;
   const activeCard = cardSelector(state);
   if (!activeCard) return;
-  dispatch(markRead(activeCard));
+  dispatch(markRead(activeCard, true));
 }
 
-export const markRead = (cardToMarkRead) => (dispatch, getState) => {
+export const markRead = (cardToMarkRead, existingReadDoesNotError) => (dispatch, getState) => {
 
   if (!cardToMarkRead || !cardToMarkRead.id) {
     console.log("Invalid card provided");
@@ -195,6 +196,13 @@ export const markRead = (cardToMarkRead) => (dispatch, getState) => {
   if (!uid) {
     console.log("Not logged in");
     return;
+  }
+
+  if (cardIsRead(state, cardToMarkRead.id)) {
+    if (!existingReadDoesNotError) {
+      console.log("The card is already read!");
+      return;
+    }
   }
 
   let readRef = db.collection(READS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToMarkRead.id));
@@ -215,6 +223,11 @@ export const markUnread = (cardToMarkUnread) => (dispatch, getState) => {
 
   if (!uid) {
     console.log("Not logged in");
+    return;
+  }
+
+  if (!cardIsRead(state, cardToMarkUnread.id)) {
+    console.log("Card isn't read!");
     return;
   }
 
