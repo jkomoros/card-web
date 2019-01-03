@@ -67,7 +67,7 @@ class UserChip extends connect(store)(LitElement) {
 
   _handleAuthStateChanged(user) {
     if (user) {
-      store.dispatch(signInSuccess(user))
+      store.dispatch(signInSuccess(user, store))
     } else {
       store.dispatch(signOutSuccess());
     }

@@ -1,9 +1,22 @@
-import { SIGNIN_USER, SIGNIN_SUCCESS, SIGNIN_FAILURE, SIGNOUT_USER, SIGNOUT_SUCCESS } from '../actions/user.js';
+import { 
+  SIGNIN_USER,
+  SIGNIN_SUCCESS,
+  SIGNIN_FAILURE,
+  SIGNOUT_USER,
+  SIGNOUT_SUCCESS,
+  UPDATE_STARS
+} from '../actions/user.js';
+
+import {
+  setRemove,
+  setUnion
+} from '../actions/util.js';
 
 const INITIAL_STATE = {
   user : null,
   pending: false,
-  error: null
+  error: null,
+  stars : {},
 }
 
 const app = (state = INITIAL_STATE, action) => {
@@ -17,7 +30,8 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         pending:false,
-        user: action.user
+        user: action.user,
+        stars: {}
       }
     case SIGNIN_FAILURE:
       return {
@@ -34,7 +48,13 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         pending:false,
-        user: null
+        user: null,
+        stars: {},
+      }
+    case UPDATE_STARS:
+      return {
+        ...state,
+        stars: setUnion(setRemove(state.stars, action.starsToRemove), action.starsToAdd)
       }
     default:
       return state;

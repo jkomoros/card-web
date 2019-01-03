@@ -39,6 +39,28 @@ export const arrayUnion = (arr, items) => {
 	return result;
 }
 
+export const setRemove = (obj, items) => {
+	let result = {};
+	for (let key of Object.keys(obj)) {
+		result[key] = true;
+	}
+	for (let item of items) {
+		delete result[item];
+	}
+	return result;
+}
+
+export const setUnion = (obj, items) => {
+	let result = {};
+	for (let key of Object.keys(obj)) {
+		result[key] = true;
+	}
+	for (let item of items) {
+		result[item] = true;
+	}
+	return result;
+}
+
 //date may be a firestore timestamp or a date object.
 export const prettyTime = (date) => {
 	if (!date) return "";
@@ -55,4 +77,10 @@ export const killEvent = (e) => {
 
 export const isWhitespace = (s) => {
 	return /^\s*$/.test(s)
+}
+
+//Items in the reads and stars collections are stored at a canonical id given
+//a uid and card id.
+export const idForPersonalCardInfo = (uid, cardId) => {
+	return "" + uid + "+" + cardId;
 }

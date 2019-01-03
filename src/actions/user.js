@@ -3,9 +3,12 @@ export const SIGNIN_SUCCESS = 'SIGNIN_SUCCESS';
 export const SIGNIN_FAILURE = 'SIGNIN_FAILURE';
 export const SIGNOUT_USER = 'SIGNOUT_USER';
 export const SIGNOUT_SUCCESS = 'SIGNOUT_SUCCESS';
+export const UPDATE_STARS = 'UPDATE_STARS';
 
 import {
-  firebase 
+  firebase,
+  connectLiveStars,
+  disconnectLiveStars
 } from './database.js';
 
 export const signIn = () => (dispatch) => {
@@ -19,15 +22,18 @@ export const signIn = () => (dispatch) => {
 
 }
 
-export const signOutSuccess = () => {
-  return {type: SIGNOUT_SUCCESS}
+export const signOutSuccess = () => (dispatch) =>  {
+  dispatch({type: SIGNOUT_SUCCESS});
+  disconnectLiveStars();
 }
 
-export const signInSuccess = (firebaseUser) => {
-  return {
+export const signInSuccess = (firebaseUser, store) => (dispatch) => {
+  let info = _userInfo(firebaseUser)
+   dispatch({
     type: SIGNIN_SUCCESS,
-    user: _userInfo(firebaseUser)
-  }
+    user: info,
+  });
+  connectLiveStars(store,info.uid);
 }
 
 const _userInfo = (info) => {
@@ -41,6 +47,13 @@ const _userInfo = (info) => {
 
 export const signOut = () => (dispatch) => {
   dispatch({type:SIGNOUT_USER})
-
   firebase.auth().signOut();
+}
+
+export const updateStars = (starsToAdd = [], starsToRemove = []) => {
+  return {
+    type: UPDATE_STARS,
+    starsToAdd,
+    starsToRemove
+  }
 }
