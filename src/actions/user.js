@@ -11,6 +11,20 @@ import {
   disconnectLiveStars
 } from './database.js';
 
+import {
+  userId
+} from '../reducers/user.js';
+
+import {
+  db,
+  CARDS_COLLECTION,
+  STARS_COLLECTION
+} from './database.js';
+
+import {
+  idForPersonalCardInfo
+} from './util.js';
+
 export const signIn = () => (dispatch) => {
   dispatch({type:SIGNIN_USER});
 
@@ -56,4 +70,33 @@ export const updateStars = (starsToAdd = [], starsToRemove = []) => {
     starsToAdd,
     starsToRemove
   }
+}
+
+export const addStar = (cardToStar) => (dispatch, getState) => {
+
+  if (!cardToStar || !cardToStar.id) {
+    console.log("Invalid card provided");
+    return;
+  }
+
+  const state = getState();
+  let uid = userId(state);
+
+  if (!uid) {
+    console.log("Not logged in");
+    return;
+  }
+
+  let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
+  let starRef = db.collection(STARS_COLLECTION).doc(idForPersonalCardInfo(uid, card.id));
+
+  db.runTransaction(async transaction => {
+    let cardDoc = await transaction.get(cardRef);
+    if (!sectionDoc.exists) {
+      throw "Doc doesn't exist!"
+    }
+    let newStarCount = (cardDoc.data().star_count || 0) + 1;
+    transaction.update(cardRef, {star_count: newStarCount});
+    transaction.set(starRef, {timestamp: new Date(), owner: uid, card:card.id});
+  })
 }
