@@ -89,7 +89,7 @@ class CardDrawer extends connect(store)(LitElement) {
         <div class='scrolling'>
         ${repeat(this.collection, (i) => i.id, (i, index) => html`
           <div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
-          <card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this._allowEdits} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this._activeCardId} .index=${index} .starred=${this._stars[i.id] || false} .read=${this._reads[i.id] || false}></card-thumbnail>`)}
+          <card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this._allowEdits} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this.selectedCardId} .index=${index} .starred=${this._stars[i.id] || false} .read=${this._reads[i.id] || false}></card-thumbnail>`)}
         </div>
         <button class='round' @click='${this._handleAddSlide}' ?hidden='${!this._allowEdits}'>${plusIcon}</button>
       </div>
@@ -188,9 +188,9 @@ class CardDrawer extends connect(store)(LitElement) {
     //instantiaion of hte drawer should allow edits.
     editable: { type: Boolean},
     collection: { type: Array },
+    selectedCardId: { type:String },
     _stars: { type: Object },
     _reads: { type: Object },
-    _activeCardId: { type: String },
     _activeSectionId: { type: String },
     _userMayEdit: { type: Boolean},
     _dragging: {type: Boolean},
@@ -203,7 +203,6 @@ class CardDrawer extends connect(store)(LitElement) {
   stateChanged(state) {
     this._stars = state.user.stars;
     this._reads = state.user.reads;
-    this._activeCardId = state.data.activeCardId;
     this._activeSectionId = state.data.activeSectionId;
     this._userMayEdit = userMayEdit(state);
     this._reorderPending = state.data.reorderPending;

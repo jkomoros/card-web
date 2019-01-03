@@ -270,7 +270,7 @@ class CardView extends connect(store)(PageViewElement) {
 
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer .editable=${true} .collection=${this._collection}></card-drawer>
+        <card-drawer .editable=${true} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''}></card-drawer>
         <div id='center'>
           <div id='canvas'>
             <div id='portrait-message'>
