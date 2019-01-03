@@ -6,6 +6,8 @@ export const SIGNOUT_SUCCESS = 'SIGNOUT_SUCCESS';
 export const UPDATE_STARS = 'UPDATE_STARS';
 export const UPDATE_READS = 'UPDATE_READS';
 
+export const AUTO_MARK_READ_DELAY = 5000;
+
 import {
   firebase,
   connectLiveStars,
@@ -28,6 +30,10 @@ import {
 import {
   idForPersonalCardInfo
 } from './util.js';
+
+import {
+  cardSelector
+} from '../reducers/data.js';
 
 export const signIn = () => (dispatch) => {
   dispatch({type:SIGNIN_USER});
@@ -149,6 +155,33 @@ export const updateReads = (readsToAdd = [], readsToRemove = []) => {
   }
 }
 
+let autoMarkReadTimeoutId = null;
+
+export const scheduleAutoMarkRead = () => (dispatch) => {
+
+  cancelPendingAutoMarkRead();
+
+  autoMarkReadTimeoutId = setTimeout(() => dispatch(markActiveCardReadIfLoggedIn()), AUTO_MARK_READ_DELAY);
+}
+
+export const cancelPendingAutoMarkRead = () => {
+  if (autoMarkReadTimeoutId) {
+    clearTimeout(autoMarkReadTimeoutId);
+    autoMarkReadTimeoutId = null;
+  }
+}
+
+export const markActiveCardReadIfLoggedIn = () => (dispatch, getState) => {
+  //It's the responsibility of the thing that scheduled this to ensure that it
+  //only fires if the card we wnat to mark read is still active.
+  const state = getState();
+  const uid = userId(state);
+  if (!uid) return;
+  const activeCard = cardSelector(state);
+  if (!activeCard) return;
+  dispatch(markRead(activeCard));
+}
+
 export const markRead = (cardToMarkRead) => (dispatch, getState) => {
 
   if (!cardToMarkRead || !cardToMarkRead.id) {
@@ -184,6 +217,9 @@ export const markUnread = (cardToMarkUnread) => (dispatch, getState) => {
     console.log("Not logged in");
     return;
   }
+
+  //Just in case we were planning on setting this card as read.
+  cancelPendingAutoMarkRead();
 
   let readRef = db.collection(READS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToMarkUnread.id));
 

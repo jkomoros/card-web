@@ -33,6 +33,10 @@ import {
   randomString
 } from './util.js';
 
+import {
+  scheduleAutoMarkRead
+} from './user.js';
+
 const LEGAL_UPDATE_FIELDS = new Map([
   ['title', true],
   ['body', true],
@@ -423,11 +427,12 @@ export const updateCards = (cards) => {
   }
 }
 
-export const showCard = (cardId) => {
-  return {
+export const showCard = (cardId) => (dispatch) => {
+  dispatch({
     type: SHOW_CARD,
     card: cardId
-  }
+  })
+  dispatch(scheduleAutoMarkRead());
 }
 
 export const showSection = (sectionId) => {
