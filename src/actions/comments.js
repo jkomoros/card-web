@@ -8,7 +8,8 @@ import {
   db,
   AUTHORS_COLLECTION,
   THREADS_COLLECTION,
-  MESSAGES_COLLECTION
+  MESSAGES_COLLECTION,
+  CARDS_COLLECTION,
 } from './database.js';
 
 import {
@@ -51,15 +52,22 @@ export const resolveThread = (thread) => (dispatch, getState) => {
     return;
   }
 
-  let batch = db.batch();
+  let cardRef = db.collection(CARDS_COLLECTION).doc(thread.card);
+  let threadRef = db.collection(THREADS_COLLECTION).doc(thread.id);
 
-  batch.update(db.collection(THREADS_COLLECTION).doc(thread.id), {
-    resolved: true,
-    updated: new Date()
-  });
-
-  batch.commit();
-
+  db.runTransaction(async transaction => {
+    let cardDoc = await transaction.get(cardRef);
+    if (!cardDoc.exists) {
+      throw "Doc doesn't exist!"
+    }
+    let newThreadCount = (cardDoc.data().thread_count || 0) - 1;
+    if (newThreadCount < 0) newThreadCount = 0;
+    transaction.update(cardRef, {thread_count: newThreadCount});
+    transaction.update(threadRef, {
+      resolved: true,
+      updated: new Date()
+    });
+  })
 }
 
 export const deleteMessage = (message) => (dispatch, getState) => {
@@ -192,36 +200,43 @@ export const createThread = (message) => (dispatch, getState) => {
 
   let messageId = randomString(16);
   let threadId = randomString(16);
-  let batch = db.batch();
 
-  //Ensure we have this user's picture
-  ensureAuthor(batch, user);
+  let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
+  let threadRef = db.collection(THREADS_COLLECTION).doc(threadId);
+  let messageRef = db.collection(MESSAGES_COLLECTION).doc(messageId);
 
-  //Duplicated in addMessage.
-  batch.set(db.collection(MESSAGES_COLLECTION).doc(messageId), {
-    card: card.id,
-    message: message,
-    thread: threadId,
-    author: user.uid,
-    created: new Date(),
-    updated: new Date(),
-    deleted: false
+  db.runTransaction(async transaction => {
+    let cardDoc = await transaction.get(cardRef);
+    if (!cardDoc.exists) {
+      throw "Doc doesn't exist!"
+    }
+    let newThreadCount = (cardDoc.data().thread_count || 0) + 1;
+    transaction.update(cardRef, {thread_count: newThreadCount});
+
+    ensureAuthor(transaction, user);
+
+    transaction.set(messageRef, {
+      card: card.id,
+      message: message,
+      thread: threadId,
+      author: user.uid,
+      created: new Date(),
+      updated: new Date(),
+      deleted: false
+    })
+
+    transaction.set(threadRef, {
+      card: card.id,
+      parent_message: '',
+      messages: [messageId],
+      author: user.uid,
+      created: new Date(),
+      updated: new Date(),
+      resolved: false,
+      deleted: false
+    })
+
   })
-
-  batch.set(db.collection(THREADS_COLLECTION).doc(threadId), {
-    card: card.id,
-    parent_message: '',
-    messages: [messageId],
-    author: user.uid,
-    created: new Date(),
-    updated: new Date(),
-    resolved: false,
-    deleted: false
-  })
-
-  //No need to do anything else currently because we don' thave a
-  //pendingCreateThread property on state.
-  batch.commit().catch(err => console.warn("Couldn't create thread: ", err));
 
 }
 
