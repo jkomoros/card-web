@@ -6,6 +6,7 @@ import {
   SIGNOUT_SUCCESS,
   UPDATE_STARS,
   UPDATE_READS,
+  AUTO_MARK_READ_PENDING_CHANGED,
 } from '../actions/user.js';
 
 import {
@@ -19,6 +20,7 @@ const INITIAL_STATE = {
   error: null,
   stars : {},
   reads: {},
+  autoMarkReadPending: false,
 }
 
 const app = (state = INITIAL_STATE, action) => {
@@ -64,6 +66,11 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         reads: setUnion(setRemove(state.reads, action.readsToRemove), action.readsToAdd)
+      }
+    case AUTO_MARK_READ_PENDING_CHANGED:
+      return {
+        ...state,
+        autoMarkReadPending: action.pending
       }
     default:
       return state;

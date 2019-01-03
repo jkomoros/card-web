@@ -5,6 +5,7 @@ export const SIGNOUT_USER = 'SIGNOUT_USER';
 export const SIGNOUT_SUCCESS = 'SIGNOUT_SUCCESS';
 export const UPDATE_STARS = 'UPDATE_STARS';
 export const UPDATE_READS = 'UPDATE_READS';
+export const AUTO_MARK_READ_PENDING_CHANGED = 'AUTO_MARK_READ_PENDING_CHANGED';
 
 export const AUTO_MARK_READ_DELAY = 5000;
 
@@ -171,10 +172,13 @@ export const scheduleAutoMarkRead = () => (dispatch, getState) => {
   if (cardIsRead(state, activeCard.id)) return;
 
   autoMarkReadTimeoutId = setTimeout(() => dispatch(markActiveCardReadIfLoggedIn()), AUTO_MARK_READ_DELAY);
+
+  dispatch({type: AUTO_MARK_READ_PENDING_CHANGED, pending: true});
 }
 
-export const cancelPendingAutoMarkRead = () => {
+export const cancelPendingAutoMarkRead = () => (dispatch) => {
   if (autoMarkReadTimeoutId) {
+    dispatch({type: AUTO_MARK_READ_PENDING_CHANGED, pending: false});
     clearTimeout(autoMarkReadTimeoutId);
     autoMarkReadTimeoutId = null;
   }
