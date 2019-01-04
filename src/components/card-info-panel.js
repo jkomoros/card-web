@@ -14,7 +14,8 @@ import {
 
 import {
   cardSelector,
-  sectionTitle
+  sectionTitle,
+  authorForId
 } from '../reducers/data.js';
 
 import {
@@ -28,6 +29,8 @@ import {
 import {
   urlForCard
 } from '../actions/app.js';
+
+import './author-chip.js';
 
 class CardInfoPanel extends connect(store)(PageViewElement) {
   render() {
@@ -104,6 +107,10 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
           <p>${prettyTime(this._card.created)}</p>
         </div>
         <div>
+          <h4>Author</h4>
+          <p><author-chip .author=${this._author}></author-chip></p>
+        </div>
+        <div>
           <h4>Cards That Link Here${this._help('Note: this property is re-calculated on a schedule and may not be up to date.', true)}</h4>
           ${this._card && this._card.links_inbound && this._card.links_inbound.length 
             ? html`<ul>${this._card.links_inbound.map((item) => html`<li><a href='${urlForCard(item)}'>${item}</a></li>`)}</ul>`
@@ -118,7 +125,8 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
     return {
       _open: {type: Boolean},
       _card: {type: Object},
-      _sectionTitle: { type: String}
+      _sectionTitle: { type: String},
+      _author: {type:Object},
     }
   }
 
@@ -130,6 +138,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
     this._open = state.app.cardInfoPanelOpen;
     this._card = cardSelector(state);
     this._sectionTitle = sectionTitle(state, this._card ? this._card.section : "");
+    this._author = authorForId(state, this._card.author);
   }
 
 }
