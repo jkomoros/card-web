@@ -47,6 +47,8 @@ export const collectionForQuery = (state) => {
   let collection = [];
   let query = state.find.query;
 
+  if (!query) return [];
+
   let cards = state.data.cards;
 
   for (let card of Object.values(cards)) {
