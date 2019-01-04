@@ -36,6 +36,10 @@ import {
 } from '../actions/data.js';
 
 import {
+  openFindDialog
+} from '../actions/find.js';
+
+import {
   addStar,
   removeStar,
   markRead,
@@ -74,7 +78,8 @@ import {
   arrowForwardIcon,
   starIcon,
   starBorderIcon,
-  visibilityIcon
+  visibilityIcon,
+  searchIcon
 } from './my-icons.js';
 
 import {
@@ -286,6 +291,7 @@ class CardView extends connect(store)(PageViewElement) {
                 <button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${viewDayIcon}</button>
                 <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._card.thread_count > 0 ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
                 <button class='round ${this._cardInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCardInfoClicked}'>${infoIcon}</button>
+                <button class='round' @click=${this._handleFindClicked}>${searchIcon}</button>
               </div>
               <div class='modify'>
                 <button class='round ${this._cardHasStar ? 'selected' : ''}' @click='${this._handleStarClicked}' ?disabled='${!this._userMayStar}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
@@ -396,6 +402,10 @@ class CardView extends connect(store)(PageViewElement) {
     } else {
       store.dispatch(enablePresentationMode());
     }
+  }
+
+  _handleFindClicked(e) {
+    store.dispatch(openFindDialog());
   }
 
   _handleBackClicked(e) {
