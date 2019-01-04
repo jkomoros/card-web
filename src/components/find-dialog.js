@@ -73,11 +73,6 @@ class FindDialog extends connect(store)(DialogElement) {
   	this._collection = collectionForQuery(state);
   }
 
-  shouldUpdate(changedProps) {
-  	if (changedProps.has('open')) return true;
-  	return this.open;
-  }
-
 }
 
 window.customElements.define('find-dialog', FindDialog);

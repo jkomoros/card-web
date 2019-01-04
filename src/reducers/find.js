@@ -23,7 +23,8 @@ const app = (state = INITIAL_STATE, action) => {
     case FIND_DIALOG_CLOSE:
       return {
         ...state,
-        open: false
+        open: false,
+        query: ""
       }
     case FIND_UPDATE_QUERY: 
       return {
