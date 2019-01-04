@@ -69,6 +69,18 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
     return;
   }
 
+  const user = firebaseUser(state);
+
+  if (!user) {
+    console.log("No user");
+    return;
+  }
+
+  if (!userIsAdmin(state)) {
+    console.log("User isn't admin");
+    return;
+  }
+
   let keysCount = 0;
 
   for (let key of Object.keys(update)) {
@@ -138,6 +150,8 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 
   batch.set(updateRef, updateObject);
   batch.update(cardRef, cardUpdateObject);
+
+  ensureAuthor(batch, user);
 
   if (sectionUpdated) {
     //Need to update the section objects too.
