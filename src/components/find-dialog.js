@@ -31,11 +31,11 @@ class FindDialog extends connect(store)(DialogElement) {
     return html`
     	<style>
     		card-drawer {
-    			font-size:10px;
+    			font-size:14px;
     		}
     	</style>
     	<input type='search' @input=${this._handleQueryChanged} value=${this._query}></input>
-    	<card-drawer showing @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection}></card-drawer>
+    	<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection}></card-drawer>
     `;
   }
 

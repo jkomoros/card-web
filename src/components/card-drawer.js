@@ -18,17 +18,28 @@ class CardDrawer extends LitElement {
           max-height:100%;
         }
 
+        .container {
+          height:100%;
+          display:flex;
+          width: 13em;
+          flex-direction:column;
+        }
+
+        .container.grid {
+          width:100%;
+        }
+
         .scrolling {
           overflow:scroll;
           max-height:100%;
           flex-grow:1;
         }
 
-        .container {
-          height:100%;
+        .grid .scrolling {
+          width:100%;
           display:flex;
-          width: 13em;
-          flex-direction:column;
+          flex-direction:row;
+          flex-wrap: wrap;
         }
 
         button {
@@ -47,6 +58,10 @@ class CardDrawer extends LitElement {
           opacity:0.7;
         }
 
+        .grid .spacer {
+          display:none;
+        }
+
         .spacer {
           /* Big drop target, but no change in layout */
           height:3em;
@@ -62,7 +77,7 @@ class CardDrawer extends LitElement {
           margin-bottom:-2em;
         }
       </style>
-      <div ?hidden='${!this.showing}' class='container ${this._dragging ? 'dragging' : ''}${this.reorderPending ? 'reordering':''}'>
+      <div ?hidden='${!this.showing}' class='container ${this._dragging ? 'dragging' : ''}${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
         <div class='scrolling'>
         ${repeat(this.collection, (i) => i.id, (i, index) => html`
           <div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
@@ -156,6 +171,7 @@ class CardDrawer extends LitElement {
   static get properties() { return {
     //editable doesn't mean it IS editable; just that if the userMayEdit this
     //instantiaion of hte drawer should allow edits.
+    grid: {type: Boolean},
     editable: { type: Boolean},
     collection: { type: Array },
     selectedCardId: { type:String },
