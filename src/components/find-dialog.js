@@ -20,6 +20,10 @@ import {
 	updateQuery
 } from '../actions/find.js';
 
+import {
+	navigateToCard
+} from '../actions/app.js';
+
 import './card-drawer.js';
 
 class FindDialog extends connect(store)(DialogElement) {
@@ -31,7 +35,7 @@ class FindDialog extends connect(store)(DialogElement) {
     		}
     	</style>
     	<input type='search' @input=${this._handleQueryChanged} value=${this._query}></input>
-    	<card-drawer showing .collection=${this._collection}></card-drawer>
+    	<card-drawer showing @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection}></card-drawer>
     `;
   }
 
@@ -48,6 +52,11 @@ class FindDialog extends connect(store)(DialogElement) {
   _handleQueryChanged(e) {
     let ele = e.composedPath()[0];
     store.dispatch(updateQuery(ele.value));
+  }
+
+  _handleThumbnailTapped(e) {
+  	this._shouldClose();
+  	store.dispatch(navigateToCard(e.detail.card));
   }
 
   static get properties() {
