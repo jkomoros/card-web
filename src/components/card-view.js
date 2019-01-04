@@ -199,6 +199,10 @@ class CardView extends connect(store)(PageViewElement) {
           height: 300px;
         }
 
+        card-drawer {
+          border-right: 1px solid var(--app-divider-color);
+        }
+
         card-renderer {
           font-size:22px;
         }

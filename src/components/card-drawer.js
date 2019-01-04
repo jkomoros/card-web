@@ -29,7 +29,6 @@ class CardDrawer extends LitElement {
           display:flex;
           width: 13em;
           flex-direction:column;
-          border-right: 1px solid var(--app-divider-color);
         }
 
         button {
