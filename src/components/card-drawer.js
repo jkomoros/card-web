@@ -89,9 +89,9 @@ class CardDrawer extends connect(store)(LitElement) {
         <div class='scrolling'>
         ${repeat(this.collection, (i) => i.id, (i, index) => html`
           <div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
-          <card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this._allowEdits} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this.selectedCardId} .index=${index} .starred=${this.stars[i.id] || false} .read=${this.reads[i.id] || false}></card-thumbnail>`)}
+          <card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this.editable} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this.selectedCardId} .index=${index} .starred=${this.stars[i.id] || false} .read=${this.reads[i.id] || false}></card-thumbnail>`)}
         </div>
-        <button class='round' @click='${this._handleAddSlide}' ?hidden='${!this._allowEdits}'>${plusIcon}</button>
+        <button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable}'>${plusIcon}</button>
       </div>
     `;
   }
@@ -122,25 +122,25 @@ class CardDrawer extends connect(store)(LitElement) {
   }
 
   _handleAddSlide(e) {
-    if (!this._allowEdits) return;
+    if (!this.editable) return;
     store.dispatch(createCard(this._activeSectionId));
   }
 
   _handleDragEnter(e) {
-    if(!this._allowEdits) return;
+    if(!this.editable) return;
     let ele = e.composedPath()[0];
     ele.classList.add('drag-active')
   }
 
   _handleDragLeave(e) {
-    if(!this._allowEdits) return;
+    if(!this.editable) return;
     let ele = e.composedPath()[0];
     ele.classList.remove('drag-active');
   }
 
   _handleDragStart(e) {
 
-    if (!this._allowEdits) return;
+    if (!this.editable) return;
 
     //For some reason elements with shadow DOM did not appear to be draggable,
     //so instead of dragging just card-thumbnail and having card-drawer manage
@@ -158,18 +158,18 @@ class CardDrawer extends connect(store)(LitElement) {
   }
 
   _handleDragEnd(e) {
-    if (!this._allowEdits) return;
+    if (!this.editable) return;
     this._dragging = null;
   }
 
   _handleDragOver(e) {
-    if (!this._allowEdits) return;
+    if (!this.editable) return;
     //Necessary to say that this is a valid drop target
     e.preventDefault();
   }
 
   _handleDrop(e) {
-    if (!this._allowEdits) return;
+    if (!this.editable) return;
     let target = e.composedPath()[0];
     target.classList.remove('drag-active');
     let thumbnail = this._dragging;
@@ -179,11 +179,6 @@ class CardDrawer extends connect(store)(LitElement) {
     //before, it's off by one.
     if (thumbnail.index <= target.index) index--;
     store.dispatch(reorderCard(thumbnail.card, index));
-  }
-
-  get _allowEdits() {
-    //TODO just use this.editable
-    return this.editable
   }
 
   static get properties() { return {
