@@ -51,7 +51,7 @@ export class DialogElement extends LitElement {
   }
 
   _handleBackgroundClicked(e) {
-    let background = this.shadowRoot.querySelector('background');
+    let background = this.shadowRoot.querySelector('.background');
     //If the click wasn't actualy directly on the background then ignore it.
     if (e.composedPath()[0] != background) return;
     this._shouldClose();
