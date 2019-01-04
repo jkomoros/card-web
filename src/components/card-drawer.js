@@ -182,7 +182,8 @@ class CardDrawer extends connect(store)(LitElement) {
   }
 
   get _allowEdits() {
-    return this.editable && this._userMayEdit;
+    //TODO just use this.editable
+    return this.editable
   }
 
   static get properties() { return {
@@ -194,7 +195,6 @@ class CardDrawer extends connect(store)(LitElement) {
     stars: { type: Object },
     reads: { type: Object },
     _activeSectionId: { type: String },
-    _userMayEdit: { type: Boolean},
     _dragging: {type: Boolean},
     _reorderPending: {type:Boolean},
     //_showing is more complicated than whether we're open or yet.
@@ -204,7 +204,6 @@ class CardDrawer extends connect(store)(LitElement) {
   // This is called every time something is updated in the store.
   stateChanged(state) {
     this._activeSectionId = state.data.activeSectionId;
-    this._userMayEdit = userMayEdit(state);
     this._reorderPending = state.data.reorderPending;
     this._showing = cardsDrawerPanelShowing(state);
   }
