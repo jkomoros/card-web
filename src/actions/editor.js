@@ -24,6 +24,31 @@ import {
   isWhitespace
 } from './util.js';
 
+let lastReportedSelectionRange = null;
+//TODO: figure out a pattenr that doesn't have a single shared global
+let savedSelectionRange = null;
+
+//selection range is weird; you can only listen for changes at the document
+//level, but selections wihtin a shadow root are hidden from outside. Certain
+//opeartions, like execCommand, operate on a selection state--but if you have
+//to do actions in between, like pop a dialog to ask follow-up questions--your
+//selection will be lost. The solution we go with is that elements who might
+//have a content editable target (e.g. content-card in editing mode) report
+//their selected ranged when they have one here, globally.
+export const reportSelectionRange = (range) => {
+  lastReportedSelectionRange = range;
+}
+
+export const saveSelectionRange = () => {
+  savedSelectionRange = lastReportedSelectionRange;
+}
+
+export const restoreSelectionRange = () => {
+  let selection = document.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(savedSelectionRange);
+}
+
 export const editingStart = () => (dispatch, getState) => {
   const state = getState();
   if (!userMayEdit(state)) {
@@ -79,6 +104,7 @@ export const linkCard = (card) => (dispatch, getState) => {
   if (!state.editor.editing) return;
   //TODO: it's weird we do this here, it really should be done on the card-
   //editor component.
+  restoreSelectionRange();
   document.execCommand('createLink', null, card.id);
 }
 

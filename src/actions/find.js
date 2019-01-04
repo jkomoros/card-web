@@ -3,6 +3,10 @@ export const FIND_DIALOG_CLOSE ='FIND_DIALOG_CLOSE';
 export const FIND_UPDATE_QUERY = 'FIND_UPDATE_QUERY';
 export const FIND_CARD_TO_LINK = 'FIND_CARD_TO_LINK';
 
+import {
+  saveSelectionRange
+} from './editor.js';
+
 export const openFindDialog = () => {
   return {
     type: FIND_DIALOG_OPEN
@@ -23,6 +27,7 @@ export const updateQuery = (query) => {
 }
 
 export const findCardToLink = () => {
+  saveSelectionRange();
   return {
     type: FIND_CARD_TO_LINK
   }

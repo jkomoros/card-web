@@ -6,7 +6,8 @@ import './card-link.js';
 
 import {
   normalizeBodyToContentEditable,
-  normalizeBodyHTML
+  normalizeBodyHTML,
+  reportSelectionRange
 } from '../actions/editor.js';
 
 let loadingTemplate = html`<span class='loading'>Loading...<span>`
@@ -36,8 +37,18 @@ export class ContentCard extends BaseCard {
     this.dispatchEvent(new CustomEvent('body-updated', {composed:true, detail: {html: this._sectionElement.innerHTML}}));
   }
 
+  _selectionChanged(e) {
+    let selection = this.shadowRoot.getSelection();
+    if (!selection.focusNode) return;
+    reportSelectionRange(selection.getRangeAt(0));
+  }
+
   get _emptyTemplate() {
     return this.id ? blankTemplate : loadingTemplate;
+  }
+
+  firstUpdated() {
+    document.addEventListener('selectionchange', this._selectionChanged.bind(this));
   }
 
   _makeSection(body) {
