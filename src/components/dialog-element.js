@@ -13,7 +13,7 @@ export class DialogElement extends LitElement {
           width:100%;
           top:0;
           left:0;
-          z-index:1;
+          z-index:1000;
           display: ${this.open ? 'block' : 'none'}
         }
         .background {
