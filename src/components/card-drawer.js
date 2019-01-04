@@ -17,10 +17,6 @@ import {
   cardsDrawerPanelShowing
 } from '../reducers/app.js';
 
-import {
-  reorderCard,
-} from '../actions/data.js';
-
 import { ButtonSharedStyles } from './button-shared-styles.js';
 import { SharedStyles } from './shared-styles.js';
 
@@ -168,7 +164,7 @@ class CardDrawer extends connect(store)(LitElement) {
     //first--which means that if you drag it down to below where it was
     //before, it's off by one.
     if (thumbnail.index <= target.index) index--;
-    store.dispatch(reorderCard(thumbnail.card, index));
+    this.dispatchEvent(new CustomEvent('reorder-card', {composed: true, detail: {card: thumbnail.card, index: index}}));
   }
 
   static get properties() { return {
