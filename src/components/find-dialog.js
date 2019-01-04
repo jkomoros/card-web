@@ -20,10 +20,18 @@ import {
 	updateQuery
 } from '../actions/find.js';
 
+import './card-drawer.js';
+
 class FindDialog extends connect(store)(DialogElement) {
   innerRender() {
     return html`
+    	<style>
+    		card-drawer {
+    			font-size:10px;
+    		}
+    	</style>
     	<input type='search' @input=${this._handleQueryChanged} value=${this._query}></input>
+    	<card-drawer showing .collection=${this._collection}></card-drawer>
     `;
   }
 
@@ -37,10 +45,10 @@ class FindDialog extends connect(store)(DialogElement) {
     store.dispatch(updateQuery(ele.value));
   }
 
-  static get properies() {
+  static get properties() {
   	return {
   		_query: {type: String},
-  		_collection: {type:String},
+  		_collection: {type:Array},
   	}
   }
 
@@ -50,6 +58,7 @@ class FindDialog extends connect(store)(DialogElement) {
   	this._query = state.find.query;
   	this._collection = collectionForQuery(state);
   }
+  
 }
 
 window.customElements.define('find-dialog', FindDialog);
