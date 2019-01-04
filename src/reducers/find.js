@@ -35,13 +35,17 @@ const app = (state = INITIAL_STATE, action) => {
   }
 }
 
-const cardScoreForQuery = (card, query) => {
+const cardScoreForQuery = (card, preparedQuery) => {
     if (!card) return 0.0;
     let score = 0.0;
-    if (card.body && card.body.indexOf(query) >= 0) score += 0.5;
-    if (card.title && card.title.indexOf(query) >= 0) score += 1.0;
-    if (card.subtitle && card.subtitle.indexOf(query) >= 0) score += 0.75;
+    if (card.body && card.body.toLowerCase().indexOf(preparedQuery) >= 0) score += 0.5;
+    if (card.title && card.title.toLowerCase().indexOf(preparedQuery) >= 0) score += 1.0;
+    if (card.subtitle && card.subtitle.toLowerCase().indexOf(preparedQuery) >= 0) score += 0.75;
     return score;
+}
+
+const prepareQuery = (queryString) => {
+  return queryString.toLowerCase();
 }
 
 export const collectionForQuery = (state) => {
@@ -50,10 +54,12 @@ export const collectionForQuery = (state) => {
 
   if (!query) return [];
 
+  let preparedQuery = prepareQuery(query);
+
   let cards = state.data.cards;
 
   for (let card of Object.values(cards)) {
-    let score = cardScoreForQuery(card, query);
+    let score = cardScoreForQuery(card, preparedQuery);
     if (score > 0.0) {
       scoredCollection.push({
         score,
