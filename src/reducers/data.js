@@ -192,5 +192,10 @@ export const collectionSelector = createSelector(
   (cards, collection) => collection.map(id => cards[id]),
 )
 
+export const cardsForCollection = (state, collection) => {
+  let cards = cardsSelector(state);
+  return collection.map(id => cards[id]);
+}
+
 
 export default app;
