@@ -4,6 +4,35 @@ import { LitElement, html } from '@polymer/lit-element';
 class DialogElement extends LitElement {
   render() {
     return html`
+      <style>
+        :host {
+          position:absolute;
+          height:100%;
+          width:100%;
+          top:0;
+          left:0;
+          z-index:1;
+        }
+        .background {
+          position:absolute;
+          height:100%;
+          width:100%;
+          top:0;
+          left:0;
+          background-color:#FFFFFFCC;
+          display:flex;
+          flex-direction:column;
+          align-items: center;
+          justify-content:center;
+        }
+        .content {
+          background-color:white;
+          min-height: 40%;
+          min-width: 40%;
+          padding:1em;
+          box-shadow: var(--card-shadow);
+        }
+      </style>
     	<div class='background' ?hidden=${this.open}>
     		<div class='content'>
           <h2>${this.title || ""}</h2>
