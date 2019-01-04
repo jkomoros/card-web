@@ -58,6 +58,7 @@ import {
 // These are the elements needed by this element.
 import './snack-bar.js';
 import './user-chip.js';
+import './find-dialog.js';
 
 class CompendiumApp extends connect(store)(LitElement) {
   render() {
@@ -190,6 +191,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     </style>
 
     <div class='container'>
+      <find-dialog></find-dialog>
       <!-- Header -->
       <div class='header' ?hidden=${!this._headerPanelOpen}>
         <div class='inner'>

@@ -1,9 +1,11 @@
 import { LitElement, html } from '@polymer/lit-element';
 
+import { SharedStyles } from './shared-styles.js';
 
-class DialogElement extends LitElement {
+export class DialogElement extends LitElement {
   render() {
     return html`
+      ${SharedStyles}
       <style>
         :host {
           position:absolute;
@@ -12,6 +14,7 @@ class DialogElement extends LitElement {
           top:0;
           left:0;
           z-index:1;
+          display: ${this.open ? 'block' : 'none'}
         }
         .background {
           position:absolute;
@@ -33,7 +36,7 @@ class DialogElement extends LitElement {
           box-shadow: var(--card-shadow);
         }
       </style>
-    	<div class='background' ?hidden=${this.open}>
+    	<div class='background'>
     		<div class='content'>
           <h2>${this.title || ""}</h2>
     			${this.innerRender()}
