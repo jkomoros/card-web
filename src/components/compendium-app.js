@@ -43,6 +43,10 @@ import {
   connectLiveAuthors
 } from '../actions/database.js';
 
+import {
+  openFindDialog
+} from '../actions/find.js';
+
 // These are the actions needed by this element.
 import {
   navigated,
@@ -264,7 +268,13 @@ class CompendiumApp extends connect(store)(LitElement) {
   _handleKeyPressed(e) {
     //Don't move the slide selection when editing!
     if (this._editing) return;
+    console.log(e);
     switch (e.key) {
+      case "f":
+        if (!e.metaKey) return;
+        e.stopPropagation();
+        e.preventDefault();
+        store.dispatch(openFindDialog());
       case "ArrowDown":
       case "ArrowRight":
       case " ":
