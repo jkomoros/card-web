@@ -1,7 +1,8 @@
 import {
   FIND_DIALOG_OPEN,
   FIND_DIALOG_CLOSE,
-  FIND_UPDATE_QUERY
+  FIND_UPDATE_QUERY,
+  FIND_CARD_TO_LINK
 } from '../actions/find.js';
 
 import {
@@ -10,7 +11,8 @@ import {
 
 const INITIAL_STATE = {
   open: false,
-  query: ""
+  query: "",
+  linking: false
 }
 
 const app = (state = INITIAL_STATE, action) => {
@@ -18,6 +20,8 @@ const app = (state = INITIAL_STATE, action) => {
     case FIND_DIALOG_OPEN:
       return {
         ...state,
+        linking: false,
+        query: "",
         open: true
       }
     case FIND_DIALOG_CLOSE:
@@ -30,6 +34,12 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         query: action.query
+      }
+    case FIND_CARD_TO_LINK:
+      return {
+        ...state,
+        open: true,
+        linking: true
       }
     default:
       return state;

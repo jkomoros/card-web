@@ -31,6 +31,10 @@ import {
   killEvent
 } from '../actions/util.js';
 
+import {
+  findCardToLink
+} from '../actions/find.js';
+
 class CardEditor extends connect(store)(LitElement) {
   render() {
     return html`
@@ -200,11 +204,15 @@ class CardEditor extends connect(store)(LitElement) {
         document.execCommand('insertUnorderedList');
         return killEvent(e);
       case 'k':
-        let href = prompt("Where should the URL point?")
-        if (href) {
-          document.execCommand('createLink', null, href);
+        if (e.shiftKey) {
+          store.dispatch(findCardToLink());
         } else {
-          document.execCommand('unlink');
+          let href = prompt("Where should the URL point?")
+          if (href) {
+            document.execCommand('createLink', null, href);
+          } else {
+            document.execCommand('unlink');
+          }
         }
         return killEvent(e);
     }

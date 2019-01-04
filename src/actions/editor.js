@@ -74,6 +74,14 @@ export const editingCommit = () => (dispatch, getState) => {
 
 }
 
+export const linkCard = (card) => (dispatch, getState) => {
+  const state = getState();
+  if (!state.editor.editing) return;
+  //TODO: it's weird we do this here, it really should be done on the card-
+  //editor component.
+  document.execCommand('createLink', null, card.id);
+}
+
 const replaceAsWithCardLinks = (body) => {
   //Replaces all a's with card-links.
   //TODO: consider modifying the actual nodes in place, which is more robust.;

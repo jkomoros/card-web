@@ -24,6 +24,10 @@ import {
 	navigateToCard
 } from '../actions/app.js';
 
+import {
+	linkCard
+} from '../actions/editor.js';
+
 import './card-drawer.js';
 
 class FindDialog extends connect(store)(DialogElement) {
@@ -75,6 +79,10 @@ class FindDialog extends connect(store)(DialogElement) {
 
   _handleThumbnailTapped(e) {
   	this._shouldClose();
+  	if (this._linking) {
+  		store.dispatch(linkCard(e.detail.card));
+  		return;
+  	}
   	store.dispatch(navigateToCard(e.detail.card));
   }
 
@@ -82,6 +90,7 @@ class FindDialog extends connect(store)(DialogElement) {
   	return {
   		_query: {type: String},
   		_collection: {type:Array},
+  		_linking: {type:Boolean},
   	}
   }
 
@@ -90,6 +99,7 @@ class FindDialog extends connect(store)(DialogElement) {
   	this.open = state.find.open;
   	this._query = state.find.query;
   	this._collection = collectionForQuery(state);
+  	this._linking = state.find.linking;
   }
 
   updated(changedProps) {
