@@ -37,6 +37,15 @@ import {
   scheduleAutoMarkRead
 } from './user.js';
 
+import {
+  ensureAuthor
+} from './comments.js';
+
+import {
+  firebaseUser,
+  userIsAdmin
+} from '../reducers/user.js';
+
 const LEGAL_UPDATE_FIELDS = new Map([
   ['title', true],
   ['body', true],
@@ -319,7 +328,19 @@ export const createCard = (section, id) => async (dispatch, getState) => {
     return;
   }
 
-  let state = getState();
+  const state = getState();
+
+  let user = firebaseUser(state);
+
+  if (!user) {
+    console.log("No user");
+    return;
+  }
+
+  if (!userIsAdmin(state)) {
+    console.log("User isn't admin!");
+    return;
+  }
 
   let appendMiddle = false; 
   let appendIndex = 0;
@@ -331,6 +352,7 @@ export const createCard = (section, id) => async (dispatch, getState) => {
   let obj = {
     created: new Date(),
     updated: new Date(),
+    author: user.uid,
     updated_substantive: new Date(),
     star_count: 0,
     title: "",
@@ -366,6 +388,7 @@ export const createCard = (section, id) => async (dispatch, getState) => {
       let current = sectionDoc.data().cards;
       newArray = [...current.slice(0,appendIndex), id, ...current.slice(appendIndex)];
     }
+    ensureAuthor(transaction, user);
     transaction.update(sectionRef, {cards: newArray, updated: new Date()});
     let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
     transaction.set(sectionUpdateRef, {timestamp: new Date(), cards: newArray});

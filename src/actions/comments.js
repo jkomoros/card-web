@@ -31,7 +31,7 @@ import {
   randomString
 } from './util.js';
 
-const ensureAuthor = (batch, user) => {
+export const ensureAuthor = (batch, user) => {
   batch.set(db.collection(AUTHORS_COLLECTION).doc(user.uid), {
     updated: new Date(),
     photoURL: user.photoURL,
