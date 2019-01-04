@@ -6,6 +6,11 @@ import { store } from '../store.js';
 
 import { DialogElement } from './dialog-element.js';
 
+import find from '../reducers/find.js';
+store.addReducers({
+  find
+});
+
 class FindDialog extends connect(store)(DialogElement) {
   innerRender() {
     return html`This is a find dialog!`;

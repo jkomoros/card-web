@@ -23,11 +23,9 @@ import { store } from '../store.js';
 // We are lazy loading its reducer.
 import data from '../reducers/data.js';
 import editor from '../reducers/editor.js';
-import find from '../reducers/find.js';
 store.addReducers({
   data,
-  editor,
-  find
+  editor
 });
 
 import {
