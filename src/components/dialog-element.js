@@ -2,10 +2,17 @@ import { LitElement, html } from '@polymer/lit-element';
 
 import { SharedStyles } from './shared-styles.js';
 
+import { ButtonSharedStyles } from './button-shared-styles.js';
+
+import {
+  cancelIcon
+} from './my-icons.js';
+
 export class DialogElement extends LitElement {
   render() {
     return html`
       ${SharedStyles}
+      ${ButtonSharedStyles}
       <style>
         :host {
           position:absolute;
@@ -39,6 +46,7 @@ export class DialogElement extends LitElement {
           padding:1em;
           box-shadow: var(--card-shadow);
           overflow:scroll;
+          position:relative;
         }
 
         h2 {
@@ -47,9 +55,16 @@ export class DialogElement extends LitElement {
           text-align:left;
           margin:0;
         }
+
+        button {
+          position: absolute;
+          top: 0.5em;
+          right: 0.5em;
+        }
       </style>
     	<div class='background' @click=${this._handleBackgroundClicked}>
     		<div class='content'>
+          <button class='small' @click=${this._shouldClose}>${cancelIcon}</button>
           <h2>${this.title || ""}</h2>
     			${this.innerRender()}
     		</div>
