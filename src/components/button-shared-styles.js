@@ -30,6 +30,10 @@ export const ButtonSharedStyles = html`
     background-color: var(--app-dark-text-color-light);
   }
 
+  button:focus {
+    outline:none;
+  }
+
   button.primary {
     background: var(--app-primary-color);
   }
