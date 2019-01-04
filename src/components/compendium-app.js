@@ -37,6 +37,10 @@ import {
   collectionFromSection
 } from '../reducers/data.js';
 
+import {
+  keyboardNavigates
+} from '../reducers/app.js';
+
 import { 
   connectLiveCards,
   connectLiveSections,
@@ -239,6 +243,7 @@ class CompendiumApp extends connect(store)(LitElement) {
       _card: { type: Object },
       _sections : {type: Object},
       _activeSectionId: {type:String},
+      _keyboardNavigates: {type:Boolean}
     }
   }
 
@@ -267,7 +272,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 
   _handleKeyPressed(e) {
     //Don't move the slide selection when editing!
-    if (this._editing) return;
+    if (!this._keyboardNavigates) return;
     switch (e.key) {
       case "f":
         if (!e.metaKey) return;
@@ -319,6 +324,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     this._devMode = DEV_MODE;
     this._sections = state.data.sections;
     this._activeSectionId = state.data.activeSectionId;
+    this._keyboardNavigates = keyboardNavigates(state);
   }
 }
 

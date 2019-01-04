@@ -151,6 +151,12 @@ const app = (state = INITIAL_STATE, action) => {
   }
 };
 
+export const keyboardNavigates = state => {
+  if (state.editor && state.editor.editing) return false;
+  if (state.find && state.find.open) return false;
+  return true;
+}
+
 //The cardsDrawerPanel hides itself when there are no cards to show (that is,
 //for orphaned cards). This is the logic that decides if it's open based on state.
 export const cardsDrawerPanelShowing = state => {
