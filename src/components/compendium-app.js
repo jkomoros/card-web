@@ -268,7 +268,6 @@ class CompendiumApp extends connect(store)(LitElement) {
   _handleKeyPressed(e) {
     //Don't move the slide selection when editing!
     if (this._editing) return;
-    console.log(e);
     switch (e.key) {
       case "f":
         if (!e.metaKey) return;
