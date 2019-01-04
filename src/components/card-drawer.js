@@ -22,7 +22,6 @@ import {
 } from '../reducers/app.js';
 
 import {
-  createCard,
   reorderCard,
 } from '../actions/data.js';
 
@@ -123,7 +122,7 @@ class CardDrawer extends connect(store)(LitElement) {
 
   _handleAddSlide(e) {
     if (!this.editable) return;
-    store.dispatch(createCard(this._activeSectionId));
+    this.dispatchEvent(new CustomEvent('add-card', {composed:true}));
   }
 
   _handleDragEnter(e) {
@@ -190,7 +189,6 @@ class CardDrawer extends connect(store)(LitElement) {
     stars: { type: Object },
     reads: { type: Object },
     reorderPending: {type:Boolean},
-    _activeSectionId: { type: String },
     _dragging: {type: Boolean},
     //_showing is more complicated than whether we're open or yet.
     _showing: {type:Boolean},
@@ -198,7 +196,6 @@ class CardDrawer extends connect(store)(LitElement) {
 
   // This is called every time something is updated in the store.
   stateChanged(state) {
-    this._activeSectionId = state.data.activeSectionId;
     this._showing = cardsDrawerPanelShowing(state);
   }
 }

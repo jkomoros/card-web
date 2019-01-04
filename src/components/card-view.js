@@ -32,6 +32,10 @@ import {
 } from '../actions/editor.js';
 
 import {
+  createCard,
+} from '../actions/data.js';
+
+import {
   addStar,
   removeStar,
   markRead,
@@ -266,7 +270,7 @@ class CardView extends connect(store)(PageViewElement) {
 
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer .editable=${this._userMayEdit} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .stars=${this._stars} .reads=${this._reads} .reorderPending=${this._drawerReorderPending}></card-drawer>
+        <card-drawer @add-card='${this._handleAddCard}' .editable=${this._userMayEdit} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .stars=${this._stars} .reads=${this._reads} .reorderPending=${this._drawerReorderPending}></card-drawer>
         <div id='center'>
           <div id='canvas'>
             <div id='portrait-message'>
@@ -326,6 +330,7 @@ class CardView extends connect(store)(PageViewElement) {
       _stars: {type: Object},
       _reads: {type: Object},
       _drawerReorderPending : {type: Boolean},
+      _activeSectionId: {type: String},
     }
   }
 
@@ -411,6 +416,10 @@ class CardView extends connect(store)(PageViewElement) {
     }
   }
 
+  _handleAddCard(e) {
+    store.dispatch(createCard(this._activeSectionId));
+  }
+
   stateChanged(state) {
     this._editingCard = state.editor.card;
     this._card = cardSelector(state);
@@ -436,6 +445,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._stars = state.user.stars;
     this._reads = state.user.reads;
     this._drawerReorderPending = state.data.reorderPending;
+    this._activeSectionId = state.data.activeSectionId;
   }
 
   _ensureUrlShowsName() {
