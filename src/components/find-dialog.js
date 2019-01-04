@@ -74,6 +74,7 @@ class FindDialog extends connect(store)(DialogElement) {
   }
 
   shouldUpdate(changedProps) {
+  	if (changedProps.has('open')) return true;
   	return this.open;
   }
 
