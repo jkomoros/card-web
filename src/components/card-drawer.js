@@ -85,7 +85,7 @@ class CardDrawer extends connect(store)(LitElement) {
           margin-bottom:-2em;
         }
       </style>
-      <div ?hidden='${!this._showing}' class='container ${this._dragging ? 'dragging' : ''}${this._reorderPending ? 'reordering':''}'>
+      <div ?hidden='${!this._showing}' class='container ${this._dragging ? 'dragging' : ''}${this.reorderPending ? 'reordering':''}'>
         <div class='scrolling'>
         ${repeat(this.collection, (i) => i.id, (i, index) => html`
           <div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
@@ -189,9 +189,9 @@ class CardDrawer extends connect(store)(LitElement) {
     selectedCardId: { type:String },
     stars: { type: Object },
     reads: { type: Object },
+    reorderPending: {type:Boolean},
     _activeSectionId: { type: String },
     _dragging: {type: Boolean},
-    _reorderPending: {type:Boolean},
     //_showing is more complicated than whether we're open or yet.
     _showing: {type:Boolean},
   }}
@@ -199,7 +199,6 @@ class CardDrawer extends connect(store)(LitElement) {
   // This is called every time something is updated in the store.
   stateChanged(state) {
     this._activeSectionId = state.data.activeSectionId;
-    this._reorderPending = state.data.reorderPending;
     this._showing = cardsDrawerPanelShowing(state);
   }
 }
