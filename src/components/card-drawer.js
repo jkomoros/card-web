@@ -10,10 +10,6 @@ import './card-thumbnail.js';
 import { plusIcon } from './my-icons.js';
 
 import {
-  navigateToCard,
-} from '../actions/app.js';
-
-import {
   userMayEdit
 } from '../reducers/user.js';
 
@@ -88,7 +84,7 @@ class CardDrawer extends connect(store)(LitElement) {
         <div class='scrolling'>
         ${repeat(this.collection, (i) => i.id, (i, index) => html`
           <div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
-          <card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this.editable} @thumbnail-tapped=${this._thumbnailActivatedHandler} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this.selectedCardId} .index=${index} .starred=${this.stars[i.id] || false} .read=${this.reads[i.id] || false}></card-thumbnail>`)}
+          <card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this.editable} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this.selectedCardId} .index=${index} .starred=${this.stars[i.id] || false} .read=${this.reads[i.id] || false}></card-thumbnail>`)}
         </div>
         <button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable}'>${plusIcon}</button>
       </div>
@@ -113,11 +109,6 @@ class CardDrawer extends connect(store)(LitElement) {
     let ele = section.querySelector('strong');
     if (!ele) ele = section;
     return ele.innerText.split("\n")[0];
-  }
-
-  _thumbnailActivatedHandler(e) {
-    let ele = e.target;
-    store.dispatch(navigateToCard(ele.name || ele.id));
   }
 
   _handleAddSlide(e) {
