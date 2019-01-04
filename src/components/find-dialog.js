@@ -11,9 +11,18 @@ store.addReducers({
   find
 });
 
+import {
+	closeFindDialog
+} from '../actions/find.js';
+
 class FindDialog extends connect(store)(DialogElement) {
   innerRender() {
     return html`This is a find dialog!`;
+  }
+
+  _shouldClose() {
+  	//Override base class.
+  	store.dispatch(closeFindDialog());
   }
 
   stateChanged(state) {

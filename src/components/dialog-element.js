@@ -36,7 +36,7 @@ export class DialogElement extends LitElement {
           box-shadow: var(--card-shadow);
         }
       </style>
-    	<div class='background'>
+    	<div class='background' @click=${this._handleBackgroundClicked}>
     		<div class='content'>
           <h2>${this.title || ""}</h2>
     			${this.innerRender()}
@@ -48,6 +48,15 @@ export class DialogElement extends LitElement {
   innerRender() {
   	//You can subclass this and return somethingelse for innerRender or use it directly with content inside.
   	return html`<slot></slot>`;
+  }
+
+  _handleBackgroundClicked(e) {
+    this._shouldClose();
+  }
+
+  _shouldClose() {
+    //Override point for base classes
+    this.dispatchEvent(new CustomEvent('dialog-should-close'));
   }
 
   static get properties() {
