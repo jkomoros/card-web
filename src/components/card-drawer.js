@@ -1,27 +1,14 @@
 import { LitElement, html } from '@polymer/lit-element';
-import { connect } from 'pwa-helpers/connect-mixin.js';
 import { repeat } from 'lit-html/directives/repeat';
-
-// This element is connected to the Redux store.
-import { store } from '../store.js';
 
 import './card-thumbnail.js';
 
 import { plusIcon } from './my-icons.js';
 
-import {
-  userMayEdit
-} from '../reducers/user.js';
-
-import {
-  cardsDrawerPanelShowing
-} from '../reducers/app.js';
-
 import { ButtonSharedStyles } from './button-shared-styles.js';
 import { SharedStyles } from './shared-styles.js';
 
-
-class CardDrawer extends connect(store)(LitElement) {
+class CardDrawer extends LitElement {
   render() {
     return html`
       ${SharedStyles}
