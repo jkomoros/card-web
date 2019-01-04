@@ -34,7 +34,7 @@ class FindDialog extends connect(store)(DialogElement) {
     			font-size:14px;
     		}
     	</style>
-    	<input type='search' @input=${this._handleQueryChanged} value=${this._query}></input>
+    	<input id='query' type='search' @input=${this._handleQueryChanged} value=${this._query}></input>
     	<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection}></card-drawer>
     `;
   }
@@ -83,6 +83,13 @@ class FindDialog extends connect(store)(DialogElement) {
   	this.open = state.find.open;
   	this._query = state.find.query;
   	this._collection = collectionForQuery(state);
+  }
+
+  updated(changedProps) {
+  	if (changedProps.has('open') && this.open) {
+  		let input = this.shadowRoot.getElementById('query');
+  		input.focus();
+  	}
   }
 
 }
