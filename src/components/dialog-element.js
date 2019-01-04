@@ -34,8 +34,11 @@ export class DialogElement extends LitElement {
           background-color:white;
           min-height: 40%;
           min-width: 40%;
+          max-height:90%;
+          max-width:90%;
           padding:1em;
           box-shadow: var(--card-shadow);
+          overflow:scroll;
         }
 
         h2 {
