@@ -41,7 +41,7 @@ class FindDialog extends connect(store)(DialogElement) {
 	          width: 100%;
 	        }
     	</style>
-    	<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} value=${this._query}></input>
+    	<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
     	<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection}></card-drawer>
     `;
   }
