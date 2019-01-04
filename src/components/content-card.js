@@ -47,7 +47,8 @@ export class ContentCard extends BaseCard {
     return this.id ? blankTemplate : loadingTemplate;
   }
 
-  firstUpdated() {
+  firstUpdated(changedProps) {
+    super.firstUpdated(changedProps);
     document.addEventListener('selectionchange', this._selectionChanged.bind(this));
   }
 
