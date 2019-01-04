@@ -35,16 +35,17 @@ const app = (state = INITIAL_STATE, action) => {
   }
 }
 
-const cardMatchesQuery = (card, query) => {
-    if (!card) return false;
-    if (card.body && card.body.indexOf(query) >= 0) return true;
-    if (card.title && card.title.indexOf(query) >= 0) return true;
-    if (card.subtitle && card.subtitle.indexOf(query) >= 0) return true;
-    return false;
+const cardScoreForQuery = (card, query) => {
+    if (!card) return 0.0;
+    let score = 0.0;
+    if (card.body && card.body.indexOf(query) >= 0) score += 0.5;
+    if (card.title && card.title.indexOf(query) >= 0) score += 1.0;
+    if (card.subtitle && card.subtitle.indexOf(query) >= 0) score += 0.75;
+    return score;
 }
 
 export const collectionForQuery = (state) => {
-  let collection = [];
+  let scoredCollection = [];
   let query = state.find.query;
 
   if (!query) return [];
@@ -52,10 +53,18 @@ export const collectionForQuery = (state) => {
   let cards = state.data.cards;
 
   for (let card of Object.values(cards)) {
-    if (cardMatchesQuery(card, query)) collection.push(card);
+    let score = cardScoreForQuery(card, query);
+    if (score > 0.0) {
+      scoredCollection.push({
+        score,
+        card
+      })
+    }
   }
 
-  return collection;
+  scoredCollection.sort((left, right) => right.score - left.score);
+
+  return scoredCollection.map(item => item.card);
 
 }
 
