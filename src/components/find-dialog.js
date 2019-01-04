@@ -58,7 +58,11 @@ class FindDialog extends connect(store)(DialogElement) {
   	this._query = state.find.query;
   	this._collection = collectionForQuery(state);
   }
-  
+
+  shouldUpdate(changedProps) {
+  	return this.open;
+  }
+
 }
 
 window.customElements.define('find-dialog', FindDialog);
