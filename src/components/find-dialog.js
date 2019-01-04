@@ -44,6 +44,18 @@ class FindDialog extends connect(store)(DialogElement) {
   	this.title = 'Search';
   }
 
+  firstUpdated() {
+  	window.addEventListener('keydown', e => this._handleKeyDown(e));
+  }
+
+  _handleKeyDown(e) {
+  	if (!this.open) return;
+  	if (e.key == 'Escape') {
+  		this._shouldClose();
+  		return true;
+  	}
+  }
+
   _shouldClose() {
   	//Override base class.
   	store.dispatch(closeFindDialog());
