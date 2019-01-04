@@ -270,7 +270,7 @@ class CardView extends connect(store)(PageViewElement) {
 
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer @thumbnail-tapped=${this._thumbnailActivatedHandler} @add-card='${this._handleAddCard}' .editable=${this._userMayEdit} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .stars=${this._stars} .reads=${this._reads} .reorderPending=${this._drawerReorderPending}></card-drawer>
+        <card-drawer .showing=${this._cardsDrawerPanelShowing} @thumbnail-tapped=${this._thumbnailActivatedHandler} @add-card='${this._handleAddCard}' .editable=${this._userMayEdit} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .stars=${this._stars} .reads=${this._reads} .reorderPending=${this._drawerReorderPending}></card-drawer>
         <div id='center'>
           <div id='canvas'>
             <div id='portrait-message'>

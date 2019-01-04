@@ -80,7 +80,7 @@ class CardDrawer extends connect(store)(LitElement) {
           margin-bottom:-2em;
         }
       </style>
-      <div ?hidden='${!this._showing}' class='container ${this._dragging ? 'dragging' : ''}${this.reorderPending ? 'reordering':''}'>
+      <div ?hidden='${!this.showing}' class='container ${this._dragging ? 'dragging' : ''}${this.reorderPending ? 'reordering':''}'>
         <div class='scrolling'>
         ${repeat(this.collection, (i) => i.id, (i, index) => html`
           <div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
@@ -180,15 +180,10 @@ class CardDrawer extends connect(store)(LitElement) {
     stars: { type: Object },
     reads: { type: Object },
     reorderPending: {type:Boolean},
-    _dragging: {type: Boolean},
     //_showing is more complicated than whether we're open or yet.
-    _showing: {type:Boolean},
+    showing: {type:Boolean},
+    _dragging: {type: Boolean},
   }}
-
-  // This is called every time something is updated in the store.
-  stateChanged(state) {
-    this._showing = cardsDrawerPanelShowing(state);
-  }
 }
 
 window.customElements.define('card-drawer', CardDrawer);
