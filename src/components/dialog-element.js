@@ -16,6 +16,7 @@ export class DialogElement extends LitElement {
           z-index:1000;
           display: ${this.open ? 'block' : 'none'}
         }
+
         .background {
           position:absolute;
           height:100%;
@@ -28,12 +29,20 @@ export class DialogElement extends LitElement {
           align-items: center;
           justify-content:center;
         }
+
         .content {
           background-color:white;
           min-height: 40%;
           min-width: 40%;
           padding:1em;
           box-shadow: var(--card-shadow);
+        }
+
+        h2 {
+          font-weight: normal;
+          font-size:1.5em;
+          text-align:left;
+          margin:0;
         }
       </style>
     	<div class='background' @click=${this._handleBackgroundClicked}>

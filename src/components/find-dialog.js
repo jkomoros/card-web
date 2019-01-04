@@ -35,6 +35,11 @@ class FindDialog extends connect(store)(DialogElement) {
     `;
   }
 
+  constructor() {
+  	super();
+  	this.title = 'Search';
+  }
+
   _shouldClose() {
   	//Override base class.
   	store.dispatch(closeFindDialog());
