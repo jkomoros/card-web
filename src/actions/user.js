@@ -48,7 +48,7 @@ export const signIn = () => (dispatch) => {
 
   let provider = new firebase.auth.GoogleAuthProvider();
 
-  firebase.auth().signInWithPopup(provider).catch(err => {
+  firebase.auth().signInWithRedirect(provider).catch(err => {
     dispatch({type:SIGNIN_FAILURE, error: err})
   });
 
