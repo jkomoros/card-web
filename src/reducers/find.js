@@ -46,28 +46,23 @@ const app = (state = INITIAL_STATE, action) => {
   }
 }
 
+const stringPropertyScoreForStringSubQuery = (propertyValue, preparedSubquery) => {
+  let value = propertyValue.toLowerCase();
+  for (let item of preparedSubquery) {
+    if (value.indexOf(item[0]) >= 0) return item[1];
+  }
+  return 0.0;
+}
+
 const cardScoreForQuery = (card, preparedQuery) => {
     if (!card) return 0.0;
     let score = 0.0;
-    if (preparedQuery.title && card.title) {
-      let title = card.title.toLowerCase();
-      for (let item of preparedQuery.title) {
-        if (title.indexOf(item[0]) >= 0) score += item[1];
-      }
+
+    for (let key of ['title', 'body', 'subtitle']) {
+      if(!preparedQuery[key] || !card[key]) continue;
+      score += stringPropertyScoreForStringSubQuery(card[key], preparedQuery[key]);
     }
-    if (preparedQuery.body && card.body) {
-      let body = card.body.toLowerCase();
-      for (let item of preparedQuery.body) {
-        if (body.indexOf(item[0]) >= 0) score += item[1];
-      }
-    }
-    if (preparedQuery.subtitle && card.subtitle) {
-      let subtitle = card.subtitle.toLowerCase();
-      for (let item of preparedQuery.subtitle) {
-        if (subtitle.indexOf(item[0]) >= 0) score += item[1];
-      }
-    }
-    
+
     return score;
 }
 
