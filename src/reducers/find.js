@@ -49,14 +49,35 @@ const app = (state = INITIAL_STATE, action) => {
 const cardScoreForQuery = (card, preparedQuery) => {
     if (!card) return 0.0;
     let score = 0.0;
-    if (card.body && card.body.toLowerCase().indexOf(preparedQuery) >= 0) score += 0.5;
-    if (card.title && card.title.toLowerCase().indexOf(preparedQuery) >= 0) score += 1.0;
-    if (card.subtitle && card.subtitle.toLowerCase().indexOf(preparedQuery) >= 0) score += 0.75;
+    if (preparedQuery.title && card.title) {
+      let title = card.title.toLowerCase();
+      for (let item of preparedQuery.title) {
+        if (title.indexOf(item[0]) >= 0) score += item[1];
+      }
+    }
+    if (preparedQuery.body && card.body) {
+      let body = card.body.toLowerCase();
+      for (let item of preparedQuery.body) {
+        if (body.indexOf(item[0]) >= 0) score += item[1];
+      }
+    }
+    if (preparedQuery.subtitle && card.subtitle) {
+      let subtitle = card.subtitle.toLowerCase();
+      for (let item of preparedQuery.subtitle) {
+        if (subtitle.indexOf(item[0]) >= 0) score += item[1];
+      }
+    }
+    
     return score;
 }
 
 const prepareQuery = (queryString) => {
-  return queryString.toLowerCase();
+  let query = queryString.toLowerCase();
+  return {
+    title: [[query, 1.0]],
+    body: [[query, 0.5]],
+    subtitle: [[query, 0.75]],
+  }
 }
 
 export const collectionForQuery = (state) => {
