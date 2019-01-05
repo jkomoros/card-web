@@ -33,6 +33,27 @@ const maintenanceTaskRun = async (taskName) => {
   db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: new Date()});
 }
 
+const ADD_THREAD_RESOLVED_COUNT = 'add-thread-resolved-count';
+
+export const addThreadResolvedCount = async() => {
+
+  await checkMaintenanceTaskHasBeenRun(ADD_THREAD_RESOLVED_COUNT);
+
+  let batch = db.batch();
+
+  let snapshot = await db.collection(CARDS_COLLECTION).get();
+
+  snapshot.forEach(doc => {
+    batch.update(doc.ref, {'thread_resolved_count': 0})
+  });
+
+  await batch.commit();
+
+  await maintenanceTaskRun(ADD_THREAD_RESOLVED_COUNT);
+  console.log('done!');
+
+}
+
 const ADD_CARD_AUTHOR = 'add-card-author';
 
 export const addCardAuthor = async() => {
@@ -369,5 +390,6 @@ export const tasks = {
   [NORMALIZE_CONTENT_BODY]: normalizeContentBody,
   [ADD_STAR_COUNT]: addStarCount,
   [ADD_THREAD_COUNT]: addThreadCount,
-  [ADD_CARD_AUTHOR]: addCardAuthor
+  [ADD_CARD_AUTHOR]: addCardAuthor,
+  [ADD_THREAD_RESOLVED_COUNT]: addThreadResolvedCount,
 }
