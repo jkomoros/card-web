@@ -47,10 +47,11 @@ class CardLink extends connect(store)(LitElement) {
   }
 
   get _inner() {
-    if (this.auto === 'name') {
+    if (this.auto) {
       let card = this._cardObj;
       if (card) {
-        return card.name;
+        let val = card[this.auto];
+        if (val) return val;
       }
     }
     return html`<slot></slot>`
