@@ -62,7 +62,8 @@ export const resolveThread = (thread) => (dispatch, getState) => {
     }
     let newThreadCount = (cardDoc.data().thread_count || 0) - 1;
     if (newThreadCount < 0) newThreadCount = 0;
-    transaction.update(cardRef, {thread_count: newThreadCount});
+    let newThreadResolvedCount = (cardDoc.data().thread_resolved_count || 0) + 1;
+    transaction.update(cardRef, {thread_count: newThreadCount, thread_resolved_count: newThreadResolvedCount});
     transaction.update(threadRef, {
       resolved: true,
       updated: new Date()
