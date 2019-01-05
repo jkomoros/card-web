@@ -129,7 +129,8 @@ const hrefToCardAttribute = (cardLink) => {
 
   if (!href) return;
   if (href.startsWith('/')) return;
-  if (href.startsWith('http:')) return;
+  if (href.startsWith('http://')) return;
+  if (href.startsWith('https://')) return;
 
   cardLink.setAttribute('card', href);
   cardLink.removeAttribute('href');
