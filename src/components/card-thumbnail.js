@@ -42,6 +42,7 @@ class CardThumbnail extends LitElement {
           margin:0.5em;
           box-sizing:border-box;
           position:relative;
+          border: 2px solid transparent;
         }
 
         .selected {
