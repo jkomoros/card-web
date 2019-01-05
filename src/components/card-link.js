@@ -33,7 +33,7 @@ class CardLink extends connect(store)(LitElement) {
           cursor: var(--card-link-cursor, pointer);
         }
       </style>
-      <a class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''}' href='${this._computedHref}' target='${this._computedTarget}'><slot></slot></a>`;
+      <a title='${this._title}' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''}' href='${this._computedHref}' target='${this._computedTarget}'><slot></slot></a>`;
   }
 
   static get properties() {
@@ -41,11 +41,21 @@ class CardLink extends connect(store)(LitElement) {
       card: { type: String },
       href: { type: String},
       _reads: {type: Object},
+      _cards: { type: Object},
     }
   }
 
   stateChanged(state) {
     this._reads = state.user.reads;
+    this._cards = state.data.cards;
+  }
+
+  get _title() {
+    if (!this.card) return "";
+    if (!this._cards) return "";
+    let card = this._cards[this.card];
+    if (!card) return "";
+    return card.title + " - " + card.name;
   }
 
   get _read() {
