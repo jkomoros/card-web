@@ -26,7 +26,7 @@ export const ButtonSharedStyles = html`
     overflow: hidden;
     transition: background-color var(--transition-fade), color var(--transition-fade), box-shadow var(--transition-fade);
   }
-  button:disabled {
+  button:disabled, button.need-signin {
     background-color: var(--app-dark-text-color-light);
   }
 
@@ -54,7 +54,7 @@ export const ButtonSharedStyles = html`
     background: var(--app-secondary-color);
   }
 
-  button.small:disabled svg {
+  button.small:disabled svg, button.small.need-signin svg {
     fill: var(--app-dark-text-color-light);
   }
 

@@ -65,7 +65,7 @@ class CommentThread extends LitElement {
           ${repeat(this.thread.messages, (message) => message.id, (item, index) => html`
           <comment-message .message=${item} .userId=${this.userId}></comment-message>`)}
           <div class='buttons'>
-            <button class='small' ?disabled='${!this.userMayComment}' title='${this.userMayComment ? 'Reply' : 'Sign in to reply'}' @click=${this._handleAddMessage}>${replyIcon}</button>
+            <button class='small ${this.loggedIn ? '' : 'need-signin'}' title='${this.userMayComment ? 'Reply' : 'Sign in to reply'}' @click=${this._handleAddMessage}>${replyIcon}</button>
           </div>
         </div>
       </div>
@@ -76,6 +76,7 @@ class CommentThread extends LitElement {
     return {
       thread: { type: Object },
       userMayComment: {type:Boolean},
+      loggedIn: {type: Boolean},
       userId: { type: String },
       _expanded: {type: Boolean}
     }
@@ -94,6 +95,11 @@ class CommentThread extends LitElement {
   }
 
   _handleAddMessage(e) {
+    if (!this.loggedIn) {
+      this.dispatchEvent(new CustomEvent('show-need-signin'));
+      return;
+    }
+    if (!this.userMayComment) return;
     let message = prompt("What is your reply? (Markdown formatting is supported)");
     if (!message) return;
     this.dispatchEvent(new CustomEvent('add-message', {composed:true, detail: {message: message, thread: this.thread}}));

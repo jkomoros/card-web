@@ -37,6 +37,12 @@ import {
   cardSelector
 } from '../reducers/data.js';
 
+export const showNeedSignin = () => (dispatch) => {
+  let doSignIn = confirm("Doing that action requires signing in with your Google account. Do you want to sign in?");
+  if (!doSignIn) return;
+  dispatch(signIn());
+}
+
 export const signIn = () => (dispatch) => {
   dispatch({type:SIGNIN_USER});
 

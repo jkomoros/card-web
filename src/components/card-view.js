@@ -24,7 +24,8 @@ import {
   cardHasStar,
   cardIsRead,
   userMayStar,
-  userMayMarkRead
+  userMayMarkRead,
+  loggedIn,
 } from '../reducers/user.js';
 
 import {
@@ -44,7 +45,8 @@ import {
   removeStar,
   markRead,
   markUnread,
-  AUTO_MARK_READ_DELAY
+  AUTO_MARK_READ_DELAY,
+  showNeedSignin
 } from '../actions/user.js';
 
 import {
@@ -298,8 +300,8 @@ class CardView extends connect(store)(PageViewElement) {
                 <button class='round' @click=${this._handleFindClicked}>${searchIcon}</button>
               </div>
               <div class='modify'>
-                <button class='round ${this._cardHasStar ? 'selected' : ''}' @click='${this._handleStarClicked}' ?disabled='${!this._userMayStar}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
-                <button class='round ${this._cardIsRead ? 'selected' : ''}' @click='${this._handleReadClicked}' ?disabled='${!this._userMayMarkRead}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
+                <button class='round ${this._cardHasStar ? 'selected' : ''} ${this._loggedIn ? '' : 'need-signin'}' @click='${this._handleStarClicked}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
+                <button class='round ${this._cardIsRead ? 'selected' : ''} ${this._loggedIn ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
                 <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
               </div>
               <div class='next-prev'>
@@ -321,6 +323,7 @@ class CardView extends connect(store)(PageViewElement) {
       _card: { type: Object },
       _cardIdOrSlug: { type: String },
       _editing: {type: Boolean },
+      _loggedIn: { type:Boolean },
       _userMayEdit: { type: Boolean },
       _userMayStar: { type: Boolean },
       _userMayMarkRead: { type: Boolean },
@@ -421,6 +424,11 @@ class CardView extends connect(store)(PageViewElement) {
   }
 
   _handleStarClicked(e) {
+    if (!this._loggedIn) {
+      store.dispatch(showNeedSignin());
+      return;
+    }
+    if (!this._userMayStar) return;
     if (this._cardHasStar) {
       store.dispatch(removeStar(this._card));
     } else {
@@ -429,6 +437,11 @@ class CardView extends connect(store)(PageViewElement) {
   }
 
   _handleReadClicked(e) {
+    if (!this._loggedIn) {
+      store.dispatch(showNeedSignin());
+      return;
+    }
+    if (!this._userMayMarkRead) return;
     if (this._cardIsRead) {
       store.dispatch(markUnread(this._card));
     } else {
@@ -450,6 +463,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._displayCard = this._editingCard ? this._editingCard : this._card;
     this._cardIdOrSlug = this.extractPageExtra(state.app.pageExtra)[0];
     this._editing = state.editor.editing; 
+    this._loggedIn = loggedIn(state);
     this._userMayStar  =  userMayStar(state);
     this._userMayMarkRead =  userMayMarkRead(state);
     this._autoMarkReadPending = state.user.autoMarkReadPending;

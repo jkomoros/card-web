@@ -106,7 +106,9 @@ export const uidMayResolveThread = (uid, thread) => {
 
 export const uidIsAdmin = uid => uidMayEdit(uid);
 
-export const uidMayComment = uid => uid != "";
+export const uidLoggedIn = uid => uid != "";
+
+export const uidMayComment = uid => uidLoggedIn(uid);
 
 export const uidMayEditMessage = (uid, message) => {
   if (uidIsAdmin(uid)) return true;
@@ -139,6 +141,7 @@ export const userIsAdmin = state => uidMayEdit(userId(state));
 export const userMayEdit = state => uidMayEdit(userId(state));
 export const userMayStar = state => uidMayComment(userId(state));
 export const userMayMarkRead = state => uidMayComment(userId(state));
+export const loggedIn = state => uidLoggedIn(userId(state));
 
 
 export default app;
