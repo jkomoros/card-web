@@ -50,9 +50,11 @@ class UserChip extends connect(store)(LitElement) {
           opacity:0.5;
           filter: saturate(0%);
         }
+        div.pending {
+          font-style:italic;
+        }
       </style>
-      <div>
-        ${this._pending ? '***' : ''}
+      <div class='${this._pending ? 'pending' : ''}'>
         ${this._user
           ? html`<span>${this._user.displayName}</span> <img title='${this._user.displayName + ' - ' + this._user.email + ' - Click to sign out'}' src='${this._user.photoURL}' @click=${this._handleSignOutClick}>`
           : html`<span>Sign in with your Google Account</span><button class='round' @click=${this._handleSignInClick}>${personIcon}</button>`
