@@ -125,6 +125,15 @@ const replaceCardLinksWithAs = (body) => {
 
 const hrefToCardAttribute = (cardLink) => {
   
+  let cardAttribute = cardLink.getAttribute('card');
+  //Sometimes the HTML erroneously has a normal href in the card, so look for
+  //that too and put it in the href property, where we expect it to be. See
+  //#97.
+  if (cardAttribute) {
+    cardLink.setAttribute('href', cardAttribute);
+    cardLink.removeAttribute('card');
+  }
+
   let href = cardLink.getAttribute('href');
 
   if (!href) return;

@@ -115,7 +115,7 @@ export const addStarCount = async() => {
 
 }
 
-const NORMALIZE_CONTENT_BODY = 'normalize-content-body';
+const NORMALIZE_CONTENT_BODY = 'normalize-content-body-again';
 
 export const normalizeContentBody = async() => {
   await checkMaintenanceTaskHasBeenRun(NORMALIZE_CONTENT_BODY);
