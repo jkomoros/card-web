@@ -33,16 +33,27 @@ class CardLink extends connect(store)(LitElement) {
           cursor: var(--card-link-cursor, pointer);
         }
       </style>
-      <a title='${this._title}' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''}' href='${this._computedHref}' target='${this._computedTarget}'><slot></slot></a>`;
+      <a title='${this._title}' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
   }
 
   static get properties() {
     return {
       card: { type: String },
       href: { type: String},
+      auto: { type: String},
       _reads: {type: Object},
       _cards: { type: Object},
     }
+  }
+
+  get _inner() {
+    if (this.auto === 'name') {
+      let card = this._cardObj;
+      if (card) {
+        return card.name;
+      }
+    }
+    return html`<slot></slot>`
   }
 
   stateChanged(state) {
@@ -50,10 +61,14 @@ class CardLink extends connect(store)(LitElement) {
     this._cards = state.data.cards;
   }
 
+  get _cardObj() {
+    if (!this.card) return null;
+    if (!this._cards) return null;
+    return this._cards[this.card];
+  }
+
   get _title() {
-    if (!this.card) return "";
-    if (!this._cards) return "";
-    let card = this._cards[this.card];
+    let card = this._cardObj;
     if (!card) return "";
     return card.title + " - " + card.name;
   }

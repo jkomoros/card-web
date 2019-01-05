@@ -114,7 +114,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
         <div>
           <h4>Cards That Link Here${this._help('Note: this property is re-calculated on a schedule and may not be up to date.', true)}</h4>
           ${this._card && this._card.links_inbound && this._card.links_inbound.length 
-            ? html`<ul>${this._card.links_inbound.map((item) => html`<li><card-link card='${item}'>${item}</a></li>`)}</ul>`
+            ? html`<ul>${this._card.links_inbound.map((item) => html`<li><card-link auto='name' card='${item}'>${item}</a></li>`)}</ul>`
             : html`<p><em>No cards link to this one.</em></p>`
           }
         </div>
