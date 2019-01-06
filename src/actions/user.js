@@ -34,6 +34,10 @@ import {
 } from '../util.js';
 
 import {
+  refreshCardSelector
+} from './collection.js';
+
+import {
   selectActiveCard
 } from '../selectors.js';
 
@@ -84,12 +88,13 @@ export const signOut = () => (dispatch) => {
   firebase.auth().signOut();
 }
 
-export const updateStars = (starsToAdd = [], starsToRemove = []) => {
-  return {
+export const updateStars = (starsToAdd = [], starsToRemove = []) => (dispatch, getState) => {
+  dispatch({
     type: UPDATE_STARS,
     starsToAdd,
     starsToRemove
-  }
+  })
+  dispatch(refreshCardSelector());
 }
 
 export const addStar = (cardToStar) => (dispatch, getState) => {
@@ -155,12 +160,13 @@ export const removeStar = (cardToStar) => (dispatch, getState) => {
 
 }
 
-export const updateReads = (readsToAdd = [], readsToRemove = []) => {
-  return {
+export const updateReads = (readsToAdd = [], readsToRemove = []) => (dispatch, getState) => {
+  dispatch({
     type: UPDATE_READS,
     readsToAdd,
     readsToRemove
-  }
+  })
+  dispatch(refreshCardSelector());
 }
 
 let autoMarkReadTimeoutId = null;

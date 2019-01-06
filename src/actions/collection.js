@@ -7,7 +7,8 @@ import {
 } from './user.js';
 
 import {
-  navigatePathTo
+  navigatePathTo,
+  navigateToCard
 } from './app.js';
 
 import {
@@ -19,6 +20,7 @@ import {
   getIdForCard,
   getCardById,
   getCard,
+  selectDataIsFullyLoaded,
   selectActiveCollection,
   selectActiveSetName,
   selectActiveCardId,
@@ -26,6 +28,7 @@ import {
   selectRequestedCard,
   selectActiveFilterNames,
   selectActiveCard,
+  selectActiveCardIndex,
   selectPage,
   selectPageExtra,
   getCardIndexForActiveCollection
@@ -125,7 +128,10 @@ export const updateCollection = (setName, filters) => (dispatch, getState) =>{
 }
 
 export const refreshCardSelector = () => (dispatch, getState) => {
-  //Called when cards and sections update, just in case we now have information to do this better.
+  //Called when cards and sections update, just in case we now have
+  //information to do this better. Also called when stars and reads update,
+  //because if we're filtering to one of those filters we might not yet know
+  //if we're in that collection or not.
   const state = getState();
 
   let page = selectPage(state);
@@ -170,6 +176,22 @@ export const canonicalizeURL = () => (dispatch, getState) => {
   dispatch(navigatePathTo(path, true));
 }
 
+export const redirectIfInvalidCardOrCollection = () => (dispatch, getState) => {
+  
+  const state = getState();
+  if (!selectDataIsFullyLoaded(state)) return;
+  let card = selectActiveCard(state);
+  if (!card) {
+    dispatch(navigateToCard('', true));
+    return;
+  }
+  let collection = selectActiveCollection(state);
+  if (!collection.length) return;
+  let index = selectActiveCardIndex(state);
+  if (index >= 0) return;
+  dispatch(navigateToCard(card, true));
+}
+
 export const showCard = (cardIdOrSlug) => (dispatch, getState) => {
 
   const state = getState();
@@ -177,13 +199,17 @@ export const showCard = (cardIdOrSlug) => (dispatch, getState) => {
   let cardId = getIdForCard(state, cardIdOrSlug);
 
   //If it'll be a no op don't worry about it.
-  if (selectActiveCardId(state) == cardId) return;
+  if (selectActiveCardId(state) == cardId) {
+    dispatch(redirectIfInvalidCardOrCollection());
+    return;
+  }
 
   dispatch({
     type: SHOW_CARD,
     idOrSlug: cardIdOrSlug,
     card: cardId,
   })
+  dispatch(redirectIfInvalidCardOrCollection());
   dispatch(canonicalizeURL());
   dispatch(scheduleAutoMarkRead());
 }

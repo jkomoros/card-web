@@ -50,6 +50,14 @@ export const getSection = (state, sectionId) => {
 	return state.data.sections[sectionId] || null;
 }
 
+//DataIsFullyLoaded returns true if we've loaded all of the card/section
+//information we're going to load.
+export const selectDataIsFullyLoaded = createSelector(
+	selectCards,
+	selectSections,
+	(cards, sections) => Object.keys(cards).length > 0 && Object.keys(sections).length > 0
+)
+
 export const selectActiveCard = createSelector(
   selectCards,
   selectActiveCardId,
