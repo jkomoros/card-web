@@ -13,7 +13,7 @@ import { createSelector } from 'reselect';
 
 import {
 	intersectionSet
-} from './actions/util.js';
+} from './util.js';
 
 import {
 	DEFAULT_SET_NAME

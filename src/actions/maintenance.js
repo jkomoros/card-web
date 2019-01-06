@@ -13,7 +13,7 @@ import {
 
 import {
   randomString
-} from './util.js';
+} from '../util.js';
 
 const checkMaintenanceTaskHasBeenRun = async (taskName) => {
   let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);

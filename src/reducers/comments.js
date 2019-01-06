@@ -7,7 +7,7 @@ import {
 import {
   arrayUnion,
   arrayRemove
-} from '../actions/util.js';
+} from '../util.js';
 
 import {
   authorForId

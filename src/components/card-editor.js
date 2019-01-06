@@ -29,7 +29,7 @@ import {
 
 import {
   killEvent
-} from '../actions/util.js';
+} from '../util.js';
 
 import {
   findCardToLink

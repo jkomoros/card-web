@@ -12,7 +12,7 @@ import {
 import {
   setRemove,
   setUnion
-} from '../actions/util.js';
+} from '../util.js';
 
 const INITIAL_STATE = {
   user : null,

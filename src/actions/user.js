@@ -31,7 +31,7 @@ import {
 
 import {
   idForPersonalCardInfo
-} from './util.js';
+} from '../util.js';
 
 import {
   selectActiveCard

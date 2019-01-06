@@ -29,7 +29,7 @@ import {
 
 import {
   randomString
-} from './util.js';
+} from '../util.js';
 
 import {
   ensureAuthor

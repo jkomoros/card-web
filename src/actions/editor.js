@@ -22,7 +22,7 @@ import {
 
 import {
   isWhitespace
-} from './util.js';
+} from '../util.js';
 
 let lastReportedSelectionRange = null;
 //TODO: figure out a pattenr that doesn't have a single shared global

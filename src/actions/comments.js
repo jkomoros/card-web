@@ -29,7 +29,7 @@ import {
 
 import {
   randomString
-} from './util.js';
+} from '../util.js';
 
 export const ensureAuthor = (batch, user) => {
   batch.set(db.collection(AUTHORS_COLLECTION).doc(user.uid), {
