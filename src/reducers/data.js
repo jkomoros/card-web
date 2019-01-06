@@ -11,9 +11,9 @@ import {
 import { createSelector } from 'reselect';
 
 import {
-  activeCardId,
-  activeSectionId,
-} from './collection.js';
+  getActiveSectionId,
+  getCards
+} from '../selectors.js';
 
 const INITIAL_STATE = {
   cards:{},
@@ -108,20 +108,6 @@ export const sectionTitle = (state, sectionId) => {
   return section.title;
 }
 
-const cardsSelector =  state => state.data.cards;
-
-export const cardById = (state, cardId) => {
-  let cards = cardsSelector(state);
-  if (!cards) return null;
-  return cards[cardId];
-}
-
-export const cardSelector = createSelector(
-  cardsSelector,
-  activeCardId,
-  (cards, activeCard) => cards[activeCard] || {}
-);
-
 export const collectionFromSection = (section) => {
   if (!section) return [];
   if (section.start_cards) {
@@ -140,11 +126,11 @@ export const collectionForSection = (state, sectionId) => {
 }
 
 export const collectionForActiveSectionSelector = state => {
-  return collectionForSection(state, activeSectionId(state));
+  return collectionForSection(state, getActiveSectionId(state));
 };
 
 export const collectionSelector = createSelector(
-  cardsSelector,
+  getCards,
   collectionForActiveSectionSelector,
   (cards, collection) => collection.map(id => cards[id]),
 )
@@ -153,7 +139,5 @@ export const cardsForCollection = (state, collection) => {
   let cards = cardsSelector(state);
   return collection.map(id => cards[id]);
 }
-
-export const idForCard = (state, idOrSlug) => state.data.slugIndex[idOrSlug] || idOrSlug;
 
 export default app;

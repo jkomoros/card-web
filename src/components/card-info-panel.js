@@ -13,10 +13,13 @@ import {
 } from './my-icons.js';
 
 import {
-  cardSelector,
   sectionTitle,
   authorForId
 } from '../reducers/data.js';
+
+import {
+  getActiveCard
+} from '../selectors.js';
 
 import {
   PageViewElement
@@ -137,7 +140,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 
   stateChanged(state) {
     this._open = state.app.cardInfoPanelOpen;
-    this._card = cardSelector(state);
+    this._card = getActiveCard(state) || {};
     this._sectionTitle = sectionTitle(state, this._card ? this._card.section : "");
     this._author = authorForId(state, this._card.author);
   }

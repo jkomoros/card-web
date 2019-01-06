@@ -56,10 +56,4 @@ const makeFilterFromSection = (sections) => {
   return result;
 }
 
-export const getSetName = (state) => state.collection.activeSetName;
-export const requestedCard = (state) => state.collection.requestedCard;
-export const activeCardId = (state) => state.collection.activeCardId;
-export const activeSectionId = (state) => state.collection.activeSectionId;
-export const activeCardIndex = (state) => state.collection.activeCardIndex;
-
 export default app;

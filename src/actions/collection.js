@@ -7,19 +7,23 @@ import {
 } from './user.js';
 
 import {
-  idForCard,
-  cardById,
   collectionForSection,
 } from '../reducers/data.js';
 
 import {
-  activeCardId,
-  activeCardIndex,
-  activeSectionId,
-  requestedCard,
-  getSetName,
   SET_NAMES,
 } from '../reducers/collection.js';
+
+import {
+  getIdForCard,
+  getCardById,
+  getCard,
+  getSetName,
+  getActiveCardId,
+  getActiveCardIndex,
+  getActiveSectionId,
+  getRequestedCard,
+} from '../selectors.js';
 
 
 export const updateCardSelector = (cardSelector) => (dispatch) => {
@@ -55,16 +59,16 @@ export const updateCollection = (setName) => (dispatch, getState) =>{
 export const reShowCard = () => (dispatch, getState) => {
   //Called when the sections or cards loaded and we should reshow card.
   const state = getState();
-  dispatch(showCard(requestedCard(state)));
+  dispatch(showCard(getRequestedCard(state)));
 }
 
 export const showCard = (cardIdOrSlug) => (dispatch, getState) => {
 
   const state = getState();
 
-  let cardId = idForCard(state, cardIdOrSlug);
+  let cardId = getIdForCard(state, cardIdOrSlug);
 
-  let card = cardById(state, cardId);
+  let card = getCardById(state, cardId);
 
   let sectionId = "";
   if (card) sectionId = card.section;
@@ -74,7 +78,7 @@ export const showCard = (cardIdOrSlug) => (dispatch, getState) => {
   let index = indexForActiveCard(sectionCollection, cardId);
 
   //If it'll be a no op don't worry about it.
-  if (activeCardId(state) == cardId && activeSectionId(state) == sectionId && activeCardIndex(state) == index) return;
+  if (getActiveCardId(state) == cardId && getActiveSectionId(state) == sectionId && getActiveCardIndex(state) == index) return;
 
   dispatch({
     type: SHOW_CARD,

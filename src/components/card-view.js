@@ -15,7 +15,11 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
-import { cardSelector } from '../reducers/data.js'
+import {
+  getActiveCard,
+  getActiveSectionId,
+  getRequestedCard,
+} from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js'
 
@@ -88,11 +92,6 @@ import {
   modifyCard,
   reorderCard
 } from '../actions/data.js';
-
-import {
-  activeSectionId,
-  requestedCard,
-} from '../reducers/collection.js';
 
 import { 
   collectionSelector
@@ -456,10 +455,10 @@ class CardView extends connect(store)(PageViewElement) {
 
   stateChanged(state) {
     this._editingCard = state.editor.card;
-    this._card = cardSelector(state);
+    this._card = getActiveCard(state) || {};
     this._displayCard = this._editingCard ? this._editingCard : this._card;
     this._pageExtra = state.app.pageExtra;
-    this._requestedCard = requestedCard(state);
+    this._requestedCard = getRequestedCard(state);
     this._editing = state.editor.editing; 
     this._loggedIn = loggedIn(state);
     this._userMayStar  =  userMayStar(state);
@@ -481,7 +480,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._stars = state.user.stars;
     this._reads = state.user.reads;
     this._drawerReorderPending = state.data.reorderPending;
-    this._activeSectionId = activeSectionId(state);
+    this._activeSectionId = getActiveSectionId(state);
   }
 
   _ensureUrlShowsName() {

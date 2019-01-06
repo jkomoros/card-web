@@ -31,17 +31,17 @@ store.addReducers({
 });
 
 import {
-  activeSectionId
-} from '../reducers/collection.js';
-
-import {
   DEV_MODE
 } from '../actions/database.js';
 
 import {
-  cardSelector,
   collectionFromSection
 } from '../reducers/data.js';
+
+import {
+  getActiveCard,
+  getActiveSectionId
+} from '../selectors.js';
 
 import {
   keyboardNavigates
@@ -321,7 +321,7 @@ class CompendiumApp extends connect(store)(LitElement) {
   }
 
   stateChanged(state) {
-    this._card = cardSelector(state);
+    this._card = getActiveCard(state) || {};
     this._headerPanelOpen = state.app.headerPanelOpen;
     this._page = state.app.page;
     this._offline = state.app.offline;
@@ -329,7 +329,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     this._editing = state.editor.editing;
     this._devMode = DEV_MODE;
     this._sections = state.data.sections;
-    this._activeSectionId = activeSectionId(state);
+    this._activeSectionId = getActiveSectionId(state);
     this._keyboardNavigates = keyboardNavigates(state);
   }
 }
