@@ -19,6 +19,7 @@ import {
   selectActiveCard,
   selectActiveSectionId,
   selectRequestedCard,
+  selectExpandedActiveCollection,
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js'
@@ -92,10 +93,6 @@ import {
   modifyCard,
   reorderCard
 } from '../actions/data.js';
-
-import { 
-  collectionSelector
-} from '../reducers/data.js'
 
 import comments from '../reducers/comments.js';
 store.addReducers({
@@ -476,7 +473,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._mobileMode = state.app.mobileMode;
     this._cardHasStar = cardHasStar(state, this._card ? this._card.id : "");
     this._cardIsRead = cardIsRead(state, this._card ? this._card.id : "");
-    this._collection = collectionSelector(state);
+    this._collection = selectExpandedActiveCollection(state);
     this._stars = state.user.stars;
     this._reads = state.user.reads;
     this._drawerReorderPending = state.data.reorderPending;
