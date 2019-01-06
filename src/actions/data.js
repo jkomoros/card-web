@@ -36,7 +36,7 @@ import {
 } from './comments.js';
 
 import {
-  reShowCard
+  refreshCardSelector
 } from './collection.js';
 
 import {
@@ -451,7 +451,7 @@ export const updateSections = (sections) => (dispatch) => {
     type: UPDATE_SECTIONS,
     sections,
   })
-  dispatch(reShowCard());
+  dispatch(refreshCardSelector());
 }
 
 export const updateAuthors = (authors) => {
@@ -466,6 +466,6 @@ export const updateCards = (cards) => (dispatch) => {
     type:UPDATE_CARDS,
     cards,
   })
-  dispatch(reShowCard());
+  dispatch(refreshCardSelector());
 }
 

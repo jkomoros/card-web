@@ -24,6 +24,8 @@ import {
   getActiveSectionId,
   getRequestedCard,
   getActiveFilters,
+  selectPage,
+  selectPageExtra
 } from '../selectors.js';
 
 
@@ -94,10 +96,14 @@ export const updateCollection = (setName, filters) => (dispatch, getState) =>{
   })
 }
 
-export const reShowCard = () => (dispatch, getState) => {
-  //Called when the sections or cards loaded and we should reshow card.
+export const refreshCardSelector = () => (dispatch, getState) => {
+  //Called when cards and sections update, just in case we now have information to do this better.
   const state = getState();
-  dispatch(showCard(getRequestedCard(state)));
+
+  let page = selectPage(state);
+  if (page != 'c') return;
+  let pageExtra = selectPageExtra(state);
+  dispatch(updateCardSelector(pageExtra));
 }
 
 export const showCard = (cardIdOrSlug) => (dispatch, getState) => {

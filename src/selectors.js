@@ -1,6 +1,9 @@
 import { createSelector } from 'reselect';
 
 
+export const selectPage = (state) => state.app.page;
+export const selectPageExtra = (state) => state.app.pageExtra;
+
 export const getSetName = (state) => state.collection.activeSetName;
 export const getRequestedCard = (state) => state.collection.requestedCard;
 export const getActiveCardId = (state) => state.collection.activeCardId;
