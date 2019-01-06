@@ -38,6 +38,8 @@ import {
 
 export const FORCE_COLLECTION_URL_PARAM = "force-collection"
 
+const PLACEHOLDER_CARD_ID_CHARACTER = '_'
+
 export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 
     let queryParts = cardSelector.split("?");
@@ -55,7 +57,7 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 
     let parts = path.split("/");
 
-    //Remove trailing slashes
+    //Remove trailing slash
     if (!parts[parts.length - 1]) parts.pop();
 
     let firstPart = parts[0].toLowerCase();
@@ -188,17 +190,36 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 }
 
 export const redirectIfInvalidCardOrCollection = () => (dispatch, getState) => {
+
+  //This routine is called to make sure that if there is a valid card, we're
+  //actually sitting in a collection that contains it. If we aren't, we
+  //navigate to its canonical location.
+
+  //It's also responsible for checking to see if the card ID is the special
+  //placehodler "_" which means, just pick a random item out of the collection
+  //I selected.
+
   const state = getState();
   if (!selectDataIsFullyLoaded(state)) return;
   let card = selectActiveCard(state);
+  let collection = selectActiveCollection(state);
   if (!card) {
 
-    //let's check if it is a valid 
+    let requestedCard = selectRequestedCard(state);
+    //If we're a placeholder card 
+    if (requestedCard && requestedCard[0] == PLACEHOLDER_CARD_ID_CHARACTER) {
+      if (collection.length) {
+        dispatch(navigateToCard(collection[0]), false);
+        return;
+      }
+    }
 
-    dispatch(navigateToCard('', false));
+    //We used to navigate to a default card here, but if the collection we're
+    //in is for examples tarred, we miight not be fully loaded yet.
+
     return;
   }
-  let collection = selectActiveCollection(state);
+  
   if (!collection.length) return;
   let index = selectActiveCardIndex(state);
   if (index >= 0) return;
