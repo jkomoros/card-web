@@ -17,7 +17,7 @@ import {
   setRemove,
 } from '../util.js';
 
-export const DEFAULT_SET_NAME = 'default';
+export const DEFAULT_SET_NAME = 'all';
 
 export const SET_NAMES = [DEFAULT_SET_NAME];
 
