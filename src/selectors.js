@@ -78,8 +78,38 @@ export const selectActiveSet = createSelector(
 	(setName, defaultSet) => setName == DEFAULT_SET_NAME ? defaultSet : []
 )
 
-export const selectActiveCollection = createSelector(
+//BaseCollection means no start_cards
+const selectActiveBaseCollection = createSelector(
 	selectActiveSet,
 	selectActiveFilter,
 	(set, filter) => set.filter(item => filter[item])
+)
+
+//selectActiveCollection includes start_cards where applicable
+export const selectActiveCollection = createSelector(
+	selectActiveSetName,
+	selectActiveBaseCollection,
+	selectCards,
+	selectSections,
+	(setName, baseCollection, cards, sections) => {
+		//We only inject start_card when the set is default
+		if (setName != DEFAULT_SET_NAME) return baseCollection;
+		let result = [];
+		let lastSection = "";
+		for (let cardId of baseCollection) {
+			let card = cards[cardId];
+			if (card) {
+				if (card.section != lastSection) {
+					//Inject its start_cards 
+					let section = sections[card.section];
+					if (section) {
+						result.push(...section.start_cards);
+					}
+				}
+				lastSection = card.section;
+			}
+			result.push(cardId);
+		}
+		return result;
+	}
 )
