@@ -81,7 +81,8 @@ export const navigateToPreviousCard = () => (dispatch, getState) => {
 export const urlForCard = (cardOrId, edit) => {
   let id = cardOrId
   if (!id) id = DEFAULT_CARD;
-  if (typeof cardOrId === 'object') {
+  //note: null is an object;
+  if (cardOrId && typeof cardOrId === 'object') {
     id = cardOrId.name;
   }
   return '/c/' + id + (edit ? '/edit' : '');

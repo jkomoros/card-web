@@ -35,7 +35,7 @@ import {
 } from '../actions/database.js';
 
 import {
-  collectionFromSection
+  getDefaultCardIdForSection
 } from '../reducers/data.js';
 
 import {
@@ -212,7 +212,7 @@ class CompendiumApp extends connect(store)(LitElement) {
           <nav class="toolbar-list">
             ${this._sections && Object.keys(this._sections).length > 0 ? 
               html`${repeat(Object.values(this._sections), (item) => item.id, (item, index) => html`
-              <a ?selected=${this._page === 'c' && item.id == this._activeSectionId} href='${urlForCard(collectionFromSection(item)[0])}'>${item.title}</a>
+              <a ?selected=${this._page === 'c' && item.id == this._activeSectionId} href='${urlForCard(getDefaultCardIdForSection(item))}'>${item.title}</a>
               `)}` :
               html`<a ?selected="${this._page === 'c'}" href="/c"><em>Loading...</em></a>`
             }

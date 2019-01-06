@@ -46,6 +46,11 @@ export const getIdForCard = (state, idOrSlug) => {
 
 export const getCard = (state, cardIdOrSlug)  => getCardById(state, getIdForCard(state, cardIdOrSlug));
 
+export const getSection = (state, sectionId) => {
+	if (!state.data) return null;
+	return state.data.sections[sectionId] || null;
+}
+
 export const selectActiveCard = createSelector(
   selectCards,
   selectActiveCardId,

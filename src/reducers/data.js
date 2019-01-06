@@ -96,48 +96,16 @@ export const authorForId = (state, authorId) => {
   return author;
 }
 
-const sectionForActiveCard = (state, id) => {
-  let card = state.cards[id];
-  if (!card) return "";
-  return card.section;
-}
-
 export const sectionTitle = (state, sectionId) => {
   let section = state.data.sections[sectionId];
   if (!section) return "";
   return section.title;
 }
 
-export const collectionFromSection = (section) => {
-  if (!section) return [];
-  if (section.start_cards) {
-    return [...section.start_cards, ...section.cards];
-  }
-  return section.cards
-}
-
-const collectionForSectionDataState = (dataState, sectionId) => {
-  let section = dataState.sections[sectionId];
-  return collectionFromSection(section);
-}
-
-export const collectionForSection = (state, sectionId) => {
-  return collectionForSectionDataState(state.data, sectionId);
-}
-
-export const collectionForActiveSectionSelector = state => {
-  return collectionForSection(state, selectActiveSectionId(state));
-};
-
-export const collectionSelector = createSelector(
-  selectCards,
-  collectionForActiveSectionSelector,
-  (cards, collection) => collection.map(id => cards[id]),
-)
-
-export const cardsForCollection = (state, collection) => {
-  let cards = cardsSelector(state);
-  return collection.map(id => cards[id]);
+export const getDefaultCardIdForSection = (section) => {
+  if (!section) return null;
+  if (section.start_cards && section.start_cards.length) return section.start_cards[0];
+  return section.cards[0]
 }
 
 export default app;

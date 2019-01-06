@@ -7,10 +7,6 @@ import {
 } from './user.js';
 
 import {
-  collectionForSection,
-} from '../reducers/data.js';
-
-import {
   SET_NAMES,
 } from '../reducers/collection.js';
 
@@ -18,6 +14,7 @@ import {
   getIdForCard,
   getCardById,
   getCard,
+  selectActiveCollection,
   selectActiveSetName,
   selectActiveCardId,
   selectActiveCardIndex,
@@ -117,9 +114,7 @@ export const showCard = (cardIdOrSlug) => (dispatch, getState) => {
   let sectionId = "";
   if (card) sectionId = card.section;
 
-  let sectionCollection = collectionForSection(state, sectionId);
-
-  let index = indexForActiveCard(sectionCollection, cardId);
+  let index = indexForActiveCard(selectActiveCollection(state), cardId);
 
   //If it'll be a no op don't worry about it.
   if (selectActiveCardId(state) == cardId && selectActiveSectionId(state) == sectionId && selectActiveCardIndex(state) == index) return;
