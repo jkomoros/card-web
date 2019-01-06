@@ -18,7 +18,7 @@ import {
   getIdForCard,
   getCardById,
   getCard,
-  selectSetName,
+  selectActiveSetName,
   selectActiveCardId,
   selectActiveCardIndex,
   selectActiveSectionId,
@@ -74,7 +74,7 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 export const updateCollection = (setName, filters) => (dispatch, getState) =>{
   const state = getState();
   let sameSetName = false;
-  if (setName == selectSetName(state)) sameSetName = true;
+  if (setName == selectActiveSetName(state)) sameSetName = true;
 
   let sameActiveFilters = false;
   let activeFilters = selectActiveFilters(state);

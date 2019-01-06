@@ -15,7 +15,7 @@ import { createSelector } from 'reselect';
 export const selectPage = (state) => state.app.page;
 export const selectPageExtra = (state) => state.app.pageExtra;
 
-export const selectSetName = (state) => state.collection.activeSetName;
+export const selectActiveSetName = (state) => state.collection.activeSetName;
 export const selectRequestedCard = (state) => state.collection.requestedCard;
 export const selectActiveCardId = (state) => state.collection.activeCardId;
 export const selectActiveSectionId = (state) => state.collection.activeSectionId;
