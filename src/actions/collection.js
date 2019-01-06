@@ -55,6 +55,9 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 
     let parts = path.split("/");
 
+    //Remove trailing slashes
+    if (!parts[parts.length - 1]) parts.pop();
+
     let firstPart = parts[0].toLowerCase();
     
     let setName = DEFAULT_SET_NAME;
