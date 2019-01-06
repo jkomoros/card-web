@@ -49,8 +49,6 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
       }
     }
 
-    if (forceUpdateCollection) console.log(forceUpdateCollection);
-
     let path = queryParts[0];
 
     let parts = path.split("/");
@@ -192,6 +190,9 @@ export const redirectIfInvalidCardOrCollection = () => (dispatch, getState) => {
   if (!selectDataIsFullyLoaded(state)) return;
   let card = selectActiveCard(state);
   if (!card) {
+
+    //let's check if it is a valid 
+
     dispatch(navigateToCard('', false));
     return;
   }
