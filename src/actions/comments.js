@@ -13,7 +13,7 @@ import {
 } from './database.js';
 
 import {
-  getActiveCard,
+  selectActiveCard,
 } from '../selectors.js';
 
 import {
@@ -122,7 +122,7 @@ export const editMessage = (message, newMessage) => (dispatch, getState) => {
 
 export const addMessage = (thread, message) => (dispatch, getState) => {
   const state = getState();
-  const card = getActiveCard(state);
+  const card = selectActiveCard(state);
   if (!card || !card.id) {
     console.warn("No active card!");
     return;
@@ -177,7 +177,7 @@ export const addMessage = (thread, message) => (dispatch, getState) => {
 
 export const createThread = (message) => (dispatch, getState) => {
   const state = getState();
-  const card = getActiveCard(state);
+  const card = selectActiveCard(state);
   if (!card || !card.id) {
     console.warn("No active card!");
     return;

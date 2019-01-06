@@ -45,8 +45,8 @@ import {
 } from '../reducers/user.js';
 
 import {
-  getActiveSectionId,
-  getActiveCardIndex
+  selectActiveSectionId,
+  selectActiveCardIndex
 } from '../selectors.js';
 
 const LEGAL_UPDATE_FIELDS = new Map([
@@ -361,9 +361,9 @@ export const createCard = (section, id) => async (dispatch, getState) => {
 
   let appendMiddle = false; 
   let appendIndex = 0;
-  if (getActiveSectionId(state) == section) {
+  if (selectActiveSectionId(state) == section) {
     appendMiddle = true;
-    appendIndex = getActiveCardIndex(state);
+    appendIndex = selectActiveCardIndex(state);
   }
 
   let obj = {

@@ -11,8 +11,8 @@ import {
 import { createSelector } from 'reselect';
 
 import {
-  getActiveSectionId,
-  getCards
+  selectActiveSectionId,
+  selectCards
 } from '../selectors.js';
 
 const INITIAL_STATE = {
@@ -126,11 +126,11 @@ export const collectionForSection = (state, sectionId) => {
 }
 
 export const collectionForActiveSectionSelector = state => {
-  return collectionForSection(state, getActiveSectionId(state));
+  return collectionForSection(state, selectActiveSectionId(state));
 };
 
 export const collectionSelector = createSelector(
-  getCards,
+  selectCards,
   collectionForActiveSectionSelector,
   (cards, collection) => collection.map(id => cards[id]),
 )

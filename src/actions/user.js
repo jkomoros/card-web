@@ -34,7 +34,7 @@ import {
 } from './util.js';
 
 import {
-  getActiveCard
+  selectActiveCard
 } from '../selectors.js';
 
 export const showNeedSignin = () => (dispatch) => {
@@ -173,7 +173,7 @@ export const scheduleAutoMarkRead = () => (dispatch, getState) => {
   const uid = userId(state);
   if (!uid) return;
 
-  const activeCard = getActiveCard(state);
+  const activeCard = selectActiveCard(state);
   if (!activeCard) return;
   if (cardIsRead(state, activeCard.id)) return;
 
@@ -196,7 +196,7 @@ export const markActiveCardReadIfLoggedIn = () => (dispatch, getState) => {
   const state = getState();
   const uid = userId(state);
   if (!uid) return;
-  const activeCard = getActiveCard(state);
+  const activeCard = selectActiveCard(state);
   if (!activeCard) return;
   dispatch({type: AUTO_MARK_READ_PENDING_CHANGED, pending: false});
   dispatch(markRead(activeCard, true));

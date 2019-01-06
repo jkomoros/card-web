@@ -1,20 +1,31 @@
 import { createSelector } from 'reselect';
 
+/* 
+ This is the collection of all getters and selectors for state. 
+
+ Toberesilienttodatamodelstructurechanges,neveraccessstatedirectlyandinsteadus
+ eoneofthese.
+
+ functions that start with 'select' take a single argument, state, and are appropriate
+ to use in compound selectors. Functions that start with 'get' take state and another argument.
+
+*/
+
 
 export const selectPage = (state) => state.app.page;
 export const selectPageExtra = (state) => state.app.pageExtra;
 
-export const getSetName = (state) => state.collection.activeSetName;
-export const getRequestedCard = (state) => state.collection.requestedCard;
-export const getActiveCardId = (state) => state.collection.activeCardId;
-export const getActiveSectionId = (state) => state.collection.activeSectionId;
-export const getActiveCardIndex = (state) => state.collection.activeCardIndex;
-export const getActiveFilters = (state) => state.collection.activeFilters;
-export const getSections = (state) => state.data ? statee.data.sections : null;
-export const getCards = (state) => state.data ? state.data.cards : null;
+export const selectSetName = (state) => state.collection.activeSetName;
+export const selectRequestedCard = (state) => state.collection.requestedCard;
+export const selectActiveCardId = (state) => state.collection.activeCardId;
+export const selectActiveSectionId = (state) => state.collection.activeSectionId;
+export const selectActiveCardIndex = (state) => state.collection.activeCardIndex;
+export const selectActiveFilters = (state) => state.collection.activeFilters;
+export const selectSections = (state) => state.data ? statee.data.sections : null;
+export const selectCards = (state) => state.data ? state.data.cards : null;
 
 export const getCardById = (state, cardId) => {
-  let cards = getCards(state);
+  let cards = selectCards(state);
   if (!cards) return null;
   return cards[cardId];
 }
@@ -27,14 +38,14 @@ export const getIdForCard = (state, idOrSlug) => {
 
 export const getCard = (state, cardIdOrSlug)  => getCardById(state, getIdForCard(state, cardIdOrSlug));
 
-export const getActiveCard = createSelector(
-  getCards,
-  getActiveCardId,
+export const selectActiveCard = createSelector(
+  selectCards,
+  selectActiveCardId,
   (cards, activeCard) => cards[activeCard] || null
 );
 
-export const getBaseSet = createSelector(
-	getSections,
+export const selectBaseSet = createSelector(
+	selectSections,
 	(sections) => {
 		let result = [];
 		for (let section of Object.values(sections)) {

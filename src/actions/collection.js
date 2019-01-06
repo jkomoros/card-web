@@ -18,12 +18,12 @@ import {
   getIdForCard,
   getCardById,
   getCard,
-  getSetName,
-  getActiveCardId,
-  getActiveCardIndex,
-  getActiveSectionId,
-  getRequestedCard,
-  getActiveFilters,
+  selectSetName,
+  selectActiveCardId,
+  selectActiveCardIndex,
+  selectActiveSectionId,
+  selectRequestedCard,
+  selectActiveFilters,
   selectPage,
   selectPageExtra
 } from '../selectors.js';
@@ -74,10 +74,10 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 export const updateCollection = (setName, filters) => (dispatch, getState) =>{
   const state = getState();
   let sameSetName = false;
-  if (setName == getSetName(state)) sameSetName = true;
+  if (setName == selectSetName(state)) sameSetName = true;
 
   let sameActiveFilters = false;
-  let activeFilters = getActiveFilters(state);
+  let activeFilters = selectActiveFilters(state);
   if (filters.length == activeFilters.length) {
     sameActiveFilters = true;
     for (let i = 0; i < filters.length; i++) {
@@ -122,7 +122,7 @@ export const showCard = (cardIdOrSlug) => (dispatch, getState) => {
   let index = indexForActiveCard(sectionCollection, cardId);
 
   //If it'll be a no op don't worry about it.
-  if (getActiveCardId(state) == cardId && getActiveSectionId(state) == sectionId && getActiveCardIndex(state) == index) return;
+  if (selectActiveCardId(state) == cardId && selectActiveSectionId(state) == sectionId && selectActiveCardIndex(state) == index) return;
 
   dispatch({
     type: SHOW_CARD,

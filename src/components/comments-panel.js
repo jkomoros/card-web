@@ -30,7 +30,7 @@ import {
 } from '../actions/database.js';
 
 import {
-  getActiveCard
+  selectActiveCard
 } from '../selectors.js';
 
 import {
@@ -145,7 +145,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 
   stateChanged(state) {
     this._open = state.app.commentsPanelOpen;
-    this._card = getActiveCard(state);
+    this._card = selectActiveCard(state);
     this._composedThreads = composedThreadsSelector(state);
     this._userMayComment = userMayComment(state);
     this._userId = userId(state);

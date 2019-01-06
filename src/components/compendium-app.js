@@ -39,8 +39,8 @@ import {
 } from '../reducers/data.js';
 
 import {
-  getActiveCard,
-  getActiveSectionId
+  selectActiveCard,
+  selectActiveSectionId
 } from '../selectors.js';
 
 import {
@@ -321,7 +321,7 @@ class CompendiumApp extends connect(store)(LitElement) {
   }
 
   stateChanged(state) {
-    this._card = getActiveCard(state) || {};
+    this._card = selectActiveCard(state) || {};
     this._headerPanelOpen = state.app.headerPanelOpen;
     this._page = state.app.page;
     this._offline = state.app.offline;
@@ -329,7 +329,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     this._editing = state.editor.editing;
     this._devMode = DEV_MODE;
     this._sections = state.data.sections;
-    this._activeSectionId = getActiveSectionId(state);
+    this._activeSectionId = selectActiveSectionId(state);
     this._keyboardNavigates = keyboardNavigates(state);
   }
 }

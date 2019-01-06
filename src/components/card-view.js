@@ -16,9 +16,9 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 import { store } from '../store.js';
 
 import {
-  getActiveCard,
-  getActiveSectionId,
-  getRequestedCard,
+  selectActiveCard,
+  selectActiveSectionId,
+  selectRequestedCard,
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js'
@@ -455,10 +455,10 @@ class CardView extends connect(store)(PageViewElement) {
 
   stateChanged(state) {
     this._editingCard = state.editor.card;
-    this._card = getActiveCard(state) || {};
+    this._card = selectActiveCard(state) || {};
     this._displayCard = this._editingCard ? this._editingCard : this._card;
     this._pageExtra = state.app.pageExtra;
-    this._requestedCard = getRequestedCard(state);
+    this._requestedCard = selectRequestedCard(state);
     this._editing = state.editor.editing; 
     this._loggedIn = loggedIn(state);
     this._userMayStar  =  userMayStar(state);
@@ -480,7 +480,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._stars = state.user.stars;
     this._reads = state.user.reads;
     this._drawerReorderPending = state.data.reorderPending;
-    this._activeSectionId = getActiveSectionId(state);
+    this._activeSectionId = selectActiveSectionId(state);
   }
 
   _ensureUrlShowsName() {

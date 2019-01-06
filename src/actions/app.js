@@ -30,7 +30,7 @@ import {
 } from '../reducers/data.js';
 
 import {
-  getActiveCardIndex
+  selectActiveCardIndex
 } from '../selectors.js';
 
 //This is the card that is loaded if we weren't passed anything
@@ -58,7 +58,7 @@ export const navigateToChangesNumDays = (numDays) => (dispatch) => {
 
 export const navigateToNextCard = () => (dispatch, getState) => {
   const state = getState();
-  let index = getActiveCardIndex(state);
+  let index = selectActiveCardIndex(state);
   index++;
   const collection = collectionForActiveSectionSelector(state);
   if (!collection) return;
@@ -69,7 +69,7 @@ export const navigateToNextCard = () => (dispatch, getState) => {
 
 export const navigateToPreviousCard = () => (dispatch, getState) => {
   const state = getState();
-  let index = getActiveCardIndex(state);
+  let index = selectActiveCardIndex(state);
   index--;
   const collection = collectionForActiveSectionSelector(state);
   if (!collection) return;

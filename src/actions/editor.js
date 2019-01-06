@@ -13,7 +13,7 @@ import {
 } from '../reducers/user.js';
 
 import {
-  getActiveCard
+  selectActiveCard
 } from '../selectors.js';
 
 import {
@@ -55,7 +55,7 @@ export const editingStart = () => (dispatch, getState) => {
     console.warn("This user is not allowed to edit!")
     return;
   }
-  const card = getActiveCard(state)
+  const card = selectActiveCard(state)
   if (!card || !card.id) {
     console.warn("There doesn't appear to be an active card.");
     return;
@@ -69,7 +69,7 @@ export const editingCommit = () => (dispatch, getState) => {
     console.warn("This user isn't allowed to edit!");
     return;
   }
-  const underlyingCard = getActiveCard(state);
+  const underlyingCard = selectActiveCard(state);
   if (!underlyingCard || !underlyingCard.id) {
     console.warn("That card isn't legal");
     return;

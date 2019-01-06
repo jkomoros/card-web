@@ -18,7 +18,7 @@ import {
 } from '../reducers/data.js';
 
 import {
-  getActiveCard
+  selectActiveCard
 } from '../selectors.js';
 
 import {
@@ -140,7 +140,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 
   stateChanged(state) {
     this._open = state.app.cardInfoPanelOpen;
-    this._card = getActiveCard(state) || {};
+    this._card = selectActiveCard(state) || {};
     this._sectionTitle = sectionTitle(state, this._card ? this._card.section : "");
     this._author = authorForId(state, this._card.author);
   }
