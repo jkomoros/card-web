@@ -144,7 +144,7 @@ class CardView extends connect(store)(PageViewElement) {
           flex-direction:column;
           justify-content:center;
           align-items: center;
-          background-color: var(--app-divider-color);
+          background-color: var(--canvas-color);
         }
 
         .presenting #canvas {
