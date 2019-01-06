@@ -79,13 +79,16 @@ export const selectDefaultSet = createSelector(
 	}
 )
 
-export const selectActiveFilter = createSelector(
+export const selectActiveFilters = createSelector(
 	selectActiveFilterNames,
 	selectFilters,
-	(activeFilterNames, filters) => {
-		let activeFilters = activeFilterNames.map(name => filters[name] || null);
-		return intersectionSet(...activeFilters);
-	});
+	(activeFilterNames, filters) => activeFilterNames.map(name => filters[name] || null)
+)
+
+export const selectActiveFilter = createSelector(
+	selectActiveFilters,
+	(activeFilters) => intersectionSet(...activeFilters)
+);
 
 //TODO: supprot other sets 
 export const selectActiveSet = createSelector(
