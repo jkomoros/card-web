@@ -8,7 +8,8 @@ import {
 } from '../actions/data.js';
 
 import {
-  UPDATE_STARS
+  UPDATE_STARS,
+  UPDATE_READS,
 } from '../actions/user.js';
 
 import {
@@ -25,6 +26,7 @@ export const SET_NAMES = [DEFAULT_SET_NAME];
 //exclude sets.
 export const INVERSE_FILTER_NAMES = {
   "unstarred": "starred",
+  "unread": "read",
 }
 
 const INITIAL_STATE = {
@@ -32,6 +34,7 @@ const INITIAL_STATE = {
   activeFilterNames: [],
   filters: {
     starred: {},
+    read: {},
   },
   requestedCard: "",
   activeCardId: "",
@@ -60,6 +63,11 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         filters: {...state.filters, starred: setUnion(setRemove(state.filters.starred, action.starsToRemove), action.starsToAdd)}
+      }
+    case UPDATE_READS:
+      return {
+        ...state,
+        filters: {...state.filters, read: setUnion(setRemove(state.filters.read, action.readsToRemove), action.readsToAdd)}
       }
     default:
       return state;
