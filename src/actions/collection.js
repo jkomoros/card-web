@@ -182,14 +182,14 @@ export const redirectIfInvalidCardOrCollection = () => (dispatch, getState) => {
   if (!selectDataIsFullyLoaded(state)) return;
   let card = selectActiveCard(state);
   if (!card) {
-    dispatch(navigateToCard('', true));
+    dispatch(navigateToCard('', false));
     return;
   }
   let collection = selectActiveCollection(state);
   if (!collection.length) return;
   let index = selectActiveCardIndex(state);
   if (index >= 0) return;
-  dispatch(navigateToCard(card, true));
+  dispatch(navigateToCard(card, false));
 }
 
 export const showCard = (cardIdOrSlug) => (dispatch, getState) => {
