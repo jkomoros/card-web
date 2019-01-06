@@ -23,7 +23,7 @@ import {
   selectActiveCardIndex,
   selectActiveSectionId,
   selectRequestedCard,
-  selectActiveFilters,
+  selectActiveFilterNames,
   selectPage,
   selectPageExtra
 } from '../selectors.js';
@@ -77,7 +77,7 @@ export const updateCollection = (setName, filters) => (dispatch, getState) =>{
   if (setName == selectActiveSetName(state)) sameSetName = true;
 
   let sameActiveFilters = false;
-  let activeFilters = selectActiveFilters(state);
+  let activeFilters = selectActiveFilterNames(state);
   if (filters.length == activeFilters.length) {
     sameActiveFilters = true;
     for (let i = 0; i < filters.length; i++) {

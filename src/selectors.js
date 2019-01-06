@@ -20,7 +20,7 @@ export const selectRequestedCard = (state) => state.collection.requestedCard;
 export const selectActiveCardId = (state) => state.collection.activeCardId;
 export const selectActiveSectionId = (state) => state.collection.activeSectionId;
 export const selectActiveCardIndex = (state) => state.collection.activeCardIndex;
-export const selectActiveFilters = (state) => state.collection.activeFilters;
+export const selectActiveFilterNames = (state) => state.collection.activeFilterNames;
 export const selectSections = (state) => state.data ? statee.data.sections : null;
 export const selectCards = (state) => state.data ? state.data.cards : null;
 
