@@ -17,7 +17,7 @@ import { store } from '../store.js';
 
 import { cardSelector } from '../reducers/data.js'
 
-import { showCard } from '../actions/data.js'
+import { showCard } from '../actions/collection.js'
 
 import {
   userMayEdit,
@@ -89,13 +89,17 @@ import {
   reorderCard
 } from '../actions/data.js';
 
+import {
+  activeSectionId
+} from '../reducers/collection.js';
+
 import { 
   collectionSelector
 } from '../reducers/data.js'
 
 import comments from '../reducers/comments.js';
 store.addReducers({
-  comments
+  comments,
 });
 
 import {
@@ -483,7 +487,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._stars = state.user.stars;
     this._reads = state.user.reads;
     this._drawerReorderPending = state.data.reorderPending;
-    this._activeSectionId = state.data.activeSectionId;
+    this._activeSectionId = activeSectionId(state);
   }
 
   _ensureUrlShowsName() {

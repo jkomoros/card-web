@@ -23,9 +23,11 @@ import { store } from '../store.js';
 // We are lazy loading its reducer.
 import data from '../reducers/data.js';
 import editor from '../reducers/editor.js';
+import collection from '../reducers/collection.js';
 store.addReducers({
   data,
-  editor
+  editor,
+  collection,
 });
 
 import {
@@ -323,7 +325,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     this._editing = state.editor.editing;
     this._devMode = DEV_MODE;
     this._sections = state.data.sections;
-    this._activeSectionId = state.data.activeSectionId;
+    this._activeSectionId = state.collection.activeSectionId;
     this._keyboardNavigates = keyboardNavigates(state);
   }
 }

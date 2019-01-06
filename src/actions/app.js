@@ -29,6 +29,10 @@ import {
   collectionForActiveSectionSelector
 } from '../reducers/data.js';
 
+import {
+  activeCardIndex
+} from '../reducers/collection.js';
+
 //This is the card that is loaded if we weren't passed anything
 const DEFAULT_CARD = 'section-half-baked';
 
@@ -54,7 +58,7 @@ export const navigateToChangesNumDays = (numDays) => (dispatch) => {
 
 export const navigateToNextCard = () => (dispatch, getState) => {
   const state = getState();
-  let index = state.data.activeCardIndex;
+  let index = activeCardIndex(state);
   index++;
   const collection = collectionForActiveSectionSelector(state);
   if (!collection) return;
@@ -65,7 +69,7 @@ export const navigateToNextCard = () => (dispatch, getState) => {
 
 export const navigateToPreviousCard = () => (dispatch, getState) => {
   const state = getState();
-  let index = state.data.activeCardIndex;
+  let index = activeCardIndex(state);
   index--;
   const collection = collectionForActiveSectionSelector(state);
   if (!collection) return;
