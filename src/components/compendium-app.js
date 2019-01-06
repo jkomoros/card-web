@@ -57,6 +57,10 @@ import {
   openFindDialog
 } from '../actions/find.js';
 
+import {
+  FORCE_COLLECTION_URL_PARAM
+} from '../actions/collection.js';
+
 // These are the actions needed by this element.
 import {
   navigated,
@@ -212,7 +216,7 @@ class CompendiumApp extends connect(store)(LitElement) {
           <nav class="toolbar-list">
             ${this._sections && Object.keys(this._sections).length > 0 ? 
               html`${repeat(Object.values(this._sections), (item) => item.id, (item, index) => html`
-              <a ?selected=${this._page === 'c' && item.id == this._activeSectionId} href='${urlForCard(getDefaultCardIdForSection(item))}'>${item.title}</a>
+              <a ?selected=${this._page === 'c' && item.id == this._activeSectionId} href='${urlForCard(getDefaultCardIdForSection(item))}?${FORCE_COLLECTION_URL_PARAM}'>${item.title}</a>
               `)}` :
               html`<a ?selected="${this._page === 'c'}" href="/c"><em>Loading...</em></a>`
             }
@@ -265,7 +269,7 @@ class CompendiumApp extends connect(store)(LitElement) {
   }
 
   firstUpdated() {
-    installRouter((location) => store.dispatch(navigated(decodeURIComponent(location.pathname))));
+    installRouter((location) => store.dispatch(navigated(decodeURIComponent(location.pathname), decodeURIComponent(location.search))));
     installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
     installMediaQueryWatcher(`(max-width: 900px)`,(isMobile) => {
       store.dispatch(turnMobileMode(isMobile))

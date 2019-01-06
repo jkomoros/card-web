@@ -31,10 +31,26 @@ import {
   getCardIndexForActiveCollection
 } from '../selectors.js';
 
+export const FORCE_COLLECTION_URL_PARAM = "force-collection"
 
 export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 
-    let parts = cardSelector.split("/");
+    let queryParts = cardSelector.split("?");
+
+    let forceUpdateCollection = false;
+
+    if (queryParts.length > 1) {
+      let queryParams = queryParts[1].split("&");
+      for (let param of queryParams) {
+        if (param == FORCE_COLLECTION_URL_PARAM) forceUpdateCollection = true;
+      }
+    }
+
+    if (forceUpdateCollection) console.log(forceUpdateCollection);
+
+    let path = queryParts[0];
+
+    let parts = path.split("/");
 
     let firstPart = parts[0].toLowerCase();
     
@@ -72,13 +88,14 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
         //we're already in, leave the collection information the same.
         if (getCardIndexForActiveCollection(state, card.id) >= 0) {
           doUpdateCollection = false;
-        } else if (card.section) {
+        }
+        if (card.section) {
           filters = [card.section]
         }
       }
     }
 
-    if (doUpdateCollection) dispatch(updateCollection(setName, filters));
+    if (doUpdateCollection || forceUpdateCollection) dispatch(updateCollection(setName, filters));
     dispatch(showCard(cardIdOrSlug));
 }
 

@@ -48,7 +48,7 @@ export const navigatePathTo = (path, silent) => (dispatch, getState) => {
       return;
     }
     window.history.pushState({}, '', path);
-    dispatch(navigated(decodeURIComponent(path)));
+    dispatch(navigated(decodeURIComponent(path), decodeURIComponent(location.search)));
 }
 
 export const navigateToChangesNumDays = (numDays) => (dispatch) => {
@@ -93,24 +93,26 @@ export const navigateToCard = (cardOrId, silent) => (dispatch) => {
   dispatch(navigatePathTo(path, silent));
 }
 
-export const navigated = (path) => (dispatch) => {
+export const navigated = (path, query) => (dispatch) => {
 
   // Extract the page name from path.
   const page = path === '/' ? 'c' : path.slice(1);
 
   // Any other info you might want to extract from the path (like page type),
   // you can do here
-  dispatch(loadPage(page));
+  dispatch(loadPage(page, query));
 
 };
 
-const loadPage = (pathname) => (dispatch) => {
+const loadPage = (pathname, query) => (dispatch) => {
 
   //pathname is the whole path minus starting '/', like 'c/VIEW_ID'
   let pieces = pathname.split("/")
 
   let page = pieces[0];
   let pageExtra = pieces.length < 2 ? '' : pieces.slice(1).join("/");
+
+  if (query) pageExtra += query;
 
   switch(page) {
     case 'c':
