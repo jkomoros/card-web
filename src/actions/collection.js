@@ -2,6 +2,8 @@ export const SHOW_CARD = 'SHOW_CARD';
 export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
 export const RE_SHOW_CARD = 'RE_SHOW_CARD';
 
+//Collections are a complex conccept. The canonical (slightly out of date) documentation is at https://github.com/jkomoros/complexity-compendium/issues/60#issuecomment-451705854
+
 import {
   scheduleAutoMarkRead
 } from './user.js';
