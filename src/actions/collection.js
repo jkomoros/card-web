@@ -92,9 +92,7 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
         if (getCardIndexForActiveCollection(state, card.id) >= 0) {
           doUpdateCollection = false;
         }
-        if (card.section) {
-          filters = [card.section]
-        }
+        filters = [card.section ? card.section : 'none'];
       }
     }
 
@@ -157,14 +155,19 @@ export const canonicalizeURL = () => (dispatch, getState) => {
   //TODO: this should be a constant somewhere
   let result = ["c"];
 
-  if (activeSetName != DEFAULT_SET_NAME || activeFilterNames.lenght == 0) {
-    result.push(activeSetName);
-  }
+  //Orphaned cards just live at their name and nothing else.
+  if (card.section) {
 
-  if (!activeSectionId) {
-    //activeSectionId is only there if the only filter is the section name the
-    //user is in, which can be omitted for brevity.
-    result.push(...activeFilterNames);
+    if (activeSetName != DEFAULT_SET_NAME || activeFilterNames.length == 0) {
+      result.push(activeSetName);
+    }
+
+    if (!activeSectionId) {
+      //activeSectionId is only there if the only filter is the section name the
+      //user is in, which can be omitted for brevity.
+      result.push(...activeFilterNames);
+    }
+
   }
 
   result.push(card.name);
@@ -177,7 +180,6 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 }
 
 export const redirectIfInvalidCardOrCollection = () => (dispatch, getState) => {
-  
   const state = getState();
   if (!selectDataIsFullyLoaded(state)) return;
   let card = selectActiveCard(state);

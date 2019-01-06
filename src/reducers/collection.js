@@ -35,6 +35,8 @@ const INITIAL_STATE = {
   filters: {
     starred: {},
     read: {},
+    //None will match nothing. We use it for orphans.
+    none: {},
   },
   requestedCard: "",
   activeCardId: "",
