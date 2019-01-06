@@ -23,9 +23,11 @@ import { store } from '../store.js';
 // We are lazy loading its reducer.
 import data from '../reducers/data.js';
 import editor from '../reducers/editor.js';
+import collection from '../reducers/collection.js';
 store.addReducers({
   data,
-  editor
+  editor,
+  collection,
 });
 
 import {
@@ -33,9 +35,13 @@ import {
 } from '../actions/database.js';
 
 import {
-  cardSelector,
-  collectionFromSection
+  getDefaultCardIdForSection
 } from '../reducers/data.js';
+
+import {
+  selectActiveCard,
+  selectActiveCardSectionId
+} from '../selectors.js';
 
 import {
   keyboardNavigates
@@ -50,6 +56,10 @@ import {
 import {
   openFindDialog
 } from '../actions/find.js';
+
+import {
+  FORCE_COLLECTION_URL_PARAM
+} from '../actions/collection.js';
 
 // These are the actions needed by this element.
 import {
@@ -206,7 +216,7 @@ class CompendiumApp extends connect(store)(LitElement) {
           <nav class="toolbar-list">
             ${this._sections && Object.keys(this._sections).length > 0 ? 
               html`${repeat(Object.values(this._sections), (item) => item.id, (item, index) => html`
-              <a ?selected=${this._page === 'c' && item.id == this._activeSectionId} href='${urlForCard(collectionFromSection(item)[0])}'>${item.title}</a>
+              <a ?selected=${this._page === 'c' && item.id == this._activeCardSectionId} href='${urlForCard(getDefaultCardIdForSection(item))}?${FORCE_COLLECTION_URL_PARAM}'>${item.title}</a>
               `)}` :
               html`<a ?selected="${this._page === 'c'}" href="/c"><em>Loading...</em></a>`
             }
@@ -242,7 +252,7 @@ class CompendiumApp extends connect(store)(LitElement) {
       _devMode: { type: Boolean },
       _card: { type: Object },
       _sections : {type: Object},
-      _activeSectionId: {type:String},
+      _activeCardSectionId: {type:String},
       _keyboardNavigates: {type:Boolean}
     }
   }
@@ -259,7 +269,7 @@ class CompendiumApp extends connect(store)(LitElement) {
   }
 
   firstUpdated() {
-    installRouter((location) => store.dispatch(navigated(decodeURIComponent(location.pathname))));
+    installRouter((location) => store.dispatch(navigated(decodeURIComponent(location.pathname), decodeURIComponent(location.search))));
     installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
     installMediaQueryWatcher(`(max-width: 900px)`,(isMobile) => {
       store.dispatch(turnMobileMode(isMobile))
@@ -315,7 +325,7 @@ class CompendiumApp extends connect(store)(LitElement) {
   }
 
   stateChanged(state) {
-    this._card = cardSelector(state);
+    this._card = selectActiveCard(state) || {};
     this._headerPanelOpen = state.app.headerPanelOpen;
     this._page = state.app.page;
     this._offline = state.app.offline;
@@ -323,7 +333,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     this._editing = state.editor.editing;
     this._devMode = DEV_MODE;
     this._sections = state.data.sections;
-    this._activeSectionId = state.data.activeSectionId;
+    this._activeCardSectionId = selectActiveCardSectionId(state);
     this._keyboardNavigates = keyboardNavigates(state);
   }
 }

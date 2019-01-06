@@ -15,16 +15,23 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
-import { cardSelector } from '../reducers/data.js'
+import {
+  selectActiveCard,
+  selectActiveSectionId,
+  selectRequestedCard,
+  selectExpandedActiveCollection,
+  selectDataIsFullyLoaded,
+} from '../selectors.js';
 
-import { showCard } from '../actions/data.js'
+import { updateCardSelector } from '../actions/collection.js'
 
 import {
   userMayEdit,
   cardHasStar,
   cardIsRead,
   userMayStar,
-  userMayMarkRead
+  userMayMarkRead,
+  loggedIn,
 } from '../reducers/user.js';
 
 import {
@@ -40,11 +47,16 @@ import {
 } from '../actions/find.js';
 
 import {
+  canonicalizeURL
+} from '../actions/collection.js';
+
+import {
   addStar,
   removeStar,
   markRead,
   markUnread,
-  AUTO_MARK_READ_DELAY
+  AUTO_MARK_READ_DELAY,
+  showNeedSignin
 } from '../actions/user.js';
 
 import {
@@ -87,13 +99,9 @@ import {
   reorderCard
 } from '../actions/data.js';
 
-import { 
-  collectionSelector
-} from '../reducers/data.js'
-
 import comments from '../reducers/comments.js';
 store.addReducers({
-  comments
+  comments,
 });
 
 import {
@@ -286,7 +294,7 @@ class CardView extends connect(store)(PageViewElement) {
             <div id='portrait-message'>
               <div>Rotate your phone to landscape mode</div>
             </div>
-            <card-renderer .editing=${this._editing} .card=${this._displayCard} .fromContentEditable=${this._fromContentEditable} @body-updated=${this._handleBodyUpdated}></card-renderer>
+            <card-renderer .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .card=${this._displayCard} .fromContentEditable=${this._fromContentEditable} @body-updated=${this._handleBodyUpdated}></card-renderer>
             <div class='actions'>
               <div class='presentation'>
                 <button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
@@ -298,8 +306,8 @@ class CardView extends connect(store)(PageViewElement) {
                 <button class='round' @click=${this._handleFindClicked}>${searchIcon}</button>
               </div>
               <div class='modify'>
-                <button class='round ${this._cardHasStar ? 'selected' : ''}' @click='${this._handleStarClicked}' ?disabled='${!this._userMayStar}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
-                <button class='round ${this._cardIsRead ? 'selected' : ''}' @click='${this._handleReadClicked}' ?disabled='${!this._userMayMarkRead}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
+                <button class='round ${this._cardHasStar ? 'selected' : ''} ${this._loggedIn ? '' : 'need-signin'}' @click='${this._handleStarClicked}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
+                <button class='round ${this._cardIsRead ? 'selected' : ''} ${this._loggedIn ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
                 <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
               </div>
               <div class='next-prev'>
@@ -319,8 +327,10 @@ class CardView extends connect(store)(PageViewElement) {
   static get properties() {
     return {
       _card: { type: Object },
-      _cardIdOrSlug: { type: String },
       _editing: {type: Boolean },
+      _loggedIn: { type:Boolean },
+      _pageExtra: {type: String},
+      _requestedCard: {type:String},
       _userMayEdit: { type: Boolean },
       _userMayStar: { type: Boolean },
       _userMayMarkRead: { type: Boolean },
@@ -342,6 +352,7 @@ class CardView extends connect(store)(PageViewElement) {
       _reads: {type: Object},
       _drawerReorderPending : {type: Boolean},
       _activeSectionId: {type: String},
+      _dataIsFullyLoaded: {type:Boolean},
     }
   }
 
@@ -349,15 +360,6 @@ class CardView extends connect(store)(PageViewElement) {
     let title = prompt("What should the new title be for this card?", this._card.title);
     if (!title) return;
     store.dispatch(modifyCard(this._card, {title:title}, false));
-  }
-
-  extractPageExtra(pageExtra) {
-    let parts = pageExtra.split("/");
-    let cardId = parts[0];
-    let editing = false;
-    if (parts[1] == 'edit') editing = true;
-
-    return [cardId, editing]
   }
 
   _thumbnailActivatedHandler(e) {
@@ -421,6 +423,11 @@ class CardView extends connect(store)(PageViewElement) {
   }
 
   _handleStarClicked(e) {
+    if (!this._loggedIn) {
+      store.dispatch(showNeedSignin());
+      return;
+    }
+    if (!this._userMayStar) return;
     if (this._cardHasStar) {
       store.dispatch(removeStar(this._card));
     } else {
@@ -429,6 +436,11 @@ class CardView extends connect(store)(PageViewElement) {
   }
 
   _handleReadClicked(e) {
+    if (!this._loggedIn) {
+      store.dispatch(showNeedSignin());
+      return;
+    }
+    if (!this._userMayMarkRead) return;
     if (this._cardIsRead) {
       store.dispatch(markUnread(this._card));
     } else {
@@ -446,14 +458,16 @@ class CardView extends connect(store)(PageViewElement) {
 
   stateChanged(state) {
     this._editingCard = state.editor.card;
-    this._card = cardSelector(state);
+    this._card = selectActiveCard(state) || {};
     this._displayCard = this._editingCard ? this._editingCard : this._card;
-    this._cardIdOrSlug = this.extractPageExtra(state.app.pageExtra)[0];
+    this._pageExtra = state.app.pageExtra;
+    this._requestedCard = selectRequestedCard(state);
     this._editing = state.editor.editing; 
+    this._loggedIn = loggedIn(state);
     this._userMayStar  =  userMayStar(state);
     this._userMayMarkRead =  userMayMarkRead(state);
     this._autoMarkReadPending = state.user.autoMarkReadPending;
-    this._userMayEdit = userMayEdit(state);
+    this._userMayEdit = userMayEdit(state) && selectActiveSectionId(state) != "";
     this._headerPanelOpen = state.app.headerPanelOpen;
     this._commentsPanelOpen = state.app.commentsPanelOpen;
     this._cardInfoPanelOpen = state.app.cardInfoPanelOpen;
@@ -465,22 +479,12 @@ class CardView extends connect(store)(PageViewElement) {
     this._mobileMode = state.app.mobileMode;
     this._cardHasStar = cardHasStar(state, this._card ? this._card.id : "");
     this._cardIsRead = cardIsRead(state, this._card ? this._card.id : "");
-    this._collection = collectionSelector(state);
+    this._collection = selectExpandedActiveCollection(state);
     this._stars = state.user.stars;
     this._reads = state.user.reads;
     this._drawerReorderPending = state.data.reorderPending;
-    this._activeSectionId = state.data.activeSectionId;
-  }
-
-  _ensureUrlShowsName() {
-    //Ensure that the article name that we're shwoing--no matter how they
-    //havigated here--is the preferred slug name.
-    if (!this._card || !this._card.name) return;
-    if (this._card.name != this._cardIdOrSlug) {
-      //Deliberately do not call the navigate sction cretator, since this
-      //should be a no-op.
-      store.dispatch(navigateToCard(this._card, true));
-    }
+    this._activeSectionId = selectActiveSectionId(state);
+    this._dataIsFullyLoaded = selectDataIsFullyLoaded(state);
   }
 
   _changedPropsAffectCanvasSize(changedProps) {
@@ -545,9 +549,9 @@ class CardView extends connect(store)(PageViewElement) {
   }
 
   updated(changedProps) {
-    if (changedProps.has('_cardIdOrSlug')) {
-      if (this._cardIdOrSlug) {
-        store.dispatch(showCard(this._cardIdOrSlug))
+    if (changedProps.has('_pageExtra')) {
+      if (this._pageExtra) {
+        store.dispatch(updateCardSelector(this._pageExtra))
       } else {
         //Dispatching to '' will use default;
         store.dispatch(navigateToCard(''));
@@ -556,10 +560,13 @@ class CardView extends connect(store)(PageViewElement) {
     if (changedProps.has('_editing') && !this._editing) {
       //Verify that our URL shows the canoncial name, which may have just
       //changed when edited.
-      this._ensureUrlShowsName();
+      store.dispatch(canonicalizeURL());
     }
     if (changedProps.has('_card') && this._card && this._card.name) {
-      this._ensureUrlShowsName();
+      store.dispatch(canonicalizeURL());
+    }
+    if (changedProps.has('_activeSectionId')) {
+      store.dispatch(canonicalizeURL());
     }
     if (this._changedPropsAffectCanvasSize(changedProps)) Promise.resolve().then(() => this._resizeCard());
   }

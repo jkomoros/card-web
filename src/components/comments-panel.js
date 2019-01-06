@@ -30,13 +30,18 @@ import {
 } from '../actions/database.js';
 
 import {
-  cardSelector
-} from '../reducers/data.js';
+  selectActiveCard
+} from '../selectors.js';
 
 import {
   userMayComment,
-  userId
+  userId,
+  loggedIn
 } from '../reducers/user.js';
+
+import {
+  showNeedSignin
+} from '../actions/user.js';
 
 import {
   PageViewElement
@@ -88,12 +93,12 @@ class CommentsPanel extends connect(store)(PageViewElement) {
         <div class='comments'>
         ${this._composedThreads.length
           ? html`${this._composedThreads.map( (item) => html`
-                <comment-thread .userId=${this._userId} .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @delete-message=${this._handleDeleteMessage} @resolve-thread=${this._handleResolveThread} .userMayComment=${this._userMayComment}></comment-thread>`)}`
+                <comment-thread .userId=${this._userId} .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @delete-message=${this._handleDeleteMessage} @resolve-thread=${this._handleResolveThread} @show-need-signin=${this._handleShowNeedSignin} .userMayComment=${this._userMayComment} .loggedIn=${this._loggedIn}></comment-thread>`)}`
           : html`<p><em>No comments yet.</em></p><p><em>You should leave one!</em></p>`
         }
         <div class='spacer'></spacer>
         </div>
-        <button class='round' ?disabled='${!this._userMayComment}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${addCommentIcon}</button>
+        <button class='round ${this._loggedIn ? '' : 'need-signin'}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${addCommentIcon}</button>
       </div>
     `;
   }
@@ -104,11 +109,21 @@ class CommentsPanel extends connect(store)(PageViewElement) {
       _card: {type: Object},
       _composedThreads: {type: Array},
       _userMayComment: { type: Boolean},
-      _userId : { type:String }
+      _userId : { type:String },
+      _loggedIn: {type:Boolean}
     }
   }
 
+  _handleShowNeedSignin(e) {
+    store.dispatch(showNeedSignin());
+  }
+
   _handleCreateThreadClicked(e) {
+    if (!this._loggedIn) {
+      store.dispatch(showNeedSignin());
+      return;
+    }
+    if (!this._userMayComment) return;
     store.dispatch(createThread(prompt('Message for new thread: (markdown formatting is supported)')));
   }
 
@@ -130,10 +145,11 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 
   stateChanged(state) {
     this._open = state.app.commentsPanelOpen;
-    this._card = cardSelector(state);
+    this._card = selectActiveCard(state);
     this._composedThreads = composedThreadsSelector(state);
     this._userMayComment = userMayComment(state);
     this._userId = userId(state);
+    this._loggedIn = loggedIn(state);
   }
 
   updated(changedProps) {

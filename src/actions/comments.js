@@ -13,8 +13,8 @@ import {
 } from './database.js';
 
 import {
-  cardSelector
-} from '../reducers/data.js';
+  selectActiveCard,
+} from '../selectors.js';
 
 import {
   firebase
@@ -29,7 +29,7 @@ import {
 
 import {
   randomString
-} from './util.js';
+} from '../util.js';
 
 export const ensureAuthor = (batch, user) => {
   batch.set(db.collection(AUTHORS_COLLECTION).doc(user.uid), {
@@ -122,7 +122,7 @@ export const editMessage = (message, newMessage) => (dispatch, getState) => {
 
 export const addMessage = (thread, message) => (dispatch, getState) => {
   const state = getState();
-  const card = cardSelector(state);
+  const card = selectActiveCard(state);
   if (!card || !card.id) {
     console.warn("No active card!");
     return;
@@ -177,7 +177,7 @@ export const addMessage = (thread, message) => (dispatch, getState) => {
 
 export const createThread = (message) => (dispatch, getState) => {
   const state = getState();
-  const card = cardSelector(state);
+  const card = selectActiveCard(state);
   if (!card || !card.id) {
     console.warn("No active card!");
     return;

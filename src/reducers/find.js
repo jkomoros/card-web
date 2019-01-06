@@ -5,10 +5,6 @@ import {
   FIND_CARD_TO_LINK
 } from '../actions/find.js';
 
-import {
-  cardsForCollection
-} from './data.js';
-
 const INITIAL_STATE = {
   open: false,
   query: "",

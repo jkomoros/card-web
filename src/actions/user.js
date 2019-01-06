@@ -31,18 +31,28 @@ import {
 
 import {
   idForPersonalCardInfo
-} from './util.js';
+} from '../util.js';
 
 import {
-  cardSelector
-} from '../reducers/data.js';
+  refreshCardSelector
+} from './collection.js';
+
+import {
+  selectActiveCard
+} from '../selectors.js';
+
+export const showNeedSignin = () => (dispatch) => {
+  let doSignIn = confirm("Doing that action requires signing in with your Google account. Do you want to sign in?");
+  if (!doSignIn) return;
+  dispatch(signIn());
+}
 
 export const signIn = () => (dispatch) => {
   dispatch({type:SIGNIN_USER});
 
   let provider = new firebase.auth.GoogleAuthProvider();
 
-  firebase.auth().signInWithPopup(provider).catch(err => {
+  firebase.auth().signInWithRedirect(provider).catch(err => {
     dispatch({type:SIGNIN_FAILURE, error: err})
   });
 
@@ -78,12 +88,13 @@ export const signOut = () => (dispatch) => {
   firebase.auth().signOut();
 }
 
-export const updateStars = (starsToAdd = [], starsToRemove = []) => {
-  return {
+export const updateStars = (starsToAdd = [], starsToRemove = []) => (dispatch, getState) => {
+  dispatch({
     type: UPDATE_STARS,
     starsToAdd,
     starsToRemove
-  }
+  })
+  dispatch(refreshCardSelector());
 }
 
 export const addStar = (cardToStar) => (dispatch, getState) => {
@@ -149,12 +160,13 @@ export const removeStar = (cardToStar) => (dispatch, getState) => {
 
 }
 
-export const updateReads = (readsToAdd = [], readsToRemove = []) => {
-  return {
+export const updateReads = (readsToAdd = [], readsToRemove = []) => (dispatch, getState) => {
+  dispatch({
     type: UPDATE_READS,
     readsToAdd,
     readsToRemove
-  }
+  })
+  dispatch(refreshCardSelector());
 }
 
 let autoMarkReadTimeoutId = null;
@@ -167,7 +179,7 @@ export const scheduleAutoMarkRead = () => (dispatch, getState) => {
   const uid = userId(state);
   if (!uid) return;
 
-  const activeCard = cardSelector(state);
+  const activeCard = selectActiveCard(state);
   if (!activeCard) return;
   if (cardIsRead(state, activeCard.id)) return;
 
@@ -190,7 +202,7 @@ export const markActiveCardReadIfLoggedIn = () => (dispatch, getState) => {
   const state = getState();
   const uid = userId(state);
   if (!uid) return;
-  const activeCard = cardSelector(state);
+  const activeCard = selectActiveCard(state);
   if (!activeCard) return;
   dispatch({type: AUTO_MARK_READ_PENDING_CHANGED, pending: false});
   dispatch(markRead(activeCard, true));

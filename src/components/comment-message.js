@@ -11,7 +11,7 @@ import {
 
 import {
   prettyTime
-} from '../actions/util.js';
+} from '../util.js';
 
 import {
   uidMayEditMessage

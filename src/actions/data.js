@@ -1,8 +1,6 @@
 export const UPDATE_CARDS = 'UPDATE_CARDS';
 export const UPDATE_SECTIONS = 'UPDATE_SECTIONS';
 export const UPDATE_AUTHORS= 'UPDATE_AUTHORS';
-export const SHOW_CARD = 'SHOW_CARD';
-export const SHOW_SECTION = 'SHOW_SECTION';
 export const MODIFY_CARD = 'MODIFY_CARD';
 export const MODIFY_CARD_SUCCESS = 'MODIFY_CARD_SUCCESS';
 export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
@@ -31,20 +29,25 @@ import {
 
 import {
   randomString
-} from './util.js';
-
-import {
-  scheduleAutoMarkRead
-} from './user.js';
+} from '../util.js';
 
 import {
   ensureAuthor
 } from './comments.js';
 
 import {
+  refreshCardSelector
+} from './collection.js';
+
+import {
   firebaseUser,
   userIsAdmin
 } from '../reducers/user.js';
+
+import {
+  selectActiveSectionId,
+  selectActiveCardIndex
+} from '../selectors.js';
 
 const LEGAL_UPDATE_FIELDS = new Map([
   ['title', true],
@@ -358,9 +361,9 @@ export const createCard = (section, id) => async (dispatch, getState) => {
 
   let appendMiddle = false; 
   let appendIndex = 0;
-  if (state.data.activeSectionId == section) {
+  if (selectActiveSectionId(state) == section) {
     appendMiddle = true;
-    appendIndex = state.data.activeCardIndex;
+    appendIndex = selectActiveCardIndex(state);
   }
 
   let obj = {
@@ -443,11 +446,12 @@ export const reorderStatus = (pending) => {
   }
 }
 
-export const updateSections = (sections) => {
-  return {
+export const updateSections = (sections) => (dispatch) => {
+  dispatch({
     type: UPDATE_SECTIONS,
     sections,
-  }
+  })
+  dispatch(refreshCardSelector());
 }
 
 export const updateAuthors = (authors) => {
@@ -457,34 +461,11 @@ export const updateAuthors = (authors) => {
   }
 }
 
-export const updateCards = (cards) => {
-  return {
+export const updateCards = (cards) => (dispatch) => {
+  dispatch({
     type:UPDATE_CARDS,
     cards,
-  }
-}
-
-export const showCard = (cardId) => (dispatch) => {
-  dispatch({
-    type: SHOW_CARD,
-    card: cardId
   })
-  dispatch(scheduleAutoMarkRead());
-}
-
-export const showSection = (sectionId) => {
-  return {
-    type: SHOW_SECTION,
-    section: sectionId
-  }
-}
-
-export const showNewCard = () => (dispatch, getState) => {
-
-  const cards = getState().data.cards;
-
-  let keys = Object.keys(cards);
-
-  dispatch(showCard(keys[0]))
+  dispatch(refreshCardSelector());
 }
 

@@ -26,8 +26,12 @@ export const ENABLE_MOBILE_MODE = 'ENABLE_MOBILE_MODE';
 export const DISABLE_MOBILE_MODE = 'DISABLE_MOBILE_MODE';
 
 import {
-  collectionForActiveSectionSelector
-} from '../reducers/data.js';
+  selectExpandedActiveCollection
+} from '../selectors.js';
+
+import {
+  selectActiveCardIndex
+} from '../selectors.js';
 
 //This is the card that is loaded if we weren't passed anything
 const DEFAULT_CARD = 'section-half-baked';
@@ -44,7 +48,7 @@ export const navigatePathTo = (path, silent) => (dispatch, getState) => {
       return;
     }
     window.history.pushState({}, '', path);
-    dispatch(navigated(decodeURIComponent(path)));
+    dispatch(navigated(decodeURIComponent(path), decodeURIComponent(location.search)));
 }
 
 export const navigateToChangesNumDays = (numDays) => (dispatch) => {
@@ -54,9 +58,9 @@ export const navigateToChangesNumDays = (numDays) => (dispatch) => {
 
 export const navigateToNextCard = () => (dispatch, getState) => {
   const state = getState();
-  let index = state.data.activeCardIndex;
+  let index = selectActiveCardIndex(state);
   index++;
-  const collection = collectionForActiveSectionSelector(state);
+  const collection = selectExpandedActiveCollection(state);
   if (!collection) return;
   let newId = collection[index];
   if (!newId) return;
@@ -65,9 +69,9 @@ export const navigateToNextCard = () => (dispatch, getState) => {
 
 export const navigateToPreviousCard = () => (dispatch, getState) => {
   const state = getState();
-  let index = state.data.activeCardIndex;
+  let index = selectActiveCardIndex(state);
   index--;
-  const collection = collectionForActiveSectionSelector(state);
+  const collection = selectExpandedActiveCollection(state);
   if (!collection) return;
   let newId = collection[index];
   if (!newId) return;
@@ -77,7 +81,8 @@ export const navigateToPreviousCard = () => (dispatch, getState) => {
 export const urlForCard = (cardOrId, edit) => {
   let id = cardOrId
   if (!id) id = DEFAULT_CARD;
-  if (typeof cardOrId === 'object') {
+  //note: null is an object;
+  if (cardOrId && typeof cardOrId === 'object') {
     id = cardOrId.name;
   }
   return '/c/' + id + (edit ? '/edit' : '');
@@ -88,24 +93,26 @@ export const navigateToCard = (cardOrId, silent) => (dispatch) => {
   dispatch(navigatePathTo(path, silent));
 }
 
-export const navigated = (path) => (dispatch) => {
+export const navigated = (path, query) => (dispatch) => {
 
   // Extract the page name from path.
   const page = path === '/' ? 'c' : path.slice(1);
 
   // Any other info you might want to extract from the path (like page type),
   // you can do here
-  dispatch(loadPage(page));
+  dispatch(loadPage(page, query));
 
 };
 
-const loadPage = (pathname) => (dispatch) => {
+const loadPage = (pathname, query) => (dispatch) => {
 
   //pathname is the whole path minus starting '/', like 'c/VIEW_ID'
   let pieces = pathname.split("/")
 
   let page = pieces[0];
   let pageExtra = pieces.length < 2 ? '' : pieces.slice(1).join("/");
+
+  if (query) pageExtra += query;
 
   switch(page) {
     case 'c':

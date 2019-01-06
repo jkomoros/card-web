@@ -39,6 +39,7 @@ export const arrayUnion = (arr, items) => {
 	return result;
 }
 
+//items is an array
 export const setRemove = (obj, items) => {
 	let result = {};
 	for (let key of Object.keys(obj)) {
@@ -50,6 +51,7 @@ export const setRemove = (obj, items) => {
 	return result;
 }
 
+//items is an array
 export const setUnion = (obj, items) => {
 	let result = {};
 	for (let key of Object.keys(obj)) {
@@ -59,6 +61,49 @@ export const setUnion = (obj, items) => {
 		result[item] = true;
 	}
 	return result;
+}
+
+const unionSet = (...sets) => {
+	let result = {};
+	for (let set of sets) {
+		if (!set) continue;
+		for (let key of Object.keys(set)) {
+			result[key] = true;
+		}
+	}
+	return result;
+}
+
+export const intersectionSet = (...sets) => {
+	let union = unionSet(...sets);
+	let result = {};
+	for (let key of Object.keys(union)) {
+		//Only include keys that are in every set.
+		let doInclude = true;
+		for (let set of sets) {
+			if (!set) continue;
+			if (!set[key]) {
+				doInclude = false;
+				break;
+			}
+		}
+		if (doInclude) result[key] = true;
+	}
+	return result;
+}
+
+//Returns a function that takes an item and returns true if it's in ALL
+//includeSets and not in any exclude sets.
+export const makeCombinedFilter = (includeSets, excludeSets) => {
+	return function(item) {
+		for (let set of includeSets) {
+			if (!set[item]) return false;
+		}
+		for (let set of excludeSets) {
+			if (set[item]) return false;
+		}
+		return true;
+	}
 }
 
 //date may be a firestore timestamp or a date object.

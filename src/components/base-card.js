@@ -46,12 +46,12 @@ export class BaseCard extends LitElement {
 
         h1 {
           color: var(--app-primary-color);
-          font-size: 1.45em;
+          font-size: 1.4em;
         }
 
         h2 {
           color: var(--app-dark-text-color);
-          font-size: 1.25em;
+          font-size: 1.2em;
         }
 
         h3 {
