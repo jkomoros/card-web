@@ -14,13 +14,14 @@ import {
 import {
   activeCardId,
   activeCardIndex,
-  activeSectionId
+  activeSectionId,
+  requestedCard,
 } from '../reducers/collection.js';
 
 export const reShowCard = () => (dispatch, getState) => {
   //Called when the sections or cards loaded and we should reshow card.
   const state = getState();
-  dispatch(showCard(activeCardId(state)));
+  dispatch(showCard(requestedCard(state)));
 }
 
 export const showCard = (cardIdOrSlug) => (dispatch, getState) => {
@@ -43,6 +44,7 @@ export const showCard = (cardIdOrSlug) => (dispatch, getState) => {
 
   dispatch({
     type: SHOW_CARD,
+    idOrSlug: cardIdOrSlug,
     card: cardId,
     section: sectionId,
     index: index,
