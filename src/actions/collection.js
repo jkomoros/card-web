@@ -1,4 +1,5 @@
 export const SHOW_CARD = 'SHOW_CARD';
+export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
 export const RE_SHOW_CARD = 'RE_SHOW_CARD';
 
 import {
@@ -16,12 +17,25 @@ import {
   activeCardIndex,
   activeSectionId,
   requestedCard,
+  getSetName,
+  SET_NAMES,
 } from '../reducers/collection.js';
+
 
 export const updateCardSelector = (cardSelector) => (dispatch) => {
     let parts = cardSelector.split("/");
     let cardIdOrSlug = parts[0];
+    dispatch(updateCollection(SET_NAMES[0]));
     dispatch(showCard(cardIdOrSlug));
+}
+
+export const updateCollection = (setName) => (dispatch, getState) =>{
+  const state = getState();
+  if (setName == getSetName(state)) return;
+  dispatch({
+    type: UPDATE_COLLECTION,
+    setName,
+  })
 }
 
 export const reShowCard = () => (dispatch, getState) => {
