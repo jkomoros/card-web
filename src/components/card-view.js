@@ -20,6 +20,7 @@ import {
   selectActiveSectionId,
   selectRequestedCard,
   selectExpandedActiveCollection,
+  selectDataIsFullyLoaded,
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js'
@@ -293,7 +294,7 @@ class CardView extends connect(store)(PageViewElement) {
             <div id='portrait-message'>
               <div>Rotate your phone to landscape mode</div>
             </div>
-            <card-renderer .editing=${this._editing} .card=${this._displayCard} .fromContentEditable=${this._fromContentEditable} @body-updated=${this._handleBodyUpdated}></card-renderer>
+            <card-renderer .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .card=${this._displayCard} .fromContentEditable=${this._fromContentEditable} @body-updated=${this._handleBodyUpdated}></card-renderer>
             <div class='actions'>
               <div class='presentation'>
                 <button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
@@ -351,6 +352,7 @@ class CardView extends connect(store)(PageViewElement) {
       _reads: {type: Object},
       _drawerReorderPending : {type: Boolean},
       _activeSectionId: {type: String},
+      _dataIsFullyLoaded: {type:Boolean},
     }
   }
 
@@ -482,6 +484,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._reads = state.user.reads;
     this._drawerReorderPending = state.data.reorderPending;
     this._activeSectionId = selectActiveSectionId(state);
+    this._dataIsFullyLoaded = selectDataIsFullyLoaded(state);
   }
 
   _changedPropsAffectCanvasSize(changedProps) {

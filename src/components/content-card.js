@@ -12,6 +12,7 @@ import {
 
 let loadingTemplate = html`<span class='loading'>Loading...<span>`
 let blankTemplate = html`<span class='loading'>Content goes here...</span>`
+let invalidCardTemplate = html`No card by that name, try a link from above`;
 
 // This element is *not* connected to the Redux store.
 export class ContentCard extends BaseCard {
@@ -29,6 +30,7 @@ export class ContentCard extends BaseCard {
       id: {type: String},
       fullBleed: {type: String},
       fromContentEditable: {type:Boolean},
+      dataIsFullyLoaded: {type:Boolean},
       _sectionElement: {type:Object}
     }
   }
@@ -44,7 +46,8 @@ export class ContentCard extends BaseCard {
   }
 
   get _emptyTemplate() {
-    return this.id ? blankTemplate : loadingTemplate;
+    if (this.id) return blankTemplate;
+    return  this.dataIsFullyLoaded ? invalidCardTemplate: loadingTemplate;
   }
 
   firstUpdated(changedProps) {
