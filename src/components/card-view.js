@@ -465,7 +465,7 @@ class CardView extends connect(store)(PageViewElement) {
     this._userMayStar  =  userMayStar(state);
     this._userMayMarkRead =  userMayMarkRead(state);
     this._autoMarkReadPending = state.user.autoMarkReadPending;
-    this._userMayEdit = userMayEdit(state);
+    this._userMayEdit = userMayEdit(state) && selectActiveSectionId(state) != "";
     this._headerPanelOpen = state.app.headerPanelOpen;
     this._commentsPanelOpen = state.app.commentsPanelOpen;
     this._cardInfoPanelOpen = state.app.cardInfoPanelOpen;
