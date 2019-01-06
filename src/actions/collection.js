@@ -93,6 +93,11 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
           doUpdateCollection = false;
         }
         filters = [card.section ? card.section : 'none'];
+      } else {
+        //Make sure the collection has no items, so canonicalizeURL won't add
+        //'all' in it which would then load up the whole collection before
+        //redirecting.
+        filters = ['none'];
       }
     }
 
