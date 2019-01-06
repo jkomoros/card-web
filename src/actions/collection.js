@@ -134,7 +134,7 @@ export const canonicalizeURL = () => (dispatch, getState) => {
   //TODO: this should be a constant somewhere
   let result = ["c"];
 
-  if (activeSetName != DEFAULT_SET_NAME) {
+  if (activeSetName != DEFAULT_SET_NAME || activeFilterNames.lenght == 0) {
     result.push(activeSetName);
   }
 
