@@ -85,7 +85,7 @@ const selectActiveBaseCollection = createSelector(
 	(set, filter) => set.filter(item => filter[item])
 )
 
-//selectActiveCollection includes start_cards where applicable
+//selectActiveCollection includes start_cards where applicable, but only the cardIds.
 export const selectActiveCollection = createSelector(
 	selectActiveSetName,
 	selectActiveBaseCollection,
@@ -112,4 +112,11 @@ export const selectActiveCollection = createSelector(
 		}
 		return result;
 	}
+)
+
+//Expanded means it includes the full cards in place.
+export const selectExpandedActiveCollection = createSelector(
+	selectActiveCollection,
+	selectCards,
+	(collection, cards) => collection.map(id => cards[id] || null)
 )
