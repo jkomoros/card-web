@@ -16,7 +16,6 @@ const INITIAL_STATE = {
   activeFilterNames: [],
   filters: {},
   requestedCard: "",
-  activeSectionId: "",
   activeCardId: "",
   activeCardIndex: -1,
 }
@@ -28,7 +27,6 @@ const app = (state = INITIAL_STATE, action) => {
         ...state,
         requestedCard: action.idOrSlug,
         activeCardId: action.card,
-        activeSectionId: action.section,
         activeCardIndex: action.index,
       }
     case UPDATE_COLLECTION:

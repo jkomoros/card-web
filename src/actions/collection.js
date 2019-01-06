@@ -109,21 +109,15 @@ export const showCard = (cardIdOrSlug) => (dispatch, getState) => {
 
   let cardId = getIdForCard(state, cardIdOrSlug);
 
-  let card = getCardById(state, cardId);
-
-  let sectionId = "";
-  if (card) sectionId = card.section;
-
   let index = indexForActiveCard(selectActiveCollection(state), cardId);
 
   //If it'll be a no op don't worry about it.
-  if (selectActiveCardId(state) == cardId && selectActiveSectionId(state) == sectionId && selectActiveCardIndex(state) == index) return;
+  if (selectActiveCardId(state) == cardId && selectActiveCardIndex(state) == index) return;
 
   dispatch({
     type: SHOW_CARD,
     idOrSlug: cardIdOrSlug,
     card: cardId,
-    section: sectionId,
     index: index,
   })
   dispatch(scheduleAutoMarkRead());

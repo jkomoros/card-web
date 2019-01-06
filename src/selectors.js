@@ -25,7 +25,6 @@ export const selectPageExtra = (state) => state.app.pageExtra;
 export const selectActiveSetName = (state) => state.collection.activeSetName;
 export const selectRequestedCard = (state) => state.collection.requestedCard;
 export const selectActiveCardId = (state) => state.collection.activeCardId;
-export const selectActiveSectionId = (state) => state.collection.activeSectionId;
 export const selectActiveCardIndex = (state) => state.collection.activeCardIndex;
 export const selectActiveFilterNames = (state) => state.collection.activeFilterNames;
 export const selectFilters = (state) => state.collection.filters;
@@ -50,6 +49,19 @@ export const getSection = (state, sectionId) => {
 	if (!state.data) return null;
 	return state.data.sections[sectionId] || null;
 }
+
+export const selectActiveSectionId = createSelector(
+	selectActiveSetName,
+	selectActiveFilterNames,
+	selectSections,
+	(setName, filterNames, sections) => {
+		//The activeSectionId is only true if it's the default set and there
+		//is precisely one filter who is also a set.
+		if( setName != DEFAULT_SET_NAME) return "";
+		if (filterNames.length != 1) return "";
+		return sections[filterNames[0]] ? filterNames[0] : "";
+	}
+)
 
 export const selectActiveCard = createSelector(
   selectCards,
