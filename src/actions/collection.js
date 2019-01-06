@@ -7,6 +7,11 @@ import {
 } from './user.js';
 
 import {
+  navigatePathTo
+} from './app.js';
+
+import {
+  DEFAULT_SET_NAME,
   SET_NAMES,
 } from '../reducers/collection.js';
 
@@ -20,6 +25,7 @@ import {
   selectActiveSectionId,
   selectRequestedCard,
   selectActiveFilterNames,
+  selectActiveCard,
   selectPage,
   selectPageExtra,
 } from '../selectors.js';
@@ -31,7 +37,7 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 
     let firstPart = parts[0].toLowerCase();
     
-    let setName = SET_NAMES[0];
+    let setName = DEFAULT_SET_NAME;
 
     for (let name of SET_NAMES) {
       if (name == firstPart) {
@@ -102,6 +108,42 @@ export const refreshCardSelector = () => (dispatch, getState) => {
   dispatch(updateCardSelector(pageExtra));
 }
 
+export const canonicalizeURL = () => (dispatch, getState) => {
+
+  //Called to ensure that the URL is canonical given activeSet, activeFilters, etc.
+
+  let state = getState();
+
+  let card = selectActiveCard(state);
+
+  if (!card) return;
+
+  let activeSectionId = selectActiveSectionId(state);
+  let activeFilterNames = selectActiveFilterNames(state);
+  let activeSetName = selectActiveSetName(state);
+
+  //TODO: this should be a constant somewhere
+  let result = ["c"];
+
+  if (activeSetName != DEFAULT_SET_NAME) {
+    result.push(activeSetName);
+  }
+
+  if (!activeSectionId) {
+    //activeSectionId is only there if the only filter is the section name the
+    //user is in, which can be omitted for brevity.
+    result.push(...activeFilterNames);
+  }
+
+  result.push(card.name);
+
+  let path = result.join("/");
+
+  //Ensure that the article name that we're shwoing--no matter how they
+  //havigated here--is the preferred slug name.
+  dispatch(navigatePathTo(path, true));
+}
+
 export const showCard = (cardIdOrSlug) => (dispatch, getState) => {
 
   const state = getState();
@@ -116,5 +158,6 @@ export const showCard = (cardIdOrSlug) => (dispatch, getState) => {
     idOrSlug: cardIdOrSlug,
     card: cardId,
   })
+  dispatch(canonicalizeURL());
   dispatch(scheduleAutoMarkRead());
 }

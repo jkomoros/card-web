@@ -46,6 +46,10 @@ import {
 } from '../actions/find.js';
 
 import {
+  canonicalizeURL
+} from '../actions/collection.js';
+
+import {
   addStar,
   removeStar,
   markRead,
@@ -480,17 +484,6 @@ class CardView extends connect(store)(PageViewElement) {
     this._activeSectionId = selectActiveSectionId(state);
   }
 
-  _ensureUrlShowsName() {
-    //Ensure that the article name that we're shwoing--no matter how they
-    //havigated here--is the preferred slug name.
-    if (!this._card || !this._card.name) return;
-    if (this._card.name != this._requestedCard) {
-      //Deliberately do not call the navigate sction cretator, since this
-      //should be a no-op.
-      store.dispatch(navigateToCard(this._card, true));
-    }
-  }
-
   _changedPropsAffectCanvasSize(changedProps) {
     let sizeProps = [
       '_headerPanelOpen',
@@ -564,10 +557,13 @@ class CardView extends connect(store)(PageViewElement) {
     if (changedProps.has('_editing') && !this._editing) {
       //Verify that our URL shows the canoncial name, which may have just
       //changed when edited.
-      this._ensureUrlShowsName();
+      store.dispatch(canonicalizeURL());
     }
     if (changedProps.has('_card') && this._card && this._card.name) {
-      this._ensureUrlShowsName();
+      store.dispatch(canonicalizeURL());
+    }
+    if (changedProps.has('_activeSectionId')) {
+      store.dispatch(canonicalizeURL());
     }
     if (this._changedPropsAffectCanvasSize(changedProps)) Promise.resolve().then(() => this._resizeCard());
   }
