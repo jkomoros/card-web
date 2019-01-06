@@ -29,7 +29,7 @@ export const selectActiveSectionId = (state) => state.collection.activeSectionId
 export const selectActiveCardIndex = (state) => state.collection.activeCardIndex;
 export const selectActiveFilterNames = (state) => state.collection.activeFilterNames;
 export const selectFilters = (state) => state.collection.filters;
-export const selectSections = (state) => state.data ? statee.data.sections : null;
+export const selectSections = (state) => state.data ? state.data.sections : null;
 export const selectCards = (state) => state.data ? state.data.cards : null;
 
 export const getCardById = (state, cardId) => {
@@ -76,4 +76,10 @@ export const selectActiveSet = createSelector(
 	selectActiveSetName,
 	selectDefaultSet,
 	(setName, defaultSet) => setName == DEFAULT_SET_NAME ? defaultSet : []
+)
+
+export const selectActiveCollection = createSelector(
+	selectActiveSet,
+	selectActiveFilter,
+	(set, filter) => set.filter(item => filter[item])
 )
