@@ -15,6 +15,10 @@ import {
 	intersectionSet
 } from './actions/util.js';
 
+import {
+	DEFAULT_SET_NAME
+} from './reducers/collection.js';
+
 export const selectPage = (state) => state.app.page;
 export const selectPageExtra = (state) => state.app.pageExtra;
 
@@ -48,7 +52,7 @@ export const selectActiveCard = createSelector(
   (cards, activeCard) => cards[activeCard] || null
 );
 
-export const selectBaseSet = createSelector(
+export const selectDefaultSet = createSelector(
 	selectSections,
 	(sections) => {
 		let result = [];
@@ -67,4 +71,9 @@ export const selectActiveFilter = createSelector(
 		return intersectionSet(...activeFilters);
 	});
 
-//TODO: selectActiveCollection.
+//TODO: supprot other sets 
+export const selectActiveSet = createSelector(
+	selectActiveSetName,
+	selectDefaultSet,
+	(setName, defaultSet) => setName == DEFAULT_SET_NAME ? defaultSet : []
+)

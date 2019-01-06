@@ -7,7 +7,7 @@ import {
   UPDATE_SECTIONS
 } from '../actions/data.js';
 
-const DEFAULT_SET_NAME = 'default';
+export const DEFAULT_SET_NAME = 'default';
 
 export const SET_NAMES = [DEFAULT_SET_NAME];
 
