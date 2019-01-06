@@ -39,6 +39,7 @@ export const arrayUnion = (arr, items) => {
 	return result;
 }
 
+//items is an array
 export const setRemove = (obj, items) => {
 	let result = {};
 	for (let key of Object.keys(obj)) {
@@ -50,6 +51,7 @@ export const setRemove = (obj, items) => {
 	return result;
 }
 
+//items is an array
 export const setUnion = (obj, items) => {
 	let result = {};
 	for (let key of Object.keys(obj)) {
@@ -57,6 +59,33 @@ export const setUnion = (obj, items) => {
 	}
 	for (let item of items) {
 		result[item] = true;
+	}
+	return result;
+}
+
+const unionSet = (...sets) => {
+	let result = {};
+	for (let set of sets) {
+		for (let key of Object.keys(set)) {
+			result[key] = true;
+		}
+	}
+	return result;
+}
+
+export const intersectionSet = (...sets) => {
+	let union = unionSet(...sets);
+	let result = {};
+	for (let key of Object.keys(union)) {
+		//Only include keys that are in every set.
+		let doInclude = true;
+		for (let set of sets) {
+			if (!set[key]) {
+				doInclude = false;
+				break;
+			}
+		}
+		if (doInclude) result[key] = true;
 	}
 	return result;
 }

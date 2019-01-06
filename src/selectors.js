@@ -11,6 +11,9 @@ import { createSelector } from 'reselect';
 
 */
 
+import {
+	intersectionSet
+} from './actions/util.js';
 
 export const selectPage = (state) => state.app.page;
 export const selectPageExtra = (state) => state.app.pageExtra;
@@ -21,6 +24,7 @@ export const selectActiveCardId = (state) => state.collection.activeCardId;
 export const selectActiveSectionId = (state) => state.collection.activeSectionId;
 export const selectActiveCardIndex = (state) => state.collection.activeCardIndex;
 export const selectActiveFilterNames = (state) => state.collection.activeFilterNames;
+export const selectFilters = (state) => state.collection.filters;
 export const selectSections = (state) => state.data ? statee.data.sections : null;
 export const selectCards = (state) => state.data ? state.data.cards : null;
 
@@ -54,3 +58,13 @@ export const selectBaseSet = createSelector(
 		return result;
 	}
 )
+
+export const selectActiveFilter = createSelector(
+	selectActiveFilterNames,
+	selectFilters,
+	(activeFilterNames, filters) => {
+		let activeFilters = activeFilterNames.map(name => filters[name]);
+		return intersectionSet(...activeFilters);
+	});
+
+//TODO: selectActiveCollection.
