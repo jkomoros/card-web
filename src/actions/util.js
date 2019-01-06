@@ -66,6 +66,7 @@ export const setUnion = (obj, items) => {
 const unionSet = (...sets) => {
 	let result = {};
 	for (let set of sets) {
+		if (!set) continue;
 		for (let key of Object.keys(set)) {
 			result[key] = true;
 		}
@@ -80,6 +81,7 @@ export const intersectionSet = (...sets) => {
 		//Only include keys that are in every set.
 		let doInclude = true;
 		for (let set of sets) {
+			if (!set) continue;
 			if (!set[key]) {
 				doInclude = false;
 				break;

@@ -67,7 +67,7 @@ export const selectActiveFilter = createSelector(
 	selectActiveFilterNames,
 	selectFilters,
 	(activeFilterNames, filters) => {
-		let activeFilters = activeFilterNames.map(name => filters[name]);
+		let activeFilters = activeFilterNames.map(name => filters[name] || null);
 		return intersectionSet(...activeFilters);
 	});
 
