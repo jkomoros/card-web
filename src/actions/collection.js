@@ -26,7 +26,6 @@ import {
   selectActiveFilterNames,
   selectPage,
   selectPageExtra,
-  selectActiveFilter,
 } from '../selectors.js';
 
 
@@ -76,9 +75,6 @@ export const updateCollection = (setName, filters) => (dispatch, getState) =>{
   const state = getState();
   let sameSetName = false;
   if (setName == selectActiveSetName(state)) sameSetName = true;
-
-  let activeFilter = selectActiveFilter(state);
-  console.log(activeFilter);
 
   let sameActiveFilters = false;
   let activeFilters = selectActiveFilterNames(state);
