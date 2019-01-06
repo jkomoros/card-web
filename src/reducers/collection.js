@@ -7,6 +7,15 @@ import {
   UPDATE_SECTIONS
 } from '../actions/data.js';
 
+import {
+  UPDATE_STARS
+} from '../actions/user.js';
+
+import {
+  setUnion,
+  setRemove,
+} from '../util.js';
+
 export const DEFAULT_SET_NAME = 'default';
 
 export const SET_NAMES = [DEFAULT_SET_NAME];
@@ -14,7 +23,9 @@ export const SET_NAMES = [DEFAULT_SET_NAME];
 const INITIAL_STATE = {
   activeSetName: DEFAULT_SET_NAME,
   activeFilterNames: [],
-  filters: {},
+  filters: {
+    starred: {},
+  },
   requestedCard: "",
   activeCardId: "",
 }
@@ -37,6 +48,11 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         filters: {...state.filters, ...makeFilterFromSection(action.sections)}
+      }
+    case UPDATE_STARS:
+      return {
+        ...state,
+        filters: {...state.filters, starred: setUnion(setRemove(state.filters.starred, action.starsToRemove), action.starsToAdd)}
       }
     default:
       return state;
