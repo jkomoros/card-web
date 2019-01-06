@@ -31,6 +31,10 @@ store.addReducers({
 });
 
 import {
+  activeSectionId
+} from '../reducers/collection.js';
+
+import {
   DEV_MODE
 } from '../actions/database.js';
 
@@ -325,7 +329,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     this._editing = state.editor.editing;
     this._devMode = DEV_MODE;
     this._sections = state.data.sections;
-    this._activeSectionId = state.collection.activeSectionId;
+    this._activeSectionId = activeSectionId(state);
     this._keyboardNavigates = keyboardNavigates(state);
   }
 }
