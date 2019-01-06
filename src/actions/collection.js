@@ -24,8 +24,22 @@ import {
 
 export const updateCardSelector = (cardSelector) => (dispatch) => {
     let parts = cardSelector.split("/");
+
+    let firstPart = parts[0].toLowerCase();
+    
+    let setName = SET_NAMES[0];
+
+    for (let name of SET_NAMES) {
+      if (name == firstPart) {
+        setName = firstPart;
+        parts.unshift();
+        break;
+      }
+    }
+
     let cardIdOrSlug = parts[0];
-    dispatch(updateCollection(SET_NAMES[0]));
+
+    dispatch(updateCollection(setName));
     dispatch(showCard(cardIdOrSlug));
 }
 
