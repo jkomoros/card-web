@@ -26,8 +26,8 @@ export const ENABLE_MOBILE_MODE = 'ENABLE_MOBILE_MODE';
 export const DISABLE_MOBILE_MODE = 'DISABLE_MOBILE_MODE';
 
 import {
-  collectionForActiveSectionSelector
-} from '../reducers/data.js';
+  selectExpandedActiveCollection
+} from '../selectors.js';
 
 import {
   selectActiveCardIndex
@@ -60,7 +60,7 @@ export const navigateToNextCard = () => (dispatch, getState) => {
   const state = getState();
   let index = selectActiveCardIndex(state);
   index++;
-  const collection = collectionForActiveSectionSelector(state);
+  const collection = selectExpandedActiveCollection(state);
   if (!collection) return;
   let newId = collection[index];
   if (!newId) return;
@@ -71,7 +71,7 @@ export const navigateToPreviousCard = () => (dispatch, getState) => {
   const state = getState();
   let index = selectActiveCardIndex(state);
   index--;
-  const collection = collectionForActiveSectionSelector(state);
+  const collection = selectExpandedActiveCollection(state);
   if (!collection) return;
   let newId = collection[index];
   if (!newId) return;
