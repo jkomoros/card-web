@@ -25,7 +25,6 @@ export const selectPageExtra = (state) => state.app.pageExtra;
 export const selectActiveSetName = (state) => state.collection.activeSetName;
 export const selectRequestedCard = (state) => state.collection.requestedCard;
 export const selectActiveCardId = (state) => state.collection.activeCardId;
-export const selectActiveCardIndex = (state) => state.collection.activeCardIndex;
 export const selectActiveFilterNames = (state) => state.collection.activeFilterNames;
 export const selectFilters = (state) => state.collection.filters;
 export const selectSections = (state) => state.data ? state.data.sections : null;
@@ -136,4 +135,10 @@ export const selectExpandedActiveCollection = createSelector(
 	selectActiveCollection,
 	selectCards,
 	(collection, cards) => collection.map(id => cards[id] || null)
+)
+
+export const selectActiveCardIndex = createSelector(
+	selectActiveCardId,
+	selectActiveCollection,
+	(cardId, collection) => collection.indexOf(cardId)
 )

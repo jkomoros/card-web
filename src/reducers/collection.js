@@ -17,7 +17,6 @@ const INITIAL_STATE = {
   filters: {},
   requestedCard: "",
   activeCardId: "",
-  activeCardIndex: -1,
 }
 
 const app = (state = INITIAL_STATE, action) => {
@@ -27,7 +26,6 @@ const app = (state = INITIAL_STATE, action) => {
         ...state,
         requestedCard: action.idOrSlug,
         activeCardId: action.card,
-        activeCardIndex: action.index,
       }
     case UPDATE_COLLECTION:
       return {

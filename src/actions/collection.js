@@ -17,7 +17,6 @@ import {
   selectActiveCollection,
   selectActiveSetName,
   selectActiveCardId,
-  selectActiveCardIndex,
   selectActiveSectionId,
   selectRequestedCard,
   selectActiveFilterNames,
@@ -109,23 +108,13 @@ export const showCard = (cardIdOrSlug) => (dispatch, getState) => {
 
   let cardId = getIdForCard(state, cardIdOrSlug);
 
-  let index = indexForActiveCard(selectActiveCollection(state), cardId);
-
   //If it'll be a no op don't worry about it.
-  if (selectActiveCardId(state) == cardId && selectActiveCardIndex(state) == index) return;
+  if (selectActiveCardId(state) == cardId) return;
 
   dispatch({
     type: SHOW_CARD,
     idOrSlug: cardIdOrSlug,
     card: cardId,
-    index: index,
   })
   dispatch(scheduleAutoMarkRead());
-}
-
-const indexForActiveCard = (collection, id) => {
-  for (let i = 0; i < collection.length; i++) {
-    if (collection[i] == id) return i;
-  }
-  return -1;
 }
