@@ -28,6 +28,7 @@ import {
   selectActiveCard,
   selectPage,
   selectPageExtra,
+  getCardIndexForActiveCollection
 } from '../selectors.js';
 
 
@@ -61,15 +62,23 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
       filters = parts;
     }
 
+    let doUpdateCollection = true;
+
     if (filters.length == 0) {
       const state = getState();
       let card = getCard(state, cardIdOrSlug);
-      if (card && card.section) {
-        filters = [card.section]
+      if (card) {
+        //If we had a default filter URL and the card is a member of the set
+        //we're already in, leave the collection information the same.
+        if (getCardIndexForActiveCollection(state, card.id) >= 0) {
+          doUpdateCollection = false;
+        } else if (card.section) {
+          filters = [card.section]
+        }
       }
     }
 
-    dispatch(updateCollection(setName, filters));
+    if (doUpdateCollection) dispatch(updateCollection(setName, filters));
     dispatch(showCard(cardIdOrSlug));
 }
 

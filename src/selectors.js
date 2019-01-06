@@ -142,3 +142,8 @@ export const selectActiveCardIndex = createSelector(
 	selectActiveCollection,
 	(cardId, collection) => collection.indexOf(cardId)
 )
+
+export const getCardIndexForActiveCollection = (state, cardId) => {
+	let collection = selectActiveCollection(state);
+	return collection.indexOf(cardId);
+}
