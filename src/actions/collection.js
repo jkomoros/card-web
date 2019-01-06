@@ -18,6 +18,12 @@ import {
   requestedCard,
 } from '../reducers/collection.js';
 
+export const updateCardSelector = (cardSelector) => (dispatch) => {
+    let parts = cardSelector.split("/");
+    let cardIdOrSlug = parts[0];
+    dispatch(showCard(cardIdOrSlug));
+}
+
 export const reShowCard = () => (dispatch, getState) => {
   //Called when the sections or cards loaded and we should reshow card.
   const state = getState();

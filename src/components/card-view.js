@@ -17,7 +17,7 @@ import { store } from '../store.js';
 
 import { cardSelector } from '../reducers/data.js'
 
-import { showCard } from '../actions/collection.js'
+import { updateCardSelector } from '../actions/collection.js'
 
 import {
   userMayEdit,
@@ -90,7 +90,8 @@ import {
 } from '../actions/data.js';
 
 import {
-  activeSectionId
+  activeSectionId,
+  requestedCard,
 } from '../reducers/collection.js';
 
 import { 
@@ -325,9 +326,10 @@ class CardView extends connect(store)(PageViewElement) {
   static get properties() {
     return {
       _card: { type: Object },
-      _cardIdOrSlug: { type: String },
       _editing: {type: Boolean },
       _loggedIn: { type:Boolean },
+      _pageExtra: {type: String},
+      _requestedCard: {type:String},
       _userMayEdit: { type: Boolean },
       _userMayStar: { type: Boolean },
       _userMayMarkRead: { type: Boolean },
@@ -356,15 +358,6 @@ class CardView extends connect(store)(PageViewElement) {
     let title = prompt("What should the new title be for this card?", this._card.title);
     if (!title) return;
     store.dispatch(modifyCard(this._card, {title:title}, false));
-  }
-
-  extractPageExtra(pageExtra) {
-    let parts = pageExtra.split("/");
-    let cardId = parts[0];
-    let editing = false;
-    if (parts[1] == 'edit') editing = true;
-
-    return [cardId, editing]
   }
 
   _thumbnailActivatedHandler(e) {
@@ -465,7 +458,8 @@ class CardView extends connect(store)(PageViewElement) {
     this._editingCard = state.editor.card;
     this._card = cardSelector(state);
     this._displayCard = this._editingCard ? this._editingCard : this._card;
-    this._cardIdOrSlug = this.extractPageExtra(state.app.pageExtra)[0];
+    this._pageExtra = state.app.pageExtra;
+    this._requestedCard = requestedCard(state);
     this._editing = state.editor.editing; 
     this._loggedIn = loggedIn(state);
     this._userMayStar  =  userMayStar(state);
@@ -494,7 +488,7 @@ class CardView extends connect(store)(PageViewElement) {
     //Ensure that the article name that we're shwoing--no matter how they
     //havigated here--is the preferred slug name.
     if (!this._card || !this._card.name) return;
-    if (this._card.name != this._cardIdOrSlug) {
+    if (this._card.name != this._requestedCard) {
       //Deliberately do not call the navigate sction cretator, since this
       //should be a no-op.
       store.dispatch(navigateToCard(this._card, true));
@@ -563,9 +557,9 @@ class CardView extends connect(store)(PageViewElement) {
   }
 
   updated(changedProps) {
-    if (changedProps.has('_cardIdOrSlug')) {
-      if (this._cardIdOrSlug) {
-        store.dispatch(showCard(this._cardIdOrSlug))
+    if (changedProps.has('_pageExtra')) {
+      if (this._pageExtra) {
+        store.dispatch(updateCardSelector(this._pageExtra))
       } else {
         //Dispatching to '' will use default;
         store.dispatch(navigateToCard(''));
