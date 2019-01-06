@@ -12,11 +12,12 @@ import { createSelector } from 'reselect';
 */
 
 import {
-	intersectionSet
+	makeCombinedFilter
 } from './util.js';
 
 import {
-	DEFAULT_SET_NAME
+	DEFAULT_SET_NAME,
+	INVERSE_FILTER_NAMES
 } from './reducers/collection.js';
 
 export const selectPage = (state) => state.app.page;
@@ -79,15 +80,30 @@ export const selectDefaultSet = createSelector(
 	}
 )
 
+//Returns a list of icludeFilters and a list of excludeFilters.
 export const selectActiveFilters = createSelector(
 	selectActiveFilterNames,
 	selectFilters,
-	(activeFilterNames, filters) => activeFilterNames.map(name => filters[name] || null)
+	(activeFilterNames, filters) => {
+		let includeFilters = [];
+		let excludeFilters = [];
+		for (let name of activeFilterNames) {
+			if (filters[name]) {
+				includeFilters.push(filters[name]);
+				continue;
+			}
+			if (INVERSE_FILTER_NAMES[name]) {
+				excludeFilters.push(filters[INVERSE_FILTER_NAMES[name]]);
+				continue;
+			}
+		}
+		return [includeFilters, excludeFilters];
+	}
 )
 
 export const selectActiveFilter = createSelector(
 	selectActiveFilters,
-	(activeFilters) => intersectionSet(...activeFilters)
+	(activeFilters) => makeCombinedFilter(...activeFilters)
 );
 
 //TODO: supprot other sets 
@@ -101,7 +117,7 @@ export const selectActiveSet = createSelector(
 const selectActiveBaseCollection = createSelector(
 	selectActiveSet,
 	selectActiveFilter,
-	(set, filter) => set.filter(item => filter[item])
+	(set, filter) => set.filter(item => filter(item))
 )
 
 //selectActiveCollection includes start_cards where applicable, but only the cardIds.

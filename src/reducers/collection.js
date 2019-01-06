@@ -20,6 +20,13 @@ export const DEFAULT_SET_NAME = 'default';
 
 export const SET_NAMES = [DEFAULT_SET_NAME];
 
+//Theser are filters who are the inverse of another, smaller set. Instead of
+//creating a whole set of "all cards minus those", we keep track of them as
+//exclude sets.
+export const INVERSE_FILTER_NAMES = {
+  "unstarred": "starred",
+}
+
 const INITIAL_STATE = {
   activeSetName: DEFAULT_SET_NAME,
   activeFilterNames: [],

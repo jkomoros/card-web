@@ -92,6 +92,20 @@ export const intersectionSet = (...sets) => {
 	return result;
 }
 
+//Returns a function that takes an item and returns true if it's in ALL
+//includeSets and not in any exclude sets.
+export const makeCombinedFilter = (includeSets, excludeSets) => {
+	return function(item) {
+		for (let set of includeSets) {
+			if (!set[item]) return false;
+		}
+		for (let set of excludeSets) {
+			if (set[item]) return false;
+		}
+		return true;
+	}
+}
+
 //date may be a firestore timestamp or a date object.
 export const prettyTime = (date) => {
 	if (!date) return "";
