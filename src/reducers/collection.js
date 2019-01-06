@@ -4,7 +4,8 @@ import {
 } from '../actions/collection.js';
 
 import {
-  UPDATE_SECTIONS
+  UPDATE_SECTIONS,
+  UPDATE_CARDS,
 } from '../actions/data.js';
 
 import {
@@ -27,6 +28,7 @@ export const SET_NAMES = [DEFAULT_SET_NAME];
 export const INVERSE_FILTER_NAMES = {
   "unstarred": "starred",
   "unread": "read",
+  "no-slug": "has-slug",
 }
 
 const INITIAL_STATE = {
@@ -35,6 +37,7 @@ const INITIAL_STATE = {
   filters: {
     starred: {},
     read: {},
+    'has-slug': {},
     //None will match nothing. We use it for orphans.
     none: {},
   },
@@ -61,6 +64,11 @@ const app = (state = INITIAL_STATE, action) => {
         ...state,
         filters: {...state.filters, ...makeFilterFromSection(action.sections)}
       }
+    case UPDATE_CARDS:
+      return {
+        ...state,
+        filters: {...state.filters, ...makeFilterFromCards(action.cards, state.filters)}
+      }
     case UPDATE_STARS:
       return {
         ...state,
@@ -85,6 +93,27 @@ const makeFilterFromSection = (sections) => {
     result[key] = filter;
   }
   return result;
+}
+
+const makeFilterFromCards = (cards, previousFilters) => {
+  
+
+  let newCardsWithSlug = [];
+  let newCardsWithoutSlug = [];
+
+  for (let card of Object.values(cards)) {
+    if (card.slugs && card.slugs.length) {
+      newCardsWithSlug.push(card.id);
+    } else {
+      newCardsWithoutSlug.push(card.id);
+    }
+  }
+
+  return {
+    'has-slug': setUnion(setRemove(previousFilters['has-slug'], newCardsWithoutSlug), newCardsWithSlug),
+  }
+
+
 }
 
 export default app;
