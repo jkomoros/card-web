@@ -288,7 +288,7 @@ class CardView extends connect(store)(PageViewElement) {
 
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer .showing=${this._cardsDrawerPanelShowing} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' .editable=${this._userMayEdit} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .stars=${this._stars} .reads=${this._reads} .reorderPending=${this._drawerReorderPending}></card-drawer>
+        <card-drawer .showing=${this._cardsDrawerPanelShowing} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' .editable=${this._userMayReorder} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .stars=${this._stars} .reads=${this._reads} .reorderPending=${this._drawerReorderPending}></card-drawer>
         <div id='center'>
           <div id='canvas'>
             <div id='portrait-message'>
@@ -332,6 +332,7 @@ class CardView extends connect(store)(PageViewElement) {
       _pageExtra: {type: String},
       _requestedCard: {type:String},
       _userMayEdit: { type: Boolean },
+      _userMayReorder: {type: Boolean},
       _userMayStar: { type: Boolean },
       _userMayMarkRead: { type: Boolean },
       _autoMarkReadPending : { type: Boolean},
@@ -467,7 +468,8 @@ class CardView extends connect(store)(PageViewElement) {
     this._userMayStar  =  userMayStar(state);
     this._userMayMarkRead =  userMayMarkRead(state);
     this._autoMarkReadPending = state.user.autoMarkReadPending;
-    this._userMayEdit = userMayEdit(state) && selectActiveSectionId(state) != "";
+    this._userMayEdit = userMayEdit(state);
+    this._userMayReorder = userMayEdit(state) && selectActiveSectionId(state) != "";
     this._headerPanelOpen = state.app.headerPanelOpen;
     this._commentsPanelOpen = state.app.commentsPanelOpen;
     this._cardInfoPanelOpen = state.app.cardInfoPanelOpen;
