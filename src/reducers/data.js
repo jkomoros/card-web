@@ -3,7 +3,6 @@ import {
   UPDATE_SECTIONS,
   UPDATE_AUTHORS,
   SHOW_CARD,
-  SHOW_SECTION,
   MODIFY_CARD,
   MODIFY_CARD_SUCCESS,
   MODIFY_CARD_FAILURE,
@@ -48,16 +47,6 @@ const app = (state = INITIAL_STATE, action) => {
       return ensureActiveCard({
         ...state,
         activeCardId:idForActiveCard(state, action.card)
-      })
-    case SHOW_SECTION:
-      //Skip if we're already there
-      if (action.section == state.activeSectionId) return state;
-      return ensureActiveCard({
-        ...state,
-        //Clear out the card, ensureActiveCard will select one for us.
-        activeCardId: "",
-        activeCardIndex: -1,
-        activeSectionId: action.section
       })
     case MODIFY_CARD:
       return {

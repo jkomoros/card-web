@@ -2,7 +2,6 @@ export const UPDATE_CARDS = 'UPDATE_CARDS';
 export const UPDATE_SECTIONS = 'UPDATE_SECTIONS';
 export const UPDATE_AUTHORS= 'UPDATE_AUTHORS';
 export const SHOW_CARD = 'SHOW_CARD';
-export const SHOW_SECTION = 'SHOW_SECTION';
 export const MODIFY_CARD = 'MODIFY_CARD';
 export const MODIFY_CARD_SUCCESS = 'MODIFY_CARD_SUCCESS';
 export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
@@ -470,13 +469,6 @@ export const showCard = (cardId) => (dispatch) => {
     card: cardId
   })
   dispatch(scheduleAutoMarkRead());
-}
-
-export const showSection = (sectionId) => {
-  return {
-    type: SHOW_SECTION,
-    section: sectionId
-  }
 }
 
 export const showNewCard = () => (dispatch, getState) => {
