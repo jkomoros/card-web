@@ -40,7 +40,7 @@ import {
 
 import {
   selectActiveCard,
-  selectActiveSectionId
+  selectActiveCardSectionId
 } from '../selectors.js';
 
 import {
@@ -216,7 +216,7 @@ class CompendiumApp extends connect(store)(LitElement) {
           <nav class="toolbar-list">
             ${this._sections && Object.keys(this._sections).length > 0 ? 
               html`${repeat(Object.values(this._sections), (item) => item.id, (item, index) => html`
-              <a ?selected=${this._page === 'c' && item.id == this._activeSectionId} href='${urlForCard(getDefaultCardIdForSection(item))}?${FORCE_COLLECTION_URL_PARAM}'>${item.title}</a>
+              <a ?selected=${this._page === 'c' && item.id == this._activeCardSectionId} href='${urlForCard(getDefaultCardIdForSection(item))}?${FORCE_COLLECTION_URL_PARAM}'>${item.title}</a>
               `)}` :
               html`<a ?selected="${this._page === 'c'}" href="/c"><em>Loading...</em></a>`
             }
@@ -252,7 +252,7 @@ class CompendiumApp extends connect(store)(LitElement) {
       _devMode: { type: Boolean },
       _card: { type: Object },
       _sections : {type: Object},
-      _activeSectionId: {type:String},
+      _activeCardSectionId: {type:String},
       _keyboardNavigates: {type:Boolean}
     }
   }
@@ -333,7 +333,7 @@ class CompendiumApp extends connect(store)(LitElement) {
     this._editing = state.editor.editing;
     this._devMode = DEV_MODE;
     this._sections = state.data.sections;
-    this._activeSectionId = selectActiveSectionId(state);
+    this._activeCardSectionId = selectActiveCardSectionId(state);
     this._keyboardNavigates = keyboardNavigates(state);
   }
 }

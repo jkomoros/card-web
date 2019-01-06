@@ -50,6 +50,20 @@ export const getSection = (state, sectionId) => {
 	return state.data.sections[sectionId] || null;
 }
 
+export const selectActiveCard = createSelector(
+  selectCards,
+  selectActiveCardId,
+  (cards, activeCard) => cards[activeCard] || null
+);
+
+export const selectActiveCardSectionId = createSelector(
+	selectActiveCard,
+	(card) => card ? card.section : ''
+)
+
+//This means htat the active section is the only one showing. See also
+//selectActiveCardSelection, which just returns the section name of the
+//current collection.
 export const selectActiveSectionId = createSelector(
 	selectActiveSetName,
 	selectActiveFilterNames,
@@ -62,12 +76,6 @@ export const selectActiveSectionId = createSelector(
 		return sections[filterNames[0]] ? filterNames[0] : "";
 	}
 )
-
-export const selectActiveCard = createSelector(
-  selectCards,
-  selectActiveCardId,
-  (cards, activeCard) => cards[activeCard] || null
-);
 
 export const selectDefaultSet = createSelector(
 	selectSections,
