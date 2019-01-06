@@ -6,8 +6,9 @@ export const getRequestedCard = (state) => state.collection.requestedCard;
 export const getActiveCardId = (state) => state.collection.activeCardId;
 export const getActiveSectionId = (state) => state.collection.activeSectionId;
 export const getActiveCardIndex = (state) => state.collection.activeCardIndex;
-export const getSections = (state) => state.data.sections;
-export const getCards = (state) => state.data.cards;
+export const getActiveFilters = (state) => state.collection.activeFilters;
+export const getSections = (state) => state.data ? statee.data.sections : null;
+export const getCards = (state) => state.data ? state.data.cards : null;
 
 export const getCardById = (state, cardId) => {
   let cards = getCards(state);
@@ -15,9 +16,13 @@ export const getCardById = (state, cardId) => {
   return cards[cardId];
 }
 
-export const getIdForCard = (state, idOrSlug) => state.data.slugIndex[idOrSlug] || idOrSlug;
+export const getIdForCard = (state, idOrSlug) => {
+	if (!state.data) return idOrSlug;
+	if (!state.data.slugIndex) return idOrSlug;
+	return state.data.slugIndex[idOrSlug] || idOrSlug;
+}
 
-export const getCard = (state, cardIdOrSlug)  => getCardById(state, getIdForCard(cardIdOrSlug));
+export const getCard = (state, cardIdOrSlug)  => getCardById(state, getIdForCard(state, cardIdOrSlug));
 
 export const getActiveCard = createSelector(
   getCards,

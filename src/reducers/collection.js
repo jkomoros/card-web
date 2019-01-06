@@ -13,6 +13,7 @@ export const SET_NAMES = [DEFAULT_SET_NAME];
 
 const INITIAL_STATE = {
   activeSetName: DEFAULT_SET_NAME,
+  activeFilters: [],
   filters: {},
   requestedCard: "",
   activeSectionId: "",
@@ -33,7 +34,8 @@ const app = (state = INITIAL_STATE, action) => {
     case UPDATE_COLLECTION:
       return {
         ...state,
-        activeSetName: action.setName
+        activeSetName: action.setName,
+        activeFilters: [...action.filters]
       }
     case UPDATE_SECTIONS:
       return {

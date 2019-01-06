@@ -23,10 +23,12 @@ import {
   getActiveCardIndex,
   getActiveSectionId,
   getRequestedCard,
+  getActiveFilters,
 } from '../selectors.js';
 
 
-export const updateCardSelector = (cardSelector) => (dispatch) => {
+export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
+
     let parts = cardSelector.split("/");
 
     let firstPart = parts[0].toLowerCase();
@@ -41,18 +43,54 @@ export const updateCardSelector = (cardSelector) => (dispatch) => {
       }
     }
 
-    let cardIdOrSlug = parts[0];
+    let filters = [];
 
-    dispatch(updateCollection(setName));
+    //Get last part
+    let cardIdOrSlug = parts.pop();
+
+    //TODO: detect if it's one of the weird cardIdOrSlugs (e.g. '.', '.default');
+
+    if (parts.length) {
+      //If there are still parts, interpret them as filters.
+
+      //TODO: support interpreting them as sorts.
+      filters = parts;
+    }
+
+    if (filters.length == 0) {
+      const state = getState();
+      let card = getCard(state, cardIdOrSlug);
+      if (card && card.section) {
+        filters = [card.section]
+      }
+    }
+
+    dispatch(updateCollection(setName, filters));
     dispatch(showCard(cardIdOrSlug));
 }
 
-export const updateCollection = (setName) => (dispatch, getState) =>{
+export const updateCollection = (setName, filters) => (dispatch, getState) =>{
   const state = getState();
-  if (setName == getSetName(state)) return;
+  let sameSetName = false;
+  if (setName == getSetName(state)) sameSetName = true;
+
+  let sameActiveFilters = false;
+  let activeFilters = getActiveFilters(state);
+  if (filters.length == activeFilters.length) {
+    sameActiveFilters = true;
+    for (let i = 0; i < filters.length; i++) {
+      if (filters[i] != activeFilters[i]) {
+        sameActiveFilters = false;
+        break;
+      }
+    }
+  }
+
+  if (sameSetName && sameActiveFilters) return;
   dispatch({
     type: UPDATE_COLLECTION,
     setName,
+    filters,
   })
 }
 
