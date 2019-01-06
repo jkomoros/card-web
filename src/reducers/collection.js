@@ -29,6 +29,7 @@ export const INVERSE_FILTER_NAMES = {
   "unstarred": "starred",
   "unread": "read",
   "no-slug": "has-slug",
+  "no-comments": "has-comments",
 }
 
 const INITIAL_STATE = {
@@ -38,6 +39,7 @@ const INITIAL_STATE = {
     starred: {},
     read: {},
     'has-slug': {},
+    'has-comments': {},
     //None will match nothing. We use it for orphans.
     none: {},
   },
@@ -101,16 +103,25 @@ const makeFilterFromCards = (cards, previousFilters) => {
   let newCardsWithSlug = [];
   let newCardsWithoutSlug = [];
 
+  let newCardsWithComments = [];
+  let newCardsWithoutComments = [];
+
   for (let card of Object.values(cards)) {
     if (card.slugs && card.slugs.length) {
       newCardsWithSlug.push(card.id);
     } else {
       newCardsWithoutSlug.push(card.id);
     }
+    if (card.thread_count) {
+      newCardsWithComments.push(card.id);
+    } else {
+      newCardsWithoutComments.push(card.id);
+    }
   }
 
   return {
     'has-slug': setUnion(setRemove(previousFilters['has-slug'], newCardsWithoutSlug), newCardsWithSlug),
+    'has-comments': setUnion(setRemove(previousFilters['has-comments'],  newCardsWithoutComments), newCardsWithComments),
   }
 
 
