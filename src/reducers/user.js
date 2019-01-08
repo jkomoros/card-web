@@ -77,26 +77,6 @@ const app = (state = INITIAL_STATE, action) => {
   }
 }
 
-export const firebaseUser = state => {
-  if (!state.user) return null;
-  if (!state.user.user) return null;
-  return state.user.user;
-}
-
-export const userId = state => {
-  let user = firebaseUser(state);
-  if (!user) return "";
-  return user.uid;
-}
-
-export const cardHasStar = (state, cardId) => {
-  return state.user.stars[cardId] || false;
-}
-
-export const cardIsRead = (state, cardId) => {
-  return state.user.reads[cardId] || false
-}
-
 export const uidMayResolveThread = (uid, thread) => {
   if (uidIsAdmin(uid)) return true;
   if (!uidMayComment(uid)) return false;
@@ -106,9 +86,9 @@ export const uidMayResolveThread = (uid, thread) => {
 
 export const uidIsAdmin = uid => uidMayEdit(uid);
 
-export const uidLoggedIn = uid => uid != "";
+export const uidSignedIn = uid => uid != "";
 
-export const uidMayComment = uid => uidLoggedIn(uid);
+export const uidMayComment = uid => uidSignedIn(uid);
 
 export const uidMayEditMessage = (uid, message) => {
   if (uidIsAdmin(uid)) return true;
@@ -133,15 +113,5 @@ export const uidMayEdit = uid => {
 
   return false;
 }
-
-export const userMayResolveThread = (state, thread) => uidMayResolveThread(userId(state), thread);
-export const userMayEditMessage = (state, message) => uidMayEditMessage(userId(state), message);
-export const userMayComment = state => uidMayComment(userId(state));
-export const userIsAdmin = state => uidMayEdit(userId(state));
-export const userMayEdit = state => uidMayEdit(userId(state));
-export const userMayStar = state => uidMayComment(userId(state));
-export const userMayMarkRead = state => uidMayComment(userId(state));
-export const loggedIn = state => uidLoggedIn(userId(state));
-
 
 export default app;

@@ -9,11 +9,8 @@ export const EDITING_SUBSTANTIVE_UPDATED = 'EDITING_SUBSTANTIVE_UPDATED';
 export const EDITING_FULL_BLEED_UPDATED = 'EDITING_FULL_BLEED_UPDATED';
 
 import {
-  userMayEdit
-} from '../reducers/user.js';
-
-import {
-  selectActiveCard
+  selectActiveCard,
+  selectUserMayEdit
 } from '../selectors.js';
 
 import {
@@ -51,7 +48,7 @@ export const restoreSelectionRange = () => {
 
 export const editingStart = () => (dispatch, getState) => {
   const state = getState();
-  if (!userMayEdit(state)) {
+  if (!selectUserMayEdit(state)) {
     console.warn("This user is not allowed to edit!")
     return;
   }
@@ -65,7 +62,7 @@ export const editingStart = () => (dispatch, getState) => {
 
 export const editingCommit = () => (dispatch, getState) => {
   const state = getState();
-  if (!userMayEdit(state)) {
+  if (!selectUserMayEdit(state)) {
     console.warn("This user isn't allowed to edit!");
     return;
   }

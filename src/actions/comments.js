@@ -14,18 +14,15 @@ import {
 
 import {
   selectActiveCard,
+  selectUserMayComment,
+  getUserMayResolveThread,
+  getUserMayEditMessage,
+  selectFirebaseUser,
 } from '../selectors.js';
 
 import {
   firebase
 } from './database.js';
-
-import {
-  userMayComment,
-  userMayResolveThread,
-  userMayEditMessage,
-  firebaseUser
-} from '../reducers/user.js';
 
 import {
   randomString
@@ -47,7 +44,7 @@ export const resolveThread = (thread) => (dispatch, getState) => {
     return;
   }
 
-  if (!userMayResolveThread(state, thread)) {
+  if (!getUserMayResolveThread(state, thread)) {
     console.log("The user isn't allowd to resolve that thread");
     return;
   }
@@ -73,7 +70,7 @@ export const resolveThread = (thread) => (dispatch, getState) => {
 
 export const deleteMessage = (message) => (dispatch, getState) => {
   const state = getState();
-  if (!userMayEditMessage(state, message)) {
+  if (!getUserMayEditMessage(state, message)) {
     console.log("User isn't allowed to edit that message!");
     return;
   }
@@ -98,7 +95,7 @@ export const editMessage = (message, newMessage) => (dispatch, getState) => {
   
   const state = getState();
 
-  if (!userMayEditMessage(state, message)) {
+  if (!getUserMayEditMessage(state, message)) {
     console.log("User isn't allowed to edit that message!");
     return;
   }
@@ -127,7 +124,7 @@ export const addMessage = (thread, message) => (dispatch, getState) => {
     console.warn("No active card!");
     return;
   }
-  if (!userMayComment(state)) {
+  if (!selectUserMayComment(state)) {
     console.warn("You must be signed in to comment!");
     return;
   }
@@ -142,7 +139,7 @@ export const addMessage = (thread, message) => (dispatch, getState) => {
     return;
   }
   
-  let user = firebaseUser(state);
+  let user = selectFirebaseUser(state);
 
   if (!user) {
     console.warn("No uid");
@@ -182,7 +179,7 @@ export const createThread = (message) => (dispatch, getState) => {
     console.warn("No active card!");
     return;
   }
-  if (!userMayComment(state)) {
+  if (!selectUserMayComment(state)) {
     console.warn("You must be signed in to comment!");
     return;
   }
@@ -192,7 +189,7 @@ export const createThread = (message) => (dispatch, getState) => {
     return;
   }
   
-  let user = firebaseUser(state);
+  let user = selectFirebaseUser(state);
 
   if (!user) {
     console.warn("No uid");

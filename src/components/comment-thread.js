@@ -59,13 +59,13 @@ class CommentThread extends LitElement {
           <div class='flex'>
             <button class='small' @click=${this._handleZippyClicked}>${this._expanded ? arrowDownIcon : arrowRightIcon}</button>
           </div>
-          <button class='small' title='${uidMayResolveThread(this.userId, this.thread) ? 'Resolve comment thread' : 'You may only resolve comment threads you started'}' ?disabled='${!uidMayResolveThread(this.userId, this.thread)}' @click=${this._handleResolveClicked}>${checkCircleOutlineIcon}</button>
+          <button class='small' title='${uidMayResolveThread(this.uid, this.thread) ? 'Resolve comment thread' : 'You may only resolve comment threads you started'}' ?disabled='${!uidMayResolveThread(this.uid, this.thread)}' @click=${this._handleResolveClicked}>${checkCircleOutlineIcon}</button>
         </div>
         <div class='content ${this._expanded ? 'expanded' :''}'>
           ${repeat(this.thread.messages, (message) => message.id, (item, index) => html`
-          <comment-message .message=${item} .userId=${this.userId}></comment-message>`)}
+          <comment-message .message=${item} .uid=${this.uid}></comment-message>`)}
           <div class='buttons'>
-            <button class='small ${this.loggedIn ? '' : 'need-signin'}' title='${this.userMayComment ? 'Reply' : 'Sign in to reply'}' @click=${this._handleAddMessage}>${replyIcon}</button>
+            <button class='small ${this.signedIn ? '' : 'need-signin'}' title='${this.userMayComment ? 'Reply' : 'Sign in to reply'}' @click=${this._handleAddMessage}>${replyIcon}</button>
           </div>
         </div>
       </div>
@@ -76,8 +76,8 @@ class CommentThread extends LitElement {
     return {
       thread: { type: Object },
       userMayComment: {type:Boolean},
-      loggedIn: {type: Boolean},
-      userId: { type: String },
+      signedIn: {type: Boolean},
+      uid: { type: String },
       _expanded: {type: Boolean}
     }
   }
@@ -95,7 +95,7 @@ class CommentThread extends LitElement {
   }
 
   _handleAddMessage(e) {
-    if (!this.loggedIn) {
+    if (!this.signedIn) {
       this.dispatchEvent(new CustomEvent('show-need-signin'));
       return;
     }

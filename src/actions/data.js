@@ -40,13 +40,10 @@ import {
 } from './collection.js';
 
 import {
-  firebaseUser,
-  userIsAdmin
-} from '../reducers/user.js';
-
-import {
   selectActiveSectionId,
-  selectActiveCardIndex
+  selectActiveCardIndex,
+  selectFirebaseUser,
+  selectUserIsAdmin,
 } from '../selectors.js';
 
 const LEGAL_UPDATE_FIELDS = new Map([
@@ -72,14 +69,14 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
     return;
   }
 
-  const user = firebaseUser(state);
+  const user = selectFirebaseUser(state);
 
   if (!user) {
     console.log("No user");
     return;
   }
 
-  if (!userIsAdmin(state)) {
+  if (!selectUserIsAdmin(state)) {
     console.log("User isn't admin");
     return;
   }
@@ -349,14 +346,14 @@ export const createCard = (section, id) => async (dispatch, getState) => {
 
   const state = getState();
 
-  let user = firebaseUser(state);
+  let user = selectFirebaseUser(state);
 
   if (!user) {
     console.log("No user");
     return;
   }
 
-  if (!userIsAdmin(state)) {
+  if (!selectUserIsAdmin(state)) {
     console.log("User isn't admin!");
     return;
   }

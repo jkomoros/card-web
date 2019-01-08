@@ -21,18 +21,15 @@ import {
   selectRequestedCard,
   selectExpandedActiveCollection,
   selectDataIsFullyLoaded,
+  selectUserSignedIn,
+  selectUserMayEdit,
+  selectUserMayStar,
+  selectUserMayMarkRead,
+  getCardHasStar,
+  getCardIsRead,
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js'
-
-import {
-  userMayEdit,
-  cardHasStar,
-  cardIsRead,
-  userMayStar,
-  userMayMarkRead,
-  loggedIn,
-} from '../reducers/user.js';
 
 import {
   editingStart
@@ -318,8 +315,8 @@ class CardView extends connect(store)(PageViewElement) {
                 <button class='round' @click=${this._handleFindClicked}>${searchIcon}</button>
               </div>
               <div class='modify'>
-                <button class='round ${this._cardHasStar ? 'selected' : ''} ${this._loggedIn ? '' : 'need-signin'}' @click='${this._handleStarClicked}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
-                <button class='round ${this._cardIsRead ? 'selected' : ''} ${this._loggedIn ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
+                <button class='round ${this._cardHasStar ? 'selected' : ''} ${this._signedIn ? '' : 'need-signin'}' @click='${this._handleStarClicked}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
+                <button class='round ${this._cardIsRead ? 'selected' : ''} ${this._signedIn ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
                 <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
               </div>
               <div class='next-prev'>
@@ -340,7 +337,7 @@ class CardView extends connect(store)(PageViewElement) {
     return {
       _card: { type: Object },
       _editing: {type: Boolean },
-      _loggedIn: { type:Boolean },
+      _signedIn: { type:Boolean },
       _pageExtra: {type: String},
       _requestedCard: {type:String},
       _userMayEdit: { type: Boolean },
@@ -436,7 +433,7 @@ class CardView extends connect(store)(PageViewElement) {
   }
 
   _handleStarClicked(e) {
-    if (!this._loggedIn) {
+    if (!this._signedIn) {
       store.dispatch(showNeedSignin());
       return;
     }
@@ -449,7 +446,7 @@ class CardView extends connect(store)(PageViewElement) {
   }
 
   _handleReadClicked(e) {
-    if (!this._loggedIn) {
+    if (!this._signedIn) {
       store.dispatch(showNeedSignin());
       return;
     }
@@ -476,12 +473,12 @@ class CardView extends connect(store)(PageViewElement) {
     this._pageExtra = state.app.pageExtra;
     this._requestedCard = selectRequestedCard(state);
     this._editing = state.editor.editing; 
-    this._loggedIn = loggedIn(state);
-    this._userMayStar  =  userMayStar(state);
-    this._userMayMarkRead =  userMayMarkRead(state);
+    this._signedIn = selectUserSignedIn(state);
+    this._userMayStar  =  selectUserMayStar(state);
+    this._userMayMarkRead =  selectUserMayMarkRead(state);
     this._autoMarkReadPending = state.user.autoMarkReadPending;
-    this._userMayEdit = userMayEdit(state);
-    this._userMayReorder = userMayEdit(state) && selectActiveSectionId(state) != "";
+    this._userMayEdit = selectUserMayEdit(state);
+    this._userMayReorder = selectUserMayEdit(state) && selectActiveSectionId(state) != "";
     this._headerPanelOpen = state.app.headerPanelOpen;
     this._commentsPanelOpen = state.app.commentsPanelOpen;
     this._cardInfoPanelOpen = state.app.cardInfoPanelOpen;
@@ -491,8 +488,8 @@ class CardView extends connect(store)(PageViewElement) {
     this._cardsDrawerPanelShowing = cardsDrawerPanelShowing(state);
     this._presentationMode = state.app.presentationMode;
     this._mobileMode = state.app.mobileMode;
-    this._cardHasStar = cardHasStar(state, this._card ? this._card.id : "");
-    this._cardIsRead = cardIsRead(state, this._card ? this._card.id : "");
+    this._cardHasStar = getCardHasStar(state, this._card ? this._card.id : "");
+    this._cardIsRead = getCardIsRead(state, this._card ? this._card.id : "");
     this._collection = selectExpandedActiveCollection(state);
     this._stars = state.user.stars;
     this._reads = state.user.reads;

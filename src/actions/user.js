@@ -18,11 +18,6 @@ import {
 } from './database.js';
 
 import {
-  userId,
-  cardIsRead,
-} from '../reducers/user.js';
-
-import {
   db,
   CARDS_COLLECTION,
   STARS_COLLECTION,
@@ -38,7 +33,9 @@ import {
 } from './collection.js';
 
 import {
-  selectActiveCard
+  selectActiveCard,
+  selectUid,
+  getCardIsRead,
 } from '../selectors.js';
 
 export const showNeedSignin = () => (dispatch) => {
@@ -123,7 +120,7 @@ export const addStar = (cardToStar) => (dispatch, getState) => {
   }
 
   const state = getState();
-  let uid = userId(state);
+  let uid = selectUid(state);
 
   if (!uid) {
     console.log("Not logged in");
@@ -151,7 +148,7 @@ export const removeStar = (cardToStar) => (dispatch, getState) => {
   }
 
   const state = getState();
-  let uid = userId(state);
+  let uid = selectUid(state);
 
   if (!uid) {
     console.log("Not logged in");
@@ -194,12 +191,12 @@ export const scheduleAutoMarkRead = () => (dispatch, getState) => {
   cancelPendingAutoMarkRead();
 
   const state = getState();
-  const uid = userId(state);
+  const uid = selectUid(state);
   if (!uid) return;
 
   const activeCard = selectActiveCard(state);
   if (!activeCard) return;
-  if (cardIsRead(state, activeCard.id)) return;
+  if (getCardIsRead(state, activeCard.id)) return;
 
   autoMarkReadTimeoutId = setTimeout(() => dispatch(markActiveCardReadIfLoggedIn()), AUTO_MARK_READ_DELAY);
 
@@ -218,7 +215,7 @@ export const markActiveCardReadIfLoggedIn = () => (dispatch, getState) => {
   //It's the responsibility of the thing that scheduled this to ensure that it
   //only fires if the card we wnat to mark read is still active.
   const state = getState();
-  const uid = userId(state);
+  const uid = selectUid(state);
   if (!uid) return;
   const activeCard = selectActiveCard(state);
   if (!activeCard) return;
@@ -234,14 +231,14 @@ export const markRead = (cardToMarkRead, existingReadDoesNotError) => (dispatch,
   }
 
   const state = getState();
-  let uid = userId(state);
+  let uid = selectUid(state);
 
   if (!uid) {
     console.log("Not logged in");
     return;
   }
 
-  if (cardIsRead(state, cardToMarkRead.id)) {
+  if (getCardIsRead(state, cardToMarkRead.id)) {
     if (!existingReadDoesNotError) {
       console.log("The card is already read!");
       return;
@@ -262,14 +259,14 @@ export const markUnread = (cardToMarkUnread) => (dispatch, getState) => {
   }
 
   const state = getState();
-  let uid = userId(state);
+  let uid = selectUid(state);
 
   if (!uid) {
     console.log("Not logged in");
     return;
   }
 
-  if (!cardIsRead(state, cardToMarkUnread.id)) {
+  if (!getCardIsRead(state, cardToMarkUnread.id)) {
     console.log("Card isn't read!");
     return;
   }

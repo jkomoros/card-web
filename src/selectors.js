@@ -20,6 +20,14 @@ import {
 	INVERSE_FILTER_NAMES
 } from './reducers/collection.js';
 
+import {
+	uidMayComment,
+	uidMayEdit,
+	uidSignedIn,
+	uidMayResolveThread,
+	uidMayEditMessage
+} from './reducers/user.js';
+
 export const selectPage = (state) => state.app.page;
 export const selectPageExtra = (state) => state.app.pageExtra;
 
@@ -30,6 +38,61 @@ export const selectActiveFilterNames = (state) => state.collection.activeFilterN
 export const selectFilters = (state) => state.collection.filters;
 export const selectSections = (state) => state.data ? state.data.sections : null;
 export const selectCards = (state) => state.data ? state.data.cards : null;
+
+
+export const selectFirebaseUser = state => {
+  if (!state.user) return null;
+  if (!state.user.user) return null;
+  return state.user.user;
+}
+
+export const selectUid = createSelector(
+	selectFirebaseUser,
+	(firebaseUser) => {
+		return firebaseUser ? firebaseUser.uid : ""
+	}
+)
+
+export const selectUserIsAdmin = createSelector(
+	selectUid,
+	(uid) => uidMayEdit(uid)
+)
+
+export const selectUserMayEdit = createSelector(
+	selectUid,
+	(uid) => uidMayEdit(uid)
+)
+
+export const selectUserMayStar = createSelector(
+	selectUid,
+	(uid) => uidMayComment(uid)
+)
+
+export const selectUserMayComment = createSelector(
+	selectUid,
+	(uid) => uidMayComment(uid)
+)
+
+export const selectUserMayMarkRead = createSelector(
+	selectUid,
+	(uid) => uidMayComment(uid)
+)
+
+export const selectUserSignedIn = createSelector(
+	selectUid, 
+	(uid) => uidSignedIn(uid)
+)
+
+export const getCardHasStar = (state, cardId) => {
+  return state.user.stars[cardId] || false;
+}
+
+export const getCardIsRead = (state, cardId) => {
+  return state.user.reads[cardId] || false
+}
+
+export const getUserMayResolveThread = (state, thread) => uidMayResolveThread(selectUid(state), thread);
+export const getUserMayEditMessage = (state, message) => uidMayEditMessage(selectUid(state), message);
 
 export const getCardById = (state, cardId) => {
   let cards = selectCards(state);
