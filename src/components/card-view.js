@@ -91,7 +91,8 @@ import {
   starIcon,
   starBorderIcon,
   visibilityIcon,
-  searchIcon
+  searchIcon,
+  screenRotationIcon
 } from './my-icons.js';
 
 import {
@@ -268,6 +269,12 @@ class CardView extends connect(store)(PageViewElement) {
           margin:5em;
         }
 
+        #portrait-message svg {
+          fill: var(--app-light-text-color);
+          height:36px;
+          width: 36px;
+        }
+
         @media (orientation:portrait) {
 
           .mobile #portrait-message {
@@ -275,9 +282,10 @@ class CardView extends connect(store)(PageViewElement) {
             height:100%;
             width:100%;
             background-color:#000000CC;
-            color: white;
-            font-size:36px;
+            color: var(--app-light-text-color);
+            font-size:24px;
             display:flex;
+            flex-direction:column;
             justify-content:center;
             align-items: center;
             /* needs to be at least one above the z-index for actions */
@@ -293,7 +301,10 @@ class CardView extends connect(store)(PageViewElement) {
         <div id='center'>
           <div id='canvas'>
             <div id='portrait-message'>
-              <div>Rotate your phone to landscape mode</div>
+              <div>
+                <div>${screenRotationIcon}</div>
+                <div>Rotate your device to landscape orientation</div>
+              </div>
             </div>
             <card-renderer .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .card=${this._displayCard} .fromContentEditable=${this._fromContentEditable} @body-updated=${this._handleBodyUpdated}></card-renderer>
             <div class='actions'>
