@@ -64,12 +64,28 @@ export const signOutSuccess = () => (dispatch) =>  {
   disconnectLiveReads();
 }
 
+const HAS_PREVIOUS_SIGN_IN_KEY = 'hasPreviousSignIn'
+
+const flagHasPreviousSignIn = () => {
+  //Safari in private mode will throw if you try to set
+  try {
+    localStorage.setItem(HAS_PREVIOUS_SIGN_IN_KEY, "1");
+  } catch(err) {
+    console.warn("Couldn't set has previous sign in: " + err);
+  }
+}
+
+const hasPreviousSignIn = () => {
+  return localStorage.getItem(HAS_PREVIOUS_SIGN_IN_KEY) ? true : false;
+}
+
 export const signInSuccess = (firebaseUser, store) => (dispatch) => {
   let info = _userInfo(firebaseUser)
    dispatch({
     type: SIGNIN_SUCCESS,
     user: info,
   });
+  flagHasPreviousSignIn();
   connectLiveStars(store,info.uid);
   connectLiveReads(store,info.uid);
 }
@@ -86,6 +102,7 @@ const _userInfo = (info) => {
 
 export const signOut = () => (dispatch) => {
   dispatch({type:SIGNOUT_USER})
+  flagHasPreviousSignIn();
   firebase.auth().signOut();
 }
 
