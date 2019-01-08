@@ -280,7 +280,8 @@ class CardView extends connect(store)(PageViewElement) {
             display:flex;
             justify-content:center;
             align-items: center;
-            z-index:1;
+            /* needs to be at least one above the z-index for actions */
+            z-index:2;
             text-align:center;
           }
 
