@@ -28,7 +28,7 @@ import {
 } from './editor.js';
 
 import {
-  randomString
+  newID
 } from '../util.js';
 
 import {
@@ -336,10 +336,12 @@ export const createCard = (section, id) => async (dispatch, getState) => {
   //newCard creates and inserts a new card in the givne section with the given id.
 
   if (!section) section = 'stubs';
-  if (!id) id = randomString(6);
-
-  id = normalizeSlug(id);
-
+  if (id) {
+    id = normalizeSlug(id);
+  } else {
+    id = newID();
+  }
+  
   if (!id) {
     console.log("Id provided was not legal");
     return;

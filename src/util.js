@@ -1,5 +1,8 @@
 
-const randomCharSet = "abcdef0123456789"
+
+const randomCharSetNumbers = "0123456789"
+const randomCharSetLetters = "abcdef"
+const randomCharSet = randomCharSetNumbers + randomCharSetLetters
 
 export const randomString = (length, charSet) => {
   if (!charSet) {
@@ -7,9 +10,13 @@ export const randomString = (length, charSet) => {
   }
   let text = "";
   for (let i = 0; i < length; i++) {
-    text += randomCharSet.charAt(Math.floor(Math.random() * randomCharSet.length));
+    text += charSet.charAt(Math.floor(Math.random() * charSet.length));
   }
   return text;
+}
+
+export const newID = () => {
+	return "c_" + randomString(3, randomCharSetNumbers) + "_" + randomString(3, randomCharSetLetters) + randomString(3, randomCharSetNumbers);
 }
 
 export const arrayRemove = (arr, items) => {
