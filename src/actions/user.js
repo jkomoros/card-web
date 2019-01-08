@@ -77,6 +77,7 @@ export const signInSuccess = (firebaseUser, store) => (dispatch) => {
 const _userInfo = (info) => {
   return {
     uid: info.uid,
+    isAnonymous: info.isAnonymous,
     photoURL: info.photoURL,
     displayName: info.displayName,
     email: info.email
