@@ -32,7 +32,6 @@ import {
 import {
   selectActiveCard,
   selectFirebaseUser,
-  selectUserSignedIn,
   selectUserMayComment,
 } from '../selectors.js';
 
@@ -90,12 +89,12 @@ class CommentsPanel extends connect(store)(PageViewElement) {
         <div class='comments'>
         ${this._composedThreads.length
           ? html`${this._composedThreads.map( (item) => html`
-                <comment-thread .user=${this._user} .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @delete-message=${this._handleDeleteMessage} @resolve-thread=${this._handleResolveThread} @show-need-signin=${this._handleShowNeedSignin} .userMayComment=${this._userMayComment} .signedIn=${this._signedIn}></comment-thread>`)}`
+                <comment-thread .user=${this._user} .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @delete-message=${this._handleDeleteMessage} @resolve-thread=${this._handleResolveThread} @show-need-signin=${this._handleShowNeedSignin} .userMayComment=${this._userMayComment}></comment-thread>`)}`
           : html`<p><em>No comments yet.</em></p><p><em>You should leave one!</em></p>`
         }
         <div class='spacer'></spacer>
         </div>
-        <button class='round ${this._signedIn ? '' : 'need-signin'}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${addCommentIcon}</button>
+        <button class='round ${this._userMayComment ? '' : 'need-signin'}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${addCommentIcon}</button>
       </div>
     `;
   }
@@ -107,7 +106,6 @@ class CommentsPanel extends connect(store)(PageViewElement) {
       _composedThreads: {type: Array},
       _userMayComment: { type: Boolean},
       _user: {type: Object},
-      _signedIn: {type:Boolean}
     }
   }
 
@@ -116,11 +114,10 @@ class CommentsPanel extends connect(store)(PageViewElement) {
   }
 
   _handleCreateThreadClicked(e) {
-    if (!this._signedIn) {
+    if (!this._userMayComment) {
       store.dispatch(showNeedSignin());
       return;
     }
-    if (!this._userMayComment) return;
     store.dispatch(createThread(prompt('Message for new thread: (markdown formatting is supported)')));
   }
 
@@ -146,7 +143,6 @@ class CommentsPanel extends connect(store)(PageViewElement) {
     this._composedThreads = composedThreadsSelector(state);
     this._userMayComment = selectUserMayComment(state);
     this._user = selectFirebaseUser(state);
-    this._signedIn = selectUserSignedIn(state);
   }
 
   updated(changedProps) {

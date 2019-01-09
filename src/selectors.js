@@ -111,6 +111,11 @@ export const selectUserMayMarkRead = createSelector(
 	(user) => userObjectExists(user)
 )
 
+export const selectUserIsAnonymous = createSelector(
+	selectFirebaseUser,
+	(user) => userObjectExists(user) && user.isAnonymous
+)
+
 //UserSignedIn means that there is a user object, and that user is not
 //anonymous. Note that selectors like selectUserMayMarkRead and
 //selectUserMayComment may return true even when this returns false if the

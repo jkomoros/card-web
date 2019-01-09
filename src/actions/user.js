@@ -38,7 +38,40 @@ import {
   selectFirebaseUser,
   selectUid,
   getCardIsRead,
+  selectUserIsAnonymous
 } from '../selectors.js';
+
+
+let prevAnonymousMergeUser = null;
+
+firebase.auth().getRedirectResult().catch( async err => {
+
+  if (err.code != 'auth/credential-already-in-use') {
+    alert("Couldn't sign in (" + err.code + "): " + err.message);
+    return;
+  }
+
+  let doSignin = confirm("You have already signed in with that account on another device. If you proceed, you will be logged in and any cards you've starred or marked read on this device will be lost. If you do not proceed, you will not be logged in.");
+
+  if (!doSignin) return;
+
+  //OK, they do want to proceed.
+
+  //We'll keep track of who the previous uid was, so maybe in the future we
+  //can merge the accounts. the saveUserInfo after a successful signin will
+  //notice this global is set and save it to the db.
+  prevAnonymousMergeUser = firebase.auth().currentUser;
+
+  let credential = err.credential;
+
+  if (!credential) {
+    alert("No credential provided, can't proceed");
+    return;
+  }
+
+  firebase.auth().signInAndRetrieveDataWithCredential(credential);
+
+})
 
 export const saveUserInfo = () => (dispatch, getState) => {
 
@@ -50,16 +83,27 @@ export const saveUserInfo = () => (dispatch, getState) => {
 
   let batch = db.batch();
   ensureUserInfo(batch, user);
-  batch.commit();
+  //If we had a merge user, null it out on successful save, so we don't keep saving it.
+  batch.commit().then(() => prevAnonymousMergeUser = null);
 
 }
 
 export const ensureUserInfo = (batchOrTransaction, user) => {
   if (!user) return;
-  batchOrTransaction.set(db.collection(USERS_COLLECTION).doc(user.uid), {
+
+  let data = {
     lastSeen: new Date(),
     isAnonymous: user.isAnonymous,
-  }, {merge: true})
+  }
+
+  //If this is set then we just signed in after a failed merge, so we want to
+  //keep record that we failed.
+  if (prevAnonymousMergeUser) {
+    data.previousUids = firebase.firestore.FieldValue.arrayUnion(prevAnonymousMergeUser.uid);
+    //This will be nulled out in saveUserInfo on successful commit.
+  }
+
+  batchOrTransaction.set(db.collection(USERS_COLLECTION).doc(user.uid), data, {merge: true})
 }
 
 export const showNeedSignin = () => (dispatch) => {
@@ -68,10 +112,25 @@ export const showNeedSignin = () => (dispatch) => {
   dispatch(signIn());
 }
 
-export const signIn = () => (dispatch) => {
+export const signIn = () => (dispatch, getState) => {
+
+  const state = getState();
+
+  let isAnonymous = selectUserIsAnonymous(state);
+
   dispatch({type:SIGNIN_USER});
 
   let provider = new firebase.auth.GoogleAuthProvider();
+
+  if (isAnonymous) {
+    let user = firebase.auth().currentUser;
+    if (!user) {
+      console.warn("Unexpectedly didn't have user");
+      return;
+    }
+    user.linkWithRedirect(provider);
+    return;
+  }
 
   firebase.auth().signInWithRedirect(provider).catch(err => {
     dispatch({type:SIGNIN_FAILURE, error: err})
@@ -80,6 +139,19 @@ export const signIn = () => (dispatch) => {
 }
 
 export const signOutSuccess = () => (dispatch) =>  {
+
+  //Note that this is actually called anytime onAuthStateChange notices we're not signed
+  //in, which can both be a manual sign out, as well as a page load with no user.
+
+
+  //If the user hasn't previously signed in on this device, then this might be
+  //a first page load. Try to do an anonymous account.
+  if (!hasPreviousSignIn()) {
+    firebase.auth().signInAnonymously();
+    return;
+  }
+
+
   dispatch({type: SIGNOUT_SUCCESS});
   disconnectLiveStars();
   disconnectLiveReads();
@@ -100,16 +172,58 @@ const hasPreviousSignIn = () => {
   return localStorage.getItem(HAS_PREVIOUS_SIGN_IN_KEY) ? true : false;
 }
 
-export const signInSuccess = (firebaseUser, store) => (dispatch) => {
+const ensureRichestDataForUser = (firebaseUser) => (dispatch) => {
+  //Whatever the first account was will be the default photoUrl, displayName,
+  //etc. So if your first account was an anonymous one (no photoUrl or
+  //displayName) then even when you sign in with e.g. gmail we'll still have
+  //your old photoURL. So here we update that, which really only needs to run
+  //that once.
+
+  if (firebaseUser.isAnonymous) return;
+
+  if (firebaseUser.photoURL && firebaseUser.displayName && firebaseUser.email) return;
+
+  let bestPhotoURL = null;
+  let bestDisplayName = null;
+  let bestEmail = null;
+
+  firebaseUser.providerData.forEach(data => {
+    if (!bestPhotoURL && data.photoURL) bestPhotoURL = data.photoURL;
+    if (!bestDisplayName && data.displayName) bestDisplayName = data.displayName;
+    if (!bestEmail && data.email) bestEmail = data.email;
+  })
+
+  //Even after updating the user we need to tell the UI it's updated.
+
+  firebaseUser.updateProfile({
+    photoURL: bestPhotoURL,
+    displayName: bestDisplayName,
+    email: bestEmail,
+  }).then(user => dispatch(updateUserInfo(firebaseUser))).catch(err => console.warn("Couldn't update profile: ", err))
+
+}
+
+const updateUserInfo = (firebaseUser) => (dispatch) => {
   let info = _userInfo(firebaseUser)
    dispatch({
     type: SIGNIN_SUCCESS,
     user: info,
   });
+}
+
+export const signInSuccess = (firebaseUser, store) => (dispatch) => {
+
+  //Note that even when this is done, selectUserSignedIn might still return
+  //false, if the user is signed in anonymously.
+
+  dispatch(ensureRichestDataForUser(firebaseUser));
+
+  dispatch(updateUserInfo(firebaseUser))
+
   dispatch(saveUserInfo());
   flagHasPreviousSignIn();
-  connectLiveStars(store,info.uid);
-  connectLiveReads(store,info.uid);
+  connectLiveStars(store,firebaseUser.uid);
+  connectLiveReads(store,firebaseUser.uid);
 }
 
 const _userInfo = (info) => {
@@ -122,7 +236,16 @@ const _userInfo = (info) => {
   }
 }
 
-export const signOut = () => (dispatch) => {
+export const signOut = () => (dispatch, getState) => {
+
+  const state = getState();
+
+  let user = selectFirebaseUser(state);
+
+  if (!user) return;
+  //We don't sign out anonymous users
+  if (user.isAnonymous) return;
+
   dispatch({type:SIGNOUT_USER})
   flagHasPreviousSignIn();
   firebase.auth().signOut();

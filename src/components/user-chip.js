@@ -26,6 +26,11 @@ import {
   signOut
 } from '../actions/user.js';
 
+import {
+  selectFirebaseUser,
+  selectUserSignedIn,
+} from '../selectors.js';
+
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 class UserChip extends connect(store)(LitElement) {
@@ -55,7 +60,7 @@ class UserChip extends connect(store)(LitElement) {
         }
       </style>
       <div class='${this._pending ? 'pending' : ''}'>
-        ${this._user
+        ${this._signedIn
           ? html`<span>${this._user.displayName}</span> <img title='${this._user.displayName + ' - ' + this._user.email + ' - Click to sign out'}' src='${this._user.photoURL}' @click=${this._handleSignOutClick}>`
           : html`<span>Sign in with your Google Account</span><button class='round' @click=${this._handleSignInClick}>${personIcon}</button>`
         }
@@ -87,13 +92,15 @@ class UserChip extends connect(store)(LitElement) {
     return {
       _pending: { type: Boolean },
       _user: { type: Object },
+      _signedIn: { type: Boolean},
       _error: { type: Object }
     }
   }
 
   stateChanged(state) {
     this._pending = state.user.pending;
-    this._user = state.user.user;
+    this._user = selectFirebaseUser(state);
+    this._signedIn = selectUserSignedIn(state);
     this._error = state.user.error;
   }
 
