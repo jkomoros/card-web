@@ -40,7 +40,7 @@ export const selectFirebaseUser = state => {
 
 export const userMayResolveThread = (user, thread) => {
   if (userIsAdmin(user)) return true;
-  if (userMayComment(user)) return false;
+  if (!userMayComment(user)) return false;
   if (!thread || typeof thread !== 'object') return false;
   if (!user) return false;
   return user.uid == thread.author.id;
