@@ -38,6 +38,7 @@ import {
   selectFirebaseUser,
   selectUid,
   getCardIsRead,
+  selectUserIsAnonymous
 } from '../selectors.js';
 
 firebase.auth().getRedirectResult().catch( err => {
@@ -47,7 +48,7 @@ firebase.auth().getRedirectResult().catch( err => {
     return;
   }
 
-  alert("You have already signed in with that account on another device.");
+  alert("You have already signed in with that account on another device. Can't sign in.");
 
 })
 
@@ -79,10 +80,25 @@ export const showNeedSignin = () => (dispatch) => {
   dispatch(signIn());
 }
 
-export const signIn = () => (dispatch) => {
+export const signIn = () => (dispatch, getState) => {
+
+  const state = getState();
+
+  let isAnonymous = selectUserIsAnonymous(state);
+
   dispatch({type:SIGNIN_USER});
 
   let provider = new firebase.auth.GoogleAuthProvider();
+
+  if (isAnonymous) {
+    let user = firebase.auth().currentUser;
+    if (!user) {
+      console.warn("Unexpectedly didn't have user");
+      return;
+    }
+    user.linkWithRedirect(provider);
+    return;
+  }
 
   firebase.auth().signInWithRedirect(provider).catch(err => {
     dispatch({type:SIGNIN_FAILURE, error: err})
