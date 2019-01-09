@@ -40,6 +40,17 @@ import {
   getCardIsRead,
 } from '../selectors.js';
 
+firebase.auth().getRedirectResult().catch( err => {
+
+  if (err.code != 'auth/credential-already-in-use') {
+    alert("Couldn't sign in (" + err.code + "): " + err.message);
+    return;
+  }
+
+  alert("You have already signed in with that account on another device.");
+
+})
+
 export const saveUserInfo = () => (dispatch, getState) => {
 
   const state = getState();
