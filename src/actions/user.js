@@ -41,14 +41,35 @@ import {
   selectUserIsAnonymous
 } from '../selectors.js';
 
-firebase.auth().getRedirectResult().catch( err => {
+
+let prevAnonymousMergeUser = null;
+
+firebase.auth().getRedirectResult().catch( async err => {
 
   if (err.code != 'auth/credential-already-in-use') {
     alert("Couldn't sign in (" + err.code + "): " + err.message);
     return;
   }
 
-  alert("You have already signed in with that account on another device. Can't sign in.");
+  let doSignin = confirm("You have already signed in with that account on another device. If you proceed, you will be logged in and any cards you've starred or marked read on this device will be lost. If you do not proceed, you will not be logged in.");
+
+  if (!doSignin) return;
+
+  //OK, they do want to proceed.
+
+  //We'll keep track of who the previous uid was, so maybe in the future we
+  //can merge the accounts. the saveUserInfo after a successful signin will
+  //notice this global is set and save it to the db.
+  prevAnonymousMergeUser = firebase.auth().currentUser;
+
+  let credential = err.credential;
+
+  if (!credential) {
+    alert("No credential provided, can't proceed");
+    return;
+  }
+
+  firebase.auth().signInAndRetrieveDataWithCredential(credential);
 
 })
 
@@ -62,16 +83,27 @@ export const saveUserInfo = () => (dispatch, getState) => {
 
   let batch = db.batch();
   ensureUserInfo(batch, user);
-  batch.commit();
+  //If we had a merge user, null it out on successful save, so we don't keep saving it.
+  batch.commit().then(() => prevAnonymousMergeUser = null);
 
 }
 
 export const ensureUserInfo = (batchOrTransaction, user) => {
   if (!user) return;
-  batchOrTransaction.set(db.collection(USERS_COLLECTION).doc(user.uid), {
+
+  let data = {
     lastSeen: new Date(),
     isAnonymous: user.isAnonymous,
-  }, {merge: true})
+  }
+
+  //If this is set then we just signed in after a failed merge, so we want to
+  //keep record that we failed.
+  if (prevAnonymousMergeUser) {
+    data.previousUids = firebase.firestore.FieldValue.arrayUnion(prevAnonymousMergeUser.uid);
+    //This will be nulled out in saveUserInfo on successful commit.
+  }
+
+  batchOrTransaction.set(db.collection(USERS_COLLECTION).doc(user.uid), data, {merge: true})
 }
 
 export const showNeedSignin = () => (dispatch) => {
