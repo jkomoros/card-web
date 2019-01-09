@@ -77,41 +77,4 @@ const app = (state = INITIAL_STATE, action) => {
   }
 }
 
-export const uidMayResolveThread = (uid, thread) => {
-  if (uidIsAdmin(uid)) return true;
-  if (!uidMayComment(uid)) return false;
-  if (!thread || typeof thread !== 'object') return false;
-  return uid == thread.author.id;
-}
-
-export const uidIsAdmin = uid => uidMayEdit(uid);
-
-export const uidSignedIn = uid => uid != "";
-
-export const uidMayComment = uid => uidSignedIn(uid);
-
-export const uidMayEditMessage = (uid, message) => {
-  if (uidIsAdmin(uid)) return true;
-  if (!message || !message.author || !message.author.id) return false;
-  return uid == message.author.id;
-}
-
-export const uidMayEdit = uid => {
-  //This list is also recreated in firestore.rules
-  const allowedIDs = [
-    'TPo5MOn6rNX9k8K1bbejuBNk4Dr2', //Production main account
-    'KteKDU7UnHfkLcXAyZXbQ6kRAk13' //dev- main account
-  ]
-
-  if (!uid) {
-    return false;
-  }
-
-  for (let val of Object.values(allowedIDs)) {
-    if (val == uid) return true;
-  }
-
-  return false;
-}
-
 export default app;

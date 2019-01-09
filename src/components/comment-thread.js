@@ -12,8 +12,8 @@ import {
 } from './my-icons.js';
 
 import {
-  uidMayResolveThread
-} from '../reducers/user.js';
+  userMayResolveThread
+} from '../selectors.js';
 
 // This element is *not* connected to the Redux store.
 class CommentThread extends LitElement {
@@ -59,11 +59,11 @@ class CommentThread extends LitElement {
           <div class='flex'>
             <button class='small' @click=${this._handleZippyClicked}>${this._expanded ? arrowDownIcon : arrowRightIcon}</button>
           </div>
-          <button class='small' title='${uidMayResolveThread(this.uid, this.thread) ? 'Resolve comment thread' : 'You may only resolve comment threads you started'}' ?disabled='${!uidMayResolveThread(this.uid, this.thread)}' @click=${this._handleResolveClicked}>${checkCircleOutlineIcon}</button>
+          <button class='small' title='${userMayResolveThread(this.user, this.thread) ? 'Resolve comment thread' : 'You may only resolve comment threads you started'}' ?disabled='${!userMayResolveThread(this.user, this.thread)}' @click=${this._handleResolveClicked}>${checkCircleOutlineIcon}</button>
         </div>
         <div class='content ${this._expanded ? 'expanded' :''}'>
           ${repeat(this.thread.messages, (message) => message.id, (item, index) => html`
-          <comment-message .message=${item} .uid=${this.uid}></comment-message>`)}
+          <comment-message .message=${item} .user=${this.user}></comment-message>`)}
           <div class='buttons'>
             <button class='small ${this.signedIn ? '' : 'need-signin'}' title='${this.userMayComment ? 'Reply' : 'Sign in to reply'}' @click=${this._handleAddMessage}>${replyIcon}</button>
           </div>
@@ -77,7 +77,7 @@ class CommentThread extends LitElement {
       thread: { type: Object },
       userMayComment: {type:Boolean},
       signedIn: {type: Boolean},
-      uid: { type: String },
+      user: { type: String },
       _expanded: {type: Boolean}
     }
   }

@@ -14,8 +14,8 @@ import {
 } from '../util.js';
 
 import {
-  uidMayEditMessage
-} from '../reducers/user.js';
+  userMayEditMessage
+} from '../selectors.js';
 
 import snarkdown from 'snarkdown';
 import dompurify from 'dompurify';
@@ -55,7 +55,7 @@ class CommentMessage extends LitElement {
       <div class='container'>
         <div class='row'>
           <author-chip .author=${this.message.author}></author-chip>
-          <div ?hidden=${!uidMayEditMessage(this.uid, this.message)}>
+          <div ?hidden=${!userMayEditMessage(this.user, this.message)}>
             <button class='small' ?hidden=${this.message.deleted} @click=${this._handleDeleteClicked}>${deleteForeverIcon}</button>
             <button class='small' @click=${this._handleEditClicked}>${editIcon}</button>
           </div>
@@ -92,7 +92,7 @@ class CommentMessage extends LitElement {
   static get properties() {
     return {
       message: { type: Object },
-      uid: {type: String},
+      user: {type: String},
     }
   }
 }

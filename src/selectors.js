@@ -20,14 +20,6 @@ import {
 	INVERSE_FILTER_NAMES
 } from './reducers/collection.js';
 
-import {
-	uidMayComment,
-	uidMayEdit,
-	uidSignedIn,
-	uidMayResolveThread,
-	uidMayEditMessage
-} from './reducers/user.js';
-
 export const selectPage = (state) => state.app.page;
 export const selectPageExtra = (state) => state.app.pageExtra;
 
@@ -46,6 +38,49 @@ export const selectFirebaseUser = state => {
   return state.user.user;
 }
 
+export const userMayResolveThread = (user, thread) => {
+  if (userIsAdmin(user)) return true;
+  if (userMayComment(user)) return false;
+  if (!thread || typeof thread !== 'object') return false;
+  if (!user) return false;
+  return user.uid == thread.author.id;
+}
+
+const userIsAdmin = user => userMayEdit(user);
+
+const userSignedIn = user => user && user.uid != "";
+
+const userMayComment = user => userSignedIn(user);
+
+export const userMayEditMessage = (user, message) => {
+  if (userIsAdmin(user)) return true;
+  if (!user) return false;
+  if (!message || !message.author || !message.author.id) return false;
+  return user.uid == message.author.id;
+}
+
+const userMayEdit = user => {
+  //This list is also recreated in firestore.rules
+  const allowedIDs = [
+    'TPo5MOn6rNX9k8K1bbejuBNk4Dr2', //Production main account
+    'KteKDU7UnHfkLcXAyZXbQ6kRAk13' //dev- main account
+  ]
+
+  if (!user) {
+    return false;
+  }
+
+  if (!user.uid) {
+  	return false;
+  }
+
+  for (let val of Object.values(allowedIDs)) {
+    if (val == user.uid) return true;
+  }
+
+  return false;
+}
+
 export const selectUid = createSelector(
 	selectFirebaseUser,
 	(firebaseUser) => {
@@ -54,33 +89,33 @@ export const selectUid = createSelector(
 )
 
 export const selectUserIsAdmin = createSelector(
-	selectUid,
-	(uid) => uidMayEdit(uid)
+	selectFirebaseUser,
+	(user) => userMayEdit(user)
 )
 
 export const selectUserMayEdit = createSelector(
-	selectUid,
-	(uid) => uidMayEdit(uid)
+	selectFirebaseUser,
+	(user) => userMayEdit(user)
 )
 
 export const selectUserMayStar = createSelector(
-	selectUid,
-	(uid) => uidMayComment(uid)
+	selectFirebaseUser,
+	(user) => userMayComment(user)
 )
 
 export const selectUserMayComment = createSelector(
-	selectUid,
-	(uid) => uidMayComment(uid)
+	selectFirebaseUser,
+	(user) => userMayComment(user)
 )
 
 export const selectUserMayMarkRead = createSelector(
-	selectUid,
-	(uid) => uidMayComment(uid)
+	selectFirebaseUser,
+	(user) => userMayComment(user)
 )
 
 export const selectUserSignedIn = createSelector(
-	selectUid, 
-	(uid) => uidSignedIn(uid)
+	selectFirebaseUser, 
+	(user) => userSignedIn(user)
 )
 
 export const getCardHasStar = (state, cardId) => {
@@ -91,8 +126,8 @@ export const getCardIsRead = (state, cardId) => {
   return state.user.reads[cardId] || false
 }
 
-export const getUserMayResolveThread = (state, thread) => uidMayResolveThread(selectUid(state), thread);
-export const getUserMayEditMessage = (state, message) => uidMayEditMessage(selectUid(state), message);
+export const getUserMayResolveThread = (state, thread) => userMayResolveThread(selectFirebaseUser(state), thread);
+export const getUserMayEditMessage = (state, message) => userMayEditMessage(selectFirebaseUser(state), message);
 
 export const getCardById = (state, cardId) => {
   let cards = selectCards(state);

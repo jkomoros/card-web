@@ -31,7 +31,7 @@ import {
 
 import {
   selectActiveCard,
-  selectUid,
+  selectFirebaseUser,
   selectUserSignedIn,
   selectUserMayComment,
 } from '../selectors.js';
@@ -90,7 +90,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
         <div class='comments'>
         ${this._composedThreads.length
           ? html`${this._composedThreads.map( (item) => html`
-                <comment-thread .uid=${this._uid} .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @delete-message=${this._handleDeleteMessage} @resolve-thread=${this._handleResolveThread} @show-need-signin=${this._handleShowNeedSignin} .userMayComment=${this._userMayComment} .signedIn=${this._signedIn}></comment-thread>`)}`
+                <comment-thread .user=${this._user} .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @delete-message=${this._handleDeleteMessage} @resolve-thread=${this._handleResolveThread} @show-need-signin=${this._handleShowNeedSignin} .userMayComment=${this._userMayComment} .signedIn=${this._signedIn}></comment-thread>`)}`
           : html`<p><em>No comments yet.</em></p><p><em>You should leave one!</em></p>`
         }
         <div class='spacer'></spacer>
@@ -106,7 +106,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
       _card: {type: Object},
       _composedThreads: {type: Array},
       _userMayComment: { type: Boolean},
-      _uid : { type:String },
+      _user: {type: Object},
       _signedIn: {type:Boolean}
     }
   }
@@ -145,7 +145,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
     this._card = selectActiveCard(state);
     this._composedThreads = composedThreadsSelector(state);
     this._userMayComment = selectUserMayComment(state);
-    this._uid = selectUid(state);
+    this._user = selectFirebaseUser(state);
     this._signedIn = selectUserSignedIn(state);
   }
 
