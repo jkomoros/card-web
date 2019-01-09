@@ -48,13 +48,17 @@ export const userMayResolveThread = (user, thread) => {
 
 const userIsAdmin = user => userMayEdit(user);
 
-const userSignedIn = user => user && user.uid != "";
+//For actions, like starring and marking read, that are OK to do when signed
+//in anonymously.
+const userObjectExists = user => user && user.uid != "";
+
+const userSignedIn = user => userObjectExists(user) && !user.isAnonymous;
 
 const userMayComment = user => userSignedIn(user);
 
 export const userMayEditMessage = (user, message) => {
   if (userIsAdmin(user)) return true;
-  if (!user) return false;
+  if (!userSignedIn(user)) return false;
   if (!message || !message.author || !message.author.id) return false;
   return user.uid == message.author.id;
 }
@@ -66,13 +70,7 @@ const userMayEdit = user => {
     'KteKDU7UnHfkLcXAyZXbQ6kRAk13' //dev- main account
   ]
 
-  if (!user) {
-    return false;
-  }
-
-  if (!user.uid) {
-  	return false;
-  }
+  if (!userSignedIn(user)) return false;
 
   for (let val of Object.values(allowedIDs)) {
     if (val == user.uid) return true;
@@ -100,7 +98,7 @@ export const selectUserMayEdit = createSelector(
 
 export const selectUserMayStar = createSelector(
 	selectFirebaseUser,
-	(user) => userMayComment(user)
+	(user) => userObjectExists(user)
 )
 
 export const selectUserMayComment = createSelector(
@@ -110,9 +108,13 @@ export const selectUserMayComment = createSelector(
 
 export const selectUserMayMarkRead = createSelector(
 	selectFirebaseUser,
-	(user) => userMayComment(user)
+	(user) => userObjectExists(user)
 )
 
+//UserSignedIn means that there is a user object, and that user is not
+//anonymous. Note that selectors like selectUserMayMarkRead and
+//selectUserMayComment may return true even when this returns false if the
+//user is signed in anonymously.
 export const selectUserSignedIn = createSelector(
 	selectFirebaseUser, 
 	(user) => userSignedIn(user)
