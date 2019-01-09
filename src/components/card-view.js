@@ -315,8 +315,8 @@ class CardView extends connect(store)(PageViewElement) {
                 <button class='round' @click=${this._handleFindClicked}>${searchIcon}</button>
               </div>
               <div class='modify'>
-                <button class='round ${this._cardHasStar ? 'selected' : ''} ${this._signedIn ? '' : 'need-signin'}' @click='${this._handleStarClicked}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
-                <button class='round ${this._cardIsRead ? 'selected' : ''} ${this._signedIn ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
+                <button class='round ${this._cardHasStar ? 'selected' : ''} ${this._userMayStar ? '' : 'need-signin'}' @click='${this._handleStarClicked}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
+                <button class='round ${this._cardIsRead ? 'selected' : ''} ${this._userMayMarkRead ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
                 <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
               </div>
               <div class='next-prev'>
@@ -337,7 +337,6 @@ class CardView extends connect(store)(PageViewElement) {
     return {
       _card: { type: Object },
       _editing: {type: Boolean },
-      _signedIn: { type:Boolean },
       _pageExtra: {type: String},
       _requestedCard: {type:String},
       _userMayEdit: { type: Boolean },
@@ -433,11 +432,10 @@ class CardView extends connect(store)(PageViewElement) {
   }
 
   _handleStarClicked(e) {
-    if (!this._signedIn) {
+    if (!this._userMayStar) {
       store.dispatch(showNeedSignin());
       return;
     }
-    if (!this._userMayStar) return;
     if (this._cardHasStar) {
       store.dispatch(removeStar(this._card));
     } else {
@@ -446,11 +444,10 @@ class CardView extends connect(store)(PageViewElement) {
   }
 
   _handleReadClicked(e) {
-    if (!this._signedIn) {
+    if (!this._userMayMarkRead) {
       store.dispatch(showNeedSignin());
       return;
     }
-    if (!this._userMayMarkRead) return;
     if (this._cardIsRead) {
       store.dispatch(markUnread(this._card));
     } else {
