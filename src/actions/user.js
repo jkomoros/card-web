@@ -172,20 +172,58 @@ const hasPreviousSignIn = () => {
   return localStorage.getItem(HAS_PREVIOUS_SIGN_IN_KEY) ? true : false;
 }
 
-export const signInSuccess = (firebaseUser, store) => (dispatch) => {
+const ensureRichestDataForUser = (firebaseUser) => (dispatch) => {
+  //Whatever the first account was will be the default photoUrl, displayName,
+  //etc. So if your first account was an anonymous one (no photoUrl or
+  //displayName) then even when you sign in with e.g. gmail we'll still have
+  //your old photoURL. So here we update that, which really only needs to run
+  //that once.
 
-  //Note that even when this is done, selectUserSignedIn might still return
-  //false, if the user is signed in anonymously.
+  if (firebaseUser.isAnonymous) return;
 
+  if (firebaseUser.photoURL && firebaseUser.displayName && firebaseUser.email) return;
+
+  let bestPhotoURL = null;
+  let bestDisplayName = null;
+  let bestEmail = null;
+
+  firebaseUser.providerData.forEach(data => {
+    if (!bestPhotoURL && data.photoURL) bestPhotoURL = data.photoURL;
+    if (!bestDisplayName && data.displayName) bestDisplayName = data.displayName;
+    if (!bestEmail && data.email) bestEmail = data.email;
+  })
+
+  //Even after updating the user we need to tell the UI it's updated.
+
+  firebaseUser.updateProfile({
+    photoURL: bestPhotoURL,
+    displayName: bestDisplayName,
+    email: bestEmail,
+  }).then(user => dispatch(updateUserInfo(firebaseUser))).catch(err => console.warn("Couldn't update profile: ", err))
+
+}
+
+const updateUserInfo = (firebaseUser) => (dispatch) => {
   let info = _userInfo(firebaseUser)
    dispatch({
     type: SIGNIN_SUCCESS,
     user: info,
   });
+}
+
+export const signInSuccess = (firebaseUser, store) => (dispatch) => {
+
+  //Note that even when this is done, selectUserSignedIn might still return
+  //false, if the user is signed in anonymously.
+
+  dispatch(ensureRichestDataForUser(firebaseUser));
+
+  dispatch(updateUserInfo(firebaseUser))
+
   dispatch(saveUserInfo());
   flagHasPreviousSignIn();
-  connectLiveStars(store,info.uid);
-  connectLiveReads(store,info.uid);
+  connectLiveStars(store,firebaseUser.uid);
+  connectLiveReads(store,firebaseUser.uid);
 }
 
 const _userInfo = (info) => {
