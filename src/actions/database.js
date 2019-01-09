@@ -75,6 +75,11 @@ export const THREADS_COLLECTION = 'threads';
 export const MESSAGES_COLLECTION = 'messages';
 export const STARS_COLLECTION = 'stars';
 export const READS_COLLECTION = 'reads';
+//The user of this is actually clsoer to "userInfos", but that sounded weird.
+//This is a cache of information related to users, like whether htey're
+//anonymous, and when they were last seen. We never use it on the client, just
+//report up so the info exists on the server.
+export const USERS_COLLECTION = 'users';
 
 let liveMessagesUnsubscribe = null;
 let liveThreadsUnsubscribe = null;

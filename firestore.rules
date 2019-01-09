@@ -49,6 +49,11 @@ service cloud.firestore {
     match /authors/{author} {
       allow write: if request.auth.uid == author;
     }
+
+    match /users/{user} {
+      allow read: if request.auth.uid == user;
+      allow write: if request.auth.uid == user;
+    }
     
     match /cards/{card} {
       allow update: if loggedIn() && (editOnlyIncrements('thread_count') || editOnlyIncrementsAndDecrements('thread_resolved_count', 'thread_count') || editOnlyIncrementsOrDecrements('star_count'));

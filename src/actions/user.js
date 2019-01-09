@@ -21,7 +21,8 @@ import {
   db,
   CARDS_COLLECTION,
   STARS_COLLECTION,
-  READS_COLLECTION
+  READS_COLLECTION,
+  USERS_COLLECTION
 } from './database.js';
 
 import {
@@ -34,9 +35,32 @@ import {
 
 import {
   selectActiveCard,
+  selectFirebaseUser,
   selectUid,
   getCardIsRead,
 } from '../selectors.js';
+
+export const saveUserInfo = () => (dispatch, getState) => {
+
+  const state = getState();
+
+  const user = selectFirebaseUser(state);
+
+  if (!user) return;
+
+  let batch = db.batch();
+  ensureUserInfo(batch, user);
+  batch.commit();
+
+}
+
+export const ensureUserInfo = (batchOrTransaction, user) => {
+  if (!user) return;
+  batchOrTransaction.set(db.collection(USERS_COLLECTION).doc(user.uid), {
+    lastSeen: new Date(),
+    isAnonymous: user.isAnonymous,
+  }, {merge: true})
+}
 
 export const showNeedSignin = () => (dispatch) => {
   let doSignIn = confirm("Doing that action requires signing in with your Google account. Do you want to sign in?");
@@ -82,6 +106,7 @@ export const signInSuccess = (firebaseUser, store) => (dispatch) => {
     type: SIGNIN_SUCCESS,
     user: info,
   });
+  dispatch(saveUserInfo());
   flagHasPreviousSignIn();
   connectLiveStars(store,info.uid);
   connectLiveReads(store,info.uid);
