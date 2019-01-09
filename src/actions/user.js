@@ -80,6 +80,19 @@ export const signIn = () => (dispatch) => {
 }
 
 export const signOutSuccess = () => (dispatch) =>  {
+
+  //Note that this is actually called anytime onAuthStateChange notices we're not signed
+  //in, which can both be a manual sign out, as well as a page load with no user.
+
+
+  //If the user hasn't previously signed in on this device, then this might be
+  //a first page load. Try to do an anonymous account.
+  if (!hasPreviousSignIn()) {
+    firebase.auth().signInAnonymously();
+    return;
+  }
+
+
   dispatch({type: SIGNOUT_SUCCESS});
   disconnectLiveStars();
   disconnectLiveReads();
@@ -101,6 +114,10 @@ const hasPreviousSignIn = () => {
 }
 
 export const signInSuccess = (firebaseUser, store) => (dispatch) => {
+
+  //Note that even when this is done, selectUserSignedIn might still return
+  //false, if the user is signed in anonymously.
+
   let info = _userInfo(firebaseUser)
    dispatch({
     type: SIGNIN_SUCCESS,
