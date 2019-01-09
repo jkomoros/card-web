@@ -5,9 +5,20 @@ service cloud.firestore {
       return request.auth.uid == 'TPo5MOn6rNX9k8K1bbejuBNk4Dr2' || request.auth.uid == 'KteKDU7UnHfkLcXAyZXbQ6kRAk13';
     }
     
-    function editAddsMessage() {
-      //TODO: Also check that the first parts are the same.
-      return request.resource.data.messages.size() == resource.data.messages.size() + 1 && request.resource.data.messages[0:resource.data.messages.size()] == resource.data.messages;
+    function editOnlyAddsMessage() {
+      return request.writeFields.hasOnly(['messages', 'updated']) && request.resource.data.messages.size() == resource.data.messages.size() + 1 && request.resource.data.messages[0:resource.data.messages.size()] == resource.data.messages;
+    }
+        
+    function editOnlyIncrements(key) {
+      return request.writeFields.hasOnly([key]) && resource.data[key] + 1 == request.resource.data[key];
+    }
+    
+    function editOnlyIncrementsOrDecrements(key) {
+      return request.writeFields.hasOnly([key]) && (resource.data[key] + 1 == request.resource.data[key] || resource.data[key] - 1 == request.resource.data[key]);
+    }
+    
+    function editOnlyIncrementsAndDecrements(incKey, decKey) {
+      return request.writeFields.hasOnly([incKey, decKey]) && resource.data[decKey] - 1 == request.resource.data[decKey] && resource.data[incKey] + 1 == request.resource.data[incKey];
     }
     
     function loggedIn() {
@@ -39,6 +50,10 @@ service cloud.firestore {
       allow write: if request.auth.uid == author;
     }
     
+    match /cards/{card} {
+      allow update: if loggedIn() && (editOnlyIncrements('thread_count') || editOnlyIncrementsAndDecrements('thread_resolved_count', 'thread_count') || editOnlyIncrementsOrDecrements('star_count'));
+    }
+    
     match /messages/{message} {
       allow create: if createIsAuthor();
       allow update: if updateIsAuthor();
@@ -46,7 +61,7 @@ service cloud.firestore {
     
     match /threads/{thread} {
       allow create : if createIsAuthor();
-      allow update : if updateIsAuthor() || (loggedIn() && editAddsMessage());
+      allow update : if updateIsAuthor() || (loggedIn() && editOnlyAddsMessage());
     }
     
     match /stars/{star} {

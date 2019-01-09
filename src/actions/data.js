@@ -371,6 +371,8 @@ export const createCard = (section, id) => async (dispatch, getState) => {
     author: user.uid,
     updated_substantive: new Date(),
     star_count: 0,
+    thread_count: 0,
+    thread_resolved_count: 0,
     title: "",
     section: section,
     body: "",
