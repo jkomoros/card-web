@@ -122,7 +122,16 @@ const _userInfo = (info) => {
   }
 }
 
-export const signOut = () => (dispatch) => {
+export const signOut = () => (dispatch, getState) => {
+
+  const state = getState();
+
+  let user = selectFirebaseUser(state);
+
+  if (!user) return;
+  //We don't sign out anonymous users
+  if (user.isAnonymous) return;
+
   dispatch({type:SIGNOUT_USER})
   flagHasPreviousSignIn();
   firebase.auth().signOut();
