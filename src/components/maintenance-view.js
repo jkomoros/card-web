@@ -6,7 +6,9 @@ import { repeat } from 'lit-html/directives/repeat';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
-import { userIsAdmin } from '../reducers/user.js';
+import { 
+  selectUserIsAdmin
+} from '../selectors.js';
 
 import {
   doImport,
@@ -44,7 +46,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
   }
 
   stateChanged(state) {
-    this._isAdmin = userIsAdmin(state);
+    this._isAdmin = selectUserIsAdmin(state);
   }
 
   _handleDoImport(e) {
