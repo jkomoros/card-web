@@ -77,6 +77,18 @@ export class DialogElement extends LitElement {
   	return html`<slot></slot>`;
   }
 
+  firstUpdated() {
+    window.addEventListener('keydown', e => this._handleKeyDown(e));
+  }
+
+  _handleKeyDown(e) {
+    if (!this.open) return;
+    if (e.key == 'Escape') {
+      this._shouldClose();
+      return true;
+    }
+  }
+
   _handleBackgroundClicked(e) {
     let background = this.shadowRoot.querySelector('.background');
     //If the click wasn't actualy directly on the background then ignore it.
