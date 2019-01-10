@@ -3,9 +3,10 @@ export const PROMPT_COMPOSE_CANCEL = 'PROMPT_COMPOSE_CANCEL';
 export const PROMPT_COMPOSE_COMMIT = 'PROMPT_COMPOSE_COMMIT';
 export const PROMPT_COMPOSE_UPDATE_CONTENT = 'PROMPT_COMPOSE_UPDATE_CONTENT';
 
-export const composeShow = (starterContent) => {
+export const composeShow = (message, starterContent) => {
   return {
     type: PROMPT_COMPOSE_SHOW,
+    message: message,
     content: starterContent,
   }
 }

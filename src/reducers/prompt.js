@@ -8,6 +8,7 @@ import {
 const INITIAL_STATE = {
   composeOpen: false,
   content: "",
+  message: "",
 }
 
 const app = (state = INITIAL_STATE, action) => {
@@ -16,6 +17,7 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         composeOpen: true,
+        message: action.message,
         content: action.content,
       }
     case PROMPT_COMPOSE_CANCEL:
