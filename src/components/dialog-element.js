@@ -85,8 +85,20 @@ export class DialogElement extends LitElement {
   }
 
   _shouldClose() {
-    //Override point for base classes
+    //Override point for sub classes
     this.dispatchEvent(new CustomEvent('dialog-should-close'));
+  }
+
+  _focusInputOnOpen() {
+    //Override point for sub classes
+
+    //Make sure if there's a text field it's focused.
+
+    let input = this.shadowRoot.querySelector('input[type=text]');
+    if (!input) input = this.shadowRoot.querySelector('input[type=search]');
+    if (!input) input = this.shadowRoot.querySelector('textarea');
+    if (!input) return;
+    input.focus();
   }
 
   static get properties() {
@@ -94,6 +106,12 @@ export class DialogElement extends LitElement {
   		open: {type:Boolean},
       title: {type:String},
   	}
+  }
+
+  updated(changedProps) {
+    if (changedProps.has('open') && this.open) {
+      this._focusInputOnOpen();
+    }
   }
 
 }

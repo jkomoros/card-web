@@ -102,13 +102,6 @@ class FindDialog extends connect(store)(DialogElement) {
   	this._linking = state.find.linking;
   }
 
-  updated(changedProps) {
-  	if (changedProps.has('open') && this.open) {
-  		let input = this.shadowRoot.getElementById('query');
-  		input.focus();
-  	}
-  }
-
 }
 
 window.customElements.define('find-dialog', FindDialog);
