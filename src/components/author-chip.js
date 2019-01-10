@@ -26,8 +26,8 @@ class AuthorChip extends LitElement {
         }
       </style>
       <div>
-        <img src='${this.author.photoURL}'>
-        <span>${this.author.displayName}</span>
+        <img src='${this.author ? this.author.photoURL : ''}'>
+        <span>${this.author ? this.author.displayName : 'Unknown user'}</span>
       </div>
       `;
   }
