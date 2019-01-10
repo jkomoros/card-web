@@ -24,10 +24,12 @@ import { store } from '../store.js';
 import data from '../reducers/data.js';
 import editor from '../reducers/editor.js';
 import collection from '../reducers/collection.js';
+import prompt from '../reducers/prompt.js';
 store.addReducers({
   data,
   editor,
   collection,
+  prompt,
 });
 
 import {
