@@ -28,7 +28,8 @@ import {
 } from '../actions/app.js';
 
 import {
-  selectExpandedActiveCollection
+  selectExpandedActiveCollection,
+  selectComposeOpen,
 } from '../selectors.js';
 
 const HEADER_PANEL_DEFAULT_VALUE = true;
@@ -154,6 +155,7 @@ const app = (state = INITIAL_STATE, action) => {
 export const keyboardNavigates = state => {
   if (state.editor && state.editor.editing) return false;
   if (state.find && state.find.open) return false;
+  if (selectComposeOpen(state)) return false;
   return true;
 }
 
