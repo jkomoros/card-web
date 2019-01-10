@@ -19,6 +19,12 @@ import {
 class ComposeDialog extends connect(store)(DialogElement) {
   innerRender() {
     return html`
+      <style>
+        textarea {
+          height:10em;
+          width: 100%;
+        }
+      </style>
       <textarea .value=${this._content} @input=${this._handleContentUpdated}></textarea>
     `;
   }
