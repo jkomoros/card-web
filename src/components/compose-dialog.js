@@ -7,23 +7,30 @@ import { store } from '../store.js';
 import { DialogElement } from './dialog-element.js';
 
 import {
-  selectComposeOpen
+  selectComposeOpen,
+  selectPromptContent,
 } from '../selectors.js';
 
 import {
-  composeCancel
+  composeCancel,
+  composeUpdateContent
 } from '../actions/prompt.js';
 
 class ComposeDialog extends connect(store)(DialogElement) {
   innerRender() {
     return html`
-      <p>This is a compose dialog!</p>
+      <textarea .value=${this._content} @input=${this._handleContentUpdated}></textarea>
     `;
   }
 
   constructor() {
   	super();
   	this.title = 'Compose';
+  }
+
+  _handleContentUpdated(e) {
+    let ele = e.composedPath()[0];
+    store.dispatch(composeUpdateContent(ele.value))
   }
 
   _shouldClose() {
@@ -34,6 +41,7 @@ class ComposeDialog extends connect(store)(DialogElement) {
   stateChanged(state) {
   	//tODO: it's weird that we manually set our superclasses' public property
   	this.open = selectComposeOpen(state);
+    this._content = selectPromptContent(state);
   }
 
 }

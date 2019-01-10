@@ -1,11 +1,13 @@
 import {
   PROMPT_COMPOSE_SHOW,
   PROMPT_COMPOSE_CANCEL,
-  PROMPT_COMPOSE_COMMIT
+  PROMPT_COMPOSE_COMMIT,
+  PROMPT_COMPOSE_UPDATE_CONTENT,
 } from '../actions/prompt.js';
 
 const INITIAL_STATE = {
-  composeOpen: false
+  composeOpen: false,
+  content: "",
 }
 
 const app = (state = INITIAL_STATE, action) => {
@@ -13,7 +15,8 @@ const app = (state = INITIAL_STATE, action) => {
     case PROMPT_COMPOSE_SHOW:
       return {
         ...state,
-        composeOpen: true
+        composeOpen: true,
+        content: action.content,
       }
     case PROMPT_COMPOSE_CANCEL:
       return {
@@ -24,6 +27,11 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         composeOpen: false
+      }
+    case PROMPT_COMPOSE_UPDATE_CONTENT: 
+      return {
+        ...state,
+        content: action.content
       }
     default:
       return state;
