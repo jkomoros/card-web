@@ -32,7 +32,7 @@ export const selectSections = (state) => state.data ? state.data.sections : null
 export const selectCards = (state) => state.data ? state.data.cards : null;
 
 
-export const selectFirebaseUser = state => {
+export const selectUser = state => {
   if (!state.user) return null;
   if (!state.user.user) return null;
   return state.user.user;
@@ -80,39 +80,37 @@ const userMayEdit = user => {
 }
 
 export const selectUid = createSelector(
-	selectFirebaseUser,
-	(firebaseUser) => {
-		return firebaseUser ? firebaseUser.uid : ""
-	}
+	selectUser,
+	(user) => user ? user.uid : ""
 )
 
 export const selectUserIsAdmin = createSelector(
-	selectFirebaseUser,
+	selectUser,
 	(user) => userMayEdit(user)
 )
 
 export const selectUserMayEdit = createSelector(
-	selectFirebaseUser,
+	selectUser,
 	(user) => userMayEdit(user)
 )
 
 export const selectUserMayStar = createSelector(
-	selectFirebaseUser,
+	selectUser,
 	(user) => userObjectExists(user)
 )
 
 export const selectUserMayComment = createSelector(
-	selectFirebaseUser,
+	selectUser,
 	(user) => userMayComment(user)
 )
 
 export const selectUserMayMarkRead = createSelector(
-	selectFirebaseUser,
+	selectUser,
 	(user) => userObjectExists(user)
 )
 
 export const selectUserIsAnonymous = createSelector(
-	selectFirebaseUser,
+	selectUser,
 	(user) => userObjectExists(user) && user.isAnonymous
 )
 
@@ -121,7 +119,7 @@ export const selectUserIsAnonymous = createSelector(
 //selectUserMayComment may return true even when this returns false if the
 //user is signed in anonymously.
 export const selectUserSignedIn = createSelector(
-	selectFirebaseUser, 
+	selectUser, 
 	(user) => userSignedIn(user)
 )
 
@@ -133,8 +131,8 @@ export const getCardIsRead = (state, cardId) => {
   return state.user.reads[cardId] || false
 }
 
-export const getUserMayResolveThread = (state, thread) => userMayResolveThread(selectFirebaseUser(state), thread);
-export const getUserMayEditMessage = (state, message) => userMayEditMessage(selectFirebaseUser(state), message);
+export const getUserMayResolveThread = (state, thread) => userMayResolveThread(selectUser(state), thread);
+export const getUserMayEditMessage = (state, message) => userMayEditMessage(selectUser(state), message);
 
 export const getCardById = (state, cardId) => {
   let cards = selectCards(state);

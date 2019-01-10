@@ -27,7 +27,7 @@ import {
 } from '../actions/user.js';
 
 import {
-  selectFirebaseUser,
+  selectUser,
   selectUserSignedIn,
 } from '../selectors.js';
 
@@ -108,7 +108,7 @@ class UserChip extends connect(store)(LitElement) {
 
   stateChanged(state) {
     this._pending = state.user.pending;
-    this._user = selectFirebaseUser(state);
+    this._user = selectUser(state);
     this._signedIn = selectUserSignedIn(state);
     this._error = state.user.error;
   }

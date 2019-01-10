@@ -17,7 +17,7 @@ import {
   selectUserMayComment,
   getUserMayResolveThread,
   getUserMayEditMessage,
-  selectFirebaseUser,
+  selectUser,
 } from '../selectors.js';
 
 import {
@@ -139,7 +139,7 @@ export const addMessage = (thread, message) => (dispatch, getState) => {
     return;
   }
   
-  let user = selectFirebaseUser(state);
+  let user = selectUser(state);
 
   if (!user) {
     console.warn("No uid");
@@ -189,7 +189,7 @@ export const createThread = (message) => (dispatch, getState) => {
     return;
   }
   
-  let user = selectFirebaseUser(state);
+  let user = selectUser(state);
 
   if (!user) {
     console.warn("No uid");

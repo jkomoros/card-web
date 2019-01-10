@@ -31,7 +31,7 @@ import {
 
 import {
   selectActiveCard,
-  selectFirebaseUser,
+  selectUser,
   selectUserMayComment,
 } from '../selectors.js';
 
@@ -142,7 +142,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
     this._card = selectActiveCard(state);
     this._composedThreads = composedThreadsSelector(state);
     this._userMayComment = selectUserMayComment(state);
-    this._user = selectFirebaseUser(state);
+    this._user = selectUser(state);
   }
 
   updated(changedProps) {

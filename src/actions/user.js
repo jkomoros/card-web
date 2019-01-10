@@ -35,7 +35,7 @@ import {
 
 import {
   selectActiveCard,
-  selectFirebaseUser,
+  selectUser,
   selectUid,
   getCardIsRead,
   selectUserIsAnonymous
@@ -77,7 +77,7 @@ export const saveUserInfo = () => (dispatch, getState) => {
 
   const state = getState();
 
-  const user = selectFirebaseUser(state);
+  const user = selectUser(state);
 
   if (!user) return;
 
@@ -143,14 +143,12 @@ export const signOutSuccess = () => (dispatch) =>  {
   //Note that this is actually called anytime onAuthStateChange notices we're not signed
   //in, which can both be a manual sign out, as well as a page load with no user.
 
-
   //If the user hasn't previously signed in on this device, then this might be
   //a first page load. Try to do an anonymous account.
   if (!hasPreviousSignIn()) {
     firebase.auth().signInAnonymously();
     return;
   }
-
 
   dispatch({type: SIGNOUT_SUCCESS});
   disconnectLiveStars();
@@ -240,7 +238,7 @@ export const signOut = () => (dispatch, getState) => {
 
   const state = getState();
 
-  let user = selectFirebaseUser(state);
+  let user = selectUser(state);
 
   if (!user) return;
   //We don't sign out anonymous users

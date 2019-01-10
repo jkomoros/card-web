@@ -42,7 +42,7 @@ import {
 import {
   selectActiveSectionId,
   selectActiveCardIndex,
-  selectFirebaseUser,
+  selectUser,
   selectUserIsAdmin,
 } from '../selectors.js';
 
@@ -69,7 +69,7 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
     return;
   }
 
-  const user = selectFirebaseUser(state);
+  const user = selectUser(state);
 
   if (!user) {
     console.log("No user");
@@ -346,7 +346,7 @@ export const createCard = (section, id) => async (dispatch, getState) => {
 
   const state = getState();
 
-  let user = selectFirebaseUser(state);
+  let user = selectUser(state);
 
   if (!user) {
     console.log("No user");
