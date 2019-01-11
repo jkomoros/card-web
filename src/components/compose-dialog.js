@@ -6,6 +6,8 @@ import { store } from '../store.js';
 
 import { DialogElement } from './dialog-element.js';
 
+import { ButtonSharedStyles } from './button-shared-styles.js';
+
 import {
   selectComposeOpen,
   selectPromptContent,
@@ -14,20 +16,34 @@ import {
 
 import {
   composeCancel,
-  composeUpdateContent
+  composeUpdateContent,
+  composeCommit,
 } from '../actions/prompt.js';
+
+import {
+  checkCircleOutlineIcon
+} from './my-icons.js';
 
 class ComposeDialog extends connect(store)(DialogElement) {
   innerRender() {
     return html`
+      ${ButtonSharedStyles}
       <style>
         textarea {
           height:10em;
           width: 100%;
         }
+        .buttons {
+          display:flex;
+          flex-direction: row;
+          justify-content:flex-end;
+        }
       </style>
       <h3>${this._message}</h3>
       <textarea .value=${this._content} @input=${this._handleContentUpdated}></textarea>
+      <div class='buttons'>
+        <button class='round' @click='${this._handleDoneClicked}'>${checkCircleOutlineIcon}</button>
+      </div>
     `;
   }
 
@@ -39,6 +55,10 @@ class ComposeDialog extends connect(store)(DialogElement) {
   _handleContentUpdated(e) {
     let ele = e.composedPath()[0];
     store.dispatch(composeUpdateContent(ele.value))
+  }
+
+  _handleDoneClicked(e) {
+    store.dispatch(composeCommit());
   }
 
   _shouldClose() {
