@@ -11,6 +11,8 @@ const INITIAL_STATE = {
   content: "",
   message: "",
   action: "",
+  //Depends on what the action is. For EDIT_MESSAGE, for example, is a message ID.
+  associatedId: "",
 }
 
 const app = (state = INITIAL_STATE, action) => {
@@ -25,7 +27,8 @@ const app = (state = INITIAL_STATE, action) => {
     case PROMPT_CONFIGURE_ACTION:
       return {
         ...state,
-        action: action.action
+        action: action.action,
+        associatedId: action.associatedId,
       }
     case PROMPT_COMPOSE_CANCEL:
       return {

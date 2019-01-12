@@ -7,16 +7,19 @@ export const PROMPT_CONFIGURE_ACTION = 'PROMPT_CONFIGURE_ACTION';
 import {
   selectPromptAction,
   selectPromptContent,
+  selectPromptAssociatedId,
 } from '../selectors.js';
 
 export const COMMIT_ACTIONS = {
   CONSOLE_LOG: 'CONSOLE_LOG',
 }
 
-export const configureCommitAction = (commitAction) => {
+export const configureCommitAction = (commitAction, associatedId) => {
+  if (!associatedId) associatedId = "";
   return {
     type: PROMPT_CONFIGURE_ACTION,
     action: commitAction,
+    associatedId,
   }
 }
 
@@ -42,7 +45,7 @@ export const composeCommit = () => (dispatch, getState) => {
     type: PROMPT_COMPOSE_COMMIT
   })
 
-  doAction(selectPromptAction(state), selectPromptContent(state));
+  doAction(selectPromptAction(state), selectPromptContent(state), selectPromptAssociatedId(state));
 
 }
 
@@ -54,11 +57,11 @@ export const composeUpdateContent = (content) => {
 }
 
 
-const doAction = (action, content) => {
+const doAction = (action, content, associatedId) => {
   if (!action) return;
   switch (action) {
     case COMMIT_ACTIONS.CONSOLE_LOG:
-      console.log(content);
+      console.log(content, associatedId);
       return;
   }
   console.warn("Unknown action: " + action);
