@@ -39,14 +39,16 @@ export class DialogElement extends LitElement {
 
         .content {
           background-color:white;
-          min-height: 40%;
-          min-width: 40%;
-          max-height:90%;
-          max-width:70%;
           padding:1em;
           box-shadow: var(--card-shadow);
           overflow:scroll;
           position:relative;
+          display:flex;
+          flex-direction:column;
+          min-height: 40%;
+          min-width: 40%;
+          max-height:90%;
+          max-width:70%;
         }
 
         h2 {
@@ -61,12 +63,21 @@ export class DialogElement extends LitElement {
           top: 0.5em;
           right: 0.5em;
         }
+
+        #inner {
+          flex-grow:1;
+          display:flex;
+          flex-direction:column;
+        }
+
       </style>
     	<div class='background' @click=${this._handleBackgroundClicked}>
     		<div class='content'>
           <button class='small' id='close' @click=${this._shouldClose}>${cancelIcon}</button>
           <h2>${this.title || ""}</h2>
+          <div id='inner'>
     			${this.innerRender()}
+          </div>
     		</div>
     	</div>
 	`;

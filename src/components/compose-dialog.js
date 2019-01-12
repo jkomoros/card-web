@@ -30,8 +30,8 @@ class ComposeDialog extends connect(store)(DialogElement) {
       ${ButtonSharedStyles}
       <style>
         textarea {
-          height:10em;
-          width: 100%;
+          flex-grow:1;
+          width:100%;
         }
         .buttons {
           display:flex;
