@@ -2,6 +2,7 @@ export const PROMPT_COMPOSE_SHOW = 'PROMPT_COMPOSE_SHOW';
 export const PROMPT_COMPOSE_CANCEL = 'PROMPT_COMPOSE_CANCEL';
 export const PROMPT_COMPOSE_COMMIT = 'PROMPT_COMPOSE_COMMIT';
 export const PROMPT_COMPOSE_UPDATE_CONTENT = 'PROMPT_COMPOSE_UPDATE_CONTENT';
+export const PROMPT_CONFIGURE_ACTION = 'PROMPT_CONFIGURE_ACTION';
 
 import {
   selectPromptAction,
@@ -12,12 +13,18 @@ export const COMMIT_ACTIONS = {
   CONSOLE_LOG: 'CONSOLE_LOG',
 }
 
-export const composeShow = (message, starterContent, commitAction) => {
+export const configureCommitAction = (commitAction) => {
+  return {
+    type: PROMPT_CONFIGURE_ACTION,
+    action: commitAction,
+  }
+}
+
+export const composeShow = (message, starterContent) => {
   return {
     type: PROMPT_COMPOSE_SHOW,
     message: message,
     content: starterContent,
-    action: commitAction,
   }
 }
 

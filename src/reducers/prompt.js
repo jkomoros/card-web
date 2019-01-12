@@ -3,6 +3,7 @@ import {
   PROMPT_COMPOSE_CANCEL,
   PROMPT_COMPOSE_COMMIT,
   PROMPT_COMPOSE_UPDATE_CONTENT,
+  PROMPT_CONFIGURE_ACTION,
 } from '../actions/prompt.js';
 
 const INITIAL_STATE = {
@@ -20,6 +21,10 @@ const app = (state = INITIAL_STATE, action) => {
         composeOpen: true,
         message: action.message,
         content: action.content,
+      }
+    case PROMPT_CONFIGURE_ACTION:
+      return {
+        ...state,
         action: action.action
       }
     case PROMPT_COMPOSE_CANCEL:
