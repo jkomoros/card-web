@@ -303,7 +303,7 @@ class CardView extends connect(store)(PageViewElement) {
                 <div>Rotate your device to landscape orientation</div>
               </div>
             </div>
-            <card-renderer .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .card=${this._displayCard} .fromContentEditable=${this._fromContentEditable} @body-updated=${this._handleBodyUpdated}></card-renderer>
+            <card-renderer .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .card=${this._displayCard} .fromContentEditable=${this._fromContentEditable} .titleFromContentEditable=${this._titleFromContentEditable} @body-updated=${this._handleBodyUpdated} @title-updated=${this._handleTitleUpdated}></card-renderer>
             <div class='actions'>
               <div class='presentation'>
                 <button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
@@ -352,6 +352,7 @@ class CardView extends connect(store)(PageViewElement) {
       _cardsDrawerPanelShowing: {type: Boolean},
       _headerPanelOpen: {type: Boolean},
       _fromContentEditable: {type:Boolean},
+      _titleFromContentEditable: {type:Boolean},
       _presentationMode: {type:Boolean},
       _mobileMode: {type: Boolean},
       _cardHasStar: {type: Boolean},
@@ -385,6 +386,10 @@ class CardView extends connect(store)(PageViewElement) {
 
   _handleBodyUpdated(e) {
     this.shadowRoot.querySelector('card-editor').bodyUpdatedFromContentEditable(e.detail.html);
+  }
+
+  _handleTitleUpdated(e) {
+    this.shadowRoot.querySelector('card-editor').titleUpdatedFromContentEditable(e.detail.text);
   }
 
   _handleCommentsClicked(e) {
@@ -482,6 +487,7 @@ class CardView extends connect(store)(PageViewElement) {
     //Note: do NOT use this for whether the panel is showing.
     this._cardsDrawerPanelOpen = state.app.cardsDrawerPanelOpen;
     this._fromContentEditable = state.editor.fromContentEditable;
+    this._titleFromContentEditable = state.editor.titleFromContentEditable;
     this._cardsDrawerPanelShowing = cardsDrawerPanelShowing(state);
     this._presentationMode = state.app.presentationMode;
     this._mobileMode = state.app.mobileMode;

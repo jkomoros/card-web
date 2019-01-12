@@ -14,6 +14,7 @@ import {
 const INITIAL_STATE = {
   editing: false,
   fromContentEditable: false,
+  titleFromContentEditable: false,
   card: null,
   substantive: false,
 }
@@ -41,6 +42,7 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         card: {...state.card, title:action.title},
+        titleFromContentEditable: action.fromContentEditable,
       }
     case EDITING_NOTES_UPDATED:
       if (!state.card) return state;

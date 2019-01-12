@@ -18,7 +18,7 @@ let invalidCardTemplate = html`No card by that name, try a link from above`;
 export class ContentCard extends BaseCard {
   innerRender() {
     return html`
-      <h1>${this.title ? this.title : (this.fullBleed ? '' : this._emptyTemplate)}</h1>
+      ${this._makeH1(this.title)}
       ${this._makeSection(this.body)}
     `;
   }
@@ -30,13 +30,19 @@ export class ContentCard extends BaseCard {
       id: {type: String},
       fullBleed: {type: String},
       fromContentEditable: {type:Boolean},
+      titleFromContentEditable: {type:Boolean},
       dataIsFullyLoaded: {type:Boolean},
-      _sectionElement: {type:Object}
+      _sectionElement: {type:Object},
+      _h1Element: {type:Object},
     }
   }
 
   _bodyChanged(e) {
     this.dispatchEvent(new CustomEvent('body-updated', {composed:true, detail: {html: this._sectionElement.innerHTML}}));
+  }
+
+  _titleChanged(e) {
+    this.dispatchEvent(new CustomEvent('title-updated', {composed: true, detail: {text: this._h1Element.innerText}}));
   }
 
   _selectionChanged(e) {
@@ -53,6 +59,39 @@ export class ContentCard extends BaseCard {
   firstUpdated(changedProps) {
     super.firstUpdated(changedProps);
     document.addEventListener('selectionchange', this._selectionChanged.bind(this));
+  }
+
+  _makeH1(title) {
+    if (this.titleFromContentEditable && this._h1Element) {
+      return this._h1Element;
+    }
+    let htmlToSet = '';
+    if (!title) {
+      if (this.fullBleed) {
+        title = '';
+      } else {
+        if (this.id) {
+          htmlToSet = "<span class='loading'>Content goes here...</span>";
+        } else if (this.dataIsFullyLoaded) {
+          htmlToSet = "No card by that name, try a link from above.";
+        } else {
+          htmlToSet = "<span class='loading'>Loading...<span>";
+        }
+      }
+    }
+    const h1 = document.createElement('h1');
+    this._h1Element = h1;
+    if (this.editing) {
+      h1.contentEditable = 'true';
+      h1.addEventListener('input', this._titleChanged.bind(this));
+    }
+    //Only set innerHTML if it came from this method; title is untrusted.
+    if (htmlToSet) {
+      h1.innerHTML = htmlToSet;
+    } else {
+      h1.innerText = title;
+    }
+    return h1;
   }
 
   _makeSection(body) {

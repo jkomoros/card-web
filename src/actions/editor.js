@@ -301,10 +301,12 @@ export const editingFinish = () => {
   return {type: EDITING_FINISH}
 }
 
-export const titleUpdated = (newTitle) => {
+export const titleUpdated = (newTitle, fromContentEditable) => {
+  if (!fromContentEditable) fromContentEditable = false;
   return {
     type: EDITING_TITLE_UPDATED,
     title:newTitle,
+    fromContentEditable
   }
 }
 
