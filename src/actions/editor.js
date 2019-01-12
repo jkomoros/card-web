@@ -79,6 +79,7 @@ export const editingCommit = () => (dispatch, getState) => {
   if (updatedCard.title != underlyingCard.title) update.title = updatedCard.title;
   if (updatedCard.section != underlyingCard.section) update.section = updatedCard.section;
   if (updatedCard.name != underlyingCard.section) update.name = updatedCard.name;
+  if (updatedCard.notes != underlyingCard.notes) update.notes = updatedCard.notes;
   if (updatedCard.full_bleed != underlyingCard.full_bleed) update.full_bleed = updatedCard.full_bleed;
   if (updatedCard.body != underlyingCard.body) {
     let normalizedBody;
