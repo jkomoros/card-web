@@ -14,8 +14,6 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
   createThread,
-  addMessage,
-  editMessage,
   deleteMessage,
   resolveThread
 } from '../actions/comments.js';
@@ -128,7 +126,9 @@ class CommentsPanel extends connect(store)(PageViewElement) {
   }
 
   _handleAddMessage(e) {
-    store.dispatch(addMessage(e.detail.thread, e.detail.message));
+    if (!e.detail.thread || !e.detail.thread.id) return;
+    store.dispatch(configureCommitAction(COMMIT_ACTIONS.ADD_MESSAGE, e.detail.thread.id));
+    store.dispatch(composeShow('What is your message? (Markdown syntax is supported)'));
   }
 
   _handleEditMessage(e) {

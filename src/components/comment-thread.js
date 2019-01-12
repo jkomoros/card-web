@@ -98,9 +98,7 @@ class CommentThread extends LitElement {
       this.dispatchEvent(new CustomEvent('show-need-signin'));
       return;
     }
-    let message = prompt("What is your reply? (Markdown formatting is supported)");
-    if (!message) return;
-    this.dispatchEvent(new CustomEvent('add-message', {composed:true, detail: {message: message, thread: this.thread}}));
+    this.dispatchEvent(new CustomEvent('add-message', {composed:true, detail: {thread: this.thread}}));
   }
 }
 

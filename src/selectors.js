@@ -37,6 +37,7 @@ export const selectFilters = (state) => state.collection.filters;
 export const selectSections = (state) => state.data ? state.data.sections : null;
 export const selectCards = (state) => state.data ? state.data.cards : null;
 export const selectMessages = (state) => state.comments ? state.comments.messages : null;
+export const selectThreads = (state) => state.comments ? state.comments.threads : null;
 
 export const selectUser = state => {
   if (!state.user) return null;
@@ -144,6 +145,12 @@ export const getMessageById = (state, messageId) => {
 	let messages = selectMessages(state);
 	if (!messages) return null;
 	return messages[messageId];
+}
+
+export const getThreadById = (state, threadId) => {
+	let threads = selectThreads(state);
+	if (!threads) return null;
+	return threads[threadId];
 }
 
 export const getCardById = (state, cardId) => {

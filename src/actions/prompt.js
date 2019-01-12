@@ -9,15 +9,18 @@ import {
   selectPromptContent,
   selectPromptAssociatedId,
   getMessageById,
+  getThreadById,
 } from '../selectors.js';
 
 import {
-  editMessage
+  editMessage,
+  addMessage,
 } from './comments.js';
 
 export const COMMIT_ACTIONS = {
   CONSOLE_LOG: 'CONSOLE_LOG',
   EDIT_MESSAGE: 'EDIT_MESSAGE',
+  ADD_MESSAGE: 'ADD_MESSAGE',
 }
 
 export const configureCommitAction = (commitAction, associatedId) => {
@@ -30,6 +33,7 @@ export const configureCommitAction = (commitAction, associatedId) => {
 }
 
 export const composeShow = (message, starterContent) => {
+  if (!starterContent) starterContent = "";
   return {
     type: PROMPT_COMPOSE_SHOW,
     message: message,
@@ -72,6 +76,10 @@ const doAction = (dispatch, state, action, content, associatedId) => {
     case COMMIT_ACTIONS.EDIT_MESSAGE:
       let message = getMessageById(state, associatedId);
       dispatch(editMessage(message, content));
+      return;
+    case COMMIT_ACTIONS.ADD_MESSAGE:
+      let thread = getThreadById(state, associatedId);
+      dispatch(addMessage(thread, content));
       return;
   }
   console.warn("Unknown action: " + action);
