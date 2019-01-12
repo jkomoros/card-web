@@ -9,6 +9,7 @@ const INITIAL_STATE = {
   composeOpen: false,
   content: "",
   message: "",
+  action: "",
 }
 
 const app = (state = INITIAL_STATE, action) => {
@@ -19,6 +20,7 @@ const app = (state = INITIAL_STATE, action) => {
         composeOpen: true,
         message: action.message,
         content: action.content,
+        action: action.action
       }
     case PROMPT_COMPOSE_CANCEL:
       return {

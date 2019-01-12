@@ -25,6 +25,7 @@ export const selectPageExtra = (state) => state.app.pageExtra;
 export const selectComposeOpen = (state) => state.prompt.composeOpen;
 export const selectPromptContent = (state) => state.prompt.content;
 export const selectPromptMessage = (state) => state.prompt.message;
+export const selectPromptAction = (state) => state.prompt.action;
 export const selectActiveSetName = (state) => state.collection.activeSetName;
 export const selectRequestedCard = (state) => state.collection.requestedCard;
 export const selectActiveCardId = (state) => state.collection.activeCardId;
