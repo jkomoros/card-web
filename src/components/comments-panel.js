@@ -40,6 +40,12 @@ import {
 } from '../actions/user.js';
 
 import {
+  configureCommitAction,
+  composeShow,
+  COMMIT_ACTIONS
+} from '../actions/prompt.js';
+
+import {
   PageViewElement
 } from './page-view-element.js';
 
@@ -126,7 +132,9 @@ class CommentsPanel extends connect(store)(PageViewElement) {
   }
 
   _handleEditMessage(e) {
-    store.dispatch(editMessage(e.detail.message, e.detail.newMessage));
+    if (!e.detail.message || !e.detail.message.id) return;
+    store.dispatch(configureCommitAction(COMMIT_ACTIONS.EDIT_MESSAGE, e.detail.message.id));
+    store.dispatch(composeShow("What is your new message? (Markdown syntax is supported)", e.detail.message.message));
   }
 
   _handleDeleteMessage(e) {

@@ -38,7 +38,6 @@ export const selectSections = (state) => state.data ? state.data.sections : null
 export const selectCards = (state) => state.data ? state.data.cards : null;
 export const selectMessages = (state) => state.comments ? state.comments.messages : null;
 
-
 export const selectUser = state => {
   if (!state.user) return null;
   if (!state.user.user) return null;

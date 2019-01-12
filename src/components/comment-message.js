@@ -77,9 +77,7 @@ class CommentMessage extends LitElement {
   }
 
   _handleEditClicked(e) {
-    let message = prompt("What is your new response? (Markdown is supported?)", this.message.message);
-    if (!message || message == this.message.message) return;
-    this.dispatchEvent(new CustomEvent('edit-message', {composed:true, detail: {message: this.message, newMessage:message}}));
+    this.dispatchEvent(new CustomEvent('edit-message', {composed:true, detail: {message: this.message}}));
   }
 
   _handleDeleteClicked(e) {
