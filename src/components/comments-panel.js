@@ -128,13 +128,17 @@ class CommentsPanel extends connect(store)(PageViewElement) {
   _handleAddMessage(e) {
     if (!e.detail.thread || !e.detail.thread.id) return;
     store.dispatch(configureCommitAction(COMMIT_ACTIONS.ADD_MESSAGE, e.detail.thread.id));
-    store.dispatch(composeShow('What is your message? (Markdown syntax is supported)'));
+    this._showCompose("");
   }
 
   _handleEditMessage(e) {
     if (!e.detail.message || !e.detail.message.id) return;
     store.dispatch(configureCommitAction(COMMIT_ACTIONS.EDIT_MESSAGE, e.detail.message.id));
-    store.dispatch(composeShow("What is your new message? (Markdown syntax is supported)", e.detail.message.message));
+    this._showCompose(e.detail.message.message);
+  }
+
+  _showCompose(content) {
+    store.dispatch(composeShow('What is your message? (Markdown syntax is supported)', content));
   }
 
   _handleDeleteMessage(e) {
