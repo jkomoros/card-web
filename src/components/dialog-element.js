@@ -56,7 +56,7 @@ export class DialogElement extends LitElement {
           margin:0;
         }
 
-        button {
+        #close {
           position: absolute;
           top: 0.5em;
           right: 0.5em;
@@ -64,7 +64,7 @@ export class DialogElement extends LitElement {
       </style>
     	<div class='background' @click=${this._handleBackgroundClicked}>
     		<div class='content'>
-          <button class='small' @click=${this._shouldClose}>${cancelIcon}</button>
+          <button class='small' id='close' @click=${this._shouldClose}>${cancelIcon}</button>
           <h2>${this.title || ""}</h2>
     			${this.innerRender()}
     		</div>
