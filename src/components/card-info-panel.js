@@ -26,7 +26,8 @@ import {
 } from './page-view-element.js';
 
 import {
-  prettyTime
+  prettyTime,
+  markdownElement
 } from '../util.js';
 
 import {
@@ -119,6 +120,13 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
           ${this._card && this._card.links_inbound && this._card.links_inbound.length 
             ? html`<ul>${this._card.links_inbound.map((item) => html`<li><card-link auto='title' card='${item}'>${item}</a></li>`)}</ul>`
             : html`<p><em>No cards link to this one.</em></p>`
+          }
+        </div>
+        <div>
+          <h4>Notes${this._help('Notes are notes left by the author of the card.')}</h4>
+          ${this._card && this._card.notes
+            ? markdownElement(this._card.notes)
+            : html `<p><em>No notes for this card</em></p>`
           }
         </div>
       </div>
