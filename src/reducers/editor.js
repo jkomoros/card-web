@@ -7,7 +7,8 @@ import {
   EDITING_SLUG_ADDED,
   EDITING_NAME_UPDATED,
   EDITING_SUBSTANTIVE_UPDATED,
-  EDITING_FULL_BLEED_UPDATED
+  EDITING_FULL_BLEED_UPDATED,
+  EDITING_NOTES_UPDATED
 } from '../actions/editor.js';
 
 const INITIAL_STATE = {
@@ -40,6 +41,12 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         card: {...state.card, title:action.title},
+      }
+    case EDITING_NOTES_UPDATED:
+      if (!state.card) return state;
+      return {
+        ...state,
+        card: {...state.card, notes:action.notes},
       }
     case EDITING_BODY_UPDATED:
       if (!state.card) return state;

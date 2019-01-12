@@ -15,6 +15,7 @@ import {
   editingFinish,
   editingCommit,
   titleUpdated,
+  notesUpdated,
   bodyUpdated,
   sectionUpdated,
   nameUpdated,
@@ -121,6 +122,10 @@ class CardEditor extends connect(store)(LitElement) {
           <div class='flex body'>
             <label>Body</label>
             <textarea @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
+          </div>
+          <div class='flex'>
+            <label>Notes</label>
+            <textarea @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
           </div>
           <div class='row'>
             <div>
@@ -236,6 +241,12 @@ class CardEditor extends connect(store)(LitElement) {
     if (!this._active) return;
     let ele = e.composedPath()[0];
     this._bodyUpdated(ele.value, false);
+  }
+
+  _handleNotesUpdated(e) {
+    if (!this._active) return;
+    let ele = e.composedPath()[0];
+    store.dispatch(notesUpdated(ele.value));
   }
 
   _handleSectionUpdated(e) {

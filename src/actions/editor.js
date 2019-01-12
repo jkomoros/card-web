@@ -7,6 +7,7 @@ export const EDITING_SLUG_ADDED = 'EDITING_SLUG_ADDED';
 export const EDITING_NAME_UPDATED = 'EDITING_NAME_UPDATED';
 export const EDITING_SUBSTANTIVE_UPDATED = 'EDITING_SUBSTANTIVE_UPDATED';
 export const EDITING_FULL_BLEED_UPDATED = 'EDITING_FULL_BLEED_UPDATED';
+export const EDITING_NOTES_UPDATED = 'EDITING_NOTES_UPDATED';
 
 import {
   selectActiveCard,
@@ -304,6 +305,13 @@ export const titleUpdated = (newTitle) => {
   return {
     type: EDITING_TITLE_UPDATED,
     title:newTitle,
+  }
+}
+
+export const notesUpdated = (newNotes) => {
+  return {
+    type: EDITING_NOTES_UPDATED,
+    notes:newNotes,
   }
 }
 
