@@ -36,6 +36,7 @@ export const selectActiveFilterNames = (state) => state.collection.activeFilterN
 export const selectFilters = (state) => state.collection.filters;
 export const selectSections = (state) => state.data ? state.data.sections : null;
 export const selectCards = (state) => state.data ? state.data.cards : null;
+export const selectMessages = (state) => state.comments ? state.comments.messages : null;
 
 
 export const selectUser = state => {
@@ -139,6 +140,12 @@ export const getCardIsRead = (state, cardId) => {
 
 export const getUserMayResolveThread = (state, thread) => userMayResolveThread(selectUser(state), thread);
 export const getUserMayEditMessage = (state, message) => userMayEditMessage(selectUser(state), message);
+
+export const getMessageById = (state, messageId) => {
+	let messages = selectMessages(state);
+	if (!messages) return null;
+	return messages[messageId];
+}
 
 export const getCardById = (state, cardId) => {
   let cards = selectCards(state);

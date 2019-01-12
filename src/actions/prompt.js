@@ -8,10 +8,16 @@ import {
   selectPromptAction,
   selectPromptContent,
   selectPromptAssociatedId,
+  getMessageById,
 } from '../selectors.js';
+
+import {
+  editMessage
+} from './comments.js';
 
 export const COMMIT_ACTIONS = {
   CONSOLE_LOG: 'CONSOLE_LOG',
+  EDIT_MESSAGE: 'EDIT_MESSAGE',
 }
 
 export const configureCommitAction = (commitAction, associatedId) => {
@@ -45,7 +51,7 @@ export const composeCommit = () => (dispatch, getState) => {
     type: PROMPT_COMPOSE_COMMIT
   })
 
-  doAction(selectPromptAction(state), selectPromptContent(state), selectPromptAssociatedId(state));
+  doAction(dispatch, selectPromptAction(state), selectPromptContent(state), selectPromptAssociatedId(state));
 
 }
 
@@ -57,11 +63,15 @@ export const composeUpdateContent = (content) => {
 }
 
 
-const doAction = (action, content, associatedId) => {
+const doAction = (dispatch, action, content, associatedId) => {
   if (!action) return;
   switch (action) {
     case COMMIT_ACTIONS.CONSOLE_LOG:
       console.log(content, associatedId);
+      return;
+    case COMMIT_ACTIONS.EDIT_MESSAGE:
+      let message = getMessageById(associatedId);
+      dispatch(editMessage(message, content));
       return;
   }
   console.warn("Unknown action: " + action);
