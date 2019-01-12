@@ -1,4 +1,5 @@
-
+import snarkdown from 'snarkdown';
+import dompurify from 'dompurify';
 
 const randomCharSetNumbers = "0123456789"
 const randomCharSetLetters = "abcdef"
@@ -97,6 +98,15 @@ export const intersectionSet = (...sets) => {
 		if (doInclude) result[key] = true;
 	}
 	return result;
+}
+
+//Returns a safe markdown element that can be emitted in a lit-html template.
+export const markdownElement = (content) => {
+	let div = document.createElement('div');
+	let html = snarkdown(content);
+	let sanitizedHTML = dompurify.sanitize(html);
+	div.innerHTML = sanitizedHTML;
+	return div;
 }
 
 //Returns a function that takes an item and returns true if it's in ALL

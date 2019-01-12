@@ -10,15 +10,13 @@ import {
 } from './my-icons.js';
 
 import {
-  prettyTime
+  prettyTime,
+  markdownElement,
 } from '../util.js';
 
 import {
   userMayEditMessage
 } from '../selectors.js';
-
-import snarkdown from 'snarkdown';
-import dompurify from 'dompurify';
 
 // This element is *not* connected to the Redux store.
 class CommentMessage extends LitElement {
@@ -62,18 +60,10 @@ class CommentMessage extends LitElement {
         </div>
         <span>${prettyTime(this.message.updated)}</span>
         <div>
-          ${this.message.deleted ? html`<em>This message has been deleted.</em>` : this._makeCommentDiv(this.message.message)}
+          ${this.message.deleted ? html`<em>This message has been deleted.</em>` : markdownElement(this.message.message)}
         </div>
       </div>
     `;
-  }
-
-  _makeCommentDiv(message) {
-    let div = document.createElement('div');
-    let html = snarkdown(message);
-    let sanitizedHTML = dompurify.sanitize(html);
-    div.innerHTML = sanitizedHTML;
-    return div;
   }
 
   _handleEditClicked(e) {
