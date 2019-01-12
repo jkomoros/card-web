@@ -13,7 +13,6 @@ import { SharedStyles } from './shared-styles.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
-  createThread,
   deleteMessage,
   resolveThread
 } from '../actions/comments.js';
@@ -122,7 +121,8 @@ class CommentsPanel extends connect(store)(PageViewElement) {
       store.dispatch(showNeedSignin());
       return;
     }
-    store.dispatch(createThread(prompt('Message for new thread: (markdown formatting is supported)')));
+    store.dispatch(configureCommitAction(COMMIT_ACTIONS.CREATE_THREAD));
+    this._showCompose("");
   }
 
   _handleAddMessage(e) {

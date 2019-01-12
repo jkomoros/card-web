@@ -15,12 +15,14 @@ import {
 import {
   editMessage,
   addMessage,
+  createThread,
 } from './comments.js';
 
 export const COMMIT_ACTIONS = {
   CONSOLE_LOG: 'CONSOLE_LOG',
   EDIT_MESSAGE: 'EDIT_MESSAGE',
   ADD_MESSAGE: 'ADD_MESSAGE',
+  CREATE_THREAD: 'CREATE_THREAD',
 }
 
 export const configureCommitAction = (commitAction, associatedId) => {
@@ -80,6 +82,9 @@ const doAction = (dispatch, state, action, content, associatedId) => {
     case COMMIT_ACTIONS.ADD_MESSAGE:
       let thread = getThreadById(state, associatedId);
       dispatch(addMessage(thread, content));
+      return;
+    case COMMIT_ACTIONS.CREATE_THREAD:
+      dispatch(createThread(content));
       return;
   }
   console.warn("Unknown action: " + action);
