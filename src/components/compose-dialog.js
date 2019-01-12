@@ -38,6 +38,9 @@ class ComposeDialog extends connect(store)(DialogElement) {
           flex-direction: row;
           justify-content:flex-end;
         }
+        h3 {
+          font-weight:normal;
+        }
       </style>
       <h3>${this._message}</h3>
       <textarea .value=${this._content} @input=${this._handleContentUpdated}></textarea>
