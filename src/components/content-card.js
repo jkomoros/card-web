@@ -29,7 +29,7 @@ export class ContentCard extends BaseCard {
       body: { type: String },
       id: {type: String},
       fullBleed: {type: String},
-      fromContentEditable: {type:Boolean},
+      bodyFromContentEditable: {type:Boolean},
       titleFromContentEditable: {type:Boolean},
       dataIsFullyLoaded: {type:Boolean},
       _sectionElement: {type:Object},
@@ -98,7 +98,7 @@ export class ContentCard extends BaseCard {
     //If the update to body came from contentEditable then don't change it,
     //the state is already in it. If we were to update it, the selection state
     //would reset and defocus.
-    if (this.fromContentEditable && this._sectionElement) {
+    if (this.bodyFromContentEditable && this._sectionElement) {
       return this._sectionElement;
     }
     if (!body) {

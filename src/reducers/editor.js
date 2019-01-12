@@ -13,7 +13,7 @@ import {
 
 const INITIAL_STATE = {
   editing: false,
-  fromContentEditable: false,
+  bodyFromContentEditable: false,
   titleFromContentEditable: false,
   card: null,
   substantive: false,
@@ -27,7 +27,8 @@ const app = (state = INITIAL_STATE, action) => {
         editing: true,
         card: action.card,
         substantive: false,
-        fromContentEditable: false,
+        bodyFromContentEditable: false,
+        titleFromContentEditable: false
       }
     case EDITING_FINISH:
       return {
@@ -35,7 +36,8 @@ const app = (state = INITIAL_STATE, action) => {
         editing:false,
         card: null,
         substantive:false,
-        fromContentEditable: false,
+        bodyFromContentEditable: false,
+        titleFromContentEditable: false,
       }
     case EDITING_TITLE_UPDATED:
       if (!state.card) return state;
@@ -55,7 +57,7 @@ const app = (state = INITIAL_STATE, action) => {
       return {
         ...state,
         card: {...state.card, body:action.body},
-        fromContentEditable: action.fromContentEditable
+        bodyFromContentEditable: action.fromContentEditable
       }
     case EDITING_SECTION_UPDATED:
       if (!state.card) return state;
