@@ -15,7 +15,8 @@ import {
 	CARDS_COLLECTION,
 	CARD_UPDATES_COLLECTION,
 	SECTION_UPDATES_COLLECTION,
-	SECTIONS_COLLECTION
+	SECTIONS_COLLECTION,
+	TAGS_COLLECTION,
 } from './database.js';
 
 import {
@@ -333,12 +334,101 @@ export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
 
 };
 
+export const createTag = (name, displayName) => async (dispatch, getState) => {
+
+	if (!name) {
+		console.warn('No short name provided');
+		return;
+	}
+
+	name = normalizeSlug(name);
+
+	if (!name) {
+		console.warn('Tag name invalid');
+		return;
+	}
+
+	if (!displayName) {
+		console.warn('No short name provided');
+		return;
+	}
+
+	const state = getState();
+
+	let user = selectUser(state);
+
+	if (!user) {
+		console.warn('No user logged in');
+		return;
+	}
+
+	if (!selectUserIsAdmin(state)) {
+		console.log('User isn\'t admin!');
+		return;
+	}
+
+	let tagRef = db.collection(TAGS_COLLECTION).doc(name);
+
+	let tag = await tagRef.get();
+
+	if (tag.exists) {
+		console.warn('A tag with that name already exists');
+		return;
+	}
+
+	let startCardId = 'tag-' + name;
+	let startCardRef = db.collection(CARDS_COLLECTION).doc(startCardId);
+
+	let card = await startCardRef.get();
+
+	if (card.exists) {
+		console.warn('A card with that id already exists');
+		return;
+	}
+
+	let batch = db.batch();
+
+	batch.set(tagRef, {
+		cards: [],
+		start_cards: [startCardId],
+		title:displayName,
+		updated: new Date(),
+	});
+
+	batch.set(startCardRef, defaultCardObject(startCardId, user, '', 'section-head'));
+
+	batch.commit();
+
+};
+
+const defaultCardObject = (id, user, section, cardType) => {
+	return {
+		created: new Date(),
+		updated: new Date(),
+		author: user.uid,
+		updated_substantive: new Date(),
+		star_count: 0,
+		thread_count: 0,
+		thread_resolved_count: 0,
+		title: '',
+		section: section,
+		body: '',
+		links: [],
+		links_inbound: [],
+		card_type: cardType,
+		notes: '',
+		slugs: [],
+		name: id,
+		tags: []
+	};
+};
+
 export const createCard = (section, id, cardType) => async (dispatch, getState) => {
 
 	//newCard creates and inserts a new card in the givne section with the given id.
 
 	if (!cardType) cardType = 'content';
-	
+
 	if (!section) section = 'stubs';
 	if (id) {
 		id = normalizeSlug(id);
@@ -372,25 +462,7 @@ export const createCard = (section, id, cardType) => async (dispatch, getState) 
 		appendIndex = selectActiveCardIndex(state);
 	}
 
-	let obj = {
-		created: new Date(),
-		updated: new Date(),
-		author: user.uid,
-		updated_substantive: new Date(),
-		star_count: 0,
-		thread_count: 0,
-		thread_resolved_count: 0,
-		title: '',
-		section: section,
-		body: '',
-		links: [],
-		links_inbound: [],
-		card_type: cardType,
-		notes: '',
-		slugs: [],
-		name: id,
-		tags: []
-	};
+	let obj = defaultCardObject(id, user, section, cardType);
 
 	let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
 

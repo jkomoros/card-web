@@ -69,6 +69,7 @@ export const CARDS_COLLECTION = 'cards';
 export const CARD_UPDATES_COLLECTION = 'updates';
 export const SECTION_UPDATES_COLLECTION = 'updates';
 export const SECTIONS_COLLECTION = 'sections';
+export const TAGS_COLLECTION = 'tags';
 export const MAINTENANCE_COLLECTION = 'maintenance_tasks';
 export const AUTHORS_COLLECTION = 'authors';
 export const THREADS_COLLECTION = 'threads';
@@ -146,7 +147,6 @@ export const disconnectLiveStars = () => {
 export const connectLiveStars = (store, uid) => {
 	disconnectLiveStars();
 	liveStarsUnsubscribe = db.collection(STARS_COLLECTION).where('owner', '==', uid).onSnapshot( snapshot => {
-		let stars = {};
 		let starsToAdd = [];
 		let starsToRemove = [];
 		snapshot.docChanges().forEach(change => {
@@ -171,7 +171,6 @@ export const disconnectLiveReads = () => {
 export const connectLiveReads = (store, uid) => {
 	disconnectLiveReads();
 	liveReadsUnsubscribe = db.collection(READS_COLLECTION).where('owner', '==', uid).onSnapshot( snapshot => {
-		let reads = {};
 		let readsToAdd = [];
 		let readsToRemove = [];
 		snapshot.docChanges().forEach(change => {
