@@ -4,16 +4,13 @@ import {
 	CARDS_COLLECTION,
 	SECTIONS_COLLECTION,
 	SECTION_UPDATES_COLLECTION,
+	CARD_UPDATES_COLLECTION,
 	MAINTENANCE_COLLECTION
 } from './database.js';
 
 import {
 	normalizeBodyHTML
 } from './editor.js';
-
-import {
-	randomString
-} from '../util.js';
 
 import {
 	extractCardLinks
@@ -35,6 +32,25 @@ const checkMaintenanceTaskHasBeenRun = async (taskName) => {
 
 const maintenanceTaskRun = async (taskName) => {
 	db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: new Date()});
+};
+
+const ADD_TAGS_ARRAY = 'add-tags-array';
+
+export const addTagsArray = async() => {
+	await checkMaintenanceTaskHasBeenRun(ADD_TAGS_ARRAY);
+
+	let batch = db.batch();
+
+	let snapshot = await db.collection(CARDS_COLLECTION).get();
+
+	snapshot.forEach(doc => {
+		batch.update(doc.ref, {'tags': []});
+	});
+
+	await batch.commit();
+
+	await maintenanceTaskRun(ADD_TAGS_ARRAY);
+	console.log('Done');
 };
 
 const UPDATE_LINKS = 'update-links';
@@ -421,4 +437,5 @@ export const tasks = {
 	[ADD_CARD_AUTHOR]: addCardAuthor,
 	[ADD_THREAD_RESOLVED_COUNT]: addThreadResolvedCount,
 	[UPDATE_LINKS]: updateLinks,
+	[ADD_TAGS_ARRAY]: addTagsArray,
 };
