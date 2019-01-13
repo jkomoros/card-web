@@ -244,13 +244,6 @@ const cleanUpTopLevelHTML = (html, tag = 'p') => {
 
 };
 
-const removeDoubleLineBreaks = (html) => {
-	while (html.indexOf('\n\n') >= 0) {
-		html = html.split('\n\n').join('\n');
-	}
-	return html;
-};
-
 export const normalizeBodyHTML = (html) => {
 
 	//normalizeBodyHTML makes sure that the html is well formatted. It first

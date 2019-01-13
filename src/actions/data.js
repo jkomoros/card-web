@@ -193,7 +193,7 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 	}
 
 	batch.commit().then(() => dispatch(modifyCardSuccess()))
-		.catch(err => dispatch(modifyCardFailure()));
+		.catch(() => dispatch(modifyCardFailure()));
 
 };
 
