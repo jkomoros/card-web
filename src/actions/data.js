@@ -274,7 +274,7 @@ const extractCardLinks = (body) => {
   let ele = document.createElement("section");
   ele.innerHTML = body;
   let result = [];
-  let nodes = ele.querySelectorAll("a[card]");
+  let nodes = ele.querySelectorAll("card-link[card]");
   nodes.forEach(link => result.push(link.getAttribute('card')));
   return result;
 }
