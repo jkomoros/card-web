@@ -333,10 +333,12 @@ export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
 
 };
 
-export const createCard = (section, id) => async (dispatch, getState) => {
+export const createCard = (section, id, cardType) => async (dispatch, getState) => {
 
 	//newCard creates and inserts a new card in the givne section with the given id.
 
+	if (!cardType) cardType = 'content';
+	
 	if (!section) section = 'stubs';
 	if (id) {
 		id = normalizeSlug(id);
@@ -383,7 +385,7 @@ export const createCard = (section, id) => async (dispatch, getState) => {
 		body: '',
 		links: [],
 		links_inbound: [],
-		card_type: 'content',
+		card_type: cardType,
 		notes: '',
 		slugs: [],
 		name: id,
