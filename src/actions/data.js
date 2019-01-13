@@ -270,7 +270,7 @@ export const reorderCard = (card, newIndex) => async (dispatch, getState) => {
 
 }
 
-const extractCardLinks = (body) => {
+export const extractCardLinks = (body) => {
   let ele = document.createElement("section");
   ele.innerHTML = body;
   let result = [];

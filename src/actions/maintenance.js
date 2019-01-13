@@ -15,6 +15,10 @@ import {
   randomString
 } from '../util.js';
 
+import {
+  extractCardLinks
+} from './data.js';
+
 const checkMaintenanceTaskHasBeenRun = async (taskName) => {
   let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
 
@@ -31,6 +35,30 @@ const checkMaintenanceTaskHasBeenRun = async (taskName) => {
 
 const maintenanceTaskRun = async (taskName) => {
   db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: new Date()});
+}
+
+const UPDATE_LINKS = 'update-links';
+
+//This task has to be rerun after fixing 2ee9374
+export const updateLinks = async() => {
+  await checkMaintenanceTaskHasBeenRun(UPDATE_LINKS);
+
+  let snapshot = await db.collection(CARDS_COLLECTION).get();
+
+  let counter = 0;
+  let size = snapshot.size;
+
+  for (let doc of snapshot.docs) {
+    counter++;
+    let links = extractCardLinks(doc.data().body);
+    await doc.ref.update({
+      links: links,
+    })
+    console.log("Processed " + doc.id + ' (' + counter + '/' + size + ')' );
+  }
+
+  await maintenanceTaskRun(UPDATE_LINKS);
+  console.log("Done");
 }
 
 const ADD_THREAD_RESOLVED_COUNT = 'add-thread-resolved-count';
@@ -392,4 +420,5 @@ export const tasks = {
   [ADD_THREAD_COUNT]: addThreadCount,
   [ADD_CARD_AUTHOR]: addCardAuthor,
   [ADD_THREAD_RESOLVED_COUNT]: addThreadResolvedCount,
+  [UPDATE_LINKS]: updateLinks,
 }
