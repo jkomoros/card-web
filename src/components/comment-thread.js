@@ -5,20 +5,20 @@ import './comment-message.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 import { 
-  replyIcon,
-  arrowRightIcon,
-  arrowDownIcon,
-  checkCircleOutlineIcon
+	replyIcon,
+	arrowRightIcon,
+	arrowDownIcon,
+	checkCircleOutlineIcon
 } from './my-icons.js';
 
 import {
-  userMayResolveThread
+	userMayResolveThread
 } from '../selectors.js';
 
 // This element is *not* connected to the Redux store.
 class CommentThread extends LitElement {
-  render() {
-    return html`
+	render() {
+		return html`
       ${ButtonSharedStyles}
       <style>
         .container {
@@ -62,7 +62,7 @@ class CommentThread extends LitElement {
           <button class='small' title='${userMayResolveThread(this.user, this.thread) ? 'Resolve comment thread' : 'You may only resolve comment threads you started'}' ?disabled='${!userMayResolveThread(this.user, this.thread)}' @click=${this._handleResolveClicked}>${checkCircleOutlineIcon}</button>
         </div>
         <div class='content ${this._expanded ? 'expanded' :''}'>
-          ${repeat(this.thread.messages, (message) => message.id, (item, index) => html`
+          ${repeat(this.thread.messages, (message) => message.id, (item) => html`
           <comment-message .message=${item} .user=${this.user}></comment-message>`)}
           <div class='buttons'>
             <button class='small ${this.userMayComment ? '' : 'need-signin'}' title='${this.userMayComment ? 'Reply' : 'Sign in to reply'}' @click=${this._handleAddMessage}>${replyIcon}</button>
@@ -70,36 +70,36 @@ class CommentThread extends LitElement {
         </div>
       </div>
     `;
-  }
+	}
 
-  static get properties() {
-    return {
-      thread: { type: Object },
-      userMayComment: {type:Boolean},
-      user: { type: String },
-      _expanded: {type: Boolean}
-    }
-  }
+	static get properties() {
+		return {
+			thread: { type: Object },
+			userMayComment: {type:Boolean},
+			user: { type: String },
+			_expanded: {type: Boolean}
+		};
+	}
 
-  firstUpdated() {
-    this._expanded = true;
-  }
+	firstUpdated() {
+		this._expanded = true;
+	}
 
-  _handleZippyClicked(e) {
-    this._expanded = !this._expanded;
-  }
+	_handleZippyClicked() {
+		this._expanded = !this._expanded;
+	}
 
-  _handleResolveClicked(e) {
-    this.dispatchEvent(new CustomEvent('resolve-thread', {composed: true, detail:{thread: this.thread}}));
-  }
+	_handleResolveClicked() {
+		this.dispatchEvent(new CustomEvent('resolve-thread', {composed: true, detail:{thread: this.thread}}));
+	}
 
-  _handleAddMessage(e) {
-    if (!this.userMayComment) {
-      this.dispatchEvent(new CustomEvent('show-need-signin'));
-      return;
-    }
-    this.dispatchEvent(new CustomEvent('add-message', {composed:true, detail: {thread: this.thread}}));
-  }
+	_handleAddMessage() {
+		if (!this.userMayComment) {
+			this.dispatchEvent(new CustomEvent('show-need-signin'));
+			return;
+		}
+		this.dispatchEvent(new CustomEvent('add-message', {composed:true, detail: {thread: this.thread}}));
+	}
 }
 
 window.customElements.define('comment-thread', CommentThread);

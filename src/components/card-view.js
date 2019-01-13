@@ -16,58 +16,58 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 import { store } from '../store.js';
 
 import {
-  selectActiveCard,
-  selectActiveSectionId,
-  selectRequestedCard,
-  selectExpandedActiveCollection,
-  selectDataIsFullyLoaded,
-  selectUserSignedIn,
-  selectUserMayEdit,
-  selectUserMayStar,
-  selectUserMayMarkRead,
-  getCardHasStar,
-  getCardIsRead,
+	selectActiveCard,
+	selectActiveSectionId,
+	selectRequestedCard,
+	selectExpandedActiveCollection,
+	selectDataIsFullyLoaded,
+	selectUserSignedIn,
+	selectUserMayEdit,
+	selectUserMayStar,
+	selectUserMayMarkRead,
+	getCardHasStar,
+	getCardIsRead,
 } from '../selectors.js';
 
-import { updateCardSelector } from '../actions/collection.js'
+import { updateCardSelector } from '../actions/collection.js';
 
 import {
-  editingStart
+	editingStart
 } from '../actions/editor.js';
 
 import {
-  createCard,
+	createCard,
 } from '../actions/data.js';
 
 import {
-  openFindDialog
+	openFindDialog
 } from '../actions/find.js';
 
 import {
-  canonicalizeURL
+	canonicalizeURL
 } from '../actions/collection.js';
 
 import {
-  addStar,
-  removeStar,
-  markRead,
-  markUnread,
-  AUTO_MARK_READ_DELAY,
-  showNeedSignin
+	addStar,
+	removeStar,
+	markRead,
+	markUnread,
+	AUTO_MARK_READ_DELAY,
+	showNeedSignin
 } from '../actions/user.js';
 
 import {
-  navigateToCard,
-  openCommentsPanel,
-  closeCommentsPanel,
-  openCardInfoPanel,
-  closeCardInfoPanel,
-  openCardsDrawerPanel,
-  closeCardsDrawerPanel,
-  enablePresentationMode,
-  disablePresentationMode,
-  navigateToNextCard,
-  navigateToPreviousCard
+	navigateToCard,
+	openCommentsPanel,
+	closeCommentsPanel,
+	openCardInfoPanel,
+	closeCardInfoPanel,
+	openCardsDrawerPanel,
+	closeCardsDrawerPanel,
+	enablePresentationMode,
+	disablePresentationMode,
+	navigateToNextCard,
+	navigateToPreviousCard
 } from '../actions/app.js';
 
 //Components needed by this
@@ -78,32 +78,32 @@ import './comments-panel.js';
 import './card-info-panel.js';
 
 import {
-  editIcon,
-  forumIcon,
-  infoIcon,
-  viewDayIcon,
-  fullScreenIcon,
-  arrowBackIcon,
-  arrowForwardIcon,
-  starIcon,
-  starBorderIcon,
-  visibilityIcon,
-  searchIcon,
-  screenRotationIcon
+	editIcon,
+	forumIcon,
+	infoIcon,
+	viewDayIcon,
+	fullScreenIcon,
+	arrowBackIcon,
+	arrowForwardIcon,
+	starIcon,
+	starBorderIcon,
+	visibilityIcon,
+	searchIcon,
+	screenRotationIcon
 } from './my-icons.js';
 
 import {
-  modifyCard,
-  reorderCard
+	modifyCard,
+	reorderCard
 } from '../actions/data.js';
 
 import comments from '../reducers/comments.js';
 store.addReducers({
-  comments,
+	comments,
 });
 
 import {
-  cardsDrawerPanelShowing
+	cardsDrawerPanelShowing
 } from '../reducers/app.js';
 
 // These are the shared styles needed by this element.
@@ -112,8 +112,8 @@ import { SharedStyles } from './shared-styles.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 class CardView extends connect(store)(PageViewElement) {
-  render() {
-    return html`
+	render() {
+		return html`
       ${SharedStyles}
       ${ButtonSharedStyles}
       <style>
@@ -331,259 +331,259 @@ class CardView extends connect(store)(PageViewElement) {
         <comments-panel .active=${this.active}></comments-panel>
       </div>
     `;
-  }
+	}
 
-  static get properties() {
-    return {
-      _card: { type: Object },
-      _editing: {type: Boolean },
-      _pageExtra: {type: String},
-      _requestedCard: {type:String},
-      _userMayEdit: { type: Boolean },
-      _userMayReorder: {type: Boolean},
-      _userMayStar: { type: Boolean },
-      _userMayMarkRead: { type: Boolean },
-      _autoMarkReadPending : { type: Boolean},
-      _displayCard: { type: Object },
-      _editingCard: { type: Object },
-      _commentsPanelOpen: {type: Boolean},
-      _cardInfoPanelOpen: {type: Boolean},
-      _cardsDrawerPanelOpen: {type:Boolean},
-      _cardsDrawerPanelShowing: {type: Boolean},
-      _headerPanelOpen: {type: Boolean},
-      _bodyFromContentEditable: {type:Boolean},
-      _titleFromContentEditable: {type:Boolean},
-      _presentationMode: {type:Boolean},
-      _mobileMode: {type: Boolean},
-      _cardHasStar: {type: Boolean},
-      _cardIsRead: {type: Boolean},
-      _collection: {type: Array},
-      _stars: {type: Object},
-      _reads: {type: Object},
-      _drawerReorderPending : {type: Boolean},
-      _activeSectionId: {type: String},
-      _dataIsFullyLoaded: {type:Boolean},
-    }
-  }
+	static get properties() {
+		return {
+			_card: { type: Object },
+			_editing: {type: Boolean },
+			_pageExtra: {type: String},
+			_requestedCard: {type:String},
+			_userMayEdit: { type: Boolean },
+			_userMayReorder: {type: Boolean},
+			_userMayStar: { type: Boolean },
+			_userMayMarkRead: { type: Boolean },
+			_autoMarkReadPending : { type: Boolean},
+			_displayCard: { type: Object },
+			_editingCard: { type: Object },
+			_commentsPanelOpen: {type: Boolean},
+			_cardInfoPanelOpen: {type: Boolean},
+			_cardsDrawerPanelOpen: {type:Boolean},
+			_cardsDrawerPanelShowing: {type: Boolean},
+			_headerPanelOpen: {type: Boolean},
+			_bodyFromContentEditable: {type:Boolean},
+			_titleFromContentEditable: {type:Boolean},
+			_presentationMode: {type:Boolean},
+			_mobileMode: {type: Boolean},
+			_cardHasStar: {type: Boolean},
+			_cardIsRead: {type: Boolean},
+			_collection: {type: Array},
+			_stars: {type: Object},
+			_reads: {type: Object},
+			_drawerReorderPending : {type: Boolean},
+			_activeSectionId: {type: String},
+			_dataIsFullyLoaded: {type:Boolean},
+		};
+	}
 
-  modifyTitle() {
-    let title = prompt("What should the new title be for this card?", this._card.title);
-    if (!title) return;
-    store.dispatch(modifyCard(this._card, {title:title}, false));
-  }
+	modifyTitle() {
+		let title = prompt('What should the new title be for this card?', this._card.title);
+		if (!title) return;
+		store.dispatch(modifyCard(this._card, {title:title}, false));
+	}
 
-  _thumbnailActivatedHandler(e) {
-    let ele = e.composedPath()[0];
-    store.dispatch(navigateToCard(ele.name || ele.id));
-  }
+	_thumbnailActivatedHandler(e) {
+		let ele = e.composedPath()[0];
+		store.dispatch(navigateToCard(ele.name || ele.id));
+	}
 
-  _handleEditClicked(e) {
-    if (this._editing) {
-      return this._handleCloseEditor(e);
-    }
-    store.dispatch(editingStart())
-  }
+	_handleEditClicked(e) {
+		if (this._editing) {
+			return this._handleCloseEditor(e);
+		}
+		store.dispatch(editingStart());
+	}
 
-  _handleBodyUpdated(e) {
-    this.shadowRoot.querySelector('card-editor').bodyUpdatedFromContentEditable(e.detail.html);
-  }
+	_handleBodyUpdated(e) {
+		this.shadowRoot.querySelector('card-editor').bodyUpdatedFromContentEditable(e.detail.html);
+	}
 
-  _handleTitleUpdated(e) {
-    this.shadowRoot.querySelector('card-editor').titleUpdatedFromContentEditable(e.detail.text);
-  }
+	_handleTitleUpdated(e) {
+		this.shadowRoot.querySelector('card-editor').titleUpdatedFromContentEditable(e.detail.text);
+	}
 
-  _handleCommentsClicked(e) {
-    if (this._commentsPanelOpen) {
-      store.dispatch(closeCommentsPanel());
-    } else {
-      store.dispatch(openCommentsPanel());
-    }
-  }
+	_handleCommentsClicked() {
+		if (this._commentsPanelOpen) {
+			store.dispatch(closeCommentsPanel());
+		} else {
+			store.dispatch(openCommentsPanel());
+		}
+	}
 
-  _handleCardInfoClicked(e) {
-    if (this._cardInfoPanelOpen) {
-      store.dispatch(closeCardInfoPanel());
-    } else {
-      store.dispatch(openCardInfoPanel());
-    }
-  }
+	_handleCardInfoClicked() {
+		if (this._cardInfoPanelOpen) {
+			store.dispatch(closeCardInfoPanel());
+		} else {
+			store.dispatch(openCardInfoPanel());
+		}
+	}
 
-  _handleCardsDrawerClicked(e) {
-    if (this._cardsDrawerPanelOpen) {
-      store.dispatch(closeCardsDrawerPanel());
-    } else {
-      store.dispatch(openCardsDrawerPanel());
-    }
-  }
+	_handleCardsDrawerClicked() {
+		if (this._cardsDrawerPanelOpen) {
+			store.dispatch(closeCardsDrawerPanel());
+		} else {
+			store.dispatch(openCardsDrawerPanel());
+		}
+	}
 
-  _handlePresentationModeClicked(e) {
-    if (this._presentationMode) {
-      store.dispatch(disablePresentationMode());
-    } else {
-      store.dispatch(enablePresentationMode());
-    }
-  }
+	_handlePresentationModeClicked() {
+		if (this._presentationMode) {
+			store.dispatch(disablePresentationMode());
+		} else {
+			store.dispatch(enablePresentationMode());
+		}
+	}
 
-  _handleFindClicked(e) {
-    store.dispatch(openFindDialog());
-  }
+	_handleFindClicked() {
+		store.dispatch(openFindDialog());
+	}
 
-  _handleBackClicked(e) {
-    store.dispatch(navigateToPreviousCard());
-  }
+	_handleBackClicked() {
+		store.dispatch(navigateToPreviousCard());
+	}
 
-  _handleForwardClicked(e) {
-    store.dispatch(navigateToNextCard());
-  }
+	_handleForwardClicked() {
+		store.dispatch(navigateToNextCard());
+	}
 
-  _handleStarClicked(e) {
-    if (!this._userMayStar) {
-      store.dispatch(showNeedSignin());
-      return;
-    }
-    if (this._cardHasStar) {
-      store.dispatch(removeStar(this._card));
-    } else {
-      store.dispatch(addStar(this._card));
-    }
-  }
+	_handleStarClicked() {
+		if (!this._userMayStar) {
+			store.dispatch(showNeedSignin());
+			return;
+		}
+		if (this._cardHasStar) {
+			store.dispatch(removeStar(this._card));
+		} else {
+			store.dispatch(addStar(this._card));
+		}
+	}
 
-  _handleReadClicked(e) {
-    if (!this._userMayMarkRead) {
-      store.dispatch(showNeedSignin());
-      return;
-    }
-    if (this._cardIsRead) {
-      store.dispatch(markUnread(this._card));
-    } else {
-      store.dispatch(markRead(this._card));
-    }
-  }
+	_handleReadClicked() {
+		if (!this._userMayMarkRead) {
+			store.dispatch(showNeedSignin());
+			return;
+		}
+		if (this._cardIsRead) {
+			store.dispatch(markUnread(this._card));
+		} else {
+			store.dispatch(markRead(this._card));
+		}
+	}
 
-  _handleAddCard(e) {
-    store.dispatch(createCard(this._activeSectionId));
-  }
+	_handleAddCard() {
+		store.dispatch(createCard(this._activeSectionId));
+	}
 
-  _handleReorderCard(e) {
-    store.dispatch(reorderCard(e.detail.card, e.detail.index));
-  }
+	_handleReorderCard(e) {
+		store.dispatch(reorderCard(e.detail.card, e.detail.index));
+	}
 
-  stateChanged(state) {
-    this._editingCard = state.editor.card;
-    this._card = selectActiveCard(state) || {};
-    this._displayCard = this._editingCard ? this._editingCard : this._card;
-    this._pageExtra = state.app.pageExtra;
-    this._requestedCard = selectRequestedCard(state);
-    this._editing = state.editor.editing; 
-    this._signedIn = selectUserSignedIn(state);
-    this._userMayStar  =  selectUserMayStar(state);
-    this._userMayMarkRead =  selectUserMayMarkRead(state);
-    this._autoMarkReadPending = state.user.autoMarkReadPending;
-    this._userMayEdit = selectUserMayEdit(state);
-    this._userMayReorder = selectUserMayEdit(state) && selectActiveSectionId(state) != "";
-    this._headerPanelOpen = state.app.headerPanelOpen;
-    this._commentsPanelOpen = state.app.commentsPanelOpen;
-    this._cardInfoPanelOpen = state.app.cardInfoPanelOpen;
-    //Note: do NOT use this for whether the panel is showing.
-    this._cardsDrawerPanelOpen = state.app.cardsDrawerPanelOpen;
-    this._bodyFromContentEditable = state.editor.bodyFromContentEditable;
-    this._titleFromContentEditable = state.editor.titleFromContentEditable;
-    this._cardsDrawerPanelShowing = cardsDrawerPanelShowing(state);
-    this._presentationMode = state.app.presentationMode;
-    this._mobileMode = state.app.mobileMode;
-    this._cardHasStar = getCardHasStar(state, this._card ? this._card.id : "");
-    this._cardIsRead = getCardIsRead(state, this._card ? this._card.id : "");
-    this._collection = selectExpandedActiveCollection(state);
-    this._stars = state.user.stars;
-    this._reads = state.user.reads;
-    this._drawerReorderPending = state.data.reorderPending;
-    this._activeSectionId = selectActiveSectionId(state);
-    this._dataIsFullyLoaded = selectDataIsFullyLoaded(state);
-  }
+	stateChanged(state) {
+		this._editingCard = state.editor.card;
+		this._card = selectActiveCard(state) || {};
+		this._displayCard = this._editingCard ? this._editingCard : this._card;
+		this._pageExtra = state.app.pageExtra;
+		this._requestedCard = selectRequestedCard(state);
+		this._editing = state.editor.editing; 
+		this._signedIn = selectUserSignedIn(state);
+		this._userMayStar  =  selectUserMayStar(state);
+		this._userMayMarkRead =  selectUserMayMarkRead(state);
+		this._autoMarkReadPending = state.user.autoMarkReadPending;
+		this._userMayEdit = selectUserMayEdit(state);
+		this._userMayReorder = selectUserMayEdit(state) && selectActiveSectionId(state) != '';
+		this._headerPanelOpen = state.app.headerPanelOpen;
+		this._commentsPanelOpen = state.app.commentsPanelOpen;
+		this._cardInfoPanelOpen = state.app.cardInfoPanelOpen;
+		//Note: do NOT use this for whether the panel is showing.
+		this._cardsDrawerPanelOpen = state.app.cardsDrawerPanelOpen;
+		this._bodyFromContentEditable = state.editor.bodyFromContentEditable;
+		this._titleFromContentEditable = state.editor.titleFromContentEditable;
+		this._cardsDrawerPanelShowing = cardsDrawerPanelShowing(state);
+		this._presentationMode = state.app.presentationMode;
+		this._mobileMode = state.app.mobileMode;
+		this._cardHasStar = getCardHasStar(state, this._card ? this._card.id : '');
+		this._cardIsRead = getCardIsRead(state, this._card ? this._card.id : '');
+		this._collection = selectExpandedActiveCollection(state);
+		this._stars = state.user.stars;
+		this._reads = state.user.reads;
+		this._drawerReorderPending = state.data.reorderPending;
+		this._activeSectionId = selectActiveSectionId(state);
+		this._dataIsFullyLoaded = selectDataIsFullyLoaded(state);
+	}
 
-  _changedPropsAffectCanvasSize(changedProps) {
-    let sizeProps = [
-      '_headerPanelOpen',
-      '_commentsPanelOpen',
-      '_cardInfoPanelOpen',
-      '_cardsDrawerPanelShowing',
-      '_editing'
-    ]
-    for (let item of sizeProps) {
-      if (changedProps.has(item)) return true;
-    }
-    return false;
-  }
+	_changedPropsAffectCanvasSize(changedProps) {
+		let sizeProps = [
+			'_headerPanelOpen',
+			'_commentsPanelOpen',
+			'_cardInfoPanelOpen',
+			'_cardsDrawerPanelShowing',
+			'_editing'
+		];
+		for (let item of sizeProps) {
+			if (changedProps.has(item)) return true;
+		}
+		return false;
+	}
 
-  _resizeCard() {
-    let fontSize = 20;
-    const canvas = this.shadowRoot.getElementById("canvas");
-    if (!canvas) {
-      console.warn("Couldn't find canvas element");
-      return;
-    }
+	_resizeCard() {
+		let fontSize = 20;
+		const canvas = this.shadowRoot.getElementById('canvas');
+		if (!canvas) {
+			console.warn('Couldn\'t find canvas element');
+			return;
+		}
 
-    const rect = canvas.getBoundingClientRect();
+		const rect = canvas.getBoundingClientRect();
 
 
-    const paddingInPx = Math.round(rect.width / 12);
-    //Next two come from the style for base-card
-    const cardWidthInEms = 43.63;
-    const cardWidthPaddingInEms = 2 * (1.45);
+		const paddingInPx = Math.round(rect.width / 12);
+		//Next two come from the style for base-card
+		const cardWidthInEms = 43.63;
+		const cardWidthPaddingInEms = 2 * (1.45);
 
-    const cardHeightInEms = 24.54;
-    const cardHeightPaddingInEms = 2 * (1.0);
+		const cardHeightInEms = 24.54;
+		const cardHeightPaddingInEms = 2 * (1.0);
 
-    const totalCardWidthInEms = cardWidthInEms + cardWidthPaddingInEms;
-    const totalCardHeighInEms = cardHeightInEms + cardHeightPaddingInEms;
+		const totalCardWidthInEms = cardWidthInEms + cardWidthPaddingInEms;
+		const totalCardHeighInEms = cardHeightInEms + cardHeightPaddingInEms;
 
-    let targetWidth = rect.width - paddingInPx;
-    //TODO: take into account size of actions bar.
-    //On small screens don't worry about any vertical padding.
-    let targetHeight = rect.height - (this._mobileMode ? 0 : paddingInPx);
+		let targetWidth = rect.width - paddingInPx;
+		//TODO: take into account size of actions bar.
+		//On small screens don't worry about any vertical padding.
+		let targetHeight = rect.height - (this._mobileMode ? 0 : paddingInPx);
 
-    let widthFontSize = Math.round(targetWidth / totalCardWidthInEms);
-    let heightFontSize = Math.round(targetHeight / totalCardHeighInEms);
+		let widthFontSize = Math.round(targetWidth / totalCardWidthInEms);
+		let heightFontSize = Math.round(targetHeight / totalCardHeighInEms);
 
-    //Pick the smaller of the two
-    fontSize = widthFontSize;
-    if (heightFontSize < fontSize) fontSize = heightFontSize;
+		//Pick the smaller of the two
+		fontSize = widthFontSize;
+		if (heightFontSize < fontSize) fontSize = heightFontSize;
 
-    const renderer = this.shadowRoot.querySelector('card-renderer');
-    if (!renderer) {
-      console.warn("Couldn't find card-renderer to update its size");
-      return;
-    }
+		const renderer = this.shadowRoot.querySelector('card-renderer');
+		if (!renderer) {
+			console.warn('Couldn\'t find card-renderer to update its size');
+			return;
+		}
 
-    renderer.style.fontSize = '' + fontSize + 'px';
-  }
+		renderer.style.fontSize = '' + fontSize + 'px';
+	}
 
-  firstUpdated(changedProps) {
-    window.addEventListener('resize', e => this._resizeCard());
-  }
+	firstUpdated() {
+		window.addEventListener('resize', () => this._resizeCard());
+	}
 
-  updated(changedProps) {
-    if (changedProps.has('_pageExtra')) {
-      if (this._pageExtra) {
-        store.dispatch(updateCardSelector(this._pageExtra))
-      } else {
-        //Dispatching to '' will use default;
-        store.dispatch(navigateToCard(''));
-      }
-    }
-    if (changedProps.has('_editing') && !this._editing) {
-      //Verify that our URL shows the canoncial name, which may have just
-      //changed when edited.
-      store.dispatch(canonicalizeURL());
-    }
-    if (changedProps.has('_card') && this._card && this._card.name) {
-      store.dispatch(canonicalizeURL());
-    }
-    if (changedProps.has('_activeSectionId')) {
-      store.dispatch(canonicalizeURL());
-    }
-    if (this._changedPropsAffectCanvasSize(changedProps)) Promise.resolve().then(() => this._resizeCard());
-  }
+	updated(changedProps) {
+		if (changedProps.has('_pageExtra')) {
+			if (this._pageExtra) {
+				store.dispatch(updateCardSelector(this._pageExtra));
+			} else {
+				//Dispatching to '' will use default;
+				store.dispatch(navigateToCard(''));
+			}
+		}
+		if (changedProps.has('_editing') && !this._editing) {
+			//Verify that our URL shows the canoncial name, which may have just
+			//changed when edited.
+			store.dispatch(canonicalizeURL());
+		}
+		if (changedProps.has('_card') && this._card && this._card.name) {
+			store.dispatch(canonicalizeURL());
+		}
+		if (changedProps.has('_activeSectionId')) {
+			store.dispatch(canonicalizeURL());
+		}
+		if (this._changedPropsAffectCanvasSize(changedProps)) Promise.resolve().then(() => this._resizeCard());
+	}
 }
 
 window.customElements.define('card-view', CardView);

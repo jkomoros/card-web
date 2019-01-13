@@ -8,37 +8,37 @@ import { store } from '../store.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
-  addSlug,
+	addSlug,
 } from '../actions/data.js';
 
 import {
-  editingFinish,
-  editingCommit,
-  titleUpdated,
-  notesUpdated,
-  bodyUpdated,
-  sectionUpdated,
-  nameUpdated,
-  substantiveUpdated,
-  fullBleedUpdated
+	editingFinish,
+	editingCommit,
+	titleUpdated,
+	notesUpdated,
+	bodyUpdated,
+	sectionUpdated,
+	nameUpdated,
+	substantiveUpdated,
+	fullBleedUpdated
 } from '../actions/editor.js';
 
 import {
-  saveIcon,
-  cancelIcon
+	saveIcon,
+	cancelIcon
 } from './my-icons.js';
 
 import {
-  killEvent
+	killEvent
 } from '../util.js';
 
 import {
-  findCardToLink
+	findCardToLink
 } from '../actions/find.js';
 
 class CardEditor extends connect(store)(LitElement) {
-  render() {
-    return html`
+	render() {
+		return html`
       ${ButtonSharedStyles}
       <style>
 
@@ -161,139 +161,139 @@ class CardEditor extends connect(store)(LitElement) {
         </div>
       </div>
     `;
-  }
+	}
 
-  static get properties() { return {
-    _card: { type: Object },
-    _active: {type: Boolean },
-    _sections: {type: Object },
-    _substantive: {type: Object}
-  }}
+	static get properties() { return {
+		_card: { type: Object },
+		_active: {type: Boolean },
+		_sections: {type: Object },
+		_substantive: {type: Object}
+	};}
 
-  stateChanged(state) {
-    this._card= state.editor.card;
-    this._active = state.editor.editing;
-    this._sections = state.data.sections;
-    this._substantive = state.editor.substantive;
-  }
+	stateChanged(state) {
+		this._card= state.editor.card;
+		this._active = state.editor.editing;
+		this._sections = state.data.sections;
+		this._substantive = state.editor.substantive;
+	}
 
-  shouldUpdate() {
-    return this._active;
-  }
+	shouldUpdate() {
+		return this._active;
+	}
 
-  firstUpdated(changedProps) {
-    document.addEventListener('keydown', e => this._handleKeyDown(e));
-  }
+	firstUpdated() {
+		document.addEventListener('keydown', e => this._handleKeyDown(e));
+	}
 
-  _handleKeyDown(e) {
-    //We have to hook this to issue content editable commands when we're
-    //active. But most of the time we don't want to do anything.
-    if (!this._active) return;
-    if (!e.metaKey && !e.ctrlKey) return;
+	_handleKeyDown(e) {
+		//We have to hook this to issue content editable commands when we're
+		//active. But most of the time we don't want to do anything.
+		if (!this._active) return;
+		if (!e.metaKey && !e.ctrlKey) return;
 
-    //TODO: bail if a content editable region isn't selected. This isn't THAT
-    //big of a deal as long as we use execCommand, because those will just
-    //fail if the selection isn't in a contentEditable region.
+		//TODO: bail if a content editable region isn't selected. This isn't THAT
+		//big of a deal as long as we use execCommand, because those will just
+		//fail if the selection isn't in a contentEditable region.
 
-    switch (e.key) {
-      case 'b':
-        document.execCommand('bold');
-        return killEvent(e);
-      case 'i':
-        document.execCommand('italic');
-        return killEvent(e);
-      case '7':
-        document.execCommand('insertOrderedList');
-        return killEvent(e);
-      case '8':
-        document.execCommand('insertUnorderedList');
-        return killEvent(e);
-      case 'k':
-        if (e.shiftKey) {
-          store.dispatch(findCardToLink());
-        } else {
-          let href = prompt("Where should the URL point?")
-          if (href) {
-            document.execCommand('createLink', null, href);
-          } else {
-            document.execCommand('unlink');
-          }
-        }
-        return killEvent(e);
-    }
-  }
+		switch (e.key) {
+		case 'b':
+			document.execCommand('bold');
+			return killEvent(e);
+		case 'i':
+			document.execCommand('italic');
+			return killEvent(e);
+		case '7':
+			document.execCommand('insertOrderedList');
+			return killEvent(e);
+		case '8':
+			document.execCommand('insertUnorderedList');
+			return killEvent(e);
+		case 'k':
+			if (e.shiftKey) {
+				store.dispatch(findCardToLink());
+			} else {
+				let href = prompt('Where should the URL point?');
+				if (href) {
+					document.execCommand('createLink', null, href);
+				} else {
+					document.execCommand('unlink');
+				}
+			}
+			return killEvent(e);
+		}
+	}
 
-  _handleTitleUpdated(e) {
-    if (!this._active) return;
-    let ele = e.composedPath()[0];
-    store.dispatch(titleUpdated(ele.value, false));
-  }
+	_handleTitleUpdated(e) {
+		if (!this._active) return;
+		let ele = e.composedPath()[0];
+		store.dispatch(titleUpdated(ele.value, false));
+	}
 
-  bodyUpdatedFromContentEditable(html) {
-    this._bodyUpdated(html, true);
-  }
+	bodyUpdatedFromContentEditable(html) {
+		this._bodyUpdated(html, true);
+	}
 
-  titleUpdatedFromContentEditable(text) {
-    store.dispatch(titleUpdated(text, true));
-  }
+	titleUpdatedFromContentEditable(text) {
+		store.dispatch(titleUpdated(text, true));
+	}
 
-  _bodyUpdated(html, fromContentEditable) {
-    store.dispatch(bodyUpdated(html, fromContentEditable));
-  }
+	_bodyUpdated(html, fromContentEditable) {
+		store.dispatch(bodyUpdated(html, fromContentEditable));
+	}
 
-  _handleBodyUpdated(e) {
-    if (!this._active) return;
-    let ele = e.composedPath()[0];
-    this._bodyUpdated(ele.value, false);
-  }
+	_handleBodyUpdated(e) {
+		if (!this._active) return;
+		let ele = e.composedPath()[0];
+		this._bodyUpdated(ele.value, false);
+	}
 
-  _handleNotesUpdated(e) {
-    if (!this._active) return;
-    let ele = e.composedPath()[0];
-    store.dispatch(notesUpdated(ele.value));
-  }
+	_handleNotesUpdated(e) {
+		if (!this._active) return;
+		let ele = e.composedPath()[0];
+		store.dispatch(notesUpdated(ele.value));
+	}
 
-  _handleSectionUpdated(e) {
-    if (!this._active) return;
-    let ele = e.composedPath()[0];
-    store.dispatch(sectionUpdated(ele.value));
-  }
+	_handleSectionUpdated(e) {
+		if (!this._active) return;
+		let ele = e.composedPath()[0];
+		store.dispatch(sectionUpdated(ele.value));
+	}
 
-  _handleNameUpdated(e) {
-    if (!this._active) return;
-    let ele = e.composedPath()[0];
-    store.dispatch(nameUpdated(ele.value));
-  }
+	_handleNameUpdated(e) {
+		if (!this._active) return;
+		let ele = e.composedPath()[0];
+		store.dispatch(nameUpdated(ele.value));
+	}
 
-  _handleAddSlug(e) {
-    if (!this._active) return;
-    if (!this._card) return;
-    let id = this._card.id;
-    let ele = e.composedPath()[0];
-    let value = prompt("Slug to add:");
-    if (!value) return;
-    store.dispatch(addSlug(id, value));
-  }
+	_handleAddSlug(e) {
+		if (!this._active) return;
+		if (!this._card) return;
+		let id = this._card.id;
+		let ele = e.composedPath()[0];
+		let value = prompt('Slug to add:');
+		if (!value) return;
+		store.dispatch(addSlug(id, value));
+	}
 
-  _handleFullBleedUpdated(e) {
-    if(!this._active) return; 
-    let ele = e.composedPath()[0];
-    store.dispatch(fullBleedUpdated(ele.checked));
-  }
+	_handleFullBleedUpdated(e) {
+		if(!this._active) return; 
+		let ele = e.composedPath()[0];
+		store.dispatch(fullBleedUpdated(ele.checked));
+	}
 
-  _handleSubstantiveChanged(e) {
-    if (!this._active) return;
-    let ele = e.composedPath()[0];
-    store.dispatch(substantiveUpdated(ele.checked));
-  }
+	_handleSubstantiveChanged(e) {
+		if (!this._active) return;
+		let ele = e.composedPath()[0];
+		store.dispatch(substantiveUpdated(ele.checked));
+	}
 
-  _handleCommit(e) {
-    store.dispatch(editingCommit());
-  }
+	_handleCommit(e) {
+		store.dispatch(editingCommit());
+	}
 
-  _handleCancel(e) {
-    store.dispatch(editingFinish());
-  }
+	_handleCancel(e) {
+		store.dispatch(editingFinish());
+	}
 
 }
 

@@ -1,24 +1,24 @@
 import snarkdown from 'snarkdown';
 import dompurify from 'dompurify';
 
-const randomCharSetNumbers = "0123456789"
-const randomCharSetLetters = "abcdef"
-const randomCharSet = randomCharSetNumbers + randomCharSetLetters
+const randomCharSetNumbers = '0123456789';
+const randomCharSetLetters = 'abcdef';
+const randomCharSet = randomCharSetNumbers + randomCharSetLetters;
 
 export const randomString = (length, charSet) => {
-  if (!charSet) {
-    charSet = randomCharSet;
-  }
-  let text = "";
-  for (let i = 0; i < length; i++) {
-    text += charSet.charAt(Math.floor(Math.random() * charSet.length));
-  }
-  return text;
-}
+	if (!charSet) {
+		charSet = randomCharSet;
+	}
+	let text = '';
+	for (let i = 0; i < length; i++) {
+		text += charSet.charAt(Math.floor(Math.random() * charSet.length));
+	}
+	return text;
+};
 
 export const newID = () => {
-	return "c_" + randomString(3, randomCharSetNumbers) + "_" + randomString(3, randomCharSetLetters) + randomString(3, randomCharSetNumbers);
-}
+	return 'c_' + randomString(3, randomCharSetNumbers) + '_' + randomString(3, randomCharSetLetters) + randomString(3, randomCharSetNumbers);
+};
 
 export const arrayRemove = (arr, items) => {
 	let itemsToRemove = new Map();
@@ -31,7 +31,7 @@ export const arrayRemove = (arr, items) => {
 		result.push(val);
 	}
 	return result;
-}
+};
 
 export const arrayUnion = (arr, items) => {
 	let result = [];
@@ -45,7 +45,7 @@ export const arrayUnion = (arr, items) => {
 		result.push(val);
 	}	
 	return result;
-}
+};
 
 //items is an array
 export const setRemove = (obj, items) => {
@@ -57,7 +57,7 @@ export const setRemove = (obj, items) => {
 		delete result[item];
 	}
 	return result;
-}
+};
 
 //items is an array
 export const setUnion = (obj, items) => {
@@ -69,7 +69,7 @@ export const setUnion = (obj, items) => {
 		result[item] = true;
 	}
 	return result;
-}
+};
 
 const unionSet = (...sets) => {
 	let result = {};
@@ -80,7 +80,7 @@ const unionSet = (...sets) => {
 		}
 	}
 	return result;
-}
+};
 
 export const intersectionSet = (...sets) => {
 	let union = unionSet(...sets);
@@ -98,7 +98,7 @@ export const intersectionSet = (...sets) => {
 		if (doInclude) result[key] = true;
 	}
 	return result;
-}
+};
 
 //Returns a safe markdown element that can be emitted in a lit-html template.
 export const markdownElement = (content) => {
@@ -107,7 +107,7 @@ export const markdownElement = (content) => {
 	let sanitizedHTML = dompurify.sanitize(html);
 	div.innerHTML = sanitizedHTML;
 	return div;
-}
+};
 
 //Returns a function that takes an item and returns true if it's in ALL
 //includeSets and not in any exclude sets.
@@ -120,29 +120,29 @@ export const makeCombinedFilter = (includeSets, excludeSets) => {
 			if (set[item]) return false;
 		}
 		return true;
-	}
-}
+	};
+};
 
 //date may be a firestore timestamp or a date object.
 export const prettyTime = (date) => {
-	if (!date) return "";
+	if (!date) return '';
 	if (typeof date.toDate == 'function') date = date.toDate();
 	return date.toDateString();
-}
+};
 
 export const killEvent = (e) => {
 	if (e) {
 		e.preventDefault();
 	}
 	return true;
-}
+};
 
 export const isWhitespace = (s) => {
-	return /^\s*$/.test(s)
-}
+	return /^\s*$/.test(s);
+};
 
 //Items in the reads and stars collections are stored at a canonical id given
 //a uid and card id.
 export const idForPersonalCardInfo = (uid, cardId) => {
-	return "" + uid + "+" + cardId;
-}
+	return '' + uid + '+' + cardId;
+};

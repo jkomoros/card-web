@@ -26,11 +26,11 @@ export const ENABLE_MOBILE_MODE = 'ENABLE_MOBILE_MODE';
 export const DISABLE_MOBILE_MODE = 'DISABLE_MOBILE_MODE';
 
 import {
-  selectExpandedActiveCollection
+	selectExpandedActiveCollection
 } from '../selectors.js';
 
 import {
-  selectActiveCardIndex
+	selectActiveCardIndex
 } from '../selectors.js';
 
 //This is the card that is loaded if we weren't passed anything
@@ -38,202 +38,202 @@ const DEFAULT_CARD = 'section-half-baked';
 
 //if silent is true, then just passively updates the URL to reflect what it should be.
 export const navigatePathTo = (path, silent) => (dispatch, getState) => {
-    const state = getState();
-    if (state.editor.editing) {
-      console.log("Can't navigate while editing");
-      return;
-    }
-    if (silent) {
-      window.history.replaceState({}, '', path);
-      return;
-    }
-    window.history.pushState({}, '', path);
-    dispatch(navigated(decodeURIComponent(path), decodeURIComponent(location.search)));
-}
+		const state = getState();
+		if (state.editor.editing) {
+			console.log("Can't navigate while editing");
+			return;
+		}
+		if (silent) {
+			window.history.replaceState({}, '', path);
+			return;
+		}
+		window.history.pushState({}, '', path);
+		dispatch(navigated(decodeURIComponent(path), decodeURIComponent(location.search)));
+};
 
 export const navigateToChangesNumDays = (numDays) => (dispatch) => {
-  if (!numDays) numDays = 1;
-  dispatch(navigatePathTo('/recent/' + numDays + '/days'));
-}
+	if (!numDays) numDays = 1;
+	dispatch(navigatePathTo('/recent/' + numDays + '/days'));
+};
 
 export const navigateToNextCard = () => (dispatch, getState) => {
-  const state = getState();
-  let index = selectActiveCardIndex(state);
-  index++;
-  const collection = selectExpandedActiveCollection(state);
-  if (!collection) return;
-  let newId = collection[index];
-  if (!newId) return;
-  dispatch(navigateToCard(newId));
-}
+	const state = getState();
+	let index = selectActiveCardIndex(state);
+	index++;
+	const collection = selectExpandedActiveCollection(state);
+	if (!collection) return;
+	let newId = collection[index];
+	if (!newId) return;
+	dispatch(navigateToCard(newId));
+};
 
 export const navigateToPreviousCard = () => (dispatch, getState) => {
-  const state = getState();
-  let index = selectActiveCardIndex(state);
-  index--;
-  const collection = selectExpandedActiveCollection(state);
-  if (!collection) return;
-  let newId = collection[index];
-  if (!newId) return;
-  dispatch(navigateToCard(newId));
-}
+	const state = getState();
+	let index = selectActiveCardIndex(state);
+	index--;
+	const collection = selectExpandedActiveCollection(state);
+	if (!collection) return;
+	let newId = collection[index];
+	if (!newId) return;
+	dispatch(navigateToCard(newId));
+};
 
 export const urlForCard = (cardOrId, edit) => {
-  let id = cardOrId
-  if (!id) id = DEFAULT_CARD;
-  //note: null is an object;
-  if (cardOrId && typeof cardOrId === 'object') {
-    id = cardOrId.name;
-  }
-  return '/c/' + id + (edit ? '/edit' : '');
-}
+	let id = cardOrId
+	if (!id) id = DEFAULT_CARD;
+	//note: null is an object;
+	if (cardOrId && typeof cardOrId === 'object') {
+		id = cardOrId.name;
+	}
+	return '/c/' + id + (edit ? '/edit' : '');
+};
 
 export const navigateToCard = (cardOrId, silent) => (dispatch) => {
-  let path = urlForCard(cardOrId, false);
-  dispatch(navigatePathTo(path, silent));
-}
+	let path = urlForCard(cardOrId, false);
+	dispatch(navigatePathTo(path, silent));
+};
 
 export const navigated = (path, query) => (dispatch) => {
 
-  // Extract the page name from path.
-  const page = path === '/' ? 'c' : path.slice(1);
+	// Extract the page name from path.
+	const page = path === '/' ? 'c' : path.slice(1);
 
-  // Any other info you might want to extract from the path (like page type),
-  // you can do here
-  dispatch(loadPage(page, query));
+	// Any other info you might want to extract from the path (like page type),
+	// you can do here
+	dispatch(loadPage(page, query));
 
 };
 
 const loadPage = (pathname, query) => (dispatch) => {
 
-  //pathname is the whole path minus starting '/', like 'c/VIEW_ID'
-  let pieces = pathname.split("/")
+	//pathname is the whole path minus starting '/', like 'c/VIEW_ID'
+	let pieces = pathname.split("/")
 
-  let page = pieces[0];
-  let pageExtra = pieces.length < 2 ? '' : pieces.slice(1).join("/");
+	let page = pieces[0];
+	let pageExtra = pieces.length < 2 ? '' : pieces.slice(1).join("/");
 
-  if (query) pageExtra += query;
+	if (query) pageExtra += query;
 
-  switch(page) {
-    case 'c':
-      import('../components/card-view.js').then((module) => {
-        // Put code in here that you want to run every time when
-        // navigating to view1 after my-view1.js is loaded.
-      });
-      break;
-    case 'recent':
-      import('../components/recent-changes-view.js');
-      break;
-    case 'maintenance':
-      import('../components/maintenance-view.js');
-      break;
-    default:
-      page = 'view404';
-      import('../components/my-view404.js');
-  }
+	switch(page) {
+		case 'c':
+			import('../components/card-view.js').then((module) => {
+				// Put code in here that you want to run every time when
+				// navigating to view1 after my-view1.js is loaded.
+			});
+			break;
+		case 'recent':
+			import('../components/recent-changes-view.js');
+			break;
+		case 'maintenance':
+			import('../components/maintenance-view.js');
+			break;
+		default:
+			page = 'view404';
+			import('../components/my-view404.js');
+	}
 
-  dispatch(updatePage(pathname, page, pageExtra));
+	dispatch(updatePage(pathname, page, pageExtra));
 };
 
 const updatePage = (location, page, pageExtra) => {
-  return {
-    type: UPDATE_PAGE,
-    location,
-    page,
-    pageExtra
-  };
+	return {
+		type: UPDATE_PAGE,
+		location,
+		page,
+		pageExtra
+	};
 };
 
 let snackbarTimer;
 
 export const showSnackbar = () => (dispatch) => {
-  dispatch({
-    type: OPEN_SNACKBAR
-  });
-  window.clearTimeout(snackbarTimer);
-  snackbarTimer = window.setTimeout(() =>
-    dispatch({ type: CLOSE_SNACKBAR }), 3000);
+	dispatch({
+		type: OPEN_SNACKBAR
+	});
+	window.clearTimeout(snackbarTimer);
+	snackbarTimer = window.setTimeout(() =>
+		dispatch({ type: CLOSE_SNACKBAR }), 3000);
 };
 
 export const updateOffline = (offline) => (dispatch, getState) => {
-  // Show the snackbar only if offline status changes.
-  if (offline !== getState().app.offline) {
-    dispatch(showSnackbar());
-  }
-  dispatch({
-    type: UPDATE_OFFLINE,
-    offline
-  });
+	// Show the snackbar only if offline status changes.
+	if (offline !== getState().app.offline) {
+		dispatch(showSnackbar());
+	}
+	dispatch({
+		type: UPDATE_OFFLINE,
+		offline
+	});
 };
 
 export const openHeaderPanel = () => {
-  return {
-    type: OPEN_HEADER_PANEL
-  }
-}
+	return {
+		type: OPEN_HEADER_PANEL
+	};
+};
 
 export const closeHeaderPanel = () => {
-  return {
-    type: CLOSE_HEADER_PANEL
-  }
-}
+	return {
+		type: CLOSE_HEADER_PANEL
+	};
+};
 
 export const openCommentsPanel = () => {
-  return {
-    type: OPEN_COMMENTS_PANEL
-  }
-}
+	return {
+		type: OPEN_COMMENTS_PANEL
+	};
+};
 
 export const closeCommentsPanel = () => {
-  return {
-    type: CLOSE_COMMENTS_PANEL
-  }
-}
+	return {
+		type: CLOSE_COMMENTS_PANEL
+	};
+};
 
 export const openCardInfoPanel = () => {
-  return {
-    type: OPEN_CARD_INFO_PANEL
-  }
-}
+	return {
+		type: OPEN_CARD_INFO_PANEL
+	};
+};
 
 export const closeCardInfoPanel = () => {
-  return {
-    type: CLOSE_CARD_INFO_PANEL
-  }
-}
+	return {
+		type: CLOSE_CARD_INFO_PANEL
+	};
+};
 
 export const openCardsDrawerPanel = () => {
-  return {
-    type: OPEN_CARDS_DRAWER_PANEL
-  }
-}
+	return {
+		type: OPEN_CARDS_DRAWER_PANEL
+	};
+};
 
 export const closeCardsDrawerPanel = () => {
-  return {
-    type: CLOSE_CARDS_DRAWER_PANEL
-  }
-}
+	return {
+		type: CLOSE_CARDS_DRAWER_PANEL
+	};
+};
 
 
 export const enablePresentationMode = () => {
-  return {
-    type: ENABLE_PRESENTATION_MODE,
-  }
-}
+	return {
+		type: ENABLE_PRESENTATION_MODE,
+	};
+};
 
 export const disablePresentationMode = () => {
-  return {
-    type: DISABLE_PRESENTATION_MODE,
-  }
-}
+	return {
+		type: DISABLE_PRESENTATION_MODE,
+	};
+};
 
 export const turnMobileMode = (on) => (dispatch) => {
-  if (on) {
-    dispatch(enablePresentationMode());
-    dispatch({type:ENABLE_MOBILE_MODE});
-    return;
-  }
-  dispatch(disablePresentationMode());
-  dispatch({type:DISABLE_MOBILE_MODE});
-}
+	if (on) {
+		dispatch(enablePresentationMode());
+		dispatch({type:ENABLE_MOBILE_MODE});
+		return;
+	}
+	dispatch(disablePresentationMode());
+	dispatch({type:DISABLE_MOBILE_MODE});
+};
 

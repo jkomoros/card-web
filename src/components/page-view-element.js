@@ -11,14 +11,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 import { LitElement } from '@polymer/lit-element';
 
 export class PageViewElement extends LitElement {
-  // Only render this page if it's actually visible.
-  shouldUpdate() {
-    return this.active;
-  }
+	// Only render this page if it's actually visible.
+	shouldUpdate() {
+		return this.active;
+	}
 
-  static get properties() {
-    return {
-      active: { type: Boolean }
-    }
-  }
+	static get properties() {
+		return {
+			active: { type: Boolean }
+		};
+	}
 }

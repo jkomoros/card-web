@@ -12,23 +12,23 @@ var config;
 if (window.location.hostname == 'localhost') DEV_MODE = true;
 if (window.location.hostname.indexOf('dev-') >= 0) DEV_MODE = true;
 if (DEV_MODE) {
-  config = {
-      apiKey: "AIzaSyAMJMN0rfauE1fNmZtSktR1c9pOhjbj5wM",
-      authDomain: "dev-complexity-compendium.firebaseapp.com",
-      databaseURL: "https://dev-complexity-compendium.firebaseio.com",
-      projectId: "dev-complexity-compendium",
-      storageBucket: "dev-complexity-compendium.appspot.com",
-      messagingSenderId: "833356784081"
-  };
+	config = {
+		apiKey: 'AIzaSyAMJMN0rfauE1fNmZtSktR1c9pOhjbj5wM',
+		authDomain: 'dev-complexity-compendium.firebaseapp.com',
+		databaseURL: 'https://dev-complexity-compendium.firebaseio.com',
+		projectId: 'dev-complexity-compendium',
+		storageBucket: 'dev-complexity-compendium.appspot.com',
+		messagingSenderId: '833356784081'
+	};
 } else {
-  config = {
-    apiKey: "AIzaSyApU8WmBkOLnqlCD6sRnbZgj3EUybOOZ54",
-    authDomain: "complexity-compendium.firebaseapp.com",
-    databaseURL: "https://complexity-compendium.firebaseio.com",
-    projectId: "complexity-compendium",
-    storageBucket: "complexity-compendium.appspot.com",
-    messagingSenderId: "711980530249"
-  };
+	config = {
+		apiKey: 'AIzaSyApU8WmBkOLnqlCD6sRnbZgj3EUybOOZ54',
+		authDomain: 'complexity-compendium.firebaseapp.com',
+		databaseURL: 'https://complexity-compendium.firebaseio.com',
+		projectId: 'complexity-compendium',
+		storageBucket: 'complexity-compendium.appspot.com',
+		messagingSenderId: '711980530249'
+	};
 }
 // Initialize Firebase
 firebase.initializeApp(config);
@@ -36,33 +36,33 @@ firebase.initializeApp(config);
 export const db = firebase.firestore();
 
 db.settings({
-  timestampsInSnapshots:true,
-})
+	timestampsInSnapshots:true,
+});
 
 firebase.firestore().enablePersistence()
-  .catch(function(err) {
-      if (err.code == 'failed-precondition') {
-        console.warn("Offline doesn't work because multiple tabs are open or something else")
-      } else if (err.code == 'unimplemented') {
-        console.warn("This browser doesn't support offline storage")
-      }
-  });
+	.catch(function(err) {
+		if (err.code == 'failed-precondition') {
+			console.warn('Offline doesn\'t work because multiple tabs are open or something else');
+		} else if (err.code == 'unimplemented') {
+			console.warn('This browser doesn\'t support offline storage');
+		}
+	});
 
 import {
-  updateCards,
-  updateSections,
-  updateAuthors
+	updateCards,
+	updateSections,
+	updateAuthors
 } from './data.js';
 
 import {
-  updateMessages,
-  updateThreads,
-  updateCardThreads
+	updateMessages,
+	updateThreads,
+	updateCardThreads
 } from './comments.js';
 
 import {
-  updateStars,
-  updateReads,
+	updateStars,
+	updateReads,
 } from './user.js';
 
 export const CARDS_COLLECTION = 'cards';
@@ -87,159 +87,159 @@ let liveStarsUnsubscribe = null;
 let liveReadsUnsubscribe = null;
 
 export const connectLiveMessages = (store, cardId) => {
-  if (liveMessagesUnsubscribe) {
-    liveMessagesUnsubscribe();
-    liveMessagesUnsubscribe = null;
-  }
-  //Deliberately DO fetch deleted messages, so we can render stubs for them.
-  liveMessagesUnsubscribe = db.collection(MESSAGES_COLLECTION).where('card', '==', cardId).onSnapshot(snapshot => {
-    let messages = {};
+	if (liveMessagesUnsubscribe) {
+		liveMessagesUnsubscribe();
+		liveMessagesUnsubscribe = null;
+	}
+	//Deliberately DO fetch deleted messages, so we can render stubs for them.
+	liveMessagesUnsubscribe = db.collection(MESSAGES_COLLECTION).where('card', '==', cardId).onSnapshot(snapshot => {
+		let messages = {};
 
-    snapshot.docChanges().forEach(change => {
-      if (change.type === 'removed') return;
-      let doc = change.doc;
-      let id = doc.id;
-      let message = doc.data();
-      message.id = id;
-      messages[id] = message;
-    })
+		snapshot.docChanges().forEach(change => {
+			if (change.type === 'removed') return;
+			let doc = change.doc;
+			let id = doc.id;
+			let message = doc.data();
+			message.id = id;
+			messages[id] = message;
+		});
 
-    store.dispatch(updateMessages(messages));
-  })
-}
+		store.dispatch(updateMessages(messages));
+	});
+};
 
 export const connectLiveThreads = (store, cardId) => {
-  if (liveThreadsUnsubscribe) {
-    liveThreadsUnsubscribe();
-    liveThreadsUnsubscribe = null;
-  }
-  let firstUpdate = true;
-  liveThreadsUnsubscribe = db.collection(THREADS_COLLECTION).where('card', '==', cardId).where('deleted', '==', false).where('resolved', '==', false).onSnapshot(snapshot => {
-    let threads = {};
-    let threadsToAdd = [];
-    let threadsToRemove = [];
-    snapshot.docChanges().forEach(change => {
-      let doc = change.doc;
-      if (change.type === 'removed') {
-        threadsToRemove.push(doc.id);
-        return;
-      }
-      let id = doc.id;
-      let thread = doc.data();
-      thread.id = id;
-      threadsToAdd.push(id);
-      threads[id] = thread;
-    })
-    store.dispatch(updateThreads(threads));
-    store.dispatch(updateCardThreads(threadsToAdd, threadsToRemove, firstUpdate))
-    firstUpdate = false;
-  })
-}
+	if (liveThreadsUnsubscribe) {
+		liveThreadsUnsubscribe();
+		liveThreadsUnsubscribe = null;
+	}
+	let firstUpdate = true;
+	liveThreadsUnsubscribe = db.collection(THREADS_COLLECTION).where('card', '==', cardId).where('deleted', '==', false).where('resolved', '==', false).onSnapshot(snapshot => {
+		let threads = {};
+		let threadsToAdd = [];
+		let threadsToRemove = [];
+		snapshot.docChanges().forEach(change => {
+			let doc = change.doc;
+			if (change.type === 'removed') {
+				threadsToRemove.push(doc.id);
+				return;
+			}
+			let id = doc.id;
+			let thread = doc.data();
+			thread.id = id;
+			threadsToAdd.push(id);
+			threads[id] = thread;
+		});
+		store.dispatch(updateThreads(threads));
+		store.dispatch(updateCardThreads(threadsToAdd, threadsToRemove, firstUpdate));
+		firstUpdate = false;
+	});
+};
 
 export const disconnectLiveStars = () => {
-  if (liveStarsUnsubscribe) {
-    liveStarsUnsubscribe();
-    liveStarsUnsubscribe = null;
-  }
-}
+	if (liveStarsUnsubscribe) {
+		liveStarsUnsubscribe();
+		liveStarsUnsubscribe = null;
+	}
+};
 
 export const connectLiveStars = (store, uid) => {
-  disconnectLiveStars();
-  liveStarsUnsubscribe = db.collection(STARS_COLLECTION).where('owner', '==', uid).onSnapshot( snapshot => {
-    let stars = {};
-    let starsToAdd = [];
-    let starsToRemove = [];
-    snapshot.docChanges().forEach(change => {
-      let doc = change.doc;
-      if (change.type === 'removed') {
-        starsToRemove.push(doc.data().card);
-        return;
-      }
-      starsToAdd.push(doc.data().card);
-    })
-    store.dispatch(updateStars(starsToAdd, starsToRemove));
-  })
-}
+	disconnectLiveStars();
+	liveStarsUnsubscribe = db.collection(STARS_COLLECTION).where('owner', '==', uid).onSnapshot( snapshot => {
+		let stars = {};
+		let starsToAdd = [];
+		let starsToRemove = [];
+		snapshot.docChanges().forEach(change => {
+			let doc = change.doc;
+			if (change.type === 'removed') {
+				starsToRemove.push(doc.data().card);
+				return;
+			}
+			starsToAdd.push(doc.data().card);
+		});
+		store.dispatch(updateStars(starsToAdd, starsToRemove));
+	});
+};
 
 export const disconnectLiveReads = () => {
-  if (liveReadsUnsubscribe) {
-    liveReadsUnsubscribe();
-    liveReadsUnsubscribe = null;
-  }
-}
+	if (liveReadsUnsubscribe) {
+		liveReadsUnsubscribe();
+		liveReadsUnsubscribe = null;
+	}
+};
 
 export const connectLiveReads = (store, uid) => {
-  disconnectLiveReads();
-  liveReadsUnsubscribe = db.collection(READS_COLLECTION).where('owner', '==', uid).onSnapshot( snapshot => {
-    let reads = {};
-    let readsToAdd = [];
-    let readsToRemove = [];
-    snapshot.docChanges().forEach(change => {
-      let doc = change.doc;
-      if (change.type === 'removed') {
-        readsToRemove.push(doc.data().card);
-        return;
-      }
-      readsToAdd.push(doc.data().card);
-    })
-    store.dispatch(updateReads(readsToAdd, readsToRemove));
-  })
-}
+	disconnectLiveReads();
+	liveReadsUnsubscribe = db.collection(READS_COLLECTION).where('owner', '==', uid).onSnapshot( snapshot => {
+		let reads = {};
+		let readsToAdd = [];
+		let readsToRemove = [];
+		snapshot.docChanges().forEach(change => {
+			let doc = change.doc;
+			if (change.type === 'removed') {
+				readsToRemove.push(doc.data().card);
+				return;
+			}
+			readsToAdd.push(doc.data().card);
+		});
+		store.dispatch(updateReads(readsToAdd, readsToRemove));
+	});
+};
 
 export const connectLiveAuthors = (store) => {
-  db.collection(AUTHORS_COLLECTION).onSnapshot(snapshot => {
+	db.collection(AUTHORS_COLLECTION).onSnapshot(snapshot => {
 
-    let authors = {};
+		let authors = {};
 
-    snapshot.docChanges().forEach(change => {
-      if (change.type === 'removed') return;
-      let doc = change.doc;
-      let id = doc.id;
-      let author = doc.data();
-      author.id = id;
-      authors[id] = author;
-    })
+		snapshot.docChanges().forEach(change => {
+			if (change.type === 'removed') return;
+			let doc = change.doc;
+			let id = doc.id;
+			let author = doc.data();
+			author.id = id;
+			authors[id] = author;
+		});
 
-    store.dispatch(updateAuthors(authors));
+		store.dispatch(updateAuthors(authors));
 
-  });
-}
+	});
+};
 
 export const connectLiveCards = (store) => {
-  db.collection(CARDS_COLLECTION).onSnapshot(snapshot => {
+	db.collection(CARDS_COLLECTION).onSnapshot(snapshot => {
 
-    let cards = {};
+		let cards = {};
 
-    snapshot.docChanges().forEach(change => {
-      if (change.type === 'removed') return;
-      let doc = change.doc;
-      let id = doc.id;
-      let card = doc.data();
-      card.id = id;
-      cards[id] = card;
-    })
+		snapshot.docChanges().forEach(change => {
+			if (change.type === 'removed') return;
+			let doc = change.doc;
+			let id = doc.id;
+			let card = doc.data();
+			card.id = id;
+			cards[id] = card;
+		});
 
-    store.dispatch(updateCards(cards));
+		store.dispatch(updateCards(cards));
 
-  });
-}
+	});
+};
 
 export const connectLiveSections = (store) => {
-  db.collection(SECTIONS_COLLECTION).orderBy('order').onSnapshot(snapshot => {
+	db.collection(SECTIONS_COLLECTION).orderBy('order').onSnapshot(snapshot => {
 
-    let sections = {};
+		let sections = {};
 
-    snapshot.docChanges().forEach(change => {
-      if (change.type === 'removed') return;
-      let doc = change.doc;
-      let id = doc.id;
-      let section = doc.data();
-      section.id = id;
-      sections[id] = section;
-    })
+		snapshot.docChanges().forEach(change => {
+			if (change.type === 'removed') return;
+			let doc = change.doc;
+			let id = doc.id;
+			let section = doc.data();
+			section.id = id;
+			sections[id] = section;
+		});
 
-    store.dispatch(updateSections(sections));
+		store.dispatch(updateSections(sections));
 
-  })
-}
+	});
+};
 

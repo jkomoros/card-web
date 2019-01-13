@@ -9,8 +9,8 @@ import './card-decorator.js';
 // imagine that it could just as well be a third-party element that you
 // got from someone else.
 class CardThumbnail extends LitElement {
-  render() {
-    return html`
+	render() {
+		return html`
       <style>
 
         div:hover h3 {
@@ -106,7 +106,7 @@ class CardThumbnail extends LitElement {
         }
 
       </style>
-      <div @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="${this.selected ? "selected" : ""} ${this.cardType}">
+      <div @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="${this.selected ? 'selected' : ''} ${this.cardType}">
         <h3>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>
         <star-count .count=${this.card.star_count || 0} .highlighted=${this.starred} .light=${this.cardType != 'content'}></star-count>
         <read-decorator .visible=${this.read} .light=${this.cardType != 'content'}></read-decorator>
@@ -114,38 +114,38 @@ class CardThumbnail extends LitElement {
         <card-decorator .count=${this.index + 1} .light=${this.cardType != 'content'}></card-decorator>
       </div>
     `;
-  }
+	}
 
-  static get properties() { return {
-    id: {type: String},
-    name: { type:String },
-    title: { type: String },
-    selected: { type: Boolean },
-    cardType: { type: String},
-    userMayEdit: {type: Boolean},
-    //Card isn't used for much, except a a place for the container to stash
-    //the whole card (for convenience with dragging).
-    card: {type: Object},
-    starred: {type:Boolean},
-    read: {type:Boolean},
-    index: {type: Number},
-    _selectedViaClick: { type: Boolean },
-  }};
+	static get properties() { return {
+		id: {type: String},
+		name: { type:String },
+		title: { type: String },
+		selected: { type: Boolean },
+		cardType: { type: String},
+		userMayEdit: {type: Boolean},
+		//Card isn't used for much, except a a place for the container to stash
+		//the whole card (for convenience with dragging).
+		card: {type: Object},
+		starred: {type:Boolean},
+		read: {type:Boolean},
+		index: {type: Number},
+		_selectedViaClick: { type: Boolean },
+	};}
 
   _handleClick(e) {
-    e.stopPropagation();
-    this._selectedViaClick = true;
-    this.dispatchEvent(new CustomEvent("thumbnail-tapped", {composed:true, detail: {card: this.card}}));
-  }
+		e.stopPropagation();
+		this._selectedViaClick = true;
+		this.dispatchEvent(new CustomEvent('thumbnail-tapped', {composed:true, detail: {card: this.card}}));
+	}
 
-  updated(changedProps) {
-    if (changedProps.has('selected') && this.selected) {
-      if (!this._selectedViaClick) {
-        this.scrollIntoView({behavior:"auto", block:"center", });
-      }
-      this._selectedViaClick = false;
-    }
-  }
+	updated(changedProps) {
+		if (changedProps.has('selected') && this.selected) {
+			if (!this._selectedViaClick) {
+				this.scrollIntoView({behavior:'auto', block:'center', });
+			}
+			this._selectedViaClick = false;
+		}
+	}
 
 }
 

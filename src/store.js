@@ -9,10 +9,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 */
 
 import {
-  createStore,
-  compose,
-  applyMiddleware,
-  combineReducers
+	createStore,
+	compose,
+	applyMiddleware,
+	combineReducers
 } from 'redux';
 import thunk from 'redux-thunk';
 import { lazyReducerEnhancer } from 'pwa-helpers/lazy-reducer-enhancer.js';
@@ -29,13 +29,13 @@ const devCompose = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
 // section of the wiki for more details:
 // https://github.com/Polymer/pwa-starter-kit/wiki/4.-Redux-and-state-management
 export const store = createStore(
-  state => state,
-  devCompose(
-    lazyReducerEnhancer(combineReducers),
-    applyMiddleware(thunk))
+	state => state,
+	devCompose(
+		lazyReducerEnhancer(combineReducers),
+		applyMiddleware(thunk))
 );
 
 // Initially loaded reducers.
 store.addReducers({
-  app
+	app
 });

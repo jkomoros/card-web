@@ -1,4 +1,4 @@
-import { LitElement, html } from '@polymer/lit-element';
+import { html } from '@polymer/lit-element';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -8,7 +8,7 @@ import { DialogElement } from './dialog-element.js';
 
 import find from '../reducers/find.js';
 store.addReducers({
-  find
+	find
 });
 
 import {
@@ -31,8 +31,8 @@ import {
 import './card-drawer.js';
 
 class FindDialog extends connect(store)(DialogElement) {
-  innerRender() {
-    return html`
+	innerRender() {
+		return html`
     	<style>
     		card-drawer {
     			font-size:14px;
@@ -48,47 +48,47 @@ class FindDialog extends connect(store)(DialogElement) {
     	<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
     	<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection}></card-drawer>
     `;
-  }
+	}
 
-  constructor() {
-  	super();
-  	this.title = 'Search';
-  }
+	constructor() {
+		super();
+		this.title = 'Search';
+	}
 
-  _shouldClose() {
-  	//Override base class.
-  	store.dispatch(closeFindDialog());
-  }
+	_shouldClose() {
+		//Override base class.
+		store.dispatch(closeFindDialog());
+	}
 
-  _handleQueryChanged(e) {
-    let ele = e.composedPath()[0];
-    store.dispatch(updateQuery(ele.value));
-  }
+	_handleQueryChanged(e) {
+		let ele = e.composedPath()[0];
+		store.dispatch(updateQuery(ele.value));
+	}
 
-  _handleThumbnailTapped(e) {
-  	this._shouldClose();
-  	if (this._linking) {
-  		store.dispatch(linkCard(e.detail.card));
-  		return;
-  	}
-  	store.dispatch(navigateToCard(e.detail.card));
-  }
+	_handleThumbnailTapped(e) {
+		this._shouldClose();
+		if (this._linking) {
+			store.dispatch(linkCard(e.detail.card));
+			return;
+		}
+		store.dispatch(navigateToCard(e.detail.card));
+	}
 
-  static get properties() {
-  	return {
-  		_query: {type: String},
-  		_collection: {type:Array},
-  		_linking: {type:Boolean},
-  	}
-  }
+	static get properties() {
+		return {
+			_query: {type: String},
+			_collection: {type:Array},
+			_linking: {type:Boolean},
+		};
+	}
 
-  stateChanged(state) {
+	stateChanged(state) {
   	//tODO: it's weird that we manually set our superclasses' public property
   	this.open = state.find.open;
   	this._query = state.find.query;
   	this._collection = collectionForQuery(state);
   	this._linking = state.find.linking;
-  }
+	}
 
 }
 

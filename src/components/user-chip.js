@@ -3,7 +3,7 @@ import { LitElement, html } from '@polymer/lit-element';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 import {
-  firebase
+	firebase
 } from '../actions/database.js';
 
 // This element is connected to the Redux store.
@@ -12,30 +12,30 @@ import { store } from '../store.js';
 // We are lazy loading its reducer.
 import user from '../reducers/user.js';
 store.addReducers({
-  user
+	user
 });
 
 import {
-  personIcon
+	personIcon
 } from './my-icons.js';
 
 import {
-  signIn,
-  signInSuccess,
-  signOutSuccess,
-  signOut
+	signIn,
+	signInSuccess,
+	signOutSuccess,
+	signOut
 } from '../actions/user.js';
 
 import {
-  selectUser,
-  selectUserSignedIn,
+	selectUser,
+	selectUserSignedIn,
 } from '../selectors.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 class UserChip extends connect(store)(LitElement) {
-  render() {
-    return html`
+	render() {
+		return html`
       ${ButtonSharedStyles}
       <style>
         div {
@@ -61,57 +61,57 @@ class UserChip extends connect(store)(LitElement) {
       </style>
       <div class='${this._pending ? 'pending' : ''}'>
         ${this._signedIn
-          ? html`<span>${this._effectiveUser.displayName}</span> <img title='${this._effectiveUser.displayName + ' - ' + this._effectiveUser.email + ' - Click to sign out'}' src='${this._effectiveUser.photoURL}' @click=${this._handleSignOutClick}>`
-          : html`<span>Sign in with your Google Account</span><button class='round' @click=${this._handleSignInClick}>${personIcon}</button>`
-        }
+		? html`<span>${this._effectiveUser.displayName}</span> <img title='${this._effectiveUser.displayName + ' - ' + this._effectiveUser.email + ' - Click to sign out'}' src='${this._effectiveUser.photoURL}' @click=${this._handleSignOutClick}>`
+		: html`<span>Sign in with your Google Account</span><button class='round' @click=${this._handleSignInClick}>${personIcon}</button>`
+}
       </div>
       `;
-  }
+	}
 
-  firstUpdated() {
-    firebase.auth().onAuthStateChanged(this._handleAuthStateChanged);
-  }
+	firstUpdated() {
+		firebase.auth().onAuthStateChanged(this._handleAuthStateChanged);
+	}
 
-  _handleAuthStateChanged(user) {
-    if (user) {
-      store.dispatch(signInSuccess(user, store))
-    } else {
-      store.dispatch(signOutSuccess());
-    }
-  }
+	_handleAuthStateChanged(user) {
+		if (user) {
+			store.dispatch(signInSuccess(user, store));
+		} else {
+			store.dispatch(signOutSuccess());
+		}
+	}
 
-  _handleSignInClick(e) {
-    store.dispatch(signIn());
-  }
+	_handleSignInClick(e) {
+		store.dispatch(signIn());
+	}
 
-  _handleSignOutClick(e) {
-    store.dispatch(signOut());
-  }
+	_handleSignOutClick(e) {
+		store.dispatch(signOut());
+	}
 
-  get _effectiveUser() {
-    if (this._user) return this._user;
-    return {
-      displayName: "",
-      email: "",
-      photoURL: "",
-    }
-  }
+	get _effectiveUser() {
+		if (this._user) return this._user;
+		return {
+			displayName: '',
+			email: '',
+			photoURL: '',
+		};
+	}
 
-  static get properties() {
-    return {
-      _pending: { type: Boolean },
-      _user: { type: Object },
-      _signedIn: { type: Boolean},
-      _error: { type: Object }
-    }
-  }
+	static get properties() {
+		return {
+			_pending: { type: Boolean },
+			_user: { type: Object },
+			_signedIn: { type: Boolean},
+			_error: { type: Object }
+		};
+	}
 
-  stateChanged(state) {
-    this._pending = state.user.pending;
-    this._user = selectUser(state);
-    this._signedIn = selectUserSignedIn(state);
-    this._error = state.user.error;
-  }
+	stateChanged(state) {
+		this._pending = state.user.pending;
+		this._user = selectUser(state);
+		this._signedIn = selectUserSignedIn(state);
+		this._error = state.user.error;
+	}
 
 
 }

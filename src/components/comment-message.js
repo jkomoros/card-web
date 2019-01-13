@@ -5,23 +5,23 @@ import './author-chip.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
-  editIcon,
-  deleteForeverIcon
+	editIcon,
+	deleteForeverIcon
 } from './my-icons.js';
 
 import {
-  prettyTime,
-  markdownElement,
+	prettyTime,
+	markdownElement,
 } from '../util.js';
 
 import {
-  userMayEditMessage
+	userMayEditMessage
 } from '../selectors.js';
 
 // This element is *not* connected to the Redux store.
 class CommentMessage extends LitElement {
-  render() {
-    return html`
+	render() {
+		return html`
       ${ ButtonSharedStyles }
       <style>
         :host {
@@ -64,25 +64,25 @@ class CommentMessage extends LitElement {
         </div>
       </div>
     `;
-  }
+	}
 
-  _handleEditClicked(e) {
-    this.dispatchEvent(new CustomEvent('edit-message', {composed:true, detail: {message: this.message}}));
-  }
+	_handleEditClicked(e) {
+		this.dispatchEvent(new CustomEvent('edit-message', {composed:true, detail: {message: this.message}}));
+	}
 
-  _handleDeleteClicked(e) {
-    if (!confirm("Delete this message forever? This action cannot be undone.")) {
-      return;
-    }
-    this.dispatchEvent(new CustomEvent('delete-message', {composed: true, detail: {message: this.message}}));
-  }
+	_handleDeleteClicked(e) {
+		if (!confirm('Delete this message forever? This action cannot be undone.')) {
+			return;
+		}
+		this.dispatchEvent(new CustomEvent('delete-message', {composed: true, detail: {message: this.message}}));
+	}
 
-  static get properties() {
-    return {
-      message: { type: Object },
-      user: {type: String},
-    }
-  }
+	static get properties() {
+		return {
+			message: { type: Object },
+			user: {type: String},
+		};
+	}
 }
 
 window.customElements.define('comment-message', CommentMessage);

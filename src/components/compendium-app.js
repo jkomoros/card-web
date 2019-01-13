@@ -26,51 +26,51 @@ import editor from '../reducers/editor.js';
 import collection from '../reducers/collection.js';
 import prompt from '../reducers/prompt.js';
 store.addReducers({
-  data,
-  editor,
-  collection,
-  prompt,
+	data,
+	editor,
+	collection,
+	prompt,
 });
 
 import {
-  DEV_MODE
+	DEV_MODE
 } from '../actions/database.js';
 
 import {
-  getDefaultCardIdForSection
+	getDefaultCardIdForSection
 } from '../reducers/data.js';
 
 import {
-  selectActiveCard,
-  selectActiveCardSectionId
+	selectActiveCard,
+	selectActiveCardSectionId
 } from '../selectors.js';
 
 import {
-  keyboardNavigates
+	keyboardNavigates
 } from '../reducers/app.js';
 
 import { 
-  connectLiveCards,
-  connectLiveSections,
-  connectLiveAuthors
+	connectLiveCards,
+	connectLiveSections,
+	connectLiveAuthors
 } from '../actions/database.js';
 
 import {
-  openFindDialog
+	openFindDialog
 } from '../actions/find.js';
 
 import {
-  FORCE_COLLECTION_URL_PARAM
+	FORCE_COLLECTION_URL_PARAM
 } from '../actions/collection.js';
 
 // These are the actions needed by this element.
 import {
-  navigated,
-  navigateToNextCard,
-  navigateToPreviousCard,
-  updateOffline,
-  urlForCard,
-  turnMobileMode
+	navigated,
+	navigateToNextCard,
+	navigateToPreviousCard,
+	updateOffline,
+	urlForCard,
+	turnMobileMode
 } from '../actions/app.js';
 
 // These are the elements needed by this element.
@@ -80,9 +80,9 @@ import './find-dialog.js';
 import './compose-dialog.js';
 
 class CompendiumApp extends connect(store)(LitElement) {
-  render() {
-    // Anything that's related to rendering should be done in here.
-    return html`
+	render() {
+		// Anything that's related to rendering should be done in here.
+		return html`
     <style>
       :host {
         --app-drawer-width: 256px;
@@ -221,15 +221,15 @@ class CompendiumApp extends connect(store)(LitElement) {
           <div class='spacer'></div>
           <nav class="toolbar-list">
             ${this._sections && Object.keys(this._sections).length > 0 ? 
-              html`${repeat(Object.values(this._sections), (item) => item.id, (item, index) => html`
+		html`${repeat(Object.values(this._sections), (item) => item.id, (item) => html`
               <a ?selected=${this._page === 'c' && item.id == this._activeCardSectionId} href='${urlForCard(getDefaultCardIdForSection(item))}?${FORCE_COLLECTION_URL_PARAM}'>${item.title}</a>
               `)}` :
-              html`<a ?selected="${this._page === 'c'}" href="/c"><em>Loading...</em></a>`
-            }
+		html`<a ?selected="${this._page === 'c'}" href="/c"><em>Loading...</em></a>`
+}
             <a ?selected="${this._page === 'recent'}" href="/recent">Recent</a>
           </nav>
           <div class='spacer dev'>
-            ${this._devMode ? html`DEVMODE` : ""}
+            ${this._devMode ? html`DEVMODE` : ''}
           </div>
           <user-chip></user-chip>
         </div>
@@ -246,102 +246,94 @@ class CompendiumApp extends connect(store)(LitElement) {
     <snack-bar ?active="${this._snackbarOpened}">
         You are now ${this._offline ? 'offline' : 'online'}.</snack-bar>
     `;
-  }
+	}
 
-  static get properties() {
-    return {
-      _page: { type: String },
-      _snackbarOpened: { type: Boolean },
-      _headerPanelOpen: {type: Boolean },
-      _offline: { type: Boolean },
-      _editing: { type: Boolean },
-      _devMode: { type: Boolean },
-      _card: { type: Object },
-      _sections : {type: Object},
-      _activeCardSectionId: {type:String},
-      _keyboardNavigates: {type:Boolean}
-    }
-  }
+	static get properties() {
+		return {
+			_page: { type: String },
+			_snackbarOpened: { type: Boolean },
+			_headerPanelOpen: {type: Boolean },
+			_offline: { type: Boolean },
+			_editing: { type: Boolean },
+			_devMode: { type: Boolean },
+			_card: { type: Object },
+			_sections : {type: Object},
+			_activeCardSectionId: {type:String},
+			_keyboardNavigates: {type:Boolean}
+		};
+	}
 
-  get appTitle() {
-    return "The Compendium";
-  }
+	get appTitle() {
+		return 'The Compendium';
+	}
 
-  constructor() {
-    super();
-    // To force all event listeners for gestures to be passive.
-    // See https://www.polymer-project.org/3.0/docs/devguide/settings#setting-passive-touch-gestures
-    setPassiveTouchGestures(true);
-  }
+	constructor() {
+		super();
+		// To force all event listeners for gestures to be passive.
+		// See https://www.polymer-project.org/3.0/docs/devguide/settings#setting-passive-touch-gestures
+		setPassiveTouchGestures(true);
+	}
 
-  firstUpdated() {
-    installRouter((location) => store.dispatch(navigated(decodeURIComponent(location.pathname), decodeURIComponent(location.search))));
-    installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
-    installMediaQueryWatcher(`(max-width: 900px)`,(isMobile) => {
-      store.dispatch(turnMobileMode(isMobile))
-    });
-    window.addEventListener('keydown', e => this._handleKeyPressed(e));
-    connectLiveCards(store);
-    connectLiveSections(store);
-    connectLiveAuthors(store);
-  }
+	firstUpdated() {
+		installRouter((location) => store.dispatch(navigated(decodeURIComponent(location.pathname), decodeURIComponent(location.search))));
+		installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
+		installMediaQueryWatcher('(max-width: 900px)',(isMobile) => {
+			store.dispatch(turnMobileMode(isMobile));
+		});
+		window.addEventListener('keydown', e => this._handleKeyPressed(e));
+		connectLiveCards(store);
+		connectLiveSections(store);
+		connectLiveAuthors(store);
+	}
 
-  _handleKeyPressed(e) {
-    //Don't move the slide selection when editing!
-    if (!this._keyboardNavigates) return;
-    switch (e.key) {
-      case "f":
-        if (!e.metaKey) return;
-        e.stopPropagation();
-        e.preventDefault();
-        store.dispatch(openFindDialog());
-      case "ArrowDown":
-      case "ArrowRight":
-      case " ":
-        e.stopPropagation();
-        e.preventDefault();
-        store.dispatch(navigateToNextCard());
-        break;
-      case "ArrowUp":
-      case "ArrowLeft":
-        e.stopPropagation();
-        e.preventDefault();
-        store.dispatch(navigateToPreviousCard());
-        break;
-    }
-  }
+	_handleKeyPressed(e) {
+		//Don't move the slide selection when editing!
+		if (!this._keyboardNavigates) return;
+		switch (e.key) {
+		case 'f':
+			if (!e.metaKey) return;
+			e.stopPropagation();
+			e.preventDefault();
+			store.dispatch(openFindDialog());
+		case 'ArrowDown':
+		case 'ArrowRight':
+		case ' ':
+			e.stopPropagation();
+			e.preventDefault();
+			store.dispatch(navigateToNextCard());
+			break;
+		case 'ArrowUp':
+		case 'ArrowLeft':
+			e.stopPropagation();
+			e.preventDefault();
+			store.dispatch(navigateToPreviousCard());
+			break;
+		}
+	}
 
-  updated(changedProps) {
-    if (changedProps.has('_card')) {
-      const pageTitle = this.appTitle + (this._card.title ? ' - ' + this._card.title : "");
-      updateMetadata({
-        title: pageTitle,
-        description: pageTitle
-        // This object also takes an image property, that points to an img src.
-      });
-    }
-  }
+	updated(changedProps) {
+		if (changedProps.has('_card')) {
+			const pageTitle = this.appTitle + (this._card.title ? ' - ' + this._card.title : '');
+			updateMetadata({
+				title: pageTitle,
+				description: pageTitle
+				// This object also takes an image property, that points to an img src.
+			});
+		}
+	}
 
-  _menuButtonClicked() {
-    store.dispatch(updateDrawerState(true));
-  }
-
-  _drawerOpenedChanged(e) {
-    store.dispatch(updateDrawerState(e.target.opened));
-  }
-
-  stateChanged(state) {
-    this._card = selectActiveCard(state) || {};
-    this._headerPanelOpen = state.app.headerPanelOpen;
-    this._page = state.app.page;
-    this._offline = state.app.offline;
-    this._snackbarOpened = state.app.snackbarOpened;
-    this._editing = state.editor.editing;
-    this._devMode = DEV_MODE;
-    this._sections = state.data.sections;
-    this._activeCardSectionId = selectActiveCardSectionId(state);
-    this._keyboardNavigates = keyboardNavigates(state);
-  }
+	stateChanged(state) {
+		this._card = selectActiveCard(state) || {};
+		this._headerPanelOpen = state.app.headerPanelOpen;
+		this._page = state.app.page;
+		this._offline = state.app.offline;
+		this._snackbarOpened = state.app.snackbarOpened;
+		this._editing = state.editor.editing;
+		this._devMode = DEV_MODE;
+		this._sections = state.data.sections;
+		this._activeCardSectionId = selectActiveCardSectionId(state);
+		this._keyboardNavigates = keyboardNavigates(state);
+	}
 }
 
 window.customElements.define('compendium-app', CompendiumApp);

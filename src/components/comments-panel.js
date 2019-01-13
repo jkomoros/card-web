@@ -1,6 +1,5 @@
-import { LitElement, html } from '@polymer/lit-element';
+import { html } from '@polymer/lit-element';
 import { connect } from 'pwa-helpers/connect-mixin.js';
-import { repeat } from 'lit-html/directives/repeat';
 
 // This element is connected to the Redux store.
 import { store } from '../store.js';
@@ -13,42 +12,42 @@ import { SharedStyles } from './shared-styles.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
-  deleteMessage,
-  resolveThread
+	deleteMessage,
+	resolveThread
 } from '../actions/comments.js';
 
 import {
-  composedThreadsSelector
+	composedThreadsSelector
 } from '../reducers/comments.js';
 
 import {
-  connectLiveMessages,
-  connectLiveThreads
+	connectLiveMessages,
+	connectLiveThreads
 } from '../actions/database.js';
 
 import {
-  selectActiveCard,
-  selectUser,
-  selectUserMayComment,
+	selectActiveCard,
+	selectUser,
+	selectUserMayComment,
 } from '../selectors.js';
 
 import {
-  showNeedSignin
+	showNeedSignin
 } from '../actions/user.js';
 
 import {
-  configureCommitAction,
-  composeShow,
-  COMMIT_ACTIONS
+	configureCommitAction,
+	composeShow,
+	COMMIT_ACTIONS
 } from '../actions/prompt.js';
 
 import {
-  PageViewElement
+	PageViewElement
 } from './page-view-element.js';
 
 class CommentsPanel extends connect(store)(PageViewElement) {
-  render() {
-    return html`
+	render() {
+		return html`
       ${SharedStyles}
       ${ButtonSharedStyles}
       <style>
@@ -91,80 +90,80 @@ class CommentsPanel extends connect(store)(PageViewElement) {
         <h3>Comments</h3>
         <div class='comments'>
         ${this._composedThreads.length
-          ? html`${this._composedThreads.map( (item) => html`
+		? html`${this._composedThreads.map( (item) => html`
                 <comment-thread .user=${this._user} .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @delete-message=${this._handleDeleteMessage} @resolve-thread=${this._handleResolveThread} @show-need-signin=${this._handleShowNeedSignin} .userMayComment=${this._userMayComment}></comment-thread>`)}`
-          : html`<p><em>No comments yet.</em></p><p><em>You should leave one!</em></p>`
-        }
+		: html`<p><em>No comments yet.</em></p><p><em>You should leave one!</em></p>`
+}
         <div class='spacer'></spacer>
         </div>
         <button class='round ${this._userMayComment ? '' : 'need-signin'}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${addCommentIcon}</button>
       </div>
     `;
-  }
+	}
 
-  static get properties() {
-    return {
-      _open: {type: Boolean},
-      _card: {type: Object},
-      _composedThreads: {type: Array},
-      _userMayComment: { type: Boolean},
-      _user: {type: Object},
-    }
-  }
+	static get properties() {
+		return {
+			_open: {type: Boolean},
+			_card: {type: Object},
+			_composedThreads: {type: Array},
+			_userMayComment: { type: Boolean},
+			_user: {type: Object},
+		};
+	}
 
-  _handleShowNeedSignin(e) {
-    store.dispatch(showNeedSignin());
-  }
+	_handleShowNeedSignin() {
+		store.dispatch(showNeedSignin());
+	}
 
-  _handleCreateThreadClicked(e) {
-    if (!this._userMayComment) {
-      store.dispatch(showNeedSignin());
-      return;
-    }
-    store.dispatch(configureCommitAction(COMMIT_ACTIONS.CREATE_THREAD));
-    this._showCompose("");
-  }
+	_handleCreateThreadClicked() {
+		if (!this._userMayComment) {
+			store.dispatch(showNeedSignin());
+			return;
+		}
+		store.dispatch(configureCommitAction(COMMIT_ACTIONS.CREATE_THREAD));
+		this._showCompose('');
+	}
 
-  _handleAddMessage(e) {
-    if (!e.detail.thread || !e.detail.thread.id) return;
-    store.dispatch(configureCommitAction(COMMIT_ACTIONS.ADD_MESSAGE, e.detail.thread.id));
-    this._showCompose("");
-  }
+	_handleAddMessage(e) {
+		if (!e.detail.thread || !e.detail.thread.id) return;
+		store.dispatch(configureCommitAction(COMMIT_ACTIONS.ADD_MESSAGE, e.detail.thread.id));
+		this._showCompose('');
+	}
 
-  _handleEditMessage(e) {
-    if (!e.detail.message || !e.detail.message.id) return;
-    store.dispatch(configureCommitAction(COMMIT_ACTIONS.EDIT_MESSAGE, e.detail.message.id));
-    this._showCompose(e.detail.message.message);
-  }
+	_handleEditMessage(e) {
+		if (!e.detail.message || !e.detail.message.id) return;
+		store.dispatch(configureCommitAction(COMMIT_ACTIONS.EDIT_MESSAGE, e.detail.message.id));
+		this._showCompose(e.detail.message.message);
+	}
 
-  _showCompose(content) {
-    store.dispatch(composeShow('What is your message? (Markdown syntax is supported)', content));
-  }
+	_showCompose(content) {
+		store.dispatch(composeShow('What is your message? (Markdown syntax is supported)', content));
+	}
 
-  _handleDeleteMessage(e) {
-    store.dispatch(deleteMessage(e.detail.message));
-  }
+	_handleDeleteMessage(e) {
+		store.dispatch(deleteMessage(e.detail.message));
+	}
 
-  _handleResolveThread(e) {
-    store.dispatch(resolveThread(e.detail.thread));
-  }
+	_handleResolveThread(e) {
+		store.dispatch(resolveThread(e.detail.thread));
+	}
 
-  stateChanged(state) {
-    this._open = state.app.commentsPanelOpen;
-    this._card = selectActiveCard(state);
-    this._composedThreads = composedThreadsSelector(state);
-    this._userMayComment = selectUserMayComment(state);
-    this._user = selectUser(state);
-  }
+	stateChanged(state) {
+		this._open = state.app.commentsPanelOpen;
+		this._card = selectActiveCard(state);
+		this._composedThreads = composedThreadsSelector(state);
+		this._userMayComment = selectUserMayComment(state);
+		this._user = selectUser(state);
+	}
 
-  updated(changedProps) {
-    if (changedProps.has('_card')) {
-      if (this._card && this._card.id) {
-        connectLiveMessages(store, this._card.id);
-        connectLiveThreads(store, this._card.id);
-      }
-    }
-  }
+	updated(changedProps) {
+		if (changedProps.has('_card')) {
+			if (this._card && this._card.id) {
+				connectLiveMessages(store, this._card.id);
+				connectLiveThreads(store, this._card.id);
+			}
+		}
+	}
 }
 
 window.customElements.define('comments-panel', CommentsPanel);

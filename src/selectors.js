@@ -40,86 +40,86 @@ export const selectMessages = (state) => state.comments ? state.comments.message
 export const selectThreads = (state) => state.comments ? state.comments.threads : null;
 
 export const selectUser = state => {
-  if (!state.user) return null;
-  if (!state.user.user) return null;
-  return state.user.user;
-}
+	if (!state.user) return null;
+	if (!state.user.user) return null;
+	return state.user.user;
+};
 
 export const userMayResolveThread = (user, thread) => {
-  if (userIsAdmin(user)) return true;
-  if (!userMayComment(user)) return false;
-  if (!thread || typeof thread !== 'object') return false;
-  if (!user) return false;
-  return user.uid == thread.author.id;
-}
+	if (userIsAdmin(user)) return true;
+	if (!userMayComment(user)) return false;
+	if (!thread || typeof thread !== 'object') return false;
+	if (!user) return false;
+	return user.uid == thread.author.id;
+};
 
 const userIsAdmin = user => userMayEdit(user);
 
 //For actions, like starring and marking read, that are OK to do when signed
 //in anonymously.
-const userObjectExists = user => user && user.uid != "";
+const userObjectExists = user => user && user.uid != '';
 
 const userSignedIn = user => userObjectExists(user) && !user.isAnonymous;
 
 const userMayComment = user => userSignedIn(user);
 
 export const userMayEditMessage = (user, message) => {
-  if (userIsAdmin(user)) return true;
-  if (!userSignedIn(user)) return false;
-  if (!message || !message.author || !message.author.id) return false;
-  return user.uid == message.author.id;
-}
+	if (userIsAdmin(user)) return true;
+	if (!userSignedIn(user)) return false;
+	if (!message || !message.author || !message.author.id) return false;
+	return user.uid == message.author.id;
+};
 
 const userMayEdit = user => {
-  //This list is also recreated in firestore.rules
-  const allowedIDs = [
-    'TPo5MOn6rNX9k8K1bbejuBNk4Dr2', //Production main account
-    'KteKDU7UnHfkLcXAyZXbQ6kRAk13' //dev- main account
-  ]
+	//This list is also recreated in firestore.rules
+	const allowedIDs = [
+		'TPo5MOn6rNX9k8K1bbejuBNk4Dr2', //Production main account
+		'KteKDU7UnHfkLcXAyZXbQ6kRAk13' //dev- main account
+	];
 
-  if (!userSignedIn(user)) return false;
+	if (!userSignedIn(user)) return false;
 
-  for (let val of Object.values(allowedIDs)) {
-    if (val == user.uid) return true;
-  }
+	for (let val of Object.values(allowedIDs)) {
+		if (val == user.uid) return true;
+	}
 
-  return false;
-}
+	return false;
+};
 
 export const selectUid = createSelector(
 	selectUser,
-	(user) => user ? user.uid : ""
-)
+	(user) => user ? user.uid : ''
+);
 
 export const selectUserIsAdmin = createSelector(
 	selectUser,
 	(user) => userMayEdit(user)
-)
+);
 
 export const selectUserMayEdit = createSelector(
 	selectUser,
 	(user) => userMayEdit(user)
-)
+);
 
 export const selectUserMayStar = createSelector(
 	selectUser,
 	(user) => userObjectExists(user)
-)
+);
 
 export const selectUserMayComment = createSelector(
 	selectUser,
 	(user) => userMayComment(user)
-)
+);
 
 export const selectUserMayMarkRead = createSelector(
 	selectUser,
 	(user) => userObjectExists(user)
-)
+);
 
 export const selectUserIsAnonymous = createSelector(
 	selectUser,
 	(user) => userObjectExists(user) && user.isAnonymous
-)
+);
 
 //UserSignedIn means that there is a user object, and that user is not
 //anonymous. Note that selectors like selectUserMayMarkRead and
@@ -128,15 +128,15 @@ export const selectUserIsAnonymous = createSelector(
 export const selectUserSignedIn = createSelector(
 	selectUser, 
 	(user) => userSignedIn(user)
-)
+);
 
 export const getCardHasStar = (state, cardId) => {
-  return state.user.stars[cardId] || false;
-}
+	return state.user.stars[cardId] || false;
+};
 
 export const getCardIsRead = (state, cardId) => {
-  return state.user.reads[cardId] || false
-}
+	return state.user.reads[cardId] || false;
+};
 
 export const getUserMayResolveThread = (state, thread) => userMayResolveThread(selectUser(state), thread);
 export const getUserMayEditMessage = (state, message) => userMayEditMessage(selectUser(state), message);
@@ -145,32 +145,32 @@ export const getMessageById = (state, messageId) => {
 	let messages = selectMessages(state);
 	if (!messages) return null;
 	return messages[messageId];
-}
+};
 
 export const getThreadById = (state, threadId) => {
 	let threads = selectThreads(state);
 	if (!threads) return null;
 	return threads[threadId];
-}
+};
 
 export const getCardById = (state, cardId) => {
-  let cards = selectCards(state);
-  if (!cards) return null;
-  return cards[cardId];
-}
+	let cards = selectCards(state);
+	if (!cards) return null;
+	return cards[cardId];
+};
 
 export const getIdForCard = (state, idOrSlug) => {
 	if (!state.data) return idOrSlug;
 	if (!state.data.slugIndex) return idOrSlug;
 	return state.data.slugIndex[idOrSlug] || idOrSlug;
-}
+};
 
 export const getCard = (state, cardIdOrSlug)  => getCardById(state, getIdForCard(state, cardIdOrSlug));
 
 export const getSection = (state, sectionId) => {
 	if (!state.data) return null;
 	return state.data.sections[sectionId] || null;
-}
+};
 
 //DataIsFullyLoaded returns true if we've loaded all of the card/section
 //information we're going to load.
@@ -178,18 +178,18 @@ export const selectDataIsFullyLoaded = createSelector(
 	selectCards,
 	selectSections,
 	(cards, sections) => Object.keys(cards).length > 0 && Object.keys(sections).length > 0
-)
+);
 
 export const selectActiveCard = createSelector(
-  selectCards,
-  selectActiveCardId,
-  (cards, activeCard) => cards[activeCard] || null
+	selectCards,
+	selectActiveCardId,
+	(cards, activeCard) => cards[activeCard] || null
 );
 
 export const selectActiveCardSectionId = createSelector(
 	selectActiveCard,
 	(card) => card ? card.section : ''
-)
+);
 
 //This means htat the active section is the only one showing. See also
 //selectActiveCardSelection, which just returns the section name of the
@@ -201,22 +201,22 @@ export const selectActiveSectionId = createSelector(
 	(setName, filterNames, sections) => {
 		//The activeSectionId is only true if it's the default set and there
 		//is precisely one filter who is also a set.
-		if( setName != DEFAULT_SET_NAME) return "";
-		if (filterNames.length != 1) return "";
-		return sections[filterNames[0]] ? filterNames[0] : "";
+		if( setName != DEFAULT_SET_NAME) return '';
+		if (filterNames.length != 1) return '';
+		return sections[filterNames[0]] ? filterNames[0] : '';
 	}
-)
+);
 
 export const selectDefaultSet = createSelector(
 	selectSections,
 	(sections) => {
 		let result = [];
 		for (let section of Object.values(sections)) {
-			result = result.concat(section.cards)
+			result = result.concat(section.cards);
 		}
 		return result;
 	}
-)
+);
 
 //Returns a list of icludeFilters and a list of excludeFilters.
 export const selectActiveFilters = createSelector(
@@ -237,7 +237,7 @@ export const selectActiveFilters = createSelector(
 		}
 		return [includeFilters, excludeFilters];
 	}
-)
+);
 
 export const selectActiveFilter = createSelector(
 	selectActiveFilters,
@@ -249,14 +249,14 @@ export const selectActiveSet = createSelector(
 	selectActiveSetName,
 	selectDefaultSet,
 	(setName, defaultSet) => setName == DEFAULT_SET_NAME ? defaultSet : []
-)
+);
 
 //BaseCollection means no start_cards
 const selectActiveBaseCollection = createSelector(
 	selectActiveSet,
 	selectActiveFilter,
 	(set, filter) => set.filter(item => filter(item))
-)
+);
 
 //selectActiveCollection includes start_cards where applicable, but only the cardIds.
 export const selectActiveCollection = createSelector(
@@ -268,7 +268,7 @@ export const selectActiveCollection = createSelector(
 		//We only inject start_card when the set is default
 		if (setName != DEFAULT_SET_NAME) return baseCollection;
 		let result = [];
-		let lastSection = "";
+		let lastSection = '';
 		for (let cardId of baseCollection) {
 			let card = cards[cardId];
 			if (card) {
@@ -285,22 +285,22 @@ export const selectActiveCollection = createSelector(
 		}
 		return result;
 	}
-)
+);
 
 //Expanded means it includes the full cards in place.
 export const selectExpandedActiveCollection = createSelector(
 	selectActiveCollection,
 	selectCards,
 	(collection, cards) => collection.map(id => cards[id] || null)
-)
+);
 
 export const selectActiveCardIndex = createSelector(
 	selectActiveCardId,
 	selectActiveCollection,
 	(cardId, collection) => collection.indexOf(cardId)
-)
+);
 
 export const getCardIndexForActiveCollection = (state, cardId) => {
 	let collection = selectActiveCollection(state);
 	return collection.indexOf(cardId);
-}
+};

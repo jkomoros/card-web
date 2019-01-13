@@ -7,20 +7,20 @@ import { repeat } from 'lit-html/directives/repeat';
 import { store } from '../store.js';
 
 import { 
-  selectUserIsAdmin
+	selectUserIsAdmin
 } from '../selectors.js';
 
 import {
-  doImport,
-  tasks
+	doImport,
+	tasks
 } from '../actions/maintenance.js';
 
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
 
 class MaintenanceView extends connect(store)(PageViewElement) {
-  render() {
-    return html`
+	render() {
+		return html`
       ${SharedStyles}
       <section>
         <h2>Maintenance</h2>
@@ -31,38 +31,38 @@ class MaintenanceView extends connect(store)(PageViewElement) {
         <section ?hidden=${!this._isAdmin}>
           <p>You're an admin!</p>
           <button @click='${this._handleDoImport}'>Do import</button><br />
-          ${repeat(Object.keys(tasks), (item) => item, (item, index) => html`
+          ${repeat(Object.keys(tasks), (item) => item, (item) => html`
               <button value="${item}" @click='${this._handleClick}'>${item}</button><br />
           `)}
         </section>
       </section>
-    `
-  }
+    `;
+	}
 
-  static get properties() {
-    return {
-      _isAdmin: { type: Boolean},
-    }
-  }
+	static get properties() {
+		return {
+			_isAdmin: { type: Boolean},
+		};
+	}
 
-  stateChanged(state) {
-    this._isAdmin = selectUserIsAdmin(state);
-  }
+	stateChanged(state) {
+		this._isAdmin = selectUserIsAdmin(state);
+	}
 
-  _handleDoImport(e) {
-    doImport();
-  }
+	_handleDoImport() {
+		doImport();
+	}
 
-  _handleClick(e) {
-    let ele = e.composedPath()[0];
-    let value = ele.value;
-    let func = tasks[value];
-    if (!func) {
-      console.log("That func isn't defined");
-      return;
-    }
-    func();
-  }
+	_handleClick(e) {
+		let ele = e.composedPath()[0];
+		let value = ele.value;
+		let func = tasks[value];
+		if (!func) {
+			console.log('That func isn\'t defined');
+			return;
+		}
+		func();
+	}
 
 }
 
