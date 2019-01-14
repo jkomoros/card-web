@@ -52,6 +52,7 @@ import {
 import { 
 	connectLiveCards,
 	connectLiveSections,
+	connectLiveTags,
 	connectLiveAuthors
 } from '../actions/database.js';
 
@@ -83,169 +84,169 @@ class CompendiumApp extends connect(store)(LitElement) {
 	render() {
 		// Anything that's related to rendering should be done in here.
 		return html`
-    <style>
-      :host {
-        --app-drawer-width: 256px;
-        display: block;
+		<style>
+			:host {
+				--app-drawer-width: 256px;
+				display: block;
 
-        --app-primary-color: #5e2b97;
-        --app-primary-color-light: #bc9ae2;
-        --app-primary-color-subtle: #7e57c2;
-        --app-secondary-color: #009688;
-        --app-secondary-color-light: #00dac6;
+				--app-primary-color: #5e2b97;
+				--app-primary-color-light: #bc9ae2;
+				--app-primary-color-subtle: #7e57c2;
+				--app-secondary-color: #009688;
+				--app-secondary-color-light: #00dac6;
 
-        --app-dark-text-color: #7f7f7f;
-        --app-light-text-color: white;
-        --app-section-even-color: #f7f7f7;
-        --app-section-odd-color: white;
+				--app-dark-text-color: #7f7f7f;
+				--app-light-text-color: white;
+				--app-section-even-color: #f7f7f7;
+				--app-section-odd-color: white;
 
-        --app-dark-text-color-light: #AAA;
-        --app-dark-text-color-subtle: #CCC;
-        --app-divider-color: #eee;
+				--app-dark-text-color-light: #AAA;
+				--app-dark-text-color-subtle: #CCC;
+				--app-divider-color: #eee;
 
-        --app-header-font-family: 'Raleway';
-        --app-default-font-family: 'Source Sans Pro';
+				--app-header-font-family: 'Raleway';
+				--app-default-font-family: 'Source Sans Pro';
 
-        --card-color: #FCFCFC;
-        --shadow-color: #CCC;
-        --card-shadow-first-part: 0 2px 6px;
-        --card-shadow: var(--card-shadow-first-part) var(--shadow-color);
+				--card-color: #FCFCFC;
+				--shadow-color: #CCC;
+				--card-shadow-first-part: 0 2px 6px;
+				--card-shadow: var(--card-shadow-first-part) var(--shadow-color);
 
-        --canvas-color: ${this._devMode ? html`#bc9ae233` : html`var(--app-divider-color)`};
+				--canvas-color: ${this._devMode ? html`#bc9ae233` : html`var(--app-divider-color)`};
 
-        --app-header-background-color: white;
-        --app-header-text-color: var(--app-dark-text-color);
-        --app-header-selected-color: var(--app-primary-color);
+				--app-header-background-color: white;
+				--app-header-text-color: var(--app-dark-text-color);
+				--app-header-selected-color: var(--app-primary-color);
 
-        --app-drawer-background-color: var(--app-secondary-color);
-        --app-drawer-text-color: var(--app-light-text-color);
-        --app-drawer-selected-color: #78909C;
+				--app-drawer-background-color: var(--app-secondary-color);
+				--app-drawer-text-color: var(--app-light-text-color);
+				--app-drawer-selected-color: #78909C;
 
-        --transition-fade: 0.25s linear;
-      }
+				--transition-fade: 0.25s linear;
+			}
 
-      .container {
-        height:100vh;
-        width: 100vw;
-        display:flex;
-        flex-direction:column;
-      }
+			.container {
+				height:100vh;
+				width: 100vw;
+				display:flex;
+				flex-direction:column;
+			}
 
-      .header {
-        padding: 0 1em;
-        box-sizing:border-box;
+			.header {
+				padding: 0 1em;
+				box-sizing:border-box;
 
-        width: 100%;
-        text-align: center;
-        background-color: var(--app-header-background-color);
-        color: var(--app-header-text-color);
-        border-bottom: 1px solid var(--app-divider-color);
-      }
+				width: 100%;
+				text-align: center;
+				background-color: var(--app-header-background-color);
+				color: var(--app-header-text-color);
+				border-bottom: 1px solid var(--app-divider-color);
+			}
 
-      .header > .inner {
-        /* bug in many browsers with nested flexboxes; splitting like this fixes it. See issue #25 */
-        display:flex;
-        flex-direction:row;
-        align-items: center; 
-      }
+			.header > .inner {
+				/* bug in many browsers with nested flexboxes; splitting like this fixes it. See issue #25 */
+				display:flex;
+				flex-direction:row;
+				align-items: center; 
+			}
 
-      .spacer {
-        flex-grow:1;
-      }
+			.spacer {
+				flex-grow:1;
+			}
 
-      .toolbar-list {
-        align-self: flex-end;
-      }
+			.toolbar-list {
+				align-self: flex-end;
+			}
 
-      .dev {
-        font-size: 18px;
-        color: red;
-        font-weight:bold;
-      }
+			.dev {
+				font-size: 18px;
+				color: red;
+				font-weight:bold;
+			}
 
-      .toolbar-top {
-        background-color: var(--app-header-background-color);
-      }
+			.toolbar-top {
+				background-color: var(--app-header-background-color);
+			}
 
-      [main-title] {
-        font-family: var(--app-header-font-family);
-        font-weight:bold;
-        font-size: 26px;
-        color: var(--app-dark-text-color-light);
-      }
+			[main-title] {
+				font-family: var(--app-header-font-family);
+				font-weight:bold;
+				font-size: 26px;
+				color: var(--app-dark-text-color-light);
+			}
 
-      [main-title] span {
-        color: var(--app-primary-color);
-      }
+			[main-title] span {
+				color: var(--app-primary-color);
+			}
 
-      .toolbar-list > a {
-        display: inline-block;
-        color: var(--app-header-text-color);
-        text-decoration: none;
-        line-height: 30px;
-        padding: 4px 16px;
-      }
+			.toolbar-list > a {
+				display: inline-block;
+				color: var(--app-header-text-color);
+				text-decoration: none;
+				line-height: 30px;
+				padding: 4px 16px;
+			}
 
-      .toolbar-list > a[selected] {
-        color: var(--app-header-selected-color);
-        border-bottom: 4px solid var(--app-header-selected-color);
-      }
+			.toolbar-list > a[selected] {
+				color: var(--app-header-selected-color);
+				border-bottom: 4px solid var(--app-header-selected-color);
+			}
 
-      /* Workaround for IE11 displaying <main> as inline */
-      main {
-        display: block;
-      }
+			/* Workaround for IE11 displaying <main> as inline */
+			main {
+				display: block;
+			}
 
-      .main-content {
-        flex-grow:1;
-        overflow:hidden;
-        position:relative;
-      }
+			.main-content {
+				flex-grow:1;
+				overflow:hidden;
+				position:relative;
+			}
 
-      .page {
-        display: none;
-      }
+			.page {
+				display: none;
+			}
 
-      .page[active] {
-        display: block;
-      }
-    </style>
+			.page[active] {
+				display: block;
+			}
+		</style>
 
-    <div class='container'>
-      <find-dialog></find-dialog>
-      <compose-dialog></compose-dialog>
-      <!-- Header -->
-      <div class='header' ?hidden=${!this._headerPanelOpen}>
-        <div class='inner'>
-          <div main-title>The <span>Compendium</span></div>
-          <div class='spacer'></div>
-          <nav class="toolbar-list">
-            ${this._sections && Object.keys(this._sections).length > 0 ? 
+		<div class='container'>
+			<find-dialog></find-dialog>
+			<compose-dialog></compose-dialog>
+			<!-- Header -->
+			<div class='header' ?hidden=${!this._headerPanelOpen}>
+				<div class='inner'>
+					<div main-title>The <span>Compendium</span></div>
+					<div class='spacer'></div>
+					<nav class="toolbar-list">
+						${this._sections && Object.keys(this._sections).length > 0 ? 
 		html`${repeat(Object.values(this._sections), (item) => item.id, (item) => html`
-              <a ?selected=${this._page === 'c' && item.id == this._activeCardSectionId} href='${urlForCard(getDefaultCardIdForSection(item))}?${FORCE_COLLECTION_URL_PARAM}'>${item.title}</a>
-              `)}` :
+							<a ?selected=${this._page === 'c' && item.id == this._activeCardSectionId} href='${urlForCard(getDefaultCardIdForSection(item))}?${FORCE_COLLECTION_URL_PARAM}'>${item.title}</a>
+							`)}` :
 		html`<a ?selected="${this._page === 'c'}" href="/c"><em>Loading...</em></a>`
 }
-            <a ?selected="${this._page === 'recent'}" href="/recent">Recent</a>
-          </nav>
-          <div class='spacer dev'>
-            ${this._devMode ? html`DEVMODE` : ''}
-          </div>
-          <user-chip></user-chip>
-        </div>
-      </div>
+						<a ?selected="${this._page === 'recent'}" href="/recent">Recent</a>
+					</nav>
+					<div class='spacer dev'>
+						${this._devMode ? html`DEVMODE` : ''}
+					</div>
+					<user-chip></user-chip>
+				</div>
+			</div>
 
-      <!-- Main content -->
-      <main role="main" class="main-content">
-        <card-view class="page" ?active="${this._page === 'c'}"></card-view>
-        <recent-changes-view class="page" ?active="${this._page === 'recent'}"></recent-changes-view>
-        <my-view404 class="page" ?active="${this._page === 'view404'}"></my-view404>
-        <maintenance-view class='page' ?active="${this._page === 'maintenance'}"></maintenance-view>
-      </main>
-    </div>
-    <snack-bar ?active="${this._snackbarOpened}">
-        You are now ${this._offline ? 'offline' : 'online'}.</snack-bar>
-    `;
+			<!-- Main content -->
+			<main role="main" class="main-content">
+				<card-view class="page" ?active="${this._page === 'c'}"></card-view>
+				<recent-changes-view class="page" ?active="${this._page === 'recent'}"></recent-changes-view>
+				<my-view404 class="page" ?active="${this._page === 'view404'}"></my-view404>
+				<maintenance-view class='page' ?active="${this._page === 'maintenance'}"></maintenance-view>
+			</main>
+		</div>
+		<snack-bar ?active="${this._snackbarOpened}">
+				You are now ${this._offline ? 'offline' : 'online'}.</snack-bar>
+		`;
 	}
 
 	static get properties() {
@@ -283,6 +284,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		window.addEventListener('keydown', e => this._handleKeyPressed(e));
 		connectLiveCards(store);
 		connectLiveSections(store);
+		connectLiveTags(store);
 		connectLiveAuthors(store);
 	}
 

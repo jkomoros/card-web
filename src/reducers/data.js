@@ -1,6 +1,7 @@
 import { 
 	UPDATE_CARDS,
 	UPDATE_SECTIONS,
+	UPDATE_TAGS,
 	UPDATE_AUTHORS,
 	MODIFY_CARD,
 	MODIFY_CARD_SUCCESS,
@@ -8,17 +9,11 @@ import {
 	REORDER_STATUS
 } from '../actions/data.js';
 
-import { createSelector } from 'reselect';
-
-import {
-	selectActiveSectionId,
-	selectCards
-} from '../selectors.js';
-
 const INITIAL_STATE = {
 	cards:{},
 	authors:{},
 	sections: {},
+	tags: {},
 	slugIndex: {},
 	//The modification that is pending
 	cardModificationPending: '',
@@ -27,7 +22,6 @@ const INITIAL_STATE = {
 };
 
 const app = (state = INITIAL_STATE, action) => {
-	let json, value;
 	switch (action.type) {
 	case UPDATE_CARDS:
 		return {
@@ -39,6 +33,11 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			sections: {...state.sections, ...action.sections}
+		};
+	case UPDATE_TAGS:
+		return {
+			...state,
+			tags: {...state.tags, ...action.tags}
 		};
 	case UPDATE_AUTHORS:
 		return {

@@ -1,5 +1,6 @@
 export const UPDATE_CARDS = 'UPDATE_CARDS';
 export const UPDATE_SECTIONS = 'UPDATE_SECTIONS';
+export const UPDATE_TAGS = 'UPDATE_TAGS';
 export const UPDATE_AUTHORS= 'UPDATE_AUTHORS';
 export const MODIFY_CARD = 'MODIFY_CARD';
 export const MODIFY_CARD_SUCCESS = 'MODIFY_CARD_SUCCESS';
@@ -16,7 +17,7 @@ import {
 	CARD_UPDATES_COLLECTION,
 	SECTION_UPDATES_COLLECTION,
 	SECTIONS_COLLECTION,
-	TAG_COLLECTION,
+	TAGS_COLLECTION,
 	TAG_UPDATES_COLLECTION
 } from './database.js';
 
@@ -207,7 +208,7 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 
 	if (update.addTags && update.addTags.length) {
 		for (let tagName of update.addTags) {
-			let tagRef = db.collection(TAG_COLLECTION).doc(tagName);
+			let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
 			let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
 			let newTagObject = {
 				cards: firebase.firestore.FieldValue.arrayUnion(card.id),
@@ -224,7 +225,7 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 
 	if (update.removeTags && update.removeTags.length) {
 		for (let tagName of update.removeTags) {
-			let tagRef = db.collection(TAG_COLLECTION).doc(tagName);
+			let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
 			let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
 			let newTagObject = {
 				cards: firebase.firestore.FieldValue.arrayRemove(card.id),
@@ -413,7 +414,7 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 		return;
 	}
 
-	let tagRef = db.collection(TAG_COLLECTION).doc(name);
+	let tagRef = db.collection(TAGS_COLLECTION).doc(name);
 
 	let tag = await tagRef.get();
 
@@ -585,6 +586,14 @@ export const updateAuthors = (authors) => {
 		type: UPDATE_AUTHORS,
 		authors
 	};
+};
+
+export const updateTags = (tags) => (dispatch) => {
+	dispatch({
+		type:UPDATE_TAGS,
+		tags,
+	});
+	dispatch(refreshCardSelector());
 };
 
 export const updateCards = (cards) => (dispatch) => {

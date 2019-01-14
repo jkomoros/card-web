@@ -51,7 +51,8 @@ firebase.firestore().enablePersistence()
 import {
 	updateCards,
 	updateSections,
-	updateAuthors
+	updateAuthors,
+	updateTags,
 } from './data.js';
 
 import {
@@ -69,7 +70,7 @@ export const CARDS_COLLECTION = 'cards';
 export const CARD_UPDATES_COLLECTION = 'updates';
 export const SECTION_UPDATES_COLLECTION = 'updates';
 export const SECTIONS_COLLECTION = 'sections';
-export const TAG_COLLECTION = 'tags';
+export const TAGS_COLLECTION = 'tags';
 export const TAG_UPDATES_COLLECTION = 'updates';
 export const MAINTENANCE_COLLECTION = 'maintenance_tasks';
 export const AUTHORS_COLLECTION = 'authors';
@@ -239,6 +240,25 @@ export const connectLiveSections = (store) => {
 		});
 
 		store.dispatch(updateSections(sections));
+
+	});
+};
+
+export const connectLiveTags = (store) => {
+	db.collection(TAGS_COLLECTION).onSnapshot(snapshot => {
+
+		let tags = {};
+
+		snapshot.docChanges().forEach(change => {
+			if (change.type === 'removed') return;
+			let doc = change.doc;
+			let id = doc.id;
+			let tag = doc.data();
+			tag.id = id;
+			tags[id] = tag;
+		});
+
+		store.dispatch(updateTags(tags));
 
 	});
 };
