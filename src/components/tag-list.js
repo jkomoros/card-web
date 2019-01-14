@@ -15,10 +15,14 @@ class TagList  extends LitElement {
 		return html`
 			<div>
 			${this.tags && this.tags.length ?
-		this.tags.map(item => html`<tag-chip .tag=${item} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing}></tag-chip>`) :
+		this.tags.map(item => html`<tag-chip .tag=${item} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} @remove-tag=${this._handleRemoveTag}></tag-chip>`) :
 		html`<em>No tags</em>`}
 			</div>
 			`;
+	}
+
+	_handleRemoveTag(e) {
+		console.warn('Tag removed: ' + e.detail.tag);
 	}
 
 	static get properties() {
