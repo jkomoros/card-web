@@ -152,7 +152,7 @@ class CardEditor extends connect(store)(LitElement) {
             </div>
 						<div>
 							<label>Tags</label>
-							<tag-list .tags=${this._card.tags} .editing=${true}></tag-list>
+							<tag-list .tags=${this._card.tags} .editing=${true} @add-tag=${this._handleAddTag} @remove-tag=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
 						</div>
           </div>
         </div>
@@ -189,6 +189,18 @@ class CardEditor extends connect(store)(LitElement) {
 
 	firstUpdated() {
 		document.addEventListener('keydown', e => this._handleKeyDown(e));
+	}
+
+	_handleNewTag() {
+		console.warn("Adding new tag not yet implemented");
+	}
+
+	_handleAddTag(e) {
+		console.warn('Add tag not yet implemnted: ' + e.detail.tag);
+	}
+
+	_handleRemoveTag(e) {
+		console.warn('Remove tag not yet implemnted: ' + e.detail.tag);
 	}
 
 	_handleKeyDown(e) {

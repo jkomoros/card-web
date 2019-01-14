@@ -23,7 +23,7 @@ class TagList  extends LitElement {
 			</style>
 			<div class='${this.editing ? 'editing' : ''}'>
 			${this.tags && this.tags.length ?
-		this.tags.map(item => html`<tag-chip .tag=${item} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} @remove-tag=${this._handleRemoveTag}></tag-chip>`) :
+		this.tags.map(item => html`<tag-chip .tag=${item} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing}></tag-chip>`) :
 		html`<em>No tags</em>`}
 			<select @change=${this._handleSelectChanged}>
 				<option value='#noop' selected>Add Tag...</option>
@@ -35,18 +35,15 @@ class TagList  extends LitElement {
 
 	_handleSelectChanged(e) {
 		let ele = e.composedPath()[0];
-		if (ele.value == "#noop") return;
-		if (ele.value == "#new") {
-			console.log('Adding a new tag is not yet implemented');
-		} else {
-			//Add a tag if it is a normal one
-		}
+		if (ele.value == '#noop') return;
+		let value = ele.value;
 		//Set it back to #noop.
 		ele.value = '#noop';
-	}
-
-	_handleRemoveTag(e) {
-		console.warn('Tag removed: ' + e.detail.tag);
+		if (value == '#new') {
+			this.dispatchEvent(new CustomEvent('new-tag', {composed:true}));
+			return;
+		}
+		this.dispatchEvent(new CustomEvent('add-tag', {composed: true, detail:{tag: value}}));
 	}
 
 	static get properties() {
