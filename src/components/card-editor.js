@@ -9,6 +9,7 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	addSlug,
+	createTag,
 } from '../actions/data.js';
 
 import {
@@ -192,7 +193,11 @@ class CardEditor extends connect(store)(LitElement) {
 	}
 
 	_handleNewTag() {
-		console.warn("Adding new tag not yet implemented");
+		let name = prompt('What is the base name of the tag?');
+		if (!name) return;
+		let displayName = prompt('What is the display name for the tag?', name);
+		if (!displayName) return;
+		store.dispatch(createTag(name, displayName));
 	}
 
 	_handleAddTag(e) {
