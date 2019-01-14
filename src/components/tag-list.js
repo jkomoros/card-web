@@ -8,7 +8,7 @@ class TagList  extends LitElement {
 		return html`
 			<div>
 			${this.tags && this.tags.length ?
-		this.tags.map(item => html`<tag-chip .tag=${item}></tag-chip>`) :
+		this.tags.map(item => html`<tag-chip .tag=${item} .editing=${this.editing}></tag-chip>`) :
 		html`<em>No tags</em>`}
 			</div>
 			`;
@@ -17,6 +17,7 @@ class TagList  extends LitElement {
 	static get properties() {
 		return {
 			tags: { type: Array },
+			editing: {type:Boolean},
 		};
 	}
 }

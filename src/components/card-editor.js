@@ -152,7 +152,7 @@ class CardEditor extends connect(store)(LitElement) {
             </div>
 						<div>
 							<label>Tags</label>
-							<tag-list .tags=${this._card.tags}></tag-list>
+							<tag-list .tags=${this._card.tags} .editing=${true}></tag-list>
 						</div>
           </div>
         </div>
