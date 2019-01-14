@@ -47,6 +47,25 @@ export const arrayUnion = (arr, items) => {
 	return result;
 };
 
+export const arrayDiff = (before, after) => {
+	let afterMap = new Map();
+	for (let item of after) {
+		afterMap.set(item, true);
+	}
+	let deletions = [];
+	for (let item of before) {
+		if (afterMap.has(item)) {
+			//Keep track of that we've seen this one
+			afterMap.delete(item);
+		} else {
+			deletions.push(item);
+		}
+	}
+	//Additions is the keys not remved in afterMap
+	let additions = [...afterMap.keys()];
+	return [additions, deletions];
+};
+
 //items is an array
 export const setRemove = (obj, items) => {
 	let result = {};

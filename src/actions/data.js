@@ -16,7 +16,8 @@ import {
 	CARD_UPDATES_COLLECTION,
 	SECTION_UPDATES_COLLECTION,
 	SECTIONS_COLLECTION,
-	TAGS_COLLECTION,
+	TAG_COLLECTION,
+	TAG_UPDATES_COLLECTION
 } from './database.js';
 
 import {
@@ -29,7 +30,9 @@ import {
 } from './editor.js';
 
 import {
-	newID
+	newID,
+	arrayRemove,
+	arrayUnion,
 } from '../util.js';
 
 import {
@@ -54,6 +57,8 @@ const LEGAL_UPDATE_FIELDS = new Map([
 	['section', true],
 	['full_bleed', true],
 	['notes', true],
+	['addTags', true],
+	['removeTags', true]
 ]);
 
 export const modifyCard = (card, update, substantive) => (dispatch, getState) => {
@@ -148,6 +153,13 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 		cardUpdateObject.full_bleed = update.full_bleed;
 	}
 
+	if (update.addTags || update.removeTags) {
+		let tags = card.tags;
+		if (update.removeTags) tags = arrayRemove(tags, update.removeTags);
+		if (update.addTags) tags = arrayUnion(tags, update.addTags);
+		cardUpdateObject.tags = tags;
+	}
+
 	let batch = db.batch();
 
 	let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
@@ -190,6 +202,40 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 			};
 			batch.update(oldSectionRef, oldSectionObject);
 			batch.set(oldSectionUpdateRef, oldSectionUpdateObject);
+		}
+	}
+
+	if (update.addTags && update.addTags.length) {
+		for (let tagName of update.addTags) {
+			let tagRef = db.collection(TAG_COLLECTION).doc(tagName);
+			let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
+			let newTagObject = {
+				cards: firebase.firestore.FieldValue.arrayUnion(card.id),
+				updated: new Date()
+			};
+			let newTagUpdateObject = {
+				timestamp: new Date(),
+				add_card: card.id
+			};
+			batch.update(tagRef, newTagObject);
+			batch.set(tagUpdateRef, newTagUpdateObject);
+		}
+	}
+
+	if (update.removeTags && update.removeTags.length) {
+		for (let tagName of update.removeTags) {
+			let tagRef = db.collection(TAG_COLLECTION).doc(tagName);
+			let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
+			let newTagObject = {
+				cards: firebase.firestore.FieldValue.arrayRemove(card.id),
+				updated: new Date()
+			};
+			let newTagUpdateObject = {
+				timestamp: new Date(),
+				remove_card: card.id
+			};
+			batch.update(tagRef, newTagObject);
+			batch.set(tagUpdateRef, newTagUpdateObject);
 		}
 	}
 
@@ -367,7 +413,7 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 		return;
 	}
 
-	let tagRef = db.collection(TAGS_COLLECTION).doc(name);
+	let tagRef = db.collection(TAG_COLLECTION).doc(name);
 
 	let tag = await tagRef.get();
 

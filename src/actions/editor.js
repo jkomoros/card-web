@@ -19,7 +19,8 @@ import {
 } from './data.js';
 
 import {
-	isWhitespace
+	isWhitespace,
+	arrayDiff,
 } from '../util.js';
 
 let lastReportedSelectionRange = null;
@@ -92,7 +93,11 @@ export const editingCommit = () => (dispatch, getState) => {
 		}
 		update.body = normalizedBody;
 	}
+	let [tagAdditions, tagDeletions] = arrayDiff(underlyingCard.tags || [], updatedCard.tags || []);
 
+	if (tagAdditions.length) update.addTags = tagAdditions;
+	if (tagDeletions.length) update.removeTags = tagDeletions;
+	
 	//modifyCard will fail if the update is a no-op.
 	dispatch(modifyCard(underlyingCard, update, state.editor.substantive));
 
