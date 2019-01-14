@@ -31,6 +31,7 @@ import {
 
 import './author-chip.js';
 import './card-link.js';
+import './tag-list.js';
 
 class CardInfoPanel extends connect(store)(PageViewElement) {
 	render() {
@@ -112,10 +113,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				</div>
 				<div>
 					<h4>Tags</h4>
-					${this._card && this._card.tags && this._card.tags.length 
-						? html`<ul>${this._card.tags.map((item) => html`<li>${item}</li>`)}</ul>`
-						: html`<p><em>No tags.</em></p>`
-					}
+					<tag-list .tags=${this._card.tags}></tag-list>
 				</div>
 				<div>
 					<h4>Cards That Link Here${this._help('Cards that link to this one.')}</h4>
