@@ -80,11 +80,11 @@ class UserChip extends connect(store)(LitElement) {
 		}
 	}
 
-	_handleSignInClick(e) {
+	_handleSignInClick() {
 		store.dispatch(signIn());
 	}
 
-	_handleSignOutClick(e) {
+	_handleSignOutClick() {
 		store.dispatch(signOut());
 	}
 
