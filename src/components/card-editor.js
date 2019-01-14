@@ -36,6 +36,8 @@ import {
 	findCardToLink
 } from '../actions/find.js';
 
+import './tag-list.js';
+
 class CardEditor extends connect(store)(LitElement) {
 	render() {
 		return html`
@@ -131,7 +133,7 @@ class CardEditor extends connect(store)(LitElement) {
             <div>
               <label>Section</label>
               <select @change='${this._handleSectionUpdated}' .value=${this._card.section}>
-                ${repeat(Object.values(this._sections), (item) => item, (item, index) => html`
+                ${repeat(Object.values(this._sections), (item) => item, (item) => html`
                 <option value="${item.id}" ?selected=${item.id == this._card.section}>${item.title}</option>`)}
                 <option value='' ?selected=${this._card.section == ''}>[orphaned]</option>
               </select>
@@ -139,7 +141,7 @@ class CardEditor extends connect(store)(LitElement) {
             <div>
               <Label>Slugs</label>
               <select .value=${this._card.name} @change='${this._handleNameUpdated}'>
-                ${repeat([this._card.id, ...this._card.slugs], (item) => item, (item, index) => html`
+                ${repeat([this._card.id, ...this._card.slugs], (item) => item, (item) => html`
                 <option value="${item}" ?selected=${item == this._card.name}>${item}</option>`)}
               </select>
               <button @click='${this._handleAddSlug}'>+</button>
@@ -148,6 +150,10 @@ class CardEditor extends connect(store)(LitElement) {
               <label>Full Bleed</label>
               <input type='checkbox' ?checked='${this._card.full_bleed}' @change='${this._handleFullBleedUpdated}'></input>
             </div>
+						<div>
+							<label>Tags</label>
+							<tag-list .tags=${this._card.tags}></tag-list>
+						</div>
           </div>
         </div>
         <div class='buttons'>
@@ -265,11 +271,10 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(nameUpdated(ele.value));
 	}
 
-	_handleAddSlug(e) {
+	_handleAddSlug() {
 		if (!this._active) return;
 		if (!this._card) return;
 		let id = this._card.id;
-		let ele = e.composedPath()[0];
 		let value = prompt('Slug to add:');
 		if (!value) return;
 		store.dispatch(addSlug(id, value));
@@ -287,11 +292,11 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(substantiveUpdated(ele.checked));
 	}
 
-	_handleCommit(e) {
+	_handleCommit() {
 		store.dispatch(editingCommit());
 	}
 
-	_handleCancel(e) {
+	_handleCancel() {
 		store.dispatch(editingFinish());
 	}
 
