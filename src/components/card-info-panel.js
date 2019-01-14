@@ -111,11 +111,18 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 					<p><author-chip .author=${this._author}></author-chip></p>
 				</div>
 				<div>
+					<h4>Tags</h4>
+					${this._card && this._card.tags && this._card.tags.length 
+						? html`<ul>${this._card.tags.map((item) => html`<li>${item}</li>`)}</ul>`
+						: html`<p><em>No tags.</em></p>`
+					}
+				</div>
+				<div>
 					<h4>Cards That Link Here${this._help('Cards that link to this one.')}</h4>
 					${this._card && this._card.links_inbound && this._card.links_inbound.length 
-		? html`<ul>${this._card.links_inbound.map((item) => html`<li><card-link auto='title' card='${item}'>${item}</a></li>`)}</ul>`
-		: html`<p><em>No cards link to this one.</em></p>`
-}
+						? html`<ul>${this._card.links_inbound.map((item) => html`<li><card-link auto='title' card='${item}'>${item}</a></li>`)}</ul>`
+						: html`<p><em>No cards link to this one.</em></p>`
+					}
 				</div>
 				<div>
 					<h4>Notes${this._help('Notes are notes left by the author of the card.')}</h4>
