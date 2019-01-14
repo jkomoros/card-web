@@ -35,6 +35,7 @@ export const selectActiveCardId = (state) => state.collection.activeCardId;
 export const selectActiveFilterNames = (state) => state.collection.activeFilterNames;
 export const selectFilters = (state) => state.collection.filters;
 export const selectSections = (state) => state.data ? state.data.sections : null;
+export const selectTags = (state) => state.data ? state.data.tags : null;
 export const selectCards = (state) => state.data ? state.data.cards : null;
 export const selectMessages = (state) => state.comments ? state.comments.messages : null;
 export const selectThreads = (state) => state.comments ? state.comments.threads : null;

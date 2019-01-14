@@ -12,6 +12,7 @@ class TagList  extends LitElement {
 		let effectiveTags = this.tags;
 		let effectivePreviousTags = this.previousTags && this.previousTags.length ? this.previousTags : this.tags;
 		let [additions, deletions] = arrayDiffAsSets(effectiveTags, effectivePreviousTags);
+		let tagInfos = this.tagInfos || {};
 		return html`
 			<style>
 				select {
@@ -27,6 +28,7 @@ class TagList  extends LitElement {
 		html`<em>No tags</em>`}
 			<select @change=${this._handleSelectChanged}>
 				<option value='#noop' selected>Add Tag...</option>
+				${Object.keys(tagInfos).map(item => html`<option value='${tagInfos[item].id}'>${tagInfos[item].title}</option>`)}
 				<option value='#new'>New Tag</option>
 			</select>
 			</div>
@@ -51,6 +53,7 @@ class TagList  extends LitElement {
 			tags: { type: Array },
 			//If set, will be considereed the uncommitted tags, and will have a diff rendered againast them.
 			previousTags: {type:Array},
+			tagInfos: {type:Object},
 			editing: {type:Boolean},
 		};
 	}

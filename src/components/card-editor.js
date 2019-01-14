@@ -13,6 +13,10 @@ import {
 } from '../actions/data.js';
 
 import {
+	selectTags,
+} from '../selectors.js';
+
+import {
 	editingFinish,
 	editingCommit,
 	titleUpdated,
@@ -153,7 +157,7 @@ class CardEditor extends connect(store)(LitElement) {
             </div>
 						<div>
 							<label>Tags</label>
-							<tag-list .tags=${this._card.tags} .editing=${true} @add-tag=${this._handleAddTag} @remove-tag=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
+							<tag-list .tags=${this._card.tags} .editing=${true} .tagInfos=${this._tagInfos} @add-tag=${this._handleAddTag} @remove-tag=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
 						</div>
           </div>
         </div>
@@ -174,7 +178,8 @@ class CardEditor extends connect(store)(LitElement) {
 		_card: { type: Object },
 		_active: {type: Boolean },
 		_sections: {type: Object },
-		_substantive: {type: Object}
+		_substantive: {type: Object},
+		_tagInfos: {type: Object},
 	};}
 
 	stateChanged(state) {
@@ -182,6 +187,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._active = state.editor.editing;
 		this._sections = state.data.sections;
 		this._substantive = state.editor.substantive;
+		this._tagInfos = selectTags(state);
 	}
 
 	shouldUpdate() {
