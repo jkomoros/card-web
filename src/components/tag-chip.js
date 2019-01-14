@@ -11,12 +11,14 @@ class TagChip  extends LitElement {
 					color:var(--app-light-text-color);
 				}
 			</style>
-			<span class='${this.editing ? 'editing' : ''}'>${this.tagName}</span>
+			<span class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''}'>${this.tagName}</span>
 			`;
 	}
 
 	static get properties() {
 		return {
+			addition: {type:Boolean},
+			deletion: {type:Boolean},
 			tagName: { type: String },
 			editing: { type: Boolean},
 		};

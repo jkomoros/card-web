@@ -47,7 +47,22 @@ export const arrayUnion = (arr, items) => {
 	return result;
 };
 
+export const arrayToSet = (arr) => {
+	let result = {};
+	for (let item of arr) {
+		result[item] = true;
+	}
+	return result;
+};
+
+export const arrayDiffAsSets = (before, after) => {
+	let [additions, deletions] = arrayDiff(before,after);
+	return [arrayToSet(additions), arrayToSet(deletions)];
+};
+
 export const arrayDiff = (before, after) => {
+	if (!before) before = [];
+	if (!after) after = [];
 	let afterMap = new Map();
 	for (let item of after) {
 		afterMap.set(item, true);
