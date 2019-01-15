@@ -6,9 +6,12 @@ class TagChip  extends LitElement {
 		return html`
 			<style>
 				:host {
-					background-color:blue;
-					border-radius:0.1em;
-					color:var(--app-light-text-color);
+					background-color: blue;
+					border-radius: 0.3em;
+					font-size: 0.7em;
+					padding: 0.2em;
+					display: inline-block;
+					color: var(--app-light-text-color);
 				}
 				span a {
 					display:none;
