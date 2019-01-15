@@ -17,12 +17,19 @@ class TagChip  extends LitElement {
 					display:inline;
 				}
 			</style>
-			<span class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''}'>${this.tagName}<a href='#' @click=${this._handleXClicked}>X</a></span>
+			<span class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''}'>${this._displayName}<a href='#' @click=${this._handleXClicked}>X</a></span>
 			`;
 	}
 
 	_handleXClicked() {
 		this.dispatchEvent(new CustomEvent('remove-tag', {composed: true, detail: {tag: this.tag}}));
+	}
+
+	get _displayName() {
+		if (!this.tagInfos) return this.tagName;
+		let info = this.tagInfos[this.tagName];
+		if (!info) return this.tagName;
+		return info.title || this.tagName;
 	}
 
 	static get properties() {
@@ -31,6 +38,7 @@ class TagChip  extends LitElement {
 			deletion: {type:Boolean},
 			tagName: { type: String },
 			editing: { type: Boolean},
+			tagInfos: {type:Object},
 		};
 	}
 }

@@ -17,7 +17,7 @@ import {
 } from '../reducers/data.js';
 
 import {
-	selectActiveCard
+	selectActiveCard, selectTags
 } from '../selectors.js';
 
 import {
@@ -113,7 +113,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				</div>
 				<div>
 					<h4>Tags</h4>
-					<tag-list .tags=${this._card.tags}></tag-list>
+					<tag-list .tags=${this._card.tags} .tagInfos=${this._tagInfos}></tag-list>
 				</div>
 				<div>
 					<h4>Cards That Link Here${this._help('Cards that link to this one.')}</h4>
@@ -139,6 +139,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			_card: {type: Object},
 			_sectionTitle: { type: String},
 			_author: {type:Object},
+			_tagInfos: {type: Object},
 		};
 	}
 
@@ -151,6 +152,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._card = selectActiveCard(state) || {};
 		this._sectionTitle = sectionTitle(state, this._card ? this._card.section : '');
 		this._author = authorForId(state, this._card.author);
+		this._tagInfos = selectTags(state);
 	}
 
 }
