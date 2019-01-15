@@ -27,7 +27,7 @@ class TagChip  extends LitElement {
 	}
 
 	_handleXClicked() {
-		this.dispatchEvent(new CustomEvent('remove-tag', {composed: true, detail: {tag: this.tag}}));
+		this.dispatchEvent(new CustomEvent('remove-tag', {composed: true, detail: {tag: this.tagName}}));
 	}
 
 	get _displayName() {
