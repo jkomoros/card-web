@@ -24,7 +24,7 @@ class TagList  extends LitElement {
 			</style>
 			<div class='${this.editing ? 'editing' : ''}'>
 			${this.tags && this.tags.length ?
-		this.tags.map(item => html`<tag-chip .tag=${item} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing}></tag-chip>`) :
+		this.tags.map(item => html`<tag-chip .tagName=${item} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing}></tag-chip>`) :
 		html`<em>No tags</em>`}
 			<select @change=${this._handleSelectChanged}>
 				<option value='#noop' selected>Add Tag...</option>
