@@ -12,7 +12,7 @@ class TagList  extends LitElement {
 	render() {
 		let effectiveTags = this.tags;
 		let effectivePreviousTags = this.previousTags && this.previousTags.length ? this.previousTags : this.tags;
-		let [additionsArray, deletionsArray] = arrayDiff(effectiveTags, effectivePreviousTags);
+		let [additionsArray, deletionsArray] = arrayDiff(effectivePreviousTags, effectiveTags);
 		let additions = arrayToSet(additionsArray);
 		let deletions = arrayToSet(deletionsArray);
 		let allTags = [];
@@ -28,7 +28,7 @@ class TagList  extends LitElement {
 				}
 			</style>
 			<div class='${this.editing ? 'editing' : ''}'>
-			${this.tags && this.tags.length ?
+			${allTags && allTags.length ?
 		allTags.map(item => html`<tag-chip .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing}></tag-chip>`) :
 		html`<em>No tags</em>`}
 			<select @change=${this._handleSelectChanged}>
