@@ -4,14 +4,19 @@ import { LitElement, html } from '@polymer/lit-element';
 import './tag-chip.js';
 
 import {
-	arrayDiffAsSets
+	arrayDiff, 
+	arrayToSet
 } from '../util.js';
 
 class TagList  extends LitElement {
 	render() {
 		let effectiveTags = this.tags;
 		let effectivePreviousTags = this.previousTags && this.previousTags.length ? this.previousTags : this.tags;
-		let [additions, deletions] = arrayDiffAsSets(effectiveTags, effectivePreviousTags);
+		let [additionsArray, deletionsArray] = arrayDiff(effectiveTags, effectivePreviousTags);
+		let additions = arrayToSet(additionsArray);
+		let deletions = arrayToSet(deletionsArray);
+		let allTags = [];
+		if (effectiveTags && deletionsArray) allTags = [...effectiveTags, ...deletionsArray];
 		let tagInfos = this.tagInfos || {};
 		return html`
 			<style>
@@ -24,7 +29,7 @@ class TagList  extends LitElement {
 			</style>
 			<div class='${this.editing ? 'editing' : ''}'>
 			${this.tags && this.tags.length ?
-		this.tags.map(item => html`<tag-chip .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing}></tag-chip>`) :
+		allTags.map(item => html`<tag-chip .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing}></tag-chip>`) :
 		html`<em>No tags</em>`}
 			<select @change=${this._handleSelectChanged}>
 				<option value='#noop' selected>Add Tag...</option>
