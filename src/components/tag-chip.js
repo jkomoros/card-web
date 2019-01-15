@@ -15,6 +15,8 @@ class TagChip  extends LitElement {
 				}
 				span a {
 					display:none;
+					color: var(--app-light-text-color);
+					padding: 0 0.3em;
 				}
 				span.editing a {
 					display:inline;
