@@ -14,6 +14,7 @@ import {
 
 import {
 	selectTags,
+	selectActiveCard,
 } from '../selectors.js';
 
 import {
@@ -159,7 +160,7 @@ class CardEditor extends connect(store)(LitElement) {
             </div>
 						<div>
 							<label>Tags</label>
-							<tag-list .tags=${this._card.tags} .editing=${true} .tagInfos=${this._tagInfos} @add-tag=${this._handleAddTag} @remove-tag=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
+							<tag-list .tags=${this._card.tags} .previousTags=${this._underlyingCard.tags} .editing=${true} .tagInfos=${this._tagInfos} @add-tag=${this._handleAddTag} @remove-tag=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
 						</div>
           </div>
         </div>
@@ -182,10 +183,13 @@ class CardEditor extends connect(store)(LitElement) {
 		_sections: {type: Object },
 		_substantive: {type: Object},
 		_tagInfos: {type: Object},
+		//The card before any edits
+		_underlyingCard: {type:Object},
 	};}
 
 	stateChanged(state) {
 		this._card= state.editor.card;
+		this._underlyingCard = selectActiveCard(state);
 		this._active = state.editor.editing;
 		this._sections = state.data.sections;
 		this._substantive = state.editor.substantive;
