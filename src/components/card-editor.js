@@ -25,7 +25,9 @@ import {
 	sectionUpdated,
 	nameUpdated,
 	substantiveUpdated,
-	fullBleedUpdated
+	fullBleedUpdated,
+	tagAdded,
+	tagRemoved
 } from '../actions/editor.js';
 
 import {
@@ -207,11 +209,11 @@ class CardEditor extends connect(store)(LitElement) {
 	}
 
 	_handleAddTag(e) {
-		console.warn('Add tag not yet implemnted: ' + e.detail.tag);
+		store.dispatch(tagAdded(e.detail.tag));
 	}
 
 	_handleRemoveTag(e) {
-		console.warn('Remove tag not yet implemnted: ' + e.detail.tag);
+		store.dispatch(tagRemoved(e.detail.tag));
 	}
 
 	_handleKeyDown(e) {

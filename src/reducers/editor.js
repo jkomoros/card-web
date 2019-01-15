@@ -8,7 +8,9 @@ import {
 	EDITING_NAME_UPDATED,
 	EDITING_SUBSTANTIVE_UPDATED,
 	EDITING_FULL_BLEED_UPDATED,
-	EDITING_NOTES_UPDATED
+	EDITING_NOTES_UPDATED,
+	EDITING_TAG_ADDED,
+	EDITING_TAG_REMOVED
 } from '../actions/editor.js';
 
 const INITIAL_STATE = {
@@ -18,6 +20,11 @@ const INITIAL_STATE = {
 	card: null,
 	substantive: false,
 };
+
+import {
+	arrayRemove,
+	arrayUnion
+} from '../util.js';
 
 const app = (state = INITIAL_STATE, action) => {
 	switch (action.type) {
@@ -75,6 +82,18 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: {...state.card, slugs: [...state.card.slugs, action.slug], name: name}
+		};
+	case EDITING_TAG_ADDED:
+		if (!state.card) return state;
+		return {
+			...state,
+			card: {...state.card, tags: arrayUnion(state.card.tags, [action.tag])}
+		};
+	case EDITING_TAG_REMOVED:
+		if (!state.card) return state;
+		return {
+			...state,
+			card: {...state.card, tags: arrayRemove(state.card.tags, [action.tag])}
 		};
 	case EDITING_NAME_UPDATED:
 		if (!state.card) return state;

@@ -8,6 +8,8 @@ export const EDITING_NAME_UPDATED = 'EDITING_NAME_UPDATED';
 export const EDITING_SUBSTANTIVE_UPDATED = 'EDITING_SUBSTANTIVE_UPDATED';
 export const EDITING_FULL_BLEED_UPDATED = 'EDITING_FULL_BLEED_UPDATED';
 export const EDITING_NOTES_UPDATED = 'EDITING_NOTES_UPDATED';
+export const EDITING_TAG_ADDED = 'EDITING_TAG_ADDED';
+export const EDITING_TAG_REMOVED = 'EDITING_TAG_REMOVED';
 
 import {
 	selectActiveCard,
@@ -355,5 +357,19 @@ export const fullBleedUpdated = (fullBleed) => {
 	return {
 		type: EDITING_FULL_BLEED_UPDATED,
 		fullBleed
+	};
+};
+
+export const tagAdded = (tag) => {
+	return {
+		type: EDITING_TAG_ADDED,
+		tag
+	};
+};
+
+export const tagRemoved = (tag) => {
+	return {
+		type: EDITING_TAG_REMOVED,
+		tag
 	};
 };
