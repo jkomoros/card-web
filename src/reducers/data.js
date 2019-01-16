@@ -15,6 +15,11 @@ const INITIAL_STATE = {
 	sections: {},
 	tags: {},
 	slugIndex: {},
+	//These three are flipped to true on the first UPDATE_type entry, primarily
+	//as a flag to  selectDataisFullyLoaded.
+	cardsLoaded: false,
+	sectionsLoaded: false,
+	tagsLoaded: false,
 	//The modification that is pending
 	cardModificationPending: '',
 	cardModificationError: null,
@@ -28,16 +33,19 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			cards: {...state.cards, ...action.cards},
 			slugIndex: {...state.slugIndex, ...extractSlugIndex(action.cards)},
+			cardsLoaded: true,
 		};
 	case UPDATE_SECTIONS:
 		return {
 			...state,
-			sections: {...state.sections, ...action.sections}
+			sections: {...state.sections, ...action.sections},
+			sectionsLoaded: true,
 		};
 	case UPDATE_TAGS:
 		return {
 			...state,
-			tags: {...state.tags, ...action.tags}
+			tags: {...state.tags, ...action.tags},
+			tagsLoaded: true,
 		};
 	case UPDATE_AUTHORS:
 		return {

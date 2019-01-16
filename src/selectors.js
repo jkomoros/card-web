@@ -37,6 +37,9 @@ export const selectFilters = (state) => state.collection.filters;
 export const selectSections = (state) => state.data ? state.data.sections : null;
 export const selectTags = (state) => state.data ? state.data.tags : null;
 export const selectCards = (state) => state.data ? state.data.cards : null;
+export const selectCardsLoaded = (state) => state.data.cardsLoaded;
+export const selectSectionsLoaded = (state) => state.data.sectionsLoaded;
+export const selectTagsLoaded = (state) => state.data.tagsLoaded;
 export const selectMessages = (state) => state.comments ? state.comments.messages : null;
 export const selectThreads = (state) => state.comments ? state.comments.threads : null;
 
@@ -176,9 +179,10 @@ export const getSection = (state, sectionId) => {
 //DataIsFullyLoaded returns true if we've loaded all of the card/section
 //information we're going to load.
 export const selectDataIsFullyLoaded = createSelector(
-	selectCards,
-	selectSections,
-	(cards, sections) => Object.keys(cards).length > 0 && Object.keys(sections).length > 0
+	selectCardsLoaded,
+	selectSectionsLoaded,
+	selectTagsLoaded,
+	(cardsLoaded, sectionsLoaded, tagsLoaded) => cardsLoaded && sectionsLoaded && tagsLoaded
 );
 
 export const selectActiveCard = createSelector(
