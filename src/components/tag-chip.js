@@ -33,8 +33,10 @@ class TagChip  extends LitElement {
 			`;
 	}
 
-	_handleXClicked() {
+	_handleXClicked(e) {
+		e.preventDefault();
 		this.dispatchEvent(new CustomEvent('remove-tag', {composed: true, detail: {tag: this.tagName}}));
+		return false;
 	}
 
 	get _displayName() {
