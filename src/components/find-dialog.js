@@ -33,21 +33,21 @@ import './card-drawer.js';
 class FindDialog extends connect(store)(DialogElement) {
 	innerRender() {
 		return html`
-    	<style>
-    		card-drawer {
-    			font-size:14px;
-    		}
+		<style>
+			card-drawer {
+				font-size:14px;
+			}
 
-    		input, textarea {
-	          border: 0 solid black;
-	          font-size:0.8em;
-	          border-bottom:1px solid var(--app-dark-text-color);
-	          width: 100%;
-	        }
-    	</style>
-    	<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
-    	<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection}></card-drawer>
-    `;
+			input, textarea {
+			  border: 0 solid black;
+			  font-size:0.8em;
+			  border-bottom:1px solid var(--app-dark-text-color);
+			  width: 100%;
+			}
+		</style>
+		<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
+		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection}></card-drawer>
+	`;
 	}
 
 	constructor() {
@@ -83,11 +83,11 @@ class FindDialog extends connect(store)(DialogElement) {
 	}
 
 	stateChanged(state) {
-  	//tODO: it's weird that we manually set our superclasses' public property
-  	this.open = state.find.open;
-  	this._query = state.find.query;
-  	this._collection = collectionForQuery(state);
-  	this._linking = state.find.linking;
+		//tODO: it's weird that we manually set our superclasses' public property
+		this.open = state.find.open;
+		this._query = state.find.query;
+		this._collection = collectionForQuery(state);
+		this._linking = state.find.linking;
 	}
 
 }

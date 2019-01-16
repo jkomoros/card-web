@@ -1,10 +1,8 @@
-import { LitElement, html } from '@polymer/lit-element';
+import { html } from '@polymer/lit-element';
 
 import {
 	forumIcon,
 } from './my-icons.js';
-
-import { SharedStyles } from './shared-styles.js';
 
 import { CardDecorator } from './card-decorator.js';
 

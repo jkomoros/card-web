@@ -66,11 +66,11 @@ class CommentMessage extends LitElement {
     `;
 	}
 
-	_handleEditClicked(e) {
+	_handleEditClicked() {
 		this.dispatchEvent(new CustomEvent('edit-message', {composed:true, detail: {message: this.message}}));
 	}
 
-	_handleDeleteClicked(e) {
+	_handleDeleteClicked() {
 		if (!confirm('Delete this message forever? This action cannot be undone.')) {
 			return;
 		}

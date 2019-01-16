@@ -1,4 +1,4 @@
-import { LitElement, html } from '@polymer/lit-element';
+import { html } from '@polymer/lit-element';
 
 import {BaseCard} from './base-card.js';
 
