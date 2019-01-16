@@ -50,6 +50,8 @@ class TagList  extends LitElement {
 			this.dispatchEvent(new CustomEvent('new-tag', {composed:true}));
 			return;
 		}
+		//Note: a similar event is fired in tag-chip when editing and hitting
+		//the x and deletion is true.
 		this.dispatchEvent(new CustomEvent('add-tag', {composed: true, detail:{tag: value}}));
 	}
 
