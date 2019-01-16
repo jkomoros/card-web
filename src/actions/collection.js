@@ -59,8 +59,11 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 	//Remove trailing slash
 	if (!parts[parts.length - 1]) parts.pop();
 
-	let firstPart = parts[0].toLowerCase();
-    
+	//in some weird situations, like during editing commit, we might be at no
+	//route even when our view is active. Not entirely clear how, but it
+	//happens... for a second.
+	let firstPart = parts.length ? parts[0].toLowerCase() : '';
+	
 	let setName = DEFAULT_SET_NAME;
 
 	for (let name of SET_NAMES) {
