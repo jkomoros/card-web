@@ -6,7 +6,7 @@ class TagChip  extends LitElement {
 		return html`
 			<style>
 				:host {
-					background-color: blue;
+					background-color: ${this._color};
 					border-radius: 0.3em;
 					font-size: 0.7em;
 					padding: 0.2em;
@@ -45,6 +45,14 @@ class TagChip  extends LitElement {
 		}
 		
 		return false;
+	}
+
+	get _color() {
+		const defaultColor = '#CD5C5C';
+		if (!this.tagInfos) return defaultColor;
+		let info = this.tagInfos[this.tagName];
+		if (!info) return defaultColor;
+		return info.color || defaultColor;
 	}
 
 	get _displayName() {

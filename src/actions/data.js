@@ -51,6 +51,28 @@ import {
 	selectUserIsAdmin,
 } from '../selectors.js';
 
+//When a new tag is created, it is randomly assigned one of these values.
+const TAG_COLORS = [
+	//Indianred
+	'#CD5C5C',
+	//darkkhahki
+	'#BDB76B',
+	//limegreen
+	'#32CD32',
+	//darkcyan
+	'#008B8B',
+	//navy
+	'#000080',
+	//sandybrown
+	'#F4A460',
+	//gold
+	'#FFD700',
+	//darkmagenta
+	'#8B008B',
+	//royalblue
+	'#4169E1',
+];
+
 const LEGAL_UPDATE_FIELDS = new Map([
 	['title', true],
 	['body', true],
@@ -433,6 +455,10 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 		return;
 	}
 
+	//Randomly pick a tag color to start with. If an admin wants to edit it they
+	//can just edit it by hand in the DB.
+	let color = TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)];
+
 	let batch = db.batch();
 
 	batch.set(tagRef, {
@@ -440,6 +466,7 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 		start_cards: [startCardId],
 		title:displayName,
 		updated: new Date(),
+		color: color,
 	});
 
 	batch.set(startCardRef, defaultCardObject(startCardId, user, '', 'section-head'));
