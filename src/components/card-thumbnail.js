@@ -132,7 +132,7 @@ class CardThumbnail extends LitElement {
 		_selectedViaClick: { type: Boolean },
 	};}
 
-  _handleClick(e) {
+	_handleClick(e) {
 		e.stopPropagation();
 		this._selectedViaClick = true;
 		this.dispatchEvent(new CustomEvent('thumbnail-tapped', {composed:true, detail: {card: this.card}}));

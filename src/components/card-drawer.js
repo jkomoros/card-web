@@ -108,7 +108,7 @@ class CardDrawer extends LitElement {
 		return ele.innerText.split('\n')[0];
 	}
 
-	_handleAddSlide(e) {
+	_handleAddSlide() {
 		if (!this.editable) return;
 		this.dispatchEvent(new CustomEvent('add-card', {composed:true}));
 	}
@@ -144,7 +144,7 @@ class CardDrawer extends LitElement {
 		this._dragging = thumbnail;
 	}
 
-	_handleDragEnd(e) {
+	_handleDragEnd() {
 		if (!this.editable) return;
 		this._dragging = null;
 	}
