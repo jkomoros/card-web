@@ -13,6 +13,7 @@ class TagChip  extends LitElement {
 					margin: 0 0.2em;
 					display: inline-block;
 					color: var(--app-light-text-color);
+					font-weight:bold;
 				}
 				span.deletion {
 					font-style: italic;
