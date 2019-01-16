@@ -50,7 +50,10 @@ import {
 	selectActiveCardIndex,
 	selectUser,
 	selectUserIsAdmin,
+	selectFilters,
+	selectDataIsFullyLoaded,
 } from '../selectors.js';
+import { INVERSE_FILTER_NAMES } from '../reducers/collection.js';
 
 //When a new tag is created, it is randomly assigned one of these values.
 const TAG_COLORS = [
@@ -404,6 +407,23 @@ export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
 
 };
 
+const reservedCollectionName = (state, name) => {
+
+	if (!selectDataIsFullyLoaded(state)) {
+		console.warn('Sections not loaded');
+		return true;
+	}
+	//Filters already contains section names if data is fully loaded.
+	const filters = selectFilters(state) || {};
+
+	let keys = [...Object.keys(filters), ...Object.keys(INVERSE_FILTER_NAMES)];
+
+	for (let key of keys) {
+		if (name == key) return true;
+	}
+	return false;
+};
+
 export const createTag = (name, displayName) => async (dispatch, getState) => {
 
 	if (!name) {
@@ -412,6 +432,13 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 	}
 
 	name = normalizeSlug(name);
+
+	const state = getState();
+
+	if (reservedCollectionName(state, name)) {
+		console.warn('That name is reserved');
+		return;
+	}
 
 	if (!name) {
 		console.warn('Tag name invalid');
@@ -422,8 +449,6 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 		console.warn('No short name provided');
 		return;
 	}
-
-	const state = getState();
 
 	let user = selectUser(state);
 
