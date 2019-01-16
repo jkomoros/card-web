@@ -11,7 +11,7 @@ import {
 class TagList  extends LitElement {
 	render() {
 		let effectiveTags = this.tags;
-		let effectivePreviousTags = this.previousTags && this.previousTags.length ? this.previousTags : this.tags;
+		let effectivePreviousTags = this.previousTags && this.previousTags.length ? this.previousTags : [];
 		let [additionsArray, deletionsArray] = arrayDiff(effectivePreviousTags, effectiveTags);
 		let additions = arrayToSet(additionsArray);
 		let deletions = arrayToSet(deletionsArray);

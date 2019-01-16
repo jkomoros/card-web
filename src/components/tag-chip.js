@@ -17,6 +17,9 @@ class TagChip  extends LitElement {
 					font-style: italic;
 					text-decoration-line:line-through;
 				}
+				span.addition {
+					font-style:italic;
+				}
 				span a {
 					display:none;
 					color: var(--app-light-text-color);
