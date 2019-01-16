@@ -6,6 +6,7 @@ import {
 import {
 	UPDATE_SECTIONS,
 	UPDATE_CARDS,
+	UPDATE_TAGS,
 } from '../actions/data.js';
 
 import {
@@ -65,6 +66,11 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			filters: {...state.filters, ...makeFilterFromSection(action.sections)}
+		};
+	case UPDATE_TAGS:
+		return {
+			...state,
+			filters: {...state.filters, ...makeFilterFromSection(action.tags)}
 		};
 	case UPDATE_CARDS:
 		return {
