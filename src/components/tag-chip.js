@@ -10,6 +10,7 @@ class TagChip  extends LitElement {
 					border-radius: 0.3em;
 					font-size: 0.7em;
 					padding: 0.2em;
+					margin: 0 0.2em;
 					display: inline-block;
 					color: var(--app-light-text-color);
 				}
