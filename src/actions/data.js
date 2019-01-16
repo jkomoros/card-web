@@ -470,7 +470,11 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 		color: color,
 	});
 
-	batch.set(startCardRef, defaultCardObject(startCardId, user, '', 'section-head'));
+	let cardObject = defaultCardObject(startCardId, user, '', 'section-head');
+	cardObject.title = displayName;
+	cardObject.subtitle = displayName + ' is a topical tag';
+
+	batch.set(startCardRef, cardObject);
 
 	batch.commit().then(dispatch(tagAdded(name)));
 
