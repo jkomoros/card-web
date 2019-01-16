@@ -356,6 +356,7 @@ export const extractCardLinks = (body) => {
 const slugRegularExpression = /^[a-zA-Z0-9-_]+$/;
 
 const normalizeSlug = (slug) => {
+	slug = slug.trim();
 	slug = slug.toLowerCase();
 	slug = slug.split(' ').join('-');
 	slug = slug.split('_').join('-');
