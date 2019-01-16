@@ -160,7 +160,7 @@ class CardEditor extends connect(store)(LitElement) {
             </div>
 						<div>
 							<label>Tags</label>
-							<tag-list .tags=${this._card.tags} .previousTags=${this._underlyingCard.tags} .editing=${true} .tagInfos=${this._tagInfos} @add-tag=${this._handleAddTag} @remove-tag=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
+							<tag-list .tags=${this._card.tags} .previousTags=${this._underlyingCard ? this._underlyingCard.tags : null} .editing=${true} .tagInfos=${this._tagInfos} @add-tag=${this._handleAddTag} @remove-tag=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
 						</div>
           </div>
         </div>
