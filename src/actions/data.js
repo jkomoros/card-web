@@ -27,7 +27,8 @@ import {
 
 import {
 	editingFinish,
-	slugAdded
+	slugAdded,
+	tagAdded
 } from './editor.js';
 
 import {
@@ -471,7 +472,7 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 
 	batch.set(startCardRef, defaultCardObject(startCardId, user, '', 'section-head'));
 
-	batch.commit();
+	batch.commit().then(dispatch(tagAdded(name)));
 
 };
 
