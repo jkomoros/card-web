@@ -191,6 +191,18 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 	dispatch(navigatePathTo(path, true));
 };
 
+const cardIdIsPlaceholder = (cardId) => {
+	if (!cardId) return false;
+	return cardId[0] == PLACEHOLDER_CARD_ID_CHARACTER;
+};
+
+const cardIdForPlaceholder = (requestedCard, collection) => {
+	if (!cardIdIsPlaceholder(requestedCard)) return '';
+	if (!collection || !collection.length) return '';
+	//TODO: support random, _popular, _recent, etc.
+	return collection[0];
+};
+
 export const redirectIfInvalidCardOrCollection = () => (dispatch, getState) => {
 
 	//This routine is called to make sure that if there is a valid card, we're
@@ -209,10 +221,10 @@ export const redirectIfInvalidCardOrCollection = () => (dispatch, getState) => {
 
 		let requestedCard = selectRequestedCard(state);
 		//If we're a placeholder card 
-		if (requestedCard && requestedCard[0] == PLACEHOLDER_CARD_ID_CHARACTER) {
-			if (collection.length) {
-				dispatch(navigateToCard(collection[0]), false);
-				return;
+		if (cardIdIsPlaceholder(requestedCard)) {
+			let cardIdToNavigateTo = cardIdForPlaceholder(requestedCard, collection);
+			if (cardIdToNavigateTo) {
+				dispatch(navigateToCard(cardIdToNavigateTo, false));
 			}
 		}
 
