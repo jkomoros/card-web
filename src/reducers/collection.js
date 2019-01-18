@@ -44,7 +44,12 @@ const INITIAL_STATE = {
 		//None will match nothing. We use it for orphans.
 		none: {},
 	},
+	//requestCard is the identifier specifically requested in the URL. This
+	//could be the card's ID, a slug for that card, or a special placeholder
+	//like `_`. The fully resolved activeCard is stored in activeCardId.
 	requestedCard: '',
+	//the fully resolved literal ID of the active card (not slug, not special
+	//placeholder).
 	activeCardId: '',
 };
 
@@ -53,7 +58,7 @@ const app = (state = INITIAL_STATE, action) => {
 	case SHOW_CARD:
 		return {
 			...state,
-			requestedCard: action.idOrSlug,
+			requestedCard: action.requestedCard,
 			activeCardId: action.card,
 		};
 	case UPDATE_COLLECTION:

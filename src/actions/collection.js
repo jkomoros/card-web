@@ -254,7 +254,7 @@ export const showCard = (cardIdOrSlug) => (dispatch, getState) => {
 
 	dispatch({
 		type: SHOW_CARD,
-		idOrSlug: cardIdOrSlug,
+		requestedCard: cardIdOrSlug,
 		card: cardId,
 	});
 	dispatch(redirectIfInvalidCardOrCollection());
