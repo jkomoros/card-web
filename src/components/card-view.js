@@ -18,7 +18,6 @@ import { store } from '../store.js';
 import {
 	selectActiveCard,
 	selectActiveSectionId,
-	selectRequestedCard,
 	selectExpandedActiveCollection,
 	selectDataIsFullyLoaded,
 	selectUserSignedIn,
@@ -338,7 +337,6 @@ class CardView extends connect(store)(PageViewElement) {
 			_card: { type: Object },
 			_editing: {type: Boolean },
 			_pageExtra: {type: String},
-			_requestedCard: {type:String},
 			_userMayEdit: { type: Boolean },
 			_userMayReorder: {type: Boolean},
 			_userMayStar: { type: Boolean },
@@ -473,7 +471,6 @@ class CardView extends connect(store)(PageViewElement) {
 		this._card = selectActiveCard(state) || {};
 		this._displayCard = this._editingCard ? this._editingCard : this._card;
 		this._pageExtra = state.app.pageExtra;
-		this._requestedCard = selectRequestedCard(state);
 		this._editing = state.editor.editing; 
 		this._signedIn = selectUserSignedIn(state);
 		this._userMayStar  =  selectUserMayStar(state);
