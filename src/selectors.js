@@ -105,20 +105,19 @@ export const selectUserMayEdit = createSelector(
 	(user) => userMayEdit(user)
 );
 
-export const selectUserMayStar = createSelector(
-	selectUser,
-	(user) => userObjectExists(user)
-);
-
 export const selectUserMayComment = createSelector(
 	selectUser,
 	(user) => userMayComment(user)
 );
 
-export const selectUserMayMarkRead = createSelector(
+export const selectUserObjectExists = createSelector(
 	selectUser,
 	(user) => userObjectExists(user)
 );
+
+export const selectUserMayStar = selectUserObjectExists;
+
+export const selectUserMayMarkRead = selectUserObjectExists;
 
 export const selectUserIsAnonymous = createSelector(
 	selectUser,
