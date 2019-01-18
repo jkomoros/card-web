@@ -236,6 +236,8 @@ export const redirectIfInvalidCardOrCollection = () => (dispatch, getState) => {
   
 	if (!collection.length) return;
 	let index = selectActiveCardIndex(state);
+	//If the card is not in this collection, then forward to a collection that
+	//it is in.
 	if (index >= 0) return;
 	dispatch(navigateToCard(card, false));
 };
