@@ -33,6 +33,10 @@ import {
 	selectActiveCardIndex
 } from '../selectors.js';
 
+import { 
+	PLACEHOLDER_CARD_ID_CHARACTER
+} from './collection';
+
 //This is the card that is loaded if we weren't passed anything
 const DEFAULT_CARD = 'section-half-baked';
 
@@ -87,6 +91,10 @@ export const urlForCard = (cardOrId, edit) => {
 	}
 	return '/c/' + id + (edit ? '/edit' : '');
 };
+
+export const urlForTag = (tagName) => {
+	return '/c/' + tagName + '/' + PLACEHOLDER_CARD_ID_CHARACTER;
+}
 
 export const navigateToCard = (cardOrId, silent) => (dispatch) => {
 	let path = urlForCard(cardOrId, false);

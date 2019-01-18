@@ -1,5 +1,6 @@
 
 import { LitElement, html } from '@polymer/lit-element';
+import { urlForTag } from '../actions/app';
 
 class TagChip  extends LitElement {
 	render() {
@@ -15,6 +16,14 @@ class TagChip  extends LitElement {
 					color: var(--app-light-text-color);
 					font-weight:bold;
 				}
+				a.primary {
+					color: var(--app-light-text-color);
+					text-decoration:none;
+				}
+				span.editing a.primary {
+					/* We'll cancel navigation, so don't make it look clikable */
+					cursor:default;
+				}
 				span.deletion {
 					font-style: italic;
 					text-decoration-line:line-through;
@@ -22,17 +31,25 @@ class TagChip  extends LitElement {
 				span.addition {
 					font-style:italic;
 				}
-				span a {
+				span a.delete {
 					display:none;
 					color: var(--app-light-text-color);
 					padding: 0 0.3em;
 				}
-				span.editing a {
+				span.editing a.delete {
 					display:inline;
 				}
 			</style>
-			<span class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''}'>${this._displayName}<a href='#' @click=${this._handleXClicked}>X</a></span>
+			<span class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''}'><a class='primary' href='${urlForTag(this.tagName)}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
 			`;
+	}
+
+	_handleTagClicked(e) {
+		if (this.editing) {
+			e.preventDefault();
+			return false;
+		}
+		//Allow it go on and navigate
 	}
 
 	_handleXClicked(e) {
