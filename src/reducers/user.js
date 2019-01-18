@@ -16,7 +16,11 @@ import {
 
 const INITIAL_STATE = {
 	user : null,
-	pending: false,
+	//pending is true whenever we are expecting either a SIGNIN_SUCCESS or
+	//SIGNOUT_SUCCESS. That's true both when the page loads before we get the
+	//initial auth state (which is why it defaults to true), and also when the
+	//user has proactively hit the signIn or signOut buttons.
+	pending: true,
 	error: null,
 	stars : {},
 	reads: {},
