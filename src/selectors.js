@@ -43,6 +43,12 @@ export const selectTagsLoaded = (state) => state.data.tagsLoaded;
 export const selectMessages = (state) => state.comments ? state.comments.messages : null;
 export const selectThreads = (state) => state.comments ? state.comments.threads : null;
 
+export const selectAuthPending = (state) => state.user.pending;
+//Note: this will return false unless stars have been loading, even if there is
+//no user to load stars or reads for.
+export const selectStarsLoaded = (state) => state.user.starsLoaded;
+export const selectReadsLoaded = (state) => state.user.readsLoaded;
+
 export const selectUser = state => {
 	if (!state.user) return null;
 	if (!state.user.user) return null;
@@ -175,13 +181,26 @@ export const getSection = (state, sectionId) => {
 	return state.data.sections[sectionId] || null;
 };
 
+export const selectUserDataIsFullyLoaded = createSelector(
+	selectAuthPending,
+	selectUserObjectExists,
+	selectStarsLoaded,
+	selectReadsLoaded,
+	(pending, userExists, starsLoaded, readsLoaded) => {
+		if (pending) return false;
+		if (!userExists) return true;
+		return starsLoaded && readsLoaded;
+	}
+);
+
 //DataIsFullyLoaded returns true if we've loaded all of the card/section
 //information we're going to load.
 export const selectDataIsFullyLoaded = createSelector(
 	selectCardsLoaded,
 	selectSectionsLoaded,
 	selectTagsLoaded,
-	(cardsLoaded, sectionsLoaded, tagsLoaded) => cardsLoaded && sectionsLoaded && tagsLoaded
+	selectUserDataIsFullyLoaded,
+	(cardsLoaded, sectionsLoaded, tagsLoaded, userDataLoaded) => cardsLoaded && sectionsLoaded && tagsLoaded && userDataLoaded
 );
 
 export const selectActiveCard = createSelector(
