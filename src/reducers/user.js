@@ -24,6 +24,11 @@ const INITIAL_STATE = {
 	error: null,
 	stars : {},
 	reads: {},
+	//These two are analoges to cardsLoaded et al in data. They're set to true
+	//after UPDATE_STARS or _READS has been called at least once.  Primarily for
+	//selectDataIsFullyLoaded purposes.
+	starsLoaded: false,
+	readsLoaded: false,
 	autoMarkReadPending: false,
 };
 
@@ -64,12 +69,14 @@ const app = (state = INITIAL_STATE, action) => {
 	case UPDATE_STARS:
 		return {
 			...state,
-			stars: setUnion(setRemove(state.stars, action.starsToRemove), action.starsToAdd)
+			stars: setUnion(setRemove(state.stars, action.starsToRemove), action.starsToAdd),
+			starsLoaded: true,
 		};
 	case UPDATE_READS:
 		return {
 			...state,
-			reads: setUnion(setRemove(state.reads, action.readsToRemove), action.readsToAdd)
+			reads: setUnion(setRemove(state.reads, action.readsToRemove), action.readsToAdd),
+			readsLoaded: true,
 		};
 	case AUTO_MARK_READ_PENDING_CHANGED:
 		return {
