@@ -227,9 +227,9 @@ export const redirectIfInvalidCardOrCollection = () => (dispatch, getState) => {
 				dispatch(navigateToCard(cardIdToNavigateTo, false));
 			}
 		}
-
-		//We used to navigate to a default card here, but if the collection we're
-		//in is for examples tarred, we miight not be fully loaded yet.
+		
+		//If we get here, we could navigate to a default card (we know that the
+		//card is invalid), but it's better to just show an error card.
 
 		return;
 	}
