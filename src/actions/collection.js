@@ -182,7 +182,15 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 
 	}
 
-	result.push(card.name);
+	let requestedCard = selectRequestedCard(state);
+	if (cardIdIsPlaceholder(requestedCard)) {
+		//If it was a special placeholder that was requested, then leave it in
+		//the URL. If they arrow down and back up it's OK for it go back to its
+		//canonical URL.
+		result.push(requestedCard);
+	} else {
+		result.push(card.name);
+	}
 
 	let path = result.join('/');
 
@@ -218,15 +226,6 @@ export const redirectIfInvalidCardOrCollection = () => (dispatch, getState) => {
 	let card = selectActiveCard(state);
 	let collection = selectActiveCollection(state);
 	if (!card) {
-
-		let requestedCard = selectRequestedCard(state);
-		//If we're a placeholder card 
-		if (cardIdIsPlaceholder(requestedCard)) {
-			let cardIdToNavigateTo = cardIdForPlaceholder(requestedCard, collection);
-			if (cardIdToNavigateTo) {
-				dispatch(navigateToCard(cardIdToNavigateTo, false));
-			}
-		}
 		
 		//If we get here, we could navigate to a default card (we know that the
 		//card is invalid), but it's better to just show an error card.
@@ -242,21 +241,30 @@ export const redirectIfInvalidCardOrCollection = () => (dispatch, getState) => {
 	dispatch(navigateToCard(card, false));
 };
 
-export const showCard = (cardIdOrSlug) => (dispatch, getState) => {
+export const showCard = (requestedCard) => (dispatch, getState) => {
 
 	const state = getState();
 
-	let cardId = getIdForCard(state, cardIdOrSlug);
-
+	let cardId = getIdForCard(state, requestedCard);
 	//If it'll be a no op don't worry about it.
 	if (selectActiveCardId(state) == cardId) {
 		dispatch(redirectIfInvalidCardOrCollection());
 		return;
 	}
 
+	//The qreuestedCard is a placeholder, so we need to select the cardId based
+	//on the current collection.
+	if (cardIdIsPlaceholder(requestedCard)) {
+		if (!selectDataIsFullyLoaded(state)) return;
+		let collection = selectActiveCollection(state);
+		cardId = cardIdForPlaceholder(requestedCard, collection);
+		//If there's no valid card then give up.
+		if (!cardId) return;
+	}
+
 	dispatch({
 		type: SHOW_CARD,
-		requestedCard: cardIdOrSlug,
+		requestedCard: requestedCard,
 		card: cardId,
 	});
 	dispatch(redirectIfInvalidCardOrCollection());
