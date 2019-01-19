@@ -26,11 +26,20 @@ class TagList  extends LitElement {
 				.editing select {
 					display:inline;
 				}
+				tag-chip {
+					transition: filter 0.1s ease-in-out;
+				}
+				.subtle tag-chip {
+					filter:grayscale(80%) opacity(40%);
+				}
+				tag-chip:hover {
+					filter:none;
+				}
 			</style>
-			<div class='${this.editing ? 'editing' : ''}'>
+			<div class='${this.editing ? 'editing' : ''} ${this.subtle ? 'subtle' :''}'>
 			${allTags && allTags.length ?
 		allTags.map(item => html`<tag-chip .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing}></tag-chip>`) :
-		html`<em>No tags</em>`}
+		(this.subtle ? html`` : html`<em>No tags</em>`)}
 			<select @change=${this._handleSelectChanged}>
 				<option value='#noop' selected>Add Tag...</option>
 				${Object.keys(tagInfos).map(item => html`<option value='${tagInfos[item].id}'>${tagInfos[item].title}</option>`)}
@@ -62,6 +71,7 @@ class TagList  extends LitElement {
 			previousTags: {type:Array},
 			tagInfos: {type:Object},
 			editing: {type:Boolean},
+			subtle: {type:Boolean},
 		};
 	}
 }

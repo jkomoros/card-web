@@ -26,6 +26,7 @@ import {
 	selectUserMayMarkRead,
 	getCardHasStar,
 	getCardIsRead,
+	selectTags,
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -73,6 +74,7 @@ import {
 import './card-renderer.js';
 import './card-drawer.js';
 import './card-editor.js';
+import './tag-list.js';
 import './comments-panel.js';
 import './card-info-panel.js';
 
@@ -142,7 +144,18 @@ class CardView extends connect(store)(PageViewElement) {
           justify-content:center;
           align-items: center;
           background-color: var(--canvas-color);
+					position:relative;
         }
+
+				/* tag-list {
+					position:absolute;
+					top:0.5em;
+					left:0.5em;
+				} */
+
+				tag-list {
+					margin:0.5em;
+				}
 
         .presenting #canvas {
           background-color: var(--app-dark-text-color);
@@ -153,6 +166,10 @@ class CardView extends connect(store)(PageViewElement) {
           /* have to redefine it because it uses the variables at the site where it's derived */
           --card-shadow: var(--card-shadow-first-part) var(--shadow-color);
         }
+
+				.presenting tag-list {
+					display:none;
+				}
 
         .presenting .actions {
           position:absolute;
@@ -301,7 +318,7 @@ class CardView extends connect(store)(PageViewElement) {
                 <div>${screenRotationIcon}</div>
                 <div>Rotate your device to landscape orientation</div>
               </div>
-            </div>
+						</div>
             <card-renderer .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .card=${this._displayCard} .bodyFromContentEditable=${this._bodyFromContentEditable} .titleFromContentEditable=${this._titleFromContentEditable} @body-updated=${this._handleBodyUpdated} @title-updated=${this._handleTitleUpdated}></card-renderer>
             <div class='actions'>
               <div class='presentation'>
@@ -322,7 +339,8 @@ class CardView extends connect(store)(PageViewElement) {
                 <button class='round' @click=${this._handleBackClicked}>${arrowBackIcon}</button>
                 <button class='round' @click=${this._handleForwardClicked}>${arrowForwardIcon}</button>
               </div>
-            </div>
+						</div>
+						<tag-list .subtle=${true} .tags=${this._displayCard.tags} .tagInfos=${this._tagInfos}></tag-list>
           </div>
           <card-editor ?active=${this._editing} ></card-editor>
         </div>
@@ -361,6 +379,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_drawerReorderPending : {type: Boolean},
 			_activeSectionId: {type: String},
 			_dataIsFullyLoaded: {type:Boolean},
+			_tagInfos: {type:Object},
 		};
 	}
 
@@ -493,6 +512,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._collection = selectExpandedActiveCollection(state);
 		this._stars = state.user.stars;
 		this._reads = state.user.reads;
+		this._tagInfos = selectTags(state);
 		this._drawerReorderPending = state.data.reorderPending;
 		this._activeSectionId = selectActiveSectionId(state);
 		this._dataIsFullyLoaded = selectDataIsFullyLoaded(state);
