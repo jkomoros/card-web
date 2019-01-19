@@ -340,7 +340,7 @@ class CardView extends connect(store)(PageViewElement) {
                 <button class='round' @click=${this._handleForwardClicked}>${arrowForwardIcon}</button>
               </div>
 						</div>
-						<tag-list .subtle=${true} .tags=${this._displayCard.tags} .tagInfos=${this._tagInfos}></tag-list>
+						<tag-list .card=${this._displayCard} .subtle=${true} .tags=${this._displayCard.tags} .tagInfos=${this._tagInfos}></tag-list>
           </div>
           <card-editor ?active=${this._editing} ></card-editor>
         </div>

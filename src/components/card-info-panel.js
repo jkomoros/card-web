@@ -113,7 +113,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				</div>
 				<div>
 					<h4>Tags</h4>
-					<tag-list .tags=${this._card.tags} .tagInfos=${this._tagInfos}></tag-list>
+					<tag-list .card=${this._card} .tags=${this._card.tags} .tagInfos=${this._tagInfos}></tag-list>
 				</div>
 				<div>
 					<h4>Cards That Link Here${this._help('Cards that link to this one.')}</h4>

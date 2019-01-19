@@ -92,8 +92,9 @@ export const urlForCard = (cardOrId, edit) => {
 	return '/c/' + id + (edit ? '/edit' : '');
 };
 
-export const urlForTag = (tagName) => {
-	return '/c/' + tagName + '/' + PLACEHOLDER_CARD_ID_CHARACTER;
+export const urlForTag = (tagName, optCardId) => {
+	if (!optCardId) optcardId = PLACEHOLDER_CARD_ID_CHARACTER;
+	return '/c/' + tagName + '/' + optCardId;
 }
 
 export const navigateToCard = (cardOrId, silent) => (dispatch) => {

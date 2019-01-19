@@ -38,7 +38,7 @@ class TagList  extends LitElement {
 			</style>
 			<div class='${this.editing ? 'editing' : ''} ${this.subtle ? 'subtle' :''}'>
 			${allTags && allTags.length ?
-		allTags.map(item => html`<tag-chip .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing}></tag-chip>`) :
+		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing}></tag-chip>`) :
 		(this.subtle ? html`` : html`<em>No tags</em>`)}
 			<select @change=${this._handleSelectChanged}>
 				<option value='#noop' selected>Add Tag...</option>
@@ -72,6 +72,7 @@ class TagList  extends LitElement {
 			tagInfos: {type:Object},
 			editing: {type:Boolean},
 			subtle: {type:Boolean},
+			card: {type:Object},
 		};
 	}
 }
