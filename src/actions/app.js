@@ -93,7 +93,7 @@ export const urlForCard = (cardOrId, edit) => {
 };
 
 export const urlForTag = (tagName, optCardId) => {
-	if (!optCardId) optcardId = PLACEHOLDER_CARD_ID_CHARACTER;
+	if (!optCardId) optCardId = PLACEHOLDER_CARD_ID_CHARACTER;
 	return '/c/' + tagName + '/' + optCardId;
 }
 

@@ -40,7 +40,7 @@ class TagChip  extends LitElement {
 					display:inline;
 				}
 			</style>
-			<span class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''}'><a class='primary' href='${urlForTag(this.tagName, this.card.name)}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
+			<span class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''}'><a class='primary' href='${urlForTag(this.tagName, this._cardName)}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
 			`;
 	}
 
@@ -79,6 +79,11 @@ class TagChip  extends LitElement {
 		let info = this.tagInfos[this.tagName];
 		if (!info) return this.tagName;
 		return info.title || this.tagName;
+	}
+
+	get _cardName() {
+		if (!this.card) return '';
+		return this.card.name;
 	}
 
 	static get properties() {
