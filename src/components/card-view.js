@@ -602,7 +602,9 @@ class CardView extends connect(store)(PageViewElement) {
 		if (changedProps.has('_activeSectionId')) {
 			store.dispatch(canonicalizeURL());
 		}
-		if (this._changedPropsAffectCanvasSize(changedProps)) Promise.resolve().then(() => this._resizeCard());
+		//Promise.resolve().then() timing doesn't wait long enough; on stable
+		//channel Chrome  by the time it fires layout hasn't been done.
+		if (this._changedPropsAffectCanvasSize(changedProps)) window.setTimeout(() => this._resizeCard(), 0);
 	}
 }
 
