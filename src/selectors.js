@@ -317,6 +317,27 @@ export const selectExpandedActiveCollection = createSelector(
 	(collection, cards) => collection.map(id => cards[id] || null)
 );
 
+//Removes labels that are the same as the one htat came before them.
+const removeUnnecessaryLabels = (arr) => {
+	let result = [];
+	let lastLabel = '';
+	for (let item of arr) {
+		if (item == lastLabel) {
+			result.push('');
+			continue;
+		}
+		lastLabel = item;
+		result.push(item);
+	}
+	return result;
+};
+
+export const selectActiveCollectionLabels = createSelector(
+	selectExpandedActiveCollection,
+	selectSections,
+	(expandedCollection, sections) => removeUnnecessaryLabels(expandedCollection.map(card => sections[card.section] ? sections[card.section].title : ''))
+);
+
 export const selectActiveCardIndex = createSelector(
 	selectActiveCardId,
 	selectActiveCollection,

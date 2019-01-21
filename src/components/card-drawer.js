@@ -62,6 +62,17 @@ class CardDrawer extends LitElement {
 					display:none;
 				}
 
+				.label {
+					color: var(--app-dark-text-color);
+					font-weight:normal;
+					margin:0.5em;
+				}
+
+				.label span {
+					/* can't be on .label itself because then it affects margin */
+					font-size:0.7em;
+				}
+
 				.spacer {
 					/* Big drop target, but no change in layout */
 					height:3em;
@@ -81,6 +92,7 @@ class CardDrawer extends LitElement {
 				<div class='scrolling'>
 				${repeat(this.collection, (i) => i.id, (i, index) => html`
 					<div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
+					${this.labels && this.labels[index] ? html`<div class='label'><span>${this.labels[index]}</span></div>` : html``}
 					<card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this.editable} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this.selectedCardId} .index=${index} .starred=${this.stars[i.id] || false} .read=${this.reads[i.id] || false}></card-thumbnail>`)}
 				</div>
 				<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable}'>${plusIcon}</button>
@@ -175,6 +187,7 @@ class CardDrawer extends LitElement {
 			grid: {type: Boolean},
 			editable: { type: Boolean},
 			collection: { type: Array },
+			labels: {type: Array},
 			selectedCardId: { type:String },
 			stars: { type: Object },
 			reads: { type: Object },

@@ -27,6 +27,7 @@ import {
 	getCardHasStar,
 	getCardIsRead,
 	selectTags,
+	selectActiveCollectionLabels,
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -310,7 +311,7 @@ class CardView extends connect(store)(PageViewElement) {
 
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer .showing=${this._cardsDrawerPanelShowing} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' .editable=${this._userMayReorder} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .stars=${this._stars} .reads=${this._reads} .reorderPending=${this._drawerReorderPending}></card-drawer>
+        <card-drawer .showing=${this._cardsDrawerPanelShowing} .labels=${this._collectionLabels} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' .editable=${this._userMayReorder} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .stars=${this._stars} .reads=${this._reads} .reorderPending=${this._drawerReorderPending}></card-drawer>
         <div id='center'>
           <div id='canvas'>
             <div id='portrait-message'>
@@ -374,6 +375,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_cardHasStar: {type: Boolean},
 			_cardIsRead: {type: Boolean},
 			_collection: {type: Array},
+			_collectionLabels: {type:Array},
 			_stars: {type: Object},
 			_reads: {type: Object},
 			_drawerReorderPending : {type: Boolean},
@@ -510,6 +512,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._cardHasStar = getCardHasStar(state, this._card ? this._card.id : '');
 		this._cardIsRead = getCardIsRead(state, this._card ? this._card.id : '');
 		this._collection = selectExpandedActiveCollection(state);
+		this._collectionLabels = selectActiveCollectionLabels(state);
 		this._stars = state.user.stars;
 		this._reads = state.user.reads;
 		this._tagInfos = selectTags(state);
