@@ -216,7 +216,7 @@ export const selectActiveCardSectionId = createSelector(
 
 //This means htat the active section is the only one showing. See also
 //selectActiveCardSelection, which just returns the section name of the
-//current collection.
+//current collection. selectActiveTagId is the analogue for tags.
 export const selectActiveSectionId = createSelector(
 	selectActiveSetName,
 	selectActiveFilterNames,
@@ -227,6 +227,32 @@ export const selectActiveSectionId = createSelector(
 		if( setName != DEFAULT_SET_NAME) return '';
 		if (filterNames.length != 1) return '';
 		return sections[filterNames[0]] ? filterNames[0] : '';
+	}
+);
+
+//selectActiveTagId returns a string IFF precisely one tag is being selected.
+//Analogue of selectActiveSectionId.
+export const selectActiveTagId = createSelector(
+	selectActiveSetName,
+	selectActiveFilterNames,
+	selectTags,
+	(setName, filterNames, tags) => {
+		//The activeSectionId is only true if it's the default set and there
+		//is precisely one filter who is also a set.
+		if( setName != DEFAULT_SET_NAME) return '';
+		if (filterNames.length != 1) return '';
+		return tags[filterNames[0]] ? filterNames[0] : '';
+	}
+);
+
+export const selectActiveStartCards = createSelector(
+	selectActiveSectionId,
+	selectSections,
+	selectActiveTagId,
+	selectTags,
+	(sectionId, sections, tagId, tags) => {
+		let obj = sections[sectionId] || tags[tagId];
+		return obj && obj.start_cards ? [...obj.start_cards] : [];
 	}
 );
 
@@ -281,33 +307,11 @@ const selectActiveBaseCollection = createSelector(
 	(set, filter) => set.filter(item => filter(item))
 );
 
-//selectActiveCollection includes start_cards where applicable, but only the cardIds.
+//selectActiveCollection includes start_cards if applicable, but only the cardIds.
 export const selectActiveCollection = createSelector(
-	selectActiveSetName,
+	selectActiveStartCards,
 	selectActiveBaseCollection,
-	selectCards,
-	selectSections,
-	(setName, baseCollection, cards, sections) => {
-		//We only inject start_card when the set is default
-		if (setName != DEFAULT_SET_NAME) return baseCollection;
-		let result = [];
-		let lastSection = '';
-		for (let cardId of baseCollection) {
-			let card = cards[cardId];
-			if (card) {
-				if (card.section != lastSection) {
-					//Inject its start_cards 
-					let section = sections[card.section];
-					if (section) {
-						result.push(...section.start_cards);
-					}
-				}
-				lastSection = card.section;
-			}
-			result.push(cardId);
-		}
-		return result;
-	}
+	(startCards, baseCollection) => [...startCards, ...baseCollection]
 );
 
 //Expanded means it includes the full cards in place.
