@@ -336,7 +336,7 @@ const removeUnnecessaryLabels = (arr) => {
 	return result;
 };
 
-const removeAllLabels = (arr) => arr.map(item => '');
+const removeAllLabels = (arr) => arr.map(() => '');
 
 export const selectActiveCollectionLabels = createSelector(
 	selectActiveSectionId,
@@ -346,7 +346,7 @@ export const selectActiveCollectionLabels = createSelector(
 		//If there's a single section ID then there'd be a single label, which
 		//is duplicative so just remove all labels.
 		if (sectionId) return removeAllLabels(expandedCollection);
-		let rawLabels = expandedCollection.map(card => sections[card.section] ? sections[card.section].title : '')
+		let rawLabels = expandedCollection.map(card => sections[card.section] ? sections[card.section].title : '');
 		return removeUnnecessaryLabels(rawLabels);
 	}
 );
