@@ -167,8 +167,10 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 	//TODO: this should be a constant somewhere
 	let result = ['c'];
 
-	//Orphaned cards just live at their name and nothing else.
-	if (card.section) {
+	//Orphaned cards just live at their name and nothing else. But the
+	//start_cards for tags are technically orphans, and should be shown as being
+	//in the collection they're in.
+	if (card.section || card.card_type=='section-head') {
 
 		if (activeSetName != DEFAULT_SET_NAME || activeFilterNames.length == 0) {
 			result.push(activeSetName);
