@@ -11,7 +11,7 @@
     "push-manifest.json"
   ],
   "builds": [
-    {"preset": "es6-bundled"}
+    {"preset": "es5-bundled"}
   ],
   "moduleResolution": "node",
   "npm": true
