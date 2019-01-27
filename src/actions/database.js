@@ -39,7 +39,7 @@ const DEV_VAPID = 'BO-C0PDdWRvIKSjZmpF_llbdyENpv6FRYGpze_aA0D63wQ7af2YggVXahyxWj
 
 export const messaging = firebase.messaging();
 messaging.usePublicVapidKey(DEV_MODE ? DEV_VAPID : PROD_VAPID);
-//NOTE: additional messaging setup is further down in this file.
+//NOTE: additional messaging setup is done within useServiceWorker.
 
 export const db = firebase.firestore();
 
@@ -97,17 +97,22 @@ import {
 	store
 } from '../store.js';
 
+//useServiceWorker is called at boot time when the sevice worker registration is
+//provided. We have to wait until then to do final initialization.
+export const useServiceWorker = (registration) => {
+	messaging.useServiceWorker(registration);
+	//Additional messages initalization
+	//Initialize with current state of token.
+	notificationsTokenUpdated();
+	messaging.onTokenRefresh(() => notificationsTokenUpdated());
+};
+
 //Not an action dispatcher; call any time it may have been updated.
 export const notificationsTokenUpdated = () => {
 	messaging.getToken().then(token => {
 		store.dispatch(updateNotificationsToken(token));
 	});
 };
-
-//Additional messages initalization
-//Initialize with current state of token.
-notificationsTokenUpdated();
-messaging.onTokenRefresh(() => notificationsTokenUpdated());
 
 let liveMessagesUnsubscribe = null;
 let liveThreadsUnsubscribe = null;

@@ -34,7 +34,7 @@ store.addReducers({
 
 import {
 	DEV_MODE,
-	messaging
+	useServiceWorker,
 } from '../actions/database.js';
 
 import {
@@ -342,7 +342,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		//when it will be null.
 		if (!registration) return;
 		this._swRegistration = registration;
-		messaging.useServiceWorker(registration);
+		useServiceWorker(registration);
 	}
 
 	stateChanged(state) {
