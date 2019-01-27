@@ -31,6 +31,7 @@ import {
 import {
 	selectUser,
 	selectUserSignedIn,
+	selectNotificationsEnabled,
 } from '../selectors.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
@@ -118,8 +119,7 @@ class UserChip extends connect(store)(LitElement) {
 		this._user = selectUser(state);
 		this._signedIn = selectUserSignedIn(state);
 		this._error = state.user.error;
-		//TODO: load this from wherever it is in state.
-		this._notificationsEnabled = false;
+		this._notificationsEnabled = selectNotificationsEnabled(state);
 	}
 
 

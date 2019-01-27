@@ -49,6 +49,8 @@ export const selectAuthPending = (state) => state.user.pending;
 export const selectStarsLoaded = (state) => state.user.starsLoaded;
 export const selectReadsLoaded = (state) => state.user.readsLoaded;
 
+export const selectNotificationsEnabled = (state) => state.user.notificationsEnabled;
+
 export const selectUser = state => {
 	if (!state.user) return null;
 	if (!state.user.user) return null;
