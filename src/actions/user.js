@@ -42,7 +42,6 @@ import {
 	selectUserIsAnonymous
 } from '../selectors.js';
 
-
 let prevAnonymousMergeUser = null;
 
 firebase.auth().getRedirectResult().catch( async err => {

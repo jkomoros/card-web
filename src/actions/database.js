@@ -75,10 +75,6 @@ import {
 	updateNotificationsToken,
 } from './user.js';
 
-import {
-	store 
-} from '../store.js';
-
 export const CARDS_COLLECTION = 'cards';
 export const CARD_UPDATES_COLLECTION = 'updates';
 export const SECTION_UPDATES_COLLECTION = 'updates';
@@ -97,18 +93,21 @@ export const READS_COLLECTION = 'reads';
 //report up so the info exists on the server.
 export const USERS_COLLECTION = 'users';
 
-//Additional messages initalization
+import {
+	store
+} from '../store.js';
 
-//Initalize with current state of token.
-messaging.getToken().then(token => {
-	store.dispatch(updateNotificationsToken(token));
-});
-//Update the store if the token is removed for some other reason.
-messaging.onTokenRefresh(() => {
+//Not an action dispatcher; call any time it may have been updated.
+export const notificationsTokenUpdated = () => {
 	messaging.getToken().then(token => {
 		store.dispatch(updateNotificationsToken(token));
 	});
-});
+};
+
+//Additional messages initalization
+//Initialize with current state of token.
+notificationsTokenUpdated();
+messaging.onTokenRefresh(() => notificationsTokenUpdated());
 
 let liveMessagesUnsubscribe = null;
 let liveThreadsUnsubscribe = null;

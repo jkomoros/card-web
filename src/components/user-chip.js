@@ -25,7 +25,7 @@ import {
 	signIn,
 	signInSuccess,
 	signOutSuccess,
-	signOut
+	signOut,
 } from '../actions/user.js';
 
 import {
@@ -35,6 +35,11 @@ import {
 } from '../selectors.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
+
+import {
+	messaging,
+	notificationsTokenUpdated
+} from '../actions/database.js';
 
 class UserChip extends connect(store)(LitElement) {
 	render() {
@@ -84,7 +89,13 @@ class UserChip extends connect(store)(LitElement) {
 	}
 
 	_handleNotifcationClick() {
-		console.log('notification button clicked!');
+		if (!this._notificationsEnabled) {
+			messaging.requestPermission().then(() => {
+				notificationsTokenUpdated();
+			}).catch(err => {
+				console.warn('Couldn\'t get permission to notify:', err);
+			});
+		}
 	}
 
 	_handleSignInClick() {
