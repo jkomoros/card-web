@@ -42,11 +42,20 @@ service cloud.firestore {
     }
 
     match /{document=**} {
-      allow read: if true;
+      allow read: if userIsAdmin();
       allow write: if userIsAdmin();
+    }
+
+    match /sections/{section} {
+      allow read: if true;
+    }
+
+    match /tags/{tag} {
+      allow read: if true;
     }
     
     match /authors/{author} {
+      allow read: if true;
       allow write: if request.auth.uid == author;
     }
 
@@ -56,15 +65,18 @@ service cloud.firestore {
     }
     
     match /cards/{card} {
+      allow read: if true;
       allow update: if loggedIn() && (editOnlyIncrements('thread_count') || editOnlyIncrementsAndDecrements('thread_resolved_count', 'thread_count') || editOnlyIncrementsOrDecrements('star_count'));
     }
     
     match /messages/{message} {
+      allow read: if true;
       allow create: if createIsAuthor();
       allow update: if updateIsAuthor();
     }
     
     match /threads/{thread} {
+      allow read: if true;
       allow create : if createIsAuthor();
       allow update : if updateIsAuthor() || (loggedIn() && editOnlyAddsMessage());
     }
