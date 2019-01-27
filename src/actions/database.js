@@ -39,6 +39,7 @@ const DEV_VAPID = 'BO-C0PDdWRvIKSjZmpF_llbdyENpv6FRYGpze_aA0D63wQ7af2YggVXahyxWj
 
 export const messaging = firebase.messaging();
 messaging.usePublicVapidKey(DEV_MODE ? DEV_VAPID : PROD_VAPID);
+//NOTE: additional messaging setup is further down in this file.
 
 export const db = firebase.firestore();
 
@@ -71,7 +72,12 @@ import {
 import {
 	updateStars,
 	updateReads,
+	updateNotificationsToken,
 } from './user.js';
+
+import {
+	store 
+} from '../store.js';
 
 export const CARDS_COLLECTION = 'cards';
 export const CARD_UPDATES_COLLECTION = 'updates';
@@ -90,6 +96,19 @@ export const READS_COLLECTION = 'reads';
 //anonymous, and when they were last seen. We never use it on the client, just
 //report up so the info exists on the server.
 export const USERS_COLLECTION = 'users';
+
+//Additional messages initalization
+
+//Initalize with current state of token.
+messaging.getToken().then(token => {
+	store.dispatch(updateNotificationsToken(token));
+});
+//Update the store if the token is removed for some other reason.
+messaging.onTokenRefresh(() => {
+	messaging.getToken().then(token => {
+		store.dispatch(updateNotificationsToken(token));
+	});
+});
 
 let liveMessagesUnsubscribe = null;
 let liveThreadsUnsubscribe = null;
