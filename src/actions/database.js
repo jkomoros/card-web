@@ -102,13 +102,19 @@ import {
 export const useServiceWorker = (registration) => {
 	messaging.useServiceWorker(registration);
 	//Additional messages initalization
-	//Initialize with current state of token.
-	notificationsTokenUpdated();
-	messaging.onTokenRefresh(() => notificationsTokenUpdated());
+	//Initialize with current state of token. Don't bother telling the server.
+	notificationsTokenUpdated(false);
+	//if the token is refreshed then we should tell the server.
+	messaging.onTokenRefresh(() => notificationsTokenUpdated(true));
 };
 
-//Not an action dispatcher; call any time it may have been updated.
-export const notificationsTokenUpdated = () => {
+//Not an action dispatcher; call any time it may have been updated. If
+//notifyServer is true, that means that it's via a method where the server
+//should be alerted.
+export const notificationsTokenUpdated = (notifyServer) => {
+	if (notifyServer) {
+		//TODO: reach out to server
+	}
 	messaging.getToken().then(token => {
 		store.dispatch(updateNotificationsToken(token));
 	});

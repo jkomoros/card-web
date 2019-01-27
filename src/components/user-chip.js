@@ -95,7 +95,7 @@ class UserChip extends connect(store)(LitElement) {
 	_handleNotifcationClick() {
 		if (!this._notificationsEnabled) {
 			messaging.requestPermission().then(() => {
-				notificationsTokenUpdated();
+				notificationsTokenUpdated(true);
 			}).catch(err => {
 				console.warn('Couldn\'t get permission to notify:', err);
 			});
