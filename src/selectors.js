@@ -49,7 +49,7 @@ export const selectAuthPending = (state) => state.user.pending;
 export const selectStarsLoaded = (state) => state.user.starsLoaded;
 export const selectReadsLoaded = (state) => state.user.readsLoaded;
 
-export const selectNotificationsEnabled = (state) => state.user.notificationsToken != '';
+export const selectNotificationsEnabled = (state) => state.user.notificationsToken ? true : false;
 
 export const selectUser = state => {
 	if (!state.user) return null;
