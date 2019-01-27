@@ -80,7 +80,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         window.addEventListener('load', function() {
           navigator.serviceWorker.register('service-worker.js', {
             scope: '/',
-          });
+          }).then(registration => {
+            let app = document.querySelector('compendium-app');
+            if (!app) return;
+            //If app isn't fully registered yet it will check for registation
+            //when it loads.
+            if (!app.serviceWorkRegistered) return;
+            app.serviceWorkRegistered(registration);
+          })
         });
       }
 
