@@ -3,7 +3,8 @@ import { LitElement, html } from '@polymer/lit-element';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 import {
-	firebase
+	firebase, 
+	DEV_MODE
 } from '../actions/database.js';
 
 // This element is connected to the Redux store.
@@ -41,6 +42,9 @@ import {
 	notificationsTokenUpdated
 } from '../actions/database.js';
 
+//Remove this when want to turn on the feature for real users
+const NOTIFICATIONS_FEATURE_ENABLED = DEV_MODE;
+
 class UserChip extends connect(store)(LitElement) {
 	render() {
 		return html`
@@ -69,7 +73,7 @@ class UserChip extends connect(store)(LitElement) {
       </style>
       <div class='${this._pending ? 'pending' : ''}'>
         ${this._signedIn
-		? html`<span>${this._effectiveUser.displayName}</span><button class='round' @click=${this._handleNotifcationClick}>${this._notificationsEnabled ? notificationsActiveIcon : notificationsNoneIcon}</button><img title='${this._effectiveUser.displayName + ' - ' + this._effectiveUser.email + ' - Click to sign out'}' src='${this._effectiveUser.photoURL}' @click=${this._handleSignOutClick}>`
+		? html`<span>${this._effectiveUser.displayName}</span><button class='round' ?hidden='${!NOTIFICATIONS_FEATURE_ENABLED}' @click=${this._handleNotifcationClick}>${this._notificationsEnabled ? notificationsActiveIcon : notificationsNoneIcon}</button><img title='${this._effectiveUser.displayName + ' - ' + this._effectiveUser.email + ' - Click to sign out'}' src='${this._effectiveUser.photoURL}' @click=${this._handleSignOutClick}>`
 		: html`<span>Sign in with your Google Account</span><button class='round' @click=${this._handleSignInClick}>${personIcon}</button>`
 }
       </div>
