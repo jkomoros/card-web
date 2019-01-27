@@ -37,7 +37,7 @@ firebase.initializeApp(config);
 const PROD_VAPID = 'BBXFZPnWiK_tO47-ES7lhkHK9Grlc4W8kA7IWiTsKQLMQIk9fFLiz1IhSnq9j2MwpzhlczmqSPcNiXRZvDIyFBE';
 const DEV_VAPID = 'BO-C0PDdWRvIKSjZmpF_llbdyENpv6FRYGpze_aA0D63wQ7af2YggVXahyxWjD9Sd-vKfbxHVuJIXDlFtu1yBjA';
 
-const messaging = firebase.messaging();
+export const messaging = firebase.messaging();
 messaging.usePublicVapidKey(DEV_MODE ? DEV_VAPID : PROD_VAPID);
 
 export const db = firebase.firestore();

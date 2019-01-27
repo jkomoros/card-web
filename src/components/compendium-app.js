@@ -33,7 +33,8 @@ store.addReducers({
 });
 
 import {
-	DEV_MODE
+	DEV_MODE,
+	messaging
 } from '../actions/database.js';
 
 import {
@@ -341,8 +342,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		//when it will be null.
 		if (!registration) return;
 		this._swRegistration = registration;
-
-		//TODO: do firebase.messaging().useServiceWorker.
+		messaging.useServiceWorker(registration);
 	}
 
 	stateChanged(state) {
