@@ -17,7 +17,8 @@ store.addReducers({
 
 import {
 	personIcon,
-	notificationsNoneIcon
+	notificationsNoneIcon,
+	notificationsActiveIcon
 } from './my-icons.js';
 
 import {
@@ -62,7 +63,7 @@ class UserChip extends connect(store)(LitElement) {
       </style>
       <div class='${this._pending ? 'pending' : ''}'>
         ${this._signedIn
-		? html`<span>${this._effectiveUser.displayName}</span><button class='round' @click=${this._handleNotifcationClick}>${notificationsNoneIcon}</button><img title='${this._effectiveUser.displayName + ' - ' + this._effectiveUser.email + ' - Click to sign out'}' src='${this._effectiveUser.photoURL}' @click=${this._handleSignOutClick}>`
+		? html`<span>${this._effectiveUser.displayName}</span><button class='round' @click=${this._handleNotifcationClick}>${this._notificationsEnabled ? notificationsActiveIcon : notificationsNoneIcon}</button><img title='${this._effectiveUser.displayName + ' - ' + this._effectiveUser.email + ' - Click to sign out'}' src='${this._effectiveUser.photoURL}' @click=${this._handleSignOutClick}>`
 		: html`<span>Sign in with your Google Account</span><button class='round' @click=${this._handleSignInClick}>${personIcon}</button>`
 }
       </div>
@@ -107,7 +108,8 @@ class UserChip extends connect(store)(LitElement) {
 			_pending: { type: Boolean },
 			_user: { type: Object },
 			_signedIn: { type: Boolean},
-			_error: { type: Object }
+			_error: { type: Object },
+			_notificationsEnabled: {type:Boolean},
 		};
 	}
 
@@ -116,6 +118,8 @@ class UserChip extends connect(store)(LitElement) {
 		this._user = selectUser(state);
 		this._signedIn = selectUserSignedIn(state);
 		this._error = state.user.error;
+		//TODO: load this from wherever it is in state.
+		this._notificationsEnabled = false;
 	}
 
 
