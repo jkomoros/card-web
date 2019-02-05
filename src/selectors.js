@@ -365,3 +365,100 @@ export const getCardIndexForActiveCollection = (state, cardId) => {
 	let collection = selectActiveCollection(state);
 	return collection.indexOf(cardId);
 };
+
+const selectPreparedQuery = createSelector(
+	selectQuery,
+	(query) => {
+		if (!query) {
+			return {
+				text: {},
+				filters: {},
+			};
+		}
+		let [words, filters] = queryWordsAndFilters(query);
+		return {
+			text: {
+				title: [[words, 1.0]],
+				body: [[words, 0.5]],
+				subtitle: [[words, 0.75]],
+			},
+			filters,
+		};
+	}
+);
+
+const stringPropertyScoreForStringSubQuery = (propertyValue, preparedSubquery) => {
+	let value = propertyValue.toLowerCase();
+	for (let item of preparedSubquery) {
+		if (value.indexOf(item[0]) >= 0) return item[1];
+	}
+	return 0.0;
+};
+
+const cardScoreForQuery = (card, preparedQuery) => {
+	if (!card) return 0.0;
+	let score = 0.0;
+
+	for (let key of ['title', 'body', 'subtitle']) {
+		if(!preparedQuery.text[key] || !card[key]) continue;
+		score += stringPropertyScoreForStringSubQuery(card[key], preparedQuery.text[key]);
+	}
+
+	return score;
+};
+
+const FILTER_PREFIX = 'filter:';
+
+const filterForWord = (word) => {
+	if (word.indexOf(FILTER_PREFIX) < 0) return '';
+	return word.split(FILTER_PREFIX).join('');
+};
+
+//extracts the raw, non filter words from a query, then also the filters.
+const queryWordsAndFilters = (queryString) => {
+	queryString = queryString.toLowerCase();
+	let words = [];
+	let filters = [];
+	for (let word of queryString.split(' ')) {
+		if (!word) continue;
+		let filter = filterForWord(word);
+		if (filter) {
+			filters.push(filter);
+		} else {
+			words.push(word);
+		}
+	}
+	return [words.join(' '), filters];
+};
+
+const selectExpandedDefaultSet = createSelector(
+	selectDefaultSet,
+	selectCards,
+	(collection, cards) => collection.map(id => cards[id] || null)
+);
+
+const selectExpandedCollectionForQuery = createSelector(
+	selectExpandedDefaultSet,
+	//TODO: also select preparedQuery here and filter
+	(expandedDefaultSet) => expandedDefaultSet
+);
+
+const selectRankedItemsForQuery = createSelector(
+	selectExpandedCollectionForQuery,
+	selectPreparedQuery,
+	(collection, preparedQuery) => collection.map(card => {
+		return {
+			card: card,
+			score: cardScoreForQuery(card, preparedQuery)
+		};
+	})
+);
+
+export const selectExpandedRankedCollectionForQuery = createSelector(
+	selectRankedItemsForQuery,
+	(rankedItems) => {
+		let filteredItems = rankedItems.filter(item => item.score > 0.0);
+		filteredItems.sort((left, right) => right.score - left.score);
+		return filteredItems.map(item => item.card);
+	}
+);
