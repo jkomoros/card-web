@@ -74,7 +74,7 @@ const FILTER_PREFIX = 'filter:';
 const filterForWord = (word) => {
 	if (word.indexOf(FILTER_PREFIX) < 0) return '';
 	return word.split(FILTER_PREFIX).join('');
-}
+};
 
 //extracts the raw, non filter words from a query, then also the filters.
 const queryWordsAndFilters = (queryString) => {
@@ -91,7 +91,7 @@ const queryWordsAndFilters = (queryString) => {
 		}
 	}
 	return [words.join(' '), filters];
-}
+};
 
 const prepareQuery = (queryString) => {
 	let [query, filters] = queryWordsAndFilters(queryString);
