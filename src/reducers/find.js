@@ -5,6 +5,11 @@ import {
 	FIND_CARD_TO_LINK
 } from '../actions/find.js';
 
+import {
+	selectCards,
+	selectQuery
+} from '../selectors.js';
+
 const INITIAL_STATE = {
 	open: false,
 	query: '',
@@ -73,13 +78,13 @@ const prepareQuery = (queryString) => {
 
 export const collectionForQuery = (state) => {
 	let scoredCollection = [];
-	let query = state.find.query;
+	let query = selectQuery(state);
 
 	if (!query) return [];
 
 	let preparedQuery = prepareQuery(query);
 
-	let cards = state.data.cards;
+	let cards = selectCards(state);
 
 	for (let card of Object.values(cards)) {
 		let score = cardScoreForQuery(card, preparedQuery);

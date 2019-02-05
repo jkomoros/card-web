@@ -43,6 +43,8 @@ export const selectTagsLoaded = (state) => state.data.tagsLoaded;
 export const selectMessages = (state) => state.comments ? state.comments.messages : null;
 export const selectThreads = (state) => state.comments ? state.comments.threads : null;
 
+export const selectQuery = (state) => state.find.query;
+
 export const selectAuthPending = (state) => state.user.pending;
 //Note: this will return false unless stars have been loading, even if there is
 //no user to load stars or reads for.
