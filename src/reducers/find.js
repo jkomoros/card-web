@@ -59,6 +59,8 @@ const cardScoreForQuery = (card, preparedQuery) => {
 	if (!card) return 0.0;
 	let score = 0.0;
 
+	//TODO: filter out filters.
+
 	for (let key of ['title', 'body', 'subtitle']) {
 		if(!preparedQuery[key] || !card[key]) continue;
 		score += stringPropertyScoreForStringSubQuery(card[key], preparedQuery[key]);
@@ -67,12 +69,37 @@ const cardScoreForQuery = (card, preparedQuery) => {
 	return score;
 };
 
+const FILTER_PREFIX = 'filter:';
+
+const filterForWord = (word) => {
+	if (word.indexOf(FILTER_PREFIX) < 0) return '';
+	return word.split(FILTER_PREFIX).join('');
+}
+
+//extracts the raw, non filter words from a query, then also the filters.
+const queryWordsAndFilters = (queryString) => {
+	queryString = queryString.toLowerCase();
+	let words = [];
+	let filters = [];
+	for (let word of queryString.split(' ')) {
+		if (!word) continue;
+		let filter = filterForWord(word);
+		if (filter) {
+			filters.push(filter);
+		} else {
+			words.push(word);
+		}
+	}
+	return [words.join(' '), filters];
+}
+
 const prepareQuery = (queryString) => {
-	let query = queryString.toLowerCase();
+	let [query, filters] = queryWordsAndFilters(queryString);
 	return {
 		title: [[query, 1.0]],
 		body: [[query, 0.5]],
 		subtitle: [[query, 0.75]],
+		filters,
 	};
 };
 
