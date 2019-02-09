@@ -271,30 +271,27 @@ export const selectDefaultSet = createSelector(
 	}
 );
 
+const combinedFilterForNames = (names, filters) => {
+	let includeFilters = [];
+	let excludeFilters = [];
+	for (let name of names) {
+		if (filters[name]) {
+			includeFilters.push(filters[name]);
+			continue;
+		}
+		if (INVERSE_FILTER_NAMES[name]) {
+			excludeFilters.push(filters[INVERSE_FILTER_NAMES[name]]);
+			continue;
+		}
+	}
+	return makeCombinedFilter(includeFilters, excludeFilters);
+};
+
 //Returns a list of icludeFilters and a list of excludeFilters.
-export const selectActiveFilters = createSelector(
+const selectActiveCombinedFilter = createSelector(
 	selectActiveFilterNames,
 	selectFilters,
-	(activeFilterNames, filters) => {
-		let includeFilters = [];
-		let excludeFilters = [];
-		for (let name of activeFilterNames) {
-			if (filters[name]) {
-				includeFilters.push(filters[name]);
-				continue;
-			}
-			if (INVERSE_FILTER_NAMES[name]) {
-				excludeFilters.push(filters[INVERSE_FILTER_NAMES[name]]);
-				continue;
-			}
-		}
-		return [includeFilters, excludeFilters];
-	}
-);
-
-export const selectActiveFilter = createSelector(
-	selectActiveFilters,
-	(activeFilters) => makeCombinedFilter(...activeFilters)
+	(activeFilterNames, filters) => combinedFilterForNames(activeFilterNames, filters)
 );
 
 //TODO: supprot other sets 
@@ -307,7 +304,7 @@ export const selectActiveSet = createSelector(
 //BaseCollection means no start_cards
 const selectActiveBaseCollection = createSelector(
 	selectActiveSet,
-	selectActiveFilter,
+	selectActiveCombinedFilter,
 	(set, filter) => set.filter(item => filter(item))
 );
 
