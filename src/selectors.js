@@ -363,16 +363,27 @@ export const getCardIndexForActiveCollection = (state, cardId) => {
 	return collection.indexOf(cardId);
 };
 
-const SIMPLE_FILTER_REWRITES = ['is', 'section', 'tag'];
+const SIMPLE_FILTER_REWRITES = ['is:', 'section:', 'tag:'];
+const HAS_FILTER_PREFIX = 'has:';
 
 //rewriteQueryFilters rewrites things like 'has:comments` to `filter:has-comments`
 const rewriteQueryFilters = (query) => {
 	let result = [];
 	for (let word of query.split(' ')) {
 		for (let prefix of SIMPLE_FILTER_REWRITES) {
-			if (word.toLowerCase().startsWith(prefix + ':')) {
-				word = FILTER_PREFIX + word.slice((prefix + ':').length);
+			if (word.toLowerCase().startsWith(prefix)) {
+				word = FILTER_PREFIX + word.slice(prefix.length);
 			}
+		}
+		//Replace 'has:'. Things like 'has:comments' expand to
+		//'filter:has-comments', whereas things like 'has:no-comments' expand to
+		//'filter:no-comments'.
+		if (word.toLowerCase().startsWith(HAS_FILTER_PREFIX)) {
+			let rest = word.slice(HAS_FILTER_PREFIX.length);
+			if (!rest.toLowerCase().startsWith('no-')) {
+				rest = 'has-' + rest;
+			}
+			word = FILTER_PREFIX + rest;
 		}
 		result.push(word);
 	}
