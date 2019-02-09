@@ -363,6 +363,22 @@ export const getCardIndexForActiveCollection = (state, cardId) => {
 	return collection.indexOf(cardId);
 };
 
+const SIMPLE_FILTER_REWRITES = ['is', 'section', 'tag'];
+
+//rewriteQueryFilters rewrites things like 'has:comments` to `filter:has-comments`
+const rewriteQueryFilters = (query) => {
+	let result = [];
+	for (let word of query.split(' ')) {
+		for (let prefix of SIMPLE_FILTER_REWRITES) {
+			if (word.toLowerCase().startsWith(prefix + ':')) {
+				word = FILTER_PREFIX + word.slice((prefix + ':').length);
+			}
+		}
+		result.push(word);
+	}
+	return result.join(' ');
+};
+
 const selectPreparedQuery = createSelector(
 	selectQuery,
 	(query) => {
@@ -372,7 +388,7 @@ const selectPreparedQuery = createSelector(
 				filters: [],
 			};
 		}
-		let [words, filters] = queryWordsAndFilters(query);
+		let [words, filters] = queryWordsAndFilters(rewriteQueryFilters(query));
 		return {
 			text: {
 				title: [[words, 1.0]],
