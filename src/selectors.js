@@ -369,7 +369,7 @@ const selectPreparedQuery = createSelector(
 		if (!query) {
 			return {
 				text: {},
-				filters: {},
+				filters: [],
 			};
 		}
 		let [words, filters] = queryWordsAndFilters(query);
@@ -428,16 +428,20 @@ const queryWordsAndFilters = (queryString) => {
 	return [words.join(' '), filters];
 };
 
-const selectExpandedDefaultSet = createSelector(
+const selectCollectionForQuery = createSelector(
 	selectDefaultSet,
-	selectCards,
-	(collection, cards) => collection.map(id => cards[id] || null)
+	selectPreparedQuery,
+	selectFilters,
+	(defaultSet, preparedQuery, filters) => {
+		let filter = combinedFilterForNames(preparedQuery.filters, filters);
+		return defaultSet.filter(id => filter(id));
+	}
 );
 
 const selectExpandedCollectionForQuery = createSelector(
-	selectExpandedDefaultSet,
-	//TODO: also select preparedQuery here and filter
-	(expandedDefaultSet) => expandedDefaultSet
+	selectCollectionForQuery,
+	selectCards,
+	(collection, cards) => collection.map(id => cards[id] || null)
 );
 
 const selectRankedItemsForQuery = createSelector(
