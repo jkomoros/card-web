@@ -37,8 +37,10 @@ firebase.initializeApp(config);
 const PROD_VAPID = 'BBXFZPnWiK_tO47-ES7lhkHK9Grlc4W8kA7IWiTsKQLMQIk9fFLiz1IhSnq9j2MwpzhlczmqSPcNiXRZvDIyFBE';
 const DEV_VAPID = 'BO-C0PDdWRvIKSjZmpF_llbdyENpv6FRYGpze_aA0D63wQ7af2YggVXahyxWjD9Sd-vKfbxHVuJIXDlFtu1yBjA';
 
-export const messaging = firebase.messaging();
-messaging.usePublicVapidKey(DEV_MODE ? DEV_VAPID : PROD_VAPID);
+//messaging might be null in browsers that don't support push notifications,
+//like Safari.
+const messaging = firebase.messaging.isSupported() ? firebase.messaging() : null;
+if (messaging) messaging.usePublicVapidKey(DEV_MODE ? DEV_VAPID : PROD_VAPID);
 //NOTE: additional messaging setup is done within useServiceWorker.
 
 export const db = firebase.firestore();
@@ -100,6 +102,7 @@ import {
 //useServiceWorker is called at boot time when the sevice worker registration is
 //provided. We have to wait until then to do final initialization.
 export const useServiceWorker = (registration) => {
+	if (!messaging) return;
 	messaging.useServiceWorker(registration);
 	//Additional messages initalization
 	//Initialize with current state of token. Don't bother telling the server.
@@ -108,13 +111,28 @@ export const useServiceWorker = (registration) => {
 	messaging.onTokenRefresh(() => notificationsTokenUpdated(true));
 };
 
+//Not actually an action dispatcher; factored the logic into this file so
+//messaging doesn't have to be exported.
+export const requestNotificationsPermission = () => {
+	if (!messaging) {
+		console.warn('This browser doesn\'t support push notifications');
+		return;
+	}
+	messaging.requestPermission().then(() => {
+		notificationsTokenUpdated(true);
+	}).catch(err => {
+		console.warn('Couldn\'t get permission to notify:', err);
+	});
+};
+
 //Not an action dispatcher; call any time it may have been updated. If
 //notifyServer is true, that means that it's via a method where the server
 //should be alerted.
-export const notificationsTokenUpdated = (notifyServer) => {
+const notificationsTokenUpdated = (notifyServer) => {
 	if (notifyServer) {
 		//TODO: reach out to server
 	}
+	if(!messaging) return;
 	messaging.getToken().then(token => {
 		store.dispatch(updateNotificationsToken(token));
 	});

@@ -38,8 +38,7 @@ import {
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
-	messaging,
-	notificationsTokenUpdated
+	requestNotificationsPermission
 } from '../actions/database.js';
 
 //Remove this when want to turn on the feature for real users
@@ -94,11 +93,7 @@ class UserChip extends connect(store)(LitElement) {
 
 	_handleNotifcationClick() {
 		if (!this._notificationsEnabled) {
-			messaging.requestPermission().then(() => {
-				notificationsTokenUpdated(true);
-			}).catch(err => {
-				console.warn('Couldn\'t get permission to notify:', err);
-			});
+			requestNotificationsPermission();
 		}
 	}
 
