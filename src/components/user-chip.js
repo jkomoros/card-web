@@ -38,11 +38,9 @@ import {
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
-	requestNotificationsPermission
+	requestNotificationsPermission,
+	NOTIFICATIONS_FEATURE_ENABLED
 } from '../actions/database.js';
-
-//Remove this when want to turn on the feature for real users
-const NOTIFICATIONS_FEATURE_ENABLED = DEV_MODE;
 
 class UserChip extends connect(store)(LitElement) {
 	render() {

@@ -43,6 +43,12 @@ const messaging = firebase.messaging.isSupported() ? firebase.messaging() : null
 if (messaging) messaging.usePublicVapidKey(DEV_MODE ? DEV_VAPID : PROD_VAPID);
 //NOTE: additional messaging setup is done within useServiceWorker.
 
+//Notifications feature is enabled if the browser supports mesaging and we're in
+//dev mode. TODO: in the future when we want to enable notifications in
+//production, remove the DEV_MODE guard and just have it be whether messaging is
+//non-null.
+export const NOTIFICATIONS_FEATURE_ENABLED  = DEV_MODE && messaging; 
+
 export const db = firebase.firestore();
 
 db.settings({
