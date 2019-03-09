@@ -449,6 +449,15 @@ const cardScoreForQuery = (card, preparedQuery) => {
 		score += stringPropertyScoreForStringSubQuery(card[key], propertySubQuery);
 	}
 
+	//Give a boost to cards that have more inbound cards, implying they're more
+	//important cards.
+	if (card.links_inbound && card.links_inbound.length > 0) {
+		//Tweak the score, but only by a very tiny amount. Once the 'juice' is
+		//not just the count of inbound-links, but the transitive count, then
+		//this can be bigger.
+		score *= 1.0 + (card.links_inbound.length * 0.02);
+	}
+
 	return score;
 };
 
