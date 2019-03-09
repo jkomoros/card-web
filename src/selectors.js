@@ -40,6 +40,8 @@ export const selectCards = (state) => state.data ? state.data.cards : null;
 export const selectCardsLoaded = (state) => state.data.cardsLoaded;
 export const selectSectionsLoaded = (state) => state.data.sectionsLoaded;
 export const selectTagsLoaded = (state) => state.data.tagsLoaded;
+export const selectMessagesLoaded = (state) => state.comments ? state.comments.messagesLoaded : false;
+export const selectThreadsLoaded = (state) => state.comments ? state.comments.threadsLoaded : false;
 export const selectMessages = (state) => state.comments ? state.comments.messages : null;
 export const selectThreads = (state) => state.comments ? state.comments.threads : null;
 export const selectAuthors = (state) => state.data.authors ? state.data.authors : null;
@@ -248,6 +250,12 @@ export const selectUserDataIsFullyLoaded = createSelector(
 		if (!userExists) return true;
 		return starsLoaded && readsLoaded;
 	}
+);
+
+export const selectCommentsAreFullyLoaded = createSelector(
+	selectThreadsLoaded,
+	selectMessagesLoaded,
+	(threadsLoaded, messagesLoaded) => threadsLoaded && messagesLoaded
 );
 
 //DataIsFullyLoaded returns true if we've loaded all of the card/section
