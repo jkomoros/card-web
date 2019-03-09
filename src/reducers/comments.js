@@ -10,8 +10,8 @@ import {
 } from '../util.js';
 
 import {
-	authorForId
-} from './data.js';
+	getAuthorForId
+} from '../selectors.js';
 
 const INITIAL_STATE = {
 	messages: {},
@@ -69,7 +69,7 @@ const composedThread = (threadId, state) => {
 		if (message) expandedMessages.push(message);
 	}
 	thread.messages = expandedMessages;
-	thread.author = authorForId(state, originalThread.author);
+	thread.author = getAuthorForId(state, originalThread.author);
 	return thread;
 };
 
@@ -78,7 +78,7 @@ const composedMessage = (messageId, state) => {
 	let originalMessage =  state.comments.messages[messageId];
 	if (!originalMessage) return {};
 	let message = {...originalMessage};
-	message.author = authorForId(state, originalMessage.author);
+	message.author = getAuthorForId(state, originalMessage.author);
 	return message;
 };
 

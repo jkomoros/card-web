@@ -178,6 +178,14 @@ export const getIdForCard = (state, idOrSlug) => {
 	return state.data.slugIndex[idOrSlug] || idOrSlug;
 };
 
+export const getAuthorForId = (state, authorId) => {
+	let author = state.data.authors[authorId];
+	if (!author){
+		return {displayName: 'Unknown user'};
+	}
+	return author;
+};
+
 export const getCard = (state, cardIdOrSlug)  => getCardById(state, getIdForCard(state, cardIdOrSlug));
 
 export const getSection = (state, sectionId) => {

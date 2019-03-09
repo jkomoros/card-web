@@ -13,11 +13,12 @@ import {
 
 import {
 	sectionTitle,
-	authorForId
 } from '../reducers/data.js';
 
 import {
-	selectActiveCard, selectTags
+	selectActiveCard,
+	selectTags,
+	getAuthorForId,
 } from '../selectors.js';
 
 import {
@@ -151,7 +152,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._open = state.app.cardInfoPanelOpen;
 		this._card = selectActiveCard(state) || {};
 		this._sectionTitle = sectionTitle(state, this._card ? this._card.section : '');
-		this._author = authorForId(state, this._card.author);
+		this._author = getAuthorForId(state, this._card.author);
 		this._tagInfos = selectTags(state);
 	}
 

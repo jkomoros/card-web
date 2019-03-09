@@ -95,14 +95,6 @@ const extractSlugIndex = cards => {
 	return result;
 };
 
-export const authorForId = (state, authorId) => {
-	let author = state.data.authors[authorId];
-	if (!author){
-		return {displayName: 'Unknown user'};
-	}
-	return author;
-};
-
 export const sectionTitle = (state, sectionId) => {
 	let section = state.data.sections[sectionId];
 	if (!section) return '';
