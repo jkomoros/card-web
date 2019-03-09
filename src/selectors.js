@@ -408,12 +408,16 @@ const selectPreparedQuery = createSelector(
 );
 
 const textSubQueryForWords = (words) => {
-	let joinedWords = words.join(' ');
 	return {
-		title: [[joinedWords, 1.0]],
-		body: [[joinedWords, 0.5]],
-		subtitle: [[joinedWords, 0.75]],
+		title: textPropertySubQueryForWords(words, 1.0),
+		body: textPropertySubQueryForWords(words, 0.5),
+		subtitle: textPropertySubQueryForWords(words, 0.75),
 	};
+};
+
+const textPropertySubQueryForWords = (words, startValue) => {
+	let joinedWords = words.join(' ');
+	return [[joinedWords, startValue]];
 };
 
 const stringPropertyScoreForStringSubQuery = (propertyValue, preparedSubquery) => {
