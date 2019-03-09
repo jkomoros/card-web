@@ -33,6 +33,7 @@ export const selectPromptAssociatedId = (state) => state.prompt.associatedId;
 
 export const selectActiveSetName = (state) => state.collection.activeSetName;
 export const selectActiveSortName = (state) => state.collection.activeSortName;
+export const selectActiveSortReversed = (state) => state.collection.activeSortReversed;
 export const selectRequestedCard = (state) => state.collection.requestedCard;
 export const selectActiveCardId = (state) => state.collection.activeCardId;
 export const selectActiveFilterNames = (state) => state.collection.activeFilterNames;

@@ -25,6 +25,7 @@ export const SET_NAMES = [DEFAULT_SET_NAME];
 
 //The word in the URL That means "the part after this is a sort".
 export const SORT_URL_KEYWORD = 'sort';
+export const SORT_REVERSED_URL_KEYWORD = 'reverse';
 
 export const DEFAULT_SORT_NAME = 'default';
 
@@ -54,6 +55,7 @@ const INITIAL_STATE = {
 	activeSetName: DEFAULT_SET_NAME,
 	activeFilterNames: [],
 	activeSortName: DEFAULT_SORT_NAME,
+	activeSortReversed: false,
 	filters: {
 		starred: {},
 		read: {},
@@ -85,6 +87,7 @@ const app = (state = INITIAL_STATE, action) => {
 			activeSetName: action.setName,
 			activeFilterNames: [...action.filters],
 			activeSortName: action.sortName,
+			activeSortReversed: action.sortReversed,
 		};
 	case UPDATE_SECTIONS:
 		return {

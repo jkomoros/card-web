@@ -17,6 +17,8 @@ import {
 	DEFAULT_SET_NAME,
 	SET_NAMES,
 	DEFAULT_SORT_NAME,
+	SORT_REVERSED_URL_KEYWORD,
+	SORT_URL_KEYWORD,
 } from '../reducers/collection.js';
 
 import {
@@ -34,9 +36,9 @@ import {
 	selectPage,
 	selectPageExtra,
 	getCardIndexForActiveCollection,
-	selectActiveSortName
+	selectActiveSortName,
+	selectActiveSortReversed
 } from '../selectors.js';
-import { SORT_URL_KEYWORD } from '../reducers/collection';
 
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
 
@@ -82,7 +84,7 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 
 	//TODO: detect if it's one of the weird cardIdOrSlugs (e.g. '.', '.default');
 
-	let [filters, sortName] = extractFilterNamesAndSort(parts);
+	let [filters, sortName, sortReversed] = extractFilterNamesAndSort(parts);
 
 	let doUpdateCollection = true;
 
@@ -104,14 +106,16 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 		}
 	}
 
-	if (doUpdateCollection || forceUpdateCollection) dispatch(updateCollection(setName, filters, sortName));
+	if (doUpdateCollection || forceUpdateCollection) dispatch(updateCollection(setName, filters, sortName, sortReversed));
 	dispatch(showCard(cardIdOrSlug));
 };
 
 const extractFilterNamesAndSort = (parts) => {
+	//returns the filter names, the sort name, and whether the sort is reversed
+
 	//parts is all of the unconsumed portions of the path that aren't the set
 	//name or the card name.
-	if (!parts.length) return [[], DEFAULT_SORT_NAME];
+	if (!parts.length) return [[], DEFAULT_SORT_NAME, false];
 	let filters = [];
 	let sortName = DEFAULT_SORT_NAME;
 	let nextPartIsSort = false;
@@ -128,10 +132,10 @@ const extractFilterNamesAndSort = (parts) => {
 		}
 		filters.push(part);
 	}
-	return [filters, sortName];
+	return [filters, sortName, false];
 };
 
-export const updateCollection = (setName, filters, sortName) => (dispatch, getState) =>{
+export const updateCollection = (setName, filters, sortName, sortReversed) => (dispatch, getState) =>{
 	const state = getState();
 	let sameSetName = false;
 	if (setName == selectActiveSetName(state)) sameSetName = true;
@@ -149,14 +153,18 @@ export const updateCollection = (setName, filters, sortName) => (dispatch, getSt
 	}
 
 	let sameSortName = false;
-	if (sortName == selectActiveSortName) sameSortName = true;
+	if (sortName == selectActiveSortName(state)) sameSortName = true;
 
-	if (sameSetName && sameActiveFilters && sameSortName) return;
+	let sameSortDirection = false;
+	if (sortReversed == selectActiveSortReversed(state)) sameSortDirection = true;
+
+	if (sameSetName && sameActiveFilters && sameSortName && sameSortDirection) return;
 	dispatch({
 		type: UPDATE_COLLECTION,
 		setName,
 		filters,
-		sortName
+		sortName,
+		sortReversed
 	});
 };
 
@@ -186,6 +194,7 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 	let activeSectionId = selectActiveSectionId(state);
 	let activeFilterNames = selectActiveFilterNames(state);
 	let activeSortName = selectActiveSortName(state);
+	let activeSortReversed = selectActiveSortReversed(state);
 	let activeSetName = selectActiveSetName(state);
 
 	//TODO: this should be a constant somewhere
@@ -208,8 +217,11 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 
 	}
 
-	if (activeSortName != DEFAULT_SORT_NAME) {
+	if (activeSortName != DEFAULT_SORT_NAME || activeSortReversed) {
 		result.push(SORT_URL_KEYWORD);
+		if(activeSortReversed) {
+			result.push(SORT_REVERSED_URL_KEYWORD);
+		}
 		result.push(activeSortName);
 	}
 
