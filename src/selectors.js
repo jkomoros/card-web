@@ -373,16 +373,11 @@ const selectActiveBaseCollection = createSelector(
 	(set, filter) => set.filter(item => filter(item))
 );
 
+//Note, this is the sorting function, but reversing is applied in
+//selectSortedActiveCollection.
 const selectActiveSort = createSelector(
 	selectActiveSortName,
-	selectActiveSortReversed,
-	(sortName, sortReversed) => {
-		const baseSort = SORTS[sortName] || SORTS[DEFAULT_SORT_NAME];
-		if (sortReversed) {
-			return (left, right) => -1 * baseSort(left, right);
-		}
-		return baseSort;
-	}
+	(sortName) =>  SORTS[sortName] || SORTS[DEFAULT_SORT_NAME]
 );
 
 const selectExpandedActiveStartCards = createSelector(
@@ -398,17 +393,24 @@ const selectExpandedActiveCollection = createSelector(
 	(collection, cards) => collection.map(id => cards[id] || null)
 );
 
-//This is the sorted, expanded collection, but without start cards
-const selectSortedActiveCollection = createSelector(
+//This is the sorted (but not yet reversed, if it will be), expanded collection,
+//but without start cards
+const selectPreliminarySortedActiveCollection = createSelector(
 	selectExpandedActiveCollection,
 	selectActiveSort,
 	(collection, sort) => [...collection].sort(sort)
 );
 
+const selectFinalSortedActiveCollection = createSelector(
+	selectPreliminarySortedActiveCollection,
+	selectActiveSortReversed,
+	(sortedCollection, reversed) => reversed ? [...sortedCollection].reverse() : sortedCollection
+);
+
 //This is the final expanded, sorted collection, including start cards.
 export const selectFinalCollection = createSelector(
 	selectExpandedActiveStartCards,
-	selectSortedActiveCollection,
+	selectFinalSortedActiveCollection,
 	(startCards, otherCards) => [...startCards, ...otherCards]
 );
 
