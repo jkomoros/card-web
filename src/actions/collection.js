@@ -118,21 +118,31 @@ const extractFilterNamesAndSort = (parts) => {
 	if (!parts.length) return [[], DEFAULT_SORT_NAME, false];
 	let filters = [];
 	let sortName = DEFAULT_SORT_NAME;
+	let sortReversed = false;
 	let nextPartIsSort = false;
 	for (let i = 0; i < parts.length; i++) {
 		const part = parts[i];
 		if (part == SORT_URL_KEYWORD) {
 			nextPartIsSort = true;
+			//handle the case where there was already one sort, and only listen
+			//to the last reversed.
+			sortReversed = false;
 			continue;
 		}
 		if (nextPartIsSort) {
+			if (part == SORT_REVERSED_URL_KEYWORD) {
+				sortReversed = true;
+				//Note that we requested a reverse, and then expect the  next
+				//part to be the sort name
+				continue;
+			}
 			sortName = part;
 			nextPartIsSort = false;
 			continue;
 		}
 		filters.push(part);
 	}
-	return [filters, sortName, false];
+	return [filters, sortName, sortReversed];
 };
 
 export const updateCollection = (setName, filters, sortName, sortReversed) => (dispatch, getState) =>{
