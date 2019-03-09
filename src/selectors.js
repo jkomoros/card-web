@@ -181,6 +181,10 @@ export const getIdForCard = (state, idOrSlug) => {
 
 export const getAuthorForId = (state, authorId) => {
 	let authors = selectAuthors(state);
+	return authorOrDefault(authorId, authors);
+};
+
+const authorOrDefault = (authorId, authors) => {
 	let author = authors[authorId];
 	if (!author){
 		return {displayName: 'Unknown user'};
@@ -193,6 +197,39 @@ export const getCard = (state, cardIdOrSlug)  => getCardById(state, getIdForCard
 export const getSection = (state, sectionId) => {
 	if (!state.data) return null;
 	return state.data.sections[sectionId] || null;
+};
+
+const selectActiveCardThreadIds = (state) => state.comments.card_threads;
+
+export const selectActiveCardComposedThreads = createSelector(
+	selectActiveCardThreadIds,
+	selectThreads,
+	selectMessages,
+	selectAuthors,
+	(threadIds, threads, messages, authors) => threadIds.map(id => composedThread(id, threads, messages, authors)).filter(thread => !!thread)
+);
+
+const composedThread = (threadId, threads, messages, authors) => {
+	let originalThread = threads[threadId];
+	if (!originalThread) return null;
+	let thread = {...originalThread};
+	let expandedMessages = [];
+	for (let messageId of Object.values(thread.messages)) {
+		let message = composedMessage(messageId, messages, authors);
+		if (message) expandedMessages.push(message);
+	}
+	thread.messages = expandedMessages;
+	thread.author = authorOrDefault(originalThread.author, authors);
+	return thread;
+};
+
+const composedMessage = (messageId, messages, authors) => {
+	//TODO: return composed children for threads if there are parents
+	let originalMessage = messages[messageId];
+	if (!originalMessage) return {};
+	let message = {...originalMessage};
+	message.author = authorOrDefault(originalMessage.author, authors);
+	return message;
 };
 
 export const selectUserDataIsFullyLoaded = createSelector(

@@ -17,10 +17,6 @@ import {
 } from '../actions/comments.js';
 
 import {
-	composedThreadsSelector
-} from '../reducers/comments.js';
-
-import {
 	connectLiveMessages,
 	connectLiveThreads
 } from '../actions/database.js';
@@ -29,6 +25,7 @@ import {
 	selectActiveCard,
 	selectUser,
 	selectUserMayComment,
+	selectActiveCardComposedThreads,
 } from '../selectors.js';
 
 import {
@@ -151,7 +148,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 	stateChanged(state) {
 		this._open = state.app.commentsPanelOpen;
 		this._card = selectActiveCard(state);
-		this._composedThreads = composedThreadsSelector(state);
+		this._composedThreads = selectActiveCardComposedThreads(state);
 		this._userMayComment = selectUserMayComment(state);
 		this._user = selectUser(state);
 	}

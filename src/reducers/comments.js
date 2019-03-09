@@ -9,10 +9,6 @@ import {
 	arrayRemove
 } from '../util.js';
 
-import {
-	getAuthorForId
-} from '../selectors.js';
-
 const INITIAL_STATE = {
 	messages: {},
 	threads: {},
@@ -46,40 +42,6 @@ const app = (state = INITIAL_STATE, action) => {
 	default:
 		return state;
 	}
-};
-
-export const composedThreadsSelector = state => {
-	let result = [];
-	for (let threadId of Object.values(state.comments.card_threads)) {
-		let thread = composedThread(threadId, state); 
-		//It's possible that the thread has been deleted
-		if (thread) result.push(thread);
-	}
-	return result;
-
-};
-
-const composedThread = (threadId, state) => {
-	let originalThread = state.comments.threads[threadId];
-	if (!originalThread) return null;
-	let thread = {...originalThread};
-	let expandedMessages = [];
-	for (let messageId of Object.values(thread.messages)) {
-		let message = composedMessage(messageId, state);
-		if (message) expandedMessages.push(message);
-	}
-	thread.messages = expandedMessages;
-	thread.author = getAuthorForId(state, originalThread.author);
-	return thread;
-};
-
-const composedMessage = (messageId, state) => {
-	//TODO: return composed children for threads if there are parents
-	let originalMessage =  state.comments.messages[messageId];
-	if (!originalMessage) return {};
-	let message = {...originalMessage};
-	message.author = getAuthorForId(state, originalMessage.author);
-	return message;
 };
 
 export default app;
