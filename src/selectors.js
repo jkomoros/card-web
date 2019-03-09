@@ -444,7 +444,7 @@ const cardScoreForQuery = (card, preparedQuery) => {
 	let score = 0.0;
 
 	for (let key of ['title', 'body', 'subtitle']) {
-		const propertySubQuery = preparedQuery.text[key]
+		const propertySubQuery = preparedQuery.text[key];
 		if(!propertySubQuery || !card[key]) continue;
 		score += stringPropertyScoreForStringSubQuery(card[key], propertySubQuery);
 	}
