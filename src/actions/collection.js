@@ -36,6 +36,7 @@ import {
 	getCardIndexForActiveCollection,
 	selectActiveSortName
 } from '../selectors.js';
+import { SORT_URL_KEYWORD } from '../reducers/collection';
 
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
 
@@ -54,7 +55,7 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 		}
 	}
 
-	let path = queryParts[0];
+	let path = queryParts[0].toLowerCase();
 
 	let parts = path.split('/');
 
@@ -64,7 +65,7 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 	//in some weird situations, like during editing commit, we might be at no
 	//route even when our view is active. Not entirely clear how, but it
 	//happens... for a second.
-	let firstPart = parts.length ? parts[0].toLowerCase() : '';
+	let firstPart = parts.length ? parts[0] : '';
 	
 	let setName = DEFAULT_SET_NAME;
 
@@ -111,7 +112,23 @@ const extractFilterNamesAndSort = (parts) => {
 	//parts is all of the unconsumed portions of the path that aren't the set
 	//name or the card name.
 	if (!parts.length) return [[], DEFAULT_SORT_NAME];
-	return [[...parts], DEFAULT_SORT_NAME];
+	let filters = [];
+	let sortName = DEFAULT_SORT_NAME;
+	let nextPartIsSort = false;
+	for (let i = 0; i < parts.length; i++) {
+		const part = parts[i];
+		if (part == SORT_URL_KEYWORD) {
+			nextPartIsSort = true;
+			continue;
+		}
+		if (nextPartIsSort) {
+			sortName = part;
+			nextPartIsSort = false;
+			continue;
+		}
+		filters.push(part);
+	}
+	return [filters, sortName];
 };
 
 export const updateCollection = (setName, filters, sortName) => (dispatch, getState) =>{
@@ -168,6 +185,7 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 
 	let activeSectionId = selectActiveSectionId(state);
 	let activeFilterNames = selectActiveFilterNames(state);
+	let activeSortName = selectActiveSortName(state);
 	let activeSetName = selectActiveSetName(state);
 
 	//TODO: this should be a constant somewhere
@@ -188,6 +206,11 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 			result.push(...activeFilterNames);
 		}
 
+	}
+
+	if (activeSortName != DEFAULT_SORT_NAME) {
+		result.push(SORT_URL_KEYWORD);
+		result.push(activeSortName);
 	}
 
 	let requestedCard = selectRequestedCard(state);
