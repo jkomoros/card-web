@@ -13,9 +13,16 @@ import {
 class CommentRedirectView extends connect(store)(PageViewElement) {
 	render() {
 		return html`
+			<style>
+				div {
+					padding: 2em;
+				}
+			</style>
 			<div>
-				Please wait while we redirect you to that comment...
-      </div>
+				<h3>
+					Please wait while we redirect you to that comment...
+				</h3>
+		</div>
     `;
 	}
 
