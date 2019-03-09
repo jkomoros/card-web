@@ -5,6 +5,14 @@ service cloud.firestore {
       return request.auth.uid == 'TPo5MOn6rNX9k8K1bbejuBNk4Dr2' || request.auth.uid == 'KteKDU7UnHfkLcXAyZXbQ6kRAk13';
     }
     
+    function editOnlyUpdatesTimestamp(key) {
+      return request.writeFields.hasOnly([key]) && request.resource.data[key] == request.time;
+    }
+
+    function editOnlyIncrementsAndUpdatesTimestamp(incrementKey, timestampKey) {
+      return request.writeFields.hasOnly([incrementKey, timestampKey]) && request.resource.data[timestampKey] == request.time && resource.data[incrementKey] + 1 == request.resource.data[incrementKey]
+    }
+
     function editOnlyAddsMessage() {
       return request.writeFields.hasOnly(['messages', 'updated']) && request.resource.data.messages.size() == resource.data.messages.size() + 1 && request.resource.data.messages[0:resource.data.messages.size()] == resource.data.messages;
     }
@@ -66,7 +74,7 @@ service cloud.firestore {
     
     match /cards/{card} {
       allow read: if true;
-      allow update: if loggedIn() && (editOnlyIncrements('thread_count') || editOnlyIncrementsAndDecrements('thread_resolved_count', 'thread_count') || editOnlyIncrementsOrDecrements('star_count'));
+      allow update: if loggedIn() && (editOnlyIncrements('thread_count') || editOnlyIncrementsAndDecrements('thread_resolved_count', 'thread_count') || editOnlyIncrementsOrDecrements('star_count') || editOnlyUpdatesTimestamp('updated_message') || editOnlyIncrementsAndUpdatesTimestamp('thread_count', 'updated_message'));
     }
     
     match /messages/{message} {

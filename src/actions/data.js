@@ -519,6 +519,7 @@ const defaultCardObject = (id, user, section, cardType) => {
 		updated: new Date(),
 		author: user.uid,
 		updated_substantive: new Date(),
+		updated_message: new Date(),
 		star_count: 0,
 		thread_count: 0,
 		thread_resolved_count: 0,

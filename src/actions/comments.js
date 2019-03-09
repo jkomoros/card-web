@@ -159,6 +159,10 @@ export const addMessage = (thread, message) => (dispatch, getState) => {
 		messages: firebase.firestore.FieldValue.arrayUnion(messageId)
 	});
 
+	batch.update(db.collection(CARDS_COLLECTION).doc(card.id),{
+		updated_message: firebase.firestore.FieldValue.serverTimestamp(),
+	});
+
 	batch.set(db.collection(MESSAGES_COLLECTION).doc(messageId), {
 		card: card.id,
 		message: message,
@@ -210,7 +214,10 @@ export const createThread = (message) => (dispatch, getState) => {
 			throw 'Doc doesn\'t exist!';
 		}
 		let newThreadCount = (cardDoc.data().thread_count || 0) + 1;
-		transaction.update(cardRef, {thread_count: newThreadCount});
+		transaction.update(cardRef, {
+			thread_count: newThreadCount,
+			updated_message: firebase.firestore.FieldValue.serverTimestamp(),
+		});
 
 		ensureAuthor(transaction, user);
 
