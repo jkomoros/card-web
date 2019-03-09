@@ -128,8 +128,8 @@ export const navigateToComment = (commentId) => (dispatch, getState) => {
 		dispatch(navigateToCard(thread.card));
 		return;
 	}
-	//TODO: show a user-visible warning and redirect somewhere useful.
-	console.warn('That comment id is not valid');
+	alert('That comment does not exist. Redirecting to the default card.');
+	dispatch(navigateToCard(''));
 }
 
 export const navigateToCard = (cardOrId, silent) => (dispatch) => {
