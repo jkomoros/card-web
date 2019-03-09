@@ -31,6 +31,13 @@ export const DEFAULT_SORT_NAME = 'default';
 export const SORTS = {
 	//Default sort is a no-op.
 	'default': () => 0,
+	'updated': (left, right) => {
+		if (!left || !right) return 0;
+		const leftValue = left.updated_substantive ? left.updated_substantive.seconds : 0;
+		const rightValue = right.updated_substantive ? right.updated_substantive.seconds : 0;
+		//Ones that have a more recent upated should be earlier in the sort order.
+		return rightValue - leftValue;
+	}
 };
 
 //Theser are filters who are the inverse of another, smaller set. Instead of
