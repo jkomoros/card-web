@@ -17,7 +17,9 @@ import {
 
 import {
 	DEFAULT_SET_NAME,
-	INVERSE_FILTER_NAMES
+	INVERSE_FILTER_NAMES,
+	DEFAULT_SORT_NAME,
+	SORTS
 } from './reducers/collection.js';
 
 export const selectPage = (state) => state.app.page;
@@ -30,6 +32,7 @@ export const selectPromptAction = (state) => state.prompt.action;
 export const selectPromptAssociatedId = (state) => state.prompt.associatedId;
 
 export const selectActiveSetName = (state) => state.collection.activeSetName;
+export const selectActiveSortName = (state) => state.collection.activeSortName;
 export const selectRequestedCard = (state) => state.collection.requestedCard;
 export const selectActiveCardId = (state) => state.collection.activeCardId;
 export const selectActiveFilterNames = (state) => state.collection.activeFilterNames;
@@ -369,6 +372,11 @@ const selectActiveBaseCollection = createSelector(
 	(set, filter) => set.filter(item => filter(item))
 );
 
+const selectActiveSort = createSelector(
+	selectActiveSortName,
+	(sortName) => SORTS[sortName] || SORTS[DEFAULT_SORT_NAME]
+);
+
 //selectActiveCollection includes start_cards if applicable, but only the cardIds.
 const selectActiveUnsortedCollection = createSelector(
 	selectActiveStartCards,
@@ -376,11 +384,18 @@ const selectActiveUnsortedCollection = createSelector(
 	(startCards, baseCollection) => [...startCards, ...baseCollection]
 );
 
-//Expanded means it includes the full cards in place.
-export const selectExpandedActiveCollection = createSelector(
+//Expanded means it includes the full cards in place, but NOT SORTED
+const selectExpandedActiveCollection = createSelector(
 	selectActiveUnsortedCollection,
 	selectCards,
 	(collection, cards) => collection.map(id => cards[id] || null)
+);
+
+//This is the final, sorted collection
+export const selectSortedActiveCollection = createSelector(
+	selectExpandedActiveCollection,
+	selectActiveSort,
+	(collection, sort) => [...collection].sort(sort)
 );
 
 //Removes labels that are the same as the one htat came before them.
@@ -402,7 +417,7 @@ const removeAllLabels = (arr) => arr.map(() => '');
 
 export const selectActiveCollectionLabels = createSelector(
 	selectActiveSectionId,
-	selectExpandedActiveCollection,
+	selectSortedActiveCollection,
 	selectSections,
 	(sectionId, expandedCollection, sections) => {
 		//If there's a single section ID then there'd be a single label, which
@@ -415,12 +430,12 @@ export const selectActiveCollectionLabels = createSelector(
 
 export const selectActiveCardIndex = createSelector(
 	selectActiveCardId,
-	selectExpandedActiveCollection,
+	selectSortedActiveCollection,
 	(cardId, collection) => collection.map(card => card.id).indexOf(cardId)
 );
 
 export const getCardIndexForActiveCollection = (state, cardId) => {
-	let collection = selectExpandedActiveCollection(state);
+	let collection = selectSortedActiveCollection(state);
 	return collection.map(card => card.id).indexOf(cardId);
 };
 

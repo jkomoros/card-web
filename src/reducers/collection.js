@@ -23,6 +23,13 @@ export const DEFAULT_SET_NAME = 'all';
 
 export const SET_NAMES = [DEFAULT_SET_NAME];
 
+export const DEFAULT_SORT_NAME = 'default';
+
+export const SORTS = {
+	//Default sort is a no-op.
+	'default': () => 0,
+};
+
 //Theser are filters who are the inverse of another, smaller set. Instead of
 //creating a whole set of "all cards minus those", we keep track of them as
 //exclude sets.
@@ -36,6 +43,7 @@ export const INVERSE_FILTER_NAMES = {
 const INITIAL_STATE = {
 	activeSetName: DEFAULT_SET_NAME,
 	activeFilterNames: [],
+	activeSortName: DEFAULT_SORT_NAME,
 	filters: {
 		starred: {},
 		read: {},
