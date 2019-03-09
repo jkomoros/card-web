@@ -99,11 +99,6 @@ import {
 	reorderCard
 } from '../actions/data.js';
 
-import comments from '../reducers/comments.js';
-store.addReducers({
-	comments,
-});
-
 import {
 	cardsDrawerPanelShowing
 } from '../reducers/app.js';
