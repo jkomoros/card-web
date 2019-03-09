@@ -416,12 +416,16 @@ const textSubQueryForWords = (words) => {
 };
 
 const textPropertySubQueryForWords = (words, startValue) => {
-	let joinedWords = words.join(' ');
+	if (words.length == 1) return [[[words], startValue]];
+	const joinedWords = words.join(' ');
 	//The format of the return value is a list of items that could match. For
 	//each item, the first item is an array of strings, all of which have to
 	//independently match; if they do, the second item score is added to the
 	//running score for the card.
-	return [[[joinedWords], startValue]];
+
+	//Full exact matches are the best, but if you have all of the sub-words,
+	//that's good too, just less good.
+	return [[[joinedWords], startValue], [words, startValue / 2]];
 };
 
 const stringPropertyScoreForStringSubQuery = (propertyValue, preparedSubquery) => {
