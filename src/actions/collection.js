@@ -122,6 +122,7 @@ const extractFilterNamesAndSort = (parts) => {
 	let nextPartIsSort = false;
 	for (let i = 0; i < parts.length; i++) {
 		const part = parts[i];
+		if (part == '') continue;
 		if (part == SORT_URL_KEYWORD) {
 			nextPartIsSort = true;
 			//handle the case where there was already one sort, and only listen
