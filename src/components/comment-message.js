@@ -6,7 +6,8 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	editIcon,
-	deleteForeverIcon
+	deleteForeverIcon,
+	baselineLinkIcon,
 } from './my-icons.js';
 
 import {
@@ -22,48 +23,55 @@ import {
 class CommentMessage extends LitElement {
 	render() {
 		return html`
-      ${ ButtonSharedStyles }
-      <style>
-        :host {
-          font-size: 0.85em;
-          display:block;
-          border-bottom:1px solid var(--app-divider-color);
-          width:100%;
-          padding-bottom:0.25em;
-          margin-bottom:0.25em;
-        }
+			${ ButtonSharedStyles }
+			<style>
+				:host {
+					font-size: 0.85em;
+					display:block;
+					border-bottom:1px solid var(--app-divider-color);
+					width:100%;
+					padding-bottom:0.25em;
+					margin-bottom:0.25em;
+				}
 
-        .container {
-          width:100%;
-        }
-        span {
-          color: var(--app-dark-text-color-light);
-        }
-        .row {
-          display:flex;
-          flex-direction:row;
-          align-items:center;
-          width:100%;
-        }
+				.container {
+					width:100%;
+				}
+				span {
+					color: var(--app-dark-text-color-light);
+				}
+				.row {
+					display:flex;
+					flex-direction:row;
+					align-items:center;
+					width:100%;
+				}
 
-        .row author-chip {
-          flex-grow:1;
-        }
-      </style>
-      <div class='container'>
-        <div class='row'>
-          <author-chip .author=${this.message.author}></author-chip>
-          <div ?hidden=${!userMayEditMessage(this.user, this.message)}>
-            <button class='small' ?hidden=${this.message.deleted} @click=${this._handleDeleteClicked}>${deleteForeverIcon}</button>
-            <button class='small' @click=${this._handleEditClicked}>${editIcon}</button>
-          </div>
-        </div>
-        <span>${prettyTime(this.message.updated)}</span>
-        <div>
-          ${this.message.deleted ? html`<em>This message has been deleted.</em>` : markdownElement(this.message ? this.message.message : '')}
-        </div>
-      </div>
-    `;
+				.row author-chip {
+					flex-grow:1;
+				}
+			</style>
+			<div class='container'>
+				<div class='row'>
+					<author-chip .author=${this.message.author}></author-chip>
+					<div ?hidden=${!userMayEditMessage(this.user, this.message)}>
+						<button class='small' ?hidden=${this.message.deleted} @click=${this._handleDeleteClicked}>${deleteForeverIcon}</button>
+						<button class='small' @click=${this._handleEditClicked}>${editIcon}</button>
+					</div>
+					<button class='small' alt='Link to this comment' @click=${this._handleLinkClicked}>${baselineLinkIcon}</button>
+				</div>
+				<span>${prettyTime(this.message.updated)}</span>
+				<div>
+					${this.message.deleted ? html`<em>This message has been deleted.</em>` : markdownElement(this.message ? this.message.message : '')}
+				</div>
+			</div>
+		`;
+	}
+
+	_handleLinkClicked() {
+		if (!this.message) return;
+		const url = window.location.origin + '/comment/' + this.message.id;
+		prompt('Share the following URL to deep link to this comment: ', url);
 	}
 
 	_handleEditClicked() {
