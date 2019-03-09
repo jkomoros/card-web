@@ -401,15 +401,20 @@ const selectPreparedQuery = createSelector(
 		}
 		let [words, filters] = queryWordsAndFilters(rewriteQueryFilters(query));
 		return {
-			text: {
-				title: [[words, 1.0]],
-				body: [[words, 0.5]],
-				subtitle: [[words, 0.75]],
-			},
+			text: textSubQueryForWords(words),
 			filters,
 		};
 	}
 );
+
+const textSubQueryForWords = (words) => {
+	let joinedWords = words.join(' ');
+	return {
+		title: [[joinedWords, 1.0]],
+		body: [[joinedWords, 0.5]],
+		subtitle: [[joinedWords, 0.75]],
+	};
+};
 
 const stringPropertyScoreForStringSubQuery = (propertyValue, preparedSubquery) => {
 	let value = propertyValue.toLowerCase();
@@ -452,7 +457,7 @@ const queryWordsAndFilters = (queryString) => {
 			words.push(word);
 		}
 	}
-	return [words.join(' '), filters];
+	return [words, filters];
 };
 
 const selectCollectionForQuery = createSelector(
