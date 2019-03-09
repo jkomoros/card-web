@@ -375,7 +375,14 @@ const selectActiveBaseCollection = createSelector(
 
 const selectActiveSort = createSelector(
 	selectActiveSortName,
-	(sortName) => SORTS[sortName] || SORTS[DEFAULT_SORT_NAME]
+	selectActiveSortReversed,
+	(sortName, sortReversed) => {
+		const baseSort = SORTS[sortName] || SORTS[DEFAULT_SORT_NAME];
+		if (sortReversed) {
+			return (left, right) => -1 * baseSort(left, right);
+		}
+		return baseSort;
+	}
 );
 
 const selectExpandedActiveStartCards = createSelector(
