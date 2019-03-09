@@ -42,6 +42,7 @@ export const selectSectionsLoaded = (state) => state.data.sectionsLoaded;
 export const selectTagsLoaded = (state) => state.data.tagsLoaded;
 export const selectMessages = (state) => state.comments ? state.comments.messages : null;
 export const selectThreads = (state) => state.comments ? state.comments.threads : null;
+export const selectAuthors = (state) => state.data.authors ? state.data.authors : null;
 
 export const selectQuery = (state) => state.find.query;
 
@@ -179,7 +180,8 @@ export const getIdForCard = (state, idOrSlug) => {
 };
 
 export const getAuthorForId = (state, authorId) => {
-	let author = state.data.authors[authorId];
+	let authors = selectAuthors(state);
+	let author = authors[authorId];
 	if (!author){
 		return {displayName: 'Unknown user'};
 	}
