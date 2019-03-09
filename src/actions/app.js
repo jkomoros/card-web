@@ -26,7 +26,7 @@ export const ENABLE_MOBILE_MODE = 'ENABLE_MOBILE_MODE';
 export const DISABLE_MOBILE_MODE = 'DISABLE_MOBILE_MODE';
 
 import {
-	selectExpandedActiveCollection
+	selectExpandedActiveCollection, selectCommentsAreFullyLoaded, getMessageById, getThreadById, selectPage, selectPageExtra
 } from '../selectors.js';
 
 import {
@@ -97,6 +97,41 @@ export const urlForTag = (tagName, optCardId) => {
 	return '/c/' + tagName + '/' + optCardId;
 }
 
+//Should be called any time we might want to redirect to the given comment. For
+//example, when the redirect comment view boots, or when threads or messages are
+//loaded.
+export const refreshCommentRedirect = () => (dispatch, getState) => {
+	//Called when cards and sections update, just in case we now have
+	//information to do this better. Also called when stars and reads update,
+	//because if we're filtering to one of those filters we might not yet know
+	//if we're in that collection or not.
+	const state = getState();
+
+	let page = selectPage(state);
+	if (page != 'comment') return;
+	let pageExtra = selectPageExtra(state);
+	dispatch(navigateToComment(pageExtra));
+};
+
+export const navigateToComment = (commentId) => (dispatch, getState) => {
+	//commentId is either a thread or message id.
+	const state = getState();
+	if (!selectCommentsAreFullyLoaded(state)) return;
+
+	const message = getMessageById(state, commentId);
+	if (message) {
+		dispatch(navigateToCard(message.card));
+		return;
+	}
+	const thread = getThreadById(state, commentId);
+	if (thread) {
+		dispatch(navigateToCard(thread.card));
+		return;
+	}
+	//TODO: show a user-visible warning and redirect somewhere useful.
+	console.warn('That comment id is not valid');
+}
+
 export const navigateToCard = (cardOrId, silent) => (dispatch) => {
 	let path = urlForCard(cardOrId, false);
 	dispatch(navigatePathTo(path, silent));
@@ -129,6 +164,9 @@ const loadPage = (pathname, query) => (dispatch) => {
 				// Put code in here that you want to run every time when
 				// navigating to view1 after my-view1.js is loaded.
 			});
+			break;
+		case 'comment':
+			import('../components/comment-redirect-view.js');
 			break;
 		case 'recent':
 			import('../components/recent-changes-view.js');

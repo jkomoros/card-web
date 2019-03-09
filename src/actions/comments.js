@@ -27,6 +27,7 @@ import {
 import {
 	randomString
 } from '../util.js';
+import { refreshCommentRedirect } from './app.js';
 
 export const ensureAuthor = (batch, user) => {
 	batch.set(db.collection(AUTHORS_COLLECTION).doc(user.uid), {
@@ -238,16 +239,18 @@ export const createThread = (message) => (dispatch, getState) => {
 
 };
 
-export const updateThreads = (threads) => {
-	return {
+export const updateThreads = (threads) => (dispatch) => {
+	dispatch({
 		type: COMMENTS_UPDATE_THREADS,
 		threads
-	};
+	});
+	dispatch(refreshCommentRedirect());
 };
 
-export const updateMessages = (messages) => {
-	return {
+export const updateMessages = (messages) => (dispatch) => {
+	dispatch({
 		type: COMMENTS_UPDATE_MESSAGES,
 		messages
-	};
+	});
+	dispatch(refreshCommentRedirect());
 };

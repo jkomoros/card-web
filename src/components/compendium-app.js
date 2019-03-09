@@ -244,6 +244,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 			<!-- Main content -->
 			<main role="main" class="main-content">
 				<card-view class="page" ?active="${this._page === 'c'}"></card-view>
+				<comment-redirect-view class='page' ?active="${this._page === 'comment'}"></comment-redirect-view>
 				<recent-changes-view class="page" ?active="${this._page === 'recent'}"></recent-changes-view>
 				<my-view404 class="page" ?active="${this._page === 'view404'}"></my-view404>
 				<maintenance-view class='page' ?active="${this._page === 'maintenance'}"></maintenance-view>
