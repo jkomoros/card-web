@@ -18,7 +18,7 @@ import { store } from '../store.js';
 import {
 	selectActiveCard,
 	selectActiveSectionId,
-	selectSortedActiveCollection,
+	selectFinalCollection,
 	selectDataIsFullyLoaded,
 	selectUserSignedIn,
 	selectUserMayEdit,
@@ -506,7 +506,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._mobileMode = state.app.mobileMode;
 		this._cardHasStar = getCardHasStar(state, this._card ? this._card.id : '');
 		this._cardIsRead = getCardIsRead(state, this._card ? this._card.id : '');
-		this._collection = selectSortedActiveCollection(state);
+		this._collection = selectFinalCollection(state);
 		this._collectionLabels = selectActiveCollectionLabels(state);
 		this._stars = state.user.stars;
 		this._reads = state.user.reads;

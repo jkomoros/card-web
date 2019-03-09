@@ -26,7 +26,7 @@ export const ENABLE_MOBILE_MODE = 'ENABLE_MOBILE_MODE';
 export const DISABLE_MOBILE_MODE = 'DISABLE_MOBILE_MODE';
 
 import {
-	selectSortedActiveCollection, selectCommentsAreFullyLoaded, getMessageById, getThreadById, selectPage, selectPageExtra
+	selectFinalCollection, selectCommentsAreFullyLoaded, getMessageById, getThreadById, selectPage, selectPageExtra
 } from '../selectors.js';
 
 import {
@@ -64,7 +64,7 @@ export const navigateToNextCard = () => (dispatch, getState) => {
 	const state = getState();
 	let index = selectActiveCardIndex(state);
 	index++;
-	const collection = selectSortedActiveCollection(state);
+	const collection = selectFinalCollection(state);
 	if (!collection) return;
 	let newId = collection[index];
 	if (!newId) return;
@@ -75,7 +75,7 @@ export const navigateToPreviousCard = () => (dispatch, getState) => {
 	const state = getState();
 	let index = selectActiveCardIndex(state);
 	index--;
-	const collection = selectSortedActiveCollection(state);
+	const collection = selectFinalCollection(state);
 	if (!collection) return;
 	let newId = collection[index];
 	if (!newId) return;

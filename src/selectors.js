@@ -377,25 +377,31 @@ const selectActiveSort = createSelector(
 	(sortName) => SORTS[sortName] || SORTS[DEFAULT_SORT_NAME]
 );
 
-//selectActiveCollection includes start_cards if applicable, but only the cardIds.
-const selectActiveUnsortedCollection = createSelector(
+const selectExpandedActiveStartCards = createSelector(
 	selectActiveStartCards,
-	selectActiveBaseCollection,
-	(startCards, baseCollection) => [...startCards, ...baseCollection]
+	selectCards,
+	(startCards, cards) => startCards.map(id => cards[id] || null)
 );
 
 //Expanded means it includes the full cards in place, but NOT SORTED
 const selectExpandedActiveCollection = createSelector(
-	selectActiveUnsortedCollection,
+	selectActiveBaseCollection,
 	selectCards,
 	(collection, cards) => collection.map(id => cards[id] || null)
 );
 
-//This is the final, sorted collection
-export const selectSortedActiveCollection = createSelector(
+//This is the sorted, expanded collection, but without start cards
+const selectSortedActiveCollection = createSelector(
 	selectExpandedActiveCollection,
 	selectActiveSort,
 	(collection, sort) => [...collection].sort(sort)
+);
+
+//This is the final expanded, sorted collection, including start cards.
+export const selectFinalCollection = createSelector(
+	selectExpandedActiveStartCards,
+	selectSortedActiveCollection,
+	(startCards, otherCards) => [...startCards, ...otherCards]
 );
 
 //Removes labels that are the same as the one htat came before them.
@@ -417,7 +423,7 @@ const removeAllLabels = (arr) => arr.map(() => '');
 
 export const selectActiveCollectionLabels = createSelector(
 	selectActiveSectionId,
-	selectSortedActiveCollection,
+	selectFinalCollection,
 	selectSections,
 	(sectionId, expandedCollection, sections) => {
 		//If there's a single section ID then there'd be a single label, which
@@ -430,12 +436,12 @@ export const selectActiveCollectionLabels = createSelector(
 
 export const selectActiveCardIndex = createSelector(
 	selectActiveCardId,
-	selectSortedActiveCollection,
+	selectFinalCollection,
 	(cardId, collection) => collection.map(card => card.id).indexOf(cardId)
 );
 
 export const getCardIndexForActiveCollection = (state, cardId) => {
-	let collection = selectSortedActiveCollection(state);
+	let collection = selectFinalCollection(state);
 	return collection.map(card => card.id).indexOf(cardId);
 };
 
