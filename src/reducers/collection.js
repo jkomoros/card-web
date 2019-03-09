@@ -23,6 +23,9 @@ export const DEFAULT_SET_NAME = 'all';
 
 export const SET_NAMES = [DEFAULT_SET_NAME];
 
+//The word in the URL That means "the part after this is a sort".
+export const SORT_URL_KEYWORD = 'sort';
+
 export const DEFAULT_SORT_NAME = 'default';
 
 export const SORTS = {

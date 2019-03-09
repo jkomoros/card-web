@@ -53,7 +53,11 @@ import {
 	selectFilters,
 	selectDataIsFullyLoaded,
 } from '../selectors.js';
-import { INVERSE_FILTER_NAMES } from '../reducers/collection.js';
+
+import {
+	INVERSE_FILTER_NAMES,
+	SORT_URL_KEYWORD
+} from '../reducers/collection.js';
 
 //When a new tag is created, it is randomly assigned one of these values.
 const TAG_COLORS = [
@@ -414,6 +418,9 @@ const reservedCollectionName = (state, name) => {
 		console.warn('Sections not loaded');
 		return true;
 	}
+
+	if (name == SORT_URL_KEYWORD) return true;
+
 	//Filters already contains section names if data is fully loaded.
 	const filters = selectFilters(state) || {};
 
