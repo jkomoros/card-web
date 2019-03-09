@@ -73,8 +73,7 @@ import {
 
 import {
 	updateMessages,
-	updateThreads,
-	updateCardThreads
+	updateThreads
 } from './comments.js';
 
 import {
@@ -144,20 +143,10 @@ const notificationsTokenUpdated = (notifyServer) => {
 	});
 };
 
-let liveMessagesUnsubscribe = null;
-let liveThreadsUnsubscribe = null;
-let liveStarsUnsubscribe = null;
-let liveReadsUnsubscribe = null;
-
-export const connectLiveMessages = (store, cardId) => {
-	if (liveMessagesUnsubscribe) {
-		liveMessagesUnsubscribe();
-		liveMessagesUnsubscribe = null;
-	}
+export const connectLiveMessages = (store) => {
 	//Deliberately DO fetch deleted messages, so we can render stubs for them.
-	liveMessagesUnsubscribe = db.collection(MESSAGES_COLLECTION).where('card', '==', cardId).onSnapshot(snapshot => {
+	db.collection(MESSAGES_COLLECTION).onSnapshot(snapshot => {
 		let messages = {};
-
 		snapshot.docChanges().forEach(change => {
 			if (change.type === 'removed') return;
 			let doc = change.doc;
@@ -171,13 +160,8 @@ export const connectLiveMessages = (store, cardId) => {
 	});
 };
 
-export const connectLiveThreads = (store, cardId) => {
-	if (liveThreadsUnsubscribe) {
-		liveThreadsUnsubscribe();
-		liveThreadsUnsubscribe = null;
-	}
-	let firstUpdate = true;
-	liveThreadsUnsubscribe = db.collection(THREADS_COLLECTION).where('card', '==', cardId).where('deleted', '==', false).where('resolved', '==', false).onSnapshot(snapshot => {
+export const connectLiveThreads = (store) => {
+	db.collection(THREADS_COLLECTION).where('deleted', '==', false).where('resolved', '==', false).onSnapshot(snapshot => {
 		let threads = {};
 		let threadsToAdd = [];
 		let threadsToRemove = [];
@@ -194,10 +178,11 @@ export const connectLiveThreads = (store, cardId) => {
 			threads[id] = thread;
 		});
 		store.dispatch(updateThreads(threads));
-		store.dispatch(updateCardThreads(threadsToAdd, threadsToRemove, firstUpdate));
-		firstUpdate = false;
 	});
 };
+
+let liveStarsUnsubscribe = null;
+let liveReadsUnsubscribe = null;
 
 export const disconnectLiveStars = () => {
 	if (liveStarsUnsubscribe) {

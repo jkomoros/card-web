@@ -199,7 +199,13 @@ export const getSection = (state, sectionId) => {
 	return state.data.sections[sectionId] || null;
 };
 
-const selectActiveCardThreadIds = (state) => state.comments.card_threads;
+//TODO: once factoring the composed threads selctors into this file, refactor
+//this to just select the composed threads.
+export const selectActiveCardThreadIds = createSelector(
+	selectActiveCardId,
+	selectThreads,
+	(cardId, threads) => Object.keys(threads).filter(threadId => threads[threadId].card == cardId)
+);
 
 export const selectActiveCardComposedThreads = createSelector(
 	selectActiveCardThreadIds,
@@ -226,7 +232,7 @@ const composedThread = (threadId, threads, messages, authors) => {
 const composedMessage = (messageId, messages, authors) => {
 	//TODO: return composed children for threads if there are parents
 	let originalMessage = messages[messageId];
-	if (!originalMessage) return {};
+	if (!originalMessage) return null;
 	let message = {...originalMessage};
 	message.author = authorOrDefault(originalMessage.author, authors);
 	return message;

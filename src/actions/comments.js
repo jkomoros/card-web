@@ -251,12 +251,3 @@ export const updateMessages = (messages) => {
 		messages
 	};
 };
-
-export const updateCardThreads = (threadsToAdd, threadsToRemove, firstUpdate) => {
-	return {
-		type: COMMENTS_UPDATE_CARD_THREADS,
-		threadsToAdd,
-		threadsToRemove,
-		firstUpdate
-	};
-};

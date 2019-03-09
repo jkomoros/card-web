@@ -54,7 +54,9 @@ import {
 	connectLiveCards,
 	connectLiveSections,
 	connectLiveTags,
-	connectLiveAuthors
+	connectLiveAuthors,
+	connectLiveThreads,
+	connectLiveMessages,
 } from '../actions/database.js';
 
 import {
@@ -293,6 +295,8 @@ class CompendiumApp extends connect(store)(LitElement) {
 		connectLiveSections(store);
 		connectLiveTags(store);
 		connectLiveAuthors(store);
+		connectLiveThreads(store);
+		connectLiveMessages(store);
 	}
 
 	_handleKeyPressed(e) {

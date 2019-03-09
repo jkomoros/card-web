@@ -17,11 +17,6 @@ import {
 } from '../actions/comments.js';
 
 import {
-	connectLiveMessages,
-	connectLiveThreads
-} from '../actions/database.js';
-
-import {
 	selectActiveCard,
 	selectUser,
 	selectUserMayComment,
@@ -151,15 +146,6 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 		this._composedThreads = selectActiveCardComposedThreads(state);
 		this._userMayComment = selectUserMayComment(state);
 		this._user = selectUser(state);
-	}
-
-	updated(changedProps) {
-		if (changedProps.has('_card')) {
-			if (this._card && this._card.id) {
-				connectLiveMessages(store, this._card.id);
-				connectLiveThreads(store, this._card.id);
-			}
-		}
 	}
 }
 
