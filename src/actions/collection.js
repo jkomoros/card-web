@@ -76,22 +76,12 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 		}
 	}
 
-	let filters = [];
-
 	//Get last part
 	let cardIdOrSlug = parts.pop();
 
 	//TODO: detect if it's one of the weird cardIdOrSlugs (e.g. '.', '.default');
 
-	if (parts.length) {
-		//If there are still parts, interpret them as filters.
-
-		//TODO: support interpreting them as sorts.
-		filters = parts;
-	}
-
-	//TODO: this should be possible to be extracted from the URL
-	let sortName = DEFAULT_SORT_NAME;
+	let [filters, sortName] = extractFilterNamesAndSort(parts);
 
 	let doUpdateCollection = true;
 
@@ -115,6 +105,13 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 
 	if (doUpdateCollection || forceUpdateCollection) dispatch(updateCollection(setName, filters, sortName));
 	dispatch(showCard(cardIdOrSlug));
+};
+
+const extractFilterNamesAndSort = (parts) => {
+	//parts is all of the unconsumed portions of the path that aren't the set
+	//name or the card name.
+	if (!parts.length) return [[], DEFAULT_SORT_NAME];
+	return [[...parts], DEFAULT_SORT_NAME];
 };
 
 export const updateCollection = (setName, filters, sortName) => (dispatch, getState) =>{
