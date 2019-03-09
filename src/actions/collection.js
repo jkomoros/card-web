@@ -22,7 +22,7 @@ import {
 	getIdForCard,
 	getCard,
 	selectDataIsFullyLoaded,
-	selectActiveCollection,
+	selectExpandedActiveCollection,
 	selectActiveSetName,
 	selectActiveCardId,
 	selectActiveSectionId,
@@ -226,7 +226,7 @@ export const redirectIfInvalidCardOrCollection = () => (dispatch, getState) => {
 	const state = getState();
 	if (!selectDataIsFullyLoaded(state)) return;
 	let card = selectActiveCard(state);
-	let collection = selectActiveCollection(state);
+	let collection = selectExpandedActiveCollection(state);
 	if (!card) {
 		
 		//If we get here, we could navigate to a default card (we know that the
@@ -258,7 +258,7 @@ export const showCard = (requestedCard) => (dispatch, getState) => {
 	//on the current collection.
 	if (cardIdIsPlaceholder(requestedCard)) {
 		if (!selectDataIsFullyLoaded(state)) return;
-		let collection = selectActiveCollection(state);
+		let collection = selectExpandedActiveCollection(state);
 		cardId = cardIdForPlaceholder(requestedCard, collection);
 		//If there's no valid card then give up.
 		if (!cardId) return;

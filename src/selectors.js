@@ -370,7 +370,7 @@ const selectActiveBaseCollection = createSelector(
 );
 
 //selectActiveCollection includes start_cards if applicable, but only the cardIds.
-export const selectActiveCollection = createSelector(
+const selectActiveUnsortedCollection = createSelector(
 	selectActiveStartCards,
 	selectActiveBaseCollection,
 	(startCards, baseCollection) => [...startCards, ...baseCollection]
@@ -378,7 +378,7 @@ export const selectActiveCollection = createSelector(
 
 //Expanded means it includes the full cards in place.
 export const selectExpandedActiveCollection = createSelector(
-	selectActiveCollection,
+	selectActiveUnsortedCollection,
 	selectCards,
 	(collection, cards) => collection.map(id => cards[id] || null)
 );
@@ -415,13 +415,13 @@ export const selectActiveCollectionLabels = createSelector(
 
 export const selectActiveCardIndex = createSelector(
 	selectActiveCardId,
-	selectActiveCollection,
-	(cardId, collection) => collection.indexOf(cardId)
+	selectExpandedActiveCollection,
+	(cardId, collection) => collection.map(card => card.id).indexOf(cardId)
 );
 
 export const getCardIndexForActiveCollection = (state, cardId) => {
-	let collection = selectActiveCollection(state);
-	return collection.indexOf(cardId);
+	let collection = selectExpandedActiveCollection(state);
+	return collection.map(card => card.id).indexOf(cardId);
 };
 
 const SIMPLE_FILTER_REWRITES = ['is:', 'section:', 'tag:'];
