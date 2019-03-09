@@ -60,7 +60,7 @@ class CommentMessage extends LitElement {
         </div>
         <span>${prettyTime(this.message.updated)}</span>
         <div>
-          ${this.message.deleted ? html`<em>This message has been deleted.</em>` : markdownElement(this.message.message)}
+          ${this.message.deleted ? html`<em>This message has been deleted.</em>` : markdownElement(this.message ? this.message.message : '')}
         </div>
       </div>
     `;
