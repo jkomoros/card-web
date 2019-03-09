@@ -377,6 +377,9 @@ const selectActiveBaseCollection = createSelector(
 //selectSortedActiveCollection.
 const selectActiveSort = createSelector(
 	selectActiveSortName,
+	//Technically, this isn't a pure function because it relies on SORTs. But
+	//SORTS is a const and never has more items added after being initialized,
+	//so it's OK.
 	(sortName) =>  SORTS[sortName] || SORTS[DEFAULT_SORT_NAME]
 );
 
