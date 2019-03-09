@@ -38,6 +38,12 @@ export const SORTS = {
 		const rightValue = right.updated_substantive ? right.updated_substantive.seconds : 0;
 		//Ones that have a more recent upated should be earlier in the sort order.
 		return rightValue - leftValue;
+	},
+	'stars': (left, right) => {
+		if (!left || !right) return 0;
+		const leftValue = left.star_count || 0;
+		const rightValue = right.star_count || 0;
+		return rightValue - leftValue;
 	}
 };
 
