@@ -19,6 +19,7 @@ import {
 	DEFAULT_SORT_NAME,
 	SORT_REVERSED_URL_KEYWORD,
 	SORT_URL_KEYWORD,
+	SORTS,
 } from '../reducers/collection.js';
 
 import {
@@ -137,7 +138,15 @@ const extractFilterNamesAndSort = (parts) => {
 				//part to be the sort name
 				continue;
 			}
-			sortName = part;
+			//Take note of the sort, but only if it's a valid sort name; if it's
+			//not, drop it on the floor.
+			if (SORTS[part]) {
+				sortName = part;
+			} else {
+				//If we dropped iton the floor, also drop the reverse
+				//instruction on the floor, if there was one.
+				sortReversed = false;
+			}
 			nextPartIsSort = false;
 			continue;
 		}
