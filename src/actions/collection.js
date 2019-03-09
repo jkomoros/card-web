@@ -16,6 +16,7 @@ import {
 import {
 	DEFAULT_SET_NAME,
 	SET_NAMES,
+	DEFAULT_SORT_NAME,
 } from '../reducers/collection.js';
 
 import {
@@ -32,7 +33,8 @@ import {
 	selectActiveCardIndex,
 	selectPage,
 	selectPageExtra,
-	getCardIndexForActiveCollection
+	getCardIndexForActiveCollection,
+	selectActiveSortName
 } from '../selectors.js';
 
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
@@ -88,6 +90,9 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 		filters = parts;
 	}
 
+	//TODO: this should be possible to be extracted from the URL
+	let sortName = DEFAULT_SORT_NAME;
+
 	let doUpdateCollection = true;
 
 	if (filters.length == 0) {
@@ -108,11 +113,11 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 		}
 	}
 
-	if (doUpdateCollection || forceUpdateCollection) dispatch(updateCollection(setName, filters));
+	if (doUpdateCollection || forceUpdateCollection) dispatch(updateCollection(setName, filters, sortName));
 	dispatch(showCard(cardIdOrSlug));
 };
 
-export const updateCollection = (setName, filters) => (dispatch, getState) =>{
+export const updateCollection = (setName, filters, sortName) => (dispatch, getState) =>{
 	const state = getState();
 	let sameSetName = false;
 	if (setName == selectActiveSetName(state)) sameSetName = true;
@@ -129,11 +134,15 @@ export const updateCollection = (setName, filters) => (dispatch, getState) =>{
 		}
 	}
 
-	if (sameSetName && sameActiveFilters) return;
+	let sameSortName = false;
+	if (sortName == selectActiveSortName) sameSortName = true;
+
+	if (sameSetName && sameActiveFilters && sameSortName) return;
 	dispatch({
 		type: UPDATE_COLLECTION,
 		setName,
 		filters,
+		sortName
 	});
 };
 

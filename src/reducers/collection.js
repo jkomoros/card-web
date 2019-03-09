@@ -73,7 +73,8 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			activeSetName: action.setName,
-			activeFilterNames: [...action.filters]
+			activeFilterNames: [...action.filters],
+			activeSortName: action.sortName,
 		};
 	case UPDATE_SECTIONS:
 		return {
