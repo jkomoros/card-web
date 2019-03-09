@@ -417,15 +417,22 @@ const textSubQueryForWords = (words) => {
 
 const textPropertySubQueryForWords = (words, startValue) => {
 	let joinedWords = words.join(' ');
-	return [[joinedWords, startValue]];
+	//The format of the return value is a list of items that could match. For
+	//each item, the first item is an array of strings, all of which have to
+	//independently match; if they do, the second item score is added to the
+	//running score for the card.
+	return [[[joinedWords], startValue]];
 };
 
 const stringPropertyScoreForStringSubQuery = (propertyValue, preparedSubquery) => {
-	let value = propertyValue.toLowerCase();
+	const value = propertyValue.toLowerCase();
+	let result = 0.0;
 	for (let item of preparedSubquery) {
-		if (value.indexOf(item[0]) >= 0) return item[1];
+		//strings is a list of strings that all must match independently
+		const strings = item[0];
+		if (strings.every(str => value.indexOf(str) >= 0)) result += item[1];
 	}
-	return 0.0;
+	return result;
 };
 
 const cardScoreForQuery = (card, preparedQuery) => {
@@ -433,8 +440,9 @@ const cardScoreForQuery = (card, preparedQuery) => {
 	let score = 0.0;
 
 	for (let key of ['title', 'body', 'subtitle']) {
-		if(!preparedQuery.text[key] || !card[key]) continue;
-		score += stringPropertyScoreForStringSubQuery(card[key], preparedQuery.text[key]);
+		const propertySubQuery = preparedQuery.text[key]
+		if(!propertySubQuery || !card[key]) continue;
+		score += stringPropertyScoreForStringSubQuery(card[key], propertySubQuery);
 	}
 
 	return score;
