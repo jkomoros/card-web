@@ -44,7 +44,13 @@ export const SORTS = {
 		const leftValue = left.star_count || 0;
 		const rightValue = right.star_count || 0;
 		return rightValue - leftValue;
-	}
+	},
+	'commented': (left, right) => {
+		if (!left || !right) return 0;
+		const leftValue = left.updated_message ? left.updated_message.seconds : 0;
+		const rightValue = right.updated_message ? right.updated_message.seconds : 0;
+		return rightValue - leftValue;
+	},
 };
 
 //Theser are filters who are the inverse of another, smaller set. Instead of
