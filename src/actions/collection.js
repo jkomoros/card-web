@@ -268,10 +268,11 @@ const cardIdIsPlaceholder = (cardId) => {
 };
 
 const cardIdForPlaceholder = (requestedCard, collection) => {
+	//Collection is an expanded collection of cards, not card ids.
 	if (!cardIdIsPlaceholder(requestedCard)) return '';
 	if (!collection || !collection.length) return '';
 	//TODO: support random, _popular, _recent, etc.
-	return collection[0];
+	return collection[0].id;
 };
 
 export const redirectIfInvalidCardOrCollection = () => (dispatch, getState) => {
