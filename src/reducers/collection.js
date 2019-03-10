@@ -31,7 +31,7 @@ export const DEFAULT_SORT_NAME = 'default';
 
 export const SORTS = {
 	//Default sort is a no-op.
-	'default': () => 0,
+	[DEFAULT_SORT_NAME]: () => 0,
 	'updated': (left, right) => {
 		if (!left || !right) return 0;
 		const leftValue = left.updated_substantive ? left.updated_substantive.seconds : 0;
