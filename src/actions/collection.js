@@ -71,11 +71,15 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 	let firstPart = parts.length ? parts[0] : '';
 	
 	let setName = DEFAULT_SET_NAME;
+	//Whether or not the set was explicitly included in the URL, as opposed to
+	//implied.
+	let setExplicitlySpecified = false;
 
 	for (let name of SET_NAMES) {
 		if (name == firstPart) {
 			setName = firstPart;
-			parts.unshift();
+			parts.shift();
+			setExplicitlySpecified = true;
 			break;
 		}
 	}
@@ -99,7 +103,11 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 				doUpdateCollection = false;
 			}
 			filters = [card.section ? card.section : 'none'];
-		} else {
+		} else if(!setExplicitlySpecified) {
+
+			//If the set was explicitly specified, e.g. `/c/all/sort/recent/_`
+			//then don't filter out items.
+
 			//Make sure the collection has no items, so canonicalizeURL won't add
 			//'all' in it which would then load up the whole collection before
 			//redirecting.
@@ -113,7 +121,6 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 
 const extractFilterNamesAndSort = (parts) => {
 	//returns the filter names, the sort name, and whether the sort is reversed
-
 	//parts is all of the unconsumed portions of the path that aren't the set
 	//name or the card name.
 	if (!parts.length) return [[], DEFAULT_SORT_NAME, false];
@@ -155,7 +162,7 @@ const extractFilterNamesAndSort = (parts) => {
 	return [filters, sortName, sortReversed];
 };
 
-export const updateCollection = (setName, filters, sortName, sortReversed) => (dispatch, getState) =>{
+export const updateCollection = (setName, filters, sortName, sortReversed) => (dispatch, getState) =>{	
 	const state = getState();
 	let sameSetName = false;
 	if (setName == selectActiveSetName(state)) sameSetName = true;
