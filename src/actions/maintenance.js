@@ -35,7 +35,9 @@ const maintenanceTaskRun = async (taskName) => {
 	db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: new Date()});
 };
 
-const ADD_UPDATED_MESSAGE = 'add-updated-message';
+//v1 of this set dates fro cards with no messages to when the card was created,
+//but that sorted cards with no comments ahead of cards with comments.
+const ADD_UPDATED_MESSAGE = 'add-updated-message-v2';
 
 export const addUpdatedMessage = async() => {
 	await checkMaintenanceTaskHasBeenRun(ADD_UPDATED_MESSAGE);
@@ -63,12 +65,12 @@ export const addUpdatedMessage = async() => {
 	
 	cardsSnapshot.forEach(doc => {
 		let updatedMessage = dateIndex.get(doc.id);
-		//If there's no messages, just defaul tot when the card was created.
-		if (!updatedMessage) updatedMessage = doc.data().created;
 
-		//If there's no created timestamp (some section-heads don't), default to
-		//when the app was being created. Remember that monthIndex is 0-indexed
-		//for some strange reason.
+		//If there's no created timestamp (some section-heads don't have one),
+		//default to when the app was being created. Remember that monthIndex is
+		//0-indexed for some strange reason. We don't use the card's created
+		//date, because recently created cards would then show up before cards
+		//that actually had comments in the sort.
 		if (!updatedMessage) updatedMessage = new Date(2018, 11, 18);
 		batch.update(doc.ref, {
 			'updated_message': updatedMessage,
