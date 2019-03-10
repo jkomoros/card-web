@@ -28,6 +28,7 @@ export const SORT_URL_KEYWORD = 'sort';
 export const SORT_REVERSED_URL_KEYWORD = 'reverse';
 
 export const DEFAULT_SORT_NAME = 'default';
+export const RECENT_SORT_NAME = 'recent';
 
 export const SORTS = {
 	//Default sort is a no-op.
@@ -51,7 +52,7 @@ export const SORTS = {
 		const rightValue = right.updated_message ? right.updated_message.seconds : 0;
 		return rightValue - leftValue;
 	},
-	'recent': (left, right) => {
+	[RECENT_SORT_NAME]: (left, right) => {
 		if (!left || !right) return 0;
 		const leftMessageValue = left.updated_message ? left.updated_message.seconds : 0;
 		const leftUpdatedValue = left.updated_substantive ? left.updated_substantive.seconds : 0;

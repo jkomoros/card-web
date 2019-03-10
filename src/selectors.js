@@ -19,6 +19,7 @@ import {
 	DEFAULT_SET_NAME,
 	INVERSE_FILTER_NAMES,
 	DEFAULT_SORT_NAME,
+	RECENT_SORT_NAME,
 	SORTS
 } from './reducers/collection.js';
 
@@ -292,6 +293,14 @@ export const selectActiveSectionId = createSelector(
 		if (filterNames.length != 1) return '';
 		return sections[filterNames[0]] ? filterNames[0] : '';
 	}
+);
+
+//This is used to decide whether the recent tab should show as selected.
+export const selectRecentTabSelected = createSelector(
+	selectActiveSetName,
+	selectActiveSortName,
+	selectActiveFilterNames,
+	(set, sort, filters) => set == DEFAULT_SET_NAME && sort == RECENT_SORT_NAME && (!filters || filters.length == 0)
 );
 
 //selectActiveTagId returns a string IFF precisely one tag is being selected.

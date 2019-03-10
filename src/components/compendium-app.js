@@ -45,7 +45,8 @@ import {
 
 import {
 	selectActiveCard,
-	selectActiveSectionId
+	selectActiveSectionId,
+	selectRecentTabSelected
 } from '../selectors.js';
 
 import {
@@ -232,7 +233,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 							`)}` :
 		html`<a ?selected="${this._page === 'c'}" href="/c"><em>Loading...</em></a>`
 }
-						<a ?selected="${this._page === 'recent'}" href="/recent">Recent</a>
+						<a ?selected=${this._recentTabSelected} href="/c/all/sort/recent/_">Recent</a>
 					</nav>
 					<div class='spacer dev'>
 						${this._devMode ? html`DEVMODE` : ''}
@@ -268,6 +269,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 			_activeCardSectionId: {type:String},
 			_keyboardNavigates: {type:Boolean},
 			_swRegistration : {type:Object},
+			_recentTabSelected: {type:Boolean},
 		};
 	}
 
@@ -363,6 +365,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		this._sections = state.data.sections;
 		this._activeSectionId = selectActiveSectionId(state);
 		this._keyboardNavigates = keyboardNavigates(state);
+		this._recentTabSelected = selectRecentTabSelected(state);
 	}
 }
 
