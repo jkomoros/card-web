@@ -36,15 +36,17 @@ const sectionNameForCard = (card, sections) => {
 	return section ? section.title : '';
 };
 
-//EAch sort is an extractor, and a description. The extractor is given the card
-//object and the sections info map, and returns an array, where the 0 index is
-//the raw value to compare for sorting, and the 1th value is the label to
-//display.
+//EAch sort is an extractor, a description (currently just useful for
+//documentation; not shown anywhere), and a labelName to show in the drawer next
+//to the label that extractor returns. The extractor is given the card object
+//and the sections info map, and returns an array, where the 0 index is the raw
+//value to compare for sorting, and the 1th value is the label to display.
 export const SORTS = {
 	//Default sort is a no-op.
 	[DEFAULT_SORT_NAME]: {
 		extractor: (card, sections) => [0, sectionNameForCard(card, sections)],
 		description: 'The default order of the cards within each section in order',
+		labelName: 'Section',
 	},
 	'updated': {
 		extractor: (card) => {
@@ -52,10 +54,12 @@ export const SORTS = {
 			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
 		},
 		description: 'In descending order by when each card was last substantively updated',
+		labelName:'Updated',
 	},
 	'stars': {
 		extractor: (card) => [card.star_count || 0, '' + card.star_count],
 		description: 'In descending order by number of stars',
+		labelName: 'Stars',
 	},
 	'commented': {
 		extractor: (card) => {
@@ -63,6 +67,7 @@ export const SORTS = {
 			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
 		},
 		description: 'In descending order by when each card last had a new message',
+		labelName: 'Commented',
 	},
 	[RECENT_SORT_NAME]: {
 		extractor: (card) => {
@@ -74,6 +79,7 @@ export const SORTS = {
 			return [value, prettyTime(timestamp)];
 		},
 		description: 'In descending order by when each card was last updated or had a new message',
+		labelName: 'Last Activity',
 	},
 };
 

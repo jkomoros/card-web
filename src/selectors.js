@@ -387,6 +387,11 @@ const selectActiveSort = createSelector(
 	(sortName) =>  SORTS[sortName] || SORTS[DEFAULT_SORT_NAME]
 );
 
+export const selectActiveSortLabelName = createSelector(
+	selectActiveSort,
+	(sortInfo) => sortInfo.labelName || ''
+);
+
 const selectExpandedActiveStartCards = createSelector(
 	selectActiveStartCards,
 	selectCards,

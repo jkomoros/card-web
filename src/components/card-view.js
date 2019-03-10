@@ -28,6 +28,7 @@ import {
 	getCardIsRead,
 	selectTags,
 	selectActiveCollectionLabels,
+	selectActiveSortLabelName,
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -306,7 +307,7 @@ class CardView extends connect(store)(PageViewElement) {
 
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer .showing=${this._cardsDrawerPanelShowing} .labels=${this._collectionLabels} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' .editable=${this._userMayReorder} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .stars=${this._stars} .reads=${this._reads} .reorderPending=${this._drawerReorderPending}></card-drawer>
+        <card-drawer .showing=${this._cardsDrawerPanelShowing} .labels=${this._collectionLabels} .labelName=${this._collectionLabelName} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' .editable=${this._userMayReorder} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .stars=${this._stars} .reads=${this._reads} .reorderPending=${this._drawerReorderPending}></card-drawer>
         <div id='center'>
           <div id='canvas'>
             <div id='portrait-message'>
@@ -371,6 +372,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_cardIsRead: {type: Boolean},
 			_collection: {type: Array},
 			_collectionLabels: {type:Array},
+			_collectionLabelName: {type:String},
 			_stars: {type: Object},
 			_reads: {type: Object},
 			_drawerReorderPending : {type: Boolean},
@@ -508,6 +510,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._cardIsRead = getCardIsRead(state, this._card ? this._card.id : '');
 		this._collection = selectFinalCollection(state);
 		this._collectionLabels = selectActiveCollectionLabels(state);
+		this._collectionLabelName = selectActiveSortLabelName(state);
 		this._stars = state.user.stars;
 		this._reads = state.user.reads;
 		this._tagInfos = selectTags(state);
