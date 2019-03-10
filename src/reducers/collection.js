@@ -51,6 +51,18 @@ export const SORTS = {
 		const rightValue = right.updated_message ? right.updated_message.seconds : 0;
 		return rightValue - leftValue;
 	},
+	'recent': (left, right) => {
+		if (!left || !right) return 0;
+		const leftMessageValue = left.updated_message ? left.updated_message.seconds : 0;
+		const leftUpdatedValue = left.updated_substantive ? left.updated_substantive.seconds : 0;
+		const leftValue = leftMessageValue > leftUpdatedValue ? leftMessageValue : leftUpdatedValue;
+
+		const rightMessageValue = right.updated_message ? right.updated_message.seconds : 0;
+		const rightUpdatedValue = right.updated_substantive ? right.updated_substantive.seconds : 0;
+		const rightValue = rightMessageValue > rightUpdatedValue ? rightMessageValue : rightUpdatedValue;
+
+		return rightValue - leftValue;
+	}
 };
 
 //Theser are filters who are the inverse of another, smaller set. Instead of
