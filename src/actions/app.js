@@ -168,9 +168,6 @@ const loadPage = (pathname, query) => (dispatch) => {
 		case 'comment':
 			import('../components/comment-redirect-view.js');
 			break;
-		case 'recent':
-			import('../components/recent-changes-view.js');
-			break;
 		case 'maintenance':
 			import('../components/maintenance-view.js');
 			break;
