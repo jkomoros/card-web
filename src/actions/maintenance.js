@@ -5,6 +5,7 @@ import {
 	SECTIONS_COLLECTION,
 	SECTION_UPDATES_COLLECTION,
 	CARD_UPDATES_COLLECTION,
+	MESSAGES_COLLECTION,
 	MAINTENANCE_COLLECTION
 } from './database.js';
 
@@ -32,6 +33,51 @@ const checkMaintenanceTaskHasBeenRun = async (taskName) => {
 
 const maintenanceTaskRun = async (taskName) => {
 	db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: new Date()});
+};
+
+const ADD_UPDATED_MESSAGE = 'add-updated-message';
+
+export const addUpdatedMessage = async() => {
+	await checkMaintenanceTaskHasBeenRun(ADD_UPDATED_MESSAGE);
+
+	let cardsSnapshot = await db.collection(CARDS_COLLECTION).get();
+	let messagesSnapshot = await db.collection(MESSAGES_COLLECTION).get();
+
+	let dateIndex = new Map();
+
+	messagesSnapshot.forEach(doc => {
+		let cardId = doc.data().card;
+		let created = doc.data().created.toDate();
+		if (!dateIndex.has(cardId)) {
+			dateIndex.set(cardId, created);
+			return;
+		}
+		//Otherwise, only set it if it's larger than the existing one
+		let existingDate = dateIndex.get(cardId);
+		if (created > existingDate) dateIndex.set(cardId, created);
+	});
+
+	//We now have an index of the most recent message time per card.
+
+	let batch = db.batch();
+	
+	cardsSnapshot.forEach(doc => {
+		let updatedMessage = dateIndex.get(doc.id);
+		//If there's no messages, just defaul tot when the card was created.
+		if (!updatedMessage) updatedMessage = doc.data().created;
+
+		//If there's no created timestamp (some section-heads don't), default to
+		//when the app was being created. Remember that monthIndex is 0-indexed
+		//for some strange reason.
+		if (!updatedMessage) updatedMessage = new Date(2018, 11, 18);
+		batch.update(doc.ref, {
+			'updated_message': updatedMessage,
+		});
+	});
+	
+	await batch.commit();
+	await maintenanceTaskRun(ADD_UPDATED_MESSAGE);	
+	console.log('Done');
 };
 
 const ADD_TAGS_ARRAY = 'add-tags-array';
@@ -438,4 +484,5 @@ export const tasks = {
 	[ADD_THREAD_RESOLVED_COUNT]: addThreadResolvedCount,
 	[UPDATE_LINKS]: updateLinks,
 	[ADD_TAGS_ARRAY]: addTagsArray,
+	[ADD_UPDATED_MESSAGE]: addUpdatedMessage,
 };
