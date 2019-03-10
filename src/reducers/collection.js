@@ -17,6 +17,7 @@ import {
 import {
 	setUnion,
 	setRemove,
+	prettyTime,
 } from '../util.js';
 
 export const DEFAULT_SET_NAME = 'all';
@@ -35,9 +36,10 @@ const sectionNameForCard = (card, sections) => {
 	return section ? section.title : '';
 };
 
-//EAch sort is an extractor, and a description. The extractor returns an array,
-//where the 0 index is the raw value to compare for sorting, and the 1th value
-//is the label to display.
+//EAch sort is an extractor, and a description. The extractor is given the card
+//object and the sections info map, and returns an array, where the 0 index is
+//the raw value to compare for sorting, and the 1th value is the label to
+//display.
 export const SORTS = {
 	//Default sort is a no-op.
 	[DEFAULT_SORT_NAME]: {
@@ -45,23 +47,31 @@ export const SORTS = {
 		description: 'The default order of the cards within each section in order',
 	},
 	'updated': {
-		extractor: (card, sections) => [card.updated_substantive ? card.updated_substantive.seconds : 0, sectionNameForCard(card, sections)],
+		extractor: (card) => {
+			const timestamp = card.updated_substantive;
+			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
+		},
 		description: 'In descending order by when each card was last substantively updated',
 	},
 	'stars': {
-		extractor: (card, sections) => [card.star_count || 0, sectionNameForCard(card, sections)],
+		extractor: (card) => [card.star_count || 0, '' + card.star_count],
 		description: 'In descending order by number of stars',
 	},
 	'commented': {
-		extractor: (card, sections) => [card.updated_message ? card.updated_message.seconds : 0, sectionNameForCard(card, sections)],
+		extractor: (card) => {
+			const timestamp = card.updated_message;
+			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
+		},
 		description: 'In descending order by when each card last had a new message',
 	},
 	[RECENT_SORT_NAME]: {
-		extractor: (card, sections) => {
+		extractor: (card) => {
 			const messageValue = card.updated_message ? card.updated_message.seconds : 0;
 			const updatedValue = card.updated_substantive ? card.updated_substantive.seconds : 0;
-			const value = messageValue > updatedValue ? messageValue : updatedValue;
-			return [value, sectionNameForCard(card, sections)];
+			const usingMessageValue = messageValue > updatedValue;
+			const value = usingMessageValue ? messageValue : updatedValue;
+			const timestamp = usingMessageValue ? card.updated_message : card.updated_substantive;
+			return [value, prettyTime(timestamp)];
 		},
 		description: 'In descending order by when each card was last updated or had a new message',
 	},
