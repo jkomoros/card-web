@@ -464,12 +464,12 @@ const removeAllLabels = (arr) => arr.map(() => '');
 export const selectActiveCollectionLabels = createSelector(
 	selectActiveSectionId,
 	selectFinalCollection,
-	selectSections,
-	(sectionId, expandedCollection, sections) => {
+	selectExtractedSortInfoForCollection,
+	(sectionId, expandedCollection, sortInfo) => {
 		//If there's a single section ID then there'd be a single label, which
 		//is duplicative so just remove all labels.
 		if (sectionId) return removeAllLabels(expandedCollection);
-		let rawLabels = expandedCollection.map(card => sections[card.section] ? sections[card.section].title : '');
+		let rawLabels = expandedCollection.map(card => sortInfo.get(card.id) ? sortInfo.get(card.id)[1] : '');
 		return removeUnnecessaryLabels(rawLabels);
 	}
 );

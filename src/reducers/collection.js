@@ -35,6 +35,9 @@ const sectionNameForCard = (card, sections) => {
 	return section ? section.title : '';
 };
 
+//EAch sort is an extractor, and a description. The extractor returns an array,
+//where the 0 index is the raw value to compare for sorting, and the 1th value
+//is the label to display.
 export const SORTS = {
 	//Default sort is a no-op.
 	[DEFAULT_SORT_NAME]: {
