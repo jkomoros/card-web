@@ -30,40 +30,38 @@ export const SORT_REVERSED_URL_KEYWORD = 'reverse';
 export const DEFAULT_SORT_NAME = 'default';
 export const RECENT_SORT_NAME = 'recent';
 
+const sectionNameForCard = (card, sections) => {
+	let section = sections[card.section];
+	return section ? section.title : '';
+};
+
 export const SORTS = {
 	//Default sort is a no-op.
-	[DEFAULT_SORT_NAME]: () => 0,
-	'updated': (left, right) => {
-		if (!left || !right) return 0;
-		const leftValue = left.updated_substantive ? left.updated_substantive.seconds : 0;
-		const rightValue = right.updated_substantive ? right.updated_substantive.seconds : 0;
-		//Ones that have a more recent upated should be earlier in the sort order.
-		return rightValue - leftValue;
+	[DEFAULT_SORT_NAME]: {
+		extractor: (card, sections) => [0, sectionNameForCard(card, sections)],
+		description: 'The default order of the cards within each section in order',
 	},
-	'stars': (left, right) => {
-		if (!left || !right) return 0;
-		const leftValue = left.star_count || 0;
-		const rightValue = right.star_count || 0;
-		return rightValue - leftValue;
+	'updated': {
+		extractor: (card, sections) => [card.updated_substantive ? card.updated_substantive.seconds : 0, sectionNameForCard(card, sections)],
+		description: 'In descending order by when each card was last substantively updated',
 	},
-	'commented': (left, right) => {
-		if (!left || !right) return 0;
-		const leftValue = left.updated_message ? left.updated_message.seconds : 0;
-		const rightValue = right.updated_message ? right.updated_message.seconds : 0;
-		return rightValue - leftValue;
+	'stars': {
+		extractor: (card, sections) => [card.star_count || 0, sectionNameForCard(card, sections)],
+		description: 'In descending order by number of stars',
 	},
-	[RECENT_SORT_NAME]: (left, right) => {
-		if (!left || !right) return 0;
-		const leftMessageValue = left.updated_message ? left.updated_message.seconds : 0;
-		const leftUpdatedValue = left.updated_substantive ? left.updated_substantive.seconds : 0;
-		const leftValue = leftMessageValue > leftUpdatedValue ? leftMessageValue : leftUpdatedValue;
-
-		const rightMessageValue = right.updated_message ? right.updated_message.seconds : 0;
-		const rightUpdatedValue = right.updated_substantive ? right.updated_substantive.seconds : 0;
-		const rightValue = rightMessageValue > rightUpdatedValue ? rightMessageValue : rightUpdatedValue;
-
-		return rightValue - leftValue;
-	}
+	'commented': {
+		extractor: (card, sections) => [card.updated_message ? card.updated_message.seconds : 0, sectionNameForCard(card, sections)],
+		description: 'In descending order by when each card last had a new message',
+	},
+	[RECENT_SORT_NAME]: {
+		extractor: (card, sections) => {
+			const messageValue = card.updated_message ? card.updated_message.seconds : 0;
+			const updatedValue = card.updated_substantive ? card.updated_substantive.seconds : 0;
+			const value = messageValue > updatedValue ? messageValue : updatedValue;
+			return [value, sectionNameForCard(card, sections)];
+		},
+		description: 'In descending order by when each card was last updated or had a new message',
+	},
 };
 
 //Theser are filters who are the inverse of another, smaller set. Instead of

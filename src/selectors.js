@@ -377,8 +377,8 @@ const selectActiveBaseCollection = createSelector(
 	(set, filter) => set.filter(item => filter(item))
 );
 
-//Note, this is the sorting function, but reversing is applied in
-//selectSortedActiveCollection.
+//Note, this is the sorting info (extractor, description, etc), but reversing is
+//applied in selectSortedActiveCollection.
 const selectActiveSort = createSelector(
 	selectActiveSortName,
 	//Technically, this isn't a pure function because it relies on SORTs. But
@@ -400,12 +400,35 @@ const selectExpandedActiveCollection = createSelector(
 	(collection, cards) => collection.map(id => cards[id] || null)
 );
 
+//Builds an index of cardId => extracted info for the current filtered
+//colletion.
+const selectExtractedSortInfoForCollection = createSelector(
+	selectExpandedActiveCollection,
+	selectActiveSort,
+	selectSections,
+	(collection, sortInfo, sections) => {
+		if (!sortInfo) return new Map();
+		let entries = collection.map(card => [card.id, sortInfo.extractor(card, sections)]);
+		return new Map(entries);
+	}
+);
+
 //This is the sorted (but not yet reversed, if it will be), expanded collection,
 //but without start cards
 const selectPreliminarySortedActiveCollection = createSelector(
 	selectExpandedActiveCollection,
-	selectActiveSort,
-	(collection, sort) => [...collection].sort(sort)
+	selectExtractedSortInfoForCollection,
+	(collection, sortInfo) => {
+		let sort = (left, right) => {
+			if(!left || !right) return 0;
+			//Info is the underlying sort value, then the label value.
+			const leftInfo = sortInfo.get(left.id);
+			const rightInfo = sortInfo.get(right.id);
+			if (!leftInfo || !rightInfo) return 0;
+			return rightInfo[0] - leftInfo[0];
+		};
+		return [...collection].sort(sort);
+	}
 );
 
 const selectFinalSortedActiveCollection = createSelector(
