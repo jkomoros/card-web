@@ -278,11 +278,6 @@ export const selectActiveCard = createSelector(
 	(cards, activeCard) => cards[activeCard] || null
 );
 
-export const selectActiveCardSectionId = createSelector(
-	selectActiveCard,
-	(card) => card ? card.section : ''
-);
-
 //This means htat the active section is the only one showing. See also
 //selectActiveCardSelection, which just returns the section name of the
 //current collection. selectActiveTagId is the analogue for tags.
