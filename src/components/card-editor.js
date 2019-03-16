@@ -245,7 +245,8 @@ class CardEditor extends connect(store)(LitElement) {
 			return killEvent(e);
 		case 'k':
 			if (e.shiftKey) {
-				store.dispatch(findCardToLink());
+				//Default to searching for the text that's selected
+				store.dispatch(findCardToLink(document.getSelection().toString()));
 			} else {
 				let href = prompt('Where should the URL point?');
 				if (href) {

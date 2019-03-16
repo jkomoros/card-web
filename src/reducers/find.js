@@ -35,7 +35,8 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			open: true,
-			linking: true
+			linking: true,
+			query: action.query
 		};
 	default:
 		return state;

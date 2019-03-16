@@ -26,9 +26,11 @@ export const updateQuery = (query) => {
 	};
 };
 
-export const findCardToLink = () => {
+export const findCardToLink = (starterQuery) => {
+	if (!starterQuery) starterQuery = '';
 	saveSelectionRange();
 	return {
-		type: FIND_CARD_TO_LINK
+		type: FIND_CARD_TO_LINK,
+		query: starterQuery,
 	};
 };

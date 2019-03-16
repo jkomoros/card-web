@@ -82,6 +82,14 @@ class FindDialog extends connect(store)(DialogElement) {
 		};
 	}
 
+	updated(changedProps) {
+		if (changedProps.has('open') && this.open) {
+			//When first opened, select the text in query, so if the starter
+			//query is wrong as you long keep typing it will be no cost
+			this.shadowRoot.getElementById('query').select();
+		}
+	}
+
 	stateChanged(state) {
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = state.find.open;
