@@ -308,7 +308,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		if (!this._keyboardNavigates) return;
 		switch (e.key) {
 		case 'f':
-			if (!e.metaKey) return;
+			if (!e.metaKey && !e.ctrlKey) return;
 			e.stopPropagation();
 			e.preventDefault();
 			store.dispatch(openFindDialog());
