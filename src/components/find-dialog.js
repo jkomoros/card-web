@@ -81,6 +81,10 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	_handleAddSlide() {
 		const title = prompt('What should the title be?', this._query);
+		if (!title || !title.trim()) {
+			console.warn('No title provided');
+			return;
+		}
 		const id = newID();
 		const opts = {
 			id,
