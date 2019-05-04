@@ -30,7 +30,7 @@ export const normalizeSlug = (slug) => {
 };
 
 export const newID = () => {
-	return 'c_' + randomString(3, randomCharSetNumbers) + '_' + randomString(3, randomCharSetLetters) + randomString(3, randomCharSetNumbers);
+	return normalizeSlug('c_' + randomString(3, randomCharSetNumbers) + '_' + randomString(3, randomCharSetLetters) + randomString(3, randomCharSetNumbers));
 };
 
 export const cardHasContent = (card) => {
