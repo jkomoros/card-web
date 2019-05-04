@@ -542,7 +542,7 @@ export const createCard = (section, id, cardType) => async (dispatch, getState) 
 
 	if (!cardType) cardType = 'content';
 
-	if (!section) section = 'stubs';
+	if (!section) section = 'random-thoughts';
 	if (id) {
 		id = normalizeSlug(id);
 	} else {
