@@ -544,6 +544,7 @@ export const createCard = (opts) => async (dispatch, getState) => {
 	let section = opts.section || 'random-thoughts';
 	let id = opts.id;
 	let noNavigate = opts.noNavigate || false;
+	let title = opts.title || '';
 
 	if (!cardType) cardType = 'content';
 
@@ -581,6 +582,7 @@ export const createCard = (opts) => async (dispatch, getState) => {
 	}
 
 	let obj = defaultCardObject(id, user, section, cardType);
+	obj.title = title;
 
 	let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
 
