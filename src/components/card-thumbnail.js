@@ -121,25 +121,27 @@ class CardThumbnail extends LitElement {
     `;
 	}
 
-	static get properties() { return {
-		id: {type: String},
-		name: { type:String },
-		title: { type: String },
-		selected: { type: Boolean },
-		cardType: { type: String},
-		userMayEdit: {type: Boolean},
-		//Card isn't used for much, except a a place for the container to stash
-		//the whole card (for convenience with dragging).
-		card: {type: Object},
-		starred: {type:Boolean},
-		read: {type:Boolean},
-		index: {type: Number},
-		_selectedViaClick: { type: Boolean },
-  };}
+	static get properties() { 
+		return {
+			id: {type: String},
+			name: { type:String },
+			title: { type: String },
+			selected: { type: Boolean },
+			cardType: { type: String},
+			userMayEdit: {type: Boolean},
+			//Card isn't used for much, except a a place for the container to stash
+			//the whole card (for convenience with dragging).
+			card: {type: Object},
+			starred: {type:Boolean},
+			read: {type:Boolean},
+			index: {type: Number},
+			_selectedViaClick: { type: Boolean },
+		};
+	}
   
-  get cardHasContent() {
-    return cardHasContent(this.card);
-  }
+	get cardHasContent() {
+		return cardHasContent(this.card);
+	}
 
 	_handleClick(e) {
 		e.stopPropagation();
