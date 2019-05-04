@@ -16,6 +16,19 @@ export const randomString = (length, charSet) => {
 	return text;
 };
 
+const slugRegularExpression = /^[a-zA-Z0-9-_]+$/;
+
+export const normalizeSlug = (slug) => {
+	slug = slug.trim();
+	slug = slug.toLowerCase();
+	slug = slug.split(' ').join('-');
+	slug = slug.split('_').join('-');
+
+	if (!slugRegularExpression.test(slug)) slug = '';
+
+	return slug;
+};
+
 export const newID = () => {
 	return 'c_' + randomString(3, randomCharSetNumbers) + '_' + randomString(3, randomCharSetLetters) + randomString(3, randomCharSetNumbers);
 };

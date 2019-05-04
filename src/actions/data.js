@@ -35,6 +35,7 @@ import {
 	newID,
 	arrayRemove,
 	arrayUnion,
+	normalizeSlug,
 } from '../util.js';
 
 import {
@@ -355,19 +356,6 @@ export const extractCardLinks = (body) => {
 	let nodes = ele.querySelectorAll('card-link[card]');
 	nodes.forEach(link => result.push(link.getAttribute('card')));
 	return result;
-};
-
-const slugRegularExpression = /^[a-zA-Z0-9-_]+$/;
-
-const normalizeSlug = (slug) => {
-	slug = slug.trim();
-	slug = slug.toLowerCase();
-	slug = slug.split(' ').join('-');
-	slug = slug.split('_').join('-');
-
-	if (!slugRegularExpression.test(slug)) slug = '';
-
-	return slug;
 };
 
 export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
