@@ -51,6 +51,14 @@ export const SORTS = {
 		description: 'The default order of the cards within each section in order',
 		labelName: 'Section',
 	},
+	'link-count': {
+		extractor: (card) => {
+			const inbound_links = card.links_inbound || [];
+			return [inbound_links.length, '' + inbound_links.length];
+		},
+		description: 'In descending order by number of inbound links',
+		labelName: 'Link Count',
+	},
 	'updated': {
 		extractor: (card) => {
 			const timestamp = card.updated_substantive;
