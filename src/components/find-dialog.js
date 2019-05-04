@@ -28,11 +28,18 @@ import {
 	selectExpandedRankedCollectionForQuery
 } from '../selectors.js';
 
+import { plusIcon } from './my-icons.js';
+
+import { ButtonSharedStyles } from './button-shared-styles.js';
+
 import './card-drawer.js';
+import { newID } from '../util.js';
+import { createCard } from '../actions/data.js';
 
 class FindDialog extends connect(store)(DialogElement) {
 	innerRender() {
 		return html`
+		${ButtonSharedStyles}
 		<style>
 			card-drawer {
 				font-size:14px;
@@ -44,9 +51,16 @@ class FindDialog extends connect(store)(DialogElement) {
 			  border-bottom:1px solid var(--app-dark-text-color);
 			  width: 100%;
 			}
+
+			.add {
+				text-align:right;
+			}
 		</style>
 		<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
 		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection}></card-drawer>
+		<div ?hidden=${!this._linking} class='add'>
+			<button class='round' @click='${this._handleAddSlide}'>${plusIcon}</button>
+		</div>
 	`;
 	}
 
@@ -63,6 +77,19 @@ class FindDialog extends connect(store)(DialogElement) {
 	_handleQueryChanged(e) {
 		let ele = e.composedPath()[0];
 		store.dispatch(updateQuery(ele.value));
+	}
+
+	_handleAddSlide() {
+		const title = prompt('What should the title be?', this._query);
+		const id = newID();
+		const opts = {
+			id,
+			title,
+			noNavigate: true,
+		};
+		store.dispatch(createCard(opts));
+		store.dispatch(linkCard(id));
+		this._shouldClose();
 	}
 
 	_handleThumbnailTapped(e) {
