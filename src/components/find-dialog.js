@@ -33,7 +33,7 @@ import { plusIcon } from './my-icons.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import './card-drawer.js';
-import { newID } from '../util.js';
+import { newID, toTitleCase } from '../util.js';
 import { createCard } from '../actions/data.js';
 
 class FindDialog extends connect(store)(DialogElement) {
@@ -80,7 +80,7 @@ class FindDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleAddSlide() {
-		const title = prompt('What should the title be?', this._query);
+		const title = prompt('What should the title be?', toTitleCase(this._query));
 		if (!title || !title.trim()) {
 			console.warn('No title provided');
 			return;

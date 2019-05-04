@@ -16,6 +16,15 @@ export const randomString = (length, charSet) => {
 	return text;
 };
 
+export const toTitleCase = (str) => {
+	//Based on https://gomakethings.com/converting-a-string-to-title-case-with-vanilla-javascript/
+	str = str.toLowerCase().split(' ');
+	for (var i = 0; i < str.length; i++) {
+		str[i] = str[i].charAt(0).toUpperCase() + str[i].slice(1);
+	}
+	return str.join(' ');
+};
+
 const slugRegularExpression = /^[a-zA-Z0-9-_]+$/;
 
 export const normalizeSlug = (slug) => {
