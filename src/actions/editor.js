@@ -105,13 +105,13 @@ export const editingCommit = () => (dispatch, getState) => {
 
 };
 
-export const linkCard = (card) => (dispatch, getState) => {
+export const linkCard = (cardID) => (dispatch, getState) => {
 	const state = getState();
 	if (!state.editor.editing) return;
 	//TODO: it's weird we do this here, it really should be done on the card-
 	//editor component.
 	restoreSelectionRange();
-	document.execCommand('createLink', null, card.id);
+	document.execCommand('createLink', null, cardID);
 };
 
 const replaceAsWithCardLinks = (body) => {

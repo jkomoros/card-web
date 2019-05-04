@@ -68,7 +68,7 @@ class FindDialog extends connect(store)(DialogElement) {
 	_handleThumbnailTapped(e) {
 		this._shouldClose();
 		if (this._linking) {
-			store.dispatch(linkCard(e.detail.card));
+			store.dispatch(linkCard(e.detail.card.id));
 			return;
 		}
 		store.dispatch(navigateToCard(e.detail.card));
