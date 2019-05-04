@@ -536,9 +536,14 @@ const defaultCardObject = (id, user, section, cardType) => {
 	};
 };
 
-export const createCard = (doNavigate, section, id, cardType) => async (dispatch, getState) => {
+export const createCard = (opts) => async (dispatch, getState) => {
 
 	//newCard creates and inserts a new card in the givne section with the given id.
+
+	let cardType = opts.cardType || 'content';
+	let section = opts.section || 'random-thoughts';
+	let id = opts.id;
+	let noNavigate = opts.noNavigate || false;
 
 	if (!cardType) cardType = 'content';
 
@@ -605,7 +610,7 @@ export const createCard = (doNavigate, section, id, cardType) => async (dispatch
 		transaction.set(cardDocRef, obj);
 	});
 
-	if (doNavigate) dispatch(navigateToCard(id));
+	if (!noNavigate) dispatch(navigateToCard(id));
 };
 
 const modifyCardAction = (cardId) => {

@@ -477,7 +477,7 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	_handleAddCard() {
-		store.dispatch(createCard(true, this._activeSectionId));
+		store.dispatch(createCard({section: this._activeSectionId}));
 	}
 
 	_handleReorderCard(e) {
