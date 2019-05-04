@@ -20,6 +20,14 @@ export const newID = () => {
 	return 'c_' + randomString(3, randomCharSetNumbers) + '_' + randomString(3, randomCharSetLetters) + randomString(3, randomCharSetNumbers);
 };
 
+export const cardHasContent = (card) => {
+	//We treat all non-content cards as having content, since the main reason to
+	//count a card has not having content is if there's nothing to see on it.
+	if (card.card_type != 'content') return true;
+	let content = card.body ? card.body.trim() : '';
+	return content ? true : false;
+};
+
 export const arrayRemove = (arr, items) => {
 	let itemsToRemove = new Map();
 	for (let item of Object.values(items)) {
