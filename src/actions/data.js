@@ -536,7 +536,7 @@ const defaultCardObject = (id, user, section, cardType) => {
 	};
 };
 
-export const createCard = (section, id, cardType) => async (dispatch, getState) => {
+export const createCard = (doNavigate, section, id, cardType) => async (dispatch, getState) => {
 
 	//newCard creates and inserts a new card in the givne section with the given id.
 
@@ -605,7 +605,7 @@ export const createCard = (section, id, cardType) => async (dispatch, getState) 
 		transaction.set(cardDocRef, obj);
 	});
 
-	dispatch(navigateToCard(id));
+	if (doNavigate) dispatch(navigateToCard(id));
 };
 
 const modifyCardAction = (cardId) => {
