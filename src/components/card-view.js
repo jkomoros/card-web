@@ -307,7 +307,7 @@ class CardView extends connect(store)(PageViewElement) {
         }
 
       </style>
-      <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
+      <div @mousemove=${this._handleMouseMove} class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
         <card-drawer .showing=${this._cardsDrawerPanelShowing} .labels=${this._collectionLabels} .labelName=${this._collectionLabelName} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' .editable=${this._userMayReorder} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .stars=${this._stars} .reads=${this._reads} .reorderPending=${this._drawerReorderPending}></card-drawer>
         <div id='center'>
           <div id='canvas'>
@@ -583,7 +583,6 @@ class CardView extends connect(store)(PageViewElement) {
 
 	firstUpdated() {
 		window.addEventListener('resize', () => this._resizeCard());
-		window.addEventListener('mousemove', (evt) => this._handleMouseMove(evt));
 	}
 
 	updated(changedProps) {
