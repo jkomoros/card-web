@@ -24,7 +24,9 @@ import {
 	ENABLE_PRESENTATION_MODE,
 	DISABLE_PRESENTATION_MODE,
 	ENABLE_MOBILE_MODE,
-	DISABLE_MOBILE_MODE
+	DISABLE_MOBILE_MODE,
+	UPDATE_HOVERED_CARD,
+	SHOW_PREVIEW_FOR_HOVERED_CARD,
 } from '../actions/app.js';
 
 import {
@@ -52,8 +54,7 @@ const INITIAL_STATE = {
 	hoverX: 0,
 	hoverY: 0,
 	hoverCardId: '',
-	hoverCardPreviewActive: false,
-	hoverTimeout: 0
+	hoverCardPreviewActive: false
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -151,6 +152,19 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			mobileMode: false
+		};
+	case UPDATE_HOVERED_CARD:
+		return {
+			...state,
+			hoverX: action.x,
+			hoverY: action.y,
+			hoverCardId: action.cardId,
+			hoverCardPreviewActive: false
+		};
+	case SHOW_PREVIEW_FOR_HOVERED_CARD:
+		return {
+			...state,
+			hoverCardPreviewActive: true
 		};
 	default:
 		return state;

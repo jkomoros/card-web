@@ -24,6 +24,8 @@ export const ENABLE_PRESENTATION_MODE = 'ENABLE_PRESENTATION_MODE';
 export const DISABLE_PRESENTATION_MODE = 'DISABLE_PRESENTATION_MODE';
 export const ENABLE_MOBILE_MODE = 'ENABLE_MOBILE_MODE';
 export const DISABLE_MOBILE_MODE = 'DISABLE_MOBILE_MODE';
+export const UPDATE_HOVERED_CARD = 'UPDATE_HOVERED_CARD';
+export const SHOW_PREVIEW_FOR_HOVERED_CARD = 'SHOW_PREVIEW_FOR_HOVERED_CARD';
 
 import {
 	selectFinalCollection, selectCommentsAreFullyLoaded, getMessageById, getThreadById, selectPage, selectPageExtra
@@ -187,6 +189,16 @@ const updatePage = (location, page, pageExtra) => {
 		pageExtra
 	};
 };
+
+let hoverPreviewTimer;
+let HOVER_CARD_PREVIEW_DELAY = 1000;
+
+export const updateHoveredCard = (x,y,cardId) => (dispatch) => {
+	window.clearTimeout(hoverPreviewTimer);
+	hoverPreviewTimer = window.setTimeout(() =>
+		dispatch({type: SHOW_PREVIEW_FOR_HOVERED_CARD}), HOVER_CARD_PREVIEW_DELAY);
+	dispatch({ type: UPDATE_HOVERED_CARD, x, y, cardId});
+}
 
 let snackbarTimer;
 
