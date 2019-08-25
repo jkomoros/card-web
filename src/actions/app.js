@@ -199,8 +199,10 @@ export const updateHoveredCard = (x,y,cardId) => (dispatch) => {
 		hoverPreviewTimer = 0;
 	}
 	if (cardId) {
-		hoverPreviewTimer = window.setTimeout(() =>
-			dispatch({type: SHOW_PREVIEW_FOR_HOVERED_CARD}), HOVER_CARD_PREVIEW_DELAY);
+		hoverPreviewTimer = window.setTimeout(() => {
+			hoverPreviewTimer = 0;
+			dispatch({type: SHOW_PREVIEW_FOR_HOVERED_CARD});
+		}, HOVER_CARD_PREVIEW_DELAY);
 	}
 	dispatch({ type: UPDATE_HOVERED_CARD, x, y, cardId});
 }
