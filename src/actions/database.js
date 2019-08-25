@@ -1,8 +1,8 @@
-import firebaseImpl from '../../node_modules/firebase/app';
+import firebaseImpl from '@firebase/app';
 
-import '../../node_modules/firebase/auth';
-import '../../node_modules/firebase/firestore';
-import '../../node_modules/firebase/messaging';
+import '@firebase/auth';
+import '@firebase/firestore';
+import '@firebase/messaging';
 
 export const firebase = firebaseImpl;
 
