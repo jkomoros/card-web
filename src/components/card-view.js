@@ -70,7 +70,7 @@ import {
 	disablePresentationMode,
 	navigateToNextCard,
 	navigateToPreviousCard,
-	updateHoveredCard
+	clearHoveredCard
 } from '../actions/app.js';
 
 //Components needed by this
@@ -406,7 +406,7 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	_handleMouseMove(e) {
-		store.dispatch(updateHoveredCard(e.x, e.y, ''));
+		store.dispatch(clearHoveredCard());
 	}
 
 	_handleTitleUpdated(e) {

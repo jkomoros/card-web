@@ -193,6 +193,12 @@ const updatePage = (location, page, pageExtra) => {
 let hoverPreviewTimer;
 let HOVER_CARD_PREVIEW_DELAY = 1000;
 
+export const clearHoveredCard = () => (dispatch) => {
+	if (hoverPreviewTimer) {
+		dispatch(updateHoveredCard(0,0,''));
+	}
+}
+
 export const updateHoveredCard = (x,y,cardId) => (dispatch) => {
 	if (hoverPreviewTimer) {
 		window.clearTimeout(hoverPreviewTimer);
