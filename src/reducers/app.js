@@ -48,7 +48,12 @@ const INITIAL_STATE = {
 	cardInfoPanelOpen: CARD_INFO_PANEL_DEFAULT_VALUE,
 	cardsDrawerPanelOpen: CARDS_DRAWER_PANEL_DEFAULT_VALUE,
 	presentationMode: false,
-	mobileMode: false
+	mobileMode: false,
+	hoverX: 0,
+	hoverY: 0,
+	hoverCardId: '',
+	hoverCardPreviewActive: false,
+	hoverTimeout: 0
 };
 
 const app = (state = INITIAL_STATE, action) => {
