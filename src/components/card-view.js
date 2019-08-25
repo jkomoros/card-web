@@ -69,7 +69,8 @@ import {
 	enablePresentationMode,
 	disablePresentationMode,
 	navigateToNextCard,
-	navigateToPreviousCard
+	navigateToPreviousCard,
+	updateHoveredCard
 } from '../actions/app.js';
 
 //Components needed by this
@@ -404,6 +405,10 @@ class CardView extends connect(store)(PageViewElement) {
 		this.shadowRoot.querySelector('card-editor').bodyUpdatedFromContentEditable(e.detail.html);
 	}
 
+	_handleMouseMove(e) {
+		store.dispatch(updateHoveredCard(e.x, e.y, ''));
+	}
+
 	_handleTitleUpdated(e) {
 		this.shadowRoot.querySelector('card-editor').titleUpdatedFromContentEditable(e.detail.text);
 	}
@@ -578,6 +583,7 @@ class CardView extends connect(store)(PageViewElement) {
 
 	firstUpdated() {
 		window.addEventListener('resize', () => this._resizeCard());
+		window.addEventListener('mousemove', (evt) => this._handleMouseMove(evt));
 	}
 
 	updated(changedProps) {
