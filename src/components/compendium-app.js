@@ -46,7 +46,8 @@ import {
 import {
 	selectActiveCard,
 	selectActiveSectionId,
-	selectRecentTabSelected
+	selectRecentTabSelected,
+	selectActivePreviewCard
 } from '../selectors.js';
 
 import {
@@ -85,6 +86,7 @@ import './snack-bar.js';
 import './user-chip.js';
 import './find-dialog.js';
 import './compose-dialog.js';
+import './card-preview.js';
 
 class CompendiumApp extends connect(store)(LitElement) {
 	render() {
@@ -221,6 +223,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		<div class='container'>
 			<find-dialog></find-dialog>
 			<compose-dialog></compose-dialog>
+			<card-preview .card=${this._activePreviewCard}></card-preview>
 			<!-- Header -->
 			<div class='header' ?hidden=${!this._headerPanelOpen}>
 				<div class='inner'>
@@ -269,6 +272,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 			_keyboardNavigates: {type:Boolean},
 			_swRegistration : {type:Object},
 			_recentTabSelected: {type:Boolean},
+			_activePreviewCard: { type:Object }
 		};
 	}
 
@@ -365,6 +369,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		this._activeSectionId = selectActiveSectionId(state);
 		this._keyboardNavigates = keyboardNavigates(state);
 		this._recentTabSelected = selectRecentTabSelected(state);
+		this._activePreviewCard = selectActivePreviewCard(state);
 	}
 }
 
