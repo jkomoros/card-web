@@ -153,7 +153,7 @@ class CardThumbnail extends LitElement {
 		e.stopPropagation();
 		let id = this.card ? this.card.id : '';
 		//card-view will catch the card-hovered event no matter where it was thrown from
-		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: id, x: e.x, y: e.y}}));
+		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: id, x: e.clientX, y: e.clientY}}));
 	}
 
 	updated(changedProps) {
