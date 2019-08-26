@@ -18,7 +18,7 @@ class CardPreview extends LitElement {
         }
 
       </style>
-      <div ?hidden='${!this.active}'>
+      <div ?hidden='${!this.card}'>
         <card-renderer .card=${this.card}></card-renderer>
       </div>
     `;
@@ -26,7 +26,6 @@ class CardPreview extends LitElement {
 
 	static get properties() { 
 		return {
-			active: { type: Boolean },
 			card: {type: Object},
 		};
 	}
