@@ -410,7 +410,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this.shadowRoot.querySelector('card-editor').bodyUpdatedFromContentEditable(e.detail.html);
 	}
 
-	_handleMouseMove(e) {
+	_handleMouseMove() {
 		store.dispatch(clearHoveredCard());
 	}
 
