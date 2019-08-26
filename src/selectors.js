@@ -50,6 +50,7 @@ export const selectThreadsLoaded = (state) => state.comments ? state.comments.th
 export const selectMessages = (state) => state.comments ? state.comments.messages : null;
 export const selectThreads = (state) => state.comments ? state.comments.threads : null;
 export const selectAuthors = (state) => state.data.authors ? state.data.authors : null;
+export const selectActivePreviewCardId = (state) => state.app && state.app.hoverCardPreviewActive ? state.app.hoverCardId : '';
 
 export const selectQuery = (state) => state.find.query;
 
@@ -277,6 +278,12 @@ export const selectActiveCard = createSelector(
 	selectCards,
 	selectActiveCardId,
 	(cards, activeCard) => cards[activeCard] || null
+);
+
+export const selectActivePreviewCard = createSelector(
+	selectCards,
+	selectActivePreviewCardId,
+	(cards, activeCardId) => cards[activeCardId] || null
 );
 
 //This means htat the active section is the only one showing. See also
