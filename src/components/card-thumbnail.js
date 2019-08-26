@@ -147,14 +147,14 @@ class CardThumbnail extends LitElement {
 		e.stopPropagation();
 		this._selectedViaClick = true;
 		this.dispatchEvent(new CustomEvent('thumbnail-tapped', {composed:true, detail: {card: this.card}}));
-  }
+	}
   
-  _handleMouseMove(e) {
-    e.stopPropagation();
-    let id = this.card ? this.card.id : '';
-    //card-view will catch the card-hovered event no matter where it was thrown from
-    this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: id, x: e.x, y: e.y}}))
-  }
+	_handleMouseMove(e) {
+		e.stopPropagation();
+		let id = this.card ? this.card.id : '';
+		//card-view will catch the card-hovered event no matter where it was thrown from
+		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: id, x: e.x, y: e.y}}));
+	}
 
 	updated(changedProps) {
 		if (changedProps.has('selected') && this.selected) {
