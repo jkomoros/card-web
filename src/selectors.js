@@ -51,6 +51,8 @@ export const selectMessages = (state) => state.comments ? state.comments.message
 export const selectThreads = (state) => state.comments ? state.comments.threads : null;
 export const selectAuthors = (state) => state.data.authors ? state.data.authors : null;
 export const selectActivePreviewCardId = (state) => state.app && state.app.hoverCardPreviewActive ? state.app.hoverCardId : '';
+export const selectPreviewCardX = (state) => state.app ? state.app.hoverX : 0;
+export const selectPreviewCardY = (state) => state.app ? state.app.hoverY : 0;
 
 export const selectQuery = (state) => state.find.query;
 
