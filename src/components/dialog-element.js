@@ -20,6 +20,8 @@ export class DialogElement extends LitElement {
 					width:100%;
 					top:0;
 					left:0;
+					/* Note that card-preview has a z-index higher than this to
+					show up above it */
 					z-index:1000;
 					display: ${this.open ? 'block' : 'none'}
 				}

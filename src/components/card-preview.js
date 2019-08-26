@@ -10,6 +10,9 @@ class CardPreview extends LitElement {
           position:absolute;
           right: 1em;
           bottom: 1em;
+          /* TODO: this z-index ia a bit of a hack to make sure it shows up
+          above e.g. dialogs, which are 1000 */
+          z-index: 10001;
         }
 
         card-renderer {
