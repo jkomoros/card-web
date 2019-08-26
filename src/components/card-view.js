@@ -70,7 +70,8 @@ import {
 	disablePresentationMode,
 	navigateToNextCard,
 	navigateToPreviousCard,
-	clearHoveredCard
+	clearHoveredCard,
+	updateHoveredCard
 } from '../actions/app.js';
 
 //Components needed by this
@@ -308,7 +309,7 @@ class CardView extends connect(store)(PageViewElement) {
 
       </style>
       <div @mousemove=${this._handleMouseMove} class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer .showing=${this._cardsDrawerPanelShowing} .labels=${this._collectionLabels} .labelName=${this._collectionLabelName} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' .editable=${this._userMayReorder} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .stars=${this._stars} .reads=${this._reads} .reorderPending=${this._drawerReorderPending}></card-drawer>
+        <card-drawer .showing=${this._cardsDrawerPanelShowing} .labels=${this._collectionLabels} .labelName=${this._collectionLabelName} @card-hovered=${this._handleCardHovered} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' .editable=${this._userMayReorder} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .stars=${this._stars} .reads=${this._reads} .reorderPending=${this._drawerReorderPending}></card-drawer>
         <div id='center'>
           <div id='canvas'>
             <div id='portrait-message'>
@@ -399,6 +400,10 @@ class CardView extends connect(store)(PageViewElement) {
 			return this._handleCloseEditor(e);
 		}
 		store.dispatch(editingStart());
+	}
+
+	_handleCardHovered(e) {
+		store.dispatch(updateHoveredCard(e.detail.x, e.detail.y, e.detail.card));
 	}
 
 	_handleBodyUpdated(e) {

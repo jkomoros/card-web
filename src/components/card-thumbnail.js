@@ -111,7 +111,7 @@ class CardThumbnail extends LitElement {
         }
 
       </style>
-      <div @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="${this.selected ? 'selected' : ''} ${this.cardType}">
+      <div @mousemove=${this._handleMouseMove} @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="${this.selected ? 'selected' : ''} ${this.cardType}">
         <h3 class=${this.cardHasContent ? '' : 'nocontent'}>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>
         <star-count .count=${this.card.star_count || 0} .highlighted=${this.starred} .light=${this.cardType != 'content'}></star-count>
         <read-decorator .visible=${this.read} .light=${this.cardType != 'content'}></read-decorator>
@@ -147,7 +147,14 @@ class CardThumbnail extends LitElement {
 		e.stopPropagation();
 		this._selectedViaClick = true;
 		this.dispatchEvent(new CustomEvent('thumbnail-tapped', {composed:true, detail: {card: this.card}}));
-	}
+  }
+  
+  _handleMouseMove(e) {
+    e.stopPropagation();
+    let id = this.card ? this.card.id : '';
+    //card-view will catch the card-hovered event no matter where it was thrown from
+    this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: id, x: e.x, y: e.y}}))
+  }
 
 	updated(changedProps) {
 		if (changedProps.has('selected') && this.selected) {
