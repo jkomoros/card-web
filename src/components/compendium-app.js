@@ -47,7 +47,9 @@ import {
 	selectActiveCard,
 	selectActiveSectionId,
 	selectRecentTabSelected,
-	selectActivePreviewCard
+	selectActivePreviewCard,
+	selectPreviewCardX,
+	selectPreviewCardY
 } from '../selectors.js';
 
 import {
@@ -223,7 +225,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		<div class='container'>
 			<find-dialog></find-dialog>
 			<compose-dialog></compose-dialog>
-			<card-preview .card=${this._activePreviewCard}></card-preview>
+			<card-preview .card=${this._activePreviewCard} .x=${this._previewCardX} .y=${this._previewCardY}></card-preview>
 			<!-- Header -->
 			<div class='header' ?hidden=${!this._headerPanelOpen}>
 				<div class='inner'>
@@ -272,7 +274,9 @@ class CompendiumApp extends connect(store)(LitElement) {
 			_keyboardNavigates: {type:Boolean},
 			_swRegistration : {type:Object},
 			_recentTabSelected: {type:Boolean},
-			_activePreviewCard: { type:Object }
+			_activePreviewCard: { type:Object },
+			_previewCardX : { type:Number },
+			_previewCardY : { type:Number }
 		};
 	}
 
@@ -370,6 +374,8 @@ class CompendiumApp extends connect(store)(LitElement) {
 		this._keyboardNavigates = keyboardNavigates(state);
 		this._recentTabSelected = selectRecentTabSelected(state);
 		this._activePreviewCard = selectActivePreviewCard(state);
+		this._previewCardX = selectPreviewCardX(state);
+		this._previewCardY = selectPreviewCardY(state);
 	}
 }
 

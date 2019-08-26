@@ -2,14 +2,17 @@ import { LitElement, html } from '@polymer/lit-element';
 
 import './card-renderer.js';
 
+const DEFAULT_CARD_OFFSET = 10;
+
 class CardPreview extends LitElement {
 	render() {
 		return html`
       <style>
         :host {
           position:absolute;
-          right: 1em;
-          bottom: 1em;
+          left: ${this.x + DEFAULT_CARD_OFFSET}px;
+          top: ${this.y + DEFAULT_CARD_OFFSET}px;
+
           /* TODO: this z-index ia a bit of a hack to make sure it shows up
           above e.g. dialogs, which are 1000 */
           z-index: 10001;
@@ -30,6 +33,8 @@ class CardPreview extends LitElement {
 	static get properties() { 
 		return {
 			card: {type: Object},
+			x: { type: Number },
+			y: { type: Number }
 		};
 	}
   
