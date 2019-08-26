@@ -13,7 +13,7 @@ export class CardRenderer extends LitElement {
         }
       </style>
       <section-head-card ?hidden=${this._cardType != 'section-head'} .title=${this._title} .subtitle=${this._subtitle}></section-head-card>
-      <content-card .dataIsFullyLoaded=${this.dataIsFullyLoaded} ?hidden=${this._cardType != 'content'} .bodyFromContentEditable=${this.bodyFromContentEditable} .titleFromContentEditable=${this.titleFromContentEditable} .editing=${this.editing} .id=${this._cardId} title="${this._title}" body="${this._body}" .fullBleed=${this._fullBleed} .starCount=${this.card.star_count}></content-card>
+      <content-card .dataIsFullyLoaded=${this.dataIsFullyLoaded} ?hidden=${this._cardType != 'content'} .bodyFromContentEditable=${this.bodyFromContentEditable} .titleFromContentEditable=${this.titleFromContentEditable} .editing=${this.editing} .id=${this._cardId} title="${this._title}" body="${this._body}" .fullBleed=${this._fullBleed} .starCount=${this._starCount}></content-card>
     `;
 	}
 
@@ -30,6 +30,7 @@ export class CardRenderer extends LitElement {
 			_cardType: {type:String},
 			_cardId: {type: String},
 			_fullBleed: {type: Boolean},
+			_starCount: { type:Number }
 		};
 	}
 
@@ -52,6 +53,7 @@ export class CardRenderer extends LitElement {
 				this._subtitle = this.card.subtitle || '';
 				this._cardId = this.card.id;
 				this._fullBleed = this.card.full_bleed ? true : false;
+				this._starCount = this.card.star_count;
 			} else {
 				this._cardType = '';
 				this._title = '';
@@ -59,6 +61,7 @@ export class CardRenderer extends LitElement {
 				this._subtitle = '';
 				this._cardId = '';
 				this._fullBleed = false;
+				this._starCount = 0;
 			}
       
 		}
