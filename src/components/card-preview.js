@@ -34,8 +34,25 @@ class CardPreview extends LitElement {
 		return {
 			card: {type: Object},
 			x: { type: Number },
-			y: { type: Number }
+			y: { type: Number },
+			_positionUp: { type:Boolean },
+			_positionLeft: { type: Boolean}
 		};
+	}
+  
+	_updatePosition() {
+		const ele = this.shadowRoot.querySelector('card-renderer');
+		if (!ele) return;
+		const previewBounds = ele.getBounds();
+		if (!previewBounds) return;
+		this._positionLeft = (this.x + previewBounds.width) > window.innerWidth;
+		this._positionUp = (this.y + previewBounds.height) > window.innerHeight;
+	}
+
+	updated(changedProps) {
+		if (changedProps.has('x') || changedProps.has('y')) {
+			this._updatePosition();      
+		}
 	}
   
 

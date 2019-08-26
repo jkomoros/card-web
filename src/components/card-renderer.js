@@ -34,6 +34,12 @@ export class CardRenderer extends LitElement {
 		};
 	}
 
+	getBounds() {
+		const ele = this.shadowRoot.querySelector('section-head-card');
+		if (!ele) return null;
+		return ele.getBounds();
+	}
+
 	_normalizeCardType(cardType) {
 		switch (cardType){
 		case 'section-head':

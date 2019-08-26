@@ -131,6 +131,10 @@ export class BaseCard extends LitElement {
 		this.addEventListener('click', e => this._handleClick(e));
 	}
 
+	getBounds() {
+		return this.getBoundingClientRect();
+	}
+
 }
 
 window.customElements.define('base-card', BaseCard);
