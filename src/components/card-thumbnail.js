@@ -152,7 +152,8 @@ class CardThumbnail extends LitElement {
 	_handleMouseMove(e) {
 		e.stopPropagation();
 		let id = this.card ? this.card.id : '';
-		//card-view will catch the card-hovered event no matter where it was thrown from
+		//compendium-app will catch the card-hovered event no matter where it was
+		//thrown from
 		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: id, x: e.clientX, y: e.clientY}}));
 	}
 

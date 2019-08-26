@@ -80,7 +80,9 @@ import {
 	navigateToPreviousCard,
 	updateOffline,
 	urlForCard,
-	turnMobileMode
+	turnMobileMode,
+	clearHoveredCard,
+	updateHoveredCard
 } from '../actions/app.js';
 
 // These are the elements needed by this element.
@@ -222,8 +224,8 @@ class CompendiumApp extends connect(store)(LitElement) {
 			}
 		</style>
 
-		<div class='container'>
-			<find-dialog></find-dialog>
+		<div @mousemove=${this._handleMouseMove} class='container'>
+			<find-dialog @card-hovered=${this._handleCardHovered}></find-dialog>
 			<compose-dialog></compose-dialog>
 			<card-preview .card=${this._activePreviewCard} .x=${this._previewCardX} .y=${this._previewCardY}></card-preview>
 			<!-- Header -->
@@ -249,7 +251,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 
 			<!-- Main content -->
 			<main role="main" class="main-content">
-				<card-view class="page" ?active="${this._page === 'c'}"></card-view>
+				<card-view class="page" ?active="${this._page === 'c'}" @card-hovered=${this._handleCardHovered}></card-view>
 				<comment-redirect-view class='page' ?active="${this._page === 'comment'}"></comment-redirect-view>
 				<my-view404 class="page" ?active="${this._page === 'view404'}"></my-view404>
 				<maintenance-view class='page' ?active="${this._page === 'maintenance'}"></maintenance-view>
@@ -334,6 +336,14 @@ class CompendiumApp extends connect(store)(LitElement) {
 			store.dispatch(navigateToPreviousCard());
 			break;
 		}
+	}
+
+	_handleCardHovered(e) {
+		store.dispatch(updateHoveredCard(e.detail.x, e.detail.y, e.detail.card));
+	}
+
+	_handleMouseMove() {
+		store.dispatch(clearHoveredCard());
 	}
 
 	updated(changedProps) {
