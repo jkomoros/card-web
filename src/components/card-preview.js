@@ -7,21 +7,21 @@ const DEFAULT_CARD_OFFSET = 10;
 class CardPreview extends LitElement {
 	render() {
 		return html`
-      <style>
-        :host {
-          position:absolute;
-          left: ${this.x + DEFAULT_CARD_OFFSET}px;
-          top: ${this.y + DEFAULT_CARD_OFFSET}px;
+		<style>
+			:host {
+				position:absolute;
+				${this._positionLeft ? html`right: ${this.x + DEFAULT_CARD_OFFSET}px;` : html`left: ${this.x + DEFAULT_CARD_OFFSET}px;`}
+				${this._positionUp ? html`bottom: ${this.y + DEFAULT_CARD_OFFSET}px;` : html`top: ${this.y + DEFAULT_CARD_OFFSET}px;`}
 
-          /* TODO: this z-index ia a bit of a hack to make sure it shows up
-          above e.g. dialogs, which are 1000 */
-          z-index: 10001;
-        }
+				/* TODO: this z-index ia a bit of a hack to make sure it shows up
+				above e.g. dialogs, which are 1000 */
+				z-index: 10001;
+			}
 
-        card-renderer {
-          /* font-size is the primary way to affect the size of a card-renderer */
-          font-size: 10px;
-        }
+			card-renderer {
+				/* font-size is the primary way to affect the size of a card-renderer */
+				font-size: 10px;
+			}
 
       </style>
       <div ?hidden='${!this.card}'>
