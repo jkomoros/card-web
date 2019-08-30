@@ -10,14 +10,16 @@ const DEFAULT_CARD_OFFSET = 10;
 
 class CardPreview extends LitElement {
 	render() {
-		const positionLeft = (this.x + CARD_WIDTH_IN_EMS * this.previewSize) > window.innerWidth;
-		const positionUp = (this.y + CARD_HEIGHT_IN_EMS * this.previewSize) > window.innerHeight;     
+		const cardWidthInPixels = CARD_WIDTH_IN_EMS * this.previewSize;
+		const cardHeightInPixels = CARD_HEIGHT_IN_EMS * this.previewSize;
+		const positionLeft = (this.x + cardWidthInPixels) > window.innerWidth;
+		const positionUp = (this.y + cardHeightInPixels) > window.innerHeight;
 		return html`
 		<style>
 			:host {
 				position:absolute;
-				${positionLeft ? html`right: ${this.x + DEFAULT_CARD_OFFSET}px;` : html`left: ${this.x + DEFAULT_CARD_OFFSET}px;`}
-				${positionUp ? html`bottom: ${this.y + DEFAULT_CARD_OFFSET}px;` : html`top: ${this.y + DEFAULT_CARD_OFFSET}px;`}
+				left: ${positionLeft ? html`${this.x - cardWidthInPixels - DEFAULT_CARD_OFFSET}` : html`${this.x + DEFAULT_CARD_OFFSET}`}px;
+				top: ${positionUp ? html`${this.y - cardHeightInPixels - DEFAULT_CARD_OFFSET}` : html`${this.y + DEFAULT_CARD_OFFSET}`}px;
 
 				/* TODO: this z-index ia a bit of a hack to make sure it shows up
 				above e.g. dialogs, which are 1000 */
