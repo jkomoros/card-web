@@ -6,8 +6,6 @@ import {
 	CARD_HEIGHT_IN_EMS
 } from './base-card.js';
 
-const DEFAULT_CARD_OFFSET = 10;
-
 class CardPreview extends LitElement {
 	render() {
 		const cardWidthInPixels = CARD_WIDTH_IN_EMS * this.previewSize;
@@ -18,8 +16,8 @@ class CardPreview extends LitElement {
 		<style>
 			:host {
 				position:absolute;
-				left: ${positionLeft ? html`${this.x - cardWidthInPixels - DEFAULT_CARD_OFFSET}` : html`${this.x + DEFAULT_CARD_OFFSET}`}px;
-				top: ${positionUp ? html`${this.y - cardHeightInPixels - DEFAULT_CARD_OFFSET}` : html`${this.y + DEFAULT_CARD_OFFSET}`}px;
+				left: ${positionLeft ? html`${this.x - cardWidthInPixels - this.cardOffset}` : html`${this.x + this.cardOffset}`}px;
+				top: ${positionUp ? html`${this.y - cardHeightInPixels - this.cardOffset}` : html`${this.y + this.cardOffset}`}px;
 
 				/* TODO: this z-index ia a bit of a hack to make sure it shows up
 				above e.g. dialogs, which are 1000 */
@@ -41,6 +39,7 @@ class CardPreview extends LitElement {
 	constructor() {
 		super();
 		this.previewSize = 10.0;
+		this.cardOffset = 10.0;
 	}
 
 	static get properties() { 
@@ -50,6 +49,8 @@ class CardPreview extends LitElement {
 			y: { type: Number },
 			/* size of font for card in px*/
 			previewSize: { type: Number },
+			/* offset from the cursor in pixels */
+			cardOffset : { type: Number },
 		};
 	}
 
