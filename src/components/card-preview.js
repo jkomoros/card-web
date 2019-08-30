@@ -1,17 +1,23 @@
 import { LitElement, html } from '@polymer/lit-element';
 
 import './card-renderer.js';
+import { 
+	CARD_WIDTH_IN_EMS,
+	CARD_HEIGHT_IN_EMS
+} from './base-card.js';
 
 const DEFAULT_CARD_OFFSET = 10;
 
 class CardPreview extends LitElement {
 	render() {
+		const positionLeft = (this.x + CARD_WIDTH_IN_EMS * this.previewSize) > window.innerWidth;
+		const positionUp = (this.y + CARD_HEIGHT_IN_EMS * this.previewSize) > window.innerHeight;     
 		return html`
 		<style>
 			:host {
 				position:absolute;
-				${this._positionLeft ? html`right: ${this.x + DEFAULT_CARD_OFFSET}px;` : html`left: ${this.x + DEFAULT_CARD_OFFSET}px;`}
-				${this._positionUp ? html`bottom: ${this.y + DEFAULT_CARD_OFFSET}px;` : html`top: ${this.y + DEFAULT_CARD_OFFSET}px;`}
+				${positionLeft ? html`right: ${this.x + DEFAULT_CARD_OFFSET}px;` : html`left: ${this.x + DEFAULT_CARD_OFFSET}px;`}
+				${positionUp ? html`bottom: ${this.y + DEFAULT_CARD_OFFSET}px;` : html`top: ${this.y + DEFAULT_CARD_OFFSET}px;`}
 
 				/* TODO: this z-index ia a bit of a hack to make sure it shows up
 				above e.g. dialogs, which are 1000 */
@@ -20,7 +26,7 @@ class CardPreview extends LitElement {
 
 			card-renderer {
 				/* font-size is the primary way to affect the size of a card-renderer */
-				font-size: 10px;
+				font-size: ${this.previewSize}px;
 			}
 
       </style>
@@ -29,32 +35,22 @@ class CardPreview extends LitElement {
       </div>
     `;
 	}
+	
+	constructor() {
+		super();
+		this.previewSize = 10.0;
+	}
 
 	static get properties() { 
 		return {
 			card: {type: Object},
 			x: { type: Number },
 			y: { type: Number },
-			_positionUp: { type:Boolean },
-			_positionLeft: { type: Boolean}
+			/* size of font for card in px*/
+			previewSize: { type: Number },
 		};
 	}
-  
-	_updatePosition() {
-		const ele = this.shadowRoot.querySelector('card-renderer');
-		if (!ele) return;
-		const previewBounds = ele.getBounds();
-		if (!previewBounds) return;
-		this._positionLeft = (this.x + previewBounds.width) > window.innerWidth;
-		this._positionUp = (this.y + previewBounds.height) > window.innerHeight;
-	}
 
-	updated(changedProps) {
-		if (changedProps.has('x') || changedProps.has('y')) {
-			this._updatePosition();      
-		}
-	}
-  
 
 }
 
