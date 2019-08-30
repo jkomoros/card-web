@@ -4,6 +4,11 @@ import { SharedStyles } from './shared-styles.js';
 
 import './star-count.js';
 
+export const CARD_WIDTH_IN_EMS = 43.63;
+export const CARD_HEIGHT_IN_EMS = 24.54;
+export const CARD_VERTICAL_PADDING_IN_EMS = 1.0;
+export const CARD_HORIZONTAL_PADDING_IN_EMS = 1.45;
+
 // This element is *not* connected to the Redux store.
 export class BaseCard extends LitElement {
 	render() {
@@ -14,10 +19,9 @@ export class BaseCard extends LitElement {
 					display:block;
 					background-color: var(--card-color);
 					
-					/* These 3 values are duplicated in card-view _resizeCard calculation */
-					width: 43.63em;
-					height: 24.54em;
-					padding: 1em 1.45em;
+					width: ${CARD_WIDTH_IN_EMS}em;
+					height: ${CARD_HEIGHT_IN_EMS}em;
+					padding: ${CARD_VERTICAL_PADDING_IN_EMS}em ${CARD_HORIZONTAL_PADDING_IN_EMS}em;
 
 					box-shadow: var(--card-shadow);
 					box-sizing: border-box;

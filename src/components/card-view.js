@@ -108,6 +108,12 @@ import {
 import { SharedStyles } from './shared-styles.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
+import { 
+	CARD_WIDTH_IN_EMS,
+	CARD_HORIZONTAL_PADDING_IN_EMS,
+	CARD_HEIGHT_IN_EMS,
+	CARD_VERTICAL_PADDING_IN_EMS
+} from './base-card.js';
 
 class CardView extends connect(store)(PageViewElement) {
 	render() {
@@ -546,11 +552,11 @@ class CardView extends connect(store)(PageViewElement) {
 
 		const paddingInPx = Math.round(rect.width / 12);
 		//Next two come from the style for base-card
-		const cardWidthInEms = 43.63;
-		const cardWidthPaddingInEms = 2 * (1.45);
+		const cardWidthInEms = CARD_WIDTH_IN_EMS;
+		const cardWidthPaddingInEms = 2 * (CARD_HORIZONTAL_PADDING_IN_EMS);
 
-		const cardHeightInEms = 24.54;
-		const cardHeightPaddingInEms = 2 * (1.0);
+		const cardHeightInEms = CARD_HEIGHT_IN_EMS;
+		const cardHeightPaddingInEms = 2 * (CARD_VERTICAL_PADDING_IN_EMS);
 
 		const totalCardWidthInEms = cardWidthInEms + cardWidthPaddingInEms;
 		const totalCardHeighInEms = cardHeightInEms + cardHeightPaddingInEms;
