@@ -1,6 +1,9 @@
 import { LitElement, html } from '@polymer/lit-element';
 
 import './card-renderer.js';
+import './star-count.js';
+import './thread-count.js';
+
 import { 
 	CARD_WIDTH_IN_EMS,
 	CARD_HEIGHT_IN_EMS
@@ -29,9 +32,19 @@ class CardPreview extends LitElement {
 				font-size: ${this.previewSize}px;
 			}
 
+			.decorators {
+				position: absolute;
+				bottom: 0.25em;
+				right: 0.25em;
+			}
+
       </style>
       <div ?hidden='${!this.card}'>
-        <card-renderer .card=${this.card}></card-renderer>
+		<card-renderer .card=${this.card}></card-renderer>
+		<div class='decorators'>
+			<star-count .count=${this.card ? this.card.star_count : 0}></star-count>
+			<thread-count .count=${this.card ? this.card.thread_count : 0}></thread-count>
+		</div>
       </div>
     `;
 	}
