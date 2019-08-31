@@ -187,7 +187,9 @@ export const updateCollection = (setName, filters, sortName, sortReversed) => (d
 	if (sortReversed == selectActiveSortReversed(state)) sameSortDirection = true;
 
 	if (sameSetName && sameActiveFilters && sameSortName && sameSortDirection) return;
-	//make sure we're working with the newest set of filters.
+	//make sure we're working with the newest set of filters, because now is the
+	//one time that it's generally OK to update the active filter set, since the
+	//whole collection is changing anyway.
 	dispatch({type: COMMIT_PENDING_FILTERS});
 	dispatch({
 		type: UPDATE_COLLECTION,
