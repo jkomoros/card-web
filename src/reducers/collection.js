@@ -1,6 +1,7 @@
 import {
 	SHOW_CARD,
-	UPDATE_COLLECTION
+	UPDATE_COLLECTION,
+	COMMIT_PENDING_FILTERS
 } from '../actions/collection.js';
 
 import {
@@ -110,7 +111,21 @@ const INITIAL_STATE = {
 	activeFilterNames: [],
 	activeSortName: DEFAULT_SORT_NAME,
 	activeSortReversed: false,
+	//These are the actual values of the filters in current use. We queue up
+	//changes in pendingFilters and then synchronize this value to that value
+	//when we know it's OK for the collection to change.
 	filters: {
+		starred: {},
+		read: {},
+		'has-slug': {},
+		'has-comments': {},
+		'has-content': {},
+		//None will match nothing. We use it for orphans.
+		none: {},
+	},
+	//The things that modify filters actuall modify pendingFilters. Only when we
+	//receive a COMMIT_PENDING_FILTERS do we copy over the modifications.
+	pendingFilters: {
 		starred: {},
 		read: {},
 		'has-slug': {},
@@ -144,30 +159,37 @@ const app = (state = INITIAL_STATE, action) => {
 			activeSortName: action.sortName,
 			activeSortReversed: action.sortReversed,
 		};
+	case COMMIT_PENDING_FILTERS:
+		//TODO: figure out how to fire this every time one of the other ones
+		//that updates filters is fired if it's before data fully loaded.
+		return {
+			...state,
+			filters: {...state.pendingFilters},
+		};
 	case UPDATE_SECTIONS:
 		return {
 			...state,
-			filters: {...state.filters, ...makeFilterFromSection(action.sections)}
+			pendingFilters: {...state.pendingFilters, ...makeFilterFromSection(action.sections)}
 		};
 	case UPDATE_TAGS:
 		return {
 			...state,
-			filters: {...state.filters, ...makeFilterFromSection(action.tags)}
+			pendingFilters: {...state.pendingFilters, ...makeFilterFromSection(action.tags)}
 		};
 	case UPDATE_CARDS:
 		return {
 			...state,
-			filters: {...state.filters, ...makeFilterFromCards(action.cards, state.filters)}
+			pendingFilters: {...state.pendingFilters, ...makeFilterFromCards(action.cards, state.pendingFilters)}
 		};
 	case UPDATE_STARS:
 		return {
 			...state,
-			filters: {...state.filters, starred: setUnion(setRemove(state.filters.starred, action.starsToRemove), action.starsToAdd)}
+			pendingFilters: {...state.pendingFilters, starred: setUnion(setRemove(state.pendingFilters.starred, action.starsToRemove), action.starsToAdd)}
 		};
 	case UPDATE_READS:
 		return {
 			...state,
-			filters: {...state.filters, read: setUnion(setRemove(state.filters.read, action.readsToRemove), action.readsToAdd)}
+			pendingFilters: {...state.pendingFilters, read: setUnion(setRemove(state.pendingFilters.read, action.readsToRemove), action.readsToAdd)}
 		};
 	default:
 		return state;

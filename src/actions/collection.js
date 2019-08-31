@@ -1,6 +1,7 @@
 export const SHOW_CARD = 'SHOW_CARD';
 export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
 export const RE_SHOW_CARD = 'RE_SHOW_CARD';
+export const COMMIT_PENDING_FILTERS = 'COMMIT_PENDING_FILTERS';
 
 //Collections are a complex conccept. The canonical (slightly out of date) documentation is at https://github.com/jkomoros/complexity-compendium/issues/60#issuecomment-451705854
 
@@ -186,6 +187,8 @@ export const updateCollection = (setName, filters, sortName, sortReversed) => (d
 	if (sortReversed == selectActiveSortReversed(state)) sameSortDirection = true;
 
 	if (sameSetName && sameActiveFilters && sameSortName && sameSortDirection) return;
+	//make sure we're working with the newest set of filters.
+	dispatch({type: COMMIT_PENDING_FILTERS});
 	dispatch({
 		type: UPDATE_COLLECTION,
 		setName,
@@ -205,6 +208,20 @@ export const refreshCardSelector = () => (dispatch, getState) => {
 	let page = selectPage(state);
 	if (page != 'c') return;
 	let pageExtra = selectPageExtra(state);
+
+	if (!selectDataIsFullyLoaded(state)) {
+		//This action creator gets called when ANYTHING that could have changed
+		//the collection gets called. If we got called before everything is
+		//fully loaded, then we should make sure that the more recent
+		//information is available to filter off of. If it was AFTER everythign
+		//was fully loaded, then we should optimize for the collection not
+		//changing while the user is looking at it (for example, if they're
+		//looking at `/c/unread/_` then it would be weird for the card to
+		//disappear when auto-read), and instead wait until the collection is
+		//changed.
+		dispatch({type:COMMIT_PENDING_FILTERS})
+	}
+
 	dispatch(updateCardSelector(pageExtra));
 };
 
