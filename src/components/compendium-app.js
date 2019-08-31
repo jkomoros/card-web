@@ -91,6 +91,7 @@ import './user-chip.js';
 import './find-dialog.js';
 import './compose-dialog.js';
 import './card-preview.js';
+import { CARD_WIDTH_IN_EMS } from './base-card';
 
 class CompendiumApp extends connect(store)(LitElement) {
 	render() {
@@ -306,6 +307,8 @@ class CompendiumApp extends connect(store)(LitElement) {
 		installMediaQueryWatcher('(max-width: 900px)',(isMobile) => {
 			store.dispatch(turnMobileMode(isMobile));
 		});
+		window.addEventListener('resize', () => this._updatePreviewSize());
+		this._updatePreviewSize();
 		window.addEventListener('keydown', e => this._handleKeyPressed(e));
 		this.addEventListener('card-hovered', e => this._handleCardHovered(e));
 		connectLiveCards(store);
@@ -314,6 +317,20 @@ class CompendiumApp extends connect(store)(LitElement) {
 		connectLiveAuthors(store);
 		connectLiveThreads(store);
 		connectLiveMessages(store);
+	}
+
+	_updatePreviewSize() {
+		const ele = this.shadowRoot.querySelector('card-preview');
+		if (!ele) return;
+
+		// The width should never be more than 40% of available size, which also
+		// guarantees it can fit (as long as cardOffset isn't too large).
+		const targetWidth = window.innerWidth * 0.4;
+
+		//TODO: if height is more constraining (compared to aspect ratio of a
+		//card) then use that instead.
+		
+		ele.previewSize = Math.round(targetWidth / CARD_WIDTH_IN_EMS);
 	}
 
 	_handleKeyPressed(e) {
