@@ -47,7 +47,7 @@ class CardPreview extends LitElement {
       <div ?hidden='${!this.card}'>
 		<card-renderer .card=${this.card}></card-renderer>
 		<div class='decorators'>
-			<star-count .count=${this.card ? this.card.star_count : 0} .higlighted=${starred}></star-count>
+			<star-count .count=${this.card ? this.card.star_count : 0} .highlighted=${starred}></star-count>
 			<thread-count .count=${this.card ? this.card.thread_count : 0}></thread-count>
 			<read-decorator .visible=${read}></read-decorator>
 		</div>
