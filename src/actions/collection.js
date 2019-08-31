@@ -219,7 +219,7 @@ export const refreshCardSelector = () => (dispatch, getState) => {
 		//looking at `/c/unread/_` then it would be weird for the card to
 		//disappear when auto-read), and instead wait until the collection is
 		//changed.
-		dispatch({type:COMMIT_PENDING_FILTERS})
+		dispatch({type:COMMIT_PENDING_FILTERS});
 	}
 
 	dispatch(updateCardSelector(pageExtra));
