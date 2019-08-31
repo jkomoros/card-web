@@ -81,7 +81,7 @@ import {
 	updateOffline,
 	urlForCard,
 	turnMobileMode,
-	clearHoveredCard,
+	hoveredCardMouseMoved,
 	updateHoveredCard
 } from '../actions/app.js';
 
@@ -339,11 +339,12 @@ class CompendiumApp extends connect(store)(LitElement) {
 	}
 
 	_handleCardHovered(e) {
+		store.dispatch(hoveredCardMouseMoved());
 		store.dispatch(updateHoveredCard(e.detail.x, e.detail.y, e.detail.card));
 	}
 
 	_handleMouseMove() {
-		store.dispatch(clearHoveredCard());
+		store.dispatch(hoveredCardMouseMoved());
 	}
 
 	updated(changedProps) {

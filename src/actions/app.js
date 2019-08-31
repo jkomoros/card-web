@@ -25,10 +25,9 @@ export const DISABLE_PRESENTATION_MODE = 'DISABLE_PRESENTATION_MODE';
 export const ENABLE_MOBILE_MODE = 'ENABLE_MOBILE_MODE';
 export const DISABLE_MOBILE_MODE = 'DISABLE_MOBILE_MODE';
 export const UPDATE_HOVERED_CARD = 'UPDATE_HOVERED_CARD';
-export const SHOW_PREVIEW_FOR_HOVERED_CARD = 'SHOW_PREVIEW_FOR_HOVERED_CARD';
 
 import {
-	selectFinalCollection, selectCommentsAreFullyLoaded, getMessageById, getThreadById, selectPage, selectPageExtra
+	selectFinalCollection, selectCommentsAreFullyLoaded, getMessageById, getThreadById, selectPage, selectPageExtra, selectActivePreviewCardId
 } from '../selectors.js';
 
 import {
@@ -193,24 +192,25 @@ const updatePage = (location, page, pageExtra) => {
 let hoverPreviewTimer;
 let HOVER_CARD_PREVIEW_DELAY = 1000;
 
-export const clearHoveredCard = () => (dispatch) => {
-	if (hoverPreviewTimer) {
-		dispatch(updateHoveredCard(0,0,''));
-	}
+const cancelHoverTimeout = () => {
+	if (!hoverPreviewTimer) return;
+	window.clearTimeout(hoverPreviewTimer);
+	hoverPreviewTimer = 0;
+}
+
+export const hoveredCardMouseMoved = () => (dispatch, getState) => {
+	cancelHoverTimeout();
+	const activePreviewCardId = selectActivePreviewCardId(getState());
+	if (!activePreviewCardId) return;
+	dispatch({ type: UPDATE_HOVERED_CARD, x: 0, y: 0, cardId: ''});
 }
 
 export const updateHoveredCard = (x,y,cardId) => (dispatch) => {
-	if (hoverPreviewTimer) {
-		window.clearTimeout(hoverPreviewTimer);
+	cancelHoverTimeout();
+	hoverPreviewTimer = window.setTimeout(() => {
 		hoverPreviewTimer = 0;
-	}
-	if (cardId) {
-		hoverPreviewTimer = window.setTimeout(() => {
-			hoverPreviewTimer = 0;
-			dispatch({type: SHOW_PREVIEW_FOR_HOVERED_CARD});
-		}, HOVER_CARD_PREVIEW_DELAY);
-	}
-	dispatch({ type: UPDATE_HOVERED_CARD, x, y, cardId});
+		dispatch({ type: UPDATE_HOVERED_CARD, x, y, cardId});
+	}, HOVER_CARD_PREVIEW_DELAY);
 }
 
 let snackbarTimer;
