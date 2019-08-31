@@ -225,7 +225,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		</style>
 
 		<div @mousemove=${this._handleMouseMove} class='container'>
-			<find-dialog @card-hovered=${this._handleCardHovered}></find-dialog>
+			<find-dialog></find-dialog>
 			<compose-dialog></compose-dialog>
 			<card-preview .card=${this._activePreviewCard} .x=${this._previewCardX} .y=${this._previewCardY} .stars=${this._stars} .reads=${this._reads}></card-preview>
 			<!-- Header -->
@@ -251,7 +251,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 
 			<!-- Main content -->
 			<main role="main" class="main-content">
-				<card-view class="page" ?active="${this._page === 'c'}" @card-hovered=${this._handleCardHovered}></card-view>
+				<card-view class="page" ?active="${this._page === 'c'}"></card-view>
 				<comment-redirect-view class='page' ?active="${this._page === 'comment'}"></comment-redirect-view>
 				<my-view404 class="page" ?active="${this._page === 'view404'}"></my-view404>
 				<maintenance-view class='page' ?active="${this._page === 'maintenance'}"></maintenance-view>
@@ -307,6 +307,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 			store.dispatch(turnMobileMode(isMobile));
 		});
 		window.addEventListener('keydown', e => this._handleKeyPressed(e));
+		this.addEventListener('card-hovered', e => this._handleCardHovered(e));
 		connectLiveCards(store);
 		connectLiveSections(store);
 		connectLiveTags(store);
