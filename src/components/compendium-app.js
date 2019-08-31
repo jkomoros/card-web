@@ -244,7 +244,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 							`)}` :
 		html`<a ?selected="${this._page === 'c'}" href="/c"><em>Loading...</em></a>`
 }
-						<a ?selected=${this._recentTabSelected} href="/c/all/sort/recent/_">Recent</a>
+						<a ?selected=${this._recentTabSelected} href="/c/has-content/sort/recent/_">Recent</a>
 					</nav>
 					<div class='spacer dev'>
 						${this._devMode ? html`DEVMODE` : ''}
