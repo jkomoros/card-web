@@ -61,6 +61,22 @@ class CardPreview extends LitElement {
 		this.cardOffset = 10.0;
 	}
 
+	firstUpdated() {
+		window.addEventListener('resize', () => this._updatePreviewSize());
+		this._updatePreviewSize();
+	}
+
+	_updatePreviewSize() {
+		// The width should never be more than 40% of available size, which also
+		// guarantees it can fit (as long as cardOffset isn't too large).
+		const targetWidth = window.innerWidth * 0.4;
+
+		//TODO: if height is more constraining (compared to aspect ratio of a
+		//card) then use that instead.
+		
+		this.previewSize = Math.round(targetWidth / CARD_WIDTH_IN_EMS);
+	}
+
 	static get properties() { 
 		return {
 			card: {type: Object},
