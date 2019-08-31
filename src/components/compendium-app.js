@@ -91,7 +91,10 @@ import './user-chip.js';
 import './find-dialog.js';
 import './compose-dialog.js';
 import './card-preview.js';
-import { CARD_WIDTH_IN_EMS } from './base-card';
+import { 
+	CARD_WIDTH_IN_EMS,
+	CARD_HEIGHT_IN_EMS
+} from './base-card';
 
 class CompendiumApp extends connect(store)(LitElement) {
 	render() {
@@ -326,11 +329,19 @@ class CompendiumApp extends connect(store)(LitElement) {
 		// The width should never be more than 40% of available size, which also
 		// guarantees it can fit (as long as cardOffset isn't too large).
 		const targetWidth = window.innerWidth * 0.4;
+		const targetHeight = window.innerHeight * 0.4;
 
-		//TODO: if height is more constraining (compared to aspect ratio of a
-		//card) then use that instead.
+		let targetSize = 10.0;
+
+		if (targetWidth / targetHeight > CARD_WIDTH_IN_EMS / CARD_HEIGHT_IN_EMS) {
+			//The width is larger than height, meaning height is most constraining.
+			targetSize = targetHeight / CARD_HEIGHT_IN_EMS;
+		} else {
+			//The height is larger than width, meaning width is most constarining
+			targetSize = targetWidth / CARD_WIDTH_IN_EMS;
+		}
 		
-		ele.previewSize = Math.round(targetWidth / CARD_WIDTH_IN_EMS);
+		ele.previewSize = Math.round(targetSize);
 	}
 
 	_handleKeyPressed(e) {
