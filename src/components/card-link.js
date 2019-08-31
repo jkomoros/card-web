@@ -33,7 +33,7 @@ class CardLink extends connect(store)(LitElement) {
 					cursor: var(--card-link-cursor, pointer);
 				}
 			</style>
-			<a @mousemove=${this._handleMouseMove} title='${this._title}' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
+			<a @mousemove=${this._handleMouseMove} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
 	}
 
 	static get properties() {
@@ -73,12 +73,6 @@ class CardLink extends connect(store)(LitElement) {
 		if (!this.card) return null;
 		if (!this._cards) return null;
 		return this._cards[this.card];
-	}
-
-	get _title() {
-		let card = this._cardObj;
-		if (!card) return '';
-		return card.title + ' - ' + card.name;
 	}
 
 	get _read() {
