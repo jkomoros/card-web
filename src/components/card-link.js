@@ -33,7 +33,7 @@ class CardLink extends connect(store)(LitElement) {
 					cursor: var(--card-link-cursor, pointer);
 				}
 			</style>
-			<a title='${this._title}' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
+			<a @mousemove=${this._handleMouseMove} title='${this._title}' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
 	}
 
 	static get properties() {
@@ -55,6 +55,13 @@ class CardLink extends connect(store)(LitElement) {
 			}
 		}
 		return html`<slot></slot>`;
+	}
+
+	_handleMouseMove(e) {
+		e.stopPropagation();
+		//compendium-app will catch the card-hovered event no matter where it was
+		//thrown from
+		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: this.card, x: e.clientX, y: e.clientY}}));
 	}
 
 	stateChanged(state) {
