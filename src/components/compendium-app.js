@@ -227,7 +227,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		<div @mousemove=${this._handleMouseMove} class='container'>
 			<find-dialog @card-hovered=${this._handleCardHovered}></find-dialog>
 			<compose-dialog></compose-dialog>
-			<card-preview .card=${this._activePreviewCard} .x=${this._previewCardX} .y=${this._previewCardY}></card-preview>
+			<card-preview .card=${this._activePreviewCard} .x=${this._previewCardX} .y=${this._previewCardY} .stars=${this._stars} .reads=${this._reads}></card-preview>
 			<!-- Header -->
 			<div class='header' ?hidden=${!this._headerPanelOpen}>
 				<div class='inner'>
@@ -278,7 +278,9 @@ class CompendiumApp extends connect(store)(LitElement) {
 			_recentTabSelected: {type:Boolean},
 			_activePreviewCard: { type:Object },
 			_previewCardX : { type:Number },
-			_previewCardY : { type:Number }
+			_previewCardY : { type:Number },
+			_reads : { type:Object },
+			_stars : { type:Object }
 		};
 	}
 
@@ -387,6 +389,8 @@ class CompendiumApp extends connect(store)(LitElement) {
 		this._activePreviewCard = selectActivePreviewCard(state);
 		this._previewCardX = selectPreviewCardX(state);
 		this._previewCardY = selectPreviewCardY(state);
+		this._stars = state.user ? state.user.stars : null;
+		this._reads = state.user ? state.user.reads : null;
 	}
 }
 
