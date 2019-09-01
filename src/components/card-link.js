@@ -37,11 +37,19 @@ class CardLink extends connect(store)(LitElement) {
 					color: var(--app-secondary-color-light);
 				}
 
+				a.card.exists.unpublished {
+					color: var(--app-warning-color);
+				}
+
+				a.card.exists.unpublished:visited, a.card.exists.read.unpublished {
+					color: var(--app-warning-color-light);
+				}
+
 				a {
 					cursor: var(--card-link-cursor, pointer);
 				}
 			</style>
-			<a @mousemove=${this._handleMouseMove} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
+			<a @mousemove=${this._handleMouseMove} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
 	}
 
 	static get properties() {
@@ -85,6 +93,10 @@ class CardLink extends connect(store)(LitElement) {
 
 	get _cardExists() {
 		return this._cardObj ? true : false;
+	}
+
+	get _cardIsUnpublished() {
+		return this._cardObj ? !this._cardObj.published : false;
 	}
 
 	get _read() {

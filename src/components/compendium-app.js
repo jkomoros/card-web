@@ -112,6 +112,8 @@ class CompendiumApp extends connect(store)(LitElement) {
 				--app-primary-color-subtle: #7e57c2;
 				--app-secondary-color: #009688;
 				--app-secondary-color-light: #00dac6;
+				--app-warning-color: #CC0000;
+				--app-warning-color-light: #EE0000;
 
 				--app-dark-text-color: #7f7f7f;
 				--app-light-text-color: white;
