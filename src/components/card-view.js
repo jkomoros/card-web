@@ -29,6 +29,7 @@ import {
 	selectTags,
 	selectActiveCollectionLabels,
 	selectActiveSortLabelName,
+	selectReads
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -518,7 +519,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._collectionLabels = selectActiveCollectionLabels(state);
 		this._collectionLabelName = selectActiveSortLabelName(state);
 		this._stars = state.user.stars;
-		this._reads = state.user.reads;
+		this._reads = selectReads(state);
 		this._tagInfos = selectTags(state);
 		this._drawerReorderPending = state.data.reorderPending;
 		this._activeSectionId = selectActiveSectionId(state);

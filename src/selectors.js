@@ -53,6 +53,7 @@ export const selectAuthors = (state) => state.data.authors ? state.data.authors 
 export const selectActivePreviewCardId = (state) => state.app ? state.app.hoverCardId : '';
 export const selectPreviewCardX = (state) => state.app ? state.app.hoverX : 0;
 export const selectPreviewCardY = (state) => state.app ? state.app.hoverY : 0;
+export const selectReads = (state) => state.user ? state.user.reads : 0;
 
 export const selectQuery = (state) => state.find.query;
 
@@ -168,7 +169,7 @@ export const getCardHasStar = (state, cardId) => {
 };
 
 export const getCardIsRead = (state, cardId) => {
-	return state.user.reads[cardId] || false;
+	return selectReads(state)[cardId] || false;
 };
 
 export const getUserMayResolveThread = (state, thread) => userMayResolveThread(selectUser(state), thread);

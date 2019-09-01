@@ -49,7 +49,8 @@ import {
 	selectRecentTabSelected,
 	selectActivePreviewCard,
 	selectPreviewCardX,
-	selectPreviewCardY
+	selectPreviewCardY,
+	selectReads
 } from '../selectors.js';
 
 import {
@@ -420,7 +421,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		this._previewCardX = selectPreviewCardX(state);
 		this._previewCardY = selectPreviewCardY(state);
 		this._stars = state.user ? state.user.stars : null;
-		this._reads = state.user ? state.user.reads : null;
+		this._reads = selectReads(state);
 	}
 }
 
