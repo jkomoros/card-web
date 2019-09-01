@@ -14,6 +14,13 @@ class CardLink extends connect(store)(LitElement) {
 					display:inline;
 				}
 
+				/* cards that do not exist are likely unpublished and invisible to this user*/
+				a.card.does-not-exist {
+					color: inherit;
+					text-decoration: none;
+					cursor:inherit;
+				}
+
 				a {
 					color: var(--app-primary-color);
 				}
@@ -22,11 +29,11 @@ class CardLink extends connect(store)(LitElement) {
 					color: var(--app-primary-color-light);
 				}
 
-				a.card {
+				a.card.exists {
 					color: var(--app-secondary-color);
 				}
 
-				a.card:visited, a.card.read {
+				a.card.exists:visited, a.card.exists.read {
 					color: var(--app-secondary-color-light);
 				}
 
@@ -34,7 +41,7 @@ class CardLink extends connect(store)(LitElement) {
 					cursor: var(--card-link-cursor, pointer);
 				}
 			</style>
-			<a @mousemove=${this._handleMouseMove} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
+			<a @mousemove=${this._handleMouseMove} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
 	}
 
 	static get properties() {
@@ -74,6 +81,10 @@ class CardLink extends connect(store)(LitElement) {
 		if (!this.card) return null;
 		if (!this._cards) return null;
 		return this._cards[this.card];
+	}
+
+	get _cardExists() {
+		return this._cardObj ? true : false;
 	}
 
 	get _read() {
