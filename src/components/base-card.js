@@ -34,6 +34,10 @@ export class BaseCard extends LitElement {
 					width:100%;
 				}
 
+				.container.unpublished {
+					background-color: var(--unpublished-card-color);
+				}
+
 				.container.editing > *{
 					opacity:0.7;
 				}
@@ -101,7 +105,7 @@ export class BaseCard extends LitElement {
 				}
 
 			</style>
-			<div class="container ${this.editing ? 'editing' : ''}">
+			<div class="container ${this.editing ? 'editing' : ''} ${this.published ? 'published' : 'unpublished'}">
 				${this.innerRender()}
 				<star-count .count=${this.starCount}></star-count>
 			</div>
@@ -116,7 +120,8 @@ export class BaseCard extends LitElement {
 	static get properties() {
 		return {
 			editing : { type:Boolean },
-			starCount: { type:Number }
+			starCount: { type:Number },
+			published: { type: Boolean }
 		};
 	}
 
