@@ -104,6 +104,7 @@ export const INVERSE_FILTER_NAMES = {
 	'no-slug': 'has-slug',
 	'no-comments': 'has-comments',
 	'no-content': 'has-content',
+	'published' : 'unpublished'
 };
 
 const INITIAL_STATE = {
@@ -120,6 +121,7 @@ const INITIAL_STATE = {
 		'has-slug': {},
 		'has-comments': {},
 		'has-content': {},
+		unpublished: {},
 		//None will match nothing. We use it for orphans.
 		none: {},
 	},
@@ -131,6 +133,7 @@ const INITIAL_STATE = {
 		'has-slug': {},
 		'has-comments': {},
 		'has-content': {},
+		unpublished: {},
 		//None will match nothing. We use it for orphans.
 		none: {},
 	},
@@ -219,6 +222,9 @@ const makeFilterFromCards = (cards, previousFilters) => {
 	let newCardsWithContent = [];
 	let newCardsWithoutContent = [];
 
+	let newCardsWithUnpublished = [];
+	let newCardsWithoutUnpublished = [];
+
 	for (let card of Object.values(cards)) {
 		if (card.slugs && card.slugs.length) {
 			newCardsWithSlug.push(card.id);
@@ -236,13 +242,20 @@ const makeFilterFromCards = (cards, previousFilters) => {
 		} else {
 			newCardsWithoutContent.push(card.id);
 		}
+
+		if (!card.published) {
+			newCardsWithUnpublished.push(card.id);
+		} else {
+			newCardsWithoutUnpublished.push(card.id);
+		}
 		
 	}
 
 	return {
 		'has-slug': setUnion(setRemove(previousFilters['has-slug'], newCardsWithoutSlug), newCardsWithSlug),
 		'has-comments': setUnion(setRemove(previousFilters['has-comments'],  newCardsWithoutComments), newCardsWithComments),
-		'has-content': setUnion(setRemove(previousFilters['has-content'], newCardsWithoutContent), newCardsWithContent)
+		'has-content': setUnion(setRemove(previousFilters['has-content'], newCardsWithoutContent), newCardsWithContent),
+		'unpublished': setUnion(setRemove(previousFilters['unpublished'], newCardsWithoutUnpublished), newCardsWithUnpublished)
 	};
 
 
