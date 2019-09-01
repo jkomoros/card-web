@@ -401,17 +401,20 @@ export const selectActiveSortLabelName = createSelector(
 	(sortInfo) => sortInfo.labelName || ''
 );
 
+//expandCardCollection should be used any time we have a list of IDs of cards and a bundle of cards to expand.
+const expandCardCollection = (collection, cards) => collection.map(id => cards[id] || null).filter(card => card ? true : false);
+
 const selectExpandedActiveStartCards = createSelector(
 	selectActiveStartCards,
 	selectCards,
-	(startCards, cards) => startCards.map(id => cards[id] || null)
+	(startCards, cards) => expandCardCollection(startCards, cards)
 );
 
 //Expanded means it includes the full cards in place, but NOT SORTED
 const selectExpandedActiveCollection = createSelector(
 	selectActiveBaseCollection,
 	selectCards,
-	(collection, cards) => collection.map(id => cards[id] || null)
+	(collection, cards) => expandCardCollection(collection, cards)
 );
 
 //Builds an index of cardId => extracted info for the current filtered
@@ -634,7 +637,7 @@ const selectCollectionForQuery = createSelector(
 const selectExpandedCollectionForQuery = createSelector(
 	selectCollectionForQuery,
 	selectCards,
-	(collection, cards) => collection.map(id => cards[id] || null)
+	(collection, cards) => expandCardCollection(collection, cards)
 );
 
 const selectRankedItemsForQuery = createSelector(
