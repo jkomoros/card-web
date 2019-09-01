@@ -94,7 +94,8 @@ class CardLink extends connect(store)(LitElement) {
 	}
 
 	get _computedHref() {
-		return this.card ? '/c/' + this.card : this.href;
+		//If it's a card link, only have it do something if it links to a card that we know to exist.
+		return this.card ? (this._cardExists ? '/c/' + this.card : 'javascript:void(0)'): this.href;
 	}
 
 	get _computedTarget() {
