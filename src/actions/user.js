@@ -262,7 +262,7 @@ export const updateStars = (starsToAdd = [], starsToRemove = []) => (dispatch) =
 		starsToAdd,
 		starsToRemove
 	});
-	dispatch(refreshCardSelector());
+	dispatch(refreshCardSelector(false));
 };
 
 export const addStar = (cardToStar) => (dispatch, getState) => {
@@ -334,7 +334,7 @@ export const updateReads = (readsToAdd = [], readsToRemove = []) => (dispatch) =
 		readsToAdd,
 		readsToRemove
 	});
-	dispatch(refreshCardSelector());
+	dispatch(refreshCardSelector(false));
 };
 
 let autoMarkReadTimeoutId = null;

@@ -190,7 +190,7 @@ export const updateCollection = (setName, filters, sortName, sortReversed) => (d
 	//make sure we're working with the newest set of filters, because now is the
 	//one time that it's generally OK to update the active filter set, since the
 	//whole collection is changing anyway.
-	dispatch({type: COMMIT_PENDING_FILTERS});
+	dispatch(commitPendingFilters());
 	dispatch({
 		type: UPDATE_COLLECTION,
 		setName,
@@ -200,18 +200,31 @@ export const updateCollection = (setName, filters, sortName, sortReversed) => (d
 	});
 };
 
-export const refreshCardSelector = () => (dispatch, getState) => {
+//commitPendingFilters should be dispatched when the list of things that should
+//show in a given collection may have changed and you want the collection to
+//cahnge at that moment. Often, we DON'T want it to change, to emphasize
+//consistency and so collections don't change as, for exmaple, a card is read
+//and you're viewing an unread filter set.
+export const commitPendingFilters = () => {
+	return {type:COMMIT_PENDING_FILTERS};
+};
+
+export const refreshCardSelector = (forceCommit) => (dispatch, getState) => {
 	//Called when cards and sections update, just in case we now have
 	//information to do this better. Also called when stars and reads update,
 	//because if we're filtering to one of those filters we might not yet know
 	//if we're in that collection or not.
+
+	//forceCommit is whether the commitPendingFilters should be forced to
+	//updated now even if the data is fully laoded.
+
 	const state = getState();
 
 	let page = selectPage(state);
 	if (page != 'c') return;
 	let pageExtra = selectPageExtra(state);
 
-	if (!selectDataIsFullyLoaded(state)) {
+	if (!selectDataIsFullyLoaded(state) || forceCommit) {
 		//This action creator gets called when ANYTHING that could have changed
 		//the collection gets called. If we got called before everything is
 		//fully loaded, then we should make sure that the more recent
@@ -221,7 +234,7 @@ export const refreshCardSelector = () => (dispatch, getState) => {
 		//looking at `/c/unread/_` then it would be weird for the card to
 		//disappear when auto-read), and instead wait until the collection is
 		//changed.
-		dispatch({type:COMMIT_PENDING_FILTERS});
+		dispatch(commitPendingFilters());
 	}
 
 	dispatch(updateCardSelector(pageExtra));

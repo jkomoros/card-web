@@ -52,7 +52,7 @@ import {
 	selectUser,
 	selectUserIsAdmin,
 	selectFilters,
-	selectDataIsFullyLoaded,
+	selectDataIsFullyLoaded
 } from '../selectors.js';
 
 import {
@@ -601,6 +601,8 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		transaction.set(cardDocRef, obj);
 	});
 
+	//updateSections will be called and update the current view.
+
 	if (!noNavigate) dispatch(navigateToCard(id));
 };
 
@@ -635,12 +637,19 @@ export const reorderStatus = (pending) => {
 	};
 };
 
-export const updateSections = (sections) => (dispatch) => {
+export const updateSections = (sections) => (dispatch, getState) => {
 	dispatch({
 		type: UPDATE_SECTIONS,
 		sections,
 	});
-	dispatch(refreshCardSelector());
+
+	//If the update is a single section updating and it's the one currently
+	//visible then we should update collections. This could happen for example
+	//if a new card is added, or if cards are reordered.
+	const currentSectionId = selectActiveSectionId(getState());
+	const force = Object.keys(sections).length == 1 && sections[currentSectionId];
+
+	dispatch(refreshCardSelector(force));
 };
 
 export const updateAuthors = (authors) => {
@@ -655,7 +664,7 @@ export const updateTags = (tags) => (dispatch) => {
 		type:UPDATE_TAGS,
 		tags,
 	});
-	dispatch(refreshCardSelector());
+	dispatch(refreshCardSelector(false));
 };
 
 export const updateCards = (cards) => (dispatch) => {
@@ -663,6 +672,6 @@ export const updateCards = (cards) => (dispatch) => {
 		type:UPDATE_CARDS,
 		cards,
 	});
-	dispatch(refreshCardSelector());
+	dispatch(refreshCardSelector(false));
 };
 
