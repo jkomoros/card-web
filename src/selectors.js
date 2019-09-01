@@ -54,6 +54,7 @@ export const selectActivePreviewCardId = (state) => state.app ? state.app.hoverC
 export const selectPreviewCardX = (state) => state.app ? state.app.hoverX : 0;
 export const selectPreviewCardY = (state) => state.app ? state.app.hoverY : 0;
 export const selectUserReads = (state) => state.user ? state.user.reads : null;
+export const selectUserStars = (state) => state.user ? state.user.stars : null;
 
 export const selectQuery = (state) => state.find.query;
 
@@ -165,11 +166,11 @@ export const selectCards = createSelector(
 );
 
 export const getCardHasStar = (state, cardId) => {
-	return state.user.stars[cardId] || false;
+	return (selectUserStars(state) || {})[cardId] || false;
 };
 
 export const getCardIsRead = (state, cardId) => {
-	return selectUserReads(state)[cardId] || false;
+	return (selectUserReads(state) || {})[cardId] || false;
 };
 
 export const getUserMayResolveThread = (state, thread) => userMayResolveThread(selectUser(state), thread);
