@@ -520,7 +520,8 @@ const defaultCardObject = (id, user, section, cardType) => {
 		notes: '',
 		slugs: [],
 		name: id,
-		tags: []
+		tags: [],
+		published: false
 	};
 };
 
