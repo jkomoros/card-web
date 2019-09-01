@@ -21,7 +21,7 @@ export class BaseCard extends LitElement {
 					
 					width: ${CARD_WIDTH_IN_EMS}em;
 					height: ${CARD_HEIGHT_IN_EMS}em;
-					padding: ${CARD_VERTICAL_PADDING_IN_EMS}em ${CARD_HORIZONTAL_PADDING_IN_EMS}em;
+					
 
 					box-shadow: var(--card-shadow);
 					box-sizing: border-box;
@@ -32,6 +32,8 @@ export class BaseCard extends LitElement {
 				.container {
 					height:100%;
 					width:100%;
+					padding: ${CARD_VERTICAL_PADDING_IN_EMS}em ${CARD_HORIZONTAL_PADDING_IN_EMS}em;
+					box-sizing:border-box;
 				}
 
 				.container.unpublished {
