@@ -50,6 +50,10 @@ class CardThumbnail extends LitElement {
           border: 2px solid transparent;
         }
 
+        div.unpublished {
+          background-color: var(--unpublished-card-color);
+        }
+
         .selected {
           border:2px solid var(--app-primary-color);
         }
@@ -111,7 +115,7 @@ class CardThumbnail extends LitElement {
         }
 
       </style>
-      <div @mousemove=${this._handleMouseMove} @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="${this.selected ? 'selected' : ''} ${this.cardType}">
+      <div @mousemove=${this._handleMouseMove} @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="${this.selected ? 'selected' : ''} ${this.cardType} ${this.card && this.card.published ? '' : 'unpublished'}">
         <h3 class=${this.cardHasContent ? '' : 'nocontent'}>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>
         <star-count .count=${this.card.star_count || 0} .highlighted=${this.starred} .light=${this.cardType != 'content'}></star-count>
         <read-decorator .visible=${this.read} .light=${this.cardType != 'content'}></read-decorator>
