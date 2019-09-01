@@ -26,6 +26,7 @@ import {
 	sectionUpdated,
 	nameUpdated,
 	substantiveUpdated,
+	publishedUpdated,
 	fullBleedUpdated,
 	tagAdded,
 	tagRemoved
@@ -165,7 +166,11 @@ class CardEditor extends connect(store)(LitElement) {
           </div>
         </div>
         <div class='buttons'>
-          <h3>Editing</h3>
+		  <h3>Editing</h3>
+		  <div>
+            <label>Published</label>
+            <input type='checkbox' .checked=${this._card.published} @change='${this._handlePublishedUpdated}'></input>
+          </div>
           <div>
             <label>Substantive</label>
             <input type='checkbox' .checked=${this._substantive} @change='${this._handleSubstantiveChanged}'></input>
@@ -314,6 +319,12 @@ class CardEditor extends connect(store)(LitElement) {
 		if(!this._active) return; 
 		let ele = e.composedPath()[0];
 		store.dispatch(fullBleedUpdated(ele.checked));
+	}
+
+	_handlePublishedUpdated(e) {
+		if(!this._active) return; 
+		let ele = e.composedPath()[0];
+		store.dispatch(publishedUpdated(ele.checked));
 	}
 
 	_handleSubstantiveChanged(e) {

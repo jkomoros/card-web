@@ -7,6 +7,7 @@ import {
 	EDITING_SLUG_ADDED,
 	EDITING_NAME_UPDATED,
 	EDITING_SUBSTANTIVE_UPDATED,
+	EDITING_PUBLISHED_UPDATED,
 	EDITING_FULL_BLEED_UPDATED,
 	EDITING_NOTES_UPDATED,
 	EDITING_TAG_ADDED,
@@ -106,6 +107,12 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: {...state.card, full_bleed:action.fullBleed}
+		};
+	case EDITING_PUBLISHED_UPDATED:
+		if (!state.card) return state;
+		return {
+			...state,
+			card: {...state.card, published:action.published}
 		};
 	case EDITING_SUBSTANTIVE_UPDATED:
 		return {

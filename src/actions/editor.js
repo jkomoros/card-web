@@ -6,6 +6,7 @@ export const EDITING_SECTION_UPDATED = 'EDITING_SECTION_UPDATED';
 export const EDITING_SLUG_ADDED = 'EDITING_SLUG_ADDED';
 export const EDITING_NAME_UPDATED = 'EDITING_NAME_UPDATED';
 export const EDITING_SUBSTANTIVE_UPDATED = 'EDITING_SUBSTANTIVE_UPDATED';
+export const EDITING_PUBLISHED_UPDATED = 'EDITING_PUBLISHED_UPDATED';
 export const EDITING_FULL_BLEED_UPDATED = 'EDITING_FULL_BLEED_UPDATED';
 export const EDITING_NOTES_UPDATED = 'EDITING_NOTES_UPDATED';
 export const EDITING_TAG_ADDED = 'EDITING_TAG_ADDED';
@@ -85,6 +86,7 @@ export const editingCommit = () => (dispatch, getState) => {
 	if (updatedCard.name != underlyingCard.section) update.name = updatedCard.name;
 	if (updatedCard.notes != underlyingCard.notes) update.notes = updatedCard.notes;
 	if (updatedCard.full_bleed != underlyingCard.full_bleed) update.full_bleed = updatedCard.full_bleed;
+	if (updatedCard.published !== underlyingCard.published) update.published = updatedCard.published;
 	if (updatedCard.body != underlyingCard.body) {
 		let normalizedBody;
 		try {    
@@ -350,6 +352,13 @@ export const substantiveUpdated = (checked) => {
 	return {
 		type: EDITING_SUBSTANTIVE_UPDATED,
 		checked,
+	};
+};
+
+export const publishedUpdated = (published) => {
+	return {
+		type: EDITING_PUBLISHED_UPDATED,
+		published,
 	};
 };
 

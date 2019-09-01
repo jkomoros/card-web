@@ -90,7 +90,8 @@ const LEGAL_UPDATE_FIELDS = new Map([
 	['full_bleed', true],
 	['notes', true],
 	['addTags', true],
-	['removeTags', true]
+	['removeTags', true],
+	['published', true]
 ]);
 
 export const modifyCard = (card, update, substantive) => (dispatch, getState) => {
@@ -159,6 +160,10 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 
 	if (update.notes !== undefined) {
 		cardUpdateObject.notes = update.notes;
+	}
+
+	if (update.published !== undefined) {
+		cardUpdateObject.published = update.published;
 	}
 
 	//It's never legal to not have a name, so only update if it's not falsey.
