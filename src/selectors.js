@@ -41,7 +41,7 @@ export const selectActiveFilterNames = (state) => state.collection.activeFilterN
 export const selectFilters = (state) => state.collection.filters;
 export const selectSections = (state) => state.data ? state.data.sections : null;
 export const selectTags = (state) => state.data ? state.data.tags : null;
-export const selectCards = (state) => state.data ? state.data.cards : null;
+const selectBaseCards = (state) => state.data ? state.data.cards : null;
 export const selectCardsLoaded = (state) => state.data.cardsLoaded;
 export const selectSectionsLoaded = (state) => state.data.sectionsLoaded;
 export const selectTagsLoaded = (state) => state.data.tagsLoaded;
@@ -152,6 +152,15 @@ export const selectUserIsAnonymous = createSelector(
 export const selectUserSignedIn = createSelector(
 	selectUser, 
 	(user) => userSignedIn(user)
+);
+
+export const selectCards = createSelector(
+	selectBaseCards,
+	selectUserIsAdmin,
+	selectUid,
+	//We need to filter out cards the user can't see, which includes unpublished cards.
+	//Admins can see all cards. Everyone can see published cards. And authors can always see their own cards.
+	(baseCards, isAdmin, uid) => isAdmin ? baseCards : Object.fromEntries(Object.entries(baseCards).filter(item => item[1].published || item[1].author == uid))
 );
 
 export const getCardHasStar = (state, cardId) => {
