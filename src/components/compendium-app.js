@@ -50,7 +50,7 @@ import {
 	selectActivePreviewCard,
 	selectPreviewCardX,
 	selectPreviewCardY,
-	selectReads
+	selectUserReads
 } from '../selectors.js';
 
 import {
@@ -421,7 +421,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		this._previewCardX = selectPreviewCardX(state);
 		this._previewCardY = selectPreviewCardY(state);
 		this._stars = state.user ? state.user.stars : null;
-		this._reads = selectReads(state);
+		this._reads = selectUserReads(state);
 	}
 }
 

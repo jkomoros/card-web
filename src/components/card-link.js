@@ -4,7 +4,7 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store so it can render visited links
 import { store } from '../store.js';
-import { selectReads } from '../selectors.js';
+import { selectUserReads } from '../selectors.js';
 
 class CardLink extends connect(store)(LitElement) {
 	render() {
@@ -66,7 +66,7 @@ class CardLink extends connect(store)(LitElement) {
 	}
 
 	stateChanged(state) {
-		this._reads = selectReads(state);
+		this._reads = selectUserReads(state);
 		this._cards = state.data.cards;
 	}
 
