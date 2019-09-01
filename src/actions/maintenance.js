@@ -377,6 +377,27 @@ export const addSectionHeaderCards = async () => {
 
 };
 
+const MAKE_EXISTING_CARDS_PUBLISHED = 'make-existing-cards-published';
+
+export const makeExistingCardsPublished = async() => {
+
+	await checkMaintenanceTaskHasBeenRun(MAKE_EXISTING_CARDS_PUBLISHED);
+
+	let batch = db.batch();
+
+	let snapshot = await db.collection(CARDS_COLLECTION).get();
+
+	snapshot.forEach(doc => {
+		batch.update(doc.ref, {'published': true});
+	});
+
+	await batch.commit();
+
+	await maintenanceTaskRun(MAKE_EXISTING_CARDS_PUBLISHED);
+	console.log('done!');
+
+};
+
 
 export const doImport = () => {
 
@@ -487,4 +508,5 @@ export const tasks = {
 	[UPDATE_LINKS]: updateLinks,
 	[ADD_TAGS_ARRAY]: addTagsArray,
 	[ADD_UPDATED_MESSAGE]: addUpdatedMessage,
+	[MAKE_EXISTING_CARDS_PUBLISHED]: makeExistingCardsPublished
 };
