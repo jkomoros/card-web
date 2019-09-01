@@ -24,6 +24,7 @@ import {
 import {
 	isWhitespace,
 	arrayDiff,
+	cardHasContent,
 } from '../util.js';
 
 let lastReportedSelectionRange = null;
@@ -78,6 +79,10 @@ export const editingCommit = () => (dispatch, getState) => {
 	}
 
 	const updatedCard = state.editor.card;
+
+	if (cardHasContent(updatedCard) && !updatedCard.published) {
+		if (!window.confirm('The card has content but is unpublished. Do you want to continue?')) return;
+	}
 
 	let update = {};
 
