@@ -44,6 +44,22 @@ Run `gcloud beta firestore import gs://complexity-compendium-backup/[EXPORT_PREF
 
 `npm install`
 
+
+### Setting up a new deployment
+Currently a number of things are hard-coded (see #164 for more).
+
+The function that sends e-mails to admins requires set-up.
+
+First, get an account with Postmark and set it up. Then configure the config with:
+
+```
+firebase use <NAME-OF-PROJECT>
+firebase functions:config:set postmark.key="YOUR-SECRET-KEY-HERE"
+firebase functions:config:set admin.email="emailaccountyouwantalertssentto@gmail.com"
+```
+
+Note that you'll have to do this both the dev and prod servers, by using the different names of projects in the first line. 
+
 ### Design
 
 The compendium-app reads from the URL and then calls navigate() based on it. Navigate figures out which view needs to be ensured it is loaded, and then sets state.app.page to that viewer, state.app.location to the entire location, and state.app.pageExtra to the stuff after the first part of page, so e.g. '/c/this-stuff-is/included-in-page-extra'.
