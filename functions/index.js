@@ -27,24 +27,27 @@ if (!adminEmail) console.warn("No admin email provided. See README.md on how to 
 const fromEmail = functions.config().email.from;
 if (!fromEmail) console.warn("No from email provided. See README.md on how to set it up.");
 
+const domain = functions.config().site.domain || "thecompendium.cards";
+
 exports.emailAdminOnStar = functions.firestore.
     document('stars/{starId}').
     onCreate((snapshot, context) => {
         const cardId = snapshot.data().card;
         const authorId = snapshot.data().owner;
 
-        const message = 'User ' + authorId + ' starred card ' + cardId;
+        const subject = 'User ' + authorId + ' starred card ' + cardId;
+        const message = 'User ' + authorId + ' starred card <a href="https://' + domain + '/c/' + cardId +'">' + cardId + '</a>.';
 
         const mailOptions = {
             from: fromEmail,
             to: adminEmail,
-            subject: message,
+            subject: subject,
             html: message
         };
 
         return mailTransport.sendMail(mailOptions)
-            .then(() => console.log('Sent email with message ' + message))
-            .catch((error) => console.error("Couldn't send email with message " + message + ": " + error))
+            .then(() => console.log('Sent email with message ' + subject))
+            .catch((error) => console.error("Couldn't send email with message " + subject + ": " + error))
 
     })
 

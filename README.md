@@ -57,6 +57,7 @@ firebase use <NAME-OF-PROJECT>
 firebase functions:config:set postmark.key="YOUR-SECRET-KEY-HERE"
 firebase functions:config:set email.to="emailaccountyouwantalertssentto@gmail.com"
 firebase functions:config:set email.from="emailaccountitshouldcomefrom@gmail.com"
+firebase functions:config:set site.domain="thecompendium.cards"
 ```
 
 Note that you'll have to do this both the dev and prod servers, by using the different names of projects in the first line. 
