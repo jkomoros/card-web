@@ -55,7 +55,8 @@ First, get an account with Postmark and set it up. Then configure the config wit
 ```
 firebase use <NAME-OF-PROJECT>
 firebase functions:config:set postmark.key="YOUR-SECRET-KEY-HERE"
-firebase functions:config:set admin.email="emailaccountyouwantalertssentto@gmail.com"
+firebase functions:config:set email.to="emailaccountyouwantalertssentto@gmail.com"
+firebase functions:config:set email.from="emailaccountitshouldcomefrom@gmail.com"
 ```
 
 Note that you'll have to do this both the dev and prod servers, by using the different names of projects in the first line. 
