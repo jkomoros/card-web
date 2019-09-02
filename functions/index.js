@@ -29,6 +29,19 @@ if (!fromEmail) console.warn("No from email provided. See README.md on how to se
 
 const domain = functions.config().site.domain || "thecompendium.cards";
 
+const sendEmail = (subject, message) => {
+    const mailOptions = {
+        from: fromEmail,
+        to: adminEmail,
+        subject: subject,
+        html: message
+    };
+
+    return mailTransport.sendMail(mailOptions)
+        .then(() => console.log('Sent email with message ' + subject))
+        .catch((error) => console.error("Couldn't send email with message " + subject + ": " + error))
+};
+
 exports.emailAdminOnStar = functions.firestore.
     document('stars/{starId}').
     onCreate((snapshot, context) => {
@@ -38,16 +51,7 @@ exports.emailAdminOnStar = functions.firestore.
         const subject = 'User ' + authorId + ' starred card ' + cardId;
         const message = 'User ' + authorId + ' starred card <a href="https://' + domain + '/c/' + cardId +'">' + cardId + '</a>.';
 
-        const mailOptions = {
-            from: fromEmail,
-            to: adminEmail,
-            subject: subject,
-            html: message
-        };
-
-        return mailTransport.sendMail(mailOptions)
-            .then(() => console.log('Sent email with message ' + subject))
-            .catch((error) => console.error("Couldn't send email with message " + subject + ": " + error))
+        sendEmail(subject, message);
 
     })
 
