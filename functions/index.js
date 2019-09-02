@@ -55,6 +55,21 @@ exports.emailAdminOnStar = functions.firestore.
 
     })
 
+exports.emailAdminOnMessage = functions.firestore.
+    document('messages/{messageId}').
+    onCreate((snapshot, context) => {
+        const cardId = snapshot.data().card;
+        const authorId = snapshot.data().author;
+        const messageText = snapshot.data().message;
+        const messageId = context.params.messageId;
+
+        const subject = 'User ' + authorId + ' left message on card ' + cardId;
+        const message = 'User ' + authorId + ' left message on card <a href="https://' + domain + '/comment/' + messageId +'">' + cardId + '</a>: \n' + messageText;
+
+        sendEmail(subject, message);
+
+    })
+
 
 const arrayDiff = (before, after) => {
     let afterMap = new Map();
