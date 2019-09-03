@@ -42,14 +42,22 @@ const sendEmail = (subject, message) => {
         .catch((error) => console.error("Couldn't send email with message " + subject + ": " + error))
 };
 
+const getUserDisplayName = async (uid) => {
+    let user = await admin.auth().getUser(uid);
+    return user.displayName
+}
+
+
 exports.emailAdminOnStar = functions.firestore.
     document('stars/{starId}').
-    onCreate((snapshot, context) => {
+    onCreate(async (snapshot, context) => {
         const cardId = snapshot.data().card;
         const authorId = snapshot.data().owner;
 
-        const subject = 'User ' + authorId + ' starred card ' + cardId;
-        const message = 'User ' + authorId + ' starred card <a href="https://' + domain + '/c/' + cardId +'">' + cardId + '</a>.';
+        const authorString = await getUserDisplayName(authorId);
+
+        const subject = 'User ' + authorString + ' starred card ' + cardId;
+        const message = 'User ' + authorString + ' (' + authorId +  ') starred card <a href="https://' + domain + '/c/' + cardId +'">' + cardId + '</a>.';
 
         sendEmail(subject, message);
 
@@ -57,14 +65,16 @@ exports.emailAdminOnStar = functions.firestore.
 
 exports.emailAdminOnMessage = functions.firestore.
     document('messages/{messageId}').
-    onCreate((snapshot, context) => {
+    onCreate(async (snapshot, context) => {
         const cardId = snapshot.data().card;
         const authorId = snapshot.data().author;
         const messageText = snapshot.data().message;
         const messageId = context.params.messageId;
 
-        const subject = 'User ' + authorId + ' left message on card ' + cardId;
-        const message = 'User ' + authorId + ' left message on card <a href="https://' + domain + '/comment/' + messageId +'">' + cardId + '</a>: \n' + messageText;
+        const authorString = await getUserDisplayName(authorId);
+
+        const subject = 'User ' + authorString + ' left message on card ' + cardId;
+        const message = 'User ' + authorString + ' (' + authorId + ') left message on card <a href="https://' + domain + '/comment/' + messageId +'">' + cardId + '</a>: \n' + messageText;
 
         sendEmail(subject, message);
 
