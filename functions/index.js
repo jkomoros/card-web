@@ -82,7 +82,7 @@ exports.emailAdminOnMessage = functions.firestore.
         const cardTitle = await getCardName(cardId);
 
         const subject = 'User ' + authorString + ' left message on card ' + cardTitle;
-        const message = 'User ' + authorString + ' (' + authorId + ') left message on card <a href="https://' + domain + '/comment/' + messageId +'">' + cardTitle + ' (' + cardId + ')</a>: \n' + messageText;
+        const message = 'User ' + authorString + ' (' + authorId + ') left message on card <a href="https://' + domain + '/comment/' + messageId +'">' + cardTitle + ' (' + cardId + ')</a>: <p>' + messageText + '</p>';
 
         sendEmail(subject, message);
 
