@@ -47,6 +47,12 @@ const getUserDisplayName = async (uid) => {
     return user.displayName
 }
 
+const getCardName = async (cardId) => {
+    //TODO: use the actual constants for cards collection (see #134)
+    let card = await admin.firestore().collection('cards').doc(cardId).get();
+    return card.data().name || cardId;
+}
+
 
 exports.emailAdminOnStar = functions.firestore.
     document('stars/{starId}').
@@ -55,9 +61,10 @@ exports.emailAdminOnStar = functions.firestore.
         const authorId = snapshot.data().owner;
 
         const authorString = await getUserDisplayName(authorId);
+        const cardTitle = await getCardName(cardId);
 
-        const subject = 'User ' + authorString + ' starred card ' + cardId;
-        const message = 'User ' + authorString + ' (' + authorId +  ') starred card <a href="https://' + domain + '/c/' + cardId +'">' + cardId + '</a>.';
+        const subject = 'User ' + authorString + ' starred card ' + cardTitle;
+        const message = 'User ' + authorString + ' (' + authorId +  ') starred card <a href="https://' + domain + '/c/' + cardId +'">' + cardTitle + ' (' + cardId + ')</a>.';
 
         sendEmail(subject, message);
 
@@ -72,9 +79,10 @@ exports.emailAdminOnMessage = functions.firestore.
         const messageId = context.params.messageId;
 
         const authorString = await getUserDisplayName(authorId);
+        const cardTitle = await getCardName(cardId);
 
-        const subject = 'User ' + authorString + ' left message on card ' + cardId;
-        const message = 'User ' + authorString + ' (' + authorId + ') left message on card <a href="https://' + domain + '/comment/' + messageId +'">' + cardId + '</a>: \n' + messageText;
+        const subject = 'User ' + authorString + ' left message on card ' + cardTitle;
+        const message = 'User ' + authorString + ' (' + authorId + ') left message on card <a href="https://' + domain + '/comment/' + messageId +'">' + cardTitle + ' (' + cardId + ')</a>: \n' + messageText;
 
         sendEmail(subject, message);
 
