@@ -48,6 +48,11 @@ Run `gcloud beta firestore import gs://complexity-compendium-backup/[EXPORT_PREF
 ### Setting up a new deployment
 Currently a number of things are hard-coded (see #164 for more).
 
+Copy `config.SAMPLE.js` to `config.SECRET.js` and replace the values in the dev
+and prod areas with values for your configured projects. **Do not commit
+config.SECRET.json** to version control (the default `.gitignore` will disallow
+adding it).
+
 The function that sends e-mails to admins requires set-up.
 
 First, get an account with Postmark and set it up. Then configure the config with:

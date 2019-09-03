@@ -4,33 +4,19 @@ import '@firebase/auth';
 import '@firebase/firestore';
 import '@firebase/messaging';
 
+import {
+	FIREBASE_DEV_CONFIG,
+	FIREBASE_PROD_CONFIG
+} from '../../config.SECRET.js';
+
 export const firebase = firebaseImpl;
 
 export let DEV_MODE = false;
-var config;
 //Deliberately only do devmode if the host is localhost. If you want it
 //in local mode, just do 127.0.0.1 instead.
 if (window.location.hostname == 'localhost') DEV_MODE = true;
 if (window.location.hostname.indexOf('dev-') >= 0) DEV_MODE = true;
-if (DEV_MODE) {
-	config = {
-		apiKey: 'AIzaSyAMJMN0rfauE1fNmZtSktR1c9pOhjbj5wM',
-		authDomain: 'dev-complexity-compendium.firebaseapp.com',
-		databaseURL: 'https://dev-complexity-compendium.firebaseio.com',
-		projectId: 'dev-complexity-compendium',
-		storageBucket: 'dev-complexity-compendium.appspot.com',
-		messagingSenderId: '833356784081'
-	};
-} else {
-	config = {
-		apiKey: 'AIzaSyApU8WmBkOLnqlCD6sRnbZgj3EUybOOZ54',
-		authDomain: 'complexity-compendium.firebaseapp.com',
-		databaseURL: 'https://complexity-compendium.firebaseio.com',
-		projectId: 'complexity-compendium',
-		storageBucket: 'complexity-compendium.appspot.com',
-		messagingSenderId: '711980530249'
-	};
-}
+let config = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
 // Initialize Firebase
 firebase.initializeApp(config);
 
