@@ -7,7 +7,7 @@ import '@firebase/messaging';
 import {
 	FIREBASE_DEV_CONFIG,
 	FIREBASE_PROD_CONFIG
-} from '../../config.SECRET.js';
+} from '../../config/config.SECRET.js';
 
 export const firebase = firebaseImpl;
 
