@@ -13,7 +13,7 @@
     "node": "8"
   },
   "dependencies": {
-    "firebase-admin": "^6.5.0",
+    "firebase-admin": "^8.4.0",
     "firebase-functions": "^3.2.0",
     "nodemailer": "^6.3.0",
     "nodemailer-postmark-transport": "^2.2.0"
