@@ -223,6 +223,11 @@ export const getSection = (state, sectionId) => {
 	return state.data.sections[sectionId] || null;
 };
 
+export const selectUserReadingListMap = createSelector(
+	selectUserReadingList,
+	list => Object.fromEntries((list || []).map(item => [item, true]))
+);
+
 //TODO: once factoring the composed threads selctors into this file, refactor
 //this to just select the composed threads.
 export const selectActiveCardThreadIds = createSelector(
