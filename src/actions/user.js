@@ -307,6 +307,41 @@ export const addToReadingList = (cardToAdd) => (dispatch, getState) => {
 	batch.commit();
 };
 
+export const removeFromReadingList = (cardToRemove) => (dispatch, getState) => {
+	if (!cardToRemove || !cardToRemove.id) {
+		console.log('Invalid card provided');
+		return;
+	}
+
+	const state = getState();
+	let uid = selectUid(state);
+
+	if (!uid) {
+		console.log('Not logged in');
+		return;
+	}
+
+	let batch = db.batch();
+
+	let readingListRef = db.collection(READING_LISTS_COLLECTION).doc(uid);
+	let readingListUpdateRef = readingListRef.collection(READING_LISTS_UPDATES_COLLECTION).doc('' + Date.now());
+
+	let readingListObject = {
+		cards: firebase.firestore.FieldValue.arrayRemove(cardToRemove.id),
+		updated: Date.now()
+	};
+
+	let readingListUpdateObject = {
+		timestamp: new Date(),
+		remove_card: cardToRemove.id
+	};
+
+	batch.set(readingListRef, readingListObject, {merge:true});
+	batch.set(readingListUpdateRef, readingListUpdateObject);
+
+	batch.commit();
+};
+
 export const addStar = (cardToStar) => (dispatch, getState) => {
 
 	if (!cardToStar || !cardToStar.id) {
