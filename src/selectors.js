@@ -359,6 +359,13 @@ export const selectReadingListTabSelected = createSelector(
 	(set, filters) => set == READING_LIST_SET_NAME  && (!filters || filters.length == 0)
 );
 
+//This is used to decide whether the recent tab should show as selected.
+export const selectStarsTabSelected = createSelector(
+	selectActiveSetName,
+	selectActiveFilterNames,
+	(set, filters) => set == DEFAULT_SET_NAME  && (filters.length == 1 && filters[0] == 'starred')
+);
+
 //selectActiveTagId returns a string IFF precisely one tag is being selected.
 //Analogue of selectActiveSectionId.
 export const selectActiveTagId = createSelector(
