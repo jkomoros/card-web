@@ -376,6 +376,15 @@ const combinedFilterForNames = (names, filters) => {
 	return makeCombinedFilter(includeFilters, excludeFilters);
 };
 
+//selectActiveConcreteFilterNames returns a list of all of the currently active
+//filters, but with any inverse filters replaced by the filter name they're the
+//inverse of. Basically, returns the set of filter names whose current values
+//define the combined filter set.
+const selectActiveConcreteFilterNames = createSelector(
+	selectActiveFilterNames,
+	(names) => names.map(name => INVERSE_FILTER_NAMES[name] ? INVERSE_FILTER_NAMES[name] : name)
+);
+
 //Returns a list of icludeFilters and a list of excludeFilters.
 const selectActiveCombinedFilter = createSelector(
 	selectActiveFilterNames,
