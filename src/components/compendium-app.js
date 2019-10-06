@@ -99,6 +99,10 @@ import {
 	CARD_HEIGHT_IN_EMS
 } from './base-card';
 
+import {
+	playlistPlayIcon
+} from './my-icons';
+
 class CompendiumApp extends connect(store)(LitElement) {
 	render() {
 		// Anything that's related to rendering should be done in here.
@@ -201,6 +205,10 @@ class CompendiumApp extends connect(store)(LitElement) {
 				color: var(--app-primary-color);
 			}
 
+			.toolbar-list {
+				display:flex;
+			}
+
 			.toolbar-list > a {
 				display: inline-block;
 				color: var(--app-header-text-color);
@@ -208,11 +216,23 @@ class CompendiumApp extends connect(store)(LitElement) {
 				line-height: 30px;
 				padding: 4px 8px;
 				font-size: 14px;
+				/* make it so that when it's selected and there's a border there's no jump */
+				border-bottom: 4px solid transparent;
+			}
+
+			 .toolbar-list > a.icon-item {
+				display:inline-flex;
+				flex-direction: column;
+				justify-content: center;	
 			}
 
 			.toolbar-list > a[selected] {
 				color: var(--app-header-selected-color);
 				border-bottom: 4px solid var(--app-header-selected-color);
+			}
+
+			.toolbar-list > a[selected] > svg {
+				fill: var(--app-header-selected-color);
 			}
 
 			/* Workaround for IE11 displaying <main> as inline */
@@ -252,7 +272,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		html`<a ?selected="${this._page === 'c'}" href="/c"><em>Loading...</em></a>`
 }
 						<a ?selected=${this._recentTabSelected} href="/c/has-content/sort/recent/_">Recent</a>
-						<a ?selected=${this._readingListTabSelected} href="/c/reading-list/_">Reading List</a>
+						<a class='icon-item' title='Your reading list' ?selected=${this._readingListTabSelected} href="/c/reading-list/_">${playlistPlayIcon}</a>
 					</nav>
 					<div class='spacer dev'>
 						${this._devMode ? html`DEVMODE` : ''}
