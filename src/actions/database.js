@@ -87,6 +87,7 @@ export const READS_COLLECTION = 'reads';
 //report up so the info exists on the server.
 export const USERS_COLLECTION = 'users';
 export const READING_LISTS_COLLECTION = 'reading_lists';
+export const READING_LISTS_UPDATES_COLLECTION = 'updates';
 
 import {
 	store

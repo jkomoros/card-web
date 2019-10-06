@@ -26,7 +26,9 @@ import {
 	CARDS_COLLECTION,
 	STARS_COLLECTION,
 	READS_COLLECTION,
-	USERS_COLLECTION
+	USERS_COLLECTION,
+	READING_LISTS_COLLECTION,
+	READING_LISTS_UPDATES_COLLECTION
 } from './database.js';
 
 import {
@@ -268,6 +270,41 @@ export const updateStars = (starsToAdd = [], starsToRemove = []) => (dispatch) =
 		starsToRemove
 	});
 	dispatch(refreshCardSelector(false));
+};
+
+export const addToReadingList = (cardToAdd) => (dispatch, getState) => {
+	if (!cardToAdd || !cardToAdd.id) {
+		console.log('Invalid card provided');
+		return;
+	}
+
+	const state = getState();
+	let uid = selectUid(state);
+
+	if (!uid) {
+		console.log('Not logged in');
+		return;
+	}
+
+	let batch = db.batch();
+
+	let readingListRef = db.collection(READING_LISTS_COLLECTION).doc(uid);
+	let readingListUpdateRef = readingListRef.collection(READING_LISTS_UPDATES_COLLECTION).doc('' + Date.now());
+
+	let readingListObject = {
+		cards: firebase.firestore.FieldValue.arrayUnion(cardToAdd.id),
+		updated: Date.now()
+	};
+
+	let readingListUpdateObject = {
+		timestamp: new Date(),
+		add_card: cardToAdd.id
+	};
+
+	batch.set(readingListRef, readingListObject, {merge:true});
+	batch.set(readingListUpdateRef, readingListUpdateObject);
+
+	batch.commit();
 };
 
 export const addStar = (cardToStar) => (dispatch, getState) => {
