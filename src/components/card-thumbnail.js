@@ -91,7 +91,7 @@ class CardThumbnail extends LitElement {
         }
 
 		.ghost {
-			opacity:0.75;
+			opacity:0.5;
 		}
 
         star-count {
