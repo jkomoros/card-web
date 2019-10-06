@@ -13,6 +13,7 @@ import {
 import {
 	UPDATE_STARS,
 	UPDATE_READS,
+	UPDATE_READING_LIST,
 } from '../actions/user.js';
 
 import {
@@ -105,7 +106,8 @@ export const INVERSE_FILTER_NAMES = {
 	'no-slug': 'has-slug',
 	'no-comments': 'has-comments',
 	'no-content': 'has-content',
-	'published' : 'unpublished'
+	'published' : 'unpublished',
+	'not-in-reading-list' : 'in-reading-list'
 };
 
 const INITIAL_STATE = {
@@ -122,6 +124,7 @@ const INITIAL_STATE = {
 		'has-slug': {},
 		'has-comments': {},
 		'has-content': {},
+		'in-reading-list': {},
 		unpublished: {},
 		//None will match nothing. We use it for orphans.
 		none: {},
@@ -134,6 +137,7 @@ const INITIAL_STATE = {
 		'has-slug': {},
 		'has-comments': {},
 		'has-content': {},
+		'in-reading-list': {},
 		unpublished: {},
 		//None will match nothing. We use it for orphans.
 		none: {},
@@ -195,9 +199,20 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			pendingFilters: {...state.pendingFilters, read: setUnion(setRemove(state.pendingFilters.read, action.readsToRemove), action.readsToAdd)}
 		};
+	case UPDATE_READING_LIST:
+		return {
+			...state,
+			pendingFilters: {...state.pendingFilters, ...makeFilterFromReadingList(action.list)}
+		};
 	default:
 		return state;
 	}
+};
+
+const makeFilterFromReadingList = (readingList) => {
+	return {
+		'in-reading-list': Object.fromEntries(readingList.map(id => [id, true]))
+	};
 };
 
 const makeFilterFromSection = (sections) => {
