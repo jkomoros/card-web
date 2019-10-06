@@ -24,9 +24,6 @@ import {
 	READING_LIST_SET_NAME
 } from './reducers/collection.js';
 
-//The card that is the tutorial for reading lists
-const ABOUT_READING_LISTS_CARD_SLUG = 'about-reading-lists';
-
 export const selectPage = (state) => state.app.page;
 export const selectPageExtra = (state) => state.app.pageExtra;
 
@@ -61,11 +58,7 @@ export const selectPreviewCardY = (state) => state.app ? state.app.hoverY : 0;
 export const selectUserReads = (state) => state.user ? state.user.reads : null;
 export const selectUserStars = (state) => state.user ? state.user.stars : null;
 export const selectUserReadingList = (state) => state.user ? state.user.readingList : null;
-const selectUserReadingListForSet = (state) => {
-	if (!state.user) return null;
-	//If there are no cards in reading list, return the one orphaned card that describes how they work.
-	return state.user.readingListForSet.length ? state.user.readingListForSet : [getIdForCard(state, ABOUT_READING_LISTS_CARD_SLUG)];
-};
+const selectUserReadingListForSet = (state) => state.user ? state.user.readingListForSet : null;
 
 export const selectQuery = (state) => state.find.query;
 
@@ -521,6 +514,27 @@ const selectActiveBaseCollection = createSelector(
 	(set, filter) => set.filter(item => filter(item))
 );
 
+//Sometimes the collection is empty for whatever reason and so the cards that
+//are in the collection are actually fallback content, not real content.
+export const selectCollectionIsFallback = createSelector(
+	selectActiveBaseCollection,
+	(collection) => collection.length == 0
+);
+
+//The card that is the tutorial for reading lists
+const ABOUT_READING_LISTS_CARD = 'c-991-cba033';
+
+const selectActiveBaseCollectionOrFallback = createSelector(
+	selectActiveBaseCollection,
+	selectReadingListTabSelected,
+	(collection, readingListTab) => {
+		if (collection.length > 0) return collection;
+		if (readingListTab) return [ABOUT_READING_LISTS_CARD];
+		//TODO: return different cards for other tabs that might be empty
+		return [];
+	}
+);
+
 //Note, this is the sorting info (extractor, description, etc), but reversing is
 //applied in selectSortedActiveCollection.
 const selectActiveSort = createSelector(
@@ -547,7 +561,7 @@ const selectExpandedActiveStartCards = createSelector(
 
 //Expanded means it includes the full cards in place, but NOT SORTED
 const selectExpandedActiveCollection = createSelector(
-	selectActiveBaseCollection,
+	selectActiveBaseCollectionOrFallback,
 	selectCards,
 	(collection, cards) => expandCardCollection(collection, cards)
 );
