@@ -8,6 +8,7 @@ import {
 	UPDATE_READS,
 	AUTO_MARK_READ_PENDING_CHANGED,
 	UPDATE_NOTIFICATIONS_TOKEN,
+	UPDATE_READING_LIST
 } from '../actions/user.js';
 
 import {
@@ -26,11 +27,13 @@ const INITIAL_STATE = {
 	error: null,
 	stars : {},
 	reads: {},
+	readingList: [],
 	//These two are analoges to cardsLoaded et al in data. They're set to true
 	//after UPDATE_STARS or _READS has been called at least once.  Primarily for
 	//selectDataIsFullyLoaded purposes.
 	starsLoaded: false,
 	readsLoaded: false,
+	readingListLoaded: false,
 	autoMarkReadPending: false,
 };
 
@@ -79,6 +82,12 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			reads: setUnion(setRemove(state.reads, action.readsToRemove), action.readsToAdd),
 			readsLoaded: true,
+		};
+	case UPDATE_READING_LIST:
+		return {
+			...state,
+			readingList: action.list,
+			readingListLoaded: true,
 		};
 	case AUTO_MARK_READ_PENDING_CHANGED:
 		return {

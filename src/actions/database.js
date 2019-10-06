@@ -66,6 +66,7 @@ import {
 	updateStars,
 	updateReads,
 	updateNotificationsToken,
+	updateReadingList
 } from './user.js';
 
 export const CARDS_COLLECTION = 'cards';
@@ -85,6 +86,7 @@ export const READS_COLLECTION = 'reads';
 //anonymous, and when they were last seen. We never use it on the client, just
 //report up so the info exists on the server.
 export const USERS_COLLECTION = 'users';
+export const READING_LISTS_COLLECTION = 'reading_lists';
 
 import {
 	store
@@ -169,6 +171,7 @@ export const connectLiveThreads = (store) => {
 
 let liveStarsUnsubscribe = null;
 let liveReadsUnsubscribe = null;
+let liveReadingListUnsubscribe = null;
 
 export const disconnectLiveStars = () => {
 	if (liveStarsUnsubscribe) {
@@ -215,6 +218,28 @@ export const connectLiveReads = (store, uid) => {
 			readsToAdd.push(doc.data().card);
 		});
 		store.dispatch(updateReads(readsToAdd, readsToRemove));
+	});
+};
+
+export const disconnectLiveReadingList = () => {
+	if (liveReadingListUnsubscribe) {
+		liveReadingListUnsubscribe();
+		liveReadingListUnsubscribe = null;
+	}
+};
+
+export const connectLiveReadingList = (store, uid) => {
+	disconnectLiveReadingList();
+	liveReadingListUnsubscribe = db.collection(READING_LISTS_COLLECTION).where('owner', '==', uid).onSnapshot( snapshot => {
+		let list = [];
+		snapshot.docChanges().forEach(change => {
+			let doc = change.doc;
+			if (change.type === 'removed') {
+				return;
+			}
+			list = doc.data().cards;
+		});
+		store.dispatch(updateReadingList(list));
 	});
 };
 

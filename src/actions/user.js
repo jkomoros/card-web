@@ -5,6 +5,7 @@ export const SIGNOUT_USER = 'SIGNOUT_USER';
 export const SIGNOUT_SUCCESS = 'SIGNOUT_SUCCESS';
 export const UPDATE_STARS = 'UPDATE_STARS';
 export const UPDATE_READS = 'UPDATE_READS';
+export const UPDATE_READING_LIST = 'UPDATE_READING_LIST';
 export const AUTO_MARK_READ_PENDING_CHANGED = 'AUTO_MARK_READ_PENDING_CHANGED';
 export const UPDATE_NOTIFICATIONS_TOKEN = 'UPDATE_NOTIFICATIONS_TOKEN';
 
@@ -15,7 +16,9 @@ import {
 	connectLiveStars,
 	disconnectLiveStars,
 	connectLiveReads,
-	disconnectLiveReads
+	disconnectLiveReads,
+	connectLiveReadingList,
+	disconnectLiveReadingList,
 } from './database.js';
 
 import {
@@ -153,6 +156,7 @@ export const signOutSuccess = () => (dispatch) =>  {
 	dispatch({type: SIGNOUT_SUCCESS});
 	disconnectLiveStars();
 	disconnectLiveReads();
+	disconnectLiveReadingList();
 };
 
 const HAS_PREVIOUS_SIGN_IN_KEY = 'hasPreviousSignIn';
@@ -229,6 +233,7 @@ export const signInSuccess = (firebaseUser, store) => (dispatch) => {
 	flagHasPreviousSignIn();
 	connectLiveStars(store,firebaseUser.uid);
 	connectLiveReads(store,firebaseUser.uid);
+	connectLiveReadingList(store,firebaseUser.uid);
 };
 
 const _userInfo = (info) => {
@@ -333,6 +338,14 @@ export const updateReads = (readsToAdd = [], readsToRemove = []) => (dispatch) =
 		type: UPDATE_READS,
 		readsToAdd,
 		readsToRemove
+	});
+	dispatch(refreshCardSelector(false));
+};
+
+export const updateReadingList = (list = []) => (dispatch) => {
+	dispatch({
+		type: UPDATE_READING_LIST,
+		list,
 	});
 	dispatch(refreshCardSelector(false));
 };

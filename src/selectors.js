@@ -56,6 +56,7 @@ export const selectPreviewCardX = (state) => state.app ? state.app.hoverX : 0;
 export const selectPreviewCardY = (state) => state.app ? state.app.hoverY : 0;
 export const selectUserReads = (state) => state.user ? state.user.reads : null;
 export const selectUserStars = (state) => state.user ? state.user.stars : null;
+export const selectUserReadingList = (state) => state.user ? state.user.readingList : null;
 
 export const selectQuery = (state) => state.find.query;
 
@@ -64,6 +65,7 @@ export const selectAuthPending = (state) => state.user.pending;
 //no user to load stars or reads for.
 export const selectStarsLoaded = (state) => state.user.starsLoaded;
 export const selectReadsLoaded = (state) => state.user.readsLoaded;
+export const selectReadingListLoaded = (state) => state.user.readingListLoaded;
 
 export const selectNotificationsEnabled = (state) => state.user.notificationsToken ? true : false;
 
@@ -265,10 +267,11 @@ export const selectUserDataIsFullyLoaded = createSelector(
 	selectUserObjectExists,
 	selectStarsLoaded,
 	selectReadsLoaded,
-	(pending, userExists, starsLoaded, readsLoaded) => {
+	selectReadingListLoaded,
+	(pending, userExists, starsLoaded, readsLoaded, readingListLoaded) => {
 		if (pending) return false;
 		if (!userExists) return true;
-		return starsLoaded && readsLoaded;
+		return starsLoaded && readsLoaded && readingListLoaded;
 	}
 );
 
