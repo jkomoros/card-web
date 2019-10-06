@@ -30,7 +30,8 @@ import {
 	selectActiveCollectionLabels,
 	selectActiveSortLabelName,
 	selectUserReads,
-	selectUserStars
+	selectUserStars,
+	selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -381,6 +382,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_collection: {type: Array},
 			_collectionLabels: {type:Array},
 			_collectionLabelName: {type:String},
+			_collectionItemsThatWillBeRemovedOnPendingFilterCommit: {type:Object},
 			_stars: {type: Object},
 			_reads: {type: Object},
 			_drawerReorderPending : {type: Boolean},
@@ -519,6 +521,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._collection = selectFinalCollection(state);
 		this._collectionLabels = selectActiveCollectionLabels(state);
 		this._collectionLabelName = selectActiveSortLabelName(state);
+		this._collectionItemsThatWillBeRemovedOnPendingFilterCommit = selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit(state);
 		this._stars = selectUserStars(state);
 		this._reads = selectUserReads(state);
 		this._tagInfos = selectTags(state);
