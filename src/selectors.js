@@ -393,6 +393,9 @@ const selectActiveInverseConcreteFilterNames = createSelector(
 
 //diffFilterEntries is used by selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit
 const diffFilterEntries = (activeFilter, pendingFilter, isInverse) => {
+
+	if (!activeFilter || !pendingFilter) return [];
+
 	const primary = isInverse ? pendingFilter : activeFilter;
 	const secondary = isInverse ? activeFilter : pendingFilter;
 
