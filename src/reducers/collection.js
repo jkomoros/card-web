@@ -24,6 +24,10 @@ import {
 } from '../util.js';
 
 export const DEFAULT_SET_NAME = 'all';
+//reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
+//order matters and is customizable by the user. Every other collection starts
+//from the `all` set and then filters and then maybe sorts, but reading-list
+//lets a custom order.
 export const READING_LIST_SET_NAME = 'reading-list';
 
 export const SET_NAMES = [DEFAULT_SET_NAME, READING_LIST_SET_NAME];
