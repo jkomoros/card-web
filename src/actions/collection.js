@@ -209,6 +209,10 @@ export const commitPendingFilters = () => {
 	return {type:COMMIT_PENDING_FILTERS};
 };
 
+//Keep track of whether we've called refreshCardSelector once already when the
+//data is fully loaded.
+let refreshCardSelectorHasSeenDataFullyLoaded = false;
+
 export const refreshCardSelector = (forceCommit) => (dispatch, getState) => {
 	//Called when cards and sections update, just in case we now have
 	//information to do this better. Also called when stars and reads update,
@@ -224,7 +228,9 @@ export const refreshCardSelector = (forceCommit) => (dispatch, getState) => {
 	if (page != 'c') return;
 	let pageExtra = selectPageExtra(state);
 
-	if (!selectDataIsFullyLoaded(state) || forceCommit) {
+	const dataIsFullyLoaded = selectDataIsFullyLoaded(state);
+
+	if (!dataIsFullyLoaded || (dataIsFullyLoaded && !refreshCardSelectorHasSeenDataFullyLoaded) || forceCommit) {
 		//This action creator gets called when ANYTHING that could have changed
 		//the collection gets called. If we got called before everything is
 		//fully loaded, then we should make sure that the more recent
@@ -233,9 +239,15 @@ export const refreshCardSelector = (forceCommit) => (dispatch, getState) => {
 		//changing while the user is looking at it (for example, if they're
 		//looking at `/c/unread/_` then it would be weird for the card to
 		//disappear when auto-read), and instead wait until the collection is
-		//changed.
+		//changed. However, there's one extra case: when this is the FIRST time
+		//that we've run since the data has been fully loaded. This will happen
+		//for the last item that has loaded that has made the data fully loaded;
+		//often, reads. Basically, as soon as the data is fully loaded we want
+		//to run it once.
 		dispatch(commitPendingFilters());
 	}
+
+	if (dataIsFullyLoaded) refreshCardSelectorHasSeenDataFullyLoaded = true;
 
 	dispatch(updateCardSelector(pageExtra));
 };
