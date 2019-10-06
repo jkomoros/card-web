@@ -205,7 +205,8 @@ class CompendiumApp extends connect(store)(LitElement) {
 				color: var(--app-header-text-color);
 				text-decoration: none;
 				line-height: 30px;
-				padding: 4px 16px;
+				padding: 4px 8px;
+				font-size: 14px;
 			}
 
 			.toolbar-list > a[selected] {
