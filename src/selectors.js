@@ -24,6 +24,9 @@ import {
 	READING_LIST_SET_NAME
 } from './reducers/collection.js';
 
+//The card that is the tutorial for reading lists
+const ABOUT_READING_LISTS_CARD_SLUG = 'about-reading-lists';
+
 export const selectPage = (state) => state.app.page;
 export const selectPageExtra = (state) => state.app.pageExtra;
 
@@ -58,7 +61,11 @@ export const selectPreviewCardY = (state) => state.app ? state.app.hoverY : 0;
 export const selectUserReads = (state) => state.user ? state.user.reads : null;
 export const selectUserStars = (state) => state.user ? state.user.stars : null;
 export const selectUserReadingList = (state) => state.user ? state.user.readingList : null;
-const selectUserReadingListForSet = (state) => state.user ? state.user.readingListForSet : null;
+const selectUserReadingListForSet = (state) => {
+	if (!state.user) return null;
+	//If there are no cards in reading list, return the one orphaned card that describes how they work.
+	return state.user.readingListForSet.length ? state.user.readingListForSet : [getIdForCard(state, ABOUT_READING_LISTS_CARD_SLUG)];
+};
 
 export const selectQuery = (state) => state.find.query;
 
