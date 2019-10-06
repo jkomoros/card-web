@@ -90,6 +90,10 @@ class CardThumbnail extends LitElement {
           opacity:0.5;
         }
 
+		.ghost {
+			opacity:0.75;
+		}
+
         star-count {
           position:absolute;
           top: 0.25em;
@@ -115,7 +119,7 @@ class CardThumbnail extends LitElement {
         }
 
       </style>
-      <div @mousemove=${this._handleMouseMove} @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="${this.selected ? 'selected' : ''} ${this.cardType} ${this.card && this.card.published ? '' : 'unpublished'}">
+      <div @mousemove=${this._handleMouseMove} @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="${this.selected ? 'selected' : ''} ${this.cardType} ${this.card && this.card.published ? '' : 'unpublished'} ${this.willBeRemovedOnPendingFilterCommit ? 'ghost' : ''}">
         <h3 class=${this.cardHasContent ? '' : 'nocontent'}>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>
         <star-count .count=${this.card.star_count || 0} .highlighted=${this.starred} .light=${this.cardType != 'content'}></star-count>
         <read-decorator .visible=${this.read} .light=${this.cardType != 'content'}></read-decorator>
@@ -133,6 +137,9 @@ class CardThumbnail extends LitElement {
 			selected: { type: Boolean },
 			cardType: { type: String},
 			userMayEdit: {type: Boolean},
+			//If the card will be removed on the next filter commit then this should
+			//be set, so the item can be rendered with lower opacity.
+			willBeRemovedOnPendingFilterCommit: { type:Boolean },
 			//Card isn't used for much, except a a place for the container to stash
 			//the whole card (for convenience with dragging).
 			card: {type: Object},
