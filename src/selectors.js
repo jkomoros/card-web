@@ -377,33 +377,32 @@ const combinedFilterForNames = (names, filters) => {
 	return makeCombinedFilter(includeFilters, excludeFilters);
 };
 
-//selectActiveConcreteFilterNames returns a list of all of the currently active
-//filters, but with any inverse filters replaced by the filter name they're the
-//inverse of. Basically, returns the set of filter names whose current values
-//define the combined filter set.
+//selectActiveConcreteFilterNames selects the active filter names that are
+//non-inverse.
 const selectActiveConcreteFilterNames = createSelector(
 	selectActiveFilterNames,
-	(names) => names.map(name => INVERSE_FILTER_NAMES[name] ? INVERSE_FILTER_NAMES[name] : name)
+	(names) => names.filter(name => !INVERSE_FILTER_NAMES[name])
 );
 
-//selectFilterItemsThatWillBeRemovedOnPendingFilterCommit returns a set of
-//diffs, one per concrete filter name, that has a collection of keys, one for
-//each item that is currently in the active filter set, but will be removed once
-//the pending filter set is commited.
-const selectFilterItemsThatWillBeRemovedOnPendingFilterCommit = createSelector(
-	selectFilters,
-	selectPendingFilters,
-	(filters, pendingFilters) => Object.fromEntries(Object.entries(filters).map(entry => {
-		const key = entry[0];
-		const filter = entry[1];
-		const pendingFilter = pendingFilters[key];
-		let diff = Object.fromEntries(Object.entries(filter).map(cardEntry => {
-			const cardKey = cardEntry[0];
-			return pendingFilter[cardKey] ? false : [cardKey, true];
-		}).filter(item => item ? true : false));	
-		return [key, diff];
-	}))
+//selectActiveInverseConcreteFilterNames selects the active filter names that are
+//inverse, returning the concrete versions of them.
+const selectActiveInverseConcreteFilterNames = createSelector(
+	selectActiveFilterNames,
+	(names) => names.filter(name => INVERSE_FILTER_NAMES[name]).map(name => INVERSE_FILTER_NAMES[name])
 );
+
+//diffFilterEntries is used by selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit
+const diffFilterEntries = (activeFilter, pendingFilter, isInverse) => {
+	const primary = isInverse ? pendingFilter : activeFilter;
+	const secondary = isInverse ? activeFilter : pendingFilter;
+
+	const entries = Object.entries(primary).map(entry => {
+		const card = entry[0];
+		return secondary[card] ? null : [card, true];
+	});
+
+	return entries.filter(entry => entry);
+};
 
 //selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit returns the items
 //that will be removed from the currently visible collection when
@@ -411,16 +410,23 @@ const selectFilterItemsThatWillBeRemovedOnPendingFilterCommit = createSelector(
 //collection that only shows unread items, it will list the card ids that are
 //now marked read but are temporarily still in the collection.
 export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = createSelector(
+	selectFilters,
+	selectPendingFilters,
 	selectActiveConcreteFilterNames,
-	selectFilterItemsThatWillBeRemovedOnPendingFilterCommit,
-	(concreteFilterNames, allDiffs) => {
-		let result = {};
-		for (let i = 0; i < concreteFilterNames.length; i++) {
-			const concreteFilterName = concreteFilterNames[i];
-			const filterDiff = allDiffs[concreteFilterName] || {};
-			Object.keys(filterDiff).forEach(key => result[key] = true);
-		}
-		return result;
+	selectActiveInverseConcreteFilterNames,
+	(filters, pendingFilters, conceteFilterNames, inverseConcreteFilterNames) => {
+		//We won't compute the entire diff, just the diff for the filter names
+		//that are currently active.
+		let entries = [];
+		conceteFilterNames.forEach(filterName => {
+			let diffEntries = diffFilterEntries(filters[filterName], pendingFilters[filterName], false);
+			entries = entries.concat(diffEntries);
+		});
+		inverseConcreteFilterNames.forEach(filterName => {
+			let diffEntries = diffFilterEntries(filters[filterName], pendingFilters[filterName], true);
+			entries = entries.concat(diffEntries);
+		});
+		return Object.fromEntries(entries);
 	}
 );
 
