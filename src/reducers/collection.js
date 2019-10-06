@@ -1,7 +1,7 @@
 import {
 	SHOW_CARD,
 	UPDATE_COLLECTION,
-	COMMIT_PENDING_FILTERS
+	COMMIT_PENDING_COLLECTION_MODIFICATIONS
 } from '../actions/collection.js';
 
 import {
@@ -13,6 +13,7 @@ import {
 import {
 	UPDATE_STARS,
 	UPDATE_READS,
+	UPDATE_READING_LIST,
 } from '../actions/user.js';
 
 import {
@@ -23,8 +24,13 @@ import {
 } from '../util.js';
 
 export const DEFAULT_SET_NAME = 'all';
+//reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
+//order matters and is customizable by the user. Every other collection starts
+//from the `all` set and then filters and then maybe sorts, but reading-list
+//lets a custom order.
+export const READING_LIST_SET_NAME = 'reading-list';
 
-export const SET_NAMES = [DEFAULT_SET_NAME];
+export const SET_NAMES = [DEFAULT_SET_NAME, READING_LIST_SET_NAME];
 
 //The word in the URL That means "the part after this is a sort".
 export const SORT_URL_KEYWORD = 'sort';
@@ -104,7 +110,8 @@ export const INVERSE_FILTER_NAMES = {
 	'no-slug': 'has-slug',
 	'no-comments': 'has-comments',
 	'no-content': 'has-content',
-	'published' : 'unpublished'
+	'published' : 'unpublished',
+	'not-in-reading-list' : 'in-reading-list'
 };
 
 const INITIAL_STATE = {
@@ -121,18 +128,20 @@ const INITIAL_STATE = {
 		'has-slug': {},
 		'has-comments': {},
 		'has-content': {},
+		'in-reading-list': {},
 		unpublished: {},
 		//None will match nothing. We use it for orphans.
 		none: {},
 	},
 	//The things that modify filters actuall modify pendingFilters. Only when we
-	//receive a COMMIT_PENDING_FILTERS do we copy over the modifications.
+	//receive a COMMIT_PENDING_COLLECTION_MODIFICATIONS do we copy over the modifications.
 	pendingFilters: {
 		starred: {},
 		read: {},
 		'has-slug': {},
 		'has-comments': {},
 		'has-content': {},
+		'in-reading-list': {},
 		unpublished: {},
 		//None will match nothing. We use it for orphans.
 		none: {},
@@ -162,7 +171,7 @@ const app = (state = INITIAL_STATE, action) => {
 			activeSortName: action.sortName,
 			activeSortReversed: action.sortReversed,
 		};
-	case COMMIT_PENDING_FILTERS:
+	case COMMIT_PENDING_COLLECTION_MODIFICATIONS:
 		//TODO: figure out how to fire this every time one of the other ones
 		//that updates filters is fired if it's before data fully loaded.
 		return {
@@ -194,9 +203,20 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			pendingFilters: {...state.pendingFilters, read: setUnion(setRemove(state.pendingFilters.read, action.readsToRemove), action.readsToAdd)}
 		};
+	case UPDATE_READING_LIST:
+		return {
+			...state,
+			pendingFilters: {...state.pendingFilters, ...makeFilterFromReadingList(action.list)}
+		};
 	default:
 		return state;
 	}
+};
+
+const makeFilterFromReadingList = (readingList) => {
+	return {
+		'in-reading-list': Object.fromEntries(readingList.map(id => [id, true]))
+	};
 };
 
 const makeFilterFromSection = (sections) => {

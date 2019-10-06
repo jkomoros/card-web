@@ -57,7 +57,8 @@ import {
 
 import {
 	INVERSE_FILTER_NAMES,
-	SORT_URL_KEYWORD
+	SORT_URL_KEYWORD,
+	SET_NAMES
 } from '../reducers/collection.js';
 
 //When a new tag is created, it is randomly assigned one of these values.
@@ -417,7 +418,7 @@ const reservedCollectionName = (state, name) => {
 	//Filters already contains section names if data is fully loaded.
 	const filters = selectFilters(state) || {};
 
-	let keys = [...Object.keys(filters), ...Object.keys(INVERSE_FILTER_NAMES)];
+	let keys = [...Object.keys(filters), ...Object.keys(INVERSE_FILTER_NAMES), ...SET_NAMES];
 
 	for (let key of keys) {
 		if (name == key) return true;

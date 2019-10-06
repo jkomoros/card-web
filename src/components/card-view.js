@@ -31,7 +31,9 @@ import {
 	selectActiveSortLabelName,
 	selectUserReads,
 	selectUserStars,
-	selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit
+	selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit,
+	getCardInReadingList,
+	selectUserMayModifyReadingList
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -58,7 +60,9 @@ import {
 	markRead,
 	markUnread,
 	AUTO_MARK_READ_DELAY,
-	showNeedSignin
+	showNeedSignin,
+	removeFromReadingList,
+	addToReadingList
 } from '../actions/user.js';
 
 import {
@@ -95,7 +99,9 @@ import {
 	starBorderIcon,
 	visibilityIcon,
 	searchIcon,
-	screenRotationIcon
+	screenRotationIcon,
+	playlistAddCheckIcon,
+	playlistAddIcon
 } from './my-icons.js';
 
 import {
@@ -337,9 +343,10 @@ class CardView extends connect(store)(PageViewElement) {
                 <button class='round' @click=${this._handleFindClicked}>${searchIcon}</button>
               </div>
               <div class='modify'>
+			  	<button title='Add to your reading list' class='round ${this._cardInReadingList ? 'selected' : ''} ${this._userMayModifyReadingList ? '' : 'need-signin'}' @click='${this._handleReadingListClicked}'>${this._cardInReadingList ? playlistAddCheckIcon : playlistAddIcon }</button>
                 <button class='round ${this._cardHasStar ? 'selected' : ''} ${this._userMayStar ? '' : 'need-signin'}' @click='${this._handleStarClicked}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
                 <button class='round ${this._cardIsRead ? 'selected' : ''} ${this._userMayMarkRead ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
-                <button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
+				<button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
               </div>
               <div class='next-prev'>
                 <button class='round' @click=${this._handleBackClicked}>${arrowBackIcon}</button>
@@ -365,6 +372,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_userMayReorder: {type: Boolean},
 			_userMayStar: { type: Boolean },
 			_userMayMarkRead: { type: Boolean },
+			_userMayModifyReadingList: { type: Boolean},
 			_autoMarkReadPending : { type: Boolean},
 			_displayCard: { type: Object },
 			_editingCard: { type: Object },
@@ -379,6 +387,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_mobileMode: {type: Boolean},
 			_cardHasStar: {type: Boolean},
 			_cardIsRead: {type: Boolean},
+			_cardInReadingList: {type: Boolean},
 			_collection: {type: Array},
 			_collectionLabels: {type:Array},
 			_collectionLabelName: {type:String},
@@ -474,6 +483,18 @@ class CardView extends connect(store)(PageViewElement) {
 		}
 	}
 
+	_handleReadingListClicked() {
+		if (!this._userMayModifyReadingList) {
+			store.dispatch(showNeedSignin());
+			return;
+		}
+		if (this._cardInReadingList) {
+			store.dispatch(removeFromReadingList(this._card));
+		} else {
+			store.dispatch(addToReadingList(this._card));
+		}
+	}
+
 	_handleReadClicked() {
 		if (!this._userMayMarkRead) {
 			store.dispatch(showNeedSignin());
@@ -503,6 +524,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._signedIn = selectUserSignedIn(state);
 		this._userMayStar  =  selectUserMayStar(state);
 		this._userMayMarkRead =  selectUserMayMarkRead(state);
+		this._userMayModifyReadingList = selectUserMayModifyReadingList(state);
 		this._autoMarkReadPending = state.user.autoMarkReadPending;
 		this._userMayEdit = selectUserMayEdit(state);
 		this._userMayReorder = selectUserMayEdit(state) && selectActiveSectionId(state) != '';
@@ -518,6 +540,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._mobileMode = state.app.mobileMode;
 		this._cardHasStar = getCardHasStar(state, this._card ? this._card.id : '');
 		this._cardIsRead = getCardIsRead(state, this._card ? this._card.id : '');
+		this._cardInReadingList = getCardInReadingList(state, this._card ? this._card.id : '');
 		this._collection = selectFinalCollection(state);
 		this._collectionLabels = selectActiveCollectionLabels(state);
 		this._collectionLabelName = selectActiveSortLabelName(state);

@@ -5,6 +5,7 @@ export const SIGNOUT_USER = 'SIGNOUT_USER';
 export const SIGNOUT_SUCCESS = 'SIGNOUT_SUCCESS';
 export const UPDATE_STARS = 'UPDATE_STARS';
 export const UPDATE_READS = 'UPDATE_READS';
+export const UPDATE_READING_LIST = 'UPDATE_READING_LIST';
 export const AUTO_MARK_READ_PENDING_CHANGED = 'AUTO_MARK_READ_PENDING_CHANGED';
 export const UPDATE_NOTIFICATIONS_TOKEN = 'UPDATE_NOTIFICATIONS_TOKEN';
 
@@ -15,7 +16,9 @@ import {
 	connectLiveStars,
 	disconnectLiveStars,
 	connectLiveReads,
-	disconnectLiveReads
+	disconnectLiveReads,
+	connectLiveReadingList,
+	disconnectLiveReadingList,
 } from './database.js';
 
 import {
@@ -23,7 +26,9 @@ import {
 	CARDS_COLLECTION,
 	STARS_COLLECTION,
 	READS_COLLECTION,
-	USERS_COLLECTION
+	USERS_COLLECTION,
+	READING_LISTS_COLLECTION,
+	READING_LISTS_UPDATES_COLLECTION
 } from './database.js';
 
 import {
@@ -153,6 +158,7 @@ export const signOutSuccess = () => (dispatch) =>  {
 	dispatch({type: SIGNOUT_SUCCESS});
 	disconnectLiveStars();
 	disconnectLiveReads();
+	disconnectLiveReadingList();
 };
 
 const HAS_PREVIOUS_SIGN_IN_KEY = 'hasPreviousSignIn';
@@ -229,6 +235,7 @@ export const signInSuccess = (firebaseUser, store) => (dispatch) => {
 	flagHasPreviousSignIn();
 	connectLiveStars(store,firebaseUser.uid);
 	connectLiveReads(store,firebaseUser.uid);
+	connectLiveReadingList(store,firebaseUser.uid);
 };
 
 const _userInfo = (info) => {
@@ -263,6 +270,78 @@ export const updateStars = (starsToAdd = [], starsToRemove = []) => (dispatch) =
 		starsToRemove
 	});
 	dispatch(refreshCardSelector(false));
+};
+
+export const addToReadingList = (cardToAdd) => (dispatch, getState) => {
+	if (!cardToAdd || !cardToAdd.id) {
+		console.log('Invalid card provided');
+		return;
+	}
+
+	const state = getState();
+	let uid = selectUid(state);
+
+	if (!uid) {
+		console.log('Not logged in');
+		return;
+	}
+
+	let batch = db.batch();
+
+	let readingListRef = db.collection(READING_LISTS_COLLECTION).doc(uid);
+	let readingListUpdateRef = readingListRef.collection(READING_LISTS_UPDATES_COLLECTION).doc('' + Date.now());
+
+	let readingListObject = {
+		cards: firebase.firestore.FieldValue.arrayUnion(cardToAdd.id),
+		updated: new Date(),
+		owner: uid,
+	};
+
+	let readingListUpdateObject = {
+		timestamp: new Date(),
+		add_card: cardToAdd.id
+	};
+
+	batch.set(readingListRef, readingListObject, {merge:true});
+	batch.set(readingListUpdateRef, readingListUpdateObject);
+
+	batch.commit();
+};
+
+export const removeFromReadingList = (cardToRemove) => (dispatch, getState) => {
+	if (!cardToRemove || !cardToRemove.id) {
+		console.log('Invalid card provided');
+		return;
+	}
+
+	const state = getState();
+	let uid = selectUid(state);
+
+	if (!uid) {
+		console.log('Not logged in');
+		return;
+	}
+
+	let batch = db.batch();
+
+	let readingListRef = db.collection(READING_LISTS_COLLECTION).doc(uid);
+	let readingListUpdateRef = readingListRef.collection(READING_LISTS_UPDATES_COLLECTION).doc('' + Date.now());
+
+	let readingListObject = {
+		cards: firebase.firestore.FieldValue.arrayRemove(cardToRemove.id),
+		updated: new Date(),
+		owner: uid
+	};
+
+	let readingListUpdateObject = {
+		timestamp: new Date(),
+		remove_card: cardToRemove.id
+	};
+
+	batch.set(readingListRef, readingListObject, {merge:true});
+	batch.set(readingListUpdateRef, readingListUpdateObject);
+
+	batch.commit();
 };
 
 export const addStar = (cardToStar) => (dispatch, getState) => {
@@ -333,6 +412,14 @@ export const updateReads = (readsToAdd = [], readsToRemove = []) => (dispatch) =
 		type: UPDATE_READS,
 		readsToAdd,
 		readsToRemove
+	});
+	dispatch(refreshCardSelector(false));
+};
+
+export const updateReadingList = (list = []) => (dispatch) => {
+	dispatch({
+		type: UPDATE_READING_LIST,
+		list,
 	});
 	dispatch(refreshCardSelector(false));
 };

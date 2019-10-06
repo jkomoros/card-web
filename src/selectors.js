@@ -20,8 +20,12 @@ import {
 	INVERSE_FILTER_NAMES,
 	DEFAULT_SORT_NAME,
 	RECENT_SORT_NAME,
-	SORTS
+	SORTS,
+	READING_LIST_SET_NAME
 } from './reducers/collection.js';
+
+//The card that is the tutorial for reading lists
+const ABOUT_READING_LISTS_CARD_SLUG = 'about-reading-lists';
 
 export const selectPage = (state) => state.app.page;
 export const selectPageExtra = (state) => state.app.pageExtra;
@@ -56,6 +60,12 @@ export const selectPreviewCardX = (state) => state.app ? state.app.hoverX : 0;
 export const selectPreviewCardY = (state) => state.app ? state.app.hoverY : 0;
 export const selectUserReads = (state) => state.user ? state.user.reads : null;
 export const selectUserStars = (state) => state.user ? state.user.stars : null;
+export const selectUserReadingList = (state) => state.user ? state.user.readingList : null;
+const selectUserReadingListForSet = (state) => {
+	if (!state.user) return null;
+	//If there are no cards in reading list, return the one orphaned card that describes how they work.
+	return state.user.readingListForSet.length ? state.user.readingListForSet : [getIdForCard(state, ABOUT_READING_LISTS_CARD_SLUG)];
+};
 
 export const selectQuery = (state) => state.find.query;
 
@@ -64,6 +74,7 @@ export const selectAuthPending = (state) => state.user.pending;
 //no user to load stars or reads for.
 export const selectStarsLoaded = (state) => state.user.starsLoaded;
 export const selectReadsLoaded = (state) => state.user.readsLoaded;
+export const selectReadingListLoaded = (state) => state.user.readingListLoaded;
 
 export const selectNotificationsEnabled = (state) => state.user.notificationsToken ? true : false;
 
@@ -143,6 +154,8 @@ export const selectUserMayStar = selectUserObjectExists;
 
 export const selectUserMayMarkRead = selectUserObjectExists;
 
+export const selectUserMayModifyReadingList = selectUserObjectExists;
+
 export const selectUserIsAnonymous = createSelector(
 	selectUser,
 	(user) => userObjectExists(user) && user.isAnonymous
@@ -172,6 +185,10 @@ export const getCardHasStar = (state, cardId) => {
 
 export const getCardIsRead = (state, cardId) => {
 	return (selectUserReads(state) || {})[cardId] || false;
+};
+
+export const getCardInReadingList = (state, cardId) => {
+	return (selectUserReadingListMap(state) || {})[cardId] || false;
 };
 
 export const getUserMayResolveThread = (state, thread) => userMayResolveThread(selectUser(state), thread);
@@ -221,6 +238,16 @@ export const getSection = (state, sectionId) => {
 	return state.data.sections[sectionId] || null;
 };
 
+export const selectUserReadingListMap = createSelector(
+	selectUserReadingList,
+	list => Object.fromEntries((list || []).map(item => [item, true]))
+);
+
+const selectUserReadingListForSetMap = createSelector(
+	selectUserReadingListForSet,
+	list => Object.fromEntries((list || []).map(item => [item, true]))
+);
+
 //TODO: once factoring the composed threads selctors into this file, refactor
 //this to just select the composed threads.
 export const selectActiveCardThreadIds = createSelector(
@@ -265,10 +292,11 @@ export const selectUserDataIsFullyLoaded = createSelector(
 	selectUserObjectExists,
 	selectStarsLoaded,
 	selectReadsLoaded,
-	(pending, userExists, starsLoaded, readsLoaded) => {
+	selectReadingListLoaded,
+	(pending, userExists, starsLoaded, readsLoaded, readingListLoaded) => {
 		if (pending) return false;
 		if (!userExists) return true;
-		return starsLoaded && readsLoaded;
+		return starsLoaded && readsLoaded && readingListLoaded;
 	}
 );
 
@@ -321,7 +349,14 @@ export const selectRecentTabSelected = createSelector(
 	selectActiveSetName,
 	selectActiveSortName,
 	selectActiveFilterNames,
-	(set, sort, filters) => set == DEFAULT_SET_NAME && sort == RECENT_SORT_NAME && (!filters || filters.length == 0)
+	(set, sort, filters) => set == DEFAULT_SET_NAME && sort == RECENT_SORT_NAME && (filters.length == 1 && filters[0] == 'has-content')
+);
+
+//This is used to decide whether the recent tab should show as selected.
+export const selectReadingListTabSelected = createSelector(
+	selectActiveSetName,
+	selectActiveFilterNames,
+	(set, filters) => set == READING_LIST_SET_NAME  && (!filters || filters.length == 0)
 );
 
 //selectActiveTagId returns a string IFF precisely one tag is being selected.
@@ -409,15 +444,18 @@ const diffFilterEntries = (activeFilter, pendingFilter, isInverse) => {
 
 //selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit returns the items
 //that will be removed from the currently visible collection when
-//COMMIT_PENDING_FILTERS is dispatched. For example, if you're looking at a
-//collection that only shows unread items, it will list the card ids that are
-//now marked read but are temporarily still in the collection.
+//COMMIT_PENDING_COLLECTION_MODIFICATIONS is dispatched. For example, if you're
+//looking at a collection that only shows unread items, it will list the card
+//ids that are now marked read but are temporarily still in the collection.
 export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = createSelector(
+	selectActiveSetName,
 	selectFilters,
 	selectPendingFilters,
 	selectActiveConcreteFilterNames,
 	selectActiveInverseConcreteFilterNames,
-	(filters, pendingFilters, conceteFilterNames, inverseConcreteFilterNames) => {
+	selectUserReadingListForSetMap,
+	selectUserReadingListMap,
+	(setName, filters, pendingFilters, conceteFilterNames, inverseConcreteFilterNames, readingListForSet, readingList) => {
 		//We won't compute the entire diff, just the diff for the filter names
 		//that are currently active.
 		let entries = [];
@@ -429,6 +467,13 @@ export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = creat
 			let diffEntries = diffFilterEntries(filters[filterName], pendingFilters[filterName], true);
 			entries = entries.concat(diffEntries);
 		});
+		//We have to handle reading-list set changes specially because it's a
+		//base set that's liable to change, like read/star, but for a base set.
+		//Only return it in the diff if that set is currently being used.
+		if (setName == READING_LIST_SET_NAME) {
+			let diffEntries = diffFilterEntries(readingListForSet, readingList, false);
+			entries = entries.concat(diffEntries);
+		}
 		return Object.fromEntries(entries);
 	}
 );
@@ -444,7 +489,16 @@ const selectActiveCombinedFilter = createSelector(
 export const selectActiveSet = createSelector(
 	selectActiveSetName,
 	selectDefaultSet,
-	(setName, defaultSet) => setName == DEFAULT_SET_NAME ? defaultSet : []
+	selectUserReadingListForSet,
+	(setName, defaultSet, readingList) => {
+		switch(setName) {
+		case DEFAULT_SET_NAME:
+			return defaultSet;
+		case READING_LIST_SET_NAME:
+			return readingList || [];
+		}
+		return [];
+	}
 );
 
 //BaseCollection means no start_cards
