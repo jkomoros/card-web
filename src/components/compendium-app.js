@@ -233,6 +233,10 @@ class CompendiumApp extends connect(store)(LitElement) {
 				border-bottom: 4px solid var(--app-header-selected-color);
 			}
 
+			.toolbar-list > a > svg {
+				fill: var(--app-header-text-color);
+			}
+
 			.toolbar-list > a[selected] > svg {
 				fill: var(--app-header-selected-color);
 			}
