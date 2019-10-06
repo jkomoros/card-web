@@ -53,7 +53,8 @@ import {
 	selectUserReads,
 	selectUserStars,
 	selectReadingListTabSelected,
-	selectStarsTabSelected
+	selectStarsTabSelected,
+	selectUnreadTabSelected
 } from '../selectors.js';
 
 import {
@@ -102,7 +103,8 @@ import {
 
 import {
 	playlistPlayIcon,
-	starIcon
+	starIcon,
+	visibilityIcon
 } from './my-icons';
 
 class CompendiumApp extends connect(store)(LitElement) {
@@ -280,6 +282,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 						<a ?selected=${this._recentTabSelected} href="/c/has-content/sort/recent/_">Recent</a>
 						<a class='icon-item' title='Your reading list' ?selected=${this._readingListTabSelected} href="/c/reading-list/_">${playlistPlayIcon}</a>
 						<a class='icon-item' title='Your stars' ?selected=${this._starsTabSelected} href="/c/starred/_">${starIcon}</a>
+						<a class='icon-item' title="Cards you haven't read yet" ?selected=${this._unreadTabSelected} href="/c/unread/_">${visibilityIcon}</a>
 					</nav>
 					<div class='spacer dev'>
 						${this._devMode ? html`DEVMODE` : ''}
@@ -317,6 +320,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 			_recentTabSelected: {type:Boolean},
 			_readingListTabSelected: {type: Boolean},
 			_starsTabSelected: {type:Boolean},
+			_unreadTabSelected: {type:Boolean},
 			_activePreviewCard: { type:Object },
 			_previewCardX : { type:Number },
 			_previewCardY : { type:Number },
@@ -454,6 +458,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		this._recentTabSelected = selectRecentTabSelected(state);
 		this._readingListTabSelected = selectReadingListTabSelected(state);
 		this._starsTabSelected = selectStarsTabSelected(state);
+		this._unreadTabSelected = selectUnreadTabSelected(state);
 		this._activePreviewCard = selectActivePreviewCard(state);
 		this._previewCardX = selectPreviewCardX(state);
 		this._previewCardY = selectPreviewCardY(state);

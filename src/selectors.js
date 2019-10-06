@@ -351,7 +351,6 @@ export const selectRecentTabSelected = createSelector(
 	selectActiveFilterNames,
 	(set, sort, filters) => set == DEFAULT_SET_NAME && sort == RECENT_SORT_NAME && (filters.length == 1 && filters[0] == 'has-content')
 );
-
 //This is used to decide whether the recent tab should show as selected.
 export const selectReadingListTabSelected = createSelector(
 	selectActiveSetName,
@@ -364,6 +363,13 @@ export const selectStarsTabSelected = createSelector(
 	selectActiveSetName,
 	selectActiveFilterNames,
 	(set, filters) => set == DEFAULT_SET_NAME  && (filters.length == 1 && filters[0] == 'starred')
+);
+
+//This is used to decide whether the recent tab should show as selected.
+export const selectUnreadTabSelected = createSelector(
+	selectActiveSetName,
+	selectActiveFilterNames,
+	(set, filters) => set == DEFAULT_SET_NAME  && (filters.length == 1 && filters[0] == 'unread')
 );
 
 //selectActiveTagId returns a string IFF precisely one tag is being selected.
