@@ -51,7 +51,8 @@ import {
 	selectPreviewCardX,
 	selectPreviewCardY,
 	selectUserReads,
-	selectUserStars
+	selectUserStars,
+	selectReadingListTabSelected
 } from '../selectors.js';
 
 import {
@@ -251,6 +252,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		html`<a ?selected="${this._page === 'c'}" href="/c"><em>Loading...</em></a>`
 }
 						<a ?selected=${this._recentTabSelected} href="/c/has-content/sort/recent/_">Recent</a>
+						<a ?selected=${this._readingListTabSelected} href="/c/reading-list/_">Reading List</a>
 					</nav>
 					<div class='spacer dev'>
 						${this._devMode ? html`DEVMODE` : ''}
@@ -286,6 +288,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 			_keyboardNavigates: {type:Boolean},
 			_swRegistration : {type:Object},
 			_recentTabSelected: {type:Boolean},
+			_readingListTabSelected: {type: Boolean},
 			_activePreviewCard: { type:Object },
 			_previewCardX : { type:Number },
 			_previewCardY : { type:Number },
@@ -421,6 +424,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		this._activeSectionId = selectActiveSectionId(state);
 		this._keyboardNavigates = keyboardNavigates(state);
 		this._recentTabSelected = selectRecentTabSelected(state);
+		this._readingListTabSelected = selectReadingListTabSelected(state);
 		this._activePreviewCard = selectActivePreviewCard(state);
 		this._previewCardX = selectPreviewCardX(state);
 		this._previewCardY = selectPreviewCardY(state);
