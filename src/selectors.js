@@ -236,6 +236,11 @@ export const selectUserReadingListMap = createSelector(
 	list => Object.fromEntries((list || []).map(item => [item, true]))
 );
 
+const selectUserReadingListForSetMap = createSelector(
+	selectUserReadingListForSet,
+	list => Object.fromEntries((list || []).map(item => [item, true]))
+);
+
 //TODO: once factoring the composed threads selctors into this file, refactor
 //this to just select the composed threads.
 export const selectActiveCardThreadIds = createSelector(
@@ -429,11 +434,14 @@ const diffFilterEntries = (activeFilter, pendingFilter, isInverse) => {
 //collection that only shows unread items, it will list the card ids that are
 //now marked read but are temporarily still in the collection.
 export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = createSelector(
+	selectActiveSetName,
 	selectFilters,
 	selectPendingFilters,
 	selectActiveConcreteFilterNames,
 	selectActiveInverseConcreteFilterNames,
-	(filters, pendingFilters, conceteFilterNames, inverseConcreteFilterNames) => {
+	selectUserReadingListForSetMap,
+	selectUserReadingListMap,
+	(setName, filters, pendingFilters, conceteFilterNames, inverseConcreteFilterNames, readingListForSet, readingList) => {
 		//We won't compute the entire diff, just the diff for the filter names
 		//that are currently active.
 		let entries = [];
@@ -445,6 +453,13 @@ export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = creat
 			let diffEntries = diffFilterEntries(filters[filterName], pendingFilters[filterName], true);
 			entries = entries.concat(diffEntries);
 		});
+		//We have to handle reading-list set changes specially because it's a
+		//base set that's liable to change, like read/star, but for a base set.
+		//Only return it in the diff if that set is currently being used.
+		if (setName == READING_LIST_SET_NAME) {
+			let diffEntries = diffFilterEntries(readingListForSet, readingList, false);
+			entries = entries.concat(diffEntries);
+		}
 		return Object.fromEntries(entries);
 	}
 );
