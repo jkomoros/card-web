@@ -342,7 +342,7 @@ export const selectRecentTabSelected = createSelector(
 	selectActiveSetName,
 	selectActiveSortName,
 	selectActiveFilterNames,
-	(set, sort, filters) => set == DEFAULT_SET_NAME && sort == RECENT_SORT_NAME && (!filters || filters.length == 0)
+	(set, sort, filters) => set == DEFAULT_SET_NAME && sort == RECENT_SORT_NAME && (filters.length == 1 && filters[0] == 'has-content')
 );
 
 //selectActiveTagId returns a string IFF precisely one tag is being selected.
