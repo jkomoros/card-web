@@ -86,7 +86,7 @@ const app = (state = INITIAL_STATE, action) => {
 	case UPDATE_READING_LIST:
 		return {
 			...state,
-			readingList: action.list,
+			readingList: [...action.list],
 			readingListLoaded: true,
 		};
 	case AUTO_MARK_READ_PENDING_CHANGED:
