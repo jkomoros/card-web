@@ -430,9 +430,9 @@ const diffFilterEntries = (activeFilter, pendingFilter, isInverse) => {
 
 //selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit returns the items
 //that will be removed from the currently visible collection when
-//COMMIT_PENDING_FILTERS is dispatched. For example, if you're looking at a
-//collection that only shows unread items, it will list the card ids that are
-//now marked read but are temporarily still in the collection.
+//COMMIT_PENDING_COLLECTION_MODIFICATIONS is dispatched. For example, if you're
+//looking at a collection that only shows unread items, it will list the card
+//ids that are now marked read but are temporarily still in the collection.
 export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = createSelector(
 	selectActiveSetName,
 	selectFilters,

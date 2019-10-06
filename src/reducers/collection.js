@@ -1,7 +1,7 @@
 import {
 	SHOW_CARD,
 	UPDATE_COLLECTION,
-	COMMIT_PENDING_FILTERS
+	COMMIT_PENDING_COLLECTION_MODIFICATIONS
 } from '../actions/collection.js';
 
 import {
@@ -127,7 +127,7 @@ const INITIAL_STATE = {
 		none: {},
 	},
 	//The things that modify filters actuall modify pendingFilters. Only when we
-	//receive a COMMIT_PENDING_FILTERS do we copy over the modifications.
+	//receive a COMMIT_PENDING_COLLECTION_MODIFICATIONS do we copy over the modifications.
 	pendingFilters: {
 		starred: {},
 		read: {},
@@ -163,7 +163,7 @@ const app = (state = INITIAL_STATE, action) => {
 			activeSortName: action.sortName,
 			activeSortReversed: action.sortReversed,
 		};
-	case COMMIT_PENDING_FILTERS:
+	case COMMIT_PENDING_COLLECTION_MODIFICATIONS:
 		//TODO: figure out how to fire this every time one of the other ones
 		//that updates filters is fired if it's before data fully loaded.
 		return {
