@@ -293,7 +293,8 @@ export const addToReadingList = (cardToAdd) => (dispatch, getState) => {
 
 	let readingListObject = {
 		cards: firebase.firestore.FieldValue.arrayUnion(cardToAdd.id),
-		updated: new Date()
+		updated: new Date(),
+		owner: uid,
 	};
 
 	let readingListUpdateObject = {
@@ -329,6 +330,7 @@ export const removeFromReadingList = (cardToRemove) => (dispatch, getState) => {
 	let readingListObject = {
 		cards: firebase.firestore.FieldValue.arrayRemove(cardToRemove.id),
 		updated: new Date(),
+		owner: uid
 	};
 
 	let readingListUpdateObject = {
