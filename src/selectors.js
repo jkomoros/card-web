@@ -39,6 +39,7 @@ export const selectRequestedCard = (state) => state.collection.requestedCard;
 export const selectActiveCardId = (state) => state.collection.activeCardId;
 export const selectActiveFilterNames = (state) => state.collection.activeFilterNames;
 export const selectFilters = (state) => state.collection.filters;
+const selectPendingFilters = (state) => state.collection.pendingFilters;
 export const selectSections = (state) => state.data ? state.data.sections : null;
 export const selectTags = (state) => state.data ? state.data.tags : null;
 const selectBaseCards = (state) => state.data ? state.data.cards : null;
@@ -383,6 +384,25 @@ const combinedFilterForNames = (names, filters) => {
 const selectActiveConcreteFilterNames = createSelector(
 	selectActiveFilterNames,
 	(names) => names.map(name => INVERSE_FILTER_NAMES[name] ? INVERSE_FILTER_NAMES[name] : name)
+);
+
+//selectFilterItemsThatWillBeRemovedOnPendingFilterCommit returns a set of
+//diffs, one per concrete filter name, that has a collection of keys, one for
+//each item that is currently in the active filter set, but will be removed once
+//the pending filter set is commited.
+const selectFilterItemsThatWillBeRemovedOnPendingFilterCommit = createSelector(
+	selectFilters,
+	selectPendingFilters,
+	(filters, pendingFilters) => Object.fromEntries(Object.entries(filters).map(entry => {
+		const key = entry[0];
+		const filter = entry[1];
+		const pendingFilter = pendingFilters[key];
+		let diff = Object.fromEntries(Object.entries(filter).map(cardEntry => {
+			const cardKey = cardEntry[0];
+			return pendingFilter[cardKey] ? false : [cardKey, true];
+		}).filter(item => item ? true : false));	
+		return [key, diff];
+	}))
 );
 
 //Returns a list of icludeFilters and a list of excludeFilters.
