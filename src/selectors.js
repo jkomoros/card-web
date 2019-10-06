@@ -176,6 +176,10 @@ export const getCardIsRead = (state, cardId) => {
 	return (selectUserReads(state) || {})[cardId] || false;
 };
 
+export const getCardInReadingList = (state, cardId) => {
+	return (selectUserReadingListMap(state) || {})[cardId] || false;
+};
+
 export const getUserMayResolveThread = (state, thread) => userMayResolveThread(selectUser(state), thread);
 export const getUserMayEditMessage = (state, message) => userMayEditMessage(selectUser(state), message);
 
