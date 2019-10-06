@@ -16,6 +16,10 @@ import {
 	setUnion
 } from '../util.js';
 
+import {
+	COMMIT_PENDING_FILTERS 
+} from '../actions/collection.js';
+
 const INITIAL_STATE = {
 	user : null,
 	notificationsToken: null,
@@ -28,6 +32,13 @@ const INITIAL_STATE = {
 	stars : {},
 	reads: {},
 	readingList: [],
+	//This is the reading list that we use for the purposes of the live set. We
+	//only update it when COMMIT_PENDING_FILTERS is called, for similar reasons
+	//that we use filters/pendingFiltesr for sets. That is, reading-list is
+	//liable to change while the user is viewing that set, due to their own
+	//actions, and it would be weird if the cards would disappear when they hit
+	//that button.
+	readingListForSet: [],
 	//These two are analoges to cardsLoaded et al in data. They're set to true
 	//after UPDATE_STARS or _READS has been called at least once.  Primarily for
 	//selectDataIsFullyLoaded purposes.
@@ -88,6 +99,11 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			readingList: [...action.list],
 			readingListLoaded: true,
+		};
+	case COMMIT_PENDING_FILTERS:
+		return {
+			...state,
+			readingListForSet: [...state.readingList]
 		};
 	case AUTO_MARK_READ_PENDING_CHANGED:
 		return {

@@ -58,6 +58,7 @@ export const selectPreviewCardY = (state) => state.app ? state.app.hoverY : 0;
 export const selectUserReads = (state) => state.user ? state.user.reads : null;
 export const selectUserStars = (state) => state.user ? state.user.stars : null;
 export const selectUserReadingList = (state) => state.user ? state.user.readingList : null;
+const selectUserReadingListForSet = (state) => state.user ? state.user.readingListForSet : null;
 
 export const selectQuery = (state) => state.find.query;
 
@@ -459,7 +460,7 @@ const selectActiveCombinedFilter = createSelector(
 export const selectActiveSet = createSelector(
 	selectActiveSetName,
 	selectDefaultSet,
-	selectUserReadingList,
+	selectUserReadingListForSet,
 	(setName, defaultSet, readingList) => {
 		switch(setName) {
 		case DEFAULT_SET_NAME:
