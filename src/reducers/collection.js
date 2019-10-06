@@ -23,8 +23,9 @@ import {
 } from '../util.js';
 
 export const DEFAULT_SET_NAME = 'all';
+export const READING_LIST_SET_NAME = 'reading-list';
 
-export const SET_NAMES = [DEFAULT_SET_NAME];
+export const SET_NAMES = [DEFAULT_SET_NAME, READING_LIST_SET_NAME];
 
 //The word in the URL That means "the part after this is a sort".
 export const SORT_URL_KEYWORD = 'sort';

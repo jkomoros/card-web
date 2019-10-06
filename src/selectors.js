@@ -20,7 +20,8 @@ import {
 	INVERSE_FILTER_NAMES,
 	DEFAULT_SORT_NAME,
 	RECENT_SORT_NAME,
-	SORTS
+	SORTS,
+	READING_LIST_SET_NAME
 } from './reducers/collection.js';
 
 export const selectPage = (state) => state.app.page;
@@ -458,7 +459,16 @@ const selectActiveCombinedFilter = createSelector(
 export const selectActiveSet = createSelector(
 	selectActiveSetName,
 	selectDefaultSet,
-	(setName, defaultSet) => setName == DEFAULT_SET_NAME ? defaultSet : []
+	selectUserReadingList,
+	(setName, defaultSet, readingList) => {
+		switch(setName) {
+		case DEFAULT_SET_NAME:
+			return defaultSet;
+		case READING_LIST_SET_NAME:
+			return readingList || [];
+		}
+		return [];
+	}
 );
 
 //BaseCollection means no start_cards
