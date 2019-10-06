@@ -145,6 +145,8 @@ export const selectUserMayStar = selectUserObjectExists;
 
 export const selectUserMayMarkRead = selectUserObjectExists;
 
+export const selectUserMayModifyReadingList = selectUserObjectExists;
+
 export const selectUserIsAnonymous = createSelector(
 	selectUser,
 	(user) => userObjectExists(user) && user.isAnonymous
