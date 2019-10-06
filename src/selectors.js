@@ -418,7 +418,7 @@ export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = creat
 		for (let i = 0; i < concreteFilterNames.length; i++) {
 			const concreteFilterName = concreteFilterNames[i];
 			const filterDiff = allDiffs[concreteFilterName];
-			Object.keys(filterDiff).forEach(key => result[key] = true)
+			Object.keys(filterDiff).forEach(key => result[key] = true);
 		}
 		return result;
 	}
