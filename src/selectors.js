@@ -523,14 +523,18 @@ export const selectCollectionIsFallback = createSelector(
 
 //The card that is the tutorial for reading lists
 const ABOUT_READING_LISTS_CARD = 'c-991-cba033';
+const ABOUT_STARS_CARD = 'c-858-dfd425';
 
 const selectActiveBaseCollectionOrFallback = createSelector(
 	selectActiveBaseCollection,
 	selectReadingListTabSelected,
-	(collection, readingListTab) => {
+	selectStarsTabSelected,
+	(collection, readingListTab, starsTab) => {
 		if (collection.length > 0) return collection;
 		if (readingListTab) return [ABOUT_READING_LISTS_CARD];
-		//TODO: return different cards for other tabs that might be empty
+		if (starsTab) return [ABOUT_STARS_CARD];
+		//TODO: return different cards for other tabs that might be empty or
+		//other conditions, like filters that filter out all cards.
 		return [];
 	}
 );
