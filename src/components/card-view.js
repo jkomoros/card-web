@@ -33,7 +33,8 @@ import {
 	selectUserStars,
 	selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit,
 	getCardInReadingList,
-	selectUserMayModifyReadingList
+	selectUserMayModifyReadingList,
+	selectCardsDrawerPanelShowing
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -108,10 +109,6 @@ import {
 	modifyCard,
 	reorderCard
 } from '../actions/data.js';
-
-import {
-	cardsDrawerPanelShowing
-} from '../reducers/app.js';
 
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
@@ -535,7 +532,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._cardsDrawerPanelOpen = state.app.cardsDrawerPanelOpen;
 		this._bodyFromContentEditable = state.editor.bodyFromContentEditable;
 		this._titleFromContentEditable = state.editor.titleFromContentEditable;
-		this._cardsDrawerPanelShowing = cardsDrawerPanelShowing(state);
+		this._cardsDrawerPanelShowing = selectCardsDrawerPanelShowing(state);
 		this._presentationMode = state.app.presentationMode;
 		this._mobileMode = state.app.mobileMode;
 		this._cardHasStar = getCardHasStar(state, this._card ? this._card.id : '');

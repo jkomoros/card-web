@@ -60,6 +60,8 @@ export const selectUserStars = (state) => state.user ? state.user.stars : null;
 export const selectUserReadingList = (state) => state.user ? state.user.readingList : null;
 const selectUserReadingListForSet = (state) => state.user ? state.user.readingListForSet : null;
 
+const selectCardsDrawerPanelOpen = (state) => state.app ? state.app.cardsDrawerPanelOpen : false;
+
 export const selectQuery = (state) => state.find.query;
 
 export const selectAuthPending = (state) => state.user.pending;
@@ -519,6 +521,14 @@ const selectActiveBaseCollection = createSelector(
 export const selectCollectionIsFallback = createSelector(
 	selectActiveBaseCollection,
 	(collection) => collection.length == 0
+);
+
+//The cardsDrawerPanel hides itself when there are no cards to show (that is,
+//for orphaned cards). This is the logic that decides if it's open based on state.
+export const selectCardsDrawerPanelShowing = createSelector(
+	selectCollectionIsFallback,
+	selectCardsDrawerPanelOpen,
+	(isFallback, panelOpen) => isFallback ? false : panelOpen
 );
 
 //The card that is the tutorial for reading lists

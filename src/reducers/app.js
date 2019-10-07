@@ -29,7 +29,6 @@ import {
 } from '../actions/app.js';
 
 import {
-	selectFinalCollection,
 	selectComposeOpen,
 } from '../selectors.js';
 
@@ -168,14 +167,6 @@ export const keyboardNavigates = state => {
 	if (state.find && state.find.open) return false;
 	if (selectComposeOpen(state)) return false;
 	return true;
-};
-
-//The cardsDrawerPanel hides itself when there are no cards to show (that is,
-//for orphaned cards). This is the logic that decides if it's open based on state.
-export const cardsDrawerPanelShowing = state => {
-	let collection = selectFinalCollection(state);
-	if (!collection || !collection.length) return false;
-	return state.app.cardsDrawerPanelOpen;
 };
 
 export default app;
