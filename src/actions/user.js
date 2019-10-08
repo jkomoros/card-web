@@ -44,7 +44,8 @@ import {
 	selectUser,
 	selectUid,
 	getCardIsRead,
-	selectUserIsAnonymous
+	selectUserIsAnonymous,
+	selectCollectionIsFallback
 } from '../selectors.js';
 
 let prevAnonymousMergeUser = null;
@@ -286,6 +287,12 @@ export const addToReadingList = (cardToAdd) => (dispatch, getState) => {
 		return;
 	}
 
+	const collectionIsFallback = selectCollectionIsFallback(state);
+	if (collectionIsFallback) {
+		console.log('Interacting with fallback content not allowed');
+		return;
+	}
+
 	let batch = db.batch();
 
 	let readingListRef = db.collection(READING_LISTS_COLLECTION).doc(uid);
@@ -319,6 +326,12 @@ export const removeFromReadingList = (cardToRemove) => (dispatch, getState) => {
 
 	if (!uid) {
 		console.log('Not logged in');
+		return;
+	}
+
+	const collectionIsFallback = selectCollectionIsFallback(state);
+	if (collectionIsFallback) {
+		console.log('Interacting with fallback content not allowed');
 		return;
 	}
 
@@ -359,6 +372,12 @@ export const addStar = (cardToStar) => (dispatch, getState) => {
 		return;
 	}
 
+	const collectionIsFallback = selectCollectionIsFallback(state);
+	if (collectionIsFallback) {
+		console.log('Interacting with fallback content not allowed');
+		return;
+	}
+
 	let cardRef = db.collection(CARDS_COLLECTION).doc(cardToStar.id);
 	let starRef = db.collection(STARS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToStar.id));
 
@@ -384,6 +403,12 @@ export const removeStar = (cardToStar) => (dispatch, getState) => {
 
 	if (!uid) {
 		console.log('Not logged in');
+		return;
+	}
+
+	const collectionIsFallback = selectCollectionIsFallback(state);
+	if (collectionIsFallback) {
+		console.log('Interacting with fallback content not allowed');
 		return;
 	}
 
@@ -434,6 +459,11 @@ export const scheduleAutoMarkRead = () => (dispatch, getState) => {
 	const uid = selectUid(state);
 	if (!uid) return;
 
+	const collectionIsFallback = selectCollectionIsFallback(state);
+	if (collectionIsFallback) {
+		return;
+	}
+
 	const activeCard = selectActiveCard(state);
 	if (!activeCard) return;
 	if (getCardIsRead(state, activeCard.id)) return;
@@ -478,6 +508,12 @@ export const markRead = (cardToMarkRead, existingReadDoesNotError) => (dispatch,
 		return;
 	}
 
+	const collectionIsFallback = selectCollectionIsFallback(state);
+	if (collectionIsFallback) {
+		console.log('Interacting with fallback content not allowed');
+		return;
+	}
+
 	if (getCardIsRead(state, cardToMarkRead.id)) {
 		if (!existingReadDoesNotError) {
 			console.log('The card is already read!');
@@ -503,6 +539,12 @@ export const markUnread = (cardToMarkUnread) => (dispatch, getState) => {
 
 	if (!uid) {
 		console.log('Not logged in');
+		return;
+	}
+
+	const collectionIsFallback = selectCollectionIsFallback(state);
+	if (collectionIsFallback) {
+		console.log('Interacting with fallback content not allowed');
 		return;
 	}
 
