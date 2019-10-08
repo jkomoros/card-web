@@ -271,6 +271,11 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 	//TODO: this should be a constant somewhere
 	let result = ['c'];
 
+	if (activeSetName != DEFAULT_SET_NAME) {
+		//The set name is implied, but only if it's the default one.
+		result.push(activeSetName);
+	}
+
 	//Orphaned cards just live at their name and nothing else. But the
 	//start_cards for tags are technically orphans, and should be shown as being
 	//in the collection they're in.
