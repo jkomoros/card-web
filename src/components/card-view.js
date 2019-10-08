@@ -34,7 +34,8 @@ import {
 	selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit,
 	getCardInReadingList,
 	selectUserMayModifyReadingList,
-	selectCardsDrawerPanelShowing
+	selectCardsDrawerPanelShowing,
+	selectCollectionIsFallback
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -340,9 +341,9 @@ class CardView extends connect(store)(PageViewElement) {
                 <button class='round' @click=${this._handleFindClicked}>${searchIcon}</button>
               </div>
               <div class='modify'>
-			  	<button title='Add to your reading list' class='round ${this._cardInReadingList ? 'selected' : ''} ${this._userMayModifyReadingList ? '' : 'need-signin'}' @click='${this._handleReadingListClicked}'>${this._cardInReadingList ? playlistAddCheckIcon : playlistAddIcon }</button>
-                <button class='round ${this._cardHasStar ? 'selected' : ''} ${this._userMayStar ? '' : 'need-signin'}' @click='${this._handleStarClicked}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
-                <button class='round ${this._cardIsRead ? 'selected' : ''} ${this._userMayMarkRead ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
+			  	<button title='Add to your reading list' ?disabled=${this._collectionIsFallback} class='round ${this._cardInReadingList ? 'selected' : ''} ${this._userMayModifyReadingList ? '' : 'need-signin'}' @click='${this._handleReadingListClicked}'>${this._cardInReadingList ? playlistAddCheckIcon : playlistAddIcon }</button>
+                <button ?disabled=${this._collectionIsFallback} class='round ${this._cardHasStar ? 'selected' : ''} ${this._userMayStar ? '' : 'need-signin'}' @click='${this._handleStarClicked}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
+                <button ?disabled=${this._collectionIsFallback} class='round ${this._cardIsRead ? 'selected' : ''} ${this._userMayMarkRead ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
 				<button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
               </div>
               <div class='next-prev'>
@@ -386,6 +387,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_cardIsRead: {type: Boolean},
 			_cardInReadingList: {type: Boolean},
 			_collection: {type: Array},
+			_collectionIsFallback: {type:Boolean},
 			_collectionLabels: {type:Array},
 			_collectionLabelName: {type:String},
 			_collectionItemsThatWillBeRemovedOnPendingFilterCommit: {type:Object},
@@ -539,6 +541,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._cardIsRead = getCardIsRead(state, this._card ? this._card.id : '');
 		this._cardInReadingList = getCardInReadingList(state, this._card ? this._card.id : '');
 		this._collection = selectFinalCollection(state);
+		this._collectionIsFallback = selectCollectionIsFallback(state);
 		this._collectionLabels = selectActiveCollectionLabels(state);
 		this._collectionLabelName = selectActiveSortLabelName(state);
 		this._collectionItemsThatWillBeRemovedOnPendingFilterCommit = selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit(state);

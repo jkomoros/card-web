@@ -27,6 +27,7 @@ export const ButtonSharedStyles = html`
 		transition: background-color var(--transition-fade), color var(--transition-fade), box-shadow var(--transition-fade);
 	}
 	button:disabled, button.need-signin {
+		cursor:default;
 		background-color: var(--app-dark-text-color-light);
 	}
 
@@ -52,6 +53,11 @@ export const ButtonSharedStyles = html`
 	button:hover {
 		box-shadow: 0 6px 6px var(--shadow-color);
 		background: var(--app-secondary-color);
+	}
+	button:disabled:hover, button.need-signin:hover {
+		/* Basically manually undo the hover styles if the button is disabled */
+		box-shadow: 0 2px 2px var(--shadow-color);
+		background-color: var(--app-dark-text-color-light);
 	}
 
 	button.small:disabled svg, button.small.need-signin svg {
