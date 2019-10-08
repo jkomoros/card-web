@@ -103,7 +103,7 @@ service cloud.firestore {
       allow read: if updateIsOwner();
     }
 
-    match /reading_lists/{reading_list} {
+    match /reading_lists/{document=**} {
       allow create: if createIsOwner();
       allow update: if updateIsOwner();
       allow delete: if updateIsOwner();
