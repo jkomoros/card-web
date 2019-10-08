@@ -21,6 +21,7 @@ import {
 	selectUser,
 	selectUserMayComment,
 	selectActiveCardComposedThreads,
+	selectCollectionIsFallback,
 } from '../selectors.js';
 
 import {
@@ -88,7 +89,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 }
         <div class='spacer'></spacer>
         </div>
-        <button class='round ${this._userMayComment ? '' : 'need-signin'}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${addCommentIcon}</button>
+        <button ?disabled=${this._collectionIsFallback} class='round ${this._userMayComment ? '' : 'need-signin'}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${addCommentIcon}</button>
       </div>
     `;
 	}
@@ -97,6 +98,9 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 		return {
 			_open: {type: Boolean},
 			_card: {type: Object},
+			//If the card showing is a fallback card shown for an empty thing,
+			//disallow comments.
+			_collectionIsFallback: {type:Boolean},
 			_composedThreads: {type: Array},
 			_userMayComment: { type: Boolean},
 			_user: {type: Object},
@@ -143,6 +147,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 	stateChanged(state) {
 		this._open = state.app.commentsPanelOpen;
 		this._card = selectActiveCard(state);
+		this._collectionIsFallback = selectCollectionIsFallback(state);
 		this._composedThreads = selectActiveCardComposedThreads(state);
 		this._userMayComment = selectUserMayComment(state);
 		this._user = selectUser(state);
