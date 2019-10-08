@@ -299,10 +299,7 @@ export const addToReadingList = (cardToAdd) => (dispatch, getState) => {
 
 	let readingListUpdateObject = {
 		timestamp: new Date(),
-		add_card: cardToAdd.id,
-		//Set the owner on the sub-update too so the firestore rules can be
-		//simpler.
-		owner: uid
+		add_card: cardToAdd.id
 	};
 
 	batch.set(readingListRef, readingListObject, {merge:true});
@@ -338,10 +335,7 @@ export const removeFromReadingList = (cardToRemove) => (dispatch, getState) => {
 
 	let readingListUpdateObject = {
 		timestamp: new Date(),
-		remove_card: cardToRemove.id,
-		//Set the owner on the sub-update too so the firestore rules can be
-		//simpler.
-		owner: uid
+		remove_card: cardToRemove.id
 	};
 
 	batch.set(readingListRef, readingListObject, {merge:true});
