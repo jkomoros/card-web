@@ -39,7 +39,8 @@ import {
 	selectPageExtra,
 	getCardIndexForActiveCollection,
 	selectActiveSortName,
-	selectActiveSortReversed
+	selectActiveSortReversed,
+	selectCollectionIsFallback
 } from '../selectors.js';
 
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
@@ -267,20 +268,22 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 	let activeSortName = selectActiveSortName(state);
 	let activeSortReversed = selectActiveSortReversed(state);
 	let activeSetName = selectActiveSetName(state);
+	let collectionIsFallback = selectCollectionIsFallback(state);
 
 	//TODO: this should be a constant somewhere
 	let result = ['c'];
 
-	if (activeSetName != DEFAULT_SET_NAME) {
-		//The set name is implied, but only if it's the default one.
-		result.push(activeSetName);
-	}
+	//If the card is an orphan, then it should just be the set name (if
+	//non-default), and then its card name. A card is an orphan if it is not in
+	//a section AND it is not a section-head card (tag header cards are not in
+	//any section) AND the collection showing is not a fallback, because the
+	//fallback cards, despite being an orphan card, are not an orphan when
+	//showing in the fallback context.
+	if (card.section || card.card_type=='section-head' || collectionIsFallback) {
 
-	//Orphaned cards just live at their name and nothing else. But the
-	//start_cards for tags are technically orphans, and should be shown as being
-	//in the collection they're in.
-	if (card.section || card.card_type=='section-head') {
-
+		//We need to show the set name if it's not the default set, or if its
+		//the default set and there are no filters active (e.g.
+		//`c/all/sort/recent/_`)
 		if (activeSetName != DEFAULT_SET_NAME || activeFilterNames.length == 0) {
 			result.push(activeSetName);
 		}
