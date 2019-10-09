@@ -54,7 +54,8 @@ import {
 	selectUserStars,
 	selectReadingListTabSelected,
 	selectStarsTabSelected,
-	selectUnreadTabSelected
+	selectUnreadTabSelected,
+	selectUserReadingListMap
 } from '../selectors.js';
 
 import {
@@ -266,7 +267,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		<div @mousemove=${this._handleMouseMove} class='container'>
 			<find-dialog></find-dialog>
 			<compose-dialog></compose-dialog>
-			<card-preview .card=${this._activePreviewCard} .x=${this._previewCardX} .y=${this._previewCardY} .stars=${this._stars} .reads=${this._reads}></card-preview>
+			<card-preview .card=${this._activePreviewCard} .x=${this._previewCardX} .y=${this._previewCardY} .stars=${this._stars} .reads=${this._reads} .readingListMap=${this._readingListMap}></card-preview>
 			<!-- Header -->
 			<div class='header' ?hidden=${!this._headerPanelOpen}>
 				<div class='inner'>
@@ -325,7 +326,8 @@ class CompendiumApp extends connect(store)(LitElement) {
 			_previewCardX : { type:Number },
 			_previewCardY : { type:Number },
 			_reads : { type:Object },
-			_stars : { type:Object }
+			_stars : { type:Object },
+			_readingListMap : { type:Object }
 		};
 	}
 
@@ -464,6 +466,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 		this._previewCardY = selectPreviewCardY(state);
 		this._stars = selectUserStars(state);
 		this._reads = selectUserReads(state);
+		this._readingListMap = selectUserReadingListMap(state);
 	}
 }
 
