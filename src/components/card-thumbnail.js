@@ -4,6 +4,7 @@ import './star-count.js';
 import './read-decorator.js';
 import './thread-count.js';
 import './card-decorator.js';
+import './reading-list-decorator.js';
 import { cardHasContent } from '../util';
 
 // This is a reusable element. It is not connected to the store. You can
@@ -14,7 +15,7 @@ class CardThumbnail extends LitElement {
 		return html`
       <style>
 
-        div:hover h3 {
+        div.main:hover h3 {
           color: var(--app-secondary-color);
         }
 
@@ -29,11 +30,11 @@ class CardThumbnail extends LitElement {
           font-style: italic;
         }
 
-        div:hover {
+        div.main:hover {
           border:2px solid var(--app-secondary-color);
         }
 
-        div {
+        div.main {
           cursor:pointer;
           padding: 0.5em;
           height: 6em;
@@ -94,10 +95,11 @@ class CardThumbnail extends LitElement {
 			opacity:0.5;
 		}
 
-        star-count {
+        .top-right {
           position:absolute;
           top: 0.25em;
           right: 0.25em;
+		  display: flex;
         }
 
         read-decorator {
@@ -119,11 +121,15 @@ class CardThumbnail extends LitElement {
         }
 
       </style>
-      <div @mousemove=${this._handleMouseMove} @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="${this.selected ? 'selected' : ''} ${this.cardType} ${this.card && this.card.published ? '' : 'unpublished'} ${this.willBeRemovedOnPendingFilterCommit ? 'ghost' : ''}">
-        <h3 class=${this.cardHasContent ? '' : 'nocontent'}>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>
-        <star-count .count=${this.card.star_count || 0} .highlighted=${this.starred} .light=${this.cardType != 'content'}></star-count>
-        <read-decorator .visible=${this.read} .light=${this.cardType != 'content'}></read-decorator>
-        <thread-count .count=${this.card.thread_count || 0} .light=${this.cardType != 'content'}></thread-count>
+      <div @mousemove=${this._handleMouseMove} @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="main ${this.selected ? 'selected' : ''} ${this.cardType} ${this.card && this.card.published ? '' : 'unpublished'} ${this.willBeRemovedOnPendingFilterCommit ? 'ghost' : ''}">
+		<h3 class=${this.cardHasContent ? '' : 'nocontent'}>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>
+		<div class='top-right'>
+			<star-count .count=${this.card.star_count || 0} .highlighted=${this.starred} .light=${this.cardType != 'content'}></star-count>
+			<!-- we put these both in the bottom right because they're the two least likely to show up at the same time -->
+			<reading-list-decorator .visible=${this.onReadingList} .light=${this.cardType != 'content'}></reading-list-decorator>
+		</div>
+		<read-decorator .visible=${this.read} .light=${this.cardType != 'content'}></read-decorator>
+		<thread-count .count=${this.card.thread_count || 0} .light=${this.cardType != 'content'}></thread-count>
         <card-decorator .count=${this.index + 1} .light=${this.cardType != 'content'}></card-decorator>
       </div>
     `;
@@ -145,6 +151,7 @@ class CardThumbnail extends LitElement {
 			card: {type: Object},
 			starred: {type:Boolean},
 			read: {type:Boolean},
+			onReadingList: {type:Boolean},
 			index: {type: Number},
 			_selectedViaClick: { type: Boolean },
 		};
