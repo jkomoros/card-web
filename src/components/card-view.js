@@ -65,7 +65,8 @@ import {
 	AUTO_MARK_READ_DELAY,
 	showNeedSignin,
 	removeFromReadingList,
-	addToReadingList
+	addToReadingList,
+	toggleOnReadingList
 } from '../actions/user.js';
 
 import {
@@ -410,7 +411,11 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_thumbnailActivatedHandler(e) {
 		let ele = e.composedPath()[0];
-		store.dispatch(navigateToCard(ele.name || ele.id));
+		if (e.detail.ctrl) {
+			store.dispatch(toggleOnReadingList(e.detail.card));
+		} else {
+			store.dispatch(navigateToCard(ele.name || ele.id));
+		}
 	}
 
 	_handleEditClicked(e) {

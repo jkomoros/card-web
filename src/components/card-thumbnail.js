@@ -164,7 +164,9 @@ class CardThumbnail extends LitElement {
 	_handleClick(e) {
 		e.stopPropagation();
 		this._selectedViaClick = true;
-		this.dispatchEvent(new CustomEvent('thumbnail-tapped', {composed:true, detail: {card: this.card}}));
+		const ctrl = e.ctrlKey || e.metaKey;
+		//TODO: ctrl-click on mac shouldn't show the right click menu
+		this.dispatchEvent(new CustomEvent('thumbnail-tapped', {composed:true, detail: {card: this.card, ctrl}}));
 	}
   
 	_handleMouseMove(e) {
