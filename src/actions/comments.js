@@ -18,6 +18,7 @@ import {
 	getUserMayResolveThread,
 	getUserMayEditMessage,
 	selectUser,
+	selectCollectionIsFallback,
 } from '../selectors.js';
 
 import {
@@ -147,6 +148,12 @@ export const addMessage = (thread, message) => (dispatch, getState) => {
 		return;
 	}
 
+	const collectionIsFallback = selectCollectionIsFallback(state);
+	if (collectionIsFallback) {
+		console.log('Interacting with fallback content not allowed');
+		return;
+	}
+
 	let messageId = randomString(16);
 	let threadId = thread.id;
 
@@ -198,6 +205,12 @@ export const createThread = (message) => (dispatch, getState) => {
 
 	if (!user) {
 		console.warn('No uid');
+		return;
+	}
+
+	const collectionIsFallback = selectCollectionIsFallback(state);
+	if (collectionIsFallback) {
+		console.log('Interacting with fallback content not allowed');
 		return;
 	}
 
