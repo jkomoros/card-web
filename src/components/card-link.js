@@ -9,6 +9,7 @@ import {
 	selectCards,
 	selectUserReadingListMap
 } from '../selectors.js';
+import { toggleOnReadingList } from '../actions/user.js';
 
 class CardLink extends connect(store)(LitElement) {
 	render() {
@@ -58,7 +59,7 @@ class CardLink extends connect(store)(LitElement) {
 					cursor: var(--card-link-cursor, pointer);
 				}
 			</style>
-			<a @mousemove=${this._handleMouseMove} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
+			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
 	}
 
 	static get properties() {
@@ -81,6 +82,15 @@ class CardLink extends connect(store)(LitElement) {
 			}
 		}
 		return html`<slot></slot>`;
+	}
+
+	_handleMouseClick(e) {
+		//If the user ctrl- or cmd-clicks, we should toggle reading list,
+		//otherwise we should return and allow default action.
+		if (!this.card) return;
+		if (!e.ctrlKey && !e.metaKey) return;
+		store.dispatch(toggleOnReadingList(this._cardObj));
+		e.preventDefault();
 	}
 
 	_handleMouseMove(e) {

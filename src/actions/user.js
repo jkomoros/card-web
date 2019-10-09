@@ -45,7 +45,8 @@ import {
 	selectUid,
 	getCardIsRead,
 	selectUserIsAnonymous,
-	selectCollectionIsFallback
+	selectCollectionIsFallback,
+	getCardInReadingList
 } from '../selectors.js';
 
 let prevAnonymousMergeUser = null;
@@ -271,6 +272,19 @@ export const updateStars = (starsToAdd = [], starsToRemove = []) => (dispatch) =
 		starsToRemove
 	});
 	dispatch(refreshCardSelector(false));
+};
+
+export const toggleOnReadingList = (cardToToggle) => (dispatch, getState) => {
+
+	if (!cardToToggle || !cardToToggle.id) {
+		console.log('Invalid card provided');
+		return;
+	}
+
+	const state = getState();
+	const onReadingList = getCardInReadingList(state, cardToToggle.id);
+
+	dispatch(onReadingList ? removeFromReadingList(cardToToggle) : addToReadingList(cardToToggle));
 };
 
 export const addToReadingList = (cardToAdd) => (dispatch, getState) => {
