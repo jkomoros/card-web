@@ -4,10 +4,15 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store so it can render visited links
 import { store } from '../store.js';
-import { selectUserReads, selectCards } from '../selectors.js';
+import { 
+	selectUserReads,
+	selectCards,
+	selectUserReadingListMap
+} from '../selectors.js';
 
 class CardLink extends connect(store)(LitElement) {
 	render() {
+
 		return html`
 			<style>
 				:host {
@@ -23,6 +28,10 @@ class CardLink extends connect(store)(LitElement) {
 
 				a {
 					color: var(--app-primary-color);
+				}
+
+				a.card.reading-list {
+					text-decoration-style: double;
 				}
 
 				a:visited {
@@ -49,7 +58,7 @@ class CardLink extends connect(store)(LitElement) {
 					cursor: var(--card-link-cursor, pointer);
 				}
 			</style>
-			<a @mousemove=${this._handleMouseMove} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
+			<a @mousemove=${this._handleMouseMove} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
 	}
 
 	static get properties() {
@@ -59,6 +68,7 @@ class CardLink extends connect(store)(LitElement) {
 			auto: { type: String},
 			_reads: {type: Object},
 			_cards: { type: Object},
+			_readingListMap: { type: Object},
 		};
 	}
 
@@ -83,12 +93,17 @@ class CardLink extends connect(store)(LitElement) {
 	stateChanged(state) {
 		this._reads = selectUserReads(state);
 		this._cards = selectCards(state);
+		this._readingListMap = selectUserReadingListMap(state);
 	}
 
 	get _cardObj() {
 		if (!this.card) return null;
 		if (!this._cards) return null;
 		return this._cards[this.card];
+	}
+
+	get _inReadingList() {
+		return this._readingListMap ? this._readingListMap[this.card] : false;
 	}
 
 	get _cardExists() {
