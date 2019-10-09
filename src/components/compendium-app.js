@@ -55,7 +55,10 @@ import {
 	selectReadingListTabSelected,
 	selectStarsTabSelected,
 	selectUnreadTabSelected,
-	selectUserReadingListMap
+	selectUserReadingListMap,
+	selectUserStarsCount,
+	selectUserUnreadCount,
+	selectUserReadingListCount
 } from '../selectors.js';
 
 import {
@@ -228,7 +231,16 @@ class CompendiumApp extends connect(store)(LitElement) {
 			 .toolbar-list > a.icon-item {
 				display:inline-flex;
 				flex-direction: column;
-				justify-content: center;	
+				justify-content: center;
+				position:relative;	
+			}
+
+			.toolbar-list > a.icon-item span {
+				position:absolute;
+				display:inline-block;
+				bottom:-0.75em;
+				right:0.25em;
+				font-size:12px;
 			}
 
 			.toolbar-list > a[selected] {
@@ -281,9 +293,9 @@ class CompendiumApp extends connect(store)(LitElement) {
 		html`<a ?selected="${this._page === 'c'}" href="/c"><em>Loading...</em></a>`
 }
 						<a ?selected=${this._recentTabSelected} href="/c/has-content/sort/recent/_">Recent</a>
-						<a class='icon-item' title='Your reading list' ?selected=${this._readingListTabSelected} href="/c/reading-list/_">${playlistPlayIcon}</a>
-						<a class='icon-item' title='Your stars' ?selected=${this._starsTabSelected} href="/c/starred/_">${starIcon}</a>
-						<a class='icon-item' title="Cards you haven't read yet" ?selected=${this._unreadTabSelected} href="/c/unread/_">${visibilityIcon}</a>
+						<a class='icon-item' title='Your reading list' ?selected=${this._readingListTabSelected} href="/c/reading-list/_">${playlistPlayIcon}<span>${this._userReadingListCount}</span></a>
+						<a class='icon-item' title='Your stars' ?selected=${this._starsTabSelected} href="/c/starred/_">${starIcon}<span>${this._userStarsCount}</span></a>
+						<a class='icon-item' title="Cards you haven't read yet" ?selected=${this._unreadTabSelected} href="/c/unread/_">${visibilityIcon}<span>${this._userUnreadCount}</span></a>
 					</nav>
 					<div class='spacer dev'>
 						${this._devMode ? html`DEVMODE` : ''}
@@ -321,6 +333,9 @@ class CompendiumApp extends connect(store)(LitElement) {
 			_recentTabSelected: {type:Boolean},
 			_readingListTabSelected: {type: Boolean},
 			_starsTabSelected: {type:Boolean},
+			_userStarsCount: {type:Number},
+			_userReadingListCount: {type:Number},
+			_userUnreadCount: {type:Number},
 			_unreadTabSelected: {type:Boolean},
 			_activePreviewCard: { type:Object },
 			_previewCardX : { type:Number },
@@ -460,6 +475,9 @@ class CompendiumApp extends connect(store)(LitElement) {
 		this._recentTabSelected = selectRecentTabSelected(state);
 		this._readingListTabSelected = selectReadingListTabSelected(state);
 		this._starsTabSelected = selectStarsTabSelected(state);
+		this._userStarsCount = selectUserStarsCount(state);
+		this._userUnreadCount = selectUserUnreadCount(state);
+		this._userReadingListCount = selectUserReadingListCount(state);
 		this._unreadTabSelected = selectUnreadTabSelected(state);
 		this._activePreviewCard = selectActivePreviewCard(state);
 		this._previewCardX = selectPreviewCardX(state);

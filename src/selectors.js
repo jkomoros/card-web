@@ -404,6 +404,22 @@ export const selectDefaultSet = createSelector(
 	}
 );
 
+export const selectUserStarsCount = createSelector(
+	selectUserStars,
+	(stars) => Object.keys((stars || {})).length
+);
+
+export const selectUserUnreadCount = createSelector(
+	selectUserReads,
+	selectDefaultSet,
+	(reads, set) => Object.keys(set || {}).length - Object.keys(reads || {}).length
+);
+
+export const selectUserReadingListCount = createSelector(
+	selectUserReadingList,
+	(readingList) => (readingList || []).length
+);
+
 const combinedFilterForNames = (names, filters) => {
 	let includeFilters = [];
 	let excludeFilters = [];
