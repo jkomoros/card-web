@@ -32,7 +32,7 @@ import { refreshCommentRedirect } from './app.js';
 
 export const ensureAuthor = (batch, user) => {
 	batch.set(db.collection(AUTHORS_COLLECTION).doc(user.uid), {
-		updated: new Date(),
+		updated: firebase.firestore.FieldValue.serverTimestamp(),
 		photoURL: user.photoURL,
 		displayName: user.displayName
 	});
@@ -65,7 +65,7 @@ export const resolveThread = (thread) => (dispatch, getState) => {
 		transaction.update(cardRef, {thread_count: newThreadCount, thread_resolved_count: newThreadResolvedCount});
 		transaction.update(threadRef, {
 			resolved: true,
-			updated: new Date()
+			updated: firebase.firestore.FieldValue.serverTimestamp()
 		});
 	});
 };
@@ -87,7 +87,7 @@ export const deleteMessage = (message) => (dispatch, getState) => {
 	batch.update(db.collection(MESSAGES_COLLECTION).doc(message.id), {
 		message: '',
 		deleted: true,
-		updated: new Date()
+		updated: firebase.firestore.FieldValue.serverTimestamp()
 	});
 
 	batch.commit();
@@ -112,7 +112,7 @@ export const editMessage = (message, newMessage) => (dispatch, getState) => {
 	batch.update(db.collection(MESSAGES_COLLECTION).doc(message.id), {
 		message: newMessage,
 		deleted: false,
-		updated: new Date()
+		updated: firebase.firestore.FieldValue.serverTimestamp()
 	});
 
 	batch.commit();
@@ -162,7 +162,7 @@ export const addMessage = (thread, message) => (dispatch, getState) => {
 	ensureAuthor(batch, user);
 
 	batch.update(db.collection(THREADS_COLLECTION).doc(threadId), {
-		updated: new Date(),
+		updated: firebase.firestore.FieldValue.serverTimestamp(),
 		messages: firebase.firestore.FieldValue.arrayUnion(messageId)
 	});
 
@@ -175,8 +175,8 @@ export const addMessage = (thread, message) => (dispatch, getState) => {
 		message: message,
 		thread: threadId,
 		author: user.uid,
-		created: new Date(),
-		updated: new Date(),
+		created: firebase.firestore.FieldValue.serverTimestamp(),
+		updated: firebase.firestore.FieldValue.serverTimestamp(),
 		deleted: false
 	});
 
@@ -239,8 +239,8 @@ export const createThread = (message) => (dispatch, getState) => {
 			message: message,
 			thread: threadId,
 			author: user.uid,
-			created: new Date(),
-			updated: new Date(),
+			created: firebase.firestore.FieldValue.serverTimestamp(),
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
 			deleted: false
 		});
 
@@ -249,8 +249,8 @@ export const createThread = (message) => (dispatch, getState) => {
 			parent_message: '',
 			messages: [messageId],
 			author: user.uid,
-			created: new Date(),
-			updated: new Date(),
+			created: firebase.firestore.FieldValue.serverTimestamp(),
+			updated: firebase.firestore.FieldValue.serverTimestamp(),
 			resolved: false,
 			deleted: false
 		});

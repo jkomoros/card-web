@@ -99,7 +99,7 @@ export const ensureUserInfo = (batchOrTransaction, user) => {
 	if (!user) return;
 
 	let data = {
-		lastSeen: new Date(),
+		lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
 		isAnonymous: user.isAnonymous,
 	};
 
@@ -314,12 +314,12 @@ export const addToReadingList = (cardToAdd) => (dispatch, getState) => {
 
 	let readingListObject = {
 		cards: firebase.firestore.FieldValue.arrayUnion(cardToAdd.id),
-		updated: new Date(),
+		updated: firebase.firestore.FieldValue.serverTimestamp(),
 		owner: uid,
 	};
 
 	let readingListUpdateObject = {
-		timestamp: new Date(),
+		timestamp: firebase.firestore.FieldValue.serverTimestamp(),
 		add_card: cardToAdd.id
 	};
 
@@ -356,12 +356,12 @@ export const removeFromReadingList = (cardToRemove) => (dispatch, getState) => {
 
 	let readingListObject = {
 		cards: firebase.firestore.FieldValue.arrayRemove(cardToRemove.id),
-		updated: new Date(),
+		updated: firebase.firestore.FieldValue.serverTimestamp(),
 		owner: uid
 	};
 
 	let readingListUpdateObject = {
-		timestamp: new Date(),
+		timestamp: firebase.firestore.FieldValue.serverTimestamp(),
 		remove_card: cardToRemove.id
 	};
 
@@ -402,7 +402,7 @@ export const addStar = (cardToStar) => (dispatch, getState) => {
 		}
 		let newStarCount = (cardDoc.data().star_count || 0) + 1;
 		transaction.update(cardRef, {star_count: newStarCount});
-		transaction.set(starRef, {created: new Date(), owner: uid, card:cardToStar.id});
+		transaction.set(starRef, {created: firebase.firestore.FieldValue.serverTimestamp(), owner: uid, card:cardToStar.id});
 	});
 };
 
@@ -538,7 +538,7 @@ export const markRead = (cardToMarkRead, existingReadDoesNotError) => (dispatch,
 	let readRef = db.collection(READS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToMarkRead.id));
 
 	let batch = db.batch();
-	batch.set(readRef, {created: new Date(), owner: uid, card: cardToMarkRead.id});
+	batch.set(readRef, {created: firebase.firestore.FieldValue.serverTimestamp(), owner: uid, card: cardToMarkRead.id});
 	batch.commit();
 };
 

@@ -142,13 +142,13 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 	let updateObject = {
 		...update,
 		substantive: substantive,
-		timestamp: new Date()
+		timestamp: firebase.firestore.FieldValue.serverTimestamp()
 	};
 
 	let cardUpdateObject = {
-		updated: new Date()
+		updated: firebase.firestore.FieldValue.serverTimestamp()
 	};
-	if (substantive) cardUpdateObject.updated_substantive = new Date();
+	if (substantive) cardUpdateObject.updated_substantive = firebase.firestore.FieldValue.serverTimestamp();
 
 	if (update.body !== undefined) {
 		cardUpdateObject.body = update.body;
@@ -217,10 +217,10 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 			let newSectionUpdateRef = newSectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
 			let newSectionObject = {
 				cards: firebase.firestore.FieldValue.arrayUnion(card.id),
-				updated: new Date()
+				updated: firebase.firestore.FieldValue.serverTimestamp()
 			};
 			let newSectionUpdateObject = {
-				timestamp: new Date(),
+				timestamp: firebase.firestore.FieldValue.serverTimestamp(),
 				add_card: card.id
 			};
 			batch.update(newSectionRef, newSectionObject);
@@ -232,10 +232,10 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 			let oldSectionUpdateRef = oldSectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
 			let oldSectionObject = {
 				cards: firebase.firestore.FieldValue.arrayRemove(card.id),
-				updated: new Date()
+				updated: firebase.firestore.FieldValue.serverTimestamp()
 			};
 			let oldSectionUpdateObject = {
-				timestamp: new Date(),
+				timestamp: firebase.firestore.FieldValue.serverTimestamp(),
 				remove_card: card.id
 			};
 			batch.update(oldSectionRef, oldSectionObject);
@@ -249,10 +249,10 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 			let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
 			let newTagObject = {
 				cards: firebase.firestore.FieldValue.arrayUnion(card.id),
-				updated: new Date()
+				updated: firebase.firestore.FieldValue.serverTimestamp()
 			};
 			let newTagUpdateObject = {
-				timestamp: new Date(),
+				timestamp: firebase.firestore.FieldValue.serverTimestamp(),
 				add_card: card.id
 			};
 			batch.update(tagRef, newTagObject);
@@ -266,10 +266,10 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 			let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
 			let newTagObject = {
 				cards: firebase.firestore.FieldValue.arrayRemove(card.id),
-				updated: new Date()
+				updated: firebase.firestore.FieldValue.serverTimestamp()
 			};
 			let newTagUpdateObject = {
-				timestamp: new Date(),
+				timestamp: firebase.firestore.FieldValue.serverTimestamp(),
 				remove_card: card.id
 			};
 			batch.update(tagRef, newTagObject);
@@ -345,9 +345,9 @@ export const reorderCard = (card, newIndex) => async (dispatch, getState) => {
 		} else {
 			result = [...trimmedCards.slice(0,effectiveIndex), card.id, ...trimmedCards.slice(effectiveIndex)];
 		}
-		transaction.update(sectionRef, {cards: result, updated: new Date()});
+		transaction.update(sectionRef, {cards: result, updated: firebase.firestore.FieldValue.serverTimestamp()});
 		let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
-		transaction.set(sectionUpdateRef, {timestamp: new Date(), cards: result});
+		transaction.set(sectionUpdateRef, {timestamp: firebase.firestore.FieldValue.serverTimestamp(), cards: result});
 	}).then(() => dispatch(reorderStatus(false))).catch(() => dispatch(reorderStatus(false)));
 
 	//We don't need to tell the store anything, because firestore will tell it
@@ -395,7 +395,7 @@ export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
 		let slugs = doc.data().slugs || [];
 
 		var newArray = [...slugs, newSlug];
-		transaction.update(cardRef, {slugs: newArray, updated: new Date()});
+		transaction.update(cardRef, {slugs: newArray, updated: firebase.firestore.FieldValue.serverTimestamp()});
 	});
 
 	let state = getState();
@@ -493,7 +493,7 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 		cards: [],
 		start_cards: [startCardId],
 		title:displayName,
-		updated: new Date(),
+		updated: firebase.firestore.FieldValue.serverTimestamp(),
 		color: color,
 	});
 
@@ -509,11 +509,11 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 
 const defaultCardObject = (id, user, section, cardType) => {
 	return {
-		created: new Date(),
-		updated: new Date(),
+		created: firebase.firestore.FieldValue.serverTimestamp(),
+		updated: firebase.firestore.FieldValue.serverTimestamp(),
 		author: user.uid,
-		updated_substantive: new Date(),
-		updated_message: new Date(),
+		updated_substantive: firebase.firestore.FieldValue.serverTimestamp(),
+		updated_message: firebase.firestore.FieldValue.serverTimestamp(),
 		star_count: 0,
 		thread_count: 0,
 		thread_resolved_count: 0,
@@ -601,9 +601,9 @@ export const createCard = (opts) => async (dispatch, getState) => {
 			newArray = [...current.slice(0,appendIndex), id, ...current.slice(appendIndex)];
 		}
 		ensureAuthor(transaction, user);
-		transaction.update(sectionRef, {cards: newArray, updated: new Date()});
+		transaction.update(sectionRef, {cards: newArray, updated: firebase.firestore.FieldValue.serverTimestamp()});
 		let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
-		transaction.set(sectionUpdateRef, {timestamp: new Date(), cards: newArray});
+		transaction.set(sectionUpdateRef, {timestamp: firebase.firestore.FieldValue.serverTimestamp(), cards: newArray});
 		transaction.set(cardDocRef, obj);
 	});
 

@@ -17,6 +17,10 @@ import {
 	extractCardLinks
 } from './data.js';
 
+import {
+	firebase
+} from './database.js';
+
 const checkMaintenanceTaskHasBeenRun = async (taskName) => {
 	let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
 
@@ -32,7 +36,7 @@ const checkMaintenanceTaskHasBeenRun = async (taskName) => {
 };
 
 const maintenanceTaskRun = async (taskName) => {
-	db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: new Date()});
+	db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: firebase.firestore.FieldValue.serverTimestamp()});
 };
 
 //v1 of this set dates fro cards with no messages to when the card was created,
@@ -223,7 +227,7 @@ export const normalizeContentBody = async() => {
 		if (body) {
 			await doc.ref.update({
 				body: normalizeBodyHTML(body),
-				updated_normalize_body: new Date(),
+				updated_normalize_body: firebase.firestore.FieldValue.serverTimestamp(),
 			});
 		}
 		console.log('Processed ' + doc.id + ' (' + counter + '/' + size + ')' );
@@ -255,7 +259,7 @@ export const updateInboundLinks = async() => {
 			linkingCardsIds.push(linkingCard.id);
 		});
 		await doc.ref.update({
-			updated_links_inbound: new Date(),
+			updated_links_inbound: firebase.firestore.FieldValue.serverTimestamp(),
 			links_inbound: linkingCardsIds,
 		});
 		console.log('Processed ' + doc.id + ' (' + counter + '/' + size + ')' );
@@ -278,7 +282,7 @@ export const addSectionUpdatesLog = async() => {
 	let snapshot = await db.collection(SECTIONS_COLLECTION).get();
 
 	snapshot.forEach(doc => {
-		batch.update(doc.ref, {updated: new Date()});
+		batch.update(doc.ref, {updated: firebase.firestore.FieldValue.serverTimestamp()});
 		let sectionUpdateRef = doc.ref.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
 		batch.set(sectionUpdateRef, {timestamp: new Date, cards: doc.data().cards});
 	});
@@ -436,7 +440,7 @@ export const importCards = (cards) => {
 		mainBatch.set(ref, card);
 		let update = {
 			substantive: true,
-			timestamp: new Date(),
+			timestamp: firebase.firestore.FieldValue.serverTimestamp(),
 			import: true
 		};
 		let updateRef = ref.collection(CARD_UPDATES_COLLECTION).doc('' + Date.now());
@@ -462,9 +466,9 @@ export const importCards = (cards) => {
 
 const newCard = (name) => {
 	return {
-		created: new Date(),
-		updated: new Date(),
-		updated_substantive: new Date(),
+		created: firebase.firestore.FieldValue.serverTimestamp(),
+		updated: firebase.firestore.FieldValue.serverTimestamp(),
+		updated_substantive: firebase.firestore.FieldValue.serverTimestamp(),
 		slugs: [],
 		name: name
 	};
@@ -478,9 +482,9 @@ const transformImportSectionName = (legacySectionName) => {
 
 const transformImportCard = (legacyCard) => {
 	return {
-		created: new Date(),
-		updated: new Date(),
-		updated_substantive: new Date(),
+		created: firebase.firestore.FieldValue.serverTimestamp(),
+		updated: firebase.firestore.FieldValue.serverTimestamp(),
+		updated_substantive: firebase.firestore.FieldValue.serverTimestamp(),
 		title: legacyCard.title || '',
 		body: legacyCard.body || '',
 		links: legacyCard.links || [],
