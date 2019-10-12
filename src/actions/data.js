@@ -278,7 +278,7 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 	}
 
 	batch.commit().then(() => dispatch(modifyCardSuccess()))
-		.catch(() => dispatch(modifyCardFailure()));
+		.catch((err) => dispatch(modifyCardFailure(err)));
 
 };
 
@@ -630,6 +630,7 @@ const modifyCardSuccess = () => (dispatch, getState) => {
 };
 
 const modifyCardFailure = (err) => {
+	console.warn(err);
 	return {
 		type: MODIFY_CARD_FAILURE,
 		error: err,
