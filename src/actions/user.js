@@ -8,6 +8,7 @@ export const UPDATE_READS = 'UPDATE_READS';
 export const UPDATE_READING_LIST = 'UPDATE_READING_LIST';
 export const AUTO_MARK_READ_PENDING_CHANGED = 'AUTO_MARK_READ_PENDING_CHANGED';
 export const UPDATE_NOTIFICATIONS_TOKEN = 'UPDATE_NOTIFICATIONS_TOKEN';
+export const UPDATE_USER_PERMISSIONS = 'UPDATE_USER_PERMISSIONS';
 
 export const AUTO_MARK_READ_DELAY = 5000;
 
@@ -28,7 +29,8 @@ import {
 	READS_COLLECTION,
 	USERS_COLLECTION,
 	READING_LISTS_COLLECTION,
-	READING_LISTS_UPDATES_COLLECTION
+	READING_LISTS_UPDATES_COLLECTION,
+	PERMISSIONS_COLLECTION
 } from './database.js';
 
 import {
@@ -224,6 +226,32 @@ export const updateNotificationsToken = (token) => {
 	};
 };
 
+export const updatePermissions = (uid) => async (dispatch) => {
+	if (!uid) {
+		dispatch({
+			type: UPDATE_USER_PERMISSIONS,
+			permissions: {},
+		});
+		return;
+	}
+	let snapshot;
+	try {
+		snapshot = await db.collection(PERMISSIONS_COLLECTION).doc(uid).get();
+	} catch(err) {
+		dispatch({
+			type: UPDATE_USER_PERMISSIONS,
+			permissions: {},
+		});
+		return;
+	}
+	dispatch({
+		type: UPDATE_USER_PERMISSIONS,
+		//If thesnapshot doesn't exist then data() will be undefined, so always
+		//return a {}.
+		permissions: snapshot.data() || {},
+	});
+};
+
 export const signInSuccess = (firebaseUser, store) => (dispatch) => {
 
 	//Note that even when this is done, selectUserSignedIn might still return
@@ -235,6 +263,7 @@ export const signInSuccess = (firebaseUser, store) => (dispatch) => {
 
 	dispatch(saveUserInfo());
 	flagHasPreviousSignIn();
+	dispatch(updatePermissions(firebaseUser.uid));
 	connectLiveStars(store,firebaseUser.uid);
 	connectLiveReads(store,firebaseUser.uid);
 	connectLiveReadingList(store,firebaseUser.uid);
@@ -262,6 +291,7 @@ export const signOut = () => (dispatch, getState) => {
 
 	dispatch({type:SIGNOUT_USER});
 	flagHasPreviousSignIn();
+	updatePermissions('');
 	firebase.auth().signOut();
 };
 

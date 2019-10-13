@@ -8,7 +8,8 @@ import {
 	UPDATE_READS,
 	AUTO_MARK_READ_PENDING_CHANGED,
 	UPDATE_NOTIFICATIONS_TOKEN,
-	UPDATE_READING_LIST
+	UPDATE_READING_LIST,
+	UPDATE_USER_PERMISSIONS
 } from '../actions/user.js';
 
 import {
@@ -29,6 +30,10 @@ const INITIAL_STATE = {
 	//user has proactively hit the signIn or signOut buttons.
 	pending: true,
 	error: null,
+	//permissions is the object that tells us what we're allowed to do. The
+	//security rules will actually enforce this; this is mainly just to not have
+	//affordances in the client UI if they won't work.
+	permissions: {},
 	stars : {},
 	reads: {},
 	readingList: [],
@@ -99,6 +104,11 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			readingList: [...action.list],
 			readingListLoaded: true,
+		};
+	case UPDATE_USER_PERMISSIONS:
+		return {
+			...state,
+			permissions: {...action.permissions}
 		};
 	case COMMIT_PENDING_COLLECTION_MODIFICATIONS:
 		return {
