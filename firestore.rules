@@ -33,6 +33,10 @@ service cloud.firestore {
     function loggedIn() {
       return request.auth.uid != null;
     }
+
+    function isAnonymous() {
+      return request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
     
     function createIsOwner() {
       return loggedIn() && request.auth.uid == request.resource.data.owner;
@@ -84,13 +88,13 @@ service cloud.firestore {
     
     match /messages/{message} {
       allow read: if true;
-      allow create: if createIsAuthor();
+      allow create: if createIsAuthor() && !isAnonymous();
       allow update: if updateIsAuthor();
     }
     
     match /threads/{thread} {
       allow read: if true;
-      allow create : if createIsAuthor();
+      allow create : if createIsAuthor() && !isAnonymous();
       allow update : if updateIsAuthor() || (loggedIn() && editOnlyAddsMessage());
     }
     
