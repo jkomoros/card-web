@@ -29,7 +29,10 @@ import {
 	publishedUpdated,
 	fullBleedUpdated,
 	tagAdded,
-	tagRemoved
+	tagRemoved,
+	TAB_CONTENT,
+	TAB_NOTES,
+	editingSelectTab,
 } from '../actions/editor.js';
 
 import {
@@ -123,6 +126,20 @@ class CardEditor extends connect(store)(LitElement) {
           flex-grow:1;
         }
 
+		.tabs {
+			display:flex;
+			flex-direction:row;
+		}
+
+		.tabs span {
+			cursor:pointer;
+			padding-right:0.5em;
+		}
+
+		[hidden] {
+          display:none;
+        }
+
       </style>
       <div class='container'>
         <div class='inputs'>
@@ -130,14 +147,18 @@ class CardEditor extends connect(store)(LitElement) {
             <label>Title</label>
             <input type='text' @input='${this._handleTitleUpdated}' .value=${this._card.title}></input>
           </div>
-          <div class='flex body'>
-            <label>Body</label>
-            <textarea @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
-          </div>
-          <div class='flex'>
-            <label>Notes</label>
-            <textarea @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
-          </div>
+		  <div class='flex body'>
+			<div class='tabs' @click=${this._handleTabClicked}>
+				<span name='${TAB_CONTENT}'>Content</span>
+				<span name='${TAB_NOTES}'>Notes</span>
+			</div>
+			<div ?hidden=${this._selectedTab !== TAB_CONTENT}>
+				<textarea @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
+			</div>
+			<div ?hidden=${this._selectedTab !== TAB_NOTES}>
+				<textarea @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
+			</div>
+		  </div>
           <div class='row'>
             <div>
               <label>Section</label>
@@ -187,6 +208,7 @@ class CardEditor extends connect(store)(LitElement) {
 		_active: {type: Boolean },
 		_sections: {type: Object },
 		_substantive: {type: Object},
+		_selectedTab: {type:String},
 		_tagInfos: {type: Object},
 		//The card before any edits
 		_underlyingCard: {type:Object},
@@ -198,6 +220,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._active = state.editor.editing;
 		this._sections = state.data.sections;
 		this._substantive = state.editor.substantive;
+		this._selectedTab = state.editor.selectedTab;
 		this._tagInfos = selectTags(state);
 	}
 
@@ -207,6 +230,14 @@ class CardEditor extends connect(store)(LitElement) {
 
 	firstUpdated() {
 		document.addEventListener('keydown', e => this._handleKeyDown(e));
+	}
+
+	_handleTabClicked(e) {
+		const ele = e.path[0];
+		if (!ele) return;
+		const name = ele.getAttribute('name');
+		if (!name) return;
+		store.dispatch(editingSelectTab(name));
 	}
 
 	_handleNewTag() {
