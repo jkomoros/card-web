@@ -134,6 +134,12 @@ class CardEditor extends connect(store)(LitElement) {
 		.tabs label {
 			cursor:pointer;
 			padding-right:0.5em;
+			border-bottom:1px solid transparent;
+		}
+
+		.tabs label[selected] {
+			color: var(--app-primary-color);
+			border-bottom-color: var(--app-primary-color);
 		}
 
 		[hidden] {
@@ -149,8 +155,8 @@ class CardEditor extends connect(store)(LitElement) {
           </div>
 		  <div class='flex body'>
 			<div class='tabs' @click=${this._handleTabClicked}>
-				<label name='${TAB_CONTENT}'>Content</label>
-				<label name='${TAB_NOTES}'>Notes</label>
+				<label name='${TAB_CONTENT}' ?selected=${this._selectedTab == TAB_CONTENT}>Content</label>
+				<label name='${TAB_NOTES}' ?selected=${this._selectedTab == TAB_NOTES}>Notes</label>
 			</div>
 			<div ?hidden=${this._selectedTab !== TAB_CONTENT}>
 				<textarea @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
