@@ -131,7 +131,7 @@ class CardEditor extends connect(store)(LitElement) {
 			flex-direction:row;
 		}
 
-		.tabs span {
+		.tabs label {
 			cursor:pointer;
 			padding-right:0.5em;
 		}
@@ -149,8 +149,8 @@ class CardEditor extends connect(store)(LitElement) {
           </div>
 		  <div class='flex body'>
 			<div class='tabs' @click=${this._handleTabClicked}>
-				<span name='${TAB_CONTENT}'>Content</span>
-				<span name='${TAB_NOTES}'>Notes</span>
+				<label name='${TAB_CONTENT}'>Content</label>
+				<label name='${TAB_NOTES}'>Notes</label>
 			</div>
 			<div ?hidden=${this._selectedTab !== TAB_CONTENT}>
 				<textarea @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
