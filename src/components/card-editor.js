@@ -169,12 +169,8 @@ class CardEditor extends connect(store)(LitElement) {
 				<label name='${TAB_CONTENT}' ?selected=${this._selectedTab == TAB_CONTENT} ?empty=${!hasContent}>Content</label>
 				<label name='${TAB_NOTES}' ?selected=${this._selectedTab == TAB_NOTES} ?empty=${!hasNotes}>Notes</label>
 			</div>
-			<div ?hidden=${this._selectedTab !== TAB_CONTENT}>
-				<textarea @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
-			</div>
-			<div ?hidden=${this._selectedTab !== TAB_NOTES}>
-				<textarea @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
-			</div>
+			<textarea ?hidden=${this._selectedTab !== TAB_CONTENT} @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
+			<textarea ?hidden=${this._selectedTab !== TAB_NOTES} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
 		  </div>
           <div class='row'>
             <div>
