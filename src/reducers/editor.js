@@ -1,6 +1,7 @@
 import { 
 	EDITING_START,
 	EDITING_FINISH,
+	EDITING_SELECT_TAB,
 	EDITING_TITLE_UPDATED,
 	EDITING_BODY_UPDATED,
 	EDITING_SECTION_UPDATED,
@@ -11,8 +12,12 @@ import {
 	EDITING_FULL_BLEED_UPDATED,
 	EDITING_NOTES_UPDATED,
 	EDITING_TAG_ADDED,
-	EDITING_TAG_REMOVED
+	EDITING_TAG_REMOVED,
+
+	TAB_CONTENT,
 } from '../actions/editor.js';
+
+const DEFAULT_TAB = TAB_CONTENT;
 
 const INITIAL_STATE = {
 	editing: false,
@@ -20,6 +25,7 @@ const INITIAL_STATE = {
 	titleFromContentEditable: false,
 	card: null,
 	substantive: false,
+	selectedTab: DEFAULT_TAB,
 };
 
 import {
@@ -36,7 +42,8 @@ const app = (state = INITIAL_STATE, action) => {
 			card: action.card,
 			substantive: false,
 			bodyFromContentEditable: false,
-			titleFromContentEditable: false
+			titleFromContentEditable: false,
+			selectedTab: DEFAULT_TAB,
 		};
 	case EDITING_FINISH:
 		return {
@@ -46,6 +53,11 @@ const app = (state = INITIAL_STATE, action) => {
 			substantive:false,
 			bodyFromContentEditable: false,
 			titleFromContentEditable: false,
+		};
+	case EDITING_SELECT_TAB:
+		return {
+			...state,
+			selectedTab: action.tab,
 		};
 	case EDITING_TITLE_UPDATED:
 		if (!state.card) return state;

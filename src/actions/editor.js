@@ -1,5 +1,6 @@
 export const EDITING_START = 'EDITING_START';
 export const EDITING_FINISH = 'EDITING_FINISH';
+export const EDITING_SELECT_TAB = 'EDITING_SELECT_TAB';
 export const EDITING_TITLE_UPDATED = 'EDITING_TITLE_UPDATED';
 export const EDITING_BODY_UPDATED = 'EDITING_BODY_UPDATED';
 export const EDITING_SECTION_UPDATED = 'EDITING_SECTION_UPDATED';
@@ -11,6 +12,10 @@ export const EDITING_FULL_BLEED_UPDATED = 'EDITING_FULL_BLEED_UPDATED';
 export const EDITING_NOTES_UPDATED = 'EDITING_NOTES_UPDATED';
 export const EDITING_TAG_ADDED = 'EDITING_TAG_ADDED';
 export const EDITING_TAG_REMOVED = 'EDITING_TAG_REMOVED';
+
+
+export const TAB_CONTENT = 'content';
+export const TAB_NOTES = 'notes';
 
 import {
 	selectActiveCard,
@@ -50,6 +55,13 @@ export const restoreSelectionRange = () => {
 	let selection = document.getSelection();
 	selection.removeAllRanges();
 	selection.addRange(savedSelectionRange);
+};
+
+export const editingSelectTab = (tab) => {
+	return {
+		type: EDITING_SELECT_TAB,
+		tab,
+	};
 };
 
 export const editingStart = () => (dispatch, getState) => {
