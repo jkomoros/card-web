@@ -111,6 +111,7 @@ export const INVERSE_FILTER_NAMES = {
 	'no-comments': 'has-comments',
 	'no-content': 'has-content',
 	'no-links' : 'has-links',
+	'no-inbound-links' : 'has-inbound-links',
 	'published' : 'unpublished',
 	'not-in-reading-list' : 'in-reading-list'
 };
@@ -130,6 +131,7 @@ const INITIAL_STATE = {
 		'has-comments': {},
 		'has-content': {},
 		'has-links': {},
+		'has-inbound-links': {},
 		'in-reading-list': {},
 		unpublished: {},
 		//None will match nothing. We use it for orphans.
@@ -144,6 +146,7 @@ const INITIAL_STATE = {
 		'has-comments': {},
 		'has-content': {},
 		'has-links': {},
+		'has-inbound-links': {},
 		'in-reading-list': {},
 		unpublished: {},
 		//None will match nothing. We use it for orphans.
@@ -251,6 +254,9 @@ const makeFilterFromCards = (cards, previousFilters) => {
 	let newCardsWithLinks = [];
 	let newCardsWithoutLinks = [];
 
+	let newCardsWithInboundLinks = [];
+	let newCardsWithoutInboundLinks = [];
+
 	for (let card of Object.values(cards)) {
 		if (card.slugs && card.slugs.length) {
 			newCardsWithSlug.push(card.id);
@@ -266,6 +272,12 @@ const makeFilterFromCards = (cards, previousFilters) => {
 			newCardsWithLinks.push(card.id);
 		} else {
 			newCardsWithoutLinks.push(card.id);
+		}
+
+		if (card.links_inbound.length) {
+			newCardsWithInboundLinks.push(card.id);
+		} else {
+			newCardsWithoutInboundLinks.push(card.id);
 		}
 
 		if (cardHasContent(card)) {
@@ -287,6 +299,7 @@ const makeFilterFromCards = (cards, previousFilters) => {
 		'has-comments': setUnion(setRemove(previousFilters['has-comments'],  newCardsWithoutComments), newCardsWithComments),
 		'has-content': setUnion(setRemove(previousFilters['has-content'], newCardsWithoutContent), newCardsWithContent),
 		'has-links': setUnion(setRemove(previousFilters['has-links'], newCardsWithoutLinks), newCardsWithLinks),
+		'has-inbound-links': setUnion(setRemove(previousFilters['has-inbound-links'], newCardsWithoutInboundLinks), newCardsWithInboundLinks),
 		'unpublished': setUnion(setRemove(previousFilters['unpublished'], newCardsWithoutUnpublished), newCardsWithUnpublished)
 	};
 
