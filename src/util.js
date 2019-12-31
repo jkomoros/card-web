@@ -50,6 +50,11 @@ export const cardHasContent = (card) => {
 	return content ? true : false;
 };
 
+export const cardHasNotes = (card) => {
+	let content = card.notes ? card.notes.trim() : '';
+	return content ? true : false;
+};
+
 export const arrayRemove = (arr, items) => {
 	let itemsToRemove = new Map();
 	for (let item of Object.values(items)) {

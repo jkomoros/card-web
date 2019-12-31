@@ -21,6 +21,7 @@ import {
 	setRemove,
 	prettyTime,
 	cardHasContent,
+	cardHasNotes
 } from '../util.js';
 
 export const DEFAULT_SET_NAME = 'all';
@@ -110,6 +111,7 @@ export const INVERSE_FILTER_NAMES = {
 	'no-slug': 'has-slug',
 	'no-comments': 'has-comments',
 	'no-content': 'has-content',
+	'no-notes' : 'has-notes',
 	'no-links' : 'has-links',
 	'no-inbound-links' : 'has-inbound-links',
 	'no-tags' : 'has-tags',
@@ -131,6 +133,7 @@ const INITIAL_STATE = {
 		'has-slug': {},
 		'has-comments': {},
 		'has-content': {},
+		'has-notes': {},
 		'has-links': {},
 		'has-inbound-links': {},
 		'has-tags': {},
@@ -147,6 +150,7 @@ const INITIAL_STATE = {
 		'has-slug': {},
 		'has-comments': {},
 		'has-content': {},
+		'has-notes': {},
 		'has-links': {},
 		'has-inbound-links': {},
 		'has-tags': {},
@@ -251,6 +255,9 @@ const makeFilterFromCards = (cards, previousFilters) => {
 	let newCardsWithContent = [];
 	let newCardsWithoutContent = [];
 
+	let newCardsWithNotes = [];
+	let newCardsWithoutNotes = [];
+
 	let newCardsWithUnpublished = [];
 	let newCardsWithoutUnpublished = [];
 
@@ -292,6 +299,12 @@ const makeFilterFromCards = (cards, previousFilters) => {
 			newCardsWithoutTags.push(card.id);
 		}
 
+		if (cardHasNotes(card)) {
+			newCardsWithNotes.push(card.id);
+		} else {
+			newCardsWithoutNotes.push(card.id);
+		}
+
 		if (cardHasContent(card)) {
 			newCardsWithContent.push(card.id);
 		} else {
@@ -310,6 +323,7 @@ const makeFilterFromCards = (cards, previousFilters) => {
 		'has-slug': setUnion(setRemove(previousFilters['has-slug'], newCardsWithoutSlug), newCardsWithSlug),
 		'has-comments': setUnion(setRemove(previousFilters['has-comments'],  newCardsWithoutComments), newCardsWithComments),
 		'has-content': setUnion(setRemove(previousFilters['has-content'], newCardsWithoutContent), newCardsWithContent),
+		'has-notes': setUnion(setRemove(previousFilters['has-notes'], newCardsWithoutNotes), newCardsWithNotes),
 		'has-links': setUnion(setRemove(previousFilters['has-links'], newCardsWithoutLinks), newCardsWithLinks),
 		'has-inbound-links': setUnion(setRemove(previousFilters['has-inbound-links'], newCardsWithoutInboundLinks), newCardsWithInboundLinks),
 		'has-tags': setUnion(setRemove(previousFilters['has-tags'], newCardsWithoutTags), newCardsWithTags),
