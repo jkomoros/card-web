@@ -43,6 +43,7 @@ export const newID = () => {
 };
 
 export const cardHasContent = (card) => {
+	if (!card) return false;
 	//We treat all non-content cards as having content, since the main reason to
 	//count a card has not having content is if there's nothing to see on it.
 	if (card.card_type != 'content') return true;
@@ -51,6 +52,7 @@ export const cardHasContent = (card) => {
 };
 
 export const cardHasNotes = (card) => {
+	if (!card) return false;
 	let content = card.notes ? card.notes.trim() : '';
 	return content ? true : false;
 };

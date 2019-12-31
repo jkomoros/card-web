@@ -41,7 +41,9 @@ import {
 } from './my-icons.js';
 
 import {
-	killEvent
+	killEvent, 
+	cardHasContent, 
+	cardHasNotes
 } from '../util.js';
 
 import {
@@ -52,6 +54,10 @@ import './tag-list.js';
 
 class CardEditor extends connect(store)(LitElement) {
 	render() {
+
+		const hasContent = cardHasContent(this._card);
+		const hasNotes = cardHasNotes(this._card);
+
 		return html`
       ${ButtonSharedStyles}
       <style>
@@ -135,11 +141,16 @@ class CardEditor extends connect(store)(LitElement) {
 			cursor:pointer;
 			padding-right:0.5em;
 			border-bottom:1px solid transparent;
+			font-weight:bold;
 		}
 
 		.tabs label[selected] {
 			color: var(--app-primary-color);
 			border-bottom-color: var(--app-primary-color);
+		}
+
+		.tabs label[empty] {
+			font-weight:inherit;
 		}
 
 		[hidden] {
@@ -155,8 +166,8 @@ class CardEditor extends connect(store)(LitElement) {
           </div>
 		  <div class='flex body'>
 			<div class='tabs' @click=${this._handleTabClicked}>
-				<label name='${TAB_CONTENT}' ?selected=${this._selectedTab == TAB_CONTENT}>Content</label>
-				<label name='${TAB_NOTES}' ?selected=${this._selectedTab == TAB_NOTES}>Notes</label>
+				<label name='${TAB_CONTENT}' ?selected=${this._selectedTab == TAB_CONTENT} ?empty=${!hasContent}>Content</label>
+				<label name='${TAB_NOTES}' ?selected=${this._selectedTab == TAB_NOTES} ?empty=${!hasNotes}>Notes</label>
 			</div>
 			<div ?hidden=${this._selectedTab !== TAB_CONTENT}>
 				<textarea @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
