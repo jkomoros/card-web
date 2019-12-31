@@ -112,6 +112,7 @@ export const INVERSE_FILTER_NAMES = {
 	'no-content': 'has-content',
 	'no-links' : 'has-links',
 	'no-inbound-links' : 'has-inbound-links',
+	'no-tags' : 'has-tags',
 	'published' : 'unpublished',
 	'not-in-reading-list' : 'in-reading-list'
 };
@@ -132,6 +133,7 @@ const INITIAL_STATE = {
 		'has-content': {},
 		'has-links': {},
 		'has-inbound-links': {},
+		'has-tags': {},
 		'in-reading-list': {},
 		unpublished: {},
 		//None will match nothing. We use it for orphans.
@@ -147,6 +149,7 @@ const INITIAL_STATE = {
 		'has-content': {},
 		'has-links': {},
 		'has-inbound-links': {},
+		'has-tags': {},
 		'in-reading-list': {},
 		unpublished: {},
 		//None will match nothing. We use it for orphans.
@@ -257,6 +260,9 @@ const makeFilterFromCards = (cards, previousFilters) => {
 	let newCardsWithInboundLinks = [];
 	let newCardsWithoutInboundLinks = [];
 
+	let newCardsWithTags = [];
+	let newCardsWithoutTags = [];
+
 	for (let card of Object.values(cards)) {
 		if (card.slugs && card.slugs.length) {
 			newCardsWithSlug.push(card.id);
@@ -280,6 +286,12 @@ const makeFilterFromCards = (cards, previousFilters) => {
 			newCardsWithoutInboundLinks.push(card.id);
 		}
 
+		if (card.tags.length) {
+			newCardsWithTags.push(card.id);
+		} else {
+			newCardsWithoutTags.push(card.id);
+		}
+
 		if (cardHasContent(card)) {
 			newCardsWithContent.push(card.id);
 		} else {
@@ -300,6 +312,7 @@ const makeFilterFromCards = (cards, previousFilters) => {
 		'has-content': setUnion(setRemove(previousFilters['has-content'], newCardsWithoutContent), newCardsWithContent),
 		'has-links': setUnion(setRemove(previousFilters['has-links'], newCardsWithoutLinks), newCardsWithLinks),
 		'has-inbound-links': setUnion(setRemove(previousFilters['has-inbound-links'], newCardsWithoutInboundLinks), newCardsWithInboundLinks),
+		'has-tags': setUnion(setRemove(previousFilters['has-tags'], newCardsWithoutTags), newCardsWithTags),
 		'unpublished': setUnion(setRemove(previousFilters['unpublished'], newCardsWithoutUnpublished), newCardsWithUnpublished)
 	};
 
