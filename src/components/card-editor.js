@@ -185,11 +185,11 @@ class CardEditor extends connect(store)(LitElement) {
 			<div class='tabs' @click=${this._handleTabClicked}>
 				<label name='${TAB_CONTENT}' ?selected=${this._selectedTab == TAB_CONTENT} ?empty=${!hasContent} ?modified=${contentModified}>Content</label>
 				<label name='${TAB_NOTES}' ?selected=${this._selectedTab == TAB_NOTES} ?empty=${!hasNotes} ?modified=${notesModified}>Notes</label>
-				<label name='${TAB_TODO}' ?selected=${this._selectedTab == TAB_TODO} ?empty=${!hasTodo} ?modified=${todoModified}>TODO</label>
+				<label name='${TAB_TODO}' ?selected=${this._selectedTab == TAB_TODO} ?empty=${!hasTodo} ?modified=${todoModified}>Freeform TODO</label>
 				<span class='flex'></span>
 				<label class='help' ?hidden=${this._selectedTab !== TAB_CONTENT}>Content is what shows up on the main body of the card</label>
 				<label class='help' ?hidden=${this._selectedTab !== TAB_NOTES}>Notes are visible in the info panel to all readers and are for permanent asides</label>
-				<label class='help' ?hidden=${this._selectedTab !== TAB_TODO}>TODOs are only visible to editors and mark a temporary thing to do so it shows up in the has-todo filter</label>
+				<label class='help' ?hidden=${this._selectedTab !== TAB_TODO}>Freeform TODOs are only visible to editors and mark a temporary thing to do so it shows up in the has-freeform-todo filter</label>
 
 			</div>
 			<textarea ?hidden=${this._selectedTab !== TAB_CONTENT} @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
