@@ -143,7 +143,7 @@ export const INVERSE_FILTER_NAMES = {
 	'no-links' : 'has-links',
 	'no-inbound-links' : 'has-inbound-links',
 	'no-tags' : 'has-tags',
-	'published' : 'unpublished',
+	'unpublished' : 'published',
 	'not-in-reading-list' : 'in-reading-list'
 };
 
@@ -161,7 +161,7 @@ const INITIAL_STATE_FILTERS = {
 	'has-inbound-links': {},
 	'has-tags': {},
 	'in-reading-list': {},
-	unpublished: {},
+	published: {},
 	//None will match nothing. We use it for orphans.
 	none: {},
 };
@@ -280,8 +280,8 @@ const makeFilterFromCards = (cards, previousFilters) => {
 	let newCardsWithTodo = [];
 	let newCardsWithoutTodo = [];
 
-	let newCardsWithUnpublished = [];
-	let newCardsWithoutUnpublished = [];
+	let newCardsWithPublished = [];
+	let newCardsWithoutPublished = [];
 
 	let newCardsWithLinks = [];
 	let newCardsWithoutLinks = [];
@@ -339,10 +339,10 @@ const makeFilterFromCards = (cards, previousFilters) => {
 			newCardsWithoutContent.push(card.id);
 		}
 
-		if (!card.published) {
-			newCardsWithUnpublished.push(card.id);
+		if (card.published) {
+			newCardsWithPublished.push(card.id);
 		} else {
-			newCardsWithoutUnpublished.push(card.id);
+			newCardsWithoutPublished.push(card.id);
 		}
 		
 	}
@@ -356,7 +356,7 @@ const makeFilterFromCards = (cards, previousFilters) => {
 		'has-links': setUnion(setRemove(previousFilters['has-links'], newCardsWithoutLinks), newCardsWithLinks),
 		'has-inbound-links': setUnion(setRemove(previousFilters['has-inbound-links'], newCardsWithoutInboundLinks), newCardsWithInboundLinks),
 		'has-tags': setUnion(setRemove(previousFilters['has-tags'], newCardsWithoutTags), newCardsWithTags),
-		'unpublished': setUnion(setRemove(previousFilters['unpublished'], newCardsWithoutUnpublished), newCardsWithUnpublished)
+		'published': setUnion(setRemove(previousFilters['published'], newCardsWithoutPublished), newCardsWithPublished)
 	};
 
 
