@@ -121,6 +121,25 @@ export const INVERSE_FILTER_NAMES = {
 	'not-in-reading-list' : 'in-reading-list'
 };
 
+//We pull this out because it has to be the same in filters and pendingFilters
+//and to avoid having to duplicate it.
+const INITIAL_STATE_FILTERS = {
+	starred: {},
+	read: {},
+	'has-slug': {},
+	'has-comments': {},
+	'has-content': {},
+	'has-notes': {},
+	'has-freeform-todo': {},
+	'has-links': {},
+	'has-inbound-links': {},
+	'has-tags': {},
+	'in-reading-list': {},
+	unpublished: {},
+	//None will match nothing. We use it for orphans.
+	none: {},
+};
+
 const INITIAL_STATE = {
 	activeSetName: DEFAULT_SET_NAME,
 	activeFilterNames: [],
@@ -129,40 +148,10 @@ const INITIAL_STATE = {
 	//These are the actual values of the filters in current use. We queue up
 	//changes in pendingFilters and then synchronize this value to that value
 	//when we know it's OK for the collection to change.
-	filters: {
-		starred: {},
-		read: {},
-		'has-slug': {},
-		'has-comments': {},
-		'has-content': {},
-		'has-notes': {},
-		'has-freeform-todo': {},
-		'has-links': {},
-		'has-inbound-links': {},
-		'has-tags': {},
-		'in-reading-list': {},
-		unpublished: {},
-		//None will match nothing. We use it for orphans.
-		none: {},
-	},
+	filters: INITIAL_STATE_FILTERS,
 	//The things that modify filters actuall modify pendingFilters. Only when we
 	//receive a COMMIT_PENDING_COLLECTION_MODIFICATIONS do we copy over the modifications.
-	pendingFilters: {
-		starred: {},
-		read: {},
-		'has-slug': {},
-		'has-comments': {},
-		'has-content': {},
-		'has-notes': {},
-		'has-freeform-todo': {},
-		'has-links': {},
-		'has-inbound-links': {},
-		'has-tags': {},
-		'in-reading-list': {},
-		unpublished: {},
-		//None will match nothing. We use it for orphans.
-		none: {},
-	},
+	pendingFilters: INITIAL_STATE_FILTERS,
 	//requestCard is the identifier specifically requested in the URL. This
 	//could be the card's ID, a slug for that card, or a special placeholder
 	//like `_`. The fully resolved activeCard is stored in activeCardId.
