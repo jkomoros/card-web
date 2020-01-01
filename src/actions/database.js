@@ -37,10 +37,6 @@ export const NOTIFICATIONS_FEATURE_ENABLED  = DEV_MODE && messaging;
 
 export const db = firebase.firestore();
 
-db.settings({
-	timestampsInSnapshots:true,
-});
-
 firebase.firestore().enablePersistence()
 	.catch(function(err) {
 		if (err.code == 'failed-precondition') {
