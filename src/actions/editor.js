@@ -17,6 +17,7 @@ export const EDITING_TAG_REMOVED = 'EDITING_TAG_REMOVED';
 
 export const TAB_CONTENT = 'content';
 export const TAB_NOTES = 'notes';
+export const TAB_TODO = 'todo';
 
 import {
 	selectActiveCard,

@@ -30,9 +30,12 @@ import {
 	fullBleedUpdated,
 	tagAdded,
 	tagRemoved,
+	editingSelectTab,
+	todoUpdated,
+
 	TAB_CONTENT,
 	TAB_NOTES,
-	editingSelectTab,
+	TAB_TODO,
 } from '../actions/editor.js';
 
 import {
@@ -43,7 +46,8 @@ import {
 import {
 	killEvent, 
 	cardHasContent, 
-	cardHasNotes
+	cardHasNotes,
+	cardHasTodo
 } from '../util.js';
 
 import {
@@ -57,8 +61,10 @@ class CardEditor extends connect(store)(LitElement) {
 
 		const hasContent = cardHasContent(this._card);
 		const hasNotes = cardHasNotes(this._card);
+		const hasTodo = cardHasTodo(this._card);
 		const contentModified = this._card.body != this._underlyingCard.body;
 		const notesModified = this._card.notes != this._underlyingCard.notes;
+		const todoModified = this._card.todo != this._underlyingCard.todo;
 
 		return html`
       ${ButtonSharedStyles}
@@ -174,9 +180,11 @@ class CardEditor extends connect(store)(LitElement) {
 			<div class='tabs' @click=${this._handleTabClicked}>
 				<label name='${TAB_CONTENT}' ?selected=${this._selectedTab == TAB_CONTENT} ?empty=${!hasContent} ?modified=${contentModified}>Content</label>
 				<label name='${TAB_NOTES}' ?selected=${this._selectedTab == TAB_NOTES} ?empty=${!hasNotes} ?modified=${notesModified}>Notes</label>
+				<label name='${TAB_TODO}' ?selected=${this._selectedTab == TAB_TODO} ?empty=${!hasTodo} ?modified=${todoModified}>TODO</label>
 			</div>
 			<textarea ?hidden=${this._selectedTab !== TAB_CONTENT} @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
 			<textarea ?hidden=${this._selectedTab !== TAB_NOTES} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
+			<textarea ?hidden=${this._selectedTab !== TAB_TODO} @input='${this._handleTodoUpdated}' .value=${this._card.todo}></textarea>
 		  </div>
           <div class='row'>
             <div>
@@ -342,6 +350,12 @@ class CardEditor extends connect(store)(LitElement) {
 		if (!this._active) return;
 		let ele = e.composedPath()[0];
 		store.dispatch(notesUpdated(ele.value));
+	}
+
+	_handleTodoUpdated(e) {
+		if (!this._active) return;
+		let ele = e.composedPath()[0];
+		store.dispatch(todoUpdated(ele.value));
 	}
 
 	_handleSectionUpdated(e) {
