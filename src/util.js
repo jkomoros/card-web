@@ -61,7 +61,7 @@ export const cardHasTodo = (card) => {
 	if (!card) return false;
 	let content = card.todo ? card.todo.trim() : '';
 	return content ? true : false;
-}
+};
 
 export const arrayRemove = (arr, items) => {
 	let itemsToRemove = new Map();
