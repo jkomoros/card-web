@@ -90,6 +90,7 @@ const LEGAL_UPDATE_FIELDS = new Map([
 	['section', true],
 	['full_bleed', true],
 	['notes', true],
+	['todo', true],
 	['addTags', true],
 	['removeTags', true],
 	['published', true]
