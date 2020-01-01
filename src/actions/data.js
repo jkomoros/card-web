@@ -163,6 +163,10 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 		cardUpdateObject.notes = update.notes;
 	}
 
+	if (update.todo !== undefined) {
+		cardUpdateObject.todo = update.todo;
+	}
+
 	if (update.published !== undefined) {
 		cardUpdateObject.published = update.published;
 	}
