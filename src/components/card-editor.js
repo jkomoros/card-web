@@ -117,6 +117,11 @@ class CardEditor extends connect(store)(LitElement) {
           flex-direction:column;
         }
 
+		.flex-container {
+			flex-grow: 1;
+			display: flex;
+		}
+
         .buttons {
           display:flex;
           flex-direction:row;
@@ -182,9 +187,15 @@ class CardEditor extends connect(store)(LitElement) {
 				<label name='${TAB_NOTES}' ?selected=${this._selectedTab == TAB_NOTES} ?empty=${!hasNotes} ?modified=${notesModified}>Notes</label>
 				<label name='${TAB_TODO}' ?selected=${this._selectedTab == TAB_TODO} ?empty=${!hasTodo} ?modified=${todoModified}>TODO</label>
 			</div>
-			<textarea ?hidden=${this._selectedTab !== TAB_CONTENT} @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
-			<textarea ?hidden=${this._selectedTab !== TAB_NOTES} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
-			<textarea ?hidden=${this._selectedTab !== TAB_TODO} @input='${this._handleTodoUpdated}' .value=${this._card.todo}></textarea>
+			<div class='flex-container' ?hidden=${this._selectedTab !== TAB_CONTENT}>
+				<textarea  @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
+			</div>
+			<div class='flex-container' ?hidden=${this._selectedTab !== TAB_NOTES}>
+				<textarea  @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
+			</div>
+			<div class='flex-container' ?hidden=${this._selectedTab !== TAB_TODO}>
+				<textarea  @input='${this._handleTodoUpdated}' .value=${this._card.todo}></textarea>
+			</div>
 		  </div>
           <div class='row'>
             <div>
