@@ -402,6 +402,28 @@ export const makeExistingCardsPublished = async() => {
 
 };
 
+const CONVERT_EXISTING_NOTES_TO_TODO = 'convert-existing-notes-to-todo';
+
+export const convertExistingNotesToTodo = async() => {
+
+	await checkMaintenanceTaskHasBeenRun(CONVERT_EXISTING_NOTES_TO_TODO);
+
+	let batch = db.batch();
+
+	let snapshot = await db.collection(CARDS_COLLECTION).get();
+
+	snapshot.forEach(doc => {
+		const notes = doc.data().notes || '';
+		batch.update(doc.ref, {'todo': notes, 'notes':''});
+	});
+
+	await batch.commit();
+
+	await maintenanceTaskRun(CONVERT_EXISTING_NOTES_TO_TODO);
+	console.log('done!');
+
+};
+
 
 export const doImport = () => {
 
@@ -512,5 +534,5 @@ export const tasks = {
 	[UPDATE_LINKS]: updateLinks,
 	[ADD_TAGS_ARRAY]: addTagsArray,
 	[ADD_UPDATED_MESSAGE]: addUpdatedMessage,
-	[MAKE_EXISTING_CARDS_PUBLISHED]: makeExistingCardsPublished
+	[CONVERT_EXISTING_NOTES_TO_TODO]: convertExistingNotesToTodo,
 };

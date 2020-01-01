@@ -524,6 +524,7 @@ const defaultCardObject = (id, user, section, cardType) => {
 		links_inbound: [],
 		card_type: cardType,
 		notes: '',
+		todo: '',
 		slugs: [],
 		name: id,
 		tags: [],
