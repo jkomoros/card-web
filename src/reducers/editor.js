@@ -11,6 +11,7 @@ import {
 	EDITING_PUBLISHED_UPDATED,
 	EDITING_FULL_BLEED_UPDATED,
 	EDITING_NOTES_UPDATED,
+	EDITING_TODO_UPDATED,
 	EDITING_TAG_ADDED,
 	EDITING_TAG_REMOVED,
 
@@ -71,6 +72,12 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: {...state.card, notes:action.notes},
+		};
+	case EDITING_TODO_UPDATED:
+		if (!state.card) return state;
+		return {
+			...state,
+			card: {...state.card, todo:action.todo},
 		};
 	case EDITING_BODY_UPDATED:
 		if (!state.card) return state;

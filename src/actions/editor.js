@@ -10,6 +10,7 @@ export const EDITING_SUBSTANTIVE_UPDATED = 'EDITING_SUBSTANTIVE_UPDATED';
 export const EDITING_PUBLISHED_UPDATED = 'EDITING_PUBLISHED_UPDATED';
 export const EDITING_FULL_BLEED_UPDATED = 'EDITING_FULL_BLEED_UPDATED';
 export const EDITING_NOTES_UPDATED = 'EDITING_NOTES_UPDATED';
+export const EDITING_TODO_UPDATED = 'EDITING_TODO_UPDATED';
 export const EDITING_TAG_ADDED = 'EDITING_TAG_ADDED';
 export const EDITING_TAG_REMOVED = 'EDITING_TAG_REMOVED';
 
@@ -334,6 +335,13 @@ export const notesUpdated = (newNotes) => {
 	return {
 		type: EDITING_NOTES_UPDATED,
 		notes:newNotes,
+	};
+};
+
+export const todoUpdated = (newTodo) => {
+	return {
+		type: EDITING_TODO_UPDATED,
+		todo: newTodo,
 	};
 };
 
