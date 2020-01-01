@@ -102,6 +102,7 @@ export const editingCommit = () => (dispatch, getState) => {
 	if (updatedCard.section != underlyingCard.section) update.section = updatedCard.section;
 	if (updatedCard.name != underlyingCard.section) update.name = updatedCard.name;
 	if (updatedCard.notes != underlyingCard.notes) update.notes = updatedCard.notes;
+	if (updatedCard.todo != underlyingCard.todo) update.todo = updatedCard.todo;
 	if (updatedCard.full_bleed != underlyingCard.full_bleed) update.full_bleed = updatedCard.full_bleed;
 	if (updatedCard.published !== underlyingCard.published) update.published = updatedCard.published;
 	if (updatedCard.body != underlyingCard.body) {
