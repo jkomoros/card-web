@@ -113,7 +113,7 @@ export const INVERSE_FILTER_NAMES = {
 	'no-comments': 'has-comments',
 	'no-content': 'has-content',
 	'no-notes' : 'has-notes',
-	'no-todo' : 'has-todo',
+	'no-freeform-todo' : 'has-freeform-todo',
 	'no-links' : 'has-links',
 	'no-inbound-links' : 'has-inbound-links',
 	'no-tags' : 'has-tags',
