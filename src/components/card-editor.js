@@ -57,6 +57,8 @@ class CardEditor extends connect(store)(LitElement) {
 
 		const hasContent = cardHasContent(this._card);
 		const hasNotes = cardHasNotes(this._card);
+		const contentModified = this._card.body != this._underlyingCard.body;
+		const notesModified = this._card.notes != this._underlyingCard.notes;
 
 		return html`
       ${ButtonSharedStyles}
@@ -153,6 +155,10 @@ class CardEditor extends connect(store)(LitElement) {
 			font-weight:inherit;
 		}
 
+		.tabs label[modified] {
+			font-style: italic;
+		}
+
 		[hidden] {
           display:none;
         }
@@ -166,8 +172,8 @@ class CardEditor extends connect(store)(LitElement) {
           </div>
 		  <div class='flex body'>
 			<div class='tabs' @click=${this._handleTabClicked}>
-				<label name='${TAB_CONTENT}' ?selected=${this._selectedTab == TAB_CONTENT} ?empty=${!hasContent}>Content</label>
-				<label name='${TAB_NOTES}' ?selected=${this._selectedTab == TAB_NOTES} ?empty=${!hasNotes}>Notes</label>
+				<label name='${TAB_CONTENT}' ?selected=${this._selectedTab == TAB_CONTENT} ?empty=${!hasContent} ?modified=${contentModified}>Content</label>
+				<label name='${TAB_NOTES}' ?selected=${this._selectedTab == TAB_NOTES} ?empty=${!hasNotes} ?modified=${notesModified}>Notes</label>
 			</div>
 			<textarea ?hidden=${this._selectedTab !== TAB_CONTENT} @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
 			<textarea ?hidden=${this._selectedTab !== TAB_NOTES} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
