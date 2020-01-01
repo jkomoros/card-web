@@ -103,6 +103,32 @@ export const SORTS = {
 	},
 };
 
+/*
+const defaultCardFilterName = (basename) => {
+	return ['has-' + basename, 'no-' + basename];
+};
+
+//enum for different values in card_filter_configs
+const TODO_NA = 'na';
+//Normal todo: the "has" is considered "done", and "no" is considered todo
+const TODO_NORMAL = 'normal';
+//Flipped TODO: the "has" is considered "todo" and the "no" is considered done
+const TODO_FLIPPED = 'flipped';
+
+const CARD_FILTER_CONFIGS = [
+	//tuple of has-/no- filtername, then the card->in-filter test, then TODO_ENUM
+	[defaultCardFilterName('comments'), card => card.thread_count, TODO_NA],
+	[defaultCardFilterName('notes'), card => cardHasNotes(card), TODO_NA],
+	[defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, TODO_NORMAL],
+	[defaultCardFilterName('content'), card => cardHasContent(card), TODO_NORMAL],
+	[defaultCardFilterName('links'), card => card.links.length, TODO_NORMAL],
+	[defaultCardFilterName('inbound-links'), card => card.links_inbound.length, TODO_NORMAL],
+	[defaultCardFilterName('tags'), card => card.tags.length, TODO_NORMAL],
+	[defaultCardFilterName('freeform-todo'), card => cardHasTodo(card), TODO_FLIPPED],
+	[['published', 'unpublished'], card => card.published, TODO_NORMAL],
+];
+*/
+
 //Theser are filters who are the inverse of another, smaller set. Instead of
 //creating a whole set of "all cards minus those", we keep track of them as
 //exclude sets.
