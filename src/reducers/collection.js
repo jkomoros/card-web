@@ -135,35 +135,35 @@ const CARD_FILTER_CONFIGS = {
 export const INVERSE_FILTER_NAMES = {
 	'unstarred': 'starred',
 	'unread': 'read',
-	'no-slug': 'has-slug',
+	'not-in-reading-list' : 'in-reading-list',
 	'no-comments': 'has-comments',
-	'no-content': 'has-content',
 	'no-notes' : 'has-notes',
-	'no-freeform-todo' : 'has-freeform-todo',
+	'no-slug': 'has-slug',
+	'no-content': 'has-content',
 	'no-links' : 'has-links',
 	'no-inbound-links' : 'has-inbound-links',
 	'no-tags' : 'has-tags',
-	'unpublished' : 'published',
-	'not-in-reading-list' : 'in-reading-list'
+	'no-freeform-todo' : 'has-freeform-todo',
+	'unpublished' : 'published'
 };
 
 //We pull this out because it has to be the same in filters and pendingFilters
 //and to avoid having to duplicate it.
 const INITIAL_STATE_FILTERS = {
+	//None will match nothing. We use it for orphans.
+	none: {},
 	starred: {},
 	read: {},
-	'has-slug': {},
+	'in-reading-list': {},
 	'has-comments': {},
-	'has-content': {},
 	'has-notes': {},
-	'has-freeform-todo': {},
+	'has-slug': {},
+	'has-content': {},
 	'has-links': {},
 	'has-inbound-links': {},
 	'has-tags': {},
-	'in-reading-list': {},
+	'has-freeform-todo': {},
 	published: {},
-	//None will match nothing. We use it for orphans.
-	none: {},
 };
 
 const INITIAL_STATE = {
@@ -264,24 +264,17 @@ const makeFilterFromSection = (sections) => {
 
 const makeFilterFromCards = (cards, previousFilters) => {
   
-
-	let newCardsWithSlug = [];
-	let newCardsWithoutSlug = [];
-
 	let newCardsWithComments = [];
 	let newCardsWithoutComments = [];
-
-	let newCardsWithContent = [];
-	let newCardsWithoutContent = [];
 
 	let newCardsWithNotes = [];
 	let newCardsWithoutNotes = [];
 
-	let newCardsWithTodo = [];
-	let newCardsWithoutTodo = [];
+	let newCardsWithSlug = [];
+	let newCardsWithoutSlug = [];
 
-	let newCardsWithPublished = [];
-	let newCardsWithoutPublished = [];
+	let newCardsWithContent = [];
+	let newCardsWithoutContent = [];
 
 	let newCardsWithLinks = [];
 	let newCardsWithoutLinks = [];
@@ -292,17 +285,38 @@ const makeFilterFromCards = (cards, previousFilters) => {
 	let newCardsWithTags = [];
 	let newCardsWithoutTags = [];
 
+	let newCardsWithTodo = [];
+	let newCardsWithoutTodo = [];
+
+	let newCardsWithPublished = [];
+	let newCardsWithoutPublished = [];
+
 	for (let card of Object.values(cards)) {
-		if (card.slugs && card.slugs.length) {
-			newCardsWithSlug.push(card.id);
-		} else {
-			newCardsWithoutSlug.push(card.id);
-		}
+
 		if (card.thread_count) {
 			newCardsWithComments.push(card.id);
 		} else {
 			newCardsWithoutComments.push(card.id);
 		}
+
+		if (cardHasNotes(card)) {
+			newCardsWithNotes.push(card.id);
+		} else {
+			newCardsWithoutNotes.push(card.id);
+		}
+
+		if (card.slugs && card.slugs.length) {
+			newCardsWithSlug.push(card.id);
+		} else {
+			newCardsWithoutSlug.push(card.id);
+		}
+
+		if (cardHasContent(card)) {
+			newCardsWithContent.push(card.id);
+		} else {
+			newCardsWithoutContent.push(card.id);
+		}
+
 		if (card.links.length) {
 			newCardsWithLinks.push(card.id);
 		} else {
@@ -321,22 +335,10 @@ const makeFilterFromCards = (cards, previousFilters) => {
 			newCardsWithoutTags.push(card.id);
 		}
 
-		if (cardHasNotes(card)) {
-			newCardsWithNotes.push(card.id);
-		} else {
-			newCardsWithoutNotes.push(card.id);
-		}
-
 		if (cardHasTodo(card)) {
 			newCardsWithTodo.push(card.id);
 		} else {
 			newCardsWithoutTodo.push(card.id);
-		}
-
-		if (cardHasContent(card)) {
-			newCardsWithContent.push(card.id);
-		} else {
-			newCardsWithoutContent.push(card.id);
 		}
 
 		if (card.published) {
@@ -348,14 +350,14 @@ const makeFilterFromCards = (cards, previousFilters) => {
 	}
 
 	return {
-		'has-slug': setUnion(setRemove(previousFilters['has-slug'], newCardsWithoutSlug), newCardsWithSlug),
 		'has-comments': setUnion(setRemove(previousFilters['has-comments'],  newCardsWithoutComments), newCardsWithComments),
-		'has-content': setUnion(setRemove(previousFilters['has-content'], newCardsWithoutContent), newCardsWithContent),
 		'has-notes': setUnion(setRemove(previousFilters['has-notes'], newCardsWithoutNotes), newCardsWithNotes),
-		'has-freeform-todo': setUnion(setRemove(previousFilters['has-freeform-todo'], newCardsWithoutTodo), newCardsWithTodo),
+		'has-slug': setUnion(setRemove(previousFilters['has-slug'], newCardsWithoutSlug), newCardsWithSlug),
+		'has-content': setUnion(setRemove(previousFilters['has-content'], newCardsWithoutContent), newCardsWithContent),
 		'has-links': setUnion(setRemove(previousFilters['has-links'], newCardsWithoutLinks), newCardsWithLinks),
 		'has-inbound-links': setUnion(setRemove(previousFilters['has-inbound-links'], newCardsWithoutInboundLinks), newCardsWithInboundLinks),
 		'has-tags': setUnion(setRemove(previousFilters['has-tags'], newCardsWithoutTags), newCardsWithTags),
+		'has-freeform-todo': setUnion(setRemove(previousFilters['has-freeform-todo'], newCardsWithoutTodo), newCardsWithTodo),
 		'published': setUnion(setRemove(previousFilters['published'], newCardsWithoutPublished), newCardsWithPublished)
 	};
 
