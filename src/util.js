@@ -124,6 +124,99 @@ export const arrayDiff = (before, after) => {
 	return [additions, deletions];
 };
 
+//triStateObjectDiff operates on objects that have keys that are either true or
+//false. It returns keys to explicit set to true, keys to explicitly set to
+//false, and keys to remove.
+export const triStateObjectDiff = (before, after) => {
+	if (!before) before = {};
+	if (!after) after = {};
+	//Generat the list of removals by looking for keys that do not exist in
+	//after but are in before.
+	let removals = [];
+	for (let beforeKey of Object.keys(before)) {
+		if (after[beforeKey] === undefined) {
+			removals.push(beforeKey);
+		}
+	}
+
+	let enabled = [];
+	let disabled = [];
+	for (let afterKey of Object.keys(after)) {
+		//If before has the after key undefined or false it doesn't matter; in
+		//either case it requires an explicit set.
+		if(before[afterKey] != after[afterKey]) {
+			if (after[afterKey]) {
+				enabled.push(afterKey);
+			} else {
+				disabled.push(afterKey);
+			}
+		}
+	}
+
+	return [enabled, disabled, removals];
+};
+
+/*
+//Uncomment this block to test tri state.
+function testTriState () {
+	//TODO: do this in a proper testing framework
+	const tests = [
+		[
+			'No op',
+			{a: true, b: false},
+			{a: true, b: false},
+			[[],[],[]]
+		],
+		[
+			'add c enabled',
+			{a: true, b: false},
+			{a: true, b: false, c: true},
+			[['c'],[],[]],
+		],
+		[
+			'add c disabled',
+			{a: true, b: false},
+			{a: true, b: false, c: false},
+			[[],['c'],[]],
+		],
+		[
+			'remove a',
+			{a: true, b: false},
+			{b: false},
+			[[],[],['a']]
+		],
+		[
+			'disable a',
+			{a: true, b: false},
+			{a: false, b: false},
+			[[],['a'],[]]
+		],
+		[
+			'remove a add c',
+			{a: true, b: false},
+			{b: false, c: false},
+			[[],['c'],['a']]
+		],
+	];
+	for (let test of tests) {
+		const description = test[0];
+		let [enabled, disabled, deleted] = triStateObjectDiff(test[1], test[2]);
+		let [goldenEnabled, goldenDisabled, goldenDeleted] = test[3];
+
+		let [enabledAdditions, enabledDeletions] = arrayDiff(goldenEnabled, enabled);
+		if (enabledAdditions.length != 0 || enabledDeletions.length != 0) console.warn(description + ' failed enabled didn\'t match: ' + enabled.toString());
+
+		let [disabledAdditions, disabledDeletions] = arrayDiff(goldenDisabled, disabled);
+		if (disabledAdditions.length != 0 || disabledDeletions.length != 0) console.warn(description + ' failed disabled didn\'t match: ' + disabled.toString());
+
+		let [deletedAdditions, deletedDeletions] = arrayDiff(goldenDeleted, deleted);
+		if (deletedAdditions.length != 0 || deletedDeletions.length != 0) console.warn(description + ' failed deletions didn\'t match: ' + deleted.toString());
+	}
+	console.log('Tristate tests passed');
+}
+testTriState();
+*/
+
 //items is an array
 export const setRemove = (obj, items) => {
 	let result = {};
