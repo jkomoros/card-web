@@ -130,20 +130,15 @@ const CARD_FILTER_CONFIGS = {
 //Theser are filters who are the inverse of another, smaller set. Instead of
 //creating a whole set of "all cards minus those", we keep track of them as
 //exclude sets.
-export const INVERSE_FILTER_NAMES = {
-	'unstarred': 'starred',
-	'unread': 'read',
-	'not-in-reading-list' : 'in-reading-list',
-	'no-comments': 'has-comments',
-	'no-notes' : 'has-notes',
-	'no-slug': 'has-slug',
-	'no-content': 'has-content',
-	'no-links' : 'has-links',
-	'no-inbound-links' : 'has-inbound-links',
-	'no-tags' : 'has-tags',
-	'no-freeform-todo' : 'has-freeform-todo',
-	'unpublished' : 'published'
-};
+export const INVERSE_FILTER_NAMES = Object.assign(
+	{
+		'unstarred': 'starred',
+		'unread': 'read',
+		'not-in-reading-list' : 'in-reading-list',
+	},
+	//extend with ones for all of the card filters badsed on that config
+	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][1], entry[1][0][0]]))
+);
 
 //We pull this out because it has to be the same in filters and pendingFilters
 //and to avoid having to duplicate it.
