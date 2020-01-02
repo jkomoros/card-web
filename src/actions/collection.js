@@ -64,8 +64,8 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 
 	let parts = path.split('/');
 
-	//Remove trailing slash
-	if (!parts[parts.length - 1]) parts.pop();
+	//We do not remove a trailing slash; we take a trailing slash to mean
+	//"deafult item in the collection".
 
 	//in some weird situations, like during editing commit, we might be at no
 	//route even when our view is active. Not entirely clear how, but it
@@ -86,10 +86,8 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 		}
 	}
 
-	//Get last part
+	//Get last part, which is the card selector (and might be "").
 	let cardIdOrSlug = parts.pop();
-
-	//TODO: detect if it's one of the weird cardIdOrSlugs (e.g. '.', '.default');
 
 	let [filters, sortName, sortReversed] = extractFilterNamesAndSort(parts);
 
@@ -306,6 +304,8 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 
 	let requestedCard = selectRequestedCard(state);
 	if (cardIdIsPlaceholder(requestedCard)) {
+		//If the selector was "_" then canonically replace it with just blank.
+		if (requestedCard == PLACEHOLDER_CARD_ID_CHARACTER) requestedCard = '';
 		//If it was a special placeholder that was requested, then leave it in
 		//the URL. If they arrow down and back up it's OK for it go back to its
 		//canonical URL.
@@ -321,8 +321,12 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 	dispatch(navigatePathTo(path, true));
 };
 
+//cardIdIsPlaceholder is whether the cardId (the last part of the URL) either
+//starts with a "_" or is blank (which is equivalent to "_", which means, the
+//first card).
 const cardIdIsPlaceholder = (cardId) => {
-	if (!cardId) return false;
+	//Blank cardId is equivalent to "_" which means default.
+	if (!cardId) return true;
 	return cardId[0] == PLACEHOLDER_CARD_ID_CHARACTER;
 };
 
