@@ -251,7 +251,6 @@ const makeFilterFromSection = (sections) => {
 };
 
 const makeFilterFromCards = (cards, previousFilters) => {
-  
 	let result = {};
 	for(let config of Object.values(CARD_FILTER_CONFIGS)) {
 		const filterName = config[0][0];
@@ -264,11 +263,9 @@ const makeFilterFromCards = (cards, previousFilters) => {
 			} else {
 				newNonMatchingCards.push(card.id);
 			}
-
 		}
 		result[filterName] = setUnion(setRemove(previousFilters[filterName], newNonMatchingCards), newMatchingCards);
 	}
-
 	return result;
 };
 
