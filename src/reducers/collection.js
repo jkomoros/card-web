@@ -114,6 +114,10 @@ const TODO_NORMAL = 'normal';
 //Flipped TODO: the "has" is considered "todo" and the "no" is considered done
 const TODO_FLIPPED = 'flipped';
 
+//Card filters are filters that can tell if a given card is in it given only the
+//card object itself. They're so common that in order to reduce extra machinery
+//they're factored into a single config here and all of the other machinery uses
+//it (and extends with non-card-filter-types as appropriate).
 const CARD_FILTER_CONFIGS = {
 	//tuple of has-/no- filtername (has- is primary), then the card->in-filter test, then TODO_ENUM
 	'comments': [defaultCardFilterName('comments'), card => card.thread_count, TODO_NA],
