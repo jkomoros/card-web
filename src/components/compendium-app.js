@@ -292,10 +292,10 @@ class CompendiumApp extends connect(store)(LitElement) {
 							`)}` :
 		html`<a ?selected="${this._page === 'c'}" href="/c"><em>Loading...</em></a>`
 }
-						<a ?selected=${this._recentTabSelected} href="/c/has-content/sort/recent/_">Recent</a>
-						<a class='icon-item' title='Your reading list' ?selected=${this._readingListTabSelected} href="/c/reading-list/_">${playlistPlayIcon}<span>${this._userReadingListCount}</span></a>
-						<a class='icon-item' title='Your stars' ?selected=${this._starsTabSelected} href="/c/starred/_">${starIcon}<span>${this._userStarsCount}</span></a>
-						<a class='icon-item' title="Cards you haven't read yet" ?selected=${this._unreadTabSelected} href="/c/unread/_">${visibilityIcon}<span>${this._userUnreadCount}</span></a>
+						<a ?selected=${this._recentTabSelected} href="/c/has-content/sort/recent/">Recent</a>
+						<a class='icon-item' title='Your reading list' ?selected=${this._readingListTabSelected} href="/c/reading-list/">${playlistPlayIcon}<span>${this._userReadingListCount}</span></a>
+						<a class='icon-item' title='Your stars' ?selected=${this._starsTabSelected} href="/c/starred/">${starIcon}<span>${this._userStarsCount}</span></a>
+						<a class='icon-item' title="Cards you haven't read yet" ?selected=${this._unreadTabSelected} href="/c/unread/">${visibilityIcon}<span>${this._userUnreadCount}</span></a>
 					</nav>
 					<div class='spacer dev'>
 						${this._devMode ? html`DEVMODE` : ''}
