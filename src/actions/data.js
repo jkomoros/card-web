@@ -533,7 +533,8 @@ const defaultCardObject = (id, user, section, cardType) => {
 		slugs: [],
 		name: id,
 		tags: [],
-		published: false
+		published: false,
+		auto_todo_overrides: {}
 	};
 };
 
