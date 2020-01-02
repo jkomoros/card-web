@@ -103,7 +103,6 @@ export const SORTS = {
 	},
 };
 
-/*
 const defaultCardFilterName = (basename) => {
 	return ['has-' + basename, 'no-' + basename];
 };
@@ -116,7 +115,7 @@ const TODO_NORMAL = 'normal';
 const TODO_FLIPPED = 'flipped';
 
 const CARD_FILTER_CONFIGS = {
-	//tuple of has-/no- filtername, then the card->in-filter test, then TODO_ENUM
+	//tuple of has-/no- filtername (has- is primary), then the card->in-filter test, then TODO_ENUM
 	'comments': [defaultCardFilterName('comments'), card => card.thread_count, TODO_NA],
 	'notes': [defaultCardFilterName('notes'), card => cardHasNotes(card), TODO_NA],
 	'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, TODO_NORMAL],
@@ -127,7 +126,6 @@ const CARD_FILTER_CONFIGS = {
 	'freeform-todo': [defaultCardFilterName('freeform-todo'), card => cardHasTodo(card), TODO_FLIPPED],
 	'published': [['published', 'unpublished'], card => card.published, TODO_NORMAL],
 };
-*/
 
 //Theser are filters who are the inverse of another, smaller set. Instead of
 //creating a whole set of "all cards minus those", we keep track of them as
@@ -149,22 +147,17 @@ export const INVERSE_FILTER_NAMES = {
 
 //We pull this out because it has to be the same in filters and pendingFilters
 //and to avoid having to duplicate it.
-const INITIAL_STATE_FILTERS = {
-	//None will match nothing. We use it for orphans.
-	none: {},
-	starred: {},
-	read: {},
-	'in-reading-list': {},
-	'has-comments': {},
-	'has-notes': {},
-	'has-slug': {},
-	'has-content': {},
-	'has-links': {},
-	'has-inbound-links': {},
-	'has-tags': {},
-	'has-freeform-todo': {},
-	published: {},
-};
+const INITIAL_STATE_FILTERS = Object.assign(
+	{
+		//None will match nothing. We use it for orphans.
+		none: {},
+		starred: {},
+		read: {},
+		'in-reading-list': {},
+	},
+	//extend with ones for all of the card filters based on the config.
+	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][0], {}]))
+);
 
 const INITIAL_STATE = {
 	activeSetName: DEFAULT_SET_NAME,
