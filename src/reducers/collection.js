@@ -124,9 +124,9 @@ const CARD_FILTER_CONFIGS = {
 	'notes': [defaultCardFilterName('notes'), card => cardHasNotes(card), TODO_NA],
 	'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, TODO_NORMAL],
 	'content': [defaultCardFilterName('content'), card => cardHasContent(card), TODO_NORMAL],
-	'links': [defaultCardFilterName('links'), card => card.links.length, TODO_NORMAL],
-	'inbound-links': [defaultCardFilterName('inbound-links'), card => card.links_inbound.length, TODO_NORMAL],
-	'tags': [defaultCardFilterName('tags'), card => card.tags.length, TODO_NORMAL],
+	'links': [defaultCardFilterName('links'), card => card.links && card.links.length, TODO_NORMAL],
+	'inbound-links': [defaultCardFilterName('inbound-links'), card => card.links_inbound && card.links_inbound.length, TODO_NORMAL],
+	'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, TODO_NORMAL],
 	'freeform-todo': [defaultCardFilterName('freeform-todo'), card => cardHasTodo(card), TODO_FLIPPED],
 	'published': [['published', 'unpublished'], card => card.published, TODO_NORMAL],
 };
