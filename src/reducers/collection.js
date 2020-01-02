@@ -252,104 +252,24 @@ const makeFilterFromSection = (sections) => {
 
 const makeFilterFromCards = (cards, previousFilters) => {
   
-	let newCardsWithComments = [];
-	let newCardsWithoutComments = [];
+	let result = {};
+	for(let config of Object.values(CARD_FILTER_CONFIGS)) {
+		const filterName = config[0][0];
+		const filterFunc = config[1];
+		let newMatchingCards = [];
+		let newNonMatchingCards = [];
+		for (let card of Object.values(cards)) {
+			if (filterFunc(card)) {
+				newMatchingCards.push(card.id);
+			} else {
+				newNonMatchingCards.push(card.id);
+			}
 
-	let newCardsWithNotes = [];
-	let newCardsWithoutNotes = [];
-
-	let newCardsWithSlug = [];
-	let newCardsWithoutSlug = [];
-
-	let newCardsWithContent = [];
-	let newCardsWithoutContent = [];
-
-	let newCardsWithLinks = [];
-	let newCardsWithoutLinks = [];
-
-	let newCardsWithInboundLinks = [];
-	let newCardsWithoutInboundLinks = [];
-
-	let newCardsWithTags = [];
-	let newCardsWithoutTags = [];
-
-	let newCardsWithTodo = [];
-	let newCardsWithoutTodo = [];
-
-	let newCardsWithPublished = [];
-	let newCardsWithoutPublished = [];
-
-	for (let card of Object.values(cards)) {
-
-		if (card.thread_count) {
-			newCardsWithComments.push(card.id);
-		} else {
-			newCardsWithoutComments.push(card.id);
 		}
-
-		if (cardHasNotes(card)) {
-			newCardsWithNotes.push(card.id);
-		} else {
-			newCardsWithoutNotes.push(card.id);
-		}
-
-		if (card.slugs && card.slugs.length) {
-			newCardsWithSlug.push(card.id);
-		} else {
-			newCardsWithoutSlug.push(card.id);
-		}
-
-		if (cardHasContent(card)) {
-			newCardsWithContent.push(card.id);
-		} else {
-			newCardsWithoutContent.push(card.id);
-		}
-
-		if (card.links.length) {
-			newCardsWithLinks.push(card.id);
-		} else {
-			newCardsWithoutLinks.push(card.id);
-		}
-
-		if (card.links_inbound.length) {
-			newCardsWithInboundLinks.push(card.id);
-		} else {
-			newCardsWithoutInboundLinks.push(card.id);
-		}
-
-		if (card.tags.length) {
-			newCardsWithTags.push(card.id);
-		} else {
-			newCardsWithoutTags.push(card.id);
-		}
-
-		if (cardHasTodo(card)) {
-			newCardsWithTodo.push(card.id);
-		} else {
-			newCardsWithoutTodo.push(card.id);
-		}
-
-		if (card.published) {
-			newCardsWithPublished.push(card.id);
-		} else {
-			newCardsWithoutPublished.push(card.id);
-		}
-		
+		result[filterName] = setUnion(setRemove(previousFilters[filterName], newNonMatchingCards), newMatchingCards);
 	}
 
-	return {
-		'has-comments': setUnion(setRemove(previousFilters['has-comments'],  newCardsWithoutComments), newCardsWithComments),
-		'has-notes': setUnion(setRemove(previousFilters['has-notes'], newCardsWithoutNotes), newCardsWithNotes),
-		'has-slug': setUnion(setRemove(previousFilters['has-slug'], newCardsWithoutSlug), newCardsWithSlug),
-		'has-content': setUnion(setRemove(previousFilters['has-content'], newCardsWithoutContent), newCardsWithContent),
-		'has-links': setUnion(setRemove(previousFilters['has-links'], newCardsWithoutLinks), newCardsWithLinks),
-		'has-inbound-links': setUnion(setRemove(previousFilters['has-inbound-links'], newCardsWithoutInboundLinks), newCardsWithInboundLinks),
-		'has-tags': setUnion(setRemove(previousFilters['has-tags'], newCardsWithoutTags), newCardsWithTags),
-		'has-freeform-todo': setUnion(setRemove(previousFilters['has-freeform-todo'], newCardsWithoutTodo), newCardsWithTodo),
-		'published': setUnion(setRemove(previousFilters['published'], newCardsWithoutPublished), newCardsWithPublished)
-	};
-
-
+	return result;
 };
 
 export default app;
