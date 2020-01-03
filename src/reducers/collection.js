@@ -128,6 +128,8 @@ const CARD_FILTER_CONFIGS = {
 
 //TODO_INFOS are appropriate to pass into tag-list.tagInfos.
 export const TODO_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[0], {id: entry[0], title: toTitleCase(entry[0].split('-').join(' '))}]));
+//TODO_OVERRIDE_LEGAL_KEYS reflects the only keys that are legal to set in card.auto_todo_overrides
+export const TODO_OVERRIDE_LEGAL_KEYS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[0], true]));
 
 //Theser are filters who are the inverse of another, smaller set. Instead of
 //creating a whole set of "all cards minus those", we keep track of them as

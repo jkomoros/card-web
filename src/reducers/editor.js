@@ -36,6 +36,7 @@ import {
 	arrayRemove,
 	arrayUnion
 } from '../util.js';
+import { TODO_OVERRIDE_LEGAL_KEYS } from './collection.js';
 
 const app = (state = INITIAL_STATE, action) => {
 	switch (action.type) {
@@ -108,18 +109,29 @@ const app = (state = INITIAL_STATE, action) => {
 		};
 	case EDITING_AUTO_TODO_OVERRIDE_ENABLED:
 		if (!state.card) return state;
+		//Only allow legal keys to be set
+		if (!TODO_OVERRIDE_LEGAL_KEYS[action.todo]) {
+			console.warn('Rejecting illegal todo override key: ' + action.todo);
+			return state;
+		}
 		return {
 			...state,
 			card: {...state.card, auto_todo_overrides: {...state.card.auto_todo_overrides, [action.todo]: true}}
 		};
 	case EDITING_AUTO_TODO_OVERRIDE_DISABLED:
 		if (!state.card) return state;
+		//Only allow legal keys to be set
+		if (!TODO_OVERRIDE_LEGAL_KEYS[action.todo]) {
+			console.warn('Rejecting illegal todo override key: ' + action.todo);
+			return state;
+		}
 		return {
 			...state,
 			card: {...state.card, auto_todo_overrides: {...state.card.auto_todo_overrides, [action.todo]: false}}
 		};
 	case EDITING_AUTO_TODO_OVERRIDE_REMOVED:
 		if (!state.card) return state;
+		//It's OK to remove any key, even ones that were illegal in the first place.
 		return {
 			...state,
 			card: {...state.card, auto_todo_overrides: Object.fromEntries(Object.entries(state.card.auto_todo_overrides).filter(entry => entry[0] != action.todo))}
