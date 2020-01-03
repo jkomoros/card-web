@@ -22,7 +22,8 @@ import {
 	prettyTime,
 	cardHasContent,
 	cardHasNotes,
-	cardHasTodo
+	cardHasTodo,
+	toTitleCase
 } from '../util.js';
 
 export const DEFAULT_SET_NAME = 'all';
@@ -117,7 +118,8 @@ const TODO_FLIPPED = 'flipped';
 //Card filters are filters that can tell if a given card is in it given only the
 //card object itself. They're so common that in order to reduce extra machinery
 //they're factored into a single config here and all of the other machinery uses
-//it (and extends with non-card-filter-types as appropriate).
+//it (and extends with non-card-filter-types as appropriate). The keys of each
+//config object are used as the keys in card.auto_todo_overrides map.
 const CARD_FILTER_CONFIGS = {
 	//tuple of has-/no- filtername (has- is primary), then the card->in-filter test, then TODO_ENUM
 	'comments': [defaultCardFilterName('comments'), card => card.thread_count, TODO_NA],
@@ -130,6 +132,8 @@ const CARD_FILTER_CONFIGS = {
 	'freeform-todo': [defaultCardFilterName('freeform-todo'), card => cardHasTodo(card), TODO_FLIPPED],
 	'published': [['published', 'unpublished'], card => card.published, TODO_NORMAL],
 };
+
+export const TODO_INFOS = Object.keys(CARD_FILTER_CONFIGS).map(key => ({id: key, title: toTitleCase(key.split('-').join(' '))}));
 
 //Theser are filters who are the inverse of another, smaller set. Instead of
 //creating a whole set of "all cards minus those", we keep track of them as
