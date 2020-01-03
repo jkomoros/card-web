@@ -11,6 +11,9 @@ export const EDITING_PUBLISHED_UPDATED = 'EDITING_PUBLISHED_UPDATED';
 export const EDITING_FULL_BLEED_UPDATED = 'EDITING_FULL_BLEED_UPDATED';
 export const EDITING_NOTES_UPDATED = 'EDITING_NOTES_UPDATED';
 export const EDITING_TODO_UPDATED = 'EDITING_TODO_UPDATED';
+export const EDITING_AUTO_TODO_OVERRIDE_ENABLED = 'EDITING_AUTO_TODO_OVERRIDE_ENABLED';
+export const EDITING_AUTO_TODO_OVERRIDE_DISABLED = 'EDITING_AUTO_TODO_OVERRIDE_DISABLED';
+export const EDITING_AUTO_TODO_OVERRIDE_REMOVED = 'EDITING_AUTO_TODO_OVERRIDE_REMOVED';
 export const EDITING_TAG_ADDED = 'EDITING_TAG_ADDED';
 export const EDITING_TAG_REMOVED = 'EDITING_TAG_REMOVED';
 
@@ -399,6 +402,27 @@ export const fullBleedUpdated = (fullBleed) => {
 	return {
 		type: EDITING_FULL_BLEED_UPDATED,
 		fullBleed
+	};
+};
+
+export const autoTodoOverrideEnabled = (todo) => {
+	return {
+		type: EDITING_AUTO_TODO_OVERRIDE_ENABLED,
+		todo
+	};
+};
+
+export const autoTodoOverrideDisabled = (todo) => {
+	return {
+		type: EDITING_AUTO_TODO_OVERRIDE_DISABLED,
+		todo
+	};
+};
+
+export const autoTodoOverrideRemoved = (todo) => {
+	return {
+		type: EDITING_AUTO_TODO_OVERRIDE_REMOVED,
+		todo
 	};
 };
 

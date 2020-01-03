@@ -12,6 +12,9 @@ import {
 	EDITING_FULL_BLEED_UPDATED,
 	EDITING_NOTES_UPDATED,
 	EDITING_TODO_UPDATED,
+	EDITING_AUTO_TODO_OVERRIDE_ENABLED,
+	EDITING_AUTO_TODO_OVERRIDE_DISABLED,
+	EDITING_AUTO_TODO_OVERRIDE_REMOVED,
 	EDITING_TAG_ADDED,
 	EDITING_TAG_REMOVED,
 
@@ -102,6 +105,24 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: {...state.card, slugs: [...state.card.slugs, action.slug], name: name}
+		};
+	case EDITING_AUTO_TODO_OVERRIDE_ENABLED:
+		if (!state.card) return state;
+		return {
+			...state,
+			card: {...state.card, auto_todo_overrides: {...state.card.auto_todo_overrides, [action.todo]: true}}
+		};
+	case EDITING_AUTO_TODO_OVERRIDE_DISABLED:
+		if (!state.card) return state;
+		return {
+			...state,
+			card: {...state.card, auto_todo_overrides: {...state.card.auto_todo_overrides, [action.todo]: false}}
+		};
+	case EDITING_AUTO_TODO_OVERRIDE_REMOVED:
+		if (!state.card) return state;
+		return {
+			...state,
+			card: {...state.card, auto_todo_overrides: Object.fromEntries(Object.entries(state.card.auto_todo_overrides).filter(entry => entry[0] != action.todo))}
 		};
 	case EDITING_TAG_ADDED:
 		if (!state.card) return state;
