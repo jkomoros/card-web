@@ -133,6 +133,7 @@ const CARD_FILTER_CONFIGS = {
 	'published': [['published', 'unpublished'], card => card.published, TODO_NORMAL],
 };
 
+//TODO_INFOS are appropriate to pass into tag-list.tagInfos.
 export const TODO_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] != TODO_NA).map(entry => [entry[0], {id: entry[0], title: toTitleCase(entry[0].split('-').join(' '))}]));
 
 //Theser are filters who are the inverse of another, smaller set. Instead of
