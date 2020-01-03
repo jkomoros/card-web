@@ -32,6 +32,7 @@ import {
 	isWhitespace,
 	arrayDiff,
 	cardHasContent,
+	triStateMapDiff,
 } from '../util.js';
 
 let lastReportedSelectionRange = null;
@@ -117,8 +118,13 @@ export const editingCommit = () => (dispatch, getState) => {
 		}
 		update.body = normalizedBody;
 	}
-	let [tagAdditions, tagDeletions] = arrayDiff(underlyingCard.tags || [], updatedCard.tags || []);
 
+	let [todoEnablements, todoDisablements, todoRemovals] = triStateMapDiff(underlyingCard.auto_todo_overrides || {}, updatedCard.auto_todo_overrides || {});
+	if (todoEnablements.length) update.addEnabledAutoTodoOverrides = todoEnablements;
+	if (todoDisablements.length) update.addDisabledAutoTodoOverrides = todoDisablements;
+	if (todoRemovals.length) update.removeAutoTodoOverrides = todoRemovals;
+
+	let [tagAdditions, tagDeletions] = arrayDiff(underlyingCard.tags || [], updatedCard.tags || []);
 	if (tagAdditions.length) update.addTags = tagAdditions;
 	if (tagDeletions.length) update.removeTags = tagDeletions;
 	
