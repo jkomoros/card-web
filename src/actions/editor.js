@@ -120,9 +120,9 @@ export const editingCommit = () => (dispatch, getState) => {
 	}
 
 	let [todoEnablements, todoDisablements, todoRemovals] = triStateMapDiff(underlyingCard.auto_todo_overrides || {}, updatedCard.auto_todo_overrides || {});
-	if (todoEnablements.length) update.addEnabledAutoTodoOverrides = todoEnablements;
-	if (todoDisablements.length) update.addDisabledAutoTodoOverrides = todoDisablements;
-	if (todoRemovals.length) update.removeAutoTodoOverrides = todoRemovals;
+	if (todoEnablements.length) update.auto_todo_overrides_enablements = todoEnablements;
+	if (todoDisablements.length) update.auto_todo_overrides_disablements = todoDisablements;
+	if (todoRemovals.length) update.auto_todo_overrides_removals = todoRemovals;
 
 	let [tagAdditions, tagDeletions] = arrayDiff(underlyingCard.tags || [], updatedCard.tags || []);
 	if (tagAdditions.length) update.addTags = tagAdditions;
