@@ -133,7 +133,7 @@ const CARD_FILTER_CONFIGS = {
 	'published': [['published', 'unpublished'], card => card.published, TODO_NORMAL],
 };
 
-export const TODO_INFOS = Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] != TODO_NA).map(entry => entry[0]).map(key => ({id: key, title: toTitleCase(key.split('-').join(' '))}));
+export const TODO_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] != TODO_NA).map(entry => [entry[0], {id: entry[0], title: toTitleCase(entry[0].split('-').join(' '))}]));
 
 //Theser are filters who are the inverse of another, smaller set. Instead of
 //creating a whole set of "all cards minus those", we keep track of them as
