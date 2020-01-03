@@ -38,7 +38,7 @@ class TagList  extends LitElement {
 			</style>
 			<div class='${this.editing ? 'editing' : ''} ${this.subtle ? 'subtle' :''}'>
 			${allTags && allTags.length ?
-		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing}></tag-chip>`) :
+		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} .defaultColor=${this.defaultColor}></tag-chip>`) :
 		(this.subtle ? html`` : html`<em>No ${this.typeName.toLowerCase()}s</em>`)}
 			<select @change=${this._handleSelectChanged}>
 				<option value='#noop' selected>Add ${this.typeName}...</option>
@@ -88,6 +88,9 @@ class TagList  extends LitElement {
 			overrideTypeName: {type:String},
 			//If true, then the select option to add a new tag will not be shown.
 			disableNew: {type:Boolean},
+			//Will be passed on to the tag-chips, which will provide the color
+			//if the tag itself doesn't have one specified in the tagInfos.
+			defaultColor: {type:String},
 			card: {type:Object},
 		};
 	}

@@ -66,8 +66,12 @@ class TagChip  extends LitElement {
 		return false;
 	}
 
+	get _effectiveDefaultColor() {
+		return this.defaultColor || '#CD5C5C';
+	}
+
 	get _color() {
-		const defaultColor = '#CD5C5C';
+		const defaultColor = this._effectiveDefaultColor;
 		if (!this.tagInfos) return defaultColor;
 		let info = this.tagInfos[this.tagName];
 		if (!info) return defaultColor;
@@ -93,6 +97,10 @@ class TagChip  extends LitElement {
 			tagName: { type: String },
 			editing: { type: Boolean},
 			tagInfos: {type:Object},
+			//If set, will use this defualt color if the tag doesn't have one
+			//defined. Should be of the form "#AABBCC" or some other literal
+			//color value;
+			defaultColor: {type:String},
 			card: {type:Object},
 		};
 	}
