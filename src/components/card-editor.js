@@ -28,6 +28,8 @@ import {
 	substantiveUpdated,
 	publishedUpdated,
 	fullBleedUpdated,
+	autoTodoOverrideEnabled,
+	autoTodoOverrideRemoved,
 	tagAdded,
 	tagRemoved,
 	editingSelectTab,
@@ -36,6 +38,7 @@ import {
 	TAB_CONTENT,
 	TAB_NOTES,
 	TAB_TODO,
+	autoTodoOverrideDisabled,
 } from '../actions/editor.js';
 
 import {
@@ -55,6 +58,9 @@ import {
 } from '../actions/find.js';
 
 import './tag-list.js';
+import { 
+	TODO_INFOS
+} from '../reducers/collection.js';
 
 class CardEditor extends connect(store)(LitElement) {
 	render() {
@@ -65,6 +71,11 @@ class CardEditor extends connect(store)(LitElement) {
 		const contentModified = this._card.body != this._underlyingCard.body;
 		const notesModified = this._card.notes != this._underlyingCard.notes;
 		const todoModified = this._card.todo != this._underlyingCard.todo;
+
+		const todoOverridesEnabled = Object.entries(this._card.auto_todo_overrides).filter(entry => entry[1] == true).map(entry => entry[0]);
+		const todoOverridesPreviouslyEnabled = Object.entries(this._underlyingCard.auto_todo_overrides).filter(entry => entry[1] == true).map(entry => entry[0]);
+		const todoOverridesDisabled = Object.entries(this._card.auto_todo_overrides).filter(entry => entry[1] == false).map(entry => entry[0]);
+		const todoOverridesPreviouslyDisabled = Object.entries(this._underlyingCard.auto_todo_overrides).filter(entry => entry[1] == false).map(entry => entry[0]);
 
 		return html`
       ${ButtonSharedStyles}
@@ -127,7 +138,7 @@ class CardEditor extends connect(store)(LitElement) {
           font-size:1em;
           opacity:0.5;
           font-weight:normal;
-          flex-grow:1;
+		  margin-right:0.5em;
         }
 
         .inputs .row {
@@ -226,6 +237,16 @@ class CardEditor extends connect(store)(LitElement) {
         <div class='buttons'>
 		  <h3>Editing</h3>
 		  <div>
+			<label>Force Enable TODO</label>
+			<tag-list .tags=${todoOverridesEnabled} .previousTags=${todoOverridesPreviouslyEnabled} .disableNew=${true} .overrideTypeName=${'Enabled'} .editing=${true} .tagInfos=${TODO_INFOS} @add-tag=${this._handleAddTodoOverrideEnabled} @remove-tag=${this._handleRemoveTodoOverride}></tag-list>
+		  </div>
+		  <div>
+			<label>Force Disable TODO</label>
+			<tag-list .tags=${todoOverridesDisabled} .previousTags=${todoOverridesPreviouslyDisabled} .disableNew=${true} .overrideTypeName=${'Disabled'} .editing=${true} .tagInfos=${TODO_INFOS} @add-tag=${this._handleAddTodoOverrideDisabled} @remove-tag=${this._handleRemoveTodoOverride}></tag-list>
+		  </div>
+		  <div class='flex'>
+		  </div>
+		  <div>
             <label>Published</label>
             <input type='checkbox' .checked=${this._card.published} @change='${this._handlePublishedUpdated}'></input>
           </div>
@@ -291,6 +312,18 @@ class CardEditor extends connect(store)(LitElement) {
 
 	_handleRemoveTag(e) {
 		store.dispatch(tagRemoved(e.detail.tag));
+	}
+
+	_handleAddTodoOverrideEnabled(e) {
+		store.dispatch(autoTodoOverrideEnabled(e.detail.tag));
+	}
+
+	_handleAddTodoOverrideDisabled(e) {
+		store.dispatch(autoTodoOverrideDisabled(e.detail.tag));
+	}
+
+	_handleRemoveTodoOverride(e) {
+		store.dispatch(autoTodoOverrideRemoved(e.detail.tag));
 	}
 
 	_handleKeyDown(e) {
