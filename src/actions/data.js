@@ -91,6 +91,9 @@ const LEGAL_UPDATE_FIELDS = new Map([
 	['full_bleed', true],
 	['notes', true],
 	['todo', true],
+	['auto_todo_overrides_enablements', true],
+	['auto_todo_overrides_disablements', true],
+	['auto_todo_overrides_removals', true],
 	['addTags', true],
 	['removeTags', true],
 	['published', true]
@@ -201,6 +204,14 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 		if (update.removeTags) tags = arrayRemove(tags, update.removeTags);
 		if (update.addTags) tags = arrayUnion(tags, update.addTags);
 		cardUpdateObject.tags = tags;
+	}
+
+	if (update.auto_todo_overrides_enablements || update.auto_todo_overrides_disablements || update.auto_todo_overrides_removals) {
+		let overrides = {...card.auto_todo_overrides || {}};
+		if (update.auto_todo_overrides_enablements) update.auto_todo_overrides_enablements.forEach(key => overrides[key] = true);
+		if (update.auto_todo_overrides_disablements) update.auto_todo_overrides_disablements.forEach(key => overrides[key] = false);
+		if (update.auto_todo_overrides_removals) update.auto_todo_overrides_removals.forEach(key => delete overrides[key]);
+		cardUpdateObject.auto_todo_overrides = overrides;
 	}
 
 	let batch = db.batch();
