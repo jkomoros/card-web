@@ -43,7 +43,7 @@ class TagList  extends LitElement {
 			<select @change=${this._handleSelectChanged}>
 				<option value='#noop' selected>Add Tag...</option>
 				${Object.keys(tagInfos).map(item => html`<option value='${tagInfos[item].id}'>${tagInfos[item].title}</option>`)}
-				<option value='#new'>New Tag</option>
+				${this.diableNew ? '' : html`<option value='#new'>New Tag</option>`}
 			</select>
 			</div>
 			`;
@@ -56,6 +56,10 @@ class TagList  extends LitElement {
 		//Set it back to #noop.
 		ele.value = '#noop';
 		if (value == '#new') {
+			if (this.disableNew) {
+				console.warn('New tag selected evey though it was supposed to be disabled');
+				return;
+			}
 			this.dispatchEvent(new CustomEvent('new-tag', {composed:true}));
 			return;
 		}
@@ -72,6 +76,8 @@ class TagList  extends LitElement {
 			tagInfos: {type:Object},
 			editing: {type:Boolean},
 			subtle: {type:Boolean},
+			//If true, then the select option to add a new tag will not be shown.
+			disableNew: {type:Boolean},
 			card: {type:Object},
 		};
 	}
