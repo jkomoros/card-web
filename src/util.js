@@ -124,10 +124,10 @@ export const arrayDiff = (before, after) => {
 	return [additions, deletions];
 };
 
-//triStateObjectDiff operates on objects that have keys that are either true or
+//triStateMapDiff operates on objects that have keys that are either true or
 //false. It returns keys to explicit set to true, keys to explicitly set to
 //false, and keys to remove.
-export const triStateObjectDiff = (before, after) => {
+export const triStateMapDiff = (before, after) => {
 	if (!before) before = {};
 	if (!after) after = {};
 	//Generat the list of removals by looking for keys that do not exist in
@@ -158,7 +158,7 @@ export const triStateObjectDiff = (before, after) => {
 
 /*
 //Uncomment this block to test tri state.
-function testTriState () {
+function testTriStateMapDiff() {
 	//TODO: do this in a proper testing framework
 	const tests = [
 		[
@@ -200,7 +200,7 @@ function testTriState () {
 	];
 	for (let test of tests) {
 		const description = test[0];
-		let [enabled, disabled, deleted] = triStateObjectDiff(test[1], test[2]);
+		let [enabled, disabled, deleted] = triStateMapDiff(test[1], test[2]);
 		let [goldenEnabled, goldenDisabled, goldenDeleted] = test[3];
 
 		let [enabledAdditions, enabledDeletions] = arrayDiff(goldenEnabled, enabled);
@@ -214,7 +214,7 @@ function testTriState () {
 	}
 	console.log('Tristate tests passed');
 }
-testTriState();
+testTriStateMapDiff();
 */
 
 //items is an array
