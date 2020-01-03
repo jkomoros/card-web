@@ -105,7 +105,7 @@ export const SORTS = {
 };
 
 const defaultCardFilterName = (basename) => {
-	return ['has-' + basename, 'no-' + basename];
+	return ['has-' + basename, 'no-' + basename, 'does-not-need-' + basename, 'needs-' + basename];
 };
 
 //Card filters are filters that can tell if a given card is in it given only the
@@ -114,7 +114,7 @@ const defaultCardFilterName = (basename) => {
 //it (and extends with non-card-filter-types as appropriate). The keys of each
 //config object are used as the keys in card.auto_todo_overrides map.
 const CARD_FILTER_CONFIGS = {
-	//tuple of good/bad filtername (good is primary), then the card->in-filter test, then a bool of whether to include in todo overrides map.
+	//tuple of good/bad filtername (good is primary), including no-todo/todo version if applicable, then the card->in-filter test, then a bool of whether to include in todo overrides map.
 	'comments': [defaultCardFilterName('comments'), card => card.thread_count, false],
 	'notes': [defaultCardFilterName('notes'), card => cardHasNotes(card), false],
 	'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, true],
@@ -122,8 +122,8 @@ const CARD_FILTER_CONFIGS = {
 	'links': [defaultCardFilterName('links'), card => card.links && card.links.length, true],
 	'inbound-links': [defaultCardFilterName('inbound-links'), card => card.links_inbound && card.links_inbound.length, true],
 	'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, true],
-	'freeform-todo': [['no-freeform-todo', 'has-freeform-todo'], card => !cardHasTodo(card), false],
-	'published': [['published', 'unpublished'], card => card.published, true],
+	'freeform-todo': [['no-freeform-todo', 'has-freeform-todo', 'INVALID', 'INVALID'], card => !cardHasTodo(card), false],
+	'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], card => card.published, true],
 };
 
 //TODO_INFOS are appropriate to pass into tag-list.tagInfos.
@@ -141,7 +141,9 @@ export const INVERSE_FILTER_NAMES = Object.assign(
 		'not-in-reading-list' : 'in-reading-list',
 	},
 	//extend with ones for all of the card filters badsed on that config
-	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][1], entry[1][0][0]]))
+	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][1], entry[1][0][0]])),
+	//Add the inverse need filters (skipping ones htat are not a TODO)
+	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[1][0][3], entry[1][0][2]]))
 );
 
 //We pull this out because it has to be the same in filters and pendingFilters
@@ -155,7 +157,9 @@ const INITIAL_STATE_FILTERS = Object.assign(
 		'in-reading-list': {},
 	},
 	//extend with ones for all of the card filters based on the config.
-	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][0], {}]))
+	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][0], {}])),
+	//extend with the does-not-need filters
+	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[1][0][2], {}]))
 );
 
 const INITIAL_STATE = {
@@ -256,7 +260,7 @@ const makeFilterFromSection = (sections) => {
 
 const makeFilterFromCards = (cards, previousFilters) => {
 	let result = {};
-	for(let config of Object.values(CARD_FILTER_CONFIGS)) {
+	for(let [key, config] of Object.entries(CARD_FILTER_CONFIGS)) {
 		const filterName = config[0][0];
 		const filterFunc = config[1];
 		let newMatchingCards = [];
@@ -268,7 +272,25 @@ const makeFilterFromCards = (cards, previousFilters) => {
 				newNonMatchingCards.push(card.id);
 			}
 		}
-		result[filterName] = setUnion(setRemove(previousFilters[filterName], newNonMatchingCards), newMatchingCards);
+		const updatedFilter = setUnion(setRemove(previousFilters[filterName], newNonMatchingCards), newMatchingCards);
+		result[filterName] = updatedFilter;
+		//Bail out of next step for card filters that don't have todo overrides
+		if (!config[2]) continue;
+		const doesNotNeedFilterName = config[0][2];
+		let newMatchingDoesNotNeedCards = [];
+		let newNonMatchingDoesNotNeedCards = [];
+		for (let card of Object.values(cards)) {
+			if (card.auto_todo_overrides[key] === false) {
+				newNonMatchingDoesNotNeedCards.push(card.id);
+			} else if (card.auto_todo_overrides[key] === true) {
+				newMatchingDoesNotNeedCards.push(card.id);
+			} else if (updatedFilter[card.id]) {
+				newNonMatchingDoesNotNeedCards.push(card.id);
+			} else {
+				newMatchingDoesNotNeedCards.push(card.id);
+			}
+		}
+		result[doesNotNeedFilterName] = setUnion(setRemove(previousFilters[doesNotNeedFilterName], newNonMatchingDoesNotNeedCards), newNonMatchingDoesNotNeedCards);
 	}
 	return result;
 };
