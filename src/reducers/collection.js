@@ -108,33 +108,26 @@ const defaultCardFilterName = (basename) => {
 	return ['has-' + basename, 'no-' + basename];
 };
 
-//enum for different values in card_filter_configs
-const TODO_NA = 'na';
-//Normal todo: the "has" is considered "done", and "no" is considered todo
-const TODO_NORMAL = 'normal';
-//Flipped TODO: the "has" is considered "todo" and the "no" is considered done
-const TODO_FLIPPED = 'flipped';
-
 //Card filters are filters that can tell if a given card is in it given only the
 //card object itself. They're so common that in order to reduce extra machinery
 //they're factored into a single config here and all of the other machinery uses
 //it (and extends with non-card-filter-types as appropriate). The keys of each
 //config object are used as the keys in card.auto_todo_overrides map.
 const CARD_FILTER_CONFIGS = {
-	//tuple of has-/no- filtername (has- is primary), then the card->in-filter test, then TODO_ENUM
-	'comments': [defaultCardFilterName('comments'), card => card.thread_count, TODO_NA],
-	'notes': [defaultCardFilterName('notes'), card => cardHasNotes(card), TODO_NA],
-	'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, TODO_NORMAL],
-	'content': [defaultCardFilterName('content'), card => cardHasContent(card), TODO_NORMAL],
-	'links': [defaultCardFilterName('links'), card => card.links && card.links.length, TODO_NORMAL],
-	'inbound-links': [defaultCardFilterName('inbound-links'), card => card.links_inbound && card.links_inbound.length, TODO_NORMAL],
-	'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, TODO_NORMAL],
-	'freeform-todo': [defaultCardFilterName('freeform-todo'), card => cardHasTodo(card), TODO_FLIPPED],
-	'published': [['published', 'unpublished'], card => card.published, TODO_NORMAL],
+	//tuple of has-/no- filtername (has- is primary), then the card->in-filter test, then a bool of whether to include in todo overrides map, and then a bool of whether they're
+	'comments': [defaultCardFilterName('comments'), card => card.thread_count, false, false],
+	'notes': [defaultCardFilterName('notes'), card => cardHasNotes(card), false, false],
+	'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, true, false],
+	'content': [defaultCardFilterName('content'), card => cardHasContent(card), true, false],
+	'links': [defaultCardFilterName('links'), card => card.links && card.links.length, true, false],
+	'inbound-links': [defaultCardFilterName('inbound-links'), card => card.links_inbound && card.links_inbound.length, true, false],
+	'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, true, false],
+	'freeform-todo': [defaultCardFilterName('freeform-todo'), card => cardHasTodo(card), false, true],
+	'published': [['published', 'unpublished'], card => card.published, true, false],
 };
 
 //TODO_INFOS are appropriate to pass into tag-list.tagInfos.
-export const TODO_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] != TODO_NA).map(entry => [entry[0], {id: entry[0], title: toTitleCase(entry[0].split('-').join(' '))}]));
+export const TODO_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[0], {id: entry[0], title: toTitleCase(entry[0].split('-').join(' '))}]));
 
 //Theser are filters who are the inverse of another, smaller set. Instead of
 //creating a whole set of "all cards minus those", we keep track of them as
