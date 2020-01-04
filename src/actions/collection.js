@@ -88,6 +88,12 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 
 	//Get last part, which is the card selector (and might be "").
 	let cardIdOrSlug = parts.pop();
+	//If the requestedCard is actually "" we'll pretend throughout the pipeline
+	//it's actually "_", and just never show it to the user. This is because the
+	//identifier "" also happens to be the intial active card ID, which confuses
+	//caching logic, so it's better to have it be explicit (just never shown to
+	//the user).
+	if (cardIdOrSlug == '') cardIdOrSlug = PLACEHOLDER_CARD_ID_CHARACTER;
 
 	let [filters, sortName, sortReversed] = extractFilterNamesAndSort(parts);
 
@@ -321,12 +327,10 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 	dispatch(navigatePathTo(path, true));
 };
 
-//cardIdIsPlaceholder is whether the cardId (the last part of the URL) either
-//starts with a "_" or is blank (which is equivalent to "_", which means, the
-//first card).
+//cardIdIsPlaceholder is whether the cardId (the last part of the URL) starts
+//with a "_"
 const cardIdIsPlaceholder = (cardId) => {
-	//Blank cardId is equivalent to "_" which means default.
-	if (!cardId) return true;
+	if (!cardId) return false;
 	return cardId[0] == PLACEHOLDER_CARD_ID_CHARACTER;
 };
 
