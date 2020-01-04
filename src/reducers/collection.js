@@ -280,17 +280,18 @@ const makeFilterFromCards = (cards, previousFilters) => {
 		let newMatchingDoesNotNeedCards = [];
 		let newNonMatchingDoesNotNeedCards = [];
 		for (let card of Object.values(cards)) {
+			//cards are on the does-not-need (good!) list if they are NOT in the has-FOO list
 			if (card.auto_todo_overrides[key] === false) {
-				newNonMatchingDoesNotNeedCards.push(card.id);
+				newMatchingDoesNotNeedCards.push(card.id);
 			} else if (card.auto_todo_overrides[key] === true) {
-				newMatchingDoesNotNeedCards.push(card.id);
-			} else if (updatedFilter[card.id]) {
 				newNonMatchingDoesNotNeedCards.push(card.id);
-			} else {
+			} else if (updatedFilter[card.id]) {
 				newMatchingDoesNotNeedCards.push(card.id);
+			} else {
+				newNonMatchingDoesNotNeedCards.push(card.id);
 			}
 		}
-		result[doesNotNeedFilterName] = setUnion(setRemove(previousFilters[doesNotNeedFilterName], newNonMatchingDoesNotNeedCards), newNonMatchingDoesNotNeedCards);
+		result[doesNotNeedFilterName] = setUnion(setRemove(previousFilters[doesNotNeedFilterName], newNonMatchingDoesNotNeedCards), newMatchingDoesNotNeedCards);
 	}
 	return result;
 };
