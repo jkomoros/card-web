@@ -63,16 +63,31 @@ export const cardHasTodo = (card) => {
 	return content ? true : false;
 };
 
+//Returns true or false. filterName can be a filter or inverse filtername, if
+//optInverseFilterNames is passed.
+export const cardInFilter = (card, filterName, filters, optInverseFilterNames) => {
+	//Idelaly optInverseFilterNames would just use the direct one from
+	//reducers/collection.js. But that introudces a circular import.
+	if (optInverseFilterNames && optInverseFilterNames[filterName]) {
+		//inverse mode
+		let inverseFilter = filters[optInverseFilterNames[filterName]];
+		if (!inverseFilter) return false;
+		return !inverseFilter[card.id];
+	}
+	let filter = filters[filterName];
+	if (!filter) return false;
+	return filter[card.id];
+};
+
 //Returns a set of name: true for each non-inverse filter that matches the given
 //card, wherre filters is the set of filters to use, and if optFilterNames has
 //any keys then only the keys in that set are considered.
-export const cardMatchingFilters = (card, filters, optFilterNames) => {
+export const cardMatchingFilters = (card, filters, optFilterNames, optInverseFilterNames) => {
 	const doFilterNames = optFilterNames ? Object.keys(optFilterNames).length > 0 : false;
-	let id = card.id;
 	let result = [];
-	for (let [name, filter] of Object.entries(filters)) {
+	for (let name of Object.keys(filters)) {
 		if (doFilterNames && !optFilterNames[name]) continue;
-		if (filter[id]) result.push(name);
+		if (cardInFilter(card, name, filters, optInverseFilterNames)) result.push(name);
 	}
 	return result;
 };
