@@ -69,11 +69,12 @@ export const cardHasTodo = (card) => {
 export const cardMatchingFilters = (card, filters, optFilterNames) => {
 	const doFilterNames = optFilterNames ? Object.keys(optFilterNames).length > 0 : false;
 	let id = card.id;
+	let result = [];
 	for (let [name, filter] of Object.entries(filters)) {
 		if (doFilterNames && !optFilterNames[name]) continue;
-		if (filter[id]) return true;
+		if (filter[id]) result.push(name);
 	}
-	return false;
+	return result;
 };
 
 export const arrayRemove = (arr, items) => {
