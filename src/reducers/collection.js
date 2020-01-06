@@ -23,7 +23,8 @@ import {
 	cardHasContent,
 	cardHasNotes,
 	cardHasTodo,
-	toTitleCase
+	toTitleCase,
+	cardMatchingFilters
 } from '../util.js';
 
 export const DEFAULT_SET_NAME = 'all';
@@ -109,6 +110,8 @@ const defaultCardFilterName = (basename) => {
 };
 
 const FREEFORM_TODO_KEY = 'freeform-todo';
+const TODO_COMBINED_FILTER_NAME = 'has-todo';
+const TODO_COMBINED_INVERSE_FILTER_NAME = 'no-todo';
 
 //Card filters are filters that can tell if a given card is in it given only the
 //card object itself. They're so common that in order to reduce extra machinery
@@ -147,6 +150,7 @@ export const INVERSE_FILTER_NAMES = Object.assign(
 		'unstarred': 'starred',
 		'unread': 'read',
 		'not-in-reading-list' : 'in-reading-list',
+		[TODO_COMBINED_INVERSE_FILTER_NAME]: TODO_COMBINED_FILTER_NAME,
 	},
 	//extend with ones for all of the card filters badsed on that config
 	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][1], entry[1][0][0]])),
@@ -163,6 +167,7 @@ const INITIAL_STATE_FILTERS = Object.assign(
 		starred: {},
 		read: {},
 		'in-reading-list': {},
+		[TODO_COMBINED_FILTER_NAME]: {},
 	},
 	//extend with ones for all of the card filters based on the config.
 	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][0], {}])),
@@ -301,6 +306,22 @@ const makeFilterFromCards = (cards, previousFilters) => {
 		}
 		result[doesNotNeedFilterName] = setUnion(setRemove(previousFilters[doesNotNeedFilterName], newNonMatchingDoesNotNeedCards), newMatchingDoesNotNeedCards);
 	}
+	//Now do the combined todo, which can only be done once all of the card-filters is updated to its final value.
+	//Note: this logic presumes that all of the TODO_FILTER_NAMES are all card filters, and thus in the result set.
+	let newMatchingTodoCards = [];
+	let newNonMatchingTodoCards = [];
+	for (let  card of Object.values(cards)) {
+		let matchingTodoFilters = cardMatchingFilters(card, result, TODO_COMBINED_FILTERS, INVERSE_FILTER_NAMES);
+		if (matchingTodoFilters.length) {
+			newMatchingTodoCards.push(card.id);
+		} else {
+			newNonMatchingTodoCards.push(card.id);
+		}
+	}
+	//AS long as the TODO_COMBINED_FILTER_NAME is a set based only on th3e card
+	//itself, then this logic should work, because its TODO could only have
+	//changed if the card itself changed.
+	result[TODO_COMBINED_FILTER_NAME] = setUnion(setRemove(previousFilters[TODO_COMBINED_FILTER_NAME], newNonMatchingTodoCards), newMatchingTodoCards);
 	return result;
 };
 
