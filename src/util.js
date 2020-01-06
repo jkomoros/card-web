@@ -63,6 +63,19 @@ export const cardHasTodo = (card) => {
 	return content ? true : false;
 };
 
+//Returns a set of name: true for each non-inverse filter that matches the given
+//card, wherre filters is the set of filters to use, and if optFilterNames has
+//any keys then only the keys in that set are considered.
+export const cardMatchingFilters = (card, filters, optFilterNames) => {
+	const doFilterNames = optFilterNames ? Object.keys(optFilterNames).length > 0 : false;
+	let id = card.id;
+	for (let [name, filter] of Object.entries(filters)) {
+		if (doFilterNames && !optFilterNames[name]) continue;
+		if (filter[id]) return true;
+	}
+	return false;
+};
+
 export const arrayRemove = (arr, items) => {
 	let itemsToRemove = new Map();
 	for (let item of Object.values(items)) {
