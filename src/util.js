@@ -83,10 +83,12 @@ export const cardInFilter = (card, filterName, filters, optInverseFilterNames) =
 //card, wherre filters is the set of filters to use, and if optFilterNames has
 //any keys then only the keys in that set are considered.
 export const cardMatchingFilters = (card, filters, optFilterNames, optInverseFilterNames) => {
-	const doFilterNames = optFilterNames ? Object.keys(optFilterNames).length > 0 : false;
+	let filterNames = optFilterNames ? Object.keys(optFilterNames) : Object.keys(filters);
 	let result = [];
-	for (let name of Object.keys(filters)) {
-		if (doFilterNames && !optFilterNames[name]) continue;
+	//We have ot iterat through the optFilterNames that were passed, insteaed of
+	//tilers, in case optFilterNames includes inverse filters, otherwise none of
+	//them would have matched.
+	for (let name of filterNames) {
 		if (cardInFilter(card, name, filters, optInverseFilterNames)) result.push(name);
 	}
 	return result;
