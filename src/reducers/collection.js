@@ -108,6 +108,8 @@ const defaultCardFilterName = (basename) => {
 	return ['has-' + basename, 'no-' + basename, 'does-not-need-' + basename, 'needs-' + basename];
 };
 
+const FREEFORM_TODO_KEY = 'freeform-todo';
+
 //Card filters are filters that can tell if a given card is in it given only the
 //card object itself. They're so common that in order to reduce extra machinery
 //they're factored into a single config here and all of the other machinery uses
@@ -122,7 +124,7 @@ const CARD_FILTER_CONFIGS = {
 	'links': [defaultCardFilterName('links'), card => card.links && card.links.length, true],
 	'inbound-links': [defaultCardFilterName('inbound-links'), card => card.links_inbound && card.links_inbound.length, true],
 	'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, true],
-	'freeform-todo': [['no-freeform-todo', 'has-freeform-todo', 'INVALID', 'INVALID'], card => !cardHasTodo(card), false],
+	[FREEFORM_TODO_KEY]: [['no-freeform-todo', 'has-freeform-todo', 'no-freeform-todo', 'has-freeform-todo'], card => !cardHasTodo(card), false],
 	'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], card => card.published, true],
 };
 
@@ -130,6 +132,12 @@ const CARD_FILTER_CONFIGS = {
 export const TODO_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[0], {id: entry[0], title: toTitleCase(entry[0].split('-').join(' '))}]));
 //TODO_OVERRIDE_LEGAL_KEYS reflects the only keys that are legal to set in card.auto_todo_overrides
 export const TODO_OVERRIDE_LEGAL_KEYS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[0], true]));
+//TODO_COMBINED_FILTERS represents the set of all filter names who, if ANY is
+//true, the given card should be considered to have a todo.
+export const TODO_COMBINED_FILTERS = Object.fromEntries(Object.entries({
+	...TODO_OVERRIDE_LEGAL_KEYS,
+	[FREEFORM_TODO_KEY]: true,
+}).map(entry => [CARD_FILTER_CONFIGS[entry[0]][0][3], true]));
 
 //Theser are filters who are the inverse of another, smaller set. Instead of
 //creating a whole set of "all cards minus those", we keep track of them as
