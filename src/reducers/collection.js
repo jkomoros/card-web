@@ -135,12 +135,17 @@ const CARD_FILTER_CONFIGS = {
 export const TODO_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[0], {id: entry[0], title: toTitleCase(entry[0].split('-').join(' '))}]));
 //TODO_OVERRIDE_LEGAL_KEYS reflects the only keys that are legal to set in card.auto_todo_overrides
 export const TODO_OVERRIDE_LEGAL_KEYS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[0], true]));
-//TODO_COMBINED_FILTERS represents the set of all filter names who, if ANY is
-//true, the given card should be considered to have a todo.
-export const TODO_COMBINED_FILTERS = Object.fromEntries(Object.entries({
+
+//TODO_CONFIG_KEYS is all of the keys into CARD_FILTER_CONFIG that represent the
+//set of items that count as a TODO.
+const TODO_CONFIG_KEYS = {
 	...TODO_OVERRIDE_LEGAL_KEYS,
 	[FREEFORM_TODO_KEY]: true,
-}).map(entry => [CARD_FILTER_CONFIGS[entry[0]][0][3], true]));
+};
+
+//TODO_COMBINED_FILTERS represents the set of all filter names who, if ANY is
+//true, the given card should be considered to have a todo.
+export const TODO_COMBINED_FILTERS = Object.fromEntries(Object.entries(TODO_CONFIG_KEYS).map(entry => [CARD_FILTER_CONFIGS[entry[0]][0][3], true]));
 
 //Theser are filters who are the inverse of another, smaller set. Instead of
 //creating a whole set of "all cards minus those", we keep track of them as
