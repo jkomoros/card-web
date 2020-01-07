@@ -96,7 +96,8 @@ class CardEditor extends connect(store)(LitElement) {
           height:100%;
           display:flex;
           flex-direction: column;
-          padding:1em;
+		  /* The up-down padding comes from margins in the top and bottom elements */
+          padding: 0 0.5em;
           box-sizing:border-box;
           position:absolute;
         }
@@ -123,6 +124,11 @@ class CardEditor extends connect(store)(LitElement) {
         textarea {
           flex-grow:1;
         }
+
+		label {
+			/* TODO: consider changing this at the button-shared-styles layer instead */
+			margin-top: 0.5em;
+		}
 
         .flex {
           flex-grow:1;
