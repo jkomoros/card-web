@@ -131,6 +131,12 @@ const CARD_FILTER_CONFIGS = {
 	'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], card => card.published, true],
 };
 
+//REVERSE_CARD_FILTER_CXONFIG_MAP maps the filter names, e.g. 'has-links',
+//'needs-links', 'does-not-need-links' to 'links'. Need to use a function
+//literal not an arrow func because arrow funcs don't close over and we need
+//entry[0].
+export const REVERSE_CARD_FILTER_CONFIG_MAP = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => entry[1][0].map(function(filterNameListItem) {return [filterNameListItem, entry[0]];})).flat(1));
+
 //TODO_INFOS are appropriate to pass into tag-list.tagInfos.
 export const TODO_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[0], {id: entry[0], title: toTitleCase(entry[0].split('-').join(' '))}]));
 //TODO_OVERRIDE_LEGAL_KEYS reflects the only keys that are legal to set in card.auto_todo_overrides
