@@ -21,7 +21,8 @@ import {
 	DEFAULT_SORT_NAME,
 	RECENT_SORT_NAME,
 	SORTS,
-	READING_LIST_SET_NAME
+	READING_LIST_SET_NAME,
+	cardAutoTodoConfigKeys
 } from './reducers/collection.js';
 
 export const selectPage = (state) => state.app.page;
@@ -233,6 +234,12 @@ export const getSection = (state, sectionId) => {
 	if (!state.data) return null;
 	return state.data.sections[sectionId] || null;
 };
+
+export const selectEditingCardAutoTodos = createSelector(
+	selectEditingCard,
+	selectFilters,
+	(card, filters) => cardAutoTodoConfigKeys(card, filters)
+);
 
 export const selectUserReadingListMap = createSelector(
 	selectUserReadingList,
