@@ -16,6 +16,7 @@ import {
 	selectTags,
 	selectActiveCard,
 	selectEditingCard,
+	selectEditingCardAutoTodos,
 } from '../selectors.js';
 
 import {
@@ -58,10 +59,12 @@ import {
 	findCardToLink
 } from '../actions/find.js';
 
-import './tag-list.js';
 import { 
-	TODO_INFOS
+	TODO_INFOS,
+	TODO_ALL_INFOS,
 } from '../reducers/collection.js';
+
+import './tag-list.js';
 
 class CardEditor extends connect(store)(LitElement) {
 	render() {
@@ -82,6 +85,7 @@ class CardEditor extends connect(store)(LitElement) {
 		const enableTODOColor = '#b22222'; //firebrick
 		//When you're disabling a TODO, you're marking it done, so it should be green.
 		const disableTODOColor = '#006400'; //darkgreen
+		const autoTODOColor = '#cc9494'; //firebrick, but less saturated and lighter
 
 		return html`
       ${ButtonSharedStyles}
@@ -256,6 +260,10 @@ class CardEditor extends connect(store)(LitElement) {
 			<label>Force Disable TODO</label>
 			<tag-list .defaultColor=${disableTODOColor} .tags=${todoOverridesDisabled} .previousTags=${todoOverridesPreviouslyDisabled} .disableNew=${true} .overrideTypeName=${'Disabled'} .editing=${true} .tagInfos=${TODO_INFOS} @add-tag=${this._handleAddTodoOverrideDisabled} @remove-tag=${this._handleRemoveTodoOverride}></tag-list>
 		  </div>
+		  <div>
+			<label>Auto TODO</label>
+			<tag-list .defaultColor=${autoTODOColor} .tags=${this._autoTodos} .overrideTypeName=${'Auto TODO'} .tagInfos=${TODO_ALL_INFOS}></tag-list>
+		  </div>
 		  <div class='flex'>
 		  </div>
 		  <div>
@@ -275,6 +283,7 @@ class CardEditor extends connect(store)(LitElement) {
 
 	static get properties() { return {
 		_card: { type: Object },
+		_autoTodos: { type:Array },
 		_active: {type: Boolean },
 		_sections: {type: Object },
 		_substantive: {type: Object},
@@ -286,6 +295,7 @@ class CardEditor extends connect(store)(LitElement) {
 
 	stateChanged(state) {
 		this._card= selectEditingCard(state);
+		this._autoTodos = selectEditingCardAutoTodos(state);
 		this._underlyingCard = selectActiveCard(state);
 		this._active = state.editor.editing;
 		this._sections = state.data.sections;
