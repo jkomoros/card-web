@@ -153,6 +153,34 @@ const TODO_CONFIG_KEYS = {
 //true, the given card should be considered to have a todo.
 export const TODO_COMBINED_FILTERS = Object.fromEntries(Object.entries(TODO_CONFIG_KEYS).map(entry => [CARD_FILTER_CONFIGS[entry[0]][0][3], true]));
 
+//cardAutoTodoConfigKeys returns the card filter keys (which index into for example
+//TODO_INFOS) representing the todos that are active for this card, SKIPPING any
+//manual overrides.
+export const cardAutoTodoConfigKeys = (card, filters) => {
+	//TODO: this ideally should be in util.js (with the other cardHasContent
+	//functions), but because of entanglement of constants this has to live next
+	//to these constants.
+	
+	//Figure out which of the matching todo filters apply
+	const matchingFilters = cardMatchingFilters(card, filters, TODO_COMBINED_FILTERS, INVERSE_FILTER_NAMES);
+	
+	//Convert those matching filtesr to their keys
+	const matchingKeys = matchingFilters.map(filterName => REVERSE_CARD_FILTER_CONFIG_MAP[filterName]);
+
+	//matchingKeys also includes things that don't naturally match, e.g.
+	//'needs-links' where 'has-links' is not set. But we just want to skip those
+	//since they have a non-auto value set, so it doesn't matter taht there's a
+	//difference; if 'has-FOO' and 'needs-FOO' differ it is precisely because
+	//that key in auto_todo_overrdies is set, which means it will be filtered
+	//out.
+	let result = [];
+	for (let key of matchingKeys) {
+		if (card.auto_todo_overrides[key] !== undefined) continue;
+		result.push(key);
+	}
+	return result;
+};
+
 //Theser are filters who are the inverse of another, smaller set. Instead of
 //creating a whole set of "all cards minus those", we keep track of them as
 //exclude sets.
