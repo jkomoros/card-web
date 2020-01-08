@@ -15,6 +15,7 @@ import {
 import {
 	selectTags,
 	selectActiveCard,
+	selectEditingCard,
 } from '../selectors.js';
 
 import {
@@ -284,7 +285,7 @@ class CardEditor extends connect(store)(LitElement) {
 	};}
 
 	stateChanged(state) {
-		this._card= state.editor.card;
+		this._card= selectEditingCard(state);
 		this._underlyingCard = selectActiveCard(state);
 		this._active = state.editor.editing;
 		this._sections = state.data.sections;

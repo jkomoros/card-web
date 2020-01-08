@@ -36,7 +36,8 @@ import {
 	selectUserMayModifyReadingList,
 	selectCardsDrawerPanelShowing,
 	selectCollectionIsFallback,
-	selectUserReadingListMap
+	selectUserReadingListMap,
+	selectEditingCard
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -522,7 +523,7 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	stateChanged(state) {
-		this._editingCard = state.editor.card;
+		this._editingCard = selectEditingCard(state);
 		this._card = selectActiveCard(state) || {};
 		this._displayCard = this._editingCard ? this._editingCard : this._card;
 		this._pageExtra = state.app.pageExtra;

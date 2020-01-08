@@ -39,6 +39,7 @@ export const selectActiveSortReversed = (state) => state.collection.activeSortRe
 export const selectRequestedCard = (state) => state.collection.requestedCard;
 export const selectActiveCardId = (state) => state.collection.activeCardId;
 export const selectActiveFilterNames = (state) => state.collection.activeFilterNames;
+export const selectEditingCard = (state) => state.editor.card;
 export const selectFilters = (state) => state.collection.filters;
 const selectPendingFilters = (state) => state.collection.pendingFilters;
 export const selectSections = (state) => state.data ? state.data.sections : null;

@@ -24,7 +24,8 @@ export const TAB_TODO = 'todo';
 
 import {
 	selectActiveCard,
-	selectUserMayEdit
+	selectUserMayEdit,
+	selectEditingCard
 } from '../selectors.js';
 
 import {
@@ -96,7 +97,7 @@ export const editingCommit = () => (dispatch, getState) => {
 		return;
 	}
 
-	const updatedCard = state.editor.card;
+	const updatedCard = selectEditingCard(state);
 
 	if (cardHasContent(updatedCard) && !updatedCard.published) {
 		if (!window.confirm('The card has content but is unpublished. Do you want to continue?')) return;
