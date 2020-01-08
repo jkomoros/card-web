@@ -173,6 +173,7 @@ export const cardAutoTodoConfigKeys = (card, filters) => {
 	//TODO: this ideally should be in util.js (with the other cardHasContent
 	//functions), but because of entanglement of constants this has to live next
 	//to these constants.
+	if (!card) return [];
 	
 	//Figure out which of the matching todo filters apply
 	const matchingFilters = cardMatchingFilters(card, filters, TODO_COMBINED_FILTERS, INVERSE_FILTER_NAMES);
