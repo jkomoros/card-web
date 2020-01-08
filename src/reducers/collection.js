@@ -139,6 +139,19 @@ export const REVERSE_CARD_FILTER_CONFIG_MAP = Object.fromEntries(Object.entries(
 
 //TODO_INFOS are appropriate to pass into tag-list.tagInfos.
 export const TODO_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[0], {id: entry[0], title: toTitleCase(entry[0].split('-').join(' '))}]));
+
+//TODO_ALL_INFOS is TODO_INFOS but also with an entry for FREEFORM_TODO_KEY. Use
+//TODO_INFOS for any tag-list in editing mode as the FREEFORM_TODO_KEY isn't a
+//valid key to set inoverrides; this is useful for the case where we want to
+//non-editing show auto-todos.
+export const TODO_ALL_INFOS = {
+	...TODO_INFOS,
+	[FREEFORM_TODO_KEY]: {
+		id: FREEFORM_TODO_KEY,
+		title: toTitleCase(FREEFORM_TODO_KEY.split('-').join(' '))
+	}
+};
+
 //TODO_OVERRIDE_LEGAL_KEYS reflects the only keys that are legal to set in card.auto_todo_overrides
 export const TODO_OVERRIDE_LEGAL_KEYS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[0], true]));
 
