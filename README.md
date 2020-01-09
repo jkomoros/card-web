@@ -3,6 +3,9 @@ This project is the webapp that powers https://thecompendium.cards
 
 The project is messy, with lots of intricate details and designs captured as a messy collection of issues. This is to [minimize my activation energy](https://thecompendium.cards/c/incremental-work-minimizes-activation-cost) for this hobby project, but it might be overwhelming for others. Nevertheless, please feel free to comment and participate!
 
+The app currently has a number of constants and configuration that are spedcific
+to the production instance hard-coded. If you have any interest in standing up an instance on your own, issue #164 tracks the work to make it fully general. Please chime in there and I'll prioritize that work!
+
 ## New webapp
 
 ### Developing
