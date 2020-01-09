@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 //The purpose of this file is entirely to re-export the variables in
 //config.secret.js so they can be imported via node modules in the cloud
 //function.
