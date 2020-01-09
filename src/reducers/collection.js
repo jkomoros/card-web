@@ -328,7 +328,8 @@ const makeFilterFromSection = (sections) => {
 	return result;
 };
 
-const makeFilterFromCards = (cards, previousFilters) => {
+//exported so that selectLiveCardFiltersForEditingCard can use it
+export const makeFilterFromCards = (cards, previousFilters) => {
 	let result = {};
 	for(let [key, config] of Object.entries(CARD_FILTER_CONFIGS)) {
 		const filterName = config[0][0];

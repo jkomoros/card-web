@@ -22,7 +22,8 @@ import {
 	RECENT_SORT_NAME,
 	SORTS,
 	READING_LIST_SET_NAME,
-	cardAutoTodoConfigKeys
+	cardAutoTodoConfigKeys,
+	makeFilterFromCards
 } from './reducers/collection.js';
 
 export const selectPage = (state) => state.app.page;
@@ -235,9 +236,20 @@ export const getSection = (state, sectionId) => {
 	return state.data.sections[sectionId] || null;
 };
 
-export const selectEditingCardAutoTodos = createSelector(
+//selectliveFiltersForEditingCard returns what the card filters would look like
+//if the currently editing card would look like if it were committed right now.
+//Useful to show auto-updating todos in card-editor.
+const selectLiveCardFiltersForEditingCard = createSelector(
 	selectEditingCard,
 	selectFilters,
+	(card, filters) => card ? makeFilterFromCards([card], filters) : filters
+);
+
+//selectEditingCardAutoTodos will opeate on not the actual filter set, but one
+//that has been updated with the current editingCard values.
+export const selectEditingCardAutoTodos = createSelector(
+	selectEditingCard,
+	selectLiveCardFiltersForEditingCard,
 	(card, filters) => cardAutoTodoConfigKeys(card, filters)
 );
 
