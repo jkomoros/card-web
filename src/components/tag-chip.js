@@ -40,12 +40,18 @@ class TagChip  extends LitElement {
 					display:inline;
 				}
 			</style>
-			<span class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''}'><a class='primary' href='${urlForTag(this.tagName, this._cardName)}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
+			<span class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''}'><a class='primary' href='${this._url}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
 			`;
 	}
 
 	_handleTagClicked(e) {
 		if (this.editing) {
+			e.preventDefault();
+			return false;
+		}
+		//There's no good way to remove the href if suppressLink is true, so if
+		//we don't also prevent default here we'd navigate to `/`.
+		if (this._suppressLink) {
 			e.preventDefault();
 			return false;
 		}
@@ -68,6 +74,18 @@ class TagChip  extends LitElement {
 
 	get _effectiveDefaultColor() {
 		return this.defaultColor || '#CD5C5C';
+	}
+
+	get _suppressLink() {
+		if (this.tagInfos) {
+			const info = this.tagInfos[this.tagName];
+			if (info && info.suppressLink) return true;
+		}
+		return false;
+	}
+
+	get _url() {
+		return this._suppressLink ? '' : urlForTag(this.tagName, this._cardName);
 	}
 
 	get _color() {

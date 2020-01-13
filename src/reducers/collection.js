@@ -142,7 +142,7 @@ const CARD_FILTER_CONFIGS = {
 export const REVERSE_CARD_FILTER_CONFIG_MAP = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => entry[1][0].map(function(filterNameListItem) {return [filterNameListItem, entry[0]];})).flat(1));
 
 //TODO_INFOS are appropriate to pass into tag-list.tagInfos.
-export const TODO_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[0], {id: entry[0], title: toTitleCase(entry[0].split('-').join(' '))}]));
+export const TODO_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[0], {id: entry[0], suppressLink: true, title: toTitleCase(entry[0].split('-').join(' '))}]));
 
 //TODO_ALL_INFOS is TODO_INFOS but also with an entry for FREEFORM_TODO_KEY. Use
 //TODO_INFOS for any tag-list in editing mode as the FREEFORM_TODO_KEY isn't a
@@ -152,6 +152,7 @@ export const TODO_ALL_INFOS = {
 	...TODO_INFOS,
 	[FREEFORM_TODO_KEY]: {
 		id: FREEFORM_TODO_KEY,
+		suppressLink: true,
 		title: toTitleCase(FREEFORM_TODO_KEY.split('-').join(' '))
 	}
 };
