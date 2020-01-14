@@ -125,14 +125,14 @@ class CardThumbnail extends LitElement {
       <div @mousemove=${this._handleMouseMove} @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="main ${this.selected ? 'selected' : ''} ${this.cardType} ${this.card && this.card.published ? '' : 'unpublished'} ${this.willBeRemovedOnPendingFilterCommit ? 'ghost' : ''}">
 		<h3 class=${this.cardHasContent ? '' : 'nocontent'}>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>
 		<div class='top-right'>
-			<star-count .count=${this.card.star_count || 0} .highlighted=${this.starred} .light=${this.cardType != 'content'}></star-count>
+			<star-count .count=${this.card.star_count || 0} .highlighted=${this.starred} .light=${this.light}></star-count>
 			<!-- we put these both in the bottom right because they're the two least likely to show up at the same time -->
-			<reading-list-decorator .visible=${this.onReadingList} .light=${this.cardType != 'content'}></reading-list-decorator>
-      <todo-decorator .visible=${this.hasTodo} .light=${this.cardType != 'content'}></todo-decorator>
+			<reading-list-decorator .visible=${this.onReadingList} .light=${this.light}></reading-list-decorator>
+      <todo-decorator .visible=${this.hasTodo} .light=${this.light}></todo-decorator>
 		</div>
-		<read-decorator .visible=${this.read} .light=${this.cardType != 'content'}></read-decorator>
-		<thread-count .count=${this.card.thread_count || 0} .light=${this.cardType != 'content'}></thread-count>
-        <card-decorator .count=${this.index + 1} .light=${this.cardType != 'content'}></card-decorator>
+		<read-decorator .visible=${this.read} .light=${this.light}></read-decorator>
+		<thread-count .count=${this.card.thread_count || 0} .light=${this.light}></thread-count>
+        <card-decorator .count=${this.index + 1} .light=${this.light}></card-decorator>
       </div>
     `;
 	}
@@ -162,6 +162,10 @@ class CardThumbnail extends LitElement {
   
 	get cardHasContent() {
 		return cardHasContent(this.card);
+	}
+
+	get light() {
+		return this.cardType != 'content';
 	}
 
 	_handleClick(e) {
