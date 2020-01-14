@@ -5,6 +5,7 @@ import './read-decorator.js';
 import './thread-count.js';
 import './card-decorator.js';
 import './reading-list-decorator.js';
+import './todo-decorator.js';
 import { cardHasContent } from '../util';
 
 // This is a reusable element. It is not connected to the store. You can
@@ -127,6 +128,7 @@ class CardThumbnail extends LitElement {
 			<star-count .count=${this.card.star_count || 0} .highlighted=${this.starred} .light=${this.cardType != 'content'}></star-count>
 			<!-- we put these both in the bottom right because they're the two least likely to show up at the same time -->
 			<reading-list-decorator .visible=${this.onReadingList} .light=${this.cardType != 'content'}></reading-list-decorator>
+      <todo-decorator .visible=${this.hasTodo} .light=${this.cardType != 'content'}></todo-decorator>
 		</div>
 		<read-decorator .visible=${this.read} .light=${this.cardType != 'content'}></read-decorator>
 		<thread-count .count=${this.card.thread_count || 0} .light=${this.cardType != 'content'}></thread-count>
@@ -151,6 +153,7 @@ class CardThumbnail extends LitElement {
 			card: {type: Object},
 			starred: {type:Boolean},
 			read: {type:Boolean},
+			hasTodo: {type:Boolean},
 			onReadingList: {type:Boolean},
 			index: {type: Number},
 			_selectedViaClick: { type: Boolean },
