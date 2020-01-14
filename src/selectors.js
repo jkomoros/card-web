@@ -22,6 +22,7 @@ import {
 	RECENT_SORT_NAME,
 	SORTS,
 	READING_LIST_SET_NAME,
+	TODO_COMBINED_FILTER_NAME,
 	cardAutoTodoConfigKeys,
 	makeFilterFromCards
 } from './reducers/collection.js';
@@ -251,6 +252,12 @@ export const selectEditingCardAutoTodos = createSelector(
 	selectEditingCard,
 	selectLiveCardFiltersForEditingCard,
 	(card, filters) => cardAutoTodoConfigKeys(card, filters)
+);
+
+export const selectCardTodosMapForCurrentUser = createSelector(
+	selectUserIsAdmin,
+	selectFilters,
+	(isAdmin, filters) => isAdmin ? filters[TODO_COMBINED_FILTER_NAME] : {}
 );
 
 export const selectUserReadingListMap = createSelector(

@@ -110,7 +110,7 @@ const defaultCardFilterName = (basename) => {
 };
 
 const FREEFORM_TODO_KEY = 'freeform-todo';
-const TODO_COMBINED_FILTER_NAME = 'has-todo';
+export const TODO_COMBINED_FILTER_NAME = 'has-todo';
 const TODO_COMBINED_INVERSE_FILTER_NAME = 'no-todo';
 
 //Card filters are filters that can tell if a given card is in it given only the
