@@ -1,10 +1,7 @@
 import { LitElement, html } from '@polymer/lit-element';
 
-import './star-count.js';
-import './read-decorator.js';
-import './thread-count.js';
-import './reading-list-decorator.js';
-import './todo-decorator.js';
+import './card-decorators.js';
+
 import { cardHasContent } from '../util';
 
 // This is a reusable element. It is not connected to the store. You can
@@ -95,41 +92,10 @@ class CardThumbnail extends LitElement {
 			opacity:0.5;
 		}
 
-        .top-right {
-          position:absolute;
-          top: 0.25em;
-          right: 0.25em;
-		  display: flex;
-        }
-
-        read-decorator {
-          position:absolute;
-          left: 0.25em;
-          top: 0.25em;
-        }
-
-        thread-count {
-          position:absolute;
-          bottom:0.25em;
-          right: 0.25em;
-        }
-
-        reading-list-decorator {
-          position: absolute;
-          bottom:0.25em;
-          left: 0.25em;
-        }
-
       </style>
       <div @mousemove=${this._handleMouseMove} @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="main ${this.selected ? 'selected' : ''} ${this.cardType} ${this.card && this.card.published ? '' : 'unpublished'} ${this.willBeRemovedOnPendingFilterCommit ? 'ghost' : ''}">
 		<h3 class=${this.cardHasContent ? '' : 'nocontent'}>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>
-		<div class='top-right'>
-			<star-count .count=${this.card.star_count || 0} .highlighted=${this.starred} .light=${this.light}></star-count>			
-      <todo-decorator .visible=${this.hasTodo} .light=${this.light}></todo-decorator>
-		</div>
-		<read-decorator .visible=${this.read} .light=${this.light}></read-decorator>
-		<thread-count .count=${this.card.thread_count || 0} .light=${this.light}></thread-count>
-    <reading-list-decorator .visible=${this.onReadingList} .light=${this.light}></reading-list-decorator>
+      <card-decorators .card=${this.card} .light=${this.cardType != 'content'} .starred=${this.starred} .read=${this.read} .hasTodo=${this.hasTodo} .onReadingList=${this.onReadingList}></card-decorators>
       </div>
     `;
 	}
@@ -158,10 +124,6 @@ class CardThumbnail extends LitElement {
   
 	get cardHasContent() {
 		return cardHasContent(this.card);
-	}
-
-	get light() {
-		return this.cardType != 'content';
 	}
 
 	_handleClick(e) {
