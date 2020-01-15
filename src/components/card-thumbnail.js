@@ -3,7 +3,6 @@ import { LitElement, html } from '@polymer/lit-element';
 import './star-count.js';
 import './read-decorator.js';
 import './thread-count.js';
-import './card-decorator.js';
 import './reading-list-decorator.js';
 import './todo-decorator.js';
 import { cardHasContent } from '../util';
@@ -115,7 +114,7 @@ class CardThumbnail extends LitElement {
           right: 0.25em;
         }
 
-        card-decorator {
+        reading-list-decorator {
           position: absolute;
           bottom:0.25em;
           left: 0.25em;
@@ -125,14 +124,12 @@ class CardThumbnail extends LitElement {
       <div @mousemove=${this._handleMouseMove} @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="main ${this.selected ? 'selected' : ''} ${this.cardType} ${this.card && this.card.published ? '' : 'unpublished'} ${this.willBeRemovedOnPendingFilterCommit ? 'ghost' : ''}">
 		<h3 class=${this.cardHasContent ? '' : 'nocontent'}>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>
 		<div class='top-right'>
-			<star-count .count=${this.card.star_count || 0} .highlighted=${this.starred} .light=${this.light}></star-count>
-			<!-- we put these both in the bottom right because they're the two least likely to show up at the same time -->
-			<reading-list-decorator .visible=${this.onReadingList} .light=${this.light}></reading-list-decorator>
+			<star-count .count=${this.card.star_count || 0} .highlighted=${this.starred} .light=${this.light}></star-count>			
       <todo-decorator .visible=${this.hasTodo} .light=${this.light}></todo-decorator>
 		</div>
 		<read-decorator .visible=${this.read} .light=${this.light}></read-decorator>
 		<thread-count .count=${this.card.thread_count || 0} .light=${this.light}></thread-count>
-        <card-decorator .count=${this.index + 1} .light=${this.light}></card-decorator>
+    <reading-list-decorator .visible=${this.onReadingList} .light=${this.light}></reading-list-decorator>
       </div>
     `;
 	}
@@ -155,7 +152,6 @@ class CardThumbnail extends LitElement {
 			read: {type:Boolean},
 			hasTodo: {type:Boolean},
 			onReadingList: {type:Boolean},
-			index: {type: Number},
 			_selectedViaClick: { type: Boolean },
 		};
 	}
