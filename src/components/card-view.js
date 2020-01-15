@@ -29,15 +29,11 @@ import {
 	selectTags,
 	selectActiveCollectionLabels,
 	selectActiveSortLabelName,
-	selectUserReads,
-	selectUserStars,
 	selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit,
 	getCardInReadingList,
 	selectUserMayModifyReadingList,
 	selectCardsDrawerPanelShowing,
 	selectCollectionIsFallback,
-	selectUserReadingListMap,
-	selectCardTodosMapForCurrentUser,
 	selectEditingCard
 } from '../selectors.js';
 
@@ -324,7 +320,7 @@ class CardView extends connect(store)(PageViewElement) {
 
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer .showing=${this._cardsDrawerPanelShowing} .labels=${this._collectionLabels} .labelName=${this._collectionLabelName} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' .editable=${this._userMayReorder} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .readingListMap=${this._readingListMap} .stars=${this._stars} .reads=${this._reads} .todoMap=${this._todoMap} .reorderPending=${this._drawerReorderPending} .collectionItemsThatWillBeRemovedOnPendingFilterCommit=${this._collectionItemsThatWillBeRemovedOnPendingFilterCommit}></card-drawer>
+        <card-drawer .showing=${this._cardsDrawerPanelShowing} .labels=${this._collectionLabels} .labelName=${this._collectionLabelName} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' .editable=${this._userMayReorder} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .collectionItemsThatWillBeRemovedOnPendingFilterCommit=${this._collectionItemsThatWillBeRemovedOnPendingFilterCommit}></card-drawer>
         <div id='center'>
           <div id='canvas'>
             <div id='portrait-message'>
@@ -395,10 +391,6 @@ class CardView extends connect(store)(PageViewElement) {
 			_collectionLabels: {type:Array},
 			_collectionLabelName: {type:String},
 			_collectionItemsThatWillBeRemovedOnPendingFilterCommit: {type:Object},
-			_stars: {type: Object},
-			_reads: {type: Object},
-			_readingListMap: {type:Object},
-			_todoMap: {type: Object},
 			_drawerReorderPending : {type: Boolean},
 			_activeSectionId: {type: String},
 			_dataIsFullyLoaded: {type:Boolean},
@@ -555,10 +547,6 @@ class CardView extends connect(store)(PageViewElement) {
 		this._collectionLabels = selectActiveCollectionLabels(state);
 		this._collectionLabelName = selectActiveSortLabelName(state);
 		this._collectionItemsThatWillBeRemovedOnPendingFilterCommit = selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit(state);
-		this._stars = selectUserStars(state);
-		this._reads = selectUserReads(state);
-		this._readingListMap = selectUserReadingListMap(state);
-		this._todoMap = selectCardTodosMapForCurrentUser(state);
 		this._tagInfos = selectTags(state);
 		this._drawerReorderPending = state.data.reorderPending;
 		this._activeSectionId = selectActiveSectionId(state);

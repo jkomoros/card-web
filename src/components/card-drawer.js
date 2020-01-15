@@ -104,10 +104,6 @@ class CardDrawer extends LitElement {
 		super();
 
 		this.collection = [];
-		this.stars = {};
-		this.reads = {};
-		this.todoMap = {};
-		this.readingListMap = {};
 		this.collectionItemsThatWillBeRemovedOnPendingFilterCommit = {};
 	}
 
@@ -193,10 +189,6 @@ class CardDrawer extends LitElement {
 			labels: {type: Array},
 			labelName: {type:String},
 			selectedCardId: { type:String },
-			stars: { type: Object },
-			reads: { type: Object },
-			readingListMap: { type: Object},
-			todoMap: { type: Object },
 			collectionItemsThatWillBeRemovedOnPendingFilterCommit: { type: Object },
 			reorderPending: {type:Boolean},
 			//_showing is more complicated than whether we're open or yet.
