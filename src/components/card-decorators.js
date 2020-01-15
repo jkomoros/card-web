@@ -99,6 +99,9 @@ class CardDecorators extends connect(store)(LitElement) {
 	}
 
 	stateChanged(state) {
+		/* it isn't that much of a waste that we have four general maps that
+		repeat for every card-decorators because it's just a reference to the
+		same underlying object the selector returns */
 		this._starMap = selectUserStars(state);
 		this._readMap = selectUserReads(state);
 		this._todoMap = selectCardTodosMapForCurrentUser(state);
