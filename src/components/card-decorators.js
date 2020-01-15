@@ -6,9 +6,18 @@ import './thread-count.js';
 import './reading-list-decorator.js';
 import './todo-decorator.js';
 
+import { connect } from 'pwa-helpers/connect-mixin.js';
+
+// This element is connected to the Redux store so it can render visited links
+import { store } from '../store.js';
+
+import { 
+	selectUserStars, selectUserReads, selectCardTodosMapForCurrentUser, selectUserReadingListMap
+} from '../selectors.js';
+
 //CardDecorators is designed to be included in a card-like object and
 //automatically put the applicable badges into the various corners.
-class CardDecorators extends LitElement {
+class CardDecorators extends connect(store)(LitElement) {
 	render() {
 		return html`
       <style>
@@ -48,12 +57,12 @@ class CardDecorators extends LitElement {
 
       </style>
       <div class='top-right'>
-        <star-count .count=${this.card.star_count || 0} .highlighted=${this.starred} .light=${this.light}></star-count>		
-        <todo-decorator .visible=${this.hasTodo} .light=${this.light}></todo-decorator>
+        <star-count .count=${this.card.star_count || 0} .highlighted=${this._starred} .light=${this.light}></star-count>		
+        <todo-decorator .visible=${this._hasTodo} .light=${this.light}></todo-decorator>
       </div>
-      <read-decorator .visible=${this.read} .light=${this.light}></read-decorator>
+      <read-decorator .visible=${this._read} .light=${this.light}></read-decorator>
       <thread-count .count=${this.card.thread_count || 0} .light=${this.light}></thread-count>
-      <reading-list-decorator .visible=${this.onReadingList} .light=${this.light}></reading-list-decorator>
+      <reading-list-decorator .visible=${this._onReadingList} .light=${this.light}></reading-list-decorator>
     `;
 	}
 
@@ -62,11 +71,38 @@ class CardDecorators extends LitElement {
 			//If a light theme shpould be used
 			light: { type: Boolean },
 			card: {type: Object},
-			starred: {type:Boolean},
-			read: {type:Boolean},
-			hasTodo: {type:Boolean},
-			onReadingList: {type:Boolean},
+			_starMap: {type: Object},
+			_readMap: {type: Object},
+			_todoMap: {type: Object},
+			_readingListMap: {type: Object},
 		};
+	}
+
+	get _id(){
+		return this.card ? this.card.id : '';
+	}
+
+	get _starred() {
+		return (this._starMap || {})[this._id];
+	}
+
+	get _read() {
+		return (this._readMap || {})[this._id];
+	}
+
+	get _hasTodo() {
+		return (this._todoMap || {})[this._id];
+	}
+
+	get _onReadingList() {
+		return (this._readingListMap || {})[this._id];
+	}
+
+	stateChanged(state) {
+		this._starMap = selectUserStars(state);
+		this._readMap = selectUserReads(state);
+		this._todoMap = selectCardTodosMapForCurrentUser(state);
+		this._readingListMap = selectUserReadingListMap(state);
 	}
 
 }
