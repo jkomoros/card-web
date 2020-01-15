@@ -114,10 +114,6 @@ class CardThumbnail extends LitElement {
 			//Card isn't used for much, except a a place for the container to stash
 			//the whole card (for convenience with dragging).
 			card: {type: Object},
-			starred: {type:Boolean},
-			read: {type:Boolean},
-			hasTodo: {type:Boolean},
-			onReadingList: {type:Boolean},
 			_selectedViaClick: { type: Boolean },
 		};
 	}
