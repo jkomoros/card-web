@@ -6,10 +6,10 @@ import {
 
 import { CardBadge } from './card-badge.js';
 
-class ReadDecorator extends CardBadge {
+class ReadBadge extends CardBadge {
 	innerRender() {
 		return html`${visibilityIcon}`;
 	}
 }
 
-window.customElements.define('read-decorator', ReadDecorator);
+window.customElements.define('read-badge', ReadBadge);

@@ -1,7 +1,7 @@
 import { LitElement, html } from '@polymer/lit-element';
 
 import './star-count.js';
-import './read-decorator.js';
+import './read-badge.js';
 import './thread-count.js';
 import './reading-list-decorator.js';
 import './todo-decorator.js';
@@ -37,7 +37,7 @@ class CardBadges extends connect(store)(LitElement) {
 		  display: flex;
         }
 
-        read-decorator {
+        read-badge{
           position:absolute;
           left: 0.25em;
           top: 0.25em;
@@ -60,7 +60,7 @@ class CardBadges extends connect(store)(LitElement) {
         <star-count .count=${this._nonBlankCard.star_count || 0} .highlighted=${this._starred} .light=${this.light}></star-count>		
         <todo-decorator .visible=${this._hasTodo} .light=${this.light}></todo-decorator>
       </div>
-      <read-decorator .visible=${this._read} .light=${this.light}></read-decorator>
+      <read-badge .visible=${this._read} .light=${this.light}></read-badge>
       <thread-count .count=${this._nonBlankCard.thread_count || 0} .light=${this.light}></thread-count>
       <reading-list-decorator .visible=${this._onReadingList} .light=${this.light}></reading-list-decorator>
     `;
