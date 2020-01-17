@@ -4,9 +4,9 @@ import {
 	forumIcon,
 } from './my-icons.js';
 
-import { CardDecorator } from './card-decorator.js';
+import { CardBadge } from './card-badge.js';
 
-class ThreadCount extends CardDecorator {
+class ThreadCount extends CardBadge {
 	innerRender() {
 		return html`${forumIcon} <span>${this.count}</span>`;
 	}

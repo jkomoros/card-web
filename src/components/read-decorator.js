@@ -4,9 +4,9 @@ import {
 	visibilityIcon,
 } from './my-icons.js';
 
-import { CardDecorator } from './card-decorator.js';
+import { CardBadge } from './card-badge.js';
 
-class ReadDecorator extends CardDecorator {
+class ReadDecorator extends CardBadge {
 	innerRender() {
 		return html`${visibilityIcon}`;
 	}

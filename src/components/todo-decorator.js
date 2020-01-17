@@ -4,9 +4,9 @@ import {
 	assignmentTurnedInIcon,
 } from './my-icons.js';
 
-import { CardDecorator } from './card-decorator.js';
+import { CardBadge } from './card-badge.js';
 
-class TodoDecorator extends CardDecorator {
+class TodoDecorator extends CardBadge {
 	innerRender() {
 		return html`${assignmentTurnedInIcon}`;
 	}

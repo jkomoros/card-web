@@ -4,9 +4,9 @@ import {
 	playlistAddCheckIcon,
 } from './my-icons.js';
 
-import { CardDecorator } from './card-decorator.js';
+import { CardBadge } from './card-badge.js';
 
-class ReadingListDecorator extends CardDecorator {
+class ReadingListDecorator extends CardBadge {
 	innerRender() {
 		return html`${playlistAddCheckIcon}`;
 	}

@@ -2,7 +2,7 @@ import { LitElement, html } from '@polymer/lit-element';
 
 import { SharedStyles } from './shared-styles.js';
 
-export class CardDecorator extends LitElement {
+export class CardBadge extends LitElement {
 	render() {
 		return html`
 		${SharedStyles}
@@ -71,4 +71,4 @@ export class CardDecorator extends LitElement {
 	}
 }
 
-window.customElements.define('card-decorator', CardDecorator);
+window.customElements.define('card-badge', CardBadge);
