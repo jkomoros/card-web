@@ -3,7 +3,7 @@ import { LitElement, html } from '@polymer/lit-element';
 import './star-count.js';
 import './read-badge.js';
 import './thread-count.js';
-import './reading-list-decorator.js';
+import './reading-list-badge.js';
 import './todo-decorator.js';
 
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -49,7 +49,7 @@ class CardBadges extends connect(store)(LitElement) {
           right: 0.25em;
         }
 
-        reading-list-decorator {
+        reading-list-badge {
           position: absolute;
           bottom:0.25em;
           left: 0.25em;
@@ -62,7 +62,7 @@ class CardBadges extends connect(store)(LitElement) {
       </div>
       <read-badge .visible=${this._read} .light=${this.light}></read-badge>
       <thread-count .count=${this._nonBlankCard.thread_count || 0} .light=${this.light}></thread-count>
-      <reading-list-decorator .visible=${this._onReadingList} .light=${this.light}></reading-list-decorator>
+      <reading-list-badge .visible=${this._onReadingList} .light=${this.light}></reading-list-badge>
     `;
 	}
 

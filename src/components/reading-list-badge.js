@@ -6,10 +6,10 @@ import {
 
 import { CardBadge } from './card-badge.js';
 
-class ReadingListDecorator extends CardBadge {
+class ReadingListBadge extends CardBadge {
 	innerRender() {
 		return html`${playlistAddCheckIcon}`;
 	}
 }
 
-window.customElements.define('reading-list-decorator', ReadingListDecorator);
+window.customElements.define('reading-list-badge', ReadingListBadge);
