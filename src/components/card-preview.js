@@ -1,10 +1,7 @@
 import { LitElement, html } from '@polymer/lit-element';
 
 import './card-renderer.js';
-import './star-count.js';
-import './thread-count.js';
-import './read-decorator.js';
-import './reading-list-decorator.js';
+import './card-decorators.js';
 
 import { 
 	CARD_WIDTH_IN_EMS,
@@ -17,10 +14,6 @@ class CardPreview extends LitElement {
 		const cardHeightInPixels = CARD_HEIGHT_IN_EMS * this.previewSize;
 		const positionLeft = (this.x + cardWidthInPixels) > window.innerWidth;
 		const positionUp = (this.y + cardHeightInPixels) > window.innerHeight;
-
-		const starred = this.stars && this.card ? this.stars[this.card.id] : false;
-		const read = this.reads && this.card ? this.reads[this.card.id] : false;
-		const readingList = this.readingListMap && this.card ? this.readingListMap[this.card.id] : false;
 
 		return html`
 		<style>
@@ -48,12 +41,7 @@ class CardPreview extends LitElement {
       </style>
       <div ?hidden='${!this.card}'>
 		<card-renderer .card=${this.card}></card-renderer>
-		<div class='decorators'>
-			<star-count .count=${this.card ? this.card.star_count : 0} .highlighted=${starred}></star-count>
-			<thread-count .count=${this.card ? this.card.thread_count : 0}></thread-count>
-			<read-decorator .visible=${read}></read-decorator>
-			<reading-list-decorator .visible=${readingList}></reading-list-decorator>
-		</div>
+		<card-decorators .card=${this.card}></card-decorators>
       </div>
     `;
 	}
@@ -69,9 +57,6 @@ class CardPreview extends LitElement {
 			card: {type: Object},
 			x: { type: Number },
 			y: { type: Number },
-			stars: { type: Object },
-			reads: { type: Object },
-			readingListMap: { type: Object },
 			/* size of font for card in px*/
 			previewSize: { type: Number },
 			/* offset from the cursor in pixels */
