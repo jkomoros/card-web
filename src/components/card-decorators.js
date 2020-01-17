@@ -57,11 +57,11 @@ class CardDecorators extends connect(store)(LitElement) {
 
       </style>
       <div class='top-right'>
-        <star-count .count=${this.card.star_count || 0} .highlighted=${this._starred} .light=${this.light}></star-count>		
+        <star-count .count=${this._nonBlankCard.star_count || 0} .highlighted=${this._starred} .light=${this.light}></star-count>		
         <todo-decorator .visible=${this._hasTodo} .light=${this.light}></todo-decorator>
       </div>
       <read-decorator .visible=${this._read} .light=${this.light}></read-decorator>
-      <thread-count .count=${this.card.thread_count || 0} .light=${this.light}></thread-count>
+      <thread-count .count=${this._nonBlankCard.thread_count || 0} .light=${this.light}></thread-count>
       <reading-list-decorator .visible=${this._onReadingList} .light=${this.light}></reading-list-decorator>
     `;
 	}
@@ -78,8 +78,12 @@ class CardDecorators extends connect(store)(LitElement) {
 		};
 	}
 
+	get _nonBlankCard() {
+		return this.card || {};
+	}
+
 	get _id(){
-		return this.card ? this.card.id : '';
+		return this._nonBlankCard.id || '';
 	}
 
 	get _starred() {
