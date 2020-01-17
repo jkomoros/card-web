@@ -4,7 +4,7 @@ import './star-count.js';
 import './read-badge.js';
 import './thread-count.js';
 import './reading-list-badge.js';
-import './todo-decorator.js';
+import './todo-badge.js';
 
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -58,7 +58,7 @@ class CardBadges extends connect(store)(LitElement) {
       </style>
       <div class='top-right'>
         <star-count .count=${this._nonBlankCard.star_count || 0} .highlighted=${this._starred} .light=${this.light}></star-count>		
-        <todo-decorator .visible=${this._hasTodo} .light=${this.light}></todo-decorator>
+        <todo-badge .visible=${this._hasTodo} .light=${this.light}></todo-badge>
       </div>
       <read-badge .visible=${this._read} .light=${this.light}></read-badge>
       <thread-count .count=${this._nonBlankCard.thread_count || 0} .light=${this.light}></thread-count>

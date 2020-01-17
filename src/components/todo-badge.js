@@ -6,10 +6,10 @@ import {
 
 import { CardBadge } from './card-badge.js';
 
-class TodoDecorator extends CardBadge {
+class TodoBadge extends CardBadge {
 	innerRender() {
 		return html`${assignmentTurnedInIcon}`;
 	}
 }
 
-window.customElements.define('todo-decorator', TodoDecorator);
+window.customElements.define('todo-badge', TodoBadge);
