@@ -15,9 +15,9 @@ import {
 	selectUserStars, selectUserReads, selectCardTodosMapForCurrentUser, selectUserReadingListMap
 } from '../selectors.js';
 
-//CardDecorators is designed to be included in a card-like object and
+//CardBadges is designed to be included in a card-like object and
 //automatically put the applicable badges into the various corners.
-class CardDecorators extends connect(store)(LitElement) {
+class CardBadges extends connect(store)(LitElement) {
 	render() {
 		return html`
       <style>
@@ -114,4 +114,4 @@ class CardDecorators extends connect(store)(LitElement) {
 
 }
 
-window.customElements.define('card-decorators', CardDecorators);
+window.customElements.define('card-badges', CardBadges);

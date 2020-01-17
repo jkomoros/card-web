@@ -1,7 +1,7 @@
 import { LitElement, html } from '@polymer/lit-element';
 
 import './card-renderer.js';
-import './card-decorators.js';
+import './card-badges.js';
 
 import { 
 	CARD_WIDTH_IN_EMS,
@@ -32,16 +32,10 @@ class CardPreview extends LitElement {
 				font-size: ${this.previewSize}px;
 			}
 
-			.decorators {
-				position: absolute;
-				bottom: 0.25em;
-				right: 0.25em;
-			}
-
       </style>
       <div ?hidden='${!this.card}'>
 		<card-renderer .card=${this.card}></card-renderer>
-		<card-decorators .card=${this.card}></card-decorators>
+		<card-badges .card=${this.card}></card-badges>
       </div>
     `;
 	}
