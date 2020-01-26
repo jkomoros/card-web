@@ -16,6 +16,10 @@ export const randomString = (length, charSet) => {
 	return text;
 };
 
+export const capitalizeFirstLetter = (str) => {
+	return str.charAt(0).toUpperCase() + str.slice(1);
+};
+
 export const toTitleCase = (str) => {
 	//Based on https://gomakethings.com/converting-a-string-to-title-case-with-vanilla-javascript/
 	str = str.toLowerCase().split(' ');
