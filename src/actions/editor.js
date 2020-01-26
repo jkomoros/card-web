@@ -385,18 +385,35 @@ export const nameUpdated = (newName) => {
 	};
 };
 
-export const substantiveUpdated = (checked) => {
+export const substantiveUpdated = (checked, auto) => {
 	return {
 		type: EDITING_SUBSTANTIVE_UPDATED,
 		checked,
+		auto
 	};
 };
 
-export const publishedUpdated = (published) => {
-	return {
+export const publishedUpdated = (published) => (dispatch, getState) => {
+
+	const state = getState();
+	const baseCard = selectActiveCard(state);
+	const currentlySubstantive = state.editor.substantive;
+
+	//If the base card wasn't published, and now is, and substantive isn't
+	//already checked, check it. If we're setting to unpublished (as base card
+	//is) and we're currently substantive, uncheck it.
+	if (baseCard && !baseCard.published) {
+		if (!currentlySubstantive && published) {
+			dispatch(substantiveUpdated(true, true));
+		} else if(currentlySubstantive && !published) {
+			dispatch(substantiveUpdated(false, true));
+		}
+	}
+
+	dispatch({
 		type: EDITING_PUBLISHED_UPDATED,
 		published,
-	};
+	});
 };
 
 export const fullBleedUpdated = (fullBleed) => {
