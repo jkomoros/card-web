@@ -25,7 +25,8 @@ export const TAB_TODO = 'todo';
 import {
 	selectActiveCard,
 	selectUserMayEdit,
-	selectEditingCard
+	selectEditingCard,
+	selectSections
 } from '../selectors.js';
 
 import {
@@ -364,11 +365,36 @@ export const bodyUpdated = (newBody, fromContentEditable) => {
 	};
 };
 
-export const sectionUpdated = (newSection) => {
-	return {
+export const sectionUpdated = (newSection) => (dispatch, getState) => {
+	const state = getState();
+	const baseCard = selectActiveCard(state);
+	const sections = selectSections(state);
+	const currentlySubstantive = state.editor.substantive;
+	if (baseCard && sections) {
+		const oldSection = baseCard.section;
+		let sectionKeys = Object.keys(sections);
+		let oldSectionIndex = 1000;
+		let newSectionIndex = 1000;
+		for (let i = 0; i < sectionKeys.length; i++) {
+			let sectionKey = sectionKeys[i];
+			if (oldSection == sectionKey) oldSectionIndex = i;
+			if (newSection == sectionKey) newSectionIndex = i;
+		}
+
+		//If the card has been moved to a more-baked section than before, set
+		//substantive. If substantive is set and the section is being set back
+		//to what it was, unset substantive.
+		if (newSectionIndex < oldSectionIndex && !currentlySubstantive) {
+			dispatch(substantiveUpdated(true, true));
+		} else if(newSectionIndex == oldSectionIndex && currentlySubstantive) {
+			dispatch(substantiveUpdated(false, true));
+		}
+	}
+
+	dispatch({
 		type: EDITING_SECTION_UPDATED,
 		section: newSection
-	};
+	});
 };
 
 export const slugAdded = (newSlug) => {

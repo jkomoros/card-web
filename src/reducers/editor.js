@@ -94,8 +94,6 @@ const app = (state = INITIAL_STATE, action) => {
 		if (!state.card) return state;
 		return {
 			...state,
-			//Force substantive on
-			substantive:true,
 			card: {...state.card, section:action.section}
 		};
 	case EDITING_SLUG_ADDED:
