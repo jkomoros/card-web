@@ -53,7 +53,7 @@ When logo.svg has changed, run `gulp generate-favicon`. Then merge the values in
 
 TODO: make the manifest.json output be merged automatically in that flow
 
-When index.html has changed, run `gulp inject-favicon-markups`, then copy over `index.favicon.html` to `index.html` 
+When index.html has changed, run `gulp inject-favicon-markups`, then manually change the point to the manifest ot be to `manifest.json` instead of `/images/site.webmanifest`
 
 TODO: make the favicon injection be part of the build flow
 

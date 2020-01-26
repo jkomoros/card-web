@@ -7,7 +7,6 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
-
 <!doctype html>
 <html lang="en">
   <head>
@@ -17,7 +16,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-
       gtag('config', 'UA-321674-11');
     </script>
     <meta charset="utf-8">
@@ -25,53 +23,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     <meta name="generator" content="PWA Starter Kit">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="A byzantine compendium of evolving ideas to navigate complexity">
-
     <!--
       The `<base>` tag below is present to support two advanced deployment options:
       1) Differential serving. 2) Serving from a non-root path.
-
       Instead of manually editing the `<base>` tag yourself, you should generally either:
       a) Add a `basePath` property to the build configuration in your `polymer.json`.
       b) Use the `--base-path` command-line option for `polymer build`.
     -->
     <base href="/">
-
-    <link rel="icon" href="images/favicon.ico">
-
-    <!-- See https://goo.gl/OOhYW5 -->
-    <link rel="manifest" href="manifest.json">
-
-    <!-- See https://goo.gl/qRE0vM -->
-    <meta name="theme-color" content="#3f51b5">
-
     <!-- Add to homescreen for Chrome on Android. Fallback for manifest.json -->
-    <meta name="mobile-web-app-capable" content="yes">
     <meta name="application-name" content="The Compendium">
-
     <!-- Add to homescreen for Safari on iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="My App">
-
     <!-- Homescreen icons -->
-    <link rel="apple-touch-icon" href="images/manifest/icon-48x48.png">
-    <link rel="apple-touch-icon" sizes="72x72" href="images/manifest/icon-72x72.png">
-    <link rel="apple-touch-icon" sizes="96x96" href="images/manifest/icon-96x96.png">
-    <link rel="apple-touch-icon" sizes="144x144" href="images/manifest/icon-144x144.png">
-    <link rel="apple-touch-icon" sizes="192x192" href="images/manifest/icon-192x192.png">
-
     <!-- Tile icon for Windows 8 (144x144 + tile color) -->
-    <meta name="msapplication-TileImage" content="images/manifest/icon-144x144.png">
-    <meta name="msapplication-TileColor" content="#3f51b5">
-    <meta name="msapplication-tap-highlight" content="no">
-
     <!-- Default twitter cards -->
     <meta name="twitter:card" content="summary">
     <meta name="twitter:site" content="@komorama">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Complexity Compendium">
-    <meta property="og:image" content="images/manifest/icon-144x144.png" />
-
     <!-- Performance tip: hint to the browser to start the handshake for the fonts site -->
     <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin>
     <script>
@@ -90,20 +62,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           })
         });
       }
-
       // Redux assumes `process.env.NODE_ENV` exists in the ES module build.
       // https://github.com/reactjs/redux/issues/2907
       window.process = { env: { NODE_ENV: 'production' } };
     </script>
-
     <!-- Add any global styles for body, document, etc. -->
     <!-- <link rel='stylesheet' href='fonts/fonts.css'> -->
     <style>
-      
       @import url('https://fonts.googleapis.com/css?family=Raleway:400,700');
       @import url('https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700');
-      
-
       body {
         margin: 0;
         /* This is a font-stack that tries to use the system-default sans-serifs first */
@@ -113,7 +80,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         -webkit-font-smoothing: antialiased;
       }
     </style>
-  </head>
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="mask-icon" href="/images/safari-pinned-tab.svg" color="#5e2b97">
+<link rel="shortcut icon" href="/images/favicon.ico">
+<meta name="msapplication-TileColor" content="#603cba">
+<meta name="msapplication-TileImage" content="/images/mstile-144x144.png">
+<meta name="msapplication-config" content="/images/browserconfig.xml">
+<meta name="theme-color" content="#ffffff"></head>
   <body>
     <compendium-app></compendium-app>
     <noscript>

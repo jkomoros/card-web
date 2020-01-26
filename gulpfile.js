@@ -232,7 +232,7 @@ gulp.task('generate-favicon', function(done) {
 gulp.task('inject-favicon-markups', function() {
 	return gulp.src([ 'index.html' ])
 		.pipe(realFavicon.injectFaviconMarkups(JSON.parse(fs.readFileSync(FAVICON_DATA_FILE)).favicon.html_code))
-		.pipe(gulp.dest('index.favicon.html'));
+		.pipe(gulp.dest('.'));
 });
 
 // Check for updates on RealFaviconGenerator (think: Apple has just
