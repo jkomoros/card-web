@@ -47,6 +47,15 @@ Run `gcloud beta firestore import gs://complexity-compendium-backup/[EXPORT_PREF
 
 `npm install`
 
+### Favicons
+
+When logo.svg has changed, run `gulp generate-favicon`. Then merge the values in images/site.webmanifest into /manifest.json
+
+TODO: make the manifest.json output be merged automatically in that flow
+
+When index.html has changed, run `gulp inject-favicon-markups`, then copy over `index.favicon.html` to `index.html` 
+
+TODO: make the favicon injection be part of the build flow
 
 ### Setting up a new deployment
 Currently a number of things are hard-coded (see #164 for more).

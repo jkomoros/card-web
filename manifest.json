@@ -5,18 +5,18 @@
   "start_url": "/",
   "display": "standalone",
   "theme_color": "#5e2b97",
-  "background_color": "#eee",
+  "background_color": "#ffffff",
   "gcm_sender_id": "103953800507",
   "icons": [
-    {
-      "src": "images/manifest/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "images/manifest/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
+      {
+          "src": "/images/android-chrome-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+      },
+      {
+          "src": "/images/android-chrome-512x512.png",
+          "sizes": "512x512",
+          "type": "image/png"
+      }
   ]
 }
