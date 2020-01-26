@@ -545,7 +545,10 @@ const defaultCardObject = (id, user, section, cardType) => {
 		name: id,
 		tags: [],
 		published: false,
-		auto_todo_overrides: {}
+		auto_todo_overrides: {},
+		//Defaul to epoch 1970 for things not yet tweeted
+		last_tweeted: new Date(0),
+		tweet_count: 0
 	};
 };
 

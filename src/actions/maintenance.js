@@ -445,6 +445,27 @@ export const addAutoTodoOverrides = async() => {
 
 };
 
+const ADD_TWEET_VALUES = 'add-tweet-values';
+
+export const addTweetValues = async() => {
+
+	await checkMaintenanceTaskHasBeenRun(ADD_TWEET_VALUES);
+
+	let batch = db.batch();
+
+	let snapshot = await db.collection(CARDS_COLLECTION).get();
+
+	snapshot.forEach(doc => {
+		batch.update(doc.ref, {'tweet_count': 0, 'last_tweeted': new Date(0)});
+	});
+
+	await batch.commit();
+
+	await maintenanceTaskRun(ADD_TWEET_VALUES);
+	console.log('done!');
+
+};
+
 
 export const doImport = () => {
 
@@ -557,4 +578,5 @@ export const tasks = {
 	[ADD_UPDATED_MESSAGE]: addUpdatedMessage,
 	[CONVERT_EXISTING_NOTES_TO_TODO]: convertExistingNotesToTodo,
 	[ADD_AUTO_TODO_OVERRIDES]: addAutoTodoOverrides,
+	[ADD_TWEET_VALUES]: addTweetValues,
 };
