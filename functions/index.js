@@ -83,16 +83,22 @@ const getCardName = async (cardId) => {
 
 const selectCardToTweet = async () => {
     //Tweet card selects a tweet to send and sends it.
-    let cards = await admin.firestore().collection('cards').where('published', '==', true).where('card_type', '==', 'content').get();
-    let sections = await admin.firestore().collection('sections').orderBy('order').get();
+    let rawCards = await admin.firestore().collection('cards').where('published', '==', true).where('card_type', '==', 'content').get();
+    let rawSections = await admin.firestore().collection('sections').orderBy('order').get();
+
+    let cards = rawCards.docs.map(snapshot => {
+        let result = snapshot.data();
+        result.id = snapshot.id;
+        return result
+    });
+
+    let sectionsMap = Object.fromEntries(rawSections.docs.map(snapshot => [snapshot.id, snapshot.data()]));
+    
 
     //TODO: filter out ones where the name is the id
     //TODO: sort and pick the first one
 
-    let card = cards.docs[0];
-    let result = card.data();
-    result.id = card.id;
-    return result;
+    return cards[0];
 }
 
 const prettyCardURL = (card) => {
