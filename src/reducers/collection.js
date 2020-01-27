@@ -108,6 +108,12 @@ export const SORTS = {
 			//Note: this logic is just manually equivalent to the logic that
 			//will be applied server-side, and is thus duplicated there.
 		
+			//Rate the cards that shouldn't actually be shown (that should be
+			//filtered out) very low just to ensure they don't get tweeted.
+			if (!card.published || !card.slugs || card.slugs.length == 0 || card.card_type != 'content') {
+				return [0, 'Not to be tweeted'];
+			}
+
 			//The baseValue is the more time that has passed since the last time it was tweeted. 
 			const updatedSeconds = card.updated_substantive ? card.updated_substantive.seconds : 1000;
 			const lastTweetedSeconds = card.last_tweeted ? card.last_tweeted.seconds : 0;
