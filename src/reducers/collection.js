@@ -103,6 +103,22 @@ export const SORTS = {
 		description: 'In descending order by when each card was last updated or had a new message',
 		labelName: 'Last Activity',
 	},
+	'tweet-order': {
+		extractor: (card) => {
+			//Note: this logic is just manually equivalent to the logic that
+			//will be applied server-side, and is thus duplicated there.
+		
+			//The baseValue is the more time that has passed since the last time it was tweeted. 
+			const updatedSeconds = card.updated_substantive ? card.updated_substantive.seconds : 1000;
+			const lastTweetedSeconds = card.last_tweeted ? card.last_tweeted.seconds : 0;
+			let baseValue = updatedSeconds - lastTweetedSeconds;
+			//TODO: include a negative multiplier for how many times it's been tweeted already.
+			//TODO: includ a positive multiplier for how many times it's been starred.
+			return [baseValue, prettyTime(lastTweetedSeconds)];
+		},
+		description: 'In descending order of the ones that are most deserving of a tweet',
+		labelName: 'Tweet Worthiness',
+	}
 };
 
 const defaultCardFilterName = (basename) => {
