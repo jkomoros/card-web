@@ -51,7 +51,7 @@ const domain = functions.config().site.domain || "thecompendium.cards";
 const sendTweet = async (message) => {
     if (!twitterClient) {
         console.log("Twitter client not set up. Tweet that would have been sent: " + message);
-        return "FAKE_TWEET_ID";
+        return "FAKE_TWEET_ID_" + Math.flooor(Math.random() * 10000000);
     }
     let tweet = await twitterClient.post('statuses/update', {status: message});
     return tweet.id_str;
