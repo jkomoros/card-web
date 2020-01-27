@@ -100,8 +100,25 @@ const prettyCardURL = (card) => {
 }
 
 const markCardTweeted = async (card, tweetID) => {
-    //TODO: update the card in the database.
-    console.log(card, tweetID);
+
+    const cardRef = admin.firestore().collection('cards').doc(card.id);
+    const cardTweetRef = cardRef.collection('tweets').doc(String(Date.now()));
+
+    let batch = admin.firestore().batch();
+
+    batch.update(cardRef, {
+        tweet_count: admin.firestore.FieldValue.increment(1),
+        last_tweeted: admin.firestore.FieldValue.serverTimestamp(),
+    })
+
+    batch.create(cardTweetRef, {
+        id: tweetID,
+        created: admin.firestore.FieldValue.serverTimestamp,
+    })
+
+    console.log("Card tweeted " + card.id + ' ' + tweetID);
+
+    await batch.commit();
 }
 
 const tweetCard = async () => {
