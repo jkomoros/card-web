@@ -81,6 +81,36 @@ const getCardName = async (cardId) => {
     return card.data().name || cardId;
 }
 
+const selectCardToTweet = async () => {
+    //Tweet card selects a tweet to send and sends it.
+    let cards = await admin.firestore().collection('cards').where('published', '==', true).where('card_type', '==', 'content').get();
+    let sections = await admin.firestore().collection('sections').orderBy('order').get();
+
+    //TODO: filter out ones where the name is the id
+    //TODO: sort and pick the first one
+
+    let card = cards.docs[0];
+    let result = card.data();
+    result.id = card.id;
+    return result;
+}
+
+const prettyCardURL = (card) => {
+    return 'https://' + domain + '/c/' + card.name;
+}
+
+const markCardTweeted = async (card, tweetID) => {
+    //TODO: update the card in the database.
+    console.log(card, tweetID);
+}
+
+const tweetCard = async () => {
+    const card = await selectCardToTweet();
+    const url = prettyCardURL(card);
+    const message = card.title + ' ' + url;
+    const tweetID = await sendTweet(message);
+    await markCardTweeted(card, tweetID);
+}
 
 exports.emailAdminOnStar = functions.firestore.
     document('stars/{starId}').
