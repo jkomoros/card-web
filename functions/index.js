@@ -48,6 +48,15 @@ if (!fromEmail) console.warn("No from email provided. See README.md on how to se
 
 const domain = functions.config().site.domain || "thecompendium.cards";
 
+const sendTweet = async (message) => {
+    if (!twitterClient) {
+        console.log("Twitter client not set up. Tweet that would have been sent: " + message);
+        return "FAKE_TWEET_ID";
+    }
+    let tweet = await twitterClient.post('statuses/update', {status: message});
+    return tweet.id_str;
+}
+
 const sendEmail = (subject, message) => {
     const mailOptions = {
         from: fromEmail,
