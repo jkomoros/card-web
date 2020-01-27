@@ -3,6 +3,8 @@ const functions = require('firebase-functions');
 const nodemailer = require('nodemailer');
 const postmarkTransport = require('nodemailer-postmark-transport');
 
+const Twitter = require('twitter');
+
 const admin = require('firebase-admin');
 admin.initializeApp();
 
@@ -10,6 +12,24 @@ const db = admin.firestore();
 
 //TODO: include the same file as we do for the client for the canonical names of
 //collections.
+
+const twitterConsumerKey = functions.config().twitter.consumer_key;
+const twitterConsumerSecret = functions.config().twitter.consumer_secret;
+const twitterAccessTokenKey = functions.config().twitter.access_token_key;
+const twitterAccessTokenSecret = functions.config().twitter.access_token_secret;
+
+let twitterClient = null;
+
+if (!twitterConsumerKey || !twitterConsumerSecret || !twitterAccessTokenKey || !twitterAccessTokenSecret) {
+    console.warn('The twitter keys are not configured, so tweets will not actually be sent. See README.md for how to set them up.')
+} else {
+    twitterClient = new Twitter({
+        consumer_key: twitterConsumerKey,
+        consumer_secret: twitterConsumerSecret,
+        access_token_key: twitterAccessTokenKey,
+        access_token_secret: twitterAccessTokenSecret
+    });
+}
 
 const postmarkKey = functions.config().postmark.key;
 if (!postmarkKey) console.warn("No postmark key provided. See README.md on how to set it up.")
