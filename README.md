@@ -77,6 +77,14 @@ firebase functions:config:set email.from="emailaccountitshouldcomefrom@gmail.com
 firebase functions:config:set site.domain="thecompendium.cards"
 ```
 
+If you also want to set up auto-tweeting, you'll need to set additional values, with the values for your app from here: https://developer.twitter.com/en/apps
+```
+firebase functions:config:set twitter.consumer_key="YOUR-SECRET-KEY"
+firebase functions:config:set twitter.consumer_secret="YOUR-SECRET-KEY"
+firebase functions:config:set twitter.access_token_key="YOUR-SECRET-KEY"
+firebase functions:config:set twitter.access_token_secret="YOUR-SECRET-KEY"
+```
+
 Note that you'll have to do this both the dev and prod servers, by using the different names of projects in the first line. 
 
 ### Design
