@@ -13,21 +13,20 @@ const db = admin.firestore();
 //TODO: include the same file as we do for the client for the canonical names of
 //collections.
 
-const twitterConsumerKey = functions.config().twitter.consumer_key;
-const twitterConsumerSecret = functions.config().twitter.consumer_secret;
-const twitterAccessTokenKey = functions.config().twitter.access_token_key;
-const twitterAccessTokenSecret = functions.config().twitter.access_token_secret;
-
 let twitterClient = null;
 
-if (!twitterConsumerKey || !twitterConsumerSecret || !twitterAccessTokenKey || !twitterAccessTokenSecret) {
+//Fetch once to save typing but also to guard against the case where no twitter
+//configs are set, so this whole object will be undefined.
+const twitterConfig = functions.config().twitter;
+
+if (!twitterConfig || !twitterConfig.consumer_key || !twitterConfig.consumer_secret || !twitterConfig.access_token_key || !twitterConfig.access_token_secret) {
     console.warn('The twitter keys are not configured, so tweets will not actually be sent. See README.md for how to set them up.')
 } else {
     twitterClient = new Twitter({
-        consumer_key: twitterConsumerKey,
-        consumer_secret: twitterConsumerSecret,
-        access_token_key: twitterAccessTokenKey,
-        access_token_secret: twitterAccessTokenSecret
+        consumer_key: twitterConfig.consumer_key,
+        consumer_secret: twitterConfig.consumer_secret,
+        access_token_key: twitterConfig.access_token_key,
+        access_token_secret: twitterConfig.access_token_secret
     });
 }
 
