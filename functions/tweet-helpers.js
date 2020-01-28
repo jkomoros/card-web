@@ -1,5 +1,5 @@
-//This file is popped out separately so it can be reused substantially as is in
-//the cloud function file.
+//This file is popped out separately so it can be linked into the webapp as well
+//in reducers/collection.js
 
 //cachedSectionTwidderMapForSections is the sections map we were last passed; if
 //it's different then we should regenerate cachedSectionTwidderMap.
@@ -13,7 +13,7 @@ const SECTION_TWIDDLE_AMOUNT = 0.15;
 const prettyTime = (date) => {
 	//Recreated from util.js so this file doesn't have any imports
 	if (!date) return '';
-	if (typeof date.toDate == 'function') date = date.toDate();
+	if (typeof date.toDate === 'function') date = date.toDate();
 	return date.toDateString();
 };
 
@@ -31,7 +31,7 @@ const sectionTwiddlerMap = (sections) => {
 		let multiplier = 1.0;
 		const sectionKey = sectionKeys[i];
 		//Section 0 is 'about', which isn't good... or bad.
-		if (i != 0) {
+		if (i !== 0) {
 			//!st sectino is the best, but the last section (typically
 			//!'random_thoughts') is actively bad, and the second-to-last
 			//!(typically 'stubs') is neutral.
@@ -53,7 +53,7 @@ export const tweetOrderExtractor = (card, sections) => {
 
 	//Rate the cards that shouldn't actually be shown (that should be
 	//filtered out) very low just to ensure they don't get tweeted.
-	if (!card.published || !card.slugs || card.slugs.length == 0 || card.card_type != 'content') {
+	if (!card.published || !card.slugs || card.slugs.length === 0 || card.card_type !== 'content') {
 		return [0, 'Not to be tweeted'];
 	}
 

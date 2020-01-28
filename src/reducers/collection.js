@@ -29,7 +29,7 @@ import {
 
 import {
 	tweetOrderExtractor,
-} from './tweet-helpers.js';
+} from '../../functions/tweet-helpers.js';
 
 export const DEFAULT_SET_NAME = 'all';
 //reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
