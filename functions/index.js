@@ -30,14 +30,18 @@ if (!twitterConfig || !twitterConfig.consumer_key || !twitterConfig.consumer_sec
     });
 }
 
-const postmarkKey = (functions.config().postmark || {}).key;
-if (!postmarkKey) console.warn("No postmark key provided. See README.md on how to set it up.")
+let mailTransport = null;
 
-const mailTransport = nodemailer.createTransport(postmarkTransport({
-    auth: {
-        apiKey: postmarkKey
-    }
-}));
+const postmarkKey = (functions.config().postmark || {}).key;
+if (postmarkKey) {
+    mailTransport = nodemailer.createTransport(postmarkTransport({
+        auth: {
+            apiKey: postmarkKey
+        }
+    }));
+} else {
+    console.warn("No postmark key provided. See README.md on how to set it up.")
+}
 
 const adminEmail = (functions.config().email || {}).to;
 if (!adminEmail) console.warn("No admin email provided. See README.md on how to set it up.");
@@ -45,7 +49,7 @@ if (!adminEmail) console.warn("No admin email provided. See README.md on how to 
 const fromEmail = (functions.config().email || {}).from;
 if (!fromEmail) console.warn("No from email provided. See README.md on how to set it up.");
 
-const domain = (functions.config().site || {}).domain || "thecompendium.cards";
+const domain = (functions.config().site || {})  .domain || "thecompendium.cards";
 
 const sendTweet = async (message) => {
     if (!twitterClient) {
@@ -63,6 +67,11 @@ const sendEmail = (subject, message) => {
         subject: subject,
         html: message
     };
+
+    if (!mailTransport) {
+        console.warn("Mail transport not set up due to missing config. Would have sent: ", mailOptions);
+        return new Promise().resolve();
+    }
 
     return mailTransport.sendMail(mailOptions)
         .then(() => console.log('Sent email with message ' + subject))
