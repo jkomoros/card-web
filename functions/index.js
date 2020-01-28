@@ -10,6 +10,9 @@ admin.initializeApp();
 
 const db = admin.firestore();
 
+//DEV_MODE is true if the project name contains 'dev-' or '-dev'
+const DEV_MODE = process.env.GCLOUD_PROJECT.toLowerCase().includes('dev-') || process.env.GCLOUD_PROJECT.toLowerCase().includes('-dev');
+
 //TODO: include the same file as we do for the client for the canonical names of
 //collections.
 
@@ -53,10 +56,16 @@ if (!fromEmail) console.warn("No from email provided. See README.md on how to se
 
 const domain = (functions.config().site || {})  .domain || "thecompendium.cards";
 
+//sendTweet sends the tweet and returns a tweet ID if the database shoould be
+//marked that a tweet was sent.
 const sendTweet = async (message) => {
+    if (DEV_MODE) {
+        console.log("Tweet that would have been sent if this weren't a dev project: " + message);
+        return "FAKE_TWEET_ID_" + Math.flooor(Math.random() * 10000000);
+    }
     if (!twitterClient) {
         console.log("Twitter client not set up. Tweet that would have been sent: " + message);
-        return "FAKE_TWEET_ID_" + Math.flooor(Math.random() * 10000000);
+        return "";
     }
     let tweet = await twitterClient.post('statuses/update', {status: message});
     return tweet.id_str;
@@ -126,6 +135,10 @@ const prettyCardURL = (card) => {
 }
 
 const markCardTweeted = async (card, tweetID) => {
+
+    //If the tweetID doesn't exist then a tweet didn't go out (or we shouldn't
+    //even bother pretending one did).
+    if (!tweetID) return;
 
     const cardRef = admin.firestore().collection('cards').doc(card.id);
     const cardTweetRef = cardRef.collection('tweets').doc(String(Date.now()));
