@@ -1,6 +1,3 @@
-//NOTE: this file is duplicated (modulo npm/ES6 module syntax for exports) in
-///src/reducers/tweet-helpers.js. See #134 for de-duping
-
 //This file is popped out separately so it can be linked into the webapp as well
 //in reducers/collection.js
 
