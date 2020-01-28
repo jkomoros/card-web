@@ -168,6 +168,11 @@ const tweetCard = async () => {
     await markCardTweeted(card, tweetID);
 }
 
+//Run every day at 8:07AM PST
+exports.autoTweetDaily = functions.pubsub.schedule('7 8 * * *').timeZone('America/Los_Angeles').onRun(context => {
+    return tweetCard();
+});
+
 exports.emailAdminOnStar = functions.firestore.
     document('stars/{starId}').
     onCreate(async (snapshot, context) => {
