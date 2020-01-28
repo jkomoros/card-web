@@ -18,6 +18,11 @@ const DEV_MODE = process.env.GCLOUD_PROJECT.toLowerCase().includes('dev-') || pr
 //TODO: include the same file as we do for the client for the canonical names of
 //collections.
 
+//This number will be stored in tweetInfos, allowing us in the future to easily
+//check the history of tweets for example if we change the message style we
+//post.
+const AUTO_TWEET_VERSION = 1.0;
+
 let twitterClient = null;
 
 const tweetSorter = require('./tweet-helpers.js');
@@ -63,14 +68,30 @@ const domain = (functions.config().site || {})  .domain || "thecompendium.cards"
 const sendTweet = async (message) => {
     if (DEV_MODE) {
         console.log("Tweet that would have been sent if this weren't a dev project: " + message);
-        return "FAKE_TWEET_ID_" + Math.floor(Math.random() * 10000000);
+        return {
+           'id': "FAKE_TWEET_ID_" + Math.floor(Math.random() * 10000000),
+           'user_screen_name': 'FAUXTWEETUSER',
+           'user_id': 'FAUXTWEETUSERID',
+           'truncated': false,
+           'supplied_text': message,
+           'posted_text': message,
+           'auto_tweet_version': AUTO_TWEET_VERSION,
+        };
     }
     if (!twitterClient) {
         console.log("Twitter client not set up. Tweet that would have been sent: " + message);
-        return "";
+        return null;
     }
     let tweet = await twitterClient.post('statuses/update', {status: message});
-    return tweet.id_str;
+    return {
+        'id': tweet.id_str,
+        'user_screen_name': tweet.user ? tweet.user.screen_name : '',
+        'user_id': tweet.user ? tweet.user.id_str : '',
+        'posted_text': tweet.text,
+        'supplied_text': message,
+        'truncated': tweet.truncated,
+        'auto_tweet_version': AUTO_TWEET_VERSION,
+    };
 }
 
 const sendEmail = (subject, message) => {
@@ -136,11 +157,11 @@ const prettyCardURL = (card) => {
     return 'https://' + domain + '/c/' + card.name;
 }
 
-const markCardTweeted = async (card, tweetID) => {
+const markCardTweeted = async (card, tweetInfo) => {
 
-    //If the tweetID doesn't exist then a tweet didn't go out (or we shouldn't
+    //If the tweetInfo doesn't exist then a tweet didn't go out (or we shouldn't
     //even bother pretending one did).
-    if (!tweetID) return;
+    if (!tweetInfo) return;
 
     const cardRef = admin.firestore().collection('cards').doc(card.id);
     const cardTweetRef = cardRef.collection('tweets').doc(String(Date.now()));
@@ -152,12 +173,12 @@ const markCardTweeted = async (card, tweetID) => {
         last_tweeted: admin.firestore.FieldValue.serverTimestamp(),
     })
 
-    batch.create(cardTweetRef, {
-        id: tweetID,
-        created: admin.firestore.FieldValue.serverTimestamp(),
-    })
+    let extendedTweetInfo = Object.assign({}, tweetInfo);
+    extendedTweetInfo.created = admin.firestore.FieldValue.serverTimestamp();
 
-    console.log("Card tweeted " + card.id + ' ' + tweetID);
+    batch.create(cardTweetRef, extendedTweetInfo);
+
+    console.log("Card tweeted " + card.id + ' ' + tweetInfo.id);
 
     await batch.commit();
 }
@@ -166,8 +187,8 @@ const tweetCard = async () => {
     const card = await selectCardToTweet();
     const url = prettyCardURL(card);
     const message = card.title + ' ' + url;
-    const tweetID = await sendTweet(message);
-    await markCardTweeted(card, tweetID);
+    const tweetInfo = await sendTweet(message);
+    await markCardTweeted(card, tweetInfo);
 }
 
 //Run every day at 8:07AM PST
