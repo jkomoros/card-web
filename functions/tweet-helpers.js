@@ -50,7 +50,7 @@ const sectionTwiddlerMap = (sections) => {
 
 };
 
-export const tweetOrderExtractor = (card, sections) => {
+exports.tweetOrderExtractor = (card, sections) => {
 	//Note: this logic is just manually equivalent to the logic that
 	//will be applied server-side, and is thus duplicated there.
 

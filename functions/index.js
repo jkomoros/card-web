@@ -15,6 +15,8 @@ const db = admin.firestore();
 
 let twitterClient = null;
 
+const tweetSorter = require('./tweet-helpers.js');
+
 //Fetch once to save typing but also to guard against the case where no twitter
 //configs are set, so this whole object will be undefined.
 const twitterConfig = functions.config().twitter;
@@ -104,7 +106,17 @@ const selectCardToTweet = async () => {
 
     let sectionsMap = Object.fromEntries(rawSections.docs.map(snapshot => [snapshot.id, snapshot.data()]));
     
-    //TODO: sort and pick the first one
+    let sortInfos = new Map(collection.map(card => [card.id, tweetSorter.tweetOrderExtractor(card, sectionsMap)]));
+    
+    let sorter = (left, right) => {
+        if(!left || !right) return 0;
+        //Info is the underlying sort value, then the label value.
+        const leftInfo = sortInfos.get(left.id);
+        const rightInfo = sortInfos.get(right.id);
+        if (!leftInfo || !rightInfo) return 0;
+        return rightInfo[0] - leftInfo[0];
+    };
+    cards.sort(sorter);
 
     return cards[0];
 }
