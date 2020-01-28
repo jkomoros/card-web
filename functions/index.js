@@ -5,6 +5,8 @@ const postmarkTransport = require('nodemailer-postmark-transport');
 
 const Twitter = require('twitter');
 
+const fromEntries = require('fromentries');
+
 const admin = require('firebase-admin');
 admin.initializeApp();
 
@@ -113,7 +115,7 @@ const selectCardToTweet = async () => {
         return result
     }).filter( card => card.name !== card.id);
 
-    let sectionsMap = Object.fromEntries(rawSections.docs.map(snapshot => [snapshot.id, snapshot.data()]));
+    let sectionsMap = fromEntries(rawSections.docs.map(snapshot => [snapshot.id, snapshot.data()]));
     
     let sortInfos = new Map(collection.map(card => [card.id, tweetSorter.tweetOrderExtractor(card, sectionsMap)]));
     
