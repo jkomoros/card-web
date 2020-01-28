@@ -30,7 +30,7 @@ if (!twitterConfig || !twitterConfig.consumer_key || !twitterConfig.consumer_sec
     });
 }
 
-const postmarkKey = functions.config().postmark.key;
+const postmarkKey = (functions.config().postmark || {}).key;
 if (!postmarkKey) console.warn("No postmark key provided. See README.md on how to set it up.")
 
 const mailTransport = nodemailer.createTransport(postmarkTransport({
@@ -39,13 +39,13 @@ const mailTransport = nodemailer.createTransport(postmarkTransport({
     }
 }));
 
-const adminEmail = functions.config().email.to;
+const adminEmail = (functions.config().email || {}).to;
 if (!adminEmail) console.warn("No admin email provided. See README.md on how to set it up.");
 
-const fromEmail = functions.config().email.from;
+const fromEmail = (functions.config().email || {}).from;
 if (!fromEmail) console.warn("No from email provided. See README.md on how to set it up.");
 
-const domain = functions.config().site.domain || "thecompendium.cards";
+const domain = (functions.config().site || {}).domain || "thecompendium.cards";
 
 const sendTweet = async (message) => {
     if (!twitterClient) {
