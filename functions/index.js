@@ -15,6 +15,11 @@ const db = admin.firestore();
 //DEV_MODE is true if the project name contains 'dev-' or '-dev'
 const DEV_MODE = process.env.GCLOUD_PROJECT.toLowerCase().includes('dev-') || process.env.GCLOUD_PROJECT.toLowerCase().includes('-dev');
 
+//In DEV_MODE generally we don't actually send a tweet. but sometimes you need
+//to test the actual tweet sending works, and in those cases you can flip this
+//on temporarily, but don't commit!
+const OVERRIDE_TWEET_IN_DEV_MODE = false;
+
 //TODO: include the same file as we do for the client for the canonical names of
 //collections.
 
@@ -66,7 +71,7 @@ const domain = (functions.config().site || {})  .domain || "thecompendium.cards"
 //sendTweet sends the tweet and returns a tweet ID if the database shoould be
 //marked that a tweet was sent.
 const sendTweet = async (message) => {
-    if (DEV_MODE) {
+    if (DEV_MODE && !OVERRIDE_TWEET_IN_DEV_MODE) {
         console.log("Tweet that would have been sent if this weren't a dev project: " + message);
         return {
            'id': "FAKE_TWEET_ID_" + Math.floor(Math.random() * 10000000),
