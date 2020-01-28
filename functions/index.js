@@ -154,7 +154,7 @@ const markCardTweeted = async (card, tweetID) => {
 
     batch.create(cardTweetRef, {
         id: tweetID,
-        created: admin.firestore.FieldValue.serverTimestamp,
+        created: admin.firestore.FieldValue.serverTimestamp(),
     })
 
     console.log("Card tweeted " + card.id + ' ' + tweetID);
