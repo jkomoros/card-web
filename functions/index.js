@@ -133,15 +133,22 @@ const selectCardToTweet = async () => {
     let rawCards = await admin.firestore().collection('cards').where('published', '==', true).where('card_type', '==', 'content').get();
     let rawSections = await admin.firestore().collection('sections').orderBy('order').get();
 
-    //Extract the full data for each card, stuff in the ID, and then remove
-    //cards who do not have a valid slug set.
-    let cards = rawCards.docs.map(snapshot => {
-        let result = snapshot.data();
-        result.id = snapshot.id;
-        return result
-    }).filter( card => card.name !== card.id);
-
     let sectionsMap = fromEntries(rawSections.docs.map(snapshot => [snapshot.id, snapshot.data()]));
+    let cardsMap = fromEntries(rawCards.docs.map(snapshot => [snapshot.id, Object.assign({id: snapshot.id}, snapshot.data())]));
+
+    //We want the order of cards to be the same as the default order in the
+    //client so we see the same thing there. The last reduce step is equivalent
+    //to flat(), but flat doesn't exist in node 8.
+    let cardIDsInOrder = Object.entries(sectionsMap).map(entry => entry[1].cards).reduce((accum, val) => accum.concat(val), []);
+
+    //Note: at this point cardIDsinOrder contains IDs for cards that aren't in
+    //cardsMap because they aren't published or aren't of type content, so
+    //werent' fetched.
+
+    //Extract the full data for each card, stuff in the ID, and then remove
+    //cards who do not have a valid slug set (and skip ones that were in the id
+    //list but weren't fetched)
+    let cards = cardIDsInOrder.map(id => cardsMap[id]).filter(card => card && card.name !== card.id);
     
     let sortInfos = new Map(cards.map(card => [card.id, tweetSorter.tweetOrderExtractor(card, sectionsMap)]));
     
