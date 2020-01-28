@@ -1,3 +1,6 @@
+//NOTE: this file is duplicated (modulo npm/ES6 module syntax for exports) in
+///functions/tweet-helpers.js. See #134 for de-duping
+
 //This file is popped out separately so it can be linked into the webapp as well
 //in reducers/collection.js
 
@@ -67,5 +70,5 @@ export const tweetOrderExtractor = (card, sections) => {
 	baseValue *= twiddlerMap.get(card.section) || 1.0;
 	//TODO: include a negative multiplier for how many times it's been tweeted already.
 	//TODO: includ a positive multiplier for how many times it's been starred.
-	return [baseValue, prettyTime(lastTweetedSeconds)];
+	return [baseValue, prettyTime(card.last_tweeted)];
 };
