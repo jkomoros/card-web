@@ -87,6 +87,8 @@ firebase functions:config:set twitter.access_token_secret="YOUR-SECRET-KEY"
 
 Note that you'll have to do this both the dev and prod servers, by using the different names of projects in the first line. 
 
+To send a tweet outside of the normal schedule, load up the Firebase functions console, tap the three dots next to the autoTweetDaily function, choose View in Cloud Scheduler, and hit 'Run Now'.
+
 ### Design
 
 The compendium-app reads from the URL and then calls navigate() based on it. Navigate figures out which view needs to be ensured it is loaded, and then sets state.app.page to that viewer, state.app.location to the entire location, and state.app.pageExtra to the stuff after the first part of page, so e.g. '/c/this-stuff-is/included-in-page-extra'.
