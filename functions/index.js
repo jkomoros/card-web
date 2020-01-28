@@ -94,16 +94,16 @@ const selectCardToTweet = async () => {
     let rawCards = await admin.firestore().collection('cards').where('published', '==', true).where('card_type', '==', 'content').get();
     let rawSections = await admin.firestore().collection('sections').orderBy('order').get();
 
+    //Extract the full data for each card, stuff in the ID, and then remove
+    //cards who do not have a valid slug set.
     let cards = rawCards.docs.map(snapshot => {
         let result = snapshot.data();
         result.id = snapshot.id;
         return result
-    });
+    }).filter( card => card.name !== card.id);
 
     let sectionsMap = Object.fromEntries(rawSections.docs.map(snapshot => [snapshot.id, snapshot.data()]));
     
-
-    //TODO: filter out ones where the name is the id
     //TODO: sort and pick the first one
 
     return cards[0];
