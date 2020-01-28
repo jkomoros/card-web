@@ -63,7 +63,7 @@ const domain = (functions.config().site || {})  .domain || "thecompendium.cards"
 const sendTweet = async (message) => {
     if (DEV_MODE) {
         console.log("Tweet that would have been sent if this weren't a dev project: " + message);
-        return "FAKE_TWEET_ID_" + Math.flooor(Math.random() * 10000000);
+        return "FAKE_TWEET_ID_" + Math.floor(Math.random() * 10000000);
     }
     if (!twitterClient) {
         console.log("Twitter client not set up. Tweet that would have been sent: " + message);
@@ -117,7 +117,7 @@ const selectCardToTweet = async () => {
 
     let sectionsMap = fromEntries(rawSections.docs.map(snapshot => [snapshot.id, snapshot.data()]));
     
-    let sortInfos = new Map(collection.map(card => [card.id, tweetSorter.tweetOrderExtractor(card, sectionsMap)]));
+    let sortInfos = new Map(cards.map(card => [card.id, tweetSorter.tweetOrderExtractor(card, sectionsMap)]));
     
     let sorter = (left, right) => {
         if(!left || !right) return 0;
