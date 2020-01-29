@@ -12,14 +12,6 @@ let cachedSectionTwiddlerMap = null;
 
 const SECTION_TWIDDLE_AMOUNT = 0.15;
 
-//date may be a firestore timestamp or a date object.
-const prettyTime = (date) => {
-	//Recreated from util.js so this file doesn't have any imports
-	if (!date) return '';
-	if (typeof date.toDate === 'function') date = date.toDate();
-	return date.toDateString();
-};
-
 //sectionTwiddler map returns a map of section names to amount to twiddle those
 //values up for earlier sections. It's memoized so if sections doesn't change it
 //returns the same thing--and generally it should only have to be generated
@@ -70,5 +62,5 @@ exports.tweetOrderExtractor = (card, sections) => {
 	baseValue *= twiddlerMap.get(card.section) || 1.0;
 	//TODO: include a negative multiplier for how many times it's been tweeted already.
 	//TODO: includ a positive multiplier for how many times it's been starred.
-	return [baseValue, prettyTime(card.last_tweeted)];
+	return [baseValue, baseValue];
 };
