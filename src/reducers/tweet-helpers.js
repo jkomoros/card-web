@@ -60,7 +60,19 @@ export const tweetOrderExtractor = (card, sections) => {
 	let baseValue = updatedSeconds - lastTweetedSeconds;
 	//Twiddle by section
 	baseValue *= twiddlerMap.get(card.section) || 1.0;
-	//TODO: include a negative multiplier for how many times it's been tweeted already.
+	if (card.tweet_count > 0) {
+		//Down-twiddle cards that have already been tweeted multiple times, with
+		//a logrithmic folloff
+		const tweetTwiddle = Math.log10(card.tweet_count) / 3;
+		//The larger tweetTwiddle, the smaller we want the thing to be. If it's
+		//positive already, that means we want less than 1.0. If it's negative,
+		//we want it to be MORE negative.
+		if (baseValue < 0) {
+			baseValue *= 1.0 + tweetTwiddle;
+		} else {
+			baseValue *= 1.0 - tweetTwiddle;
+		}
+	}
 	//TODO: includ a positive multiplier for how many times it's been starred.
 	return [baseValue, baseValue];
 };
