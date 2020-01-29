@@ -60,19 +60,20 @@ exports.tweetOrderExtractor = (card, sections) => {
 	let baseValue = updatedSeconds - lastTweetedSeconds;
 	//Twiddle by section
 	baseValue *= twiddlerMap.get(card.section) || 1.0;
-	if (card.tweet_count > 0) {
-		//Down-twiddle cards that have already been tweeted multiple times, with
-		//a logrithmic folloff
-		const tweetTwiddle = Math.log10(card.tweet_count) / 3;
-		//The larger tweetTwiddle, the smaller we want the thing to be. If it's
-		//positive already, that means we want less than 1.0. If it's negative,
-		//we want it to be MORE negative.
-		if (baseValue < 0) {
-			baseValue *= 1.0 + tweetTwiddle;
-		} else {
-			baseValue *= 1.0 - tweetTwiddle;
-		}
+
+	//Down-twiddle cards that have already been tweeted multiple times, with a
+	//logrithmic folloff. Adding 1 verifies that we never get Infinity from log
+	//of 0, and also that a single tweet has some effect.
+	const tweetTwiddle = Math.log10(card.tweet_count + 1) / 3;
+	//The larger tweetTwiddle, the smaller we want the thing to be. If it's
+	//positive already, that means we want less than 1.0. If it's negative,
+	//we want it to be MORE negative.
+	if (baseValue < 0) {
+		baseValue *= 1.0 + tweetTwiddle;
+	} else {
+		baseValue *= 1.0 - tweetTwiddle;
 	}
+
 	//TODO: includ a positive multiplier for how many times it's been starred.
 	return [baseValue, baseValue];
 };
