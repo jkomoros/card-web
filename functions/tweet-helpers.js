@@ -74,6 +74,14 @@ exports.tweetOrderExtractor = (card, sections) => {
 		baseValue *= 1.0 - tweetTwiddle;
 	}
 
-	//TODO: includ a positive multiplier for how many times it's been starred.
+	//Twiddle cards up that have stars. Doing star_count + 1 avoids Infinity for
+	//a star_count of 0, and also starts giving a boost for the first star.
+	const starTwiddle = Math.log10(card.star_count + 1) / 2;
+	if (baseValue < 0) {
+		baseValue *= 1.0 - starTwiddle;
+	} else {
+		baseValue *= 1.0 + starTwiddle;
+	}
+
 	return [baseValue, baseValue];
 };
