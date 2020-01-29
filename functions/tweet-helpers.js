@@ -10,7 +10,7 @@ let cachedSectionTwidderMapForSections = null;
 //The cached map to pass back out if cachedSectionTwidderMapForSections is the same as last time.
 let cachedSectionTwiddlerMap = null;
 
-const SECTION_TWIDDLE_AMOUNT = 0.15;
+const SECTION_TWIDDLE_AMOUNT = 0.20;
 
 //sectionTwiddler map returns a map of section names to amount to twiddle those
 //values up for earlier sections. It's memoized so if sections doesn't change it
