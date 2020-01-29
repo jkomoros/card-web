@@ -49,7 +49,7 @@ export const tweetOrderExtractor = (card, sections) => {
 	//Rate the cards that shouldn't actually be shown (that should be
 	//filtered out) very low just to ensure they don't get tweeted.
 	if (!card.published || !card.slugs || card.slugs.length === 0 || card.card_type !== 'content') {
-		return [0, 'Not to be tweeted'];
+		return [Number.MIN_SAFE_INTEGER, 'Not to be tweeted'];
 	}
 
 	const twiddlerMap = sectionTwiddlerMap(sections);
