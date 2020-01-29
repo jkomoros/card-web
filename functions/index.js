@@ -166,7 +166,29 @@ const selectCardToTweet = async () => {
     //11 (https://github.com/nodejs/node/pull/22754#issuecomment-419551068 ).
     const sortedCards = stable(cards, sorter);
 
-    return sortedCards[0];
+    return selectCardToTweetFromSortedList(sortedCards, sortInfos);
+}
+
+//cards is a sorted list of expanded cards. sortInfos is a Map of card.id =>
+//[sort-value, sort-value]
+const selectCardToTweetFromSortedList = (cards, sortInfos) => {
+    if (!cards || cards.length === 0) return null;
+
+    //Collect all of the cards at the front that are the same sort value, so
+    //equivalent.
+    let firstEquivalenceClass = [];
+    let equivalentClassSortValue = sortInfos.get(cards[0].id)[0];
+    for (let i = 0; i < cards.length; i++) {
+        const card = cards[i];
+        if (sortInfos.get(card.id)[0] !== equivalentClassSortValue) {
+            break;
+        }
+        firstEquivalenceClass.push(card);
+    }
+
+    //Pick a random card from the equivalence list, so the tweet order has a bit
+    //of spice and isn't just "tweet things in order".
+    return firstEquivalenceClass[Math.floor(Math.random()*firstEquivalenceClass.length)];
 }
 
 const prettyCardURL = (card) => {
