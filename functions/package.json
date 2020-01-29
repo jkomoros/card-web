@@ -18,6 +18,7 @@
     "fromentries": "^1.2.0",
     "nodemailer": "^6.3.0",
     "nodemailer-postmark-transport": "^2.2.0",
+    "stable": "^0.1.8",
     "twitter": "^1.7.1"
   },
   "devDependencies": {

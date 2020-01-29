@@ -4,6 +4,7 @@ const nodemailer = require('nodemailer');
 const postmarkTransport = require('nodemailer-postmark-transport');
 
 const Twitter = require('twitter');
+const stable = require('stable');
 
 const fromEntries = require('fromentries');
 
@@ -160,9 +161,12 @@ const selectCardToTweet = async () => {
         if (!leftInfo || !rightInfo) return 0;
         return rightInfo[0] - leftInfo[0];
     };
-    cards.sort(sorter);
+    //array.sort is not stable in Node 8. All browsers in 2019 now have a stable
+    //sort (https://v8.dev/features/stable-sort), but Node doesn't until version
+    //11 (https://github.com/nodejs/node/pull/22754#issuecomment-419551068 ).
+    const sortedCards = stable(cards, sorter);
 
-    return cards[0];
+    return sortedCards[0];
 }
 
 const prettyCardURL = (card) => {
