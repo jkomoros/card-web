@@ -1,3 +1,23 @@
 {
-  "indexes": []
+  "indexes": [
+    {
+      "collectionGroup": "tweets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "archived",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fake",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "engagement_last_fetched",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
 }

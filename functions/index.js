@@ -29,6 +29,10 @@ const OVERRIDE_TWEET_IN_DEV_MODE = false;
 //post.
 const AUTO_TWEET_VERSION = 1.0;
 
+//This is the max number of tweets to fetch engagement for, and should be set to
+//at or below the limit in the twitter API.
+const MAX_TWEETS_TO_FETCH = 100;
+
 let twitterClient = null;
 
 const tweetSorter = require('./tweet-helpers.js');
@@ -232,6 +236,17 @@ const markCardTweeted = async (card, tweetInfo) => {
 
     await batch.commit();
 }
+
+const fetchTweetEngagement = async() => {
+    const tweets = await admin.firestore().collection('tweets').where('fake', '==', false).where('archived', '==', false).orderBy('engagement_last_fetched', 'asc').limit(MAX_TWEETS_TO_FETCH).get();
+    //TODO: actually hit the twitter API
+    console.log('Tweet ids that would be fetched: ', tweets.docs.map(doc => doc.id));
+}
+
+//Runs every three hours
+exports.fetchTweetEngagement = functions.pubsub.schedule('0 */3 * * *').timeZone('America/Los_Angeles').onRun(context => {
+    return fetchTweetEngagement();
+});
 
 const tweetCard = async () => {
     const card = await selectCardToTweet();
