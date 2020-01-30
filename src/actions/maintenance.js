@@ -6,7 +6,8 @@ import {
 	SECTION_UPDATES_COLLECTION,
 	CARD_UPDATES_COLLECTION,
 	MESSAGES_COLLECTION,
-	MAINTENANCE_COLLECTION
+	MAINTENANCE_COLLECTION,
+	TWEETS_COLLECTION,
 } from './database.js';
 
 import {
@@ -466,6 +467,23 @@ export const addTweetValues = async() => {
 
 };
 
+const RESET_TWEETS = 'reset-tweets';
+
+export const resetTweets = async() => {
+	//Mark all tweets as having not been run
+	if (!confirm('Are you SURE you want to reset all tweets?')) return;
+	let batch = db.batch();
+	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	snapshot.forEach(doc => {
+		batch.update(doc.ref, {'tweet_count': 0, 'last_tweeted': new Date(0)});
+	});
+	let tweetSnapshot = await db.collection(TWEETS_COLLECTION).get();
+	tweetSnapshot.forEach(doc => {
+		batch.update(doc.ref, {'archived': true, 'archive_date': firebase.firestore.FieldValue.serverTimestamp()});
+	});
+	await batch.commit();
+	console.log('done!');
+};
 
 export const doImport = () => {
 
@@ -579,4 +597,5 @@ export const tasks = {
 	[CONVERT_EXISTING_NOTES_TO_TODO]: convertExistingNotesToTodo,
 	[ADD_AUTO_TODO_OVERRIDES]: addAutoTodoOverrides,
 	[ADD_TWEET_VALUES]: addTweetValues,
+	[RESET_TWEETS]: resetTweets,
 };

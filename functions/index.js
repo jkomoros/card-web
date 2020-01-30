@@ -214,6 +214,8 @@ const markCardTweeted = async (card, tweetInfo) => {
     let extendedTweetInfo = Object.assign({}, tweetInfo);
     extendedTweetInfo.created = admin.firestore.FieldValue.serverTimestamp();
     extendedTweetInfo.card = card.id;
+    extendedTweetInfo.archived = false;
+    extendedTweetInfo.archive_date = new Date(0);
 
     batch.create(tweetRef, extendedTweetInfo);
 
