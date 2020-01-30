@@ -238,9 +238,23 @@ const markCardTweeted = async (card, tweetInfo) => {
 }
 
 const fetchTweetEngagement = async() => {
+
+    if (!twitterClient) {
+        console.warn("Twitter client not configured, so cant' fetch tweets");
+        return;
+    }
+
     const tweets = await admin.firestore().collection('tweets').where('fake', '==', false).where('archived', '==', false).orderBy('engagement_last_fetched', 'asc').limit(MAX_TWEETS_TO_FETCH).get();
-    //TODO: actually hit the twitter API
-    console.log('Tweet ids that would be fetched: ', tweets.docs.map(doc => doc.id));
+    const tweetIDs = tweets.docs.map(doc => doc.id);
+    if (tweetIDs.length === 0) {
+        console.log("No tweets to fetch");
+        return;
+    }
+
+    let tweetInfos = await twitterClient.get('statuses/lookup', {id: tweetIDs.join(',')});
+    console.log("Tweet infos: ", tweetInfos);
+    //TODO: actually update the db with this info
+
 }
 
 //Runs every three hours
