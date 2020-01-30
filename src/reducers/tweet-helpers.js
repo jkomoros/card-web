@@ -83,5 +83,20 @@ export const tweetOrderExtractor = (card, sections) => {
 		baseValue *= 1.0 + starTwiddle;
 	}
 
+	//Twiddle up cards that were very, very recently updated, with a very strong
+	//effect that falls off rapidly.
+	const secondsInDay = 60 * 60 * 24;
+	//Date.now() is in millis, updatedSeconds is in seconds;
+	const secondsSinceUpdated = (Date.now() / 1000) - updatedSeconds;
+	const daysSinceUpdated = secondsSinceUpdated / secondsInDay;
+	//We want it to start at a 2x multiplier but go way down quickly as the
+	//number of days that have passed get large.
+	const veryRecentTwiddle = 2 / Math.pow(daysSinceUpdated, 1.4);
+	if (baseValue < 0) {
+		baseValue *= 1.0 - veryRecentTwiddle;
+	} else {
+		baseValue *= 1.0 + veryRecentTwiddle;
+	}
+
 	return [baseValue, baseValue];
 };
