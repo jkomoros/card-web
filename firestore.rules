@@ -112,6 +112,10 @@ service cloud.firestore {
       allow read: if updateIsOwner();
     }
 
+    match /tweets/{tweet} {
+      allow read: if true;
+    }
+
     match /reading_lists/{list_id} {
       allow create: if createIsOwner();
       allow update: if updateIsOwner();
