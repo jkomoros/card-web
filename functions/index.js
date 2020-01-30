@@ -216,6 +216,13 @@ const markCardTweeted = async (card, tweetInfo) => {
     extendedTweetInfo.card = card.id;
     extendedTweetInfo.archived = false;
     extendedTweetInfo.archive_date = new Date(0);
+    extendedTweetInfo.retweet_count = 0;
+    extendedTweetInfo.favorite_count = 0;
+    //Last time we fetched and updated the retweet and favorite counts
+    extendedTweetInfo.engagement_last_fetched = new Date(0);
+    //Last time the retweet or favorite counts CHANGED from what we already had
+    //stored.
+    extendedTweetInfo.engagement_last_changed = new Date(0);
 
     batch.create(tweetRef, extendedTweetInfo);
 

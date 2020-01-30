@@ -530,7 +530,15 @@ const defaultCardObject = (id, user, section, cardType) => {
 		author: user.uid,
 		updated_substantive: firebase.firestore.FieldValue.serverTimestamp(),
 		updated_message: firebase.firestore.FieldValue.serverTimestamp(),
+		//star_count is sum of star_count_manual, tweet_favorite_count, tweet_retweet_count.
 		star_count: 0,
+		//star_count_manual is the count of stars in the stars collection (as
+		//opposed to faux stars that are tweet enagement actions)
+		star_count_manual: 0,
+		//The sum of favorite counts for all tweets for this card
+		tweet_favorite_count: 0,
+		//The sum of retweet counts for all tweets for this card
+		tweet_retweet_count: 0,
 		thread_count: 0,
 		thread_resolved_count: 0,
 		title: '',

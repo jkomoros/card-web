@@ -485,6 +485,40 @@ export const resetTweets = async() => {
 	console.log('done!');
 };
 
+const ADD_TWEET_ENGAGEMENT = 'add-tweet-engagement';
+
+export const addTweetEngagement = async() => {
+	await checkMaintenanceTaskHasBeenRun(ADD_TWEET_ENGAGEMENT);
+
+	let batch = db.batch();
+
+	let snapshot = await db.collection(CARDS_COLLECTION).get();
+
+	snapshot.forEach(doc => {
+		batch.update(doc.ref, {
+			star_count_manual: doc.data().star_count,
+			tweet_favorite_count: 0,
+			tweet_retweet_count: 0,
+		});
+	});
+
+	let tweetSnapshot = await db.collection(TWEETS_COLLECTION).get();
+
+	tweetSnapshot.forEach(doc => {
+		batch.update(doc.ref, {
+			retweet_count: 0,
+			favorite_count: 0,
+			engagement_last_fetched: new Date(0),
+			engagement_last_changed: new Date(0),
+		});
+	});
+
+	await batch.commit();
+
+	await maintenanceTaskRun(ADD_TWEET_ENGAGEMENT);
+	console.log('done!');
+};
+
 export const doImport = () => {
 
 	fetch('/src/data/cards.json').then(resp => {
@@ -598,4 +632,5 @@ export const tasks = {
 	[ADD_AUTO_TODO_OVERRIDES]: addAutoTodoOverrides,
 	[ADD_TWEET_VALUES]: addTweetValues,
 	[RESET_TWEETS]: resetTweets,
+	[ADD_TWEET_ENGAGEMENT]: addTweetEngagement,
 };

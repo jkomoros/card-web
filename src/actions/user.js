@@ -426,7 +426,10 @@ export const addStar = (cardToStar) => (dispatch, getState) => {
 	let starRef = db.collection(STARS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToStar.id));
 
 	let batch = db.batch();
-	batch.update(cardRef, {star_count: firebase.firestore.FieldValue.increment(1)});
+	batch.update(cardRef, {
+		star_count: firebase.firestore.FieldValue.increment(1),
+		star_count_manual: firebase.firestore.FieldValue.increment(1),
+	});
 	batch.set(starRef, {
 		created: firebase.firestore.FieldValue.serverTimestamp(), 
 		owner: uid, 
@@ -459,7 +462,10 @@ export const removeStar = (cardToStar) => (dispatch, getState) => {
 	let starRef = db.collection(STARS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToStar.id));
 
 	let batch = db.batch();
-	batch.update(cardRef, {star_count: firebase.firestore.FieldValue.increment(-1)});
+	batch.update(cardRef, {
+		star_count: firebase.firestore.FieldValue.increment(-1),
+		star_count_manual: firebase.firestore.FieldValue.increment(-1),
+	});
 	batch.delete(starRef);
 	batch.commit();
 
