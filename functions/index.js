@@ -82,6 +82,7 @@ const sendTweet = async (message) => {
            'supplied_text': message,
            'posted_text': message,
            'auto_tweet_version': AUTO_TWEET_VERSION,
+           'fake': true,
         };
     }
     if (!twitterClient) {
@@ -97,6 +98,7 @@ const sendTweet = async (message) => {
         'supplied_text': message,
         'truncated': tweet.truncated,
         'auto_tweet_version': AUTO_TWEET_VERSION,
+        'fake': false,
     };
 }
 

@@ -519,6 +519,27 @@ export const addTweetEngagement = async() => {
 	console.log('done!');
 };
 
+const ADD_TWEET_FAKE = 'add-tweet-fake';
+
+export const addTweetFake = async() => {
+	await checkMaintenanceTaskHasBeenRun(ADD_TWEET_FAKE);
+
+	let batch = db.batch();
+
+	let tweetSnapshot = await db.collection(TWEETS_COLLECTION).get();
+
+	tweetSnapshot.forEach(doc => {
+		batch.update(doc.ref, {
+			fake: doc.data().id.includes('FAKE'),
+		});
+	});
+
+	await batch.commit();
+
+	await maintenanceTaskRun(ADD_TWEET_FAKE);
+	console.log('done!');
+};
+
 export const doImport = () => {
 
 	fetch('/src/data/cards.json').then(resp => {
@@ -633,4 +654,5 @@ export const tasks = {
 	[ADD_TWEET_VALUES]: addTweetValues,
 	[RESET_TWEETS]: resetTweets,
 	[ADD_TWEET_ENGAGEMENT]: addTweetEngagement,
+	[ADD_TWEET_FAKE]: addTweetFake,
 };
