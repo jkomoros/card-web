@@ -425,15 +425,14 @@ export const addStar = (cardToStar) => (dispatch, getState) => {
 	let cardRef = db.collection(CARDS_COLLECTION).doc(cardToStar.id);
 	let starRef = db.collection(STARS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToStar.id));
 
-	db.runTransaction(async transaction => {
-		let cardDoc = await transaction.get(cardRef);
-		if (!cardDoc.exists) {
-			throw 'Doc doesn\'t exist!';
-		}
-		let newStarCount = (cardDoc.data().star_count || 0) + 1;
-		transaction.update(cardRef, {star_count: newStarCount});
-		transaction.set(starRef, {created: firebase.firestore.FieldValue.serverTimestamp(), owner: uid, card:cardToStar.id});
+	let batch = db.batch();
+	batch.update(cardRef, {star_count: firebase.firestore.FieldValue.increment(1)});
+	batch.set(starRef, {
+		created: firebase.firestore.FieldValue.serverTimestamp(), 
+		owner: uid, 
+		card:cardToStar.id
 	});
+	batch.commit();
 };
 
 export const removeStar = (cardToStar) => (dispatch, getState) => {
@@ -459,20 +458,10 @@ export const removeStar = (cardToStar) => (dispatch, getState) => {
 	let cardRef = db.collection(CARDS_COLLECTION).doc(cardToStar.id);
 	let starRef = db.collection(STARS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToStar.id));
 
-	db.runTransaction(async transaction => {
-		let cardDoc = await transaction.get(cardRef);
-		if (!cardDoc.exists) {
-			throw 'Doc doesn\'t exist!';
-		}
-		let starDoc = await(transaction.get(starRef));
-		if (!starDoc.exists) {
-			throw 'Star doesn\'t exist!';
-		}
-		let newStarCount = (cardDoc.data().star_count || 0) - 1;
-		if (newStarCount < 0) newStarCount = 0;
-		transaction.update(cardRef, {star_count: newStarCount});
-		transaction.delete(starRef);
-	});
+	let batch = db.batch();
+	batch.update(cardRef, {star_count: firebase.firestore.FieldValue.increment(-1)});
+	batch.delete(starRef);
+	batch.commit();
 
 };
 
