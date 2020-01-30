@@ -202,7 +202,7 @@ const markCardTweeted = async (card, tweetInfo) => {
     if (!tweetInfo) return;
 
     const cardRef = admin.firestore().collection('cards').doc(card.id);
-    const cardTweetRef = cardRef.collection('tweets').doc(String(Date.now()));
+    const tweetRef = admin.firestore().collection('tweets').doc(tweetInfo.id);
 
     let batch = admin.firestore().batch();
 
@@ -213,8 +213,9 @@ const markCardTweeted = async (card, tweetInfo) => {
 
     let extendedTweetInfo = Object.assign({}, tweetInfo);
     extendedTweetInfo.created = admin.firestore.FieldValue.serverTimestamp();
+    extendedTweetInfo.card = card.id;
 
-    batch.create(cardTweetRef, extendedTweetInfo);
+    batch.create(tweetRef, extendedTweetInfo);
 
     console.log("Card tweeted " + card.id + ' ' + tweetInfo.id);
 
