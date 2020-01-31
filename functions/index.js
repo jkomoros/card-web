@@ -251,15 +251,43 @@ const fetchTweetEngagement = async() => {
         return;
     }
 
-    let tweetInfos = await twitterClient.get('statuses/lookup', {id: tweetIDs.join(',')});
+    //map means "for tweets that are deleted or invisible, return null in that spot instead of skipping"
+    let tweetInfos = await twitterClient.get('statuses/lookup', {map: true, id: tweetIDs.join(',')});
+
+    //Because map = true, the shape of tweetInfos, instead of being an array of
+    //infos, is a map with a single key of 'id', which itself a map of id_str to
+    //tweetInfoOrNull.
+    if (!tweetInfos.id) {
+        console.warn('We expected the tweetInfos API result to be a map with a key of "id" but it wasn\'t');
+        return;
+    }
+
+    tweetInfos = tweetInfos.id;
+    //tweetInfos is now a map of id_str to tweetInfoOrNull
+
     let transactionPromises = [];
 
+    for (let entry of Object.entries(tweetInfos)) {
+        const tweetInfo = entry[1];
+        const tweetID = entry[0];
+        const tweetRef = admin.firestore().collection('tweets').doc(tweetID);
 
-    for (let tweetInfo of tweetInfos) {
+        //Note: because we sent map:true to the twitter API, tweets that no
+        //longer exist will be null tweetInfo. If that happens, archive them so
+        //we don't continue trying to fetch them in the future.
+        if (!tweetInfo) {
+            console.log('Tweet ' + tweetID + ' appeared to have been deleted, marking as archived');
+            transactionPromises.push(tweetRef.update({
+                archived: true,
+                archive_date: admin.firestore.FieldValue.serverTimestamp(),
+                engagement_last_fetched: admin.firestore.FieldValue.serverTimestamp(),
+            }));
+            continue;
+        }
+
         const retweet_count = tweetInfo.retweet_count;
         const favorite_count = tweetInfo.favorite_count;
-        const tweetID = tweetInfo.id_str;
-        const tweetRef = admin.firestore().collection('tweets').doc(tweetID);
+
         let transactionPromise = admin.firestore().runTransaction(async transaction => {
             let tweetDoc = await transaction.get(tweetRef);
             if (!tweetDoc.exists) {
