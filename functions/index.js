@@ -252,8 +252,63 @@ const fetchTweetEngagement = async() => {
     }
 
     let tweetInfos = await twitterClient.get('statuses/lookup', {id: tweetIDs.join(',')});
-    console.log("Tweet infos: ", tweetInfos);
-    //TODO: actually update the db with this info
+    let transactionPromises = [];
+
+
+    for (let tweetInfo of tweetInfos) {
+        const retweet_count = tweetInfo.retweet_count;
+        const favorite_count = tweetInfo.favorite_count;
+        const tweetID = tweetInfo.id_str;
+        const tweetRef = admin.firestore().collection('tweets').doc(tweetID);
+        let transactionPromise = admin.firestore().runTransaction(async transaction => {
+            let tweetDoc = await transaction.get(tweetRef);
+            if (!tweetDoc.exists) {
+                throw new Error('Tweet with id ' + tweetID + ' not found in tweets collection');
+            }
+
+            let tweetDocUpdate = {'engagement_last_fetched': admin.firestore.FieldValue.serverTimestamp()}
+
+            if (retweet_count !== tweetDoc.data().retweet_count || favorite_count !== tweetDoc.data().favorite_count) {
+
+                //Something has changed since we last fetched.
+                tweetDocUpdate.engagement_last_changed = admin.firestore.FieldValue.serverTimestamp();
+                tweetDocUpdate.retweet_count = retweet_count;
+                tweetDocUpdate.favorite_count = favorite_count;
+
+                const cardID = tweetDoc.data().card;
+                const cardRef = admin.firestore().collection('cards').doc(cardID);
+                let cardDoc = await transaction.get(cardRef);
+                if (!cardDoc.exists) {
+                    throw new Error('Card with ID ' + cardID + ' doesn\'t exist!');
+                }
+
+                let cardUpdateDoc = {};
+                let starCountDiff = 0;
+
+                if (retweet_count !== tweetDoc.data().retweet_count) {
+                    let retweetDiff = retweet_count - tweetDoc.data().retweet_count;
+                    starCountDiff += retweetDiff;
+                    cardUpdateDoc.tweet_retweet_count = admin.firestore.FieldValue.increment(retweetDiff);
+                }
+
+                if (favorite_count !== tweetDoc.data().favorite_count) {
+                    let favoriteDiff = favorite_count - tweetDoc.data().favorite_count;
+                    starCountDiff += favoriteDiff;
+                    cardUpdateDoc.tweet_favorite_count = admin.firestore.FieldValue.increment(favoriteDiff);
+                }
+
+                cardUpdateDoc.star_count = admin.firestore.FieldValue.increment(starCountDiff);
+
+                transaction.update(cardRef, cardUpdateDoc);
+            }
+
+            transaction.update(tweetRef, tweetDocUpdate);
+
+        });
+        transactionPromises.push(transactionPromise);
+    }
+
+    await Promise.all(transactionPromises);
 
 }
 
