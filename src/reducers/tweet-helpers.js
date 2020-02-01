@@ -11,7 +11,7 @@ let cachedSectionTwidderMapForSections = null;
 let cachedSectionTwiddlerMap = null;
 
 const SECTION_TWIDDLE_AMOUNT = 0.20;
-const UNPUBLISHED_LINKS_TWIDDLE_AMOUNT = 0.5;
+const UNPUBLISHED_LINKS_TWIDDLE_AMOUNT = 0.2;
 
 //sectionTwiddler map returns a map of section names to amount to twiddle those
 //values up for earlier sections. It's memoized so if sections doesn't change it
