@@ -55,10 +55,11 @@ const sectionNameForCard = (card, sections) => {
 //EAch sort is an extractor, a description (currently just useful for
 //documentation; not shown anywhere), and a labelName to show in the drawer next
 //to the label that extractor returns. The extractor is given the card object
-//and the sections info map, and returns an array, where the 0 index is the raw
-//value to compare for sorting, and the 1th value is the label to display. All
-//sorts are currently assumed to be DESCENDING; if there's a new one that isn't,
-//then add a property to config called ascending and toggle that.
+//and the sections info map, and a map of all cards, and returns an array, where
+//the 0 index is the raw value to compare for sorting, and the 1th value is the
+//label to display. All sorts are currently assumed to be DESCENDING; if there's
+//a new one that isn't, then add a property to config called ascending and
+//toggle that.
 export const SORTS = {
 	//Default sort is a no-op.
 	[DEFAULT_SORT_NAME]: {

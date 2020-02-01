@@ -11,6 +11,7 @@ let cachedSectionTwidderMapForSections = null;
 let cachedSectionTwiddlerMap = null;
 
 const SECTION_TWIDDLE_AMOUNT = 0.20;
+const UNPUBLISHED_LINKS_TWIDDLE_AMOUNT = 0.5;
 
 //sectionTwiddler map returns a map of section names to amount to twiddle those
 //values up for earlier sections. It's memoized so if sections doesn't change it
@@ -42,7 +43,7 @@ const sectionTwiddlerMap = (sections) => {
 
 };
 
-export const tweetOrderExtractor = (card, sections) => {
+export const tweetOrderExtractor = (card, sections, allCards) => {
 	//Note: this logic is just manually equivalent to the logic that
 	//will be applied server-side, and is thus duplicated there.
 
@@ -96,6 +97,20 @@ export const tweetOrderExtractor = (card, sections) => {
 		baseValue *= 1.0 - veryRecentTwiddle;
 	} else {
 		baseValue *= 1.0 + veryRecentTwiddle;
+	}
+
+	//Twiddler to penalize cards where more than 50% of outbound links are
+	//unpublished, since there aren't many threads for people to pull on to dig
+	//deeper.
+	const outboundCardsPublished = card.links.map(id => allCards[id] ? allCards[id].published : false);
+	const numOutboundLinksPublished = outboundCardsPublished.reduce((runningTotal, isPublished) => isPublished ? runningTotal + 1 : runningTotal, 0);
+	const penalizeForLinkingToUnpublishedCards = outboundCardsPublished.length === 0 || numOutboundLinksPublished / outboundCardsPublished.length < 0.5;
+	if (penalizeForLinkingToUnpublishedCards) {
+		if (baseValue < 0) {
+			baseValue *= 1.0 + UNPUBLISHED_LINKS_TWIDDLE_AMOUNT;
+		} else {
+			baseValue *= 1.0 - UNPUBLISHED_LINKS_TWIDDLE_AMOUNT;
+		}
 	}
 
 	return [baseValue, baseValue];

@@ -629,9 +629,10 @@ const selectExtractedSortInfoForCollection = createSelector(
 	selectExpandedActiveCollection,
 	selectActiveSort,
 	selectSections,
-	(collection, sortInfo, sections) => {
+	selectCards,
+	(collection, sortInfo, sections, allCards) => {
 		if (!sortInfo) return new Map();
-		let entries = collection.map(card => [card.id, sortInfo.extractor(card, sections)]);
+		let entries = collection.map(card => [card.id, sortInfo.extractor(card, sections, allCards)]);
 		return new Map(entries);
 	}
 );
