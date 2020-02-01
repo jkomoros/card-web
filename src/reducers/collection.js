@@ -150,6 +150,7 @@ const CARD_FILTER_CONFIGS = {
 	'inbound-links': [defaultCardFilterName('inbound-links'), card => card.links_inbound && card.links_inbound.length, true],
 	'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, true],
 	'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], card => card.published, true],
+	'tweet': [defaultCardFilterName('tweet'), card => card.tweet_count > 0, false],
 	//TODO_COMBINED_FILTERS looks for the fourth key in the filtername array, so
 	//we just duplicate the first two since they're the same (the reason they'd
 	//differ is if there's an override key and that could make the has- and
