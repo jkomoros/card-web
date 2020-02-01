@@ -353,10 +353,11 @@ const tweetCard = async () => {
     await markCardTweeted(card, tweetInfo);
 }
 
-//Run every day at 8:07AM PST NOTE: if you update this schedule in code,it
+//Run four times a day, at 8:07, 12:07, 17:07, and 20:07.
+//NOTE: if you update this schedule in code,it
 //likely won't update the cloud scheduler, you'll have to delete the cloud
 //function and redeploy, or manually change hte cloud schedule.
-exports.autoTweetDaily = functions.pubsub.schedule('7 8 * * *').timeZone('America/Los_Angeles').onRun(context => {
+exports.autoTweet = functions.pubsub.schedule('7 8,12,17,20 * * *').timeZone('America/Los_Angeles').onRun(context => {
     return tweetCard();
 });
 

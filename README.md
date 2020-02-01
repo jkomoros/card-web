@@ -92,7 +92,7 @@ to twitter.
 
 Note that you'll have to do this both the dev and prod servers, by using the different names of projects in the first line. 
 
-To send a tweet outside of the normal schedule, load up the Firebase functions console, tap the three dots next to the autoTweetDaily function, choose View in Cloud Scheduler, and hit 'Run Now'.
+To send a tweet outside of the normal schedule, load up the Firebase functions console, tap the three dots next to the autoTweet function, choose View in Cloud Scheduler, and hit 'Run Now'.
 
 ### Design
 
