@@ -62,6 +62,10 @@ export const tweetOrderExtractor = (card, sections, allCards) => {
 	//Twiddle by section
 	baseValue *= twiddlerMap.get(card.section) || 1.0;
 
+	//TODO: for all of these twiddles, shouldn't the ones for negative numbers
+	//be not 1-AMOUNT, but 1/AMOUNT (or something else with AMOUNT in the
+	//denominator?)
+
 	//Down-twiddle cards that have already been tweeted multiple times, with a
 	//logrithmic folloff. Adding 1 verifies that we never get Infinity from log
 	//of 0, and also that a single tweet has some effect.
