@@ -108,6 +108,18 @@ export const SORTS = {
 		description: 'In descending order by when each card was last updated or had a new message',
 		labelName: 'Last Activity',
 	},
+	'last-tweeted': {
+		extractor: (card) => {
+			return [card.last_tweeted.seconds, prettyTime(card.last_tweeted)];
+		},
+		description: 'In descending order of when they were last auto-tweeted',
+		labelName: 'Tweeted'
+	},
+	'tweet-count': {
+		extractor: (card) => [card.tweet_count, '' + card.tweet_count],
+		description: 'In descending order of how many times the card has been tweeted',
+		labelName: 'Tweet Count',
+	},
 	'tweet-order': {
 		extractor: tweetOrderExtractor,
 		description: 'In descending order of the ones that are most deserving of a tweet',
