@@ -157,7 +157,7 @@ const selectCardToTweet = async () => {
     //list but weren't fetched)
     let cards = cardIDsInOrder.map(id => cardsMap[id]).filter(card => card && card.name !== card.id);
     
-    let sortInfos = new Map(cards.map(card => [card.id, tweetSorter.tweetOrderExtractor(card, sectionsMap)]));
+    let sortInfos = new Map(cards.map(card => [card.id, tweetSorter.tweetOrderExtractor(card, sectionsMap, cardsMap)]));
     
     let sorter = (left, right) => {
         if(!left || !right) return 0;
