@@ -27,6 +27,7 @@ export class ContentCard extends BaseCard {
 		return {
 			title: { type: String },
 			body: { type: String },
+			editing: { type: Boolean },
 			id: {type: String},
 			fullBleed: {type: String},
 			bodyFromContentEditable: {type:Boolean},
@@ -101,7 +102,10 @@ export class ContentCard extends BaseCard {
 		if (this.bodyFromContentEditable && this._sectionElement) {
 			return this._sectionElement;
 		}
-		if (!body) {
+		//If we're editing, then just put in blank content so someone tapping on
+		//it immediately will be able to start writing content without selecting
+		//the content textfield.
+		if (!body && !this.editing) {
 			return this._emptyTemplate;
 		}
 		const section = document.createElement('section');

@@ -286,6 +286,8 @@ const cleanUpTopLevelHTML = (html, tag = 'p') => {
 
 export const normalizeBodyHTML = (html) => {
 
+	if (!html) return html;
+
 	//normalizeBodyHTML makes sure that the html is well formatted. It first
 	//does basic string processing to clean it up, and then does node
 	//modification. Thus, it assumes the HTML is always valid. This is true if
