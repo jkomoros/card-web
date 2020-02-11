@@ -126,6 +126,14 @@ export class ContentCard extends BaseCard {
 			//If we just started editing, focus the content editable immediately
 			if (this._sectionElement) {
 				this._sectionElement.focus();
+
+				//Move the selection to the end of the content editable.
+				let range = document.createRange();
+				range.selectNodeContents(this._sectionElement);
+				range.collapse(false);
+				let sel = window.getSelection();
+				sel.removeAllRanges();
+				sel.addRange(range);
 			}
 		}
 	}
