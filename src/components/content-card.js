@@ -120,6 +120,15 @@ export class ContentCard extends BaseCard {
 		if(this.fullBleed) section.className = 'full-bleed';
 		return section;
 	}
+
+	updated(changedProps) {
+		if (changedProps.has('editing') && this.editing) {
+			//If we just started editing, focus the content editable immediately
+			if (this._sectionElement) {
+				this._sectionElement.focus();
+			}
+		}
+	}
 }
 
 window.customElements.define('content-card', ContentCard);
