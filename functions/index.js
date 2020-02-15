@@ -11,6 +11,8 @@ const fromEntries = require('fromentries');
 const admin = require('firebase-admin');
 admin.initializeApp();
 
+//We use this so often we might as well make it more common
+const FieldValue = admin.firestore.FieldValue;
 const db = admin.firestore();
 
 //DEV_MODE is true if the project name contains 'dev-' or '-dev'
@@ -131,14 +133,14 @@ const getUserDisplayName = async (uid) => {
 
 const getCardName = async (cardId) => {
     //TODO: use the actual constants for cards collection (see #134)
-    let card = await admin.firestore().collection('cards').doc(cardId).get();
+    let card = await db.collection('cards').doc(cardId).get();
     return card.data().name || cardId;
 }
 
 const selectCardToTweet = async () => {
     //Tweet card selects a tweet to send and sends it.
-    let rawCards = await admin.firestore().collection('cards').where('published', '==', true).where('card_type', '==', 'content').get();
-    let rawSections = await admin.firestore().collection('sections').orderBy('order').get();
+    let rawCards = await db.collection('cards').where('published', '==', true).where('card_type', '==', 'content').get();
+    let rawSections = await db.collection('sections').orderBy('order').get();
 
     let sectionsMap = fromEntries(rawSections.docs.map(snapshot => [snapshot.id, snapshot.data()]));
     let cardsMap = fromEntries(rawCards.docs.map(snapshot => [snapshot.id, Object.assign({id: snapshot.id}, snapshot.data())]));
@@ -207,18 +209,18 @@ const markCardTweeted = async (card, tweetInfo) => {
     //even bother pretending one did).
     if (!tweetInfo) return;
 
-    const cardRef = admin.firestore().collection('cards').doc(card.id);
-    const tweetRef = admin.firestore().collection('tweets').doc(tweetInfo.id);
+    const cardRef = db.collection('cards').doc(card.id);
+    const tweetRef = db.collection('tweets').doc(tweetInfo.id);
 
-    let batch = admin.firestore().batch();
+    let batch = db.batch();
 
     batch.update(cardRef, {
-        tweet_count: admin.firestore.FieldValue.increment(1),
-        last_tweeted: admin.firestore.FieldValue.serverTimestamp(),
+        tweet_count: FieldValue.increment(1),
+        last_tweeted: FieldValue.serverTimestamp(),
     })
 
     let extendedTweetInfo = Object.assign({}, tweetInfo);
-    extendedTweetInfo.created = admin.firestore.FieldValue.serverTimestamp();
+    extendedTweetInfo.created = FieldValue.serverTimestamp();
     extendedTweetInfo.card = card.id;
     extendedTweetInfo.archived = false;
     extendedTweetInfo.archive_date = new Date(0);
@@ -244,7 +246,7 @@ const fetchTweetEngagement = async() => {
         return;
     }
 
-    const tweets = await admin.firestore().collection('tweets').where('fake', '==', false).where('archived', '==', false).orderBy('engagement_last_fetched', 'asc').limit(MAX_TWEETS_TO_FETCH).get();
+    const tweets = await db.collection('tweets').where('fake', '==', false).where('archived', '==', false).orderBy('engagement_last_fetched', 'asc').limit(MAX_TWEETS_TO_FETCH).get();
     const tweetIDs = tweets.docs.map(doc => doc.id);
     if (tweetIDs.length === 0) {
         console.log("No tweets to fetch");
@@ -270,7 +272,7 @@ const fetchTweetEngagement = async() => {
     for (let entry of Object.entries(tweetInfos)) {
         const tweetInfo = entry[1];
         const tweetID = entry[0];
-        const tweetRef = admin.firestore().collection('tweets').doc(tweetID);
+        const tweetRef = db.collection('tweets').doc(tweetID);
 
         //Note: because we sent map:true to the twitter API, tweets that no
         //longer exist will be null tweetInfo. If that happens, archive them so
@@ -279,8 +281,8 @@ const fetchTweetEngagement = async() => {
             console.log('Tweet ' + tweetID + ' appeared to have been deleted, marking as archived');
             transactionPromises.push(tweetRef.update({
                 archived: true,
-                archive_date: admin.firestore.FieldValue.serverTimestamp(),
-                engagement_last_fetched: admin.firestore.FieldValue.serverTimestamp(),
+                archive_date: FieldValue.serverTimestamp(),
+                engagement_last_fetched: FieldValue.serverTimestamp(),
             }));
             continue;
         }
@@ -288,23 +290,23 @@ const fetchTweetEngagement = async() => {
         const retweet_count = tweetInfo.retweet_count;
         const favorite_count = tweetInfo.favorite_count;
 
-        let transactionPromise = admin.firestore().runTransaction(async transaction => {
+        let transactionPromise = db.runTransaction(async transaction => {
             let tweetDoc = await transaction.get(tweetRef);
             if (!tweetDoc.exists) {
                 throw new Error('Tweet with id ' + tweetID + ' not found in tweets collection');
             }
 
-            let tweetDocUpdate = {'engagement_last_fetched': admin.firestore.FieldValue.serverTimestamp()}
+            let tweetDocUpdate = {'engagement_last_fetched': FieldValue.serverTimestamp()}
 
             if (retweet_count !== tweetDoc.data().retweet_count || favorite_count !== tweetDoc.data().favorite_count) {
 
                 //Something has changed since we last fetched.
-                tweetDocUpdate.engagement_last_changed = admin.firestore.FieldValue.serverTimestamp();
+                tweetDocUpdate.engagement_last_changed = FieldValue.serverTimestamp();
                 tweetDocUpdate.retweet_count = retweet_count;
                 tweetDocUpdate.favorite_count = favorite_count;
 
                 const cardID = tweetDoc.data().card;
-                const cardRef = admin.firestore().collection('cards').doc(cardID);
+                const cardRef = db.collection('cards').doc(cardID);
                 let cardDoc = await transaction.get(cardRef);
                 if (!cardDoc.exists) {
                     throw new Error('Card with ID ' + cardID + ' doesn\'t exist!');
@@ -316,16 +318,16 @@ const fetchTweetEngagement = async() => {
                 if (retweet_count !== tweetDoc.data().retweet_count) {
                     let retweetDiff = retweet_count - tweetDoc.data().retweet_count;
                     starCountDiff += retweetDiff;
-                    cardUpdateDoc.tweet_retweet_count = admin.firestore.FieldValue.increment(retweetDiff);
+                    cardUpdateDoc.tweet_retweet_count = FieldValue.increment(retweetDiff);
                 }
 
                 if (favorite_count !== tweetDoc.data().favorite_count) {
                     let favoriteDiff = favorite_count - tweetDoc.data().favorite_count;
                     starCountDiff += favoriteDiff;
-                    cardUpdateDoc.tweet_favorite_count = admin.firestore.FieldValue.increment(favoriteDiff);
+                    cardUpdateDoc.tweet_favorite_count = FieldValue.increment(favoriteDiff);
                 }
 
-                cardUpdateDoc.star_count = admin.firestore.FieldValue.increment(starCountDiff);
+                cardUpdateDoc.star_count = FieldValue.increment(starCountDiff);
 
                 transaction.update(cardRef, cardUpdateDoc);
             }
@@ -430,14 +432,14 @@ exports.updateInboundLinks = functions.firestore.
         for (let card of additions) {
             let ref = db.collection('cards').doc(card);
             batch.update(ref, {
-                links_inbound: admin.firestore.FieldValue.arrayUnion(cardId)
+                links_inbound: FieldValue.arrayUnion(cardId)
             });
         }
 
         for (let card of deletions) {
             let ref = db.collection('cards').doc(card);
             batch.update(ref, {
-                links_inbound: admin.firestore.FieldValue.arrayRemove(cardId)
+                links_inbound: FieldValue.arrayRemove(cardId)
             });
         }
 
