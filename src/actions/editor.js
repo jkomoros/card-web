@@ -250,7 +250,7 @@ const cleanUpTopLevelHTML = (html, tag = 'p') => {
 	section.innerHTML = html;
 	let children = section.childNodes;
 	for (let child of Object.values(children)) {
-		if (child.nodeType == 3) {
+		if (child.nodeType == Node.TEXT_NODE) {
 			if (isWhitespace(child.textContent)) {
 				//It's all text content, just get rid of it
 				child.parentNode.removeChild(child);
@@ -263,7 +263,7 @@ const cleanUpTopLevelHTML = (html, tag = 'p') => {
 			//Deliberately drop dwon into the next processing step.
 			child = ele;
 		}
-		if (child.nodeType == 1) {
+		if (child.nodeType == Node.ELEMENT_NODE) {
 			if (isWhitespace(child.innerText)) {
 				child.parentNode.removeChild(child);
 				continue;
