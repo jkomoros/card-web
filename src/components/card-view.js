@@ -195,7 +195,6 @@ class CardView extends connect(store)(PageViewElement) {
           opacity:1.0;
         }
 
-
         .presenting .actions > div {
           display:flex;
           flex-direction: column;
@@ -299,6 +298,17 @@ class CardView extends connect(store)(PageViewElement) {
         }
 
         @media (orientation:portrait) {
+
+		/* If we're in portrait mode there's more space for the actions along
+		the bottom rail, not the right rail */
+		.presenting .actions {
+			flex-direction:row;
+		}
+
+		.presenting .actions > div {
+          flex-direction: row;
+        }
+
 
           .mobile #portrait-message {
             position:absolute;
