@@ -6,6 +6,9 @@
   "plugins": [
     "promise"
   ],
+  "env": {
+    "node": true
+  },
   "extends": "eslint:recommended",
   "rules": {
     // Removed rule "disallow the use of console" from recommended eslint rules
@@ -18,13 +21,13 @@
     "no-debugger": "off",
 
     // Removed rule "disallow unused variables" from recommended eslint rules
-    "no-unused-vars": "off",
+    "no-unused-vars": "error",
 
     // Removed rule "disallow mixed spaces and tabs for indentation" from recommended eslint rules
     "no-mixed-spaces-and-tabs": "off",
 
     // Removed rule "disallow the use of undeclared variables unless mentioned in /*global */ comments" from recommended eslint rules
-    "no-undef": "off",
+    "no-undef": "error",
 
     // Warn against template literal placeholder syntax in regular strings
     "no-template-curly-in-string": 1,
