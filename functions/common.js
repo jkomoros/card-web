@@ -1,10 +1,13 @@
 const admin = require('firebase-admin');
 admin.initializeApp();
 
+const functions = require('firebase-functions');
+
 //We use this so often we might as well make it more common
 const FieldValue = admin.firestore.FieldValue;
 const db = admin.firestore();
 const auth = admin.auth();
+const config = functions.config();
 
 const getUserDisplayName = async (uid) => {
     let user = await auth.getUser(uid);
@@ -21,5 +24,6 @@ exports.admin = admin;
 exports.FieldValue = FieldValue;
 exports.db = db;
 exports.auth = auth;
+exports.config = config;
 exports.getUserDisplayName = getUserDisplayName;
 exports.getCardName = getCardName;

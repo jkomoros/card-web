@@ -38,7 +38,7 @@ const FieldValue = common.FieldValue;
 
 //Fetch once to save typing but also to guard against the case where no twitter
 //configs are set, so this whole object will be undefined.
-const twitterConfig = functions.config().twitter;
+const twitterConfig = common.config.twitter;
 
 if (!twitterConfig || !twitterConfig.consumer_key || !twitterConfig.consumer_secret || !twitterConfig.access_token_key || !twitterConfig.access_token_secret) {
     console.warn('The twitter keys are not configured, so tweets will not actually be sent. See README.md for how to set them up.')
@@ -53,7 +53,7 @@ if (!twitterConfig || !twitterConfig.consumer_key || !twitterConfig.consumer_sec
 
 let mailTransport = null;
 
-const postmarkKey = (functions.config().postmark || {}).key;
+const postmarkKey = (common.config.postmark || {}).key;
 if (postmarkKey) {
     mailTransport = nodemailer.createTransport(postmarkTransport({
         auth: {
@@ -64,13 +64,13 @@ if (postmarkKey) {
     console.warn("No postmark key provided. See README.md on how to set it up.")
 }
 
-const adminEmail = (functions.config().email || {}).to;
+const adminEmail = (common.config.email || {}).to;
 if (!adminEmail) console.warn("No admin email provided. See README.md on how to set it up.");
 
-const fromEmail = (functions.config().email || {}).from;
+const fromEmail = (common.config.email || {}).from;
 if (!fromEmail) console.warn("No from email provided. See README.md on how to set it up.");
 
-const domain = (functions.config().site || {})  .domain || "thecompendium.cards";
+const domain = (common.config.site || {})  .domain || "thecompendium.cards";
 
 //sendTweet sends the tweet and returns a tweet ID if the database shoould be
 //marked that a tweet was sent.
