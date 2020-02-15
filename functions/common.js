@@ -24,6 +24,10 @@ const getCardName = async (cardId) => {
     return card.data().name || cardId;
 }
 
+const prettyCardURL = (card) => {
+    return 'https://' + DOMAIN + '/c/' + card.name;
+}
+
 exports.admin = admin;
 exports.FieldValue = FieldValue;
 exports.db = db;
@@ -31,5 +35,6 @@ exports.auth = auth;
 exports.config = config;
 exports.getUserDisplayName = getUserDisplayName;
 exports.getCardName = getCardName;
+exports.prettyCardURL = prettyCardURL;
 exports.DEV_MODE = DEV_MODE;
 exports.DOMAIN = DOMAIN;
