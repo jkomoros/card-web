@@ -43,17 +43,17 @@ const DEFAULT_CARD = 'section-half-baked';
 
 //if silent is true, then just passively updates the URL to reflect what it should be.
 export const navigatePathTo = (path, silent) => (dispatch, getState) => {
-		const state = getState();
-		if (state.editor.editing) {
-			console.log("Can't navigate while editing");
-			return;
-		}
-		if (silent) {
-			window.history.replaceState({}, '', path);
-			return;
-		}
-		window.history.pushState({}, '', path);
-		dispatch(navigated(decodeURIComponent(path), decodeURIComponent(location.search)));
+	const state = getState();
+	if (state.editor.editing) {
+		console.log('Can\'t navigate while editing');
+		return;
+	}
+	if (silent) {
+		window.history.replaceState({}, '', path);
+		return;
+	}
+	window.history.pushState({}, '', path);
+	dispatch(navigated(decodeURIComponent(path), decodeURIComponent(location.search)));
 };
 
 export const navigateToChangesNumDays = (numDays) => (dispatch) => {
@@ -84,7 +84,7 @@ export const navigateToPreviousCard = () => (dispatch, getState) => {
 };
 
 export const urlForCard = (cardOrId, edit) => {
-	let id = cardOrId
+	let id = cardOrId;
 	if (!id) id = DEFAULT_CARD;
 	//note: null is an object;
 	if (cardOrId && typeof cardOrId === 'object') {
@@ -96,7 +96,7 @@ export const urlForCard = (cardOrId, edit) => {
 export const urlForTag = (tagName, optCardId) => {
 	if (!optCardId) optCardId = PLACEHOLDER_CARD_ID_CHARACTER;
 	return '/c/' + tagName + '/' + optCardId;
-}
+};
 
 //Should be called any time we might want to redirect to the given comment. For
 //example, when the redirect comment view boots, or when threads or messages are
@@ -131,7 +131,7 @@ export const navigateToComment = (commentId) => (dispatch, getState) => {
 	}
 	alert('That comment does not exist. Redirecting to the default card.');
 	dispatch(navigateToCard(''));
-}
+};
 
 export const navigateToCard = (cardOrId, silent) => (dispatch) => {
 	let path = urlForCard(cardOrId, false);
@@ -152,29 +152,29 @@ export const navigated = (path, query) => (dispatch) => {
 const loadPage = (pathname, query) => (dispatch) => {
 
 	//pathname is the whole path minus starting '/', like 'c/VIEW_ID'
-	let pieces = pathname.split("/")
+	let pieces = pathname.split('/');
 
 	let page = pieces[0];
-	let pageExtra = pieces.length < 2 ? '' : pieces.slice(1).join("/");
+	let pageExtra = pieces.length < 2 ? '' : pieces.slice(1).join('/');
 
 	if (query) pageExtra += query;
 
 	switch(page) {
-		case 'c':
-			import('../components/card-view.js').then((module) => {
-				// Put code in here that you want to run every time when
-				// navigating to view1 after my-view1.js is loaded.
-			});
-			break;
-		case 'comment':
-			import('../components/comment-redirect-view.js');
-			break;
-		case 'maintenance':
-			import('../components/maintenance-view.js');
-			break;
-		default:
-			page = 'view404';
-			import('../components/my-view404.js');
+	case 'c':
+		import('../components/card-view.js').then(() => {
+			// Put code in here that you want to run every time when
+			// navigating to view1 after my-view1.js is loaded.
+		});
+		break;
+	case 'comment':
+		import('../components/comment-redirect-view.js');
+		break;
+	case 'maintenance':
+		import('../components/maintenance-view.js');
+		break;
+	default:
+		page = 'view404';
+		import('../components/my-view404.js');
 	}
 
 	dispatch(updatePage(pathname, page, pageExtra));
@@ -196,14 +196,14 @@ const cancelHoverTimeout = () => {
 	if (!hoverPreviewTimer) return;
 	window.clearTimeout(hoverPreviewTimer);
 	hoverPreviewTimer = 0;
-}
+};
 
 export const hoveredCardMouseMoved = () => (dispatch, getState) => {
 	cancelHoverTimeout();
 	const activePreviewCardId = selectActivePreviewCardId(getState());
 	if (!activePreviewCardId) return;
 	dispatch({ type: UPDATE_HOVERED_CARD, x: 0, y: 0, cardId: ''});
-}
+};
 
 export const updateHoveredCard = (x,y,cardId) => (dispatch) => {
 	cancelHoverTimeout();
@@ -211,7 +211,7 @@ export const updateHoveredCard = (x,y,cardId) => (dispatch) => {
 		hoverPreviewTimer = 0;
 		dispatch({ type: UPDATE_HOVERED_CARD, x, y, cardId});
 	}, HOVER_CARD_PREVIEW_DELAY);
-}
+};
 
 let snackbarTimer;
 
