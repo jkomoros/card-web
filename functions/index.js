@@ -326,7 +326,7 @@ const fetchTweetEngagement = async() => {
 }
 
 //Runs every three hours
-exports.fetchTweetEngagement = functions.pubsub.schedule('0 */3 * * *').timeZone('America/Los_Angeles').onRun(context => {
+exports.fetchTweetEngagement = functions.pubsub.schedule('0 */3 * * *').timeZone('America/Los_Angeles').onRun(() => {
     return fetchTweetEngagement();
 });
 
@@ -342,11 +342,11 @@ const tweetCard = async () => {
 //NOTE: if you update this schedule in code,it
 //likely won't update the cloud scheduler, you'll have to delete the cloud
 //function and redeploy, or manually change hte cloud schedule.
-exports.autoTweet = functions.pubsub.schedule('7 8,12,17,20 * * *').timeZone('America/Los_Angeles').onRun(context => {
+exports.autoTweet = functions.pubsub.schedule('7 8,12,17,20 * * *').timeZone('America/Los_Angeles').onRun(() => {
     return tweetCard();
 });
 
-const emailAdminOnStar = async (snapshot, context) => {
+const emailAdminOnStar = async (snapshot) => {
     const cardId = snapshot.data().card;
     const authorId = snapshot.data().owner;
 

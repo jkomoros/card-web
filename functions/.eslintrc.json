@@ -18,7 +18,7 @@
     "no-debugger": "off",
 
     // Removed rule "disallow unused variables" from recommended eslint rules
-    "no-unused-vars": "off",
+    "no-unused-vars": "error",
 
     // Removed rule "disallow mixed spaces and tabs for indentation" from recommended eslint rules
     "no-mixed-spaces-and-tabs": "off",
