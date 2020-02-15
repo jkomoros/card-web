@@ -1,8 +1,6 @@
-//NOTE: this file is duplicated (modulo npm/ES6 module syntax for exports) in
-///functions/tweet-helpers.js. See #134 for de-duping
-
-//This file is popped out separately so it can be linked into the webapp as well
-//in reducers/collection.js
+//NOTE: this file is almost duplicated (modulo npm/ES6 module syntax for export
+//at the very end) in /functions/tweet-helpers.js and
+//src/reducers/tweet-helpers.js. See #134 for de-duping
 
 //cachedSectionTwidderMapForSections is the sections map we were last passed; if
 //it's different then we should regenerate cachedSectionTwidderMap.
@@ -43,7 +41,7 @@ const sectionTwiddlerMap = (sections) => {
 
 };
 
-export const tweetOrderExtractor = (card, sections, allCards) => {
+const tweetOrderExtractorImpl = (card, sections, allCards) => {
 	//Note: this logic is just manually equivalent to the logic that
 	//will be applied server-side, and is thus duplicated there.
 
@@ -119,3 +117,8 @@ export const tweetOrderExtractor = (card, sections, allCards) => {
 
 	return [baseValue, baseValue];
 };
+
+//Below this line are the only changes between the two versions of this file,
+//for ES6 and CommonJS export styles.
+
+export const tweetOrderExtractor = tweetOrderExtractorImpl;
