@@ -37,6 +37,7 @@ import {
 import { 
 	PLACEHOLDER_CARD_ID_CHARACTER
 } from './collection';
+import { pageRequiresMainView } from '../util.js';
 
 //This is the card that is loaded if we weren't passed anything
 const DEFAULT_CARD = 'section-half-baked';
@@ -158,6 +159,8 @@ const loadPage = (pathname, query) => (dispatch) => {
 	let pageExtra = pieces.length < 2 ? '' : pieces.slice(1).join('/');
 
 	if (query) pageExtra += query;
+
+	if (pageRequiresMainView(page)) import('../components/main-view.js');
 
 	switch(page) {
 	case 'c':

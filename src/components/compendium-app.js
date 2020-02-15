@@ -23,11 +23,6 @@ import {
 	useServiceWorker,
 } from '../actions/database.js';
 
-
-import {
-	selectActiveCard,
-} from '../selectors.js';
-
 // These are the actions needed by this element.
 import {
 	navigated,
@@ -37,8 +32,6 @@ import {
 
 // These are the elements needed by this element.
 import './snack-bar.js';
-//TODO: only load lazily if necessary
-import './main-view.js';
 
 class CompendiumApp extends connect(store)(LitElement) {
 	render() {
@@ -87,7 +80,6 @@ class CompendiumApp extends connect(store)(LitElement) {
 
 				--transition-fade: 0.25s linear;
 			}
-
 		</style>
 
 		<main-view></main-view>
@@ -101,7 +93,6 @@ class CompendiumApp extends connect(store)(LitElement) {
 			_page: { type: String },
 			_snackbarOpened: { type: Boolean },
 			_offline: { type: Boolean },
-			_card: { type: Object },
 		};
 	}
 
@@ -155,7 +146,6 @@ class CompendiumApp extends connect(store)(LitElement) {
 	}
 
 	stateChanged(state) {
-		this._card = selectActiveCard(state) || {};
 		this._page = state.app.page;
 		this._offline = state.app.offline;
 		this._snackbarOpened = state.app.snackbarOpened;

@@ -16,6 +16,10 @@ export const randomString = (length, charSet) => {
 	return text;
 };
 
+export const pageRequiresMainView = (pageName) => {
+	return pageName != 'single-card';
+};
+
 export const capitalizeFirstLetter = (str) => {
 	return str.charAt(0).toUpperCase() + str.slice(1);
 };
