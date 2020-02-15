@@ -123,17 +123,6 @@ const sendEmail = (subject, message) => {
         .catch((error) => console.error("Couldn't send email with message " + subject + ": " + error))
 };
 
-const getUserDisplayName = async (uid) => {
-    let user = await common.auth.getUser(uid);
-    return user.displayName
-}
-
-const getCardName = async (cardId) => {
-    //TODO: use the actual constants for cards collection (see #134)
-    let card = await db.collection('cards').doc(cardId).get();
-    return card.data().name || cardId;
-}
-
 const selectCardToTweet = async () => {
     //Tweet card selects a tweet to send and sends it.
     let rawCards = await db.collection('cards').where('published', '==', true).where('card_type', '==', 'content').get();
@@ -366,8 +355,8 @@ exports.emailAdminOnStar = functions.firestore.
         const cardId = snapshot.data().card;
         const authorId = snapshot.data().owner;
 
-        const authorString = await getUserDisplayName(authorId);
-        const cardTitle = await getCardName(cardId);
+        const authorString = await common.getUserDisplayName(authorId);
+        const cardTitle = await common.getCardName(cardId);
 
         const subject = 'User ' + authorString + ' starred card ' + cardTitle;
         const message = 'User ' + authorString + ' (' + authorId +  ') starred card <a href="https://' + domain + '/c/' + cardId +'">' + cardTitle + ' (' + cardId + ')</a>.';
@@ -384,8 +373,8 @@ exports.emailAdminOnMessage = functions.firestore.
         const messageText = snapshot.data().message;
         const messageId = context.params.messageId;
 
-        const authorString = await getUserDisplayName(authorId);
-        const cardTitle = await getCardName(cardId);
+        const authorString = await common.getUserDisplayName(authorId);
+        const cardTitle = await common.getCardName(cardId);
 
         const subject = 'User ' + authorString + ' left message on card ' + cardTitle;
         const message = 'User ' + authorString + ' (' + authorId + ') left message on card <a href="https://' + domain + '/comment/' + messageId +'">' + cardTitle + ' (' + cardId + ')</a>: <p>' + messageText + '</p>';
