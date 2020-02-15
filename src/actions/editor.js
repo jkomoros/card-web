@@ -348,6 +348,8 @@ export const normalizeBodyHTML = (html) => {
 	html = html.split('<li>').join('\t<li>');
 	html = html.split('</li>').join('</li>\n');
 
+	html = html.split('&nbsp;').join(' ');
+
 	//Remove any extra linke breaks (which we might have added)
 	//html = removeDoubleLineBreaks(html);
 
