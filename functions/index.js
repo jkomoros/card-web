@@ -8,13 +8,6 @@ const stable = require('stable');
 
 const fromEntries = require('fromentries');
 
-const admin = require('firebase-admin');
-admin.initializeApp();
-
-//We use this so often we might as well make it more common
-const FieldValue = admin.firestore.FieldValue;
-const db = admin.firestore();
-
 //DEV_MODE is true if the project name contains 'dev-' or '-dev'
 const DEV_MODE = process.env.GCLOUD_PROJECT.toLowerCase().includes('dev-') || process.env.GCLOUD_PROJECT.toLowerCase().includes('-dev');
 
@@ -38,6 +31,10 @@ const MAX_TWEETS_TO_FETCH = 100;
 let twitterClient = null;
 
 const tweetSorter = require('./tweet-helpers.js');
+
+const common = require('./common.js');
+const db = common.db;
+const FieldValue = common.FieldValue;
 
 //Fetch once to save typing but also to guard against the case where no twitter
 //configs are set, so this whole object will be undefined.
@@ -127,7 +124,7 @@ const sendEmail = (subject, message) => {
 };
 
 const getUserDisplayName = async (uid) => {
-    let user = await admin.auth().getUser(uid);
+    let user = await common.auth.getUser(uid);
     return user.displayName
 }
 
