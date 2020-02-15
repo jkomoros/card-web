@@ -242,6 +242,27 @@ export const normalizeBodyToContentEditable = (html) => {
 
 };
 
+const removeZombieSpans = (ele) => {
+	//Remove zombie spans (which can show up if you backspace to remove
+	//a paragraph break, and then can start infecting all content as you
+	//edit.)
+	let removedZombies = false;
+	for (let child of Object.values(ele.childNodes)) {
+		if (child.localName == 'span') {
+			if (child.style.backgroundColor != 'transparent') continue;
+			let color = child.style.color;
+			if (!color) continue;
+			if (!color.includes('--app-dark-text-color')) continue;
+			//Replace it with either just the text if it's only got 
+			child.replaceWith(...child.childNodes);
+			removedZombies = true;
+		}
+	}
+	//Combine adjacent text nodes, otherwise when you add back in a space it
+	//will show as &nbsp; because it will be between two runs not within one.
+	if (removedZombies) ele.normalize();
+};
+
 const cleanUpTopLevelHTML = (html, tag = 'p') => {
 	//Does deeper changes that require parsing.
 	//1) make sure all text in top is within a p tag.
@@ -268,6 +289,8 @@ const cleanUpTopLevelHTML = (html, tag = 'p') => {
 				child.parentNode.removeChild(child);
 				continue;
 			}
+
+			removeZombieSpans(child);
 
 			let inner = child.innerHTML;
 			inner = inner.trim();
