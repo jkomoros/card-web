@@ -11,6 +11,7 @@ const config = functions.config();
 
 //DEV_MODE is true if the project name contains 'dev-' or '-dev'
 const DEV_MODE = process.env.GCLOUD_PROJECT.toLowerCase().includes('dev-') || process.env.GCLOUD_PROJECT.toLowerCase().includes('-dev');
+const DOMAIN = (config.site || {})  .domain || "thecompendium.cards";
 
 const getUserDisplayName = async (uid) => {
     let user = await auth.getUser(uid);
@@ -31,3 +32,4 @@ exports.config = config;
 exports.getUserDisplayName = getUserDisplayName;
 exports.getCardName = getCardName;
 exports.DEV_MODE = DEV_MODE;
+exports.DOMAIN = DOMAIN;

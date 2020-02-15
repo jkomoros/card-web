@@ -1,8 +1,5 @@
 const functions = require('firebase-functions');
 
-const nodemailer = require('nodemailer');
-const postmarkTransport = require('nodemailer-postmark-transport');
-
 const Twitter = require('twitter');
 const stable = require('stable');
 
@@ -28,6 +25,7 @@ const MAX_TWEETS_TO_FETCH = 100;
 let twitterClient = null;
 
 const tweetSorter = require('./tweet-helpers.js');
+const email = require('./email.js');
 
 const common = require('./common.js');
 const db = common.db;
@@ -47,27 +45,6 @@ if (!twitterConfig || !twitterConfig.consumer_key || !twitterConfig.consumer_sec
         access_token_secret: twitterConfig.access_token_secret
     });
 }
-
-let mailTransport = null;
-
-const postmarkKey = (common.config.postmark || {}).key;
-if (postmarkKey) {
-    mailTransport = nodemailer.createTransport(postmarkTransport({
-        auth: {
-            apiKey: postmarkKey
-        }
-    }));
-} else {
-    console.warn("No postmark key provided. See README.md on how to set it up.")
-}
-
-const adminEmail = (common.config.email || {}).to;
-if (!adminEmail) console.warn("No admin email provided. See README.md on how to set it up.");
-
-const fromEmail = (common.config.email || {}).from;
-if (!fromEmail) console.warn("No from email provided. See README.md on how to set it up.");
-
-const domain = (common.config.site || {})  .domain || "thecompendium.cards";
 
 //sendTweet sends the tweet and returns a tweet ID if the database shoould be
 //marked that a tweet was sent.
@@ -101,24 +78,6 @@ const sendTweet = async (message) => {
         'fake': false,
     };
 }
-
-const sendEmail = (subject, message) => {
-    const mailOptions = {
-        from: fromEmail,
-        to: adminEmail,
-        subject: subject,
-        html: message
-    };
-
-    if (!mailTransport) {
-        console.warn("Mail transport not set up due to missing config. Would have sent: ", mailOptions);
-        return new Promise().resolve();
-    }
-
-    return mailTransport.sendMail(mailOptions)
-        .then(() => console.log('Sent email with message ' + subject))
-        .catch((error) => console.error("Couldn't send email with message " + subject + ": " + error))
-};
 
 const selectCardToTweet = async () => {
     //Tweet card selects a tweet to send and sends it.
@@ -183,7 +142,7 @@ const selectCardToTweetFromSortedList = (cards, sortInfos) => {
 }
 
 const prettyCardURL = (card) => {
-    return 'https://' + domain + '/c/' + card.name;
+    return 'https://' + common.DOMAIN + '/c/' + card.name;
 }
 
 const markCardTweeted = async (card, tweetInfo) => {
@@ -346,43 +305,13 @@ exports.autoTweet = functions.pubsub.schedule('7 8,12,17,20 * * *').timeZone('Am
     return tweetCard();
 });
 
-const emailAdminOnStar = async (snapshot) => {
-    const cardId = snapshot.data().card;
-    const authorId = snapshot.data().owner;
-
-    const authorString = await common.getUserDisplayName(authorId);
-    const cardTitle = await common.getCardName(cardId);
-
-    const subject = 'User ' + authorString + ' starred card ' + cardTitle;
-    const message = 'User ' + authorString + ' (' + authorId +  ') starred card <a href="https://' + domain + '/c/' + cardId +'">' + cardTitle + ' (' + cardId + ')</a>.';
-
-    sendEmail(subject, message);
-
-};
-
-const emailAdminOnMessage = async (snapshot, context) => {
-    const cardId = snapshot.data().card;
-    const authorId = snapshot.data().author;
-    const messageText = snapshot.data().message;
-    const messageId = context.params.messageId;
-
-    const authorString = await common.getUserDisplayName(authorId);
-    const cardTitle = await common.getCardName(cardId);
-
-    const subject = 'User ' + authorString + ' left message on card ' + cardTitle;
-    const message = 'User ' + authorString + ' (' + authorId + ') left message on card <a href="https://' + domain + '/comment/' + messageId +'">' + cardTitle + ' (' + cardId + ')</a>: <p>' + messageText + '</p>';
-
-    sendEmail(subject, message);
-
-};
-
 exports.emailAdminOnStar = functions.firestore.
     document('stars/{starId}').
-    onCreate(emailAdminOnStar);
+    onCreate(email.onStar);
 
 exports.emailAdminOnMessage = functions.firestore.
     document('messages/{messageId}').
-    onCreate(emailAdminOnMessage);
+    onCreate(email.onMessage);
 
 
 const arrayDiff = (before, after) => {
