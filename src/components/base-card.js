@@ -1,4 +1,6 @@
 import { LitElement, html } from '@polymer/lit-element';
+import {GestureEventListeners} from '@polymer/polymer/lib/mixins/gesture-event-listeners.js';
+import * as Gestures from '@polymer/polymer/lib/utils/gestures.js';
 
 import { SharedStyles } from './shared-styles.js';
 
@@ -9,8 +11,11 @@ export const CARD_HEIGHT_IN_EMS = 24.54;
 export const CARD_VERTICAL_PADDING_IN_EMS = 1.0;
 export const CARD_HORIZONTAL_PADDING_IN_EMS = 1.45;
 
+//Number of pixels until a track is considered a swipe
+const SWIPE_DX = 15.0;
+
 // This element is *not* connected to the Redux store.
-export class BaseCard extends LitElement {
+export class BaseCard extends GestureEventListeners(LitElement) {
 	render() {
 		return html`
 			${SharedStyles}
@@ -138,8 +143,20 @@ export class BaseCard extends LitElement {
 
 	}
 
+	_handleTrack(e) {
+		//Wait until the track ends, and they lift their finger
+		if (e.detail.state != 'end') return;
+		if (e.detail.dx > SWIPE_DX) {
+			this.dispatchEvent(new CustomEvent('card-swiped', {composed:true, detail: {direction:'right'}}));
+		}
+		if (e.detail.dx < - 1 *SWIPE_DX) {
+			this.dispatchEvent(new CustomEvent('card-swiped', {composed:true, detail: {direction:'left'}}));
+		}
+	}
+
 	firstUpdated() {
 		this.addEventListener('click', e => this._handleClick(e));
+		Gestures.addListener(this, 'track', e => this._handleTrack(e));
 	}
 
 }

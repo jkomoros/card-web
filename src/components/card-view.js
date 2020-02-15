@@ -335,7 +335,7 @@ class CardView extends connect(store)(PageViewElement) {
 				<div>${screenRotationIcon}</div>
             	<div>Rotate your device for larger text</div>
 			</div>
-            <card-renderer .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .card=${this._displayCard} .bodyFromContentEditable=${this._bodyFromContentEditable} .titleFromContentEditable=${this._titleFromContentEditable} @body-updated=${this._handleBodyUpdated} @title-updated=${this._handleTitleUpdated}></card-renderer>
+            <card-renderer .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .card=${this._displayCard} .bodyFromContentEditable=${this._bodyFromContentEditable} .titleFromContentEditable=${this._titleFromContentEditable} @body-updated=${this._handleBodyUpdated} @title-updated=${this._handleTitleUpdated} @card-swiped=${this._handleCardSwiped}></card-renderer>
             <div class='actions'>
               <div class='presentation'>
                 <button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
@@ -424,6 +424,15 @@ class CardView extends connect(store)(PageViewElement) {
 			return this._handleCloseEditor(e);
 		}
 		store.dispatch(editingStart());
+	}
+
+	_handleCardSwiped(e) {
+		if (e.detail.direction == 'left') {
+			this._handleForwardClicked(e);
+		}
+		if (e.detail.direction == 'right') {
+			this._handleBackClicked(e);
+		}
 	}
 
 	_handleBodyUpdated(e) {
