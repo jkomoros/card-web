@@ -9,6 +9,9 @@ const db = admin.firestore();
 const auth = admin.auth();
 const config = functions.config();
 
+//DEV_MODE is true if the project name contains 'dev-' or '-dev'
+const DEV_MODE = process.env.GCLOUD_PROJECT.toLowerCase().includes('dev-') || process.env.GCLOUD_PROJECT.toLowerCase().includes('-dev');
+
 const getUserDisplayName = async (uid) => {
     let user = await auth.getUser(uid);
     return user.displayName
@@ -27,3 +30,4 @@ exports.auth = auth;
 exports.config = config;
 exports.getUserDisplayName = getUserDisplayName;
 exports.getCardName = getCardName;
+exports.DEV_MODE = DEV_MODE;
