@@ -346,39 +346,43 @@ exports.autoTweet = functions.pubsub.schedule('7 8,12,17,20 * * *').timeZone('Am
     return tweetCard();
 });
 
+const emailAdminOnStar = async (snapshot, context) => {
+    const cardId = snapshot.data().card;
+    const authorId = snapshot.data().owner;
+
+    const authorString = await common.getUserDisplayName(authorId);
+    const cardTitle = await common.getCardName(cardId);
+
+    const subject = 'User ' + authorString + ' starred card ' + cardTitle;
+    const message = 'User ' + authorString + ' (' + authorId +  ') starred card <a href="https://' + domain + '/c/' + cardId +'">' + cardTitle + ' (' + cardId + ')</a>.';
+
+    sendEmail(subject, message);
+
+};
+
+const emailAdminOnMessage = async (snapshot, context) => {
+    const cardId = snapshot.data().card;
+    const authorId = snapshot.data().author;
+    const messageText = snapshot.data().message;
+    const messageId = context.params.messageId;
+
+    const authorString = await common.getUserDisplayName(authorId);
+    const cardTitle = await common.getCardName(cardId);
+
+    const subject = 'User ' + authorString + ' left message on card ' + cardTitle;
+    const message = 'User ' + authorString + ' (' + authorId + ') left message on card <a href="https://' + domain + '/comment/' + messageId +'">' + cardTitle + ' (' + cardId + ')</a>: <p>' + messageText + '</p>';
+
+    sendEmail(subject, message);
+
+};
+
 exports.emailAdminOnStar = functions.firestore.
     document('stars/{starId}').
-    onCreate(async (snapshot, context) => {
-        const cardId = snapshot.data().card;
-        const authorId = snapshot.data().owner;
-
-        const authorString = await common.getUserDisplayName(authorId);
-        const cardTitle = await common.getCardName(cardId);
-
-        const subject = 'User ' + authorString + ' starred card ' + cardTitle;
-        const message = 'User ' + authorString + ' (' + authorId +  ') starred card <a href="https://' + domain + '/c/' + cardId +'">' + cardTitle + ' (' + cardId + ')</a>.';
-
-        sendEmail(subject, message);
-
-    })
+    onCreate(emailAdminOnStar);
 
 exports.emailAdminOnMessage = functions.firestore.
     document('messages/{messageId}').
-    onCreate(async (snapshot, context) => {
-        const cardId = snapshot.data().card;
-        const authorId = snapshot.data().author;
-        const messageText = snapshot.data().message;
-        const messageId = context.params.messageId;
-
-        const authorString = await common.getUserDisplayName(authorId);
-        const cardTitle = await common.getCardName(cardId);
-
-        const subject = 'User ' + authorString + ' left message on card ' + cardTitle;
-        const message = 'User ' + authorString + ' (' + authorId + ') left message on card <a href="https://' + domain + '/comment/' + messageId +'">' + cardTitle + ' (' + cardId + ')</a>: <p>' + messageText + '</p>';
-
-        sendEmail(subject, message);
-
-    })
+    onCreate(emailAdminOnMessage);
 
 
 const arrayDiff = (before, after) => {
