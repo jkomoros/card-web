@@ -287,14 +287,10 @@ class CardView extends connect(store)(PageViewElement) {
           display:none;
         }
 
-        #portrait-message > div {
-          margin:5em;
-        }
-
         #portrait-message svg {
           fill: var(--app-light-text-color);
-          height:36px;
-          width: 36px;
+          height:1em;
+          width: 1em;
         }
 
         @media (orientation:portrait) {
@@ -311,20 +307,22 @@ class CardView extends connect(store)(PageViewElement) {
 
 
           .mobile #portrait-message {
-            position:absolute;
-            height:100%;
-            width:100%;
-            background-color:#000000CC;
             color: var(--app-light-text-color);
-            font-size:24px;
+            font-size:1.2em;
+			opacity:0.3;
             display:flex;
-            flex-direction:column;
-            justify-content:center;
+			flex-direction:row;
+			justify-content:center;
             align-items: center;
-            /* needs to be at least one above the z-index for actions */
-            z-index:2;
-            text-align:center;
+			width:100%;
+			position: absolute;
+			top: 0.5em;
+			left: 0.5em;
           }
+
+		  #portrait-message > div {
+			  margin:0.5em;
+		  }
 
         }
 
@@ -334,11 +332,9 @@ class CardView extends connect(store)(PageViewElement) {
         <div id='center'>
           <div id='canvas'>
             <div id='portrait-message'>
-              <div>
-                <div>${screenRotationIcon}</div>
-                <div>Rotate your device to landscape orientation</div>
-              </div>
-						</div>
+				<div>${screenRotationIcon}</div>
+            	<div>Rotate your device for larger text</div>
+			</div>
             <card-renderer .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .card=${this._displayCard} .bodyFromContentEditable=${this._bodyFromContentEditable} .titleFromContentEditable=${this._titleFromContentEditable} @body-updated=${this._handleBodyUpdated} @title-updated=${this._handleTitleUpdated}></card-renderer>
             <div class='actions'>
               <div class='presentation'>
