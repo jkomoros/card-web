@@ -17,7 +17,7 @@ export const randomString = (length, charSet) => {
 };
 
 export const pageRequiresMainView = (pageName) => {
-	return pageName != 'single-card';
+	return pageName != 'basic-card';
 };
 
 export const capitalizeFirstLetter = (str) => {

@@ -32,6 +32,7 @@ import {
 
 // These are the elements needed by this element.
 import './snack-bar.js';
+import { pageRequiresMainView } from '../util.js';
 
 class CompendiumApp extends connect(store)(LitElement) {
 	render() {
@@ -82,7 +83,8 @@ class CompendiumApp extends connect(store)(LitElement) {
 			}
 		</style>
 
-		<main-view></main-view>
+		<main-view ?active=${pageRequiresMainView(this._page)}></main-view>
+		<basic-card-view ?active=${this._page == 'basic-card'}></basic-card-view>
 		<snack-bar ?active="${this._snackbarOpened}">
 				You are now ${this._offline ? 'offline' : 'online'}.</snack-bar>
 		`;

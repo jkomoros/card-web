@@ -25,6 +25,7 @@ export const DISABLE_PRESENTATION_MODE = 'DISABLE_PRESENTATION_MODE';
 export const ENABLE_MOBILE_MODE = 'ENABLE_MOBILE_MODE';
 export const DISABLE_MOBILE_MODE = 'DISABLE_MOBILE_MODE';
 export const UPDATE_HOVERED_CARD = 'UPDATE_HOVERED_CARD';
+export const UPDATE_FETCHED_CARD = 'UPDATE_FETCHED_CARD';
 
 import {
 	selectFinalCollection, selectCommentsAreFullyLoaded, getMessageById, getThreadById, selectPage, selectPageExtra, selectActivePreviewCardId
@@ -37,7 +38,13 @@ import {
 import { 
 	PLACEHOLDER_CARD_ID_CHARACTER
 } from './collection';
+
 import { pageRequiresMainView } from '../util.js';
+
+import {
+	db,
+	CARDS_COLLECTION,
+} from './database.js';
 
 //This is the card that is loaded if we weren't passed anything
 const DEFAULT_CARD = 'section-half-baked';
@@ -175,6 +182,9 @@ const loadPage = (pathname, query) => (dispatch) => {
 	case 'maintenance':
 		import('../components/maintenance-view.js');
 		break;
+	case 'basic-card':
+		import('../components/basic-card-view.js');
+		break;
 	default:
 		page = 'view404';
 		import('../components/my-view404.js');
@@ -190,6 +200,24 @@ const updatePage = (location, page, pageExtra) => {
 		page,
 		pageExtra
 	};
+};
+
+export const fetchCard = (cardID) => async (dispatch) =>  {
+	if (!cardID) return;
+	//To be used to fetch a singular card from the store, as in basic-card-view.
+	let rawCard = await db.collection(CARDS_COLLECTION).doc(cardID).get();
+	if (!rawCard) {
+		console.warn('no cards matched');
+		return;
+	}
+	let card = {...rawCard.data(), id: cardID};
+	if (!card.published) {
+		console.warn('Card wasn\'t published');
+	}
+	dispatch({
+		type: UPDATE_FETCHED_CARD,
+		card
+	});
 };
 
 let hoverPreviewTimer;
