@@ -7,7 +7,8 @@ import { store } from '../store.js';
 import { 
 	selectUserReads,
 	selectCards,
-	selectUserReadingListMap
+	selectUserReadingListMap,
+	selectDataIsFullyLoaded
 } from '../selectors.js';
 import { toggleOnReadingList } from '../actions/user.js';
 
@@ -59,7 +60,7 @@ class CardLink extends connect(store)(LitElement) {
 					cursor: var(--card-link-cursor, pointer);
 				}
 			</style>
-			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
+			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._renderLink ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
 	}
 
 	static get properties() {
@@ -70,6 +71,7 @@ class CardLink extends connect(store)(LitElement) {
 			_reads: {type: Object},
 			_cards: { type: Object},
 			_readingListMap: { type: Object},
+			_dataIsFullyLoaded: { type: Boolean }
 		};
 	}
 
@@ -104,6 +106,7 @@ class CardLink extends connect(store)(LitElement) {
 		this._reads = selectUserReads(state);
 		this._cards = selectCards(state);
 		this._readingListMap = selectUserReadingListMap(state);
+		this._dataIsFullyLoaded = selectDataIsFullyLoaded(state);
 	}
 
 	get _cardObj() {
@@ -120,6 +123,10 @@ class CardLink extends connect(store)(LitElement) {
 		return this._cardObj ? true : false;
 	}
 
+	get _renderLink() {
+		return this._cardExists || (this._dataIsFullyLoaded && (!this._cards || Object.entries(this._cards).length == 0));
+	}
+
 	get _cardIsUnpublished() {
 		return this._cardObj ? !this._cardObj.published : false;
 	}
@@ -132,7 +139,7 @@ class CardLink extends connect(store)(LitElement) {
 
 	get _computedHref() {
 		//If it's a card link, only have it do something if it links to a card that we know to exist.
-		return this.card ? (this._cardExists ? '/c/' + this.card : 'javascript:void(0)'): this.href;
+		return this.card ? (this._renderLink ? '/c/' + this.card : 'javascript:void(0)'): this.href;
 	}
 
 	get _computedTarget() {
