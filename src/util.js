@@ -16,6 +16,7 @@ export const randomString = (length, charSet) => {
 	return text;
 };
 
+//TODO: consider renaming this, because we also use it in selectFullDataNeeded.
 export const pageRequiresMainView = (pageName) => {
 	return pageName != 'basic-card';
 };
