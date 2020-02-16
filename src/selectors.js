@@ -46,9 +46,9 @@ export const selectActiveFilterNames = (state) => state.collection.activeFilterN
 export const selectEditingCard = (state) => state.editor.card;
 export const selectFilters = (state) => state.collection.filters;
 const selectPendingFilters = (state) => state.collection.pendingFilters;
-export const selectSections = (state) => state.data ? state.data.sections : null;
-export const selectTags = (state) => state.data ? state.data.tags : null;
-const selectBaseCards = (state) => state.data ? state.data.cards : null;
+export const selectSections = (state) => state.data ? state.data.sections : {};
+export const selectTags = (state) => state.data ? state.data.tags : {};
+const selectBaseCards = (state) => state.data ? state.data.cards : {};
 export const selectCardsLoaded = (state) => state.data.cardsLoaded;
 export const selectSectionsLoaded = (state) => state.data.sectionsLoaded;
 export const selectTagsLoaded = (state) => state.data.tagsLoaded;
@@ -60,10 +60,10 @@ export const selectAuthors = (state) => state.data.authors ? state.data.authors 
 export const selectActivePreviewCardId = (state) => state.app ? state.app.hoverCardId : '';
 export const selectPreviewCardX = (state) => state.app ? state.app.hoverX : 0;
 export const selectPreviewCardY = (state) => state.app ? state.app.hoverY : 0;
-export const selectUserReads = (state) => state.user ? state.user.reads : null;
-export const selectUserStars = (state) => state.user ? state.user.stars : null;
-export const selectUserReadingList = (state) => state.user ? state.user.readingList : null;
-const selectUserReadingListForSet = (state) => state.user ? state.user.readingListForSet : null;
+export const selectUserReads = (state) => state.user ? state.user.reads : {};
+export const selectUserStars = (state) => state.user ? state.user.stars : {};
+export const selectUserReadingList = (state) => state.user ? state.user.readingList : [];
+const selectUserReadingListForSet = (state) => state.user ? state.user.readingListForSet : [];
 
 const selectCardsDrawerPanelOpen = (state) => state.app ? state.app.cardsDrawerPanelOpen : false;
 
