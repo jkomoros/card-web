@@ -70,12 +70,12 @@ const selectCardsDrawerPanelOpen = (state) => state.app ? state.app.cardsDrawerP
 
 export const selectQuery = (state) => state.find.query;
 
-export const selectAuthPending = (state) => state.user.pending;
+export const selectAuthPending = (state) => state.user ? state.user.pending : false;
 //Note: this will return false unless stars have been loading, even if there is
 //no user to load stars or reads for.
-export const selectStarsLoaded = (state) => state.user.starsLoaded;
-export const selectReadsLoaded = (state) => state.user.readsLoaded;
-export const selectReadingListLoaded = (state) => state.user.readingListLoaded;
+export const selectStarsLoaded = (state) => state.user ? state.user.starsLoaded : false;
+export const selectReadsLoaded = (state) => state.user ? state.user.readsLoaded : false;
+export const selectReadingListLoaded = (state) => state.user ? state.user.readingListLoaded : false;
 
 export const selectNotificationsEnabled = (state) => state.user.notificationsToken ? true : false;
 
