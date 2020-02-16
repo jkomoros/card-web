@@ -164,6 +164,7 @@ class CardStage extends LitElement {
 			mobile: { type: Boolean},
 			loading: { type: Boolean},
 			presenting: { type: Boolean},
+			highPadding: { type: Boolean},
 			dataIsFullyLoaded : { type: Boolean},
 			editing: { type: Boolean},
 			card: { type: Object},
@@ -185,7 +186,7 @@ class CardStage extends LitElement {
 		const rect = canvas.getBoundingClientRect();
 
 
-		const paddingInPx = Math.round(rect.width / 12);
+		const paddingInPx = Math.round(rect.width / (this.highPadding ? 12 : 40));
 		//Next two come from the style for base-card
 		const cardWidthInEms = CARD_WIDTH_IN_EMS;
 		const cardWidthPaddingInEms = 2 * (CARD_HORIZONTAL_PADDING_IN_EMS);
@@ -201,8 +202,8 @@ class CardStage extends LitElement {
 		//On small screens don't worry about any vertical padding.
 		let targetHeight = rect.height - (this.mobile ? 0 : paddingInPx);
 
-		let widthFontSize = Math.round(targetWidth / totalCardWidthInEms);
-		let heightFontSize = Math.round(targetHeight / totalCardHeighInEms);
+		let widthFontSize = targetWidth / totalCardWidthInEms;
+		let heightFontSize = targetHeight / totalCardHeighInEms;
 
 		//Pick the smaller of the two
 		fontSize = widthFontSize;
