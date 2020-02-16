@@ -213,15 +213,28 @@ const updatePage = (location, page, pageExtra) => {
 	};
 };
 
-export const fetchCard = (cardID) => async (dispatch) =>  {
-	if (!cardID) return;
+const fetchCardFromDb = async (cardIDOrSlug) => {
+	//Cards are more likely to be fetched via slug, so try that first
+	let cards = await db.collection(CARDS_COLLECTION).where('slugs', 'array-contains', cardIDOrSlug).limit(1).get();
+	if (cards && !cards.empty) {
+		return cards.docs[0];
+	}
+	let card = await db.collection(CARDS_COLLECTION).doc(cardIDOrSlug).get();
+	if (card && card.exists) {
+		return card;
+	}
+	return null;
+};
+
+export const fetchCard = (cardIDOrSlug) => async (dispatch) =>  {
+	if (!cardIDOrSlug) return;
 	//To be used to fetch a singular card from the store, as in basic-card-view.
-	let rawCard = await db.collection(CARDS_COLLECTION).doc(cardID).get();
+	let rawCard = await fetchCardFromDb(cardIDOrSlug);
 	if (!rawCard) {
 		console.warn('no cards matched');
 		return;
 	}
-	let card = {...rawCard.data(), id: cardID};
+	let card = {...rawCard.data(), id: rawCard.id};
 	if (!card.published) {
 		console.warn('Card wasn\'t published');
 	}
