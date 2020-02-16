@@ -82,8 +82,8 @@ import {
 } from '../actions/app.js';
 
 //Components needed by this
-import './card-renderer.js';
 import './card-drawer.js';
+import './card-stage.js';
 import './card-editor.js';
 import './tag-list.js';
 import './comments-panel.js';
@@ -101,7 +101,6 @@ import {
 	starBorderIcon,
 	visibilityIcon,
 	searchIcon,
-	screenRotationIcon,
 	playlistAddCheckIcon,
 	playlistAddIcon
 } from './my-icons.js';
@@ -115,12 +114,6 @@ import {
 import { SharedStyles } from './shared-styles.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
-import { 
-	CARD_WIDTH_IN_EMS,
-	CARD_HORIZONTAL_PADDING_IN_EMS,
-	CARD_HEIGHT_IN_EMS,
-	CARD_VERTICAL_PADDING_IN_EMS
-} from './base-card.js';
 
 class CardView extends connect(store)(PageViewElement) {
 	render() {
@@ -147,75 +140,15 @@ class CardView extends connect(store)(PageViewElement) {
           flex-direction:column;
         }
 
-        #canvas {
-          flex-grow: 1;
-          display:flex;
-          flex-direction:column;
-          justify-content:center;
-          align-items: center;
-          background-color: var(--canvas-color);
-					position:relative;
-        }
-
-				/* tag-list {
-					position:absolute;
-					top:0.5em;
-					left:0.5em;
-				} */
-
-				tag-list {
-					margin:0.5em;
-				}
-
-        .presenting #canvas {
-          background-color: var(--app-dark-text-color);
-        }
-
-        .presenting {
-          --shadow-color:#444;
-          /* have to redefine it because it uses the variables at the site where it's derived */
-          --card-shadow: var(--card-shadow-first-part) var(--shadow-color);
-        }
-
-				.presenting tag-list {
-					display:none;
-				}
-
-        .presenting .actions {
-          position:absolute;
-          bottom:0.5em;
-          right:0.5em;
-          display:flex;
-          flex-direction:column;
-          opacity: 0.3;
-          transition: opacity var(--transition-fade);
-        }
-
-        .presenting .actions:hover {
-          opacity:1.0;
-        }
-
-        .presenting .actions > div {
-          display:flex;
-          flex-direction: column;
-        }
-
-        .actions{
-          /* This is a hack to allow the information/edit buttons to be on top of a section-head-card container. See #44. */
-          z-index: 1;
-          display:flex;
-          flex-direction:row;
-        }
-
-        .actions .next-prev {
+        .next-prev {
           display:none;
         }
 
-        .presenting .actions .next-prev {
+        .presenting .next-prev {
           display:flex;
         }
 
-        .presenting .actions .panels {
+        .presenting .panels {
           display:none;
         }
 
@@ -234,25 +167,8 @@ class CardView extends connect(store)(PageViewElement) {
           border-right: 1px solid var(--app-divider-color);
         }
 
-        card-renderer {
-          font-size:22px;
-        }
-
-        .editing card-renderer {
-          font-size:16px;
-        }
-
-        .container.editing .actions {
-          display:none;
-        }
-
         [hidden] {
           display:none;
-        }
-
-        card-renderer {
-          /* this will be overridden via an explicit property set directly on card-renderer */
-          font-size:20px;
         }
 
         .auto-read {
@@ -282,83 +198,32 @@ class CardView extends connect(store)(PageViewElement) {
             transform: scale(0.0);
           }
         }
-
-        #portrait-message {
-          display:none;
-        }
-
-        #portrait-message svg {
-          fill: var(--app-light-text-color);
-          height:1em;
-          width: 1em;
-        }
-
-        @media (orientation:portrait) {
-
-		/* If we're in portrait mode there's more space for the actions along
-		the bottom rail, not the right rail */
-		.presenting .actions {
-			flex-direction:row;
-		}
-
-		.presenting .actions > div {
-          flex-direction: row;
-        }
-
-
-          .mobile #portrait-message {
-            color: var(--app-light-text-color);
-            font-size:1.2em;
-			opacity:0.3;
-            display:flex;
-			flex-direction:row;
-			justify-content:center;
-            align-items: center;
-			width:100%;
-			position: absolute;
-			top: 0.5em;
-			left: 0.5em;
-          }
-
-		  #portrait-message > div {
-			  margin:0.5em;
-		  }
-
-        }
-
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
         <card-drawer .showing=${this._cardsDrawerPanelShowing} .labels=${this._collectionLabels} .labelName=${this._collectionLabelName} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' .editable=${this._userMayReorder} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .collectionItemsThatWillBeRemovedOnPendingFilterCommit=${this._collectionItemsThatWillBeRemovedOnPendingFilterCommit}></card-drawer>
         <div id='center'>
-          <div id='canvas'>
-            <div id='portrait-message'>
-				<div>${screenRotationIcon}</div>
-            	<div>Rotate your device for larger text</div>
-			</div>
-            <card-renderer .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .card=${this._displayCard} .bodyFromContentEditable=${this._bodyFromContentEditable} .titleFromContentEditable=${this._titleFromContentEditable} @body-updated=${this._handleBodyUpdated} @title-updated=${this._handleTitleUpdated} @card-swiped=${this._handleCardSwiped}></card-renderer>
-            <div class='actions'>
-              <div class='presentation'>
-                <button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
-              </div>
-              <div class='panels'>
-                <button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${viewDayIcon}</button>
-                <button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._card.thread_count > 0 ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
-                <button class='round ${this._cardInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCardInfoClicked}'>${infoIcon}</button>
-                <button class='round' @click=${this._handleFindClicked}>${searchIcon}</button>
-              </div>
-              <div class='modify'>
-			  	<button title='Add to your reading list' ?disabled=${this._collectionIsFallback} class='round ${this._cardInReadingList ? 'selected' : ''} ${this._userMayModifyReadingList ? '' : 'need-signin'}' @click='${this._handleReadingListClicked}'>${this._cardInReadingList ? playlistAddCheckIcon : playlistAddIcon }</button>
-                <button ?disabled=${this._collectionIsFallback} class='round ${this._cardHasStar ? 'selected' : ''} ${this._userMayStar ? '' : 'need-signin'}' @click='${this._handleStarClicked}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
-                <button ?disabled=${this._collectionIsFallback} class='round ${this._cardIsRead ? 'selected' : ''} ${this._userMayMarkRead ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
-				<button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
-              </div>
-              <div class='next-prev'>
-                <button class='round' @click=${this._handleBackClicked}>${arrowBackIcon}</button>
-                <button class='round' @click=${this._handleForwardClicked}>${arrowForwardIcon}</button>
-              </div>
-						</div>
-						<tag-list .card=${this._displayCard} .subtle=${true} .tags=${this._displayCard.tags} .tagInfos=${this._tagInfos}></tag-list>
-          </div>
+			<card-stage .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .mobile=${this._mobileMode} .card=${this._displayCard} .bodyFromContentEditable=${this._bodyFromContentEditable} .titleFromContentEditable=${this._titleFromContentEditable} @body-updated=${this._handleBodyUpdated} @title-updated=${this._handleTitleUpdated} @card-swiped=${this._handleCardSwiped}>
+				<div slot='actions' class='presentation'>
+					<button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
+				</div>
+				<div slot='actions' class='panels'>
+					<button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${viewDayIcon}</button>
+					<button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._card.thread_count > 0 ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
+					<button class='round ${this._cardInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCardInfoClicked}'>${infoIcon}</button>
+					<button class='round' @click=${this._handleFindClicked}>${searchIcon}</button>
+				</div>
+				<div slot='actions' class='modify'>
+					<button title='Add to your reading list' ?disabled=${this._collectionIsFallback} class='round ${this._cardInReadingList ? 'selected' : ''} ${this._userMayModifyReadingList ? '' : 'need-signin'}' @click='${this._handleReadingListClicked}'>${this._cardInReadingList ? playlistAddCheckIcon : playlistAddIcon }</button>
+					<button ?disabled=${this._collectionIsFallback} class='round ${this._cardHasStar ? 'selected' : ''} ${this._userMayStar ? '' : 'need-signin'}' @click='${this._handleStarClicked}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
+					<button ?disabled=${this._collectionIsFallback} class='round ${this._cardIsRead ? 'selected' : ''} ${this._userMayMarkRead ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
+					<button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
+				</div>
+				<div slot='actions' class='next-prev'>
+					<button class='round' @click=${this._handleBackClicked}>${arrowBackIcon}</button>
+					<button class='round' @click=${this._handleForwardClicked}>${arrowForwardIcon}</button>
+				</div>
+				<tag-list slot='tags' .card=${this._displayCard} .subtle=${true} .tags=${this._displayCard.tags} .tagInfos=${this._tagInfos}></tag-list>
+          </card-stage>
           <card-editor ?active=${this._editing} ></card-editor>
         </div>
         <card-info-panel .active=${this.active}></card-info-panel>
@@ -583,50 +448,11 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	_resizeCard() {
-		let fontSize = 20;
-		const canvas = this.shadowRoot.getElementById('canvas');
-		if (!canvas) {
-			console.warn('Couldn\'t find canvas element');
-			return;
-		}
-
-		const rect = canvas.getBoundingClientRect();
-
-
-		const paddingInPx = Math.round(rect.width / 12);
-		//Next two come from the style for base-card
-		const cardWidthInEms = CARD_WIDTH_IN_EMS;
-		const cardWidthPaddingInEms = 2 * (CARD_HORIZONTAL_PADDING_IN_EMS);
-
-		const cardHeightInEms = CARD_HEIGHT_IN_EMS;
-		const cardHeightPaddingInEms = 2 * (CARD_VERTICAL_PADDING_IN_EMS);
-
-		const totalCardWidthInEms = cardWidthInEms + cardWidthPaddingInEms;
-		const totalCardHeighInEms = cardHeightInEms + cardHeightPaddingInEms;
-
-		let targetWidth = rect.width - paddingInPx;
-		//TODO: take into account size of actions bar.
-		//On small screens don't worry about any vertical padding.
-		let targetHeight = rect.height - (this._mobileMode ? 0 : paddingInPx);
-
-		let widthFontSize = Math.round(targetWidth / totalCardWidthInEms);
-		let heightFontSize = Math.round(targetHeight / totalCardHeighInEms);
-
-		//Pick the smaller of the two
-		fontSize = widthFontSize;
-		if (heightFontSize < fontSize) fontSize = heightFontSize;
-
-		const renderer = this.shadowRoot.querySelector('card-renderer');
-		if (!renderer) {
-			console.warn('Couldn\'t find card-renderer to update its size');
-			return;
-		}
-
-		renderer.style.fontSize = '' + fontSize + 'px';
-	}
-
-	firstUpdated() {
-		window.addEventListener('resize', () => this._resizeCard());
+		//This is called when we've changed something that should resize the
+		//card.
+		let stage = this.shadowRoot.querySelector('card-stage');
+		if (!stage) return;
+		stage.resizeCard();
 	}
 
 	updated(changedProps) {
@@ -651,6 +477,7 @@ class CardView extends connect(store)(PageViewElement) {
 		}
 		//Promise.resolve().then() timing doesn't wait long enough; on stable
 		//channel Chrome  by the time it fires layout hasn't been done.
+
 		if (this._changedPropsAffectCanvasSize(changedProps)) window.setTimeout(() => this._resizeCard(), 0);
 	}
 }
