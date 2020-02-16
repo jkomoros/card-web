@@ -210,6 +210,7 @@ class CardStage extends LitElement {
 
 	firstUpdated() {
 		window.addEventListener('resize', () => this.resizeCard());
+		this.resizeCard();
 	}
 }
 
