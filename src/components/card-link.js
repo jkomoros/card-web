@@ -8,7 +8,8 @@ import {
 	selectUserReads,
 	selectCards,
 	selectUserReadingListMap,
-	selectDataIsFullyLoaded
+	selectDataIsFullyLoaded,
+	selectPage
 } from '../selectors.js';
 import { toggleOnReadingList } from '../actions/user.js';
 
@@ -71,7 +72,8 @@ class CardLink extends connect(store)(LitElement) {
 			_reads: {type: Object},
 			_cards: { type: Object},
 			_readingListMap: { type: Object},
-			_dataIsFullyLoaded: { type: Boolean }
+			_dataIsFullyLoaded: { type: Boolean },
+			_page: { type: String }
 		};
 	}
 
@@ -107,6 +109,7 @@ class CardLink extends connect(store)(LitElement) {
 		this._cards = selectCards(state);
 		this._readingListMap = selectUserReadingListMap(state);
 		this._dataIsFullyLoaded = selectDataIsFullyLoaded(state);
+		this._page = selectPage(state);
 	}
 
 	get _cardObj() {
@@ -138,8 +141,12 @@ class CardLink extends connect(store)(LitElement) {
 	}
 
 	get _computedHref() {
-		//If it's a card link, only have it do something if it links to a card that we know to exist.
-		return this.card ? (this._renderLink ? '/c/' + this.card : 'javascript:void(0)'): this.href;
+		//If it's a card link, only have it do something if it links to a card
+		//that we know to exist. The first part of the URL should be 'c'
+		//(default) unless we're in 'basic-card' mode, in which case we should
+		//stay in 'basic-card' when the user hits the link.
+		const page = this._page == 'basic-card' ? 'basic-card' : 'c';
+		return this.card ? (this._renderLink ? '/' + page + '/' + this.card : 'javascript:void(0)'): this.href;
 	}
 
 	get _computedTarget() {
