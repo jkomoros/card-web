@@ -107,6 +107,14 @@ class CardStage extends LitElement {
 				width: 1em;
 			}
 
+			card-renderer {
+				transition: opacity ease-in-out 0.2s;
+			}
+
+			.loading card-renderer {
+				opacity: 0.6;
+			}
+
 			@media (orientation:portrait) {
 				/* If we're in portrait mode there's more space for the actions along
 				the bottom rail, not the right rail */
@@ -139,7 +147,7 @@ class CardStage extends LitElement {
 			}
 
 		</style>
-		<div id='canvas' class="${this.presenting ? 'presenting' : ''} ${this.editing ? 'editing' : ''} ${this.mobile ? 'mobile' : ''}">
+		<div id='canvas' class="${this.presenting ? 'presenting' : ''} ${this.editing ? 'editing' : ''} ${this.mobile ? 'mobile' : ''} ${this.loading ? 'loading' : ''}">
 			<div id='portrait-message'>
 				<div>${screenRotationIcon}</div>
 				<div>Rotate your device for larger text</div>
@@ -154,6 +162,7 @@ class CardStage extends LitElement {
 	static get properties() {
 		return {
 			mobile: { type: Boolean},
+			loading: { type: Boolean},
 			presenting: { type: Boolean},
 			dataIsFullyLoaded : { type: Boolean},
 			editing: { type: Boolean},

@@ -27,6 +27,7 @@ import {
 	DISABLE_MOBILE_MODE,
 	UPDATE_HOVERED_CARD,
 	UPDATE_FETCHED_CARD,
+	CARD_BEING_FETCHED,
 } from '../actions/app.js';
 
 import {
@@ -55,6 +56,7 @@ const INITIAL_STATE = {
 	hoverCardId: '',
 	//the card that was fetched as a singleton, for example in basic-card-view.
 	fetchedCard: {},
+	cardBeingFetched: false,
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -163,7 +165,13 @@ const app = (state = INITIAL_STATE, action) => {
 	case UPDATE_FETCHED_CARD:
 		return {
 			...state,
-			fetchedCard: action.card
+			fetchedCard: action.card,
+			cardBeingFetched: false
+		};
+	case CARD_BEING_FETCHED:
+		return {
+			...state,
+			cardBeingFetched: true
 		};
 	default:
 		return state;

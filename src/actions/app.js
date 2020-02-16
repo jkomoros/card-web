@@ -26,6 +26,7 @@ export const ENABLE_MOBILE_MODE = 'ENABLE_MOBILE_MODE';
 export const DISABLE_MOBILE_MODE = 'DISABLE_MOBILE_MODE';
 export const UPDATE_HOVERED_CARD = 'UPDATE_HOVERED_CARD';
 export const UPDATE_FETCHED_CARD = 'UPDATE_FETCHED_CARD';
+export const CARD_BEING_FETCHED = 'CARD_BEING_FETCHED';
 
 import {
 	_PAGE_BASIC_CARD
@@ -228,6 +229,11 @@ const fetchCardFromDb = async (cardIDOrSlug) => {
 
 export const fetchCard = (cardIDOrSlug) => async (dispatch) =>  {
 	if (!cardIDOrSlug) return;
+
+	dispatch({
+		type: CARD_BEING_FETCHED
+	});
+	
 	//To be used to fetch a singular card from the store, as in basic-card-view.
 	let rawCard = await fetchCardFromDb(cardIDOrSlug);
 	if (!rawCard) {

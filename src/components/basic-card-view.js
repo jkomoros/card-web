@@ -10,7 +10,8 @@ import { SharedStyles } from './shared-styles.js';
 
 import { 
 	selectFetchedCard,
-	selectPageExtra
+	selectPageExtra,
+	selectCardBeingFetched
 } from '../selectors.js';
 
 import { 
@@ -34,7 +35,7 @@ class BasicCardView extends connect(store)(PageViewElement) {
 			width: 100%;
 		}
 	  </style>
-	  <card-stage .card=${this._card} .presenting=${true}></card-stage>
+	  <card-stage .card=${this._card} .presenting=${true} .loading=${this._cardBeingFetched}></card-stage>
     `;
 	}
 
@@ -42,12 +43,14 @@ class BasicCardView extends connect(store)(PageViewElement) {
 		return {
 			_card: { type: Object},
 			_pageExtra: { type:String },
+			_cardBeingFetched: { type: Boolean},
 		};
 	}
 
 	stateChanged(state) {
 		this._card = selectFetchedCard(state);
 		this._pageExtra = selectPageExtra(state);
+		this._cardBeingFetched = selectCardBeingFetched(state);
 	}
 
 	updated(changedProps) {
