@@ -10,6 +10,8 @@ import {
 	reportSelectionRange
 } from '../actions/editor.js';
 
+import dompurify from 'dompurify';
+
 let loadingTemplate = html`<span class='loading'>Loading...<span>`;
 let blankTemplate = html`<span class='loading'>Content goes here...</span>`;
 let invalidCardTemplate = html`No card by that name, try a link from above`;
@@ -116,6 +118,7 @@ export class ContentCard extends BaseCard {
 			section.addEventListener('input', this._bodyChanged.bind(this));
 			body = normalizeBodyToContentEditable(body);
 		}
+		body = dompurify.sanitize(body);
 		section.innerHTML = body;
 		if(this.fullBleed) section.className = 'full-bleed';
 		return section;
