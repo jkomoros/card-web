@@ -84,7 +84,7 @@ class CardStage extends LitElement {
 				flex-direction:row;
 			}
 
-			.editing [name="actions"] {
+			.editing [name="actions"], .editing [name="tags"] {
 				display:none;
 			}
 
