@@ -88,7 +88,6 @@ import {
 } from '../actions/app.js';
 
 // These are the elements needed by this element.
-import './snack-bar.js';
 import './user-chip.js';
 import './find-dialog.js';
 import './compose-dialog.js';
@@ -262,17 +261,13 @@ class MainView extends connect(store)(LitElement) {
 				<maintenance-view class='page' ?active="${this._page === PAGE_MAINTENANCE}"></maintenance-view>
 			</main>
 		</div>
-		<snack-bar ?active="${this._snackbarOpened}">
-				You are now ${this._offline ? 'offline' : 'online'}.</snack-bar>
 		`;
 	}
 
 	static get properties() {
 		return {
 			_page: { type: String },
-			_snackbarOpened: { type: Boolean },
 			_headerPanelOpen: {type: Boolean },
-			_offline: { type: Boolean },
 			_editing: { type: Boolean },
 			_devMode: { type: Boolean },
 			_card: { type: Object },
@@ -380,8 +375,6 @@ class MainView extends connect(store)(LitElement) {
 		this._card = selectActiveCard(state) || {};
 		this._headerPanelOpen = state.app.headerPanelOpen;
 		this._page = state.app.page;
-		this._offline = state.app.offline;
-		this._snackbarOpened = state.app.snackbarOpened;
 		this._editing = state.editor.editing;
 		this._devMode = DEV_MODE;
 		this._sections = state.data.sections;
