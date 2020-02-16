@@ -1,6 +1,10 @@
 import snarkdown from 'snarkdown';
 import dompurify from 'dompurify';
 
+//define this here and then re-export form app.js so this file doesn't need any
+//other imports.
+export const _PAGE_BASIC_CARD = 'basic-card';
+
 const randomCharSetNumbers = '0123456789';
 const randomCharSetLetters = 'abcdef';
 const randomCharSet = randomCharSetNumbers + randomCharSetLetters;
@@ -18,7 +22,7 @@ export const randomString = (length, charSet) => {
 
 //TODO: consider renaming this, because we also use it in selectFullDataNeeded.
 export const pageRequiresMainView = (pageName) => {
-	return pageName != 'basic-card';
+	return pageName != _PAGE_BASIC_CARD;
 };
 
 export const capitalizeFirstLetter = (str) => {

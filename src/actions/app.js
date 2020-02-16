@@ -28,6 +28,17 @@ export const UPDATE_HOVERED_CARD = 'UPDATE_HOVERED_CARD';
 export const UPDATE_FETCHED_CARD = 'UPDATE_FETCHED_CARD';
 
 import {
+	_PAGE_BASIC_CARD
+} from '../util.js';
+
+//Note: some of these are also duplicated in functions/common.js
+export const PAGE_DEFAULT = 'c';
+export const PAGE_BASIC_CARD = _PAGE_BASIC_CARD;
+export const PAGE_COMMENT = 'comment';
+export const PAGE_MAINTENANCE = 'maintenance';
+export const PAGE_404 = 'view404';
+
+import {
 	selectFinalCollection, selectCommentsAreFullyLoaded, getMessageById, getThreadById, selectPage, selectPageExtra, selectActivePreviewCardId
 } from '../selectors.js';
 
@@ -98,12 +109,12 @@ export const urlForCard = (cardOrId, edit) => {
 	if (cardOrId && typeof cardOrId === 'object') {
 		id = cardOrId.name;
 	}
-	return '/c/' + id + (edit ? '/edit' : '');
+	return '/' + PAGE_DEFAULT + '/' + id + (edit ? '/edit' : '');
 };
 
 export const urlForTag = (tagName, optCardId) => {
 	if (!optCardId) optCardId = PLACEHOLDER_CARD_ID_CHARACTER;
-	return '/c/' + tagName + '/' + optCardId;
+	return '/' + PAGE_DEFAULT + '/' + tagName + '/' + optCardId;
 };
 
 //Should be called any time we might want to redirect to the given comment. For
@@ -117,7 +128,7 @@ export const refreshCommentRedirect = () => (dispatch, getState) => {
 	const state = getState();
 
 	let page = selectPage(state);
-	if (page != 'comment') return;
+	if (page != PAGE_COMMENT) return;
 	let pageExtra = selectPageExtra(state);
 	dispatch(navigateToComment(pageExtra));
 };
@@ -149,7 +160,7 @@ export const navigateToCard = (cardOrId, silent) => (dispatch) => {
 export const navigated = (path, query) => (dispatch) => {
 
 	// Extract the page name from path.
-	const page = path === '/' ? 'c' : path.slice(1);
+	const page = path === '/' ? PAGE_DEFAULT : path.slice(1);
 
 	// Any other info you might want to extract from the path (like page type),
 	// you can do here
@@ -170,23 +181,23 @@ const loadPage = (pathname, query) => (dispatch) => {
 	if (pageRequiresMainView(page)) import('../components/main-view.js');
 
 	switch(page) {
-	case 'c':
+	case PAGE_DEFAULT:
 		import('../components/card-view.js').then(() => {
 			// Put code in here that you want to run every time when
 			// navigating to view1 after my-view1.js is loaded.
 		});
 		break;
-	case 'comment':
+	case PAGE_COMMENT:
 		import('../components/comment-redirect-view.js');
 		break;
-	case 'maintenance':
+	case PAGE_MAINTENANCE:
 		import('../components/maintenance-view.js');
 		break;
-	case 'basic-card':
+	case PAGE_BASIC_CARD:
 		import('../components/basic-card-view.js');
 		break;
 	default:
-		page = 'view404';
+		page = PAGE_404;
 		import('../components/my-view404.js');
 	}
 

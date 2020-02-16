@@ -19,6 +19,10 @@ import {
 	userMayEditMessage
 } from '../selectors.js';
 
+import { 
+	PAGE_COMMENT
+} from '../actions/app.js';
+
 // This element is *not* connected to the Redux store.
 class CommentMessage extends LitElement {
 	render() {
@@ -70,7 +74,7 @@ class CommentMessage extends LitElement {
 
 	_handleLinkClicked() {
 		if (!this.message) return;
-		const url = window.location.origin + '/comment/' + this.message.id;
+		const url = window.location.origin + '/' + PAGE_COMMENT + '/' + this.message.id;
 		prompt('Share the following URL to deep link to this comment: ', url);
 	}
 

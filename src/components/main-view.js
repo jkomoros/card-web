@@ -80,7 +80,11 @@ import {
 	navigateToPreviousCard,
 	urlForCard,
 	hoveredCardMouseMoved,
-	updateHoveredCard
+	updateHoveredCard,
+	PAGE_DEFAULT,
+	PAGE_COMMENT,
+	PAGE_MAINTENANCE,
+	PAGE_404
 } from '../actions/app.js';
 
 // These are the elements needed by this element.
@@ -234,14 +238,14 @@ class MainView extends connect(store)(LitElement) {
 					<nav class="toolbar-list">
 						${this._sections && Object.keys(this._sections).length > 0 ? 
 		html`${repeat(Object.values(this._sections), (item) => item.id, (item) => html`
-							<a ?selected=${this._page === 'c' && item.id == this._activeSectionId} href='${urlForCard(getDefaultCardIdForSection(item))}?${FORCE_COLLECTION_URL_PARAM}'>${item.title}</a>
+							<a ?selected=${this._page === PAGE_DEFAULT && item.id == this._activeSectionId} href='${urlForCard(getDefaultCardIdForSection(item))}?${FORCE_COLLECTION_URL_PARAM}'>${item.title}</a>
 							`)}` :
-		html`<a ?selected="${this._page === 'c'}" href="/c"><em>Loading...</em></a>`
+		html`<a ?selected="${this._page === PAGE_DEFAULT}" href=${'/' + PAGE_DEFAULT}><em>Loading...</em></a>`
 }
-						<a ?selected=${this._recentTabSelected} href="/c/has-content/sort/recent/">Recent</a>
-						<a class='icon-item' title='Your reading list' ?selected=${this._readingListTabSelected} href="/c/reading-list/">${playlistPlayIcon}<span>${this._userReadingListCount}</span></a>
-						<a class='icon-item' title='Your stars' ?selected=${this._starsTabSelected} href="/c/starred/">${starIcon}<span>${this._userStarsCount}</span></a>
-						<a class='icon-item' title="Cards you haven't read yet" ?selected=${this._unreadTabSelected} href="/c/unread/">${visibilityIcon}<span>${this._userUnreadCount}</span></a>
+						<a ?selected=${this._recentTabSelected} href=${'/' + PAGE_DEFAULT + '/has-content/sort/recent/'}>Recent</a>
+						<a class='icon-item' title='Your reading list' ?selected=${this._readingListTabSelected} href=${'/' + PAGE_DEFAULT + '/reading-list/'}>${playlistPlayIcon}<span>${this._userReadingListCount}</span></a>
+						<a class='icon-item' title='Your stars' ?selected=${this._starsTabSelected} href=${'/' + PAGE_DEFAULT + '/starred/'}>${starIcon}<span>${this._userStarsCount}</span></a>
+						<a class='icon-item' title="Cards you haven't read yet" ?selected=${this._unreadTabSelected} href=${'/' + PAGE_DEFAULT + '/unread/'}>${visibilityIcon}<span>${this._userUnreadCount}</span></a>
 					</nav>
 					<div class='spacer dev'>
 						${this._devMode ? html`DEVMODE` : ''}
@@ -252,10 +256,10 @@ class MainView extends connect(store)(LitElement) {
 
 			<!-- Main content -->
 			<main role="main" class="main-content">
-				<card-view class="page" ?active="${this._page === 'c'}"></card-view>
-				<comment-redirect-view class='page' ?active="${this._page === 'comment'}"></comment-redirect-view>
-				<my-view404 class="page" ?active="${this._page === 'view404'}"></my-view404>
-				<maintenance-view class='page' ?active="${this._page === 'maintenance'}"></maintenance-view>
+				<card-view class="page" ?active="${this._page === PAGE_DEFAULT}"></card-view>
+				<comment-redirect-view class='page' ?active="${this._page === PAGE_COMMENT}"></comment-redirect-view>
+				<my-view404 class="page" ?active="${this._page === PAGE_404}"></my-view404>
+				<maintenance-view class='page' ?active="${this._page === PAGE_MAINTENANCE}"></maintenance-view>
 			</main>
 		</div>
 		<snack-bar ?active="${this._snackbarOpened}">

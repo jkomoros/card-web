@@ -49,7 +49,7 @@ const onStar = async (snapshot) => {
     const cardTitle = await common.getCardName(cardId);
 
     const subject = 'User ' + authorString + ' starred card ' + cardTitle;
-    const message = 'User ' + authorString + ' (' + authorId +  ') starred card <a href="https://' + common.DOMAIN + '/c/' + cardId +'">' + cardTitle + ' (' + cardId + ')</a>.';
+    const message = 'User ' + authorString + ' (' + authorId +  ') starred card <a href="https://' + common.DOMAIN + '/' + common.PAGE_DEFAULT + '/' + cardId +'">' + cardTitle + ' (' + cardId + ')</a>.';
 
     sendEmail(subject, message);
 
@@ -65,7 +65,7 @@ const onMessage = async (snapshot, context) => {
     const cardTitle = await common.getCardName(cardId);
 
     const subject = 'User ' + authorString + ' left message on card ' + cardTitle;
-    const message = 'User ' + authorString + ' (' + authorId + ') left message on card <a href="https://' + common.DOMAIN + '/comment/' + messageId +'">' + cardTitle + ' (' + cardId + ')</a>: <p>' + messageText + '</p>';
+    const message = 'User ' + authorString + ' (' + authorId + ') left message on card <a href="https://' + common.DOMAIN + '/' + common.PAGE_COMMENT + '/' + messageId +'">' + cardTitle + ' (' + cardId + ')</a>: <p>' + messageText + '</p>';
 
     sendEmail(subject, message);
 

@@ -11,7 +11,13 @@ import {
 	selectDataIsFullyLoaded,
 	selectPage
 } from '../selectors.js';
+
 import { toggleOnReadingList } from '../actions/user.js';
+
+import { 
+	PAGE_DEFAULT, 
+	PAGE_BASIC_CARD
+} from '../actions/app.js';
 
 class CardLink extends connect(store)(LitElement) {
 	render() {
@@ -145,7 +151,7 @@ class CardLink extends connect(store)(LitElement) {
 		//that we know to exist. The first part of the URL should be 'c'
 		//(default) unless we're in 'basic-card' mode, in which case we should
 		//stay in 'basic-card' when the user hits the link.
-		const page = this._page == 'basic-card' ? 'basic-card' : 'c';
+		const page = this._page == PAGE_BASIC_CARD ? PAGE_BASIC_CARD : PAGE_DEFAULT;
 		return this.card ? (this._renderLink ? '/' + page + '/' + this.card : 'javascript:void(0)'): this.href;
 	}
 

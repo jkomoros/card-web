@@ -11,7 +11,8 @@ import {
 
 import {
 	navigatePathTo,
-	navigateToCard
+	navigateToCard,
+	PAGE_DEFAULT
 } from './app.js';
 
 import {
@@ -230,7 +231,7 @@ export const refreshCardSelector = (forceCommit) => (dispatch, getState) => {
 	const state = getState();
 
 	let page = selectPage(state);
-	if (page != 'c') return;
+	if (page != PAGE_DEFAULT) return;
 	let pageExtra = selectPageExtra(state);
 
 	const dataIsFullyLoaded = selectDataIsFullyLoaded(state);
@@ -274,8 +275,7 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 	let activeSetName = selectActiveSetName(state);
 	let collectionIsFallback = selectCollectionIsFallback(state);
 
-	//TODO: this should be a constant somewhere
-	let result = ['c'];
+	let result = [PAGE_DEFAULT];
 
 	//If the card is an orphan, then it should just be the set name (if
 	//non-default), and then its card name. A card is an orphan if it is not in
