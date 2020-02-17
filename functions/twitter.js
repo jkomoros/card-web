@@ -5,6 +5,7 @@ const FieldValue = common.FieldValue;
 const Twitter = require('twitter');
 const stable = require('stable');
 const fromEntries = require('fromentries');
+const screenshot = require('./screenshot.js');
 
 //In DEV_MODE generally we don't actually send a tweet. but sometimes you need
 //to test the actual tweet sending works, and in those cases you can flip this
@@ -13,11 +14,14 @@ const OVERRIDE_TWEET_IN_DEV_MODE = false;
 //This number will be stored in tweetInfos, allowing us in the future to easily
 //check the history of tweets for example if we change the message style we
 //post.
-const AUTO_TWEET_VERSION = 1.0;
+const AUTO_TWEET_VERSION = 2;
 
 //This is the max number of tweets to fetch engagement for, and should be set to
 //at or below the limit in the twitter API.
 const MAX_TWEETS_TO_FETCH = 100;
+
+//If set to false, won't include a picture in generated tweets
+const INCLUDE_PICTURE_IN_TWEET = true;
 
 let twitterClient = null;
 
@@ -303,7 +307,11 @@ const tweetCard = async () => {
     const card = await selectCardToTweet();
     const url = common.prettyCardURL(card);
     const message = card.title + ' ' + url;
-    const tweetInfo = await sendTweet(message);
+    let image = null;
+    if (INCLUDE_PICTURE_IN_TWEET) {
+        image =  await screenshot.fetchScreenshot(card);
+    }
+    const tweetInfo = await sendTweet(message, image);
     await markCardTweeted(card, tweetInfo);
 }
 
