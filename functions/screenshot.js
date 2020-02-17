@@ -1,6 +1,14 @@
 const common = require('./common.js');
 const puppeteer = require('puppeteer');
 
+//SCREENSHOT_VERSION should be incremented whenever the settings or generation
+//logic changes, such that a fetch for an unchanged card should generate a new
+//screenshot.
+// eslint-disable-next-line no-unused-vars
+const SCREENSHOT_VERSION = 1;
+const SCREENSHOT_WIDTH = 1390;
+const SCREENSHOT_HEIGHT = 768;
+
 const fetchScreenshotByIDOrSlug = async (idOrSlug) => {
 	let card = await common.getCardByIDOrSlug(idOrSlug);
 	if (!card) {
@@ -26,8 +34,8 @@ const fetchScreenshot = async(card) =>{
 const makeScreenshot = async (card) => {
 	const browser = await puppeteer.launch({
 		defaultViewport: {
-			width: 1390,
-			height: 768
+			width: SCREENSHOT_WIDTH,
+			height: SCREENSHOT_HEIGHT
 		},
 		args: ['--no-sandbox'],
 	});
