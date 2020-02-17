@@ -1,4 +1,5 @@
 const common = require('./common.js');
+const puppeteer = require('puppeteer');
 
 const fetchScreenshotByIDOrSlug = async (idOrSlug) => {
 	let card = await common.getCardByIDOrSlug(idOrSlug);
@@ -22,9 +23,21 @@ const fetchScreenshot = async(card) =>{
 	return await makeScreenshot(card);
 }
 
-const makeScreenshot = async () => {
-	console.warn("Not yet implemented");
-	return "TODO:returnscreenshot";
+const makeScreenshot = async (card) => {
+	const browser = await puppeteer.launch({
+		defaultViewport: {
+			width: 1390,
+			height: 768
+		},
+		args: ['--no-sandbox'],
+	});
+	const page = await browser.newPage();
+	await page.goto(common.urlForBasicCard(card.id),{
+		waitUntil: 'networkidle0'
+	});
+	const png = await page.screenshot();
+	await browser.close();
+	return png;
 }
 
 exports.fetchScreenshotByIDOrSlug = fetchScreenshotByIDOrSlug;
