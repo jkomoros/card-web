@@ -32,6 +32,7 @@ const FIREBASE_DEV_PROJECT = 'dev-complexity-compendium';
 const POLYMER_BUILD_TASK = 'polymer-build';
 const FIREBASE_USE_PROD_TASK = 'firebase-use-prod';
 const FIREBASE_DEPLOY_TASK = 'firebase-deploy';
+const FIREBASE_SET_CONFIG_LAST_DEPLOY = 'firebase-set-config-last-deploy';
 const GCLOUD_USE_PROD_TASK = 'gcloud-use-prod';
 const GCLOUD_BACKUP_TASK = 'gcloud-backup';
 const MAKE_TAG_TASK = 'make-tag';
@@ -40,7 +41,7 @@ const PUSH_TAG_TASK = 'push-tag';
 const GCLOUD_USE_DEV_TASK = 'gcloud-use-dev';
 const FIREBASE_USE_DEV_TASK = 'firebase-use-dev';
 const FIREBASE_DELETE_FIRESTORE_TASK = 'DANGEROUS-firebase-delete-firestore';
-const GCLOUD_RESTORE_TASK = 'gcloud-restore'
+const GCLOUD_RESTORE_TASK = 'gcloud-restore';
 
 const pad = (num) => {
 	let str =  '' + num;
@@ -64,6 +65,8 @@ gulp.task(FIREBASE_USE_PROD_TASK, run('firebase use ' + FIREBASE_PROD_PROJECT ))
 
 gulp.task(FIREBASE_DEPLOY_TASK, run('firebase deploy'));
 
+gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY, run('firebase functions:config:set site.last_prod_deploy=' + RELEASE_TAG));
+
 gulp.task(GCLOUD_USE_PROD_TASK, run('gcloud config set project ' + FIREBASE_PROD_PROJECT));
 
 gulp.task(GCLOUD_BACKUP_TASK, run('gcloud beta firestore export gs://complexity-compendium-backup'));
@@ -84,7 +87,10 @@ gulp.task(GCLOUD_RESTORE_TASK, makeExecutor(('gcloud beta firestore import $(gsu
 gulp.task('deploy', 
 	gulp.series(
 		POLYMER_BUILD_TASK,
+		FIREBASE_USE_DEV_TASK,
+		FIREBASE_SET_CONFIG_LAST_DEPLOY,
 		FIREBASE_USE_PROD_TASK,
+		FIREBASE_SET_CONFIG_LAST_DEPLOY,
 		FIREBASE_DEPLOY_TASK
 	)
 );
