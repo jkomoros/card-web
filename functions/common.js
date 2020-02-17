@@ -16,6 +16,20 @@ const DOMAIN = (config.site || {})  .domain || "thecompendium.cards";
 const PAGE_DEFAULT = 'c';
 const PAGE_COMMENT = 'comment';
 
+const getCardByIDOrSlug = async (idOrSlug) => {
+    let card = await db.collection('cards').doc(idOrSlug).get();
+    if (card && card.exists) {
+        return Object.assign({id: card.id}, card.data());
+    }
+    //Try fetching by slug
+    let cards = await db.collection('cards').where('slug', 'array-contains', idOrSlug).limit(1).get();
+    if (cards && !cards.empty) {
+        card = cards[0];
+        return Object.assign({id: card.id}, card.data());
+    }
+    return null;
+}
+
 const getUserDisplayName = async (uid) => {
     let user = await auth.getUser(uid);
     return user.displayName
@@ -37,6 +51,7 @@ exports.db = db;
 exports.auth = auth;
 exports.config = config;
 exports.getUserDisplayName = getUserDisplayName;
+exports.getCardByIDOrSlug = getCardByIDOrSlug;
 exports.getCardName = getCardName;
 exports.prettyCardURL = prettyCardURL;
 exports.DEV_MODE = DEV_MODE;
