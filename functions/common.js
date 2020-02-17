@@ -22,9 +22,9 @@ const getCardByIDOrSlug = async (idOrSlug) => {
         return Object.assign({id: card.id}, card.data());
     }
     //Try fetching by slug
-    let cards = await db.collection('cards').where('slug', 'array-contains', idOrSlug).limit(1).get();
+    let cards = await db.collection('cards').where('slugs', 'array-contains', idOrSlug).limit(1).get();
     if (cards && !cards.empty) {
-        card = cards[0];
+        card = cards.docs[0];
         return Object.assign({id: card.id}, card.data());
     }
     return null;
