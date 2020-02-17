@@ -540,6 +540,29 @@ export const addTweetFake = async() => {
 	console.log('done!');
 };
 
+const ADD_TWEET_MEDIA = 'add-tweet-media';
+
+export const addTweetMedia = async() => {
+	await checkMaintenanceTaskHasBeenRun(ADD_TWEET_MEDIA);
+
+	let batch = db.batch();
+
+	let tweetSnapshot = await db.collection(TWEETS_COLLECTION).get();
+
+	tweetSnapshot.forEach(doc => {
+		batch.update(doc.ref, {
+			'media_expanded_url': '',
+			'media_id': '',
+			'media_url_https': '',
+		});
+	});
+
+	await batch.commit();
+
+	await maintenanceTaskRun(ADD_TWEET_MEDIA);
+	console.log('done!');
+};
+
 export const doImport = () => {
 
 	fetch('/src/data/cards.json').then(resp => {
@@ -655,4 +678,5 @@ export const tasks = {
 	[RESET_TWEETS]: resetTweets,
 	[ADD_TWEET_ENGAGEMENT]: addTweetEngagement,
 	[ADD_TWEET_FAKE]: addTweetFake,
+	[ADD_TWEET_MEDIA]: addTweetMedia,
 };

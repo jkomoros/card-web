@@ -51,6 +51,9 @@ const sendTweet = async (message) => {
            'supplied_text': message,
            'posted_text': message,
            'auto_tweet_version': AUTO_TWEET_VERSION,
+           'media_expanded_url': '',
+           'media_id': '',
+           'media_url_https': '',
            'fake': true,
         };
     }
@@ -59,6 +62,15 @@ const sendTweet = async (message) => {
         return null;
     }
     let tweet = await twitterClient.post('statuses/update', {status: message});
+    let media_expanded_url = '';
+    let media_id = '';
+    let media_url_https = '';
+    if (tweet.entities && tweet.entities.media && tweet.entities.media.length) {
+        let media = tweet.entities.media[0];
+        media_expanded_url = media.expanded_url;
+        media_id = media.id_str;
+        media_url_https = media.media_url_https;
+    }
     return {
         'id': tweet.id_str,
         'user_screen_name': tweet.user ? tweet.user.screen_name : '',
@@ -67,6 +79,9 @@ const sendTweet = async (message) => {
         'supplied_text': message,
         'truncated': tweet.truncated,
         'auto_tweet_version': AUTO_TWEET_VERSION,
+        'media_expanded_url': media_expanded_url,
+        'media_id': media_id,
+        'media_url_https': media_url_https,
         'fake': false,
     };
 }
