@@ -17,7 +17,12 @@ exports.fetchTweetEngagement = functions.pubsub.schedule('0 */3 * * *').timeZone
 //NOTE: if you update this schedule in code,it
 //likely won't update the cloud scheduler, you'll have to delete the cloud
 //function and redeploy, or manually change hte cloud schedule.
-exports.autoTweet = functions.pubsub.schedule('7 8,12,17,20 * * *').timeZone('America/Los_Angeles').onRun(twitter.tweetCard);
+exports.autoTweet = functions.runWith({
+    //Set to a larger amount of memory and longer timeout since sometimes the
+    //tweet will need to generate a screenshot which might take up to a minute
+    memory: '1GB',
+    timeoutSeconds: 300,
+}).pubsub.schedule('7 8,12,17,20 * * *').timeZone('America/Los_Angeles').onRun(twitter.tweetCard);
 
 exports.emailAdminOnStar = functions.firestore.
     document('stars/{starId}').
