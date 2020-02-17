@@ -36,10 +36,12 @@ const makeScreenshot = async (card) => {
 	page.on('console', e => {
 		console.log("Page logged via console: " + e.text());
 	})
-	
 	await page.goto(common.urlForBasicCard(card.id),{
 		waitUntil: 'networkidle0'
 	});
+	//Wait for a long time until the firebase response is likely received.
+	//TODO: make this not just a race
+	await page.waitFor(15000);
 	const png = await page.screenshot();
 	await browser.close();
 	return png;
