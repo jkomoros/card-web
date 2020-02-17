@@ -3,9 +3,12 @@ const functions = require('firebase-functions');
 //TODO: include the same file as we do for the client for the canonical names of
 //collections.
 
+const express = require('express');
+
 const email = require('./email.js');
 const twitter = require('./twitter.js');
 const update = require('./update.js');
+const screenshot = require('./screenshot.js');
 
 //Runs every three hours
 exports.fetchTweetEngagement = functions.pubsub.schedule('0 */3 * * *').timeZone('America/Los_Angeles').onRun(twitter.fetchTweetEngagement);
@@ -28,3 +31,14 @@ exports.emailAdminOnMessage = functions.firestore.
 exports.updateInboundLinks = functions.firestore.
     document('cards/{cardId}').
     onUpdate(update.inboundLinks);
+
+const screenshotApp = express();
+screenshotApp.get('/:id', async (req, res) => {
+    const png = await screenshot.fetchScreenshotByIDOrSlug(req.params.id);
+    if (png) {
+        res.status(200).send(png);
+    }
+    res.status(404).end();
+});
+
+exports.screenshot = functions.https.onRequest(screenshotApp)
