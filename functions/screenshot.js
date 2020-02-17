@@ -23,7 +23,11 @@ const screenshotFileNameForCard = (card) => {
 	const starCount = String(card.star_count || 0);
 	const hash = md5(title + ':' + subtitle + ':' + body + ':' + starCount);
 
-	return 'screenshots/v' + SCREENSHOT_VERSION + '/' + card.id + '/' + hash + '.png';
+	//include the last prod deploy in the screenshot cache key because any time
+	//prod is deployed, the card rendering might have changed (and we use prod
+	//card rendering in both dev and prod cases because of the domain we have
+	//puppeteer fetch)
+	return 'screenshots/v' + SCREENSHOT_VERSION + '/' + common.LAST_PROD_DEPLOY + '/' + card.id + '/' + hash + '.png';
 }
 
 const fetchScreenshotByIDOrSlug = async (idOrSlug) => {
