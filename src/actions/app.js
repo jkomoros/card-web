@@ -227,7 +227,9 @@ const fetchCardFromDb = async (cardIDOrSlug) => {
 	return null;
 };
 
-const updateFetchedCard = (card) => {
+//Exposed so basic-card-view can expose an endpoint. Typically you use
+//fetchCard.
+export const updateFetchedCard = (card) => {
 	return {
 		type: UPDATE_FETCHED_CARD,
 		card

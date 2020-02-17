@@ -15,13 +15,15 @@ import {
 } from '../selectors.js';
 
 import { 
-	fetchCard
+	fetchCard, 
+	updateFetchedCard
 } from '../actions/app.js';
 
 import './card-stage.js';
 
 //recreated in functions/common.js
 export const WINDOW_CARD_RENDERED_VARIABLE = 'BASIC_CARD_RENDERED';
+export const WINDOW_INJECT_FETCHED_CARD_NAME = 'injectFetchedCard';
 
 class BasicCardView extends connect(store)(PageViewElement) {
 	render() {
@@ -47,6 +49,18 @@ class BasicCardView extends connect(store)(PageViewElement) {
 			_card: { type: Object},
 			_pageExtra: { type:String },
 			_cardBeingFetched: { type: Boolean},
+		};
+	}
+
+	connectedCallback() {
+		super.connectedCallback();
+		//Expose an override injection point that can be used via puppeteer to
+		//inject the data.
+		window[WINDOW_INJECT_FETCHED_CARD_NAME] = (card) => {
+			//Set the flag down, so we can be used multiple times and still
+			//waitFor the flag to raise for multiple screenshots.
+			window[WINDOW_CARD_RENDERED_VARIABLE] = false;
+			store.dispatch(updateFetchedCard(card));
 		};
 	}
 
