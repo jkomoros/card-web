@@ -24,7 +24,7 @@ const fetchScreenshot = async(card) =>{
 
 const makeScreenshot = async () => {
 	console.warn("Not yet implemented");
-	return null;
+	return "TODO:returnscreenshot";
 }
 
 exports.fetchScreenshotByIDOrSlug = fetchScreenshotByIDOrSlug;
