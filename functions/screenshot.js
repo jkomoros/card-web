@@ -5,7 +5,7 @@ const md5 = require('md5');
 //SCREENSHOT_VERSION should be incremented whenever the settings or generation
 //logic changes, such that a fetch for an unchanged card should generate a new
 //screenshot.
-const SCREENSHOT_VERSION = 1;
+const SCREENSHOT_VERSION = 2;
 const SCREENSHOT_WIDTH = 1390;
 const SCREENSHOT_HEIGHT = 768;
 
@@ -20,7 +20,8 @@ const screenshotFileNameForCard = (card) => {
 	const title = card.title || "";
 	const subtitle = card.subtitle || "";
 	const body = card.body || "";
-	const hash = md5(title + ':' + subtitle + ':' + body);
+	const starCount = String(card.star_count || 0);
+	const hash = md5(title + ':' + subtitle + ':' + body + ':' + starCount);
 
 	return 'screenshots/v' + SCREENSHOT_VERSION + '/' + card.id + '/' + hash + '.png';
 }
