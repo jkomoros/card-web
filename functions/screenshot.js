@@ -75,9 +75,7 @@ const makeScreenshot = async (card) => {
 	page.on('console', e => {
 		console.log("Page logged via console: " + e.text());
 	})
-	await page.goto(common.urlForBasicCard(card.id),{
-		waitUntil: 'networkidle0'
-	});
+	await page.goto(common.urlForBasicCard(card.id));
 	//Wait for the signal that the card has been fetched and rendered
 	await page.waitForFunction('window.' + common.WINDOW_CARD_RENDERED_VARIABLE);
 	//Wait a little bit longer just for good measure
