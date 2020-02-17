@@ -36,9 +36,11 @@ const screenshotApp = express();
 screenshotApp.get('/:id', async (req, res) => {
     const png = await screenshot.fetchScreenshotByIDOrSlug(req.params.id);
     if (png) {
-        res.status(200).send(png);
+        res.status(200).type('png').send(png);
     }
     res.status(404).end();
 });
 
-exports.screenshot = functions.https.onRequest(screenshotApp)
+exports.screenshot = functions.runWith({
+    memory: '1GB'
+}).https.onRequest(screenshotApp);
