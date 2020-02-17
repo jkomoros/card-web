@@ -20,6 +20,8 @@ import {
 
 import './card-stage.js';
 
+export const WINDOW_CARD_RENDERED_VARIABLE = 'BASIC_CARD_RENDERED';
+
 class BasicCardView extends connect(store)(PageViewElement) {
 	render() {
 		return html`
@@ -56,6 +58,12 @@ class BasicCardView extends connect(store)(PageViewElement) {
 	updated(changedProps) {
 		if (changedProps.has('_pageExtra')) {
 			store.dispatch(fetchCard(this._pageExtra));
+		}
+		if (changedProps.has('_card') && this._card && Object.entries(this._card).length) {
+			//Signal to the top-level page that the card has been loaded.
+			//Screenshot service will check for this to know when to take a
+			//screenshot.
+			this.updateComplete.then(() => window[WINDOW_CARD_RENDERED_VARIABLE] = true);
 		}
 	}
 
