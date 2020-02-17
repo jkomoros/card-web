@@ -20,6 +20,7 @@ const PAGE_COMMENT = 'comment';
 const PAGE_BASIC_CARD = 'basic-card';
 //copied from src/components/basic_card_view.js
 const WINDOW_CARD_RENDERED_VARIABLE = 'BASIC_CARD_RENDERED';
+//Note: screenshot.js uses the literal value of WINDOW_INJECT_FETCHED_CARD_NAME in the code;
 
 const urlForBasicCard = (idOrSlug) => {
     return 'https://' + DOMAIN + '/' + PAGE_BASIC_CARD + '/' + idOrSlug;

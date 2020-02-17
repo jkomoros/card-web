@@ -70,14 +70,27 @@ const makeScreenshot = async (card) => {
 		},
 		args: ['--no-sandbox'],
 	});
+
 	const page = await browser.newPage();
 	//forward any console messages from the page to our own log
 	page.on('console', e => {
 		console.log("Page logged via console: " + e.text());
 	})
-	await page.goto(common.urlForBasicCard(card.id));
+
+	//Wait for networkidle0, otherwise bold fonts etc might not have finished
+	//loading.
+	await page.goto(common.urlForBasicCard(card.id), {
+		waitUntil: 'networkidle0',
+	});
+
+	//Inject in the card directly, which should short-circuit the firebase fetch.
+	//Disabling no-undef because that function is defined in the context of the page
+	// eslint-disable-next-line no-undef
+	await page.evaluate((card) => injectFetchedCard(card), card);
+
 	//Wait for the signal that the card has been fetched and rendered
 	await page.waitForFunction('window.' + common.WINDOW_CARD_RENDERED_VARIABLE);
+
 	//Wait a little bit longer just for good measure
 	await page.waitFor(10);
 	const png = await page.screenshot();
