@@ -243,6 +243,7 @@ export const fetchCard = (cardIDOrSlug) => async (dispatch) =>  {
 	let card = {...rawCard.data(), id: rawCard.id};
 	if (!card.published) {
 		console.warn('Card wasn\'t published');
+		return;
 	}
 	dispatch({
 		type: UPDATE_FETCHED_CARD,
