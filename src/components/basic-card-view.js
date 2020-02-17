@@ -20,6 +20,7 @@ import {
 
 import './card-stage.js';
 
+//recreated in functions/common.js
 export const WINDOW_CARD_RENDERED_VARIABLE = 'BASIC_CARD_RENDERED';
 
 class BasicCardView extends connect(store)(PageViewElement) {

@@ -18,6 +18,8 @@ const LAST_PROD_DEPLOY = (config.site || {}).last_prod_deploy || "deploy-not-set
 const PAGE_DEFAULT = 'c';
 const PAGE_COMMENT = 'comment';
 const PAGE_BASIC_CARD = 'basic-card';
+//copied from src/components/basic_card_view.js
+const WINDOW_CARD_RENDERED_VARIABLE = 'BASIC_CARD_RENDERED';
 
 const urlForBasicCard = (idOrSlug) => {
     return 'https://' + DOMAIN + '/' + PAGE_BASIC_CARD + '/' + idOrSlug;
@@ -68,3 +70,4 @@ exports.DOMAIN = DOMAIN;
 exports.LAST_PROD_DEPLOY = LAST_PROD_DEPLOY;
 exports.PAGE_DEFAULT = PAGE_DEFAULT;
 exports.PAGE_COMMENT = PAGE_COMMENT;
+exports.WINDOW_CARD_RENDERED_VARIABLE = WINDOW_CARD_RENDERED_VARIABLE;

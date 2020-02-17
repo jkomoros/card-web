@@ -78,9 +78,10 @@ const makeScreenshot = async (card) => {
 	await page.goto(common.urlForBasicCard(card.id),{
 		waitUntil: 'networkidle0'
 	});
-	//Wait for a long time until the firebase response is likely received.
-	//TODO: make this not just a race
-	await page.waitFor(15000);
+	//Wait for the signal that the card has been fetched and rendered
+	await page.waitForFunction('window.' + common.WINDOW_CARD_RENDERED_VARIABLE);
+	//Wait a little bit longer just for good measure
+	await page.waitFor(10);
 	const png = await page.screenshot();
 	await browser.close();
 	return png;
