@@ -32,6 +32,11 @@ const makeScreenshot = async (card) => {
 		args: ['--no-sandbox'],
 	});
 	const page = await browser.newPage();
+	//forward any console messages from the page to our own log
+	page.on('console', e => {
+		console.log("Page logged via console: " + e.text());
+	})
+	
 	await page.goto(common.urlForBasicCard(card.id),{
 		waitUntil: 'networkidle0'
 	});
