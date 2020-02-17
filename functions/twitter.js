@@ -40,7 +40,7 @@ if (!twitterConfig || !twitterConfig.consumer_key || !twitterConfig.consumer_sec
 
 //sendTweet sends the tweet and returns a tweet ID if the database shoould be
 //marked that a tweet was sent.
-const sendTweet = async (message) => {
+const sendTweet = async (message, image) => {
     if (common.DEV_MODE && !OVERRIDE_TWEET_IN_DEV_MODE) {
         console.log("Tweet that would have been sent if this weren't a dev project: " + message);
         return {
@@ -61,7 +61,19 @@ const sendTweet = async (message) => {
         console.log("Twitter client not set up. Tweet that would have been sent: " + message);
         return null;
     }
-    let tweet = await twitterClient.post('statuses/update', {status: message});
+    let tweetOptions = {
+        status: message, 
+    }
+    if (image) {
+        let mediaResponse = await twitterClient.post('media/upload', {
+            media: image,
+            media_category: 'tweet_image',
+        });
+        tweetOptions.media_ids = mediaResponse.media_id_string;
+    }
+
+    let tweet = await twitterClient.post('statuses/update', tweetOptions);
+
     let media_expanded_url = '';
     let media_id = '';
     let media_url_https = '';
