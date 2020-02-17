@@ -9,6 +9,9 @@ const SCREENSHOT_VERSION = 1;
 const SCREENSHOT_WIDTH = 1390;
 const SCREENSHOT_HEIGHT = 768;
 
+//The default bucket is already configured, just use that
+const screenshotBucket = common.storage.bucket();
+
 const screenshotFileNameForCard = (card) => {
 	//This logic should include any parts of the card that might change the
 	//visual display of the card. The logic can change anytime the
@@ -19,7 +22,7 @@ const screenshotFileNameForCard = (card) => {
 	const body = card.body || "";
 	const hash = md5(title + ':' + subtitle + ':' + body);
 
-	return 'v' + SCREENSHOT_VERSION + '/' + card.id + '/' + hash + '.png';
+	return 'screenshots/v' + SCREENSHOT_VERSION + '/' + card.id + '/' + hash + '.png';
 }
 
 const fetchScreenshotByIDOrSlug = async (idOrSlug) => {
@@ -41,9 +44,17 @@ const fetchScreenshot = async(card) =>{
 		return null;
 	}
 	const filename = screenshotFileNameForCard(card);
-	console.log("Filename that would have been used for card: " + filename);
-	//TODO: check cache and store result in cache
-	return await makeScreenshot(card);
+	const file = screenshotBucket.file(filename);
+	const existsResponse = await file.exists();
+	if (existsResponse[0]) {
+		//Screenshot exists, return it
+		const downloadFileResponse = await file.download();
+		return downloadFileResponse[0];
+	}
+	console.log("Screenshot " + filename + " didn't exist in storage, creating.");
+	const screenshot = await makeScreenshot(card);
+	await file.save(screenshot);
+	return screenshot;
 }
 
 const makeScreenshot = async (card) => {

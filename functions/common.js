@@ -8,6 +8,7 @@ const FieldValue = admin.firestore.FieldValue;
 const db = admin.firestore();
 const auth = admin.auth();
 const config = functions.config();
+const storage = admin.storage();
 
 //DEV_MODE is true if the project name contains 'dev-' or '-dev'
 const DEV_MODE = process.env.GCLOUD_PROJECT.toLowerCase().includes('dev-') || process.env.GCLOUD_PROJECT.toLowerCase().includes('-dev');
@@ -55,6 +56,7 @@ exports.FieldValue = FieldValue;
 exports.db = db;
 exports.auth = auth;
 exports.config = config;
+exports.storage = storage;
 exports.getUserDisplayName = getUserDisplayName;
 exports.getCardByIDOrSlug = getCardByIDOrSlug;
 exports.urlForBasicCard = urlForBasicCard;
