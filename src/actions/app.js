@@ -40,7 +40,7 @@ export const PAGE_MAINTENANCE = 'maintenance';
 export const PAGE_404 = 'view404';
 
 import {
-	selectFinalCollection, selectCommentsAreFullyLoaded, getMessageById, getThreadById, selectPage, selectPageExtra, selectActivePreviewCardId
+	selectFinalCollection, selectCommentsAreFullyLoaded, getMessageById, getThreadById, selectPage, selectPageExtra, selectActivePreviewCardId, selectFetchedCard
 } from '../selectors.js';
 
 import {
@@ -227,8 +227,23 @@ const fetchCardFromDb = async (cardIDOrSlug) => {
 	return null;
 };
 
-export const fetchCard = (cardIDOrSlug) => async (dispatch) =>  {
+const updateFetchedCard = (card) => {
+	return {
+		type: UPDATE_FETCHED_CARD,
+		card
+	};
+};
+
+export const fetchCard = (cardIDOrSlug) => async (dispatch, getState) =>  {
 	if (!cardIDOrSlug) return;
+
+	//If we already fetched the card in question we can stop.
+	const state = getState();
+	const previouslyFetchedCard = selectFetchedCard(state);
+	if (previouslyFetchedCard && Object.entries(previouslyFetchedCard).length) {
+		if (previouslyFetchedCard.id == cardIDOrSlug) return;
+		if (previouslyFetchedCard.slugs && previouslyFetchedCard.slugs.some(slug => slug == cardIDOrSlug)) return;
+	}
 
 	dispatch({
 		type: CARD_BEING_FETCHED
@@ -245,10 +260,7 @@ export const fetchCard = (cardIDOrSlug) => async (dispatch) =>  {
 		console.warn('Card wasn\'t published');
 		return;
 	}
-	dispatch({
-		type: UPDATE_FETCHED_CARD,
-		card
-	});
+	dispatch(updateFetchedCard(card));
 };
 
 let hoverPreviewTimer;
