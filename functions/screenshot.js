@@ -91,8 +91,9 @@ const makeScreenshot = async (card) => {
 	//Wait for the signal that the card has been fetched and rendered
 	await page.waitForFunction('window.' + common.WINDOW_CARD_RENDERED_VARIABLE);
 
-	//Wait a little bit longer just for good measure
-	await page.waitFor(10);
+	//Wait a little bit longer just for good measure, especially since the card
+	//fades in as it loads in basic-card-viewer.
+	await page.waitFor(1000);
 	const png = await page.screenshot();
 	await browser.close();
 	return png;
