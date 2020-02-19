@@ -4,8 +4,6 @@ import {BaseCard} from './base-card.js';
 
 import './card-link.js';
 
-import dompurify from 'dompurify';
-
 import {
 	normalizeBodyToContentEditable,
 	normalizeBodyHTML,
@@ -118,10 +116,6 @@ export class ContentCard extends BaseCard {
 			section.addEventListener('input', this._bodyChanged.bind(this));
 			body = normalizeBodyToContentEditable(body);
 		}
-		body = dompurify.sanitize(body, {
-			ADD_ATTR: ['card'],
-			ADD_TAGS: ['card-link'],
-		});
 		section.innerHTML = body;
 		if(this.fullBleed) section.className = 'full-bleed';
 		return section;
