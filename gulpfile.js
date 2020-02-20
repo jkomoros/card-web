@@ -14,17 +14,17 @@ const gulp = require('gulp');
 const rename = require('gulp-rename');
 const replace = require('gulp-replace');
 const del = require('del');
-const run = require('gulp-run-command').default;
-const exec = require('child_process').exec;
+const spawnSync = require('child_process').spawnSync;
 
-const makeExecutor = cmd => {
-	return function (cb) {
-		console.log('Running ' + cmd);
-		exec(cmd, function (err, stdout, stderr) {
-			console.log(stdout);
-			console.log(stderr);
-			cb(err);
+const makeExecutor = cmdAndArgs => {
+	return (cb) => {
+		const splitCmd = cmdAndArgs.split(' ');
+		const cmd = splitCmd[0];
+		const args = splitCmd.slice(1);
+		const result = spawnSync(cmd, args, {
+			stdio: 'inherit'
 		});
+		cb(result.error);
 	};
 };
 
@@ -61,30 +61,30 @@ const releaseTag = () =>{
 const RELEASE_TAG = releaseTag();
 
 
-gulp.task(POLYMER_BUILD_TASK, run('polymer build'));
+gulp.task(POLYMER_BUILD_TASK, makeExecutor('polymer build'));
 
-gulp.task(FIREBASE_USE_PROD_TASK, run('firebase use ' + FIREBASE_PROD_PROJECT ));
+gulp.task(FIREBASE_USE_PROD_TASK, makeExecutor('firebase use ' + FIREBASE_PROD_PROJECT ));
 
-gulp.task(FIREBASE_DEPLOY_TASK, run('firebase deploy'));
+gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor('firebase deploy'));
 
-gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY, run('firebase functions:config:set site.last_prod_deploy=' + RELEASE_TAG));
+gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY, makeExecutor('firebase functions:config:set site.last_prod_deploy=' + RELEASE_TAG));
 
-gulp.task(GCLOUD_USE_PROD_TASK, run('gcloud config set project ' + FIREBASE_PROD_PROJECT));
+gulp.task(GCLOUD_USE_PROD_TASK, makeExecutor('gcloud config set project ' + FIREBASE_PROD_PROJECT));
 
-gulp.task(GCLOUD_BACKUP_TASK, run('gcloud beta firestore export gs://complexity-compendium-backup'));
+gulp.task(GCLOUD_BACKUP_TASK, makeExecutor('gcloud beta firestore export gs://complexity-compendium-backup'));
 
-gulp.task(MAKE_TAG_TASK, run('git tag "' + RELEASE_TAG + '"'));
+gulp.task(MAKE_TAG_TASK, makeExecutor('git tag "' + RELEASE_TAG + '"'));
 
-gulp.task(PUSH_TAG_TASK, run('git push origin "' + RELEASE_TAG + '"'));
+gulp.task(PUSH_TAG_TASK, makeExecutor('git push origin "' + RELEASE_TAG + '"'));
 
-gulp.task(GCLOUD_USE_DEV_TASK, run('gcloud config set project ' + FIREBASE_DEV_PROJECT));
+gulp.task(GCLOUD_USE_DEV_TASK, makeExecutor('gcloud config set project ' + FIREBASE_DEV_PROJECT));
 
-gulp.task(FIREBASE_USE_DEV_TASK, run('firebase use ' + FIREBASE_DEV_PROJECT));
+gulp.task(FIREBASE_USE_DEV_TASK, makeExecutor('firebase use ' + FIREBASE_DEV_PROJECT));
 
-gulp.task(FIREBASE_DELETE_FIRESTORE_TASK, run('firebase firestore:delete --all-collections --yes'));
+gulp.task(FIREBASE_DELETE_FIRESTORE_TASK, makeExecutor('firebase firestore:delete --all-collections --yes'));
 
 //run doesn't support sub-commands embedded in the command, so use exec.
-gulp.task(GCLOUD_RESTORE_TASK, makeExecutor(('gcloud beta firestore import $(gsutil ls gs://complexity-compendium-backup | tail -n 1)')));
+gulp.task(GCLOUD_RESTORE_TASK, makeExecutor('gcloud beta firestore import $(gsutil ls gs://complexity-compendium-backup | tail -n 1)'));
 
 gulp.task('deploy', 
 	gulp.series(
