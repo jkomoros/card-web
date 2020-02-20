@@ -15,7 +15,20 @@ const rename = require('gulp-rename');
 const replace = require('gulp-replace');
 const del = require('del');
 const spawnSync = require('child_process').spawnSync;
+//Only used for `reset-dev` because htat uses subcommands
+const exec = require('child_process').exec;
 const prompts = require('prompts');
+
+const makeExecExecutor = cmd => {
+	return function (cb) {
+		console.log('Running ' + cmd);
+		exec(cmd, function (err, stdout, stderr) {
+			console.log(stdout);
+			console.log(stderr);
+			cb(err);
+		});
+	};
+};
 
 const makeExecutor = cmdAndArgs => {
 	return (cb) => {
@@ -136,7 +149,7 @@ gulp.task(PUSH_TAG_TASK, makeExecutor('git push origin "' + RELEASE_TAG + '"'));
 gulp.task(FIREBASE_DELETE_FIRESTORE_TASK, makeExecutor('firebase firestore:delete --all-collections --yes'));
 
 //run doesn't support sub-commands embedded in the command, so use exec.
-gulp.task(GCLOUD_RESTORE_TASK, makeExecutor('gcloud beta firestore import $(gsutil ls gs://complexity-compendium-backup | tail -n 1)'));
+gulp.task(GCLOUD_RESTORE_TASK, makeExecExecutor('gcloud beta firestore import $(gsutil ls gs://complexity-compendium-backup | tail -n 1)'));
 
 let BACKUP_MESSAGE = '';
 
