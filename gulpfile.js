@@ -8,6 +8,8 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 */
 
+/*eslint-env node*/
+
 const gulp = require('gulp');
 const rename = require('gulp-rename');
 const replace = require('gulp-replace');
@@ -17,14 +19,14 @@ const exec = require('child_process').exec;
 
 const makeExecutor = cmd => {
 	return function (cb) {
-		console.log("Running " + cmd)
+		console.log('Running ' + cmd);
 		exec(cmd, function (err, stdout, stderr) {
 			console.log(stdout);
 			console.log(stderr);
 			cb(err);
-		})
+		});
 	};
-}
+};
 
 const FIREBASE_PROD_PROJECT = 'complexity-compendium';
 const FIREBASE_DEV_PROJECT = 'dev-complexity-compendium';
@@ -46,15 +48,15 @@ const GCLOUD_RESTORE_TASK = 'gcloud-restore';
 const pad = (num) => {
 	let str =  '' + num;
 	if (str.length < 2) {
-		str = "0" + str;
+		str = '0' + str;
 	}
-	return str
-}
+	return str;
+};
 
 const releaseTag = () =>{
 	let d = new Date();
-	return 'deploy-' + d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate() + "-" + d.getHours() + "-" + pad(d.getMinutes());
-}
+	return 'deploy-' + d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate() + '-' + d.getHours() + '-' + pad(d.getMinutes());
+};
 
 const RELEASE_TAG = releaseTag();
 
@@ -252,4 +254,5 @@ gulp.task('check-for-favicon-update', function(done) {
 			throw err;
 		}
 	});
+	done();
 });
