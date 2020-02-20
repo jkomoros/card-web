@@ -43,6 +43,7 @@ const PUSH_TAG_TASK = 'push-tag';
 const SET_LAST_PROD_DEPLOY_AFFECTING_RENDERING = 'set-last-prod-deploy-affecting-rendering';
 const SET_LAST_DEPLOY_IF_AFFECTS_RENDERING = 'set-last-deploy-if-affects-rendering';
 const ASK_IF_DEPLOY_AFFECTS_RENDERING = 'ask-if-deploy-affects-rendering';
+const ASK_BACKUP_MESSAGE = 'ask-backup-message';
 
 const GCLOUD_ENSURE_DEV_TASK = 'gcloud-ensure-dev';
 const FIREBASE_ENSURE_DEV_TASK = 'firebase-ensure-dev';
@@ -122,7 +123,11 @@ gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor('firebase deploy'));
 
 gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, makeExecutor('firebase functions:config:set site.last_prod_deploy_affecting_rendering=' + RELEASE_TAG));
 
-gulp.task(GCLOUD_BACKUP_TASK, makeExecutor('gcloud beta firestore export gs://complexity-compendium-backup'));
+gulp.task(GCLOUD_BACKUP_TASK, cb => {
+	//BACKUP_MESSAGE won't be known until later
+	const task = makeExecutor('gcloud beta firestore export gs://complexity-compendium-backup/' + RELEASE_TAG + (BACKUP_MESSAGE ? '-' + BACKUP_MESSAGE : ''));
+	task(cb);
+});
 
 gulp.task(MAKE_TAG_TASK, makeExecutor('git tag "' + RELEASE_TAG + '"'));
 
@@ -132,6 +137,30 @@ gulp.task(FIREBASE_DELETE_FIRESTORE_TASK, makeExecutor('firebase firestore:delet
 
 //run doesn't support sub-commands embedded in the command, so use exec.
 gulp.task(GCLOUD_RESTORE_TASK, makeExecutor('gcloud beta firestore import $(gsutil ls gs://complexity-compendium-backup | tail -n 1)'));
+
+let BACKUP_MESSAGE = '';
+
+gulp.task(ASK_BACKUP_MESSAGE, async (cb) => {
+	if (BACKUP_MESSAGE) {
+		console.log('Backup message already set');
+		cb();
+		return;
+	}
+	const response = await prompts({
+		type: 'text',
+		name: 'value',
+		message: 'Optional message for backup (for example to explain the reason why backup was run)'
+	});
+
+	let message = response.value;
+	message = message.split(' ').join('-');
+	if (!message.match('^[A-Za-z0-9-]*$')) {
+		cb('Message contained illegal characters');
+		return;
+	}
+	BACKUP_MESSAGE = message;
+	cb();
+});
 
 let deployAffectsRendering = undefined;
 
@@ -184,6 +213,7 @@ gulp.task('deploy',
 
 gulp.task('backup', 
 	gulp.series(
+		ASK_BACKUP_MESSAGE,
 		GCLOUD_ENSURE_PROD_TASK,
 		GCLOUD_BACKUP_TASK,
 	)
@@ -200,6 +230,7 @@ gulp.task('release',
 	gulp.series(
 		//Ask at the beginning so the user can walk away after running
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
+		ASK_BACKUP_MESSAGE,
 		'backup',
 		'deploy',
 		'tag-release'
