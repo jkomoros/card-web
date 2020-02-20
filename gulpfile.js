@@ -32,7 +32,7 @@ const FIREBASE_PROD_PROJECT = 'complexity-compendium';
 const FIREBASE_DEV_PROJECT = 'dev-complexity-compendium';
 
 const POLYMER_BUILD_TASK = 'polymer-build';
-const FIREBASE_USE_PROD_TASK = 'firebase-use-prod';
+const FIREBASE_ENSURE_PROD_TASK = 'firebase-ensure-prod';
 const FIREBASE_DEPLOY_TASK = 'firebase-deploy';
 const FIREBASE_SET_CONFIG_LAST_DEPLOY = 'firebase-set-config-last-deploy';
 const GCLOUD_USE_PROD_TASK = 'gcloud-use-prod';
@@ -41,7 +41,7 @@ const MAKE_TAG_TASK = 'make-tag';
 const PUSH_TAG_TASK = 'push-tag';
 
 const GCLOUD_USE_DEV_TASK = 'gcloud-use-dev';
-const FIREBASE_USE_DEV_TASK = 'firebase-use-dev';
+const FIREBASE_ENSURE_DEV_TASK = 'firebase-ensure-dev';
 const FIREBASE_DELETE_FIRESTORE_TASK = 'DANGEROUS-firebase-delete-firestore';
 const GCLOUD_RESTORE_TASK = 'gcloud-restore';
 
@@ -60,10 +60,33 @@ const releaseTag = () =>{
 
 const RELEASE_TAG = releaseTag();
 
+//Will be set by FIREBASE_USE_PROD and FIREBASE_USE_DEV_TASK to ensure they
+//don't get run again
+let firebase_is_prod = undefined;
+const firebaseUseProd = makeExecutor('firebase use ' + FIREBASE_PROD_PROJECT);
+const firebaseUseDev = makeExecutor('firebase use ' + FIREBASE_DEV_PROJECT);
+
+gulp.task(FIREBASE_ENSURE_PROD_TASK, (cb) => {
+	if (firebase_is_prod) {
+		console.log('Already using prod');
+		cb();
+		return;
+	}
+	firebase_is_prod = true;
+	firebaseUseProd(cb);
+});
+
+gulp.task(FIREBASE_ENSURE_DEV_TASK, (cb) => {
+	if (firebase_is_prod === false) {
+		console.log('Already using dev');
+		cb();
+		return;
+	}
+	firebase_is_prod = false;
+	firebaseUseDev(cb);
+});
 
 gulp.task(POLYMER_BUILD_TASK, makeExecutor('polymer build'));
-
-gulp.task(FIREBASE_USE_PROD_TASK, makeExecutor('firebase use ' + FIREBASE_PROD_PROJECT ));
 
 gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor('firebase deploy'));
 
@@ -79,8 +102,6 @@ gulp.task(PUSH_TAG_TASK, makeExecutor('git push origin "' + RELEASE_TAG + '"'));
 
 gulp.task(GCLOUD_USE_DEV_TASK, makeExecutor('gcloud config set project ' + FIREBASE_DEV_PROJECT));
 
-gulp.task(FIREBASE_USE_DEV_TASK, makeExecutor('firebase use ' + FIREBASE_DEV_PROJECT));
-
 gulp.task(FIREBASE_DELETE_FIRESTORE_TASK, makeExecutor('firebase firestore:delete --all-collections --yes'));
 
 //run doesn't support sub-commands embedded in the command, so use exec.
@@ -89,9 +110,9 @@ gulp.task(GCLOUD_RESTORE_TASK, makeExecutor('gcloud beta firestore import $(gsut
 gulp.task('deploy', 
 	gulp.series(
 		POLYMER_BUILD_TASK,
-		FIREBASE_USE_DEV_TASK,
+		FIREBASE_ENSURE_DEV_TASK,
 		FIREBASE_SET_CONFIG_LAST_DEPLOY,
-		FIREBASE_USE_PROD_TASK,
+		FIREBASE_ENSURE_PROD_TASK,
 		FIREBASE_SET_CONFIG_LAST_DEPLOY,
 		FIREBASE_DEPLOY_TASK
 	)
@@ -122,7 +143,7 @@ gulp.task('release',
 gulp.task('reset-dev',
 	gulp.series(
 		GCLOUD_USE_DEV_TASK,
-		FIREBASE_USE_DEV_TASK,
+		FIREBASE_ENSURE_DEV_TASK,
 		FIREBASE_DELETE_FIRESTORE_TASK,
 		GCLOUD_RESTORE_TASK,
 	)
