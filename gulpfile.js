@@ -73,7 +73,8 @@ const pad = (num) => {
 
 const releaseTag = () =>{
 	let d = new Date();
-	return 'deploy-' + d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate() + '-' + d.getHours() + '-' + pad(d.getMinutes());
+	//need to pad all items to ensure that the lexicographic sorting is in the rihgt order
+	return 'deploy-' + d.getFullYear() + '-' + pad((d.getMonth() + 1)) + '-' + pad(d.getDate()) + '-' + pad(d.getHours()) + '-' + pad(d.getMinutes());
 };
 
 const RELEASE_TAG = releaseTag();
