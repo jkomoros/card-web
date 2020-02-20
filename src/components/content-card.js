@@ -123,6 +123,24 @@ export class ContentCard extends BaseCard {
 			ADD_ATTR: ['card'],
 			ADD_TAGS: ['card-link'],
 		});
+		if (body === '') {
+			//This is a total hack. If the body is empty, then contenteditable
+			//will have the first line of content in an anoymous top-level node,
+			//even though makeElementContentEditable configures it to use <p>
+			//for top-level elements, and even though the textarea will show the
+			//first line of wrapped in <p>'s because that's what it's normalized
+			//to but can't be reinjected into the contenteditable. If you then
+			//link to anything in that first line, then it will put a <p> before
+			//and after it for the rest of the content. If we just input
+			//`<p></p>` as starter content then Chrome's contenteditable
+			//wouldn't allow it to be focused. The answer is to inject a <p> so
+			//that the first line has the right content, and include a
+			//non-removable whitespace. Then, in the logic below in update(),
+			//special case delete that content, leaving us with a content
+			//editable that's selected, with the cursor starting out inside of
+			//paragraph tags.
+			body = '<p>&nbsp;</p>';
+		}
 		section.innerHTML = body;
 		if(this.fullBleed) section.className = 'full-bleed';
 		return section;
@@ -141,6 +159,14 @@ export class ContentCard extends BaseCard {
 				let sel = window.getSelection();
 				sel.removeAllRanges();
 				sel.addRange(range);
+
+				if (!this.body) {
+					//This is a total hack, but in the special case where the
+					//body is empty, we had to include an nbsp; so that the
+					//cursor would render inside of the <p>, so delete it.
+					document.execCommand('selectAll');
+					document.execCommand('delete');
+				}
 			}
 		}
 	}
