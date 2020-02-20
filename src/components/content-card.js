@@ -9,6 +9,7 @@ import {
 	normalizeBodyHTML,
 	reportSelectionRange
 } from '../actions/editor.js';
+import { makeElementContentEditable } from '../util.js';
 
 let loadingTemplate = html`<span class='loading'>Loading...<span>`;
 let blankTemplate = html`<span class='loading'>Content goes here...</span>`;
@@ -112,7 +113,7 @@ export class ContentCard extends BaseCard {
 		this._sectionElement = section;
 		body = normalizeBodyHTML(body);
 		if (this.editing) {
-			section.contentEditable = 'true';
+			makeElementContentEditable(section);
 			section.addEventListener('input', this._bodyChanged.bind(this));
 			body = normalizeBodyToContentEditable(body);
 		}

@@ -314,6 +314,20 @@ export const intersectionSet = (...sets) => {
 	return result;
 };
 
+//This logic is finicky and we have a few defaults we want to have, so wrap it
+//in a util.
+export const makeElementContentEditable = (ele) => {
+	ele.contentEditable = 'true';
+	//It's OK if we have already done these commands to do them again
+
+	//styleWithCSS turns off styling spans with CSS and just uses presentational
+	//attributes. 
+	document.execCommand('styleWithCSS', false, false);
+	//Browsers currently insert a "<div>" as default paragraph separator but we
+	//want 'p'; 
+	document.execCommand('defaultParagraphSeparator', false, 'p');
+};
+
 //Returns a safe markdown element that can be emitted in a lit-html template.
 export const markdownElement = (content) => {
 	let div = document.createElement('div');
