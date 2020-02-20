@@ -387,6 +387,10 @@ export const todoUpdated = (newTodo) => {
 export const bodyUpdated = (newBody, fromContentEditable) => {
 	return {
 		type: EDITING_BODY_UPDATED,
+		//We only run it if it's coming from contentEditable because
+		//normalizeBodyHTML assumes the contnet is valid HTML, and if it's been
+		//updated in the editor textbox, and for example the end says `</p`,
+		//then it's not valid HTML.
 		body: fromContentEditable ? normalizeBodyHTML(newBody) : newBody,
 		fromContentEditable
 	};
