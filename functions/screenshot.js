@@ -27,7 +27,7 @@ const screenshotFileNameForCard = (card) => {
 	//prod is deployed, the card rendering might have changed (and we use prod
 	//card rendering in both dev and prod cases because of the domain we have
 	//puppeteer fetch)
-	return 'screenshots/v' + SCREENSHOT_VERSION + '/' + common.LAST_PROD_DEPLOY + '/' + card.id + '/' + hash + '.png';
+	return 'screenshots/v' + SCREENSHOT_VERSION + '/' + common.LAST_PROD_DEPLOY_AFFECTING_RENDERING + '/' + card.id + '/' + hash + '.png';
 }
 
 const fetchScreenshotByIDOrSlug = async (idOrSlug) => {

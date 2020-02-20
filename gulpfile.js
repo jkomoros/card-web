@@ -34,11 +34,12 @@ const FIREBASE_DEV_PROJECT = 'dev-complexity-compendium';
 const POLYMER_BUILD_TASK = 'polymer-build';
 const FIREBASE_ENSURE_PROD_TASK = 'firebase-ensure-prod';
 const FIREBASE_DEPLOY_TASK = 'firebase-deploy';
-const FIREBASE_SET_CONFIG_LAST_DEPLOY = 'firebase-set-config-last-deploy';
+const FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING = 'firebase-set-config-last-deploy-affecting-rendering';
 const GCLOUD_ENSURE_PROD_TASK = 'gcloud-ensure-prod';
 const GCLOUD_BACKUP_TASK = 'gcloud-backup';
 const MAKE_TAG_TASK = 'make-tag';
 const PUSH_TAG_TASK = 'push-tag';
+const SET_LAST_PROD_DEPLOY_AFFECTING_RENDERING = 'set-last-prod-deploy-affecting-rendering';
 
 const GCLOUD_ENSURE_DEV_TASK = 'gcloud-ensure-dev';
 const FIREBASE_ENSURE_DEV_TASK = 'firebase-ensure-dev';
@@ -116,7 +117,7 @@ gulp.task(POLYMER_BUILD_TASK, makeExecutor('polymer build'));
 
 gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor('firebase deploy'));
 
-gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY, makeExecutor('firebase functions:config:set site.last_prod_deploy=' + RELEASE_TAG));
+gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, makeExecutor('firebase functions:config:set site.last_prod_deploy_affecting_rendering=' + RELEASE_TAG));
 
 gulp.task(GCLOUD_BACKUP_TASK, makeExecutor('gcloud beta firestore export gs://complexity-compendium-backup'));
 
@@ -129,13 +130,20 @@ gulp.task(FIREBASE_DELETE_FIRESTORE_TASK, makeExecutor('firebase firestore:delet
 //run doesn't support sub-commands embedded in the command, so use exec.
 gulp.task(GCLOUD_RESTORE_TASK, makeExecutor('gcloud beta firestore import $(gsutil ls gs://complexity-compendium-backup | tail -n 1)'));
 
+gulp.task(SET_LAST_PROD_DEPLOY_AFFECTING_RENDERING, 
+	gulp.series(
+		FIREBASE_ENSURE_DEV_TASK,
+		FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING,
+		FIREBASE_ENSURE_PROD_TASK,
+		FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING,
+	)	
+);
+
 gulp.task('deploy', 
 	gulp.series(
 		POLYMER_BUILD_TASK,
-		FIREBASE_ENSURE_DEV_TASK,
-		FIREBASE_SET_CONFIG_LAST_DEPLOY,
+		SET_LAST_PROD_DEPLOY_AFFECTING_RENDERING,
 		FIREBASE_ENSURE_PROD_TASK,
-		FIREBASE_SET_CONFIG_LAST_DEPLOY,
 		FIREBASE_DEPLOY_TASK
 	)
 );

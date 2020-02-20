@@ -13,7 +13,7 @@ const storage = admin.storage();
 //DEV_MODE is true if the project name contains 'dev-' or '-dev'
 const DEV_MODE = process.env.GCLOUD_PROJECT.toLowerCase().includes('dev-') || process.env.GCLOUD_PROJECT.toLowerCase().includes('-dev');
 const DOMAIN = (config.site || {})  .domain || "thecompendium.cards";
-const LAST_PROD_DEPLOY = (config.site || {}).last_prod_deploy || "deploy-not-set";
+const LAST_PROD_DEPLOY_AFFECTING_RENDERING = (config.site || {}).last_prod_deploy_affecting_rendering || "deploy-not-set";
 //Copied from src/actions/app.js
 const PAGE_DEFAULT = 'c';
 const PAGE_COMMENT = 'comment';
@@ -68,7 +68,7 @@ exports.getCardName = getCardName;
 exports.prettyCardURL = prettyCardURL;
 exports.DEV_MODE = DEV_MODE;
 exports.DOMAIN = DOMAIN;
-exports.LAST_PROD_DEPLOY = LAST_PROD_DEPLOY;
+exports.LAST_PROD_DEPLOY_AFFECTING_RENDERING = LAST_PROD_DEPLOY_AFFECTING_RENDERING;
 exports.PAGE_DEFAULT = PAGE_DEFAULT;
 exports.PAGE_COMMENT = PAGE_COMMENT;
 exports.WINDOW_CARD_RENDERED_VARIABLE = WINDOW_CARD_RENDERED_VARIABLE;
