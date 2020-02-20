@@ -47,6 +47,7 @@
     "pixelmatch": "^4.0.2",
     "polymer-cli": "^1.9.11",
     "polyserve": "^0.27.15",
+    "prompts": "^2.3.1",
     "prpl-server": "^1.4.0",
     "puppeteer": "^1.20.0",
     "wct-mocha": "^1.0.1"

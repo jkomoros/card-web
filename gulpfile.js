@@ -15,6 +15,7 @@ const rename = require('gulp-rename');
 const replace = require('gulp-replace');
 const del = require('del');
 const spawnSync = require('child_process').spawnSync;
+const prompts = require('prompts');
 
 const makeExecutor = cmdAndArgs => {
 	return (cb) => {
@@ -40,6 +41,8 @@ const GCLOUD_BACKUP_TASK = 'gcloud-backup';
 const MAKE_TAG_TASK = 'make-tag';
 const PUSH_TAG_TASK = 'push-tag';
 const SET_LAST_PROD_DEPLOY_AFFECTING_RENDERING = 'set-last-prod-deploy-affecting-rendering';
+const SET_LAST_DEPLOY_IF_AFFECTS_RENDERING = 'set-last-deploy-if-affects-rendering';
+const ASK_IF_DEPLOY_AFFECTS_RENDERING = 'ask-if-deploy-affects-rendering';
 
 const GCLOUD_ENSURE_DEV_TASK = 'gcloud-ensure-dev';
 const FIREBASE_ENSURE_DEV_TASK = 'firebase-ensure-dev';
@@ -130,6 +133,36 @@ gulp.task(FIREBASE_DELETE_FIRESTORE_TASK, makeExecutor('firebase firestore:delet
 //run doesn't support sub-commands embedded in the command, so use exec.
 gulp.task(GCLOUD_RESTORE_TASK, makeExecutor('gcloud beta firestore import $(gsutil ls gs://complexity-compendium-backup | tail -n 1)'));
 
+let deployAffectsRendering = undefined;
+
+gulp.task(ASK_IF_DEPLOY_AFFECTS_RENDERING, async (cb) => {
+	if (deployAffectsRendering !== undefined) {
+		console.log('Already asked if deploy affects rendering');
+		cb();
+		return;
+	}
+	const response = await prompts({
+		type:'confirm',
+		name: 'value',
+		initial: false,
+		message: 'Could the webapp in this deploy possibly affect rendering of cards?',
+	});
+
+	deployAffectsRendering = response.value;
+	cb();
+
+});
+
+gulp.task(SET_LAST_DEPLOY_IF_AFFECTS_RENDERING, (cb) => {
+	let task = gulp.task(SET_LAST_PROD_DEPLOY_AFFECTING_RENDERING);
+	if (!deployAffectsRendering) {
+		console.log('Skipping setting config because deploy doesn\'t affect rendering');
+		cb();
+		return;
+	}
+	task(cb);
+});
+
 gulp.task(SET_LAST_PROD_DEPLOY_AFFECTING_RENDERING, 
 	gulp.series(
 		FIREBASE_ENSURE_DEV_TASK,
@@ -142,7 +175,8 @@ gulp.task(SET_LAST_PROD_DEPLOY_AFFECTING_RENDERING,
 gulp.task('deploy', 
 	gulp.series(
 		POLYMER_BUILD_TASK,
-		SET_LAST_PROD_DEPLOY_AFFECTING_RENDERING,
+		ASK_IF_DEPLOY_AFFECTS_RENDERING,
+		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
 		FIREBASE_ENSURE_PROD_TASK,
 		FIREBASE_DEPLOY_TASK
 	)
@@ -164,6 +198,8 @@ gulp.task('tag-release',
 
 gulp.task('release', 
 	gulp.series(
+		//Ask at the beginning so the user can walk away after running
+		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		'backup',
 		'deploy',
 		'tag-release'
