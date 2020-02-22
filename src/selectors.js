@@ -182,6 +182,13 @@ export const selectCards = createSelector(
 	(baseCards, isAdmin, uid) => isAdmin ? baseCards : Object.fromEntries(Object.entries(baseCards).filter(item => item[1].published || item[1].author == uid))
 );
 
+//Selects the set of all cards the current user can see (which even includes
+//ones not in default)
+export const selectAllCardsFilter = createSelector(
+	selectCards,
+	(cards) => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], true]))
+);
+
 export const getCardHasStar = (state, cardId) => {
 	return (selectUserStars(state) || {})[cardId] || false;
 };
