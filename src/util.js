@@ -351,6 +351,16 @@ export const makeCombinedFilter = (includeSets, excludeSets) => {
 	};
 };
 
+//Instead of keeping the filter inverse, this actually expands it into a literal
+//filter. allCardsFilter should be the result of selectAllCardsFilter.
+//inverseFilter is the concrete filter that you want to be the opposite of.
+//Typically inverse filters are represented as the opposite concrete filter and
+//never made literal like this, this is most useful for creating
+//unionFilterSets.
+export const makeConcreteInverseFilter = (inverseFilter, allCardsFilter) => {
+	return Object.fromEntries(Object.entries(allCardsFilter).filter(entry => !inverseFilter[entry[0]]));
+};
+
 //date may be a firestore timestamp or a date object.
 export const prettyTime = (date) => {
 	if (!date) return '';
