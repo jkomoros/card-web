@@ -37,13 +37,19 @@ export const DEFAULT_SET_NAME = 'all';
 //from the `all` set and then filters and then maybe sorts, but reading-list
 //lets a custom order.
 export const READING_LIST_SET_NAME = 'reading-list';
-export const READING_LIST_FILTER_NAME = 'in-reading-list';
+
+//Note: every time you add a new set name, add it here too and make sure that a
+//filter of that name is kept updated.
+export const FILTER_EQUIVALENTS_FOR_SET = {
+	[DEFAULT_SET_NAME]: 'in-all-set',
+	[READING_LIST_SET_NAME]: 'in-reading-list',
+};
 
 //If filter names have this character in them then they're actually a union of
 //the filters
 export const UNION_FILTER_DELIMITER = '+';
 
-export const SET_NAMES = [DEFAULT_SET_NAME, READING_LIST_SET_NAME];
+export const SET_NAMES = Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => entry[0]);
 
 //The word in the URL That means "the part after this is a sort".
 export const SORT_URL_KEYWORD = 'sort';
@@ -235,9 +241,9 @@ export const INVERSE_FILTER_NAMES = Object.assign(
 	{
 		'unstarred': 'starred',
 		'unread': 'read',
-		'not-in-reading-list' : READING_LIST_FILTER_NAME,
 		[TODO_COMBINED_INVERSE_FILTER_NAME]: TODO_COMBINED_FILTER_NAME,
 	},
+	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => ['not-' + entry[1], entry[1]])),
 	//extend with ones for all of the card filters badsed on that config
 	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][1], entry[1][0][0]])),
 	//Add the inverse need filters (skipping ones htat are not a TODO)
@@ -252,9 +258,9 @@ const INITIAL_STATE_FILTERS = Object.assign(
 		none: {},
 		starred: {},
 		read: {},
-		[READING_LIST_FILTER_NAME]: {},
 		[TODO_COMBINED_FILTER_NAME]: {},
 	},
+	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => [entry[1], {}])),
 	//extend with ones for all of the card filters based on the config.
 	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][0], {}])),
 	//extend with the does-not-need filters
@@ -313,12 +319,12 @@ const app = (state = INITIAL_STATE, action) => {
 	case UPDATE_SECTIONS:
 		return {
 			...state,
-			pendingFilters: {...state.pendingFilters, ...makeFilterFromSection(action.sections)}
+			pendingFilters: {...state.pendingFilters, ...makeFilterFromSection(action.sections, true)}
 		};
 	case UPDATE_TAGS:
 		return {
 			...state,
-			pendingFilters: {...state.pendingFilters, ...makeFilterFromSection(action.tags)}
+			pendingFilters: {...state.pendingFilters, ...makeFilterFromSection(action.tags, false)}
 		};
 	case UPDATE_CARDS:
 		return {
@@ -347,18 +353,23 @@ const app = (state = INITIAL_STATE, action) => {
 
 const makeFilterFromReadingList = (readingList) => {
 	return {
-		[READING_LIST_FILTER_NAME]: Object.fromEntries(readingList.map(id => [id, true]))
+		[FILTER_EQUIVALENTS_FOR_SET[READING_LIST_SET_NAME]]: Object.fromEntries(readingList.map(id => [id, true]))
 	};
 };
 
-const makeFilterFromSection = (sections) => {
+const makeFilterFromSection = (sections, includeDefaultSet) => {
 	let result = {};
+	let combinedSet = {};
 	for (let key of Object.keys(sections)) {
 		let filter = {};
 		let section = sections[key];
-		section.cards.forEach(card => filter[card] = true);
+		section.cards.forEach(card => {
+			filter[card] = true;
+			combinedSet[card] = true;
+		});
 		result[key] = filter;
 	}
+	if (includeDefaultSet) result[FILTER_EQUIVALENTS_FOR_SET[DEFAULT_SET_NAME]] = combinedSet;
 	return result;
 };
 

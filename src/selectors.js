@@ -24,7 +24,7 @@ import {
 	RECENT_SORT_NAME,
 	SORTS,
 	READING_LIST_SET_NAME,
-	READING_LIST_FILTER_NAME,
+	FILTER_EQUIVALENTS_FOR_SET,
 	TODO_COMBINED_FILTER_NAME,
 	UNION_FILTER_DELIMITER,
 	cardAutoTodoConfigKeys,
@@ -529,29 +529,27 @@ export const selectActiveSet = createSelector(
 //looking at a collection that only shows unread items, it will list the card
 //ids that are now marked read but are temporarily still in the collection.
 export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = createSelector(
-	selectDefaultSet,
+	selectAllCardsFilter,
 	selectActiveSetName,
 	selectActiveFilterNames,
 	selectFilters,
 	selectPendingFilters,
 	selectAllCardsFilter,
-	(defaultSet, setName, filterDefinition, currentFilterSetMembership, pendingFilterSetMembership, allCardsFilter) => {
+	(allCards, setName, filterDefinition, currentFilterSetMembership, pendingFilterSetMembership, allCardsFilter) => {
 
-		//ReadingList is special because it's conceptually a filter but also a
-		//set membership. We'll fake it by simply adding a filter for being in
-		//reading-list to our filter func. Basically instead of using the real
-		//readinglist set, we use the default set and filter for items based on
-		//the in-reading-list filter. This is OK because the only way they
-		//differ is the order, and we're returning a map from this function, so
-		//they're equivalent.
-		if (setName == READING_LIST_SET_NAME) {
-			filterDefinition = [...filterDefinition, READING_LIST_FILTER_NAME];
-		}
+		//Extend the filter definition with the filter equilvanet for the set
+		//we're using. This makes reading-list work correctly, and any changes
+		//in cards that might change what set they're in. Basically we use all
+		//cards and then filter them down to the list that was in the set
+		//originally. This is OK because we're returning a set, not an array,
+		//from this method, so order doesn't matter.
+		const filterEquivalentForActiveSet = FILTER_EQUIVALENTS_FOR_SET[setName];
+		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
 
 		const currentFilterFunc = combinedFilterForFilterDefinition(filterDefinition, currentFilterSetMembership, allCardsFilter);
 		const pendingFilterFunc = combinedFilterForFilterDefinition(filterDefinition, pendingFilterSetMembership, allCardsFilter);
 		//Return the set of items that pass the current filters but won't pass the pending filters.
-		let itemsThatWillBeRemoved = defaultSet.filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
+		let itemsThatWillBeRemoved = Object.keys(allCards).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
 		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));
 	}
 );
