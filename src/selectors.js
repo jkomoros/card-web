@@ -456,20 +456,22 @@ export const selectUserReadingListCount = createSelector(
 	(readingList) => (readingList || []).length
 );
 
-const combinedFilterForNames = (names, filters) => {
-	let includeFilters = [];
-	let excludeFilters = [];
-	for (let name of names) {
-		if (filters[name]) {
-			includeFilters.push(filters[name]);
+//filterDefinition is an array of filter-set names (concrete or inverse)
+const combinedFilterForFilterDefinition = (filterDefinition, filterSetMemberships) => {
+	let includeSets = [];
+	let excludeSets = [];
+	for (let name of filterDefinition) {
+		//TODO: if name is of type array, create a synthetic set and push into includeFilters.
+		if (filterSetMemberships[name]) {
+			includeSets.push(filterSetMemberships[name]);
 			continue;
 		}
 		if (INVERSE_FILTER_NAMES[name]) {
-			excludeFilters.push(filters[INVERSE_FILTER_NAMES[name]]);
+			excludeSets.push(filterSetMemberships[INVERSE_FILTER_NAMES[name]]);
 			continue;
 		}
 	}
-	return makeCombinedFilter(includeFilters, excludeFilters);
+	return makeCombinedFilter(includeSets, excludeSets);
 };
 
 //selectActiveConcreteFilterNames selects the active filter names that are
@@ -542,7 +544,7 @@ export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = creat
 const selectActiveCombinedFilter = createSelector(
 	selectActiveFilterNames,
 	selectFilters,
-	(activeFilterNames, filters) => combinedFilterForNames(activeFilterNames, filters)
+	(activeFilterNames, filters) => combinedFilterForFilterDefinition(activeFilterNames, filters)
 );
 
 //TODO: supprot other sets 
@@ -845,7 +847,7 @@ const selectCollectionForQuery = createSelector(
 	selectPreparedQuery,
 	selectFilters,
 	(defaultSet, preparedQuery, filters) => {
-		let filter = combinedFilterForNames(preparedQuery.filters, filters);
+		let filter = combinedFilterForFilterDefinition(preparedQuery.filters, filters);
 		return defaultSet.filter(id => filter(id));
 	}
 );
