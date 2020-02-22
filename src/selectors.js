@@ -23,6 +23,7 @@ import {
 	RECENT_SORT_NAME,
 	SORTS,
 	READING_LIST_SET_NAME,
+	READING_LIST_FILTER_NAME,
 	TODO_COMBINED_FILTER_NAME,
 	cardAutoTodoConfigKeys,
 	makeFilterFromCards
@@ -268,11 +269,6 @@ export const selectUserReadingListMap = createSelector(
 	list => Object.fromEntries((list || []).map(item => [item, true]))
 );
 
-const selectUserReadingListForSetMap = createSelector(
-	selectUserReadingListForSet,
-	list => Object.fromEntries((list || []).map(item => [item, true]))
-);
-
 //TODO: once factoring the composed threads selctors into this file, refactor
 //this to just select the composed threads.
 export const selectActiveCardThreadIds = createSelector(
@@ -474,72 +470,6 @@ const combinedFilterForFilterDefinition = (filterDefinition, filterSetMembership
 	return makeCombinedFilter(includeSets, excludeSets);
 };
 
-//selectActiveConcreteFilterNames selects the active filter names that are
-//non-inverse.
-const selectActiveConcreteFilterNames = createSelector(
-	selectActiveFilterNames,
-	(names) => names.filter(name => !INVERSE_FILTER_NAMES[name])
-);
-
-//selectActiveInverseConcreteFilterNames selects the active filter names that are
-//inverse, returning the concrete versions of them.
-const selectActiveInverseConcreteFilterNames = createSelector(
-	selectActiveFilterNames,
-	(names) => names.filter(name => INVERSE_FILTER_NAMES[name]).map(name => INVERSE_FILTER_NAMES[name])
-);
-
-//diffFilterEntries is used by selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit
-const diffFilterEntries = (activeFilter, pendingFilter, isInverse) => {
-
-	if (!activeFilter || !pendingFilter) return [];
-
-	const primary = isInverse ? pendingFilter : activeFilter;
-	const secondary = isInverse ? activeFilter : pendingFilter;
-
-	const entries = Object.entries(primary).map(entry => {
-		const card = entry[0];
-		return secondary[card] ? null : [card, true];
-	});
-
-	return entries.filter(entry => entry);
-};
-
-//selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit returns the items
-//that will be removed from the currently visible collection when
-//COMMIT_PENDING_COLLECTION_MODIFICATIONS is dispatched. For example, if you're
-//looking at a collection that only shows unread items, it will list the card
-//ids that are now marked read but are temporarily still in the collection.
-export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = createSelector(
-	selectActiveSetName,
-	selectFilters,
-	selectPendingFilters,
-	selectActiveConcreteFilterNames,
-	selectActiveInverseConcreteFilterNames,
-	selectUserReadingListForSetMap,
-	selectUserReadingListMap,
-	(setName, filters, pendingFilters, conceteFilterNames, inverseConcreteFilterNames, readingListForSet, readingList) => {
-		//We won't compute the entire diff, just the diff for the filter names
-		//that are currently active.
-		let entries = [];
-		conceteFilterNames.forEach(filterName => {
-			let diffEntries = diffFilterEntries(filters[filterName], pendingFilters[filterName], false);
-			entries = entries.concat(diffEntries);
-		});
-		inverseConcreteFilterNames.forEach(filterName => {
-			let diffEntries = diffFilterEntries(filters[filterName], pendingFilters[filterName], true);
-			entries = entries.concat(diffEntries);
-		});
-		//We have to handle reading-list set changes specially because it's a
-		//base set that's liable to change, like read/star, but for a base set.
-		//Only return it in the diff if that set is currently being used.
-		if (setName == READING_LIST_SET_NAME) {
-			let diffEntries = diffFilterEntries(readingListForSet, readingList, false);
-			entries = entries.concat(diffEntries);
-		}
-		return Object.fromEntries(entries);
-	}
-);
-
 //Returns a list of icludeFilters and a list of excludeFilters.
 const selectActiveCombinedFilter = createSelector(
 	selectActiveFilterNames,
@@ -560,6 +490,38 @@ export const selectActiveSet = createSelector(
 			return readingList || [];
 		}
 		return [];
+	}
+);
+
+//selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit returns the items
+//that will be removed from the currently visible collection when
+//COMMIT_PENDING_COLLECTION_MODIFICATIONS is dispatched. For example, if you're
+//looking at a collection that only shows unread items, it will list the card
+//ids that are now marked read but are temporarily still in the collection.
+export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = createSelector(
+	selectDefaultSet,
+	selectActiveSetName,
+	selectActiveFilterNames,
+	selectFilters,
+	selectPendingFilters,
+	(defaultSet, setName, filterDefinition, currentFilterSetMembership, pendingFilterSetMembership) => {
+
+		//ReadingList is special because it's conceptually a filter but also a
+		//set membership. We'll fake it by simply adding a filter for being in
+		//reading-list to our filter func. Basically instead of using the real
+		//readinglist set, we use the default set and filter for items based on
+		//the in-reading-list filter. This is OK because the only way they
+		//differ is the order, and we're returning a map from this function, so
+		//they're equivalent.
+		if (setName == READING_LIST_SET_NAME) {
+			filterDefinition = [...filterDefinition, READING_LIST_FILTER_NAME];
+		}
+
+		const currentFilterFunc = combinedFilterForFilterDefinition(filterDefinition, currentFilterSetMembership);
+		const pendingFilterFunc = combinedFilterForFilterDefinition(filterDefinition, pendingFilterSetMembership);
+		//Return the set of items that pass the current filters but won't pass the pending filters.
+		let itemsThatWillBeRemoved = defaultSet.filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
+		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));
 	}
 );
 

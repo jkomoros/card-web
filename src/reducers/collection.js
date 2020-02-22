@@ -37,6 +37,7 @@ export const DEFAULT_SET_NAME = 'all';
 //from the `all` set and then filters and then maybe sorts, but reading-list
 //lets a custom order.
 export const READING_LIST_SET_NAME = 'reading-list';
+export const READING_LIST_FILTER_NAME = 'in-reading-list';
 
 export const SET_NAMES = [DEFAULT_SET_NAME, READING_LIST_SET_NAME];
 
@@ -230,7 +231,7 @@ export const INVERSE_FILTER_NAMES = Object.assign(
 	{
 		'unstarred': 'starred',
 		'unread': 'read',
-		'not-in-reading-list' : 'in-reading-list',
+		'not-in-reading-list' : READING_LIST_FILTER_NAME,
 		[TODO_COMBINED_INVERSE_FILTER_NAME]: TODO_COMBINED_FILTER_NAME,
 	},
 	//extend with ones for all of the card filters badsed on that config
@@ -247,7 +248,7 @@ const INITIAL_STATE_FILTERS = Object.assign(
 		none: {},
 		starred: {},
 		read: {},
-		'in-reading-list': {},
+		[READING_LIST_FILTER_NAME]: {},
 		[TODO_COMBINED_FILTER_NAME]: {},
 	},
 	//extend with ones for all of the card filters based on the config.
@@ -337,7 +338,7 @@ const app = (state = INITIAL_STATE, action) => {
 
 const makeFilterFromReadingList = (readingList) => {
 	return {
-		'in-reading-list': Object.fromEntries(readingList.map(id => [id, true]))
+		[READING_LIST_FILTER_NAME]: Object.fromEntries(readingList.map(id => [id, true]))
 	};
 };
 
