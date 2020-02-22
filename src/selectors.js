@@ -13,7 +13,8 @@ import { createSelector } from 'reselect';
 
 import {
 	makeCombinedFilter,
-	pageRequiresMainView
+	makeConcreteInverseFilter,
+	pageRequiresMainView,
 } from './util.js';
 
 import {
@@ -25,6 +26,7 @@ import {
 	READING_LIST_SET_NAME,
 	READING_LIST_FILTER_NAME,
 	TODO_COMBINED_FILTER_NAME,
+	UNION_FILTER_DELIMITER,
 	cardAutoTodoConfigKeys,
 	makeFilterFromCards
 } from './reducers/collection.js';
@@ -459,12 +461,32 @@ export const selectUserReadingListCount = createSelector(
 	(readingList) => (readingList || []).length
 );
 
-//filterDefinition is an array of filter-set names (concrete or inverse)
-const combinedFilterForFilterDefinition = (filterDefinition, filterSetMemberships) => {
+const filterNameIsUnionFilter = (filterName) => {
+	return filterName.includes(UNION_FILTER_DELIMITER);
+};
+
+//makeFilterUnionSet takes a definition like "starred+in-reading-list" and
+//returns a synthetic filter object that is the union of all of the filters
+//named. The individual names may be normal filters or inverse filters.
+const makeFilterUnionSet = (unionFilterDefinition, filterSetMemberships, allCardsFilter) => {
+	const subFilterNames = unionFilterDefinition.split(UNION_FILTER_DELIMITER);
+	const subFilters = subFilterNames.map(filterName => {
+		if (filterSetMemberships[filterName]) return filterSetMemberships[filterName];
+		if (INVERSE_FILTER_NAMES[filterName]) return makeConcreteInverseFilter(filterSetMemberships[INVERSE_FILTER_NAMES[filterName]], allCardsFilter);
+		return {};
+	});
+	return Object.fromEntries(subFilters.map(filter => Object.entries(filter)).reduce((accum, val) => accum.concat(val),[]));
+};
+
+//filterDefinition is an array of filter-set names (concrete or inverse or union-set)
+const combinedFilterForFilterDefinition = (filterDefinition, filterSetMemberships, allCardsFilter) => {
 	let includeSets = [];
 	let excludeSets = [];
 	for (let name of filterDefinition) {
-		//TODO: if name is of type array, create a synthetic set and push into includeFilters.
+		if (filterNameIsUnionFilter(name)) {
+			includeSets.push(makeFilterUnionSet(name, filterSetMemberships, allCardsFilter));
+			continue;
+		}
 		if (filterSetMemberships[name]) {
 			includeSets.push(filterSetMemberships[name]);
 			continue;
@@ -481,7 +503,8 @@ const combinedFilterForFilterDefinition = (filterDefinition, filterSetMembership
 const selectActiveCombinedFilter = createSelector(
 	selectActiveFilterNames,
 	selectFilters,
-	(activeFilterNames, filters) => combinedFilterForFilterDefinition(activeFilterNames, filters)
+	selectAllCardsFilter,
+	(activeFilterNames, filters, allCards) => combinedFilterForFilterDefinition(activeFilterNames, filters, allCards)
 );
 
 //TODO: supprot other sets 
@@ -511,7 +534,8 @@ export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = creat
 	selectActiveFilterNames,
 	selectFilters,
 	selectPendingFilters,
-	(defaultSet, setName, filterDefinition, currentFilterSetMembership, pendingFilterSetMembership) => {
+	selectAllCardsFilter,
+	(defaultSet, setName, filterDefinition, currentFilterSetMembership, pendingFilterSetMembership, allCardsFilter) => {
 
 		//ReadingList is special because it's conceptually a filter but also a
 		//set membership. We'll fake it by simply adding a filter for being in
@@ -524,8 +548,8 @@ export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = creat
 			filterDefinition = [...filterDefinition, READING_LIST_FILTER_NAME];
 		}
 
-		const currentFilterFunc = combinedFilterForFilterDefinition(filterDefinition, currentFilterSetMembership);
-		const pendingFilterFunc = combinedFilterForFilterDefinition(filterDefinition, pendingFilterSetMembership);
+		const currentFilterFunc = combinedFilterForFilterDefinition(filterDefinition, currentFilterSetMembership, allCardsFilter);
+		const pendingFilterFunc = combinedFilterForFilterDefinition(filterDefinition, pendingFilterSetMembership, allCardsFilter);
 		//Return the set of items that pass the current filters but won't pass the pending filters.
 		let itemsThatWillBeRemoved = defaultSet.filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
 		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));
@@ -815,8 +839,9 @@ const selectCollectionForQuery = createSelector(
 	selectDefaultSet,
 	selectPreparedQuery,
 	selectFilters,
-	(defaultSet, preparedQuery, filters) => {
-		let filter = combinedFilterForFilterDefinition(preparedQuery.filters, filters);
+	selectAllCardsFilter,
+	(defaultSet, preparedQuery, filters, allCardsFilter) => {
+		let filter = combinedFilterForFilterDefinition(preparedQuery.filters, filters, allCardsFilter);
 		return defaultSet.filter(id => filter(id));
 	}
 );

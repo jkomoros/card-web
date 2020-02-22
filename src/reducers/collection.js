@@ -39,6 +39,10 @@ export const DEFAULT_SET_NAME = 'all';
 export const READING_LIST_SET_NAME = 'reading-list';
 export const READING_LIST_FILTER_NAME = 'in-reading-list';
 
+//If filter names have this character in them then they're actually a union of
+//the filters
+export const UNION_FILTER_DELIMITER = '+';
+
 export const SET_NAMES = [DEFAULT_SET_NAME, READING_LIST_SET_NAME];
 
 //The word in the URL That means "the part after this is a sort".
@@ -259,6 +263,11 @@ const INITIAL_STATE_FILTERS = Object.assign(
 
 const INITIAL_STATE = {
 	activeSetName: DEFAULT_SET_NAME,
+	//activeFilterNames is the list of named filters to apply to the default
+	//set. These names are either concrete filters, inverse filters, or union
+	//filters (i.e. they concatenate conrete or inverse filternames delimited by
+	//'+'). For the purposes of processing URLs though they can all be treated
+	//as though they're concrete filters named their literal name in this.
 	activeFilterNames: [],
 	activeSortName: DEFAULT_SORT_NAME,
 	activeSortReversed: false,
