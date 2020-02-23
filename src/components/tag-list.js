@@ -39,7 +39,7 @@ class TagList  extends LitElement {
 			<div class='${this.editing ? 'editing' : ''} ${this.subtle ? 'subtle' :''}'>
 			${allTags && allTags.length ?
 		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} .defaultColor=${this.defaultColor}></tag-chip>`) :
-		(this.subtle ? html`` : html`<em>No ${this.typeName.toLowerCase()}s</em>`)}
+		(this.hideOnEmpty ? html`` : html`<em>No ${this.typeName.toLowerCase()}s</em>`)}
 			<select @change=${this._handleSelectChanged}>
 				<option value='#noop' selected>Add ${this.typeName}...</option>
 				${Object.keys(tagInfos).map(item => html`<option value='${tagInfos[item].id}'>${tagInfos[item].title}</option>`)}
@@ -83,7 +83,10 @@ class TagList  extends LitElement {
 			//other things then it could be any kinds of objects.
 			tagInfos: {type:Object},
 			editing: {type:Boolean},
+			//Subtle coloring
 			subtle: {type:Boolean},
+			//if true and empty then don't show any
+			hideOnEmpty: {type:Boolean},
 			//If set, typeName will be used in the UI to describe the types of things the tags represent, e.g. "New FOO". If not set, will default to "Tag".
 			overrideTypeName: {type:String},
 			//If true, then the select option to add a new tag will not be shown.
