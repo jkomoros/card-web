@@ -222,31 +222,29 @@ export const TODO_OVERRIDE_LEGAL_KEYS = Object.fromEntries(Object.entries(TODO_C
 //true, the given card should be considered to have a todo.
 export const TODO_COMBINED_FILTERS = Object.fromEntries(Object.entries(TODO_CONFIG_KEYS).map(entry => [CARD_FILTER_CONFIGS[entry[0]][0][3], true]));
 
-//cardAutoTodoConfigKeys returns the card filter keys (which index into for example
-//TODO_INFOS) representing the todos that are active for this card, SKIPPING any
-//manual overrides.
-export const cardAutoTodoConfigKeys = (card, filters) => {
+//cardTodoConfigKeys returns the card filter keys (which index into for example
+//TODO_INFOS) representing the todos that are active for this card. If
+//onlyNonOverrides is true, then it will skip any keys that are only true because
+//they're overridden to true.
+export const cardTodoConfigKeys = (card, onlyNonOverrides) => {
 	//TODO: this ideally should be in util.js (with the other cardHasContent
 	//functions), but because of entanglement of constants this has to live next
 	//to these constants.
 	if (!card) return [];
-	
-	//Figure out which of the matching todo filters apply
-	const matchingFilters = cardMatchingFilters(card, filters, TODO_COMBINED_FILTERS, INVERSE_FILTER_NAMES);
-	
-	//Convert those matching filtesr to their keys
-	const matchingKeys = matchingFilters.map(filterName => REVERSE_CARD_FILTER_CONFIG_MAP[filterName]);
 
-	//matchingKeys also includes things that don't naturally match, e.g.
-	//'needs-links' where 'has-links' is not set. But we just want to skip those
-	//since they have a non-auto value set, so it doesn't matter taht there's a
-	//difference; if 'has-FOO' and 'needs-FOO' differ it is precisely because
-	//that key in auto_todo_overrdies is set, which means it will be filtered
-	//out.
 	let result = [];
-	for (let key of matchingKeys) {
-		if (card.auto_todo_overrides[key] !== undefined) continue;
-		result.push(key);
+
+	for (let configKey of Object.keys(CARD_FILTER_CONFIGS)) {
+		const config = CARD_FILTER_CONFIGS[configKey];
+		if (!config[2].isTODO) continue;
+		if (config[2] == TODO_TYPE_AUTO) {
+			if (!cardMayHaveAutoTODO(card)) continue;
+			if (card.auto_todo_overrides[configKey] === false) continue;
+		}
+		const done = config[1](card);
+		if (!done || (!onlyNonOverrides && card.auto_todo_overrides[configKey] === true)) {
+			result.push(configKey);
+		}
 	}
 	return result;
 };
@@ -390,8 +388,7 @@ const makeFilterFromSection = (sections, includeDefaultSet) => {
 	return result;
 };
 
-//exported so that selectLiveCardFiltersForEditingCard can use it
-export const makeFilterFromCards = (cards, previousFilters) => {
+const makeFilterFromCards = (cards, previousFilters) => {
 	let result = {};
 	for(let [key, config] of Object.entries(CARD_FILTER_CONFIGS)) {
 		const filterName = config[0][0];
