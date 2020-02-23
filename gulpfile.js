@@ -143,9 +143,9 @@ gulp.task(GCLOUD_BACKUP_TASK, cb => {
 	task(cb);
 });
 
-gulp.task(MAKE_TAG_TASK, makeExecutor('git tag "' + RELEASE_TAG + '"'));
+gulp.task(MAKE_TAG_TASK, makeExecutor('git tag ' + RELEASE_TAG));
 
-gulp.task(PUSH_TAG_TASK, makeExecutor('git push origin "' + RELEASE_TAG + '"'));
+gulp.task(PUSH_TAG_TASK, makeExecutor('git push origin ' + RELEASE_TAG));
 
 gulp.task(FIREBASE_DELETE_FIRESTORE_TASK, makeExecutor('firebase firestore:delete --all-collections --yes'));
 
