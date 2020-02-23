@@ -58,7 +58,9 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 					border-left: 1px solid var(--app-divider-color);
 					position:relative;
 					color: var(--app-dark-text-color);
+					overflow: scroll;
 				}
+
 				h3 {
 					margin:0;
 					font-weight:normal;
