@@ -19,6 +19,7 @@ import {
 	selectActiveCard,
 	selectTags,
 	getAuthorForId,
+	selectInboundLinksForActiveCard,
 } from '../selectors.js';
 
 import {
@@ -118,8 +119,8 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				</div>
 				<div>
 					<h4>Cards That Link Here${this._help('Cards that link to this one.')}</h4>
-					${this._card && this._card.links_inbound && this._card.links_inbound.length 
-		? html`<ul>${this._card.links_inbound.map((item) => html`<li><card-link auto='title' card='${item}'>${item}</a></li>`)}</ul>`
+					${this._inboundLinks
+		? html`<ul>${this._inboundLinks.map((item) => html`<li><card-link auto='title' card='${item}'>${item}</a></li>`)}</ul>`
 		: html`<p><em>No cards link to this one.</em></p>`
 }
 				</div>
@@ -141,6 +142,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			_sectionTitle: { type: String},
 			_author: {type:Object},
 			_tagInfos: {type: Object},
+			_inboundLinks: {type: Array},
 		};
 	}
 
@@ -154,6 +156,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._sectionTitle = sectionTitle(state, this._card ? this._card.section : '');
 		this._author = getAuthorForId(state, this._card.author);
 		this._tagInfos = selectTags(state);
+		this._inboundLinks = selectInboundLinksForActiveCard(state);
 	}
 
 }

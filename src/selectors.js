@@ -352,6 +352,14 @@ export const selectActiveCardTodosForCurrentUser = createSelector(
 	(isAdmin, card) => isAdmin ? cardTodoConfigKeys(card, false) : []
 );
 
+//Because it filters out cards that don't exist (e.g. are unpublished), cards
+//that the user can't see won't show.
+export const selectInboundLinksForActiveCard = createSelector(
+	selectActiveCard,
+	selectCards,
+	(card, cards) => card && card.links_inbound ? card.links_inbound.filter(id => cards[id]) : []
+);
+
 //selectEditingCardAutoTodos will opeate on not the actual filter set, but one
 //that has been updated with the current editingCard values.
 export const selectEditingCardAutoTodos = createSelector(
