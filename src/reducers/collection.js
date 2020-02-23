@@ -150,27 +150,49 @@ const cardMayHaveAutoTODO = card => {
 	return card && card.card_type == 'content';
 };
 
+//These are the enum values in CARD_FILTER_CONFIGS that configure whether an
+//item is a TODO or not.
+
+//TODO_TYPE_NA is for card filters that are not TODOs
+const TODO_TYPE_NA = {
+	type: 'na',
+	isTODO: false,
+};
+//TODO_TYPE_AUTO is for card filters that are TODOs and are auto-set, meaning that
+//their key is legal in auto_todo_overrides.
+const TODO_TYPE_AUTO = {
+	type: 'auto',
+	isTODO: true,
+};
+
+//TODO_TYPE_FREEFORM is for card filters that are TODOs but are set via the freeform
+//notes property and are not valid keys in auto_todo_overrides.
+const TODO_TYPE_FREEFORM = {
+	type: 'freeform',
+	isTODO: true,
+};
+
 //Card filters are filters that can tell if a given card is in it given only the
 //card object itself. They're so common that in order to reduce extra machinery
 //they're factored into a single config here and all of the other machinery uses
 //it (and extends with non-card-filter-types as appropriate). The keys of each
 //config object are used as the keys in card.auto_todo_overrides map.
 const CARD_FILTER_CONFIGS = {
-	//tuple of good/bad filtername (good is primary), including no-todo/todo version if applicable, then the card->in-filter test, then a bool of whether to include in todo overrides map.
-	'comments': [defaultCardFilterName('comments'), card => card.thread_count, false],
-	'notes': [defaultCardFilterName('notes'), card => cardHasNotes(card), false],
-	'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, true],
-	'content': [defaultCardFilterName('content'), card => cardHasContent(card), true],
-	'links': [defaultCardFilterName('links'), card => card.links && card.links.length, true],
-	'inbound-links': [defaultCardFilterName('inbound-links'), card => card.links_inbound && card.links_inbound.length, true],
-	'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, true],
-	'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], card => card.published, true],
-	'tweet': [defaultCardFilterName('tweet'), card => card.tweet_count > 0, false],
+	//tuple of good/bad filtername (good is primary), including no-todo/todo version if applicable, then the card->in-filter test, then one of the TODO_TYPE enum values.
+	'comments': [defaultCardFilterName('comments'), card => card.thread_count, TODO_TYPE_NA],
+	'notes': [defaultCardFilterName('notes'), card => cardHasNotes(card), TODO_TYPE_NA],
+	'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, TODO_TYPE_AUTO],
+	'content': [defaultCardFilterName('content'), card => cardHasContent(card), TODO_TYPE_AUTO],
+	'links': [defaultCardFilterName('links'), card => card.links && card.links.length, TODO_TYPE_AUTO],
+	'inbound-links': [defaultCardFilterName('inbound-links'), card => card.links_inbound && card.links_inbound.length, TODO_TYPE_AUTO],
+	'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, TODO_TYPE_AUTO],
+	'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], card => card.published, TODO_TYPE_AUTO],
+	'tweet': [defaultCardFilterName('tweet'), card => card.tweet_count > 0, TODO_TYPE_NA],
 	//TODO_COMBINED_FILTERS looks for the fourth key in the filtername array, so
 	//we just duplicate the first two since they're the same (the reason they'd
 	//differ is if there's an override key and that could make the has- and
 	//needs- filters be different, and there isn't.)
-	[FREEFORM_TODO_KEY]: [['no-freeform-todo', 'has-freeform-todo', 'no-freeform-todo', 'has-freeform-todo'], card => !cardHasTodo(card), false],
+	[FREEFORM_TODO_KEY]: [['no-freeform-todo', 'has-freeform-todo', 'no-freeform-todo', 'has-freeform-todo'], card => !cardHasTodo(card), TODO_TYPE_FREEFORM],
 };
 
 //REVERSE_CARD_FILTER_CXONFIG_MAP maps the filter names, e.g. 'has-links',
@@ -179,31 +201,22 @@ const CARD_FILTER_CONFIGS = {
 //entry[0].
 export const REVERSE_CARD_FILTER_CONFIG_MAP = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => entry[1][0].map(function(filterNameListItem) {return [filterNameListItem, entry[0]];})).flat(1));
 
-//TODO_INFOS are appropriate to pass into tag-list.tagInfos.
-export const TODO_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[0], {id: entry[0], suppressLink: true, title: toTitleCase(entry[0].split('-').join(' '))}]));
 
 //TODO_ALL_INFOS is TODO_INFOS but also with an entry for FREEFORM_TODO_KEY. Use
 //TODO_INFOS for any tag-list in editing mode as the FREEFORM_TODO_KEY isn't a
 //valid key to set inoverrides; this is useful for the case where we want to
 //non-editing show auto-todos.
-export const TODO_ALL_INFOS = {
-	...TODO_INFOS,
-	[FREEFORM_TODO_KEY]: {
-		id: FREEFORM_TODO_KEY,
-		suppressLink: true,
-		title: toTitleCase(FREEFORM_TODO_KEY.split('-').join(' '))
-	}
-};
+export const TODO_ALL_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2].isTODO).map(entry => [entry[0], {id: entry[0], suppressLink: true, title: toTitleCase(entry[0].split('-').join(' '))}]));
 
-//TODO_OVERRIDE_LEGAL_KEYS reflects the only keys that are legal to set in card.auto_todo_overrides
-export const TODO_OVERRIDE_LEGAL_KEYS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[0], true]));
+//TODO_INFOS are appropriate to pass into tag-list.tagInfos as options to enable or disable.
+export const TODO_AUTO_INFOS = Object.fromEntries(Object.entries(TODO_ALL_INFOS).filter(entry => CARD_FILTER_CONFIGS[entry[0]][2] == TODO_TYPE_AUTO));
 
 //TODO_CONFIG_KEYS is all of the keys into CARD_FILTER_CONFIG that represent the
 //set of items that count as a TODO.
-const TODO_CONFIG_KEYS = {
-	...TODO_OVERRIDE_LEGAL_KEYS,
-	[FREEFORM_TODO_KEY]: true,
-};
+const TODO_CONFIG_KEYS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2].isTODO).map(entry => [entry[0], true]));
+
+//TODO_OVERRIDE_LEGAL_KEYS reflects the only keys that are legal to set in card.auto_todo_overrides
+export const TODO_OVERRIDE_LEGAL_KEYS = Object.fromEntries(Object.entries(TODO_CONFIG_KEYS).filter(entry => CARD_FILTER_CONFIGS[entry[0]][2] == TODO_TYPE_AUTO));
 
 //TODO_COMBINED_FILTERS represents the set of all filter names who, if ANY is
 //true, the given card should be considered to have a todo.
@@ -251,7 +264,7 @@ export const INVERSE_FILTER_NAMES = Object.assign(
 	//extend with ones for all of the card filters badsed on that config
 	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][1], entry[1][0][0]])),
 	//Add the inverse need filters (skipping ones htat are not a TODO)
-	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[1][0][3], entry[1][0][2]]))
+	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] == TODO_TYPE_AUTO).map(entry => [entry[1][0][3], entry[1][0][2]]))
 );
 
 //We pull this out because it has to be the same in filters and pendingFilters
@@ -268,7 +281,7 @@ const INITIAL_STATE_FILTERS = Object.assign(
 	//extend with ones for all of the card filters based on the config.
 	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][0], {}])),
 	//extend with the does-not-need filters
-	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2]).map(entry => [entry[1][0][2], {}]))
+	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] == TODO_TYPE_AUTO).map(entry => [entry[1][0][2], {}]))
 );
 
 const INITIAL_STATE = {
@@ -397,7 +410,7 @@ export const makeFilterFromCards = (cards, previousFilters) => {
 		const updatedFilter = setUnion(setRemove(previousFilters[filterName], newNonMatchingCards), newMatchingCards);
 		result[filterName] = updatedFilter;
 		//Bail out of next step for card filters that don't have todo overrides
-		if (!config[2]) continue;
+		if (config[2] != TODO_TYPE_AUTO) continue;
 		const doesNotNeedFilterName = config[0][2];
 		let newMatchingDoesNotNeedCards = [];
 		let newNonMatchingDoesNotNeedCards = [];
