@@ -249,13 +249,6 @@ export const getSection = (state, sectionId) => {
 	return state.data.sections[sectionId] || null;
 };
 
-//selectEditingCardAutoTodos will opeate on not the actual filter set, but one
-//that has been updated with the current editingCard values.
-export const selectEditingCardAutoTodos = createSelector(
-	selectEditingCard,
-	(card) => cardTodoConfigKeys(card, true)
-);
-
 export const selectCardTodosMapForCurrentUser = createSelector(
 	selectUserIsAdmin,
 	selectFilters,
@@ -351,6 +344,19 @@ export const selectActivePreviewCard = createSelector(
 	selectCards,
 	selectActivePreviewCardId,
 	(cards, activeCardId) => cards[activeCardId] || null
+);
+
+export const selectActiveCardTodosForCurrentUser = createSelector(
+	selectUserIsAdmin,
+	selectActiveCard,
+	(isAdmin, card) => isAdmin ? cardTodoConfigKeys(card, false) : []
+);
+
+//selectEditingCardAutoTodos will opeate on not the actual filter set, but one
+//that has been updated with the current editingCard values.
+export const selectEditingCardAutoTodos = createSelector(
+	selectEditingCard,
+	(card) => cardTodoConfigKeys(card, true)
 );
 
 //This means htat the active section is the only one showing. See also

@@ -34,7 +34,8 @@ import {
 	selectUserMayModifyReadingList,
 	selectCardsDrawerPanelShowing,
 	selectCollectionIsFallback,
-	selectEditingCard
+	selectEditingCard,
+	selectActiveCardTodosForCurrentUser
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -88,6 +89,10 @@ import './card-editor.js';
 import './tag-list.js';
 import './comments-panel.js';
 import './card-info-panel.js';
+
+import {
+	TODO_ALL_INFOS
+} from '../reducers/collection.js';
 
 import {
 	editIcon,
@@ -163,6 +168,12 @@ class CardView extends connect(store)(PageViewElement) {
           height: 300px;
         }
 
+		[slot=tags] {
+			display:flex;
+			flex-direction: column;
+			align-items: center;
+		}
+
         card-drawer {
           border-right: 1px solid var(--app-divider-color);
         }
@@ -222,7 +233,10 @@ class CardView extends connect(store)(PageViewElement) {
 					<button class='round' @click=${this._handleBackClicked}>${arrowBackIcon}</button>
 					<button class='round' @click=${this._handleForwardClicked}>${arrowForwardIcon}</button>
 				</div>
-				<tag-list slot='tags' .card=${this._displayCard} .subtle=${true} .tags=${this._displayCard.tags} .tagInfos=${this._tagInfos}></tag-list>
+				<div slot='tags'>
+					<tag-list .card=${this._displayCard} .subtle=${true} .tags=${this._displayCard.tags} .tagInfos=${this._tagInfos}></tag-list>
+					<tag-list .subtle=${true} .tags=${this._cardTodos} .tagInfos=${TODO_ALL_INFOS}></tag-list>
+				</div>
           </card-stage>
           <card-editor ?active=${this._editing} ></card-editor>
         </div>
@@ -266,6 +280,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_activeSectionId: {type: String},
 			_dataIsFullyLoaded: {type:Boolean},
 			_tagInfos: {type:Object},
+			_cardTodos: {type: Array},
 		};
 	}
 
@@ -431,6 +446,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._drawerReorderPending = state.data.reorderPending;
 		this._activeSectionId = selectActiveSectionId(state);
 		this._dataIsFullyLoaded = selectDataIsFullyLoaded(state);
+		this._cardTodos = selectActiveCardTodosForCurrentUser(state);
 	}
 
 	_changedPropsAffectCanvasSize(changedProps) {
