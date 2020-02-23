@@ -3,6 +3,8 @@ import {
 	UPDATE_SECTIONS,
 	UPDATE_TAGS,
 	UPDATE_AUTHORS,
+	UPDATE_TWEETS,
+	TWEETS_LOADING,
 	MODIFY_CARD,
 	MODIFY_CARD_SUCCESS,
 	MODIFY_CARD_FAILURE,
@@ -15,6 +17,10 @@ const INITIAL_STATE = {
 	sections: {},
 	tags: {},
 	slugIndex: {},
+	//true while we're loading tweets for the current card
+	tweetsLoading: false,
+	//We only fetch tweets for cards that we have already viewed.
+	tweets: {},
 	//These three are flipped to true on the first UPDATE_type entry, primarily
 	//as a flag to  selectDataisFullyLoaded.
 	cardsLoaded: false,
@@ -51,6 +57,17 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			authors: {...state.authors, ...action.authors},
+		};
+	case UPDATE_TWEETS:
+		return {
+			...state,
+			tweets: {...state.tweets, ...action.tweets},
+			tweetsLoading: false,
+		};
+	case TWEETS_LOADING:
+		return {
+			...state,
+			tweetsLoading: action.loading,
 		};
 	case MODIFY_CARD:
 		return {

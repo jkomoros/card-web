@@ -48,6 +48,8 @@ export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
 
 export const PLACEHOLDER_CARD_ID_CHARACTER = '_';
 
+
+
 export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 
 	let queryParts = cardSelector.split('?');

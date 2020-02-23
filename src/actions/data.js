@@ -2,6 +2,8 @@ export const UPDATE_CARDS = 'UPDATE_CARDS';
 export const UPDATE_SECTIONS = 'UPDATE_SECTIONS';
 export const UPDATE_TAGS = 'UPDATE_TAGS';
 export const UPDATE_AUTHORS= 'UPDATE_AUTHORS';
+export const UPDATE_TWEETS = 'UPDATE_TWEETS';
+export const TWEETS_LOADING = 'TWEETS_LOADING';
 export const MODIFY_CARD = 'MODIFY_CARD';
 export const MODIFY_CARD_SUCCESS = 'MODIFY_CARD_SUCCESS';
 export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
@@ -18,7 +20,8 @@ import {
 	SECTION_UPDATES_COLLECTION,
 	SECTIONS_COLLECTION,
 	TAGS_COLLECTION,
-	TAG_UPDATES_COLLECTION
+	TAG_UPDATES_COLLECTION,
+	TWEETS_COLLECTION,
 } from './database.js';
 
 import {
@@ -709,5 +712,32 @@ export const updateCards = (cards) => (dispatch) => {
 		cards,
 	});
 	dispatch(refreshCardSelector(false));
+};
+
+export const fetchTweets = (card) => async (dispatch) => {
+
+	if (!card || Object.values(card).length == 0) return;
+
+	dispatch({
+		type: TWEETS_LOADING,
+		loading: true,
+	});
+
+	const snapshot = await db.collection(TWEETS_COLLECTION).where('card', '==', card.id).where('archived', '==', false).get();
+
+	if (snapshot.empty) {
+		dispatch({
+			type: UPDATE_TWEETS,
+			loading: false,
+		});
+		return;
+	}
+
+	const tweets = Object.fromEntries(snapshot.docs.map(doc => [doc.id, doc.data()]));
+
+	dispatch({
+		type: UPDATE_TWEETS,
+		tweets
+	});
 };
 

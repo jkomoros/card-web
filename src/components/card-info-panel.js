@@ -15,6 +15,10 @@ import {
 	sectionTitle,
 } from '../reducers/data.js';
 
+import { 
+	fetchTweets
+} from '../actions/data.js';
+
 import {
 	selectActiveCard,
 	selectTags,
@@ -159,6 +163,14 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._author = getAuthorForId(state, this._card.author);
 		this._tagInfos = selectTags(state);
 		this._inboundLinks = selectInboundLinksForActiveCard(state);
+	}
+
+	updated(changedProps) {
+		if (changedProps.has('_card') || changedProps.has('_open')) {
+			if (this._open && this._card && Object.values(this._card).length != 0) {
+				store.dispatch(fetchTweets(this._card));
+			}
+		}
 	}
 
 }
