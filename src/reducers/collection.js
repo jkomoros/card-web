@@ -146,6 +146,10 @@ const FREEFORM_TODO_KEY = 'freeform-todo';
 export const TODO_COMBINED_FILTER_NAME = 'has-todo';
 const TODO_COMBINED_INVERSE_FILTER_NAME = 'no-todo';
 
+const cardMayHaveAutoTODO = card => {
+	return card && card.card_type == 'content';
+};
+
 //Card filters are filters that can tell if a given card is in it given only the
 //card object itself. They're so common that in order to reduce extra machinery
 //they're factored into a single config here and all of the other machinery uses
@@ -382,7 +386,9 @@ export const makeFilterFromCards = (cards, previousFilters) => {
 		let newMatchingCards = [];
 		let newNonMatchingCards = [];
 		for (let card of Object.values(cards)) {
-			if (filterFunc(card)) {
+			//filterFunc matching means that the card is DONE for that TODO. So
+			//we should consider each one done if the card can't have autotodos.
+			if(filterFunc(card) || !cardMayHaveAutoTODO(card)) {
 				newMatchingCards.push(card.id);
 			} else {
 				newNonMatchingCards.push(card.id);
@@ -402,6 +408,9 @@ export const makeFilterFromCards = (cards, previousFilters) => {
 			} else if (card.auto_todo_overrides[key] === true) {
 				newNonMatchingDoesNotNeedCards.push(card.id);
 			} else if (updatedFilter[card.id]) {
+				//This will also correctly handle cards that may not have an
+				//autotodo, becuase they've already been set to true for
+				//matching the 'done' filter above.
 				newMatchingDoesNotNeedCards.push(card.id);
 			} else {
 				newNonMatchingDoesNotNeedCards.push(card.id);
