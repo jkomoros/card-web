@@ -723,7 +723,8 @@ export const fetchTweets = (card) => async (dispatch) => {
 		loading: true,
 	});
 
-	const snapshot = await db.collection(TWEETS_COLLECTION).where('card', '==', card.id).where('archived', '==', false).get();
+	//This query requires an index, defined in firestore.indexes.json
+	const snapshot = await db.collection(TWEETS_COLLECTION).where('card', '==', card.id).where('archived', '==', false).orderBy('created', 'desc').get();
 
 	if (snapshot.empty) {
 		dispatch({
