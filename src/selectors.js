@@ -61,7 +61,8 @@ export const selectThreadsLoaded = (state) => state.comments ? state.comments.th
 export const selectMessages = (state) => state.comments ? state.comments.messages : null;
 export const selectThreads = (state) => state.comments ? state.comments.threads : null;
 export const selectAuthors = (state) => state.data.authors ? state.data.authors : null;
-const selectTweets = (state) => state.data.tweets ? state.data.tweets : {};
+const selectTweets = (state) => state.data ? state.data.tweets : {};
+export const selectTweetsLoading = (state) => state.data ? state.data.tweetsLoading : false;
 export const selectActivePreviewCardId = (state) => state.app ? state.app.hoverCardId : '';
 export const selectPreviewCardX = (state) => state.app ? state.app.hoverX : 0;
 export const selectPreviewCardY = (state) => state.app ? state.app.hoverY : 0;

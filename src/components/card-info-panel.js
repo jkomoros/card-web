@@ -25,6 +25,7 @@ import {
 	getAuthorForId,
 	selectInboundLinksForActiveCard,
 	selectActiveCardTweets,
+	selectTweetsLoading,
 } from '../selectors.js';
 
 import {
@@ -87,6 +88,9 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				.container > div {
 					margin: 0.5em 0;
 				}
+				.loading {
+					opacity:0.7;
+				}
 			</style>
 			<div class='container' ?hidden=${!this._open}>
 				<h3>Card Info</h3>
@@ -142,8 +146,8 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				<div>
 					<h4>Tweets from <a href='https://twitter.com/cardscompendium' target='_blank'>@CardsCompendium</a></h4>
 					${this._tweets && Object.values(this._tweets).length
-		? html`<ul>${Object.entries(this._tweets).map(entry => html`<li><a href='${urlForTweet(entry[1])}' target='_blank'>${prettyTime(entry[1].created)}</a></li>`)}</ul>`
-		: html`<em>No tweets</em>`
+		? html`<ul class='${this._tweetsLoading ? 'loading' : ''}'>${Object.entries(this._tweets).map(entry => html`<li><a href='${urlForTweet(entry[1])}' target='_blank'>${prettyTime(entry[1].created)}</a></li>`)}</ul>`
+		: this._tweetsLoading ? html`<em class='loading'>Loading...</em>` : html`<em>No tweets</em>` 
 }
 				</div>
 			</div>
@@ -159,6 +163,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			_tagInfos: {type: Object},
 			_inboundLinks: {type: Array},
 			_tweets: {type: Object},
+			_tweetsLoading: {type: Boolean},
 		};
 	}
 
@@ -174,6 +179,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._tagInfos = selectTags(state);
 		this._inboundLinks = selectInboundLinksForActiveCard(state);
 		this._tweets = selectActiveCardTweets(state);
+		this._tweetsLoading = selectTweetsLoading(state);
 	}
 
 	updated(changedProps) {
