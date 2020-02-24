@@ -55,6 +55,10 @@ export const newID = () => {
 	return normalizeSlug('c_' + randomString(3, randomCharSetNumbers) + '_' + randomString(3, randomCharSetLetters) + randomString(3, randomCharSetNumbers));
 };
 
+export const urlForTweet = (tweet) => {
+	return 'https://twitter.com/' + tweet.user_screen_name + '/status/' + tweet.id;
+};
+
 export const cardHasContent = (card) => {
 	if (!card) return false;
 	//We treat all non-content cards as having content, since the main reason to

@@ -61,6 +61,7 @@ export const selectThreadsLoaded = (state) => state.comments ? state.comments.th
 export const selectMessages = (state) => state.comments ? state.comments.messages : null;
 export const selectThreads = (state) => state.comments ? state.comments.threads : null;
 export const selectAuthors = (state) => state.data.authors ? state.data.authors : null;
+const selectTweets = (state) => state.data.tweets ? state.data.tweets : {};
 export const selectActivePreviewCardId = (state) => state.app ? state.app.hoverCardId : '';
 export const selectPreviewCardX = (state) => state.app ? state.app.hoverX : 0;
 export const selectPreviewCardY = (state) => state.app ? state.app.hoverY : 0;
@@ -350,6 +351,12 @@ export const selectActiveCardTodosForCurrentUser = createSelector(
 	selectUserIsAdmin,
 	selectActiveCard,
 	(isAdmin, card) => isAdmin ? cardTodoConfigKeys(card, false) : []
+);
+
+export const selectActiveCardTweets = createSelector(
+	selectActiveCard,
+	selectTweets,
+	(card, tweets) => Object.fromEntries(Object.entries(tweets).filter(entry => entry[1].card == card.id))
 );
 
 //Because it filters out cards that don't exist (e.g. are unpublished), cards
