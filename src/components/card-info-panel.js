@@ -8,7 +8,9 @@ import { SharedStyles } from './shared-styles.js';
 
 import {
 	helpIcon,
-	warningIcon
+	warningIcon,
+	repeatIcon,
+	favoriteIcon,
 } from './my-icons.js';
 
 import {
@@ -52,7 +54,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 					margin-left:0.4em;
 				}
 
-				.help svg {
+				svg {
 					height:1.3em;
 					width:1.3em;
 					fill: var(--app-dark-text-color-subtle);
@@ -146,7 +148,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				<div>
 					<h4>Tweets from <a href='https://twitter.com/cardscompendium' target='_blank'>@CardsCompendium</a></h4>
 					${this._tweets && Object.values(this._tweets).length
-		? html`<ul class='${this._tweetsLoading ? 'loading' : ''}'>${Object.entries(this._tweets).map(entry => html`<li><a href='${urlForTweet(entry[1])}' target='_blank'>${prettyTime(entry[1].created)}</a></li>`)}</ul>`
+		? html`<ul class='${this._tweetsLoading ? 'loading' : ''}'>${Object.entries(this._tweets).map(entry => this._tweet(entry[1]))}</ul>`
 		: this._tweetsLoading ? html`<em class='loading'>Loading...</em>` : html`<em>No tweets</em>` 
 }
 				</div>
@@ -169,6 +171,10 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 
 	_help(message, alert) {
 		return html`<span class='help' title="${message}">${alert ? warningIcon : helpIcon}</span>`;
+	}
+
+	_tweet(tweet) {
+		return html`<li><a href='${urlForTweet(tweet)}' target='_blank'>${prettyTime(tweet.created)}</a> ${favoriteIcon} ${tweet.favorite_count} ${repeatIcon} ${tweet.retweet_count}</li>`;
 	}
 
 	stateChanged(state) {
