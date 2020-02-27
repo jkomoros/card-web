@@ -581,7 +581,7 @@ export const cleanInboundLinks = async() => {
 		let inboundLinks = inboundLinkCards.docs.map(cardDoc => cardDoc.id);
 		const [additions, deletions] = arrayDiff(inboundLinks, doc.data().links_inbound);
 		if (additions.length || deletions.length) {
-			console.log('Card ' + doc.id + ' had wrong inboundLinks: Missing ', additions, ' had extra ', deletions);
+			console.log('Card ' + doc.id + ' had wrong inboundLinks: Had extra ', additions, ' missing ', deletions);
 			batch.update(doc.ref, {
 				links_inbound: inboundLinks
 			});
