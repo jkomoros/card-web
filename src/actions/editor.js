@@ -246,13 +246,24 @@ const removeZombieSpans = (ele) => {
 	//Remove zombie spans (which can show up if you backspace to remove
 	//a paragraph break, and then can start infecting all content as you
 	//edit.)
+
+	//We used to only treat spans as zombies if they had specific styles in
+	//them, but zombies show up way more often than that. The new policy is to
+	//assume that EVERY span is a zombie. If you want to have some kind of
+	//styling, use literally any other kind of element. Spans and fonts are
+	//special because they are likely to be injected somewhat randomly by
+	//contenteditable, but nothing else is (well, excdept for p since that's the
+	//paragraph separator).
+
+	if (ele.children.length > 0) {
+		for (let child of ele.children) {
+			removeZombieSpans(child);
+		}
+	}
+
 	let removedZombies = false;
 	for (let child of Object.values(ele.childNodes)) {
-		if (child.localName == 'span') {
-			if (child.style.backgroundColor != 'transparent') continue;
-			let color = child.style.color;
-			if (!color) continue;
-			if (!color.includes('--app-dark-text-color')) continue;
+		if (child.localName == 'span' || child.localName == 'font') {
 			//Replace it with either just the text if it's only got 
 			child.replaceWith(...child.childNodes);
 			removedZombies = true;
