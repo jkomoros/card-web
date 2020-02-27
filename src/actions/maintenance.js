@@ -21,6 +21,7 @@ import {
 import {
 	firebase
 } from './database.js';
+import { arrayDiff } from '../util.js';
 
 const checkMaintenanceTaskHasBeenRun = async (taskName) => {
 	let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
@@ -563,6 +564,33 @@ export const addTweetMedia = async() => {
 	console.log('done!');
 };
 
+const CLEAN_INBOUND_LINKS = 'clean-inbound-links';
+
+export const cleanInboundLinks = async() => {
+
+	//This is a task that can be run whenever you want to make sure that
+	//inboundLinks are all valid. updateInboundLinks cloud function runs in an
+	//incremental way, but it's possible for them to get out of sync (e.g. in
+	//#244).  This makes sure they're OK.
+
+	let batch = db.batch();
+
+	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	for (let doc of snapshot.docs) {
+		let inboundLinkCards = await db.collection(CARDS_COLLECTION).where('links', 'array-contains', doc.id).get();	
+		let inboundLinks = inboundLinkCards.docs.map(cardDoc => cardDoc.id);
+		const [additions, deletions] = arrayDiff(inboundLinks, doc.data().links_inbound);
+		if (additions.length || deletions.length) {
+			console.log('Card ' + doc.id + ' had wrong inboundLinks: Missing ', additions, ' had extra ', deletions);
+			batch.update(doc.ref, {
+				links_inbound: inboundLinks
+			});
+		}
+	}
+	await batch.commit();
+	console.log('done!');
+};
+
 export const doImport = () => {
 
 	fetch('/src/data/cards.json').then(resp => {
@@ -679,4 +707,5 @@ export const tasks = {
 	[ADD_TWEET_ENGAGEMENT]: addTweetEngagement,
 	[ADD_TWEET_FAKE]: addTweetFake,
 	[ADD_TWEET_MEDIA]: addTweetMedia,
+	[CLEAN_INBOUND_LINKS]: cleanInboundLinks,
 };
