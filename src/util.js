@@ -138,6 +138,17 @@ export const arrayUnion = (arr, items) => {
 	return result;
 };
 
+export const arrayUnique = (arr) => {
+	let seenItems = new Map();
+	let result = [];
+	for (let item of arr) {
+		if (seenItems.has(item)) continue;
+		result.push(item);
+		seenItems.set(item, true);
+	}
+	return result;
+};
+
 export const arrayToSet = (arr) => {
 	let result = {};
 	for (let item of arr) {

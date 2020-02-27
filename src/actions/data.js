@@ -39,6 +39,7 @@ import {
 	arrayRemove,
 	arrayUnion,
 	normalizeSlug,
+	arrayUnique,
 } from '../util.js';
 
 import {
@@ -380,7 +381,7 @@ export const extractCardLinks = (body) => {
 	let result = [];
 	let nodes = ele.querySelectorAll('card-link[card]');
 	nodes.forEach(link => result.push(link.getAttribute('card')));
-	return result;
+	return arrayUnique(result);
 };
 
 export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
