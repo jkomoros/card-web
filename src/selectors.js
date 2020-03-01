@@ -14,7 +14,6 @@ import { createSelector } from 'reselect';
 import {
 	makeCombinedFilter,
 	makeConcreteInverseFilter,
-	pageRequiresMainView,
 } from './util.js';
 
 import {
@@ -320,20 +319,14 @@ export const selectCommentsAreFullyLoaded = createSelector(
 	(threadsLoaded, messagesLoaded) => threadsLoaded && messagesLoaded
 );
 
-const selectFullDataNeeded = createSelector(
-	selectPage,
-	(page) => pageRequiresMainView(page)
-);
-
 //DataIsFullyLoaded returns true if we've loaded all of the card/section
 //information we're going to load.
 export const selectDataIsFullyLoaded = createSelector(
-	selectFullDataNeeded,
 	selectCardsLoaded,
 	selectSectionsLoaded,
 	selectTagsLoaded,
 	selectUserDataIsFullyLoaded,
-	(fullDataNeeded, cardsLoaded, sectionsLoaded, tagsLoaded, userDataLoaded) => fullDataNeeded ? cardsLoaded && sectionsLoaded && tagsLoaded && userDataLoaded : true
+	(cardsLoaded, sectionsLoaded, tagsLoaded, userDataLoaded) => cardsLoaded && sectionsLoaded && tagsLoaded && userDataLoaded
 );
 
 export const selectActiveCard = createSelector(

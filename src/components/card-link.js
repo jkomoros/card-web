@@ -8,7 +8,6 @@ import {
 	selectUserReads,
 	selectCards,
 	selectUserReadingListMap,
-	selectDataIsFullyLoaded,
 	selectPage
 } from '../selectors.js';
 
@@ -67,7 +66,7 @@ class CardLink extends connect(store)(LitElement) {
 					cursor: var(--card-link-cursor, pointer);
 				}
 			</style>
-			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._renderLink ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
+			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
 	}
 
 	static get properties() {
@@ -78,7 +77,6 @@ class CardLink extends connect(store)(LitElement) {
 			_reads: {type: Object},
 			_cards: { type: Object},
 			_readingListMap: { type: Object},
-			_dataIsFullyLoaded: { type: Boolean },
 			_page: { type: String }
 		};
 	}
@@ -114,7 +112,6 @@ class CardLink extends connect(store)(LitElement) {
 		this._reads = selectUserReads(state);
 		this._cards = selectCards(state);
 		this._readingListMap = selectUserReadingListMap(state);
-		this._dataIsFullyLoaded = selectDataIsFullyLoaded(state);
 		this._page = selectPage(state);
 	}
 
@@ -130,10 +127,6 @@ class CardLink extends connect(store)(LitElement) {
 
 	get _cardExists() {
 		return this._cardObj ? true : false;
-	}
-
-	get _renderLink() {
-		return this._cardExists || (this._dataIsFullyLoaded && (!this._cards || Object.entries(this._cards).length == 0));
 	}
 
 	get _cardIsUnpublished() {
@@ -152,7 +145,7 @@ class CardLink extends connect(store)(LitElement) {
 		//(default) unless we're in 'basic-card' mode, in which case we should
 		//stay in 'basic-card' when the user hits the link.
 		const page = this._page == PAGE_BASIC_CARD ? PAGE_BASIC_CARD : PAGE_DEFAULT;
-		return this.card ? (this._renderLink ? '/' + page + '/' + this.card : 'javascript:void(0)'): this.href;
+		return this.card ? (this._cardExists ? '/' + page + '/' + this.card : 'javascript:void(0)'): this.href;
 	}
 
 	get _computedTarget() {

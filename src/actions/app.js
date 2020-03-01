@@ -40,7 +40,7 @@ export const PAGE_MAINTENANCE = 'maintenance';
 export const PAGE_404 = 'view404';
 
 import {
-	selectFinalCollection, selectCommentsAreFullyLoaded, getMessageById, getThreadById, selectPage, selectPageExtra, selectActivePreviewCardId, selectFetchedCard
+	selectFinalCollection, selectCommentsAreFullyLoaded, getMessageById, getThreadById, selectPage, selectPageExtra, selectActivePreviewCardId, selectFetchedCard, selectCards
 } from '../selectors.js';
 
 import {
@@ -57,6 +57,10 @@ import {
 	db,
 	CARDS_COLLECTION,
 } from './database.js';
+
+import {
+	updateCards,
+} from './data.js';
 
 //This is the card that is loaded if we weren't passed anything
 const DEFAULT_CARD = 'section-half-baked';
@@ -227,6 +231,12 @@ const fetchCardFromDb = async (cardIDOrSlug) => {
 	return null;
 };
 
+const fetchCardLinkCardsForFetchedCardFromDb = async (card) => {
+	const rawQuery =  await db.collection(CARDS_COLLECTION).where('links_inbound', 'array-contains', card.id).get();
+	if (rawQuery.empty) return {};
+	return Object.fromEntries(rawQuery.docs.map(doc => [doc.id, {...doc.data(), id: doc.id}]));
+};
+
 //Exposed so basic-card-view can expose an endpoint. Typically you use
 //fetchCard.
 export const updateFetchedCard = (card) => {
@@ -234,6 +244,20 @@ export const updateFetchedCard = (card) => {
 		type: UPDATE_FETCHED_CARD,
 		card
 	};
+};
+
+export const fetchCardLinkCardsForFetchedCard = async (fetchedCard) => async (dispatch, getState) =>{
+	if (!fetchedCard || Object.values(fetchedCard).length == 0) return;
+
+	//If all of the cards were already fetched we can bail early.
+	const links = fetchedCard.links;
+	const state = getState();
+	const fetchedCards = selectCards(state);
+	const allCardsFetched = links.every(cardID => fetchedCards[cardID]);
+	if (allCardsFetched) return;
+
+	const cards = await fetchCardLinkCardsForFetchedCardFromDb(fetchedCard);
+	dispatch(updateCards(cards));
 };
 
 export const fetchCard = (cardIDOrSlug) => async (dispatch, getState) =>  {
@@ -262,6 +286,7 @@ export const fetchCard = (cardIDOrSlug) => async (dispatch, getState) =>  {
 		console.warn('Card wasn\'t published');
 		return;
 	}
+	dispatch(await fetchCardLinkCardsForFetchedCard(card));
 	dispatch(updateFetchedCard(card));
 };
 

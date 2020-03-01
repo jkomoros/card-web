@@ -16,13 +16,11 @@ import { repeat } from 'lit-html/directives/repeat';
 import { store } from '../store.js';
 
 // We are lazy loading its reducer.
-import data from '../reducers/data.js';
 import editor from '../reducers/editor.js';
 import collection from '../reducers/collection.js';
 import prompt from '../reducers/prompt.js';
 import comments from '../reducers/comments.js';
 store.addReducers({
-	data,
 	editor,
 	collection,
 	prompt,

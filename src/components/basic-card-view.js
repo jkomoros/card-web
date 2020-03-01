@@ -11,7 +11,8 @@ import { SharedStyles } from './shared-styles.js';
 import { 
 	selectFetchedCard,
 	selectPageExtra,
-	selectCardBeingFetched
+	selectCardBeingFetched,
+	selectCardsLoaded,
 } from '../selectors.js';
 
 import { 
@@ -40,7 +41,7 @@ class BasicCardView extends connect(store)(PageViewElement) {
 			width: 100%;
 		}
 	  </style>
-	  <card-stage .card=${this._card} .presenting=${true} .loading=${this._cardBeingFetched}></card-stage>
+	  <card-stage .card=${this._card} .presenting=${true} .loading=${this._cardBeingFetched || !this._cardsLoaded}></card-stage>
     `;
 	}
 
@@ -49,6 +50,7 @@ class BasicCardView extends connect(store)(PageViewElement) {
 			_card: { type: Object},
 			_pageExtra: { type:String },
 			_cardBeingFetched: { type: Boolean},
+			_cardsLoaded : { type: Boolean},
 		};
 	}
 
@@ -68,13 +70,14 @@ class BasicCardView extends connect(store)(PageViewElement) {
 		this._card = selectFetchedCard(state);
 		this._pageExtra = selectPageExtra(state);
 		this._cardBeingFetched = selectCardBeingFetched(state);
+		this._cardsLoaded = selectCardsLoaded(state);
 	}
 
 	updated(changedProps) {
 		if (changedProps.has('_pageExtra')) {
 			store.dispatch(fetchCard(this._pageExtra));
 		}
-		if (changedProps.has('_card') && this._card && Object.entries(this._card).length) {
+		if ((changedProps.has('_card') || changedProps.has('_cardsLoaded')) && this._card && Object.entries(this._card).length && this._cardsLoaded) {
 			//Signal to the top-level page that the card has been loaded.
 			//Screenshot service will check for this to know when to take a
 			//screenshot.
