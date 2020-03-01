@@ -5,14 +5,14 @@ const md5 = require('md5');
 //SCREENSHOT_VERSION should be incremented whenever the settings or generation
 //logic changes, such that a fetch for an unchanged card should generate a new
 //screenshot.
-const SCREENSHOT_VERSION = 4;
+const SCREENSHOT_VERSION = 5;
 const SCREENSHOT_WIDTH = 1330;
 const SCREENSHOT_HEIGHT = 768;
 
 //The default bucket is already configured, just use that
 const screenshotBucket = common.storage.bucket();
 
-const screenshotFileNameForCard = (card) => {
+const screenshotFileNameForCard = (card, cardLinkCards) => {
 	//This logic should include any parts of the card that might change the
 	//visual display of the card. The logic can change anytime the
 	//SCREENSHOT_VERSION increments.
@@ -21,7 +21,11 @@ const screenshotFileNameForCard = (card) => {
 	const subtitle = card.subtitle || "";
 	const body = card.body || "";
 	const starCount = String(card.star_count || 0);
-	const hash = md5(title + ':' + subtitle + ':' + body + ':' + starCount);
+
+	const publishedCardKeys = Object.keys(cardLinkCards).filter(key => cardLinkCards[key].published);
+	publishedCardKeys.sort();
+
+	const hash = md5(title + ':' + subtitle + ':' + body + ':' + starCount + ':' + publishedCardKeys.join('+'));
 
 	//include the last prod deploy in the screenshot cache key because any time
 	//prod is deployed, the card rendering might have changed (and we use prod
@@ -48,7 +52,8 @@ const fetchScreenshot = async(card) =>{
 		console.warn("The card wasn't published");
 		return null;
 	}
-	const filename = screenshotFileNameForCard(card);
+	const cardLinkCards = await common.getCardLinkCardsForCard(card);
+	const filename = screenshotFileNameForCard(card, cardLinkCards);
 	const file = screenshotBucket.file(filename);
 	const existsResponse = await file.exists();
 	if (existsResponse[0]) {
@@ -57,12 +62,12 @@ const fetchScreenshot = async(card) =>{
 		return downloadFileResponse[0];
 	}
 	console.log("Screenshot " + filename + " didn't exist in storage, creating.");
-	const screenshot = await makeScreenshot(card);
+	const screenshot = await makeScreenshot(card, cardLinkCards);
 	await file.save(screenshot);
 	return screenshot;
 }
 
-const makeScreenshot = async (card) => {
+const makeScreenshot = async (card, cardLinkCards) => {
 	const browser = await puppeteer.launch({
 		defaultViewport: {
 			width: SCREENSHOT_WIDTH,
@@ -70,8 +75,6 @@ const makeScreenshot = async (card) => {
 		},
 		args: ['--no-sandbox'],
 	});
-
-	const cardLinkCards = await common.getCardLinkCardsForCard(card);
 
 	const page = await browser.newPage();
 	//forward any console messages from the page to our own log
