@@ -2,6 +2,7 @@ const admin = require('firebase-admin');
 admin.initializeApp();
 
 const functions = require('firebase-functions');
+const fromEntries = require('fromentries');
 
 //We use this so often we might as well make it more common
 const FieldValue = admin.firestore.FieldValue;
@@ -40,6 +41,12 @@ const getCardByIDOrSlug = async (idOrSlug) => {
     return null;
 }
 
+const getCardLinkCardsForCard = async (card) => {
+    const rawQuery =  await db.collection('cards').where('links_inbound', 'array-contains', card.id).get();
+	if (rawQuery.empty) return {};
+	return fromEntries(rawQuery.docs.map(doc => [doc.id, Object.assign({id: doc.id}, doc.data())]));
+}
+
 const getUserDisplayName = async (uid) => {
     let user = await auth.getUser(uid);
     return user.displayName
@@ -63,6 +70,7 @@ exports.config = config;
 exports.storage = storage;
 exports.getUserDisplayName = getUserDisplayName;
 exports.getCardByIDOrSlug = getCardByIDOrSlug;
+exports.getCardLinkCardsForCard = getCardLinkCardsForCard;
 exports.urlForBasicCard = urlForBasicCard;
 exports.getCardName = getCardName;
 exports.prettyCardURL = prettyCardURL;
