@@ -20,6 +20,10 @@ import {
 	updateFetchedCard
 } from '../actions/app.js';
 
+import {
+	updateCards,
+} from '../actions/data.js';
+
 import './card-stage.js';
 
 //recreated in functions/common.js
@@ -58,10 +62,12 @@ class BasicCardView extends connect(store)(PageViewElement) {
 		super.connectedCallback();
 		//Expose an override injection point that can be used via puppeteer to
 		//inject the data.
-		window[WINDOW_INJECT_FETCHED_CARD_NAME] = (card) => {
+		window[WINDOW_INJECT_FETCHED_CARD_NAME] = (card, cardLinkCards) => {
 			//Set the flag down, so we can be used multiple times and still
 			//waitFor the flag to raise for multiple screenshots.
 			window[WINDOW_CARD_RENDERED_VARIABLE] = false;
+			//Do this one first so that the page doesn't have to fetch the card link cards twice
+			if (cardLinkCards) store.dispatch(updateCards(cardLinkCards));
 			store.dispatch(updateFetchedCard(card));
 		};
 	}
