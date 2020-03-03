@@ -41,3 +41,16 @@ store.addReducers({
 	app,
 	data,
 });
+
+//Connect it up so the reselect-tools extension will show the selector graph.
+//https://github.com/skortchmark9/reselect-tools for how to install the
+//extension
+import * as selectors from './selectors.js';
+//TODO: why can I not use the basic import? The es build output doesn't have any
+//export keywords, maybe it's configured wrong?
+import {
+	getStateWith,
+	registerSelectors,
+} from 'reselect-tools/src/index.js';
+getStateWith(() => store.getState());  // allows you to get selector inputs and outputs
+registerSelectors(selectors); // register string names for selectors
