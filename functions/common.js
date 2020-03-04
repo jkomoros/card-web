@@ -11,9 +11,12 @@ const auth = admin.auth();
 const config = functions.config();
 const storage = admin.storage();
 
+const PROJECT_NAME = process.env.GCLOUD_PROJECT.toLowerCase();
+
 //DEV_MODE is true if the project name contains 'dev-' or '-dev'
-const DEV_MODE = process.env.GCLOUD_PROJECT.toLowerCase().includes('dev-') || process.env.GCLOUD_PROJECT.toLowerCase().includes('-dev');
-const DOMAIN = (config.site || {})  .domain || "thecompendium.cards";
+const DEV_MODE = PROJECT_NAME.includes('dev-') || PROJECT_NAME.includes('-dev');
+const HOSTING_DOMAIN =  PROJECT_NAME + '.web.app';
+const DOMAIN = (config.site || {})  .domain || HOSTING_DOMAIN;
 const LAST_PROD_DEPLOY_AFFECTING_RENDERING = (config.site || {}).last_prod_deploy_affecting_rendering || "deploy-not-set";
 //Copied from src/actions/app.js
 const PAGE_DEFAULT = 'c';
@@ -24,7 +27,9 @@ const WINDOW_CARD_RENDERED_VARIABLE = 'BASIC_CARD_RENDERED';
 //Note: screenshot.js uses the literal value of WINDOW_INJECT_FETCHED_CARD_NAME in the code;
 
 const urlForBasicCard = (idOrSlug) => {
-    return 'https://' + DOMAIN + '/' + PAGE_BASIC_CARD + '/' + idOrSlug;
+    //we use HOSTING_DOMAIN so that we use the prod or dev card renderer
+    //depending on our mode.
+    return 'https://' + HOSTING_DOMAIN + '/' + PAGE_BASIC_CARD + '/' + idOrSlug;
 }
 
 const getCardByIDOrSlug = async (idOrSlug) => {
@@ -75,6 +80,7 @@ exports.urlForBasicCard = urlForBasicCard;
 exports.getCardName = getCardName;
 exports.prettyCardURL = prettyCardURL;
 exports.DEV_MODE = DEV_MODE;
+exports.HOSTING_DOMAIN = HOSTING_DOMAIN;
 exports.DOMAIN = DOMAIN;
 exports.LAST_PROD_DEPLOY_AFFECTING_RENDERING = LAST_PROD_DEPLOY_AFFECTING_RENDERING;
 exports.PAGE_DEFAULT = PAGE_DEFAULT;

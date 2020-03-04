@@ -28,9 +28,9 @@ const screenshotFileNameForCard = (card, cardLinkCards) => {
 	const hash = md5(title + ':' + subtitle + ':' + body + ':' + starCount + ':' + publishedCardKeys.join('+'));
 
 	//include the last prod deploy in the screenshot cache key because any time
-	//prod is deployed, the card rendering might have changed (and we use prod
-	//card rendering in both dev and prod cases because of the domain we have
-	//puppeteer fetch)
+	//prod is deployed, the card rendering might have changed. Note that this is
+	//slightly in error because now we use the card renderer that is deployed
+	//for this project, not just the prod rendrer as before.
 	return 'screenshots/v' + SCREENSHOT_VERSION + '/' + common.LAST_PROD_DEPLOY_AFFECTING_RENDERING + '/' + card.id + '/' + hash + '.png';
 }
 
