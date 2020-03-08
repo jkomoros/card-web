@@ -46,6 +46,7 @@ const FIREBASE_PROD_PROJECT = 'complexity-compendium';
 const FIREBASE_DEV_PROJECT = 'dev-complexity-compendium';
 
 const POLYMER_BUILD_TASK = 'polymer-build';
+const POLYMER_BUILD_OPTIONALLY = 'polymer-build-optionally';
 const FIREBASE_ENSURE_PROD_TASK = 'firebase-ensure-prod';
 const FIREBASE_DEPLOY_TASK = 'firebase-deploy';
 const FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING = 'firebase-set-config-last-deploy-affecting-rendering';
@@ -205,9 +206,25 @@ gulp.task(SET_LAST_DEPLOY_IF_AFFECTS_RENDERING, (cb) => {
 	task(cb);
 });
 
+gulp.task(POLYMER_BUILD_OPTIONALLY, async (cb) => {
+	let task = gulp.task(POLYMER_BUILD_TASK);
+	const response = await prompts({
+		type:'confirm',
+		name: 'value',
+		initial: false,
+		message: 'Do you want to skip building, because the polymer build output is already up to date?',
+	});
+	if (response.value) {
+		console.log('Skipping build');
+		cb();
+		return;
+	}
+	task(cb);
+});
+
 gulp.task('dev-deploy',
 	gulp.series(
-		POLYMER_BUILD_TASK,
+		POLYMER_BUILD_OPTIONALLY,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		FIREBASE_ENSURE_DEV_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
@@ -217,7 +234,7 @@ gulp.task('dev-deploy',
 
 gulp.task('deploy', 
 	gulp.series(
-		POLYMER_BUILD_TASK,
+		POLYMER_BUILD_OPTIONALLY,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		FIREBASE_ENSURE_PROD_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
