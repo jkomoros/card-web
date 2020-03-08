@@ -53,7 +53,6 @@ const GCLOUD_ENSURE_PROD_TASK = 'gcloud-ensure-prod';
 const GCLOUD_BACKUP_TASK = 'gcloud-backup';
 const MAKE_TAG_TASK = 'make-tag';
 const PUSH_TAG_TASK = 'push-tag';
-const SET_LAST_PROD_DEPLOY_AFFECTING_RENDERING = 'set-last-prod-deploy-affecting-rendering';
 const SET_LAST_DEPLOY_IF_AFFECTS_RENDERING = 'set-last-deploy-if-affects-rendering';
 const ASK_IF_DEPLOY_AFFECTS_RENDERING = 'ask-if-deploy-affects-rendering';
 const ASK_BACKUP_MESSAGE = 'ask-backup-message';
@@ -135,7 +134,7 @@ gulp.task(POLYMER_BUILD_TASK, makeExecutor('polymer build'));
 
 gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor('firebase deploy'));
 
-gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, makeExecutor('firebase functions:config:set site.last_prod_deploy_affecting_rendering=' + RELEASE_TAG));
+gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, makeExecutor('firebase functions:config:set site.last_deploy_affecting_rendering=' + RELEASE_TAG));
 
 gulp.task(GCLOUD_BACKUP_TASK, cb => {
 	//BACKUP_MESSAGE won't be known until later
@@ -197,7 +196,7 @@ gulp.task(ASK_IF_DEPLOY_AFFECTS_RENDERING, async (cb) => {
 });
 
 gulp.task(SET_LAST_DEPLOY_IF_AFFECTS_RENDERING, (cb) => {
-	let task = gulp.task(SET_LAST_PROD_DEPLOY_AFFECTING_RENDERING);
+	let task = gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING);
 	if (!deployAffectsRendering) {
 		console.log('Skipping setting config because deploy doesn\'t affect rendering');
 		cb();
@@ -206,21 +205,22 @@ gulp.task(SET_LAST_DEPLOY_IF_AFFECTS_RENDERING, (cb) => {
 	task(cb);
 });
 
-gulp.task(SET_LAST_PROD_DEPLOY_AFFECTING_RENDERING, 
+gulp.task('dev-deploy',
 	gulp.series(
+		POLYMER_BUILD_TASK,
+		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		FIREBASE_ENSURE_DEV_TASK,
-		FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING,
-		FIREBASE_ENSURE_PROD_TASK,
-		FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING,
-	)	
+		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
+		FIREBASE_DEPLOY_TASK
+	)
 );
 
 gulp.task('deploy', 
 	gulp.series(
 		POLYMER_BUILD_TASK,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
-		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
 		FIREBASE_ENSURE_PROD_TASK,
+		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
 		FIREBASE_DEPLOY_TASK
 	)
 );

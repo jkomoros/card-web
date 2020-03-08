@@ -31,7 +31,7 @@ const screenshotFileNameForCard = (card, cardLinkCards) => {
 	//prod is deployed, the card rendering might have changed. Note that this is
 	//slightly in error because now we use the card renderer that is deployed
 	//for this project, not just the prod rendrer as before.
-	return 'screenshots/v' + SCREENSHOT_VERSION + '/' + common.LAST_PROD_DEPLOY_AFFECTING_RENDERING + '/' + card.id + '/' + hash + '.png';
+	return 'screenshots/v' + SCREENSHOT_VERSION + '/' + common.LAST_DEPLOY_AFFECTING_RENDERING + '/' + card.id + '/' + hash + '.png';
 }
 
 const fetchScreenshotByIDOrSlug = async (idOrSlug) => {

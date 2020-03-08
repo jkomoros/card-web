@@ -17,7 +17,7 @@ const PROJECT_NAME = process.env.GCLOUD_PROJECT.toLowerCase();
 const DEV_MODE = PROJECT_NAME.includes('dev-') || PROJECT_NAME.includes('-dev');
 const HOSTING_DOMAIN =  PROJECT_NAME + '.web.app';
 const DOMAIN = (config.site || {})  .domain || HOSTING_DOMAIN;
-const LAST_PROD_DEPLOY_AFFECTING_RENDERING = (config.site || {}).last_prod_deploy_affecting_rendering || "deploy-not-set";
+const LAST_DEPLOY_AFFECTING_RENDERING = (config.site || {}).last_deploy_affecting_rendering || "deploy-not-set";
 //Copied from src/actions/app.js
 const PAGE_DEFAULT = 'c';
 const PAGE_COMMENT = 'comment';
@@ -82,7 +82,7 @@ exports.prettyCardURL = prettyCardURL;
 exports.DEV_MODE = DEV_MODE;
 exports.HOSTING_DOMAIN = HOSTING_DOMAIN;
 exports.DOMAIN = DOMAIN;
-exports.LAST_PROD_DEPLOY_AFFECTING_RENDERING = LAST_PROD_DEPLOY_AFFECTING_RENDERING;
+exports.LAST_DEPLOY_AFFECTING_RENDERING = LAST_DEPLOY_AFFECTING_RENDERING;
 exports.PAGE_DEFAULT = PAGE_DEFAULT;
 exports.PAGE_COMMENT = PAGE_COMMENT;
 exports.WINDOW_CARD_RENDERED_VARIABLE = WINDOW_CARD_RENDERED_VARIABLE;
