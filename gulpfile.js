@@ -47,6 +47,7 @@ const FIREBASE_DEV_PROJECT = 'dev-complexity-compendium';
 
 const POLYMER_BUILD_TASK = 'polymer-build';
 const POLYMER_BUILD_OPTIONALLY = 'polymer-build-optionally';
+const ASK_IF_WANT_POLYMER_BUILD = 'ask-if-want-polymer-build';
 const FIREBASE_ENSURE_PROD_TASK = 'firebase-ensure-prod';
 const FIREBASE_DEPLOY_TASK = 'firebase-deploy';
 const FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING = 'firebase-set-config-last-deploy-affecting-rendering';
@@ -206,16 +207,30 @@ gulp.task(SET_LAST_DEPLOY_IF_AFFECTS_RENDERING, (cb) => {
 	task(cb);
 });
 
-gulp.task(POLYMER_BUILD_OPTIONALLY, async (cb) => {
-	let task = gulp.task(POLYMER_BUILD_TASK);
+let wantsToSkipPolymerBuild = undefined;
+
+gulp.task(ASK_IF_WANT_POLYMER_BUILD, async (cb) => {
+	if (wantsToSkipPolymerBuild !== undefined) {
+		console.log('Already asked if the user wants a polymer build');
+		cb();
+		return;
+	}
 	const response = await prompts({
 		type:'confirm',
 		name: 'value',
 		initial: false,
 		message: 'Do you want to skip building, because the polymer build output is already up to date?',
 	});
-	if (response.value) {
-		console.log('Skipping build');
+
+	wantsToSkipPolymerBuild = response.value;
+	cb();
+
+});
+
+gulp.task(POLYMER_BUILD_OPTIONALLY, async (cb) => {
+	let task = gulp.task(POLYMER_BUILD_TASK);
+	if (wantsToSkipPolymerBuild) {
+		console.log('Skipping polymer build because the user asked to skip it');
 		cb();
 		return;
 	}
@@ -224,6 +239,7 @@ gulp.task(POLYMER_BUILD_OPTIONALLY, async (cb) => {
 
 gulp.task('dev-deploy',
 	gulp.series(
+		ASK_IF_WANT_POLYMER_BUILD,
 		POLYMER_BUILD_OPTIONALLY,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		FIREBASE_ENSURE_DEV_TASK,
@@ -234,6 +250,7 @@ gulp.task('dev-deploy',
 
 gulp.task('deploy', 
 	gulp.series(
+		ASK_IF_WANT_POLYMER_BUILD,
 		POLYMER_BUILD_OPTIONALLY,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		FIREBASE_ENSURE_PROD_TASK,
@@ -262,6 +279,7 @@ gulp.task('release',
 		//Ask at the beginning so the user can walk away after running
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		ASK_BACKUP_MESSAGE,
+		ASK_IF_WANT_POLYMER_BUILD,
 		'backup',
 		'deploy',
 		'tag-release'
