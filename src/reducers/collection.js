@@ -24,7 +24,8 @@ import {
 	cardHasNotes,
 	cardHasTodo,
 	toTitleCase,
-	cardMatchingFilters
+	cardMatchingFilters,
+	cardMissingReciprocalLinks
 } from '../util.js';
 
 import {
@@ -185,6 +186,7 @@ const CARD_FILTER_CONFIGS = {
 	'content': [defaultCardFilterName('content'), card => cardHasContent(card), TODO_TYPE_AUTO],
 	'links': [defaultCardFilterName('links'), card => card.links && card.links.length, TODO_TYPE_AUTO],
 	'inbound-links': [defaultCardFilterName('inbound-links'), card => card.links_inbound && card.links_inbound.length, TODO_TYPE_AUTO],
+	'reciprocal-links': [['has-all-reciprocal-links', 'missing-reciprocal-links', 'does-not-need-reciprocal-links', 'needs-reciprocal-links'], card => cardMissingReciprocalLinks(card).length == 0, TODO_TYPE_AUTO],
 	'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, TODO_TYPE_AUTO],
 	'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], card => card.published, TODO_TYPE_AUTO],
 	'tweet': [defaultCardFilterName('tweet'), card => card.tweet_count > 0, TODO_TYPE_NA],
