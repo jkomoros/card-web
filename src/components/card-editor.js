@@ -269,6 +269,10 @@ class CardEditor extends connect(store)(LitElement) {
 		  	<label>Missing Reciprocal Links</label>
 			<tag-list .defaultColor=${enableTODOColor} .tags=${cardMissingReciprocalLinks(this._card)} .previousTags=${cardMissingReciprocalLinks(this._underlyingCard)} .editing=${true} .disableAdd=${true} @add-tag=${this._handleRemoveSkippedLinkInbound} @remove-tag=${this._handleAddSkippedLinkInbound}></tag-list>
 		  </div>
+		  <div>
+		  	<label>Skipped Reciprocal Links</label>
+			<tag-list .defaultColor=${disableTODOColor} .tags=${this._card.auto_todo_skipped_links_inbound} .previousTags=${this._underlyingCard.auto_todo_skipped_links_inbound} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveSkippedLinkInbound} @add-tag=${this._handleAddSkippedLinkInbound}></tag-list>
+		  </div>
 		  <div class='flex'>
 		  </div>
 		  <div>
