@@ -38,6 +38,15 @@ class CardLink extends connect(store)(LitElement) {
 					color: var(--app-primary-color);
 				}
 
+				a.strong {
+					/* It's a bit weird to have styling passed as a property on
+					the link, but for some reason the linter was complaining
+					about the ways of passing style in card-info-panel so
+					whatever.
+					*/
+					font-weight:bold;
+				}
+
 				a.card.reading-list {
 					text-decoration-style: double;
 				}
@@ -66,7 +75,7 @@ class CardLink extends connect(store)(LitElement) {
 					cursor: var(--card-link-cursor, pointer);
 				}
 			</style>
-			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
+			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''} ${this.strong ? 'strong' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
 	}
 
 	static get properties() {
@@ -74,6 +83,7 @@ class CardLink extends connect(store)(LitElement) {
 			card: { type: String },
 			href: { type: String},
 			auto: { type: String},
+			strong: { type: Boolean},
 			_reads: {type: Object},
 			_cards: { type: Object},
 			_readingListMap: { type: Object},

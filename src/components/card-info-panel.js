@@ -37,7 +37,8 @@ import {
 import {
 	prettyTime,
 	markdownElement,
-	urlForTweet
+	urlForTweet,
+	cardNeedsReciprocalLinkTo
 } from '../util.js';
 
 import './author-chip.js';
@@ -134,7 +135,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				<div>
 					<h4>Cards That Link Here${this._help('Cards that link to this one.')}</h4>
 					${this._inboundLinks
-		? html`<ul>${this._inboundLinks.map((item) => html`<li><card-link auto='title' card='${item}'>${item}</a></li>`)}</ul>`
+		? html`<ul>${this._inboundLinks.map((item) => html`<li><card-link auto='title' .strong=${cardNeedsReciprocalLinkTo(this._card, item)} card='${item}'>${item}</a></li>`)}</ul>`
 		: html`<p><em>No cards link to this one.</em></p>`
 }
 				</div>
