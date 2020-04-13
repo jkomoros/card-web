@@ -79,9 +79,9 @@ class TagList  extends LitElement {
 			//If set, will be considereed the uncommitted tags, and will have a diff rendered against them.
 			previousTags: {type:Array},
 			//tagInfos is a map that includes objects, with an id property, a
-			//title property, and optionally a color property. Typically it's
-			//just the result of selectTags, but if the tag-list is displaying
-			//other things then it could be any kinds of objects.
+			//title property, and optionally a color and cardPreview property.
+			//Typically it's just the result of selectTags, but if the tag-list
+			//is displaying other things then it could be any kinds of objects.
 			tagInfos: {type:Object},
 			editing: {type:Boolean},
 			//Subtle coloring

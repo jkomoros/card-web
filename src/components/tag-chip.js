@@ -40,8 +40,16 @@ class TagChip  extends LitElement {
 					display:inline;
 				}
 			</style>
-			<span class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''}'><a class='primary' href='${this._url}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
+			<span class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''}' @mousemove=${this._handleMouseMove}><a class='primary' href='${this._url}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
 			`;
+	}
+
+	_handleMouseMove(e) {
+		if (!this._previewCard) return;
+		e.stopPropagation();
+		//compendium-app will catch the card-hovered event no matter where it was
+		//thrown from
+		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: this._previewCard, x: e.clientX, y: e.clientY}}));
 	}
 
 	_handleTagClicked(e) {
@@ -74,6 +82,14 @@ class TagChip  extends LitElement {
 
 	get _effectiveDefaultColor() {
 		return this.defaultColor || '#CD5C5C';
+	}
+
+	get _previewCard() {
+		if (this.tagInfos) {
+			const info = this.tagInfos[this.tagName];
+			if (info && info.previewCard) return info.previewCard;
+		}
+		return '';
 	}
 
 	get _suppressLink() {

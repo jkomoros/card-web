@@ -195,7 +195,7 @@ export const selectAllCardsFilter = createSelector(
 //example for showing missing link auto todos in card-editor.
 export const selectTagInfosForCards = createSelector(
 	selectCards,
-	cards => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], {id: entry[0], title:entry[1] ? entry[1].name : ''}]))
+	cards => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], {id: entry[0], title:entry[1] ? entry[1].name : '', previewCard: entry[0]}]))
 );
 
 export const getCardHasStar = (state, cardId) => {
