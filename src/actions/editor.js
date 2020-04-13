@@ -132,6 +132,10 @@ export const editingCommit = () => (dispatch, getState) => {
 	let [tagAdditions, tagDeletions] = arrayDiff(underlyingCard.tags || [], updatedCard.tags || []);
 	if (tagAdditions.length) update.addTags = tagAdditions;
 	if (tagDeletions.length) update.removeTags = tagDeletions;
+
+	let [skippedLinksInboundAdditions, skippedLinksInboundDeletions] = arrayDiff(underlyingCard.auto_todo_skipped_links_inbound || [], updatedCard.auto_todo_skipped_links_inbound || []);
+	if (skippedLinksInboundAdditions.length) update.add_skipped_link_inbound = skippedLinksInboundAdditions;
+	if (skippedLinksInboundDeletions.length) update.remove_skipped_link_inbound = skippedLinksInboundDeletions;
 	
 	//modifyCard will fail if the update is a no-op.
 	dispatch(modifyCard(underlyingCard, update, state.editor.substantive));
