@@ -80,6 +80,23 @@ export const cardHasTodo = (card) => {
 	return content ? true : false;
 };
 
+//cardMissingLinksInbound returns the links that point to a card that are not
+//reciprocated and not explicitly listed as OK to skip.
+export const cardMissingLinksInbound = (card) => {
+	if (!card) return [];
+	let links = new Map();
+	for (let link of card.links_inbound) {
+		links.set(link, true);
+	}
+	for (let link of card.links) {
+		links.delete(link);
+	}
+	for (let link of Object.keys(card.auto_todo_skipped_links_inbound)) {
+		links.delete(link);
+	}
+	return [...links.keys()];
+};
+
 //Returns true or false. filterName can be a filter or inverse filtername, if
 //optInverseFilterNames is passed.
 export const cardInFilter = (card, filterName, filters, optInverseFilterNames) => {
