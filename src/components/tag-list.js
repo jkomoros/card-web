@@ -40,11 +40,12 @@ class TagList  extends LitElement {
 			${allTags && allTags.length ?
 		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} .defaultColor=${this.defaultColor}></tag-chip>`) :
 		(this.hideOnEmpty ? html`` : html`<em>No ${this.typeName.toLowerCase()}s</em>`)}
-			<select @change=${this._handleSelectChanged}>
+			${this.disableAdd ? html`` :
+		html`<select @change=${this._handleSelectChanged}>
 				<option value='#noop' selected>Add ${this.typeName}...</option>
 				${Object.keys(tagInfos).map(item => html`<option value='${tagInfos[item].id}'>${tagInfos[item].title}</option>`)}
 				${this.disableNew ? '' : html`<option value='#new'>New ${this.typeName}</option>`}
-			</select>
+			</select>`}
 			</div>
 			`;
 	}
@@ -91,6 +92,9 @@ class TagList  extends LitElement {
 			overrideTypeName: {type:String},
 			//If true, then the select option to add a new tag will not be shown.
 			disableNew: {type:Boolean},
+			//If true, then even if editing, the select to add a new item will
+			//not be shown, so only deletion will be possible.
+			disableAdd: {type:Boolean},
 			//Will be passed on to the tag-chips, which will provide the color
 			//if the tag itself doesn't have one specified in the tagInfos.
 			defaultColor: {type:String},
