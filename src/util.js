@@ -85,14 +85,20 @@ export const cardHasTodo = (card) => {
 export const cardMissingReciprocalLinks = (card) => {
 	if (!card) return [];
 	let links = new Map();
-	for (let link of card.links_inbound) {
-		links.set(link, true);
+	if (card.links_inbound) {
+		for (let link of card.links_inbound) {
+			links.set(link, true);
+		}
 	}
-	for (let link of card.links) {
-		links.delete(link);
+	if (card.links) {
+		for (let link of card.links) {
+			links.delete(link);
+		}
 	}
-	for (let link of card.auto_todo_skipped_links_inbound) {
-		links.delete(link);
+	if (card.auto_todo_skipped_links_inbound) {
+		for (let link of card.auto_todo_skipped_links_inbound) {
+			links.delete(link);
+		}
 	}
 	return [...links.keys()];
 };
