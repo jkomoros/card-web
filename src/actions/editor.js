@@ -18,6 +18,7 @@ export const EDITING_TAG_ADDED = 'EDITING_TAG_ADDED';
 export const EDITING_TAG_REMOVED = 'EDITING_TAG_REMOVED';
 export const EDITING_SKIPPED_LINK_INBOUND_ADDED = 'EDITING_SKIPPED_LINK_INBOUND_ADDED';
 export const EDITING_SKIPPED_LINK_INBOUND_REMOVED = 'EDITING_SKIPPED_LINK_INBOUND_REMOVED';
+export const EDITING_EXTRACT_LINKS = 'EDITING_EXTRACT_LINKS';
 
 
 export const TAB_CONTENT = 'content';
@@ -401,8 +402,17 @@ export const todoUpdated = (newTodo) => {
 	};
 };
 
-export const bodyUpdated = (newBody, fromContentEditable) => {
-	return {
+var extractLinksTimeout;
+
+export const bodyUpdated = (newBody, fromContentEditable) => (dispatch) => {
+	//Make sure we have a timeout to extract links a bit of time after the last edit was made.
+	if (extractLinksTimeout) window.clearTimeout(extractLinksTimeout);
+	extractLinksTimeout = window.setTimeout(() => {
+		extractLinksTimeout = 0;
+		dispatch({type: EDITING_EXTRACT_LINKS});
+	}, 1000);
+
+	dispatch({
 		type: EDITING_BODY_UPDATED,
 		//We only run it if it's coming from contentEditable because
 		//normalizeBodyHTML assumes the contnet is valid HTML, and if it's been
@@ -410,7 +420,7 @@ export const bodyUpdated = (newBody, fromContentEditable) => {
 		//then it's not valid HTML.
 		body: fromContentEditable ? normalizeBodyHTML(newBody) : newBody,
 		fromContentEditable
-	};
+	});
 };
 
 export const sectionUpdated = (newSection) => (dispatch, getState) => {

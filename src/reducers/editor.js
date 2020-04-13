@@ -19,6 +19,7 @@ import {
 	EDITING_TAG_REMOVED,
 	EDITING_SKIPPED_LINK_INBOUND_ADDED,
 	EDITING_SKIPPED_LINK_INBOUND_REMOVED,
+	EDITING_EXTRACT_LINKS,
 
 	TAB_CONTENT,
 } from '../actions/editor.js';
@@ -36,7 +37,8 @@ const INITIAL_STATE = {
 
 import {
 	arrayRemove,
-	arrayUnion
+	arrayUnion,
+	extractCardLinksFromBody
 } from '../util.js';
 import { TODO_OVERRIDE_LEGAL_KEYS } from './collection.js';
 
@@ -97,6 +99,15 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: {...state.card, section:action.section}
+		};
+	case EDITING_EXTRACT_LINKS:
+		if (!state.card) return state;
+		//These links will be recomputed for real when the card is committed,
+		//but updating them now allows things like the live list of reciprocal
+		//links to be updated away.
+		return {
+			...state,
+			card: {...state.card, links:extractCardLinksFromBody(state.card.body)}
 		};
 	case EDITING_SLUG_ADDED:
 		if (!state.card) return state;
