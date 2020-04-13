@@ -591,6 +591,27 @@ export const cleanInboundLinks = async() => {
 	console.log('done!');
 };
 
+const ADD_AUTO_TODO_SKIPPED_LINKS_INBOUND = 'add-auto-todo-skipped-links-inbound';
+
+export const addAutoTodoSkippedLinksInbound = async() => {
+
+	await checkMaintenanceTaskHasBeenRun(ADD_AUTO_TODO_SKIPPED_LINKS_INBOUND);
+
+	let batch = db.batch();
+
+	let snapshot = await db.collection(CARDS_COLLECTION).get();
+
+	snapshot.forEach(doc => {
+		batch.update(doc.ref, {'auto_todo_skipped_links_inbound': {}});
+	});
+
+	await batch.commit();
+
+	await maintenanceTaskRun(ADD_AUTO_TODO_SKIPPED_LINKS_INBOUND);
+	console.log('done!');
+
+};
+
 export const doImport = () => {
 
 	fetch('/src/data/cards.json').then(resp => {
@@ -708,4 +729,5 @@ export const tasks = {
 	[ADD_TWEET_FAKE]: addTweetFake,
 	[ADD_TWEET_MEDIA]: addTweetMedia,
 	[CLEAN_INBOUND_LINKS]: cleanInboundLinks,
+	[ADD_AUTO_TODO_SKIPPED_LINKS_INBOUND]: addAutoTodoSkippedLinksInbound,
 };
