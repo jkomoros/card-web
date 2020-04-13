@@ -5,6 +5,61 @@ import dompurify from 'dompurify';
 //other imports.
 export const _PAGE_BASIC_CARD = 'basic-card';
 
+//When the multi batch should create a new batch. The limit in Firebase is 500,
+//but some operations (like arrayUpdate) count as multiple, so set it well
+//below.
+const MULTI_BATCH_NEW_BATCH_LIMIT = 100;
+
+//MultiBatch is a thing that can be used as a drop-in replacement firebase db
+//batch, and will automatically split into multiple underlying batches if it's
+//getting close to the limit. Note that unlike a normal batch, it's possible for
+//a partial failure if one batch fails and others don't.
+export const MultiBatch = class {
+	constructor(db) {
+		this._db = db;
+		this._currentBatchOperationCount = 0;
+		this._currentBatch = null;
+		this._batches = [];
+	}
+
+	get _batch() {
+		if (this._currentBatchOperationCount > MULTI_BATCH_NEW_BATCH_LIMIT) {
+			this._currentBatch = null;
+		}
+		if (!this._currentBatch) {
+			this._currentBatch = this._db.batch();
+			this._batches.push(this._currentBatch);
+			this._currentBatchOperationCount = 0;
+		}
+		return this._currentBatch;
+	}
+
+	delete(ref) {
+		this._batch.delete(ref);
+		this._currentBatchOperationCount++;
+		return this;
+	}
+
+	set(ref, data, options) {
+		this._batch.set(ref, data, options);
+		this._currentBatchOperationCount++;
+		return this;
+	}
+
+	update(ref, data) {
+		//TODO: the signature in the documentation is kind of weird for this
+		//one. Are there two different modes?
+		this._batch.update(ref, data);
+		this._currentBatchOperationCount++;
+		return this;
+	}
+
+	commit() {
+		return Promise.all(this._batches.map(batch => batch.commit()));
+	}
+
+};
+
 const randomCharSetNumbers = '0123456789';
 const randomCharSetLetters = 'abcdef';
 const randomCharSet = randomCharSetNumbers + randomCharSetLetters;
