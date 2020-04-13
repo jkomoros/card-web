@@ -91,7 +91,7 @@ export const cardMissingLinksInbound = (card) => {
 	for (let link of card.links) {
 		links.delete(link);
 	}
-	for (let link of Object.keys(card.auto_todo_skipped_links_inbound)) {
+	for (let link of card.auto_todo_skipped_links_inbound) {
 		links.delete(link);
 	}
 	return [...links.keys()];

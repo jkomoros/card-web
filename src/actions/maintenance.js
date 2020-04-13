@@ -602,7 +602,7 @@ export const addAutoTodoSkippedLinksInbound = async() => {
 	let snapshot = await db.collection(CARDS_COLLECTION).get();
 
 	snapshot.forEach(doc => {
-		batch.update(doc.ref, {'auto_todo_skipped_links_inbound': {}});
+		batch.update(doc.ref, {'auto_todo_skipped_links_inbound': []});
 	});
 
 	await batch.commit();
