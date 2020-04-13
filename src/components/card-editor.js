@@ -52,7 +52,8 @@ import {
 	killEvent, 
 	cardHasContent, 
 	cardHasNotes,
-	cardHasTodo
+	cardHasTodo,
+	cardMissingReciprocalLinks
 } from '../util.js';
 
 import {
@@ -262,6 +263,10 @@ class CardEditor extends connect(store)(LitElement) {
         </div>
         <div class='buttons'>
 		  <h3>Editing</h3>
+		  <div>
+		  	<label>Missing Reciprocal Links</label>
+			<tag-list .defaultColor=${enableTODOColor} .tags=${cardMissingReciprocalLinks(this._card)} .previousTags=${cardMissingReciprocalLinks(this._underlyingCard)}></tag-list>
+		  </div>
 		  <div class='flex'>
 		  </div>
 		  <div>
