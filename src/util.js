@@ -80,9 +80,9 @@ export const cardHasTodo = (card) => {
 	return content ? true : false;
 };
 
-//cardMissingLinksInbound returns the links that point to a card that are not
+//cardMissingReciprocalLinks returns the links that point to a card that are not
 //reciprocated and not explicitly listed as OK to skip.
-export const cardMissingLinksInbound = (card) => {
+export const cardMissingReciprocalLinks = (card) => {
 	if (!card) return [];
 	let links = new Map();
 	for (let link of card.links_inbound) {
