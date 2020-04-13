@@ -97,6 +97,17 @@ export const cardMissingReciprocalLinks = (card) => {
 	return [...links.keys()];
 };
 
+//other can be a card ID or a card
+export const cardNeedsReciprocalLinkTo = (card, other) => {
+	if (typeof other == 'object') other = other.id;
+	if (!card || !other) return false;
+	const missingReciprocalLinks = cardMissingReciprocalLinks(card);
+	for (let link of missingReciprocalLinks) {
+		if (link == other) return true;
+	}
+	return false;
+};
+
 //Returns true or false. filterName can be a filter or inverse filtername, if
 //optInverseFilterNames is passed.
 export const cardInFilter = (card, filterName, filters, optInverseFilterNames) => {
