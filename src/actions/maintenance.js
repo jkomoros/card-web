@@ -15,8 +15,8 @@ import {
 } from './editor.js';
 
 import {
-	extractCardLinks
-} from './data.js';
+	extractCardLinksFromBody
+} from '../util.js';
 
 import {
 	firebase
@@ -120,7 +120,7 @@ export const updateLinks = async() => {
 
 	for (let doc of snapshot.docs) {
 		counter++;
-		let links = extractCardLinks(doc.data().body);
+		let links = extractCardLinksFromBody(doc.data().body);
 		await doc.ref.update({
 			links: links,
 		});
