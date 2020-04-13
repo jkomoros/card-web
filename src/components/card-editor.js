@@ -41,6 +41,8 @@ import {
 	TAB_NOTES,
 	TAB_TODO,
 	autoTodoOverrideDisabled,
+	skippedLinkInboundAdded,
+	skippedLinkInboundRemoved,
 } from '../actions/editor.js';
 
 import {
@@ -265,7 +267,7 @@ class CardEditor extends connect(store)(LitElement) {
 		  <h3>Editing</h3>
 		  <div>
 		  	<label>Missing Reciprocal Links</label>
-			<tag-list .defaultColor=${enableTODOColor} .tags=${cardMissingReciprocalLinks(this._card)} .previousTags=${cardMissingReciprocalLinks(this._underlyingCard)}></tag-list>
+			<tag-list .defaultColor=${enableTODOColor} .tags=${cardMissingReciprocalLinks(this._card)} .previousTags=${cardMissingReciprocalLinks(this._underlyingCard)} .editing=${true} .disableAdd=${true} @add-tag=${this._handleRemoveSkippedLinkInbound} @remove-tag=${this._handleAddSkippedLinkInbound}></tag-list>
 		  </div>
 		  <div class='flex'>
 		  </div>
@@ -341,6 +343,16 @@ class CardEditor extends connect(store)(LitElement) {
 
 	_handleRemoveTag(e) {
 		store.dispatch(tagRemoved(e.detail.tag));
+	}
+
+	_handleAddSkippedLinkInbound(e) {
+		store.dispatch(skippedLinkInboundAdded(e.detail.tag));
+	}
+
+	_handleRemoveSkippedLinkInbound(e) {
+		//This has to be supported so the user can click a tag again to add it
+		//after removing it, even though free-form add tag is disabled.
+		store.dispatch(skippedLinkInboundRemoved(e.detail.tag));
 	}
 
 	_handleAddTodoOverrideEnabled(e) {
