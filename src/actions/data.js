@@ -98,6 +98,8 @@ const LEGAL_UPDATE_FIELDS = new Map([
 	['auto_todo_overrides_enablements', true],
 	['auto_todo_overrides_disablements', true],
 	['auto_todo_overrides_removals', true],
+	['add_skipped_link_inbound', true],
+	['remove_skipped_link_inbound', true],
 	['addTags', true],
 	['removeTags', true],
 	['published', true]
@@ -208,6 +210,13 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 		if (update.removeTags) tags = arrayRemove(tags, update.removeTags);
 		if (update.addTags) tags = arrayUnion(tags, update.addTags);
 		cardUpdateObject.tags = tags;
+	}
+
+	if (update.add_skipped_link_inbound || update.remove_skipped_link_inbound) {
+		let skippedLinksInbound = card.auto_todo_skipped_links_inbound;
+		if (update.remove_skipped_link_inbound) skippedLinksInbound = arrayRemove(skippedLinksInbound, update.remove_skipped_link_inbound);
+		if (update.add_skipped_link_inbound) skippedLinksInbound = arrayUnion(skippedLinksInbound, update.add_skipped_link_inbound);
+		cardUpdateObject.auto_todo_skipped_links_inbound = skippedLinksInbound;
 	}
 
 	if (update.auto_todo_overrides_enablements || update.auto_todo_overrides_disablements || update.auto_todo_overrides_removals) {
