@@ -16,6 +16,8 @@ export const EDITING_AUTO_TODO_OVERRIDE_DISABLED = 'EDITING_AUTO_TODO_OVERRIDE_D
 export const EDITING_AUTO_TODO_OVERRIDE_REMOVED = 'EDITING_AUTO_TODO_OVERRIDE_REMOVED';
 export const EDITING_TAG_ADDED = 'EDITING_TAG_ADDED';
 export const EDITING_TAG_REMOVED = 'EDITING_TAG_REMOVED';
+export const EDITING_SKIPPED_LINK_INBOUND_ADDED = 'EDITING_SKIPPED_LINK_INBOUND_ADDED';
+export const EDITING_SKIPPED_LINK_INBOUND_REMOVED = 'EDITING_SKIPPED_LINK_INBOUND_REMOVED';
 
 
 export const TAB_CONTENT = 'content';
@@ -527,5 +529,19 @@ export const tagRemoved = (tag) => {
 	return {
 		type: EDITING_TAG_REMOVED,
 		tag
+	};
+};
+
+export const skippedLinkInboundAdded = (link) => {
+	return {
+		type: EDITING_SKIPPED_LINK_INBOUND_ADDED,
+		link
+	};
+};
+
+export const skippedLinkInboundRemoved = (link) => {
+	return {
+		type: EDITING_SKIPPED_LINK_INBOUND_REMOVED,
+		link
 	};
 };

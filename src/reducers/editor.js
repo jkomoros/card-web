@@ -17,6 +17,8 @@ import {
 	EDITING_AUTO_TODO_OVERRIDE_REMOVED,
 	EDITING_TAG_ADDED,
 	EDITING_TAG_REMOVED,
+	EDITING_SKIPPED_LINK_INBOUND_ADDED,
+	EDITING_SKIPPED_LINK_INBOUND_REMOVED,
 
 	TAB_CONTENT,
 } from '../actions/editor.js';
@@ -145,6 +147,18 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: {...state.card, tags: arrayRemove(state.card.tags, [action.tag])}
+		};
+	case EDITING_SKIPPED_LINK_INBOUND_ADDED:
+		if (!state.card) return state;
+		return {
+			...state,
+			card: {...state.card, auto_todo_skipped_links_inbound: arrayUnion(state.card.auto_todo_skipped_links_inbound, [action.link])}
+		};
+	case EDITING_SKIPPED_LINK_INBOUND_REMOVED:
+		if (!state.card) return state;
+		return {
+			...state,
+			card: {...state.card, auto_todo_skipped_links_inbound: arrayRemove(state.card.auto_todo_skipped_links_inbound, [action.link])}
 		};
 	case EDITING_NAME_UPDATED:
 		if (!state.card) return state;
