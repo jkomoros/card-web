@@ -21,7 +21,11 @@ import {
 import {
 	firebase
 } from './database.js';
-import { arrayDiff } from '../util.js';
+
+import { 
+	arrayDiff,
+	MultiBatch,
+} from '../util.js';
 
 const checkMaintenanceTaskHasBeenRun = async (taskName) => {
 	let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
@@ -597,7 +601,7 @@ export const addAutoTodoSkippedLinksInbound = async() => {
 
 	await checkMaintenanceTaskHasBeenRun(ADD_AUTO_TODO_SKIPPED_LINKS_INBOUND);
 
-	let batch = db.batch();
+	let batch = new MultiBatch(db);
 
 	let snapshot = await db.collection(CARDS_COLLECTION).get();
 
