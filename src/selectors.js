@@ -191,6 +191,13 @@ export const selectAllCardsFilter = createSelector(
 	(cards) => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], true]))
 );
 
+//selectTagInfosForCards selects a tagInfos map based on all cards. Used for
+//example for showing missing link auto todos in card-editor.
+export const selectTagInfosForCards = createSelector(
+	selectCards,
+	cards => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], {id: entry[0], title:entry[1] ? entry[1].name : ''}]))
+);
+
 export const getCardHasStar = (state, cardId) => {
 	return (selectUserStars(state) || {})[cardId] || false;
 };

@@ -68,6 +68,7 @@ import {
 } from '../reducers/collection.js';
 
 import './tag-list.js';
+import { selectTagInfosForCards } from '../selectors';
 
 class CardEditor extends connect(store)(LitElement) {
 	render() {
@@ -267,11 +268,11 @@ class CardEditor extends connect(store)(LitElement) {
 		  <h3>Editing</h3>
 		  <div>
 		  	<label>Missing Reciprocal Links</label>
-			<tag-list .overrideTypeName=${'Link'} .defaultColor=${enableTODOColor} .tags=${cardMissingReciprocalLinks(this._card)} .editing=${true} .disableAdd=${true} @add-tag=${this._handleRemoveSkippedLinkInbound} @remove-tag=${this._handleAddSkippedLinkInbound}></tag-list>
+			<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${enableTODOColor} .tags=${cardMissingReciprocalLinks(this._card)} .editing=${true} .disableAdd=${true} @add-tag=${this._handleRemoveSkippedLinkInbound} @remove-tag=${this._handleAddSkippedLinkInbound}></tag-list>
 		  </div>
 		  <div>
 		  	<label>Skipped Reciprocal Links</label>
-			<tag-list .overrideTypeName=${'Link'} .defaultColor=${disableTODOColor} .tags=${this._card.auto_todo_skipped_links_inbound} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveSkippedLinkInbound} @add-tag=${this._handleAddSkippedLinkInbound}></tag-list>
+			<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${disableTODOColor} .tags=${this._card.auto_todo_skipped_links_inbound} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveSkippedLinkInbound} @add-tag=${this._handleAddSkippedLinkInbound}></tag-list>
 		  </div>
 		  <div class='flex'>
 		  </div>
@@ -302,6 +303,7 @@ class CardEditor extends connect(store)(LitElement) {
 		_substantive: {type: Object},
 		_selectedTab: {type:String},
 		_tagInfos: {type: Object},
+		_cardTagInfos: {type: Object},
 		//The card before any edits
 		_underlyingCard: {type:Object},
 	};}
@@ -315,6 +317,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._substantive = state.editor.substantive;
 		this._selectedTab = state.editor.selectedTab;
 		this._tagInfos = selectTags(state);
+		this._cardTagInfos = selectTagInfosForCards(state);
 	}
 
 	shouldUpdate() {
