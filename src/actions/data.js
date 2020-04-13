@@ -39,7 +39,7 @@ import {
 	arrayRemove,
 	arrayUnion,
 	normalizeSlug,
-	arrayUnique,
+	extractCardLinksFromBody,
 } from '../util.js';
 
 import {
@@ -162,7 +162,7 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 
 	if (update.body !== undefined) {
 		cardUpdateObject.body = update.body;
-		cardUpdateObject.links = extractCardLinks(update.body);
+		cardUpdateObject.links = extractCardLinksFromBody(update.body);
 	}
 
 	if (update.title !== undefined) {
@@ -382,15 +382,6 @@ export const reorderCard = (card, newIndex) => async (dispatch, getState) => {
 	//We don't need to tell the store anything, because firestore will tell it
 	//automatically.
 
-};
-
-export const extractCardLinks = (body) => {
-	let ele = document.createElement('section');
-	ele.innerHTML = body;
-	let result = [];
-	let nodes = ele.querySelectorAll('card-link[card]');
-	nodes.forEach(link => result.push(link.getAttribute('card')));
-	return arrayUnique(result);
 };
 
 export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {

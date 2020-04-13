@@ -108,6 +108,15 @@ export const cardNeedsReciprocalLinkTo = (card, other) => {
 	return false;
 };
 
+export const extractCardLinksFromBody = (body) => {
+	let ele = document.createElement('section');
+	ele.innerHTML = body;
+	let result = [];
+	let nodes = ele.querySelectorAll('card-link[card]');
+	nodes.forEach(link => result.push(link.getAttribute('card')));
+	return arrayUnique(result);
+};
+
 //Returns true or false. filterName can be a filter or inverse filtername, if
 //optInverseFilterNames is passed.
 export const cardInFilter = (card, filterName, filters, optInverseFilterNames) => {
