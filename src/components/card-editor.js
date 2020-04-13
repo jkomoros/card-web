@@ -240,32 +240,34 @@ class CardEditor extends connect(store)(LitElement) {
               </select>
               <button @click='${this._handleAddSlug}'>+</button>
             </div>
-            <div>
-              <label>Full Bleed</label>
-              <input type='checkbox' ?checked='${this._card.full_bleed}' @change='${this._handleFullBleedUpdated}'></input>
-            </div>
 			<div>
 				<label>Tags</label>
 				<tag-list .tags=${this._card.tags} .previousTags=${this._underlyingCard ? this._underlyingCard.tags : null} .editing=${true} .tagInfos=${this._tagInfos} @add-tag=${this._handleAddTag} @remove-tag=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
 			</div>
           </div>
+			<div class='row'>
+				<div>
+					<label>Force Enable TODO</label>
+					<tag-list .defaultColor=${enableTODOColor} .tags=${todoOverridesEnabled} .previousTags=${todoOverridesPreviouslyEnabled} .disableNew=${true} .overrideTypeName=${'Enabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @add-tag=${this._handleAddTodoOverrideEnabled} @remove-tag=${this._handleRemoveTodoOverride}></tag-list>
+				</div>
+				<div>
+					<label>Force Disable TODO</label>
+					<tag-list .defaultColor=${disableTODOColor} .tags=${todoOverridesDisabled} .previousTags=${todoOverridesPreviouslyDisabled} .disableNew=${true} .overrideTypeName=${'Disabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @add-tag=${this._handleAddTodoOverrideDisabled} @remove-tag=${this._handleRemoveTodoOverride}></tag-list>
+				</div>
+				<div>
+					<label>Auto TODO</label>
+					<tag-list .defaultColor=${autoTODOColor} .tags=${this._autoTodos} .overrideTypeName=${'Auto TODO'} .tagInfos=${TODO_ALL_INFOS}></tag-list>
+				</div>
+			</div>
         </div>
         <div class='buttons'>
 		  <h3>Editing</h3>
-		  <div>
-			<label>Force Enable TODO</label>
-			<tag-list .defaultColor=${enableTODOColor} .tags=${todoOverridesEnabled} .previousTags=${todoOverridesPreviouslyEnabled} .disableNew=${true} .overrideTypeName=${'Enabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @add-tag=${this._handleAddTodoOverrideEnabled} @remove-tag=${this._handleRemoveTodoOverride}></tag-list>
-		  </div>
-		  <div>
-			<label>Force Disable TODO</label>
-			<tag-list .defaultColor=${disableTODOColor} .tags=${todoOverridesDisabled} .previousTags=${todoOverridesPreviouslyDisabled} .disableNew=${true} .overrideTypeName=${'Disabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @add-tag=${this._handleAddTodoOverrideDisabled} @remove-tag=${this._handleRemoveTodoOverride}></tag-list>
-		  </div>
-		  <div>
-			<label>Auto TODO</label>
-			<tag-list .defaultColor=${autoTODOColor} .tags=${this._autoTodos} .overrideTypeName=${'Auto TODO'} .tagInfos=${TODO_ALL_INFOS}></tag-list>
-		  </div>
 		  <div class='flex'>
 		  </div>
+		  <div>
+              <label>Full Bleed</label>
+              <input type='checkbox' ?checked='${this._card.full_bleed}' @change='${this._handleFullBleedUpdated}'></input>
+            </div>
 		  <div>
             <label>Published</label>
             <input type='checkbox' .checked=${this._card.published} @change='${this._handlePublishedUpdated}'></input>
