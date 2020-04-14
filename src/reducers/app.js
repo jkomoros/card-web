@@ -15,10 +15,8 @@ import {
 	CLOSE_SNACKBAR,
 	OPEN_HEADER_PANEL,
 	CLOSE_HEADER_PANEL,
-	OPEN_COMMENTS_PANEL,
-	CLOSE_COMMENTS_PANEL,
-	OPEN_CARD_INFO_PANEL,
-	CLOSE_CARD_INFO_PANEL,
+	OPEN_COMMENTS_AND_INFO_PANEL,
+	CLOSE_COMMENTS_AND_INFO_PANEL,
 	OPEN_CARDS_DRAWER_PANEL,
 	CLOSE_CARDS_DRAWER_PANEL,
 	ENABLE_PRESENTATION_MODE,
@@ -35,8 +33,7 @@ import {
 } from '../selectors.js';
 
 const HEADER_PANEL_DEFAULT_VALUE = true;
-const COMMENTS_PANEL_DEFAULT_VALUE = true;
-const CARD_INFO_PANEL_DEFAULT_VALUE = false;
+const COMMENTS_AND_INFO_PANEL_DEFAULT_VALUE = true;
 const CARDS_DRAWER_PANEL_DEFAULT_VALUE = true;
 
 const INITIAL_STATE = {
@@ -46,8 +43,7 @@ const INITIAL_STATE = {
 	offline: false,
 	snackbarOpened: false,
 	headerPanelOpen: HEADER_PANEL_DEFAULT_VALUE,
-	commentsPanelOpen: COMMENTS_PANEL_DEFAULT_VALUE,
-	cardInfoPanelOpen: CARD_INFO_PANEL_DEFAULT_VALUE,
+	commentsAndInfoPanelOpen: COMMENTS_AND_INFO_PANEL_DEFAULT_VALUE,
 	cardsDrawerPanelOpen: CARDS_DRAWER_PANEL_DEFAULT_VALUE,
 	presentationMode: false,
 	mobileMode: false,
@@ -93,29 +89,15 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			headerPanelOpen: false
 		};
-	case OPEN_COMMENTS_PANEL:
-		//Only one of cardInfo and comments panels can be open at a time.
+	case OPEN_COMMENTS_AND_INFO_PANEL:
 		return {
 			...state,
-			commentsPanelOpen: true,
-			cardInfoPanelOpen: false
+			commentsAndInfoPanelOpen: true,
 		};
-	case CLOSE_COMMENTS_PANEL:
+	case CLOSE_COMMENTS_AND_INFO_PANEL:
 		return {
 			...state,
-			commentsPanelOpen: false
-		};
-	case OPEN_CARD_INFO_PANEL:
-		//Only one of cardInfo and comments panels can be open at a time.
-		return {
-			...state,
-			cardInfoPanelOpen: true,
-			commentsPanelOpen: false
-		};
-	case CLOSE_CARD_INFO_PANEL:
-		return {
-			...state,
-			cardInfoPanelOpen: false
+			commentsAndInfoPanelOpen: false,
 		};
 	case OPEN_CARDS_DRAWER_PANEL:
 		return {
@@ -141,8 +123,7 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			headerPanelOpen: HEADER_PANEL_DEFAULT_VALUE,
 			cardsDrawerPanelOpen: CARDS_DRAWER_PANEL_DEFAULT_VALUE,
-			commentsPanelOpen: COMMENTS_PANEL_DEFAULT_VALUE,
-			cardInfoPanelOpen: CARD_INFO_PANEL_DEFAULT_VALUE,
+			commentsAndInfoPanelOpen: COMMENTS_AND_INFO_PANEL_DEFAULT_VALUE,
 			presentationMode:false
 		};
 	case ENABLE_MOBILE_MODE: 

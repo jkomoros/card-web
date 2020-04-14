@@ -28,6 +28,7 @@ import {
 	selectInboundLinksForActiveCard,
 	selectActiveCardTweets,
 	selectTweetsLoading,
+	selectCommentsAndInfoPanelOpen,
 } from '../selectors.js';
 
 import {
@@ -179,7 +180,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 	}
 
 	stateChanged(state) {
-		this._open = state.app.cardInfoPanelOpen;
+		this._open = selectCommentsAndInfoPanelOpen(state);
 		this._card = selectActiveCard(state) || {};
 		this._sectionTitle = sectionTitle(state, this._card ? this._card.section : '');
 		this._author = getAuthorForId(state, this._card.author);

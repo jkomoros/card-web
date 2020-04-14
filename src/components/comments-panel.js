@@ -22,6 +22,7 @@ import {
 	selectUserMayComment,
 	selectActiveCardComposedThreads,
 	selectCollectionIsFallback,
+	selectCommentsAndInfoPanelOpen,
 } from '../selectors.js';
 
 import {
@@ -145,7 +146,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 	}
 
 	stateChanged(state) {
-		this._open = state.app.commentsPanelOpen;
+		this._open = selectCommentsAndInfoPanelOpen(state);
 		this._card = selectActiveCard(state);
 		this._collectionIsFallback = selectCollectionIsFallback(state);
 		this._composedThreads = selectActiveCardComposedThreads(state);

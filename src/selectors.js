@@ -40,6 +40,8 @@ export const selectPromptMessage = (state) => state.prompt.message;
 export const selectPromptAction = (state) => state.prompt.action;
 export const selectPromptAssociatedId = (state) => state.prompt.associatedId;
 
+export const selectCommentsAndInfoPanelOpen = (state) => state.app ? state.app.commentsAndInfoPanelOpen : false;
+
 export const selectActiveSetName = (state) => state.collection.activeSetName;
 export const selectActiveSortName = (state) => state.collection.activeSortName;
 export const selectActiveSortReversed = (state) => state.collection.activeSortReversed;
