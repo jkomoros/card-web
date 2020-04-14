@@ -22,6 +22,7 @@ import {
 	selectUserMayComment,
 	selectActiveCardComposedThreads,
 	selectCollectionIsFallback,
+	selectCommentsAndInfoPanelOpen,
 } from '../selectors.js';
 
 import {
@@ -45,7 +46,8 @@ class CommentsPanel extends connect(store)(PageViewElement) {
       ${ButtonSharedStyles}
       <style>
         :host {
-          overflow:hidden;
+		  overflow: hidden;
+		  flex-shrink: 0.5;
         }
         .container {
           min-width: 13em;
@@ -59,9 +61,12 @@ class CommentsPanel extends connect(store)(PageViewElement) {
           height: 6em;
           width:100%;
         }
+		.no-comments .spacer {
+			height: 3em;
+		}
         .comments {
           overflow:scroll;
-          height:100%;
+          max-height:100%;
           width:100%;
         }
         .comments > p {
@@ -79,7 +84,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
           right:1em;
         }
       </style>
-      <div ?hidden=${!this._open} class='container'>
+      <div ?hidden=${!this._open} class='container ${this._composedThreads.length ? '' : 'no-comments'}'>
         <h3>Comments</h3>
         <div class='comments'>
         ${this._composedThreads.length
@@ -87,8 +92,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
                 <comment-thread .user=${this._user} .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @delete-message=${this._handleDeleteMessage} @resolve-thread=${this._handleResolveThread} @show-need-signin=${this._handleShowNeedSignin} .userMayComment=${this._userMayComment}></comment-thread>`)}`
 		: html`<p><em>No comments yet.</em></p><p><em>You should leave one!</em></p>`
 }
-        <div class='spacer'></spacer>
-        </div>
+        <div class='spacer'></div>
         <button ?disabled=${this._collectionIsFallback} class='round ${this._userMayComment ? '' : 'need-signin'}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${addCommentIcon}</button>
       </div>
     `;
@@ -145,7 +149,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 	}
 
 	stateChanged(state) {
-		this._open = state.app.commentsPanelOpen;
+		this._open = selectCommentsAndInfoPanelOpen(state);
 		this._card = selectActiveCard(state);
 		this._collectionIsFallback = selectCollectionIsFallback(state);
 		this._composedThreads = selectActiveCardComposedThreads(state);

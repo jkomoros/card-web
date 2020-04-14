@@ -35,7 +35,8 @@ import {
 	selectCardsDrawerPanelShowing,
 	selectCollectionIsFallback,
 	selectEditingCard,
-	selectActiveCardTodosForCurrentUser
+	selectActiveCardTodosForCurrentUser,
+	selectCommentsAndInfoPanelOpen
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -70,16 +71,14 @@ import {
 
 import {
 	navigateToCard,
-	openCommentsPanel,
-	closeCommentsPanel,
-	openCardInfoPanel,
-	closeCardInfoPanel,
 	openCardsDrawerPanel,
 	closeCardsDrawerPanel,
 	enablePresentationMode,
 	disablePresentationMode,
 	navigateToNextCard,
-	navigateToPreviousCard
+	navigateToPreviousCard,
+	openCommentsAndInfoPanel,
+	closeCommentsAndInfoPanel,
 } from '../actions/app.js';
 
 //Components needed by this
@@ -201,6 +200,11 @@ class CardView extends connect(store)(PageViewElement) {
           animation-timing-function: linear;
         }
 
+		.right-panel {
+			display:flex;
+			flex-direction: column;
+		}
+
         @keyframes autoread {
           from {
             transform: scale(1.0);
@@ -219,8 +223,8 @@ class CardView extends connect(store)(PageViewElement) {
 				</div>
 				<div slot='actions' class='panels'>
 					<button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${viewDayIcon}</button>
-					<button class='round ${this._commentsPanelOpen ? 'selected' : ''} ${this._card.thread_count > 0 ? 'primary' : ''}' @click='${this._handleCommentsClicked}'>${forumIcon}</button>
-					<button class='round ${this._cardInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCardInfoClicked}'>${infoIcon}</button>
+					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''} ${this._card.thread_count > 0 ? 'primary' : ''}' @click='${this._handleCommentsOrInfoPanelClicked}'>${forumIcon}</button>
+					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCommentsOrInfoPanelClicked}'>${infoIcon}</button>
 					<button class='round' @click=${this._handleFindClicked}>${searchIcon}</button>
 				</div>
 				<div slot='actions' class='modify'>
@@ -240,8 +244,10 @@ class CardView extends connect(store)(PageViewElement) {
           </card-stage>
           <card-editor ?active=${this._editing} ></card-editor>
         </div>
-        <card-info-panel .active=${this.active}></card-info-panel>
-        <comments-panel .active=${this.active}></comments-panel>
+		<div class='right-panel'>
+        	<card-info-panel .active=${this.active}></card-info-panel>
+        	<comments-panel .active=${this.active}></comments-panel>
+		</div>
       </div>
     `;
 	}
@@ -259,8 +265,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_autoMarkReadPending : { type: Boolean},
 			_displayCard: { type: Object },
 			_editingCard: { type: Object },
-			_commentsPanelOpen: {type: Boolean},
-			_cardInfoPanelOpen: {type: Boolean},
+			_commentsAndInfoPanelOpen : {type: Object},
 			_cardsDrawerPanelOpen: {type:Boolean},
 			_cardsDrawerPanelShowing: {type: Boolean},
 			_headerPanelOpen: {type: Boolean},
@@ -323,19 +328,11 @@ class CardView extends connect(store)(PageViewElement) {
 		this.shadowRoot.querySelector('card-editor').titleUpdatedFromContentEditable(e.detail.text);
 	}
 
-	_handleCommentsClicked() {
-		if (this._commentsPanelOpen) {
-			store.dispatch(closeCommentsPanel());
+	_handleCommentsOrInfoPanelClicked() {
+		if (this._commentsAndInfoPanelOpen) {
+			store.dispatch(closeCommentsAndInfoPanel());
 		} else {
-			store.dispatch(openCommentsPanel());
-		}
-	}
-
-	_handleCardInfoClicked() {
-		if (this._cardInfoPanelOpen) {
-			store.dispatch(closeCardInfoPanel());
-		} else {
-			store.dispatch(openCardInfoPanel());
+			store.dispatch(openCommentsAndInfoPanel());
 		}
 	}
 
@@ -425,8 +422,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._userMayEdit = selectUserMayEdit(state);
 		this._userMayReorder = selectUserMayEdit(state) && selectActiveSectionId(state) != '';
 		this._headerPanelOpen = state.app.headerPanelOpen;
-		this._commentsPanelOpen = state.app.commentsPanelOpen;
-		this._cardInfoPanelOpen = state.app.cardInfoPanelOpen;
+		this._commentsAndInfoPanelOpen = selectCommentsAndInfoPanelOpen(state);
 		//Note: do NOT use this for whether the panel is showing.
 		this._cardsDrawerPanelOpen = state.app.cardsDrawerPanelOpen;
 		this._bodyFromContentEditable = state.editor.bodyFromContentEditable;
@@ -452,8 +448,7 @@ class CardView extends connect(store)(PageViewElement) {
 	_changedPropsAffectCanvasSize(changedProps) {
 		let sizeProps = [
 			'_headerPanelOpen',
-			'_commentsPanelOpen',
-			'_cardInfoPanelOpen',
+			'_commentsAndInfoPanelOpen',
 			'_cardsDrawerPanelShowing',
 			'_editing'
 		];

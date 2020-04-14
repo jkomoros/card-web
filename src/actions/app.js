@@ -14,10 +14,8 @@ export const OPEN_SNACKBAR = 'OPEN_SNACKBAR';
 export const CLOSE_SNACKBAR = 'CLOSE_SNACKBAR';
 export const OPEN_HEADER_PANEL = 'OPEN_HEADER_PANEL';
 export const CLOSE_HEADER_PANEL = 'CLOSE_HEADER_PANEL';
-export const OPEN_COMMENTS_PANEL = 'OPEN_COMMENTS_PANEL';
-export const CLOSE_COMMENTS_PANEL = 'CLOSE_COMMENTS_PANEL';
-export const OPEN_CARD_INFO_PANEL = 'OPEN_CARD_INFO_PANEL';
-export const CLOSE_CARD_INFO_PANEL = 'CLOSE_CARD_INFO_PANEL';
+export const OPEN_COMMENTS_AND_INFO_PANEL = 'OPEN_COMMENTS_AND_INFO_PANEL';
+export const CLOSE_COMMENTS_AND_INFO_PANEL = 'CLOSE_COMMENTS_AND_INFO_PANEL';
 export const OPEN_CARDS_DRAWER_PANEL = 'OPEN_CARDS_DRAWER_PANEL';
 export const CLOSE_CARDS_DRAWER_PANEL = 'CLOSE_CARDS_DRAWER_PANEL';
 export const ENABLE_PRESENTATION_MODE = 'ENABLE_PRESENTATION_MODE';
@@ -348,27 +346,15 @@ export const closeHeaderPanel = () => {
 	};
 };
 
-export const openCommentsPanel = () => {
+export const openCommentsAndInfoPanel = () => {
 	return {
-		type: OPEN_COMMENTS_PANEL
+		type: OPEN_COMMENTS_AND_INFO_PANEL
 	};
 };
 
-export const closeCommentsPanel = () => {
+export const closeCommentsAndInfoPanel = () => {
 	return {
-		type: CLOSE_COMMENTS_PANEL
-	};
-};
-
-export const openCardInfoPanel = () => {
-	return {
-		type: OPEN_CARD_INFO_PANEL
-	};
-};
-
-export const closeCardInfoPanel = () => {
-	return {
-		type: CLOSE_CARD_INFO_PANEL
+		type: CLOSE_COMMENTS_AND_INFO_PANEL
 	};
 };
 

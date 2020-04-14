@@ -28,6 +28,7 @@ import {
 	selectInboundLinksForActiveCard,
 	selectActiveCardTweets,
 	selectTweetsLoading,
+	selectCommentsAndInfoPanelOpen,
 } from '../selectors.js';
 
 import {
@@ -51,6 +52,13 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		${SharedStyles}
 			<style>
 
+				:host {
+					flex-grow: 1;
+					border-bottom: 1px solid var(--app-divider-color);
+					border-left: 1px solid var(--app-divider-color);
+					overflow: hidden;
+				}
+
 				.help {
 					margin-left:0.4em;
 				}
@@ -61,11 +69,14 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 					fill: var(--app-dark-text-color-subtle);
 				}
 
+				h3 {
+					padding: 0.5em 0.5em 0;
+				}
+
 				.container {
 					width: 13em;
 					height:100%;
-					padding:0.5em;
-					border-left: 1px solid var(--app-divider-color);
+					padding: 0 0.5em 0.5em 0.5em;
 					position:relative;
 					color: var(--app-dark-text-color);
 					overflow: scroll;
@@ -94,44 +105,14 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				.loading {
 					opacity:0.7;
 				}
+				.spacer {
+					/* Ensure that there's ample space below the scroll. Note: this is likely related to the height of the h3 */
+					height: 3em;
+					width:100%;
+				}
 			</style>
+			<h3 ?hidden=${!this._open}>Card Info</h3>
 			<div class='container' ?hidden=${!this._open}>
-				<h3>Card Info</h3>
-				<div>
-					<h4>ID${this._help('The underlying id of this card, which never changes. Navigating to this name will always come here')}</h4>
-					<p>${this._card.id}</p>
-				</div>
-				<div>
-					<h4>Name${this._help('The preferred name for this card, which will show up in the URL when you visit. Must be either the id or one of the slugs')}</h4>
-					<p>${this._card.name}</p>
-				</div>
-				<div>
-					<h4>Slugs${this._help('The alternate names that will navigate to this card.')}</h4>
-					${this._card && this._card.slugs && this._card.slugs.length 
-		? html`<ul>${this._card.slugs.map((item) => html`<li>${item}</li>`)}</ul>`
-		: html`<p><em>No slugs</em></p>`
-}
-				</div>
-				<div>
-					<h4>Section${this._help('The collection that this card lives in.')}</h4>
-					<p>${this._sectionTitle}</p>
-				</div>
-				<div>
-					<h4>Last Updated</h4>
-					<p>${prettyTime(this._card.updated_substantive)}</p>
-				</div>
-				<div>
-					<h4>Created</h4>
-					<p>${prettyTime(this._card.created)}</p>
-				</div>
-				<div>
-					<h4>Author</h4>
-					<p><author-chip .author=${this._author}></author-chip></p>
-				</div>
-				<div>
-					<h4>Tags</h4>
-					<tag-list .card=${this._card} .tags=${this._card.tags} .tagInfos=${this._tagInfos}></tag-list>
-				</div>
 				<div>
 					<h4>Cards That Link Here${this._help('Cards that link to this one.')}</h4>
 					${this._inboundLinks
@@ -153,6 +134,42 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		: this._tweetsLoading ? html`<em class='loading'>Loading...</em>` : html`<em>No tweets</em>` 
 }
 				</div>
+				<div>
+					<h4>Tags</h4>
+					<tag-list .card=${this._card} .tags=${this._card.tags} .tagInfos=${this._tagInfos}></tag-list>
+				</div>
+				<div>
+					<h4>Last Updated</h4>
+					<p>${prettyTime(this._card.updated_substantive)}</p>
+				</div>
+				<div>
+					<h4>Name${this._help('The preferred name for this card, which will show up in the URL when you visit. Must be either the id or one of the slugs')}</h4>
+					<p>${this._card.name}</p>
+				</div>
+				<div>
+					<h4>ID${this._help('The underlying id of this card, which never changes. Navigating to this name will always come here')}</h4>
+					<p>${this._card.id}</p>
+				</div>
+				<div>
+					<h4>Slugs${this._help('The alternate names that will navigate to this card.')}</h4>
+					${this._card && this._card.slugs && this._card.slugs.length 
+		? html`<ul>${this._card.slugs.map((item) => html`<li>${item}</li>`)}</ul>`
+		: html`<p><em>No slugs</em></p>`
+}
+				</div>
+				<div>
+					<h4>Section${this._help('The collection that this card lives in.')}</h4>
+					<p>${this._sectionTitle}</p>
+				</div>
+				<div>
+					<h4>Created</h4>
+					<p>${prettyTime(this._card.created)}</p>
+				</div>
+				<div>
+					<h4>Author</h4>
+					<p><author-chip .author=${this._author}></author-chip></p>
+				</div>
+				<div class='spacer'></div>
 			</div>
 		`;
 	}
@@ -179,7 +196,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 	}
 
 	stateChanged(state) {
-		this._open = state.app.cardInfoPanelOpen;
+		this._open = selectCommentsAndInfoPanelOpen(state);
 		this._card = selectActiveCard(state) || {};
 		this._sectionTitle = sectionTitle(state, this._card ? this._card.section : '');
 		this._author = getAuthorForId(state, this._card.author);
