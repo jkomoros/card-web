@@ -105,6 +105,11 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				.loading {
 					opacity:0.7;
 				}
+				.spacer {
+					/* Ensure that there's ample space below the scroll. Note: this is likely related to the height of the h3 */
+					height: 3em;
+					width:100%;
+				}
 			</style>
 			<h3 ?hidden=${!this._open}>Card Info</h3>
 			<div class='container' ?hidden=${!this._open}>
@@ -164,6 +169,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		: this._tweetsLoading ? html`<em class='loading'>Loading...</em>` : html`<em>No tweets</em>` 
 }
 				</div>
+				<div class='spacer'></div>
 			</div>
 		`;
 	}
