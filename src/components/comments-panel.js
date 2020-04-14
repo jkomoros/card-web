@@ -89,8 +89,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
                 <comment-thread .user=${this._user} .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @delete-message=${this._handleDeleteMessage} @resolve-thread=${this._handleResolveThread} @show-need-signin=${this._handleShowNeedSignin} .userMayComment=${this._userMayComment}></comment-thread>`)}`
 		: html`<p><em>No comments yet.</em></p><p><em>You should leave one!</em></p>`
 }
-        <div class='spacer'></spacer>
-        </div>
+        <div class='spacer'></div>
         <button ?disabled=${this._collectionIsFallback} class='round ${this._userMayComment ? '' : 'need-signin'}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${addCommentIcon}</button>
       </div>
     `;
