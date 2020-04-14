@@ -69,10 +69,14 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 					fill: var(--app-dark-text-color-subtle);
 				}
 
+				h3 {
+					padding: 0.5em 0.5em 0;
+				}
+
 				.container {
 					width: 13em;
 					height:100%;
-					padding:0.5em;
+					padding: 0 0.5em 0.5em 0.5em;
 					position:relative;
 					color: var(--app-dark-text-color);
 					overflow: scroll;
@@ -102,8 +106,8 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 					opacity:0.7;
 				}
 			</style>
+			<h3 ?hidden=${!this._open}>Card Info</h3>
 			<div class='container' ?hidden=${!this._open}>
-				<h3>Card Info</h3>
 				<div>
 					<h4>ID${this._help('The underlying id of this card, which never changes. Navigating to this name will always come here')}</h4>
 					<p>${this._card.id}</p>
