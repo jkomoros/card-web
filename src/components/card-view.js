@@ -200,6 +200,11 @@ class CardView extends connect(store)(PageViewElement) {
           animation-timing-function: linear;
         }
 
+		.right-panel {
+			display:flex;
+			flex-direction: column;
+		}
+
         @keyframes autoread {
           from {
             transform: scale(1.0);
@@ -239,8 +244,10 @@ class CardView extends connect(store)(PageViewElement) {
           </card-stage>
           <card-editor ?active=${this._editing} ></card-editor>
         </div>
-        <card-info-panel .active=${this.active}></card-info-panel>
-        <comments-panel .active=${this.active}></comments-panel>
+		<div class='right-panel'>
+        	<card-info-panel .active=${this.active}></card-info-panel>
+        	<comments-panel .active=${this.active}></comments-panel>
+		</div>
       </div>
     `;
 	}
