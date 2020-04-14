@@ -61,9 +61,6 @@ class CommentsPanel extends connect(store)(PageViewElement) {
           height: 6em;
           width:100%;
         }
-		.no-comments .spacer {
-			height: 0;
-		}
         .comments {
           overflow:scroll;
           max-height:100%;
@@ -84,7 +81,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
           right:1em;
         }
       </style>
-      <div ?hidden=${!this._open} class='container ${this._composedThreads.length ? '' : 'no-comments'}'>
+      <div ?hidden=${!this._open} class='container'>
         <h3>Comments</h3>
         <div class='comments'>
         ${this._composedThreads.length
