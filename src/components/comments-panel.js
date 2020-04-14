@@ -46,8 +46,8 @@ class CommentsPanel extends connect(store)(PageViewElement) {
       ${ButtonSharedStyles}
       <style>
         :host {
-		  flex-grow: 1;
 		  overflow: hidden;
+		  flex-shrink: 0.5;
         }
         .container {
           min-width: 13em;
