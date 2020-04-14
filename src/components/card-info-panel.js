@@ -52,6 +52,12 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		${SharedStyles}
 			<style>
 
+				:host {
+					flex-grow: 1;
+					border-bottom: 1px solid var(--app-divider-color);
+					border-left: 1px solid var(--app-divider-color);
+				}
+
 				.help {
 					margin-left:0.4em;
 				}
@@ -66,7 +72,6 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 					width: 13em;
 					height:100%;
 					padding:0.5em;
-					border-left: 1px solid var(--app-divider-color);
 					position:relative;
 					color: var(--app-dark-text-color);
 					overflow: scroll;
