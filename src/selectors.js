@@ -14,6 +14,7 @@ import { createSelector } from 'reselect';
 import {
 	makeCombinedFilter,
 	makeConcreteInverseFilter,
+	TEXT_SEARCH_PROPERTIES,
 } from './util.js';
 
 import {
@@ -769,12 +770,7 @@ const selectPreparedQuery = createSelector(
 );
 
 const textSubQueryForWords = (words) => {
-	return {
-		title: textPropertySubQueryForWords(words, 1.0),
-		//bodyText is body, but with tags removed
-		bodyText: textPropertySubQueryForWords(words, 0.5),
-		subtitle: textPropertySubQueryForWords(words, 0.75),
-	};
+	return Object.fromEntries(Object.entries(TEXT_SEARCH_PROPERTIES).map(entry => [entry[0], textPropertySubQueryForWords(words, entry[1])]));
 };
 
 const textPropertySubQueryForWords = (words, startValue) => {
@@ -805,7 +801,7 @@ const cardScoreForQuery = (card, preparedQuery) => {
 	if (!card) return 0.0;
 	let score = 0.0;
 
-	for (let key of ['title', 'bodyText', 'subtitle']) {
+	for (let key of Object.keys(TEXT_SEARCH_PROPERTIES)) {
 		const propertySubQuery = preparedQuery.text[key];
 		if(!propertySubQuery || !card[key]) continue;
 		score += stringPropertyScoreForStringSubQuery(card[key], propertySubQuery);
