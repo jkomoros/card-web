@@ -24,13 +24,15 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			linking: false,
 			query: '',
+			activeQuery: '',
 			open: true
 		};
 	case FIND_DIALOG_CLOSE:
 		return {
 			...state,
 			open: false,
-			query: ''
+			query: '',
+			activeQuery: '',
 		};
 	case FIND_UPDATE_QUERY: 
 		return {
@@ -47,7 +49,8 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			open: true,
 			linking: true,
-			query: action.query
+			query: action.query,
+			activeQuery: action.query
 		};
 	default:
 		return state;
