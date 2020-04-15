@@ -8,10 +8,9 @@ export const _PAGE_BASIC_CARD = 'basic-card';
 //The properties of the card to search over for queries and their relative
 //weight.
 export const TEXT_SEARCH_PROPERTIES = {
-	title: 1.0,
-	//bodyText is body, but with tags removed
-	bodyText: 0.5,
-	subtitle: 0.75,
+	normalizedTitle: 1.0,
+	normalizedBody: 0.5,
+	normalizedSubtitle: 0.75,
 };
 
 //The limit that Firebase enacts for writes in one batch. MultiBatch will count

@@ -66,7 +66,8 @@ import {
 } from './user.js';
 
 import {
-	innerTextForHTML
+	innerTextForHTML,
+	normalizedWords
 } from '../util.js';
 
 export const CARDS_COLLECTION = 'cards';
@@ -276,7 +277,10 @@ export const connectLiveCards = (store) => {
 			let id = doc.id;
 			let card = doc.data();
 			card.id = id;
-			card.bodyText = innerTextForHTML(card.body || '');
+			//These three properties are expected to be set by TEXT_SEARCH_PROPERTIES
+			card.normalizedBody = normalizedWords(innerTextForHTML(card.body || '')).join(' ');
+			card.normalizedTitle = normalizedWords(card.title).join(' ');
+			card.normalizedSubtitle = normalizedWords(card.subtitle).join(' ');
 			cards[id] = card;
 		});
 
