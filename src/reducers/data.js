@@ -13,7 +13,8 @@ import {
 
 import {
 	TEXT_SEARCH_PROPERTIES,
-	normalizedWords
+	normalizedWords,
+	allSubstrings
 } from '../util.js';
 
 const INITIAL_STATE = {
@@ -112,8 +113,11 @@ const extractCardTermIndex = (cards, existingIndex) => {
 			const str = card[property] || '';
 			const words = normalizedWords(str);
 			for (let word of words) {
-				if (!result[word]) result[word] = existingIndex[word] ? [...existingIndex[word]] : {};
-				result[word][id] = true;
+				//this leads to a greater than 10x memory blowup for the index than just doing words.
+				for (let substr of allSubstrings(word)) {
+					if (!result[substr]) result[substr] = existingIndex[substr] ? [...existingIndex[substr]] : {};
+					result[substr][id] = true;
+				}
 			}
 		}
 	}
