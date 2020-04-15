@@ -225,9 +225,9 @@ class CardView extends connect(store)(PageViewElement) {
 					<button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${viewDayIcon}</button>
 					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''} ${this._card.thread_count > 0 ? 'primary' : ''}' @click='${this._handleCommentsOrInfoPanelClicked}'>${forumIcon}</button>
 					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCommentsOrInfoPanelClicked}'>${infoIcon}</button>
-					<button class='round' @click=${this._handleFindClicked}>${searchIcon}</button>
 				</div>
 				<div slot='actions' class='modify'>
+					<button class='round' @click=${this._handleFindClicked}>${searchIcon}</button>
 					<button title='Add to your reading list' ?disabled=${this._collectionIsFallback} class='round ${this._cardInReadingList ? 'selected' : ''} ${this._userMayModifyReadingList ? '' : 'need-signin'}' @click='${this._handleReadingListClicked}'>${this._cardInReadingList ? playlistAddCheckIcon : playlistAddIcon }</button>
 					<button ?disabled=${this._collectionIsFallback} class='round ${this._cardHasStar ? 'selected' : ''} ${this._userMayStar ? '' : 'need-signin'}' @click='${this._handleStarClicked}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
 					<button ?disabled=${this._collectionIsFallback} class='round ${this._cardIsRead ? 'selected' : ''} ${this._userMayMarkRead ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
