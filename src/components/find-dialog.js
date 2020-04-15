@@ -60,6 +60,9 @@ class FindDialog extends connect(store)(DialogElement) {
 
 			.add {
 				text-align:right;
+				position:absolute;
+				bottom: 0.5em;
+				right: 0.5em;
 			}
 		</style>
 		<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
@@ -133,7 +136,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = state.find.open;
 		this.mobileMode = state.app.mobileMode;
-		
+
 		this._query = state.find.query;
 		this._collection = selectExpandedRankedCollectionForQuery(state);
 		this._partialMatches = selectPartialMatchedItemsForQuery(state);
