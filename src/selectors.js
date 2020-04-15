@@ -91,6 +91,7 @@ export const selectReadsLoaded = (state) => state.user ? state.user.readsLoaded 
 export const selectReadingListLoaded = (state) => state.user ? state.user.readingListLoaded : false;
 
 export const selectNotificationsEnabled = (state) => state.user.notificationsToken ? true : false;
+const selectUserPermissions = (state) => state.user ? state.user.permissions : {};
 
 export const selectUser = state => {
 	if (!state.user) return null;
@@ -122,37 +123,20 @@ const userSignedIn = user => userObjectExists(user) && !user.isAnonymous;
 
 const userMayComment = user => userSignedIn(user);
 
-const userMayEdit = user => {
-	//This list is also recreated in firestore.rules
-	const allowedIDs = [
-		'TPo5MOn6rNX9k8K1bbejuBNk4Dr2', //Production main account
-		'KteKDU7UnHfkLcXAyZXbQ6kRAk13' //dev- main account
-	];
-
-	if (!userSignedIn(user)) return false;
-
-	for (let val of Object.values(allowedIDs)) {
-		if (val == user.uid) return true;
-	}
-
-	return false;
-};
-
-const userIsAdmin = userMayEdit;
-
 export const selectUid = createSelector(
 	selectUser,
 	(user) => user ? user.uid : ''
 );
 
 export const selectUserIsAdmin = createSelector(
-	selectUser,
-	(user) => userIsAdmin(user)
+	selectUserPermissions,
+	(permissions) => permissions.admin
 );
 
 export const selectUserMayEdit = createSelector(
-	selectUser,
-	(user) => userMayEdit(user)
+	selectUserIsAdmin,
+	selectUserPermissions,
+	(admin, permissions) => admin || permissions.edit
 );
 
 export const selectUserMayComment = createSelector(
