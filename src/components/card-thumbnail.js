@@ -93,7 +93,7 @@ class CardThumbnail extends LitElement {
 		}
 
       </style>
-      <div @mousemove=${this._handleMouseMove} @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="main ${this.selected ? 'selected' : ''} ${this.cardType} ${this.card && this.card.published ? '' : 'unpublished'} ${this.willBeRemovedOnPendingFilterCommit ? 'ghost' : ''}">
+      <div @mousemove=${this._handleMouseMove} @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="main ${this.selected ? 'selected' : ''} ${this.cardType} ${this.card && this.card.published ? '' : 'unpublished'} ${this.ghost ? 'ghost' : ''}">
 		<h3 class=${this.cardHasContent ? '' : 'nocontent'}>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>
       <card-badges .card=${this.card} .light=${this.cardType != 'content'}></card-badges>
       </div>
@@ -110,7 +110,7 @@ class CardThumbnail extends LitElement {
 			userMayEdit: {type: Boolean},
 			//If the card will be removed on the next filter commit then this should
 			//be set, so the item can be rendered with lower opacity.
-			willBeRemovedOnPendingFilterCommit: { type:Boolean },
+			ghost: { type:Boolean },
 			//Card isn't used for much, except a a place for the container to stash
 			//the whole card (for convenience with dragging).
 			card: {type: Object},
