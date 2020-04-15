@@ -15,6 +15,7 @@ import {
 	makeCombinedFilter,
 	makeConcreteInverseFilter,
 	TEXT_SEARCH_PROPERTIES,
+	normalizedWords,
 } from './util.js';
 
 import {
@@ -828,10 +829,9 @@ const filterForWord = (word) => {
 
 //extracts the raw, non filter words from a query, then also the filters.
 const queryWordsAndFilters = (queryString) => {
-	queryString = queryString.toLowerCase();
 	let words = [];
 	let filters = [];
-	for (let word of queryString.split(' ')) {
+	for (let word of normalizedWords(queryString)) {
 		if (!word) continue;
 		let filter = filterForWord(word);
 		if (filter) {

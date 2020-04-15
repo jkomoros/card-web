@@ -88,6 +88,11 @@ export const MultiBatch = class {
 
 };
 
+export const normalizedWords = (str) => {
+	if (!str) str = '';
+	return str.toLowerCase().split(/\s+/);
+};
+
 const randomCharSetNumbers = '0123456789';
 const randomCharSetLetters = 'abcdef';
 const randomCharSet = randomCharSetNumbers + randomCharSetLetters;
