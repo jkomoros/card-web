@@ -114,8 +114,7 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			headerPanelOpen: false,
 			cardsDrawerPanelOpen: false,
-			cardInfoPanelOpen: false,
-			commentsPanelOpen: false,
+			commentsAndInfoPanelOpen: false,
 			presentationMode: true
 		};
 	case DISABLE_PRESENTATION_MODE:
