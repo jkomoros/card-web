@@ -32,7 +32,12 @@ const INITIAL_STATE = {
 	error: null,
 	//permissions is the object that tells us what we're allowed to do. The
 	//security rules will actually enforce this; this is mainly just to not have
-	//affordances in the client UI if they won't work.
+	//affordances in the client UI if they won't work. Fields that, if set, mean
+	//something:
+	// - admin : may do anything
+	// - edit : may edit any cards
+	// - notes : doesn't do anything client-side, useful to keep track of which
+	//   account is which
 	permissions: {},
 	stars : {},
 	reads: {},
