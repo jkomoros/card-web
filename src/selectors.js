@@ -31,6 +31,8 @@ import {
 	cardTodoConfigKeys
 } from './reducers/collection.js';
 
+const selectState = (state) => state;
+
 export const selectPage = (state) => state.app.page;
 export const selectPageExtra = (state) => state.app.pageExtra;
 export const selectFetchedCard = (state) => state.app.fetchedCard;
@@ -96,12 +98,20 @@ export const selectUser = state => {
 	return state.user.user;
 };
 
-const userMayResolveThread = (user, thread) => {
-	if (userIsAdmin(user)) return true;
-	if (!userMayComment(user)) return false;
+const userMayResolveThread = (state, thread) => {
+	if (selectUserIsAdmin(state)) return true;
+	if (!selectUserMayComment(state)) return false;
 	if (!thread || typeof thread !== 'object') return false;
-	if (!user) return false;
-	return user.uid == thread.author.id;
+	const uid = selectUid(state);
+	return uid == thread.author.id;
+};
+
+const userMayEditMessage = (state, message) => {
+	if (selectUserIsAdmin(state)) return true;
+	if (!selectUserSignedIn(state)) return false;
+	if (!message || !message.author || !message.author.id) return false;
+	const uid = selectUid(state);
+	return uid == message.author.id;
 };
 
 //For actions, like starring and marking read, that are OK to do when signed
@@ -111,13 +121,6 @@ const userObjectExists = user => user && user.uid != '';
 const userSignedIn = user => userObjectExists(user) && !user.isAnonymous;
 
 const userMayComment = user => userSignedIn(user);
-
-const userMayEditMessage = (user, message) => {
-	if (userIsAdmin(user)) return true;
-	if (!userSignedIn(user)) return false;
-	if (!message || !message.author || !message.author.id) return false;
-	return user.uid == message.author.id;
-};
 
 const userMayEdit = user => {
 	//This list is also recreated in firestore.rules
@@ -217,8 +220,8 @@ export const getCardInReadingList = (state, cardId) => {
 	return (selectUserReadingListMap(state) || {})[cardId] || false;
 };
 
-export const getUserMayResolveThread = (state, thread) => userMayResolveThread(selectUser(state), thread);
-export const getUserMayEditMessage = (state, message) => userMayEditMessage(selectUser(state), message);
+export const getUserMayResolveThread = userMayResolveThread;
+export const getUserMayEditMessage = userMayEditMessage;
 
 export const getMessageById = (state, messageId) => {
 	let messages = selectMessages(state);
@@ -284,36 +287,36 @@ export const selectActiveCardThreadIds = createSelector(
 );
 
 export const selectActiveCardComposedThreads = createSelector(
-	selectUser,
+	selectState,
 	selectActiveCardThreadIds,
 	selectThreads,
 	selectMessages,
 	selectAuthors,
-	(user, threadIds, threads, messages, authors) => threadIds.map(id => composedThread(user, id, threads, messages, authors)).filter(thread => !!thread)
+	(state, threadIds, threads, messages, authors) => threadIds.map(id => composedThread(state, id, threads, messages, authors)).filter(thread => !!thread)
 );
 
-const composedThread = (user, threadId, threads, messages, authors) => {
+const composedThread = (state, threadId, threads, messages, authors) => {
 	let originalThread = threads[threadId];
 	if (!originalThread) return null;
 	let thread = {...originalThread};
 	let expandedMessages = [];
 	for (let messageId of Object.values(thread.messages)) {
-		let message = composedMessage(user, messageId, messages, authors);
+		let message = composedMessage(state, messageId, messages, authors);
 		if (message) expandedMessages.push(message);
 	}
 	thread.messages = expandedMessages;
 	thread.author = authorOrDefault(originalThread.author, authors);
-	thread.mayResolve = userMayResolveThread(user, thread);
+	thread.mayResolve = userMayResolveThread(state, thread);
 	return thread;
 };
 
-const composedMessage = (user, messageId, messages, authors) => {
+const composedMessage = (state, messageId, messages, authors) => {
 	//TODO: return composed children for threads if there are parents
 	let originalMessage = messages[messageId];
 	if (!originalMessage) return null;
 	let message = {...originalMessage};
 	message.author = authorOrDefault(originalMessage.author, authors);
-	message.mayEdit = userMayEditMessage(user, message);
+	message.mayEdit = userMayEditMessage(state, message);
 	return message;
 };
 
