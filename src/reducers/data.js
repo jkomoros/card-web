@@ -11,12 +11,19 @@ import {
 	REORDER_STATUS
 } from '../actions/data.js';
 
+import {
+	TEXT_SEARCH_PROPERTIES,
+	normalizedWords
+} from '../util.js';
+
 const INITIAL_STATE = {
 	cards:{},
 	authors:{},
 	sections: {},
 	tags: {},
 	slugIndex: {},
+	//a map of normalized word to map of cardid to true. Allows faster filtering.
+	cardTermIndex : {},
 	//true while we're loading tweets for the current card
 	tweetsLoading: false,
 	//We only fetch tweets for cards that we have already viewed.
@@ -38,6 +45,7 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			cards: {...state.cards, ...action.cards},
+			cardTermIndex: {...state.cardTermIndex, ...extractCardTermIndex(action.cards, state.cardTermIndex)},
 			slugIndex: {...state.slugIndex, ...extractSlugIndex(action.cards)},
 			cardsLoaded: true,
 		};
@@ -94,6 +102,22 @@ const app = (state = INITIAL_STATE, action) => {
 	default:
 		return state;
 	}
+};
+
+//Returns the update keys to overwrite in the index, ignoring ones that it doesn't come across
+const extractCardTermIndex = (cards, existingIndex) => {
+	let result = {};
+	for (let [id, card] of Object.entries(cards)) {
+		for (let property of Object.keys(TEXT_SEARCH_PROPERTIES)) {
+			const str = card[property] || '';
+			const words = normalizedWords(str);
+			for (let word of words) {
+				if (!result[word]) result[word] = existingIndex[word] ? [...existingIndex[word]] : {};
+				result[word][id] = true;
+			}
+		}
+	}
+	return result;
 };
 
 const extractSlugIndex = cards => {
