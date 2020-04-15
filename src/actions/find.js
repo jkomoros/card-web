@@ -21,17 +21,23 @@ export const closeFindDialog = () => {
 };
 
 let updateActiveQueryTimeout = 0;
-const QUERY_UPDATE_INTERVAL = 500;
+//This time should be how long after the user stops typing to wait.
+const QUERY_UPDATE_INTERVAL = 250;
 
 export const updateQuery = (query) => (dispatch) => {
-	if (!updateActiveQueryTimeout) {
-		updateActiveQueryTimeout = window.setTimeout(() => {
-			updateActiveQueryTimeout = 0;
-			dispatch({
-				type: FIND_UPDATE_ACTIVE_QUERY,
-			});
-		}, QUERY_UPDATE_INTERVAL);
+
+	if (updateActiveQueryTimeout) {
+		window.clearTimeout(updateActiveQueryTimeout);
+		updateActiveQueryTimeout = 0;
 	}
+
+	updateActiveQueryTimeout = window.setTimeout(() => {
+		updateActiveQueryTimeout = 0;
+		dispatch({
+			type: FIND_UPDATE_ACTIVE_QUERY,
+		});
+	}, QUERY_UPDATE_INTERVAL);
+
 	dispatch({
 		type: FIND_UPDATE_QUERY,
 		query
