@@ -96,7 +96,7 @@ export const selectUser = state => {
 	return state.user.user;
 };
 
-export const userMayResolveThread = (user, thread) => {
+const userMayResolveThread = (user, thread) => {
 	if (userIsAdmin(user)) return true;
 	if (!userMayComment(user)) return false;
 	if (!thread || typeof thread !== 'object') return false;
@@ -114,7 +114,7 @@ const userSignedIn = user => userObjectExists(user) && !user.isAnonymous;
 
 const userMayComment = user => userSignedIn(user);
 
-export const userMayEditMessage = (user, message) => {
+const userMayEditMessage = (user, message) => {
 	if (userIsAdmin(user)) return true;
 	if (!userSignedIn(user)) return false;
 	if (!message || !message.author || !message.author.id) return false;
@@ -284,33 +284,36 @@ export const selectActiveCardThreadIds = createSelector(
 );
 
 export const selectActiveCardComposedThreads = createSelector(
+	selectUser,
 	selectActiveCardThreadIds,
 	selectThreads,
 	selectMessages,
 	selectAuthors,
-	(threadIds, threads, messages, authors) => threadIds.map(id => composedThread(id, threads, messages, authors)).filter(thread => !!thread)
+	(user, threadIds, threads, messages, authors) => threadIds.map(id => composedThread(user, id, threads, messages, authors)).filter(thread => !!thread)
 );
 
-const composedThread = (threadId, threads, messages, authors) => {
+const composedThread = (user, threadId, threads, messages, authors) => {
 	let originalThread = threads[threadId];
 	if (!originalThread) return null;
 	let thread = {...originalThread};
 	let expandedMessages = [];
 	for (let messageId of Object.values(thread.messages)) {
-		let message = composedMessage(messageId, messages, authors);
+		let message = composedMessage(user, messageId, messages, authors);
 		if (message) expandedMessages.push(message);
 	}
 	thread.messages = expandedMessages;
 	thread.author = authorOrDefault(originalThread.author, authors);
+	thread.mayResolve = userMayResolveThread(user, thread);
 	return thread;
 };
 
-const composedMessage = (messageId, messages, authors) => {
+const composedMessage = (user, messageId, messages, authors) => {
 	//TODO: return composed children for threads if there are parents
 	let originalMessage = messages[messageId];
 	if (!originalMessage) return null;
 	let message = {...originalMessage};
 	message.author = authorOrDefault(originalMessage.author, authors);
+	message.mayEdit = userMayEditMessage(user, message);
 	return message;
 };
 

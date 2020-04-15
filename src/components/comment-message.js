@@ -15,10 +15,6 @@ import {
 	markdownElement,
 } from '../util.js';
 
-import {
-	userMayEditMessage
-} from '../selectors.js';
-
 import { 
 	PAGE_COMMENT
 } from '../actions/app.js';
@@ -58,7 +54,7 @@ class CommentMessage extends LitElement {
 			<div class='container'>
 				<div class='row'>
 					<author-chip .author=${this.message.author}></author-chip>
-					<div ?hidden=${!userMayEditMessage(this.user, this.message)}>
+					<div ?hidden=${!this.message.mayEdit}>
 						<button class='small' ?hidden=${this.message.deleted} @click=${this._handleDeleteClicked}>${deleteForeverIcon}</button>
 						<button class='small' @click=${this._handleEditClicked}>${editIcon}</button>
 					</div>
@@ -92,7 +88,6 @@ class CommentMessage extends LitElement {
 	static get properties() {
 		return {
 			message: { type: Object },
-			user: {type: String},
 		};
 	}
 }

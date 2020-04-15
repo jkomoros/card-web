@@ -18,7 +18,6 @@ import {
 
 import {
 	selectActiveCard,
-	selectUser,
 	selectUserMayComment,
 	selectActiveCardComposedThreads,
 	selectCollectionIsFallback,
@@ -89,7 +88,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
         <div class='comments'>
         ${this._composedThreads.length
 		? html`${this._composedThreads.map( (item) => html`
-                <comment-thread .user=${this._user} .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @delete-message=${this._handleDeleteMessage} @resolve-thread=${this._handleResolveThread} @show-need-signin=${this._handleShowNeedSignin} .userMayComment=${this._userMayComment}></comment-thread>`)}`
+                <comment-thread .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @delete-message=${this._handleDeleteMessage} @resolve-thread=${this._handleResolveThread} @show-need-signin=${this._handleShowNeedSignin} .userMayComment=${this._userMayComment}></comment-thread>`)}`
 		: html`<p><em>No comments yet.</em></p><p><em>You should leave one!</em></p>`
 }
         <div class='spacer'></div>
@@ -107,7 +106,6 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 			_collectionIsFallback: {type:Boolean},
 			_composedThreads: {type: Array},
 			_userMayComment: { type: Boolean},
-			_user: {type: Object},
 		};
 	}
 
@@ -154,7 +152,6 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 		this._collectionIsFallback = selectCollectionIsFallback(state);
 		this._composedThreads = selectActiveCardComposedThreads(state);
 		this._userMayComment = selectUserMayComment(state);
-		this._user = selectUser(state);
 	}
 }
 
