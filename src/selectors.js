@@ -76,8 +76,11 @@ const selectUserReadingListForSet = (state) => state.user ? state.user.readingLi
 
 const selectCardsDrawerPanelOpen = (state) => state.app ? state.app.cardsDrawerPanelOpen : false;
 
+//selectQuery is what you should use to update the UI with the literal query
 export const selectQuery = (state) => state.find.query;
-export const selectCardTermIndex = (state) => state.data ? state.data.cardTermIndex : {};
+//activeQuery is the query that should be routed into the query pipeline.
+const selectActiveQuery = (state) => state.find.activeQuery;
+const selectCardTermIndex = (state) => state.data ? state.data.cardTermIndex : {};
 
 export const selectAuthPending = (state) => state.user ? state.user.pending : false;
 //Note: this will return false unless stars have been loading, even if there is
@@ -755,7 +758,7 @@ const rewriteQueryFilters = (query) => {
 };
 
 const selectPreparedQuery = createSelector(
-	selectQuery,
+	selectActiveQuery,
 	(query) => {
 		if (!query) {
 			return {
