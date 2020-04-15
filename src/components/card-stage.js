@@ -68,6 +68,10 @@ class CardStage extends LitElement {
 				transition: opacity var(--transition-fade);
 			}
 
+			.mobile [name="actions"]::slotted(*) {
+				font-size:0.8em;
+			}
+
 			.presenting [name="actions"]:hover {
 				opacity:1.0;
 			}
