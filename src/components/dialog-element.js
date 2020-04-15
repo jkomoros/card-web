@@ -44,7 +44,6 @@ export class DialogElement extends LitElement {
 					padding:1em;
 					box-sizing: border-box;
 					box-shadow: var(--card-shadow);
-					overflow:scroll;
 					position:relative;
 					display:flex;
 					flex-direction:column;
@@ -78,6 +77,7 @@ export class DialogElement extends LitElement {
 					flex-grow:1;
 					display:flex;
 					flex-direction:column;
+					overflow:scroll;
 				}
 
 
