@@ -90,7 +90,20 @@ export const MultiBatch = class {
 
 export const normalizedWords = (str) => {
 	if (!str) str = '';
-	return str.toLowerCase().split(/\s+/);
+
+	//Pretend like em-dashes are just spaces
+	str = str.split('--').join(' ');
+	str = str.split('&emdash;').join(' ');
+
+	const splitWords = str.toLowerCase().split(/\s+/);
+	let result = [];
+	for (let word of splitWords) {
+		word = word.replace(/^\W/, '');
+		word = word.replace(/\W$/, '');
+		if (!word) continue;
+		result.push(word);
+	}
+	return result;
 };
 
 const randomCharSetNumbers = '0123456789';
