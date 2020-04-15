@@ -42,6 +42,7 @@ export class DialogElement extends LitElement {
 				.content {
 					background-color:white;
 					padding:1em;
+					box-sizing: border-box;
 					box-shadow: var(--card-shadow);
 					overflow:scroll;
 					position:relative;
@@ -51,6 +52,13 @@ export class DialogElement extends LitElement {
 					min-width: 40%;
 					max-height:90%;
 					max-width:70%;
+				}
+
+				.mobile .content {
+					height:100%;
+					width:100%;
+					max-height:none;
+					max-width:none;
 				}
 
 				h2 {
@@ -72,8 +80,9 @@ export class DialogElement extends LitElement {
 					flex-direction:column;
 				}
 
+
 			</style>
-			<div class='background' @click=${this._handleBackgroundClicked}>
+			<div class='background ${this.mobileMode ? 'mobile': ''}' @click=${this._handleBackgroundClicked}>
 				<div class='content'>
 					<button class='small' id='close' @click=${this._shouldClose}>${cancelIcon}</button>
 					<h2>${this.title || ''}</h2>
@@ -130,6 +139,7 @@ export class DialogElement extends LitElement {
 		return {
 			open: {type:Boolean},
 			title: {type:String},
+			mobile: {type:Boolean},
 		};
 	}
 

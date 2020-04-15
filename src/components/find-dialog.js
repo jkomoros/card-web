@@ -132,6 +132,8 @@ class FindDialog extends connect(store)(DialogElement) {
 	stateChanged(state) {
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = state.find.open;
+		this.mobileMode = state.app.mobileMode;
+		
 		this._query = state.find.query;
 		this._collection = selectExpandedRankedCollectionForQuery(state);
 		this._partialMatches = selectPartialMatchedItemsForQuery(state);
