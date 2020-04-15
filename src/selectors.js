@@ -80,7 +80,6 @@ const selectCardsDrawerPanelOpen = (state) => state.app ? state.app.cardsDrawerP
 export const selectQuery = (state) => state.find.query;
 //activeQuery is the query that should be routed into the query pipeline.
 const selectActiveQuery = (state) => state.find.activeQuery;
-const selectCardTermIndex = (state) => state.data ? state.data.cardTermIndex : {};
 
 export const selectAuthPending = (state) => state.user ? state.user.pending : false;
 //Note: this will return false unless stars have been loading, even if there is
@@ -849,28 +848,16 @@ const queryWordsAndFilters = (queryString) => {
 	return [words, filters];
 };
 
-//returns true if the card with the given id has all of the necessary words,
-//according to the index.
-const cardHasNecessaryWords = (id, words, index) => {
-	for (const word of words) {
-		const indexItem = index[word];
-		if (!indexItem) return false;
-		if (!indexItem[id]) return false;
-	}
-	return true;
-};
-
 const selectCollectionForQuery = createSelector(
 	selectDefaultSet,
 	selectPreparedQuery,
 	selectFilters,
 	selectAllCardsFilter,
-	selectCardTermIndex,
-	(defaultSet, preparedQuery, filters, allCardsFilter, cardTermIndex) => {
+	(defaultSet, preparedQuery, filters, allCardsFilter) => {
 		let filter = combinedFilterForFilterDefinition(preparedQuery.filters, filters, allCardsFilter);
 		//Filter out the things that have been told to filter out, and also
 		//filter out cards that don't match all terms.
-		return defaultSet.filter(id => filter(id)).filter(id => cardHasNecessaryWords(id, preparedQuery.words, cardTermIndex));
+		return defaultSet.filter(id => filter(id));
 	}
 );
 
