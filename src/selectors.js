@@ -104,8 +104,6 @@ const userMayResolveThread = (user, thread) => {
 	return user.uid == thread.author.id;
 };
 
-const userIsAdmin = user => userMayEdit(user);
-
 //For actions, like starring and marking read, that are OK to do when signed
 //in anonymously.
 const userObjectExists = user => user && user.uid != '';
@@ -137,6 +135,8 @@ const userMayEdit = user => {
 	return false;
 };
 
+const userIsAdmin = userMayEdit;
+
 export const selectUid = createSelector(
 	selectUser,
 	(user) => user ? user.uid : ''
@@ -144,7 +144,7 @@ export const selectUid = createSelector(
 
 export const selectUserIsAdmin = createSelector(
 	selectUser,
-	(user) => userMayEdit(user)
+	(user) => userIsAdmin(user)
 );
 
 export const selectUserMayEdit = createSelector(
