@@ -779,38 +779,64 @@ const textSubQueryForWords = (words) => {
 	return Object.fromEntries(Object.entries(TEXT_SEARCH_PROPERTIES).map(entry => [entry[0], textPropertySubQueryForWords(words, entry[1])]));
 };
 
+const STOP_WORDS = {
+	'a' : true,
+	'an' : true,
+	'the' : true,
+	'in' : true,
+	'is' : true,
+};
+
 const textPropertySubQueryForWords = (words, startValue) => {
-	if (words.length == 1) return [[[words], startValue]];
+	if (words.length == 1) return [[[words], startValue, true]];
 	const joinedWords = words.join(' ');
 	//The format of the return value is a list of items that could match. For
 	//each item, the first item is an array of strings, all of which have to
 	//independently match; if they do, the second item score is added to the
-	//running score for the card.
+	//running score for the card, and the third item is whether if it matches
+	//this clause it should be considered a full match.
 
 	//Full exact matches are the best, but if you have all of the sub-words,
 	//that's good too, just less good.
-	return [[[joinedWords], startValue], [words, startValue / 2]];
+	let result = [[[joinedWords], startValue, true], [words, startValue / 2, true]];
+
+	//Also return partial matches, but at a much lower rate.
+	for (let word of words) {
+		if (STOP_WORDS[word]) continue;
+		//Words that are longer should count for more (as a crude proxy for how
+		//rare they are).
+		result.push([[word], startValue / 8 * Math.log10(word.length), false]);
+	}
+
+	return result;
 };
 
 const stringPropertyScoreForStringSubQuery = (propertyValue, preparedSubquery) => {
 	const value = propertyValue.toLowerCase();
 	let result = 0.0;
+	let fullMatch = false;
 	for (let item of preparedSubquery) {
 		//strings is a list of strings that all must match independently
 		const strings = item[0];
-		if (strings.every(str => value.indexOf(str) >= 0)) result += item[1];
+		if (strings.every(str => value.indexOf(str) >= 0)) {
+			result += item[1];
+			if (!fullMatch && item[2]) fullMatch = true;
+		}
 	}
-	return result;
+	return [result, fullMatch];
 };
 
 const cardScoreForQuery = (card, preparedQuery) => {
-	if (!card) return 0.0;
+	if (!card) return [0.0, false];
 	let score = 0.0;
+	let fullMatch = false;
 
 	for (let key of Object.keys(TEXT_SEARCH_PROPERTIES)) {
 		const propertySubQuery = preparedQuery.text[key];
 		if(!propertySubQuery || !card[key]) continue;
-		score += stringPropertyScoreForStringSubQuery(card[key], propertySubQuery);
+		const [propertyScore, propertyFullMatch] = stringPropertyScoreForStringSubQuery(card[key], propertySubQuery);
+		score += propertyScore;
+		if (!fullMatch && propertyFullMatch) fullMatch = true;
 	}
 
 	//Give a boost to cards that have more inbound cards, implying they're more
@@ -822,7 +848,7 @@ const cardScoreForQuery = (card, preparedQuery) => {
 		score *= 1.0 + (card.links_inbound.length * 0.02);
 	}
 
-	return score;
+	return [score, fullMatch];
 };
 
 const FILTER_PREFIX = 'filter:';
@@ -871,11 +897,18 @@ const selectRankedItemsForQuery = createSelector(
 	selectExpandedCollectionForQuery,
 	selectPreparedQuery,
 	(collection, preparedQuery) => collection.map(card => {
+		const [score, fullMatch] = cardScoreForQuery(card, preparedQuery);
 		return {
 			card: card,
-			score: cardScoreForQuery(card, preparedQuery)
+			score: score,
+			fullMatch: fullMatch,
 		};
 	})
+);
+
+export const selectPartialMatchedItemsForQuery = createSelector(
+	selectRankedItemsForQuery,
+	(rankedItems) => Object.fromEntries(rankedItems.map(item => [item.card.id,!item.fullMatch]))
 );
 
 export const selectExpandedRankedCollectionForQuery = createSelector(

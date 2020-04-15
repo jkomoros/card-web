@@ -25,7 +25,8 @@ import {
 } from '../actions/editor.js';
 
 import {
-	selectExpandedRankedCollectionForQuery
+	selectExpandedRankedCollectionForQuery,
+	selectPartialMatchedItemsForQuery,
 } from '../selectors.js';
 
 import { plusIcon } from './my-icons.js';
@@ -62,7 +63,7 @@ class FindDialog extends connect(store)(DialogElement) {
 			}
 		</style>
 		<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
-		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection}></card-drawer>
+		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .collectionItemsToGhost=${this._partialMatches}></card-drawer>
 		<div ?hidden=${!this._linking} class='add'>
 			<button class='round' @click='${this._handleAddSlide}'>${plusIcon}</button>
 		</div>
@@ -116,6 +117,7 @@ class FindDialog extends connect(store)(DialogElement) {
 			_query: {type: String},
 			_collection: {type:Array},
 			_linking: {type:Boolean},
+			_partialMatches: {type:Object},
 		};
 	}
 
@@ -132,6 +134,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this.open = state.find.open;
 		this._query = state.find.query;
 		this._collection = selectExpandedRankedCollectionForQuery(state);
+		this._partialMatches = selectPartialMatchedItemsForQuery(state);
 		this._linking = state.find.linking;
 	}
 
