@@ -771,7 +771,8 @@ const selectPreparedQuery = createSelector(
 const textSubQueryForWords = (words) => {
 	return {
 		title: textPropertySubQueryForWords(words, 1.0),
-		body: textPropertySubQueryForWords(words, 0.5),
+		//bodyText is body, but with tags removed
+		bodyText: textPropertySubQueryForWords(words, 0.5),
 		subtitle: textPropertySubQueryForWords(words, 0.75),
 	};
 };
@@ -804,7 +805,7 @@ const cardScoreForQuery = (card, preparedQuery) => {
 	if (!card) return 0.0;
 	let score = 0.0;
 
-	for (let key of ['title', 'body', 'subtitle']) {
+	for (let key of ['title', 'bodyText', 'subtitle']) {
 		const propertySubQuery = preparedQuery.text[key];
 		if(!propertySubQuery || !card[key]) continue;
 		score += stringPropertyScoreForStringSubQuery(card[key], propertySubQuery);

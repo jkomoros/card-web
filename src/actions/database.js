@@ -65,6 +65,10 @@ import {
 	updateReadingList
 } from './user.js';
 
+import {
+	innerTextForHTML
+} from '../util.js';
+
 export const CARDS_COLLECTION = 'cards';
 export const CARD_UPDATES_COLLECTION = 'updates';
 export const SECTION_UPDATES_COLLECTION = 'updates';
@@ -272,6 +276,7 @@ export const connectLiveCards = (store) => {
 			let id = doc.id;
 			let card = doc.data();
 			card.id = id;
+			card.bodyText = innerTextForHTML(card.body || '');
 			cards[id] = card;
 		});
 

@@ -188,8 +188,16 @@ export const cardNeedsReciprocalLinkTo = (card, other) => {
 	return false;
 };
 
+export const innerTextForHTML = (body) => {
+	let ele = document.createElement('section');
+	//TODO: is there an XSS vulnerability here?
+	ele.innerHTML = body;
+	return ele.innerText;
+};
+
 export const extractCardLinksFromBody = (body) => {
 	let ele = document.createElement('section');
+	//TODO: is there an XSS vulnerability here?
 	ele.innerHTML = body;
 	let result = [];
 	let nodes = ele.querySelectorAll('card-link[card]');
