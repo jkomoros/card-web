@@ -788,8 +788,8 @@ const STOP_WORDS = {
 };
 
 const textPropertySubQueryForWords = (words, startValue) => {
-	if (words.length == 1) return [[[words], startValue, true]];
 	const joinedWords = words.join(' ');
+
 	//The format of the return value is a list of items that could match. For
 	//each item, the first item is an array of strings, all of which have to
 	//independently match; if they do, the second item score is added to the
@@ -798,17 +798,27 @@ const textPropertySubQueryForWords = (words, startValue) => {
 
 	//Full exact matches are the best, but if you have all of the sub-words,
 	//that's good too, just less good.
-	let result = [[[joinedWords], startValue, true], [words, startValue / 2, true]];
+	let result = [[[joinedWords], startValue, true]];
 
-	//Also return partial matches, but at a much lower rate.
-	for (let word of words) {
-		if (STOP_WORDS[word]) continue;
-		//Words that are longer should count for more (as a crude proxy for how
-		//rare they are).
-		result.push([[word], startValue / 8 * Math.log10(word.length), false]);
+	if (words.length > 1) {
+		result.push([words, startValue / 2, true]);
+
+		//Also return partial matches, but at a much lower rate.
+		for (let word of words) {
+			if (STOP_WORDS[word]) continue;
+			//Words that are longer should count for more (as a crude proxy for how
+			//rare they are).
+			result.push([[word], startValue / 8 * Math.log10(word.length), false]);
+		}
 	}
 
-	return result;
+	const wordsWithoutDashes = words.map(word => word.split('-').join(' '));
+	const joinedWordsWithoutDashes = wordsWithoutDashes.join(' ');
+
+	//If there were no dashes inside any words, we're done.
+	if (joinedWordsWithoutDashes == joinedWords) return result;
+	//If not, then also add in the words without dashes, but have them be worth just a little bit less. This will allow [hill-climbing] to match [hill climbing]
+	return [...result, ...textPropertySubQueryForWords(wordsWithoutDashes, startValue * 0.75)];
 };
 
 const stringPropertyScoreForStringSubQuery = (propertyValue, preparedSubquery) => {
