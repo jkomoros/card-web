@@ -18,6 +18,7 @@ const AUTHORS_COLLECTION = 'authors';
 const USERS_COLLECTION = 'users';
 const MESSAGES_COLLECTION = 'messages';
 const THREADS_COLLECTION = 'threads';
+const STARS_COLLECTION = 'stars';
 
 const adminUid = 'admin';
 const bobUid = 'bob';
@@ -36,6 +37,9 @@ const cardId = 'card';
 const cardThreadCount = 10;
 const cardThreadResolvedCount = 5;
 const cardStarCount = 7;
+
+const starId = cardId + '+' + anonUid;
+const newStarId = cardId + 'new+' + anonUid;
 
 const messageId = 'message';
 const newMessageId = 'newMessage';
@@ -61,6 +65,12 @@ async function setupDatabase() {
 	await db.collection(THREADS_COLLECTION).doc(messageId).set({
 		author:bobUid,
 		messages: [messageId]
+	});
+	//This is a star by anon user, not bob, because we'll use an anon user to
+	//test that they can create stars (they're allowed to)
+	await db.collection(STARS_COLLECTION).doc(starId).set({
+		owner: anonUid,
+		card: cardId,
 	});
 }
 
@@ -416,6 +426,60 @@ describe('Compendium Rules', () => {
 		const db = authedApp(anonAuth);
 		const thread = db.collection(THREADS_COLLECTION).doc(messageId);
 		await firebase.assertFails(thread.update({messages: firebase.firestore.FieldValue.arrayUnion(newMessageId), updated: firebase.firestore.FieldValue.serverTimestamp()}));
+	});
+
+	it('allows any user to create a star they own', async() => {
+		const db = authedApp(anonAuth);
+		const star = db.collection(STARS_COLLECTION).doc(newStarId);
+		await firebase.assertSucceeds(star.set({owner:anonUid, card: cardId}));
+	});
+
+	it('disallows user to create a star they don\'t own', async() => {
+		const db = authedApp(sallyAuth);
+		const star = db.collection(STARS_COLLECTION).doc(newStarId);
+		await firebase.assertFails(star.set({owner:anonUid, card: cardId}));
+	});
+
+	it('allows any user to update a star they own', async() => {
+		const db = authedApp(anonAuth);
+		const star = db.collection(STARS_COLLECTION).doc(starId);
+		await firebase.assertSucceeds(star.update({card: newMessageId}));
+	});
+
+	it('disallows user to update a star they don\'t own', async() => {
+		const db = authedApp(sallyAuth);
+		const star = db.collection(STARS_COLLECTION).doc(starId);
+		await firebase.assertFails(star.update({card: newMessageId}));
+	});
+
+	it('allows any user to delete a star they own', async() => {
+		const db = authedApp(anonAuth);
+		const star = db.collection(STARS_COLLECTION).doc(starId);
+		await firebase.assertSucceeds(star.delete());
+	});
+
+	it('disallows user to delete a star they don\'t own', async() => {
+		const db = authedApp(sallyAuth);
+		const star = db.collection(STARS_COLLECTION).doc(starId);
+		await firebase.assertFails(star.delete());
+	});
+
+	it('allows any user to read a star they own', async() => {
+		const db = authedApp(anonAuth);
+		const star = db.collection(STARS_COLLECTION).doc(starId);
+		await firebase.assertSucceeds(star.get());
+	});
+
+	it('allows admins to read any star', async() => {
+		const db = authedApp(adminAuth);
+		const star = db.collection(STARS_COLLECTION).doc(starId);
+		await firebase.assertSucceeds(star.get());
+	});
+
+	it('disallows user to read a star they don\'t own', async() => {
+		const db = authedApp(sallyAuth);
+		const star = db.collection(STARS_COLLECTION).doc(starId);
+		await firebase.assertFails(star.get());
 	});
 
 });
