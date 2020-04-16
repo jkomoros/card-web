@@ -178,6 +178,30 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(card.update({star_count: cardStarCount - 1, thread_count: cardThreadCount + 1}));
 	});
 
+	it('allows any signed in user to update the updated_message timestamp to now',async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp()}));
+	});
+
+	it('disallows any signed in user to update the updated_message timestamp to now',async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({updated_message: new Date(2015,10,10)}));
+	});
+
+	it('disallows any signed in user to update the updated_message timestamp to now if they also change another field',async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), star_count: cardStarCount + 1}));
+	});
+
+	it('disallows any unauthed user to update the updated_message timestamp to now',async() => {
+		const db = authedApp(null);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp()}));
+	});
+
 	it('allows users to read back their permissions object', async() => {
 		const db = authedApp(bobAuth);
 		await firebase.assertSucceeds(db.collection(PERMISSIONS_COLLECTION).doc(bobUid).get());
