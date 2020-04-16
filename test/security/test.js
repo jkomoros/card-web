@@ -14,6 +14,7 @@ const rules = fs.readFileSync('firestore.rules', 'utf8');
 //duplicated from src/actions/database.js
 const PERMISSIONS_COLLECTION = 'permissions';
 const CARDS_COLLECTION = 'cards';
+const TAGS_COLLECTION = 'tags';
 const MAINTENANCE_COLLECTION = 'maintenance_tasks';
 const AUTHORS_COLLECTION = 'authors';
 const USERS_COLLECTION = 'users';
@@ -68,6 +69,13 @@ async function setupDatabase() {
 	});
 	await db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId).set({
 		foo:3,
+	});
+
+	await db.collection(TAGS_COLLECTION).doc(cardId).set({
+		foo:3,
+	});
+	await db.collection(TAGS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId).set({
+		foo:4,
 	});
 
 	await db.collection(MAINTENANCE_COLLECTION).doc(cardId).set({
@@ -306,6 +314,36 @@ describe('Compendium Rules', () => {
 		const db = authedApp(bobAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(newUpdateId);
 		await firebase.assertFails(update.set({foo:4}));
+	});
+
+	it('allows everyone to read tags collection', async() => {
+		const db = authedApp(null);
+		const tag = db.collection(TAGS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(tag.get());
+	});
+
+	it('allows admins to set tags collection', async() => {
+		const db = authedApp(adminAuth);
+		const tag = db.collection(TAGS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(tag.set({bar: 3}));
+	});
+
+	it('disallows everyone to set tags collection', async() => {
+		const db = authedApp(bobAuth);
+		const tag = db.collection(TAGS_COLLECTION).doc(cardId);
+		await firebase.assertFails(tag.set({bar: 3}));
+	});
+
+	it('disallows everyone from reading tag updates collection', async() => {
+		const db = authedApp(bobAuth);
+		const update = db.collection(TAGS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
+		await firebase.assertFails(update.get());
+	});
+
+	it('allows admin to set tag updates collection', async() => {
+		const db = authedApp(adminAuth);
+		const update = db.collection(TAGS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
+		await firebase.assertSucceeds(update.set({bar: 3}));
 	});
 
 	it('allows admins to read maintenance tasks', async() => {
