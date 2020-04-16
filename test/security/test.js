@@ -15,6 +15,7 @@ const rules = fs.readFileSync('firestore.rules', 'utf8');
 const PERMISSIONS_COLLECTION = 'permissions';
 const CARDS_COLLECTION = 'cards';
 const TAGS_COLLECTION = 'tags';
+const SECTIONS_COLLECTION = 'sections';
 const MAINTENANCE_COLLECTION = 'maintenance_tasks';
 const AUTHORS_COLLECTION = 'authors';
 const USERS_COLLECTION = 'users';
@@ -75,6 +76,13 @@ async function setupDatabase() {
 		foo:3,
 	});
 	await db.collection(TAGS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId).set({
+		foo:4,
+	});
+
+	await db.collection(SECTIONS_COLLECTION).doc(cardId).set({
+		foo:3,
+	});
+	await db.collection(SECTIONS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId).set({
 		foo:4,
 	});
 
@@ -343,6 +351,36 @@ describe('Compendium Rules', () => {
 	it('allows admin to set tag updates collection', async() => {
 		const db = authedApp(adminAuth);
 		const update = db.collection(TAGS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
+		await firebase.assertSucceeds(update.set({bar: 3}));
+	});
+
+	it('allows everyone to read sections collection', async() => {
+		const db = authedApp(null);
+		const section = db.collection(SECTIONS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(section.get());
+	});
+
+	it('allows admins to set sections collection', async() => {
+		const db = authedApp(adminAuth);
+		const section = db.collection(SECTIONS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(section.set({bar: 3}));
+	});
+
+	it('disallows everyone to set sections collection', async() => {
+		const db = authedApp(bobAuth);
+		const section = db.collection(SECTIONS_COLLECTION).doc(cardId);
+		await firebase.assertFails(section.set({bar: 3}));
+	});
+
+	it('disallows everyone from reading section updates collection', async() => {
+		const db = authedApp(bobAuth);
+		const update = db.collection(SECTIONS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
+		await firebase.assertFails(update.get());
+	});
+
+	it('allows admin to set section updates collection', async() => {
+		const db = authedApp(adminAuth);
+		const update = db.collection(SECTIONS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
 		await firebase.assertSucceeds(update.set({bar: 3}));
 	});
 
