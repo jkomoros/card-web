@@ -146,7 +146,13 @@ describe('Compendium Rules', () => {
 	it('allows admins to create a card', async() => {
 		const db = authedApp(adminAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
-		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo'}));
+		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:adminUid}));
+	});
+
+	it('disallows admins to create a card they aren\'t author of', async() => {
+		const db = authedApp(adminAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
+		await firebase.assertFails(card.set({tile:'foo', body:'foo', author:bobUid}));
 	});
 
 	it('does not allow normal users to create a card', async() => {

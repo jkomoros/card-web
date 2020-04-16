@@ -90,7 +90,7 @@ service cloud.firestore {
     
     match /cards/{card} {
       allow read: if true;
-      allow create: if userIsAdmin();
+      allow create: if userIsAdmin() && createIsAuthor();
       allow update: if (!isAnonymous() && (editOnlyIncrements('thread_count') || editOnlyIncrementsAndDecrements('thread_resolved_count', 'thread_count') || editOnlyUpdatesTimestamp('updated_message') || editOnlyIncrementsAndUpdatesTimestamp('thread_count', 'updated_message')) || (loggedIn() && editOnlyIncrementsOrDecrements('star_count'))) || userIsAdmin();
     
       match /updates/{update} {
