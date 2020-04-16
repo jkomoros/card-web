@@ -14,6 +14,7 @@ const rules = fs.readFileSync('firestore.rules', 'utf8');
 //duplicated from src/actions/database.js
 const PERMISSIONS_COLLECTION = 'permissions';
 const CARDS_COLLECTION = 'cards';
+const MAINTENANCE_COLLECTION = 'maintenance_tasks';
 const AUTHORS_COLLECTION = 'authors';
 const USERS_COLLECTION = 'users';
 const MESSAGES_COLLECTION = 'messages';
@@ -68,6 +69,11 @@ async function setupDatabase() {
 	await db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId).set({
 		foo:3,
 	});
+
+	await db.collection(MAINTENANCE_COLLECTION).doc(cardId).set({
+		foo: 3,
+	});
+
 	await db.collection(MESSAGES_COLLECTION).doc(messageId).set({
 		message: 'blah',
 		author: bobUid,
@@ -300,6 +306,30 @@ describe('Compendium Rules', () => {
 		const db = authedApp(bobAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(newUpdateId);
 		await firebase.assertFails(update.set({foo:4}));
+	});
+
+	it('allows admins to read maintenance tasks', async() => {
+		const db = authedApp(adminAuth);
+		const task = db.collection(MAINTENANCE_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(task.get());
+	});
+
+	it('allows admins to set maintenance tasks', async() => {
+		const db = authedApp(adminAuth);
+		const task = db.collection(MAINTENANCE_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(task.set({foo:4}));
+	});
+
+	it('disallows users from reading maintenance tasks', async() => {
+		const db = authedApp(bobAuth);
+		const task = db.collection(MAINTENANCE_COLLECTION).doc(cardId);
+		await firebase.assertFails(task.get());
+	});
+
+	it('disallows users from setting maintenance tasks', async() => {
+		const db = authedApp(bobAuth);
+		const task = db.collection(MAINTENANCE_COLLECTION).doc(cardId);
+		await firebase.assertFails(task.set({foo:4}));
 	});
 
 	it('allows users to read back their permissions object', async() => {
