@@ -34,10 +34,10 @@ function authedApp(auth) {
 	return firebase.initializeTestApp({ projectId, auth }).firestore();
 }
 
-function setupDatabase() {
+async function setupDatabase() {
 	const db = firebase.initializeAdminApp({projectId}).firestore();
-	db.collection(PERMISSIONS_COLLECTION).doc(adminUid).set({admin:true});
-	db.collection(CARDS_COLLECTION).doc(cardId).set({
+	await db.collection(PERMISSIONS_COLLECTION).doc(adminUid).set({admin:true});
+	await db.collection(CARDS_COLLECTION).doc(cardId).set({
 		body: 'this is the body',
 		title: 'this is the title',
 		thread_count: cardThreadCount,
@@ -48,7 +48,7 @@ function setupDatabase() {
 beforeEach(async () => {
 	// Clear the database between tests
 	await firebase.clearFirestoreData({ projectId });
-	setupDatabase();
+	await setupDatabase();
 });
 
 before(async () => {
