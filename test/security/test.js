@@ -22,9 +22,13 @@ const bobUid = 'bob';
 const sallyUid = 'sally';
 const anonUid = 'anon';
 
-const adminAuth = {uid:adminUid};
-const bobAuth = {uid:bobUid};
-const anonAuth = {uid: anonUid, token:{firebase:{sign_in_provider: 'anonymous'}}};
+const googleBaseAuth = {firebase: {sign_in_provider: 'google.com'}};
+const anonBaseAuth = {firebase: {sign_in_provider: 'anonymous'}};
+
+const adminAuth = {...googleBaseAuth, uid:adminUid};
+const bobAuth = {...googleBaseAuth, uid:bobUid};
+const sallyAuth = {...googleBaseAuth, uid: sallyUid};
+const anonAuth = {...anonBaseAuth, uid: anonUid};
 
 const cardId = 'card';
 const cardThreadCount = 10;
