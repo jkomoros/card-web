@@ -433,11 +433,6 @@ describe('Compendium Rules', () => {
 		await firebase.assertSucceeds(db.collection(AUTHORS_COLLECTION).doc(bobUid).set({bob:true}));
 	});
 
-	it('admins may modify anyone\'s author object', async() => {
-		const db = authedApp(adminAuth);
-		await firebase.assertSucceeds(db.collection(AUTHORS_COLLECTION).doc(bobUid).set({bob:true}));
-	});
-
 	it('users may not modify others author object', async() => {
 		const db = authedApp(bobAuth);
 		await firebase.assertFails(db.collection(AUTHORS_COLLECTION).doc(sallyUid).set({bob:true}));
@@ -450,20 +445,6 @@ describe('Compendium Rules', () => {
 
 	it('users may read their own user object', async() => {
 		const db = authedApp(bobAuth);
-		await firebase.assertSucceeds(db.collection(USERS_COLLECTION).doc(bobUid).get());
-	});
-
-	it('admins may modify any user object', async() => {
-		const db = authedApp(adminAuth);
-		await firebase.assertSucceeds(db.collection(USERS_COLLECTION).doc(bobUid).set({bob:true}));
-	});
-
-	it('admins may read any user object', async() => {
-		const db = authedApp(adminAuth);
-		//Unclear why we have to explicitly set something to have the read on
-		//the next line succeed. 
-		await firebase.assertSucceeds(db.collection(USERS_COLLECTION).doc(bobUid).set({bob:true}));
-		//this is the actual condition we're testing
 		await firebase.assertSucceeds(db.collection(USERS_COLLECTION).doc(bobUid).get());
 	});
 
@@ -625,12 +606,6 @@ describe('Compendium Rules', () => {
 		await firebase.assertSucceeds(star.get());
 	});
 
-	it('allows admins to read any star', async() => {
-		const db = authedApp(adminAuth);
-		const star = db.collection(STARS_COLLECTION).doc(starId);
-		await firebase.assertSucceeds(star.get());
-	});
-
 	it('disallows user to read a star they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
 		const star = db.collection(STARS_COLLECTION).doc(starId);
@@ -675,12 +650,6 @@ describe('Compendium Rules', () => {
 
 	it('allows any user to read a read they own', async() => {
 		const db = authedApp(anonAuth);
-		const read = db.collection(READS_COLLECTION).doc(starId);
-		await firebase.assertSucceeds(read.get());
-	});
-
-	it('allows admins to read any read', async() => {
-		const db = authedApp(adminAuth);
 		const read = db.collection(READS_COLLECTION).doc(starId);
 		await firebase.assertSucceeds(read.get());
 	});
@@ -741,12 +710,6 @@ describe('Compendium Rules', () => {
 
 	it('allows any user to read a reading-list they own', async() => {
 		const db = authedApp(anonAuth);
-		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
-		await firebase.assertSucceeds(list.get());
-	});
-
-	it('allows admins to read any reading-list', async() => {
-		const db = authedApp(adminAuth);
 		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
 		await firebase.assertSucceeds(list.get());
 	});
