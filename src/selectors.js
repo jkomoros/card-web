@@ -139,6 +139,12 @@ export const selectUserMayEdit = createSelector(
 	(admin, permissions) => admin || permissions.edit
 );
 
+export const selectUserMayViewUnpublished = createSelector(
+	selectUserIsAdmin,
+	selectUserPermissions,
+	(admin, permissions) => admin || permissions.viewUnpublished
+);
+
 export const selectUserMayComment = createSelector(
 	selectUser,
 	(user) => userMayComment(user)
@@ -171,11 +177,11 @@ export const selectUserSignedIn = createSelector(
 
 export const selectCards = createSelector(
 	selectBaseCards,
-	selectUserIsAdmin,
+	selectUserMayViewUnpublished,
 	selectUid,
 	//We need to filter out cards the user can't see, which includes unpublished cards.
 	//Admins can see all cards. Everyone can see published cards. And authors can always see their own cards.
-	(baseCards, isAdmin, uid) => isAdmin ? baseCards : Object.fromEntries(Object.entries(baseCards).filter(item => item[1].published || item[1].author == uid))
+	(baseCards, userMayViewUnpublished, uid) => userMayViewUnpublished ? baseCards : Object.fromEntries(Object.entries(baseCards).filter(item => item[1].published || item[1].author == uid))
 );
 
 //Selects the set of all cards the current user can see (which even includes

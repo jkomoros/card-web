@@ -36,6 +36,8 @@ const INITIAL_STATE = {
 	//something:
 	// - admin : may do anything
 	// - edit : may edit any cards
+	// - viewUnpublished : may view any cards, including unpublished ones they
+	//   aren't an author of
 	// - notes : doesn't do anything client-side, useful to keep track of which
 	//   account is which
 	permissions: {},
