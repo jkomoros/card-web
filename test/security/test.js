@@ -28,6 +28,7 @@ const anonAuth = {uid: anonUid, token:{firebase:{sign_in_provider: 'anonymous'}}
 
 const cardId = 'card';
 const cardThreadCount = 10;
+const cardThreadResolvedCount = 5;
 
 function authedApp(auth) {
 	return firebase.initializeTestApp({ projectId, auth }).firestore();
@@ -40,6 +41,7 @@ function setupDatabase() {
 		body: 'this is the body',
 		title: 'this is the title',
 		thread_count: cardThreadCount,
+		thread_resolved_count: cardThreadResolvedCount,
 	});
 }
 
@@ -95,6 +97,7 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(card.update({thread_count: cardThreadCount + 1}));
 	});
 
+	//The next two tests exercise the increment/decrement behavior in general, effectively.
 	it('disallows any signed in users to increment thread_count by more than 1', async() => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
@@ -111,6 +114,30 @@ describe('Compendium Rules', () => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({thread_count: cardThreadCount + 1, body:'other'}));
+	});
+
+	it('allows any signed in users to decrement thread_count by 1 and increment resolved_thread_count by 1', async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(card.update({thread_count: cardThreadCount - 1, thread_resolved_count: cardThreadResolvedCount + 1}));
+	});
+
+	it('disallows any unauthenticated to decrement thread_count by 1 and increment resolved_thread_count by 1', async() => {
+		const db = authedApp(null);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({thread_count: cardThreadCount - 1, thread_resolved_count: cardThreadResolvedCount + 1}));
+	});
+
+	it('disallows any signed in users to increment thread_count by 1 and increment resolved_thread_count by 1', async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({thread_count: cardThreadCount + 1, thread_resolved_count: cardThreadResolvedCount + 1}));
+	});
+
+	it('disallows any signed in users to decrement thread_count by 1 and increment resolved_thread_count by 1 if they have other fields', async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({thread_count: cardThreadCount - 1, thread_resolved_count: cardThreadResolvedCount + 1, body: 'foo'}));
 	});
 
 	it('allows users to read back their permissions object', async() => {
