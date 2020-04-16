@@ -67,10 +67,12 @@ service cloud.firestore {
 
     match /sections/{section} {
       allow read: if true;
+      allow write: if userIsAdmin();
     }
 
     match /tags/{tag} {
       allow read: if true;
+      allow write: if userIsAdmin();
     }
     
     match /authors/{author} {
@@ -85,7 +87,7 @@ service cloud.firestore {
     
     match /cards/{card} {
       allow read: if true;
-      allow update: if (!isAnonymous() && (editOnlyIncrements('thread_count') || editOnlyIncrementsAndDecrements('thread_resolved_count', 'thread_count') || editOnlyUpdatesTimestamp('updated_message') || editOnlyIncrementsAndUpdatesTimestamp('thread_count', 'updated_message')) || (loggedIn() && editOnlyIncrementsOrDecrements('star_count')));
+      allow update: if (!isAnonymous() && (editOnlyIncrements('thread_count') || editOnlyIncrementsAndDecrements('thread_resolved_count', 'thread_count') || editOnlyUpdatesTimestamp('updated_message') || editOnlyIncrementsAndUpdatesTimestamp('thread_count', 'updated_message')) || (loggedIn() && editOnlyIncrementsOrDecrements('star_count'))) || userIsAdmin();
     }
 
     match /maintenance_tasks/{task} {
@@ -95,14 +97,14 @@ service cloud.firestore {
     
     match /messages/{message} {
       allow read: if true;
-      allow create: if createIsAuthor() && !isAnonymous();
-      allow update: if updateIsAuthor();
+      allow create: if (createIsAuthor() && !isAnonymous()) || userIsAdmin();
+      allow update: if updateIsAuthor() || userIsAdmin();
     }
     
     match /threads/{thread} {
       allow read: if true;
-      allow create : if createIsAuthor() && !isAnonymous();
-      allow update : if updateIsAuthor() || (!isAnonymous() && editOnlyAddsMessage());
+      allow create : if (createIsAuthor() && !isAnonymous()) || userIsAdmin();
+      allow update : if (updateIsAuthor() || (!isAnonymous() && editOnlyAddsMessage())) || userIsAdmin();
     }
     
     match /stars/{star} {
