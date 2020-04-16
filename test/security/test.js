@@ -16,6 +16,7 @@ const PERMISSIONS_COLLECTION = 'permissions';
 const CARDS_COLLECTION = 'cards';
 const AUTHORS_COLLECTION = 'authors';
 const USERS_COLLECTION = 'users';
+const MESSAGES_COLLECTION = 'messages';
 
 const adminUid = 'admin';
 const bobUid = 'bob';
@@ -35,6 +36,9 @@ const cardThreadCount = 10;
 const cardThreadResolvedCount = 5;
 const cardStarCount = 7;
 
+const messageId = 'message';
+const newMessageId = 'newMessage';
+
 function authedApp(auth) {
 	return firebase.initializeTestApp({ projectId, auth }).firestore();
 }
@@ -48,6 +52,10 @@ async function setupDatabase() {
 		thread_count: cardThreadCount,
 		thread_resolved_count: cardThreadResolvedCount,
 		star_count: cardStarCount,
+	});
+	await db.collection(MESSAGES_COLLECTION).doc(messageId).set({
+		message: 'blah',
+		author: bobUid,
 	});
 }
 
@@ -75,13 +83,13 @@ describe('Compendium Rules', () => {
 
 	it('allows admins to create a card', async() => {
 		const db = authedApp(adminAuth);
-		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
 		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo'}));
 	});
 
 	it('does not allow normal users to create a card', async() => {
 		const db = authedApp(bobAuth);
-		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
 		await firebase.assertFails(card.set({tile:'foo', body:'foo'}));
 	});
 
@@ -297,6 +305,53 @@ describe('Compendium Rules', () => {
 	it('users may not read others user object', async() => {
 		const db = authedApp(bobAuth);
 		await firebase.assertFails(db.collection(USERS_COLLECTION).doc(sallyUid).get());
+	});
+
+	it('allows anyone to read messages', async() => {
+		const db = authedApp(null);
+		await firebase.assertSucceeds(db.collection(MESSAGES_COLLECTION).doc(messageId).get());
+	});
+
+	it('allows anyone to update messages they created', async() => {
+		const db = authedApp(bobAuth);
+		const message = db.collection(MESSAGES_COLLECTION).doc(messageId);
+		await firebase.assertSucceeds(message.update({message: 'new message'}));
+	});
+
+	it('allows admins to update any message', async() => {
+		const db = authedApp(adminAuth);
+		const message = db.collection(MESSAGES_COLLECTION).doc(messageId);
+		await firebase.assertSucceeds(message.update({message: 'new message'}));
+	});
+
+	it('disallows users who didn\'t create a message to update it', async() => {
+		const db = authedApp(sallyAuth);
+		const message = db.collection(MESSAGES_COLLECTION).doc(messageId);
+		await firebase.assertFails(message.update({message: 'new message'}));
+	});
+
+	it('allows any non anonymous user to create a message if they are marked as author', async() => {
+		const db = authedApp(bobAuth);
+		const message = db.collection(MESSAGES_COLLECTION).doc(newMessageId);
+		await firebase.assertSucceeds(message.set({author: bobUid, message: 'new message'}));
+	});
+
+	it('disallows any non anonymous user to create a message if they are not marked as author', async() => {
+		const db = authedApp(sallyAuth);
+		const message = db.collection(MESSAGES_COLLECTION).doc(newMessageId);
+		await firebase.assertFails(message.set({author: bobUid, message: 'new message'}));
+	});
+
+	it('allows admins to create a message with any author', async() => {
+		const db = authedApp(adminAuth);
+		const message = db.collection(MESSAGES_COLLECTION).doc(newMessageId);
+		await firebase.assertSucceeds(message.set({author: bobUid, message: 'new message'}));
+	});
+
+	it('disallows any anonymous user to create a message even if they are marked as author', async() => {
+		const db = authedApp(anonAuth);
+		const message = db.collection(MESSAGES_COLLECTION).doc(newMessageId);
+		await firebase.assertFails(message.set({author: anonUid, message: 'new message'}));
 	});
 
 });
