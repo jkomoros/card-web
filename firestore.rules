@@ -1,3 +1,4 @@
+//When you update this file, also run 'npm run test:security' to verify all tests pass
 rules_version = '2'
 service cloud.firestore {
   match /databases/{database}/documents {
