@@ -16,6 +16,7 @@ const PERMISSIONS_COLLECTION = 'permissions';
 const CARDS_COLLECTION = 'cards';
 const adminUid = 'admin';
 const bobUid = 'bob';
+const sallyUid = 'sally';
 
 const adminAuth = {uid:adminUid};
 const bobAuth = {uid:bobUid};
@@ -68,6 +69,23 @@ describe('Compendium Rules', () => {
 		const card = db.collection(CARDS_COLLECTION).doc('foo');
 		await firebase.assertFails(card.set({tile:'foo', body:'foo'}));
 	});
+
+	it('allows users to read back their permissions object', async() => {
+		const db = authedApp(bobAuth);
+		await firebase.assertSucceeds(db.collection(PERMISSIONS_COLLECTION).doc(bobUid).get());
+	});
+
+	it('disallows users to read back other users permissions object', async() => {
+		const db = authedApp(bobAuth);
+		await firebase.assertFails(db.collection(PERMISSIONS_COLLECTION).doc(sallyUid).get());
+	});
+
+	it('disallows users to modify their permissions object', async() => {
+		const db = authedApp(bobAuth);
+		await firebase.assertFails(db.collection(PERMISSIONS_COLLECTION).doc(bobUid).update({admin:true}));
+	});
+
+
 
 
 });
