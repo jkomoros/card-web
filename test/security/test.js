@@ -20,9 +20,14 @@ const USERS_COLLECTION = 'users';
 const adminUid = 'admin';
 const bobUid = 'bob';
 const sallyUid = 'sally';
+const anonUid = 'anon';
 
 const adminAuth = {uid:adminUid};
 const bobAuth = {uid:bobUid};
+const anonAuth = {uid: anonUid, token:{firebase:{sign_in_provider: 'anonymous'}}};
+
+const cardId = 'card';
+const cardThreadCount = 10;
 
 function authedApp(auth) {
 	return firebase.initializeTestApp({ projectId, auth }).firestore();
@@ -31,6 +36,11 @@ function authedApp(auth) {
 function setupDatabase() {
 	const db = firebase.initializeAdminApp({projectId}).firestore();
 	db.collection(PERMISSIONS_COLLECTION).doc(adminUid).set({admin:true});
+	db.collection(CARDS_COLLECTION).doc(cardId).set({
+		body: 'this is the body',
+		title: 'this is the title',
+		thread_count: cardThreadCount,
+	});
 }
 
 beforeEach(async () => {
@@ -51,26 +61,56 @@ after(async () => {
 describe('Compendium Rules', () => {
 	it('allows anyone to read a card', async () => {
 		const db = authedApp(null);
-		const card = db.collection(CARDS_COLLECTION).doc('foo');
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertSucceeds(card.get());
 	});
 
 	it('allows admins to create a card', async() => {
 		const db = authedApp(adminAuth);
-		const card = db.collection(CARDS_COLLECTION).doc('foo');
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo'}));
 	});
 
 	it('does not allow normal users to create a card', async() => {
 		const db = authedApp(bobAuth);
-		const card = db.collection(CARDS_COLLECTION).doc('foo');
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.set({tile:'foo', body:'foo'}));
 	});
 
 	it('does not allow unauthenticated users to create a card', async() => {
 		const db = authedApp(null);
-		const card = db.collection(CARDS_COLLECTION).doc('foo');
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.set({tile:'foo', body:'foo'}));
+	});
+
+	it('allows any signed in users to increment thread_count', async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(card.update({thread_count: cardThreadCount + 1}));
+	});
+
+	it('disallows any non-signed in users to increment thread_count', async() => {
+		const db = authedApp(null);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({thread_count: cardThreadCount + 1}));
+	});
+
+	it('disallows any signed in users to increment thread_count by more than 1', async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({thread_count: cardThreadCount + 2}));
+	});
+
+	it('disallows any signed in users to decrement thread_count', async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({thread_count: cardThreadCount - 1}));
+	});
+
+	it('disallows any signed in users to modify another field while incremeting thread_count', async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({thread_count: cardThreadCount + 1, body:'other'}));
 	});
 
 	it('allows users to read back their permissions object', async() => {
