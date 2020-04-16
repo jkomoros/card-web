@@ -20,6 +20,7 @@ const MESSAGES_COLLECTION = 'messages';
 const THREADS_COLLECTION = 'threads';
 const STARS_COLLECTION = 'stars';
 const READS_COLLECTION = 'reads';
+const TWEETS_COLLECTION = 'tweets';
 
 const adminUid = 'admin';
 const bobUid = 'bob';
@@ -75,6 +76,10 @@ async function setupDatabase() {
 	});
 	await db.collection(READS_COLLECTION).doc(starId).set({
 		owner: anonUid,
+		card: cardId,
+	});
+
+	await db.collection(TWEETS_COLLECTION).doc(messageId).set({
 		card: cardId,
 	});
 }
@@ -539,6 +544,18 @@ describe('Compendium Rules', () => {
 		const db = authedApp(sallyAuth);
 		const read = db.collection(READS_COLLECTION).doc(starId);
 		await firebase.assertFails(read.get());
+	});
+
+	it('allows anyone to read tweets info', async() => {
+		const db = authedApp(null);
+		const tweet = db.collection(TWEETS_COLLECTION).doc(messageId);
+		await firebase.assertSucceeds(tweet.get());
+	});
+
+	it('disallows users to set tweets info', async() => {
+		const db = authedApp(bobAuth);
+		const tweet = db.collection(TWEETS_COLLECTION).doc(messageId);
+		await firebase.assertFails(tweet.update({card: cardId + 'new'}));
 	});
 
 });
