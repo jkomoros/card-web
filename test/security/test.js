@@ -17,6 +17,7 @@ const CARDS_COLLECTION = 'cards';
 const AUTHORS_COLLECTION = 'authors';
 const USERS_COLLECTION = 'users';
 const MESSAGES_COLLECTION = 'messages';
+const THREADS_COLLECTION = 'threads';
 
 const adminUid = 'admin';
 const bobUid = 'bob';
@@ -56,6 +57,10 @@ async function setupDatabase() {
 	await db.collection(MESSAGES_COLLECTION).doc(messageId).set({
 		message: 'blah',
 		author: bobUid,
+	});
+	await db.collection(THREADS_COLLECTION).doc(messageId).set({
+		author:bobUid,
+		messages: [messageId]
 	});
 }
 
@@ -352,6 +357,65 @@ describe('Compendium Rules', () => {
 		const db = authedApp(anonAuth);
 		const message = db.collection(MESSAGES_COLLECTION).doc(newMessageId);
 		await firebase.assertFails(message.set({author: anonUid, message: 'new message'}));
+	});
+
+	it('allows anyone to read threads', async() => {
+		const db = authedApp(null);
+		await firebase.assertSucceeds(db.collection(THREADS_COLLECTION).doc(messageId).get());
+	});
+
+	it('allows anyone to update threads they created', async() => {
+		const db = authedApp(bobAuth);
+		const thread = db.collection(THREADS_COLLECTION).doc(messageId);
+		await firebase.assertSucceeds(thread.update({resolved: true}));
+	});
+
+	it('allows admins to update any thread', async() => {
+		const db = authedApp(adminAuth);
+		const thread = db.collection(THREADS_COLLECTION).doc(messageId);
+		await firebase.assertSucceeds(thread.update({resolved: true}));
+	});
+
+	it('disallows users who didn\'t create a thread to update it', async() => {
+		const db = authedApp(sallyAuth);
+		const thread = db.collection(THREADS_COLLECTION).doc(messageId);
+		await firebase.assertFails(thread.update({resolved: true}));
+	});
+
+	it('allows any non anonymous user to create a thread if they are marked as author', async() => {
+		const db = authedApp(bobAuth);
+		const thread = db.collection(THREADS_COLLECTION).doc(newMessageId);
+		await firebase.assertSucceeds(thread.set({author: bobUid}));
+	});
+
+	it('disallows any non anonymous user to create a thread if they are not marked as author', async() => {
+		const db = authedApp(sallyAuth);
+		const thread = db.collection(THREADS_COLLECTION).doc(newMessageId);
+		await firebase.assertFails(thread.set({author: bobUid}));
+	});
+
+	it('allows admins to create a thread with any author', async() => {
+		const db = authedApp(adminAuth);
+		const thread = db.collection(THREADS_COLLECTION).doc(newMessageId);
+		await firebase.assertSucceeds(thread.set({author: bobUid}));
+	});
+
+	it('disallows any anonymous user to create a thread even if they are marked as author', async() => {
+		const db = authedApp(anonAuth);
+		const thread = db.collection(THREADS_COLLECTION).doc(newMessageId);
+		await firebase.assertFails(thread.set({author: anonUid}));
+	});
+
+	it('allows non-authors to update a thraed if they are not anonymous and it only adds a message', async() => {
+		const db = authedApp(sallyAuth);
+		const thread = db.collection(THREADS_COLLECTION).doc(messageId);
+		await firebase.assertSucceeds(thread.update({messages: firebase.firestore.FieldValue.arrayUnion(newMessageId), updated:firebase.firestore.FieldValue.serverTimestamp()}));
+	});
+
+	it('disallows anonymous users to update a non-author thread even if it only adds message', async() => {
+		const db = authedApp(anonAuth);
+		const thread = db.collection(THREADS_COLLECTION).doc(messageId);
+		await firebase.assertFails(thread.update({messages: firebase.firestore.FieldValue.arrayUnion(newMessageId), updated: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
 });
