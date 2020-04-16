@@ -56,11 +56,6 @@ service cloud.firestore {
       return loggedIn() && request.auth.uid == resource.data.author;
     }
 
-    match /{document=**} {
-      allow read: if userIsAdmin();
-      allow write: if userIsAdmin();
-    }
-
     match /permissions/{user} {
       allow read: if request.auth.uid == user;
     }
