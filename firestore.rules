@@ -86,6 +86,11 @@ service cloud.firestore {
       allow read: if true;
       allow update: if (!isAnonymous() && (editOnlyIncrements('thread_count') || editOnlyIncrementsAndDecrements('thread_resolved_count', 'thread_count') || editOnlyUpdatesTimestamp('updated_message') || editOnlyIncrementsAndUpdatesTimestamp('thread_count', 'updated_message')) || (loggedIn() && editOnlyIncrementsOrDecrements('star_count')));
     }
+
+    match /maintenance_tasks/{task} {
+      allow read: if userIsAdmin();
+      allow write: if userIsAdmin();
+    }
     
     match /messages/{message} {
       allow read: if true;
