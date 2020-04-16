@@ -161,57 +161,57 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(card.set({tile:'foo', body:'foo'}));
 	});
 
-	it('allows any signed in users to increment thread_count', async() => {
-		const db = authedApp(anonAuth);
+	it('allows any non-anon users to increment thread_count', async() => {
+		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertSucceeds(card.update({thread_count: cardThreadCount + 1}));
 	});
 
-	it('disallows any non-signed in users to increment thread_count', async() => {
-		const db = authedApp(null);
+	it('disallows any anon users to increment thread_count', async() => {
+		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({thread_count: cardThreadCount + 1}));
 	});
 
 	//The next two tests exercise the increment/decrement behavior in general, effectively.
-	it('disallows any signed in users to increment thread_count by more than 1', async() => {
-		const db = authedApp(anonAuth);
+	it('disallows any non-anon users to increment thread_count by more than 1', async() => {
+		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({thread_count: cardThreadCount + 2}));
 	});
 
-	it('disallows any signed in users to decrement thread_count', async() => {
-		const db = authedApp(anonAuth);
+	it('disallows any non-anon users to decrement thread_count', async() => {
+		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({thread_count: cardThreadCount - 1}));
 	});
 
-	it('disallows any signed in users to modify another field while incremeting thread_count', async() => {
-		const db = authedApp(anonAuth);
+	it('disallows any non-anon users to modify another field while incremeting thread_count', async() => {
+		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({thread_count: cardThreadCount + 1, body:'other'}));
 	});
 
-	it('allows any signed in users to decrement thread_count by 1 and increment resolved_thread_count by 1', async() => {
-		const db = authedApp(anonAuth);
+	it('allows any non-anon users to decrement thread_count by 1 and increment resolved_thread_count by 1', async() => {
+		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertSucceeds(card.update({thread_count: cardThreadCount - 1, thread_resolved_count: cardThreadResolvedCount + 1}));
 	});
 
-	it('disallows any unauthenticated to decrement thread_count by 1 and increment resolved_thread_count by 1', async() => {
-		const db = authedApp(null);
+	it('disallows any anon users to decrement thread_count by 1 and increment resolved_thread_count by 1', async() => {
+		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({thread_count: cardThreadCount - 1, thread_resolved_count: cardThreadResolvedCount + 1}));
 	});
 
-	it('disallows any signed in users to increment thread_count by 1 and increment resolved_thread_count by 1', async() => {
-		const db = authedApp(anonAuth);
+	it('disallows any non-anon users to increment thread_count by 1 and increment resolved_thread_count by 1', async() => {
+		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({thread_count: cardThreadCount + 1, thread_resolved_count: cardThreadResolvedCount + 1}));
 	});
 
-	it('disallows any signed in users to decrement thread_count by 1 and increment resolved_thread_count by 1 if they have other fields', async() => {
-		const db = authedApp(anonAuth);
+	it('disallows any non-anon users to decrement thread_count by 1 and increment resolved_thread_count by 1 if they have other fields', async() => {
+		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({thread_count: cardThreadCount - 1, thread_resolved_count: cardThreadResolvedCount + 1, body: 'foo'}));
 	});
@@ -252,50 +252,50 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(card.update({star_count: cardStarCount - 1, thread_count: cardThreadCount + 1}));
 	});
 
-	it('allows any signed in user to update the updated_message timestamp to now',async() => {
-		const db = authedApp(anonAuth);
+	it('allows any non-anon user to update the updated_message timestamp to now',async() => {
+		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertSucceeds(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
-	it('disallows any signed in user to update the updated_message timestamp to now',async() => {
-		const db = authedApp(anonAuth);
+	it('disallows any non-anon user to update the updated_message timestamp to now',async() => {
+		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({updated_message: new Date(2015,10,10)}));
 	});
 
-	it('disallows any signed in user to update the updated_message timestamp to now if they also change another field',async() => {
-		const db = authedApp(anonAuth);
+	it('disallows any non-anon user to update the updated_message timestamp to now if they also change another field',async() => {
+		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), star_count: cardStarCount + 1}));
 	});
 
-	it('disallows any unauthed user to update the updated_message timestamp to now',async() => {
-		const db = authedApp(null);
+	it('disallows any anon user to update the updated_message timestamp to now',async() => {
+		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
-	it('allows any signed in user to update the updated_message timestamp to now while also incrementing thread_count',async() => {
-		const db = authedApp(anonAuth);
+	it('allows any non-anon user to update the updated_message timestamp to now while also incrementing thread_count',async() => {
+		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertSucceeds(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount + 1}));
 	});
 
-	it('disallows any unauthed user to update the updated_message timestamp to now while also incrementing thread_count',async() => {
-		const db = authedApp(null);
+	it('disallows any anon user to update the updated_message timestamp to now while also incrementing thread_count',async() => {
+		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount + 1}));
 	});
 
-	it('disallows any signed in user to update the updated_message timestamp to now if they decrement incrementing thread_count',async() => {
-		const db = authedApp(anonAuth);
+	it('disallows any non-anon user to update the updated_message timestamp to now if they decrement incrementing thread_count',async() => {
+		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount - 1}));
 	});
 
-	it('disallows any signed in user to update the updated_message timestamp to now while incrementing thread_count if they also touch another field',async() => {
-		const db = authedApp(anonAuth);
+	it('disallows any non-anon user to update the updated_message timestamp to now while incrementing thread_count if they also touch another field',async() => {
+		const db = authedApp(bobAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount + 1, star_count: cardStarCount + 1}));
 	});
