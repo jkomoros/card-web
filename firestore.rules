@@ -96,7 +96,7 @@ service cloud.firestore {
     match /threads/{thread} {
       allow read: if true;
       allow create : if createIsAuthor() && !isAnonymous();
-      allow update : if updateIsAuthor() || (loggedIn() && editOnlyAddsMessage());
+      allow update : if updateIsAuthor() || (!isAnonymous() && editOnlyAddsMessage());
     }
     
     match /stars/{star} {
