@@ -48,6 +48,9 @@ const newStarId = cardId + 'new+' + anonUid;
 const messageId = 'message';
 const newMessageId = 'newMessage';
 
+const updateId = 'update';
+const newUpdateId = 'newUpdate';
+
 function authedApp(auth) {
 	return firebase.initializeTestApp({ projectId, auth }).firestore();
 }
@@ -623,25 +626,25 @@ describe('Compendium Rules', () => {
 
 	it('allows owner of reading-list to read updates for a reading-list they own', async() => {
 		const db = authedApp(anonAuth);
-		const update = db.collection(READING_LISTS_COLLECTION).doc(anonUid).collection(UPDATES_COLLECTION).doc(messageId);
+		const update = db.collection(READING_LISTS_COLLECTION).doc(anonUid).collection(UPDATES_COLLECTION).doc(updateId);
 		await firebase.assertSucceeds(update.get());
 	});
 
 	it('disallows user to read updates for a reading-list updates they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
-		const update = db.collection(READING_LISTS_COLLECTION).doc(anonUid).collection(UPDATES_COLLECTION).doc(messageId);
+		const update = db.collection(READING_LISTS_COLLECTION).doc(anonUid).collection(UPDATES_COLLECTION).doc(updateId);
 		await firebase.assertFails(update.get());
 	});
 
 	it('allows owner of reading-list to write updates for a reading-list they own', async() => {
 		const db = authedApp(anonAuth);
-		const update = db.collection(READING_LISTS_COLLECTION).doc(anonUid).collection(UPDATES_COLLECTION).doc(newMessageId);
+		const update = db.collection(READING_LISTS_COLLECTION).doc(anonUid).collection(UPDATES_COLLECTION).doc(newUpdateId);
 		await firebase.assertSucceeds(update.set({foo:4}));
 	});
 
 	it('disallows user to set updates for a reading-list updates they don\'t own', async() => {
 		const db = authedApp(sallyAuth);
-		const update = db.collection(READING_LISTS_COLLECTION).doc(anonUid).collection(UPDATES_COLLECTION).doc(newMessageId);
+		const update = db.collection(READING_LISTS_COLLECTION).doc(anonUid).collection(UPDATES_COLLECTION).doc(newUpdateId);
 		await firebase.assertFails(update.set({foo:4}));
 	});
 
