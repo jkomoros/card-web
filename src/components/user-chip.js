@@ -17,8 +17,6 @@ store.addReducers({
 
 import {
 	personIcon,
-	notificationsNoneIcon,
-	notificationsActiveIcon
 } from './my-icons.js';
 
 import {
@@ -31,15 +29,9 @@ import {
 import {
 	selectUser,
 	selectUserSignedIn,
-	selectNotificationsEnabled,
 } from '../selectors.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
-
-import {
-	requestNotificationsPermission,
-	NOTIFICATIONS_FEATURE_ENABLED
-} from '../actions/database.js';
 
 class UserChip extends connect(store)(LitElement) {
 	render() {
@@ -69,7 +61,7 @@ class UserChip extends connect(store)(LitElement) {
       </style>
       <div class='${this._pending ? 'pending' : ''}'>
         ${this._signedIn
-		? html`<span>${this._effectiveUser.displayName}</span><button class='round' ?hidden='${!NOTIFICATIONS_FEATURE_ENABLED}' @click=${this._handleNotifcationClick}>${this._notificationsEnabled ? notificationsActiveIcon : notificationsNoneIcon}</button><img title='${this._effectiveUser.displayName + ' - ' + this._effectiveUser.email + ' - Click to sign out'}' src='${this._effectiveUser.photoURL}' @click=${this._handleSignOutClick}>`
+		? html`<span>${this._effectiveUser.displayName}</span><img title='${this._effectiveUser.displayName + ' - ' + this._effectiveUser.email + ' - Click to sign out'}' src='${this._effectiveUser.photoURL}' @click=${this._handleSignOutClick}>`
 		: html`<span>Sign in with your Google Account</span><button class='round' @click=${this._handleSignInClick}>${personIcon}</button>`
 }
       </div>
@@ -85,12 +77,6 @@ class UserChip extends connect(store)(LitElement) {
 			store.dispatch(signInSuccess(user, store));
 		} else {
 			store.dispatch(signOutSuccess());
-		}
-	}
-
-	_handleNotifcationClick() {
-		if (!this._notificationsEnabled) {
-			requestNotificationsPermission();
 		}
 	}
 
@@ -117,7 +103,6 @@ class UserChip extends connect(store)(LitElement) {
 			_user: { type: Object },
 			_signedIn: { type: Boolean},
 			_error: { type: Object },
-			_notificationsEnabled: {type:Boolean},
 		};
 	}
 
@@ -126,7 +111,6 @@ class UserChip extends connect(store)(LitElement) {
 		this._user = selectUser(state);
 		this._signedIn = selectUserSignedIn(state);
 		this._error = state.user.error;
-		this._notificationsEnabled = selectNotificationsEnabled(state);
 	}
 
 

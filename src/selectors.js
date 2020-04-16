@@ -90,7 +90,6 @@ export const selectStarsLoaded = (state) => state.user ? state.user.starsLoaded 
 export const selectReadsLoaded = (state) => state.user ? state.user.readsLoaded : false;
 export const selectReadingListLoaded = (state) => state.user ? state.user.readingListLoaded : false;
 
-export const selectNotificationsEnabled = (state) => state.user.notificationsToken ? true : false;
 const selectUserPermissions = (state) => state.user ? state.user.permissions : {};
 
 export const selectUser = state => {

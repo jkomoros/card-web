@@ -7,7 +7,6 @@ export const UPDATE_STARS = 'UPDATE_STARS';
 export const UPDATE_READS = 'UPDATE_READS';
 export const UPDATE_READING_LIST = 'UPDATE_READING_LIST';
 export const AUTO_MARK_READ_PENDING_CHANGED = 'AUTO_MARK_READ_PENDING_CHANGED';
-export const UPDATE_NOTIFICATIONS_TOKEN = 'UPDATE_NOTIFICATIONS_TOKEN';
 export const UPDATE_USER_PERMISSIONS = 'UPDATE_USER_PERMISSIONS';
 
 export const AUTO_MARK_READ_DELAY = 5000;
@@ -217,13 +216,6 @@ const updateUserInfo = (firebaseUser) => (dispatch) => {
 		type: SIGNIN_SUCCESS,
 		user: info,
 	});
-};
-
-export const updateNotificationsToken = (token) => {
-	return {
-		type: UPDATE_NOTIFICATIONS_TOKEN,
-		token,
-	};
 };
 
 export const updatePermissions = (uid) => async (dispatch) => {

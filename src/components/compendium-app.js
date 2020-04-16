@@ -19,10 +19,6 @@ import { updateMetadata } from 'pwa-helpers/metadata.js';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
-import {
-	useServiceWorker,
-} from '../actions/database.js';
-
 // These are the actions needed by this element.
 import {
 	navigated,
@@ -108,11 +104,6 @@ class CompendiumApp extends connect(store)(LitElement) {
 		// To force all event listeners for gestures to be passive.
 		// See https://www.polymer-project.org/3.0/docs/devguide/settings#setting-passive-touch-gestures
 		setPassiveTouchGestures(true);
-		//Index.html will try calling this, but likely before we're fully
-		//booted, so try here too.
-		navigator.serviceWorker.getRegistration('/').then(registration => {
-			this.serviceWorkerRegistered(registration);
-		});
 	}
 
 	firstUpdated() {
@@ -132,20 +123,6 @@ class CompendiumApp extends connect(store)(LitElement) {
 				// This object also takes an image property, that points to an img src.
 			});
 		}
-	}
-
-	serviceWorkerRegistered(registration) {
-		//This might be called by index.html, or by our own constructor. We call
-		//from both to ensure that no matter which way the race resolves we get
-		//called.
-
-		//It's possible this is called twice.
-		if (this._swRegistration) return;
-		//It's possible we get called via our constructor before it's alive,
-		//when it will be null.
-		if (!registration) return;
-		this._swRegistration = registration;
-		useServiceWorker(registration);
 	}
 
 	stateChanged(state) {

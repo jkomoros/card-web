@@ -2,7 +2,6 @@ import firebaseImpl from '@firebase/app';
 
 import '@firebase/auth';
 import '@firebase/firestore';
-import '@firebase/messaging';
 
 import {
 	FIREBASE_DEV_CONFIG,
@@ -19,21 +18,6 @@ if (window.location.hostname.indexOf('dev-') >= 0) DEV_MODE = true;
 let config = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
 // Initialize Firebase
 firebase.initializeApp(config);
-
-const PROD_VAPID = 'BBXFZPnWiK_tO47-ES7lhkHK9Grlc4W8kA7IWiTsKQLMQIk9fFLiz1IhSnq9j2MwpzhlczmqSPcNiXRZvDIyFBE';
-const DEV_VAPID = 'BO-C0PDdWRvIKSjZmpF_llbdyENpv6FRYGpze_aA0D63wQ7af2YggVXahyxWjD9Sd-vKfbxHVuJIXDlFtu1yBjA';
-
-//messaging might be null in browsers that don't support push notifications,
-//like Safari.
-const messaging = firebase.messaging.isSupported() ? firebase.messaging() : null;
-if (messaging) messaging.usePublicVapidKey(DEV_MODE ? DEV_VAPID : PROD_VAPID);
-//NOTE: additional messaging setup is done within useServiceWorker.
-
-//Notifications feature is enabled if the browser supports mesaging and we're in
-//dev mode. TODO: in the future when we want to enable notifications in
-//production, remove the DEV_MODE guard and just have it be whether messaging is
-//non-null.
-export const NOTIFICATIONS_FEATURE_ENABLED  = DEV_MODE && messaging; 
 
 export const db = firebase.firestore();
 
@@ -61,7 +45,6 @@ import {
 import {
 	updateStars,
 	updateReads,
-	updateNotificationsToken,
 	updateReadingList
 } from './user.js';
 
@@ -91,49 +74,6 @@ export const READING_LISTS_COLLECTION = 'reading_lists';
 export const READING_LISTS_UPDATES_COLLECTION = 'updates';
 export const PERMISSIONS_COLLECTION = 'permissions';
 export const TWEETS_COLLECTION = 'tweets';
-
-import {
-	store
-} from '../store.js';
-
-//useServiceWorker is called at boot time when the sevice worker registration is
-//provided. We have to wait until then to do final initialization.
-export const useServiceWorker = (registration) => {
-	if (!messaging) return;
-	messaging.useServiceWorker(registration);
-	//Additional messages initalization
-	//Initialize with current state of token. Don't bother telling the server.
-	notificationsTokenUpdated(false);
-	//if the token is refreshed then we should tell the server.
-	messaging.onTokenRefresh(() => notificationsTokenUpdated(true));
-};
-
-//Not actually an action dispatcher; factored the logic into this file so
-//messaging doesn't have to be exported.
-export const requestNotificationsPermission = () => {
-	if (!messaging) {
-		console.warn('This browser doesn\'t support push notifications');
-		return;
-	}
-	messaging.requestPermission().then(() => {
-		notificationsTokenUpdated(true);
-	}).catch(err => {
-		console.warn('Couldn\'t get permission to notify:', err);
-	});
-};
-
-//Not an action dispatcher; call any time it may have been updated. If
-//notifyServer is true, that means that it's via a method where the server
-//should be alerted.
-const notificationsTokenUpdated = (notifyServer) => {
-	if (notifyServer) {
-		//TODO: reach out to server
-	}
-	if(!messaging) return;
-	messaging.getToken().then(token => {
-		store.dispatch(updateNotificationsToken(token));
-	});
-};
 
 export const connectLiveMessages = (store) => {
 	//Deliberately DO fetch deleted messages, so we can render stubs for them.

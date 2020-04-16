@@ -29,7 +29,6 @@ store.addReducers({
 
 import {
 	DEV_MODE,
-	useServiceWorker,
 } from '../actions/database.js';
 
 import {
@@ -353,20 +352,6 @@ class MainView extends connect(store)(LitElement) {
 
 	_handleMouseMove() {
 		store.dispatch(hoveredCardMouseMoved());
-	}
-
-	serviceWorkerRegistered(registration) {
-		//This might be called by index.html, or by our own constructor. We call
-		//from both to ensure that no matter which way the race resolves we get
-		//called.
-
-		//It's possible this is called twice.
-		if (this._swRegistration) return;
-		//It's possible we get called via our constructor before it's alive,
-		//when it will be null.
-		if (!registration) return;
-		this._swRegistration = registration;
-		useServiceWorker(registration);
 	}
 
 	stateChanged(state) {
