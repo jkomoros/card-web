@@ -19,6 +19,7 @@ const USERS_COLLECTION = 'users';
 const MESSAGES_COLLECTION = 'messages';
 const THREADS_COLLECTION = 'threads';
 const STARS_COLLECTION = 'stars';
+const READS_COLLECTION = 'reads';
 
 const adminUid = 'admin';
 const bobUid = 'bob';
@@ -66,9 +67,13 @@ async function setupDatabase() {
 		author:bobUid,
 		messages: [messageId]
 	});
-	//This is a star by anon user, not bob, because we'll use an anon user to
-	//test that they can create stars (they're allowed to)
+	//This is a star/read by anon user, not bob, because we'll use an anon user
+	//to test that they can create stars (they're allowed to)
 	await db.collection(STARS_COLLECTION).doc(starId).set({
+		owner: anonUid,
+		card: cardId,
+	});
+	await db.collection(READS_COLLECTION).doc(starId).set({
 		owner: anonUid,
 		card: cardId,
 	});
@@ -480,6 +485,60 @@ describe('Compendium Rules', () => {
 		const db = authedApp(sallyAuth);
 		const star = db.collection(STARS_COLLECTION).doc(starId);
 		await firebase.assertFails(star.get());
+	});
+
+	it('allows any user to create a read they own', async() => {
+		const db = authedApp(anonAuth);
+		const read = db.collection(READS_COLLECTION).doc(newStarId);
+		await firebase.assertSucceeds(read.set({owner:anonUid, card: cardId}));
+	});
+
+	it('disallows user to create a read they don\'t own', async() => {
+		const db = authedApp(sallyAuth);
+		const read = db.collection(READS_COLLECTION).doc(newStarId);
+		await firebase.assertFails(read.set({owner:anonUid, card: cardId}));
+	});
+
+	it('allows any user to update a read they own', async() => {
+		const db = authedApp(anonAuth);
+		const read = db.collection(READS_COLLECTION).doc(starId);
+		await firebase.assertSucceeds(read.update({card: newMessageId}));
+	});
+
+	it('disallows user to update a read they don\'t own', async() => {
+		const db = authedApp(sallyAuth);
+		const read = db.collection(READS_COLLECTION).doc(starId);
+		await firebase.assertFails(read.update({card: newMessageId}));
+	});
+
+	it('allows any user to delete a read they own', async() => {
+		const db = authedApp(anonAuth);
+		const read = db.collection(READS_COLLECTION).doc(starId);
+		await firebase.assertSucceeds(read.delete());
+	});
+
+	it('disallows user to delete a read they don\'t own', async() => {
+		const db = authedApp(sallyAuth);
+		const read = db.collection(READS_COLLECTION).doc(starId);
+		await firebase.assertFails(read.delete());
+	});
+
+	it('allows any user to read a read they own', async() => {
+		const db = authedApp(anonAuth);
+		const read = db.collection(READS_COLLECTION).doc(starId);
+		await firebase.assertSucceeds(read.get());
+	});
+
+	it('allows admins to read any read', async() => {
+		const db = authedApp(adminAuth);
+		const read = db.collection(READS_COLLECTION).doc(starId);
+		await firebase.assertSucceeds(read.get());
+	});
+
+	it('disallows user to read a read they don\'t own', async() => {
+		const db = authedApp(sallyAuth);
+		const read = db.collection(READS_COLLECTION).doc(starId);
+		await firebase.assertFails(read.get());
 	});
 
 });
