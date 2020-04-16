@@ -65,6 +65,9 @@ async function setupDatabase() {
 		thread_resolved_count: cardThreadResolvedCount,
 		star_count: cardStarCount,
 	});
+	await db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId).set({
+		foo:3,
+	});
 	await db.collection(MESSAGES_COLLECTION).doc(messageId).set({
 		message: 'blah',
 		author: bobUid,
@@ -273,6 +276,30 @@ describe('Compendium Rules', () => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount + 1, star_count: cardStarCount + 1}));
+	});
+
+	it('allows admins to read card updates', async() => {
+		const db = authedApp(adminAuth);
+		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
+		await firebase.assertSucceeds(update.get());
+	});
+
+	it('allows admins to set card updates', async() => {
+		const db = authedApp(adminAuth);
+		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(newUpdateId);
+		await firebase.assertSucceeds(update.set({foo:4}));
+	});
+
+	it('disallows users from reading card updates', async() => {
+		const db = authedApp(bobAuth);
+		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
+		await firebase.assertFails(update.get());
+	});
+
+	it('disallows users from setting card updates', async() => {
+		const db = authedApp(bobAuth);
+		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(newUpdateId);
+		await firebase.assertFails(update.set({foo:4}));
 	});
 
 	it('allows users to read back their permissions object', async() => {
