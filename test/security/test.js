@@ -21,6 +21,8 @@ const THREADS_COLLECTION = 'threads';
 const STARS_COLLECTION = 'stars';
 const READS_COLLECTION = 'reads';
 const TWEETS_COLLECTION = 'tweets';
+const READING_LISTS_COLLECTION = 'reading_lists';
+const UPDATES_COLLECTION = 'updates';
 
 const adminUid = 'admin';
 const bobUid = 'bob';
@@ -68,8 +70,8 @@ async function setupDatabase() {
 		author:bobUid,
 		messages: [messageId]
 	});
-	//This is a star/read by anon user, not bob, because we'll use an anon user
-	//to test that they can create stars (they're allowed to)
+	//This is a star/read/reading-list by anon user, not bob, because we'll use
+	//an anon user to test that they can create stars (they're allowed to)
 	await db.collection(STARS_COLLECTION).doc(starId).set({
 		owner: anonUid,
 		card: cardId,
@@ -77,6 +79,13 @@ async function setupDatabase() {
 	await db.collection(READS_COLLECTION).doc(starId).set({
 		owner: anonUid,
 		card: cardId,
+	});
+	await db.collection(READING_LISTS_COLLECTION).doc(anonUid).set({
+		owner: anonUid,
+		cards: [cardId],
+	});
+	await db.collection(READING_LISTS_COLLECTION).doc(anonUid).collection(UPDATES_COLLECTION).doc(messageId).set({
+		foo: 3,
 	});
 
 	await db.collection(TWEETS_COLLECTION).doc(messageId).set({
@@ -556,6 +565,84 @@ describe('Compendium Rules', () => {
 		const db = authedApp(bobAuth);
 		const tweet = db.collection(TWEETS_COLLECTION).doc(messageId);
 		await firebase.assertFails(tweet.update({card: cardId + 'new'}));
+	});
+
+	it('allows any user to create a reading-list they own', async() => {
+		const db = authedApp(anonAuth);
+		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
+		await firebase.assertSucceeds(list.set({owner:anonUid, cards: [cardId]}));
+	});
+
+	it('disallows user to create a reading-list they don\'t own', async() => {
+		const db = authedApp(sallyAuth);
+		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
+		await firebase.assertFails(list.set({owner:anonUid, cards: [cardId]}));
+	});
+
+	it('allows any user to update a reading-list they own', async() => {
+		const db = authedApp(anonAuth);
+		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
+		await firebase.assertSucceeds(list.update({cards: firebase.firestore.FieldValue.arrayUnion(newMessageId)}));
+	});
+
+	it('disallows user to update a reading-list they don\'t own', async() => {
+		const db = authedApp(sallyAuth);
+		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
+		await firebase.assertFails(list.update({cards: firebase.firestore.FieldValue.arrayUnion(newMessageId)}));
+	});
+
+	it('allows any user to delete a reading-list they own', async() => {
+		const db = authedApp(anonAuth);
+		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
+		await firebase.assertSucceeds(list.delete());
+	});
+
+	it('disallows user to delete a reading-list they don\'t own', async() => {
+		const db = authedApp(sallyAuth);
+		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
+		await firebase.assertFails(list.delete());
+	});
+
+	it('allows any user to read a reading-list they own', async() => {
+		const db = authedApp(anonAuth);
+		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
+		await firebase.assertSucceeds(list.get());
+	});
+
+	it('allows admins to read any reading-list', async() => {
+		const db = authedApp(adminAuth);
+		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
+		await firebase.assertSucceeds(list.get());
+	});
+
+	it('disallows user to read a reading-list they don\'t own', async() => {
+		const db = authedApp(sallyAuth);
+		const list = db.collection(READING_LISTS_COLLECTION).doc(anonUid);
+		await firebase.assertFails(list.get());
+	});
+
+	it('allows owner of reading-list to read updates for a reading-list they own', async() => {
+		const db = authedApp(anonAuth);
+		const update = db.collection(READING_LISTS_COLLECTION).doc(anonUid).collection(UPDATES_COLLECTION).doc(messageId);
+		await firebase.assertSucceeds(update.get());
+	});
+
+	it('disallows user to read updates for a reading-list updates they don\'t own', async() => {
+		const db = authedApp(sallyAuth);
+		const update = db.collection(READING_LISTS_COLLECTION).doc(anonUid).collection(UPDATES_COLLECTION).doc(messageId);
+		await firebase.assertFails(update.get());
+	});
+
+	it('allows owner of reading-list to write updates for a reading-list they own', async() => {
+		const db = authedApp(anonAuth);
+		const update = db.collection(READING_LISTS_COLLECTION).doc(anonUid).collection(UPDATES_COLLECTION).doc(newMessageId);
+		await firebase.assertSucceeds(update.set({foo:4}));
+	});
+
+	it('disallows user to set updates for a reading-list updates they don\'t own', async() => {
+		const db = authedApp(sallyAuth);
+		const update = db.collection(READING_LISTS_COLLECTION).doc(anonUid).collection(UPDATES_COLLECTION).doc(newMessageId);
+		await firebase.assertFails(update.set({foo:4}));
 	});
 
 });
