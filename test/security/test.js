@@ -11,13 +11,28 @@ const coverageUrl = `http://localhost:${port}/emulator/v1/projects/${projectId}:
 
 const rules = fs.readFileSync('firestore.rules', 'utf8');
 
+//duplicated from src/actions/database.js
+const PERMISSIONS_COLLECTION = 'permissions';
+const CARDS_COLLECTION = 'cards';
+const adminUid = 'admin';
+const bobUid = 'bob';
+
+const adminAuth = {uid:adminUid};
+const bobAuth = {uid:bobUid};
+
 function authedApp(auth) {
 	return firebase.initializeTestApp({ projectId, auth }).firestore();
+}
+
+function setupDatabase() {
+	const db = firebase.initializeAdminApp({projectId}).firestore();
+	db.collection(PERMISSIONS_COLLECTION).doc(adminUid).set({admin:true});
 }
 
 beforeEach(async () => {
 	// Clear the database between tests
 	await firebase.clearFirestoreData({ projectId });
+	setupDatabase();
 });
 
 before(async () => {
@@ -32,7 +47,27 @@ after(async () => {
 describe('Compendium Rules', () => {
 	it('allows anyone to read a card', async () => {
 		const db = authedApp(null);
-		const card = db.collection('cards').doc('foo');
+		const card = db.collection(CARDS_COLLECTION).doc('foo');
 		await firebase.assertSucceeds(card.get());
 	});
+
+	it('allows admins to create a card', async() => {
+		const db = authedApp(adminAuth);
+		const card = db.collection(CARDS_COLLECTION).doc('foo');
+		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo'}));
+	});
+
+	it('does not allow normal users to create a card', async() => {
+		const db = authedApp(bobAuth);
+		const card = db.collection(CARDS_COLLECTION).doc('foo');
+		await firebase.assertFails(card.set({tile:'foo', body:'foo'}));
+	});
+
+	it('does not allow unauthenticated users to create a card', async() => {
+		const db = authedApp(null);
+		const card = db.collection(CARDS_COLLECTION).doc('foo');
+		await firebase.assertFails(card.set({tile:'foo', body:'foo'}));
+	});
+
+
 });
