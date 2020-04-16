@@ -29,6 +29,7 @@ const anonAuth = {uid: anonUid, token:{firebase:{sign_in_provider: 'anonymous'}}
 const cardId = 'card';
 const cardThreadCount = 10;
 const cardThreadResolvedCount = 5;
+const cardStarCount = 7;
 
 function authedApp(auth) {
 	return firebase.initializeTestApp({ projectId, auth }).firestore();
@@ -42,6 +43,7 @@ async function setupDatabase() {
 		title: 'this is the title',
 		thread_count: cardThreadCount,
 		thread_resolved_count: cardThreadResolvedCount,
+		star_count: cardStarCount,
 	});
 }
 
@@ -138,6 +140,42 @@ describe('Compendium Rules', () => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({thread_count: cardThreadCount - 1, thread_resolved_count: cardThreadResolvedCount + 1, body: 'foo'}));
+	});
+
+	it('allows any signed in users to increment star_count by 1', async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(card.update({star_count: cardStarCount + 1}));
+	});
+
+	it('disallows any nonauthenticated  users to increment star_count by 1', async() => {
+		const db = authedApp(null);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({star_count: cardStarCount + 1}));
+	});
+
+	it('disallows any signed in users to increment star_count by 1 if they edit other fields', async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({star_count: cardStarCount + 1, thread_count: cardThreadCount + 1}));
+	});
+
+	it('allows any signed in users to decrement star_count by 1', async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(card.update({star_count: cardStarCount - 1}));
+	});
+
+	it('disallows any nonauthenticated users to decrement star_count by 1', async() => {
+		const db = authedApp(null);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({star_count: cardStarCount - 1}));
+	});
+
+	it('disallows any signed in users to decrement star_count by 1 if they edit other fields', async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({star_count: cardStarCount - 1, thread_count: cardThreadCount + 1}));
 	});
 
 	it('allows users to read back their permissions object', async() => {
