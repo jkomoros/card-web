@@ -23,7 +23,7 @@
     "@polymer/app-layout": "^3.1.0",
     "@polymer/lit-element": "^0.6.5",
     "@polymer/polymer": "^3.3.1",
-    "@webcomponents/webcomponentsjs": "^2.4.1",
+    "@webcomponents/webcomponentsjs": "^2.4.3",
     "dompurify": "^1.0.11",
     "firebase": "^7.14.0",
     "pwa-helpers": "^0.9.1",
@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@polymer/test-fixture": "^4.0.2",
-    "axe-core": "^3.4.1",
+    "axe-core": "^3.5.3",
     "chai": "^4.1.2",
     "del": "^3.0.0",
     "eslint": "^6.8.0",
@@ -48,7 +48,7 @@
     "pixelmatch": "^4.0.2",
     "polymer-cli": "^1.9.11",
     "polyserve": "^0.27.15",
-    "prompts": "^2.3.1",
+    "prompts": "^2.3.2",
     "prpl-server": "^1.4.0",
     "puppeteer": "^1.20.0",
     "wct-mocha": "^1.0.1"
