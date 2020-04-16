@@ -14,6 +14,8 @@ const rules = fs.readFileSync('firestore.rules', 'utf8');
 //duplicated from src/actions/database.js
 const PERMISSIONS_COLLECTION = 'permissions';
 const CARDS_COLLECTION = 'cards';
+const AUTHORS_COLLECTION = 'authors';
+
 const adminUid = 'admin';
 const bobUid = 'bob';
 const sallyUid = 'sally';
@@ -85,7 +87,24 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(db.collection(PERMISSIONS_COLLECTION).doc(bobUid).update({admin:true}));
 	});
 
+	it('anyone may read authors objects', async() => {
+		const db = authedApp(null);
+		await firebase.assertSucceeds(db.collection(AUTHORS_COLLECTION).doc(bobUid).get());
+	});
 
+	it('users may modify their own author object', async() => {
+		const db = authedApp(bobAuth);
+		await firebase.assertSucceeds(db.collection(AUTHORS_COLLECTION).doc(bobUid).set({bob:true}));
+	});
 
+	it('admins may modify anyone\'s author object', async() => {
+		const db = authedApp(adminAuth);
+		await firebase.assertSucceeds(db.collection(AUTHORS_COLLECTION).doc(bobUid).set({bob:true}));
+	});
+
+	it('users may not modify others author object', async() => {
+		const db = authedApp(bobAuth);
+		await firebase.assertFails(db.collection(AUTHORS_COLLECTION).doc(sallyUid).set({bob:true}));
+	});
 
 });
