@@ -202,6 +202,30 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp()}));
 	});
 
+	it('allows any signed in user to update the updated_message timestamp to now while also incrementing thread_count',async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount + 1}));
+	});
+
+	it('disallows any unauthed user to update the updated_message timestamp to now while also incrementing thread_count',async() => {
+		const db = authedApp(null);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount + 1}));
+	});
+
+	it('disallows any signed in user to update the updated_message timestamp to now if they decrement incrementing thread_count',async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount - 1}));
+	});
+
+	it('disallows any signed in user to update the updated_message timestamp to now while incrementing thread_count if they also touch another field',async() => {
+		const db = authedApp(anonAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount + 1, star_count: cardStarCount + 1}));
+	});
+
 	it('allows users to read back their permissions object', async() => {
 		const db = authedApp(bobAuth);
 		await firebase.assertSucceeds(db.collection(PERMISSIONS_COLLECTION).doc(bobUid).get());
