@@ -4,7 +4,7 @@ service cloud.firestore {
 
     function userIsAdmin() {
       //Because we can't create a temporary variable we have to use both exists and get, because most users won't have a permissions object.
-      return request.auth.uid != null && exists(/databases/$(database)/documents/permissions/$(request.auth.uid)) && get(/databases/$(database)/documents/permissions/$(request.auth.uid)).data.admin
+      return request.auth.uid != null && exists(/databases/$(database)/documents/permissions/$(request.auth.uid)) && get(/databases/$(database)/documents/permissions/$(request.auth.uid)).get(['data','admin'], false)
     }
     
     function editOnlyUpdatesTimestamp(key) {
