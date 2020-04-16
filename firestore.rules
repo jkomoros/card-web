@@ -36,7 +36,7 @@ service cloud.firestore {
     }
 
     function isAnonymous() {
-      return request.auth.token.firebase.sign_in_provider == 'anonymous';
+      return request.get(['auth', 'token', 'firebase', 'sign_in_provider'], 'google') == 'anonymous';
     }
     
     function createIsOwner() {
