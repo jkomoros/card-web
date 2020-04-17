@@ -218,7 +218,7 @@ const updatePage = (location, page, pageExtra) => {
 
 const fetchCardFromDb = async (cardIDOrSlug) => {
 	//Cards are more likely to be fetched via slug, so try that first
-	let cards = await db.collection(CARDS_COLLECTION).where('slugs', 'array-contains', cardIDOrSlug).limit(1).get();
+	let cards = await db.collection(CARDS_COLLECTION).where('published', '==', true).where('slugs', 'array-contains', cardIDOrSlug).limit(1).get();
 	if (cards && !cards.empty) {
 		return cards.docs[0];
 	}
@@ -230,7 +230,7 @@ const fetchCardFromDb = async (cardIDOrSlug) => {
 };
 
 const fetchCardLinkCardsForFetchedCardFromDb = async (card) => {
-	const rawQuery =  await db.collection(CARDS_COLLECTION).where('links_inbound', 'array-contains', card.id).get();
+	const rawQuery =  await db.collection(CARDS_COLLECTION).where('published', '==', true).where('links_inbound', 'array-contains', card.id).get();
 	if (rawQuery.empty) return {};
 	return Object.fromEntries(rawQuery.docs.map(doc => [doc.id, {...doc.data(), id: doc.id}]));
 };
