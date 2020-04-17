@@ -252,7 +252,13 @@ export const fetchCardLinkCardsForFetchedCard = async (fetchedCard) => async (di
 	const state = getState();
 	const fetchedCards = selectCards(state);
 	const allCardsFetched = links.every(cardID => fetchedCards[cardID]);
-	if (allCardsFetched) return;
+	if (allCardsFetched) {
+		//Dispatching updateCards, even with any empty one, is how we signal
+		//that everything is done loading, so the card viewer knows to fade it
+		//in.
+		dispatch(updateCards({}, false));
+		return;
+	}
 
 	const cards = await fetchCardLinkCardsForFetchedCardFromDb(fetchedCard);
 	dispatch(updateCards(cards, false));
