@@ -206,8 +206,8 @@ export const connectLiveAuthors = (store) => {
 	});
 };
 
-export const connectLiveCards = (store) => {
-	db.collection(CARDS_COLLECTION).onSnapshot(snapshot => {
+export const connectLivePublishedCards = (store) => {
+	db.collection(CARDS_COLLECTION).where('published', '==', true).onSnapshot(snapshot => {
 
 		let cards = {};
 
@@ -224,7 +224,30 @@ export const connectLiveCards = (store) => {
 			cards[id] = card;
 		});
 
-		store.dispatch(updateCards(cards));
+		store.dispatch(updateCards(cards, false));
+
+	});
+};
+
+export const connectLiveUnpublishedCards = (store) => {
+	db.collection(CARDS_COLLECTION).where('published', '==', false).onSnapshot(snapshot => {
+
+		let cards = {};
+
+		snapshot.docChanges().forEach(change => {
+			if (change.type === 'removed') return;
+			let doc = change.doc;
+			let id = doc.id;
+			let card = doc.data();
+			card.id = id;
+			//These three properties are expected to be set by TEXT_SEARCH_PROPERTIES
+			card.normalizedBody = normalizedWords(innerTextForHTML(card.body || '')).join(' ');
+			card.normalizedTitle = normalizedWords(card.title).join(' ');
+			card.normalizedSubtitle = normalizedWords(card.subtitle).join(' ');
+			cards[id] = card;
+		});
+
+		store.dispatch(updateCards(cards, true));
 
 	});
 };

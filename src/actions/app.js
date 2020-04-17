@@ -255,7 +255,7 @@ export const fetchCardLinkCardsForFetchedCard = async (fetchedCard) => async (di
 	if (allCardsFetched) return;
 
 	const cards = await fetchCardLinkCardsForFetchedCardFromDb(fetchedCard);
-	dispatch(updateCards(cards));
+	dispatch(updateCards(cards, false));
 };
 
 export const fetchCard = (cardIDOrSlug) => async (dispatch, getState) =>  {

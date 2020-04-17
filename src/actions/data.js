@@ -708,10 +708,11 @@ export const updateTags = (tags) => (dispatch) => {
 	dispatch(refreshCardSelector(false));
 };
 
-export const updateCards = (cards) => (dispatch) => {
+export const updateCards = (cards, unpublished) => (dispatch) => {
 	dispatch({
 		type:UPDATE_CARDS,
 		cards,
+		unpublished
 	});
 	dispatch(refreshCardSelector(false));
 };

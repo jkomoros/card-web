@@ -23,7 +23,8 @@ const INITIAL_STATE = {
 	tweets: {},
 	//These three are flipped to true on the first UPDATE_type entry, primarily
 	//as a flag to  selectDataisFullyLoaded.
-	cardsLoaded: false,
+	publishedCardsLoaded: false,
+	unpublishedCardsLoaded: false,
 	sectionsLoaded: false,
 	tagsLoaded: false,
 	//The modification that is pending
@@ -35,12 +36,17 @@ const INITIAL_STATE = {
 const app = (state = INITIAL_STATE, action) => {
 	switch (action.type) {
 	case UPDATE_CARDS:
-		return {
+		let result = {
 			...state,
 			cards: {...state.cards, ...action.cards},
 			slugIndex: {...state.slugIndex, ...extractSlugIndex(action.cards)},
-			cardsLoaded: true,
 		};
+		if (action.unpublished) {
+			result.unpublishedCardsLoaded = true;
+		} else {
+			result.publishedCardsLoaded = true;
+		}
+		return result;
 	case UPDATE_SECTIONS:
 		return {
 			...state,

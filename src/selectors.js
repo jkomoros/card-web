@@ -58,7 +58,8 @@ const selectPendingFilters = (state) => state.collection.pendingFilters;
 export const selectSections = (state) => state.data ? state.data.sections : {};
 export const selectTags = (state) => state.data ? state.data.tags : {};
 const selectBaseCards = (state) => state.data ? state.data.cards : {};
-export const selectCardsLoaded = (state) => state.data ? state.data.cardsLoaded : false;
+const selectPublishedCardsLoaded = (state) => state.data ? state.data.publishedCardsLoaded : false;
+const selectUnpublishedCardsLoaded = (state) => state.data ? state.data.unpublishedCardsLoaded : false;
 export const selectSectionsLoaded = (state) => state.data ? state.data.sectionsLoaded : false;
 export const selectTagsLoaded = (state) => state.data ? state.data.tagsLoaded : false;
 export const selectMessagesLoaded = (state) => state.comments ? state.comments.messagesLoaded : false;
@@ -328,6 +329,28 @@ export const selectCommentsAreFullyLoaded = createSelector(
 	selectThreadsLoaded,
 	selectMessagesLoaded,
 	(threadsLoaded, messagesLoaded) => threadsLoaded && messagesLoaded
+);
+
+//This is different from selectUserPermissionsLoaded because it also takes into
+//account whether we're even going to try to load them. Note that there is a
+//brief period when the app boots up that this is false but may switch to true.
+const selectUserPermissionsFinal = createSelector(
+	selectAuthPending,
+	selectUserObjectExists,
+	selectUserPermissionsLoaded,
+	(pending, userObjectExists, permissionsLoaded) => {
+		if (pending) return false;
+		if (!userObjectExists) return true;
+		return permissionsLoaded;
+	}
+);
+
+export const selectCardsLoaded = createSelector(
+	selectUserPermissionsFinal,
+	selectPublishedCardsLoaded,
+	selectUserMayViewUnpublished,
+	selectUnpublishedCardsLoaded,
+	(permissionsFinal, publishedCardsLoaded, userMayViewUnpublished, unpublishedCardsLoaded) => permissionsFinal && publishedCardsLoaded && (userMayViewUnpublished ? unpublishedCardsLoaded : true)
 );
 
 //DataIsFullyLoaded returns true if we've loaded all of the card/section

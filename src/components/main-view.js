@@ -47,7 +47,8 @@ import {
 	selectUnreadTabSelected,
 	selectUserStarsCount,
 	selectUserUnreadCount,
-	selectUserReadingListCount
+	selectUserReadingListCount,
+	selectUserMayViewUnpublished
 } from '../selectors.js';
 
 import {
@@ -55,7 +56,8 @@ import {
 } from '../reducers/app.js';
 
 import { 
-	connectLiveCards,
+	connectLivePublishedCards,
+	connectLiveUnpublishedCards,
 	connectLiveSections,
 	connectLiveTags,
 	connectLiveAuthors,
@@ -282,6 +284,7 @@ class MainView extends connect(store)(LitElement) {
 			_activePreviewCard: { type:Object },
 			_previewCardX : { type:Number },
 			_previewCardY : { type:Number },
+			_mayViewUnpublished : { type:Boolean },
 		};
 	}
 
@@ -290,7 +293,7 @@ class MainView extends connect(store)(LitElement) {
 		this._updatePreviewSize();
 		window.addEventListener('keydown', e => this._handleKeyPressed(e));
 		this.addEventListener('card-hovered', e => this._handleCardHovered(e));
-		connectLiveCards(store);
+		connectLivePublishedCards(store);
 		connectLiveSections(store);
 		connectLiveTags(store);
 		connectLiveAuthors(store);
@@ -373,6 +376,17 @@ class MainView extends connect(store)(LitElement) {
 		this._activePreviewCard = selectActivePreviewCard(state);
 		this._previewCardX = selectPreviewCardX(state);
 		this._previewCardY = selectPreviewCardY(state);
+		this._mayViewUnpublished = selectUserMayViewUnpublished(state);
+	}
+
+	updated(changedProps) {
+		if (changedProps.has('_mayViewUnpublished')) {
+			if (this._mayViewUnpublished) {
+				connectLiveUnpublishedCards(store);
+			} else {
+				//TODO: disconnectLiveUnpublishedCards here.
+			}
+		}
 	}
 }
 
