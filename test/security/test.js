@@ -41,6 +41,7 @@ const sallyAuth = {...googleBaseAuth, uid: sallyUid};
 const anonAuth = {...anonBaseAuth, uid: anonUid};
 
 const cardId = 'card';
+const unpublishedCardId = 'unpublished-card';
 const cardThreadCount = 10;
 const cardThreadResolvedCount = 5;
 const cardStarCount = 7;
@@ -61,15 +62,25 @@ function authedApp(auth) {
 async function setupDatabase() {
 	const db = firebase.initializeAdminApp({projectId}).firestore();
 	await db.collection(PERMISSIONS_COLLECTION).doc(adminUid).set({admin:true});
+	await db.collection(PERMISSIONS_COLLECTION).doc(bobUid).set({viewUnpublished: true});
 	await db.collection(CARDS_COLLECTION).doc(cardId).set({
 		body: 'this is the body',
 		title: 'this is the title',
 		thread_count: cardThreadCount,
 		thread_resolved_count: cardThreadResolvedCount,
 		star_count: cardStarCount,
+		published: true,
 	});
 	await db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId).set({
 		foo:3,
+	});
+	await db.collection(CARDS_COLLECTION).doc(unpublishedCardId).set({
+		body: 'this is the body',
+		title: 'this is the title',
+		thread_count: cardThreadCount,
+		thread_resolved_count: cardThreadResolvedCount,
+		star_count: cardStarCount,
+		published: false,
 	});
 
 	await db.collection(TAGS_COLLECTION).doc(cardId).set({
@@ -137,9 +148,27 @@ after(async () => {
 });
 
 describe('Compendium Rules', () => {
-	it('allows anyone to read a card', async () => {
+	it('allows anyone to read a published card', async () => {
 		const db = authedApp(null);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(card.get());
+	});
+
+	it('disallows normal users permission to view unpublished cards', async() => {
+		const db = authedApp(sallyAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardId);
+		await firebase.assertFails(card.get());
+	});
+
+	it ('allows users with viewUnpublished permission to view unpublished card', async() => {
+		const db = authedApp(bobAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardId);
+		await firebase.assertSucceeds(card.get());
+	});
+
+	it ('allows users with admin permission to view unpublished card', async() => {
+		const db = authedApp(adminAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardId);
 		await firebase.assertSucceeds(card.get());
 	});
 
