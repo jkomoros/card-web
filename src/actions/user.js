@@ -220,6 +220,7 @@ const updateUserInfo = (firebaseUser) => (dispatch) => {
 
 export const updatePermissions = (uid) => async (dispatch) => {
 	if (!uid) {
+		//This is only trigger on e.g. logout
 		dispatch({
 			type: UPDATE_USER_PERMISSIONS,
 			permissions: {},

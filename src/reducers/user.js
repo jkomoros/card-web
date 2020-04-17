@@ -55,6 +55,7 @@ const INITIAL_STATE = {
 	starsLoaded: false,
 	readsLoaded: false,
 	readingListLoaded: false,
+	permissionsLoaded: false,
 	autoMarkReadPending: false,
 };
 
@@ -113,7 +114,8 @@ const app = (state = INITIAL_STATE, action) => {
 	case UPDATE_USER_PERMISSIONS:
 		return {
 			...state,
-			permissions: {...action.permissions}
+			permissions: {...action.permissions},
+			permissionsLoaded: true,
 		};
 	case COMMIT_PENDING_COLLECTION_MODIFICATIONS:
 		return {

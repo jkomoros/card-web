@@ -88,6 +88,7 @@ export const selectAuthPending = (state) => state.user ? state.user.pending : fa
 //no user to load stars or reads for.
 export const selectStarsLoaded = (state) => state.user ? state.user.starsLoaded : false;
 export const selectReadsLoaded = (state) => state.user ? state.user.readsLoaded : false;
+const selectUserPermissionsLoaded = (state) => state.user ? state.user.permissionsLoaded : false;
 export const selectReadingListLoaded = (state) => state.user ? state.user.readingListLoaded : false;
 
 const selectUserPermissions = (state) => state.user ? state.user.permissions : {};
@@ -315,10 +316,11 @@ export const selectUserDataIsFullyLoaded = createSelector(
 	selectStarsLoaded,
 	selectReadsLoaded,
 	selectReadingListLoaded,
-	(pending, userExists, starsLoaded, readsLoaded, readingListLoaded) => {
+	selectUserPermissionsLoaded,
+	(pending, userExists, starsLoaded, readsLoaded, readingListLoaded, permissionsLoaded) => {
 		if (pending) return false;
 		if (!userExists) return true;
-		return starsLoaded && readsLoaded && readingListLoaded;
+		return starsLoaded && readsLoaded && readingListLoaded && permissionsLoaded;
 	}
 );
 
