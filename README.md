@@ -54,6 +54,8 @@ To deploy to production, run `gulp release`.
 
 After the full deploy is done, the webapp will be visible to anyone at https://your-project-id.web.app/ ! The only people who will be able to edit cards, tags, and sections will be you (or anyone else you listed as an admin in the console).
 
+Please email me at alex@komoroske.com if you actually start using the web app, so I know that I should start investing in tagging specific stable releases, make sure maintenance taksks are clear, etc.
+
 ## Config file keys
 
 **Re-run `gulp inject-config` every time you change the config file!**
@@ -116,32 +118,19 @@ In your `config.SECRET.json`, add `"backup_bucket_name" : "BUCKET_NAME_HERE"`.
 
 Ensure you have the `gcloud` command line app installed: https://cloud.google.com/sdk/install
 
-Run `gulp backup` to run a backup.
+Run `gulp backup` to run a backup. You can choose to give it a descriptive name at the prompt to make it easier to remember why you ran the backup, or just hit enter.
 
 Once this is all set up, every time you run `gulp release` it will automatically save a backup.
 
 
-## Backing up
-
-Instructions are here: https://firebase.google.com/docs/firestore/manage-data/export-import (see that for initial set up)
-
-Run `gcloud config set project complexity-compendium`
-
-Run `gcloud beta firestore export gs://complexity-compendium-backup`
-
-Also can just run `gulp backup`
-
-### Restoring a back up
+#### Restoring a back up
 
 Every so often it makes sense to reset the dev database with the most recent prod backup.
 
 Do that with `gulp reset-dev`.
 
-That does some combination of the following:
+If you don't have a dev/prod account, just a prod one, it will ask for confirmation before resetting the database.
 
-Run `gcloud config set project dev-complexity-compendium` (if running in devmode)
-
-Run `gcloud beta firestore import gs://complexity-compendium-backup/[EXPORT_PREFIX]/` where EXPORT-PREFIX is the name of the folder you want to import.
 
 ## Favicons
 
