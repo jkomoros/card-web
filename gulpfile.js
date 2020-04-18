@@ -204,7 +204,8 @@ gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, makeExecutor('fir
 
 gulp.task(GCLOUD_BACKUP_TASK, cb => {
 	if (!BACKUP_BUCKET_NAME) {
-		cb(new Error('Cannot backup, no config.backup_bucket_name set'));
+		console.log('Skipping backup since no backup_bucket_name set');
+		cb();
 		return;
 	}
 	//BACKUP_MESSAGE won't be known until later
@@ -231,6 +232,11 @@ gulp.task(GCLOUD_RESTORE_TASK, cb => {
 let BACKUP_MESSAGE = '';
 
 gulp.task(ASK_BACKUP_MESSAGE, async (cb) => {
+	//Backups won't be used
+	if (!BACKUP_BUCKET_NAME) {
+		cb();
+		return;
+	}
 	if (BACKUP_MESSAGE) {
 		console.log('Backup message already set');
 		cb();
