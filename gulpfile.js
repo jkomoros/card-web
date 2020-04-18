@@ -28,8 +28,8 @@ try {
 	console.log('config.SECRET.json didn\'t exist. Check README.md on how to create one');
 	process.exit(1);
 }
-const CONFIG_FIREBASE_PROD = projectConfig.firebase.prod;
-const CONFIG_FIREBASE_DEV = projectConfig.firebase.dev;
+const CONFIG_FIREBASE_PROD = projectConfig.firebase.prod ? projectConfig.firebase.prod : projectConfig.firebase;
+const CONFIG_FIREBASE_DEV = projectConfig.firebase.dev ? projectConfig.firebase.dev : CONFIG_FIREBASE_PROD;
 
 const FIREBASE_PROD_PROJECT = CONFIG_FIREBASE_PROD.projectId;
 const FIREBASE_DEV_PROJECT = CONFIG_FIREBASE_DEV.projectId;
@@ -73,6 +73,7 @@ const ASK_BACKUP_MESSAGE = 'ask-backup-message';
 
 const GCLOUD_ENSURE_DEV_TASK = 'gcloud-ensure-dev';
 const FIREBASE_ENSURE_DEV_TASK = 'firebase-ensure-dev';
+const FIREBASE_DELETE_FIRESTORE_IF_SAFE_TASK = 'firebase-delete-firestore-if-safe';
 const FIREBASE_DELETE_FIRESTORE_TASK = 'DANGEROUS-firebase-delete-firestore';
 const GCLOUD_RESTORE_TASK = 'gcloud-restore';
 
@@ -130,6 +131,23 @@ gulp.task(FIREBASE_ENSURE_DEV_TASK, (cb) => {
 	}
 	firebase_is_prod = false;
 	firebaseUseDev(cb);
+});
+
+gulp.task(FIREBASE_DELETE_FIRESTORE_IF_SAFE_TASK, async (cb) => {
+	const task = gulp.task(FIREBASE_DELETE_FIRESTORE_TASK);
+	if (FIREBASE_DEV_PROJECT == FIREBASE_PROD_PROJECT) {
+		const response = await prompts({
+			type:'confirm',
+			name: 'value',
+			initial: false,
+			message: 'You don\'t have a dev configuration. Do you really want to delete all prod data?',
+		});
+	
+		if(!response.value) {
+			process.exit(1);
+		}
+	}
+	task(cb);
 });
 
 //Will be set by GCLOUD_USE_PROD and GCLOUD_USE_DEV_TASK to ensure they
@@ -318,7 +336,7 @@ gulp.task('reset-dev',
 	gulp.series(
 		GCLOUD_ENSURE_DEV_TASK,
 		FIREBASE_ENSURE_DEV_TASK,
-		FIREBASE_DELETE_FIRESTORE_TASK,
+		FIREBASE_DELETE_FIRESTORE_IF_SAFE_TASK,
 		GCLOUD_RESTORE_TASK,
 	)
 );

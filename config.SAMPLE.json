@@ -1,20 +1,10 @@
 {
 	"firebase": {
-		"dev": {
-			"apiKey": "APIKEYHERE",
-			"authDomain": "PROJECT_ID.firebaseapp.com",
-			"databaseURL": "https://PROJECT_ID.firebaseio.com",
-			"projectId": "PROJECT_ID",
-			"storageBucket": "PROJECT_ID.appspot.com",
-			"messagingSenderId": "NUMBER"
-		},
-		"prod": {
-			"apiKey": "APIKEYHERE",
-			"authDomain": "PROJECT_ID.firebaseapp.com",
-			"databaseURL": "https://PROJECT_ID.firebaseio.com",
-			"projectId": "PROJECT_ID",
-			"storageBucket": "PROJECT_ID.appspot.com",
-			"messagingSenderId": "NUMBER"
-		}
+		"apiKey": "APIKEYHERE",
+		"authDomain": "PROJECT_ID.firebaseapp.com",
+		"databaseURL": "https://PROJECT_ID.firebaseio.com",
+		"projectId": "PROJECT_ID",
+		"storageBucket": "PROJECT_ID.appspot.com",
+		"messagingSenderId": "NUMBER"
 	}
 }

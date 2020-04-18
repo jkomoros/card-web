@@ -41,7 +41,10 @@ Run `npm run start` to run the server.
 
 The firebase key is where you put the firebase config.
 
-There should be two sub-keys: firebase.dev and firebase.prod
+If you only have a prod configuration, you can just put the config right here.
+
+If you have a prod and dev sub configuration, then you can have two sub keys,
+firebase.dev and firebase.prod, each of which have their own config.
 
 ### firebase.dev
 
