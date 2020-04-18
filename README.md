@@ -20,7 +20,7 @@ Run `cp config.SAMPLE.json config.SECRET.json`
 
 Go to https://console.firebase.google.com. Create a new project. On the project overview, where it says "Get started by adding Firebase to your app", tap the web icon.  Give it a nickname. Tap set up. In the code snippet that appears, copy the JSON blob that is assigned to the `firebaseConfig` variable.
 
-Paste that JSON blob in your `config.SECRET.json` file, where the sample "firebase" value is. You might have to change the formatting to make it valid JSON.
+Paste that JSON blob in your `config.SECRET.json` file, where the sample "firebase" value is. You might have to change the formatting to make it valid JSON. (You can read more about all of the valid settings for this in the Config file keys section later in this README).
 
 Run `gulp inject-config`. This copies the config you just set into various static files in the project.
 
@@ -46,26 +46,17 @@ Load https://localhost:8081/maintenance again in your browser. You should see a 
 
 Once it completes, tab the 'About' tab. You're now set up, and can start editing the starter cards that were added in each section!
 
-### Config
+### First deploy
 
-config.SECRET.json is where most of the configuration for your webapp. There's a
-sample one at config.SAMPLE.json. Copy it over:
+Up until now, the web app was only visible on your local computer.
 
-`cp config.SAMPLE.json config.SECRET.json`
+To deploy to production, run `gulp release`. 
 
-That file shouldl never be committed. The `.gitignore` file will help prevent
-you from accidentally committing it.
-
-That config file has to be injected and copied to lots of static files. To do
-that, run:
-
-`gulp inject-config`
-
-That will create a number of files throughout the repo (all excluded from commits via `.gitignore`) for the proper functioning of the webapp. **Re-run gulp inject-config every time you change that config file**
-
-See the section entitled **Config file keys** for more on the different keys and how they're interpreted.
+After the full deploy is done, the webapp will be visible to anyone at https://your-project-id.web.app/ !
 
 ## Config file keys
+
+**Re-run `gulp inject-config` every time you change the config file!**
 
 ### firebase
 
