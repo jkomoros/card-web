@@ -98,8 +98,28 @@ Required if you want to backup or restore a backup
 
 A boolean. If true, `gulp release` will tag releases. Should only be set to true if you have repo edit privileges to the repo you cloned from.
 
-## Deploying
-`gulp release`
+## Extra Credit
+
+This section describes things that you don't have to do, but are a good idea
+
+### Backups
+
+It's a good idea to back up your database often so if something goes wrong, you can roll back to a recent known good state.
+
+The first thing to do is create a cloud storage bucket to save the backups. (This next section is a walk through of the instructions at https://firebase.google.com/docs/firestore/manage-data/export-import)
+
+Go to https://console.cloud.google.com . Verify the project for your firebase project is showing. Open the navigation menu and go to Billing. Then Link a billing account.
+
+Now in the navigation menu, select Cloud Storage. Click Create Bucket and create a bucket with default settings. Remember the name of the bucket you created.
+
+In your `config.SECRET.json`, add `"backup_bucket_name" : "BUCKET_NAME_HERE"`.
+
+Ensure you have the `gcloud` command line app installed: https://cloud.google.com/sdk/install
+
+Run `gulp backup` to run a backup.
+
+Once this is all set up, every time you run `gulp release` it will automatically save a backup.
+
 
 ## Backing up
 
