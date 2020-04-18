@@ -47,7 +47,7 @@ class TagChip  extends LitElement {
 	_handleMouseMove(e) {
 		if (!this._previewCard) return;
 		e.stopPropagation();
-		//compendium-app will catch the card-hovered event no matter where it was
+		//cards-web-app will catch the card-hovered event no matter where it was
 		//thrown from
 		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: this._previewCard, x: e.clientX, y: e.clientY}}));
 	}

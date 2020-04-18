@@ -113,7 +113,7 @@ class CardLink extends connect(store)(LitElement) {
 
 	_handleMouseMove(e) {
 		e.stopPropagation();
-		//compendium-app will catch the card-hovered event no matter where it was
+		//cards-web-app will catch the card-hovered event no matter where it was
 		//thrown from
 		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: this.card, x: e.clientX, y: e.clientY}}));
 	}

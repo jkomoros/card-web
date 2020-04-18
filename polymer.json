@@ -1,6 +1,6 @@
 {
   "entrypoint": "index.html",
-  "shell": "src/components/compendium-app.js",
+  "shell": "src/components/cards-web-app.js",
   "sources": [
     "images/**/*",
     "fonts/**/*"

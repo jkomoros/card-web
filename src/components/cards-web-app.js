@@ -35,7 +35,7 @@ import {
 	selectActiveCard
 } from '../selectors.js';
 
-class CompendiumApp extends connect(store)(LitElement) {
+class CardsWebApp extends connect(store)(LitElement) {
 	render() {
 		// Anything that's related to rendering should be done in here.
 		return html`
@@ -138,4 +138,4 @@ class CompendiumApp extends connect(store)(LitElement) {
 	}
 }
 
-window.customElements.define('compendium-app', CompendiumApp);
+window.customElements.define('cards-web-app', CardsWebApp);
