@@ -312,6 +312,13 @@ gulp.task(POLYMER_BUILD_OPTIONALLY, async (cb) => {
 	task(cb);
 });
 
+gulp.task('set-up-deploy',
+	gulp.series(
+		FIREBASE_ENSURE_PROD_TASK,
+		makeExecutor('firebase deploy --only firestore')
+	)
+);
+
 gulp.task('dev-deploy',
 	gulp.series(
 		REGENERATE_FILES_FROM_CONFIG_TASK,

@@ -8,6 +8,44 @@ to the production instance hard-coded. If you have any interest in standing up a
 
 ## Getting set up
 
+### First Run
+
+Download this repository and cd into it.
+
+Run `npm install` to install all of the dependencies.
+
+Run `npm install -g firebase-tools`
+
+Run `cp config.SAMPLE.json config.SECRET.json`
+
+Go to https://console.firebase.google.com. Create a new project. On the project overview, where it says "Get started by adding Firebase to your app", tap the web icon.  Give it a nickname. Tap set up. In the code snippet that appears, copy the JSON blob that is assigned to the `firebaseConfig` variable.
+
+Paste that JSON blob in your `config.SECRET.json` file, where the sample "firebase" value is. You might have to change the formatting to make it valid JSON.
+
+Run `gulp inject-config`. This copies the config you just set into various static files in the project.
+
+Go back to the Firebase console. Go to the project overview for your app. Tap the Database item in the navigation to the right. Tap 'Create Database'. Choose Production Mode. Tap next. Pick the location (the default is fine for US). Tap Done.
+
+In the navigation to the right, go to Authentication. Tap 'Set up sign-in method'. Next to the Google row, tap the edit icon. **Toggle the Enable toggle**. Give the project a descriptive name and pick an email. (You can change these both later). Hit Save.
+
+Run `gulp set-up-deploy`
+
+Run `npm run start` to run the server.
+
+Visit https://localhost:8081/maintenance in your browser.
+
+On the page that loads, tap the button that says "Sign in with your Google account". **Sign in with the account you want to be the super-user admin for the web app**.
+
+You now must configure the app so that that user is an admin.
+
+Go to https://console.firebase.google.com. Go to the Authentication tab. You should see a single row with your username. Copy the User UID (the copy button next to it will copy it for you without whitespace).
+
+Now go to the database tab. Tap 'Start Collection'. Name it `permissions` and hit next. Into the Document ID field, paste your uid you copied in the last step. Add a field called `admin`, set it to Boolean, and leave the value as true.
+
+Load https://localhost:8081/maintenance again in your browser. You should see a number of buttons. Tap **Initial SetUp**.
+
+Once it completes, tab the 'About' tab. You're now set up!
+
 ### Config
 
 config.SECRET.json is where most of the configuration for your webapp. There's a
@@ -26,14 +64,6 @@ that, run:
 That will create a number of files throughout the repo (all excluded from commits via `.gitignore`) for the proper functioning of the webapp. **Re-run gulp inject-config every time you change that config file**
 
 See the section entitled **Config file keys** for more on the different keys and how they're interpreted.
-
-### First Run
-
-Run `npm install` to install all of the dependencies
-
-Configure the default config as described in **Config** section, above.
-
-Run `npm run start` to run the server.
 
 ## Config file keys
 
