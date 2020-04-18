@@ -131,6 +131,17 @@ Do that with `gulp reset-dev`.
 
 If you don't have a dev/prod account, just a prod one, it will ask for confirmation before resetting the database.
 
+### Dev and Prod
+
+By default, your `config.SECRET.json` will only configure a single firebase project. But if you're going to be doing serious work in your instance, or especially if you'll be hacking on the web app code, it's a good idea to have seperate dev and prod instances.
+
+To do that, create a separate firebase project in firebase and then modify your `config.SECRET.json` so that instead of the "firebase" key having the one project's config, it instead has two keys: "dev" and "prod", each with their corresponding keys.
+
+When you do this, you'll want to do *most* of the set-up steps described for a
+new project, but not run the set-up maintence task.
+
+When you do this, you can run `gulp reset-dev` to copy over the last backup from prod into dev.
+
 
 ## Favicons
 
