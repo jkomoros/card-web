@@ -41,6 +41,8 @@ const BACKUP_BUCKET_NAME = projectConfig.backup_bucket_name && projectConfig.bac
 
 const APP_TITLE = projectConfig.app_title ? projectConfig.app_title : 'Cards Web';
 
+const TWITTER_HANDLE = projectConfig.twitter_handle && projectConfig.twitter_handle != CHANGE_ME_SENTINEL ? projectConfig.twitter_handle : '';
+
 const makeExecExecutor = cmd => {
 	return function (cb) {
 		console.log('Running ' + cmd);
@@ -97,6 +99,9 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 
 	let META_STRING = '\n    <meta name="application-name" content="' + APP_TITLE + '">\n';
 	META_STRING += '    <meta property="og:site_name" content="' + APP_TITLE + '">\n';
+	if (TWITTER_HANDLE) {
+		META_STRING += '    <meta name="twitter:site" content="@' + TWITTER_HANDLE + '">\n';
+	}
 
 	gulp.src('./index.TEMPLATE.html')
 		.pipe(inject.after('<!-- INJECT-META-HERE -->', META_STRING))

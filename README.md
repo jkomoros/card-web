@@ -58,12 +58,18 @@ This is where your firebase project config should go for the prod version of the
 
 The name of your app, to show up in the titlebar of the web page, and in the manifest.
 
-### backup_bucket_name
+### twitter_handle (optional)
+
+If you have a twitter bot configured, the handle of the bot (not including @). Only used to emit metadata in index.html.
+
+### backup_bucket_name (optional)
 
 The name of the bucket within google cloud storage to store and retrieve buckets from.
 
 You need to create this bucket within your project. (If you have both dev and
 prod projects it should be within the prod project).
+
+Required if you want to backup or restore a backup
 
 ## New webapp
 

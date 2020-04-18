@@ -8,5 +8,6 @@
 		"storageBucket": "PROJECT_ID.appspot.com",
 		"messagingSenderId": "NUMBER"
 	},
+	"twitter_handle": "CHANGE-ME",
 	"backup_bucket_name": "CHANGE-ME"
 }
