@@ -25,6 +25,9 @@ const projectConfig = require('./config.SECRET.json');
 const CONFIG_FIREBASE_PROD = projectConfig.firebase.prod;
 const CONFIG_FIREBASE_DEV = projectConfig.firebase.dev;
 
+const FIREBASE_PROD_PROJECT = CONFIG_FIREBASE_PROD.projectId;
+const FIREBASE_DEV_PROJECT = CONFIG_FIREBASE_DEV.projectId;
+
 const makeExecExecutor = cmd => {
 	return function (cb) {
 		console.log('Running ' + cmd);
@@ -47,9 +50,6 @@ const makeExecutor = cmdAndArgs => {
 		cb(result.error);
 	};
 };
-
-const FIREBASE_PROD_PROJECT = 'complexity-compendium';
-const FIREBASE_DEV_PROJECT = 'dev-complexity-compendium';
 
 const POLYMER_BUILD_TASK = 'polymer-build';
 const POLYMER_BUILD_OPTIONALLY = 'polymer-build-optionally';
