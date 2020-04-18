@@ -19,9 +19,15 @@ const spawnSync = require('child_process').spawnSync;
 const exec = require('child_process').exec;
 const prompts = require('prompts');
 const fs = require('fs');
+const process = require('process');
 
-const projectConfig = require('./config.SECRET.json');
-
+let projectConfig;
+try {
+	projectConfig = require('./config.SECRET.json');
+} catch {
+	console.log('config.SECRET.json didn\'t exist. Check README.md on how to create one');
+	process.exit(1);
+}
 const CONFIG_FIREBASE_PROD = projectConfig.firebase.prod;
 const CONFIG_FIREBASE_DEV = projectConfig.firebase.dev;
 
