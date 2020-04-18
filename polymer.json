@@ -1,6 +1,6 @@
 {
   "entrypoint": "index.html",
-  "shell": "src/components/cards-web-app.js",
+  "shell": "src/components/card-web-app.js",
   "sources": [
     "images/**/*",
     "fonts/**/*"

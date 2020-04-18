@@ -37,7 +37,7 @@ import {
 	selectActiveCard
 } from '../selectors.js';
 
-class CardsWebApp extends connect(store)(LitElement) {
+class CardWebApp extends connect(store)(LitElement) {
 	render() {
 		// Anything that's related to rendering should be done in here.
 		return html`
@@ -140,4 +140,4 @@ class CardsWebApp extends connect(store)(LitElement) {
 	}
 }
 
-window.customElements.define('cards-web-app', CardsWebApp);
+window.customElements.define('card-web-app', CardWebApp);
