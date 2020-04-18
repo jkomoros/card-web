@@ -144,6 +144,22 @@ Note that the uid's for users will be different for the same Google accounts in 
 
 When you do this, you can run `gulp reset-dev` to copy over the last backup from prod into dev.
 
+### Emailing on messages or stars
+
+You can set up your instance so you get an email when someone stars a card or comments on it.
+
+To do that, go to Postmark and get it set up, which takes awhile and lots of
+confirmation emails.  Part of the set up is configuring the email that the
+emails will appear to come from.
+
+Then run the following:
+
+```
+gulp firebase-ensure-prod
+firebase functions:config:set postmark.key="YOUR-SECRET-KEY-HERE"
+firebase functions:config:set email.to="emailaccountyouwantalertssentto@gmail.com"
+firebase functions:config:set email.from="emailaccountitshouldcomefrom@gmail.com"
+```
 
 ## Favicons
 
