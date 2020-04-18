@@ -6,5 +6,6 @@
 		"projectId": "PROJECT_ID",
 		"storageBucket": "PROJECT_ID.appspot.com",
 		"messagingSenderId": "NUMBER"
-	}
+	},
+	"backup_bucket_name": "CHANGE-ME"
 }

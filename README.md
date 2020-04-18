@@ -54,6 +54,13 @@ This is where your firebase project config should go for the dev version of the 
 
 This is where your firebase project config should go for the prod version of the project, with real data and visible to the world.
 
+### backup_bucket_name
+
+The name of the bucket within google cloud storage to store and retrieve buckets from.
+
+You need to create this bucket within your project. (If you have both dev and
+prod projects it should be within the prod project).
+
 ## New webapp
 
 ### Developing

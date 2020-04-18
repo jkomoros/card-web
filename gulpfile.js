@@ -31,8 +31,12 @@ try {
 const CONFIG_FIREBASE_PROD = projectConfig.firebase.prod ? projectConfig.firebase.prod : projectConfig.firebase;
 const CONFIG_FIREBASE_DEV = projectConfig.firebase.dev ? projectConfig.firebase.dev : CONFIG_FIREBASE_PROD;
 
+const CHANGE_ME_SENTINEL = 'CHANGE-ME';
+
 const FIREBASE_PROD_PROJECT = CONFIG_FIREBASE_PROD.projectId;
 const FIREBASE_DEV_PROJECT = CONFIG_FIREBASE_DEV.projectId;
+
+const BACKUP_BUCKET_NAME = projectConfig.backup_bucket_name && projectConfig.backup_bucket_name != CHANGE_ME_SENTINEL ? projectConfig.BACKUP_BUCKET_NAME : ''; 
 
 const makeExecExecutor = cmd => {
 	return function (cb) {
@@ -183,8 +187,12 @@ gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor('firebase deploy'));
 gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, makeExecutor('firebase functions:config:set site.last_deploy_affecting_rendering=' + RELEASE_TAG));
 
 gulp.task(GCLOUD_BACKUP_TASK, cb => {
+	if (!BACKUP_BUCKET_NAME) {
+		cb(new Error('Cannot backup, no config.backup_bucket_name set'));
+		return;
+	}
 	//BACKUP_MESSAGE won't be known until later
-	const task = makeExecutor('gcloud beta firestore export gs://complexity-compendium-backup/' + RELEASE_TAG + (BACKUP_MESSAGE ? '-' + BACKUP_MESSAGE : ''));
+	const task = makeExecutor('gcloud beta firestore export gs://' + BACKUP_BUCKET_NAME + '/' + RELEASE_TAG + (BACKUP_MESSAGE ? '-' + BACKUP_MESSAGE : ''));
 	task(cb);
 });
 
@@ -195,7 +203,14 @@ gulp.task(PUSH_TAG_TASK, makeExecutor('git push origin ' + RELEASE_TAG));
 gulp.task(FIREBASE_DELETE_FIRESTORE_TASK, makeExecutor('firebase firestore:delete --all-collections --yes'));
 
 //run doesn't support sub-commands embedded in the command, so use exec.
-gulp.task(GCLOUD_RESTORE_TASK, makeExecExecutor('gcloud beta firestore import $(gsutil ls gs://complexity-compendium-backup | tail -n 1)'));
+gulp.task(GCLOUD_RESTORE_TASK, cb => {
+	if (!BACKUP_BUCKET_NAME) {
+		cb(new Error('Cannot restore backup, no config.backup_bucket_name set'));
+		return;
+	}
+	const task = makeExecExecutor('gcloud beta firestore import $(gsutil ls gs://' + BACKUP_BUCKET_NAME + ' | tail -n 1)');
+	task(cb);
+});
 
 let BACKUP_MESSAGE = '';
 
