@@ -92,7 +92,7 @@ be rendered a lighter color in the header.
 
 ### twitter_handle (optional)
 
-If you have a twitter bot configured, the handle of the bot (not including @). Only used to emit metadata in index.html.
+If you have a twitter bot configured, the handle of the bot (not including @). Emits metadata in index.html, but also used as a signal for whether the cloud functions related to twitter bots need to be deployed (they require billing to be enabled).
 
 ### backup_bucket_name (optional)
 
