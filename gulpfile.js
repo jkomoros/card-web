@@ -20,6 +20,7 @@ const exec = require('child_process').exec;
 const prompts = require('prompts');
 const fs = require('fs');
 const process = require('process');
+const inject = require('gulp-inject-string');
 
 let projectConfig;
 try {
@@ -92,8 +93,15 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	CONFIG_JS_CONTENT += 'export const FIREBASE_DEV_CONFIG=' + JSON.stringify(CONFIG_FIREBASE_DEV) + ';\n';
 	CONFIG_JS_CONTENT += 'export const FIREBASE_PROD_CONFIG=' + JSON.stringify(CONFIG_FIREBASE_PROD) + ';\n';
 	CONFIG_JS_CONTENT += 'export const APP_TITLE="' + APP_TITLE + '";';
-
 	fs.writeFileSync('config.GENERATED.SECRET.js', CONFIG_JS_CONTENT);
+
+	let META_STRING = '\n    <meta name="application-name" content="' + APP_TITLE + '">\n';
+	META_STRING += '    <meta property="og:site_name" content="' + APP_TITLE + '">\n';
+
+	gulp.src('./index.TEMPLATE.html')
+		.pipe(inject.after('<!-- INJECT-META-HERE -->', META_STRING))
+		.pipe(rename('index.html'))
+		.pipe(gulp.dest('./'));
 
 	done();
 });

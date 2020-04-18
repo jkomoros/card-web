@@ -6,3 +6,4 @@ _site/
 
 #Ensure that no one checks in the secret config
 *.SECRET.*
+index.html
