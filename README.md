@@ -52,7 +52,7 @@ Up until now, the web app was only visible on your local computer.
 
 To deploy to production, run `gulp release`. 
 
-After the full deploy is done, the webapp will be visible to anyone at https://your-project-id.web.app/ !
+After the full deploy is done, the webapp will be visible to anyone at https://your-project-id.web.app/ ! The only people who will be able to edit cards, tags, and sections will be you (or anyone else you listed as an admin in the console).
 
 ## Config file keys
 
