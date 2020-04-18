@@ -43,6 +43,8 @@ const APP_TITLE = projectConfig.app_title ? projectConfig.app_title : 'Cards Web
 
 const TWITTER_HANDLE = projectConfig.twitter_handle && projectConfig.twitter_handle != CHANGE_ME_SENTINEL ? projectConfig.twitter_handle : '';
 
+const DO_TAG_RELEASES = projectConfig.tag_releases || false;
+
 const makeExecExecutor = cmd => {
 	return function (cb) {
 		console.log('Running ' + cmd);
@@ -364,6 +366,15 @@ gulp.task('tag-release',
 	)
 );
 
+gulp.task('maybe-tag-release', (cb) => {
+	const task = gulp.task('tag-release');
+	if (!DO_TAG_RELEASES) {
+		cb();
+		return;
+	}
+	task(cb);
+});
+
 gulp.task('release', 
 	gulp.series(
 		//Ask at the beginning so the user can walk away after running
@@ -372,7 +383,7 @@ gulp.task('release',
 		ASK_IF_WANT_POLYMER_BUILD,
 		'backup',
 		'deploy',
-		'tag-release'
+		'maybe-tag-release'
 	)
 );
 

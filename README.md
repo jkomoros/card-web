@@ -103,6 +103,10 @@ prod projects it should be within the prod project).
 
 Required if you want to backup or restore a backup
 
+### tag_releases
+
+A boolean. If true, `gulp release` will tag releases. Should only be set to true if you have repo edit privileges to the repo you cloned from.
+
 ## Deploying
 `gulp release`
 
