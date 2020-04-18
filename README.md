@@ -1,4 +1,4 @@
-# complexity-compendium
+# Card Web
 This project is the webapp that powers https://thecompendium.cards
 
 The project is messy, with lots of intricate details and designs captured as a messy collection of issues. This is to [minimize my activation energy](https://thecompendium.cards/c/incremental-work-minimizes-activation-cost) for this hobby project, but it might be overwhelming for others. Nevertheless, please feel free to comment and participate!
