@@ -15,6 +15,8 @@ import { repeat } from 'lit-html/directives/repeat';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
+import { APP_TITLE } from '../../config.GENERATED.SECRET.js';
+
 // We are lazy loading its reducer.
 import editor from '../reducers/editor.js';
 import collection from '../reducers/collection.js';
@@ -231,7 +233,7 @@ class MainView extends connect(store)(LitElement) {
 			<!-- Header -->
 			<div class='header' ?hidden=${!this._headerPanelOpen}>
 				<div class='inner'>
-					<div main-title>The <span>Compendium</span></div>
+					<div main-title>${this._appTitleFirstPart}<span>${this._appTitleSecondPart}</span></div>
 					<div class='spacer'></div>
 					<nav class="toolbar-list">
 						${this._sections && Object.keys(this._sections).length > 0 ? 
@@ -286,6 +288,18 @@ class MainView extends connect(store)(LitElement) {
 			_previewCardY : { type:Number },
 			_mayViewUnpublished : { type:Boolean },
 		};
+	}
+
+	get appTitle() {
+		return APP_TITLE;
+	}
+
+	get _appTitleFirstPart() {
+		return this.appTitle.startsWith('The ') ? 'The ' : '';
+	}
+
+	get _appTitleSecondPart() {
+		return this.appTitle.substring(this._appTitleFirstPart.length);
 	}
 
 	firstUpdated() {

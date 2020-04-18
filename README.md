@@ -56,7 +56,9 @@ This is where your firebase project config should go for the prod version of the
 
 ### app_title
 
-The name of your app, to show up in the titlebar of the web page, and in the manifest.
+The name of your app, to show up in the titlebar of the web page, the web app
+header, and in the manifest. If the string starts with 'The ' then the The will
+be rendered a lighter color in the header.
 
 ### twitter_handle (optional)
 
