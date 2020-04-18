@@ -6,7 +6,7 @@ import '@firebase/firestore';
 import {
 	FIREBASE_DEV_CONFIG,
 	FIREBASE_PROD_CONFIG
-} from '../../config/config.SECRET.js';
+} from '../../config.GENERATED.SECRET.js';
 
 export const firebase = firebaseImpl;
 

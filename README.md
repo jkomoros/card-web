@@ -6,6 +6,51 @@ The project is messy, with lots of intricate details and designs captured as a m
 The app currently has a number of constants and configuration that are spedcific
 to the production instance hard-coded. If you have any interest in standing up an instance on your own, issue #164 tracks the work to make it fully general. Please chime in there and I'll prioritize that work!
 
+## Getting set up
+
+### Config
+
+config.SECRET.json is where most of the configuration for your webapp. There's a
+sample one at config.SAMPLE.json. Copy it over:
+
+`cp config.SAMPLE.json config.SECRET.json`
+
+That file shouldl never be committed. The `.gitignore` file will help prevent
+you from accidentally committing it.
+
+That config file has to be injected and copied to lots of static files. To do
+that, run:
+
+`gulp inject-config`
+
+That will create a number of files throughout the repo (all excluded from commits via `.gitignore`) for the proper functioning of the webapp. **Re-run gulp inject-config every time you change that config file**
+
+See the section entitled **Config file keys** for more on the different keys and how they're interpreted.
+
+### First Run
+
+Run `npm install` to install all of the dependencies
+
+Configure the default config as described in **Config** section, above.
+
+Run `npm run start` to run the server.
+
+## Config file keys
+
+### firebase
+
+The firebase key is where you put the firebase config.
+
+There should be two sub-keys: firebase.dev and firebase.prod
+
+### firebase.dev
+
+This is where your firebase project config should go for the dev version of the project. This is the 'staging' server with throw-away data.
+
+### firebase.prod
+
+This is where your firebase project config should go for the prod version of the project, with real data and visible to the world.
+
 ## New webapp
 
 ### Developing
