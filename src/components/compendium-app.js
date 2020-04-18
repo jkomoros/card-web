@@ -31,6 +31,10 @@ import {
 import './snack-bar.js';
 import { pageRequiresMainView } from '../util.js';
 
+import {
+	selectActiveCard
+} from '../selectors.js';
+
 class CompendiumApp extends connect(store)(LitElement) {
 	render() {
 		// Anything that's related to rendering should be done in here.
@@ -89,6 +93,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 
 	static get properties() {
 		return {
+			_card: { type: Object },
 			_page: { type: String },
 			_snackbarOpened: { type: Boolean },
 			_offline: { type: Boolean },
@@ -115,8 +120,8 @@ class CompendiumApp extends connect(store)(LitElement) {
 	}
 
 	updated(changedProps) {
-		if (changedProps.has('_card')) {
-			const pageTitle = this.appTitle + (this._card.title ? ' - ' + this._card.title : '');
+		if (changedProps.has('_card') && this._card) {
+			const pageTitle = (this._card.title ? this._card.title + ' - ' : '') + this.appTitle ;
 			updateMetadata({
 				title: pageTitle,
 				description: pageTitle
@@ -126,6 +131,7 @@ class CompendiumApp extends connect(store)(LitElement) {
 	}
 
 	stateChanged(state) {
+		this._card = selectActiveCard(state);
 		this._page = state.app.page;
 		this._offline = state.app.offline;
 		this._snackbarOpened = state.app.snackbarOpened;
