@@ -103,20 +103,10 @@ prod projects it should be within the prod project).
 
 Required if you want to backup or restore a backup
 
-## New webapp
-
-### Developing
-
-`polymer serve`
-
-### Deploying
-`gulp deploy`
-
-If you want to also tag release and backup (recommended), run:
-
+## Deploying
 `gulp release`
 
-### Backing up
+## Backing up
 
 Instructions are here: https://firebase.google.com/docs/firestore/manage-data/export-import (see that for initial set up)
 
@@ -138,13 +128,7 @@ Run `gcloud config set project dev-complexity-compendium` (if running in devmode
 
 Run `gcloud beta firestore import gs://complexity-compendium-backup/[EXPORT_PREFIX]/` where EXPORT-PREFIX is the name of the folder you want to import.
 
-### Setting up a new computer
-
-`npm install -g firebase-tools`
-
-`npm install`
-
-### Favicons
+## Favicons
 
 When logo.svg has changed, run `gulp generate-favicon`. Then merge the values in images/site.webmanifest into /manifest.json
 
@@ -154,13 +138,8 @@ When index.html has changed, run `gulp inject-favicon-markups`, then manually ch
 
 TODO: make the favicon injection be part of the build flow
 
-### Setting up a new deployment
+## Setting up a new deployment
 Currently a number of things are hard-coded (see #164 for more).
-
-Cd to the `config` folder. Copy `config.SAMPLE.js` to `config.SECRET.js` and
-replace the values in the dev and prod areas with values for your configured
-projects. **Do not commit config.SECRET.json** to version control (the default
-`.gitignore` will disallow adding it).
 
 The function that sends e-mails to admins requires set-up.
 
@@ -191,7 +170,7 @@ Note that you'll have to do this both the dev and prod servers, by using the dif
 
 To send a tweet outside of the normal schedule, load up the Firebase functions console, tap the three dots next to the autoTweet function, choose View in Cloud Scheduler, and hit 'Run Now'.
 
-### Design
+## Design
 
 The card-web-app reads from the URL and then calls navigate() based on it. Navigate figures out which view needs to be ensured it is loaded, and then sets state.app.page to that viewer, state.app.location to the entire location, and state.app.pageExtra to the stuff after the first part of page, so e.g. '/c/this-stuff-is/included-in-page-extra'.
 
