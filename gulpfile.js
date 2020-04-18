@@ -38,6 +38,8 @@ const FIREBASE_DEV_PROJECT = CONFIG_FIREBASE_DEV.projectId;
 
 const BACKUP_BUCKET_NAME = projectConfig.backup_bucket_name && projectConfig.backup_bucket_name != CHANGE_ME_SENTINEL ? projectConfig.BACKUP_BUCKET_NAME : ''; 
 
+const APP_TITLE = projectConfig.app_title ? projectConfig.app_title : 'Cards Web';
+
 const makeExecExecutor = cmd => {
 	return function (cb) {
 		console.log('Running ' + cmd);
@@ -89,6 +91,7 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	CONFIG_JS_CONTENT += '/* eslint quotes:["error", "double"] */\n';
 	CONFIG_JS_CONTENT += 'export const FIREBASE_DEV_CONFIG=' + JSON.stringify(CONFIG_FIREBASE_DEV) + ';\n';
 	CONFIG_JS_CONTENT += 'export const FIREBASE_PROD_CONFIG=' + JSON.stringify(CONFIG_FIREBASE_PROD) + ';\n';
+	CONFIG_JS_CONTENT += 'export const APP_TITLE="' + APP_TITLE + '";';
 
 	fs.writeFileSync('config.GENERATED.SECRET.js', CONFIG_JS_CONTENT);
 
@@ -432,7 +435,7 @@ gulp.task('generate-favicon', function(done) {
 				pictureAspect: 'shadow',
 				themeColor: '#ffffff',
 				manifest: {
-					name: 'The Compendium',
+					name: APP_TITLE,
 					display: 'standalone',
 					orientation: 'notSet',
 					onConflict: 'override',

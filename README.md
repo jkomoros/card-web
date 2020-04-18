@@ -54,6 +54,10 @@ This is where your firebase project config should go for the dev version of the 
 
 This is where your firebase project config should go for the prod version of the project, with real data and visible to the world.
 
+### app_title
+
+The name of your app, to show up in the titlebar of the web page, and in the manifest.
+
 ### backup_bucket_name
 
 The name of the bucket within google cloud storage to store and retrieve buckets from.

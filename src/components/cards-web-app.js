@@ -16,6 +16,8 @@ import { installMediaQueryWatcher } from 'pwa-helpers/media-query.js';
 import { installRouter } from 'pwa-helpers/router.js';
 import { updateMetadata } from 'pwa-helpers/metadata.js';
 
+import { APP_TITLE } from '../../config.GENERATED.SECRET.js';
+
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
@@ -101,7 +103,7 @@ class CardsWebApp extends connect(store)(LitElement) {
 	}
 
 	get appTitle() {
-		return 'The Compendium';
+		return APP_TITLE;
 	}
 
 	constructor() {
