@@ -37,7 +37,7 @@ const CHANGE_ME_SENTINEL = 'CHANGE-ME';
 const FIREBASE_PROD_PROJECT = CONFIG_FIREBASE_PROD.projectId;
 const FIREBASE_DEV_PROJECT = CONFIG_FIREBASE_DEV.projectId;
 
-const BACKUP_BUCKET_NAME = projectConfig.backup_bucket_name && projectConfig.backup_bucket_name != CHANGE_ME_SENTINEL ? projectConfig.BACKUP_BUCKET_NAME : ''; 
+const BACKUP_BUCKET_NAME = projectConfig.backup_bucket_name && projectConfig.backup_bucket_name != CHANGE_ME_SENTINEL ? projectConfig.backup_bucket_name : ''; 
 
 const APP_TITLE = projectConfig.app_title ? projectConfig.app_title : 'Cards Web';
 
