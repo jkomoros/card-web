@@ -140,6 +140,8 @@ To do that, create a separate firebase project in firebase and then modify your 
 When you do this, you'll want to do *most* of the set-up steps described for a
 new project, but not run the set-up maintence task.
 
+Note that the uid's for users will be different for the same Google accounts in dev and prod. The best pattern is to add an additional `{admin:true}` in the prod `permissions` table for the primary account's uid in the dev project, too. That way when you restore a backup from prod, you have admin rights configured for both parties.
+
 When you do this, you can run `gulp reset-dev` to copy over the last backup from prod into dev.
 
 
