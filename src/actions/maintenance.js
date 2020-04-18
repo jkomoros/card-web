@@ -25,7 +25,20 @@ import {
 import { 
 	arrayDiff,
 	MultiBatch,
+	newID,
 } from '../util.js';
+
+import {
+	selectUser
+} from '../selectors.js';
+
+import {
+	defaultCardObject
+} from './data.js';
+
+import {
+	ensureAuthor,
+} from './comments.js';
 
 const checkMaintenanceTaskHasBeenRun = async (taskName) => {
 	let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
@@ -709,6 +722,72 @@ const transformImportCard = (legacyCard) => {
 		section: transformImportSectionName(legacyCard.sectionname),
 		name: legacyCard.name || ''
 	};
+};
+
+const INITIAL_SET_UP = 'INITIAL_SET_UP';
+
+export const doInitialSetUp = () => async (_, getState) => {
+
+	const user = selectUser(getState());
+
+	await checkMaintenanceTaskHasBeenRun(INITIAL_SET_UP);
+
+	const starterSections = {
+		about: {
+			title: 'About',
+			subtitle: 'About this card web',
+		},
+		'half-baked': {
+			title: 'Half Baked',
+			subtitle: 'Ideas that are probably as baked as they’re going to get in this collection',
+		},
+		'barely-edible': {
+			title: 'Barely Edible',
+			subtitle: 'Ideas that have some detail roughed in, but not organized for clarity yet',
+		},
+		'stubs': {
+			title: 'Stubs',
+			subtitle: 'Points that I plan to develop more, but haven’t yet',
+		},
+		'random-thoughts': {
+			title: 'Random Thoughts',
+			subtitle: 'A parking lot for early stage thoughts that might be dupes or not worth developing',
+		}
+	};
+
+	let batch = new MultiBatch(db);
+
+	const sectionsCollection = db.collection(SECTIONS_COLLECTION);
+	const cardsCollection = db.collection(CARDS_COLLECTION);
+
+	let count = 0;
+	for (let [key, val] of Object.entries(starterSections)) {
+		const update = {...val};
+		const startCardId = 'section-' + key;
+		const contentCardId = newID();
+		update.updated = firebase.firestore.FieldValue.serverTimestamp();
+		update.cards = [contentCardId];
+		update.order = count;
+		update.start_cards = [startCardId];
+		batch.set(sectionsCollection.doc(key), update);
+
+		let sectionHeadCard = defaultCardObject(startCardId,user,key,'section-head');
+		sectionHeadCard.title = update.title;
+		sectionHeadCard.subtitle = update.subtitle;
+		batch.set(cardsCollection.doc(startCardId), sectionHeadCard);
+
+		const contentCard = defaultCardObject(contentCardId, user, key, 'content');
+		batch.set(cardsCollection.doc(contentCardId), contentCard);
+
+		count++;
+	}
+
+	ensureAuthor(batch, user);
+
+	await batch.commit();
+
+	await maintenanceTaskRun(INITIAL_SET_UP);
+	alert('Set up done!');
 };
 
 export const tasks = {

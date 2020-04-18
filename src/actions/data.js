@@ -527,7 +527,8 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 
 };
 
-const defaultCardObject = (id, user, section, cardType) => {
+//exported entireoly for initialSetUp in maintence.js
+export const defaultCardObject = (id, user, section, cardType) => {
 	return {
 		created: firebase.firestore.FieldValue.serverTimestamp(),
 		updated: firebase.firestore.FieldValue.serverTimestamp(),

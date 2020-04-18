@@ -12,6 +12,7 @@ import {
 
 import {
 	doImport,
+	doInitialSetUp,
 	tasks
 } from '../actions/maintenance.js';
 
@@ -30,6 +31,10 @@ class MaintenanceView extends connect(store)(PageViewElement) {
         </section>
         <section ?hidden=${!this._isAdmin}>
           <p>You're an admin!</p>
+		  <button @click='${this._handleInitialSetUp}'>Initial SetUp</button>
+		  <br />
+		  <br />
+		  <br />
           <button @click='${this._handleDoImport}'>Do import</button><br />
           ${repeat(Object.keys(tasks), (item) => item, (item) => html`
               <button value="${item}" @click='${this._handleClick}'>${item}</button><br />
@@ -51,6 +56,10 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 
 	_handleDoImport() {
 		doImport();
+	}
+
+	_handleInitialSetUp() {
+		store.dispatch(doInitialSetUp());
 	}
 
 	_handleClick(e) {
