@@ -13,7 +13,7 @@ service cloud.firestore {
       }
     }
 
-    function defaultPermissions() {
+    function userTypeAllPermissions() {
       //inject here
     }
 
@@ -22,7 +22,7 @@ service cloud.firestore {
     }
 
     function getPermission(key) {
-      return userPermissions().get(key, defaultPermissions().get(key, basePermissions().get(key, false)));
+      return userPermissions().get(key, userTypeAllPermissions().get(key, basePermissions().get(key, false)));
     }
 
     function userIsAdmin() {

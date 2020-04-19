@@ -83,13 +83,20 @@ The name of your app, to show up in the titlebar of the web page, the web app
 header, and in the manifest. If the string starts with 'The ' then the The will
 be rendered a lighter color in the header.
 
-### default_permissions
+### permissions
 
 If you want to override the default BASE_PERMISSIONS of the webapp, for example
 to make it so users must be explicitly whitelisted to view the app at all, then
 put an object there with all of the true/false keys you want to override. See
 src/reducers/user.js.BASE_PERMISSIONS for an enumeration of all of the keys and
 what they mean.
+
+The different permissions objects are maps that are sub-keys of this: 'all'.
+
+#### permissions.all 
+
+The override permissions for all users. This is how you override the base
+permissions, since it applies to ALL users, including non-signed-in ones.
 
 ### twitter_handle (optional)
 
