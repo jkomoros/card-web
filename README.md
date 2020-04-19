@@ -44,7 +44,7 @@ Now go to the database tab. Tap 'Start Collection'. Name it `permissions` and hi
 
 Load https://localhost:8081/maintenance again in your browser. You should see a number of buttons. Tap **Initial SetUp**.
 
-Once it completes, tab the 'About' tab. You're now set up, and can start editing the starter cards that were added in each section!
+Once it completes, tab the 'Main' tab. You're now set up, and can start editing the starter card that was added in that section!
 
 ### First deploy
 

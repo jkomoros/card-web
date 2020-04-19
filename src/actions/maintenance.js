@@ -733,26 +733,10 @@ export const doInitialSetUp = () => async (_, getState) => {
 	await checkMaintenanceTaskHasBeenRun(INITIAL_SET_UP);
 
 	const starterSections = {
-		about: {
-			title: 'About',
-			subtitle: 'About this card web',
+		main: {
+			title: 'Main',
+			subtitle: 'The main collection of cards',
 		},
-		'half-baked': {
-			title: 'Half Baked',
-			subtitle: 'Ideas that are probably as baked as they’re going to get in this collection',
-		},
-		'barely-edible': {
-			title: 'Barely Edible',
-			subtitle: 'Ideas that have some detail roughed in, but not organized for clarity yet',
-		},
-		'stubs': {
-			title: 'Stubs',
-			subtitle: 'Points that I plan to develop more, but haven’t yet',
-		},
-		'random-thoughts': {
-			title: 'Random Thoughts',
-			subtitle: 'A parking lot for early stage thoughts that might be dupes or not worth developing',
-		}
 	};
 
 	let batch = new MultiBatch(db);
