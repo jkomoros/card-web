@@ -48,6 +48,7 @@ const DO_TAG_RELEASES = projectConfig.tag_releases || false;
 const USER_TYPE_ALL_PERMISSIONS = projectConfig.permissions && projectConfig.permissions.all || {};
 const USER_TYPE_ANONYMOUS_PERMISSIONS = projectConfig.permissions && projectConfig.permissions.anonymous || {};
 const USER_TYPE_SIGNED_IN_PERMISSIONS = projectConfig.permissions && projectConfig.permissions.signed_in || {};
+const USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS = projectConfig.permissions && projectConfig.permissions.signed_in_domain || {};
 
 const USER_DOMAIN = projectConfig.user_domain || '';
 
@@ -106,6 +107,7 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	CONFIG_JS_CONTENT += 'export const USER_TYPE_ALL_PERMISSIONS=' + JSON.stringify(USER_TYPE_ALL_PERMISSIONS) + ';\n';
 	CONFIG_JS_CONTENT += 'export const USER_TYPE_ANONYMOUS_PERMISSIONS=' + JSON.stringify(USER_TYPE_ANONYMOUS_PERMISSIONS) + ';\n';
 	CONFIG_JS_CONTENT += 'export const USER_TYPE_SIGNED_IN_PERMISSIONS=' + JSON.stringify(USER_TYPE_SIGNED_IN_PERMISSIONS) + ';\n';
+	CONFIG_JS_CONTENT += 'export const USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS=' + JSON.stringify(USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS) + ';\n';
 	CONFIG_JS_CONTENT += 'export const USER_DOMAIN="' + USER_DOMAIN + '";\n';
 	fs.writeFileSync('config.GENERATED.SECRET.js', CONFIG_JS_CONTENT);
 
@@ -123,11 +125,15 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	const USER_TYPE_ALL_RULES_STRING = '\n      let rules=' + JSON.stringify(USER_TYPE_ALL_PERMISSIONS) + ';';
 	const USER_TYPE_ANONYMOUS_RULES_STRING = '\n      let rules=' + JSON.stringify(USER_TYPE_ANONYMOUS_PERMISSIONS) + ';';
 	const USER_TYPE_SIGNED_IN_RULES_STRING = '\n      let rules=' + JSON.stringify(USER_TYPE_SIGNED_IN_PERMISSIONS) + ';';
+	const USER_TYPE_SIGNED_IN_DOMAIN_RULES_STRING = '\n      let rules=' + JSON.stringify(USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS) + ';';
+	const USER_DOMAIN_RULES_STRING = '\n      let domain="' + USER_DOMAIN  + '";';
 
 	gulp.src('./firestore.TEMPLATE.rules')
 		.pipe(inject.after('//inject here:all', USER_TYPE_ALL_RULES_STRING))
 		.pipe(inject.after('//inject here:anonymous', USER_TYPE_ANONYMOUS_RULES_STRING))
 		.pipe(inject.after('//inject here:signed_in', USER_TYPE_SIGNED_IN_RULES_STRING))
+		.pipe(inject.after('//inject here:signed_in_domain', USER_TYPE_SIGNED_IN_DOMAIN_RULES_STRING))
+		.pipe(inject.after('//inject here:domain', USER_DOMAIN_RULES_STRING))
 		.pipe(rename('firestore.rules'))
 		.pipe(gulp.dest('./'));
 

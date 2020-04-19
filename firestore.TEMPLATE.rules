@@ -36,6 +36,11 @@ service cloud.firestore {
       return loggedIn() && !isAnonymous() ? rules : {};
     }
 
+    function userMatchesDomain() {
+      //inject here:domain
+      return loggedIn() && !isAnonymous() && request.auth.token.email.lower().split('@')[1] == domain;
+    }
+
     function userTypeAllPermissions() {
       //inject here:all
       return rules;
@@ -52,12 +57,17 @@ service cloud.firestore {
       return loggedIn() && !isAnonymous() ? rules : {};
     }
 
+    function userTypeSignedInDomainPermissions() {
+      //inject here:signed_in_domain
+      return userMatchesDomain() ? rules : {};
+    }
+
     function userPermissions() {
       return request.auth.uid != null && exists(/databases/$(database)/documents/permissions/$(request.auth.uid)) ? get(/databases/$(database)/documents/permissions/$(request.auth.uid)).data : {};
     }
 
     function getPermission(key) {
-      return userPermissions().get(key, userTypeSignedInPermissions().get(key, baseUserTypeSignedInPermissions().get(key, userTypeAnonymousPermissions().get(key, baseUserTypeAnonymousPermissions().get(key, userTypeAllPermissions().get(key, basePermissions().get(key, false)))))));
+      return userPermissions().get(key, userTypeSignedInDomainPermissions().get(key, userTypeSignedInPermissions().get(key, baseUserTypeSignedInPermissions().get(key, userTypeAnonymousPermissions().get(key, baseUserTypeAnonymousPermissions().get(key, userTypeAllPermissions().get(key, basePermissions().get(key, false))))))));
     }
 
     function userIsAdmin() {

@@ -41,6 +41,8 @@ import {
 	USER_TYPE_ALL_PERMISSIONS,
 	USER_TYPE_ANONYMOUS_PERMISSIONS,
 	USER_TYPE_SIGNED_IN_PERMISSIONS,
+	USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS,
+	USER_DOMAIN
 } from '../config.GENERATED.SECRET.js';
 
 const selectState = (state) => state;
@@ -133,6 +135,12 @@ export const selectUserSignedIn = createSelector(
 	(user) => userSignedIn(user)
 );
 
+const selectUserSignedInDomain = createSelector(
+	selectUserSignedIn,
+	selectUser,
+	(signedIn, user) => signedIn && user.email && user.email.toLowerCase().split('@')[1] == USER_DOMAIN
+);
+
 export const selectUserObjectExists = createSelector(
 	selectUser,
 	(user) => userObjectExists(user)
@@ -141,10 +149,12 @@ export const selectUserObjectExists = createSelector(
 const selectUserTypePermissions = createSelector(
 	selectUserObjectExists,
 	selectUserSignedIn,
-	(userObjectExists, isSignedIn) => {
+	selectUserSignedInDomain,
+	(userObjectExists, isSignedIn,signedInDomain) => {
 		let result = {...USER_TYPE_ALL_PERMISSIONS};
 		if (userObjectExists) result = {...result, ...BASE_USER_TYPE_ANONYMOUS_PERMISSIONS, ...USER_TYPE_ANONYMOUS_PERMISSIONS};
 		if (isSignedIn) result = {...result, ...BASE_USER_TYPE_SIGNED_IN_PERMISSIONS, ...USER_TYPE_SIGNED_IN_PERMISSIONS};
+		if (signedInDomain) result = {...result, ...USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS};
 		return result;
 	}
 );

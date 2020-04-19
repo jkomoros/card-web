@@ -101,7 +101,7 @@ src/reducers/user.js.BASE_PERMISSIONS for an enumeration of all of the keys and
 what they mean.
 
 The different permissions objects are maps that are sub-keys of this: 'all',
-'anonymous', 'signed_in'.
+'anonymous', 'signed_in', 'signed_in_domain'.
 
 #### permissions.all 
 
@@ -128,6 +128,16 @@ of the overrides provided for permissions.anonymous.
 The web app defines its own permissions that apply at this tier in
 src/reducers/user.js.BASE_USER_TYPE_SIGNED_IN_PERMISSIONS. Keys you provide here
 will supercede those.
+
+#### permissions.signed_in_domain
+
+The override permissions for users who are signed in AND the sign in has a
+username and email attached AND that email's domain matches the
+config.user_domain. Note that this means these permissions layer on top of the
+overrides provided for permissions.signed_in and permissions.anonymous.
+
+You'd typically do this if you wanted to, for example, only give view access to
+people signing in with an email account tied to 'mycompany.com'.
 
 ### twitter_handle (optional)
 
