@@ -27,6 +27,11 @@ export const BASE_PERMISSIONS = {
 	//admin is the highest permission, which allows basically all actions,
 	//including deleting things. 
 	admin: false,
+	//viewApp is basic view-only access to the app, allowing people to see
+	//published cards, as well as tags, sections, and comments/threads. This
+	//default setting allows anyone to see content when they first visit even if
+	//not logged in.
+	viewApp: true,
 	//edit is a vestigial permission that currently doesn't do what it seems to.
 	//See #232 for more. 
 	edit: false,

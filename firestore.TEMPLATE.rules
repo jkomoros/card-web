@@ -7,6 +7,7 @@ service cloud.firestore {
       //Note that this is duplicated in src/reducers/user.js
       return {
         'admin': false,
+        'viewApp': true,
         'edit': false,
         'viewUnpublished': false,
       }
@@ -26,6 +27,10 @@ service cloud.firestore {
 
     function userIsAdmin() {
       return getPermission('admin');
+    }
+
+    function userMayViewApp() {
+      return userIsAdmin() || getPermission('viewApp');
     }
     
     function userMayViewUnpublished() {
@@ -85,7 +90,7 @@ service cloud.firestore {
     }
 
     match /sections/{section} {
-      allow read: if true;
+      allow read: if userMayViewApp();
       allow write: if userIsAdmin();
 
       match /updates/{update} {
@@ -94,7 +99,7 @@ service cloud.firestore {
     }
 
     match /tags/{tag} {
-      allow read: if true;
+      allow read: if userMayViewApp();
       allow write: if userIsAdmin();
 
       match /updates/{update} {
@@ -103,7 +108,7 @@ service cloud.firestore {
     }
     
     match /authors/{author} {
-      allow read: if true;
+      allow read: if userMayViewApp();
       allow write: if request.auth.uid == author;
     }
 
@@ -113,7 +118,7 @@ service cloud.firestore {
     }
     
     match /cards/{card} {
-      allow read: if resource.data.published == true || userMayViewUnpublished();
+      allow read: if userMayViewApp() && (resource.data.published == true || userMayViewUnpublished());
       allow create: if userIsAdmin() && createIsAuthor();
       allow update: if (!isAnonymous() && (editOnlyIncrements('thread_count') || editOnlyIncrementsAndDecrements('thread_resolved_count', 'thread_count') || editOnlyUpdatesTimestamp('updated_message') || editOnlyIncrementsAndUpdatesTimestamp('thread_count', 'updated_message')) || (loggedIn() && editOnlyIncrementsOrDecrements('star_count'))) || userIsAdmin();
     
@@ -128,13 +133,13 @@ service cloud.firestore {
     }
     
     match /messages/{message} {
-      allow read: if true;
+      allow read: if userMayViewApp();
       allow create: if (createIsAuthor() && !isAnonymous()) || userIsAdmin();
       allow update: if updateIsAuthor() || userIsAdmin();
     }
     
     match /threads/{thread} {
-      allow read: if true;
+      allow read: if userMayViewApp();
       allow create: if (createIsAuthor() && !isAnonymous()) || userIsAdmin();
       allow update: if (updateIsAuthor() || (!isAnonymous() && editOnlyAddsMessage())) || userIsAdmin();
     }
@@ -154,7 +159,7 @@ service cloud.firestore {
     }
 
     match /tweets/{tweet} {
-      allow read: if true;
+      allow read: if userMayViewApp();
     }
 
     match /reading_lists/{list_id} {
