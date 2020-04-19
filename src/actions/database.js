@@ -53,6 +53,10 @@ import {
 	normalizedWords
 } from '../util.js';
 
+import {
+	selectUserMayViewApp
+} from '../selectors.js';
+
 export const CARDS_COLLECTION = 'cards';
 export const CARD_UPDATES_COLLECTION = 'updates';
 export const SECTION_UPDATES_COLLECTION = 'updates';
@@ -76,6 +80,7 @@ export const PERMISSIONS_COLLECTION = 'permissions';
 export const TWEETS_COLLECTION = 'tweets';
 
 export const connectLiveMessages = (store) => {
+	if (!selectUserMayViewApp(store.getState())) return;
 	//Deliberately DO fetch deleted messages, so we can render stubs for them.
 	db.collection(MESSAGES_COLLECTION).onSnapshot(snapshot => {
 		let messages = {};
@@ -93,6 +98,7 @@ export const connectLiveMessages = (store) => {
 };
 
 export const connectLiveThreads = (store) => {
+	if (!selectUserMayViewApp(store.getState())) return;
 	db.collection(THREADS_COLLECTION).where('deleted', '==', false).where('resolved', '==', false).onSnapshot(snapshot => {
 		let threads = {};
 		let threadsToAdd = [];
@@ -188,6 +194,7 @@ export const connectLiveReadingList = (store, uid) => {
 };
 
 export const connectLiveAuthors = (store) => {
+	if (!selectUserMayViewApp(store.getState())) return;
 	db.collection(AUTHORS_COLLECTION).onSnapshot(snapshot => {
 
 		let authors = {};
@@ -207,6 +214,7 @@ export const connectLiveAuthors = (store) => {
 };
 
 export const connectLivePublishedCards = (store) => {
+	if (!selectUserMayViewApp(store.getState())) return;
 	db.collection(CARDS_COLLECTION).where('published', '==', true).onSnapshot(snapshot => {
 
 		let cards = {};
@@ -230,6 +238,7 @@ export const connectLivePublishedCards = (store) => {
 };
 
 export const connectLiveUnpublishedCards = (store) => {
+	if (!selectUserMayViewApp(store.getState())) return;
 	db.collection(CARDS_COLLECTION).where('published', '==', false).onSnapshot(snapshot => {
 
 		let cards = {};
@@ -253,6 +262,7 @@ export const connectLiveUnpublishedCards = (store) => {
 };
 
 export const connectLiveSections = (store) => {
+	if (!selectUserMayViewApp(store.getState())) return;
 	db.collection(SECTIONS_COLLECTION).orderBy('order').onSnapshot(snapshot => {
 
 		let sections = {};
@@ -272,6 +282,7 @@ export const connectLiveSections = (store) => {
 };
 
 export const connectLiveTags = (store) => {
+	if (!selectUserMayViewApp(store.getState())) return;
 	db.collection(TAGS_COLLECTION).onSnapshot(snapshot => {
 
 		let tags = {};

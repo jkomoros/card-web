@@ -50,7 +50,8 @@ import {
 	selectUserStarsCount,
 	selectUserUnreadCount,
 	selectUserReadingListCount,
-	selectUserMayViewUnpublished
+	selectUserMayViewUnpublished,
+	selectUserMayViewApp
 } from '../selectors.js';
 
 import {
@@ -287,6 +288,7 @@ class MainView extends connect(store)(LitElement) {
 			_previewCardX : { type:Number },
 			_previewCardY : { type:Number },
 			_mayViewUnpublished : { type:Boolean },
+			_mayViewApp: { type:Boolean },
 		};
 	}
 
@@ -307,6 +309,9 @@ class MainView extends connect(store)(LitElement) {
 		this._updatePreviewSize();
 		window.addEventListener('keydown', e => this._handleKeyPressed(e));
 		this.addEventListener('card-hovered', e => this._handleCardHovered(e));
+	}
+
+	_connectViewAppData() {
 		connectLivePublishedCards(store);
 		connectLiveSections(store);
 		connectLiveTags(store);
@@ -391,6 +396,7 @@ class MainView extends connect(store)(LitElement) {
 		this._previewCardX = selectPreviewCardX(state);
 		this._previewCardY = selectPreviewCardY(state);
 		this._mayViewUnpublished = selectUserMayViewUnpublished(state);
+		this._mayViewApp = selectUserMayViewApp(state);
 	}
 
 	updated(changedProps) {
@@ -399,6 +405,15 @@ class MainView extends connect(store)(LitElement) {
 				connectLiveUnpublishedCards(store);
 			} else {
 				//TODO: disconnectLiveUnpublishedCards here.
+			}
+		}
+		if (changedProps.has('_mayViewApp')) {
+			if (this._mayViewApp) {
+				//We must have not been able to view the app by default but our user
+				//says we are now.
+				this._connectViewAppData();
+			} else {
+				//TODO: disconnet all live data here
 			}
 		}
 	}
