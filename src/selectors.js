@@ -31,6 +31,10 @@ import {
 	cardTodoConfigKeys
 } from './reducers/collection.js';
 
+import {
+	BASE_PERMISSIONS
+} from './reducers/user.js';
+
 const selectState = (state) => state;
 
 export const selectPage = (state) => state.app.page;
@@ -92,6 +96,8 @@ export const selectReadsLoaded = (state) => state.user ? state.user.readsLoaded 
 const selectUserPermissionsLoaded = (state) => state.user ? state.user.userPermissionsLoaded : false;
 export const selectReadingListLoaded = (state) => state.user ? state.user.readingListLoaded : false;
 
+//This is just the userPermissions fetched; for the actual permissions object in
+//use, see selectCOmposedPermissions.
 const selectUserPermissions = (state) => state.user ? state.user.userPermissions : {};
 
 export const selectUser = state => {
@@ -99,6 +105,12 @@ export const selectUser = state => {
 	if (!state.user.user) return null;
 	return state.user.user;
 };
+
+//The final, exhaustive enumeration of permissions for this user.
+const selectComposedPermissions = createSelector(
+	selectUserPermissions,
+	(userPermissions) => ({...BASE_PERMISSIONS, ...userPermissions})
+);
 
 const userMayResolveThread = (state, thread) => {
 	if (selectUserIsAdmin(state)) return true;
@@ -130,19 +142,19 @@ export const selectUid = createSelector(
 );
 
 export const selectUserIsAdmin = createSelector(
-	selectUserPermissions,
+	selectComposedPermissions,
 	(permissions) => permissions.admin
 );
 
 export const selectUserMayEdit = createSelector(
 	selectUserIsAdmin,
-	selectUserPermissions,
+	selectComposedPermissions,
 	(admin, permissions) => admin || permissions.edit
 );
 
 export const selectUserMayViewUnpublished = createSelector(
 	selectUserIsAdmin,
-	selectUserPermissions,
+	selectComposedPermissions,
 	(admin, permissions) => admin || permissions.viewUnpublished
 );
 
