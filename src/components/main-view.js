@@ -207,6 +207,24 @@ class MainView extends connect(store)(LitElement) {
 				fill: var(--app-header-selected-color);
 			}
 
+			#may-view-warning {
+				display:none;
+			}
+
+			.may-not-view #may-view-warning {
+				position:absolute;
+				height: 100%;
+				width: 100%;
+				top: 0;
+				left: 0;
+				background-color: white;
+				display:block;
+				/* This is a hack to ensure the message shows up over the action
+				buttons, see the note in card-stage for their style and why it's
+				set. */
+				z-index:2;
+			}
+
 			/* Workaround for IE11 displaying <main> as inline */
 			main {
 				display: block;
@@ -227,7 +245,7 @@ class MainView extends connect(store)(LitElement) {
 			}
 		</style>
 
-		<div @mousemove=${this._handleMouseMove} class='container'>
+		<div @mousemove=${this._handleMouseMove} class='container ${this._mayViewApp ? '' : 'may-not-view'}'>
 			<find-dialog></find-dialog>
 			<compose-dialog></compose-dialog>
 			<card-preview .card=${this._activePreviewCard} .x=${this._previewCardX} .y=${this._previewCardY}></card-preview>
@@ -261,6 +279,10 @@ class MainView extends connect(store)(LitElement) {
 				<comment-redirect-view class='page' ?active="${this._page === PAGE_COMMENT}"></comment-redirect-view>
 				<my-view404 class="page" ?active="${this._page === PAGE_404}"></my-view404>
 				<maintenance-view class='page' ?active="${this._page === PAGE_MAINTENANCE}"></maintenance-view>
+				<div id='may-view-warning'> 
+					<h2>Log in required</h2>
+					<p>You don't have access to this web app. Try signing in with a Google account that does.</p>
+				</div>
 			</main>
 		</div>
 		`;

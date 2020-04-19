@@ -82,7 +82,9 @@ class CardStage extends LitElement {
 			}
 
 			[name="actions"]{
-				/* This is a hack to allow the information/edit buttons to be on top of a section-head-card container. See #44. */
+				/* This is a hack to allow the information/edit buttons to be on
+				top of a section-head-card container. See #44.
+				main-view.may-not-view also sets styles to be on top of this.*/
 				z-index: 1;
 				display:flex;
 				flex-direction:row;
