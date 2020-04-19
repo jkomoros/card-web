@@ -164,7 +164,7 @@ const userMayResolveThread = (state, thread) => {
 
 const userMayEditMessage = (state, message) => {
 	if (selectUserIsAdmin(state)) return true;
-	if (!selectUserSignedIn(state)) return false;
+	if (!selectUserMayComment(state)) return false;
 	if (!message || !message.author || !message.author.id) return false;
 	const uid = selectUid(state);
 	return uid == message.author.id;
