@@ -104,8 +104,8 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([key]) && resource.data[key] + 1 == request.resource.data[key];
     }
     
-    function editOnlyIncrementsOrDecrements(key) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([key]) && (resource.data[key] + 1 == request.resource.data[key] || resource.data[key] - 1 == request.resource.data[key]);
+    function editOnlyIncrementsOrDecrements(key, otherKey) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([key, otherKey]) && (resource.data[key] + 1 == request.resource.data[key] || resource.data[key] - 1 == request.resource.data[key]) && (resource.data[otherKey] + 1 == request.resource.data[otherKey] || resource.data[otherKey] - 1 == request.resource.data[otherKey]);
     }
     
     function editOnlyIncrementsAndDecrements(incKey, decKey) {
@@ -171,7 +171,7 @@ service cloud.firestore {
     match /cards/{card} {
       allow read: if userMayViewApp() && (resource.data.published == true || userMayViewUnpublished());
       allow create: if userIsAdmin() && createIsAuthor();
-      allow update: if (userMayComment() && (editOnlyIncrements('thread_count') || editOnlyIncrementsAndDecrements('thread_resolved_count', 'thread_count') || editOnlyUpdatesTimestamp('updated_message') || editOnlyIncrementsAndUpdatesTimestamp('thread_count', 'updated_message')) || (userMayStar() && editOnlyIncrementsOrDecrements('star_count'))) || userIsAdmin();
+      allow update: if (userMayComment() && (editOnlyIncrements('thread_count') || editOnlyIncrementsAndDecrements('thread_resolved_count', 'thread_count') || editOnlyUpdatesTimestamp('updated_message') || editOnlyIncrementsAndUpdatesTimestamp('thread_count', 'updated_message')) || (userMayStar() && editOnlyIncrementsOrDecrements('star_count', 'star_count_manual'))) || userIsAdmin();
     
       match /updates/{update} {
         allow read, write: if userIsAdmin();
