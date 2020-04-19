@@ -156,10 +156,17 @@ export const selectUserMayEdit = createSelector(
 	(admin, permissions) => admin || permissions.edit
 );
 
-export const selectUserMayViewUnpublished = createSelector(
+export const selectUserMayViewApp = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
-	(admin, permissions) => admin || permissions.viewUnpublished
+	(admin, permissions) => admin || permissions.viewApp
+);
+
+export const selectUserMayViewUnpublished = createSelector(
+	selectUserIsAdmin,
+	selectUserMayViewApp,
+	selectComposedPermissions,
+	(admin, mayViewApp, permissions) => mayViewApp && (admin || permissions.viewUnpublished)
 );
 
 export const selectUserMayComment = createSelector(

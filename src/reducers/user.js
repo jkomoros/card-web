@@ -36,7 +36,8 @@ export const BASE_PERMISSIONS = {
 	//See #232 for more. 
 	edit: false,
 	//viewUnpublished allows users with this permission to even view cards that
-	//are not published.
+	//are not published. Requires viewApp to be true to read cards in the first
+	//place.
 	viewUnpublished: false,
 };
 
