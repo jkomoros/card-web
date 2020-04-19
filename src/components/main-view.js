@@ -220,6 +220,12 @@ class MainView extends connect(store)(LitElement) {
 				text-align:center;
 			}
 
+			#may-view-warning h3 {
+				font-style:italic;
+				font-size:3.0em;
+				color: var(--app-dark-text-color-subtle);
+			}
+
 			.may-not-view #may-view-warning {
 				position:absolute;
 				height: 100%;
@@ -252,9 +258,14 @@ class MainView extends connect(store)(LitElement) {
 			.page[active] {
 				display: block;
 			}
+
+			[hidden] {
+				display:none;
+			}
+
 		</style>
 
-		<div @mousemove=${this._handleMouseMove} class='container ${this._mayViewApp && this._userPermissionsFinal ? '' : 'may-not-view'}'>
+		<div @mousemove=${this._handleMouseMove} class='container ${this._mayViewApp ? '' : 'may-not-view'}'>
 			<find-dialog></find-dialog>
 			<compose-dialog></compose-dialog>
 			<card-preview .card=${this._activePreviewCard} .x=${this._previewCardX} .y=${this._previewCardY}></card-preview>
@@ -289,11 +300,14 @@ class MainView extends connect(store)(LitElement) {
 				<my-view404 class="page" ?active="${this._page === PAGE_404}"></my-view404>
 				<maintenance-view class='page' ?active="${this._page === PAGE_MAINTENANCE}"></maintenance-view>
 				<div id='may-view-warning'>
-					<div> 
+					<div ?hidden=${!this._userPermissionsFinal}> 
 						<h2>Log in required</h2>
 						<p>You don't have access to this web app.</p>
 						<p>Try signing in with a Google account that does.</p>
 						<p>(Using the button in the upper right corner.)</p>
+					</div>
+					<div ?hidden=${this._userPermissionsFinal}>
+						<h3>Loading...</h3>
 					</div>
 				</div>
 			</main>
