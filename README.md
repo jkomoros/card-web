@@ -106,11 +106,19 @@ also applies if they're signed in with a real login). By default every user who
 visits the web app is signed in anonyously, so in practice this applies for
 everyone.
 
+The web app defines its own permissions that apply at this tier in
+src/reducers/user.js.BASE_USER_TYPE_ANONYMOUS_PERMISSIONS. Keys you provide here
+will supercede those.
+
 #### permissions.signed_in
 
 The override permissions for users who are signed in AND the sign in has a
 username and email attached. Note that this means these permissions layer on top
 of the overrides provided for permissions.anonymous.
+
+The web app defines its own permissions that apply at this tier in
+src/reducers/user.js.BASE_USER_TYPE_SIGNED_IN_PERMISSIONS. Keys you provide here
+will supercede those.
 
 ### twitter_handle (optional)
 

@@ -10,7 +10,23 @@ service cloud.firestore {
         'viewApp': true,
         'edit': false,
         'viewUnpublished': false,
+        'comment': false,
       }
+    }
+
+    function baseUserTypeAnonymousPermissions() {
+      //Note that this is duplicated in src/reducers/user.js
+      let rules = {};
+       //Should return if the user is AT LEAST anonymous
+      return loggedIn() ? rules : {};
+    }
+
+    function baseUserTypeSignedInPermissions() {
+      //Note that this is duplicated in src/reducers/user.js
+      let rules = {
+        'comment': true,
+      };
+      return loggedIn() && !isAnonymous() ? rules : {};
     }
 
     function userTypeAllPermissions() {
@@ -22,7 +38,6 @@ service cloud.firestore {
       //inject here:anonymous
       //Should return if the user is AT LEAST anonymous
       return loggedIn() ? rules : {};
-
     }
 
     function userTypeSignedInPermissions() {
@@ -35,7 +50,7 @@ service cloud.firestore {
     }
 
     function getPermission(key) {
-      return userPermissions().get(key, userTypeSignedInPermissions().get(key, userTypeAnonymousPermissions().get(userTypeAllPermissions().get(key, basePermissions().get(key, false)))));
+      return userPermissions().get(key, userTypeSignedInPermissions().get(key, baseUserTypeSignedInPermissions().get(key, userTypeAnonymousPermissions().get(key, baseUserTypeAnonymousPermissions().get(key, userTypeAllPermissions().get(key, basePermissions().get(key, false)))))));
     }
 
     function userIsAdmin() {
@@ -48,6 +63,10 @@ service cloud.firestore {
     
     function userMayViewUnpublished() {
       return userIsAdmin() || getPermission('viewUnpublished');
+    }
+
+    function userMayComment() {
+      return userIsAdmin() || getPermission('comment');
     }
 
     function editOnlyUpdatesTimestamp(key) {
@@ -133,7 +152,7 @@ service cloud.firestore {
     match /cards/{card} {
       allow read: if userMayViewApp() && (resource.data.published == true || userMayViewUnpublished());
       allow create: if userIsAdmin() && createIsAuthor();
-      allow update: if (!isAnonymous() && (editOnlyIncrements('thread_count') || editOnlyIncrementsAndDecrements('thread_resolved_count', 'thread_count') || editOnlyUpdatesTimestamp('updated_message') || editOnlyIncrementsAndUpdatesTimestamp('thread_count', 'updated_message')) || (loggedIn() && editOnlyIncrementsOrDecrements('star_count'))) || userIsAdmin();
+      allow update: if (userMayComment() && (editOnlyIncrements('thread_count') || editOnlyIncrementsAndDecrements('thread_resolved_count', 'thread_count') || editOnlyUpdatesTimestamp('updated_message') || editOnlyIncrementsAndUpdatesTimestamp('thread_count', 'updated_message')) || (loggedIn() && editOnlyIncrementsOrDecrements('star_count'))) || userIsAdmin();
     
       match /updates/{update} {
         allow read, write: if userIsAdmin();
@@ -147,14 +166,14 @@ service cloud.firestore {
     
     match /messages/{message} {
       allow read: if userMayViewApp();
-      allow create: if (createIsAuthor() && !isAnonymous()) || userIsAdmin();
-      allow update: if updateIsAuthor() || userIsAdmin();
+      allow create: if createIsAuthor() && userMayComment();
+      allow update: if updateIsAuthor() && userMayComment();
     }
     
     match /threads/{thread} {
       allow read: if userMayViewApp();
-      allow create: if (createIsAuthor() && !isAnonymous()) || userIsAdmin();
-      allow update: if (updateIsAuthor() || (!isAnonymous() && editOnlyAddsMessage())) || userIsAdmin();
+      allow create: if createIsAuthor() && userMayComment()
+      allow update: if userMayComment() && (updateIsAuthor() || (!isAnonymous() && editOnlyAddsMessage()));
     }
     
     match /stars/{star} {

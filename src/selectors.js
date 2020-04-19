@@ -32,7 +32,9 @@ import {
 } from './reducers/collection.js';
 
 import {
-	BASE_PERMISSIONS
+	BASE_PERMISSIONS,
+	BASE_USER_TYPE_ANONYMOUS_PERMISSIONS,
+	BASE_USER_TYPE_SIGNED_IN_PERMISSIONS
 } from './reducers/user.js';
 
 import {
@@ -141,8 +143,8 @@ const selectUserTypePermissions = createSelector(
 	selectUserSignedIn,
 	(userObjectExists, isSignedIn) => {
 		let result = {...USER_TYPE_ALL_PERMISSIONS};
-		if (userObjectExists) result = {...result, ...USER_TYPE_ANONYMOUS_PERMISSIONS};
-		if (isSignedIn) result = {...result, USER_TYPE_SIGNED_IN_PERMISSIONS};
+		if (userObjectExists) result = {...result, ...BASE_USER_TYPE_ANONYMOUS_PERMISSIONS, ...USER_TYPE_ANONYMOUS_PERMISSIONS};
+		if (isSignedIn) result = {...result, ...BASE_USER_TYPE_SIGNED_IN_PERMISSIONS, ...USER_TYPE_SIGNED_IN_PERMISSIONS};
 		return result;
 	}
 );
@@ -169,8 +171,6 @@ const userMayEditMessage = (state, message) => {
 	const uid = selectUid(state);
 	return uid == message.author.id;
 };
-
-const userMayComment = user => userSignedIn(user);
 
 export const selectUid = createSelector(
 	selectUser,
@@ -202,8 +202,9 @@ export const selectUserMayViewUnpublished = createSelector(
 );
 
 export const selectUserMayComment = createSelector(
-	selectUser,
-	(user) => userMayComment(user)
+	selectUserIsAdmin,
+	selectComposedPermissions,
+	(admin, permissions) => admin || permissions.comment
 );
 
 export const selectUserMayStar = selectUserObjectExists;

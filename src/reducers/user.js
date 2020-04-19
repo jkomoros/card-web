@@ -39,6 +39,15 @@ export const BASE_PERMISSIONS = {
 	//are not published. Requires viewApp to be true to read cards in the first
 	//place.
 	viewUnpublished: false,
+	//comment allows users with this permission to create and edit messages and
+	//threads that they are the owner of.
+	comment: false,
+};
+
+export const BASE_USER_TYPE_ANONYMOUS_PERMISSIONS = {};
+
+export const BASE_USER_TYPE_SIGNED_IN_PERMISSIONS = {
+	comment: true,
 };
 
 const INITIAL_STATE = {
