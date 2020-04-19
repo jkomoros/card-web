@@ -83,6 +83,15 @@ The name of your app, to show up in the titlebar of the web page, the web app
 header, and in the manifest. If the string starts with 'The ' then the The will
 be rendered a lighter color in the header.
 
+### user_domain
+
+If this is set, then it allows you to apply special permissions for users whose
+email is from the given domain. Used in conjunction with
+permissions.signed_in_domain.
+
+This value should be the part after the `@` sign in an email. For example, for
+'bob@mycompany.com', the value for this would by 'mycompany.com'.
+
 ### permissions
 
 If you want to override the default BASE_PERMISSIONS of the webapp, for example
