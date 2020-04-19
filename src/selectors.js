@@ -357,7 +357,7 @@ export const selectCommentsAreFullyLoaded = createSelector(
 //This is different from selectUserPermissionsLoaded because it also takes into
 //account whether we're even going to try to load them. Note that there is a
 //brief period when the app boots up that this is false but may switch to true.
-const selectUserPermissionsFinal = createSelector(
+export const selectUserPermissionsFinal = createSelector(
 	selectAuthPending,
 	selectUserObjectExists,
 	selectUserPermissionsLoaded,

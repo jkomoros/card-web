@@ -51,7 +51,8 @@ import {
 	selectUserUnreadCount,
 	selectUserReadingListCount,
 	selectUserMayViewUnpublished,
-	selectUserMayViewApp
+	selectUserMayViewApp,
+	selectUserPermissionsFinal,
 } from '../selectors.js';
 
 import {
@@ -245,7 +246,7 @@ class MainView extends connect(store)(LitElement) {
 			}
 		</style>
 
-		<div @mousemove=${this._handleMouseMove} class='container ${this._mayViewApp ? '' : 'may-not-view'}'>
+		<div @mousemove=${this._handleMouseMove} class='container ${this._mayViewApp && this._userPermissionsFinal ? '' : 'may-not-view'}'>
 			<find-dialog></find-dialog>
 			<compose-dialog></compose-dialog>
 			<card-preview .card=${this._activePreviewCard} .x=${this._previewCardX} .y=${this._previewCardY}></card-preview>
@@ -311,6 +312,7 @@ class MainView extends connect(store)(LitElement) {
 			_previewCardY : { type:Number },
 			_mayViewUnpublished : { type:Boolean },
 			_mayViewApp: { type:Boolean },
+			_userPermissionsFinal: { type:Boolean },
 		};
 	}
 
@@ -419,6 +421,7 @@ class MainView extends connect(store)(LitElement) {
 		this._previewCardY = selectPreviewCardY(state);
 		this._mayViewUnpublished = selectUserMayViewUnpublished(state);
 		this._mayViewApp = selectUserMayViewApp(state);
+		this._userPermissionsFinal = selectUserPermissionsFinal(state);
 	}
 
 	updated(changedProps) {
