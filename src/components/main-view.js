@@ -210,6 +210,14 @@ class MainView extends connect(store)(LitElement) {
 
 			#may-view-warning {
 				display:none;
+				flex-direction:column;
+				justify-content:center;
+				align-items: center;
+			}
+
+			#may-view-warning div {
+				max-width:50%;
+				text-align:center;
 			}
 
 			.may-not-view #may-view-warning {
@@ -219,7 +227,7 @@ class MainView extends connect(store)(LitElement) {
 				top: 0;
 				left: 0;
 				background-color: white;
-				display:block;
+				display:flex;
 				/* This is a hack to ensure the message shows up over the action
 				buttons, see the note in card-stage for their style and why it's
 				set. */
@@ -280,9 +288,13 @@ class MainView extends connect(store)(LitElement) {
 				<comment-redirect-view class='page' ?active="${this._page === PAGE_COMMENT}"></comment-redirect-view>
 				<my-view404 class="page" ?active="${this._page === PAGE_404}"></my-view404>
 				<maintenance-view class='page' ?active="${this._page === PAGE_MAINTENANCE}"></maintenance-view>
-				<div id='may-view-warning'> 
-					<h2>Log in required</h2>
-					<p>You don't have access to this web app. Try signing in with a Google account that does.</p>
+				<div id='may-view-warning'>
+					<div> 
+						<h2>Log in required</h2>
+						<p>You don't have access to this web app.</p>
+						<p>Try signing in with a Google account that does.</p>
+						<p>(Using the button in the upper right corner.)</p>
+					</div>
 				</div>
 			</main>
 		</div>
