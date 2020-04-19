@@ -3,9 +3,23 @@ rules_version = '2'
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function basePermissions() {
+      return {
+        'admin': false,
+        'viewUnpublished': false,
+      }
+    }
+
+    function userPermissions() {
+      return request.auth.uid != null && exists(/databases/$(database)/documents/permissions/$(request.auth.uid)) ? get(/databases/$(database)/documents/permissions/$(request.auth.uid)).data : {};
+    }
+
+    function getPermission(key) {
+      return userPermissions().get(key, basePermissions().get(key, false));
+    }
+
     function userIsAdmin() {
-      //Because we can't create a temporary variable we have to use both exists and get, because most users won't have a permissions object.
-      return request.auth.uid != null && exists(/databases/$(database)/documents/permissions/$(request.auth.uid)) && get(/databases/$(database)/documents/permissions/$(request.auth.uid)).get(['data','admin'], false)
+      return getPermission('admin');
     }
     
     function userMayViewUnpublished() {
