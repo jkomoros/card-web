@@ -106,6 +106,10 @@ import {
 	visibilityIcon
 } from './my-icons';
 
+import {
+	USER_DOMAIN
+} from '../../config.GENERATED.SECRET.js';
+
 class MainView extends connect(store)(LitElement) {
 	render() {
 		// Anything that's related to rendering should be done in here.
@@ -305,6 +309,7 @@ class MainView extends connect(store)(LitElement) {
 						<p>You don't have access to this web app.</p>
 						<p>Try signing in with a Google account that does.</p>
 						<p>(Using the button in the upper right corner.)</p>
+						${USER_DOMAIN ? html`<p>Note: user accounts associated with ${USER_DOMAIN} get special permissions. Try logging in to an account from that domain.</p>`: ''}
 					</div>
 					<div ?hidden=${this._userPermissionsFinal}>
 						<h3>Loading...</h3>
