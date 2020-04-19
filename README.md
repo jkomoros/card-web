@@ -161,6 +161,28 @@ firebase functions:config:set email.to="emailaccountyouwantalertssentto@gmail.co
 firebase functions:config:set email.from="emailaccountitshouldcomefrom@gmail.com"
 ```
 
+### Twitter bot
+
+If you also want to set up auto-tweeting, you'll need to set additional values,
+with the values for your app (generated from the specific bot account you want
+to tweet from) from here: https://developer.twitter.com/en/apps
+```
+gulp firebase-ensure-prod
+firebase functions:config:set twitter.consumer_key="YOUR-SECRET-KEY"
+firebase functions:config:set twitter.consumer_secret="YOUR-SECRET-KEY"
+firebase functions:config:set twitter.access_token_key="YOUR-SECRET-KEY"
+firebase functions:config:set twitter.access_token_secret="YOUR-SECRET-KEY"
+```
+
+You also need to add the `twitter_handle` property in your `config.SECRET.json`
+to the name of the handle (without the @ sign).
+
+If your firebase project name starts with `dev-` or ends with `-dev` then it
+will update the db and pretend like it tweeted, but not actually post anything
+to twitter.
+
+To send a tweet outside of the normal schedule, load up the Firebase functions console, tap the three dots next to the autoTweet function, choose View in Cloud Scheduler, and hit 'Run Now'.
+
 ## Favicons
 
 When logo.svg has changed, run `gulp generate-favicon`. Then merge the values in images/site.webmanifest into /manifest.json
@@ -170,38 +192,6 @@ TODO: make the manifest.json output be merged automatically in that flow
 When index.html has changed, run `gulp inject-favicon-markups`, then manually change the point to the manifest ot be to `manifest.json` instead of `/images/site.webmanifest`
 
 TODO: make the favicon injection be part of the build flow
-
-## Setting up a new deployment
-Currently a number of things are hard-coded (see #164 for more).
-
-The function that sends e-mails to admins requires set-up.
-
-First, get an account with Postmark and set it up. Then configure the config with:
-
-```
-firebase use <NAME-OF-PROJECT>
-firebase functions:config:set postmark.key="YOUR-SECRET-KEY-HERE"
-firebase functions:config:set email.to="emailaccountyouwantalertssentto@gmail.com"
-firebase functions:config:set email.from="emailaccountitshouldcomefrom@gmail.com"
-firebase functions:config:set site.domain="thecompendium.cards"
-```
-
-If you also want to set up auto-tweeting, you'll need to set additional values,
-with the values for your app (generated from the specific bot account you want
-to tweet from) from here: https://developer.twitter.com/en/apps
-```
-firebase functions:config:set twitter.consumer_key="YOUR-SECRET-KEY"
-firebase functions:config:set twitter.consumer_secret="YOUR-SECRET-KEY"
-firebase functions:config:set twitter.access_token_key="YOUR-SECRET-KEY"
-firebase functions:config:set twitter.access_token_secret="YOUR-SECRET-KEY"
-```
-If your firebase project name starts with `dev-` or ends with `-dev` then it
-will update the db and pretend like it tweeted, but not actually post anything
-to twitter.
-
-Note that you'll have to do this both the dev and prod servers, by using the different names of projects in the first line. 
-
-To send a tweet outside of the normal schedule, load up the Firebase functions console, tap the three dots next to the autoTweet function, choose View in Cloud Scheduler, and hit 'Run Now'.
 
 ## Design
 
