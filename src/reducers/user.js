@@ -24,8 +24,14 @@ import {
 //BASE_PERMISSIONS are the permissions as configured directly in the javascript
 //code. Note that this is duplicated in firestore.TEMPLATE.rules
 export const BASE_PERMISSIONS = {
+	//admin is the highest permission, which allows basically all actions,
+	//including deleting things. 
 	admin: false,
+	//edit is a vestigial permission that currently doesn't do what it seems to.
+	//See #232 for more. 
 	edit: false,
+	//viewUnpublished allows users with this permission to even view cards that
+	//are not published.
 	viewUnpublished: false,
 };
 
