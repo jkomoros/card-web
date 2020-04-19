@@ -4,8 +4,10 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function basePermissions() {
+      //Note that this is duplicated in src/reducers/user.js
       return {
         'admin': false,
+        'edit': false,
         'viewUnpublished': false,
       }
     }

@@ -20,6 +20,15 @@ import {
 	COMMIT_PENDING_COLLECTION_MODIFICATIONS 
 } from '../actions/collection.js';
 
+
+//BASE_PERMISSIONS are the permissions as configured directly in the javascript
+//code. Note that this is duplicated in firestore.TEMPLATE.rules
+export const BASE_PERMISSIONS = {
+	admin: false,
+	edit: false,
+	viewUnpublished: false,
+};
+
 const INITIAL_STATE = {
 	user : null,
 	//pending is true whenever we are expecting either a SIGNIN_SUCCESS or
@@ -30,14 +39,8 @@ const INITIAL_STATE = {
 	error: null,
 	//userPermissions is the object that tells us what we're allowed to do. The
 	//security rules will actually enforce this; this is mainly just to not have
-	//affordances in the client UI if they won't work. Fields that, if set, mean
-	//something:
-	// - admin : may do anything
-	// - edit : may edit any cards
-	// - viewUnpublished : may view any cards, including unpublished ones they
-	//   aren't an author of
-	// - notes : doesn't do anything client-side, useful to keep track of which
-	//   account is which
+	//affordances in the client UI if they won't work. See BASE_PERMISSIONS
+	//documentation for what the legal values are.
 	userPermissions: {},
 	stars : {},
 	reads: {},
