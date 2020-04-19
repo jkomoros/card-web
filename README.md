@@ -160,6 +160,41 @@ A boolean. If true, `gulp release` will tag releases. Should only be set to true
 
 This section describes things that you don't have to do, but are a good idea
 
+### Limiting access
+
+The default app settings allow anyone to view published cards on the site. But
+sometimes you don't want that. It's possible to configure your
+config.SECRET.json to prevent access by default.
+
+If you want to allow access only for users who explicitly have been granted
+access, add the following inside of your config.SECRET.json:
+
+```
+  "permissions" : {
+	  "all" : {
+		  "viewApp": false
+	  }
+  }
+```
+Then, for each user you want to give access, manually add a permissions object (like you did to create the first admin account), and add "viewApp": true to them.
+
+Of course that's a pain. Sometimes you want to give viewApp access to anyone
+with an email account from your company. To do that, add the following to your config:
+
+```
+  "user_domain" : "mycompany.com",
+  "permissions" : {
+	  "all" : {
+		  "viewApp": false
+	  },
+	  "signed_in_domain": {
+		  "viewApp": true
+	  }
+  }
+```
+
+See more in the config section of README for the keys and what they mean.
+
 ### Backups
 
 It's a good idea to back up your database often so if something goes wrong, you can roll back to a recent known good state.
