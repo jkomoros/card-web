@@ -55,106 +55,6 @@ After the full deploy is done, the webapp will be visible to anyone at https://y
 
 Please email me at alex@komoroske.com if you actually start using the web app, so I know that I should start investing in tagging specific stable releases, make sure maintenance taksks are clear, etc.
 
-## Config file keys
-
-**Re-run `gulp inject-config` every time you change the config file!**
-
-### firebase
-
-The firebase key is where you put the firebase config.
-
-If you only have a prod configuration, you can just put the config right here.
-
-If you have a prod and dev sub configuration, then you can have two sub keys,
-firebase.dev and firebase.prod, each of which have their own config.
-
-### firebase.dev
-
-This is where your firebase project config should go for the dev version of the project. This is the 'staging' server with throw-away data.
-
-### firebase.prod
-
-This is where your firebase project config should go for the prod version of the project, with real data and visible to the world.
-
-### app_title
-
-The name of your app, to show up in the titlebar of the web page, the web app
-header, and in the manifest. If the string starts with 'The ' then the The will
-be rendered a lighter color in the header.
-
-### user_domain
-
-If this is set, then it allows you to apply special permissions for users whose
-email is from the given domain. Used in conjunction with
-permissions.signed_in_domain.
-
-This value should be the part after the `@` sign in an email. For example, for
-'bob@mycompany.com', the value for this would by 'mycompany.com'.
-
-### permissions
-
-If you want to override the default BASE_PERMISSIONS of the webapp, for example
-to make it so users must be explicitly whitelisted to view the app at all, then
-put an object there with all of the true/false keys you want to override. See
-src/reducers/user.js.BASE_PERMISSIONS for an enumeration of all of the keys and
-what they mean.
-
-The different permissions objects are maps that are sub-keys of this: 'all',
-'anonymous', 'signed_in', 'signed_in_domain'.
-
-#### permissions.all 
-
-The override permissions for all users. This is how you override the base
-permissions, since it applies to ALL users, including non-signed-in ones.
-
-#### permissions.anonymous
-
-The override permissions for users who are signed in AT LEAST anonymously (it
-also applies if they're signed in with a real login). By default every user who
-visits the web app is signed in anonyously, so in practice this applies for
-everyone.
-
-The web app defines its own permissions that apply at this tier in
-src/reducers/user.js.BASE_USER_TYPE_ANONYMOUS_PERMISSIONS. Keys you provide here
-will supercede those.
-
-#### permissions.signed_in
-
-The override permissions for users who are signed in AND the sign in has a
-username and email attached. Note that this means these permissions layer on top
-of the overrides provided for permissions.anonymous.
-
-The web app defines its own permissions that apply at this tier in
-src/reducers/user.js.BASE_USER_TYPE_SIGNED_IN_PERMISSIONS. Keys you provide here
-will supercede those.
-
-#### permissions.signed_in_domain
-
-The override permissions for users who are signed in AND the sign in has a
-username and email attached AND that email's domain matches the
-config.user_domain. Note that this means these permissions layer on top of the
-overrides provided for permissions.signed_in and permissions.anonymous.
-
-You'd typically do this if you wanted to, for example, only give view access to
-people signing in with an email account tied to 'mycompany.com'.
-
-### twitter_handle (optional)
-
-If you have a twitter bot configured, the handle of the bot (not including @). Emits metadata in index.html, but also used as a signal for whether the cloud functions related to twitter bots need to be deployed (they require billing to be enabled).
-
-### backup_bucket_name (optional)
-
-The name of the bucket within google cloud storage to store and retrieve buckets from.
-
-You need to create this bucket within your project. (If you have both dev and
-prod projects it should be within the prod project).
-
-Required if you want to backup or restore a backup
-
-### tag_releases
-
-A boolean. If true, `gulp release` will tag releases. Should only be set to true if you have repo edit privileges to the repo you cloned from.
-
 ## Extra Credit
 
 This section describes things that you don't have to do, but are a good idea
@@ -272,6 +172,106 @@ will update the db and pretend like it tweeted, but not actually post anything
 to twitter.
 
 To send a tweet outside of the normal schedule, load up the Firebase functions console, tap the three dots next to the autoTweet function, choose View in Cloud Scheduler, and hit 'Run Now'.
+
+## Config file keys
+
+**Re-run `gulp inject-config` every time you change the config file!**
+
+### firebase
+
+The firebase key is where you put the firebase config.
+
+If you only have a prod configuration, you can just put the config right here.
+
+If you have a prod and dev sub configuration, then you can have two sub keys,
+firebase.dev and firebase.prod, each of which have their own config.
+
+### firebase.dev
+
+This is where your firebase project config should go for the dev version of the project. This is the 'staging' server with throw-away data.
+
+### firebase.prod
+
+This is where your firebase project config should go for the prod version of the project, with real data and visible to the world.
+
+### app_title
+
+The name of your app, to show up in the titlebar of the web page, the web app
+header, and in the manifest. If the string starts with 'The ' then the The will
+be rendered a lighter color in the header.
+
+### user_domain
+
+If this is set, then it allows you to apply special permissions for users whose
+email is from the given domain. Used in conjunction with
+permissions.signed_in_domain.
+
+This value should be the part after the `@` sign in an email. For example, for
+'bob@mycompany.com', the value for this would by 'mycompany.com'.
+
+### permissions
+
+If you want to override the default BASE_PERMISSIONS of the webapp, for example
+to make it so users must be explicitly whitelisted to view the app at all, then
+put an object there with all of the true/false keys you want to override. See
+src/reducers/user.js.BASE_PERMISSIONS for an enumeration of all of the keys and
+what they mean.
+
+The different permissions objects are maps that are sub-keys of this: 'all',
+'anonymous', 'signed_in', 'signed_in_domain'.
+
+#### permissions.all 
+
+The override permissions for all users. This is how you override the base
+permissions, since it applies to ALL users, including non-signed-in ones.
+
+#### permissions.anonymous
+
+The override permissions for users who are signed in AT LEAST anonymously (it
+also applies if they're signed in with a real login). By default every user who
+visits the web app is signed in anonyously, so in practice this applies for
+everyone.
+
+The web app defines its own permissions that apply at this tier in
+src/reducers/user.js.BASE_USER_TYPE_ANONYMOUS_PERMISSIONS. Keys you provide here
+will supercede those.
+
+#### permissions.signed_in
+
+The override permissions for users who are signed in AND the sign in has a
+username and email attached. Note that this means these permissions layer on top
+of the overrides provided for permissions.anonymous.
+
+The web app defines its own permissions that apply at this tier in
+src/reducers/user.js.BASE_USER_TYPE_SIGNED_IN_PERMISSIONS. Keys you provide here
+will supercede those.
+
+#### permissions.signed_in_domain
+
+The override permissions for users who are signed in AND the sign in has a
+username and email attached AND that email's domain matches the
+config.user_domain. Note that this means these permissions layer on top of the
+overrides provided for permissions.signed_in and permissions.anonymous.
+
+You'd typically do this if you wanted to, for example, only give view access to
+people signing in with an email account tied to 'mycompany.com'.
+
+### twitter_handle (optional)
+
+If you have a twitter bot configured, the handle of the bot (not including @). Emits metadata in index.html, but also used as a signal for whether the cloud functions related to twitter bots need to be deployed (they require billing to be enabled).
+
+### backup_bucket_name (optional)
+
+The name of the bucket within google cloud storage to store and retrieve buckets from.
+
+You need to create this bucket within your project. (If you have both dev and
+prod projects it should be within the prod project).
+
+Required if you want to backup or restore a backup
+
+### tag_releases
+
+A boolean. If true, `gulp release` will tag releases. Should only be set to true if you have repo edit privileges to the repo you cloned from.
 
 ## Favicons
 
