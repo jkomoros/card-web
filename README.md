@@ -83,6 +83,14 @@ The name of your app, to show up in the titlebar of the web page, the web app
 header, and in the manifest. If the string starts with 'The ' then the The will
 be rendered a lighter color in the header.
 
+### default_permissions
+
+If you want to override the default BASE_PERMISSIONS of the webapp, for example
+to make it so users must be explicitly whitelisted to view the app at all, then
+put an object there with all of the true/false keys you want to override. See
+src/reducers/user.js.BASE_PERMISSIONS for an enumeration of all of the keys and
+what they mean.
+
 ### twitter_handle (optional)
 
 If you have a twitter bot configured, the handle of the bot (not including @). Emits metadata in index.html, but also used as a signal for whether the cloud functions related to twitter bots need to be deployed (they require billing to be enabled).

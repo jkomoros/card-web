@@ -45,6 +45,8 @@ const TWITTER_HANDLE = projectConfig.twitter_handle && projectConfig.twitter_han
 
 const DO_TAG_RELEASES = projectConfig.tag_releases || false;
 
+const DEFAULT_PERMISSIONS = projectConfig.default_permissions || {};
+
 const makeExecExecutor = cmd => {
 	return function (cb) {
 		console.log('Running ' + cmd);
@@ -96,7 +98,8 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	CONFIG_JS_CONTENT += '/* eslint quotes:["error", "double"] */\n';
 	CONFIG_JS_CONTENT += 'export const FIREBASE_DEV_CONFIG=' + JSON.stringify(CONFIG_FIREBASE_DEV) + ';\n';
 	CONFIG_JS_CONTENT += 'export const FIREBASE_PROD_CONFIG=' + JSON.stringify(CONFIG_FIREBASE_PROD) + ';\n';
-	CONFIG_JS_CONTENT += 'export const APP_TITLE="' + APP_TITLE + '";';
+	CONFIG_JS_CONTENT += 'export const APP_TITLE="' + APP_TITLE + '";\n';
+	CONFIG_JS_CONTENT += 'export const DEFAULT_PERMISSIONS=' + JSON.stringify(DEFAULT_PERMISSIONS) + ';\n';
 	fs.writeFileSync('config.GENERATED.SECRET.js', CONFIG_JS_CONTENT);
 
 	let META_STRING = '\n    <meta name="application-name" content="' + APP_TITLE + '">\n';
@@ -108,6 +111,13 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	gulp.src('./index.TEMPLATE.html')
 		.pipe(inject.after('<!-- INJECT-META-HERE -->', META_STRING))
 		.pipe(rename('index.html'))
+		.pipe(gulp.dest('./'));
+
+	let RULES_STRING = '\n      return ' + JSON.stringify(DEFAULT_PERMISSIONS) + ';';
+
+	gulp.src('./firestore.TEMPLATE.rules')
+		.pipe(inject.after('//inject here', RULES_STRING))
+		.pipe(rename('firestore.rules'))
 		.pipe(gulp.dest('./'));
 
 	done();

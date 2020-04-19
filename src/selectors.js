@@ -35,6 +35,10 @@ import {
 	BASE_PERMISSIONS
 } from './reducers/user.js';
 
+import {
+	DEFAULT_PERMISSIONS
+} from '../config.GENERATED.SECRET.js';
+
 const selectState = (state) => state;
 
 export const selectPage = (state) => state.app.page;
@@ -109,7 +113,7 @@ export const selectUser = state => {
 //The final, exhaustive enumeration of permissions for this user.
 const selectComposedPermissions = createSelector(
 	selectUserPermissions,
-	(userPermissions) => ({...BASE_PERMISSIONS, ...userPermissions})
+	(userPermissions) => ({...BASE_PERMISSIONS, ...DEFAULT_PERMISSIONS, ...userPermissions})
 );
 
 const userMayResolveThread = (state, thread) => {

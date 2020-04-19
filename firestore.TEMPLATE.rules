@@ -12,12 +12,16 @@ service cloud.firestore {
       }
     }
 
+    function defaultPermissions() {
+      //inject here
+    }
+
     function userPermissions() {
       return request.auth.uid != null && exists(/databases/$(database)/documents/permissions/$(request.auth.uid)) ? get(/databases/$(database)/documents/permissions/$(request.auth.uid)).data : {};
     }
 
     function getPermission(key) {
-      return userPermissions().get(key, basePermissions().get(key, false));
+      return userPermissions().get(key, defaultPermissions().get(key, basePermissions().get(key, false)));
     }
 
     function userIsAdmin() {
@@ -25,7 +29,7 @@ service cloud.firestore {
     }
     
     function userMayViewUnpublished() {
-      return userIsAdmin() || (request.auth.uid != null && exists(/databases/$(database)/documents/permissions/$(request.auth.uid)) && get(/databases/$(database)/documents/permissions/$(request.auth.uid)).get(['data','viewUnpublished'], false))
+      return userIsAdmin() || getPermission('viewUnpublished');
     }
 
     function editOnlyUpdatesTimestamp(key) {
