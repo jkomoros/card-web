@@ -42,9 +42,19 @@ export const BASE_PERMISSIONS = {
 	//comment allows users with this permission to create and edit messages and
 	//threads that they are the owner of.
 	comment: false,
+	//whether the user may star a card
+	star: false,
+	//whether the user may mark a card read
+	markRead: false,
+	//whether the user may add to or remove from their reading list
+	modifyReadingList: false,
 };
 
-export const BASE_USER_TYPE_ANONYMOUS_PERMISSIONS = {};
+export const BASE_USER_TYPE_ANONYMOUS_PERMISSIONS = {
+	star: true,
+	markRead: true,
+	modifyReadingList: true
+};
 
 export const BASE_USER_TYPE_SIGNED_IN_PERMISSIONS = {
 	comment: true,

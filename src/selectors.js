@@ -207,11 +207,23 @@ export const selectUserMayComment = createSelector(
 	(admin, permissions) => admin || permissions.comment
 );
 
-export const selectUserMayStar = selectUserObjectExists;
+export const selectUserMayStar = createSelector(
+	selectUserIsAdmin,
+	selectComposedPermissions,
+	(admin, permissions) => admin || permissions.star
+);
 
-export const selectUserMayMarkRead = selectUserObjectExists;
+export const selectUserMayMarkRead = createSelector(
+	selectUserIsAdmin,
+	selectComposedPermissions,
+	(admin, permissions) => admin || permissions.markRead
+);
 
-export const selectUserMayModifyReadingList = selectUserObjectExists;
+export const selectUserMayModifyReadingList = createSelector(
+	selectUserIsAdmin,
+	selectComposedPermissions,
+	(admin, permissions) => admin || permissions.modifyReadingList
+);
 
 export const selectCards = createSelector(
 	selectBaseCards,
