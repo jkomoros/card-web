@@ -36,7 +36,9 @@ import {
 } from './reducers/user.js';
 
 import {
-	USER_TYPE_ALL_PERMISSIONS
+	USER_TYPE_ALL_PERMISSIONS,
+	USER_TYPE_ANONYMOUS_PERMISSIONS,
+	USER_TYPE_SIGNED_IN_PERMISSIONS,
 } from '../config.GENERATED.SECRET.js';
 
 const selectState = (state) => state;
@@ -104,16 +106,52 @@ export const selectReadingListLoaded = (state) => state.user ? state.user.readin
 //use, see selectCOmposedPermissions.
 const selectUserPermissions = (state) => state.user ? state.user.userPermissions : {};
 
+//For actions, like starring and marking read, that are OK to do when signed
+//in anonymously.
+const userObjectExists = user => user && user.uid != '';
+const userSignedIn = user => userObjectExists(user) && !user.isAnonymous;
+
 export const selectUser = state => {
 	if (!state.user) return null;
 	if (!state.user.user) return null;
 	return state.user.user;
 };
 
+export const selectUserIsAnonymous = createSelector(
+	selectUser,
+	(user) => userObjectExists(user) && user.isAnonymous
+);
+
+//UserSignedIn means that there is a user object, and that user is not
+//anonymous. Note that selectors like selectUserMayMarkRead and
+//selectUserMayComment may return true even when this returns false if the
+//user is signed in anonymously.
+export const selectUserSignedIn = createSelector(
+	selectUser,
+	(user) => userSignedIn(user)
+);
+
+export const selectUserObjectExists = createSelector(
+	selectUser,
+	(user) => userObjectExists(user)
+);
+
+const selectUserTypePermissions = createSelector(
+	selectUserObjectExists,
+	selectUserSignedIn,
+	(userObjectExists, isSignedIn) => {
+		let result = {...USER_TYPE_ALL_PERMISSIONS};
+		if (userObjectExists) result = {...result, ...USER_TYPE_ANONYMOUS_PERMISSIONS};
+		if (isSignedIn) result = {...result, USER_TYPE_SIGNED_IN_PERMISSIONS};
+		return result;
+	}
+);
+
 //The final, exhaustive enumeration of permissions for this user.
 const selectComposedPermissions = createSelector(
+	selectUserTypePermissions,
 	selectUserPermissions,
-	(userPermissions) => ({...BASE_PERMISSIONS, ...USER_TYPE_ALL_PERMISSIONS, ...userPermissions})
+	(userTypePermissions, userPermissions) => ({...BASE_PERMISSIONS, ...userTypePermissions, ...userPermissions})
 );
 
 const userMayResolveThread = (state, thread) => {
@@ -131,12 +169,6 @@ const userMayEditMessage = (state, message) => {
 	const uid = selectUid(state);
 	return uid == message.author.id;
 };
-
-//For actions, like starring and marking read, that are OK to do when signed
-//in anonymously.
-const userObjectExists = user => user && user.uid != '';
-
-const userSignedIn = user => userObjectExists(user) && !user.isAnonymous;
 
 const userMayComment = user => userSignedIn(user);
 
@@ -174,30 +206,11 @@ export const selectUserMayComment = createSelector(
 	(user) => userMayComment(user)
 );
 
-export const selectUserObjectExists = createSelector(
-	selectUser,
-	(user) => userObjectExists(user)
-);
-
 export const selectUserMayStar = selectUserObjectExists;
 
 export const selectUserMayMarkRead = selectUserObjectExists;
 
 export const selectUserMayModifyReadingList = selectUserObjectExists;
-
-export const selectUserIsAnonymous = createSelector(
-	selectUser,
-	(user) => userObjectExists(user) && user.isAnonymous
-);
-
-//UserSignedIn means that there is a user object, and that user is not
-//anonymous. Note that selectors like selectUserMayMarkRead and
-//selectUserMayComment may return true even when this returns false if the
-//user is signed in anonymously.
-export const selectUserSignedIn = createSelector(
-	selectUser, 
-	(user) => userSignedIn(user)
-);
 
 export const selectCards = createSelector(
 	selectBaseCards,

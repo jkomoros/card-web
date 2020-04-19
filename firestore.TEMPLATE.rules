@@ -14,7 +14,20 @@ service cloud.firestore {
     }
 
     function userTypeAllPermissions() {
-      //inject here
+      //inject here:all
+      return rules;
+    }
+
+    function userTypeAnonymousPermissions() {
+      //inject here:anonymous
+      //Should return if the user is AT LEAST anonymous
+      return loggedIn() ? rules : {};
+
+    }
+
+    function userTypeSignedInPermissions() {
+      //inject here:signed_in
+      return loggedIn() && !isAnonymous() ? rules : {};
     }
 
     function userPermissions() {
@@ -22,7 +35,7 @@ service cloud.firestore {
     }
 
     function getPermission(key) {
-      return userPermissions().get(key, userTypeAllPermissions().get(key, basePermissions().get(key, false)));
+      return userPermissions().get(key, userTypeSignedInPermissions().get(key, userTypeAnonymousPermissions().get(userTypeAllPermissions().get(key, basePermissions().get(key, false)))));
     }
 
     function userIsAdmin() {

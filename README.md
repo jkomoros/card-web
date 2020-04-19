@@ -91,12 +91,26 @@ put an object there with all of the true/false keys you want to override. See
 src/reducers/user.js.BASE_PERMISSIONS for an enumeration of all of the keys and
 what they mean.
 
-The different permissions objects are maps that are sub-keys of this: 'all'.
+The different permissions objects are maps that are sub-keys of this: 'all',
+'anonymous', 'signed_in'.
 
 #### permissions.all 
 
 The override permissions for all users. This is how you override the base
 permissions, since it applies to ALL users, including non-signed-in ones.
+
+#### permissions.anonymous
+
+The override permissions for users who are signed in AT LEAST anonymously (it
+also applies if they're signed in with a real login). By default every user who
+visits the web app is signed in anonyously, so in practice this applies for
+everyone.
+
+#### permissions.signed_in
+
+The override permissions for users who are signed in AND the sign in has a
+username and email attached. Note that this means these permissions layer on top
+of the overrides provided for permissions.anonymous.
 
 ### twitter_handle (optional)
 
