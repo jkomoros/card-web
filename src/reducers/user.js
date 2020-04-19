@@ -28,7 +28,7 @@ const INITIAL_STATE = {
 	//user has proactively hit the signIn or signOut buttons.
 	pending: true,
 	error: null,
-	//permissions is the object that tells us what we're allowed to do. The
+	//userPermissions is the object that tells us what we're allowed to do. The
 	//security rules will actually enforce this; this is mainly just to not have
 	//affordances in the client UI if they won't work. Fields that, if set, mean
 	//something:
@@ -38,7 +38,7 @@ const INITIAL_STATE = {
 	//   aren't an author of
 	// - notes : doesn't do anything client-side, useful to keep track of which
 	//   account is which
-	permissions: {},
+	userPermissions: {},
 	stars : {},
 	reads: {},
 	readingList: [],
@@ -55,7 +55,7 @@ const INITIAL_STATE = {
 	starsLoaded: false,
 	readsLoaded: false,
 	readingListLoaded: false,
-	permissionsLoaded: false,
+	userPermissionsLoaded: false,
 	autoMarkReadPending: false,
 };
 
@@ -114,8 +114,8 @@ const app = (state = INITIAL_STATE, action) => {
 	case UPDATE_USER_PERMISSIONS:
 		return {
 			...state,
-			permissions: {...action.permissions},
-			permissionsLoaded: true,
+			userPermissions: {...action.permissions},
+			userPermissionsLoaded: true,
 		};
 	case COMMIT_PENDING_COLLECTION_MODIFICATIONS:
 		return {
