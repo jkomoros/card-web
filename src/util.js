@@ -179,6 +179,16 @@ export const cardHasContent = (card) => {
 	return content ? true : false;
 };
 
+const SUBSTANTIVE_CONTENT_THRESHOLD = 300;
+export const cardHasSubstantiveContent = (card) => {
+	if (!card) return false;
+	//We treat all non-content cards as having content, since the main reason to
+	//count a card has not having content is if there's nothing to see on it.
+	if (card.card_type != 'content') return true;
+	let content = card.normalizedBody ? card.normalizedBody : '';
+	return content.length > SUBSTANTIVE_CONTENT_THRESHOLD;
+};
+
 export const cardHasNotes = (card) => {
 	if (!card) return false;
 	let content = card.notes ? card.notes.trim() : '';

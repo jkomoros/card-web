@@ -25,7 +25,8 @@ import {
 	cardHasTodo,
 	toTitleCase,
 	cardMatchingFilters,
-	cardMissingReciprocalLinks
+	cardMissingReciprocalLinks,
+	cardHasSubstantiveContent
 } from '../util.js';
 
 import {
@@ -184,6 +185,7 @@ const CARD_FILTER_CONFIGS = {
 	'notes': [defaultCardFilterName('notes'), card => cardHasNotes(card), TODO_TYPE_NA],
 	'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, TODO_TYPE_AUTO],
 	'content': [defaultCardFilterName('content'), card => cardHasContent(card), TODO_TYPE_AUTO],
+	'substantive-content': [defaultCardFilterName('substantive-content'), card => cardHasSubstantiveContent(card), TODO_TYPE_AUTO],
 	'links': [defaultCardFilterName('links'), card => card.links && card.links.length, TODO_TYPE_AUTO],
 	'inbound-links': [defaultCardFilterName('inbound-links'), card => card.links_inbound && card.links_inbound.length, TODO_TYPE_AUTO],
 	'reciprocal-links': [['has-all-reciprocal-links', 'missing-reciprocal-links', 'does-not-need-reciprocal-links', 'needs-reciprocal-links'], card => cardMissingReciprocalLinks(card).length == 0, TODO_TYPE_AUTO],
