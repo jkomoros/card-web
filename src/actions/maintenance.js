@@ -276,12 +276,16 @@ export const updateInboundLinks = async() => {
 		counter++;
 		let linkingCardsSnapshot = await db.collection(CARDS_COLLECTION).where('links', 'array-contains', doc.id).get();
 		let linkingCardsIds = [];
+		let linkingCardsText = {};
 		linkingCardsSnapshot.forEach(linkingCard => {
 			linkingCardsIds.push(linkingCard.id);
+			const linksText = linkingCard.data().links_text || {};
+			linkingCardsText[linkingCard.id] = linksText[doc.id] || '';
 		});
 		await doc.ref.update({
 			updated_links_inbound: firebase.firestore.FieldValue.serverTimestamp(),
 			links_inbound: linkingCardsIds,
+			links_inbound_text: linkingCardsText,
 		});
 		console.log('Processed ' + doc.id + ' (' + counter + '/' + size + ')' );
 	}
