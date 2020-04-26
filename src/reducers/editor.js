@@ -108,7 +108,7 @@ const app = (state = INITIAL_STATE, action) => {
 		let linkInfo = extractCardLinksFromBody(state.card.body);
 		return {
 			...state,
-			card: {...state.card, links:linkInfo[0]}
+			card: {...state.card, links:linkInfo[0], links_text: linkInfo[1]}
 		};
 	case EDITING_SLUG_ADDED:
 		if (!state.card) return state;

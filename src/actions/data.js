@@ -164,6 +164,7 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 		cardUpdateObject.body = update.body;
 		let linkInfo = extractCardLinksFromBody(update.body);
 		cardUpdateObject.links = linkInfo[0];
+		cardUpdateObject.links_text = linkInfo[1];
 	}
 
 	if (update.title !== undefined) {
@@ -551,7 +552,11 @@ export const defaultCardObject = (id, user, section, cardType) => {
 		section: section,
 		body: '',
 		links: [],
+		//a map of cardid => the text of the link in this card that points to it
+		links_text: {},
 		links_inbound: [],
+		//a map of cardid => the text that THAT card uses to link to THIS card
+		links_inbound_text: {},
 		card_type: cardType,
 		notes: '',
 		todo: '',

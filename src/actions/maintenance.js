@@ -141,6 +141,7 @@ export const updateLinks = async() => {
 		let links = linkInfo[0];
 		await doc.ref.update({
 			links: links,
+			links_text: linkInfo[1],
 		});
 		console.log('Processed ' + doc.id + ' (' + counter + '/' + size + ')' );
 	}
