@@ -242,6 +242,8 @@ export const innerTextForHTML = (body) => {
 	return ele.innerText;
 };
 
+const MULTIPLE_LINK_TEXT_DELIMITER = ' || ';
+
 export const extractCardLinksFromBody = (body) => {
 	let ele = document.createElement('section');
 	//TODO: is there an XSS vulnerability here?
@@ -252,8 +254,7 @@ export const extractCardLinksFromBody = (body) => {
 	nodes.forEach(link => {
 		const id = link.getAttribute('card');
 		result.push(id);
-		if (!text[id]) text[id] = [];
-		text[id].push(link.innerText);
+		text[id] = (text[id] ? text[id] + MULTIPLE_LINK_TEXT_DELIMITER : '') + link.innerText;
 	});
 	return [arrayUnique(result), text];
 };
