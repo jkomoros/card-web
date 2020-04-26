@@ -11,6 +11,7 @@ export const TEXT_SEARCH_PROPERTIES = {
 	normalizedTitle: 1.0,
 	normalizedBody: 0.5,
 	normalizedSubtitle: 0.75,
+	normalizedInboundLinksText: 0.95,
 };
 
 //The limit that Firebase enacts for writes in one batch. MultiBatch will count

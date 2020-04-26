@@ -229,6 +229,7 @@ export const connectLivePublishedCards = (store) => {
 			card.normalizedBody = normalizedWords(innerTextForHTML(card.body || '')).join(' ');
 			card.normalizedTitle = normalizedWords(card.title).join(' ');
 			card.normalizedSubtitle = normalizedWords(card.subtitle).join(' ');
+			card.normalizedInboundLinksText = normalizedWords(Object.values(card.links_inbound_text).join(' ')).join(' ');
 			cards[id] = card;
 		});
 
@@ -253,6 +254,7 @@ export const connectLiveUnpublishedCards = (store) => {
 			card.normalizedBody = normalizedWords(innerTextForHTML(card.body || '')).join(' ');
 			card.normalizedTitle = normalizedWords(card.title).join(' ');
 			card.normalizedSubtitle = normalizedWords(card.subtitle).join(' ');
+			card.normalizedInboundLinksText = normalizedWords(Object.values(card.links_inbound_text).join(' ')).join(' ');
 			cards[id] = card;
 		});
 
