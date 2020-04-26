@@ -137,7 +137,8 @@ export const updateLinks = async() => {
 
 	for (let doc of snapshot.docs) {
 		counter++;
-		let links = extractCardLinksFromBody(doc.data().body);
+		let linkInfo = extractCardLinksFromBody(doc.data().body);
+		let links = linkInfo[0];
 		await doc.ref.update({
 			links: links,
 		});

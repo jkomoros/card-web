@@ -105,9 +105,10 @@ const app = (state = INITIAL_STATE, action) => {
 		//These links will be recomputed for real when the card is committed,
 		//but updating them now allows things like the live list of reciprocal
 		//links to be updated away.
+		let linkInfo = extractCardLinksFromBody(state.card.body);
 		return {
 			...state,
-			card: {...state.card, links:extractCardLinksFromBody(state.card.body)}
+			card: {...state.card, links:linkInfo[0]}
 		};
 	case EDITING_SLUG_ADDED:
 		if (!state.card) return state;

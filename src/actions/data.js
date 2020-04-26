@@ -162,7 +162,8 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 
 	if (update.body !== undefined) {
 		cardUpdateObject.body = update.body;
-		cardUpdateObject.links = extractCardLinksFromBody(update.body);
+		let linkInfo = extractCardLinksFromBody(update.body);
+		cardUpdateObject.links = linkInfo[0];
 	}
 
 	if (update.title !== undefined) {

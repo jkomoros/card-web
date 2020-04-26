@@ -248,8 +248,14 @@ export const extractCardLinksFromBody = (body) => {
 	ele.innerHTML = body;
 	let result = [];
 	let nodes = ele.querySelectorAll('card-link[card]');
-	nodes.forEach(link => result.push(link.getAttribute('card')));
-	return arrayUnique(result);
+	let text = {};
+	nodes.forEach(link => {
+		const id = link.getAttribute('card');
+		result.push(id);
+		if (!text[id]) text[id] = [];
+		text[id].push(link.innerText);
+	});
+	return [arrayUnique(result), text];
 };
 
 //Returns true or false. filterName can be a filter or inverse filtername, if
