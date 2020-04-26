@@ -776,6 +776,31 @@ export const doInitialSetUp = () => async (_, getState) => {
 	alert('Set up done!');
 };
 
+const ADD_LINKS_TEXT = 'add-links-text';
+
+export const addLinksText = async() => {
+
+	await checkMaintenanceTaskHasBeenRun(ADD_LINKS_TEXT);
+
+	let batch = new MultiBatch(db);
+
+	let snapshot = await db.collection(CARDS_COLLECTION).get();
+
+	snapshot.forEach(doc => {
+		const linkInfo = extractCardLinksFromBody(doc.data().body);
+		batch.update(doc.ref, {
+			links: linkInfo[0],
+			links_text: linkInfo[1],
+			links_inbound_text: {},
+		});
+	});
+
+	await batch.commit();
+
+	await maintenanceTaskRun(ADD_LINKS_TEXT);
+	alert(ADD_LINKS_TEXT + ' done!');
+};
+
 export const tasks = {
 	[ADD_TWO_OLD_MAINTENANCE_TASKS]: addTwoOldMaintenanceTasks,
 	[ADD_CARD_TYPE_TO_IMPORTED_CARDS]: addCardTypeToImportedCards,
@@ -799,4 +824,5 @@ export const tasks = {
 	[ADD_TWEET_MEDIA]: addTweetMedia,
 	[CLEAN_INBOUND_LINKS]: cleanInboundLinks,
 	[ADD_AUTO_TODO_SKIPPED_LINKS_INBOUND]: addAutoTodoSkippedLinksInbound,
+	[ADD_LINKS_TEXT]: addLinksText,
 };

@@ -37,7 +37,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 		  <br />
           <button @click='${this._handleDoImport}'>Do import</button><br />
           ${repeat(Object.keys(tasks), (item) => item, (item) => html`
-              <button value="${item}" @click='${this._handleClick}'>${item}</button><br />
+              <button value="${item}" @click='${this._handleClick}'>${item}</button>
           `)}
         </section>
       </section>
