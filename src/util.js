@@ -109,8 +109,8 @@ export const normalizedWords = (str) => {
 	const splitWords = str.toLowerCase().split(/\s+/);
 	let result = [];
 	for (let word of splitWords) {
-		word = word.replace(/^\W/, '');
-		word = word.replace(/\W$/, '');
+		word = word.replace(/^\W*/, '');
+		word = word.replace(/\W*$/, '');
 		if (!word) continue;
 		result.push(word);
 	}
