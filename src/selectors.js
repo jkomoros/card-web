@@ -245,7 +245,8 @@ export const selectCards = createSelector(
 );
 
 //selectCardWords returns a object that contains an object for each card id of
-//words to their count in that card.
+//words to their count in that card. This uses all words htat could be searched
+//over, and is the input to the IDF calculation pipeline and others.
 //TODO: make this not exported
 export const selectCardWords = createSelector(
 	selectCards,
@@ -262,6 +263,13 @@ export const selectCardWords = createSelector(
 		}
 		return result;
 	}
+);
+
+//selectCardWordCount returns the entire count of words per card, of words in selectCardWords.
+//TODO: make this not be exported
+export const selectCardWordCount = createSelector(
+	selectCardWords,
+	(cardWords) => Object.fromEntries(Object.entries(cardWords).map(entry => [entry[0], Object.values(entry[1]).reduce((prevVal, currentVal) => prevVal + currentVal, 0)]))
 );
 
 //Selects the set of all cards the current user can see (which even includes
