@@ -123,11 +123,11 @@ service cloud.firestore {
     }
     
     function loggedIn() {
-      return request.auth.uid != null;
+      return request.auth != null && request.auth.uid != null;
     }
 
     function isAnonymous() {
-      return request.auth.token.firebase.sign_in_provider == 'anonymous';
+      return request.auth != null && request.auth.token != null && request.auth.token.firebase != null && request.auth.token.firebase.sign_in_provider == 'anonymous';
     }
     
     function createIsOwner() {
