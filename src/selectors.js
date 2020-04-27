@@ -272,9 +272,9 @@ export const selectCardWordCount = createSelector(
 	(cardWords) => Object.fromEntries(Object.entries(cardWords).map(entry => [entry[0], Object.values(entry[1]).reduce((prevVal, currentVal) => prevVal + currentVal, 0)]))
 );
 
-//selectTotalWordCount returns the word count for the entire collection of cards.
+//selectCorpusWordCount returns the word count for the entire collection of cards.
 //TODO: make this not be exported
-export const selectTotalWordCount = createSelector(
+export const selectCorpusWordCount = createSelector(
 	selectCardWords,
 	(cardWords) => Object.values(cardWords).reduce((prev, curr) => prev + curr, 0)
 );
