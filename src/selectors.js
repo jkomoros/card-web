@@ -265,8 +265,7 @@ const selectCardWords = createSelector(
 );
 
 //selectCardWordCount returns the entire count of words per card, of words in selectCardWords.
-//TODO: make this unexported
-export const selectCardWordCount = createSelector(
+const selectCardWordCount = createSelector(
 	selectCardWords,
 	(cardWords) => Object.fromEntries(Object.entries(cardWords).map(entry => [entry[0], Object.values(entry[1]).reduce((prevVal, currentVal) => prevVal + currentVal, 0)]))
 );
@@ -288,8 +287,7 @@ const selectCorpusWords = createSelector(
 
 //selectIDF of every word in the corpus. See
 //https://en.wikipedia.org/wiki/Tf%E2%80%93idf
-//TODO: make this not be exported
-export const selectWordsIDF = createSelector(
+const selectWordsIDF = createSelector(
 	selectCorpusWords,
 	selectCards,
 	(words, cards) => {
@@ -297,6 +295,27 @@ export const selectWordsIDF = createSelector(
 		const numCards = Object.keys(cards).length;
 		for (const [word, count] of Object.entries(words)) {
 			result[word] = Math.log10(numCards / (count + 1));
+		}
+		return result;
+	}
+);
+
+//selectCardWordsTFIDF returns an object with each cardID, pointing to the word
+//=> TF-IDF. See https://en.wikipedia.org/wiki/Tf%E2%80%93idf for more on
+//TF-IDF. 
+//TOOD: make this not exported
+export const selectCardWordsTFIDF = createSelector(
+	selectWordsIDF,
+	selectCardWords,
+	selectCardWordCount,
+	(idf, cardWords, cardsWordCount) => {
+		const result = {};
+		for (const [cardID, wordCounts] of Object.entries(cardWords)) {
+			const resultTFIDF = {};
+			for (const [word, count] of Object.entries(wordCounts)) {
+				resultTFIDF[word] = (count / cardsWordCount[cardID]) * idf[word];
+			}
+			result[cardID] = resultTFIDF;
 		}
 		return result;
 	}
