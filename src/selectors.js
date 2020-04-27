@@ -244,6 +244,26 @@ export const selectCards = createSelector(
 	(baseCards, userMayViewUnpublished, uid) => userMayViewUnpublished ? baseCards : Object.fromEntries(Object.entries(baseCards).filter(item => item[1].published || item[1].author == uid))
 );
 
+//selectCardWords returns a object that contains an object for each card id of
+//words to their count in that card.
+//TODO: make this not exported
+export const selectCardWords = createSelector(
+	selectCards,
+	(cards) => {
+		let result = {};
+		for (const [key, card] of Object.entries(cards)) {
+			const words = Object.keys(TEXT_SEARCH_PROPERTIES).map(prop => card[prop]).join(' ').split(' ');
+			const cardMap = {};
+			for (const word of words) {
+				if (!word) continue;
+				cardMap[word] = (cardMap[word] || 0) + 1;
+			}
+			result[key] = cardMap;
+		}
+		return result;
+	}
+);
+
 //Selects the set of all cards the current user can see (which even includes
 //ones not in default)
 export const selectAllCardsFilter = createSelector(
