@@ -140,6 +140,19 @@ export const stemmedNormalizedWords = (str) => {
 	return result;
 };
 
+//Returns the 'distance' between two semantic fingerprints (which can be fetched
+//from e.g. selectCardsSemanticFingerprint). Lower numbers are closer.
+export const semanticDistance = (fingerprintOne, fingerprintTwo) => {
+	if (!fingerprintOne) fingerprintOne = new Map();
+	if (!fingerprintTwo) fingerprintTwo = new Map();
+	let sum = 0;
+	let keys = new Set([...fingerprintOne.keys(), ...fingerprintTwo.keys()]);
+	for (const key of keys.values()) {
+		sum += Math.pow((fingerprintOne.get(key) || 0) - (fingerprintTwo.get(key) || 0), 2);
+	}
+	return Math.sqrt(sum);
+};
+
 const randomCharSetNumbers = '0123456789';
 const randomCharSetLetters = 'abcdef';
 const randomCharSet = randomCharSetNumbers + randomCharSetLetters;
