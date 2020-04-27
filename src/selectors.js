@@ -265,19 +265,14 @@ const selectCardWords = createSelector(
 );
 
 //selectCardWordCount returns the entire count of words per card, of words in selectCardWords.
-const selectCardWordCount = createSelector(
+//TODO: make this unexported
+export const selectCardWordCount = createSelector(
 	selectCardWords,
 	(cardWords) => Object.fromEntries(Object.entries(cardWords).map(entry => [entry[0], Object.values(entry[1]).reduce((prevVal, currentVal) => prevVal + currentVal, 0)]))
 );
 
-//selectCorpusWordCount returns the word count for the entire collection of cards.
-const selectCorpusWordCount = createSelector(
-	selectCardWordCount,
-	(cardWordCounts) => Object.values(cardWordCounts).reduce((prev, curr) => prev + curr, 0)
-);
-
-//selectCorpusWords returns a set of word => wordCount for all words across all cards
-//in corpus.
+//selectCorpusWords returns a set of word => cardCount (how many cards that word
+//appears in at least once) for all words across all cards in corpus.
 const selectCorpusWords = createSelector(
 	selectCardWords,
 	(cardWords) => {
@@ -291,17 +286,17 @@ const selectCorpusWords = createSelector(
 	}
 );
 
-//selectIDF of every word in the corpus. Note that this isn't technically an
-//Inverse Document Frequency because it uses the count of that word against all
-//words in corpus, not by documdent. See https://en.wikipedia.org/wiki/Tf%E2%80%93idf
+//selectIDF of every word in the corpus. See
+//https://en.wikipedia.org/wiki/Tf%E2%80%93idf
 //TODO: make this not be exported
 export const selectWordsIDF = createSelector(
 	selectCorpusWords,
-	selectCorpusWordCount,
-	(words, totalWordCount) => {
+	selectCards,
+	(words, cards) => {
 		const result = {};
+		const numCards = Object.keys(cards).length;
 		for (const [word, count] of Object.entries(words)) {
-			result[word] = totalWordCount / (count + 1);
+			result[word] = Math.log10(numCards / (count + 1));
 		}
 		return result;
 	}
