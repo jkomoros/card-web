@@ -279,6 +279,21 @@ export const selectCorpusWordCount = createSelector(
 	(cardWords) => Object.values(cardWords).reduce((prev, curr) => prev + curr, 0)
 );
 
+//selectCorpusWords returns a set of word => wordCount for all words across all cards
+//in corpus.
+export const selectCorpusWords = createSelector(
+	selectCardWords,
+	(cardWords) => {
+		const wordMap = {};
+		for (const words of Object.values(cardWords)) {
+			for (const word of Object.keys(words)) {
+				wordMap[word] = (wordMap[word] || 0) + 1;
+			}
+		}
+		return wordMap;
+	}
+);
+
 //Selects the set of all cards the current user can see (which even includes
 //ones not in default)
 export const selectAllCardsFilter = createSelector(
