@@ -17,6 +17,7 @@ import {
 	TEXT_SEARCH_PROPERTIES,
 	normalizedWords,
 	stemmedNormalizedWords,
+	semanticDistance,
 } from './util.js';
 
 import {
@@ -325,7 +326,7 @@ const selectCardWordsTFIDF = createSelector(
 const SEMANTIC_FINGERPRINT_SIZE = 25;
 
 //A map of cardID to the semantic fingerprint for that card.
-export const selectCardsSemanticFingerprint = createSelector(
+const selectCardsSemanticFingerprint = createSelector(
 	selectCardWordsTFIDF,
 	(tfidfMap) => {
 		const result = {};
@@ -336,6 +337,23 @@ export const selectCardsSemanticFingerprint = createSelector(
 		}
 		return result;
 	}
+);
+
+const getClosestSemanticDistanceCards = (fingerprints, cardID) => {
+	const distances = {};
+	for (const otherCardID of Object.keys(fingerprints)) {
+		if (otherCardID === cardID) continue;
+		distances[otherCardID] = semanticDistance(fingerprints[cardID], fingerprints[otherCardID]);
+	}
+	const sortedCardIDs = Object.keys(distances).sort((a, b) => distances[a] - distances[b]);
+	return new Map(sortedCardIDs.map(id => [id, distances[id]]));
+};
+
+//Returns a map with the closest cards at the beginning.
+export const selectActiveCardClosestSemanticDistanceCards = createSelector(
+	selectActiveCardId,
+	selectCardsSemanticFingerprint,
+	(cardID, fingerprints) => getClosestSemanticDistanceCards(fingerprints, cardID)
 );
 
 //Selects the set of all cards the current user can see (which even includes
