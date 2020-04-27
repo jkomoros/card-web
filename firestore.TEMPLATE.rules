@@ -63,7 +63,7 @@ service cloud.firestore {
     }
 
     function userPermissions() {
-      return request.auth.uid != null && exists(/databases/$(database)/documents/permissions/$(request.auth.uid)) ? get(/databases/$(database)/documents/permissions/$(request.auth.uid)).data : {};
+      return (request.auth != null && request.auth.uid != null && exists(/databases/$(database)/documents/permissions/$(request.auth.uid))) ? get(/databases/$(database)/documents/permissions/$(request.auth.uid)).data : {};
     }
 
     function getPermission(key) {
