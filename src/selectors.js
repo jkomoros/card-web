@@ -304,8 +304,7 @@ const selectWordsIDF = createSelector(
 //selectCardWordsTFIDF returns an object with each cardID, pointing to the word
 //=> TF-IDF. See https://en.wikipedia.org/wiki/Tf%E2%80%93idf for more on
 //TF-IDF. 
-//TOOD: make this not exported
-export const selectCardWordsTFIDF = createSelector(
+const selectCardWordsTFIDF = createSelector(
 	selectWordsIDF,
 	selectCardWords,
 	selectCardWordCount,
@@ -317,6 +316,23 @@ export const selectCardWordsTFIDF = createSelector(
 				resultTFIDF[word] = (count / cardsWordCount[cardID]) * idf[word];
 			}
 			result[cardID] = resultTFIDF;
+		}
+		return result;
+	}
+);
+
+//The number of words to include in the semantic fingerprint
+const SEMANTIC_FINGERPRINT_SIZE = 25;
+
+//A map of cardID to the semantic fingerprint for that card.
+export const selectCardsSemanticFingerprint = createSelector(
+	selectCardWordsTFIDF,
+	(tfidfMap) => {
+		const result = {};
+		for (const [cardID, tfidf] of Object.entries(tfidfMap)) {
+			//Pick the keys for the items with the highest tfidf (the most important and specific to that card)
+			let keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, SEMANTIC_FINGERPRINT_SIZE);
+			result[cardID] = new Map(keys.map(key => [key, tfidf[key]]));
 		}
 		return result;
 	}
