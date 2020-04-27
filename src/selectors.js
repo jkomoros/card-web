@@ -340,6 +340,7 @@ const selectCardsSemanticFingerprint = createSelector(
 );
 
 const getClosestSemanticDistanceCards = (fingerprints, cardID) => {
+	if (!fingerprints || !fingerprints[cardID]) return new Map();
 	const distances = {};
 	for (const otherCardID of Object.keys(fingerprints)) {
 		if (otherCardID === cardID) continue;
