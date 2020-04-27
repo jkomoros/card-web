@@ -14,7 +14,7 @@
     "serve:prpl-server": "prpl-server --root server/build",
     "serve:static": "polymer serve --port 5000 build/es5-bundled",
     "test": "npm run test:unit && npm run test:integration && npm run test:security",
-    "test:security": "firebase emulators:exec --only firestore 'npm run test:security-impl'",
+    "test:security": "gulp inject-config && firebase emulators:exec --only firestore 'npm run test:security-impl'",
     "test:security-impl": "mocha test/security --timeout=10000",
     "test:integration": "mocha test/integration --timeout=10000",
     "test:unit": "polymer test --module-resolution=node --npm",
