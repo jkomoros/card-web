@@ -16,6 +16,7 @@ import {
 	makeConcreteInverseFilter,
 	TEXT_SEARCH_PROPERTIES,
 	normalizedWords,
+	stemmedNormalizedWords,
 } from './util.js';
 
 import {
@@ -252,7 +253,7 @@ const selectCardWords = createSelector(
 	(cards) => {
 		let result = {};
 		for (const [key, card] of Object.entries(cards)) {
-			const words = Object.keys(TEXT_SEARCH_PROPERTIES).map(prop => card[prop]).join(' ').split(' ');
+			const words = stemmedNormalizedWords(Object.keys(TEXT_SEARCH_PROPERTIES).map(prop => card[prop]).join(' '));
 			const cardMap = {};
 			for (const word of words) {
 				if (!word) continue;

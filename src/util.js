@@ -1,5 +1,8 @@
 import snarkdown from 'snarkdown';
 import dompurify from 'dompurify';
+import {
+	stemmer
+} from './stemmer.js';
 
 //define this here and then re-export form app.js so this file doesn't need any
 //other imports.
@@ -113,6 +116,26 @@ export const normalizedWords = (str) => {
 		word = word.replace(/\W*$/, '');
 		if (!word) continue;
 		result.push(word);
+	}
+	return result;
+};
+
+let memoizedStemmedWords = {};
+const memorizedStemmer = (word) => {
+	if (!memoizedStemmedWords[word]) {
+		memoizedStemmedWords[word] = stemmer(word);
+	}
+	
+	return memoizedStemmedWords[word];
+};
+
+//A more aggressive form of normalization
+export const stemmedNormalizedWords = (str) => {
+	//Assumes the words are already run through nomralizedWords
+	const splitWords = str.split('-').join(' ').split(' ');
+	let result = [];
+	for (let word of splitWords) {
+		result.push(memorizedStemmer(word));
 	}
 	return result;
 };
