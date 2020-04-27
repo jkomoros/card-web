@@ -272,6 +272,13 @@ export const selectCardWordCount = createSelector(
 	(cardWords) => Object.fromEntries(Object.entries(cardWords).map(entry => [entry[0], Object.values(entry[1]).reduce((prevVal, currentVal) => prevVal + currentVal, 0)]))
 );
 
+//selectTotalWordCount returns the word count for the entire collection of cards.
+//TODO: make this not be exported
+export const selectTotalWordCount = createSelector(
+	selectCardWords,
+	(cardWords) => Object.values(cardWords).reduce((prev, curr) => prev + curr, 0)
+);
+
 //Selects the set of all cards the current user can see (which even includes
 //ones not in default)
 export const selectAllCardsFilter = createSelector(
