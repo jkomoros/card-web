@@ -247,8 +247,7 @@ export const selectCards = createSelector(
 //selectCardWords returns a object that contains an object for each card id of
 //words to their count in that card. This uses all words htat could be searched
 //over, and is the input to the IDF calculation pipeline and others.
-//TODO: make this not exported
-export const selectCardWords = createSelector(
+const selectCardWords = createSelector(
 	selectCards,
 	(cards) => {
 		let result = {};
@@ -266,23 +265,20 @@ export const selectCardWords = createSelector(
 );
 
 //selectCardWordCount returns the entire count of words per card, of words in selectCardWords.
-//TODO: make this not be exported
-export const selectCardWordCount = createSelector(
+const selectCardWordCount = createSelector(
 	selectCardWords,
 	(cardWords) => Object.fromEntries(Object.entries(cardWords).map(entry => [entry[0], Object.values(entry[1]).reduce((prevVal, currentVal) => prevVal + currentVal, 0)]))
 );
 
 //selectCorpusWordCount returns the word count for the entire collection of cards.
-//TODO: make this not be exported
-export const selectCorpusWordCount = createSelector(
+const selectCorpusWordCount = createSelector(
 	selectCardWordCount,
 	(cardWordCounts) => Object.values(cardWordCounts).reduce((prev, curr) => prev + curr, 0)
 );
 
 //selectCorpusWords returns a set of word => wordCount for all words across all cards
 //in corpus.
-//TODO: make this not be exported.
-export const selectCorpusWords = createSelector(
+const selectCorpusWords = createSelector(
 	selectCardWords,
 	(cardWords) => {
 		const wordMap = {};
@@ -292,6 +288,22 @@ export const selectCorpusWords = createSelector(
 			}
 		}
 		return wordMap;
+	}
+);
+
+//selectIDF of every word in the corpus. Note that this isn't technically an
+//Inverse Document Frequency because it uses the count of that word against all
+//words in corpus, not by documdent. See https://en.wikipedia.org/wiki/Tf%E2%80%93idf
+//TODO: make this not be exported
+export const selectWordsIDF = createSelector(
+	selectCorpusWords,
+	selectCorpusWordCount,
+	(words, totalWordCount) => {
+		const result = {};
+		for (const [word, count] of Object.entries(words)) {
+			result[word] = totalWordCount / (count + 1);
+		}
+		return result;
 	}
 );
 
