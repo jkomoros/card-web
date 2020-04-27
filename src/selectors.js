@@ -281,6 +281,7 @@ export const selectCorpusWordCount = createSelector(
 
 //selectCorpusWords returns a set of word => wordCount for all words across all cards
 //in corpus.
+//TODO: make this not be exported.
 export const selectCorpusWords = createSelector(
 	selectCardWords,
 	(cardWords) => {
