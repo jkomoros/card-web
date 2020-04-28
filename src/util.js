@@ -150,7 +150,12 @@ export const semanticDistance = (fingerprintOne, fingerprintTwo) => {
 	for (const key of keys.values()) {
 		sum += Math.pow((fingerprintOne.get(key) || 0) - (fingerprintTwo.get(key) || 0), 2);
 	}
-	return Math.sqrt(sum);
+	//Divide the distance by total number of keys in the fingerprint. If one of
+	//the fingerprints is 0, then it doesn't make that overall distance tiny
+	//just because there are half as many keys as normal. And then keys that are
+	//shared across both fingerprints will be rewarded more heavily, because
+	//there will only be one term, but it will be divided as though it's two.
+	return Math.sqrt(sum) / (fingerprintOne.size + fingerprintTwo.size);
 };
 
 const randomCharSetNumbers = '0123456789';
