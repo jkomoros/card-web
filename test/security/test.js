@@ -530,12 +530,6 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(message.set({author: bobUid, message: 'new message'}));
 	});
 
-	it('allows admins to create a message with any author', async() => {
-		const db = authedApp(adminAuth);
-		const message = db.collection(MESSAGES_COLLECTION).doc(newMessageId);
-		await firebase.assertSucceeds(message.set({author: bobUid, message: 'new message'}));
-	});
-
 	it('disallows any anonymous user to create a message even if they are marked as author', async() => {
 		const db = authedApp(anonAuth);
 		const message = db.collection(MESSAGES_COLLECTION).doc(newMessageId);
@@ -575,12 +569,6 @@ describe('Compendium Rules', () => {
 		const db = authedApp(sallyAuth);
 		const thread = db.collection(THREADS_COLLECTION).doc(newMessageId);
 		await firebase.assertFails(thread.set({author: bobUid}));
-	});
-
-	it('allows admins to create a thread with any author', async() => {
-		const db = authedApp(adminAuth);
-		const thread = db.collection(THREADS_COLLECTION).doc(newMessageId);
-		await firebase.assertSucceeds(thread.set({author: bobUid}));
 	});
 
 	it('disallows any anonymous user to create a thread even if they are marked as author', async() => {
