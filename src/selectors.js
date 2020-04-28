@@ -272,15 +272,15 @@ const selectCardWordCount = createSelector(
 	(cardWords) => Object.fromEntries(Object.entries(cardWords).map(entry => [entry[0], Object.values(entry[1]).reduce((prevVal, currentVal) => prevVal + currentVal, 0)]))
 );
 
-//selectCorpusWords returns a set of word => cardCount (how many cards that word
-//appears in at least once) for all words across all cards in corpus.
+//selectCorpusWords returns a set of word => totalWordCount (how many times that
+//word occurs) for all words across all cards in corpus.
 const selectCorpusWords = createSelector(
 	selectCardWords,
 	(cardWords) => {
 		const wordMap = {};
 		for (const words of Object.values(cardWords)) {
-			for (const word of Object.keys(words)) {
-				wordMap[word] = (wordMap[word] || 0) + 1;
+			for (const [word, count] of Object.entries(words)) {
+				wordMap[word] = (wordMap[word] || 0) + count;
 			}
 		}
 		return wordMap;
