@@ -246,6 +246,12 @@ export const selectCards = createSelector(
 	(baseCards, userMayViewUnpublished, uid) => userMayViewUnpublished ? baseCards : Object.fromEntries(Object.entries(baseCards).filter(item => item[1].published || item[1].author == uid))
 );
 
+export const selectActiveCard = createSelector(
+	selectCards,
+	selectActiveCardId,
+	(cards, activeCard) => cards[activeCard] || null
+);
+
 const selectContentCards = createSelector(
 	selectCards,
 	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => entry[1].card_type == 'content'))
@@ -356,10 +362,33 @@ const getClosestSemanticOverlapCards = (fingerprints, cardID) => {
 };
 
 //Returns a map with the closest cards at the beginning.
-export const selectActiveCardClosestSemanticOverlapCards = createSelector(
+const selectActiveCardClosestSemanticOverlapCards = createSelector(
 	selectActiveCardId,
 	selectCardsSemanticFingerprint,
 	(cardID, fingerprints) => getClosestSemanticOverlapCards(fingerprints, cardID)
+);
+
+const NUM_SIMILAR_CARDS_TO_SHOW = 5;
+
+//selectActiveCardSimilarCards is like
+//selectActiveCardClosestSemanticOverlapCareds, but it returns a list of no more
+//than NUM_SIMILAR_CARDS_TO_SHOW, where cards that are already linked to or from
+//the main card are skipped.
+export const selectActiveCardSimilarCards = createSelector(
+	selectActiveCard,
+	selectActiveCardClosestSemanticOverlapCards,
+	(card, overlapMap) => {
+		if (!card || Object.keys(card).length == 0) return [];
+		if (!overlapMap || overlapMap.size == 0) return [];
+		const excludeIDs = new Set([...card.links, ...card.links_inbound]);
+		let result = [];
+		for (const cardID of overlapMap.keys()) {
+			if (excludeIDs.has(cardID)) continue;
+			result.push(cardID);
+			if (result.length >= NUM_SIMILAR_CARDS_TO_SHOW) break;
+		}
+		return result;
+	}
 );
 
 //Selects the set of all cards the current user can see (which even includes
@@ -538,12 +567,6 @@ export const selectDataIsFullyLoaded = createSelector(
 	selectTagsLoaded,
 	selectUserDataIsFullyLoaded,
 	(cardsLoaded, sectionsLoaded, tagsLoaded, userDataLoaded) => cardsLoaded && sectionsLoaded && tagsLoaded && userDataLoaded
-);
-
-export const selectActiveCard = createSelector(
-	selectCards,
-	selectActiveCardId,
-	(cards, activeCard) => cards[activeCard] || null
 );
 
 export const selectActivePreviewCard = createSelector(

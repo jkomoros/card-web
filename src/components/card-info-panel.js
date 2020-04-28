@@ -30,7 +30,7 @@ import {
 	selectTweetsLoading,
 	selectCommentsAndInfoPanelOpen,
 	selectUserMayEdit,
-	selectActiveCardClosestSemanticOverlapCards
+	selectActiveCardSimilarCards,
 } from '../selectors.js';
 
 import {
@@ -47,8 +47,6 @@ import {
 import './author-chip.js';
 import './card-link.js';
 import './tag-list.js';
-
-const NUM_OVERLAPPING_CARDS_TO_SHOW = 5;
 
 class CardInfoPanel extends connect(store)(PageViewElement) {
 	render() {
@@ -126,7 +124,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				</div>
 				${
 	this._closestCards.length ?
-		html`<div><h4>Similar Cards${this._help('Cards that are neither linked to here or from here that seem to be similar.')}</h4><ul>${this._closestCards.map(item => html`<li><card-link auto='title' card='${item}'>${item}</card-link></li>`)}</ul></div>` :
+		html`<div><h4>Similar Cards${this._help('Cards that are neither linked to or from here but that have distinctive terms that overlap with this card.')}</h4><ul>${this._closestCards.map(item => html`<li><card-link auto='title' card='${item}'>${item}</card-link></li>`)}</ul></div>` :
 		html``
 }
 				<div>
@@ -193,7 +191,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			_inboundLinks: {type: Array},
 			_tweets: {type: Object},
 			_tweetsLoading: {type: Boolean},
-			_closestCardsMap: { type:Object },
+			_closestCards: { type:Array },
 		};
 	}
 
@@ -205,18 +203,6 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		return html`<li><a href='${urlForTweet(tweet)}' target='_blank'>${prettyTime(tweet.created)}</a> ${favoriteIcon} ${tweet.favorite_count} ${repeatIcon} ${tweet.retweet_count}</li>`;
 	}
 
-	get _closestCards() {
-		if (!this._closestCardsMap || !this._closestCardsMap.size || !this._card || !Object.keys(this._card).length) return [];
-		const excludeIDs = new Set([...this._card.links, ...this._card.links_inbound]);
-		let result = [];
-		for (const cardID of this._closestCardsMap.keys()) {
-			if (excludeIDs.has(cardID)) continue;
-			result.push(cardID);
-			if (result.length >= NUM_OVERLAPPING_CARDS_TO_SHOW) break;
-		}
-		return result;
-	}
-
 	stateChanged(state) {
 		this._open = selectCommentsAndInfoPanelOpen(state);
 		this._card = selectActiveCard(state) || {};
@@ -226,9 +212,9 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._inboundLinks = selectInboundLinksForActiveCard(state);
 		this._tweets = selectActiveCardTweets(state);
 		this._tweetsLoading = selectTweetsLoading(state);
-		//selectActiveCardClosestSemanticDistanceCards is extremly expensive to
+		//selectActiveCardSimilarCards is extremly expensive to
 		//call into being, so only do it if the user is an admin.
-		this._closestCardsMap = selectUserMayEdit(state) ? selectActiveCardClosestSemanticOverlapCards(state) : new Map();
+		this._closestCards = selectUserMayEdit(state) ? selectActiveCardSimilarCards(state) : [];
 	}
 
 	updated(changedProps) {
