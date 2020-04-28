@@ -350,6 +350,31 @@ const selectCardsSemanticFingerprint = createSelector(
 	}
 );
 
+//A map of tagID to the semantic fingerprint for that card. A tag's semantic
+//fingerprint is created by adding up all of its cards semantic fingerprint,
+//resorting, and re-trimming down to fingerprint size. They can be compared
+//directly to a given card's fingerprint.
+const selectTagsSemanticFingerprint = createSelector(
+	selectTags,
+	selectCardsSemanticFingerprint,
+	(tags, fingerprints) => {
+		if (!tags) return {};
+		let result = {};
+		for (const [tagID, tag] of Object.entries(tags)) {
+			let joinedMap = new Map();
+			for (const cardID of tag.cards) {
+				const fingerprint = fingerprints[cardID];
+				for (const [word, idf] of fingerprint) {
+					joinedMap.set(word, (joinedMap.get(word) || 0) + idf);
+				}
+			}
+			const sortedKeys = joinedMap.keys().sort((a, b) => joinedMap.get(b) - joinedMap.get(a)).slice(0, SEMANTIC_FINGERPRINT_SIZE);
+			result[tagID] = new Map(sortedKeys.map(key => [key, joinedMap.get(key)]));
+		}
+		return result;
+	}
+);
+
 const getClosestSemanticOverlapCards = (fingerprints, cardID) => {
 	if (!fingerprints || !fingerprints[cardID]) return new Map();
 	const overlaps = {};
