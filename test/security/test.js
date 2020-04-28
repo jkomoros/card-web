@@ -69,6 +69,7 @@ async function setupDatabase() {
 		thread_count: cardThreadCount,
 		thread_resolved_count: cardThreadResolvedCount,
 		star_count: cardStarCount,
+		star_count_manual: cardStarCount,
 		published: true,
 	});
 	await db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId).set({
@@ -80,6 +81,7 @@ async function setupDatabase() {
 		thread_count: cardThreadCount,
 		thread_resolved_count: cardThreadResolvedCount,
 		star_count: cardStarCount,
+		star_count_manual: cardStarCount,
 		published: false,
 	});
 
@@ -254,13 +256,13 @@ describe('Compendium Rules', () => {
 	it('allows any signed in users to increment star_count by 1', async() => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({star_count: cardStarCount + 1}));
+		await firebase.assertSucceeds(card.update({star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1}));
 	});
 
 	it('disallows any nonauthenticated  users to increment star_count by 1', async() => {
 		const db = authedApp(null);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({star_count: cardStarCount + 1}));
+		await firebase.assertFails(card.update({star_count: cardStarCount + 1, star_count_manual: cardStarCount + 1}));
 	});
 
 	it('disallows any signed in users to increment star_count by 1 if they edit other fields', async() => {
@@ -272,13 +274,13 @@ describe('Compendium Rules', () => {
 	it('allows any signed in users to decrement star_count by 1', async() => {
 		const db = authedApp(anonAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertSucceeds(card.update({star_count: cardStarCount - 1}));
+		await firebase.assertSucceeds(card.update({star_count: cardStarCount - 1, star_count_manual: cardStarCount - 1}));
 	});
 
 	it('disallows any nonauthenticated users to decrement star_count by 1', async() => {
 		const db = authedApp(null);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
-		await firebase.assertFails(card.update({star_count: cardStarCount - 1}));
+		await firebase.assertFails(card.update({star_count: cardStarCount - 1, star_count_manual: cardStarCount - 1}));
 	});
 
 	it('disallows any signed in users to decrement star_count by 1 if they edit other fields', async() => {
