@@ -375,12 +375,14 @@ const selectTagsSemanticFingerprint = createSelector(
 	}
 );
 
-const getClosestSemanticOverlapCards = (fingerprints, cardID) => {
+//separating out cardFingerprint allows this to be used where fingerprints is
+//for a different set of things, e.g. tags.
+const getClosestSemanticOverlapItems = (fingerprints, cardID, cardFingerprint) => {
 	if (!fingerprints || !fingerprints[cardID]) return new Map();
 	const overlaps = {};
 	for (const otherCardID of Object.keys(fingerprints)) {
 		if (otherCardID === cardID) continue;
-		overlaps[otherCardID] = semanticOverlap(fingerprints[cardID], fingerprints[otherCardID]);
+		overlaps[otherCardID] = semanticOverlap(cardFingerprint, fingerprints[otherCardID]);
 	}
 	const sortedCardIDs = Object.keys(overlaps).sort((a, b) => overlaps[b] - overlaps[a]);
 	return new Map(sortedCardIDs.map(id => [id, overlaps[id]]));
@@ -390,7 +392,7 @@ const getClosestSemanticOverlapCards = (fingerprints, cardID) => {
 const selectActiveCardClosestSemanticOverlapCards = createSelector(
 	selectActiveCardId,
 	selectCardsSemanticFingerprint,
-	(cardID, fingerprints) => getClosestSemanticOverlapCards(fingerprints, cardID)
+	(cardID, fingerprints) => getClosestSemanticOverlapItems(fingerprints, cardID, fingerprints[cardID])
 );
 
 const NUM_SIMILAR_CARDS_TO_SHOW = 5;
