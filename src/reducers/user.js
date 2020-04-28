@@ -25,7 +25,9 @@ import {
 //code. Note that this is duplicated in firestore.TEMPLATE.rules
 export const BASE_PERMISSIONS = {
 	//admin is the highest permission, which allows basically all actions,
-	//including deleting things. 
+	//including deleting things. Note that this may only be set to true on a
+	//specific permissions record for a user, not at any other override point,
+	//since it's so sensitive.
 	admin: false,
 	//viewApp is basic view-only access to the app, allowing people to see
 	//published cards, as well as tags, sections, and comments/threads. This

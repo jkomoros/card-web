@@ -71,7 +71,9 @@ service cloud.firestore {
     }
 
     function userIsAdmin() {
-      return getPermission('admin');
+      //don't do the whole transform of getPermission, because admin is so sensitive that it should only be 
+      //able to be set per user, and getPermission is really expensive to run twice
+      return userPermissions().get('admin', false);
     }
 
     function userMayViewApp() {
