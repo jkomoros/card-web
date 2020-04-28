@@ -198,13 +198,13 @@ service cloud.firestore {
     match /messages/{message} {
       allow read: if userMayViewApp();
       allow create: if createIsAuthor() && userMayComment();
-      allow update: if updateIsAuthor() && userMayComment();
+      allow update: if (updateIsAuthor() || userIsAdmin()) && userMayComment();
     }
     
     match /threads/{thread} {
       allow read: if userMayViewApp();
       allow create: if createIsAuthor() && userMayComment()
-      allow update: if userMayComment() && (updateIsAuthor() || (!isAnonymous() && editOnlyAddsMessage()));
+      allow update: if userMayComment() && (updateIsAuthor() || (!isAnonymous() && editOnlyAddsMessage()) || userIsAdmin());
     }
     
     match /stars/{star} {
