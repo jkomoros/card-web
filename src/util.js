@@ -140,9 +140,10 @@ export const stemmedNormalizedWords = (str) => {
 	return result;
 };
 
-//Returns the 'distance' between two semantic fingerprints (which can be fetched
-//from e.g. selectCardsSemanticFingerprint). Lower numbers are closer.
-export const semanticDistance = (fingerprintOne, fingerprintTwo) => {
+//Returns the 'overlap' between two semantic fingerprints (which can be fetched
+//from e.g. selectCardsSemanticFingerprint). Higher nubmers are better. Will be
+//0 to 1.
+export const semanticOverlap = (fingerprintOne, fingerprintTwo) => {
 	if (!fingerprintOne) fingerprintOne = new Map();
 	if (!fingerprintTwo) fingerprintTwo = new Map();
 
@@ -151,7 +152,7 @@ export const semanticDistance = (fingerprintOne, fingerprintTwo) => {
 	for (let key of union) {
 		if (fingerprintOne.has(key) && fingerprintTwo.has(key)) intersection.add(key);
 	}
-	return 1.0 - (intersection.size / union.size);
+	return intersection.size / union.size;
 };
 
 const randomCharSetNumbers = '0123456789';

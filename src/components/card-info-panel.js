@@ -30,7 +30,7 @@ import {
 	selectTweetsLoading,
 	selectCommentsAndInfoPanelOpen,
 	selectUserMayEdit,
-	selectActiveCardClosestSemanticDistanceCards
+	selectActiveCardClosestSemanticOverlapCards
 } from '../selectors.js';
 
 import {
@@ -228,7 +228,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._tweetsLoading = selectTweetsLoading(state);
 		//selectActiveCardClosestSemanticDistanceCards is extremly expensive to
 		//call into being, so only do it if the user is an admin.
-		this._closestCardsMap = selectUserMayEdit(state) ? selectActiveCardClosestSemanticDistanceCards(state) : new Map();
+		this._closestCardsMap = selectUserMayEdit(state) ? selectActiveCardClosestSemanticOverlapCards(state) : new Map();
 	}
 
 	updated(changedProps) {
