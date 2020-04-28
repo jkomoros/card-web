@@ -246,11 +246,16 @@ export const selectCards = createSelector(
 	(baseCards, userMayViewUnpublished, uid) => userMayViewUnpublished ? baseCards : Object.fromEntries(Object.entries(baseCards).filter(item => item[1].published || item[1].author == uid))
 );
 
+const selectContentCards = createSelector(
+	selectCards,
+	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => entry[1].card_type == 'content'))
+);
+
 //selectCardWords returns a object that contains an object for each card id of
 //words to their count in that card. This uses all words htat could be searched
 //over, and is the input to the IDF calculation pipeline and others.
 const selectCardWords = createSelector(
-	selectCards,
+	selectContentCards,
 	(cards) => {
 		let result = {};
 		for (const [key, card] of Object.entries(cards)) {
@@ -291,7 +296,7 @@ const selectCorpusWords = createSelector(
 //https://en.wikipedia.org/wiki/Tf%E2%80%93idf
 const selectWordsIDF = createSelector(
 	selectCorpusWords,
-	selectCards,
+	selectContentCards,
 	(words, cards) => {
 		const result = {};
 		const numCards = Object.keys(cards).length;
