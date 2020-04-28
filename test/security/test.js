@@ -35,10 +35,10 @@ const anonUid = 'anon';
 const googleBaseAuth = {firebase: {sign_in_provider: 'google.com'}};
 const anonBaseAuth = {firebase: {sign_in_provider: 'anonymous'}};
 
-const adminAuth = {...googleBaseAuth, uid:adminUid};
-const bobAuth = {...googleBaseAuth, uid:bobUid};
-const sallyAuth = {...googleBaseAuth, uid: sallyUid};
-const anonAuth = {...anonBaseAuth, uid: anonUid};
+const adminAuth = {...googleBaseAuth, uid:adminUid, email:'admin@komoroske.com'};
+const bobAuth = {...googleBaseAuth, uid:bobUid, email:'bob@gmail.com'};
+const sallyAuth = {...googleBaseAuth, uid: sallyUid, email:'sally@gmail.com'};
+const anonAuth = {...anonBaseAuth, uid: anonUid, email: ''};
 
 const cardId = 'card';
 const unpublishedCardId = 'unpublished-card';
