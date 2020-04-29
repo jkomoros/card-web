@@ -49,8 +49,7 @@ import {
 } from './user.js';
 
 import {
-	innerTextForHTML,
-	normalizedWords
+	cardSetNormalizedTextProperties
 } from '../util.js';
 
 import {
@@ -225,11 +224,7 @@ export const connectLivePublishedCards = (store) => {
 			let id = doc.id;
 			let card = doc.data();
 			card.id = id;
-			//These three properties are expected to be set by TEXT_SEARCH_PROPERTIES
-			card.normalizedBody = normalizedWords(innerTextForHTML(card.body || '')).join(' ');
-			card.normalizedTitle = normalizedWords(card.title).join(' ');
-			card.normalizedSubtitle = normalizedWords(card.subtitle).join(' ');
-			card.normalizedInboundLinksText = normalizedWords(Object.values(card.links_inbound_text).join(' ')).join(' ');
+			cardSetNormalizedTextProperties(card);
 			cards[id] = card;
 		});
 
@@ -250,11 +245,7 @@ export const connectLiveUnpublishedCards = (store) => {
 			let id = doc.id;
 			let card = doc.data();
 			card.id = id;
-			//These three properties are expected to be set by TEXT_SEARCH_PROPERTIES
-			card.normalizedBody = normalizedWords(innerTextForHTML(card.body || '')).join(' ');
-			card.normalizedTitle = normalizedWords(card.title).join(' ');
-			card.normalizedSubtitle = normalizedWords(card.subtitle).join(' ');
-			card.normalizedInboundLinksText = normalizedWords(Object.values(card.links_inbound_text).join(' ')).join(' ');
+			cardSetNormalizedTextProperties(card);
 			cards[id] = card;
 		});
 

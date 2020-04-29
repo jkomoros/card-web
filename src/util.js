@@ -228,6 +228,16 @@ export const cardHasSubstantiveContent = (card) => {
 	return content.length > SUBSTANTIVE_CONTENT_THRESHOLD;
 };
 
+//cardSetNormalizedTextProperties sets the properties that search and
+//fingerprints work over. It sets them on the same card object sent.
+export const cardSetNormalizedTextProperties = (card) => {
+	//These three properties are expected to be set by TEXT_SEARCH_PROPERTIES
+	card.normalizedBody = normalizedWords(innerTextForHTML(card.body || '')).join(' ');
+	card.normalizedTitle = normalizedWords(card.title).join(' ');
+	card.normalizedSubtitle = normalizedWords(card.subtitle).join(' ');
+	card.normalizedInboundLinksText = normalizedWords(Object.values(card.links_inbound_text).join(' ')).join(' ');
+};
+
 export const cardHasNotes = (card) => {
 	if (!card) return false;
 	let content = card.notes ? card.notes.trim() : '';
