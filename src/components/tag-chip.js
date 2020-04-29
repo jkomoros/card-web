@@ -53,6 +53,11 @@ class TagChip  extends LitElement {
 	}
 
 	_handleTagClicked(e) {
+		if (this.tapEvents) {
+			e.preventDefault();
+			this.dispatchEvent(new CustomEvent('tag-tapped', {composed: true, detail: {tag: this.tagName}}));
+			return false;
+		}
 		if (this.editing) {
 			e.preventDefault();
 			return false;
@@ -131,6 +136,7 @@ class TagChip  extends LitElement {
 			tagName: { type: String },
 			editing: { type: Boolean},
 			tagInfos: {type:Object},
+			tapEvents: {type:Boolean},
 			//If set, will use this defualt color if the tag doesn't have one
 			//defined. Should be of the form "#AABBCC" or some other literal
 			//color value;

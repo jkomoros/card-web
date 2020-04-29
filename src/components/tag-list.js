@@ -38,7 +38,7 @@ class TagList  extends LitElement {
 			</style>
 			<div class='${this.editing ? 'editing' : ''} ${this.subtle ? 'subtle' :''}'>
 			${allTags && allTags.length ?
-		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} .defaultColor=${this.defaultColor}></tag-chip>`) :
+		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} .defaultColor=${this.defaultColor} .tapEvents=${this.tapEvents}></tag-chip>`) :
 		(this.hideOnEmpty ? html`` : html`<em>No ${this.typeName.toLowerCase()}s</em>`)}
 			${this.disableAdd ? html`` :
 		html`<select @change=${this._handleSelectChanged}>
@@ -84,6 +84,8 @@ class TagList  extends LitElement {
 			//is displaying other things then it could be any kinds of objects.
 			tagInfos: {type:Object},
 			editing: {type:Boolean},
+			//if true, instead of navigating, will emit a 'tag-tapped' event
+			tapEvents: {type:Boolean},
 			//Subtle coloring
 			subtle: {type:Boolean},
 			//if true and empty then don't show any
