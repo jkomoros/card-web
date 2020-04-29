@@ -251,7 +251,7 @@ class CardEditor extends connect(store)(LitElement) {
 			</div>
 			<div>
 				<label>Suggested Tags</label>
-				<tag-list .tags=${this._suggestedTags} .tagInfos=${this._tagInfos}></tag-list>
+				<tag-list .tags=${this._suggestedTags} .tagInfos=${this._tagInfos} .subtle=${true}></tag-list>
 			</div>
           </div>
 			<div class='row'>
