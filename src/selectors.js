@@ -258,8 +258,8 @@ const selectContentCards = createSelector(
 );
 
 
-const cardWordsForSemantics = (card) => {
-	const words = stemmedNormalizedWords(Object.keys(TEXT_SEARCH_PROPERTIES).map(prop => card[prop]).join(' '));
+const wordCountsForSemantics = (str) => {
+	const words = stemmedNormalizedWords(str);
 	const cardMap = {};
 	for (const word of words) {
 		if (!word) continue;
@@ -276,7 +276,7 @@ const selectCardWords = createSelector(
 	(cards) => {
 		let result = {};
 		for (const [key, card] of Object.entries(cards)) {
-			result[key] = cardWordsForSemantics(card);
+			result[key] = wordCountsForSemantics(Object.keys(TEXT_SEARCH_PROPERTIES).map(prop => card[prop]).join(' '));
 		}
 		return result;
 	}
@@ -396,11 +396,20 @@ const getClosestSemanticOverlapItems = (fingerprints, cardID, cardFingerprint) =
 	return new Map(sortedCardIDs.map(id => [id, overlaps[id]]));
 };
 
+//Deliberately not a reselector, because the editing card object identity won't
+//change, even as the properties wihtin it (e.g. title, body) that we do care
+//about change.`
+const selectEditingCardWordsForSemantics = state => {
+	const card = selectEditingCard(state);
+	const result = Object.keys(TEXT_SEARCH_PROPERTIES).map(prop => card[prop]).join(' ');
+	return result;
+};
+
 const selectEditingCardSemanticFingerprint = createSelector(
-	selectEditingCard,
+	selectEditingCardWordsForSemantics,
 	selectWordsIDF,
-	(card, idfMap) => {
-		const wordCounts = cardWordsForSemantics(card);
+	(words, idfMap) => {
+		const wordCounts = wordCountsForSemantics(words);
 		const tfidf = cardWordsTFIDF(wordCounts,idfMap);
 		const fingerprint = semanticFingerprint(tfidf);
 		return fingerprint;
