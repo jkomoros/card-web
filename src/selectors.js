@@ -396,19 +396,11 @@ const getClosestSemanticOverlapItems = (fingerprints, cardID, cardFingerprint) =
 	return new Map(sortedCardIDs.map(id => [id, overlaps[id]]));
 };
 
-//Deliberately not a reselector, because the editing card object identity won't
-//change, even as the properties wihtin it (e.g. title, body) that we do care
-//about change.`
-const selectEditingCardWordsForSemantics = state => {
-	const card = selectEditingCard(state);
-	const result = Object.keys(TEXT_SEARCH_PROPERTIES).map(prop => card[prop]).join(' ');
-	return result;
-};
-
 const selectEditingCardSemanticFingerprint = createSelector(
-	selectEditingCardWordsForSemantics,
+	selectEditingCard,
 	selectWordsIDF,
-	(words, idfMap) => {
+	(card, idfMap) => {
+		const words = Object.keys(TEXT_SEARCH_PROPERTIES).map(prop => card[prop]).join(' ');
 		const wordCounts = wordCountsForSemantics(words);
 		const tfidf = cardWordsTFIDF(wordCounts,idfMap);
 		const fingerprint = semanticFingerprint(tfidf);
