@@ -257,6 +257,17 @@ const selectContentCards = createSelector(
 	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => entry[1].card_type == 'content'))
 );
 
+
+const cardWordsForSemantics = (card) => {
+	const words = stemmedNormalizedWords(Object.keys(TEXT_SEARCH_PROPERTIES).map(prop => card[prop]).join(' '));
+	const cardMap = {};
+	for (const word of words) {
+		if (!word) continue;
+		cardMap[word] = (cardMap[word] || 0) + 1;
+	}
+	return cardMap;
+};
+
 //selectCardWords returns a object that contains an object for each card id of
 //words to their count in that card. This uses all words htat could be searched
 //over, and is the input to the IDF calculation pipeline and others.
@@ -265,13 +276,7 @@ const selectCardWords = createSelector(
 	(cards) => {
 		let result = {};
 		for (const [key, card] of Object.entries(cards)) {
-			const words = stemmedNormalizedWords(Object.keys(TEXT_SEARCH_PROPERTIES).map(prop => card[prop]).join(' '));
-			const cardMap = {};
-			for (const word of words) {
-				if (!word) continue;
-				cardMap[word] = (cardMap[word] || 0) + 1;
-			}
-			result[key] = cardMap;
+			result[key] = cardWordsForSemantics(card);
 		}
 		return result;
 	}
