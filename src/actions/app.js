@@ -45,10 +45,6 @@ import {
 	selectActiveCardIndex
 } from '../selectors.js';
 
-import { 
-	PLACEHOLDER_CARD_ID_CHARACTER
-} from './collection';
-
 import { pageRequiresMainView } from '../util.js';
 
 import {
@@ -116,7 +112,7 @@ export const urlForCard = (cardOrId, edit) => {
 };
 
 export const urlForTag = (tagName, optCardId) => {
-	if (!optCardId) optCardId = PLACEHOLDER_CARD_ID_CHARACTER;
+	if (!optCardId) optCardId = '';
 	return '/' + PAGE_DEFAULT + '/' + tagName + '/' + optCardId;
 };
 
