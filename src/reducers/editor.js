@@ -24,6 +24,10 @@ import {
 	TAB_CONTENT,
 } from '../actions/editor.js';
 
+import {
+	cardSetNormalizedTextProperties
+} from '../util.js';
+
 const DEFAULT_TAB = TAB_CONTENT;
 
 const INITIAL_STATE = {
@@ -43,6 +47,7 @@ import {
 import { TODO_OVERRIDE_LEGAL_KEYS } from './collection.js';
 
 const app = (state = INITIAL_STATE, action) => {
+	let card;
 	switch (action.type) {
 	case EDITING_START:
 		return {
@@ -70,9 +75,11 @@ const app = (state = INITIAL_STATE, action) => {
 		};
 	case EDITING_TITLE_UPDATED:
 		if (!state.card) return state;
+		card = {...state.card, title:action.title};
+		cardSetNormalizedTextProperties(card);
 		return {
 			...state,
-			card: {...state.card, title:action.title},
+			card: card,
 			titleFromContentEditable: action.fromContentEditable,
 		};
 	case EDITING_NOTES_UPDATED:
@@ -104,11 +111,14 @@ const app = (state = INITIAL_STATE, action) => {
 		if (!state.card) return state;
 		//These links will be recomputed for real when the card is committed,
 		//but updating them now allows things like the live list of reciprocal
-		//links to be updated away.
+		//links to be updated away. This is also when we do expensive processing
+		//of body, like re-extracting words to cause suggested tags to change.
 		let linkInfo = extractCardLinksFromBody(state.card.body);
+		card = {...state.card, links:linkInfo[0], links_text: linkInfo[1]};
+		cardSetNormalizedTextProperties(card);
 		return {
 			...state,
-			card: {...state.card, links:linkInfo[0], links_text: linkInfo[1]}
+			card: card,
 		};
 	case EDITING_SLUG_ADDED:
 		if (!state.card) return state;
