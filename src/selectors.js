@@ -365,7 +365,7 @@ const selectTagsSemanticFingerprint = createSelector(
 			for (const cardID of tag.cards) {
 				const fingerprint = fingerprints[cardID];
 				if (!fingerprint) continue;
-				for (const [word, idf] of fingerprint.keys()) {
+				for (const [word, idf] of fingerprint.entries()) {
 					joinedMap.set(word, (joinedMap.get(word) || 0) + idf);
 				}
 			}
