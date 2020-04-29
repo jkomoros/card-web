@@ -284,7 +284,7 @@ export const cardNeedsReciprocalLinkTo = (card, other) => {
 	return false;
 };
 
-export const innerTextForHTML = (body) => {
+const innerTextForHTML = (body) => {
 	let ele = document.createElement('section');
 	//TODO: is there an XSS vulnerability here?
 	ele.innerHTML = body;
