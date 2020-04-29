@@ -388,6 +388,32 @@ const getClosestSemanticOverlapItems = (fingerprints, cardID, cardFingerprint) =
 	return new Map(sortedCardIDs.map(id => [id, overlaps[id]]));
 };
 
+const NUM_SIMILAR_TAGS_TO_SHOW = 3;
+
+//selectEditingCardSuggestedTags returns the tags for the editing card that are
+//suggested--that is that are similar to the semantics of this card, but are not
+//yet on the card.
+export const selectEditingCardSuggestedTags = createSelector(
+	selectEditingCard,
+	selectTagsSemanticFingerprint,
+	selectCardsSemanticFingerprint,
+	(card, tagFingerprints, cardFingerprints) => {
+		if (!card || Object.keys(card).length == 0) return [];
+		if (!cardFingerprints || cardFingerprints.size == 0) return [];
+		if (!tagFingerprints || tagFingerprints.size == 0) return [];
+		const closestTags = getClosestSemanticOverlapItems(tagFingerprints, card.id, cardFingerprints[card.id]);
+		if (closestTags.size == 0) return [];
+		const excludeIDs = new Set(card.tags);
+		let result = [];
+		for (const tagID of closestTags.keys()) {
+			if (excludeIDs.has(tagID)) continue;
+			result.push(tagID);
+			if (result.length >= NUM_SIMILAR_TAGS_TO_SHOW) break;
+		}
+		return result;
+	}
+);
+
 //Returns a map with the closest cards at the beginning.
 const selectActiveCardClosestSemanticOverlapCards = createSelector(
 	selectActiveCardId,
