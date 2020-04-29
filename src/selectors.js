@@ -379,7 +379,7 @@ const selectTagsSemanticFingerprint = createSelector(
 //separating out cardFingerprint allows this to be used where fingerprints is
 //for a different set of things, e.g. tags.
 const getClosestSemanticOverlapItems = (fingerprints, cardID, cardFingerprint) => {
-	if (!fingerprints || !fingerprints[cardID]) return new Map();
+	if (!fingerprints || !cardFingerprint) return new Map();
 	const overlaps = {};
 	for (const otherCardID of Object.keys(fingerprints)) {
 		if (otherCardID === cardID) continue;

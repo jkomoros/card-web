@@ -17,6 +17,7 @@ import {
 	selectActiveCard,
 	selectEditingCard,
 	selectEditingCardAutoTodos,
+	selectEditingCardSuggestedTags,
 } from '../selectors.js';
 
 import {
@@ -248,6 +249,10 @@ class CardEditor extends connect(store)(LitElement) {
 				<label>Tags</label>
 				<tag-list .tags=${this._card.tags} .previousTags=${this._underlyingCard ? this._underlyingCard.tags : null} .editing=${true} .tagInfos=${this._tagInfos} @add-tag=${this._handleAddTag} @remove-tag=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
 			</div>
+			<div>
+				<label>Suggested Tags</label>
+				<tag-list .tags=${this._suggestedTags} .tagInfos=${this._tagInfos}></tag-list>
+			</div>
           </div>
 			<div class='row'>
 				<div>
@@ -306,6 +311,7 @@ class CardEditor extends connect(store)(LitElement) {
 		_cardTagInfos: {type: Object},
 		//The card before any edits
 		_underlyingCard: {type:Object},
+		_suggestedTags: { type: Array},
 	};}
 
 	stateChanged(state) {
@@ -318,6 +324,8 @@ class CardEditor extends connect(store)(LitElement) {
 		this._selectedTab = state.editor.selectedTab;
 		this._tagInfos = selectTags(state);
 		this._cardTagInfos = selectTagInfosForCards(state);
+		//skip the expensive selector if we're not active
+		this._suggestedTags = this._active ? selectEditingCardSuggestedTags(state) : [];
 	}
 
 	shouldUpdate() {
