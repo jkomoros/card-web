@@ -364,11 +364,12 @@ const selectTagsSemanticFingerprint = createSelector(
 			let joinedMap = new Map();
 			for (const cardID of tag.cards) {
 				const fingerprint = fingerprints[cardID];
-				for (const [word, idf] of fingerprint) {
+				if (!fingerprint) continue;
+				for (const [word, idf] of fingerprint.keys()) {
 					joinedMap.set(word, (joinedMap.get(word) || 0) + idf);
 				}
 			}
-			const sortedKeys = joinedMap.keys().sort((a, b) => joinedMap.get(b) - joinedMap.get(a)).slice(0, SEMANTIC_FINGERPRINT_SIZE);
+			const sortedKeys = [...joinedMap.keys()].sort((a, b) => joinedMap.get(b) - joinedMap.get(a)).slice(0, SEMANTIC_FINGERPRINT_SIZE);
 			result[tagID] = new Map(sortedKeys.map(key => [key, joinedMap.get(key)]));
 		}
 		return result;
