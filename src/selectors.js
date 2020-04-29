@@ -331,7 +331,7 @@ const selectCardWordsTFIDF = createSelector(
 	}
 );
 
-const semanticFingerprint = (cardID, tfidf) => {
+const semanticFingerprint = (tfidf) => {
 	//Pick the keys for the items with the highest tfidf (the most important and specific to that card)
 	let keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, SEMANTIC_FINGERPRINT_SIZE);
 	return new Map(keys.map(key => [key, tfidf[key]]));
@@ -346,7 +346,7 @@ const selectCardsSemanticFingerprint = createSelector(
 	(tfidfMap) => {
 		const result = {};
 		for (const [cardID, tfidf] of Object.entries(tfidfMap)) {
-			result[cardID] = semanticFingerprint(cardID, tfidf);
+			result[cardID] = semanticFingerprint(tfidf);
 		}
 		return result;
 	}
