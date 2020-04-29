@@ -396,6 +396,17 @@ const getClosestSemanticOverlapItems = (fingerprints, cardID, cardFingerprint) =
 	return new Map(sortedCardIDs.map(id => [id, overlaps[id]]));
 };
 
+const selectEditingCardSemanticFingerprint = createSelector(
+	selectEditingCard,
+	selectWordsIDF,
+	(card, idfMap) => {
+		const wordCounts = cardWordsForSemantics(card);
+		const tfidf = cardWordsTFIDF(wordCounts,idfMap);
+		const fingerprint = semanticFingerprint(tfidf);
+		return fingerprint;
+	}
+);
+
 const NUM_SIMILAR_TAGS_TO_SHOW = 3;
 
 //selectEditingCardSuggestedTags returns the tags for the editing card that are
@@ -403,13 +414,12 @@ const NUM_SIMILAR_TAGS_TO_SHOW = 3;
 //yet on the card.
 export const selectEditingCardSuggestedTags = createSelector(
 	selectEditingCard,
+	selectEditingCardSemanticFingerprint,
 	selectTagsSemanticFingerprint,
-	selectCardsSemanticFingerprint,
-	(card, tagFingerprints, cardFingerprints) => {
+	(card, cardFingerprint, tagFingerprints) => {
 		if (!card || Object.keys(card).length == 0) return [];
-		if (!cardFingerprints || cardFingerprints.size == 0) return [];
 		if (!tagFingerprints || tagFingerprints.size == 0) return [];
-		const closestTags = getClosestSemanticOverlapItems(tagFingerprints, card.id, cardFingerprints[card.id]);
+		const closestTags = getClosestSemanticOverlapItems(tagFingerprints, card.id, cardFingerprint);
 		if (closestTags.size == 0) return [];
 		const excludeIDs = new Set(card.tags);
 		let result = [];
