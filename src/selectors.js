@@ -18,6 +18,7 @@ import {
 	normalizedWords,
 	stemmedNormalizedWords,
 	semanticOverlap,
+	SEMANTIC_FINGERPRINT_SIZE
 } from './util.js';
 
 import {
@@ -341,9 +342,6 @@ const semanticFingerprint = (tfidf) => {
 	let keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, SEMANTIC_FINGERPRINT_SIZE);
 	return new Map(keys.map(key => [key, tfidf[key]]));
 };
-
-//The number of words to include in the semantic fingerprint
-const SEMANTIC_FINGERPRINT_SIZE = 25;
 
 //A map of cardID to the semantic fingerprint for that card.
 const selectCardsSemanticFingerprint = createSelector(

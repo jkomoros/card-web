@@ -140,6 +140,9 @@ export const stemmedNormalizedWords = (str) => {
 	return result;
 };
 
+//The max number of words to include in the semantic fingerprint
+export const SEMANTIC_FINGERPRINT_SIZE = 25;
+
 //Returns the 'overlap' between two semantic fingerprints (which can be fetched
 //from e.g. selectCardsSemanticFingerprint). Higher nubmers are better. Will be
 //0 to 1.
