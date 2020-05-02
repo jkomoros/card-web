@@ -15,7 +15,7 @@
   "dependencies": {
     "express": "^4.17.1",
     "firebase-admin": "^8.9.2",
-    "firebase-functions": "^3.3.0",
+    "firebase-functions": "^3.6.1",
     "fromentries": "^1.2.0",
     "md5": "^2.2.1",
     "nodemailer": "^6.4.2",
