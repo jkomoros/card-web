@@ -398,6 +398,7 @@ const selectEditingCardSemanticFingerprint = createSelector(
 	selectEditingCard,
 	selectWordsIDF,
 	(card, idfMap) => {
+		if (!card || Object.keys(card) == 0) return new Map();
 		const words = Object.keys(TEXT_SEARCH_PROPERTIES).map(prop => card[prop]).join(' ');
 		const wordCounts = wordCountsForSemantics(words);
 		const tfidf = cardWordsTFIDF(wordCounts,idfMap);
