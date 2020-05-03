@@ -30,7 +30,7 @@ import {
 	selectTweetsLoading,
 	selectCommentsAndInfoPanelOpen,
 	selectUserMayEdit,
-	selectActiveCardSimilarCards,
+	selectEditingOrActiveCardSimilarCards,
 } from '../selectors.js';
 
 import {
@@ -214,7 +214,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._tweetsLoading = selectTweetsLoading(state);
 		//selectActiveCardSimilarCards is extremly expensive to
 		//call into being, so only do it if the user is an admin.
-		this._closestCards = selectUserMayEdit(state) ? selectActiveCardSimilarCards(state) : [];
+		this._closestCards = selectUserMayEdit(state) ? selectEditingOrActiveCardSimilarCards(state) : [];
 	}
 
 	updated(changedProps) {

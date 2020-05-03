@@ -69,7 +69,7 @@ export const selectActiveSortReversed = (state) => state.collection.activeSortRe
 export const selectRequestedCard = (state) => state.collection.requestedCard;
 export const selectActiveCardId = (state) => state.collection ? state.collection.activeCardId : '';
 export const selectActiveFilterNames = (state) => state.collection.activeFilterNames;
-export const selectEditingCard = (state) => state.editor.card;
+export const selectEditingCard = (state) => state.editor ? state.editor.card : null;
 export const selectFilters = (state) => state.collection.filters;
 const selectPendingFilters = (state) => state.collection.pendingFilters;
 export const selectSections = (state) => state.data ? state.data.sections : {};
@@ -398,7 +398,7 @@ const selectEditingCardSemanticFingerprint = createSelector(
 	selectEditingCard,
 	selectWordsIDF,
 	(card, idfMap) => {
-		if (!card || Object.keys(card) == 0) return new Map();
+		if (!card || Object.keys(card).length == 0) return new Map();
 		const words = Object.keys(TEXT_SEARCH_PROPERTIES).map(prop => card[prop]).join(' ');
 		const wordCounts = wordCountsForSemantics(words);
 		const tfidf = cardWordsTFIDF(wordCounts,idfMap);
@@ -432,11 +432,34 @@ export const selectEditingCardSuggestedTags = createSelector(
 	}
 );
 
+//selectingEitingOrActiveCard returns either the editing card, or else the
+//active card.
+const selectEditingOrActiveCard = createSelector(
+	selectEditingCard,
+	selectActiveCard,
+	(editing, active) => editing && Object.keys(editing).length > 0 ? editing : active
+);
+
 //Returns a map with the closest cards at the beginning.
 const selectActiveCardClosestSemanticOverlapCards = createSelector(
 	selectActiveCardId,
 	selectCardsSemanticFingerprint,
 	(cardID, fingerprints) => getClosestSemanticOverlapItems(fingerprints, cardID, fingerprints[cardID])
+);
+
+const selectEditingCardClosestSemanticOverlapCards = createSelector(
+	//the editing card is always the active card
+	selectActiveCardId,
+	selectEditingCardSemanticFingerprint,
+	selectCardsSemanticFingerprint,
+	(cardID, editingFingerprint, fingerprints) => getClosestSemanticOverlapItems(fingerprints, cardID, editingFingerprint)
+);
+
+const selectEditingOrActiveCardClosestSemanticOverlapCards = createSelector(
+	selectEditingCard,
+	selectEditingCardClosestSemanticOverlapCards,
+	selectActiveCardClosestSemanticOverlapCards,
+	(editingCard, editingOverlap, activeOverlap) => editingCard && Object.keys(editingCard).length > 0 ? editingOverlap : activeOverlap
 );
 
 const NUM_SIMILAR_CARDS_TO_SHOW = 5;
@@ -445,9 +468,9 @@ const NUM_SIMILAR_CARDS_TO_SHOW = 5;
 //selectActiveCardClosestSemanticOverlapCareds, but it returns a list of no more
 //than NUM_SIMILAR_CARDS_TO_SHOW, where cards that are already linked to or from
 //the main card are skipped.
-export const selectActiveCardSimilarCards = createSelector(
-	selectActiveCard,
-	selectActiveCardClosestSemanticOverlapCards,
+export const selectEditingOrActiveCardSimilarCards = createSelector(
+	selectEditingOrActiveCard,
+	selectEditingOrActiveCardClosestSemanticOverlapCards,
 	(card, overlapMap) => {
 		if (!card || Object.keys(card).length == 0) return [];
 		if (!overlapMap || overlapMap.size == 0) return [];
