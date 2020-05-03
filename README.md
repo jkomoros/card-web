@@ -5,6 +5,8 @@ The project is messy, with lots of intricate details and designs captured as a m
 
 The app is possible to run an instance of with some configuration, but there's still some pieces missing that aren't generalized. If you have any interest in standing up an instance on your own that is blocked, issue #164 tracks the work to make it fully general. Please chime in there and I'll prioritize that work!
 
+The web app has a number of advanced features that aren't immediately obvious in the UI, or visible to non-editors. You can learn more about them [here](https://github.com/jkomoros/card-web/wiki/Advanced-Functionality). The features make it possible to use this less as a CMS and more as a personal knowledge garden.
+
 ## Getting set up
 
 ### First Run
