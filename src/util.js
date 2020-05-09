@@ -140,6 +140,11 @@ export const stemmedNormalizedWords = (str) => {
 	return result;
 };
 
+const fullyNormalizedWords = (str) => {
+	let words = normalizedWords(str).join(' ');
+	return stemmedNormalizedWords(words);
+};
+
 //The max number of words to include in the semantic fingerprint
 export const SEMANTIC_FINGERPRINT_SIZE = 25;
 
@@ -244,10 +249,10 @@ export const cardHasSubstantiveContent = (card) => {
 //fingerprints work over. It sets them on the same card object sent.
 export const cardSetNormalizedTextProperties = (card) => {
 	//These three properties are expected to be set by TEXT_SEARCH_PROPERTIES
-	card.normalizedBody = normalizedWords(innerTextForHTML(card.body || '')).join(' ');
-	card.normalizedTitle = normalizedWords(card.title).join(' ');
-	card.normalizedSubtitle = normalizedWords(card.subtitle).join(' ');
-	card.normalizedInboundLinksText = normalizedWords(Object.values(card.links_inbound_text).join(' ')).join(' ');
+	card.normalizedBody = fullyNormalizedWords(innerTextForHTML(card.body || '')).join(' ');
+	card.normalizedTitle = fullyNormalizedWords(card.title).join(' ');
+	card.normalizedSubtitle = fullyNormalizedWords(card.subtitle).join(' ');
+	card.normalizedInboundLinksText = fullyNormalizedWords(Object.values(card.links_inbound_text).join(' ')).join(' ');
 };
 
 export const cardHasNotes = (card) => {

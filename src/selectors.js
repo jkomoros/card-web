@@ -260,7 +260,7 @@ const selectContentCards = createSelector(
 
 
 const wordCountsForSemantics = (str) => {
-	const words = stemmedNormalizedWords(str);
+	const words = str.split(' ');
 	const cardMap = {};
 	for (const word of words) {
 		if (!word) continue;
@@ -1195,7 +1195,8 @@ const queryWordsAndFilters = (queryString) => {
 			words.push(word);
 		}
 	}
-	return [words, filters];
+	const stemmedWords = stemmedNormalizedWords(words.join(' '));
+	return [stemmedWords, filters];
 };
 
 const selectCollectionForQuery = createSelector(
