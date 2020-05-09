@@ -1,14 +1,14 @@
 import { html } from '@polymer/lit-element';
 
 import {
-	assignmentTurnedInIcon,
+	ASSIGNMENT_TURNED_IN_ICON,
 } from './my-icons.js';
 
 import { CardBadge } from './card-badge.js';
 
 class TodoBadge extends CardBadge {
 	innerRender() {
-		return html`${assignmentTurnedInIcon}`;
+		return html`${ASSIGNMENT_TURNED_IN_ICON}`;
 	}
 }
 

@@ -4,7 +4,7 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
-import { addCommentIcon } from './my-icons.js';
+import { ADD_COMMENT_ICON } from './my-icons.js';
 
 import './comment-thread.js';
 
@@ -92,7 +92,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 		: html`<p><em>No comments yet.</em></p><p><em>You should leave one!</em></p>`
 }
         <div class='spacer'></div>
-        <button ?disabled=${this._collectionIsFallback} class='round ${this._userMayComment ? '' : 'need-signin'}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${addCommentIcon}</button>
+        <button ?disabled=${this._collectionIsFallback} class='round ${this._userMayComment ? '' : 'need-signin'}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${ADD_COMMENT_ICON}</button>
       </div>
     `;
 	}

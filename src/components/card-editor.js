@@ -47,8 +47,8 @@ import {
 } from '../actions/editor.js';
 
 import {
-	saveIcon,
-	cancelIcon
+	SAVE_ICON,
+	CANCEL_ICON
 } from './my-icons.js';
 
 import {
@@ -293,8 +293,8 @@ class CardEditor extends connect(store)(LitElement) {
             <label>Substantive</label>
             <input type='checkbox' .checked=${this._substantive} @change='${this._handleSubstantiveChanged}'></input>
           </div>
-          <button class='round' @click='${this._handleCancel}'>${cancelIcon}</button>
-          <button class='round primary' @click='${this._handleCommit}'>${saveIcon}</button>
+          <button class='round' @click='${this._handleCancel}'>${CANCEL_ICON}</button>
+          <button class='round primary' @click='${this._handleCommit}'>${SAVE_ICON}</button>
         </div>
       </div>
     `;

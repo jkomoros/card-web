@@ -3,7 +3,7 @@ import { repeat } from 'lit-html/directives/repeat';
 
 import './card-thumbnail.js';
 
-import { plusIcon } from './my-icons.js';
+import { PLUS_ICON } from './my-icons.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 import { SharedStyles } from './shared-styles.js';
@@ -95,7 +95,7 @@ class CardDrawer extends LitElement {
 					${this.labels && this.labels[index] ? html`<div class='label'><span>${this.labelName} <strong>${this.labels[index]}</strong></span></div>` : html``}
 					<card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this.editable} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this.selectedCardId} .ghost=${this.collectionItemsToGhost[i.id] || false}></card-thumbnail>`)}
 				</div>
-				<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable}'>${plusIcon}</button>
+				<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable}'>${PLUS_ICON}</button>
 			</div>
 		`;
 	}

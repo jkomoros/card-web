@@ -5,10 +5,10 @@ import './comment-message.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 import { 
-	replyIcon,
-	arrowRightIcon,
-	arrowDownIcon,
-	checkCircleOutlineIcon
+	REPLY_ICON,
+	ARROW_RIGHT_ICON,
+	ARROW_DOWN_ICON,
+	CHECK_CIRCLE_OUTLINE_ICON
 } from './my-icons.js';
 
 // This element is *not* connected to the Redux store.
@@ -53,15 +53,15 @@ class CommentThread extends LitElement {
       <div class='container'>
         <div class='buttons'>
           <div class='flex'>
-            <button class='small' @click=${this._handleZippyClicked}>${this._expanded ? arrowDownIcon : arrowRightIcon}</button>
+            <button class='small' @click=${this._handleZippyClicked}>${this._expanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>
           </div>
-          <button class='small' title='${this.thread.mayResolve ? 'Resolve comment thread' : 'You may only resolve comment threads you started'}' ?disabled='${!this.thread.mayResolve}' @click=${this._handleResolveClicked}>${checkCircleOutlineIcon}</button>
+          <button class='small' title='${this.thread.mayResolve ? 'Resolve comment thread' : 'You may only resolve comment threads you started'}' ?disabled='${!this.thread.mayResolve}' @click=${this._handleResolveClicked}>${CHECK_CIRCLE_OUTLINE_ICON}</button>
         </div>
         <div class='content ${this._expanded ? 'expanded' :''}'>
           ${repeat(this.thread.messages, (message) => message.id, (item) => html`
           <comment-message .message=${item}></comment-message>`)}
           <div class='buttons'>
-            <button class='small ${this.userMayComment ? '' : 'need-signin'}' title='${this.userMayComment ? 'Reply' : 'Sign in to reply'}' @click=${this._handleAddMessage}>${replyIcon}</button>
+            <button class='small ${this.userMayComment ? '' : 'need-signin'}' title='${this.userMayComment ? 'Reply' : 'Sign in to reply'}' @click=${this._handleAddMessage}>${REPLY_ICON}</button>
           </div>
         </div>
       </div>

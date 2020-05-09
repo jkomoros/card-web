@@ -101,9 +101,9 @@ import {
 } from './base-card';
 
 import {
-	playlistPlayIcon,
-	starIcon,
-	visibilityIcon
+	PLAYLIST_PLAY_ICON,
+	STAR_ICON,
+	VISIBILITY_ICON
 } from './my-icons';
 
 import {
@@ -286,9 +286,9 @@ class MainView extends connect(store)(LitElement) {
 		html`<a ?selected="${this._page === PAGE_DEFAULT}" href=${'/' + PAGE_DEFAULT}><em>Loading...</em></a>`
 }
 						<a ?selected=${this._recentTabSelected} href=${'/' + PAGE_DEFAULT + '/has-content/sort/recent/'}>Recent</a>
-						<a class='icon-item' title='Your reading list' ?selected=${this._readingListTabSelected} href=${'/' + PAGE_DEFAULT + '/reading-list/'}>${playlistPlayIcon}<span>${this._userReadingListCount}</span></a>
-						<a class='icon-item' title='Your stars' ?selected=${this._starsTabSelected} href=${'/' + PAGE_DEFAULT + '/starred/'}>${starIcon}<span>${this._userStarsCount}</span></a>
-						<a class='icon-item' title="Cards you haven't read yet" ?selected=${this._unreadTabSelected} href=${'/' + PAGE_DEFAULT + '/unread/'}>${visibilityIcon}<span>${this._userUnreadCount}</span></a>
+						<a class='icon-item' title='Your reading list' ?selected=${this._readingListTabSelected} href=${'/' + PAGE_DEFAULT + '/reading-list/'}>${PLAYLIST_PLAY_ICON}<span>${this._userReadingListCount}</span></a>
+						<a class='icon-item' title='Your stars' ?selected=${this._starsTabSelected} href=${'/' + PAGE_DEFAULT + '/starred/'}>${STAR_ICON}<span>${this._userStarsCount}</span></a>
+						<a class='icon-item' title="Cards you haven't read yet" ?selected=${this._unreadTabSelected} href=${'/' + PAGE_DEFAULT + '/unread/'}>${VISIBILITY_ICON}<span>${this._userUnreadCount}</span></a>
 					</nav>
 					<div class='spacer dev'>
 						${this._devMode ? html`DEVMODE` : ''}

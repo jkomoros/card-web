@@ -5,7 +5,7 @@ import { SharedStyles } from './shared-styles.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
-	cancelIcon
+	CANCEL_ICON
 } from './my-icons.js';
 
 export class DialogElement extends LitElement {
@@ -84,7 +84,7 @@ export class DialogElement extends LitElement {
 			</style>
 			<div class='background ${this.mobileMode ? 'mobile': ''}' @click=${this._handleBackgroundClicked}>
 				<div class='content'>
-					<button class='small' id='close' @click=${this._shouldClose}>${cancelIcon}</button>
+					<button class='small' id='close' @click=${this._shouldClose}>${CANCEL_ICON}</button>
 					<h2>${this.title || ''}</h2>
 					<div id='inner'>
 					${this.innerRender()}

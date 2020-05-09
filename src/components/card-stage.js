@@ -4,7 +4,7 @@ import { html, LitElement } from '@polymer/lit-element';
 import './card-renderer.js';
 
 import {
-	screenRotationIcon,
+	SCREEN_ROTATION_ICON,
 } from './my-icons.js';
 
 // These are the shared styles needed by this element.
@@ -155,7 +155,7 @@ class CardStage extends LitElement {
 		</style>
 		<div id='canvas' class="${this.presenting ? 'presenting' : ''} ${this.editing ? 'editing' : ''} ${this.mobile ? 'mobile' : ''} ${this.loading ? 'loading' : ''}">
 			<div id='portrait-message'>
-				<div>${screenRotationIcon}</div>
+				<div>${SCREEN_ROTATION_ICON}</div>
 				<div>Rotate your device for larger text</div>
 			</div>
 			<card-renderer .dataIsFullyLoaded=${this.dataIsFullyLoaded} .editing=${this.editing} .card=${this.card} .bodyFromContentEditable=${this.bodyFromContentEditable} .titleFromContentEditable=${this.titleFromContentEditable}></card-renderer>

@@ -16,7 +16,7 @@ store.addReducers({
 });
 
 import {
-	personIcon,
+	PERSON_ICON,
 } from './my-icons.js';
 
 import {
@@ -62,7 +62,7 @@ class UserChip extends connect(store)(LitElement) {
       <div class='${this._pending ? 'pending' : ''}'>
         ${this._signedIn
 		? html`<span>${this._effectiveUser.displayName}</span><img title='${this._effectiveUser.displayName + ' - ' + this._effectiveUser.email + ' - Click to sign out'}' src='${this._effectiveUser.photoURL}' @click=${this._handleSignOutClick}>`
-		: html`<span>Sign in with your Google Account</span><button class='round' @click=${this._handleSignInClick}>${personIcon}</button>`
+		: html`<span>Sign in with your Google Account</span><button class='round' @click=${this._handleSignInClick}>${PERSON_ICON}</button>`
 }
       </div>
       `;

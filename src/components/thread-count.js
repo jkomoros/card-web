@@ -1,14 +1,14 @@
 import { html } from '@polymer/lit-element';
 
 import {
-	forumIcon,
+	FORUM_ICON,
 } from './my-icons.js';
 
 import { CardBadge } from './card-badge.js';
 
 class ThreadCount extends CardBadge {
 	innerRender() {
-		return html`${forumIcon} <span>${this.count}</span>`;
+		return html`${FORUM_ICON} <span>${this.count}</span>`;
 	}
 }
 

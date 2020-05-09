@@ -94,19 +94,19 @@ import {
 } from '../reducers/collection.js';
 
 import {
-	editIcon,
-	forumIcon,
-	infoIcon,
-	viewDayIcon,
-	fullScreenIcon,
-	arrowBackIcon,
-	arrowForwardIcon,
-	starIcon,
-	starBorderIcon,
-	visibilityIcon,
-	searchIcon,
-	playlistAddCheckIcon,
-	playlistAddIcon
+	EDIT_ICON,
+	FORUM_ICON,
+	INFO_ICON,
+	VIEW_DAY_ICON,
+	FULL_SCREEN_ICON,
+	ARROW_BACK_ICON,
+	ARROW_FORWARD_ICON,
+	STAR_ICON,
+	STAR_BORDER_ICON,
+	VISIBILITY_ICON,
+	SEARCH_ICON,
+	PLAYLISLT_ADD_CHECK_ICON,
+	PLAYLIST_ADD_ICON
 } from './my-icons.js';
 
 import {
@@ -219,23 +219,23 @@ class CardView extends connect(store)(PageViewElement) {
         <div id='center'>
 			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .mobile=${this._mobileMode} .card=${this._displayCard} .bodyFromContentEditable=${this._bodyFromContentEditable} .titleFromContentEditable=${this._titleFromContentEditable} @body-updated=${this._handleBodyUpdated} @title-updated=${this._handleTitleUpdated} @card-swiped=${this._handleCardSwiped}>
 				<div slot='actions' class='presentation'>
-					<button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${fullScreenIcon}</button>
+					<button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${FULL_SCREEN_ICON}</button>
 				</div>
 				<div slot='actions' class='panels'>
-					<button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${viewDayIcon}</button>
-					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''} ${this._card.thread_count > 0 ? 'primary' : ''}' @click='${this._handleCommentsOrInfoPanelClicked}'>${forumIcon}</button>
-					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCommentsOrInfoPanelClicked}'>${infoIcon}</button>
+					<button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${VIEW_DAY_ICON}</button>
+					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''} ${this._card.thread_count > 0 ? 'primary' : ''}' @click='${this._handleCommentsOrInfoPanelClicked}'>${FORUM_ICON}</button>
+					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCommentsOrInfoPanelClicked}'>${INFO_ICON}</button>
 				</div>
 				<div slot='actions' class='modify'>
-					<button class='round' @click=${this._handleFindClicked}>${searchIcon}</button>
-					<button title='Add to your reading list' ?disabled=${this._collectionIsFallback} class='round ${this._cardInReadingList ? 'selected' : ''} ${this._userMayModifyReadingList ? '' : 'need-signin'}' @click='${this._handleReadingListClicked}'>${this._cardInReadingList ? playlistAddCheckIcon : playlistAddIcon }</button>
-					<button ?disabled=${this._collectionIsFallback} class='round ${this._cardHasStar ? 'selected' : ''} ${this._userMayStar ? '' : 'need-signin'}' @click='${this._handleStarClicked}'>${this._cardHasStar ? starIcon : starBorderIcon }</button>
-					<button ?disabled=${this._collectionIsFallback} class='round ${this._cardIsRead ? 'selected' : ''} ${this._userMayMarkRead ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${visibilityIcon}</button>
-					<button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${editIcon}</button>
+					<button class='round' @click=${this._handleFindClicked}>${SEARCH_ICON}</button>
+					<button title='Add to your reading list' ?disabled=${this._collectionIsFallback} class='round ${this._cardInReadingList ? 'selected' : ''} ${this._userMayModifyReadingList ? '' : 'need-signin'}' @click='${this._handleReadingListClicked}'>${this._cardInReadingList ? PLAYLISLT_ADD_CHECK_ICON : PLAYLIST_ADD_ICON }</button>
+					<button ?disabled=${this._collectionIsFallback} class='round ${this._cardHasStar ? 'selected' : ''} ${this._userMayStar ? '' : 'need-signin'}' @click='${this._handleStarClicked}'>${this._cardHasStar ? STAR_ICON : STAR_BORDER_ICON }</button>
+					<button ?disabled=${this._collectionIsFallback} class='round ${this._cardIsRead ? 'selected' : ''} ${this._userMayMarkRead ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${VISIBILITY_ICON}</button>
+					<button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${EDIT_ICON}</button>
 				</div>
 				<div slot='actions' class='next-prev'>
-					<button class='round' @click=${this._handleBackClicked}>${arrowBackIcon}</button>
-					<button class='round' @click=${this._handleForwardClicked}>${arrowForwardIcon}</button>
+					<button class='round' @click=${this._handleBackClicked}>${ARROW_BACK_ICON}</button>
+					<button class='round' @click=${this._handleForwardClicked}>${ARROW_FORWARD_ICON}</button>
 				</div>
 				<div slot='tags'>
 					<tag-list .card=${this._displayCard} .hideOnEmpty=${true} .subtle=${true} .tags=${this._displayCard.tags} .tagInfos=${this._tagInfos}></tag-list>

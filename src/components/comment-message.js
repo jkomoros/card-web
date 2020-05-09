@@ -5,9 +5,9 @@ import './author-chip.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
-	editIcon,
-	deleteForeverIcon,
-	baselineLinkIcon,
+	EDIT_ICON,
+	DELETE_FOREVER_ICON,
+	BASELINK_LINK_ICON,
 } from './my-icons.js';
 
 import {
@@ -55,10 +55,10 @@ class CommentMessage extends LitElement {
 				<div class='row'>
 					<author-chip .author=${this.message.author}></author-chip>
 					<div ?hidden=${!this.message.mayEdit}>
-						<button class='small' ?hidden=${this.message.deleted} @click=${this._handleDeleteClicked}>${deleteForeverIcon}</button>
-						<button class='small' @click=${this._handleEditClicked}>${editIcon}</button>
+						<button class='small' ?hidden=${this.message.deleted} @click=${this._handleDeleteClicked}>${DELETE_FOREVER_ICON}</button>
+						<button class='small' @click=${this._handleEditClicked}>${EDIT_ICON}</button>
 					</div>
-					<button class='small' alt='Link to this comment' @click=${this._handleLinkClicked}>${baselineLinkIcon}</button>
+					<button class='small' alt='Link to this comment' @click=${this._handleLinkClicked}>${BASELINK_LINK_ICON}</button>
 				</div>
 				<span>${prettyTime(this.message.updated)}</span>
 				<div>

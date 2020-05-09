@@ -7,10 +7,10 @@ import { store } from '../store.js';
 import { SharedStyles } from './shared-styles.js';
 
 import {
-	helpIcon,
-	warningIcon,
-	repeatIcon,
-	favoriteIcon,
+	HELP_ICON,
+	WARNING_ICON,
+	REPEAT_ICON,
+	FAVORITE_ICON,
 } from './my-icons.js';
 
 import {
@@ -196,11 +196,11 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 	}
 
 	_help(message, alert) {
-		return html`<span class='help' title="${message}">${alert ? warningIcon : helpIcon}</span>`;
+		return html`<span class='help' title="${message}">${alert ? WARNING_ICON : HELP_ICON}</span>`;
 	}
 
 	_tweet(tweet) {
-		return html`<li><a href='${urlForTweet(tweet)}' target='_blank'>${prettyTime(tweet.created)}</a> ${favoriteIcon} ${tweet.favorite_count} ${repeatIcon} ${tweet.retweet_count}</li>`;
+		return html`<li><a href='${urlForTweet(tweet)}' target='_blank'>${prettyTime(tweet.created)}</a> ${FAVORITE_ICON} ${tweet.favorite_count} ${REPEAT_ICON} ${tweet.retweet_count}</li>`;
 	}
 
 	stateChanged(state) {

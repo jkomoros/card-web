@@ -29,7 +29,7 @@ import {
 	selectPartialMatchedItemsForQuery,
 } from '../selectors.js';
 
-import { plusIcon } from './my-icons.js';
+import { PLUS_ICON } from './my-icons.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
@@ -68,7 +68,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
 		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .collectionItemsToGhost=${this._partialMatches}></card-drawer>
 		<div ?hidden=${!this._linking} class='add'>
-			<button class='round' @click='${this._handleAddSlide}'>${plusIcon}</button>
+			<button class='round' @click='${this._handleAddSlide}'>${PLUS_ICON}</button>
 		</div>
 	`;
 	}

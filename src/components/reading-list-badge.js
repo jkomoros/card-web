@@ -1,14 +1,14 @@
 import { html } from '@polymer/lit-element';
 
 import {
-	playlistAddCheckIcon,
+	PLAYLISLT_ADD_CHECK_ICON,
 } from './my-icons.js';
 
 import { CardBadge } from './card-badge.js';
 
 class ReadingListBadge extends CardBadge {
 	innerRender() {
-		return html`${playlistAddCheckIcon}`;
+		return html`${PLAYLISLT_ADD_CHECK_ICON}`;
 	}
 }
 

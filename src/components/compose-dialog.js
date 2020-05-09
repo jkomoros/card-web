@@ -21,7 +21,7 @@ import {
 } from '../actions/prompt.js';
 
 import {
-	checkCircleOutlineIcon
+	CHECK_CIRCLE_OUTLINE_ICON
 } from './my-icons.js';
 
 class ComposeDialog extends connect(store)(DialogElement) {
@@ -45,7 +45,7 @@ class ComposeDialog extends connect(store)(DialogElement) {
 			<h3>${this._message}</h3>
 			<textarea .value=${this._content} @input=${this._handleContentUpdated}></textarea>
 			<div class='buttons'>
-				<button class='round' @click='${this._handleDoneClicked}'>${checkCircleOutlineIcon}</button>
+				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
 		`;
 	}
