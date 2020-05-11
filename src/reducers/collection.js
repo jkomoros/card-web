@@ -188,23 +188,23 @@ const TODO_TYPE_FREEFORM = {
 //it (and extends with non-card-filter-types as appropriate). The keys of each
 //config object are used as the keys in card.auto_todo_overrides map.
 const CARD_FILTER_CONFIGS = {
-	//tuple of good/bad filtername (good is primary), including no-todo/todo version if applicable, then the card->in-filter test, then one of the TODO_TYPE enum values, then how bad they are in terms of TODO weight.
-	'comments': [defaultCardFilterName('comments'), card => card.thread_count, TODO_TYPE_NA, 0.0],
-	'notes': [defaultCardFilterName('notes'), card => cardHasNotes(card), TODO_TYPE_NA, 0.0],
-	'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, TODO_TYPE_AUTO, 0.2],
-	'content': [defaultCardFilterName('content'), card => cardHasContent(card), TODO_TYPE_AUTO, 5.0],
-	'substantive-content': [defaultCardFilterName('substantive-content'), card => cardHasSubstantiveContent(card), TODO_TYPE_AUTO, 3.0],
-	'links': [defaultCardFilterName('links'), card => card.links && card.links.length, TODO_TYPE_AUTO, 1.0],
-	'inbound-links': [defaultCardFilterName('inbound-links'), card => card.links_inbound && card.links_inbound.length, TODO_TYPE_AUTO, 2.0],
-	'reciprocal-links': [['has-all-reciprocal-links', 'missing-reciprocal-links', 'does-not-need-reciprocal-links', 'needs-reciprocal-links'], card => cardMissingReciprocalLinks(card).length == 0, TODO_TYPE_AUTO, 1.0],
-	'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, TODO_TYPE_AUTO, 1.0],
-	'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], card => card.published, TODO_TYPE_AUTO, 0.5],
-	'tweet': [defaultCardFilterName('tweet'), card => card.tweet_count > 0, TODO_TYPE_NA, 0.0],
+	//tuple of good/bad filtername (good is primary), including no-todo/todo version if applicable, then the card->in-filter test, then one of the TODO_TYPE enum values, then how bad they are in terms of TODO weight, then a description of what the TODO means.
+	'comments': [defaultCardFilterName('comments'), card => card.thread_count, TODO_TYPE_NA, 0.0, 'Whether the card has comments'],
+	'notes': [defaultCardFilterName('notes'), card => cardHasNotes(card), TODO_TYPE_NA, 0.0, 'Whether the card has notes'],
+	'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, TODO_TYPE_AUTO, 0.2, 'Whether the card has a slug set'],
+	'content': [defaultCardFilterName('content'), card => cardHasContent(card), TODO_TYPE_AUTO, 5.0, 'Whether the card has any content whatsoever'],
+	'substantive-content': [defaultCardFilterName('substantive-content'), card => cardHasSubstantiveContent(card), TODO_TYPE_AUTO, 3.0, 'Whether the card has more than a reasonable minimum amount of content'],
+	'links': [defaultCardFilterName('links'), card => card.links && card.links.length, TODO_TYPE_AUTO, 1.0, 'Whether the card links out to other cards'],
+	'inbound-links': [defaultCardFilterName('inbound-links'), card => card.links_inbound && card.links_inbound.length, TODO_TYPE_AUTO, 2.0, 'Whether the card has other cards that link to it'],
+	'reciprocal-links': [['has-all-reciprocal-links', 'missing-reciprocal-links', 'does-not-need-reciprocal-links', 'needs-reciprocal-links'], card => cardMissingReciprocalLinks(card).length == 0, TODO_TYPE_AUTO, 1.0, 'Whether every inbound link has a matching outbound link'],
+	'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, TODO_TYPE_AUTO, 1.0, 'Whether the card has any tags'],
+	'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], card => card.published, TODO_TYPE_AUTO, 0.5, 'Whether the card is published'],
+	'tweet': [defaultCardFilterName('tweet'), card => card.tweet_count > 0, TODO_TYPE_NA, 0.0, 'Whether the card has any tweets from the bot'],
 	//TODO_COMBINED_FILTERS looks for the fourth key in the filtername array, so
 	//we just duplicate the first two since they're the same (the reason they'd
 	//differ is if there's an override key and that could make the has- and
 	//needs- filters be different, and there isn't.)
-	[FREEFORM_TODO_KEY]: [['no-freeform-todo', 'has-freeform-todo', 'no-freeform-todo', 'has-freeform-todo'], card => !cardHasTodo(card), TODO_TYPE_FREEFORM, 1.0],
+	[FREEFORM_TODO_KEY]: [['no-freeform-todo', 'has-freeform-todo', 'no-freeform-todo', 'has-freeform-todo'], card => !cardHasTodo(card), TODO_TYPE_FREEFORM, 1.0, 'Whether the card has any text in its freeform TODO field'],
 };
 
 //REVERSE_CARD_FILTER_CXONFIG_MAP maps the filter names, e.g. 'has-links',
