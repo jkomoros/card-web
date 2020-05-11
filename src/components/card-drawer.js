@@ -21,7 +21,6 @@ class CardDrawer extends LitElement {
 				.container {
 					height:100%;
 					display:flex;
-					width: 13em;
 					flex-direction:column;
 				}
 
