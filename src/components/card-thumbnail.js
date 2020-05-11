@@ -1,6 +1,7 @@
 import { LitElement, html } from '@polymer/lit-element';
 
 import './card-badges.js';
+import './card-renderer.js';
 
 import { cardHasContent } from '../util';
 
@@ -33,26 +34,33 @@ class CardThumbnail extends LitElement {
 
         div.main {
           cursor:pointer;
-          padding: 0.5em;
-          height: 6em;
-          width: 12em;
-          overflow:hidden;
-          display:flex;
-          align-items:center;
-          justify-content:center;
-          background-color: var(--card-color);
-          box-shadow: var(--card-shadow);
           margin:0.5em;
           box-sizing:border-box;
           position:relative;
           border: 2px solid transparent;
         }
 
+        div.main.partial {
+          height: 6em;
+          width: 12em;
+          padding: 0.5em;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          background-color: var(--card-color);
+          box-shadow: var(--card-shadow);
+          overflow:hidden;
+        }
+
+        card-renderer {
+          font-size: 0.5em;
+        }
+
         div.unpublished {
           background-color: var(--unpublished-card-color);
         }
 
-        .selected {
+        div.main.selected {
           border:2px solid var(--app-primary-color);
         }
 
@@ -60,11 +68,11 @@ class CardThumbnail extends LitElement {
           color: var(--app-primary-color);
         }
 
-        div.section-head {
+        div.section-head.partial {
           background-color: var(--app-primary-color);
         }
 
-        div.section-head.selected {
+        div.section-head.partial.selected {
           border: 2px solid var(--app-light-text-color);
         }
 
@@ -93,8 +101,8 @@ class CardThumbnail extends LitElement {
 		}
 
       </style>
-      <div @mousemove=${this._handleMouseMove} @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="main ${this.selected ? 'selected' : ''} ${this.cardType} ${this.card && this.card.published ? '' : 'unpublished'} ${this.ghost ? 'ghost' : ''}">
-		<h3 class=${this.cardHasContent ? '' : 'nocontent'}>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>
+      <div @mousemove=${this._handleMouseMove} @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="main ${this.selected ? 'selected' : ''} ${this.cardType} ${this.card && this.card.published ? '' : 'unpublished'} ${this.ghost ? 'ghost' : ''} ${this.full ? 'full' : 'partial'}">
+		    ${this.full ? html`<card-renderer .card=${this.card}></card-renderer>` : html`<h3 class=${this.cardHasContent ? '' : 'nocontent'}>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
       <card-badges .card=${this.card} .light=${this.cardType != 'content'}></card-badges>
       </div>
     `;
@@ -108,6 +116,8 @@ class CardThumbnail extends LitElement {
 			selected: { type: Boolean },
 			cardType: { type: String},
 			userMayEdit: {type: Boolean},
+			//By default just shows the headline. But if full is true, will show the full card, rendered slightly smaller than normal
+			full: {type: Boolean},
 			//If the card will be removed on the next filter commit then this should
 			//be set, so the item can be rendered with lower opacity.
 			ghost: { type:Boolean },

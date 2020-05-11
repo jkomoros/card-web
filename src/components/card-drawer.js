@@ -92,7 +92,7 @@ class CardDrawer extends LitElement {
 				${repeat(this.collection, (i) => i.id, (i, index) => html`
 					<div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
 					${this.labels && this.labels[index] ? html`<div class='label'><span>${this.labelName} <strong>${this.labels[index]}</strong></span></div>` : html``}
-					<card-thumbnail @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this.editable} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this.selectedCardId} .ghost=${this.collectionItemsToGhost[i.id] || false}></card-thumbnail>`)}
+					<card-thumbnail .full=${this.fullCards} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this.editable} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this.selectedCardId} .ghost=${this.collectionItemsToGhost[i.id] || false}></card-thumbnail>`)}
 				</div>
 				<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable}'>${PLUS_ICON}</button>
 			</div>
@@ -189,6 +189,7 @@ class CardDrawer extends LitElement {
 			labelName: {type:String},
 			selectedCardId: { type:String },
 			collectionItemsToGhost: { type: Object },
+			fullCards: {type:Boolean},
 			reorderPending: {type:Boolean},
 			//_showing is more complicated than whether we're open or yet.
 			showing: {type:Boolean},
