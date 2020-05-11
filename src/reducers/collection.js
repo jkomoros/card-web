@@ -200,6 +200,9 @@ const CARD_FILTER_CONFIGS = {
 	'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, TODO_TYPE_AUTO, 1.0, 'Whether the card has any tags'],
 	'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], card => card.published, TODO_TYPE_AUTO, 0.5, 'Whether the card is published'],
 	'tweet': [defaultCardFilterName('tweet'), card => card.tweet_count > 0, TODO_TYPE_NA, 0.0, 'Whether the card has any tweets from the bot'],
+	//The following TODO types will never be automatically applied, because their test function always returns false, but they can be manually applied.
+	'prose': [defaultCardFilterName('prose'), () => false, TODO_TYPE_AUTO, 0.5, 'Whether the card has manually been marked as needing to be turned into flowing prose, as opposed to disjoint details'],
+	'citations': [defaultCardFilterName('citations'), () => false, TODO_TYPE_AUTO, 0.3, 'Whether the card has citations that need to be formally represented'],
 	//TODO_COMBINED_FILTERS looks for the fourth key in the filtername array, so
 	//we just duplicate the first two since they're the same (the reason they'd
 	//differ is if there's an override key and that could make the has- and
