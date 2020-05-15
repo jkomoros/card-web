@@ -172,6 +172,17 @@ export const semanticOverlap = (fingerprintOne, fingerprintTwo) => {
 	return total;
 };
 
+export const hash = (str) => {
+	//Adapted from https://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript
+	let hash = 0, i, chr;
+	for (i = 0; i < str.length; i++) {
+		chr   = str.charCodeAt(i);
+		hash  = ((hash << 5) - hash) + chr;
+		hash |= 0; // Convert to 32bit integer
+	}
+	return hash;
+};
+
 const randomCharSetNumbers = '0123456789';
 const randomCharSetLetters = 'abcdef';
 const randomCharSet = randomCharSetNumbers + randomCharSetLetters;
