@@ -72,7 +72,11 @@ export const serializeCollectionDescription = (description) => {
 	return result.join('/');
 };
 
-//TODO: make a serializeCollectionDescription() that returns the canonical serialization of it
+export const equivalentCollectionDescription = (one, two) => {
+	if (!isCollectionDescription(one)) return false;
+	if (!isCollectionDescription(two)) return false;
+	return serializeCollectionDescription(one) == serializeCollectionDescription(two);
+};
 
 //TODO: make a collectionDescriptionEquivalent() bool 
 
