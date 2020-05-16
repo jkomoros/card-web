@@ -29,6 +29,7 @@ export const CollectionDescription = class {
 
 	constructor(setName, filterNames, sortName, sortReversed) {
 		if (!setName) setName = DEFAULT_SET_NAME;
+		if (!sortName) sortName = DEFAULT_SORT_NAME;
 		if (!sortReversed) sortReversed = false;
 		if (!filterNames) filterNames = [];
 
