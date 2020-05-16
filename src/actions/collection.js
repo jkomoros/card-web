@@ -16,12 +16,7 @@ import {
 } from './app.js';
 
 import {
-	SORTS,
-} from '../reducers/collection.js';
-
-import {
 	DEFAULT_SET_NAME,
-	SET_NAMES,
 	DEFAULT_SORT_NAME,
 	SORT_REVERSED_URL_KEYWORD,
 	SORT_URL_KEYWORD,
@@ -66,32 +61,8 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 
 	let path = queryParts[0].toLowerCase();
 
-	let parts = path.split('/');
+	let [description, cardIdOrSlug] = CollectionDescription.deserialize(path);
 
-	//We do not remove a trailing slash; we take a trailing slash to mean
-	//"deafult item in the collection".
-
-	//in some weird situations, like during editing commit, we might be at no
-	//route even when our view is active. Not entirely clear how, but it
-	//happens... for a second.
-	let firstPart = parts.length ? parts[0] : '';
-	
-	let setName = DEFAULT_SET_NAME;
-	//Whether or not the set was explicitly included in the URL, as opposed to
-	//implied.
-	let setExplicitlySpecified = false;
-
-	for (let name of SET_NAMES) {
-		if (name == firstPart) {
-			setName = firstPart;
-			parts.shift();
-			setExplicitlySpecified = true;
-			break;
-		}
-	}
-
-	//Get last part, which is the card selector (and might be "").
-	let cardIdOrSlug = parts.pop();
 	//If the requestedCard is actually "" we'll pretend throughout the pipeline
 	//it's actually "_", and just never show it to the user. This is because the
 	//identifier "" also happens to be the intial active card ID, which confuses
@@ -99,8 +70,7 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 	//the user).
 	if (cardIdOrSlug == '') cardIdOrSlug = PLACEHOLDER_CARD_ID_CHARACTER;
 
-	let [filters, sortName, sortReversed] = extractFilterNamesAndSort(parts);
-
+	let filters = description.filters;
 	let doUpdateCollection = true;
 
 	if (filters.length == 0) {
@@ -113,7 +83,7 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 				doUpdateCollection = false;
 			}
 			filters = [card.section ? card.section : 'none'];
-		} else if(!setExplicitlySpecified) {
+		} else if(!description.setNameExplicitlySet) {
 
 			//If the set was explicitly specified, e.g. `/c/all/sort/recent/_`
 			//then don't filter out items.
@@ -125,51 +95,8 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 		}
 	}
 
-	if (doUpdateCollection || forceUpdateCollection) dispatch(updateCollection(setName, filters, sortName, sortReversed));
+	if (doUpdateCollection || forceUpdateCollection) dispatch(updateCollection(description.set, filters, description.sort, description.sortReversed));
 	dispatch(showCard(cardIdOrSlug));
-};
-
-const extractFilterNamesAndSort = (parts) => {
-	//returns the filter names, the sort name, and whether the sort is reversed
-	//parts is all of the unconsumed portions of the path that aren't the set
-	//name or the card name.
-	if (!parts.length) return [[], DEFAULT_SORT_NAME, false];
-	let filters = [];
-	let sortName = DEFAULT_SORT_NAME;
-	let sortReversed = false;
-	let nextPartIsSort = false;
-	for (let i = 0; i < parts.length; i++) {
-		const part = parts[i];
-		if (part == '') continue;
-		if (part == SORT_URL_KEYWORD) {
-			nextPartIsSort = true;
-			//handle the case where there was already one sort, and only listen
-			//to the last reversed.
-			sortReversed = false;
-			continue;
-		}
-		if (nextPartIsSort) {
-			if (part == SORT_REVERSED_URL_KEYWORD) {
-				sortReversed = true;
-				//Note that we requested a reverse, and then expect the  next
-				//part to be the sort name
-				continue;
-			}
-			//Take note of the sort, but only if it's a valid sort name; if it's
-			//not, drop it on the floor.
-			if (SORTS[part]) {
-				sortName = part;
-			} else {
-				//If we dropped iton the floor, also drop the reverse
-				//instruction on the floor, if there was one.
-				sortReversed = false;
-			}
-			nextPartIsSort = false;
-			continue;
-		}
-		filters.push(part);
-	}
-	return [filters, sortName, sortReversed];
 };
 
 export const updateCollection = (setName, filters, sortName, sortReversed) => (dispatch, getState) =>{	
