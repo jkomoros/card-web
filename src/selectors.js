@@ -724,32 +724,33 @@ export const selectActiveSectionId = createSelector(
 	}
 );
 
+const recentTabCollectionDescription = new CollectionDescription('', ['has-content'], RECENT_SORT_NAME, false);
+const readingListTabCollectionDescription = new CollectionDescription(READING_LIST_SET_NAME);
+const starsTabCollectionDescription = new CollectionDescription('', ['starred']);
+const unreadTabCollectionDescription = new CollectionDescription('', ['unread']);
+
 //This is used to decide whether the recent tab should show as selected.
 export const selectRecentTabSelected = createSelector(
-	selectActiveSetName,
-	selectActiveSortName,
-	selectActiveFilterNames,
-	(set, sort, filters) => set == DEFAULT_SET_NAME && sort == RECENT_SORT_NAME && (filters.length == 1 && filters[0] == 'has-content')
+	selectActiveCollectionDescription,
+	(description) => description.equivalent(recentTabCollectionDescription)
 );
+
 //This is used to decide whether the recent tab should show as selected.
 export const selectReadingListTabSelected = createSelector(
-	selectActiveSetName,
-	selectActiveFilterNames,
-	(set, filters) => set == READING_LIST_SET_NAME  && (!filters || filters.length == 0)
+	selectActiveCollectionDescription,
+	(description) => description.equivalent(readingListTabCollectionDescription)
 );
 
 //This is used to decide whether the recent tab should show as selected.
 export const selectStarsTabSelected = createSelector(
-	selectActiveSetName,
-	selectActiveFilterNames,
-	(set, filters) => set == DEFAULT_SET_NAME  && (filters.length == 1 && filters[0] == 'starred')
+	selectActiveCollectionDescription,
+	(description) => description.equivalent(starsTabCollectionDescription)
 );
 
 //This is used to decide whether the recent tab should show as selected.
 export const selectUnreadTabSelected = createSelector(
-	selectActiveSetName,
-	selectActiveFilterNames,
-	(set, filters) => set == DEFAULT_SET_NAME  && (filters.length == 1 && filters[0] == 'unread')
+	selectActiveCollectionDescription,
+	(description) => description.equivalent(unreadTabCollectionDescription)
 );
 
 //selectActiveTagId returns a string IFF precisely one tag is being selected.
