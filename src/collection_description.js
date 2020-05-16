@@ -29,15 +29,47 @@ export const RECENT_SORT_NAME = 'recent';
 export const makeCollectionDescription = (setName, filterNames, sortName, sortReversed) => {
 	if (!setName) setName = DEFAULT_SET_NAME;
 	if (!sortReversed) sortReversed = false;
+	if (!filterNames) filterNames = [];
+
 	if (typeof sortReversed != 'boolean') return null;
 	if (typeof setName != 'string') return null;
 	if (typeof sortName != 'string') return null;
+	if (!Array.isArray(filterNames)) return null;
+	if (!filterNames.every(item => typeof item == 'string')) return null;
+
 	return {
 		set: setName,
 		filters: filterNames,
 		sort: sortName,
 		sortReversed,
 	};
+};
+
+//serializeCollectionDescription returns a canonical string representing this
+//collection description. The string uniquely and precisely defines the
+//collection with the given semantics. It may include extra tings that are not
+//in the canonical URL because they are elided (like the default set name). It
+//also may be in  adifferent order than what is in the URL, since all items are
+//in a canonical sorted order but the URL is optimized to stay as the user wrote
+//it.
+export const serializeCollectionDescription = (description) => {
+	if (!isCollectionDescription(description)) return '';
+	let result = [description.setName];
+
+	let filterNames = [...description.filterNames];
+	filterNames.sort();
+
+	result = result.concat(filterNames);
+
+	if (description.sort) {
+		result.push(SORT_URL_KEYWORD);
+		result.push(description.sort);
+		if (description.sortReversed) result.push(SORT_REVERSED_URL_KEYWORD);
+	}
+
+	//Have a trailing slash
+	result.push('');
+	return result.join('/');
 };
 
 //TODO: make a serializeCollectionDescription() that returns the canonical serialization of it
