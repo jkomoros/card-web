@@ -144,10 +144,15 @@ export const CollectionDescription = class {
 		return false;
 	}
 
-	//deserialize takes the output of serialize() (which is a part of a URL). It
+	static deserialize(input) {
+		let [result, ] = CollectionDescription.deserialize(input);
+		return result;
+	}
+
+	//deserializeWithExtra takes the output of serialize() (which is a part of a URL). It
 	//returns an array with two items: 1) the CollectionDescription, and 2) the
 	//'rest', which is likely the card ID or '' if nothing.
-	static deserialize(input) {
+	static deserializeWithExtra(input) {
 		let parts = input.split('/');
 
 		//We do not remove a trailing slash; we take a trailing slash to mean

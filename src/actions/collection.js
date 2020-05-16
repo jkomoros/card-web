@@ -61,7 +61,7 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 
 	let path = queryParts[0].toLowerCase();
 
-	let [description, cardIdOrSlug] = CollectionDescription.deserialize(path);
+	let [description, cardIdOrSlug] = CollectionDescription.deserializeWithExtra(path);
 
 	//If the requestedCard is actually "" we'll pretend throughout the pipeline
 	//it's actually "_", and just never show it to the user. This is because the
