@@ -145,6 +145,19 @@ export const editingCommit = () => (dispatch, getState) => {
 
 };
 
+export const linkURL = (href) => (dispatch, getState) => {
+	const state = getState();
+	if (!state.editor.editing) return;
+	//TODO: it's weird we do this here, it really should be done on the card-
+	//editor component.
+	restoreSelectionRange();
+	if (href) {
+		document.execCommand('createLink', null, href);
+	} else {
+		document.execCommand('unlink');
+	}
+};
+
 export const linkCard = (cardID) => (dispatch, getState) => {
 	const state = getState();
 	if (!state.editor.editing) return;

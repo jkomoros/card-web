@@ -406,17 +406,8 @@ class CardEditor extends connect(store)(LitElement) {
 			document.execCommand('insertUnorderedList');
 			return killEvent(e);
 		case 'k':
-			if (e.shiftKey) {
-				//Default to searching for the text that's selected
-				store.dispatch(findCardToLink(document.getSelection().toString()));
-			} else {
-				let href = prompt('Where should the URL point?');
-				if (href) {
-					document.execCommand('createLink', null, href);
-				} else {
-					document.execCommand('unlink');
-				}
-			}
+			//Default to searching for the text that's selected
+			store.dispatch(findCardToLink(document.getSelection().toString()));
 			return killEvent(e);
 		}
 	}

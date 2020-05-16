@@ -21,7 +21,8 @@ import {
 } from '../actions/app.js';
 
 import {
-	linkCard
+	linkCard,
+	linkURL
 } from '../actions/editor.js';
 
 import {
@@ -29,7 +30,10 @@ import {
 	selectPartialMatchedItemsForQuery,
 } from '../selectors.js';
 
-import { PLUS_ICON } from './my-icons.js';
+import { 
+	PLUS_ICON,
+	LINK_ICON
+} from './my-icons.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
@@ -68,7 +72,8 @@ class FindDialog extends connect(store)(DialogElement) {
 		<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
 		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .collectionItemsToGhost=${this._partialMatches}></card-drawer>
 		<div ?hidden=${!this._linking} class='add'>
-			<button class='round' @click='${this._handleAddSlide}'>${PLUS_ICON}</button>
+			<button class='round' @click='${this._handleAddLink}' title='Link to a URL, not a card'>${LINK_ICON}</button>
+			<button class='round' @click='${this._handleAddSlide}' title='Create a new stub card to link to'>${PLUS_ICON}</button>
 		</div>
 	`;
 	}
@@ -86,6 +91,12 @@ class FindDialog extends connect(store)(DialogElement) {
 	_handleQueryChanged(e) {
 		let ele = e.composedPath()[0];
 		store.dispatch(updateQuery(ele.value));
+	}
+
+	_handleAddLink() {
+		let href = prompt('Where should the URL point?');
+		store.dispatch(linkURL(href));
+		this._shouldClose();
 	}
 
 	_handleAddSlide() {
