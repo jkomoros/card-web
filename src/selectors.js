@@ -35,6 +35,7 @@ import {
 	READING_LIST_SET_NAME,
 	FILTER_EQUIVALENTS_FOR_SET,
 	UNION_FILTER_DELIMITER,
+	makeCollectionDescription,
 } from './collection_description.js';
 
 import {
@@ -697,6 +698,14 @@ export const selectInboundLinksForActiveCard = createSelector(
 export const selectEditingCardAutoTodos = createSelector(
 	selectEditingCard,
 	(card) => cardTodoConfigKeys(card, true)
+);
+
+const selectActiveCollectionDescription = createSelector(
+	selectActiveSetName,
+	selectActiveFilterNames,
+	selectActiveSortName,
+	selectActiveSortReversed,
+	(setName, filterNames, sortName, sortReversed) => makeCollectionDescription(setName, filterNames, sortName, sortReversed)
 );
 
 //This means htat the active section is the only one showing. See also
