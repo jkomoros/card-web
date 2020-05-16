@@ -54,14 +54,14 @@ export const makeCollectionDescription = (setName, filterNames, sortName, sortRe
 //it.
 export const serializeCollectionDescription = (description) => {
 	if (!isCollectionDescription(description)) return '';
-	let result = [description.setName];
+	let result = [description.set];
 
-	let filterNames = [...description.filterNames];
+	let filterNames = [...description.filters];
 	filterNames.sort();
 
 	result = result.concat(filterNames);
 
-	if (description.sort) {
+	if (description.sort != DEFAULT_SORT_NAME || description.sortReversed) {
 		result.push(SORT_URL_KEYWORD);
 		result.push(description.sort);
 		if (description.sortReversed) result.push(SORT_REVERSED_URL_KEYWORD);
