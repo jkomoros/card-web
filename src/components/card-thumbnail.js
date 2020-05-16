@@ -56,7 +56,7 @@ class CardThumbnail extends LitElement {
           font-size: 0.5em;
         }
 
-        div.unpublished {
+        div.main.unpublished {
           background-color: var(--unpublished-card-color);
         }
 
