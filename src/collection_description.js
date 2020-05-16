@@ -25,69 +25,71 @@ export const SORT_REVERSED_URL_KEYWORD = 'reverse';
 export const DEFAULT_SORT_NAME = 'default';
 export const RECENT_SORT_NAME = 'recent';
 
-//Returns a collectionDescription with the given configuration.
-export const makeCollectionDescription = (setName, filterNames, sortName, sortReversed) => {
-	if (!setName) setName = DEFAULT_SET_NAME;
-	if (!sortReversed) sortReversed = false;
-	if (!filterNames) filterNames = [];
+export const CollectionDescription = class {
 
-	if (typeof sortReversed != 'boolean') return null;
-	if (typeof setName != 'string') return null;
-	if (typeof sortName != 'string') return null;
-	if (!Array.isArray(filterNames)) return null;
-	if (!filterNames.every(item => typeof item == 'string')) return null;
+	constructor(setName, filterNames, sortName, sortReversed) {
+		if (!setName) setName = DEFAULT_SET_NAME;
+		if (!sortReversed) sortReversed = false;
+		if (!filterNames) filterNames = [];
 
-	return {
-		set: setName,
-		filters: filterNames,
-		sort: sortName,
-		sortReversed,
-	};
-};
+		if (typeof sortReversed != 'boolean') throw new TypeError();
+		if (typeof setName != 'string') throw new TypeError();
+		if (typeof sortName != 'string') throw new TypeError();
+		if (!Array.isArray(filterNames)) throw new TypeError();
+		if (!filterNames.every(item => typeof item == 'string')) throw new TypeError();
 
-//serializeCollectionDescription returns a canonical string representing this
-//collection description. The string uniquely and precisely defines the
-//collection with the given semantics. It may include extra tings that are not
-//in the canonical URL because they are elided (like the default set name). It
-//also may be in  adifferent order than what is in the URL, since all items are
-//in a canonical sorted order but the URL is optimized to stay as the user wrote
-//it.
-export const serializeCollectionDescription = (description) => {
-	if (!isCollectionDescription(description)) return '';
-	let result = [description.set];
-
-	let filterNames = [...description.filters];
-	filterNames.sort();
-
-	result = result.concat(filterNames);
-
-	if (description.sort != DEFAULT_SORT_NAME || description.sortReversed) {
-		result.push(SORT_URL_KEYWORD);
-		result.push(description.sort);
-		if (description.sortReversed) result.push(SORT_REVERSED_URL_KEYWORD);
+		this._set = setName,
+		this._filters = filterNames,
+		this._sort = sortName,
+		this._sortReversed = sortReversed;
 	}
 
-	//Have a trailing slash
-	result.push('');
-	return result.join('/');
-};
+	get set() {
+		return this._set;
+	}
 
-export const equivalentCollectionDescription = (one, two) => {
-	if (!isCollectionDescription(one)) return false;
-	if (!isCollectionDescription(two)) return false;
-	return serializeCollectionDescription(one) == serializeCollectionDescription(two);
-};
+	get filters() {
+		return this._filters;
+	}
 
-//TODO: make a collectionDescriptionEquivalent() bool 
+	get sort() {
+		return this._sort;
+	}
 
-//checks if a given argument can be treated as a collection description
-const isCollectionDescription = (obj) => {
-	if (typeof obj !== 'object') return false;
-	if (!obj.set) return false;
-	if (typeof obj.set !== 'string') return false;
-	if (!obj.filters) return false;
-	if (obj.sort == undefined) return false;
-	if (typeof obj.sort !== 'string') return false;
-	if (obj.sortReversed === undefined) return false;
-	return true;
+	get sortReversed() {
+		return this._sortReversed;
+	}
+
+	//serialize returns a canonical string representing this collection
+	//description. The string uniquely and precisely defines the collection with
+	//the given semantics. It may include extra tings that are not in the
+	//canonical URL because they are elided (like the default set name). It also
+	//may be in  adifferent order than what is in the URL, since all items are
+	//in a canonical sorted order but the URL is optimized to stay as the user
+	//wrote it.
+	serialize() {
+		let result = [this.set];
+
+		let filterNames = [...this.filters];
+		filterNames.sort();
+	
+		result = result.concat(filterNames);
+	
+		if (this.sort != DEFAULT_SORT_NAME || this.sortReversed) {
+			result.push(SORT_URL_KEYWORD);
+			result.push(this.sort);
+			if (this.sortReversed) result.push(SORT_REVERSED_URL_KEYWORD);
+		}
+	
+		//Have a trailing slash
+		result.push('');
+		return result.join('/');
+	}
+
+	equivalent(other) {
+		if (other instanceof CollectionDescription) {
+			return this.serialize() == other.serialize();
+		}
+		return false;
+	}
 };

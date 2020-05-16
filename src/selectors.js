@@ -35,7 +35,7 @@ import {
 	READING_LIST_SET_NAME,
 	FILTER_EQUIVALENTS_FOR_SET,
 	UNION_FILTER_DELIMITER,
-	makeCollectionDescription,
+	CollectionDescription,
 } from './collection_description.js';
 
 import {
@@ -705,7 +705,7 @@ const selectActiveCollectionDescription = createSelector(
 	selectActiveFilterNames,
 	selectActiveSortName,
 	selectActiveSortReversed,
-	(setName, filterNames, sortName, sortReversed) => makeCollectionDescription(setName, filterNames, sortName, sortReversed)
+	(setName, filterNames, sortName, sortReversed) => new CollectionDescription(setName, filterNames, sortName, sortReversed)
 );
 
 //This means htat the active section is the only one showing. See also
