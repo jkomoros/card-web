@@ -62,12 +62,13 @@ export const CollectionDescription = class {
 	}
 
 	//serialize returns a canonical string representing this collection
-	//description. The string uniquely and precisely defines the collection with
-	//the given semantics. It may include extra tings that are not in the
-	//canonical URL because they are elided (like the default set name). It also
-	//may be in  adifferent order than what is in the URL, since all items are
-	//in a canonical sorted order but the URL is optimized to stay as the user
-	//wrote it.
+	//description, which if used as a component of the URL will match these
+	//collection semantics. The string uniquely and precisely defines the
+	//collection with the given semantics. It may include extra tings that are
+	//not in the canonical URL because they are elided (like the default set
+	//name). It also may be in  adifferent order than what is in the URL, since
+	//all items are in a canonical sorted order but the URL is optimized to stay
+	//as the user wrote it.
 	serialize() {
 		let result = [this.set];
 
