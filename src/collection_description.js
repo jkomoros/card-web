@@ -78,8 +78,8 @@ export const CollectionDescription = class {
 	
 		if (this.sort != DEFAULT_SORT_NAME || this.sortReversed) {
 			result.push(SORT_URL_KEYWORD);
-			result.push(this.sort);
 			if (this.sortReversed) result.push(SORT_REVERSED_URL_KEYWORD);
+			result.push(this.sort);
 		}
 	
 		//Have a trailing slash
