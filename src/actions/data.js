@@ -61,9 +61,12 @@ import {
 
 import {
 	INVERSE_FILTER_NAMES,
-	SORT_URL_KEYWORD,
-	SET_NAMES
 } from '../reducers/collection.js';
+
+import {
+	SET_NAMES,
+	SORT_URL_KEYWORD,
+} from '../collection_description.js';
 
 //When a new tag is created, it is randomly assigned one of these values.
 const TAG_COLORS = [

@@ -16,13 +16,16 @@ import {
 } from './app.js';
 
 import {
+	SORTS,
+} from '../reducers/collection.js';
+
+import {
 	DEFAULT_SET_NAME,
 	SET_NAMES,
 	DEFAULT_SORT_NAME,
 	SORT_REVERSED_URL_KEYWORD,
 	SORT_URL_KEYWORD,
-	SORTS,
-} from '../reducers/collection.js';
+} from '../collection_description.js';
 
 import {
 	getIdForCard,
