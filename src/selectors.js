@@ -700,7 +700,7 @@ export const selectEditingCardAutoTodos = createSelector(
 	(card) => cardTodoConfigKeys(card, true)
 );
 
-const selectActiveCollectionDescription = createSelector(
+export const selectActiveCollectionDescription = createSelector(
 	selectActiveSetName,
 	selectActiveFilterNames,
 	selectActiveSortName,

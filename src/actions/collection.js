@@ -25,6 +25,7 @@ import {
 	DEFAULT_SORT_NAME,
 	SORT_REVERSED_URL_KEYWORD,
 	SORT_URL_KEYWORD,
+	CollectionDescription,
 } from '../collection_description.js';
 
 import {
@@ -44,7 +45,8 @@ import {
 	getCardIndexForActiveCollection,
 	selectActiveSortName,
 	selectActiveSortReversed,
-	selectCollectionIsFallback
+	selectCollectionIsFallback,
+	selectActiveCollectionDescription
 } from '../selectors.js';
 
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
@@ -176,28 +178,10 @@ const extractFilterNamesAndSort = (parts) => {
 
 export const updateCollection = (setName, filters, sortName, sortReversed) => (dispatch, getState) =>{	
 	const state = getState();
-	let sameSetName = false;
-	if (setName == selectActiveSetName(state)) sameSetName = true;
+	const activeCollectionDescription = selectActiveCollectionDescription(state);
+	const newCollectionDescription = new CollectionDescription(setName, filters, sortName, sortReversed);
+	if (activeCollectionDescription.equivalent(newCollectionDescription)) return;
 
-	let sameActiveFilters = false;
-	let activeFilters = selectActiveFilterNames(state);
-	if (filters.length == activeFilters.length) {
-		sameActiveFilters = true;
-		for (let i = 0; i < filters.length; i++) {
-			if (filters[i] != activeFilters[i]) {
-				sameActiveFilters = false;
-				break;
-			}
-		}
-	}
-
-	let sameSortName = false;
-	if (sortName == selectActiveSortName(state)) sameSortName = true;
-
-	let sameSortDirection = false;
-	if (sortReversed == selectActiveSortReversed(state)) sameSortDirection = true;
-
-	if (sameSetName && sameActiveFilters && sameSortName && sameSortDirection) return;
 	//make sure we're working with the newest set of filters, because now is the
 	//one time that it's generally OK to update the active filter set, since the
 	//whole collection is changing anyway.
