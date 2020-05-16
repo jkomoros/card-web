@@ -67,12 +67,12 @@ export const selectPromptAssociatedId = (state) => state.prompt.associatedId;
 
 export const selectCommentsAndInfoPanelOpen = (state) => state.app ? state.app.commentsAndInfoPanelOpen : false;
 
-export const selectActiveSetName = (state) => state.collection.activeSetName;
-export const selectActiveSortName = (state) => state.collection.activeSortName;
-export const selectActiveSortReversed = (state) => state.collection.activeSortReversed;
+const selectActiveSetName = (state) => state.collection.activeSetName;
+const selectActiveFilterNames = (state) => state.collection.activeFilterNames;
+const selectActiveSortName = (state) => state.collection.activeSortName;
+const selectActiveSortReversed = (state) => state.collection.activeSortReversed;
 export const selectRequestedCard = (state) => state.collection.requestedCard;
 export const selectActiveCardId = (state) => state.collection ? state.collection.activeCardId : '';
-export const selectActiveFilterNames = (state) => state.collection.activeFilterNames;
 export const selectEditingCard = (state) => state.editor ? state.editor.card : null;
 export const selectFilters = (state) => state.collection.filters;
 const selectPendingFilters = (state) => state.collection.pendingFilters;

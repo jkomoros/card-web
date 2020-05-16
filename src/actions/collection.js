@@ -33,18 +33,14 @@ import {
 	getCard,
 	selectDataIsFullyLoaded,
 	selectFinalCollection,
-	selectActiveSetName,
 	selectActiveCardId,
 	selectActiveSectionId,
 	selectRequestedCard,
-	selectActiveFilterNames,
 	selectActiveCard,
 	selectActiveCardIndex,
 	selectPage,
 	selectPageExtra,
 	getCardIndexForActiveCollection,
-	selectActiveSortName,
-	selectActiveSortReversed,
 	selectCollectionIsFallback,
 	selectActiveCollectionDescription
 } from '../selectors.js';
@@ -258,10 +254,7 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 	if (!card) return;
 
 	let activeSectionId = selectActiveSectionId(state);
-	let activeFilterNames = selectActiveFilterNames(state);
-	let activeSortName = selectActiveSortName(state);
-	let activeSortReversed = selectActiveSortReversed(state);
-	let activeSetName = selectActiveSetName(state);
+	const description = selectActiveCollectionDescription(state);
 	let collectionIsFallback = selectCollectionIsFallback(state);
 
 	let result = [PAGE_DEFAULT];
@@ -277,24 +270,25 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 		//We need to show the set name if it's not the default set, or if its
 		//the default set and there are no filters active (e.g.
 		//`c/all/sort/recent/_`)
-		if (activeSetName != DEFAULT_SET_NAME || activeFilterNames.length == 0) {
-			result.push(activeSetName);
+		if (description.set != DEFAULT_SET_NAME || description.filters.length == 0) {
+			result.push(description.set);
 		}
 
 		if (!activeSectionId) {
 			//activeSectionId is only there if the only filter is the section name the
 			//user is in, which can be omitted for brevity.
-			result.push(...activeFilterNames);
+			result.push(...description.filters);
 		}
 
 	}
 
-	if (activeSortName != DEFAULT_SORT_NAME || activeSortReversed) {
+	//TODO: it's weird to recreate the logic of CollectionDescription.serialize() here.
+	if (description.sort != DEFAULT_SORT_NAME || description.sortReversed) {
 		result.push(SORT_URL_KEYWORD);
-		if(activeSortReversed) {
+		if(description.sortReversed) {
 			result.push(SORT_REVERSED_URL_KEYWORD);
 		}
-		result.push(activeSortName);
+		result.push(description.sort);
 	}
 
 	let requestedCard = selectRequestedCard(state);
