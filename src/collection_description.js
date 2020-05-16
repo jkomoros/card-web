@@ -27,7 +27,11 @@ export const RECENT_SORT_NAME = 'recent';
 
 //Returns a collectionDescription with the given configuration.
 export const makeCollectionDescription = (setName, filterNames, sortName, sortReversed) => {
-	//TODO: set the defaults here 
+	if (!setName) setName = DEFAULT_SET_NAME;
+	if (!sortReversed) sortReversed = false;
+	if (typeof sortReversed != 'boolean') return null;
+	if (typeof setName != 'string') return null;
+	if (typeof sortName != 'string') return null;
 	return {
 		set: setName,
 		filters: filterNames,
