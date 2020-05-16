@@ -68,6 +68,13 @@ export const restoreSelectionRange = () => {
 	selection.addRange(savedSelectionRange);
 };
 
+export const savedSelectionRangeIsLink = () => {
+	if (!savedSelectionRange) return false;
+	if (savedSelectionRange.startContainer.parentElement.localName == 'a') return true;
+	if (savedSelectionRange.endContainer.parentElement.localName == 'a') return true;
+	return false;
+};
+
 export const editingSelectTab = (tab) => {
 	return {
 		type: EDITING_SELECT_TAB,
