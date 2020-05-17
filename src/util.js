@@ -338,7 +338,7 @@ export const extractCardLinksFromBody = (body) => {
 
 //Returns true or false. filterName can be a filter or inverse filtername, if
 //optInverseFilterNames is passed.
-export const cardInFilter = (card, filterName, filters, optInverseFilterNames) => {
+const cardInFilter = (card, filterName, filters, optInverseFilterNames) => {
 	//Idelaly optInverseFilterNames would just use the direct one from
 	//reducers/collection.js. But that introudces a circular import.
 	if (optInverseFilterNames && optInverseFilterNames[filterName]) {
