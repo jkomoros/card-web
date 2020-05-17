@@ -181,6 +181,12 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		`;
 	}
 
+	constructor() {
+		super();
+		//since closestCards will be set a little later, make sure it always has a value.
+		this._closestCards = [];
+	}
+
 	static get properties() {
 		return {
 			_open: {type: Boolean},
@@ -212,9 +218,13 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._inboundLinks = selectInboundLinksForActiveCard(state);
 		this._tweets = selectActiveCardTweets(state);
 		this._tweetsLoading = selectTweetsLoading(state);
-		//selectActiveCardSimilarCards is extremly expensive to
-		//call into being, so only do it if the user is an admin.
-		this._closestCards = selectUserMayEdit(state) ? selectEditingOrActiveCardSimilarCards(state) : [];
+		//selectActiveCardSimilarCards is extremly expensive to call into being,
+		//so only do it if the user is an admin, and always wait and update
+		//without blocking the main update.
+		window.setTimeout(() => {
+			this._closestCards = selectUserMayEdit(state) ? selectEditingOrActiveCardSimilarCards(state) : [];
+		}, 0);
+		
 	}
 
 	updated(changedProps) {
