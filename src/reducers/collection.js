@@ -229,7 +229,7 @@ export const TODO_OVERRIDE_LEGAL_KEYS = Object.fromEntries(Object.entries(TODO_C
 
 //TODO_COMBINED_FILTERS represents the set of all filter names who, if ANY is
 //true, the given card should be considered to have a todo.
-export const TODO_COMBINED_FILTERS = Object.fromEntries(Object.entries(TODO_CONFIG_KEYS).map(entry => [CARD_FILTER_CONFIGS[entry[0]][0][3], true]));
+const TODO_COMBINED_FILTERS = Object.fromEntries(Object.entries(TODO_CONFIG_KEYS).map(entry => [CARD_FILTER_CONFIGS[entry[0]][0][3], true]));
 
 const TODO_DIFFICULTY_MAP = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[0], entry[1][3]]));
 const MAX_TOTAL_TODO_DIFFICULTY = Object.entries(TODO_DIFFICULTY_MAP).map(entry => entry[1]).reduce((prev, curr) => prev + curr, 0.0);
@@ -277,13 +277,36 @@ export const INVERSE_FILTER_NAMES = Object.assign(
 	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] == TODO_TYPE_AUTO).map(entry => [entry[1][0][3], entry[1][0][2]]))
 );
 
-const INITIAL_CARD_FILTER_NAMES = [
-	TODO_COMBINED_FILTER_NAME,
-	//The main filter names for card filters
-	...Object.entries(CARD_FILTER_CONFIGS).map(entry => entry[1][0][0]),
-	//The does-not-need filters
-	...Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] == TODO_TYPE_AUTO).map(entry => entry[1][0][2]),
-];
+const makeDoesNotNeedFunc = (baseFunc, overrideKeyName) => {
+	return function(card) {
+		if (card.auto_todo_overrides[overrideKeyName] === false) return true;
+		if (card.auto_todo_overrides[overrideKeyName] === true) return false;
+		return baseFunc(card);
+	};
+};
+
+const DOES_NOT_NEED_FILTER_FUNCS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] == TODO_TYPE_AUTO).map(entry => [entry[1][0][2], makeDoesNotNeedFunc(entry[1][1], REVERSE_CARD_FILTER_CONFIG_MAP[entry[1][0][2]])]));
+
+const FREEFORM_TODO_FUNC = CARD_FILTER_CONFIGS[FREEFORM_TODO_KEY][1];
+
+const COMBINED_TODO_FUNCS = [FREEFORM_TODO_FUNC, ...Object.values(DOES_NOT_NEED_FILTER_FUNCS)];
+
+const combinedTodoFunc = (card) => {
+	return COMBINED_TODO_FUNCS.every(func => func(card));
+};
+
+const INITIAL_FILTER_FUNCS = Object.assign(
+	//The main filter names
+	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][0], entry[1][1]])),
+	//does-not-need filters for TODOs
+	DOES_NOT_NEED_FILTER_FUNCS,
+	//combined filter func
+	{
+		[TODO_COMBINED_FILTER_NAME]: combinedTodoFunc,
+	},
+);
+
+const INITIAL_CARD_FILTER_NAMES = Object.keys(INITIAL_FILTER_FUNCS);
 
 //We pull this out because it has to be the same in filters and pendingFilters
 //and to avoid having to duplicate it.
