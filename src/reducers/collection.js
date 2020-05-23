@@ -301,7 +301,10 @@ const FREEFORM_TODO_FUNC = CARD_FILTER_CONFIGS[FREEFORM_TODO_KEY][1];
 const COMBINED_TODO_FUNCS = [FREEFORM_TODO_FUNC, ...Object.values(DOES_NOT_NEED_FILTER_FUNCS)];
 
 const combinedTodoFunc = (card) => {
-	return COMBINED_TODO_FUNCS.every(func => func(card));
+	//The funcs return true when it's 'done' (no todo). So if all of them return
+	//true, we don't have any TODOs, whereas if any of them return false we do
+	//have at least one todo.
+	return !COMBINED_TODO_FUNCS.every(func => func(card));
 };
 
 const INITIAL_FILTER_FUNCS = Object.assign(
