@@ -15,7 +15,8 @@ const PROJECT_NAME = process.env.GCLOUD_PROJECT.toLowerCase();
 
 //DEV_MODE is true if the project name contains 'dev-' or '-dev'
 const DEV_MODE = PROJECT_NAME.includes('dev-') || PROJECT_NAME.includes('-dev');
-const HOSTING_DOMAIN =  PROJECT_NAME + '.web.app';
+//firebaseapp.com is whitelisted automatically in auth, but '*.web.app' isn't
+const HOSTING_DOMAIN =  PROJECT_NAME + '.firebaseapp.com';
 const DOMAIN = (config.site || {})  .domain || HOSTING_DOMAIN;
 const LAST_DEPLOY_AFFECTING_RENDERING = (config.site || {}).last_deploy_affecting_rendering || "deploy-not-set";
 //Copied from src/actions/app.js
