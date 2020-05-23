@@ -24,7 +24,6 @@ import {
 	cardHasNotes,
 	cardHasTodo,
 	toTitleCase,
-	cardMatchingFilters,
 	cardMissingReciprocalLinks,
 	cardHasSubstantiveContent,
 	randomString,
@@ -227,10 +226,6 @@ const TODO_CONFIG_KEYS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).
 //TODO_OVERRIDE_LEGAL_KEYS reflects the only keys that are legal to set in card.auto_todo_overrides
 export const TODO_OVERRIDE_LEGAL_KEYS = Object.fromEntries(Object.entries(TODO_CONFIG_KEYS).filter(entry => CARD_FILTER_CONFIGS[entry[0]][2] == TODO_TYPE_AUTO));
 
-//TODO_COMBINED_FILTERS represents the set of all filter names who, if ANY is
-//true, the given card should be considered to have a todo.
-const TODO_COMBINED_FILTERS = Object.fromEntries(Object.entries(TODO_CONFIG_KEYS).map(entry => [CARD_FILTER_CONFIGS[entry[0]][0][3], true]));
-
 const TODO_DIFFICULTY_MAP = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[0], entry[1][3]]));
 const MAX_TOTAL_TODO_DIFFICULTY = Object.entries(TODO_DIFFICULTY_MAP).map(entry => entry[1]).reduce((prev, curr) => prev + curr, 0.0);
 
@@ -318,6 +313,12 @@ const INITIAL_FILTER_FUNCS = Object.assign(
 	},
 );
 
+const getCardFilterFunc = (filterName) => {
+	//TODO: when dynamic filters are supported, create them on demand here if
+	//they haven't yet been created.
+	return INITIAL_FILTER_FUNCS[filterName];
+};
+
 const INITIAL_CARD_FILTER_NAMES = Object.keys(INITIAL_FILTER_FUNCS);
 
 //We pull this out because it has to be the same in filters and pendingFilters
@@ -398,7 +399,7 @@ const app = (state = INITIAL_STATE, action) => {
 	case UPDATE_CARDS:
 		return {
 			...state,
-			pendingFilters: {...state.pendingFilters, ...makeFilterFromCards(action.cards, state.pendingFilters)}
+			pendingFilters: {...state.pendingFilters, ...makeFilterFromCards(action.cards, state.cardFilterNames, state.pendingFilters)}
 		};
 	case UPDATE_STARS:
 		return {
@@ -442,62 +443,22 @@ const makeFilterFromSection = (sections, includeDefaultSet) => {
 	return result;
 };
 
-const makeFilterFromCards = (cards, previousFilters) => {
+const makeFilterFromCards = (cards, cardFilterNames, previousFilters) => {
 	let result = {};
-	for(let [key, config] of Object.entries(CARD_FILTER_CONFIGS)) {
-		const filterName = config[0][0];
-		const filterFunc = config[1];
+	for (let filterName of cardFilterNames) {
 		let newMatchingCards = [];
 		let newNonMatchingCards = [];
+		const func = getCardFilterFunc(filterName);
+		if(!func) throw new Error('Invalid func name: ' + filterName);
 		for (let card of Object.values(cards)) {
-			//filterFunc matching means that the card is DONE for that TODO. So
-			//we should consider each one done if the card can't have autotodos.
-			if(filterFunc(card) || !cardMayHaveAutoTODO(card)) {
+			if(func(card)) {
 				newMatchingCards.push(card.id);
 			} else {
 				newNonMatchingCards.push(card.id);
 			}
 		}
-		const updatedFilter = setUnion(setRemove(previousFilters[filterName], newNonMatchingCards), newMatchingCards);
-		result[filterName] = updatedFilter;
-		//Bail out of next step for card filters that don't have todo overrides
-		if (config[2] != TODO_TYPE_AUTO) continue;
-		const doesNotNeedFilterName = config[0][2];
-		let newMatchingDoesNotNeedCards = [];
-		let newNonMatchingDoesNotNeedCards = [];
-		for (let card of Object.values(cards)) {
-			//cards are on the does-not-need (good!) list if they are NOT in the has-FOO list
-			if (card.auto_todo_overrides[key] === false) {
-				newMatchingDoesNotNeedCards.push(card.id);
-			} else if (card.auto_todo_overrides[key] === true) {
-				newNonMatchingDoesNotNeedCards.push(card.id);
-			} else if (updatedFilter[card.id]) {
-				//This will also correctly handle cards that may not have an
-				//autotodo, becuase they've already been set to true for
-				//matching the 'done' filter above.
-				newMatchingDoesNotNeedCards.push(card.id);
-			} else {
-				newNonMatchingDoesNotNeedCards.push(card.id);
-			}
-		}
-		result[doesNotNeedFilterName] = setUnion(setRemove(previousFilters[doesNotNeedFilterName], newNonMatchingDoesNotNeedCards), newMatchingDoesNotNeedCards);
+		result[filterName] = setUnion(setRemove(previousFilters[filterName], newNonMatchingCards), newMatchingCards);
 	}
-	//Now do the combined todo, which can only be done once all of the card-filters is updated to its final value.
-	//Note: this logic presumes that all of the TODO_FILTER_NAMES are all card filters, and thus in the result set.
-	let newMatchingTodoCards = [];
-	let newNonMatchingTodoCards = [];
-	for (let  card of Object.values(cards)) {
-		let matchingTodoFilters = cardMatchingFilters(card, result, TODO_COMBINED_FILTERS, INVERSE_FILTER_NAMES);
-		if (matchingTodoFilters.length) {
-			newMatchingTodoCards.push(card.id);
-		} else {
-			newNonMatchingTodoCards.push(card.id);
-		}
-	}
-	//AS long as the TODO_COMBINED_FILTER_NAME is a set based only on th3e card
-	//itself, then this logic should work, because its TODO could only have
-	//changed if the card itself changed.
-	result[TODO_COMBINED_FILTER_NAME] = setUnion(setRemove(previousFilters[TODO_COMBINED_FILTER_NAME], newNonMatchingTodoCards), newMatchingTodoCards);
 	return result;
 };
 
