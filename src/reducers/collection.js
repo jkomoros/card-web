@@ -277,6 +277,14 @@ export const INVERSE_FILTER_NAMES = Object.assign(
 	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] == TODO_TYPE_AUTO).map(entry => [entry[1][0][3], entry[1][0][2]]))
 );
 
+const INITIAL_CARD_FILTER_NAMES = [
+	TODO_COMBINED_FILTER_NAME,
+	//The main filter names for card filters
+	...Object.entries(CARD_FILTER_CONFIGS).map(entry => entry[1][0][0]),
+	//The does-not-need filters
+	...Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] == TODO_TYPE_AUTO).map(entry => entry[1][0][2]),
+];
+
 //We pull this out because it has to be the same in filters and pendingFilters
 //and to avoid having to duplicate it.
 const INITIAL_STATE_FILTERS = Object.assign(
@@ -285,13 +293,9 @@ const INITIAL_STATE_FILTERS = Object.assign(
 		none: {},
 		starred: {},
 		read: {},
-		[TODO_COMBINED_FILTER_NAME]: {},
 	},
 	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => [entry[1], {}])),
-	//extend with ones for all of the card filters based on the config.
-	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][0], {}])),
-	//extend with the does-not-need filters
-	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] == TODO_TYPE_AUTO).map(entry => [entry[1][0][2], {}]))
+	Object.fromEntries(INITIAL_CARD_FILTER_NAMES.map(name => [name, {}]))
 );
 
 const INITIAL_STATE = {
@@ -304,6 +308,9 @@ const INITIAL_STATE = {
 	activeFilterNames: [],
 	activeSortName: DEFAULT_SORT_NAME,
 	activeSortReversed: false,
+	//cardFilterNames is the set of card filters that are active and should be
+	//kept up to date as cards change.
+	cardFilterNames: INITIAL_CARD_FILTER_NAMES,
 	//These are the actual values of the filters in current use. We queue up
 	//changes in pendingFilters and then synchronize this value to that value
 	//when we know it's OK for the collection to change.
