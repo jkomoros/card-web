@@ -85,7 +85,7 @@ const makeScreenshot = async (card, cardLinkCards) => {
 	//Wait for networkidle0, otherwise bold fonts etc might not have finished
 	//loading.
 	await page.goto(common.urlForBasicCard(card.id), {
-		waitUntil: 'networkidle0',
+		waitUntil: 'networkidle2',
 	});
 
 	//Inject in the card directly, which should short-circuit the firebase fetch.
