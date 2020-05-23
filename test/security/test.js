@@ -156,6 +156,18 @@ describe('Compendium Rules', () => {
 		await firebase.assertSucceeds(card.get());
 	});
 
+	it('allows anyone to query for published card', async () => {
+		const db = authedApp(null);
+		const query = db.collection(CARDS_COLLECTION).where('published', '==', true);
+		await firebase.assertSucceeds(query.get());
+	});
+
+	it('disallows default user to query for cards that may include ones that aren\t published', async () => {
+		const db = authedApp(null);
+		const query = db.collection(CARDS_COLLECTION);
+		await firebase.assertFails(query.get());
+	});
+
 	it('disallows normal users permission to view unpublished cards', async() => {
 		const db = authedApp(sallyAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardId);
