@@ -78,7 +78,8 @@ export const selectFilters = (state) => state.collection.filters;
 const selectPendingFilters = (state) => state.collection.pendingFilters;
 export const selectSections = (state) => state.data ? state.data.sections : {};
 export const selectTags = (state) => state.data ? state.data.tags : {};
-const selectBaseCards = (state) => state.data ? state.data.cards : {};
+//All cards downloaded to client can be assumed to be OK to use in the rest of the pipeline.
+export const selectCards = (state) => state.data ? state.data.cards : {};
 const selectPublishedCardsLoaded = (state) => state.data ? state.data.publishedCardsLoaded : false;
 const selectUnpublishedCardsLoaded = (state) => state.data ? state.data.unpublishedCardsLoaded : false;
 export const selectSectionsLoaded = (state) => state.data ? state.data.sectionsLoaded : false;
@@ -240,15 +241,6 @@ export const selectUserMayModifyReadingList = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
 	(admin, permissions) => admin || permissions.modifyReadingList
-);
-
-export const selectCards = createSelector(
-	selectBaseCards,
-	selectUserMayViewUnpublished,
-	selectUid,
-	//We need to filter out cards the user can't see, which includes unpublished cards.
-	//Admins can see all cards. Everyone can see published cards. And authors can always see their own cards.
-	(baseCards, userMayViewUnpublished, uid) => userMayViewUnpublished ? baseCards : Object.fromEntries(Object.entries(baseCards).filter(item => item[1].published || item[1].author == uid))
 );
 
 export const selectActiveCard = createSelector(
