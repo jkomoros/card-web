@@ -842,19 +842,22 @@ const selectActiveCombinedFilter = createSelector(
 	(collectionDescription, filters, allCards) => combinedFilterForFilterDefinition(collectionDescription.filters, filters, allCards)
 );
 
-//TODO: supprot other sets 
-export const selectActiveSet = createSelector(
-	selectActiveCollectionDescription,
+const selectAllSets = createSelector(
 	selectDefaultSet,
 	selectUserReadingListForSet,
-	(collectionDescription, defaultSet, readingList) => {
-		switch(collectionDescription.set) {
-		case DEFAULT_SET_NAME:
-			return defaultSet;
-		case READING_LIST_SET_NAME:
-			return readingList || [];
-		}
-		return [];
+	(defaultSet, readingListSet) => {
+		return {
+			[DEFAULT_SET_NAME]: defaultSet,
+			[READING_LIST_SET_NAME]: readingListSet,
+		};
+	}
+);
+
+export const selectActiveSet = createSelector(
+	selectActiveCollectionDescription,
+	selectAllSets,
+	(collectionDescription, sets) => {
+		return sets[collectionDescription.set] || [];
 	}
 );
 
