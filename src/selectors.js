@@ -1010,6 +1010,7 @@ export const selectFinalCollection = createSelector(
 const removeUnnecessaryLabels = (arr) => {
 	let result = [];
 	let lastLabel = '';
+	let labelCount = 0;
 	for (let item of arr) {
 		if (item == lastLabel) {
 			result.push('');
@@ -1017,20 +1018,18 @@ const removeUnnecessaryLabels = (arr) => {
 		}
 		lastLabel = item;
 		result.push(item);
+		labelCount++;
 	}
+	//If all the labels are the same for each card then there's no reason to
+	//show them.
+	if (labelCount == 1) return result.map(() => '');
 	return result;
 };
 
-const removeAllLabels = (arr) => arr.map(() => '');
-
 export const selectActiveCollectionLabels = createSelector(
-	selectActiveSectionId,
 	selectFinalCollection,
 	selectExtractedSortInfoForCollection,
-	(sectionId, expandedCollection, sortInfo) => {
-		//If there's a single section ID then there'd be a single label, which
-		//is duplicative so just remove all labels.
-		if (sectionId) return removeAllLabels(expandedCollection);
+	(expandedCollection, sortInfo) => {
 		let rawLabels = expandedCollection.map(card => sortInfo.get(card.id) ? sortInfo.get(card.id)[1] : '');
 		return removeUnnecessaryLabels(rawLabels);
 	}
