@@ -144,6 +144,12 @@ export const CollectionDescription = class {
 		return false;
 	}
 
+	//collection returns a new collection based on this description, with this
+	//collection of all cards, this map of sets, and this filter definitions.
+	collection(cards, sets, filters) {
+		return new Collection(this, cards, sets, filters);
+	}
+
 	static deserialize(input) {
 		let [result, ] = CollectionDescription.deserialize(input);
 		return result;
@@ -180,4 +186,18 @@ export const CollectionDescription = class {
 
 		return [new CollectionDescription(setName,filters,sortName,sortReversed), extra];
 	}
+};
+
+const Collection = class {
+	constructor(description, cards, sets, filters) {
+		this._description = description;
+		this._cards = cards;
+		this._sets = sets;
+		this._filters = filters;
+	}
+
+	//TODO: memoized filteredCollection
+	//TODO: memoized sortedCollection
+	//TODO: memoized labels
+
 };

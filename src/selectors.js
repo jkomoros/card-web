@@ -853,6 +853,14 @@ const selectAllSets = createSelector(
 	}
 );
 
+const selectActiveCollection = createSelector(
+	selectActiveCollectionDescription,
+	selectCards,
+	selectAllSets,
+	selectFilters,
+	(description, cards, sets, filters) => description ? description.collection(cards, sets, filters) : null
+);
+
 export const selectActiveSet = createSelector(
 	selectActiveCollectionDescription,
 	selectAllSets,
