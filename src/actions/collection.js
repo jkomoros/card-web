@@ -20,6 +20,9 @@ import {
 	DEFAULT_SORT_NAME,
 	SORT_REVERSED_URL_KEYWORD,
 	SORT_URL_KEYWORD,
+} from '../filters.js';
+
+import {
 	CollectionDescription,
 } from '../collection_description.js';
 

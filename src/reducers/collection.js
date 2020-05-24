@@ -22,14 +22,11 @@ import {
 } from '../util.js';
 
 import {
+	INITIAL_STATE,
+	INITIAL_FILTER_FUNCS,
 	FILTER_EQUIVALENTS_FOR_SET,
 	DEFAULT_SET_NAME,
 	READING_LIST_SET_NAME
-} from '../collection_description.js';
-
-import {
-	INITIAL_STATE,
-	INITIAL_FILTER_FUNCS,
 } from '../filters.js';
 
 const app = (state = INITIAL_STATE, action) => {

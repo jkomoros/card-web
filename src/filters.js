@@ -14,12 +14,32 @@ import {
 	tweetOrderExtractor,
 } from './reducers/tweet-helpers.js';
 
-import {
-	DEFAULT_SORT_NAME,
-	RECENT_SORT_NAME,
-	FILTER_EQUIVALENTS_FOR_SET,
-	DEFAULT_SET_NAME,
-} from './collection_description.js';
+export const DEFAULT_SET_NAME = 'all';
+//reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
+//order matters and is customizable by the user. Every other collection starts
+//from the `all` set and then filters and then maybe sorts, but reading-list
+//lets a custom order.
+export const READING_LIST_SET_NAME = 'reading-list';
+
+//Note: every time you add a new set name, add it here too and make sure that a
+//filter of that name is kept updated.
+export const FILTER_EQUIVALENTS_FOR_SET = {
+	[DEFAULT_SET_NAME]: 'in-all-set',
+	[READING_LIST_SET_NAME]: 'in-reading-list',
+};
+
+//If filter names have this character in them then they're actually a union of
+//the filters
+export const UNION_FILTER_DELIMITER = '+';
+
+export const SET_NAMES = Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => entry[0]);
+
+//The word in the URL That means "the part after this is a sort".
+export const SORT_URL_KEYWORD = 'sort';
+export const SORT_REVERSED_URL_KEYWORD = 'reverse';
+
+export const DEFAULT_SORT_NAME = 'default';
+export const RECENT_SORT_NAME = 'recent';
 
 const sectionNameForCard = (card, sections) => {
 	let section = sections[card.section];

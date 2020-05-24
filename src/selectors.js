@@ -21,13 +21,13 @@ import {
 
 import {
 	TODO_COMBINED_FILTER_NAME,
+	DEFAULT_SET_NAME,
+	RECENT_SORT_NAME,
+	READING_LIST_SET_NAME,
 	cardTodoConfigKeys
 } from './filters.js';
 
 import {
-	DEFAULT_SET_NAME,
-	RECENT_SORT_NAME,
-	READING_LIST_SET_NAME,
 	CollectionDescription,
 } from './collection_description.js';
 

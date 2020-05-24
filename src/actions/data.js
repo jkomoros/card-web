@@ -61,12 +61,9 @@ import {
 
 import {
 	INVERSE_FILTER_NAMES,
-} from '../filters.js';
-
-import {
 	SET_NAMES,
 	SORT_URL_KEYWORD,
-} from '../collection_description.js';
+} from '../filters.js';
 
 //When a new tag is created, it is randomly assigned one of these values.
 const TAG_COLORS = [
