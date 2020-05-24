@@ -279,6 +279,27 @@ const Collection = class {
 		return this._collectionIsFallback;
 	}
 
+	//Returns a map of card_id --> true for all cards that are in filteredCards
+	//but would be removed if pendingFilters were used instead.
+	cardsThatWillBeRemoved(pendingFilters) {
+		let filterDefinition = this._description.filters;
+
+		//Extend the filter definition with the filter equilvanet for the set
+		//we're using. This makes reading-list work correctly, and any changes
+		//in cards that might change what set they're in. Basically we use all
+		//cards and then filter them down to the list that was in the set
+		//originally. This is OK because we're returning a set, not an array,
+		//from this method, so order doesn't matter.
+		const filterEquivalentForActiveSet = FILTER_EQUIVALENTS_FOR_SET[this._description.set];
+		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
+
+		const currentFilterFunc = combinedFilterForFilterDefinition(filterDefinition, this._filters, this._allCardsFilter);
+		const pendingFilterFunc = combinedFilterForFilterDefinition(filterDefinition, pendingFilters, this._allCardsFilter);
+		//Return the set of items that pass the current filters but won't pass the pending filters.
+		const itemsThatWillBeRemoved = Object.keys(this._cards).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
+		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));
+	}
+
 	//TODO: memoized sortedCollection
 	//TODO: memoized labels
 

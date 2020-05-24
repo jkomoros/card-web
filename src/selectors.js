@@ -33,7 +33,6 @@ import {
 	DEFAULT_SORT_NAME,
 	RECENT_SORT_NAME,
 	READING_LIST_SET_NAME,
-	FILTER_EQUIVALENTS_FOR_SET,
 	UNION_FILTER_DELIMITER,
 	CollectionDescription,
 } from './collection_description.js';
@@ -868,30 +867,9 @@ const selectActiveCollection = createSelector(
 //looking at a collection that only shows unread items, it will list the card
 //ids that are now marked read but are temporarily still in the collection.
 export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = createSelector(
-	selectAllCardsFilter,
-	selectActiveCollectionDescription,
-	selectFilters,
+	selectActiveCollection,
 	selectPendingFilters,
-	selectAllCardsFilter,
-	(allCards, collectionDescription, currentFilterSetMembership, pendingFilterSetMembership, allCardsFilter) => {
-
-		let filterDefinition = collectionDescription.filters;
-
-		//Extend the filter definition with the filter equilvanet for the set
-		//we're using. This makes reading-list work correctly, and any changes
-		//in cards that might change what set they're in. Basically we use all
-		//cards and then filter them down to the list that was in the set
-		//originally. This is OK because we're returning a set, not an array,
-		//from this method, so order doesn't matter.
-		const filterEquivalentForActiveSet = FILTER_EQUIVALENTS_FOR_SET[collectionDescription.set];
-		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
-
-		const currentFilterFunc = combinedFilterForFilterDefinition(filterDefinition, currentFilterSetMembership, allCardsFilter);
-		const pendingFilterFunc = combinedFilterForFilterDefinition(filterDefinition, pendingFilterSetMembership, allCardsFilter);
-		//Return the set of items that pass the current filters but won't pass the pending filters.
-		let itemsThatWillBeRemoved = Object.keys(allCards).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
-		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));
-	}
+	(collection, pendingFilters) => collection.cardsThatWillBeRemoved(pendingFilters)
 );
 
 //Sometimes the collection is empty for whatever reason and so the cards that
