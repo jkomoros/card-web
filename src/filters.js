@@ -41,6 +41,13 @@ export const SORT_REVERSED_URL_KEYWORD = 'reverse';
 export const DEFAULT_SORT_NAME = 'default';
 export const RECENT_SORT_NAME = 'recent';
 
+export const CONFIGURABLE_FILTER_URL_PARTS = {
+	'updated': 1,
+	'before': 1,
+	'after': 1,
+	'between': 2,
+};
+
 const sectionNameForCard = (card, sections) => {
 	let section = sections[card.section];
 	return section ? section.title : '';

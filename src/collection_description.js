@@ -8,6 +8,7 @@ import {
 	SET_NAMES,
 	UNION_FILTER_DELIMITER,
 	FILTER_EQUIVALENTS_FOR_SET,
+	CONFIGURABLE_FILTER_URL_PARTS,
 } from './filters.js';
 
 import {
@@ -24,6 +25,10 @@ const extractFilterNamesAndSort = (parts) => {
 	let sortName = DEFAULT_SORT_NAME;
 	let sortReversed = false;
 	let nextPartIsSort = false;
+	//The actual multi-part filter we're accumulating
+	let multiPartFilter = [];
+	//How many more ports we need until multiPartFilter is done.
+	let expectedRemainingMultiParts = 0;
 	for (let i = 0; i < parts.length; i++) {
 		const part = parts[i];
 		if (part == '') continue;
@@ -44,6 +49,28 @@ const extractFilterNamesAndSort = (parts) => {
 			//We don't know what sort names are valid, so we'll just assume it's fine.
 			sortName = part;
 			nextPartIsSort = false;
+			continue;
+		}
+		if (CONFIGURABLE_FILTER_URL_PARTS[part]) {
+			//It's the beginning of a collection.
+			//No matter what we add this on.
+			multiPartFilter.push(part);
+			//First, if we're already in a multi-count section, keep track that
+			//we got another piece, which might have satisfied all of it
+			if (expectedRemainingMultiParts) {
+				expectedRemainingMultiParts--;
+			}
+			//Now keep track of how many more pieces the new thing needs to eat
+			expectedRemainingMultiParts += CONFIGURABLE_FILTER_URL_PARTS[part];
+			continue;
+		}
+		if (expectedRemainingMultiParts) {
+			multiPartFilter.push(part);
+			expectedRemainingMultiParts--;
+			if (expectedRemainingMultiParts == 0) {
+				filters.push(multiPartFilter.join('/'));
+				multiPartFilter = [];
+			}
 			continue;
 		}
 		filters.push(part);

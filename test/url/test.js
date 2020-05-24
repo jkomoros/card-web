@@ -69,4 +69,59 @@ describe('card-web url parsing', () => {
 		assert.equal(extra, 'extra');
 	});
 
+	it('supports url parsing with single multi-part', async () => {
+		const description = CollectionDescription.deserialize('updated/2020-10-02/');
+		const golden = new CollectionDescription('', ['updated/2020-10-02']);
+		assert.ok(description.equivalent(golden), 'Failed: ' + description.serialize());
+	});
+
+	it('supports url parsing with multi-part', async () => {
+		const description = CollectionDescription.deserialize('updated/before/2020-10-02/');
+		const golden = new CollectionDescription('', ['updated/before/2020-10-02']);
+		assert.ok(description.equivalent(golden), 'Failed: ' + description.serialize());
+	});
+
+	it('supports url parsing with double multi-part', async () => {
+		const description = CollectionDescription.deserialize('updated/between/2020-10-02/2020-11-03/');
+		const golden = new CollectionDescription('', ['updated/between/2020-10-02/2020-11-03']);
+		assert.ok(description.equivalent(golden), 'Failed: ' + description.serialize());
+	});
+
+	it('supports url parsing with multi-part filter before', async () => {
+		const description = CollectionDescription.deserialize('half-baked/updated/before/2020-10-02/');
+		const golden = new CollectionDescription('', ['half-baked', 'updated/before/2020-10-02']);
+		assert.ok(description.equivalent(golden), 'Failed: ' + description.serialize());
+	});
+
+	it('supports url parsing with multi-part filter after', async () => {
+		const description = CollectionDescription.deserialize('updated/before/2020-10-02/half-baked/');
+		const golden = new CollectionDescription('', ['updated/before/2020-10-02', 'half-baked']);
+		assert.ok(description.equivalent(golden), 'Failed: ' + description.serialize());
+	});
+
+	it('supports url parsing with multi-part filter before after', async () => {
+		const description = CollectionDescription.deserialize('has-todo/updated/before/2020-10-02/half-baked/');
+		const golden = new CollectionDescription('', ['has-todo','updated/before/2020-10-02', 'half-baked']);
+		assert.ok(description.equivalent(golden), 'Failed: ' + description.serialize());
+	});
+
+	it('supports url parsing with partial mulit-part', async () => {
+		const description = CollectionDescription.deserialize('updated/');
+		const golden = new CollectionDescription('', []);
+		assert.ok(description.equivalent(golden), 'Failed: ' + description.serialize());
+	});
+
+	it('supports url parsing with partial multi-part', async () => {
+		const description = CollectionDescription.deserialize('updated/before/');
+		const golden = new CollectionDescription('', []);
+		assert.ok(description.equivalent(golden), 'Failed: ' + description.serialize());
+	});
+
+	it('supports url parsing with multi-part sort after', async () => {
+		const description = CollectionDescription.deserialize('updated/before/2020-10-02/sort/random/');
+		const golden = new CollectionDescription('', ['updated/before/2020-10-02'], 'random');
+		assert.ok(description.equivalent(golden), 'Failed: ' + description.serialize());
+	});
+
+
 });
