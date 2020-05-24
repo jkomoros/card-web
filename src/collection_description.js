@@ -27,6 +27,7 @@ export const RECENT_SORT_NAME = 'recent';
 
 import {
 	INVERSE_FILTER_NAMES,
+	SORTS,
 } from './reducers/collection.js';
 
 import {
@@ -119,6 +120,10 @@ export const CollectionDescription = class {
 		return this._sortReversed;
 	}
 
+	get sortConfig() {
+		return SORTS[this.sort] || SORTS[DEFAULT_SORT_NAME];
+	}
+
 	//serialize returns a canonical string representing this collection
 	//description, which if used as a component of the URL will match these
 	//collection semantics. The string uniquely and precisely defines the
@@ -155,8 +160,8 @@ export const CollectionDescription = class {
 
 	//collection returns a new collection based on this description, with this
 	//collection of all cards, this map of sets, and this filter definitions.
-	collection(cards, sets, filters, fallbacks) {
-		return new Collection(this, cards, sets, filters, fallbacks);
+	collection(cards, sets, filters, sections, fallbacks) {
+		return new Collection(this, cards, sets, filters, sections, fallbacks);
 	}
 
 	static deserialize(input) {
@@ -239,16 +244,41 @@ const combinedFilterForFilterDefinition = (filterDefinition, filterSetMembership
 //expandCardCollection should be used any time we have a list of IDs of cards and a bundle of cards to expand.
 const expandCardCollection = (collection, cards) => collection.map(id => cards[id] || null).filter(card => card ? true : false);
 
+//Removes labels that are the same as the one htat came before them.
+const removeUnnecessaryLabels = (arr) => {
+	let result = [];
+	let lastLabel = '';
+	let labelCount = 0;
+	for (let item of arr) {
+		if (item == lastLabel) {
+			result.push('');
+			continue;
+		}
+		lastLabel = item;
+		result.push(item);
+		labelCount++;
+	}
+	//If all the labels are the same for each card then there's no reason to
+	//show them.
+	if (labelCount == 1) return result.map(() => '');
+	return result;
+};
+
 const Collection = class {
-	constructor(description, cards, sets, filters, fallbacks) {
+	constructor(description, cards, sets, filters, sections, fallbacks) {
 		this._description = description;
 		this._cards = cards;
 		this._allCardsFilter = Object.fromEntries(Object.entries(cards).map(entry => [entry[0], true]));
 		this._sets = sets;
 		this._filters = filters;
+		//Needed for sort info :-(
+		this._sections = sections;
 		this._fallbacks = fallbacks;
 		this._filteredCards = null;
 		this._collectionIsFallback = null;
+		this._sortInfo = null;
+		this._sortedCards = null;
+		this._labels = null;
 	}
 
 	_makeFilteredCards() {
@@ -300,7 +330,60 @@ const Collection = class {
 		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));
 	}
 
-	//TODO: memoized sortedCollection
-	//TODO: memoized labels
+	_makeSortInfo() {
+		const config = this._description.sortConfig;
+		let entries = this.filteredCards.map(card => [card.id, config.extractor(card, this._sections, this._allCardsFilter)]);
+		return new Map(entries);
+	}
+
+	_ensureSortInfo() {
+		if(this._sortInfo) return;
+		this._sortInfo = this._makeSortInfo();
+	}
+
+	_makeSortedCards() {
+		const collection = this.filteredCards;
+		this._ensureSortInfo();
+		const sortInfo = this._sortInfo;
+		let sort = (left, right) => {
+			if(!left || !right) return 0;
+			//Info is the underlying sort value, then the label value.
+			const leftInfo = sortInfo.get(left.id);
+			const rightInfo = sortInfo.get(right.id);
+			if (!leftInfo || !rightInfo) return 0;
+			return rightInfo[0] - leftInfo[0];
+		};
+		const sortedCards = [...collection].sort(sort);
+		if (this._description.sortReversed) sortedCards.reverse();
+		return sortedCards;
+	}
+
+	_ensureSortedCards() {
+		if(this._sortedCards) return;
+		this._sortedCards = this._makeSortedCards();
+	}
+
+	get sortedCards() {
+		this._ensureSortedCards();
+		return this._sortedCards;
+	}
+
+	_makeLabels() {
+		const sortedCards = this.sortedCards;
+		//sortedCards requires sortInfo to be created so we can just grab it.
+		const sortInfo = this._sortInfo;
+		const rawLabels = sortedCards.map(card => sortInfo.get(card.id) ? sortInfo.get(card.id)[1] : '');
+		return removeUnnecessaryLabels(rawLabels);
+	}
+
+	_ensureLabels() {
+		if(this._labels) return;
+		this._labels = this._makeLabels();
+	}
+
+	get labels() {
+		this._ensureLabels();
+		return this._labels;
+	}
 
 };

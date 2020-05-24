@@ -23,14 +23,12 @@ import {
 
 import {
 	INVERSE_FILTER_NAMES,
-	SORTS,
 	TODO_COMBINED_FILTER_NAME,
 	cardTodoConfigKeys
 } from './reducers/collection.js';
 
 import {
 	DEFAULT_SET_NAME,
-	DEFAULT_SORT_NAME,
 	RECENT_SORT_NAME,
 	READING_LIST_SET_NAME,
 	UNION_FILTER_DELIMITER,
@@ -858,7 +856,8 @@ const selectActiveCollection = createSelector(
 	selectCards,
 	selectAllSets,
 	selectFilters,
-	(description, cards, sets, filters) => description ? description.collection(cards, sets, filters, collectionFallbacks) : null
+	selectSections,
+	(description, cards, sets, filters, sections) => description ? description.collection(cards, sets, filters, sections, collectionFallbacks) : null
 );
 
 //selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit returns the items
@@ -887,19 +886,9 @@ export const selectCardsDrawerPanelShowing = createSelector(
 	(isFallback, panelOpen) => isFallback ? false : panelOpen
 );
 
-//Note, this is the sorting info (extractor, description, etc), but reversing is
-//applied in selectSortedActiveCollection.
-const selectActiveSort = createSelector(
-	selectActiveCollectionDescription,
-	//Technically, this isn't a pure function because it relies on SORTs. But
-	//SORTS is a const and never has more items added after being initialized,
-	//so it's OK.
-	(collectionDescription) =>  SORTS[collectionDescription.sort] || SORTS[DEFAULT_SORT_NAME]
-);
-
 export const selectActiveSortLabelName = createSelector(
-	selectActiveSort,
-	(sortInfo) => sortInfo.labelName || ''
+	selectActiveCollectionDescription,
+	(description) => description.sortConfig.labelName || ''
 );
 
 //expandCardCollection should be used any time we have a list of IDs of cards and a bundle of cards to expand.
@@ -911,84 +900,17 @@ const selectExpandedActiveStartCards = createSelector(
 	(startCards, cards) => expandCardCollection(startCards, cards)
 );
 
-//Expanded means it includes the full cards in place, but NOT SORTED
-const selectExpandedActiveCollection = createSelector(
-	selectActiveCollection,
-	(collection) => collection.filteredCards
-);
-
-//Builds an index of cardId => extracted info for the current filtered
-//colletion.
-const selectExtractedSortInfoForCollection = createSelector(
-	selectExpandedActiveCollection,
-	selectActiveSort,
-	selectSections,
-	selectCards,
-	(collection, sortInfo, sections, allCards) => {
-		if (!sortInfo) return new Map();
-		let entries = collection.map(card => [card.id, sortInfo.extractor(card, sections, allCards)]);
-		return new Map(entries);
-	}
-);
-
-//This is the sorted (but not yet reversed, if it will be), expanded collection,
-//but without start cards
-const selectPreliminarySortedActiveCollection = createSelector(
-	selectExpandedActiveCollection,
-	selectExtractedSortInfoForCollection,
-	(collection, sortInfo) => {
-		let sort = (left, right) => {
-			if(!left || !right) return 0;
-			//Info is the underlying sort value, then the label value.
-			const leftInfo = sortInfo.get(left.id);
-			const rightInfo = sortInfo.get(right.id);
-			if (!leftInfo || !rightInfo) return 0;
-			return rightInfo[0] - leftInfo[0];
-		};
-		return [...collection].sort(sort);
-	}
-);
-
-const selectFinalSortedActiveCollection = createSelector(
-	selectPreliminarySortedActiveCollection,
-	selectActiveCollectionDescription,
-	(sortedCollection, collectionDescription) => collectionDescription.sortReversed ? [...sortedCollection].reverse() : sortedCollection
-);
-
 //This is the final expanded, sorted collection, including start cards.
 export const selectFinalCollection = createSelector(
 	selectExpandedActiveStartCards,
-	selectFinalSortedActiveCollection,
-	(startCards, otherCards) => [...startCards, ...otherCards]
+	selectActiveCollection,
+	(startCards, collection) => [...startCards, ...collection.sortedCards]
 );
 
-//Removes labels that are the same as the one htat came before them.
-const removeUnnecessaryLabels = (arr) => {
-	let result = [];
-	let lastLabel = '';
-	let labelCount = 0;
-	for (let item of arr) {
-		if (item == lastLabel) {
-			result.push('');
-			continue;
-		}
-		lastLabel = item;
-		result.push(item);
-		labelCount++;
-	}
-	//If all the labels are the same for each card then there's no reason to
-	//show them.
-	if (labelCount == 1) return result.map(() => '');
-	return result;
-};
-
 export const selectActiveCollectionLabels = createSelector(
-	selectFinalCollection,
-	selectExtractedSortInfoForCollection,
-	(expandedCollection, sortInfo) => {
-		let rawLabels = expandedCollection.map(card => sortInfo.get(card.id) ? sortInfo.get(card.id)[1] : '');
-		return removeUnnecessaryLabels(rawLabels);
-	}
+	selectActiveCollection,
+	selectActiveStartCards,
+	(collection, startCards) => [...startCards.map(() => ''), ...collection.labels]
 );
 
 export const selectActiveCardIndex = createSelector(
