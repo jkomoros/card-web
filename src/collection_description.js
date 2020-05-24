@@ -150,7 +150,7 @@ export const CollectionDescription = class {
 	}
 
 	static deserialize(input) {
-		let [result, ] = CollectionDescription.deserialize(input);
+		let [result, ] = CollectionDescription.deserializeWithExtra(input);
 		return result;
 	}
 
