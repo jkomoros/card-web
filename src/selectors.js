@@ -12,8 +12,6 @@ import { createSelector } from 'reselect';
 */
 
 import {
-	makeCombinedFilter,
-	makeConcreteInverseFilter,
 	TEXT_SEARCH_PROPERTIES,
 	normalizedWords,
 	stemmedNormalizedWords,
@@ -22,7 +20,6 @@ import {
 } from './util.js';
 
 import {
-	INVERSE_FILTER_NAMES,
 	TODO_COMBINED_FILTER_NAME,
 	cardTodoConfigKeys
 } from './reducers/collection.js';
@@ -31,7 +28,6 @@ import {
 	DEFAULT_SET_NAME,
 	RECENT_SORT_NAME,
 	READING_LIST_SET_NAME,
-	UNION_FILTER_DELIMITER,
 	CollectionDescription,
 } from './collection_description.js';
 
@@ -802,44 +798,6 @@ export const selectUserReadingListCount = createSelector(
 	(readingList) => (readingList || []).length
 );
 
-const filterNameIsUnionFilter = (filterName) => {
-	return filterName.includes(UNION_FILTER_DELIMITER);
-};
-
-//makeFilterUnionSet takes a definition like "starred+in-reading-list" and
-//returns a synthetic filter object that is the union of all of the filters
-//named. The individual names may be normal filters or inverse filters.
-const makeFilterUnionSet = (unionFilterDefinition, filterSetMemberships, allCardsFilter) => {
-	const subFilterNames = unionFilterDefinition.split(UNION_FILTER_DELIMITER);
-	const subFilters = subFilterNames.map(filterName => {
-		if (filterSetMemberships[filterName]) return filterSetMemberships[filterName];
-		if (INVERSE_FILTER_NAMES[filterName]) return makeConcreteInverseFilter(filterSetMemberships[INVERSE_FILTER_NAMES[filterName]], allCardsFilter);
-		return {};
-	});
-	return Object.fromEntries(subFilters.map(filter => Object.entries(filter)).reduce((accum, val) => accum.concat(val),[]));
-};
-
-//filterDefinition is an array of filter-set names (concrete or inverse or union-set)
-const combinedFilterForFilterDefinition = (filterDefinition, filterSetMemberships, allCardsFilter) => {
-	let includeSets = [];
-	let excludeSets = [];
-	for (let name of filterDefinition) {
-		if (filterNameIsUnionFilter(name)) {
-			includeSets.push(makeFilterUnionSet(name, filterSetMemberships, allCardsFilter));
-			continue;
-		}
-		if (filterSetMemberships[name]) {
-			includeSets.push(filterSetMemberships[name]);
-			continue;
-		}
-		if (INVERSE_FILTER_NAMES[name]) {
-			excludeSets.push(filterSetMemberships[INVERSE_FILTER_NAMES[name]]);
-			continue;
-		}
-	}
-	return makeCombinedFilter(includeSets, excludeSets);
-};
-
 const selectAllSets = createSelector(
 	selectDefaultSet,
 	selectUserReadingListForSet,
@@ -1080,29 +1038,23 @@ const queryWordsAndFilters = (queryString) => {
 	return [stemmedWords, filters];
 };
 
-const selectCollectionForQuery = createSelector(
-	selectDefaultSet,
+const selectCollectionDescriptionForQuery = createSelector(
 	selectPreparedQuery,
-	selectFilters,
-	selectAllCardsFilter,
-	(defaultSet, preparedQuery, filters, allCardsFilter) => {
-		let filter = combinedFilterForFilterDefinition(preparedQuery.filters, filters, allCardsFilter);
-		//Filter out the things that have been told to filter out, and also
-		//filter out cards that don't match all terms.
-		return defaultSet.filter(id => filter(id));
-	}
+	(query) => new CollectionDescription('',query.filters)
 );
 
-const selectExpandedCollectionForQuery = createSelector(
-	selectCollectionForQuery,
+const selectCollectionForQuery = createSelector(
+	selectCollectionDescriptionForQuery,
 	selectCards,
-	(collection, cards) => expandCardCollection(collection, cards)
+	selectAllSets,
+	selectFilters,
+	(description, cards, sets, filters) => description.collection(cards, sets, filters)
 );
 
 const selectRankedItemsForQuery = createSelector(
-	selectExpandedCollectionForQuery,
+	selectCollectionForQuery,
 	selectPreparedQuery,
-	(collection, preparedQuery) => collection.map(card => {
+	(collection, preparedQuery) => collection.filteredCards.map(card => {
 		const [score, fullMatch] = cardScoreForQuery(card, preparedQuery);
 		return {
 			card: card,
