@@ -18,7 +18,7 @@ import {
 	normalizedWords,
 	stemmedNormalizedWords,
 	semanticOverlap,
-	SEMANTIC_FINGERPRINT_SIZE
+	SEMANTIC_FINGERPRINT_SIZE,
 } from './util.js';
 
 import {
@@ -720,6 +720,15 @@ const readingListTabCollectionDescription = new CollectionDescription(READING_LI
 const starsTabCollectionDescription = new CollectionDescription('', ['starred']);
 const unreadTabCollectionDescription = new CollectionDescription('', ['unread']);
 
+//The card that is the tutorial for reading lists
+const ABOUT_READING_LISTS_CARD = 'c-991-cba033';
+const ABOUT_STARS_CARD = 'c-858-dfd425';
+
+const collectionFallbacks = {
+	[readingListTabCollectionDescription.serialize()]: [ABOUT_READING_LISTS_CARD],
+	[starsTabCollectionDescription.serialize()]: [ABOUT_STARS_CARD],
+};
+
 //This is used to decide whether the recent tab should show as selected.
 export const selectRecentTabSelected = createSelector(
 	selectActiveCollectionDescription,
@@ -858,7 +867,7 @@ const selectActiveCollection = createSelector(
 	selectCards,
 	selectAllSets,
 	selectFilters,
-	(description, cards, sets, filters) => description ? description.collection(cards, sets, filters) : null
+	(description, cards, sets, filters) => description ? description.collection(cards, sets, filters, collectionFallbacks) : null
 );
 
 const selectActiveSet = createSelector(
@@ -922,10 +931,6 @@ export const selectCardsDrawerPanelShowing = createSelector(
 	selectCardsDrawerPanelOpen,
 	(isFallback, panelOpen) => isFallback ? false : panelOpen
 );
-
-//The card that is the tutorial for reading lists
-const ABOUT_READING_LISTS_CARD = 'c-991-cba033';
-const ABOUT_STARS_CARD = 'c-858-dfd425';
 
 const selectActiveBaseCollectionOrFallback = createSelector(
 	selectActiveBaseCollection,

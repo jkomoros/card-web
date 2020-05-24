@@ -146,8 +146,8 @@ export const CollectionDescription = class {
 
 	//collection returns a new collection based on this description, with this
 	//collection of all cards, this map of sets, and this filter definitions.
-	collection(cards, sets, filters) {
-		return new Collection(this, cards, sets, filters);
+	collection(cards, sets, filters, fallbacks) {
+		return new Collection(this, cards, sets, filters, fallbacks);
 	}
 
 	static deserialize(input) {
@@ -189,11 +189,12 @@ export const CollectionDescription = class {
 };
 
 const Collection = class {
-	constructor(description, cards, sets, filters) {
+	constructor(description, cards, sets, filters, fallbacks) {
 		this._description = description;
 		this._cards = cards;
 		this._sets = sets;
 		this._filters = filters;
+		this._fallbacks = fallbacks;
 	}
 
 	//TODO: memoized filteredCollection
