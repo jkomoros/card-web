@@ -160,6 +160,11 @@ export const CollectionDescription = class {
 
 	//collection returns a new collection based on this description, with this
 	//collection of all cards, this map of sets, and this filter definitions.
+	//sections and fallbacks are optional. Sections are needed for accurate
+	//sorting and labels of certain sorts. Fallbacks are consulted if there are
+	//no cards matching the filters; then it will look up a fallback set based
+	//on keying into optFallbacks by the serialization of the
+	//collectiondescription.
 	collection(cards, sets, filters, optSections, optFallbacks) {
 		return new Collection(this, cards, sets, filters, optSections, optFallbacks);
 	}
