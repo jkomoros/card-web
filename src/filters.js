@@ -41,6 +41,9 @@ export const SORT_REVERSED_URL_KEYWORD = 'reverse';
 export const DEFAULT_SORT_NAME = 'default';
 export const RECENT_SORT_NAME = 'recent';
 
+//When these are seen in the URL as parts, how many more pieces to expect, to be
+//combined later. For things like `updated`, they want more than 1 piece more
+//(e.g. `before/2020-10-03`, but the next pieces will also ask for more) in the piece.
 export const CONFIGURABLE_FILTER_URL_PARTS = {
 	'updated': 1,
 	'before': 1,
