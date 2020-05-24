@@ -160,8 +160,8 @@ export const CollectionDescription = class {
 
 	//collection returns a new collection based on this description, with this
 	//collection of all cards, this map of sets, and this filter definitions.
-	collection(cards, sets, filters, sections, fallbacks) {
-		return new Collection(this, cards, sets, filters, sections, fallbacks);
+	collection(cards, sets, filters, optSections, optFallbacks) {
+		return new Collection(this, cards, sets, filters, optSections, optFallbacks);
 	}
 
 	static deserialize(input) {
@@ -265,15 +265,15 @@ const removeUnnecessaryLabels = (arr) => {
 };
 
 const Collection = class {
-	constructor(description, cards, sets, filters, sections, fallbacks) {
+	constructor(description, cards, sets, filters, optSections, optFallbacks) {
 		this._description = description;
 		this._cards = cards;
 		this._allCardsFilter = Object.fromEntries(Object.entries(cards).map(entry => [entry[0], true]));
 		this._sets = sets;
 		this._filters = filters;
 		//Needed for sort info :-(
-		this._sections = sections;
-		this._fallbacks = fallbacks;
+		this._sections = optSections || {};
+		this._fallbacks = optFallbacks || {};
 		this._filteredCards = null;
 		this._collectionIsFallback = null;
 		this._sortInfo = null;
