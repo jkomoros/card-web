@@ -25,6 +25,15 @@ export const SORT_REVERSED_URL_KEYWORD = 'reverse';
 export const DEFAULT_SORT_NAME = 'default';
 export const RECENT_SORT_NAME = 'recent';
 
+import {
+	INVERSE_FILTER_NAMES,
+} from './reducers/collection.js';
+
+import {
+	makeCombinedFilter,
+	makeConcreteInverseFilter,
+} from './util.js';
+
 const extractFilterNamesAndSort = (parts) => {
 	//returns the filter names, the sort name, and whether the sort is reversed
 	//parts is all of the unconsumed portions of the path that aren't the set
@@ -188,16 +197,88 @@ export const CollectionDescription = class {
 	}
 };
 
+const filterNameIsUnionFilter = (filterName) => {
+	return filterName.includes(UNION_FILTER_DELIMITER);
+};
+
+//makeFilterUnionSet takes a definition like "starred+in-reading-list" and
+//returns a synthetic filter object that is the union of all of the filters
+//named. The individual names may be normal filters or inverse filters.
+const makeFilterUnionSet = (unionFilterDefinition, filterSetMemberships, allCardsFilter) => {
+	const subFilterNames = unionFilterDefinition.split(UNION_FILTER_DELIMITER);
+	const subFilters = subFilterNames.map(filterName => {
+		if (filterSetMemberships[filterName]) return filterSetMemberships[filterName];
+		if (INVERSE_FILTER_NAMES[filterName]) return makeConcreteInverseFilter(filterSetMemberships[INVERSE_FILTER_NAMES[filterName]], allCardsFilter);
+		return {};
+	});
+	return Object.fromEntries(subFilters.map(filter => Object.entries(filter)).reduce((accum, val) => accum.concat(val),[]));
+};
+
+//filterDefinition is an array of filter-set names (concrete or inverse or union-set)
+const combinedFilterForFilterDefinition = (filterDefinition, filterSetMemberships, allCardsFilter) => {
+	let includeSets = [];
+	let excludeSets = [];
+	for (let name of filterDefinition) {
+		if (filterNameIsUnionFilter(name)) {
+			includeSets.push(makeFilterUnionSet(name, filterSetMemberships, allCardsFilter));
+			continue;
+		}
+		if (filterSetMemberships[name]) {
+			includeSets.push(filterSetMemberships[name]);
+			continue;
+		}
+		if (INVERSE_FILTER_NAMES[name]) {
+			excludeSets.push(filterSetMemberships[INVERSE_FILTER_NAMES[name]]);
+			continue;
+		}
+	}
+	return makeCombinedFilter(includeSets, excludeSets);
+};
+
+//TODO: this is duplicated in selectors.js
+//expandCardCollection should be used any time we have a list of IDs of cards and a bundle of cards to expand.
+const expandCardCollection = (collection, cards) => collection.map(id => cards[id] || null).filter(card => card ? true : false);
+
 const Collection = class {
 	constructor(description, cards, sets, filters, fallbacks) {
 		this._description = description;
 		this._cards = cards;
+		this._allCardsFilter = Object.fromEntries(Object.entries(cards).map(entry => [entry[0], true]));
 		this._sets = sets;
 		this._filters = filters;
 		this._fallbacks = fallbacks;
+		this._filteredCollection = null;
+		this._collectionIsFallback = null;
 	}
 
-	//TODO: memoized filteredCollection
+	_makeFilteredCollection() {
+		const combinedFilter = combinedFilterForFilterDefinition(this._description.filters, this._filters, this._allCardsFilter);
+		const baseSet = this._sets[this._description.set] || [];
+		let filteredItems = baseSet.filter(item => combinedFilter(item));
+		if (filteredItems.length == 0) {
+			this._collectionIsFallback = true;
+			filteredItems = this._fallbacks[this._description.serialize()] || [];
+		}
+		return expandCardCollection(filteredItems, this._cards);
+	}
+
+	_ensureFilteredCollection() {
+		if (this._filteredCollection) return;
+		this._filteredCollection = this._makeFilteredCollection();
+	}
+
+	get filteredCollection() {
+		this._ensureFilteredCollection();
+		return this._filteredCollection;
+	}
+
+	get isFallback() {
+		//Make sure that filteredCollection has been created, which will have
+		//set collectionIsFallback correctly;
+		this._ensureFilteredCollection();
+		return this._collectionIsFallback;
+	}
+
 	//TODO: memoized sortedCollection
 	//TODO: memoized labels
 
