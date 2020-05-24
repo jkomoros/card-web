@@ -704,15 +704,14 @@ export const selectActiveCollectionDescription = createSelector(
 //selectActiveCardSelection, which just returns the section name of the
 //current collection. selectActiveTagId is the analogue for tags.
 export const selectActiveSectionId = createSelector(
-	selectActiveSetName,
-	selectActiveFilterNames,
+	selectActiveCollectionDescription,
 	selectSections,
-	(setName, filterNames, sections) => {
+	(collectionDescription, sections) => {
 		//The activeSectionId is only true if it's the default set and there
 		//is precisely one filter who is also a set.
-		if( setName != DEFAULT_SET_NAME) return '';
-		if (filterNames.length != 1) return '';
-		return sections[filterNames[0]] ? filterNames[0] : '';
+		if(collectionDescription.set != DEFAULT_SET_NAME) return '';
+		if (collectionDescription.filters.length != 1) return '';
+		return sections[collectionDescription.filters[0]] ? collectionDescription.filters[0] : '';
 	}
 );
 
@@ -748,15 +747,14 @@ export const selectUnreadTabSelected = createSelector(
 //selectActiveTagId returns a string IFF precisely one tag is being selected.
 //Analogue of selectActiveSectionId.
 export const selectActiveTagId = createSelector(
-	selectActiveSetName,
-	selectActiveFilterNames,
+	selectActiveCollectionDescription,
 	selectTags,
-	(setName, filterNames, tags) => {
+	(collectionDescription, tags) => {
 		//The activeSectionId is only true if it's the default set and there
 		//is precisely one filter who is also a set.
-		if( setName != DEFAULT_SET_NAME) return '';
-		if (filterNames.length != 1) return '';
-		return tags[filterNames[0]] ? filterNames[0] : '';
+		if( collectionDescription.set != DEFAULT_SET_NAME) return '';
+		if (collectionDescription.filters.length != 1) return '';
+		return tags[collectionDescription.filters[0]] ? collectionDescription.filters[0] : '';
 	}
 );
 
@@ -838,19 +836,19 @@ const combinedFilterForFilterDefinition = (filterDefinition, filterSetMembership
 
 //Returns a list of icludeFilters and a list of excludeFilters.
 const selectActiveCombinedFilter = createSelector(
-	selectActiveFilterNames,
+	selectActiveCollectionDescription,
 	selectFilters,
 	selectAllCardsFilter,
-	(activeFilterNames, filters, allCards) => combinedFilterForFilterDefinition(activeFilterNames, filters, allCards)
+	(collectionDescription, filters, allCards) => combinedFilterForFilterDefinition(collectionDescription.filters, filters, allCards)
 );
 
 //TODO: supprot other sets 
 export const selectActiveSet = createSelector(
-	selectActiveSetName,
+	selectActiveCollectionDescription,
 	selectDefaultSet,
 	selectUserReadingListForSet,
-	(setName, defaultSet, readingList) => {
-		switch(setName) {
+	(collectionDescription, defaultSet, readingList) => {
+		switch(collectionDescription.set) {
 		case DEFAULT_SET_NAME:
 			return defaultSet;
 		case READING_LIST_SET_NAME:
@@ -867,12 +865,13 @@ export const selectActiveSet = createSelector(
 //ids that are now marked read but are temporarily still in the collection.
 export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = createSelector(
 	selectAllCardsFilter,
-	selectActiveSetName,
-	selectActiveFilterNames,
+	selectActiveCollectionDescription,
 	selectFilters,
 	selectPendingFilters,
 	selectAllCardsFilter,
-	(allCards, setName, filterDefinition, currentFilterSetMembership, pendingFilterSetMembership, allCardsFilter) => {
+	(allCards, collectionDescription, currentFilterSetMembership, pendingFilterSetMembership, allCardsFilter) => {
+
+		let filterDefinition = collectionDescription.filters;
 
 		//Extend the filter definition with the filter equilvanet for the set
 		//we're using. This makes reading-list work correctly, and any changes
@@ -880,7 +879,7 @@ export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = creat
 		//cards and then filter them down to the list that was in the set
 		//originally. This is OK because we're returning a set, not an array,
 		//from this method, so order doesn't matter.
-		const filterEquivalentForActiveSet = FILTER_EQUIVALENTS_FOR_SET[setName];
+		const filterEquivalentForActiveSet = FILTER_EQUIVALENTS_FOR_SET[collectionDescription.set];
 		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
 
 		const currentFilterFunc = combinedFilterForFilterDefinition(filterDefinition, currentFilterSetMembership, allCardsFilter);
@@ -934,11 +933,11 @@ const selectActiveBaseCollectionOrFallback = createSelector(
 //Note, this is the sorting info (extractor, description, etc), but reversing is
 //applied in selectSortedActiveCollection.
 const selectActiveSort = createSelector(
-	selectActiveSortName,
+	selectActiveCollectionDescription,
 	//Technically, this isn't a pure function because it relies on SORTs. But
 	//SORTS is a const and never has more items added after being initialized,
 	//so it's OK.
-	(sortName) =>  SORTS[sortName] || SORTS[DEFAULT_SORT_NAME]
+	(collectionDescription) =>  SORTS[collectionDescription.sort] || SORTS[DEFAULT_SORT_NAME]
 );
 
 export const selectActiveSortLabelName = createSelector(
@@ -996,8 +995,8 @@ const selectPreliminarySortedActiveCollection = createSelector(
 
 const selectFinalSortedActiveCollection = createSelector(
 	selectPreliminarySortedActiveCollection,
-	selectActiveSortReversed,
-	(sortedCollection, reversed) => reversed ? [...sortedCollection].reverse() : sortedCollection
+	selectActiveCollectionDescription,
+	(sortedCollection, collectionDescription) => collectionDescription.sortReversed ? [...sortedCollection].reverse() : sortedCollection
 );
 
 //This is the final expanded, sorted collection, including start cards.
