@@ -936,7 +936,7 @@ const selectExpandedActiveStartCards = createSelector(
 //Expanded means it includes the full cards in place, but NOT SORTED
 const selectExpandedActiveCollection = createSelector(
 	selectActiveCollection,
-	(collection) => collection.filteredCollection
+	(collection) => collection.filteredCards
 );
 
 //Builds an index of cardId => extracted info for the current filtered

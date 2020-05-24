@@ -247,11 +247,11 @@ const Collection = class {
 		this._sets = sets;
 		this._filters = filters;
 		this._fallbacks = fallbacks;
-		this._filteredCollection = null;
+		this._filteredCards = null;
 		this._collectionIsFallback = null;
 	}
 
-	_makeFilteredCollection() {
+	_makeFilteredCards() {
 		const combinedFilter = combinedFilterForFilterDefinition(this._description.filters, this._filters, this._allCardsFilter);
 		const baseSet = this._sets[this._description.set] || [];
 		let filteredItems = baseSet.filter(item => combinedFilter(item));
@@ -262,20 +262,20 @@ const Collection = class {
 		return expandCardCollection(filteredItems, this._cards);
 	}
 
-	_ensureFilteredCollection() {
-		if (this._filteredCollection) return;
-		this._filteredCollection = this._makeFilteredCollection();
+	_ensureFilteredCards() {
+		if (this._filteredCards) return;
+		this._filteredCards = this._makeFilteredCards();
 	}
 
-	get filteredCollection() {
-		this._ensureFilteredCollection();
-		return this._filteredCollection;
+	get filteredCards() {
+		this._ensureFilteredCards();
+		return this._filteredCards;
 	}
 
 	get isFallback() {
 		//Make sure that filteredCollection has been created, which will have
 		//set collectionIsFallback correctly;
-		this._ensureFilteredCollection();
+		this._ensureFilteredCards();
 		return this._collectionIsFallback;
 	}
 
