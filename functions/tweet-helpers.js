@@ -1,6 +1,6 @@
 //NOTE: this file is almost duplicated (modulo npm/ES6 module syntax for export
 //at the very end) in /functions/tweet-helpers.js and
-//src/reducers/tweet-helpers.js. See #134 for de-duping
+//src/tweet-helpers.js. See #134 for de-duping
 
 //cachedSectionTwidderMapForSections is the sections map we were last passed; if
 //it's different then we should regenerate cachedSectionTwidderMap.
