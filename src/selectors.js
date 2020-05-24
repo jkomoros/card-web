@@ -843,14 +843,6 @@ const combinedFilterForFilterDefinition = (filterDefinition, filterSetMembership
 	return makeCombinedFilter(includeSets, excludeSets);
 };
 
-//Returns a list of icludeFilters and a list of excludeFilters.
-const selectActiveCombinedFilter = createSelector(
-	selectActiveCollectionDescription,
-	selectFilters,
-	selectAllCardsFilter,
-	(collectionDescription, filters, allCards) => combinedFilterForFilterDefinition(collectionDescription.filters, filters, allCards)
-);
-
 const selectAllSets = createSelector(
 	selectDefaultSet,
 	selectUserReadingListForSet,
@@ -868,14 +860,6 @@ const selectActiveCollection = createSelector(
 	selectAllSets,
 	selectFilters,
 	(description, cards, sets, filters) => description ? description.collection(cards, sets, filters, collectionFallbacks) : null
-);
-
-const selectActiveSet = createSelector(
-	selectActiveCollectionDescription,
-	selectAllSets,
-	(collectionDescription, sets) => {
-		return sets[collectionDescription.set] || [];
-	}
 );
 
 //selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit returns the items
@@ -910,18 +894,11 @@ export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = creat
 	}
 );
 
-//BaseCollection means no start_cards
-const selectActiveBaseCollection = createSelector(
-	selectActiveSet,
-	selectActiveCombinedFilter,
-	(set, filter) => set.filter(item => filter(item))
-);
-
 //Sometimes the collection is empty for whatever reason and so the cards that
 //are in the collection are actually fallback content, not real content.
 export const selectCollectionIsFallback = createSelector(
-	selectActiveBaseCollection,
-	(collection) => collection.length == 0
+	selectActiveCollection,
+	(collection) => collection.isFallback
 );
 
 //The cardsDrawerPanel hides itself when there are no cards to show (that is,
@@ -930,20 +907,6 @@ export const selectCardsDrawerPanelShowing = createSelector(
 	selectCollectionIsFallback,
 	selectCardsDrawerPanelOpen,
 	(isFallback, panelOpen) => isFallback ? false : panelOpen
-);
-
-const selectActiveBaseCollectionOrFallback = createSelector(
-	selectActiveBaseCollection,
-	selectReadingListTabSelected,
-	selectStarsTabSelected,
-	(collection, readingListTab, starsTab) => {
-		if (collection.length > 0) return collection;
-		if (readingListTab) return [ABOUT_READING_LISTS_CARD];
-		if (starsTab) return [ABOUT_STARS_CARD];
-		//TODO: return different cards for other tabs that might be empty or
-		//other conditions, like filters that filter out all cards.
-		return [];
-	}
 );
 
 //Note, this is the sorting info (extractor, description, etc), but reversing is
@@ -972,9 +935,8 @@ const selectExpandedActiveStartCards = createSelector(
 
 //Expanded means it includes the full cards in place, but NOT SORTED
 const selectExpandedActiveCollection = createSelector(
-	selectActiveBaseCollectionOrFallback,
-	selectCards,
-	(collection, cards) => expandCardCollection(collection, cards)
+	selectActiveCollection,
+	(collection) => collection.filteredCollection
 );
 
 //Builds an index of cardId => extracted info for the current filtered
