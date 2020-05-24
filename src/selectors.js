@@ -861,7 +861,7 @@ const selectActiveCollection = createSelector(
 	(description, cards, sets, filters) => description ? description.collection(cards, sets, filters) : null
 );
 
-export const selectActiveSet = createSelector(
+const selectActiveSet = createSelector(
 	selectActiveCollectionDescription,
 	selectAllSets,
 	(collectionDescription, sets) => {
