@@ -44,7 +44,10 @@ import {
 	arrayUnion,
 	extractCardLinksFromBody
 } from '../util.js';
-import { TODO_OVERRIDE_LEGAL_KEYS } from './collection.js';
+
+import {
+	TODO_OVERRIDE_LEGAL_KEYS
+} from '../filters.js';
 
 const app = (state = INITIAL_STATE, action) => {
 	let card;

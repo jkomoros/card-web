@@ -91,7 +91,7 @@ import './card-info-panel.js';
 
 import {
 	TODO_ALL_INFOS
-} from '../reducers/collection.js';
+} from '../filters.js';
 
 import {
 	EDIT_ICON,

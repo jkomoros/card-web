@@ -61,7 +61,7 @@ import {
 
 import {
 	INVERSE_FILTER_NAMES,
-} from '../reducers/collection.js';
+} from '../filters.js';
 
 import {
 	SET_NAMES,

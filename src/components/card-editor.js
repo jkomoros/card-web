@@ -66,7 +66,7 @@ import {
 import { 
 	TODO_AUTO_INFOS,
 	TODO_ALL_INFOS,
-} from '../reducers/collection.js';
+} from '../filters.js';
 
 import './tag-list.js';
 import { selectTagInfosForCards } from '../selectors';

@@ -22,7 +22,7 @@ import {
 import {
 	TODO_COMBINED_FILTER_NAME,
 	cardTodoConfigKeys
-} from './reducers/collection.js';
+} from './filters.js';
 
 import {
 	DEFAULT_SET_NAME,

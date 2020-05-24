@@ -28,7 +28,7 @@ export const RECENT_SORT_NAME = 'recent';
 import {
 	INVERSE_FILTER_NAMES,
 	SORTS,
-} from './reducers/collection.js';
+} from './filters.js';
 
 import {
 	makeCombinedFilter,
