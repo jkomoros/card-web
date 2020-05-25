@@ -563,7 +563,7 @@ export const setUnion = (obj, items) => {
 	return result;
 };
 
-const unionSet = (...sets) => {
+export const unionSet = (...sets) => {
 	let result = {};
 	for (let set of sets) {
 		if (!set) continue;

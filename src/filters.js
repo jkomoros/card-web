@@ -9,6 +9,7 @@ import {
 	randomString,
 	hash,
 	cardBFS,
+	unionSet,
 } from './util.js';
 
 import {
@@ -83,7 +84,8 @@ const INCLUDE_KEY_CARD_PREFIX = '+';
 
 const makeCardLinksConfigurableFilter = (filterName, cardID, countStr) => {
 	const isInbound = filterName == PARENTS_FILTER_NAME || filterName == ANCESTORS_FILTER_NAME;
-	if (filterName == CHILDREN_FILTER_NAME || filterName == PARENTS_FILTER_NAME) countStr = '1';
+	const twoWay = filterName == DIRECT_CONNECTIONS_FILTER_NAME || filterName == CONNECTIONS_FILTER_NAME;
+	if (filterName == CHILDREN_FILTER_NAME || filterName == PARENTS_FILTER_NAME || filterName == DIRECT_CONNECTIONS_FILTER_NAME) countStr = '1';
 	let count = parseInt(countStr);
 	if (isNaN(count)) count = 1;
 	if (!cardID) cardID = '';
@@ -103,7 +105,11 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countStr) => {
 	return function(card, cards) {
 		if (cards != memoizedCardsLastSeen) memoizedMap = null;
 		if (!memoizedMap) {
-			memoizedMap = cardBFS(cardID, cards, count, includeKeyCard, isInbound);
+			if (twoWay){
+				memoizedMap = unionSet(cardBFS(cardID, cards, count, includeKeyCard, false), cardBFS(cardID, cards, count, includeKeyCard, true));
+			} else {
+				memoizedMap = cardBFS(cardID, cards, count, includeKeyCard, isInbound);
+			}
 			memoizedCardsLastSeen = cards;
 		}
 		return memoizedMap[card.id];
@@ -121,6 +127,8 @@ const LAST_TWEETED_FILTER_NAME = 'last-tweeted';
 const BEFORE_FILTER_NAME = 'before';
 const AFTER_FILTER_NAME = 'after';
 const BETWEEN_FILTER_NAME = 'between';
+const DIRECT_CONNECTIONS_FILTER_NAME = 'direct-connections';
+const CONNECTIONS_FILTER_NAME = 'connections';
 const CHILDREN_FILTER_NAME = 'children';
 const DESCENDANTS_FILTER_NAME = 'descendants';
 const PARENTS_FILTER_NAME = 'parents';
@@ -142,6 +150,8 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[DESCENDANTS_FILTER_NAME]: 2,
 	[PARENTS_FILTER_NAME]: 1,
 	[ANCESTORS_FILTER_NAME]: 2,
+	[DIRECT_CONNECTIONS_FILTER_NAME]: 1,
+	[CONNECTIONS_FILTER_NAME]: 2,
 };
 
 //the factories should return a filter func that takes the card to opeate on,
@@ -153,6 +163,8 @@ const CONFIGURABLE_FILTER_FACTORIES = {
 	[DESCENDANTS_FILTER_NAME]: makeCardLinksConfigurableFilter,
 	[PARENTS_FILTER_NAME]: makeCardLinksConfigurableFilter,
 	[ANCESTORS_FILTER_NAME]: makeCardLinksConfigurableFilter,
+	[DIRECT_CONNECTIONS_FILTER_NAME]: makeCardLinksConfigurableFilter,
+	[CONNECTIONS_FILTER_NAME]: makeCardLinksConfigurableFilter,
 };
 
 //The configurable filters that are allowed to start a multi-part filter.
