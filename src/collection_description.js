@@ -221,7 +221,8 @@ export const CollectionDescription = class {
 };
 
 const filterNameIsUnionFilter = (filterName) => {
-	return filterName.includes(UNION_FILTER_DELIMITER);
+	//the + can be include in a configurable filter, e.g `children/+ab123`
+	return filterName.includes(UNION_FILTER_DELIMITER)  && !filterNameIsConfigurableFilter(filterName);
 };
 
 const filterNameIsConfigurableFilter = (filterName) => {

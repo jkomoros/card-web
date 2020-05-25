@@ -79,11 +79,20 @@ const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, seco
 	}
 };
 
+const INCLUDE_KEY_CARD_PREFIX = '+';
+
 const makeCardLinksConfigurableFilter = (filterName, cardID, countStr) => {
 	const isInbound = filterName == PARENTS_FILTER_NAME || filterName == ANCESTORS_FILTER_NAME;
 	if (filterName == CHILDREN_FILTER_NAME || filterName == PARENTS_FILTER_NAME) countStr = '1';
 	let count = parseInt(countStr);
 	if (isNaN(count)) count = 1;
+	if (!cardID) cardID = '';
+
+	let includeKeyCard = false;
+	if (cardID.startsWith(INCLUDE_KEY_CARD_PREFIX)) {
+		includeKeyCard = true;
+		cardID = cardID.substring(INCLUDE_KEY_CARD_PREFIX.length);
+	}
 
 	//We have to memoize the functor we return, even though the filter machinery
 	//will memoize too, because otherwise literally every card in a given run
@@ -94,7 +103,7 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countStr) => {
 	return function(card, cards) {
 		if (cards != memoizedCardsLastSeen) memoizedMap = null;
 		if (!memoizedMap) {
-			memoizedMap = cardBFS(cardID, cards, count, isInbound);
+			memoizedMap = cardBFS(cardID, cards, count, includeKeyCard, isInbound);
 			memoizedCardsLastSeen = cards;
 		}
 		return memoizedMap[card.id];

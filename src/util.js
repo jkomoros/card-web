@@ -278,7 +278,7 @@ export const cardHasTodo = (card) => {
 	return content ? true : false;
 };
 
-export const cardBFS = (keyCardIDOrSlug, cards, ply, isInbound) => {
+export const cardBFS = (keyCardIDOrSlug, cards, ply, includeKeyCard, isInbound) => {
 	if (!cards[keyCardIDOrSlug]) {
 		let foundID = '';
 		//The ID isn't in the list of cards. Check to see if maybe it's a slug.
@@ -296,7 +296,7 @@ export const cardBFS = (keyCardIDOrSlug, cards, ply, isInbound) => {
 	}
 	let seenCards = {[keyCardIDOrSlug]: 0};
 	let cardsToProcess = [keyCardIDOrSlug];
-	
+
 	while (cardsToProcess.length) {
 		const id = cardsToProcess.shift();
 		const card = cards[id];
@@ -312,6 +312,7 @@ export const cardBFS = (keyCardIDOrSlug, cards, ply, isInbound) => {
 			cardsToProcess.push(linkItem);
 		}
 	}
+	if (!includeKeyCard) delete seenCards[keyCardIDOrSlug];
 	return Object.fromEntries(Object.entries(seenCards).map(entry => [entry[0], true]));
 };
 
