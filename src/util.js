@@ -336,37 +336,6 @@ export const extractCardLinksFromBody = (body) => {
 	return [arrayUnique(result), text];
 };
 
-//Returns true or false. filterName can be a filter or inverse filtername, if
-//optInverseFilterNames is passed.
-const cardInFilter = (card, filterName, filters, optInverseFilterNames) => {
-	//Idelaly optInverseFilterNames would just use the direct one from
-	//reducers/collection.js. But that introudces a circular import.
-	if (optInverseFilterNames && optInverseFilterNames[filterName]) {
-		//inverse mode
-		let inverseFilter = filters[optInverseFilterNames[filterName]];
-		if (!inverseFilter) return false;
-		return !inverseFilter[card.id];
-	}
-	let filter = filters[filterName];
-	if (!filter) return false;
-	return filter[card.id];
-};
-
-//Returns a set of name: true for each non-inverse filter that matches the given
-//card, wherre filters is the set of filters to use, and if optFilterNames has
-//any keys then only the keys in that set are considered.
-export const cardMatchingFilters = (card, filters, optFilterNames, optInverseFilterNames) => {
-	let filterNames = optFilterNames ? Object.keys(optFilterNames) : Object.keys(filters);
-	let result = [];
-	//We have ot iterat through the optFilterNames that were passed, insteaed of
-	//tilers, in case optFilterNames includes inverse filters, otherwise none of
-	//them would have matched.
-	for (let name of filterNames) {
-		if (cardInFilter(card, name, filters, optInverseFilterNames)) result.push(name);
-	}
-	return result;
-};
-
 export const arrayRemove = (arr, items) => {
 	let itemsToRemove = new Map();
 	for (let item of Object.values(items)) {
