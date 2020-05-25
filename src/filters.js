@@ -43,27 +43,27 @@ export const RECENT_SORT_NAME = 'recent';
 
 const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, secondDateStr) => {
 
-	if (propName == 'updated') propName = 'updated_substantive';
-	if (propName == 'last-tweeted') propName = 'last_tweeted';
+	if (propName == UPDATED_FILTER_NAME) propName = 'updated_substantive';
+	if (propName == LAST_TWEETED_FILTER_NAME) propName = 'last_tweeted';
 	const firstDate = firstDateStr ? new Date(firstDateStr) : null;
 	const secondDate = secondDateStr ? new Date(secondDateStr) : null;
 
 	switch (comparisonType) {
-	case 'before':
+	case BEFORE_FILTER_NAME:
 		return function(card) {
 			const val = card[propName];
 			if (!val) return false;
 			const difference = val.toMillis() - firstDate.getTime();
 			return difference < 0;
 		};
-	case 'after':
+	case AFTER_FILTER_NAME:
 		return function(card) {
 			const val = card[propName];
 			if (!val) return false;
 			const difference = val.toMillis() - firstDate.getTime();
 			return difference > 0;
 		};
-	case 'between':
+	case BETWEEN_FILTER_NAME:
 		//Bail if the second date isn't provided
 		if (!secondDate) return () => false;
 		return function(card) {
@@ -83,23 +83,29 @@ const makeNoOpConfigurableFilter = () => {
 	return () => true;
 };
 
+const UPDATED_FILTER_NAME = 'updated';
+const LAST_TWEETED_FILTER_NAME = 'last-tweeted';
+const BEFORE_FILTER_NAME = 'before';
+const AFTER_FILTER_NAME = 'after';
+const BETWEEN_FILTER_NAME = 'between';
+
 //When these are seen in the URL as parts, how many more pieces to expect, to be
 //combined later. For things like `updated`, they want more than 1 piece more
 //(e.g. `before/2020-10-03`, but the next pieces will also ask for more) in the
 //piece. Note that only the ones listed in CONFIGURABLE_FILTER_NAMES may START a
 //filter name.
 export const CONFIGURABLE_FILTER_URL_PARTS = {
-	'updated': 1,
-	'last-tweeted': 1,
-	'before': 1,
-	'after': 1,
+	[UPDATED_FILTER_NAME]: 1,
+	[LAST_TWEETED_FILTER_NAME]: 1,
+	[BEFORE_FILTER_NAME]: 1,
+	[AFTER_FILTER_NAME]: 1,
 	//with between, the dates can go in either order
-	'between': 2,
+	[BETWEEN_FILTER_NAME]: 2,
 };
 
 const CONFIGURABLE_FILTER_FACTORIES = {
-	'updated': makeDateConfigurableFilter,
-	'last-tweeted': makeDateConfigurableFilter,
+	[UPDATED_FILTER_NAME]: makeDateConfigurableFilter,
+	[LAST_TWEETED_FILTER_NAME]: makeDateConfigurableFilter,
 };
 
 //The configurable filters that are allowed to start a multi-part filter.
