@@ -223,13 +223,28 @@ const filterNameIsConfigurableFilter = (filterName) => {
 	return filterName.includes('/');
 };
 
+let memoizedConfigurableFiltersCards = null;
+let memoizedConfigurableFilters = {};
+
 //The first filter here means 'map of card id to bools', not 'filter func'
 const makeFilterFromConfigurableFilter = (name, cards) => {
+	if (memoizedConfigurableFiltersCards == cards) {
+		if (memoizedConfigurableFilters[name]) {
+			return memoizedConfigurableFilters[name];
+		}
+	} else {
+		memoizedConfigurableFiltersCards = cards;
+		memoizedConfigurableFilters = {};
+	}
+
 	const func = makeConfigurableFilter(name);
 	const result = {};
 	for (let [id, card] of Object.entries(cards)) {
 		if (func(card)) result[id] = true;
 	}
+
+	memoizedConfigurableFilters[name] = result;
+	
 	return result;
 };
 
