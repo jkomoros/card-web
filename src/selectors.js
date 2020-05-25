@@ -17,6 +17,7 @@ import {
 	stemmedNormalizedWords,
 	semanticOverlap,
 	SEMANTIC_FINGERPRINT_SIZE,
+	expandCardCollection
 } from './util.js';
 
 import {
@@ -848,9 +849,6 @@ export const selectActiveSortLabelName = createSelector(
 	selectActiveCollectionDescription,
 	(description) => description.sortConfig.labelName || ''
 );
-
-//expandCardCollection should be used any time we have a list of IDs of cards and a bundle of cards to expand.
-const expandCardCollection = (collection, cards) => collection.map(id => cards[id] || null).filter(card => card ? true : false);
 
 const selectExpandedActiveStartCards = createSelector(
 	selectActiveStartCards,

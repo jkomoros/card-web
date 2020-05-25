@@ -16,6 +16,7 @@ import {
 import {
 	makeCombinedFilter,
 	makeConcreteInverseFilter,
+	expandCardCollection,
 } from './util.js';
 
 const extractFilterNamesAndSort = (parts) => {
@@ -291,10 +292,6 @@ const combinedFilterForFilterDefinition = (filterDefinition, filterSetMembership
 	}
 	return makeCombinedFilter(includeSets, excludeSets);
 };
-
-//TODO: this is duplicated in selectors.js
-//expandCardCollection should be used any time we have a list of IDs of cards and a bundle of cards to expand.
-const expandCardCollection = (collection, cards) => collection.map(id => cards[id] || null).filter(card => card ? true : false);
 
 //Removes labels that are the same as the one htat came before them.
 const removeUnnecessaryLabels = (arr) => {
