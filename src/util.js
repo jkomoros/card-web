@@ -278,9 +278,25 @@ export const cardHasTodo = (card) => {
 	return content ? true : false;
 };
 
-export const cardBFS = (keyCardID, cards, ply, isInbound) => {
-	let seenCards = {[keyCardID]: 0};
-	let cardsToProcess = [keyCardID];
+export const cardBFS = (keyCardIDOrSlug, cards, ply, isInbound) => {
+	if (!cards[keyCardIDOrSlug]) {
+		let foundID = '';
+		//The ID isn't in the list of cards. Check to see if maybe it's a slug.
+		//getIdForCard requires a state to access slugIndex, so we'll just brute force it.
+		for (let card of Object.values(cards)) {
+			for (let slug of card.slugs || []) {
+				if (slug == keyCardIDOrSlug) {
+					foundID = card.id;
+					break;
+				}
+			}
+			if (foundID) break;
+		}
+		keyCardIDOrSlug = foundID;
+	}
+	let seenCards = {[keyCardIDOrSlug]: 0};
+	let cardsToProcess = [keyCardIDOrSlug];
+	
 	while (cardsToProcess.length) {
 		const id = cardsToProcess.shift();
 		const card = cards[id];
