@@ -41,6 +41,47 @@ export const SORT_REVERSED_URL_KEYWORD = 'reverse';
 export const DEFAULT_SORT_NAME = 'default';
 export const RECENT_SORT_NAME = 'recent';
 
+const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, secondDateStr) => {
+
+	if (propName == 'updated') propName = 'updated_substantive';
+	const firstDate = firstDateStr ? new Date(firstDateStr) : null;
+	const secondDate = secondDateStr ? new Date(secondDateStr) : null;
+
+	switch (comparisonType) {
+	case 'before':
+		return function(card) {
+			const val = card[propName];
+			if (!val) return false;
+			const difference = val.toMillis() - firstDate.getTime();
+			return difference < 0;
+		};
+	case 'after':
+		return function(card) {
+			const val = card[propName];
+			if (!val) return false;
+			const difference = val.toMillis() - firstDate.getTime();
+			return difference > 0;
+		};
+	case 'between':
+		//Bail if the second date isn't provided
+		if (!secondDate) return () => false;
+		return function(card) {
+			const val = card[propName];
+			if (!val) return false;
+			const firstDifference = val.toMillis() - firstDate.getTime();
+			const secondDifference = val.toMillis() - secondDate.getTime();
+			return (firstDifference > 0 && secondDifference < 0) || (firstDifference < 0 && secondDifference > 0) ;
+		};
+	default:
+		return () => false;
+	}
+};
+
+//Fallback configurable filter
+const makeNoOpConfigurableFilter = () => {
+	return () => true;
+};
+
 //When these are seen in the URL as parts, how many more pieces to expect, to be
 //combined later. For things like `updated`, they want more than 1 piece more
 //(e.g. `before/2020-10-03`, but the next pieces will also ask for more) in the piece.
@@ -48,7 +89,23 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	'updated': 1,
 	'before': 1,
 	'after': 1,
+	//with between, the dates can go in either order
 	'between': 2,
+};
+
+const CONFIGURABLE_FILTER_FACTORIES = {
+	'updated': makeDateConfigurableFilter,
+};
+
+let memoizedConfigurableFilters = {};
+
+export const makeConfigurableFilter = (name) => {
+	if (!memoizedConfigurableFilters[name]) {
+		const parts = name.split('/');
+		const func = CONFIGURABLE_FILTER_FACTORIES[parts[0]] || makeNoOpConfigurableFilter;
+		memoizedConfigurableFilters[name] = func(...parts);
+	}
+	return memoizedConfigurableFilters[name];
 };
 
 const sectionNameForCard = (card, sections) => {
