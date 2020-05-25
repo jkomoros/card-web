@@ -278,6 +278,27 @@ export const cardHasTodo = (card) => {
 	return content ? true : false;
 };
 
+export const cardBFS = (keyCardID, cards, ply, isInbound) => {
+	let seenCards = {[keyCardID]: 0};
+	let cardsToProcess = [keyCardID];
+	while (cardsToProcess.length) {
+		const id = cardsToProcess.shift();
+		const card = cards[id];
+		//Must be unpublished
+		if (!card) continue;
+		const newCardDepth = (seenCards[id] || 0) + 1;
+		if (newCardDepth > ply) continue;
+		const links = isInbound ? card.links_inbound : card.links;
+		for (let linkItem of links) {
+			//Skip ones that have already been seen
+			if (seenCards[linkItem] !== undefined) continue;
+			seenCards[linkItem] = newCardDepth;
+			cardsToProcess.push(linkItem);
+		}
+	}
+	return Object.fromEntries(Object.entries(seenCards).map(entry => [entry[0], true]));
+};
+
 //cardMissingReciprocalLinks returns the links that point to a card that are not
 //reciprocated and not explicitly listed as OK to skip.
 export const cardMissingReciprocalLinks = (card) => {

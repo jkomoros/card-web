@@ -8,6 +8,7 @@ import {
 	cardHasSubstantiveContent,
 	randomString,
 	hash,
+	cardBFS,
 } from './util.js';
 
 import {
@@ -78,6 +79,29 @@ const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, seco
 	}
 };
 
+const makeCardLinksConfigurableFilter = (filterName, cardID, countStr) => {
+	const isInbound = filterName == PARENTS_FILTER_NAME || filterName == ANCESTORS_FILTER_NAME;
+	if (filterName == CHILDREN_FILTER_NAME || filterName == PARENTS_FILTER_NAME) countStr = '1';
+	let count = parseInt(countStr);
+	if (isNaN(count)) count = 1;
+
+	//We have to memoize the functor we return, even though the filter machinery
+	//will memoize too, because otherwise literally every card in a given run
+	//will have a NEW BFS done. So memoize as long as cards are the same.
+	let memoizedCardsLastSeen = null;
+	let memoizedMap = null;
+
+	return function(card, cards) {
+		if (cards != memoizedCardsLastSeen) memoizedMap = null;
+		if (!memoizedMap) {
+			memoizedMap = cardBFS(cardID, cards, count, isInbound);
+			memoizedCardsLastSeen = cards;
+		}
+		return memoizedMap[card.id];
+	};
+
+};
+
 //Fallback configurable filter
 const makeNoOpConfigurableFilter = () => {
 	return () => true;
@@ -88,6 +112,10 @@ const LAST_TWEETED_FILTER_NAME = 'last-tweeted';
 const BEFORE_FILTER_NAME = 'before';
 const AFTER_FILTER_NAME = 'after';
 const BETWEEN_FILTER_NAME = 'between';
+const CHILDREN_FILTER_NAME = 'children';
+const DESCENDANTS_FILTER_NAME = 'descendants';
+const PARENTS_FILTER_NAME = 'parents';
+const ANCESTORS_FILTER_NAME = 'ancestors';
 
 //When these are seen in the URL as parts, how many more pieces to expect, to be
 //combined later. For things like `updated`, they want more than 1 piece more
@@ -101,11 +129,21 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[AFTER_FILTER_NAME]: 1,
 	//with between, the dates can go in either order
 	[BETWEEN_FILTER_NAME]: 2,
+	[CHILDREN_FILTER_NAME]: 1,
+	[DESCENDANTS_FILTER_NAME]: 2,
+	[PARENTS_FILTER_NAME]: 1,
+	[ANCESTORS_FILTER_NAME]: 2,
 };
 
+//the factories should return a filter func that takes the card to opeate on,
+//then cards.
 const CONFIGURABLE_FILTER_FACTORIES = {
 	[UPDATED_FILTER_NAME]: makeDateConfigurableFilter,
 	[LAST_TWEETED_FILTER_NAME]: makeDateConfigurableFilter,
+	[CHILDREN_FILTER_NAME]: makeCardLinksConfigurableFilter,
+	[DESCENDANTS_FILTER_NAME]: makeCardLinksConfigurableFilter,
+	[PARENTS_FILTER_NAME]: makeCardLinksConfigurableFilter,
+	[ANCESTORS_FILTER_NAME]: makeCardLinksConfigurableFilter,
 };
 
 //The configurable filters that are allowed to start a multi-part filter.

@@ -245,7 +245,7 @@ const makeFilterFromConfigurableFilter = (name, cards) => {
 	const func = makeConfigurableFilter(name);
 	const result = {};
 	for (let [id, card] of Object.entries(cards)) {
-		if (func(card)) result[id] = true;
+		if (func(card, cards)) result[id] = true;
 	}
 
 	memoizedConfigurableFilters[name] = result;
