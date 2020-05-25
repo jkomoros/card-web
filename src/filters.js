@@ -44,6 +44,7 @@ export const RECENT_SORT_NAME = 'recent';
 const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, secondDateStr) => {
 
 	if (propName == 'updated') propName = 'updated_substantive';
+	if (propName == 'last-tweeted') propName = 'last_tweeted';
 	const firstDate = firstDateStr ? new Date(firstDateStr) : null;
 	const secondDate = secondDateStr ? new Date(secondDateStr) : null;
 
@@ -87,6 +88,7 @@ const makeNoOpConfigurableFilter = () => {
 //(e.g. `before/2020-10-03`, but the next pieces will also ask for more) in the piece.
 export const CONFIGURABLE_FILTER_URL_PARTS = {
 	'updated': 1,
+	'last-tweeted': 1,
 	'before': 1,
 	'after': 1,
 	//with between, the dates can go in either order
@@ -95,6 +97,7 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 
 const CONFIGURABLE_FILTER_FACTORIES = {
 	'updated': makeDateConfigurableFilter,
+	'last-tweeted': makeDateConfigurableFilter,
 };
 
 let memoizedConfigurableFilters = {};
