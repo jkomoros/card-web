@@ -63,6 +63,7 @@ import {
 	INVERSE_FILTER_NAMES,
 	SET_NAMES,
 	SORT_URL_KEYWORD,
+	CONFIGURABLE_FILTER_URL_PARTS,
 } from '../filters.js';
 
 //When a new tag is created, it is randomly assigned one of these values.
@@ -440,7 +441,7 @@ const reservedCollectionName = (state, name) => {
 	//Filters already contains section names if data is fully loaded.
 	const filters = selectFilters(state) || {};
 
-	let keys = [...Object.keys(filters), ...Object.keys(INVERSE_FILTER_NAMES), ...SET_NAMES];
+	let keys = [...Object.keys(filters), ...Object.keys(INVERSE_FILTER_NAMES), ...SET_NAMES, ...Object.keys(CONFIGURABLE_FILTER_URL_PARTS)];
 
 	for (let key of keys) {
 		if (name == key) return true;
