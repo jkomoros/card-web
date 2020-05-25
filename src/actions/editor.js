@@ -70,8 +70,8 @@ export const restoreSelectionRange = () => {
 
 export const savedSelectionRangeIsLink = () => {
 	if (!savedSelectionRange) return false;
-	if (savedSelectionRange.startContainer.parentElement.localName == 'a') return true;
-	if (savedSelectionRange.endContainer.parentElement.localName == 'a') return true;
+	if (savedSelectionRange.startContainer && savedSelectionRange.startContainer.parentElement && savedSelectionRange.startContainer.parentElement.localName == 'a') return true;
+	if (savedSelectionRange.endContainer && savedSelectionRange.endContainer.parentElement && savedSelectionRange.endContainer.parentElement.localName == 'a') return true;
 	return false;
 };
 
