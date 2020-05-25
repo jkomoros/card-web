@@ -441,7 +441,7 @@ const combinedTodoFunc = (card) => {
 	return !COMBINED_TODO_FUNCS.every(func => func(card));
 };
 
-export const INITIAL_FILTER_FUNCS = Object.assign(
+export const CARD_FILTER_FUNCS = Object.assign(
 	//The main filter names
 	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][0], makeBasicCardFilterFunc(entry[1][1])])),
 	//does-not-need filters for TODOs
@@ -451,8 +451,6 @@ export const INITIAL_FILTER_FUNCS = Object.assign(
 		[TODO_COMBINED_FILTER_NAME]: combinedTodoFunc,
 	},
 );
-
-const INITIAL_CARD_FILTER_NAMES = Object.keys(INITIAL_FILTER_FUNCS);
 
 //We pull this out because it has to be the same in filters and pendingFilters
 //and to avoid having to duplicate it.
@@ -464,7 +462,7 @@ const INITIAL_STATE_FILTERS = Object.assign(
 		read: {},
 	},
 	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => [entry[1], {}])),
-	Object.fromEntries(INITIAL_CARD_FILTER_NAMES.map(name => [name, {}]))
+	Object.fromEntries(Object.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], {}]))
 );
 
 export const INITIAL_STATE = {
@@ -477,9 +475,6 @@ export const INITIAL_STATE = {
 	activeFilterNames: [],
 	activeSortName: DEFAULT_SORT_NAME,
 	activeSortReversed: false,
-	//cardFilterNames is the set of card filters that are active and should be
-	//kept up to date as cards change.
-	cardFilterNames: INITIAL_CARD_FILTER_NAMES,
 	//These are the actual values of the filters in current use. We queue up
 	//changes in pendingFilters and then synchronize this value to that value
 	//when we know it's OK for the collection to change.

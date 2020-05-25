@@ -23,10 +23,10 @@ import {
 
 import {
 	INITIAL_STATE,
-	INITIAL_FILTER_FUNCS,
 	FILTER_EQUIVALENTS_FOR_SET,
 	DEFAULT_SET_NAME,
-	READING_LIST_SET_NAME
+	READING_LIST_SET_NAME,
+	CARD_FILTER_FUNCS
 } from '../filters.js';
 
 const app = (state = INITIAL_STATE, action) => {
@@ -65,7 +65,7 @@ const app = (state = INITIAL_STATE, action) => {
 	case UPDATE_CARDS:
 		return {
 			...state,
-			pendingFilters: {...state.pendingFilters, ...makeFilterFromCards(action.cards, state.cardFilterNames, state.pendingFilters)}
+			pendingFilters: {...state.pendingFilters, ...makeFilterFromCards(action.cards, state.pendingFilters)}
 		};
 	case UPDATE_STARS:
 		return {
@@ -109,12 +109,11 @@ const makeFilterFromSection = (sections, includeDefaultSet) => {
 	return result;
 };
 
-const makeFilterFromCards = (cards, cardFilterNames, previousFilters) => {
+const makeFilterFromCards = (cards, previousFilters) => {
 	let result = {};
-	for (let filterName of cardFilterNames) {
+	for (const [filterName, func] of Object.entries(CARD_FILTER_FUNCS)) {
 		let newMatchingCards = [];
 		let newNonMatchingCards = [];
-		const func = INITIAL_FILTER_FUNCS[filterName];
 		if(!func) throw new Error('Invalid func name: ' + filterName);
 		for (let card of Object.values(cards)) {
 			if(func(card)) {
