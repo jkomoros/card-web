@@ -123,5 +123,11 @@ describe('card-web url parsing', () => {
 		assert.ok(description.equivalent(golden), 'Failed: ' + description.serialize());
 	});
 
+	it('does not support a multi-part filter without the first part', async () => {
+		const description = CollectionDescription.deserialize('before/2020-10-02/');
+		const golden = new CollectionDescription();
+		assert.ok(description.equivalent(golden), 'Failed: ' + description.serialize());
+	});
+
 
 });

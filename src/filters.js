@@ -85,7 +85,9 @@ const makeNoOpConfigurableFilter = () => {
 
 //When these are seen in the URL as parts, how many more pieces to expect, to be
 //combined later. For things like `updated`, they want more than 1 piece more
-//(e.g. `before/2020-10-03`, but the next pieces will also ask for more) in the piece.
+//(e.g. `before/2020-10-03`, but the next pieces will also ask for more) in the
+//piece. Note that only the ones listed in CONFIGURABLE_FILTER_NAMES may START a
+//filter name.
 export const CONFIGURABLE_FILTER_URL_PARTS = {
 	'updated': 1,
 	'last-tweeted': 1,
@@ -99,6 +101,9 @@ const CONFIGURABLE_FILTER_FACTORIES = {
 	'updated': makeDateConfigurableFilter,
 	'last-tweeted': makeDateConfigurableFilter,
 };
+
+//The configurable filters that are allowed to start a multi-part filter.
+export const CONFIGURABLE_FILTER_NAMES = Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_FACTORIES).map(entry => [entry[0], true]));
 
 let memoizedConfigurableFilters = {};
 

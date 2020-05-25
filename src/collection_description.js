@@ -9,6 +9,7 @@ import {
 	UNION_FILTER_DELIMITER,
 	FILTER_EQUIVALENTS_FOR_SET,
 	CONFIGURABLE_FILTER_URL_PARTS,
+	CONFIGURABLE_FILTER_NAMES,
 	makeConfigurableFilter,
 } from './filters.js';
 
@@ -69,7 +70,11 @@ const extractFilterNamesAndSort = (parts) => {
 			multiPartFilter.push(part);
 			expectedRemainingMultiParts--;
 			if (expectedRemainingMultiParts == 0) {
-				filters.push(multiPartFilter.join('/'));
+				//Only add multi-part filters that started with one of the valid
+				//start filter names. We process up until this point, so even if
+				//the URL started in the middle of a multi-part parsing, we
+				//still consume it.
+				if (CONFIGURABLE_FILTER_NAMES[multiPartFilter[0]]) filters.push(multiPartFilter.join('/'));
 				multiPartFilter = [];
 			}
 			continue;
@@ -244,7 +249,7 @@ const makeFilterFromConfigurableFilter = (name, cards) => {
 	}
 
 	memoizedConfigurableFilters[name] = result;
-	
+
 	return result;
 };
 
