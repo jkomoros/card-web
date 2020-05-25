@@ -236,23 +236,23 @@ const makeFilterFromConfigurableFilter = (name, cards) => {
 //makeFilterUnionSet takes a definition like "starred+in-reading-list" and
 //returns a synthetic filter object that is the union of all of the filters
 //named. The individual names may be normal filters or inverse filters.
-const makeFilterUnionSet = (unionFilterDefinition, filterSetMemberships, allCardsFilter) => {
+const makeFilterUnionSet = (unionFilterDefinition, filterSetMemberships, cards) => {
 	const subFilterNames = unionFilterDefinition.split(UNION_FILTER_DELIMITER);
 	const subFilters = subFilterNames.map(filterName => {
 		if (filterSetMemberships[filterName]) return filterSetMemberships[filterName];
-		if (INVERSE_FILTER_NAMES[filterName]) return makeConcreteInverseFilter(filterSetMemberships[INVERSE_FILTER_NAMES[filterName]], allCardsFilter);
+		if (INVERSE_FILTER_NAMES[filterName]) return makeConcreteInverseFilter(filterSetMemberships[INVERSE_FILTER_NAMES[filterName]], cards);
 		return {};
 	});
 	return Object.fromEntries(subFilters.map(filter => Object.entries(filter)).reduce((accum, val) => accum.concat(val),[]));
 };
 
 //filterDefinition is an array of filter-set names (concrete or inverse or union-set)
-const combinedFilterForFilterDefinition = (filterDefinition, filterSetMemberships, allCardsFilter, cards) => {
+const combinedFilterForFilterDefinition = (filterDefinition, filterSetMemberships, cards) => {
 	let includeSets = [];
 	let excludeSets = [];
 	for (let name of filterDefinition) {
 		if (filterNameIsUnionFilter(name)) {
-			includeSets.push(makeFilterUnionSet(name, filterSetMemberships, allCardsFilter));
+			includeSets.push(makeFilterUnionSet(name, filterSetMemberships, cards));
 			continue;
 		}
 		if (filterNameIsConfigurableFilter(name)) {
@@ -299,7 +299,6 @@ const Collection = class {
 	constructor(description, cards, sets, filters, optSections, optFallbacks) {
 		this._description = description;
 		this._cards = cards;
-		this._allCardsFilter = Object.fromEntries(Object.entries(cards).map(entry => [entry[0], true]));
 		this._sets = sets;
 		this._filters = filters;
 		//Needed for sort info :-(
@@ -313,7 +312,7 @@ const Collection = class {
 	}
 
 	_makeFilteredCards() {
-		const combinedFilter = combinedFilterForFilterDefinition(this._description.filters, this._filters, this._allCardsFilter, this._cards);
+		const combinedFilter = combinedFilterForFilterDefinition(this._description.filters, this._filters, this._cards);
 		const baseSet = this._sets[this._description.set] || [];
 		let filteredItems = baseSet.filter(item => combinedFilter(item));
 		if (filteredItems.length == 0) {
@@ -354,8 +353,8 @@ const Collection = class {
 		const filterEquivalentForActiveSet = FILTER_EQUIVALENTS_FOR_SET[this._description.set];
 		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
 
-		const currentFilterFunc = combinedFilterForFilterDefinition(filterDefinition, this._filters, this._allCardsFilter, this._cards);
-		const pendingFilterFunc = combinedFilterForFilterDefinition(filterDefinition, pendingFilters, this._allCardsFilter, this._cards);
+		const currentFilterFunc = combinedFilterForFilterDefinition(filterDefinition, this._filters, this._cards);
+		const pendingFilterFunc = combinedFilterForFilterDefinition(filterDefinition, pendingFilters, this._cards);
 		//Return the set of items that pass the current filters but won't pass the pending filters.
 		const itemsThatWillBeRemoved = Object.keys(this._cards).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
 		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));
@@ -363,7 +362,7 @@ const Collection = class {
 
 	_makeSortInfo() {
 		const config = this._description.sortConfig;
-		let entries = this.filteredCards.map(card => [card.id, config.extractor(card, this._sections, this._allCardsFilter)]);
+		let entries = this.filteredCards.map(card => [card.id, config.extractor(card, this._sections, this._cards)]);
 		return new Map(entries);
 	}
 
