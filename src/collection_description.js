@@ -396,6 +396,11 @@ const Collection = class {
 	_makeSortedCards() {
 		const collection = this.filteredCards;
 		this._ensureSortInfo();
+		//Skip the work of sorting in the default case, as everything is already
+		//sorted. No-op collections still might be created and should be fast.
+		if (this._description.set == DEFAULT_SET_NAME && this._description.sort == DEFAULT_SORT_NAME && !this._description.sortReversed) {
+			return collection;
+		}
 		const sortInfo = this._sortInfo;
 		let sort = (left, right) => {
 			if(!left || !right) return 0;
