@@ -330,9 +330,13 @@ const Collection = class {
 	}
 
 	_makeFilteredCards() {
-		const combinedFilter = combinedFilterForFilterDefinition(this._description.filters, this._filters, this._cards);
 		const baseSet = this._sets[this._description.set] || [];
-		let filteredItems = baseSet.filter(item => combinedFilter(item));
+		let filteredItems = baseSet;
+		//Only bother filtering down the items if there are filters defined.
+		if (this._description.filters && this._description.filters.length) {
+			const combinedFilter = combinedFilterForFilterDefinition(this._description.filters, this._filters, this._cards);
+			filteredItems = baseSet.filter(item => combinedFilter(item));
+		}
 		if (filteredItems.length == 0) {
 			this._collectionIsFallback = true;
 			filteredItems = this._fallbacks[this._description.serialize()] || [];
