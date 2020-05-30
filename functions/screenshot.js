@@ -104,7 +104,8 @@ const makeScreenshot = async (card, cardLinkCards) => {
 	// eslint-disable-next-line no-undef
 	await page.evaluate((card, cards) => injectFetchedCard(card, cards), card, cardLinkCards);
 
-	//TODO: wait for fonts to be loaded;
+	//Make sure the fonts are fully loaded, since networkidle2 likely won't wait for them
+	await page.waitForFunction('document.fonts.status == \'loaded\'');
 
 	//Wait for the signal that the card has been fetched and rendered
 	await page.waitForFunction('window.' + common.WINDOW_CARD_RENDERED_VARIABLE);
