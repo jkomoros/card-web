@@ -100,7 +100,7 @@ class FindDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleAddLink() {
-		let href = prompt('Where should the URL point?');
+		let href = prompt('Where should the URL point?', this._query);
 		store.dispatch(linkURL(href));
 		this._shouldClose();
 	}
