@@ -9,6 +9,11 @@ const SCREENSHOT_VERSION = 5;
 const SCREENSHOT_WIDTH = 1330;
 const SCREENSHOT_HEIGHT = 768;
 
+//When true, won't use the screenshot cache but will instead just generate a new
+//one. Shouldn't be left on in production.
+const DISABLE_SCREENSHOT_CACHE = false;
+const DONT_RETURN_PNG = false;
+
 //The default bucket is already configured, just use that
 const screenshotBucket = common.storage.bucket();
 
@@ -57,9 +62,13 @@ const fetchScreenshot = async(card) =>{
 	const file = screenshotBucket.file(filename);
 	const existsResponse = await file.exists();
 	if (existsResponse[0]) {
-		//Screenshot exists, return it
-		const downloadFileResponse = await file.download();
-		return downloadFileResponse[0];
+		if (DISABLE_SCREENSHOT_CACHE) {
+			console.log("Screenshot exists in cache, but the cache has been disabled.")
+		} else {
+			//Screenshot exists, return it
+			const downloadFileResponse = await file.download();
+			return downloadFileResponse[0];
+		}
 	}
 	console.log("Screenshot " + filename + " didn't exist in storage, creating.");
 	const screenshot = await makeScreenshot(card, cardLinkCards);
