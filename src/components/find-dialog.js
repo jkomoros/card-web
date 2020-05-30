@@ -98,8 +98,8 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	_handleFormSubmitted(e) {
 		e.preventDefault();
-		if(!this._linking) return false;
-		if(this._collection && this._collection.length > 0) return false;
+		if(!this._linking) return;
+		if(this._collection && this._collection.length > 0) return;
 		if(!this._query) return;
 		if(!this._query.startsWith('http')) return;
 		store.dispatch(linkURL(this._query));
