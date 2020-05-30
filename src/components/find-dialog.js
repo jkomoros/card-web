@@ -74,7 +74,9 @@ class FindDialog extends connect(store)(DialogElement) {
 				right: 0.5em;
 			}
 		</style>
-		<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
+		<form @submit=${this._handleFormSubmitted}>
+			<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
+		</form>
 		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .collectionItemsToGhost=${this._partialMatches}></card-drawer>
 		<div ?hidden=${!this._linking} class='add'>
 			<button ?hidden=${!isLink} class='round' @click='${this._handleRemoveLink}' title='Remove the current link'>${LINK_OFF_ICON}</button>
@@ -92,6 +94,16 @@ class FindDialog extends connect(store)(DialogElement) {
 	_shouldClose() {
 		//Override base class.
 		store.dispatch(closeFindDialog());
+	}
+
+	_handleFormSubmitted(e) {
+		e.preventDefault();
+		if(!this._linking) return false;
+		if(this._collection && this._collection.length > 0) return false;
+		if(!this._query) return;
+		if(!this._query.startsWith('http')) return;
+		store.dispatch(linkURL(this._query));
+		this._shouldClose();
 	}
 
 	_handleQueryChanged(e) {
