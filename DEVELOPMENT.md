@@ -24,3 +24,19 @@ Download your server-side config:
 ```
 firebase functions:config:get > .runtimeconfig.json
 ```
+
+Run the shell:
+
+```
+firebase functions:shell
+```
+
+Within the shell, call the cloudfunction:
+
+```
+screenshot.get('CARD-ID')
+```
+
+Note that there screenshot.js's DISABLE_SCREENSHOT_CACHE can be set to true
+during development. Also note that puppeteer can be launched with headless:false
+and slowMo:100 to view what's going on.
