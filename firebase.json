@@ -12,11 +12,6 @@
       }
     ]
   },
-  "emulators": {
-    "firestore": {
-      "port": "8088"
-    }
-  },
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"

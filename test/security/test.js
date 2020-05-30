@@ -5,8 +5,8 @@ const firebase = require('@firebase/testing');
 const fs = require('fs');
 
 const projectId = 'compendium-tester';
-const firebasePort = require('../../firebase.json').emulators.firestore.port;
-const port = firebasePort ? firebasePort : 8080;
+const firebaseConfig = require('../../firebase.json')
+const port = firebaseConfig.emulators && firebaseConfig.emulators.firestore ? firebaseConfig.emulators.firestore.port : 8080;
 const coverageUrl = `http://localhost:${port}/emulator/v1/projects/${projectId}:ruleCoverage.html`;
 
 const rules = fs.readFileSync('firestore.rules', 'utf8');
