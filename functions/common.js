@@ -25,7 +25,8 @@ const PAGE_COMMENT = 'comment';
 const PAGE_BASIC_CARD = 'basic-card';
 //copied from src/components/basic_card_view.js
 const WINDOW_CARD_RENDERED_VARIABLE = 'BASIC_CARD_RENDERED';
-//Note: screenshot.js uses the literal value of WINDOW_INJECT_FETCHED_CARD_NAME in the code;
+//Note: screenshot.js also uses the literal value of WINDOW_INJECT_FETCHED_CARD_NAME in the code;
+const WINDOW_INJECT_FETCHED_CARD_NAME = 'injectFetchedCard';
 
 const urlForBasicCard = (idOrSlug) => {
     //we use HOSTING_DOMAIN so that we use the prod or dev card renderer
@@ -87,3 +88,4 @@ exports.LAST_DEPLOY_AFFECTING_RENDERING = LAST_DEPLOY_AFFECTING_RENDERING;
 exports.PAGE_DEFAULT = PAGE_DEFAULT;
 exports.PAGE_COMMENT = PAGE_COMMENT;
 exports.WINDOW_CARD_RENDERED_VARIABLE = WINDOW_CARD_RENDERED_VARIABLE;
+exports.WINDOW_INJECT_FETCHED_CARD_NAME = WINDOW_INJECT_FETCHED_CARD_NAME;

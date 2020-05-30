@@ -12,7 +12,6 @@ const SCREENSHOT_HEIGHT = 768;
 //When true, won't use the screenshot cache but will instead just generate a new
 //one. Shouldn't be left on in production.
 const DISABLE_SCREENSHOT_CACHE = false;
-const DONT_RETURN_PNG = false;
 
 //The default bucket is already configured, just use that
 const screenshotBucket = common.storage.bucket();
@@ -97,10 +96,15 @@ const makeScreenshot = async (card, cardLinkCards) => {
 		waitUntil: 'networkidle2',
 	});
 
+	//networkidle2 doesn't wait long enough, so wait until we can inject the card
+	await page.waitForFunction(common.WINDOW_INJECT_FETCHED_CARD_NAME + ' !== undefined');
+
 	//Inject in the card directly, which should short-circuit the firebase fetch.
 	//Disabling no-undef because that function is defined in the context of the page
 	// eslint-disable-next-line no-undef
 	await page.evaluate((card, cards) => injectFetchedCard(card, cards), card, cardLinkCards);
+
+	//TODO: wait for fonts to be loaded;
 
 	//Wait for the signal that the card has been fetched and rendered
 	await page.waitForFunction('window.' + common.WINDOW_CARD_RENDERED_VARIABLE);
