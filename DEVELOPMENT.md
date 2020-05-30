@@ -15,7 +15,8 @@ Make sure you have admin credentials (https://firebase.google.com/docs/functions
 Generate a key and downlaod it to e.g. `~/.firebase-keys/KEY.json`
 
 ```
-export GOOGLE_APPLICATION_CREDENTIALS="~/.firebase-keys/KEY.json"
+#the path has to be fully specified
+export GOOGLE_APPLICATION_CREDENTIALS="/Users/<USERNAME>/.firebase-keys/KEY.json"
 ```
 
 Download your server-side config:
