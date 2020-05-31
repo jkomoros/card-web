@@ -610,7 +610,7 @@ export const pageRank = (cards) => {
 	const maxIterations = 500;
 
 	const nodes = {};
-	const inboundLinks = {};
+	const inboundLinksMap = {};
 	const numNodes = Object.keys(cards).length;
 	const initialRank = 1 / numNodes;
 
@@ -620,10 +620,10 @@ export const pageRank = (cards) => {
 		//convergence of the algorithm that we have the proper indegree and outdegree. 
 		const links = arrayUnique(card.links.filter(id => cards[id]));
 		for (let id of links) {
-			let list = inboundLinks[id];
+			let list = inboundLinksMap[id];
 			if (!list) {
 				list = [];
-				inboundLinks[id] = list;
+				inboundLinksMap[id] = list;
 			}
 			list.push(card.id);
 		}
@@ -632,15 +632,17 @@ export const pageRank = (cards) => {
 			rank: initialRank,
 			previousRank: initialRank,
 			outDegree: links.length,
-			//we'll have to updated this in a second pass
+			//we'll have to updated boht of these in a second pass
 			inDegree: 0,
-			links: links,
+			inboundLinks: [],
 		};
 	}
 
 	//inboundLinks is now set, so we can set the inDegree.
 	for (let id of Object.keys(nodes)) {
-		nodes[id].inDegree = (inboundLinks[id] || []).length;
+		let inboundLinks = inboundLinksMap[id] || [];
+		nodes[id].inDegree = inboundLinks.length;
+		nodes[id].inboundLinks = inboundLinks;
 	}
 
 	//how much the overall graph changed from last time
@@ -655,7 +657,7 @@ export const pageRank = (cards) => {
 				node.rank = 0.0;
 			} else {
 				let currentRank = 0.0;
-				for (let linkID of node.links) {
+				for (let linkID of node.inboundLinks) {
 					let otherNode = nodes[linkID];
 					if (!otherNode) continue;
 					currentRank += nodes[linkID].previousRank / nodes[linkID].outDegree;
