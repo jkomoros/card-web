@@ -605,6 +605,9 @@ export const pageRank = (cards) => {
 
 	const targetEpsilon = 0.005;
 	const jumpProbability = 0.85;
+	//since it's not guaranteed to converge, will bail out at this number of
+	//iterations.
+	const maxIterations = 500;
 
 	const nodes = {};
 	const numNodes = Object.keys(cards).length;
@@ -623,8 +626,10 @@ export const pageRank = (cards) => {
 
 	//how much the overall graph changed from last time
 	let updateDistance = 0;
+	let numIterations = 0;
 
 	do {
+		numIterations++;
 		let totalDistributedRank = 0;
 		for (let node of Object.values(nodes)) {
 			if (node.inDegree === 0) {
@@ -645,7 +650,7 @@ export const pageRank = (cards) => {
 			updateDistance += Math.abs(currentRank - node.previousRank);
 			node.previousRank = currentRank;
 		}
-	} while(updateDistance > targetEpsilon);
+	} while(numIterations < maxIterations && updateDistance > targetEpsilon);
 
 	const result =  Object.fromEntries(Object.entries(nodes).map(entry => [entry[0], entry[1].previousRank]));
 	memoizedPageRankInput = cards;
