@@ -593,8 +593,16 @@ export const idForPersonalCardInfo = (uid, cardId) => {
 	return '' + uid + '+' + cardId;
 };
 
+let memoizedPageRank = null;
+let memoizedPageRankInput = null;
+
 //return a map of id to rank for each card.
 export const pageRank = (cards) => {
+
+	if (memoizedPageRankInput === cards) {
+		return memoizedPageRank;
+	}
+
 	const targetEpsilon = 0.005;
 	const jumpProbability = 0.85;
 
@@ -639,5 +647,8 @@ export const pageRank = (cards) => {
 		}
 	} while(updateDistance > targetEpsilon);
 
-	return Object.fromEntries(Object.entries(nodes).map(entry => [entry[0], entry[1].previousRank]));
+	const result =  Object.fromEntries(Object.entries(nodes).map(entry => [entry[0], entry[1].previousRank]));
+	memoizedPageRankInput = cards;
+	memoizedPageRank = result;
+	return result;
 };
