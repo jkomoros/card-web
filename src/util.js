@@ -610,18 +610,37 @@ export const pageRank = (cards) => {
 	const maxIterations = 500;
 
 	const nodes = {};
+	const inboundLinks = {};
 	const numNodes = Object.keys(cards).length;
 	const initialRank = 1 / numNodes;
 
 	for (let card of Object.values(cards)) {
+		//We can't trust links or inbound_links as they exist, because they
+		//might point to unpublished cards, and it's important for the
+		//convergence of the algorithm that we have the proper indegree and outdegree. 
+		const links = arrayUnique(card.links.filter(id => cards[id]));
+		for (let id of links) {
+			let list = inboundLinks[id];
+			if (!list) {
+				list = [];
+				inboundLinks[id] = list;
+			}
+			list.push(id);
+		}
 		nodes[card.id] = {
 			id: card.id,
 			rank: initialRank,
 			previousRank: initialRank,
-			outDegree: card.links.length,
-			inDegree: card.links_inbound.length,
-			links: card.links,
+			outDegree: links.length,
+			//we'll have to updated this in a second pass
+			inDegree: 0,
+			links: links,
 		};
+	}
+
+	//inboundLinks is now set, so we can set the inDegree.
+	for (let id of Object.keys(nodes)) {
+		nodes[id].inDegree = (inboundLinks[id] || []).length;
 	}
 
 	//how much the overall graph changed from last time
