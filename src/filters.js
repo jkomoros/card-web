@@ -10,6 +10,7 @@ import {
 	hash,
 	cardBFS,
 	unionSet,
+	pageRank,
 } from './util.js';
 
 import {
@@ -277,6 +278,16 @@ export const SORTS = {
 		},
 		description: 'A random order',
 		labelName: 'Random Order'
+	},
+	'card-rank': {
+		extractor: (card, sections, cards) => {
+			//This is memoized so as long as cards is the same it won't be re-run.
+			let ranks = pageRank(cards);
+			let rank = ranks[card.id] || 0.0;
+			return [rank, '' + Math.round(rank * 100000)];
+		},
+		description: 'Ranked by card rank (like page rank but for cards)',
+		labelName: 'Rank',
 	}
 };
 
