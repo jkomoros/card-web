@@ -24,9 +24,12 @@ import {
 
 import { 
 	arrayDiff,
-	MultiBatch,
 	newID,
 } from '../util.js';
+
+import {
+	MultiBatch,
+} from '../multi_batch.js';
 
 import {
 	selectUser
