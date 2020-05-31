@@ -592,3 +592,52 @@ export const isWhitespace = (s) => {
 export const idForPersonalCardInfo = (uid, cardId) => {
 	return '' + uid + '+' + cardId;
 };
+
+//return a map of id to rank for each card.
+export const pageRank = (cards) => {
+	const targetEpsilon = 0.005;
+	const jumpProbability = 0.85;
+
+	const nodes = {};
+	const numNodes = Object.keys(cards).length;
+	const initialRank = 1 / numNodes;
+
+	for (let card of Object.values(cards)) {
+		nodes[card.id] = {
+			id: card.id,
+			rank: initialRank,
+			previousRank: initialRank,
+			outDegree: card.links.length,
+			inDegree: card.links_inbound.length,
+			links: card.links,
+		};
+	}
+
+	//how much the overall graph changed from last time
+	let updateDistance = 0;
+
+	do {
+		let totalDistributedRank = 0;
+		for (let node of Object.values(nodes)) {
+			if (node.inDegree === 0) {
+				node.rank = 0.0;
+			} else {
+				let currentRank = 0.0;
+				for (let linkID of node.links) {
+					currentRank += nodes[linkID].previousRank / nodes[linkID].outDegree;
+				}
+				node.rank = currentRank * jumpProbability;
+				totalDistributedRank += node.rank;
+			}
+		}
+		let leakedRankPerNode = (1 - totalDistributedRank) / numNodes;
+		updateDistance = 0;
+		for (let node of Object.values(nodes)) {
+			let currentRank = node.rank + leakedRankPerNode;
+			updateDistance += Math.abs(currentRank - node.previousRank);
+			node.previousRank = currentRank;
+		}
+	} while(updateDistance > targetEpsilon);
+
+	return Object.fromEntries(Object.entries(nodes).map(entry => [entry[0], entry[1].previousRank]));
+};
