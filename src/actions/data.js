@@ -538,6 +538,8 @@ export const defaultCardObject = (id, user, section, cardType) => {
 		author: user.uid,
 		updated_substantive: firebase.firestore.FieldValue.serverTimestamp(),
 		updated_message: firebase.firestore.FieldValue.serverTimestamp(),
+		//card_rank is the equivalent of page_rank. It's updated by a cloud function
+		card_rank: 0.0,
 		//star_count is sum of star_count_manual, tweet_favorite_count, tweet_retweet_count.
 		star_count: 0,
 		//star_count_manual is the count of stars in the stars collection (as

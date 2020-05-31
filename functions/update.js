@@ -3,6 +3,10 @@ const db = common.db;
 const FieldValue = common.FieldValue;
 const fromEntries = require('fromentries');
 
+const ngraph = require('ngraph.graph');
+const pagerank = require('ngraph.pagerank');
+const MultiBatch = require('./multi_batch.js');
+
 const arrayDiff = (before, after) => {
     let afterMap = new Map();
     for (let item of after) {
@@ -50,7 +54,7 @@ const updatedKeys = (before, after) => {
 
 }
 
-const inboundLinks = (change, context) => {
+const inboundLinks = async (change, context) => {
 
     let [additions, deletions, same] = arrayDiff(change.before.data().links, change.after.data().links);
 
@@ -61,7 +65,7 @@ const inboundLinks = (change, context) => {
 
     let updatedText = same.map(id => textChangedCards[id] ? id : '').filter(item => item);
 
-    if (additions.length === 0 && deletions.length === 0 && updatedText.length === 0) return Promise.resolve();
+    if (additions.length === 0 && deletions.length === 0 && updatedText.length === 0) return;
 
     let cardId = context.params.cardId;
 
@@ -93,9 +97,48 @@ const inboundLinks = (change, context) => {
         batch.update(ref, update);
     }
 
-    return batch.commit();
+    await batch.commit();
 
+    if (additions.length > 0 || deletions.length > 0) {
+        await calculatePageRank();
+    }
 
+    return;
 }
+
+const calculatePageRank = async () => {
+    //This function normally takes less than a second to run. By far the largest
+    //part of runtime is updating the cards with the new values.
+
+    const graph = ngraph();
+    const cards = await db.collection('cards').get();
+    for (let cardSnapshot of cards.docs) {
+        const id = cardSnapshot.id;
+        const links = cardSnapshot.data().links;
+        for (let link of links) {
+            graph.addLink(id, link);
+        }
+    }
+
+    const ranks = pagerank(graph);
+
+    let skippedCards = 0;
+
+    const batch = new MultiBatch(db);
+    for (let cardSnapshot of cards.docs) {
+        const id = cardSnapshot.id;
+        const rank = ranks[id] || 0.0;
+        if (cardSnapshot.data().card_rank === rank) {
+            skippedCards++
+            continue;
+        }
+        batch.update(cardSnapshot.ref, {card_rank: rank});
+    }
+
+    console.log("Skipped updating " + skippedCards + " of " + cards.docs.length + " cards that didn't have changed pagerank");
+    await batch.commit();
+    return;
+
+};
 
 exports.inboundLinks = inboundLinks;

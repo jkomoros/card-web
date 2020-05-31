@@ -9,7 +9,7 @@ const FIRESTORE_BATCH_LIMIT = 500;
 //batch, and will automatically split into multiple underlying batches if it's
 //getting close to the limit. Note that unlike a normal batch, it's possible for
 //a partial failure if one batch fails and others don't.
-export const MultiBatch = class {
+const MultiBatch = class {
 	constructor(db) {
 		this._db = db;
 		this._currentBatchOperationCount = 0;
@@ -73,3 +73,5 @@ export const MultiBatch = class {
 	}
 
 };
+
+module.exports = MultiBatch;

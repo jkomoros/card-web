@@ -18,6 +18,8 @@
     "firebase-functions": "^3.6.2",
     "fromentries": "^1.2.0",
     "md5": "^2.2.1",
+    "ngraph.graph": "^19.1.0",
+    "ngraph.pagerank": "^2.0.0",
     "nodemailer": "^6.4.2",
     "nodemailer-postmark-transport": "^2.2.0",
     "puppeteer": "^2.1.1",
