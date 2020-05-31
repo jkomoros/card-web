@@ -607,7 +607,7 @@ export const pageRank = (cards) => {
 	const jumpProbability = 0.85;
 	//since it's not guaranteed to converge, will bail out at this number of
 	//iterations.
-	const maxIterations = 500;
+	const maxIterations = 50;
 
 	const nodes = {};
 	const inboundLinksMap = {};
