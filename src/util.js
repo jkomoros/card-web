@@ -625,7 +625,7 @@ export const pageRank = (cards) => {
 				list = [];
 				inboundLinks[id] = list;
 			}
-			list.push(id);
+			list.push(card.id);
 		}
 		nodes[card.id] = {
 			id: card.id,
