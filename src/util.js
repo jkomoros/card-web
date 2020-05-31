@@ -637,6 +637,8 @@ export const pageRank = (cards) => {
 			} else {
 				let currentRank = 0.0;
 				for (let linkID of node.links) {
+					let otherNode = nodes[linkID];
+					if (!otherNode) continue;
 					currentRank += nodes[linkID].previousRank / nodes[linkID].outDegree;
 				}
 				node.rank = currentRank * jumpProbability;
