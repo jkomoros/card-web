@@ -9,9 +9,15 @@ const SCREENSHOT_VERSION = 5;
 const SCREENSHOT_WIDTH = 1330;
 const SCREENSHOT_HEIGHT = 768;
 
+//By default screenshot cache is disabled in dev, but you can turn it off here
+//to test taht screenshot caching works in dev.
+const DISABLE_SCREENSHOT_CACHE_IN_DEV = true;
+
 //When true, won't use the screenshot cache but will instead just generate a new
 //one. Shouldn't be left on in production.
-const DISABLE_SCREENSHOT_CACHE = false;
+const MANUAL_DISABLE_SCREENSHOT_CACHE_IN_PROD = false;
+
+const DISABLE_SCREENSHOT_CACHE = common.DEV_MODE ? DISABLE_SCREENSHOT_CACHE_IN_DEV : MANUAL_DISABLE_SCREENSHOT_CACHE_IN_PROD;
 
 //The default bucket is already configured, just use that
 const screenshotBucket = common.storage.bucket();
