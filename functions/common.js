@@ -49,7 +49,7 @@ const getCardByIDOrSlug = async (idOrSlug) => {
 }
 
 const getCardLinkCardsForCard = async (card) => {
-    const rawQuery =  await db.collection('cards').where('links_inbound', 'array-contains', card.id).get();
+    const rawQuery =  await db.collection('cards').where('links_inbound', 'array-contains', card.id).where('published', '==', true).get();
 	if (rawQuery.empty) return {};
 	return fromEntries(rawQuery.docs.map(doc => [doc.id, Object.assign({id: doc.id}, doc.data())]));
 }

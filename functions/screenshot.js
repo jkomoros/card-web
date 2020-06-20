@@ -5,7 +5,7 @@ const md5 = require('md5');
 //SCREENSHOT_VERSION should be incremented whenever the settings or generation
 //logic changes, such that a fetch for an unchanged card should generate a new
 //screenshot.
-const SCREENSHOT_VERSION = 5;
+const SCREENSHOT_VERSION = 6;
 const SCREENSHOT_WIDTH = 1330;
 const SCREENSHOT_HEIGHT = 768;
 
