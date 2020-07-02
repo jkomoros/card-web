@@ -71,4 +71,18 @@ describe('content editable scrubbing', () => {
 		const expected = '<ol>\n\t<li>List one</li>\n\t<li>List two</li>\n</ol>\n';
 		assert.equal(actual, expected);
 	});
+
+	it('a to card-link for card', async () => {
+		const input = '<p>Here is a <a href=\'abc-cde\'>link to a card</a></p>\n';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<p>Here is a <card-link card="abc-cde">link to a card</card-link></p>\n';
+		assert.equal(actual, expected);
+	});
+
+	it('a to card-link for normal link', async () => {
+		const input = '<p>Here is a <a href=\'https://www.google.com\'>link to a webpage</a></p>\n';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<p>Here is a <card-link href="https://www.google.com">link to a webpage</card-link></p>\n';
+		assert.equal(actual, expected);
+	});
 });
