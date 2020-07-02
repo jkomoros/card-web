@@ -12,7 +12,7 @@ import {
 
 import {
 	normalizeBodyHTML
-} from './editor.js';
+} from '../contenteditable.js';
 
 import {
 	extractCardLinksFromBody

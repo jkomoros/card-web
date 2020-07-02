@@ -7,10 +7,14 @@ import './card-link.js';
 import dompurify from 'dompurify';
 
 import {
-	normalizeBodyToContentEditable,
-	normalizeBodyHTML,
 	reportSelectionRange
 } from '../actions/editor.js';
+
+import {
+	normalizeBodyHTML,
+	normalizeBodyToContentEditable
+} from '../contenteditable.js';
+
 import { makeElementContentEditable } from '../util.js';
 
 let loadingTemplate = html`<span class='loading'>Loading...<span>`;
