@@ -132,7 +132,8 @@ const removeZombieSpans = (ele) => {
 
 	let removedZombies = false;
 	for (let child of Object.values(ele.childNodes)) {
-		if (child.localName == 'span' || child.localName == 'font') {
+		//Spans are legal to use if they have a classname, like 'small'.
+		if (!child.className && (child.localName == 'span' || child.localName == 'font')) {
 			//Replace it with either just the text if it's only got 
 			child.replaceWith(...child.childNodes);
 			removedZombies = true;

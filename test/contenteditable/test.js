@@ -162,4 +162,11 @@ describe('content editable scrubbing', () => {
 		const expected = '<p>Styled <strong>content</strong></p>\n';
 		assert.equal(actual, expected);
 	});
+
+	it('Spans with a class are left', async () => {
+		const input = '<p>Styled <span class="small">content</span></p>';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<p>Styled <span class="small">content</span></p>\n';
+		assert.equal(actual, expected);
+	});
 });
