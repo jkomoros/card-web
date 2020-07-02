@@ -99,4 +99,25 @@ describe('content editable scrubbing', () => {
 		const expected = '<p>Content that should be removed</p>\n';
 		assert.equal(actual, expected);
 	});
+
+	it('Anon content at top level gets p wrapper', async () => {
+		const input = 'Content';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<p>Content</p>\n';
+		assert.equal(actual, expected);
+	});
+
+	it('Anon content in ol gets li wrapper', async () => {
+		const input = '<ol>List one</ol>';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<ol>\n\t<li>List one</li>\n</ol>\n';
+		assert.equal(actual, expected);
+	});
+
+	it('Anon content in ul gets li wrapper', async () => {
+		const input = '<ul>List one</ul>';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<ul>\n\t<li>List one</li>\n</ul>\n';
+		assert.equal(actual, expected);
+	});
 });
