@@ -85,4 +85,18 @@ describe('content editable scrubbing', () => {
 		const expected = '<p>Here is a <card-link href="https://www.google.com">link to a webpage</card-link></p>\n';
 		assert.equal(actual, expected);
 	});
+
+	it('spans are removed', async () => {
+		const input = '<p>Content <span>that</span><span> should</span> be removed</p>\n';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<p>Content that should be removed</p>\n';
+		assert.equal(actual, expected);
+	});
+
+	it('fonts are removed', async () => {
+		const input = '<p>Content <font style="color:red">that</font><font> should</font> be removed</p>\n';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<p>Content that should be removed</p>\n';
+		assert.equal(actual, expected);
+	});
 });
