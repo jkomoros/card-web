@@ -137,6 +137,7 @@ const removeZombieSpans = (ele) => {
 			child.replaceWith(...child.childNodes);
 			removedZombies = true;
 		}
+		if (child.removeAttribute) child.removeAttribute('style');
 	}
 	//Combine adjacent text nodes, otherwise when you add back in a space it
 	//will show as &nbsp; because it will be between two runs not within one.
@@ -199,6 +200,7 @@ const cleanUpTopLevelHTML = (html, tag = 'p') => {
 		}
 		if (child.nodeType == ELEMENT_NODE) {
 
+			child.removeAttribute('style');
 			removeZombieSpans(child);
 
 			let inner = child.innerHTML;

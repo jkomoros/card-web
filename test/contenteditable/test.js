@@ -156,4 +156,10 @@ describe('content editable scrubbing', () => {
 		assert.equal(actual, expected);
 	});
 
+	it('Remove all styles', async () => {
+		const input = '<p style="color:red">Styled <strong style="color:blue">content</strong></p>';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<p>Styled <strong>content</strong></p>\n';
+		assert.equal(actual, expected);
+	});
 });
