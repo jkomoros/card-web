@@ -160,7 +160,7 @@ const cleanUpTopLevelHTML = (html, tag = 'p') => {
 			//OK, it's not all whitespace, so wrap it in a default element.
 			let ele = doc.createElement(tag);
 			ele.innerText = child.textContent.trim();
-			child.parentNode.replaceChild(ele, child);
+			child.replaceWith(ele);
 			//Deliberately drop dwon into the next processing step.
 			child = ele;
 		}
