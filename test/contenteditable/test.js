@@ -120,4 +120,25 @@ describe('content editable scrubbing', () => {
 		const expected = '<ul>\n\t<li>List one</li>\n</ul>\n';
 		assert.equal(actual, expected);
 	});
+
+	it('Anon mixed top-level content gets wrapped in p', async () => {
+		const input = 'Content <strong>mixed</strong> at top';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<p>Content <strong>mixed</strong> at top</p>\n';
+		assert.equal(actual, expected);
+	});
+
+	it('Anon mixed top-level content gets wrapped in p but not parts already in a valid-top level', async () => {
+		const input = 'Content <strong>mixed</strong> at top <p>another</p> other';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<p>Content <strong>mixed</strong> at top</p>\n<p>another</p>\n<p>other</p>\n';
+		assert.equal(actual, expected);
+	});
+
+	it('Anon mixed top-level content gets wrapped in <ol> but not parts already in a valid-top level', async () => {
+		const input = 'Content <strong>mixed</strong> at top <ol><li>yup</li></ol> other';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<p>Content <strong>mixed</strong> at top</p>\n<ol>\n\t<li>yup</li>\n</ol>\n<p>other</p>\n';
+		assert.equal(actual, expected);
+	});
 });

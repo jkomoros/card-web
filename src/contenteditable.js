@@ -143,6 +143,12 @@ const removeZombieSpans = (ele) => {
 	if (removedZombies) ele.normalize();
 };
 
+const legalTopLevelNodes = {
+	'p': true,
+	'ol': true,
+	'ul': true,
+};
+
 const cleanUpTopLevelHTML = (html, tag = 'p') => {
 	//Does deeper changes that require parsing.
 	//1) make sure all text in top is within a p tag.
@@ -150,25 +156,44 @@ const cleanUpTopLevelHTML = (html, tag = 'p') => {
 	let section = doc.createElement('section');
 	section.innerHTML = html;
 	let children = section.childNodes;
+	let hoistNode = null;
+	//First, go through an hoist up any children that are not valid at this level.
 	for (let child of Object.values(children)) {
 		if (child.nodeType == TEXT_NODE) {
-			if (isWhitespace(child.textContent)) {
-				//It's all text content, just get rid of it
+			if (!hoistNode) {
+				hoistNode = doc.createElement(tag);
+				child.replaceWith(hoistNode);
+			} else {
 				child.parentNode.removeChild(child);
+			}
+			hoistNode.innerHTML += child.textContent;
+		} else if (child.nodeType == ELEMENT_NODE) {
+			//Normally we allow only the explicitly legal items. But also allow
+			//the hoist tag (since that's the thing we'll hoist to, we can skip
+			//hoisting to it!). This covers the <li> inner use.
+			if (legalTopLevelNodes[child.localName] || child.localName == tag) {
+				//The child is already OK at top-level. But if we have an active
+				//hoistNode, the next things to hoist should go into a new one.
+				hoistNode = null;
 				continue;
 			}
-			//OK, it's not all whitespace, so wrap it in a default element.
-			let ele = doc.createElement(tag);
-			ele.innerHTML = child.textContent.trim();
-			child.replaceWith(ele);
-			//Deliberately drop dwon into the next processing step.
-			child = ele;
+			if (!hoistNode) {
+				hoistNode = doc.createElement(tag);
+				child.replaceWith(hoistNode);
+			} else {
+				child.parentNode.removeChild(child);
+			}
+			hoistNode.innerHTML += child.outerHTML;
+		}
+	}
+	//OK, we now know all top-level children are valid types. Do additional cleanup.
+	for (let child of Object.values(children)) {
+		if (isWhitespace(child.textContent)) {
+			//It's all text content, just get rid of it
+			child.parentNode.removeChild(child);
+			continue;
 		}
 		if (child.nodeType == ELEMENT_NODE) {
-			if (isWhitespace(child.innerText)) {
-				child.parentNode.removeChild(child);
-				continue;
-			}
 
 			removeZombieSpans(child);
 
@@ -180,7 +205,6 @@ const cleanUpTopLevelHTML = (html, tag = 'p') => {
 				child.innerHTML = cleanUpTopLevelHTML(child.innerHTML, 'li');
 			}
 		}
-
 	}
 
 	return section.innerHTML;
