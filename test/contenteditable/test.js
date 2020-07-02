@@ -149,4 +149,11 @@ describe('content editable scrubbing', () => {
 		assert.equal(actual, expected);
 	});
 
+	it('non-text-non-legal-top-node at beginning of top level', async () => {
+		const input = '<strong>Content</strong> other';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<p><strong>Content</strong> other</p>\n';
+		assert.equal(actual, expected);
+	});
+
 });
