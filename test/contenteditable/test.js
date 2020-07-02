@@ -37,10 +37,38 @@ describe('content editable scrubbing', () => {
 		assert.equal(actual, expected);
 	});
 
-	it('Removes line breaks', async () => {
+	it('Removes <br>', async () => {
 		const input = '<p>Line breaks <br>Should be removed</p>';
 		const actual = normalizeBodyHTML(input);
 		const expected = '<p>Line breaks Should be removed</p>\n';
+		assert.equal(actual, expected);
+	});
+
+	it('Removes extra line breaks', async () => {
+		const input = '<p>Extra line breaks should be removed</p>\n\n<p>They\'re unnecessary</p>';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<p>Extra line breaks should be removed</p>\n<p>They\'re unnecessary</p>\n';
+		assert.equal(actual, expected);
+	});
+
+	it('Removes internal line breaks', async () => {
+		const input = '<p>Extra line breaks \nshould be removed</p>';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<p>Extra line breaks should be removed</p>\n';
+		assert.equal(actual, expected);
+	});
+
+	it('Line breaks for ul', async () => {
+		const input = '<ul><li>List one</li><li>List two</li></ul>';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<ul>\n\t<li>List one</li>\n\t<li>List two</li>\n</ul>\n';
+		assert.equal(actual, expected);
+	});
+
+	it('Line breaks for ol', async () => {
+		const input = '<ol><li>List one</li><li>List two</li></ol>';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<ol>\n\t<li>List one</li>\n\t<li>List two</li>\n</ol>\n';
 		assert.equal(actual, expected);
 	});
 });
