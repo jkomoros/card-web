@@ -147,6 +147,10 @@ const legalTopLevelNodes = {
 	'p': true,
 	'ol': true,
 	'ul': true,
+	'h1': true,
+	'h2': true,
+	'h3': true,
+	'h4': true,
 };
 
 const cleanUpTopLevelHTML = (html, tag = 'p') => {
@@ -244,11 +248,13 @@ export const normalizeBodyHTML = (html) => {
 	html = cleanUpTopLevelHTML(html);
 
 	//Add in line breaks
-	html = html.split('</p>').join('</p>\n');
+	for (let key of Object.keys(legalTopLevelNodes)) {
+		const closeTag = '</' + key + '>';
+		html = html.split(closeTag).join(closeTag + '\n');
+	}
+
 	html = html.split('<ul>').join('<ul>\n');
-	html = html.split('</ul>').join('</ul>\n');
 	html = html.split('<ol>').join('<ol>\n');
-	html = html.split('</ol>').join('</ol>\n');
 	html = html.split('<li>').join('\t<li>');
 	html = html.split('</li>').join('</li>\n');
 

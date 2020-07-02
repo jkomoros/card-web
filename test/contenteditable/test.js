@@ -141,4 +141,12 @@ describe('content editable scrubbing', () => {
 		const expected = '<p>Content <strong>mixed</strong> at top</p>\n<ol>\n\t<li>yup</li>\n</ol>\n<p>other</p>\n';
 		assert.equal(actual, expected);
 	});
+
+	it('h2 allowed at top level', async () => {
+		const input = '<h2>Content</h2>';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<h2>Content</h2>\n';
+		assert.equal(actual, expected);
+	});
+
 });
