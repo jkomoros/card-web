@@ -3,6 +3,20 @@ import {
 	isWhitespace
 } from './util.js';
 
+let doc = typeof window !== 'undefined' && window.document ? window.document : null;
+
+//overrideDocument can be used to inject a document to use for use in e.g.
+//testing contexts. If  you don't call this then it will use window.document.
+export const overrideDocument = (overrideDoc) => {
+	doc = overrideDoc;
+};
+
+//We don't just use Node.ELEMENT_NODE and friends because this also runs in the
+//Node context for testing.
+const ELEMENT_NODE = 1;
+const TEXT_NODE = 3;
+
+
 const replaceAsWithCardLinks = (body) => {
 	//Replaces all a's with card-links.
 	//TODO: consider modifying the actual nodes in place, which is more robust.;
@@ -63,7 +77,7 @@ const normalizeBodyFromContentEditable = (html) => {
 	//This is the part where we do live-node fix-ups of stuff that
 	//contenteditable might have erroneously spewed in.
 
-	let section = document.createElement('section');
+	let section = doc.createElement('section');
 	//TODO: catch syntax errors
 	section.innerHTML = html;
 
@@ -87,7 +101,7 @@ export const normalizeBodyToContentEditable = (html) => {
 	//This is the part where we do live-node fix-ups of stuff that
 	//contenteditable might have erroneously spewed in.
 
-	let section = document.createElement('section');
+	let section = doc.createElement('section');
 	//TODO: catch syntax errors
 	section.innerHTML = html;
 
@@ -133,24 +147,24 @@ const cleanUpTopLevelHTML = (html, tag = 'p') => {
 	//Does deeper changes that require parsing.
 	//1) make sure all text in top is within a p tag.
 	//2) make sure that p elements don't have any line breaks inside.
-	let section = document.createElement('section');
+	let section = doc.createElement('section');
 	section.innerHTML = html;
 	let children = section.childNodes;
 	for (let child of Object.values(children)) {
-		if (child.nodeType == Node.TEXT_NODE) {
+		if (child.nodeType == TEXT_NODE) {
 			if (isWhitespace(child.textContent)) {
 				//It's all text content, just get rid of it
 				child.parentNode.removeChild(child);
 				continue;
 			}
 			//OK, it's not all whitespace, so wrap it in a default element.
-			let ele = document.createElement(tag);
+			let ele = doc.createElement(tag);
 			ele.innerText = child.textContent.trim();
 			child.parentNode.replaceChild(ele, child);
 			//Deliberately drop dwon into the next processing step.
 			child = ele;
 		}
-		if (child.nodeType == Node.ELEMENT_NODE) {
+		if (child.nodeType == ELEMENT_NODE) {
 			if (isWhitespace(child.innerText)) {
 				child.parentNode.removeChild(child);
 				continue;
