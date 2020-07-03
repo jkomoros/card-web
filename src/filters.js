@@ -118,6 +118,21 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countStr) => {
 
 };
 
+const makeExcludeConfigurableFilter = (filterName, idString) => {
+	//ids can be a single id or slug, or a conjunction of them delimited by '+'
+	const idsToMatch = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
+
+	//TODO: only calculate the slug --> id once so subsequent matches can be done with one lookup
+	return function(card) {
+		if (idsToMatch[card.id]) return false;
+		if (!card.slugs) return true;
+		for (let slug of card.slugs) {
+			if (idsToMatch[slug]) return false;
+		}
+		return true;
+	};
+};
+
 //Fallback configurable filter
 const makeNoOpConfigurableFilter = () => {
 	return () => true;
@@ -134,6 +149,7 @@ const CHILDREN_FILTER_NAME = 'children';
 const DESCENDANTS_FILTER_NAME = 'descendants';
 const PARENTS_FILTER_NAME = 'parents';
 const ANCESTORS_FILTER_NAME = 'ancestors';
+const EXCLUDE_FILTER_NAME = 'exclude';
 
 //When these are seen in the URL as parts, how many more pieces to expect, to be
 //combined later. For things like `updated`, they want more than 1 piece more
@@ -153,6 +169,7 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[ANCESTORS_FILTER_NAME]: 2,
 	[DIRECT_CONNECTIONS_FILTER_NAME]: 1,
 	[CONNECTIONS_FILTER_NAME]: 2,
+	[EXCLUDE_FILTER_NAME]: 1,
 };
 
 //the factories should return a filter func that takes the card to opeate on,
@@ -166,6 +183,7 @@ const CONFIGURABLE_FILTER_FACTORIES = {
 	[ANCESTORS_FILTER_NAME]: makeCardLinksConfigurableFilter,
 	[DIRECT_CONNECTIONS_FILTER_NAME]: makeCardLinksConfigurableFilter,
 	[CONNECTIONS_FILTER_NAME]: makeCardLinksConfigurableFilter,
+	[EXCLUDE_FILTER_NAME]: makeExcludeConfigurableFilter,
 };
 
 //The configurable filters that are allowed to start a multi-part filter.
