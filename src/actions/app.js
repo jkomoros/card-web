@@ -38,14 +38,23 @@ export const PAGE_MAINTENANCE = 'maintenance';
 export const PAGE_404 = 'view404';
 
 import {
-	selectFinalCollection, selectCommentsAreFullyLoaded, getMessageById, getThreadById, selectPage, selectPageExtra, selectActivePreviewCardId, selectFetchedCard, selectCards
-} from '../selectors.js';
-
-import {
+	selectFinalCollection,
+	selectCommentsAreFullyLoaded,
+	getMessageById,
+	getThreadById,
+	selectPage,
+	selectPageExtra,
+	selectActivePreviewCardId,
+	selectFetchedCard,
+	selectCards,
+	selectComposeOpen,
+	selectIsEditing,
 	selectActiveCardIndex
 } from '../selectors.js';
 
-import { pageRequiresMainView } from '../util.js';
+import {
+	pageRequiresMainView
+} from '../util.js';
 
 import {
 	db,
@@ -55,6 +64,14 @@ import {
 import {
 	updateCards,
 } from './data.js';
+
+import {
+	editingCommit
+} from './editor.js';
+
+import {
+	composeCommit
+} from './prompt.js';
 
 //This is the card that is loaded if we weren't passed anything
 const DEFAULT_CARD = 'section-half-baked';
@@ -288,6 +305,20 @@ export const fetchCard = (cardIDOrSlug) => async (dispatch, getState) =>  {
 	}
 	dispatch(await fetchCardLinkCardsForFetchedCard(card));
 	dispatch(updateFetchedCard(card));
+};
+
+//A generic commit action, depending on what is happening. If editing, commit
+//the edit. If composing, commit the compose.
+export const doCommit  = () => (dispatch, getState) => {
+	const state = getState();
+	if (selectIsEditing(state)) {
+		dispatch(editingCommit());
+		return;
+	}
+	if (selectComposeOpen(state)) {
+		dispatch(composeCommit());
+	}
+	return;
 };
 
 let hoverPreviewTimer;

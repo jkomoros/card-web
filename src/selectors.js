@@ -59,7 +59,7 @@ export const selectPromptMessage = (state) => state.prompt.message;
 export const selectPromptAction = (state) => state.prompt.action;
 export const selectPromptAssociatedId = (state) => state.prompt.associatedId;
 
-const selectIsEditing = (state) => state.editor && state.editor.editing;
+export const selectIsEditing = (state) => state.editor && state.editor.editing;
 const selectFindDialogOpen = (state) => state.find && state.find.open;
 
 export const selectCommentsAndInfoPanelOpen = (state) => state.app ? state.app.commentsAndInfoPanelOpen : false;

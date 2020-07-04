@@ -81,6 +81,7 @@ import {
 	urlForCard,
 	hoveredCardMouseMoved,
 	updateHoveredCard,
+	doCommit,
 	PAGE_DEFAULT,
 	PAGE_COMMENT,
 	PAGE_MAINTENANCE,
@@ -395,6 +396,12 @@ class MainView extends connect(store)(LitElement) {
 	}
 
 	_handleKeyPressed(e) {
+		if (e.key == 'Enter' && e.metaKey) {
+			e.stopPropagation();
+			e.preventDefault();
+			store.dispatch(doCommit());
+			return;
+		}
 		//Don't move the slide selection when editing!
 		if (!this._keyboardNavigates) return;
 		switch (e.key) {
