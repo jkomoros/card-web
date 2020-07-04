@@ -28,10 +28,6 @@ import {
 	CARD_BEING_FETCHED,
 } from '../actions/app.js';
 
-import {
-	selectComposeOpen,
-} from '../selectors.js';
-
 const HEADER_PANEL_DEFAULT_VALUE = true;
 const COMMENTS_AND_INFO_PANEL_DEFAULT_VALUE = true;
 const CARDS_DRAWER_PANEL_DEFAULT_VALUE = true;
@@ -156,13 +152,6 @@ const app = (state = INITIAL_STATE, action) => {
 	default:
 		return state;
 	}
-};
-
-export const keyboardNavigates = state => {
-	if (state.editor && state.editor.editing) return false;
-	if (state.find && state.find.open) return false;
-	if (selectComposeOpen(state)) return false;
-	return true;
 };
 
 export default app;

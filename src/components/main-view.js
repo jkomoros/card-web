@@ -53,11 +53,8 @@ import {
 	selectUserMayViewUnpublished,
 	selectUserMayViewApp,
 	selectUserPermissionsFinal,
+	selectKeyboardNavigates,
 } from '../selectors.js';
-
-import {
-	keyboardNavigates
-} from '../reducers/app.js';
 
 import { 
 	connectLivePublishedCards,
@@ -439,7 +436,7 @@ class MainView extends connect(store)(LitElement) {
 		this._devMode = DEV_MODE;
 		this._sections = state.data.sections;
 		this._activeSectionId = selectActiveSectionId(state);
-		this._keyboardNavigates = keyboardNavigates(state);
+		this._keyboardNavigates = selectKeyboardNavigates(state);
 		this._recentTabSelected = selectRecentTabSelected(state);
 		this._readingListTabSelected = selectReadingListTabSelected(state);
 		this._starsTabSelected = selectStarsTabSelected(state);

@@ -108,6 +108,13 @@ export const selectReadsLoaded = (state) => state.user ? state.user.readsLoaded 
 const selectUserPermissionsLoaded = (state) => state.user ? state.user.userPermissionsLoaded : false;
 export const selectReadingListLoaded = (state) => state.user ? state.user.readingListLoaded : false;
 
+export const selectKeyboardNavigates = state => {
+	if (state.editor && state.editor.editing) return false;
+	if (state.find && state.find.open) return false;
+	if (selectComposeOpen(state)) return false;
+	return true;
+};
+
 //This is just the userPermissions fetched; for the actual permissions object in
 //use, see selectCOmposedPermissions.
 const selectUserPermissions = (state) => state.user ? state.user.userPermissions : {};
