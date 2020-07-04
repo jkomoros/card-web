@@ -59,6 +59,9 @@ export const selectPromptMessage = (state) => state.prompt.message;
 export const selectPromptAction = (state) => state.prompt.action;
 export const selectPromptAssociatedId = (state) => state.prompt.associatedId;
 
+const selectIsEditing = (state) => state.editor && state.editor.editing;
+const selectFindDialogOpen = (state) => state.find && state.find.open;
+
 export const selectCommentsAndInfoPanelOpen = (state) => state.app ? state.app.commentsAndInfoPanelOpen : false;
 
 const selectActiveSetName = (state) => state.collection.activeSetName;
@@ -108,12 +111,12 @@ export const selectReadsLoaded = (state) => state.user ? state.user.readsLoaded 
 const selectUserPermissionsLoaded = (state) => state.user ? state.user.userPermissionsLoaded : false;
 export const selectReadingListLoaded = (state) => state.user ? state.user.readingListLoaded : false;
 
-export const selectKeyboardNavigates = state => {
-	if (state.editor && state.editor.editing) return false;
-	if (state.find && state.find.open) return false;
-	if (selectComposeOpen(state)) return false;
-	return true;
-};
+export const selectKeyboardNavigates = createSelector(
+	selectIsEditing,
+	selectFindDialogOpen,
+	selectComposeOpen,
+	(editing, find, compose) => !editing && !find && !compose
+);
 
 //This is just the userPermissions fetched; for the actual permissions object in
 //use, see selectCOmposedPermissions.
