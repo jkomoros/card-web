@@ -49,7 +49,8 @@ import {
 	selectCards,
 	selectComposeOpen,
 	selectIsEditing,
-	selectActiveCardIndex
+	selectActiveCardIndex,
+	selectUserMayEdit
 } from '../selectors.js';
 
 import {
@@ -66,6 +67,7 @@ import {
 } from './data.js';
 
 import {
+	editingStart,
 	editingCommit
 } from './editor.js';
 
@@ -317,6 +319,11 @@ export const doCommit  = () => (dispatch, getState) => {
 	}
 	if (selectComposeOpen(state)) {
 		dispatch(composeCommit());
+		return;
+	}
+	if (selectUserMayEdit(state)) {
+		dispatch(editingStart());
+		return;
 	}
 	return;
 };
