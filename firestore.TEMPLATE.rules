@@ -139,6 +139,23 @@ service cloud.firestore {
       let resourceData = resource.data;
       return requestData.diff(resourceData).affectedKeys().hasOnly([incKey, decKey]) && resourceData[decKey] - 1 == requestData[decKey] && resourceData[incKey] + 1 == requestData[incKey];
     }
+
+    function cardEditMinor() {
+      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      //we can bail only if there are any keys not in this set, or if they aren't any keys in this set, without doing the more expensive calculations.
+      let allKeys = ['star_count', 'star_count_manual', 'thread_count', 'thread_resolved_count', 'thread_count', 'updated_message'];
+      return affectedKeys.hasOnly(allKeys) && affectedKeys.hasAny(allKeys) && cardEditLegalMessages(affectedKeys) || cardEditLegalStars(affectedKeys);
+    }
+
+    function cardEditLegalMessages(affectedKeys) {
+      //TODO: pass in the affectedKeys into the children to save another calculation
+      return userMayComment() && (editOnlyIncrements('thread_count') || editOnlyIncrementsAndDecrements('thread_resolved_count', 'thread_count') || editOnlyUpdatesTimestamp('updated_message') || editOnlyIncrementsAndUpdatesTimestamp('thread_count', 'updated_message'));
+    }
+
+    function cardEditLegalStars(affectedKeys) {
+      //TODO: pass in the affectedKeys into the children to save another calculation
+      return userMayStar() && editOnlyIncrementsOrDecrements('star_count', 'star_count_manual');
+    }
     
     function loggedIn() {
       return request.auth != null && request.auth.uid != null;
@@ -199,7 +216,7 @@ service cloud.firestore {
     match /cards/{card} {
       allow read: if userMayViewApp() && (resource.data.published == true || userMayViewUnpublished());
       allow create: if userIsAdmin() && createIsAuthor();
-      allow update: if (userMayComment() && (editOnlyIncrements('thread_count') || editOnlyIncrementsAndDecrements('thread_resolved_count', 'thread_count') || editOnlyUpdatesTimestamp('updated_message') || editOnlyIncrementsAndUpdatesTimestamp('thread_count', 'updated_message')) || (userMayStar() && editOnlyIncrementsOrDecrements('star_count', 'star_count_manual'))) || userIsAdmin();
+      allow update: if cardEditMinor() || userIsAdmin();
     
       match /updates/{update} {
         allow read, write: if userIsAdmin();
