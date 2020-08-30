@@ -6,7 +6,8 @@ import '@firebase/functions';
 
 import {
 	FIREBASE_DEV_CONFIG,
-	FIREBASE_PROD_CONFIG
+	FIREBASE_PROD_CONFIG,
+	FIREBASE_REGION
 } from '../../config.GENERATED.SECRET.js';
 
 export const firebase = firebaseImpl;
@@ -18,7 +19,7 @@ if (window.location.hostname == 'localhost') DEV_MODE = true;
 if (window.location.hostname.indexOf('dev-') >= 0) DEV_MODE = true;
 let config = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
 // Initialize Firebase
-firebase.initializeApp(config);
+const firebaseApp = firebase.initializeApp(config);
 
 export const db = firebase.firestore();
 
@@ -79,7 +80,7 @@ export const READING_LISTS_UPDATES_COLLECTION = 'updates';
 export const PERMISSIONS_COLLECTION = 'permissions';
 export const TWEETS_COLLECTION = 'tweets';
 
-const legalCallable = firebase.functions().httpsCallable('legal');
+const legalCallable = firebaseApp.functions(FIREBASE_REGION).httpsCallable('legal');
 
 export const slugLegal = async (newSlug) => {
 	const result = await legalCallable({type:'slug', value:newSlug});

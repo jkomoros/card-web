@@ -50,6 +50,8 @@ const USER_TYPE_ANONYMOUS_PERMISSIONS = projectConfig.permissions && projectConf
 const USER_TYPE_SIGNED_IN_PERMISSIONS = projectConfig.permissions && projectConfig.permissions.signed_in || {};
 const USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS = projectConfig.permissions && projectConfig.permissions.signed_in_domain || {};
 
+const FIREBASE_REGION = projectConfig.region || 'us-central1';
+
 const USER_DOMAIN = projectConfig.user_domain || '';
 
 const makeExecExecutor = cmd => {
@@ -109,6 +111,7 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	CONFIG_JS_CONTENT += 'export const USER_TYPE_SIGNED_IN_PERMISSIONS=' + JSON.stringify(USER_TYPE_SIGNED_IN_PERMISSIONS) + ';\n';
 	CONFIG_JS_CONTENT += 'export const USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS=' + JSON.stringify(USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS) + ';\n';
 	CONFIG_JS_CONTENT += 'export const USER_DOMAIN="' + USER_DOMAIN + '";\n';
+	CONFIG_JS_CONTENT += 'export const FIREBASE_REGION="' + FIREBASE_REGION + '";\n';
 	fs.writeFileSync('config.GENERATED.SECRET.js', CONFIG_JS_CONTENT);
 
 	let META_STRING = '\n    <meta name="application-name" content="' + APP_TITLE + '">\n';
