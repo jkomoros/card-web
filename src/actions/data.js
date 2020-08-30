@@ -409,17 +409,14 @@ export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
 		return;
 	}
 
-	await db.runTransaction(async transaction => {
-		let cardRef = db.collection(CARDS_COLLECTION).doc(cardId);
-		let doc = await transaction.get(cardRef);
-		if (!doc.exists) {
-			throw 'Doc doesn\'t exist!';
-		}
-		let slugs = doc.data().slugs || [];
-
-		var newArray = [...slugs, newSlug];
-		transaction.update(cardRef, {slugs: newArray, updated: firebase.firestore.FieldValue.serverTimestamp()});
+	let batch = db.batch();
+	const cardRef = db.collection(CARDS_COLLECTION).doc(cardId);
+	batch.update(cardRef, {
+		slugs: firebase.firestore.FieldValue.arrayUnion(newSlug),
+		updated: firebase.firestore.FieldValue.serverTimestamp(),
 	});
+
+	await batch.commit();
 
 	let state = getState();
 	if (state.editor.card && state.editor.card.id == cardId) {
