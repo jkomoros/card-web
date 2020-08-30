@@ -527,6 +527,8 @@ export const defaultCardObject = (id, user, section, cardType) => {
 		created: firebase.firestore.FieldValue.serverTimestamp(),
 		updated: firebase.firestore.FieldValue.serverTimestamp(),
 		author: user.uid,
+		editors: [],
+		collaborators: [],
 		updated_substantive: firebase.firestore.FieldValue.serverTimestamp(),
 		updated_message: firebase.firestore.FieldValue.serverTimestamp(),
 		//star_count is sum of star_count_manual, tweet_favorite_count, tweet_retweet_count.

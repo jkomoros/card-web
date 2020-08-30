@@ -808,6 +808,29 @@ export const addLinksText = async() => {
 	alert(ADD_LINKS_TEXT + ' done!');
 };
 
+const ADD_EDITORS_COLLABORATORS = 'add-editors-collaborators';
+
+export const addEditorsCollaborators = async() => {
+
+	await checkMaintenanceTaskHasBeenRun(ADD_EDITORS_COLLABORATORS);
+
+	let batch = new MultiBatch(db);
+
+	let snapshot = await db.collection(CARDS_COLLECTION).get();
+
+	snapshot.forEach(doc => {
+		batch.update(doc.ref, {
+			editors: [],
+			collaborators: []
+		});
+	});
+
+	await batch.commit();
+
+	await maintenanceTaskRun(ADD_EDITORS_COLLABORATORS);
+	alert(ADD_EDITORS_COLLABORATORS + ' done!');
+};
+
 export const tasks = {
 	[ADD_TWO_OLD_MAINTENANCE_TASKS]: addTwoOldMaintenanceTasks,
 	[ADD_CARD_TYPE_TO_IMPORTED_CARDS]: addCardTypeToImportedCards,
@@ -832,4 +855,5 @@ export const tasks = {
 	[CLEAN_INBOUND_LINKS]: cleanInboundLinks,
 	[ADD_AUTO_TODO_SKIPPED_LINKS_INBOUND]: addAutoTodoSkippedLinksInbound,
 	[ADD_LINKS_TEXT]: addLinksText,
+	[ADD_EDITORS_COLLABORATORS]: addEditorsCollaborators,
 };
