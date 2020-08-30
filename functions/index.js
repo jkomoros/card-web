@@ -9,6 +9,7 @@ const email = require('./email.js');
 const twitter = require('./twitter.js');
 const update = require('./update.js');
 const screenshot = require('./screenshot.js');
+const legal = require('./legal.js');
 
 //Runs every three hours
 exports.fetchTweetEngagement = functions.pubsub.schedule('0 */3 * * *').timeZone('America/Los_Angeles').onRun(twitter.fetchTweetEngagement);
@@ -49,3 +50,16 @@ screenshotApp.get('/:id', async (req, res) => {
 exports.screenshot = functions.runWith({
     memory: '1GB'
 }).https.onRequest(screenshotApp);
+
+const legalApp = express();
+legalApp.get('/slug/:val', async (req, res) => {
+    //result will be a zero length string if OK
+    const result = await legal.slug(req.params.val);
+    res.status(200).type('json').send({
+        status: 'ok',
+        legal: result ? false : true,
+        reason: result
+    });
+})
+
+exports.legal = functions.https.onRequest(legalApp);

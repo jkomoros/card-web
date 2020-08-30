@@ -142,6 +142,8 @@ export const toTitleCase = (str) => {
 	return str.join(' ');
 };
 
+//note: these are recreated in functions/legal.js
+
 const slugRegularExpression = /^[a-zA-Z0-9-_]+$/;
 
 export const normalizeSlug = (slug) => {
