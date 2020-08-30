@@ -101,27 +101,43 @@ service cloud.firestore {
     }
 
     function editOnlyUpdatesTimestamp(key) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([key]) && request.resource.data[key] == request.time;
+      let requestData = request.resource.data;
+      return requestData.diff(resource.data).affectedKeys().hasOnly([key]) && requestData[key] == request.time;
     }
 
     function editOnlyIncrementsAndUpdatesTimestamp(incrementKey, timestampKey) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([incrementKey, timestampKey]) && request.resource.data[timestampKey] == request.time && resource.data[incrementKey] + 1 == request.resource.data[incrementKey]
+      let requestData = request.resource.data;
+      let resourceData = resource.data;
+      return requestData.diff(resourceData).affectedKeys().hasOnly([incrementKey, timestampKey]) && requestData[timestampKey] == request.time && resourceData[incrementKey] + 1 == requestData[incrementKey]
     }
 
     function editOnlyAddsMessage() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['messages', 'updated']) && request.resource.data.messages.size() == resource.data.messages.size() + 1 && request.resource.data.messages[0:resource.data.messages.size()] == resource.data.messages;
+      let requestData = request.resource.data;
+      let requestMessages = requestData.messages;
+      let resourceMessages = resource.data.messages;
+      return requestData.diff(resource.data).affectedKeys().hasOnly(['messages', 'updated']) && requestMessages.size() == resourceMessages.size() + 1 && requestMessages[0:resourceMessages.size()] == resourceMessages;
     }
         
     function editOnlyIncrements(key) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([key]) && resource.data[key] + 1 == request.resource.data[key];
+      let requestData = request.resource.data;
+      let resourceData = resource.data;
+      return requestData.diff(resourceData).affectedKeys().hasOnly([key]) && resourceData[key] + 1 == requestData[key];
     }
     
     function editOnlyIncrementsOrDecrements(key, otherKey) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([key, otherKey]) && (resource.data[key] + 1 == request.resource.data[key] || resource.data[key] - 1 == request.resource.data[key]) && (resource.data[otherKey] + 1 == request.resource.data[otherKey] || resource.data[otherKey] - 1 == request.resource.data[otherKey]);
-    }
+      let requestData = request.resource.data;
+      let resourceData = resource.data;
+      let resourceDataKey = resourceData[key];
+      let requestDataKey = requestData[key];
+      let resourceDataOtherKey = resourceData[otherKey];
+      let requestDataOtherKey = requestData[otherKey];
+      return requestData.diff(resourceData).affectedKeys().hasOnly([key, otherKey]) && (resourceDataKey + 1 == requestDataKey || resourceDataKey - 1 == requestDataKey) && (resourceDataOtherKey + 1 == requestDataOtherKey || resourceDataOtherKey - 1 == requestDataOtherKey);
+     }
     
     function editOnlyIncrementsAndDecrements(incKey, decKey) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([incKey, decKey]) && resource.data[decKey] - 1 == request.resource.data[decKey] && resource.data[incKey] + 1 == request.resource.data[incKey];
+      let requestData = request.resource.data;
+      let resourceData = resource.data;
+      return requestData.diff(resourceData).affectedKeys().hasOnly([incKey, decKey]) && resourceData[decKey] - 1 == requestData[decKey] && resourceData[incKey] + 1 == requestData[incKey];
     }
     
     function loggedIn() {
