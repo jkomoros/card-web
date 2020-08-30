@@ -2,6 +2,7 @@ import firebaseImpl from '@firebase/app';
 
 import '@firebase/auth';
 import '@firebase/firestore';
+import '@firebase/functions';
 
 import {
 	FIREBASE_DEV_CONFIG,
@@ -77,6 +78,13 @@ export const READING_LISTS_COLLECTION = 'reading_lists';
 export const READING_LISTS_UPDATES_COLLECTION = 'updates';
 export const PERMISSIONS_COLLECTION = 'permissions';
 export const TWEETS_COLLECTION = 'tweets';
+
+const legalCallable = firebase.functions().httpsCallable('legal');
+
+export const slugLegal = async (newSlug) => {
+	const result = await legalCallable({type:'slug', value:newSlug});
+	return result.data;
+};
 
 export const connectLiveMessages = (store) => {
 	if (!selectUserMayViewApp(store.getState())) return;

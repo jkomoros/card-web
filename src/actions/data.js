@@ -10,7 +10,8 @@ export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
 export const REORDER_STATUS = 'REORDER_STATUS';
 
 import {
-	firebase
+	firebase,
+	slugLegal
 } from './database.js';
 
 import {
@@ -396,16 +397,9 @@ export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
 		return;
 	}
 
-	let doc = await db.collection(CARDS_COLLECTION).doc(newSlug).get();
-
-	if (doc.exists) {
-		console.log('That slug is already the id of another item');
-		return;
-	}
-
-	let snapshot = await db.collection(CARDS_COLLECTION).where('slugs', 'array-contains', newSlug).get();
-	if (snapshot.size > 0) {
-		console.log('Another document already has that slug');
+	const result = await slugLegal(newSlug);
+	if (!result.legal) {
+		console.log(result.reason);
 		return;
 	}
 
