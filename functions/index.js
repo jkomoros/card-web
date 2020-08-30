@@ -51,15 +51,14 @@ exports.screenshot = functions.runWith({
     memory: '1GB'
 }).https.onRequest(screenshotApp);
 
-const legalApp = express();
-legalApp.get('/slug/:val', async (req, res) => {
-    //result will be a zero length string if OK
-    const result = await legal.slug(req.params.val);
-    res.status(200).type('json').send({
-        status: 'ok',
+//expects data to have type:{slug},  and value be the string to check
+exports.legal = functions.https.onCall(async (data) => {
+    if (data.type !== 'slug') {
+        throw new functions.https.HttpsError('invalid-type', 'Invalid type: ' + data.type);
+    }
+    const result = await legal.slug(data.value);
+    return {
         legal: result ? false : true,
         reason: result
-    });
-})
-
-exports.legal = functions.https.onRequest(legalApp);
+    };
+});
