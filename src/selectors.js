@@ -783,6 +783,16 @@ export const selectUnreadTabSelected = createSelector(
 	(description) => description.equivalent(unreadTabCollectionDescription)
 );
 
+export const selectLastSectionID = createSelector(
+	selectSections,
+	(sections) => {
+		const entries = Object.entries(sections);
+		if (!entries.length) return '';
+		const lastEntry = entries[entries.length - 1];
+		return lastEntry[0];
+	}
+);
+
 //selectActiveTagId returns a string IFF precisely one tag is being selected.
 //Analogue of selectActiveSectionId.
 export const selectActiveTagId = createSelector(

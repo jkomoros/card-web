@@ -58,7 +58,8 @@ import {
 	selectUserIsAdmin,
 	selectFilters,
 	selectDataIsFullyLoaded,
-	selectUserMayEditActiveCard
+	selectUserMayEditActiveCard,
+	selectLastSectionID
 } from '../selectors.js';
 
 import {
@@ -596,15 +597,23 @@ export const createCard = (opts) => async (dispatch, getState) => {
 
 	//newCard creates and inserts a new card in the givne section with the given id.
 
+	const state = getState();
+
+	const lastSectionID = selectLastSectionID(state);
+
 	let cardType = opts.cardType || 'content';
-	let section = opts.section || 'random-thoughts';
+	let section = opts.section || lastSectionID;
 	let id = opts.id;
 	let noNavigate = opts.noNavigate || false;
 	let title = opts.title || '';
 
 	if (!cardType) cardType = 'content';
 
-	if (!section) section = 'random-thoughts';
+	if (!section) section = lastSectionID;
+	if (!section) {
+		console.log('No last section ID');
+		return;
+	}
 	if (id) {
 		id = normalizeSlug(id);
 	} else {
@@ -615,8 +624,6 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		console.log('Id provided was not legal');
 		return;
 	}
-
-	const state = getState();
 
 	let user = selectUser(state);
 
