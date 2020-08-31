@@ -270,7 +270,7 @@ export const selectUserMayModifyReadingList = createSelector(
 
 export const selectAuthorsForTagList = createSelector(
 	selectAuthors,
-	(authors) => Object.fromEntries(Object.entries(authors).map(entry => [entry[0], {id:entry[0], title:entry[1].displayName}]))
+	(authors) => Object.fromEntries(Object.entries(authors).map(entry => [entry[0], {id:entry[0], title:entry[1].displayName || entry[0]}]))
 );
 
 export const selectCollaboratorInfosForActiveCard = createSelector(
