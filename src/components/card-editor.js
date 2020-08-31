@@ -18,6 +18,7 @@ import {
 	selectEditingCard,
 	selectEditingCardAutoTodos,
 	selectEditingCardSuggestedTags,
+	selectAuthorsForTagList
 } from '../selectors.js';
 
 import {
@@ -279,6 +280,10 @@ class CardEditor extends connect(store)(LitElement) {
 		  	<label>Skipped Reciprocal Links</label>
 			<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${disableTODOColor} .tags=${this._card.auto_todo_skipped_links_inbound} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveSkippedLinkInbound} @add-tag=${this._handleAddSkippedLinkInbound}></tag-list>
 		  </div>
+		  <div>
+			<label>Editors</label>
+			<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.editors}></tag-list>
+		  </div>
 		  <div class='flex'>
 		  </div>
 		  <div>
@@ -312,6 +317,7 @@ class CardEditor extends connect(store)(LitElement) {
 		//The card before any edits
 		_underlyingCard: {type:Object},
 		_suggestedTags: { type: Array},
+		_authors: { type:Object },
 	};}
 
 	stateChanged(state) {
@@ -326,6 +332,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._cardTagInfos = selectTagInfosForCards(state);
 		//skip the expensive selector if we're not active
 		this._suggestedTags = this._active ? selectEditingCardSuggestedTags(state) : [];
+		this._authors = selectAuthorsForTagList(state);
 	}
 
 	shouldUpdate() {
