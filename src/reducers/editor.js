@@ -20,6 +20,8 @@ import {
 	EDITING_SKIPPED_LINK_INBOUND_ADDED,
 	EDITING_SKIPPED_LINK_INBOUND_REMOVED,
 	EDITING_EXTRACT_LINKS,
+	EDITING_EDITOR_ADDED,
+	EDITING_EDITOR_REMOVED,
 
 	TAB_CONTENT,
 } from '../actions/editor.js';
@@ -172,6 +174,18 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: {...state.card, tags: arrayRemove(state.card.tags, [action.tag])}
+		};
+	case EDITING_EDITOR_ADDED:
+		if (!state.card) return state;
+		return {
+			...state,
+			card: {...state.card, editors: arrayUnion(state.card.editors, [action.editor])}
+		};
+	case EDITING_EDITOR_REMOVED:
+		if (!state.card) return state;
+		return {
+			...state,
+			card: {...state.card, editors: arrayRemove(state.card.editors, [action.editor])}
 		};
 	case EDITING_SKIPPED_LINK_INBOUND_ADDED:
 		if (!state.card) return state;

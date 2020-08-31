@@ -45,6 +45,8 @@ import {
 	autoTodoOverrideDisabled,
 	skippedLinkInboundAdded,
 	skippedLinkInboundRemoved,
+	editorAdded,
+	editorRemoved
 } from '../actions/editor.js';
 
 import {
@@ -282,7 +284,7 @@ class CardEditor extends connect(store)(LitElement) {
 		  </div>
 		  <div>
 			<label>Editors</label>
-			<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.editors}></tag-list>
+			<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.editors} .editing=${true} @remove-tag=${this._handleRemoveEditor} @add-tag=${this._handleAddEditor}></tag-list>
 		  </div>
 		  <div class='flex'>
 		  </div>
@@ -365,6 +367,14 @@ class CardEditor extends connect(store)(LitElement) {
 
 	_handleRemoveTag(e) {
 		store.dispatch(tagRemoved(e.detail.tag));
+	}
+
+	_handleAddEditor(e) {
+		store.dispatch(editorAdded(e.detail.tag));
+	}
+
+	_handleRemoveEditor(e) {
+		store.dispatch(editorRemoved(e.detail.tag));
 	}
 
 	_handleAddSkippedLinkInbound(e) {
