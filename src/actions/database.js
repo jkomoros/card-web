@@ -225,46 +225,32 @@ export const connectLiveAuthors = () => {
 	});
 };
 
+const cardSnapshotReceiver = (snapshot) => {
+
+	let cards = {};
+
+	snapshot.docChanges().forEach(change => {
+		if (change.type === 'removed') return;
+		let doc = change.doc;
+		let id = doc.id;
+		let card = doc.data();
+		card.id = id;
+		cardSetNormalizedTextProperties(card);
+		cards[id] = card;
+	});
+
+	store.dispatch(updateCards(cards, true));
+
+};
+
 export const connectLivePublishedCards = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
-	db.collection(CARDS_COLLECTION).where('published', '==', true).onSnapshot(snapshot => {
-
-		let cards = {};
-
-		snapshot.docChanges().forEach(change => {
-			if (change.type === 'removed') return;
-			let doc = change.doc;
-			let id = doc.id;
-			let card = doc.data();
-			card.id = id;
-			cardSetNormalizedTextProperties(card);
-			cards[id] = card;
-		});
-
-		store.dispatch(updateCards(cards, false));
-
-	});
+	db.collection(CARDS_COLLECTION).where('published', '==', true).onSnapshot(cardSnapshotReceiver);
 };
 
 export const connectLiveUnpublishedCards = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
-	db.collection(CARDS_COLLECTION).where('published', '==', false).onSnapshot(snapshot => {
-
-		let cards = {};
-
-		snapshot.docChanges().forEach(change => {
-			if (change.type === 'removed') return;
-			let doc = change.doc;
-			let id = doc.id;
-			let card = doc.data();
-			card.id = id;
-			cardSetNormalizedTextProperties(card);
-			cards[id] = card;
-		});
-
-		store.dispatch(updateCards(cards, true));
-
-	});
+	db.collection(CARDS_COLLECTION).where('published', '==', false).onSnapshot(cardSnapshotReceiver);
 };
 
 export const connectLiveSections = () => {
