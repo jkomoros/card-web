@@ -46,7 +46,9 @@ import {
 	skippedLinkInboundAdded,
 	skippedLinkInboundRemoved,
 	editorAdded,
-	editorRemoved
+	editorRemoved,
+	collaboratorAdded,
+	collaboratorRemoved
 } from '../actions/editor.js';
 
 import {
@@ -286,6 +288,10 @@ class CardEditor extends connect(store)(LitElement) {
 			<label>Editors</label>
 			<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.editors} .editing=${true} @remove-tag=${this._handleRemoveEditor} @add-tag=${this._handleAddEditor}></tag-list>
 		  </div>
+		  <div>
+			<label>Collaborators</label>
+			<tag-list .overrideTypeName=${'Collaborator'} .tagInfos=${this._authors} .tags=${this._card.collaborators} .editing=${true} @remove-tag=${this._handleRemoveCollaborator} @add-tag=${this._handleAddCollaborator}></tag-list>
+		  </div>
 		  <div class='flex'>
 		  </div>
 		  <div>
@@ -375,6 +381,14 @@ class CardEditor extends connect(store)(LitElement) {
 
 	_handleRemoveEditor(e) {
 		store.dispatch(editorRemoved(e.detail.tag));
+	}
+
+	_handleAddCollaborator(e) {
+		store.dispatch(collaboratorAdded(e.detail.tag));
+	}
+
+	_handleRemoveCollaborator(e) {
+		store.dispatch(collaboratorRemoved(e.detail.tag));
 	}
 
 	_handleAddSkippedLinkInbound(e) {
