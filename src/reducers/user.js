@@ -34,8 +34,8 @@ export const BASE_PERMISSIONS = {
 	//default setting allows anyone to see content when they first visit even if
 	//not logged in.
 	viewApp: true,
-	//edit is a vestigial permission that currently doesn't do what it seems to.
-	//See #232 for more. 
+	//edit allows the user to edit any record: any card, any section (and in
+	//future more).
 	edit: false,
 	//viewUnpublished allows users with this permission to even view cards that
 	//are not published. Requires viewApp to be true to read cards in the first
