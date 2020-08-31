@@ -111,6 +111,12 @@ export const selectReadsLoaded = (state) => state.user ? state.user.readsLoaded 
 const selectUserPermissionsLoaded = (state) => state.user ? state.user.userPermissionsLoaded : false;
 export const selectReadingListLoaded = (state) => state.user ? state.user.readingListLoaded : false;
 
+export const selectActiveCard = createSelector(
+	selectCards,
+	selectActiveCardId,
+	(cards, activeCard) => cards[activeCard] || null
+);
+
 export const selectKeyboardNavigates = createSelector(
 	selectIsEditing,
 	selectFindDialogOpen,
@@ -210,6 +216,21 @@ export const selectUserMayEdit = createSelector(
 	(admin, permissions) => admin || permissions.edit
 );
 
+export const selectUserMayEditActiveCard = createSelector(
+	selectUserMayEdit,
+	selectActiveCard,
+	selectUid,
+	(userMayEdit, activeCard, uid) => {
+		if (userMayEdit) return true;
+		if (!activeCard) return false;
+		if (!activeCard.editors) return false;
+		for (let id of activeCard.editors) {
+			if (id === uid) return true;
+		}
+		return false;
+	}
+);
+
 export const selectUserMayViewApp = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
@@ -245,12 +266,6 @@ export const selectUserMayModifyReadingList = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
 	(admin, permissions) => admin || permissions.modifyReadingList
-);
-
-export const selectActiveCard = createSelector(
-	selectCards,
-	selectActiveCardId,
-	(cards, activeCard) => cards[activeCard] || null
 );
 
 const selectContentCards = createSelector(

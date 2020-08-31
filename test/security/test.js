@@ -30,6 +30,7 @@ const UPDATES_COLLECTION = 'updates';
 const adminUid = 'admin';
 const bobUid = 'bob';
 const sallyUid = 'sally';
+const jerryUid = 'jerry';
 const anonUid = 'anon';
 
 const googleBaseAuth = {firebase: {sign_in_provider: 'google.com'}};
@@ -38,6 +39,7 @@ const anonBaseAuth = {firebase: {sign_in_provider: 'anonymous'}};
 const adminAuth = {...googleBaseAuth, uid:adminUid, email:'admin@komoroske.com'};
 const bobAuth = {...googleBaseAuth, uid:bobUid, email:'bob@gmail.com'};
 const sallyAuth = {...googleBaseAuth, uid: sallyUid, email:'sally@gmail.com'};
+const jerryAuth = {...googleBaseAuth, uid: jerryUid, email:'jerry@gmail.com'};
 const anonAuth = {...anonBaseAuth, uid: anonUid, email: ''};
 
 const cardId = 'card';
@@ -63,9 +65,11 @@ async function setupDatabase() {
 	const db = firebase.initializeAdminApp({projectId}).firestore();
 	await db.collection(PERMISSIONS_COLLECTION).doc(adminUid).set({admin:true});
 	await db.collection(PERMISSIONS_COLLECTION).doc(bobUid).set({viewUnpublished: true});
+	await db.collection(PERMISSIONS_COLLECTION).doc(jerryUid).set({edit: true});
 	await db.collection(CARDS_COLLECTION).doc(cardId).set({
 		body: 'this is the body',
 		title: 'this is the title',
+		editors: [sallyUid],
 		thread_count: cardThreadCount,
 		thread_resolved_count: cardThreadResolvedCount,
 		star_count: cardStarCount,
@@ -349,14 +353,58 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount + 1, star_count: cardStarCount + 1}));
 	});
 
+	it('disallows any non-admin user to set arbitrary field on card', async () => {
+		const db = authedApp(bobAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({foo:5}));
+	});
+
+	it('allows users explicitly marked as editors for that card to arbitrarily edit a card', async () => {
+		//Sally is explicitly listed as an editor on the card
+		const db = authedApp(sallyAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(card.update({foo:5}));
+	});
+
+	it('allows users explicitly marked as editors to arbitrarily edit a card', async () => {
+		//jerry has blanket edit permission
+		const db = authedApp(jerryAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(card.update({foo:5}));
+	});
+
 	it('allows admins to read card updates', async() => {
 		const db = authedApp(adminAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
 		await firebase.assertSucceeds(update.get());
 	});
 
+	it('allows explicitly listed editors for a card to read card updates', async() => {
+		const db = authedApp(sallyAuth);
+		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
+		await firebase.assertSucceeds(update.get());
+	});
+
+	it('allows explicitly listed editors to read card updates', async() => {
+		const db = authedApp(jerryAuth);
+		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
+		await firebase.assertSucceeds(update.get());
+	});
+
 	it('allows admins to set card updates', async() => {
 		const db = authedApp(adminAuth);
+		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(newUpdateId);
+		await firebase.assertSucceeds(update.set({foo:4}));
+	});
+
+	it('allows explicitly listed editors for a card to set card updates', async() => {
+		const db = authedApp(sallyAuth);
+		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(newUpdateId);
+		await firebase.assertSucceeds(update.set({foo:4}));
+	});
+
+	it('allows explicitly listed editors to set card updates', async() => {
+		const db = authedApp(jerryAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(newUpdateId);
 		await firebase.assertSucceeds(update.set({foo:4}));
 	});

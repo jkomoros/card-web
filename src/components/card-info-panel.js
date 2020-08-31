@@ -29,7 +29,7 @@ import {
 	selectActiveCardTweets,
 	selectTweetsLoading,
 	selectCommentsAndInfoPanelOpen,
-	selectUserMayEdit,
+	selectUserMayEditActiveCard,
 	selectEditingOrActiveCardSimilarCards,
 } from '../selectors.js';
 
@@ -222,7 +222,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		//so only do it if the user is an admin, and always wait and update
 		//without blocking the main update.
 		window.setTimeout(() => {
-			this._closestCards = selectUserMayEdit(state) ? selectEditingOrActiveCardSimilarCards(state) : [];
+			this._closestCards = selectUserMayEditActiveCard(state) ? selectEditingOrActiveCardSimilarCards(state) : [];
 		}, 0);
 		
 	}

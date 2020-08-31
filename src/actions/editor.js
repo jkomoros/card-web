@@ -27,7 +27,7 @@ export const TAB_TODO = 'todo';
 
 import {
 	selectActiveCard,
-	selectUserMayEdit,
+	selectUserMayEditActiveCard,
 	selectEditingCard,
 	selectSections
 } from '../selectors.js';
@@ -87,7 +87,7 @@ export const editingSelectTab = (tab) => {
 
 export const editingStart = () => (dispatch, getState) => {
 	const state = getState();
-	if (!selectUserMayEdit(state)) {
+	if (!selectUserMayEditActiveCard(state)) {
 		console.warn('This user is not allowed to edit!');
 		return;
 	}
@@ -101,7 +101,7 @@ export const editingStart = () => (dispatch, getState) => {
 
 export const editingCommit = () => (dispatch, getState) => {
 	const state = getState();
-	if (!selectUserMayEdit(state)) {
+	if (!selectUserMayEditActiveCard(state)) {
 		console.warn('This user isn\'t allowed to edit!');
 		return;
 	}

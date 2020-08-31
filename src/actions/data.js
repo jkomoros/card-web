@@ -57,7 +57,8 @@ import {
 	selectUser,
 	selectUserIsAdmin,
 	selectFilters,
-	selectDataIsFullyLoaded
+	selectDataIsFullyLoaded,
+	selectUserMayEditActiveCard
 } from '../selectors.js';
 
 import {
@@ -129,8 +130,8 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 		return;
 	}
 
-	if (!selectUserIsAdmin(state)) {
-		console.log('User isn\'t admin');
+	if (!selectUserMayEditActiveCard(state)) {
+		console.log('User isn\'t allowed to edit active card');
 		return;
 	}
 

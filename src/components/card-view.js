@@ -36,7 +36,8 @@ import {
 	selectCollectionIsFallback,
 	selectEditingCard,
 	selectActiveCardTodosForCurrentUser,
-	selectCommentsAndInfoPanelOpen
+	selectCommentsAndInfoPanelOpen,
+	selectUserMayEditActiveCard
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -419,7 +420,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._userMayMarkRead =  selectUserMayMarkRead(state);
 		this._userMayModifyReadingList = selectUserMayModifyReadingList(state);
 		this._autoMarkReadPending = state.user.autoMarkReadPending;
-		this._userMayEdit = selectUserMayEdit(state);
+		this._userMayEdit = selectUserMayEditActiveCard(state);
 		this._userMayReorder = selectUserMayEdit(state) && selectActiveSectionId(state) != '';
 		this._headerPanelOpen = state.app.headerPanelOpen;
 		this._commentsAndInfoPanelOpen = selectCommentsAndInfoPanelOpen(state);
