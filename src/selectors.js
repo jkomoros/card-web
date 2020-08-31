@@ -273,6 +273,12 @@ export const selectAuthorsForTagList = createSelector(
 	(authors) => Object.fromEntries(Object.entries(authors).map(entry => [entry[0], {id:entry[0], title:entry[1].displayName}]))
 );
 
+export const selectCollaboratorInfosForActiveCard = createSelector(
+	selectActiveCard,
+	selectAuthors,
+	(card, authors) => card ? card.collaborators.map(uid => authors[uid]) : []
+);
+
 const selectContentCards = createSelector(
 	selectCards,
 	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => entry[1].card_type == 'content'))

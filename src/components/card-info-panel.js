@@ -25,6 +25,7 @@ import {
 	selectActiveCard,
 	selectTags,
 	getAuthorForId,
+	selectCollaboratorInfosForActiveCard,
 	selectInboundLinksForActiveCard,
 	selectActiveCardTweets,
 	selectTweetsLoading,
@@ -175,6 +176,12 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				<div>
 					<h4>Author</h4>
 					<p><author-chip .author=${this._author}></author-chip></p>
+					${this._collaborators.length ?
+		html`<h4>Collaborator${this._collaborators.length > 1 ? 's' : ''}</h4>
+					<p>
+					${this._collaborators.map(item => html`<author-chip .author=${item}></author-chip>`)}
+					</p>
+					`: html``}
 				</div>
 				<div class='spacer'></div>
 			</div>
@@ -214,6 +221,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._card = selectActiveCard(state) || {};
 		this._sectionTitle = sectionTitle(state, this._card ? this._card.section : '');
 		this._author = getAuthorForId(state, this._card.author);
+		this._collaborators = selectCollaboratorInfosForActiveCard(state);
 		this._tagInfos = selectTags(state);
 		this._inboundLinks = selectInboundLinksForActiveCard(state);
 		this._tweets = selectActiveCardTweets(state);
