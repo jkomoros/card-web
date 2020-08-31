@@ -164,8 +164,8 @@ class CardView extends connect(store)(PageViewElement) {
         card-editor[active] {
           display:block;
           width:100%;
-          /*TODO: this is a total hack. I don't know why flex-grow:1 doesn't do the right thing.*/
-          height: 300px;
+          flex-grow: 1;
+		  min-height: 300px;
         }
 
 		[slot=tags] {
