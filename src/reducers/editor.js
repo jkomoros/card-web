@@ -22,6 +22,8 @@ import {
 	EDITING_EXTRACT_LINKS,
 	EDITING_EDITOR_ADDED,
 	EDITING_EDITOR_REMOVED,
+	EDITING_COLLABORATOR_ADDED,
+	EDITING_COLLABORATOR_REMOVED,
 
 	TAB_CONTENT,
 } from '../actions/editor.js';
@@ -186,6 +188,18 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: {...state.card, editors: arrayRemove(state.card.editors, [action.editor])}
+		};
+	case EDITING_COLLABORATOR_ADDED:
+		if (!state.card) return state;
+		return {
+			...state,
+			card: {...state.card, collaborators: arrayUnion(state.card.collaborators, [action.collaborator])}
+		};
+	case EDITING_COLLABORATOR_REMOVED:
+		if (!state.card) return state;
+		return {
+			...state,
+			card: {...state.card, collaborators: arrayRemove(state.card.collaborators, [action.collaborator])}
 		};
 	case EDITING_SKIPPED_LINK_INBOUND_ADDED:
 		if (!state.card) return state;

@@ -21,6 +21,8 @@ export const EDITING_SKIPPED_LINK_INBOUND_REMOVED = 'EDITING_SKIPPED_LINK_INBOUN
 export const EDITING_EXTRACT_LINKS = 'EDITING_EXTRACT_LINKS';
 export const EDITING_EDITOR_ADDED = 'EDITING_EDITOR_ADDED';
 export const EDITING_EDITOR_REMOVED = 'EDITING_EDITOR_REMOVED';
+export const EDITING_COLLABORATOR_ADDED = 'EDITING_COLLABORATOR_ADDED';
+export const EDITING_COLLABORATOR_REMOVED = 'EDITING_COLLABORATOR_REMOVED';
 
 export const TAB_CONTENT = 'content';
 export const TAB_NOTES = 'notes';
@@ -374,5 +376,19 @@ export const editorRemoved = (editorUid) => {
 	return {
 		type: EDITING_EDITOR_REMOVED,
 		editor:editorUid
+	};
+};
+
+export const collaboratorAdded = (collaboratorUid) => {
+	return {
+		type: EDITING_COLLABORATOR_ADDED,
+		collaborator:collaboratorUid
+	};
+};
+
+export const collaboratorRemoved = (collaboratorUid) => {
+	return {
+		type: EDITING_COLLABORATOR_REMOVED,
+		collaborator:collaboratorUid
 	};
 };
