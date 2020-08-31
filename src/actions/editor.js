@@ -49,6 +49,10 @@ import {
 	normalizeBodyHTML
 } from '../contenteditable.js';
 
+import {
+	createAuthorStub
+} from './comments.js';
+
 let lastReportedSelectionRange = null;
 //TODO: figure out a pattenr that doesn't have a single shared global
 let savedSelectionRange = null;
@@ -383,6 +387,11 @@ export const editorRemoved = (editorUid) => {
 	};
 };
 
+export const manualEditorAdded = (editorUid) => {
+	createAuthorStub(editorUid);
+	return editorAdded(editorUid);
+};
+
 export const collaboratorAdded = (collaboratorUid) => {
 	return {
 		type: EDITING_COLLABORATOR_ADDED,
@@ -395,4 +404,9 @@ export const collaboratorRemoved = (collaboratorUid) => {
 		type: EDITING_COLLABORATOR_REMOVED,
 		collaborator:collaboratorUid
 	};
+};
+
+export const manualCollaboratorAdded = (collaboratorUid) => {
+	createAuthorStub(collaboratorUid);
+	return collaboratorAdded(collaboratorUid);
 };

@@ -535,6 +535,16 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(db.collection(AUTHORS_COLLECTION).doc(sallyUid).set({bob:true}));
 	});
 
+	it('admins may modify others author object, but only if they don\'t set any keys', async() => {
+		const db = authedApp(adminAuth);
+		await firebase.assertSucceeds(db.collection(AUTHORS_COLLECTION).doc('newUid').set({}, {merge: true}));
+	});
+
+	it('admins may not modify others author object if they set any keys', async() => {
+		const db = authedApp(adminAuth);
+		await firebase.assertFails(db.collection(AUTHORS_COLLECTION).doc('newUid').set({bob:true}, {merge: true}));
+	});
+
 	it('users may modify their own user object', async() => {
 		const db = authedApp(bobAuth);
 		await firebase.assertSucceeds(db.collection(USERS_COLLECTION).doc(bobUid).set({bob:true}));

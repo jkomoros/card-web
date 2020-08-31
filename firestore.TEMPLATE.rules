@@ -209,7 +209,16 @@ service cloud.firestore {
     
     match /authors/{author} {
       allow read: if userMayViewApp();
-      allow write: if request.auth.uid == author;
+      //Allow authors to write their own author entry, or any admin to create a
+      //stub placeholder to be filled in later. The user must be an admin
+      //because a) they need to know the uid, which implies access to the
+      //firebase auth console anyway, and secondarily, anyone who can edit any
+      //card can note editors, and there's no good way to detect that, so this
+      //would be left open to anyeone, which would mean anyone could compell a
+      //user to divulge their displayName and photoURL to the public when they
+      //next visited.
+      allow create: if request.auth.uid == author || (userIsAdmin() && request.resource.data.size() == 0)
+      allow write: if request.auth.uid == author || (userIsAdmin() && request.resource.data.diff(resource.data).affectedKeys().size() == 0);
     }
 
     match /users/{user} {

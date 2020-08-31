@@ -18,7 +18,9 @@ import {
 	selectEditingCard,
 	selectEditingCardAutoTodos,
 	selectEditingCardSuggestedTags,
-	selectAuthorsForTagList
+	selectAuthorsForTagList,
+	selectUserIsAdmin,
+	selectTagInfosForCards
 } from '../selectors.js';
 
 import {
@@ -48,7 +50,9 @@ import {
 	editorAdded,
 	editorRemoved,
 	collaboratorAdded,
-	collaboratorRemoved
+	collaboratorRemoved,
+	manualEditorAdded,
+	manualCollaboratorAdded
 } from '../actions/editor.js';
 
 import {
@@ -74,7 +78,6 @@ import {
 } from '../filters.js';
 
 import './tag-list.js';
-import { selectTagInfosForCards } from '../selectors';
 
 class CardEditor extends connect(store)(LitElement) {
 	render() {
@@ -286,11 +289,11 @@ class CardEditor extends connect(store)(LitElement) {
 		  </div>
 		  <div>
 			<label>Editors</label>
-			<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.editors} .editing=${true} @remove-tag=${this._handleRemoveEditor} @add-tag=${this._handleAddEditor} .disableNew=${true}></tag-list>
+			<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.editors} .editing=${true} @remove-tag=${this._handleRemoveEditor} @add-tag=${this._handleAddEditor} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewEditor}></tag-list>
 		  </div>
 		  <div>
 			<label>Collaborators</label>
-			<tag-list .overrideTypeName=${'Collaborator'} .tagInfos=${this._authors} .tags=${this._card.collaborators} .editing=${true} @remove-tag=${this._handleRemoveCollaborator} @add-tag=${this._handleAddCollaborator} .disableNew=${true}></tag-list>
+			<tag-list .overrideTypeName=${'Collaborator'} .tagInfos=${this._authors} .tags=${this._card.collaborators} .editing=${true} @remove-tag=${this._handleRemoveCollaborator} @add-tag=${this._handleAddCollaborator} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewCollaborator}></tag-list>
 		  </div>
 		  <div class='flex'>
 		  </div>
@@ -326,6 +329,7 @@ class CardEditor extends connect(store)(LitElement) {
 		_underlyingCard: {type:Object},
 		_suggestedTags: { type: Array},
 		_authors: { type:Object },
+		_isAdmin: { type:Boolean },
 	};}
 
 	stateChanged(state) {
@@ -341,6 +345,7 @@ class CardEditor extends connect(store)(LitElement) {
 		//skip the expensive selector if we're not active
 		this._suggestedTags = this._active ? selectEditingCardSuggestedTags(state) : [];
 		this._authors = selectAuthorsForTagList(state);
+		this._isAdmin = selectUserIsAdmin(state);
 	}
 
 	shouldUpdate() {
@@ -383,12 +388,33 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(editorRemoved(e.detail.tag));
 	}
 
+	_handleNewEditor() {
+		this._addNewEditorOrCollaborator(true);
+	}
+
 	_handleAddCollaborator(e) {
 		store.dispatch(collaboratorAdded(e.detail.tag));
 	}
 
 	_handleRemoveCollaborator(e) {
 		store.dispatch(collaboratorRemoved(e.detail.tag));
+	}
+
+	_handleNewCollaborator() {
+		this._addNewEditorOrCollaborator(false);
+	}
+
+	_addNewEditorOrCollaborator(isEditor) {
+		const uid = prompt('What is the uid of the user to add? You can get this from the firebase authentication console.');
+		if (!uid) {
+			console.log('No uid provided');
+			return;
+		}
+		if (isEditor) {
+			store.dispatch(manualEditorAdded(uid));
+		} else {
+			store.dispatch(manualCollaboratorAdded(uid));
+		}
 	}
 
 	_handleAddSkippedLinkInbound(e) {

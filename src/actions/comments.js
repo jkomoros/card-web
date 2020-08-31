@@ -6,6 +6,7 @@ export const COMMENTS_UPDATE_CARD_THREADS = 'COMMENTS_UPDATE_CARD_THREADS';
 
 import {
 	db,
+	firebase,
 	AUTHORS_COLLECTION,
 	THREADS_COLLECTION,
 	MESSAGES_COLLECTION,
@@ -22,13 +23,12 @@ import {
 } from '../selectors.js';
 
 import {
-	firebase
-} from './database.js';
-
-import {
 	randomString
 } from '../util.js';
-import { refreshCommentRedirect } from './app.js';
+
+import {
+	refreshCommentRedirect
+} from './app.js';
 
 export const ensureAuthor = (batch, user) => {
 	batch.set(db.collection(AUTHORS_COLLECTION).doc(user.uid), {
@@ -36,6 +36,17 @@ export const ensureAuthor = (batch, user) => {
 		photoURL: user.photoURL,
 		displayName: user.displayName
 	});
+};
+
+export const createAuthorStub = (uid) => {
+	//useful if you want to create an author stub to be filled in by that user
+	//when they next login, for example to manually add an editor or
+	//collaborator to a card.
+	let batch = db.batch();
+	//By using set with merge:true, if it already exists, we won't overwrite any
+	//fields, but will ensure a stub exists.
+	batch.set(db.collection(AUTHORS_COLLECTION).doc(uid), {}, {merge:true});
+	batch.commit();
 };
 
 export const resolveThread = (thread) => (dispatch, getState) => {
