@@ -229,7 +229,14 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 	if (update.add_editors || update.remove_editors) {
 		let editors = card.editors;
 		if (update.remove_editors) editors = arrayRemove(editors, update.remove_editors);
-		if (update.add_editors) editors = arrayUnion(editors, update.add_editors);
+		if (update.add_editors) {
+			if (!confirm('You\'ve added editors. Those users will be able to edit this card. OK?')) {
+				console.log('User aborted because didn\'t confirm editing');
+				dispatch(modifyCardFailure());
+				return;
+			}
+			editors = arrayUnion(editors, update.add_editors);
+		}
 		cardUpdateObject.editors = editors;
 	}
 
