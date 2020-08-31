@@ -105,6 +105,8 @@ const LEGAL_UPDATE_FIELDS = new Map([
 	['remove_skipped_link_inbound', true],
 	['add_editors', true],
 	['remove_editors', true],
+	['add_collaborators', true],
+	['remove_collaborators', true],
 	['addTags', true],
 	['removeTags', true],
 	['published', true]
@@ -238,6 +240,13 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 			editors = arrayUnion(editors, update.add_editors);
 		}
 		cardUpdateObject.editors = editors;
+	}
+
+	if (update.add_collaborators || update.remove_collaborators) {
+		let collaborators = card.collaborators;
+		if (update.remove_collaborators) collaborators = arrayRemove(collaborators, update.remove_collaborators);
+		if (update.add_collaborators) collaborators = arrayUnion(collaborators, update.add_collaborators);
+		cardUpdateObject.collaborators = collaborators;
 	}
 
 	if (update.auto_todo_overrides_enablements || update.auto_todo_overrides_disablements || update.auto_todo_overrides_removals) {

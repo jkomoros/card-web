@@ -157,6 +157,10 @@ export const editingCommit = () => (dispatch, getState) => {
 	if (editorAdditions.length) update.add_editors = editorAdditions;
 	if (editorDeletions.length) update.remove_editors = editorDeletions;
 
+	let [collaboratorAdditions, collaboratorDeletions] = arrayDiff(underlyingCard.collaborators || [], updatedCard.collaborators || []);
+	if (collaboratorAdditions.length) update.add_collaborators = collaboratorAdditions;
+	if (collaboratorDeletions.length) update.remove_collaborators = collaboratorDeletions;
+
 	//modifyCard will fail if the update is a no-op.
 	dispatch(modifyCard(underlyingCard, update, state.editor.substantive));
 
