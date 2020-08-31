@@ -245,7 +245,7 @@ export const updatePermissions = (uid) => async (dispatch) => {
 	});
 };
 
-export const signInSuccess = (firebaseUser, store) => (dispatch) => {
+export const signInSuccess = (firebaseUser) => (dispatch) => {
 
 	//Note that even when this is done, selectUserSignedIn might still return
 	//false, if the user is signed in anonymously.
@@ -257,9 +257,9 @@ export const signInSuccess = (firebaseUser, store) => (dispatch) => {
 	dispatch(saveUserInfo());
 	flagHasPreviousSignIn();
 	dispatch(updatePermissions(firebaseUser.uid));
-	connectLiveStars(store,firebaseUser.uid);
-	connectLiveReads(store,firebaseUser.uid);
-	connectLiveReadingList(store,firebaseUser.uid);
+	connectLiveStars(firebaseUser.uid);
+	connectLiveReads(firebaseUser.uid);
+	connectLiveReadingList(firebaseUser.uid);
 };
 
 const _userInfo = (info) => {

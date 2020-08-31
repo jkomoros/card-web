@@ -365,12 +365,12 @@ class MainView extends connect(store)(LitElement) {
 	}
 
 	_connectViewAppData() {
-		connectLivePublishedCards(store);
-		connectLiveSections(store);
-		connectLiveTags(store);
-		connectLiveAuthors(store);
-		connectLiveThreads(store);
-		connectLiveMessages(store);
+		connectLivePublishedCards();
+		connectLiveSections();
+		connectLiveTags();
+		connectLiveAuthors();
+		connectLiveThreads();
+		connectLiveMessages();
 	}
 
 	_updatePreviewSize() {
@@ -462,7 +462,7 @@ class MainView extends connect(store)(LitElement) {
 	updated(changedProps) {
 		if (changedProps.has('_mayViewUnpublished')) {
 			if (this._mayViewUnpublished) {
-				connectLiveUnpublishedCards(store);
+				connectLiveUnpublishedCards();
 			} else {
 				//TODO: disconnectLiveUnpublishedCards here.
 			}

@@ -10,6 +10,10 @@ import {
 	FIREBASE_REGION
 } from '../../config.GENERATED.SECRET.js';
 
+import {
+	store
+} from '../store.js';
+
 export const firebase = firebaseImpl;
 
 export let DEV_MODE = false;
@@ -87,7 +91,7 @@ export const slugLegal = async (newSlug) => {
 	return result.data;
 };
 
-export const connectLiveMessages = (store) => {
+export const connectLiveMessages = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
 	//Deliberately DO fetch deleted messages, so we can render stubs for them.
 	db.collection(MESSAGES_COLLECTION).onSnapshot(snapshot => {
@@ -105,7 +109,7 @@ export const connectLiveMessages = (store) => {
 	});
 };
 
-export const connectLiveThreads = (store) => {
+export const connectLiveThreads = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
 	db.collection(THREADS_COLLECTION).where('deleted', '==', false).where('resolved', '==', false).onSnapshot(snapshot => {
 		let threads = {};
@@ -138,7 +142,7 @@ export const disconnectLiveStars = () => {
 	}
 };
 
-export const connectLiveStars = (store, uid) => {
+export const connectLiveStars = (uid) => {
 	disconnectLiveStars();
 	liveStarsUnsubscribe = db.collection(STARS_COLLECTION).where('owner', '==', uid).onSnapshot( snapshot => {
 		let starsToAdd = [];
@@ -162,7 +166,7 @@ export const disconnectLiveReads = () => {
 	}
 };
 
-export const connectLiveReads = (store, uid) => {
+export const connectLiveReads = (uid) => {
 	disconnectLiveReads();
 	liveReadsUnsubscribe = db.collection(READS_COLLECTION).where('owner', '==', uid).onSnapshot( snapshot => {
 		let readsToAdd = [];
@@ -186,7 +190,7 @@ export const disconnectLiveReadingList = () => {
 	}
 };
 
-export const connectLiveReadingList = (store, uid) => {
+export const connectLiveReadingList = (uid) => {
 	disconnectLiveReadingList();
 	liveReadingListUnsubscribe = db.collection(READING_LISTS_COLLECTION).where('owner', '==', uid).onSnapshot( snapshot => {
 		let list = [];
@@ -201,7 +205,7 @@ export const connectLiveReadingList = (store, uid) => {
 	});
 };
 
-export const connectLiveAuthors = (store) => {
+export const connectLiveAuthors = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
 	db.collection(AUTHORS_COLLECTION).onSnapshot(snapshot => {
 
@@ -221,7 +225,7 @@ export const connectLiveAuthors = (store) => {
 	});
 };
 
-export const connectLivePublishedCards = (store) => {
+export const connectLivePublishedCards = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
 	db.collection(CARDS_COLLECTION).where('published', '==', true).onSnapshot(snapshot => {
 
@@ -242,7 +246,7 @@ export const connectLivePublishedCards = (store) => {
 	});
 };
 
-export const connectLiveUnpublishedCards = (store) => {
+export const connectLiveUnpublishedCards = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
 	db.collection(CARDS_COLLECTION).where('published', '==', false).onSnapshot(snapshot => {
 
@@ -263,7 +267,7 @@ export const connectLiveUnpublishedCards = (store) => {
 	});
 };
 
-export const connectLiveSections = (store) => {
+export const connectLiveSections = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
 	db.collection(SECTIONS_COLLECTION).orderBy('order').onSnapshot(snapshot => {
 
@@ -283,7 +287,7 @@ export const connectLiveSections = (store) => {
 	});
 };
 
-export const connectLiveTags = (store) => {
+export const connectLiveTags = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
 	db.collection(TAGS_COLLECTION).onSnapshot(snapshot => {
 
