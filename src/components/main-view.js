@@ -30,10 +30,6 @@ store.addReducers({
 });
 
 import {
-	DEV_MODE,
-} from '../actions/database.js';
-
-import {
 	getDefaultCardIdForSection
 } from '../reducers/data.js';
 
@@ -54,9 +50,11 @@ import {
 	selectUserMayViewApp,
 	selectUserPermissionsFinal,
 	selectKeyboardNavigates,
+	selectUid
 } from '../selectors.js';
 
-import { 
+import {
+	DEV_MODE,
 	connectLivePublishedCards,
 	connectLiveUnpublishedCards,
 	connectLiveSections,
@@ -64,6 +62,7 @@ import {
 	connectLiveAuthors,
 	connectLiveThreads,
 	connectLiveMessages,
+	connectLiveUnpublishedCardsForUser,
 } from '../actions/database.js';
 
 import {
@@ -342,6 +341,7 @@ class MainView extends connect(store)(LitElement) {
 			_mayViewUnpublished : { type:Boolean },
 			_mayViewApp: { type:Boolean },
 			_userPermissionsFinal: { type:Boolean },
+			_uid : { type:String },
 		};
 	}
 
@@ -457,6 +457,7 @@ class MainView extends connect(store)(LitElement) {
 		this._mayViewUnpublished = selectUserMayViewUnpublished(state);
 		this._mayViewApp = selectUserMayViewApp(state);
 		this._userPermissionsFinal = selectUserPermissionsFinal(state);
+		this._uid = selectUid(state);
 	}
 
 	updated(changedProps) {
@@ -466,6 +467,9 @@ class MainView extends connect(store)(LitElement) {
 			} else {
 				//TODO: disconnectLiveUnpublishedCards here.
 			}
+		}
+		if (changedProps.has('_uid')) {
+			connectLiveUnpublishedCardsForUser(this._uid);
 		}
 		if (changedProps.has('_mayViewApp')) {
 			if (this._mayViewApp) {

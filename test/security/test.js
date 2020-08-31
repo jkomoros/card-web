@@ -44,6 +44,8 @@ const anonAuth = {...anonBaseAuth, uid: anonUid, email: ''};
 
 const cardId = 'card';
 const unpublishedCardId = 'unpublished-card';
+const unpublishedCardIdSallyAuthor = 'unpublished-card-sally-author';
+const unpublishedCardIdSallyEditor = 'unpublished-card-sally-editor';
 const cardThreadCount = 10;
 const cardThreadResolvedCount = 5;
 const cardStarCount = 7;
@@ -82,6 +84,28 @@ async function setupDatabase() {
 	await db.collection(CARDS_COLLECTION).doc(unpublishedCardId).set({
 		body: 'this is the body',
 		title: 'this is the title',
+		thread_count: cardThreadCount,
+		thread_resolved_count: cardThreadResolvedCount,
+		star_count: cardStarCount,
+		star_count_manual: cardStarCount,
+		published: false,
+	});
+
+	await db.collection(CARDS_COLLECTION).doc(unpublishedCardIdSallyAuthor).set({
+		body: 'this is the body',
+		title: 'this is the title',
+		editors: [sallyUid],
+		thread_count: cardThreadCount,
+		thread_resolved_count: cardThreadResolvedCount,
+		star_count: cardStarCount,
+		star_count_manual: cardStarCount,
+		published: false,
+	});
+
+	await db.collection(CARDS_COLLECTION).doc(unpublishedCardIdSallyEditor).set({
+		body: 'this is the body',
+		title: 'this is the title',
+		author: sallyUid,
 		thread_count: cardThreadCount,
 		thread_resolved_count: cardThreadResolvedCount,
 		star_count: cardStarCount,
@@ -188,6 +212,18 @@ describe('Compendium Rules', () => {
 		const db = authedApp(adminAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardId);
 		await firebase.assertSucceeds(card.get());
+	});
+
+	it ('allows users to view unpublished card they are an author of even without viewUnpublished permission', async() => {
+		const db = authedApp(sallyAuth);
+		const query = db.collection(CARDS_COLLECTION).where('published', '==', false).where('author', '==', sallyUid);
+		await firebase.assertSucceeds(query.get());
+	});
+
+	it ('allows users to view unpublished card they are listed as editor of even without viewUnpublished permission', async() => {
+		const db = authedApp(sallyAuth);
+		const query = db.collection(CARDS_COLLECTION).where('published', '==', false).where('editors', 'array-contains', sallyUid);
+		await firebase.assertSucceeds(query.get());
 	});
 
 	it('allows admins to create a card', async() => {

@@ -248,8 +248,31 @@ export const connectLivePublishedCards = () => {
 	db.collection(CARDS_COLLECTION).where('published', '==', true).onSnapshot(cardSnapshotReceiver);
 };
 
+let liveUnpublishedCardsForUserAuthorUnsubscribe = null;
+let liveUnpublishedCardsForUserEditorUnsubscribe = null;
+
+export const connectLiveUnpublishedCardsForUser = (uid) => {
+	if (!selectUserMayViewApp(store.getState())) return;
+	disconnectLiveUnpublishedCardsForUser();
+	if (!uid) return;
+	liveUnpublishedCardsForUserAuthorUnsubscribe = db.collection(CARDS_COLLECTION).where('author', '==', uid).where('published', '==', false).onSnapshot(cardSnapshotReceiver);
+	liveUnpublishedCardsForUserEditorUnsubscribe = db.collection(CARDS_COLLECTION).where('editors', 'array-contains', uid).where('published', '==', false).onSnapshot(cardSnapshotReceiver);
+};
+
+const disconnectLiveUnpublishedCardsForUser = () => {
+	if (liveUnpublishedCardsForUserAuthorUnsubscribe) {
+		liveUnpublishedCardsForUserAuthorUnsubscribe();
+		liveUnpublishedCardsForUserAuthorUnsubscribe = null;
+	}
+	if (liveUnpublishedCardsForUserEditorUnsubscribe) {
+		liveUnpublishedCardsForUserEditorUnsubscribe();
+		liveUnpublishedCardsForUserEditorUnsubscribe = null;
+	}
+};
+
 export const connectLiveUnpublishedCards = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
+	disconnectLiveUnpublishedCardsForUser();
 	db.collection(CARDS_COLLECTION).where('published', '==', false).onSnapshot(cardSnapshotReceiver);
 };
 
