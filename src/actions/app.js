@@ -81,6 +81,8 @@ const DEFAULT_CARD = 'section-half-baked';
 //if silent is true, then just passively updates the URL to reflect what it should be.
 export const navigatePathTo = (path, silent) => (dispatch, getState) => {
 	const state = getState();
+	//If we're already pointed there, no need to navigate
+	if ('/' + path === window.location.pathname) return;
 	if (state.editor.editing) {
 		console.log('Can\'t navigate while editing');
 		return;
