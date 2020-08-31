@@ -499,6 +499,12 @@ describe('Compendium Rules', () => {
 		await firebase.assertSucceeds(section.set({bar: 3}));
 	});
 
+	it('allows users with edit privileges to set sections collection', async() => {
+		const db = authedApp(jerryAuth);
+		const section = db.collection(SECTIONS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(section.set({bar: 3}));
+	});
+
 	it('disallows everyone to set sections collection', async() => {
 		const db = authedApp(bobAuth);
 		const section = db.collection(SECTIONS_COLLECTION).doc(cardId);
@@ -513,6 +519,12 @@ describe('Compendium Rules', () => {
 
 	it('allows admin to set section updates collection', async() => {
 		const db = authedApp(adminAuth);
+		const update = db.collection(SECTIONS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
+		await firebase.assertSucceeds(update.set({bar: 3}));
+	});
+
+	it('allows users with edit privileges to set section updates collection', async() => {
+		const db = authedApp(jerryAuth);
 		const update = db.collection(SECTIONS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
 		await firebase.assertSucceeds(update.set({bar: 3}));
 	});

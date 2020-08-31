@@ -88,6 +88,10 @@ service cloud.firestore {
       return userIsAdmin() || getPermission('edit') || request.auth.uid in get(/databases/$(database)/documents/cards/$(cardID)).data.editors;
     }
 
+    function userMayEditSection(sectionID) {
+      return userIsAdmin() || getPermission('edit');
+    }
+
     function userMayComment() {
       return userIsAdmin() || getPermission('comment');
     }
@@ -191,10 +195,10 @@ service cloud.firestore {
 
     match /sections/{section} {
       allow read: if userMayViewApp();
-      allow write: if userIsAdmin();
+      allow write: if userMayEditSection(section);
 
       match /updates/{update} {
-        allow read, write: if userIsAdmin();
+        allow read, write: if userMayEditSection(section);
       }
     }
 
