@@ -720,11 +720,34 @@ export const updateSections = (sections) => (dispatch, getState) => {
 	dispatch(refreshCardSelector(force));
 };
 
-export const updateAuthors = (authors) => {
-	return {
+export const updateAuthors = (authors) => (dispatch, getState) => {
+
+	const state = getState();
+
+	const user = selectUser(state);
+
+	if (user && user.uid) {
+		const authorRec = authors[user.uid];
+		if (authorRec) {
+			if ((!authorRec.displayName || !authorRec.photoURL) && (user.displayName || user.photoURL)) {
+				//there's an author rec for our user, but it's missing
+				//displayName or photoURL, and we have them. This could happen
+				//if a user was manually listed as a collaborator or editor
+				//without already being in the authors table. We should ensure
+				//author!
+				console.log('Saving extra author information because our authors rec was missing it');
+				let batch = db.batch();
+				ensureAuthor(batch, user);
+				//don't need to wait for it resolve
+				batch.commit();
+			}
+		}
+	}
+
+	dispatch({
 		type: UPDATE_AUTHORS,
 		authors
-	};
+	});
 };
 
 export const updateTags = (tags) => (dispatch) => {
