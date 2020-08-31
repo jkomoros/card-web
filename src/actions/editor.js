@@ -151,6 +151,10 @@ export const editingCommit = () => (dispatch, getState) => {
 	if (skippedLinksInboundAdditions.length) update.add_skipped_link_inbound = skippedLinksInboundAdditions;
 	if (skippedLinksInboundDeletions.length) update.remove_skipped_link_inbound = skippedLinksInboundDeletions;
 	
+	let [editorAdditions, editorDeletions] = arrayDiff(underlyingCard.editors || [], updatedCard.editors || []);
+	if (editorAdditions.length) update.add_editors = editorAdditions;
+	if (editorDeletions.length) update.remove_editors = editorDeletions;
+
 	//modifyCard will fail if the update is a no-op.
 	dispatch(modifyCard(underlyingCard, update, state.editor.substantive));
 
