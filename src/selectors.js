@@ -745,6 +745,13 @@ export const selectActiveSectionId = createSelector(
 	}
 );
 
+//Only true if there is actually an active section to edit--that is, a singluar section.
+export const selectUserMayEditActiveSection = createSelector(
+	selectUserMayEdit,
+	selectActiveSectionId,
+	(userMayEdit, sectionID) => sectionID != '' && userMayEdit
+);
+
 const recentTabCollectionDescription = new CollectionDescription('', ['has-content'], RECENT_SORT_NAME, false);
 const readingListTabCollectionDescription = new CollectionDescription(READING_LIST_SET_NAME);
 const starsTabCollectionDescription = new CollectionDescription('', ['starred']);
