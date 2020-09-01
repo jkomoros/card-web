@@ -259,6 +259,12 @@ const selectUserMayEditSections = createSelector(
 	(userMayEdit, permissions) => userMayEdit || permissions.editSection
 );
 
+export const selectUserMayCreateCard = createSelector(
+	selectUserMayEdit,
+	selectComposedPermissions,
+	(userMayEdit, permissions) => userMayEdit || permissions.createCard
+);
+
 export const selectUserMayComment = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,

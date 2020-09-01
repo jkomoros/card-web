@@ -92,6 +92,10 @@ service cloud.firestore {
       return userIsAdmin() || getPermission('edit') || getPermission('editSection');
     }
 
+    function userMayCreateCard() {
+      return userIsAdmin() || getPermission('edit') || getPermission('createCard');
+    }
+
     function userMayComment() {
       return userIsAdmin() || getPermission('comment');
     }
@@ -232,7 +236,7 @@ service cloud.firestore {
     
     match /cards/{card} {
       allow read: if userMayViewApp() && (resource.data.published == true || userMayViewUnpublished());
-      allow create: if userIsAdmin() && createIsAuthor();
+      allow create: if userMayCreateCard() && createIsAuthor();
       allow update: if cardEditMinor() || userMayEditCard(card);
     
       match /updates/{update} {

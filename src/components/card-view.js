@@ -37,7 +37,8 @@ import {
 	selectEditingCard,
 	selectActiveCardTodosForCurrentUser,
 	selectCommentsAndInfoPanelOpen,
-	selectUserMayEditActiveCard
+	selectUserMayEditActiveCard,
+	selectUserMayCreateCard
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -216,7 +217,7 @@ class CardView extends connect(store)(PageViewElement) {
         }
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer .showing=${this._cardsDrawerPanelShowing} .labels=${this._collectionLabels} .labelName=${this._collectionLabelName} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' .editable=${this._userMayEditActiveSection} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .collectionItemsToGhost=${this._collectionItemsThatWillBeRemovedOnPendingFilterCommit}></card-drawer>
+        <card-drawer .showing=${this._cardsDrawerPanelShowing} .labels=${this._collectionLabels} .labelName=${this._collectionLabelName} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' .editable=${this._userMayEditActiveSection} .suppressAdd=${!this._userMayCreateCard} .collection=${this._collection} .selectedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .collectionItemsToGhost=${this._collectionItemsThatWillBeRemovedOnPendingFilterCommit}></card-drawer>
         <div id='center'>
 			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .mobile=${this._mobileMode} .card=${this._displayCard} .bodyFromContentEditable=${this._bodyFromContentEditable} .titleFromContentEditable=${this._titleFromContentEditable} @body-updated=${this._handleBodyUpdated} @title-updated=${this._handleTitleUpdated} @card-swiped=${this._handleCardSwiped}>
 				<div slot='actions' class='presentation'>
@@ -260,6 +261,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_pageExtra: {type: String},
 			_userMayEdit: { type: Boolean },
 			_userMayEditActiveSection: {type: Boolean},
+			_userMayCreateCard: { type: Boolean },
 			_userMayStar: { type: Boolean },
 			_userMayMarkRead: { type: Boolean },
 			_userMayModifyReadingList: { type: Boolean},
@@ -422,6 +424,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._autoMarkReadPending = state.user.autoMarkReadPending;
 		this._userMayEdit = selectUserMayEditActiveCard(state);
 		this._userMayEditActiveSection = selectUserMayEditActiveSection(state);
+		this._userMayCreateCard = selectUserMayCreateCard(state);
 		this._headerPanelOpen = state.app.headerPanelOpen;
 		this._commentsAndInfoPanelOpen = selectCommentsAndInfoPanelOpen(state);
 		//Note: do NOT use this for whether the panel is showing.

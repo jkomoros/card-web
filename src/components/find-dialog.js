@@ -27,8 +27,13 @@ import {
 } from '../actions/editor.js';
 
 import {
+	createCard
+} from '../actions/data.js';
+
+import {
 	selectExpandedRankedCollectionForQuery,
 	selectPartialMatchedItemsForQuery,
+	selectUserMayCreateCard
 } from '../selectors.js';
 
 import { 
@@ -45,8 +50,6 @@ import {
 	newID, 
 	capitalizeFirstLetter
 } from '../util.js';
-
-import { createCard } from '../actions/data.js';
 
 class FindDialog extends connect(store)(DialogElement) {
 	innerRender() {
@@ -81,7 +84,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		<div ?hidden=${!this._linking} class='add'>
 			<button ?hidden=${!isLink} class='round' @click='${this._handleRemoveLink}' title='Remove the current link'>${LINK_OFF_ICON}</button>
 			<button class='round' @click='${this._handleAddLink}' title='Link to a URL, not a card'>${LINK_ICON}</button>
-			<button class='round' @click='${this._handleAddSlide}' title='Create a new stub card to link to'>${PLUS_ICON}</button>
+			<button class='round' @click='${this._handleAddSlide}' title='Create a new stub card to link to' ?hidden=${!this._userMayCreateCard}>${PLUS_ICON}</button>
 		</div>
 	`;
 	}
@@ -155,6 +158,7 @@ class FindDialog extends connect(store)(DialogElement) {
 			_collection: {type:Array},
 			_linking: {type:Boolean},
 			_partialMatches: {type:Object},
+			_userMayCreateCard: {type:Boolean},
 		};
 	}
 
@@ -175,6 +179,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._collection = selectExpandedRankedCollectionForQuery(state);
 		this._partialMatches = selectPartialMatchedItemsForQuery(state);
 		this._linking = state.find.linking;
+		this._userMayCreateCard = selectUserMayCreateCard(state);
 	}
 
 }

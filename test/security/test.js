@@ -245,6 +245,19 @@ describe('Compendium Rules', () => {
 		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:adminUid}));
 	});
 
+	it('allows users with edit permission to create a card', async() => {
+		const db = authedApp(jerryAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
+		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:jerryUid}));
+	});
+
+	it('allows users with createCard permission to create a card', async() => {
+		const db = authedApp(genericAuth);
+		await addPermissionForUser(genericUid, 'createCard');
+		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
+		await firebase.assertSucceeds(card.set({tile:'foo', body:'foo', author:genericUid}));
+	});
+
 	it('disallows admins to create a card they aren\'t author of', async() => {
 		const db = authedApp(adminAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId + 'new');
@@ -545,6 +558,13 @@ describe('Compendium Rules', () => {
 
 	it('allows users with edit privileges to set section updates collection', async() => {
 		const db = authedApp(jerryAuth);
+		const update = db.collection(SECTIONS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
+		await firebase.assertSucceeds(update.set({bar: 3}));
+	});
+
+	it('allows users with editSection privileges to set section updates collection', async() => {
+		const db = authedApp(genericAuth);
+		await addPermissionForUser(genericUid, 'editSection');
 		const update = db.collection(SECTIONS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
 		await firebase.assertSucceeds(update.set({bar: 3}));
 	});

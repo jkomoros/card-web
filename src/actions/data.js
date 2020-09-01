@@ -60,7 +60,8 @@ import {
 	selectDataIsFullyLoaded,
 	selectUserMayEditActiveCard,
 	selectLastSectionID,
-	getUserMayEditSection
+	getUserMayEditSection,
+	selectUserMayCreateCard
 } from '../selectors.js';
 
 import {
@@ -655,8 +656,8 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		return;
 	}
 
-	if (!selectUserIsAdmin(state)) {
-		console.log('User isn\'t admin!');
+	if (!selectUserMayCreateCard(state)) {
+		console.log('User isn\'t allowed to create card');
 		return;
 	}
 
@@ -672,12 +673,8 @@ export const createCard = (opts) => async (dispatch, getState) => {
 
 	let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
 
-	let doc = await cardDocRef.get();
-
-	if (doc.exists) {
-		console.log('Add failed: a card with that ID already exists');
-		return;
-	}
+	//TODO: do a server-side callable to verify that id is not already taken. We
+	//might not have access to it if we aren't an admin.
 
 	let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
 

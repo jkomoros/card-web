@@ -41,6 +41,10 @@ export const BASE_PERMISSIONS = {
 	//people with editSection permission can modify any section, including
 	//adding cards to them, removing cards, and reordering cards in them.
 	editSection: false,
+	//If true, then the user may create new cards that they are the author of.
+	//Note that they must also have editSection (or edit, or admin) permission
+	//in the section to add a card into.
+	createCard: false,
 	//viewUnpublished allows users with this permission to even view cards that
 	//are not published. Requires viewApp to be true to read cards in the first
 	//place. If edit is true, then this permission is implied true. Users can
