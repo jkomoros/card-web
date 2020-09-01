@@ -289,11 +289,11 @@ class CardEditor extends connect(store)(LitElement) {
 		  </div>
 		  <div>
 			<label>Editors</label>
-			<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.editors} .editing=${true} @remove-tag=${this._handleRemoveEditor} @add-tag=${this._handleAddEditor} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewEditor}></tag-list>
+			<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.editors} .editing=${true} @remove-tag=${this._handleRemoveEditor} @add-tag=${this._handleAddEditor} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewEditor} .excludeItems=${[this._card.author]}></tag-list>
 		  </div>
 		  <div>
 			<label>Collaborators</label>
-			<tag-list .overrideTypeName=${'Collaborator'} .tagInfos=${this._authors} .tags=${this._card.collaborators} .editing=${true} @remove-tag=${this._handleRemoveCollaborator} @add-tag=${this._handleAddCollaborator} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewCollaborator}></tag-list>
+			<tag-list .overrideTypeName=${'Collaborator'} .tagInfos=${this._authors} .tags=${this._card.collaborators} .editing=${true} @remove-tag=${this._handleRemoveCollaborator} @add-tag=${this._handleAddCollaborator} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewCollaborator} .excludeItems=${[this._card.author]}></tag-list>
 		  </div>
 		  <div class='flex'>
 		  </div>
