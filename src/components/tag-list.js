@@ -18,8 +18,10 @@ class TagList  extends LitElement {
 		let allTags = [];
 		if (effectiveTags && deletionsArray) allTags = [...effectiveTags, ...deletionsArray];
 		let tagInfos = this.tagInfos || {};
-		let effectiveTagsAsMap = Object.fromEntries(effectiveTags.map(item => [item, true]));
-		tagInfos = Object.fromEntries(Object.entries(tagInfos).filter(entry => !effectiveTagsAsMap[entry[0]]));
+		let excludeItemsAsMap = Object.fromEntries(effectiveTags.map(item => [item, true]));
+		let effectiveExcludeItems = this.excludeItems || [];
+		effectiveExcludeItems.forEach(item => excludeItemsAsMap[item] = true);
+		tagInfos = Object.fromEntries(Object.entries(tagInfos).filter(entry => !excludeItemsAsMap[entry[0]]));
 		return html`
 			<style>
 				select {
@@ -80,6 +82,10 @@ class TagList  extends LitElement {
 			tags: { type: Array },
 			//If set, will be considereed the uncommitted tags, and will have a diff rendered against them.
 			previousTags: {type:Array},
+			//if this list has any items, those items will be omitted from the
+			//select drop down even if they're in tagInfos and not yet in the
+			//tags list.
+			excludeItems: { type:Array },
 			//tagInfos is a map that includes objects, with an id property, a
 			//title property, and optionally a color and cardPreview property.
 			//Typically it's just the result of selectTags, but if the tag-list
