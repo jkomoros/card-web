@@ -244,6 +244,21 @@ export const selectUserMayViewUnpublished = createSelector(
 	(admin, mayViewApp, permissions) => mayViewApp && (admin || permissions.edit || permissions.viewUnpublished)
 );
 
+// eslint-disable-next-line no-unused-vars
+export const getUserMayEditSection = (state, sectionID) => {
+	if (selectUserMayEditSections(state)) return true;
+	//TODO: check if the named section has an override;
+	return false;
+};
+
+//This is a generic user-may-edit sections. A given section may explicitly allow
+//a user to edit even if the user doesn't have generic editSection permission.
+const selectUserMayEditSections = createSelector(
+	selectUserMayEdit,
+	selectComposedPermissions,
+	(userMayEdit, permissions) => userMayEdit || permissions.editSection
+);
+
 export const selectUserMayComment = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
@@ -747,10 +762,9 @@ export const selectActiveSectionId = createSelector(
 
 //Only true if there is actually an active section to edit--that is, a singluar section.
 export const selectUserMayEditActiveSection = createSelector(
-	selectUserMayEdit,
-	selectComposedPermissions,
+	selectState,
 	selectActiveSectionId,
-	(userMayEdit, permissions, sectionID) => sectionID != '' && (userMayEdit || permissions.editSection)
+	(state, sectionID) => sectionID != '' && getUserMayEditSection(state, sectionID)
 );
 
 const recentTabCollectionDescription = new CollectionDescription('', ['has-content'], RECENT_SORT_NAME, false);
