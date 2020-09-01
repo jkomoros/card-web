@@ -22,6 +22,10 @@ import {
 } from '../actions/data.js';
 
 import {
+	TWITTER_HANDLE
+} from '../../config.GENERATED.SECRET.js';
+
+import {
 	selectActiveCard,
 	selectTags,
 	getAuthorForId,
@@ -135,13 +139,14 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		: html `<p><em>No notes for this card</em></p>`
 }
 				</div>
-				<div>
-					<h4>Tweets from <a href='https://twitter.com/cardscompendium' target='_blank'>@CardsCompendium</a></h4>
+				${TWITTER_HANDLE ? 
+		html`<div>
+					<h4>Tweets from <a href='https://twitter.com/${TWITTER_HANDLE}' target='_blank'>@${TWITTER_HANDLE}</a></h4>
 					${this._tweets && Object.values(this._tweets).length
 		? html`<ul class='${this._tweetsLoading ? 'loading' : ''}'>${Object.entries(this._tweets).map(entry => this._tweet(entry[1]))}</ul>`
 		: this._tweetsLoading ? html`<em class='loading'>Loading...</em>` : html`<em>No tweets</em>` 
 }
-				</div>
+				</div>` : html``}
 				<div>
 					<h4>Tags</h4>
 					<tag-list .card=${this._card} .tags=${this._card.tags} .tagInfos=${this._tagInfos}></tag-list>

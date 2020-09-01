@@ -112,6 +112,7 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	CONFIG_JS_CONTENT += 'export const USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS=' + JSON.stringify(USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS) + ';\n';
 	CONFIG_JS_CONTENT += 'export const USER_DOMAIN="' + USER_DOMAIN + '";\n';
 	CONFIG_JS_CONTENT += 'export const FIREBASE_REGION="' + FIREBASE_REGION + '";\n';
+	CONFIG_JS_CONTENT += 'export const TWITTER_HANDLE="' + TWITTER_HANDLE + '";\n';
 	fs.writeFileSync('config.GENERATED.SECRET.js', CONFIG_JS_CONTENT);
 
 	let META_STRING = '\n    <meta name="application-name" content="' + APP_TITLE + '">\n';
