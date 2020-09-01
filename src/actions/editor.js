@@ -421,14 +421,16 @@ export const collaboratorAdded = (collaboratorUid, auto) => (dispatch, getState)
 	}
 	dispatch({
 		type: EDITING_COLLABORATOR_ADDED,
-		collaborator:collaboratorUid
+		collaborator:collaboratorUid,
+		auto
 	});
 };
 
 export const collaboratorRemoved = (collaboratorUid, auto) => {
 	return {
 		type: EDITING_COLLABORATOR_REMOVED,
-		collaborator:collaboratorUid
+		collaborator:collaboratorUid,
+		auto
 	};
 };
 
