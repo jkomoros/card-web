@@ -259,6 +259,21 @@ const selectUserMayEditSections = createSelector(
 	(userMayEdit, permissions) => userMayEdit || permissions.editSection
 );
 
+// eslint-disable-next-line no-unused-vars
+export const getUserMayEditTag = (state, tagID) => {
+	if (selectUserMayEditTags(state)) return true;
+	//TODO: check if the named tagID has an override;
+	return false;
+};
+
+//This is a generic user-may-edit sections. A given section may explicitly allow
+//a user to edit even if the user doesn't have generic editSection permission.
+const selectUserMayEditTags = createSelector(
+	selectUserMayEdit,
+	selectComposedPermissions,
+	(userMayEdit, permissions) => userMayEdit || permissions.editTag
+);
+
 export const selectUserMayCreateCard = createSelector(
 	selectUserMayEdit,
 	selectComposedPermissions,

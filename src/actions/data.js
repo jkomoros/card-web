@@ -61,6 +61,7 @@ import {
 	selectUserMayEditActiveCard,
 	selectLastSectionID,
 	getUserMayEditSection,
+	getUserMayEditTag,
 	selectUserMayCreateCard
 } from '../selectors.js';
 
@@ -230,8 +231,24 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 
 	if (update.addTags || update.removeTags) {
 		let tags = card.tags;
-		if (update.removeTags) tags = arrayRemove(tags, update.removeTags);
-		if (update.addTags) tags = arrayUnion(tags, update.addTags);
+		if (update.removeTags) {
+			for (let tag of update.removeTags) {
+				if (!getUserMayEditTag(state, tag)) {
+					console.log('User is not allowed to edit tag: ' + tag);
+					return;
+				}
+			}
+			tags = arrayRemove(tags, update.removeTags);
+		}
+		if (update.addTags) {
+			for (let tag of update.addTags) {
+				if (!getUserMayEditTag(state, tag)) {
+					console.log('User is not allowed to edit tag: ' + tag);
+					return;
+				}
+			}
+			tags = arrayUnion(tags, update.addTags);
+		}
 		cardUpdateObject.tags = tags;
 	}
 
