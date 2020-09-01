@@ -32,7 +32,8 @@ import {
 	selectActiveCard,
 	selectUserMayEditActiveCard,
 	selectEditingCard,
-	selectSections
+	selectSections,
+	selectUid
 } from '../selectors.js';
 
 import {
@@ -286,12 +287,25 @@ export const nameUpdated = (newName) => {
 	};
 };
 
-export const substantiveUpdated = (checked, auto) => {
-	return {
+export const substantiveUpdated = (checked, auto) => (dispatch, getState) => {
+
+	const state = getState();
+	const editingCard = selectEditingCard(state);
+	const uid = selectUid(state);
+	if (editingCard && uid && editingCard.author != uid) {
+		if (checked) {
+			dispatch(collaboratorAdded(uid, true));
+		} else {
+			dispatch(collaboratorRemoved(uid, true));
+		}
+	}
+
+
+	dispatch({
 		type: EDITING_SUBSTANTIVE_UPDATED,
 		checked,
 		auto
-	};
+	});
 };
 
 export const publishedUpdated = (published) => (dispatch, getState) => {
@@ -398,7 +412,7 @@ export const manualEditorAdded = (editorUid) => {
 	return editorAdded(editorUid);
 };
 
-export const collaboratorAdded = (collaboratorUid) => (dispatch, getState) => {
+export const collaboratorAdded = (collaboratorUid, auto) => (dispatch, getState) => {
 	const card = selectEditingCard(getState());
 	if (!card) return;
 	if (collaboratorUid == card.author) {
@@ -411,7 +425,7 @@ export const collaboratorAdded = (collaboratorUid) => (dispatch, getState) => {
 	});
 };
 
-export const collaboratorRemoved = (collaboratorUid) => {
+export const collaboratorRemoved = (collaboratorUid, auto) => {
 	return {
 		type: EDITING_COLLABORATOR_REMOVED,
 		collaborator:collaboratorUid
