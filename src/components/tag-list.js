@@ -18,6 +18,8 @@ class TagList  extends LitElement {
 		let allTags = [];
 		if (effectiveTags && deletionsArray) allTags = [...effectiveTags, ...deletionsArray];
 		let tagInfos = this.tagInfos || {};
+		let effectiveTagsAsMap = Object.fromEntries(effectiveTags.map(item => [item, true]));
+		tagInfos = Object.fromEntries(Object.entries(tagInfos).filter(entry => !effectiveTagsAsMap[entry[0]]));
 		return html`
 			<style>
 				select {
