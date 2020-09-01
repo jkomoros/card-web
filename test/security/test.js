@@ -495,6 +495,19 @@ describe('Compendium Rules', () => {
 		await firebase.assertSucceeds(tag.set({bar: 3}));
 	});
 
+	it('allows users with edit privileges to set tags collection', async() => {
+		const db = authedApp(jerryAuth);
+		const tag = db.collection(TAGS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(tag.set({bar: 3}));
+	});
+
+	it('allows users with editTag privilegs to set tags collection', async() => {
+		const db = authedApp(genericAuth);
+		await addPermissionForUser(genericUid, 'editTag');
+		const tag = db.collection(TAGS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(tag.set({bar: 3}));
+	});
+
 	it('disallows everyone to set tags collection', async() => {
 		const db = authedApp(bobAuth);
 		const tag = db.collection(TAGS_COLLECTION).doc(cardId);
@@ -509,6 +522,19 @@ describe('Compendium Rules', () => {
 
 	it('allows admin to set tag updates collection', async() => {
 		const db = authedApp(adminAuth);
+		const update = db.collection(TAGS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
+		await firebase.assertSucceeds(update.set({bar: 3}));
+	});
+
+	it('allows users with edit privilege to set tag updates collection', async() => {
+		const db = authedApp(jerryAuth);
+		const update = db.collection(TAGS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
+		await firebase.assertSucceeds(update.set({bar: 3}));
+	});
+
+	it('allows users with editTag privilege to set tag updates collection', async() => {
+		const db = authedApp(genericAuth);
+		await addPermissionForUser(genericUid, 'editTag');
 		const update = db.collection(TAGS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
 		await firebase.assertSucceeds(update.set({bar: 3}));
 	});

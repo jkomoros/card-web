@@ -41,6 +41,9 @@ export const BASE_PERMISSIONS = {
 	//people with editSection permission can modify any section, including
 	//adding cards to them, removing cards, and reordering cards in them.
 	editSection: false,
+	//people with editTag can modify any tag, including adding cards to them and
+	//removing cards to them.
+	editTag: false,
 	//If true, then the user may create new cards that they are the author of.
 	//Note that they must also have editSection (or edit, or admin) permission
 	//in the section to add a card into.

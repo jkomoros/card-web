@@ -92,6 +92,10 @@ service cloud.firestore {
       return userIsAdmin() || getPermission('edit') || getPermission('editSection');
     }
 
+    function userMayEditTag(tagID) {
+      return userIsAdmin() || getPermission('edit') || getPermission('editTag');
+    }
+
     function userMayCreateCard() {
       return userIsAdmin() || getPermission('edit') || getPermission('createCard');
     }
@@ -208,10 +212,10 @@ service cloud.firestore {
 
     match /tags/{tag} {
       allow read: if userMayViewApp();
-      allow write: if userIsAdmin();
+      allow write: if userMayEditTag(tag);
 
       match /updates/{update} {
-        allow read, write: if userIsAdmin();
+        allow read, write: if userMayEditTag(tag);
       }
     }
     
