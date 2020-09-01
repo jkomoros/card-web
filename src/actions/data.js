@@ -673,8 +673,13 @@ export const createCard = (opts) => async (dispatch, getState) => {
 
 	let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
 
-	//TODO: do a server-side callable to verify that id is not already taken. We
-	//might not have access to it if we aren't an admin.
+	//Check to make sure the ID is legal. Note that the id and slugs are in the
+	//same ID space, so we can reuse slugLegal.
+	const result = await slugLegal(id);
+	if (!result.legal) {
+		console.log('ID is already taken: ' + result.reason);
+		return;
+	}
 
 	let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
 
