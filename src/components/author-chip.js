@@ -15,15 +15,16 @@ class AuthorChip extends LitElement {
 					width: var(--user-image-size);
 					border-radius:calc(var(--user-image-size) / 2);
 					margin-right: calc(var(--user-image-size) / 4);
+					background-color: var(--app-dark-text-color-subtle);
 					cursor:pointer;
 				}
 				span {
-					color: var(--app-dark-text-color-light);
+					color: var(--app-dark-text-color);
 				}
 			</style>
 			<div>
-				<img src='${this.author ? this.author.photoURL : ''}'>
-				<span>${this.author ? this.author.displayName : 'Unknown user'}</span>
+				<img src='${this.author && this.author.photoURL ? this.author.photoURL : '/images/person.svg'}'>
+				<span>${this.author && this.author.displayName ? this.author.displayName : 'Unknown user'}</span>
 			</div>
 			`;
 	}
