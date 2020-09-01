@@ -274,6 +274,21 @@ const selectUserMayEditTags = createSelector(
 	(userMayEdit, permissions) => userMayEdit || permissions.editTag
 );
 
+//true if at least one of the tags returns true for getUserMayEditTag
+export const selectUserMayEditSomeTags = createSelector(
+	selectState,
+	selectTags,
+	(state, tags) => Object.keys(tags).some(id => getUserMayEditTag(state, id))
+);
+
+//returns the tag names that the user may not edit, useful for suppressItems for
+//a editing tag-list.
+export const tagsUserMayNotEdit = createSelector(
+	selectState,
+	selectTags,
+	(state, tags) => Object.keys(tags).filter(id => !getUserMayEditTag(state, id))
+);
+
 export const selectUserMayCreateCard = createSelector(
 	selectUserMayEdit,
 	selectComposedPermissions,

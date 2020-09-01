@@ -20,7 +20,9 @@ import {
 	selectEditingCardSuggestedTags,
 	selectAuthorsForTagList,
 	selectUserIsAdmin,
-	selectTagInfosForCards
+	selectTagInfosForCards,
+	selectUserMayEditSomeTags,
+	tagsUserMayNotEdit
 } from '../selectors.js';
 
 import {
@@ -255,7 +257,7 @@ class CardEditor extends connect(store)(LitElement) {
             </div>
 			<div>
 				<label>Tags</label>
-				<tag-list .tags=${this._card.tags} .previousTags=${this._underlyingCard ? this._underlyingCard.tags : null} .editing=${true} .tagInfos=${this._tagInfos} @add-tag=${this._handleAddTag} @remove-tag=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
+				<tag-list .tags=${this._card.tags} .previousTags=${this._underlyingCard ? this._underlyingCard.tags : null} .editing=${this._userMayEditSomeTags} .excludeItems=${this._tagsUserMayNotEdit} .tagInfos=${this._tagInfos} @add-tag=${this._handleAddTag} @remove-tag=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
 			</div>
 			<div>
 				<label>Suggested Tags</label>
@@ -324,6 +326,8 @@ class CardEditor extends connect(store)(LitElement) {
 		_substantive: {type: Object},
 		_selectedTab: {type:String},
 		_tagInfos: {type: Object},
+		_userMayEditSomeTags: { type: Boolean},
+		_tagsUserMayNotEdit: { type: Array},
 		_cardTagInfos: {type: Object},
 		//The card before any edits
 		_underlyingCard: {type:Object},
@@ -341,6 +345,8 @@ class CardEditor extends connect(store)(LitElement) {
 		this._substantive = state.editor.substantive;
 		this._selectedTab = state.editor.selectedTab;
 		this._tagInfos = selectTags(state);
+		this._userMayEditSomeTags = selectUserMayEditSomeTags(state);
+		this._tagsUserMayNotEdit = tagsUserMayNotEdit(state);
 		this._cardTagInfos = selectTagInfosForCards(state);
 		//skip the expensive selector if we're not active
 		this._suggestedTags = this._active ? selectEditingCardSuggestedTags(state) : [];
