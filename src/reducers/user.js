@@ -35,11 +35,14 @@ export const BASE_PERMISSIONS = {
 	//not logged in.
 	viewApp: true,
 	//edit allows the user to edit any record: any card, any section (and in
-	//future more).
+	//future more). Note that if this is true, then viewUnpublished is forced
+	//on, too.
 	edit: false,
 	//viewUnpublished allows users with this permission to even view cards that
 	//are not published. Requires viewApp to be true to read cards in the first
-	//place.
+	//place. If edit is true, then this permission is implied true. Users can
+	//always view unpublished cards they are an author or editor of, even if
+	//this permission is false.
 	viewUnpublished: false,
 	//comment allows users with this permission to create and edit messages and
 	//threads that they are the owner of.

@@ -241,7 +241,7 @@ export const selectUserMayViewUnpublished = createSelector(
 	selectUserIsAdmin,
 	selectUserMayViewApp,
 	selectComposedPermissions,
-	(admin, mayViewApp, permissions) => mayViewApp && (admin || permissions.viewUnpublished)
+	(admin, mayViewApp, permissions) => mayViewApp && (admin || permissions.edit || permissions.viewUnpublished)
 );
 
 export const selectUserMayComment = createSelector(

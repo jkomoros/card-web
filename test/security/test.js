@@ -208,6 +208,12 @@ describe('Compendium Rules', () => {
 		await firebase.assertSucceeds(card.get());
 	});
 
+	it ('allows users with edit permission to view unpublished card', async() => {
+		const db = authedApp(jerryAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardId);
+		await firebase.assertSucceeds(card.get());
+	});
+
 	it ('allows users with admin permission to view unpublished card', async() => {
 		const db = authedApp(adminAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardId);
