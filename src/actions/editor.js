@@ -373,11 +373,17 @@ export const skippedLinkInboundRemoved = (link) => {
 	};
 };
 
-export const editorAdded = (editorUid) => {
-	return {
+export const editorAdded = (editorUid) => (dispatch, getState) => {
+	const card = selectEditingCard(getState());
+	if (!card) return;
+	if (editorUid == card.author) {
+		console.log('The given editor is already the author');
+		return;
+	}
+	dispatch({
 		type: EDITING_EDITOR_ADDED,
 		editor:editorUid
-	};
+	});
 };
 
 export const editorRemoved = (editorUid) => {
@@ -392,11 +398,17 @@ export const manualEditorAdded = (editorUid) => {
 	return editorAdded(editorUid);
 };
 
-export const collaboratorAdded = (collaboratorUid) => {
-	return {
+export const collaboratorAdded = (collaboratorUid) => (dispatch, getState) => {
+	const card = selectEditingCard(getState());
+	if (!card) return;
+	if (collaboratorUid == card.author) {
+		console.log('The given collaborator is already the author');
+		return;
+	}
+	dispatch({
 		type: EDITING_COLLABORATOR_ADDED,
 		collaborator:collaboratorUid
-	};
+	});
 };
 
 export const collaboratorRemoved = (collaboratorUid) => {
