@@ -89,7 +89,7 @@ service cloud.firestore {
     }
 
     function userMayEditSection(sectionID) {
-      return userIsAdmin() || getPermission('edit');
+      return userIsAdmin() || getPermission('edit') || getPermission('editSection');
     }
 
     function userMayComment() {

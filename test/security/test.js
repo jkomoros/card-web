@@ -31,6 +31,7 @@ const adminUid = 'admin';
 const bobUid = 'bob';
 const sallyUid = 'sally';
 const jerryUid = 'jerry';
+const genericUid = 'generic';
 const anonUid = 'anon';
 
 const googleBaseAuth = {firebase: {sign_in_provider: 'google.com'}};
@@ -40,6 +41,7 @@ const adminAuth = {...googleBaseAuth, uid:adminUid, email:'admin@komoroske.com'}
 const bobAuth = {...googleBaseAuth, uid:bobUid, email:'bob@gmail.com'};
 const sallyAuth = {...googleBaseAuth, uid: sallyUid, email:'sally@gmail.com'};
 const jerryAuth = {...googleBaseAuth, uid: jerryUid, email:'jerry@gmail.com'};
+const genericAuth = {...googleBaseAuth, uid: genericUid, email: 'generic@gmail.com'};
 const anonAuth = {...anonBaseAuth, uid: anonUid, email: ''};
 
 const cardId = 'card';
@@ -61,6 +63,11 @@ const newUpdateId = 'newUpdate';
 
 function authedApp(auth) {
 	return firebase.initializeTestApp({ projectId, auth }).firestore();
+}
+
+function addPermissionForUser(uid, permissionToSet) {
+	const db = firebase.initializeAdminApp({projectId}).firestore();
+	return db.collection(PERMISSIONS_COLLECTION).doc(uid).set({[permissionToSet]:true}, {merge:true});
 }
 
 async function setupDatabase() {
@@ -507,6 +514,13 @@ describe('Compendium Rules', () => {
 
 	it('allows users with edit privileges to set sections collection', async() => {
 		const db = authedApp(jerryAuth);
+		const section = db.collection(SECTIONS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(section.set({bar: 3}));
+	});
+
+	it('allows users with editSection privileges to set sections collection', async() => {
+		const db = authedApp(genericAuth);
+		await addPermissionForUser(genericUid,'editSection');
 		const section = db.collection(SECTIONS_COLLECTION).doc(cardId);
 		await firebase.assertSucceeds(section.set({bar: 3}));
 	});

@@ -748,8 +748,9 @@ export const selectActiveSectionId = createSelector(
 //Only true if there is actually an active section to edit--that is, a singluar section.
 export const selectUserMayEditActiveSection = createSelector(
 	selectUserMayEdit,
+	selectComposedPermissions,
 	selectActiveSectionId,
-	(userMayEdit, sectionID) => sectionID != '' && userMayEdit
+	(userMayEdit, permissions, sectionID) => sectionID != '' && (userMayEdit || permissions.editSection)
 );
 
 const recentTabCollectionDescription = new CollectionDescription('', ['has-content'], RECENT_SORT_NAME, false);

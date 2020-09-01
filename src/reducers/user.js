@@ -38,6 +38,9 @@ export const BASE_PERMISSIONS = {
 	//future more). Note that if this is true, then viewUnpublished is forced
 	//on, too.
 	edit: false,
+	//people with editSection permission can modify any section, including
+	//adding cards to them, removing cards, and reordering cards in them.
+	editSection: false,
 	//viewUnpublished allows users with this permission to even view cards that
 	//are not published. Requires viewApp to be true to read cards in the first
 	//place. If edit is true, then this permission is implied true. Users can
