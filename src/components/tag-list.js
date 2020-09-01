@@ -10,7 +10,7 @@ import {
 
 class TagList  extends LitElement {
 	render() {
-		let effectiveTags = this.tags;
+		let effectiveTags = this.tags || [];
 		let effectivePreviousTags = this.previousTags ? (this.previousTags.length ? this.previousTags : []) : effectiveTags;
 		let [additionsArray, deletionsArray] = arrayDiff(effectivePreviousTags, effectiveTags);
 		let additions = arrayToSet(additionsArray);
