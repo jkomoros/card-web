@@ -46,6 +46,8 @@ export const ButtonSharedStyles = html`
 	}
 	button.round {
 		border-radius:50%;
+		height: 2.75em;
+		width: 2.75em;
 	}
 	button svg {
 		fill: var(--app-light-text-color);
