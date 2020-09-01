@@ -22,7 +22,9 @@ import {
 	selectUserIsAdmin,
 	selectTagInfosForCards,
 	selectUserMayEditSomeTags,
-	tagsUserMayNotEdit
+	tagsUserMayNotEdit,
+	selectSectionsUserMayEdit,
+	selectUserMayChangeEditingCardSection
 } from '../selectors.js';
 
 import {
@@ -240,12 +242,13 @@ class CardEditor extends connect(store)(LitElement) {
 		  </div>
           <div class='row'>
             <div>
-              <label>Section</label>
-              <select @change='${this._handleSectionUpdated}' .value=${this._card.section}>
-                ${repeat(Object.values(this._sections), (item) => item, (item) => html`
+			  <label>Section</label>
+			  ${this._userMayChangeEditingCardSection ? 
+		html`<select @change='${this._handleSectionUpdated}' .value=${this._card.section}>
+                ${repeat(Object.values(this._sectionsUserMayEdit), (item) => item, (item) => html`
                 <option value="${item.id}" ?selected=${item.id == this._card.section}>${item.title}</option>`)}
                 <option value='' ?selected=${this._card.section == ''}>[orphaned]</option>
-              </select>
+			  </select>` : html`<em>${this._card.section}</em>`}
             </div>
             <div>
               <Label>Slugs</label>
@@ -322,7 +325,8 @@ class CardEditor extends connect(store)(LitElement) {
 		_card: { type: Object },
 		_autoTodos: { type:Array },
 		_active: {type: Boolean },
-		_sections: {type: Object },
+		_sectionsUserMayEdit: {type: Object },
+		_userMayChangeEditingCardSection: { type:Boolean },
 		_substantive: {type: Object},
 		_selectedTab: {type:String},
 		_tagInfos: {type: Object},
@@ -341,7 +345,8 @@ class CardEditor extends connect(store)(LitElement) {
 		this._autoTodos = selectEditingCardAutoTodos(state);
 		this._underlyingCard = selectActiveCard(state);
 		this._active = state.editor.editing;
-		this._sections = state.data.sections;
+		this._userMayChangeEditingCardSection = selectUserMayChangeEditingCardSection(state);
+		this._sectionsUserMayEdit = selectSectionsUserMayEdit(state);
 		this._substantive = state.editor.substantive;
 		this._selectedTab = state.editor.selectedTab;
 		this._tagInfos = selectTags(state);

@@ -247,6 +247,8 @@ export const selectUserMayViewUnpublished = createSelector(
 // eslint-disable-next-line no-unused-vars
 export const getUserMayEditSection = (state, sectionID) => {
 	if (selectUserMayEditSections(state)) return true;
+	//orphaned 'section' is always editable
+	if (!sectionID) return true;
 	//TODO: check if the named section has an override;
 	return false;
 };
@@ -257,6 +259,18 @@ const selectUserMayEditSections = createSelector(
 	selectUserMayEdit,
 	selectComposedPermissions,
 	(userMayEdit, permissions) => userMayEdit || permissions.editSection
+);
+
+export const selectUserMayChangeEditingCardSection = createSelector(
+	selectState,
+	selectEditingCard,
+	(state, editingCard) => editingCard ? getUserMayEditSection(state, editingCard.section) : false
+);
+
+export const selectSectionsUserMayEdit = createSelector(
+	selectState,
+	selectSections,
+	(state, sections) => Object.fromEntries(Object.entries(sections).filter(entry => getUserMayEditSection(state, entry[0])))
 );
 
 // eslint-disable-next-line no-unused-vars
