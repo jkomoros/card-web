@@ -59,7 +59,8 @@ import {
 	selectFilters,
 	selectDataIsFullyLoaded,
 	selectUserMayEditActiveCard,
-	selectLastSectionID
+	selectLastSectionID,
+	getUserMayEditSection
 } from '../selectors.js';
 
 import {
@@ -206,6 +207,17 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 				dispatch(modifyCardFailure());
 				return; 
 			}
+		} else {
+			if (!getUserMayEditSection(state, update.section)) {
+				console.log('The user cannot modify the section the card is moving to');
+				return;
+			}
+		}
+		if (card.section) {
+			if (!getUserMayEditSection(state, card.section)) {
+				console.log('The section the card is leaving is not one the user has edit access for');
+				return;
+			}
 		}
 		cardUpdateObject.section = update.section;
 		sectionUpdated = true;
@@ -348,6 +360,11 @@ export const reorderCard = (card, newIndex) => async (dispatch, getState) => {
 
 	if (!card || !card.id || !card.section) {
 		console.log('That card isn\'t valid');
+		return;
+	}
+
+	if (!getUserMayEditSection(state, card.section)) {
+		console.log('The user does not have permission to edit that section');
 		return;
 	}
 
@@ -614,6 +631,12 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		console.log('No last section ID');
 		return;
 	}
+
+	if (!getUserMayEditSection(state, section)) {
+		console.log('User doesn\'t have edit permission for section the card will be added to.');
+		return;
+	}
+
 	if (id) {
 		id = normalizeSlug(id);
 	} else {
