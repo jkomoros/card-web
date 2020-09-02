@@ -245,6 +245,12 @@ export const selectUserMayViewUnpublished = createSelector(
 	(admin, mayViewApp, permissions) => mayViewApp && (admin || permissions.edit || permissions.viewUnpublished)
 );
 
+export const selectUserMayEditPermissions = createSelector(
+	selectUserIsAdmin,
+	//For now, only admins may edit permissions.
+	(admin) => admin
+);
+
 // eslint-disable-next-line no-unused-vars
 export const getUserMayEditSection = (state, sectionID) => {
 	if (selectUserMayEditSections(state)) return true;

@@ -6,7 +6,7 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 import { store } from '../store.js';
 
 import { 
-	selectUserIsAdmin
+	selectUserMayEditPermissions
 } from '../selectors.js';
 
 // These are the shared styles needed by this element.
@@ -19,10 +19,10 @@ class PermissionsView extends connect(store)(PageViewElement) {
       <section>
         <h2>Permissions</h2>
         <p>This page is where permissions can be changed.</p>
-        <section ?hidden=${this._isAdmin}>
-          <p>You aren't an admin, so nothing is available here.</p>
+        <section ?hidden=${this._userMayEditPermissions}>
+          <p>You aren't allowed to edit permissions, so nothing is available here.</p>
         </section>
-        <section ?hidden=${!this._isAdmin}>
+        <section ?hidden=${!this._userMayEditPermissions}>
 			<p>This is where functionality will show up when it's implemented</p>
         </section>
       </section>
@@ -31,12 +31,12 @@ class PermissionsView extends connect(store)(PageViewElement) {
 
 	static get properties() {
 		return {
-			_isAdmin: { type: Boolean},
+			_userMayEditPermissions: { type: Boolean},
 		};
 	}
 
 	stateChanged(state) {
-		this._isAdmin = selectUserIsAdmin(state);
+		this._userMayEditPermissions = selectUserMayEditPermissions(state);
 	}
 
 }
