@@ -15,6 +15,10 @@ import {
 	selectUserMayEditPermissions
 } from '../selectors.js';
 
+import {
+	connectLivePermissions
+} from '../actions/permissions.js';
+
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
 
@@ -43,6 +47,14 @@ class PermissionsView extends connect(store)(PageViewElement) {
 
 	stateChanged(state) {
 		this._userMayEditPermissions = selectUserMayEditPermissions(state);
+	}
+
+	updated(changedProps) {
+		if (changedProps.has('_userMayEditPermissions')) {
+			if (this._userMayEditPermissions) {
+				connectLivePermissions();
+			}
+		}
 	}
 
 }
