@@ -29,17 +29,23 @@ import './permissions-editor.js';
 class PermissionsView extends connect(store)(PageViewElement) {
 	render() {
 		return html`
-      ${SharedStyles}
+	  ${SharedStyles}
+	  <style>
+		:host {
+			height: 100%;
+			overflow: scroll; 
+		}
+	  </style>
       <section>
         <h2>Permissions</h2>
         <p>This page is where permissions can be changed.</p>
-        <section ?hidden=${this._userMayEditPermissions}>
+        <div ?hidden=${this._userMayEditPermissions}>
 		  <p ?hidden=${this._permissionsLoaded}><strong>Loading...</strong></p>
           <p ?hidden=${!this._permissionsLoaded}>You aren't allowed to edit permissions, so nothing is available here.</p>
-        </section>
-        <section ?hidden=${!this._userMayEditPermissions}>
+        </div>
+        <div ?hidden=${!this._userMayEditPermissions}>
 			${Object.keys(this._allPermissions || {}).map(uid => html`<permissions-editor .uid=${uid}></permissions-editor>`)}
-        </section>
+        </div>
       </section>
     `;
 	}
