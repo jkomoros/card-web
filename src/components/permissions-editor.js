@@ -24,6 +24,8 @@ class PermissionsEditor extends connect(store)(LitElement) {
 		return {
 			//If provided, will use this
 			permissions: { type: Object },
+			//If provided, will title it this
+			title: { type: String },
 			//If provided, will show the permissions for the given user
 			uid: { type: String },
 			_allPermissions: { type: Object },
@@ -32,6 +34,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 	}
 
 	get _title() {
+		if (this.title) return this.title;
 		const authorInfo = this._authors[this.uid];
 		if (authorInfo) {
 			return authorInfo.displayName + ' (' + this.uid + ')';
