@@ -109,7 +109,7 @@ export const selectAuthPending = (state) => state.user ? state.user.pending : fa
 //no user to load stars or reads for.
 export const selectStarsLoaded = (state) => state.user ? state.user.starsLoaded : false;
 export const selectReadsLoaded = (state) => state.user ? state.user.readsLoaded : false;
-const selectUserPermissionsLoaded = (state) => state.user ? state.user.userPermissionsLoaded : false;
+export const selectUserPermissionsLoaded = (state) => state.user ? state.user.userPermissionsLoaded : false;
 export const selectReadingListLoaded = (state) => state.user ? state.user.readingListLoaded : false;
 
 export const selectActiveCard = createSelector(

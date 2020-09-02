@@ -14,6 +14,7 @@ store.addReducers({
 import { 
 	selectUserMayEditPermissions,
 	selectAllPermissions,
+	selectUserPermissionsLoaded
 } from '../selectors.js';
 
 import {
@@ -33,7 +34,8 @@ class PermissionsView extends connect(store)(PageViewElement) {
         <h2>Permissions</h2>
         <p>This page is where permissions can be changed.</p>
         <section ?hidden=${this._userMayEditPermissions}>
-          <p>You aren't allowed to edit permissions, so nothing is available here.</p>
+		  <p ?hidden=${this._permissionsLoaded}><strong>Loading...</strong></p>
+          <p ?hidden=${!this._permissionsLoaded}>You aren't allowed to edit permissions, so nothing is available here.</p>
         </section>
         <section ?hidden=${!this._userMayEditPermissions}>
 			${Object.keys(this._allPermissions || {}).map(uid => html`<permissions-editor .uid=${uid}></permissions-editor>`)}
@@ -46,12 +48,14 @@ class PermissionsView extends connect(store)(PageViewElement) {
 		return {
 			_userMayEditPermissions: { type: Boolean},
 			_allPermissions: { type: Object },
+			_permissionsLoaded: { type: Boolean },
 		};
 	}
 
 	stateChanged(state) {
 		this._userMayEditPermissions = selectUserMayEditPermissions(state);
 		this._allPermissions = selectAllPermissions(state);
+		this._permissionsLoaded = selectUserPermissionsLoaded(state);
 	}
 
 	updated(changedProps) {
