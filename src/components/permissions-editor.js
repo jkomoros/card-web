@@ -6,13 +6,14 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 import { store } from '../store.js';
 
 import {
-	selectAllPermissions
+	selectAllPermissions,
+	selectAuthors
 } from '../selectors.js';
 
 class PermissionsEditor extends connect(store)(LitElement) {
 	render() {
 		return html`
-			<h4>${this.uid || 'Generic Permissions'}</h4>
+			<h4>${this._title}</h4>
 			<pre>
 				${JSON.stringify(this._effectivePermissions, null, 2)}
 			</pre>
@@ -26,7 +27,16 @@ class PermissionsEditor extends connect(store)(LitElement) {
 			//If provided, will show the permissions for the given user
 			uid: { type: String },
 			_allPermissions: { type: Object },
+			_authors: { type: Object },
 		};
+	}
+
+	get _title() {
+		const authorInfo = this._authors[this.uid];
+		if (authorInfo) {
+			return authorInfo.displayName + ' (' + this.uid + ')';
+		}
+		return this.uid || 'Generic Permissions';
 	}
 
 	get _effectivePermissions() {
@@ -35,6 +45,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 
 	stateChanged(state) {
 		this._allPermissions = selectAllPermissions(state);
+		this._authors = selectAuthors(state);
 	}
 }
 
