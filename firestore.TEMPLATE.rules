@@ -85,7 +85,15 @@ service cloud.firestore {
     }
 
     function userMayEditCard(cardID) {
-      return userIsAdmin() || getPermission('edit') || request.auth.uid in get(/databases/$(database)/documents/cards/$(cardID)).data.editors;
+      return userIsAdmin() || getPermission('edit') || userIsAuthorOrEditorForCard(cardID);
+    }
+
+    function userIsAuthorOrEditorForCard(cardID) {
+      //This rule might be called in the context of a card, or in the context of a card update, where it needs to be fetched
+      //TODO: use request.resource.data if it's in the former context
+      let card = get(/databases/$(database)/documents/cards/$(cardID)).data;
+      let uid = request.auth.uid;
+      return uid == card.author || uid in card.editors;
     }
 
     function userMayEditSection(sectionID) {

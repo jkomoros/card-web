@@ -223,6 +223,7 @@ export const selectUserMayEditActiveCard = createSelector(
 	(userMayEdit, activeCard, uid) => {
 		if (userMayEdit) return true;
 		if (!activeCard) return false;
+		if (activeCard.author == uid) return true;
 		if (!activeCard.editors) return false;
 		for (let id of activeCard.editors) {
 			if (id === uid) return true;

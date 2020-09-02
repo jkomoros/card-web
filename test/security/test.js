@@ -78,6 +78,7 @@ async function setupDatabase() {
 	await db.collection(CARDS_COLLECTION).doc(cardId).set({
 		body: 'this is the body',
 		title: 'this is the title',
+		author: bobUid,
 		editors: [sallyUid],
 		thread_count: cardThreadCount,
 		thread_resolved_count: cardThreadResolvedCount,
@@ -91,6 +92,7 @@ async function setupDatabase() {
 	await db.collection(CARDS_COLLECTION).doc(unpublishedCardId).set({
 		body: 'this is the body',
 		title: 'this is the title',
+		author: bobUid,
 		thread_count: cardThreadCount,
 		thread_resolved_count: cardThreadResolvedCount,
 		star_count: cardStarCount,
@@ -101,7 +103,7 @@ async function setupDatabase() {
 	await db.collection(CARDS_COLLECTION).doc(unpublishedCardIdSallyAuthor).set({
 		body: 'this is the body',
 		title: 'this is the title',
-		editors: [sallyUid],
+		author: sallyUid,
 		thread_count: cardThreadCount,
 		thread_resolved_count: cardThreadResolvedCount,
 		star_count: cardStarCount,
@@ -112,7 +114,7 @@ async function setupDatabase() {
 	await db.collection(CARDS_COLLECTION).doc(unpublishedCardIdSallyEditor).set({
 		body: 'this is the body',
 		title: 'this is the title',
-		author: sallyUid,
+		editors: [sallyUid],
 		thread_count: cardThreadCount,
 		thread_resolved_count: cardThreadResolvedCount,
 		star_count: cardStarCount,
@@ -302,7 +304,7 @@ describe('Compendium Rules', () => {
 	});
 
 	it('disallows any non-anon users to modify another field while incremeting thread_count', async() => {
-		const db = authedApp(bobAuth);
+		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({thread_count: cardThreadCount + 1, body:'other'}));
 	});
@@ -326,7 +328,7 @@ describe('Compendium Rules', () => {
 	});
 
 	it('disallows any non-anon users to decrement thread_count by 1 and increment resolved_thread_count by 1 if they have other fields', async() => {
-		const db = authedApp(bobAuth);
+		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({thread_count: cardThreadCount - 1, thread_resolved_count: cardThreadResolvedCount + 1, body: 'foo'}));
 	});
@@ -416,9 +418,16 @@ describe('Compendium Rules', () => {
 	});
 
 	it('disallows any non-admin user to set arbitrary field on card', async () => {
-		const db = authedApp(bobAuth);
+		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({foo:5}));
+	});
+
+	it('allows users explicitly marked as author for that card to arbitrarily edit a card', async () => {
+		//bob is explictly the author
+		const db = authedApp(bobAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(card.update({foo:5}));
 	});
 
 	it('allows users explicitly marked as editors for that card to arbitrarily edit a card', async () => {
@@ -437,6 +446,12 @@ describe('Compendium Rules', () => {
 
 	it('allows admins to read card updates', async() => {
 		const db = authedApp(adminAuth);
+		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
+		await firebase.assertSucceeds(update.get());
+	});
+
+	it('allows explicitly listed author for a card to read card updates', async() => {
+		const db = authedApp(bobAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
 		await firebase.assertSucceeds(update.get());
 	});
@@ -472,13 +487,13 @@ describe('Compendium Rules', () => {
 	});
 
 	it('disallows users from reading card updates', async() => {
-		const db = authedApp(bobAuth);
+		const db = authedApp(genericAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
 		await firebase.assertFails(update.get());
 	});
 
 	it('disallows users from setting card updates', async() => {
-		const db = authedApp(bobAuth);
+		const db = authedApp(genericAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(newUpdateId);
 		await firebase.assertFails(update.set({foo:4}));
 	});
