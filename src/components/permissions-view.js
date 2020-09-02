@@ -36,7 +36,7 @@ class PermissionsView extends connect(store)(PageViewElement) {
           <p>You aren't allowed to edit permissions, so nothing is available here.</p>
         </section>
         <section ?hidden=${!this._userMayEditPermissions}>
-			${Object.entries(this._allPermissions || {}).map(entry => html`<h4>${entry[0]}</h4><permissions-editor .permissions=${entry[1]}></permissions-editor>`)}
+			${Object.keys(this._allPermissions || {}).map(uid => html`<permissions-editor .uid=${uid}></permissions-editor>`)}
         </section>
       </section>
     `;
