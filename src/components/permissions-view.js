@@ -12,7 +12,8 @@ store.addReducers({
 });
 
 import { 
-	selectUserMayEditPermissions
+	selectUserMayEditPermissions,
+	selectAllPermissions,
 } from '../selectors.js';
 
 import {
@@ -21,6 +22,8 @@ import {
 
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
+
+import './permissions-editor.js';
 
 class PermissionsView extends connect(store)(PageViewElement) {
 	render() {
@@ -33,7 +36,7 @@ class PermissionsView extends connect(store)(PageViewElement) {
           <p>You aren't allowed to edit permissions, so nothing is available here.</p>
         </section>
         <section ?hidden=${!this._userMayEditPermissions}>
-			<p>This is where functionality will show up when it's implemented</p>
+			${Object.entries(this._allPermissions || {}).map(entry => html`<h4>${entry[0]}</h4><permissions-editor .permissions=${entry[1]}></permissions-editor>`)}
         </section>
       </section>
     `;
@@ -42,11 +45,13 @@ class PermissionsView extends connect(store)(PageViewElement) {
 	static get properties() {
 		return {
 			_userMayEditPermissions: { type: Boolean},
+			_allPermissions: { type: Object },
 		};
 	}
 
 	stateChanged(state) {
 		this._userMayEditPermissions = selectUserMayEditPermissions(state);
+		this._allPermissions = selectAllPermissions(state);
 	}
 
 	updated(changedProps) {
