@@ -84,6 +84,11 @@ service cloud.firestore {
       return loggedIn() && userIsAdmin() || getPermission('edit') || getPermission('viewUnpublished') || request.auth.uid in resource.data.editors || request.auth.uid == resource.data.author;
     }
 
+    function userMayEditPermissions() {
+      //For now we don'b bother having an editPermissions permission, but factor this out so it's easier to add later if necessary
+      return userIsAdmin();
+    }
+
     function userMayEditCard(cardID) {
       return userIsAdmin() || getPermission('edit') || userIsAuthorOrEditorForCard(cardID);
     }
@@ -122,6 +127,10 @@ service cloud.firestore {
 
     function userMayModifyReadingList() {
       return userIsAdmin() || getPermission('modifyReadingList');
+    }
+
+    function editDoesNotAffectAdminKey() {
+      return !request.resource.data.diff(resource == null || resource.data == null ? {} : resource.data).affectedKeys().hasAny(['admin']);
     }
 
     function editOnlyUpdatesTimestamp(key) {
@@ -206,7 +215,8 @@ service cloud.firestore {
     }
 
     match /permissions/{user} {
-      allow read: if request.auth.uid == user;
+      allow read: if request.auth.uid == user || userMayEditPermissions();
+      allow write: if userMayEditPermissions() && editDoesNotAffectAdminKey();
     }
 
     match /sections/{section} {

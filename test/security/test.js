@@ -649,6 +649,21 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(db.collection(PERMISSIONS_COLLECTION).doc(bobUid).update({admin:true}));
 	});
 
+	it('allows admins to read back other users permissions object', async() => {
+		const db = authedApp(adminAuth);
+		await firebase.assertSucceeds(db.collection(PERMISSIONS_COLLECTION).doc(sallyUid).get());
+	});
+
+	it('allows admins to set other users permissions object that don\'t contain admin keys', async() => {
+		const db = authedApp(adminAuth);
+		await firebase.assertSucceeds(db.collection(PERMISSIONS_COLLECTION).doc(sallyUid).set({edit: true, viewUnpublished: true}));
+	});
+
+	it('disallows even admins to set other users permissions object that do contain admin keys', async() => {
+		const db = authedApp(adminAuth);
+		await firebase.assertFails(db.collection(PERMISSIONS_COLLECTION).doc(sallyUid).set({admin: true, viewUnpublished: true}));
+	});
+
 	it('anyone may read authors objects', async() => {
 		const db = authedApp(null);
 		await firebase.assertSucceeds(db.collection(AUTHORS_COLLECTION).doc(bobUid).get());
