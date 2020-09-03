@@ -52,10 +52,10 @@ class PermissionsView extends connect(store)(PageViewElement) {
           <p ?hidden=${!this._permissionsLoaded}>You aren't allowed to edit permissions, so nothing is available here.</p>
         </div>
 		<div ?hidden=${!this._userMayEditPermissions}>
-			<permissions-editor .title=${'Base permissions override'} .permissions=${USER_TYPE_ALL_PERMISSIONS}></permissions-editor>
-			<permissions-editor .title=${'Anonymous permissions override'} .permissions=${USER_TYPE_ANONYMOUS_PERMISSIONS}></permissions-editor>
-			<permissions-editor .title=${'Signed In permissions override'} .permissions=${USER_TYPE_SIGNED_IN_PERMISSIONS}></permissions-editor>
-			<permissions-editor .title=${'Signed In Domain permissions override'} .permissions=${USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS}></permissions-editor>
+			<permissions-editor .title=${'Base permissions override'} .permissions=${USER_TYPE_ALL_PERMISSIONS} .description=${'Change these in your config.SECRET.json'}></permissions-editor>
+			<permissions-editor .title=${'Anonymous permissions override'} .permissions=${USER_TYPE_ANONYMOUS_PERMISSIONS} .description=${'Change these in your config.SECRET.json'}></permissions-editor>
+			<permissions-editor .title=${'Signed In permissions override'} .permissions=${USER_TYPE_SIGNED_IN_PERMISSIONS} .description=${'Change these in your config.SECRET.json'}></permissions-editor>
+			<permissions-editor .title=${'Signed In Domain permissions override'} .permissions=${USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS} .description=${'Change these in your config.SECRET.json'}></permissions-editor>
 			${Object.keys(this._allPermissions || {}).map(uid => html`<permissions-editor .uid=${uid}></permissions-editor>`)}
         </div>
       </section>

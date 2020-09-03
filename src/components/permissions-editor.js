@@ -14,6 +14,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 	render() {
 		return html`
 			<h4>${this._title}</h4>
+			${this.description ? html`<p>${this.description}</p>` : ''}
 			<pre>
 				${JSON.stringify(this._effectivePermissions, null, 2)}
 			</pre>
@@ -26,6 +27,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 			permissions: { type: Object },
 			//If provided, will title it this
 			title: { type: String },
+			description: { type: String},
 			//If provided, will show the permissions for the given user
 			uid: { type: String },
 			_allPermissions: { type: Object },
