@@ -44,7 +44,7 @@ class TagList  extends LitElement {
 			${allTags && allTags.length ?
 		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} .defaultColor=${this.defaultColor} .tapEvents=${this.tapEvents}></tag-chip>`) :
 		(this.hideOnEmpty ? html`` : html`<em>No ${this.typeName.toLowerCase()}s</em>`)}
-			${this.disableAdd ? html`` :
+			${((!allTags || !allTags.length) && this.hideOnEmpty) || this.disableAdd ? html`` :
 		html`<select @change=${this._handleSelectChanged}>
 				<option value='#noop' selected>Add ${this.typeName}...</option>
 				${Object.keys(tagInfos).map(item => html`<option value='${tagInfos[item].id}'>${tagInfos[item].title}</option>`)}
