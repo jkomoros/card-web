@@ -664,6 +664,12 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(db.collection(PERMISSIONS_COLLECTION).doc(sallyUid).set({admin: true, viewUnpublished: true}));
 	});
 
+	it('allows admins to delete users permissions object', async() => {
+		const db = authedApp(adminAuth);
+		await db.collection(PERMISSIONS_COLLECTION).doc(genericUid).set({foo:true});
+		await firebase.assertSucceeds(db.collection(PERMISSIONS_COLLECTION).doc(genericUid).delete());
+	});
+
 	it('anyone may read authors objects', async() => {
 		const db = authedApp(null);
 		await firebase.assertSucceeds(db.collection(AUTHORS_COLLECTION).doc(bobUid).get());
