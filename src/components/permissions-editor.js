@@ -11,14 +11,16 @@ import {
 } from '../selectors.js';
 
 import {
-	EDIT_ICON
+	EDIT_ICON,
+	DELETE_FOREVER_ICON
 } from './my-icons.js';
 
 import {
 	updateUserNote,
 	addEnabledPermission,
 	addDisabledPermission,
-	clearPermission
+	clearPermission,
+	deletePermissionsObjectForUser
 } from '../actions/permissions.js';
 
 import {
@@ -76,7 +78,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 				}
 			</style>
 			<div class="container ${this._editable ? 'editable' : ''}">
-				<p><strong>${this._title}</strong> ${this.description ? html`<em>${this.description}</em>` : ''}&nbsp;&nbsp;&nbsp;<strong>Notes</strong> ${this._effectivePermissions.notes || html`<em>No notes</em>`} <span class='edit' ?hidden=${!this._editable} @click=${this._handleEditNotes}>${EDIT_ICON}</span></p>
+				<p><strong>${this._title}</strong> ${this.description ? html`<em>${this.description}</em>` : ''}&nbsp;&nbsp;&nbsp;<strong>Notes</strong> ${this._effectivePermissions.notes || html`<em>No notes</em>`} <span class='edit' ?hidden=${!this._editable} @click=${this._handleEditNotes}>${EDIT_ICON}</span><span class='edit' ?hidden=${!this._editable} @click=${this._handleDelete}>${DELETE_FOREVER_ICON}</span></p>
 				<tag-list .tags=${this._enabledLockedPermissions} .tagInfos=${LOCKED_PERMISSIONS} .overrideTypeName=${'Permission'} .defaultColor=${lockedPermissionColor} .hideOnEmpty=${true}></tag-list>
 				<tag-list .tags=${this._enabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @add-tag=${this._handleAddEnabled} @remove-tag=${this._handleRemove} .overrideTypeName=${'Permission'} .defaultColor=${enabledPermissionColor}></tag-list>
 				<tag-list .tags=${this._disabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @add-tag=${this._handleAddDisabled} @remove-tag=${this._handleRemove} .overrideTypeName=${'Permission'} .defaultColor=${disabledPermissionColor} .hideOnEmpty=${true}></tag-list>
@@ -148,6 +150,13 @@ class PermissionsEditor extends connect(store)(LitElement) {
 
 	_handleRemove(e){
 		store.dispatch(clearPermission(this.uid, e.detail.tag));
+	}
+
+	_handleDelete() {
+		if (Object.keys(this._effectivePermissions).length > 0) {
+			if (!confirm('There are some permissions in this user still. Do you want to delete?')) return;
+		}
+		store.dispatch(deletePermissionsObjectForUser(this.uid));
 	}
 
 }
