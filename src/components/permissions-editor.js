@@ -13,11 +13,21 @@ import {
 class PermissionsEditor extends connect(store)(LitElement) {
 	render() {
 		return html`
-			<h4>${this._title}</h4>
-			${this.description ? html`<p>${this.description}</p>` : ''}
-			<pre>
-				${JSON.stringify(this._effectivePermissions, null, 2)}
-			</pre>
+			<style>
+				.container {
+					color: var(--app-dark-text-color-subtle);
+				}
+				.editable {
+					color: var(--app-dark-text-color);
+				}
+			</style>
+			<div class="container ${this._editable ? 'editable' : ''}">
+				<h4>${this._title}</h4>
+				${this.description ? html`<p>${this.description}</p>` : ''}
+				<pre>
+					${JSON.stringify(this._effectivePermissions, null, 2)}
+				</pre>
+			</div>
 			`;
 	}
 
@@ -33,6 +43,10 @@ class PermissionsEditor extends connect(store)(LitElement) {
 			_allPermissions: { type: Object },
 			_authors: { type: Object },
 		};
+	}
+
+	get _editable() {
+		return !this.permissions;
 	}
 
 	get _title() {
