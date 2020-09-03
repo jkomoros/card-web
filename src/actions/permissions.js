@@ -44,6 +44,10 @@ const updatePermissions = (permissions) => {
 	};
 };
 
+export const addPermissionsObjectForUser = (uid) => () => {
+	db.collection(PERMISSIONS_COLLECTION).doc(uid).set({}, {merge: true});
+};
+
 export const updateUserNote = (uid, note) => () => {
 	db.collection(PERMISSIONS_COLLECTION).doc(uid).update({notes:note});
 };

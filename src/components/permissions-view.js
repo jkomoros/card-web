@@ -18,9 +18,13 @@ import {
 } from '../selectors.js';
 
 import {
-	connectLivePermissions
+	connectLivePermissions,
+	addPermissionsObjectForUser
 } from '../actions/permissions.js';
 
+import {
+	PLUS_ICON
+} from './my-icons.js';
 
 import {
 	USER_TYPE_ALL_PERMISSIONS,
@@ -32,12 +36,15 @@ import {
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
 
+import { ButtonSharedStyles } from './button-shared-styles.js';
+
 import './permissions-editor.js';
 
 class PermissionsView extends connect(store)(PageViewElement) {
 	render() {
 		return html`
 	  ${SharedStyles}
+	  ${ButtonSharedStyles}
 	  <style>
 		:host {
 			height: 100%;
@@ -57,6 +64,7 @@ class PermissionsView extends connect(store)(PageViewElement) {
 			<permissions-editor .title=${'Signed In permissions override'} .permissions=${USER_TYPE_SIGNED_IN_PERMISSIONS} .description=${'Change these in your config.SECRET.json'}></permissions-editor>
 			<permissions-editor .title=${'Signed In Domain permissions override'} .permissions=${USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS} .description=${'Change these in your config.SECRET.json'}></permissions-editor>
 			${Object.keys(this._allPermissions || {}).map(uid => html`<permissions-editor .uid=${uid}></permissions-editor>`)}
+			<button class='round' @click='${this._handleAdd}'>${PLUS_ICON}</button>
         </div>
       </section>
     `;
@@ -82,6 +90,12 @@ class PermissionsView extends connect(store)(PageViewElement) {
 				connectLivePermissions();
 			}
 		}
+	}
+
+	_handleAdd() {
+		const uid = prompt('What is the uid of the user you\'d like to add permissions for? You can look it up in the firebase console.');
+		if (!uid) return;
+		store.dispatch(addPermissionsObjectForUser(uid));
 	}
 
 }
