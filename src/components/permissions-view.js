@@ -21,6 +21,14 @@ import {
 	connectLivePermissions
 } from '../actions/permissions.js';
 
+
+import {
+	USER_TYPE_ALL_PERMISSIONS,
+	USER_TYPE_ANONYMOUS_PERMISSIONS,
+	USER_TYPE_SIGNED_IN_PERMISSIONS,
+	USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS,
+} from '../../config.GENERATED.SECRET.js';
+
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
 
@@ -43,7 +51,11 @@ class PermissionsView extends connect(store)(PageViewElement) {
 		  <p ?hidden=${this._permissionsLoaded}><strong>Loading...</strong></p>
           <p ?hidden=${!this._permissionsLoaded}>You aren't allowed to edit permissions, so nothing is available here.</p>
         </div>
-        <div ?hidden=${!this._userMayEditPermissions}>
+		<div ?hidden=${!this._userMayEditPermissions}>
+			<permissions-editor .title=${'Base permissions override'} .permissions=${USER_TYPE_ALL_PERMISSIONS}></permissions-editor>
+			<permissions-editor .title=${'Anonymous permissions override'} .permissions=${USER_TYPE_ANONYMOUS_PERMISSIONS}></permissions-editor>
+			<permissions-editor .title=${'Signed In permissions override'} .permissions=${USER_TYPE_SIGNED_IN_PERMISSIONS}></permissions-editor>
+			<permissions-editor .title=${'Signed In Domain permissions override'} .permissions=${USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS}></permissions-editor>
 			${Object.keys(this._allPermissions || {}).map(uid => html`<permissions-editor .uid=${uid}></permissions-editor>`)}
         </div>
       </section>
