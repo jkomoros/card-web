@@ -51,6 +51,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 					${JSON.stringify(this._effectivePermissions, null, 2)}
 				</pre>
 				${this._editable ? html`
+					${this._effectivePermissions.admin ? html`<p><strong>Admin</strong> (Remove via firebase console)</p>` : ''}
 					<strong>Notes</strong> ${this._effectivePermissions.notes} <span class='edit' @click=${this._handleEditNotes}>${EDIT_ICON}</span>` : '' }
 			</div>
 			`;
