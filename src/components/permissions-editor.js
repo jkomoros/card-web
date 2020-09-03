@@ -31,7 +31,8 @@ const LOCKED_PERMISSIONS = Object.fromEntries(Object.entries(All_PERMISSIONS).fi
 class PermissionsEditor extends connect(store)(LitElement) {
 	render() {
 		const lockedPermissionColor = '#7f7f7f';
-		const modifiablePermissionColor = '#006400'; //darkgreen
+		const enabledPermissionColor = '#006400'; //darkgreen
+		const disabledPermissionColor = '#b22222'; //firebrick
 
 		return html`
 			<style>
@@ -45,6 +46,10 @@ class PermissionsEditor extends connect(store)(LitElement) {
 
 				.edit {
 					cursor: pointer;
+				}
+
+				[hidden] {
+					display: none;
 				}
 
 				svg {
@@ -63,10 +68,10 @@ class PermissionsEditor extends connect(store)(LitElement) {
 				<pre>
 					${JSON.stringify(this._effectivePermissions, null, 2)}
 				</pre>
-				${this._editable ? html`
-					<tag-list .tags=${this._enabledLockedPermissions} .tagInfos=${LOCKED_PERMISSIONS} .overrideTypeName=${'Permission'} .defaultColor=${lockedPermissionColor} .hideOnEmpty=${true}></tag-list>
-					<tag-list .tags=${this._enabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .overrideTypeName=${'Permission'} .defaultColor=${modifiablePermissionColor}></tag-list>
-					<strong>Notes</strong> ${this._effectivePermissions.notes} <span class='edit' @click=${this._handleEditNotes}>${EDIT_ICON}</span>` : '' }
+				<tag-list .tags=${this._enabledLockedPermissions} .tagInfos=${LOCKED_PERMISSIONS} .overrideTypeName=${'Permission'} .defaultColor=${lockedPermissionColor} .hideOnEmpty=${true}></tag-list>
+				<tag-list .tags=${this._enabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .overrideTypeName=${'Permission'} .defaultColor=${enabledPermissionColor}></tag-list>
+				<tag-list .tags=${this._disabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .overrideTypeName=${'Permission'} .defaultColor=${disabledPermissionColor} .hideOnEmpty=${true}></tag-list>
+				<strong>Notes</strong> ${this._effectivePermissions.notes || html`<em>No notes</em>`} <span class='edit' ?hidden=${!this._editable} @click=${this._handleEditNotes}>${EDIT_ICON}</span>
 			</div>
 			`;
 	}
@@ -103,7 +108,11 @@ class PermissionsEditor extends connect(store)(LitElement) {
 	}
 
 	get _enabledModifiablePermissions() {
-		return Object.keys(this._effectivePermissions).filter(item => MODIFIABLE_PERMISSIONS[item]);
+		return Object.entries(this._effectivePermissions).filter(entry => entry[1]).map(entry => entry[0]).filter(item => MODIFIABLE_PERMISSIONS[item]);
+	}
+
+	get _disabledModifiablePermissions() {
+		return Object.entries(this._effectivePermissions).filter(entry => !entry[1]).map(entry => entry[0]).filter(item => MODIFIABLE_PERMISSIONS[item]);
 	}
 
 	get _enabledLockedPermissions() {
@@ -116,6 +125,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 	}
 
 	_handleEditNotes() {
+		if (!this._editable) return;
 		const notes = prompt('What should notes be?', this._effectivePermissions.notes);
 		store.dispatch(updateUserNote(this.uid, notes));
 	}
