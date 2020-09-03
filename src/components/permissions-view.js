@@ -46,9 +46,14 @@ class PermissionsView extends connect(store)(PageViewElement) {
 	  ${SharedStyles}
 	  ${ButtonSharedStyles}
 	  <style>
+
 		:host {
 			height: 100%;
 			overflow: scroll; 
+		}
+
+		section {
+			margin: 1em;
 		}
 	  </style>
       <section>
