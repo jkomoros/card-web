@@ -26,9 +26,13 @@ import './tag-list.js';
 
 const All_PERMISSIONS = Object.fromEntries(Object.entries(PERMISSIONS_INFO).map(entry => [entry[0], {...entry[1], id: entry[0], title:entry[1].displayName}]));
 const MODIFIABLE_PERMISSIONS = Object.fromEntries(Object.entries(All_PERMISSIONS).filter(entry => !entry[1].locked));
+const LOCKED_PERMISSIONS = Object.fromEntries(Object.entries(All_PERMISSIONS).filter(entry => entry[1].locked));
 
 class PermissionsEditor extends connect(store)(LitElement) {
 	render() {
+		const lockedPermissionColor = '#7f7f7f';
+		const modifiablePermissionColor = '#006400'; //darkgreen
+
 		return html`
 			<style>
 				.container {
@@ -60,8 +64,8 @@ class PermissionsEditor extends connect(store)(LitElement) {
 					${JSON.stringify(this._effectivePermissions, null, 2)}
 				</pre>
 				${this._editable ? html`
-					${this._effectivePermissions.admin ? html`<p><strong>Admin</strong> (Remove via firebase console)</p>` : ''}
-					<tag-list .tags=${this._enabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .overrideTypeName=${'Permission'}></tag-list>
+					<tag-list .tags=${this._enabledLockedPermissions} .tagInfos=${LOCKED_PERMISSIONS} .overrideTypeName=${'Permission'} .defaultColor=${lockedPermissionColor} .hideOnEmpty=${true}></tag-list>
+					<tag-list .tags=${this._enabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .overrideTypeName=${'Permission'} .defaultColor=${modifiablePermissionColor}></tag-list>
 					<strong>Notes</strong> ${this._effectivePermissions.notes} <span class='edit' @click=${this._handleEditNotes}>${EDIT_ICON}</span>` : '' }
 			</div>
 			`;
@@ -100,6 +104,10 @@ class PermissionsEditor extends connect(store)(LitElement) {
 
 	get _enabledModifiablePermissions() {
 		return Object.keys(this._effectivePermissions).filter(item => MODIFIABLE_PERMISSIONS[item]);
+	}
+
+	get _enabledLockedPermissions() {
+		return Object.keys(this._effectivePermissions).filter(item => LOCKED_PERMISSIONS[item]);
 	}
 
 	stateChanged(state) {
