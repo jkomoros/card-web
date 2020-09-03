@@ -39,6 +39,16 @@ class PermissionsEditor extends connect(store)(LitElement) {
 
 		return html`
 			<style>
+
+				:host {
+					display: block;
+					margin-top: 1em;
+				}
+
+				p {
+					margin: 0;
+				}
+
 				.container {
 					color: var(--app-dark-text-color-subtle);
 				}
@@ -66,12 +76,10 @@ class PermissionsEditor extends connect(store)(LitElement) {
 				}
 			</style>
 			<div class="container ${this._editable ? 'editable' : ''}">
-				<h4>${this._title}</h4>
-				${this.description ? html`<p>${this.description}</p>` : ''}
+				<p><strong>${this._title}</strong> ${this.description ? html`<em>${this.description}</em>` : ''}&nbsp;&nbsp;&nbsp;<strong>Notes</strong> ${this._effectivePermissions.notes || html`<em>No notes</em>`} <span class='edit' ?hidden=${!this._editable} @click=${this._handleEditNotes}>${EDIT_ICON}</span></p>
 				<tag-list .tags=${this._enabledLockedPermissions} .tagInfos=${LOCKED_PERMISSIONS} .overrideTypeName=${'Permission'} .defaultColor=${lockedPermissionColor} .hideOnEmpty=${true}></tag-list>
 				<tag-list .tags=${this._enabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @add-tag=${this._handleAddEnabled} @remove-tag=${this._handleRemove} .overrideTypeName=${'Permission'} .defaultColor=${enabledPermissionColor}></tag-list>
 				<tag-list .tags=${this._disabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @add-tag=${this._handleAddDisabled} @remove-tag=${this._handleRemove} .overrideTypeName=${'Permission'} .defaultColor=${disabledPermissionColor} .hideOnEmpty=${true}></tag-list>
-				<strong>Notes</strong> ${this._effectivePermissions.notes || html`<em>No notes</em>`} <span class='edit' ?hidden=${!this._editable} @click=${this._handleEditNotes}>${EDIT_ICON}</span>
 			</div>
 			`;
 	}
