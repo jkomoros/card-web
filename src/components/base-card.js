@@ -4,7 +4,10 @@ import * as Gestures from '@polymer/polymer/lib/utils/gestures.js';
 
 import { SharedStyles } from './shared-styles.js';
 
-import './star-count.js';
+import {
+	badgeStyles,
+	starBadge
+} from './card-badges.js';
 
 export const CARD_WIDTH_IN_EMS = 43.63;
 export const CARD_HEIGHT_IN_EMS = 24.54;
@@ -19,6 +22,7 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 	render() {
 		return html`
 			${SharedStyles}
+			${badgeStyles}
 			<style>
 				:host {
 					display:block;
@@ -105,7 +109,7 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 					opacity: 0.5;
 				}
 
-				star-count {
+				.star-count {
 					position:absolute;
 					top:0.5em;
 					right:0.5em;
@@ -114,7 +118,7 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 			</style>
 			<div class="container ${this.editing ? 'editing' : ''} ${this.published ? 'published' : 'unpublished'}">
 				${this.innerRender()}
-				<star-count .count=${this.starCount}></star-count>
+				${starBadge(this.starCount)}
 			</div>
 		`;
 	}
