@@ -146,6 +146,13 @@ export const toTitleCase = (str) => {
 
 const slugRegularExpression = /^[a-zA-Z0-9-_]+$/;
 
+//returns if the given uid looks like it could be legal
+export const legalUid = (uid) => {
+	if (!slugRegularExpression.test(uid)) return false;
+	if (uid.length < 10) return false;
+	return true;
+};
+
 export const normalizeSlug = (slug) => {
 	slug = slug.trim();
 	slug = slug.toLowerCase();

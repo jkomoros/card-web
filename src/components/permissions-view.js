@@ -33,6 +33,10 @@ import {
 	COMPOSED_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS
 } from '../permissions.js';
 
+import {
+	legalUid
+} from '../util.js';
+
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
 
@@ -100,6 +104,10 @@ class PermissionsView extends connect(store)(PageViewElement) {
 	_handleAdd() {
 		const uid = prompt('What is the uid of the user you\'d like to add permissions for? You can look it up in the firebase console.');
 		if (!uid) return;
+		if (!legalUid(uid)) {
+			alert(uid + ' does not appear to be a legal uid.');
+			return;
+		}
 		store.dispatch(addPermissionsObjectForUser(uid));
 	}
 
