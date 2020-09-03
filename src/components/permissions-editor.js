@@ -14,6 +14,10 @@ import {
 	EDIT_ICON
 } from './my-icons.js';
 
+import {
+	updateUserNote
+} from '../actions/permissions.js';
+
 class PermissionsEditor extends connect(store)(LitElement) {
 	render() {
 		return html`
@@ -90,8 +94,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 
 	_handleEditNotes() {
 		const notes = prompt('What should notes be?', this._effectivePermissions.notes);
-		//TODO: actually persist
-		console.log(notes);
+		store.dispatch(updateUserNote(this.uid, notes));
 	}
 }
 
