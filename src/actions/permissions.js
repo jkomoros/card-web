@@ -21,26 +21,31 @@ export const connectLivePermissions = () => {
 	if (!selectUserMayEditPermissions(store.getState())) return;
 	db.collection(PERMISSIONS_COLLECTION).onSnapshot(snapshot => {
 
-		let permissions = {};
+		let permissionsToAdd = {};
+		let permissionsToRemove = {};
 
 		snapshot.docChanges().forEach(change => {
-			if (change.type === 'removed') return;
 			let doc = change.doc;
 			let id = doc.id;
+			if (change.type === 'removed') {
+				permissionsToRemove[id] = true;
+				return;
+			}
 			let permission = doc.data();
 			permission.id = id;
-			permissions[id] = permission;
+			permissionsToAdd[id] = permission;
 		});
 
-		store.dispatch(updatePermissions(permissions));
+		store.dispatch(updatePermissions(permissionsToAdd, permissionsToRemove));
 
 	});
 };
 
-const updatePermissions = (permissions) => {
+const updatePermissions = (permissionsToAdd, permissionsToRemove) => {
 	return {
 		type:PERMISSIONS_UPDATE_PERMISSIONS,
-		permissions
+		permissionsToAdd,
+		permissionsToRemove
 	};
 };
 
