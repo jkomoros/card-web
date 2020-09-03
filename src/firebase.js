@@ -1,3 +1,6 @@
+//This is the only place that should import firebase, to make sure every use is
+//intiialized by the time of use.
+
 import firebase from '@firebase/app';
 
 import '@firebase/auth';
@@ -31,3 +34,10 @@ firebase.firestore().enablePersistence()
 export const db = firebaseApp.firestore();
 export const auth = firebaseApp.auth();
 export const functions = firebaseApp.functions(FIREBASE_REGION);
+
+//These are the only reasons to import firebase, so just reexport them to avoid
+//confusing needs for importing firebase directly
+export const serverTimestamp = firebase.firestore.FieldValue.serverTimestamp;
+export const arrayUnion = firebase.firestore.FieldValue.arrayUnion;
+export const arrayRemove = firebase.firestore.FieldValue.arrayRemove;
+export const increment = firebase.firestore.FieldValue.increment;

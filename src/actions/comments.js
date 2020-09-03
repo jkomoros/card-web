@@ -4,8 +4,6 @@ export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
 //This is a list of the thread_ids for all top-level threads in this card.
 export const COMMENTS_UPDATE_CARD_THREADS = 'COMMENTS_UPDATE_CARD_THREADS';
 
-import firebase from '@firebase/app';
-
 import {
 	AUTHORS_COLLECTION,
 	THREADS_COLLECTION,
@@ -14,7 +12,9 @@ import {
 } from './database.js';
 
 import {
-	db
+	db,
+	serverTimestamp,
+	arrayUnion
 } from '../firebase.js';
 
 import {
@@ -36,7 +36,7 @@ import {
 
 export const ensureAuthor = (batch, user) => {
 	batch.set(db.collection(AUTHORS_COLLECTION).doc(user.uid), {
-		updated: firebase.firestore.FieldValue.serverTimestamp(),
+		updated: serverTimestamp(),
 		photoURL: user.photoURL,
 		displayName: user.displayName
 	});
@@ -80,7 +80,7 @@ export const resolveThread = (thread) => (dispatch, getState) => {
 		transaction.update(cardRef, {thread_count: newThreadCount, thread_resolved_count: newThreadResolvedCount});
 		transaction.update(threadRef, {
 			resolved: true,
-			updated: firebase.firestore.FieldValue.serverTimestamp()
+			updated: serverTimestamp()
 		});
 	});
 };
@@ -102,7 +102,7 @@ export const deleteMessage = (message) => (dispatch, getState) => {
 	batch.update(db.collection(MESSAGES_COLLECTION).doc(message.id), {
 		message: '',
 		deleted: true,
-		updated: firebase.firestore.FieldValue.serverTimestamp()
+		updated: serverTimestamp()
 	});
 
 	batch.commit();
@@ -127,7 +127,7 @@ export const editMessage = (message, newMessage) => (dispatch, getState) => {
 	batch.update(db.collection(MESSAGES_COLLECTION).doc(message.id), {
 		message: newMessage,
 		deleted: false,
-		updated: firebase.firestore.FieldValue.serverTimestamp()
+		updated: serverTimestamp()
 	});
 
 	batch.commit();
@@ -177,12 +177,12 @@ export const addMessage = (thread, message) => (dispatch, getState) => {
 	ensureAuthor(batch, user);
 
 	batch.update(db.collection(THREADS_COLLECTION).doc(threadId), {
-		updated: firebase.firestore.FieldValue.serverTimestamp(),
-		messages: firebase.firestore.FieldValue.arrayUnion(messageId)
+		updated: serverTimestamp(),
+		messages: arrayUnion(messageId)
 	});
 
 	batch.update(db.collection(CARDS_COLLECTION).doc(card.id),{
-		updated_message: firebase.firestore.FieldValue.serverTimestamp(),
+		updated_message: serverTimestamp(),
 	});
 
 	batch.set(db.collection(MESSAGES_COLLECTION).doc(messageId), {
@@ -190,8 +190,8 @@ export const addMessage = (thread, message) => (dispatch, getState) => {
 		message: message,
 		thread: threadId,
 		author: user.uid,
-		created: firebase.firestore.FieldValue.serverTimestamp(),
-		updated: firebase.firestore.FieldValue.serverTimestamp(),
+		created: serverTimestamp(),
+		updated: serverTimestamp(),
 		deleted: false
 	});
 
@@ -244,7 +244,7 @@ export const createThread = (message) => (dispatch, getState) => {
 		let newThreadCount = (cardDoc.data().thread_count || 0) + 1;
 		transaction.update(cardRef, {
 			thread_count: newThreadCount,
-			updated_message: firebase.firestore.FieldValue.serverTimestamp(),
+			updated_message: serverTimestamp(),
 		});
 
 		ensureAuthor(transaction, user);
@@ -254,8 +254,8 @@ export const createThread = (message) => (dispatch, getState) => {
 			message: message,
 			thread: threadId,
 			author: user.uid,
-			created: firebase.firestore.FieldValue.serverTimestamp(),
-			updated: firebase.firestore.FieldValue.serverTimestamp(),
+			created: serverTimestamp(),
+			updated: serverTimestamp(),
 			deleted: false
 		});
 
@@ -264,8 +264,8 @@ export const createThread = (message) => (dispatch, getState) => {
 			parent_message: '',
 			messages: [messageId],
 			author: user.uid,
-			created: firebase.firestore.FieldValue.serverTimestamp(),
-			updated: firebase.firestore.FieldValue.serverTimestamp(),
+			created: serverTimestamp(),
+			updated: serverTimestamp(),
 			resolved: false,
 			deleted: false
 		});

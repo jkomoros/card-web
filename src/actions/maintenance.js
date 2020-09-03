@@ -10,10 +10,9 @@ import {
 } from './database.js';
 
 import {
-	db
+	db,
+	serverTimestamp
 } from '../firebase.js';
-
-import firebase from '@firebase/app';
 
 import {
 	normalizeBodyHTML
@@ -59,7 +58,7 @@ const checkMaintenanceTaskHasBeenRun = async (taskName) => {
 };
 
 const maintenanceTaskRun = async (taskName) => {
-	db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: firebase.firestore.FieldValue.serverTimestamp()});
+	db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: serverTimestamp()});
 };
 
 //v1 of this set dates fro cards with no messages to when the card was created,
@@ -252,7 +251,7 @@ export const normalizeContentBody = async() => {
 		if (body) {
 			await doc.ref.update({
 				body: normalizeBodyHTML(body),
-				updated_normalize_body: firebase.firestore.FieldValue.serverTimestamp(),
+				updated_normalize_body: serverTimestamp(),
 			});
 		}
 		console.log('Processed ' + doc.id + ' (' + counter + '/' + size + ')' );
@@ -287,7 +286,7 @@ export const updateInboundLinks = async() => {
 			linkingCardsText[linkingCard.id] = linksText[doc.id] || '';
 		});
 		await doc.ref.update({
-			updated_links_inbound: firebase.firestore.FieldValue.serverTimestamp(),
+			updated_links_inbound: serverTimestamp(),
 			links_inbound: linkingCardsIds,
 			links_inbound_text: linkingCardsText,
 		});
@@ -311,7 +310,7 @@ export const addSectionUpdatesLog = async() => {
 	let snapshot = await db.collection(SECTIONS_COLLECTION).get();
 
 	snapshot.forEach(doc => {
-		batch.update(doc.ref, {updated: firebase.firestore.FieldValue.serverTimestamp()});
+		batch.update(doc.ref, {updated: serverTimestamp()});
 		let sectionUpdateRef = doc.ref.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
 		batch.set(sectionUpdateRef, {timestamp: new Date, cards: doc.data().cards});
 	});
@@ -507,7 +506,7 @@ export const resetTweets = async() => {
 	});
 	let tweetSnapshot = await db.collection(TWEETS_COLLECTION).get();
 	tweetSnapshot.forEach(doc => {
-		batch.update(doc.ref, {'archived': true, 'archive_date': firebase.firestore.FieldValue.serverTimestamp()});
+		batch.update(doc.ref, {'archived': true, 'archive_date': serverTimestamp()});
 	});
 	await batch.commit();
 	console.log('done!');
@@ -676,7 +675,7 @@ export const importCards = (cards) => {
 		mainBatch.set(ref, card);
 		let update = {
 			substantive: true,
-			timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+			timestamp: serverTimestamp(),
 			import: true
 		};
 		let updateRef = ref.collection(CARD_UPDATES_COLLECTION).doc('' + Date.now());
@@ -702,9 +701,9 @@ export const importCards = (cards) => {
 
 const newCard = (name) => {
 	return {
-		created: firebase.firestore.FieldValue.serverTimestamp(),
-		updated: firebase.firestore.FieldValue.serverTimestamp(),
-		updated_substantive: firebase.firestore.FieldValue.serverTimestamp(),
+		created: serverTimestamp(),
+		updated: serverTimestamp(),
+		updated_substantive: serverTimestamp(),
 		slugs: [],
 		name: name
 	};
@@ -718,9 +717,9 @@ const transformImportSectionName = (legacySectionName) => {
 
 const transformImportCard = (legacyCard) => {
 	return {
-		created: firebase.firestore.FieldValue.serverTimestamp(),
-		updated: firebase.firestore.FieldValue.serverTimestamp(),
-		updated_substantive: firebase.firestore.FieldValue.serverTimestamp(),
+		created: serverTimestamp(),
+		updated: serverTimestamp(),
+		updated_substantive: serverTimestamp(),
 		title: legacyCard.title || '',
 		body: legacyCard.body || '',
 		links: legacyCard.links || [],
@@ -759,7 +758,7 @@ export const doInitialSetUp = () => async (_, getState) => {
 		const update = {...val};
 		const startCardId = 'section-' + key;
 		const contentCardId = newID();
-		update.updated = firebase.firestore.FieldValue.serverTimestamp();
+		update.updated = serverTimestamp();
 		update.cards = [contentCardId];
 		update.order = count;
 		update.start_cards = [startCardId];

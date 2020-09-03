@@ -31,7 +31,11 @@ import {
 
 import {
 	db,
-	auth
+	auth,
+	serverTimestamp,
+	arrayUnion,
+	arrayRemove,
+	increment
 } from '../firebase.js';
 
 import {
@@ -102,14 +106,14 @@ export const ensureUserInfo = (batchOrTransaction, user) => {
 	if (!user) return;
 
 	let data = {
-		lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+		lastSeen: serverTimestamp(),
 		isAnonymous: user.isAnonymous,
 	};
 
 	//If this is set then we just signed in after a failed merge, so we want to
 	//keep record that we failed.
 	if (prevAnonymousMergeUser) {
-		data.previousUids = firebase.firestore.FieldValue.arrayUnion(prevAnonymousMergeUser.uid);
+		data.previousUids = arrayUnion(prevAnonymousMergeUser.uid);
 		//This will be nulled out in saveUserInfo on successful commit.
 	}
 
@@ -338,13 +342,13 @@ export const addToReadingList = (cardToAdd) => (dispatch, getState) => {
 	let readingListUpdateRef = readingListRef.collection(READING_LISTS_UPDATES_COLLECTION).doc('' + Date.now());
 
 	let readingListObject = {
-		cards: firebase.firestore.FieldValue.arrayUnion(cardToAdd.id),
-		updated: firebase.firestore.FieldValue.serverTimestamp(),
+		cards: arrayUnion(cardToAdd.id),
+		updated: serverTimestamp(),
 		owner: uid,
 	};
 
 	let readingListUpdateObject = {
-		timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+		timestamp: serverTimestamp(),
 		add_card: cardToAdd.id
 	};
 
@@ -380,13 +384,13 @@ export const removeFromReadingList = (cardToRemove) => (dispatch, getState) => {
 	let readingListUpdateRef = readingListRef.collection(READING_LISTS_UPDATES_COLLECTION).doc('' + Date.now());
 
 	let readingListObject = {
-		cards: firebase.firestore.FieldValue.arrayRemove(cardToRemove.id),
-		updated: firebase.firestore.FieldValue.serverTimestamp(),
+		cards: arrayRemove(cardToRemove.id),
+		updated: serverTimestamp(),
 		owner: uid
 	};
 
 	let readingListUpdateObject = {
-		timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+		timestamp: serverTimestamp(),
 		remove_card: cardToRemove.id
 	};
 
@@ -422,11 +426,11 @@ export const addStar = (cardToStar) => (dispatch, getState) => {
 
 	let batch = db.batch();
 	batch.update(cardRef, {
-		star_count: firebase.firestore.FieldValue.increment(1),
-		star_count_manual: firebase.firestore.FieldValue.increment(1),
+		star_count: increment(1),
+		star_count_manual: increment(1),
 	});
 	batch.set(starRef, {
-		created: firebase.firestore.FieldValue.serverTimestamp(), 
+		created: serverTimestamp(), 
 		owner: uid, 
 		card:cardToStar.id
 	});
@@ -458,8 +462,8 @@ export const removeStar = (cardToStar) => (dispatch, getState) => {
 
 	let batch = db.batch();
 	batch.update(cardRef, {
-		star_count: firebase.firestore.FieldValue.increment(-1),
-		star_count_manual: firebase.firestore.FieldValue.increment(-1),
+		star_count: increment(-1),
+		star_count_manual: increment(-1),
 	});
 	batch.delete(starRef);
 	batch.commit();
@@ -558,7 +562,7 @@ export const markRead = (cardToMarkRead, existingReadDoesNotError) => (dispatch,
 	let readRef = db.collection(READS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToMarkRead.id));
 
 	let batch = db.batch();
-	batch.set(readRef, {created: firebase.firestore.FieldValue.serverTimestamp(), owner: uid, card: cardToMarkRead.id});
+	batch.set(readRef, {created: serverTimestamp(), owner: uid, card: cardToMarkRead.id});
 	batch.commit();
 };
 
