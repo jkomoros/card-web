@@ -2,8 +2,6 @@
 import { LitElement, html } from '@polymer/lit-element';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
-import firebase from '@firebase/app';
-
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
@@ -28,6 +26,10 @@ import {
 	selectUser,
 	selectUserSignedIn,
 } from '../selectors.js';
+
+import {
+	auth
+} from '../actions/database.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
@@ -67,7 +69,7 @@ class UserChip extends connect(store)(LitElement) {
 	}
 
 	firstUpdated() {
-		firebase.auth().onAuthStateChanged(this._handleAuthStateChanged);
+		auth.onAuthStateChanged(this._handleAuthStateChanged);
 	}
 
 	_handleAuthStateChanged(user) {

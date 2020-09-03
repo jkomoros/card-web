@@ -14,26 +14,6 @@ import {
 	store
 } from '../store.js';
 
-export let DEV_MODE = false;
-//Deliberately only do devmode if the host is localhost. If you want it
-//in local mode, just do 127.0.0.1 instead.
-if (window.location.hostname == 'localhost') DEV_MODE = true;
-if (window.location.hostname.indexOf('dev-') >= 0) DEV_MODE = true;
-let config = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
-// Initialize Firebase
-const firebaseApp = firebase.initializeApp(config);
-
-export const db = firebase.firestore();
-
-firebase.firestore().enablePersistence()
-	.catch(function(err) {
-		if (err.code == 'failed-precondition') {
-			console.warn('Offline doesn\'t work because multiple tabs are open or something else');
-		} else if (err.code == 'unimplemented') {
-			console.warn('This browser doesn\'t support offline storage');
-		}
-	});
-
 import {
 	updateCards,
 	updateSections,
@@ -59,6 +39,27 @@ import {
 import {
 	selectUserMayViewApp
 } from '../selectors.js';
+
+export let DEV_MODE = false;
+//Deliberately only do devmode if the host is localhost. If you want it
+//in local mode, just do 127.0.0.1 instead.
+if (window.location.hostname == 'localhost') DEV_MODE = true;
+if (window.location.hostname.indexOf('dev-') >= 0) DEV_MODE = true;
+let config = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
+// Initialize Firebase
+const firebaseApp = firebase.initializeApp(config);
+
+firebase.firestore().enablePersistence()
+	.catch(function(err) {
+		if (err.code == 'failed-precondition') {
+			console.warn('Offline doesn\'t work because multiple tabs are open or something else');
+		} else if (err.code == 'unimplemented') {
+			console.warn('This browser doesn\'t support offline storage');
+		}
+	});
+
+export const db = firebaseApp.firestore();
+export const auth = firebaseApp.auth();
 
 export const CARDS_COLLECTION = 'cards';
 export const CARD_UPDATES_COLLECTION = 'updates';

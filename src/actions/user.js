@@ -21,6 +21,7 @@ import {
 	connectLiveReadingList,
 	disconnectLiveReadingList,
 	db,
+	auth,
 	CARDS_COLLECTION,
 	STARS_COLLECTION,
 	READS_COLLECTION,
@@ -50,7 +51,7 @@ import {
 
 let prevAnonymousMergeUser = null;
 
-firebase.auth().getRedirectResult().catch( async err => {
+auth.getRedirectResult().catch( async err => {
 
 	if (err.code != 'auth/credential-already-in-use') {
 		alert('Couldn\'t sign in (' + err.code + '): ' + err.message);
@@ -66,7 +67,7 @@ firebase.auth().getRedirectResult().catch( async err => {
 	//We'll keep track of who the previous uid was, so maybe in the future we
 	//can merge the accounts. the saveUserInfo after a successful signin will
 	//notice this global is set and save it to the db.
-	prevAnonymousMergeUser = firebase.auth().currentUser;
+	prevAnonymousMergeUser = auth.currentUser;
 
 	let credential = err.credential;
 
@@ -75,7 +76,7 @@ firebase.auth().getRedirectResult().catch( async err => {
 		return;
 	}
 
-	firebase.auth().signInAndRetrieveDataWithCredential(credential);
+	auth.signInAndRetrieveDataWithCredential(credential);
 
 });
 
@@ -129,7 +130,7 @@ export const signIn = () => (dispatch, getState) => {
 	let provider = new firebase.auth.GoogleAuthProvider();
 
 	if (isAnonymous) {
-		let user = firebase.auth().currentUser;
+		let user = auth.currentUser;
 		if (!user) {
 			console.warn('Unexpectedly didn\'t have user');
 			return;
@@ -138,7 +139,7 @@ export const signIn = () => (dispatch, getState) => {
 		return;
 	}
 
-	firebase.auth().signInWithRedirect(provider).catch(err => {
+	auth.signInWithRedirect(provider).catch(err => {
 		dispatch({type:SIGNIN_FAILURE, error: err});
 	});
 
@@ -152,7 +153,7 @@ export const signOutSuccess = () => (dispatch) =>  {
 	//If the user hasn't previously signed in on this device, then this might be
 	//a first page load. Try to do an anonymous account.
 	if (!hasPreviousSignIn()) {
-		firebase.auth().signInAnonymously();
+		auth.signInAnonymously();
 		return;
 	}
 
@@ -283,7 +284,7 @@ export const signOut = () => (dispatch, getState) => {
 	dispatch({type:SIGNOUT_USER});
 	flagHasPreviousSignIn();
 	updatePermissions('');
-	firebase.auth().signOut();
+	auth.signOut();
 };
 
 export const updateStars = (starsToAdd = [], starsToRemove = []) => (dispatch) => {
