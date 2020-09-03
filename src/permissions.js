@@ -10,7 +10,7 @@ export const PERMISSION_STAR = 'star';
 export const PERMISSION_MARK_READ = 'markRead';
 export const PERMISSION_MODIFY_READING_LIST = 'modifyReadingList';
 
-const PERMISSIONS_INFO = {
+export const PERMISSIONS_INFO = {
 	[PERMISSION_ADMIN]: {
 		displayName: 'Admin',
 		description: 'admin is the highest permission, which allows basically all actions, including deleting things. Note that this may only be set to true on a specific permissions record for a user, not at any other override point, since it\'s so sensitive.',

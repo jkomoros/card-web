@@ -18,6 +18,15 @@ import {
 	updateUserNote
 } from '../actions/permissions.js';
 
+import {
+	PERMISSIONS_INFO
+} from '../permissions.js';
+
+import './tag-list.js';
+
+const All_PERMISSIONS = Object.fromEntries(Object.entries(PERMISSIONS_INFO).map(entry => [entry[0], {...entry[1], id: entry[0], title:entry[1].displayName}]));
+const MODIFIABLE_PERMISSIONS = Object.fromEntries(Object.entries(All_PERMISSIONS).filter(entry => !entry[1].locked));
+
 class PermissionsEditor extends connect(store)(LitElement) {
 	render() {
 		return html`
@@ -52,6 +61,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 				</pre>
 				${this._editable ? html`
 					${this._effectivePermissions.admin ? html`<p><strong>Admin</strong> (Remove via firebase console)</p>` : ''}
+					<tag-list .tags=${this._enabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .overrideTypeName=${'Permission'}></tag-list>
 					<strong>Notes</strong> ${this._effectivePermissions.notes} <span class='edit' @click=${this._handleEditNotes}>${EDIT_ICON}</span>` : '' }
 			</div>
 			`;
@@ -86,6 +96,10 @@ class PermissionsEditor extends connect(store)(LitElement) {
 
 	get _effectivePermissions() {
 		return this.permissions || this._allPermissions[this.uid];
+	}
+
+	get _enabledModifiablePermissions() {
+		return Object.keys(this._effectivePermissions).filter(item => MODIFIABLE_PERMISSIONS[item]);
 	}
 
 	stateChanged(state) {
