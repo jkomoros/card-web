@@ -35,7 +35,18 @@ import {
 import {
 	BASE_PERMISSIONS,
 	BASE_USER_TYPE_ANONYMOUS_PERMISSIONS,
-	BASE_USER_TYPE_SIGNED_IN_PERMISSIONS
+	BASE_USER_TYPE_SIGNED_IN_PERMISSIONS,
+	PERMISSION_ADMIN,
+	PERMISSION_EDIT,
+	PERMISSION_VIEW_APP,
+	PERMISSION_VIEW_UNPUBLISHED,
+	PERMISSION_EDIT_SECTION,
+	PERMISSION_EDIT_TAG,
+	PERMISSION_CREATE_CARD,
+	PERMISSION_COMMENT,
+	PERMISSION_STAR,
+	PERMISSION_MARK_READ,
+	PERMISSION_MODIFY_READING_LIST
 } from './permissions.js';
 
 import {
@@ -208,13 +219,13 @@ export const selectUid = createSelector(
 
 export const selectUserIsAdmin = createSelector(
 	selectComposedPermissions,
-	(permissions) => permissions.admin
+	(permissions) => permissions[PERMISSION_ADMIN]
 );
 
 export const selectUserMayEdit = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
-	(admin, permissions) => admin || permissions.edit
+	(admin, permissions) => admin || permissions[PERMISSION_EDIT]
 );
 
 export const selectUserMayEditActiveCard = createSelector(
@@ -236,14 +247,14 @@ export const selectUserMayEditActiveCard = createSelector(
 export const selectUserMayViewApp = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
-	(admin, permissions) => admin || permissions.viewApp
+	(admin, permissions) => admin || permissions[PERMISSION_VIEW_APP]
 );
 
 export const selectUserMayViewUnpublished = createSelector(
 	selectUserIsAdmin,
 	selectUserMayViewApp,
 	selectComposedPermissions,
-	(admin, mayViewApp, permissions) => mayViewApp && (admin || permissions.edit || permissions.viewUnpublished)
+	(admin, mayViewApp, permissions) => mayViewApp && (admin || permissions[PERMISSION_EDIT] || permissions[PERMISSION_VIEW_UNPUBLISHED])
 );
 
 export const selectUserMayEditPermissions = createSelector(
@@ -266,7 +277,7 @@ export const getUserMayEditSection = (state, sectionID) => {
 const selectUserMayEditSections = createSelector(
 	selectUserMayEdit,
 	selectComposedPermissions,
-	(userMayEdit, permissions) => userMayEdit || permissions.editSection
+	(userMayEdit, permissions) => userMayEdit || permissions[PERMISSION_EDIT_SECTION]
 );
 
 export const selectUserMayChangeEditingCardSection = createSelector(
@@ -293,7 +304,7 @@ export const getUserMayEditTag = (state, tagID) => {
 const selectUserMayEditTags = createSelector(
 	selectUserMayEdit,
 	selectComposedPermissions,
-	(userMayEdit, permissions) => userMayEdit || permissions.editTag
+	(userMayEdit, permissions) => userMayEdit || permissions[PERMISSION_EDIT_TAG]
 );
 
 //true if at least one of the tags returns true for getUserMayEditTag
@@ -314,31 +325,31 @@ export const tagsUserMayNotEdit = createSelector(
 export const selectUserMayCreateCard = createSelector(
 	selectUserMayEdit,
 	selectComposedPermissions,
-	(userMayEdit, permissions) => userMayEdit || permissions.createCard
+	(userMayEdit, permissions) => userMayEdit || permissions[PERMISSION_CREATE_CARD]
 );
 
 export const selectUserMayComment = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
-	(admin, permissions) => admin || permissions.comment
+	(admin, permissions) => admin || permissions[PERMISSION_COMMENT]
 );
 
 export const selectUserMayStar = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
-	(admin, permissions) => admin || permissions.star
+	(admin, permissions) => admin || permissions[PERMISSION_STAR]
 );
 
 export const selectUserMayMarkRead = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
-	(admin, permissions) => admin || permissions.markRead
+	(admin, permissions) => admin || permissions[PERMISSION_MARK_READ]
 );
 
 export const selectUserMayModifyReadingList = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
-	(admin, permissions) => admin || permissions.modifyReadingList
+	(admin, permissions) => admin || permissions[PERMISSION_MODIFY_READING_LIST]
 );
 
 export const selectAuthorsForTagList = createSelector(
