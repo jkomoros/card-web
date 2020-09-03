@@ -1,6 +1,5 @@
 
 import {
-	db,
 	CARDS_COLLECTION,
 	SECTIONS_COLLECTION,
 	SECTION_UPDATES_COLLECTION,
@@ -9,6 +8,10 @@ import {
 	MAINTENANCE_COLLECTION,
 	TWEETS_COLLECTION,
 } from './database.js';
+
+import {
+	db
+} from '../firebase.js';
 
 import firebase from '@firebase/app';
 

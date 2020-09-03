@@ -54,7 +54,6 @@ import {
 } from '../selectors.js';
 
 import {
-	DEV_MODE,
 	connectLivePublishedCards,
 	connectLiveUnpublishedCards,
 	connectLiveSections,
@@ -64,6 +63,10 @@ import {
 	connectLiveMessages,
 	connectLiveUnpublishedCardsForUser,
 } from '../actions/database.js';
+
+import {
+	DEV_MODE
+} from '../firebase.js';
 
 import {
 	openFindDialog

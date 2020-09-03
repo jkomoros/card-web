@@ -59,9 +59,12 @@ import {
 } from '../util.js';
 
 import {
-	db,
 	CARDS_COLLECTION,
 } from './database.js';
+
+import {
+	db
+} from '../firebase.js';
 
 import {
 	updateCards,

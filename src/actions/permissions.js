@@ -9,9 +9,12 @@ import {
 } from '../selectors.js';
 
 import {
-	db,
 	PERMISSIONS_COLLECTION
 } from './database.js';
+
+import {
+	db
+} from '../firebase.js';
 
 export const connectLivePermissions = () => {
 	if (!selectUserMayEditPermissions(store.getState())) return;

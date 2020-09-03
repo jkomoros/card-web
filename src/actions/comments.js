@@ -7,12 +7,15 @@ export const COMMENTS_UPDATE_CARD_THREADS = 'COMMENTS_UPDATE_CARD_THREADS';
 import firebase from '@firebase/app';
 
 import {
-	db,
 	AUTHORS_COLLECTION,
 	THREADS_COLLECTION,
 	MESSAGES_COLLECTION,
 	CARDS_COLLECTION,
 } from './database.js';
+
+import {
+	db
+} from '../firebase.js';
 
 import {
 	selectActiveCard,

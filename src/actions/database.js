@@ -1,14 +1,7 @@
-import firebase from '@firebase/app';
-
-import '@firebase/auth';
-import '@firebase/firestore';
-import '@firebase/functions';
-
 import {
-	FIREBASE_DEV_CONFIG,
-	FIREBASE_PROD_CONFIG,
-	FIREBASE_REGION
-} from '../../config.GENERATED.SECRET.js';
+	db,
+	functions
+} from '../firebase.js';
 
 import {
 	store
@@ -40,27 +33,6 @@ import {
 	selectUserMayViewApp
 } from '../selectors.js';
 
-export let DEV_MODE = false;
-//Deliberately only do devmode if the host is localhost. If you want it
-//in local mode, just do 127.0.0.1 instead.
-if (window.location.hostname == 'localhost') DEV_MODE = true;
-if (window.location.hostname.indexOf('dev-') >= 0) DEV_MODE = true;
-let config = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
-// Initialize Firebase
-const firebaseApp = firebase.initializeApp(config);
-
-firebase.firestore().enablePersistence()
-	.catch(function(err) {
-		if (err.code == 'failed-precondition') {
-			console.warn('Offline doesn\'t work because multiple tabs are open or something else');
-		} else if (err.code == 'unimplemented') {
-			console.warn('This browser doesn\'t support offline storage');
-		}
-	});
-
-export const db = firebaseApp.firestore();
-export const auth = firebaseApp.auth();
-
 export const CARDS_COLLECTION = 'cards';
 export const CARD_UPDATES_COLLECTION = 'updates';
 export const SECTION_UPDATES_COLLECTION = 'updates';
@@ -83,7 +55,7 @@ export const READING_LISTS_UPDATES_COLLECTION = 'updates';
 export const PERMISSIONS_COLLECTION = 'permissions';
 export const TWEETS_COLLECTION = 'tweets';
 
-const legalCallable = firebaseApp.functions(FIREBASE_REGION).httpsCallable('legal');
+const legalCallable = functions.httpsCallable('legal');
 
 export const slugLegal = async (newSlug) => {
 	const result = await legalCallable({type:'slug', value:newSlug});

@@ -12,7 +12,6 @@ export const REORDER_STATUS = 'REORDER_STATUS';
 import firebase from '@firebase/app';
 
 import {
-	db,
 	slugLegal,
 	CARDS_COLLECTION,
 	CARD_UPDATES_COLLECTION,
@@ -22,6 +21,10 @@ import {
 	TAG_UPDATES_COLLECTION,
 	TWEETS_COLLECTION,
 } from './database.js';
+
+import {
+	db
+} from '../firebase.js';
 
 import {
 	navigateToCard

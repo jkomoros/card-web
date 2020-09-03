@@ -20,8 +20,6 @@ import {
 	disconnectLiveReads,
 	connectLiveReadingList,
 	disconnectLiveReadingList,
-	db,
-	auth,
 	CARDS_COLLECTION,
 	STARS_COLLECTION,
 	READS_COLLECTION,
@@ -30,6 +28,11 @@ import {
 	READING_LISTS_UPDATES_COLLECTION,
 	PERMISSIONS_COLLECTION
 } from './database.js';
+
+import {
+	db,
+	auth
+} from '../firebase.js';
 
 import {
 	idForPersonalCardInfo

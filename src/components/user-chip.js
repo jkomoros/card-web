@@ -29,7 +29,7 @@ import {
 
 import {
 	auth
-} from '../actions/database.js';
+} from '../firebase.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
