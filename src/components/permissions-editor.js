@@ -10,6 +10,10 @@ import {
 	selectAuthors
 } from '../selectors.js';
 
+import {
+	EDIT_ICON
+} from './my-icons.js';
+
 class PermissionsEditor extends connect(store)(LitElement) {
 	render() {
 		return html`
@@ -17,8 +21,23 @@ class PermissionsEditor extends connect(store)(LitElement) {
 				.container {
 					color: var(--app-dark-text-color-subtle);
 				}
+
 				.editable {
 					color: var(--app-dark-text-color);
+				}
+
+				.edit {
+					cursor: pointer;
+				}
+
+				svg {
+					height:1.3em;
+					width:1.3em;
+					fill: var(--app-dark-text-color-subtle);
+				}
+
+				svg:hover {
+					fill: var(--app-dark-text-color);
 				}
 			</style>
 			<div class="container ${this._editable ? 'editable' : ''}">
@@ -27,6 +46,8 @@ class PermissionsEditor extends connect(store)(LitElement) {
 				<pre>
 					${JSON.stringify(this._effectivePermissions, null, 2)}
 				</pre>
+				${this._editable ? html`
+					<strong>Notes</strong> ${this._effectivePermissions.notes} <span class='edit' @click=${this._handleEditNotes}>${EDIT_ICON}</span>` : '' }
 			</div>
 			`;
 	}
@@ -65,6 +86,12 @@ class PermissionsEditor extends connect(store)(LitElement) {
 	stateChanged(state) {
 		this._allPermissions = selectAllPermissions(state);
 		this._authors = selectAuthors(state);
+	}
+
+	_handleEditNotes() {
+		const notes = prompt('What should notes be?', this._effectivePermissions.notes);
+		//TODO: actually persist
+		console.log(notes);
 	}
 }
 
