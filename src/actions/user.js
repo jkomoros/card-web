@@ -11,17 +11,15 @@ export const UPDATE_USER_PERMISSIONS = 'UPDATE_USER_PERMISSIONS';
 
 export const AUTO_MARK_READ_DELAY = 5000;
 
+import firebase from '@firebase/app';
+
 import {
-	firebase,
 	connectLiveStars,
 	disconnectLiveStars,
 	connectLiveReads,
 	disconnectLiveReads,
 	connectLiveReadingList,
 	disconnectLiveReadingList,
-} from './database.js';
-
-import {
 	db,
 	CARDS_COLLECTION,
 	STARS_COLLECTION,

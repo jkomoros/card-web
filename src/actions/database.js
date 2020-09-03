@@ -1,4 +1,4 @@
-import firebaseImpl from '@firebase/app';
+import firebase from '@firebase/app';
 
 import '@firebase/auth';
 import '@firebase/firestore';
@@ -13,8 +13,6 @@ import {
 import {
 	store
 } from '../store.js';
-
-export const firebase = firebaseImpl;
 
 export let DEV_MODE = false;
 //Deliberately only do devmode if the host is localhost. If you want it

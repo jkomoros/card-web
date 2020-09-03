@@ -4,9 +4,10 @@ export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
 //This is a list of the thread_ids for all top-level threads in this card.
 export const COMMENTS_UPDATE_CARD_THREADS = 'COMMENTS_UPDATE_CARD_THREADS';
 
+import firebase from '@firebase/app';
+
 import {
 	db,
-	firebase,
 	AUTHORS_COLLECTION,
 	THREADS_COLLECTION,
 	MESSAGES_COLLECTION,

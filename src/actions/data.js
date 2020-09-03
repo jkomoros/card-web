@@ -9,13 +9,11 @@ export const MODIFY_CARD_SUCCESS = 'MODIFY_CARD_SUCCESS';
 export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
 export const REORDER_STATUS = 'REORDER_STATUS';
 
-import {
-	firebase,
-	slugLegal
-} from './database.js';
+import firebase from '@firebase/app';
 
 import {
 	db,
+	slugLegal,
 	CARDS_COLLECTION,
 	CARD_UPDATES_COLLECTION,
 	SECTION_UPDATES_COLLECTION,

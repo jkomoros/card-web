@@ -10,6 +10,8 @@ import {
 	TWEETS_COLLECTION,
 } from './database.js';
 
+import firebase from '@firebase/app';
+
 import {
 	normalizeBodyHTML
 } from '../contenteditable.js';
@@ -17,10 +19,6 @@ import {
 import {
 	extractCardLinksFromBody
 } from '../util.js';
-
-import {
-	firebase
-} from './database.js';
 
 import { 
 	arrayDiff,

@@ -2,9 +2,7 @@
 import { LitElement, html } from '@polymer/lit-element';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
-import {
-	firebase
-} from '../actions/database.js';
+import firebase from '@firebase/app';
 
 // This element is connected to the Redux store.
 import { store } from '../store.js';
