@@ -36,7 +36,7 @@ import {
 	BASE_PERMISSIONS,
 	BASE_USER_TYPE_ANONYMOUS_PERMISSIONS,
 	BASE_USER_TYPE_SIGNED_IN_PERMISSIONS
-} from './reducers/user.js';
+} from './permissions.js';
 
 import {
 	USER_TYPE_ALL_PERMISSIONS,

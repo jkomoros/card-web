@@ -216,7 +216,7 @@ This value should be the part after the `@` sign in an email. For example, for
 If you want to override the default BASE_PERMISSIONS of the webapp, for example
 to make it so users must be explicitly whitelisted to view the app at all, then
 put an object there with all of the true/false keys you want to override. See
-src/reducers/user.js.BASE_PERMISSIONS for an enumeration of all of the keys and
+src/permissions.js.BASE_PERMISSIONS for an enumeration of all of the keys and
 what they mean.
 
 The different permissions objects are maps that are sub-keys of this: 'all',
@@ -235,7 +235,7 @@ visits the web app is signed in anonyously, so in practice this applies for
 everyone.
 
 The web app defines its own permissions that apply at this tier in
-src/reducers/user.js.BASE_USER_TYPE_ANONYMOUS_PERMISSIONS. Keys you provide here
+src/permissions.js.BASE_USER_TYPE_ANONYMOUS_PERMISSIONS. Keys you provide here
 will supercede those.
 
 #### permissions.signed_in
@@ -245,7 +245,7 @@ username and email attached. Note that this means these permissions layer on top
 of the overrides provided for permissions.anonymous.
 
 The web app defines its own permissions that apply at this tier in
-src/reducers/user.js.BASE_USER_TYPE_SIGNED_IN_PERMISSIONS. Keys you provide here
+src/permissions.js.BASE_USER_TYPE_SIGNED_IN_PERMISSIONS. Keys you provide here
 will supercede those.
 
 #### permissions.signed_in_domain
