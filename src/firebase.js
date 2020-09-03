@@ -41,3 +41,4 @@ export const serverTimestamp = firebase.firestore.FieldValue.serverTimestamp;
 export const arrayUnion = firebase.firestore.FieldValue.arrayUnion;
 export const arrayRemove = firebase.firestore.FieldValue.arrayRemove;
 export const increment = firebase.firestore.FieldValue.increment;
+export const deleteField = firebase.firestore.FieldValue.delete;

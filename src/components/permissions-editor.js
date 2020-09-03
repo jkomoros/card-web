@@ -15,7 +15,10 @@ import {
 } from './my-icons.js';
 
 import {
-	updateUserNote
+	updateUserNote,
+	addEnabledPermission,
+	addDisabledPermission,
+	clearPermission
 } from '../actions/permissions.js';
 
 import {
@@ -69,8 +72,8 @@ class PermissionsEditor extends connect(store)(LitElement) {
 					${JSON.stringify(this._effectivePermissions, null, 2)}
 				</pre>
 				<tag-list .tags=${this._enabledLockedPermissions} .tagInfos=${LOCKED_PERMISSIONS} .overrideTypeName=${'Permission'} .defaultColor=${lockedPermissionColor} .hideOnEmpty=${true}></tag-list>
-				<tag-list .tags=${this._enabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @add-tag=${this._handleAddEnabled} @remove-tag=${this._handleRemoveEnabled} .overrideTypeName=${'Permission'} .defaultColor=${enabledPermissionColor}></tag-list>
-				<tag-list .tags=${this._disabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @add-tag=${this._handleAddDisabled} @remove-tag=${this._handleRemoveDisabled} .overrideTypeName=${'Permission'} .defaultColor=${disabledPermissionColor} .hideOnEmpty=${true}></tag-list>
+				<tag-list .tags=${this._enabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @add-tag=${this._handleAddEnabled} @remove-tag=${this._handleRemove} .overrideTypeName=${'Permission'} .defaultColor=${enabledPermissionColor}></tag-list>
+				<tag-list .tags=${this._disabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @add-tag=${this._handleAddDisabled} @remove-tag=${this._handleRemove} .overrideTypeName=${'Permission'} .defaultColor=${disabledPermissionColor} .hideOnEmpty=${true}></tag-list>
 				<strong>Notes</strong> ${this._effectivePermissions.notes || html`<em>No notes</em>`} <span class='edit' ?hidden=${!this._editable} @click=${this._handleEditNotes}>${EDIT_ICON}</span>
 			</div>
 			`;
@@ -131,24 +134,17 @@ class PermissionsEditor extends connect(store)(LitElement) {
 	}
 
 	_handleAddDisabled(e){
-		//TODO: actually do something
-		console.log(e.detail.tag);
+		store.dispatch(addDisabledPermission(this.uid, e.detail.tag));
 	}
 
 	_handleAddEnabled(e){
-		//TODO: actually do something
-		console.log(e.detail.tag);
+		store.dispatch(addEnabledPermission(this.uid, e.detail.tag));
 	}
 
-	_handleRemoveDisabled(e){
-		//TODO: actually do something
-		console.log(e.detail.tag);
+	_handleRemove(e){
+		store.dispatch(clearPermission(this.uid, e.detail.tag));
 	}
 
-	_handleRemoveEnabled(e){
-		//TODO: actually do something
-		console.log(e.detail.tag);
-	}
 }
 
 window.customElements.define('permissions-editor', PermissionsEditor);
