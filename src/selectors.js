@@ -178,6 +178,8 @@ const selectUserTypePermissions = createSelector(
 	selectUserSignedIn,
 	selectUserSignedInDomain,
 	(userObjectExists, isSignedIn,signedInDomain) => {
+		//If the last is true, then the two before must be true, and on down.
+		//Composed permissions already expand and combine the various bits together.
 		if (signedInDomain) return COMPOSED_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS;
 		if (isSignedIn) return COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS;
 		if (userObjectExists) return COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS;
