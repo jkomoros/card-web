@@ -25,6 +25,7 @@ const badge = (name, icon, countOrVisible, highlighted) => {
 	return html`<div class='badge ${name} ${highlighted ? 'highlighted' : ''}' ?hidden=${!countOrVisible}><div>${icon}${text}</div></div>`;
 };
 
+//if you use starBadge, also print out badgeStyles within your component's shadowDOM.
 export const starBadge = (count, highlighted) => {
 	return badge('star-count', STAR_ICON, count, highlighted);
 };
