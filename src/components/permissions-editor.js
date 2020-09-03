@@ -68,9 +68,6 @@ class PermissionsEditor extends connect(store)(LitElement) {
 			<div class="container ${this._editable ? 'editable' : ''}">
 				<h4>${this._title}</h4>
 				${this.description ? html`<p>${this.description}</p>` : ''}
-				<pre>
-					${JSON.stringify(this._effectivePermissions, null, 2)}
-				</pre>
 				<tag-list .tags=${this._enabledLockedPermissions} .tagInfos=${LOCKED_PERMISSIONS} .overrideTypeName=${'Permission'} .defaultColor=${lockedPermissionColor} .hideOnEmpty=${true}></tag-list>
 				<tag-list .tags=${this._enabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @add-tag=${this._handleAddEnabled} @remove-tag=${this._handleRemove} .overrideTypeName=${'Permission'} .defaultColor=${enabledPermissionColor}></tag-list>
 				<tag-list .tags=${this._disabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @add-tag=${this._handleAddDisabled} @remove-tag=${this._handleRemove} .overrideTypeName=${'Permission'} .defaultColor=${disabledPermissionColor} .hideOnEmpty=${true}></tag-list>
