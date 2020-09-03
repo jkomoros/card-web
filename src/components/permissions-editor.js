@@ -124,7 +124,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 	}
 
 	get _enabledLockedPermissions() {
-		return Object.keys(this._effectivePermissions).filter(item => LOCKED_PERMISSIONS[item]);
+		return Object.entries(this._effectivePermissions).filter(entry => entry[1]).map(entry => entry[0]).filter(item => LOCKED_PERMISSIONS[item]);
 	}
 
 	stateChanged(state) {
