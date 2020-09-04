@@ -94,7 +94,7 @@ class CardDrawer extends LitElement {
 					${this.labels && this.labels[index] ? html`<div class='label'><span>${this.labelName} <strong>${this.labels[index]}</strong></span></div>` : html``}
 					<card-thumbnail .full=${this.fullCards} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this.editable} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this.selectedCardId} .ghost=${this.collectionItemsToGhost[i.id] || false}></card-thumbnail>`)}
 				</div>
-				<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable && this.suppressAdd}'>${PLUS_ICON}</button>
+				<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable || this.suppressAdd}'>${PLUS_ICON}</button>
 			</div>
 		`;
 	}
