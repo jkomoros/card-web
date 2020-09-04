@@ -18,7 +18,6 @@ import {
 import {
 	updateUserNote,
 	addEnabledPermission,
-	addDisabledPermission,
 	clearPermission,
 	deletePermissionsObjectForUser
 } from '../actions/permissions.js';
@@ -37,7 +36,6 @@ class PermissionsEditor extends connect(store)(LitElement) {
 	render() {
 		const lockedPermissionColor = '#7f7f7f';
 		const enabledPermissionColor = '#006400'; //darkgreen
-		const disabledPermissionColor = '#b22222'; //firebrick
 
 		return html`
 			<style>
@@ -81,7 +79,6 @@ class PermissionsEditor extends connect(store)(LitElement) {
 				<p><strong>${this._title}</strong> ${this.description ? html`<em>${this.description}</em>` : ''}&nbsp;&nbsp;&nbsp;<strong>Notes</strong> ${this._effectivePermissions.notes || html`<em>No notes</em>`} <span class='edit' ?hidden=${!this._editable} @click=${this._handleEditNotes}>${EDIT_ICON}</span><span class='edit' ?hidden=${!this._editable} @click=${this._handleDelete}>${DELETE_FOREVER_ICON}</span></p>
 				<tag-list .tags=${this._enabledLockedPermissions} .tagInfos=${LOCKED_PERMISSIONS} .overrideTypeName=${'Permission'} .defaultColor=${lockedPermissionColor} .hideOnEmpty=${true}></tag-list>
 				<tag-list .tags=${this._enabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @add-tag=${this._handleAddEnabled} @remove-tag=${this._handleRemove} .overrideTypeName=${'Permission'} .defaultColor=${enabledPermissionColor}></tag-list>
-				<tag-list .tags=${this._disabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @add-tag=${this._handleAddDisabled} @remove-tag=${this._handleRemove} .overrideTypeName=${'Permission'} .defaultColor=${disabledPermissionColor} .hideOnEmpty=${true}></tag-list>
 			</div>
 			`;
 	}
@@ -114,15 +111,11 @@ class PermissionsEditor extends connect(store)(LitElement) {
 	}
 
 	get _effectivePermissions() {
-		return this.permissions || this._allPermissions[this.uid];
+		return this.permissions || this._allPermissions[this.uid] || {};
 	}
 
 	get _enabledModifiablePermissions() {
 		return Object.entries(this._effectivePermissions).filter(entry => entry[1]).map(entry => entry[0]).filter(item => MODIFIABLE_PERMISSIONS[item]);
-	}
-
-	get _disabledModifiablePermissions() {
-		return Object.entries(this._effectivePermissions).filter(entry => !entry[1]).map(entry => entry[0]).filter(item => MODIFIABLE_PERMISSIONS[item]);
 	}
 
 	get _enabledLockedPermissions() {
@@ -138,10 +131,6 @@ class PermissionsEditor extends connect(store)(LitElement) {
 		if (!this._editable) return;
 		const notes = prompt('What should notes be?', this._effectivePermissions.notes);
 		store.dispatch(updateUserNote(this.uid, notes));
-	}
-
-	_handleAddDisabled(e){
-		store.dispatch(addDisabledPermission(this.uid, e.detail.tag));
 	}
 
 	_handleAddEnabled(e){

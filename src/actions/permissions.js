@@ -65,10 +65,6 @@ export const addEnabledPermission = (uid, key) => () => {
 	db.collection(PERMISSIONS_COLLECTION).doc(uid).set({[key]: true}, {merge: true});
 };
 
-export const addDisabledPermission = (uid, key) => () => {
-	db.collection(PERMISSIONS_COLLECTION).doc(uid).set({[key]: false}, {merge: true});
-};
-
 export const clearPermission = (uid, key) => () => {
 	db.collection(PERMISSIONS_COLLECTION).doc(uid).set({[key]: deleteField()}, {merge: true});
 };
