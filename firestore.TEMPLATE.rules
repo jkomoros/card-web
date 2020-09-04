@@ -38,8 +38,16 @@ service cloud.firestore {
       return (request.auth != null && request.auth.uid != null && exists(/databases/$(database)/documents/permissions/$(request.auth.uid))) ? get(/databases/$(database)/documents/permissions/$(request.auth.uid)).data : {};
     }
 
+    function getPermissions(keys) {
+      //we can convert to a set because we disallow userTypePermissions to mark
+      //negative keys, and also do the same (in client side checks, at least,
+      //for permissions on user object)
+      let mergedSet = userPermissions().keys().toSet().union(userTypePermissions().keys().toSet());
+      return mergedSet.hasAny(keys);
+    }
+
     function getPermission(key) {
-      return userPermissions().get(key, userTypePermissions().get(key, false));
+      return getPermissions([key])
     }
 
     function userIsAdmin() {
@@ -53,7 +61,7 @@ service cloud.firestore {
     }
     
     function userMayViewUnpublished() {
-      return loggedIn() && userIsAdmin() || getPermission('edit') || getPermission('viewUnpublished') || request.auth.uid in resource.data.editors || request.auth.uid == resource.data.author;
+      return loggedIn() && userIsAdmin() || getPermissions(['edit','viewUnpublished']) || request.auth.uid in resource.data.editors || request.auth.uid == resource.data.author;
     }
 
     function userMayEditPermissions() {
@@ -74,15 +82,15 @@ service cloud.firestore {
     }
 
     function userMayEditSection(sectionID) {
-      return userIsAdmin() || getPermission('edit') || getPermission('editSection');
+      return userIsAdmin() || getPermissions(['edit', 'editSection']);
     }
 
     function userMayEditTag(tagID) {
-      return userIsAdmin() || getPermission('edit') || getPermission('editTag');
+      return userIsAdmin() || getPermissions(['edit', 'editTag']);
     }
 
     function userMayCreateCard() {
-      return userIsAdmin() || getPermission('edit') || getPermission('createCard');
+      return userIsAdmin() || getPermissions(['edit','createCard']);
     }
 
     function userMayComment() {
