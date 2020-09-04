@@ -223,6 +223,13 @@ describe('Compendium Rules', () => {
 		await firebase.assertSucceeds(card.get());
 	});
 
+	it ('allows users with editCard permission to view unpublished card', async() => {
+		const db = authedApp(genericAuth);
+		await addPermissionForUser(genericUid, 'editCard');
+		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardId);
+		await firebase.assertSucceeds(card.get());
+	});
+
 	it ('allows users with admin permission to view unpublished card', async() => {
 		const db = authedApp(adminAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardId);
@@ -421,6 +428,19 @@ describe('Compendium Rules', () => {
 		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({foo:5}));
+	});
+
+	it('allows users with edit permission to arbitrarily edit a card', async () => {
+		const db = authedApp(jerryAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(card.update({foo:5}));
+	});
+
+	it('allows users with editCard permission to arbitrarily edit a card', async () => {
+		const db = authedApp(genericAuth);
+		await addPermissionForUser(genericUid, 'editCard');
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(card.update({foo:5}));
 	});
 
 	it('allows users explicitly marked as author for that card to arbitrarily edit a card', async () => {

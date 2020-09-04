@@ -61,7 +61,7 @@ service cloud.firestore {
     }
     
     function userMayViewUnpublished() {
-      return loggedIn() && userIsAdmin() || getPermissions(['edit','viewUnpublished']) || request.auth.uid in resource.data.editors || request.auth.uid == resource.data.author;
+      return loggedIn() && userIsAdmin() || getPermissions(['edit', 'editCard', 'viewUnpublished']) || request.auth.uid in resource.data.editors || request.auth.uid == resource.data.author;
     }
 
     function userMayEditPermissions() {
@@ -70,7 +70,7 @@ service cloud.firestore {
     }
 
     function userMayEditCard(cardID) {
-      return userIsAdmin() || getPermission('edit') || userIsAuthorOrEditorForCard(cardID);
+      return userIsAdmin() || getPermissions(['edit', 'editCard']) || userIsAuthorOrEditorForCard(cardID);
     }
 
     function userIsAuthorOrEditorForCard(cardID) {

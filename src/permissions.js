@@ -3,6 +3,7 @@ export const PERMISSION_VIEW_APP = 'viewApp';
 export const PERMISSION_EDIT = 'edit';
 export const PERMISSION_EDIT_SECTION = 'editSection';
 export const PERMISSION_EDIT_TAG = 'editTag';
+export const PERMISSION_EDIT_CARD = 'editCard';
 export const PERMISSION_CREATE_CARD = 'createCard';
 export const PERMISSION_VIEW_UNPUBLISHED = 'viewUnpublished';
 export const PERMISSION_COMMENT = 'comment';
@@ -63,6 +64,10 @@ export const PERMISSIONS_INFO = {
 	[PERMISSION_EDIT_TAG]: {
 		displayName: 'Edit Tag',
 		description: 'people with editTag can modify any tag, including adding cards to them and removing cards to them.',
+	},
+	[PERMISSION_EDIT_CARD]: {
+		displayName: 'Edit Card',
+		description: 'people with editCard can edit any card. This permission also allows the user to view any card, even unpublished ones. The user who authored a card may always edit it. Users who are explicitly listed as editors on a card may also edit it even without this permission.',
 	},
 	[PERMISSION_CREATE_CARD]: {
 		displayName: 'Create Card',

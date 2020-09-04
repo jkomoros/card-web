@@ -47,7 +47,8 @@ import {
 	PERMISSION_COMMENT,
 	PERMISSION_STAR,
 	PERMISSION_MARK_READ,
-	PERMISSION_MODIFY_READING_LIST
+	PERMISSION_MODIFY_READING_LIST,
+	PERMISSION_EDIT_CARD
 } from './permissions.js';
 
 import {
@@ -226,12 +227,19 @@ export const selectUserMayEdit = createSelector(
 	(admin, permissions) => admin || permissions[PERMISSION_EDIT]
 );
 
-export const selectUserMayEditActiveCard = createSelector(
+//if the user may edit ANY cards
+const selectUserMayEditCards = createSelector(
 	selectUserMayEdit,
+	selectComposedPermissions,
+	(userMayEdit, permissions) => userMayEdit || permissions[PERMISSION_EDIT_CARD]
+);
+
+export const selectUserMayEditActiveCard = createSelector(
+	selectUserMayEditCards,
 	selectActiveCard,
 	selectUid,
-	(userMayEdit, activeCard, uid) => {
-		if (userMayEdit) return true;
+	(userMayEditCards, activeCard, uid) => {
+		if (userMayEditCards) return true;
 		if (!activeCard) return false;
 		if (activeCard.author == uid) return true;
 		if (!activeCard.editors) return false;
@@ -252,7 +260,7 @@ export const selectUserMayViewUnpublished = createSelector(
 	selectUserIsAdmin,
 	selectUserMayViewApp,
 	selectComposedPermissions,
-	(admin, mayViewApp, permissions) => mayViewApp && (admin || permissions[PERMISSION_EDIT] || permissions[PERMISSION_VIEW_UNPUBLISHED])
+	(admin, mayViewApp, permissions) => mayViewApp && (admin || permissions[PERMISSION_EDIT] || permissions[PERMISSION_EDIT_CARD] || permissions[PERMISSION_VIEW_UNPUBLISHED])
 );
 
 export const selectUserMayEditPermissions = createSelector(
