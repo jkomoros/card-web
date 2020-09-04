@@ -51,7 +51,10 @@ const USER_TYPE_SIGNED_IN_PERMISSIONS = projectConfig.permissions && projectConf
 const USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS = projectConfig.permissions && projectConfig.permissions.signed_in_domain || {};
 
 const verifyPermissionsLegal = (permissions) => {
-	for (let val of Object.values(permissions)) {
+	for (let [key, val] of Object.entries(permissions)) {
+		if (key == 'admin') {
+			throw new Error('Permissions objects may not list admin privileges for all users of a given type; it must be on the user object in firestore directly');
+		}
 		if (!val) {
 			throw new Error('Permissions objects may only contain true keys');
 		}
