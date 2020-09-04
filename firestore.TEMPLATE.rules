@@ -3,63 +3,35 @@ rules_version = '2'
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function basePermissions() {
-      //Note that this is duplicated in src/reducers/user.js
-      return {
-        'admin': false,
-        'viewApp': true,
-        'edit': false,
-        'viewUnpublished': false,
-        'comment': false,
-        'star': false,
-        'markRead': false,
-        'modifyReadingList': false,
-      }
-    }
-
-    function baseUserTypeAnonymousPermissions() {
-      //Note that this is duplicated in src/reducers/user.js
-      let rules = {
-        'star': true,
-        'markRead': true,
-        'modifyReadingList': true,
-      };
-       //Should return if the user is AT LEAST anonymous
-      return loggedIn() ? rules : {};
-    }
-
-    function baseUserTypeSignedInPermissions() {
-      //Note that this is duplicated in src/reducers/user.js
-      let rules = {
-        'comment': true,
-      };
-      return loggedIn() && !isAnonymous() ? rules : {};
-    }
-
     function userMatchesDomain() {
       //inject here:domain
       return loggedIn() && !isAnonymous() && request.auth.token.email.lower().split('@')[1] == domain;
     }
 
-    function userTypeAllPermissions() {
+    function userTypeAllComposedPermissions() {
       //inject here:all
       return rules;
     }
 
-    function userTypeAnonymousPermissions() {
+    function userTypeAnonymousComposedPermissions() {
       //inject here:anonymous
       //Should return if the user is AT LEAST anonymous
-      return loggedIn() ? rules : {};
+      return rules;
     }
 
-    function userTypeSignedInPermissions() {
+    function userTypeSignedInComposedPermissions() {
       //inject here:signed_in
-      return loggedIn() && !isAnonymous() ? rules : {};
+      return rules;
     }
 
-    function userTypeSignedInDomainPermissions() {
+    function userTypeSignedInDomainComposedPermissions() {
       //inject here:signed_in_domain
-      return userMatchesDomain() ? rules : {};
+      return rules;
+    }
+
+    function userTypePermissions() {
+      //Returns the highest userType permission (they're all composed)
+      return userMatchesDomain() ? userTypeSignedInDomainComposedPermissions() : loggedIn() && !isAnonymous() ? userTypeSignedInComposedPermissions() : loggedIn() ? userTypeAnonymousComposedPermissions() : userTypeAllComposedPermissions();
     }
 
     function userPermissions() {
@@ -67,7 +39,7 @@ service cloud.firestore {
     }
 
     function getPermission(key) {
-      return userPermissions().get(key, userTypeSignedInDomainPermissions().get(key, userTypeSignedInPermissions().get(key, baseUserTypeSignedInPermissions().get(key, userTypeAnonymousPermissions().get(key, baseUserTypeAnonymousPermissions().get(key, userTypeAllPermissions().get(key, basePermissions().get(key, false))))))));
+      return userPermissions().get(key, userTypePermissions().get(key, false));
     }
 
     function userIsAdmin() {

@@ -50,6 +50,20 @@ const USER_TYPE_ANONYMOUS_PERMISSIONS = projectConfig.permissions && projectConf
 const USER_TYPE_SIGNED_IN_PERMISSIONS = projectConfig.permissions && projectConfig.permissions.signed_in || {};
 const USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS = projectConfig.permissions && projectConfig.permissions.signed_in_domain || {};
 
+const verifyPermissionsLegal = (permissions) => {
+	for (let val of Object.values(permissions)) {
+		if (!val) {
+			throw new Error('Permissions objects may only contain true keys');
+		}
+	}
+};
+
+verifyPermissionsLegal(USER_TYPE_ALL_PERMISSIONS);
+verifyPermissionsLegal(USER_TYPE_ANONYMOUS_PERMISSIONS);
+verifyPermissionsLegal(USER_TYPE_SIGNED_IN_PERMISSIONS);
+verifyPermissionsLegal(USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS);
+
+
 const FIREBASE_REGION = projectConfig.region || 'us-central1';
 
 const USER_DOMAIN = projectConfig.user_domain || '';
@@ -126,10 +140,42 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 		.pipe(rename('index.html'))
 		.pipe(gulp.dest('./'));
 
-	const USER_TYPE_ALL_RULES_STRING = '\n      let rules=' + JSON.stringify(USER_TYPE_ALL_PERMISSIONS) + ';';
-	const USER_TYPE_ANONYMOUS_RULES_STRING = '\n      let rules=' + JSON.stringify(USER_TYPE_ANONYMOUS_PERMISSIONS) + ';';
-	const USER_TYPE_SIGNED_IN_RULES_STRING = '\n      let rules=' + JSON.stringify(USER_TYPE_SIGNED_IN_PERMISSIONS) + ';';
-	const USER_TYPE_SIGNED_IN_DOMAIN_RULES_STRING = '\n      let rules=' + JSON.stringify(USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS) + ';';
+	//Between this line and the line that starts with '****' are effectively a copy/paste from src/permissions.js
+	const PERMISSION_VIEW_APP = 'viewApp';
+	const PERMISSION_COMMENT = 'comment';
+	const PERMISSION_STAR = 'star';
+	const PERMISSION_MARK_READ = 'markRead';
+	const PERMISSION_MODIFY_READING_LIST = 'modifyReadingList';
+
+	//BASE_PERMISSIONS are the permissions as configured directly in the javascript
+	//code. Note that this is duplicated in firestore.TEMPLATE.rules
+	const BASE_PERMISSIONS = {
+		[PERMISSION_VIEW_APP]: true,
+	};
+
+	const BASE_USER_TYPE_ANONYMOUS_PERMISSIONS = {
+		[PERMISSION_STAR]: true,
+		[PERMISSION_MARK_READ]: true,
+		[PERMISSION_MODIFY_READING_LIST]: true
+	};
+
+	const BASE_USER_TYPE_SIGNED_IN_PERMISSIONS = {
+		[PERMISSION_COMMENT]: true,
+	};
+
+	const BASE_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS = {};
+
+	const COMPOSED_USER_TYPE_ALL_PERMISSIONS = {...BASE_PERMISSIONS, ...USER_TYPE_ALL_PERMISSIONS};
+	const COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS = {...COMPOSED_USER_TYPE_ALL_PERMISSIONS, ...BASE_USER_TYPE_ANONYMOUS_PERMISSIONS, ...USER_TYPE_ANONYMOUS_PERMISSIONS};
+	const COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS = {...COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS, ...BASE_USER_TYPE_SIGNED_IN_PERMISSIONS, ...USER_TYPE_SIGNED_IN_PERMISSIONS};
+	const COMPOSED_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS = {...COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS, ...BASE_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS, ...USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS};
+
+	//**** End section copy/pasted from src/permissions.js
+
+	const USER_TYPE_ALL_RULES_STRING = '\n      let rules=' + JSON.stringify(COMPOSED_USER_TYPE_ALL_PERMISSIONS) + ';';
+	const USER_TYPE_ANONYMOUS_RULES_STRING = '\n      let rules=' + JSON.stringify(COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS) + ';';
+	const USER_TYPE_SIGNED_IN_RULES_STRING = '\n      let rules=' + JSON.stringify(COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS) + ';';
+	const USER_TYPE_SIGNED_IN_DOMAIN_RULES_STRING = '\n      let rules=' + JSON.stringify(COMPOSED_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS) + ';';
 	const USER_DOMAIN_RULES_STRING = '\n      let domain="' + USER_DOMAIN  + '";';
 
 	gulp.src('./firestore.TEMPLATE.rules')

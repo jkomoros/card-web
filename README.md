@@ -222,6 +222,10 @@ what they mean.
 The different permissions objects are maps that are sub-keys of this: 'all',
 'anonymous', 'signed_in', 'signed_in_domain'.
 
+This progression from 'all' to 'signed_in_domain' all build on one another. Each
+successive level may ADD permissions, but not remove them. This means that the
+configuration you provide at any level must all have 'true'.
+
 #### permissions.all 
 
 The override permissions for all users. This is how you override the base

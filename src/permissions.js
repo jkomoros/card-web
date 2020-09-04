@@ -10,6 +10,38 @@ export const PERMISSION_STAR = 'star';
 export const PERMISSION_MARK_READ = 'markRead';
 export const PERMISSION_MODIFY_READING_LIST = 'modifyReadingList';
 
+//BASE_PERMISSIONS are the permissions as configured directly in the javascript
+//code. Note that this is duplicated in firestore.TEMPLATE.rules
+const BASE_PERMISSIONS = {
+	[PERMISSION_VIEW_APP]: true,
+};
+
+const BASE_USER_TYPE_ANONYMOUS_PERMISSIONS = {
+	[PERMISSION_STAR]: true,
+	[PERMISSION_MARK_READ]: true,
+	[PERMISSION_MODIFY_READING_LIST]: true
+};
+
+const BASE_USER_TYPE_SIGNED_IN_PERMISSIONS = {
+	[PERMISSION_COMMENT]: true,
+};
+
+const BASE_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS = {};
+
+import {
+	USER_TYPE_ALL_PERMISSIONS,
+	USER_TYPE_ANONYMOUS_PERMISSIONS,
+	USER_TYPE_SIGNED_IN_PERMISSIONS,
+	USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS,
+} from '../config.GENERATED.SECRET.js';
+
+export const COMPOSED_USER_TYPE_ALL_PERMISSIONS = {...BASE_PERMISSIONS, ...USER_TYPE_ALL_PERMISSIONS};
+export const COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS = {...COMPOSED_USER_TYPE_ALL_PERMISSIONS, ...BASE_USER_TYPE_ANONYMOUS_PERMISSIONS, ...USER_TYPE_ANONYMOUS_PERMISSIONS};
+export const COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS = {...COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS, ...BASE_USER_TYPE_SIGNED_IN_PERMISSIONS, ...USER_TYPE_SIGNED_IN_PERMISSIONS};
+export const COMPOSED_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS = {...COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS, ...BASE_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS, ...USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS};
+
+//NOTE: all of the logic above this line is effectively recreated in gulpfile.js
+
 export const PERMISSIONS_INFO = {
 	[PERMISSION_ADMIN]: {
 		displayName: 'Admin',
@@ -19,7 +51,6 @@ export const PERMISSIONS_INFO = {
 	[PERMISSION_VIEW_APP]: {
 		displayName: 'View App',
 		description: 'viewApp is basic view-only access to the app, allowing people to see published cards, as well as tags, sections, and comments/threads. This default setting allows anyone to see content when they first visit even if not logged in.',
-		default: true,
 	},
 	[PERMISSION_EDIT]: {
 		displayName: 'Edit',
@@ -58,31 +89,3 @@ export const PERMISSIONS_INFO = {
 		description: 'whether the user may add to or remove from their reading list',
 	},
 };
-
-//BASE_PERMISSIONS are the permissions as configured directly in the javascript
-//code. Note that this is duplicated in firestore.TEMPLATE.rules
-const BASE_PERMISSIONS = Object.fromEntries(Object.entries(PERMISSIONS_INFO).map(entry => [entry[0], entry[1].default || false]));
-
-const BASE_USER_TYPE_ANONYMOUS_PERMISSIONS = {
-	[PERMISSION_STAR]: true,
-	[PERMISSION_MARK_READ]: true,
-	[PERMISSION_MODIFY_READING_LIST]: true
-};
-
-const BASE_USER_TYPE_SIGNED_IN_PERMISSIONS = {
-	[PERMISSION_COMMENT]: true,
-};
-
-const BASE_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS = {};
-
-import {
-	USER_TYPE_ALL_PERMISSIONS,
-	USER_TYPE_ANONYMOUS_PERMISSIONS,
-	USER_TYPE_SIGNED_IN_PERMISSIONS,
-	USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS,
-} from '../config.GENERATED.SECRET.js';
-
-export const COMPOSED_USER_TYPE_ALL_PERMISSIONS = {...BASE_PERMISSIONS, ...USER_TYPE_ALL_PERMISSIONS};
-export const COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS = {...COMPOSED_USER_TYPE_ALL_PERMISSIONS, ...BASE_USER_TYPE_ANONYMOUS_PERMISSIONS, ...USER_TYPE_ANONYMOUS_PERMISSIONS};
-export const COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS = {...COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS, ...BASE_USER_TYPE_SIGNED_IN_PERMISSIONS, ...USER_TYPE_SIGNED_IN_PERMISSIONS};
-export const COMPOSED_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS = {...COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS, ...BASE_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS, ...USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS};
