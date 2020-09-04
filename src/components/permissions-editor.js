@@ -7,7 +7,8 @@ import { store } from '../store.js';
 
 import {
 	selectAllPermissions,
-	selectAuthors
+	selectAuthors,
+	selectUserPermissionsForCardsMap
 } from '../selectors.js';
 
 import {
@@ -79,6 +80,11 @@ class PermissionsEditor extends connect(store)(LitElement) {
 				<p><strong>${this._title}</strong> ${this.description ? html`<em>${this.description}</em>` : ''}&nbsp;&nbsp;&nbsp;<strong>Notes</strong> ${this._effectivePermissions.notes || html`<em>No notes</em>`} <span class='edit' ?hidden=${!this._editable} @click=${this._handleEditNotes}>${EDIT_ICON}</span><span class='edit' ?hidden=${!this._editable} @click=${this._handleDelete}>${DELETE_FOREVER_ICON}</span></p>
 				<tag-list .tags=${this._enabledLockedPermissions} .tagInfos=${LOCKED_PERMISSIONS} .overrideTypeName=${'Permission'} .defaultColor=${lockedPermissionColor} .hideOnEmpty=${true}></tag-list>
 				<tag-list .tags=${this._enabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @add-tag=${this._handleAddEnabled} @remove-tag=${this._handleRemove} .overrideTypeName=${'Permission'} .defaultColor=${enabledPermissionColor}></tag-list>
+				${this._effectivePermissionsForCards ? 
+		Object.entries(this._effectivePermissionsForCards).map(entry => 
+			html`<span>${entry[0]}</span> <tag-list .tags=${entry[1]}></tag-list>`
+		)
+		: ''}
 			</div>
 			`;
 	}
@@ -93,6 +99,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 			//If provided, will show the permissions for the given user
 			uid: { type: String },
 			_allPermissions: { type: Object },
+			_userPermissionsForCardsMap: { type: Object },
 			_authors: { type: Object },
 		};
 	}
@@ -114,6 +121,10 @@ class PermissionsEditor extends connect(store)(LitElement) {
 		return this.permissions || this._allPermissions[this.uid] || {};
 	}
 
+	get _effectivePermissionsForCards() {
+		return this._userPermissionsForCardsMap[this.uid];
+	}
+
 	get _enabledModifiablePermissions() {
 		return Object.entries(this._effectivePermissions).filter(entry => entry[1]).map(entry => entry[0]).filter(item => MODIFIABLE_PERMISSIONS[item]);
 	}
@@ -125,6 +136,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 	stateChanged(state) {
 		this._allPermissions = selectAllPermissions(state);
 		this._authors = selectAuthors(state);
+		this._userPermissionsForCardsMap = selectUserPermissionsForCardsMap(state);
 	}
 
 	_handleEditNotes() {

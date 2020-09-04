@@ -68,6 +68,7 @@ export const PERMISSIONS_INFO = {
 	[PERMISSION_EDIT_CARD]: {
 		displayName: 'Edit Card',
 		description: 'people with editCard can edit any card. This permission also allows the user to view any card, even unpublished ones. The user who authored a card may always edit it. Users who are explicitly listed as editors on a card may also edit it even without this permission.',
+		legalOnCard: true,
 	},
 	[PERMISSION_CREATE_CARD]: {
 		displayName: 'Create Card',
@@ -94,3 +95,5 @@ export const PERMISSIONS_INFO = {
 		description: 'whether the user may add to or remove from their reading list',
 	},
 };
+
+export const PERMISSIONS_LEGAL_ON_CARD_INFO = Object.fromEntries(Object.entries(PERMISSIONS_INFO).filter(entry => entry[1].legalOnCard));
