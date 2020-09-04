@@ -8,7 +8,8 @@ import { store } from '../store.js';
 import {
 	selectAllPermissions,
 	selectAuthors,
-	selectUserPermissionsForCardsMap
+	selectUserPermissionsForCardsMap,
+	selectTagInfosForCards
 } from '../selectors.js';
 
 import {
@@ -82,7 +83,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 				<tag-list .tags=${this._enabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @add-tag=${this._handleAddEnabled} @remove-tag=${this._handleRemove} .overrideTypeName=${'Permission'} .defaultColor=${enabledPermissionColor}></tag-list>
 				${this._effectivePermissionsForCards ? 
 		Object.entries(this._effectivePermissionsForCards).map(entry => 
-			html`<span>${entry[0]}</span> <tag-list .tags=${entry[1]}></tag-list>`
+			html`<span>${entry[0]}</span> <tag-list .tags=${entry[1]} .tagInfos=${this._tagInfosForCards} .tapEvents=${true}></tag-list>`
 		)
 		: ''}
 			</div>
@@ -101,6 +102,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 			_allPermissions: { type: Object },
 			_userPermissionsForCardsMap: { type: Object },
 			_authors: { type: Object },
+			_tagInfosForCards: {type: Object},
 		};
 	}
 
@@ -137,6 +139,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 		this._allPermissions = selectAllPermissions(state);
 		this._authors = selectAuthors(state);
 		this._userPermissionsForCardsMap = selectUserPermissionsForCardsMap(state);
+		this._tagInfosForCards = selectTagInfosForCards(state);
 	}
 
 	_handleEditNotes() {
