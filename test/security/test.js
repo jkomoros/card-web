@@ -292,13 +292,13 @@ describe('Compendium Rules', () => {
 
 	//The next two tests exercise the increment/decrement behavior in general, effectively.
 	it('disallows any non-anon users to increment thread_count by more than 1', async() => {
-		const db = authedApp(bobAuth);
+		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({thread_count: cardThreadCount + 2}));
 	});
 
 	it('disallows any non-anon users to decrement thread_count', async() => {
-		const db = authedApp(bobAuth);
+		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({thread_count: cardThreadCount - 1}));
 	});
@@ -322,7 +322,7 @@ describe('Compendium Rules', () => {
 	});
 
 	it('disallows any non-anon users to increment thread_count by 1 and increment resolved_thread_count by 1', async() => {
-		const db = authedApp(bobAuth);
+		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({thread_count: cardThreadCount + 1, thread_resolved_count: cardThreadResolvedCount + 1}));
 	});
@@ -376,13 +376,13 @@ describe('Compendium Rules', () => {
 	});
 
 	it('disallows any non-anon user to update the updated_message timestamp to now',async() => {
-		const db = authedApp(bobAuth);
+		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({updated_message: new Date(2015,10,10)}));
 	});
 
 	it('disallows any non-anon user to update the updated_message timestamp to now if they also change another field',async() => {
-		const db = authedApp(bobAuth);
+		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), star_count: cardStarCount + 1}));
 	});
@@ -406,13 +406,13 @@ describe('Compendium Rules', () => {
 	});
 
 	it('disallows any non-anon user to update the updated_message timestamp to now if they decrement incrementing thread_count',async() => {
-		const db = authedApp(bobAuth);
+		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount - 1}));
 	});
 
 	it('disallows any non-anon user to update the updated_message timestamp to now while incrementing thread_count if they also touch another field',async() => {
-		const db = authedApp(bobAuth);
+		const db = authedApp(genericAuth);
 		const card = db.collection(CARDS_COLLECTION).doc(cardId);
 		await firebase.assertFails(card.update({updated_message: firebase.firestore.FieldValue.serverTimestamp(), thread_count: cardThreadCount + 1, star_count: cardStarCount + 1}));
 	});
