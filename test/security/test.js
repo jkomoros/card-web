@@ -79,7 +79,9 @@ async function setupDatabase() {
 		body: 'this is the body',
 		title: 'this is the title',
 		author: bobUid,
-		editors: [sallyUid],
+		permissions:{
+			editCard: [sallyUid],
+		} ,
 		thread_count: cardThreadCount,
 		thread_resolved_count: cardThreadResolvedCount,
 		star_count: cardStarCount,
@@ -114,7 +116,9 @@ async function setupDatabase() {
 	await db.collection(CARDS_COLLECTION).doc(unpublishedCardIdSallyEditor).set({
 		body: 'this is the body',
 		title: 'this is the title',
-		editors: [sallyUid],
+		permissions: {
+			editCard: [sallyUid],
+		},
 		thread_count: cardThreadCount,
 		thread_resolved_count: cardThreadResolvedCount,
 		star_count: cardStarCount,
@@ -244,7 +248,7 @@ describe('Compendium Rules', () => {
 
 	it ('allows users to view unpublished card they are listed as editor of even without viewUnpublished permission', async() => {
 		const db = authedApp(sallyAuth);
-		const query = db.collection(CARDS_COLLECTION).where('published', '==', false).where('editors', 'array-contains', sallyUid);
+		const query = db.collection(CARDS_COLLECTION).where('published', '==', false).where('permissions.editCard', 'array-contains', sallyUid);
 		await firebase.assertSucceeds(query.get());
 	});
 

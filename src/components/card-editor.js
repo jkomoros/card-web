@@ -81,6 +81,10 @@ import {
 	TODO_ALL_INFOS,
 } from '../filters.js';
 
+import {
+	PERMISSION_EDIT_CARD
+} from '../permissions.js';
+
 import './tag-list.js';
 
 class CardEditor extends connect(store)(LitElement) {
@@ -294,7 +298,7 @@ class CardEditor extends connect(store)(LitElement) {
 		  </div>
 		  <div>
 			<label>Editors</label>
-			<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.editors} .editing=${true} @remove-tag=${this._handleRemoveEditor} @add-tag=${this._handleAddEditor} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewEditor} .excludeItems=${[this._card.author]}></tag-list>
+			<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.permissions[PERMISSION_EDIT_CARD]} .editing=${true} @remove-tag=${this._handleRemoveEditor} @add-tag=${this._handleAddEditor} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewEditor} .excludeItems=${[this._card.author]}></tag-list>
 		  </div>
 		  <div>
 			<label>Collaborators</label>

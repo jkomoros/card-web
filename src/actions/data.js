@@ -72,6 +72,10 @@ import {
 	CONFIGURABLE_FILTER_URL_PARTS,
 } from '../filters.js';
 
+import {
+	PERMISSION_EDIT_CARD
+} from '../permissions.js';
+
 //When a new tag is created, it is randomly assigned one of these values.
 const TAG_COLORS = [
 	//Indianred
@@ -260,7 +264,7 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 	}
 
 	if (update.add_editors || update.remove_editors) {
-		let editors = card.editors;
+		let editors = card.permissions[PERMISSION_EDIT_CARD];
 		if (update.remove_editors) editors = arrayRemove(editors, update.remove_editors);
 		if (update.add_editors) {
 			if (!confirm('You\'ve added editors. Those users will be able to edit this card. OK?')) {
@@ -270,7 +274,7 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 			}
 			editors = arrayUnion(editors, update.add_editors);
 		}
-		cardUpdateObject.editors = editors;
+		cardUpdateObject['permissions.' + PERMISSION_EDIT_CARD] = editors;
 	}
 
 	if (update.add_collaborators || update.remove_collaborators) {
@@ -589,7 +593,9 @@ export const defaultCardObject = (id, user, section, cardType) => {
 		created: serverTimestamp(),
 		updated: serverTimestamp(),
 		author: user.uid,
-		editors: [],
+		permissions: {
+			[PERMISSION_EDIT_CARD]: [],
+		},
 		collaborators: [],
 		updated_substantive: serverTimestamp(),
 		updated_message: serverTimestamp(),

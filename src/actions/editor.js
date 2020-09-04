@@ -54,6 +54,10 @@ import {
 	createAuthorStub
 } from './comments.js';
 
+import {
+	PERMISSION_EDIT_CARD
+} from '../permissions.js';
+
 let lastReportedSelectionRange = null;
 //TODO: figure out a pattenr that doesn't have a single shared global
 let savedSelectionRange = null;
@@ -158,7 +162,7 @@ export const editingCommit = () => (dispatch, getState) => {
 	if (skippedLinksInboundAdditions.length) update.add_skipped_link_inbound = skippedLinksInboundAdditions;
 	if (skippedLinksInboundDeletions.length) update.remove_skipped_link_inbound = skippedLinksInboundDeletions;
 	
-	let [editorAdditions, editorDeletions] = arrayDiff(underlyingCard.editors || [], updatedCard.editors || []);
+	let [editorAdditions, editorDeletions] = arrayDiff(underlyingCard.permissions[PERMISSION_EDIT_CARD] || [], updatedCard.permissions[PERMISSION_EDIT_CARD] || []);
 	if (editorAdditions.length) update.add_editors = editorAdditions;
 	if (editorDeletions.length) update.remove_editors = editorDeletions;
 

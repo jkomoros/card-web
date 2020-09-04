@@ -29,8 +29,19 @@ import {
 } from '../actions/editor.js';
 
 import {
-	cardSetNormalizedTextProperties
+	cardSetNormalizedTextProperties,
+	arrayRemove,
+	arrayUnion,
+	extractCardLinksFromBody
 } from '../util.js';
+
+import {
+	PERMISSION_EDIT_CARD
+} from '../permissions.js';
+
+import {
+	TODO_OVERRIDE_LEGAL_KEYS
+} from '../filters.js';
 
 const DEFAULT_TAB = TAB_CONTENT;
 
@@ -42,16 +53,6 @@ const INITIAL_STATE = {
 	substantive: false,
 	selectedTab: DEFAULT_TAB,
 };
-
-import {
-	arrayRemove,
-	arrayUnion,
-	extractCardLinksFromBody
-} from '../util.js';
-
-import {
-	TODO_OVERRIDE_LEGAL_KEYS
-} from '../filters.js';
 
 const app = (state = INITIAL_STATE, action) => {
 	let card;
@@ -181,13 +182,13 @@ const app = (state = INITIAL_STATE, action) => {
 		if (!state.card) return state;
 		return {
 			...state,
-			card: {...state.card, editors: arrayUnion(state.card.editors, [action.editor])}
+			card: {...state.card, permissions: {...state.card.permissions, [PERMISSION_EDIT_CARD]: arrayUnion(state.card.permissions[PERMISSION_EDIT_CARD], [action.editor])}}
 		};
 	case EDITING_EDITOR_REMOVED:
 		if (!state.card) return state;
 		return {
 			...state,
-			card: {...state.card, editors: arrayRemove(state.card.editors, [action.editor])}
+			card: {...state.card, permissions: {...state.card.permissions, [PERMISSION_EDIT_CARD]: arrayRemove(state.card.permissions[PERMISSION_EDIT_CARD], [action.editor])}}
 		};
 	case EDITING_COLLABORATOR_ADDED:
 		if (!state.card) return state;

@@ -33,6 +33,10 @@ import {
 	selectUserMayViewApp
 } from '../selectors.js';
 
+import {
+	PERMISSION_EDIT_CARD
+} from '../permissions.js';
+
 export const CARDS_COLLECTION = 'cards';
 export const CARD_UPDATES_COLLECTION = 'updates';
 export const SECTION_UPDATES_COLLECTION = 'updates';
@@ -227,7 +231,7 @@ export const connectLiveUnpublishedCardsForUser = (uid) => {
 	disconnectLiveUnpublishedCardsForUser();
 	if (!uid) return;
 	liveUnpublishedCardsForUserAuthorUnsubscribe = db.collection(CARDS_COLLECTION).where('author', '==', uid).where('published', '==', false).onSnapshot(cardSnapshotReceiver);
-	liveUnpublishedCardsForUserEditorUnsubscribe = db.collection(CARDS_COLLECTION).where('editors', 'array-contains', uid).where('published', '==', false).onSnapshot(cardSnapshotReceiver);
+	liveUnpublishedCardsForUserEditorUnsubscribe = db.collection(CARDS_COLLECTION).where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid).where('published', '==', false).onSnapshot(cardSnapshotReceiver);
 };
 
 const disconnectLiveUnpublishedCardsForUser = () => {

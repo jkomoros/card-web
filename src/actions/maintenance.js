@@ -22,6 +22,10 @@ import {
 	extractCardLinksFromBody
 } from '../util.js';
 
+import {
+	PERMISSION_EDIT_CARD
+} from '../permissions.js';
+
 import { 
 	arrayDiff,
 	newID,
@@ -820,7 +824,7 @@ export const addEditorsCollaborators = async() => {
 
 	snapshot.forEach(doc => {
 		batch.update(doc.ref, {
-			editors: [],
+			permissions: {[PERMISSION_EDIT_CARD]: []},
 			collaborators: []
 		});
 	});

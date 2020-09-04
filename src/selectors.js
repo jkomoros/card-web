@@ -242,8 +242,8 @@ export const selectUserMayEditActiveCard = createSelector(
 		if (userMayEditCards) return true;
 		if (!activeCard) return false;
 		if (activeCard.author == uid) return true;
-		if (!activeCard.editors) return false;
-		for (let id of activeCard.editors) {
+		if (!activeCard.permissions || !activeCard.permissions[PERMISSION_EDIT_CARD]) return false;
+		for (let id of activeCard.permissions[PERMISSION_EDIT_CARD]) {
 			if (id === uid) return true;
 		}
 		return false;
