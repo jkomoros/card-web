@@ -29,7 +29,7 @@ import {
 
 import './tag-list.js';
 
-const ALL_PERMISSIONS = Object.fromEntries(Object.entries(PERMISSIONS_INFO).map(entry => [entry[0], {...entry[1], id: entry[0], title:entry[1].displayName}]));
+const ALL_PERMISSIONS = Object.fromEntries(Object.entries(PERMISSIONS_INFO).map(entry => [entry[0], {...entry[1], id: entry[0], title:entry[1].displayName, suppressLink:true}]));
 const MODIFIABLE_PERMISSIONS = Object.fromEntries(Object.entries(ALL_PERMISSIONS).filter(entry => !entry[1].locked));
 const LOCKED_PERMISSIONS = Object.fromEntries(Object.entries(ALL_PERMISSIONS).filter(entry => entry[1].locked));
 
