@@ -13,7 +13,7 @@ store.addReducers({
 
 import { 
 	selectUserMayEditPermissions,
-	selectAllPermissions,
+	selectUidsWithPermissions,
 	selectUserPermissionsLoaded
 } from '../selectors.js';
 
@@ -72,7 +72,7 @@ class PermissionsView extends connect(store)(PageViewElement) {
 			<permissions-editor .title=${'Anonymous Users Permissions'} .permissions=${COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS} .description=${'Change these in your config.SECRET.json'}></permissions-editor>
 			<permissions-editor .title=${'Signed In Users Permissions'} .permissions=${COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS} .description=${'Change these in your config.SECRET.json'}></permissions-editor>
 			<permissions-editor .title=${'Signed In Domain Users Permissions'} .permissions=${COMPOSED_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS} .description=${'Change these in your config.SECRET.json'}></permissions-editor>
-			${Object.keys(this._allPermissions || {}).map(uid => html`<permissions-editor .uid=${uid}></permissions-editor>`)}
+			${Object.keys(this._uidsWithPermissions || {}).map(uid => html`<permissions-editor .uid=${uid}></permissions-editor>`)}
 			<button class='round' @click='${this._handleAdd}'>${PLUS_ICON}</button>
         </div>
       </section>
@@ -82,14 +82,14 @@ class PermissionsView extends connect(store)(PageViewElement) {
 	static get properties() {
 		return {
 			_userMayEditPermissions: { type: Boolean},
-			_allPermissions: { type: Object },
+			_uidsWithPermissions: { type: Object },
 			_permissionsLoaded: { type: Boolean },
 		};
 	}
 
 	stateChanged(state) {
 		this._userMayEditPermissions = selectUserMayEditPermissions(state);
-		this._allPermissions = selectAllPermissions(state);
+		this._uidsWithPermissions = selectUidsWithPermissions(state);
 		this._permissionsLoaded = selectUserPermissionsLoaded(state);
 	}
 

@@ -369,6 +369,31 @@ export const selectCollaboratorInfosForActiveCard = createSelector(
 	(card, authors) => card ? card.collaborators.map(uid => authors[uid]) : []
 );
 
+//A map of uid -> permissionKey -> [cardID], for any uid that is listed in any card's permissions object.
+export const selectUserPermissionsForCardsMap = createSelector(
+	selectCards,
+	(cards) => {
+		let result = {};
+		for (let card of Object.values(cards)) {
+			if (!card.permissions) continue;
+			for (let [permissionKey, uids] of Object.entries(card.permissions)) {
+				for (let uid of uids) {
+					if (!result[uid]) result[uid] = {};
+					if (!result[uid][permissionKey]) result[uid][permissionKey] = [];
+					result[uid][permissionKey].push(card.id);
+				}
+			}
+		}
+		return result;
+	}
+);
+
+export const selectUidsWithPermissions = createSelector(
+	selectAllPermissions,
+	selectUserPermissionsForCardsMap,
+	(allPermissions, cardsMap) => Object.fromEntries(Object.entries(allPermissions).map(entry => [entry[0], true]).concat(Object.entries(cardsMap).map(entry => [entry[0], true])))
+);
+
 const selectContentCards = createSelector(
 	selectCards,
 	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => entry[1].card_type == 'content'))
