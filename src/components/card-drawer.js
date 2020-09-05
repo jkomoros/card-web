@@ -1,14 +1,20 @@
 import { LitElement, html } from '@polymer/lit-element';
 import { repeat } from 'lit-html/directives/repeat';
 
+import { connect } from 'pwa-helpers/connect-mixin.js';
+
+// This element is connected to the Redux store.
+import { store } from '../store.js';
+
 import './card-thumbnail.js';
 
 import { PLUS_ICON } from './my-icons.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 import { SharedStyles } from './shared-styles.js';
+import { selectBadgeMap } from '../selectors';
 
-class CardDrawer extends LitElement {
+class CardDrawer extends connect(store)(LitElement) {
 	render() {
 		return html`
 			${SharedStyles}
@@ -92,7 +98,7 @@ class CardDrawer extends LitElement {
 				${repeat(this.collection, (i) => i.id, (i, index) => html`
 					<div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
 					${this.labels && this.labels[index] ? html`<div class='label'><span>${this.labelName} <strong>${this.labels[index]}</strong></span></div>` : html``}
-					<card-thumbnail .full=${this.fullCards} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this.editable} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this.selectedCardId} .ghost=${this.collectionItemsToGhost[i.id] || false}></card-thumbnail>`)}
+					<card-thumbnail .full=${this.fullCards} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${i} .userMayEdit=${this.editable} .id=${i.id} .name=${i.name} .title=${this._titleForCard(i)} .cardType=${i.card_type} .selected=${i.id == this.selectedCardId} .ghost=${this.collectionItemsToGhost[i.id] || false} .badgeMap=${this._badgeMap}></card-thumbnail>`)}
 				</div>
 				<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable || this.suppressAdd}'>${PLUS_ICON}</button>
 			</div>
@@ -196,7 +202,12 @@ class CardDrawer extends LitElement {
 			//_showing is more complicated than whether we're open or yet.
 			showing: {type:Boolean},
 			_dragging: {type: Boolean},
+			_badgeMap: { type: Object },
 		};
+	}
+
+	stateChanged(state) {
+		this._badgeMap = selectBadgeMap(state);
 	}
 }
 

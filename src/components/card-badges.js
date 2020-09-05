@@ -1,16 +1,4 @@
-import { LitElement, html } from '@polymer/lit-element';
-
-import { connect } from 'pwa-helpers/connect-mixin.js';
-
-// This element is connected to the Redux store so it can render visited links
-import { store } from '../store.js';
-
-import { 
-	selectUserStars,
-	selectUserReads,
-	selectCardTodosMapForCurrentUser,
-	selectUserReadingListMap
-} from '../selectors.js';
+import { html } from '@polymer/lit-element';
 
 import {
 	PLAYLISLT_ADD_CHECK_ICON,
@@ -80,14 +68,19 @@ export const badgeStyles =  html`
 	</style>
 `;
 
-//CardBadges is designed to be included in a card-like object and
-//automatically put the applicable badges into the various corners.
-class CardBadges extends connect(store)(LitElement) {
-	render() {
-		return html`
+//badgeMap is the result of selectBadgeMap (or null is fine);
+export const cardBadges = (light, card, badgeMap) => {
+	if (!badgeMap) badgeMap = {};
+	const starMap = badgeMap.stars || {};
+	const readMap = badgeMap.reads || {};
+	const todoMap = badgeMap.todos || {};
+	const readingListMap = badgeMap.readingList || {};
+	const nonBlankCard = card || {};
+	const id = nonBlankCard.id;
+	return html`
       <style>
 
-		:host, .container {
+		.badges-container {
 			position:absolute;
 			top: 0;
 			left: 0;
@@ -95,90 +88,40 @@ class CardBadges extends connect(store)(LitElement) {
 			width: 100%;
 		}
 
-        .top-right {
+        .badges-container .top-right {
           position:absolute;
           top: 0.25em;
           right: 0.25em;
 		  display: flex;
         }
 
-        .read{
+        .badges-container .read{
           position:absolute;
           left: 0.25em;
           top: 0.25em;
         }
 
-        .thread-count {
+        .badges-container .thread-count {
           position:absolute;
           bottom:0.25em;
           right: 0.25em;
         }
 
-        .reading-list {
+        .badges-container .reading-list {
           position: absolute;
           bottom:0.25em;
           left: 0.25em;
         }
 	  </style>
 	  ${badgeStyles}
-	  <div class="container ${this.light ? 'light' : ''}">
+	  <div class="badges-container ${light ? 'light' : ''}">
 		<div class='top-right'>
-			${badge('star-count', STAR_ICON, this._nonBlankCard.star_count, this._starred)}
-			${badge('todo', ASSIGNMENT_TURNED_IN_ICON, this._hasTodo)}
+			${badge('star-count', STAR_ICON, nonBlankCard.star_count, starMap[id])}
+			${badge('todo', ASSIGNMENT_TURNED_IN_ICON, todoMap[id])}
 		</div>
-		${badge('read', VISIBILITY_ICON, this._read)}
-		${badge('thread-count', FORUM_ICON, this._nonBlankCard.thread_count)}
-		${badge('reading-list', PLAYLISLT_ADD_CHECK_ICON, this._onReadingList)}
+		${badge('read', VISIBILITY_ICON, readMap[id])}
+		${badge('thread-count', FORUM_ICON, nonBlankCard.thread_count)}
+		${badge('reading-list', PLAYLISLT_ADD_CHECK_ICON, readingListMap[id])}
 	</div>
     `;
-	}
-
-	static get properties() { 
-		return {
-			//If a light theme shpould be used
-			light: { type: Boolean },
-			card: {type: Object},
-			_starMap: {type: Object},
-			_readMap: {type: Object},
-			_todoMap: {type: Object},
-			_readingListMap: {type: Object},
-		};
-	}
-
-	get _nonBlankCard() {
-		return this.card || {};
-	}
-
-	get _id(){
-		return this._nonBlankCard.id || '';
-	}
-
-	get _starred() {
-		return (this._starMap || {})[this._id];
-	}
-
-	get _read() {
-		return (this._readMap || {})[this._id];
-	}
-
-	get _hasTodo() {
-		return (this._todoMap || {})[this._id];
-	}
-
-	get _onReadingList() {
-		return (this._readingListMap || {})[this._id];
-	}
-
-	stateChanged(state) {
-		/* it isn't that much of a waste that we have four general maps that
-		repeat for every card-decorators because it's just a reference to the
-		same underlying object the selector returns */
-		this._starMap = selectUserStars(state);
-		this._readMap = selectUserReads(state);
-		this._todoMap = selectCardTodosMapForCurrentUser(state);
-		this._readingListMap = selectUserReadingListMap(state);
-	}
-
-}
-
-window.customElements.define('card-badges', CardBadges);
+};

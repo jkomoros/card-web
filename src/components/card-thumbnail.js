@@ -1,6 +1,9 @@
 import { LitElement, html } from '@polymer/lit-element';
 
-import './card-badges.js';
+import {
+	cardBadges,
+} from './card-badges.js';
+
 import './card-renderer.js';
 
 import { cardHasContent } from '../util';
@@ -103,7 +106,7 @@ class CardThumbnail extends LitElement {
       </style>
       <div @mousemove=${this._handleMouseMove} @click=${this._handleClick} draggable='${this.userMayEdit ? 'true' : 'false'}' class="main ${this.selected ? 'selected' : ''} ${this.cardType} ${this.card && this.card.published ? '' : 'unpublished'} ${this.ghost ? 'ghost' : ''} ${this.full ? 'full' : 'partial'}">
 		    ${this.full ? html`<card-renderer .card=${this.card}></card-renderer>` : html`<h3 class=${this.cardHasContent ? '' : 'nocontent'}>${this.title ? this.title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
-      <card-badges .card=${this.card} .light=${this.cardType != 'content'}></card-badges>
+        ${cardBadges(this.cardType != 'content', this.card, this.badgeMap)}
       </div>
     `;
 	}
@@ -124,6 +127,7 @@ class CardThumbnail extends LitElement {
 			//Card isn't used for much, except a a place for the container to stash
 			//the whole card (for convenience with dragging).
 			card: {type: Object},
+			badgeMap: {type:Object},
 			_selectedViaClick: { type: Boolean },
 		};
 	}

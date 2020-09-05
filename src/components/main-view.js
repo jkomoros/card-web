@@ -50,7 +50,8 @@ import {
 	selectUserMayViewApp,
 	selectUserPermissionsFinal,
 	selectKeyboardNavigates,
-	selectUid
+	selectUid,
+	selectBadgeMap
 } from '../selectors.js';
 
 import {
@@ -273,7 +274,7 @@ class MainView extends connect(store)(LitElement) {
 		<div @mousemove=${this._handleMouseMove} class='container ${this._mayViewApp ? '' : 'may-not-view'}'>
 			<find-dialog></find-dialog>
 			<compose-dialog></compose-dialog>
-			<card-preview .card=${this._activePreviewCard} .x=${this._previewCardX} .y=${this._previewCardY}></card-preview>
+			<card-preview .card=${this._activePreviewCard} .x=${this._previewCardX} .y=${this._previewCardY} .badgeMap=${this._badgeMap}></card-preview>
 			<!-- Header -->
 			<div class='header' ?hidden=${!this._headerPanelOpen}>
 				<div class='inner'>
@@ -347,6 +348,7 @@ class MainView extends connect(store)(LitElement) {
 			_mayViewApp: { type:Boolean },
 			_userPermissionsFinal: { type:Boolean },
 			_uid : { type:String },
+			_badgeMap: {type:Object},
 		};
 	}
 
@@ -463,6 +465,7 @@ class MainView extends connect(store)(LitElement) {
 		this._mayViewApp = selectUserMayViewApp(state);
 		this._userPermissionsFinal = selectUserPermissionsFinal(state);
 		this._uid = selectUid(state);
+		this._badgeMap = selectBadgeMap(state);
 	}
 
 	updated(changedProps) {

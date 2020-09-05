@@ -1,7 +1,10 @@
 import { LitElement, html } from '@polymer/lit-element';
 
 import './card-renderer.js';
-import './card-badges.js';
+
+import {
+	cardBadges
+} from './card-badges.js';
 
 import { 
 	CARD_WIDTH_IN_EMS,
@@ -35,7 +38,7 @@ class CardPreview extends LitElement {
       </style>
       <div ?hidden='${!this.card}'>
 		<card-renderer .card=${this.card}></card-renderer>
-		<card-badges .card=${this.card}></card-badges>
+		${cardBadges(false, this.card, this.badgeMap)}
       </div>
     `;
 	}
@@ -49,6 +52,7 @@ class CardPreview extends LitElement {
 	static get properties() { 
 		return {
 			card: {type: Object},
+			badgeMap: { type:Object },
 			x: { type: Number },
 			y: { type: Number },
 			/* size of font for card in px*/

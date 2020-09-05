@@ -102,7 +102,7 @@ export const selectActivePreviewCardId = (state) => state.app ? state.app.hoverC
 export const selectPreviewCardX = (state) => state.app ? state.app.hoverX : 0;
 export const selectPreviewCardY = (state) => state.app ? state.app.hoverY : 0;
 export const selectUserReads = (state) => state.user ? state.user.reads : {};
-export const selectUserStars = (state) => state.user ? state.user.stars : {};
+const selectUserStars = (state) => state.user ? state.user.stars : {};
 export const selectUserReadingList = (state) => state.user ? state.user.readingList : [];
 const selectUserReadingListForSet = (state) => state.user ? state.user.readingListForSet : [];
 
@@ -699,7 +699,7 @@ export const getSection = (state, sectionId) => {
 	return state.data.sections[sectionId] || null;
 };
 
-export const selectCardTodosMapForCurrentUser = createSelector(
+const selectCardTodosMapForCurrentUser = createSelector(
 	selectUserIsAdmin,
 	selectFilters,
 	(isAdmin, filters) => isAdmin ? filters[TODO_COMBINED_FILTER_NAME] : {}
@@ -708,6 +708,15 @@ export const selectCardTodosMapForCurrentUser = createSelector(
 export const selectUserReadingListMap = createSelector(
 	selectUserReadingList,
 	list => Object.fromEntries((list || []).map(item => [item, true]))
+);
+
+//for use to pass into card-badges.cardBadges.badgeMap
+export const selectBadgeMap = createSelector(
+	selectUserStars,
+	selectUserReads,
+	selectCardTodosMapForCurrentUser,
+	selectUserReadingListMap,
+	(stars, reads, todos, readingList) => ({stars, reads, todos, readingList})
 );
 
 //TODO: once factoring the composed threads selctors into this file, refactor
