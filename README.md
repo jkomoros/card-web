@@ -41,7 +41,7 @@ You now must configure the app so that that user is an admin.
 
 Go to https://console.firebase.google.com. Go to the Authentication tab. You should see a single row with your username. Copy the User UID (the copy button next to it will copy it for you without whitespace).
 
-Now go to the database tab. Tap 'Start Collection'. Name it `permissions` and hit next. Into the Document ID field, paste your uid you copied in the last step. Add a field called `admin`, set it to Boolean, and leave the value as true.
+Now go to the database tab. Tap 'Start Collection'. Name it `permissions` and hit next. Into the Document ID field, paste your uid you copied in the last step. Add a field called `admin`, set it to Boolean, and leave the value as true. From now on you won't need to edit permissions directly for other users but can modify them from `/permissions` when logged in as an admin.
 
 Load https://localhost:8081/maintenance again in your browser. You should see a number of buttons. Tap **Initial SetUp**.
 
