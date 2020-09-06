@@ -5,7 +5,8 @@ import {
 } from '../store.js';
 
 import {
-	selectUserMayEditPermissions
+	selectUserMayEditPermissions,
+	getCardById
 } from '../selectors.js';
 
 import {
@@ -16,6 +17,31 @@ import {
 	db,
 	deleteField
 } from '../firebase.js';
+
+import {
+	modifyCard
+} from './data.js';
+
+import {
+	PERMISSION_EDIT_CARD
+} from '../permissions.js';
+
+export const removeUserPermissionFromCard = (cardID, permissionType, uid) => (dispatch, getState) => {
+	if (permissionType != PERMISSION_EDIT_CARD) {
+		console.warn('Illegal permission type');
+		return;
+	}
+	const state = getState();
+	const card = getCardById(state, cardID);
+	if (!card) {
+		console.warn('No such card');
+		return;
+	}
+	const update = {
+		remove_editors: [uid],
+	};
+	dispatch(modifyCard(card, update, false));
+};
 
 export const connectLivePermissions = () => {
 	if (!selectUserMayEditPermissions(store.getState())) return;

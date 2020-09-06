@@ -21,7 +21,8 @@ import {
 	updateUserNote,
 	addEnabledPermission,
 	clearPermission,
-	deletePermissionsObjectForUser
+	deletePermissionsObjectForUser,
+	removeUserPermissionFromCard
 } from '../actions/permissions.js';
 
 import {
@@ -90,7 +91,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 				<div>
 					<p><strong>Cards</strong> <em>These are permissions that are specific to an individual card. Edit the card to modify them.</em></p>
 		${Object.entries(this._effectivePermissionsForCards).map(entry => 
-		html`<span>${entry[0]}</span> <tag-list .tags=${entry[1]} .tagInfos=${this._tagInfosForCards} .tapEvents=${true}></tag-list>`)}`
+		html`<span>${entry[0]}</span> <tag-list .permission=${entry[0]} .tags=${entry[1]} .tagInfos=${this._tagInfosForCards} .tapEvents=${true} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveCardPermission}></tag-list>`)}`
 		: ''}
 			</div>
 			`;
@@ -167,6 +168,21 @@ class PermissionsEditor extends connect(store)(LitElement) {
 			if (!confirm('There are some permissions in this user still. Do you want to delete?')) return;
 		}
 		store.dispatch(deletePermissionsObjectForUser(this.uid));
+	}
+
+	_handleRemoveCardPermission(e) {
+		let tagList = null;
+		for (let ele of e.composedPath()) {
+			if (ele.localName == 'tag-list') {
+				tagList = ele;
+				break;
+			}
+		}
+		if (!tagList) {
+			console.warn('Couldn\'t find tag list');
+			return;
+		}
+		store.dispatch(removeUserPermissionFromCard(e.detail.tag, tagList.permission, this.uid));
 	}
 
 }
