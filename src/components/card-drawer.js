@@ -6,19 +6,26 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
-import './card-thumbnail.js';
+import {
+	cardBadges,
+	cardBadgesStyles
+} from './card-badges.js';
+
+import './card-renderer.js';
 
 import { PLUS_ICON } from './my-icons.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 import { SharedStyles } from './shared-styles.js';
 import { selectBadgeMap } from '../selectors';
+import { cardHasContent } from '../util.js';
 
 class CardDrawer extends connect(store)(LitElement) {
 	render() {
 		return html`
 			${SharedStyles}
 			${ButtonSharedStyles}
+			${cardBadgesStyles}
 			<style>
 				:host {
 					max-height:100%;
@@ -94,6 +101,93 @@ class CardDrawer extends connect(store)(LitElement) {
 					margin-bottom:-5em;
 				}
 
+				.thumbnail h3 {
+					color: var(--app-dark-text-color);
+					text-align:center;
+					font-size: 0.8em;
+					font-family: var(--app-header-font-family);
+				}
+
+				.thumbnail h3.nocontent {
+					font-style: italic;
+				}
+
+				.thumbnail {
+					cursor:pointer;
+					margin:0.5em;
+					box-sizing:border-box;
+					position:relative;
+					border: 2px solid transparent;
+				}
+
+				.thumbnail.partial {
+					height: 6em;
+					width: 12em;
+					padding: 0.5em;
+					display:flex;
+					align-items:center;
+					justify-content:center;
+					background-color: var(--card-color);
+					box-shadow: var(--card-shadow);
+					overflow:hidden;
+				}
+
+				.thumbnail card-renderer {
+					font-size: 0.5em;
+				}
+
+				.thumbnail.unpublished {
+					background-color: var(--unpublished-card-color);
+				}
+
+				.thumbnail.selected {
+					border:2px solid var(--app-primary-color);
+				}
+
+				.thumbnail.selected h3 {
+					color: var(--app-primary-color);
+				}
+
+				.thumbnail.section-head.partial {
+					background-color: var(--app-primary-color);
+				}
+
+				.thumbnail.section-head.partial.selected {
+					border: 2px solid var(--app-light-text-color);
+				}
+
+				.thumbnail.section-head h3 {
+					color: var(--app-light-text-color);
+				}
+
+				.thumbnail.section-head.selected h3 {
+					color: var(--app-primary-color-light);
+				}
+
+				.thumbnail.empty {
+					opacity:0.5;
+				}
+
+				.thumbnail.ghost {
+					opacity:0.5;
+				}
+
+				div.thumbnail:hover h3 {
+					color: var(--app-secondary-color);
+				}
+
+				.thumbnail:hover {
+					border:2px solid var(--app-secondary-color);
+				}
+
+				.thumbnail.section-head:hover h3 {
+					color: var(--app-primary-color-subtle);
+				}
+
+				.thumbnail.section-head:hover {
+					border:2px solid var(--app-primary-color-subtle);
+				}
+
 			</style>
 			<div ?hidden='${!this.showing}' class='container ${this._dragging ? 'dragging' : ''}${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
 				<div class='scrolling'>
@@ -115,7 +209,16 @@ class CardDrawer extends connect(store)(LitElement) {
 	}
 
 	_thumbnail(card, index) {
-		return html`<card-thumbnail .full=${this.fullCards} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${card} .index=${index} .userMayEdit=${this.editable} .id=${card.id} .name=${card.name} .title=${this._titleForCard(card)} .cardType=${card.card_type} .selected=${card.id == this.selectedCardId} .ghost=${this.collectionItemsToGhost[card.id] || false} .badgeMap=${this._badgeMap}></card-thumbnail>`;
+
+		const title = this._titleForCard(card);
+		const hasContent = cardHasContent(card);
+
+		return html`
+			<div  .card=${card} .index=${index} id=${card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.editable ? 'true' : 'false'}' class="thumbnail ${card.id == this.selectedCardId ? 'selected' : ''} ${card.card_type} ${card && card.published ? '' : 'unpublished'} ${this.collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
+					${this.fullCards ? html`<card-renderer .card=${this.card}></card-renderer>` : html`<h3 class=${hasContent ? '' : 'nocontent'}>${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
+					${cardBadges(card.card_type != 'content', card, this._badgeMap)}
+			</div>
+		`;
 	}
 
 	_titleForCard(card) {
@@ -128,6 +231,46 @@ class CardDrawer extends connect(store)(LitElement) {
 		let ele = section.querySelector('strong');
 		if (!ele) ele = section;
 		return ele.innerText.split('\n')[0];
+	}
+
+	_scrollSelectedThumbnailIntoView() {
+		if (!this._selectedViaClick) {
+			const ele = this.shadowRoot.querySelector('#' + this.selectedCardId);
+			if (ele) {
+				ele.scrollIntoView({behavior:'auto', block:'center'});
+			}
+		}
+		this._selectedViaClick = false;
+	}
+
+	_handleThumbnailClick(e) {
+		e.stopPropagation();
+		let card = null;
+		for (let ele of e.composedPath()) {
+			if (ele.card) {
+				card = ele.card;
+				break;
+			}
+		}
+		this._selectedViaClick = true;
+		const ctrl = e.ctrlKey || e.metaKey;
+		//TODO: ctrl-click on mac shouldn't show the right click menu
+		this.dispatchEvent(new CustomEvent('thumbnail-tapped', {composed:true, detail: {card: card, ctrl}}));
+	}
+
+	_handleThumbnailMouseMove(e) {
+		e.stopPropagation();
+		let card = null;
+		for (let ele of e.composedPath()) {
+			if (ele.card) {
+				card = ele.card;
+				break;
+			}
+		}
+		let id = card ? card.id : '';
+		//card-web-app will catch the card-hovered event no matter where it was
+		//thrown from
+		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: id, x: e.clientX, y: e.clientY}}));
 	}
 
 	_handleAddSlide() {
@@ -151,14 +294,9 @@ class CardDrawer extends connect(store)(LitElement) {
 
 		if (!this.editable) return;
 
-		//For some reason elements with shadow DOM did not appear to be draggable,
-		//so instead of dragging just card-thumbnail and having card-drawer manage
-		//all of it, draggable is set on the inner of the thumbnail; but all other
-		//logic goes in here.
-
 		let thumbnail = null;
-		for (let item of Object.values(e.path)) {
-			if (item.localName == 'card-thumbnail') {
+		for (let item of e.composedPath()) {
+			if (item.card) {
 				thumbnail = item;
 			}
 		}
@@ -208,12 +346,19 @@ class CardDrawer extends connect(store)(LitElement) {
 			//_showing is more complicated than whether we're open or yet.
 			showing: {type:Boolean},
 			_dragging: {type: Boolean},
+			_selectedViaClick: {type: Boolean},
 			_badgeMap: { type: Object },
 		};
 	}
 
 	stateChanged(state) {
 		this._badgeMap = selectBadgeMap(state);
+	}
+
+	updated(changedProps) {
+		if(changedProps.has('selectedCardId') && this.selectedCardId) {
+			this._scrollSelectedThumbnailIntoView();
+		}
 	}
 }
 

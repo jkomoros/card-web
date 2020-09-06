@@ -3,7 +3,8 @@ import { LitElement, html } from '@polymer/lit-element';
 import './card-renderer.js';
 
 import {
-	cardBadges
+	cardBadges,
+	cardBadgesStyles
 } from './card-badges.js';
 
 import { 
@@ -35,7 +36,8 @@ class CardPreview extends LitElement {
 				font-size: ${this.previewSize}px;
 			}
 
-      </style>
+	  </style>
+	  ${cardBadgesStyles}
       <div ?hidden='${!this.card}'>
 		<card-renderer .card=${this.card}></card-renderer>
 		${cardBadges(false, this.card, this.badgeMap)}

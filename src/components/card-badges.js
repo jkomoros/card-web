@@ -48,7 +48,7 @@ export const badgeStyles =  html`
 				color: var(--app-primary-color-light);
 			}
 
-			svg {
+			.badge svg {
 				height: 1em;
 				width: 1em;
 				fill: var(--app-dark-text-color-light);
@@ -68,7 +68,45 @@ export const badgeStyles =  html`
 	</style>
 `;
 
-//badgeMap is the result of selectBadgeMap (or null is fine);
+export const cardBadgesStyles = html`
+      <style>
+		.badges-container {
+			position:absolute;
+			top: 0;
+			left: 0;
+			height: 100%;
+			width: 100%;
+		}
+
+		.badges-container .top-right {
+			position:absolute;
+			top: 0.25em;
+			right: 0.25em;
+			display: flex;
+		}
+
+		.badges-container .read{
+			position:absolute;
+			left: 0.25em;
+			top: 0.25em;
+		}
+
+		.badges-container .thread-count {
+			position:absolute;
+			bottom:0.25em;
+			right: 0.25em;
+		}
+
+		.badges-container .reading-list {
+			position: absolute;
+			bottom:0.25em;
+			left: 0.25em;
+		}
+		</style>
+		${badgeStyles}
+`;
+
+//badgeMap is the result of selectBadgeMap (or null is fine); Warning: you also need to embed cardBadgeStyles at least once
 export const cardBadges = (light, card, badgeMap) => {
 	if (!badgeMap) badgeMap = {};
 	const starMap = badgeMap.stars || {};
@@ -78,42 +116,6 @@ export const cardBadges = (light, card, badgeMap) => {
 	const nonBlankCard = card || {};
 	const id = nonBlankCard.id;
 	return html`
-      <style>
-
-		.badges-container {
-			position:absolute;
-			top: 0;
-			left: 0;
-			height: 100%;
-			width: 100%;
-		}
-
-        .badges-container .top-right {
-          position:absolute;
-          top: 0.25em;
-          right: 0.25em;
-		  display: flex;
-        }
-
-        .badges-container .read{
-          position:absolute;
-          left: 0.25em;
-          top: 0.25em;
-        }
-
-        .badges-container .thread-count {
-          position:absolute;
-          bottom:0.25em;
-          right: 0.25em;
-        }
-
-        .badges-container .reading-list {
-          position: absolute;
-          bottom:0.25em;
-          left: 0.25em;
-        }
-	  </style>
-	  ${badgeStyles}
 	  <div class="badges-container ${light ? 'light' : ''}">
 		<div class='top-right'>
 			${badge('star-count', STAR_ICON, nonBlankCard.star_count, starMap[id])}
