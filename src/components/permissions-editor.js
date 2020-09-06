@@ -94,7 +94,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 				<tag-list .tags=${this._enabledLockedPermissions} .tagInfos=${LOCKED_PERMISSIONS} .overrideTypeName=${'Permission'} .defaultColor=${lockedPermissionColor} .hideOnEmpty=${true}></tag-list>
 				<tag-list .tags=${this._enabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @add-tag=${this._handleAddEnabled} @remove-tag=${this._handleRemove} .overrideTypeName=${'Permission'} .defaultColor=${enabledPermissionColor}></tag-list>
 				<div>
-					<p><strong>Cards</strong> <em>These are permissions that are specific to an individual card. Edit the card to modify them.</em></p>
+					<p><strong>Cards</strong> <em>These are permissions that are specific to an individual card.</em></p>
 		${Object.entries(this._effectivePermissionsForCards).map(entry => 
 		html`<span>${entry[0]}</span> <tag-list .permission=${entry[0]} .tags=${entry[1]} .tagInfos=${this._tagInfosForCards} .tapEvents=${true} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveCardPermission}></tag-list> <button @click=${this._handleAddCardPermission} .permission=${entry[0]}>+</button>`)}
 				${this._unusedCardPermissions.length && this.uid ? 
