@@ -3,6 +3,7 @@ export const FIND_DIALOG_CLOSE ='FIND_DIALOG_CLOSE';
 export const FIND_UPDATE_QUERY = 'FIND_UPDATE_QUERY';
 export const FIND_CARD_TO_LINK = 'FIND_CARD_TO_LINK';
 export const FIND_UPDATE_ACTIVE_QUERY = 'FIND_UPDATE_ACTIVE_QUERY';
+export const FIND_CARD_TO_PERMISSION = 'FIND_CARD_TO_PERMISSION';
 
 import {
 	saveSelectionRange
@@ -50,5 +51,11 @@ export const findCardToLink = (starterQuery) => {
 	return {
 		type: FIND_CARD_TO_LINK,
 		query: starterQuery,
+	};
+};
+
+export const findCardToPermission = () => {
+	return {
+		type: FIND_CARD_TO_PERMISSION,
 	};
 };

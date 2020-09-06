@@ -4,6 +4,7 @@ import {
 	FIND_UPDATE_QUERY,
 	FIND_CARD_TO_LINK,
 	FIND_UPDATE_ACTIVE_QUERY,
+	FIND_CARD_TO_PERMISSION
 } from '../actions/find.js';
 
 const INITIAL_STATE = {
@@ -14,7 +15,8 @@ const INITIAL_STATE = {
 	//update this every so often as query is updated, because it is expensive
 	//and drives expensive template updating, introducing lag.
 	activeQuery: '',
-	linking: false
+	linking: false,
+	permissions: false,
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -23,6 +25,7 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			linking: false,
+			permissions: false,
 			query: '',
 			activeQuery: '',
 			open: true
@@ -49,6 +52,16 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			open: true,
 			linking: true,
+			permissions: false,
+			query: action.query,
+			activeQuery: action.query
+		};
+	case FIND_CARD_TO_PERMISSION:
+		return {
+			...state,
+			open: true,
+			linking: false,
+			permissions: true,
 			query: action.query,
 			activeQuery: action.query
 		};

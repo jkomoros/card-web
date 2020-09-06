@@ -149,6 +149,11 @@ class FindDialog extends connect(store)(DialogElement) {
 			store.dispatch(linkCard(e.detail.card.id));
 			return;
 		}
+		if (this._permissions) {
+			//TODO: actually pass the info.
+			alert(e.detail.card.id);
+			return;
+		}
 		store.dispatch(navigateToCard(e.detail.card));
 	}
 
@@ -157,6 +162,7 @@ class FindDialog extends connect(store)(DialogElement) {
 			_query: {type: String},
 			_collection: {type:Array},
 			_linking: {type:Boolean},
+			_permissions: {type:Boolean},
 			_partialMatches: {type:Object},
 			_userMayCreateCard: {type:Boolean},
 		};
@@ -179,6 +185,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._collection = selectExpandedRankedCollectionForQuery(state);
 		this._partialMatches = selectPartialMatchedItemsForQuery(state);
 		this._linking = state.find.linking;
+		this._permissions = state.find.permissions;
 		this._userMayCreateCard = selectUserMayCreateCard(state);
 	}
 
