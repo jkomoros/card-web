@@ -216,6 +216,23 @@ class CardEditor extends connect(store)(LitElement) {
 			font-style: italic;
 		}
 
+		.tabs.main {
+			font-size:1.25em;
+		}
+
+		.tabs.main label {
+			font-weight: inherit;
+			border-top: 2px solid transparent;
+			border-bottom: none;
+			padding: 0.5em 2em;
+		}
+
+		.tabs.main label[selected] {
+			color: var(--app-primary-color);
+			border-top-color: var(--app-primary-color);
+			font-weight: bold;
+		}
+
 		[hidden] {
           display:none;
         }
@@ -306,7 +323,7 @@ class CardEditor extends connect(store)(LitElement) {
         </div>
         <div class='buttons'>
 		  <h3>Editing</h3>
-		  <div class='tabs' @click=${this._handleTabClicked}>
+		  <div class='tabs main' @click=${this._handleTabClicked}>
 			  <label name='${TAB_CONFIG}' ?selected=${this._selectedTab == TAB_CONFIG}>Configuration</label>
 			  <label name='${TAB_CONTENT}' ?selected=${this._selectedTab == TAB_CONTENT}>Content</label>
 		  </div>
