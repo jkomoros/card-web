@@ -234,20 +234,24 @@ const selectUserMayEditCards = createSelector(
 	(userMayEdit, permissions) => userMayEdit || permissions[PERMISSION_EDIT_CARD]
 );
 
-export const selectUserMayEditActiveCard = createSelector(
-	selectUserMayEditCards,
-	selectActiveCard,
-	selectUid,
-	(userMayEditCards, activeCard, uid) => {
-		if (userMayEditCards) return true;
-		if (!activeCard) return false;
-		if (activeCard.author == uid) return true;
-		if (!activeCard.permissions || !activeCard.permissions[PERMISSION_EDIT_CARD]) return false;
-		for (let id of activeCard.permissions[PERMISSION_EDIT_CARD]) {
-			if (id === uid) return true;
-		}
-		return false;
+export const getUserMayEditCard = (state, cardID) => {
+	if (selectUserMayEditCards(state)) return true;
+	const uid = selectUid(state);
+	if (!cardID) return false;
+	const card = getCard(state, cardID);
+	if (!card) return false;
+	if (card.author == uid) return true;
+	if (!card.permissions || !card.permissions[PERMISSION_EDIT_CARD]) return false;
+	for (let id of card.permissions[PERMISSION_EDIT_CARD]) {
+		if (id === uid) return true;
 	}
+	return false;
+};
+
+export const selectUserMayEditActiveCard = createSelector(
+	selectState,
+	selectActiveCardId,
+	(state, cardID) => getUserMayEditCard(state, cardID)
 );
 
 export const selectUserMayViewApp = createSelector(
