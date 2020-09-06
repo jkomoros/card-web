@@ -27,7 +27,8 @@ import {
 } from '../actions/permissions.js';
 
 import {
-	PERMISSIONS_INFO
+	PERMISSIONS_INFO,
+	PERMISSIONS_LEGAL_ON_CARD_INFO
 } from '../permissions.js';
 
 import './tag-list.js';
@@ -92,13 +93,15 @@ class PermissionsEditor extends connect(store)(LitElement) {
 				<p><strong>${this._title}</strong> ${this.description ? html`<em>${this.description}</em>` : ''}&nbsp;&nbsp;&nbsp;<strong>Notes</strong> ${this._effectivePermissions.notes || html`<em>No notes</em>`} <span class='edit' ?hidden=${!this._editable} @click=${this._handleEditNotes}>${EDIT_ICON}</span><span class='edit' ?hidden=${!this._editable} @click=${this._handleDelete}>${DELETE_FOREVER_ICON}</span></p>
 				<tag-list .tags=${this._enabledLockedPermissions} .tagInfos=${LOCKED_PERMISSIONS} .overrideTypeName=${'Permission'} .defaultColor=${lockedPermissionColor} .hideOnEmpty=${true}></tag-list>
 				<tag-list .tags=${this._enabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @add-tag=${this._handleAddEnabled} @remove-tag=${this._handleRemove} .overrideTypeName=${'Permission'} .defaultColor=${enabledPermissionColor}></tag-list>
-				${this._effectivePermissionsForCards ? 
-		html`
 				<div>
 					<p><strong>Cards</strong> <em>These are permissions that are specific to an individual card. Edit the card to modify them.</em></p>
 		${Object.entries(this._effectivePermissionsForCards).map(entry => 
-		html`<span>${entry[0]}</span> <tag-list .permission=${entry[0]} .tags=${entry[1]} .tagInfos=${this._tagInfosForCards} .tapEvents=${true} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveCardPermission}></tag-list> <button @click=${this._handleAddCardPermission} .permission=${entry[0]}>+</button>`)}`
-		: ''}
+		html`<span>${entry[0]}</span> <tag-list .permission=${entry[0]} .tags=${entry[1]} .tagInfos=${this._tagInfosForCards} .tapEvents=${true} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveCardPermission}></tag-list> <button @click=${this._handleAddCardPermission} .permission=${entry[0]}>+</button>`)}
+				${this._unusedCardPermissions.length ? 
+		html`<select @change=${this._handleAddPermissionType}>
+					<option value=''><em>Add a cards permission type...</option>
+					${this._unusedCardPermissions.map(item => html`<option value=${item}>${item}</option>`)}
+				</select>` : ''}
 			</div>
 			`;
 	}
@@ -137,7 +140,13 @@ class PermissionsEditor extends connect(store)(LitElement) {
 	}
 
 	get _effectivePermissionsForCards() {
-		return this._userPermissionsForCardsMap[this.uid];
+		return this._userPermissionsForCardsMap[this.uid] || {};
+	}
+
+	get _unusedCardPermissions() {
+		//the card permissions that aren't currently showing for this uid but could be
+		const effectivePerms = this._effectivePermissionsForCards;
+		return Object.keys(PERMISSIONS_LEGAL_ON_CARD_INFO).filter(key => !effectivePerms[key]);
 	}
 
 	get _enabledModifiablePermissions() {
@@ -153,6 +162,15 @@ class PermissionsEditor extends connect(store)(LitElement) {
 		this._authors = selectAuthors(state);
 		this._userPermissionsForCardsMap = selectUserPermissionsForCardsMap(state);
 		this._tagInfosForCards = selectTagInfosForCards(state);
+	}
+
+	_handleAddPermissionType(e) {
+		const ele = e.composedPath()[0];
+		if (!ele.value) return;
+		const value = ele.value;
+		//Set it back to default
+		ele.value = '';
+		store.dispatch(selectCardToAddPermissionTo(value, this.uid));
 	}
 
 	_handleEditNotes() {
