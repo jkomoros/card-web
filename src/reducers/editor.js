@@ -1,7 +1,7 @@
 import { 
 	EDITING_START,
 	EDITING_FINISH,
-	EDITING_SELECT_TAB,
+	EDITING_SELECT_EDITOR_TAB,
 	EDITING_TITLE_UPDATED,
 	EDITING_BODY_UPDATED,
 	EDITING_SECTION_UPDATED,
@@ -25,7 +25,7 @@ import {
 	EDITING_COLLABORATOR_ADDED,
 	EDITING_COLLABORATOR_REMOVED,
 
-	TAB_CONTENT,
+	EDITOR_TAB_CONTENT,
 } from '../actions/editor.js';
 
 import {
@@ -43,7 +43,7 @@ import {
 	TODO_OVERRIDE_LEGAL_KEYS
 } from '../filters.js';
 
-const DEFAULT_TAB = TAB_CONTENT;
+const DEFAULT_EDITOR_TAB = EDITOR_TAB_CONTENT;
 
 const INITIAL_STATE = {
 	editing: false,
@@ -51,7 +51,7 @@ const INITIAL_STATE = {
 	titleFromContentEditable: false,
 	card: null,
 	substantive: false,
-	selectedTab: DEFAULT_TAB,
+	selectedEditorTab: DEFAULT_EDITOR_TAB,
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -65,7 +65,7 @@ const app = (state = INITIAL_STATE, action) => {
 			substantive: false,
 			bodyFromContentEditable: false,
 			titleFromContentEditable: false,
-			selectedTab: DEFAULT_TAB,
+			selectedEditorTab: DEFAULT_EDITOR_TAB,
 		};
 	case EDITING_FINISH:
 		return {
@@ -76,10 +76,10 @@ const app = (state = INITIAL_STATE, action) => {
 			bodyFromContentEditable: false,
 			titleFromContentEditable: false,
 		};
-	case EDITING_SELECT_TAB:
+	case EDITING_SELECT_EDITOR_TAB:
 		return {
 			...state,
-			selectedTab: action.tab,
+			selectedEditorTab: action.tab,
 		};
 	case EDITING_TITLE_UPDATED:
 		if (!state.card) return state;

@@ -1,6 +1,6 @@
 export const EDITING_START = 'EDITING_START';
 export const EDITING_FINISH = 'EDITING_FINISH';
-export const EDITING_SELECT_TAB = 'EDITING_SELECT_TAB';
+export const EDITING_SELECT_EDITOR_TAB = 'EDITING_SELECT_EDITOR_TAB';
 export const EDITING_TITLE_UPDATED = 'EDITING_TITLE_UPDATED';
 export const EDITING_BODY_UPDATED = 'EDITING_BODY_UPDATED';
 export const EDITING_SECTION_UPDATED = 'EDITING_SECTION_UPDATED';
@@ -24,9 +24,9 @@ export const EDITING_EDITOR_REMOVED = 'EDITING_EDITOR_REMOVED';
 export const EDITING_COLLABORATOR_ADDED = 'EDITING_COLLABORATOR_ADDED';
 export const EDITING_COLLABORATOR_REMOVED = 'EDITING_COLLABORATOR_REMOVED';
 
-export const TAB_CONTENT = 'content';
-export const TAB_NOTES = 'notes';
-export const TAB_TODO = 'todo';
+export const EDITOR_TAB_CONTENT = 'content';
+export const EDITOR_TAB_NOTES = 'notes';
+export const EDITOR_TAB_TODO = 'todo';
 
 import {
 	selectActiveCard,
@@ -90,9 +90,9 @@ export const savedSelectionRangeIsLink = () => {
 	return false;
 };
 
-export const editingSelectTab = (tab) => {
+export const editingSelectEditorTab = (tab) => {
 	return {
-		type: EDITING_SELECT_TAB,
+		type: EDITING_SELECT_EDITOR_TAB,
 		tab,
 	};
 };

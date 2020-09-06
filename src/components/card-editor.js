@@ -42,12 +42,12 @@ import {
 	autoTodoOverrideRemoved,
 	tagAdded,
 	tagRemoved,
-	editingSelectTab,
+	editingSelectEditorTab,
 	todoUpdated,
 
-	TAB_CONTENT,
-	TAB_NOTES,
-	TAB_TODO,
+	EDITOR_TAB_CONTENT,
+	EDITOR_TAB_NOTES,
+	EDITOR_TAB_TODO,
 	autoTodoOverrideDisabled,
 	skippedLinkInboundAdded,
 	skippedLinkInboundRemoved,
@@ -230,19 +230,19 @@ class CardEditor extends connect(store)(LitElement) {
             <input type='text' @input='${this._handleTitleUpdated}' .value=${this._card.title}></input>
           </div>
 		  <div class='flex body'>
-			<div class='tabs' @click=${this._handleTabClicked}>
-				<label name='${TAB_CONTENT}' ?selected=${this._selectedTab == TAB_CONTENT} ?empty=${!hasContent} ?modified=${contentModified}>Content</label>
-				<label name='${TAB_NOTES}' ?selected=${this._selectedTab == TAB_NOTES} ?empty=${!hasNotes} ?modified=${notesModified}>Notes</label>
-				<label name='${TAB_TODO}' ?selected=${this._selectedTab == TAB_TODO} ?empty=${!hasTodo} ?modified=${todoModified}>Freeform TODO</label>
+			<div class='tabs' @click=${this._handleEditorTabClicked}>
+				<label name='${EDITOR_TAB_CONTENT}' ?selected=${this._selectedEditorTab == EDITOR_TAB_CONTENT} ?empty=${!hasContent} ?modified=${contentModified}>Content</label>
+				<label name='${EDITOR_TAB_NOTES}' ?selected=${this._selectedEditorTab == EDITOR_TAB_NOTES} ?empty=${!hasNotes} ?modified=${notesModified}>Notes</label>
+				<label name='${EDITOR_TAB_TODO}' ?selected=${this._selectedEditorTab == EDITOR_TAB_TODO} ?empty=${!hasTodo} ?modified=${todoModified}>Freeform TODO</label>
 				<span class='flex'></span>
-				<label class='help' ?hidden=${this._selectedTab !== TAB_CONTENT}>Content is what shows up on the main body of the card</label>
-				<label class='help' ?hidden=${this._selectedTab !== TAB_NOTES}>Notes are visible in the info panel to all readers and are for permanent asides</label>
-				<label class='help' ?hidden=${this._selectedTab !== TAB_TODO}>Freeform TODOs are only visible to editors and mark a temporary thing to do so it shows up in the has-freeform-todo filter</label>
+				<label class='help' ?hidden=${this._selectedEditorTab !== EDITOR_TAB_CONTENT}>Content is what shows up on the main body of the card</label>
+				<label class='help' ?hidden=${this._selectedEditorTab !== EDITOR_TAB_NOTES}>Notes are visible in the info panel to all readers and are for permanent asides</label>
+				<label class='help' ?hidden=${this._selectedEditorTab !== EDITOR_TAB_TODO}>Freeform TODOs are only visible to editors and mark a temporary thing to do so it shows up in the has-freeform-todo filter</label>
 
 			</div>
-			<textarea ?hidden=${this._selectedTab !== TAB_CONTENT} @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
-			<textarea ?hidden=${this._selectedTab !== TAB_NOTES} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
-			<textarea ?hidden=${this._selectedTab !== TAB_TODO} @input='${this._handleTodoUpdated}' .value=${this._card.todo}></textarea>
+			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_CONTENT} @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
+			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_NOTES} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
+			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_TODO} @input='${this._handleTodoUpdated}' .value=${this._card.todo}></textarea>
 		  </div>
           <div class='row'>
             <div>
@@ -332,7 +332,7 @@ class CardEditor extends connect(store)(LitElement) {
 		_sectionsUserMayEdit: {type: Object },
 		_userMayChangeEditingCardSection: { type:Boolean },
 		_substantive: {type: Object},
-		_selectedTab: {type:String},
+		_selectedEditorTab: {type:String},
 		_tagInfos: {type: Object},
 		_userMayEditSomeTags: { type: Boolean},
 		_tagsUserMayNotEdit: { type: Array},
@@ -352,7 +352,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._userMayChangeEditingCardSection = selectUserMayChangeEditingCardSection(state);
 		this._sectionsUserMayEdit = selectSectionsUserMayEdit(state);
 		this._substantive = state.editor.substantive;
-		this._selectedTab = state.editor.selectedTab;
+		this._selectedEditorTab = state.editor.selectedEditorTab;
 		this._tagInfos = selectTags(state);
 		this._userMayEditSomeTags = selectUserMayEditSomeTags(state);
 		this._tagsUserMayNotEdit = tagsUserMayNotEdit(state);
@@ -371,12 +371,12 @@ class CardEditor extends connect(store)(LitElement) {
 		document.addEventListener('keydown', e => this._handleKeyDown(e));
 	}
 
-	_handleTabClicked(e) {
+	_handleEditorTabClicked(e) {
 		const ele = e.path[0];
 		if (!ele) return;
 		const name = ele.getAttribute('name');
 		if (!name) return;
-		store.dispatch(editingSelectTab(name));
+		store.dispatch(editingSelectEditorTab(name));
 	}
 
 	_handleNewTag() {
