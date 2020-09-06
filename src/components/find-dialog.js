@@ -31,6 +31,10 @@ import {
 } from '../actions/data.js';
 
 import {
+	setCardToAddPermissionTo
+} from '../actions/permissions.js';
+
+import {
 	selectExpandedRankedCollectionForQuery,
 	selectPartialMatchedItemsForQuery,
 	selectUserMayCreateCard
@@ -150,8 +154,7 @@ class FindDialog extends connect(store)(DialogElement) {
 			return;
 		}
 		if (this._permissions) {
-			//TODO: actually pass the info.
-			alert(e.detail.card.id);
+			store.dispatch(setCardToAddPermissionTo(e.detail.card.id));
 			return;
 		}
 		store.dispatch(navigateToCard(e.detail.card));

@@ -96,6 +96,8 @@ export const selectMessages = (state) => state.comments ? state.comments.message
 export const selectThreads = (state) => state.comments ? state.comments.threads : null;
 export const selectAuthors = (state) => state.data.authors ? state.data.authors : null;
 export const selectAllPermissions = (state) => state.permissions ? state.permissions.permissions : null;
+export const selectPermissionsPendingUid = (state) => state.permissions ? state.permissions.pendingUid : '';
+export const selectPermissionsPendingPermissionType = (state) => state.permissions ? state.permissions.pendingPermissionType : '';
 const selectTweets = (state) => state.data ? state.data.tweets : {};
 export const selectTweetsLoading = (state) => state.data ? state.data.tweetsLoading : false;
 export const selectActivePreviewCardId = (state) => state.app ? state.app.hoverCardId : '';

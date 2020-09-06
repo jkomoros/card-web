@@ -1,4 +1,6 @@
 export const PERMISSIONS_UPDATE_PERMISSIONS = 'PERMISSIONS_UPDATE_PERMISSIONS';
+export const PERMISSIONS_START_ADD_CARD = 'PERMISSIONS_START_ADD_CARD';
+export const PERMISSIONS_RESET_ADD_CARD = 'PERMISSIONS_RESET_ADD_CARD';
 
 import {
 	store
@@ -6,7 +8,9 @@ import {
 
 import {
 	selectUserMayEditPermissions,
-	getCardById
+	getCardById,
+	selectPermissionsPendingPermissionType,
+	selectPermissionsPendingUid
 } from '../selectors.js';
 
 import {
@@ -25,6 +29,46 @@ import {
 import {
 	PERMISSION_EDIT_CARD
 } from '../permissions.js';
+
+import {
+	findCardToPermission
+} from './find.js';
+
+export const setCardToAddPermissionTo = (cardID) => (dispatch, getState) => {
+	const state = getState();
+	const permissionType = selectPermissionsPendingPermissionType(state);
+	const uid = selectPermissionsPendingUid(state);
+	dispatch(addUserPermissionToCard(cardID, permissionType, uid));
+	dispatch({
+		type: PERMISSIONS_RESET_ADD_CARD,
+	});
+};
+
+export const selectCardToAddPermissionTo = (permissionType, uid) => (dispatch) => {
+	dispatch({
+		type:PERMISSIONS_START_ADD_CARD,
+		permissionType,
+		uid 
+	});
+	dispatch(findCardToPermission());
+};
+
+const addUserPermissionToCard = (cardID, permissionType, uid) => (dispatch, getState) => {
+	if (permissionType != PERMISSION_EDIT_CARD) {
+		console.warn('Illegal permission type');
+		return;
+	}
+	const state = getState();
+	const card = getCardById(state, cardID);
+	if (!card) {
+		console.warn('No such card');
+		return;
+	}
+	const update = {
+		add_editors: [uid],
+	};
+	dispatch(modifyCard(card, update, false));
+};
 
 export const removeUserPermissionFromCard = (cardID, permissionType, uid) => (dispatch, getState) => {
 	if (permissionType != PERMISSION_EDIT_CARD) {
