@@ -80,17 +80,18 @@ class CardDrawer extends connect(store)(LitElement) {
 
 				.spacer {
 					/* Big drop target, but no change in layout */
-					height:3em;
-					margin-bottom:-3em;
+					height:4em;
+					margin-bottom:-4em;
 					margin-left: 1em;
 					margin-right: 1em;
 				}
 
 				.spacer.drag-active {
 					/* Get some space in the layout and render a bar */
-					border-top: 1px solid var(--app-dark-text-color);
-					margin-top: 1.5em;
-					margin-bottom:-2em;
+					/* TODO: render a bar in the middle of the opened space */
+					margin-top: -1.5em;
+					height: 8em;
+					margin-bottom:-5em;
 				}
 
 			</style>
