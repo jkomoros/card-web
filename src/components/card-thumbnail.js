@@ -145,6 +145,8 @@ class CardThumbnail extends LitElement {
 	}
   
 	_handleMouseMove(e) {
+    //if any buttons are down (which could happen for e.g. a drag), don't report the hover
+		if (e.buttons) return;
 		e.stopPropagation();
 		let id = this.card ? this.card.id : '';
 		//card-web-app will catch the card-hovered event no matter where it was
