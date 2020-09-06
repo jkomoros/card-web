@@ -278,6 +278,8 @@ class CardEditor extends connect(store)(LitElement) {
 				</select>
 				<button @click='${this._handleAddSlug}'>+</button>
 				</div>
+			</div>
+			<div class='row'>
 				<div>
 					<label>Tags</label>
 					<tag-list .tags=${this._card.tags} .previousTags=${this._underlyingCard ? this._underlyingCard.tags : null} .editing=${this._userMayEditSomeTags} .excludeItems=${this._tagsUserMayNotEdit} .tagInfos=${this._tagInfos} @add-tag=${this._handleAddTag} @remove-tag=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
@@ -310,6 +312,8 @@ class CardEditor extends connect(store)(LitElement) {
 						<label>Skipped Reciprocal Links</label>
 						<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${disableTODOColor} .tags=${this._card.auto_todo_skipped_links_inbound} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveSkippedLinkInbound} @add-tag=${this._handleAddSkippedLinkInbound}></tag-list>
 					</div>
+				</div>
+				<div class='row'>
 					<div>
 						<label>Editors</label>
 						<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.permissions[PERMISSION_EDIT_CARD]} .editing=${true} @remove-tag=${this._handleRemoveEditor} @add-tag=${this._handleAddEditor} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewEditor} .excludeItems=${[this._card.author]}></tag-list>
