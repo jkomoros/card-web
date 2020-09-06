@@ -42,9 +42,12 @@ import {
 	autoTodoOverrideRemoved,
 	tagAdded,
 	tagRemoved,
+	editingSelectTab,
 	editingSelectEditorTab,
 	todoUpdated,
 
+	TAB_CONTENT,
+	TAB_CONFIG,
 	EDITOR_TAB_CONTENT,
 	EDITOR_TAB_NOTES,
 	EDITOR_TAB_TODO,
@@ -142,11 +145,6 @@ class CardEditor extends connect(store)(LitElement) {
           width: 100%;
         }
 
-        .inputs > div {
-          display:flex;
-          flex-direction:column;
-        }
-
         textarea {
           flex-grow:1;
         }
@@ -228,8 +226,8 @@ class CardEditor extends connect(store)(LitElement) {
           <div>
             <label>Title</label>
             <input type='text' @input='${this._handleTitleUpdated}' .value=${this._card.title}></input>
-          </div>
-		  <div class='flex body'>
+		  </div>
+		  <div ?hidden=${this._selectedTab !== TAB_CONTENT} class='flex body'>
 			<div class='tabs' @click=${this._handleEditorTabClicked}>
 				<label name='${EDITOR_TAB_CONTENT}' ?selected=${this._selectedEditorTab == EDITOR_TAB_CONTENT} ?empty=${!hasContent} ?modified=${contentModified}>Content</label>
 				<label name='${EDITOR_TAB_NOTES}' ?selected=${this._selectedEditorTab == EDITOR_TAB_NOTES} ?empty=${!hasNotes} ?modified=${notesModified}>Notes</label>
@@ -244,65 +242,73 @@ class CardEditor extends connect(store)(LitElement) {
 			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_NOTES} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
 			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_TODO} @input='${this._handleTodoUpdated}' .value=${this._card.todo}></textarea>
 		  </div>
-          <div class='row'>
-            <div>
-			  <label>Section</label>
-			  ${this._userMayChangeEditingCardSection ? 
-		html`<select @change='${this._handleSectionUpdated}' .value=${this._card.section}>
-                ${repeat(Object.values(this._sectionsUserMayEdit), (item) => item, (item) => html`
-                <option value="${item.id}" ?selected=${item.id == this._card.section}>${item.title}</option>`)}
-                <option value='' ?selected=${this._card.section == ''}>[orphaned]</option>
-			  </select>` : html`<em>${this._card.section}</em>`}
-            </div>
-            <div>
-              <Label>Slugs</label>
-              <select .value=${this._card.name} @change='${this._handleNameUpdated}'>
-                ${repeat([this._card.id, ...this._card.slugs], (item) => item, (item) => html`
-                <option value="${item}" ?selected=${item == this._card.name}>${item}</option>`)}
-              </select>
-              <button @click='${this._handleAddSlug}'>+</button>
-            </div>
-			<div>
-				<label>Tags</label>
-				<tag-list .tags=${this._card.tags} .previousTags=${this._underlyingCard ? this._underlyingCard.tags : null} .editing=${this._userMayEditSomeTags} .excludeItems=${this._tagsUserMayNotEdit} .tagInfos=${this._tagInfos} @add-tag=${this._handleAddTag} @remove-tag=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
-			</div>
-			<div>
-				<label>Suggested Tags</label>
-				<tag-list .tags=${this._suggestedTags} .tagInfos=${this._tagInfos} .subtle=${true} .tapEvents=${true} @tag-tapped=${this._handleAddTag}></tag-list>
-			</div>
-          </div>
+		  <div ?hidden=${this._selectedTab !== TAB_CONFIG}>
 			<div class='row'>
 				<div>
-					<label>Force Enable TODO</label>
-					<tag-list .defaultColor=${enableTODOColor} .tags=${todoOverridesEnabled} .previousTags=${todoOverridesPreviouslyEnabled} .disableNew=${true} .overrideTypeName=${'Enabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @add-tag=${this._handleAddTodoOverrideEnabled} @remove-tag=${this._handleRemoveTodoOverride}></tag-list>
+				<label>Section</label>
+				${this._userMayChangeEditingCardSection ? 
+		html`<select @change='${this._handleSectionUpdated}' .value=${this._card.section}>
+					${repeat(Object.values(this._sectionsUserMayEdit), (item) => item, (item) => html`
+					<option value="${item.id}" ?selected=${item.id == this._card.section}>${item.title}</option>`)}
+					<option value='' ?selected=${this._card.section == ''}>[orphaned]</option>
+				</select>` : html`<em>${this._card.section}</em>`}
 				</div>
 				<div>
-					<label>Force Disable TODO</label>
-					<tag-list .defaultColor=${disableTODOColor} .tags=${todoOverridesDisabled} .previousTags=${todoOverridesPreviouslyDisabled} .disableNew=${true} .overrideTypeName=${'Disabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @add-tag=${this._handleAddTodoOverrideDisabled} @remove-tag=${this._handleRemoveTodoOverride}></tag-list>
+				<Label>Slugs</label>
+				<select .value=${this._card.name} @change='${this._handleNameUpdated}'>
+					${repeat([this._card.id, ...this._card.slugs], (item) => item, (item) => html`
+					<option value="${item}" ?selected=${item == this._card.name}>${item}</option>`)}
+				</select>
+				<button @click='${this._handleAddSlug}'>+</button>
 				</div>
 				<div>
-					<label>Auto TODO</label>
-					<tag-list .defaultColor=${autoTODOColor} .tags=${this._autoTodos} .overrideTypeName=${'Auto TODO'} .tagInfos=${TODO_ALL_INFOS}></tag-list>
+					<label>Tags</label>
+					<tag-list .tags=${this._card.tags} .previousTags=${this._underlyingCard ? this._underlyingCard.tags : null} .editing=${this._userMayEditSomeTags} .excludeItems=${this._tagsUserMayNotEdit} .tagInfos=${this._tagInfos} @add-tag=${this._handleAddTag} @remove-tag=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
+				</div>
+				<div>
+					<label>Suggested Tags</label>
+					<tag-list .tags=${this._suggestedTags} .tagInfos=${this._tagInfos} .subtle=${true} .tapEvents=${true} @tag-tapped=${this._handleAddTag}></tag-list>
+				</div>
+			</div>
+				<div class='row'>
+					<div>
+						<label>Force Enable TODO</label>
+						<tag-list .defaultColor=${enableTODOColor} .tags=${todoOverridesEnabled} .previousTags=${todoOverridesPreviouslyEnabled} .disableNew=${true} .overrideTypeName=${'Enabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @add-tag=${this._handleAddTodoOverrideEnabled} @remove-tag=${this._handleRemoveTodoOverride}></tag-list>
+					</div>
+					<div>
+						<label>Force Disable TODO</label>
+						<tag-list .defaultColor=${disableTODOColor} .tags=${todoOverridesDisabled} .previousTags=${todoOverridesPreviouslyDisabled} .disableNew=${true} .overrideTypeName=${'Disabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @add-tag=${this._handleAddTodoOverrideDisabled} @remove-tag=${this._handleRemoveTodoOverride}></tag-list>
+					</div>
+					<div>
+						<label>Auto TODO</label>
+						<tag-list .defaultColor=${autoTODOColor} .tags=${this._autoTodos} .overrideTypeName=${'Auto TODO'} .tagInfos=${TODO_ALL_INFOS}></tag-list>
+					</div>
+				</div>
+				<div class='row'>
+					<div>
+						<label>Missing Reciprocal Links</label>
+						<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${enableTODOColor} .tags=${cardMissingReciprocalLinks(this._card)} .editing=${true} .disableAdd=${true} @add-tag=${this._handleRemoveSkippedLinkInbound} @remove-tag=${this._handleAddSkippedLinkInbound}></tag-list>
+					</div>
+					<div>
+						<label>Skipped Reciprocal Links</label>
+						<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${disableTODOColor} .tags=${this._card.auto_todo_skipped_links_inbound} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveSkippedLinkInbound} @add-tag=${this._handleAddSkippedLinkInbound}></tag-list>
+					</div>
+					<div>
+						<label>Editors</label>
+						<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.permissions[PERMISSION_EDIT_CARD]} .editing=${true} @remove-tag=${this._handleRemoveEditor} @add-tag=${this._handleAddEditor} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewEditor} .excludeItems=${[this._card.author]}></tag-list>
+					</div>
+					<div>
+						<label>Collaborators</label>
+						<tag-list .overrideTypeName=${'Collaborator'} .tagInfos=${this._authors} .tags=${this._card.collaborators} .editing=${true} @remove-tag=${this._handleRemoveCollaborator} @add-tag=${this._handleAddCollaborator} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewCollaborator} .excludeItems=${[this._card.author]}></tag-list>
+					</div>
 				</div>
 			</div>
         </div>
         <div class='buttons'>
 		  <h3>Editing</h3>
-		  <div>
-		  	<label>Missing Reciprocal Links</label>
-			<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${enableTODOColor} .tags=${cardMissingReciprocalLinks(this._card)} .editing=${true} .disableAdd=${true} @add-tag=${this._handleRemoveSkippedLinkInbound} @remove-tag=${this._handleAddSkippedLinkInbound}></tag-list>
-		  </div>
-		  <div>
-		  	<label>Skipped Reciprocal Links</label>
-			<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${disableTODOColor} .tags=${this._card.auto_todo_skipped_links_inbound} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveSkippedLinkInbound} @add-tag=${this._handleAddSkippedLinkInbound}></tag-list>
-		  </div>
-		  <div>
-			<label>Editors</label>
-			<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.permissions[PERMISSION_EDIT_CARD]} .editing=${true} @remove-tag=${this._handleRemoveEditor} @add-tag=${this._handleAddEditor} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewEditor} .excludeItems=${[this._card.author]}></tag-list>
-		  </div>
-		  <div>
-			<label>Collaborators</label>
-			<tag-list .overrideTypeName=${'Collaborator'} .tagInfos=${this._authors} .tags=${this._card.collaborators} .editing=${true} @remove-tag=${this._handleRemoveCollaborator} @add-tag=${this._handleAddCollaborator} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewCollaborator} .excludeItems=${[this._card.author]}></tag-list>
+		  <div class='tabs' @click=${this._handleTabClicked}>
+			  <label name='${TAB_CONFIG}' ?selected=${this._selectedTab == TAB_CONFIG}>Configuration</label>
+			  <label name='${TAB_CONTENT}' ?selected=${this._selectedTab == TAB_CONTENT}>Content</label>
 		  </div>
 		  <div class='flex'>
 		  </div>
@@ -332,6 +338,7 @@ class CardEditor extends connect(store)(LitElement) {
 		_sectionsUserMayEdit: {type: Object },
 		_userMayChangeEditingCardSection: { type:Boolean },
 		_substantive: {type: Object},
+		_selectedTab: {type: String},
 		_selectedEditorTab: {type:String},
 		_tagInfos: {type: Object},
 		_userMayEditSomeTags: { type: Boolean},
@@ -352,6 +359,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._userMayChangeEditingCardSection = selectUserMayChangeEditingCardSection(state);
 		this._sectionsUserMayEdit = selectSectionsUserMayEdit(state);
 		this._substantive = state.editor.substantive;
+		this._selectedTab = state.editor.selectedTab;
 		this._selectedEditorTab = state.editor.selectedEditorTab;
 		this._tagInfos = selectTags(state);
 		this._userMayEditSomeTags = selectUserMayEditSomeTags(state);
@@ -369,6 +377,14 @@ class CardEditor extends connect(store)(LitElement) {
 
 	firstUpdated() {
 		document.addEventListener('keydown', e => this._handleKeyDown(e));
+	}
+
+	_handleTabClicked(e) {
+		const ele = e.path[0];
+		if (!ele) return;
+		const name = ele.getAttribute('name');
+		if (!name) return;
+		store.dispatch(editingSelectTab(name));
 	}
 
 	_handleEditorTabClicked(e) {

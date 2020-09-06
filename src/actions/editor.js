@@ -1,5 +1,6 @@
 export const EDITING_START = 'EDITING_START';
 export const EDITING_FINISH = 'EDITING_FINISH';
+export const EDITING_SELECT_TAB = 'EDITING_SELECT_TAB';
 export const EDITING_SELECT_EDITOR_TAB = 'EDITING_SELECT_EDITOR_TAB';
 export const EDITING_TITLE_UPDATED = 'EDITING_TITLE_UPDATED';
 export const EDITING_BODY_UPDATED = 'EDITING_BODY_UPDATED';
@@ -23,6 +24,9 @@ export const EDITING_EDITOR_ADDED = 'EDITING_EDITOR_ADDED';
 export const EDITING_EDITOR_REMOVED = 'EDITING_EDITOR_REMOVED';
 export const EDITING_COLLABORATOR_ADDED = 'EDITING_COLLABORATOR_ADDED';
 export const EDITING_COLLABORATOR_REMOVED = 'EDITING_COLLABORATOR_REMOVED';
+
+export const TAB_CONTENT = 'content';
+export const TAB_CONFIG = 'config';
 
 export const EDITOR_TAB_CONTENT = 'content';
 export const EDITOR_TAB_NOTES = 'notes';
@@ -88,6 +92,13 @@ export const savedSelectionRangeIsLink = () => {
 	if (savedSelectionRange.startContainer && savedSelectionRange.startContainer.parentElement && savedSelectionRange.startContainer.parentElement.localName == 'a') return true;
 	if (savedSelectionRange.endContainer && savedSelectionRange.endContainer.parentElement && savedSelectionRange.endContainer.parentElement.localName == 'a') return true;
 	return false;
+};
+
+export const editingSelectTab = (tab) => {
+	return {
+		type: EDITING_SELECT_TAB,
+		tab,
+	};
 };
 
 export const editingSelectEditorTab = (tab) => {
