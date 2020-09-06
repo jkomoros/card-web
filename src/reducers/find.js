@@ -62,8 +62,8 @@ const app = (state = INITIAL_STATE, action) => {
 			open: true,
 			linking: false,
 			permissions: true,
-			query: action.query,
-			activeQuery: action.query
+			query: '',
+			activeQuery: ''
 		};
 	default:
 		return state;
