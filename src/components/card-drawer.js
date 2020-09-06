@@ -100,7 +100,7 @@ class CardDrawer extends connect(store)(LitElement) {
 				${repeat(this.collection, (i) => i.id, (i, index) => html`
 					<div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
 					${this.labels && this.labels[index] ? html`<div class='label'><span>${this.labelName} <strong>${this.labels[index]}</strong></span></div>` : html``}
-					${this._thumbnail(i)}`)}
+					${this._thumbnail(i, index)}`)}
 				</div>
 				<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable || this.suppressAdd}'>${PLUS_ICON}</button>
 			</div>
@@ -114,8 +114,8 @@ class CardDrawer extends connect(store)(LitElement) {
 		this.collectionItemsToGhost = {};
 	}
 
-	_thumbnail(card) {
-		return html`<card-thumbnail .full=${this.fullCards} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${card} .userMayEdit=${this.editable} .id=${card.id} .name=${card.name} .title=${this._titleForCard(card)} .cardType=${card.card_type} .selected=${card.id == this.selectedCardId} .ghost=${this.collectionItemsToGhost[card.id] || false} .badgeMap=${this._badgeMap}></card-thumbnail>`;
+	_thumbnail(card, index) {
+		return html`<card-thumbnail .full=${this.fullCards} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' .card=${card} .index=${index} .userMayEdit=${this.editable} .id=${card.id} .name=${card.name} .title=${this._titleForCard(card)} .cardType=${card.card_type} .selected=${card.id == this.selectedCardId} .ghost=${this.collectionItemsToGhost[card.id] || false} .badgeMap=${this._badgeMap}></card-thumbnail>`;
 	}
 
 	_titleForCard(card) {
