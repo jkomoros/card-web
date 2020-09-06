@@ -82,6 +82,11 @@ class PermissionsEditor extends connect(store)(LitElement) {
 				svg:hover {
 					fill: var(--app-dark-text-color);
 				}
+
+				tag-list {
+					display: inline-block;
+				}
+
 			</style>
 			<div class="container ${this._editable ? 'editable' : ''}">
 				<p><strong>${this._title}</strong> ${this.description ? html`<em>${this.description}</em>` : ''}&nbsp;&nbsp;&nbsp;<strong>Notes</strong> ${this._effectivePermissions.notes || html`<em>No notes</em>`} <span class='edit' ?hidden=${!this._editable} @click=${this._handleEditNotes}>${EDIT_ICON}</span><span class='edit' ?hidden=${!this._editable} @click=${this._handleDelete}>${DELETE_FOREVER_ICON}</span></p>
