@@ -46,7 +46,7 @@ export const COMPOSED_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS = {...COMPOSED_USER
 export const PERMISSIONS_INFO = {
 	[PERMISSION_ADMIN]: {
 		displayName: 'Admin',
-		description: 'admin is the highest permission, which allows basically all actions, including deleting things. Note that this may only be set to true on a specific permissions record for a user, not at any other override point, since it\'s so sensitive.',
+		description: 'admin is the highest permission, which allows basically all actions, including deleting things. Note that this may only be set to true on a specific permissions record for a user, not at any other override point, since it\'s so sensitive. It also may not be set within the permissions editor, but only manually in the firebase console due to its sensitivity.',
 		locked: true,
 	},
 	[PERMISSION_VIEW_APP]: {
