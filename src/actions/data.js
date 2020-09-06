@@ -58,7 +58,7 @@ import {
 	selectUserIsAdmin,
 	selectFilters,
 	selectDataIsFullyLoaded,
-	selectUserMayEditActiveCard,
+	getUserMayEditCard,
 	selectLastSectionID,
 	getUserMayEditSection,
 	getUserMayEditTag,
@@ -142,8 +142,8 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 		return;
 	}
 
-	if (!selectUserMayEditActiveCard(state)) {
-		console.log('User isn\'t allowed to edit active card');
+	if (!getUserMayEditCard(state, card.id)) {
+		console.log('User isn\'t allowed to edit the given card');
 		return;
 	}
 
