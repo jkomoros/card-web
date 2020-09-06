@@ -22,7 +22,8 @@ import {
 	addEnabledPermission,
 	clearPermission,
 	deletePermissionsObjectForUser,
-	removeUserPermissionFromCard
+	removeUserPermissionFromCard,
+	selectCardToAddPermissionTo
 } from '../actions/permissions.js';
 
 import {
@@ -91,7 +92,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 				<div>
 					<p><strong>Cards</strong> <em>These are permissions that are specific to an individual card. Edit the card to modify them.</em></p>
 		${Object.entries(this._effectivePermissionsForCards).map(entry => 
-		html`<span>${entry[0]}</span> <tag-list .permission=${entry[0]} .tags=${entry[1]} .tagInfos=${this._tagInfosForCards} .tapEvents=${true} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveCardPermission}></tag-list>`)}`
+		html`<span>${entry[0]}</span> <tag-list .permission=${entry[0]} .tags=${entry[1]} .tagInfos=${this._tagInfosForCards} .tapEvents=${true} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveCardPermission}></tag-list> <button @click=${this._handleAddCardPermission} .permission=${entry[0]}>+</button>`)}`
 		: ''}
 			</div>
 			`;
@@ -168,6 +169,11 @@ class PermissionsEditor extends connect(store)(LitElement) {
 			if (!confirm('There are some permissions in this user still. Do you want to delete?')) return;
 		}
 		store.dispatch(deletePermissionsObjectForUser(this.uid));
+	}
+
+	_handleAddCardPermission(e) {
+		const button = e.composedPath()[0];
+		store.dispatch(selectCardToAddPermissionTo(button.permission, this.uid));
 	}
 
 	_handleRemoveCardPermission(e) {
