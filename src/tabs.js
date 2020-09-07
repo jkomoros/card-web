@@ -88,6 +88,8 @@ const EXPANSION_ITEMS = {
 			display_name: 'Your reading list',
 			collection: new CollectionDescription(READING_LIST_SET_NAME),
 			count: true,
+			//TODO: change this to a consistently named card
+			fallback_cards: ['c-991-cba033'],
 		}
 	],
 	'starred': [
@@ -96,6 +98,8 @@ const EXPANSION_ITEMS = {
 			display_name: 'Your starred cards',
 			collection: new CollectionDescription('', ['starred']),
 			count: true,
+			//TODO: change this to a consistently named card
+			fallback_cards: ['c-858-dfd425'],
 		}
 	],
 	'unread': [

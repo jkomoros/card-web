@@ -886,21 +886,22 @@ export const selectUserMayEditActiveSection = createSelector(
 	(state, sectionID) => sectionID != '' && getUserMayEditSection(state, sectionID)
 );
 
-const readingListTabCollectionDescription = new CollectionDescription(READING_LIST_SET_NAME);
-const starsTabCollectionDescription = new CollectionDescription('', ['starred']);
-
-//The card that is the tutorial for reading lists
-const ABOUT_READING_LISTS_CARD = 'c-991-cba033';
-const ABOUT_STARS_CARD = 'c-858-dfd425';
-
-const collectionFallbacks = {
-	[readingListTabCollectionDescription.serialize()]: [ABOUT_READING_LISTS_CARD],
-	[starsTabCollectionDescription.serialize()]: [ABOUT_STARS_CARD],
-};
-
 export const selectExpandedTabConfig = createSelector(
 	selectSections,
 	(sections) => tabConfiguration(TAB_CONFIGURATION, sections)
+);
+
+export const selectTabCollectionFallbacks = createSelector(
+	selectExpandedTabConfig,
+	selectSlugIndex,
+	(config, slugIndex) => {
+		let result = {};
+		for (const item of config) {
+			if (!item.fallback_cards) continue;
+			result[item.collection.serialize()] = item.fallback_cards.map(idOrSlug => slugIndex[idOrSlug] || idOrSlug);
+		}
+		return result;
+	}
 );
 
 //the section that should be loaded by default if no section is specified; Will
@@ -980,7 +981,8 @@ const selectActiveCollection = createSelector(
 	selectAllSets,
 	selectFilters,
 	selectSections,
-	(description, cards, sets, filters, sections) => description ? description.collection(cards, sets, filters, sections, collectionFallbacks) : null
+	selectTabCollectionFallbacks,
+	(description, cards, sets, filters, sections, fallbacks) => description ? description.collection(cards, sets, filters, sections, fallbacks) : null
 );
 
 export const selectCountsForTabs = createSelector(
@@ -989,11 +991,12 @@ export const selectCountsForTabs = createSelector(
 	selectAllSets,
 	selectFilters,
 	selectSections,
-	(tabs, cards, sets, filters, sections) => {
+	selectTabCollectionFallbacks,
+	(tabs, cards, sets, filters, sections, fallbacks) => {
 		let result = {};
 		for (let tab of tabs) {
 			if (!tab.count) continue;
-			result[tab.collection.serialize()] = tab.collection.collection(cards, sets, filters, sections, collectionFallbacks).numCards;
+			result[tab.collection.serialize()] = tab.collection.collection(cards, sets, filters, sections, fallbacks).numCards;
 		}
 		return result;
 	}
