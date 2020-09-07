@@ -96,6 +96,7 @@ export const selectSectionsLoaded = (state) => state.data ? state.data.sectionsL
 export const selectTagsLoaded = (state) => state.data ? state.data.tagsLoaded : false;
 export const selectMessagesLoaded = (state) => state.comments ? state.comments.messagesLoaded : false;
 export const selectThreadsLoaded = (state) => state.comments ? state.comments.threadsLoaded : false;
+const selectSlugIndex = (state) => state.data ? state.data.slugIndex : {};
 export const selectMessages = (state) => state.comments ? state.comments.messages : null;
 export const selectThreads = (state) => state.comments ? state.comments.threads : null;
 export const selectAuthors = (state) => state.data.authors ? state.data.authors : null;
@@ -684,9 +685,8 @@ export const getCardById = (state, cardId) => {
 };
 
 export const getIdForCard = (state, idOrSlug) => {
-	if (!state.data) return idOrSlug;
-	if (!state.data.slugIndex) return idOrSlug;
-	return state.data.slugIndex[idOrSlug] || idOrSlug;
+	const slugIndex = selectSlugIndex(state);
+	return slugIndex[idOrSlug] || idOrSlug;
 };
 
 export const getAuthorForId = (state, authorId) => {
