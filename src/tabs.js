@@ -10,6 +10,7 @@ import {
 import * as icons from './components/my-icons.js';
 
 export const tabConfiguration = (config, sections) => {
+	if (!config) config = DEFAULT_CONFIG;
 	let array = config;
 	let lastArray = [];
 	let changesMade = false;
@@ -45,6 +46,12 @@ const inflateCollectionsAndIcons = (config) => {
 	}
 	return result;
 };
+
+const DEFAULT_CONFIG = [
+	{
+		expand: 'default_tabs'
+	}
+];
 
 const EXPANSION_ITEMS = {
 	'default_tabs': [

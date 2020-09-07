@@ -50,6 +50,8 @@ const USER_TYPE_ANONYMOUS_PERMISSIONS = projectConfig.permissions && projectConf
 const USER_TYPE_SIGNED_IN_PERMISSIONS = projectConfig.permissions && projectConfig.permissions.signed_in || {};
 const USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS = projectConfig.permissions && projectConfig.permissions.signed_in_domain || {};
 
+const TAB_CONFIGURATION = projectConfig.tabs || null;
+
 const verifyPermissionsLegal = (permissions) => {
 	for (let [key, val] of Object.entries(permissions)) {
 		if (key == 'admin') {
@@ -130,6 +132,7 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	CONFIG_JS_CONTENT += 'export const USER_DOMAIN="' + USER_DOMAIN + '";\n';
 	CONFIG_JS_CONTENT += 'export const FIREBASE_REGION="' + FIREBASE_REGION + '";\n';
 	CONFIG_JS_CONTENT += 'export const TWITTER_HANDLE="' + TWITTER_HANDLE + '";\n';
+	CONFIG_JS_CONTENT += 'export const TAB_CONFIGURATION=' + JSON.stringify(TAB_CONFIGURATION) + ';\n';
 	fs.writeFileSync('config.GENERATED.SECRET.js', CONFIG_JS_CONTENT);
 
 	let META_STRING = '\n    <meta name="application-name" content="' + APP_TITLE + '">\n';

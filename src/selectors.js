@@ -33,6 +33,10 @@ import {
 } from './collection_description.js';
 
 import {
+	tabConfiguration
+} from './tabs.js';
+
+import {
 	COMPOSED_USER_TYPE_ALL_PERMISSIONS,
 	COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS,
 	COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS,
@@ -52,7 +56,8 @@ import {
 } from './permissions.js';
 
 import {
-	USER_DOMAIN
+	USER_DOMAIN,
+	TAB_CONFIGURATION
 } from '../config.GENERATED.SECRET.js';
 
 const selectState = (state) => state;
@@ -918,6 +923,11 @@ export const selectStarsTabSelected = createSelector(
 export const selectUnreadTabSelected = createSelector(
 	selectActiveCollectionDescription,
 	(description) => description.equivalent(unreadTabCollectionDescription)
+);
+
+export const selectExpandedTabConfig = createSelector(
+	selectSections,
+	(sections) => tabConfiguration(TAB_CONFIGURATION, sections)
 );
 
 export const selectLastSectionID = createSelector(
