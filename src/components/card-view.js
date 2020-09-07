@@ -38,7 +38,8 @@ import {
 	selectActiveCardTodosForCurrentUser,
 	selectCommentsAndInfoPanelOpen,
 	selectUserMayEditActiveCard,
-	selectUserMayCreateCard
+	selectUserMayCreateCard,
+	selectSectionsLoaded
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -73,6 +74,7 @@ import {
 
 import {
 	navigateToCard,
+	navigateToDefaultIfSectionsLoaded,
 	openCardsDrawerPanel,
 	closeCardsDrawerPanel,
 	enablePresentationMode,
@@ -287,6 +289,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_drawerReorderPending : {type: Boolean},
 			_activeSectionId: {type: String},
 			_dataIsFullyLoaded: {type:Boolean},
+			_sectionsLoaded: {type:Boolean},
 			_tagInfos: {type:Object},
 			_cardTodos: {type: Array},
 		};
@@ -445,6 +448,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._drawerReorderPending = state.data.reorderPending;
 		this._activeSectionId = selectActiveSectionId(state);
 		this._dataIsFullyLoaded = selectDataIsFullyLoaded(state);
+		this._sectionsLoaded = selectSectionsLoaded(state);
 		this._cardTodos = selectActiveCardTodosForCurrentUser(state);
 	}
 
@@ -473,9 +477,17 @@ class CardView extends connect(store)(PageViewElement) {
 		if (changedProps.has('_pageExtra')) {
 			if (this._pageExtra) {
 				store.dispatch(updateCardSelector(this._pageExtra));
-			} else {
-				//Dispatching to '' will use default;
-				store.dispatch(navigateToCard(''));
+			} else if(this._sectionsLoaded) {
+				//Dispatching to '' will use default. This will fail if sections
+				//aren't yet loaded; we'll try again when sections loaded.
+				store.dispatch(navigateToDefaultIfSectionsLoaded());
+			}
+		}
+		if (changedProps.has('_sectionsLoaded') && this._sectionsLoaded) {
+			if (!this._pageExtra) {
+				//Dispatching to '' will use default. We will have also tried if
+				//_pageExtra loaded when sections were already loaded
+				store.dispatch(navigateToDefaultIfSectionsLoaded());
 			}
 		}
 		if (changedProps.has('_editing') && !this._editing) {
