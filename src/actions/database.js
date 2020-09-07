@@ -200,27 +200,29 @@ export const connectLiveAuthors = () => {
 	});
 };
 
-const cardSnapshotReceiver = (snapshot) => {
+const cardSnapshotReceiver = (unpublished) =>{
+	
+	return (snapshot) => {
+		let cards = {};
 
-	let cards = {};
+		snapshot.docChanges().forEach(change => {
+			if (change.type === 'removed') return;
+			let doc = change.doc;
+			let id = doc.id;
+			let card = doc.data();
+			card.id = id;
+			cardSetNormalizedTextProperties(card);
+			cards[id] = card;
+		});
 
-	snapshot.docChanges().forEach(change => {
-		if (change.type === 'removed') return;
-		let doc = change.doc;
-		let id = doc.id;
-		let card = doc.data();
-		card.id = id;
-		cardSetNormalizedTextProperties(card);
-		cards[id] = card;
-	});
-
-	store.dispatch(updateCards(cards, true));
+		store.dispatch(updateCards(cards, unpublished));
+	};
 
 };
 
 export const connectLivePublishedCards = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
-	db.collection(CARDS_COLLECTION).where('published', '==', true).onSnapshot(cardSnapshotReceiver);
+	db.collection(CARDS_COLLECTION).where('published', '==', true).onSnapshot(cardSnapshotReceiver(false));
 };
 
 let liveUnpublishedCardsForUserAuthorUnsubscribe = null;
@@ -230,8 +232,8 @@ export const connectLiveUnpublishedCardsForUser = (uid) => {
 	if (!selectUserMayViewApp(store.getState())) return;
 	disconnectLiveUnpublishedCardsForUser();
 	if (!uid) return;
-	liveUnpublishedCardsForUserAuthorUnsubscribe = db.collection(CARDS_COLLECTION).where('author', '==', uid).where('published', '==', false).onSnapshot(cardSnapshotReceiver);
-	liveUnpublishedCardsForUserEditorUnsubscribe = db.collection(CARDS_COLLECTION).where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid).where('published', '==', false).onSnapshot(cardSnapshotReceiver);
+	liveUnpublishedCardsForUserAuthorUnsubscribe = db.collection(CARDS_COLLECTION).where('author', '==', uid).where('published', '==', false).onSnapshot(cardSnapshotReceiver(true));
+	liveUnpublishedCardsForUserEditorUnsubscribe = db.collection(CARDS_COLLECTION).where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid).where('published', '==', false).onSnapshot(cardSnapshotReceiver(true));
 };
 
 const disconnectLiveUnpublishedCardsForUser = () => {
@@ -248,7 +250,7 @@ const disconnectLiveUnpublishedCardsForUser = () => {
 export const connectLiveUnpublishedCards = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
 	disconnectLiveUnpublishedCardsForUser();
-	db.collection(CARDS_COLLECTION).where('published', '==', false).onSnapshot(cardSnapshotReceiver);
+	db.collection(CARDS_COLLECTION).where('published', '==', false).onSnapshot(cardSnapshotReceiver(true));
 };
 
 export const connectLiveSections = () => {
