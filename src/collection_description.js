@@ -323,6 +323,7 @@ const Collection = class {
 		this._sections = optSections || {};
 		this._fallbacks = optFallbacks || {};
 		this._filteredCards = null;
+		this._length = 0;
 		this._collectionIsFallback = null;
 		this._sortInfo = null;
 		this._sortedCards = null;
@@ -337,6 +338,7 @@ const Collection = class {
 			const combinedFilter = combinedFilterForFilterDefinition(this._description.filters, this._filters, this._cards);
 			filteredItems = baseSet.filter(item => combinedFilter(item));
 		}
+		this._length = filteredItems.length;
 		if (filteredItems.length == 0) {
 			this._collectionIsFallback = true;
 			filteredItems = this._fallbacks[this._description.serialize()] || [];
@@ -347,6 +349,13 @@ const Collection = class {
 	_ensureFilteredCards() {
 		if (this._filteredCards) return;
 		this._filteredCards = this._makeFilteredCards();
+	}
+
+	//numCards is the number of cards that matched, excluding fallbacks or
+	//start_cards or anything like that.
+	get numCards() {
+		this._ensureFilteredCards();
+		return this._length;
 	}
 
 	get filteredCards() {
