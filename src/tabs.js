@@ -50,6 +50,31 @@ const inflateCollectionsAndIcons = (config) => {
 	return result;
 };
 
+/*
+Valid fields in config items:
+{
+	//If set, will expand in line for the named expansion. See src/tabs.js for named expansions.
+	//Applies recursively until no expansions remain.
+	//Note that 'sections' is a special value that will expand to the current values of sections.
+	expand: 'STRING',
+	//collection can be either a string that can be deserialized into a CollectionDescription, or an actual 
+	//CollectionDescription. It will be expanded to be a CollectionDescription either way.
+	collection: 'STRING_OR_COLLECTION,
+	//Can be either a string naming an ICON constant in src/components/my-icons.js, or an actual Icon template.
+	//If provided, will render that instead of the display_name text.
+	icon: 'STRING_OR_ICON_TEMPLATE',
+	//The text string to show. Alway used for title of the tab, but also will use if no icon provided.
+	display_name: 'STRING',
+	//If true, the display_name will be rendered with italics
+	italics: true,
+	//If true, a count of how many cards are in the collection will be calculated and rendered.
+	count: true,
+	//If provided, will show these fallback cards if no real cards match the collection. The strings can be IDs or 
+	//slugs for the target cards.
+	fallback_cards: [CARD_ID_OR_SLUG, ...]
+}
+*/
+
 const DEFAULT_CONFIG = [
 	{
 		expand: 'default_tabs'
