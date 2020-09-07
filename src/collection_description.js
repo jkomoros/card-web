@@ -165,6 +165,29 @@ export const CollectionDescription = class {
 		return result.join('/');
 	}
 
+	//serializeShort is like serialize, but skips leading set name if it's
+	//default.
+	serializeShort() {
+		let result = [];
+
+		if (this.set != DEFAULT_SET_NAME) result.push(this.set);
+
+		let filterNames = [...this.filters];
+		filterNames.sort();
+
+		result = result.concat(filterNames);
+
+		if (this.sort != DEFAULT_SORT_NAME || this.sortReversed) {
+			result.push(SORT_URL_KEYWORD);
+			if (this.sortReversed) result.push(SORT_REVERSED_URL_KEYWORD);
+			result.push(this.sort);
+		}
+
+		//Have a trailing slash
+		result.push('');
+		return result.join('/');
+	}
+
 	equivalent(other) {
 		if (other instanceof CollectionDescription) {
 			return this.serialize() == other.serialize();
