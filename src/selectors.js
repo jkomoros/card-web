@@ -1012,6 +1012,22 @@ const selectActiveCollection = createSelector(
 	(description, cards, sets, filters, sections) => description ? description.collection(cards, sets, filters, sections, collectionFallbacks) : null
 );
 
+export const selectCountsForTabs = createSelector(
+	selectExpandedTabConfig,
+	selectCards,
+	selectAllSets,
+	selectFilters,
+	selectSections,
+	(tabs, cards, sets, filters, sections) => {
+		let result = {};
+		for (let tab of tabs) {
+			if (!tab.count) continue;
+			result[tab.collection.serialize()] = tab.collection.collection(cards, sets, filters, sections, collectionFallbacks).numCards;
+		}
+		return result;
+	}
+);
+
 //selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit returns the items
 //that will be removed from the currently visible collection when
 //COMMIT_PENDING_COLLECTION_MODIFICATIONS is dispatched. For example, if you're
