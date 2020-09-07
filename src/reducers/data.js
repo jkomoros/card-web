@@ -124,10 +124,4 @@ export const sectionTitle = (state, sectionId) => {
 	return section.title;
 };
 
-export const getDefaultCardIdForSection = (section) => {
-	if (!section) return null;
-	if (section.start_cards && section.start_cards.length) return section.start_cards[0];
-	return section.cards[0];
-};
-
 export default app;
