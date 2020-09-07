@@ -9,6 +9,9 @@ import {
 
 import * as icons from './components/my-icons.js';
 
+export const READING_LIST_FALLBACK_CARD = 'about-reading-lists';
+export const STARS_FALLBACK_CARD = 'about-stars';
+
 export const tabConfiguration = (config, sections) => {
 	if (!config) config = DEFAULT_CONFIG;
 	let array = config;
@@ -88,8 +91,7 @@ const EXPANSION_ITEMS = {
 			display_name: 'Your reading list',
 			collection: new CollectionDescription(READING_LIST_SET_NAME),
 			count: true,
-			//TODO: change this to a consistently named card
-			fallback_cards: ['c-991-cba033'],
+			fallback_cards: [READING_LIST_FALLBACK_CARD],
 		}
 	],
 	'starred': [
@@ -98,8 +100,7 @@ const EXPANSION_ITEMS = {
 			display_name: 'Your starred cards',
 			collection: new CollectionDescription('', ['starred']),
 			count: true,
-			//TODO: change this to a consistently named card
-			fallback_cards: ['c-858-dfd425'],
+			fallback_cards: [STARS_FALLBACK_CARD],
 		}
 	],
 	'unread': [

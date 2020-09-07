@@ -47,6 +47,11 @@ import {
 	ensureAuthor,
 } from './comments.js';
 
+import {
+	READING_LIST_FALLBACK_CARD,
+	STARS_FALLBACK_CARD,
+} from '../tabs.js';
+
 const checkMaintenanceTaskHasBeenRun = async (taskName) => {
 	let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
 
@@ -778,6 +783,16 @@ export const doInitialSetUp = () => async (_, getState) => {
 
 		count++;
 	}
+
+	const readingListFallbackCard = defaultCardObject(READING_LIST_FALLBACK_CARD, user, '', 'content');
+	readingListFallbackCard.title = 'About Reading Lists';
+	readingListFallbackCard.body = '<p>There are a lot of cards to read in the collection, and it can be hard to keep track.</p><p>You can use a feature called <strong>reading list</strong>&nbsp;to keep track of cards you want to read next. Just hit the reading-list button below any card (it\'s the button that looks like an icon to add to a playlist) and they\'ll show up in the Reading List tab. Once you\'re done reading that card, you can simply tap the button again to remove it from your reading list.</p><p>When you see a link on any card, you can also Ctrl/Cmd-Click it to automatically add it to your reading-list even without opening it. Links to cards that are already on your reading-list will show a double-underline.</p>' ;
+	const starsFallbackCard = defaultCardObject(STARS_FALLBACK_CARD, user, '', 'content');
+	starsFallbackCard.title = 'About Stars';
+	starsFallbackCard.body = '<p>You can star cards, and when you do they\'ll show up in the Starred list at the top nav.</p>';
+
+	batch.set(cardsCollection.doc(READING_LIST_FALLBACK_CARD), readingListFallbackCard);
+	batch.set(cardsCollection.doc(STARS_FALLBACK_CARD), starsFallbackCard);
 
 	ensureAuthor(batch, user);
 
