@@ -10,7 +10,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 import { LitElement, html } from '@polymer/lit-element';
 import { connect } from 'pwa-helpers/connect-mixin.js';
-import { repeat } from 'lit-html/directives/repeat';
 
 // This element is connected to the Redux store.
 import { store } from '../store.js';
@@ -31,17 +30,12 @@ store.addReducers({
 
 import {
 	selectActiveCard,
-	selectActiveSectionId,
-	selectRecentTabSelected,
 	selectActivePreviewCard,
+	selectExpandedTabConfig,
+	selectActiveCollectionDescription,
+	selectCountsForTabs,
 	selectPreviewCardX,
 	selectPreviewCardY,
-	selectReadingListTabSelected,
-	selectStarsTabSelected,
-	selectUnreadTabSelected,
-	selectUserStarsCount,
-	selectUserUnreadCount,
-	selectUserReadingListCount,
 	selectUserMayViewUnpublished,
 	selectUserMayViewApp,
 	selectUserPermissionsFinal,
@@ -92,12 +86,6 @@ import {
 	CARD_WIDTH_IN_EMS,
 	CARD_HEIGHT_IN_EMS
 } from './base-card';
-
-import {
-	PLAYLIST_PLAY_ICON,
-	STAR_ICON,
-	VISIBILITY_ICON
-} from './my-icons';
 
 import {
 	USER_DOMAIN
@@ -272,16 +260,7 @@ class MainView extends connect(store)(LitElement) {
 					<div main-title>${this._appTitleFirstPart}<span>${this._appTitleSecondPart}</span></div>
 					<div class='spacer'></div>
 					<nav class="toolbar-list">
-						${this._sections && Object.keys(this._sections).length > 0 ? 
-		html`${repeat(Object.values(this._sections), (item) => item.id, (item) => html`
-							<a ?selected=${this._page === PAGE_DEFAULT && item.id == this._activeSectionId} href='${'/' + PAGE_DEFAULT + '/' + item.id + '/'}'>${item.title}</a>
-							`)}` :
-		html`<a ?selected="${this._page === PAGE_DEFAULT}" href=${'/' + PAGE_DEFAULT}><em>Loading...</em></a>`
-}
-						<a ?selected=${this._recentTabSelected} href=${'/' + PAGE_DEFAULT + '/has-content/sort/recent/'}>Recent</a>
-						<a class='icon-item' title='Your reading list' ?selected=${this._readingListTabSelected} href=${'/' + PAGE_DEFAULT + '/reading-list/'}>${PLAYLIST_PLAY_ICON}<span>${this._userReadingListCount}</span></a>
-						<a class='icon-item' title='Your stars' ?selected=${this._starsTabSelected} href=${'/' + PAGE_DEFAULT + '/starred/'}>${STAR_ICON}<span>${this._userStarsCount}</span></a>
-						<a class='icon-item' title="Cards you haven't read yet" ?selected=${this._unreadTabSelected} href=${'/' + PAGE_DEFAULT + '/unread/'}>${VISIBILITY_ICON}<span>${this._userUnreadCount}</span></a>
+						${this._tabs.map(tab => html`<a class='${tab.icon ? 'icon-item' : ''}' title='${tab.display_name}' ?selected=${tab.collection.equivalent(this._collectionDescription)} href='${'/' + PAGE_DEFAULT + '/' + tab.collection.serializeShort()}'>${tab.icon ? html`${tab.icon} ${tab.count ? html`<span>${this._countsForTabs[tab.collection.serialize()]}</span>` : ''}` : tab.italic ? html`<em>${tab.display_name}</em>` : html`${tab.display_name}`}</a>`)}
 					</nav>
 					<div class='spacer dev'>
 						${this._devMode ? html`DEVMODE` : ''}
@@ -321,17 +300,11 @@ class MainView extends connect(store)(LitElement) {
 			_editing: { type: Boolean },
 			_devMode: { type: Boolean },
 			_card: { type: Object },
-			_sections : {type: Object},
-			_activeCardSectionId: {type:String},
+			_collectionDescription: { type: Object},
+			_tabs: { type: Array },
+			_countsForTabs : {type: Object},
 			_keyboardNavigates: {type:Boolean},
 			_swRegistration : {type:Object},
-			_recentTabSelected: {type:Boolean},
-			_readingListTabSelected: {type: Boolean},
-			_starsTabSelected: {type:Boolean},
-			_userStarsCount: {type:Number},
-			_userReadingListCount: {type:Number},
-			_userUnreadCount: {type:Number},
-			_unreadTabSelected: {type:Boolean},
 			_activePreviewCard: { type:Object },
 			_previewCardX : { type:Number },
 			_previewCardY : { type:Number },
@@ -439,16 +412,10 @@ class MainView extends connect(store)(LitElement) {
 		this._page = state.app.page;
 		this._editing = state.editor.editing;
 		this._devMode = DEV_MODE;
-		this._sections = state.data.sections;
-		this._activeSectionId = selectActiveSectionId(state);
+		this._collectionDescription = selectActiveCollectionDescription(state);
+		this._tabs = selectExpandedTabConfig(state);
+		this._countsForTabs = selectCountsForTabs(state);
 		this._keyboardNavigates = selectKeyboardNavigates(state);
-		this._recentTabSelected = selectRecentTabSelected(state);
-		this._readingListTabSelected = selectReadingListTabSelected(state);
-		this._starsTabSelected = selectStarsTabSelected(state);
-		this._userStarsCount = selectUserStarsCount(state);
-		this._userUnreadCount = selectUserUnreadCount(state);
-		this._userReadingListCount = selectUserReadingListCount(state);
-		this._unreadTabSelected = selectUnreadTabSelected(state);
 		this._activePreviewCard = selectActivePreviewCard(state);
 		this._previewCardX = selectPreviewCardX(state);
 		this._previewCardY = selectPreviewCardY(state);
