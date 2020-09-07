@@ -23,7 +23,6 @@ import {
 import {
 	TODO_COMBINED_FILTER_NAME,
 	DEFAULT_SET_NAME,
-	RECENT_SORT_NAME,
 	READING_LIST_SET_NAME,
 	cardTodoConfigKeys
 } from './filters.js';
@@ -887,10 +886,8 @@ export const selectUserMayEditActiveSection = createSelector(
 	(state, sectionID) => sectionID != '' && getUserMayEditSection(state, sectionID)
 );
 
-const recentTabCollectionDescription = new CollectionDescription('', ['has-content'], RECENT_SORT_NAME, false);
 const readingListTabCollectionDescription = new CollectionDescription(READING_LIST_SET_NAME);
 const starsTabCollectionDescription = new CollectionDescription('', ['starred']);
-const unreadTabCollectionDescription = new CollectionDescription('', ['unread']);
 
 //The card that is the tutorial for reading lists
 const ABOUT_READING_LISTS_CARD = 'c-991-cba033';
@@ -900,30 +897,6 @@ const collectionFallbacks = {
 	[readingListTabCollectionDescription.serialize()]: [ABOUT_READING_LISTS_CARD],
 	[starsTabCollectionDescription.serialize()]: [ABOUT_STARS_CARD],
 };
-
-//This is used to decide whether the recent tab should show as selected.
-export const selectRecentTabSelected = createSelector(
-	selectActiveCollectionDescription,
-	(description) => description.equivalent(recentTabCollectionDescription)
-);
-
-//This is used to decide whether the recent tab should show as selected.
-export const selectReadingListTabSelected = createSelector(
-	selectActiveCollectionDescription,
-	(description) => description.equivalent(readingListTabCollectionDescription)
-);
-
-//This is used to decide whether the recent tab should show as selected.
-export const selectStarsTabSelected = createSelector(
-	selectActiveCollectionDescription,
-	(description) => description.equivalent(starsTabCollectionDescription)
-);
-
-//This is used to decide whether the recent tab should show as selected.
-export const selectUnreadTabSelected = createSelector(
-	selectActiveCollectionDescription,
-	(description) => description.equivalent(unreadTabCollectionDescription)
-);
 
 export const selectExpandedTabConfig = createSelector(
 	selectSections,
@@ -974,22 +947,6 @@ export const selectDefaultSet = createSelector(
 		}
 		return result;
 	}
-);
-
-export const selectUserStarsCount = createSelector(
-	selectUserStars,
-	(stars) => Object.keys((stars || {})).length
-);
-
-export const selectUserUnreadCount = createSelector(
-	selectUserReads,
-	selectDefaultSet,
-	(reads, set) => Object.keys(set || {}).length - Object.keys(reads || {}).length
-);
-
-export const selectUserReadingListCount = createSelector(
-	selectUserReadingList,
-	(readingList) => (readingList || []).length
 );
 
 const selectAllSets = createSelector(
