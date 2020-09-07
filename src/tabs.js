@@ -22,7 +22,7 @@ export const tabConfiguration = (config, sections) => {
 		for (let item of lastArray) {
 			const [expandedItems, didExpand] = expandTabConfigItem(item, sections);
 			if (didExpand) changesMade = true;
-			array.concat(...expandedItems);
+			array = array.concat(...expandedItems);
 		}
 		count++;
 	} while(changesMade && count < 100);
