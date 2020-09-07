@@ -903,6 +903,20 @@ export const selectExpandedTabConfig = createSelector(
 	(sections) => tabConfiguration(TAB_CONFIGURATION, sections)
 );
 
+//the section that should be loaded by default if no section is specified; Will
+//return the first section, or if one is marked as default, that one.
+export const selectDefaultSectionID = createSelector(
+	selectSections,
+	(sections) => {
+		const entries = Object.entries(sections);
+		if (!entries.length) return '';
+		for (const entry of entries) {
+			if (entry[1].default) return entry[0];
+		}
+		return entries[0][0];
+	}
+);
+
 export const selectLastSectionID = createSelector(
 	selectSections,
 	(sections) => {
