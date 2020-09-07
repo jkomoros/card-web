@@ -189,6 +189,11 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 
 	let result = [PAGE_DEFAULT];
 
+	let requestedCard = selectRequestedCard(state);
+	//If the selector was "_" then canonically replace it with just blank.
+	if (requestedCard == PLACEHOLDER_CARD_ID_CHARACTER) requestedCard = '';
+	
+
 	//If the card is an orphan, then it should just be the set name (if
 	//non-default), and then its card name. A card is an orphan if it is not in
 	//a section AND it is not a section-head card (tag header cards are not in
@@ -204,7 +209,8 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 			result.push(description.set);
 		}
 
-		if (!activeSectionId) {
+		//Don't elide the activeSectionId if we didn't select a specific card
+		if (!activeSectionId || !requestedCard) {
 			//activeSectionId is only there if the only filter is the section name the
 			//user is in, which can be omitted for brevity.
 			result.push(...description.filters);
@@ -221,10 +227,8 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 		result.push(description.sort);
 	}
 
-	let requestedCard = selectRequestedCard(state);
-	if (cardIdIsPlaceholder(requestedCard)) {
-		//If the selector was "_" then canonically replace it with just blank.
-		if (requestedCard == PLACEHOLDER_CARD_ID_CHARACTER) requestedCard = '';
+
+	if (cardIdIsPlaceholder(requestedCard) || !requestedCard) {
 		//If it was a special placeholder that was requested, then leave it in
 		//the URL. If they arrow down and back up it's OK for it go back to its
 		//canonical URL.

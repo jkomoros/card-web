@@ -30,10 +30,6 @@ store.addReducers({
 });
 
 import {
-	getDefaultCardIdForSection
-} from '../reducers/data.js';
-
-import {
 	selectActiveCard,
 	selectActiveSectionId,
 	selectRecentTabSelected,
@@ -73,15 +69,10 @@ import {
 	openFindDialog
 } from '../actions/find.js';
 
-import {
-	FORCE_COLLECTION_URL_PARAM
-} from '../actions/collection.js';
-
 // These are the actions needed by this element.
 import {
 	navigateToNextCard,
 	navigateToPreviousCard,
-	urlForCard,
 	hoveredCardMouseMoved,
 	updateHoveredCard,
 	doCommit,
@@ -283,7 +274,7 @@ class MainView extends connect(store)(LitElement) {
 					<nav class="toolbar-list">
 						${this._sections && Object.keys(this._sections).length > 0 ? 
 		html`${repeat(Object.values(this._sections), (item) => item.id, (item) => html`
-							<a ?selected=${this._page === PAGE_DEFAULT && item.id == this._activeSectionId} href='${urlForCard(getDefaultCardIdForSection(item))}?${FORCE_COLLECTION_URL_PARAM}'>${item.title}</a>
+							<a ?selected=${this._page === PAGE_DEFAULT && item.id == this._activeSectionId} href='${'/' + PAGE_DEFAULT + '/' + item.id + '/'}'>${item.title}</a>
 							`)}` :
 		html`<a ?selected="${this._page === PAGE_DEFAULT}" href=${'/' + PAGE_DEFAULT}><em>Loading...</em></a>`
 }
