@@ -85,6 +85,7 @@ const EXPANSION_ITEMS = {
 	'reading-list': [
 		{
 			icon: icons.PLAYLIST_PLAY_ICON,
+			display_name: 'Your reading list',
 			collection: new CollectionDescription(READING_LIST_SET_NAME),
 			count: true,
 		}
@@ -92,6 +93,7 @@ const EXPANSION_ITEMS = {
 	'starred': [
 		{
 			icon: icons.STAR_ICON,
+			display_name: 'Your starred cards',
 			collection: new CollectionDescription('', ['starred']),
 			count: true,
 		}
@@ -99,6 +101,7 @@ const EXPANSION_ITEMS = {
 	'unread': [
 		{
 			icon: icons.VISIBILITY_ICON,
+			display_name: 'Cards you haven\'t read yet',
 			collection: new CollectionDescription('', ['unread']),
 			count: true,
 		}
