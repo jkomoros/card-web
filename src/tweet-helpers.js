@@ -53,10 +53,16 @@ const tweetOrderExtractorImpl = (card, sections, allCards) => {
 
 	const twiddlerMap = sectionTwiddlerMap(sections);
 
-	//The baseValue is the more time that has passed since the last time it was tweeted. 
-	const updatedSeconds = card.updated_substantive ? card.updated_substantive.seconds : 1000;
+	//The core of the ranking is to rank highly the cards that haven't been
+	//tweeted in awhile.
 	const lastTweetedSeconds = card.last_tweeted ? card.last_tweeted.seconds : 0;
-	let baseValue = updatedSeconds - lastTweetedSeconds;
+	let baseValue =  (Date.now() / 1000) - lastTweetedSeconds;
+	
+	const updatedSeconds = card.updated_substantive ? card.updated_substantive.seconds : 1000;
+	//Give a big boost for cards that haven't been tweeted since they were last
+	//substantively updated.
+	if (updatedSeconds > lastTweetedSeconds) baseValue *= 10;
+
 	//Twiddle by section
 	baseValue *= twiddlerMap.get(card.section) || 1.0;
 
