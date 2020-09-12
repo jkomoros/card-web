@@ -70,6 +70,9 @@ const tweetOrderExtractorImpl = (card, sections, allCards) => {
 	//be not 1-AMOUNT, but 1/AMOUNT (or something else with AMOUNT in the
 	//denominator?)
 
+	//TODO: since 4c6ef2d, isn't it not possible for the baseValue to ever be
+	//negative?
+
 	//Down-twiddle cards that have already been tweeted multiple times, with a
 	//logrithmic folloff. Adding 1 verifies that we never get Infinity from log
 	//of 0, and also that a single tweet has some effect.
