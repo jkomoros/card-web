@@ -214,7 +214,7 @@ class CardDrawer extends connect(store)(LitElement) {
 		const hasContent = cardHasContent(card);
 
 		return html`
-			<div  .card=${card} .index=${index} id=${card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.editable ? 'true' : 'false'}' class="thumbnail ${card.id == this.selectedCardId ? 'selected' : ''} ${card.card_type} ${card && card.published ? '' : 'unpublished'} ${this.collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
+			<div  .card=${card} .index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.editable ? 'true' : 'false'}' class="thumbnail ${card.id == this.selectedCardId ? 'selected' : ''} ${card.card_type} ${card && card.published ? '' : 'unpublished'} ${this.collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
 					${this.fullCards ? html`<card-renderer .card=${this.card}></card-renderer>` : html`<h3 class=${hasContent ? '' : 'nocontent'}>${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
 					${cardBadges(card.card_type != 'content', card, this._badgeMap)}
 			</div>
@@ -240,7 +240,9 @@ class CardDrawer extends connect(store)(LitElement) {
 		}
 		//if force is true, then will scroll, and if it can't, will take a note to try next time
 		if (!this._selectedViaClick && !this._selectedScrolled) {
-			const ele = this.shadowRoot.querySelector('#' + this.selectedCardId);
+			//we prepend 'id-' to the front of the ID because ids must start
+			//with a letter, and some card IDs in production start with numbers.
+			const ele = this.shadowRoot.querySelector('#id-' + this.selectedCardId);
 			if (ele) {
 				ele.scrollIntoView({behavior:'auto', block:'center'});
 				this._selectedScrolled = true;
