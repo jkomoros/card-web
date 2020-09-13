@@ -233,11 +233,17 @@ class CardDrawer extends connect(store)(LitElement) {
 		return ele.innerText.split('\n')[0];
 	}
 
-	_scrollSelectedThumbnailIntoView() {
-		if (!this._selectedViaClick) {
+	_scrollSelectedThumbnailIntoView(force) {
+		if (force) {
+			//note that we should scroll eiterh this time or next time we're called.
+			this._selectedScrolled = false;
+		}
+		//if force is true, then will scroll, and if it can't, will take a note to try next time
+		if (!this._selectedViaClick && !this._selectedScrolled) {
 			const ele = this.shadowRoot.querySelector('#' + this.selectedCardId);
 			if (ele) {
 				ele.scrollIntoView({behavior:'auto', block:'center'});
+				this._selectedScrolled = true;
 			}
 		}
 		this._selectedViaClick = false;
@@ -347,6 +353,9 @@ class CardDrawer extends connect(store)(LitElement) {
 			showing: {type:Boolean},
 			_dragging: {type: Boolean},
 			_selectedViaClick: {type: Boolean},
+			//Keeps track of if we've scrolled to the selected card yet;
+			//sometimes the selectedCardId won't have been loaded yet
+			_selectedScrolled: {type: Boolean},
 			_badgeMap: { type: Object },
 		};
 	}
@@ -357,7 +366,12 @@ class CardDrawer extends connect(store)(LitElement) {
 
 	updated(changedProps) {
 		if(changedProps.has('selectedCardId') && this.selectedCardId) {
-			this._scrollSelectedThumbnailIntoView();
+			this._scrollSelectedThumbnailIntoView(true);
+		}
+		//collection might change for example on first load when unpublished
+		//cards are loaded,but we're OK with it not happening if the scroll already happened.
+		if (changedProps.has('collection')) {
+			this._scrollSelectedThumbnailIntoView(false);
 		}
 	}
 }
