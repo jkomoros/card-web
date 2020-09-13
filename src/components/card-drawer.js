@@ -215,7 +215,7 @@ class CardDrawer extends connect(store)(LitElement) {
 
 		return html`
 			<div  .card=${card} .index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.editable ? 'true' : 'false'}' class="thumbnail ${card.id == this.selectedCardId ? 'selected' : ''} ${card.card_type} ${card && card.published ? '' : 'unpublished'} ${this.collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
-					${this.fullCards ? html`<card-renderer .card=${this.card}></card-renderer>` : html`<h3 class=${hasContent ? '' : 'nocontent'}>${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
+					${this.fullCards ? html`<card-renderer .card=${card}></card-renderer>` : html`<h3 class=${hasContent ? '' : 'nocontent'}>${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
 					${cardBadges(card.card_type != 'content', card, this._badgeMap)}
 			</div>
 		`;
