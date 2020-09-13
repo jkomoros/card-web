@@ -19,7 +19,7 @@ import {
 
 import {
 	db,
-	deleteField
+	deleteSentinel
 } from '../firebase.js';
 
 import {
@@ -136,5 +136,5 @@ export const addEnabledPermission = (uid, key) => () => {
 };
 
 export const clearPermission = (uid, key) => () => {
-	db.collection(PERMISSIONS_COLLECTION).doc(uid).set({[key]: deleteField()}, {merge: true});
+	db.collection(PERMISSIONS_COLLECTION).doc(uid).set({[key]: deleteSentinel()}, {merge: true});
 };

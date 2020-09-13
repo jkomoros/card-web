@@ -37,8 +37,8 @@ export const functions = firebaseApp.functions(FIREBASE_REGION);
 
 //These are the only reasons to import firebase, so just reexport them to avoid
 //confusing needs for importing firebase directly
-export const serverTimestamp = firebase.firestore.FieldValue.serverTimestamp;
-export const arrayUnion = firebase.firestore.FieldValue.arrayUnion;
-export const arrayRemove = firebase.firestore.FieldValue.arrayRemove;
-export const increment = firebase.firestore.FieldValue.increment;
-export const deleteField = firebase.firestore.FieldValue.delete;
+export const serverTimestampSentinel = firebase.firestore.FieldValue.serverTimestamp;
+export const arrayUnionSentinel = firebase.firestore.FieldValue.arrayUnion;
+export const arrayRemoveSentinel = firebase.firestore.FieldValue.arrayRemove;
+export const incrementSentinel = firebase.firestore.FieldValue.increment;
+export const deleteSentinel = firebase.firestore.FieldValue.delete;

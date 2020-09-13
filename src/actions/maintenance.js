@@ -11,7 +11,7 @@ import {
 
 import {
 	db,
-	serverTimestamp
+	serverTimestampSentinel
 } from '../firebase.js';
 
 import {
@@ -67,7 +67,7 @@ const checkMaintenanceTaskHasBeenRun = async (taskName) => {
 };
 
 const maintenanceTaskRun = async (taskName) => {
-	db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: serverTimestamp()});
+	db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: serverTimestampSentinel()});
 };
 
 //v1 of this set dates fro cards with no messages to when the card was created,
@@ -260,7 +260,7 @@ export const normalizeContentBody = async() => {
 		if (body) {
 			await doc.ref.update({
 				body: normalizeBodyHTML(body),
-				updated_normalize_body: serverTimestamp(),
+				updated_normalize_body: serverTimestampSentinel(),
 			});
 		}
 		console.log('Processed ' + doc.id + ' (' + counter + '/' + size + ')' );
@@ -295,7 +295,7 @@ export const updateInboundLinks = async() => {
 			linkingCardsText[linkingCard.id] = linksText[doc.id] || '';
 		});
 		await doc.ref.update({
-			updated_links_inbound: serverTimestamp(),
+			updated_links_inbound: serverTimestampSentinel(),
 			links_inbound: linkingCardsIds,
 			links_inbound_text: linkingCardsText,
 		});
@@ -319,7 +319,7 @@ export const addSectionUpdatesLog = async() => {
 	let snapshot = await db.collection(SECTIONS_COLLECTION).get();
 
 	snapshot.forEach(doc => {
-		batch.update(doc.ref, {updated: serverTimestamp()});
+		batch.update(doc.ref, {updated: serverTimestampSentinel()});
 		let sectionUpdateRef = doc.ref.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
 		batch.set(sectionUpdateRef, {timestamp: new Date, cards: doc.data().cards});
 	});
@@ -515,7 +515,7 @@ export const resetTweets = async() => {
 	});
 	let tweetSnapshot = await db.collection(TWEETS_COLLECTION).get();
 	tweetSnapshot.forEach(doc => {
-		batch.update(doc.ref, {'archived': true, 'archive_date': serverTimestamp()});
+		batch.update(doc.ref, {'archived': true, 'archive_date': serverTimestampSentinel()});
 	});
 	await batch.commit();
 	console.log('done!');
@@ -684,7 +684,7 @@ export const importCards = (cards) => {
 		mainBatch.set(ref, card);
 		let update = {
 			substantive: true,
-			timestamp: serverTimestamp(),
+			timestamp: serverTimestampSentinel(),
 			import: true
 		};
 		let updateRef = ref.collection(CARD_UPDATES_COLLECTION).doc('' + Date.now());
@@ -710,9 +710,9 @@ export const importCards = (cards) => {
 
 const newCard = (name) => {
 	return {
-		created: serverTimestamp(),
-		updated: serverTimestamp(),
-		updated_substantive: serverTimestamp(),
+		created: serverTimestampSentinel(),
+		updated: serverTimestampSentinel(),
+		updated_substantive: serverTimestampSentinel(),
 		slugs: [],
 		name: name
 	};
@@ -726,9 +726,9 @@ const transformImportSectionName = (legacySectionName) => {
 
 const transformImportCard = (legacyCard) => {
 	return {
-		created: serverTimestamp(),
-		updated: serverTimestamp(),
-		updated_substantive: serverTimestamp(),
+		created: serverTimestampSentinel(),
+		updated: serverTimestampSentinel(),
+		updated_substantive: serverTimestampSentinel(),
 		title: legacyCard.title || '',
 		body: legacyCard.body || '',
 		links: legacyCard.links || [],
@@ -767,7 +767,7 @@ export const doInitialSetUp = () => async (_, getState) => {
 		const update = {...val};
 		const startCardId = 'section-' + key;
 		const contentCardId = newID();
-		update.updated = serverTimestamp();
+		update.updated = serverTimestampSentinel();
 		update.cards = [contentCardId];
 		update.order = count;
 		update.start_cards = [startCardId];

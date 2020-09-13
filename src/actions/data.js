@@ -22,7 +22,9 @@ import {
 
 import {
 	db,
-	serverTimestamp
+	serverTimestampSentinel,
+	arrayUnionSentinel,
+	arrayRemoveSentinel
 } from '../firebase.js';
 
 import {
@@ -167,13 +169,13 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 	let updateObject = {
 		...update,
 		substantive: substantive,
-		timestamp: serverTimestamp()
+		timestamp: serverTimestampSentinel()
 	};
 
 	let cardUpdateObject = {
-		updated: serverTimestamp()
+		updated: serverTimestampSentinel()
 	};
-	if (substantive) cardUpdateObject.updated_substantive = serverTimestamp();
+	if (substantive) cardUpdateObject.updated_substantive = serverTimestampSentinel();
 
 	if (update.body !== undefined) {
 		cardUpdateObject.body = update.body;
@@ -310,11 +312,11 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 			let newSectionRef = db.collection(SECTIONS_COLLECTION).doc(newSection);
 			let newSectionUpdateRef = newSectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
 			let newSectionObject = {
-				cards: arrayUnion(card.id),
-				updated: serverTimestamp()
+				cards: arrayUnionSentinel(card.id),
+				updated: serverTimestampSentinel()
 			};
 			let newSectionUpdateObject = {
-				timestamp: serverTimestamp(),
+				timestamp: serverTimestampSentinel(),
 				add_card: card.id
 			};
 			batch.update(newSectionRef, newSectionObject);
@@ -325,11 +327,11 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 			let oldSectionRef = db.collection(SECTIONS_COLLECTION).doc(oldSection);
 			let oldSectionUpdateRef = oldSectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
 			let oldSectionObject = {
-				cards: arrayRemove(card.id),
-				updated: serverTimestamp()
+				cards: arrayRemoveSentinel(card.id),
+				updated: serverTimestampSentinel()
 			};
 			let oldSectionUpdateObject = {
-				timestamp: serverTimestamp(),
+				timestamp: serverTimestampSentinel(),
 				remove_card: card.id
 			};
 			batch.update(oldSectionRef, oldSectionObject);
@@ -342,11 +344,11 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 			let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
 			let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
 			let newTagObject = {
-				cards: arrayUnion(card.id),
-				updated: serverTimestamp()
+				cards: arrayUnionSentinel(card.id),
+				updated: serverTimestampSentinel()
 			};
 			let newTagUpdateObject = {
-				timestamp: serverTimestamp(),
+				timestamp: serverTimestampSentinel(),
 				add_card: card.id
 			};
 			batch.update(tagRef, newTagObject);
@@ -359,11 +361,11 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 			let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
 			let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
 			let newTagObject = {
-				cards: arrayRemove(card.id),
-				updated: serverTimestamp()
+				cards: arrayRemoveSentinel(card.id),
+				updated: serverTimestampSentinel()
 			};
 			let newTagUpdateObject = {
-				timestamp: serverTimestamp(),
+				timestamp: serverTimestampSentinel(),
 				remove_card: card.id
 			};
 			batch.update(tagRef, newTagObject);
@@ -444,9 +446,9 @@ export const reorderCard = (card, newIndex) => async (dispatch, getState) => {
 		} else {
 			result = [...trimmedCards.slice(0,effectiveIndex), card.id, ...trimmedCards.slice(effectiveIndex)];
 		}
-		transaction.update(sectionRef, {cards: result, updated: serverTimestamp()});
+		transaction.update(sectionRef, {cards: result, updated: serverTimestampSentinel()});
 		let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
-		transaction.set(sectionUpdateRef, {timestamp: serverTimestamp(), cards: result});
+		transaction.set(sectionUpdateRef, {timestamp: serverTimestampSentinel(), cards: result});
 	}).then(() => dispatch(reorderStatus(false))).catch(() => dispatch(reorderStatus(false)));
 
 	//We don't need to tell the store anything, because firestore will tell it
@@ -472,8 +474,8 @@ export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
 	let batch = db.batch();
 	const cardRef = db.collection(CARDS_COLLECTION).doc(cardId);
 	batch.update(cardRef, {
-		slugs: arrayUnion(newSlug),
-		updated: serverTimestamp(),
+		slugs: arrayUnionSentinel(newSlug),
+		updated: serverTimestampSentinel(),
 	});
 
 	await batch.commit();
@@ -573,7 +575,7 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 		cards: [],
 		start_cards: [startCardId],
 		title:displayName,
-		updated: serverTimestamp(),
+		updated: serverTimestampSentinel(),
 		color: color,
 	});
 
@@ -590,15 +592,15 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 //exported entireoly for initialSetUp in maintence.js
 export const defaultCardObject = (id, user, section, cardType) => {
 	return {
-		created: serverTimestamp(),
-		updated: serverTimestamp(),
+		created: serverTimestampSentinel(),
+		updated: serverTimestampSentinel(),
 		author: user.uid,
 		permissions: {
 			[PERMISSION_EDIT_CARD]: [],
 		},
 		collaborators: [],
-		updated_substantive: serverTimestamp(),
-		updated_message: serverTimestamp(),
+		updated_substantive: serverTimestampSentinel(),
+		updated_message: serverTimestampSentinel(),
 		//star_count is sum of star_count_manual, tweet_favorite_count, tweet_retweet_count.
 		star_count: 0,
 		//star_count_manual is the count of stars in the stars collection (as
@@ -717,9 +719,9 @@ export const createCard = (opts) => async (dispatch, getState) => {
 			newArray = [...current.slice(0,appendIndex), id, ...current.slice(appendIndex)];
 		}
 		ensureAuthor(transaction, user);
-		transaction.update(sectionRef, {cards: newArray, updated: serverTimestamp()});
+		transaction.update(sectionRef, {cards: newArray, updated: serverTimestampSentinel()});
 		let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
-		transaction.set(sectionUpdateRef, {timestamp: serverTimestamp(), cards: newArray});
+		transaction.set(sectionUpdateRef, {timestamp: serverTimestampSentinel(), cards: newArray});
 		transaction.set(cardDocRef, obj);
 	});
 

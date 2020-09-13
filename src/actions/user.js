@@ -32,10 +32,10 @@ import {
 import {
 	db,
 	auth,
-	serverTimestamp,
-	arrayUnion,
-	arrayRemove,
-	increment
+	serverTimestampSentinel,
+	arrayUnionSentinel,
+	arrayRemoveSentinel,
+	incrementSentinel
 } from '../firebase.js';
 
 import {
@@ -106,14 +106,14 @@ export const ensureUserInfo = (batchOrTransaction, user) => {
 	if (!user) return;
 
 	let data = {
-		lastSeen: serverTimestamp(),
+		lastSeen: serverTimestampSentinel(),
 		isAnonymous: user.isAnonymous,
 	};
 
 	//If this is set then we just signed in after a failed merge, so we want to
 	//keep record that we failed.
 	if (prevAnonymousMergeUser) {
-		data.previousUids = arrayUnion(prevAnonymousMergeUser.uid);
+		data.previousUids = arrayUnionSentinel(prevAnonymousMergeUser.uid);
 		//This will be nulled out in saveUserInfo on successful commit.
 	}
 
@@ -342,13 +342,13 @@ export const addToReadingList = (cardToAdd) => (dispatch, getState) => {
 	let readingListUpdateRef = readingListRef.collection(READING_LISTS_UPDATES_COLLECTION).doc('' + Date.now());
 
 	let readingListObject = {
-		cards: arrayUnion(cardToAdd.id),
-		updated: serverTimestamp(),
+		cards: arrayUnionSentinel(cardToAdd.id),
+		updated: serverTimestampSentinel(),
 		owner: uid,
 	};
 
 	let readingListUpdateObject = {
-		timestamp: serverTimestamp(),
+		timestamp: serverTimestampSentinel(),
 		add_card: cardToAdd.id
 	};
 
@@ -384,13 +384,13 @@ export const removeFromReadingList = (cardToRemove) => (dispatch, getState) => {
 	let readingListUpdateRef = readingListRef.collection(READING_LISTS_UPDATES_COLLECTION).doc('' + Date.now());
 
 	let readingListObject = {
-		cards: arrayRemove(cardToRemove.id),
-		updated: serverTimestamp(),
+		cards: arrayRemoveSentinel(cardToRemove.id),
+		updated: serverTimestampSentinel(),
 		owner: uid
 	};
 
 	let readingListUpdateObject = {
-		timestamp: serverTimestamp(),
+		timestamp: serverTimestampSentinel(),
 		remove_card: cardToRemove.id
 	};
 
@@ -426,11 +426,11 @@ export const addStar = (cardToStar) => (dispatch, getState) => {
 
 	let batch = db.batch();
 	batch.update(cardRef, {
-		star_count: increment(1),
-		star_count_manual: increment(1),
+		star_count: incrementSentinel(1),
+		star_count_manual: incrementSentinel(1),
 	});
 	batch.set(starRef, {
-		created: serverTimestamp(), 
+		created: serverTimestampSentinel(), 
 		owner: uid, 
 		card:cardToStar.id
 	});
@@ -462,8 +462,8 @@ export const removeStar = (cardToStar) => (dispatch, getState) => {
 
 	let batch = db.batch();
 	batch.update(cardRef, {
-		star_count: increment(-1),
-		star_count_manual: increment(-1),
+		star_count: incrementSentinel(-1),
+		star_count_manual: incrementSentinel(-1),
 	});
 	batch.delete(starRef);
 	batch.commit();
@@ -562,7 +562,7 @@ export const markRead = (cardToMarkRead, existingReadDoesNotError) => (dispatch,
 	let readRef = db.collection(READS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToMarkRead.id));
 
 	let batch = db.batch();
-	batch.set(readRef, {created: serverTimestamp(), owner: uid, card: cardToMarkRead.id});
+	batch.set(readRef, {created: serverTimestampSentinel(), owner: uid, card: cardToMarkRead.id});
 	batch.commit();
 };
 
