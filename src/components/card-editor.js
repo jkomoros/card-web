@@ -24,7 +24,8 @@ import {
 	selectUserMayEditSomeTags,
 	tagsUserMayNotEdit,
 	selectSectionsUserMayEdit,
-	selectUserMayChangeEditingCardSection
+	selectUserMayChangeEditingCardSection,
+	selectPendingSlug
 } from '../selectors.js';
 
 import {
@@ -272,11 +273,13 @@ class CardEditor extends connect(store)(LitElement) {
 				</div>
 				<div>
 				<Label>Slugs</label>
-				<select .value=${this._card.name} @change='${this._handleNameUpdated}'>
-					${repeat([this._card.id, ...this._card.slugs], (item) => item, (item) => html`
-					<option value="${item}" ?selected=${item == this._card.name}>${item}</option>`)}
-				</select>
-				<button @click='${this._handleAddSlug}'>+</button>
+				${this._pendingSlug ? html`<em>${this._pendingSlug}</em><button disabled>+</button>` : html`
+					<select .value=${this._card.name} @change='${this._handleNameUpdated}'>
+						${repeat([this._card.id, ...this._card.slugs], (item) => item, (item) => html`
+						<option value="${item}" ?selected=${item == this._card.name}>${item}</option>`)}
+					</select>
+					<button @click='${this._handleAddSlug}'>+</button>
+				`}
 				</div>
 			</div>
 			<div class='row'>
@@ -370,6 +373,7 @@ class CardEditor extends connect(store)(LitElement) {
 		_suggestedTags: { type: Array},
 		_authors: { type:Object },
 		_isAdmin: { type:Boolean },
+		_pendingSlug: { type:String },
 	};}
 
 	stateChanged(state) {
@@ -390,6 +394,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._suggestedTags = this._active ? selectEditingCardSuggestedTags(state) : [];
 		this._authors = selectAuthorsForTagList(state);
 		this._isAdmin = selectUserIsAdmin(state);
+		this._pendingSlug = selectPendingSlug(state);
 	}
 
 	shouldUpdate() {
