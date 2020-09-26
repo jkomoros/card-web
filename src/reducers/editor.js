@@ -31,6 +31,10 @@ import {
 } from '../actions/editor.js';
 
 import {
+	SET_PENDING_SLUG
+} from '../actions/data.js';
+
+import {
 	cardSetNormalizedTextProperties,
 	arrayRemove,
 	arrayUnion,
@@ -56,6 +60,7 @@ const INITIAL_STATE = {
 	substantive: false,
 	selectedTab: DEFAULT_TAB,
 	selectedEditorTab: DEFAULT_EDITOR_TAB,
+	pendingSlug: '',
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -246,6 +251,11 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			substantive: action.checked
+		};
+	case SET_PENDING_SLUG:
+		return {
+			...state,
+			pendingSlug: action.slug,
 		};
 	default:
 		return state;

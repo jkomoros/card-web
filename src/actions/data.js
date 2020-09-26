@@ -8,6 +8,7 @@ export const MODIFY_CARD = 'MODIFY_CARD';
 export const MODIFY_CARD_SUCCESS = 'MODIFY_CARD_SUCCESS';
 export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
 export const REORDER_STATUS = 'REORDER_STATUS';
+export const SET_PENDING_SLUG = 'SET_PENDING_SLUG';
 
 import {
 	slugLegal,
@@ -456,6 +457,13 @@ export const reorderCard = (card, newIndex) => async (dispatch, getState) => {
 
 };
 
+const setPendingSlug = (slug) => {
+	return {
+		type:SET_PENDING_SLUG,
+		slug
+	};
+};
+
 export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
  
 	newSlug = normalizeSlug(newSlug);
@@ -465,9 +473,17 @@ export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
 		return;
 	}
 
+	let state = getState();
+	const isEditingCard = state.editor.card && state.editor.card.id == cardId;
+
+	//slugLegal is a http callable, and it might take multiple seconds if the
+	//cloud function is cold.
+	dispatch(setPendingSlug(newSlug));
+
 	const result = await slugLegal(newSlug);
 	if (!result.legal) {
 		console.log(result.reason);
+		dispatch(setPendingSlug(''));
 		return;
 	}
 
@@ -480,8 +496,9 @@ export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
 
 	await batch.commit();
 
-	let state = getState();
-	if (state.editor.card && state.editor.card.id == cardId) {
+	dispatch(setPendingSlug(''));
+
+	if (isEditingCard) {
 		//We're editing this card, update it in the state.
 		dispatch(slugAdded(newSlug));
 	}
