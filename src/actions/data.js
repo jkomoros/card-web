@@ -480,7 +480,15 @@ export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
 	//cloud function is cold.
 	dispatch(setPendingSlug(newSlug));
 
-	const result = await slugLegal(newSlug);
+	let result;
+	try {
+		result = await slugLegal(newSlug);
+	} catch(err) {
+		dispatch(setPendingSlug(''));
+		console.warn(err);
+		return;
+	}
+
 	if (!result.legal) {
 		console.log(result.reason);
 		dispatch(setPendingSlug(''));
