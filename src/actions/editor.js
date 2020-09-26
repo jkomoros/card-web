@@ -37,7 +37,8 @@ import {
 	selectUserMayEditActiveCard,
 	selectEditingCard,
 	selectSections,
-	selectUid
+	selectUid,
+	selectPendingSlug
 } from '../selectors.js';
 
 import {
@@ -127,6 +128,11 @@ export const editingCommit = () => (dispatch, getState) => {
 	if (!selectUserMayEditActiveCard(state)) {
 		console.warn('This user isn\'t allowed to edit!');
 		return;
+	}
+	if (selectPendingSlug(state)) {
+		if (!confirm('There is a slug pending that is not yet added. Continue?')) {
+			return;
+		}
 	}
 	const underlyingCard = selectActiveCard(state);
 	if (!underlyingCard || !underlyingCard.id) {
