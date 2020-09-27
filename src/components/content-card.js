@@ -31,7 +31,7 @@ let invalidCardTemplate = html`No card by that name, try a link from above`;
 export class ContentCard extends BaseCard {
 	innerRender() {
 		return html`
-      ${this._makeH1(this.title)}
+      ${this._templateForField(TEXT_FIELD_TITLE)}
       ${this._makeSection(this.body)}
     `;
 	}
@@ -86,14 +86,17 @@ export class ContentCard extends BaseCard {
 		return (this.updatedFromContentEditable || {})[TEXT_FIELD_BODY];
 	}
 
-	_makeH1(title) {
-		if (this._titleFromContentEditable && this._elements[TEXT_FIELD_TITLE]) {
-			return this._elements[TEXT_FIELD_TITLE];
+	_templateForField(field) {
+		const updatedFromContentEditable = (this.updatedFromContentEditable || {})[field];
+		if (updatedFromContentEditable && this._elements[field]) {
+			return this._elements[field];
 		}
+
+		let value = this[field];
 		let htmlToSet = '';
-		if (!title && !this.editing) {
+		if (!value && !this.editing) {
 			if (this.fullBleed) {
-				title = '';
+				value = '';
 			} else {
 				if (this.id) {
 					htmlToSet = '<span class=\'loading\'>Content goes here...</span>';
@@ -104,20 +107,20 @@ export class ContentCard extends BaseCard {
 				}
 			}
 		}
-		const h1 = document.createElement('h1');
-		this._elements[TEXT_FIELD_TITLE] = h1;
-		h1.field = TEXT_FIELD_TITLE;
+		const ele = document.createElement('h1');
+		this._elements[field] = ele;
+		ele.field = field;
 		if (this.editing) {
-			h1.contentEditable = 'true';
-			h1.addEventListener('input', this._textFieldChanged.bind(this));
+			ele.contentEditable = 'true';
+			ele.addEventListener('input', this._textFieldChanged.bind(this));
 		}
 		//Only set innerHTML if it came from this method; title is untrusted.
 		if (htmlToSet) {
-			h1.innerHTML = htmlToSet;
+			ele.innerHTML = htmlToSet;
 		} else {
-			h1.innerText = title;
+			ele.innerText = value;
 		}
-		return h1;
+		return ele;
 	}
 
 	_makeSection(body) {
