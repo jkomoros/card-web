@@ -79,6 +79,11 @@ import {
 	PERMISSION_EDIT_CARD
 } from '../permissions.js';
 
+import {
+	TEXT_FIELD_CONFIGURATION,
+	TEXT_FIELD_BODY
+} from '../card_fields.js';
+
 //When a new tag is created, it is randomly assigned one of these values.
 const TAG_COLORS = [
 	//Indianred
@@ -101,27 +106,25 @@ const TAG_COLORS = [
 	'#4169E1',
 ];
 
-const LEGAL_UPDATE_FIELDS = new Map([
-	['title', true],
-	['body', true],
-	['name', true],
-	['section', true],
-	['full_bleed', true],
-	['notes', true],
-	['todo', true],
-	['auto_todo_overrides_enablements', true],
-	['auto_todo_overrides_disablements', true],
-	['auto_todo_overrides_removals', true],
-	['add_skipped_link_inbound', true],
-	['remove_skipped_link_inbound', true],
-	['add_editors', true],
-	['remove_editors', true],
-	['add_collaborators', true],
-	['remove_collaborators', true],
-	['addTags', true],
-	['removeTags', true],
-	['published', true]
-]);
+const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION).concat([
+	'name',
+	'section',
+	'full_bleed',
+	'notes',
+	'todo',
+	'auto_todo_overrides_enablements',
+	'auto_todo_overrides_disablements',
+	'auto_todo_overrides_removals',
+	'add_skipped_link_inbound',
+	'remove_skipped_link_inbound',
+	'add_editors',
+	'remove_editors',
+	'add_collaborators',
+	'remove_collaborators',
+	'addTags',
+	'removeTags',
+	'published'
+]).map(key => [key,true]));
 
 export const modifyCard = (card, update, substantive) => (dispatch, getState) => {
 
@@ -154,7 +157,7 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 
 	for (let key of Object.keys(update)) {
 		keysCount++;
-		if (!LEGAL_UPDATE_FIELDS.has(key)) {
+		if (!LEGAL_UPDATE_FIELDS[key]) {
 			console.log('Illegal field in update: ' + key, update);
 			return;
 		}
@@ -178,15 +181,13 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 	};
 	if (substantive) cardUpdateObject.updated_substantive = serverTimestampSentinel();
 
-	if (update.body !== undefined) {
-		cardUpdateObject.body = update.body;
-		let linkInfo = extractCardLinksFromBody(update.body);
+	for (let field of Object.keys(TEXT_FIELD_CONFIGURATION)) {
+		if (update[field] === undefined) continue;
+		cardUpdateObject[field] = update[field];
+		if (field != TEXT_FIELD_BODY) continue;
+		let linkInfo = extractCardLinksFromBody(update[field]);
 		cardUpdateObject.links = linkInfo[0];
 		cardUpdateObject.links_text = linkInfo[1];
-	}
-
-	if (update.title !== undefined) {
-		cardUpdateObject.title = update.title;
 	}
 
 	if (update.notes !== undefined) {

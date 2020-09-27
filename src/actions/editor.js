@@ -151,23 +151,27 @@ export const editingCommit = () => (dispatch, getState) => {
 
 	let update = {};
 
-	if (updatedCard.title != underlyingCard.title) update.title = updatedCard.title;
+	for (let field of Object.keys(TEXT_FIELD_CONFIGURATION)) {
+		if (updatedCard[field] == underlyingCard[field]) continue;
+		const config = TEXT_FIELD_CONFIGURATION[field];
+		let value = updatedCard[field];
+		if (config.html) {
+			try {    
+				value = normalizeBodyHTML(value);
+			} catch(err) {
+				alert('Couldn\'t save: invalid HTML: ' + err);
+				return;
+			}
+		}
+		update[field] = value;
+	}
+
 	if (updatedCard.section != underlyingCard.section) update.section = updatedCard.section;
 	if (updatedCard.name != underlyingCard.section) update.name = updatedCard.name;
 	if (updatedCard.notes != underlyingCard.notes) update.notes = updatedCard.notes;
 	if (updatedCard.todo != underlyingCard.todo) update.todo = updatedCard.todo;
 	if (updatedCard.full_bleed != underlyingCard.full_bleed) update.full_bleed = updatedCard.full_bleed;
 	if (updatedCard.published !== underlyingCard.published) update.published = updatedCard.published;
-	if (updatedCard.body != underlyingCard.body) {
-		let normalizedBody;
-		try {    
-			normalizedBody = normalizeBodyHTML(updatedCard.body);
-		} catch(err) {
-			alert('Couldn\'t save: invalid HTML: ' + err);
-			return;
-		}
-		update.body = normalizedBody;
-	}
 
 	let [todoEnablements, todoDisablements, todoRemovals] = triStateMapDiff(underlyingCard.auto_todo_overrides || {}, updatedCard.auto_todo_overrides || {});
 	if (todoEnablements.length) update.auto_todo_overrides_enablements = todoEnablements;
