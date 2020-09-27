@@ -90,7 +90,7 @@ export class ContentCard extends BaseCard {
 			return this._h1Element;
 		}
 		let htmlToSet = '';
-		if (!title) {
+		if (!title && !this.editing) {
 			if (this.fullBleed) {
 				title = '';
 			} else {
@@ -169,23 +169,32 @@ export class ContentCard extends BaseCard {
 	updated(changedProps) {
 		if (changedProps.has('editing') && this.editing) {
 			//If we just started editing, focus the content editable immediately
+			//(the title if there's no title)
 			if (this._sectionElement) {
 				this._sectionElement.focus();
 
 				//Move the selection to the end of the content editable.
-				let range = document.createRange();
-				range.selectNodeContents(this._sectionElement);
-				range.collapse(false);
-				let sel = window.getSelection();
-				sel.removeAllRanges();
-				sel.addRange(range);
-
-				if (!this.body) {
+				if (this.body) {
+					let range = document.createRange();
+					range.selectNodeContents(this._sectionElement);
+					range.collapse(false);
+					let sel = window.getSelection();
+					sel.removeAllRanges();
+					sel.addRange(range);
+				} else {
 					//This is a total hack, but in the special case where the
 					//body is empty, we had to include an nbsp; so that the
 					//cursor would render inside of the <p>, so delete it.
 					document.execCommand('selectAll');
 					document.execCommand('delete');
+				}
+
+				if (!this.title && this._h1Element) {
+					//If there isn't a title, we actually want the title focused
+					//(after clearing out hte extra 'nbsp'. For some reason
+					//Chrome doesn't actually focus the second item, unless we
+					//do a timeout. :shrug:
+					setTimeout(() => this._h1Element.focus(), 0);
 				}
 			}
 		}
