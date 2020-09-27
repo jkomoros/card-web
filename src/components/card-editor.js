@@ -532,22 +532,18 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(titleUpdated(ele.value, false));
 	}
 
-	bodyUpdatedFromContentEditable(html) {
-		this._bodyUpdated(html, true);
+	_handleBodyUpdated(e) {
+		if (!this._active) return;
+		let ele = e.composedPath()[0];
+		store.dispatch(bodyUpdated(ele.value, false));
 	}
 
 	titleUpdatedFromContentEditable(text) {
 		store.dispatch(titleUpdated(text, true));
 	}
 
-	_bodyUpdated(html, fromContentEditable) {
-		store.dispatch(bodyUpdated(html, fromContentEditable));
-	}
-
-	_handleBodyUpdated(e) {
-		if (!this._active) return;
-		let ele = e.composedPath()[0];
-		this._bodyUpdated(ele.value, false);
+	bodyUpdatedFromContentEditable(html) {
+		store.dispatch(bodyUpdated(html, true));
 	}
 
 	_handleNotesUpdated(e) {
