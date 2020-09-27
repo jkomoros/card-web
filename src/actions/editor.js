@@ -218,15 +218,6 @@ export const editingFinish = () => {
 	return {type: EDITING_FINISH};
 };
 
-export const titleUpdated = (newTitle, fromContentEditable) => {
-	if (!fromContentEditable) fromContentEditable = false;
-	return {
-		type: EDITING_TITLE_UPDATED,
-		title:newTitle,
-		fromContentEditable
-	};
-};
-
 export const notesUpdated = (newNotes) => {
 	return {
 		type: EDITING_NOTES_UPDATED,
@@ -238,6 +229,15 @@ export const todoUpdated = (newTodo) => {
 	return {
 		type: EDITING_TODO_UPDATED,
 		todo: newTodo,
+	};
+};
+
+export const titleUpdated = (newTitle, fromContentEditable) => {
+	if (!fromContentEditable) fromContentEditable = false;
+	return {
+		type: EDITING_TITLE_UPDATED,
+		title:newTitle,
+		fromContentEditable
 	};
 };
 
