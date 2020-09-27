@@ -23,10 +23,6 @@ import {
 
 import { makeElementContentEditable } from '../util.js';
 
-let loadingTemplate = html`<span class='loading'>Loading...<span>`;
-let blankTemplate = html`<span class='loading'>Content goes here...</span>`;
-let invalidCardTemplate = html`No card by that name, try a link from above`;
-
 // This element is *not* connected to the Redux store.
 export class ContentCard extends BaseCard {
 	innerRender() {
@@ -66,11 +62,6 @@ export class ContentCard extends BaseCard {
 		let selection = this.shadowRoot.getSelection();
 		if (!selection.focusNode) return;
 		reportSelectionRange(selection.getRangeAt(0));
-	}
-
-	get _emptyTemplate() {
-		if (this.id) return blankTemplate;
-		return  this.dataIsFullyLoaded ? invalidCardTemplate: loadingTemplate;
 	}
 
 	firstUpdated(changedProps) {
