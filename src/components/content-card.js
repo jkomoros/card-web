@@ -44,9 +44,13 @@ export class ContentCard extends BaseCard {
 			fullBleed: {type: String},
 			updatedFromContentEditable: {type:Object},
 			dataIsFullyLoaded: {type:Boolean},
-			_sectionElement: {type:Object},
-			_h1Element: {type:Object},
+			_elements: {type: Object},
 		};
+	}
+
+	constructor() {
+		super();
+		this._elements = {};
 	}
 
 	_textPropertyChanged(field, value) {
@@ -54,11 +58,11 @@ export class ContentCard extends BaseCard {
 	}
 
 	_bodyChanged() {
-		this._textPropertyChanged(TEXT_FIELD_BODY, this._sectionElement.innerHTML);
+		this._textPropertyChanged(TEXT_FIELD_BODY, this._elements[TEXT_FIELD_BODY].innerHTML);
 	}
 
 	_titleChanged() {
-		this._textPropertyChanged(TEXT_FIELD_TITLE, this._h1Element.innerText);
+		this._textPropertyChanged(TEXT_FIELD_TITLE, this._elements[TEXT_FIELD_TITLE].innerText);
 	}
 
 	_selectionChanged() {
@@ -86,8 +90,8 @@ export class ContentCard extends BaseCard {
 	}
 
 	_makeH1(title) {
-		if (this._titleFromContentEditable && this._h1Element) {
-			return this._h1Element;
+		if (this._titleFromContentEditable && this._elements[TEXT_FIELD_TITLE]) {
+			return this._elements[TEXT_FIELD_TITLE];
 		}
 		let htmlToSet = '';
 		if (!title && !this.editing) {
@@ -104,7 +108,7 @@ export class ContentCard extends BaseCard {
 			}
 		}
 		const h1 = document.createElement('h1');
-		this._h1Element = h1;
+		this._elements[TEXT_FIELD_TITLE] = h1;
 		if (this.editing) {
 			h1.contentEditable = 'true';
 			h1.addEventListener('input', this._titleChanged.bind(this));
@@ -122,8 +126,8 @@ export class ContentCard extends BaseCard {
 		//If the update to body came from contentEditable then don't change it,
 		//the state is already in it. If we were to update it, the selection state
 		//would reset and defocus.
-		if (this._bodyFromContentEditable && this._sectionElement) {
-			return this._sectionElement;
+		if (this._bodyFromContentEditable && this._elements[TEXT_FIELD_BODY]) {
+			return this._elements[TEXT_FIELD_BODY];
 		}
 		//If we're editing, then just put in blank content so someone tapping on
 		//it immediately will be able to start writing content without selecting
@@ -132,7 +136,7 @@ export class ContentCard extends BaseCard {
 			return this._emptyTemplate;
 		}
 		const section = document.createElement('section');
-		this._sectionElement = section;
+		this._elements[TEXT_FIELD_BODY] = section;
 		body = normalizeBodyHTML(body);
 		if (this.editing) {
 			makeElementContentEditable(section);
@@ -170,13 +174,13 @@ export class ContentCard extends BaseCard {
 		if (changedProps.has('editing') && this.editing) {
 			//If we just started editing, focus the content editable immediately
 			//(the title if there's no title)
-			if (this._sectionElement) {
-				this._sectionElement.focus();
+			if (this._elements[TEXT_FIELD_BODY]) {
+				this._elements[TEXT_FIELD_BODY].focus();
 
 				//Move the selection to the end of the content editable.
 				if (this.body) {
 					let range = document.createRange();
-					range.selectNodeContents(this._sectionElement);
+					range.selectNodeContents(this._elements[TEXT_FIELD_BODY]);
 					range.collapse(false);
 					let sel = window.getSelection();
 					sel.removeAllRanges();
@@ -189,12 +193,12 @@ export class ContentCard extends BaseCard {
 					document.execCommand('delete');
 				}
 
-				if (!this.title && this._h1Element) {
+				if (!this.title && this._elements[TEXT_FIELD_TITLE]) {
 					//If there isn't a title, we actually want the title focused
 					//(after clearing out hte extra 'nbsp'. For some reason
 					//Chrome doesn't actually focus the second item, unless we
 					//do a timeout. :shrug:
-					setTimeout(() => this._h1Element.focus(), 0);
+					setTimeout(() => this._elements[TEXT_FIELD_TITLE].focus(), 0);
 				}
 			}
 		}
