@@ -18,7 +18,7 @@ import {
 import {
 	TEXT_FIELD_BODY,
 	TEXT_FIELD_TITLE
-} from '../reducers/editor.js';
+} from '../card_fields.js';
 
 import { makeElementContentEditable } from '../util.js';
 

@@ -49,8 +49,10 @@ import {
 	TODO_OVERRIDE_LEGAL_KEYS
 } from '../filters.js';
 
-export const TEXT_FIELD_BODY = 'body';
-export const TEXT_FIELD_TITLE = 'title';
+import {
+	TEXT_FIELD_BODY,
+	TEXT_FIELD_TITLE
+} from '../card_fields.js';
 
 const DEFAULT_TAB = TAB_CONFIG;
 const DEFAULT_EDITOR_TAB = EDITOR_TAB_CONTENT;
