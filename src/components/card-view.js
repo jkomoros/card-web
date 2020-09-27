@@ -431,8 +431,8 @@ class CardView extends connect(store)(PageViewElement) {
 		this._commentsAndInfoPanelOpen = selectCommentsAndInfoPanelOpen(state);
 		//Note: do NOT use this for whether the panel is showing.
 		this._cardsDrawerPanelOpen = state.app.cardsDrawerPanelOpen;
-		this._bodyFromContentEditable = state.editor.bodyFromContentEditable;
-		this._titleFromContentEditable = state.editor.titleFromContentEditable;
+		this._bodyFromContentEditable = state.editor.updatedFromContentEditable['body'] || false;
+		this._titleFromContentEditable = state.editor.updatedFromContentEditable['title'] || false;
 		this._cardsDrawerPanelShowing = selectCardsDrawerPanelShowing(state);
 		this._presentationMode = state.app.presentationMode;
 		this._mobileMode = state.app.mobileMode;

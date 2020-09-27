@@ -54,8 +54,9 @@ const DEFAULT_EDITOR_TAB = EDITOR_TAB_CONTENT;
 
 const INITIAL_STATE = {
 	editing: false,
-	bodyFromContentEditable: false,
-	titleFromContentEditable: false,
+	//this is a map of field name to true if it was updated last from content
+	//editable, or false or missing if it wasn't.
+	updatedFromContentEditable: {},
 	card: null,
 	substantive: false,
 	selectedTab: DEFAULT_TAB,
@@ -72,8 +73,7 @@ const app = (state = INITIAL_STATE, action) => {
 			editing: true,
 			card: action.card,
 			substantive: false,
-			bodyFromContentEditable: false,
-			titleFromContentEditable: false,
+			updatedFromContentEditable: {},
 			selectedTab: DEFAULT_TAB,
 			selectedEditorTab: DEFAULT_EDITOR_TAB,
 		};
@@ -83,8 +83,7 @@ const app = (state = INITIAL_STATE, action) => {
 			editing:false,
 			card: null,
 			substantive:false,
-			bodyFromContentEditable: false,
-			titleFromContentEditable: false,
+			updatedFromContentEditable: {},
 		};
 	case EDITING_SELECT_TAB:
 		return {
@@ -103,7 +102,7 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: card,
-			titleFromContentEditable: action.fromContentEditable,
+			updatedFromContentEditable: {...state.updatedFromContentEditable, ['title']: action.fromContentEditable},
 		};
 	case EDITING_NOTES_UPDATED:
 		if (!state.card) return state;
@@ -122,7 +121,7 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: {...state.card, body:action.body},
-			bodyFromContentEditable: action.fromContentEditable
+			updatedFromContentEditable: {...state.updatedFromContentEditable, ['body']: action.fromContentEditable},
 		};
 	case EDITING_SECTION_UPDATED:
 		if (!state.card) return state;
