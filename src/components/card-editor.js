@@ -31,9 +31,8 @@ import {
 import {
 	editingFinish,
 	editingCommit,
-	titleUpdated,
+	textFieldUpdated,
 	notesUpdated,
-	bodyUpdated,
 	sectionUpdated,
 	nameUpdated,
 	substantiveUpdated,
@@ -88,6 +87,11 @@ import {
 import {
 	PERMISSION_EDIT_CARD
 } from '../permissions.js';
+
+import {
+	TEXT_FIELD_TITLE,
+	TEXT_FIELD_BODY
+} from '../card_fields.js';
 
 import './tag-list.js';
 
@@ -529,21 +533,21 @@ class CardEditor extends connect(store)(LitElement) {
 	_handleTitleUpdated(e) {
 		if (!this._active) return;
 		let ele = e.composedPath()[0];
-		store.dispatch(titleUpdated(ele.value, false));
+		store.dispatch(textFieldUpdated(TEXT_FIELD_TITLE, ele.value, false));
 	}
 
 	_handleBodyUpdated(e) {
 		if (!this._active) return;
 		let ele = e.composedPath()[0];
-		store.dispatch(bodyUpdated(ele.value, false));
+		store.dispatch(textFieldUpdated(TEXT_FIELD_BODY, ele.value, false));
 	}
 
 	titleUpdatedFromContentEditable(text) {
-		store.dispatch(titleUpdated(text, true));
+		store.dispatch(textFieldUpdated(TEXT_FIELD_TITLE, text, true));
 	}
 
 	bodyUpdatedFromContentEditable(html) {
-		store.dispatch(bodyUpdated(html, true));
+		store.dispatch(textFieldUpdated(TEXT_FIELD_BODY, html, true));
 	}
 
 	_handleNotesUpdated(e) {

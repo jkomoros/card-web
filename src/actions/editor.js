@@ -45,8 +45,7 @@ import {
 } from './data.js';
 
 import {
-	TEXT_FIELD_BODY,
-	TEXT_FIELD_TITLE
+	TEXT_FIELD_CONFIGURATION
 } from '../card_fields.js';
 
 import {
@@ -236,36 +235,33 @@ export const todoUpdated = (newTodo) => {
 	};
 };
 
-export const titleUpdated = (newTitle, fromContentEditable) => {
-	if (!fromContentEditable) fromContentEditable = false;
-	return {
-		type: EDITING_TEXT_FIELD_UPDATED,
-		fieldName: TEXT_FIELD_TITLE,
-		skipUpdatingNormalizedFields: false,
-		value:newTitle,
-		fromContentEditable
-	};
-};
-
 var extractLinksTimeout;
 
-export const bodyUpdated = (newBody, fromContentEditable) => (dispatch) => {
-	//Make sure we have a timeout to extract links a bit of time after the last edit was made.
-	if (extractLinksTimeout) window.clearTimeout(extractLinksTimeout);
-	extractLinksTimeout = window.setTimeout(() => {
-		extractLinksTimeout = 0;
-		dispatch({type: EDITING_EXTRACT_LINKS});
-	}, 1000);
+export const textFieldUpdated = (fieldName, value, fromContentEditable) => (dispatch) => {
+	if (!fromContentEditable) fromContentEditable = false;
 
-	dispatch({
-		type: EDITING_TEXT_FIELD_UPDATED,
-		fieldName: TEXT_FIELD_BODY,
-		skipUpdatingNormalizedFields: true,
+	const config = TEXT_FIELD_CONFIGURATION[fieldName] || {};
+
+	if (config.html) {
+		//Make sure we have a timeout to extract links a bit of time after the last edit was made.
+		if (extractLinksTimeout) window.clearTimeout(extractLinksTimeout);
+		extractLinksTimeout = window.setTimeout(() => {
+			extractLinksTimeout = 0;
+			dispatch({type: EDITING_EXTRACT_LINKS});
+		}, 1000);
+
 		//We only run it if it's coming from contentEditable because
 		//normalizeBodyHTML assumes the contnet is valid HTML, and if it's been
 		//updated in the editor textbox, and for example the end says `</p`,
 		//then it's not valid HTML.
-		value: fromContentEditable ? normalizeBodyHTML(newBody) : newBody,
+		value = fromContentEditable ? normalizeBodyHTML(value) : value;
+	}
+
+	dispatch({
+		type: EDITING_TEXT_FIELD_UPDATED,
+		fieldName: fieldName,
+		skipUpdatingNormalizedFields: config.html,
+		value: value,
 		fromContentEditable
 	});
 };
