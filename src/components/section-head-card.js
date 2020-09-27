@@ -1,5 +1,10 @@
 import { html } from '@polymer/lit-element';
 
+import {
+	TEXT_FIELD_TITLE,
+	TEXT_FIELD_SUBTITLE,
+} from '../card_fields.js';
+
 import {BaseCard} from './base-card.js';
 
 // This element is *not* connected to the Redux store.
@@ -31,8 +36,8 @@ class SectionHeadCard extends BaseCard {
         }
       </style>
       <div class='background'></div>
-      <h1>${this.title ? this.title : html`<span class='loading'>Loading...<span>`}</h1>
-      <h2>${this.subtitle}</h2>
+      ${this._templateForField(TEXT_FIELD_TITLE)}
+      ${this._templateForField(TEXT_FIELD_SUBTITLE)}
     `;
 	}
 
