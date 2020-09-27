@@ -536,12 +536,8 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(textFieldUpdated(ele.field, ele.value, false));
 	}
 
-	titleUpdatedFromContentEditable(text) {
-		store.dispatch(textFieldUpdated(TEXT_FIELD_TITLE, text, true));
-	}
-
-	bodyUpdatedFromContentEditable(html) {
-		store.dispatch(textFieldUpdated(TEXT_FIELD_BODY, html, true));
+	textFieldUpdatedFromContentEditable(field, value) {
+		store.dispatch(textFieldUpdated(field, value, true));
 	}
 
 	_handleNotesUpdated(e) {

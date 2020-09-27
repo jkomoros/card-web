@@ -49,12 +49,16 @@ export class ContentCard extends BaseCard {
 		};
 	}
 
+	_textPropertyChanged(field, value) {
+		this.dispatchEvent(new CustomEvent('text-field-updated', {composed:true, detail: {field: field, value: value}}));
+	}
+
 	_bodyChanged() {
-		this.dispatchEvent(new CustomEvent('body-updated', {composed:true, detail: {html: this._sectionElement.innerHTML}}));
+		this._textPropertyChanged(TEXT_FIELD_BODY, this._sectionElement.innerHTML);
 	}
 
 	_titleChanged() {
-		this.dispatchEvent(new CustomEvent('title-updated', {composed: true, detail: {text: this._h1Element.innerText}}));
+		this._textPropertyChanged(TEXT_FIELD_TITLE, this._h1Element.innerText);
 	}
 
 	_selectionChanged() {
