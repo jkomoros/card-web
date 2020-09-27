@@ -2,8 +2,7 @@ export const EDITING_START = 'EDITING_START';
 export const EDITING_FINISH = 'EDITING_FINISH';
 export const EDITING_SELECT_TAB = 'EDITING_SELECT_TAB';
 export const EDITING_SELECT_EDITOR_TAB = 'EDITING_SELECT_EDITOR_TAB';
-export const EDITING_TITLE_UPDATED = 'EDITING_TITLE_UPDATED';
-export const EDITING_BODY_UPDATED = 'EDITING_BODY_UPDATED';
+export const EDITING_TEXT_FIELD_UPDATED = 'EDITING_TEXT_FIELD_UPDATED';
 export const EDITING_SECTION_UPDATED = 'EDITING_SECTION_UPDATED';
 export const EDITING_SLUG_ADDED = 'EDITING_SLUG_ADDED';
 export const EDITING_NAME_UPDATED = 'EDITING_NAME_UPDATED';
@@ -44,6 +43,11 @@ import {
 import {
 	modifyCard
 } from './data.js';
+
+import {
+	TEXT_FIELD_BODY,
+	TEXT_FIELD_TITLE
+} from '../card_fields.js';
 
 import {
 	arrayDiff,
@@ -235,8 +239,10 @@ export const todoUpdated = (newTodo) => {
 export const titleUpdated = (newTitle, fromContentEditable) => {
 	if (!fromContentEditable) fromContentEditable = false;
 	return {
-		type: EDITING_TITLE_UPDATED,
-		title:newTitle,
+		type: EDITING_TEXT_FIELD_UPDATED,
+		fieldName: TEXT_FIELD_TITLE,
+		skipUpdatingNormalizedFields: false,
+		value:newTitle,
 		fromContentEditable
 	};
 };
@@ -252,12 +258,14 @@ export const bodyUpdated = (newBody, fromContentEditable) => (dispatch) => {
 	}, 1000);
 
 	dispatch({
-		type: EDITING_BODY_UPDATED,
+		type: EDITING_TEXT_FIELD_UPDATED,
+		fieldName: TEXT_FIELD_BODY,
+		skipUpdatingNormalizedFields: true,
 		//We only run it if it's coming from contentEditable because
 		//normalizeBodyHTML assumes the contnet is valid HTML, and if it's been
 		//updated in the editor textbox, and for example the end says `</p`,
 		//then it's not valid HTML.
-		body: fromContentEditable ? normalizeBodyHTML(newBody) : newBody,
+		value: fromContentEditable ? normalizeBodyHTML(newBody) : newBody,
 		fromContentEditable
 	});
 };

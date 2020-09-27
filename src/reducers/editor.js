@@ -3,8 +3,7 @@ import {
 	EDITING_FINISH,
 	EDITING_SELECT_TAB,
 	EDITING_SELECT_EDITOR_TAB,
-	EDITING_TITLE_UPDATED,
-	EDITING_BODY_UPDATED,
+	EDITING_TEXT_FIELD_UPDATED,
 	EDITING_SECTION_UPDATED,
 	EDITING_SLUG_ADDED,
 	EDITING_NAME_UPDATED,
@@ -48,11 +47,6 @@ import {
 import {
 	TODO_OVERRIDE_LEGAL_KEYS
 } from '../filters.js';
-
-import {
-	TEXT_FIELD_BODY,
-	TEXT_FIELD_TITLE
-} from '../card_fields.js';
 
 const DEFAULT_TAB = TAB_CONFIG;
 const DEFAULT_EDITOR_TAB = EDITOR_TAB_CONTENT;
@@ -100,14 +94,14 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			selectedEditorTab: action.tab,
 		};
-	case EDITING_TITLE_UPDATED:
+	case EDITING_TEXT_FIELD_UPDATED:
 		if (!state.card) return state;
-		card = {...state.card, title:action.title};
-		cardSetNormalizedTextProperties(card);
+		card = {...state.card, [action.fieldName]:action.value};
+		if(!action.skipUpdatingNormalizedFields) cardSetNormalizedTextProperties(card);
 		return {
 			...state,
 			card: card,
-			updatedFromContentEditable: {...state.updatedFromContentEditable, [TEXT_FIELD_TITLE]: action.fromContentEditable},
+			updatedFromContentEditable: {...state.updatedFromContentEditable, [action.fieldName]: action.fromContentEditable},
 		};
 	case EDITING_NOTES_UPDATED:
 		if (!state.card) return state;
@@ -120,13 +114,6 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: {...state.card, todo:action.todo},
-		};
-	case EDITING_BODY_UPDATED:
-		if (!state.card) return state;
-		return {
-			...state,
-			card: {...state.card, body:action.body},
-			updatedFromContentEditable: {...state.updatedFromContentEditable, [TEXT_FIELD_BODY]: action.fromContentEditable},
 		};
 	case EDITING_SECTION_UPDATED:
 		if (!state.card) return state;
