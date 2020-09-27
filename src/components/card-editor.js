@@ -89,8 +89,8 @@ import {
 } from '../permissions.js';
 
 import {
-	TEXT_FIELD_TITLE,
-	TEXT_FIELD_BODY
+	TEXT_FIELD_BODY,
+	legalFieldsForCardType
 } from '../card_fields.js';
 
 import './tag-list.js';
@@ -257,10 +257,11 @@ class CardEditor extends connect(store)(LitElement) {
 
 			</div>
 			<div ?hidden=${this._selectedEditorTab !== EDITOR_TAB_CONTENT} class='body flex'>
-				<label>Title</label>
-				<input type='text' @input='${this._handleTextFieldUpdated}' .field=${TEXT_FIELD_TITLE} .value=${this._card[TEXT_FIELD_TITLE]}></input>
-				<label>Body</label>
-				<textarea @input='${this._handleTextFieldUpdated}' .field=${TEXT_FIELD_BODY} .value=${this._card[TEXT_FIELD_BODY]}></textarea>
+				${Object.entries(legalFieldsForCardType(this._card.card_type)).map(entry => html`<label>${entry[0]}</label>
+					${entry[1].html
+		? html`<textarea @input='${this._handleTextFieldUpdated}' .field=${entry[0]} .value=${this._card[entry[0]]}></textarea>`
+		: html`<input type='text' @input='${this._handleTextFieldUpdated}' .field=${entry[0]} .value=${this._card[entry[0]]}></input>`}
+				`)}
 			</div>
 			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_NOTES} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
 			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_TODO} @input='${this._handleTodoUpdated}' .value=${this._card.todo}></textarea>
