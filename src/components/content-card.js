@@ -15,6 +15,11 @@ import {
 	normalizeBodyToContentEditable
 } from '../contenteditable.js';
 
+import {
+	TEXT_FIELD_BODY,
+	TEXT_FIELD_TITLE
+} from '../reducers/editor.js';
+
 import { makeElementContentEditable } from '../util.js';
 
 let loadingTemplate = html`<span class='loading'>Loading...<span>`;
@@ -37,8 +42,7 @@ export class ContentCard extends BaseCard {
 			editing: { type: Boolean },
 			id: {type: String},
 			fullBleed: {type: String},
-			bodyFromContentEditable: {type:Boolean},
-			titleFromContentEditable: {type:Boolean},
+			updatedFromContentEditable: {type:Object},
 			dataIsFullyLoaded: {type:Boolean},
 			_sectionElement: {type:Object},
 			_h1Element: {type:Object},
@@ -69,8 +73,16 @@ export class ContentCard extends BaseCard {
 		document.addEventListener('selectionchange', this._selectionChanged.bind(this));
 	}
 
+	get _titleFromContentEditable() {
+		return (this.updatedFromContentEditable || {})[TEXT_FIELD_TITLE];
+	}
+
+	get _bodyFromContentEditable() {
+		return (this.updatedFromContentEditable || {})[TEXT_FIELD_BODY];
+	}
+
 	_makeH1(title) {
-		if (this.titleFromContentEditable && this._h1Element) {
+		if (this._titleFromContentEditable && this._h1Element) {
 			return this._h1Element;
 		}
 		let htmlToSet = '';
@@ -106,7 +118,7 @@ export class ContentCard extends BaseCard {
 		//If the update to body came from contentEditable then don't change it,
 		//the state is already in it. If we were to update it, the selection state
 		//would reset and defocus.
-		if (this.bodyFromContentEditable && this._sectionElement) {
+		if (this._bodyFromContentEditable && this._sectionElement) {
 			return this._sectionElement;
 		}
 		//If we're editing, then just put in blank content so someone tapping on

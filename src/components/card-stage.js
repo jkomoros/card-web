@@ -158,7 +158,7 @@ class CardStage extends LitElement {
 				<div>${SCREEN_ROTATION_ICON}</div>
 				<div>Rotate your device for larger text</div>
 			</div>
-			<card-renderer .dataIsFullyLoaded=${this.dataIsFullyLoaded} .editing=${this.editing} .card=${this.card} .bodyFromContentEditable=${this.bodyFromContentEditable} .titleFromContentEditable=${this.titleFromContentEditable}></card-renderer>
+			<card-renderer .dataIsFullyLoaded=${this.dataIsFullyLoaded} .editing=${this.editing} .card=${this.card} .updatedFromContentEditable=${this.updatedFromContentEditable}></card-renderer>
 			<slot name='actions'></slot>
 			<slot name='tags'></slot>
 		</div>
@@ -174,8 +174,7 @@ class CardStage extends LitElement {
 			dataIsFullyLoaded : { type: Boolean},
 			editing: { type: Boolean},
 			card: { type: Object},
-			bodyFromContentEditable: { type: Boolean},
-			titleFromContentEditable: { type: Boolean},
+			updatedFromContentEditable: { type: Object},
 		};
 	}
 	

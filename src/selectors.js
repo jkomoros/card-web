@@ -84,6 +84,7 @@ const selectActiveSortReversed = (state) => state.collection.activeSortReversed;
 export const selectRequestedCard = (state) => state.collection.requestedCard;
 export const selectActiveCardId = (state) => state.collection ? state.collection.activeCardId : '';
 export const selectEditingCard = (state) => state.editor ? state.editor.card : null;
+export const selectEditingUpdatedFromContentEditable = (state) => state.editor ? state.editor.updatedFromContentEditable : {};
 export const selectPendingSlug = (state) => state.editor ? state.editor.pendingSlug : '';
 export const selectFilters = (state) => state.collection.filters;
 const selectPendingFilters = (state) => state.collection.pendingFilters;

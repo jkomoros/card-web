@@ -13,7 +13,7 @@ export class CardRenderer extends LitElement {
         }
       </style>
       <section-head-card ?hidden=${this._cardType != 'section-head'} .title=${this._title} .subtitle=${this._subtitle} .published=${this._published}></section-head-card>
-      <content-card .dataIsFullyLoaded=${this.dataIsFullyLoaded} ?hidden=${this._cardType != 'content'} .bodyFromContentEditable=${this.bodyFromContentEditable} .titleFromContentEditable=${this.titleFromContentEditable} .editing=${this.editing} .id=${this._cardId} title="${this._title}" body="${this._body}" .fullBleed=${this._fullBleed} .starCount=${this._starCount} .published=${this._published}></content-card>
+      <content-card .dataIsFullyLoaded=${this.dataIsFullyLoaded} ?hidden=${this._cardType != 'content'} .updatedFromContentEditable=${this.updatedFromContentEditable} .editing=${this.editing} .id=${this._cardId} title="${this._title}" body="${this._body}" .fullBleed=${this._fullBleed} .starCount=${this._starCount} .published=${this._published}></content-card>
     `;
 	}
 
@@ -21,8 +21,7 @@ export class CardRenderer extends LitElement {
 		return {
 			editing : { type:Boolean },
 			card: { type: Object },
-			bodyFromContentEditable: {type:Boolean},
-			titleFromContentEditable: {type:Boolean},
+			updatedFromContentEditable: {type:Object},
 			dataIsFullyLoaded: {type:Boolean},
 			_title: { type:String },
 			_body: { type:String },
