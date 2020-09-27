@@ -78,14 +78,6 @@ export class ContentCard extends BaseCard {
 		document.addEventListener('selectionchange', this._selectionChanged.bind(this));
 	}
 
-	get _titleFromContentEditable() {
-		return (this.updatedFromContentEditable || {})[TEXT_FIELD_TITLE];
-	}
-
-	get _bodyFromContentEditable() {
-		return (this.updatedFromContentEditable || {})[TEXT_FIELD_BODY];
-	}
-
 	_templateForField(field) {
 		const config = TEXT_FIELD_CONFIGURATION[field] || {};
 
