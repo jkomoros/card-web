@@ -107,7 +107,8 @@ export class ContentCard extends BaseCard {
 				}
 			}
 		}
-		const ele = document.createElement('h1');
+		const config = TEXT_FIELD_CONFIGURATION[field] || {};
+		const ele = document.createElement(config.container|| 'span');
 		this._elements[field] = ele;
 		ele.field = field;
 		if (this.editing) {
