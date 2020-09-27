@@ -49,6 +49,9 @@ import {
 	TODO_OVERRIDE_LEGAL_KEYS
 } from '../filters.js';
 
+export const TEXT_FIELD_BODY = 'body';
+export const TEXT_FIELD_TITLE = 'title';
+
 const DEFAULT_TAB = TAB_CONFIG;
 const DEFAULT_EDITOR_TAB = EDITOR_TAB_CONTENT;
 
@@ -102,7 +105,7 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: card,
-			updatedFromContentEditable: {...state.updatedFromContentEditable, ['title']: action.fromContentEditable},
+			updatedFromContentEditable: {...state.updatedFromContentEditable, [TEXT_FIELD_TITLE]: action.fromContentEditable},
 		};
 	case EDITING_NOTES_UPDATED:
 		if (!state.card) return state;
@@ -121,7 +124,7 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: {...state.card, body:action.body},
-			updatedFromContentEditable: {...state.updatedFromContentEditable, ['body']: action.fromContentEditable},
+			updatedFromContentEditable: {...state.updatedFromContentEditable, [TEXT_FIELD_BODY]: action.fromContentEditable},
 		};
 	case EDITING_SECTION_UPDATED:
 		if (!state.card) return state;

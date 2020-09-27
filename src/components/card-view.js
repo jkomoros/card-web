@@ -85,6 +85,11 @@ import {
 	closeCommentsAndInfoPanel,
 } from '../actions/app.js';
 
+import {
+	TEXT_FIELD_BODY,
+	TEXT_FIELD_TITLE
+} from '../reducers/editor';
+
 //Components needed by this
 import './card-drawer.js';
 import './card-stage.js';
@@ -431,8 +436,8 @@ class CardView extends connect(store)(PageViewElement) {
 		this._commentsAndInfoPanelOpen = selectCommentsAndInfoPanelOpen(state);
 		//Note: do NOT use this for whether the panel is showing.
 		this._cardsDrawerPanelOpen = state.app.cardsDrawerPanelOpen;
-		this._bodyFromContentEditable = state.editor.updatedFromContentEditable['body'] || false;
-		this._titleFromContentEditable = state.editor.updatedFromContentEditable['title'] || false;
+		this._bodyFromContentEditable = state.editor.updatedFromContentEditable[TEXT_FIELD_BODY] || false;
+		this._titleFromContentEditable = state.editor.updatedFromContentEditable[TEXT_FIELD_TITLE] || false;
 		this._cardsDrawerPanelShowing = selectCardsDrawerPanelShowing(state);
 		this._presentationMode = state.app.presentationMode;
 		this._mobileMode = state.app.mobileMode;
