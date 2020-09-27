@@ -4,6 +4,10 @@ import {
 	stemmer
 } from './stemmer.js';
 
+import {
+	TEXT_FIELD_BODY
+} from './card_fields.js';
+
 //define this here and then re-export form app.js so this file doesn't need any
 //other imports.
 export const _PAGE_BASIC_CARD = 'basic-card';
@@ -177,7 +181,7 @@ export const cardHasContent = (card) => {
 	//We treat all non-content cards as having content, since the main reason to
 	//count a card has not having content is if there's nothing to see on it.
 	if (card.card_type != 'content') return true;
-	let content = card.body ? card.body.trim() : '';
+	let content = card[TEXT_FIELD_BODY] ? card[TEXT_FIELD_BODY].trim() : '';
 	return content ? true : false;
 };
 
