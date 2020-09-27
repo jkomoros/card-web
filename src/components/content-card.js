@@ -17,7 +17,8 @@ import {
 
 import {
 	TEXT_FIELD_BODY,
-	TEXT_FIELD_TITLE
+	TEXT_FIELD_TITLE,
+	TEXT_FIELD_CONFIGURATION
 } from '../card_fields.js';
 
 import { makeElementContentEditable } from '../util.js';
@@ -53,16 +54,12 @@ export class ContentCard extends BaseCard {
 		this._elements = {};
 	}
 
-	_textPropertyChanged(field, value) {
+	_textFieldChanged(e) {
+		let ele = e.composedPath()[0];
+		const field = ele.field;
+		const config = TEXT_FIELD_CONFIGURATION[field] || {};
+		const value = config.html ? ele.innerHTML : ele.innerText;
 		this.dispatchEvent(new CustomEvent('text-field-updated', {composed:true, detail: {field: field, value: value}}));
-	}
-
-	_bodyChanged() {
-		this._textPropertyChanged(TEXT_FIELD_BODY, this._elements[TEXT_FIELD_BODY].innerHTML);
-	}
-
-	_titleChanged() {
-		this._textPropertyChanged(TEXT_FIELD_TITLE, this._elements[TEXT_FIELD_TITLE].innerText);
 	}
 
 	_selectionChanged() {
@@ -109,9 +106,10 @@ export class ContentCard extends BaseCard {
 		}
 		const h1 = document.createElement('h1');
 		this._elements[TEXT_FIELD_TITLE] = h1;
+		h1.field = TEXT_FIELD_TITLE;
 		if (this.editing) {
 			h1.contentEditable = 'true';
-			h1.addEventListener('input', this._titleChanged.bind(this));
+			h1.addEventListener('input', this._textFieldChanged.bind(this));
 		}
 		//Only set innerHTML if it came from this method; title is untrusted.
 		if (htmlToSet) {
@@ -137,10 +135,11 @@ export class ContentCard extends BaseCard {
 		}
 		const section = document.createElement('section');
 		this._elements[TEXT_FIELD_BODY] = section;
+		section.field = TEXT_FIELD_BODY;
 		body = normalizeBodyHTML(body);
 		if (this.editing) {
 			makeElementContentEditable(section);
-			section.addEventListener('input', this._bodyChanged.bind(this));
+			section.addEventListener('input', this._textFieldChanged.bind(this));
 			body = normalizeBodyToContentEditable(body);
 		}
 		body = dompurify.sanitize(body, {
