@@ -260,7 +260,9 @@ class CardEditor extends connect(store)(LitElement) {
 				<label class='help' ?hidden=${this._selectedEditorTab !== EDITOR_TAB_TODO}>Freeform TODOs are only visible to editors and mark a temporary thing to do so it shows up in the has-freeform-todo filter</label>
 
 			</div>
-			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_CONTENT} @input='${this._handleTextFieldUpdated}' .field=${TEXT_FIELD_BODY} .value=${this._card[TEXT_FIELD_BODY]}></textarea>
+			<div ?hidden=${this._selectedEditorTab !== EDITOR_TAB_CONTENT} class='body flex'>
+				<textarea @input='${this._handleTextFieldUpdated}' .field=${TEXT_FIELD_BODY} .value=${this._card[TEXT_FIELD_BODY]}></textarea>
+			</div>
 			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_NOTES} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
 			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_TODO} @input='${this._handleTodoUpdated}' .value=${this._card.todo}></textarea>
 		  </div>
