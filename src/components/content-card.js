@@ -32,7 +32,7 @@ export class ContentCard extends BaseCard {
 	innerRender() {
 		return html`
       ${this._templateForField(TEXT_FIELD_TITLE)}
-      ${this._makeSection(this.body)}
+      ${this._templateForField(TEXT_FIELD_BODY)}
     `;
 	}
 
@@ -87,13 +87,18 @@ export class ContentCard extends BaseCard {
 	}
 
 	_templateForField(field) {
+		const config = TEXT_FIELD_CONFIGURATION[field] || {};
+
+		//If the update to body came from contentEditable then don't change it,
+		//the state is already in it. If we were to update it, the selection state
+		//would reset and defocus.
 		const updatedFromContentEditable = (this.updatedFromContentEditable || {})[field];
 		if (updatedFromContentEditable && this._elements[field]) {
 			return this._elements[field];
 		}
 
 		let value = this[field];
-		let htmlToSet = '';
+		let htmlToSet = config.html ? normalizeBodyHTML(value) : '';
 		if (!value && !this.editing) {
 			if (this.fullBleed) {
 				value = '';
@@ -107,70 +112,49 @@ export class ContentCard extends BaseCard {
 				}
 			}
 		}
-		const config = TEXT_FIELD_CONFIGURATION[field] || {};
+
 		const ele = document.createElement(config.container|| 'span');
 		this._elements[field] = ele;
 		ele.field = field;
 		if (this.editing) {
-			ele.contentEditable = 'true';
+			makeElementContentEditable(ele);
 			ele.addEventListener('input', this._textFieldChanged.bind(this));
+			if (config.html) htmlToSet = normalizeBodyToContentEditable(htmlToSet);
 		}
+
+		if (config.html) {
+			htmlToSet = dompurify.sanitize(htmlToSet, {
+				ADD_ATTR: ['card'],
+				ADD_TAGS: ['card-link'],
+			});
+			if (htmlToSet === '') {
+				//This is a total hack. If the body is empty, then contenteditable
+				//will have the first line of content in an anoymous top-level node,
+				//even though makeElementContentEditable configures it to use <p>
+				//for top-level elements, and even though the textarea will show the
+				//first line of wrapped in <p>'s because that's what it's normalized
+				//to but can't be reinjected into the contenteditable. If you then
+				//link to anything in that first line, then it will put a <p> before
+				//and after it for the rest of the content. If we just input
+				//`<p></p>` as starter content then Chrome's contenteditable
+				//wouldn't allow it to be focused. The answer is to inject a <p> so
+				//that the first line has the right content, and include a
+				//non-removable whitespace. Then, in the logic below in update(),
+				//special case delete that content, leaving us with a content
+				//editable that's selected, with the cursor starting out inside of
+				//paragraph tags.
+				htmlToSet = '<p>&nbsp;</p>';
+			}
+		}
+
 		//Only set innerHTML if it came from this method; title is untrusted.
 		if (htmlToSet) {
 			ele.innerHTML = htmlToSet;
 		} else {
 			ele.innerText = value;
 		}
+		if(this.fullBleed) ele.className = 'full-bleed';
 		return ele;
-	}
-
-	_makeSection(body) {
-		//If the update to body came from contentEditable then don't change it,
-		//the state is already in it. If we were to update it, the selection state
-		//would reset and defocus.
-		if (this._bodyFromContentEditable && this._elements[TEXT_FIELD_BODY]) {
-			return this._elements[TEXT_FIELD_BODY];
-		}
-		//If we're editing, then just put in blank content so someone tapping on
-		//it immediately will be able to start writing content without selecting
-		//the content textfield.
-		if (!body && !this.editing) {
-			return this._emptyTemplate;
-		}
-		const section = document.createElement('section');
-		this._elements[TEXT_FIELD_BODY] = section;
-		section.field = TEXT_FIELD_BODY;
-		body = normalizeBodyHTML(body);
-		if (this.editing) {
-			makeElementContentEditable(section);
-			section.addEventListener('input', this._textFieldChanged.bind(this));
-			body = normalizeBodyToContentEditable(body);
-		}
-		body = dompurify.sanitize(body, {
-			ADD_ATTR: ['card'],
-			ADD_TAGS: ['card-link'],
-		});
-		if (body === '') {
-			//This is a total hack. If the body is empty, then contenteditable
-			//will have the first line of content in an anoymous top-level node,
-			//even though makeElementContentEditable configures it to use <p>
-			//for top-level elements, and even though the textarea will show the
-			//first line of wrapped in <p>'s because that's what it's normalized
-			//to but can't be reinjected into the contenteditable. If you then
-			//link to anything in that first line, then it will put a <p> before
-			//and after it for the rest of the content. If we just input
-			//`<p></p>` as starter content then Chrome's contenteditable
-			//wouldn't allow it to be focused. The answer is to inject a <p> so
-			//that the first line has the right content, and include a
-			//non-removable whitespace. Then, in the logic below in update(),
-			//special case delete that content, leaving us with a content
-			//editable that's selected, with the cursor starting out inside of
-			//paragraph tags.
-			body = '<p>&nbsp;</p>';
-		}
-		section.innerHTML = body;
-		if(this.fullBleed) section.className = 'full-bleed';
-		return section;
 	}
 
 	updated(changedProps) {
