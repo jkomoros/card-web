@@ -40,13 +40,6 @@ class SectionHeadCard extends BaseCard {
       ${this._templateForField(TEXT_FIELD_SUBTITLE)}
     `;
 	}
-
-	static get properties() {
-		return {
-			title: { type: String },
-			subtitle: { type: String },
-		};
-	}
 }
 
 window.customElements.define('section-head-card', SectionHeadCard);

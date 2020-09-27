@@ -18,13 +18,6 @@ export class ContentCard extends BaseCard {
       ${this._templateForField(TEXT_FIELD_BODY)}
     `;
 	}
-
-	static get properties() {
-		return {
-			title: { type: String },
-			body: { type: String },
-		};
-	}
 }
 
 window.customElements.define('content-card', ContentCard);

@@ -135,9 +135,9 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 				}
 
 			</style>
-			<div class="container ${this.editing ? 'editing' : ''} ${this.published ? 'published' : 'unpublished'}">
+			<div class="container ${this.editing ? 'editing' : ''} ${this._card.published ? 'published' : 'unpublished'}">
 				${this.innerRender()}
-				${starBadge(this.starCount)}
+				${starBadge(this._card.star_count)}
 			</div>
 		`;
 	}
@@ -147,13 +147,14 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 		return '';
 	}
 
+	get _card() {
+		return this.card || {};
+	}
+
 	static get properties() {
 		return {
+			card: {type: Object},
 			editing : { type:Boolean },
-			starCount: { type:Number },
-			published: { type: Boolean },
-			id: {type: String},
-			fullBleed: {type: String},
 			updatedFromContentEditable: {type:Object},
 			dataIsFullyLoaded: {type:Boolean},
 			_elements: {type: Object},
@@ -218,13 +219,13 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 			return this._elements[field];
 		}
 
-		let value = this[field];
+		let value = this._card[field] || '';
 		let htmlToSet = config.html ? normalizeBodyHTML(value) : '';
 		if (!value && !this.editing) {
-			if (this.fullBleed) {
+			if (this._card.full_bleed) {
 				value = '';
 			} else {
-				if (this.id) {
+				if (this._card.id) {
 					htmlToSet = '<span class=\'loading\'>Content goes here...</span>';
 				} else if (this.dataIsFullyLoaded) {
 					htmlToSet = 'No card by that name, try a link from above.';
@@ -274,7 +275,7 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 		} else {
 			ele.innerText = value;
 		}
-		if(this.fullBleed) ele.className = 'full-bleed';
+		if(this._card.full_bleed) ele.className = 'full-bleed';
 		return ele;
 	}
 
@@ -286,7 +287,7 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 				this._elements[TEXT_FIELD_BODY].focus();
 
 				//Move the selection to the end of the content editable.
-				if (this.body) {
+				if (this._card[TEXT_FIELD_BODY]) {
 					let range = document.createRange();
 					range.selectNodeContents(this._elements[TEXT_FIELD_BODY]);
 					range.collapse(false);
@@ -301,7 +302,7 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 					document.execCommand('delete');
 				}
 
-				if (!this.title && this._elements[TEXT_FIELD_TITLE]) {
+				if (!this._card[TEXT_FIELD_TITLE] && this._elements[TEXT_FIELD_TITLE]) {
 					//If there isn't a title, we actually want the title focused
 					//(after clearing out hte extra 'nbsp'. For some reason
 					//Chrome doesn't actually focus the second item, unless we
