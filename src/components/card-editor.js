@@ -247,7 +247,7 @@ class CardEditor extends connect(store)(LitElement) {
         <div class='inputs'>
           <div>
             <label>Title</label>
-            <input type='text' @input='${this._handleTitleUpdated}' .value=${this._card.title}></input>
+            <input type='text' @input='${this._handleTextFieldUpdated}' .field=${TEXT_FIELD_TITLE} .value=${this._card.title}></input>
 		  </div>
 		  <div ?hidden=${this._selectedTab !== TAB_CONTENT} class='flex body'>
 			<div class='tabs' @click=${this._handleEditorTabClicked}>
@@ -260,7 +260,7 @@ class CardEditor extends connect(store)(LitElement) {
 				<label class='help' ?hidden=${this._selectedEditorTab !== EDITOR_TAB_TODO}>Freeform TODOs are only visible to editors and mark a temporary thing to do so it shows up in the has-freeform-todo filter</label>
 
 			</div>
-			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_CONTENT} @input='${this._handleBodyUpdated}' .value=${this._card.body}></textarea>
+			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_CONTENT} @input='${this._handleTextFieldUpdated}' .field=${TEXT_FIELD_BODY} .value=${this._card.body}></textarea>
 			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_NOTES} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
 			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_TODO} @input='${this._handleTodoUpdated}' .value=${this._card.todo}></textarea>
 		  </div>
@@ -530,16 +530,10 @@ class CardEditor extends connect(store)(LitElement) {
 		}
 	}
 
-	_handleTitleUpdated(e) {
+	_handleTextFieldUpdated(e) {
 		if (!this._active) return;
 		let ele = e.composedPath()[0];
-		store.dispatch(textFieldUpdated(TEXT_FIELD_TITLE, ele.value, false));
-	}
-
-	_handleBodyUpdated(e) {
-		if (!this._active) return;
-		let ele = e.composedPath()[0];
-		store.dispatch(textFieldUpdated(TEXT_FIELD_BODY, ele.value, false));
+		store.dispatch(textFieldUpdated(ele.field, ele.value, false));
 	}
 
 	titleUpdatedFromContentEditable(text) {
