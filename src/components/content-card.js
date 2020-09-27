@@ -64,8 +64,7 @@ export class ContentCard extends BaseCard {
 		reportSelectionRange(selection.getRangeAt(0));
 	}
 
-	firstUpdated(changedProps) {
-		super.firstUpdated(changedProps);
+	firstUpdated() {
 		document.addEventListener('selectionchange', this._selectionChanged.bind(this));
 	}
 
