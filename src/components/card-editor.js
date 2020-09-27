@@ -246,10 +246,6 @@ class CardEditor extends connect(store)(LitElement) {
       <div class='container'>
         <div class='inputs'>
 		  <div ?hidden=${this._selectedTab !== TAB_CONTENT} class='flex body'>
-			<div>
-				<label>Title</label>
-				<input type='text' @input='${this._handleTextFieldUpdated}' .field=${TEXT_FIELD_TITLE} .value=${this._card[TEXT_FIELD_TITLE]}></input>
-			</div>
 			<div class='tabs' @click=${this._handleEditorTabClicked}>
 				<label name='${EDITOR_TAB_CONTENT}' ?selected=${this._selectedEditorTab == EDITOR_TAB_CONTENT} ?empty=${!hasContent} ?modified=${contentModified}>Content</label>
 				<label name='${EDITOR_TAB_NOTES}' ?selected=${this._selectedEditorTab == EDITOR_TAB_NOTES} ?empty=${!hasNotes} ?modified=${notesModified}>Notes</label>
@@ -261,6 +257,9 @@ class CardEditor extends connect(store)(LitElement) {
 
 			</div>
 			<div ?hidden=${this._selectedEditorTab !== EDITOR_TAB_CONTENT} class='body flex'>
+				<label>Title</label>
+				<input type='text' @input='${this._handleTextFieldUpdated}' .field=${TEXT_FIELD_TITLE} .value=${this._card[TEXT_FIELD_TITLE]}></input>
+				<label>Body</label>
 				<textarea @input='${this._handleTextFieldUpdated}' .field=${TEXT_FIELD_BODY} .value=${this._card[TEXT_FIELD_BODY]}></textarea>
 			</div>
 			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_NOTES} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
