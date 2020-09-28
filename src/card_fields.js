@@ -6,6 +6,9 @@ export const TEXT_FIELD_SUBTITLE = 'subtitle';
 export const CARD_TYPE_CONTENT = 'content';
 export const CARD_TYPE_SECTION_HEAD = 'section-head';
 
+//NOTE: currently it's only supported for a single field to be marked as html,
+//and it must be called 'body'. See #345 for fixing that.
+
 export const TEXT_FIELD_CONFIGURATION = {
 	[TEXT_FIELD_TITLE]: {
 		html: false,
