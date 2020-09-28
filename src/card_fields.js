@@ -3,6 +3,9 @@ export const TEXT_FIELD_BODY = 'body';
 export const TEXT_FIELD_TITLE = 'title';
 export const TEXT_FIELD_SUBTITLE = 'subtitle';
 
+export const CARD_TYPE_CONTENT = 'content';
+export const CARD_TYPE_SECTION_HEAD = 'section-head';
+
 export const TEXT_FIELD_CONFIGURATION = {
 	[TEXT_FIELD_TITLE]: {
 		html: false,
@@ -13,12 +16,12 @@ export const TEXT_FIELD_CONFIGURATION = {
 	[TEXT_FIELD_BODY]: {
 		html: true,
 		container: 'section',
-		legal_card_types: {'content': true},
+		legal_card_types: {[CARD_TYPE_CONTENT]: true},
 	},
 	[TEXT_FIELD_SUBTITLE]: {
 		html: false,
 		container: 'h2',
-		legal_card_types: {'section-head': true},
+		legal_card_types: {[CARD_TYPE_SECTION_HEAD]: true},
 	}
 };
 

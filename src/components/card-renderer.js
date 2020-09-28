@@ -1,5 +1,10 @@
 import { LitElement, html } from '@polymer/lit-element';
 
+import {
+	CARD_TYPE_CONTENT,
+	CARD_TYPE_SECTION_HEAD
+} from '../card_fields.js';
+
 import './content-card.js';
 import './section-head-card.js';
 
@@ -12,8 +17,8 @@ export class CardRenderer extends LitElement {
           display:none;
         }
       </style>
-      <section-head-card .dataIsFullyLoaded=${this.dataIsFullyLoaded} ?hidden=${this._cardType != 'section-head'} .updatedFromContentEditable=${this.updatedFromContentEditable} .editing=${this.editing} .card=${this.card}></section-head-card>
-      <content-card .dataIsFullyLoaded=${this.dataIsFullyLoaded} ?hidden=${this._cardType != 'content'} .updatedFromContentEditable=${this.updatedFromContentEditable} .editing=${this.editing} .card=${this.card}></content-card>
+      <section-head-card .dataIsFullyLoaded=${this.dataIsFullyLoaded} ?hidden=${this._cardType != CARD_TYPE_SECTION_HEAD} .updatedFromContentEditable=${this.updatedFromContentEditable} .editing=${this.editing} .card=${this.card}></section-head-card>
+      <content-card .dataIsFullyLoaded=${this.dataIsFullyLoaded} ?hidden=${this._cardType != CARD_TYPE_CONTENT} .updatedFromContentEditable=${this.updatedFromContentEditable} .editing=${this.editing} .card=${this.card}></content-card>
     `;
 	}
 
@@ -27,7 +32,7 @@ export class CardRenderer extends LitElement {
 	}
 
 	get _cardType() {
-		return this.card && Object.keys(this.card).length ? this.card.card_type : 'content';
+		return this.card && Object.keys(this.card).length ? this.card.card_type : CARD_TYPE_CONTENT;
 	}
 }
 

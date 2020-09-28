@@ -17,6 +17,10 @@ import {
 	tweetOrderExtractor,
 } from './tweet-helpers.js';
 
+import {
+	CARD_TYPE_CONTENT
+} from './card_fields.js';
+
 export const DEFAULT_SET_NAME = 'all';
 //reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
 //order matters and is customizable by the user. Every other collection starts
@@ -318,7 +322,7 @@ export const TODO_COMBINED_FILTER_NAME = 'has-todo';
 const TODO_COMBINED_INVERSE_FILTER_NAME = 'no-todo';
 
 const cardMayHaveAutoTODO = card => {
-	return card && card.card_type == 'content';
+	return card && card.card_type == CARD_TYPE_CONTENT;
 };
 
 //These are the enum values in CARD_FILTER_CONFIGS that configure whether an

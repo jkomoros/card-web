@@ -36,6 +36,10 @@ import {
 } from './tabs.js';
 
 import {
+	CARD_TYPE_CONTENT
+} from './card_fields.js';
+
+import {
 	COMPOSED_USER_TYPE_ALL_PERMISSIONS,
 	COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS,
 	COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS,
@@ -409,7 +413,7 @@ export const selectUidsWithPermissions = createSelector(
 
 const selectContentCards = createSelector(
 	selectCards,
-	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => entry[1].card_type == 'content'))
+	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => entry[1].card_type == CARD_TYPE_CONTENT))
 );
 
 

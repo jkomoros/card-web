@@ -5,7 +5,8 @@ import {
 } from './stemmer.js';
 
 import {
-	TEXT_FIELD_BODY
+	TEXT_FIELD_BODY,
+	CARD_TYPE_CONTENT
 } from './card_fields.js';
 
 //define this here and then re-export form app.js so this file doesn't need any
@@ -180,7 +181,7 @@ export const cardHasContent = (card) => {
 	if (!card) return false;
 	//We treat all non-content cards as having content, since the main reason to
 	//count a card has not having content is if there's nothing to see on it.
-	if (card.card_type != 'content') return true;
+	if (card.card_type != CARD_TYPE_CONTENT) return true;
 	let content = card[TEXT_FIELD_BODY] ? card[TEXT_FIELD_BODY].trim() : '';
 	return content ? true : false;
 };
@@ -190,7 +191,7 @@ export const cardHasSubstantiveContent = (card) => {
 	if (!card) return false;
 	//We treat all non-content cards as having content, since the main reason to
 	//count a card has not having content is if there's nothing to see on it.
-	if (card.card_type != 'content') return true;
+	if (card.card_type != CARD_TYPE_CONTENT) return true;
 	let content = card.normalizedBody ? card.normalizedBody : '';
 	return content.length > SUBSTANTIVE_CONTENT_THRESHOLD;
 };

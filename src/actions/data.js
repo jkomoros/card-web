@@ -81,7 +81,9 @@ import {
 
 import {
 	TEXT_FIELD_CONFIGURATION,
-	TEXT_FIELD_BODY
+	TEXT_FIELD_BODY,
+	CARD_TYPE_CONTENT,
+	CARD_TYPE_SECTION_HEAD
 } from '../card_fields.js';
 
 //When a new tag is created, it is randomly assigned one of these values.
@@ -605,7 +607,7 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 		color: color,
 	});
 
-	let cardObject = defaultCardObject(startCardId, user, '', 'section-head');
+	let cardObject = defaultCardObject(startCardId, user, '', CARD_TYPE_SECTION_HEAD);
 	cardObject.title = displayName;
 	cardObject.subtitle = displayName + ' is a topical tag';
 
@@ -670,13 +672,13 @@ export const createCard = (opts) => async (dispatch, getState) => {
 
 	const lastSectionID = selectLastSectionID(state);
 
-	let cardType = opts.cardType || 'content';
+	let cardType = opts.cardType || CARD_TYPE_CONTENT;
 	let section = opts.section || lastSectionID;
 	let id = opts.id;
 	let noNavigate = opts.noNavigate || false;
 	let title = opts.title || '';
 
-	if (!cardType) cardType = 'content';
+	if (!cardType) cardType = CARD_TYPE_CONTENT;
 
 	if (!section) section = lastSectionID;
 	if (!section) {

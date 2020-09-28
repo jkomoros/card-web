@@ -52,6 +52,11 @@ import {
 	STARS_FALLBACK_CARD,
 } from '../tabs.js';
 
+import {
+	CARD_TYPE_CONTENT,
+	CARD_TYPE_SECTION_HEAD
+} from '../card_fields.js';
+
 const checkMaintenanceTaskHasBeenRun = async (taskName) => {
 	let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
 
@@ -358,7 +363,7 @@ export const addCardTypeToImportedCards = async () => {
 
 	db.collection(CARDS_COLLECTION).where('imported', '==', true).get().then(snapshot => {
 		snapshot.forEach(doc => {
-			batch.update(doc.ref, {'card_type': 'content'});
+			batch.update(doc.ref, {'card_type': CARD_TYPE_CONTENT});
 		});
 		batch.commit().then(() => {
 			maintenanceTaskRun(ADD_CARD_TYPE_TO_IMPORTED_CARDS);
@@ -383,22 +388,22 @@ export const addSectionHeaderCards = async () => {
 
 	halfBakedCard.title = 'Half-Baked';
 	halfBakedCard.subtitle = 'Ideas that are probably as baked as they’re going to get in this collection';
-	halfBakedCard.card_type = 'section-head';
+	halfBakedCard.card_type = CARD_TYPE_SECTION_HEAD;
 	halfBakedCard.section = 'half-baked';
 
 	barelyEdibleCard.title = 'Barely Edible';
 	barelyEdibleCard.subtitle = 'Ideas that have some detail roughed in, but not organized for clarity yet';
-	barelyEdibleCard.card_type = 'section-head';
+	barelyEdibleCard.card_type = CARD_TYPE_SECTION_HEAD;
 	barelyEdibleCard.section = 'barely-edible';
 
 	stubsCard.title = 'Stubs';
 	stubsCard.subtitle = 'Points that I plan to develop more, but haven’t yet';
-	stubsCard.card_type = 'section-head';
+	stubsCard.card_type = CARD_TYPE_SECTION_HEAD;
 	stubsCard.section = 'stubs';
 
 	randomThoughtsCard.title = 'Random Thoughts';
 	randomThoughtsCard.subtitle = 'A parking lot for early stage thoughts that might be dupes or not worth developing';
-	randomThoughtsCard.card_type = 'section-head';
+	randomThoughtsCard.card_type = CARD_TYPE_SECTION_HEAD;
 	randomThoughtsCard.section = 'random-thoughts';
 
 	batch.set(db.collection(CARDS_COLLECTION).doc(halfBakedCard.name), halfBakedCard);
@@ -773,21 +778,21 @@ export const doInitialSetUp = () => async (_, getState) => {
 		update.start_cards = [startCardId];
 		batch.set(sectionsCollection.doc(key), update);
 
-		let sectionHeadCard = defaultCardObject(startCardId,user,key,'section-head');
+		let sectionHeadCard = defaultCardObject(startCardId,user,key,CARD_TYPE_SECTION_HEAD);
 		sectionHeadCard.title = update.title;
 		sectionHeadCard.subtitle = update.subtitle;
 		batch.set(cardsCollection.doc(startCardId), sectionHeadCard);
 
-		const contentCard = defaultCardObject(contentCardId, user, key, 'content');
+		const contentCard = defaultCardObject(contentCardId, user, key, CARD_TYPE_CONTENT);
 		batch.set(cardsCollection.doc(contentCardId), contentCard);
 
 		count++;
 	}
 
-	const readingListFallbackCard = defaultCardObject(READING_LIST_FALLBACK_CARD, user, '', 'content');
+	const readingListFallbackCard = defaultCardObject(READING_LIST_FALLBACK_CARD, user, '', CARD_TYPE_CONTENT);
 	readingListFallbackCard.title = 'About Reading Lists';
 	readingListFallbackCard.body = '<p>There are a lot of cards to read in the collection, and it can be hard to keep track.</p><p>You can use a feature called <strong>reading list</strong>&nbsp;to keep track of cards you want to read next. Just hit the reading-list button below any card (it\'s the button that looks like an icon to add to a playlist) and they\'ll show up in the Reading List tab. Once you\'re done reading that card, you can simply tap the button again to remove it from your reading list.</p><p>When you see a link on any card, you can also Ctrl/Cmd-Click it to automatically add it to your reading-list even without opening it. Links to cards that are already on your reading-list will show a double-underline.</p>' ;
-	const starsFallbackCard = defaultCardObject(STARS_FALLBACK_CARD, user, '', 'content');
+	const starsFallbackCard = defaultCardObject(STARS_FALLBACK_CARD, user, '', CARD_TYPE_CONTENT);
 	starsFallbackCard.title = 'About Stars';
 	starsFallbackCard.body = '<p>You can star cards, and when you do they\'ll show up in the Starred list at the top nav.</p>';
 

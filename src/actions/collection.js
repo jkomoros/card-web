@@ -43,6 +43,10 @@ import {
 	selectActiveCollectionDescription
 } from '../selectors.js';
 
+import {
+	CARD_TYPE_SECTION_HEAD
+} from '../card_fields.js';
+
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
 
 export const PLACEHOLDER_CARD_ID_CHARACTER = '_';
@@ -200,7 +204,7 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 	//any section) AND the collection showing is not a fallback, because the
 	//fallback cards, despite being an orphan card, are not an orphan when
 	//showing in the fallback context.
-	if (card.section || card.card_type=='section-head' || collectionIsFallback) {
+	if (card.section || card.card_type==CARD_TYPE_SECTION_HEAD || collectionIsFallback) {
 
 		//We need to show the set name if it's not the default set, or if its
 		//the default set and there are no filters active (e.g.
