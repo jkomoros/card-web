@@ -169,4 +169,13 @@ describe('content editable scrubbing', () => {
 		const expected = '<p>Styled <span class="small">content</span></p>\n';
 		assert.equal(actual, expected);
 	});
+
+	it('card-links with a munged href are modified', async () => {
+		//If you copy/paste content-editable with a card-link, the href is munged.
+		const input = '<p><card-link href="http://localhost:8081/cardid">This is some text</card-link></p>';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<p><card-link card="cardid">This is some text</card-link></p>\n';
+		assert.equal(actual, expected);
+	});
+
 });

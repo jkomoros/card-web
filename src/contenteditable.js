@@ -47,6 +47,16 @@ const hrefToCardAttribute = (cardLink) => {
 
 	if (!href) return;
 	if (href.startsWith('/')) return;
+	//If you copy and paste a section, the non-valid URLs that are just naked
+	//card IDs will have the site prepended to it. Strip that off. Put in a
+	//realistic sentinel so it can be tested in a unit test.
+	let prefix = 'http://localhost:8081/';
+	try {
+		prefix = window.location.orign + '/';
+	} catch(err) {
+		//This must be in a unit test. That's OK.
+	}
+	if (href.startsWith(prefix)) href = href.slice(prefix.length);
 	if (href.startsWith('http://')) return;
 	if (href.startsWith('https://')) return;
 
