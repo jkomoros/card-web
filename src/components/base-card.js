@@ -301,14 +301,14 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 					document.execCommand('selectAll');
 					document.execCommand('delete');
 				}
-
-				if (!this._card[TEXT_FIELD_TITLE] && this._elements[TEXT_FIELD_TITLE]) {
-					//If there isn't a title, we actually want the title focused
-					//(after clearing out hte extra 'nbsp'. For some reason
-					//Chrome doesn't actually focus the second item, unless we
-					//do a timeout. :shrug:
-					setTimeout(() => this._elements[TEXT_FIELD_TITLE].focus(), 0);
-				}
+			}
+			//If the title is empty we _always_ want to select it
+			if (!this._card[TEXT_FIELD_TITLE] && this._elements[TEXT_FIELD_TITLE]) {
+				//If there isn't a title, we actually want the title focused
+				//(after clearing out hte extra 'nbsp'. For some reason
+				//Chrome doesn't actually focus the second item, unless we
+				//do a timeout. :shrug:
+				setTimeout(() => this._elements[TEXT_FIELD_TITLE].focus(), 0);
 			}
 		}
 	}
