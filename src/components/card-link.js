@@ -8,7 +8,8 @@ import {
 	selectUserReads,
 	selectCards,
 	selectUserReadingListMap,
-	selectPage
+	selectPage,
+	selectCtrlKeyPressed
 } from '../selectors.js';
 
 import { toggleOnReadingList } from '../actions/user.js';
@@ -74,8 +75,13 @@ class CardLink extends connect(store)(LitElement) {
 				a {
 					cursor: var(--card-link-cursor, pointer);
 				}
+
+				a.add-reading-list {
+					cursor: var(--card-link-cursor, copy);
+				}
+
 			</style>
-			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''} ${this.strong ? 'strong' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
+			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''} ${this.strong ? 'strong' : ''} ${this._ctrlKeyPressed ? 'add-reading-list' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
 	}
 
 	static get properties() {
@@ -87,7 +93,8 @@ class CardLink extends connect(store)(LitElement) {
 			_reads: {type: Object},
 			_cards: { type: Object},
 			_readingListMap: { type: Object},
-			_page: { type: String }
+			_page: { type: String },
+			_ctrlKeyPressed: { type: Boolean},
 		};
 	}
 
@@ -125,6 +132,7 @@ class CardLink extends connect(store)(LitElement) {
 		this._cards = selectCards(state);
 		this._readingListMap = selectUserReadingListMap(state);
 		this._page = selectPage(state);
+		this._ctrlKeyPressed = selectCtrlKeyPressed(state);
 	}
 
 	get _cardObj() {
