@@ -307,7 +307,11 @@ export const showCard = (requestedCard) => (dispatch, getState) => {
 	//The qreuestedCard is a placeholder, so we need to select the cardId based
 	//on the current collection.
 	if (cardIdIsPlaceholder(requestedCard)) {
-		if (!selectDataIsFullyLoaded(state)) return;
+		//We used to check that data was fully loaded here. But that delays
+		//showing the content for the card until EVERYTHING is loaded. And
+		//because the cardID is canonically removed from the URL, it doesn't
+		//really matter if we change the requested card later. This logic will
+		//need updating if/when we support other placeholders like _random.
 		let collection = selectFinalCollection(state);
 		cardId = cardIdForPlaceholder(requestedCard, collection);
 		//If there's no valid card then give up.
