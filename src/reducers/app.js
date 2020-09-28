@@ -26,6 +26,7 @@ import {
 	UPDATE_HOVERED_CARD,
 	UPDATE_FETCHED_CARD,
 	CARD_BEING_FETCHED,
+	UPDATE_CTRL_KEY_PRESSED
 } from '../actions/app.js';
 
 const HEADER_PANEL_DEFAULT_VALUE = true;
@@ -49,6 +50,7 @@ const INITIAL_STATE = {
 	//the card that was fetched as a singleton, for example in basic-card-view.
 	fetchedCard: {},
 	cardBeingFetched: false,
+	ctrlKeyPressed: false,
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -148,6 +150,11 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			cardBeingFetched: true
+		};
+	case UPDATE_CTRL_KEY_PRESSED:
+		return {
+			...state,
+			ctrlKeyPressed: action.pressed
 		};
 	default:
 		return state;

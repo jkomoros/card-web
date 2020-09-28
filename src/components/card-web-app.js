@@ -26,6 +26,7 @@ import {
 	navigated,
 	updateOffline,
 	turnMobileMode,
+	ctrlKeyPressed,
 	PAGE_BASIC_CARD,
 } from '../actions/app.js';
 
@@ -114,12 +115,26 @@ class CardWebApp extends connect(store)(LitElement) {
 		setPassiveTouchGestures(true);
 	}
 
+	_handleKeyDown(e) {
+		if (e.key == 'Meta' || e.key == 'Control') {
+			store.dispatch(ctrlKeyPressed(true));
+		}
+	}
+
+	_handleKeyUp(e) {
+		if (e.key == 'Meta' || e.key == 'Control') {
+			store.dispatch(ctrlKeyPressed(false));
+		}
+	}
+
 	firstUpdated() {
 		installRouter((location) => store.dispatch(navigated(decodeURIComponent(location.pathname), decodeURIComponent(location.search))));
 		installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
 		installMediaQueryWatcher('(max-width: 900px)',(isMobile) => {
 			store.dispatch(turnMobileMode(isMobile));
 		});
+		document.addEventListener('keydown', this._handleKeyDown.bind(this));
+		document.addEventListener('keyup', this._handleKeyUp.bind(this));
 	}
 
 	updated(changedProps) {

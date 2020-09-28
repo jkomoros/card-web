@@ -25,6 +25,7 @@ export const DISABLE_MOBILE_MODE = 'DISABLE_MOBILE_MODE';
 export const UPDATE_HOVERED_CARD = 'UPDATE_HOVERED_CARD';
 export const UPDATE_FETCHED_CARD = 'UPDATE_FETCHED_CARD';
 export const CARD_BEING_FETCHED = 'CARD_BEING_FETCHED';
+export const UPDATE_CTRL_KEY_PRESSED = 'UPDATE_CTRL_KEY_PRESSED';
 
 import {
 	_PAGE_BASIC_CARD
@@ -453,5 +454,12 @@ export const turnMobileMode = (on) => (dispatch) => {
 	}
 	dispatch(disablePresentationMode());
 	dispatch({type:DISABLE_MOBILE_MODE});
+};
+
+export const ctrlKeyPressed = (pressed) => {
+	return {
+		type: UPDATE_CTRL_KEY_PRESSED,
+		pressed,
+	};
 };
 

@@ -120,6 +120,7 @@ export const selectUserReadingList = (state) => state.user ? state.user.readingL
 const selectUserReadingListForSet = (state) => state.user ? state.user.readingListForSet : [];
 
 const selectCardsDrawerPanelOpen = (state) => state.app ? state.app.cardsDrawerPanelOpen : false;
+export const selectCtrlKeyPressed = (state) => state.app ? state.app.ctrlKeyPressed : false;
 
 //selectQuery is what you should use to update the UI with the literal query
 export const selectQuery = (state) => state.find.query;
