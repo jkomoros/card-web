@@ -141,11 +141,11 @@ class CardDrawer extends connect(store)(LitElement) {
 					background-color: var(--unpublished-card-color);
 				}
 
-				.thumbnail.selected {
+				.thumbnail.highlighted {
 					border:2px solid var(--app-primary-color);
 				}
 
-				.thumbnail.selected h3 {
+				.thumbnail.highlighted h3 {
 					color: var(--app-primary-color);
 				}
 
@@ -153,7 +153,7 @@ class CardDrawer extends connect(store)(LitElement) {
 					background-color: var(--app-primary-color);
 				}
 
-				.thumbnail.section-head.partial.selected {
+				.thumbnail.section-head.partial.highlighted {
 					border: 2px solid var(--app-light-text-color);
 				}
 
@@ -161,7 +161,7 @@ class CardDrawer extends connect(store)(LitElement) {
 					color: var(--app-light-text-color);
 				}
 
-				.thumbnail.section-head.selected h3 {
+				.thumbnail.section-head.highlighted h3 {
 					color: var(--app-primary-color-light);
 				}
 
@@ -215,7 +215,7 @@ class CardDrawer extends connect(store)(LitElement) {
 		const hasContent = cardHasContent(card);
 
 		return html`
-			<div  .card=${card} .index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.editable ? 'true' : 'false'}' class="thumbnail ${card.id == this.selectedCardId ? 'selected' : ''} ${card.card_type} ${card && card.published ? '' : 'unpublished'} ${this.collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
+			<div  .card=${card} .index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.editable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${card.card_type} ${card && card.published ? '' : 'unpublished'} ${this.collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
 					${this.fullCards ? html`<card-renderer .card=${card}></card-renderer>` : html`<h3 class=${hasContent ? '' : 'nocontent'}>${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
 					${cardBadges(card.card_type != CARD_TYPE_CONTENT, card, this._badgeMap)}
 			</div>
@@ -234,22 +234,22 @@ class CardDrawer extends connect(store)(LitElement) {
 		return ele.innerText.split('\n')[0];
 	}
 
-	_scrollSelectedThumbnailIntoView(force) {
+	_scrollHighlightedThumbnailIntoView(force) {
 		if (force) {
 			//note that we should scroll eiterh this time or next time we're called.
-			this._selectedScrolled = false;
+			this._highlightedScrolled = false;
 		}
 		//if force is true, then will scroll, and if it can't, will take a note to try next time
-		if (!this._selectedViaClick && !this._selectedScrolled) {
+		if (!this._highlightedViaClick && !this._highlightedScrolled) {
 			//we prepend 'id-' to the front of the ID because ids must start
 			//with a letter, and some card IDs in production start with numbers.
-			const ele = this.shadowRoot.querySelector('#id-' + this.selectedCardId);
+			const ele = this.shadowRoot.querySelector('#id-' + this.highlightedCardId);
 			if (ele) {
 				ele.scrollIntoView({behavior:'auto', block:'center'});
-				this._selectedScrolled = true;
+				this._highlightedScrolled = true;
 			}
 		}
-		this._selectedViaClick = false;
+		this._highlightedViaClick = false;
 	}
 
 	_handleThumbnailClick(e) {
@@ -261,7 +261,7 @@ class CardDrawer extends connect(store)(LitElement) {
 				break;
 			}
 		}
-		this._selectedViaClick = true;
+		this._highlightedViaClick = true;
 		const ctrl = e.ctrlKey || e.metaKey;
 		//TODO: ctrl-click on mac shouldn't show the right click menu
 		this.dispatchEvent(new CustomEvent('thumbnail-tapped', {composed:true, detail: {card: card, ctrl}}));
@@ -348,17 +348,17 @@ class CardDrawer extends connect(store)(LitElement) {
 			collection: { type: Array },
 			labels: {type: Array},
 			labelName: {type:String},
-			selectedCardId: { type:String },
+			highlightedCardId: { type:String },
 			collectionItemsToGhost: { type: Object },
 			fullCards: {type:Boolean},
 			reorderPending: {type:Boolean},
 			//_showing is more complicated than whether we're open or yet.
 			showing: {type:Boolean},
 			_dragging: {type: Boolean},
-			_selectedViaClick: {type: Boolean},
-			//Keeps track of if we've scrolled to the selected card yet;
-			//sometimes the selectedCardId won't have been loaded yet
-			_selectedScrolled: {type: Boolean},
+			_highlightedViaClick: {type: Boolean},
+			//Keeps track of if we've scrolled to the highlighted card yet;
+			//sometimes the highlightedCardId won't have been loaded yet
+			_highlightedScrolled: {type: Boolean},
 			_badgeMap: { type: Object },
 		};
 	}
@@ -368,13 +368,13 @@ class CardDrawer extends connect(store)(LitElement) {
 	}
 
 	updated(changedProps) {
-		if(changedProps.has('selectedCardId') && this.selectedCardId) {
-			this._scrollSelectedThumbnailIntoView(true);
+		if(changedProps.has('highlightedCardId') && this.highlightedCardId) {
+			this._scrollHighlightedThumbnailIntoView(true);
 		}
 		//collection might change for example on first load when unpublished
 		//cards are loaded,but we're OK with it not happening if the scroll already happened.
 		if (changedProps.has('collection')) {
-			this._scrollSelectedThumbnailIntoView(false);
+			this._scrollHighlightedThumbnailIntoView(false);
 		}
 	}
 }
