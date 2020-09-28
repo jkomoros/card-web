@@ -115,7 +115,6 @@ import {
 } from './my-icons.js';
 
 import {
-	modifyCard,
 	reorderCard
 } from '../actions/data.js';
 
@@ -293,12 +292,6 @@ class CardView extends connect(store)(PageViewElement) {
 			_tagInfos: {type:Object},
 			_cardTodos: {type: Array},
 		};
-	}
-
-	modifyTitle() {
-		let title = prompt('What should the new title be for this card?', this._card.title);
-		if (!title) return;
-		store.dispatch(modifyCard(this._card, {title:title}, false));
 	}
 
 	_thumbnailActivatedHandler(e) {
