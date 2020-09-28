@@ -49,6 +49,7 @@ class CardWebApp extends connect(store)(LitElement) {
 				--app-primary-color: #5e2b97;
 				--app-primary-color-light: #bc9ae2;
 				--app-primary-color-subtle: #7e57c2;
+				--app-primary-color-light-transparent: #bc9ae266;
 				--app-secondary-color: #009688;
 				--app-secondary-color-light: #00dac6;
 				--app-warning-color: #CC0000;

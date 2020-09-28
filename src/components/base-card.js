@@ -68,8 +68,8 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 					background-color: var(--unpublished-card-color);
 				}
 
-				.container.editing > *{
-					opacity:0.7;
+				.container.editing {
+					box-shadow: inset 0 0 4em 1em var(--app-primary-color-light-transparent);
 				}
 
 				.container.editing card-link[card] {
