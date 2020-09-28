@@ -128,7 +128,11 @@ const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURA
 	'published'
 ]).map(key => [key,true]));
 
-export const modifyCard = (card, update, substantive) => (dispatch, getState) => {
+export const modifyCard = (card, update, substantive, optBatch) => (dispatch, getState) => {
+
+	//If optBatch is provided, then it will not create a batch and instead make
+	//the modifications on it, and then NOT commit it. If optBatch is not
+	//provided, it will create a batch and commit it before returning.
 
 	//Check to make sure card sin't being modified
 	const state = getState();
@@ -298,7 +302,7 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 		cardUpdateObject.auto_todo_overrides = overrides;
 	}
 
-	let batch = db.batch();
+	let batch = optBatch || db.batch();
 
 	let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
 
@@ -377,7 +381,7 @@ export const modifyCard = (card, update, substantive) => (dispatch, getState) =>
 		}
 	}
 
-	batch.commit().then(() => dispatch(modifyCardSuccess()))
+	if(!optBatch) batch.commit().then(() => dispatch(modifyCardSuccess()))
 		.catch((err) => dispatch(modifyCardFailure(err)));
 
 };
