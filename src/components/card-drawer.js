@@ -311,7 +311,14 @@ class CardDrawer extends connect(store)(LitElement) {
 			}
 		}
 
-		this._dragging = thumbnail;
+		//If this was set immediately, then thigns would be rerendered with the
+		//spacer beneath the card being on top of the card. If the mouse cursor
+		//was over top of the spacer to start, this would lead to an immediate
+		//dragend, basically forbiding starting a drag from the top half of a
+		//card (that overlaps with the spacer). This might be a bug in Chrome?
+		//In any case, wait a tick before updating the property that will lead
+		//to the spacers popping to the front. See #335 for more.
+		setTimeout(() => this._dragging = thumbnail, 0);
 
 		//when dragging is happening, hovers and other events won't be
 		//happening... but if a card hover was pending, make sure it's cleared
