@@ -241,24 +241,28 @@ export const todoUpdated = (newTodo) => {
 
 var extractLinksTimeout;
 
-export const textFieldUpdated = (fieldName, value, fromContentEditable) => (dispatch) => {
+export const textFieldUpdated = (fieldName, value, fromContentEditable) => (dispatch, getState) => {
 	if (!fromContentEditable) fromContentEditable = false;
 
 	const config = TEXT_FIELD_CONFIGURATION[fieldName] || {};
 
 	if (config.html) {
-		//Make sure we have a timeout to extract links a bit of time after the last edit was made.
-		if (extractLinksTimeout) window.clearTimeout(extractLinksTimeout);
-		extractLinksTimeout = window.setTimeout(() => {
-			extractLinksTimeout = 0;
-			dispatch({type: EDITING_EXTRACT_LINKS});
-		}, 1000);
-
 		//We only run it if it's coming from contentEditable because
 		//normalizeBodyHTML assumes the contnet is valid HTML, and if it's been
 		//updated in the editor textbox, and for example the end says `</p`,
 		//then it's not valid HTML.
 		value = fromContentEditable ? normalizeBodyHTML(value) : value;
+	}
+
+	const currentCard = selectEditingCard(getState());
+	if (currentCard && currentCard[fieldName] === value) {
+		//The values are exactly the same, skip dispatching the update. This
+		//could happen for example when a blank card is opened for editing and
+		//the nbsp; hack has to be cleared out. If we were to dispatch even for
+		//a no-op, then when EDITING_EXTRACT_LINKS fired, it would update the
+		//card to a new object, which would then lead to the content-card to
+		//re-render, potentially losing focus. (See #347).
+		return;
 	}
 
 	dispatch({
@@ -268,6 +272,15 @@ export const textFieldUpdated = (fieldName, value, fromContentEditable) => (disp
 		value: value,
 		fromContentEditable
 	});
+
+	if (config.html) {
+		//Make sure we have a timeout to extract links a bit of time after the last edit was made.
+		if (extractLinksTimeout) window.clearTimeout(extractLinksTimeout);
+		extractLinksTimeout = window.setTimeout(() => {
+			extractLinksTimeout = 0;
+			dispatch({type: EDITING_EXTRACT_LINKS});
+		}, 1000);
+	}
 };
 
 export const sectionUpdated = (newSection) => (dispatch, getState) => {
