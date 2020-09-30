@@ -354,7 +354,7 @@ export const doCommit  = () => (dispatch, getState) => {
 let hoverPreviewTimer;
 let HOVER_CARD_PREVIEW_DELAY = 1000;
 
-const cancelHoverTimeout = () => {
+export const cancelHoverTimeout = () => {
 	if (!hoverPreviewTimer) return;
 	window.clearTimeout(hoverPreviewTimer);
 	hoverPreviewTimer = 0;

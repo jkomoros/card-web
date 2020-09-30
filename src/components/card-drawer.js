@@ -20,6 +20,7 @@ import { SharedStyles } from './shared-styles.js';
 import { selectBadgeMap } from '../selectors';
 import { cardHasContent } from '../util.js';
 import { CARD_TYPE_CONTENT } from '../card_fields.js';
+import { cancelHoverTimeout } from '../actions/app.js';
 
 class CardDrawer extends connect(store)(LitElement) {
 	render() {
@@ -311,6 +312,11 @@ class CardDrawer extends connect(store)(LitElement) {
 		}
 
 		this._dragging = thumbnail;
+
+		//when dragging is happening, hovers and other events won't be
+		//happening... but if a card hover was pending, make sure it's cleared
+		//out.
+		cancelHoverTimeout();
 	}
 
 	_handleDragEnd() {
