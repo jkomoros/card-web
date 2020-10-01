@@ -54,6 +54,10 @@ import {
 } from '../actions/data.js';
 
 import {
+	keepSlugLegalWarm
+} from '../actions/database.js';
+
+import {
 	openFindDialog
 } from '../actions/find.js';
 
@@ -482,6 +486,9 @@ class CardView extends connect(store)(PageViewElement) {
 			//Verify that our URL shows the canoncial name, which may have just
 			//changed when edited.
 			store.dispatch(canonicalizeURL());
+		}
+		if ((changedProps.has('_userMayEdit') && this._userMayEdit) || (changedProps.has('_userMayCreateCard') && this._userMayCreateCard)) {
+			keepSlugLegalWarm();
 		}
 		if (changedProps.has('_card') && this._card && this._card.name) {
 			store.dispatch(canonicalizeURL());

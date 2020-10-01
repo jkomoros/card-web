@@ -66,6 +66,22 @@ export const slugLegal = async (newSlug) => {
 	return result.data;
 };
 
+const warmupSlugLegal = () => {
+	return legalCallable({type:'warmup'});
+};
+
+let slugLegalInterval = 0;
+const KEEP_WARM_INTERVAL = 2 * 60 * 1000;
+
+//keepSlugLegalWarm should be called whenever we notice that the user should
+//keep slugLegal warm. Repeated calls won't cause it to call extra times.
+export const keepSlugLegalWarm = () => {
+	//Only start the interval once.
+	if (slugLegalInterval) return;
+	warmupSlugLegal();
+	slugLegalInterval = setInterval(warmupSlugLegal,KEEP_WARM_INTERVAL);
+};
+
 export const connectLiveMessages = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
 	//Deliberately DO fetch deleted messages, so we can render stubs for them.

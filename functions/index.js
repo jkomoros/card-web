@@ -53,6 +53,12 @@ exports.screenshot = functions.runWith({
 
 //expects data to have type:{slug},  and value be the string to check
 exports.legal = functions.https.onCall(async (data) => {
+    if (data.type === 'warmup') {
+        return {
+            legal: true,
+            reason: '',
+        };
+    }
     if (data.type !== 'slug') {
         throw new functions.https.HttpsError('invalid-type', 'Invalid type: ' + data.type);
     }
