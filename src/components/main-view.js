@@ -101,6 +101,7 @@ class MainView extends connect(store)(LitElement) {
 				width: 100vw;
 				display:flex;
 				flex-direction:column;
+				background-color: var(--app-light-text-color);
 			}
 
 			.header {

@@ -56,6 +56,7 @@ class CardWebApp extends connect(store)(LitElement) {
 				--app-warning-color: #CC0000;
 				--app-warning-color-light: #EE0000;
 
+				/* note: this is also replicated in index.TEMPLATE.html */
 				--app-dark-text-color: #7f7f7f;
 				--app-light-text-color: white;
 				--app-section-even-color: #f7f7f7;
