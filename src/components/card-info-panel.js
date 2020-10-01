@@ -61,7 +61,6 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				:host {
 					flex-grow: 1;
 					border-bottom: 1px solid var(--app-divider-color);
-					border-left: 1px solid var(--app-divider-color);
 					overflow: hidden;
 				}
 
