@@ -66,20 +66,32 @@ export const slugLegal = async (newSlug) => {
 	return result.data;
 };
 
-const warmupSlugLegal = () => {
+const warmupSlugLegal = (force) => {
+	if (!force && !userHadActivity) return;
+	//Mark that we've already triggered for that activity, and will need new
+	//activity to trigger again.
+	userHadActivity = false;
 	return legalCallable({type:'warmup'});
 };
 
 let slugLegalInterval = 0;
 const KEEP_WARM_INTERVAL = 2 * 60 * 1000;
 
+let userHadActivity = false;
+
+const userActivity = () => {
+	userHadActivity = true;
+};
+
 //keepSlugLegalWarm should be called whenever we notice that the user should
 //keep slugLegal warm. Repeated calls won't cause it to call extra times.
 export const keepSlugLegalWarm = () => {
 	//Only start the interval once.
 	if (slugLegalInterval) return;
-	warmupSlugLegal();
-	slugLegalInterval = setInterval(warmupSlugLegal,KEEP_WARM_INTERVAL);
+	document.addEventListener('mousemove', userActivity);
+	document.addEventListener('keydown', userActivity);
+	warmupSlugLegal(true);
+	slugLegalInterval = setInterval(warmupSlugLegal, KEEP_WARM_INTERVAL);
 };
 
 export const connectLiveMessages = () => {
