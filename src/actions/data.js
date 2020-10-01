@@ -9,6 +9,8 @@ export const MODIFY_CARD_SUCCESS = 'MODIFY_CARD_SUCCESS';
 export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
 export const REORDER_STATUS = 'REORDER_STATUS';
 export const SET_PENDING_SLUG = 'SET_PENDING_SLUG';
+export const EXPECT_NEW_CARD = 'EXPECT_NEW_CARD';
+export const NAVIGATED_TO_NEW_CARD = 'NAVIGATED_TO_NEW_CARD';
 
 import {
 	slugLegal,
@@ -65,7 +67,8 @@ import {
 	selectLastSectionID,
 	getUserMayEditSection,
 	getUserMayEditTag,
-	selectUserMayCreateCard
+	selectUserMayCreateCard,
+	selectPendingNewCardID
 } from '../selectors.js';
 
 import {
@@ -759,7 +762,23 @@ export const createCard = (opts) => async (dispatch, getState) => {
 
 	//updateSections will be called and update the current view.
 
-	if (!noNavigate) dispatch(navigateToCard(id));
+	if (noNavigate) return;
+
+	dispatch({
+		type: EXPECT_NEW_CARD,
+		ID: id,
+	});
+
+	//card-view's updated will call navigateToNewCard once the data is fully loaded again
+};
+
+export const navigateToNewCard = () => (dispatch, getState) => {
+	const ID = selectPendingNewCardID(getState());
+	if (!ID) return;
+	dispatch({
+		type:NAVIGATED_TO_NEW_CARD,
+	});
+	dispatch(navigateToCard(ID));
 };
 
 const modifyCardAction = (cardId) => {

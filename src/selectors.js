@@ -96,6 +96,7 @@ export const selectSections = (state) => state.data ? state.data.sections : {};
 export const selectTags = (state) => state.data ? state.data.tags : {};
 //All cards downloaded to client can be assumed to be OK to use in the rest of the pipeline.
 export const selectCards = (state) => state.data ? state.data.cards : {};
+export const selectPendingNewCardID = (state) => state.data ? state.data.pendingNewCardID : '';
 const selectPublishedCardsLoaded = (state) => state.data ? state.data.publishedCardsLoaded : false;
 const selectUnpublishedCardsLoaded = (state) => state.data ? state.data.unpublishedCardsLoaded : false;
 export const selectSectionsLoaded = (state) => state.data ? state.data.sectionsLoaded : false;

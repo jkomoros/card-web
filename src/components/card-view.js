@@ -40,7 +40,8 @@ import {
 	selectUserMayEditActiveCard,
 	selectUserMayCreateCard,
 	selectSectionsLoaded,
-	selectEditingUpdatedFromContentEditable
+	selectEditingUpdatedFromContentEditable,
+	selectPendingNewCardID
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -51,6 +52,7 @@ import {
 
 import {
 	createCard,
+	navigateToNewCard
 } from '../actions/data.js';
 
 import {
@@ -295,6 +297,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_sectionsLoaded: {type:Boolean},
 			_tagInfos: {type:Object},
 			_cardTodos: {type: Array},
+			_pendingNewCardID: {type:String},
 		};
 	}
 
@@ -442,6 +445,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._dataIsFullyLoaded = selectDataIsFullyLoaded(state);
 		this._sectionsLoaded = selectSectionsLoaded(state);
 		this._cardTodos = selectActiveCardTodosForCurrentUser(state);
+		this._pendingNewCardID = selectPendingNewCardID(state);
 	}
 
 	_changedPropsAffectCanvasSize(changedProps) {
@@ -481,6 +485,9 @@ class CardView extends connect(store)(PageViewElement) {
 				//_pageExtra loaded when sections were already loaded
 				store.dispatch(navigateToDefaultIfSectionsLoaded());
 			}
+		}
+		if ((changedProps.has('_pendingNewCardID') || changedProps.has('_dataIsFullyLoaded')) && this._dataIsFullyLoaded && this._pendingNewCardID) {
+			store.dispatch(navigateToNewCard());
 		}
 		if (changedProps.has('_editing') && !this._editing) {
 			//Verify that our URL shows the canoncial name, which may have just

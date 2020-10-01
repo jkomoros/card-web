@@ -8,7 +8,9 @@ import {
 	MODIFY_CARD,
 	MODIFY_CARD_SUCCESS,
 	MODIFY_CARD_FAILURE,
-	REORDER_STATUS
+	REORDER_STATUS,
+	EXPECT_NEW_CARD,
+	NAVIGATED_TO_NEW_CARD
 } from '../actions/data.js';
 
 const INITIAL_STATE = {
@@ -30,11 +32,29 @@ const INITIAL_STATE = {
 	//The modification that is pending
 	cardModificationPending: '',
 	cardModificationError: null,
-	reorderPending: false
+	reorderPending: false,
+	pendingNewCardID: '',
 };
 
 const app = (state = INITIAL_STATE, action) => {
 	switch (action.type) {
+	case EXPECT_NEW_CARD:
+		//This means that although we may think we're fully loaded now, there's
+		//a new card that was just added to database that firebase hasn't yet
+		//told us about.
+		return {
+			...state,
+			sectionsLoaded: false,
+			unpublishedCardsLoaded: false,
+			reorderPending: true,
+			pendingNewCardID: action.ID,
+		};
+	case NAVIGATED_TO_NEW_CARD:
+		return {
+			...state,
+			reorderPending: false,
+			pendingNewCardID: '',
+		};
 	case UPDATE_CARDS:
 		let result = {
 			...state,
