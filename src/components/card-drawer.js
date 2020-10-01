@@ -346,7 +346,7 @@ class CardDrawer extends connect(store)(LitElement) {
 		//reorderCard expects the index to insert to be after popping the item out
 		//first--which means that if you drag it down to below where it was
 		//before, it's off by one.
-		if (thumbnail.index <= target.index) index--;
+		if (thumbnail.index < target.index) index--;
 		this.dispatchEvent(new CustomEvent('reorder-card', {composed: true, detail: {card: thumbnail.card, index: index}}));
 	}
 
