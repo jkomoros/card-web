@@ -733,11 +733,26 @@ export const createCard = (opts) => async (dispatch, getState) => {
 
 	let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
 
+	if (!noNavigate) {
+		//Tell card-view to expect a new card to be loaded, and when data is
+		//fully loaded again, it will then trigger the navigation.
+		dispatch({
+			type: EXPECT_NEW_CARD,
+			ID: id,
+		});
+	}
+
 	//Check to make sure the ID is legal. Note that the id and slugs are in the
 	//same ID space, so we can reuse slugLegal.
 	const result = await slugLegal(id);
 	if (!result.legal) {
 		console.log('ID is already taken: ' + result.reason);
+		if (!noNavigate) {
+			//Tell it to not expect the card to be inserted anymore
+			dispatch({
+				type:NAVIGATED_TO_NEW_CARD,
+			});
+		}
 		return;
 	}
 
@@ -760,16 +775,9 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		transaction.set(cardDocRef, obj);
 	});
 
-	//updateSections will be called and update the current view.
-
-	if (noNavigate) return;
-
-	dispatch({
-		type: EXPECT_NEW_CARD,
-		ID: id,
-	});
-
-	//card-view's updated will call navigateToNewCard once the data is fully loaded again
+	//updateSections will be called and update the current view. card-view's
+	//updated will call navigateToNewCard once the data is fully loaded again
+	//(if EXPECT_NEW_CARD was dispatched above)
 };
 
 export const navigateToNewCard = () => (dispatch, getState) => {
