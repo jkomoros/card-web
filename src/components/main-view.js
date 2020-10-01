@@ -330,8 +330,8 @@ class MainView extends connect(store)(LitElement) {
 	}
 
 	firstUpdated() {
-		window.addEventListener('resize', () => this._updatePreviewSize());
-		this._updatePreviewSize();
+		window.addEventListener('resize', () => this._handleResize());
+		this._handleResize();
 		window.addEventListener('keydown', e => this._handleKeyPressed(e));
 		this.addEventListener('card-hovered', e => this._handleCardHovered(e));
 	}
@@ -343,6 +343,19 @@ class MainView extends connect(store)(LitElement) {
 		connectLiveAuthors();
 		connectLiveThreads();
 		connectLiveMessages();
+	}
+
+	_handleResize() {
+		this._updateInnerHeight();
+		this._updatePreviewSize();
+	}
+
+	_updateInnerHeight() {
+		//Safari sizes 100vh layouts to ignore the address bar and toolbar,
+		//which can be HUGE in landscape mode. So set it to innerHeight
+		//automatically.  See
+		//https://medium.com/@susiekim9/how-to-compensate-for-the-ios-viewport-unit-bug-46e78d54af0d
+		this.shadowRoot.querySelector('.container').style.height = '' + window.innerHeight + 'px';
 	}
 
 	_updatePreviewSize() {
