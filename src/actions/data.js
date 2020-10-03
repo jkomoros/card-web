@@ -743,7 +743,8 @@ export const createCard = (opts) => async (dispatch, getState) => {
 	}
 
 	//Check to make sure the ID is legal. Note that the id and slugs are in the
-	//same ID space, so we can reuse slugLegal.
+	//same ID space, so we can reuse slugLegal. Note that slugLegal could take
+	//up to 10 seconds to complete if the cloud function is not pre-warmed.
 	const result = await slugLegal(id);
 	if (!result.legal) {
 		console.log('ID is already taken: ' + result.reason);
