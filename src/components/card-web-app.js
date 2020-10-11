@@ -128,6 +128,15 @@ class CardWebApp extends connect(store)(LitElement) {
 		}
 	}
 
+	_handleBlur() {
+		//system-wide key combionations like Cmd-Tab will make the window lose
+		//focus. So we'll see a keydown for Ctrl, but never a key up, which
+		//would mean that we'd just still think Ctrl was pressed. If we lose
+		//focus, make sure we know that Ctrl isn't pressed. It's OK to send this
+		//because it won't have a state modification unless it needs one.
+		store.dispatch(ctrlKeyPressed(false));
+	}
+
 	firstUpdated() {
 		installRouter((location) => store.dispatch(navigated(decodeURIComponent(location.pathname), decodeURIComponent(location.search))));
 		installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
@@ -136,6 +145,7 @@ class CardWebApp extends connect(store)(LitElement) {
 		});
 		document.addEventListener('keydown', this._handleKeyDown.bind(this));
 		document.addEventListener('keyup', this._handleKeyUp.bind(this));
+		window.addEventListener('blur', this._handleBlur.bind(this));
 	}
 
 	updated(changedProps) {

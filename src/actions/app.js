@@ -53,7 +53,8 @@ import {
 	selectIsEditing,
 	selectActiveCardIndex,
 	selectUserMayEditActiveCard,
-	selectDefaultSectionID
+	selectDefaultSectionID,
+	selectCtrlKeyPressed
 } from '../selectors.js';
 
 import {
@@ -456,10 +457,12 @@ export const turnMobileMode = (on) => (dispatch) => {
 	dispatch({type:DISABLE_MOBILE_MODE});
 };
 
-export const ctrlKeyPressed = (pressed) => {
-	return {
+export const ctrlKeyPressed = (pressed) => (dispatch, getState) => {
+	//Only dispatch if it will make a change
+	if (selectCtrlKeyPressed(getState()) === pressed) return;
+	dispatch({
 		type: UPDATE_CTRL_KEY_PRESSED,
 		pressed,
-	};
+	});
 };
 
