@@ -395,6 +395,7 @@ class MainView extends connect(store)(LitElement) {
 			e.stopPropagation();
 			e.preventDefault();
 			store.dispatch(openFindDialog());
+			break;
 		case 'ArrowDown':
 		case 'ArrowRight':
 		case ' ':
