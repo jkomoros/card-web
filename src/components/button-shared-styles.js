@@ -93,13 +93,5 @@ export const ButtonSharedStyles = html`
 		margin-top:1em;
 	}
 
-	select {
-		border:0;
-		font-size:16px;
-		font-family:var( --app-default-font-family);
-		-webkit-appearance:none;
-		background-color:transparent;
-	}
-
 </style>
 `;
