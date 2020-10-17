@@ -39,13 +39,9 @@ import {
 	selectPage,
 	selectPageExtra,
 	getCardIndexForActiveCollection,
-	selectCollectionIsFallback,
-	selectActiveCollectionDescription
+	selectActiveCollectionDescription,
+	selectActiveCollectionContainsCards
 } from '../selectors.js';
-
-import {
-	CARD_TYPE_SECTION_HEAD
-} from '../card_fields.js';
 
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
 
@@ -189,7 +185,7 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 
 	let activeSectionId = selectActiveSectionId(state);
 	const description = selectActiveCollectionDescription(state);
-	let collectionIsFallback = selectCollectionIsFallback(state);
+	const collectionContainsCards = selectActiveCollectionContainsCards(state);
 
 	let result = [PAGE_DEFAULT];
 
@@ -198,13 +194,13 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 	if (requestedCard == PLACEHOLDER_CARD_ID_CHARACTER) requestedCard = '';
 	
 
-	//If the card is an orphan, then it should just be the set name (if
-	//non-default), and then its card name. A card is an orphan if it is not in
-	//a section AND it is not a section-head card (tag header cards are not in
-	//any section) AND the collection showing is not a fallback, because the
-	//fallback cards, despite being an orphan card, are not an orphan when
-	//showing in the fallback context.
-	if (card.section || card.card_type==CARD_TYPE_SECTION_HEAD || collectionIsFallback) {
+	//As long as the card is not a singleton orphan, then we want to put in the
+	//sets and filters (possibly eliding the set if it's the default URL to the
+	//card). A card is a singleton orphan if it has a blank section AND the
+	//current collection doesn't have any cards. It's possible for an orphan
+	//card to be selected, e.g. if the `everything` set (as opposed to the
+	//`main` set) is selected.
+	if (collectionContainsCards || card.section) {
 
 		//We need to show the set name if it's not the default set, or if its
 		//the default set and there are no filters active (e.g.

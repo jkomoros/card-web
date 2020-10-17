@@ -1011,6 +1011,11 @@ const selectActiveCollection = createSelector(
 	(description, cards, sets, filters, sections, fallbacks) => description ? description.collection(cards, sets, filters, sections, fallbacks) : null
 );
 
+export const selectActiveCollectionContainsCards = createSelector(
+	selectActiveCollection,
+	(collection) => collection.numCards > 0
+);
+
 export const selectCountsForTabs = createSelector(
 	selectExpandedTabConfig,
 	selectCards,
