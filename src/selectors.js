@@ -975,8 +975,17 @@ export const selectDefaultSet = createSelector(
 
 const selectEverythingSet = createSelector(
 	selectCards,
-	//TODO: better sorting
-	(cards) => Object.keys(cards)
+	(cards) => {
+		let keys = Object.keys(cards);
+		keys.sort((a, b) => {
+			let aCard = cards[a];
+			let bCard = cards[b];
+			let aTimestamp = aCard.updated && aCard.updated.seconds ? aCard.updated.seconds : 0;
+			let bTimestamp = bCard.updated && bCard.updated.seconds ? bCard.updated.seconds : 0;
+			return bTimestamp - aTimestamp;
+		});
+		return keys;
+	}
 );
 
 const selectAllSets = createSelector(
