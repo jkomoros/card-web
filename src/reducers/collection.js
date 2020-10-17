@@ -26,7 +26,8 @@ import {
 	FILTER_EQUIVALENTS_FOR_SET,
 	DEFAULT_SET_NAME,
 	READING_LIST_SET_NAME,
-	CARD_FILTER_FUNCS
+	CARD_FILTER_FUNCS,
+	EVERYTHING_SET_NAME
 } from '../filters.js';
 
 const app = (state = INITIAL_STATE, action) => {
@@ -124,6 +125,9 @@ const makeFilterFromCards = (cards, previousFilters) => {
 		}
 		result[filterName] = setUnion(setRemove(previousFilters[filterName], newNonMatchingCards), newMatchingCards);
 	}
+	const everythingFilterName = FILTER_EQUIVALENTS_FOR_SET[EVERYTHING_SET_NAME];
+	//Literally every card is in the everything set.
+	result[everythingFilterName] = setUnion(previousFilters[everythingFilterName], Object.keys(cards));
 	return result;
 };
 

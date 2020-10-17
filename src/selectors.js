@@ -24,6 +24,7 @@ import {
 	TODO_COMBINED_FILTER_NAME,
 	DEFAULT_SET_NAME,
 	READING_LIST_SET_NAME,
+	EVERYTHING_SET_NAME,
 	cardTodoConfigKeys
 } from './filters.js';
 
@@ -972,13 +973,21 @@ export const selectDefaultSet = createSelector(
 	}
 );
 
+const selectEverythingSet = createSelector(
+	selectCards,
+	//TODO: better sorting
+	(cards) => Object.keys(cards)
+);
+
 const selectAllSets = createSelector(
 	selectDefaultSet,
 	selectUserReadingListForSet,
-	(defaultSet, readingListSet) => {
+	selectEverythingSet,
+	(defaultSet, readingListSet, everythingSet) => {
 		return {
 			[DEFAULT_SET_NAME]: defaultSet,
 			[READING_LIST_SET_NAME]: readingListSet,
+			[EVERYTHING_SET_NAME]: everythingSet,
 		};
 	}
 );

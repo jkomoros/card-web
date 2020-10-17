@@ -27,12 +27,14 @@ export const DEFAULT_SET_NAME = 'main';
 //from the `all` set and then filters and then maybe sorts, but reading-list
 //lets a custom order.
 export const READING_LIST_SET_NAME = 'reading-list';
+export const EVERYTHING_SET_NAME = 'everything';
 
 //Note: every time you add a new set name, add it here too and make sure that a
 //filter of that name is kept updated.
 export const FILTER_EQUIVALENTS_FOR_SET = {
 	[DEFAULT_SET_NAME]: 'in-all-set',
 	[READING_LIST_SET_NAME]: 'in-reading-list',
+	[EVERYTHING_SET_NAME]: 'in-everything-set'
 };
 
 //If filter names have this character in them then they're actually a union of
