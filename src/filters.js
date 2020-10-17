@@ -21,7 +21,7 @@ import {
 	CARD_TYPE_CONTENT
 } from './card_fields.js';
 
-export const DEFAULT_SET_NAME = 'all';
+export const DEFAULT_SET_NAME = 'main';
 //reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
 //order matters and is customizable by the user. Every other collection starts
 //from the `all` set and then filters and then maybe sorts, but reading-list

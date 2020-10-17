@@ -49,8 +49,8 @@ describe('card-web url parsing', () => {
 	});
 
 	it('supports explicit sets', async() => {
-		const description = CollectionDescription.deserialize('all/half-baked/sort/tweet-order/');
-		const golden = new CollectionDescription('all', ['half-baked'], 'tweet-order');
+		const description = CollectionDescription.deserialize('main/half-baked/sort/tweet-order/');
+		const golden = new CollectionDescription('main', ['half-baked'], 'tweet-order');
 		assert.ok(description.equivalent(golden));
 		assert.ok(description.setNameExplicitlySet);
 	});

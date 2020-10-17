@@ -96,7 +96,7 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 			//then don't filter out items.
 
 			//Make sure the collection has no items, so canonicalizeURL won't add
-			//'all' in it which would then load up the whole collection before
+			//'main' in it which would then load up the whole collection before
 			//redirecting.
 			filters = ['none'];
 		}
@@ -208,7 +208,7 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 
 		//We need to show the set name if it's not the default set, or if its
 		//the default set and there are no filters active (e.g.
-		//`c/all/sort/recent/_`)
+		//`c/main/sort/recent/_`)
 		if (description.set != DEFAULT_SET_NAME || description.filters.length == 0) {
 			result.push(description.set);
 		}
