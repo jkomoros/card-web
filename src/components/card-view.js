@@ -52,6 +52,7 @@ import {
 
 import {
 	createCard,
+	createWorkingNotesCard,
 	navigateToNewCard
 } from '../actions/data.js';
 
@@ -225,7 +226,7 @@ class CardView extends connect(store)(PageViewElement) {
         }
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .labels=${this._collectionLabels} .labelName=${this._collectionLabelName} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' .editable=${this._userMayEditActiveSection} .suppressAdd=${!this._userMayCreateCard} .collection=${this._collection} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .collectionItemsToGhost=${this._collectionItemsThatWillBeRemovedOnPendingFilterCommit}></card-drawer>
+        <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .labels=${this._collectionLabels} .labelName=${this._collectionLabelName} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' @add-working-notes-card='${this._handleAddWorkingNotesCard}' .editable=${this._userMayEditActiveSection} .suppressAdd=${!this._userMayCreateCard} .showCreateWorkingNotes=${this._userMayCreateCard} .collection=${this._collection} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .collectionItemsToGhost=${this._collectionItemsThatWillBeRemovedOnPendingFilterCommit}></card-drawer>
         <div id='center'>
 			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .mobile=${this._mobileMode} .card=${this._displayCard} .updatedFromContentEditable=${this._updatedFromContentEditable} @text-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped}>
 				<div slot='actions' class='presentation'>
@@ -403,6 +404,10 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_handleAddCard() {
 		store.dispatch(createCard({section: this._activeSectionId}));
+	}
+
+	_handleAddWorkingNotesCard() {
+		store.dispatch(createWorkingNotesCard());
 	}
 
 	_handleReorderCard(e) {

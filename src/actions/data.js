@@ -672,7 +672,7 @@ export const defaultCardObject = (id, user, section, cardType) => {
 	};
 };
 
-export const createWorkinNotesCard = () => async (dispatch, getState) => {
+export const createWorkingNotesCard = () => async (dispatch, getState) => {
 
 	//NOTE: if you modify this method you probably also want to modify
 	//createCard, too.
