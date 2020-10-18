@@ -17,7 +17,7 @@ export class CardRenderer extends LitElement {
 		case CARD_TYPE_SECTION_HEAD:
 			return html` <section-head-card .dataIsFullyLoaded=${this.dataIsFullyLoaded} ?hidden=${this._cardType != CARD_TYPE_SECTION_HEAD} .updatedFromContentEditable=${this.updatedFromContentEditable} .editing=${this.editing} .card=${this.card}></section-head-card>`;
 		case CARD_TYPE_WORKING_NOTES:
-			return html`<section-head-card .dataIsFullyLoaded=${this.dataIsFullyLoaded} ?hidden=${this._cardType != CARD_TYPE_WORKING_NOTES} .updatedFromContentEditable=${this.updatedFromContentEditable} .editing=${this.editing} .card=${this.card}></section-head-card>`;
+			return html`<working-notes-card .dataIsFullyLoaded=${this.dataIsFullyLoaded} ?hidden=${this._cardType != CARD_TYPE_WORKING_NOTES} .updatedFromContentEditable=${this.updatedFromContentEditable} .editing=${this.editing} .card=${this.card}></working-notes-card>`;
 		case CARD_TYPE_CONTENT:
 		default:
 			return html`<content-card .dataIsFullyLoaded=${this.dataIsFullyLoaded} ?hidden=${this._cardType != CARD_TYPE_CONTENT} .updatedFromContentEditable=${this.updatedFromContentEditable} .editing=${this.editing} .card=${this.card}></content-card>`;
