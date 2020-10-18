@@ -44,7 +44,9 @@ const app = (state = INITIAL_STATE, action) => {
 		//told us about.
 		return {
 			...state,
-			sectionsLoaded: false,
+			//by default we assume we need a section to load, but if it's a card
+			//without a section, that won't happen.
+			sectionsLoaded: action.noSectionChange ? false : true,
 			unpublishedCardsLoaded: false,
 			reorderPending: true,
 			pendingNewCardID: action.ID,

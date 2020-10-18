@@ -86,7 +86,8 @@ import {
 	TEXT_FIELD_CONFIGURATION,
 	TEXT_FIELD_BODY,
 	CARD_TYPE_CONTENT,
-	CARD_TYPE_SECTION_HEAD
+	CARD_TYPE_SECTION_HEAD,
+	CARD_TYPE_WORKING_NOTES
 } from '../card_fields.js';
 
 //When a new tag is created, it is randomly assigned one of these values.
@@ -671,7 +672,72 @@ export const defaultCardObject = (id, user, section, cardType) => {
 	};
 };
 
+export const createWorkinNotesCard = () => async (dispatch, getState) => {
+
+	//NOTE: if you modify this method you probably also want to modify
+	//createCard, too.
+
+	const state = getState();
+
+	let id = newID();
+
+	let user = selectUser(state);
+
+	if (!user) {
+		console.log('No user');
+		return;
+	}
+
+	if (!selectUserMayCreateCard(state)) {
+		console.log('User isn\'t allowed to create card');
+		return;
+	}
+
+	let obj = defaultCardObject(id, user, '', CARD_TYPE_WORKING_NOTES);
+
+	let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
+
+
+	//Tell card-view to expect a new card to be loaded, and when data is
+	//fully loaded again, it will then trigger the navigation.
+	dispatch({
+		type: EXPECT_NEW_CARD,
+		ID: id,
+		noSectionChange: true,
+	});
+
+	//Check to make sure the ID is legal. Note that the id and slugs are in the
+	//same ID space, so we can reuse slugLegal. Note that slugLegal could take
+	//up to 10 seconds to complete if the cloud function is not pre-warmed.
+	const result = await slugLegal(id);
+	if (!result.legal) {
+		console.log('ID is already taken: ' + result.reason);
+		//Tell it to not expect the card to be inserted anymore
+		dispatch({
+			type:NAVIGATED_TO_NEW_CARD,
+		});
+		return;
+	}
+
+	const batch = db.batch();
+
+
+	ensureAuthor(batch, user);
+	batch.set(cardDocRef, obj);
+
+	batch.commit();
+
+	//updateCards will be called and update the current view. card-view's
+	//updated will call navigateToNewCard once the data is fully loaded again
+	//(waiting only for the card, not section, since no section will be updated)
+};
+
+//createCard creates an inserts a new card. see also createWorkingNotesCard
+//which is similar but simpler.
 export const createCard = (opts) => async (dispatch, getState) => {
+
+	//NOTE: if you modify this card you likely also want to modify
+	//createWorkingNotesCard too
 
 	//newCard creates and inserts a new card in the givne section with the given id.
 
