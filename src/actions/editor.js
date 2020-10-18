@@ -45,7 +45,8 @@ import {
 } from './data.js';
 
 import {
-	TEXT_FIELD_CONFIGURATION
+	TEXT_FIELD_CONFIGURATION,
+	CARD_TYPE_EDITING_FINISHERS
 } from '../card_fields.js';
 
 import {
@@ -143,7 +144,11 @@ export const editingCommit = () => (dispatch, getState) => {
 		return;
 	}
 
-	const updatedCard = selectEditingCard(state);
+	const rawUpdatedCard = selectEditingCard(state);
+
+	const cardFinisher = CARD_TYPE_EDITING_FINISHERS[rawUpdatedCard.card_type];
+
+	const updatedCard = cardFinisher ? cardFinisher(rawUpdatedCard) : rawUpdatedCard;
 
 	if (cardHasContent(updatedCard) && !updatedCard.published) {
 		if (!window.confirm('The card has content but is unpublished. Do you want to continue?')) return;

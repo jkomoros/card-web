@@ -6,11 +6,33 @@ export const CARD_TYPE_CONTENT = 'content';
 export const CARD_TYPE_SECTION_HEAD = 'section-head';
 export const CARD_TYPE_WORKING_NOTES = 'working-notes';
 
-export const VALID_CARD_TYPES = {
-	[CARD_TYPE_CONTENT]: true,
-	[CARD_TYPE_SECTION_HEAD]: true,
-	[CARD_TYPE_WORKING_NOTES]: true,
+const noop = (card) => card;
+
+const WORKING_NOTES_TITLE_PREFIX = '>';
+
+const workingNotesExtractor = card => {
+	//TODO: also include first part of semantic fingerprint.
+	const date = card.updated.toDate();
+	const title = WORKING_NOTES_TITLE_PREFIX + ' ' + date.toDateString();
+	return {
+		...card,
+		title,
+	};
 };
+
+//These are the functions that should be passed a card right as editing is
+//committing. They are given the card, and should return a card with the fields
+//set as they want. The card should not be modified; if new fields are to be
+//added a copy should be returned. This is a useful point to do field
+//derivation, like title fields for working-notes cards. Adding one here also
+//will add it to VALID_CARD_TYPES.
+export const CARD_TYPE_EDITING_FINISHERS = {
+	[CARD_TYPE_CONTENT]: noop,
+	[CARD_TYPE_SECTION_HEAD]: noop,
+	[CARD_TYPE_WORKING_NOTES]: workingNotesExtractor,
+};
+
+export const VALID_CARD_TYPES = Object.fromEntries(Object.keys(CARD_TYPE_EDITING_FINISHERS).map(key => [key, true]));
 
 //NOTE: currently it's only supported for a single field to be marked as html,
 //and it must be called 'body'. See #345 for fixing that.
