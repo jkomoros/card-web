@@ -203,8 +203,8 @@ class CardDrawer extends connect(store)(LitElement) {
 					${this._thumbnail(i, index)}`)}
 				</div>
 				<div class='buttons'>
-					<button class='round' @click='${this._handleCreateWorkingNotes}' ?hidden='${!this.showCreateWorkingNotes}'>${INSERT_DRIVE_FILE_ICON}</button>
-					<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable || this.suppressAdd}'>${PLUS_ICON}</button>
+					<button class='round' @click='${this._handleCreateWorkingNotes}' ?hidden='${!this.showCreateWorkingNotes}' title="Create a new working notes card">${INSERT_DRIVE_FILE_ICON}</button>
+					<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable || this.suppressAdd}' title="Add a new content card in this section">${PLUS_ICON}</button>
 				</div>
 			</div>
 		`;
