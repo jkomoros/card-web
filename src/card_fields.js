@@ -13,7 +13,7 @@ const WORKING_NOTES_TITLE_PREFIX = '>';
 const workingNotesExtractor = card => {
 	//TODO: also include first part of semantic fingerprint.
 	const date = card.updated.toDate();
-	const title = WORKING_NOTES_TITLE_PREFIX + ' ' + date.toDateString();
+	const title = WORKING_NOTES_TITLE_PREFIX + ' ' + date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'2-digit'});
 	return {
 		...card,
 		title,
