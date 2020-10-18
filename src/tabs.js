@@ -1,6 +1,7 @@
 import {
 	RECENT_SORT_NAME,
 	READING_LIST_SET_NAME,
+	EVERYTHING_SET_NAME
 } from './filters.js';
 
 import {
@@ -8,6 +9,10 @@ import {
 } from './collection_description.js';
 
 import * as icons from './components/my-icons.js';
+
+import {
+	CARD_TYPE_WORKING_NOTES
+} from './card_fields.js';
 
 export const READING_LIST_FALLBACK_CARD = 'about-reading-lists';
 export const STARS_FALLBACK_CARD = 'about-stars';
@@ -69,6 +74,8 @@ Valid fields in config items:
 	italics: true,
 	//If true, a count of how many cards are in the collection will be calculated and rendered.
 	count: true,
+	//If true, will not show the item if the count is 0. count config property must also be true.
+	hideIfEmpty: true,
 	//If provided, will show these fallback cards if no real cards match the collection. The strings can be IDs or 
 	//slugs for the target cards.
 	fallback_cards: [CARD_ID_OR_SLUG, ...]
@@ -102,6 +109,9 @@ const EXPANSION_ITEMS = {
 		},
 		{
 			expand: 'unread'
+		},
+		{
+			expand: 'working-notes',
 		}
 	],
 	'recent': [
@@ -135,7 +145,16 @@ const EXPANSION_ITEMS = {
 			collection: new CollectionDescription('', ['unread']),
 			count: true,
 		}
-	]
+	],
+	'working-notes': [
+		{
+			icon: icons.INSERT_DRIVE_FILE_ICON,
+			display_name: 'Working note cards',
+			collection: new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_WORKING_NOTES]),
+			count:true,
+			hideIfEmpty: true,
+		}
+	],
 };
 
 const DEFAULT_LOADING_SECTIONS_TAB = [
