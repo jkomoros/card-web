@@ -59,8 +59,9 @@ class CardDrawer extends connect(store)(LitElement) {
 					flex-wrap: wrap;
 				}
 
-				button {
+				.buttons {
 					position: absolute;
+					display:flex;
 					left: 1em;
 					bottom: 1em;
 				}
@@ -201,8 +202,10 @@ class CardDrawer extends connect(store)(LitElement) {
 					${this.labels && this.labels[index] ? html`<div class='label'><span>${this.labelName} <strong>${this.labels[index]}</strong></span></div>` : html``}
 					${this._thumbnail(i, index)}`)}
 				</div>
-				<button class='round' @click='${this._handleCreateWorkingNotes}' ?hidden='${!this.showCreateWorkingNotes}'>${INSERT_DRIVE_FILE_ICON}</button>
-				<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable || this.suppressAdd}'>${PLUS_ICON}</button>
+				<div class='buttons'>
+					<button class='round' @click='${this._handleCreateWorkingNotes}' ?hidden='${!this.showCreateWorkingNotes}'>${INSERT_DRIVE_FILE_ICON}</button>
+					<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable || this.suppressAdd}'>${PLUS_ICON}</button>
+				</div>
 			</div>
 		`;
 	}
