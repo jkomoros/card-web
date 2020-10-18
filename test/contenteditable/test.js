@@ -178,4 +178,11 @@ describe('content editable scrubbing', () => {
 		assert.equal(actual, expected);
 	});
 
+	it('content with a role or dir attribute is removed', async () => {
+		const input = '<p role="presentation">Styled <strong dir="ltr">content</strong></p>';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<p>Styled <strong>content</strong></p>\n';
+		assert.equal(actual, expected);
+	});
+
 });
