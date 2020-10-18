@@ -516,6 +516,11 @@ const selectCardsSemanticFingerprint = createSelector(
 	}
 );
 
+export const getSemanticFingerprintForCard = (state, cardID) => {
+	const fingerprints = selectCardsSemanticFingerprint(state);
+	return fingerprints[cardID];
+};
+
 //A map of tagID to the semantic fingerprint for that card. A tag's semantic
 //fingerprint is created by adding up all of its cards semantic fingerprint,
 //resorting, and re-trimming down to fingerprint size. They can be compared
