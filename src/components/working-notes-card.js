@@ -18,6 +18,11 @@ export class WorkingNotesCard extends BaseCard {
 				font-size:0.8em;
 				line-height:1.2;
 			}
+			/* Google docs pasted output includes <p> inside of li a lot. This
+			is a hack, #361 covers fixing it */
+			li > p {
+				display:inline;
+			}
 		</style>
       ${this._templateForField(TEXT_FIELD_BODY)}
     `;
