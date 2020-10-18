@@ -20,6 +20,7 @@ import {
 	DEFAULT_SORT_NAME,
 	SORT_REVERSED_URL_KEYWORD,
 	SORT_URL_KEYWORD,
+	EVERYTHING_SET_NAME,
 } from '../filters.js';
 
 import {
@@ -42,6 +43,10 @@ import {
 	selectActiveCollectionDescription,
 	selectActiveCollectionContainsCards
 } from '../selectors.js';
+
+import {
+	CARD_TYPE_WORKING_NOTES
+} from '../card_fields.js';
 
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
 
@@ -76,6 +81,8 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 	let filters = description.filters;
 	let doUpdateCollection = true;
 
+	let set = description.set;
+
 	if (filters.length == 0) {
 		const state = getState();
 		let card = getCard(state, cardIdOrSlug);
@@ -85,7 +92,23 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 			if (getCardIndexForActiveCollection(state, card.id) >= 0) {
 				doUpdateCollection = false;
 			}
-			filters = [card.section ? card.section : 'none'];
+
+			//Put in the default filters. 
+			if (card.section) {
+				//If it's a normal, non-orphaned card, the default location is
+				//in the filter to the section it's. in.
+				filters = [card.section];
+			} else {
+				//If it's oprhaned...
+				if (card.card_type == CARD_TYPE_WORKING_NOTES && !description.setNameExplicitlySet) {
+					//If it's a working notes card then by default we'll view it
+					//in the collection including all of its other cards.
+					set = EVERYTHING_SET_NAME;
+					filters = [CARD_TYPE_WORKING_NOTES];
+				} else {
+					filters = ['none'];
+				}
+			}
 		} else if(!description.setNameExplicitlySet) {
 
 			//If the set was explicitly specified, e.g. `/c/all/sort/recent/_`
@@ -98,7 +121,7 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 		}
 	}
 
-	if (doUpdateCollection || forceUpdateCollection) dispatch(updateCollection(description.set, filters, description.sort, description.sortReversed));
+	if (doUpdateCollection || forceUpdateCollection) dispatch(updateCollection(set, filters, description.sort, description.sortReversed));
 	dispatch(showCard(cardIdOrSlug));
 };
 
