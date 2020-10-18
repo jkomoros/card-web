@@ -37,7 +37,7 @@ import {
 } from './tabs.js';
 
 import {
-	CARD_TYPE_CONTENT
+	BODY_CARD_TYPES
 } from './card_fields.js';
 
 import {
@@ -414,9 +414,10 @@ export const selectUidsWithPermissions = createSelector(
 	(allPermissions, cardsMap) => Object.fromEntries(Object.entries(allPermissions).map(entry => [entry[0], true]).concat(Object.entries(cardsMap).map(entry => [entry[0], true])))
 );
 
-const selectContentCards = createSelector(
+//Cards that have a body
+const selectBodyCards = createSelector(
 	selectCards,
-	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => entry[1].card_type == CARD_TYPE_CONTENT))
+	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => BODY_CARD_TYPES[entry[1].card_type]))
 );
 
 
@@ -434,7 +435,7 @@ const wordCountsForSemantics = (str) => {
 //words to their count in that card. This uses all words htat could be searched
 //over, and is the input to the IDF calculation pipeline and others.
 const selectCardWords = createSelector(
-	selectContentCards,
+	selectBodyCards,
 	(cards) => {
 		let result = {};
 		for (const [key, card] of Object.entries(cards)) {
@@ -463,7 +464,7 @@ const selectCorpusWords = createSelector(
 //https://en.wikipedia.org/wiki/Tf%E2%80%93idf
 const selectWordsIDF = createSelector(
 	selectCorpusWords,
-	selectContentCards,
+	selectBodyCards,
 	(words, cards) => {
 		const result = {};
 		const numCards = Object.keys(cards).length;

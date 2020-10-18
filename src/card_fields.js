@@ -33,6 +33,9 @@ export const TEXT_FIELD_CONFIGURATION = {
 	}
 };
 
+//types of card that have a body
+export const BODY_CARD_TYPES = TEXT_FIELD_CONFIGURATION[TEXT_FIELD_BODY].legal_card_types;
+
 export const legalFieldsForCardType = (cardType) => {
 	let result = {};
 	for (let key of Object.keys(TEXT_FIELD_CONFIGURATION)) {
