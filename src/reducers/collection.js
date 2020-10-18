@@ -30,6 +30,10 @@ import {
 	EVERYTHING_SET_NAME
 } from '../filters.js';
 
+import {
+	VALID_CARD_TYPES
+} from '../card_fields.js';
+
 const app = (state = INITIAL_STATE, action) => {
 	switch (action.type) {
 	case SHOW_CARD:
@@ -124,6 +128,18 @@ const makeFilterFromCards = (cards, previousFilters) => {
 			}
 		}
 		result[filterName] = setUnion(setRemove(previousFilters[filterName], newNonMatchingCards), newMatchingCards);
+	}
+	for (let cardType of Object.keys(VALID_CARD_TYPES)) {
+		let newMatchingCards = [];
+		let newNonMatchingCards = [];
+		for (let card of Object.values(cards)) {
+			if (card.card_type == cardType) {
+				newMatchingCards.push(card.id);
+			} else {
+				newNonMatchingCards.push(card.id);
+			}
+		}
+		result[cardType] = setUnion(setRemove(previousFilters[cardType], newNonMatchingCards), newMatchingCards);
 	}
 	const everythingFilterName = FILTER_EQUIVALENTS_FOR_SET[EVERYTHING_SET_NAME];
 	//Literally every card is in the everything set.

@@ -18,7 +18,8 @@ import {
 } from './tweet-helpers.js';
 
 import {
-	CARD_TYPE_CONTENT
+	CARD_TYPE_CONTENT,
+	VALID_CARD_TYPES
 } from './card_fields.js';
 
 export const DEFAULT_SET_NAME = 'main';
@@ -444,7 +445,8 @@ export const INVERSE_FILTER_NAMES = Object.assign(
 	//extend with ones for all of the card filters badsed on that config
 	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][1], entry[1][0][0]])),
 	//Add the inverse need filters (skipping ones htat are not a TODO)
-	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] == TODO_TYPE_AUTO).map(entry => [entry[1][0][3], entry[1][0][2]]))
+	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] == TODO_TYPE_AUTO).map(entry => [entry[1][0][3], entry[1][0][2]])),
+	Object.fromEntries(Object.keys(VALID_CARD_TYPES).map(name => ['not-' + name, name]))
 );
 
 const makeBasicCardFilterFunc = (baseFunc) => {
@@ -498,7 +500,8 @@ const INITIAL_STATE_FILTERS = Object.assign(
 		read: {},
 	},
 	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => [entry[1], {}])),
-	Object.fromEntries(Object.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], {}]))
+	Object.fromEntries(Object.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], {}])),
+	Object.fromEntries(Object.keys(VALID_CARD_TYPES).map(name => [name, {}])),
 );
 
 export const INITIAL_STATE = {
