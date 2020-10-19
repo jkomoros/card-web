@@ -517,9 +517,19 @@ const selectCardsSemanticFingerprint = createSelector(
 	}
 );
 
-export const getSemanticFingerprintForCard = (state, cardID) => {
-	const fingerprints = selectCardsSemanticFingerprint(state);
-	return fingerprints[cardID];
+//getSemanticFingerprintForCard operates on the actual cardObj passed, so it can
+//work for cards that have been modified.
+export const getSemanticFingerprintForCard = (state, cardObj) => {
+	return getSemanticFingerprintForCardFromIDFMap(selectWordsIDF(state), cardObj);
+};
+
+const getSemanticFingerprintForCardFromIDFMap = (idfMap, card) => {
+	if (!card || Object.keys(card).length == 0) return new Map();
+	const words = Object.keys(TEXT_SEARCH_PROPERTIES).map(prop => card[prop]).join(' ');
+	const wordCounts = wordCountsForSemantics(words);
+	const tfidf = cardWordsTFIDF(wordCounts,idfMap);
+	const fingerprint = semanticFingerprint(tfidf);
+	return fingerprint;
 };
 
 //A map of tagID to the semantic fingerprint for that card. A tag's semantic
@@ -564,14 +574,7 @@ const getClosestSemanticOverlapItems = (fingerprints, cardID, cardFingerprint) =
 const selectEditingCardSemanticFingerprint = createSelector(
 	selectEditingCard,
 	selectWordsIDF,
-	(card, idfMap) => {
-		if (!card || Object.keys(card).length == 0) return new Map();
-		const words = Object.keys(TEXT_SEARCH_PROPERTIES).map(prop => card[prop]).join(' ');
-		const wordCounts = wordCountsForSemantics(words);
-		const tfidf = cardWordsTFIDF(wordCounts,idfMap);
-		const fingerprint = semanticFingerprint(tfidf);
-		return fingerprint;
-	}
+	(card, idfMap) => getSemanticFingerprintForCardFromIDFMap(idfMap, card)
 );
 
 const NUM_SIMILAR_TAGS_TO_SHOW = 3;
