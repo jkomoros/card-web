@@ -6,7 +6,8 @@ import {
 
 import {
 	TEXT_FIELD_BODY,
-	CARD_TYPE_CONTENT
+	CARD_TYPE_CONTENT,
+	DERIVED_FIELDS_FOR_CARD_TYPE
 } from './card_fields.js';
 
 //define this here and then re-export form app.js so this file doesn't need any
@@ -199,10 +200,16 @@ export const cardHasSubstantiveContent = (card) => {
 //cardSetNormalizedTextProperties sets the properties that search and
 //fingerprints work over. It sets them on the same card object sent.
 export const cardSetNormalizedTextProperties = (card) => {
+	const cardType = card.card_type || '';
 	//These three properties are expected to be set by TEXT_SEARCH_PROPERTIES
-	card.normalizedBody = fullyNormalizedWords(innerTextForHTML(card.body || '')).join(' ');
-	card.normalizedTitle = fullyNormalizedWords(card.title).join(' ');
-	card.normalizedSubtitle = fullyNormalizedWords(card.subtitle).join(' ');
+	//Fields that are derived are calculated based on other fields of the card
+	//and should not be considered to be explicit set on the card by the author.
+	//For thse fields, skip them in normalized*, since they'll otherwise be part
+	//of the fingerprint, and for cards with not much content that use the
+	//fingerprint in a derived field that can create reinforcing loops.
+	card.normalizedBody = DERIVED_FIELDS_FOR_CARD_TYPE[cardType]['body'] ? '' : fullyNormalizedWords(innerTextForHTML(card.body || '')).join(' ');
+	card.normalizedTitle = DERIVED_FIELDS_FOR_CARD_TYPE[cardType]['title'] ? '' : fullyNormalizedWords(card.title).join(' ');
+	card.normalizedSubtitle = DERIVED_FIELDS_FOR_CARD_TYPE[cardType]['subtitle'] ? '' : fullyNormalizedWords(card.subtitle).join(' ');
 	card.normalizedInboundLinksText = fullyNormalizedWords(Object.values(card.links_inbound_text).join(' ')).join(' ');
 };
 

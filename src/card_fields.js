@@ -19,19 +19,26 @@ export const TEXT_FIELD_CONFIGURATION = {
 	[TEXT_FIELD_TITLE]: {
 		html: false,
 		container: 'h1',
-		legal_card_types: {[CARD_TYPE_CONTENT]: true, [CARD_TYPE_SECTION_HEAD]: true}
+		legal_card_types: {[CARD_TYPE_CONTENT]: true, [CARD_TYPE_SECTION_HEAD]: true},
+		derived_for_card_types: {[CARD_TYPE_WORKING_NOTES]: true},
 	},
 	[TEXT_FIELD_BODY]: {
 		html: true,
 		container: 'section',
 		legal_card_types: {[CARD_TYPE_CONTENT]: true, [CARD_TYPE_WORKING_NOTES]: true},
+		derived_for_card_types: {},
 	},
 	[TEXT_FIELD_SUBTITLE]: {
 		html: false,
 		container: 'h2',
 		legal_card_types: {[CARD_TYPE_SECTION_HEAD]: true},
+		derived_for_card_types: {},
 	}
 };
+
+export const DERIVED_FIELDS_FOR_CARD_TYPE = Object.fromEntries(Object.keys(VALID_CARD_TYPES).map(typ => {
+	return [typ, Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).filter(entry => (entry[1].derived_for_card_types || {})[typ]).map(entry => [entry[0], true]))];
+}));
 
 //types of card that have a body
 export const BODY_CARD_TYPES = TEXT_FIELD_CONFIGURATION[TEXT_FIELD_BODY].legal_card_types;
