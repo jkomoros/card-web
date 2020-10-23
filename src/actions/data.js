@@ -53,7 +53,8 @@ import {
 } from './comments.js';
 
 import {
-	refreshCardSelector
+	refreshCardSelector,
+	commitPendingCollectionModifications
 } from './collection.js';
 
 import {
@@ -853,6 +854,13 @@ export const navigateToNewCard = () => (dispatch, getState) => {
 	dispatch({
 		type:NAVIGATED_TO_NEW_CARD,
 	});
+	//navigateToNewCard is called when the expected cards/sections are loaded.
+	//Ensure that we have the up-to-date sections loaded. The case of adding a
+	//card to the current secitno works fine because updateSections will have
+	//called refreshCardSelector with force. But it doesn't work automatically
+	//for working-notes being added when viewinng working ntoes, since those
+	//cards are all oprhaned.
+	dispatch(commitPendingCollectionModifications());
 	dispatch(navigateToCard(ID));
 };
 
