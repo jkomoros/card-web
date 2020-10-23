@@ -37,7 +37,8 @@ import {
 	selectEditingCard,
 	selectSections,
 	selectUid,
-	selectPendingSlug
+	selectPendingSlug,
+	selectIsEditing
 } from '../selectors.js';
 
 import {
@@ -118,6 +119,10 @@ export const editingSelectEditorTab = (tab) => {
 
 export const editingStart = () => (dispatch, getState) => {
 	const state = getState();
+	if (selectIsEditing(state)) {
+		console.warn('Can\'t start editing because already editing');
+		return;
+	}
 	if (!selectUserMayEditActiveCard(state)) {
 		console.warn('This user is not allowed to edit!');
 		return;
@@ -132,6 +137,10 @@ export const editingStart = () => (dispatch, getState) => {
 
 export const editingCommit = () => (dispatch, getState) => {
 	const state = getState();
+	if (!selectIsEditing(state)) {
+		console.warn('Editing not active');
+		return;
+	}
 	if (!selectUserMayEditActiveCard(state)) {
 		console.warn('This user isn\'t allowed to edit!');
 		return;
