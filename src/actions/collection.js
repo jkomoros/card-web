@@ -41,12 +41,17 @@ import {
 	selectPageExtra,
 	getCardIndexForActiveCollection,
 	selectActiveCollectionDescription,
-	selectActiveCollectionContainsCards
+	selectActiveCollectionContainsCards, 
+	selectPendingNewCardID
 } from '../selectors.js';
 
 import {
 	CARD_TYPE_WORKING_NOTES
 } from '../card_fields.js';
+
+import {
+	navigatedToNewCard
+} from './data.js';
 
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
 
@@ -345,4 +350,12 @@ export const showCard = (requestedCard) => (dispatch, getState) => {
 	dispatch(redirectIfInvalidCardOrCollection());
 	dispatch(canonicalizeURL());
 	dispatch(scheduleAutoMarkRead());
+
+	const pendingNewCardID = selectPendingNewCardID(state);
+
+	if (pendingNewCardID == cardId) {
+		//This is where we note that we were told to navigate 
+		dispatch(navigatedToNewCard());
+		//TODO: open the card for editing;
+	}
 };

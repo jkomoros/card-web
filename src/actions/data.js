@@ -851,9 +851,6 @@ export const createCard = (opts) => async (dispatch, getState) => {
 export const navigateToNewCard = () => (dispatch, getState) => {
 	const ID = selectPendingNewCardID(getState());
 	if (!ID) return;
-	dispatch({
-		type:NAVIGATED_TO_NEW_CARD,
-	});
 	//navigateToNewCard is called when the expected cards/sections are loaded.
 	//Ensure that we have the up-to-date sections loaded. The case of adding a
 	//card to the current secitno works fine because updateSections will have
@@ -861,7 +858,16 @@ export const navigateToNewCard = () => (dispatch, getState) => {
 	//for working-notes being added when viewinng working ntoes, since those
 	//cards are all oprhaned.
 	dispatch(commitPendingCollectionModifications());
+	//navigateToCard will intiate a chain of actions that culminates in
+	//showCard, where we will note that we navigated to new card so we don't do
+	//it again.
 	dispatch(navigateToCard(ID));
+};
+
+export const navigatedToNewCard = () => {
+	return {
+		type:NAVIGATED_TO_NEW_CARD,
+	};
 };
 
 const modifyCardAction = (cardId) => {
