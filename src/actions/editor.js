@@ -165,6 +165,8 @@ export const editingCommit = () => (dispatch, getState) => {
 
 	const CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[rawUpdatedCard.card_type];
 
+	//TODO: it feels like this 'confirm' logic should be all done in
+	//data.js/modifyCard, where there's other confirm-on-save logic.
 	if (CARD_TYPE_CONFIG.invertContentPublishWarning) {
 		if (updatedCard.published) {
 			if (!window.confirm('The card is of a type that is not typically published but you\'re publishing it. Do you want to continue?')) return;
