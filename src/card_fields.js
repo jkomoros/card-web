@@ -11,11 +11,11 @@ export const CARD_TYPE_CONTENT = 'content';
 export const CARD_TYPE_SECTION_HEAD = 'section-head';
 export const CARD_TYPE_WORKING_NOTES = 'working-notes';
 
-export const VALID_CARD_TYPES = Object.fromEntries([
-	CARD_TYPE_CONTENT,
-	CARD_TYPE_SECTION_HEAD,
-	CARD_TYPE_WORKING_NOTES
-].map(key => [key, true]));
+export const CARD_TYPE_CONFIGURATION = {
+	[CARD_TYPE_CONTENT]: {},
+	[CARD_TYPE_SECTION_HEAD]: {},
+	[CARD_TYPE_WORKING_NOTES]: {},
+};
 
 /*
 html: whether or not the field allows html. NOTE: currently it's only supported
@@ -73,7 +73,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 	}
 };
 
-export const DERIVED_FIELDS_FOR_CARD_TYPE = Object.fromEntries(Object.keys(VALID_CARD_TYPES).map(typ => {
+export const DERIVED_FIELDS_FOR_CARD_TYPE = Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(typ => {
 	return [typ, Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).filter(entry => (entry[1].derivedForCardTypes || {})[typ]).map(entry => [entry[0], true]))];
 }));
 

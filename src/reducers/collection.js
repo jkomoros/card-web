@@ -31,7 +31,7 @@ import {
 } from '../filters.js';
 
 import {
-	VALID_CARD_TYPES
+	CARD_TYPE_CONFIGURATION
 } from '../card_fields.js';
 
 const app = (state = INITIAL_STATE, action) => {
@@ -129,7 +129,7 @@ const makeFilterFromCards = (cards, previousFilters) => {
 		}
 		result[filterName] = setUnion(setRemove(previousFilters[filterName], newNonMatchingCards), newMatchingCards);
 	}
-	for (let cardType of Object.keys(VALID_CARD_TYPES)) {
+	for (let cardType of Object.keys(CARD_TYPE_CONFIGURATION)) {
 		let newMatchingCards = [];
 		let newNonMatchingCards = [];
 		for (let card of Object.values(cards)) {
