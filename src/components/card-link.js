@@ -19,6 +19,10 @@ import {
 	PAGE_BASIC_CARD
 } from '../actions/app.js';
 
+import {
+	CARD_TYPE_CONTENT
+} from '../card_fields.js';
+
 class CardLink extends connect(store)(LitElement) {
 	render() {
 
@@ -80,8 +84,12 @@ class CardLink extends connect(store)(LitElement) {
 					cursor: var(--card-link-cursor, copy);
 				}
 
+				a.not-content {
+					font-style: italic;
+				}
+
 			</style>
-			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''} ${this.strong ? 'strong' : ''} ${this._ctrlKeyPressed ? 'add-reading-list' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
+			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''} ${this.strong ? 'strong' : ''} ${this._cardIsNotContent ? 'not-content' : ''} ${this._ctrlKeyPressed ? 'add-reading-list' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
 	}
 
 	static get properties() {
@@ -157,6 +165,10 @@ class CardLink extends connect(store)(LitElement) {
 		if (!this.card) return false;
 		if (!this._reads) return false;
 		return this._reads[this.card] || false;
+	}
+
+	get _cardIsNotContent() {
+		return this._cardObj ? this._cardObj.card_type != CARD_TYPE_CONTENT : false;
 	}
 
 	get _computedHref() {
