@@ -13,8 +13,28 @@ export const VALID_CARD_TYPES = Object.fromEntries([
 	CARD_TYPE_WORKING_NOTES
 ].map(key => [key, true]));
 
-//NOTE: currently it's only supported for a single field to be marked as html,
-//and it must be called 'body'. See #345 for fixing that.
+
+
+/*
+html: whether or not the field allows html. NOTE: currently it's only supported
+for a single field to be marked as html, and it must be called 'body'. See #345
+for fixing that.
+
+container: the type of container element the field should be printed out into
+(the actual card custom element will decide whether to print it out in the first
+place)
+
+legal_card_types: a map of CARD_TYPE constant to true for cards it is legal on.
+If this field is null, it signals it's legal on all card types.
+
+derived_for_card_types: a map of CARD_TYPE constant to true for card types for
+which the field is fully derived based on OTHER enumrated fields. Derived fields
+are already "counted" so should be skipped when extracting normalized card
+details for example in indexes.
+
+readOnly: if true, a form field to edit this won't be printed out in cardEditor.
+
+*/
 
 export const TEXT_FIELD_CONFIGURATION = {
 	[TEXT_FIELD_TITLE]: {
