@@ -130,11 +130,6 @@ export const stemmedNormalizedWords = (str) => {
 	return result;
 };
 
-const fullyNormalizedWords = (str) => {
-	let words = normalizedWords(str).join(' ');
-	return stemmedNormalizedWords(words);
-};
-
 const innerTextForHTML = (body) => {
 	let ele = document.createElement('section');
 	//TODO: is there an XSS vulnerability here?
@@ -142,9 +137,9 @@ const innerTextForHTML = (body) => {
 	return ele.innerText;
 };
 
-//cardSetNormalizedTextProperties sets the properties that search and
-//fingerprints work over. It sets them on the same card object sent.
-export const cardSetNormalizedTextProperties = (card) => {
+//extractContentWords returns an object with the field to the non-de-stemmed
+//normalized words for each of the main properties.
+const extractContentWords = (card) => {
 	const cardType = card.card_type || '';
 	//These three properties are expected to be set by TEXT_SEARCH_PROPERTIES
 	//Fields that are derived are calculated based on other fields of the card
@@ -159,10 +154,17 @@ export const cardSetNormalizedTextProperties = (card) => {
 			const rawFieldValue = card[fieldName];
 			const fieldValue = typeof rawFieldValue === 'object' ? Object.values(rawFieldValue).join(' ') : rawFieldValue;
 			const content = config.html ? innerTextForHTML(fieldValue) : fieldValue;
-			const normalizedWords = fullyNormalizedWords(content);
-			value = normalizedWords.join(' ');
+			const words = normalizedWords(content);
+			value = words.join(' ');
 		}
 		obj[fieldName] = value;
 	}
-	card.normalized = obj;
+	return obj;
+};
+
+//cardSetNormalizedTextProperties sets the properties that search and
+//fingerprints work over. It sets them on the same card object sent.
+export const cardSetNormalizedTextProperties = (card) => {
+	//Basically it takes the output of extractContentWords and then stems them.
+	card.normalized = Object.fromEntries(Object.entries(extractContentWords(card)).map(entry => [entry[0], stemmedNormalizedWords(entry[1]).join(' ')]));
 };
