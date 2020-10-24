@@ -1,6 +1,7 @@
 import {
 	CARD_TYPE_WORKING_NOTES,
-	cardSetNormalizedTextProperties
+	cardSetNormalizedTextProperties,
+	destemmedWordMap
 } from './card_fields.js';
 
 import {
@@ -20,7 +21,9 @@ const workingNotesExtractor = (card,state) => {
 	cardSetNormalizedTextProperties(cardCopy);
 	const fingerprint = getSemanticFingerprintForCard(state, cardCopy);
 	const prettyFingerprint = fingerprint ? [...fingerprint.keys()].slice(0, NUM_TERMS_OF_FINGERPRINT).join(' ') : '';
-	const title = WORKING_NOTES_TITLE_PREFIX + ' ' + date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'2-digit'}) + ' ' + prettyFingerprint;
+	const destemmedMap = destemmedWordMap(cardCopy);
+	const prettyStemmedFingerprint = prettyFingerprint.split(' ').map(word => destemmedMap[word]).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+	const title = WORKING_NOTES_TITLE_PREFIX + ' ' + date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'2-digit'}) + ' ' + prettyStemmedFingerprint;
 	return {
 		...card,
 		title,

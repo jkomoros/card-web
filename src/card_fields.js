@@ -168,8 +168,7 @@ const extractContentWords = (card) => {
 
 //destemmedWordMap returns a map of where each given destemmed word is mapped to
 //its most common stemmed variant from within this card.
-//eslint-disable-next-line no-unused-vars
-const destemmedWordMap = (card) => {
+export const destemmedWordMap = (card) => {
 	const content = extractContentWords(card);
 	const counts = {};
 	for (let str of Object.values(content)) {
