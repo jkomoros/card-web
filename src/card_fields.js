@@ -11,10 +11,20 @@ export const CARD_TYPE_CONTENT = 'content';
 export const CARD_TYPE_SECTION_HEAD = 'section-head';
 export const CARD_TYPE_WORKING_NOTES = 'working-notes';
 
+/*
+
+invertContentPublishWarning: if true, then the 'There's content but unpublished,
+are you sure?' will not trigger... unelss you try to publish in which case it
+will ask for confirmation.
+
+*/
+
 export const CARD_TYPE_CONFIGURATION = {
 	[CARD_TYPE_CONTENT]: {},
 	[CARD_TYPE_SECTION_HEAD]: {},
-	[CARD_TYPE_WORKING_NOTES]: {},
+	[CARD_TYPE_WORKING_NOTES]: {
+		invertContentPublishWarning: true,
+	},
 };
 
 /*

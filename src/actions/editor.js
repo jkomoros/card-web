@@ -46,6 +46,7 @@ import {
 } from './data.js';
 
 import {
+	CARD_TYPE_CONFIGURATION,
 	TEXT_FIELD_CONFIGURATION,	
 } from '../card_fields.js';
 
@@ -162,8 +163,16 @@ export const editingCommit = () => (dispatch, getState) => {
 
 	const updatedCard = cardFinisher ? cardFinisher(rawUpdatedCard, state) : rawUpdatedCard;
 
-	if (cardHasContent(updatedCard) && !updatedCard.published) {
-		if (!window.confirm('The card has content but is unpublished. Do you want to continue?')) return;
+	const CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[rawUpdatedCard.card_type];
+
+	if (CARD_TYPE_CONFIG.invertContentPublishWarning) {
+		if (updatedCard.published) {
+			if (!window.confirm('The card is of a type that is not typically published but you\'re publishing it. Do you want to continue?')) return;
+		}
+	} else {
+		if (cardHasContent(updatedCard) && !updatedCard.published) {
+			if (!window.confirm('The card has content but is unpublished. Do you want to continue?')) return;
+		}
 	}
 
 	let update = {};

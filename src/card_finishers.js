@@ -37,3 +37,6 @@ const workingNotesExtractor = (card,state) => {
 export const CARD_TYPE_EDITING_FINISHERS = {
 	[CARD_TYPE_WORKING_NOTES]: workingNotesExtractor,
 };
+
+//TODO: ideally the above would be fields in CARD_TYPE_CONFIGURATION if the
+//circular import problem could be gotten rid of
