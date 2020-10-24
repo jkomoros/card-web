@@ -35,7 +35,7 @@ import {
 
 import {
 	BODY_CARD_TYPES,
-	TEXT_SEARCH_PROPERTIES,
+	TEXT_FIELD_CONFIGURATION,
 	normalizedWords,
 	stemmedNormalizedWords,
 } from './card_fields.js';
@@ -439,7 +439,7 @@ const selectCardWords = createSelector(
 	(cards) => {
 		let result = {};
 		for (const [key, card] of Object.entries(cards)) {
-			result[key] = wordCountsForSemantics(Object.keys(TEXT_SEARCH_PROPERTIES).map(prop => card[prop]).join(' '));
+			result[key] = wordCountsForSemantics(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => card.normalized[prop]).join(' '));
 		}
 		return result;
 	}
@@ -525,7 +525,7 @@ export const getSemanticFingerprintForCard = (state, cardObj) => {
 
 const getSemanticFingerprintForCardFromIDFMap = (idfMap, card) => {
 	if (!card || Object.keys(card).length == 0) return new Map();
-	const words = Object.keys(TEXT_SEARCH_PROPERTIES).map(prop => card[prop]).join(' ');
+	const words = Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => card.normalized[prop]).join(' ');
 	const wordCounts = wordCountsForSemantics(words);
 	const tfidf = cardWordsTFIDF(wordCounts,idfMap);
 	const fingerprint = semanticFingerprint(tfidf);
@@ -1150,7 +1150,7 @@ const selectPreparedQuery = createSelector(
 );
 
 const textSubQueryForWords = (words) => {
-	return Object.fromEntries(Object.entries(TEXT_SEARCH_PROPERTIES).map(entry => [entry[0], textPropertySubQueryForWords(words, entry[1])]));
+	return Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).map(entry => [entry[0], textPropertySubQueryForWords(words, entry[1].matchWeight)]));
 };
 
 const STOP_WORDS = {
@@ -1215,10 +1215,10 @@ const cardScoreForQuery = (card, preparedQuery) => {
 	let score = 0.0;
 	let fullMatch = false;
 
-	for (let key of Object.keys(TEXT_SEARCH_PROPERTIES)) {
+	for (let key of Object.keys(TEXT_FIELD_CONFIGURATION)) {
 		const propertySubQuery = preparedQuery.text[key];
-		if(!propertySubQuery || !card[key]) continue;
-		const [propertyScore, propertyFullMatch] = stringPropertyScoreForStringSubQuery(card[key], propertySubQuery);
+		if(!propertySubQuery || !card.normalized[key]) continue;
+		const [propertyScore, propertyFullMatch] = stringPropertyScoreForStringSubQuery(card.normalized[key], propertySubQuery);
 		score += propertyScore;
 		if (!fullMatch && propertyFullMatch) fullMatch = true;
 	}

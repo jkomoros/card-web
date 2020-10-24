@@ -26,8 +26,8 @@ container: the type of container element the field should be printed out into
 (the actual card custom element will decide whether to print it out in the first
 place)
 
-legalCardTypes: a map of CARD_TYPE constant to true for cards it is legal on.
-If this field is null, it signals it's legal on all card types.
+legalCardTypes: a map of CARD_TYPE constant to true for cards it is legal on. If
+this field is null, it signals it's legal on all card types.
 
 derivedForCardTypes: a map of CARD_TYPE constant to true for card types for
 which the field is fully derived based on OTHER enumrated fields. Derived fields
@@ -35,6 +35,9 @@ are already "counted" so should be skipped when extracting normalized card
 details for example in indexes.
 
 readOnly: if true, a form field to edit this won't be printed out in cardEditor.
+
+matchWeight: if a match is found when searching in that field, how much weight
+should it receive?
 
 */
 
@@ -44,18 +47,21 @@ export const TEXT_FIELD_CONFIGURATION = {
 		container: 'h1',
 		legalCardTypes: {[CARD_TYPE_CONTENT]: true, [CARD_TYPE_SECTION_HEAD]: true},
 		derivedForCardTypes: {[CARD_TYPE_WORKING_NOTES]: true},
+		matchWeight: 1.0,
 	},
 	[TEXT_FIELD_BODY]: {
 		html: true,
 		container: 'section',
 		legalCardTypes: {[CARD_TYPE_CONTENT]: true, [CARD_TYPE_WORKING_NOTES]: true},
 		derivedForCardTypes: {},
+		matchWeight:0.5,
 	},
 	[TEXT_FIELD_SUBTITLE]: {
 		html: false,
 		container: 'h2',
 		legalCardTypes: {[CARD_TYPE_SECTION_HEAD]: true},
 		derivedForCardTypes: {},
+		matchWeight:0.75,
 	},
 	[TEXT_FIELD_LINKS_INBOUND_TEXT]: {
 		html: false,
@@ -63,6 +69,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 		//null signals it's legal for all card types
 		legalCardTypes: null,
 		derivedForCardTypes: {},
+		matchWeight:0.95,
 	}
 };
 
@@ -83,15 +90,6 @@ export const editableFieldsForCardType = (cardType) => {
 		result[key] = config;
 	}
 	return result;
-};
-
-//The properties of the card to search over for queries and their relative
-//weight.
-export const TEXT_SEARCH_PROPERTIES = {
-	normalizedTitle: 1.0,
-	normalizedBody: 0.5,
-	normalizedSubtitle: 0.75,
-	normalizedInboundLinksText: 0.95,
 };
 
 export const normalizedWords = (str) => {
@@ -154,8 +152,17 @@ export const cardSetNormalizedTextProperties = (card) => {
 	//For thse fields, skip them in normalized*, since they'll otherwise be part
 	//of the fingerprint, and for cards with not much content that use the
 	//fingerprint in a derived field that can create reinforcing loops.
-	card.normalizedBody = DERIVED_FIELDS_FOR_CARD_TYPE[cardType]['body'] ? '' : fullyNormalizedWords(innerTextForHTML(card.body || '')).join(' ');
-	card.normalizedTitle = DERIVED_FIELDS_FOR_CARD_TYPE[cardType]['title'] ? '' : fullyNormalizedWords(card.title).join(' ');
-	card.normalizedSubtitle = DERIVED_FIELDS_FOR_CARD_TYPE[cardType]['subtitle'] ? '' : fullyNormalizedWords(card.subtitle).join(' ');
-	card.normalizedInboundLinksText = fullyNormalizedWords(Object.values(card.links_inbound_text).join(' ')).join(' ');
+	const obj = {};
+	for (let [fieldName, config] of Object.entries(TEXT_FIELD_CONFIGURATION)) {
+		let value = '';
+		if (!DERIVED_FIELDS_FOR_CARD_TYPE[cardType][fieldName]) {
+			const rawFieldValue = card[fieldName];
+			const fieldValue = typeof rawFieldValue === 'object' ? Object.values(rawFieldValue).join(' ') : rawFieldValue;
+			const content = config.html ? innerTextForHTML(fieldValue) : fieldValue;
+			const normalizedWords = fullyNormalizedWords(content);
+			value = normalizedWords.join(' ');
+		}
+		obj[fieldName] = value;
+	}
+	card.normalized = obj;
 };
