@@ -237,7 +237,13 @@ const cardSnapshotReceiver = (unpublished) =>{
 			if (change.type === 'removed') return;
 			let doc = change.doc;
 			let id = doc.id;
-			let card = doc.data();
+			//Ensure that timestamps are never null. If this isn't set, then
+			//when cards are first created (and other times) they will have null
+			//timestamps on some of the updates, an if we read them we'll get
+			//confused. Without this you can't open a card immediately for
+			//editing for example. See
+			//https://medium.com/firebase-developers/the-secrets-of-firestore-fieldvalue-servertimestamp-revealed-29dd7a38a82b
+			let card = doc.data({serverTimestamps: 'estimate'});
 			card.id = id;
 			cardSetNormalizedTextProperties(card);
 			cards[id] = card;
