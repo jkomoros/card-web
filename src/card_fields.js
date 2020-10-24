@@ -24,10 +24,10 @@ container: the type of container element the field should be printed out into
 (the actual card custom element will decide whether to print it out in the first
 place)
 
-legal_card_types: a map of CARD_TYPE constant to true for cards it is legal on.
+legalCardTypes: a map of CARD_TYPE constant to true for cards it is legal on.
 If this field is null, it signals it's legal on all card types.
 
-derived_for_card_types: a map of CARD_TYPE constant to true for card types for
+derivedForCardTypes: a map of CARD_TYPE constant to true for card types for
 which the field is fully derived based on OTHER enumrated fields. Derived fields
 are already "counted" so should be skipped when extracting normalized card
 details for example in indexes.
@@ -40,43 +40,43 @@ export const TEXT_FIELD_CONFIGURATION = {
 	[TEXT_FIELD_TITLE]: {
 		html: false,
 		container: 'h1',
-		legal_card_types: {[CARD_TYPE_CONTENT]: true, [CARD_TYPE_SECTION_HEAD]: true},
-		derived_for_card_types: {[CARD_TYPE_WORKING_NOTES]: true},
+		legalCardTypes: {[CARD_TYPE_CONTENT]: true, [CARD_TYPE_SECTION_HEAD]: true},
+		derivedForCardTypes: {[CARD_TYPE_WORKING_NOTES]: true},
 	},
 	[TEXT_FIELD_BODY]: {
 		html: true,
 		container: 'section',
-		legal_card_types: {[CARD_TYPE_CONTENT]: true, [CARD_TYPE_WORKING_NOTES]: true},
-		derived_for_card_types: {},
+		legalCardTypes: {[CARD_TYPE_CONTENT]: true, [CARD_TYPE_WORKING_NOTES]: true},
+		derivedForCardTypes: {},
 	},
 	[TEXT_FIELD_SUBTITLE]: {
 		html: false,
 		container: 'h2',
-		legal_card_types: {[CARD_TYPE_SECTION_HEAD]: true},
-		derived_for_card_types: {},
+		legalCardTypes: {[CARD_TYPE_SECTION_HEAD]: true},
+		derivedForCardTypes: {},
 	},
 	[TEXT_FIELD_LINKS_INBOUND_TEXT]: {
 		html: false,
 		readOnly: true,
 		//null signals it's legal for all card types
-		legal_card_types: null,
-		derived_for_card_types: {},
+		legalCardTypes: null,
+		derivedForCardTypes: {},
 	}
 };
 
 export const DERIVED_FIELDS_FOR_CARD_TYPE = Object.fromEntries(Object.keys(VALID_CARD_TYPES).map(typ => {
-	return [typ, Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).filter(entry => (entry[1].derived_for_card_types || {})[typ]).map(entry => [entry[0], true]))];
+	return [typ, Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).filter(entry => (entry[1].derivedForCardTypes || {})[typ]).map(entry => [entry[0], true]))];
 }));
 
 //types of card that have a body
-export const BODY_CARD_TYPES = TEXT_FIELD_CONFIGURATION[TEXT_FIELD_BODY].legal_card_types;
+export const BODY_CARD_TYPES = TEXT_FIELD_CONFIGURATION[TEXT_FIELD_BODY].legalCardTypes;
 
 export const editableFieldsForCardType = (cardType) => {
 	let result = {};
 	for (let key of Object.keys(TEXT_FIELD_CONFIGURATION)) {
 		const config = TEXT_FIELD_CONFIGURATION[key];
-		//Items with null for legal_card_types are legal in all card types
-		if (config.legal_card_types && !config.legal_card_types[cardType]) continue;
+		//Items with null for legalCardTypes are legal in all card types
+		if (config.legalCardTypes && !config.legalCardTypes[cardType]) continue;
 		if (config.readOnly) continue;
 		result[key] = config;
 	}
