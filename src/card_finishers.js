@@ -8,7 +8,6 @@ import {
 	getSemanticFingerprintForCard
 } from './selectors.js';
 
-const WORKING_NOTES_TITLE_PREFIX = '>';
 const NUM_TERMS_OF_FINGERPRINT = 8;
 
 const workingNotesExtractor = (card,state) => {
@@ -23,7 +22,7 @@ const workingNotesExtractor = (card,state) => {
 	const prettyFingerprint = fingerprint ? [...fingerprint.keys()].slice(0, NUM_TERMS_OF_FINGERPRINT).join(' ') : '';
 	const destemmedMap = destemmedWordMap(cardCopy);
 	const prettyStemmedFingerprint = prettyFingerprint.split(' ').map(word => destemmedMap[word]).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-	const title = WORKING_NOTES_TITLE_PREFIX + ' ' + date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'2-digit'}) + ' ' + prettyStemmedFingerprint;
+	const title = date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'2-digit'}) + ' ' + prettyStemmedFingerprint;
 	return {
 		...card,
 		title,
