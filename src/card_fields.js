@@ -1,3 +1,7 @@
+import {
+	stemmer
+} from './stemmer.js';
+
 export const TEXT_FIELD_BODY = 'body';
 export const TEXT_FIELD_TITLE = 'title';
 export const TEXT_FIELD_SUBTITLE = 'subtitle';
@@ -12,8 +16,6 @@ export const VALID_CARD_TYPES = Object.fromEntries([
 	CARD_TYPE_SECTION_HEAD,
 	CARD_TYPE_WORKING_NOTES
 ].map(key => [key, true]));
-
-
 
 /*
 html: whether or not the field allows html. NOTE: currently it's only supported
@@ -81,4 +83,79 @@ export const editableFieldsForCardType = (cardType) => {
 		result[key] = config;
 	}
 	return result;
+};
+
+//The properties of the card to search over for queries and their relative
+//weight.
+export const TEXT_SEARCH_PROPERTIES = {
+	normalizedTitle: 1.0,
+	normalizedBody: 0.5,
+	normalizedSubtitle: 0.75,
+	normalizedInboundLinksText: 0.95,
+};
+
+export const normalizedWords = (str) => {
+	if (!str) str = '';
+
+	//Pretend like em-dashes are just spaces
+	str = str.split('--').join(' ');
+	str = str.split('&emdash;').join(' ');
+
+	const splitWords = str.toLowerCase().split(/\s+/);
+	let result = [];
+	for (let word of splitWords) {
+		word = word.replace(/^\W*/, '');
+		word = word.replace(/\W*$/, '');
+		if (!word) continue;
+		result.push(word);
+	}
+	return result;
+};
+
+let memoizedStemmedWords = {};
+const memorizedStemmer = (word) => {
+	if (!memoizedStemmedWords[word]) {
+		memoizedStemmedWords[word] = stemmer(word);
+	}
+	
+	return memoizedStemmedWords[word];
+};
+
+//A more aggressive form of normalization
+export const stemmedNormalizedWords = (str) => {
+	//Assumes the words are already run through nomralizedWords
+	const splitWords = str.split('-').join(' ').split(' ');
+	let result = [];
+	for (let word of splitWords) {
+		result.push(memorizedStemmer(word));
+	}
+	return result;
+};
+
+const fullyNormalizedWords = (str) => {
+	let words = normalizedWords(str).join(' ');
+	return stemmedNormalizedWords(words);
+};
+
+const innerTextForHTML = (body) => {
+	let ele = document.createElement('section');
+	//TODO: is there an XSS vulnerability here?
+	ele.innerHTML = body;
+	return ele.innerText;
+};
+
+//cardSetNormalizedTextProperties sets the properties that search and
+//fingerprints work over. It sets them on the same card object sent.
+export const cardSetNormalizedTextProperties = (card) => {
+	const cardType = card.card_type || '';
+	//These three properties are expected to be set by TEXT_SEARCH_PROPERTIES
+	//Fields that are derived are calculated based on other fields of the card
+	//and should not be considered to be explicit set on the card by the author.
+	//For thse fields, skip them in normalized*, since they'll otherwise be part
+	//of the fingerprint, and for cards with not much content that use the
+	//fingerprint in a derived field that can create reinforcing loops.
+	card.normalizedBody = DERIVED_FIELDS_FOR_CARD_TYPE[cardType]['body'] ? '' : fullyNormalizedWords(innerTextForHTML(card.body || '')).join(' ');
+	card.normalizedTitle = DERIVED_FIELDS_FOR_CARD_TYPE[cardType]['title'] ? '' : fullyNormalizedWords(card.title).join(' ');
+	card.normalizedSubtitle = DERIVED_FIELDS_FOR_CARD_TYPE[cardType]['subtitle'] ? '' : fullyNormalizedWords(card.subtitle).join(' ');
+	card.normalizedInboundLinksText = fullyNormalizedWords(Object.values(card.links_inbound_text).join(' ')).join(' ');
 };

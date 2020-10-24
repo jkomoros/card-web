@@ -1,27 +1,14 @@
 import snarkdown from 'snarkdown';
 import dompurify from 'dompurify';
-import {
-	stemmer
-} from './stemmer.js';
 
 import {
 	TEXT_FIELD_BODY,
 	CARD_TYPE_CONTENT,
-	DERIVED_FIELDS_FOR_CARD_TYPE
 } from './card_fields.js';
 
 //define this here and then re-export form app.js so this file doesn't need any
 //other imports.
 export const _PAGE_BASIC_CARD = 'basic-card';
-
-//The properties of the card to search over for queries and their relative
-//weight.
-export const TEXT_SEARCH_PROPERTIES = {
-	normalizedTitle: 1.0,
-	normalizedBody: 0.5,
-	normalizedSubtitle: 0.75,
-	normalizedInboundLinksText: 0.95,
-};
 
 export const allSubstrings = (str) => {
 	let result = [];
@@ -32,49 +19,6 @@ export const allSubstrings = (str) => {
 		}
 	}
 	return result;
-};
-
-export const normalizedWords = (str) => {
-	if (!str) str = '';
-
-	//Pretend like em-dashes are just spaces
-	str = str.split('--').join(' ');
-	str = str.split('&emdash;').join(' ');
-
-	const splitWords = str.toLowerCase().split(/\s+/);
-	let result = [];
-	for (let word of splitWords) {
-		word = word.replace(/^\W*/, '');
-		word = word.replace(/\W*$/, '');
-		if (!word) continue;
-		result.push(word);
-	}
-	return result;
-};
-
-let memoizedStemmedWords = {};
-const memorizedStemmer = (word) => {
-	if (!memoizedStemmedWords[word]) {
-		memoizedStemmedWords[word] = stemmer(word);
-	}
-	
-	return memoizedStemmedWords[word];
-};
-
-//A more aggressive form of normalization
-export const stemmedNormalizedWords = (str) => {
-	//Assumes the words are already run through nomralizedWords
-	const splitWords = str.split('-').join(' ').split(' ');
-	let result = [];
-	for (let word of splitWords) {
-		result.push(memorizedStemmer(word));
-	}
-	return result;
-};
-
-const fullyNormalizedWords = (str) => {
-	let words = normalizedWords(str).join(' ');
-	return stemmedNormalizedWords(words);
 };
 
 //The max number of words to include in the semantic fingerprint
@@ -197,22 +141,6 @@ export const cardHasSubstantiveContent = (card) => {
 	return content.length > SUBSTANTIVE_CONTENT_THRESHOLD;
 };
 
-//cardSetNormalizedTextProperties sets the properties that search and
-//fingerprints work over. It sets them on the same card object sent.
-export const cardSetNormalizedTextProperties = (card) => {
-	const cardType = card.card_type || '';
-	//These three properties are expected to be set by TEXT_SEARCH_PROPERTIES
-	//Fields that are derived are calculated based on other fields of the card
-	//and should not be considered to be explicit set on the card by the author.
-	//For thse fields, skip them in normalized*, since they'll otherwise be part
-	//of the fingerprint, and for cards with not much content that use the
-	//fingerprint in a derived field that can create reinforcing loops.
-	card.normalizedBody = DERIVED_FIELDS_FOR_CARD_TYPE[cardType]['body'] ? '' : fullyNormalizedWords(innerTextForHTML(card.body || '')).join(' ');
-	card.normalizedTitle = DERIVED_FIELDS_FOR_CARD_TYPE[cardType]['title'] ? '' : fullyNormalizedWords(card.title).join(' ');
-	card.normalizedSubtitle = DERIVED_FIELDS_FOR_CARD_TYPE[cardType]['subtitle'] ? '' : fullyNormalizedWords(card.subtitle).join(' ');
-	card.normalizedInboundLinksText = fullyNormalizedWords(Object.values(card.links_inbound_text).join(' ')).join(' ');
-};
-
 export const cardHasNotes = (card) => {
 	if (!card) return false;
 	let content = card.notes ? card.notes.trim() : '';
@@ -299,13 +227,6 @@ export const cardNeedsReciprocalLinkTo = (card, other) => {
 
 //expandCardCollection should be used any time we have a list of IDs of cards and a bundle of cards to expand.
 export const expandCardCollection = (collection, cards) => collection.map(id => cards[id] || null).filter(card => card ? true : false);
-
-const innerTextForHTML = (body) => {
-	let ele = document.createElement('section');
-	//TODO: is there an XSS vulnerability here?
-	ele.innerHTML = body;
-	return ele.innerText;
-};
 
 const MULTIPLE_LINK_TEXT_DELIMITER = ' || ';
 

@@ -1,14 +1,11 @@
 import {
-	CARD_TYPE_WORKING_NOTES
+	CARD_TYPE_WORKING_NOTES,
+	cardSetNormalizedTextProperties
 } from './card_fields.js';
 
 import {
 	getSemanticFingerprintForCard
 } from './selectors.js';
-
-import {
-	cardSetNormalizedTextProperties
-} from './util.js';
 
 const WORKING_NOTES_TITLE_PREFIX = '>';
 const NUM_TERMS_OF_FINGERPRINT = 8;

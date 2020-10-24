@@ -12,9 +12,6 @@ import { createSelector } from 'reselect';
 */
 
 import {
-	TEXT_SEARCH_PROPERTIES,
-	normalizedWords,
-	stemmedNormalizedWords,
 	semanticOverlap,
 	SEMANTIC_FINGERPRINT_SIZE,
 	expandCardCollection
@@ -37,7 +34,10 @@ import {
 } from './tabs.js';
 
 import {
-	BODY_CARD_TYPES
+	BODY_CARD_TYPES,
+	TEXT_SEARCH_PROPERTIES,
+	normalizedWords,
+	stemmedNormalizedWords,
 } from './card_fields.js';
 
 import {

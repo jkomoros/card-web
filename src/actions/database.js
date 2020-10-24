@@ -27,7 +27,7 @@ import {
 
 import {
 	cardSetNormalizedTextProperties
-} from '../util.js';
+} from '../card_fields.js';
 
 import {
 	selectUserMayViewApp

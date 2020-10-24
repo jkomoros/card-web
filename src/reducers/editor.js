@@ -34,11 +34,14 @@ import {
 } from '../actions/data.js';
 
 import {
-	cardSetNormalizedTextProperties,
 	arrayRemove,
 	arrayUnion,
 	extractCardLinksFromBody
 } from '../util.js';
+
+import {
+	cardSetNormalizedTextProperties
+} from '../card_fields.js';
 
 import {
 	PERMISSION_EDIT_CARD
