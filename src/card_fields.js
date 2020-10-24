@@ -1,6 +1,7 @@
 export const TEXT_FIELD_BODY = 'body';
 export const TEXT_FIELD_TITLE = 'title';
 export const TEXT_FIELD_SUBTITLE = 'subtitle';
+export const TEXT_FIELD_LINKS_INBOUND_TEXT = 'links_inbound_text';
 
 export const CARD_TYPE_CONTENT = 'content';
 export const CARD_TYPE_SECTION_HEAD = 'section-head';
@@ -33,6 +34,13 @@ export const TEXT_FIELD_CONFIGURATION = {
 		container: 'h2',
 		legal_card_types: {[CARD_TYPE_SECTION_HEAD]: true},
 		derived_for_card_types: {},
+	},
+	[TEXT_FIELD_LINKS_INBOUND_TEXT]: {
+		html: false,
+		readOnly: true,
+		//null signals it's legal for all card types
+		legal_card_types: null,
+		derived_for_card_types: {},
 	}
 };
 
@@ -43,12 +51,13 @@ export const DERIVED_FIELDS_FOR_CARD_TYPE = Object.fromEntries(Object.keys(VALID
 //types of card that have a body
 export const BODY_CARD_TYPES = TEXT_FIELD_CONFIGURATION[TEXT_FIELD_BODY].legal_card_types;
 
-export const legalFieldsForCardType = (cardType) => {
+export const editableFieldsForCardType = (cardType) => {
 	let result = {};
 	for (let key of Object.keys(TEXT_FIELD_CONFIGURATION)) {
 		const config = TEXT_FIELD_CONFIGURATION[key];
 		//Items with null for legal_card_types are legal in all card types
 		if (config.legal_card_types && !config.legal_card_types[cardType]) continue;
+		if (config.readOnly) continue;
 		result[key] = config;
 	}
 	return result;
