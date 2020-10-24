@@ -53,6 +53,10 @@ import {
 	navigatedToNewCard
 } from './data.js';
 
+import {
+	editingStart
+} from './editor.js';
+
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
 
 export const PLACEHOLDER_CARD_ID_CHARACTER = '_';
@@ -356,6 +360,11 @@ export const showCard = (requestedCard) => (dispatch, getState) => {
 	if (pendingNewCardID == cardId) {
 		//This is where we note that we were told to navigate 
 		dispatch(navigatedToNewCard());
-		//TODO: open the card for editing;
+
+		//Try to open the new card for editing. Note thta the timestamp data
+		//will be estimates only at this point (see
+		//database.js/cardSnapshotReceiver), but that's OK because they'll be
+		//set properly later.
+		dispatch(editingStart());
 	}
 };
