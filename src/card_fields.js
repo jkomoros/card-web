@@ -122,6 +122,10 @@ const memorizedStemmer = (word) => {
 //A more aggressive form of normalization
 export const stemmedNormalizedWords = (str) => {
 	//Assumes the words are already run through nomralizedWords
+
+	//We split the words the same way in destemmedWordMap. We have to split
+	//within here due to complex logic about where '-' is treated as a word
+	//split and where it isnt in queries.
 	const splitWords = str.split('-').join(' ').split(' ');
 	let result = [];
 	for (let word of splitWords) {
@@ -160,6 +164,36 @@ const extractContentWords = (card) => {
 		obj[fieldName] = value;
 	}
 	return obj;
+};
+
+//destemmedWordMap returns a map of where each given destemmed word is mapped to
+//its most common stemmed variant from within this card.
+//eslint-disable-next-line no-unused-vars
+const destemmedWordMap = (card) => {
+	const content = extractContentWords(card);
+	const counts = {};
+	for (let str of Object.values(content)) {
+		//We split the words the same way in stemmedNormalizedWords.
+		const words = str.split('-').join(' ').split(' ');
+		for (let word of words) {
+			const stemmedWord = memorizedStemmer(word);
+			if (!counts[stemmedWord]) counts[stemmedWord] = {};
+			counts[stemmedWord][word] = (counts[stemmedWord][word] || 0) + 1;
+		}
+	}
+	//counts is now a map of destemmedWord to word.
+	const result = {};
+	for (let [destemmedWord, wordCounts] of Object.entries(counts)) {
+		let maxCount = 0;
+		let maxWord = '';
+		for (let [word, count] of Object.entries(wordCounts)) {
+			if (count <= maxCount) continue;
+			maxCount = count;
+			maxWord = word;
+		}
+		result[destemmedWord] = maxWord;
+	}
+	return result;
 };
 
 //cardSetNormalizedTextProperties sets the properties that search and
