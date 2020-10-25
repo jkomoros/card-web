@@ -359,30 +359,34 @@ const TODO_TYPE_FREEFORM = {
 //they're factored into a single config here and all of the other machinery uses
 //it (and extends with non-card-filter-types as appropriate). The keys of each
 //config object are used as the keys in card.auto_todo_overrides map.
-const CARD_FILTER_CONFIGS = {
+const CARD_FILTER_CONFIGS = Object.assign(
 	//tuple of good/bad filtername (good is primary), including no-todo/todo version if applicable, then the card->in-filter test, then one of the TODO_TYPE enum values, then how bad they are in terms of TODO weight, then a description of what the TODO means.
-	'comments': [defaultCardFilterName('comments'), card => card.thread_count, TODO_TYPE_NA, 0.0, 'Whether the card has comments'],
-	'notes': [defaultCardFilterName('notes'), card => cardHasNotes(card), TODO_TYPE_NA, 0.0, 'Whether the card has notes'],
-	'orphaned': [defaultNonTodoCardFilterName('orphaned'), card => !card.section, TODO_TYPE_NA, 0.0, 'Whether the card is part of a section or not'],
-	'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, TODO_TYPE_AUTO, 0.2, 'Whether the card has a slug set'],
-	'content': [defaultCardFilterName('content'), card => cardHasContent(card), TODO_TYPE_AUTO, 5.0, 'Whether the card has any content whatsoever'],
-	'substantive-content': [defaultCardFilterName('substantive-content'), card => cardHasSubstantiveContent(card), TODO_TYPE_AUTO, 3.0, 'Whether the card has more than a reasonable minimum amount of content'],
-	'links': [defaultCardFilterName('links'), card => card.links && card.links.length, TODO_TYPE_AUTO, 1.0, 'Whether the card links out to other cards'],
-	'inbound-links': [defaultCardFilterName('inbound-links'), card => card.links_inbound && card.links_inbound.length, TODO_TYPE_AUTO, 2.0, 'Whether the card has other cards that link to it'],
-	'reciprocal-links': [['has-all-reciprocal-links', 'missing-reciprocal-links', 'does-not-need-reciprocal-links', 'needs-reciprocal-links'], card => cardMissingReciprocalLinks(card).length == 0, TODO_TYPE_AUTO, 1.0, 'Whether every inbound link has a matching outbound link'],
-	'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, TODO_TYPE_AUTO, 1.0, 'Whether the card has any tags'],
-	'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], card => card.published, TODO_TYPE_AUTO, 0.5, 'Whether the card is published'],
-	'tweet': [defaultCardFilterName('tweet'), card => card.tweet_count > 0, TODO_TYPE_NA, 0.0, 'Whether the card has any tweets from the bot'],
-	//The following TODO types will never be automatically applied, because their test function always returns false, but they can be manually applied.
-	'prose': [defaultCardFilterName('prose'), () => true, TODO_TYPE_AUTO, 0.5, 'Whether the card has manually been marked as needing to be turned into flowing prose, as opposed to disjoint details'],
-	'citations': [defaultCardFilterName('citations'), () => true, TODO_TYPE_AUTO, 0.3, 'Whether the card has citations that need to be formally represented'],
-	[EVERYTHING_SET_NAME]: [defaultNonTodoCardFilterName(FILTER_EQUIVALENTS_FOR_SET[EVERYTHING_SET_NAME]), () => true, TODO_TYPE_NA, 0.0, 'Every card is in the everything set'],
-	//TODO_COMBINED_FILTERS looks for the fourth key in the filtername array, so
-	//we just duplicate the first two since they're the same (the reason they'd
-	//differ is if there's an override key and that could make the has- and
-	//needs- filters be different, and there isn't.)
-	[FREEFORM_TODO_KEY]: [['no-freeform-todo', 'has-freeform-todo', 'no-freeform-todo', 'has-freeform-todo'], card => !cardHasTodo(card), TODO_TYPE_FREEFORM, 1.0, 'Whether the card has any text in its freeform TODO field'],
-};
+	{
+		'comments': [defaultCardFilterName('comments'), card => card.thread_count, TODO_TYPE_NA, 0.0, 'Whether the card has comments'],
+		'notes': [defaultCardFilterName('notes'), card => cardHasNotes(card), TODO_TYPE_NA, 0.0, 'Whether the card has notes'],
+		'orphaned': [defaultNonTodoCardFilterName('orphaned'), card => !card.section, TODO_TYPE_NA, 0.0, 'Whether the card is part of a section or not'],
+		'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, TODO_TYPE_AUTO, 0.2, 'Whether the card has a slug set'],
+		'content': [defaultCardFilterName('content'), card => cardHasContent(card), TODO_TYPE_AUTO, 5.0, 'Whether the card has any content whatsoever'],
+		'substantive-content': [defaultCardFilterName('substantive-content'), card => cardHasSubstantiveContent(card), TODO_TYPE_AUTO, 3.0, 'Whether the card has more than a reasonable minimum amount of content'],
+		'links': [defaultCardFilterName('links'), card => card.links && card.links.length, TODO_TYPE_AUTO, 1.0, 'Whether the card links out to other cards'],
+		'inbound-links': [defaultCardFilterName('inbound-links'), card => card.links_inbound && card.links_inbound.length, TODO_TYPE_AUTO, 2.0, 'Whether the card has other cards that link to it'],
+		'reciprocal-links': [['has-all-reciprocal-links', 'missing-reciprocal-links', 'does-not-need-reciprocal-links', 'needs-reciprocal-links'], card => cardMissingReciprocalLinks(card).length == 0, TODO_TYPE_AUTO, 1.0, 'Whether every inbound link has a matching outbound link'],
+		'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, TODO_TYPE_AUTO, 1.0, 'Whether the card has any tags'],
+		'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], card => card.published, TODO_TYPE_AUTO, 0.5, 'Whether the card is published'],
+		'tweet': [defaultCardFilterName('tweet'), card => card.tweet_count > 0, TODO_TYPE_NA, 0.0, 'Whether the card has any tweets from the bot'],
+		//The following TODO types will never be automatically applied, because their test function always returns false, but they can be manually applied.
+		'prose': [defaultCardFilterName('prose'), () => true, TODO_TYPE_AUTO, 0.5, 'Whether the card has manually been marked as needing to be turned into flowing prose, as opposed to disjoint details'],
+		'citations': [defaultCardFilterName('citations'), () => true, TODO_TYPE_AUTO, 0.3, 'Whether the card has citations that need to be formally represented'],
+		[EVERYTHING_SET_NAME]: [defaultNonTodoCardFilterName(FILTER_EQUIVALENTS_FOR_SET[EVERYTHING_SET_NAME]), () => true, TODO_TYPE_NA, 0.0, 'Every card is in the everything set'],
+		//TODO_COMBINED_FILTERS looks for the fourth key in the filtername array, so
+		//we just duplicate the first two since they're the same (the reason they'd
+		//differ is if there's an override key and that could make the has- and
+		//needs- filters be different, and there isn't.)
+		[FREEFORM_TODO_KEY]: [['no-freeform-todo', 'has-freeform-todo', 'no-freeform-todo', 'has-freeform-todo'], card => !cardHasTodo(card), TODO_TYPE_FREEFORM, 1.0, 'Whether the card has any text in its freeform TODO field'],
+	},
+	Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(function(cardType){return [cardType, [defaultNonTodoCardFilterName(cardType), card => card.card_type == cardType, TODO_TYPE_NA, 0.0, 'Card that is of ' + cardType + ' type.']];})),
+);
+
 
 //REVERSE_CARD_FILTER_CXONFIG_MAP maps the filter names, e.g. 'has-links',
 //'needs-links', 'does-not-need-links' to 'links'. Need to use a function
@@ -450,8 +454,7 @@ export const INVERSE_FILTER_NAMES = Object.assign(
 	//extend with ones for all of the card filters badsed on that config
 	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][1], entry[1][0][0]])),
 	//Add the inverse need filters (skipping ones htat are not a TODO)
-	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] == TODO_TYPE_AUTO).map(entry => [entry[1][0][3], entry[1][0][2]])),
-	Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(name => ['not-' + name, name]))
+	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] == TODO_TYPE_AUTO).map(entry => [entry[1][0][3], entry[1][0][2]]))
 );
 
 const makeBasicCardFilterFunc = (baseFunc, todoConfig) => {
@@ -510,8 +513,9 @@ const INITIAL_STATE_FILTERS = Object.assign(
 		read: {},
 	},
 	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => [entry[1], {}])),
+	//note: `in-everything-set` will be included in the above set and this next
+	//one, but that's OK, they'll both be the same.
 	Object.fromEntries(Object.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], {}])),
-	Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(name => [name, {}])),
 );
 
 export const INITIAL_STATE = {

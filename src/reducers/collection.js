@@ -29,10 +29,6 @@ import {
 	CARD_FILTER_FUNCS
 } from '../filters.js';
 
-import {
-	CARD_TYPE_CONFIGURATION
-} from '../card_fields.js';
-
 const app = (state = INITIAL_STATE, action) => {
 	switch (action.type) {
 	case SHOW_CARD:
@@ -127,18 +123,6 @@ const makeFilterFromCards = (cards, previousFilters) => {
 			}
 		}
 		result[filterName] = setUnion(setRemove(previousFilters[filterName], newNonMatchingCards), newMatchingCards);
-	}
-	for (let cardType of Object.keys(CARD_TYPE_CONFIGURATION)) {
-		let newMatchingCards = [];
-		let newNonMatchingCards = [];
-		for (let card of Object.values(cards)) {
-			if (card.card_type == cardType) {
-				newMatchingCards.push(card.id);
-			} else {
-				newNonMatchingCards.push(card.id);
-			}
-		}
-		result[cardType] = setUnion(setRemove(previousFilters[cardType], newNonMatchingCards), newMatchingCards);
 	}
 	return result;
 };
