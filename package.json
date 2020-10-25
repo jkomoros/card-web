@@ -52,7 +52,7 @@
     "gulp-rename": "^1.4.0",
     "gulp-replace": "^1.0.0",
     "gulp-run-command": "0.0.9",
-    "jsdom": "^16.2.2",
+    "jsdom": "^16.4.0",
     "mocha": "^5.2.0",
     "pixelmatch": "^4.0.2",
     "polymer-cli": "^1.9.11",
