@@ -453,13 +453,18 @@ export const INVERSE_FILTER_NAMES = Object.assign(
 	Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(name => ['not-' + name, name]))
 );
 
-const makeBasicCardFilterFunc = (baseFunc) => {
-	return function(card) {
-		//Cards that can't have auto TODOs are marked as having met the condition.
-		//TODO: is this logic right? Shouldn't we just skip all of these?
-		if(!cardMayHaveAutoTODO(card)) return true;
-		return baseFunc(card);
-	};
+const makeBasicCardFilterFunc = (baseFunc, todoConfig) => {
+	if (todoConfig.isTODO) {
+		return function(card) {
+			//Cards that can't have auto TODOs are marked as having met the condition.
+			//TODO: is this logic right? Shouldn't we just skip all of these?
+			if(!cardMayHaveAutoTODO(card)) return true;
+			return baseFunc(card);
+		};
+	}
+	//If it's just a normal type of filter, e.g. TODO_NA, then just use the
+	//default filter func.
+	return baseFunc;
 };
 
 const makeDoesNotNeedFunc = (baseFunc, overrideKeyName) => {
@@ -485,7 +490,7 @@ const combinedTodoFunc = (card) => {
 
 export const CARD_FILTER_FUNCS = Object.assign(
 	//The main filter names
-	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][0], makeBasicCardFilterFunc(entry[1][1])])),
+	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][0], makeBasicCardFilterFunc(entry[1][1], entry[1][2])])),
 	//does-not-need filters for TODOs
 	DOES_NOT_NEED_FILTER_FUNCS,
 	//combined filter func
