@@ -1261,7 +1261,7 @@ const queryWordsAndFilters = (queryString) => {
 
 const selectCollectionDescriptionForQuery = createSelector(
 	selectPreparedQuery,
-	(query) => new CollectionDescription('',query.filters)
+	(query) => new CollectionDescription(EVERYTHING_SET_NAME,['has-body', ...query.filters])
 );
 
 const selectCollectionForQuery = createSelector(
