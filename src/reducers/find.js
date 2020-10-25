@@ -4,7 +4,8 @@ import {
 	FIND_UPDATE_QUERY,
 	FIND_CARD_TO_LINK,
 	FIND_UPDATE_ACTIVE_QUERY,
-	FIND_CARD_TO_PERMISSION
+	FIND_CARD_TO_PERMISSION,
+	FIND_UPDATE_CARD_TYPE_FILTER
 } from '../actions/find.js';
 
 const INITIAL_STATE = {
@@ -17,6 +18,7 @@ const INITIAL_STATE = {
 	activeQuery: '',
 	linking: false,
 	permissions: false,
+	cardTypeFilter: '',
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -28,6 +30,7 @@ const app = (state = INITIAL_STATE, action) => {
 			permissions: false,
 			query: '',
 			activeQuery: '',
+			cardTypeFilter: '',
 			open: true
 		};
 	case FIND_DIALOG_CLOSE:
@@ -36,6 +39,7 @@ const app = (state = INITIAL_STATE, action) => {
 			open: false,
 			query: '',
 			activeQuery: '',
+			cardTypeFilter: '',
 		};
 	case FIND_UPDATE_QUERY: 
 		return {
@@ -53,6 +57,7 @@ const app = (state = INITIAL_STATE, action) => {
 			open: true,
 			linking: true,
 			permissions: false,
+			cardTypeFilter: '',
 			query: action.query,
 			activeQuery: action.query
 		};
@@ -63,7 +68,13 @@ const app = (state = INITIAL_STATE, action) => {
 			linking: false,
 			permissions: true,
 			query: '',
-			activeQuery: ''
+			activeQuery: '',
+			cardTypeFilter: '',
+		};
+	case FIND_UPDATE_CARD_TYPE_FILTER:
+		return {
+			...state,
+			cardTypeFilter: action.filter,
 		};
 	default:
 		return state;

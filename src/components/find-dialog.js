@@ -13,7 +13,8 @@ store.addReducers({
 
 import {
 	closeFindDialog,
-	updateQuery
+	updateQuery,
+	findUpdateCardTypeFilter
 } from '../actions/find.js';
 
 import {
@@ -38,7 +39,8 @@ import {
 	selectExpandedRankedCollectionForQuery,
 	selectPartialMatchedItemsForQuery,
 	selectUserMayCreateCard,
-	selectBodyCardTypes
+	selectBodyCardTypes,
+	selectFindCardTypeFilter
 } from '../selectors.js';
 
 import { 
@@ -84,7 +86,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		</style>
 		<form @submit=${this._handleFormSubmitted}>
 			${this._bodyCardTypes.length > 1 ? html`<div><span>Card type:</span>
-				${['', ...this._bodyCardTypes].map(typ => html`<input type='radio' name='card-type' ?checked=${'' === typ} value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}'>${typ || html`<em>Default</em>`}</label>`)}
+				${['', ...this._bodyCardTypes].map(typ => html`<input type='radio' name='card-type' @change=${this._handleCardTypeChanged} ?checked=${this._cardTypeFilter === typ} value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}'>${typ || html`<em>Default</em>`}</label>`)}
 			</div>` : ''}
 			<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
 		</form>
@@ -121,6 +123,11 @@ class FindDialog extends connect(store)(DialogElement) {
 	_handleQueryChanged(e) {
 		let ele = e.composedPath()[0];
 		store.dispatch(updateQuery(ele.value));
+	}
+
+	_handleCardTypeChanged(e) {
+		const filter = e.target.value;
+		store.dispatch(findUpdateCardTypeFilter(filter));
 	}
 
 	_handleAddLink() {
@@ -174,6 +181,7 @@ class FindDialog extends connect(store)(DialogElement) {
 			_partialMatches: {type:Object},
 			_userMayCreateCard: {type:Boolean},
 			_bodyCardTypes: {type:Array},
+			_cardTypeFilter: {type:String},
 		};
 	}
 
@@ -197,6 +205,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._permissions = state.find.permissions;
 		this._userMayCreateCard = selectUserMayCreateCard(state);
 		this._bodyCardTypes = selectBodyCardTypes(state);
+		this._cardTypeFilter = selectFindCardTypeFilter(state);
 	}
 
 }

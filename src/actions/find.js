@@ -4,6 +4,7 @@ export const FIND_UPDATE_QUERY = 'FIND_UPDATE_QUERY';
 export const FIND_CARD_TO_LINK = 'FIND_CARD_TO_LINK';
 export const FIND_UPDATE_ACTIVE_QUERY = 'FIND_UPDATE_ACTIVE_QUERY';
 export const FIND_CARD_TO_PERMISSION = 'FIND_CARD_TO_PERMISSION';
+export const FIND_UPDATE_CARD_TYPE_FILTER = 'FIND_UPDATE_CARD_TYPE_FILTER';
 
 import {
 	saveSelectionRange
@@ -57,5 +58,12 @@ export const findCardToLink = (starterQuery) => {
 export const findCardToPermission = () => {
 	return {
 		type: FIND_CARD_TO_PERMISSION,
+	};
+};
+
+export const findUpdateCardTypeFilter = (filter) => {
+	return {
+		type: FIND_UPDATE_CARD_TYPE_FILTER,
+		filter,
 	};
 };

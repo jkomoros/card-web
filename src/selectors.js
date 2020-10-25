@@ -128,6 +128,7 @@ export const selectCtrlKeyPressed = (state) => state.app ? state.app.ctrlKeyPres
 export const selectQuery = (state) => state.find.query;
 //activeQuery is the query that should be routed into the query pipeline.
 const selectActiveQuery = (state) => state.find.activeQuery;
+export const selectFindCardTypeFilter = (state) => state.find ? state.find.cardTypeFilter : '';
 
 export const selectAuthPending = (state) => state.user ? state.user.pending : false;
 //Note: this will return false unless stars have been loading, even if there is
@@ -1268,7 +1269,12 @@ const queryWordsAndFilters = (queryString) => {
 
 const selectCollectionDescriptionForQuery = createSelector(
 	selectPreparedQuery,
-	(query) => new CollectionDescription(EVERYTHING_SET_NAME,['has-body', ...query.filters])
+	selectFindCardTypeFilter,
+	(query, cardTypeFilter) => {
+		let baseFilters = ['has-body'];
+		if (cardTypeFilter) baseFilters.push(cardTypeFilter);
+		return new CollectionDescription(EVERYTHING_SET_NAME,[...baseFilters, ...query.filters]);
+	}
 );
 
 const selectCollectionForQuery = createSelector(
