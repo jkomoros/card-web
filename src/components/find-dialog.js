@@ -83,8 +83,8 @@ class FindDialog extends connect(store)(DialogElement) {
 			}
 		</style>
 		<form @submit=${this._handleFormSubmitted}>
-			${this._bodyCardTypes.length > 1 ? html`<div><span>Card type:</span><input checked type='radio' name='card-type' value='' id='card-type-default'><label for='card-type-default'><em>Default</em></label>
-				${this._bodyCardTypes.map(typ => html`<input type='radio' name='card-type' value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}'>${typ}</label>`)}
+			${this._bodyCardTypes.length > 1 ? html`<div><span>Card type:</span>
+				${['', ...this._bodyCardTypes].map(typ => html`<input type='radio' name='card-type' ?checked=${'' === typ} value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}'>${typ || html`<em>Default</em>`}</label>`)}
 			</div>` : ''}
 			<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
 		</form>
