@@ -84,6 +84,7 @@ import {
 } from '../permissions.js';
 
 import {
+	CARD_TYPE_CONFIGURATION,
 	TEXT_FIELD_CONFIGURATION,
 	TEXT_FIELD_BODY,
 	CARD_TYPE_CONTENT,
@@ -219,16 +220,23 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 		cardUpdateObject.name = update.name;
 	}
 
+	const CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[update.card_type || card.card_type];
+
 	let sectionUpdated = false;
 
 	if (update.section !== undefined) {
 		if (!update.section) {
-			if (!confirm('Orphaning this card will cause it to not be findable except with a direct link. OK?')) {
+			if (!CARD_TYPE_CONFIG.invertOrphanWarning && !confirm('Orphaning this card will cause it to not be findable except with a direct link. OK?')) {
 				console.log('User aborted because didn\'t confirm orphaning');
 				dispatch(modifyCardFailure());
 				return; 
 			}
 		} else {
+			if (CARD_TYPE_CONFIG.invertOrphanWarning && !confirm('This is a card type that typcially is not in a section, but you\'re adding it to a section. OK?')) {
+				console.log('User aborted because didn\'t confirm not orphaning');
+				dispatch(modifyCardFailure());
+				return; 
+			}
 			if (!getUserMayEditSection(state, update.section)) {
 				console.log('The user cannot modify the section the card is moving to');
 				return;
