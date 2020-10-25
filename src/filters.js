@@ -320,6 +320,10 @@ const defaultCardFilterName = (basename) => {
 	return ['has-' + basename, 'no-' + basename, 'does-not-need-' + basename, 'needs-' + basename];
 };
 
+const defaultNonTodoCardFilterName = (basename) => {
+	return [basename, 'not-' + basename, basename, 'not-' + basename];
+};
+
 const FREEFORM_TODO_KEY = 'freeform-todo';
 export const TODO_COMBINED_FILTER_NAME = 'has-todo';
 const TODO_COMBINED_INVERSE_FILTER_NAME = 'no-todo';
@@ -359,7 +363,7 @@ const CARD_FILTER_CONFIGS = {
 	//tuple of good/bad filtername (good is primary), including no-todo/todo version if applicable, then the card->in-filter test, then one of the TODO_TYPE enum values, then how bad they are in terms of TODO weight, then a description of what the TODO means.
 	'comments': [defaultCardFilterName('comments'), card => card.thread_count, TODO_TYPE_NA, 0.0, 'Whether the card has comments'],
 	'notes': [defaultCardFilterName('notes'), card => cardHasNotes(card), TODO_TYPE_NA, 0.0, 'Whether the card has notes'],
-	'orphaned': [['orphaned', 'not-orphaned', 'orphaned', 'not-orphaned'], card => !card.section, TODO_TYPE_NA, 0.0, 'Whether the card is part of a section or not'],
+	'orphaned': [defaultNonTodoCardFilterName('orphaned'), card => !card.section, TODO_TYPE_NA, 0.0, 'Whether the card is part of a section or not'],
 	'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, TODO_TYPE_AUTO, 0.2, 'Whether the card has a slug set'],
 	'content': [defaultCardFilterName('content'), card => cardHasContent(card), TODO_TYPE_AUTO, 5.0, 'Whether the card has any content whatsoever'],
 	'substantive-content': [defaultCardFilterName('substantive-content'), card => cardHasSubstantiveContent(card), TODO_TYPE_AUTO, 3.0, 'Whether the card has more than a reasonable minimum amount of content'],
