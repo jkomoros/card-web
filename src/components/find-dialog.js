@@ -37,7 +37,8 @@ import {
 import {
 	selectExpandedRankedCollectionForQuery,
 	selectPartialMatchedItemsForQuery,
-	selectUserMayCreateCard
+	selectUserMayCreateCard,
+	selectBodyCardTypes
 } from '../selectors.js';
 
 import { 
@@ -67,7 +68,7 @@ class FindDialog extends connect(store)(DialogElement) {
 				font-size:14px;
 			}
 
-			input, textarea {
+			#query {
 			  border: 0 solid black;
 			  font-size:0.8em;
 			  border-bottom:1px solid var(--app-dark-text-color);
@@ -82,6 +83,9 @@ class FindDialog extends connect(store)(DialogElement) {
 			}
 		</style>
 		<form @submit=${this._handleFormSubmitted}>
+			${this._bodyCardTypes.length > 1 ? html`<div><span>Card type:</span><input checked type='radio' name='card-type' value='' id='card-type-default'><label for='card-type-default'><em>Default</em></label>
+				${this._bodyCardTypes.map(typ => html`<input type='radio' name='card-type' value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}'>${typ}</label>`)}
+			</div>` : ''}
 			<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
 		</form>
 		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .collectionItemsToGhost=${this._partialMatches}></card-drawer>
@@ -96,6 +100,7 @@ class FindDialog extends connect(store)(DialogElement) {
 	constructor() {
 		super();
 		this.title = 'Search';
+		this._bodyCardTypes = [];
 	}
 
 	_shouldClose() {
@@ -168,6 +173,7 @@ class FindDialog extends connect(store)(DialogElement) {
 			_permissions: {type:Boolean},
 			_partialMatches: {type:Object},
 			_userMayCreateCard: {type:Boolean},
+			_bodyCardTypes: {type:Array},
 		};
 	}
 
@@ -190,6 +196,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._linking = state.find.linking;
 		this._permissions = state.find.permissions;
 		this._userMayCreateCard = selectUserMayCreateCard(state);
+		this._bodyCardTypes = selectBodyCardTypes(state);
 	}
 
 }
