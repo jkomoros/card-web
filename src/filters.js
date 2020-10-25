@@ -19,7 +19,8 @@ import {
 
 import {
 	CARD_TYPE_CONTENT,
-	CARD_TYPE_CONFIGURATION
+	CARD_TYPE_CONFIGURATION,
+	BODY_CARD_TYPES
 } from './card_fields.js';
 
 export const DEFAULT_SET_NAME = 'main';
@@ -378,6 +379,7 @@ const CARD_FILTER_CONFIGS = Object.assign(
 		'prose': [defaultCardFilterName('prose'), () => true, TODO_TYPE_AUTO, 0.5, 'Whether the card has manually been marked as needing to be turned into flowing prose, as opposed to disjoint details'],
 		'citations': [defaultCardFilterName('citations'), () => true, TODO_TYPE_AUTO, 0.3, 'Whether the card has citations that need to be formally represented'],
 		[EVERYTHING_SET_NAME]: [defaultNonTodoCardFilterName(FILTER_EQUIVALENTS_FOR_SET[EVERYTHING_SET_NAME]), () => true, TODO_TYPE_NA, 0.0, 'Every card is in the everything set'],
+		'body': [defaultCardFilterName('body'), card => card && BODY_CARD_TYPES[card.card_type], TODO_TYPE_NA, 0.0, 'Cards that are of a type that has a body field'],
 		//TODO_COMBINED_FILTERS looks for the fourth key in the filtername array, so
 		//we just duplicate the first two since they're the same (the reason they'd
 		//differ is if there's an override key and that could make the has- and
