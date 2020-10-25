@@ -1103,6 +1103,13 @@ export const getCardIndexForActiveCollection = (state, cardId) => {
 	return collection.map(card => card.id).indexOf(cardId);
 };
 
+//returns an array of card-types that are in the BODY_CARD_TYPES that this user has access to
+export const selectBodyCardTypes = createSelector(
+	selectFilters,
+	//we can just take advantage of the fact that cards are already set, and there's a filter per card type
+	(filters) => Object.keys(BODY_CARD_TYPES).filter(cardType => Object.keys(filters[cardType] || {}).length > 0)
+);
+
 const SIMPLE_FILTER_REWRITES = ['is:', 'section:', 'tag:'];
 const HAS_FILTER_PREFIX = 'has:';
 
