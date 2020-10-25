@@ -376,6 +376,7 @@ const CARD_FILTER_CONFIGS = {
 	//The following TODO types will never be automatically applied, because their test function always returns false, but they can be manually applied.
 	'prose': [defaultCardFilterName('prose'), () => true, TODO_TYPE_AUTO, 0.5, 'Whether the card has manually been marked as needing to be turned into flowing prose, as opposed to disjoint details'],
 	'citations': [defaultCardFilterName('citations'), () => true, TODO_TYPE_AUTO, 0.3, 'Whether the card has citations that need to be formally represented'],
+	[EVERYTHING_SET_NAME]: [defaultNonTodoCardFilterName(FILTER_EQUIVALENTS_FOR_SET[EVERYTHING_SET_NAME]), () => true, TODO_TYPE_NA, 0.0, 'Every card is in the everything set'],
 	//TODO_COMBINED_FILTERS looks for the fourth key in the filtername array, so
 	//we just duplicate the first two since they're the same (the reason they'd
 	//differ is if there's an override key and that could make the has- and
