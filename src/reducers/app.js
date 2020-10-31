@@ -26,7 +26,8 @@ import {
 	UPDATE_HOVERED_CARD,
 	UPDATE_FETCHED_CARD,
 	CARD_BEING_FETCHED,
-	UPDATE_CTRL_KEY_PRESSED
+	UPDATE_CTRL_KEY_PRESSED,
+	UPDATE_MAINTENANCE_MODE_ENABLED
 } from '../actions/app.js';
 
 const HEADER_PANEL_DEFAULT_VALUE = true;
@@ -51,6 +52,7 @@ const INITIAL_STATE = {
 	fetchedCard: {},
 	cardBeingFetched: false,
 	ctrlKeyPressed: false,
+	maintenanceModeEnabled: false,
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -155,6 +157,11 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			ctrlKeyPressed: action.pressed
+		};
+	case UPDATE_MAINTENANCE_MODE_ENABLED:
+		return {
+			...state,
+			maintenanceModeEnabled: action.enabled,
 		};
 	default:
 		return state;

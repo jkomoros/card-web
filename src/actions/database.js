@@ -15,6 +15,10 @@ import {
 } from './data.js';
 
 import {
+	updateMaintenanceModeEnabled
+} from './app.js';
+
+import {
 	updateMessages,
 	updateThreads
 } from './comments.js';
@@ -60,6 +64,7 @@ export const PERMISSIONS_COLLECTION = 'permissions';
 export const TWEETS_COLLECTION = 'tweets';
 
 const legalCallable = functions.httpsCallable('legal');
+const statusCallable = functions.httpsCallable('status');
 
 export const slugLegal = async (newSlug) => {
 	const result = await legalCallable({type:'slug', value:newSlug});
@@ -92,6 +97,18 @@ export const keepSlugLegalWarm = () => {
 	document.addEventListener('keydown', userActivity);
 	warmupSlugLegal(true);
 	slugLegalInterval = setInterval(warmupSlugLegal, KEEP_WARM_INTERVAL);
+};
+
+const maintenanceModeEnabled = async () => {
+	let result = await statusCallable({type:'maintenance_mode'});
+	return result.data;
+};
+
+export const fetchMaintenanceModeEnabled = async () => {
+	let maintenanceEnabled = await maintenanceModeEnabled();
+	if (maintenanceEnabled) {
+		store.dispatch(updateMaintenanceModeEnabled(true));
+	}
 };
 
 export const connectLiveMessages = () => {
