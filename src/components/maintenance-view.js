@@ -12,7 +12,6 @@ import {
 } from '../selectors.js';
 
 import {
-	doImport,
 	doInitialSetUp,
 	tasks,
 	maintenceModeRequiredTasks
@@ -37,7 +36,6 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 		  <br />
 		  <br />
 		  <br />
-          <button @click='${this._handleDoImport}'>Do import</button><br />
           ${repeat(Object.keys(tasks), (item) => item, (item) => html`
               <button value="${item}" @click='${this._handleClick}'>${item}</button>
 		  `)}
@@ -61,10 +59,6 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 	stateChanged(state) {
 		this._isAdmin = selectUserIsAdmin(state);
 		this._maintenanceModeEnabled = selectMaintenanceModeEnabled(state);
-	}
-
-	_handleDoImport() {
-		doImport();
 	}
 
 	_handleInitialSetUp() {
