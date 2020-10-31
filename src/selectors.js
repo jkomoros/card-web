@@ -359,7 +359,8 @@ export const tagsUserMayNotEdit = createSelector(
 export const selectUserMayCreateCard = createSelector(
 	selectUserMayEdit,
 	selectComposedPermissions,
-	(userMayEdit, permissions) => userMayEdit || permissions[PERMISSION_CREATE_CARD]
+	selectCardsMayCurrentlyBeEdited,
+	(userMayEdit, permissions, mayCurrentlyEdit) => mayCurrentlyEdit && (userMayEdit || permissions[PERMISSION_CREATE_CARD])
 );
 
 export const selectUserMayComment = createSelector(
