@@ -232,15 +232,17 @@ export const extractCardLinksFromBody = (body) => {
 	let ele = document.createElement('section');
 	//TODO: is there an XSS vulnerability here?
 	ele.innerHTML = body;
-	let result = [];
+	let result = {};
 	let nodes = ele.querySelectorAll('card-link[card]');
-	let text = {};
 	nodes.forEach(link => {
 		const id = link.getAttribute('card');
-		result.push(id);
-		text[id] = (text[id] ? text[id] + MULTIPLE_LINK_TEXT_DELIMITER : '') + link.innerText;
+		if (result[id]) {
+			result[id] = result[id] + MULTIPLE_LINK_TEXT_DELIMITER + link.innerText;
+		} else {
+			result[id] = link.innerText;
+		}
 	});
-	return [arrayUnique(result), text];
+	return result;
 };
 
 export const arrayRemove = (arr, items) => {

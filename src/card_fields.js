@@ -237,3 +237,12 @@ export const cardGetInboundLinksArray = (cardObj) => {
 export const cardGetInboundReferencesArray = (cardObj) => {
 	return cardGetInboundLinksArray(cardObj);
 };
+
+//linksObj should be a object with CARD_ID: link text (or '' if no link text).
+//Any previously-existing links on the card are cleared.
+export const cardSetLinks = (cardObj, linksObj) => {
+	if (!cardObj) return;
+	if (!linksObj) linksObj = {};
+	cardObj.links = Object.keys(linksObj);
+	cardObj.links_text = Object.values(linksObj);
+};

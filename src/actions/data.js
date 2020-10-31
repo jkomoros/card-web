@@ -89,7 +89,8 @@ import {
 	TEXT_FIELD_BODY,
 	CARD_TYPE_CONTENT,
 	CARD_TYPE_SECTION_HEAD,
-	CARD_TYPE_WORKING_NOTES
+	CARD_TYPE_WORKING_NOTES,
+	cardSetLinks
 } from '../card_fields.js';
 
 //When a new tag is created, it is randomly assigned one of these values.
@@ -198,8 +199,9 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 		cardUpdateObject[field] = update[field];
 		if (field != TEXT_FIELD_BODY) continue;
 		let linkInfo = extractCardLinksFromBody(update[field]);
-		cardUpdateObject.links = linkInfo[0];
-		cardUpdateObject.links_text = linkInfo[1];
+		//TODO: this won't work in cases where we're only partially updating the
+		//card's references.
+		cardSetLinks(cardUpdateObject, linkInfo);
 	}
 
 	if (update.notes !== undefined) {

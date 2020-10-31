@@ -40,7 +40,8 @@ import {
 } from '../util.js';
 
 import {
-	cardSetNormalizedTextProperties
+	cardSetNormalizedTextProperties,
+	cardSetLinks
 } from '../card_fields.js';
 
 import {
@@ -131,7 +132,8 @@ const app = (state = INITIAL_STATE, action) => {
 		//links to be updated away. This is also when we do expensive processing
 		//of body, like re-extracting words to cause suggested tags to change.
 		let linkInfo = extractCardLinksFromBody(state.card.body);
-		card = {...state.card, links:linkInfo[0], links_text: linkInfo[1]};
+		card = {...state.card};
+		cardSetLinks(card, linkInfo);
 		cardSetNormalizedTextProperties(card);
 		return {
 			...state,
