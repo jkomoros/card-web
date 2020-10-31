@@ -266,10 +266,16 @@ export const getUserMayEditCard = (state, cardID) => {
 	return false;
 };
 
+const selectCardsMayCurrentlyBeEdited = createSelector(
+	selectMaintenanceModeEnabled,
+	(enabled) => !enabled
+);
+
 export const selectUserMayEditActiveCard = createSelector(
 	selectState,
 	selectActiveCardId,
-	(state, cardID) => getUserMayEditCard(state, cardID)
+	selectCardsMayCurrentlyBeEdited,
+	(state, cardID, cardsMayBeEdited) => cardsMayBeEdited && getUserMayEditCard(state, cardID)
 );
 
 export const selectUserMayViewApp = createSelector(
