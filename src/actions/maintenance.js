@@ -883,5 +883,7 @@ export const tasks = {
 	[ADD_EDITORS_COLLABORATORS]: addEditorsCollaborators,
 };
 
-//Tasks that do require maintenance mode are registered here.
+//Tasks that do require maintenance mode are registered here. These are
+//typically things that touch fields that updateInboundLinks or any other
+//functions that run when a card is changed.
 export const maintenceModeRequiredTasks = {};
