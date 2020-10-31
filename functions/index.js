@@ -68,3 +68,5 @@ exports.legal = functions.https.onCall(async (data) => {
         reason: result
     };
 });
+
+exports.status = functions.https.onCall(update.status);

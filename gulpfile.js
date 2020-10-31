@@ -293,7 +293,7 @@ gulp.task(GCLOUD_ENSURE_DEV_TASK, (cb) => {
 
 gulp.task(POLYMER_BUILD_TASK, makeExecutor('polymer build'));
 
-gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(TWITTER_HANDLE ? 'firebase deploy' : 'firebase deploy --only hosting,firestore,functions:updateInboundLinks,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal'));
+gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(TWITTER_HANDLE ? 'firebase deploy' : 'firebase deploy --only hosting,firestore,functions:updateInboundLinks,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal,functions:status'));
 
 gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, makeExecutor('firebase functions:config:set site.last_deploy_affecting_rendering=' + RELEASE_TAG));
 
@@ -301,7 +301,7 @@ gulp.task(FIREBASE_FUNCTIONS_SET_MAINTENANCE_MODE_OFF, makeExecutor('firebase fu
 
 gulp.task(FIREBASE_FUNCTIONS_SET_MAINTENANCE_MODE_ON, makeExecutor('firebase functions:config:set updates.disable_card_functions=disabled'));
 
-gulp.task(FIREBASE_FUNCTIONS_DEPLOY_MAINTENANCE_MODE, makeExecutor('firebase deploy --only functions:updateInboundLinks'));
+gulp.task(FIREBASE_FUNCTIONS_DEPLOY_MAINTENANCE_MODE, makeExecutor('firebase deploy --only functions:updateInboundLinks,functions:status'));
 
 gulp.task(GCLOUD_BACKUP_TASK, cb => {
 	if (!BACKUP_BUCKET_NAME) {
