@@ -7,13 +7,15 @@ import { repeat } from 'lit-html/directives/repeat';
 import { store } from '../store.js';
 
 import { 
-	selectUserIsAdmin
+	selectUserIsAdmin,
+	selectMaintenanceModeEnabled
 } from '../selectors.js';
 
 import {
 	doImport,
 	doInitialSetUp,
-	tasks
+	tasks,
+	maintenceModeRequiredTasks
 } from '../actions/maintenance.js';
 
 // These are the shared styles needed by this element.
@@ -38,6 +40,11 @@ class MaintenanceView extends connect(store)(PageViewElement) {
           <button @click='${this._handleDoImport}'>Do import</button><br />
           ${repeat(Object.keys(tasks), (item) => item, (item) => html`
               <button value="${item}" @click='${this._handleClick}'>${item}</button>
+		  `)}
+		  <br />
+		  <h5>Tasks that require maintence mode to be enabled via 'gulp turn-maintenance-mode-on'</h5>
+		  ${repeat(Object.keys(maintenceModeRequiredTasks), (item) => item, (item) => html`
+              <button value="${item}" @click='${this._handleClick}' .disabled=${!this._maintenanceModeEnabled}>${item}</button>
           `)}
         </section>
       </section>
@@ -47,11 +54,13 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 	static get properties() {
 		return {
 			_isAdmin: { type: Boolean},
+			_maintenanceModeEnabled: { type: Boolean},
 		};
 	}
 
 	stateChanged(state) {
 		this._isAdmin = selectUserIsAdmin(state);
+		this._maintenanceModeEnabled = selectMaintenanceModeEnabled(state);
 	}
 
 	_handleDoImport() {
@@ -65,7 +74,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 	_handleClick(e) {
 		let ele = e.composedPath()[0];
 		let value = ele.value;
-		let func = tasks[value];
+		let func = tasks[value] || maintenceModeRequiredTasks[value];
 		if (!func) {
 			console.log('That func isn\'t defined');
 			return;

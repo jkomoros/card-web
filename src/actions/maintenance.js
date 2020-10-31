@@ -855,6 +855,7 @@ export const addEditorsCollaborators = async() => {
 	alert(ADD_EDITORS_COLLABORATORS + ' done!');
 };
 
+//tasks that don't require maintenance mode to be enabled are registered here
 export const tasks = {
 	[ADD_TWO_OLD_MAINTENANCE_TASKS]: addTwoOldMaintenanceTasks,
 	[ADD_CARD_TYPE_TO_IMPORTED_CARDS]: addCardTypeToImportedCards,
@@ -881,3 +882,6 @@ export const tasks = {
 	[ADD_LINKS_TEXT]: addLinksText,
 	[ADD_EDITORS_COLLABORATORS]: addEditorsCollaborators,
 };
+
+//Tasks that do require maintenance mode are registered here.
+export const maintenceModeRequiredTasks = {};

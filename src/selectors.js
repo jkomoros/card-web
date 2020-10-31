@@ -70,6 +70,7 @@ export const selectPage = (state) => state.app.page;
 export const selectPageExtra = (state) => state.app.pageExtra;
 export const selectFetchedCard = (state) => state.app.fetchedCard;
 export const selectCardBeingFetched = (state) => state.app.cardBeingFetched;
+export const selectMaintenanceModeEnabled = (state) => state.app.maintenanceModeEnabled;
 
 export const selectComposeOpen = (state) => state.prompt.composeOpen;
 export const selectPromptContent = (state) => state.prompt.content;
