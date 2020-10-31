@@ -155,6 +155,16 @@ const innerTextForHTML = (body) => {
 	return ele.innerText;
 };
 
+//Returns a string, where if it's an array or object (or any of their subkeys
+//are) they're joined by ' '. This allows it to work straightforwardly for
+//normal text properties, as well as arrays, objects, or even nested objects
+//that have string values at the terminus.
+const extractFieldValueForIndexing = (fieldValue) => {
+	if (typeof fieldValue !== 'object') return fieldValue;
+	if (!fieldValue) return '';
+	return Object.values(fieldValue).map(item => extractFieldValueForIndexing(item)).join(' ');
+};
+
 //extractContentWords returns an object with the field to the non-de-stemmed
 //normalized words for each of the main properties.
 const extractContentWords = (card) => {
@@ -169,8 +179,7 @@ const extractContentWords = (card) => {
 	for (let [fieldName, config] of Object.entries(TEXT_FIELD_CONFIGURATION)) {
 		let value = '';
 		if (!DERIVED_FIELDS_FOR_CARD_TYPE[cardType][fieldName]) {
-			const rawFieldValue = card[fieldName];
-			const fieldValue = typeof rawFieldValue === 'object' ? Object.values(rawFieldValue).join(' ') : rawFieldValue;
+			const fieldValue = extractFieldValueForIndexing(card[fieldName]);
 			const content = config.html ? innerTextForHTML(fieldValue) : fieldValue;
 			const words = normalizedWords(content);
 			value = words.join(' ');
