@@ -83,6 +83,10 @@ import {
 	composeCommit
 } from './prompt.js';
 
+import {
+	cardGetReferencesArray
+} from '../card_fields.js';
+
 //if silent is true, then just passively updates the URL to reflect what it should be.
 export const navigatePathTo = (path, silent) => (dispatch, getState) => {
 	const state = getState();
@@ -288,7 +292,7 @@ export const fetchCardLinkCardsForFetchedCard = async (fetchedCard) => async (di
 	if (!fetchedCard || Object.values(fetchedCard).length == 0) return;
 
 	//If all of the cards were already fetched we can bail early.
-	const links = fetchedCard.links;
+	const links = cardGetReferencesArray(fetchedCard);
 	const state = getState();
 	const fetchedCards = selectCards(state);
 	const allCardsFetched = links.every(cardID => fetchedCards[cardID]);

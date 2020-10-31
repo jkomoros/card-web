@@ -215,3 +215,25 @@ export const cardSetNormalizedTextProperties = (card) => {
 	//Basically it takes the output of extractContentWords and then stems them.
 	card.normalized = Object.fromEntries(Object.entries(extractContentWords(card)).map(entry => [entry[0], stemmedNormalizedWords(entry[1]).join(' ')]));
 };
+
+//cardGetLinksArray returns an array of CARD_IDs this card points to via links.
+export const cardGetLinksArray = (cardObj) => {
+	if (!cardObj) return [];
+	return cardObj.links || [];
+};
+
+//cardGetReferencesArray returns an array of CARD_IDs this card points to via any type of reference.
+export const cardGetReferencesArray = (cardObj) => {
+	return cardGetLinksArray(cardObj);
+};
+
+//cardGetInboundLinksArray returns an array of CARD_IDs that point to this card via links.
+export const cardGetInboundLinksArray = (cardObj) => {
+	if (!cardObj) return [];
+	return cardObj.links_inbound || [];
+};
+
+//cardGetInboundReferencesArray returns an array of CARD_IDs this card points to via any type of reference.
+export const cardGetInboundReferencesArray = (cardObj) => {
+	return cardGetInboundLinksArray(cardObj);
+};

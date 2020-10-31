@@ -38,6 +38,8 @@ import {
 	TEXT_FIELD_CONFIGURATION,
 	normalizedWords,
 	stemmedNormalizedWords,
+	cardGetReferencesArray,
+	cardGetInboundReferencesArray
 } from './card_fields.js';
 
 import {
@@ -653,7 +655,7 @@ export const selectEditingOrActiveCardSimilarCards = createSelector(
 	(card, overlapMap) => {
 		if (!card || Object.keys(card).length == 0) return [];
 		if (!overlapMap || overlapMap.size == 0) return [];
-		const excludeIDs = new Set([...card.links, ...card.links_inbound]);
+		const excludeIDs = new Set([...cardGetReferencesArray(card), ...cardGetInboundReferencesArray(card)]);
 		let result = [];
 		for (const cardID of overlapMap.keys()) {
 			if (excludeIDs.has(cardID)) continue;
@@ -870,10 +872,10 @@ export const selectActiveCardTweets = createSelector(
 
 //Because it filters out cards that don't exist (e.g. are unpublished), cards
 //that the user can't see won't show.
-export const selectInboundLinksForActiveCard = createSelector(
+export const selectInboundReferencesForActiveCard = createSelector(
 	selectActiveCard,
 	selectCards,
-	(card, cards) => card && card.links_inbound ? card.links_inbound.filter(id => cards[id]) : []
+	(card, cards) => cardGetInboundReferencesArray(card).filter(id => cards[id])
 );
 
 //selectEditingCardAutoTodos will opeate on not the actual filter set, but one
@@ -1241,11 +1243,12 @@ const cardScoreForQuery = (card, preparedQuery) => {
 
 	//Give a boost to cards that have more inbound cards, implying they're more
 	//important cards.
-	if (card.links_inbound && card.links_inbound.length > 0) {
+	let inboundLinks = cardGetInboundReferencesArray(card);
+	if (inboundLinks.length > 0) {
 		//Tweak the score, but only by a very tiny amount. Once the 'juice' is
 		//not just the count of inbound-links, but the transitive count, then
 		//this can be bigger.
-		score *= 1.0 + (card.links_inbound.length * 0.02);
+		score *= 1.0 + (inboundLinks.length * 0.02);
 	}
 
 	return [score, fullMatch];

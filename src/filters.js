@@ -20,7 +20,9 @@ import {
 import {
 	CARD_TYPE_CONTENT,
 	CARD_TYPE_CONFIGURATION,
-	BODY_CARD_TYPES
+	BODY_CARD_TYPES,
+	cardGetLinksArray,
+	cardGetInboundLinksArray
 } from './card_fields.js';
 
 export const DEFAULT_SET_NAME = 'main';
@@ -234,7 +236,7 @@ export const SORTS = {
 	},
 	'link-count': {
 		extractor: (card) => {
-			const inbound_links = card.links_inbound || [];
+			const inbound_links = cardGetInboundLinksArray(card);
 			return [inbound_links.length, '' + inbound_links.length];
 		},
 		description: 'In descending order by number of inbound links',
@@ -369,8 +371,8 @@ const CARD_FILTER_CONFIGS = Object.assign(
 		'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, TODO_TYPE_AUTO, 0.2, 'Whether the card has a slug set'],
 		'content': [defaultCardFilterName('content'), card => cardHasContent(card), TODO_TYPE_AUTO, 5.0, 'Whether the card has any content whatsoever'],
 		'substantive-content': [defaultCardFilterName('substantive-content'), card => cardHasSubstantiveContent(card), TODO_TYPE_AUTO, 3.0, 'Whether the card has more than a reasonable minimum amount of content'],
-		'links': [defaultCardFilterName('links'), card => card.links && card.links.length, TODO_TYPE_AUTO, 1.0, 'Whether the card links out to other cards'],
-		'inbound-links': [defaultCardFilterName('inbound-links'), card => card.links_inbound && card.links_inbound.length, TODO_TYPE_AUTO, 2.0, 'Whether the card has other cards that link to it'],
+		'links': [defaultCardFilterName('links'), card => cardGetLinksArray(card).length, TODO_TYPE_AUTO, 1.0, 'Whether the card links out to other cards'],
+		'inbound-links': [defaultCardFilterName('inbound-links'), card => cardGetInboundLinksArray(card).length, TODO_TYPE_AUTO, 2.0, 'Whether the card has other cards that link to it'],
 		'reciprocal-links': [['has-all-reciprocal-links', 'missing-reciprocal-links', 'does-not-need-reciprocal-links', 'needs-reciprocal-links'], card => cardMissingReciprocalLinks(card).length == 0, TODO_TYPE_AUTO, 1.0, 'Whether every inbound link has a matching outbound link'],
 		'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, TODO_TYPE_AUTO, 1.0, 'Whether the card has any tags'],
 		'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], card => card.published, TODO_TYPE_AUTO, 0.5, 'Whether the card is published'],

@@ -30,7 +30,7 @@ import {
 	selectTags,
 	getAuthorForId,
 	selectCollaboratorInfosForActiveCard,
-	selectInboundLinksForActiveCard,
+	selectInboundReferencesForActiveCard,
 	selectActiveCardTweets,
 	selectTweetsLoading,
 	selectCommentsAndInfoPanelOpen,
@@ -226,7 +226,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._author = getAuthorForId(state, this._card.author);
 		this._collaborators = selectCollaboratorInfosForActiveCard(state);
 		this._tagInfos = selectTags(state);
-		this._inboundLinks = selectInboundLinksForActiveCard(state);
+		this._inboundLinks = selectInboundReferencesForActiveCard(state);
 		this._tweets = selectActiveCardTweets(state);
 		this._tweetsLoading = selectTweetsLoading(state);
 		//selectActiveCardSimilarCards is extremly expensive to call into being,
