@@ -28,6 +28,9 @@ const WINDOW_CARD_RENDERED_VARIABLE = 'BASIC_CARD_RENDERED';
 //Note: screenshot.js also uses the literal value of WINDOW_INJECT_FETCHED_CARD_NAME in the code;
 const WINDOW_INJECT_FETCHED_CARD_NAME = 'injectFetchedCard';
 
+//Any value in this variable counts as being set to true.
+const DISABLE_CARD_UPDATE_FUNCTIONS = (config.updates || {}).disable_card_functions ? true : false;
+
 const urlForBasicCard = (idOrSlug) => {
     //we use HOSTING_DOMAIN so that we use the prod or dev card renderer
     //depending on our mode.
@@ -89,3 +92,4 @@ exports.PAGE_DEFAULT = PAGE_DEFAULT;
 exports.PAGE_COMMENT = PAGE_COMMENT;
 exports.WINDOW_CARD_RENDERED_VARIABLE = WINDOW_CARD_RENDERED_VARIABLE;
 exports.WINDOW_INJECT_FETCHED_CARD_NAME = WINDOW_INJECT_FETCHED_CARD_NAME;
+exports.DISABLE_CARD_UPDATE_FUNCTIONS = DISABLE_CARD_UPDATE_FUNCTIONS;

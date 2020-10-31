@@ -52,6 +52,8 @@ const updatedKeys = (before, after) => {
 
 const inboundLinks = (change, context) => {
 
+    if (common.DISABLE_CARD_UPDATE_FUNCTIONS) return Promise.resolve();
+
     let [additions, deletions, same] = arrayDiff(change.before.data().links, change.after.data().links);
 
     let linkTextMap = change.after.data().links_text || {};
