@@ -2,12 +2,13 @@
 
 import {
 	referencesLegal,
+	referencesDiff,
 	REFERENCE_TYPE_LINK,
 } from '../../src/card_fields.js';
 
 import assert from 'assert';
 
-describe('card references util functions', () => {
+describe('card referencesLegal util functions', () => {
 	it('strings not legal', async () => {
 		const input = '';
 		const result = referencesLegal(input);
@@ -90,4 +91,56 @@ describe('card references util functions', () => {
 		assert.strictEqual(result, false);
 	});
 
+});
+
+const defaultDiffResult = [{},{},{},{}];
+
+describe('card referencesDiff util functions', () => {
+	it('illegal for before illegal', async () => {
+		const inputBefore = {
+			'foo': {
+				'illegal-link-type': '',
+			},
+		};
+		const inputAfter = {
+			'foo': {
+				[REFERENCE_TYPE_LINK]: '',
+			},
+		};
+		const result = referencesDiff(inputBefore, inputAfter);
+		const expectedResult = defaultDiffResult;
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
+	it('illegal for after illegal', async () => {
+		const inputBefore = {
+			'foo': {
+				[REFERENCE_TYPE_LINK]: '',
+			},
+		};
+		const inputAfter = {
+			'foo': {
+				'illegal-link-type': '',
+			},
+		};
+		const result = referencesDiff(inputBefore, inputAfter);
+		const expectedResult = defaultDiffResult;
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
+	it('no op', async () => {
+		const inputBefore = {
+			'foo': {
+				[REFERENCE_TYPE_LINK]: '',
+			},
+		};
+		const inputAfter = {
+			'foo': {
+				[REFERENCE_TYPE_LINK]: '',
+			},
+		};
+		const result = referencesDiff(inputBefore, inputAfter);
+		const expectedResult = defaultDiffResult;
+		assert.deepStrictEqual(result, expectedResult);
+	});
 });
