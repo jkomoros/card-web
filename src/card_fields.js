@@ -284,3 +284,12 @@ export const referencesLegal = (referencesBlock) => {
 	}
 	return true;
 };
+
+export const cloneReferences = (referencesBlock) => {
+	if (!referencesLegal(referencesBlock)) return null;
+	let result = {};
+	for (let [key, value] of Object.entries(referencesBlock)) {
+		result[key] = {...value};
+	}
+	return result;
+};
