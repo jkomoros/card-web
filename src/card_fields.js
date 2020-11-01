@@ -31,9 +31,9 @@ export const CARD_TYPE_CONFIGURATION = {
 	},
 };
 
-const REFERENCE_TYPE_LINK = 'link';
+export const REFERENCE_TYPE_LINK = 'link';
 
-const LEGAL_REFERENCE_TYPES = {
+export const LEGAL_REFERENCE_TYPES = {
 	[REFERENCE_TYPE_LINK]: true,
 };
 
