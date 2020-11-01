@@ -3,9 +3,16 @@
 import {
 	referencesLegal,
 	referencesDiff,
+	applyReferencesDiff,
 	REFERENCE_TYPE_LINK,
 	REFERENCE_TYPE_DUPE_OF,
+	REFERENCES_CARD_PROPERTY
 } from '../../src/card_fields.js';
+
+//We import these only to get deleteSentinel without importing from firebase.js.
+import firebase from '@firebase/app';
+import '@firebase/firestore';
+const deleteSentinel = firebase.firestore.FieldValue.delete;
 
 import assert from 'assert';
 
@@ -310,6 +317,24 @@ describe('card referencesDiff util functions', () => {
 		};
 		const expectedResult = [expectedAdditions, expectedModifications, expectedLeafDeletions, expectedCardDeletions];
 		assert.deepStrictEqual(result, expectedResult);
+
+		const updateObj = {
+			//Set a property that shouldn't be touched
+			'foo': 1,
+		};
+
+		applyReferencesDiff(inputBefore, inputAfter, updateObj);
+	
+		const expectedUpdateObj = {
+			'foo': 1,
+			[REFERENCES_CARD_PROPERTY + '.addition-card.' + REFERENCE_TYPE_LINK]: 'after-value',
+			[REFERENCES_CARD_PROPERTY + '.modification-card.' + REFERENCE_TYPE_LINK]: 'after-value',
+			[REFERENCES_CARD_PROPERTY + '.modification-card.' + REFERENCE_TYPE_DUPE_OF]: deleteSentinel(),
+			[REFERENCES_CARD_PROPERTY + '.deletion-card']: deleteSentinel(),
+		};
+
+		assert.deepStrictEqual(updateObj, expectedUpdateObj);
+
 	});
 
 });

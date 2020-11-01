@@ -2,6 +2,11 @@ import {
 	stemmer
 } from './stemmer.js';
 
+//We import these only to get deleteSentinel without importing from firebase.js.
+import firebase from '@firebase/app';
+import '@firebase/firestore';
+const deleteSentinel = firebase.firestore.FieldValue.delete;
+
 export const TEXT_FIELD_BODY = 'body';
 export const TEXT_FIELD_TITLE = 'title';
 export const TEXT_FIELD_SUBTITLE = 'subtitle';
@@ -30,6 +35,9 @@ export const CARD_TYPE_CONFIGURATION = {
 		invertOrphanWarning: true,
 	},
 };
+
+//The propery on cardObj where references are stored
+export const REFERENCES_CARD_PROPERTY = 'references';
 
 //For card-links within body content
 export const REFERENCE_TYPE_LINK = 'link';
@@ -377,4 +385,27 @@ export const referencesDiff = (before, after) => {
 	result[3] = cardDeletions;
 
 	return result;
+};
+
+//applyReferencesDiff will generate the modifications necessary to go from
+//references.before to references.after, and accumulate them IN PLACE as keys on
+//update, including using deleteSentinel. update should be a cardUpdateObject,
+//so the keys this sets will have references. prepended. update object is also
+//returned as a convenience.
+export const applyReferencesDiff = (before, after, update) => {
+	if (!update) update = {};
+	let [additions, modifications, leafDeletions, cardDeletions] = referencesDiff(before,after);
+	for (let [key, val] of Object.entries(additions)) {
+		update[REFERENCES_CARD_PROPERTY + '.' + key] = val;
+	}
+	for (let [key, val] of Object.entries(modifications)) {
+		update[REFERENCES_CARD_PROPERTY + '.' + key] = val;
+	}
+	for (let key of Object.keys(leafDeletions)) {
+		update[REFERENCES_CARD_PROPERTY + '.' + key] = deleteSentinel();
+	}
+	for (let key of Object.keys(cardDeletions)) {
+		update[REFERENCES_CARD_PROPERTY + '.' + key] = deleteSentinel();
+	}
+	return update;
 };
