@@ -31,10 +31,14 @@ export const CARD_TYPE_CONFIGURATION = {
 	},
 };
 
+//For card-links within body content
 export const REFERENCE_TYPE_LINK = 'link';
+//For cards that are dupes of another card
+export const REFERENCE_TYPE_DUPE_OF = 'dupe-of';
 
 export const LEGAL_REFERENCE_TYPES = {
 	[REFERENCE_TYPE_LINK]: true,
+	[REFERENCE_TYPE_DUPE_OF]: true,
 };
 
 /*
