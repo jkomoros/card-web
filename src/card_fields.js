@@ -411,6 +411,47 @@ export const referencesDiff = (before, after) => {
 	return result;
 };
 
+const cardReferenceBlockHasDifference = (before, after) => {
+	for(let linkType of Object.keys(before)) {
+		if (after[linkType] === undefined) return true;
+		if (after[linkType] !== before[linkType]) return true;
+	}
+	for (let linkType of Object.keys(after)) {
+		if (before[linkType] === undefined) return true;
+	}
+	return false;
+};
+
+//Inspired by referencesDiff from card_fields.js Returns
+//[cardIDAdditionsOrModifications, cardIDDeletions]. each is a map of cardID =>
+//true, and say that you should copy over the whole block.
+export const referencesCardsDiff = (before, after) => {
+	const result = [{}, {}];
+	if (!referencesLegal(before)) return result;
+	if (!referencesLegal(after)) return result;
+	//For card blocks that exist in both before and after... but might have modifications within them
+	let cardSame = {};
+	for (let cardID of Object.keys(before)) {
+		if (after[cardID]) {
+			cardSame[cardID] = true;
+		} else {
+			result[1][cardID] = true;
+		}
+	}
+	for (let cardID of Object.keys(after)) {
+		if (!before[cardID]) {
+			result[0][cardID] = true;
+		}
+	}
+
+	//For cards that are bin both before and after, are there any things that changed?
+	for (let cardID of Object.keys(cardSame)) {
+		if (cardReferenceBlockHasDifference(before[cardID], after[cardID])) result[0][cardID] = true;
+	}
+
+	return result;
+};
+
 //applyReferencesDiff will generate the modifications necessary to go from
 //references.before to references.after, and accumulate them IN PLACE as keys on
 //update, including using deleteSentinel. update should be a cardUpdateObject,

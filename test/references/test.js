@@ -3,6 +3,7 @@
 import {
 	referencesLegal,
 	referencesDiff,
+	referencesCardsDiff,
 	applyReferencesDiff,
 	REFERENCE_TYPE_LINK,
 	REFERENCE_TYPE_DUPE_OF,
@@ -102,6 +103,7 @@ describe('card referencesLegal util functions', () => {
 });
 
 const defaultDiffResult = [{},{},{},{}];
+const defaultCardDiffResult = [{},{}];
 
 describe('card referencesDiff util functions', () => {
 	it('illegal for before illegal', async () => {
@@ -118,6 +120,9 @@ describe('card referencesDiff util functions', () => {
 		const result = referencesDiff(inputBefore, inputAfter);
 		const expectedResult = defaultDiffResult;
 		assert.deepStrictEqual(result, expectedResult);
+		const cardResult = referencesCardsDiff(inputBefore, inputAfter);
+		const expectedCardResult = defaultCardDiffResult;
+		assert.deepStrictEqual(cardResult, expectedCardResult);
 	});
 
 	it('illegal for after illegal', async () => {
@@ -134,6 +139,9 @@ describe('card referencesDiff util functions', () => {
 		const result = referencesDiff(inputBefore, inputAfter);
 		const expectedResult = defaultDiffResult;
 		assert.deepStrictEqual(result, expectedResult);
+		const cardResult = referencesCardsDiff(inputBefore, inputAfter);
+		const expectedCardResult = defaultCardDiffResult;
+		assert.deepStrictEqual(cardResult, expectedCardResult);
 	});
 
 	it('no op', async () => {
@@ -150,6 +158,9 @@ describe('card referencesDiff util functions', () => {
 		const result = referencesDiff(inputBefore, inputAfter);
 		const expectedResult = defaultDiffResult;
 		assert.deepStrictEqual(result, expectedResult);
+		const cardResult = referencesCardsDiff(inputBefore, inputAfter);
+		const expectedCardResult = defaultCardDiffResult;
+		assert.deepStrictEqual(cardResult, expectedCardResult);
 	});
 
 	it('Add card', async () => {
@@ -166,6 +177,14 @@ describe('card referencesDiff util functions', () => {
 		};
 		const expectedResult = [expectedAdditions, {}, {}, {}];
 		assert.deepStrictEqual(result, expectedResult);
+		const cardResult = referencesCardsDiff(inputBefore, inputAfter);
+		const expectedCardResult = [
+			{
+				'foo': true,
+			},
+			{},
+		];
+		assert.deepStrictEqual(cardResult, expectedCardResult);
 	});
 
 	it('Add two items in new card', async () => {
@@ -184,6 +203,14 @@ describe('card referencesDiff util functions', () => {
 		};
 		const expectedResult = [expectedAdditions, {}, {}, {}];
 		assert.deepStrictEqual(result, expectedResult);
+		const cardResult = referencesCardsDiff(inputBefore, inputAfter);
+		const expectedCardResult = [
+			{
+				'foo': true,
+			},
+			{},
+		];
+		assert.deepStrictEqual(cardResult, expectedCardResult);
 	});
 
 	it('Add item to existing card', async () => {
@@ -204,6 +231,14 @@ describe('card referencesDiff util functions', () => {
 		};
 		const expectedResult = [expectedAdditions, {}, {}, {}];
 		assert.deepStrictEqual(result, expectedResult);
+		const cardResult = referencesCardsDiff(inputBefore, inputAfter);
+		const expectedCardResult = [
+			{
+				'foo': true,
+			},
+			{},
+		];
+		assert.deepStrictEqual(cardResult, expectedCardResult);
 	});
 
 	it('Remove existing card', async () => {
@@ -220,6 +255,14 @@ describe('card referencesDiff util functions', () => {
 		};
 		const expectedResult = [{}, {}, {}, expectedCardDeletions];
 		assert.deepStrictEqual(result, expectedResult);
+		const cardResult = referencesCardsDiff(inputBefore, inputAfter);
+		const expectedCardResult = [
+			{},
+			{
+				'foo': true,
+			},
+		];
+		assert.deepStrictEqual(cardResult, expectedCardResult);
 	});
 
 	it('Remove item from existing card', async () => {
@@ -240,6 +283,14 @@ describe('card referencesDiff util functions', () => {
 		};
 		const expectedResult = [{}, {}, expectedLeafDeletions, {}];
 		assert.deepStrictEqual(result, expectedResult);
+		const cardResult = referencesCardsDiff(inputBefore, inputAfter);
+		const expectedCardResult = [
+			{
+				'foo': true,
+			},
+			{},
+		];
+		assert.deepStrictEqual(cardResult, expectedCardResult);
 	});
 
 	it('Modify single item in card', async () => {
@@ -259,6 +310,14 @@ describe('card referencesDiff util functions', () => {
 		};
 		const expectedResult = [{}, expectedModifications, {}, {}];
 		assert.deepStrictEqual(result, expectedResult);
+		const cardResult = referencesCardsDiff(inputBefore, inputAfter);
+		const expectedCardResult = [
+			{
+				'foo': true,
+			},
+			{},
+		];
+		assert.deepStrictEqual(cardResult, expectedCardResult);
 	});
 
 	it('Modify multiple items in card', async () => {
@@ -281,6 +340,14 @@ describe('card referencesDiff util functions', () => {
 		};
 		const expectedResult = [{}, expectedModifications, {}, {}];
 		assert.deepStrictEqual(result, expectedResult);
+		const cardResult = referencesCardsDiff(inputBefore, inputAfter);
+		const expectedCardResult = [
+			{
+				'foo': true,
+			},
+			{},
+		];
+		assert.deepStrictEqual(cardResult, expectedCardResult);
 	});
 
 	it('Multiple changes', async () => {
@@ -334,6 +401,18 @@ describe('card referencesDiff util functions', () => {
 		};
 
 		assert.deepStrictEqual(updateObj, expectedUpdateObj);
+
+		const cardResult = referencesCardsDiff(inputBefore, inputAfter);
+		const expectedCardResult = [
+			{
+				'addition-card': true,
+				'modification-card': true,
+			},
+			{
+				'deletion-card': true,
+			},
+		];
+		assert.deepStrictEqual(cardResult, expectedCardResult);
 
 	});
 
