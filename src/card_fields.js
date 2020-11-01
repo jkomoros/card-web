@@ -226,6 +226,7 @@ export const cardSetNormalizedTextProperties = (card) => {
 };
 
 //cardGetLinksArray returns an array of CARD_IDs this card points to via links.
+//NOTE: this is duplicated manually in tweet-helpers.js
 export const cardGetLinksArray = (cardObj) => {
 	if (!cardObj) return [];
 	return cardObj.links || [];

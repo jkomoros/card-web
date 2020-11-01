@@ -41,6 +41,13 @@ const sectionTwiddlerMap = (sections) => {
 
 };
 
+//cardGetLinksArray returns an array of CARD_IDs this card points to via links.
+//NOTE: this is duplicated from card_fields.js
+const cardGetLinksArray = (cardObj) => {
+	if (!cardObj) return [];
+	return cardObj.links || [];
+};
+
 const tweetOrderExtractorImpl = (card, sections, allCards) => {
 	//Note: this logic is just manually equivalent to the logic that
 	//will be applied server-side, and is thus duplicated there.
@@ -98,7 +105,7 @@ const tweetOrderExtractorImpl = (card, sections, allCards) => {
 	//Twiddler to penalize cards where more than 50% of outbound links are
 	//unpublished, since there aren't many threads for people to pull on to dig
 	//deeper.
-	const outboundCardsPublished = card.links.map(id => allCards[id] ? allCards[id].published : false);
+	const outboundCardsPublished = cardGetLinksArray(card).map(id => allCards[id] ? allCards[id].published : false);
 	const numOutboundLinksPublished = outboundCardsPublished.reduce((runningTotal, isPublished) => isPublished ? runningTotal + 1 : runningTotal, 0);
 	const penalizeForLinkingToUnpublishedCards = outboundCardsPublished.length === 0 || numOutboundLinksPublished / outboundCardsPublished.length < 0.5;
 	if (penalizeForLinkingToUnpublishedCards) {
