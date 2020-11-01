@@ -143,4 +143,20 @@ describe('card referencesDiff util functions', () => {
 		const expectedResult = defaultDiffResult;
 		assert.deepStrictEqual(result, expectedResult);
 	});
+
+	it('Add card', async () => {
+		const inputBefore = {
+		};
+		const inputAfter = {
+			'foo': {
+				[REFERENCE_TYPE_LINK]: 'value',
+			},
+		};
+		const result = referencesDiff(inputBefore, inputAfter);
+		const expectedAdditions = {
+			['foo.' + REFERENCE_TYPE_LINK]: 'value',
+		};
+		const expectedResult = [expectedAdditions, {}, {}, {}];
+		assert.deepStrictEqual(result, expectedResult);
+	});
 });
