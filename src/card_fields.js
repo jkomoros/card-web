@@ -279,6 +279,20 @@ export const cardSetLinks = (cardObj, linksObj) => {
 	cardObj.links_text = {...linksObj};
 };
 
+const cardCloneReferencesFromOther = (cardObj, otherCardObj) => {
+	if (!cardObj || !otherCardObj) return;
+	cardObj.links = [...otherCardObj.links];
+	cardObj.links_text = {...otherCardObj.links_text};
+};
+
+//cardEnsureReferences will make sure cardLikeObj has a references block. If it
+//doesn't, it will clone one from otherCardObj.
+export const cardEnsureReferences = (cardLikeObj, otherCardObj) => {
+	if (!cardLikeObj || !otherCardObj) return;
+	if (cardLikeObj.links && cardLikeObj.links_text) return;
+	cardCloneReferencesFromOther(cardLikeObj, otherCardObj);
+};
+
 //referencesLegal is a sanity check that the referencesBlock looks like it's expected to.
 export const referencesLegal = (referencesBlock) => {
 	if (!referencesBlock) return false;
