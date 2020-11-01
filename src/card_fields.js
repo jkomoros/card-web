@@ -276,7 +276,7 @@ export const cardSetLinks = (cardObj, linksObj) => {
 	if (!cardObj) return;
 	if (!linksObj) linksObj = {};
 	cardObj.links = Object.keys(linksObj);
-	cardObj.links_text = Object.values(linksObj);
+	cardObj.links_text = {...linksObj};
 };
 
 //referencesLegal is a sanity check that the referencesBlock looks like it's expected to.
