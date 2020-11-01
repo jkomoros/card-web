@@ -269,6 +269,10 @@ export const cardGetInboundReferencesArray = (cardObj) => {
 //linksObj should be a object with CARD_ID: link text (or '' if no link text).
 //Any previously-existing links on the card are cleared.
 export const cardSetLinks = (cardObj, linksObj) => {
+	//This function can assume cardObj is OK to be directly modified, but none
+	//of its sub-properites may be. If its references field is going to be
+	//modified, for example, we'd have to clone it first and set that on the new
+	//one.
 	if (!cardObj) return;
 	if (!linksObj) linksObj = {};
 	cardObj.links = Object.keys(linksObj);
