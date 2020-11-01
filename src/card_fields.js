@@ -324,7 +324,7 @@ export const referencesDiff = (before, after) => {
 
 	for (let cardID of Object.keys(cardAdditions)) {
 		//All of the properties in the cardID block are additions.
-		for (let [key, value] of Object.entries(cardAdditions[cardID])) {
+		for (let [key, value] of Object.entries(after[cardID])) {
 			result[0][cardID + '.' + key] = value;
 		}
 	}
