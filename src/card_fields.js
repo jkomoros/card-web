@@ -293,3 +293,84 @@ export const cloneReferences = (referencesBlock) => {
 	}
 	return result;
 };
+
+//Returns a 4-tuple of [additions, modifications, leafDeletions, cardDeletions].
+//Each one is a dotted property name. If a given cardDeletion is included, then
+//no leafDeletions that start with that CARD_ID will be included. Additions will
+//not create new card objects, it will assume the dotted accesor that implies it
+//in the path will create it.
+export const referencesDiff = (before, after) => {
+	const result = [{}, {}, {}, {}];
+	if (!referencesLegal(before)) return result;
+	if (!referencesLegal(after)) return result;
+	//For cards that were not in before but are in after
+	let cardAdditions = {};
+	//For card blocks that exist in both before and after... but might have modifications within them
+	let cardSame = {};
+	//For card blocks that are not in after but were in before.
+	let cardDeletions = {};
+	for (let cardID of Object.keys(before)) {
+		if (after[cardID]) {
+			cardSame[cardID] = true;
+		} else {
+			cardDeletions[cardID] = true;
+		}
+	}
+	for (let cardID of Object.keys(after)) {
+		if (!before[cardID]) {
+			cardAdditions[cardID] = true;
+		}
+	}
+
+	for (let cardID of Object.keys(cardAdditions)) {
+		//All of the properties in the cardID block are additions.
+		for (let [key, value] of Object.entries(cardAdditions[cardID])) {
+			result[0][cardID + '.' + key] = value;
+		}
+	}
+
+	//NOTE: this logic can assume that if all of the keys for a card were
+	//deleted, the cardID block also was, since referencesLegal validates that.
+
+	//Now look at the cardBlocks that exist in both and compare the leaf values
+	//to see what changed.
+	for (let cardID of Object.keys(cardSame)) {
+		let beforeCardBlock = before[cardID];
+		let afterCardBlock = after[cardID];
+
+		//Whether keys exist (even if the string value for them is different) in
+		//before and after.
+		let keyAdditions = {};
+		let keySame = {};
+		let keyDeletions = {};
+		for (let key of Object.keys(beforeCardBlock)) {
+			if (afterCardBlock[key] === undefined) {
+				keyDeletions[key] = true;
+			} else {
+				keySame[key] = true;
+			}
+		}
+		for (let key of Object.keys(afterCardBlock)) {
+			if (beforeCardBlock[key] === undefined) {
+				keyAdditions[key] = true;
+			}
+		}
+
+		for (let key of Object.keys(keyAdditions)) {
+			result[0][cardID + '.' + key] = afterCardBlock[key];
+		}
+
+		for (let key of Object.keys(keyDeletions)) {
+			result[2][cardID + '.' + key] = true;
+		}
+
+		for (let key of Object.keys(keySame)) {
+			if (beforeCardBlock[key] === afterCardBlock[key]) continue;
+			result[1][cardID + '.' + key] = afterCardBlock[key];
+		}
+	}
+
+	result[3] = cardDeletions;
+
+	return result;
+};
