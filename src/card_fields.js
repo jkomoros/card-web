@@ -31,6 +31,12 @@ export const CARD_TYPE_CONFIGURATION = {
 	},
 };
 
+const REFERENCE_TYPE_LINK = 'link';
+
+const LEGAL_REFERENCE_TYPES = {
+	[REFERENCE_TYPE_LINK]: true,
+};
+
 /*
 html: whether or not the field allows html. NOTE: currently it's only supported
 for a single field to be marked as html, and it must be called 'body'. See #345
@@ -255,4 +261,26 @@ export const cardSetLinks = (cardObj, linksObj) => {
 	if (!linksObj) linksObj = {};
 	cardObj.links = Object.keys(linksObj);
 	cardObj.links_text = Object.values(linksObj);
+};
+
+//referencesLegal is a sanity check that the referencesBlock looks like it's expected to.
+export const referencesLegal = (referencesBlock) => {
+	if (!referencesBlock) return false;
+	if (typeof referencesBlock !== 'object') return false;
+	if (Array.isArray(referencesBlock)) return false;
+	//It's OK for it to have no keys.
+	if (Object.keys(referencesBlock).length === 0) return true;
+	for (let cardBlock of Object.values(referencesBlock)) {
+		if (!cardBlock) return false;
+		if (typeof cardBlock !== 'object') return false;
+		if (Array.isArray(referencesBlock)) return false;
+		//If a card block is empty is shouldn't exist
+		if (Object.keys(cardBlock).length === 0) return false;
+		for (let [key, value] of Object.entries(cardBlock)) {
+			//The only types of keys that are allowed are the explicitly defined reference types
+			if (!LEGAL_REFERENCE_TYPES[key]) return false;
+			if (typeof value !== 'string') return false;
+		}
+	}
+	return true;
 };
