@@ -41,11 +41,16 @@ const sectionTwiddlerMap = (sections) => {
 
 };
 
+//duplicated from card_fields.js
+const REFERENCES_CARD_PROPERTY = 'references';
+
 //cardGetLinksArray returns an array of CARD_IDs this card points to via links.
 //NOTE: this is duplicated from card_fields.js
-const cardGetLinksArray = (cardObj) => {
+const cardGetReferencesArray = (cardObj) => {
 	if (!cardObj) return [];
-	return cardObj.links || [];
+	const references = cardObj[REFERENCES_CARD_PROPERTY];
+	if (!references) return [];
+	return Object.keys(references);
 };
 
 const tweetOrderExtractorImpl = (card, sections, allCards) => {
@@ -105,7 +110,7 @@ const tweetOrderExtractorImpl = (card, sections, allCards) => {
 	//Twiddler to penalize cards where more than 50% of outbound links are
 	//unpublished, since there aren't many threads for people to pull on to dig
 	//deeper.
-	const outboundCardsPublished = cardGetLinksArray(card).map(id => allCards[id] ? allCards[id].published : false);
+	const outboundCardsPublished = cardGetReferencesArray(card).map(id => allCards[id] ? allCards[id].published : false);
 	const numOutboundLinksPublished = outboundCardsPublished.reduce((runningTotal, isPublished) => isPublished ? runningTotal + 1 : runningTotal, 0);
 	const penalizeForLinkingToUnpublishedCards = outboundCardsPublished.length === 0 || numOutboundLinksPublished / outboundCardsPublished.length < 0.5;
 	if (penalizeForLinkingToUnpublishedCards) {

@@ -84,7 +84,8 @@ import {
 } from './prompt.js';
 
 import {
-	cardGetReferencesArray
+	cardGetReferencesArray,
+	REFERENCES_INBOUND_SENTINEL_CARD_PROPERTY
 } from '../card_fields.js';
 
 //if silent is true, then just passively updates the URL to reflect what it should be.
@@ -274,7 +275,8 @@ const fetchCardFromDb = async (cardIDOrSlug) => {
 };
 
 const fetchCardLinkCardsForFetchedCardFromDb = async (card) => {
-	const rawQuery =  await db.collection(CARDS_COLLECTION).where('published', '==', true).where('links_inbound', 'array-contains', card.id).get();
+	//orderBy is effectively a filter to only items that have 'references.CARD_ID' key.
+	const rawQuery =  await db.collection(CARDS_COLLECTION).where('published', '==', true).where(REFERENCES_INBOUND_SENTINEL_CARD_PROPERTY + '.' + card.id, '==', true).get();
 	if (rawQuery.empty) return {};
 	return Object.fromEntries(rawQuery.docs.map(doc => [doc.id, {...doc.data(), id: doc.id}]));
 };

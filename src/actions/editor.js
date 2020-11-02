@@ -222,6 +222,8 @@ export const editingCommit = () => (dispatch, getState) => {
 	if (collaboratorAdditions.length) update.add_collaborators = collaboratorAdditions;
 	if (collaboratorDeletions.length) update.remove_collaborators = collaboratorDeletions;
 
+	//TODO: if references changed, pass the ENTIRE new references object in on update.
+
 	//modifyCard will fail if the update is a no-op.
 	dispatch(modifyCard(underlyingCard, update, state.editor.substantive));
 

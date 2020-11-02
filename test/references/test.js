@@ -7,7 +7,8 @@ import {
 	applyReferencesDiff,
 	REFERENCE_TYPE_LINK,
 	REFERENCE_TYPE_DUPE_OF,
-	REFERENCES_CARD_PROPERTY
+	REFERENCES_CARD_PROPERTY,
+	REFERENCES_SENTINEL_CARD_PROPERTY
 } from '../../src/card_fields.js';
 
 //We import these only to get deleteSentinel without importing from firebase.js.
@@ -395,9 +396,11 @@ describe('card referencesDiff util functions', () => {
 		const expectedUpdateObj = {
 			'foo': 1,
 			[REFERENCES_CARD_PROPERTY + '.addition-card.' + REFERENCE_TYPE_LINK]: 'after-value',
+			[REFERENCES_SENTINEL_CARD_PROPERTY + '.addition-card']: true,
 			[REFERENCES_CARD_PROPERTY + '.modification-card.' + REFERENCE_TYPE_LINK]: 'after-value',
 			[REFERENCES_CARD_PROPERTY + '.modification-card.' + REFERENCE_TYPE_DUPE_OF]: deleteSentinel(),
 			[REFERENCES_CARD_PROPERTY + '.deletion-card']: deleteSentinel(),
+			[REFERENCES_SENTINEL_CARD_PROPERTY + '.deletion-card']: deleteSentinel(),
 		};
 
 		assert.deepStrictEqual(updateObj, expectedUpdateObj);

@@ -8,6 +8,7 @@ import {
 
 import {
 	db,
+	deleteSentinel,
 	serverTimestampSentinel
 } from '../firebase.js';
 
@@ -42,7 +43,12 @@ import {
 
 import {
 	CARD_TYPE_CONTENT,
-	CARD_TYPE_SECTION_HEAD
+	CARD_TYPE_SECTION_HEAD,
+	REFERENCES_CARD_PROPERTY,
+	REFERENCES_SENTINEL_CARD_PROPERTY,
+	REFERENCES_INBOUND_CARD_PROPERTY,
+	REFERENCES_INBOUND_SENTINEL_CARD_PROPERTY,
+	REFERENCE_TYPE_LINK
 } from '../card_fields.js';
 
 const checkMaintenanceTaskHasBeenRun = async (taskName) => {
@@ -95,31 +101,33 @@ export const updateInboundLinks = async() => {
 
 	//This task is designed to run as often as you want, so we don't check if we've run it and mark as run.
 
-	//This isn't dont in a transaction, which is OK because it's just a
-	//convenience cache.
-
 	let snapshot = await db.collection(CARDS_COLLECTION).get();
 
 	let counter = 0;
 	let size = snapshot.size;
 
+	let batch = new MultiBatch(db);
+
 	for (let doc of snapshot.docs) {
 		counter++;
-		let linkingCardsSnapshot = await db.collection(CARDS_COLLECTION).where('links', 'array-contains', doc.id).get();
-		let linkingCardsIds = [];
-		let linkingCardsText = {};
-		linkingCardsSnapshot.forEach(linkingCard => {
-			linkingCardsIds.push(linkingCard.id);
-			const linksText = linkingCard.data().links_text || {};
-			linkingCardsText[linkingCard.id] = linksText[doc.id] || '';
-		});
-		await doc.ref.update({
-			updated_links_inbound: serverTimestampSentinel(),
-			links_inbound: linkingCardsIds,
-			links_inbound_text: linkingCardsText,
-		});
+		let linkingCardsSnapshot = await db.collection(CARDS_COLLECTION).where(REFERENCES_SENTINEL_CARD_PROPERTY + '.' + doc.id, '==', true).get();
+		if(!linkingCardsSnapshot.empty) {
+			let referencesInbound = {};
+			let referencesInboundSentinel = {};
+			linkingCardsSnapshot.forEach(linkingCard => {
+				referencesInbound[linkingCard.id] = linkingCard.data()[REFERENCES_CARD_PROPERTY][doc.id];
+				referencesInboundSentinel[linkingCard.id] = linkingCard.data()[REFERENCES_SENTINEL_CARD_PROPERTY][doc.id];
+			});
+			batch.update(doc.ref, {
+				updated_references_inbound: serverTimestampSentinel(),
+				[REFERENCES_INBOUND_CARD_PROPERTY]: referencesInbound,
+				[REFERENCES_INBOUND_SENTINEL_CARD_PROPERTY]: referencesInboundSentinel,
+			});
+		}
 		console.log('Processed ' + doc.id + ' (' + counter + '/' + size + ')' );
 	}
+
+	await batch.commit();
 
 	console.log('Done!');
 
@@ -203,6 +211,42 @@ export const doInitialSetUp = () => async (_, getState) => {
 	alert('Set up done!');
 };
 
+const LINKS_TO_REFERENCES = 'links-to-references';
+
+const linksToReferences = async () => {
+	await checkMaintenanceTaskHasBeenRun(LINKS_TO_REFERENCES);
+
+	let batch = new MultiBatch(db);
+	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	snapshot.forEach(doc => {
+
+		let data = doc.data();
+		let references = {};
+		let referencesSentinels = {};
+		for (let cardID of data.links) {
+			references[cardID] = {
+				[REFERENCE_TYPE_LINK]:data.links_text[cardID],
+			};
+			referencesSentinels[cardID] = true;
+		}
+
+		batch.update(doc.ref, {
+			[REFERENCES_CARD_PROPERTY]: references,
+			[REFERENCES_SENTINEL_CARD_PROPERTY]: referencesSentinels,
+			links: deleteSentinel(),
+			links_inbound: deleteSentinel(),
+			links_text: deleteSentinel(),
+			links_inbound_text: deleteSentinel(),
+		});
+	});
+
+	await batch.commit();
+
+	await maintenanceTaskRun(LINKS_TO_REFERENCES);
+	alert('Now run update_inbound_links task!');
+	console.log('done');
+};
+
 //tasks that don't require maintenance mode to be enabled are registered here
 export const tasks = {
 	[NORMALIZE_CONTENT_BODY]: normalizeContentBody,
@@ -214,4 +258,5 @@ export const tasks = {
 //functions that run when a card is changed.
 export const maintenceModeRequiredTasks = {
 	[UPDATE_INBOUND_LINKS]: updateInboundLinks,
+	[LINKS_TO_REFERENCES]: linksToReferences,
 };
