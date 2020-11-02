@@ -35,9 +35,9 @@ export const MultiBatch = class {
 		//firestore.FieldValue and may need to change if it changes.
 		for (let val of Object.values(update)) {
 			if (typeof val !== 'object') continue;
-			if (!val['_methodName']) continue;
-			if (typeof val['_methodName'] !== 'string') continue;
-			const parts = val['_methodName'].split('.');
+			if (!val['lc']) continue;
+			if (typeof val['lc'] !== 'string') continue;
+			const parts = val['lc'].split('.');
 			if (parts.length !== 2) continue;
 			if (parts[0] !== 'FieldValue') continue;
 			if (parts[1] !== 'serverTimestamp' && parts[1] !== 'arrayRemove' && parts[1] != 'arrayUnion') continue;
