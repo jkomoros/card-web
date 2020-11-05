@@ -7,10 +7,22 @@ import firebase from '@firebase/app';
 import '@firebase/firestore';
 const deleteSentinel = firebase.firestore.FieldValue.delete;
 
+//The propery on cardObj where references are stored. The final keys are
+//strings, which might be ''. This is the primary fields, the sentinel fields
+//are derived off of them
+//NOTE: this next one is duplicated in tweet-helpers.js and both are in
+//functions/updates.js;
+export const REFERENCES_CARD_PROPERTY = 'references';
+export const REFERENCES_INBOUND_CARD_PROPERTY = 'references_inbound';
+//These two properties are exactly like the normal references fields exccept
+//it's a map of cardID -> true for cards that are referenced.
+export const REFERENCES_SENTINEL_CARD_PROPERTY = 'references_sentinel';
+export const REFERENCES_INBOUND_SENTINEL_CARD_PROPERTY = 'references_inbound_sentinel';
+
 export const TEXT_FIELD_BODY = 'body';
 export const TEXT_FIELD_TITLE = 'title';
 export const TEXT_FIELD_SUBTITLE = 'subtitle';
-export const TEXT_FIELD_REFERENCES_INBOUND = 'references_inbound';
+export const TEXT_FIELD_REFERENCES_INBOUND = REFERENCES_INBOUND_CARD_PROPERTY;
 
 export const CARD_TYPE_CONTENT = 'content';
 export const CARD_TYPE_SECTION_HEAD = 'section-head';
@@ -35,18 +47,6 @@ export const CARD_TYPE_CONFIGURATION = {
 		invertOrphanWarning: true,
 	},
 };
-
-//The propery on cardObj where references are stored. The final keys are
-//strings, which might be ''. This is the primary fields, the sentinel fields
-//are derived off of them
-//NOTE: this next one is duplicated in tweet-helpers.js and both are in
-//functions/updates.js;
-export const REFERENCES_CARD_PROPERTY = 'references';
-export const REFERENCES_INBOUND_CARD_PROPERTY = 'references_inbound';
-//These two properties are exactly like the normal references fields exccept
-//it's a map of cardID -> true for cards that are referenced.
-export const REFERENCES_SENTINEL_CARD_PROPERTY = 'references_sentinel';
-export const REFERENCES_INBOUND_SENTINEL_CARD_PROPERTY = 'references_inbound_sentinel';
 
 //For card-links within body content
 //NOTE: duplicated in tweet-helpers.js
