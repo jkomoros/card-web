@@ -32,10 +32,10 @@ const WINDOW_INJECT_FETCHED_CARD_NAME = 'injectFetchedCard';
 const DISABLE_CARD_UPDATE_FUNCTIONS = (config.updates || {}).disable_card_functions ? true : false;
 
 //duplicated from src/card_fields.js;
+const REFERENCES_INFO_CARD_PROPERTY = 'references_info';
+const REFERENCES_INFO_INBOUND_CARD_PROPERTY = 'references_info_inbound';
 const REFERENCES_CARD_PROPERTY = 'references';
 const REFERENCES_INBOUND_CARD_PROPERTY = 'references_inbound';
-const REFERENCES_SENTINEL_CARD_PROPERTY = 'references_sentinel';
-const REFERENCES_INBOUND_SENTINEL_CARD_PROPERTY = 'references_inbound_sentinel';
 
 const urlForBasicCard = (idOrSlug) => {
     //we use HOSTING_DOMAIN so that we use the prod or dev card renderer
@@ -59,7 +59,7 @@ const getCardByIDOrSlug = async (idOrSlug) => {
 
 const getCardLinkCardsForCard = async (card) => {
     //orderBy is effectively a filter down to only cards that have 'references.CARD_ID' set.
-    const rawQuery =  await db.collection('cards').where('published', '==', true).where(REFERENCES_INBOUND_SENTINEL_CARD_PROPERTY + '.' + card.id, '==', true).get();
+    const rawQuery =  await db.collection('cards').where('published', '==', true).where(REFERENCES_INBOUND_CARD_PROPERTY + '.' + card.id, '==', true).get();
 	if (rawQuery.empty) return {};
 	return fromEntries(rawQuery.docs.map(doc => [doc.id, Object.assign({id: doc.id}, doc.data())]));
 }
@@ -100,7 +100,7 @@ exports.PAGE_COMMENT = PAGE_COMMENT;
 exports.WINDOW_CARD_RENDERED_VARIABLE = WINDOW_CARD_RENDERED_VARIABLE;
 exports.WINDOW_INJECT_FETCHED_CARD_NAME = WINDOW_INJECT_FETCHED_CARD_NAME;
 exports.DISABLE_CARD_UPDATE_FUNCTIONS = DISABLE_CARD_UPDATE_FUNCTIONS;
+exports.REFERENCES_INFO_CARD_PROPERTY = REFERENCES_INFO_CARD_PROPERTY;
+exports.REFERENCES_INFO_INBOUND_CARD_PROPERTY = REFERENCES_INFO_INBOUND_CARD_PROPERTY;
 exports.REFERENCES_CARD_PROPERTY = REFERENCES_CARD_PROPERTY;
 exports.REFERENCES_INBOUND_CARD_PROPERTY = REFERENCES_INBOUND_CARD_PROPERTY;
-exports.REFERENCES_SENTINEL_CARD_PROPERTY = REFERENCES_SENTINEL_CARD_PROPERTY;
-exports.REFERENCES_INBOUND_SENTINEL_CARD_PROPERTY = REFERENCES_INBOUND_SENTINEL_CARD_PROPERTY;

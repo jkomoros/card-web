@@ -44,10 +44,10 @@ import {
 import {
 	CARD_TYPE_CONTENT,
 	CARD_TYPE_SECTION_HEAD,
+	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY,
-	REFERENCES_SENTINEL_CARD_PROPERTY,
+	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCES_INBOUND_CARD_PROPERTY,
-	REFERENCES_INBOUND_SENTINEL_CARD_PROPERTY,
 	REFERENCE_TYPE_LINK
 } from '../card_fields.js';
 
@@ -110,18 +110,18 @@ export const updateInboundLinks = async() => {
 
 	for (let doc of snapshot.docs) {
 		counter++;
-		let linkingCardsSnapshot = await db.collection(CARDS_COLLECTION).where(REFERENCES_SENTINEL_CARD_PROPERTY + '.' + doc.id, '==', true).get();
+		let linkingCardsSnapshot = await db.collection(CARDS_COLLECTION).where(REFERENCES_CARD_PROPERTY + '.' + doc.id, '==', true).get();
 		if(!linkingCardsSnapshot.empty) {
 			let referencesInbound = {};
 			let referencesInboundSentinel = {};
 			linkingCardsSnapshot.forEach(linkingCard => {
-				referencesInbound[linkingCard.id] = linkingCard.data()[REFERENCES_CARD_PROPERTY][doc.id];
-				referencesInboundSentinel[linkingCard.id] = linkingCard.data()[REFERENCES_SENTINEL_CARD_PROPERTY][doc.id];
+				referencesInbound[linkingCard.id] = linkingCard.data()[REFERENCES_INFO_CARD_PROPERTY][doc.id];
+				referencesInboundSentinel[linkingCard.id] = linkingCard.data()[REFERENCES_CARD_PROPERTY][doc.id];
 			});
 			batch.update(doc.ref, {
 				updated_references_inbound: serverTimestampSentinel(),
-				[REFERENCES_INBOUND_CARD_PROPERTY]: referencesInbound,
-				[REFERENCES_INBOUND_SENTINEL_CARD_PROPERTY]: referencesInboundSentinel,
+				[REFERENCES_INFO_INBOUND_CARD_PROPERTY]: referencesInbound,
+				[REFERENCES_INBOUND_CARD_PROPERTY]: referencesInboundSentinel,
 			});
 		}
 		console.log('Processed ' + doc.id + ' (' + counter + '/' + size + ')' );
@@ -231,8 +231,8 @@ const linksToReferences = async () => {
 		}
 
 		batch.update(doc.ref, {
-			[REFERENCES_CARD_PROPERTY]: references,
-			[REFERENCES_SENTINEL_CARD_PROPERTY]: referencesSentinels,
+			[REFERENCES_INFO_CARD_PROPERTY]: references,
+			[REFERENCES_CARD_PROPERTY]: referencesSentinels,
 			links: deleteSentinel(),
 			links_inbound: deleteSentinel(),
 			links_text: deleteSentinel(),

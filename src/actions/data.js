@@ -93,11 +93,11 @@ import {
 	cardSetLinks,
 	cardEnsureReferences,
 	applyReferencesDiff,
-	REFERENCES_CARD_PROPERTY,
-	REFERENCES_INBOUND_CARD_PROPERTY, 
-	REFERENCES_INBOUND_SENTINEL_CARD_PROPERTY
+	REFERENCES_INFO_CARD_PROPERTY,
+	REFERENCES_INFO_INBOUND_CARD_PROPERTY, 
+	REFERENCES_INBOUND_CARD_PROPERTY
 } from '../card_fields.js';
-import { REFERENCES_SENTINEL_CARD_PROPERTY } from '../card_fields';
+import { REFERENCES_CARD_PROPERTY } from '../card_fields';
 
 //When a new tag is created, it is randomly assigned one of these values.
 const TAG_COLORS = [
@@ -139,7 +139,7 @@ const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURA
 	'addTags',
 	'removeTags',
 	'published',
-	REFERENCES_CARD_PROPERTY
+	REFERENCES_INFO_CARD_PROPERTY
 ]).map(key => [key,true]));
 
 export const modifyCard = (card, update, substantive, optBatch) => (dispatch, getState) => {
@@ -213,14 +213,14 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 		cardSetLinks(update, linkInfo);
 	}
 
-	if (update[REFERENCES_CARD_PROPERTY] !== undefined) {
-		//Note: update.references is the only property type that we accept in
+	if (update[REFERENCES_INFO_CARD_PROPERTY] !== undefined) {
+		//Note: update.references_info is the only property type that we accept in
 		//modifyCard's update that is NOT pre-diffed. That's because the
 		//auto-extracted links might modify the changes to make, so we have to
 		//pass the raw references in, and do the diffing here. See #368 for
 		//cleaning this up.
-		//NOTE: this is where the sentinel values are also updated
-		applyReferencesDiff(card[REFERENCES_CARD_PROPERTY], update[REFERENCES_CARD_PROPERTY], cardUpdateObject);
+		//NOTE: this is where the raw references property values are also updated
+		applyReferencesDiff(card[REFERENCES_INFO_CARD_PROPERTY], update[REFERENCES_INFO_CARD_PROPERTY], cardUpdateObject);
 	}
 
 	if (update.notes !== undefined) {
@@ -682,16 +682,16 @@ export const defaultCardObject = (id, user, section, cardType) => {
 		section: section,
 		body: '',
 		//This is the actual references and the text associated with them (if any)
-		[REFERENCES_CARD_PROPERTY]: {},
+		[REFERENCES_INFO_CARD_PROPERTY]: {},
 		//The reference blocks copied from the other cards to us by updateInboundlinks.
-		[REFERENCES_INBOUND_CARD_PROPERTY]: {},
+		[REFERENCES_INFO_INBOUND_CARD_PROPERTY]: {},
 		//Sentinel version are like the normal properties, but where it's a map
 		//of cardID to true if there's ANY kind of refernce. Whenever a card is
 		//modified, these sentinels are automatically mirrored basd on the value
 		//of references. They're popped out primarily so that you can do
 		//firestore qureies on them to find cards that link to another.
-		[REFERENCES_SENTINEL_CARD_PROPERTY]: {},
-		[REFERENCES_INBOUND_SENTINEL_CARD_PROPERTY]: {},
+		[REFERENCES_CARD_PROPERTY]: {},
+		[REFERENCES_INBOUND_CARD_PROPERTY]: {},
 		card_type: cardType,
 		notes: '',
 		todo: '',

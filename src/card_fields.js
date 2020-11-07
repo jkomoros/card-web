@@ -8,21 +8,21 @@ import '@firebase/firestore';
 const deleteSentinel = firebase.firestore.FieldValue.delete;
 
 //The propery on cardObj where references are stored. The final keys are
-//strings, which might be ''. This is the primary fields, the sentinel fields
+//strings, which might be ''. This is the primary fields, the references fields
 //are derived off of them
 //NOTE: this next one is duplicated in tweet-helpers.js and both are in
 //functions/updates.js;
-export const REFERENCES_CARD_PROPERTY = 'references';
-export const REFERENCES_INBOUND_CARD_PROPERTY = 'references_inbound';
+export const REFERENCES_INFO_CARD_PROPERTY = 'references_info';
+export const REFERENCES_INFO_INBOUND_CARD_PROPERTY = 'references_info_inbound';
 //These two properties are exactly like the normal references fields exccept
 //it's a map of cardID -> true for cards that are referenced.
-export const REFERENCES_SENTINEL_CARD_PROPERTY = 'references_sentinel';
-export const REFERENCES_INBOUND_SENTINEL_CARD_PROPERTY = 'references_inbound_sentinel';
+export const REFERENCES_CARD_PROPERTY = 'references';
+export const REFERENCES_INBOUND_CARD_PROPERTY = 'references_inbound';
 
 export const TEXT_FIELD_BODY = 'body';
 export const TEXT_FIELD_TITLE = 'title';
 export const TEXT_FIELD_SUBTITLE = 'subtitle';
-export const TEXT_FIELD_REFERENCES_INBOUND = REFERENCES_INBOUND_CARD_PROPERTY;
+export const TEXT_FIELD_REFERENCES_INFO_INBOUND = REFERENCES_INFO_INBOUND_CARD_PROPERTY;
 
 export const CARD_TYPE_CONTENT = 'content';
 export const CARD_TYPE_SECTION_HEAD = 'section-head';
@@ -105,7 +105,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 		derivedForCardTypes: {},
 		matchWeight:0.75,
 	},
-	[TEXT_FIELD_REFERENCES_INBOUND]: {
+	[TEXT_FIELD_REFERENCES_INFO_INBOUND]: {
 		html: false,
 		readOnly: true,
 		//null signals it's legal for all card types
@@ -257,7 +257,7 @@ export const cardSetNormalizedTextProperties = (card) => {
 //NOTE: this is duplicated manually in tweet-helpers.js
 export const cardGetLinksArray = (cardObj) => {
 	if (!cardObj) return [];
-	const references = cardObj[REFERENCES_CARD_PROPERTY];
+	const references = cardObj[REFERENCES_INFO_CARD_PROPERTY];
 	if (!references) return [];
 	//Remember that the falsey '' is still considered a set key
 	return Object.entries(references).filter(entry => entry[1][REFERENCE_TYPE_LINK] !== undefined).map(entry => entry[0]);
@@ -266,7 +266,7 @@ export const cardGetLinksArray = (cardObj) => {
 //cardGetReferencesArray returns an array of CARD_IDs this card points to via any type of reference.
 export const cardGetReferencesArray = (cardObj) => {
 	if (!cardObj) return [];
-	const references = cardObj[REFERENCES_CARD_PROPERTY];
+	const references = cardObj[REFERENCES_INFO_CARD_PROPERTY];
 	if (!references) return [];
 	return Object.keys(references);
 };
@@ -274,7 +274,7 @@ export const cardGetReferencesArray = (cardObj) => {
 //cardGetInboundLinksArray returns an array of CARD_IDs that point to this card via links.
 export const cardGetInboundLinksArray = (cardObj) => {
 	if (!cardObj) return [];
-	const references = cardObj[REFERENCES_INBOUND_CARD_PROPERTY];
+	const references = cardObj[REFERENCES_INFO_INBOUND_CARD_PROPERTY];
 	if (!references) return [];
 	//Remember that the falsey '' is still considered a set key
 	return Object.entries(references).filter(entry => entry[1][REFERENCE_TYPE_LINK] !== undefined).map(entry => entry[0]);
@@ -283,7 +283,7 @@ export const cardGetInboundLinksArray = (cardObj) => {
 //cardGetInboundReferencesArray returns an array of CARD_IDs this card points to via any type of reference.
 export const cardGetInboundReferencesArray = (cardObj) => {
 	if (!cardObj) return [];
-	const references = cardObj[REFERENCES_INBOUND_CARD_PROPERTY];
+	const references = cardObj[REFERENCES_INFO_INBOUND_CARD_PROPERTY];
 	if (!references) return [];
 	return Object.keys(references);
 };
@@ -297,7 +297,7 @@ export const cardSetLinks = (cardObj, linksObj) => {
 	//one.
 	if (!cardObj) return;
 	cardCloneReferencesFromOther(cardObj, cardObj);
-	let references = cardObj[REFERENCES_CARD_PROPERTY];
+	let references = cardObj[REFERENCES_INFO_CARD_PROPERTY];
 	for (let cardReferences of Object.values(references)) {
 		if (cardReferences[REFERENCE_TYPE_LINK]) {
 			delete cardReferences[REFERENCE_TYPE_LINK];
@@ -325,14 +325,14 @@ const referencesCleanEmptyCards = (referencesBlock) => {
 
 const cardCloneReferencesFromOther = (cardObj, otherCardObj) => {
 	if (!cardObj || !otherCardObj) return;
-	cardObj.references = cloneReferences(otherCardObj.references);
+	cardObj[REFERENCES_INFO_CARD_PROPERTY] = cloneReferences(otherCardObj[REFERENCES_INFO_CARD_PROPERTY]);
 };
 
 //cardEnsureReferences will make sure cardLikeObj has a references block. If it
 //doesn't, it will clone one from otherCardObj.
 export const cardEnsureReferences = (cardLikeObj, otherCardObj) => {
 	if (!cardLikeObj || !otherCardObj) return;
-	if (cardLikeObj.references) return;
+	if (cardLikeObj[REFERENCES_INFO_CARD_PROPERTY]) return;
 	cardCloneReferencesFromOther(cardLikeObj, otherCardObj);
 };
 
@@ -498,10 +498,10 @@ export const referencesCardsDiff = (before, after) => {
 };
 
 //applyReferencesDiff will generate the modifications necessary to go from
-//references.before to references.after, and accumulate them IN PLACE as keys on
+//references_info.before to references_info.after, and accumulate them IN PLACE as keys on
 //update, including using deleteSentinel. update should be a cardUpdateObject,
-//so the keys this sets will have references. This also sets the necessary keys
-//on references_sentinels. prepended. update object is also returned as a
+//so the keys this sets will have references_info. This also sets the necessary keys
+//on references. prepended. update object is also returned as a
 //convenience.
 export const applyReferencesDiff = (before, after, update) => {
 	if (!update) update = {};
@@ -509,18 +509,18 @@ export const applyReferencesDiff = (before, after, update) => {
 	for (let [key, val] of Object.entries(additions)) {
 		let parts = key.split('.');
 		let cardID = parts[0];
-		update[REFERENCES_CARD_PROPERTY + '.' + key] = val;
-		update[REFERENCES_SENTINEL_CARD_PROPERTY + '.' + cardID] = true;
+		update[REFERENCES_INFO_CARD_PROPERTY + '.' + key] = val;
+		update[REFERENCES_CARD_PROPERTY + '.' + cardID] = true;
 	}
 	for (let [key, val] of Object.entries(modifications)) {
-		update[REFERENCES_CARD_PROPERTY + '.' + key] = val;
+		update[REFERENCES_INFO_CARD_PROPERTY + '.' + key] = val;
 	}
 	for (let key of Object.keys(leafDeletions)) {
-		update[REFERENCES_CARD_PROPERTY + '.' + key] = deleteSentinel();
+		update[REFERENCES_INFO_CARD_PROPERTY + '.' + key] = deleteSentinel();
 	}
 	for (let key of Object.keys(cardDeletions)) {
+		update[REFERENCES_INFO_CARD_PROPERTY + '.' + key] = deleteSentinel();
 		update[REFERENCES_CARD_PROPERTY + '.' + key] = deleteSentinel();
-		update[REFERENCES_SENTINEL_CARD_PROPERTY + '.' + key] = deleteSentinel();
 	}
 	return update;
 };

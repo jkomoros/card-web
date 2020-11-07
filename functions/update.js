@@ -69,9 +69,9 @@ const inboundLinks = (change, context) => {
 
 	if (common.DISABLE_CARD_UPDATE_FUNCTIONS) return Promise.resolve();
 
-	const beforeReferences = change.before.data()[common.REFERENCES_CARD_PROPERTY];
-	const afterReferences = change.after.data()[common.REFERENCES_CARD_PROPERTY];
-	const afterReferencesSentinel = change.after.data()[common.REFERENCES_SENTINEL_CARD_PROPERTY];
+	const beforeReferences = change.before.data()[common.REFERENCES_INFO_CARD_PROPERTY];
+	const afterReferences = change.after.data()[common.REFERENCES_INFO_CARD_PROPERTY];
+	const afterReferencesSentinel = change.after.data()[common.REFERENCES_CARD_PROPERTY];
 
 	const [changes, deletions] = referencesCardsDiff(beforeReferences, afterReferences);
 
@@ -84,8 +84,8 @@ const inboundLinks = (change, context) => {
 	for (let otherCardID of Object.keys(changes)) {
 		let ref = db.collection('cards').doc(otherCardID);
 		let update = {
-			[common.REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferences[otherCardID],
-			[common.REFERENCES_INBOUND_SENTINEL_CARD_PROPERTY + '.' + cardID]: afterReferencesSentinel[otherCardID],
+			[common.REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferences[otherCardID],
+			[common.REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferencesSentinel[otherCardID],
 		};
 		batch.update(ref, update);
 	}
@@ -93,8 +93,8 @@ const inboundLinks = (change, context) => {
 	for (let otherCardID of Object.keys(deletions)) {
 		let ref = db.collection('cards').doc(otherCardID);
 		let update = {
+			[common.REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: FieldValue.delete(),
 			[common.REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: FieldValue.delete(),
-			[common.REFERENCES_INBOUND_SENTINEL_CARD_PROPERTY + '.' + cardID]: FieldValue.delete(),
 		};
 		batch.update(ref, update);
 	}
