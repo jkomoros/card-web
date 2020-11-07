@@ -307,7 +307,7 @@ export const cardSetLinks = (cardObj, linksObj) => {
 		if (!references[cardID]) references[cardID] = {};
 		references[cardID][REFERENCE_TYPE_LINK] = cardText;
 	}
-	referencesCleanEmptyCards(references);
+	referencesInfoCleanEmptyCards(references);
 	//Sanity check
 	if (!referencesLegal(references)) {
 		throw new Error('References not valid');
@@ -315,7 +315,7 @@ export const cardSetLinks = (cardObj, linksObj) => {
 };
 
 //Removes any empty cards from references block
-const referencesCleanEmptyCards = (referencesBlock) => {
+const referencesInfoCleanEmptyCards = (referencesBlock) => {
 	for (let key of Object.keys(referencesBlock)) {
 		if (Object.values(referencesBlock[key]).length == 0) {
 			delete referencesBlock[key];
@@ -326,6 +326,7 @@ const referencesCleanEmptyCards = (referencesBlock) => {
 const cardCloneReferencesFromOther = (cardObj, otherCardObj) => {
 	if (!cardObj || !otherCardObj) return;
 	cardObj[REFERENCES_INFO_CARD_PROPERTY] = cloneReferences(otherCardObj[REFERENCES_INFO_CARD_PROPERTY]);
+	cardObj[REFERENCES_CARD_PROPERTY] = cloneReferences(otherCardObj[REFERENCES_CARD_PROPERTY]);
 };
 
 //cardEnsureReferences will make sure cardLikeObj has a references block. If it
@@ -359,11 +360,15 @@ export const referencesLegal = (referencesBlock) => {
 	return true;
 };
 
-export const cloneReferences = (referencesBlock) => {
-	if (!referencesLegal(referencesBlock)) return null;
+const cloneReferences = (referencesBlock) => {
 	let result = {};
 	for (let [key, value] of Object.entries(referencesBlock)) {
-		result[key] = {...value};
+		if (typeof value === 'object') {
+			result[key] = {...value};
+		} else {
+			//e.g. a boolean
+			result[key] = value;
+		}
 	}
 	return result;
 };
