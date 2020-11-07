@@ -7,9 +7,49 @@ import firebase from '@firebase/app';
 import '@firebase/firestore';
 const deleteSentinel = firebase.firestore.FieldValue.delete;
 
-//The propery on cardObj where references are stored. The final keys are
-//strings, which might be ''. This is the primary fields, the references fields
-//are derived off of them
+/*
+
+On each card is a references property and a references info.
+
+references_info has the following shape:
+{
+    'CARD_ID_A': {
+        'link': 'text that links to the other',
+        'dupe-of': ''
+    },
+    'CARD_ID_B': {
+        'link': '',
+    }
+}
+
+That is, an object of card ids that then map to a sub-object with keys of
+REFERENCE_TYPE_* to strings. The strings are the description affiliated with
+that reference. For example, for links, it's the text of the link. For
+citations, it might be information like "Page 22". Note that an empty string is
+allowed, and counts as a reference. If the cardID is in the reference_info, then
+there must be at least one reference set on the object. References_info is the
+canonical object that we typically mutate and contains the information.
+
+There's also a references field, that has the following shape:
+{
+    'CARD_ID_A': true,
+    'CARD_ID_B': true,
+}
+
+That is, an object mapping card ids to true, IFF that card has a non-empty
+references object in referenes_info. References duplicates the references_info,
+but in a format that allows doing queries via Firestore (it's not possible to
+query for the existence or non-existence of a subobject. You can do the orderBy
+trick, but that requires a separate index for each subkey)
+
+Cards also have references_inbound and references_info_inbound. These have
+exactly the same shape, but represent the card references blocks from cards that
+point TO this card. Those are maintained in the updateInboundLinks cloud
+function, and basically just copy the sub-object from refrences_info to the card
+that is poitned to.
+
+*/
+
 //NOTE: this next one is duplicated in tweet-helpers.js and both are in
 //functions/updates.js;
 export const REFERENCES_INFO_CARD_PROPERTY = 'references_info';

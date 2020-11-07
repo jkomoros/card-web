@@ -681,9 +681,9 @@ export const defaultCardObject = (id, user, section, cardType) => {
 		title: '',
 		section: section,
 		body: '',
-		//This is the actual references and the text associated with them (if any)
+		//See the documentation for these two string contants in card_fields.js
+		//for information on the shape of these fields.
 		[REFERENCES_INFO_CARD_PROPERTY]: {},
-		//The reference blocks copied from the other cards to us by updateInboundlinks.
 		[REFERENCES_INFO_INBOUND_CARD_PROPERTY]: {},
 		//Sentinel version are like the normal properties, but where it's a map
 		//of cardID to true if there's ANY kind of refernce. Whenever a card is
