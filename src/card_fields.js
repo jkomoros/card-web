@@ -293,39 +293,50 @@ export const cardSetNormalizedTextProperties = (card) => {
 	card.normalized = Object.fromEntries(Object.entries(extractContentWords(card)).map(entry => [entry[0], stemmedNormalizedWords(entry[1]).join(' ')]));
 };
 
-//cardGetLinksArray returns an array of CARD_IDs this card points to via links.
-//NOTE: this is duplicated manually in tweet-helpers.js
-export const cardGetLinksArray = (cardObj) => {
-	if (!cardObj) return [];
-	const references = cardObj[REFERENCES_INFO_CARD_PROPERTY];
-	if (!references) return [];
-	//Remember that the falsey '' is still considered a set key
-	return Object.entries(references).filter(entry => entry[1][REFERENCE_TYPE_LINK] !== undefined).map(entry => entry[0]);
+const memoizedCardAccessors = new Map();
+
+//References returns a ReferencesAccessor to access references for this cardObj.
+//It may return one that's already been returned for this card obj.
+export const references = (cardObj) => {
+	let accessor = memoizedCardAccessors.get(cardObj);
+	if (!accessor) {
+		accessor = new ReferencesAccessor(cardObj);
+		memoizedCardAccessors.set(cardObj, accessor);
+	}
+	return accessor;
 };
 
-//cardGetReferencesArray returns an array of CARD_IDs this card points to via any type of reference.
-export const cardGetReferencesArray = (cardObj) => {
-	if (!cardObj) return [];
-	const references = cardObj[REFERENCES_INFO_CARD_PROPERTY];
-	if (!references) return [];
-	return Object.keys(references);
-};
+const ReferencesAccessor = class {
+	constructor(cardObj) {
+		this._cardObj = cardObj;
+		if (!this._cardObj) return;
+		this._referencesInfo = cardObj[REFERENCES_INFO_CARD_PROPERTY];
+		this._referencesInfoInbound = cardObj[REFERENCES_INFO_INBOUND_CARD_PROPERTY];
+	}
 
-//cardGetInboundLinksArray returns an array of CARD_IDs that point to this card via links.
-export const cardGetInboundLinksArray = (cardObj) => {
-	if (!cardObj) return [];
-	const references = cardObj[REFERENCES_INFO_INBOUND_CARD_PROPERTY];
-	if (!references) return [];
-	//Remember that the falsey '' is still considered a set key
-	return Object.entries(references).filter(entry => entry[1][REFERENCE_TYPE_LINK] !== undefined).map(entry => entry[0]);
-};
+	get linksArray() {
+		if (!this._referencesInfo) return [];
+		//NOTE: similar manual logic is duplicated manually in tweets-helper.js
+		//Remember that the falsey '' is still considered a set key
+		return Object.entries(this._referencesInfo).filter(entry => entry[1][REFERENCE_TYPE_LINK] !== undefined).map(entry => entry[0]);
+	}
 
-//cardGetInboundReferencesArray returns an array of CARD_IDs this card points to via any type of reference.
-export const cardGetInboundReferencesArray = (cardObj) => {
-	if (!cardObj) return [];
-	const references = cardObj[REFERENCES_INFO_INBOUND_CARD_PROPERTY];
-	if (!references) return [];
-	return Object.keys(references);
+	get array() {
+		if (!this._referencesInfo) return [];
+		return Object.keys(this._referencesInfo);
+	}
+
+	get inboundLinksArray() {
+		if (!this._referencesInfoInbound) return [];
+		//Remember that the falsey '' is still considered a set key
+		return Object.entries(this._referencesInfoInbound).filter(entry => entry[1][REFERENCE_TYPE_LINK] !== undefined).map(entry => entry[0]);
+	}
+
+	get inboundArray() {
+		if (!this._referencesInfoInbound) return [];
+		return Object.keys(this._referencesInfoInbound);
+	}
+
 };
 
 //linksObj should be a object with CARD_ID: link text (or '' if no link text).

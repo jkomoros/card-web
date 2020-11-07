@@ -44,7 +44,7 @@ const sectionTwiddlerMap = (sections) => {
 //duplicated from card_fields.js
 const REFERENCES_INFO_CARD_PROPERTY = 'references_info';
 
-//cardGetLinksArray returns an array of CARD_IDs this card points to via links.
+//cardGetReferencesArray returns an array of CARD_IDs this card points to via links.
 //NOTE: this is duplicated from card_fields.js
 const cardGetReferencesArray = (cardObj) => {
 	if (!cardObj) return [];

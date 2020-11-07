@@ -38,8 +38,7 @@ import {
 	TEXT_FIELD_CONFIGURATION,
 	normalizedWords,
 	stemmedNormalizedWords,
-	cardGetReferencesArray,
-	cardGetInboundReferencesArray
+	references
 } from './card_fields.js';
 
 import {
@@ -655,7 +654,8 @@ export const selectEditingOrActiveCardSimilarCards = createSelector(
 	(card, overlapMap) => {
 		if (!card || Object.keys(card).length == 0) return [];
 		if (!overlapMap || overlapMap.size == 0) return [];
-		const excludeIDs = new Set([...cardGetReferencesArray(card), ...cardGetInboundReferencesArray(card)]);
+		const refs = references(card);
+		const excludeIDs = new Set([...refs.array, ...refs.inboundArray]);
 		let result = [];
 		for (const cardID of overlapMap.keys()) {
 			if (excludeIDs.has(cardID)) continue;
@@ -875,7 +875,7 @@ export const selectActiveCardTweets = createSelector(
 export const selectInboundReferencesForActiveCard = createSelector(
 	selectActiveCard,
 	selectCards,
-	(card, cards) => cardGetInboundReferencesArray(card).filter(id => cards[id])
+	(card, cards) => references(card).inboundArray.filter(id => cards[id])
 );
 
 //selectEditingCardAutoTodos will opeate on not the actual filter set, but one
@@ -1243,7 +1243,7 @@ const cardScoreForQuery = (card, preparedQuery) => {
 
 	//Give a boost to cards that have more inbound cards, implying they're more
 	//important cards.
-	let inboundLinks = cardGetInboundReferencesArray(card);
+	let inboundLinks = references(card).inboundArray;
 	if (inboundLinks.length > 0) {
 		//Tweak the score, but only by a very tiny amount. Once the 'juice' is
 		//not just the count of inbound-links, but the transitive count, then

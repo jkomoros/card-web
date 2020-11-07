@@ -84,7 +84,7 @@ import {
 } from './prompt.js';
 
 import {
-	cardGetReferencesArray,
+	references,
 	REFERENCES_INBOUND_CARD_PROPERTY
 } from '../card_fields.js';
 
@@ -294,7 +294,7 @@ export const fetchCardLinkCardsForFetchedCard = async (fetchedCard) => async (di
 	if (!fetchedCard || Object.values(fetchedCard).length == 0) return;
 
 	//If all of the cards were already fetched we can bail early.
-	const links = cardGetReferencesArray(fetchedCard);
+	const links = references(fetchedCard).array;
 	const state = getState();
 	const fetchedCards = selectCards(state);
 	const allCardsFetched = links.every(cardID => fetchedCards[cardID]);

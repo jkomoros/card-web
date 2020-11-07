@@ -4,8 +4,7 @@ import dompurify from 'dompurify';
 import {
 	TEXT_FIELD_BODY,
 	CARD_TYPE_CONTENT,
-	cardGetInboundReferencesArray,
-	cardGetReferencesArray
+	references
 } from './card_fields.js';
 
 //define this here and then re-export form app.js so this file doesn't need any
@@ -181,7 +180,7 @@ export const cardBFS = (keyCardIDOrSlug, cards, ply, includeKeyCard, isInbound) 
 		if (!card) continue;
 		const newCardDepth = (seenCards[id] || 0) + 1;
 		if (newCardDepth > ply) continue;
-		const links = isInbound ? cardGetInboundReferencesArray(card) : cardGetReferencesArray(card);
+		const links = isInbound ? references(card).inboundArray : references(card).array;
 		for (let linkItem of links) {
 			//Skip ones that have already been seen
 			if (seenCards[linkItem] !== undefined) continue;
@@ -198,10 +197,11 @@ export const cardBFS = (keyCardIDOrSlug, cards, ply, includeKeyCard, isInbound) 
 export const cardMissingReciprocalLinks = (card) => {
 	if (!card) return [];
 	let links = new Map();
-	for (let link of cardGetInboundReferencesArray(card)) {
+	const refs = references(card);
+	for (let link of refs.inboundArray) {
 		links.set(link, true);
 	}
-	for (let link of cardGetReferencesArray(card)) {
+	for (let link of refs.array) {
 		links.delete(link);
 	}
 	if (card.auto_todo_skipped_links_inbound) {
@@ -566,7 +566,7 @@ export const pageRank = (cards) => {
 		//We can't trust links or inbound_links as they exist, because they
 		//might point to unpublished cards, and it's important for the
 		//convergence of the algorithm that we have the proper indegree and outdegree. 
-		const links = arrayUnique(cardGetReferencesArray(card).filter(id => cards[id]));
+		const links = arrayUnique(references(card).array.filter(id => cards[id]));
 		for (let id of links) {
 			let list = inboundLinksMap[id];
 			if (!list) {
