@@ -310,6 +310,7 @@ const ReferencesAccessor = class {
 	constructor(cardObj) {
 		this._cardObj = cardObj;
 		if (!this._cardObj) return;
+		this._modified = false;
 		this._referencesInfo = cardObj[REFERENCES_INFO_CARD_PROPERTY];
 		this._referencesInfoInbound = cardObj[REFERENCES_INFO_INBOUND_CARD_PROPERTY];
 	}
@@ -337,45 +338,59 @@ const ReferencesAccessor = class {
 		return Object.keys(this._referencesInfoInbound);
 	}
 
-};
-
-//linksObj should be a object with CARD_ID: link text (or '' if no link text).
-//Any previously-existing links on the card are cleared.
-export const cardSetLinks = (cardObj, linksObj) => {
-	//This function can assume cardObj is OK to be directly modified, but none
-	//of its sub-properites may be. If its references field is going to be
-	//modified, for example, we'd have to clone it first and set that on the new
-	//one.
-	if (!cardObj) return;
-	cardCloneReferencesFromOther(cardObj, cardObj);
-	let references = cardObj[REFERENCES_INFO_CARD_PROPERTY];
-	for (let cardReferences of Object.values(references)) {
-		if (cardReferences[REFERENCE_TYPE_LINK]) {
-			delete cardReferences[REFERENCE_TYPE_LINK];
+	//returns a new map where each key in the top level is the type, and the second level objects are card-id to string value.
+	_byType() {
+		//TODO: memoize, and clear out when any set operation is done
+		let result = {};
+		for (const [cardID, referenceBlock] of Object.entries(this._referencesInfo)) {
+			for (const [referenceType, str] of Object.entries(referenceBlock)) {
+				if (!result[referenceType]) result[referenceType] = {};
+				result[referenceType][cardID] = str;
+			}
 		}
+		return result;
 	}
-	for (let [cardID, cardText] of Object.entries(linksObj)) {
-		if (!references[cardID]) references[cardID] = {};
-		references[cardID][REFERENCE_TYPE_LINK] = cardText;
-	}
-	referencesInfoCleanEmptyCards(references);
-	setReferencesFromReferencesInfo(cardObj);
-	//Sanity check
-	if (!referencesLegal(cardObj)) {
-		throw new Error('References not valid');
-	}
-};
 
-const setReferencesFromReferencesInfo = (cardObj) => {
-	cardObj[REFERENCES_CARD_PROPERTY] = Object.fromEntries(Object.entries(cardObj[REFERENCES_INFO_CARD_PROPERTY]).map(entry => [entry[0], true]));
-};
+	//We're allowed to modify the card object we're associated with, but NOT its
+	//inner refrence properties. If we want to touch them, we have to copy them
+	//over from their original values.
+	_prepareForModifications() {
+		if (this._modified) return;
+		this._cardObj[REFERENCES_INFO_CARD_PROPERTY] = cloneReferences(this._cardObj[REFERENCES_INFO_CARD_PROPERTY]);
+		this._cardObj[REFERENCES_CARD_PROPERTY] = cloneReferences(this._cardObj[REFERENCES_CARD_PROPERTY]);
+		this._referencesInfo = this._cardObj[REFERENCES_INFO_CARD_PROPERTY];
+		this._modified = true;
+	}
 
-//Removes any empty cards from references block
-const referencesInfoCleanEmptyCards = (referencesBlock) => {
-	for (let key of Object.keys(referencesBlock)) {
-		if (Object.values(referencesBlock[key]).length == 0) {
-			delete referencesBlock[key];
+	_setReferencesInfo(referenceBlock) {
+		//We set these directly and don't use prepareForModifications because we'll just blow away all of the changes anyway.
+		this._cardObj[REFERENCES_INFO_CARD_PROPERTY] = referenceBlock;
+		this._cardObj[REFERENCES_CARD_PROPERTY] = Object.fromEntries(Object.entries(referenceBlock).map(entry => [entry[0], true]));
+		if (!referencesLegal(this._cardObj)) {
+			throw new Error('References block set to something illegal');
 		}
+		this._referencesInfo = referenceBlock;
+		this._modified = true;
+	}
+
+	//Consumes a referenceBlock organized by type (e.g. as received by byType)
+	_setWithByTypeReferences(byTypeReferenceBlock) {
+		const result = {};
+		for (let [referenceType, referenceBlock] of Object.entries(byTypeReferenceBlock)) {
+			for (let [cardID, str] of Object.entries(referenceBlock)) {
+				if (!result[cardID]) result[cardID] = {};
+				result[cardID][referenceType] = str;
+			}
+		}
+		this._setReferencesInfo(result);
+	}
+
+	//linksObj should be a cardID -> str value map. It will replace all
+	//currently set references of the current type.
+	setLinks(linksObj) {
+		const byType = this._byType();
+		byType[REFERENCE_TYPE_LINK] = {...linksObj};
+		this._setWithByTypeReferences(byType);
 	}
 };
 

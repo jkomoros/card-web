@@ -41,7 +41,7 @@ import {
 
 import {
 	cardSetNormalizedTextProperties,
-	cardSetLinks
+	references,
 } from '../card_fields.js';
 
 import {
@@ -133,7 +133,7 @@ const app = (state = INITIAL_STATE, action) => {
 		//of body, like re-extracting words to cause suggested tags to change.
 		let linkInfo = extractCardLinksFromBody(state.card.body);
 		card = {...state.card};
-		cardSetLinks(card, linkInfo);
+		references(card).setLinks(linkInfo);
 		cardSetNormalizedTextProperties(card);
 		return {
 			...state,
