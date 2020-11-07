@@ -368,12 +368,6 @@ export const cloneReferences = (referencesBlock) => {
 	return result;
 };
 
-export const referencesDiffIsEmpty = (diff) => {
-	if (!Array.isArray(diff)) return false;
-	if (diff.length != 4) return false;
-	return diff.every(item => Object.keys(item).length == 0);
-};
-
 //Returns a 4-tuple of [additions, modifications, leafDeletions, cardDeletions].
 //Each one is a dotted property name. If a given cardDeletion is included, then
 //no leafDeletions that start with that CARD_ID will be included. Additions will
