@@ -19,27 +19,71 @@ const deleteSentinel = firebase.firestore.FieldValue.delete;
 import assert from 'assert';
 
 describe('card referencesLegal util functions', () => {
+	it('missing either references and references_info not legal', async () => {
+		const input = {};
+		const result = referencesLegal(input);
+		assert.strictEqual(result, false);
+	});
+
+	it('missing either references not legal', async () => {
+		const input = {
+			[REFERENCES_INFO_CARD_PROPERTY]: '',
+		};
+		const result = referencesLegal(input);
+		assert.strictEqual(result, false);
+	});
+
+	it('missing either references_info not legal', async () => {
+		const input = {
+			[REFERENCES_CARD_PROPERTY]: '',
+		};
+		const result = referencesLegal(input);
+		assert.strictEqual(result, false);
+	});
+
 	it('strings not legal', async () => {
-		const input = '';
+		const input = {
+			[REFERENCES_INFO_CARD_PROPERTY]: '',
+			[REFERENCES_CARD_PROPERTY]: '',
+		};
 		const result = referencesLegal(input);
 		assert.strictEqual(result, false);
 	});
 
 	it('null not legal', async () => {
-		const input = null;
+		const input = {
+			[REFERENCES_INFO_CARD_PROPERTY]: null,
+			[REFERENCES_CARD_PROPERTY]: null,
+		};
 		const result = referencesLegal(input);
 		assert.strictEqual(result, false);
 	});
 
 	it('blank object legal', async () => {
-		const input = {};
+		const input = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {},
+			[REFERENCES_CARD_PROPERTY]: {},
+		};
 		const result = referencesLegal(input);
 		assert.strictEqual(result, true);
 	});
 
+	it('missing references illegal', async () => {
+		const input = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {},
+		};
+		const result = referencesLegal(input);
+		assert.strictEqual(result, false);
+	});
+
 	it('object with one key that is string illegal', async () => {
 		const input = {
-			'foo': 'bar',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': 'bar',
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+			},
 		};
 		const result = referencesLegal(input);
 		assert.strictEqual(result, false);
@@ -47,7 +91,12 @@ describe('card referencesLegal util functions', () => {
 
 	it('object with one key that is null illegal', async () => {
 		const input = {
-			'foo': null,
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': null,
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+			},
 		};
 		const result = referencesLegal(input);
 		assert.strictEqual(result, false);
@@ -55,7 +104,12 @@ describe('card referencesLegal util functions', () => {
 
 	it('object with one key that is blank object illegal', async () => {
 		const input = {
-			'foo': {},
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+			},
 		};
 		const result = referencesLegal(input);
 		assert.strictEqual(result, false);
@@ -63,18 +117,85 @@ describe('card referencesLegal util functions', () => {
 
 	it('object with one key that is object with one whitelisted property that is empty string legal', async () => {
 		const input = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: '',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const result = referencesLegal(input);
 		assert.strictEqual(result, true);
 	});
 
+	it('object with one key that is object with one whitelisted property that is empty string but no key in references illegal', async () => {
+		const input = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'bar': true,
+			},
+		};
+		const result = referencesLegal(input);
+		assert.strictEqual(result, false);
+	});
+
+	it('object with one key that is object with one whitelisted property that is empty string but no references illegal', async () => {
+		const input = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: '',
+				},
+			},
+		};
+		const result = referencesLegal(input);
+		assert.strictEqual(result, false);
+	});
+
+	it('object with one key that is object with one whitelisted property that is empty string but false key in references illegal', async () => {
+		const input = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': false,
+			},
+		};
+		const result = referencesLegal(input);
+		assert.strictEqual(result, false);
+	});
+
+	it('object with one key that is object with one whitelisted property that is empty string but string key in references illegal', async () => {
+		const input = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': 'bar',
+			},
+		};
+		const result = referencesLegal(input);
+		assert.strictEqual(result, false);
+	});
+
 	it('object with one key that is object with one whitelisted property that is non-empty string legal', async () => {
 		const input = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: 'foo',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: 'foo',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const result = referencesLegal(input);
@@ -83,8 +204,13 @@ describe('card referencesLegal util functions', () => {
 
 	it('object with one key that is object with one non-whitelisted property that is non-empty string illegal', async () => {
 		const input = {
-			'foo': {
-				'foo': 'foo',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					'foo': 'foo',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const result = referencesLegal(input);
@@ -93,8 +219,13 @@ describe('card referencesLegal util functions', () => {
 
 	it('object with one key that is object with one whitelisted property that is object illegal', async () => {
 		const input = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: {},
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: {},
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const result = referencesLegal(input);
@@ -109,13 +240,23 @@ const defaultCardDiffResult = [{},{}];
 describe('card referencesDiff util functions', () => {
 	it('illegal for before illegal', async () => {
 		const inputBefore = {
-			'foo': {
-				'illegal-link-type': '',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					'illegal-link-type': '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const inputAfter = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: '',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const result = referencesDiff(inputBefore, inputAfter);
@@ -128,13 +269,23 @@ describe('card referencesDiff util functions', () => {
 
 	it('illegal for after illegal', async () => {
 		const inputBefore = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: '',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const inputAfter = {
-			'foo': {
-				'illegal-link-type': '',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					'illegal-link-type': '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const result = referencesDiff(inputBefore, inputAfter);
@@ -147,13 +298,23 @@ describe('card referencesDiff util functions', () => {
 
 	it('no op', async () => {
 		const inputBefore = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: '',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const inputAfter = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: '',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const result = referencesDiff(inputBefore, inputAfter);
@@ -166,10 +327,17 @@ describe('card referencesDiff util functions', () => {
 
 	it('Add card', async () => {
 		const inputBefore = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {},
+			[REFERENCES_CARD_PROPERTY]: {},
 		};
 		const inputAfter = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: 'value',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: 'value',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const result = referencesDiff(inputBefore, inputAfter);
@@ -190,11 +358,18 @@ describe('card referencesDiff util functions', () => {
 
 	it('Add two items in new card', async () => {
 		const inputBefore = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {},
+			[REFERENCES_CARD_PROPERTY]: {},
 		};
 		const inputAfter = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: 'value',
-				[REFERENCE_TYPE_DUPE_OF]: 'other-value',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: 'value',
+					[REFERENCE_TYPE_DUPE_OF]: 'other-value',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const result = referencesDiff(inputBefore, inputAfter);
@@ -216,14 +391,24 @@ describe('card referencesDiff util functions', () => {
 
 	it('Add item to existing card', async () => {
 		const inputBefore = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: 'value',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: 'value',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const inputAfter = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: 'value',
-				[REFERENCE_TYPE_DUPE_OF]: 'other-value',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: 'value',
+					[REFERENCE_TYPE_DUPE_OF]: 'other-value',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const result = referencesDiff(inputBefore, inputAfter);
@@ -244,11 +429,18 @@ describe('card referencesDiff util functions', () => {
 
 	it('Remove existing card', async () => {
 		const inputBefore = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: 'value',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: 'value',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const inputAfter = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {},
+			[REFERENCES_CARD_PROPERTY]: {},
 		};
 		const result = referencesDiff(inputBefore, inputAfter);
 		const expectedCardDeletions = {
@@ -268,14 +460,24 @@ describe('card referencesDiff util functions', () => {
 
 	it('Remove item from existing card', async () => {
 		const inputBefore = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: 'value',
-				[REFERENCE_TYPE_DUPE_OF]: 'other-value',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: 'value',
+					[REFERENCE_TYPE_DUPE_OF]: 'other-value',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const inputAfter = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: 'value',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: 'value',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const result = referencesDiff(inputBefore, inputAfter);
@@ -296,13 +498,23 @@ describe('card referencesDiff util functions', () => {
 
 	it('Modify single item in card', async () => {
 		const inputBefore = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: 'before-value',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: 'before-value',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const inputAfter = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: 'value',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: 'value',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const result = referencesDiff(inputBefore, inputAfter);
@@ -323,15 +535,25 @@ describe('card referencesDiff util functions', () => {
 
 	it('Modify multiple items in card', async () => {
 		const inputBefore = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: 'before-value',
-				[REFERENCE_TYPE_DUPE_OF]: 'before-other-value',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: 'before-value',
+					[REFERENCE_TYPE_DUPE_OF]: 'before-other-value',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const inputAfter = {
-			'foo': {
-				[REFERENCE_TYPE_LINK]: 'value',
-				[REFERENCE_TYPE_DUPE_OF]: 'other-value',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: 'value',
+					[REFERENCE_TYPE_DUPE_OF]: 'other-value',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
 			},
 		};
 		const result = referencesDiff(inputBefore, inputAfter);
@@ -353,21 +575,33 @@ describe('card referencesDiff util functions', () => {
 
 	it('Multiple changes', async () => {
 		const inputBefore = {
-			'deletion-card': {
-				[REFERENCE_TYPE_LINK]: 'before-value',
-				[REFERENCE_TYPE_DUPE_OF]: 'before-other-value',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'deletion-card': {
+					[REFERENCE_TYPE_LINK]: 'before-value',
+					[REFERENCE_TYPE_DUPE_OF]: 'before-other-value',
+				},
+				'modification-card': {
+					[REFERENCE_TYPE_LINK]: 'before-value',
+					[REFERENCE_TYPE_DUPE_OF]: 'before-other-value',
+				},
 			},
-			'modification-card': {
-				[REFERENCE_TYPE_LINK]: 'before-value',
-				[REFERENCE_TYPE_DUPE_OF]: 'before-other-value',
+			[REFERENCES_CARD_PROPERTY]: {
+				'deletion-card': true,
+				'modification-card':true,
 			},
 		};
 		const inputAfter = {
-			'modification-card': {
-				[REFERENCE_TYPE_LINK]: 'after-value',
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'modification-card': {
+					[REFERENCE_TYPE_LINK]: 'after-value',
+				},
+				'addition-card': {
+					[REFERENCE_TYPE_LINK]: 'after-value',
+				},
 			},
-			'addition-card': {
-				[REFERENCE_TYPE_LINK]: 'after-value',
+			[REFERENCES_CARD_PROPERTY]: {
+				'modification-card': true,
+				'addition-card': true,
 			},
 		};
 		const result = referencesDiff(inputBefore, inputAfter);

@@ -308,10 +308,15 @@ export const cardSetLinks = (cardObj, linksObj) => {
 		references[cardID][REFERENCE_TYPE_LINK] = cardText;
 	}
 	referencesInfoCleanEmptyCards(references);
+	setReferencesFromReferencesInfo(cardObj);
 	//Sanity check
-	if (!referencesLegal(references)) {
+	if (!referencesLegal(cardObj)) {
 		throw new Error('References not valid');
 	}
+};
+
+const setReferencesFromReferencesInfo = (cardObj) => {
+	cardObj[REFERENCES_CARD_PROPERTY] = Object.fromEntries(Object.entries(cardObj[REFERENCES_INFO_CARD_PROPERTY]).map(entry => [entry[0], true]));
 };
 
 //Removes any empty cards from references block
@@ -339,16 +344,28 @@ export const cardEnsureReferences = (cardLikeObj, otherCardObj) => {
 
 //referencesLegal is a sanity check that the referencesBlock looks like it's expected to.
 //Copied to functions/update.js
-export const referencesLegal = (referencesBlock) => {
+export const referencesLegal = (cardObj) => {
+	if (!cardObj) return false;
+	if (typeof cardObj !== 'object') return false;
+	const referencesInfoBlock = cardObj[REFERENCES_INFO_CARD_PROPERTY];
+	if (!referencesInfoBlock) return false;
+	if (typeof referencesInfoBlock !== 'object') return false;
+	if (Array.isArray(referencesInfoBlock)) return false;
+
+	const referencesBlock = cardObj[REFERENCES_CARD_PROPERTY];
 	if (!referencesBlock) return false;
 	if (typeof referencesBlock !== 'object') return false;
 	if (Array.isArray(referencesBlock)) return false;
+
 	//It's OK for it to have no keys.
-	if (Object.keys(referencesBlock).length === 0) return true;
-	for (let cardBlock of Object.values(referencesBlock)) {
+	if (Object.keys(referencesInfoBlock).length === 0 && Object.keys(referencesBlock).length === 0) return true;
+
+	if (Object.keys(referencesInfoBlock).length !== Object.keys(referencesBlock).length) return false;
+
+	for (let [cardID, cardBlock] of Object.entries(referencesInfoBlock)) {
 		if (!cardBlock) return false;
 		if (typeof cardBlock !== 'object') return false;
-		if (Array.isArray(referencesBlock)) return false;
+		if (Array.isArray(cardBlock)) return false;
 		//If a card block is empty is shouldn't exist
 		if (Object.keys(cardBlock).length === 0) return false;
 		for (let [key, value] of Object.entries(cardBlock)) {
@@ -356,6 +373,10 @@ export const referencesLegal = (referencesBlock) => {
 			if (!LEGAL_REFERENCE_TYPES[key]) return false;
 			if (typeof value !== 'string') return false;
 		}
+		let referenceValue = referencesBlock[cardID];
+		if (typeof referenceValue !== 'boolean') return false;
+		//only true is allowed, since it shows that an object exists at that key in references_info
+		if (!referenceValue) return false;
 	}
 	return true;
 };
@@ -378,10 +399,12 @@ const cloneReferences = (referencesBlock) => {
 //no leafDeletions that start with that CARD_ID will be included. Additions will
 //not create new card objects, it will assume the dotted accesor that implies it
 //in the path will create it.
-export const referencesDiff = (before, after) => {
+export const referencesDiff = (beforeCard, afterCard) => {
 	const result = [{}, {}, {}, {}];
-	if (!referencesLegal(before)) return result;
-	if (!referencesLegal(after)) return result;
+	if (!referencesLegal(beforeCard)) return result;
+	if (!referencesLegal(afterCard)) return result;
+	const before = beforeCard[REFERENCES_INFO_CARD_PROPERTY];
+	const after = afterCard[REFERENCES_INFO_CARD_PROPERTY];
 	//For cards that were not in before but are in after
 	let cardAdditions = {};
 	//For card blocks that exist in both before and after... but might have modifications within them
@@ -469,10 +492,12 @@ const cardReferenceBlockHasDifference = (before, after) => {
 //[cardIDAdditionsOrModifications, cardIDDeletions]. each is a map of cardID =>
 //true, and say that you should copy over the whole block.
 //Duplicated in functions/update.js
-export const referencesCardsDiff = (before, after) => {
+export const referencesCardsDiff = (beforeCard, afterCard) => {
 	const result = [{}, {}];
-	if (!referencesLegal(before)) return result;
-	if (!referencesLegal(after)) return result;
+	if (!referencesLegal(beforeCard)) return result;
+	if (!referencesLegal(afterCard)) return result;
+	const before = beforeCard[REFERENCES_INFO_CARD_PROPERTY];
+	const after = afterCard[REFERENCES_INFO_CARD_PROPERTY];
 	//For card blocks that exist in both before and after... but might have modifications within them
 	let cardSame = {};
 	for (let cardID of Object.keys(before)) {
@@ -502,9 +527,9 @@ export const referencesCardsDiff = (before, after) => {
 //so the keys this sets will have references_info. This also sets the necessary keys
 //on references. prepended. update object is also returned as a
 //convenience.
-export const applyReferencesDiff = (before, after, update) => {
+export const applyReferencesDiff = (beforeCard, afterCard, update) => {
 	if (!update) update = {};
-	let [additions, modifications, leafDeletions, cardDeletions] = referencesDiff(before,after);
+	let [additions, modifications, leafDeletions, cardDeletions] = referencesDiff(beforeCard,afterCard);
 	for (let [key, val] of Object.entries(additions)) {
 		let parts = key.split('.');
 		let cardID = parts[0];

@@ -220,7 +220,7 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 		//pass the raw references in, and do the diffing here. See #368 for
 		//cleaning this up.
 		//NOTE: this is where the raw references property values are also updated
-		applyReferencesDiff(card[REFERENCES_INFO_CARD_PROPERTY], update[REFERENCES_INFO_CARD_PROPERTY], cardUpdateObject);
+		applyReferencesDiff(card, update, cardUpdateObject);
 	}
 
 	if (update.notes !== undefined) {

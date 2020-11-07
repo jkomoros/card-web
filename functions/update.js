@@ -2,25 +2,44 @@ const common = require('./common.js');
 const db = common.db;
 const FieldValue = common.FieldValue;
 
+const REFERENCES_INFO_CARD_PROPERTY = common.REFERENCES_INFO_CARD_PROPERTY;
+const REFERENCES_CARD_PROPERTY = common.REFERENCES_CARD_PROPERTY;
+
 //MOSTLY duplicated from src/card_fields.js;
-const referencesLegal = (referencesBlock) => {
+const referencesLegal = (cardObj) => {
+	if (!cardObj) return false;
+	if (typeof cardObj !== 'object') return false;
+	const referencesInfoBlock = cardObj[REFERENCES_INFO_CARD_PROPERTY];
+	if (!referencesInfoBlock) return false;
+	if (typeof referencesInfoBlock !== 'object') return false;
+	if (Array.isArray(referencesInfoBlock)) return false;
+
+	const referencesBlock = cardObj[REFERENCES_CARD_PROPERTY];
 	if (!referencesBlock) return false;
 	if (typeof referencesBlock !== 'object') return false;
 	if (Array.isArray(referencesBlock)) return false;
+
 	//It's OK for it to have no keys.
-	if (Object.keys(referencesBlock).length === 0) return true;
-	for (let cardBlock of Object.values(referencesBlock)) {
+	if (Object.keys(referencesInfoBlock).length === 0 && Object.keys(referencesBlock).length === 0) return true;
+
+	if (Object.keys(referencesInfoBlock).length !== Object.keys(referencesBlock).length) return false;
+
+	for (let [cardID, cardBlock] of Object.entries(referencesInfoBlock)) {
 		if (!cardBlock) return false;
 		if (typeof cardBlock !== 'object') return false;
-		if (Array.isArray(referencesBlock)) return false;
+		if (Array.isArray(cardBlock)) return false;
 		//If a card block is empty is shouldn't exist
 		if (Object.keys(cardBlock).length === 0) return false;
 		for (let value of Object.values(cardBlock)) {
 			//The only types of keys that are allowed are the explicitly defined reference types
-			//We don't have the following constant here, so just skip
+			//We don't have the constant here so just skip
 			//if (!LEGAL_REFERENCE_TYPES[key]) return false;
 			if (typeof value !== 'string') return false;
 		}
+		let referenceValue = referencesBlock[cardID];
+		if (typeof referenceValue !== 'boolean') return false;
+		//only true is allowed, since it shows that an object exists at that key in references_info
+		if (!referenceValue) return false;
 	}
 	return true;
 };
@@ -38,10 +57,12 @@ const cardReferenceBlockHasDifference = (before, after) => {
 }
 
 //Duplicated from src/card_fields.js
-const referencesCardsDiff = (before, after) => {
+const referencesCardsDiff = (beforeCard, afterCard) => {
 	const result = [{}, {}];
-	if (!referencesLegal(before)) return result;
-	if (!referencesLegal(after)) return result;
+	if (!referencesLegal(beforeCard)) return result;
+	if (!referencesLegal(afterCard)) return result;
+	const before = beforeCard[REFERENCES_INFO_CARD_PROPERTY];
+	const after = afterCard[REFERENCES_INFO_CARD_PROPERTY];
 	//For card blocks that exist in both before and after... but might have modifications within them
 	let cardSame = {};
 	for (let cardID of Object.keys(before)) {
@@ -69,11 +90,13 @@ const inboundLinks = (change, context) => {
 
 	if (common.DISABLE_CARD_UPDATE_FUNCTIONS) return Promise.resolve();
 
-	const beforeReferences = change.before.data()[common.REFERENCES_INFO_CARD_PROPERTY];
-	const afterReferences = change.after.data()[common.REFERENCES_INFO_CARD_PROPERTY];
-	const afterReferencesSentinel = change.after.data()[common.REFERENCES_CARD_PROPERTY];
+	const beforeCard = change.before.data();
+	const afterCard = change.after.data();
 
-	const [changes, deletions] = referencesCardsDiff(beforeReferences, afterReferences);
+	const afterReferencesInfo = afterCard[common.REFERENCES_INFO_CARD_PROPERTY];
+	const afterReferences = afterCard[common.REFERENCES_CARD_PROPERTY];
+
+	const [changes, deletions] = referencesCardsDiff(beforeCard, afterCard);
 
 	if (Object.keys(changes).length === 0 && Object.keys(deletions).length === 0) return Promise.resolve();
 
@@ -84,8 +107,8 @@ const inboundLinks = (change, context) => {
 	for (let otherCardID of Object.keys(changes)) {
 		let ref = db.collection('cards').doc(otherCardID);
 		let update = {
-			[common.REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferences[otherCardID],
-			[common.REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferencesSentinel[otherCardID],
+			[common.REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferencesInfo[otherCardID],
+			[common.REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferences[otherCardID],
 		};
 		batch.update(ref, update);
 	}
