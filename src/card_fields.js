@@ -385,14 +385,18 @@ const ReferencesAccessor = class {
 		this._modified = true;
 	}
 
+	_modificationsFinished() {
+		this._cardObj[REFERENCES_CARD_PROPERTY] = Object.fromEntries(Object.entries(this._cardObj[REFERENCES_INFO_CARD_PROPERTY]).map(entry => [entry[0], true]));
+	}
+
 	_setReferencesInfo(referenceBlock) {
 		//We set these directly and don't use prepareForModifications because we'll just blow away all of the changes anyway.
 		this._cardObj[REFERENCES_INFO_CARD_PROPERTY] = referenceBlock;
-		this._cardObj[REFERENCES_CARD_PROPERTY] = Object.fromEntries(Object.entries(referenceBlock).map(entry => [entry[0], true]));
+		this._referencesInfo = referenceBlock;
+		this._modificationsFinished();
 		if (!referencesLegal(this._cardObj)) {
 			throw new Error('References block set to something illegal');
 		}
-		this._referencesInfo = referenceBlock;
 		this._modified = true;
 	}
 
@@ -406,6 +410,14 @@ const ReferencesAccessor = class {
 			}
 		}
 		this._setReferencesInfo(result);
+	}
+
+	setCardReference(cardID, referenceType, optValue) {
+		if (!optValue) optValue = '';
+		this._prepareForModifications();
+		if (!this._referencesInfo[cardID]) this._referencesInfo[cardID] = {};
+		this._referencesInfo[cardID][referenceType] = optValue;
+		this._modificationsFinished();
 	}
 
 	//linksObj should be a cardID -> str value map. It will replace all
