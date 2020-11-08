@@ -307,6 +307,11 @@ export const references = (cardObj) => {
 };
 
 const ReferencesAccessor = class {
+	//ReferencesAccessor assumes that, if you do one of the mutating methods,
+	//it's legal to modify cardObj, but NOT the previously set reference blocks.
+	//(That is, that cardObj is a mutable shallow copy from any state objects).
+	//If you modify anything, it will overwrite the references blocks instead of
+	//modifying them.
 	constructor(cardObj) {
 		this._cardObj = cardObj;
 		if (!this._cardObj) return;
