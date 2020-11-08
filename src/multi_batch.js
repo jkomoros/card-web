@@ -3,6 +3,34 @@
 //readback sentinels.
 const FIRESTORE_BATCH_LIMIT = 500;
 
+//We import these only to get deleteSentinel without importing from firebase.js.
+import firebase from '@firebase/app';
+import '@firebase/firestore';
+const serverTimestampSentinel = firebase.firestore.FieldValue.serverTimestamp;
+
+const extraOperationCountForValue = (val) => {
+	//Note: this function is very tied to the implementation of
+	//firestore.FieldValue and may need to change if it changes.
+	if (typeof val !== 'object') return false;
+	//TODO: also recurse into normal objects if not a sentinel
+	if (!val['lc']) return false;
+	if (typeof val['lc'] !== 'string') return false;
+	const parts = val['lc'].split('.');
+	if (parts.length !== 2) return false;
+	if (parts[0] !== 'FieldValue') return false;
+	if (parts[1] !== 'serverTimestamp' && parts[1] !== 'arrayRemove' && parts[1] != 'arrayUnion') return false;
+	return true;
+};
+
+const SENTINEL_DEFINITION_VALID = extraOperationCountForValue(serverTimestampSentinel());
+
+if (!SENTINEL_DEFINITION_VALID) {
+	console.warn('The shape of sentinel values that Multibatch is designed to look for seems to be out of date. That means batch sizes will be smaller than they need to be.');
+}
+
+//If we can't detect sentinels correctly, we need to assume that EVERY update double-counts.
+const EFFECTIVE_BATCH_LIMIT = SENTINEL_DEFINITION_VALID ? FIRESTORE_BATCH_LIMIT : Math.floor(FIRESTORE_BATCH_LIMIT / 2) - 1;
+
 //MultiBatch is a thing that can be used as a drop-in replacement firebase db
 //batch, and will automatically split into multiple underlying batches if it's
 //getting close to the limit. Note that unlike a normal batch, it's possible for
@@ -16,7 +44,7 @@ export const MultiBatch = class {
 	}
 
 	get _batch() {
-		if (this._currentBatchOperationCount >= FIRESTORE_BATCH_LIMIT) {
+		if (this._currentBatchOperationCount >= EFFECTIVE_BATCH_LIMIT) {
 			this._currentBatch = null;
 		}
 		if (!this._currentBatch) {
@@ -31,17 +59,8 @@ export const MultiBatch = class {
 		//Firestore treats updates as counting for 1, unless there are 1 or more
 		//of {serverTimestamp, arrayUnion, or arrayRemove}.
 		
-		//Note: this function is very tied to the implementation of
-		//firestore.FieldValue and may need to change if it changes.
 		for (let val of Object.values(update)) {
-			if (typeof val !== 'object') continue;
-			if (!val['lc']) continue;
-			if (typeof val['lc'] !== 'string') continue;
-			const parts = val['lc'].split('.');
-			if (parts.length !== 2) continue;
-			if (parts[0] !== 'FieldValue') continue;
-			if (parts[1] !== 'serverTimestamp' && parts[1] !== 'arrayRemove' && parts[1] != 'arrayUnion') continue;
-			return 2;
+			if (extraOperationCountForValue(val)) return 2;
 		}
 		return 1;
 	}
