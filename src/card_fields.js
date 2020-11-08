@@ -386,7 +386,7 @@ const ReferencesAccessor = class {
 	}
 
 	//returns a new map where each key in the top level is the type, and the second level objects are card-id to string value.
-	_byType() {
+	get byType() {
 		if (!this._memoizedByType) {
 			let result = {};
 			for (const [cardID, referenceBlock] of Object.entries(this._referencesInfo)) {
@@ -403,7 +403,8 @@ const ReferencesAccessor = class {
 	//Returns an object where it's link_type => array_of_card_ids
 	byTypeArray() {
 		//TODO: it's weird that this is a method and the other array ones are getters
-		return Object.fromEntries(Object.entries(this._byType()).map(entry => [entry[0], [...Object.keys(entry[1])]]));
+		//Generally it should be that if it's a method it returns a copy, if it's a getter it returns a shared resource
+		return Object.fromEntries(Object.entries(this.byType).map(entry => [entry[0], [...Object.keys(entry[1])]]));
 	}
 
 	//We're allowed to modify the card object we're associated with, but NOT its
@@ -468,7 +469,8 @@ const ReferencesAccessor = class {
 	//linksObj should be a cardID -> str value map. It will replace all
 	//currently set references of the current type.
 	setLinks(linksObj) {
-		const byType = this._byType();
+		const byType = this.byType;
+		//Yes, we're modifying the byType, but will be removed immediately anyway
 		byType[REFERENCE_TYPE_LINK] = {...linksObj};
 		this._setWithByTypeReferences(byType);
 	}
