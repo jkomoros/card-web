@@ -109,7 +109,7 @@ export const REFERENCE_TYPES = {
 	[REFERENCE_TYPE_DUPE_OF]: {
 		name: 'Duplicate of',
 		description: 'Denotes that this card is a duplicate of the card that it\'s pointing to',
-		editable: false,
+		editable: true,
 	},
 };
 

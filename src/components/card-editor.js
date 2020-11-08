@@ -91,7 +91,9 @@ import {
 
 import {
 	TEXT_FIELD_BODY,
-	editableFieldsForCardType
+	editableFieldsForCardType,
+	REFERENCE_TYPES,
+	references,
 } from '../card_fields.js';
 
 import './tag-list.js';
@@ -116,6 +118,8 @@ class CardEditor extends connect(store)(LitElement) {
 		//When you're disabling a TODO, you're marking it done, so it should be green.
 		const disableTODOColor = '#006400'; //darkgreen
 		const autoTODOColor = '#cc9494'; //firebrick, but less saturated and lighter
+
+		const referencesMap = references(this._card).byTypeArray();
 
 		return html`
       ${ButtonSharedStyles}
@@ -315,16 +319,6 @@ class CardEditor extends connect(store)(LitElement) {
 				</div>
 				<div class='row'>
 					<div>
-						<label>Missing Reciprocal Links</label>
-						<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${enableTODOColor} .tags=${cardMissingReciprocalLinks(this._card)} .editing=${true} .disableAdd=${true} @add-tag=${this._handleRemoveSkippedLinkInbound} @remove-tag=${this._handleAddSkippedLinkInbound}></tag-list>
-					</div>
-					<div>
-						<label>Skipped Reciprocal Links</label>
-						<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${disableTODOColor} .tags=${this._card.auto_todo_skipped_links_inbound} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveSkippedLinkInbound} @add-tag=${this._handleAddSkippedLinkInbound}></tag-list>
-					</div>
-				</div>
-				<div class='row'>
-					<div>
 						<label>Editors</label>
 						<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.permissions[PERMISSION_EDIT_CARD]} .editing=${true} @remove-tag=${this._handleRemoveEditor} @add-tag=${this._handleAddEditor} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewEditor} .excludeItems=${[this._card.author]}></tag-list>
 					</div>
@@ -332,6 +326,22 @@ class CardEditor extends connect(store)(LitElement) {
 						<label>Collaborators</label>
 						<tag-list .overrideTypeName=${'Collaborator'} .tagInfos=${this._authors} .tags=${this._card.collaborators} .editing=${true} @remove-tag=${this._handleRemoveCollaborator} @add-tag=${this._handleAddCollaborator} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewCollaborator} .excludeItems=${[this._card.author]}></tag-list>
 					</div>
+				</div>
+				<div class='row'>
+					<div>
+						<label>Missing Reciprocal Links</label>
+						<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${enableTODOColor} .tags=${cardMissingReciprocalLinks(this._card)} .editing=${true} .disableAdd=${true} @add-tag=${this._handleRemoveSkippedLinkInbound} @remove-tag=${this._handleAddSkippedLinkInbound}></tag-list>
+					</div>
+					<div>
+						<label>Skipped Reciprocal Links</label>
+						<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${disableTODOColor} .tags=${this._card.auto_todo_skipped_links_inbound} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveSkippedLinkInbound} @add-tag=${this._handleAddSkippedLinkInbound}></tag-list>
+					</div>
+					${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable && referencesMap[entry[0]]).map(entry => {
+		return html`<div>
+							<label>${entry[1].name}</label>
+							<tag-list .overrideTypeName=${'Reference'} .tagInfos=${this._cardTagInfos} .defaultColor=${disableTODOColor} .tags=${referencesMap[entry[0]]} .editing=${true} .disableAdd=${true}></tag-list>
+						</div>`;
+	})}
 				</div>
 			</div>
         </div>
