@@ -97,6 +97,14 @@ export const REFERENCE_TYPE_DUPE_OF = 'dupe-of';
 //reciprocal links' to go away) without actually doing a more substantive
 //reference. These references typically shouldn't 'count' in many cases.
 export const REFERENCE_TYPE_ACK = 'ack';
+//For references that aren't any of the other types
+export const REFERENCE_TYPE_GENERIC = 'generic';
+//For cards that were forked from another--that is, whose content started as a
+//direct copy of the other card at some point
+export const REFERENCE_TYPE_FORK_OF = 'fork-of';
+//For cards that want to express they are based on insights 'mined' from the
+//other card--typically a working-notes card.
+export const REFERENCE_TYPE_MINED_FROM = 'mined-from';
 
 //Any key in this object is a legal reference type
 /*
@@ -135,6 +143,33 @@ export const REFERENCE_TYPES = {
 		color: '#CCCCCC',
 		//Not important enough
 		excludeFromInfoPanel: true,
+	},
+	[REFERENCE_TYPE_GENERIC]: {
+		name: 'Generic reference',
+		description: 'For a card to reference another where no other reference type makes sense',
+		editable: true,
+		substantive: true,
+		//sandybrown
+		color: '#F4A460',
+		excludeFromInfoPanel: false,
+	},
+	[REFERENCE_TYPE_FORK_OF]: {
+		name: 'Forked from',
+		description: 'For a card that was forked from another card',
+		editable: true,
+		substantive: true,
+		//darkmagenta
+		color: '#8B008B',
+		excludeFromInfoPanel: false,
+	},
+	[REFERENCE_TYPE_MINED_FROM]: {
+		name: 'Insights mined from',
+		description: 'For a card that denotes that its insights are at least partially based on insights in another card',
+		editable: true,
+		substantive: true,
+		//royalblue
+		color: '#4169E1',
+		excludeFromInfoPanel: false,
 	}
 };
 
