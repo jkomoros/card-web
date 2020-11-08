@@ -5,6 +5,7 @@ import {
 	FIND_CARD_TO_LINK,
 	FIND_UPDATE_ACTIVE_QUERY,
 	FIND_CARD_TO_PERMISSION,
+	FIND_CARD_TO_REFERENCE,
 	FIND_UPDATE_CARD_TYPE_FILTER
 } from '../actions/find.js';
 
@@ -16,8 +17,13 @@ const INITIAL_STATE = {
 	//update this every so often as query is updated, because it is expensive
 	//and drives expensive template updating, introducing lag.
 	activeQuery: '',
+	//For when the user is looking to link specific highlighted text to that card
 	linking: false,
+	//For when the user is looking to add permissions to a given card
 	permissions: false,
+	//For when the user wants to add a specific type of reference from the
+	//editing card to this one
+	referencing: false,
 	cardTypeFilter: '',
 };
 
@@ -28,6 +34,7 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			linking: false,
 			permissions: false,
+			referencing: false,
 			query: '',
 			activeQuery: '',
 			cardTypeFilter: '',
@@ -57,6 +64,7 @@ const app = (state = INITIAL_STATE, action) => {
 			open: true,
 			linking: true,
 			permissions: false,
+			referencing: false,
 			cardTypeFilter: '',
 			query: action.query,
 			activeQuery: action.query
@@ -67,6 +75,18 @@ const app = (state = INITIAL_STATE, action) => {
 			open: true,
 			linking: false,
 			permissions: true,
+			referencing: false,
+			query: '',
+			activeQuery: '',
+			cardTypeFilter: '',
+		};
+	case FIND_CARD_TO_REFERENCE:
+		return {
+			...state,
+			open: true,
+			linking: false,
+			permissions: false,
+			referencing: true,
 			query: '',
 			activeQuery: '',
 			cardTypeFilter: '',
