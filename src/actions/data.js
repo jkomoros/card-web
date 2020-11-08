@@ -91,7 +91,6 @@ import {
 	CARD_TYPE_SECTION_HEAD,
 	CARD_TYPE_WORKING_NOTES,
 	references,
-	cardEnsureReferences,
 	applyReferencesDiff,
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY, 
@@ -208,9 +207,8 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 		let linkInfo = extractCardLinksFromBody(update[field]);
 		//setLinks will modify the references of the cardUpdateObject to be
 		//the canonical references object to set, so ensure that if there isn't
-		//one already, we add one.
-		cardEnsureReferences(update, card);
-		references(update).setLinks(linkInfo);
+		//one already, we add one by copying over from underlying card.
+		references(update).ensureReferences(card).setLinks(linkInfo);
 	}
 
 	if (update[REFERENCES_INFO_CARD_PROPERTY] !== undefined) {

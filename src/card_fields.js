@@ -338,6 +338,24 @@ const ReferencesAccessor = class {
 		return Object.keys(this._referencesInfoInbound);
 	}
 
+	_cloneReferencesInfo() {
+		return cloneReferences(this._cardObj[REFERENCES_INFO_CARD_PROPERTY]);
+	}
+
+	//ensureReferences ensures that the cardObj we're associated with has valid
+	//references. If it doesn, and otherCardObj does, it clones it from there.
+	//If otherCardObj doesn't and we don't as well, then we set the trivial
+	//empty reerences. Returns itself for convenience in chaining.
+	ensureReferences(otherCardObj) {
+		if (referencesLegal(this._cardObj)) return this;
+		let referencesInfo = {};
+		if (referencesLegal(otherCardObj)) {
+			referencesInfo = references(otherCardObj)._cloneReferencesInfo();
+		}
+		this._setReferencesInfo(referencesInfo);
+		return this;
+	}
+
 	//returns a new map where each key in the top level is the type, and the second level objects are card-id to string value.
 	_byType() {
 		//TODO: memoize, and clear out when any set operation is done
