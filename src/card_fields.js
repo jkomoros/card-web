@@ -522,13 +522,25 @@ const ReferencesAccessor = class {
 		this._modificationsFinished();
 	}
 
-	//linksObj should be a cardID -> str value map. It will replace all
-	//currently set references of the current type.
-	setLinks(linksObj) {
+	//Sets it so that all references of that type will be set to the values in
+	//valueObj. valueObj may be a map of CARD_ID -> str value, or it may be an
+	//array of CARD_IDs.
+	setCardReferencesOfType(referenceType, valueObj) {
 		const byType = this.byType;
+		if (typeof valueObj !== 'object' || !valueObj) {
+			throw new Error('valueObj not object or array');
+		}
+		const mapObj = Array.isArray(valueObj) ? Object.fromEntries(Object.values(valueObj).map(id => [id, ''])) : valueObj;
 		//Yes, we're modifying the byType, but will be removed immediately anyway
-		byType[REFERENCE_TYPE_LINK] = {...linksObj};
+		byType[referenceType] = {...mapObj};
 		this._setWithByTypeReferences(byType);
+	}
+
+	//linksObj should be a cardID -> str value map. It will replace all
+	//currently set references of the current type. A simple wrapper around
+	//setCardReferencesOfType with the constant for links burned in
+	setLinks(linksObj) {
+		this.setCardReferencesOfType(REFERENCE_TYPE_LINK, linksObj);
 	}
 
 	equivalentTo(otherCardObj) {
