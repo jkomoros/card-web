@@ -356,9 +356,7 @@ const ReferencesAccessor = class {
 	}
 
 	get inboundLinksArray() {
-		if (!this._referencesInfoInbound) return [];
-		//Remember that the falsey '' is still considered a set key
-		return Object.entries(this._referencesInfoInbound).filter(entry => entry[1][REFERENCE_TYPE_LINK] !== undefined).map(entry => entry[0]);
+		return [...Object.keys(this.byTypeInbound[REFERENCE_TYPE_LINK] || {})];
 	}
 
 	get inboundArray() {
