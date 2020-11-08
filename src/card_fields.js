@@ -339,6 +339,7 @@ const ReferencesAccessor = class {
 		this._cardObj = cardObj;
 		if (!this._cardObj) return;
 		this._modified = false;
+		this._memoizedByType = null;
 		this._referencesInfo = cardObj[REFERENCES_INFO_CARD_PROPERTY];
 		this._referencesInfoInbound = cardObj[REFERENCES_INFO_INBOUND_CARD_PROPERTY];
 	}
@@ -386,15 +387,17 @@ const ReferencesAccessor = class {
 
 	//returns a new map where each key in the top level is the type, and the second level objects are card-id to string value.
 	_byType() {
-		//TODO: memoize, and clear out when any set operation is done
-		let result = {};
-		for (const [cardID, referenceBlock] of Object.entries(this._referencesInfo)) {
-			for (const [referenceType, str] of Object.entries(referenceBlock)) {
-				if (!result[referenceType]) result[referenceType] = {};
-				result[referenceType][cardID] = str;
+		if (!this._memoizedByType) {
+			let result = {};
+			for (const [cardID, referenceBlock] of Object.entries(this._referencesInfo)) {
+				for (const [referenceType, str] of Object.entries(referenceBlock)) {
+					if (!result[referenceType]) result[referenceType] = {};
+					result[referenceType][cardID] = str;
+				}
 			}
+			this._memoizedByType = result;
 		}
-		return result;
+		return this._memoizedByType;
 	}
 
 	//Returns an object where it's link_type => array_of_card_ids
@@ -416,6 +419,7 @@ const ReferencesAccessor = class {
 
 	_modificationsFinished() {
 		this._cardObj[REFERENCES_CARD_PROPERTY] = Object.fromEntries(Object.entries(this._cardObj[REFERENCES_INFO_CARD_PROPERTY]).map(entry => [entry[0], true]));
+		this._memoizedByType = null;
 		if (!referencesLegal(this._cardObj)) {
 			throw new Error('References block set to something illegal');
 		}
