@@ -212,6 +212,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 	}
 
 	_help(message, alert) {
+		//Duplicated in card-editor
 		return html`<span class='help' title="${message}">${alert ? WARNING_ICON : HELP_ICON}</span>`;
 	}
 

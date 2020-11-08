@@ -65,7 +65,9 @@ import {
 
 import {
 	SAVE_ICON,
-	CANCEL_ICON
+	CANCEL_ICON,
+	WARNING_ICON,
+	HELP_ICON
 } from './my-icons.js';
 
 import {
@@ -164,6 +166,16 @@ class CardEditor extends connect(store)(LitElement) {
 		label {
 			/* TODO: consider changing this at the button-shared-styles layer instead */
 			margin-top: 0.5em;
+		}
+
+		.help {
+			margin-left:0.4em;
+		}
+
+		svg {
+			height:1.3em;
+			width:1.3em;
+			fill: var(--app-dark-text-color-subtle);
 		}
 
         .flex {
@@ -344,7 +356,7 @@ class CardEditor extends connect(store)(LitElement) {
 				<div class='row'>
 					${Object.entries(REFERENCE_TYPES).filter(entry => referencesMap[entry[0]]).map(entry => {
 		return html`<div>
-							<label>${entry[1].name}</label>
+							<label>${entry[1].name} ${this._help(entry[1].description, false)}</label>
 							<tag-list .overrideTypeName=${'Reference'} .referenceType=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .editing=${entry[1].editable} .tapEvents=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveReference}></tag-list>
 						</div>`;
 	})}
@@ -426,6 +438,11 @@ class CardEditor extends connect(store)(LitElement) {
 
 	firstUpdated() {
 		document.addEventListener('keydown', e => this._handleKeyDown(e));
+	}
+
+	_help(message, alert) {
+		//duplicatd in card-info-panel
+		return html`<span class='help' title="${message}">${alert ? WARNING_ICON : HELP_ICON}</span>`;
 	}
 
 	_handleAddReference(e) {
