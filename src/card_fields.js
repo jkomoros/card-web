@@ -384,6 +384,11 @@ const ReferencesAccessor = class {
 		return [...Object.keys(this.byType[REFERENCE_TYPE_LINK] || {})];
 	}
 
+	substantiveArray() {
+		return Object.keys(byTypeToReferences(this.byTypeSubstantive));
+	}
+
+	//ALL references as an array. You typically want substantiveArray, which is only the substantive references.
 	get array() {
 		if (!this._referencesInfo) return [];
 		return Object.keys(this._referencesInfo);
@@ -393,6 +398,11 @@ const ReferencesAccessor = class {
 		return [...Object.keys(this.byTypeInbound[REFERENCE_TYPE_LINK] || {})];
 	}
 
+	inboundSubstantiveArray() {
+		return Object.keys(byTypeToReferences(this.byTypeInboundSubstantive));
+	}
+
+	//ALL inbound references as an array. You typically want inboundSubstantiveArray, which is only the substantive references.
 	get inboundArray() {
 		if (!this._referencesInfoInbound) return [];
 		return Object.keys(this._referencesInfoInbound);
