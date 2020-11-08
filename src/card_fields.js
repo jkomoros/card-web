@@ -374,6 +374,12 @@ const ReferencesAccessor = class {
 		return result;
 	}
 
+	//Returns an object where it's link_type => array_of_card_ids
+	byTypeArray() {
+		//TODO: it's weird that this is a method and the other array ones are getters
+		return Object.fromEntries(Object.entries(this._byType()).map(entry => [entry[0], [...Object.keys(entry[1])]]));
+	}
+
 	//We're allowed to modify the card object we're associated with, but NOT its
 	//inner refrence properties. If we want to touch them, we have to copy them
 	//over from their original values.
