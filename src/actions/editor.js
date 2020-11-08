@@ -26,6 +26,7 @@ export const EDITING_COLLABORATOR_REMOVED = 'EDITING_COLLABORATOR_REMOVED';
 export const EDITING_START_REFERENCE_CARD = 'EDITING_START_REFERENCE_CARD';
 export const EDITING_RESET_REFERENCE_CARD = 'EDITING_RESET_REFERENCE_CARD';
 export const EDITING_ADD_REFERENCE = 'EDITING_ADD_REFERENCE';
+export const EDITING_REMOVE_REFERENCE = 'EDITING_REMOVE_REFERENCE';
 
 export const TAB_CONTENT = 'content';
 export const TAB_CONFIG = 'config';
@@ -560,4 +561,12 @@ const addReferenceToCard = (cardID, referenceType) => (dispatch, getState) => {
 		referenceType,
 	});
 
+};
+
+export const removeReferenceFromCard = (cardID, referenceType) => {
+	return {
+		type:EDITING_REMOVE_REFERENCE,
+		cardID,
+		referenceType,
+	};
 };

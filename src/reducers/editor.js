@@ -27,6 +27,7 @@ import {
 	EDITING_START_REFERENCE_CARD,
 	EDITING_RESET_REFERENCE_CARD,
 	EDITING_ADD_REFERENCE,
+	EDITING_REMOVE_REFERENCE,
 
 	TAB_CONFIG,
 	EDITOR_TAB_CONTENT,
@@ -150,7 +151,15 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: card,
-		};	
+		};
+	case EDITING_REMOVE_REFERENCE:
+		if (!state.card) return state;
+		card = {...state.card};
+		references(card).removeCardReference(action.cardID, action.referenceType);
+		return {
+			...state,
+			card: card,
+		};
 	case EDITING_SLUG_ADDED:
 		if (!state.card) return state;
 		//If the name was just the id, auto-select this name

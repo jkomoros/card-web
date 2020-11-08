@@ -60,7 +60,8 @@ import {
 	collaboratorRemoved,
 	manualEditorAdded,
 	manualCollaboratorAdded,
-	selectCardToReference
+	selectCardToReference,
+	removeReferenceFromCard,
 } from '../actions/editor.js';
 
 import {
@@ -340,7 +341,7 @@ class CardEditor extends connect(store)(LitElement) {
 					${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable && referencesMap[entry[0]]).map(entry => {
 		return html`<div>
 							<label>${entry[1].name}</label>
-							<tag-list .overrideTypeName=${'Reference'} .tagInfos=${this._cardTagInfos} .defaultColor=${disableTODOColor} .tags=${referencesMap[entry[0]]} .editing=${true} .disableAdd=${true}></tag-list>
+							<tag-list .overrideTypeName=${'Reference'} .referenceType=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${disableTODOColor} .tags=${referencesMap[entry[0]]} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveReference}></tag-list>
 						</div>`;
 	})}
 				<select @change=${this._handleAddReference}>
@@ -434,6 +435,23 @@ class CardEditor extends connect(store)(LitElement) {
 		//Set it back to default
 		ele.value = '';
 		store.dispatch(selectCardToReference(value));
+	}
+
+	_handleRemoveReference(e) {
+		const cardID = e.detail.tag;
+		let referenceType = '';
+		//Walk up the chain to find which tag-list has it (which will have the
+		//referenceType we set explicitly on it)
+		for (let ele of e.composedPath()) {
+			if (ele.referenceType) {
+				referenceType = ele.referenceType;
+				break;
+			}
+		}
+		if (!referenceType) {
+			console.warn('No reference type found on parents');
+		}
+		store.dispatch(removeReferenceFromCard(cardID, referenceType));
 	}
 
 	_handleTabClicked(e) {
