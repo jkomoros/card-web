@@ -340,6 +340,7 @@ const ReferencesAccessor = class {
 		if (!this._cardObj) return;
 		this._modified = false;
 		this._memoizedByType = null;
+		this._memoizedByTypeInbound = null;
 		this._referencesInfo = cardObj[REFERENCES_INFO_CARD_PROPERTY];
 		this._referencesInfoInbound = cardObj[REFERENCES_INFO_INBOUND_CARD_PROPERTY];
 	}
@@ -387,7 +388,7 @@ const ReferencesAccessor = class {
 	get byType() {
 		if (!this._memoizedByType) {
 			let result = {};
-			for (const [cardID, referenceBlock] of Object.entries(this._referencesInfo)) {
+			for (const [cardID, referenceBlock] of Object.entries(this._referencesInfo || {})) {
 				for (const [referenceType, str] of Object.entries(referenceBlock)) {
 					if (!result[referenceType]) result[referenceType] = {};
 					result[referenceType][cardID] = str;
@@ -398,11 +399,31 @@ const ReferencesAccessor = class {
 		return this._memoizedByType;
 	}
 
+	//returns a new map where each key in the top level is the type, and the second level objects are card-id to string value.
+	get byTypeInbound() {
+		if (!this._memoizedByTypeInbound) {
+			let result = {};
+			for (const [cardID, referenceBlock] of Object.entries(this._referencesInfoInbound || {})) {
+				for (const [referenceType, str] of Object.entries(referenceBlock)) {
+					if (!result[referenceType]) result[referenceType] = {};
+					result[referenceType][cardID] = str;
+				}
+			}
+			this._memoizedByTypeInbound = result;
+		}
+		return this._memoizedByTypeInbound;
+	}
+
 	//Returns an object where it's link_type => array_of_card_ids
 	byTypeArray() {
 		//TODO: it's weird that this is a method and the other array ones are getters
 		//Generally it should be that if it's a method it returns a copy, if it's a getter it returns a shared resource
 		return Object.fromEntries(Object.entries(this.byType).map(entry => [entry[0], [...Object.keys(entry[1])]]));
+	}
+
+	//Returns an object where it's link_type => array_of_card_ids
+	byTypeInboundArray() {
+		return Object.fromEntries(Object.entries(this.byTypeInbound).map(entry => [entry[0], [...Object.keys(entry[1])]]));
 	}
 
 	//We're allowed to modify the card object we're associated with, but NOT its
@@ -419,6 +440,7 @@ const ReferencesAccessor = class {
 	_modificationsFinished() {
 		this._cardObj[REFERENCES_CARD_PROPERTY] = Object.fromEntries(Object.entries(this._cardObj[REFERENCES_INFO_CARD_PROPERTY]).map(entry => [entry[0], true]));
 		this._memoizedByType = null;
+		this._memoizedByTypeInbound = null;
 		if (!referencesLegal(this._cardObj)) {
 			throw new Error('References block set to something illegal');
 		}
