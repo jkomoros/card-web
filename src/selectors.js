@@ -657,7 +657,7 @@ export const selectEditingOrActiveCardSimilarCards = createSelector(
 		if (!card || Object.keys(card).length == 0) return [];
 		if (!overlapMap || overlapMap.size == 0) return [];
 		const refs = references(card);
-		const excludeIDs = new Set([...refs.array, ...refs.inboundArray]);
+		const excludeIDs = new Set([...refs.array(), ...refs.inboundArray()]);
 		let result = [];
 		for (const cardID of overlapMap.keys()) {
 			if (excludeIDs.has(cardID)) continue;
@@ -877,7 +877,7 @@ export const selectActiveCardTweets = createSelector(
 export const selectInboundReferencesForActiveCard = createSelector(
 	selectActiveCard,
 	selectCards,
-	(card, cards) => references(card).inboundArray.filter(id => cards[id])
+	(card, cards) => references(card).inboundArray().filter(id => cards[id])
 );
 
 //selectEditingCardAutoTodos will opeate on not the actual filter set, but one

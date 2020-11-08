@@ -198,10 +198,10 @@ export const cardMissingReciprocalLinks = (card) => {
 	if (!card) return [];
 	let links = new Map();
 	const refs = references(card);
-	for (let link of refs.inboundArray) {
+	for (let link of refs.inboundArray()) {
 		links.set(link, true);
 	}
-	for (let link of refs.array) {
+	for (let link of refs.array()) {
 		links.delete(link);
 	}
 	if (card.auto_todo_skipped_links_inbound) {

@@ -379,7 +379,7 @@ const ReferencesAccessor = class {
 		this._referencesInfoInbound = cardObj[REFERENCES_INFO_INBOUND_CARD_PROPERTY];
 	}
 
-	get linksArray() {
+	linksArray() {
 		//NOTE: similar manual logic is duplicated manually in tweets-helper.js
 		return [...Object.keys(this.byType[REFERENCE_TYPE_LINK] || {})];
 	}
@@ -389,12 +389,12 @@ const ReferencesAccessor = class {
 	}
 
 	//ALL references as an array. You typically want substantiveArray, which is only the substantive references.
-	get array() {
+	array() {
 		if (!this._referencesInfo) return [];
 		return Object.keys(this._referencesInfo);
 	}
 
-	get inboundLinksArray() {
+	inboundLinksArray() {
 		return [...Object.keys(this.byTypeInbound[REFERENCE_TYPE_LINK] || {})];
 	}
 
@@ -403,7 +403,7 @@ const ReferencesAccessor = class {
 	}
 
 	//ALL inbound references as an array. You typically want inboundSubstantiveArray, which is only the substantive references.
-	get inboundArray() {
+	inboundArray() {
 		if (!this._referencesInfoInbound) return [];
 		return Object.keys(this._referencesInfoInbound);
 	}
@@ -458,7 +458,6 @@ const ReferencesAccessor = class {
 
 	//Returns an object where it's link_type => array_of_card_ids
 	byTypeArray() {
-		//TODO: it's weird that this is a method and the other array ones are getters
 		//Generally it should be that if it's a method it returns a copy, if it's a getter it returns a shared resource
 		return byTypeMapToArray(this.byType);
 	}
