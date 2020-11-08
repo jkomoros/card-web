@@ -880,6 +880,12 @@ export const selectInboundReferencesForActiveCard = createSelector(
 	(card, cards) => references(card).inboundArray().filter(id => cards[id])
 );
 
+export const selectVisibleSubstantiveNonLinkReferencesForActiveCard = createSelector(
+	selectActiveCard,
+	selectCards,
+	(card, cards) => references(card).substantiveNonLinkArray().filter(id => cards[id])
+);
+
 //selectEditingCardAutoTodos will opeate on not the actual filter set, but one
 //that has been updated with the current editingCard values.
 export const selectEditingCardAutoTodos = createSelector(

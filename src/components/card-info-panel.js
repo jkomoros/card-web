@@ -35,6 +35,7 @@ import {
 	selectTweetsLoading,
 	selectCommentsAndInfoPanelOpen,
 	selectEditingOrActiveCardSimilarCards,
+	selectVisibleSubstantiveNonLinkReferencesForActiveCard
 } from '../selectors.js';
 
 import {
@@ -118,6 +119,14 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			</style>
 			<h3 ?hidden=${!this._open}>Card Info</h3>
 			<div class='container' ?hidden=${!this._open}>
+				${this._nonLinkReferences.length ?
+		html`<div>
+				<h4>Other Referenced Cards ${this._help('Cards that this card references that are not links')}</h4>
+				<ul>
+				${this._nonLinkReferences.map(item => html`<li><card-link auto='title' .card=${item}>${item}</card-link></li>`)}
+				</ul>
+				</div>`
+		: ''}
 				<div>
 					<h4>Cards That Link Here${this._help('Cards that link to this one.')}</h4>
 					${this._inboundLinks
@@ -205,6 +214,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			_author: {type:Object},
 			_tagInfos: {type: Object},
 			_inboundLinks: {type: Array},
+			_nonLinkReferences: {type: Array},
 			_tweets: {type: Object},
 			_tweetsLoading: {type: Boolean},
 			_closestCards: { type:Array },
@@ -228,6 +238,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._collaborators = selectCollaboratorInfosForActiveCard(state);
 		this._tagInfos = selectTags(state);
 		this._inboundLinks = selectInboundReferencesForActiveCard(state);
+		this._nonLinkReferences = selectVisibleSubstantiveNonLinkReferencesForActiveCard(state);
 		this._tweets = selectActiveCardTweets(state);
 		this._tweetsLoading = selectTweetsLoading(state);
 		//selectActiveCardSimilarCards is extremly expensive to call into being,

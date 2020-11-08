@@ -394,6 +394,11 @@ const ReferencesAccessor = class {
 		return Object.keys(byTypeToReferences(this.byTypeSubstantive));
 	}
 
+	substantiveNonLinkArray() {
+		const substantiveByTypeWithoutLinks = Object.fromEntries(Object.entries(this.byTypeSubstantive).filter(entry => entry[0] !== REFERENCE_TYPE_LINK));
+		return Object.keys(byTypeToReferences(substantiveByTypeWithoutLinks));
+	}
+
 	//ALL references as an array. You typically want substantiveArray, which is only the substantive references.
 	array() {
 		if (!this._referencesInfo) return [];
