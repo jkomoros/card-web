@@ -54,6 +54,7 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	TEXT_FIELD_CONFIGURATION,
 	REFERENCE_TYPES,
+	references
 } from '../card_fields.js';
 
 import {
@@ -232,7 +233,10 @@ export const editingCommit = () => (dispatch, getState) => {
 	if (collaboratorAdditions.length) update.add_collaborators = collaboratorAdditions;
 	if (collaboratorDeletions.length) update.remove_collaborators = collaboratorDeletions;
 
-	//TODO: if references changed, pass the ENTIRE new references object in on update.
+	//if references changed, pass the ENTIRE new references object in on update.
+	//We pass the whole references since modifyCard will need to extractLinks
+	//and update refernces
+	if (!references(underlyingCard).equivalentTo(updatedCard)) references(update).ensureReferences(updatedCard);
 
 	//modifyCard will fail if the update is a no-op.
 	dispatch(modifyCard(underlyingCard, update, state.editor.substantive));

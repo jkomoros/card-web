@@ -91,12 +91,13 @@ import {
 	CARD_TYPE_SECTION_HEAD,
 	CARD_TYPE_WORKING_NOTES,
 	references,
+	referencesLegal,
 	applyReferencesDiff,
+	REFERENCES_CARD_PROPERTY,
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY, 
 	REFERENCES_INBOUND_CARD_PROPERTY
 } from '../card_fields.js';
-import { REFERENCES_CARD_PROPERTY } from '../card_fields';
 
 //When a new tag is created, it is randomly assigned one of these values.
 const TAG_COLORS = [
@@ -138,7 +139,10 @@ const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURA
 	'addTags',
 	'removeTags',
 	'published',
-	REFERENCES_INFO_CARD_PROPERTY
+	//TODO: ideally we wouldn't have to list these here, this is the only place
+	//we expect those references properties to be enumerated outside of card_fields.js
+	REFERENCES_INFO_CARD_PROPERTY,
+	REFERENCES_CARD_PROPERTY,
 ]).map(key => [key,true]));
 
 export const modifyCard = (card, update, substantive, optBatch) => (dispatch, getState) => {
@@ -211,7 +215,8 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 		references(update).ensureReferences(card).setLinks(linkInfo);
 	}
 
-	if (update[REFERENCES_INFO_CARD_PROPERTY] !== undefined) {
+	//if the properties references expects are set, then apply them 
+	if (referencesLegal(update)) {
 		//Note: update.references_info is the only property type that we accept in
 		//modifyCard's update that is NOT pre-diffed. That's because the
 		//auto-extracted links might modify the changes to make, so we have to

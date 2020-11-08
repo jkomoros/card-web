@@ -458,6 +458,11 @@ const ReferencesAccessor = class {
 		byType[REFERENCE_TYPE_LINK] = {...linksObj};
 		this._setWithByTypeReferences(byType);
 	}
+
+	equivalentTo(otherCardObj) {
+		const diff = referencesCardsDiff(this._cardObj, otherCardObj);
+		return diff.every(item => Object.keys(item).length === 0);
+	}
 };
 
 //referencesLegal is a sanity check that the referencesBlock looks like it's expected to.
