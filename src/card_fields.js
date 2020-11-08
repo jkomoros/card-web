@@ -95,9 +95,22 @@ export const REFERENCE_TYPE_LINK = 'link';
 export const REFERENCE_TYPE_DUPE_OF = 'dupe-of';
 
 //Any key in this object is a legal reference type
+/*
+name - name of the reference type, for presenting in UIs
+descripton - string describing what it means
+editable - whether it should be directly editable by a user
+*/
 export const REFERENCE_TYPES = {
-	[REFERENCE_TYPE_LINK]: {},
-	[REFERENCE_TYPE_DUPE_OF]: {},
+	[REFERENCE_TYPE_LINK]: {
+		name: 'Body link',
+		description: 'Automatically extracted links from the body of the card',
+		editable: false,
+	},
+	[REFERENCE_TYPE_DUPE_OF]: {
+		name: 'Duplicate of',
+		description: 'Denotes that this card is a duplicate of the card that it\'s pointing to',
+		editable: false,
+	},
 };
 
 /*
