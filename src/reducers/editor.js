@@ -24,6 +24,9 @@ import {
 	EDITING_EDITOR_REMOVED,
 	EDITING_COLLABORATOR_ADDED,
 	EDITING_COLLABORATOR_REMOVED,
+	EDITING_START_REFERENCE_CARD,
+	EDITING_RESET_REFERENCE_CARD,
+	EDITING_ADD_REFERENCE,
 
 	TAB_CONFIG,
 	EDITOR_TAB_CONTENT,
@@ -65,6 +68,7 @@ const INITIAL_STATE = {
 	selectedTab: DEFAULT_TAB,
 	selectedEditorTab: DEFAULT_EDITOR_TAB,
 	pendingSlug: '',
+	pendingReferenceType: '',
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -139,6 +143,14 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			card: card,
 		};
+	case EDITING_ADD_REFERENCE:
+		if (!state.card) return state;
+		card = {...state.card};
+		references(card).setCardReference(action.cardID, action.referenceType);
+		return {
+			...state,
+			card: card,
+		};	
 	case EDITING_SLUG_ADDED:
 		if (!state.card) return state;
 		//If the name was just the id, auto-select this name
@@ -252,6 +264,16 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			pendingSlug: action.slug,
+		};	
+	case EDITING_START_REFERENCE_CARD:
+		return {
+			...state,
+			pendingReferenceType: action.referenceType
+		};
+	case EDITING_RESET_REFERENCE_CARD:
+		return {
+			...state,
+			pendingReferenceType: '',
 		};
 	default:
 		return state;

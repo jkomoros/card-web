@@ -23,6 +23,9 @@ export const EDITING_EDITOR_ADDED = 'EDITING_EDITOR_ADDED';
 export const EDITING_EDITOR_REMOVED = 'EDITING_EDITOR_REMOVED';
 export const EDITING_COLLABORATOR_ADDED = 'EDITING_COLLABORATOR_ADDED';
 export const EDITING_COLLABORATOR_REMOVED = 'EDITING_COLLABORATOR_REMOVED';
+export const EDITING_START_REFERENCE_CARD = 'EDITING_START_REFERENCE_CARD';
+export const EDITING_RESET_REFERENCE_CARD = 'EDITING_RESET_REFERENCE_CARD';
+export const EDITING_ADD_REFERENCE = 'EDITING_ADD_REFERENCE';
 
 export const TAB_CONTENT = 'content';
 export const TAB_CONFIG = 'config';
@@ -38,7 +41,9 @@ import {
 	selectSections,
 	selectUid,
 	selectPendingSlug,
-	selectIsEditing
+	selectIsEditing,
+	selectEditingPendingReferenceType,
+	getCardById
 } from '../selectors.js';
 
 import {
@@ -47,7 +52,8 @@ import {
 
 import {
 	CARD_TYPE_CONFIGURATION,
-	TEXT_FIELD_CONFIGURATION,	
+	TEXT_FIELD_CONFIGURATION,
+	REFERENCE_TYPES,
 } from '../card_fields.js';
 
 import {
@@ -71,6 +77,10 @@ import {
 import {
 	PERMISSION_EDIT_CARD
 } from '../permissions.js';
+
+import {
+	findCardToReference
+} from './find.js';
 
 let lastReportedSelectionRange = null;
 //TODO: figure out a pattenr that doesn't have a single shared global
@@ -509,4 +519,41 @@ export const collaboratorRemoved = (collaboratorUid, auto) => {
 export const manualCollaboratorAdded = (collaboratorUid) => {
 	createAuthorStub(collaboratorUid);
 	return collaboratorAdded(collaboratorUid);
+};
+
+export const setCardToReference = (cardID) => (dispatch, getState) => {
+	const state = getState();
+	const referenceType = selectEditingPendingReferenceType(state);
+	dispatch(addReferenceToCard(cardID, referenceType));
+	dispatch({
+		type: EDITING_RESET_REFERENCE_CARD,
+	});
+};
+
+export const selectCardToReference = (referenceType) => (dispatch) => {
+	dispatch({
+		type:EDITING_START_REFERENCE_CARD,
+		referenceType,
+	});
+	dispatch(findCardToReference());
+};
+
+const addReferenceToCard = (cardID, referenceType) => (dispatch, getState) => {
+	if (!REFERENCE_TYPES[referenceType]) {
+		console.warn('Illegal reference type');
+		return;
+	}
+	const state = getState();
+	const card = getCardById(state, cardID);
+	if (!card) {
+		console.warn('No such card');
+		return;
+	}
+
+	dispatch({
+		type: EDITING_ADD_REFERENCE,
+		cardID,
+		referenceType,
+	});
+
 };

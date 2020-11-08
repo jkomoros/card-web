@@ -25,6 +25,7 @@ import {
 	linkCard,
 	linkURL,
 	savedSelectionRangeIsLink,
+	setCardToReference,
 } from '../actions/editor.js';
 
 import {
@@ -169,6 +170,10 @@ class FindDialog extends connect(store)(DialogElement) {
 			store.dispatch(setCardToAddPermissionTo(e.detail.card.id));
 			return;
 		}
+		if (this._referencing) {
+			store.dispatch(setCardToReference(e.detail.card.id));
+			return;
+		}
 		store.dispatch(navigateToCard(e.detail.card));
 	}
 
@@ -178,6 +183,7 @@ class FindDialog extends connect(store)(DialogElement) {
 			_collection: {type:Array},
 			_linking: {type:Boolean},
 			_permissions: {type:Boolean},
+			_referencing: {type:Boolean},
 			_partialMatches: {type:Object},
 			_userMayCreateCard: {type:Boolean},
 			_bodyCardTypes: {type:Array},
@@ -203,6 +209,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._partialMatches = selectPartialMatchedItemsForQuery(state);
 		this._linking = state.find.linking;
 		this._permissions = state.find.permissions;
+		this._referencing = state.find.referencing;
 		this._userMayCreateCard = selectUserMayCreateCard(state);
 		this._bodyCardTypes = selectBodyCardTypes(state);
 		this._cardTypeFilter = selectFindCardTypeFilter(state);

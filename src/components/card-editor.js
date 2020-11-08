@@ -59,7 +59,8 @@ import {
 	collaboratorAdded,
 	collaboratorRemoved,
 	manualEditorAdded,
-	manualCollaboratorAdded
+	manualCollaboratorAdded,
+	selectCardToReference
 } from '../actions/editor.js';
 
 import {
@@ -429,9 +430,10 @@ class CardEditor extends connect(store)(LitElement) {
 	_handleAddReference(e) {
 		const ele = e.composedPath()[0];
 		if (!ele.value) return;
+		const value = ele.value;
 		//Set it back to default
 		ele.value = '';
-		console.warn('Not yet implemented');
+		store.dispatch(selectCardToReference(value));
 	}
 
 	_handleTabClicked(e) {
