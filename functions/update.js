@@ -33,7 +33,7 @@ const referencesLegal = (cardObj) => {
 		for (let value of Object.values(cardBlock)) {
 			//The only types of keys that are allowed are the explicitly defined reference types
 			//We don't have the constant here so just skip
-			//if (!LEGAL_REFERENCE_TYPES[key]) return false;
+			//if (!REFERENCE_TYPES[key]) return false;
 			if (typeof value !== 'string') return false;
 		}
 		let referenceValue = referencesBlock[cardID];

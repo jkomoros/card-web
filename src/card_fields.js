@@ -94,9 +94,10 @@ export const REFERENCE_TYPE_LINK = 'link';
 //For cards that are dupes of another card
 export const REFERENCE_TYPE_DUPE_OF = 'dupe-of';
 
-export const LEGAL_REFERENCE_TYPES = {
-	[REFERENCE_TYPE_LINK]: true,
-	[REFERENCE_TYPE_DUPE_OF]: true,
+//Any key in this object is a legal reference type
+export const REFERENCE_TYPES = {
+	[REFERENCE_TYPE_LINK]: {},
+	[REFERENCE_TYPE_DUPE_OF]: {},
 };
 
 /*
@@ -474,7 +475,7 @@ export const referencesLegal = (cardObj) => {
 		if (Object.keys(cardBlock).length === 0) return false;
 		for (let [key, value] of Object.entries(cardBlock)) {
 			//The only types of keys that are allowed are the explicitly defined reference types
-			if (!LEGAL_REFERENCE_TYPES[key]) return false;
+			if (!REFERENCE_TYPES[key]) return false;
 			if (typeof value !== 'string') return false;
 		}
 		let referenceValue = referencesBlock[cardID];
