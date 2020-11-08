@@ -345,10 +345,8 @@ const ReferencesAccessor = class {
 	}
 
 	get linksArray() {
-		if (!this._referencesInfo) return [];
 		//NOTE: similar manual logic is duplicated manually in tweets-helper.js
-		//Remember that the falsey '' is still considered a set key
-		return Object.entries(this._referencesInfo).filter(entry => entry[1][REFERENCE_TYPE_LINK] !== undefined).map(entry => entry[0]);
+		return [...Object.keys(this.byType[REFERENCE_TYPE_LINK] || {})];
 	}
 
 	get array() {
