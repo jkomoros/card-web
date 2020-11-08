@@ -104,6 +104,7 @@ name - name of the reference type, for presenting in UIs
 descripton - string describing what it means
 editable - whether it should be directly editable by a user
 substantive - whether the reference is important enough to acknowledge to a non-editor-user in the UI
+color - the color to use when it shows up as a tag
 */
 export const REFERENCE_TYPES = {
 	[REFERENCE_TYPE_LINK]: {
@@ -111,18 +112,23 @@ export const REFERENCE_TYPES = {
 		description: 'Automatically extracted links from the body of the card',
 		editable: false,
 		substantive: true,
+		//limegreen
+		color: '#32CD32',
 	},
 	[REFERENCE_TYPE_DUPE_OF]: {
 		name: 'Duplicate of',
 		description: 'Denotes that this card is a duplicate of the card that it\'s pointing to',
 		editable: true,
 		substantive: true,
+		//darkcyan
+		color: '#008B8B',
 	},
 	[REFERENCE_TYPE_ACK]: {
 		name: 'Non-substantive acknowledgement',
 		description: 'For when a card wants to acknowledge another card, but not form a substantive link. Useful for making the missing-reference go away',
 		editable: true,
 		substantive: false,
+		color: '#CCCCCC',
 	}
 };
 
