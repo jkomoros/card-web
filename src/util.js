@@ -204,11 +204,6 @@ export const cardMissingReciprocalLinks = (card) => {
 	for (let link of refs.array()) {
 		links.delete(link);
 	}
-	if (card.auto_todo_skipped_links_inbound) {
-		for (let link of card.auto_todo_skipped_links_inbound) {
-			links.delete(link);
-		}
-	}
 	return [...links.keys()];
 };
 

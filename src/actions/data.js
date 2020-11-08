@@ -130,8 +130,6 @@ const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURA
 	'auto_todo_overrides_enablements',
 	'auto_todo_overrides_disablements',
 	'auto_todo_overrides_removals',
-	'add_skipped_link_inbound',
-	'remove_skipped_link_inbound',
 	'add_editors',
 	'remove_editors',
 	'add_collaborators',
@@ -301,13 +299,6 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 			tags = arrayUnion(tags, update.addTags);
 		}
 		cardUpdateObject.tags = tags;
-	}
-
-	if (update.add_skipped_link_inbound || update.remove_skipped_link_inbound) {
-		let skippedLinksInbound = card.auto_todo_skipped_links_inbound;
-		if (update.remove_skipped_link_inbound) skippedLinksInbound = arrayRemove(skippedLinksInbound, update.remove_skipped_link_inbound);
-		if (update.add_skipped_link_inbound) skippedLinksInbound = arrayUnion(skippedLinksInbound, update.add_skipped_link_inbound);
-		cardUpdateObject.auto_todo_skipped_links_inbound = skippedLinksInbound;
 	}
 
 	if (update.add_editors || update.remove_editors) {
@@ -703,7 +694,6 @@ export const defaultCardObject = (id, user, section, cardType) => {
 		tags: [],
 		published: false,
 		auto_todo_overrides: {},
-		auto_todo_skipped_links_inbound: [],
 		//Defaul to epoch 1970 for things not yet tweeted
 		last_tweeted: new Date(0),
 		tweet_count: 0

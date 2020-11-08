@@ -48,7 +48,10 @@ import {
 	REFERENCES_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCES_INBOUND_CARD_PROPERTY,
-	REFERENCE_TYPE_LINK
+	REFERENCE_TYPE_LINK,
+	applyReferencesDiff,
+	references,
+	REFERENCE_TYPE_ACK
 } from '../card_fields.js';
 
 const checkMaintenanceTaskHasBeenRun = async (taskName) => {
@@ -247,10 +250,41 @@ const linksToReferences = async () => {
 	console.log('done');
 };
 
+const SKIPPED_LINKS_TO_ACK_REFERENCES = 'skipped-links-to-ack-references';
+
+const skippedLinksToAckReferences = async () => {
+	await checkMaintenanceTaskHasBeenRun(SKIPPED_LINKS_TO_ACK_REFERENCES);
+
+	let batch = new MultiBatch(db);
+	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	snapshot.forEach(doc => {
+
+		const card = doc.data();
+
+		const updateCard = {...card};
+
+		references(updateCard).addCardReferencesOfType(REFERENCE_TYPE_ACK, card.auto_todo_skipped_links_inbound || []);
+
+		let update = {
+			auto_todo_skipped_links_inbound: deleteSentinel(),
+		};
+
+		applyReferencesDiff(card, updateCard, update);
+
+		batch.update(doc.ref, update);
+	});
+
+	await batch.commit();
+
+	await maintenanceTaskRun(SKIPPED_LINKS_TO_ACK_REFERENCES);
+	console.log('done');
+};
+
 //tasks that don't require maintenance mode to be enabled are registered here
 export const tasks = {
 	[NORMALIZE_CONTENT_BODY]: normalizeContentBody,
 	[RESET_TWEETS]: resetTweets,
+	[SKIPPED_LINKS_TO_ACK_REFERENCES]: skippedLinksToAckReferences,
 };
 
 //Tasks that do require maintenance mode are registered here. These are

@@ -17,8 +17,6 @@ import {
 	EDITING_AUTO_TODO_OVERRIDE_REMOVED,
 	EDITING_TAG_ADDED,
 	EDITING_TAG_REMOVED,
-	EDITING_SKIPPED_LINK_INBOUND_ADDED,
-	EDITING_SKIPPED_LINK_INBOUND_REMOVED,
 	EDITING_EXTRACT_LINKS,
 	EDITING_EDITOR_ADDED,
 	EDITING_EDITOR_REMOVED,
@@ -233,18 +231,6 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: {...state.card, collaborators: arrayRemove(state.card.collaborators, [action.collaborator])}
-		};
-	case EDITING_SKIPPED_LINK_INBOUND_ADDED:
-		if (!state.card) return state;
-		return {
-			...state,
-			card: {...state.card, auto_todo_skipped_links_inbound: arrayUnion(state.card.auto_todo_skipped_links_inbound, [action.link])}
-		};
-	case EDITING_SKIPPED_LINK_INBOUND_REMOVED:
-		if (!state.card) return state;
-		return {
-			...state,
-			card: {...state.card, auto_todo_skipped_links_inbound: arrayRemove(state.card.auto_todo_skipped_links_inbound, [action.link])}
 		};
 	case EDITING_NAME_UPDATED:
 		if (!state.card) return state;

@@ -52,8 +52,6 @@ import {
 	EDITOR_TAB_NOTES,
 	EDITOR_TAB_TODO,
 	autoTodoOverrideDisabled,
-	skippedLinkInboundAdded,
-	skippedLinkInboundRemoved,
 	editorAdded,
 	editorRemoved,
 	collaboratorAdded,
@@ -62,6 +60,7 @@ import {
 	manualCollaboratorAdded,
 	selectCardToReference,
 	removeReferenceFromCard,
+	addReferenceToCard,
 } from '../actions/editor.js';
 
 import {
@@ -95,6 +94,7 @@ import {
 	TEXT_FIELD_BODY,
 	editableFieldsForCardType,
 	REFERENCE_TYPES,
+	REFERENCE_TYPE_ACK,
 	references,
 } from '../card_fields.js';
 
@@ -332,11 +332,7 @@ class CardEditor extends connect(store)(LitElement) {
 				<div class='row'>
 					<div>
 						<label>Missing Reciprocal Links</label>
-						<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${enableTODOColor} .tags=${cardMissingReciprocalLinks(this._card)} .editing=${true} .disableAdd=${true} @add-tag=${this._handleRemoveSkippedLinkInbound} @remove-tag=${this._handleAddSkippedLinkInbound}></tag-list>
-					</div>
-					<div>
-						<label>Skipped Reciprocal Links</label>
-						<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${disableTODOColor} .tags=${this._card.auto_todo_skipped_links_inbound} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveSkippedLinkInbound} @add-tag=${this._handleAddSkippedLinkInbound}></tag-list>
+						<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${enableTODOColor} .tags=${cardMissingReciprocalLinks(this._card)} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleAddAckReference}></tag-list>
 					</div>
 					${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable && referencesMap[entry[0]]).map(entry => {
 		return html`<div>
@@ -437,6 +433,11 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(selectCardToReference(value));
 	}
 
+	_handleAddAckReference(e) {
+		const cardID = e.detail.tag;
+		store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_ACK));
+	}
+
 	_handleRemoveReference(e) {
 		const cardID = e.detail.tag;
 		let referenceType = '';
@@ -521,16 +522,6 @@ class CardEditor extends connect(store)(LitElement) {
 		} else {
 			store.dispatch(manualCollaboratorAdded(uid));
 		}
-	}
-
-	_handleAddSkippedLinkInbound(e) {
-		store.dispatch(skippedLinkInboundAdded(e.detail.tag));
-	}
-
-	_handleRemoveSkippedLinkInbound(e) {
-		//This has to be supported so the user can click a tag again to add it
-		//after removing it, even though free-form add tag is disabled.
-		store.dispatch(skippedLinkInboundRemoved(e.detail.tag));
 	}
 
 	_handleAddTodoOverrideEnabled(e) {

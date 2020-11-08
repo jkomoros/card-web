@@ -16,8 +16,6 @@ export const EDITING_AUTO_TODO_OVERRIDE_DISABLED = 'EDITING_AUTO_TODO_OVERRIDE_D
 export const EDITING_AUTO_TODO_OVERRIDE_REMOVED = 'EDITING_AUTO_TODO_OVERRIDE_REMOVED';
 export const EDITING_TAG_ADDED = 'EDITING_TAG_ADDED';
 export const EDITING_TAG_REMOVED = 'EDITING_TAG_REMOVED';
-export const EDITING_SKIPPED_LINK_INBOUND_ADDED = 'EDITING_SKIPPED_LINK_INBOUND_ADDED';
-export const EDITING_SKIPPED_LINK_INBOUND_REMOVED = 'EDITING_SKIPPED_LINK_INBOUND_REMOVED';
 export const EDITING_EXTRACT_LINKS = 'EDITING_EXTRACT_LINKS';
 export const EDITING_EDITOR_ADDED = 'EDITING_EDITOR_ADDED';
 export const EDITING_EDITOR_REMOVED = 'EDITING_EDITOR_REMOVED';
@@ -222,10 +220,6 @@ export const editingCommit = () => (dispatch, getState) => {
 	if (tagAdditions.length) update.addTags = tagAdditions;
 	if (tagDeletions.length) update.removeTags = tagDeletions;
 
-	let [skippedLinksInboundAdditions, skippedLinksInboundDeletions] = arrayDiff(underlyingCard.auto_todo_skipped_links_inbound || [], updatedCard.auto_todo_skipped_links_inbound || []);
-	if (skippedLinksInboundAdditions.length) update.add_skipped_link_inbound = skippedLinksInboundAdditions;
-	if (skippedLinksInboundDeletions.length) update.remove_skipped_link_inbound = skippedLinksInboundDeletions;
-	
 	let [editorAdditions, editorDeletions] = arrayDiff(underlyingCard.permissions[PERMISSION_EDIT_CARD] || [], updatedCard.permissions[PERMISSION_EDIT_CARD] || []);
 	if (editorAdditions.length) update.add_editors = editorAdditions;
 	if (editorDeletions.length) update.remove_editors = editorDeletions;
@@ -460,20 +454,6 @@ export const tagRemoved = (tag) => {
 	};
 };
 
-export const skippedLinkInboundAdded = (link) => {
-	return {
-		type: EDITING_SKIPPED_LINK_INBOUND_ADDED,
-		link
-	};
-};
-
-export const skippedLinkInboundRemoved = (link) => {
-	return {
-		type: EDITING_SKIPPED_LINK_INBOUND_REMOVED,
-		link
-	};
-};
-
 export const editorAdded = (editorUid) => (dispatch, getState) => {
 	const card = selectEditingCard(getState());
 	if (!card) return;
@@ -543,7 +523,7 @@ export const selectCardToReference = (referenceType) => (dispatch) => {
 	dispatch(findCardToReference());
 };
 
-const addReferenceToCard = (cardID, referenceType) => (dispatch, getState) => {
+export const addReferenceToCard = (cardID, referenceType) => (dispatch, getState) => {
 	if (!REFERENCE_TYPES[referenceType]) {
 		console.warn('Illegal reference type');
 		return;
