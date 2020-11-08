@@ -21,6 +21,7 @@ import {
 	CARD_TYPE_CONTENT,
 	CARD_TYPE_CONFIGURATION,
 	BODY_CARD_TYPES,
+	REFERENCE_TYPES,
 	references
 } from './card_fields.js';
 
@@ -370,6 +371,7 @@ const CARD_FILTER_CONFIGS = Object.assign(
 		'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, TODO_TYPE_AUTO, 0.2, 'Whether the card has a slug set'],
 		'content': [defaultCardFilterName('content'), card => cardHasContent(card), TODO_TYPE_AUTO, 5.0, 'Whether the card has any content whatsoever'],
 		'substantive-content': [defaultCardFilterName('substantive-content'), card => cardHasSubstantiveContent(card), TODO_TYPE_AUTO, 3.0, 'Whether the card has more than a reasonable minimum amount of content'],
+		//NOTE: links and inbound-links are very similar to link-reference, but whereas those are TODO_TYPE_NA, these are TODO_TYPE_AUTO
 		'links': [defaultCardFilterName('links'), card => references(card).linksArray().length, TODO_TYPE_AUTO, 1.0, 'Whether the card links out to other cards'],
 		'inbound-links': [defaultCardFilterName('inbound-links'), card => references(card).inboundLinksArray().length, TODO_TYPE_AUTO, 2.0, 'Whether the card has other cards that link to it'],
 		'reciprocal-links': [['has-all-reciprocal-links', 'missing-reciprocal-links', 'does-not-need-reciprocal-links', 'needs-reciprocal-links'], card => cardMissingReciprocalLinks(card).length == 0, TODO_TYPE_AUTO, 1.0, 'Whether every inbound link has a matching outbound link'],
@@ -381,6 +383,8 @@ const CARD_FILTER_CONFIGS = Object.assign(
 		'citations': [defaultCardFilterName('citations'), () => true, TODO_TYPE_AUTO, 0.3, 'Whether the card has citations that need to be formally represented'],
 		[EVERYTHING_SET_NAME]: [defaultNonTodoCardFilterName(FILTER_EQUIVALENTS_FOR_SET[EVERYTHING_SET_NAME]), () => true, TODO_TYPE_NA, 0.0, 'Every card is in the everything set'],
 		'body': [defaultCardFilterName('body'), card => card && BODY_CARD_TYPES[card.card_type], TODO_TYPE_NA, 0.0, 'Cards that are of a type that has a body field'],
+		'substantive-references': [defaultCardFilterName('substantive-references'), card => references(card).substantiveArray().length, TODO_TYPE_NA, 0.0, 'Whether the card has any substantive references of any type'],
+		'inbound-substantive-references': [defaultCardFilterName('inbound-substantive-references'), card => references(card).inboundSubstantiveArray().length, TODO_TYPE_NA, 0.0, 'Whether the card has any substantive inbound references of any type'],
 		//TODO_COMBINED_FILTERS looks for the fourth key in the filtername array, so
 		//we just duplicate the first two since they're the same (the reason they'd
 		//differ is if there's an override key and that could make the has- and
@@ -388,6 +392,8 @@ const CARD_FILTER_CONFIGS = Object.assign(
 		[FREEFORM_TODO_KEY]: [['no-freeform-todo', 'has-freeform-todo', 'no-freeform-todo', 'has-freeform-todo'], card => !cardHasTodo(card), TODO_TYPE_FREEFORM, 1.0, 'Whether the card has any text in its freeform TODO field'],
 	},
 	Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(function(cardType){return [cardType, [defaultNonTodoCardFilterName(cardType), card => card.card_type == cardType, TODO_TYPE_NA, 0.0, 'Card that is of ' + cardType + ' type.']];})),
+	Object.fromEntries(Object.keys(REFERENCE_TYPES).map(key => [key, [defaultCardFilterName(key + '-references'), card => references(card).byType[key], TODO_TYPE_NA, 0.0, 'Whether the card has any references of type ' + key]])),
+	Object.fromEntries(Object.keys(REFERENCE_TYPES).map(key => ['inbound-' + key, [defaultCardFilterName('inbound-' + key + '-references'), card => references(card).byTypeInbound[key], TODO_TYPE_NA, 0.0, 'Whether the card has any inbound references of type ' + key]])),
 );
 
 
