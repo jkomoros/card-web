@@ -342,6 +342,10 @@ class CardEditor extends connect(store)(LitElement) {
 							<tag-list .overrideTypeName=${'Reference'} .tagInfos=${this._cardTagInfos} .defaultColor=${disableTODOColor} .tags=${referencesMap[entry[0]]} .editing=${true} .disableAdd=${true}></tag-list>
 						</div>`;
 	})}
+				<select @change=${this._handleAddReference}>
+					<option value=''><em>Add a reference to a card type...</option>
+					${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]}>${entry[1].name}</option>`)}
+				</select>
 				</div>
 			</div>
         </div>
@@ -420,6 +424,14 @@ class CardEditor extends connect(store)(LitElement) {
 
 	firstUpdated() {
 		document.addEventListener('keydown', e => this._handleKeyDown(e));
+	}
+
+	_handleAddReference(e) {
+		const ele = e.composedPath()[0];
+		if (!ele.value) return;
+		//Set it back to default
+		ele.value = '';
+		console.warn('Not yet implemented');
 	}
 
 	_handleTabClicked(e) {
