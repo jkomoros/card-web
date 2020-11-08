@@ -337,6 +337,30 @@ const byTypeMapToArray = (byTypeMap) => {
 	return Object.fromEntries(Object.entries(byTypeMap).map(entry => [entry[0], [...Object.keys(entry[1])]]));
 };
 
+const referencesToByType = (referencesMap) => {
+	let result = {};
+	if (!referencesMap) referencesMap = {};
+	for (const [cardID, referenceBlock] of Object.entries(referencesMap)) {
+		for (const [referenceType, str] of Object.entries(referenceBlock)) {
+			if (!result[referenceType]) result[referenceType] = {};
+			result[referenceType][cardID] = str;
+		}
+	}
+	return result;
+};
+
+const byTypeToReferences = (byTypeMap) => {
+	const result = {};
+	if (!byTypeMap) byTypeMap = {};
+	for (let [referenceType, referenceBlock] of Object.entries(byTypeMap)) {
+		for (let [cardID, str] of Object.entries(referenceBlock)) {
+			if (!result[cardID]) result[cardID] = {};
+			result[cardID][referenceType] = str;
+		}
+	}
+	return result;
+};
+
 const ReferencesAccessor = class {
 	//ReferencesAccessor assumes that, if you do one of the mutating methods,
 	//it's legal to modify cardObj, but NOT the previously set reference blocks.
@@ -395,14 +419,7 @@ const ReferencesAccessor = class {
 	//returns a new map where each key in the top level is the type, and the second level objects are card-id to string value.
 	get byType() {
 		if (!this._memoizedByType) {
-			let result = {};
-			for (const [cardID, referenceBlock] of Object.entries(this._referencesInfo || {})) {
-				for (const [referenceType, str] of Object.entries(referenceBlock)) {
-					if (!result[referenceType]) result[referenceType] = {};
-					result[referenceType][cardID] = str;
-				}
-			}
-			this._memoizedByType = result;
+			this._memoizedByType = referencesToByType(this._referencesInfo);
 		}
 		return this._memoizedByType;
 	}
@@ -417,14 +434,7 @@ const ReferencesAccessor = class {
 	//returns a new map where each key in the top level is the type, and the second level objects are card-id to string value.
 	get byTypeInbound() {
 		if (!this._memoizedByTypeInbound) {
-			let result = {};
-			for (const [cardID, referenceBlock] of Object.entries(this._referencesInfoInbound || {})) {
-				for (const [referenceType, str] of Object.entries(referenceBlock)) {
-					if (!result[referenceType]) result[referenceType] = {};
-					result[referenceType][cardID] = str;
-				}
-			}
-			this._memoizedByTypeInbound = result;
+			this._memoizedByTypeInbound = referencesToByType(this._referencesInfoInbound);
 		}
 		return this._memoizedByTypeInbound;
 	}
@@ -480,14 +490,7 @@ const ReferencesAccessor = class {
 
 	//Consumes a referenceBlock organized by type (e.g. as received by byType)
 	_setWithByTypeReferences(byTypeReferenceBlock) {
-		const result = {};
-		for (let [referenceType, referenceBlock] of Object.entries(byTypeReferenceBlock)) {
-			for (let [cardID, str] of Object.entries(referenceBlock)) {
-				if (!result[cardID]) result[cardID] = {};
-				result[cardID][referenceType] = str;
-			}
-		}
-		this._setReferencesInfo(result);
+		this._setReferencesInfo(byTypeToReferences(byTypeReferenceBlock));
 	}
 
 	setCardReference(cardID, referenceType, optValue) {
