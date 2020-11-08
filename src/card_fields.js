@@ -387,6 +387,10 @@ const ReferencesAccessor = class {
 
 	_modificationsFinished() {
 		this._cardObj[REFERENCES_CARD_PROPERTY] = Object.fromEntries(Object.entries(this._cardObj[REFERENCES_INFO_CARD_PROPERTY]).map(entry => [entry[0], true]));
+		if (!referencesLegal(this._cardObj)) {
+			throw new Error('References block set to something illegal');
+		}
+		this._modified = true;
 	}
 
 	_setReferencesInfo(referenceBlock) {
@@ -394,10 +398,6 @@ const ReferencesAccessor = class {
 		this._cardObj[REFERENCES_INFO_CARD_PROPERTY] = referenceBlock;
 		this._referencesInfo = referenceBlock;
 		this._modificationsFinished();
-		if (!referencesLegal(this._cardObj)) {
-			throw new Error('References block set to something illegal');
-		}
-		this._modified = true;
 	}
 
 	//Consumes a referenceBlock organized by type (e.g. as received by byType)
@@ -417,6 +417,17 @@ const ReferencesAccessor = class {
 		this._prepareForModifications();
 		if (!this._referencesInfo[cardID]) this._referencesInfo[cardID] = {};
 		this._referencesInfo[cardID][referenceType] = optValue;
+		this._modificationsFinished();
+	}
+
+	removeCardReference(cardID, referenceType) {
+		if (!this._referencesInfo[cardID]) return;
+		if (!this._referencesInfo[cardID][referenceType]) return;
+		this._prepareForModifications();
+		delete this._referencesInfo[cardID][referenceType];
+		if (Object.keys(this._referencesInfo[cardID]).length === 0) {
+			delete this._referencesInfo[cardID];
+		}
 		this._modificationsFinished();
 	}
 
