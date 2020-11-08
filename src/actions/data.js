@@ -137,6 +137,7 @@ const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURA
 	'addTags',
 	'removeTags',
 	'published',
+	'card_type',
 	//TODO: ideally we wouldn't have to list these here, this is the only place
 	//we expect those references properties to be enumerated outside of card_fields.js
 	REFERENCES_INFO_CARD_PROPERTY,
@@ -272,6 +273,10 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 		}
 		cardUpdateObject.section = update.section;
 		sectionUpdated = true;
+	}
+
+	if (update.card_type !== undefined) {
+		cardUpdateObject.card_type = update.card_type;
 	}
 
 	if (update.full_bleed !== undefined) {

@@ -7,6 +7,7 @@ import {
 	EDITING_SECTION_UPDATED,
 	EDITING_SLUG_ADDED,
 	EDITING_NAME_UPDATED,
+	EDITING_CARD_TYPE_UPDATED,
 	EDITING_SUBSTANTIVE_UPDATED,
 	EDITING_PUBLISHED_UPDATED,
 	EDITING_FULL_BLEED_UPDATED,
@@ -254,6 +255,12 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			substantive: action.checked
+		};
+	case EDITING_CARD_TYPE_UPDATED:
+		if (!state.card) return state;
+		return {
+			...state,
+			card: {...state.card, card_type:action.cardType},
 		};
 	case SET_PENDING_SLUG:
 		return {

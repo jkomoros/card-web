@@ -45,6 +45,7 @@ import {
 	editingSelectTab,
 	editingSelectEditorTab,
 	todoUpdated,
+	cardTypeUpdated,
 
 	TAB_CONTENT,
 	TAB_CONFIG,
@@ -97,6 +98,7 @@ import {
 	editableFieldsForCardType,
 	REFERENCE_TYPES,
 	REFERENCE_TYPE_ACK,
+	CARD_TYPE_CONFIGURATION,
 	references,
 } from '../card_fields.js';
 
@@ -306,6 +308,12 @@ class CardEditor extends connect(store)(LitElement) {
 					<button @click='${this._handleAddSlug}'>+</button>
 				`}
 				</div>
+				<div>
+					<label>Card Type ${this._help('The type of card. Typically all published cards are content')}</label>
+					<select .value=${this._card.card_type} @change=${this._handleCardTypeChanged}>
+					${Object.keys(CARD_TYPE_CONFIGURATION).map(item => html`<option .value=${item} .selected=${item == this._card.card_type}>${item}</option>`)}
+					</select>
+				</div>
 			</div>
 			<div class='row'>
 				<div>
@@ -443,6 +451,12 @@ class CardEditor extends connect(store)(LitElement) {
 	_help(message, alert) {
 		//duplicatd in card-info-panel
 		return html`<span class='help' title="${message}">${alert ? WARNING_ICON : HELP_ICON}</span>`;
+	}
+
+	_handleCardTypeChanged(e) {
+		if (!this._active) return;
+		let ele = e.composedPath()[0];
+		store.dispatch(cardTypeUpdated(ele.value));
 	}
 
 	_handleAddReference(e) {

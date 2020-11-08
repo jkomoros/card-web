@@ -7,6 +7,7 @@ export const EDITING_SECTION_UPDATED = 'EDITING_SECTION_UPDATED';
 export const EDITING_SLUG_ADDED = 'EDITING_SLUG_ADDED';
 export const EDITING_NAME_UPDATED = 'EDITING_NAME_UPDATED';
 export const EDITING_SUBSTANTIVE_UPDATED = 'EDITING_SUBSTANTIVE_UPDATED';
+export const EDITING_CARD_TYPE_UPDATED = 'EDITING_CARD_TYPE_UPDATED';
 export const EDITING_PUBLISHED_UPDATED = 'EDITING_PUBLISHED_UPDATED';
 export const EDITING_FULL_BLEED_UPDATED = 'EDITING_FULL_BLEED_UPDATED';
 export const EDITING_NOTES_UPDATED = 'EDITING_NOTES_UPDATED';
@@ -210,6 +211,7 @@ export const editingCommit = () => (dispatch, getState) => {
 	if (updatedCard.todo != underlyingCard.todo) update.todo = updatedCard.todo;
 	if (updatedCard.full_bleed != underlyingCard.full_bleed) update.full_bleed = updatedCard.full_bleed;
 	if (updatedCard.published !== underlyingCard.published) update.published = updatedCard.published;
+	if (updatedCard.card_type !== underlyingCard.card_type) update.card_type = updatedCard.card_type;
 
 	let [todoEnablements, todoDisablements, todoRemovals] = triStateMapDiff(underlyingCard.auto_todo_overrides || {}, updatedCard.auto_todo_overrides || {});
 	if (todoEnablements.length) update.auto_todo_overrides_enablements = todoEnablements;
@@ -386,6 +388,31 @@ export const substantiveUpdated = (checked, auto) => (dispatch, getState) => {
 		type: EDITING_SUBSTANTIVE_UPDATED,
 		checked,
 		auto
+	});
+};
+
+export const cardTypeUpdated = (cardType) => (dispatch, getState) => {
+	const state = getState();
+	const baseCard = selectActiveCard(state);
+	const currentlySubstantive = state.editor.substantive;
+
+	if (!CARD_TYPE_CONFIGURATION[cardType]) {
+		console.warn('Illegal card type');
+		return;
+	}
+
+	//If the base card is now different card type, and substantive isn't already
+	//checked, check it. If we're setting to the same card_type (as base card
+	//is) and we're currently substantive, uncheck it.
+	if (!currentlySubstantive && baseCard.card_type != cardType) {
+		dispatch(substantiveUpdated(true, true));
+	} else if(currentlySubstantive && baseCard.card_type == cardType) {
+		dispatch(substantiveUpdated(false, true));
+	}
+
+	dispatch({
+		type: EDITING_CARD_TYPE_UPDATED,
+		cardType,
 	});
 };
 
