@@ -105,6 +105,7 @@ descripton - string describing what it means
 editable - whether it should be directly editable by a user
 substantive - whether the reference is important enough to acknowledge to a non-editor-user in the UI
 color - the color to use when it shows up as a tag
+excludeFromInfoPanel - if true, will not show up in the infoPanelArray. That might be because they are already visible elsewhere, or aren't important enough to show.
 */
 export const REFERENCE_TYPES = {
 	[REFERENCE_TYPE_LINK]: {
@@ -114,6 +115,8 @@ export const REFERENCE_TYPES = {
 		substantive: true,
 		//limegreen
 		color: '#32CD32',
+		//already visible on the card itself
+		excludeFromInfoPanel: true,
 	},
 	[REFERENCE_TYPE_DUPE_OF]: {
 		name: 'Duplicate of',
@@ -122,6 +125,7 @@ export const REFERENCE_TYPES = {
 		substantive: true,
 		//darkcyan
 		color: '#008B8B',
+		excludeFromInfoPanel: false,
 	},
 	[REFERENCE_TYPE_ACK]: {
 		name: 'Non-substantive acknowledgement',
@@ -129,6 +133,8 @@ export const REFERENCE_TYPES = {
 		editable: true,
 		substantive: false,
 		color: '#CCCCCC',
+		//Not important enough
+		excludeFromInfoPanel: true,
 	}
 };
 
@@ -394,9 +400,9 @@ const ReferencesAccessor = class {
 		return Object.keys(byTypeToReferences(this.byTypeSubstantive));
 	}
 
-	substantiveNonLinkArray() {
-		const substantiveByTypeWithoutLinks = Object.fromEntries(Object.entries(this.byTypeSubstantive).filter(entry => entry[0] !== REFERENCE_TYPE_LINK));
-		return Object.keys(byTypeToReferences(substantiveByTypeWithoutLinks));
+	infoPanelArray() {
+		const nonExcludedReferencesByType = Object.fromEntries(Object.entries(this.byType).filter(entry => !REFERENCE_TYPES[entry[0]].excludeFromInfoPanel));
+		return Object.keys(byTypeToReferences(nonExcludedReferencesByType));
 	}
 
 	//ALL references as an array. You typically want substantiveArray, which is only the substantive references.

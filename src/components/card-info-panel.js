@@ -35,7 +35,7 @@ import {
 	selectTweetsLoading,
 	selectCommentsAndInfoPanelOpen,
 	selectEditingOrActiveCardSimilarCards,
-	selectVisibleSubstantiveNonLinkReferencesForActiveCard
+	selectInfoPanelReferencesForActiveCard
 } from '../selectors.js';
 
 import {
@@ -238,7 +238,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._collaborators = selectCollaboratorInfosForActiveCard(state);
 		this._tagInfos = selectTags(state);
 		this._inboundLinks = selectInboundReferencesForActiveCard(state);
-		this._nonLinkReferences = selectVisibleSubstantiveNonLinkReferencesForActiveCard(state);
+		this._nonLinkReferences = selectInfoPanelReferencesForActiveCard(state);
 		this._tweets = selectActiveCardTweets(state);
 		this._tweetsLoading = selectTweetsLoading(state);
 		//selectActiveCardSimilarCards is extremly expensive to call into being,
