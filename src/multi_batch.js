@@ -12,8 +12,11 @@ const extraOperationCountForValue = (val) => {
 	//Note: this function is very tied to the implementation of
 	//firestore.FieldValue and may need to change if it changes.
 	if (typeof val !== 'object') return false;
-	//TODO: also recurse into normal objects if not a sentinel
-	if (!val['lc']) return false;
+	if (!val) return false;
+	if (!val['lc']) {
+		//It's not a sentinel itself, but its sub-values could be.
+		return Object.values(val).some(item => extraOperationCountForValue(item));
+	}
 	if (typeof val['lc'] !== 'string') return false;
 	const parts = val['lc'].split('.');
 	if (parts.length !== 2) return false;
