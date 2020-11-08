@@ -333,6 +333,10 @@ export const references = (cardObj) => {
 	return accessor;
 };
 
+const byTypeMapToArray = (byTypeMap) => {
+	return Object.fromEntries(Object.entries(byTypeMap).map(entry => [entry[0], [...Object.keys(entry[1])]]));
+};
+
 const ReferencesAccessor = class {
 	//ReferencesAccessor assumes that, if you do one of the mutating methods,
 	//it's legal to modify cardObj, but NOT the previously set reference blocks.
@@ -420,12 +424,12 @@ const ReferencesAccessor = class {
 	byTypeArray() {
 		//TODO: it's weird that this is a method and the other array ones are getters
 		//Generally it should be that if it's a method it returns a copy, if it's a getter it returns a shared resource
-		return Object.fromEntries(Object.entries(this.byType).map(entry => [entry[0], [...Object.keys(entry[1])]]));
+		return byTypeMapToArray(this.byType);
 	}
 
 	//Returns an object where it's link_type => array_of_card_ids
 	byTypeInboundArray() {
-		return Object.fromEntries(Object.entries(this.byTypeInbound).map(entry => [entry[0], [...Object.keys(entry[1])]]));
+		return byTypeMapToArray(this.byTypeInbound);
 	}
 
 	//We're allowed to modify the card object we're associated with, but NOT its
