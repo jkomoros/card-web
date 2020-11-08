@@ -93,6 +93,10 @@ export const CARD_TYPE_CONFIGURATION = {
 export const REFERENCE_TYPE_LINK = 'link';
 //For cards that are dupes of another card
 export const REFERENCE_TYPE_DUPE_OF = 'dupe-of';
+//For cards that want to acknowledge another card (e.g. to get the 'missing
+//reciprocal links' to go away) without actually doing a more substantive
+//reference. These references typically shouldn't 'count' in many cases.
+export const REFERENCE_TYPE_ACK = 'ack';
 
 //Any key in this object is a legal reference type
 /*
@@ -111,6 +115,11 @@ export const REFERENCE_TYPES = {
 		description: 'Denotes that this card is a duplicate of the card that it\'s pointing to',
 		editable: true,
 	},
+	[REFERENCE_TYPE_ACK]: {
+		name: 'Non-substantive acknowledgement',
+		description: 'For when a card wants to acknowledge another card, but not form a substantive link. Useful for making the missing-reference go away',
+		editable: true,
+	}
 };
 
 /*
