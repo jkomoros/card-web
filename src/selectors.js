@@ -81,6 +81,7 @@ export const selectPromptAssociatedId = (state) => state.prompt.associatedId;
 
 export const selectIsEditing = (state) => state.editor && state.editor.editing;
 const selectFindDialogOpen = (state) => state.find && state.find.open;
+export const selectFindReferencing = (state) => state.find && state.find.referencing;
 
 export const selectCommentsAndInfoPanelOpen = (state) => state.app ? state.app.commentsAndInfoPanelOpen : false;
 

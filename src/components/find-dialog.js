@@ -41,7 +41,9 @@ import {
 	selectPartialMatchedItemsForQuery,
 	selectUserMayCreateCard,
 	selectBodyCardTypes,
-	selectFindCardTypeFilter
+	selectFindCardTypeFilter,
+	selectFindReferencing,
+	selectEditingPendingReferenceType
 } from '../selectors.js';
 
 import { 
@@ -49,6 +51,10 @@ import {
 	LINK_ICON,
 	LINK_OFF_ICON
 } from './my-icons.js';
+
+import {
+	REFERENCE_TYPES
+} from '../card_fields.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
@@ -102,7 +108,7 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	constructor() {
 		super();
-		this.title = 'Search';
+		this.title = this._computedTitle;
 		this._bodyCardTypes = [];
 	}
 
@@ -184,6 +190,7 @@ class FindDialog extends connect(store)(DialogElement) {
 			_linking: {type:Boolean},
 			_permissions: {type:Boolean},
 			_referencing: {type:Boolean},
+			_pendingReferenceType: {type:String},
 			_partialMatches: {type:Object},
 			_userMayCreateCard: {type:Boolean},
 			_bodyCardTypes: {type:Array},
@@ -191,11 +198,27 @@ class FindDialog extends connect(store)(DialogElement) {
 		};
 	}
 
+	get _computedTitle() {
+		if (this._linking) {
+			return 'Find card to link';
+		}
+		if (this._permissions) {
+			return 'Find card to add permissions to';
+		}
+		if (this._referencing) {
+			return this._pendingReferenceType ? 'Find card to reference as ' + REFERENCE_TYPES[this._pendingReferenceType].name : 'Find card to reference';
+		}
+		return 'Search';
+	}
+
 	updated(changedProps) {
 		if (changedProps.has('open') && this.open) {
 			//When first opened, select the text in query, so if the starter
 			//query is wrong as you long keep typing it will be no cost
 			this.shadowRoot.getElementById('query').select();
+		}
+		if (changedProps.has('_linking') || changedProps.has('_referencing') || changedProps.has('_permissions')) {
+			this.title = this._computedTitle;
 		}
 	}
 
@@ -209,7 +232,8 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._partialMatches = selectPartialMatchedItemsForQuery(state);
 		this._linking = state.find.linking;
 		this._permissions = state.find.permissions;
-		this._referencing = state.find.referencing;
+		this._referencing = selectFindReferencing(state);
+		this._pendingReferenceType = selectEditingPendingReferenceType(state);
 		this._userMayCreateCard = selectUserMayCreateCard(state);
 		this._bodyCardTypes = selectBodyCardTypes(state);
 		this._cardTypeFilter = selectFindCardTypeFilter(state);
