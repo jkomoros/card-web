@@ -349,6 +349,8 @@ const ReferencesAccessor = class {
 		this._modified = false;
 		this._memoizedByType = null;
 		this._memoizedByTypeInbound = null;
+		this._memoizedByTypeSubstantive = null;
+		this._memoizedByTypeInboundSubstantive = null;
 		this._referencesInfo = cardObj[REFERENCES_INFO_CARD_PROPERTY];
 		this._referencesInfoInbound = cardObj[REFERENCES_INFO_INBOUND_CARD_PROPERTY];
 	}
@@ -405,6 +407,13 @@ const ReferencesAccessor = class {
 		return this._memoizedByType;
 	}
 
+	get byTypeSubstantive() {
+		if (!this._memoizedByTypeSubstantive) {
+			this._memoizedByTypeSubstantive = Object.fromEntries(Object.entries(this.byType).filter(entry => REFERENCE_TYPES[entry[0]].substantive));
+		}
+		return this._memoizedByTypeSubstantive;
+	}
+
 	//returns a new map where each key in the top level is the type, and the second level objects are card-id to string value.
 	get byTypeInbound() {
 		if (!this._memoizedByTypeInbound) {
@@ -418,6 +427,13 @@ const ReferencesAccessor = class {
 			this._memoizedByTypeInbound = result;
 		}
 		return this._memoizedByTypeInbound;
+	}
+
+	get byTypeInboundSubstantive() {
+		if (!this._memoizedByTypeInboundSubstantive) {
+			this._memoizedByTypeInboundSubstantive = Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES[entry[0]].substantive));
+		}
+		return this._memoizedByTypeInboundSubstantive;
 	}
 
 	//Returns an object where it's link_type => array_of_card_ids
@@ -447,6 +463,8 @@ const ReferencesAccessor = class {
 		this._cardObj[REFERENCES_CARD_PROPERTY] = Object.fromEntries(Object.entries(this._cardObj[REFERENCES_INFO_CARD_PROPERTY]).map(entry => [entry[0], true]));
 		this._memoizedByType = null;
 		this._memoizedByTypeInbound = null;
+		this._memoizedByTypeSubstantive = null;
+		this._memoizedByTypeInboundSubstantive = null;
 		if (!referencesLegal(this._cardObj)) {
 			throw new Error('References block set to something illegal');
 		}
