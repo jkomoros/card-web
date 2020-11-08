@@ -288,7 +288,7 @@ class CardEditor extends connect(store)(LitElement) {
 		  <div ?hidden=${this._selectedTab !== TAB_CONFIG}>
 			<div class='row'>
 				<div>
-				<label>Section</label>
+				<label>Section ${this._help('Cards are in 0 or 1 sections, which determines the default order they show up in. Cards that are orphaned will not show up in any default collection.')}</label>
 				${this._userMayChangeEditingCardSection ? 
 		html`<select @change='${this._handleSectionUpdated}' .value=${this._card.section}>
 					${repeat(Object.values(this._sectionsUserMayEdit), (item) => item, (item) => html`
@@ -297,7 +297,7 @@ class CardEditor extends connect(store)(LitElement) {
 				</select>` : html`<em>${this._card.section}</em>`}
 				</div>
 				<div>
-				<Label>Slugs</label>
+				<Label>Slugs ${this._help('Slugs are alternate identifiers for the card. You may not remove slugs. The one that is selected in this drop down is the default one that will be shown in end-user visible URLs')}</label>
 				${this._pendingSlug ? html`<em>${this._pendingSlug}</em><button disabled>+</button>` : html`
 					<select .value=${this._card.name} @change='${this._handleNameUpdated}'>
 						${repeat([this._card.id, ...this._card.slugs], (item) => item, (item) => html`
@@ -309,41 +309,41 @@ class CardEditor extends connect(store)(LitElement) {
 			</div>
 			<div class='row'>
 				<div>
-					<label>Tags</label>
+					<label>Tags ${this._help('Tags are collections, visible to all viewers, that a card can be in. A card can be in 0 or more tags.')}</label>
 					<tag-list .tags=${this._card.tags} .previousTags=${this._underlyingCard ? this._underlyingCard.tags : null} .editing=${this._userMayEditSomeTags} .excludeItems=${this._tagsUserMayNotEdit} .tagInfos=${this._tagInfos} @add-tag=${this._handleAddTag} @remove-tag=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
 				</div>
 				<div>
-					<label>Suggested Tags</label>
+					<label>Suggested Tags ${this._help('Tags suggested because this card\'s content is similar to cards of the given tag. Tap one to add it.')}</label>
 					<tag-list .tags=${this._suggestedTags} .tagInfos=${this._tagInfos} .subtle=${true} .tapEvents=${true} @tag-tapped=${this._handleAddTag}></tag-list>
 				</div>
 			</div>
 				<div class='row'>
 					<div>
-						<label>Force Enable TODO</label>
+						<label>Force Enable TODO ${this._help('Add a TODO manually')}</label>
 						<tag-list .defaultColor=${enableTODOColor} .tags=${todoOverridesEnabled} .previousTags=${todoOverridesPreviouslyEnabled} .disableNew=${true} .overrideTypeName=${'Enabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @add-tag=${this._handleAddTodoOverrideEnabled} @remove-tag=${this._handleRemoveTodoOverride}></tag-list>
 					</div>
 					<div>
-						<label>Force Disable TODO</label>
+						<label>Force Disable TODO ${this._help('Affirmatively mark that even if an auto-todo WOULD have applied, it has been addressed.')}</label>
 						<tag-list .defaultColor=${disableTODOColor} .tags=${todoOverridesDisabled} .previousTags=${todoOverridesPreviouslyDisabled} .disableNew=${true} .overrideTypeName=${'Disabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @add-tag=${this._handleAddTodoOverrideDisabled} @remove-tag=${this._handleRemoveTodoOverride}></tag-list>
 					</div>
 					<div>
-						<label>Auto TODO</label>
+						<label>Auto TODO ${this._help('Todos that are automatically applied because of the values of the card. Add a Force Disable TODO to remove one of these if it doesn\'t apply.')}</label>
 						<tag-list .defaultColor=${autoTODOColor} .tags=${this._autoTodos} .overrideTypeName=${'Auto TODO'} .tagInfos=${TODO_ALL_INFOS}></tag-list>
 					</div>
 				</div>
 				<div class='row'>
 					<div>
-						<label>Editors</label>
+						<label>Editors ${this._help('Editors are people who should be able to edit this card.')}</label>
 						<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.permissions[PERMISSION_EDIT_CARD]} .editing=${true} @remove-tag=${this._handleRemoveEditor} @add-tag=${this._handleAddEditor} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewEditor} .excludeItems=${[this._card.author]}></tag-list>
 					</div>
 					<div>
-						<label>Collaborators</label>
+						<label>Collaborators ${this._help('Collaborators are people who helped author the card. Collaborators are visible to all viewers of a card. By default any editor who edits a card is marked as a collaborator.')}</label>
 						<tag-list .overrideTypeName=${'Collaborator'} .tagInfos=${this._authors} .tags=${this._card.collaborators} .editing=${true} @remove-tag=${this._handleRemoveCollaborator} @add-tag=${this._handleAddCollaborator} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewCollaborator} .excludeItems=${[this._card.author]}></tag-list>
 					</div>
 				</div>
 				<div class='row'>
 					<div>
-						<label>Missing Reciprocal Links</label>
+						<label>Missing Reciprocal Links ${this._help('These are cards that reference this one, but we don\'t yet reference in any way. If this is non-empty, then there will be an Auto TODO of reciprocal links. X one out to add a Non-substantive acknowledgement back to that card.')}</label>
 						<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${enableTODOColor} .tags=${cardMissingReciprocalLinks(this._card)} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleAddAckReference}></tag-list>
 					</div>
 					<div>
