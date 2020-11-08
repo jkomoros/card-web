@@ -105,7 +105,14 @@ const maintenanceModeEnabled = async () => {
 };
 
 export const fetchMaintenanceModeEnabled = async () => {
-	let maintenanceEnabled = await maintenanceModeEnabled();
+	let maintenanceEnabled = false;
+	try {
+		maintenanceEnabled = await maintenanceModeEnabled();
+	} catch(err) {
+		//Every so often this deadline reports as exceeded for some reason, but
+		//it should never show to a user.
+		console.warn(err);
+	}
 	if (maintenanceEnabled) {
 		console.warn('Maintenance mode is enabled, so cards cannot be edited. Run \'gulp turn-maintenance-mode-off\' to disable it.');
 		store.dispatch(updateMaintenanceModeEnabled(true));
