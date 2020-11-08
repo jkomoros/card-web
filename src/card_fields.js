@@ -442,7 +442,8 @@ const ReferencesAccessor = class {
 
 	removeCardReference(cardID, referenceType) {
 		if (!this._referencesInfo[cardID]) return;
-		if (!this._referencesInfo[cardID][referenceType]) return;
+		//Leaf values might be '', which are falsey but should count as being set
+		if (this._referencesInfo[cardID][referenceType] === undefined) return;
 		this._prepareForModifications();
 		delete this._referencesInfo[cardID][referenceType];
 		if (Object.keys(this._referencesInfo[cardID]).length === 0) {
