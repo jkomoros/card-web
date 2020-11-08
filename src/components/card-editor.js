@@ -334,16 +334,20 @@ class CardEditor extends connect(store)(LitElement) {
 						<label>Missing Reciprocal Links</label>
 						<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${enableTODOColor} .tags=${cardMissingReciprocalLinks(this._card)} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleAddAckReference}></tag-list>
 					</div>
+					<div>
+						<select @change=${this._handleAddReference}>
+							<option value=''><em>Add a reference to a card type...</option>
+							${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]}>${entry[1].name}</option>`)}
+						</select>
+					</div>
+				</div>
+				<div class='row'>
 					${Object.entries(REFERENCE_TYPES).filter(entry => referencesMap[entry[0]]).map(entry => {
 		return html`<div>
 							<label>${entry[1].name}</label>
 							<tag-list .overrideTypeName=${'Reference'} .referenceType=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .editing=${entry[1].editable} .tapEvents=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveReference}></tag-list>
 						</div>`;
 	})}
-				<select @change=${this._handleAddReference}>
-					<option value=''><em>Add a reference to a card type...</option>
-					${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]}>${entry[1].name}</option>`)}
-				</select>
 				</div>
 			</div>
         </div>
