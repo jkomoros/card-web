@@ -294,7 +294,7 @@ export const fetchCardLinkCardsForFetchedCard = async (fetchedCard) => async (di
 	if (!fetchedCard || Object.values(fetchedCard).length == 0) return;
 
 	//If all of the cards were already fetched we can bail early.
-	const links = references(fetchedCard).array;
+	const links = references(fetchedCard).substantiveArray();
 	const state = getState();
 	const fetchedCards = selectCards(state);
 	const allCardsFetched = links.every(cardID => fetchedCards[cardID]);

@@ -1245,7 +1245,7 @@ const cardScoreForQuery = (card, preparedQuery) => {
 
 	//Give a boost to cards that have more inbound cards, implying they're more
 	//important cards.
-	let inboundLinks = references(card).inboundArray;
+	let inboundLinks = references(card).inboundSubstantiveArray();
 	if (inboundLinks.length > 0) {
 		//Tweak the score, but only by a very tiny amount. Once the 'juice' is
 		//not just the count of inbound-links, but the transitive count, then
