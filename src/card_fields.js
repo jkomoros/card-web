@@ -417,20 +417,6 @@ const ReferencesAccessor = class {
 	}
 };
 
-const cardCloneReferencesFromOther = (cardObj, otherCardObj) => {
-	if (!cardObj || !otherCardObj) return;
-	cardObj[REFERENCES_INFO_CARD_PROPERTY] = cloneReferences(otherCardObj[REFERENCES_INFO_CARD_PROPERTY]);
-	cardObj[REFERENCES_CARD_PROPERTY] = cloneReferences(otherCardObj[REFERENCES_CARD_PROPERTY]);
-};
-
-//cardEnsureReferences will make sure cardLikeObj has a references block. If it
-//doesn't, it will clone one from otherCardObj.
-export const cardEnsureReferences = (cardLikeObj, otherCardObj) => {
-	if (!cardLikeObj || !otherCardObj) return;
-	if (cardLikeObj[REFERENCES_INFO_CARD_PROPERTY]) return;
-	cardCloneReferencesFromOther(cardLikeObj, otherCardObj);
-};
-
 //referencesLegal is a sanity check that the referencesBlock looks like it's expected to.
 //Copied to functions/update.js
 export const referencesLegal = (cardObj) => {
