@@ -195,6 +195,9 @@ readOnly: if true, a form field to edit this won't be printed out in cardEditor.
 matchWeight: if a match is found when searching in that field, how much weight
 should it receive?
 
+autoFontSizeBoostForCardTypes: For any card type that's true, fontSizeBoosts
+will auto-set the font size for that field.
+
 */
 
 export const TEXT_FIELD_CONFIGURATION = {
@@ -203,6 +206,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 		container: 'h1',
 		legalCardTypes: {[CARD_TYPE_CONTENT]: true, [CARD_TYPE_SECTION_HEAD]: true},
 		derivedForCardTypes: {[CARD_TYPE_WORKING_NOTES]: true},
+		autoFontSizeBoostForCardTypes: {},
 		matchWeight: 1.0,
 	},
 	[TEXT_FIELD_BODY]: {
@@ -210,6 +214,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 		container: 'section',
 		legalCardTypes: {[CARD_TYPE_CONTENT]: true, [CARD_TYPE_WORKING_NOTES]: true},
 		derivedForCardTypes: {},
+		autoFontSizeBoostForCardTypes: {[CARD_TYPE_WORKING_NOTES]: true},
 		matchWeight:0.5,
 	},
 	[TEXT_FIELD_SUBTITLE]: {
@@ -217,6 +222,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 		container: 'h2',
 		legalCardTypes: {[CARD_TYPE_SECTION_HEAD]: true},
 		derivedForCardTypes: {},
+		autoFontSizeBoostForCardTypes: {},
 		matchWeight:0.75,
 	},
 	[TEXT_FIELD_REFERENCES_INFO_INBOUND]: {
@@ -225,12 +231,18 @@ export const TEXT_FIELD_CONFIGURATION = {
 		//null signals it's legal for all card types
 		legalCardTypes: null,
 		derivedForCardTypes: {},
+		autoFontSizeBoostForCardTypes: {},
 		matchWeight:0.95,
 	}
 };
 
 export const DERIVED_FIELDS_FOR_CARD_TYPE = Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(typ => {
 	return [typ, Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).filter(entry => (entry[1].derivedForCardTypes || {})[typ]).map(entry => [entry[0], true]))];
+}));
+
+/* eslint-disable-next-line no-unused-vars */
+const AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE = Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(typ => {
+	return [typ, Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).filter(entry => (entry[1].autoFontSizeBoostForCardTypes || {})[typ]).map(entry => [entry[0], true]))];
 }));
 
 //types of card that have a body
