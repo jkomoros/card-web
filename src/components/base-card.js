@@ -134,7 +134,7 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 					right:0.5em;
 				}
 
-				${Object.entries(this._card.font_size_boost || {}).map(entry => {
+				${Object.entries(this.editing ? {} : (this._card.font_size_boost || {})).map(entry => {
 		return html`[data-field=${entry[0]}] {
 						font-size: ${1.0 + entry[1]}em;
 					}`;
