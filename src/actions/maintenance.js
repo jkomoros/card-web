@@ -280,11 +280,29 @@ const skippedLinksToAckReferences = async () => {
 	console.log('done');
 };
 
+const ADD_FONT_SIZE_BOOST = 'add-font-size-boost';
+
+const addFontSizeBoost = async () => {
+	await checkMaintenanceTaskHasBeenRun(ADD_FONT_SIZE_BOOST);
+
+	let batch = new MultiBatch(db);
+	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	snapshot.forEach(doc => {
+		batch.update(doc.ref, {font_size_boost: {}});
+	});
+
+	await batch.commit();
+
+	await maintenanceTaskRun(ADD_FONT_SIZE_BOOST);
+	console.log('done');
+};
+
 //tasks that don't require maintenance mode to be enabled are registered here
 export const tasks = {
 	[NORMALIZE_CONTENT_BODY]: normalizeContentBody,
 	[RESET_TWEETS]: resetTweets,
 	[SKIPPED_LINKS_TO_ACK_REFERENCES]: skippedLinksToAckReferences,
+	[ADD_FONT_SIZE_BOOST]: addFontSizeBoost,
 };
 
 //Tasks that do require maintenance mode are registered here. These are

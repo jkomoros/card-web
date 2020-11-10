@@ -697,6 +697,10 @@ export const defaultCardObject = (id, user, section, cardType) => {
 		//firestore qureies on them to find cards that link to another.
 		[REFERENCES_CARD_PROPERTY]: {},
 		[REFERENCES_INBOUND_CARD_PROPERTY]: {},
+		//Keys in this object denote fields that should have their emsize
+		//boosted, with a missing key equal to a boost of 0.0. The font size is
+		//1.0 + the boost, in ems.
+		font_size_boost: {},
 		card_type: cardType,
 		notes: '',
 		todo: '',
