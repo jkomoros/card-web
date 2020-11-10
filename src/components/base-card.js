@@ -134,6 +134,12 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 					right:0.5em;
 				}
 
+				${Object.entries(this._card.font_size_boost || {}).map(entry => {
+		return html`[data-field=${entry[0]}] {
+						font-size: ${1.0 + entry[1]}em;
+					}`;
+	})}
+
 			</style>
 			<div class="container ${this.editing ? 'editing' : ''} ${this._card.published ? 'published' : 'unpublished'}">
 				${this.innerRender()}
@@ -235,9 +241,10 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 			}
 		}
 
-		const ele = document.createElement(config.container|| 'span');
+		const ele = document.createElement(config.container || 'span');
 		this._elements[field] = ele;
 		ele.field = field;
+		ele.dataset.field = field;
 		if (this.editing) {
 			makeElementContentEditable(ele);
 			ele.addEventListener('input', this._textFieldChanged.bind(this));
