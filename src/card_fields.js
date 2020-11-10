@@ -240,7 +240,6 @@ export const DERIVED_FIELDS_FOR_CARD_TYPE = Object.fromEntries(Object.keys(CARD_
 	return [typ, Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).filter(entry => (entry[1].derivedForCardTypes || {})[typ]).map(entry => [entry[0], true]))];
 }));
 
-/* eslint-disable-next-line no-unused-vars */
 const AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE = Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(typ => {
 	return [typ, Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).filter(entry => (entry[1].autoFontSizeBoostForCardTypes || {})[typ]).map(entry => [entry[0], true]))];
 }));
@@ -258,6 +257,34 @@ export const editableFieldsForCardType = (cardType) => {
 		result[key] = config;
 	}
 	return result;
+};
+
+//Returns an object with field -> boosts to set. It will return
+//card.font_size_boosts if no change, or an object like font_size_boosts, but
+//with modifications made as appropriate leaving any untouched keys the same,
+//and any keys it modifies but sets to 0.0 deleted.
+export const fontSizeBoosts = (card) => {
+	if (!card) return {};
+	const fields = AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE[card.card_type] || {};
+	const currentBoost = card.font_size_boost || {};
+	if (Object.keys(fields).length === 0) return currentBoost;
+	const result = {...currentBoost};
+	for (const field of Object.keys(fields)) {
+		//TODO: actually do a real calculation based on layout.
+		const boost = calculateBoostForCardField(card, field);
+		if (boost == 0.0 && result[field]) {
+			delete result[field];
+			continue;
+		}
+		result[field] = boost;
+	}
+	return result;
+};
+
+//eslint-disable-next-line no-unused-vars
+const calculateBoostForCardField = (card, field) => {
+	//TODO: actually calculate this based on doing layout
+	return 0.1;
 };
 
 export const normalizedWords = (str) => {
