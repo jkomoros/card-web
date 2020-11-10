@@ -284,7 +284,7 @@ export const fontSizeBoosts = (card) => {
 //eslint-disable-next-line no-unused-vars
 const calculateBoostForCardField = (card, field) => {
 	//TODO: actually calculate this based on doing layout
-	return 0.1;
+	return 0.0;
 };
 
 export const normalizedWords = (str) => {
