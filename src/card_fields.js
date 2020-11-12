@@ -288,26 +288,32 @@ let cardRenderer = null;
 
 const MAX_FONT_BOOST_BISECT_STEPS = 3;
 
-//eslint-disable-next-line no-unused-vars
 const calculateBoostForCardField = async (card, field) => {
 
+	const max = TEXT_FIELD_CONFIGURATION[field].autoFontSizeBoostForCardTypes[card.card_type];
 	let low = 0.0;
-	let high = TEXT_FIELD_CONFIGURATION[field].autoFontSizeBoostForCardTypes[card.card_type];
-	//First check for the extremes
-	if (await cardOverflowsFieldForBoost(card, field, low)) return low;
-	if (! await cardOverflowsFieldForBoost(card, field, high)) return high;
+	let high = max;
+	let alwaysLow = true;
+	let alwaysHigh = true;
 
 	let middle = ((high - low) / 2) + low;
 	let count = 0;
 	while (count < MAX_FONT_BOOST_BISECT_STEPS) {
 		if (await cardOverflowsFieldForBoost(card, field, middle)) {
 			high = middle;
+			alwaysHigh = false;
 		} else {
 			low = middle;
+			alwaysLow = false;
 		}
 		middle = ((high - low) / 2) + low;
 		count++;
 	}
+
+	//Check if it should return the extremes
+	if (alwaysHigh && !await cardOverflowsFieldForBoost(card, field, max)) return max;
+	if (alwaysLow && await cardOverflowsFieldForBoost(card, field, 0.0)) return 0.0;
+
 	return middle;
 };
 
