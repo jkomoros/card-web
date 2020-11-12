@@ -289,6 +289,25 @@ const MAX_FONT_BOOST_BISECT_STEPS = 3;
 
 //eslint-disable-next-line no-unused-vars
 const calculateBoostForCardField = async (card, field) => {
+
+	let low = 0.0;
+	let high = MAX_FONT_BOOST;
+	let middle = ((high - low) / 2) + low;
+	
+	let count = 0;
+	while (count < MAX_FONT_BOOST_BISECT_STEPS) {
+		if (await cardOverflowsFieldForBoost(card, field, middle)) {
+			high = middle;
+		} else {
+			low = middle;
+		}
+		middle = ((high - low) / 2) + low;
+		count++;
+	}
+	return middle;
+};
+
+const cardOverflowsFieldForBoost = async (card, field, proposedBoost) => {
 	if (!cardRenderer) {
 		//Note: we do NOT import card-renderer custom element, because it's hard
 		//to do so without a cyclical depenency. But it will almost certainly
@@ -307,24 +326,10 @@ const calculateBoostForCardField = async (card, field) => {
 		}
 		cardRenderer = ele;
 	}
-	let low = 0.0;
-	let high = MAX_FONT_BOOST;
-	let middle = ((high - low) / 2) + low;
-	let tempCard = {...card, font_size_boost: {...card.font_size_boost, [field]:middle}};
-	let count = 0;
-	while (count < MAX_FONT_BOOST_BISECT_STEPS) {
-		cardRenderer.card = tempCard;
-		await cardRenderer.updateComplete;
-		if (cardRenderer.activeCardEle.isOverflowing([field])) {
-			high = middle;
-		} else {
-			low = middle;
-		}
-		middle = ((high - low) / 2) + low;
-		tempCard = {...card, font_size_boost: {...card.font_size_boost, [field]:middle}};
-		count++;
-	}
-	return middle;
+	let tempCard = {...card, font_size_boost: {...card.font_size_boost, [field]:proposedBoost}};
+	cardRenderer.card = tempCard;
+	await cardRenderer.updateComplete;
+	return cardRenderer.activeCardEle.isOverflowing([field]);
 };
 
 export const normalizedWords = (str) => {
