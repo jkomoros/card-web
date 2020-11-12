@@ -195,10 +195,13 @@ readOnly: if true, a form field to edit this won't be printed out in cardEditor.
 matchWeight: if a match is found when searching in that field, how much weight
 should it receive?
 
-autoFontSizeBoostForCardTypes: For any card type that's true, fontSizeBoosts
-will auto-set the font size for that field.
+autoFontSizeBoostForCardTypes: For any card type that has a key, fontSizeBoosts
+will auto-set the font size for that field, with the value for that field being
+used as the max value that the boost can legally be for that field
 
 */
+
+const DEFAULT_MAX_FONT_BOOST = 0.3;
 
 export const TEXT_FIELD_CONFIGURATION = {
 	[TEXT_FIELD_TITLE]: {
@@ -214,7 +217,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 		container: 'section',
 		legalCardTypes: {[CARD_TYPE_CONTENT]: true, [CARD_TYPE_WORKING_NOTES]: true},
 		derivedForCardTypes: {},
-		autoFontSizeBoostForCardTypes: {[CARD_TYPE_WORKING_NOTES]: true},
+		autoFontSizeBoostForCardTypes: {[CARD_TYPE_WORKING_NOTES]: DEFAULT_MAX_FONT_BOOST},
 		matchWeight:0.5,
 	},
 	[TEXT_FIELD_SUBTITLE]: {
@@ -283,19 +286,17 @@ export const fontSizeBoosts = async (card) => {
 //instance of card-renderer custom element for calculateBoostForCardField
 let cardRenderer = null;
 
-//TODO: allow these to be configured by field
-const MAX_FONT_BOOST = 0.3;
 const MAX_FONT_BOOST_BISECT_STEPS = 3;
 
 //eslint-disable-next-line no-unused-vars
 const calculateBoostForCardField = async (card, field) => {
 
 	let low = 0.0;
-	let high = MAX_FONT_BOOST;
+	let high = TEXT_FIELD_CONFIGURATION[field].autoFontSizeBoostForCardTypes[card.card_type];
 	//First check for the extremes
 	if (await cardOverflowsFieldForBoost(card, field, low)) return low;
 	if (! await cardOverflowsFieldForBoost(card, field, high)) return high;
-	
+
 	let middle = ((high - low) / 2) + low;
 	let count = 0;
 	while (count < MAX_FONT_BOOST_BISECT_STEPS) {
