@@ -270,7 +270,6 @@ export const fontSizeBoosts = async (card) => {
 	if (Object.keys(fields).length === 0) return currentBoost;
 	const result = {...currentBoost};
 	for (const field of Object.keys(fields)) {
-		//TODO: actually do a real calculation based on layout.
 		const boost = await calculateBoostForCardField(card, field);
 		if (boost == 0.0 && result[field]) {
 			delete result[field];
@@ -283,6 +282,10 @@ export const fontSizeBoosts = async (card) => {
 
 //instance of card-renderer custom element for calculateBoostForCardField
 let cardRenderer = null;
+
+//TODO: allow these to be configured by field
+const MAX_FONT_BOOST = 0.3;
+const MAX_FONT_BOOST_BISECT_STEPS = 3;
 
 //eslint-disable-next-line no-unused-vars
 const calculateBoostForCardField = async (card, field) => {
@@ -304,8 +307,24 @@ const calculateBoostForCardField = async (card, field) => {
 		}
 		cardRenderer = ele;
 	}
-	//TODO: do a bisect to find the right boost
-	return 0.0;
+	let low = 0.0;
+	let high = MAX_FONT_BOOST;
+	let middle = ((high - low) / 2) + low;
+	let tempCard = {...card, font_size_boost: {...card.font_size_boost, [field]:middle}};
+	let count = 0;
+	while (count < MAX_FONT_BOOST_BISECT_STEPS) {
+		cardRenderer.card = tempCard;
+		await cardRenderer.updateComplete;
+		if (cardRenderer.activeCardEle.isOverflowing([field])) {
+			high = middle;
+		} else {
+			low = middle;
+		}
+		middle = ((high - low) / 2) + low;
+		tempCard = {...card, font_size_boost: {...card.font_size_boost, [field]:middle}};
+		count++;
+	}
+	return middle;
 };
 
 export const normalizedWords = (str) => {
