@@ -281,9 +281,30 @@ export const fontSizeBoosts = (card) => {
 	return result;
 };
 
+//instance of card-renderer custom element for calculateBoostForCardField
+let cardRenderer = null;
+
 //eslint-disable-next-line no-unused-vars
 const calculateBoostForCardField = (card, field) => {
-	//TODO: actually calculate this based on doing layout
+	if (!cardRenderer) {
+		//Note: we do NOT import card-renderer custom element, because it's hard
+		//to do so without a cyclical depenency. But it will almost certainly
+		//exist so we can just assume it does and warn if it doesn't and return
+		//a safe default.
+		let ele = document.createElement('card-renderer');
+		document.querySelector('body').appendChild(ele);
+		ele.style.visibility = 'hidden';
+		ele.style.position = 'absolute';
+		ele.style.left = '0px';
+		ele.style.top = '0px';
+		ele.style.zIndex = '-100';
+		if (typeof ele.render != 'function') {
+			console.warn('Card-renderer does not appear to be valid');
+			return 0.0;
+		}
+		cardRenderer = ele;
+	}
+	//TODO: do a bisect to find the right boost
 	return 0.0;
 };
 
