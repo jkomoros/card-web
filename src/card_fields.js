@@ -292,8 +292,11 @@ const calculateBoostForCardField = async (card, field) => {
 
 	let low = 0.0;
 	let high = MAX_FONT_BOOST;
-	let middle = ((high - low) / 2) + low;
+	//First check for the extremes
+	if (await cardOverflowsFieldForBoost(card, field, low)) return low;
+	if (! await cardOverflowsFieldForBoost(card, field, high)) return high;
 	
+	let middle = ((high - low) / 2) + low;
 	let count = 0;
 	while (count < MAX_FONT_BOOST_BISECT_STEPS) {
 		if (await cardOverflowsFieldForBoost(card, field, middle)) {
