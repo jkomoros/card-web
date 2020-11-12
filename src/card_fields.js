@@ -274,8 +274,8 @@ export const fontSizeBoosts = async (card) => {
 	const result = {...currentBoost};
 	for (const field of Object.keys(fields)) {
 		const boost = await calculateBoostForCardField(card, field);
-		if (boost == 0.0 && result[field]) {
-			delete result[field];
+		if (boost == 0.0) {
+			if (result[field] !== undefined) delete result[field];
 			continue;
 		}
 		result[field] = boost;
