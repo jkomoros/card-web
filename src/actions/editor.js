@@ -148,7 +148,7 @@ export const editingStart = () => (dispatch, getState) => {
 	dispatch({type: EDITING_START, card: card});
 };
 
-export const editingCommit = () => (dispatch, getState) => {
+export const editingCommit = () => async (dispatch, getState) => {
 	const state = getState();
 	if (!selectIsEditing(state)) {
 		console.warn('Editing not active');
@@ -189,7 +189,7 @@ export const editingCommit = () => (dispatch, getState) => {
 		}
 	}
 
-	updatedCard.font_size_boost = fontSizeBoosts(updatedCard);
+	updatedCard.font_size_boost = await fontSizeBoosts(updatedCard);
 
 	let update = {};
 

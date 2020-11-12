@@ -263,7 +263,7 @@ export const editableFieldsForCardType = (cardType) => {
 //card.font_size_boosts if no change, or an object like font_size_boosts, but
 //with modifications made as appropriate leaving any untouched keys the same,
 //and any keys it modifies but sets to 0.0 deleted.
-export const fontSizeBoosts = (card) => {
+export const fontSizeBoosts = async (card) => {
 	if (!card) return {};
 	const fields = AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE[card.card_type] || {};
 	const currentBoost = card.font_size_boost || {};
@@ -271,7 +271,7 @@ export const fontSizeBoosts = (card) => {
 	const result = {...currentBoost};
 	for (const field of Object.keys(fields)) {
 		//TODO: actually do a real calculation based on layout.
-		const boost = calculateBoostForCardField(card, field);
+		const boost = await calculateBoostForCardField(card, field);
 		if (boost == 0.0 && result[field]) {
 			delete result[field];
 			continue;
@@ -285,7 +285,7 @@ export const fontSizeBoosts = (card) => {
 let cardRenderer = null;
 
 //eslint-disable-next-line no-unused-vars
-const calculateBoostForCardField = (card, field) => {
+const calculateBoostForCardField = async (card, field) => {
 	if (!cardRenderer) {
 		//Note: we do NOT import card-renderer custom element, because it's hard
 		//to do so without a cyclical depenency. But it will almost certainly
