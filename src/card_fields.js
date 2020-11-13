@@ -288,6 +288,9 @@ let cardRenderer = null;
 
 const MAX_FONT_BOOST_BISECT_STEPS = 3;
 
+//calculateBoostForCardField is an expensive method because it repeatedly
+//changes layout and then reads it back. But even with that, it typically takes
+//less than 15ms or so on a normal computer.
 const calculateBoostForCardField = async (card, field) => {
 
 	const max = TEXT_FIELD_CONFIGURATION[field].autoFontSizeBoostForCardTypes[card.card_type];
