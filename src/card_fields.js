@@ -333,6 +333,7 @@ const cardOverflowsFieldForBoost = async (card, field, proposedBoost) => {
 		ele.style.left = '0px';
 		ele.style.top = '0px';
 		ele.style.zIndex = '-100';
+		//TODO: should we set contain:content or something like that for performance?
 		if (typeof ele.render != 'function') {
 			console.warn('Card-renderer does not appear to be valid');
 			return 0.0;
