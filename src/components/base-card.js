@@ -36,6 +36,8 @@ export const CARD_HORIZONTAL_PADDING_IN_EMS = 1.45;
 //Number of pixels until a track is considered a swipe
 const SWIPE_DX = 15.0;
 
+const EPSILON = 0.5;
+
 // This element is *not* connected to the Redux store.
 export class BaseCard extends GestureEventListeners(LitElement) {
 	render() {
@@ -333,11 +335,13 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 		const offsetParentEle = this;
 		const offsetParentHeight = offsetParentEle.offsetHeight;
 		const offsetParentWidth = offsetParentEle.offsetWidth;
+		const fontSize = parseFloat(getComputedStyle(offsetParentEle).fontSize);
+		const verticalPaddingInPx = CARD_VERTICAL_PADDING_IN_EMS * fontSize;
+		const horizontalPaddingInPx = CARD_HORIZONTAL_PADDING_IN_EMS * fontSize;
 		for (let ele of eles) {
 			if (ele.offsetParent != offsetParentEle) console.warn('Offset parentw as not the expected node');
-			//TODO: consider overflowing if outside of the padding space of the parent
-			if (ele.offsetTop + ele.offsetHeight > offsetParentHeight) return true;
-			if (ele.offsetLeft + ele.offsetWidth > offsetParentWidth) return true;
+			if ((ele.offsetTop + ele.offsetHeight) -  (offsetParentHeight - verticalPaddingInPx) > EPSILON) return true;
+			if ((ele.offsetLeft + ele.offsetWidth) - (offsetParentWidth - horizontalPaddingInPx) > EPSILON) return true;
 		}
 		return false;
 	}
