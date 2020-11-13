@@ -189,6 +189,9 @@ export const editingCommit = () => async (dispatch, getState) => {
 		}
 	}
 
+	//Throw out any boosts that might have been applied to an old card type.
+	if (updatedCard.card_type != underlyingCard.card_type) updatedCard.font_size_boost = {};
+
 	updatedCard.font_size_boost = await fontSizeBoosts(updatedCard);
 
 	let update = {};
