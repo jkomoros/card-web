@@ -51,7 +51,8 @@ import {
 	REFERENCE_TYPE_LINK,
 	applyReferencesDiff,
 	references,
-	REFERENCE_TYPE_ACK
+	REFERENCE_TYPE_ACK,
+	fontSizeBoosts
 } from '../card_fields.js';
 
 const checkMaintenanceTaskHasBeenRun = async (taskName) => {
@@ -297,12 +298,40 @@ const addFontSizeBoost = async () => {
 	console.log('done');
 };
 
+const UPDATE_FONT_SIZE_BOOST = 'update-font-size-boost';
+
+const updateFontSizeBoost = async () => {
+
+	let batch = new MultiBatch(db);
+	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	let counter = 0;
+	//if this were forEach then the async gets weird as multiple queue up.
+	for (let doc of snapshot.docs) {
+		console.log('Processing ' + counter + '/' + snapshot.size);
+		counter++;
+		const card = doc.data();
+		card.id = doc.id;
+
+		const beforeBoosts = card.font_size_boost;
+		const afterBoosts = await fontSizeBoosts(card);
+
+		if (Object.keys(beforeBoosts).length == Object.keys(afterBoosts).length && Object.entries(beforeBoosts).every(entry => entry[1] == afterBoosts[entry[0]])) continue;
+
+		batch.update(doc.ref, {font_size_boost: afterBoosts});
+	}
+
+	await batch.commit();
+
+	console.log('done');
+};
+
 //tasks that don't require maintenance mode to be enabled are registered here
 export const tasks = {
 	[NORMALIZE_CONTENT_BODY]: normalizeContentBody,
 	[RESET_TWEETS]: resetTweets,
 	[SKIPPED_LINKS_TO_ACK_REFERENCES]: skippedLinksToAckReferences,
 	[ADD_FONT_SIZE_BOOST]: addFontSizeBoost,
+	[UPDATE_FONT_SIZE_BOOST]: updateFontSizeBoost,
 };
 
 //Tasks that do require maintenance mode are registered here. These are
