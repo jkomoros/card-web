@@ -208,7 +208,7 @@ export const editingCommit = () => async (dispatch, getState) => {
 		update[field] = value;
 	}
 
-	if (Object.keys(updatedCard.font_size_boost).length != Object.keys(underlyingCard.font_size_boost).length || Object.entries(updatedCard.font_size_boost).some(entry => underlyingCard.font_size_boost[entry[0]] != entry[1])) update.font_size_boost = updatedCard.font_size_boost;
+	if (Object.keys(updatedCard.font_size_boost).length != Object.keys(underlyingCard.font_size_boost || {}).length || Object.entries(updatedCard.font_size_boost).some(entry => (underlyingCard.font_size_boost || {})[entry[0]] != entry[1])) update.font_size_boost = updatedCard.font_size_boost;
 	if (updatedCard.section != underlyingCard.section) update.section = updatedCard.section;
 	if (updatedCard.name != underlyingCard.section) update.name = updatedCard.name;
 	if (updatedCard.notes != underlyingCard.notes) update.notes = updatedCard.notes;
