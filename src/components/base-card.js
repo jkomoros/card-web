@@ -110,6 +110,14 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 					background-color:transparent;
 				}
 
+				section p {
+					/* make it so the top most item doesn't push the whole
+					section down. p still have margin-bottom that previously
+					would collapse with margin-top so the only effect is
+					allowing boosted p to not push down the screen */
+					margin-top:0;
+				}
+
 				section.full-bleed {
 					top:0;
 					left:0;
