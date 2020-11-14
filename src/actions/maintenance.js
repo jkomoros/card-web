@@ -313,6 +313,7 @@ const updateFontSizeBoost = async () => {
 		card.id = doc.id;
 
 		const beforeBoosts = card.font_size_boost;
+		//NOTE: maintence-view includes a hidden card-stage so this will have a card renderer to use
 		const afterBoosts = await fontSizeBoosts(card);
 
 		if (Object.keys(beforeBoosts).length == Object.keys(afterBoosts).length && Object.entries(beforeBoosts).every(entry => entry[1] == afterBoosts[entry[0]])) continue;

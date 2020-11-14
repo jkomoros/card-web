@@ -19,6 +19,9 @@ import {
 
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
+//We include a hidden card-stage because it provides teh sizingCardRenderer so
+//the maintence task update-font-size-boost can work
+import './card-stage.js';
 
 class MaintenanceView extends connect(store)(PageViewElement) {
 	render() {
@@ -45,6 +48,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
               <button value="${item}" @click='${this._handleClick}' .disabled=${!this._maintenanceModeEnabled}>${item}</button>
           `)}
         </section>
+		<card-stage style='visibility:hidden;z-index:-100;position:absolute'></card-stage>
       </section>
     `;
 	}
