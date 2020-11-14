@@ -754,18 +754,8 @@ export const createWorkingNotesCard = () => async (dispatch, getState) => {
 		noSectionChange: true,
 	});
 
-	//Check to make sure the ID is legal. Note that the id and slugs are in the
-	//same ID space, so we can reuse slugLegal. Note that slugLegal could take
-	//up to 10 seconds to complete if the cloud function is not pre-warmed.
-	const result = await slugLegal(id);
-	if (!result.legal) {
-		console.log('ID is already taken: ' + result.reason);
-		//Tell it to not expect the card to be inserted anymore
-		dispatch({
-			type:NAVIGATED_TO_NEW_CARD,
-		});
-		return;
-	}
+	//We don't check slugLegal because ID is provided by newID which is presumed
+	//to be sufficently high entropy to not overlap with existing IDs or slugs
 
 	const batch = db.batch();
 
@@ -796,6 +786,7 @@ export const createCard = (opts) => async (dispatch, getState) => {
 	let cardType = opts.cardType || CARD_TYPE_CONTENT;
 	let section = opts.section || lastSectionID;
 	let id = opts.id;
+	let idFromOpts = opts.id !== undefined;
 	let noNavigate = opts.noNavigate || false;
 	let title = opts.title || '';
 
@@ -856,19 +847,26 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		});
 	}
 
-	//Check to make sure the ID is legal. Note that the id and slugs are in the
-	//same ID space, so we can reuse slugLegal. Note that slugLegal could take
-	//up to 10 seconds to complete if the cloud function is not pre-warmed.
-	const result = await slugLegal(id);
-	if (!result.legal) {
-		console.log('ID is already taken: ' + result.reason);
-		if (!noNavigate) {
-			//Tell it to not expect the card to be inserted anymore
-			dispatch({
-				type:NAVIGATED_TO_NEW_CARD,
-			});
+	if (idFromOpts) {
+
+		//Checking id is legal is a very expensive operation. If we generated
+		//our own id via newID we can just assume it's safe and doesn't conflict
+		//with existing ones due to sufficient entropy.
+
+		//Check to make sure the ID is legal. Note that the id and slugs are in the
+		//same ID space, so we can reuse slugLegal. Note that slugLegal could take
+		//up to 10 seconds to complete if the cloud function is not pre-warmed.
+		const result = await slugLegal(id);
+		if (!result.legal) {
+			console.log('ID is already taken: ' + result.reason);
+			if (!noNavigate) {
+				//Tell it to not expect the card to be inserted anymore
+				dispatch({
+					type:NAVIGATED_TO_NEW_CARD,
+				});
+			}
+			return;
 		}
-		return;
 	}
 
 	let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
