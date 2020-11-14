@@ -283,8 +283,18 @@ export const fontSizeBoosts = async (card) => {
 	return result;
 };
 
-//instance of card-renderer custom element for calculateBoostForCardField
-let cardRenderer = null;
+let cardRendererProvider = null;
+
+//Custom elements that have a sizing card-renderer should all this to offer
+//themselves up. This module can't create its own card-renderer because a)
+//importing card-renderer leads to a circular dependency, but also because the
+//card-renderer has to be within the main web app to get the right css vars so
+//it can size accurately. provider should hae a sizingCardRenderer property we
+//can fetch an instance of card-renderer from that we may inject our own card
+//into.
+export const setFontSizingCardRendererProvider = (provider) => {
+	if (!cardRendererProvider) cardRendererProvider = provider;
+};
 
 const MAX_FONT_BOOST_BISECT_STEPS = 3;
 
@@ -321,29 +331,20 @@ const calculateBoostForCardField = async (card, field) => {
 };
 
 const cardOverflowsFieldForBoost = async (card, field, proposedBoost) => {
-	if (!cardRenderer) {
-		//Note: we do NOT import card-renderer custom element, because it's hard
-		//to do so without a cyclical depenency. But it will almost certainly
-		//exist so we can just assume it does and warn if it doesn't and return
-		//a safe default.
-		let ele = document.createElement('card-renderer');
-		document.querySelector('body').appendChild(ele);
-		ele.style.visibility = 'hidden';
-		ele.style.position = 'absolute';
-		ele.style.left = '0px';
-		ele.style.top = '0px';
-		ele.style.zIndex = '-100';
-		//TODO: should we set contain:content or something like that for performance?
-		if (typeof ele.render != 'function') {
-			console.warn('Card-renderer does not appear to be valid');
-			return 0.0;
-		}
-		cardRenderer = ele;
+	if (!cardRendererProvider) {
+		console.warn('No card renderer provider provided');
+		return false;
+	}
+	let ele = cardRendererProvider.sizingCardRenderer;
+	if (!ele) {
+		console.warn('No active card renderer');
+		return false;
 	}
 	let tempCard = {...card, font_size_boost: {...card.font_size_boost, [field]:proposedBoost}};
-	cardRenderer.card = tempCard;
-	await cardRenderer.updateComplete;
-	return cardRenderer.activeCardEle.isOverflowing([field]);
+	ele.card = tempCard;
+	await ele.updateComplete;
+	const isOverflowing = ele.activeCardEle.isOverflowing([field]);
+	return isOverflowing;
 };
 
 export const normalizedWords = (str) => {

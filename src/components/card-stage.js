@@ -18,6 +18,10 @@ import {
 	CARD_VERTICAL_PADDING_IN_EMS
 } from './base-card.js';
 
+import {
+	setFontSizingCardRendererProvider
+} from '../card_fields.js';
+
 class CardStage extends LitElement {
 	render() {
 		return html`
@@ -159,6 +163,7 @@ class CardStage extends LitElement {
 				<div>Rotate your device for larger text</div>
 			</div>
 			<card-renderer .dataIsFullyLoaded=${this.dataIsFullyLoaded} .editing=${this.editing} .card=${this.card} .updatedFromContentEditable=${this.updatedFromContentEditable}></card-renderer>
+			<card-renderer id='sizing' style='position:absolute;visibility:hidden;z-index:-100;'></card-renderer>
 			<slot name='actions'></slot>
 			<slot name='tags'></slot>
 		</div>
@@ -177,7 +182,7 @@ class CardStage extends LitElement {
 			updatedFromContentEditable: { type: Object},
 		};
 	}
-	
+
 	//Call this whenever the card might need to be resized (other than the
 	//window resizing, which the component will call itself)
 	resizeCard() {
@@ -223,7 +228,12 @@ class CardStage extends LitElement {
 		renderer.style.fontSize = '' + fontSize + 'px';
 	}
 
+	get sizingCardRenderer() {
+		return this.shadowRoot.querySelector('#sizing');
+	}
+
 	firstUpdated() {
+		setFontSizingCardRendererProvider(this);
 		window.addEventListener('resize', () => this.resizeCard());
 		this.resizeCard();
 	}
