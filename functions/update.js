@@ -91,17 +91,23 @@ const referencesCardsDiff = (beforeCard, afterCard) => {
 
 const inboundLinks = (change, context) => {
 
+	//We are registered onWrite, instead of onUpdate, since forked cards might
+	//start out with references to modify when they are created.
+
 	if (common.DISABLE_CARD_UPDATE_FUNCTIONS) return Promise.resolve();
 
-	const beforeCard = change.before.data();
-	const afterCard = change.after.data();
+	//Skip deletions
+	if (!change.after.exists) return Promise.resolve();
 
-	const afterReferencesInfo = afterCard[common.REFERENCES_INFO_CARD_PROPERTY];
-	const afterReferences = afterCard[common.REFERENCES_CARD_PROPERTY];
+	const beforeCard = change.before.exists ? change.before.data() : null;
+	const afterCard = change.after.data();
 
 	const [changes, deletions] = referencesCardsDiff(beforeCard, afterCard);
 
 	if (Object.keys(changes).length === 0 && Object.keys(deletions).length === 0) return Promise.resolve();
+
+	const afterReferencesInfo = afterCard[common.REFERENCES_INFO_CARD_PROPERTY];
+	const afterReferences = afterCard[common.REFERENCES_CARD_PROPERTY];
 
 	let cardID = context.params.cardId;
 
