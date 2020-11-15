@@ -96,7 +96,9 @@ import {
 	REFERENCES_CARD_PROPERTY,
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY, 
-	REFERENCES_INBOUND_CARD_PROPERTY
+	REFERENCES_INBOUND_CARD_PROPERTY,
+	REFERENCE_TYPE_FORK_OF,
+	REFERENCE_TYPE_MINED_FROM,
 } from '../card_fields.js';
 
 //When a new tag is created, it is randomly assigned one of these values.
@@ -665,6 +667,17 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 
 };
 
+const CARD_FIELDS_TO_COPY_ON_FORK = {
+	permissions: true,
+	title: true,
+	body: true,
+	[REFERENCES_INFO_CARD_PROPERTY]: true,
+	[REFERENCES_CARD_PROPERTY]: true,
+	font_size_boost: true,
+	notes: true,
+	todo: true,
+};
+
 //exported entireoly for initialSetUp in maintence.js
 export const defaultCardObject = (id, user, section, cardType) => {
 	return {
@@ -775,7 +788,7 @@ export const createWorkingNotesCard = () => async (dispatch, getState) => {
 export const createCard = (opts) => async (dispatch, getState) => {
 
 	//NOTE: if you modify this card you likely also want to modify
-	//createWorkingNotesCard too
+	//createWorkingNotesCard too and likely also createForkedCard
 
 	//newCard creates and inserts a new card in the givne section with the given id.
 
@@ -826,7 +839,7 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		return;
 	}
 
-	let appendMiddle = false; 
+	let appendMiddle = false;
 	let appendIndex = 0;
 	if (selectActiveSectionId(state) == section) {
 		appendMiddle = true;
@@ -868,6 +881,91 @@ export const createCard = (opts) => async (dispatch, getState) => {
 			return;
 		}
 	}
+
+	let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
+
+	await db.runTransaction(async transaction => {
+		let sectionDoc = await transaction.get(sectionRef);
+		if (!sectionDoc.exists) {
+			throw 'Doc doesn\'t exist!';
+		}
+		var newArray = [...sectionDoc.data().cards, id];
+		if (appendMiddle) {
+			let current = sectionDoc.data().cards;
+			newArray = [...current.slice(0,appendIndex), id, ...current.slice(appendIndex)];
+		}
+		ensureAuthor(transaction, user);
+		transaction.update(sectionRef, {cards: newArray, updated: serverTimestampSentinel()});
+		let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
+		transaction.set(sectionUpdateRef, {timestamp: serverTimestampSentinel(), cards: newArray});
+		transaction.set(cardDocRef, obj);
+	});
+
+	//updateSections will be called and update the current view. card-view's
+	//updated will call navigateToNewCard once the data is fully loaded again
+	//(if EXPECT_NEW_CARD was dispatched above)
+};
+
+export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
+	//NOTE: if you modify this card you likely also want to modify
+	//createWorkingNotesCard too and likely also createForkedCard
+
+	//newCard creates and inserts a new card in the givne section with the given id.
+
+	if (typeof cardToFork !== 'object' || !cardToFork) {
+		console.warn('cardToFork wasn\'t valid object');
+		return;
+	}
+
+	const state = getState();
+
+	let id = newID();
+
+	const section = cardToFork.section;
+	const cardType = cardToFork.card_type;
+
+	if (!getUserMayEditSection(state, section)) {
+		console.log('User doesn\'t have edit permission for section the card will be added to.');
+		return;
+	}
+
+	let user = selectUser(state);
+
+	if (!user) {
+		console.log('No user');
+		return;
+	}
+
+	if (!selectUserMayCreateCard(state)) {
+		console.log('User isn\'t allowed to create card');
+		return;
+	}
+
+	let appendMiddle = false;
+	let appendIndex = 0;
+	if (selectActiveSectionId(state) == section) {
+		appendMiddle = true;
+		appendIndex = selectActiveCardIndex(state);
+	}
+
+	let obj = defaultCardObject(id,user,section,cardType);
+	for (let key of Object.keys(CARD_FIELDS_TO_COPY_ON_FORK)) {
+		//We can literally leave these as the same object because they'll just
+		//be sent to firestore and the actual card we'll store will be new
+		obj[key] = cardToFork[key];
+	}
+	//references accessor will copy the references on setting something
+	references(obj).setCardReference(cardToFork.id, REFERENCE_TYPE_FORK_OF);
+	references(obj).setCardReference(cardToFork.id, REFERENCE_TYPE_MINED_FROM);
+
+	let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
+
+	//Tell card-view to expect a new card to be loaded, and when data is
+	//fully loaded again, it will then trigger the navigation.
+	dispatch({
+		type: EXPECT_NEW_CARD,
+		ID: id,
+	});
 
 	let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
 
