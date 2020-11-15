@@ -306,18 +306,16 @@ const calculateBoostForCardField = async (card, field) => {
 	const max = TEXT_FIELD_CONFIGURATION[field].autoFontSizeBoostForCardTypes[card.card_type];
 	let low = 0.0;
 	let high = max;
-	let lastLayoutOverflowed = false;
 	let alwaysLow = true;
 	let alwaysHigh = true;
 
 	let middle = ((high - low) / 2) + low;
 	let count = 0;
 	while (count < MAX_FONT_BOOST_BISECT_STEPS) {
-		lastLayoutOverflowed = false;
-		if (await cardOverflowsFieldForBoost(card, field, middle)) {
+		const overflows = await cardOverflowsFieldForBoost(card, field, middle);
+		if (overflows) {
 			high = middle;
 			alwaysHigh = false;
-			lastLayoutOverflowed = true;
 		} else {
 			low = middle;
 			alwaysLow = false;
@@ -325,11 +323,14 @@ const calculateBoostForCardField = async (card, field) => {
 		middle = ((high - low) / 2) + low;
 		count++;
 	}
-
-	//If lastLayoutOverflowed is true, then the current middlemight also
-	//overflow. Round down to low, which should always be a non-overflowing, to
-	//be safe.
-	if (lastLayoutOverflowed) middle = low;
+	//No matter where we stopped, the value of middle might now overflow (even
+	//if there had been no overflows yet). Check one more time. If it does
+	//overflow, round down.
+	const overflows = await cardOverflowsFieldForBoost(card, field, middle);
+	if (overflows) {
+		middle = low;
+		alwaysHigh = false;
+	}
 
 	//Check if it should return the extremes
 	if (alwaysHigh && !await cardOverflowsFieldForBoost(card, field, max)) return max;
