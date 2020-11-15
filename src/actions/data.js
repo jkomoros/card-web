@@ -918,6 +918,8 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		return;
 	}
 
+	if (!confirm('This will create a forked copy of the current card. OK?')) return;
+
 	const state = getState();
 
 	let id = newID();
