@@ -372,6 +372,30 @@ export const selectUserMayForkActiveCard = createSelector(
 	(mayCreateCard, state, activeCard) => mayCreateCard && activeCard && getUserMayEditCard(state, activeCard.section)
 );
 
+//If it's the empty string, then user MAY delete the card
+export const getReasonUserMayNotDeleteCard = (state, card) => {
+	if (!card) return 'No card provided';
+
+	if (!getUserMayEditCard(state, card.id)) return 'User may not edit card.';
+
+	if (card.section) return 'Card must be orphaned to be deleted';
+
+	if (card.tags.length) return 'Card must not have any tags to be deleted';
+
+	if(references(card).inboundArray().length) return 'Card must not have any inbound references to be deleted';
+
+	//User may delete the card
+	return '';
+};
+
+//If non-empty string, it's the reason the user can't delete the card. If empty
+//string, then user can delete it.
+export const selectReasonsUserMayNotDeleteActiveCard = createSelector(
+	selectState,
+	selectActiveCard,
+	(state, card) => getReasonUserMayNotDeleteCard(state, card)
+);
+
 export const selectUserMayComment = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,

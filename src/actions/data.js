@@ -73,6 +73,7 @@ import {
 	selectPendingNewCardID,
 	selectIsEditing,
 	selectActiveCardId,
+	getReasonUserMayNotDeleteCard,
 } from '../selectors.js';
 
 import {
@@ -1041,28 +1042,10 @@ export const deleteCard = (card) => (dispatch, getState) => {
 
 	const state = getState();
 
-	if (!card) {
-		console.warn('No card provided');
-		return;
-	}
+	let reason = getReasonUserMayNotDeleteCard(state, card);
 
-	if (!getUserMayEditCard(state, card.id)) {
-		console.warn('User may not edit card.');
-		return;
-	}
-
-	if (card.section) {
-		console.warn('Card must be orphaned to be deleted');
-		return;
-	}
-
-	if (card.tags.length) {
-		console.warn('Card must not have any tags to be deleted');
-		return;
-	}
-
-	if(references(card).inboundArray().length) {
-		console.warn('Card must not have any inbound references to be deleted');
+	if (reason) {
+		console.warn(reason);
 		return;
 	}
 
