@@ -374,6 +374,7 @@ export const selectUserMayForkActiveCard = createSelector(
 
 //If it's the empty string, then user MAY delete the card
 export const getReasonUserMayNotDeleteCard = (state, card) => {
+	//NOTE: this logic is recreatedin the firestore security rules for card deletion
 	if (!card) return 'No card provided';
 
 	if (!getUserMayEditCard(state, card.id)) return 'User may not edit card.';
