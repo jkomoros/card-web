@@ -36,7 +36,7 @@ exports.emailAdminOnMessage = functions.firestore.
 
 exports.updateInboundLinks = functions.firestore.
     document('cards/{cardId}').
-    onUpdate(update.inboundLinks);
+    onWrite(update.inboundLinks);
 
 const screenshotApp = express();
 screenshotApp.get('/:id', async (req, res) => {
