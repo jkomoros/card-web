@@ -573,6 +573,52 @@ describe('card referencesDiff util functions', () => {
 		assert.deepStrictEqual(cardResult, expectedCardResult);
 	});
 
+	it('empty before object', async() => {
+		const inputBefore = {};
+		const inputAfter = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: 'value',
+					[REFERENCE_TYPE_DUPE_OF]: 'other-value',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+			},
+		};
+		const cardResult = referencesCardsDiff(inputBefore, inputAfter);
+		const expectedCardResult = [
+			{
+				'foo': true,
+			},
+			{},
+		];
+		assert.deepStrictEqual(cardResult, expectedCardResult);
+	});
+
+	it('null before object', async() => {
+		const inputBefore = null;
+		const inputAfter = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_LINK]: 'value',
+					[REFERENCE_TYPE_DUPE_OF]: 'other-value',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+			},
+		};
+		const cardResult = referencesCardsDiff(inputBefore, inputAfter);
+		const expectedCardResult = [
+			{
+				'foo': true,
+			},
+			{},
+		];
+		assert.deepStrictEqual(cardResult, expectedCardResult);
+	});
+
 	it('Multiple changes', async () => {
 		const inputBefore = {
 			[REFERENCES_INFO_CARD_PROPERTY]: {
