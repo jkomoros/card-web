@@ -241,6 +241,7 @@ service cloud.firestore {
       allow read: if userMayViewApp() && (resource.data.published == true || userMayViewUnpublished());
       allow create: if userMayCreateCard() && createIsAuthor();
       allow update: if cardEditMinor() || userMayEditCard(card);
+      allow delete: if userMayEditCard(card) && resource.data.get('section', '') == '' && resource.data.get('tags', []).size() == 0 && resource.data.get('references_inbound', {}).size() == 0;
     
       match /updates/{update} {
         allow read, write: if userMayEditCard(card);

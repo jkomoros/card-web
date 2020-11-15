@@ -1013,4 +1013,89 @@ describe('Compendium Rules', () => {
 		await firebase.assertFails(update.set({foo:4}));
 	});
 
+	it('disallows users to delete a card they don\'t own', async() => {
+		const db = authedApp(genericAuth);
+		const update = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(update.delete());
+	});
+
+	it('disallows users to delete a card they own that is not orphaned', async() => {
+		const db = authedApp(jerryAuth);
+		const testCardId = 'delete-test';
+		const ref = db.collection(CARDS_COLLECTION).doc(testCardId);
+		await firebase.assertSucceeds(ref.set({
+			body: 'this is the body',
+			title: 'this is the title',
+			author: jerryUid,
+			section: 'random-thoughts',
+			tags: [],
+			references_inbound: {},
+		}));
+		await firebase.assertFails(ref.delete());
+	});
+
+	it('disallows users to delete a card they own that has tags', async() => {
+		const db = authedApp(jerryAuth);
+		const testCardId = 'delete-test';
+		const ref = db.collection(CARDS_COLLECTION).doc(testCardId);
+		await firebase.assertSucceeds(ref.set({
+			body: 'this is the body',
+			title: 'this is the title',
+			author: jerryUid,
+			section: '',
+			tags: ['bam'],
+			references_inbound: {},
+		}));
+		await firebase.assertFails(ref.delete());
+	});
+
+	it('disallows users to delete a card they own that has inbound references', async() => {
+		const db = authedApp(jerryAuth);
+		const testCardId = 'delete-test';
+		const ref = db.collection(CARDS_COLLECTION).doc(testCardId);
+		await firebase.assertSucceeds(ref.set({
+			body: 'this is the body',
+			title: 'this is the title',
+			author: jerryUid,
+			section: '',
+			tags: [],
+			references_inbound: {
+				'foo': true,
+			}
+		}));
+		await firebase.assertFails(ref.delete());
+	});
+
+	it('allows users to delete a card they own that has no section, no tags, and no inbound references', async() => {
+		const db = authedApp(jerryAuth);
+		const testCardId = 'delete-test';
+		const ref = db.collection(CARDS_COLLECTION).doc(testCardId);
+		await firebase.assertSucceeds(ref.set({
+			body: 'this is the body',
+			title: 'this is the title',
+			author: jerryUid,
+			section: '',
+			tags: [],
+			references_inbound: {}
+		}));
+		await firebase.assertSucceeds(ref.delete());
+	});
+
+	it('allows users with edit permission to delete a card they own that has no section, no tags, and no inbound references', async() => {
+		const adminDb = firebase.initializeAdminApp({projectId}).firestore();
+		const db = authedApp(jerryAuth);
+		const testCardId = 'delete-test';
+		const adminDbRef = adminDb.collection(CARDS_COLLECTION).doc(testCardId);
+		const ref = db.collection(CARDS_COLLECTION).doc(testCardId);
+		await firebase.assertSucceeds(adminDbRef.set({
+			body: 'this is the body',
+			title: 'this is the title',
+			author: bobUid,
+			section: '',
+			tags: [],
+			references_inbound: {}
+		}));
+		await firebase.assertSucceeds(ref.delete());
+	});
+
 });
