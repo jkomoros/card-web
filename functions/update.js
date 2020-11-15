@@ -96,30 +96,28 @@ const inboundLinks = (change, context) => {
 
 	if (common.DISABLE_CARD_UPDATE_FUNCTIONS) return Promise.resolve();
 
-	//Skip deletions
-	if (!change.after.exists) return Promise.resolve();
-
-	const beforeCard = change.before.exists ? change.before.data() : null;
-	const afterCard = change.after.data();
+	const beforeCard = change.before.exists ? change.before.data() : {};
+	const afterCard = change.after.exists ? change.after.data() : {};
 
 	const [changes, deletions] = referencesCardsDiff(beforeCard, afterCard);
 
 	if (Object.keys(changes).length === 0 && Object.keys(deletions).length === 0) return Promise.resolve();
 
-	const afterReferencesInfo = afterCard[common.REFERENCES_INFO_CARD_PROPERTY];
-	const afterReferences = afterCard[common.REFERENCES_CARD_PROPERTY];
-
 	let cardID = context.params.cardId;
 
 	let batch = db.batch();
 
-	for (let otherCardID of Object.keys(changes)) {
-		let ref = db.collection('cards').doc(otherCardID);
-		let update = {
-			[common.REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferencesInfo[otherCardID],
-			[common.REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferences[otherCardID],
-		};
-		batch.update(ref, update);
+	if (Object.keys(changes).length) {
+		const afterReferencesInfo = afterCard[common.REFERENCES_INFO_CARD_PROPERTY];
+		const afterReferences = afterCard[common.REFERENCES_CARD_PROPERTY];
+		for (let otherCardID of Object.keys(changes)) {
+			let ref = db.collection('cards').doc(otherCardID);
+			let update = {
+				[common.REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferencesInfo[otherCardID],
+				[common.REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferences[otherCardID],
+			};
+			batch.update(ref, update);
+		}
 	}
 
 	for (let otherCardID of Object.keys(deletions)) {
