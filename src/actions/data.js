@@ -31,7 +31,8 @@ import {
 } from '../firebase.js';
 
 import {
-	navigateToCard
+	navigateToCard,
+	navigateToNextCard
 } from './app.js';
 
 import {
@@ -69,7 +70,9 @@ import {
 	getUserMayEditSection,
 	getUserMayEditTag,
 	selectUserMayCreateCard,
-	selectPendingNewCardID
+	selectPendingNewCardID,
+	selectIsEditing,
+	selectActiveCardId,
 } from '../selectors.js';
 
 import {
@@ -1032,6 +1035,56 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 	//updateSections will be called and update the current view. card-view's
 	//updated will call navigateToNewCard once the data is fully loaded again
 	//(if EXPECT_NEW_CARD was dispatched above)
+};
+
+export const deleteCard = (card) => (dispatch, getState) => {
+
+	const state = getState();
+
+	if (!card) {
+		console.warn('No card provided');
+		return;
+	}
+
+	if (!getUserMayEditCard(state, card.id)) {
+		console.warn('User may not edit card.');
+		return;
+	}
+
+	if (card.section) {
+		console.warn('Card must be orphaned to be deleted');
+		return;
+	}
+
+	if (card.tags.length) {
+		console.warn('Card must not have any tags to be deleted');
+		return;
+	}
+
+	if(references(card).inboundArray().length) {
+		console.warn('Card must not have any inbound references to be deleted');
+		return;
+	}
+
+	if (!confirm('Are you sure you want to delete this card? This action cannot be undone.')) {
+		return;
+	}
+
+	//If editing, cancel editing
+	if (selectIsEditing(state)) {
+		dispatch(editingFinish());
+	}
+
+	if (selectActiveCardId(state) == card.id) {
+		//If we're currently selected, then when we're deleted it will say 'no card found'.
+		dispatch(navigateToNextCard());
+	}
+
+	let batch = db.batch();
+	let ref = db.collection(CARDS_COLLECTION).doc(card.id);
+	batch.delete(ref);
+	batch.commit();
+
 };
 
 export const navigateToNewCard = () => (dispatch, getState) => {
