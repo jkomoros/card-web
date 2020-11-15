@@ -394,6 +394,7 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 	}
 
 	if (update.addTags && update.addTags.length) {
+		//Note: similar logic is replicated in createForkedCard
 		for (let tagName of update.addTags) {
 			let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
 			let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
@@ -677,6 +678,7 @@ const CARD_FIELDS_TO_COPY_ON_FORK = {
 	font_size_boost: true,
 	notes: true,
 	todo: true,
+	tags: true,
 };
 
 //exported entireoly for initialSetUp in maintence.js
@@ -975,6 +977,20 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		let batch = db.batch();
 		ensureAuthor(batch, user);
 		batch.set(cardDocRef, obj);
+		for (let tagName of obj.tags) {
+			let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
+			let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
+			let newTagObject = {
+				cards: arrayUnionSentinel(id),
+				updated: serverTimestampSentinel()
+			};
+			let newTagUpdateObject = {
+				timestamp: serverTimestampSentinel(),
+				add_card: id,
+			};
+			batch.update(tagRef, newTagObject);
+			batch.set(tagUpdateRef, newTagUpdateObject);
+		}
 		batch.commit();
 		return;
 	}
@@ -996,6 +1012,20 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
 		transaction.set(sectionUpdateRef, {timestamp: serverTimestampSentinel(), cards: newArray});
 		transaction.set(cardDocRef, obj);
+		for (let tagName of obj.tags) {
+			let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
+			let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
+			let newTagObject = {
+				cards: arrayUnionSentinel(id),
+				updated: serverTimestampSentinel()
+			};
+			let newTagUpdateObject = {
+				timestamp: serverTimestampSentinel(),
+				add_card: id,
+			};
+			transaction.update(tagRef, newTagObject);
+			transaction.set(tagUpdateRef, newTagUpdateObject);
+		}
 	});
 
 	//updateSections will be called and update the current view. card-view's
