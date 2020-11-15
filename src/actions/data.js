@@ -960,7 +960,8 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		obj[key] = cardToFork[key];
 	}
 	//references accessor will copy the references on setting something
-	references(obj).setCardReference(cardToFork.id, REFERENCE_TYPE_FORK_OF);
+	//If the card we're copying was itself a fork, we want to overwrite that otherwise it gets confusing.
+	references(obj).setCardReferencesOfType(REFERENCE_TYPE_FORK_OF, [cardToFork.id]);
 	references(obj).setCardReference(cardToFork.id, REFERENCE_TYPE_MINED_FROM);
 
 	let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
