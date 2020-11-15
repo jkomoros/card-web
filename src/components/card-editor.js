@@ -10,6 +10,7 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 import {
 	addSlug,
 	createTag,
+	deleteCard,
 } from '../actions/data.js';
 
 import {
@@ -25,7 +26,8 @@ import {
 	tagsUserMayNotEdit,
 	selectSectionsUserMayEdit,
 	selectUserMayChangeEditingCardSection,
-	selectPendingSlug
+	selectPendingSlug,
+	selectReasonsUserMayNotDeleteActiveCard
 } from '../selectors.js';
 
 import {
@@ -68,7 +70,8 @@ import {
 	SAVE_ICON,
 	CANCEL_ICON,
 	WARNING_ICON,
-	HELP_ICON
+	HELP_ICON,
+	DELETE_FOREVER_ICON,
 } from './my-icons.js';
 
 import {
@@ -314,6 +317,9 @@ class CardEditor extends connect(store)(LitElement) {
 					${Object.keys(CARD_TYPE_CONFIGURATION).map(item => html`<option .value=${item} .selected=${item == this._card.card_type}>${item}</option>`)}
 					</select>
 				</div>
+				<div>
+					<button class='small' @click=${this._handleDeleteClicked} ?disabled=${this._mayNotDeleteReason} title='${this._mayNotDeleteReason ? 'Cards cannot be deleted unless they are orphaned, have no tags, and no other cards references them' : 'Delete card permanently'}'>${DELETE_FOREVER_ICON}</button>
+				</div>
 			</div>
 			<div class='row'>
 				<div>
@@ -404,6 +410,7 @@ class CardEditor extends connect(store)(LitElement) {
 		_active: {type: Boolean },
 		_sectionsUserMayEdit: {type: Object },
 		_userMayChangeEditingCardSection: { type:Boolean },
+		_mayNotDeleteReason: {type:String},
 		_substantive: {type: Object},
 		_selectedTab: {type: String},
 		_selectedEditorTab: {type:String},
@@ -426,6 +433,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._active = state.editor.editing;
 		this._userMayChangeEditingCardSection = selectUserMayChangeEditingCardSection(state);
 		this._sectionsUserMayEdit = selectSectionsUserMayEdit(state);
+		this._mayNotDeleteReason = selectReasonsUserMayNotDeleteActiveCard(state);
 		this._substantive = state.editor.substantive;
 		this._selectedTab = state.editor.selectedTab;
 		this._selectedEditorTab = state.editor.selectedEditorTab;
@@ -457,6 +465,10 @@ class CardEditor extends connect(store)(LitElement) {
 		if (!this._active) return;
 		let ele = e.composedPath()[0];
 		store.dispatch(cardTypeUpdated(ele.value));
+	}
+
+	_handleDeleteClicked() {
+		store.dispatch(deleteCard(this._card));
 	}
 
 	_handleAddReference(e) {
