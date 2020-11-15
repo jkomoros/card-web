@@ -155,6 +155,7 @@ class CardEditor extends connect(store)(LitElement) {
           flex-direction:column;
           width:100%;
           flex-grow:1;
+		  overflow:scroll;
         }
 
         input, textarea {
