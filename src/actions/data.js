@@ -1038,7 +1038,7 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 	//(if EXPECT_NEW_CARD was dispatched above)
 };
 
-export const deleteCard = (card) => (dispatch, getState) => {
+export const deleteCard = (card) => async (dispatch, getState) => {
 
 	const state = getState();
 
@@ -1065,9 +1065,12 @@ export const deleteCard = (card) => (dispatch, getState) => {
 
 	let batch = db.batch();
 	let ref = db.collection(CARDS_COLLECTION).doc(card.id);
+	let updates = await ref.collection(CARD_UPDATES_COLLECTION).get();
+	for (let update of updates.docs) {
+		batch.delete(update.ref);
+	}
 	batch.delete(ref);
 	batch.commit();
-
 };
 
 export const navigateToNewCard = () => (dispatch, getState) => {
