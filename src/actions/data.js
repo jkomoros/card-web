@@ -667,6 +667,7 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 
 };
 
+//This omits fields that are already covered in defaultCardObject's arguments
 const CARD_FIELDS_TO_COPY_ON_FORK = {
 	permissions: true,
 	title: true,
@@ -966,6 +967,15 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		type: EXPECT_NEW_CARD,
 		ID: id,
 	});
+
+	if (!section) {
+		//This is the simpler case of forking something that's orphaned
+		let batch = db.batch();
+		ensureAuthor(batch, user);
+		batch.set(cardDocRef, obj);
+		batch.commit();
+		return;
+	}
 
 	let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
 
