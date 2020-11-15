@@ -1070,7 +1070,12 @@ export const deleteCard = (card) => async (dispatch, getState) => {
 		batch.delete(update.ref);
 	}
 	batch.delete(ref);
-	batch.commit();
+	await batch.commit();
+
+	//Until #333 is fixed, even when a card is deleted we don't delete our local
+	//copy of it. So do a hard refresh... after hackily waiting for the change
+	//to have been fully committed
+	setTimeout(() => window.location.reload(), 500);
 };
 
 export const navigateToNewCard = () => (dispatch, getState) => {
