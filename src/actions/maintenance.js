@@ -318,6 +318,7 @@ const updateFontSizeBoost = async () => {
 
 		if (Object.keys(beforeBoosts).length == Object.keys(afterBoosts).length && Object.entries(beforeBoosts).every(entry => entry[1] == afterBoosts[entry[0]])) continue;
 
+		console.log('Card ' + doc.id + ' had an updated boost');
 		batch.update(doc.ref, {font_size_boost: afterBoosts});
 	}
 
