@@ -300,7 +300,6 @@ export const selectUserMayEditPermissions = createSelector(
 	(admin) => admin
 );
 
-// eslint-disable-next-line no-unused-vars
 export const getUserMayEditSection = (state, sectionID) => {
 	if (selectUserMayEditSections(state)) return true;
 	//orphaned 'section' is always editable
@@ -364,6 +363,13 @@ export const selectUserMayCreateCard = createSelector(
 	selectComposedPermissions,
 	selectCardsMayCurrentlyBeEdited,
 	(userMayEdit, permissions, mayCurrentlyEdit) => mayCurrentlyEdit && (userMayEdit || permissions[PERMISSION_CREATE_CARD])
+);
+
+export const selectUserMayForkActiveCard = createSelector(
+	selectUserMayCreateCard,
+	selectState,
+	selectActiveCard,
+	(mayCreateCard, state, activeCard) => mayCreateCard && activeCard && getUserMayEditCard(state, activeCard.section)
 );
 
 export const selectUserMayComment = createSelector(

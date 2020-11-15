@@ -41,7 +41,8 @@ import {
 	selectUserMayCreateCard,
 	selectSectionsLoaded,
 	selectEditingUpdatedFromContentEditable,
-	selectPendingNewCardID
+	selectPendingNewCardID,
+	selectUserMayForkActiveCard
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -53,7 +54,8 @@ import {
 import {
 	createCard,
 	createWorkingNotesCard,
-	navigateToNewCard
+	navigateToNewCard,
+	createForkedCard
 } from '../actions/data.js';
 
 import {
@@ -118,7 +120,8 @@ import {
 	VISIBILITY_ICON,
 	SEARCH_ICON,
 	PLAYLISLT_ADD_CHECK_ICON,
-	PLAYLIST_ADD_ICON
+	PLAYLIST_ADD_ICON,
+	FILE_COPY_ICON
 } from './my-icons.js';
 
 import {
@@ -242,6 +245,7 @@ class CardView extends connect(store)(PageViewElement) {
 					<button title='Add to your reading list' ?disabled=${this._collectionIsFallback} class='round ${this._cardInReadingList ? 'selected' : ''} ${this._userMayModifyReadingList ? '' : 'need-signin'}' @click='${this._handleReadingListClicked}'>${this._cardInReadingList ? PLAYLISLT_ADD_CHECK_ICON : PLAYLIST_ADD_ICON }</button>
 					<button ?disabled=${this._collectionIsFallback} class='round ${this._cardHasStar ? 'selected' : ''} ${this._userMayStar ? '' : 'need-signin'}' @click='${this._handleStarClicked}'>${this._cardHasStar ? STAR_ICON : STAR_BORDER_ICON }</button>
 					<button ?disabled=${this._collectionIsFallback} class='round ${this._cardIsRead ? 'selected' : ''} ${this._userMayMarkRead ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${VISIBILITY_ICON}</button>
+					<button class='round' ?hidden='${!this._userMayForkCard}' @click='${this._handleForkClicked}'>${FILE_COPY_ICON}</button>
 					<button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${EDIT_ICON}</button>
 				</div>
 				<div slot='actions' class='next-prev'>
@@ -274,6 +278,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_userMayStar: { type: Boolean },
 			_userMayMarkRead: { type: Boolean },
 			_userMayModifyReadingList: { type: Boolean},
+			_userMayForkCard: {type:Boolean},
 			_autoMarkReadPending : { type: Boolean},
 			_displayCard: { type: Object },
 			_editingCard: { type: Object },
@@ -315,6 +320,13 @@ class CardView extends connect(store)(PageViewElement) {
 			return this._handleCloseEditor(e);
 		}
 		store.dispatch(editingStart());
+	}
+
+	_handleForkClicked() {
+		if (this._editing) {
+			return;
+		}
+		store.dispatch(createForkedCard(this._card));
 	}
 
 	_handleCardSwiped(e) {
@@ -428,6 +440,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._userMayEdit = selectUserMayEditActiveCard(state);
 		this._userMayEditActiveSection = selectUserMayEditActiveSection(state);
 		this._userMayCreateCard = selectUserMayCreateCard(state);
+		this._userMayForkCard = selectUserMayForkActiveCard(state);
 		this._headerPanelOpen = state.app.headerPanelOpen;
 		this._commentsAndInfoPanelOpen = selectCommentsAndInfoPanelOpen(state);
 		//Note: do NOT use this for whether the panel is showing.
