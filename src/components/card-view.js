@@ -71,6 +71,10 @@ import {
 } from '../actions/collection.js';
 
 import {
+	killEvent
+} from '../util.js';
+
+import {
 	addStar,
 	removeStar,
 	markRead,
@@ -464,6 +468,28 @@ class CardView extends connect(store)(PageViewElement) {
 		this._sectionsLoaded = selectSectionsLoaded(state);
 		this._cardTodos = selectActiveCardTodosForCurrentUser(state);
 		this._pendingNewCardID = selectPendingNewCardID(state);
+	}
+
+	firstUpdated() {
+		document.addEventListener('keydown', e => this._handleKeyDown(e));
+	}
+
+	_handleKeyDown(e) {
+		//We have to hook this to issue content editable commands when we're
+		//active. But most of the time we don't want to do anything.
+		if (!this.active) return;
+		if (!e.metaKey && !e.ctrlKey) return;
+		if (this._editing) return;
+
+		if (e.key == 'm') {
+			//these action creators will fail if the user may not do these now.
+			if (e.shiftKey) {
+				store.dispatch(createWorkingNotesCard());
+			} else {
+				store.dispatch(createCard({section: this._activeSectionId}));
+			}
+			return killEvent(e);
+		}
 	}
 
 	_changedPropsAffectCanvasSize(changedProps) {
