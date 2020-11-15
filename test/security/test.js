@@ -1098,4 +1098,16 @@ describe('Compendium Rules', () => {
 		await firebase.assertSucceeds(ref.delete());
 	});
 
+	it('disallows users to delete updates from a card they don\'t own', async() => {
+		const db = authedApp(genericAuth);
+		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
+		await firebase.assertFails(update.delete());
+	});
+
+	it('allows users to delete updates from a card they own', async() => {
+		const db = authedApp(bobAuth);
+		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
+		await firebase.assertSucceeds(update.delete());
+	});
+
 });
