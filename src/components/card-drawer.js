@@ -95,6 +95,11 @@ class CardDrawer extends connect(store)(LitElement) {
 					font-size:0.7em;
 				}
 
+				#count {
+					text-align: center;
+					margin: 0;
+				}
+
 				.spacer {
 					/* Big drop target, but no change in layout */
 					height:4em;
@@ -201,6 +206,7 @@ class CardDrawer extends connect(store)(LitElement) {
 			</style>
 			<div ?hidden='${!this.showing}' class='container ${this._dragging ? 'dragging' : ''}${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
 				<div class='scrolling'>
+				<div class='label' id='count'><span><strong>${this.collection.length}</strong> cards</span></div>
 				${repeat(this.collection, (i) => i.id, (i, index) => html`
 					<div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
 					${this.labels && this.labels[index] ? html`<div class='label'><span>${this.labelName} <strong>${this.labels[index]}</strong></span></div>` : html``}
