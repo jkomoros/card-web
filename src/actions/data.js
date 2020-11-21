@@ -77,6 +77,7 @@ import {
 	selectIsEditing,
 	selectActiveCardId,
 	getReasonUserMayNotDeleteCard,
+	selectExpectedDeletions,
 } from '../selectors.js';
 
 import {
@@ -1208,10 +1209,35 @@ export const updateCards = (cards, unpublished) => (dispatch) => {
 //when it fires.
 const REMOVE_CARDS_TIMEOUT = 3000;
 
-export const removeCards = (cardIDs, unpublished) => (dispatch) => {
-	setTimeout(() => {
-		dispatch(actuallyRemoveCards(cardIDs, unpublished));
-	}, REMOVE_CARDS_TIMEOUT);
+export const removeCards = (cardIDs, unpublished) => (dispatch, getState) => {
+
+	//cards that we expected to be deleted won't show up in the other query
+	//ever, so we don't have to wait for the timeout and can delete them now.
+	//cards that we weren't told were going to be deleted might show up in the
+	//other collection, so wait.
+
+	let expectedDeletions = selectExpectedDeletions(getState());
+
+	let nonDeletions = [];
+	let deletions = [];
+
+	for (let id of cardIDs) {
+		if (expectedDeletions[id]) {
+			deletions.push(id);
+		} else {
+			nonDeletions.push(id);
+		}
+	}
+
+	if (deletions.length) {
+		dispatch(actuallyRemoveCards(deletions, unpublished));
+	}
+
+	if (nonDeletions.length) {
+		setTimeout(() => {
+			dispatch(actuallyRemoveCards(nonDeletions, unpublished));
+		}, REMOVE_CARDS_TIMEOUT);
+	}
 };
 
 //actuallyRemoveCards is the meat of removeCards. It goes through and issues a

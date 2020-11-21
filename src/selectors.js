@@ -99,6 +99,7 @@ export const selectFilters = (state) => state.collection.filters;
 const selectPendingFilters = (state) => state.collection.pendingFilters;
 export const selectSections = (state) => state.data ? state.data.sections : {};
 export const selectTags = (state) => state.data ? state.data.tags : {};
+export const selectExpectedDeletions = (state) => state.data ? state.data.expectedDeletions : {};
 //All cards downloaded to client can be assumed to be OK to use in the rest of the pipeline.
 export const selectCards = (state) => state.data ? state.data.cards : {};
 export const selectPendingNewCardID = (state) => state.data ? state.data.pendingNewCardID : '';
