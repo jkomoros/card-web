@@ -40,8 +40,7 @@ import {
 } from './card_fields.js';
 
 import {
-	normalizedWords,
-	stemmedNormalizedWords,
+	PreparedQuery
 } from './nlp.js';
 
 import {
@@ -135,7 +134,7 @@ export const selectCtrlKeyPressed = (state) => state.app ? state.app.ctrlKeyPres
 //selectQuery is what you should use to update the UI with the literal query
 export const selectQuery = (state) => state.find.query;
 //activeQuery is the query that should be routed into the query pipeline.
-const selectActiveQuery = (state) => state.find.activeQuery;
+const selectActiveQueryText = (state) => state.find.activeQuery;
 export const selectFindCardTypeFilter = (state) => state.find ? state.find.cardTypeFilter : '';
 
 export const selectAuthPending = (state) => state.user ? state.user.pending : false;
@@ -1164,156 +1163,10 @@ export const selectBodyCardTypes = createSelector(
 	(filters) => Object.keys(BODY_CARD_TYPES).filter(cardType => Object.keys(filters[cardType] || {}).length > 0)
 );
 
-const SIMPLE_FILTER_REWRITES = ['is:', 'section:', 'tag:'];
-const HAS_FILTER_PREFIX = 'has:';
-
-//rewriteQueryFilters rewrites things like 'has:comments` to `filter:has-comments`
-const rewriteQueryFilters = (query) => {
-	let result = [];
-	for (let word of query.split(' ')) {
-		for (let prefix of SIMPLE_FILTER_REWRITES) {
-			if (word.toLowerCase().startsWith(prefix)) {
-				word = FILTER_PREFIX + word.slice(prefix.length);
-			}
-		}
-		//Replace 'has:'. Things like 'has:comments' expand to
-		//'filter:has-comments', whereas things like 'has:no-comments' expand to
-		//'filter:no-comments'.
-		if (word.toLowerCase().startsWith(HAS_FILTER_PREFIX)) {
-			let rest = word.slice(HAS_FILTER_PREFIX.length);
-			if (!rest.toLowerCase().startsWith('no-')) {
-				rest = 'has-' + rest;
-			}
-			word = FILTER_PREFIX + rest;
-		}
-		result.push(word);
-	}
-	return result.join(' ');
-};
-
 const selectPreparedQuery = createSelector(
-	selectActiveQuery,
-	(query) => {
-		if (!query) {
-			return {
-				text: {},
-				words: [],
-				filters: [],
-			};
-		}
-		let [words, filters] = queryWordsAndFilters(rewriteQueryFilters(query));
-		return {
-			text: textSubQueryForWords(words),
-			words: words,
-			filters,
-		};
-	}
+	selectActiveQueryText,
+	(queryText) => new PreparedQuery(queryText)
 );
-
-const textSubQueryForWords = (words) => {
-	return Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).map(entry => [entry[0], textPropertySubQueryForWords(words, entry[1].matchWeight)]));
-};
-
-const STOP_WORDS = {
-	'a' : true,
-	'an' : true,
-	'the' : true,
-	'in' : true,
-	'is' : true,
-};
-
-const textPropertySubQueryForWords = (words, startValue) => {
-	const joinedWords = words.join(' ');
-
-	//The format of the return value is a list of items that could match. For
-	//each item, the first item is an array of strings, all of which have to
-	//independently match; if they do, the second item score is added to the
-	//running score for the card, and the third item is whether if it matches
-	//this clause it should be considered a full match.
-
-	//Full exact matches are the best, but if you have all of the sub-words,
-	//that's good too, just less good.
-	let result = [[[joinedWords], startValue, true]];
-
-	if (words.length > 1) {
-		result.push([words, startValue / 2, true]);
-
-		//Also return partial matches, but at a much lower rate.
-		for (let word of words) {
-			if (STOP_WORDS[word]) continue;
-			//Words that are longer should count for more (as a crude proxy for how
-			//rare they are).
-			result.push([[word], startValue / 8 * Math.log10(word.length), false]);
-		}
-	}
-
-	return result;
-};
-
-const stringPropertyScoreForStringSubQuery = (propertyValue, preparedSubquery) => {
-	const value = propertyValue.toLowerCase();
-	let result = 0.0;
-	let fullMatch = false;
-	for (let item of preparedSubquery) {
-		//strings is a list of strings that all must match independently
-		const strings = item[0];
-		if (strings.every(str => value.indexOf(str) >= 0)) {
-			result += item[1];
-			if (!fullMatch && item[2]) fullMatch = true;
-		}
-	}
-	return [result, fullMatch];
-};
-
-const cardScoreForQuery = (card, preparedQuery) => {
-	if (!card) return [0.0, false];
-	let score = 0.0;
-	let fullMatch = false;
-
-	for (let key of Object.keys(TEXT_FIELD_CONFIGURATION)) {
-		const propertySubQuery = preparedQuery.text[key];
-		if(!propertySubQuery || !card.normalized[key]) continue;
-		const [propertyScore, propertyFullMatch] = stringPropertyScoreForStringSubQuery(card.normalized[key], propertySubQuery);
-		score += propertyScore;
-		if (!fullMatch && propertyFullMatch) fullMatch = true;
-	}
-
-	//Give a boost to cards that have more inbound cards, implying they're more
-	//important cards.
-	let inboundLinks = references(card).inboundSubstantiveArray();
-	if (inboundLinks.length > 0) {
-		//Tweak the score, but only by a very tiny amount. Once the 'juice' is
-		//not just the count of inbound-links, but the transitive count, then
-		//this can be bigger.
-		score *= 1.0 + (inboundLinks.length * 0.02);
-	}
-
-	return [score, fullMatch];
-};
-
-const FILTER_PREFIX = 'filter:';
-
-const filterForWord = (word) => {
-	if (word.indexOf(FILTER_PREFIX) < 0) return '';
-	return word.split(FILTER_PREFIX).join('');
-};
-
-//extracts the raw, non filter words from a query, then also the filters.
-const queryWordsAndFilters = (queryString) => {
-	let words = [];
-	let filters = [];
-	for (let word of normalizedWords(queryString)) {
-		if (!word) continue;
-		let filter = filterForWord(word);
-		if (filter) {
-			filters.push(filter);
-		} else {
-			words.push(word);
-		}
-	}
-	const stemmedWords = stemmedNormalizedWords(words.join(' '));
-	return [stemmedWords, filters];
-};
 
 const selectCollectionDescriptionForQuery = createSelector(
 	selectPreparedQuery,
@@ -1337,7 +1190,7 @@ const selectRankedItemsForQuery = createSelector(
 	selectCollectionForQuery,
 	selectPreparedQuery,
 	(collection, preparedQuery) => collection.filteredCards.map(card => {
-		const [score, fullMatch] = cardScoreForQuery(card, preparedQuery);
+		const [score, fullMatch] = preparedQuery.cardScore(card);
 		return {
 			card: card,
 			score: score,
