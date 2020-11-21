@@ -8,7 +8,7 @@ import {
 	references,
 } from './card_fields.js';
 
-export const normalizedWords = (str) => {
+const normalizedWords = (str) => {
 	if (!str) str = '';
 
 	//Pretend like em-dashes are just spaces
@@ -37,7 +37,7 @@ const memorizedStemmer = (word) => {
 };
 
 //A more aggressive form of normalization
-export const stemmedNormalizedWords = (str) => {
+const stemmedNormalizedWords = (str) => {
 	//Assumes the words are already run through nomralizedWords
 
 	const splitWords = str.split(' ');
