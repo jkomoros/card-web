@@ -363,6 +363,7 @@ export const normalizedWords = (str) => {
 	//Pretend like em-dashes are just spaces
 	str = str.split('--').join(' ');
 	str = str.split('&emdash;').join(' ');
+	str = str.split('-').join(' ');
 
 	const splitWords = str.toLowerCase().split(/\s+/);
 	let result = [];
@@ -388,10 +389,7 @@ const memorizedStemmer = (word) => {
 export const stemmedNormalizedWords = (str) => {
 	//Assumes the words are already run through nomralizedWords
 
-	//We split the words the same way in destemmedWordMap. We have to split
-	//within here due to complex logic about where '-' is treated as a word
-	//split and where it isnt in queries.
-	const splitWords = str.split('-').join(' ').split(' ');
+	const splitWords = str.split(' ');
 	let result = [];
 	for (let word of splitWords) {
 		result.push(memorizedStemmer(word));
@@ -446,8 +444,7 @@ export const destemmedWordMap = (card) => {
 	const content = extractContentWords(card);
 	const counts = {};
 	for (let str of Object.values(content)) {
-		//We split the words the same way in stemmedNormalizedWords.
-		const words = str.split('-').join(' ').split(' ');
+		const words = str.split(' ');
 		for (let word of words) {
 			const stemmedWord = memorizedStemmer(word);
 			if (!counts[stemmedWord]) counts[stemmedWord] = {};
