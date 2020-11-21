@@ -28,7 +28,7 @@ const normalizedWords = (str) => {
 		if (!word) continue;
 		result.push(word);
 	}
-	return result;
+	return result.join(' ');
 };
 
 let memoizedStemmedWords = {};
@@ -49,7 +49,7 @@ const stemmedNormalizedWords = (str) => {
 	for (let word of splitWords) {
 		result.push(memorizedStemmer(word));
 	}
-	return result;
+	return result.join(' ');
 };
 
 const innerTextForHTML = (body) => {
@@ -85,8 +85,7 @@ const extractContentWords = (card) => {
 		if (!DERIVED_FIELDS_FOR_CARD_TYPE[cardType][fieldName]) {
 			const fieldValue = extractFieldValueForIndexing(card[fieldName]);
 			const content = config.html ? innerTextForHTML(fieldValue) : fieldValue;
-			const words = normalizedWords(content);
-			value = words.join(' ');
+			value = normalizedWords(content);
 		}
 		obj[fieldName] = value;
 	}
@@ -125,17 +124,15 @@ export const destemmedWordMap = (card) => {
 //fingerprints work over. It sets them on the same card object sent.
 export const cardSetNormalizedTextProperties = (card) => {
 	//Basically it takes the output of extractContentWords and then stems them.
-	card.normalized = Object.fromEntries(Object.entries(extractContentWords(card)).map(entry => [entry[0], stemmedNormalizedWords(entry[1]).join(' ')]));
+	card.normalized = Object.fromEntries(Object.entries(extractContentWords(card)).map(entry => [entry[0], stemmedNormalizedWords(entry[1])]));
 };
 export class PreparedQuery {
 	constructor(queryText) {
 		this.text = {};
-		this.words = [];
 		this.filters = [];
 		if (!queryText) return;
 		let [words, filters] = queryWordsAndFilters(rewriteQueryFilters(queryText));
 		this.text = textSubQueryForWords(words);
-		this.words = words;
 		this.filters = filters;
 	}
 
@@ -205,8 +202,8 @@ const STOP_WORDS = {
 	'is' : true,
 };
 
-const textPropertySubQueryForWords = (words, startValue) => {
-	const joinedWords = words.join(' ');
+const textPropertySubQueryForWords = (joinedWords, startValue) => {
+	const words = joinedWords.split(' ');
 
 	//The format of the return value is a list of items that could match. For
 	//each item, the first item is an array of strings, all of which have to
@@ -268,6 +265,6 @@ const queryWordsAndFilters = (queryString) => {
 			words.push(word);
 		}
 	}
-	const stemmedWords = stemmedNormalizedWords(normalizedWords(words.join(' ')).join(' '));
+	const stemmedWords = stemmedNormalizedWords(normalizedWords(words.join(' ')));
 	return [stemmedWords, filters];
 };
