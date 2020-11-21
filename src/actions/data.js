@@ -3,6 +3,7 @@ export const UPDATE_SECTIONS = 'UPDATE_SECTIONS';
 export const UPDATE_TAGS = 'UPDATE_TAGS';
 export const UPDATE_AUTHORS= 'UPDATE_AUTHORS';
 export const UPDATE_TWEETS = 'UPDATE_TWEETS';
+export const REMOVE_CARDS = 'REMOVE_CARDS';
 export const TWEETS_LOADING = 'TWEETS_LOADING';
 export const MODIFY_CARD = 'MODIFY_CARD';
 export const MODIFY_CARD_SUCCESS = 'MODIFY_CARD_SUCCESS';
@@ -64,6 +65,7 @@ import {
 	selectUser,
 	selectUserIsAdmin,
 	selectFilters,
+	selectCards,
 	selectDataIsFullyLoaded,
 	getUserMayEditCard,
 	selectLastSectionID,
@@ -1192,6 +1194,49 @@ export const updateCards = (cards, unpublished) => (dispatch) => {
 		unpublished
 	});
 	dispatch(refreshCardSelector(false));
+};
+
+//This number is used in removeCards. it should be large enough that the race
+//between queries for published and unpublished cards should have resolved by
+//when it fires.
+const REMOVE_CARDS_TIMEOUT = 3000;
+
+export const removeCards = (cardIDs, unpublished) => (dispatch) => {
+	setTimeout(() => {
+		dispatch(actuallyRemoveCards(cardIDs, unpublished));
+	}, REMOVE_CARDS_TIMEOUT);
+};
+
+//actuallyRemoveCards is the meat of removeCards. It goes through and issues a
+//REMOVE_CARDS order for any card whose published property equals the opposite
+//of unpublished. Notiobally the logic is: there are two types of live card
+//queries: one for published and possibly one for unpublished cards. A given
+//card might be removed from either set... but in certain cases it might have
+//popped IN in the ohter set (e.g. if the published property was changed). We
+//avoid the race between it popping out and then popping in by waiting for
+//REMOVE_CARDS_TIMEOUT. By the time this fires, the card will have been
+//overwritten with whatever the most recent version of the data is from the
+//database, either the published or unpublished variety. The unpublished
+//parameter says: "The unpublished query wants you to remove this card". If the
+//card in the state wasn't put there by the unpublished side when this runs,
+//then it shouldn't be removed, because a more recent copy was put there by the
+//published side.
+const actuallyRemoveCards = (cardIDs, unpublished) => (dispatch, getState) => {
+
+	const published = !unpublished;
+	const cards = selectCards(getState());
+
+	const filteredCardIDs = cardIDs.filter(id => cards[id] ? cards[id].published == published : false);
+
+	//If a card just had its published property changed (meaning it popped from
+	//the unpublished to published collection or vice versa), then this would be
+	//empty, and no more work is necessary.
+	if (!filteredCardIDs.length) return;
+
+	dispatch({
+		type: REMOVE_CARDS,
+		cardIDs: filteredCardIDs,
+	});
 };
 
 export const fetchTweets = (card) => async (dispatch) => {

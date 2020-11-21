@@ -8,6 +8,7 @@ import {
 	UPDATE_SECTIONS,
 	UPDATE_CARDS,
 	UPDATE_TAGS,
+	REMOVE_CARDS,
 } from '../actions/data.js';
 
 import {
@@ -67,6 +68,8 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			pendingFilters: {...state.pendingFilters, ...makeFilterFromCards(action.cards, state.pendingFilters)}
 		};
+	case REMOVE_CARDS:
+		return removeCardIDsFromSubState(action.cardIDs, state);
 	case UPDATE_STARS:
 		return {
 			...state,
@@ -125,6 +128,35 @@ const makeFilterFromCards = (cards, previousFilters) => {
 		result[filterName] = setUnion(setRemove(previousFilters[filterName], newNonMatchingCards), newMatchingCards);
 	}
 	return result;
+};
+
+//Returns a subState where cardIDs are removed from pendingFilters. If no
+//changes are to be made, returns subState, otherwise it returns a modified
+//copy.
+const removeCardIDsFromSubState = (cardIDs, subState) => {
+	let newPendingFilters = {...subState.pendingFilters};
+	let changesMade = false;
+	for (let [filterName, filter] of Object.entries(newPendingFilters)) {
+		let newFilter = removeCardIDsFromFilter(cardIDs, filter);
+		if (newFilter === filter) continue;
+		newPendingFilters[filterName] = newFilter;
+		changesMade = true;
+	}
+
+	return changesMade ? {...subState, pendingFilters: newPendingFilters} : subState;
+};
+
+//Returns a filter (cardID -> true) that contains none of the cardIDs. IF no
+//changes are made, returns the filter.
+const removeCardIDsFromFilter = (cardIDs, filter) => {
+	const newFilter = {...filter};
+	let changesMade = false;
+	for (let id of cardIDs) {
+		if (!newFilter[id]) continue;
+		delete newFilter[id];
+		changesMade = true;
+	}
+	return changesMade ? newFilter : filter;
 };
 
 export default app;

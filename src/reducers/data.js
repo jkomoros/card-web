@@ -4,6 +4,7 @@ import {
 	UPDATE_TAGS,
 	UPDATE_AUTHORS,
 	UPDATE_TWEETS,
+	REMOVE_CARDS,
 	TWEETS_LOADING,
 	MODIFY_CARD,
 	MODIFY_CARD_SUCCESS,
@@ -69,6 +70,8 @@ const app = (state = INITIAL_STATE, action) => {
 			result.publishedCardsLoaded = true;
 		}
 		return result;
+	case REMOVE_CARDS:
+		return removeCardIDs(action.cardIDs, state);
 	case UPDATE_SECTIONS:
 		return {
 			...state,
@@ -122,6 +125,27 @@ const app = (state = INITIAL_STATE, action) => {
 	default:
 		return state;
 	}
+};
+
+//Returns a data subState that doesn't have the given cardIDs. If no
+//modifications need to be made, it simply return subState, otherwise it will
+//return a copy. cardIDs is an array of cardIDs to remove
+const removeCardIDs = (cardIDs, subState) => {
+	let newCards = {...subState.cards};
+	let newSlugIndex = {...subState.slugIndex};
+	let changesMade = false;
+	for (let id of cardIDs) {
+		if (!newCards[id]) continue;
+		const cardToDelete = newCards[id];
+		delete newCards[id];
+		let slugs = cardToDelete.slugs || [];
+		for (let slug of slugs) {
+			delete newSlugIndex[slug];
+		}
+		changesMade = true;
+	}
+	if (!changesMade) return subState;
+	return {...subState, cards: newCards, slugIndex: newSlugIndex};
 };
 
 const extractSlugIndex = cards => {
