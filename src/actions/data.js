@@ -12,6 +12,7 @@ export const REORDER_STATUS = 'REORDER_STATUS';
 export const SET_PENDING_SLUG = 'SET_PENDING_SLUG';
 export const EXPECT_NEW_CARD = 'EXPECT_NEW_CARD';
 export const NAVIGATED_TO_NEW_CARD = 'NAVIGATED_TO_NEW_CARD';
+export const EXPECT_CARD_DELETIONS = 'EXPECT_CARD_DELETIONS';
 
 import {
 	slugLegal,
@@ -1072,7 +1073,15 @@ export const deleteCard = (card) => async (dispatch, getState) => {
 		batch.delete(update.ref);
 	}
 	batch.delete(ref);
-	await batch.commit();
+	batch.commit();
+
+	//Tell the system to expect those cards to be deleted.
+	dispatch({
+		type: EXPECT_CARD_DELETIONS,
+		cards: {
+			[card.id]: true,
+		}
+	});
 
 	//The card update will lead to removeCards being called later
 

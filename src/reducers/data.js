@@ -11,7 +11,8 @@ import {
 	MODIFY_CARD_FAILURE,
 	REORDER_STATUS,
 	EXPECT_NEW_CARD,
-	NAVIGATED_TO_NEW_CARD
+	NAVIGATED_TO_NEW_CARD,
+	EXPECT_CARD_DELETIONS,
 } from '../actions/data.js';
 
 const INITIAL_STATE = {
@@ -20,6 +21,9 @@ const INITIAL_STATE = {
 	sections: {},
 	tags: {},
 	slugIndex: {},
+	//a map of cardID -> true for cards that we expect to be deleted imminently,
+	//since we just issued a deletion command to the datastore.
+	expectedDeletions: {},
 	//true while we're loading tweets for the current card
 	tweetsLoading: false,
 	//We only fetch tweets for cards that we have already viewed.
@@ -72,6 +76,11 @@ const app = (state = INITIAL_STATE, action) => {
 		return result;
 	case REMOVE_CARDS:
 		return removeCardIDs(action.cardIDs, state);
+	case EXPECT_CARD_DELETIONS:
+		return {
+			...state,
+			expectedDeletions: {...state.expectedDeletions, ...action.cards}
+		};
 	case UPDATE_SECTIONS:
 		return {
 			...state,
@@ -133,11 +142,13 @@ const app = (state = INITIAL_STATE, action) => {
 const removeCardIDs = (cardIDs, subState) => {
 	let newCards = {...subState.cards};
 	let newSlugIndex = {...subState.slugIndex};
+	let newExpectedDeletions = {...subState.expectedDeletions};
 	let changesMade = false;
 	for (let id of cardIDs) {
 		if (!newCards[id]) continue;
 		const cardToDelete = newCards[id];
 		delete newCards[id];
+		if(newExpectedDeletions[id]) delete newExpectedDeletions[id];
 		let slugs = cardToDelete.slugs || [];
 		for (let slug of slugs) {
 			delete newSlugIndex[slug];
@@ -145,7 +156,7 @@ const removeCardIDs = (cardIDs, subState) => {
 		changesMade = true;
 	}
 	if (!changesMade) return subState;
-	return {...subState, cards: newCards, slugIndex: newSlugIndex};
+	return {...subState, cards: newCards, slugIndex: newSlugIndex, expectedDeletions: newExpectedDeletions};
 };
 
 const extractSlugIndex = cards => {
