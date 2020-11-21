@@ -43,9 +43,12 @@ import {
 } from '../util.js';
 
 import {
-	cardSetNormalizedTextProperties,
 	references,
 } from '../card_fields.js';
+
+import {
+	cardSetNormalizedTextProperties
+} from '../nlp.js';
 
 import {
 	PERMISSION_EDIT_CARD

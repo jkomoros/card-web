@@ -36,10 +36,13 @@ import {
 import {
 	BODY_CARD_TYPES,
 	TEXT_FIELD_CONFIGURATION,
-	normalizedWords,
-	stemmedNormalizedWords,
 	references
 } from './card_fields.js';
+
+import {
+	normalizedWords,
+	stemmedNormalizedWords,
+} from './nlp.js';
 
 import {
 	COMPOSED_USER_TYPE_ALL_PERMISSIONS,

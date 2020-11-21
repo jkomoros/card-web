@@ -32,7 +32,7 @@ import {
 
 import {
 	cardSetNormalizedTextProperties
-} from '../card_fields.js';
+} from '../nlp.js';
 
 import {
 	selectUserMayViewApp

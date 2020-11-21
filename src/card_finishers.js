@@ -1,8 +1,11 @@
 import {
-	CARD_TYPE_WORKING_NOTES,
+	CARD_TYPE_WORKING_NOTES
+} from './card_fields.js';
+
+import {
 	cardSetNormalizedTextProperties,
 	destemmedWordMap
-} from './card_fields.js';
+} from './nlp.js';
 
 import {
 	getSemanticFingerprintForCard
