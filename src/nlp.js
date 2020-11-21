@@ -8,6 +8,10 @@ import {
 	references,
 } from './card_fields.js';
 
+const lowercaseSplitWords = (str) => {
+	return str.toLowerCase().split(/\s+/);
+};
+
 const normalizedWords = (str) => {
 	if (!str) str = '';
 
@@ -16,7 +20,7 @@ const normalizedWords = (str) => {
 	str = str.split('&emdash;').join(' ');
 	str = str.split('-').join(' ');
 
-	const splitWords = str.toLowerCase().split(/\s+/);
+	const splitWords = lowercaseSplitWords(str);
 	let result = [];
 	for (let word of splitWords) {
 		word = word.replace(/^\W*/, '');
@@ -255,7 +259,7 @@ const filterForWord = (word) => {
 const queryWordsAndFilters = (queryString) => {
 	let words = [];
 	let filters = [];
-	for (let word of normalizedWords(queryString)) {
+	for (let word of lowercaseSplitWords(queryString)) {
 		if (!word) continue;
 		let filter = filterForWord(word);
 		if (filter) {
@@ -264,6 +268,6 @@ const queryWordsAndFilters = (queryString) => {
 			words.push(word);
 		}
 	}
-	const stemmedWords = stemmedNormalizedWords(words.join(' '));
+	const stemmedWords = stemmedNormalizedWords(normalizedWords(words.join(' ')).join(' '));
 	return [stemmedWords, filters];
 };
