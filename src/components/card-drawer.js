@@ -95,6 +95,10 @@ class CardDrawer extends connect(store)(LitElement) {
 					font-size:0.7em;
 				}
 
+				.grid #count {
+					width: 100%;
+				}
+
 				#count {
 					text-align: center;
 					margin: 0;
