@@ -1244,13 +1244,7 @@ const textPropertySubQueryForWords = (words, startValue) => {
 		}
 	}
 
-	const wordsWithoutDashes = words.map(word => word.split('-').join(' '));
-	const joinedWordsWithoutDashes = wordsWithoutDashes.join(' ');
-
-	//If there were no dashes inside any words, we're done.
-	if (joinedWordsWithoutDashes == joinedWords) return result;
-	//If not, then also add in the words without dashes, but have them be worth just a little bit less. This will allow [hill-climbing] to match [hill climbing]
-	return [...result, ...textPropertySubQueryForWords(wordsWithoutDashes, startValue * 0.75)];
+	return result;
 };
 
 const stringPropertyScoreForStringSubQuery = (propertyValue, preparedSubquery) => {
