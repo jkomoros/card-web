@@ -12,6 +12,7 @@ import {
 	updateSections,
 	updateAuthors,
 	updateTags,
+	removeCards,
 } from './data.js';
 
 import {
@@ -257,9 +258,13 @@ const cardSnapshotReceiver = (unpublished) =>{
 	
 	return (snapshot) => {
 		let cards = {};
+		let cardIDsToRemove = [];
 
 		snapshot.docChanges().forEach(change => {
-			if (change.type === 'removed') return;
+			if (change.type === 'removed') {
+				cardIDsToRemove.push(change.doc.id);
+				return;
+			}
 			let doc = change.doc;
 			let id = doc.id;
 			//Ensure that timestamps are never null. If this isn't set, then
@@ -275,6 +280,7 @@ const cardSnapshotReceiver = (unpublished) =>{
 		});
 
 		store.dispatch(updateCards(cards, unpublished));
+		if (cardIDsToRemove.length) store.dispatch(removeCards(cardIDsToRemove, unpublished));
 	};
 
 };
