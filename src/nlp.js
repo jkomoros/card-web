@@ -306,7 +306,6 @@ const wordCountsForSemantics = (str) => {
 	return cardMap;
 };
 
-
 const semanticFingerprint = (tfidf) => {
 	//Pick the keys for the items with the highest tfidf (the most important and specific to that card)
 	let keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, SEMANTIC_FINGERPRINT_SIZE);
@@ -317,7 +316,6 @@ export class FingerprintGenerator {
 	constructor(cards) {
 
 		this._idfMap = {};
-		this._tfidfMap = {};
 		this._fingerprints = {};
 
 		if (!cards || Object.keys(cards).length == 0) return;
@@ -351,18 +349,12 @@ export class FingerprintGenerator {
 		//This is useful often so stash it
 		this._idfMap = idf;
 
-		//tfidf is an object with each cardID, pointing to the word
-		//=> TF-IDF. See https://en.wikipedia.org/wiki/Tf%E2%80%93idf for more on
-		//TF-IDF. 
-		const tfidfMap = {};
-		for (const [cardID, cardWordCount] of Object.entries(cardWordCounts)) {
-			tfidfMap[cardID] = this._cardTFIDF(cardWordCount, idf);
-		}
-		this._tfidfMap = tfidfMap;
-
 		//A map of cardID to the semantic fingerprint for that card.
 		const fingerprints = {};
-		for (const [cardID, tfidf] of Object.entries(tfidfMap)) {
+		for (const [cardID, cardWordCount] of Object.entries(cardWordCounts)) {
+			//See https://en.wikipedia.org/wiki/Tf%E2%80%93idf for more on
+			//TF-IDF.
+			const tfidf = this._cardTFIDF(cardWordCount);
 			fingerprints[cardID] = semanticFingerprint(tfidf);
 		}
 		this._fingerprints = fingerprints;
