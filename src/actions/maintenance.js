@@ -331,6 +331,40 @@ const updateFontSizeBoost = async () => {
 	console.log('done');
 };
 
+const CONVERT_MULTI_LINKS_DELIMITER = 'convert-multi-links-delimiter';
+
+const convertMultiLinksDelimiter = async () => {
+	await checkMaintenanceTaskHasBeenRun(CONVERT_MULTI_LINKS_DELIMITER);
+
+	const OLD_MULTI_LINK_DELIMITER = ' || ';
+
+	let batch = new MultiBatch(db);
+	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	snapshot.forEach(doc => {
+		let card = doc.data();
+		let update = {};
+
+		let referencesInfo = card[REFERENCES_INFO_CARD_PROPERTY];
+		for (let [otherCardID, referenceMap] of Object.entries(referencesInfo)) {
+			for (let [referenceType, value] of Object.entries(referenceMap)) {
+				if (value.includes(OLD_MULTI_LINK_DELIMITER)) {
+					value = value.split(OLD_MULTI_LINK_DELIMITER).join('\n');
+					update[REFERENCES_INFO_CARD_PROPERTY + '.' + otherCardID + '.' + referenceType] = value;
+				}
+			}
+		}
+
+		if (Object.keys(update).length == 0) return;
+		console.log('Updating doc: ', doc.id, update);
+		batch.update(doc.ref, update);
+	});
+
+	await batch.commit();
+
+	await maintenanceTaskRun(CONVERT_MULTI_LINKS_DELIMITER);
+	console.log('done');
+};
+
 //tasks that don't require maintenance mode to be enabled are registered here
 export const tasks = {
 	[NORMALIZE_CONTENT_BODY]: normalizeContentBody,
@@ -338,6 +372,7 @@ export const tasks = {
 	[SKIPPED_LINKS_TO_ACK_REFERENCES]: skippedLinksToAckReferences,
 	[ADD_FONT_SIZE_BOOST]: addFontSizeBoost,
 	[UPDATE_FONT_SIZE_BOOST]: updateFontSizeBoost,
+	[CONVERT_MULTI_LINKS_DELIMITER]: convertMultiLinksDelimiter,
 };
 
 //Tasks that do require maintenance mode are registered here. These are

@@ -198,7 +198,7 @@ export const cardNeedsReciprocalLinkTo = (card, other) => {
 //expandCardCollection should be used any time we have a list of IDs of cards and a bundle of cards to expand.
 export const expandCardCollection = (collection, cards) => collection.map(id => cards[id] || null).filter(card => card ? true : false);
 
-const MULTIPLE_LINK_TEXT_DELIMITER = ' || ';
+const MULTIPLE_LINK_TEXT_DELIMITER = '\n';
 
 export const extractCardLinksFromBody = (body) => {
 	let ele = getDocument().createElement('section');
