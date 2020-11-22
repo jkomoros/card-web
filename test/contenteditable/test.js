@@ -1,8 +1,7 @@
 /*eslint-env node*/
 
-
 import {
-	JSDOM	
+	JSDOM
 } from 'jsdom';
 
 import {
