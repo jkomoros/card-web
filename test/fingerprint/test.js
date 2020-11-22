@@ -49,9 +49,7 @@ describe('fingerprint generation', () => {
 		const cards = baseCards();
 		const card = cards[CARD_ID_ONE];
 		const expectedNormalized = {
-			//This is not what we actually expect, but is due to innerText not
-			//being supported in jsdom.
-			'body': '',
+			'body': 'thi is the bodi of thi card seed crystal crystal gradient surf down them a lot',
 			'title': 'thi is the titl of thi card',
 			'subtitle': '',
 			'references_info_inbound': '',

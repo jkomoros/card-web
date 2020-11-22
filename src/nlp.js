@@ -62,7 +62,8 @@ const innerTextForHTML = (body) => {
 	//appended into the DOM
 	let ele = getDocument().createElement('section');
 	ele.innerHTML = body;
-	return ele.innerText;
+	//textContent would return things like style and script contents, but those shouldn't be included anyway.
+	return ele.textContent;
 };
 
 //Returns a string, where if it's an array or object (or any of their subkeys
