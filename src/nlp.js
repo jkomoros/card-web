@@ -53,8 +53,10 @@ const stemmedNormalizedWords = (str) => {
 };
 
 const innerTextForHTML = (body) => {
+	//This shouldn't be an XSS vulnerability even though body is supplied by
+	//users and thus untrusted, because the temporary element is never actually
+	//appended into the DOM
 	let ele = document.createElement('section');
-	//TODO: is there an XSS vulnerability here?
 	ele.innerHTML = body;
 	return ele.innerText;
 };
