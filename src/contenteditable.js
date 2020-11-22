@@ -3,13 +3,9 @@ import {
 	isWhitespace
 } from './util.js';
 
-let doc = typeof window !== 'undefined' && window.document ? window.document : null;
-
-//overrideDocument can be used to inject a document to use for use in e.g.
-//testing contexts. If  you don't call this then it will use window.document.
-export const overrideDocument = (overrideDoc) => {
-	doc = overrideDoc;
-};
+import {
+	getDocument
+} from './document.js';
 
 //We don't just use Node.ELEMENT_NODE and friends because this also runs in the
 //Node context for testing.
@@ -87,7 +83,7 @@ const normalizeBodyFromContentEditable = (html) => {
 	//This is the part where we do live-node fix-ups of stuff that
 	//contenteditable might have erroneously spewed in.
 
-	let section = doc.createElement('section');
+	let section = getDocument().createElement('section');
 	//TODO: catch syntax errors
 	section.innerHTML = html;
 
@@ -111,7 +107,7 @@ export const normalizeBodyToContentEditable = (html) => {
 	//This is the part where we do live-node fix-ups of stuff that
 	//contenteditable might have erroneously spewed in.
 
-	let section = doc.createElement('section');
+	let section = getDocument().createElement('section');
 	//TODO: catch syntax errors
 	section.innerHTML = html;
 
@@ -174,7 +170,7 @@ const cleanUpTopLevelHTML = (html, tag = 'p') => {
 	//Does deeper changes that require parsing.
 	//1) make sure all text in top is within a p tag.
 	//2) make sure that p elements don't have any line breaks inside.
-	let section = doc.createElement('section');
+	let section = getDocument().createElement('section');
 	section.innerHTML = html;
 	let children = section.childNodes;
 	let hoistNode = null;
@@ -182,7 +178,7 @@ const cleanUpTopLevelHTML = (html, tag = 'p') => {
 	for (let child of Object.values(children)) {
 		if (child.nodeType == TEXT_NODE) {
 			if (!hoistNode) {
-				hoistNode = doc.createElement(tag);
+				hoistNode = getDocument().createElement(tag);
 				child.replaceWith(hoistNode);
 			} else {
 				child.parentNode.removeChild(child);
@@ -199,7 +195,7 @@ const cleanUpTopLevelHTML = (html, tag = 'p') => {
 				continue;
 			}
 			if (!hoistNode) {
-				hoistNode = doc.createElement(tag);
+				hoistNode = getDocument().createElement(tag);
 				child.replaceWith(hoistNode);
 			} else {
 				child.parentNode.removeChild(child);

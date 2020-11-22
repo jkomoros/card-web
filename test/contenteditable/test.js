@@ -1,19 +1,23 @@
 /*eslint-env node*/
 
-import {
-	normalizeBodyHTML,
-	overrideDocument
-} from '../../src/contenteditable.js';
 
 import {
 	JSDOM	
 } from 'jsdom';
 
-import assert from 'assert';
+import {
+	overrideDocument
+} from '../../src/document.js';
 
 const dom = new JSDOM('');
 
 overrideDocument(dom.window.document);
+
+import {
+	normalizeBodyHTML,
+} from '../../src/contenteditable.js';
+
+import assert from 'assert';
 
 describe('content editable scrubbing', () => {
 	it('No op simple content', async () => {
