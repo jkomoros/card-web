@@ -62,7 +62,7 @@ describe('fingerprint generation', () => {
 				'references_info_inbound': '',
 			},
 			[CARD_ID_TWO]: {
-				'body': 'the cynefin model divid problem into four type each with differ properties.simpl trivial problem space that requir no special effort.compl knowabl hard intric and challeng but concret and black and white effici will requir a focu on the right process and structure.complex unknow hard goal method and even possibl next action ar unclear mean fundament differ approach ar required.chaot so unknow hard as to be inscrut imposs to control or predict bewar diagnos problem as chaotic becaus it’ effect give up.distinguish between complex and complic is the most import in practice.not on terminolog in the past i call what cynefin call complex ambigu and what it call complic complex i’v shift to us cynfefin’ terminolog consist',
+				'body': 'the cynefin model divid problem into four type each with differ properti simpl trivial problem space that requir no special effort complic knowabl hard intric and challeng but concret and black and white effici will requir a focu on the right process and structur complex unknow hard goal method and even possibl next action ar unclear mean fundament differ approach ar requir chaotic so unknow hard as to be inscrut imposs to control or predict bewar diagnos problem as chaotic becaus it’ effect give up distinguish between complex and complic is the most import in practic note on terminolog in the past i call what cynefin call complex ambigu and what it call complic complex i’v shift to us cynfefin’ terminolog consist',
 				'title': 'us the cynefin model to understand problem space',
 				'subtitle': '',
 				'references_info_inbound': '',
