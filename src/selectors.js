@@ -12,8 +12,6 @@ import { createSelector } from 'reselect';
 */
 
 import {
-	semanticOverlap,
-	SEMANTIC_FINGERPRINT_SIZE,
 	expandCardCollection
 } from './util.js';
 
@@ -35,12 +33,12 @@ import {
 
 import {
 	BODY_CARD_TYPES,
-	TEXT_FIELD_CONFIGURATION,
 	references
 } from './card_fields.js';
 
 import {
-	PreparedQuery
+	PreparedQuery,
+	FingerprintGenerator,
 } from './nlp.js';
 
 import {
@@ -466,116 +464,15 @@ const selectBodyCards = createSelector(
 	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => BODY_CARD_TYPES[entry[1].card_type]))
 );
 
-
-const wordCountsForSemantics = (str) => {
-	const words = str.split(' ');
-	const cardMap = {};
-	for (const word of words) {
-		if (!word) continue;
-		cardMap[word] = (cardMap[word] || 0) + 1;
-	}
-	return cardMap;
-};
-
-//selectCardWords returns a object that contains an object for each card id of
-//words to their count in that card. This uses all words htat could be searched
-//over, and is the input to the IDF calculation pipeline and others.
-const selectCardWords = createSelector(
+const selectFingerprintGenerator = createSelector(
 	selectBodyCards,
-	(cards) => {
-		let result = {};
-		for (const [key, card] of Object.entries(cards)) {
-			result[key] = wordCountsForSemantics(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => card.normalized[prop]).join(' '));
-		}
-		return result;
-	}
-);
-
-//selectCorpusWords returns a set of word => totalWordCount (how many times that
-//word occurs) for all words across all cards in corpus.
-const selectCorpusWords = createSelector(
-	selectCardWords,
-	(cardWords) => {
-		const wordMap = {};
-		for (const words of Object.values(cardWords)) {
-			for (const [word, count] of Object.entries(words)) {
-				wordMap[word] = (wordMap[word] || 0) + count;
-			}
-		}
-		return wordMap;
-	}
-);
-
-//selectIDF of every word in the corpus. See
-//https://en.wikipedia.org/wiki/Tf%E2%80%93idf
-const selectWordsIDF = createSelector(
-	selectCorpusWords,
-	selectBodyCards,
-	(words, cards) => {
-		const result = {};
-		const numCards = Object.keys(cards).length;
-		for (const [word, count] of Object.entries(words)) {
-			result[word] = Math.log10(numCards / (count + 1));
-		}
-		return result;
-	}
-);
-
-const cardWordsTFIDF = (wordCounts, idfMap) => {
-	const resultTFIDF = {};
-	const cardWordCount = Object.values(wordCounts).reduce((prev, curr) => prev + curr, 0);
-	for (const [word, count] of Object.entries(wordCounts)) {
-		resultTFIDF[word] = (count / cardWordCount) * idfMap[word];
-	}
-	return resultTFIDF;
-};
-
-//selectCardWordsTFIDF returns an object with each cardID, pointing to the word
-//=> TF-IDF. See https://en.wikipedia.org/wiki/Tf%E2%80%93idf for more on
-//TF-IDF. 
-const selectCardWordsTFIDF = createSelector(
-	selectWordsIDF,
-	selectCardWords,
-	(idf, cardWords) => {
-		const result = {};
-		for (const [cardID, wordCounts] of Object.entries(cardWords)) {
-			result[cardID] = cardWordsTFIDF(wordCounts, idf);
-		}
-		return result;
-	}
-);
-
-const semanticFingerprint = (tfidf) => {
-	//Pick the keys for the items with the highest tfidf (the most important and specific to that card)
-	let keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, SEMANTIC_FINGERPRINT_SIZE);
-	return new Map(keys.map(key => [key, tfidf[key]]));
-};
-
-//A map of cardID to the semantic fingerprint for that card.
-const selectCardsSemanticFingerprint = createSelector(
-	selectCardWordsTFIDF,
-	(tfidfMap) => {
-		const result = {};
-		for (const [cardID, tfidf] of Object.entries(tfidfMap)) {
-			result[cardID] = semanticFingerprint(tfidf);
-		}
-		return result;
-	}
+	(cards) => new FingerprintGenerator(cards)
 );
 
 //getSemanticFingerprintForCard operates on the actual cardObj passed, so it can
 //work for cards that have been modified.
 export const getSemanticFingerprintForCard = (state, cardObj) => {
-	return getSemanticFingerprintForCardFromIDFMap(selectWordsIDF(state), cardObj);
-};
-
-const getSemanticFingerprintForCardFromIDFMap = (idfMap, card) => {
-	if (!card || Object.keys(card).length == 0) return new Map();
-	const words = Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => card.normalized[prop]).join(' ');
-	const wordCounts = wordCountsForSemantics(words);
-	const tfidf = cardWordsTFIDF(wordCounts,idfMap);
-	const fingerprint = semanticFingerprint(tfidf);
-	return fingerprint;
+	return selectFingerprintGenerator(state).fingerprintForCardObj(cardObj);
 };
 
 //A map of tagID to the semantic fingerprint for that card. A tag's semantic
@@ -584,43 +481,21 @@ const getSemanticFingerprintForCardFromIDFMap = (idfMap, card) => {
 //directly to a given card's fingerprint.
 const selectTagsSemanticFingerprint = createSelector(
 	selectTags,
-	selectCardsSemanticFingerprint,
-	(tags, fingerprints) => {
+	selectFingerprintGenerator,
+	(tags, fingerprintGenerator) => {
 		if (!tags) return {};
 		let result = {};
 		for (const [tagID, tag] of Object.entries(tags)) {
-			let joinedMap = new Map();
-			for (const cardID of tag.cards) {
-				const fingerprint = fingerprints[cardID];
-				if (!fingerprint) continue;
-				for (const [word, idf] of fingerprint.entries()) {
-					joinedMap.set(word, (joinedMap.get(word) || 0) + idf);
-				}
-			}
-			const sortedKeys = [...joinedMap.keys()].sort((a, b) => joinedMap.get(b) - joinedMap.get(a)).slice(0, SEMANTIC_FINGERPRINT_SIZE);
-			result[tagID] = new Map(sortedKeys.map(key => [key, joinedMap.get(key)]));
+			result[tagID] = fingerprintGenerator.fingerprintForCardIDList(tag.cards);
 		}
 		return result;
 	}
 );
 
-//separating out cardFingerprint allows this to be used where fingerprints is
-//for a different set of things, e.g. tags.
-const getClosestSemanticOverlapItems = (fingerprints, cardID, cardFingerprint) => {
-	if (!fingerprints || !cardFingerprint) return new Map();
-	const overlaps = {};
-	for (const otherCardID of Object.keys(fingerprints)) {
-		if (otherCardID === cardID) continue;
-		overlaps[otherCardID] = semanticOverlap(cardFingerprint, fingerprints[otherCardID]);
-	}
-	const sortedCardIDs = Object.keys(overlaps).sort((a, b) => overlaps[b] - overlaps[a]);
-	return new Map(sortedCardIDs.map(id => [id, overlaps[id]]));
-};
-
 const selectEditingCardSemanticFingerprint = createSelector(
 	selectEditingCard,
-	selectWordsIDF,
-	(card, idfMap) => getSemanticFingerprintForCardFromIDFMap(idfMap, card)
+	selectFingerprintGenerator,
+	(card, fingerprintGenerator) => fingerprintGenerator.fingerprintForCardObj(card)
 );
 
 const NUM_SIMILAR_TAGS_TO_SHOW = 3;
@@ -635,7 +510,7 @@ export const selectEditingCardSuggestedTags = createSelector(
 	(card, cardFingerprint, tagFingerprints) => {
 		if (!card || Object.keys(card).length == 0) return [];
 		if (!tagFingerprints || tagFingerprints.size == 0) return [];
-		const closestTags = getClosestSemanticOverlapItems(tagFingerprints, card.id, cardFingerprint);
+		const closestTags = new FingerprintGenerator().closestOverlappingItems('', cardFingerprint, tagFingerprints);
 		if (closestTags.size == 0) return [];
 		const excludeIDs = new Set(card.tags);
 		let result = [];
@@ -659,16 +534,16 @@ const selectEditingOrActiveCard = createSelector(
 //Returns a map with the closest cards at the beginning.
 const selectActiveCardClosestSemanticOverlapCards = createSelector(
 	selectActiveCardId,
-	selectCardsSemanticFingerprint,
-	(cardID, fingerprints) => getClosestSemanticOverlapItems(fingerprints, cardID, fingerprints[cardID])
+	selectFingerprintGenerator,
+	(cardID, fingerprintGenerator) => fingerprintGenerator.closestOverlappingItems(cardID)
 );
 
 const selectEditingCardClosestSemanticOverlapCards = createSelector(
 	//the editing card is always the active card
 	selectActiveCardId,
 	selectEditingCardSemanticFingerprint,
-	selectCardsSemanticFingerprint,
-	(cardID, editingFingerprint, fingerprints) => getClosestSemanticOverlapItems(fingerprints, cardID, editingFingerprint)
+	selectFingerprintGenerator,
+	(cardID, editingFingerprint, fingerprintGenerator) => fingerprintGenerator.closestOverlappingItems(cardID,editingFingerprint)
 );
 
 const selectEditingOrActiveCardClosestSemanticOverlapCards = createSelector(

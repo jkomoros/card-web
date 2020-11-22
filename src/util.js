@@ -22,33 +22,6 @@ export const allSubstrings = (str) => {
 	return result;
 };
 
-//The max number of words to include in the semantic fingerprint
-export const SEMANTIC_FINGERPRINT_SIZE = 25;
-
-const SEMANTIC_FINGERPRINT_MATCH_CONSTANT = 1.0;
-
-//Returns the 'overlap' between two semantic fingerprints (which can be fetched
-//from e.g. selectCardsSemanticFingerprint). Higher nubmers are better. The
-//numbers may be any number greater than 0, and only have meaning when compared
-//to other numbers from this function.
-export const semanticOverlap = (fingerprintOne, fingerprintTwo) => {
-	if (!fingerprintOne) fingerprintOne = new Map();
-	if (!fingerprintTwo) fingerprintTwo = new Map();
-
-	let union = new Set([...fingerprintOne.keys(), ...fingerprintTwo.keys()]);
-	let intersection = new Map();
-	for (let key of union) {
-		if (fingerprintOne.has(key) && fingerprintTwo.has(key)) {
-			//If they match, add the tfidf for the two terms, plus a bonus
-			//constant for them having matched. This gives a big bonus for any
-			//match, but gives a higher score for better matches.
-			intersection.set(key, SEMANTIC_FINGERPRINT_MATCH_CONSTANT + fingerprintOne.get(key) + fingerprintTwo.get(key));
-		}
-	}
-	const total = [...intersection.values()].reduce((p, c) => p + c, 0);
-	return total;
-};
-
 export const hash = (str) => {
 	//Adapted from https://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript
 	let hash = 0, i, chr;

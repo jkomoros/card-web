@@ -268,3 +268,164 @@ const queryWordsAndFilters = (queryString) => {
 	const stemmedWords = stemmedNormalizedWords(normalizedWords(words.join(' ')));
 	return [stemmedWords, filters];
 };
+
+//The max number of words to include in the semantic fingerprint
+const SEMANTIC_FINGERPRINT_SIZE = 25;
+
+const SEMANTIC_FINGERPRINT_MATCH_CONSTANT = 1.0;
+
+//Returns the 'overlap' between two semantic fingerprints (which can be fetched
+//from e.g. selectCardsSemanticFingerprint). Higher nubmers are better. The
+//numbers may be any number greater than 0, and only have meaning when compared
+//to other numbers from this function.
+const semanticOverlap = (fingerprintOne, fingerprintTwo) => {
+	if (!fingerprintOne) fingerprintOne = new Map();
+	if (!fingerprintTwo) fingerprintTwo = new Map();
+
+	let union = new Set([...fingerprintOne.keys(), ...fingerprintTwo.keys()]);
+	let intersection = new Map();
+	for (let key of union) {
+		if (fingerprintOne.has(key) && fingerprintTwo.has(key)) {
+			//If they match, add the tfidf for the two terms, plus a bonus
+			//constant for them having matched. This gives a big bonus for any
+			//match, but gives a higher score for better matches.
+			intersection.set(key, SEMANTIC_FINGERPRINT_MATCH_CONSTANT + fingerprintOne.get(key) + fingerprintTwo.get(key));
+		}
+	}
+	const total = [...intersection.values()].reduce((p, c) => p + c, 0);
+	return total;
+};
+
+const wordCountsForSemantics = (str) => {
+	const words = str.split(' ');
+	const cardMap = {};
+	for (const word of words) {
+		if (!word) continue;
+		cardMap[word] = (cardMap[word] || 0) + 1;
+	}
+	return cardMap;
+};
+
+
+const semanticFingerprint = (tfidf) => {
+	//Pick the keys for the items with the highest tfidf (the most important and specific to that card)
+	let keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, SEMANTIC_FINGERPRINT_SIZE);
+	return new Map(keys.map(key => [key, tfidf[key]]));
+};
+
+export class FingerprintGenerator {
+	constructor(cards) {
+
+		this._idfMap = {};
+		this._tfidfMap = {};
+		this._fingerprints = {};
+
+		if (!cards || Object.keys(cards).length == 0) return;
+
+		const numCards = Object.keys(cards).length;
+
+		//cardWords is a object that contains an object for each card id of
+		//words to their count in that card. This uses all words htat could be
+		//searched over, and is the input to the IDF calculation pipeline and
+		//others.
+		let cardWordCounts = {};
+		for (const [key, cardObj] of Object.entries(cards)) {
+			cardWordCounts[key] = this._wordCountsForCardObj(cardObj);
+		}
+
+		//corpusWords is a set of word => totalWordCount (how many times that
+		//word occurs) for all words across all cards in corpus.
+		let corpusWords = {};
+		for (const words of Object.values(cardWordCounts)) {
+			for (const [word, count] of Object.entries(words)) {
+				corpusWords[word] = (corpusWords[word] || 0) + count;
+			}
+		}
+
+		//idf (inverse document frequency) of every word in the corpus. See
+		//https://en.wikipedia.org/wiki/Tf%E2%80%93idf
+		const idf = {};
+		for (const [word, count] of Object.entries(corpusWords)) {
+			idf[word] = Math.log10(numCards / (count + 1));
+		}
+		//This is useful often so stash it
+		this._idfMap = idf;
+
+		//tfidf is an object with each cardID, pointing to the word
+		//=> TF-IDF. See https://en.wikipedia.org/wiki/Tf%E2%80%93idf for more on
+		//TF-IDF. 
+		const tfidfMap = {};
+		for (const [cardID, cardWordCount] of Object.entries(cardWordCounts)) {
+			tfidfMap[cardID] = this._cardTFIDF(cardWordCount, idf);
+		}
+		this._tfidfMap = tfidfMap;
+
+		//A map of cardID to the semantic fingerprint for that card.
+		const fingerprints = {};
+		for (const [cardID, tfidf] of Object.entries(tfidfMap)) {
+			fingerprints[cardID] = semanticFingerprint(tfidf);
+		}
+		this._fingerprints = fingerprints;
+	}
+
+	_wordCountsForCardObj(cardObj) {
+		return wordCountsForSemantics(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => cardObj.normalized[prop]).join(' '));
+	}
+
+	_cardTFIDF(cardWordCounts) {
+		const resultTFIDF = {};
+		const cardWordCount = Object.values(cardWordCounts).reduce((prev, curr) => prev + curr, 0);
+		for (const [word, count] of Object.entries(cardWordCounts)) {
+			resultTFIDF[word] = (count / cardWordCount) * this._idfMap[word];
+		}
+		return resultTFIDF;
+	}
+
+	fingerprintForCardID(cardID) {
+		return this.fingerprints()[cardID];
+	}
+
+	fingerprintForCardObj(cardObj) {
+		if (!cardObj || Object.keys(cardObj).length == 0) return new Map();
+		const wordCounts = this._wordCountsForCardObj(cardObj);
+		const tfidf = this._cardTFIDF(wordCounts);
+		const fingerprint = semanticFingerprint(tfidf);
+		return fingerprint;
+	}
+
+	fingerprintForCardIDList(cardIDs) {
+		let joinedMap = new Map();
+		for (const cardID of cardIDs) {
+			const fingerprint = this.fingerprintForCardID(cardID);
+			if (!fingerprint) continue;
+			for (const [word, idf] of fingerprint.entries()) {
+				joinedMap.set(word, (joinedMap.get(word) || 0) + idf);
+			}
+		}
+		const sortedKeys = [...joinedMap.keys()].sort((a, b) => joinedMap.get(b) - joinedMap.get(a)).slice(0, SEMANTIC_FINGERPRINT_SIZE);
+		return new Map(sortedKeys.map(key => [key, joinedMap.get(key)]));
+	}
+
+	//returns a map of cardID => fingerprint for the cards that were provided to the constructor
+	fingerprints() {
+		return this._fingerprints;
+	}
+
+	//Returns a map sorted by how many other items match semantically, skipping ourselves.
+	//keyID - id of item that is self, so skip matching that item. May be null if optKeyFingerprint is not null.
+	//optKeyFingerprint - if not null, will use that for the key item's fingerprint instead of optFingerprintsToMatchOver[keyID]
+	//optFingerprintsToMatchOver - object mapping ID to fingerprint, the collection of things to match over. If empty, will use this.fingerprints()
+	closestOverlappingItems(keyID, optKeyFingerprint, optFingerprintsToMatchOver) {
+		const fingerprints = optFingerprintsToMatchOver || this.fingerprints();
+		const keyFingerprint = optKeyFingerprint || fingerprints[keyID];
+
+		if (!fingerprints || !keyFingerprint) return new Map();
+		const overlaps = {};
+		for (const otherID of Object.keys(fingerprints)) {
+			if (otherID === keyID) continue;
+			overlaps[otherID] = semanticOverlap(keyFingerprint, fingerprints[otherID]);
+		}
+		const sortedIDs = Object.keys(overlaps).sort((a, b) => overlaps[b] - overlaps[a]);
+		return new Map(sortedIDs.map(id => [id, overlaps[id]]));
+	}
+}
