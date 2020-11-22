@@ -23,6 +23,7 @@ import {
 import assert from 'assert';
 
 const CARD_ID_ONE = 'one';
+const CARD_ID_TWO = 'two';
 
 const baseCards = (extras) => {
 	if (!extras) extras = {};
@@ -32,6 +33,12 @@ const baseCards = (extras) => {
 			[CARD_ID_ONE]: {
 				'body': '<p>This is the body of this card.</p>\n<p>Seed crystals crystalize gradients <card-link card=\'two\'>surfing down</card-link> <strong>them</strong> a lot.</p>',
 				'title': 'This is the title of this card',
+			},
+			[CARD_ID_TWO]: {
+				//Note: this one does not include newlines after block elements
+				//Note: this is the content of card g487aed6370_0_25 from production
+				'body': '<p>The <card-link href="https://en.wikipedia.org/wiki/Cynefin_framework">Cynefin model</card-link> divides problems into four types, each with different properties.</p><ul><li><strong>Simple</strong> - Trivial problem spaces that require no special effort.</li><li><strong>Complicated</strong> - Knowably hard. Intricate and challenging, but concrete and black and white. Efficiency will require a focus on the right process and structure.</li><li><strong>Complex</strong> - <em>Unknowably</em> hard. Goals, methods, and even possible next actions are unclear, meaning <card-link card="g487aed6370_0_61">fundamentally different approaches are required</card-link>.</li><li><strong>Chaotic</strong> - So unknowably hard as to be inscrutable--impossible to control or predict. <card-link card="g487aed6370_0_30">Beware diagnosing problems as chaotic</card-link> because it’s effectively giving up.</li></ul><p>Distinguishing between <card-link card="g487aed6370_0_45">complex and complicated</card-link> is the most important in practice.</p><p class="small"><em>Note on terminology: in the past I called what Cynefin calls “complex” “ambiguous”, and what it calls “complicated”, “complex”.  I’ve shifted to use Cynfefin’s terminology consistently.</em></p',
+				'title': 'Using the cynefin model to understand problem spaces',
 			}
 		}
 	};
@@ -45,16 +52,26 @@ const baseCards = (extras) => {
 };
 
 describe('fingerprint generation', () => {
-	it('No op simple content', async () => {
+	it('Normalized properties', async () => {
 		const cards = baseCards();
-		const card = cards[CARD_ID_ONE];
 		const expectedNormalized = {
-			'body': 'thi is the bodi of thi card seed crystal crystal gradient surf down them a lot',
-			'title': 'thi is the titl of thi card',
-			'subtitle': '',
-			'references_info_inbound': '',
+			[CARD_ID_ONE]: {
+				'body': 'thi is the bodi of thi card seed crystal crystal gradient surf down them a lot',
+				'title': 'thi is the titl of thi card',
+				'subtitle': '',
+				'references_info_inbound': '',
+			},
+			[CARD_ID_TWO]: {
+				'body': 'the cynefin model divid problem into four type each with differ properties.simpl trivial problem space that requir no special effort.compl knowabl hard intric and challeng but concret and black and white effici will requir a focu on the right process and structure.complex unknow hard goal method and even possibl next action ar unclear mean fundament differ approach ar required.chaot so unknow hard as to be inscrut imposs to control or predict bewar diagnos problem as chaotic becaus it’ effect give up.distinguish between complex and complic is the most import in practice.not on terminolog in the past i call what cynefin call complex ambigu and what it call complic complex i’v shift to us cynfefin’ terminolog consist',
+				'title': 'us the cynefin model to understand problem space',
+				'subtitle': '',
+				'references_info_inbound': '',
+			},
 		};
-		assert.deepStrictEqual(card.normalized, expectedNormalized);
+		for (let [cardID, normalized] of Object.entries(expectedNormalized)) {
+			let card = cards[cardID];
+			assert.deepStrictEqual(card.normalized, normalized);
+		}
 	});
 
 });
