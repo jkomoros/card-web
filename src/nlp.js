@@ -8,6 +8,10 @@ import {
 	references,
 } from './card_fields.js';
 
+import {
+	getDocument
+} from './document.js';
+
 const lowercaseSplitWords = (str) => {
 	return str.toLowerCase().split(/\s+/);
 };
@@ -56,7 +60,7 @@ const innerTextForHTML = (body) => {
 	//This shouldn't be an XSS vulnerability even though body is supplied by
 	//users and thus untrusted, because the temporary element is never actually
 	//appended into the DOM
-	let ele = document.createElement('section');
+	let ele = getDocument().createElement('section');
 	ele.innerHTML = body;
 	return ele.innerText;
 };

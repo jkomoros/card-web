@@ -7,6 +7,10 @@ import {
 	references
 } from './card_fields.js';
 
+import {
+	getDocument
+} from './document.js';
+
 //define this here and then re-export form app.js so this file doesn't need any
 //other imports.
 export const _PAGE_BASIC_CARD = 'basic-card';
@@ -197,7 +201,7 @@ export const expandCardCollection = (collection, cards) => collection.map(id => 
 const MULTIPLE_LINK_TEXT_DELIMITER = ' || ';
 
 export const extractCardLinksFromBody = (body) => {
-	let ele = document.createElement('section');
+	let ele = getDocument().createElement('section');
 	//TODO: is there an XSS vulnerability here?
 	ele.innerHTML = body;
 	let result = {};
@@ -443,6 +447,8 @@ export const makeElementContentEditable = (ele) => {
 	ele.contentEditable = 'true';
 	//It's OK if we have already done these commands to do them again
 
+	let document = getDocument();
+
 	//styleWithCSS turns off styling spans with CSS and just uses presentational
 	//attributes. 
 	document.execCommand('styleWithCSS', false, false);
@@ -453,7 +459,7 @@ export const makeElementContentEditable = (ele) => {
 
 //Returns a safe markdown element that can be emitted in a lit-html template.
 export const markdownElement = (content) => {
-	let div = document.createElement('div');
+	let div = getDocument().createElement('div');
 	let html = snarkdown(content);
 	let sanitizedHTML = dompurify.sanitize(html);
 	div.innerHTML = sanitizedHTML;
