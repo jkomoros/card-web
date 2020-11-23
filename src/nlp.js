@@ -16,6 +16,17 @@ import {
 	normalizeLineBreaks,
 } from './contenteditable.js';
 
+const STOP_WORDS = {
+	'a' : true,
+	'an' : true,
+	'the' : true,
+	'in' : true,
+	'is' : true,
+	'and': true,
+	'of': true,
+	'to': true,
+};
+
 const lowercaseSplitWords = (str) => {
 	return str.toLowerCase().split(/\s+/);
 };
@@ -258,14 +269,6 @@ const textSubQueryForWords = (words) => {
 	return Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).map(entry => [entry[0], textPropertySubQueryForWords(words, entry[1].matchWeight)]));
 };
 
-const STOP_WORDS = {
-	'a' : true,
-	'an' : true,
-	'the' : true,
-	'in' : true,
-	'is' : true,
-};
-
 const textPropertySubQueryForWords = (joinedWords, startValue) => {
 	const words = joinedWords.split(' ');
 
@@ -370,7 +373,7 @@ const semanticOverlap = (fingerprintOne, fingerprintTwo) => {
 };
 
 const wordCountsForSemantics = (str) => {
-	const words = str.split(' ');
+	const words = str.split(' ').filter(word => !STOP_WORDS[word]);
 	const cardMap = {};
 	for (const word of words) {
 		if (!word) continue;
