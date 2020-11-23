@@ -269,4 +269,46 @@ describe('fingerprint generation', () => {
 		}
 	});
 
+	it('overlaps work with already-provided cards', async () => {
+		const cards = baseCards();
+		const generator = new FingerprintGenerator(cards);
+		const expectedOverlaps = {
+			[CARD_ID_ONE]: new Map([
+				[ 'five', 2.018302295282255 ],
+				[ 'two', 0 ],
+				[ 'three', 0 ],
+				[ 'four', 0 ]
+			]),
+			[CARD_ID_TWO]: new Map([
+				[ 'one', 0 ],
+				[ 'three', 0 ],
+				[ 'four', 0 ],
+				[ 'five', 0 ]
+			]),
+			[CARD_ID_THREE]: new Map([
+				[ 'one', 0 ],
+				[ 'two', 0 ],
+				[ 'four', 0 ],
+				[ 'five', 0 ]
+			]),
+			[CARD_ID_FOUR]: new Map([
+				[ 'one', 0 ],
+				[ 'two', 0 ],
+				[ 'three', 0 ],
+				[ 'five', 0 ]
+			]),
+			[CARD_ID_FIVE]: new Map([
+				[ 'one', 2.018302295282255 ],
+				[ 'two', 0 ],
+				[ 'three', 0 ],
+				[ 'four', 0 ]
+			]),
+		};
+		for (let cardID of Object.keys(cards)) {
+			let expectedOverlap = expectedOverlaps[cardID];
+			let overlap = generator.closestOverlappingItems(cardID);
+			assert.deepStrictEqual(overlap, expectedOverlap);
+		}
+	});
+
 });
