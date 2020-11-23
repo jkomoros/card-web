@@ -20,6 +20,18 @@ const lowercaseSplitWords = (str) => {
 	return str.toLowerCase().split(/\s+/);
 };
 
+//splitSlashNonURLs will return an array of words, with either a single item, or
+//n items, split on '/'. If the item looks like a URL it won't split slashes. It
+//assumes text is lowercase.
+const splitSlashNonURLs = (word) => {
+	if (!word || !word.includes('/')) return [word];
+	const distinctiveURLParts = ['http:', '.com', '.net', '.org'];
+	for (let urlPart of distinctiveURLParts) {
+		if (word.includes(urlPart)) return [word];
+	}
+	return word.split('/');
+};
+
 const normalizedWords = (str) => {
 	if (!str) str = '';
 
@@ -31,10 +43,12 @@ const normalizedWords = (str) => {
 	const splitWords = lowercaseSplitWords(str);
 	let result = [];
 	for (let word of splitWords) {
-		word = word.replace(/^\W*/, '');
-		word = word.replace(/\W*$/, '');
-		if (!word) continue;
-		result.push(word);
+		for (let subWord of splitSlashNonURLs(word)) {
+			subWord = subWord.replace(/^\W*/, '');
+			subWord = subWord.replace(/\W*$/, '');
+			if (!subWord) continue;
+			result.push(subWord);
+		}
 	}
 	return result.join(' ');
 };

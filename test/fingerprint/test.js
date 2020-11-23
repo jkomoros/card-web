@@ -167,7 +167,7 @@ describe('fingerprint generation', () => {
 				],
 				'body': [
 					'https://www.wikipedia.org/blammo is a great site it\' import to think of stuff e.g other stuff',
-					'hill climb is the same as hill climb thi is not not realli the same thi is a quot a quot is here boundaries/edg ar impor to think about',
+					'hill climb is the same as hill climb thi is not not realli the same thi is a quot a quot is here boundari edg ar impor to think about',
 					'anoth site to know about is komoroske.com/sudoku or even washingtonpost.com'
 				],
 				'subtitle': [],
@@ -291,31 +291,31 @@ describe('fingerprint generation', () => {
 				[ 'affect', 0.010073325670143957 ]
 			]),
 			[CARD_ID_FIVE]: new Map([
-				[ 'site', 0.07197888805445676 ],
-				[ 'stuff', 0.07197888805445676 ],
-				[ 'quot', 0.06458392973391155 ],
-				[ 'hill', 0.057779930312047395 ],
-				[ 'climb', 0.054549596545112176 ],
-				[ 'https://www.wikipedia.org/blammo', 0.03892429834482307 ],
-				[ 'boundaries/edg', 0.03892429834482307 ],
-				[ 'impor', 0.03892429834482307 ],
-				[ 'komoroske.com/sudoku', 0.03892429834482307 ],
-				[ 'washingtonpost.com', 0.03892429834482307 ],
-				[ 'same', 0.03683363264370367 ],
-				[ 'realli', 0.0309722774328287 ],
-				[ 'here', 0.0309722774328287 ],
-				[ 'e.g', 0.025375742400775475 ],
-				[ 'interest', 0.024839331011252123 ],
-				[ 'think', 0.024628693502097464 ],
-				[ 'about', 0.02444659697871406 ],
-				[ 'great', 0.022628904923342276 ],
-				[ 'card', 0.019822164416852434 ],
-				[ 'lot', 0.019085436708651544 ],
-				[ 'know', 0.019085436708651544 ],
-				[ 'anoth', 0.0165505869977863 ],
-				[ 'detail', 0.016387923042967028 ],
-				[ 'import', 0.015203533779209607 ],
-				[ 'it\'', 0.01480499782245275 ]
+				[ 'site', 0.07079890628307223 ],
+				[ 'stuff', 0.07079890628307223 ],
+				[ 'quot', 0.063525176787454 ],
+				[ 'hill', 0.05683271833971875 ],
+				[ 'climb', 0.05365534086404477 ],
+				[ 'https://www.wikipedia.org/blammo', 0.038286195093268596 ],
+				[ 'impor', 0.038286195093268596 ],
+				[ 'komoroske.com/sudoku', 0.038286195093268596 ],
+				[ 'washingtonpost.com', 0.038286195093268596 ],
+				[ 'same', 0.03622980260036427 ],
+				[ 'boundari', 0.031762588393727 ],
+				[ 'realli', 0.030464535179831508 ],
+				[ 'here', 0.030464535179831508 ],
+				[ 'edg', 0.02936704682523129 ],
+				[ 'e.g', 0.024959746623713586 ],
+				[ 'interest', 0.024432128863526678 ],
+				[ 'think', 0.02422494442829259 ],
+				[ 'about', 0.02404583309381711 ],
+				[ 'great', 0.022257939268861254 ],
+				[ 'card', 0.01949721090182207 ],
+				[ 'lot', 0.018772560697034306 ],
+				[ 'know', 0.018772560697034306 ],
+				[ 'anoth', 0.016279265899461937 ],
+				[ 'detail', 0.016119268566852817 ],
+				[ 'import', 0.01495429552053404 ]
 			])
 		};
 		for (let cardID of CARD_IDS_TO_TEST) {
@@ -330,7 +330,7 @@ describe('fingerprint generation', () => {
 		const generator = new FingerprintGenerator(cards);
 		const expectedOverlaps = {
 			[CARD_ID_ONE]: new Map([
-				[ 'five', 2.1490259115174224 ],
+				[ 'five', 2.148388081990775 ],
 				[ 'three', 2.0863091772745204 ],
 				[ 'two', 0 ],
 				[ 'four', 0 ]
@@ -343,20 +343,20 @@ describe('fingerprint generation', () => {
 			]),
 			[CARD_ID_THREE]: new Map([
 				[ 'one', 2.0863091772745204 ],
-				[ 'five', 2.0640693493476134 ],
+				[ 'five', 2.0635514566128235 ],
 				[ 'four', 1.0898284623536398 ],
 				[ 'two', 1.0236340301326285 ]
 			]),
 			[CARD_ID_FOUR]: new Map([
-				[ 'five', 2.098922039017152 ],
 				[ 'three', 1.0898284623536398 ],
+				[ 'five', 1.0672123465394878 ],
 				[ 'one', 0 ],
 				[ 'two', 0 ]
 			]),
 			[CARD_ID_FIVE]: new Map([
-				[ 'one', 2.1490259115174224 ],
-				[ 'four', 2.098922039017152 ],
-				[ 'three', 2.0640693493476134 ],
+				[ 'one', 2.148388081990775 ],
+				[ 'three', 2.0635514566128235 ],
+				[ 'four', 1.0672123465394878 ],
 				[ 'two', 0 ]
 			]),
 		};
