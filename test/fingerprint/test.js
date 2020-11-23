@@ -1182,7 +1182,7 @@ describe('PreparedQuery', () => {
 		assert.deepStrictEqual(result, expectedResult);
 	});
 
-	it('query matching partial match', async () => {
+	it('query matching partial match all words not right order', async () => {
 		const query = new PreparedQuery('climbing hill');
 		const card = baseCards()[CARD_ID_FIVE];
 		const result = query.cardScore(card);
