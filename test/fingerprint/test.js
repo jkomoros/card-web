@@ -19,7 +19,8 @@ overrideDocument(dom.window.document);
 import {
 	cardSetNormalizedTextProperties,
 	destemmedWordMap,
-	FingerprintGenerator
+	FingerprintGenerator,
+	PreparedQuery,
 } from '../../src/nlp.js';
 
 import {
@@ -376,6 +377,793 @@ describe('fingerprint generation', () => {
 			'cynefin\'': 'cynefin\'s'
 		};
 		assert.deepStrictEqual(filteredWordMap, expectedWordMap);
+	});
+
+});
+
+describe('PreparedQuery', () => {
+	it('Basic query parsing single word', async () => {
+		const query = new PreparedQuery('foo');
+		const expectedQueryProperties = {
+			'title': [
+				[
+					[
+						'foo'
+					],
+					1,
+					true
+				]
+			],
+			'body': [
+				[
+					[
+						'foo'
+					],
+					0.5,
+					true
+				]
+			],
+			'subtitle': [
+				[
+					[
+						'foo'
+					],
+					0.75,
+					true
+				]
+			],
+			'references_info_inbound': [
+				[
+					[
+						'foo'
+					],
+					0.95,
+					true
+				]
+			]
+		};
+		assert.deepStrictEqual(query.text, expectedQueryProperties);
+		assert.deepStrictEqual(query.filters, []);
+	});
+
+	it('Basic query parsing two words', async () => {
+		const query = new PreparedQuery('foo bar');
+		const expectedQueryProperties = {
+			'title': [
+				[
+					[
+						'foo bar'
+					],
+					1,
+					true
+				],
+				[
+					[
+						'foo',
+						'bar'
+					],
+					0.5,
+					true
+				],
+				[
+					[
+						'foo'
+					],
+					0.059640156839957804,
+					false
+				],
+				[
+					[
+						'bar'
+					],
+					0.059640156839957804,
+					false
+				]
+			],
+			'body': [
+				[
+					[
+						'foo bar'
+					],
+					0.5,
+					true
+				],
+				[
+					[
+						'foo',
+						'bar'
+					],
+					0.25,
+					true
+				],
+				[
+					[
+						'foo'
+					],
+					0.029820078419978902,
+					false
+				],
+				[
+					[
+						'bar'
+					],
+					0.029820078419978902,
+					false
+				]
+			],
+			'subtitle': [
+				[
+					[
+						'foo bar'
+					],
+					0.75,
+					true
+				],
+				[
+					[
+						'foo',
+						'bar'
+					],
+					0.375,
+					true
+				],
+				[
+					[
+						'foo'
+					],
+					0.044730117629968355,
+					false
+				],
+				[
+					[
+						'bar'
+					],
+					0.044730117629968355,
+					false
+				]
+			],
+			'references_info_inbound': [
+				[
+					[
+						'foo bar'
+					],
+					0.95,
+					true
+				],
+				[
+					[
+						'foo',
+						'bar'
+					],
+					0.475,
+					true
+				],
+				[
+					[
+						'foo'
+					],
+					0.056658148997959915,
+					false
+				],
+				[
+					[
+						'bar'
+					],
+					0.056658148997959915,
+					false
+				]
+			]
+		};
+		assert.deepStrictEqual(query.text, expectedQueryProperties);
+		assert.deepStrictEqual(query.filters, []);
+	});
+
+	it('Basic query parsing two words stemming', async () => {
+		const query = new PreparedQuery('you\'re crystallizing');
+		const expectedQueryProperties = {
+			'title': [
+				[
+					[
+						'you\'r crystal'
+					],
+					1,
+					true
+				],
+				[
+					[
+						'you\'r',
+						'crystal'
+					],
+					0.5,
+					true
+				],
+				[
+					[
+						'you\'r'
+					],
+					0.08737125054200236,
+					false
+				],
+				[
+					[
+						'crystal'
+					],
+					0.1056372550017821,
+					false
+				]
+			],
+			'body': [
+				[
+					[
+						'you\'r crystal'
+					],
+					0.5,
+					true
+				],
+				[
+					[
+						'you\'r',
+						'crystal'
+					],
+					0.25,
+					true
+				],
+				[
+					[
+						'you\'r'
+					],
+					0.04368562527100118,
+					false
+				],
+				[
+					[
+						'crystal'
+					],
+					0.05281862750089105,
+					false
+				]
+			],
+			'subtitle': [
+				[
+					[
+						'you\'r crystal'
+					],
+					0.75,
+					true
+				],
+				[
+					[
+						'you\'r',
+						'crystal'
+					],
+					0.375,
+					true
+				],
+				[
+					[
+						'you\'r'
+					],
+					0.06552843790650177,
+					false
+				],
+				[
+					[
+						'crystal'
+					],
+					0.07922794125133657,
+					false
+				]
+			],
+			'references_info_inbound': [
+				[
+					[
+						'you\'r crystal'
+					],
+					0.95,
+					true
+				],
+				[
+					[
+						'you\'r',
+						'crystal'
+					],
+					0.475,
+					true
+				],
+				[
+					[
+						'you\'r'
+					],
+					0.08300268801490224,
+					false
+				],
+				[
+					[
+						'crystal'
+					],
+					0.10035539225169299,
+					false
+				]
+			]
+		};
+		assert.deepStrictEqual(query.text, expectedQueryProperties);
+		assert.deepStrictEqual(query.filters, []);
+	});
+
+	it('Basic query parsing one word one filter', async () => {
+		const query = new PreparedQuery('crystallizing filter:has-links');
+		const expectedQueryFilters = ['has-links'];
+		const expectedQueryText = {
+			'title': [
+				[
+					[
+						'crystal'
+					],
+					1,
+					true
+				]
+			],
+			'body': [
+				[
+					[
+						'crystal'
+					],
+					0.5,
+					true
+				]
+			],
+			'subtitle': [
+				[
+					[
+						'crystal'
+					],
+					0.75,
+					true
+				]
+			],
+			'references_info_inbound': [
+				[
+					[
+						'crystal'
+					],
+					0.95,
+					true
+				]
+			]
+		};
+		assert.deepStrictEqual(query.text, expectedQueryText);
+		assert.deepStrictEqual(query.filters, expectedQueryFilters);
+	});
+
+	it('Basic query parsing two words one filter', async () => {
+		const query = new PreparedQuery('crystallizing blammo filter:has-links');
+		const expectedQueryFilters = ['has-links'];
+		const expectedQueryText = {
+			'title': [
+				[
+					[
+						'crystal blammo'
+					],
+					1,
+					true
+				],
+				[
+					[
+						'crystal',
+						'blammo'
+					],
+					0.5,
+					true
+				],
+				[
+					[
+						'crystal'
+					],
+					0.1056372550017821,
+					false
+				],
+				[
+					[
+						'blammo'
+					],
+					0.09726890629795545,
+					false
+				]
+			],
+			'body': [
+				[
+					[
+						'crystal blammo'
+					],
+					0.5,
+					true
+				],
+				[
+					[
+						'crystal',
+						'blammo'
+					],
+					0.25,
+					true
+				],
+				[
+					[
+						'crystal'
+					],
+					0.05281862750089105,
+					false
+				],
+				[
+					[
+						'blammo'
+					],
+					0.04863445314897773,
+					false
+				]
+			],
+			'subtitle': [
+				[
+					[
+						'crystal blammo'
+					],
+					0.75,
+					true
+				],
+				[
+					[
+						'crystal',
+						'blammo'
+					],
+					0.375,
+					true
+				],
+				[
+					[
+						'crystal'
+					],
+					0.07922794125133657,
+					false
+				],
+				[
+					[
+						'blammo'
+					],
+					0.07295167972346658,
+					false
+				]
+			],
+			'references_info_inbound': [
+				[
+					[
+						'crystal blammo'
+					],
+					0.95,
+					true
+				],
+				[
+					[
+						'crystal',
+						'blammo'
+					],
+					0.475,
+					true
+				],
+				[
+					[
+						'crystal'
+					],
+					0.10035539225169299,
+					false
+				],
+				[
+					[
+						'blammo'
+					],
+					0.09240546098305767,
+					false
+				]
+			]
+		};
+		assert.deepStrictEqual(query.text, expectedQueryText);
+		assert.deepStrictEqual(query.filters, expectedQueryFilters);
+	});
+
+	it('Basic query parsing two words one filter in between', async () => {
+		const query = new PreparedQuery('crystallizing filter:has-links blammo');
+		const expectedQueryFilters = ['has-links'];
+		const expectedQueryText = {
+			'title': [
+				[
+					[
+						'crystal blammo'
+					],
+					1,
+					true
+				],
+				[
+					[
+						'crystal',
+						'blammo'
+					],
+					0.5,
+					true
+				],
+				[
+					[
+						'crystal'
+					],
+					0.1056372550017821,
+					false
+				],
+				[
+					[
+						'blammo'
+					],
+					0.09726890629795545,
+					false
+				]
+			],
+			'body': [
+				[
+					[
+						'crystal blammo'
+					],
+					0.5,
+					true
+				],
+				[
+					[
+						'crystal',
+						'blammo'
+					],
+					0.25,
+					true
+				],
+				[
+					[
+						'crystal'
+					],
+					0.05281862750089105,
+					false
+				],
+				[
+					[
+						'blammo'
+					],
+					0.04863445314897773,
+					false
+				]
+			],
+			'subtitle': [
+				[
+					[
+						'crystal blammo'
+					],
+					0.75,
+					true
+				],
+				[
+					[
+						'crystal',
+						'blammo'
+					],
+					0.375,
+					true
+				],
+				[
+					[
+						'crystal'
+					],
+					0.07922794125133657,
+					false
+				],
+				[
+					[
+						'blammo'
+					],
+					0.07295167972346658,
+					false
+				]
+			],
+			'references_info_inbound': [
+				[
+					[
+						'crystal blammo'
+					],
+					0.95,
+					true
+				],
+				[
+					[
+						'crystal',
+						'blammo'
+					],
+					0.475,
+					true
+				],
+				[
+					[
+						'crystal'
+					],
+					0.10035539225169299,
+					false
+				],
+				[
+					[
+						'blammo'
+					],
+					0.09240546098305767,
+					false
+				]
+			]
+		};
+		assert.deepStrictEqual(query.text, expectedQueryText);
+		assert.deepStrictEqual(query.filters, expectedQueryFilters);
+	});
+
+	it('Basic query parsing one hyphenated word one normal word', async () => {
+		const query = new PreparedQuery('hill-climbing blammo');
+		const expectedQueryFilters = [];
+		const expectedQueryText = {
+			'title': [
+				[
+					[
+						'hill climb blammo'
+					],
+					1,
+					true
+				],
+				[
+					[
+						'hill',
+						'climb',
+						'blammo'
+					],
+					0.5,
+					true
+				],
+				[
+					[
+						'hill'
+					],
+					0.0752574989159953,
+					false
+				],
+				[
+					[
+						'climb'
+					],
+					0.08737125054200236,
+					false
+				],
+				[
+					[
+						'blammo'
+					],
+					0.09726890629795545,
+					false
+				]
+			],
+			'body': [
+				[
+					[
+						'hill climb blammo'
+					],
+					0.5,
+					true
+				],
+				[
+					[
+						'hill',
+						'climb',
+						'blammo'
+					],
+					0.25,
+					true
+				],
+				[
+					[
+						'hill'
+					],
+					0.03762874945799765,
+					false
+				],
+				[
+					[
+						'climb'
+					],
+					0.04368562527100118,
+					false
+				],
+				[
+					[
+						'blammo'
+					],
+					0.04863445314897773,
+					false
+				]
+			],
+			'subtitle': [
+				[
+					[
+						'hill climb blammo'
+					],
+					0.75,
+					true
+				],
+				[
+					[
+						'hill',
+						'climb',
+						'blammo'
+					],
+					0.375,
+					true
+				],
+				[
+					[
+						'hill'
+					],
+					0.05644312418699647,
+					false
+				],
+				[
+					[
+						'climb'
+					],
+					0.06552843790650177,
+					false
+				],
+				[
+					[
+						'blammo'
+					],
+					0.07295167972346658,
+					false
+				]
+			],
+			'references_info_inbound': [
+				[
+					[
+						'hill climb blammo'
+					],
+					0.95,
+					true
+				],
+				[
+					[
+						'hill',
+						'climb',
+						'blammo'
+					],
+					0.475,
+					true
+				],
+				[
+					[
+						'hill'
+					],
+					0.07149462397019553,
+					false
+				],
+				[
+					[
+						'climb'
+					],
+					0.08300268801490224,
+					false
+				],
+				[
+					[
+						'blammo'
+					],
+					0.09240546098305767,
+					false
+				]
+			]
+		};
+		assert.deepStrictEqual(query.text, expectedQueryText);
+		assert.deepStrictEqual(query.filters, expectedQueryFilters);
 	});
 
 });
