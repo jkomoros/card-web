@@ -18,6 +18,7 @@ import {
 
 import {
 	CARD_TYPE_CONTENT,
+	CARD_TYPE_WORKING_NOTES,
 	REFERENCE_TYPE_LINK,
 	REFERENCE_TYPE_ACK,
 	REFERENCE_TYPE_DUPE_OF,
@@ -27,6 +28,9 @@ import assert from 'assert';
 
 const CARD_ID_ONE = 'one';
 const CARD_ID_TWO = 'two';
+const CARD_ID_THREE = 'three';
+const CARD_ID_FOUR = 'four';
+const CARD_ID_FIVE = 'five';
 
 const baseCards = (extras) => {
 	if (!extras) extras = {};
@@ -53,7 +57,21 @@ const baseCards = (extras) => {
 						[REFERENCE_TYPE_DUPE_OF]: 'cynenfin model dupe',
 					}
 				}
-			}
+			},
+			[CARD_ID_THREE]: {
+				'body': '<p><card-link card="g487aed6370_0_55">Humans are biased away from complex problem spaces.</card-link> But correctly diagnosing a problem space as complex is only the first step.</p><p>In complex problem spaces, you <strong>have to let go of the </strong><strong><card-link card="g487aed6370_0_76">details that don’t matter</card-link></strong>, because they’re <card-link card="g487aed6370_0_71">a dangerous illusion</card-link>. Doing this is hard, unnatural, and a little scary. But it’s the only way to see broader truths.</p><p>You have to l<strong>et go of ever having solutions that are </strong><strong><em>both</em></strong><strong> detailed and clear.</strong> You can have one but not the other (and generally only the latter). When you let go, you can become <strong>cosmically calm</strong>, and high-level truths will become evident.</p><p>Certain types of solutions are fundamentally impossible in complexity, although people who are uncomfortable with complexity will continue to demand them.</p>',
+				'title': 'Embracing complexity means letting go of details',
+			},
+			[CARD_ID_FOUR]: {
+				'card_type': CARD_TYPE_WORKING_NOTES,
+				'body': '<p>Hill climbing is totally a thing.</p><p>There is not one truth</p><p>(just as there is not one cause, or one solution)</p><p>Truth is a mindset, a process. Seeking disconfirming evidence, incorporating it into an ever-more nuanced model. Ground-truthing even when it\'s inconvenient.</p><p>(Make sure to make it not "any truth is as good as any other" post modernism). Things can be more or less true, it\'s that there\'s a <em>spectrum</em>.</p><p>Truth is an asymptotic ideal, what matters is motion towards the goal, not ever landing at it. And if you think you\'ve landed at it, and thus no longer have more growth to do, you\'re wrong... and dangerous, because you\'ve stopped learning</p><p>Learning as the process of truth discovery.</p><p>Truth as being a partially situated context. What is true for you in your personal development in the moment might not be true for you later.</p><p>The more it exists outside and generally and directly affects others, the more that it\'s ground-truthed and not subjective.</p>',
+				//This title should be skipped since it's a working notes card
+				'title': '11/4/20 Truth Landing Ground True You\'ve Ever Incorporating Process',
+			},
+			[CARD_ID_FIVE]: {
+				'body': '<p>https://www.wikipedia.org/blammo is a great site. It\'s important to think of stuff (e.g. other stuff).</p><p>hill-climbing is the same as hill climbing. This is not--not really--the same. This is a quote: "a quote is here". Boundaries/edges are imporant to think about</p>',
+				'title': 'This card has lots of interesting details',
+			},
 		}
 	};
 
@@ -81,9 +99,27 @@ describe('fingerprint generation', () => {
 				'subtitle': '',
 				'references_info_inbound': 'cynefin model cynefin\' model cynenfin model dupe',
 			},
+			[CARD_ID_THREE]: {
+				'body': 'human ar bias awai from complex problem space but correctli diagnos a problem space as complex is onli the first step in complex problem space you have to let go of the detail that don’t matter becaus they’r a danger illus do thi is hard unnatur and a littl scari but it’ the onli wai to see broader truth you have to let go of ever have solut that ar both detail and clear you can have on but not the other and gener onli the latter when you let go you can becom cosmic calm and high level truth will becom evid certain type of solut ar fundament imposs in complex although peopl who ar uncomfort with complex will continu to demand them',
+				'title': 'embrac complex mean let go of detail',
+				'subtitle': '',
+				'references_info_inbound': '',
+			},
+			[CARD_ID_FOUR]: {
+				'body': 'hill climb is total a thing there is not on truth just as there is not on caus or on solut truth is a mindset a process seek disconfirm evid incorpor it into an ever more nuanc model ground truth even when it\' inconveni make sure to make it not ani truth is as good as ani other post modern thing can be more or less true it\' that there\' a spectrum truth is an asymptot ideal what matter is motion toward the goal not ever land at it and if you think you\'v land at it and thu no longer have more growth to do you\'r wrong and danger becaus you\'v stop learn learn as the process of truth discoveri truth as be a partial situat context what is true for you in your person develop in the moment might not be true for you later the more it exist outsid and gener and directli affect other the more that it\' ground truth and not subject',
+				'title': '',
+				'subtitle': '',
+				'references_info_inbound': '',
+			},
+			[CARD_ID_FIVE]: {
+				'body': 'https://www.wikipedia.org/blammo is a great site it\' import to think of stuff e.g other stuff hill climb is the same as hill climb thi is not not realli the same thi is a quot a quot is here boundaries/edg ar impor to think about',
+				'title': 'thi card ha lot of interest detail',
+				'subtitle': '',
+				'references_info_inbound': '',
+			},
 		};
-		for (let [cardID, normalized] of Object.entries(expectedNormalized)) {
-			let card = cards[cardID];
+		for (let [cardID, card] of Object.entries(cards)) {
+			let normalized = expectedNormalized[cardID];
 			assert.deepStrictEqual(card.normalized, normalized);
 		}
 	});
