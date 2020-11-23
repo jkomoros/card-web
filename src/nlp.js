@@ -124,7 +124,8 @@ const extractContentWords = (card) => {
 			const fieldValue = extractFieldValueForIndexing(card[fieldName]);
 			const content = config.html ? innerTextForHTML(fieldValue) : fieldValue;
 			runs = splitRuns(content);
-			runs = runs.map(str => normalizedWords(str));
+			//splitRuns checks for empty runs, but they could be things that will be normalized to nothing, so filter again
+			runs = runs.map(str => normalizedWords(str)).filter(str => str);
 		}
 		obj[fieldName] = runs;
 	}
@@ -433,7 +434,8 @@ export class FingerprintGenerator {
 	}
 
 	_wordCountsForCardObj(cardObj) {
-		return wordCountsForSemantics(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => cardObj.normalized[prop].join(' ')).join(' '));
+		//Filter out empty items for properties that don't have any items
+		return wordCountsForSemantics(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => cardObj.normalized[prop].join(' ')).filter(str => str).join(' '));
 	}
 
 	_cardTFIDF(cardWordCounts) {
