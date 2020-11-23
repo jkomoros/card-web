@@ -42,6 +42,9 @@ store.addReducers({
 	data,
 });
 
+//Stash this here so it's easy to get access to it via console.
+window['DEBUG_STORE'] = store;
+
 //Connect it up so the reselect-tools extension will show the selector graph.
 //https://github.com/skortchmark9/reselect-tools for how to install the
 //extension
