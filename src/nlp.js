@@ -79,7 +79,7 @@ const innerTextForHTML = (body) => {
 const extractFieldValueForIndexing = (fieldValue) => {
 	if (typeof fieldValue !== 'object') return fieldValue;
 	if (!fieldValue) return '';
-	return Object.values(fieldValue).map(item => extractFieldValueForIndexing(item)).join(' ');
+	return Object.values(fieldValue).map(item => extractFieldValueForIndexing(item)).filter(str => str).join(' ');
 };
 
 //extractContentWords returns an object with the field to the non-de-stemmed
