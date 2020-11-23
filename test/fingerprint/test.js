@@ -18,7 +18,6 @@ overrideDocument(dom.window.document);
 
 import {
 	cardSetNormalizedTextProperties,
-	destemmedWordMap,
 	FingerprintGenerator,
 	PreparedQuery,
 	TESTING,
@@ -371,7 +370,7 @@ describe('fingerprint generation', () => {
 
 	it('destemmed word map', async () => {
 		const card = baseCards()[CARD_ID_TWO];
-		let wordMap = destemmedWordMap(card);
+		let wordMap = TESTING.destemmedWordMap(card);
 		//Filter out items that are the same on each side, to keep the expected map smaller.
 		let filteredWordMap = Object.fromEntries(Object.entries(wordMap).filter(entry => entry[0] != entry[1]));
 		let expectedWordMap = {

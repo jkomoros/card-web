@@ -134,7 +134,7 @@ const extractContentWords = (card) => {
 
 //destemmedWordMap returns a map of where each given destemmed word is mapped to
 //its most common stemmed variant from within this card.
-export const destemmedWordMap = (card) => {
+const destemmedWordMap = (card) => {
 	const content = extractContentWords(card);
 	const counts = {};
 	for (let runs of Object.values(content)) {
@@ -385,6 +385,15 @@ const semanticFingerprint = (tfidf) => {
 	return new Map(keys.map(key => [key, tfidf[key]]));
 };
 
+//prettyFingerprint returns a version of the fingerprint suitable for showing to
+//a user, by de-stemming words based on the words that are most common in
+//cardObj.
+export const prettyFingerprint = (fingerprint, cardObj) => {
+	if (!fingerprint) return '';
+	const destemmedMap = destemmedWordMap(cardObj);
+	return [...fingerprint.keys()].map(word => destemmedMap[word]).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+};
+
 export class FingerprintGenerator {
 	constructor(cards) {
 
@@ -501,4 +510,5 @@ export class FingerprintGenerator {
 export const TESTING = {
 	splitRuns,
 	ngrams,
+	destemmedWordMap,
 };
