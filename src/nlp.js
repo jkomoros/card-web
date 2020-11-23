@@ -79,7 +79,18 @@ const innerTextForHTML = (body) => {
 const extractFieldValueForIndexing = (fieldValue) => {
 	if (typeof fieldValue !== 'object') return fieldValue;
 	if (!fieldValue) return '';
-	return Object.values(fieldValue).map(item => extractFieldValueForIndexing(item)).filter(str => str).join(' ');
+	//Join multi ones with the split character
+	return Object.values(fieldValue).map(item => extractFieldValueForIndexing(item)).filter(str => str).join('\n');
+};
+
+//Text is non-normalized raw text. Runs are distinct bits of text that are
+//logically separate from one another, such that a word at the end of one run
+//shouldn't be considered to be 'next to' the beginning word of the next run.
+//Block-level elements, separate links, etc, all are considered new runs.
+const splitRuns = (text) => {
+	if (!text) return [];
+	//TODO: also split for e.g. parantheses, quotes, etc
+	return text.split('\n').filter(str => str);
 };
 
 //extractContentWords returns an object with the field to the non-de-stemmed
@@ -94,13 +105,14 @@ const extractContentWords = (card) => {
 	//fingerprint in a derived field that can create reinforcing loops.
 	const obj = {};
 	for (let [fieldName, config] of Object.entries(TEXT_FIELD_CONFIGURATION)) {
-		let value = '';
+		let runs = [];
 		if (!DERIVED_FIELDS_FOR_CARD_TYPE[cardType][fieldName]) {
 			const fieldValue = extractFieldValueForIndexing(card[fieldName]);
 			const content = config.html ? innerTextForHTML(fieldValue) : fieldValue;
-			value = normalizedWords(content);
+			runs = splitRuns(content);
+			runs = runs.map(str => normalizedWords(str));
 		}
-		obj[fieldName] = value;
+		obj[fieldName] = runs;
 	}
 	return obj;
 };
@@ -110,7 +122,8 @@ const extractContentWords = (card) => {
 export const destemmedWordMap = (card) => {
 	const content = extractContentWords(card);
 	const counts = {};
-	for (let str of Object.values(content)) {
+	for (let runs of Object.values(content)) {
+		const str = runs.join(' ');
 		const words = str.split(' ');
 		for (let word of words) {
 			const stemmedWord = memorizedStemmer(word);
@@ -136,9 +149,10 @@ export const destemmedWordMap = (card) => {
 //cardSetNormalizedTextProperties sets the properties that search and
 //fingerprints work over. It sets them on the same card object sent.
 export const cardSetNormalizedTextProperties = (card) => {
-	//Basically it takes the output of extractContentWords and then stems them.
-	card.normalized = Object.fromEntries(Object.entries(extractContentWords(card)).map(entry => [entry[0], stemmedNormalizedWords(entry[1])]));
+	//Basically it takes the output of extractContentWords and then stems each run.
+	card.normalized = Object.fromEntries(Object.entries(extractContentWords(card)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
 };
+
 export class PreparedQuery {
 	constructor(queryText) {
 		this.text = {};
@@ -157,9 +171,15 @@ export class PreparedQuery {
 		for (let key of Object.keys(TEXT_FIELD_CONFIGURATION)) {
 			const propertySubQuery = this.text[key];
 			if(!propertySubQuery || !card.normalized[key]) continue;
-			const [propertyScore, propertyFullMatch] = stringPropertyScoreForStringSubQuery(card.normalized[key], propertySubQuery);
-			score += propertyScore;
+			const runs = card.normalized[key];
+			if (runs.length == 0) continue;
+			const singleRun = runs.join(' ');
+			//propertyFullMatch should be across ALL runs. Even if no one run
+			//has all of the words, as long as together they all do, it's OK.
+			const [, propertyFullMatch] = stringPropertyScoreForStringSubQuery(singleRun, propertySubQuery);
 			if (!fullMatch && propertyFullMatch) fullMatch = true;
+			let scoreAddition = runs.map(run => stringPropertyScoreForStringSubQuery(run, propertySubQuery)[0]).reduce((prev, curr) => prev + curr, 0.0);
+			score += scoreAddition;
 		}
 	
 		//Give a boost to cards that have more inbound cards, implying they're more
@@ -374,7 +394,7 @@ export class FingerprintGenerator {
 	}
 
 	_wordCountsForCardObj(cardObj) {
-		return wordCountsForSemantics(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => cardObj.normalized[prop]).join(' '));
+		return wordCountsForSemantics(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => cardObj.normalized[prop].join(' ')).join(' '));
 	}
 
 	_cardTFIDF(cardWordCounts) {

@@ -100,34 +100,75 @@ describe('fingerprint generation', () => {
 		const cards = baseCards();
 		const expectedNormalized = {
 			[CARD_ID_ONE]: {
-				'body': 'thi is the bodi of thi card seed crystal crystal gradient surf down them a lot complex is a kei concept to understand and uncertainti',
-				'title': 'thi is the titl of thi card',
-				'subtitle': '',
-				'references_info_inbound': '',
+				'body': [
+					'thi is the bodi of thi card',
+					'seed crystal crystal gradient surf down them a lot complex is a kei concept to understand and uncertainti',
+				],
+				'title': ['thi is the titl of thi card'],
+				'subtitle': [],
+				'references_info_inbound': [],
 			},
 			[CARD_ID_TWO]: {
-				'body': 'the cynefin model divid problem into four type each with differ properti simpl trivial problem space that requir no special effort complic knowabl hard intric and challeng but concret and black and white effici will requir a focu on the right process and structur complex unknow hard goal method and even possibl next action ar unclear mean fundament differ approach ar requir chaotic so unknow hard as to be inscrut imposs to control or predict bewar diagnos problem as chaotic becaus it’ effect give up distinguish between complex and complic is the most import in practic note on terminolog in the past i call what cynefin call complex ambigu and what it call complic complex i’v shift to us cynfefin’ terminolog consist',
-				'title': 'us the cynefin model to understand problem space',
-				'subtitle': '',
-				'references_info_inbound': 'cynefin model cynefin\' model blammo cynenfin model dupe',
+				'title': [
+					'us the cynefin model to understand problem space'
+				],
+				'body': [
+					'the cynefin model divid problem into four type each with differ properti',
+					'simpl trivial problem space that requir no special effort',
+					'complic knowabl hard intric and challeng but concret and black and white effici will requir a focu on the right process and structur',
+					'complex unknow hard goal method and even possibl next action ar unclear mean fundament differ approach ar requir',
+					'chaotic so unknow hard as to be inscrut imposs to control or predict bewar diagnos problem as chaotic becaus it’ effect give up',
+					'distinguish between complex and complic is the most import in practic',
+					'note on terminolog in the past i call what cynefin call complex ambigu and what it call complic complex i’v shift to us cynfefin’ terminolog consist'
+				],
+				'subtitle': [],
+				'references_info_inbound': [
+					'cynefin model',
+					'cynefin\' model blammo',
+					'cynenfin model dupe'
+				]
 			},
 			[CARD_ID_THREE]: {
-				'body': 'gradient ar import and you should pai attent to them they\'r an import type of complex human ar bias awai from complex problem space but correctli diagnos a problem space as complex is onli the first step in complex problem space you have to let go of the detail that don’t matter becaus they’r a danger illus do thi is hard unnatur and a littl scari but it’ the onli wai to see broader truth you have to let go of ever have solut that ar both detail and clear you can have on but not the other and gener onli the latter when you let go you can becom cosmic calm and high level truth will becom evid certain type of solut ar fundament imposs in complex although peopl who ar uncomfort with complex will continu to demand them',
-				'title': 'embrac complex mean let go of detail',
-				'subtitle': '',
-				'references_info_inbound': '',
+				'title': [
+					'embrac complex mean let go of detail'
+				],
+				'body': [
+					'gradient ar import and you should pai attent to them they\'r an import type of complex',
+					'human ar bias awai from complex problem space but correctli diagnos a problem space as complex is onli the first step',
+					'in complex problem space you have to let go of the detail that don’t matter becaus they’r a danger illus do thi is hard unnatur and a littl scari but it’ the onli wai to see broader truth',
+					'you have to let go of ever have solut that ar both detail and clear you can have on but not the other and gener onli the latter when you let go you can becom cosmic calm and high level truth will becom evid',
+					'certain type of solut ar fundament imposs in complex although peopl who ar uncomfort with complex will continu to demand them'
+				],
+				'subtitle': [],
+				'references_info_inbound': []
 			},
 			[CARD_ID_FOUR]: {
-				'body': 'hill climb is total a thing there is not on truth just as there is not on caus or on solut truth is a mindset a process seek disconfirm evid incorpor it into an ever more nuanc model ground truth even when it\' inconveni make sure to make it not ani truth is as good as ani other post modern thing can be more or less true it\' that there\' a spectrum truth is an asymptot ideal what matter is motion toward the goal not ever land at it and if you think you\'v land at it and thu no longer have more growth to do you\'r wrong and danger becaus you\'v stop learn learn as the process of truth discoveri truth as be a partial situat context what is true for you in your person develop in the moment might not be true for you later the more it exist outsid and gener and directli affect other the more that it\' ground truth and not subject',
-				'title': '',
-				'subtitle': '',
-				'references_info_inbound': '',
+				'title': [],
+				'body': [
+					'hill climb is total a thing',
+					'there is not on truth',
+					'just as there is not on caus or on solut',
+					'truth is a mindset a process seek disconfirm evid incorpor it into an ever more nuanc model ground truth even when it\' inconveni',
+					'make sure to make it not ani truth is as good as ani other post modern thing can be more or less true it\' that there\' a spectrum',
+					'truth is an asymptot ideal what matter is motion toward the goal not ever land at it and if you think you\'v land at it and thu no longer have more growth to do you\'r wrong and danger becaus you\'v stop learn',
+					'learn as the process of truth discoveri',
+					'truth as be a partial situat context what is true for you in your person develop in the moment might not be true for you later',
+					'the more it exist outsid and gener and directli affect other the more that it\' ground truth and not subject'
+				],
+				'subtitle': [],
+				'references_info_inbound': []
 			},
 			[CARD_ID_FIVE]: {
-				'body': 'https://www.wikipedia.org/blammo is a great site it\' import to think of stuff e.g other stuff hill climb is the same as hill climb thi is not not realli the same thi is a quot a quot is here boundaries/edg ar impor to think about anoth site to know about is komoroske.com/sudoku or even washingtonpost.com',
-				'title': 'thi card ha lot of interest detail',
-				'subtitle': '',
-				'references_info_inbound': '',
+				'title': [
+					'thi card ha lot of interest detail'
+				],
+				'body': [
+					'https://www.wikipedia.org/blammo is a great site it\' import to think of stuff e.g other stuff',
+					'hill climb is the same as hill climb thi is not not realli the same thi is a quot a quot is here boundaries/edg ar impor to think about',
+					'anoth site to know about is komoroske.com/sudoku or even washingtonpost.com'
+				],
+				'subtitle': [],
+				'references_info_inbound': []
 			},
 		};
 		for (let cardID of CARD_IDS_TO_TEST) {
@@ -1170,7 +1211,7 @@ describe('PreparedQuery', () => {
 		const query = new PreparedQuery('hill-climbing blammo');
 		const card = baseCards()[CARD_ID_FIVE];
 		const result = query.cardScore(card);
-		const expectedResult = [ 0.37994882787797657, true ];
+		const expectedResult = [ 0.12994882787797657, true ];
 		assert.deepStrictEqual(result, expectedResult);
 	});
 
