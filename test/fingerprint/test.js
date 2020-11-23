@@ -1265,3 +1265,42 @@ describe('splitRuns', () => {
 		assert.deepStrictEqual(result, expectedResult);
 	});
 });
+
+describe('ngrams', () => {
+	it('undefined gives empty ngrams', async () => {
+		const result = TESTING.ngrams();
+		const expectedResult = [];
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
+	it('empty string gives empty ngrams', async () => {
+		const result = TESTING.ngrams('');
+		const expectedResult = [];
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
+	it('string with one piece gives empty bigrams', async () => {
+		const result = TESTING.ngrams('one');
+		const expectedResult = [];
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
+	it('string with two piece gives one bigram', async () => {
+		const result = TESTING.ngrams('one two');
+		const expectedResult = ['one two'];
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
+	it('string with three piece gives two bigram', async () => {
+		const result = TESTING.ngrams('one two three');
+		const expectedResult = ['one two', 'two three'];
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
+	it('string with four piece gives two trigrams', async () => {
+		const result = TESTING.ngrams('one two three four', 3);
+		const expectedResult = ['one two three', 'two three four'];
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
+});

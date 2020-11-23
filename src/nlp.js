@@ -153,6 +153,22 @@ export const cardSetNormalizedTextProperties = (card) => {
 	card.normalized = Object.fromEntries(Object.entries(extractContentWords(card)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
 };
 
+//text should be normalized
+const ngrams = (text, size = 2) => {
+	if (!text) return [];
+	const pieces = text.split(' ');
+	if (pieces.length < size) return [];
+	const result = [];
+	for (let i = 0; i < (pieces.length - size + 1); i++) {
+		let subPieces = [];
+		for (let j = 0; j < size; j++) {
+			subPieces.push(pieces[i + j]);
+		}
+		result.push(subPieces.join(' '));
+	}
+	return result;
+};
+
 export class PreparedQuery {
 	constructor(queryText) {
 		this.text = {};
@@ -459,4 +475,5 @@ export class FingerprintGenerator {
 //relied on by other code
 export const TESTING = {
 	splitRuns,
+	ngrams,
 };
