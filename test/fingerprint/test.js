@@ -33,6 +33,8 @@ const CARD_ID_THREE = 'three';
 const CARD_ID_FOUR = 'four';
 const CARD_ID_FIVE = 'five';
 
+const CARD_IDS_TO_TEST = [CARD_ID_ONE, CARD_ID_TWO, CARD_ID_THREE, CARD_ID_FOUR, CARD_ID_FIVE];
+
 const baseCards = (extras) => {
 	if (!extras) extras = {};
 	const cards = {
@@ -119,7 +121,8 @@ describe('fingerprint generation', () => {
 				'references_info_inbound': '',
 			},
 		};
-		for (let [cardID, card] of Object.entries(cards)) {
+		for (let cardID of CARD_IDS_TO_TEST) {
+			let card = cards[cardID];
 			let normalized = expectedNormalized[cardID];
 			assert.deepStrictEqual(card.normalized, normalized);
 		}
@@ -262,7 +265,7 @@ describe('fingerprint generation', () => {
 				[ 'detail', 0 ]
 			])
 		};
-		for (let cardID of Object.keys(cards)) {
+		for (let cardID of CARD_IDS_TO_TEST) {
 			let expectedFingerprint = expectFingerprints[cardID];
 			let fingerprint = generator.fingerprintForCardID(cardID);
 			assert.deepStrictEqual(fingerprint, expectedFingerprint);
@@ -304,7 +307,7 @@ describe('fingerprint generation', () => {
 				[ 'four', 0 ]
 			]),
 		};
-		for (let cardID of Object.keys(cards)) {
+		for (let cardID of CARD_IDS_TO_TEST) {
 			let expectedOverlap = expectedOverlaps[cardID];
 			let overlap = generator.closestOverlappingItems(cardID);
 			assert.deepStrictEqual(overlap, expectedOverlap);
