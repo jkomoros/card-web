@@ -671,6 +671,20 @@ describe('PreparedQuery', () => {
 					],
 					0.09726890629795545,
 					false
+				],
+				[
+					[
+						'hill climb'
+					],
+					0.75,
+					false,
+				],
+				[
+					[
+						'climb blammo'
+					],
+					0.75,
+					false,
 				]
 			],
 		);
@@ -682,7 +696,7 @@ describe('PreparedQuery', () => {
 		const query = new PreparedQuery('hill-climbing blammo');
 		const card = baseCards()[CARD_ID_FIVE];
 		const result = query.cardScore(card);
-		const expectedResult = [ 0.12994882787797657, true ];
+		const expectedResult = [ 0.5049488278779766, true ];
 		assert.deepStrictEqual(result, expectedResult);
 	});
 
@@ -690,7 +704,7 @@ describe('PreparedQuery', () => {
 		const query = new PreparedQuery('hill-climbing slammo');
 		const card = baseCards()[CARD_ID_FIVE];
 		const result = query.cardScore(card);
-		const expectedResult = [ 0.08131437472899883, false ];
+		const expectedResult = [ 0.45631437472899883, false ];
 		assert.deepStrictEqual(result, expectedResult);
 	});
 

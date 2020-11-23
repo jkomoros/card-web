@@ -276,6 +276,15 @@ const textPropertySubQueryForWords = (joinedWords, startValue) => {
 		}
 	}
 
+	let bigrams = ngrams(joinedWords);
+	//if there's one bigram, then it's just equivalent to the full query
+	if (bigrams.length > 1) {
+		for (let bigram of bigrams) {
+			//Bigrams are much better than a single word matching
+			result.push([[bigram], startValue * 0.75, false]);
+		}
+	}
+
 	return result;
 };
 
