@@ -56,7 +56,7 @@ const baseCards = (extras) => {
 				'title': 'Using the cynefin model to understand problem spaces',
 				'references_info_inbound': {
 					'card_1': {
-						[REFERENCE_TYPE_LINK]: 'cynefin model\ncynefin\'s model',
+						[REFERENCE_TYPE_LINK]: 'cynefin model\ncynefin\'s model blammo',
 					},
 					'card_2': {
 						[REFERENCE_TYPE_ACK]: '',
@@ -108,7 +108,7 @@ describe('fingerprint generation', () => {
 				'body': 'the cynefin model divid problem into four type each with differ properti simpl trivial problem space that requir no special effort complic knowabl hard intric and challeng but concret and black and white effici will requir a focu on the right process and structur complex unknow hard goal method and even possibl next action ar unclear mean fundament differ approach ar requir chaotic so unknow hard as to be inscrut imposs to control or predict bewar diagnos problem as chaotic becaus it’ effect give up distinguish between complex and complic is the most import in practic note on terminolog in the past i call what cynefin call complex ambigu and what it call complic complex i’v shift to us cynfefin’ terminolog consist',
 				'title': 'us the cynefin model to understand problem space',
 				'subtitle': '',
-				'references_info_inbound': 'cynefin model cynefin\' model cynenfin model dupe',
+				'references_info_inbound': 'cynefin model cynefin\' model blammo cynenfin model dupe',
 			},
 			[CARD_ID_THREE]: {
 				'body': 'gradient ar import and you should pai attent to them they\'r an import type of complex human ar bias awai from complex problem space but correctli diagnos a problem space as complex is onli the first step in complex problem space you have to let go of the detail that don’t matter becaus they’r a danger illus do thi is hard unnatur and a littl scari but it’ the onli wai to see broader truth you have to let go of ever have solut that ar both detail and clear you can have on but not the other and gener onli the latter when you let go you can becom cosmic calm and high level truth will becom evid certain type of solut ar fundament imposs in complex although peopl who ar uncomfort with complex will continu to demand them',
@@ -165,31 +165,31 @@ describe('fingerprint generation', () => {
 				[ 'the', -0.03960780990892982 ]
 			]),
 			[CARD_ID_TWO]: new Map([
-				[ 'cynefin', 0.04911665363252673 ],
-				[ 'model', 0.047228657501137195 ],
-				[ 'terminolog', 0.02828493273018024 ],
-				[ 'call', 0.027914453875965823 ],
-				[ 'unknow', 0.022734403654098404 ],
-				[ 'chaotic', 0.022734403654098404 ],
-				[ 'complic', 0.02174529678541266 ],
-				[ 'requir', 0.01818192530736084 ],
-				[ 'cynefin\'', 0.017047137961236383 ],
-				[ 'cynenfin', 0.017047137961236383 ],
-				[ 'hard', 0.01630058307290989 ],
-				[ 'divid', 0.01576180030389564 ],
-				[ 'four', 0.01576180030389564 ],
-				[ 'method', 0.01576180030389564 ],
-				[ 'inscrut', 0.01576180030389564 ],
-				[ 'i’v', 0.01576180030389564 ],
-				[ 'cynfefin’', 0.01576180030389564 ],
-				[ 'knowabl', 0.01484983872281316 ],
-				[ 'unclear', 0.01484983872281316 ],
-				[ 'intric', 0.01414246636509012 ],
-				[ 'distinguish', 0.01414246636509012 ],
-				[ 'special', 0.013564501065472422 ],
-				[ 'dupe', 0.01265253948438994 ],
-				[ 'diagnos', 0.012279163408131682 ],
-				[ 'simpl', 0.0119451671266669 ]
+				[ 'cynefin', 0.04876073585258089 ],
+				[ 'model', 0.046886420852578235 ],
+				[ 'terminolog', 0.028079969449526763 ],
+				[ 'call', 0.027712175224690706 ],
+				[ 'unknow', 0.02256966159863392 ],
+				[ 'chaotic', 0.02256966159863392 ],
+				[ 'complic', 0.021587722171025607 ],
+				[ 'requir', 0.01805017222542344 ],
+				[ 'cynefin\'', 0.01692360797601003 ],
+				[ 'blammo', 0.01692360797601003 ],
+				[ 'cynenfin', 0.01692360797601003 ],
+				[ 'hard', 0.01618246290571489 ],
+				[ 'divid', 0.015647584359664516 ],
+				[ 'four', 0.015647584359664516 ],
+				[ 'method', 0.015647584359664516 ],
+				[ 'inscrut', 0.015647584359664516 ],
+				[ 'i’v', 0.015647584359664516 ],
+				[ 'cynfefin’', 0.015647584359664516 ],
+				[ 'knowabl', 0.014742231195836255 ],
+				[ 'unclear', 0.014742231195836255 ],
+				[ 'intric', 0.014039984724763381 ],
+				[ 'distinguish', 0.014039984724763381 ],
+				[ 'special', 0.01346620757949074 ],
+				[ 'dupe', 0.012560854415662476 ],
+				[ 'diagnos', 0.012190183963145222 ]
 			]),
 			[CARD_ID_THREE]: new Map([
 				[ 'let', 0.03521265892601794 ],
@@ -291,7 +291,7 @@ describe('fingerprint generation', () => {
 				[ 'four', 0 ]
 			]),
 			[CARD_ID_TWO]: new Map([
-				[ 'three', 1.0237230095776149 ],
+				[ 'three', 1.0236340301326285 ],
 				[ 'one', 0 ],
 				[ 'four', 0 ],
 				[ 'five', 0 ]
@@ -300,7 +300,7 @@ describe('fingerprint generation', () => {
 				[ 'one', 2.0863091772745204 ],
 				[ 'five', 2.0640693493476134 ],
 				[ 'four', 1.0898284623536398 ],
-				[ 'two', 1.0237230095776149 ]
+				[ 'two', 1.0236340301326285 ]
 			]),
 			[CARD_ID_FOUR]: new Map([
 				[ 'five', 2.098922039017152 ],
