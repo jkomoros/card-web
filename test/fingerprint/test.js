@@ -1166,4 +1166,28 @@ describe('PreparedQuery', () => {
 		assert.deepStrictEqual(query.filters, expectedQueryFilters);
 	});
 
+	it('query matching two words hyphenated all match', async () => {
+		const query = new PreparedQuery('hill-climbing blammo');
+		const card = baseCards()[CARD_ID_FIVE];
+		const result = query.cardScore(card);
+		const expectedResult = [ 0.37994882787797657, true ];
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
+	it('query matching partial match', async () => {
+		const query = new PreparedQuery('hill-climbing slammo');
+		const card = baseCards()[CARD_ID_FIVE];
+		const result = query.cardScore(card);
+		const expectedResult = [ 0.08131437472899883, false ];
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
+	it('query matching partial match', async () => {
+		const query = new PreparedQuery('climbing hill');
+		const card = baseCards()[CARD_ID_FIVE];
+		const result = query.cardScore(card);
+		const expectedResult = [ 0.33131437472899883, true ];
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
 });
