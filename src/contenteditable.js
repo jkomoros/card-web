@@ -232,6 +232,24 @@ const cleanUpTopLevelHTML = (html, tag = 'p') => {
 
 };
 
+export const normalizeLineBreaks = (html) => {
+	if (!html) return html;
+	//Remove all line breaks. We'll put them back in.
+	html = html.split('\n').join('');
+
+	//Add in line breaks
+	for (let key of Object.keys(legalTopLevelNodes)) {
+		const closeTag = '</' + key + '>';
+		html = html.split(closeTag).join(closeTag + '\n');
+	}
+
+	html = html.split('<ul>').join('<ul>\n');
+	html = html.split('<ol>').join('<ol>\n');
+	html = html.split('<li>').join('\t<li>');
+	html = html.split('</li>').join('</li>\n');
+	return html;
+};
+
 export const normalizeBodyHTML = (html) => {
 
 	if (!html) return html;
@@ -259,21 +277,9 @@ export const normalizeBodyHTML = (html) => {
 	html = html.split('<i>').join('<em>');
 	html = html.split('</i>').join('</em>');
 
-	//Remove all line breaks. We'll put them back in.
-	html = html.split('\n').join('');
-
 	html = cleanUpTopLevelHTML(html);
 
-	//Add in line breaks
-	for (let key of Object.keys(legalTopLevelNodes)) {
-		const closeTag = '</' + key + '>';
-		html = html.split(closeTag).join(closeTag + '\n');
-	}
-
-	html = html.split('<ul>').join('<ul>\n');
-	html = html.split('<ol>').join('<ol>\n');
-	html = html.split('<li>').join('\t<li>');
-	html = html.split('</li>').join('</li>\n');
+	html = normalizeLineBreaks(html);
 
 	html = html.split('&nbsp;').join(' ');
 

@@ -13,7 +13,7 @@ import {
 } from './document.js';
 
 import {
-	normalizeBodyHTML,
+	normalizeLineBreaks,
 } from './contenteditable.js';
 
 const lowercaseSplitWords = (str) => {
@@ -65,8 +65,8 @@ const innerTextForHTML = (body) => {
 	//users and thus untrusted, because the temporary element is never actually
 	//appended into the DOM
 	let ele = getDocument().createElement('section');
-	//Ensure the body html is normalized. In particular, this makes sure line breaks are in the right place after each legal block level element
-	body = normalizeBodyHTML(body);
+	// makes sure line breaks are in the right place after each legal block level element
+	body = normalizeLineBreaks(body);
 	ele.innerHTML = body;
 	//textContent would return things like style and script contents, but those shouldn't be included anyway.
 	return ele.textContent;
