@@ -465,6 +465,39 @@ describe('PreparedQuery', () => {
 		assert.deepStrictEqual(query.filters, []);
 	});
 
+	it('Basic query parsing two words one of them stop word', async () => {
+		const query = new PreparedQuery('is foo');
+		const expectedQueryProperties = expandExpectedQueryProperties(
+			[
+				[
+					[
+						'is foo'
+					],
+					1,
+					true
+				],
+				[
+					[
+						'is',
+						'foo'
+					],
+					0.5,
+					true
+				],
+				[
+					[
+						'foo'
+					],
+					0.059640156839957804,
+					false
+				]
+			]
+		);
+
+		assert.deepStrictEqual(query.text, expectedQueryProperties);
+		assert.deepStrictEqual(query.filters, []);
+	});
+
 	it('Basic query parsing two words', async () => {
 		const query = new PreparedQuery('foo bar');
 		const expectedQueryProperties = expandExpectedQueryProperties(
