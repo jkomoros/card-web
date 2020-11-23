@@ -21,6 +21,7 @@ import {
 	FingerprintGenerator,
 	PreparedQuery,
 	TESTING,
+	prettyFingerprint,
 } from '../../src/nlp.js';
 
 import {
@@ -420,6 +421,15 @@ describe('fingerprint generation', () => {
 			'cynefin\'': 'cynefin\'s'
 		};
 		assert.deepStrictEqual(filteredWordMap, expectedWordMap);
+	});
+
+	it('pretty fingerprint', async () => {
+		const cards = baseCards();
+		const generator = new FingerprintGenerator(cards);
+		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
+		const pretty = prettyFingerprint(fingerprint, cards[CARD_ID_TWO]);
+		const expectedPretty = 'Cynefin Model Terminology Calls Unknowably Chaotic Complicated Require Cynefin\'s Blammo Cynenfin Hard Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Dupe Diagnosing';
+		assert.deepStrictEqual(pretty, expectedPretty);
 	});
 
 });
