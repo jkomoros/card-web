@@ -454,3 +454,9 @@ export class FingerprintGenerator {
 		return new Map(sortedIDs.map(id => [id, overlaps[id]]));
 	}
 }
+
+//Methods and constants that are only exported for testing and should not be
+//relied on by other code
+export const TESTING = {
+	splitRuns,
+};

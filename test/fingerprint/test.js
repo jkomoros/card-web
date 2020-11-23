@@ -21,6 +21,7 @@ import {
 	destemmedWordMap,
 	FingerprintGenerator,
 	PreparedQuery,
+	TESTING,
 } from '../../src/nlp.js';
 
 import {
@@ -1231,4 +1232,36 @@ describe('PreparedQuery', () => {
 		assert.deepStrictEqual(result, expectedResult);
 	});
 
+});
+
+describe('splitRuns', () => {
+	it('undefined gives empty runs', async () => {
+		const result = TESTING.splitRuns();
+		const expectedResult = [];
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
+	it('empty string gives empty runs', async () => {
+		const result = TESTING.splitRuns('');
+		const expectedResult = [];
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
+	it('basic content gives one run', async () => {
+		const result = TESTING.splitRuns('This is some super cool basic content');
+		const expectedResult = ['This is some super cool basic content'];
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
+	it('basic content with a line break gives two run', async () => {
+		const result = TESTING.splitRuns('This is some\nsuper cool basic content');
+		const expectedResult = ['This is some','super cool basic content'];
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
+	it('trailing empty sections are removed', async () => {
+		const result = TESTING.splitRuns('This is some\nsuper cool basic content\n');
+		const expectedResult = ['This is some','super cool basic content'];
+		assert.deepStrictEqual(result, expectedResult);
+	});
 });
