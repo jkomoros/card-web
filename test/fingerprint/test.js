@@ -30,6 +30,8 @@ import {
 	REFERENCE_TYPE_LINK,
 	REFERENCE_TYPE_ACK,
 	REFERENCE_TYPE_DUPE_OF,
+	TEXT_FIELD_CONFIGURATION,
+	TEXT_FIELD_TITLE,
 } from '../../src/card_fields.js';
 
 import assert from 'assert';
@@ -423,55 +425,41 @@ describe('fingerprint generation', () => {
 
 });
 
+//expandExpectedQueryProperties takes a titleBlock and then makes a body,
+//subtitle, and references_info_inbound block that's the same but with different
+//match weights.
+const expandExpectedQueryProperties = (titleBlock) => {
+	let result = {[TEXT_FIELD_TITLE]: titleBlock};
+	let titleMatchWeight = TEXT_FIELD_CONFIGURATION[TEXT_FIELD_TITLE].matchWeight;
+	for (let [fieldName, fieldConfig] of Object.entries(TEXT_FIELD_CONFIGURATION)) {
+		if (fieldName == TEXT_FIELD_TITLE) continue;
+		let fieldMatchWeight = fieldConfig.matchWeight;
+		result[fieldName] = titleBlock.map(item => [item[0], item[1] / titleMatchWeight * fieldMatchWeight ,item[2]]);
+	}
+	return result;
+};
+
 describe('PreparedQuery', () => {
 	it('Basic query parsing single word', async () => {
 		const query = new PreparedQuery('foo');
-		const expectedQueryProperties = {
-			'title': [
+		const expectedQueryProperties = expandExpectedQueryProperties([
+			[
 				[
-					[
-						'foo'
-					],
-					1,
-					true
-				]
-			],
-			'body': [
-				[
-					[
-						'foo'
-					],
-					0.5,
-					true
-				]
-			],
-			'subtitle': [
-				[
-					[
-						'foo'
-					],
-					0.75,
-					true
-				]
-			],
-			'references_info_inbound': [
-				[
-					[
-						'foo'
-					],
-					0.95,
-					true
-				]
+					'foo'
+				],
+				1,
+				true
 			]
-		};
+		]);
+
 		assert.deepStrictEqual(query.text, expectedQueryProperties);
 		assert.deepStrictEqual(query.filters, []);
 	});
 
 	it('Basic query parsing two words', async () => {
 		const query = new PreparedQuery('foo bar');
-		const expectedQueryProperties = {
-			'title': [
+		const expectedQueryProperties = expandExpectedQueryProperties(
+			[
 				[
 					[
 						'foo bar'
@@ -501,233 +489,45 @@ describe('PreparedQuery', () => {
 					0.059640156839957804,
 					false
 				]
-			],
-			'body': [
-				[
-					[
-						'foo bar'
-					],
-					0.5,
-					true
-				],
-				[
-					[
-						'foo',
-						'bar'
-					],
-					0.25,
-					true
-				],
-				[
-					[
-						'foo'
-					],
-					0.029820078419978902,
-					false
-				],
-				[
-					[
-						'bar'
-					],
-					0.029820078419978902,
-					false
-				]
-			],
-			'subtitle': [
-				[
-					[
-						'foo bar'
-					],
-					0.75,
-					true
-				],
-				[
-					[
-						'foo',
-						'bar'
-					],
-					0.375,
-					true
-				],
-				[
-					[
-						'foo'
-					],
-					0.044730117629968355,
-					false
-				],
-				[
-					[
-						'bar'
-					],
-					0.044730117629968355,
-					false
-				]
-			],
-			'references_info_inbound': [
-				[
-					[
-						'foo bar'
-					],
-					0.95,
-					true
-				],
-				[
-					[
-						'foo',
-						'bar'
-					],
-					0.475,
-					true
-				],
-				[
-					[
-						'foo'
-					],
-					0.056658148997959915,
-					false
-				],
-				[
-					[
-						'bar'
-					],
-					0.056658148997959915,
-					false
-				]
 			]
-		};
+		);
 		assert.deepStrictEqual(query.text, expectedQueryProperties);
 		assert.deepStrictEqual(query.filters, []);
 	});
 
 	it('Basic query parsing two words stemming', async () => {
 		const query = new PreparedQuery('you\'re crystallizing');
-		const expectedQueryProperties = {
-			'title': [
+		const expectedQueryProperties = expandExpectedQueryProperties([
+			[
 				[
-					[
-						'you\'r crystal'
-					],
-					1,
-					true
+					'you\'r crystal'
 				],
-				[
-					[
-						'you\'r',
-						'crystal'
-					],
-					0.5,
-					true
-				],
-				[
-					[
-						'you\'r'
-					],
-					0.08737125054200236,
-					false
-				],
-				[
-					[
-						'crystal'
-					],
-					0.1056372550017821,
-					false
-				]
+				1,
+				true
 			],
-			'body': [
+			[
 				[
-					[
-						'you\'r crystal'
-					],
-					0.5,
-					true
+					'you\'r',
+					'crystal'
 				],
-				[
-					[
-						'you\'r',
-						'crystal'
-					],
-					0.25,
-					true
-				],
-				[
-					[
-						'you\'r'
-					],
-					0.04368562527100118,
-					false
-				],
-				[
-					[
-						'crystal'
-					],
-					0.05281862750089105,
-					false
-				]
+				0.5,
+				true
 			],
-			'subtitle': [
+			[
 				[
-					[
-						'you\'r crystal'
-					],
-					0.75,
-					true
+					'you\'r'
 				],
-				[
-					[
-						'you\'r',
-						'crystal'
-					],
-					0.375,
-					true
-				],
-				[
-					[
-						'you\'r'
-					],
-					0.06552843790650177,
-					false
-				],
-				[
-					[
-						'crystal'
-					],
-					0.07922794125133657,
-					false
-				]
+				0.08737125054200236,
+				false
 			],
-			'references_info_inbound': [
+			[
 				[
-					[
-						'you\'r crystal'
-					],
-					0.95,
-					true
+					'crystal'
 				],
-				[
-					[
-						'you\'r',
-						'crystal'
-					],
-					0.475,
-					true
-				],
-				[
-					[
-						'you\'r'
-					],
-					0.08300268801490224,
-					false
-				],
-				[
-					[
-						'crystal'
-					],
-					0.10035539225169299,
-					false
-				]
+				0.1056372550017821,
+				false
 			]
-		};
+		]);
 		assert.deepStrictEqual(query.text, expectedQueryProperties);
 		assert.deepStrictEqual(query.filters, []);
 	});
@@ -735,8 +535,8 @@ describe('PreparedQuery', () => {
 	it('Basic query parsing one word one filter', async () => {
 		const query = new PreparedQuery('crystallizing filter:has-links');
 		const expectedQueryFilters = ['has-links'];
-		const expectedQueryText = {
-			'title': [
+		const expectedQueryText = expandExpectedQueryProperties(
+			[
 				[
 					[
 						'crystal'
@@ -745,34 +545,7 @@ describe('PreparedQuery', () => {
 					true
 				]
 			],
-			'body': [
-				[
-					[
-						'crystal'
-					],
-					0.5,
-					true
-				]
-			],
-			'subtitle': [
-				[
-					[
-						'crystal'
-					],
-					0.75,
-					true
-				]
-			],
-			'references_info_inbound': [
-				[
-					[
-						'crystal'
-					],
-					0.95,
-					true
-				]
-			]
-		};
+		);
 		assert.deepStrictEqual(query.text, expectedQueryText);
 		assert.deepStrictEqual(query.filters, expectedQueryFilters);
 	});
@@ -780,8 +553,8 @@ describe('PreparedQuery', () => {
 	it('Basic query parsing two words one filter', async () => {
 		const query = new PreparedQuery('crystallizing blammo filter:has-links');
 		const expectedQueryFilters = ['has-links'];
-		const expectedQueryText = {
-			'title': [
+		const expectedQueryText = expandExpectedQueryProperties(
+			[
 				[
 					[
 						'crystal blammo'
@@ -811,101 +584,8 @@ describe('PreparedQuery', () => {
 					0.09726890629795545,
 					false
 				]
-			],
-			'body': [
-				[
-					[
-						'crystal blammo'
-					],
-					0.5,
-					true
-				],
-				[
-					[
-						'crystal',
-						'blammo'
-					],
-					0.25,
-					true
-				],
-				[
-					[
-						'crystal'
-					],
-					0.05281862750089105,
-					false
-				],
-				[
-					[
-						'blammo'
-					],
-					0.04863445314897773,
-					false
-				]
-			],
-			'subtitle': [
-				[
-					[
-						'crystal blammo'
-					],
-					0.75,
-					true
-				],
-				[
-					[
-						'crystal',
-						'blammo'
-					],
-					0.375,
-					true
-				],
-				[
-					[
-						'crystal'
-					],
-					0.07922794125133657,
-					false
-				],
-				[
-					[
-						'blammo'
-					],
-					0.07295167972346658,
-					false
-				]
-			],
-			'references_info_inbound': [
-				[
-					[
-						'crystal blammo'
-					],
-					0.95,
-					true
-				],
-				[
-					[
-						'crystal',
-						'blammo'
-					],
-					0.475,
-					true
-				],
-				[
-					[
-						'crystal'
-					],
-					0.10035539225169299,
-					false
-				],
-				[
-					[
-						'blammo'
-					],
-					0.09240546098305767,
-					false
-				]
 			]
-		};
+		);
 		assert.deepStrictEqual(query.text, expectedQueryText);
 		assert.deepStrictEqual(query.filters, expectedQueryFilters);
 	});
@@ -913,8 +593,8 @@ describe('PreparedQuery', () => {
 	it('Basic query parsing two words one filter in between', async () => {
 		const query = new PreparedQuery('crystallizing filter:has-links blammo');
 		const expectedQueryFilters = ['has-links'];
-		const expectedQueryText = {
-			'title': [
+		const expectedQueryText = expandExpectedQueryProperties(
+			[
 				[
 					[
 						'crystal blammo'
@@ -944,101 +624,8 @@ describe('PreparedQuery', () => {
 					0.09726890629795545,
 					false
 				]
-			],
-			'body': [
-				[
-					[
-						'crystal blammo'
-					],
-					0.5,
-					true
-				],
-				[
-					[
-						'crystal',
-						'blammo'
-					],
-					0.25,
-					true
-				],
-				[
-					[
-						'crystal'
-					],
-					0.05281862750089105,
-					false
-				],
-				[
-					[
-						'blammo'
-					],
-					0.04863445314897773,
-					false
-				]
-			],
-			'subtitle': [
-				[
-					[
-						'crystal blammo'
-					],
-					0.75,
-					true
-				],
-				[
-					[
-						'crystal',
-						'blammo'
-					],
-					0.375,
-					true
-				],
-				[
-					[
-						'crystal'
-					],
-					0.07922794125133657,
-					false
-				],
-				[
-					[
-						'blammo'
-					],
-					0.07295167972346658,
-					false
-				]
-			],
-			'references_info_inbound': [
-				[
-					[
-						'crystal blammo'
-					],
-					0.95,
-					true
-				],
-				[
-					[
-						'crystal',
-						'blammo'
-					],
-					0.475,
-					true
-				],
-				[
-					[
-						'crystal'
-					],
-					0.10035539225169299,
-					false
-				],
-				[
-					[
-						'blammo'
-					],
-					0.09240546098305767,
-					false
-				]
 			]
-		};
+		);
 		assert.deepStrictEqual(query.text, expectedQueryText);
 		assert.deepStrictEqual(query.filters, expectedQueryFilters);
 	});
@@ -1046,8 +633,8 @@ describe('PreparedQuery', () => {
 	it('Basic query parsing one hyphenated word one normal word', async () => {
 		const query = new PreparedQuery('hill-climbing blammo');
 		const expectedQueryFilters = [];
-		const expectedQueryText = {
-			'title': [
+		const expectedQueryText = expandExpectedQueryProperties(
+			[
 				[
 					[
 						'hill climb blammo'
@@ -1086,124 +673,7 @@ describe('PreparedQuery', () => {
 					false
 				]
 			],
-			'body': [
-				[
-					[
-						'hill climb blammo'
-					],
-					0.5,
-					true
-				],
-				[
-					[
-						'hill',
-						'climb',
-						'blammo'
-					],
-					0.25,
-					true
-				],
-				[
-					[
-						'hill'
-					],
-					0.03762874945799765,
-					false
-				],
-				[
-					[
-						'climb'
-					],
-					0.04368562527100118,
-					false
-				],
-				[
-					[
-						'blammo'
-					],
-					0.04863445314897773,
-					false
-				]
-			],
-			'subtitle': [
-				[
-					[
-						'hill climb blammo'
-					],
-					0.75,
-					true
-				],
-				[
-					[
-						'hill',
-						'climb',
-						'blammo'
-					],
-					0.375,
-					true
-				],
-				[
-					[
-						'hill'
-					],
-					0.05644312418699647,
-					false
-				],
-				[
-					[
-						'climb'
-					],
-					0.06552843790650177,
-					false
-				],
-				[
-					[
-						'blammo'
-					],
-					0.07295167972346658,
-					false
-				]
-			],
-			'references_info_inbound': [
-				[
-					[
-						'hill climb blammo'
-					],
-					0.95,
-					true
-				],
-				[
-					[
-						'hill',
-						'climb',
-						'blammo'
-					],
-					0.475,
-					true
-				],
-				[
-					[
-						'hill'
-					],
-					0.07149462397019553,
-					false
-				],
-				[
-					[
-						'climb'
-					],
-					0.08300268801490224,
-					false
-				],
-				[
-					[
-						'blammo'
-					],
-					0.09240546098305767,
-					false
-				]
-			]
-		};
+		);
 		assert.deepStrictEqual(query.text, expectedQueryText);
 		assert.deepStrictEqual(query.filters, expectedQueryFilters);
 	});
