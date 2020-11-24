@@ -39,6 +39,7 @@ import {
 import {
 	PreparedQuery,
 	FingerprintGenerator,
+	prettyFingerprintItems,
 } from './nlp.js';
 
 import {
@@ -953,6 +954,19 @@ const selectActiveCollection = createSelector(
 	selectSections,
 	selectTabCollectionFallbacks,
 	(description, cards, sets, filters, sections, fallbacks) => description ? description.collection(cards, sets, filters, sections, fallbacks) : null
+);
+
+export const selectActiveCollectionWordCloud = createSelector(
+	selectActiveCollection,
+	selectFingerprintGenerator,
+	(collection, fingerprintGenerator) => {
+		if (!collection) return [[],{}];
+		const fingerprint = fingerprintGenerator.fingerprintForCardIDList(collection.filteredCards.map(card => card.id));
+		const displayItems = prettyFingerprintItems(fingerprint);
+		//TODO: output color based on the value in the fingerprint
+		const infos = Object.fromEntries([...fingerprint.entries()].map((entry,index) => [entry[0], {title: displayItems[index], suppressLink:true}]));
+		return [[...fingerprint.keys()], infos];
+	}
 );
 
 export const selectActiveCollectionContainsCards = createSelector(

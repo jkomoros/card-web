@@ -12,6 +12,7 @@ import {
 } from './card-badges.js';
 
 import './card-renderer.js';
+import './tag-list.js';
 
 import {
 	PLUS_ICON,
@@ -101,7 +102,10 @@ class CardDrawer extends connect(store)(LitElement) {
 
 				#count {
 					text-align: center;
-					margin: 0;
+					margin-top: 0;
+					margin-bottom: 0;
+					/* tag-list can get wide, but keep it thin */
+					width: 12em;
 				}
 
 				.spacer {
@@ -210,7 +214,10 @@ class CardDrawer extends connect(store)(LitElement) {
 			</style>
 			<div ?hidden='${!this.showing}' class='container ${this._dragging ? 'dragging' : ''}${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
 				<div class='scrolling'>
-				<div class='label' id='count'><span><strong>${this.collection.length}</strong> cards</span></div>
+				<div class='label' id='count'>
+					<span><strong>${this.collection.length}</strong> cards</span>
+					${this.wordCloudItems && this.wordCloudItems.length ? html`<tag-list .tags=${this.wordCloudItems} .tagInfos=${this.wordCloudInfos}></tag-list>` : ''}
+				</div>
 				${repeat(this.collection, (i) => i.id, (i, index) => html`
 					<div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
 					${this.labels && this.labels[index] ? html`<div class='label'><span>${this.labelName} <strong>${this.labels[index]}</strong></span></div>` : html``}
@@ -395,6 +402,8 @@ class CardDrawer extends connect(store)(LitElement) {
 			reorderPending: {type:Boolean},
 			//_showing is more complicated than whether we're open or yet.
 			showing: {type:Boolean},
+			wordCloudItems: {type:Array},
+			wordCloudInfos: {type:Object},
 			_dragging: {type: Boolean},
 			_highlightedViaClick: {type: Boolean},
 			//Keeps track of if we've scrolled to the highlighted card yet;

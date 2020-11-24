@@ -538,6 +538,7 @@ export class FingerprintGenerator {
 	}
 
 	fingerprintForCardIDList(cardIDs) {
+		if (!cardIDs || !cardIDs.length) return new Map();
 		let joinedMap = new Map();
 		for (const cardID of cardIDs) {
 			const fingerprint = this.fingerprintForCardID(cardID);

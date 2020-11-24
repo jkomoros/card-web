@@ -43,7 +43,8 @@ import {
 	selectEditingUpdatedFromContentEditable,
 	selectPendingNewCardID,
 	selectUserMayForkActiveCard,
-	selectActiveCardSemanticFingerprint
+	selectActiveCardSemanticFingerprint,
+	selectActiveCollectionWordCloud,
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -238,7 +239,7 @@ class CardView extends connect(store)(PageViewElement) {
         }
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .labels=${this._collectionLabels} .labelName=${this._collectionLabelName} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' @add-working-notes-card='${this._handleAddWorkingNotesCard}' .editable=${this._userMayEditActiveSection} .suppressAdd=${!this._userMayCreateCard} .showCreateWorkingNotes=${this._userMayCreateCard} .collection=${this._collection} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .collectionItemsToGhost=${this._collectionItemsThatWillBeRemovedOnPendingFilterCommit}></card-drawer>
+        <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .labels=${this._collectionLabels} .labelName=${this._collectionLabelName} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' @add-working-notes-card='${this._handleAddWorkingNotesCard}' .editable=${this._userMayEditActiveSection} .suppressAdd=${!this._userMayCreateCard} .showCreateWorkingNotes=${this._userMayCreateCard} .collection=${this._collection} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .collectionItemsToGhost=${this._collectionItemsThatWillBeRemovedOnPendingFilterCommit} .wordCloudItems=${this._collectionWordCloudItems} .wordCloudInfos=${this._collectionWordCloudInfos}></card-drawer>
         <div id='center'>
 			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .mobile=${this._mobileMode} .card=${this._displayCard} .updatedFromContentEditable=${this._updatedFromContentEditable} @text-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped}>
 				<div slot='actions' class='presentation'>
@@ -314,6 +315,8 @@ class CardView extends connect(store)(PageViewElement) {
 			_cardTodos: {type: Array},
 			_pendingNewCardID: {type:String},
 			_fingerprint: {type:Object},
+			_collectionWordCloudItems: {type:Array},
+			_collectionWordCloudInfos: {type:Object},
 		};
 	}
 
@@ -475,6 +478,11 @@ class CardView extends connect(store)(PageViewElement) {
 		this._cardTodos = selectActiveCardTodosForCurrentUser(state);
 		this._pendingNewCardID = selectPendingNewCardID(state);
 		this._fingerprint = DEBUG_SHOW_FINGERPRINT ? selectActiveCardSemanticFingerprint(state) : null;
+
+		//TODO: don't request this if it's not showing
+		const [items, infos] = selectActiveCollectionWordCloud(state);
+		this._collectionWordCloudItems = items;
+		this._collectionWordCloudInfos = infos;
 	}
 
 	firstUpdated() {
