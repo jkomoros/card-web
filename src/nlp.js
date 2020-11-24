@@ -346,7 +346,7 @@ const queryWordsAndFilters = (queryString) => {
 };
 
 //The max number of words to include in the semantic fingerprint
-const SEMANTIC_FINGERPRINT_SIZE = 25;
+const SEMANTIC_FINGERPRINT_SIZE = 35;
 
 const SEMANTIC_FINGERPRINT_MATCH_CONSTANT = 1.0;
 
@@ -372,12 +372,24 @@ const semanticOverlap = (fingerprintOne, fingerprintTwo) => {
 	return total;
 };
 
+//We want to pretend like there are way more words than bigrams, otherwise
+//bigrams dominate fingerprints. 0.5 seems to work well, which intutiively makes
+//sense, since there are two words in a bigram
+const BIGRAM_MATCH_COUNT = 0.5;
+
 const wordCountsForSemantics = (str) => {
 	const words = str.split(' ').filter(word => !STOP_WORDS[word]);
 	const cardMap = {};
 	for (const word of words) {
 		if (!word) continue;
 		cardMap[word] = (cardMap[word] || 0) + 1;
+	}
+	const bigrams = ngrams(words.join(' '));
+	if (bigrams.length > 1) {
+		for (const bigram of bigrams) {
+			if (!bigram) continue;
+			cardMap[bigram] = (cardMap[bigram] || 0) + BIGRAM_MATCH_COUNT;
+		}
 	}
 	return cardMap;
 };
@@ -394,7 +406,18 @@ const semanticFingerprint = (tfidf) => {
 export const prettyFingerprint = (fingerprint, cardObj) => {
 	if (!fingerprint) return '';
 	const destemmedMap = destemmedWordMap(cardObj);
-	return [...fingerprint.keys()].map(word => destemmedMap[word]).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+	const seenItems = {};
+	let dedupedFingerprint = [];
+	//Since words might be in ngrams, and they might overlap with the same
+	//words, check for duplicates
+	for (let ngram of fingerprint.keys()) {
+		for (let word of ngram.split(' ')) {
+			if (seenItems[word]) continue;
+			seenItems[word] = true;
+			dedupedFingerprint.push(word);
+		}
+	}
+	return dedupedFingerprint.map(word => destemmedMap[word]).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 };
 
 export class FingerprintGenerator {
