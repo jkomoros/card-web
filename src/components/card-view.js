@@ -490,10 +490,12 @@ class CardView extends connect(store)(PageViewElement) {
 		this._fingerprint = DEBUG_SHOW_FINGERPRINT ? selectActiveCardSemanticFingerprint(state) : null;
 		this._infoExpanded = selectCardsDrawerInfoExpanded(state);
 
-		//TODO: don't request this if it's not showing
-		const [items, infos] = selectActiveCollectionWordCloud(state);
-		this._collectionWordCloudItems = items;
-		this._collectionWordCloudInfos = infos;
+		if (this._cardsDrawerPanelOpen && this._infoExpanded) {
+			//This is expensive so only fetch it if the panel is expanded
+			const [items, infos] = selectActiveCollectionWordCloud(state);
+			this._collectionWordCloudItems = items;
+			this._collectionWordCloudInfos = infos;
+		}
 
 	}
 
