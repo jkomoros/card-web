@@ -13,6 +13,7 @@ import {
 	updateAuthors,
 	updateTags,
 	removeCards,
+	expectUnpublishedCards,
 } from './data.js';
 
 import {
@@ -297,6 +298,8 @@ export const connectLiveUnpublishedCardsForUser = (uid) => {
 	if (!selectUserMayViewApp(store.getState())) return;
 	disconnectLiveUnpublishedCardsForUser();
 	if (!uid) return;
+	//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
+	store.dispatch(expectUnpublishedCards());
 	liveUnpublishedCardsForUserAuthorUnsubscribe = db.collection(CARDS_COLLECTION).where('author', '==', uid).where('published', '==', false).onSnapshot(cardSnapshotReceiver(true));
 	liveUnpublishedCardsForUserEditorUnsubscribe = db.collection(CARDS_COLLECTION).where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid).where('published', '==', false).onSnapshot(cardSnapshotReceiver(true));
 };
@@ -315,6 +318,8 @@ const disconnectLiveUnpublishedCardsForUser = () => {
 export const connectLiveUnpublishedCards = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
 	disconnectLiveUnpublishedCardsForUser();
+	//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
+	store.dispatch(expectUnpublishedCards());
 	db.collection(CARDS_COLLECTION).where('published', '==', false).onSnapshot(cardSnapshotReceiver(true));
 };
 
