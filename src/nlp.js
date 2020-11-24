@@ -16,6 +16,10 @@ import {
 	normalizeLineBreaks,
 } from './contenteditable.js';
 
+//STOP_WORDS are words that are so common that we should basically skip them. We
+//skip them when generating multi-word queries, and also for considering words
+//for ngrams, since these words are so common that if they're considered than a
+//distinctive word + a stop word will show up twice
 const STOP_WORDS = {
 	'a' : true,
 	'an' : true,
@@ -25,6 +29,15 @@ const STOP_WORDS = {
 	'and': true,
 	'of': true,
 	'to': true,
+	'that': true,
+	'you': true,
+	'it': true,
+	'ar': true,
+	'be': true,
+	'on': true,
+	'can': true,
+	'have': true,
+	'for':true,
 };
 
 const lowercaseSplitWords = (str) => {
