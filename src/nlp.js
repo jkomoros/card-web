@@ -78,12 +78,19 @@ const normalizedWords = (str) => {
 };
 
 let memoizedStemmedWords = {};
+//Inverse: the stemmed result, to a map of words and their counts with how often
+//they're handed out
+let reversedStemmedWords = {};
 const memorizedStemmer = (word) => {
 	if (!memoizedStemmedWords[word]) {
-		memoizedStemmedWords[word] = stemmer(word);
+		const stemmedWord = stemmer(word);
+		memoizedStemmedWords[word] = stemmedWord;
+		if (!reversedStemmedWords[stemmedWord]) reversedStemmedWords[stemmedWord] = {};
+		reversedStemmedWords[stemmedWord][word] = 0;
 	}
-	
-	return memoizedStemmedWords[word];
+	const stemmedWord = memoizedStemmedWords[word];
+	reversedStemmedWords[stemmedWord][word]++;
+	return stemmedWord;
 };
 
 //A more aggressive form of normalization
@@ -157,17 +164,22 @@ const extractContentWords = (card) => {
 };
 
 //destemmedWordMap returns a map of where each given destemmed word is mapped to
-//its most common stemmed variant from within this card.
+//its most common stemmed variant. If a cardObj is provided, it will use the
+//words from that cardObj. If not, it will use the most common destemmed variant
+//from the corpus.
 const destemmedWordMap = (card) => {
-	const content = extractContentWords(card);
-	const counts = {};
-	for (let runs of Object.values(content)) {
-		const str = runs.join(' ');
-		const words = str.split(' ');
-		for (let word of words) {
-			const stemmedWord = memorizedStemmer(word);
-			if (!counts[stemmedWord]) counts[stemmedWord] = {};
-			counts[stemmedWord][word] = (counts[stemmedWord][word] || 0) + 1;
+	let counts = reversedStemmedWords; 
+	if (card) {
+		const content = extractContentWords(card);
+		counts = {};
+		for (let runs of Object.values(content)) {
+			const str = runs.join(' ');
+			const words = str.split(' ');
+			for (let word of words) {
+				const stemmedWord = memorizedStemmer(word);
+				if (!counts[stemmedWord]) counts[stemmedWord] = {};
+				counts[stemmedWord][word] = (counts[stemmedWord][word] || 0) + 1;
+			}
 		}
 	}
 	//counts is now a map of destemmedWord to word.
@@ -411,7 +423,7 @@ const semanticFingerprint = (tfidf) => {
 
 //prettyFingerprint returns a version of the fingerprint suitable for showing to
 //a user, by de-stemming words based on the words that are most common in
-//cardObj.
+//cardObj. cardObj can be omitted to use word frequencies from the whole corpus.
 export const prettyFingerprint = (fingerprint, cardObj) => {
 	if (!fingerprint) return '';
 	const destemmedMap = destemmedWordMap(cardObj);

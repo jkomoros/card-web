@@ -422,7 +422,7 @@ describe('fingerprint generation', () => {
 		}
 	});
 
-	it('destemmed word map', async () => {
+	it('destemmed word map for card', async () => {
 		const card = baseCards()[CARD_ID_TWO];
 		let wordMap = TESTING.destemmedWordMap(card);
 		//Filter out items that are the same on each side, to keep the expected map smaller.
@@ -476,12 +476,130 @@ describe('fingerprint generation', () => {
 		assert.deepStrictEqual(filteredWordMap, expectedWordMap);
 	});
 
-	it('pretty fingerprint', async () => {
+	it('destemmed word map for corpus', async () => {
+		let wordMap = TESTING.destemmedWordMap();
+		//Filter out items that are the same on each side, to keep the expected map smaller, and only pick the first 100
+		let filteredWordMap = Object.fromEntries(Object.entries(wordMap).filter(entry => entry[0] != entry[1]).slice(0, 100));
+		let expectedWordMap = {
+			thi: 'this',
+			titl: 'title',
+			card: 'cards',
+			bodi: 'body',
+			seed: 'seeds',
+			crystal: 'crystals',
+			surf: 'surfing',
+			kei: 'key',
+			uncertainti: 'uncertainty',
+			us: 'use',
+			space: 'spaces',
+			divid: 'divides',
+			type: 'types',
+			differ: 'different',
+			properti: 'properties',
+			simpl: 'simple',
+			requir: 'requires',
+			complic: 'complicated',
+			knowabl: 'knowably',
+			intric: 'intricate',
+			challeng: 'challenge',
+			concret: 'concrete',
+			effici: 'efficiency',
+			focu: 'focus',
+			structur: 'structure',
+			unknow: 'unknowably',
+			goal: 'goals',
+			method: 'methods',
+			possibl: 'possible',
+			action: 'actions',
+			ar: 'are',
+			mean: 'means',
+			fundament: 'fundamentally',
+			inscrut: 'inscrutable',
+			imposs: 'impossible',
+			bewar: 'beware',
+			diagnos: 'diagnosing',
+			becaus: 'because',
+			'it’': 'it’s',
+			distinguish: 'distinguishing',
+			import: 'important',
+			practic: 'practice',
+			terminolog: 'terminology',
+			call: 'called',
+			ambigu: 'ambiguity',
+			'i’v': 'i’ve',
+			'cynfefin’': 'cynfefin’s',
+			consist: 'consistently',
+			'cynefin\'': 'cynefin\'s',
+			embrac: 'embracing',
+			detail: 'details',
+			pai: 'pay',
+			attent: 'attention',
+			'they\'r': 'they\'re',
+			human: 'humans',
+			bias: 'biased',
+			awai: 'away',
+			correctli: 'correctly',
+			onli: 'only',
+			'they’r': 'they’re',
+			danger: 'dangerous',
+			illus: 'illusion',
+			unnatur: 'unnatural',
+			littl: 'little',
+			scari: 'scary',
+			wai: 'way',
+			solut: 'solutions',
+			gener: 'general',
+			becom: 'become',
+			cosmic: 'cosmically',
+			evid: 'evidence',
+			peopl: 'people',
+			uncomfort: 'uncomfortable',
+			continu: 'continuous',
+			climb: 'climbing',
+			thing: 'things',
+			caus: 'cause',
+			disconfirm: 'disconfirming',
+			incorpor: 'incorporating',
+			nuanc: 'nuanced',
+			'it\'': 'it\'s',
+			inconveni: 'inconvenient',
+			ani: 'any',
+			modern: 'modernism',
+			'there\'': 'there\'s',
+			asymptot: 'asymptotically',
+			toward: 'towards',
+			'you\'v': 'you\'ve',
+			thu: 'thus',
+			'you\'r': 'you\'re',
+			discoveri: 'discovery',
+			partial: 'partially',
+			situat: 'situation',
+			develop: 'developers',
+			outsid: 'outside',
+			directli: 'directly',
+			subject: 'subjective',
+			ha: 'has',
+			interest: 'interesting',
+			realli: 'really'
+		};
+		assert.deepStrictEqual(filteredWordMap, expectedWordMap);
+	});
+
+	it('pretty fingerprint with card', async () => {
 		const cards = baseCards();
 		const generator = new FingerprintGenerator(cards);
 		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
 		const pretty = prettyFingerprint(fingerprint, cards[CARD_ID_TWO]);
 		const expectedPretty = 'Cynefin Model Terminology Calls Unknowably Chaotic Complicated Require Cynefin\'s Blammo Cynenfin Hard Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Dupe Diagnosing Simple Past Ambiguous Shifted Trivial Consistently Different Next';
+		assert.deepStrictEqual(pretty, expectedPretty);
+	});
+
+	it('pretty fingerprint without card', async () => {
+		const cards = baseCards();
+		const generator = new FingerprintGenerator(cards);
+		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
+		const pretty = prettyFingerprint(fingerprint);
+		const expectedPretty = 'Cynefin Model Terminology Called Unknowably Chaotic Complicated Requires Cynefin\'s Blammo Cynenfin Hard Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Dupe Diagnosing Simple Past Ambiguity Shift Trivial Consistently Different Next';
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});
 
