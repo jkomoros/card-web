@@ -372,23 +372,19 @@ const semanticOverlap = (fingerprintOne, fingerprintTwo) => {
 	return total;
 };
 
-//We want to pretend like there are way more words than bigrams, otherwise
-//bigrams dominate fingerprints. 0.5 seems to work well, which intutiively makes
-//sense, since there are two words in a bigram
-const BIGRAM_MATCH_COUNT = 0.5;
+//How high to go for n-grams in fingerprint. 2 = bigrams and monograms.
+const MAX_N_GRAM_FOR_FINGERPRINT = 2;
 
 const wordCountsForSemantics = (str) => {
-	const words = str.split(' ').filter(word => !STOP_WORDS[word]);
+	const words = str.split(' ').filter(word => !STOP_WORDS[word]).join(' ');
 	const cardMap = {};
-	for (const word of words) {
-		if (!word) continue;
-		cardMap[word] = (cardMap[word] || 0) + 1;
-	}
-	const bigrams = ngrams(words.join(' '));
-	if (bigrams.length > 1) {
-		for (const bigram of bigrams) {
-			if (!bigram) continue;
-			cardMap[bigram] = (cardMap[bigram] || 0) + BIGRAM_MATCH_COUNT;
+	for (let n = 1; n <= MAX_N_GRAM_FOR_FINGERPRINT; n++) {
+		for (const ngram of ngrams(words, n)) {
+			if (!ngram) continue;
+			//Each additional word in the lenght of the ngram makes them stand
+			//out more as distinctive, so pretend like you see them less, in
+			//proprition with how many there are.
+			cardMap[ngram] = (cardMap[ngram] || 0) + 1/n;
 		}
 	}
 	return cardMap;
