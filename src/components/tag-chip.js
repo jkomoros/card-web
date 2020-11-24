@@ -15,6 +15,7 @@ class TagChip  extends LitElement {
 					display: inline-block;
 					color: var(--app-light-text-color);
 					font-weight:bold;
+					${this._filter ? 'filter: ' + this._filter + ';' : ''}
 				}
 				a.primary {
 					color: var(--app-light-text-color);
@@ -117,6 +118,13 @@ class TagChip  extends LitElement {
 		let info = this.tagInfos[this.tagName];
 		if (!info) return defaultColor;
 		return info.color || defaultColor;
+	}
+
+	get _filter() {
+		if (!this.tagInfos) return '';
+		let info = this.tagInfos[this.tagName];
+		if (!info) return '';
+		return info.filter || '';
 	}
 
 	get _displayName() {
