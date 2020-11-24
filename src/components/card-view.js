@@ -42,7 +42,8 @@ import {
 	selectSectionsLoaded,
 	selectEditingUpdatedFromContentEditable,
 	selectPendingNewCardID,
-	selectUserMayForkActiveCard
+	selectUserMayForkActiveCard,
+	selectActiveCardSemanticFingerprint
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -136,6 +137,10 @@ import {
 import { SharedStyles } from './shared-styles.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
+
+//If true, then will print to console the fingerprint of the actively selected
+//card. Useful for debugging fingerprints.
+const DEBUG_SHOW_FINGERPRINT = false;
 
 class CardView extends connect(store)(PageViewElement) {
 	render() {
@@ -308,6 +313,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_tagInfos: {type:Object},
 			_cardTodos: {type: Array},
 			_pendingNewCardID: {type:String},
+			_fingerprint: {type:Object},
 		};
 	}
 
@@ -468,6 +474,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._sectionsLoaded = selectSectionsLoaded(state);
 		this._cardTodos = selectActiveCardTodosForCurrentUser(state);
 		this._pendingNewCardID = selectPendingNewCardID(state);
+		this._fingerprint = DEBUG_SHOW_FINGERPRINT ? selectActiveCardSemanticFingerprint(state) : null;
 	}
 
 	firstUpdated() {
@@ -551,6 +558,10 @@ class CardView extends connect(store)(PageViewElement) {
 		//channel Chrome  by the time it fires layout hasn't been done.
 
 		if (this._changedPropsAffectCanvasSize(changedProps)) window.setTimeout(() => this._resizeCard(), 0);
+
+		if (DEBUG_SHOW_FINGERPRINT && changedProps.has('_fingerprint') && this._fingerprint) {
+			console.log('Fingerprint: ', this._fingerprint.keys());
+		}
 	}
 }
 

@@ -499,6 +499,12 @@ const selectEditingCardSemanticFingerprint = createSelector(
 	(card, fingerprintGenerator) => fingerprintGenerator.fingerprintForCardObj(card)
 );
 
+export const selectActiveCardSemanticFingerprint = createSelector(
+	selectActiveCardId,
+	selectFingerprintGenerator,
+	(cardID, generator) => generator.fingerprintForCardID(cardID)
+);
+
 const NUM_SIMILAR_TAGS_TO_SHOW = 3;
 
 //selectEditingCardSuggestedTags returns the tags for the editing card that are
