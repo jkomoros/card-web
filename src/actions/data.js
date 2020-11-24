@@ -13,6 +13,7 @@ export const SET_PENDING_SLUG = 'SET_PENDING_SLUG';
 export const EXPECT_NEW_CARD = 'EXPECT_NEW_CARD';
 export const NAVIGATED_TO_NEW_CARD = 'NAVIGATED_TO_NEW_CARD';
 export const EXPECT_CARD_DELETIONS = 'EXPECT_CARD_DELETIONS';
+export const COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED = 'COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED';
 
 import {
 	slugLegal,
@@ -1298,5 +1299,13 @@ export const fetchTweets = (card) => async (dispatch) => {
 		type: UPDATE_TWEETS,
 		tweets
 	});
+};
+
+//Denotes that we just did a pending filters commit when the data was fully
+//loaded... and shouldn't do it again.
+export const committedFiltersWhenFullyLoaded = () => {
+	return {
+		type: COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED,
+	};
 };
 

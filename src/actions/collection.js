@@ -42,7 +42,8 @@ import {
 	getCardIndexForActiveCollection,
 	selectActiveCollectionDescription,
 	selectActiveCollectionContainsCards, 
-	selectPendingNewCardID
+	selectPendingNewCardID,
+	selectAlreadyCommittedModificationsWhenFullyLoaded
 } from '../selectors.js';
 
 import {
@@ -50,7 +51,8 @@ import {
 } from '../card_fields.js';
 
 import {
-	navigatedToNewCard
+	navigatedToNewCard,
+	committedFiltersWhenFullyLoaded
 } from './data.js';
 
 import {
@@ -162,10 +164,6 @@ export const commitPendingCollectionModifications = () => {
 	return {type:COMMIT_PENDING_COLLECTION_MODIFICATIONS};
 };
 
-//Keep track of whether we've called refreshCardSelector once already when the
-//data is fully loaded.
-let refreshCardSelectorHasSeenDataFullyLoaded = false;
-
 export const refreshCardSelector = (forceCommit) => (dispatch, getState) => {
 	//Called when cards and sections update, just in case we now have
 	//information to do this better. Also called when stars and reads update,
@@ -182,8 +180,9 @@ export const refreshCardSelector = (forceCommit) => (dispatch, getState) => {
 	let pageExtra = selectPageExtra(state);
 
 	const dataIsFullyLoaded = selectDataIsFullyLoaded(state);
+	const alreadyCommittedModificationsWhenFullyLoaded = selectAlreadyCommittedModificationsWhenFullyLoaded(state);
 
-	if (!dataIsFullyLoaded || (dataIsFullyLoaded && !refreshCardSelectorHasSeenDataFullyLoaded) || forceCommit) {
+	if (!dataIsFullyLoaded || (dataIsFullyLoaded && !alreadyCommittedModificationsWhenFullyLoaded) || forceCommit) {
 		//This action creator gets called when ANYTHING that could have changed
 		//the collection gets called. If we got called before everything is
 		//fully loaded, then we should make sure that the more recent
@@ -200,7 +199,9 @@ export const refreshCardSelector = (forceCommit) => (dispatch, getState) => {
 		dispatch(commitPendingCollectionModifications());
 	}
 
-	if (dataIsFullyLoaded) refreshCardSelectorHasSeenDataFullyLoaded = true;
+	if (dataIsFullyLoaded && alreadyCommittedModificationsWhenFullyLoaded) {
+		dispatch(committedFiltersWhenFullyLoaded());
+	}
 
 	dispatch(updateCardSelector(pageExtra));
 };

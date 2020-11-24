@@ -13,6 +13,7 @@ import {
 	EXPECT_NEW_CARD,
 	NAVIGATED_TO_NEW_CARD,
 	EXPECT_CARD_DELETIONS,
+	COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED,
 } from '../actions/data.js';
 
 const INITIAL_STATE = {
@@ -34,6 +35,10 @@ const INITIAL_STATE = {
 	unpublishedCardsLoaded: false,
 	sectionsLoaded: false,
 	tagsLoaded: false,
+	//keeps track of whether we committed any pending collections on being fully
+	//loaded already. If so, then even if refreshCardSelector gets called again,
+	//we won't update the collection again.
+	alreadyCommittedModificationsWhenFullyLoaded: false,
 	//The modification that is pending
 	cardModificationPending: '',
 	cardModificationError: null,
@@ -130,6 +135,11 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			reorderPending: action.pending
+		};
+	case COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED:
+		return {
+			...state,
+			alreadyCommittedModificationsWhenFullyLoaded: true,
 		};
 	default:
 		return state;
