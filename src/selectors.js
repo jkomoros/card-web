@@ -964,8 +964,11 @@ export const selectActiveCollectionWordCloud = createSelector(
 		if (!collection) return [[],{}];
 		const fingerprint = fingerprintGenerator.fingerprintForCardIDList(collection.filteredCards.map(card => card.id));
 		const displayItems = prettyFingerprintItems(fingerprint);
-		//TODO: output color based on the value in the fingerprint
-		const infos = Object.fromEntries([...fingerprint.entries()].map((entry,index) => [entry[0], {title: displayItems[index], suppressLink:true}]));
+		const maxAmount = Math.max(...fingerprint.values());
+		const infos = Object.fromEntries([...fingerprint.entries()].map((entry,index) => {
+			const amount = entry[1] / maxAmount * 100;
+			return [entry[0], {title: displayItems[index], suppressLink:true, filter: 'opacity(' + amount + '%)'}];
+		}));
 		return [[...fingerprint.keys()], infos];
 	}
 );
