@@ -219,7 +219,8 @@ class CardDrawer extends connect(store)(LitElement) {
 				<div class='label' id='count'>
 					<span>${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }<strong>${this.collection.length}</strong> cards</span>
 					<div ?hidden=${!this.infoExpanded}>
-						${this.wordCloudItems && this.wordCloudItems.length ? html`<tag-list .tags=${this.wordCloudItems} .tagInfos=${this.wordCloudInfos}></tag-list>` : ''}
+						<!-- --app-primary-color default color -->
+						${this.wordCloudItems && this.wordCloudItems.length ? html`<tag-list .tags=${this.wordCloudItems} .tagInfos=${this.wordCloudInfos} defaultColor='#5e2b97'></tag-list>` : ''}
 					</div>
 				</div>
 				${repeat(this.collection, (i) => i.id, (i, index) => html`
