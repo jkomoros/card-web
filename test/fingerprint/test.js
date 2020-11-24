@@ -864,6 +864,18 @@ describe('ngrams', () => {
 		assert.deepStrictEqual(result, expectedResult);
 	});
 
+	it('string with one piece gives single monogram', async () => {
+		const result = TESTING.ngrams('one', 1);
+		const expectedResult = ['one'];
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
+	it('string with multiple piece gives multiple monogram', async () => {
+		const result = TESTING.ngrams('one two three', 1);
+		const expectedResult = ['one', 'two', 'three'];
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
 	it('string with two piece gives one bigram', async () => {
 		const result = TESTING.ngrams('one two');
 		const expectedResult = ['one two'];
