@@ -4,7 +4,7 @@ import {
 
 import {
 	cardSetNormalizedTextProperties,
-	prettyFingerprint
+	dedupedPrettyFingerprint
 } from './nlp.js';
 
 import {
@@ -22,7 +22,7 @@ const workingNotesExtractor = (card,state) => {
 	//that timeout hasn't fired yet, so make sure the card content is up to date.
 	cardSetNormalizedTextProperties(cardCopy);
 	const fingerprint = getSemanticFingerprintForCard(state, cardCopy);
-	const pretty = prettyFingerprint(fingerprint, cardCopy);
+	const pretty = dedupedPrettyFingerprint(fingerprint, cardCopy);
 	const title = date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'2-digit'}) + ' ' + pretty.split(' ').slice(0, NUM_TERMS_OF_FINGERPRINT).join(' ');
 	return {
 		...card,

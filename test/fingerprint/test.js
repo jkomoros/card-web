@@ -21,7 +21,8 @@ import {
 	FingerprintGenerator,
 	PreparedQuery,
 	TESTING,
-	prettyFingerprint,
+	dedupedPrettyFingerprint,
+	prettyFingerprintItems,
 } from '../../src/nlp.js';
 
 import {
@@ -585,20 +586,110 @@ describe('fingerprint generation', () => {
 		assert.deepStrictEqual(filteredWordMap, expectedWordMap);
 	});
 
-	it('pretty fingerprint with card', async () => {
+	it('pretty fingerprint items with card', async () => {
 		const cards = baseCards();
 		const generator = new FingerprintGenerator(cards);
 		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
-		const pretty = prettyFingerprint(fingerprint, cards[CARD_ID_TWO]);
+		const pretty = prettyFingerprintItems(fingerprint, cards[CARD_ID_TWO]);
+		const expectedPretty = [
+			'Cynefin',
+			'Model',
+			'Terminology',
+			'Calls',
+			'Unknowably',
+			'Chaotic',
+			'Cynefin Model',
+			'Complicated',
+			'Require',
+			'Cynefin\'s',
+			'Blammo',
+			'Cynenfin',
+			'Hard',
+			'Divides',
+			'Four',
+			'Methods',
+			'Inscrutable',
+			'I’ve',
+			'Cynfefin’s',
+			'Unknowably Hard',
+			'Knowably',
+			'Unclear',
+			'Intricate',
+			'Distinguishing',
+			'Special',
+			'Dupe',
+			'Diagnosing',
+			'Simple',
+			'Past',
+			'Ambiguous',
+			'Shifted',
+			'Trivial',
+			'Consistently',
+			'Different',
+			'Next'
+		];
+		assert.deepStrictEqual(pretty, expectedPretty);
+	});
+
+	it('pretty fingerprint items without card', async () => {
+		const cards = baseCards();
+		const generator = new FingerprintGenerator(cards);
+		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
+		const pretty = prettyFingerprintItems(fingerprint);
+		const expectedPretty = [
+			'Cynefin',
+			'Model',
+			'Terminology',
+			'Called',
+			'Unknowably',
+			'Chaotic',
+			'Cynefin Model',
+			'Complicated',
+			'Requires',
+			'Cynefin\'s',
+			'Blammo',
+			'Cynenfin',
+			'Hard',
+			'Divides',
+			'Four',
+			'Methods',
+			'Inscrutable',
+			'I’ve',
+			'Cynfefin’s',
+			'Unknowably Hard',
+			'Knowably',
+			'Unclear',
+			'Intricate',
+			'Distinguishing',
+			'Special',
+			'Dupe',
+			'Diagnosing',
+			'Simple',
+			'Past',
+			'Ambiguity',
+			'Shift',
+			'Trivial',
+			'Consistently',
+			'Different',
+			'Next'
+		];
+		assert.deepStrictEqual(pretty, expectedPretty);
+	});
+
+	it('pretty deduped fingerprint with card', async () => {
+		const cards = baseCards();
+		const generator = new FingerprintGenerator(cards);
+		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
+		const pretty = dedupedPrettyFingerprint(fingerprint, cards[CARD_ID_TWO]);
 		const expectedPretty = 'Cynefin Model Terminology Calls Unknowably Chaotic Complicated Require Cynefin\'s Blammo Cynenfin Hard Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Dupe Diagnosing Simple Past Ambiguous Shifted Trivial Consistently Different Next';
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});
 
-	it('pretty fingerprint without card', async () => {
+	it('pretty deduped fingerprint without card', async () => {
 		const cards = baseCards();
 		const generator = new FingerprintGenerator(cards);
 		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
-		const pretty = prettyFingerprint(fingerprint);
+		const pretty = dedupedPrettyFingerprint(fingerprint);
 		const expectedPretty = 'Cynefin Model Terminology Called Unknowably Chaotic Complicated Requires Cynefin\'s Blammo Cynenfin Hard Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Dupe Diagnosing Simple Past Ambiguity Shift Trivial Consistently Different Next';
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});

@@ -421,24 +421,46 @@ const semanticFingerprint = (tfidf) => {
 	return new Map(keys.map(key => [key, tfidf[key]]));
 };
 
-//prettyFingerprint returns a version of the fingerprint suitable for showing to
-//a user, by de-stemming words based on the words that are most common in
-//cardObj. cardObj can be omitted to use word frequencies from the whole corpus.
-export const prettyFingerprint = (fingerprint, cardObj) => {
+//prettyFingerprintItem returns a version of the fingerprint suitable for
+//showing to a user, by de-stemming words based on the words that are most
+//common in cardObj. Returns an arary of items in Title case. cardObj can be
+//omitted to use word frequencies from the whole corpus.
+export const prettyFingerprintItems = (fingerprint, cardObj) => {
 	if (!fingerprint) return '';
 	const destemmedMap = destemmedWordMap(cardObj);
+	let result = [];
+	//Since words might be in ngrams, and they might overlap with the same
+	//words, check for duplicates
+	for (let ngram of fingerprint.keys()) {
+		let item = [];
+		for (let word of ngram.split(' ')) {
+			let destemmedWord = destemmedMap[word];
+			let titleCaseDestemmedWord = destemmedWord.charAt(0).toUpperCase() + destemmedWord.slice(1);
+			item.push(titleCaseDestemmedWord);
+		}
+		result.push(item.join(' '));
+	}
+	return result;
+};
+
+//dedupedPrettyFingerprint returns a version of the fingerprint suitable for
+//showing to a user, by de-stemming words based on the words that are most
+//common in cardObj. Returns a string where any dupcliates have been removed.
+//cardObj can be omitted to use word frequencies from the whole corpus.
+export const dedupedPrettyFingerprint = (fingerprint, cardObj) => {
+	const fingerprintItems = prettyFingerprintItems(fingerprint, cardObj);
 	const seenItems = {};
 	let dedupedFingerprint = [];
 	//Since words might be in ngrams, and they might overlap with the same
 	//words, check for duplicates
-	for (let ngram of fingerprint.keys()) {
+	for (let ngram of fingerprintItems) {
 		for (let word of ngram.split(' ')) {
 			if (seenItems[word]) continue;
 			seenItems[word] = true;
 			dedupedFingerprint.push(word);
 		}
 	}
-	return dedupedFingerprint.map(word => destemmedMap[word]).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+	return dedupedFingerprint.join(' ');
 };
 
 export class FingerprintGenerator {
