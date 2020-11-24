@@ -14,6 +14,7 @@ import {
 	NAVIGATED_TO_NEW_CARD,
 	EXPECT_CARD_DELETIONS,
 	COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED,
+	EXPECT_UNPUBLISHED_CARDS,
 } from '../actions/data.js';
 
 const INITIAL_STATE = {
@@ -140,6 +141,12 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			alreadyCommittedModificationsWhenFullyLoaded: true,
+		};
+	case EXPECT_UNPUBLISHED_CARDS:
+		return {
+			...state,
+			unpublishedCardsLoaded: false,
+			alreadyCommittedModificationsWhenFullyLoaded: false,
 		};
 	default:
 		return state;

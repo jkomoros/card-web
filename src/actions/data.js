@@ -14,6 +14,7 @@ export const EXPECT_NEW_CARD = 'EXPECT_NEW_CARD';
 export const NAVIGATED_TO_NEW_CARD = 'NAVIGATED_TO_NEW_CARD';
 export const EXPECT_CARD_DELETIONS = 'EXPECT_CARD_DELETIONS';
 export const COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED = 'COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED';
+export const EXPECT_UNPUBLISHED_CARDS = 'EXPECT_UNPUBLISHED_CARDS';
 
 import {
 	slugLegal,
@@ -1299,6 +1300,12 @@ export const fetchTweets = (card) => async (dispatch) => {
 		type: UPDATE_TWEETS,
 		tweets
 	});
+};
+
+export const expectUnpublishedCards = () => {
+	return {
+		type: EXPECT_UNPUBLISHED_CARDS,
+	};
 };
 
 //Denotes that we just did a pending filters commit when the data was fully
