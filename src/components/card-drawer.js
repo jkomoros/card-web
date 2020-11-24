@@ -16,7 +16,9 @@ import './tag-list.js';
 
 import {
 	PLUS_ICON,
-	INSERT_DRIVE_FILE_ICON
+	INSERT_DRIVE_FILE_ICON,
+	ARROW_DOWN_ICON,
+	ARROW_RIGHT_ICON,
 } from './my-icons.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
@@ -215,8 +217,10 @@ class CardDrawer extends connect(store)(LitElement) {
 			<div ?hidden='${!this.showing}' class='container ${this._dragging ? 'dragging' : ''}${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
 				<div class='scrolling'>
 				<div class='label' id='count'>
-					<span><strong>${this.collection.length}</strong> cards</span>
-					${this.wordCloudItems && this.wordCloudItems.length ? html`<tag-list .tags=${this.wordCloudItems} .tagInfos=${this.wordCloudInfos}></tag-list>` : ''}
+					<span>${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }<strong>${this.collection.length}</strong> cards</span>
+					<div ?hidden=${!this.infoExpanded}>
+						${this.wordCloudItems && this.wordCloudItems.length ? html`<tag-list .tags=${this.wordCloudItems} .tagInfos=${this.wordCloudInfos}></tag-list>` : ''}
+					</div>
 				</div>
 				${repeat(this.collection, (i) => i.id, (i, index) => html`
 					<div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
@@ -280,6 +284,10 @@ class CardDrawer extends connect(store)(LitElement) {
 			}
 		}
 		this._highlightedViaClick = false;
+	}
+
+	_handleZippyClicked() {
+		this.dispatchEvent(new CustomEvent('info-zippy-clicked', {composed: true}));
 	}
 
 	_handleThumbnailClick(e) {
@@ -404,6 +412,8 @@ class CardDrawer extends connect(store)(LitElement) {
 			showing: {type:Boolean},
 			wordCloudItems: {type:Array},
 			wordCloudInfos: {type:Object},
+			infoExpanded: {type:Boolean},
+			infoCanBeExpanded: {type:Boolean},
 			_dragging: {type: Boolean},
 			_highlightedViaClick: {type: Boolean},
 			//Keeps track of if we've scrolled to the highlighted card yet;

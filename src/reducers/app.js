@@ -27,7 +27,9 @@ import {
 	UPDATE_FETCHED_CARD,
 	CARD_BEING_FETCHED,
 	UPDATE_CTRL_KEY_PRESSED,
-	UPDATE_MAINTENANCE_MODE_ENABLED
+	UPDATE_MAINTENANCE_MODE_ENABLED,
+	OPEN_CARDS_DRAWER_INFO,
+	CLOSE_CARDS_DRAWER_INFO
 } from '../actions/app.js';
 
 const HEADER_PANEL_DEFAULT_VALUE = true;
@@ -43,6 +45,7 @@ const INITIAL_STATE = {
 	headerPanelOpen: HEADER_PANEL_DEFAULT_VALUE,
 	commentsAndInfoPanelOpen: COMMENTS_AND_INFO_PANEL_DEFAULT_VALUE,
 	cardsDrawerPanelOpen: CARDS_DRAWER_PANEL_DEFAULT_VALUE,
+	cardsDrawerInfoExpanded: false,
 	presentationMode: false,
 	mobileMode: false,
 	hoverX: 0,
@@ -162,6 +165,16 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			maintenanceModeEnabled: action.enabled,
+		};
+	case OPEN_CARDS_DRAWER_INFO:
+		return {
+			...state,
+			cardsDrawerInfoExpanded: true,
+		};
+	case CLOSE_CARDS_DRAWER_INFO:
+		return {
+			...state,
+			cardsDrawerInfoExpanded: false,
 		};
 	default:
 		return state;
