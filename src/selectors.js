@@ -1001,7 +1001,7 @@ export const selectCountsForTabs = createSelector(
 //COMMIT_PENDING_COLLECTION_MODIFICATIONS is dispatched. For example, if you're
 //looking at a collection that only shows unread items, it will list the card
 //ids that are now marked read but are temporarily still in the collection.
-export const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = createSelector(
+const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = createSelector(
 	selectActiveCollection,
 	selectPendingFilters,
 	(collection, pendingFilters) => collection.cardsThatWillBeRemoved(pendingFilters)
@@ -1038,6 +1038,17 @@ export const selectFinalCollection = createSelector(
 	selectExpandedActiveStartCards,
 	selectActiveCollection,
 	(startCards, collection) => [...startCards, ...collection.sortedCards]
+);
+
+const selectActiveCollectionPartialMatches = createSelector(
+	selectActiveCollection,
+	(collection) => collection.partialMatches
+);
+
+export const selectActiveCollectionCardsToGhost = createSelector(
+	selectActiveCollectionPartialMatches,
+	selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit,
+	(partialMatches, itemsThatWillBeRemoved) => ({...partialMatches, ...itemsThatWillBeRemoved})
 );
 
 export const selectActiveCollectionLabels = createSelector(

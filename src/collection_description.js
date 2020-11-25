@@ -522,6 +522,11 @@ const Collection = class {
 		return this._sortedCards;
 	}
 
+	get partialMatches() {
+		this._ensureFilteredCards();
+		return this._partialMatches;
+	}
+
 	_makeLabels() {
 		const sortedCards = this.sortedCards;
 		//sortedCards requires sortInfo to be created so we can just grab it.
