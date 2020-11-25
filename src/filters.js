@@ -170,8 +170,8 @@ const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
 	const query = new PreparedQuery(decodedQueryString);
 
 	return function(card) {
-		const [score, partialMatch] = query.cardScore(card);
-		return [score > 0.0, score, partialMatch];
+		const [score, fullMatch] = query.cardScore(card);
+		return [score > 0.0, score, !fullMatch];
 	};
 };
 
