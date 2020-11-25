@@ -212,27 +212,33 @@ const CONFIGURABLE_FILTER_INFO = {
 	},
 	[CHILDREN_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
-		labelName: 'Degree'
+		labelName: 'Degree',
+		flipOrder: true,
 	},
 	[DESCENDANTS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
-		labelName: 'Degree'
+		labelName: 'Degree',
+		flipOrder: true,
 	},
 	[PARENTS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
-		labelName: 'Degree'
+		labelName: 'Degree',
+		flipOrder: true,
 	},
 	[ANCESTORS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
-		labelName: 'Degree'
+		labelName: 'Degree',
+		flipOrder: true,
 	},
 	[DIRECT_CONNECTIONS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
-		labelName: 'Degree'
+		labelName: 'Degree',
+		flipOrder: true,
 	},
 	[CONNECTIONS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
-		labelName: 'Degree'
+		labelName: 'Degree',
+		flipOrder: true,
 	},
 	[EXCLUDE_FILTER_NAME]: {
 		factory: makeExcludeConfigurableFilter,
@@ -284,9 +290,15 @@ export const SORTS = {
 			//Pick whatever is the first key stored, which will be the first
 			//configurable filter that emitted sortValues from left to right in
 			//the URL
-			const values = sortExtra[Object.keys(sortExtra)[0]];
+			const key = Object.keys(sortExtra)[0];
+			const values = sortExtra[key];
+			const config = CONFIGURABLE_FILTER_INFO[key];
 			const value = values[card.id] || 0.0;
-			return [value, value];
+			//You might want to flip the sort order while having the displayed
+			//order be the same. For example, any of the link-degree
+			//configurable filters want the key card to go first.
+			const result = [config.flipOrder ? value * -1 : value, value];
+			return result;
 		},
 		description: 'The default order of the cards within each section in order',
 		labelName: (sortExtra) => {
