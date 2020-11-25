@@ -129,7 +129,8 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countStr) => {
 			if (twoWay){
 				const bfsForOutbound = cardBFS(cardID, cards, count, includeKeyCard, false);
 				const bfsForInbound = Object.fromEntries(Object.entries(cardBFS(cardID, cards, count, includeKeyCard, true)).map(entry => [entry[0], entry[1] * -1]));
-				memoizedMap = unionSet(bfsForOutbound,bfsForInbound);
+				//inbound might have a -0 in it, so have outbound be second so we get just the zero
+				memoizedMap = unionSet(bfsForInbound,bfsForOutbound);
 			} else {
 				memoizedMap = cardBFS(cardID, cards, count, includeKeyCard, isInbound);
 			}
@@ -273,11 +274,35 @@ const RANDOM_SALT = randomString(16);
 //be DESCENDING; if there's a new one that isn't, then add a property to config
 //called ascending and toggle that.
 export const SORTS = {
-	//Default sort is a no-op.
+	//Default sort is a no-op, unless a configurable filter was used that emits
+	//sortValues, in which case it uses those. Note that
+	//collection._makeSortedCards has logic tailored to this to know when it can
+	//bail out early
 	[DEFAULT_SORT_NAME]: {
+		extractor: (card, sections, cards, sortExtra) => {
+			if (!sortExtra || Object.keys(sortExtra).length == 0) return [0, sectionNameForCard(card, sections)];
+			//Pick whatever is the first key stored, which will be the first
+			//configurable filter that emitted sortValues from left to right in
+			//the URL
+			const values = sortExtra[Object.keys(sortExtra)[0]];
+			const value = values[card.id] || 0.0;
+			return [value, value];
+		},
+		description: 'The default order of the cards within each section in order',
+		labelName: (sortExtra) => {
+			if (!sortExtra || Object.keys(sortExtra).length == 0) return 'Section';
+			//Pick whatever is the first key stored, which will be the first
+			//configurable filter that emitted sortValues from left to right in
+			//the URL
+			const key = Object.keys(sortExtra)[0];
+			const config = CONFIGURABLE_FILTER_INFO[key];
+			return config && config.labelName ? config.labelName : 'Section';
+		}
+	},
+	'original-order': {
 		extractor: (card, sections) => [0, sectionNameForCard(card, sections)],
 		description: 'The default order of the cards within each section in order',
-		labelName: (sortExtra) => Object.keys(sortExtra).length == 0 ? 'Section' : 'Special',
+		labelName: 'Section',
 	},
 	'link-count': {
 		extractor: (card) => {

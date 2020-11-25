@@ -478,7 +478,7 @@ const Collection = class {
 		this._ensureSortInfo();
 		//Skip the work of sorting in the default case, as everything is already
 		//sorted. No-op collections still might be created and should be fast.
-		if (this._description.set == DEFAULT_SET_NAME && this._description.sort == DEFAULT_SORT_NAME && !this._description.sortReversed) {
+		if (this._description.set == DEFAULT_SET_NAME && this._description.sort == DEFAULT_SORT_NAME && !this._description.sortReversed && (!this._sortExtras || Object.keys(this._sortExtras).length == 0)) {
 			return collection;
 		}
 		const sortInfo = this._sortInfo;
