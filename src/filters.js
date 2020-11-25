@@ -9,7 +9,6 @@ import {
 	randomString,
 	hash,
 	cardBFS,
-	unionSet,
 	pageRank,
 } from './util.js';
 
@@ -89,6 +88,17 @@ const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, seco
 	default:
 		return () => false;
 	}
+};
+
+const unionSet = (...sets) => {
+	let result = {};
+	for (let set of sets) {
+		if (!set) continue;
+		for (let key of Object.keys(set)) {
+			result[key] = true;
+		}
+	}
+	return result;
 };
 
 const INCLUDE_KEY_CARD_PREFIX = '+';

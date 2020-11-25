@@ -412,17 +412,6 @@ export const setUnion = (obj, items) => {
 	return result;
 };
 
-export const unionSet = (...sets) => {
-	let result = {};
-	for (let set of sets) {
-		if (!set) continue;
-		for (let key of Object.keys(set)) {
-			result[key] = true;
-		}
-	}
-	return result;
-};
-
 //This logic is finicky and we have a few defaults we want to have, so wrap it
 //in a util.
 export const makeElementContentEditable = (ele) => {
