@@ -201,8 +201,9 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 //then cards. The function should return either true/false, or, if wants to make
 //values available for later sorts in sortExtras, it can emit an array [matches,
 //sortValue] where matches is a boolean and sortValue is the value to pass into
-//sortExtras for that card. If the filter emits sortExtras, then it should also
-//define a labelName.
+//sortExtras for that card. It can also emit a [matches, sortValue,
+//partialMatch], where partialMatch denotes the item should be ghosted. If the
+//filter emits sortExtras, then it should also define a labelName.
 const CONFIGURABLE_FILTER_INFO = {
 	[UPDATED_FILTER_NAME]: {
 		factory: makeDateConfigurableFilter,
