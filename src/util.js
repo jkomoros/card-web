@@ -423,24 +423,6 @@ export const unionSet = (...sets) => {
 	return result;
 };
 
-export const intersectionSet = (...sets) => {
-	let union = unionSet(...sets);
-	let result = {};
-	for (let key of Object.keys(union)) {
-		//Only include keys that are in every set.
-		let doInclude = true;
-		for (let set of sets) {
-			if (!set) continue;
-			if (!set[key]) {
-				doInclude = false;
-				break;
-			}
-		}
-		if (doInclude) result[key] = true;
-	}
-	return result;
-};
-
 //This logic is finicky and we have a few defaults we want to have, so wrap it
 //in a util.
 export const makeElementContentEditable = (ele) => {
