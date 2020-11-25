@@ -200,28 +200,53 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 //then cards. The function should return either true/false, or, if wants to make
 //values available for later sorts in sortExtras, it can emit an array [matches,
 //sortValue] where matches is a boolean and sortValue is the value to pass into
-//sortExtras for that card.
-const CONFIGURABLE_FILTER_FACTORIES = {
-	[UPDATED_FILTER_NAME]: makeDateConfigurableFilter,
-	[LAST_TWEETED_FILTER_NAME]: makeDateConfigurableFilter,
-	[CHILDREN_FILTER_NAME]: makeCardLinksConfigurableFilter,
-	[DESCENDANTS_FILTER_NAME]: makeCardLinksConfigurableFilter,
-	[PARENTS_FILTER_NAME]: makeCardLinksConfigurableFilter,
-	[ANCESTORS_FILTER_NAME]: makeCardLinksConfigurableFilter,
-	[DIRECT_CONNECTIONS_FILTER_NAME]: makeCardLinksConfigurableFilter,
-	[CONNECTIONS_FILTER_NAME]: makeCardLinksConfigurableFilter,
-	[EXCLUDE_FILTER_NAME]: makeExcludeConfigurableFilter,
+//sortExtras for that card. If the filter emits sortExtras, then it should also
+//define a labelName.
+const CONFIGURABLE_FILTER_INFO = {
+	[UPDATED_FILTER_NAME]: {
+		factory: makeDateConfigurableFilter,
+	},
+	[LAST_TWEETED_FILTER_NAME]: {
+		factory: makeDateConfigurableFilter,
+	},
+	[CHILDREN_FILTER_NAME]: {
+		factory: makeCardLinksConfigurableFilter,
+		labelName: 'Degree'
+	},
+	[DESCENDANTS_FILTER_NAME]: {
+		factory: makeCardLinksConfigurableFilter,
+		labelName: 'Degree'
+	},
+	[PARENTS_FILTER_NAME]: {
+		factory: makeCardLinksConfigurableFilter,
+		labelName: 'Degree'
+	},
+	[ANCESTORS_FILTER_NAME]: {
+		factory: makeCardLinksConfigurableFilter,
+		labelName: 'Degree'
+	},
+	[DIRECT_CONNECTIONS_FILTER_NAME]: {
+		factory: makeCardLinksConfigurableFilter,
+		labelName: 'Degree'
+	},
+	[CONNECTIONS_FILTER_NAME]: {
+		factory: makeCardLinksConfigurableFilter,
+		labelName: 'Degree'
+	},
+	[EXCLUDE_FILTER_NAME]: {
+		factory: makeExcludeConfigurableFilter,
+	}
 };
 
 //The configurable filters that are allowed to start a multi-part filter.
-export const CONFIGURABLE_FILTER_NAMES = Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_FACTORIES).map(entry => [entry[0], true]));
+export const CONFIGURABLE_FILTER_NAMES = Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_INFO).map(entry => [entry[0], true]));
 
 let memoizedConfigurableFilters = {};
 
 export const makeConfigurableFilter = (name) => {
 	if (!memoizedConfigurableFilters[name]) {
 		const parts = name.split('/');
-		const func = CONFIGURABLE_FILTER_FACTORIES[parts[0]] || makeNoOpConfigurableFilter;
+		const func = CONFIGURABLE_FILTER_INFO[parts[0]].factory || makeNoOpConfigurableFilter;
 		memoizedConfigurableFilters[name] = func(...parts);
 	}
 	return memoizedConfigurableFilters[name];
