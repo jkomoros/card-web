@@ -131,6 +131,10 @@ export const cardHasTodo = (card) => {
 	return content ? true : false;
 };
 
+//cardBFS returns a map of cardID -> degrees of separation from the key card.
+//Note that if the keyCard is included, it will map that keyID -> 0, which is
+//falsey, so when checking for existence, you should check whether it's
+//undefined or not.
 export const cardBFS = (keyCardIDOrSlug, cards, ply, includeKeyCard, isInbound) => {
 	if (!cards[keyCardIDOrSlug]) {
 		let foundID = '';
@@ -166,7 +170,7 @@ export const cardBFS = (keyCardIDOrSlug, cards, ply, includeKeyCard, isInbound) 
 		}
 	}
 	if (!includeKeyCard) delete seenCards[keyCardIDOrSlug];
-	return Object.fromEntries(Object.entries(seenCards).map(entry => [entry[0], true]));
+	return seenCards;
 };
 
 //cardMissingReciprocalLinks returns the links that point to a card that are not

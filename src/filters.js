@@ -127,13 +127,17 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countStr) => {
 		if (cards != memoizedCardsLastSeen) memoizedMap = null;
 		if (!memoizedMap) {
 			if (twoWay){
-				memoizedMap = unionSet(cardBFS(cardID, cards, count, includeKeyCard, false), cardBFS(cardID, cards, count, includeKeyCard, true));
+				const bfsForOutbound = cardBFS(cardID, cards, count, includeKeyCard, false);
+				const bfsForInbound = Object.fromEntries(Object.entries(cardBFS(cardID, cards, count, includeKeyCard, true)).map(entry => [entry[0], entry[1] * -1]));
+				memoizedMap = unionSet(bfsForOutbound,bfsForInbound);
 			} else {
 				memoizedMap = cardBFS(cardID, cards, count, includeKeyCard, isInbound);
 			}
 			memoizedCardsLastSeen = cards;
 		}
-		return memoizedMap[card.id];
+		let val = memoizedMap[card.id];
+		//Return the degree of separation so it's available to sort on
+		return [val !== undefined, val];
 	};
 
 };
