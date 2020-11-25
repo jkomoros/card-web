@@ -266,6 +266,7 @@ const CONFIGURABLE_FILTER_INFO = {
 	[QUERY_FILTER_NAME]: {
 		factory: makeQueryConfigurableFilter,
 		labelName: 'Score',
+		suppressLabels: true,
 	},
 };
 
@@ -321,7 +322,7 @@ export const SORTS = {
 			//You might want to flip the sort order while having the displayed
 			//order be the same. For example, any of the link-degree
 			//configurable filters want the key card to go first.
-			const result = [config.flipOrder ? value * -1 : value, value];
+			const result = [config.flipOrder ? value * -1 : value, config.suppressLabels ? '' : value];
 			return result;
 		},
 		description: 'The default order of the cards within each section in order',
