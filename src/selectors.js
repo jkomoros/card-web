@@ -963,7 +963,7 @@ export const selectActiveCollectionWordCloud = createSelector(
 	(collection, fingerprintGenerator) => {
 		if (!collection) return [[],{}];
 		const fingerprint = fingerprintGenerator.fingerprintForCardIDList(collection.filteredCards.map(card => card.id));
-		const displayItems = prettyFingerprintItems(fingerprint);
+		const displayItems = prettyFingerprintItems(fingerprint, collection.filteredCards);
 		const maxAmount = Math.max(...fingerprint.values());
 		const infos = Object.fromEntries([...fingerprint.entries()].map((entry,index) => {
 			const amount = entry[1] / maxAmount * 100;

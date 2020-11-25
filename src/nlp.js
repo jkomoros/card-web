@@ -165,20 +165,23 @@ const extractContentWords = (card) => {
 
 //destemmedWordMap returns a map of where each given destemmed word is mapped to
 //its most common stemmed variant. If a cardObj is provided, it will use the
-//words from that cardObj. If not, it will use the most common destemmed variant
+//words from that cardObj--either a single cardObj or an array of them. If not, it will use the most common destemmed variant
 //from the corpus.
-const destemmedWordMap = (card) => {
+const destemmedWordMap = (cardOrCards) => {
 	let counts = reversedStemmedWords; 
-	if (card) {
-		const content = extractContentWords(card);
+	if (cardOrCards) {
 		counts = {};
-		for (let runs of Object.values(content)) {
-			const str = runs.join(' ');
-			const words = str.split(' ');
-			for (let word of words) {
-				const stemmedWord = memorizedStemmer(word);
-				if (!counts[stemmedWord]) counts[stemmedWord] = {};
-				counts[stemmedWord][word] = (counts[stemmedWord][word] || 0) + 1;
+		let cards = Array.isArray(cardOrCards) ? cardOrCards : [cardOrCards];
+		for (let card of cards) {
+			const content = extractContentWords(card);
+			for (let runs of Object.values(content)) {
+				const str = runs.join(' ');
+				const words = str.split(' ');
+				for (let word of words) {
+					const stemmedWord = memorizedStemmer(word);
+					if (!counts[stemmedWord]) counts[stemmedWord] = {};
+					counts[stemmedWord][word] = (counts[stemmedWord][word] || 0) + 1;
+				}
 			}
 		}
 	}

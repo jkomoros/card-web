@@ -631,6 +631,51 @@ describe('fingerprint generation', () => {
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});
 
+	it('pretty fingerprint items with multiple cards', async () => {
+		const cards = baseCards();
+		const generator = new FingerprintGenerator(cards);
+		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
+		const pretty = prettyFingerprintItems(fingerprint, [cards[CARD_ID_TWO], cards[CARD_ID_ONE], cards[CARD_ID_FIVE]]);
+		const expectedPretty = [
+			'Cynefin',
+			'Model',
+			'Terminology',
+			'Calls',
+			'Unknowably',
+			'Chaotic',
+			'Cynefin Model',
+			'Complicated',
+			'Require',
+			'Cynefin\'s',
+			'Blammo',
+			'Cynenfin',
+			'Hard',
+			'Divides',
+			'Four',
+			'Methods',
+			'Inscrutable',
+			'I’ve',
+			'Cynfefin’s',
+			'Unknowably Hard',
+			'Knowably',
+			'Unclear',
+			'Intricate',
+			'Distinguishing',
+			'Special',
+			'Dupe',
+			'Diagnosing',
+			'Simple',
+			'Past',
+			'Ambiguous',
+			'Shifted',
+			'Trivial',
+			'Consistently',
+			'Different',
+			'Next'
+		];
+		assert.deepStrictEqual(pretty, expectedPretty);
+	});
+
 	it('pretty fingerprint items without card', async () => {
 		const cards = baseCards();
 		const generator = new FingerprintGenerator(cards);
@@ -681,6 +726,15 @@ describe('fingerprint generation', () => {
 		const generator = new FingerprintGenerator(cards);
 		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
 		const pretty = dedupedPrettyFingerprint(fingerprint, cards[CARD_ID_TWO]);
+		const expectedPretty = 'Cynefin Model Terminology Calls Unknowably Chaotic Complicated Require Cynefin\'s Blammo Cynenfin Hard Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Dupe Diagnosing Simple Past Ambiguous Shifted Trivial Consistently Different Next';
+		assert.deepStrictEqual(pretty, expectedPretty);
+	});
+
+	it('pretty deduped fingerprint with multiple cards', async () => {
+		const cards = baseCards();
+		const generator = new FingerprintGenerator(cards);
+		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
+		const pretty = dedupedPrettyFingerprint(fingerprint, [cards[CARD_ID_TWO],cards[CARD_ID_THREE]]);
 		const expectedPretty = 'Cynefin Model Terminology Calls Unknowably Chaotic Complicated Require Cynefin\'s Blammo Cynenfin Hard Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Dupe Diagnosing Simple Past Ambiguous Shifted Trivial Consistently Different Next';
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});
