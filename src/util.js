@@ -466,31 +466,6 @@ export const markdownElement = (content) => {
 	return div;
 };
 
-//Returns a function that takes an item and returns true if it's in ALL
-//includeSets and not in any exclude sets.
-export const makeCombinedFilter = (includeSets, excludeSets) => {
-	return function(item) {
-		for (let set of includeSets) {
-			if (!set[item]) return false;
-		}
-		for (let set of excludeSets) {
-			if (set[item]) return false;
-		}
-		return true;
-	};
-};
-
-//Instead of keeping the filter inverse, this actually expands it into a literal
-//filter. allCardsFilter should be the result of selectAllCardsFilter.
-//inverseFilter is the concrete filter that you want to be the opposite of.
-//Typically inverse filters are represented as the opposite concrete filter and
-//never made literal like this, this is most useful for creating
-//unionFilterSets. allCardsFilter can also just be the full set of id =>
-//fullCard.
-export const makeConcreteInverseFilter = (inverseFilter, allCardsFilter) => {
-	return Object.fromEntries(Object.entries(allCardsFilter).filter(entry => !inverseFilter[entry[0]]).map(entry => [entry[0], true]));
-};
-
 //date may be a firestore timestamp or a date object.
 export const prettyTime = (date) => {
 	if (!date) return '';

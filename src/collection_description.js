@@ -14,8 +14,6 @@ import {
 } from './filters.js';
 
 import {
-	makeCombinedFilter,
-	makeConcreteInverseFilter,
 	expandCardCollection,
 } from './util.js';
 
@@ -278,6 +276,17 @@ const makeFilterFromConfigurableFilter = (name, cards) => {
 	return result;
 };
 
+//Instead of keeping the filter inverse, this actually expands it into a literal
+//filter. allCardsFilter should be the result of selectAllCardsFilter.
+//inverseFilter is the concrete filter that you want to be the opposite of.
+//Typically inverse filters are represented as the opposite concrete filter and
+//never made literal like this, this is most useful for creating
+//unionFilterSets. allCardsFilter can also just be the full set of id =>
+//fullCard.
+const makeConcreteInverseFilter = (inverseFilter, allCardsFilter) => {
+	return Object.fromEntries(Object.entries(allCardsFilter).filter(entry => !inverseFilter[entry[0]]).map(entry => [entry[0], true]));
+};
+
 //makeFilterUnionSet takes a definition like "starred+in-reading-list" and
 //returns a synthetic filter object that is the union of all of the filters
 //named. The individual names may be normal filters or inverse filters.
@@ -289,6 +298,20 @@ const makeFilterUnionSet = (unionFilterDefinition, filterSetMemberships, cards) 
 		return {};
 	});
 	return Object.fromEntries(subFilters.map(filter => Object.entries(filter)).reduce((accum, val) => accum.concat(val),[]));
+};
+
+//Returns a function that takes an item and returns true if it's in ALL
+//includeSets and not in any exclude sets.
+const makeCombinedFilter = (includeSets, excludeSets) => {
+	return function(item) {
+		for (let set of includeSets) {
+			if (!set[item]) return false;
+		}
+		for (let set of excludeSets) {
+			if (set[item]) return false;
+		}
+		return true;
+	};
 };
 
 //filterDefinition is an array of filter-set names (concrete or inverse or union-set)
