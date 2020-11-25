@@ -267,13 +267,28 @@ const makeFilterFromConfigurableFilter = (name, cards) => {
 
 	const func = makeConfigurableFilter(name);
 	const result = {};
+	let sortValues = {};
 	for (let [id, card] of Object.entries(cards)) {
-		if (func(card, cards)) result[id] = true;
+		let funcResult = func(card, cards);
+		let matches = funcResult;
+		let sortValue = undefined;
+		if (Array.isArray(funcResult)) {
+			matches = funcResult[0];
+			sortValue = funcResult[1];
+		}
+		if (matches) {
+			result[id] = true;
+			if (sortValue !== undefined) sortValues[id] = sortValue;
+		}
 	}
 
-	memoizedConfigurableFilters[name] = result;
+	if (Object.keys(sortValues).length == 0) sortValues = null;
 
-	return result;
+	let fullResult = [result, sortValues];
+
+	memoizedConfigurableFilters[name] = fullResult;
+
+	return fullResult;
 };
 
 //Instead of keeping the filter inverse, this actually expands it into a literal
@@ -318,13 +333,19 @@ const makeCombinedFilter = (includeSets, excludeSets) => {
 const combinedFilterForFilterDefinition = (filterDefinition, filterSetMemberships, cards) => {
 	let includeSets = [];
 	let excludeSets = [];
+	let sortExtras = {};
 	for (let name of filterDefinition) {
 		if (filterNameIsUnionFilter(name)) {
 			includeSets.push(makeFilterUnionSet(name, filterSetMemberships, cards));
 			continue;
 		}
 		if (filterNameIsConfigurableFilter(name)) {
-			includeSets.push(makeFilterFromConfigurableFilter(name, cards));
+			let [configurableFilter, sortInfos] = makeFilterFromConfigurableFilter(name, cards);
+			includeSets.push(configurableFilter);
+			if (sortInfos) {
+				let configurableFilterFirstPart = name.split('/')[0];
+				sortExtras[configurableFilterFirstPart] = sortInfos;
+			}
 			continue;
 		}
 		if (filterSetMemberships[name]) {
@@ -336,7 +357,7 @@ const combinedFilterForFilterDefinition = (filterDefinition, filterSetMembership
 			continue;
 		}
 	}
-	return makeCombinedFilter(includeSets, excludeSets);
+	return [makeCombinedFilter(includeSets, excludeSets), sortExtras];
 };
 
 //Removes labels that are the same as the one htat came before them.
@@ -374,6 +395,9 @@ const Collection = class {
 		this._sortInfo = null;
 		this._sortedCards = null;
 		this._labels = null;
+		//sortExtras is extra information that configurable filters can
+		//optionally return and then make use of in special sorts later.
+		this._sortExtras = {};
 	}
 
 	_makeFilteredCards() {
@@ -381,8 +405,9 @@ const Collection = class {
 		let filteredItems = baseSet;
 		//Only bother filtering down the items if there are filters defined.
 		if (this._description.filters && this._description.filters.length) {
-			const combinedFilter = combinedFilterForFilterDefinition(this._description.filters, this._filters, this._cards);
+			const [combinedFilter, sortExtras] = combinedFilterForFilterDefinition(this._description.filters, this._filters, this._cards);
 			filteredItems = baseSet.filter(item => combinedFilter(item));
+			this._sortExtras = sortExtras;
 		}
 		this._length = filteredItems.length;
 		if (filteredItems.length == 0) {
@@ -430,8 +455,8 @@ const Collection = class {
 		const filterEquivalentForActiveSet = FILTER_EQUIVALENTS_FOR_SET[this._description.set];
 		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
 
-		const currentFilterFunc = combinedFilterForFilterDefinition(filterDefinition, this._filters, this._cards);
-		const pendingFilterFunc = combinedFilterForFilterDefinition(filterDefinition, pendingFilters, this._cards);
+		const [currentFilterFunc,] = combinedFilterForFilterDefinition(filterDefinition, this._filters, this._cards);
+		const [pendingFilterFunc,] = combinedFilterForFilterDefinition(filterDefinition, pendingFilters, this._cards);
 		//Return the set of items that pass the current filters but won't pass the pending filters.
 		const itemsThatWillBeRemoved = Object.keys(this._cards).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
 		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));
@@ -439,7 +464,7 @@ const Collection = class {
 
 	_makeSortInfo() {
 		const config = this._description.sortConfig;
-		let entries = this.filteredCards.map(card => [card.id, config.extractor(card, this._sections, this._cards)]);
+		let entries = this.filteredCards.map(card => [card.id, config.extractor(card, this._sections, this._cards, this._sortExtras)]);
 		return new Map(entries);
 	}
 
