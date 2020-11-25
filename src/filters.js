@@ -24,6 +24,10 @@ import {
 	references
 } from './card_fields.js';
 
+import {
+	PreparedQuery
+} from './nlp.js';
+
 export const DEFAULT_SET_NAME = 'main';
 //reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
 //order matters and is customizable by the user. Every other collection starts
@@ -158,6 +162,19 @@ const makeExcludeConfigurableFilter = (filterName, idString) => {
 	};
 };
 
+const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
+
+	//TODO: also de-url encode?
+	const decodedQueryString = rawQueryString.split('+').join(' ');
+
+	const query = new PreparedQuery(decodedQueryString);
+
+	return function(card) {
+		const [score, partialMatch] = query.cardScore(card);
+		return [score > 0.0, score, partialMatch];
+	};
+};
+
 //Fallback configurable filter
 const makeNoOpConfigurableFilter = () => {
 	return () => true;
@@ -175,6 +192,7 @@ const DESCENDANTS_FILTER_NAME = 'descendants';
 const PARENTS_FILTER_NAME = 'parents';
 const ANCESTORS_FILTER_NAME = 'ancestors';
 const EXCLUDE_FILTER_NAME = 'exclude';
+const QUERY_FILTER_NAME = 'query';
 
 //When these are seen in the URL as parts, how many more pieces to expect, to be
 //combined later. For things like `updated`, they want more than 1 piece more
@@ -195,6 +213,7 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[DIRECT_CONNECTIONS_FILTER_NAME]: 1,
 	[CONNECTIONS_FILTER_NAME]: 2,
 	[EXCLUDE_FILTER_NAME]: 1,
+	[QUERY_FILTER_NAME]: 1,
 };
 
 //the factories should return a filter func that takes the card to opeate on,
@@ -243,7 +262,11 @@ const CONFIGURABLE_FILTER_INFO = {
 	},
 	[EXCLUDE_FILTER_NAME]: {
 		factory: makeExcludeConfigurableFilter,
-	}
+	},
+	[QUERY_FILTER_NAME]: {
+		factory: makeQueryConfigurableFilter,
+		labelName: 'Score',
+	},
 };
 
 //The configurable filters that are allowed to start a multi-part filter.
