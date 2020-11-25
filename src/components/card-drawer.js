@@ -225,7 +225,7 @@ class CardDrawer extends connect(store)(LitElement) {
 				</div>
 				${repeat(this.collection, (i) => i.id, (i, index) => html`
 					<div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
-					${this.labels && this.labels[index] ? html`<div class='label'><span>${this.labelName} <strong>${this.labels[index]}</strong></span></div>` : html``}
+					${this.labels && this.labels[index] !== undefined && this.labels[index] !== '' ? html`<div class='label'><span>${this.labelName} <strong>${this.labels[index]}</strong></span></div>` : html``}
 					${this._thumbnail(i, index)}`)}
 				</div>
 				<div class='buttons'>
