@@ -917,7 +917,6 @@ describe('PreparedQuery', () => {
 
 	it('Basic query parsing one hyphenated word one normal word', async () => {
 		const query = new PreparedQuery('hill-climbing blammo');
-		const expectedQueryFilters = [];
 		const expectedQueryText = expandExpectedQueryProperties(
 			[
 				[
