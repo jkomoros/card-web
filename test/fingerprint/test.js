@@ -23,6 +23,7 @@ import {
 	TESTING,
 	dedupedPrettyFingerprint,
 	prettyFingerprintItems,
+	extractFiltersFromQuery
 } from '../../src/nlp.js';
 
 import {
@@ -778,7 +779,6 @@ describe('PreparedQuery', () => {
 		]);
 
 		assert.deepStrictEqual(query.text, expectedQueryProperties);
-		assert.deepStrictEqual(query.filters, []);
 	});
 
 	it('Basic query parsing two words one of them stop word', async () => {
@@ -811,7 +811,6 @@ describe('PreparedQuery', () => {
 		);
 
 		assert.deepStrictEqual(query.text, expectedQueryProperties);
-		assert.deepStrictEqual(query.filters, []);
 	});
 
 	it('Basic query parsing two words', async () => {
@@ -850,7 +849,6 @@ describe('PreparedQuery', () => {
 			]
 		);
 		assert.deepStrictEqual(query.text, expectedQueryProperties);
-		assert.deepStrictEqual(query.filters, []);
 	});
 
 	it('Basic query parsing two words stemming', async () => {
@@ -887,105 +885,34 @@ describe('PreparedQuery', () => {
 			]
 		]);
 		assert.deepStrictEqual(query.text, expectedQueryProperties);
-		assert.deepStrictEqual(query.filters, []);
 	});
 
 	it('Basic query parsing one word one filter', async () => {
-		const query = new PreparedQuery('crystallizing filter:has-links');
+		const rawQuery = 'crystallizing filter:has-links';
 		const expectedQueryFilters = ['has-links'];
-		const expectedQueryText = expandExpectedQueryProperties(
-			[
-				[
-					[
-						'crystal'
-					],
-					1,
-					true
-				]
-			],
-		);
-		assert.deepStrictEqual(query.text, expectedQueryText);
-		assert.deepStrictEqual(query.filters, expectedQueryFilters);
+		const expectedQueryWords = 'crystallizing';
+		const result = extractFiltersFromQuery(rawQuery);
+		assert.deepStrictEqual(result[0], expectedQueryWords);
+		assert.deepStrictEqual(result[1], expectedQueryFilters);
 	});
 
 	it('Basic query parsing two words one filter', async () => {
-		const query = new PreparedQuery('crystallizing blammo filter:has-links');
+		const rawQuery = 'crystallizing blammo filter:has-links';
 		const expectedQueryFilters = ['has-links'];
-		const expectedQueryText = expandExpectedQueryProperties(
-			[
-				[
-					[
-						'crystal blammo'
-					],
-					1,
-					true
-				],
-				[
-					[
-						'crystal',
-						'blammo'
-					],
-					0.5,
-					true
-				],
-				[
-					[
-						'crystal'
-					],
-					0.1056372550017821,
-					false
-				],
-				[
-					[
-						'blammo'
-					],
-					0.09726890629795545,
-					false
-				]
-			]
-		);
-		assert.deepStrictEqual(query.text, expectedQueryText);
-		assert.deepStrictEqual(query.filters, expectedQueryFilters);
+		const expectedQueryWords = 'crystallizing blammo';
+		const result = extractFiltersFromQuery(rawQuery);
+		assert.deepStrictEqual(result[0], expectedQueryWords);
+		assert.deepStrictEqual(result[1], expectedQueryFilters);
+
 	});
 
 	it('Basic query parsing two words one filter in between', async () => {
-		const query = new PreparedQuery('crystallizing filter:has-links blammo');
+		const rawQuery = 'crystallizing filter:has-links blammo';
 		const expectedQueryFilters = ['has-links'];
-		const expectedQueryText = expandExpectedQueryProperties(
-			[
-				[
-					[
-						'crystal blammo'
-					],
-					1,
-					true
-				],
-				[
-					[
-						'crystal',
-						'blammo'
-					],
-					0.5,
-					true
-				],
-				[
-					[
-						'crystal'
-					],
-					0.1056372550017821,
-					false
-				],
-				[
-					[
-						'blammo'
-					],
-					0.09726890629795545,
-					false
-				]
-			]
-		);
-		assert.deepStrictEqual(query.text, expectedQueryText);
-		assert.deepStrictEqual(query.filters, expectedQueryFilters);
+		const expectedQueryWords = 'crystallizing blammo';
+		const result = extractFiltersFromQuery(rawQuery);
+		assert.deepStrictEqual(result[0], expectedQueryWords);
+		assert.deepStrictEqual(result[1], expectedQueryFilters);
 	});
 
 	it('Basic query parsing one hyphenated word one normal word', async () => {
@@ -1047,7 +974,6 @@ describe('PreparedQuery', () => {
 			],
 		);
 		assert.deepStrictEqual(query.text, expectedQueryText);
-		assert.deepStrictEqual(query.filters, expectedQueryFilters);
 	});
 
 	it('query matching two words hyphenated all match', async () => {

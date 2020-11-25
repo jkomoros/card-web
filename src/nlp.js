@@ -223,14 +223,17 @@ const ngrams = (text, size = 2) => {
 	return result;
 };
 
+//Returns the words and filters in the text.
+export const extractFiltersFromQuery = (queryTextIncludingFilters) => {
+	return queryWordsAndFilters(rewriteQueryFilters(queryTextIncludingFilters));
+};
+
 export class PreparedQuery {
+	//queryText should not include any filters, but be a raw string
 	constructor(queryText) {
 		this.text = {};
-		this.filters = [];
 		if (!queryText) return;
-		let [words, filters] = queryWordsAndFilters(rewriteQueryFilters(queryText));
-		this.text = textSubQueryForWords(words);
-		this.filters = filters;
+		this.text = textSubQueryForWords(stemmedNormalizedWords(normalizedWords(lowercaseSplitWords(queryText).join(' '))));
 	}
 
 	cardScore(card) {
@@ -369,8 +372,7 @@ const queryWordsAndFilters = (queryString) => {
 			words.push(word);
 		}
 	}
-	const stemmedWords = stemmedNormalizedWords(normalizedWords(words.join(' ')));
-	return [stemmedWords, filters];
+	return [words.join(' '), filters];
 };
 
 //The max number of words to include in the semantic fingerprint

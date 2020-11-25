@@ -40,6 +40,7 @@ import {
 	PreparedQuery,
 	FingerprintGenerator,
 	prettyFingerprintItems,
+	extractFiltersFromQuery,
 } from './nlp.js';
 
 import {
@@ -1063,18 +1064,24 @@ export const selectBodyCardTypes = createSelector(
 	(filters) => Object.keys(BODY_CARD_TYPES).filter(cardType => Object.keys(filters[cardType] || {}).length > 0)
 );
 
-const selectPreparedQuery = createSelector(
+
+const selectWordsAndFiltersFromQueryText = createSelector(
 	selectActiveQueryText,
-	(queryText) => new PreparedQuery(queryText)
+	(queryText) => extractFiltersFromQuery(queryText)
+);
+
+const selectPreparedQuery = createSelector(
+	selectWordsAndFiltersFromQueryText,
+	(wordsAndFilters) => new PreparedQuery(wordsAndFilters[0])
 );
 
 const selectCollectionDescriptionForQuery = createSelector(
-	selectPreparedQuery,
+	selectWordsAndFiltersFromQueryText,
 	selectFindCardTypeFilter,
-	(query, cardTypeFilter) => {
+	(wordsAndFilters, cardTypeFilter) => {
 		let baseFilters = ['has-body'];
 		if (cardTypeFilter) baseFilters.push(cardTypeFilter);
-		return new CollectionDescription(EVERYTHING_SET_NAME,[...baseFilters, ...query.filters]);
+		return new CollectionDescription(EVERYTHING_SET_NAME,[...baseFilters, ...wordsAndFilters[1]]);
 	}
 );
 
