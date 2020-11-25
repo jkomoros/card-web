@@ -95,7 +95,7 @@ const unionSet = (...sets) => {
 	for (let set of sets) {
 		if (!set) continue;
 		for (let key of Object.keys(set)) {
-			result[key] = true;
+			result[key] = set[key];
 		}
 	}
 	return result;
