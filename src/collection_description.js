@@ -342,10 +342,9 @@ const combinedFilterForFilterDefinition = (filterDefinition, filterSetMembership
 		if (filterNameIsConfigurableFilter(name)) {
 			let [configurableFilter, sortInfos] = makeFilterFromConfigurableFilter(name, cards);
 			includeSets.push(configurableFilter);
-			if (sortInfos) {
-				let configurableFilterFirstPart = name.split('/')[0];
-				sortExtras[configurableFilterFirstPart] = sortInfos;
-			}
+			//the most recent sortInfos are the ones that are made available to
+			//sortExtras. Any earlier ones are overwritten.
+			if (sortInfos) sortExtras = sortInfos;
 			continue;
 		}
 		if (filterSetMemberships[name]) {

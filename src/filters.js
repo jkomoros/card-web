@@ -227,11 +227,11 @@ const RANDOM_SALT = randomString(16);
 //to the label that extractor returns. The extractor is given the card object
 //and the sections info map, and a map of all cards, and "sortExtras" and
 //returns an array, where the 0 index is the raw value to compare for sorting,
-//and the 1th value is the label to display. sortExtra is a dictionary of
-//informations that special configurable filters emitted for each item, to be
-//retrieved later. All sorts are currently assumed to be DESCENDING; if there's
-//a new one that isn't, then add a property to config called ascending and
-//toggle that.
+//and the 1th value is the label to display. sortExtra is a dictionary of cardId
+//=> sortValue for the last configurable filter in the chain that emitted extra
+//sortInfos, or an empty object if none of them did. All sorts are currently
+//assumed to be DESCENDING; if there's a new one that isn't, then add a property
+//to config called ascending and toggle that.
 export const SORTS = {
 	//Default sort is a no-op.
 	[DEFAULT_SORT_NAME]: {
