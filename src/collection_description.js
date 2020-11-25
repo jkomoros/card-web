@@ -366,7 +366,7 @@ const removeUnnecessaryLabels = (arr) => {
 	let lastLabel = '';
 	let labelCount = 0;
 	for (let item of arr) {
-		if (item == lastLabel) {
+		if (item === lastLabel) {
 			result.push('');
 			continue;
 		}
