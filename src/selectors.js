@@ -1022,8 +1022,8 @@ export const selectCardsDrawerPanelShowing = createSelector(
 );
 
 export const selectActiveSortLabelName = createSelector(
-	selectActiveCollectionDescription,
-	(description) => description.sortConfig.labelName || ''
+	selectActiveCollection,
+	(collection) => collection.sortLabelName
 );
 
 const selectExpandedActiveStartCards = createSelector(

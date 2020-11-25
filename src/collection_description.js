@@ -500,6 +500,16 @@ const Collection = class {
 		this._sortedCards = this._makeSortedCards();
 	}
 
+	get sortLabelName() {
+		this._ensureFilteredCards();
+		const config = this._description.sortConfig;
+		let labelName = config.labelName;
+		if (typeof labelName == 'function') {
+			labelName = labelName(this._sortExtras);
+		}
+		return labelName;
+	}
+
 	get sortedCards() {
 		this._ensureSortedCards();
 		return this._sortedCards;

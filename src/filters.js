@@ -229,15 +229,16 @@ const RANDOM_SALT = randomString(16);
 //returns an array, where the 0 index is the raw value to compare for sorting,
 //and the 1th value is the label to display. sortExtra is a dictionary of
 //informations that special configurable filters emitted for each item, to be
-//retrieved later. All sorts are currently assumed to be DESCENDING; if there's
-//a new one that isn't, then add a property to config called ascending and
-//toggle that.
+//retrieved later. labelName is either a string OR a function that accepts a
+//sortExtra parameter and returns a string. All sorts are currently assumed to
+//be DESCENDING; if there's a new one that isn't, then add a property to config
+//called ascending and toggle that.
 export const SORTS = {
 	//Default sort is a no-op.
 	[DEFAULT_SORT_NAME]: {
 		extractor: (card, sections) => [0, sectionNameForCard(card, sections)],
 		description: 'The default order of the cards within each section in order',
-		labelName: 'Section',
+		labelName: (sortExtra) => Object.keys(sortExtra).length == 0 ? 'Section' : 'Special',
 	},
 	'link-count': {
 		extractor: (card) => {
