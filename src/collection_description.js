@@ -199,7 +199,8 @@ export const CollectionDescription = class {
 	//sorting and labels of certain sorts. Fallbacks are consulted if there are
 	//no cards matching the filters; then it will look up a fallback set based
 	//on keying into optFallbacks by the serialization of the
-	//collectiondescription.
+	//collectiondescription. You can use selectCollectionConstructorArguments to
+	//select all of the items at once.
 	collection(cards, sets, filters, optSections, optFallbacks) {
 		return new Collection(this, cards, sets, filters, optSections, optFallbacks);
 	}

@@ -948,14 +948,20 @@ const selectAllSets = createSelector(
 	}
 );
 
-const selectActiveCollection = createSelector(
-	selectActiveCollectionDescription,
+//selectCollectionConstructorArguments returns an array that can be unpacked and passed as the arguments to collectionDescription.collection().
+const selectCollectionConstructorArguments = createSelector(
 	selectCards,
 	selectAllSets,
 	selectFilters,
 	selectSections,
 	selectTabCollectionFallbacks,
-	(description, cards, sets, filters, sections, fallbacks) => description ? description.collection(cards, sets, filters, sections, fallbacks) : null
+	(cards, sets, filters, sections, fallbacks) => [cards, sets, filters, sections, fallbacks]
+);
+
+const selectActiveCollection = createSelector(
+	selectActiveCollectionDescription,
+	selectCollectionConstructorArguments,
+	(description, args) => description ? description.collection(...args) : null
 );
 
 export const selectActiveCollectionWordCloud = createSelector(
@@ -1094,12 +1100,8 @@ const selectCollectionDescriptionForQuery = createSelector(
 
 const selectCollectionForQuery = createSelector(
 	selectCollectionDescriptionForQuery,
-	selectCards,
-	selectAllSets,
-	selectFilters,
-	selectSections,
-	selectTabCollectionFallbacks,
-	(description, cards, sets, filters, sections, fallbacks) => description ? description.collection(cards, sets, filters, sections, fallbacks) : null
+	selectCollectionConstructorArguments,
+	(description, args) => description ? description.collection(...args) : null
 );
 
 export const selectPartialMatchedItemsForQuery = createSelector(
