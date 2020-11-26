@@ -138,7 +138,7 @@ class CardWebApp extends connect(store)(LitElement) {
 	}
 
 	firstUpdated() {
-		installRouter((location) => store.dispatch(navigated(decodeURIComponent(location.pathname), decodeURIComponent(location.search))));
+		installRouter((location) => store.dispatch(navigated(location.pathname, location.search)));
 		installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
 		installMediaQueryWatcher('(max-width: 900px)',(isMobile) => {
 			store.dispatch(turnMobileMode(isMobile));

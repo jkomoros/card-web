@@ -105,7 +105,7 @@ export const navigatePathTo = (path, silent) => (dispatch, getState) => {
 		return;
 	}
 	window.history.pushState({}, '', path);
-	dispatch(navigated(decodeURIComponent(path), decodeURIComponent(location.search)));
+	dispatch(navigated(path, location.search));
 };
 
 export const navigateToChangesNumDays = (numDays) => (dispatch) => {

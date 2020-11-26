@@ -164,8 +164,7 @@ const makeExcludeConfigurableFilter = (filterName, idString) => {
 
 const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
 
-	//TODO: also de-url encode?
-	const decodedQueryString = rawQueryString.split('+').join(' ');
+	const decodedQueryString = decodeURIComponent(rawQueryString).split('+').join(' ');
 
 	const query = new PreparedQuery(decodedQueryString);
 
