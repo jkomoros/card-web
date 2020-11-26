@@ -162,6 +162,10 @@ const makeExcludeConfigurableFilter = (filterName, idString) => {
 	};
 };
 
+export const queryConfigurableFilterText = (queryText) => {
+	return QUERY_FILTER_NAME + '/' + encodeURIComponent(queryText.split(' ').join('+'));
+};
+
 const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
 
 	const decodedQueryString = decodeURIComponent(rawQueryString).split('+').join(' ');

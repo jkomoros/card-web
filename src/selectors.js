@@ -20,7 +20,8 @@ import {
 	DEFAULT_SET_NAME,
 	READING_LIST_SET_NAME,
 	EVERYTHING_SET_NAME,
-	cardTodoConfigKeys
+	cardTodoConfigKeys,
+	queryConfigurableFilterText
 } from './filters.js';
 
 import {
@@ -37,7 +38,6 @@ import {
 } from './card_fields.js';
 
 import {
-	PreparedQuery,
 	FingerprintGenerator,
 	prettyFingerprintItems,
 	extractFiltersFromQuery,
@@ -1081,18 +1081,14 @@ const selectWordsAndFiltersFromQueryText = createSelector(
 	(queryText) => extractFiltersFromQuery(queryText)
 );
 
-const selectPreparedQuery = createSelector(
-	selectWordsAndFiltersFromQueryText,
-	(wordsAndFilters) => new PreparedQuery(wordsAndFilters[0])
-);
-
 const selectCollectionDescriptionForQuery = createSelector(
 	selectWordsAndFiltersFromQueryText,
 	selectFindCardTypeFilter,
 	(wordsAndFilters, cardTypeFilter) => {
 		let baseFilters = ['has-body'];
 		if (cardTypeFilter) baseFilters.push(cardTypeFilter);
-		return new CollectionDescription(EVERYTHING_SET_NAME,[...baseFilters, ...wordsAndFilters[1]]);
+		const queryFilter = queryConfigurableFilterText(wordsAndFilters[0]);
+		return new CollectionDescription(EVERYTHING_SET_NAME,[...baseFilters, queryFilter, ...wordsAndFilters[1]]);
 	}
 );
 
@@ -1101,32 +1097,17 @@ const selectCollectionForQuery = createSelector(
 	selectCards,
 	selectAllSets,
 	selectFilters,
-	(description, cards, sets, filters) => description.collection(cards, sets, filters)
-);
-
-const selectRankedItemsForQuery = createSelector(
-	selectCollectionForQuery,
-	selectPreparedQuery,
-	(collection, preparedQuery) => collection.filteredCards.map(card => {
-		const [score, fullMatch] = preparedQuery.cardScore(card);
-		return {
-			card: card,
-			score: score,
-			fullMatch: fullMatch,
-		};
-	})
+	selectSections,
+	selectTabCollectionFallbacks,
+	(description, cards, sets, filters, sections, fallbacks) => description ? description.collection(cards, sets, filters, sections, fallbacks) : null
 );
 
 export const selectPartialMatchedItemsForQuery = createSelector(
-	selectRankedItemsForQuery,
-	(rankedItems) => Object.fromEntries(rankedItems.map(item => [item.card.id,!item.fullMatch]))
+	selectCollectionForQuery,
+	(collection) => collection.partialMatches
 );
 
 export const selectExpandedRankedCollectionForQuery = createSelector(
-	selectRankedItemsForQuery,
-	(rankedItems) => {
-		let filteredItems = rankedItems.filter(item => item.score > 0.0);
-		filteredItems.sort((left, right) => right.score - left.score);
-		return filteredItems.map(item => item.card);
-	}
+	selectCollectionForQuery,
+	(collection) => collection.sortedCards
 );
