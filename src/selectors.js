@@ -844,7 +844,8 @@ export const selectUserMayEditActiveSection = createSelector(
 
 export const selectExpandedTabConfig = createSelector(
 	selectSections,
-	(sections) => tabConfiguration(TAB_CONFIGURATION, sections)
+	selectTags,
+	(sections, tags) => tabConfiguration(TAB_CONFIGURATION, sections, tags)
 );
 
 export const selectTabCollectionFallbacks = createSelector(

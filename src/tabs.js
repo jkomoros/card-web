@@ -17,7 +17,7 @@ import {
 export const READING_LIST_FALLBACK_CARD = 'about-reading-lists';
 export const STARS_FALLBACK_CARD = 'about-stars';
 
-export const tabConfiguration = (config, sections) => {
+export const tabConfiguration = (config, sections, tags) => {
 	if (!config) config = DEFAULT_CONFIG;
 	let array = config;
 	let lastArray = [];
@@ -28,7 +28,7 @@ export const tabConfiguration = (config, sections) => {
 		lastArray = array;
 		array = [];
 		for (let item of lastArray) {
-			const [expandedItems, didExpand] = expandTabConfigItem(item, sections);
+			const [expandedItems, didExpand] = expandTabConfigItem(item, sections, tags);
 			if (didExpand) changesMade = true;
 			array = array.concat(...expandedItems);
 		}
@@ -76,6 +76,9 @@ Valid fields in config items:
 	count: true,
 	//If true, will not show the item if the count is 0. count config property must also be true.
 	hideIfEmpty: true,
+	//If true, the item will not be rendered. This is useful if you want fallback_cards or start_cards 
+	//to be available but don't want the tab to show up.
+	hide: true,
 	//If provided, will show these fallback cards if no real cards match the collection. The strings can be IDs or 
 	//slugs for the target cards.
 	fallback_cards: [CARD_ID_OR_SLUG, ...]
@@ -92,6 +95,9 @@ const EXPANSION_ITEMS = {
 	'default_tabs': [
 		{
 			expand: 'sections',
+		},
+		{
+			expand: 'hidden_tags',
 		},
 		{
 			expand: 'default_end_tabs',
@@ -157,25 +163,26 @@ const EXPANSION_ITEMS = {
 	],
 };
 
-const DEFAULT_LOADING_SECTIONS_TAB = [
-	{
-		collection: new CollectionDescription(),
-		display_name: 'Loading...',
-		italics: true,
-	}
-];
+const DEFAULT_LOADING_TAB = {
+	collection: new CollectionDescription(),
+	display_name: 'Loading...',
+	italics: true,
+};
 
-const tabsForSections = (sections) => {
+
+const tabsForSections = (sections, doHide) => {
+	if (!doHide) doHide = false;
 	if (!sections || Object.keys(sections).length == 0) {
-		return DEFAULT_LOADING_SECTIONS_TAB;
+		return [{...DEFAULT_LOADING_TAB, hide:doHide}];
 	}
 	return Object.values(sections).map(section => ({
 		display_name: section.title,
-		collection: new CollectionDescription('', [section.id])
+		collection: new CollectionDescription('', [section.id]),
+		hide: doHide,
 	}));
 };
 
-const expandTabConfigItem = (configItem, sections) => {
+const expandTabConfigItem = (configItem, sections, tags) => {
 	if (!configItem) return [[configItem], false];
 
 	if (!configItem.expand) return [[configItem], false];
@@ -185,6 +192,16 @@ const expandTabConfigItem = (configItem, sections) => {
 	if (configItem.expand == 'sections') {
 		return [tabsForSections(sections), true];
 	}
+	if (configItem.expand == 'hidden_sections') {
+		return [tabsForSections(sections, true), true];
+	}
+	if (configItem.expand == 'tags') {
+		return [tabsForSections(tags), true];
+	}
+	if (configItem.expand == 'hidden_tags') {
+		return [tabsForSections(tags, true), true];
+	}
+
 	console.warn('Unknown tabs expansion: ' + configItem.expand);
 	return [[], false];
 };
