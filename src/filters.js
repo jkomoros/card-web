@@ -172,9 +172,12 @@ const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
 
 	const query = new PreparedQuery(decodedQueryString);
 
+	const strict = filterName === QUERY_STRICT_FILTER_NAME;
+
 	return function(card) {
 		const [score, fullMatch] = query.cardScore(card);
-		return [score > 0.0, score, !fullMatch];
+		const matches = strict ? fullMatch && score > 0.0 : score > 0.0;
+		return [matches, score, !fullMatch];
 	};
 };
 
@@ -196,6 +199,7 @@ const PARENTS_FILTER_NAME = 'parents';
 const ANCESTORS_FILTER_NAME = 'ancestors';
 const EXCLUDE_FILTER_NAME = 'exclude';
 const QUERY_FILTER_NAME = 'query';
+const QUERY_STRICT_FILTER_NAME = 'query-strict';
 
 //When these are seen in the URL as parts, how many more pieces to expect, to be
 //combined later. For things like `updated`, they want more than 1 piece more
@@ -217,6 +221,7 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[CONNECTIONS_FILTER_NAME]: 2,
 	[EXCLUDE_FILTER_NAME]: 1,
 	[QUERY_FILTER_NAME]: 1,
+	[QUERY_STRICT_FILTER_NAME]: 1,
 };
 
 //the factories should return a filter func that takes the card to opeate on,
@@ -268,7 +273,10 @@ const CONFIGURABLE_FILTER_INFO = {
 	},
 	[QUERY_FILTER_NAME]: {
 		factory: makeQueryConfigurableFilter,
-		labelName: 'Score',
+		suppressLabels: true,
+	},
+	[QUERY_STRICT_FILTER_NAME]: {
+		factory: makeQueryConfigurableFilter,
 		suppressLabels: true,
 	},
 };
