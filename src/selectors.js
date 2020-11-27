@@ -861,6 +861,19 @@ export const selectTabCollectionFallbacks = createSelector(
 	}
 );
 
+export const selectTabCollectionStartCards = createSelector(
+	selectExpandedTabConfig,
+	selectSlugIndex,
+	(config, slugIndex) => {
+		let result = {};
+		for (const item of config) {
+			if (!item.start_cards) continue;
+			result[item.collection.serialize()] = item.start_cards.map(idOrSlug => slugIndex[idOrSlug] || idOrSlug);
+		}
+		return result;
+	}
+);
+
 //the section that should be loaded by default if no section is specified; Will
 //return the first section, or if one is marked as default, that one.
 export const selectDefaultSectionID = createSelector(
@@ -899,15 +912,10 @@ export const selectActiveTagId = createSelector(
 	}
 );
 
-export const selectActiveStartCards = createSelector(
-	selectActiveSectionId,
-	selectSections,
-	selectActiveTagId,
-	selectTags,
-	(sectionId, sections, tagId, tags) => {
-		let obj = sections[sectionId] || tags[tagId];
-		return obj && obj.start_cards ? [...obj.start_cards] : [];
-	}
+const selectActiveStartCards = createSelector(
+	selectActiveCollectionDescription,
+	selectTabCollectionStartCards,
+	(description, startCards) => startCards[description.serialize()] || []
 );
 
 export const selectDefaultSet = createSelector(

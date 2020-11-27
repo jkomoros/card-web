@@ -82,6 +82,9 @@ Valid fields in config items:
 	//If provided, will show these fallback cards if no real cards match the collection. The strings can be IDs or 
 	//slugs for the target cards.
 	fallback_cards: [CARD_ID_OR_SLUG, ...]
+	//If provided, will show these start cards if the collection being show is precisely the collection described 
+	//by this descripton. The strings can be IDS or slugs for the target cards.
+	start_cards: [CARD_ID_OR_SLUG, ...]
 }
 */
 
@@ -178,6 +181,7 @@ const tabsForSections = (sections, doHide) => {
 	return Object.values(sections).map(section => ({
 		display_name: section.title,
 		collection: new CollectionDescription('', [section.id]),
+		start_cards: section.start_cards,
 		hide: doHide,
 	}));
 };
