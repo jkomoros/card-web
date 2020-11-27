@@ -28,6 +28,10 @@ import {
 	PreparedQuery
 } from './nlp.js';
 
+import {
+	filterSetForFilterDefinitionItem
+} from './collection_description.js';
+
 export const DEFAULT_SET_NAME = 'main';
 //reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
 //order matters and is customizable by the user. Every other collection starts
@@ -152,7 +156,7 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countStr) => {
 	return [func, false];
 };
 
-const makeExcludeConfigurableFilter = (filterName, idString) => {
+const makeExcludeCardsConfigurableFilter = (filterName, idString) => {
 	//ids can be a single id or slug, or a conjunction of them delimited by '+'
 	const idsToMatch = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
 
@@ -166,6 +170,36 @@ const makeExcludeConfigurableFilter = (filterName, idString) => {
 		return true;
 	};
 	return [func, false];
+};
+
+const makeExcludeConfigurableFilter = (filterName, ...remainingParts) => {
+	const rest = remainingParts.join('/');
+
+	let memoizedFilterSet = null;
+	let memoizedReverse = false;
+	let memoizedCards = null;
+	let memoizedFilterSetMemberships = null;
+
+	//our func is just checking in the expanded filter.
+	const func = function(card, cards, filterSetMemberships) {
+
+		if (!memoizedFilterSet || memoizedCards != cards || memoizedFilterSetMemberships != filterSetMemberships) {
+			const [filterMembership, exclude] = filterSetForFilterDefinitionItem(rest, filterSetMemberships, cards);
+			memoizedFilterSet = filterMembership;
+			memoizedReverse = exclude;
+			memoizedFilterSetMemberships = filterSetMemberships;
+			memoizedCards = cards;
+		}
+
+		const filterSet = memoizedFilterSet;
+		const reversed = memoizedReverse;
+
+		const id = card.id;
+		return reversed ? !filterSet[id] : filterSet[id];
+	};
+	//The true is the whole business end of this configurable filter,
+	//reversing the filter it operates on.
+	return [func, true];
 };
 
 export const queryConfigurableFilterText = (queryText) => {
@@ -206,6 +240,7 @@ const DESCENDANTS_FILTER_NAME = 'descendants';
 const PARENTS_FILTER_NAME = 'parents';
 const ANCESTORS_FILTER_NAME = 'ancestors';
 const EXCLUDE_CARDS_FILTER_NAME = 'exclude-cards';
+const EXCLUDE_FILTER_NAME = 'exclude';
 const QUERY_FILTER_NAME = 'query';
 const QUERY_STRICT_FILTER_NAME = 'query-strict';
 
@@ -227,6 +262,8 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[ANCESTORS_FILTER_NAME]: 2,
 	[DIRECT_CONNECTIONS_FILTER_NAME]: 1,
 	[CONNECTIONS_FILTER_NAME]: 2,
+	//Exclude takes itself, plus whatever filter comes after it
+	[EXCLUDE_FILTER_NAME]: 1,
 	[EXCLUDE_CARDS_FILTER_NAME]: 1,
 	[QUERY_FILTER_NAME]: 1,
 	[QUERY_STRICT_FILTER_NAME]: 1,
@@ -279,8 +316,11 @@ const CONFIGURABLE_FILTER_INFO = {
 		labelName: 'Degree',
 		flipOrder: true,
 	},
-	[EXCLUDE_CARDS_FILTER_NAME]: {
+	[EXCLUDE_FILTER_NAME]: {
 		factory: makeExcludeConfigurableFilter,
+	},
+	[EXCLUDE_CARDS_FILTER_NAME]: {
+		factory: makeExcludeCardsConfigurableFilter,
 	},
 	[QUERY_FILTER_NAME]: {
 		factory: makeQueryConfigurableFilter,

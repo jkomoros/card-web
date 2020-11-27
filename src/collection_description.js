@@ -334,7 +334,7 @@ const makeCombinedFilter = (includeSets, excludeSets) => {
 	};
 };
 
-const filterSetForFilterDefinitionItem = (filterDefinitionItem, filterSetMemberships, cards) => {
+export const filterSetForFilterDefinitionItem = (filterDefinitionItem, filterSetMemberships, cards) => {
 	if (filterNameIsUnionFilter(filterDefinitionItem)) {
 		return [makeFilterUnionSet(filterDefinitionItem, filterSetMemberships, cards), false, null, null];
 	}
