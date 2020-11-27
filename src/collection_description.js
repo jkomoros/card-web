@@ -279,6 +279,9 @@ const makeFilterFromConfigurableFilter = (name, filterSetMemberships, cards) => 
 			sortValue = funcResult[1];
 			if (funcResult.length >= 3) partialMatch = funcResult[2];
 		}
+		//TODO: this doesn't handle cases where the func is a reversed func,
+		//right? This isn't currently exercised, since none of the reversed
+		//configurable filters emit sortValues.
 		if (matches) {
 			result[id] = true;
 			if (sortValue !== undefined) sortValues[id] = sortValue;
