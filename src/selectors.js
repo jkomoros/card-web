@@ -12,10 +12,6 @@ import { createSelector } from 'reselect';
 */
 
 import {
-	expandCardCollection
-} from './util.js';
-
-import {
 	TODO_COMBINED_FILTER_NAME,
 	DEFAULT_SET_NAME,
 	READING_LIST_SET_NAME,
@@ -912,12 +908,6 @@ export const selectActiveTagId = createSelector(
 	}
 );
 
-const selectActiveStartCards = createSelector(
-	selectActiveCollectionDescription,
-	selectTabCollectionStartCards,
-	(description, startCards) => startCards[description.serialize()] || []
-);
-
 export const selectDefaultSet = createSelector(
 	selectSections,
 	(sections) => {
@@ -1043,17 +1033,10 @@ export const selectActiveSortLabelName = createSelector(
 	(collection) => collection.sortLabelName
 );
 
-const selectExpandedActiveStartCards = createSelector(
-	selectActiveStartCards,
-	selectCards,
-	(startCards, cards) => expandCardCollection(startCards, cards)
-);
-
 //This is the final expanded, sorted collection, including start cards.
 export const selectFinalCollection = createSelector(
-	selectExpandedActiveStartCards,
 	selectActiveCollection,
-	(startCards, collection) => [...startCards, ...collection.sortedCards]
+	(collection) => collection.finalSortedCards
 );
 
 const selectActiveCollectionPartialMatches = createSelector(
@@ -1069,8 +1052,7 @@ export const selectActiveCollectionCardsToGhost = createSelector(
 
 export const selectActiveCollectionLabels = createSelector(
 	selectActiveCollection,
-	selectActiveStartCards,
-	(collection, startCards) => [...startCards.map(() => ''), ...collection.labels]
+	(collection) => collection.finalLabels
 );
 
 export const selectActiveCardIndex = createSelector(
