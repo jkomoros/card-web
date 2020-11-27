@@ -249,20 +249,23 @@ const filterNameIsConfigurableFilter = (filterName) => {
 };
 
 let memoizedConfigurableFiltersCards = null;
+let memoizedConfigurableFilterSetMemberships = null;
 let memoizedConfigurableFilters = {};
 
 //The first filter here means 'map of card id to bools', not 'filter func'
-const makeFilterFromConfigurableFilter = (name, cards) => {
-	if (memoizedConfigurableFiltersCards == cards) {
+//TODO: make it return the exclusion as second item
+const makeFilterFromConfigurableFilter = (name, filterSetMemberships, cards) => {
+	if (memoizedConfigurableFiltersCards == cards && memoizedConfigurableFilterSetMemberships == filterSetMemberships) {
 		if (memoizedConfigurableFilters[name]) {
 			return memoizedConfigurableFilters[name];
 		}
 	} else {
 		memoizedConfigurableFiltersCards = cards;
+		memoizedConfigurableFilterSetMemberships = filterSetMemberships;
 		memoizedConfigurableFilters = {};
 	}
 
-	const func = makeConfigurableFilter(name);
+	const [func, reverse] = makeConfigurableFilter(name, filterSetMemberships, cards);
 	const result = {};
 	let sortValues = {};
 	let partialMatches = {};
@@ -286,7 +289,7 @@ const makeFilterFromConfigurableFilter = (name, cards) => {
 	if (Object.keys(sortValues).length == 0) sortValues = null;
 	if (Object.keys(partialMatches).length == 0) partialMatches = null;
 
-	let fullResult = [result, sortValues, partialMatches];
+	let fullResult = [result, reverse, sortValues, partialMatches];
 
 	memoizedConfigurableFilters[name] = fullResult;
 
@@ -331,6 +334,23 @@ const makeCombinedFilter = (includeSets, excludeSets) => {
 	};
 };
 
+const filterSetForFilterDefinitionItem = (filterDefinitionItem, filterSetMemberships, cards) => {
+	if (filterNameIsUnionFilter(filterDefinitionItem)) {
+		return [makeFilterUnionSet(filterDefinitionItem, filterSetMemberships, cards), false, null, null];
+	}
+	if (filterNameIsConfigurableFilter(filterDefinitionItem)) {
+		return makeFilterFromConfigurableFilter(filterDefinitionItem, filterSetMemberships, cards);
+	}
+	if (filterSetMemberships[filterDefinitionItem]) {
+		return [filterSetMemberships[filterDefinitionItem], false, null, null];
+	}
+	if (INVERSE_FILTER_NAMES[filterDefinitionItem]) {
+		return [filterSetMemberships[INVERSE_FILTER_NAMES[filterDefinitionItem]], true, null, null];
+	}
+	//If unknown, then just treat it like a no op, excluding nothing
+	return [{}, true, null, null];
+};
+
 //filterDefinition is an array of filter-set names (concrete or inverse or union-set)
 const combinedFilterForFilterDefinition = (filterDefinition, filterSetMemberships, cards) => {
 	let includeSets = [];
@@ -338,26 +358,15 @@ const combinedFilterForFilterDefinition = (filterDefinition, filterSetMembership
 	let sortExtras = {};
 	let partialExtras = {};
 	for (let name of filterDefinition) {
-		if (filterNameIsUnionFilter(name)) {
-			includeSets.push(makeFilterUnionSet(name, filterSetMemberships, cards));
-			continue;
+		let [filterSet, reverse, sortInfos, partialMatches] = filterSetForFilterDefinitionItem(name, filterSetMemberships, cards);
+		if (reverse) {
+			excludeSets.push(filterSet);
+		} else {
+			includeSets.push(filterSet);
 		}
-		if (filterNameIsConfigurableFilter(name)) {
-			let [configurableFilter, sortInfos, partialMatches] = makeFilterFromConfigurableFilter(name, cards);
-			includeSets.push(configurableFilter);
-			const configurableFilterFirstPart = name.split('/')[0];
-			if (sortInfos) sortExtras[configurableFilterFirstPart] = sortInfos;
-			if (partialMatches) partialExtras = {...partialExtras, ...partialMatches};
-			continue;
-		}
-		if (filterSetMemberships[name]) {
-			includeSets.push(filterSetMemberships[name]);
-			continue;
-		}
-		if (INVERSE_FILTER_NAMES[name]) {
-			excludeSets.push(filterSetMemberships[INVERSE_FILTER_NAMES[name]]);
-			continue;
-		}
+		const configurableFilterFirstPart = name.split('/')[0];
+		if (sortInfos) sortExtras[configurableFilterFirstPart] = sortInfos;
+		if (partialMatches) partialExtras = {...partialExtras, ...partialMatches};
 	}
 	return [makeCombinedFilter(includeSets, excludeSets), sortExtras, partialExtras];
 };

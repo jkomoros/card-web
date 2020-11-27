@@ -57,23 +57,27 @@ export const SORT_REVERSED_URL_KEYWORD = 'reverse';
 export const DEFAULT_SORT_NAME = 'default';
 export const RECENT_SORT_NAME = 'recent';
 
-const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, secondDateStr) => {
+const makeDateConfigurableFilter = (parts) => {
+
+	let [propName, comparisonType, firstDateStr, secondDateStr] = parts;
 
 	if (propName == UPDATED_FILTER_NAME) propName = 'updated_substantive';
 	if (propName == LAST_TWEETED_FILTER_NAME) propName = 'last_tweeted';
 	const firstDate = firstDateStr ? new Date(firstDateStr) : null;
 	const secondDate = secondDateStr ? new Date(secondDateStr) : null;
 
+	let func = () => false;
+
 	switch (comparisonType) {
 	case BEFORE_FILTER_NAME:
-		return function(card) {
+		func = function(card) {
 			const val = card[propName];
 			if (!val) return false;
 			const difference = val.toMillis() - firstDate.getTime();
 			return difference < 0;
 		};
 	case AFTER_FILTER_NAME:
-		return function(card) {
+		func = function(card) {
 			const val = card[propName];
 			if (!val) return false;
 			const difference = val.toMillis() - firstDate.getTime();
@@ -81,17 +85,18 @@ const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, seco
 		};
 	case BETWEEN_FILTER_NAME:
 		//Bail if the second date isn't provided
-		if (!secondDate) return () => false;
-		return function(card) {
-			const val = card[propName];
-			if (!val) return false;
-			const firstDifference = val.toMillis() - firstDate.getTime();
-			const secondDifference = val.toMillis() - secondDate.getTime();
-			return (firstDifference > 0 && secondDifference < 0) || (firstDifference < 0 && secondDifference > 0) ;
-		};
-	default:
-		return () => false;
+		if (secondDate) {
+			func = function(card) {
+				const val = card[propName];
+				if (!val) return false;
+				const firstDifference = val.toMillis() - firstDate.getTime();
+				const secondDifference = val.toMillis() - secondDate.getTime();
+				return (firstDifference > 0 && secondDifference < 0) || (firstDifference < 0 && secondDifference > 0) ;
+			};
+		}
 	}
+
+	return [func, false];
 };
 
 const unionSet = (...sets) => {
@@ -107,7 +112,10 @@ const unionSet = (...sets) => {
 
 const INCLUDE_KEY_CARD_PREFIX = '+';
 
-const makeCardLinksConfigurableFilter = (filterName, cardID, countStr) => {
+const makeCardLinksConfigurableFilter = (parts) => {
+
+	let [filterName, cardID, countStr] = parts;
+
 	const isInbound = filterName == PARENTS_FILTER_NAME || filterName == ANCESTORS_FILTER_NAME;
 	const twoWay = filterName == DIRECT_CONNECTIONS_FILTER_NAME || filterName == CONNECTIONS_FILTER_NAME;
 	if (filterName == CHILDREN_FILTER_NAME || filterName == PARENTS_FILTER_NAME || filterName == DIRECT_CONNECTIONS_FILTER_NAME) countStr = '1';
@@ -127,7 +135,7 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countStr) => {
 	let memoizedCardsLastSeen = null;
 	let memoizedMap = null;
 
-	return function(card, cards) {
+	const func = function(card, cards) {
 		if (cards != memoizedCardsLastSeen) memoizedMap = null;
 		if (!memoizedMap) {
 			if (twoWay){
@@ -145,14 +153,16 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countStr) => {
 		return [val !== undefined, val];
 	};
 
+	return [func, false];
 };
 
-const makeExcludeConfigurableFilter = (filterName, idString) => {
+const makeExcludeConfigurableFilter = (parts) => {
+	const [, idString] = parts;
 	//ids can be a single id or slug, or a conjunction of them delimited by '+'
 	const idsToMatch = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
 
 	//TODO: only calculate the slug --> id once so subsequent matches can be done with one lookup
-	return function(card) {
+	const func = function(card) {
 		if (idsToMatch[card.id]) return false;
 		if (!card.slugs) return true;
 		for (let slug of card.slugs) {
@@ -160,13 +170,16 @@ const makeExcludeConfigurableFilter = (filterName, idString) => {
 		}
 		return true;
 	};
+	return [func, false];
 };
 
 export const queryConfigurableFilterText = (queryText) => {
 	return QUERY_FILTER_NAME + '/' + encodeURIComponent(queryText.split(' ').join('+'));
 };
 
-const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
+const makeQueryConfigurableFilter = (parts) => {
+
+	const [filterName, rawQueryString] = parts;
 
 	const decodedQueryString = decodeURIComponent(rawQueryString).split('+').join(' ');
 
@@ -174,16 +187,18 @@ const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
 
 	const strict = filterName === QUERY_STRICT_FILTER_NAME;
 
-	return function(card) {
+	const func = function(card) {
 		const [score, fullMatch] = query.cardScore(card);
 		const matches = strict ? fullMatch && score > 0.0 : score > 0.0;
 		return [matches, score, !fullMatch];
 	};
+
+	return [func, false];
 };
 
 //Fallback configurable filter
 const makeNoOpConfigurableFilter = () => {
-	return () => true;
+	return () => [true, false];
 };
 
 const UPDATED_FILTER_NAME = 'updated';
@@ -225,12 +240,15 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 };
 
 //the factories should return a filter func that takes the card to opeate on,
-//then cards. The function should return either true/false, or, if wants to make
-//values available for later sorts in sortExtras, it can emit an array [matches,
-//sortValue] where matches is a boolean and sortValue is the value to pass into
-//sortExtras for that card. It can also emit a [matches, sortValue,
-//partialMatch], where partialMatch denotes the item should be ghosted. If the
-//filter emits sortExtras, then it should also define a labelName.
+//then cards. The factory will be provided an array of parts of the filter
+//definition, the existing filterSetMemberships, and all cards, and should
+//return a func and whether or not its output should be reversed.  The function
+//should return either true/false, or, if wants to make values available for
+//later sorts in sortExtras, it can emit an array [matches, sortValue] where
+//matches is a boolean and sortValue is the value to pass into sortExtras for
+//that card. It can also emit a [matches, sortValue, partialMatch], where
+//partialMatch denotes the item should be ghosted. If the filter emits
+//sortExtras, then it should also define a labelName.
 const CONFIGURABLE_FILTER_INFO = {
 	[UPDATED_FILTER_NAME]: {
 		factory: makeDateConfigurableFilter,
@@ -286,11 +304,11 @@ export const CONFIGURABLE_FILTER_NAMES = Object.fromEntries(Object.entries(CONFI
 
 let memoizedConfigurableFilters = {};
 
-export const makeConfigurableFilter = (name) => {
+export const makeConfigurableFilter = (name, filterSetMemberships, cards) => {
 	if (!memoizedConfigurableFilters[name]) {
 		const parts = name.split('/');
 		const func = CONFIGURABLE_FILTER_INFO[parts[0]].factory || makeNoOpConfigurableFilter;
-		memoizedConfigurableFilters[name] = func(...parts);
+		memoizedConfigurableFilters[name] = func(parts, filterSetMemberships, cards);
 	}
 	return memoizedConfigurableFilters[name];
 };
