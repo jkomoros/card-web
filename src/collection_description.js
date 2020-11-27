@@ -395,13 +395,14 @@ const Collection = class {
 		//Needed for sort info :-(
 		this._sections = optSections || {};
 		this._fallbacks = optFallbacks || {};
-		this._optStartCards = optStartCards || {};
+		this._startCardsConfig = optStartCards || {};
 		this._filteredCards = null;
 		this._length = 0;
 		this._collectionIsFallback = null;
 		this._sortInfo = null;
 		this._sortedCards = null;
 		this._labels = null;
+		this._startCards = null;
 		//sortExtras is extra information that configurable filters can
 		//optionally return and then make use of in special sorts later.
 		this._sortExtras = {};
@@ -519,9 +520,27 @@ const Collection = class {
 		return labelName;
 	}
 
+	_ensureStartCards() {
+		if(this._startCards) return;
+		this._startCards = expandCardCollection(this._startCardsConfig[this._description.serialize()] || [], this._cards);
+	}
+
+	//sortedCards is the sorted cards, WITHOUT any applicable startCards
+	//prepended. See also finalSortedCards.
 	get sortedCards() {
 		this._ensureSortedCards();
 		return this._sortedCards;
+	}
+
+	get finalSortedCards() {
+		this._ensureSortedCards();
+		this._ensureStartCards();
+		return [...this._startCards, ...this._sortedCards];
+	}
+
+	get numStartCards() {
+		this._ensureStartCards();
+		return this._startCards.length;
 	}
 
 	get partialMatches() {
@@ -542,9 +561,15 @@ const Collection = class {
 		this._labels = this._makeLabels();
 	}
 
+	//labels is the labels for the collection WITHOUT start cards. See also finalLabels
 	get labels() {
 		this._ensureLabels();
 		return this._labels;
+	}
+
+	get finalLabels() {
+		this._ensureStartCards();
+		return [...this._startCards.map(() => ''), ...this.labels];
 	}
 
 };
