@@ -13,10 +13,6 @@ import {
 	makeConfigurableFilter,
 } from './filters.js';
 
-import {
-	expandCardCollection,
-} from './util.js';
-
 const extractFilterNamesAndSort = (parts) => {
 	//returns the filter names, the sort name, and whether the sort is reversed
 	//parts is all of the unconsumed portions of the path that aren't the set
@@ -385,6 +381,8 @@ const removeUnnecessaryLabels = (arr) => {
 	if (labelCount == 1) return result.map(() => '');
 	return result;
 };
+
+const expandCardCollection = (collection, cards) => collection.map(id => cards[id] || null).filter(card => card ? true : false);
 
 const Collection = class {
 	constructor(description, cards, sets, filters, optSections, optFallbacks, optStartCards) {
