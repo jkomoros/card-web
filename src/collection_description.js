@@ -265,12 +265,12 @@ const makeFilterFromConfigurableFilter = (name, filterSetMemberships, cards) => 
 		memoizedConfigurableFilters = {};
 	}
 
-	const [func, reverse] = makeConfigurableFilter(name, filterSetMemberships, cards);
+	const [func, reverse] = makeConfigurableFilter(name);
 	const result = {};
 	let sortValues = {};
 	let partialMatches = {};
 	for (let [id, card] of Object.entries(cards)) {
-		let funcResult = func(card, cards);
+		let funcResult = func(card, cards, filterSetMemberships);
 		let matches = funcResult;
 		let sortValue = undefined;
 		let partialMatch = false;

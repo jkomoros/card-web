@@ -57,9 +57,7 @@ export const SORT_REVERSED_URL_KEYWORD = 'reverse';
 export const DEFAULT_SORT_NAME = 'default';
 export const RECENT_SORT_NAME = 'recent';
 
-const makeDateConfigurableFilter = (parts) => {
-
-	let [propName, comparisonType, firstDateStr, secondDateStr] = parts;
+const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, secondDateStr) => {
 
 	if (propName == UPDATED_FILTER_NAME) propName = 'updated_substantive';
 	if (propName == LAST_TWEETED_FILTER_NAME) propName = 'last_tweeted';
@@ -112,9 +110,7 @@ const unionSet = (...sets) => {
 
 const INCLUDE_KEY_CARD_PREFIX = '+';
 
-const makeCardLinksConfigurableFilter = (parts) => {
-
-	let [filterName, cardID, countStr] = parts;
+const makeCardLinksConfigurableFilter = (filterName, cardID, countStr) => {
 
 	const isInbound = filterName == PARENTS_FILTER_NAME || filterName == ANCESTORS_FILTER_NAME;
 	const twoWay = filterName == DIRECT_CONNECTIONS_FILTER_NAME || filterName == CONNECTIONS_FILTER_NAME;
@@ -156,8 +152,7 @@ const makeCardLinksConfigurableFilter = (parts) => {
 	return [func, false];
 };
 
-const makeExcludeConfigurableFilter = (parts) => {
-	const [, idString] = parts;
+const makeExcludeConfigurableFilter = (filterName, idString) => {
 	//ids can be a single id or slug, or a conjunction of them delimited by '+'
 	const idsToMatch = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
 
@@ -177,9 +172,7 @@ export const queryConfigurableFilterText = (queryText) => {
 	return QUERY_FILTER_NAME + '/' + encodeURIComponent(queryText.split(' ').join('+'));
 };
 
-const makeQueryConfigurableFilter = (parts) => {
-
-	const [filterName, rawQueryString] = parts;
+const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
 
 	const decodedQueryString = decodeURIComponent(rawQueryString).split('+').join(' ');
 
@@ -240,15 +233,15 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 };
 
 //the factories should return a filter func that takes the card to opeate on,
-//then cards. The factory will be provided an array of parts of the filter
-//definition, the existing filterSetMemberships, and all cards, and should
-//return a func and whether or not its output should be reversed.  The function
-//should return either true/false, or, if wants to make values available for
-//later sorts in sortExtras, it can emit an array [matches, sortValue] where
-//matches is a boolean and sortValue is the value to pass into sortExtras for
-//that card. It can also emit a [matches, sortValue, partialMatch], where
-//partialMatch denotes the item should be ghosted. If the filter emits
-//sortExtras, then it should also define a labelName.
+//then cards. The factory will be provided with the individual parts of the
+//configuration return a func and whether or not its output should be reversed.
+//The function takes card, cards, filterSetMemberships and should return either
+//true/false, or, if wants to make values available for later sorts in
+//sortExtras, it can emit an array [matches, sortValue] where matches is a
+//boolean and sortValue is the value to pass into sortExtras for that card. It
+//can also emit a [matches, sortValue, partialMatch], where partialMatch denotes
+//the item should be ghosted. If the filter emits sortExtras, then it should
+//also define a labelName.
 const CONFIGURABLE_FILTER_INFO = {
 	[UPDATED_FILTER_NAME]: {
 		factory: makeDateConfigurableFilter,
@@ -304,11 +297,11 @@ export const CONFIGURABLE_FILTER_NAMES = Object.fromEntries(Object.entries(CONFI
 
 let memoizedConfigurableFilters = {};
 
-export const makeConfigurableFilter = (name, filterSetMemberships, cards) => {
+export const makeConfigurableFilter = (name) => {
 	if (!memoizedConfigurableFilters[name]) {
 		const parts = name.split('/');
 		const func = CONFIGURABLE_FILTER_INFO[parts[0]].factory || makeNoOpConfigurableFilter;
-		memoizedConfigurableFilters[name] = func(parts, filterSetMemberships, cards);
+		memoizedConfigurableFilters[name] = func(...parts);
 	}
 	return memoizedConfigurableFilters[name];
 };
