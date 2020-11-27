@@ -156,18 +156,18 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countStr) => {
 	return [func, false];
 };
 
-const makeExcludeCardsConfigurableFilter = (filterName, idString) => {
+const makeCardsConfigurableFilter = (filterName, idString) => {
 	//ids can be a single id or slug, or a conjunction of them delimited by '+'
 	const idsToMatch = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
 
 	//TODO: only calculate the slug --> id once so subsequent matches can be done with one lookup
 	const func = function(card) {
-		if (idsToMatch[card.id]) return false;
-		if (!card.slugs) return true;
+		if (idsToMatch[card.id]) return true;
+		if (!card.slugs) return false;
 		for (let slug of card.slugs) {
-			if (idsToMatch[slug]) return false;
+			if (idsToMatch[slug]) return true;
 		}
-		return true;
+		return false;
 	};
 	return [func, false];
 };
@@ -239,7 +239,7 @@ const CHILDREN_FILTER_NAME = 'children';
 const DESCENDANTS_FILTER_NAME = 'descendants';
 const PARENTS_FILTER_NAME = 'parents';
 const ANCESTORS_FILTER_NAME = 'ancestors';
-const EXCLUDE_CARDS_FILTER_NAME = 'exclude-cards';
+const CARDS_FILTER_NAME = 'cards';
 const EXCLUDE_FILTER_NAME = 'exclude';
 const QUERY_FILTER_NAME = 'query';
 const QUERY_STRICT_FILTER_NAME = 'query-strict';
@@ -264,7 +264,7 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[CONNECTIONS_FILTER_NAME]: 2,
 	//Exclude takes itself, plus whatever filter comes after it
 	[EXCLUDE_FILTER_NAME]: 1,
-	[EXCLUDE_CARDS_FILTER_NAME]: 1,
+	[CARDS_FILTER_NAME]: 1,
 	[QUERY_FILTER_NAME]: 1,
 	[QUERY_STRICT_FILTER_NAME]: 1,
 };
@@ -319,8 +319,10 @@ const CONFIGURABLE_FILTER_INFO = {
 	[EXCLUDE_FILTER_NAME]: {
 		factory: makeExcludeConfigurableFilter,
 	},
-	[EXCLUDE_CARDS_FILTER_NAME]: {
-		factory: makeExcludeCardsConfigurableFilter,
+	[CARDS_FILTER_NAME]: {
+		//This filter matches precisely the IDsorSlugs provided. It's generally
+		//used in conjunction with the exclude filter.
+		factory: makeCardsConfigurableFilter,
 	},
 	[QUERY_FILTER_NAME]: {
 		factory: makeQueryConfigurableFilter,
