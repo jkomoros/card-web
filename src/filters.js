@@ -197,7 +197,7 @@ const CHILDREN_FILTER_NAME = 'children';
 const DESCENDANTS_FILTER_NAME = 'descendants';
 const PARENTS_FILTER_NAME = 'parents';
 const ANCESTORS_FILTER_NAME = 'ancestors';
-const EXCLUDE_FILTER_NAME = 'exclude';
+const EXCLUDE_CARDS_FILTER_NAME = 'exclude-cards';
 const QUERY_FILTER_NAME = 'query';
 const QUERY_STRICT_FILTER_NAME = 'query-strict';
 
@@ -219,7 +219,7 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[ANCESTORS_FILTER_NAME]: 2,
 	[DIRECT_CONNECTIONS_FILTER_NAME]: 1,
 	[CONNECTIONS_FILTER_NAME]: 2,
-	[EXCLUDE_FILTER_NAME]: 1,
+	[EXCLUDE_CARDS_FILTER_NAME]: 1,
 	[QUERY_FILTER_NAME]: 1,
 	[QUERY_STRICT_FILTER_NAME]: 1,
 };
@@ -268,7 +268,7 @@ const CONFIGURABLE_FILTER_INFO = {
 		labelName: 'Degree',
 		flipOrder: true,
 	},
-	[EXCLUDE_FILTER_NAME]: {
+	[EXCLUDE_CARDS_FILTER_NAME]: {
 		factory: makeExcludeConfigurableFilter,
 	},
 	[QUERY_FILTER_NAME]: {
