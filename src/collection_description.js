@@ -201,8 +201,8 @@ export const CollectionDescription = class {
 	//on keying into optFallbacks by the serialization of the
 	//collectiondescription. You can use selectCollectionConstructorArguments to
 	//select all of the items at once.
-	collection(cards, sets, filters, optSections, optFallbacks) {
-		return new Collection(this, cards, sets, filters, optSections, optFallbacks);
+	collection(cards, sets, filters, optSections, optFallbacks, optStartCards) {
+		return new Collection(this, cards, sets, filters, optSections, optFallbacks, optStartCards);
 	}
 
 	static deserialize(input) {
@@ -387,7 +387,7 @@ const removeUnnecessaryLabels = (arr) => {
 };
 
 const Collection = class {
-	constructor(description, cards, sets, filters, optSections, optFallbacks) {
+	constructor(description, cards, sets, filters, optSections, optFallbacks, optStartCards) {
 		this._description = description;
 		this._cards = cards;
 		this._sets = sets;
@@ -395,6 +395,7 @@ const Collection = class {
 		//Needed for sort info :-(
 		this._sections = optSections || {};
 		this._fallbacks = optFallbacks || {};
+		this._optStartCards = optStartCards || {};
 		this._filteredCards = null;
 		this._length = 0;
 		this._collectionIsFallback = null;
