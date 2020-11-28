@@ -989,16 +989,12 @@ export const selectActiveCollectionContainsCards = createSelector(
 
 export const selectCountsForTabs = createSelector(
 	selectExpandedTabConfig,
-	selectCards,
-	selectAllSets,
-	selectFilters,
-	selectSections,
-	selectTabCollectionFallbacks,
-	(tabs, cards, sets, filters, sections, fallbacks) => {
+	selectCollectionConstructorArguments,
+	(tabs, args) => {
 		let result = {};
 		for (let tab of tabs) {
 			if (!tab.count) continue;
-			result[tab.collection.serialize()] = tab.collection.collection(cards, sets, filters, sections, fallbacks).numCards;
+			result[tab.collection.serialize()] = tab.collection.collection(...args).numCards;
 		}
 		return result;
 	}
