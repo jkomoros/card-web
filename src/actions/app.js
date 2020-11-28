@@ -208,7 +208,11 @@ export const navigateToCard = (cardOrId, silent) => (dispatch) => {
 export const navigateToCollectionWithQuery = (queryText) => (dispatch, getState) => {
 	const collection = selectActiveCollectionDescription(getState());
 	const newCollection = collectionDescriptionWithQuery(collection, queryText);
-	dispatch(navigatePathTo('/' + PAGE_DEFAULT + '/' + newCollection.serializeShort()));
+	dispatch(navigateToCollection(newCollection));
+};
+
+export const navigateToCollection = (collection) => {
+	return navigatePathTo('/' + PAGE_DEFAULT + '/' + collection.serializeShort());
 };
 
 export const navigated = (path, query) => (dispatch) => {
