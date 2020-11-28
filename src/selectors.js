@@ -37,7 +37,7 @@ import {
 
 import {
 	FingerprintGenerator,
-	prettyFingerprintItems,
+	wordCloudFromFingerprint,
 	extractFiltersFromQuery,
 } from './nlp.js';
 
@@ -970,15 +970,8 @@ export const selectActiveCollectionWordCloud = createSelector(
 	selectActiveCollection,
 	selectFingerprintGenerator,
 	(collection, fingerprintGenerator) => {
-		if (!collection) return [[],{}];
 		const fingerprint = fingerprintGenerator.fingerprintForCardIDList(collection.filteredCards.map(card => card.id));
-		const displayItems = prettyFingerprintItems(fingerprint, collection.filteredCards);
-		const maxAmount = Math.max(...fingerprint.values());
-		const infos = Object.fromEntries([...fingerprint.entries()].map((entry,index) => {
-			const amount = entry[1] / maxAmount * 100;
-			return [entry[0], {title: displayItems[index], suppressLink:true, filter: 'opacity(' + amount + '%)'}];
-		}));
-		return [[...fingerprint.keys()], infos];
+		return wordCloudFromFingerprint(fingerprint, collection.filteredCards);
 	}
 );
 
