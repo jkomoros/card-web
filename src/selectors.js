@@ -17,7 +17,9 @@ import {
 	READING_LIST_SET_NAME,
 	EVERYTHING_SET_NAME,
 	cardTodoConfigKeys,
-	queryConfigurableFilterText
+	queryConfigurableFilterText,
+	SIMILAR_FILTER_NAME,
+	LIMIT_FILTER_NAME,
 } from './filters.js';
 
 import {
@@ -1082,9 +1084,16 @@ const selectWordsAndFiltersFromQueryText = createSelector(
 const selectCollectionDescriptionForQuery = createSelector(
 	selectWordsAndFiltersFromQueryText,
 	selectFindCardTypeFilter,
-	(wordsAndFilters, cardTypeFilter) => {
+	selectActiveCardId,
+	(wordsAndFilters, cardTypeFilter, cardID) => {
 		let baseFilters = ['has-body'];
 		if (cardTypeFilter) baseFilters.push(cardTypeFilter);
+		if (!wordsAndFilters[0] && !wordsAndFilters[1].length) {
+			baseFilters.push(SIMILAR_FILTER_NAME + '/' + cardID);
+			baseFilters.push(LIMIT_FILTER_NAME + '/' + 10);
+			//If there's no query, return the similar cards to the current card
+			return new CollectionDescription(EVERYTHING_SET_NAME, baseFilters);
+		}
 		const queryFilter = queryConfigurableFilterText(wordsAndFilters[0]);
 		return new CollectionDescription(EVERYTHING_SET_NAME,[...baseFilters, queryFilter, ...wordsAndFilters[1]]);
 	}

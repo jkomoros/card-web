@@ -284,7 +284,7 @@ const EXCLUDE_FILTER_NAME = 'exclude';
 const QUERY_FILTER_NAME = 'query';
 const QUERY_STRICT_FILTER_NAME = 'query-strict';
 export const LIMIT_FILTER_NAME = 'limit';
-const SIMILAR_FILTER_NAME = 'similar';
+export const SIMILAR_FILTER_NAME = 'similar';
 
 //When these are seen in the URL as parts, how many more pieces to expect, to be
 //combined later. For things like `updated`, they want more than 1 piece more
