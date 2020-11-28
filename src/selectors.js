@@ -1090,18 +1090,8 @@ const selectCollectionDescriptionForQuery = createSelector(
 	}
 );
 
-const selectCollectionForQuery = createSelector(
+export const selectCollectionForQuery = createSelector(
 	selectCollectionDescriptionForQuery,
 	selectCollectionConstructorArguments,
-	(description, args) => description ? description.collection(...args) : null
-);
-
-export const selectPartialMatchedItemsForQuery = createSelector(
-	selectCollectionForQuery,
-	(collection) => collection.partialMatches
-);
-
-export const selectExpandedRankedCollectionForQuery = createSelector(
-	selectCollectionForQuery,
-	(collection) => collection.sortedCards
+	(description, args) => description.collection(...args)
 );

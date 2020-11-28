@@ -37,8 +37,7 @@ import {
 } from '../actions/permissions.js';
 
 import {
-	selectExpandedRankedCollectionForQuery,
-	selectPartialMatchedItemsForQuery,
+	selectCollectionForQuery,
 	selectUserMayCreateCard,
 	selectBodyCardTypes,
 	selectFindCardTypeFilter,
@@ -228,8 +227,8 @@ class FindDialog extends connect(store)(DialogElement) {
 		this.mobileMode = state.app.mobileMode;
 
 		this._query = state.find.query;
-		this._collection = selectExpandedRankedCollectionForQuery(state);
-		this._partialMatches = selectPartialMatchedItemsForQuery(state);
+		this._collection = selectCollectionForQuery(state).finalSortedCards;
+		this._partialMatches = selectCollectionForQuery(state).partialMatches;
 		this._linking = state.find.linking;
 		this._permissions = state.find.permissions;
 		this._referencing = selectFindReferencing(state);
