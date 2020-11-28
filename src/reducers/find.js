@@ -35,8 +35,8 @@ const app = (state = INITIAL_STATE, action) => {
 			linking: false,
 			permissions: false,
 			referencing: false,
-			query: '',
-			activeQuery: '',
+			query: action.query || '',
+			activeQuery: action.query || '',
 			cardTypeFilter: '',
 			open: true
 		};
@@ -76,8 +76,8 @@ const app = (state = INITIAL_STATE, action) => {
 			linking: false,
 			permissions: true,
 			referencing: false,
-			query: '',
-			activeQuery: '',
+			query: action.query || '',
+			activeQuery: action.query || '',
 			cardTypeFilter: '',
 		};
 	case FIND_CARD_TO_REFERENCE:
@@ -87,8 +87,8 @@ const app = (state = INITIAL_STATE, action) => {
 			linking: false,
 			permissions: false,
 			referencing: true,
-			query: '',
-			activeQuery: '',
+			query: action.query || '',
+			activeQuery: action.query || '',
 			cardTypeFilter: '',
 		};
 	case FIND_UPDATE_CARD_TYPE_FILTER:

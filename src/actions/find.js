@@ -11,10 +11,16 @@ import {
 	saveSelectionRange
 } from './editor.js';
 
+import {
+	queryTextFromCollectionDescription
+} from '../collection_description.js';
+
+import {
+	selectActiveCollectionDescription
+} from '../selectors.js';
+
 export const openFindDialog = () => {
-	return {
-		type: FIND_DIALOG_OPEN
-	};
+	return launchFind(FIND_DIALOG_OPEN);
 };
 
 export const closeFindDialog = () => {
@@ -50,22 +56,26 @@ export const updateQuery = (query) => (dispatch) => {
 export const findCardToLink = (starterQuery) => {
 	if (!starterQuery) starterQuery = '';
 	saveSelectionRange();
-	return {
-		type: FIND_CARD_TO_LINK,
-		query: starterQuery,
-	};
+	return launchFind(FIND_CARD_TO_LINK, starterQuery);
 };
 
 export const findCardToPermission = () => {
-	return {
-		type: FIND_CARD_TO_PERMISSION,
-	};
+	return launchFind(FIND_CARD_TO_PERMISSION);
 };
 
 export const findCardToReference = () => {
-	return {
-		type: FIND_CARD_TO_REFERENCE,
-	};
+	return launchFind(FIND_CARD_TO_REFERENCE);
+};
+
+const launchFind = (typ, starterQuery) => (dispatch, getState) => {
+	if (!starterQuery) {
+		const description = selectActiveCollectionDescription(getState());
+		starterQuery = queryTextFromCollectionDescription(description);
+	}
+	dispatch({
+		type: typ,
+		query: starterQuery,
+	});
 };
 
 export const findUpdateCardTypeFilter = (filter) => {
