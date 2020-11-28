@@ -210,7 +210,7 @@ const makeExcludeConfigurableFilter = (filterName, ...remainingParts) => {
 };
 
 export const queryConfigurableFilterText = (queryText) => {
-	return QUERY_FILTER_NAME + '/' + encodeURIComponent(queryText.split(' ').join('+'));
+	return QUERY_FILTER_NAME + '/' + encodeURIComponent(queryText).split('%20').join('+');
 };
 
 const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
