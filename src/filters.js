@@ -213,6 +213,16 @@ export const queryConfigurableFilterText = (queryText) => {
 	return QUERY_FILTER_NAME + '/' + encodeURIComponent(queryText).split('%20').join('+');
 };
 
+const configurableFilterIsQuery = (filterName) => {
+	return filterName.startsWith(QUERY_FILTER_NAME + '/');
+};
+
+export const queryTextFromQueryFilter = (queryFilter) => {
+	if (!configurableFilterIsQuery(queryFilter)) return '';
+	const rawQueryString = queryFilter.split('/')[1];
+	return decodeURIComponent(rawQueryString).split('+').join(' ');
+};
+
 const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
 
 	const decodedQueryString = decodeURIComponent(rawQueryString).split('+').join(' ');

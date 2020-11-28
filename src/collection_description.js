@@ -14,6 +14,7 @@ import {
 	QUERY_FILTER_NAME,
 	makeConfigurableFilter,
 	queryConfigurableFilterText,
+	queryTextFromQueryFilter,
 } from './filters.js';
 
 const extractFilterNamesAndSort = (parts) => {
@@ -80,6 +81,15 @@ const extractFilterNamesAndSort = (parts) => {
 		filters.push(part);
 	}
 	return [filters, sortName, sortReversed];
+};
+
+export const queryTextFromCollectionDescription = (description) => {
+	if (!description) return '';
+	for (let filterName of description.filters) {
+		const queryText = queryTextFromQueryFilter(filterName);
+		if (queryText) return queryText;
+	}
+	return '';
 };
 
 //collectionDescriptionWithQuery returns a new cloned collection description,
