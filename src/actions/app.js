@@ -113,11 +113,6 @@ export const navigatePathTo = (path, silent) => (dispatch, getState) => {
 	dispatch(navigated(path, location.search));
 };
 
-export const navigateToChangesNumDays = (numDays) => (dispatch) => {
-	if (!numDays) numDays = 1;
-	dispatch(navigatePathTo('/recent/' + numDays + '/days'));
-};
-
 export const navigateToNextCard = () => (dispatch, getState) => {
 	const state = getState();
 	let index = selectActiveCardIndex(state);
