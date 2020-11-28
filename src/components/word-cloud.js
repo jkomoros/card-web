@@ -10,13 +10,13 @@ import './tag-list.js';
 export class WordCloud extends LitElement {
 	render() {
 		return html`
-		<tag-list .tags=${this.wordCloud[0]} .tagInfos=${this.wordCloud[1]} defaultColor='#5e2b97'></tag-list>
+		<!-- --app-primary-color default color -->
+		<tag-list .tags=${this._effectiveWordCloud[0]} .tagInfos=${this._effectiveWordCloud[1]} defaultColor='#5e2b97'></tag-list>
 	`;
 	}
 
-	constructor() {
-		super();
-		this.wordCloud = emptyWordCloud();
+	get _effectiveWordCloud() {
+		return this.wordCloud || emptyWordCloud();
 	}
 
 	static get properties() {
