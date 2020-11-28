@@ -789,9 +789,9 @@ export const selectActivePreviewCard = createSelector(
 );
 
 export const selectActiveCardTodosForCurrentUser = createSelector(
-	selectUserIsAdmin,
+	selectUserMayEditActiveCard,
 	selectActiveCard,
-	(isAdmin, card) => isAdmin ? cardTodoConfigKeys(card, false) : []
+	(userMayEditCard, card) => userMayEditCard ? cardTodoConfigKeys(card, false) : []
 );
 
 export const selectActiveCardTweets = createSelector(
