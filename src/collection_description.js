@@ -10,6 +10,7 @@ import {
 	FILTER_EQUIVALENTS_FOR_SET,
 	CONFIGURABLE_FILTER_URL_PARTS,
 	CONFIGURABLE_FILTER_NAMES,
+	LIMIT_FILTER_NAME,
 	makeConfigurableFilter,
 } from './filters.js';
 
@@ -97,11 +98,19 @@ export const CollectionDescription = class {
 		if (!Array.isArray(filterNames)) throw new TypeError();
 		if (!filterNames.every(item => typeof item == 'string')) throw new TypeError();
 
+		let limit = 0;
+		for (let filter of filterNames) {
+			if (!filter.startsWith(LIMIT_FILTER_NAME + '/')) continue;
+			limit = parseInt(filter.split('/')[1]);
+			if (isNaN(limit)) limit = 0;
+		}
+
 		this._setNameExplicitlySet = setNameExplicitlySet;
 		this._set = setName,
 		this._filters = filterNames,
 		this._sort = sortName,
 		this._sortReversed = sortReversed;
+		this._limit = limit;
 	}
 
 	//setNameExplicitlySet returns whether the setName was set explicitly or
@@ -130,6 +139,13 @@ export const CollectionDescription = class {
 
 	get sortConfig() {
 		return SORTS[this.sort] || SORTS[DEFAULT_SORT_NAME];
+	}
+
+	//IF the collection wants to limit how many items to return, this will
+	//return a number greater than zero, for where the collection should be
+	//capped.
+	get limit() {
+		return this._limit;
 	}
 
 	//serialize returns a canonical string representing this collection
@@ -406,8 +422,9 @@ const Collection = class {
 		this._sections = optSections || {};
 		this._fallbacks = optFallbacks || {};
 		this._startCardsConfig = optStartCards || {};
+		//The filtered cards... before any size limit has been applied, if necessary
 		this._filteredCards = null;
-		this._length = 0;
+		this._preLimitlength = 0;
 		this._collectionIsFallback = null;
 		this._sortInfo = null;
 		this._sortedCards = null;
@@ -429,7 +446,7 @@ const Collection = class {
 			this._sortExtras = sortExtras;
 			this._partialMatches = partialMatches;
 		}
-		this._length = filteredItems.length;
+		this._preLimitlength = filteredItems.length;
 		if (filteredItems.length == 0) {
 			this._collectionIsFallback = true;
 			filteredItems = this._fallbacks[this._description.serialize()] || [];
@@ -446,12 +463,21 @@ const Collection = class {
 	//start_cards or anything like that.
 	get numCards() {
 		this._ensureFilteredCards();
-		return this._length;
+		//A limit of 0 means 
+		return this._description.limit ? Math.min(this._preLimitlength, this._description.limit) : this._preLimitlength;
+	}
+
+	get _preLimitFilteredCards() {
+		this._ensureFilteredCards();
+		return this._filteredCards;
 	}
 
 	get filteredCards() {
 		this._ensureFilteredCards();
-		return this._filteredCards;
+		//a limit of 0 is 'all cards'. If there is a limit, we have to sort the
+		//cards before taking the limit. this.sortedCards will also include the
+		//limited subset.
+		return this._description.limit ? this.sortedCards : this._filteredCards;
 	}
 
 	get isFallback() {
@@ -484,7 +510,7 @@ const Collection = class {
 
 	_makeSortInfo() {
 		const config = this._description.sortConfig;
-		let entries = this.filteredCards.map(card => [card.id, config.extractor(card, this._sections, this._cards, this._sortExtras)]);
+		let entries = this._preLimitFilteredCards.map(card => [card.id, config.extractor(card, this._sections, this._cards, this._sortExtras)]);
 		return new Map(entries);
 	}
 
@@ -494,7 +520,7 @@ const Collection = class {
 	}
 
 	_makeSortedCards() {
-		const collection = this.filteredCards;
+		const collection = this._preLimitFilteredCards;
 		this._ensureSortInfo();
 		//Skip the work of sorting in the default case, as everything is already
 		//sorted. No-op collections still might be created and should be fast.
@@ -539,13 +565,16 @@ const Collection = class {
 	//prepended. See also finalSortedCards.
 	get sortedCards() {
 		this._ensureSortedCards();
-		return this._sortedCards;
+		//A limit of 0 is 'all cards'; This is where the actual limit filter
+		//happens, since the cards have to be sorted first before taking the
+		//limit. filteredCards will return the results from this if there's a
+		//limit in place.
+		return this._description.limit ? this._sortedCards.slice(0, this._description.limit) : this._sortedCards;
 	}
 
 	get finalSortedCards() {
-		this._ensureSortedCards();
 		this._ensureStartCards();
-		return [...this._startCards, ...this._sortedCards];
+		return [...this._startCards, ...this.sortedCards];
 	}
 
 	get numStartCards() {

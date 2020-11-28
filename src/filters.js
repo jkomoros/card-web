@@ -249,6 +249,7 @@ const CARDS_FILTER_NAME = 'cards';
 const EXCLUDE_FILTER_NAME = 'exclude';
 const QUERY_FILTER_NAME = 'query';
 const QUERY_STRICT_FILTER_NAME = 'query-strict';
+export const LIMIT_FILTER_NAME = 'limit';
 
 //When these are seen in the URL as parts, how many more pieces to expect, to be
 //combined later. For things like `updated`, they want more than 1 piece more
@@ -273,6 +274,7 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[CARDS_FILTER_NAME]: 1,
 	[QUERY_FILTER_NAME]: 1,
 	[QUERY_STRICT_FILTER_NAME]: 1,
+	[LIMIT_FILTER_NAME]: 1,
 };
 
 //the factories should return a filter func that takes the card to opeate on,
@@ -338,6 +340,13 @@ const CONFIGURABLE_FILTER_INFO = {
 		factory: makeQueryConfigurableFilter,
 		suppressLabels: true,
 	},
+	[LIMIT_FILTER_NAME]: {
+		//Limit is a special type of filter... it must run at the very last
+		//phase after all cards are sorted. So as far as the normal machinery is
+		//concerned, it's actually a no-op filter. It's up to Collection to
+		//process it.
+		factory: makeNoOpConfigurableFilter,
+	}
 };
 
 //The configurable filters that are allowed to start a multi-part filter.
