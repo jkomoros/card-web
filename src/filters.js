@@ -231,7 +231,7 @@ const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
 
 //Fallback configurable filter
 const makeNoOpConfigurableFilter = () => {
-	return () => [true, false];
+	return [() => true, false];
 };
 
 const UPDATED_FILTER_NAME = 'updated';
