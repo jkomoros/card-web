@@ -15,7 +15,6 @@ import {
 
 import './tag-list.js';
 
-// This element is *not* connected to the Redux store.
 export class WordCloud extends connect(store)(LitElement) {
 	render() {
 		return html`
