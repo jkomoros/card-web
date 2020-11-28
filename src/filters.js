@@ -25,6 +25,7 @@ import {
 } from './card_fields.js';
 
 import {
+	FingerprintGenerator,
 	PreparedQuery
 } from './nlp.js';
 
@@ -229,6 +230,39 @@ const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
 	return [func, false];
 };
 
+const makeSimilarConfigurableFilter = (filterName, cardID) => {
+
+	let includeKeyCard = false;
+	if (cardID.startsWith(INCLUDE_KEY_CARD_PREFIX)) {
+		includeKeyCard = true;
+		cardID = cardID.substring(INCLUDE_KEY_CARD_PREFIX.length);
+	}
+
+	let memoizedClosestItems = null;
+	let memoizedCards = null;
+
+	const func = function(card, cards) {
+		if (card.id == cardID) {
+			if (includeKeyCard) {
+				return [true, Number.MAX_SAFE_INTEGER];
+			}
+			return [false, Number.MIN_SAFE_INTEGER];
+		}
+		if (!memoizedClosestItems || memoizedCards != cards) {
+			const generator = new FingerprintGenerator(cards);
+			memoizedClosestItems = generator.closestOverlappingItems(cardID);
+			memoizedCards = cards;
+		}
+
+		//It's a bit odd that this 'filter' is only used to filter out the
+		//keycard (sometimes), but is really used for its sort value. But sorts
+		//don't have machinery for configurable sorts, so :shrug:
+		return [true, memoizedClosestItems.get(card.id)];
+	};
+
+	return [func, false];
+};
+
 //Fallback configurable filter
 const makeNoOpConfigurableFilter = () => {
 	return [() => true, false];
@@ -250,6 +284,7 @@ const EXCLUDE_FILTER_NAME = 'exclude';
 const QUERY_FILTER_NAME = 'query';
 const QUERY_STRICT_FILTER_NAME = 'query-strict';
 export const LIMIT_FILTER_NAME = 'limit';
+const SIMILAR_FILTER_NAME = 'similar';
 
 //When these are seen in the URL as parts, how many more pieces to expect, to be
 //combined later. For things like `updated`, they want more than 1 piece more
@@ -275,6 +310,7 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[QUERY_FILTER_NAME]: 1,
 	[QUERY_STRICT_FILTER_NAME]: 1,
 	[LIMIT_FILTER_NAME]: 1,
+	[SIMILAR_FILTER_NAME]: 1,
 };
 
 //the factories should return a filter func that takes the card to opeate on,
@@ -346,6 +382,10 @@ const CONFIGURABLE_FILTER_INFO = {
 		//concerned, it's actually a no-op filter. It's up to Collection to
 		//process it.
 		factory: makeNoOpConfigurableFilter,
+	},
+	[SIMILAR_FILTER_NAME]: {
+		factory: makeSimilarConfigurableFilter,
+		suppressLabels: true,
 	}
 };
 
