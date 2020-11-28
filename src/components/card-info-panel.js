@@ -57,6 +57,7 @@ import {
 import './author-chip.js';
 import './card-link.js';
 import './tag-list.js';
+import './word-cloud.js';
 
 
 class CardInfoPanel extends connect(store)(PageViewElement) {
@@ -166,7 +167,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				</div>
 				<div>
 					<h4>Word Cloud</h4>
-					<tag-list .tags=${this._wordCloud[0]} .tagInfos=${this._wordCloud[1]} defaultColor='#5e2b97'></tag-list>
+					<word-cloud .wordCloud=${this._wordCloud}></word-cloud>
 				</div>
 				<div>
 					<h4>Last Updated</h4>
