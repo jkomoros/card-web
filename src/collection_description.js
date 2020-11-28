@@ -103,6 +103,7 @@ export const CollectionDescription = class {
 			if (!filter.startsWith(LIMIT_FILTER_NAME + '/')) continue;
 			limit = parseInt(filter.split('/')[1]);
 			if (isNaN(limit)) limit = 0;
+			if (limit < 0) limit = 0;
 		}
 
 		this._setNameExplicitlySet = setNameExplicitlySet;
