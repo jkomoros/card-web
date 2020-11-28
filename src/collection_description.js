@@ -11,7 +11,9 @@ import {
 	CONFIGURABLE_FILTER_URL_PARTS,
 	CONFIGURABLE_FILTER_NAMES,
 	LIMIT_FILTER_NAME,
+	QUERY_FILTER_NAME,
 	makeConfigurableFilter,
+	queryConfigurableFilterText,
 } from './filters.js';
 
 const extractFilterNamesAndSort = (parts) => {
@@ -78,6 +80,27 @@ const extractFilterNamesAndSort = (parts) => {
 		filters.push(part);
 	}
 	return [filters, sortName, sortReversed];
+};
+
+//collectionDescriptionWithQuery returns a new cloned collection description,
+//but that includes a configurable filter for the given queryText, replacing the
+//first existing query filter if one exists, otherwise appending it.
+export const collectionDescriptionWithQuery = (description, queryText) => {
+	const newFilters = [];
+	const newQuery = queryConfigurableFilterText(queryText);
+	let replacedQuery = false;
+	for (let filter of description.filters) {
+		if (!replacedQuery && filter.startsWith(QUERY_FILTER_NAME + '/')) {
+			replacedQuery = true;
+			newFilters.push(newQuery);
+			continue;
+		}
+		newFilters.push(filter);
+	}
+
+	if (!replacedQuery) newFilters.push(newQuery);
+
+	return new CollectionDescription(description.setNameExplicitlySet ? description.set : '', newFilters, description.sort, description.sortReversed);
 };
 
 export const CollectionDescription = class {

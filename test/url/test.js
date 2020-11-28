@@ -1,7 +1,8 @@
 /*eslint-env node*/
 
 import {
-	CollectionDescription
+	CollectionDescription,
+	collectionDescriptionWithQuery,
 } from '../../src/collection_description.js';
 
 import {
@@ -126,6 +127,20 @@ describe('card-web url parsing', () => {
 	it('does not support a multi-part filter without the first part', async () => {
 		const description = CollectionDescription.deserialize('before/2020-10-02/');
 		const golden = new CollectionDescription();
+		assert.ok(description.equivalent(golden), 'Failed: ' + description.serialize());
+	});
+
+	it('replaces query with no prexisting query', async () => {
+		const preDescription = new CollectionDescription('', ['has-todo']);
+		const description = collectionDescriptionWithQuery(preDescription, 'my text');
+		const golden = new CollectionDescription('', ['has-todo', 'query/my+text']);
+		assert.ok(description.equivalent(golden), 'Failed: ' + description.serialize());
+	});
+
+	it('replaces query with prexisting query', async () => {
+		const preDescription = new CollectionDescription('', ['has-todo', 'query/foo']);
+		const description = collectionDescriptionWithQuery(preDescription, 'my text');
+		const golden = new CollectionDescription('', ['has-todo', 'query/my+text']);
 		assert.ok(description.equivalent(golden), 'Failed: ' + description.serialize());
 	});
 
