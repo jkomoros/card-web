@@ -244,7 +244,7 @@ class CardView extends connect(store)(PageViewElement) {
         }
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .labels=${this._collectionLabels} .labelName=${this._collectionLabelName} @info-zippy-clicked=${this._handleInfoZippyClicked} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' @add-working-notes-card='${this._handleAddWorkingNotesCard}' .editable=${this._userMayEditActiveSection} .suppressAdd=${!this._userMayCreateCard} .showCreateWorkingNotes=${this._userMayCreateCard} .collection=${this._collection} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .collectionItemsToGhost=${this._collectionItemsToGhost} .wordCloudItems=${this._collectionWordCloudItems} .wordCloudInfos=${this._collectionWordCloudInfos} .infoExpanded=${this._infoExpanded} .infoCanBeExpanded=${true}></card-drawer>
+        <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .labels=${this._collectionLabels} .labelName=${this._collectionLabelName} @info-zippy-clicked=${this._handleInfoZippyClicked} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' @add-working-notes-card='${this._handleAddWorkingNotesCard}' .editable=${this._userMayEditActiveSection} .suppressAdd=${!this._userMayCreateCard} .showCreateWorkingNotes=${this._userMayCreateCard} .collection=${this._collection} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .collectionItemsToGhost=${this._collectionItemsToGhost} .wordCloud=${this._collectionWordCloud} .infoExpanded=${this._infoExpanded} .infoCanBeExpanded=${true}></card-drawer>
         <div id='center'>
 			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .mobile=${this._mobileMode} .card=${this._displayCard} .updatedFromContentEditable=${this._updatedFromContentEditable} @text-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped}>
 				<div slot='actions' class='presentation'>
@@ -320,8 +320,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_cardTodos: {type: Array},
 			_pendingNewCardID: {type:String},
 			_fingerprint: {type:Object},
-			_collectionWordCloudItems: {type:Array},
-			_collectionWordCloudInfos: {type:Object},
+			_collectionWordCloud: {type:Object},
 			_infoExpanded: {type: Boolean},
 		};
 	}
@@ -492,9 +491,7 @@ class CardView extends connect(store)(PageViewElement) {
 
 		if (this._cardsDrawerPanelOpen && this._infoExpanded) {
 			//This is expensive so only fetch it if the panel is expanded
-			const [items, infos] = selectActiveCollectionWordCloud(state);
-			this._collectionWordCloudItems = items;
-			this._collectionWordCloudInfos = infos;
+			this._collectionWordCloud = selectActiveCollectionWordCloud(state);
 		}
 
 	}

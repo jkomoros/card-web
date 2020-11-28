@@ -12,7 +12,7 @@ import {
 } from './card-badges.js';
 
 import './card-renderer.js';
-import './tag-list.js';
+import './word-cloud.js';
 
 import {
 	PLUS_ICON,
@@ -219,8 +219,7 @@ class CardDrawer extends connect(store)(LitElement) {
 				<div class='label' id='count'>
 					<span>${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }<strong>${this.collection.length}</strong> cards</span>
 					<div ?hidden=${!this.infoExpanded}>
-						<!-- --app-primary-color default color -->
-						${this.wordCloudItems && this.wordCloudItems.length ? html`<tag-list .tags=${this.wordCloudItems} .tagInfos=${this.wordCloudInfos} defaultColor='#5e2b97'></tag-list>` : ''}
+						<word-cloud .wordCloud=${this.wordCloud}></word-cloud>
 					</div>
 				</div>
 				${repeat(this.collection, (i) => i.id, (i, index) => html`
@@ -411,8 +410,7 @@ class CardDrawer extends connect(store)(LitElement) {
 			reorderPending: {type:Boolean},
 			//_showing is more complicated than whether we're open or yet.
 			showing: {type:Boolean},
-			wordCloudItems: {type:Array},
-			wordCloudInfos: {type:Object},
+			wordCloud: {type:Object},
 			infoExpanded: {type:Boolean},
 			infoCanBeExpanded: {type:Boolean},
 			_dragging: {type: Boolean},
