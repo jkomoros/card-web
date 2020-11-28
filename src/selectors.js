@@ -39,6 +39,7 @@ import {
 	FingerprintGenerator,
 	wordCloudFromFingerprint,
 	extractFiltersFromQuery,
+	emptyWordCloud
 } from './nlp.js';
 
 import {
@@ -582,6 +583,16 @@ export const selectEditingOrActiveCardSimilarCards = createSelector(
 			if (result.length >= NUM_SIMILAR_CARDS_TO_SHOW) break;
 		}
 		return result;
+	}
+);
+
+export const selectWordCloudForActiveCard = createSelector(
+	selectActiveCard,
+	selectFingerprintGenerator,
+	(card, fingerprintGenerator) => {
+		if (!card) return emptyWordCloud();
+		const fingerprint = fingerprintGenerator.fingerprintForCardID(card.id);
+		return wordCloudFromFingerprint(fingerprint, card);
 	}
 );
 

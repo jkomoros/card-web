@@ -468,9 +468,13 @@ export const dedupedPrettyFingerprint = (fingerprint, cardObj) => {
 	return dedupedFingerprint.join(' ');
 };
 
+export const emptyWordCloud = () => {
+	return [[],{}];
+};
+
 //cardObj can be null, a single card, or an array of cards.
 export const wordCloudFromFingerprint = (fingerprint, cardObj) => {
-	if (!fingerprint || fingerprint.keys().length == 0) return [[],{}];
+	if (!fingerprint || fingerprint.keys().length == 0) return emptyWordCloud();
 	const displayItems = prettyFingerprintItems(fingerprint, cardObj);
 	const maxAmount = Math.max(...fingerprint.values());
 	const infos = Object.fromEntries([...fingerprint.entries()].map((entry,index) => {

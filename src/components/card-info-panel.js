@@ -35,8 +35,13 @@ import {
 	selectTweetsLoading,
 	selectCommentsAndInfoPanelOpen,
 	selectEditingOrActiveCardSimilarCards,
-	selectInfoPanelReferencesForActiveCard
+	selectInfoPanelReferencesForActiveCard,
+	selectWordCloudForActiveCard
 } from '../selectors.js';
+
+import {
+	emptyWordCloud
+} from '../nlp.js';
 
 import {
 	PageViewElement
@@ -52,6 +57,7 @@ import {
 import './author-chip.js';
 import './card-link.js';
 import './tag-list.js';
+
 
 class CardInfoPanel extends connect(store)(PageViewElement) {
 	render() {
@@ -159,6 +165,10 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 					<tag-list .card=${this._card} .tags=${this._card.tags} .tagInfos=${this._tagInfos}></tag-list>
 				</div>
 				<div>
+					<h4>Word Cloud</h4>
+					<tag-list .tags=${this._wordCloud[0]} .tagInfos=${this._wordCloud[1]} defaultColor='#5e2b97'></tag-list>
+				</div>
+				<div>
 					<h4>Last Updated</h4>
 					<p>${prettyTime(this._card.updated_substantive)}</p>
 				</div>
@@ -204,6 +214,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		super();
 		//since closestCards will be set a little later, make sure it always has a value.
 		this._closestCards = [];
+		this._wordCloud = emptyWordCloud();
 	}
 
 	static get properties() {
@@ -218,6 +229,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			_tweets: {type: Object},
 			_tweetsLoading: {type: Boolean},
 			_closestCards: { type:Array },
+			_wordCloud: { type:Object},
 		};
 	}
 
@@ -246,6 +258,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		//without blocking the main update.
 		window.setTimeout(() => {
 			this._closestCards = this._open ? selectEditingOrActiveCardSimilarCards(state) : [];
+			this._wordCloud = this._open ? selectWordCloudForActiveCard(state) : emptyWordCloud();
 		}, 0);
 		
 	}
