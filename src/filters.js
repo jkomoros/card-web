@@ -195,6 +195,12 @@ const makeExcludeConfigurableFilter = (filterName, ...remainingParts) => {
 		const reversed = memoizedReverse;
 
 		const id = card.id;
+		//TODO: ideally we wouldn't create an entire new filter for all of the
+		//reversed keys only to then reverse it, but would instead pass it
+		//trough and used !reversed for our own func definition. But there' no
+		//good way to figure out if it will be reversed early enough to say
+		//whether the function's results should be reversed. The current
+		//approach works, it just requires a bit more memory.
 		return reversed ? !filterSet[id] : filterSet[id];
 	};
 	//The true is the whole business end of this configurable filter,
