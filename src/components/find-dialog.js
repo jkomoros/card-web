@@ -18,7 +18,8 @@ import {
 } from '../actions/find.js';
 
 import {
-	navigateToCard
+	navigateToCard, 
+	navigateToCollection
 } from '../actions/app.js';
 
 import {
@@ -42,13 +43,15 @@ import {
 	selectBodyCardTypes,
 	selectFindCardTypeFilter,
 	selectFindReferencing,
-	selectEditingPendingReferenceType
+	selectEditingPendingReferenceType,
+	selectCollectionDescriptionForQuery
 } from '../selectors.js';
 
 import { 
 	PLUS_ICON,
 	LINK_ICON,
-	LINK_OFF_ICON
+	LINK_OFF_ICON,
+	OPEN_IN_BROWSER
 } from './my-icons.js';
 
 import {
@@ -76,11 +79,16 @@ class FindDialog extends connect(store)(DialogElement) {
 				font-size:14px;
 			}
 
+			.row {
+				display: flex;
+				flex-direction: row;
+			}
+
 			#query {
-			  border: 0 solid black;
-			  font-size:0.8em;
-			  border-bottom:1px solid var(--app-dark-text-color);
-			  width: 100%;
+				border: 0 solid black;
+				font-size:0.8em;
+				border-bottom:1px solid var(--app-dark-text-color);
+				flex-grow: 1;
 			}
 
 			.add {
@@ -94,7 +102,10 @@ class FindDialog extends connect(store)(DialogElement) {
 			${this._bodyCardTypes.length > 1 ? html`<div><span>Card type:</span>
 				${['', ...this._bodyCardTypes].map(typ => html`<input type='radio' name='card-type' @change=${this._handleCardTypeChanged} .checked=${this._cardTypeFilter === typ} value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}'>${typ || html`<em>Default</em>`}</label>`)}
 			</div>` : ''}
-			<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
+			<div class='row'>
+				<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
+				<button title='Navigate to this collection' @click=${this._handleNavigateCollection} class='small'>${OPEN_IN_BROWSER}</button>
+			</div>
 		</form>
 		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .collectionItemsToGhost=${this._partialMatches}></card-drawer>
 		<div ?hidden=${!this._linking} class='add'>
@@ -123,6 +134,11 @@ class FindDialog extends connect(store)(DialogElement) {
 		if(!this._query) return;
 		if(!this._query.startsWith('http')) return;
 		store.dispatch(linkURL(this._query));
+		this._shouldClose();
+	}
+
+	_handleNavigateCollection() {
+		store.dispatch(navigateToCollection(this._collectionDescription));
 		this._shouldClose();
 	}
 
@@ -194,6 +210,7 @@ class FindDialog extends connect(store)(DialogElement) {
 			_userMayCreateCard: {type:Boolean},
 			_bodyCardTypes: {type:Array},
 			_cardTypeFilter: {type:String},
+			_collectionDescription: {type:Object},
 		};
 	}
 
@@ -236,6 +253,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._userMayCreateCard = selectUserMayCreateCard(state);
 		this._bodyCardTypes = selectBodyCardTypes(state);
 		this._cardTypeFilter = selectFindCardTypeFilter(state);
+		this._collectionDescription = selectCollectionDescriptionForQuery(state);
 	}
 
 }

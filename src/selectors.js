@@ -1081,7 +1081,7 @@ const selectWordsAndFiltersFromQueryText = createSelector(
 	(queryText) => extractFiltersFromQuery(queryText)
 );
 
-const selectCollectionDescriptionForQuery = createSelector(
+export const selectCollectionDescriptionForQuery = createSelector(
 	selectWordsAndFiltersFromQueryText,
 	selectFindCardTypeFilter,
 	selectActiveCardId,
