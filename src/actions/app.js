@@ -58,7 +58,8 @@ import {
 	selectUserMayEditActiveCard,
 	selectDefaultSectionID,
 	selectCtrlKeyPressed,
-	selectCardsDrawerInfoExpanded
+	selectCardsDrawerInfoExpanded,
+	selectActiveCollectionDescription
 } from '../selectors.js';
 
 import {
@@ -90,6 +91,10 @@ import {
 	references,
 	REFERENCES_INBOUND_CARD_PROPERTY
 } from '../card_fields.js';
+
+import {
+	collectionDescriptionWithQuery
+} from '../collection_description.js';
 
 //if silent is true, then just passively updates the URL to reflect what it should be.
 export const navigatePathTo = (path, silent) => (dispatch, getState) => {
@@ -203,6 +208,12 @@ export const navigateToCard = (cardOrId, silent) => (dispatch) => {
 		dispatch(navigateToDefaultIfSectionsLoaded(silent));
 	}
 	dispatch(navigatePathTo(path, silent));
+};
+
+export const navigateToCollectionWithQuery = (queryText) => (dispatch, getState) => {
+	const collection = selectActiveCollectionDescription(getState());
+	const newCollection = collectionDescriptionWithQuery(collection, queryText);
+	dispatch(navigatePathTo('/' + PAGE_DEFAULT + '/' + newCollection.serializeShort()));
 };
 
 export const navigated = (path, query) => (dispatch) => {
