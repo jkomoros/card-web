@@ -1069,17 +1069,12 @@ export const selectBodyCardTypes = createSelector(
 	(filters) => Object.keys(BODY_CARD_TYPES).filter(cardType => Object.keys(filters[cardType] || {}).length > 0)
 );
 
-
-const selectWordsAndFiltersFromQueryText = createSelector(
-	selectActiveQueryText,
-	(queryText) => extractFiltersFromQuery(queryText)
-);
-
 export const selectCollectionDescriptionForQuery = createSelector(
-	selectWordsAndFiltersFromQueryText,
+	selectActiveQueryText,
 	selectFindCardTypeFilter,
 	selectActiveCardId,
-	(wordsAndFilters, cardTypeFilter, cardID) => {
+	(queryText, cardTypeFilter, cardID) => {
+		const wordsAndFilters = extractFiltersFromQuery(queryText);
 		let baseFilters = ['has-body'];
 		if (cardTypeFilter) baseFilters.push(cardTypeFilter);
 		if (!wordsAndFilters[0] && !wordsAndFilters[1].length) {
