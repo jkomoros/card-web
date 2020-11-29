@@ -242,10 +242,11 @@ class FindDialog extends connect(store)(DialogElement) {
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = state.find.open;
 		this.mobileMode = state.app.mobileMode;
-
 		this._query = state.find.query;
-		this._collection = selectCollectionForQuery(state).finalSortedCards;
-		this._partialMatches = selectCollectionForQuery(state).partialMatches;
+		//coalling the collection into being is expensive so only do it if we're open.
+		this._collection = this.open ? selectCollectionForQuery(state).finalSortedCards : [];
+		this._partialMatches = this.open ? selectCollectionForQuery(state).partialMatches : {};
+		this._collectionDescription = this.open ? selectCollectionDescriptionForQuery(state) : null;
 		this._linking = state.find.linking;
 		this._permissions = state.find.permissions;
 		this._referencing = selectFindReferencing(state);
@@ -253,7 +254,6 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._userMayCreateCard = selectUserMayCreateCard(state);
 		this._bodyCardTypes = selectBodyCardTypes(state);
 		this._cardTypeFilter = selectFindCardTypeFilter(state);
-		this._collectionDescription = selectCollectionDescriptionForQuery(state);
 	}
 
 }
