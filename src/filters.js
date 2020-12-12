@@ -18,6 +18,7 @@ import {
 
 import {
 	CARD_TYPE_CONTENT,
+	CARD_TYPE_WORKING_NOTES,
 	CARD_TYPE_CONFIGURATION,
 	BODY_CARD_TYPES,
 	REFERENCE_TYPES,
@@ -582,6 +583,7 @@ const TODO_TYPE_NA = {
 	isTODO: false,
 	autoApply: false,
 };
+
 //TODO_TYPE_AUTO_CONTENT is for card filters that are TODOs and are auto-set on
 //cards of type CONTENT, meaning that their key is legal in auto_todo_overrides.
 const TODO_TYPE_AUTO_CONTENT = {
@@ -592,6 +594,18 @@ const TODO_TYPE_AUTO_CONTENT = {
 	//will show as having that TODO.
 	cardTypes: {
 		[CARD_TYPE_CONTENT]: true,
+	},
+	isTODO: true,
+};
+
+//TODO_TYPE_AUTO_WORKING_NOTES is for card filters that are TODOs and are auto-set on
+//cards of type WORKING_NOTES, meaning that their key is legal in auto_todo_overrides.
+const TODO_TYPE_AUTO_WORKING_NOTES = {
+	type: 'auto',
+	autoApply: true,
+	//Will only ever be auto-applied to working-notes card
+	cardTypes: {
+		[CARD_TYPE_WORKING_NOTES]: true,
 	},
 	isTODO: true,
 };
@@ -635,6 +649,9 @@ const CARD_FILTER_CONFIGS = Object.assign(
 		//The following TODO types will never be automatically applied, because their test function always returns false, but they can be manually applied.
 		'prose': [defaultCardFilterName('prose'), () => true, TODO_TYPE_AUTO_CONTENT, 0.5, 'Whether the card has manually been marked as needing to be turned into flowing prose, as opposed to disjoint details'],
 		'citations': [defaultCardFilterName('citations'), () => true, TODO_TYPE_AUTO_CONTENT, 0.3, 'Whether the card has citations that need to be formally represented'],
+		//Mined is always flagged on cards that it might be autoapplied to. The only way to make it go away is to add a true to the auto_todo_overrides for it.
+		//To find cards that are _partially_ mined, use the 'has-inbound-mined-from-references/not-mined' filters.
+		'content-mined': [['mined-for-content', 'not-mined-for-content', 'does-not-need-to-be-mined-for-content', 'needs-to-be-mined-for-content'], () => false, TODO_TYPE_AUTO_WORKING_NOTES, 2.0, 'Whether the card has had its insights \'mined\' into other cards. Only automatically applied to working-notes cards. The only way to clear it is to add a force TODO disable for it'],
 		[EVERYTHING_SET_NAME]: [defaultNonTodoCardFilterName(FILTER_EQUIVALENTS_FOR_SET[EVERYTHING_SET_NAME]), () => true, TODO_TYPE_NA, 0.0, 'Every card is in the everything set'],
 		'body': [defaultCardFilterName('body'), card => card && BODY_CARD_TYPES[card.card_type], TODO_TYPE_NA, 0.0, 'Cards that are of a type that has a body field'],
 		'substantive-references': [defaultCardFilterName('substantive-references'), card => references(card).substantiveArray().length, TODO_TYPE_NA, 0.0, 'Whether the card has any substantive references of any type'],
