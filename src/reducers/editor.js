@@ -180,7 +180,7 @@ const app = (state = INITIAL_STATE, action) => {
 		}
 		return {
 			...state,
-			card: {...state.card, auto_todo_overrides: {...state.card.auto_todo_overrides, [action.todo]: true}}
+			card: {...state.card, auto_todo_overrides: {...state.card.auto_todo_overrides, [action.todo]: false}}
 		};
 	case EDITING_AUTO_TODO_OVERRIDE_DISABLED:
 		if (!state.card) return state;
@@ -191,7 +191,7 @@ const app = (state = INITIAL_STATE, action) => {
 		}
 		return {
 			...state,
-			card: {...state.card, auto_todo_overrides: {...state.card.auto_todo_overrides, [action.todo]: false}}
+			card: {...state.card, auto_todo_overrides: {...state.card.auto_todo_overrides, [action.todo]: true}}
 		};
 	case EDITING_AUTO_TODO_OVERRIDE_REMOVED:
 		if (!state.card) return state;

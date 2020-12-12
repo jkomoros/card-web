@@ -599,7 +599,14 @@ const TODO_TYPE_FREEFORM = {
 //it (and extends with non-card-filter-types as appropriate). The keys of each
 //config object are used as the keys in card.auto_todo_overrides map.
 const CARD_FILTER_CONFIGS = Object.assign(
-	//tuple of good/bad filtername (good is primary), including no-todo/todo version if applicable, then the card->in-filter test, then one of the TODO_TYPE enum values, then how bad they are in terms of TODO weight, then a description of what the TODO means.
+	/*
+		Tuple of:
+		0) good/bad filtername (good is primary), including no-todo/todo version if applicable, 
+		1) then the card->in-filter test (true is the 'done' state for TODOs),
+		2) then one of the TODO_TYPE enum values,
+		3) then how bad they are in terms of TODO weight if it's a TODO, 
+		4) then a description of what the TODO means.
+	*/
 	{
 		'comments': [defaultCardFilterName('comments'), card => card.thread_count, TODO_TYPE_NA, 0.0, 'Whether the card has comments'],
 		'notes': [defaultCardFilterName('notes'), card => cardHasNotes(card), TODO_TYPE_NA, 0.0, 'Whether the card has notes'],
@@ -676,10 +683,10 @@ export const cardTodoConfigKeys = (card, onlyNonOverrides) => {
 		if (!config[2].isTODO) continue;
 		if (config[2] == TODO_TYPE_AUTO) {
 			if (!cardMayHaveAutoTODO(card)) continue;
-			if (card.auto_todo_overrides[configKey] === false) continue;
+			if (card.auto_todo_overrides[configKey] === true) continue;
 		}
 		const done = config[1](card);
-		if (!done || (!onlyNonOverrides && card.auto_todo_overrides[configKey] === true)) {
+		if (!done || (!onlyNonOverrides && card.auto_todo_overrides[configKey] === false)) {
 			result.push(configKey);
 		}
 	}
@@ -718,8 +725,8 @@ const makeBasicCardFilterFunc = (baseFunc, todoConfig) => {
 
 const makeDoesNotNeedFunc = (baseFunc, overrideKeyName) => {
 	return function(card) {
-		if (card.auto_todo_overrides[overrideKeyName] === false) return true;
-		if (card.auto_todo_overrides[overrideKeyName] === true) return false;
+		if (card.auto_todo_overrides[overrideKeyName] === true) return true;
+		if (card.auto_todo_overrides[overrideKeyName] === false) return false;
 		return baseFunc(card);
 	};
 };

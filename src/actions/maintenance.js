@@ -365,6 +365,35 @@ const convertMultiLinksDelimiter = async () => {
 	console.log('done');
 };
 
+const FLIP_AUTO_TODO_OVERRIDES = 'flip-auto-todo-overrides';
+
+const flipAutoTodoOverrides = async () => {
+	await checkMaintenanceTaskHasBeenRun(FLIP_AUTO_TODO_OVERRIDES);
+
+	let batch = new MultiBatch(db);
+	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	snapshot.forEach(doc => {
+		let card = doc.data();
+
+		const originalOverrides = card.auto_todo_overrides || {};
+
+		if (Object.keys(originalOverrides).length == 0) return;
+
+		const flippedOverrides = Object.fromEntries(Object.entries(originalOverrides).map(entry => [entry[0], !entry[1]]));
+		const update = {
+			auto_todo_overrides: flippedOverrides,
+		};
+
+		console.log('Updating doc: ', doc.id, update);
+		batch.update(doc.ref, update);
+	});
+
+	await batch.commit();
+
+	await maintenanceTaskRun(FLIP_AUTO_TODO_OVERRIDES);
+	console.log('done');
+};
+
 //tasks that don't require maintenance mode to be enabled are registered here
 export const tasks = {
 	[NORMALIZE_CONTENT_BODY]: normalizeContentBody,
@@ -373,6 +402,7 @@ export const tasks = {
 	[ADD_FONT_SIZE_BOOST]: addFontSizeBoost,
 	[UPDATE_FONT_SIZE_BOOST]: updateFontSizeBoost,
 	[CONVERT_MULTI_LINKS_DELIMITER]: convertMultiLinksDelimiter,
+	[FLIP_AUTO_TODO_OVERRIDES]: flipAutoTodoOverrides,
 };
 
 //Tasks that do require maintenance mode are registered here. These are

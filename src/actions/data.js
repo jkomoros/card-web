@@ -739,6 +739,13 @@ export const defaultCardObject = (id, user, section, cardType) => {
 		name: id,
 		tags: [],
 		published: false,
+		//auto_todo_overrides is a map of key -> true or false, for each kind of
+		//TODO (as enumerated in TODO_OVERRIDE_LEGAL_KEYS). A value of true
+		//means that the TODO is overrided to the "done" state for that TODO, no
+		//matter how else the card is configured. A false means it it is
+		//overridden to the "not done" state no mater how the rest of the card
+		//is configured. And a missing key means "based on what the TODO
+		//function said for that key based on being passed the card"
 		auto_todo_overrides: {},
 		//Defaul to epoch 1970 for things not yet tweeted
 		last_tweeted: new Date(0),
