@@ -567,8 +567,8 @@ const FREEFORM_TODO_KEY = 'freeform-todo';
 export const TODO_COMBINED_FILTER_NAME = 'has-todo';
 const TODO_COMBINED_INVERSE_FILTER_NAME = 'no-todo';
 
-const cardMayHaveAutoTODO = card => {
-	return card && card.card_type == CARD_TYPE_CONTENT;
+const cardMayHaveAutoTODO = (card, todoConfig) => {
+	return card && todoConfig.autoApply && (todoConfig.cardTypes ? todoConfig.cardTypes[card.card_type] : true);
 };
 
 //These are the enum values in CARD_FILTER_CONFIGS that configure whether an
@@ -578,12 +578,17 @@ const cardMayHaveAutoTODO = card => {
 const TODO_TYPE_NA = {
 	type: 'na',
 	isTODO: false,
+	autoApply: false,
 };
-//TODO_TYPE_AUTO is for card filters that are TODOs and are auto-set, meaning that
-//their key is legal in auto_todo_overrides.
-const TODO_TYPE_AUTO = {
+//TODO_TYPE_AUTO_CONTENT is for card filters that are TODOs and are auto-set on
+//cards of type CONTENT, meaning that their key is legal in auto_todo_overrides.
+const TODO_TYPE_AUTO_CONTENT = {
 	type: 'auto',
+	autoApply: true,
 	isTODO: true,
+	cardTypes: {
+		[CARD_TYPE_CONTENT]: true,
+	}
 };
 
 //TODO_TYPE_FREEFORM is for card filters that are TODOs but are set via the freeform
@@ -591,6 +596,7 @@ const TODO_TYPE_AUTO = {
 const TODO_TYPE_FREEFORM = {
 	type: 'freeform',
 	isTODO: true,
+	autoApply: false,
 };
 
 //Card filters are filters that can tell if a given card is in it given only the
@@ -611,19 +617,19 @@ const CARD_FILTER_CONFIGS = Object.assign(
 		'comments': [defaultCardFilterName('comments'), card => card.thread_count, TODO_TYPE_NA, 0.0, 'Whether the card has comments'],
 		'notes': [defaultCardFilterName('notes'), card => cardHasNotes(card), TODO_TYPE_NA, 0.0, 'Whether the card has notes'],
 		'orphaned': [defaultNonTodoCardFilterName('orphaned'), card => !card.section, TODO_TYPE_NA, 0.0, 'Whether the card is part of a section or not'],
-		'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, TODO_TYPE_AUTO, 0.2, 'Whether the card has a slug set'],
-		'content': [defaultCardFilterName('content'), card => cardHasContent(card), TODO_TYPE_AUTO, 5.0, 'Whether the card has any content whatsoever'],
-		'substantive-content': [defaultCardFilterName('substantive-content'), card => cardHasSubstantiveContent(card), TODO_TYPE_AUTO, 3.0, 'Whether the card has more than a reasonable minimum amount of content'],
+		'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, TODO_TYPE_AUTO_CONTENT, 0.2, 'Whether the card has a slug set'],
+		'content': [defaultCardFilterName('content'), card => cardHasContent(card), TODO_TYPE_AUTO_CONTENT, 5.0, 'Whether the card has any content whatsoever'],
+		'substantive-content': [defaultCardFilterName('substantive-content'), card => cardHasSubstantiveContent(card), TODO_TYPE_AUTO_CONTENT, 3.0, 'Whether the card has more than a reasonable minimum amount of content'],
 		//NOTE: links and inbound-links are very similar to link-reference, but whereas those are TODO_TYPE_NA, these are TODO_TYPE_AUTO
-		'links': [defaultCardFilterName('links'), card => references(card).linksArray().length, TODO_TYPE_AUTO, 1.0, 'Whether the card links out to other cards'],
-		'inbound-links': [defaultCardFilterName('inbound-links'), card => references(card).inboundLinksArray().length, TODO_TYPE_AUTO, 2.0, 'Whether the card has other cards that link to it'],
-		'reciprocal-links': [['has-all-reciprocal-links', 'missing-reciprocal-links', 'does-not-need-reciprocal-links', 'needs-reciprocal-links'], card => cardMissingReciprocalLinks(card).length == 0, TODO_TYPE_AUTO, 1.0, 'Whether every inbound link has a matching outbound link'],
-		'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, TODO_TYPE_AUTO, 1.0, 'Whether the card has any tags'],
-		'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], card => card.published, TODO_TYPE_AUTO, 0.5, 'Whether the card is published'],
+		'links': [defaultCardFilterName('links'), card => references(card).linksArray().length, TODO_TYPE_AUTO_CONTENT, 1.0, 'Whether the card links out to other cards'],
+		'inbound-links': [defaultCardFilterName('inbound-links'), card => references(card).inboundLinksArray().length, TODO_TYPE_AUTO_CONTENT, 2.0, 'Whether the card has other cards that link to it'],
+		'reciprocal-links': [['has-all-reciprocal-links', 'missing-reciprocal-links', 'does-not-need-reciprocal-links', 'needs-reciprocal-links'], card => cardMissingReciprocalLinks(card).length == 0, TODO_TYPE_AUTO_CONTENT, 1.0, 'Whether every inbound link has a matching outbound link'],
+		'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, TODO_TYPE_AUTO_CONTENT, 1.0, 'Whether the card has any tags'],
+		'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], card => card.published, TODO_TYPE_AUTO_CONTENT, 0.5, 'Whether the card is published'],
 		'tweet': [defaultCardFilterName('tweet'), card => card.tweet_count > 0, TODO_TYPE_NA, 0.0, 'Whether the card has any tweets from the bot'],
 		//The following TODO types will never be automatically applied, because their test function always returns false, but they can be manually applied.
-		'prose': [defaultCardFilterName('prose'), () => true, TODO_TYPE_AUTO, 0.5, 'Whether the card has manually been marked as needing to be turned into flowing prose, as opposed to disjoint details'],
-		'citations': [defaultCardFilterName('citations'), () => true, TODO_TYPE_AUTO, 0.3, 'Whether the card has citations that need to be formally represented'],
+		'prose': [defaultCardFilterName('prose'), () => true, TODO_TYPE_AUTO_CONTENT, 0.5, 'Whether the card has manually been marked as needing to be turned into flowing prose, as opposed to disjoint details'],
+		'citations': [defaultCardFilterName('citations'), () => true, TODO_TYPE_AUTO_CONTENT, 0.3, 'Whether the card has citations that need to be formally represented'],
 		[EVERYTHING_SET_NAME]: [defaultNonTodoCardFilterName(FILTER_EQUIVALENTS_FOR_SET[EVERYTHING_SET_NAME]), () => true, TODO_TYPE_NA, 0.0, 'Every card is in the everything set'],
 		'body': [defaultCardFilterName('body'), card => card && BODY_CARD_TYPES[card.card_type], TODO_TYPE_NA, 0.0, 'Cards that are of a type that has a body field'],
 		'substantive-references': [defaultCardFilterName('substantive-references'), card => references(card).substantiveArray().length, TODO_TYPE_NA, 0.0, 'Whether the card has any substantive references of any type'],
@@ -654,14 +660,14 @@ export const REVERSE_CARD_FILTER_CONFIG_MAP = Object.fromEntries(Object.entries(
 export const TODO_ALL_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2].isTODO).map(entry => [entry[0], {id: entry[0], suppressLink: true, description: entry[1][4], title: toTitleCase(entry[0].split('-').join(' '))}]));
 
 //TODO_INFOS are appropriate to pass into tag-list.tagInfos as options to enable or disable.
-export const TODO_AUTO_INFOS = Object.fromEntries(Object.entries(TODO_ALL_INFOS).filter(entry => CARD_FILTER_CONFIGS[entry[0]][2] == TODO_TYPE_AUTO));
+export const TODO_AUTO_INFOS = Object.fromEntries(Object.entries(TODO_ALL_INFOS).filter(entry => CARD_FILTER_CONFIGS[entry[0]][2].autoApply));
 
 //TODO_CONFIG_KEYS is all of the keys into CARD_FILTER_CONFIG that represent the
 //set of items that count as a TODO.
 const TODO_CONFIG_KEYS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2].isTODO).map(entry => [entry[0], true]));
 
 //TODO_OVERRIDE_LEGAL_KEYS reflects the only keys that are legal to set in card.auto_todo_overrides
-export const TODO_OVERRIDE_LEGAL_KEYS = Object.fromEntries(Object.entries(TODO_CONFIG_KEYS).filter(entry => CARD_FILTER_CONFIGS[entry[0]][2] == TODO_TYPE_AUTO));
+export const TODO_OVERRIDE_LEGAL_KEYS = Object.fromEntries(Object.entries(TODO_CONFIG_KEYS).filter(entry => CARD_FILTER_CONFIGS[entry[0]][2].autoApply));
 
 const TODO_DIFFICULTY_MAP = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[0], entry[1][3]]));
 const MAX_TOTAL_TODO_DIFFICULTY = Object.entries(TODO_DIFFICULTY_MAP).map(entry => entry[1]).reduce((prev, curr) => prev + curr, 0.0);
@@ -680,9 +686,10 @@ export const cardTodoConfigKeys = (card, onlyNonOverrides) => {
 
 	for (let configKey of Object.keys(CARD_FILTER_CONFIGS)) {
 		const config = CARD_FILTER_CONFIGS[configKey];
-		if (!config[2].isTODO) continue;
-		if (config[2] == TODO_TYPE_AUTO) {
-			if (!cardMayHaveAutoTODO(card)) continue;
+		const todoConfig = config[2];
+		if (!todoConfig.isTODO) continue;
+		if (todoConfig.autoApply) {
+			if (!cardMayHaveAutoTODO(card, todoConfig)) continue;
 			if (card.auto_todo_overrides[configKey] === true) continue;
 		}
 		const done = config[1](card);
@@ -706,7 +713,7 @@ export const INVERSE_FILTER_NAMES = Object.assign(
 	//extend with ones for all of the card filters badsed on that config
 	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][1], entry[1][0][0]])),
 	//Add the inverse need filters (skipping ones htat are not a TODO)
-	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] == TODO_TYPE_AUTO).map(entry => [entry[1][0][3], entry[1][0][2]]))
+	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2].autoApply).map(entry => [entry[1][0][3], entry[1][0][2]]))
 );
 
 const makeBasicCardFilterFunc = (baseFunc, todoConfig) => {
@@ -714,7 +721,7 @@ const makeBasicCardFilterFunc = (baseFunc, todoConfig) => {
 		return function(card) {
 			//Cards that can't have auto TODOs are marked as having met the condition.
 			//TODO: is this logic right? Shouldn't we just skip all of these?
-			if(!cardMayHaveAutoTODO(card)) return true;
+			if(!cardMayHaveAutoTODO(card, todoConfig)) return true;
 			return baseFunc(card);
 		};
 	}
@@ -731,7 +738,7 @@ const makeDoesNotNeedFunc = (baseFunc, overrideKeyName) => {
 	};
 };
 
-const DOES_NOT_NEED_FILTER_FUNCS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2] == TODO_TYPE_AUTO).map(entry => [entry[1][0][2], makeDoesNotNeedFunc(entry[1][1], REVERSE_CARD_FILTER_CONFIG_MAP[entry[1][0][2]])]));
+const DOES_NOT_NEED_FILTER_FUNCS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2].autoApply).map(entry => [entry[1][0][2], makeDoesNotNeedFunc(entry[1][1], REVERSE_CARD_FILTER_CONFIG_MAP[entry[1][0][2]])]));
 
 const FREEFORM_TODO_FUNC = CARD_FILTER_CONFIGS[FREEFORM_TODO_KEY][1];
 
