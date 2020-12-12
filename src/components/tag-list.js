@@ -47,7 +47,7 @@ class TagList  extends LitElement {
 			${((!allTags || !allTags.length) && this.hideOnEmpty) || this.disableAdd ? html`` :
 		html`<select @change=${this._handleSelectChanged}>
 				<option value='#noop' selected>Add ${this.typeName}...</option>
-				${Object.keys(tagInfos).map(item => html`<option value='${tagInfos[item].id}'>${tagInfos[item].title}</option>`)}
+				${Object.keys(tagInfos).map(item => html`<option value='${tagInfos[item].id}' title=${tagInfos[item].description}>${tagInfos[item].title}</option>`)}
 				${this.disableNew ? '' : html`<option value='#new'>New ${this.typeName}</option>`}
 			</select>`}
 			</div>
