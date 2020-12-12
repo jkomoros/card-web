@@ -649,6 +649,9 @@ const CARD_FILTER_CONFIGS = Object.assign(
 		//The following TODO types will never be automatically applied, because their test function always returns false, but they can be manually applied.
 		'prose': [defaultCardFilterName('prose'), () => true, TODO_TYPE_AUTO_CONTENT, 0.5, 'Whether the card has manually been marked as needing to be turned into flowing prose, as opposed to disjoint details'],
 		'citations': [defaultCardFilterName('citations'), () => true, TODO_TYPE_AUTO_CONTENT, 0.3, 'Whether the card has citations that need to be formally represented'],
+		//Being a priority is considered an extra TODO; not being prioritized is considered to have that TODO done.
+		//Because it always returns true, the latter two filter-names are what you actually want to use to filter.
+		'prioritized': [['not-automatically-prioritized', 'automatically-prioritized', 'not-prioritized', 'prioritized'], () => true, TODO_TYPE_AUTO_CONTENT, 0.1, 'Whether the card is marked as a priority to develop, because it talks about important topics. Kind of like a star for an author to prioritize it.'],
 		//Mined is always flagged on cards that it might be autoapplied to. The only way to make it go away is to add a true to the auto_todo_overrides for it.
 		//To find cards that are _partially_ mined, use the 'has-inbound-mined-from-references/not-mined' filters.
 		'content-mined': [['mined-for-content', 'not-mined-for-content', 'does-not-need-to-be-mined-for-content', 'needs-to-be-mined-for-content'], () => false, TODO_TYPE_AUTO_WORKING_NOTES, 2.0, 'Whether the card has had its insights \'mined\' into other cards. Only automatically applied to working-notes cards. The only way to clear it is to add a force TODO disable for it'],
