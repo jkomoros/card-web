@@ -530,7 +530,7 @@ export const SORTS = {
 	},
 	'todo-difficulty': {
 		extractor: (card) => {
-			const result = MAX_TOTAL_TODO_DIFFICULTY - cardTodoConfigKeys(card).map(key => TODO_DIFFICULTY_MAP[key]).reduce((prev, curr) => prev + curr, 0.0);
+			const result = MAX_TOTAL_TODO_DIFFICULTY - cardTODOConfigKeys(card).map(key => TODO_DIFFICULTY_MAP[key]).reduce((prev, curr) => prev + curr, 0.0);
 			return [result, '' + result];
 		},
 		description: 'In ascending order of how difficult remaining TODOs are',
@@ -567,6 +567,8 @@ const FREEFORM_TODO_KEY = 'freeform-todo';
 export const TODO_COMBINED_FILTER_NAME = 'has-todo';
 const TODO_COMBINED_INVERSE_FILTER_NAME = 'no-todo';
 
+//this is whether the given type of TODO might be _automaticaly_ applied. Any
+//card can manually have a TODO applied via auto_todo_overrides.
 const cardMayHaveAutoTODO = (card, todoConfig) => {
 	return card && todoConfig.autoApply && (todoConfig.cardTypes ? todoConfig.cardTypes[card.card_type] : true);
 };
@@ -585,10 +587,13 @@ const TODO_TYPE_NA = {
 const TODO_TYPE_AUTO_CONTENT = {
 	type: 'auto',
 	autoApply: true,
-	isTODO: true,
+	//cardTypes is the types of cards that will have it autoapplied. However,
+	//any card that has it actively set to false in their auto_todo_overrides
+	//will show as having that TODO.
 	cardTypes: {
 		[CARD_TYPE_CONTENT]: true,
-	}
+	},
+	isTODO: true,
 };
 
 //TODO_TYPE_FREEFORM is for card filters that are TODOs but are set via the freeform
@@ -672,11 +677,12 @@ export const TODO_OVERRIDE_LEGAL_KEYS = Object.fromEntries(Object.entries(TODO_C
 const TODO_DIFFICULTY_MAP = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[0], entry[1][3]]));
 const MAX_TOTAL_TODO_DIFFICULTY = Object.entries(TODO_DIFFICULTY_MAP).map(entry => entry[1]).reduce((prev, curr) => prev + curr, 0.0);
 
-//cardTodoConfigKeys returns the card filter keys (which index into for example
-//TODO_INFOS) representing the todos that are active for this card. If
-//onlyNonOverrides is true, then it will skip any keys that are only true because
-//they're overridden to true.
-export const cardTodoConfigKeys = (card, onlyNonOverrides) => {
+//cardTODOConfigKeys returns the card filter keys (which index into for example
+//TODO_INFOS) representing the todos that are active for this card--that is, the
+//TODOs that are NOT marked done. If onlyNonOverrides is true, then it will skip
+//any keys that are only true (not done) because they're overridden to be marked
+//as not done.
+export const cardTODOConfigKeys = (card, onlyNonOverrides) => {
 	//TODO: this ideally should be in util.js (with the other cardHasContent
 	//functions), but because of entanglement of constants this has to live next
 	//to these constants.
@@ -688,12 +694,15 @@ export const cardTodoConfigKeys = (card, onlyNonOverrides) => {
 		const config = CARD_FILTER_CONFIGS[configKey];
 		const todoConfig = config[2];
 		if (!todoConfig.isTODO) continue;
-		if (todoConfig.autoApply) {
-			if (!cardMayHaveAutoTODO(card, todoConfig)) continue;
-			if (card.auto_todo_overrides[configKey] === true) continue;
+		//No matter what, if the override is set to 'done' then the TODO isn't active.
+		if (card.auto_todo_overrides[configKey] === true) continue;
+		if (!onlyNonOverrides && card.auto_todo_overrides[configKey] === false) {
+			result.push(configKey);
+			continue;
 		}
-		const done = config[1](card);
-		if (!done || (!onlyNonOverrides && card.auto_todo_overrides[configKey] === false)) {
+		if (todoConfig.autoApply && !cardMayHaveAutoTODO(card, todoConfig)) continue;
+		const todoDone = config[1](card);
+		if (!todoDone) {
 			result.push(configKey);
 		}
 	}

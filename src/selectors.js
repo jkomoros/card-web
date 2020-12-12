@@ -16,7 +16,7 @@ import {
 	DEFAULT_SET_NAME,
 	READING_LIST_SET_NAME,
 	EVERYTHING_SET_NAME,
-	cardTodoConfigKeys,
+	cardTODOConfigKeys,
 	queryConfigurableFilterText,
 	SIMILAR_FILTER_NAME,
 	LIMIT_FILTER_NAME,
@@ -785,7 +785,7 @@ export const selectActivePreviewCard = createSelector(
 export const selectActiveCardTodosForCurrentUser = createSelector(
 	selectUserMayEditActiveCard,
 	selectActiveCard,
-	(userMayEditCard, card) => userMayEditCard ? cardTodoConfigKeys(card, false) : []
+	(userMayEditCard, card) => userMayEditCard ? cardTODOConfigKeys(card, false) : []
 );
 
 export const selectActiveCardTweets = createSelector(
@@ -812,7 +812,7 @@ export const selectInfoPanelReferencesForActiveCard = createSelector(
 //that has been updated with the current editingCard values.
 export const selectEditingCardAutoTodos = createSelector(
 	selectEditingCard,
-	(card) => cardTodoConfigKeys(card, true)
+	(card) => cardTODOConfigKeys(card, true)
 );
 
 export const selectActiveCollectionDescription = createSelector(
