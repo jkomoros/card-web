@@ -29,6 +29,5 @@
         "no-console": "off",
         "no-case-declarations": "off",
         "no-fallthrough": "off"
-    },
-    "reportUnusedDisableDirectives": true
+    }
 }
