@@ -101,6 +101,9 @@ export const REFERENCE_TYPE_FORK_OF = 'fork-of';
 //For cards that want to express they are based on insights 'mined' from the
 //other card--typically a working-notes card.
 export const REFERENCE_TYPE_MINED_FROM = 'mined-from';
+//For cards that want to say you should also see a related card that is similar,
+//a kind of peer.
+export const REFERENCE_TYPE_SEE_ALSO = 'see-also';
 
 //Any key in this object is a legal reference type
 /*
@@ -165,6 +168,15 @@ export const REFERENCE_TYPES = {
 		substantive: true,
 		//royalblue
 		color: '#4169E1',
+		excludeFromInfoPanel: false,
+	},
+	[REFERENCE_TYPE_SEE_ALSO]: {
+		name: 'See also',
+		description: 'For cards that make similar points and make sense to consume as a set',
+		editable: true,
+		substantive: true,
+		//navy
+		color: '#000080',
 		excludeFromInfoPanel: false,
 	}
 };
