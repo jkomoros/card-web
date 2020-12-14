@@ -31,7 +31,9 @@ import {
 } from './nlp.js';
 
 import {
-	filterSetForFilterDefinitionItem
+	filterSetForFilterDefinitionItem,
+	CollectionDescription,
+	makeConcreteInverseFilter
 } from './collection_description.js';
 
 export const DEFAULT_SET_NAME = 'main';
@@ -210,6 +212,57 @@ const makeExcludeConfigurableFilter = (filterName, ...remainingParts) => {
 	return [func, true];
 };
 
+const makeCombineConfigurableFilter = (filterName, ...remainingParts) => {
+
+	//It's not clear where the first filter argument ends and the second one
+	//starts because they'll all be smooshed together. We'll rely on
+	//CollectionDescription machinery to parse it. If we don't include a
+	//trailing '/' then it will interpret the last part as a CardID.
+	const rest = remainingParts.join('/') + '/';
+
+	const combinedDescription = CollectionDescription.deserialize(rest);
+
+	if (combinedDescription.filters.length != 2) {
+		console.warn('Expected two sub-filters for combine but didn\'t get it');
+		return [() => false, false];
+	}
+
+	const subFilterOne = combinedDescription.filters[0];
+	const subFilterTwo = combinedDescription.filters[1];
+
+	let memoizedFilterSet = null;
+	let memoizedCards = null;
+	let memoizedFilterSetMemberships = null;
+
+	
+	const func = function(card, cards, filterSetMemberships) {
+
+		if (!memoizedFilterSet || memoizedCards != cards || memoizedFilterSetMemberships != filterSetMemberships) {
+			let [filterMembershipOne, excludeOne] = filterSetForFilterDefinitionItem(subFilterOne, filterSetMemberships, cards);
+			let [filterMembershipTwo, excludeTwo] = filterSetForFilterDefinitionItem(subFilterTwo, filterSetMemberships, cards);
+
+			//Make sure the sub filter membership is direct and not inverted
+			if (excludeOne) filterMembershipOne = makeConcreteInverseFilter(filterMembershipOne, cards);
+			if (excludeTwo) filterMembershipTwo = makeConcreteInverseFilter(filterMembershipTwo, cards);
+
+			memoizedFilterSet = {};
+			for (const key of Object.keys(filterMembershipOne)) {
+				memoizedFilterSet[key] = true;
+			}
+			for (const key of Object.keys(filterMembershipTwo)) {
+				memoizedFilterSet[key] = true;
+			}
+
+			memoizedFilterSetMemberships = filterSetMemberships;
+			memoizedCards = cards;
+		}
+
+		return memoizedFilterSet[card.id];
+	};
+
+	return [func, false];
+};
+
 export const queryConfigurableFilterText = (queryText) => {
 	return QUERY_FILTER_NAME + '/' + encodeURIComponent(queryText).split('%20').join('+');
 };
@@ -292,6 +345,7 @@ const PARENTS_FILTER_NAME = 'parents';
 const ANCESTORS_FILTER_NAME = 'ancestors';
 const CARDS_FILTER_NAME = 'cards';
 const EXCLUDE_FILTER_NAME = 'exclude';
+const COMBINE_FILTER_NAME = 'combine';
 export const QUERY_FILTER_NAME = 'query';
 const QUERY_STRICT_FILTER_NAME = 'query-strict';
 export const LIMIT_FILTER_NAME = 'limit';
@@ -317,6 +371,8 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[CONNECTIONS_FILTER_NAME]: 2,
 	//Exclude takes itself, plus whatever filter comes after it
 	[EXCLUDE_FILTER_NAME]: 1,
+	//Combine takes itself, plus two other filters after it
+	[COMBINE_FILTER_NAME]: 2,
 	[CARDS_FILTER_NAME]: 1,
 	[QUERY_FILTER_NAME]: 1,
 	[QUERY_STRICT_FILTER_NAME]: 1,
@@ -373,6 +429,9 @@ const CONFIGURABLE_FILTER_INFO = {
 	},
 	[EXCLUDE_FILTER_NAME]: {
 		factory: makeExcludeConfigurableFilter,
+	},
+	[COMBINE_FILTER_NAME]: {
+		factory: makeCombineConfigurableFilter,
 	},
 	[CARDS_FILTER_NAME]: {
 		//This filter matches precisely the IDsorSlugs provided. It's generally
