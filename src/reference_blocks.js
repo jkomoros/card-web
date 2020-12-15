@@ -20,7 +20,7 @@ import {
 An array where each item has:
 	collection: a collection description, possibly using SELF_KEY_CARD_ID as a placeholder
 	title: a title to display
-	showIfEmpty: if true, then will show the block even if it's empty
+	emptyMessage: if non-falsey will show that message if no cards match. If it is falsey and no cards match, the block will not be shown.
 */
 const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 	[CARD_TYPE_CONCEPT]: [
@@ -28,7 +28,7 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 			//TODO: actually change this to concept reference type once that exists
 			collection: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_ACK)]),
 			title: 'Cards that reference this concept',
-			showIfEmpty: true,
+			emptyMessage: 'No cards reference this concept',
 		}
 	]
 };

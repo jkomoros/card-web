@@ -1103,5 +1103,5 @@ export const getExpandedReferenceBlocksForCard = (state, card) => {
 	if (blocks.length == 0) return [];
 	const args = selectCollectionConstructorArguments(state);
 	const expandedBlocks = blocks.map(block => ({...block, collection: block.collection.collection(...args)}));
-	return expandedBlocks.filter(expandedBlock => expandedBlock.collection.numCards || expandedBlock.showIfEmpty);
+	return expandedBlocks.filter(expandedBlock => expandedBlock.collection.numCards || expandedBlock.emptyMessage);
 };
