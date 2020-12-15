@@ -1102,6 +1102,6 @@ export const getExpandedReferenceBlocksForCard = (state, card) => {
 	const blocks = referenceBlocksForCard(card);
 	if (blocks.length == 0) return [];
 	const args = selectCollectionConstructorArguments(state);
-	const expandedBlocks = blocks.map(block => ({...block, collection: block.collection.collection(...args)}));
-	return expandedBlocks.filter(expandedBlock => expandedBlock.collection.numCards || expandedBlock.emptyMessage);
+	//reference-block will hide any ones that shouldn't render because of an empty collection
+	return blocks.map(block => ({...block, collection: block.collection.collection(...args)}));
 };
