@@ -20,6 +20,7 @@ import {
 An array where each item has:
 	collection: a collection description, possibly using SELF_KEY_CARD_ID as a placeholder
 	title: a title to display
+	description: if provided, will render a help badge with this text
 	emptyMessage: if non-falsey will show that message if no cards match. If it is falsey and no cards match, the block will not be shown.
 */
 const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
