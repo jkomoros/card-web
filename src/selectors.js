@@ -799,14 +799,6 @@ export const selectActiveCardTweets = createSelector(
 	(card, tweets) => Object.fromEntries(Object.entries(tweets).filter(entry => entry[1].card == card.id))
 );
 
-//Because it filters out cards that don't exist (e.g. are unpublished), cards
-//that the user can't see won't show.
-export const selectInboundReferencesForActiveCard = createSelector(
-	selectActiveCard,
-	selectCards,
-	(card, cards) => references(card).inboundArray().filter(id => cards[id])
-);
-
 //selectEditingCardAutoTodos will opeate on not the actual filter set, but one
 //that has been updated with the current editingCard values.
 export const selectEditingCardAutoTodos = createSelector(

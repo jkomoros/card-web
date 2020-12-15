@@ -17,6 +17,10 @@ import {
 	referencesConfigurableFilterText,
 } from './filters.js';
 
+import {
+	cardNeedsReciprocalLinkTo
+} from './util.js';
+
 /*
 
 An array where each item has:
@@ -38,12 +42,22 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 };
 
 const REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL = Object.entries(REFERENCE_TYPES).filter(entry => !entry[1].excludeFromInfoPanel).map(entry => entry[1]);
+const SUBSTANTIVE_REFERENCE_TYPES = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].substantive).map(entry => entry[0]);
 
 const INFO_PANEL_REFERENCE_BLOCKS = [
 	{
 		title: 'Other referenced cards',
 		description: 'Cards that this card references that are not links',
 		collection: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL, true)])
+	},
+	{
+		collection: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, SUBSTANTIVE_REFERENCE_TYPES)]),
+		title: 'Cards That Link Here',
+		description: 'Cards that link to this one.',
+		emptyMessage: 'No cards link to this one.',
+		cardsToBoldFilterFactory: (keyCard) => {
+			return (card) => cardNeedsReciprocalLinkTo(keyCard, card);
+		}
 	}
 ];
 

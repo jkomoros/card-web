@@ -28,7 +28,6 @@ import {
 	selectTags,
 	getAuthorForId,
 	selectCollaboratorInfosForActiveCard,
-	selectInboundReferencesForActiveCard,
 	selectActiveCardTweets,
 	selectTweetsLoading,
 	selectCommentsAndInfoPanelOpen,
@@ -49,7 +48,6 @@ import {
 	prettyTime,
 	markdownElement,
 	urlForTweet,
-	cardNeedsReciprocalLinkTo
 } from '../util.js';
 
 import {
@@ -128,13 +126,6 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			<h3 ?hidden=${!this._open}>Card Info</h3>
 			<div class='container' ?hidden=${!this._open}>
 				${this._referenceBlocks.map(item => html`<reference-block .block=${item}></reference-block>`)}
-				<div>
-					<h4>Cards That Link Here${help('Cards that link to this one.')}</h4>
-					${this._inboundLinks
-		? html`<ul>${this._inboundLinks.map((item) => html`<li><card-link auto='title' .strong=${cardNeedsReciprocalLinkTo(this._card, item)} card='${item}'>${item}</card-link></li>`)}</ul>`
-		: html`<p><em>No cards link to this one.</em></p>`
-}
-				</div>
 				${
 	this._closestCards.length ?
 		html`<div><h4>Similar Cards${help('Cards that are neither linked to or from here but that have distinctive terms that overlap with this card.')}</h4><ul>${this._closestCards.map(item => html`<li><card-link auto='title' card='${item}'>${item}</card-link></li>`)}</ul></div>` :
@@ -220,7 +211,6 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			_sectionTitle: { type: String},
 			_author: {type:Object},
 			_tagInfos: {type: Object},
-			_inboundLinks: {type: Array},
 			_referenceBlocks: {type:Array},
 			_tweets: {type: Object},
 			_tweetsLoading: {type: Boolean},
@@ -240,7 +230,6 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._author = getAuthorForId(state, this._card.author);
 		this._collaborators = selectCollaboratorInfosForActiveCard(state);
 		this._tagInfos = selectTags(state);
-		this._inboundLinks = selectInboundReferencesForActiveCard(state);
 		this._tweets = selectActiveCardTweets(state);
 		this._tweetsLoading = selectTweetsLoading(state);
 		//selectActiveCardSimilarCards is extremly expensive to call into being,
