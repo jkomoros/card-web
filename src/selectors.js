@@ -950,10 +950,11 @@ const selectCollectionConstructorArguments = createSelector(
 	selectCards,
 	selectAllSets,
 	selectFilters,
+	selectEditingCard,
 	selectSections,
 	selectTabCollectionFallbacks,
 	selectTabCollectionStartCards,
-	(cards, sets, filters, sections, fallbacks, startCards) => [cards, sets, filters, sections, fallbacks, startCards]
+	(cards, sets, filters, editingCard, sections, fallbacks, startCards) => [cards, sets, filters, editingCard, sections, fallbacks, startCards]
 );
 
 const selectActiveCollection = createSelector(

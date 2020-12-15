@@ -210,16 +210,18 @@ const makeExcludeConfigurableFilter = (filterName, ...remainingParts) => {
 	let memoizedFilterSet = null;
 	let memoizedReverse = false;
 	let memoizedCards = null;
+	let memoizedEditingCard = null;
 	let memoizedFilterSetMemberships = null;
 
 	//our func is just checking in the expanded filter.
-	const func = function(card, cards, filterSetMemberships) {
+	const func = function(card, cards, filterSetMemberships, editingCard) {
 
-		if (!memoizedFilterSet || memoizedCards != cards || memoizedFilterSetMemberships != filterSetMemberships) {
-			const [filterMembership, exclude] = filterSetForFilterDefinitionItem(rest, filterSetMemberships, cards);
+		if (!memoizedFilterSet || memoizedCards != cards || memoizedFilterSetMemberships != filterSetMemberships || memoizedEditingCard != editingCard) {
+			const [filterMembership, exclude] = filterSetForFilterDefinitionItem(rest, filterSetMemberships, cards, editingCard);
 			memoizedFilterSet = filterMembership;
 			memoizedReverse = exclude;
 			memoizedFilterSetMemberships = filterSetMemberships;
+			memoizedEditingCard = editingCard;
 			memoizedCards = cards;
 		}
 
@@ -261,13 +263,14 @@ const makeCombineConfigurableFilter = (filterName, ...remainingParts) => {
 	let memoizedFilterSet = null;
 	let memoizedCards = null;
 	let memoizedFilterSetMemberships = null;
+	let memoizedEditingCard = null;
 
 	
-	const func = function(card, cards, filterSetMemberships) {
+	const func = function(card, cards, filterSetMemberships, editingCard) {
 
-		if (!memoizedFilterSet || memoizedCards != cards || memoizedFilterSetMemberships != filterSetMemberships) {
-			let [filterMembershipOne, excludeOne] = filterSetForFilterDefinitionItem(subFilterOne, filterSetMemberships, cards);
-			let [filterMembershipTwo, excludeTwo] = filterSetForFilterDefinitionItem(subFilterTwo, filterSetMemberships, cards);
+		if (!memoizedFilterSet || memoizedCards != cards || memoizedFilterSetMemberships != filterSetMemberships || memoizedEditingCard != editingCard) {
+			let [filterMembershipOne, excludeOne] = filterSetForFilterDefinitionItem(subFilterOne, filterSetMemberships, cards, editingCard);
+			let [filterMembershipTwo, excludeTwo] = filterSetForFilterDefinitionItem(subFilterTwo, filterSetMemberships, cards, editingCard);
 
 			//Make sure the sub filter membership is direct and not inverted
 			if (excludeOne) filterMembershipOne = makeConcreteInverseFilter(filterMembershipOne, cards);
@@ -283,6 +286,7 @@ const makeCombineConfigurableFilter = (filterName, ...remainingParts) => {
 
 			memoizedFilterSetMemberships = filterSetMemberships;
 			memoizedCards = cards;
+			memoizedEditingCard = editingCard;
 		}
 
 		return memoizedFilterSet[card.id];
@@ -429,13 +433,13 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 //the factories should return a filter func that takes the card to opeate on,
 //then cards. The factory will be provided with the individual parts of the
 //configuration return a func and whether or not its output should be reversed.
-//The function takes card, cards, filterSetMemberships and should return either
-//true/false, or, if wants to make values available for later sorts in
-//sortExtras, it can emit an array [matches, sortValue] where matches is a
-//boolean and sortValue is the value to pass into sortExtras for that card. It
-//can also emit a [matches, sortValue, partialMatch], where partialMatch denotes
-//the item should be ghosted. If the filter emits sortExtras, then it should
-//also define a labelName.
+//The function takes card, cards, filterSetMemberships, and editinCard, and
+//should return either true/false, or, if wants to make values available for
+//later sorts in sortExtras, it can emit an array [matches, sortValue] where
+//matches is a boolean and sortValue is the value to pass into sortExtras for
+//that card. It can also emit a [matches, sortValue, partialMatch], where
+//partialMatch denotes the item should be ghosted. If the filter emits
+//sortExtras, then it should also define a labelName.
 const CONFIGURABLE_FILTER_INFO = {
 	[UPDATED_FILTER_NAME]: {
 		factory: makeDateConfigurableFilter,

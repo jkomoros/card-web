@@ -276,8 +276,8 @@ export const CollectionDescription = class {
 	//on keying into optFallbacks by the serialization of the
 	//collectiondescription. You can use selectCollectionConstructorArguments to
 	//select all of the items at once.
-	collection(cards, sets, filters, optSections, optFallbacks, optStartCards) {
-		return new Collection(this, cards, sets, filters, optSections, optFallbacks, optStartCards);
+	collection(cards, sets, filters, editingCard, optSections, optFallbacks, optStartCards) {
+		return new Collection(this, cards, sets, filters, editingCard, optSections, optFallbacks, optStartCards);
 	}
 
 	static deserialize(input) {
@@ -329,18 +329,20 @@ const filterNameIsConfigurableFilter = (filterName) => {
 
 let memoizedConfigurableFiltersCards = null;
 let memoizedConfigurableFilterSetMemberships = null;
+let memoizedConfigurableFiltersEditingCard = null;
 let memoizedConfigurableFilters = {};
 
 //The first filter here means 'map of card id to bools', not 'filter func'
 //TODO: make it return the exclusion as second item
-const makeFilterFromConfigurableFilter = (name, filterSetMemberships, cards) => {
-	if (memoizedConfigurableFiltersCards == cards && memoizedConfigurableFilterSetMemberships == filterSetMemberships) {
+const makeFilterFromConfigurableFilter = (name, filterSetMemberships, cards, editingCard) => {
+	if (memoizedConfigurableFiltersCards == cards && memoizedConfigurableFilterSetMemberships == filterSetMemberships && memoizedConfigurableFiltersEditingCard == editingCard) {
 		if (memoizedConfigurableFilters[name]) {
 			return memoizedConfigurableFilters[name];
 		}
 	} else {
 		memoizedConfigurableFiltersCards = cards;
 		memoizedConfigurableFilterSetMemberships = filterSetMemberships;
+		memoizedConfigurableFiltersEditingCard = editingCard;
 		memoizedConfigurableFilters = {};
 	}
 
@@ -349,7 +351,7 @@ const makeFilterFromConfigurableFilter = (name, filterSetMemberships, cards) => 
 	let sortValues = {};
 	let partialMatches = {};
 	for (let [id, card] of Object.entries(cards)) {
-		let funcResult = func(card, cards, filterSetMemberships);
+		let funcResult = func(card, cards, filterSetMemberships, editingCard);
 		let matches = funcResult;
 		let sortValue = undefined;
 		let partialMatch = false;
@@ -416,12 +418,12 @@ const makeCombinedFilter = (includeSets, excludeSets) => {
 	};
 };
 
-export const filterSetForFilterDefinitionItem = (filterDefinitionItem, filterSetMemberships, cards) => {
+export const filterSetForFilterDefinitionItem = (filterDefinitionItem, filterSetMemberships, cards, editingCard) => {
 	if (filterNameIsUnionFilter(filterDefinitionItem)) {
 		return [makeFilterUnionSet(filterDefinitionItem, filterSetMemberships, cards), false, null, null];
 	}
 	if (filterNameIsConfigurableFilter(filterDefinitionItem)) {
-		return makeFilterFromConfigurableFilter(filterDefinitionItem, filterSetMemberships, cards);
+		return makeFilterFromConfigurableFilter(filterDefinitionItem, filterSetMemberships, cards, editingCard);
 	}
 	if (filterSetMemberships[filterDefinitionItem]) {
 		return [filterSetMemberships[filterDefinitionItem], false, null, null];
@@ -434,13 +436,13 @@ export const filterSetForFilterDefinitionItem = (filterDefinitionItem, filterSet
 };
 
 //filterDefinition is an array of filter-set names (concrete or inverse or union-set)
-const combinedFilterForFilterDefinition = (filterDefinition, filterSetMemberships, cards) => {
+const combinedFilterForFilterDefinition = (filterDefinition, filterSetMemberships, cards, editingCard) => {
 	let includeSets = [];
 	let excludeSets = [];
 	let sortExtras = {};
 	let partialExtras = {};
 	for (let name of filterDefinition) {
-		let [filterSet, reverse, sortInfos, partialMatches] = filterSetForFilterDefinitionItem(name, filterSetMemberships, cards);
+		let [filterSet, reverse, sortInfos, partialMatches] = filterSetForFilterDefinitionItem(name, filterSetMemberships, cards, editingCard);
 		if (reverse) {
 			excludeSets.push(filterSet);
 		} else {
@@ -476,11 +478,12 @@ const removeUnnecessaryLabels = (arr) => {
 const expandCardCollection = (collection, cards) => collection.map(id => cards[id] || null).filter(card => card ? true : false);
 
 const Collection = class {
-	constructor(description, cards, sets, filters, optSections, optFallbacks, optStartCards) {
+	constructor(description, cards, sets, filters, editingCard, optSections, optFallbacks, optStartCards) {
 		this._description = description;
 		this._cards = cards;
 		this._sets = sets;
 		this._filters = filters;
+		this._editingCard = editingCard;
 		//Needed for sort info :-(
 		this._sections = optSections || {};
 		this._fallbacks = optFallbacks || {};
@@ -504,7 +507,7 @@ const Collection = class {
 		let filteredItems = baseSet;
 		//Only bother filtering down the items if there are filters defined.
 		if (this._description.filters && this._description.filters.length) {
-			const [combinedFilter, sortExtras, partialMatches] = combinedFilterForFilterDefinition(this._description.filters, this._filters, this._cards);
+			const [combinedFilter, sortExtras, partialMatches] = combinedFilterForFilterDefinition(this._description.filters, this._filters, this._cards, this._editingCard);
 			filteredItems = baseSet.filter(item => combinedFilter(item));
 			this._sortExtras = sortExtras;
 			this._partialMatches = partialMatches;
@@ -564,8 +567,8 @@ const Collection = class {
 		const filterEquivalentForActiveSet = FILTER_EQUIVALENTS_FOR_SET[this._description.set];
 		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
 
-		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, this._filters, this._cards);
-		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, pendingFilters, this._cards);
+		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, this._filters, this._cards, this._editingCard);
+		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, pendingFilters, this._cards, this._editingCard);
 		//Return the set of items that pass the current filters but won't pass the pending filters.
 		const itemsThatWillBeRemoved = Object.keys(this._cards).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
 		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));
