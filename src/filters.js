@@ -126,6 +126,7 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 	let typeStr = '';
 	if (referenceFilter) typeStr = countOrTypeStr;
 	if (!referenceFilter) countStr = countOrTypeStr;
+	let referenceTypes = typeStr ? typeStr.split(UNION_FILTER_DELIMITER) : null;
 
 	const isInbound = filterName == PARENTS_FILTER_NAME || filterName == ANCESTORS_FILTER_NAME || filterName == REFERENCES_INBOUND_FILTER_NAME || filterName == DIRECT_REFERENCES_INBOUND_FILTER_NAME;
 	const twoWay = filterName == DIRECT_CONNECTIONS_FILTER_NAME || filterName == CONNECTIONS_FILTER_NAME || filterName == REFERENCES_FILTER_NAME || filterName == DIRECT_REFERENCES_FILTER_NAME;
@@ -150,12 +151,12 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 		if (cards != memoizedCardsLastSeen) memoizedMap = null;
 		if (!memoizedMap) {
 			if (twoWay){
-				const bfsForOutbound = cardBFS(cardID, cards, count, includeKeyCard, false, typeStr);
-				const bfsForInbound = Object.fromEntries(Object.entries(cardBFS(cardID, cards, count, includeKeyCard, true, typeStr)).map(entry => [entry[0], entry[1] * -1]));
+				const bfsForOutbound = cardBFS(cardID, cards, count, includeKeyCard, false, referenceTypes);
+				const bfsForInbound = Object.fromEntries(Object.entries(cardBFS(cardID, cards, count, includeKeyCard, true, referenceTypes)).map(entry => [entry[0], entry[1] * -1]));
 				//inbound might have a -0 in it, so have outbound be second so we get just the zero
 				memoizedMap = unionSet(bfsForInbound,bfsForOutbound);
 			} else {
-				memoizedMap = cardBFS(cardID, cards, count, includeKeyCard, isInbound, typeStr);
+				memoizedMap = cardBFS(cardID, cards, count, includeKeyCard, isInbound, referenceTypes);
 			}
 			memoizedCardsLastSeen = cards;
 		}
