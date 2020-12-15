@@ -586,11 +586,11 @@ export const selectEditingOrActiveCardSimilarCards = createSelector(
 );
 
 export const selectWordCloudForActiveCard = createSelector(
-	selectActiveCard,
+	selectEditingOrActiveCard,
 	selectFingerprintGenerator,
 	(card, fingerprintGenerator) => {
 		if (!card) return emptyWordCloud();
-		const fingerprint = fingerprintGenerator.fingerprintForCardID(card.id);
+		const fingerprint = fingerprintGenerator.fingerprintForCardObj(card);
 		return wordCloudFromFingerprint(fingerprint, card);
 	}
 );
