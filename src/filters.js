@@ -335,19 +335,24 @@ const makeSimilarConfigurableFilter = (filterName, cardID) => {
 	}
 
 	let memoizedClosestItems = null;
+	//we don't need to memoize on filter set memberships because we don't use them
 	let memoizedCards = null;
+	let memoizedEditingCard = null;
 
-	const func = function(card, cards) {
+	const func = function(card, cards, UNUSEDFilterMemberships,editingCard) {
 		if (card.id == cardID) {
 			if (includeKeyCard) {
 				return [true, Number.MAX_SAFE_INTEGER];
 			}
 			return [false, Number.MIN_SAFE_INTEGER];
 		}
-		if (!memoizedClosestItems || memoizedCards != cards) {
+		if (!memoizedClosestItems || memoizedCards != cards || memoizedEditingCard != editingCard) {
 			const generator = new FingerprintGenerator(cards);
-			memoizedClosestItems = generator.closestOverlappingItems(cardID);
+			const editingCardFingerprint = editingCard ? generator.fingerprintForCardObj(editingCard) : null;
+			//passing null as fingerprint will use the current one
+			memoizedClosestItems = generator.closestOverlappingItems(cardID, editingCardFingerprint);
 			memoizedCards = cards;
+			memoizedEditingCard = editingCard;
 		}
 
 		//It's a bit odd that this 'filter' is only used to filter out the
@@ -795,6 +800,7 @@ const CARD_FILTER_CONFIGS = Object.assign(
 		//To find cards that are _partially_ mined, use the 'has-inbound-mined-from-references/not-mined' filters.
 		'content-mined': [['mined-for-content', 'not-mined-for-content', 'does-not-need-to-be-mined-for-content', 'needs-to-be-mined-for-content'], () => false, TODO_TYPE_AUTO_WORKING_NOTES, 2.0, 'Whether the card has had its insights \'mined\' into other cards. Only automatically applied to working-notes cards. The only way to clear it is to add a force TODO disable for it'],
 		[EVERYTHING_SET_NAME]: [defaultNonTodoCardFilterName(FILTER_EQUIVALENTS_FOR_SET[EVERYTHING_SET_NAME]), () => true, TODO_TYPE_NA, 0.0, 'Every card is in the everything set'],
+		//note: a number of things rely on `has-body` filter which is derived from this configuration
 		'body': [defaultCardFilterName('body'), card => card && BODY_CARD_TYPES[card.card_type], TODO_TYPE_NA, 0.0, 'Cards that are of a type that has a body field'],
 		'substantive-references': [defaultCardFilterName('substantive-references'), card => references(card).substantiveArray().length, TODO_TYPE_NA, 0.0, 'Whether the card has any substantive references of any type'],
 		'inbound-substantive-references': [defaultCardFilterName('inbound-substantive-references'), card => references(card).inboundSubstantiveArray().length, TODO_TYPE_NA, 0.0, 'Whether the card has any substantive inbound references of any type'],

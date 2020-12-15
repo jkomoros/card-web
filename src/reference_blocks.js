@@ -12,9 +12,13 @@ import {
 
 import {
 	EVERYTHING_SET_NAME,
+	DIRECT_REFERENCES_FILTER_NAME,
 	DIRECT_REFERENCES_INBOUND_FILTER_NAME,
 	DIRECT_REFERENCES_OUTBOUND_FILTER_NAME,
+	SIMILAR_FILTER_NAME,
+	EXCLUDE_FILTER_NAME,
 	referencesConfigurableFilterText,
+	LIMIT_FILTER_NAME,
 } from './filters.js';
 
 import {
@@ -44,6 +48,8 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 const REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL = Object.entries(REFERENCE_TYPES).filter(entry => !entry[1].excludeFromInfoPanel).map(entry => entry[1]);
 const SUBSTANTIVE_REFERENCE_TYPES = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].substantive).map(entry => entry[0]);
 
+const NUM_SIMILAR_CARDS_TO_SHOW = 5;
+
 const INFO_PANEL_REFERENCE_BLOCKS = [
 	{
 		title: 'Other referenced cards',
@@ -58,8 +64,18 @@ const INFO_PANEL_REFERENCE_BLOCKS = [
 		cardsToBoldFilterFactory: (keyCard) => {
 			return (card) => cardNeedsReciprocalLinkTo(keyCard, card);
 		}
+	},
+	{
+		collection: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + SELF_KEY_CARD_ID, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, SELF_KEY_CARD_ID, SUBSTANTIVE_REFERENCE_TYPES), LIMIT_FILTER_NAME + '/' + NUM_SIMILAR_CARDS_TO_SHOW]),
+		title: 'Similar Cards',
+		description: 'Cards that are neither linked to or from here but that have distinctive terms that overlap with this card.',
 	}
 ];
+
+//TODO: this is a hack to disable that last bit of config that was accidentally
+//included in this commit. Remove the next line when it's time to activate the
+//new similar cards machienry.
+INFO_PANEL_REFERENCE_BLOCKS.splice(-1, 1);
 
 export const primaryReferenceBlocksForCard = (card) => {
 	if (!card) return []; 
