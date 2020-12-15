@@ -34,6 +34,7 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 };
 
 export const referenceBlocksForCard = (card) => {
+	if (!card) return [];
 	const cardTypeReferenceBlocks = REFERENCE_BLOCKS_FOR_CARD_TYPE[card.card_type];
 	if (!cardTypeReferenceBlocks) return [];
 	return cardTypeReferenceBlocks.map(block => ({...block, collection: collectionDescriptionWithKeyCard(block.collection, card.id)}));

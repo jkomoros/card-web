@@ -43,6 +43,10 @@ import {
 } from './nlp.js';
 
 import {
+	referenceBlocksForCard
+} from './reference_blocks.js';
+
+import {
 	COMPOSED_USER_TYPE_ALL_PERMISSIONS,
 	COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS,
 	COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS,
@@ -1093,3 +1097,11 @@ export const selectCollectionForQuery = createSelector(
 	selectCollectionConstructorArguments,
 	(description, args) => description.collection(...args)
 );
+
+export const getExpandedReferenceBlocksForCard = (state, card) => {
+	const blocks = referenceBlocksForCard(card);
+	if (blocks.length == 0) return [];
+	const args = selectCollectionConstructorArguments(state);
+	const expandedBlocks = blocks.map(block => ({...block, collection: block.collection.collection(...args)}));
+	return expandedBlocks.filter(expandedBlock => expandedBlock.collection.numCards || expandedBlock.showIfEmpty);
+};
