@@ -51,7 +51,7 @@ import {
 	PLUS_ICON,
 	LINK_ICON,
 	LINK_OFF_ICON,
-	OPEN_IN_BROWSER
+	OPEN_IN_BROWSER_ICON
 } from './my-icons.js';
 
 import {
@@ -104,7 +104,7 @@ class FindDialog extends connect(store)(DialogElement) {
 			</div>` : ''}
 			<div class='row'>
 				<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
-				<button title='Navigate to this collection' @click=${this._handleNavigateCollection} class='small'>${OPEN_IN_BROWSER}</button>
+				<button title='Navigate to this collection' @click=${this._handleNavigateCollection} class='small'>${OPEN_IN_BROWSER_ICON}</button>
 			</div>
 		</form>
 		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .collectionItemsToGhost=${this._partialMatches}></card-drawer>
