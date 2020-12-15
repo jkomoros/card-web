@@ -118,11 +118,18 @@ const unionSet = (...sets) => {
 
 const INCLUDE_KEY_CARD_PREFIX = '+';
 
-const makeCardLinksConfigurableFilter = (filterName, cardID, countStr) => {
+const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, countStr) => {
 
-	const isInbound = filterName == PARENTS_FILTER_NAME || filterName == ANCESTORS_FILTER_NAME;
-	const twoWay = filterName == DIRECT_CONNECTIONS_FILTER_NAME || filterName == CONNECTIONS_FILTER_NAME;
-	if (filterName == CHILDREN_FILTER_NAME || filterName == PARENTS_FILTER_NAME || filterName == DIRECT_CONNECTIONS_FILTER_NAME) countStr = '1';
+	//refernces filters take typeStr as second parameter, but others skip those.
+	const referenceFilter = filterName.includes(REFERENCES_FILTER_NAME);
+	//we always pass typeStr to cardBFS, so make sure it's falsey unless it's a reference filter.
+	let typeStr = '';
+	if (referenceFilter) typeStr = countOrTypeStr;
+	if (!referenceFilter) countStr = countOrTypeStr;
+
+	const isInbound = filterName == PARENTS_FILTER_NAME || filterName == ANCESTORS_FILTER_NAME || filterName == REFERENCES_INBOUND_FILTER_NAME || filterName == DIRECT_REFERENCES_INBOUND_FILTER_NAME;
+	const twoWay = filterName == DIRECT_CONNECTIONS_FILTER_NAME || filterName == CONNECTIONS_FILTER_NAME || filterName == REFERENCES_FILTER_NAME || filterName == DIRECT_REFERENCES_FILTER_NAME;
+	if (filterName == CHILDREN_FILTER_NAME || filterName == PARENTS_FILTER_NAME || filterName == DIRECT_CONNECTIONS_FILTER_NAME || filterName == DIRECT_REFERENCES_FILTER_NAME || filterName == DIRECT_REFERENCES_INBOUND_FILTER_NAME || filterName == DIRECT_REFERENCES_OUTBOUND_FILTER_NAME) countStr = '1';
 	let count = parseInt(countStr);
 	if (isNaN(count)) count = 1;
 	if (!cardID) cardID = '';
@@ -143,12 +150,12 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countStr) => {
 		if (cards != memoizedCardsLastSeen) memoizedMap = null;
 		if (!memoizedMap) {
 			if (twoWay){
-				const bfsForOutbound = cardBFS(cardID, cards, count, includeKeyCard, false);
-				const bfsForInbound = Object.fromEntries(Object.entries(cardBFS(cardID, cards, count, includeKeyCard, true)).map(entry => [entry[0], entry[1] * -1]));
+				const bfsForOutbound = cardBFS(cardID, cards, count, includeKeyCard, false, typeStr);
+				const bfsForInbound = Object.fromEntries(Object.entries(cardBFS(cardID, cards, count, includeKeyCard, true, typeStr)).map(entry => [entry[0], entry[1] * -1]));
 				//inbound might have a -0 in it, so have outbound be second so we get just the zero
 				memoizedMap = unionSet(bfsForInbound,bfsForOutbound);
 			} else {
-				memoizedMap = cardBFS(cardID, cards, count, includeKeyCard, isInbound);
+				memoizedMap = cardBFS(cardID, cards, count, includeKeyCard, isInbound, typeStr);
 			}
 			memoizedCardsLastSeen = cards;
 		}
@@ -343,6 +350,12 @@ const CHILDREN_FILTER_NAME = 'children';
 const DESCENDANTS_FILTER_NAME = 'descendants';
 const PARENTS_FILTER_NAME = 'parents';
 const ANCESTORS_FILTER_NAME = 'ancestors';
+const REFERENCES_FILTER_NAME = 'references';
+const REFERENCES_INBOUND_FILTER_NAME = 'references-inbound';
+const REFERENCES_OUTBOUND_FILTER_NAME = 'references-outbound';
+const DIRECT_REFERENCES_FILTER_NAME = 'direct-references';
+const DIRECT_REFERENCES_INBOUND_FILTER_NAME = 'direct-references-inbound';
+const DIRECT_REFERENCES_OUTBOUND_FILTER_NAME = 'direct-references-outbound';
 const CARDS_FILTER_NAME = 'cards';
 const EXCLUDE_FILTER_NAME = 'exclude';
 const COMBINE_FILTER_NAME = 'combine';
@@ -369,6 +382,14 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[ANCESTORS_FILTER_NAME]: 2,
 	[DIRECT_CONNECTIONS_FILTER_NAME]: 1,
 	[CONNECTIONS_FILTER_NAME]: 2,
+	//CARD-ID/TYPE/PLY
+	[REFERENCES_FILTER_NAME]: 3,
+	[REFERENCES_INBOUND_FILTER_NAME]: 3,
+	[REFERENCES_OUTBOUND_FILTER_NAME]: 3,
+	//CARD-ID/TYPE
+	[DIRECT_REFERENCES_FILTER_NAME]: 2,
+	[DIRECT_REFERENCES_INBOUND_FILTER_NAME]: 2,
+	[DIRECT_REFERENCES_OUTBOUND_FILTER_NAME]: 2,
 	//Exclude takes itself, plus whatever filter comes after it
 	[EXCLUDE_FILTER_NAME]: 1,
 	//Combine takes itself, plus two other filters after it
@@ -423,6 +444,36 @@ const CONFIGURABLE_FILTER_INFO = {
 		flipOrder: true,
 	},
 	[CONNECTIONS_FILTER_NAME]: {
+		factory: makeCardLinksConfigurableFilter,
+		labelName: 'Degree',
+		flipOrder: true,
+	},
+	[REFERENCES_FILTER_NAME]: {
+		factory: makeCardLinksConfigurableFilter,
+		labelName: 'Degree',
+		flipOrder: true,
+	},
+	[REFERENCES_INBOUND_FILTER_NAME]: {
+		factory: makeCardLinksConfigurableFilter,
+		labelName: 'Degree',
+		flipOrder: true,
+	},
+	[REFERENCES_OUTBOUND_FILTER_NAME]: {
+		factory: makeCardLinksConfigurableFilter,
+		labelName: 'Degree',
+		flipOrder: true,
+	},
+	[DIRECT_REFERENCES_FILTER_NAME]: {
+		factory: makeCardLinksConfigurableFilter,
+		labelName: 'Degree',
+		flipOrder: true,
+	},
+	[DIRECT_REFERENCES_INBOUND_FILTER_NAME]: {
+		factory: makeCardLinksConfigurableFilter,
+		labelName: 'Degree',
+		flipOrder: true,
+	},
+	[DIRECT_REFERENCES_OUTBOUND_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
