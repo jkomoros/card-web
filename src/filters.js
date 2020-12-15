@@ -116,6 +116,15 @@ const unionSet = (...sets) => {
 	return result;
 };
 
+export const referencesConfigurableFilterText = (referencesFilterType, cardID, referencesTypes, invertReferencesTypes, ply) => {
+	if (referencesFilterType.includes(REFERENCES_FILTER_NAME)) throw new Error(referencesFilterType + ' is not a valid type for this function');
+	if (!referencesTypes) throw new Error('referenceTypes must be a string or array');
+	if (typeof referencesTypes != 'string' && !Array.isArray(referencesTypes)) throw new Error('referencesTypes must be a string or array');
+	if (typeof referencesTypes == 'string') referencesTypes = [referencesTypes];
+	if (ply === undefined && !referencesFilterType.includes(DIRECT_PREFIX)) throw new Error('ply is required if the reference type is not a direct one');
+	return referencesFilterType + '/' + cardID + '/' + (invertReferencesTypes ? INVERT_REFERENCE_TYPES_PREFIX : '') + referencesTypes.join(UNION_FILTER_DELIMITER) + '/' + (ply === undefined ? '' : '' + ply + '/');
+};
+
 const INCLUDE_KEY_CARD_PREFIX = '+';
 const INVERT_REFERENCE_TYPES_PREFIX = '-';
 
@@ -351,6 +360,10 @@ const makeNoOpConfigurableFilter = () => {
 	return [() => true, false];
 };
 
+const INBOUND_SUFFIX = '-inbound';
+const OUTBOUND_SUFFIX = '-outbound';
+const DIRECT_PREFIX = 'direct-';
+
 const UPDATED_FILTER_NAME = 'updated';
 const LAST_TWEETED_FILTER_NAME = 'last-tweeted';
 const BEFORE_FILTER_NAME = 'before';
@@ -363,11 +376,11 @@ const DESCENDANTS_FILTER_NAME = 'descendants';
 const PARENTS_FILTER_NAME = 'parents';
 const ANCESTORS_FILTER_NAME = 'ancestors';
 const REFERENCES_FILTER_NAME = 'references';
-const REFERENCES_INBOUND_FILTER_NAME = 'references-inbound';
-const REFERENCES_OUTBOUND_FILTER_NAME = 'references-outbound';
-const DIRECT_REFERENCES_FILTER_NAME = 'direct-references';
-const DIRECT_REFERENCES_INBOUND_FILTER_NAME = 'direct-references-inbound';
-const DIRECT_REFERENCES_OUTBOUND_FILTER_NAME = 'direct-references-outbound';
+const REFERENCES_INBOUND_FILTER_NAME = REFERENCES_FILTER_NAME + INBOUND_SUFFIX;
+const REFERENCES_OUTBOUND_FILTER_NAME = REFERENCES_FILTER_NAME + OUTBOUND_SUFFIX;
+const DIRECT_REFERENCES_FILTER_NAME = DIRECT_PREFIX + REFERENCES_FILTER_NAME;
+export const DIRECT_REFERENCES_INBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_INBOUND_FILTER_NAME;
+const DIRECT_REFERENCES_OUTBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_OUTBOUND_FILTER_NAME;
 const CARDS_FILTER_NAME = 'cards';
 const EXCLUDE_FILTER_NAME = 'exclude';
 const COMBINE_FILTER_NAME = 'combine';
