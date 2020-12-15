@@ -1,7 +1,8 @@
 import {
 	CARD_TYPE_CONCEPT,
 	REFERENCE_TYPE_ACK,
-	SELF_KEY_CARD_ID
+	SELF_KEY_CARD_ID,
+	REFERENCE_TYPES,
 } from './card_fields.js';
 
 import {
@@ -12,6 +13,7 @@ import {
 import {
 	EVERYTHING_SET_NAME,
 	DIRECT_REFERENCES_INBOUND_FILTER_NAME,
+	DIRECT_REFERENCES_OUTBOUND_FILTER_NAME,
 	referencesConfigurableFilterText,
 } from './filters.js';
 
@@ -34,7 +36,15 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 	]
 };
 
-const INFO_PANEL_REFERENCE_BLOCKS = [];
+const REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL = Object.entries(REFERENCE_TYPES).filter(entry => !entry[1].excludeFromInfoPanel).map(entry => entry[1]);
+
+const INFO_PANEL_REFERENCE_BLOCKS = [
+	{
+		title: 'Other referenced cards',
+		description: 'Cards that this card references that are not links',
+		collection: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL, true)])
+	}
+];
 
 export const primaryReferenceBlocksForCard = (card) => {
 	if (!card) return []; 
