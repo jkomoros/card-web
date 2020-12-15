@@ -47,7 +47,7 @@ import {
 } from '../selectors.js';
 
 import {
-	CARD_TYPE_WORKING_NOTES
+	CARD_TYPE_CONFIGURATION,
 } from '../card_fields.js';
 
 import {
@@ -111,11 +111,11 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 				filters = [card.section];
 			} else {
 				//If it's oprhaned...
-				if (card.card_type == CARD_TYPE_WORKING_NOTES && !description.setNameExplicitlySet) {
+				if (CARD_TYPE_CONFIGURATION[card.card_type].orphanedByDefault && !description.setNameExplicitlySet) {
 					//If it's a working notes card then by default we'll view it
 					//in the collection including all of its other cards.
 					set = EVERYTHING_SET_NAME;
-					filters = [CARD_TYPE_WORKING_NOTES];
+					filters = [card.card_type];
 				} else {
 					filters = ['none'];
 				}
