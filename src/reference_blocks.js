@@ -48,11 +48,11 @@ const INFO_PANEL_REFERENCE_BLOCKS = [
 
 export const primaryReferenceBlocksForCard = (card) => {
 	if (!card) return []; 
-	return expandReferenceBlockConfig(REFERENCE_BLOCKS_FOR_CARD_TYPE[card.card_type]);
+	return expandReferenceBlockConfig(card, REFERENCE_BLOCKS_FOR_CARD_TYPE[card.card_type]);
 };
 
-export const infoPanelReferenceBlocksForCard = () => {
-	return expandReferenceBlockConfig(INFO_PANEL_REFERENCE_BLOCKS);
+export const infoPanelReferenceBlocksForCard = (card) => {
+	return expandReferenceBlockConfig(card, INFO_PANEL_REFERENCE_BLOCKS);
 };
 
 const expandReferenceBlockConfig = (card, configs) => {
