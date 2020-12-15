@@ -1,4 +1,3 @@
-
 import {
 	CARD_TYPE_CONCEPT,
 	REFERENCE_TYPE_ACK,
