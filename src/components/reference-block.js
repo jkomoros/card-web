@@ -28,6 +28,10 @@ export class ReferenceBlock extends LitElement {
 					margin:0;
 					padding-inline-start: 1.2em;
 				}
+
+				p {
+					margin: 0;
+				}
 			</style>
 			<h4>${this.block.title}${this.block.description ? help(this.block.description) : ''}</h4>
 			${this.block.collection.filteredCards.length
