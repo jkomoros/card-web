@@ -5,6 +5,7 @@ import {
 import {
 	TEXT_FIELD_CONFIGURATION,
 	DERIVED_FIELDS_FOR_CARD_TYPE,
+	BODY_CARD_TYPES,
 	references,
 } from './card_fields.js';
 
@@ -491,6 +492,9 @@ export class FingerprintGenerator {
 		this._fingerprints = {};
 
 		if (!cards || Object.keys(cards).length == 0) return;
+
+		//only consider cards that have a body, even if we were provided a set that included others
+		cards = Object.fromEntries(Object.entries(cards).filter(entry => BODY_CARD_TYPES[entry[1].card_type]));
 
 		const numCards = Object.keys(cards).length;
 

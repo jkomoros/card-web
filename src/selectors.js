@@ -466,14 +466,8 @@ export const selectUidsWithPermissions = createSelector(
 	(allPermissions, cardsMap) => Object.fromEntries(Object.entries(allPermissions).map(entry => [entry[0], true]).concat(Object.entries(cardsMap).map(entry => [entry[0], true])))
 );
 
-//Cards that have a body
-const selectBodyCards = createSelector(
-	selectCards,
-	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => BODY_CARD_TYPES[entry[1].card_type]))
-);
-
 const selectFingerprintGenerator = createSelector(
-	selectBodyCards,
+	selectCards,
 	(cards) => new FingerprintGenerator(cards)
 );
 
