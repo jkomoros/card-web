@@ -43,7 +43,8 @@ import {
 } from './nlp.js';
 
 import {
-	primaryReferenceBlocksForCard
+	primaryReferenceBlocksForCard,
+	infoPanelReferenceBlocksForCard
 } from './reference_blocks.js';
 
 import {
@@ -1105,3 +1106,14 @@ export const getExpandedPrimaryReferenceBlocksForCard = (state, card) => {
 	//reference-block will hide any ones that shouldn't render because of an empty collection
 	return blocks.map(block => ({...block, collection: block.collection.collection(...args)}));
 };
+
+export const selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard = createSelector(
+	selectEditingOrActiveCard,
+	selectCollectionConstructorArguments,
+	(card, args) => {
+		const blocks = infoPanelReferenceBlocksForCard(card);
+		if (blocks.length == 0) return [];
+		//reference-block will hide any ones that shouldn't render because of an empty collection
+		return blocks.map(block => ({...block, collection: block.collection.collection(...args)}));
+	}
+);
