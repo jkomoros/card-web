@@ -34,9 +34,18 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 	]
 };
 
-export const referenceBlocksForCard = (card) => {
-	if (!card) return [];
-	const cardTypeReferenceBlocks = REFERENCE_BLOCKS_FOR_CARD_TYPE[card.card_type];
-	if (!cardTypeReferenceBlocks) return [];
-	return cardTypeReferenceBlocks.map(block => ({...block, collection: collectionDescriptionWithKeyCard(block.collection, card.id)}));
+const INFO_PANEL_REFERENCE_BLOCKS = [];
+
+export const primaryReferenceBlocksForCard = (card) => {
+	if (!card) return []; 
+	return expandReferenceBlockConfig(REFERENCE_BLOCKS_FOR_CARD_TYPE[card.card_type]);
+};
+
+export const infoPanelReferenceBlocksForCard = () => {
+	return expandReferenceBlockConfig(INFO_PANEL_REFERENCE_BLOCKS);
+};
+
+const expandReferenceBlockConfig = (card, configs) => {
+	if (!configs) return [];
+	return configs.map(block => ({...block, collection: collectionDescriptionWithKeyCard(block.collection, card.id)}));
 };

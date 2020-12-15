@@ -43,7 +43,7 @@ import {
 } from './nlp.js';
 
 import {
-	referenceBlocksForCard
+	primaryReferenceBlocksForCard
 } from './reference_blocks.js';
 
 import {
@@ -1098,8 +1098,8 @@ export const selectCollectionForQuery = createSelector(
 	(description, args) => description.collection(...args)
 );
 
-export const getExpandedReferenceBlocksForCard = (state, card) => {
-	const blocks = referenceBlocksForCard(card);
+export const getExpandedPrimaryReferenceBlocksForCard = (state, card) => {
+	const blocks = primaryReferenceBlocksForCard(card);
 	if (blocks.length == 0) return [];
 	const args = selectCollectionConstructorArguments(state);
 	//reference-block will hide any ones that shouldn't render because of an empty collection
