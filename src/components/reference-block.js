@@ -17,10 +17,16 @@ export class ReferenceBlock extends LitElement {
 				:host {
 					color: var(--app-dark-text-color);
 				}
+
 				h4 {
 					font-size:0.7em;
 					font-weight:normal;
 					margin:0;
+				}
+
+				ul {
+					margin:0;
+					padding-inline-start: 1.2em;
 				}
 			</style>
 			<h4>${this.block.title}${this.block.description ? help(this.block.description) : ''}</h4>
