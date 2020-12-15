@@ -17,6 +17,10 @@ import {
 	queryTextFromQueryFilter,
 } from './filters.js';
 
+import {
+	SELF_KEY_CARD_ID	
+} from './card_fields.js';
+
 const extractFilterNamesAndSort = (parts) => {
 	//returns the filter names, the sort name, and whether the sort is reversed
 	//parts is all of the unconsumed portions of the path that aren't the set
@@ -111,6 +115,21 @@ export const collectionDescriptionWithQuery = (description, queryText) => {
 	if (!replacedQuery) newFilters.push(newQuery);
 
 	return new CollectionDescription(description.setNameExplicitlySet ? description.set : '', newFilters, description.sort, description.sortReversed);
+};
+
+//collectionDescriptionWithKeyCard returns the description, but with each instance of 'self' replaced with the given keyCardID
+export const collectionDescriptionWithKeyCard = (description, keyCardID) => {
+	return collectionDescriptionWithPartReplacements(description, {[SELF_KEY_CARD_ID]: keyCardID});
+};
+
+//Returns a cloned colletion description where each part (split on '/') that
+//precisely matches an item in the passed dict is replaced with the given
+//replacement.
+const collectionDescriptionWithPartReplacements = (description, replacements) => {
+	if (!replacements) replacements = {};
+	const parts = description.serialize().split('/');
+	const replacedParts = parts.map(part => replacements[part] || part);
+	return CollectionDescription.deserialize(replacedParts.join('/'));
 };
 
 export const CollectionDescription = class {
