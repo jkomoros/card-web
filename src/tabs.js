@@ -11,7 +11,8 @@ import {
 import * as icons from './components/my-icons.js';
 
 import {
-	CARD_TYPE_WORKING_NOTES
+	CARD_TYPE_WORKING_NOTES,
+	CARD_TYPE_CONCEPT
 } from './card_fields.js';
 
 export const READING_LIST_FALLBACK_CARD = 'about-reading-lists';
@@ -121,6 +122,9 @@ const EXPANSION_ITEMS = {
 		},
 		{
 			expand: 'working-notes',
+		},
+		{
+			expand: 'concepts',
 		}
 	],
 	'recent': [
@@ -160,6 +164,15 @@ const EXPANSION_ITEMS = {
 			icon: icons.INSERT_DRIVE_FILE_ICON,
 			display_name: 'Working note cards',
 			collection: new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_WORKING_NOTES]),
+			count:true,
+			hideIfEmpty: true,
+		}
+	],
+	'concepts': [
+		{
+			icon: icons.MENU_BOOK_ICON,
+			display_name: 'Concept cards',
+			collection: new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_CONCEPT]),
 			count:true,
 			hideIfEmpty: true,
 		}
