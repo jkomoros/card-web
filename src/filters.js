@@ -117,16 +117,26 @@ const unionSet = (...sets) => {
 };
 
 const INCLUDE_KEY_CARD_PREFIX = '+';
+const INVERT_REFERENCE_TYPES_PREFIX = '-';
 
 const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, countStr) => {
 
 	//refernces filters take typeStr as second parameter, but others skip those.
 	const referenceFilter = filterName.includes(REFERENCES_FILTER_NAME);
-	//we always pass typeStr to cardBFS, so make sure it's falsey unless it's a reference filter.
-	let typeStr = '';
-	if (referenceFilter) typeStr = countOrTypeStr;
+	//we always pass referenceTypes to cardBFS, so make sure it's falsey unless it's a reference filter.
+	let referenceTypes = null;
+	if (referenceFilter) {
+		let typeStr = countOrTypeStr;
+		const invertReferenceTypes = typeStr.startsWith(INVERT_REFERENCE_TYPES_PREFIX);
+		if (invertReferenceTypes) typeStr = typeStr.substring(INVERT_REFERENCE_TYPES_PREFIX.length);
+		referenceTypes = typeStr.split(UNION_FILTER_DELIMITER);
+		//if we were told to invert, include any reference type that WASN'T passed.
+		if (invertReferenceTypes) {
+			let providedTypesMap = Object.fromEntries(referenceTypes.map(item => [item, true]));
+			referenceTypes = Object.keys(REFERENCE_TYPES).filter(key => !providedTypesMap[key]);
+		}
+	}
 	if (!referenceFilter) countStr = countOrTypeStr;
-	let referenceTypes = typeStr ? typeStr.split(UNION_FILTER_DELIMITER) : null;
 
 	const isInbound = filterName == PARENTS_FILTER_NAME || filterName == ANCESTORS_FILTER_NAME || filterName == REFERENCES_INBOUND_FILTER_NAME || filterName == DIRECT_REFERENCES_INBOUND_FILTER_NAME;
 	const twoWay = filterName == DIRECT_CONNECTIONS_FILTER_NAME || filterName == CONNECTIONS_FILTER_NAME || filterName == REFERENCES_FILTER_NAME || filterName == DIRECT_REFERENCES_FILTER_NAME;
