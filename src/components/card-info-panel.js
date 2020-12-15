@@ -33,8 +33,8 @@ import {
 	selectTweetsLoading,
 	selectCommentsAndInfoPanelOpen,
 	selectEditingOrActiveCardSimilarCards,
-	selectInfoPanelReferencesForActiveCard,
-	selectWordCloudForActiveCard
+	selectWordCloudForActiveCard,
+	selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard
 } from '../selectors.js';
 
 import {
@@ -61,6 +61,7 @@ import './author-chip.js';
 import './card-link.js';
 import './tag-list.js';
 import './word-cloud.js';
+import './reference-block.js';
 
 
 class CardInfoPanel extends connect(store)(PageViewElement) {
@@ -126,14 +127,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			</style>
 			<h3 ?hidden=${!this._open}>Card Info</h3>
 			<div class='container' ?hidden=${!this._open}>
-				${this._nonLinkReferences.length ?
-		html`<div>
-				<h4>Other Referenced Cards ${help('Cards that this card references that are not links')}</h4>
-				<ul>
-				${this._nonLinkReferences.map(item => html`<li><card-link auto='title' .card=${item}>${item}</card-link></li>`)}
-				</ul>
-				</div>`
-		: ''}
+				${this._referenceBlocks.map(item => html`<reference-block .block=${item}></reference-block>`)}
 				<div>
 					<h4>Cards That Link Here${help('Cards that link to this one.')}</h4>
 					${this._inboundLinks
@@ -215,6 +209,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		super();
 		//since closestCards will be set a little later, make sure it always has a value.
 		this._closestCards = [];
+		this._referenceBlocks = [];
 		this._wordCloud = emptyWordCloud();
 	}
 
@@ -226,7 +221,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			_author: {type:Object},
 			_tagInfos: {type: Object},
 			_inboundLinks: {type: Array},
-			_nonLinkReferences: {type: Array},
+			_referenceBlocks: {type:Array},
 			_tweets: {type: Object},
 			_tweetsLoading: {type: Boolean},
 			_closestCards: { type:Array },
@@ -246,13 +241,13 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._collaborators = selectCollaboratorInfosForActiveCard(state);
 		this._tagInfos = selectTags(state);
 		this._inboundLinks = selectInboundReferencesForActiveCard(state);
-		this._nonLinkReferences = selectInfoPanelReferencesForActiveCard(state);
 		this._tweets = selectActiveCardTweets(state);
 		this._tweetsLoading = selectTweetsLoading(state);
 		//selectActiveCardSimilarCards is extremly expensive to call into being,
 		//so only do it if the user is an admin, and always wait and update
 		//without blocking the main update.
 		window.setTimeout(() => {
+			this._referenceBlocks = this._open ? selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard(state) : [];
 			this._closestCards = this._open ? selectEditingOrActiveCardSimilarCards(state) : [];
 			this._wordCloud = this._open ? selectWordCloudForActiveCard(state) : emptyWordCloud();
 		}, 0);

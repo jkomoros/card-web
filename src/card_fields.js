@@ -453,11 +453,6 @@ const ReferencesAccessor = class {
 		return Object.keys(byTypeToReferences(this.byTypeSubstantive));
 	}
 
-	infoPanelArray() {
-		const nonExcludedReferencesByType = Object.fromEntries(Object.entries(this.byType).filter(entry => !REFERENCE_TYPES[entry[0]].excludeFromInfoPanel));
-		return Object.keys(byTypeToReferences(nonExcludedReferencesByType));
-	}
-
 	//ALL references as an array. You typically want substantiveArray, which is only the substantive references.
 	array() {
 		if (!this._referencesInfo) return [];
