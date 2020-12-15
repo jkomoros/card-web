@@ -63,6 +63,7 @@ export const TEXT_FIELD_REFERENCES_INFO_INBOUND = REFERENCES_INFO_INBOUND_CARD_P
 export const CARD_TYPE_CONTENT = 'content';
 export const CARD_TYPE_SECTION_HEAD = 'section-head';
 export const CARD_TYPE_WORKING_NOTES = 'working-notes';
+export const CARD_TYPE_CONCEPT = 'concept';
 
 /*
 
@@ -80,6 +81,9 @@ export const CARD_TYPE_CONFIGURATION = {
 	[CARD_TYPE_SECTION_HEAD]: {},
 	[CARD_TYPE_WORKING_NOTES]: {
 		invertContentPublishWarning: true,
+		invertOrphanWarning: true,
+	},
+	[CARD_TYPE_CONCEPT]: {
 		invertOrphanWarning: true,
 	},
 };
@@ -215,17 +219,29 @@ export const TEXT_FIELD_CONFIGURATION = {
 	[TEXT_FIELD_TITLE]: {
 		html: false,
 		container: 'h1',
-		legalCardTypes: {[CARD_TYPE_CONTENT]: true, [CARD_TYPE_SECTION_HEAD]: true},
-		derivedForCardTypes: {[CARD_TYPE_WORKING_NOTES]: true},
+		legalCardTypes: {
+			[CARD_TYPE_CONTENT]: true,
+			[CARD_TYPE_SECTION_HEAD]: true,
+			[CARD_TYPE_CONCEPT]: true,
+		},
+		derivedForCardTypes: {
+			[CARD_TYPE_WORKING_NOTES]: true
+		},
 		autoFontSizeBoostForCardTypes: {},
 		matchWeight: 1.0,
 	},
 	[TEXT_FIELD_BODY]: {
 		html: true,
 		container: 'section',
-		legalCardTypes: {[CARD_TYPE_CONTENT]: true, [CARD_TYPE_WORKING_NOTES]: true},
+		legalCardTypes: {
+			[CARD_TYPE_CONTENT]: true,
+			[CARD_TYPE_WORKING_NOTES]: true,
+			[CARD_TYPE_CONCEPT]: true,
+		},
 		derivedForCardTypes: {},
-		autoFontSizeBoostForCardTypes: {[CARD_TYPE_WORKING_NOTES]: DEFAULT_MAX_FONT_BOOST},
+		autoFontSizeBoostForCardTypes: {
+			[CARD_TYPE_WORKING_NOTES]: DEFAULT_MAX_FONT_BOOST
+		},
 		matchWeight:0.5,
 	},
 	[TEXT_FIELD_SUBTITLE]: {
