@@ -122,7 +122,7 @@ export const referencesConfigurableFilterText = (referencesFilterType, cardID, r
 	if (typeof referencesTypes != 'string' && !Array.isArray(referencesTypes)) throw new Error('referencesTypes must be a string or array');
 	if (typeof referencesTypes == 'string') referencesTypes = [referencesTypes];
 	if (ply === undefined && !referencesFilterType.includes(DIRECT_PREFIX)) throw new Error('ply is required if the reference type is not a direct one');
-	return referencesFilterType + '/' + cardID + '/' + (invertReferencesTypes ? INVERT_REFERENCE_TYPES_PREFIX : '') + referencesTypes.join(UNION_FILTER_DELIMITER) + '/' + (ply === undefined ? '' : '' + ply + '/');
+	return referencesFilterType + '/' + cardID + '/' + (invertReferencesTypes ? INVERT_REFERENCE_TYPES_PREFIX : '') + referencesTypes.join(UNION_FILTER_DELIMITER) + (ply === undefined ? '' : '/' + ply);
 };
 
 const INCLUDE_KEY_CARD_PREFIX = '+';
