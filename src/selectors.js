@@ -1107,7 +1107,17 @@ export const selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard = crea
 	(card, args) => {
 		const blocks = infoPanelReferenceBlocksForCard(card);
 		if (blocks.length == 0) return [];
-		//reference-block will hide any ones that shouldn't render because of an empty collection
-		return blocks.map(block => ({...block, collection: block.collection.collection(...args)}));
+		//reference-block will hide any ones that shouldn't render because of an empty collection so we don't need to filter
+
+		return blocks.map(block => {
+			const boldFilter = block.cardsToBoldFilterFactory ? block.cardsToBoldFilterFactory(card) : null;
+			const collection = block.collection.collection(...args);
+			const boldCards = boldFilter ? Object.fromEntries(collection.filteredCards.filter(boldFilter).map(card => [card.id, true])): {};
+			return {
+				...block,
+				collection,
+				boldCards
+			};
+		});
 	}
 );

@@ -23,6 +23,7 @@ An array where each item has:
 	collection: a collection description, possibly using SELF_KEY_CARD_ID as a placeholder
 	title: a title to display
 	description: if provided, will render a help badge with this text
+	cardsToBoldFilterFactory: if not null, should be a factory that, given the expanded card object, will return a filter function to then be passed other expanded card objects to test if they should be bold. The items that return true from that second item will be shown as strong in the reference block.
 	emptyMessage: if non-falsey will show that message if no cards match. If it is falsey and no cards match, the block will not be shown.
 */
 const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
