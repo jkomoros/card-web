@@ -267,13 +267,13 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 	if (update.section !== undefined || update.card_type !== undefined) {
 		let section = update.section === undefined ? card.section : update.section;
 		if (!section){
-			if (!CARD_TYPE_CONFIG.invertOrphanWarning && !confirm('This card being orphaned will cause it to not be findable except with a direct link. OK?')) {
+			if (!CARD_TYPE_CONFIG.orphanedByDefault && !confirm('This card being orphaned will cause it to not be findable except with a direct link. OK?')) {
 				console.log('User aborted because didn\'t confirm orphaning');
 				dispatch(modifyCardFailure());
 				return; 
 			}
 		} else {
-			if (CARD_TYPE_CONFIG.invertOrphanWarning && !confirm('This is a card type that typcially is not in a section, but with this edit it will be in a section. OK?')) {
+			if (CARD_TYPE_CONFIG.orphanedByDefault && !confirm('This is a card type that typcially is not in a section, but with this edit it will be in a section. OK?')) {
 				console.log('User aborted because didn\'t confirm not orphaning');
 				dispatch(modifyCardFailure());
 				return; 

@@ -71,8 +71,9 @@ invertContentPublishWarning: if true, then the 'There's content but unpublished,
 are you sure?' will not trigger... unelss you try to publish in which case it
 will ask for confirmation.
 
-invertOrphanWarning: if true, then the confirmation of 'You're about to make
-this card orphaned' will be flipped
+orphanedByDefault: if true, then the confirmation of 'You're about to make this
+card orphaned' will be flipped, and the natural location of them will be
+orphaned.
 
 */
 
@@ -81,10 +82,10 @@ export const CARD_TYPE_CONFIGURATION = {
 	[CARD_TYPE_SECTION_HEAD]: {},
 	[CARD_TYPE_WORKING_NOTES]: {
 		invertContentPublishWarning: true,
-		invertOrphanWarning: true,
+		orphanedByDefault: true,
 	},
 	[CARD_TYPE_CONCEPT]: {
-		invertOrphanWarning: true,
+		orphanedByDefault: true,
 	},
 };
 
