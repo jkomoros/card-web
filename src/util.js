@@ -134,8 +134,9 @@ export const cardHasTodo = (card) => {
 //cardBFS returns a map of cardID -> degrees of separation from the key card.
 //Note that if the keyCard is included, it will map that keyID -> 0, which is
 //falsey, so when checking for existence, you should check whether it's
-//undefined or not.
-export const cardBFS = (keyCardIDOrSlug, cards, ply, includeKeyCard, isInbound) => {
+//undefined or not. if optReferenceType is falsey, it will use all substantive
+//references. Otherwise, it will filter to only references of the given type.
+export const cardBFS = (keyCardIDOrSlug, cards, ply, includeKeyCard, isInbound, optReferenceType) => {
 	if (!cards[keyCardIDOrSlug]) {
 		let foundID = '';
 		//The ID isn't in the list of cards. Check to see if maybe it's a slug.
@@ -161,7 +162,12 @@ export const cardBFS = (keyCardIDOrSlug, cards, ply, includeKeyCard, isInbound) 
 		if (!card) continue;
 		const newCardDepth = (seenCards[id] || 0) + 1;
 		if (newCardDepth > ply) continue;
-		const links = isInbound ? references(card).inboundSubstantiveArray() : references(card).substantiveArray();
+		let links = [];
+		if (optReferenceType) {
+			links = (isInbound ? references(card).byTypeInboundArray()[optReferenceType] : references(card).byTypeArray()[optReferenceType]) || [];
+		} else {
+			links = isInbound ? references(card).inboundSubstantiveArray() : references(card).substantiveArray();
+		}
 		for (let linkItem of links) {
 			//Skip ones that have already been seen
 			if (seenCards[linkItem] !== undefined) continue;
