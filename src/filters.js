@@ -117,7 +117,7 @@ const unionSet = (...sets) => {
 };
 
 export const referencesConfigurableFilterText = (referencesFilterType, cardID, referencesTypes, invertReferencesTypes, ply) => {
-	if (referencesFilterType.includes(REFERENCES_FILTER_NAME)) throw new Error(referencesFilterType + ' is not a valid type for this function');
+	if (!referencesFilterType.includes(REFERENCES_FILTER_NAME)) throw new Error(referencesFilterType + ' is not a valid type for this function');
 	if (!referencesTypes) throw new Error('referenceTypes must be a string or array');
 	if (typeof referencesTypes != 'string' && !Array.isArray(referencesTypes)) throw new Error('referencesTypes must be a string or array');
 	if (typeof referencesTypes == 'string') referencesTypes = [referencesTypes];
