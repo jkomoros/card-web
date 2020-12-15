@@ -287,6 +287,9 @@ export const editableFieldsForCardType = (cardType) => {
 	return result;
 };
 
+//The special key card ID that will be replaced with a given card in reference blocks
+export const SELF_KEY_CARD_ID = 'self';
+
 //Returns an object with field -> boosts to set. It will return
 //card.font_size_boosts if no change, or an object like font_size_boosts, but
 //with modifications made as appropriate leaving any untouched keys the same,
