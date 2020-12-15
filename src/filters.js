@@ -143,6 +143,7 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 	if (filterName == CHILDREN_FILTER_NAME || filterName == PARENTS_FILTER_NAME || filterName == DIRECT_CONNECTIONS_FILTER_NAME || filterName == DIRECT_REFERENCES_FILTER_NAME || filterName == DIRECT_REFERENCES_INBOUND_FILTER_NAME || filterName == DIRECT_REFERENCES_OUTBOUND_FILTER_NAME) countStr = '1';
 	let count = parseInt(countStr);
 	if (isNaN(count)) count = 1;
+	if (count == 0) count = Number.MAX_SAFE_INTEGER;
 	if (!cardID) cardID = '';
 
 	let includeKeyCard = false;
