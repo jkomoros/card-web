@@ -135,8 +135,9 @@ export const cardHasTodo = (card) => {
 //Note that if the keyCard is included, it will map that keyID -> 0, which is
 //falsey, so when checking for existence, you should check whether it's
 //undefined or not. if optReferenceType is falsey, it will use all substantive
-//references. Otherwise, it will filter to only references of the given type.
-export const cardBFS = (keyCardIDOrSlug, cards, ply, includeKeyCard, isInbound, optReferenceType) => {
+//references. Otherwise, it will filter to only references of the given type, if
+//it's a string, or any reference types listed if it's an array.
+export const cardBFS = (keyCardIDOrSlug, cards, ply, includeKeyCard, isInbound, optReferenceTypes) => {
 	if (!cards[keyCardIDOrSlug]) {
 		let foundID = '';
 		//The ID isn't in the list of cards. Check to see if maybe it's a slug.
@@ -155,6 +156,9 @@ export const cardBFS = (keyCardIDOrSlug, cards, ply, includeKeyCard, isInbound, 
 	let seenCards = {[keyCardIDOrSlug]: 0};
 	let cardsToProcess = [keyCardIDOrSlug];
 
+	//if optReferenceTypes is provided, make sure it's an array
+	if (optReferenceTypes && !Array.isArray(optReferenceTypes)) optReferenceTypes = [optReferenceTypes];
+
 	while (cardsToProcess.length) {
 		const id = cardsToProcess.shift();
 		const card = cards[id];
@@ -163,8 +167,11 @@ export const cardBFS = (keyCardIDOrSlug, cards, ply, includeKeyCard, isInbound, 
 		const newCardDepth = (seenCards[id] || 0) + 1;
 		if (newCardDepth > ply) continue;
 		let links = [];
-		if (optReferenceType) {
-			links = (isInbound ? references(card).byTypeInboundArray()[optReferenceType] : references(card).byTypeArray()[optReferenceType]) || [];
+		if (optReferenceTypes) {
+			for (const referenceType of optReferenceTypes) {
+				//Some of these will be dupes and that's OK because we skip items that are already seen
+				links = links.concat((isInbound ? references(card).byTypeInboundArray()[referenceType] : references(card).byTypeArray()[referenceType]) || []);
+			}
 		} else {
 			links = isInbound ? references(card).inboundSubstantiveArray() : references(card).substantiveArray();
 		}
