@@ -57,5 +57,6 @@ export const infoPanelReferenceBlocksForCard = (card) => {
 
 const expandReferenceBlockConfig = (card, configs) => {
 	if (!configs) return [];
+	if (!card || !card.id) return [];
 	return configs.map(block => ({...block, collection: collectionDescriptionWithKeyCard(block.collection, card.id)}));
 };
