@@ -7,8 +7,6 @@ import { store } from '../store.js';
 import { SharedStyles } from './shared-styles.js';
 
 import {
-	HELP_ICON,
-	WARNING_ICON,
 	REPEAT_ICON,
 	FAVORITE_ICON,
 } from './my-icons.js';
@@ -54,6 +52,11 @@ import {
 	cardNeedsReciprocalLinkTo
 } from '../util.js';
 
+import {
+	help,
+	HelpStyles
+} from './help-badges.js';
+
 import './author-chip.js';
 import './card-link.js';
 import './tag-list.js';
@@ -64,16 +67,13 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 	render() {
 		return html`
 		${SharedStyles}
+		${HelpStyles}
 			<style>
 
 				:host {
 					flex-grow: 1;
 					border-bottom: 1px solid var(--app-divider-color);
 					overflow: hidden;
-				}
-
-				.help {
-					margin-left:0.4em;
 				}
 
 				svg {
@@ -128,14 +128,14 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			<div class='container' ?hidden=${!this._open}>
 				${this._nonLinkReferences.length ?
 		html`<div>
-				<h4>Other Referenced Cards ${this._help('Cards that this card references that are not links')}</h4>
+				<h4>Other Referenced Cards ${help('Cards that this card references that are not links')}</h4>
 				<ul>
 				${this._nonLinkReferences.map(item => html`<li><card-link auto='title' .card=${item}>${item}</card-link></li>`)}
 				</ul>
 				</div>`
 		: ''}
 				<div>
-					<h4>Cards That Link Here${this._help('Cards that link to this one.')}</h4>
+					<h4>Cards That Link Here${help('Cards that link to this one.')}</h4>
 					${this._inboundLinks
 		? html`<ul>${this._inboundLinks.map((item) => html`<li><card-link auto='title' .strong=${cardNeedsReciprocalLinkTo(this._card, item)} card='${item}'>${item}</card-link></li>`)}</ul>`
 		: html`<p><em>No cards link to this one.</em></p>`
@@ -143,11 +143,11 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				</div>
 				${
 	this._closestCards.length ?
-		html`<div><h4>Similar Cards${this._help('Cards that are neither linked to or from here but that have distinctive terms that overlap with this card.')}</h4><ul>${this._closestCards.map(item => html`<li><card-link auto='title' card='${item}'>${item}</card-link></li>`)}</ul></div>` :
+		html`<div><h4>Similar Cards${help('Cards that are neither linked to or from here but that have distinctive terms that overlap with this card.')}</h4><ul>${this._closestCards.map(item => html`<li><card-link auto='title' card='${item}'>${item}</card-link></li>`)}</ul></div>` :
 		html``
 }
 				<div>
-					<h4>Notes${this._help('Notes are notes left by the author of the card.')}</h4>
+					<h4>Notes${help('Notes are notes left by the author of the card.')}</h4>
 					${this._card && this._card.notes
 		? markdownElement(this._card.notes)
 		: html `<p><em>No notes for this card</em></p>`
@@ -174,22 +174,22 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 					<p>${prettyTime(this._card.updated_substantive)}</p>
 				</div>
 				<div>
-					<h4>Name${this._help('The preferred name for this card, which will show up in the URL when you visit. Must be either the id or one of the slugs')}</h4>
+					<h4>Name${help('The preferred name for this card, which will show up in the URL when you visit. Must be either the id or one of the slugs')}</h4>
 					<p>${this._card.name}</p>
 				</div>
 				<div>
-					<h4>ID${this._help('The underlying id of this card, which never changes. Navigating to this name will always come here')}</h4>
+					<h4>ID${help('The underlying id of this card, which never changes. Navigating to this name will always come here')}</h4>
 					<p>${this._card.id}</p>
 				</div>
 				<div>
-					<h4>Slugs${this._help('The alternate names that will navigate to this card.')}</h4>
+					<h4>Slugs${help('The alternate names that will navigate to this card.')}</h4>
 					${this._card && this._card.slugs && this._card.slugs.length 
 		? html`<ul>${this._card.slugs.map((item) => html`<li>${item}</li>`)}</ul>`
 		: html`<p><em>No slugs</em></p>`
 }
 				</div>
 				<div>
-					<h4>Section${this._help('The collection that this card lives in.')}</h4>
+					<h4>Section${help('The collection that this card lives in.')}</h4>
 					<p>${this._sectionTitle}</p>
 				</div>
 				<div>
@@ -232,11 +232,6 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			_closestCards: { type:Array },
 			_wordCloud: { type:Object},
 		};
-	}
-
-	_help(message, alert) {
-		//Duplicated in card-editor
-		return html`<span class='help' title="${message}">${alert ? WARNING_ICON : HELP_ICON}</span>`;
 	}
 
 	_tweet(tweet) {
