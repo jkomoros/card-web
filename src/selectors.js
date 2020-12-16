@@ -942,19 +942,19 @@ export const selectCardsDrawerPanelShowing = createSelector(
 );
 
 //This is the final expanded, sorted collection, including start cards.
-export const selectFinalCollection = createSelector(
+export const selectActiveCollectionCards = createSelector(
 	selectActiveCollection,
 	(collection) => collection.finalSortedCards
 );
 
 export const selectActiveCardIndex = createSelector(
 	selectActiveCardId,
-	selectFinalCollection,
+	selectActiveCollectionCards,
 	(cardId, collection) => collection.map(card => card.id).indexOf(cardId)
 );
 
 export const getCardIndexForActiveCollection = (state, cardId) => {
-	let collection = selectFinalCollection(state);
+	let collection = selectActiveCollectionCards(state);
 	return collection.map(card => card.id).indexOf(cardId);
 };
 

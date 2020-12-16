@@ -31,7 +31,7 @@ import {
 	getIdForCard,
 	getCard,
 	selectDataIsFullyLoaded,
-	selectFinalCollection,
+	selectActiveCollectionCards,
 	selectActiveCardId,
 	selectActiveSectionId,
 	selectRequestedCard,
@@ -306,7 +306,7 @@ export const redirectIfInvalidCardOrCollection = () => (dispatch, getState) => {
 	const state = getState();
 	if (!selectDataIsFullyLoaded(state)) return;
 	let card = selectActiveCard(state);
-	let collection = selectFinalCollection(state);
+	let collection = selectActiveCollectionCards(state);
 	if (!card) {
 		
 		//If we get here, we could navigate to a default card (we know that the
@@ -342,7 +342,7 @@ export const showCard = (requestedCard) => (dispatch, getState) => {
 		//because the cardID is canonically removed from the URL, it doesn't
 		//really matter if we change the requested card later. This logic will
 		//need updating if/when we support other placeholders like _random.
-		let collection = selectFinalCollection(state);
+		let collection = selectActiveCollectionCards(state);
 		cardId = cardIdForPlaceholder(requestedCard, collection);
 		//If there's no valid card then give up.
 		if (!cardId) return;

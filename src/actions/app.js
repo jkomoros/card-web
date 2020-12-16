@@ -43,7 +43,7 @@ export const PAGE_PERMISSIONS = 'permissions';
 export const PAGE_404 = 'view404';
 
 import {
-	selectFinalCollection,
+	selectActiveCollectionCards,
 	selectCommentsAreFullyLoaded,
 	getMessageById,
 	getThreadById,
@@ -117,7 +117,7 @@ export const navigateToNextCard = () => (dispatch, getState) => {
 	const state = getState();
 	let index = selectActiveCardIndex(state);
 	index++;
-	const collection = selectFinalCollection(state);
+	const collection = selectActiveCollectionCards(state);
 	if (!collection) return;
 	let newId = collection[index];
 	if (!newId) return;
@@ -128,7 +128,7 @@ export const navigateToPreviousCard = () => (dispatch, getState) => {
 	const state = getState();
 	let index = selectActiveCardIndex(state);
 	index--;
-	const collection = selectFinalCollection(state);
+	const collection = selectActiveCollectionCards(state);
 	if (!collection) return;
 	let newId = collection[index];
 	if (!newId) return;
