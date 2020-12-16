@@ -39,7 +39,9 @@ export const CARD_HORIZONTAL_PADDING_IN_EMS = 1.45;
 //Number of pixels until a track is considered a swipe
 const SWIPE_DX = 15.0;
 
-const EPSILON = 0.5;
+//Layout sizes are in ints. A size fudge of 1 is OK and handles odd rounding
+//issues.
+const EPSILON = 1.0;
 
 // This element is *not* connected to the Redux store.
 export class BaseCard extends GestureEventListeners(LitElement) {
