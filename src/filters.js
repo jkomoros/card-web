@@ -338,6 +338,7 @@ const makeSimilarConfigurableFilter = (filterName, cardID) => {
 	//we don't need to memoize on filter set memberships because we don't use them
 	let memoizedCards = null;
 	let memoizedEditingCard = null;
+	let memoizedGenerator = null;
 
 	const func = function(card, cards, UNUSEDFilterMemberships,editingCard) {
 		if (card.id == cardID) {
@@ -347,10 +348,10 @@ const makeSimilarConfigurableFilter = (filterName, cardID) => {
 			return [false, Number.MIN_SAFE_INTEGER];
 		}
 		if (!memoizedClosestItems || memoizedCards != cards || memoizedEditingCard != editingCard) {
-			const generator = new FingerprintGenerator(cards);
-			const editingCardFingerprint = editingCard ? generator.fingerprintForCardObj(editingCard) : null;
+			if (memoizedCards != cards) memoizedGenerator = new FingerprintGenerator(cards);
+			const editingCardFingerprint = editingCard ? memoizedGenerator.fingerprintForCardObj(editingCard) : null;
 			//passing null as fingerprint will use the current one
-			memoizedClosestItems = generator.closestOverlappingItems(cardID, editingCardFingerprint);
+			memoizedClosestItems = memoizedGenerator.closestOverlappingItems(cardID, editingCardFingerprint);
 			memoizedCards = cards;
 			memoizedEditingCard = editingCard;
 		}
