@@ -239,12 +239,6 @@ class CardDrawer extends connect(store)(LitElement) {
 		`;
 	}
 
-	constructor() {
-		super();
-
-		this.collectionItemsToGhost = {};
-	}
-
 	_thumbnail(card, index) {
 
 		const title = this._titleForCard(card);
@@ -252,7 +246,7 @@ class CardDrawer extends connect(store)(LitElement) {
 		const isWorkingNotes = card ? card.card_type == CARD_TYPE_WORKING_NOTES : false;
 
 		return html`
-			<div  .card=${card} .index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.editable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${card.card_type} ${card && card.published ? '' : 'unpublished'} ${this.collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
+			<div  .card=${card} .index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.editable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${card.card_type} ${card && card.published ? '' : 'unpublished'} ${this._collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
 					${this.fullCards ? html`<card-renderer .card=${card}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'} ${isWorkingNotes ? 'workingnotes' : ''}'>${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
 					${cardBadges(card.card_type == CARD_TYPE_SECTION_HEAD, card, this._badgeMap)}
 			</div>
@@ -399,6 +393,15 @@ class CardDrawer extends connect(store)(LitElement) {
 		return this.collection.finalLabels;
 	}
 
+	get _collectionItemsToGhost() {
+		if (!this.collection) return {};
+		if (!this._memoizedGhostItems) {
+			const itemsThatWillBeRemovedOnPendingFilterCommit = this.pendingFilters ? this.collection.cardsThatWillBeRemoved(this.pendingFilters) : {};
+			this._memoizedGhostItems = {...this.collection.partialMatches, ...itemsThatWillBeRemovedOnPendingFilterCommit};
+		}
+		return this._memoizedGhostItems;
+	}
+
 	static get properties() {
 		return {
 			//editable doesn't mean it IS editable; just that if the userMayEdit this
@@ -412,7 +415,10 @@ class CardDrawer extends connect(store)(LitElement) {
 			collection: {type:Object},
 			labelName: {type:String},
 			highlightedCardId: { type:String },
-			collectionItemsToGhost: { type: Object },
+			//If provided, then the items that will be ghosted will be the
+			//partial matches AND items that will be removed on pending filter
+			//commit.
+			pendingFilters: {type:Object},
 			fullCards: {type:Boolean},
 			reorderPending: {type:Boolean},
 			//_showing is more complicated than whether we're open or yet.
@@ -420,6 +426,7 @@ class CardDrawer extends connect(store)(LitElement) {
 			wordCloud: {type:Object},
 			infoExpanded: {type:Boolean},
 			infoCanBeExpanded: {type:Boolean},
+			_memoizedGhostItems: {type:Object},
 			_dragging: {type: Boolean},
 			_highlightedViaClick: {type: Boolean},
 			//Keeps track of if we've scrolled to the highlighted card yet;
@@ -441,6 +448,9 @@ class CardDrawer extends connect(store)(LitElement) {
 		//cards are loaded,but we're OK with it not happening if the scroll already happened.
 		if (changedProps.has('collection')) {
 			this._scrollHighlightedThumbnailIntoView(false);
+		}
+		if (changedProps.has('collection') || changedProps.has('pendingFilters')) {
+			this._memoizedGhostItems = null;
 		}
 	}
 }

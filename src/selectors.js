@@ -103,7 +103,7 @@ export const selectEditingUpdatedFromContentEditable = (state) => state.editor ?
 export const selectEditingPendingReferenceType = (state) => state.editor ? state.editor.pendingReferenceType : '';
 export const selectPendingSlug = (state) => state.editor ? state.editor.pendingSlug : '';
 export const selectFilters = (state) => state.collection.filters;
-const selectPendingFilters = (state) => state.collection.pendingFilters;
+export const selectPendingFilters = (state) => state.collection.pendingFilters;
 export const selectSections = (state) => state.data ? state.data.sections : {};
 export const selectTags = (state) => state.data ? state.data.tags : {};
 export const selectExpectedDeletions = (state) => state.data ? state.data.expectedDeletions : {};
@@ -933,17 +933,6 @@ export const selectCountsForTabs = createSelector(
 	}
 );
 
-//selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit returns the items
-//that will be removed from the currently visible collection when
-//COMMIT_PENDING_COLLECTION_MODIFICATIONS is dispatched. For example, if you're
-//looking at a collection that only shows unread items, it will list the card
-//ids that are now marked read but are temporarily still in the collection.
-const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = createSelector(
-	selectActiveCollection,
-	selectPendingFilters,
-	(collection, pendingFilters) => collection.cardsThatWillBeRemoved(pendingFilters)
-);
-
 //The cardsDrawerPanel hides itself when there are no cards to show (that is,
 //for orphaned cards). This is the logic that decides if it's open based on state.
 export const selectCardsDrawerPanelShowing = createSelector(
@@ -961,17 +950,6 @@ export const selectActiveSortLabelName = createSelector(
 export const selectFinalCollection = createSelector(
 	selectActiveCollection,
 	(collection) => collection.finalSortedCards
-);
-
-const selectActiveCollectionPartialMatches = createSelector(
-	selectActiveCollection,
-	(collection) => collection.partialMatches
-);
-
-export const selectActiveCollectionCardsToGhost = createSelector(
-	selectActiveCollectionPartialMatches,
-	selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit,
-	(partialMatches, itemsThatWillBeRemoved) => ({...partialMatches, ...itemsThatWillBeRemoved})
 );
 
 export const selectActiveCardIndex = createSelector(
