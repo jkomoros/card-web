@@ -201,6 +201,7 @@ class FindDialog extends connect(store)(DialogElement) {
 	static get properties() {
 		return {
 			_query: {type: String},
+			_collection: {type:Object},
 			_collectionCards: {type:Array},
 			_linking: {type:Boolean},
 			_permissions: {type:Boolean},
@@ -244,8 +245,9 @@ class FindDialog extends connect(store)(DialogElement) {
 		this.mobileMode = state.app.mobileMode;
 		this._query = state.find.query;
 		//coalling the collection into being is expensive so only do it if we're open.
-		this._collectionCards = this.open ? selectCollectionForQuery(state).finalSortedCards : [];
-		this._partialMatches = this.open ? selectCollectionForQuery(state).partialMatches : {};
+		this._collection = this.open ? selectCollectionForQuery(state) : null;
+		this._collectionCards = this._collection ? this._collection.finalSortedCards : [];
+		this._partialMatches = this._collection ? this._collection.partialMatches : {};
 		this._collectionDescription = this.open ? selectCollectionDescriptionForQuery(state) : null;
 		this._linking = state.find.linking;
 		this._permissions = state.find.permissions;

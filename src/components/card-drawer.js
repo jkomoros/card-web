@@ -401,6 +401,7 @@ class CardDrawer extends connect(store)(LitElement) {
 			suppressAdd: { type: Boolean },
 			//If true, will show the button to add working notes card no matter what
 			showCreateWorkingNotes: { type: Boolean},
+			collection: {type:Object},
 			collectionCards: { type: Array },
 			labels: {type: Array},
 			labelName: {type:String},
