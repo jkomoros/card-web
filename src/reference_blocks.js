@@ -100,3 +100,28 @@ export const expandReferenceBlocks = (card, blocks, collectionConstructorArgs) =
 		};
 	});
 };
+
+let memoizedCollectionConstructorArguments = null;
+let memoizedExpandedPrimaryBlocksForCard = new Map();
+
+//getExpandedPrimaryReferenceBlocksForCard is reasonably efficient because it
+//caches results, so as long as the things that a collection depends on and the
+//card hasn't changed, it won't have to recalculate the results. You can get a
+//collectionConstructorArguments from selectCollectionConstructorArguments.
+export const getExpandedPrimaryReferenceBlocksForCard = (collectionConstructorArguments, card) => {
+	if (memoizedCollectionConstructorArguments != collectionConstructorArguments) {
+		memoizedExpandedPrimaryBlocksForCard = new Map();
+		memoizedCollectionConstructorArguments = collectionConstructorArguments;
+	}
+
+	if (!memoizedExpandedPrimaryBlocksForCard.has(card)) {
+		//Generate new blocks and stash
+		const blocks = primaryReferenceBlocksForCard(card);
+		//reference-block will hide any ones that shouldn't render because of an empty collection
+		const expandedBlocks = expandReferenceBlocks(card, blocks, collectionConstructorArguments);
+		memoizedExpandedPrimaryBlocksForCard.set(card, expandedBlocks);
+	}
+
+	return memoizedExpandedPrimaryBlocksForCard.get(card);
+
+};

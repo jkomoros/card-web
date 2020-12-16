@@ -43,7 +43,6 @@ import {
 } from './nlp.js';
 
 import {
-	primaryReferenceBlocksForCard,
 	infoPanelReferenceBlocksForCard,
 	expandReferenceBlocks,
 } from './reference_blocks.js';
@@ -1034,31 +1033,6 @@ export const selectCollectionForQuery = createSelector(
 	selectCollectionConstructorArguments,
 	(description, args) => description.collection(args)
 );
-
-let memoizedCollectionConstructorArguments = null;
-let memoizedExpandedPrimaryBlocksForCard = new Map();
-
-//getExpandedPrimaryReferenceBlocksForCard is reasonably efficient because it
-//caches results, so as long as the things that a collection depends on and the
-//card hasn't changed, it won't have to recalculate the results.
-export const getExpandedPrimaryReferenceBlocksForCard = (state, card) => {
-	const args = selectCollectionConstructorArguments(state);
-
-	if (memoizedCollectionConstructorArguments != args) {
-		memoizedExpandedPrimaryBlocksForCard = new Map();
-	}
-
-	if (!memoizedExpandedPrimaryBlocksForCard.has(card)) {
-		//Generate new blocks and stash
-		const blocks = primaryReferenceBlocksForCard(card);
-		//reference-block will hide any ones that shouldn't render because of an empty collection
-		const expandedBlocks = expandReferenceBlocks(card, blocks, args);
-		memoizedExpandedPrimaryBlocksForCard.set(card, expandedBlocks);
-	}
-
-	return memoizedExpandedPrimaryBlocksForCard.get(card);
-
-};
 
 export const selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard = createSelector(
 	selectEditingOrActiveCard,
