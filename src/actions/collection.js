@@ -41,7 +41,7 @@ import {
 	selectPageExtra,
 	getCardIndexForActiveCollection,
 	selectActiveCollectionDescription,
-	selectActiveCollectionContainsCards, 
+	selectActiveCollection,
 	selectPendingNewCardID,
 	selectAlreadyCommittedModificationsWhenFullyLoaded
 } from '../selectors.js';
@@ -218,7 +218,8 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 
 	let activeSectionId = selectActiveSectionId(state);
 	const description = selectActiveCollectionDescription(state);
-	const collectionContainsCards = selectActiveCollectionContainsCards(state);
+	const collection = selectActiveCollection(state);
+	const collectionContainsCards = collection && collection.numCards > 0;
 
 	let result = [PAGE_DEFAULT];
 

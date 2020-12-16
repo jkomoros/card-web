@@ -905,7 +905,7 @@ export const selectCollectionConstructorArguments = createSelector(
 	(cards, sets, filters, editingCard, sections, fallbacks, startCards) => ({cards, sets, filters, editingCard, sections, fallbacks, startCards})
 );
 
-const selectActiveCollection = createSelector(
+export const selectActiveCollection = createSelector(
 	selectActiveCollectionDescription,
 	selectCollectionConstructorArguments,
 	(description, args) => description ? description.collection(args) : null
@@ -918,11 +918,6 @@ export const selectActiveCollectionWordCloud = createSelector(
 		const fingerprint = fingerprintGenerator.fingerprintForCardIDList(collection.filteredCards.map(card => card.id));
 		return wordCloudFromFingerprint(fingerprint, collection.filteredCards);
 	}
-);
-
-export const selectActiveCollectionContainsCards = createSelector(
-	selectActiveCollection,
-	(collection) => collection.numCards > 0
 );
 
 export const selectCountsForTabs = createSelector(
