@@ -944,19 +944,12 @@ const selectCollectionItemsThatWillBeRemovedOnPendingFilterCommit = createSelect
 	(collection, pendingFilters) => collection.cardsThatWillBeRemoved(pendingFilters)
 );
 
-//Sometimes the collection is empty for whatever reason and so the cards that
-//are in the collection are actually fallback content, not real content.
-export const selectCollectionIsFallback = createSelector(
-	selectActiveCollection,
-	(collection) => collection.isFallback
-);
-
 //The cardsDrawerPanel hides itself when there are no cards to show (that is,
 //for orphaned cards). This is the logic that decides if it's open based on state.
 export const selectCardsDrawerPanelShowing = createSelector(
-	selectCollectionIsFallback,
+	selectActiveCollection,
 	selectCardsDrawerPanelOpen,
-	(isFallback, panelOpen) => isFallback ? false : panelOpen
+	(activeCollection, panelOpen) => !activeCollection || activeCollection.isFallback ? false : panelOpen
 );
 
 export const selectActiveSortLabelName = createSelector(

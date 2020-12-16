@@ -20,7 +20,7 @@ import {
 	selectActiveCard,
 	selectUserMayComment,
 	selectActiveCardComposedThreads,
-	selectCollectionIsFallback,
+	selectActiveCollection,
 	selectCommentsAndInfoPanelOpen,
 } from '../selectors.js';
 
@@ -149,7 +149,8 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 	stateChanged(state) {
 		this._open = selectCommentsAndInfoPanelOpen(state);
 		this._card = selectActiveCard(state);
-		this._collectionIsFallback = selectCollectionIsFallback(state);
+		const activeCollection = selectActiveCollection(state);
+		this._collectionIsFallback = activeCollection && activeCollection.isFallback;
 		this._composedThreads = selectActiveCardComposedThreads(state);
 		this._userMayComment = selectUserMayComment(state);
 	}

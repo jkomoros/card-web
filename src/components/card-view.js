@@ -33,7 +33,7 @@ import {
 	getCardInReadingList,
 	selectUserMayModifyReadingList,
 	selectCardsDrawerPanelShowing,
-	selectCollectionIsFallback,
+	selectActiveCollection,
 	selectEditingCard,
 	selectActiveCardTodosForCurrentUser,
 	selectCommentsAndInfoPanelOpen,
@@ -303,6 +303,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_cardIsRead: {type: Boolean},
 			_cardInReadingList: {type: Boolean},
 			_collectionCards: {type: Array},
+			_collection: {type: Object},
 			_collectionIsFallback: {type:Boolean},
 			_collectionLabels: {type:Array},
 			_collectionLabelName: {type:String},
@@ -469,7 +470,8 @@ class CardView extends connect(store)(PageViewElement) {
 		this._cardIsRead = getCardIsRead(state, this._card ? this._card.id : '');
 		this._cardInReadingList = getCardInReadingList(state, this._card ? this._card.id : '');
 		this._collectionCards = selectFinalCollection(state);
-		this._collectionIsFallback = selectCollectionIsFallback(state);
+		this._collection = selectActiveCollection(state);
+		this._collectionIsFallback = this._collection && this._collection.isFallback;
 		this._collectionLabels = selectActiveCollectionLabels(state);
 		this._collectionLabelName = selectActiveSortLabelName(state);
 		this._collectionItemsToGhost = selectActiveCollectionCardsToGhost(state);

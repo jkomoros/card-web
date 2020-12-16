@@ -23,7 +23,7 @@ import {
 	getUserMayResolveThread,
 	getUserMayEditMessage,
 	selectUser,
-	selectCollectionIsFallback,
+	selectActiveCollection,
 } from '../selectors.js';
 
 import {
@@ -163,7 +163,8 @@ export const addMessage = (thread, message) => (dispatch, getState) => {
 		return;
 	}
 
-	const collectionIsFallback = selectCollectionIsFallback(state);
+	const activeCollection = selectActiveCollection(state);
+	const collectionIsFallback = activeCollection && activeCollection.isFallback;
 	if (collectionIsFallback) {
 		console.log('Interacting with fallback content not allowed');
 		return;
@@ -222,8 +223,9 @@ export const createThread = (message) => (dispatch, getState) => {
 		console.warn('No uid');
 		return;
 	}
-
-	const collectionIsFallback = selectCollectionIsFallback(state);
+	
+	const activeCollection = selectActiveCollection(state);
+	const collectionIsFallback = activeCollection && activeCollection.isFallback;
 	if (collectionIsFallback) {
 		console.log('Interacting with fallback content not allowed');
 		return;

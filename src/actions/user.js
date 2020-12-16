@@ -52,7 +52,7 @@ import {
 	selectUid,
 	getCardIsRead,
 	selectUserIsAnonymous,
-	selectCollectionIsFallback,
+	selectActiveCollection,
 	getCardInReadingList
 } from '../selectors.js';
 
@@ -330,7 +330,8 @@ export const addToReadingList = (cardToAdd) => (dispatch, getState) => {
 		return;
 	}
 
-	const collectionIsFallback = selectCollectionIsFallback(state);
+	const activeCollection = selectActiveCollection(state);
+	const collectionIsFallback = activeCollection && activeCollection.isFallback;
 	if (collectionIsFallback) {
 		console.log('Interacting with fallback content not allowed');
 		return;
@@ -372,7 +373,8 @@ export const removeFromReadingList = (cardToRemove) => (dispatch, getState) => {
 		return;
 	}
 
-	const collectionIsFallback = selectCollectionIsFallback(state);
+	const activeCollection = selectActiveCollection(state);
+	const collectionIsFallback = activeCollection && activeCollection.isFallback;
 	if (collectionIsFallback) {
 		console.log('Interacting with fallback content not allowed');
 		return;
@@ -415,7 +417,8 @@ export const addStar = (cardToStar) => (dispatch, getState) => {
 		return;
 	}
 
-	const collectionIsFallback = selectCollectionIsFallback(state);
+	const activeCollection = selectActiveCollection(state);
+	const collectionIsFallback = activeCollection && activeCollection.isFallback;
 	if (collectionIsFallback) {
 		console.log('Interacting with fallback content not allowed');
 		return;
@@ -451,7 +454,8 @@ export const removeStar = (cardToStar) => (dispatch, getState) => {
 		return;
 	}
 
-	const collectionIsFallback = selectCollectionIsFallback(state);
+	const activeCollection = selectActiveCollection(state);
+	const collectionIsFallback = activeCollection && activeCollection.isFallback;
 	if (collectionIsFallback) {
 		console.log('Interacting with fallback content not allowed');
 		return;
@@ -497,7 +501,8 @@ export const scheduleAutoMarkRead = () => (dispatch, getState) => {
 	const uid = selectUid(state);
 	if (!uid) return;
 
-	const collectionIsFallback = selectCollectionIsFallback(state);
+	const activeCollection = selectActiveCollection(state);
+	const collectionIsFallback = activeCollection && activeCollection.isFallback;
 	if (collectionIsFallback) {
 		return;
 	}
@@ -546,7 +551,8 @@ export const markRead = (cardToMarkRead, existingReadDoesNotError) => (dispatch,
 		return;
 	}
 
-	const collectionIsFallback = selectCollectionIsFallback(state);
+	const activeCollection = selectActiveCollection(state);
+	const collectionIsFallback = activeCollection && activeCollection.isFallback;
 	if (collectionIsFallback) {
 		console.log('Interacting with fallback content not allowed');
 		return;
@@ -580,7 +586,8 @@ export const markUnread = (cardToMarkUnread) => (dispatch, getState) => {
 		return;
 	}
 
-	const collectionIsFallback = selectCollectionIsFallback(state);
+	const activeCollection = selectActiveCollection(state);
+	const collectionIsFallback = activeCollection && activeCollection.isFallback;
 	if (collectionIsFallback) {
 		console.log('Interacting with fallback content not allowed');
 		return;
