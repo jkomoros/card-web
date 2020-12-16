@@ -228,7 +228,7 @@ class CardDrawer extends connect(store)(LitElement) {
 				</div>
 				${repeat(this.collection ? this.collection.finalSortedCards : [], (i) => i.id, (i, index) => html`
 					<div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
-					${this._labels && this._labels[index] !== undefined && this._labels[index] !== '' ? html`<div class='label'><span>${this.labelName} <strong>${this._labels[index]}</strong></span></div>` : html``}
+					${this._labels && this._labels[index] !== undefined && this._labels[index] !== '' ? html`<div class='label'><span>${this.collection ? this.collection.sortLabelName : ''} <strong>${this._labels[index]}</strong></span></div>` : html``}
 					${this._thumbnail(i, index)}`)}
 				</div>
 				<div class='buttons'>
@@ -413,7 +413,6 @@ class CardDrawer extends connect(store)(LitElement) {
 			//If true, will show the button to add working notes card no matter what
 			showCreateWorkingNotes: { type: Boolean},
 			collection: {type:Object},
-			labelName: {type:String},
 			highlightedCardId: { type:String },
 			//If provided, then the items that will be ghosted will be the
 			//partial matches AND items that will be removed on pending filter

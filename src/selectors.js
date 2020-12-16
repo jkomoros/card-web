@@ -941,11 +941,6 @@ export const selectCardsDrawerPanelShowing = createSelector(
 	(activeCollection, panelOpen) => !activeCollection || activeCollection.isFallback ? false : panelOpen
 );
 
-export const selectActiveSortLabelName = createSelector(
-	selectActiveCollection,
-	(collection) => collection.sortLabelName
-);
-
 //This is the final expanded, sorted collection, including start cards.
 export const selectFinalCollection = createSelector(
 	selectActiveCollection,
