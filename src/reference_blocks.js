@@ -45,7 +45,7 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 	]
 };
 
-const REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL = Object.entries(REFERENCE_TYPES).filter(entry => !entry[1].excludeFromInfoPanel).map(entry => entry[1]);
+const REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].excludeFromInfoPanel).map(entry => entry[0]);
 const SUBSTANTIVE_REFERENCE_TYPES = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].substantive).map(entry => entry[0]);
 
 const NUM_SIMILAR_CARDS_TO_SHOW = 5;
