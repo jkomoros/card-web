@@ -144,6 +144,12 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 					right:0.5em;
 				}
 
+				/* Google docs pasted output includes <p> inside of li a lot. This
+				is a hack, #361 covers fixing it */
+				li > p {
+					display:inline;
+				}
+
 				${Object.entries(this.editing ? {} : (this._card.font_size_boost || {})).map(entry => {
 		return html`[data-field=${entry[0]}] {
 						font-size: ${1.0 + entry[1]}em;
