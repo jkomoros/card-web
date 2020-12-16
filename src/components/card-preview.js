@@ -1,7 +1,5 @@
 import { LitElement, html } from '@polymer/lit-element';
 
-import './card-renderer.js';
-
 import {
 	cardBadges,
 	cardBadgesStyles
@@ -10,7 +8,7 @@ import {
 import { 
 	CARD_WIDTH_IN_EMS,
 	CARD_HEIGHT_IN_EMS
-} from './base-card.js';
+} from './card-renderer.js';
 
 class CardPreview extends LitElement {
 	render() {

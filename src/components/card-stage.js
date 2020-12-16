@@ -1,8 +1,5 @@
 import { html, LitElement } from '@polymer/lit-element';
 
-//Components needed by this
-import './card-renderer.js';
-
 import {
 	SCREEN_ROTATION_ICON,
 } from './my-icons.js';
@@ -16,7 +13,7 @@ import {
 	CARD_HORIZONTAL_PADDING_IN_EMS,
 	CARD_HEIGHT_IN_EMS,
 	CARD_VERTICAL_PADDING_IN_EMS
-} from './base-card.js';
+} from './card-renderer.js';
 
 import {
 	setFontSizingCardRendererProvider
@@ -197,7 +194,7 @@ class CardStage extends LitElement {
 
 
 		const paddingInPx = Math.round(rect.width / (this.highPadding ? 12 : 40));
-		//Next two come from the style for base-card
+		//Next two come from the style for card-renderer
 		const cardWidthInEms = CARD_WIDTH_IN_EMS;
 		const cardWidthPaddingInEms = 2 * (CARD_HORIZONTAL_PADDING_IN_EMS);
 

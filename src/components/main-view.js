@@ -86,7 +86,7 @@ import './card-preview.js';
 import { 
 	CARD_WIDTH_IN_EMS,
 	CARD_HEIGHT_IN_EMS
-} from './base-card';
+} from './card-renderer.js';
 
 import {
 	USER_DOMAIN
