@@ -482,7 +482,7 @@ const Collection = class {
 	//See CollectionDescription.collection() for the shape of the
 	//collectionArguments object. It's passed in as an object and not as an
 	//unpacked array so we can maintain the object identity so that memoizing
-	//machinery can keep track.
+	//machinery can keep track. You can get one from selectCollectionConstructorArguments
 	constructor(description, collectionArguments) {
 		if (!collectionArguments) collectionArguments = {};
 		this._arguments = collectionArguments;

@@ -894,7 +894,7 @@ const selectAllSets = createSelector(
 );
 
 //selectCollectionConstructorArguments returns an array that can be unpacked and passed as the arguments to collectionDescription.collection().
-const selectCollectionConstructorArguments = createSelector(
+export const selectCollectionConstructorArguments = createSelector(
 	selectCards,
 	selectAllSets,
 	selectFilters,
