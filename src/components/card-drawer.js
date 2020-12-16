@@ -87,6 +87,10 @@ class CardDrawer extends connect(store)(LitElement) {
 					display:none;
 				}
 
+				.grid .label {
+					display: none;
+				}
+
 				.label {
 					color: var(--app-dark-text-color);
 					font-weight:normal;
@@ -224,7 +228,7 @@ class CardDrawer extends connect(store)(LitElement) {
 				</div>
 				${repeat(this.collection ? this.collection.finalSortedCards : [], (i) => i.id, (i, index) => html`
 					<div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
-					${this.labels && this.labels[index] !== undefined && this.labels[index] !== '' ? html`<div class='label'><span>${this.labelName} <strong>${this.labels[index]}</strong></span></div>` : html``}
+					${this._labels && this._labels[index] !== undefined && this._labels[index] !== '' ? html`<div class='label'><span>${this.labelName} <strong>${this._labels[index]}</strong></span></div>` : html``}
 					${this._thumbnail(i, index)}`)}
 				</div>
 				<div class='buttons'>
@@ -390,6 +394,11 @@ class CardDrawer extends connect(store)(LitElement) {
 		this.dispatchEvent(new CustomEvent('reorder-card', {composed: true, detail: {card: thumbnail.card, index: index}}));
 	}
 
+	get _labels() {
+		if (!this.collection) return null;
+		return this.collection.finalLabels;
+	}
+
 	static get properties() {
 		return {
 			//editable doesn't mean it IS editable; just that if the userMayEdit this
@@ -401,7 +410,6 @@ class CardDrawer extends connect(store)(LitElement) {
 			//If true, will show the button to add working notes card no matter what
 			showCreateWorkingNotes: { type: Boolean},
 			collection: {type:Object},
-			labels: {type: Array},
 			labelName: {type:String},
 			highlightedCardId: { type:String },
 			collectionItemsToGhost: { type: Object },

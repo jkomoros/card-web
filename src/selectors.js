@@ -974,11 +974,6 @@ export const selectActiveCollectionCardsToGhost = createSelector(
 	(partialMatches, itemsThatWillBeRemoved) => ({...partialMatches, ...itemsThatWillBeRemoved})
 );
 
-export const selectActiveCollectionLabels = createSelector(
-	selectActiveCollection,
-	(collection) => collection.finalLabels
-);
-
 export const selectActiveCardIndex = createSelector(
 	selectActiveCardId,
 	selectFinalCollection,
