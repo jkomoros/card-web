@@ -199,7 +199,7 @@ export const refreshCardSelector = (forceCommit) => (dispatch, getState) => {
 		dispatch(commitPendingCollectionModifications());
 	}
 
-	if (dataIsFullyLoaded && alreadyCommittedModificationsWhenFullyLoaded) {
+	if (dataIsFullyLoaded && !alreadyCommittedModificationsWhenFullyLoaded) {
 		dispatch(committedFiltersWhenFullyLoaded());
 	}
 
