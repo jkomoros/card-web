@@ -72,11 +72,6 @@ const INFO_PANEL_REFERENCE_BLOCKS = [
 	}
 ];
 
-//TODO: this is a hack to disable that last bit of config that was accidentally
-//included in this commit. Remove the next line when it's time to activate the
-//new similar cards machienry.
-INFO_PANEL_REFERENCE_BLOCKS.splice(-1, 1);
-
 export const primaryReferenceBlocksForCard = (card) => {
 	if (!card) return []; 
 	return expandReferenceBlockConfig(card, REFERENCE_BLOCKS_FOR_CARD_TYPE[card.card_type]);

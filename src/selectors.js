@@ -533,52 +533,6 @@ const selectEditingOrActiveCard = createSelector(
 	(editing, active) => editing && Object.keys(editing).length > 0 ? editing : active
 );
 
-//Returns a map with the closest cards at the beginning.
-const selectActiveCardClosestSemanticOverlapCards = createSelector(
-	selectActiveCardId,
-	selectFingerprintGenerator,
-	(cardID, fingerprintGenerator) => fingerprintGenerator.closestOverlappingItems(cardID)
-);
-
-const selectEditingCardClosestSemanticOverlapCards = createSelector(
-	//the editing card is always the active card
-	selectActiveCardId,
-	selectEditingCardSemanticFingerprint,
-	selectFingerprintGenerator,
-	(cardID, editingFingerprint, fingerprintGenerator) => fingerprintGenerator.closestOverlappingItems(cardID,editingFingerprint)
-);
-
-const selectEditingOrActiveCardClosestSemanticOverlapCards = createSelector(
-	selectEditingCard,
-	selectEditingCardClosestSemanticOverlapCards,
-	selectActiveCardClosestSemanticOverlapCards,
-	(editingCard, editingOverlap, activeOverlap) => editingCard && Object.keys(editingCard).length > 0 ? editingOverlap : activeOverlap
-);
-
-const NUM_SIMILAR_CARDS_TO_SHOW = 5;
-
-//selectActiveCardSimilarCards is like
-//selectActiveCardClosestSemanticOverlapCareds, but it returns a list of no more
-//than NUM_SIMILAR_CARDS_TO_SHOW, where cards that are already linked to or from
-//the main card are skipped.
-export const selectEditingOrActiveCardSimilarCards = createSelector(
-	selectEditingOrActiveCard,
-	selectEditingOrActiveCardClosestSemanticOverlapCards,
-	(card, overlapMap) => {
-		if (!card || Object.keys(card).length == 0) return [];
-		if (!overlapMap || overlapMap.size == 0) return [];
-		const refs = references(card);
-		const excludeIDs = new Set([...refs.array(), ...refs.inboundArray()]);
-		let result = [];
-		for (const cardID of overlapMap.keys()) {
-			if (excludeIDs.has(cardID)) continue;
-			result.push(cardID);
-			if (result.length >= NUM_SIMILAR_CARDS_TO_SHOW) break;
-		}
-		return result;
-	}
-);
-
 export const selectWordCloudForActiveCard = createSelector(
 	selectEditingOrActiveCard,
 	selectFingerprintGenerator,

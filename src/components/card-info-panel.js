@@ -31,7 +31,6 @@ import {
 	selectActiveCardTweets,
 	selectTweetsLoading,
 	selectCommentsAndInfoPanelOpen,
-	selectEditingOrActiveCardSimilarCards,
 	selectWordCloudForActiveCard,
 	selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard
 } from '../selectors.js';
@@ -126,11 +125,6 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			<h3 ?hidden=${!this._open}>Card Info</h3>
 			<div class='container' ?hidden=${!this._open}>
 				${this._referenceBlocks.map(item => html`<reference-block .block=${item}></reference-block>`)}
-				${
-	this._closestCards.length ?
-		html`<div><h4>Similar Cards${help('Cards that are neither linked to or from here but that have distinctive terms that overlap with this card.')}</h4><ul>${this._closestCards.map(item => html`<li><card-link auto='title' card='${item}'>${item}</card-link></li>`)}</ul></div>` :
-		html``
-}
 				<div>
 					<h4>Notes${help('Notes are notes left by the author of the card.')}</h4>
 					${this._card && this._card.notes
@@ -198,8 +192,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 
 	constructor() {
 		super();
-		//since closestCards will be set a little later, make sure it always has a value.
-		this._closestCards = [];
+		//since referenceBlocks will be set a little later, make sure it always has a value.
 		this._referenceBlocks = [];
 		this._wordCloud = emptyWordCloud();
 	}
@@ -214,7 +207,6 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 			_referenceBlocks: {type:Array},
 			_tweets: {type: Object},
 			_tweetsLoading: {type: Boolean},
-			_closestCards: { type:Array },
 			_wordCloud: { type:Object},
 		};
 	}
@@ -237,7 +229,6 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		//without blocking the main update.
 		window.setTimeout(() => {
 			this._referenceBlocks = this._open ? selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard(state) : [];
-			this._closestCards = this._open ? selectEditingOrActiveCardSimilarCards(state) : [];
 			this._wordCloud = this._open ? selectWordCloudForActiveCard(state) : emptyWordCloud();
 		}, 0);
 		
