@@ -23,7 +23,8 @@ import {
 import {
 	TEXT_FIELD_BODY,
 	TEXT_FIELD_TITLE,
-	TEXT_FIELD_CONFIGURATION
+	TEXT_FIELD_CONFIGURATION,
+	CARD_TYPE_CONFIGURATION
 } from '../card_fields.js';
 
 import { makeElementContentEditable } from '../util.js';
@@ -41,6 +42,8 @@ const EPSILON = 0.5;
 // This element is *not* connected to the Redux store.
 export class BaseCard extends GestureEventListeners(LitElement) {
 	render() {
+		const cardTypeConfig = CARD_TYPE_CONFIGURATION[this._card.card_type] || {};
+		const styleBlock = cardTypeConfig.styleBlock || html``;
 		return html`
 			${SharedStyles}
 			${badgeStyles}
@@ -161,6 +164,7 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 	})}
 
 			</style>
+			${styleBlock}
 			<div class="container ${this.editing ? 'editing' : ''} ${this._card.published ? 'published' : 'unpublished'}">
 				<div class='background'></div>
 				${this.innerRender()}

@@ -13,12 +13,6 @@ import {
 export class WorkingNotesCard extends BaseCard {
 	innerRender() {
 		return html`
-		<style>
-			section {
-				font-size:0.8em;
-				line-height:1.2;
-			}
-		</style>
       ${this._templateForField(TEXT_FIELD_BODY)}
     `;
 	}

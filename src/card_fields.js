@@ -3,6 +3,8 @@ import firebase from '@firebase/app';
 import '@firebase/firestore';
 const deleteSentinel = firebase.firestore.FieldValue.delete;
 
+import { html } from '@polymer/lit-element';
+
 /*
 
 On each card is a references property and a references info.
@@ -75,14 +77,53 @@ orphanedByDefault: if true, then the confirmation of 'You're about to make this
 card orphaned' will be flipped, and the natural location of them will be
 orphaned.
 
+styleBlock: if provided, will be rendered as the style block in the card
+renderer when this card type is selected.
+
 */
 
 export const CARD_TYPE_CONFIGURATION = {
 	[CARD_TYPE_CONTENT]: {},
-	[CARD_TYPE_SECTION_HEAD]: {},
+	[CARD_TYPE_SECTION_HEAD]: {
+		styleBlock: html`
+			<style>
+				.background {
+					position:absolute;
+					display:block;
+					height:50%;
+					bottom:0;
+					width:100%;
+					background-color: var(--app-primary-color);
+					/* counteract the padding in the base card */
+					margin-left:-1.45em;
+				}
+				h1 {
+					font:var(--app-header-font-family);
+					font-weight:bold;
+					font-size:3.0em;
+					margin-top:2.25em;
+				}
+				h2 {
+					color: var(--app-primary-color-subtle);
+					font-size:1.2em;
+					font-weight:normal;
+					position:absolute;
+					bottom:1em;
+				}
+			</style>
+		`
+	},
 	[CARD_TYPE_WORKING_NOTES]: {
 		invertContentPublishWarning: true,
 		orphanedByDefault: true,
+		styleBlock: html`
+		<style>
+			section {
+				font-size:0.8em;
+				line-height:1.2;
+			}
+		</style>
+		`
 	},
 	[CARD_TYPE_CONCEPT]: {
 		orphanedByDefault: true,
