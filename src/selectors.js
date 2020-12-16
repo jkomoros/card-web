@@ -44,7 +44,8 @@ import {
 
 import {
 	primaryReferenceBlocksForCard,
-	infoPanelReferenceBlocksForCard
+	infoPanelReferenceBlocksForCard,
+	expandReferenceBlocks,
 } from './reference_blocks.js';
 
 import {
@@ -1034,20 +1035,6 @@ export const selectCollectionForQuery = createSelector(
 	(description, args) => description.collection(args)
 );
 
-const expandBlocks = (card, blocks, collectionArgs) => {
-	if (blocks.length == 0) return [];
-	return blocks.map(block => {
-		const boldFilter = block.cardsToBoldFilterFactory ? block.cardsToBoldFilterFactory(card) : null;
-		const collection = block.collection.collection(collectionArgs);
-		const boldCards = boldFilter ? Object.fromEntries(collection.filteredCards.filter(boldFilter).map(card => [card.id, true])): {};
-		return {
-			...block,
-			collection,
-			boldCards
-		};
-	});
-};
-
 let memoizedCollectionConstructorArguments = null;
 let memoizedExpandedPrimaryBlocksForCard = new Map();
 
@@ -1065,7 +1052,7 @@ export const getExpandedPrimaryReferenceBlocksForCard = (state, card) => {
 		//Generate new blocks and stash
 		const blocks = primaryReferenceBlocksForCard(card);
 		//reference-block will hide any ones that shouldn't render because of an empty collection
-		const expandedBlocks = expandBlocks(card, blocks, args);
+		const expandedBlocks = expandReferenceBlocks(card, blocks, args);
 		memoizedExpandedPrimaryBlocksForCard.set(card, expandedBlocks);
 	}
 
@@ -1080,6 +1067,6 @@ export const selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard = crea
 		const blocks = infoPanelReferenceBlocksForCard(card);
 		if (blocks.length == 0) return [];
 		//reference-block will hide any ones that shouldn't render because of an empty collection so we don't need to filter
-		return expandBlocks(card, blocks, args);
+		return expandReferenceBlocks(card, blocks, args);
 	}
 );

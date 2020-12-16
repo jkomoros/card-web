@@ -86,3 +86,17 @@ const expandReferenceBlockConfig = (card, configs) => {
 	if (!card || !card.id) return [];
 	return configs.map(block => ({...block, collection: collectionDescriptionWithKeyCard(block.collection, card.id)}));
 };
+
+export const expandReferenceBlocks = (card, blocks, collectionConstructorArgs) => {
+	if (blocks.length == 0) return [];
+	return blocks.map(block => {
+		const boldFilter = block.cardsToBoldFilterFactory ? block.cardsToBoldFilterFactory(card) : null;
+		const collection = block.collection.collection(collectionConstructorArgs);
+		const boldCards = boldFilter ? Object.fromEntries(collection.filteredCards.filter(boldFilter).map(card => [card.id, true])): {};
+		return {
+			...block,
+			collection,
+			boldCards
+		};
+	});
+};
