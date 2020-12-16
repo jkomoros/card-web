@@ -1034,12 +1034,26 @@ export const selectCollectionForQuery = createSelector(
 	(description, args) => description.collection(...args)
 );
 
+const expandBlocks = (card, blocks, collectionArgs) => {
+	if (blocks.length == 0) return [];
+	return blocks.map(block => {
+		const boldFilter = block.cardsToBoldFilterFactory ? block.cardsToBoldFilterFactory(card) : null;
+		const collection = block.collection.collection(...collectionArgs);
+		const boldCards = boldFilter ? Object.fromEntries(collection.filteredCards.filter(boldFilter).map(card => [card.id, true])): {};
+		return {
+			...block,
+			collection,
+			boldCards
+		};
+	});
+};
+
 export const getExpandedPrimaryReferenceBlocksForCard = (state, card) => {
 	const blocks = primaryReferenceBlocksForCard(card);
 	if (blocks.length == 0) return [];
 	const args = selectCollectionConstructorArguments(state);
 	//reference-block will hide any ones that shouldn't render because of an empty collection
-	return blocks.map(block => ({...block, collection: block.collection.collection(...args)}));
+	return expandBlocks(card, blocks, args);
 };
 
 export const selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard = createSelector(
@@ -1049,16 +1063,6 @@ export const selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard = crea
 		const blocks = infoPanelReferenceBlocksForCard(card);
 		if (blocks.length == 0) return [];
 		//reference-block will hide any ones that shouldn't render because of an empty collection so we don't need to filter
-
-		return blocks.map(block => {
-			const boldFilter = block.cardsToBoldFilterFactory ? block.cardsToBoldFilterFactory(card) : null;
-			const collection = block.collection.collection(...args);
-			const boldCards = boldFilter ? Object.fromEntries(collection.filteredCards.filter(boldFilter).map(card => [card.id, true])): {};
-			return {
-				...block,
-				collection,
-				boldCards
-			};
-		});
+		return expandBlocks(card, blocks, args);
 	}
 );
