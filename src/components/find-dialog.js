@@ -107,7 +107,7 @@ class FindDialog extends connect(store)(DialogElement) {
 				<button title='Navigate to this collection' @click=${this._handleNavigateCollection} class='small'>${OPEN_IN_BROWSER_ICON}</button>
 			</div>
 		</form>
-		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collectionCards=${this._collection} .collectionItemsToGhost=${this._partialMatches}></card-drawer>
+		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collectionCards=${this._collectionCards} .collectionItemsToGhost=${this._partialMatches}></card-drawer>
 		<div ?hidden=${!this._linking} class='add'>
 			<button ?hidden=${!isLink} class='round' @click='${this._handleRemoveLink}' title='Remove the current link'>${LINK_OFF_ICON}</button>
 			<button class='round' @click='${this._handleAddLink}' title='Link to a URL, not a card'>${LINK_ICON}</button>
@@ -130,7 +130,7 @@ class FindDialog extends connect(store)(DialogElement) {
 	_handleFormSubmitted(e) {
 		e.preventDefault();
 		if(!this._linking) return;
-		if(this._collection && this._collection.length > 0) return;
+		if(this._collectionCards && this._collectionCards.length > 0) return;
 		if(!this._query) return;
 		if(!this._query.startsWith('http')) return;
 		store.dispatch(linkURL(this._query));
@@ -201,7 +201,7 @@ class FindDialog extends connect(store)(DialogElement) {
 	static get properties() {
 		return {
 			_query: {type: String},
-			_collection: {type:Array},
+			_collectionCards: {type:Array},
 			_linking: {type:Boolean},
 			_permissions: {type:Boolean},
 			_referencing: {type:Boolean},
@@ -244,7 +244,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this.mobileMode = state.app.mobileMode;
 		this._query = state.find.query;
 		//coalling the collection into being is expensive so only do it if we're open.
-		this._collection = this.open ? selectCollectionForQuery(state).finalSortedCards : [];
+		this._collectionCards = this.open ? selectCollectionForQuery(state).finalSortedCards : [];
 		this._partialMatches = this.open ? selectCollectionForQuery(state).partialMatches : {};
 		this._collectionDescription = this.open ? selectCollectionDescriptionForQuery(state) : null;
 		this._linking = state.find.linking;
