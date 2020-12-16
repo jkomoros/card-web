@@ -1,6 +1,7 @@
 import { LitElement, html } from '@polymer/lit-element';
 
 import {
+	CARD_TYPE_CONCEPT,
 	CARD_TYPE_CONTENT,
 	CARD_TYPE_SECTION_HEAD,
 	CARD_TYPE_WORKING_NOTES,
@@ -9,6 +10,7 @@ import {
 import './content-card.js';
 import './section-head-card.js';
 import './working-notes-card.js';
+import './concept-card.js';
 
 // This element is *not* connected to the Redux store.
 export class CardRenderer extends LitElement {
@@ -18,6 +20,8 @@ export class CardRenderer extends LitElement {
 			return html` <section-head-card id='card' .dataIsFullyLoaded=${this.dataIsFullyLoaded} ?hidden=${this._cardType != CARD_TYPE_SECTION_HEAD} .updatedFromContentEditable=${this.updatedFromContentEditable} .editing=${this.editing} .card=${this.card}></section-head-card>`;
 		case CARD_TYPE_WORKING_NOTES:
 			return html`<working-notes-card id='card' .dataIsFullyLoaded=${this.dataIsFullyLoaded} ?hidden=${this._cardType != CARD_TYPE_WORKING_NOTES} .updatedFromContentEditable=${this.updatedFromContentEditable} .editing=${this.editing} .card=${this.card}></working-notes-card>`;
+		case CARD_TYPE_CONCEPT:
+			return html`<concept-card id='card' .dataIsFullyLoaded=${this.dataIsFullyLoaded} ?hidden=${this._cardType != CARD_TYPE_CONCEPT} .updatedFromContentEditable=${this.updatedFromContentEditable} .editing=${this.editing} .card=${this.card}></concept-card>`;
 		case CARD_TYPE_CONTENT:
 		default:
 			return html`<content-card id='card' .dataIsFullyLoaded=${this.dataIsFullyLoaded} ?hidden=${this._cardType != CARD_TYPE_CONTENT} .updatedFromContentEditable=${this.updatedFromContentEditable} .editing=${this.editing} .card=${this.card}></content-card>`;
