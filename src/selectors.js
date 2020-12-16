@@ -902,13 +902,13 @@ const selectCollectionConstructorArguments = createSelector(
 	selectSections,
 	selectTabCollectionFallbacks,
 	selectTabCollectionStartCards,
-	(cards, sets, filters, editingCard, sections, fallbacks, startCards) => [cards, sets, filters, editingCard, sections, fallbacks, startCards]
+	(cards, sets, filters, editingCard, sections, fallbacks, startCards) => ({cards, sets, filters, editingCard, sections, fallbacks, startCards})
 );
 
 const selectActiveCollection = createSelector(
 	selectActiveCollectionDescription,
 	selectCollectionConstructorArguments,
-	(description, args) => description ? description.collection(...args) : null
+	(description, args) => description ? description.collection(args) : null
 );
 
 export const selectActiveCollectionWordCloud = createSelector(
@@ -932,7 +932,7 @@ export const selectCountsForTabs = createSelector(
 		let result = {};
 		for (let tab of tabs) {
 			if (!tab.count) continue;
-			result[tab.collection.serialize()] = tab.collection.collection(...args).numCards;
+			result[tab.collection.serialize()] = tab.collection.collection(args).numCards;
 		}
 		return result;
 	}
@@ -1031,14 +1031,14 @@ export const selectCollectionDescriptionForQuery = createSelector(
 export const selectCollectionForQuery = createSelector(
 	selectCollectionDescriptionForQuery,
 	selectCollectionConstructorArguments,
-	(description, args) => description.collection(...args)
+	(description, args) => description.collection(args)
 );
 
 const expandBlocks = (card, blocks, collectionArgs) => {
 	if (blocks.length == 0) return [];
 	return blocks.map(block => {
 		const boldFilter = block.cardsToBoldFilterFactory ? block.cardsToBoldFilterFactory(card) : null;
-		const collection = block.collection.collection(...collectionArgs);
+		const collection = block.collection.collection(collectionArgs);
 		const boldCards = boldFilter ? Object.fromEntries(collection.filteredCards.filter(boldFilter).map(card => [card.id, true])): {};
 		return {
 			...block,

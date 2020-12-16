@@ -276,8 +276,9 @@ export const CollectionDescription = class {
 	//on keying into optFallbacks by the serialization of the
 	//collectiondescription. You can use selectCollectionConstructorArguments to
 	//select all of the items at once.
-	collection(cards, sets, filters, editingCard, optSections, optFallbacks, optStartCards) {
-		return new Collection(this, cards, sets, filters, editingCard, optSections, optFallbacks, optStartCards);
+	//Arguments: {cards, sets, filters, editingCard, sections, fallbacks, startCards}
+	collection(collectionArguments) {
+		return new Collection(this, collectionArguments);
 	}
 
 	static deserialize(input) {
@@ -478,16 +479,22 @@ const removeUnnecessaryLabels = (arr) => {
 const expandCardCollection = (collection, cards) => collection.map(id => cards[id] || null).filter(card => card ? true : false);
 
 const Collection = class {
-	constructor(description, cards, sets, filters, editingCard, optSections, optFallbacks, optStartCards) {
+	//See CollectionDescription.collection() for the shape of the
+	//collectionArguments object. It's passed in as an object and not as an
+	//unpacked array so we can maintain the object identity so that memoizing
+	//machinery can keep track.
+	constructor(description, collectionArguments) {
+		if (!collectionArguments) collectionArguments = {};
+		this._arguments = collectionArguments;
 		this._description = description;
-		this._cards = cards;
-		this._sets = sets;
-		this._filters = filters;
-		this._editingCard = editingCard;
+		this._cards = collectionArguments.cards;
+		this._sets = collectionArguments.sets;
+		this._filters = collectionArguments.filters;
+		this._editingCard = collectionArguments.editingCard;
 		//Needed for sort info :-(
-		this._sections = optSections || {};
-		this._fallbacks = optFallbacks || {};
-		this._startCardsConfig = optStartCards || {};
+		this._sections = collectionArguments.sections || {};
+		this._fallbacks = collectionArguments.fallbacks || {};
+		this._startCardsConfig = collectionArguments.startCards || {};
 		//The filtered cards... before any size limit has been applied, if necessary
 		this._filteredCards = null;
 		this._preLimitlength = 0;
