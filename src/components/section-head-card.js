@@ -14,6 +14,7 @@ class SectionHeadCard extends BaseCard {
       <style>
         .background {
           position:absolute;
+          display:block;
           height:50%;
           bottom:0;
           width:100%;
@@ -35,7 +36,6 @@ class SectionHeadCard extends BaseCard {
           bottom:1em;
         }
       </style>
-      <div class='background'></div>
       ${this._templateForField(TEXT_FIELD_TITLE)}
       ${this._templateForField(TEXT_FIELD_SUBTITLE)}
     `;

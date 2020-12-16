@@ -144,6 +144,10 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 					right:0.5em;
 				}
 
+				.background {
+					display: none;
+				}
+
 				/* Google docs pasted output includes <p> inside of li a lot. This
 				is a hack, #361 covers fixing it */
 				li > p {
@@ -158,6 +162,7 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 
 			</style>
 			<div class="container ${this.editing ? 'editing' : ''} ${this._card.published ? 'published' : 'unpublished'}">
+				<div class='background'></div>
 				${this.innerRender()}
 				${starBadge(this._card.star_count)}
 			</div>
