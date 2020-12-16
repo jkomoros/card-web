@@ -217,12 +217,12 @@ class CardDrawer extends connect(store)(LitElement) {
 			<div ?hidden='${!this.showing}' class='container ${this._dragging ? 'dragging' : ''}${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
 				<div class='scrolling'>
 				<div class='label' id='count'>
-					<span>${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }<strong>${this.collectionCards.length}</strong> cards</span>
+					<span>${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }<strong>${this.collection ? this.collection.numCards : 0}</strong> cards</span>
 					<div ?hidden=${!this.infoExpanded}>
 						<word-cloud .wordCloud=${this.wordCloud}></word-cloud>
 					</div>
 				</div>
-				${repeat(this.collectionCards, (i) => i.id, (i, index) => html`
+				${repeat(this.collection ? this.collection.finalSortedCards : [], (i) => i.id, (i, index) => html`
 					<div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>
 					${this.labels && this.labels[index] !== undefined && this.labels[index] !== '' ? html`<div class='label'><span>${this.labelName} <strong>${this.labels[index]}</strong></span></div>` : html``}
 					${this._thumbnail(i, index)}`)}
@@ -238,7 +238,6 @@ class CardDrawer extends connect(store)(LitElement) {
 	constructor() {
 		super();
 
-		this.collectionCards = [];
 		this.collectionItemsToGhost = {};
 	}
 
@@ -402,7 +401,6 @@ class CardDrawer extends connect(store)(LitElement) {
 			//If true, will show the button to add working notes card no matter what
 			showCreateWorkingNotes: { type: Boolean},
 			collection: {type:Object},
-			collectionCards: { type: Array },
 			labels: {type: Array},
 			labelName: {type:String},
 			highlightedCardId: { type:String },
@@ -433,7 +431,7 @@ class CardDrawer extends connect(store)(LitElement) {
 		}
 		//collection might change for example on first load when unpublished
 		//cards are loaded,but we're OK with it not happening if the scroll already happened.
-		if (changedProps.has('collectionCards')) {
+		if (changedProps.has('collection')) {
 			this._scrollHighlightedThumbnailIntoView(false);
 		}
 	}
