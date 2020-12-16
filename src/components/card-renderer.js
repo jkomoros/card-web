@@ -31,6 +31,9 @@ import {
 
 import { makeElementContentEditable } from '../util.js';
 
+//Cards that include links need card-link
+import './card-link.js';
+
 export const CARD_WIDTH_IN_EMS = 43.63;
 export const CARD_HEIGHT_IN_EMS = 24.54;
 export const CARD_VERTICAL_PADDING_IN_EMS = 1.0;
