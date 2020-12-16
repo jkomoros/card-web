@@ -326,6 +326,12 @@ const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
 	return [func, false];
 };
 
+//We memoize the cards/generator outside even a singular configurable filter,
+//because advance to next/previous card changes the keyCardID, but not the
+//underlying card set, and that should be fast.
+let memoizedCards = null;
+let memoizedGenerator = null;
+
 const makeSimilarConfigurableFilter = (filterName, cardID) => {
 
 	let includeKeyCard = false;
@@ -336,9 +342,7 @@ const makeSimilarConfigurableFilter = (filterName, cardID) => {
 
 	let memoizedClosestItems = null;
 	//we don't need to memoize on filter set memberships because we don't use them
-	let memoizedCards = null;
 	let memoizedEditingCard = null;
-	let memoizedGenerator = null;
 
 	const func = function(card, cards, UNUSEDFilterMemberships,editingCard) {
 		if (card.id == cardID) {
