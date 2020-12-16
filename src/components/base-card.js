@@ -24,7 +24,9 @@ import {
 	TEXT_FIELD_BODY,
 	TEXT_FIELD_TITLE,
 	TEXT_FIELD_CONFIGURATION,
-	CARD_TYPE_CONFIGURATION
+	CARD_TYPE_CONFIGURATION,
+	CARD_TYPE_CONTENT,
+	editableFieldsForCardType
 } from '../card_fields.js';
 
 import { makeElementContentEditable } from '../util.js';
@@ -42,8 +44,10 @@ const EPSILON = 0.5;
 // This element is *not* connected to the Redux store.
 export class BaseCard extends GestureEventListeners(LitElement) {
 	render() {
-		const cardTypeConfig = CARD_TYPE_CONFIGURATION[this._card.card_type] || {};
+		const cardType = this._card.card_type || CARD_TYPE_CONTENT;
+		const cardTypeConfig = CARD_TYPE_CONFIGURATION[cardType] || {};
 		const styleBlock = cardTypeConfig.styleBlock || html``;
+		const fieldsToRender = editableFieldsForCardType(cardType);
 		return html`
 			${SharedStyles}
 			${badgeStyles}
@@ -167,15 +171,10 @@ export class BaseCard extends GestureEventListeners(LitElement) {
 			${styleBlock}
 			<div class="container ${this.editing ? 'editing' : ''} ${this._card.published ? 'published' : 'unpublished'}">
 				<div class='background'></div>
-				${this.innerRender()}
+				${Object.keys(fieldsToRender).map(fieldName => this._templateForField(fieldName))}
 				${starBadge(this._card.star_count)}
 			</div>
 		`;
-	}
-
-	innerRender() {
-		//Subclasess override this
-		return '';
 	}
 
 	get _card() {
