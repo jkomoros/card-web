@@ -894,16 +894,31 @@ const selectAllSets = createSelector(
 	}
 );
 
-//selectCollectionConstructorArguments returns an array that can be unpacked and passed as the arguments to collectionDescription.collection().
+//selectCollectionConstructorArguments returns an array that can be unpacked and
+//passed as the arguments to collectionDescription.collection(). It omits the
+//optional editingCard. See also
+//selectCollectionConstructorArgumentsWithEditingCard
 export const selectCollectionConstructorArguments = createSelector(
 	selectCards,
 	selectAllSets,
 	selectFilters,
-	selectEditingCard,
 	selectSections,
 	selectTabCollectionFallbacks,
 	selectTabCollectionStartCards,
-	(cards, sets, filters, editingCard, sections, fallbacks, startCards) => ({cards, sets, filters, editingCard, sections, fallbacks, startCards})
+	(cards, sets, filters, sections, fallbacks, startCards) => ({cards, sets, filters, sections, fallbacks, startCards})
+);
+
+//selectCollectionConstructorArgumentsWithEditingCard is like
+//selectCollectionConstructorArguments, but it also includes editingCard.
+//editingCard can change often while editing (roughly once per keystroke), which
+//can slow down the editing experience so it's best to only use this in cases
+//where you know it needs to update, like
+//selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard, since you want
+//similar cards to update live for the card.
+export const selectCollectionConstructorArgumentsWithEditingCard = createSelector(
+	selectCollectionConstructorArguments,
+	selectEditingCard,
+	(args, editingCard) => ({...args, editingCard})
 );
 
 export const selectActiveCollection = createSelector(
@@ -1005,7 +1020,7 @@ export const selectExpandedPrimaryReferenceBlocksForPreviewCard = createSelector
 
 export const selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard = createSelector(
 	selectEditingOrActiveCard,
-	selectCollectionConstructorArguments,
+	selectCollectionConstructorArgumentsWithEditingCard,
 	(card, args) => {
 		const blocks = infoPanelReferenceBlocksForCard(card);
 		if (blocks.length == 0) return [];
