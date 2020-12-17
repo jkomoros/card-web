@@ -55,7 +55,10 @@ import {
 } from './my-icons.js';
 
 import {
-	REFERENCE_TYPES
+	REFERENCE_TYPES,
+	DEFAULT_CARD_TYPE,
+	TEXT_FIELD_TITLE,
+	editableFieldsForCardType,
 } from '../card_fields.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
@@ -164,16 +167,22 @@ class FindDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleAddSlide() {
-		const query = this._query || '';
-		const title = prompt('What should the title be?', capitalizeFirstLetter(query.trim()));
-		if (!title || !title.trim()) {
-			console.warn('No title provided');
-			return;
+		const cardType = this._cardTypeFilter || DEFAULT_CARD_TYPE;
+		const needTitle = editableFieldsForCardType(cardType)[TEXT_FIELD_TITLE];
+		let title = '';
+		if (needTitle) {
+			const query = this._query || '';
+			title = prompt('What should the title be?', capitalizeFirstLetter(query.trim()));
+			if (!title || !title.trim()) {
+				console.warn('No title provided');
+				return;
+			}
 		}
 		const id = newID();
 		const opts = {
 			id,
 			title,
+			cardType: cardType,
 			noNavigate: true,
 		};
 		store.dispatch(createCard(opts));
