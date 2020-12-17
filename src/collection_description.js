@@ -486,6 +486,7 @@ const Collection = class {
 	constructor(description, collectionArguments) {
 		if (!collectionArguments) collectionArguments = {};
 		this._arguments = collectionArguments;
+		Object.freeze(this._arguments);
 		this._description = description;
 		this._cards = collectionArguments.cards;
 		this._sets = collectionArguments.sets;
@@ -530,6 +531,13 @@ const Collection = class {
 	_ensureFilteredCards() {
 		if (this._filteredCards) return;
 		this._filteredCards = this._makeFilteredCards();
+	}
+
+	//constructorArguments gets the constructor arguments passed as the second
+	//argument to this collection's consturctor. That allows it to be passed to
+	//other things that need it easily.
+	get constructorArguments() {
+		return this._arguments;
 	}
 
 	//numCards is the number of cards that matched, excluding fallbacks or
