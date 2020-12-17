@@ -840,6 +840,7 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		//fully loaded again, it will then trigger the navigation.
 		dispatch({
 			type: EXPECT_NEW_CARD,
+			published: obj.published,
 			ID: id,
 			noSectionChange: !section,
 		});
