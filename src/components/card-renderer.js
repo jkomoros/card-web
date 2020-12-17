@@ -161,6 +161,17 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 					display: none;
 				}
 
+				.content {
+					display: flex;
+					flex-direction: column;
+					height: 100%;
+					width: 100%;
+				}
+
+				.primary {
+					flex-grow: 1;
+				}
+
 				/* Google docs pasted output includes <p> inside of li a lot. This
 				is a hack, #361 covers fixing it */
 				li > p {
@@ -178,7 +189,9 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			<div class="container ${this.editing ? 'editing' : ''} ${this._card.published ? 'published' : 'unpublished'}">
 				<div class='background'></div>
 				<div class='content'>
-					${Object.keys(fieldsToRender).map(fieldName => this._templateForField(fieldName))}
+					<div class='primary'>
+						${Object.keys(fieldsToRender).map(fieldName => this._templateForField(fieldName))}
+					</div>
 					<div class='reference-blocks'>
 						${(this.expandedReferenceBlocks || []).map(block => html`<reference-block .block=${block}></reference-block>`)}
 					</div>
