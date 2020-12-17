@@ -997,6 +997,12 @@ export const selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard = create
 	(card, args) => getExpandedPrimaryReferenceBlocksForCard(args, card)
 );
 
+export const selectExpandedPrimaryReferenceBlocksForPreviewCard = createSelector(
+	selectActivePreviewCard,
+	selectCollectionConstructorArguments,
+	(card, args) => getExpandedPrimaryReferenceBlocksForCard(args, card)
+);
+
 export const selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard = createSelector(
 	selectEditingOrActiveCard,
 	selectCollectionConstructorArguments,

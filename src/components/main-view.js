@@ -41,7 +41,8 @@ import {
 	selectUserPermissionsFinal,
 	selectKeyboardNavigates,
 	selectUid,
-	selectBadgeMap
+	selectBadgeMap,
+	selectExpandedPrimaryReferenceBlocksForPreviewCard
 } from '../selectors.js';
 
 import {
@@ -255,7 +256,7 @@ class MainView extends connect(store)(LitElement) {
 		<div @mousemove=${this._handleMouseMove} class='container ${this._mayViewApp ? '' : 'may-not-view'}'>
 			<find-dialog></find-dialog>
 			<compose-dialog></compose-dialog>
-			<card-preview .card=${this._activePreviewCard} .x=${this._previewCardX} .y=${this._previewCardY} .badgeMap=${this._badgeMap}></card-preview>
+			<card-preview .card=${this._activePreviewCard} .x=${this._previewCardX} .y=${this._previewCardY} .badgeMap=${this._badgeMap} .expandedReferenceBlocks=${this._previewCardReferenceBlocks}></card-preview>
 			<!-- Header -->
 			<div class='header' ?hidden=${!this._headerPanelOpen}>
 				<div class='inner'>
@@ -310,6 +311,7 @@ class MainView extends connect(store)(LitElement) {
 			_activePreviewCard: { type:Object },
 			_previewCardX : { type:Number },
 			_previewCardY : { type:Number },
+			_previewCardReferenceBlocks: { type: Array},
 			_mayViewUnpublished : { type:Boolean },
 			_mayViewApp: { type:Boolean },
 			_userPermissionsFinal: { type:Boolean },
@@ -436,6 +438,7 @@ class MainView extends connect(store)(LitElement) {
 		this._activePreviewCard = selectActivePreviewCard(state);
 		this._previewCardX = selectPreviewCardX(state);
 		this._previewCardY = selectPreviewCardY(state);
+		this._previewCardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForPreviewCard(state);
 		this._mayViewUnpublished = selectUserMayViewUnpublished(state);
 		this._mayViewApp = selectUserMayViewApp(state);
 		this._userPermissionsFinal = selectUserPermissionsFinal(state);

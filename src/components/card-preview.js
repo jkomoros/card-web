@@ -37,7 +37,7 @@ class CardPreview extends LitElement {
 	  </style>
 	  ${cardBadgesStyles}
       <div ?hidden='${!this.card}'>
-		<card-renderer .card=${this.card}></card-renderer>
+		<card-renderer .card=${this.card} .expandedReferenceBlocks=${this.expandedReferenceBlocks}></card-renderer>
 		${cardBadges(false, this.card, this.badgeMap)}
       </div>
     `;
@@ -55,6 +55,7 @@ class CardPreview extends LitElement {
 			badgeMap: { type:Object },
 			x: { type: Number },
 			y: { type: Number },
+			expandedReferenceBlocks: { type: Array},
 			/* size of font for card in px*/
 			previewSize: { type: Number },
 			/* offset from the cursor in pixels */
