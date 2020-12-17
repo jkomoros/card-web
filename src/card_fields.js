@@ -80,6 +80,10 @@ orphanedByDefault: if true, then the confirmation of 'You're about to make this
 card orphaned' will be flipped, and the natural location of them will be
 orphaned.
 
+publishedByDefault: if true, then createCard will by default create a card that
+is published. This is useful for example for concept cards, where the primary
+content is the reference list.
+
 styleBlock: if provided, will be rendered as the style block in the card
 renderer when this card type is selected.
 
@@ -130,6 +134,7 @@ export const CARD_TYPE_CONFIGURATION = {
 	},
 	[CARD_TYPE_CONCEPT]: {
 		orphanedByDefault: true,
+		publishedByDefault: true,
 	},
 };
 

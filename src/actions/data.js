@@ -831,6 +831,7 @@ export const createCard = (opts) => async (dispatch, getState) => {
 
 	let obj = defaultCardObject(id, user, section, cardType);
 	obj.title = title;
+	if (CARD_TYPE_CONFIG.publishedByDefault) obj.published = true;
 
 	let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
 
