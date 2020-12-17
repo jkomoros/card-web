@@ -99,7 +99,6 @@ import {
 	TEXT_FIELD_BODY,
 	CARD_TYPE_CONTENT,
 	CARD_TYPE_SECTION_HEAD,
-	CARD_TYPE_WORKING_NOTES,
 	references,
 	referencesLegal,
 	applyReferencesDiff,
@@ -755,14 +754,21 @@ export const defaultCardObject = (id, user, section, cardType) => {
 	};
 };
 
-export const createWorkingNotesCard = () => async (dispatch, getState) => {
+//createCard creates an inserts a new card. see also createWorkingNotesCard
+//which is similar but simpler.
+//Valid arguments of opts:
+// cardType: type of card
+// section: sectionID to add to
+// id: ID to use
+// noNavigate: if true, will not navigate to the card when created
+// title: title of card
+export const createCard = (opts) => async (dispatch, getState) => {
 
-	//NOTE: if you modify this method you probably also want to modify
-	//createCard, too.
+	//NOTE: if you modify this card you may also want to modify createForkedCard
+
+	//newCard creates and inserts a new card in the givne section with the given id.
 
 	const state = getState();
-
-	let id = newID();
 
 	let user = selectUser(state);
 
@@ -776,94 +782,49 @@ export const createWorkingNotesCard = () => async (dispatch, getState) => {
 		return;
 	}
 
-	let obj = defaultCardObject(id, user, '', CARD_TYPE_WORKING_NOTES);
-
-	let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
-
-
-	//Tell card-view to expect a new card to be loaded, and when data is
-	//fully loaded again, it will then trigger the navigation.
-	dispatch({
-		type: EXPECT_NEW_CARD,
-		ID: id,
-		noSectionChange: true,
-	});
-
-	//We don't check slugLegal because ID is provided by newID which is presumed
-	//to be sufficently high entropy to not overlap with existing IDs or slugs
-
-	const batch = db.batch();
-
-
-	ensureAuthor(batch, user);
-	batch.set(cardDocRef, obj);
-
-	batch.commit();
-
-	//updateCards will be called and update the current view. card-view's
-	//updated will call navigateToNewCard once the data is fully loaded again
-	//(waiting only for the card, not section, since no section will be updated)
-};
-
-//createCard creates an inserts a new card. see also createWorkingNotesCard
-//which is similar but simpler.
-export const createCard = (opts) => async (dispatch, getState) => {
-
-	//NOTE: if you modify this card you likely also want to modify
-	//createWorkingNotesCard too and likely also createForkedCard
-
-	//newCard creates and inserts a new card in the givne section with the given id.
-
-	const state = getState();
-
-	const lastSectionID = selectLastSectionID(state);
-
 	let cardType = opts.cardType || CARD_TYPE_CONTENT;
-	let section = opts.section || lastSectionID;
+
+	let CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[cardType] || null;
+	if (!CARD_TYPE_CONFIG) {
+		console.log('Invalid cardType: ' + cardType);
+		return;
+	}
+
+	//if section is not provided, use the last section... unless it's a card
+	//type that is orphaned by default, in which case we should not put it in a
+	//section at all.
+	let section = opts.section || '';
+	
+	if (!section && !CARD_TYPE_CONFIG.orphanedByDefault) {
+		section = selectLastSectionID(state);
+	}
+
+	if (!section && !CARD_TYPE_CONFIG.orphanedByDefault) {
+		console.log('No section identified for a card type that is not orphaned by default');
+		return;
+	}
+
 	let id = opts.id;
 	let idFromOpts = opts.id !== undefined;
-	let noNavigate = opts.noNavigate || false;
-	let title = opts.title || '';
-
-	if (!cardType) cardType = CARD_TYPE_CONTENT;
-
-	if (!section) section = lastSectionID;
-	if (!section) {
-		console.log('No last section ID');
-		return;
-	}
-
-	if (!getUserMayEditSection(state, section)) {
-		console.log('User doesn\'t have edit permission for section the card will be added to.');
-		return;
-	}
 
 	if (id) {
 		id = normalizeSlug(id);
 	} else {
 		id = newID();
 	}
-  
-	if (!id) {
-		console.log('Id provided was not legal');
-		return;
-	}
 
-	let user = selectUser(state);
+	let noNavigate = opts.noNavigate || false;
 
-	if (!user) {
-		console.log('No user');
-		return;
-	}
+	let title = opts.title || '';
 
-	if (!selectUserMayCreateCard(state)) {
-		console.log('User isn\'t allowed to create card');
+	if (section && !getUserMayEditSection(state, section)) {
+		console.log('User doesn\'t have edit permission for section the card will be added to.');
 		return;
 	}
 
 	let appendMiddle = false;
 	let appendIndex = 0;
-	if (selectActiveSectionId(state) == section) {
+	if (section && selectActiveSectionId(state) == section) {
 		appendMiddle = true;
 		appendIndex = selectActiveCardIndex(state);
 	}
@@ -879,6 +840,7 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		dispatch({
 			type: EXPECT_NEW_CARD,
 			ID: id,
+			noSectionChange: !section,
 		});
 	}
 
@@ -904,28 +866,40 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		}
 	}
 
-	let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
+	if (section) {
 
-	await db.runTransaction(async transaction => {
-		let sectionDoc = await transaction.get(sectionRef);
-		if (!sectionDoc.exists) {
-			throw 'Doc doesn\'t exist!';
-		}
-		var newArray = [...sectionDoc.data().cards, id];
-		if (appendMiddle) {
-			let current = sectionDoc.data().cards;
-			newArray = [...current.slice(0,appendIndex), id, ...current.slice(appendIndex)];
-		}
-		ensureAuthor(transaction, user);
-		transaction.update(sectionRef, {cards: newArray, updated: serverTimestampSentinel()});
-		let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
-		transaction.set(sectionUpdateRef, {timestamp: serverTimestampSentinel(), cards: newArray});
-		transaction.set(cardDocRef, obj);
-	});
+		let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
+
+		await db.runTransaction(async transaction => {
+			let sectionDoc = await transaction.get(sectionRef);
+			if (!sectionDoc.exists) {
+				throw 'Doc doesn\'t exist!';
+			}
+			var newArray = [...sectionDoc.data().cards, id];
+			if (appendMiddle) {
+				let current = sectionDoc.data().cards;
+				newArray = [...current.slice(0,appendIndex), id, ...current.slice(appendIndex)];
+			}
+			ensureAuthor(transaction, user);
+			transaction.update(sectionRef, {cards: newArray, updated: serverTimestampSentinel()});
+			let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
+			transaction.set(sectionUpdateRef, {timestamp: serverTimestampSentinel(), cards: newArray});
+			transaction.set(cardDocRef, obj);
+		});
+	} else {
+		const batch = db.batch();
+
+
+		ensureAuthor(batch, user);
+		batch.set(cardDocRef, obj);
+	
+		batch.commit();
+	}
 
 	//updateSections will be called and update the current view. card-view's
 	//updated will call navigateToNewCard once the data is fully loaded again
-	//(if EXPECT_NEW_CARD was dispatched above)
+	//(if EXPECT_NEW_CARD was dispatched above). If noSectionChange is true
+	//above, it will only wait for the card, not the section, to load.
 };
 
 export const createForkedCard = (cardToFork) => async (dispatch, getState) => {

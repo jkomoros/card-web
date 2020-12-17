@@ -53,7 +53,6 @@ import {
 
 import {
 	createCard,
-	createWorkingNotesCard,
 	navigateToNewCard,
 	createForkedCard
 } from '../actions/data.js';
@@ -77,6 +76,10 @@ import {
 import {
 	killEvent
 } from '../util.js';
+
+import {
+	CARD_TYPE_WORKING_NOTES
+} from '../card_fields.js';
 
 import {
 	addStar,
@@ -431,7 +434,7 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	_handleAddWorkingNotesCard() {
-		store.dispatch(createWorkingNotesCard());
+		store.dispatch(createCard({cardType: CARD_TYPE_WORKING_NOTES}));
 	}
 
 	_handleReorderCard(e) {
@@ -498,7 +501,7 @@ class CardView extends connect(store)(PageViewElement) {
 		if (e.key == 'm') {
 			//these action creators will fail if the user may not do these now.
 			if (e.shiftKey) {
-				store.dispatch(createWorkingNotesCard());
+				store.dispatch(createCard({cardType: CARD_TYPE_WORKING_NOTES}));
 			} else {
 				store.dispatch(createCard({section: this._activeSectionId}));
 			}
