@@ -67,6 +67,9 @@ export const CARD_TYPE_SECTION_HEAD = 'section-head';
 export const CARD_TYPE_WORKING_NOTES = 'working-notes';
 export const CARD_TYPE_CONCEPT = 'concept';
 
+//The card type to assume if none is specified.
+export const DEFAULT_CARD_TYPE = CARD_TYPE_CONTENT;
+
 /*
 
 invertContentPublishWarning: if true, then the 'There's content but unpublished,

@@ -97,7 +97,7 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	TEXT_FIELD_CONFIGURATION,
 	TEXT_FIELD_BODY,
-	CARD_TYPE_CONTENT,
+	DEFAULT_CARD_TYPE,
 	CARD_TYPE_SECTION_HEAD,
 	references,
 	referencesLegal,
@@ -782,7 +782,7 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		return;
 	}
 
-	let cardType = opts.cardType || CARD_TYPE_CONTENT;
+	let cardType = opts.cardType || DEFAULT_CARD_TYPE;
 
 	let CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[cardType] || null;
 	if (!CARD_TYPE_CONFIG) {
