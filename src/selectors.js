@@ -45,6 +45,7 @@ import {
 import {
 	infoPanelReferenceBlocksForCard,
 	expandReferenceBlocks,
+	getExpandedPrimaryReferenceBlocksForCard,
 } from './reference_blocks.js';
 
 import {
@@ -988,6 +989,12 @@ export const selectCollectionForQuery = createSelector(
 	selectCollectionDescriptionForQuery,
 	selectCollectionConstructorArguments,
 	(description, args) => description.collection(args)
+);
+
+export const selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard = createSelector(
+	selectEditingOrActiveCard,
+	selectCollectionConstructorArguments,
+	(card, args) => getExpandedPrimaryReferenceBlocksForCard(args, card)
 );
 
 export const selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard = createSelector(

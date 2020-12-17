@@ -42,6 +42,7 @@ import {
 	selectUserMayForkActiveCard,
 	selectActiveCollectionWordCloud,
 	selectCardsDrawerInfoExpanded,
+	selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -238,7 +239,7 @@ class CardView extends connect(store)(PageViewElement) {
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
         <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .collection=${this._collection} @info-zippy-clicked=${this._handleInfoZippyClicked} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' @add-working-notes-card='${this._handleAddWorkingNotesCard}' .editable=${this._userMayEditActiveSection} .suppressAdd=${!this._userMayCreateCard} .showCreateWorkingNotes=${this._userMayCreateCard} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .pendingFilters=${this._pendingFilters} .wordCloud=${this._collectionWordCloud} .infoExpanded=${this._infoExpanded} .infoCanBeExpanded=${true}></card-drawer>
         <div id='center'>
-			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .mobile=${this._mobileMode} .card=${this._displayCard} .updatedFromContentEditable=${this._updatedFromContentEditable} @text-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped}>
+			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .updatedFromContentEditable=${this._updatedFromContentEditable} @text-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped}>
 				<div slot='actions' class='presentation'>
 					<button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${FULL_SCREEN_ICON}</button>
 				</div>
@@ -440,6 +441,7 @@ class CardView extends connect(store)(PageViewElement) {
 	stateChanged(state) {
 		this._editingCard = selectEditingCard(state);
 		this._card = selectActiveCard(state) || {};
+		this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(state);
 		this._displayCard = this._editingCard ? this._editingCard : this._card;
 		this._pageExtra = state.app.pageExtra;
 		this._editing = state.editor.editing; 
