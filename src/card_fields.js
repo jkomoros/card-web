@@ -251,7 +251,9 @@ should it receive?
 
 autoFontSizeBoostForCardTypes: For any card type that has a key, fontSizeBoosts
 will auto-set the font size for that field, with the value for that field being
-used as the max value that the boost can legally be for that field
+used as the max value that the boost can legally be for that field. NOTE: card
+types that define reference blocks will interfere with auto-sizing currently.
+#407 tracks fixing that.
 
 */
 
