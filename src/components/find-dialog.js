@@ -111,9 +111,11 @@ class FindDialog extends connect(store)(DialogElement) {
 			</div>
 		</form>
 		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection}></card-drawer>
-		<div ?hidden=${!this._linking} class='add'>
-			<button ?hidden=${!isLink} class='round' @click='${this._handleRemoveLink}' title='Remove the current link'>${LINK_OFF_ICON}</button>
-			<button class='round' @click='${this._handleAddLink}' title='Link to a URL, not a card'>${LINK_ICON}</button>
+		<div ?hidden=${!this._linking && !this._referencing} class='add'>
+			<div ?hidden=${!this._linking}>
+				<button ?hidden=${!isLink} class='round' @click='${this._handleRemoveLink}' title='Remove the current link'>${LINK_OFF_ICON}</button>
+				<button class='round' @click='${this._handleAddLink}' title='Link to a URL, not a card'>${LINK_ICON}</button>
+			</div>
 			<button class='round' @click='${this._handleAddSlide}' title='Create a new stub card to link to' ?hidden=${!this._userMayCreateCard}>${PLUS_ICON}</button>
 		</div>
 	`;
@@ -167,6 +169,8 @@ class FindDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleAddSlide() {
+		if (!this._linking && !this._referencing) return;
+
 		const cardType = this._cardTypeFilter || DEFAULT_CARD_TYPE;
 		const needTitle = editableFieldsForCardType(cardType)[TEXT_FIELD_TITLE];
 		let title = '';
@@ -186,7 +190,11 @@ class FindDialog extends connect(store)(DialogElement) {
 			noNavigate: true,
 		};
 		store.dispatch(createCard(opts));
-		store.dispatch(linkCard(id));
+		if (this._linking) {
+			store.dispatch(linkCard(id));
+		} else if(this._referencing) {
+			store.dispatch(setCardToReference(id));
+		}
 		this._shouldClose();
 	}
 
