@@ -840,6 +840,7 @@ export const createCard = (opts) => async (dispatch, getState) => {
 	dispatch({
 		type: EXPECT_NEW_CARD,
 		ID: id,
+		cardType: cardType,
 		navigate: !noNavigate,
 		noSectionChange: !section,
 		published: obj.published,
@@ -965,6 +966,7 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 	dispatch({
 		type: EXPECT_NEW_CARD,
 		ID: id,
+		cardType: cardType,
 		navigate: true,
 	});
 

@@ -47,6 +47,8 @@ const INITIAL_STATE = {
 	//A card that we created, but is not yet in the cards collection. This will
 	//be cleared as soon as that card is received and added.
 	pendingNewCardID: '',
+	//The card_type of the card denoted by pendingNewCardID
+	pendingNewCardType: '',
 	//Similar to pendingNewCardID, but specifically for a new card that was
 	//created that--when it is loaded--we should navigate to. This is either the
 	//value of pendingNewCardID, or blank. Note that there's a brief moment
@@ -66,6 +68,7 @@ const app = (state = INITIAL_STATE, action) => {
 			return {
 				...state,
 				pendingNewCardID: action.ID,
+				pendingNewCardType: action.cardType || '',
 			};
 		}
 		return {
@@ -84,6 +87,7 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			reorderPending: false,
 			pendingNewCardID: '',
+			pendingNewCardType: '',
 			pendingNewCardIDToNavigateTo: '',
 		};
 	case UPDATE_CARDS:
@@ -99,6 +103,7 @@ const app = (state = INITIAL_STATE, action) => {
 		}
 		if (Object.keys(action.cards).some(key => key === state.pendingNewCardID)) {
 			result.pendingNewCardID = '';
+			result.pendingNewCardType = '';
 		}
 		return result;
 	case REMOVE_CARDS:
