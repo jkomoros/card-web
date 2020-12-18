@@ -44,7 +44,16 @@ const INITIAL_STATE = {
 	cardModificationPending: '',
 	cardModificationError: null,
 	reorderPending: false,
-	pendingNewCardIDToNavigateTo: '',
+	//A card that we created, but is not yet in the cards collection. This will
+	//be cleared as soon as that card is received and added.
+	pendingNewCardID: '',
+	//Similar to pendingNewCardID, but specifically for a new card that was
+	//created that--when it is loaded--we should navigate to. This is either the
+	//value of pendingNewCardID, or blank. Note that there's a brief moment
+	//where the new card has been received, so pendingNewCardID is cleared, but
+	//pendingNewCardIDToNavigateTo is not yet cleared, because the navigation
+	//hasn't yet happened.
+	pendingNewCardIDToNavigateTo: ''
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -53,6 +62,12 @@ const app = (state = INITIAL_STATE, action) => {
 		//This means that although we may think we're fully loaded now, there's
 		//a new card that was just added to database that firebase hasn't yet
 		//told us about.
+		if (!action.navigate) {
+			return {
+				...state,
+				pendingNewCardID: action.ID,
+			};
+		}
 		return {
 			...state,
 			//by default we assume we need a section to load, but if it's a card
@@ -61,12 +76,14 @@ const app = (state = INITIAL_STATE, action) => {
 			//some cards, like concept cards, default to being published
 			[action.published ? 'publishedCardsLoaded' : 'unpublishedCardsLoaded']: false,
 			reorderPending: true,
+			pendingNewCardID: action.ID,
 			pendingNewCardIDToNavigateTo: action.ID,
 		};
 	case NAVIGATED_TO_NEW_CARD:
 		return {
 			...state,
 			reorderPending: false,
+			pendingNewCardID: '',
 			pendingNewCardIDToNavigateTo: '',
 		};
 	case UPDATE_CARDS:
@@ -79,6 +96,9 @@ const app = (state = INITIAL_STATE, action) => {
 			result.unpublishedCardsLoaded = true;
 		} else {
 			result.publishedCardsLoaded = true;
+		}
+		if (Object.keys(action.cards).some(key => key === state.pendingNewCardID)) {
+			result.pendingNewCardID = '';
 		}
 		return result;
 	case REMOVE_CARDS:

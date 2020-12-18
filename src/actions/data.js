@@ -835,16 +835,15 @@ export const createCard = (opts) => async (dispatch, getState) => {
 
 	let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
 
-	if (!noNavigate) {
-		//Tell card-view to expect a new card to be loaded, and when data is
-		//fully loaded again, it will then trigger the navigation.
-		dispatch({
-			type: EXPECT_NEW_CARD,
-			published: obj.published,
-			ID: id,
-			noSectionChange: !section,
-		});
-	}
+	//Tell card-view to expect a new card to be loaded, and when data is
+	//fully loaded again, it will then trigger the navigation.
+	dispatch({
+		type: EXPECT_NEW_CARD,
+		ID: id,
+		navigate: !noNavigate,
+		noSectionChange: !section,
+		published: obj.published,
+	});
 
 	if (idFromOpts) {
 
@@ -966,6 +965,7 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 	dispatch({
 		type: EXPECT_NEW_CARD,
 		ID: id,
+		navigate: true,
 	});
 
 	if (!section) {
