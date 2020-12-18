@@ -158,6 +158,9 @@ export const REFERENCE_TYPE_MINED_FROM = 'mined-from';
 //For cards that want to say you should also see a related card that is similar,
 //a kind of peer.
 export const REFERENCE_TYPE_SEE_ALSO = 'see-also';
+//For saying that the card that is pointing from uses the concept pointed to at
+//the other card. The other card may only be a concept card.
+export const REFERENCE_TYPE_CONCEPT = 'concept';
 
 //Any key in this object is a legal reference type
 /*
@@ -231,6 +234,15 @@ export const REFERENCE_TYPES = {
 		substantive: true,
 		//navy
 		color: '#000080',
+		excludeFromInfoPanel: false,
+	},
+	[REFERENCE_TYPE_CONCEPT]: {
+		name: 'Concept',
+		description: 'For cards that are about a concept this card uses',
+		editable: true,
+		substantive: true,
+		//darkkhahki
+		color: '#BDB76B',
 		excludeFromInfoPanel: false,
 	}
 };
