@@ -75,7 +75,7 @@ import {
 	getUserMayEditSection,
 	getUserMayEditTag,
 	selectUserMayCreateCard,
-	selectPendingNewCardID,
+	selectPendingNewCardIDToNavigateTo,
 	selectIsEditing,
 	selectActiveCardId,
 	getReasonUserMayNotDeleteCard,
@@ -1076,7 +1076,7 @@ export const deleteCard = (card) => async (dispatch, getState) => {
 };
 
 export const navigateToNewCard = () => (dispatch, getState) => {
-	const ID = selectPendingNewCardID(getState());
+	const ID = selectPendingNewCardIDToNavigateTo(getState());
 	if (!ID) return;
 	//navigateToNewCard is called when the expected cards/sections are loaded.
 	//Ensure that we have the up-to-date sections loaded. The case of adding a

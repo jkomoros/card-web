@@ -38,7 +38,7 @@ import {
 	selectUserMayCreateCard,
 	selectSectionsLoaded,
 	selectEditingUpdatedFromContentEditable,
-	selectPendingNewCardID,
+	selectPendingNewCardIDToNavigateTo,
 	selectUserMayForkActiveCard,
 	selectActiveCollectionWordCloud,
 	selectCardsDrawerInfoExpanded,
@@ -312,7 +312,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_sectionsLoaded: {type:Boolean},
 			_tagInfos: {type:Object},
 			_cardTodos: {type: Array},
-			_pendingNewCardID: {type:String},
+			_pendingNewCardIDToNavigateTo: {type:String},
 			_collectionWordCloud: {type:Object},
 			_infoExpanded: {type: Boolean},
 		};
@@ -477,7 +477,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._dataIsFullyLoaded = selectDataIsFullyLoaded(state);
 		this._sectionsLoaded = selectSectionsLoaded(state);
 		this._cardTodos = selectActiveCardTodosForCurrentUser(state);
-		this._pendingNewCardID = selectPendingNewCardID(state);
+		this._pendingNewCardIDToNavigateTo = selectPendingNewCardIDToNavigateTo(state);
 		this._infoExpanded = selectCardsDrawerInfoExpanded(state);
 
 		if (this._cardsDrawerPanelOpen && this._infoExpanded) {
@@ -547,7 +547,7 @@ class CardView extends connect(store)(PageViewElement) {
 				store.dispatch(navigateToDefaultIfSectionsLoaded());
 			}
 		}
-		if ((changedProps.has('_pendingNewCardID') || changedProps.has('_dataIsFullyLoaded')) && this._dataIsFullyLoaded && this._pendingNewCardID) {
+		if ((changedProps.has('_pendingNewCardIDToNavigateTo') || changedProps.has('_dataIsFullyLoaded')) && this._dataIsFullyLoaded && this._pendingNewCardIDToNavigateTo) {
 			store.dispatch(navigateToNewCard());
 		}
 		if (changedProps.has('_editing') && !this._editing) {

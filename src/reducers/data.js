@@ -44,7 +44,7 @@ const INITIAL_STATE = {
 	cardModificationPending: '',
 	cardModificationError: null,
 	reorderPending: false,
-	pendingNewCardID: '',
+	pendingNewCardIDToNavigateTo: '',
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -61,13 +61,13 @@ const app = (state = INITIAL_STATE, action) => {
 			//some cards, like concept cards, default to being published
 			[action.published ? 'publishedCardsLoaded' : 'unpublishedCardsLoaded']: false,
 			reorderPending: true,
-			pendingNewCardID: action.ID,
+			pendingNewCardIDToNavigateTo: action.ID,
 		};
 	case NAVIGATED_TO_NEW_CARD:
 		return {
 			...state,
 			reorderPending: false,
-			pendingNewCardID: '',
+			pendingNewCardIDToNavigateTo: '',
 		};
 	case UPDATE_CARDS:
 		let result = {

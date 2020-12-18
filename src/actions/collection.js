@@ -42,7 +42,7 @@ import {
 	getCardIndexForActiveCollection,
 	selectActiveCollectionDescription,
 	selectActiveCollection,
-	selectPendingNewCardID,
+	selectPendingNewCardIDToNavigateTo,
 	selectAlreadyCommittedModificationsWhenFullyLoaded
 } from '../selectors.js';
 
@@ -357,9 +357,9 @@ export const showCard = (requestedCard) => (dispatch, getState) => {
 	dispatch(canonicalizeURL());
 	dispatch(scheduleAutoMarkRead());
 
-	const pendingNewCardID = selectPendingNewCardID(state);
+	const pendingNewCardIDToNavigateTo = selectPendingNewCardIDToNavigateTo(state);
 
-	if (pendingNewCardID == cardId) {
+	if (pendingNewCardIDToNavigateTo == cardId) {
 		//This is where we note that we were told to navigate 
 		dispatch(navigatedToNewCard());
 
