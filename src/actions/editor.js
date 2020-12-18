@@ -43,7 +43,8 @@ import {
 	selectPendingSlug,
 	selectIsEditing,
 	selectEditingPendingReferenceType,
-	getCardExists
+	getCardExists,
+	getCardType,
 } from '../selectors.js';
 
 import {
@@ -562,9 +563,26 @@ export const addReferenceToCard = (cardID, referenceType) => (dispatch, getState
 		console.warn('Illegal reference type');
 		return;
 	}
-	if (!getCardExists(getState(), cardID)) {
+	const state = getState();
+	if (!getCardExists(state, cardID)) {
 		console.warn('No such card');
 		return;
+	}
+	const toCardType = getCardType(state, cardID);
+	const referenceTypeConfig = REFERENCE_TYPES[referenceType];
+
+	if (!referenceTypeConfig) {
+		console.warn('Illegal reference type');
+		return;
+	}
+
+	//if the reference type doesn't have a toCardTypeAllowList then any of them
+	//are legal.
+	if (referenceTypeConfig.toCardTypeAllowList) {
+		if (!referenceTypeConfig.toCardTypeAllowList[toCardType]) {
+			console.warn('That reference type may not point to cards of type ' + toCardType);
+			return;
+		}
 	}
 
 	dispatch({

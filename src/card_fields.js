@@ -170,6 +170,7 @@ editable - whether it should be directly editable by a user
 substantive - whether the reference is important enough to acknowledge to a non-editor-user in the UI
 color - the color to use when it shows up as a tag
 excludeFromInfoPanel - if true, will not show up in the infoPanelArray. That might be because they are already visible elsewhere, or aren't important enough to show.
+toCardTypeAllowList - if null or undefined, any card of any type may be on the receiving end. If not null, then only card_types in the toCardTypeAllowList map are allowed.
 */
 export const REFERENCE_TYPES = {
 	[REFERENCE_TYPE_LINK]: {
@@ -244,6 +245,9 @@ export const REFERENCE_TYPES = {
 		//darkkhahki
 		color: '#BDB76B',
 		excludeFromInfoPanel: false,
+		toCardTypeAllowList: {
+			[CARD_TYPE_CONCEPT]: true,
+		}
 	}
 };
 
