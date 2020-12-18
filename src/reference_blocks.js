@@ -1,6 +1,6 @@
 import {
 	CARD_TYPE_CONCEPT,
-	REFERENCE_TYPE_ACK,
+	REFERENCE_TYPE_CONCEPT,
 	SELF_KEY_CARD_ID,
 	REFERENCE_TYPES,
 } from './card_fields.js';
@@ -37,8 +37,7 @@ An array where each item has:
 const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 	[CARD_TYPE_CONCEPT]: [
 		{
-			//TODO: actually change this to concept reference type once that exists
-			collection: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_ACK)]),
+			collection: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_CONCEPT)]),
 			title: 'Cards that reference this concept',
 			emptyMessage: 'No cards reference this concept',
 		}
