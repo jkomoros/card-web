@@ -111,6 +111,7 @@ export const selectExpectedDeletions = (state) => state.data ? state.data.expect
 //All cards downloaded to client can be assumed to be OK to use in the rest of the pipeline.
 export const selectCards = (state) => state.data ? state.data.cards : {};
 const selectPendingNewCardID = (state) => state.data ? state.data.pendingNewCardID : '';
+const selectPendingNewCardType = (state) => state.data ? state.data.pendingNewCardType : '';
 export const selectPendingNewCardIDToNavigateTo = (state) => state.data ? state.data.pendingNewCardIDToNavigateTo : '';
 const selectPublishedCardsLoaded = (state) => state.data ? state.data.publishedCardsLoaded : false;
 const selectUnpublishedCardsLoaded = (state) => state.data ? state.data.unpublishedCardsLoaded : false;
@@ -534,6 +535,16 @@ export const selectEditingCardSuggestedTags = createSelector(
 export const getCardExists = (state, cardID) => {
 	if (cardID == selectPendingNewCardID(state)) return true;
 	return Object.keys(selectCards(state)).some(key => key === cardID);
+};
+
+//Returns the cardType for the card with the given ID. It looks over the set of
+//cards in client, but also will return the pendingNewCardType if the cardID
+//matches. See also getCardExists.
+export const getCardType = (state, cardID) => {
+	if (cardID == selectPendingNewCardID(state)) return selectPendingNewCardType(state);
+	const cards = selectCards(state);
+	const card = cards[cardID] || {};
+	return card.card_type || '';
 };
 
 //selectingEitingOrActiveCard returns either the editing card, or else the
