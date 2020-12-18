@@ -110,6 +110,7 @@ export const selectTags = (state) => state.data ? state.data.tags : {};
 export const selectExpectedDeletions = (state) => state.data ? state.data.expectedDeletions : {};
 //All cards downloaded to client can be assumed to be OK to use in the rest of the pipeline.
 export const selectCards = (state) => state.data ? state.data.cards : {};
+const selectPendingNewCardID = (state) => state.data ? state.data.pendingNewCardID : '';
 export const selectPendingNewCardIDToNavigateTo = (state) => state.data ? state.data.pendingNewCardIDToNavigateTo : '';
 const selectPublishedCardsLoaded = (state) => state.data ? state.data.publishedCardsLoaded : false;
 const selectUnpublishedCardsLoaded = (state) => state.data ? state.data.unpublishedCardsLoaded : false;
@@ -525,6 +526,15 @@ export const selectEditingCardSuggestedTags = createSelector(
 		return result;
 	}
 );
+
+//getCardExists checks if the card with the given ID is known to exist. This is
+//typicaly because a card with that ID is in the set of cards on the client, but
+//also might be because we just created that card and know it will exist soon
+//even though it's not yet on the client.
+export const getCardExists = (state, cardID) => {
+	if (cardID == selectPendingNewCardID(state)) return true;
+	return Object.keys(selectCards(state)).some(key => key === cardID);
+};
 
 //selectingEitingOrActiveCard returns either the editing card, or else the
 //active card.

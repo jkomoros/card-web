@@ -43,7 +43,7 @@ import {
 	selectPendingSlug,
 	selectIsEditing,
 	selectEditingPendingReferenceType,
-	getCardById
+	getCardExists
 } from '../selectors.js';
 
 import {
@@ -562,9 +562,7 @@ export const addReferenceToCard = (cardID, referenceType) => (dispatch, getState
 		console.warn('Illegal reference type');
 		return;
 	}
-	const state = getState();
-	const card = getCardById(state, cardID);
-	if (!card) {
+	if (!getCardExists(getState(), cardID)) {
 		console.warn('No such card');
 		return;
 	}
