@@ -208,17 +208,17 @@ const destemmedWordMap = (cardOrCards) => {
 const DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES = false;
 let normalizedCount = {};
 
-//cardSetNormalizedTextProperties sets the properties that search and
-//fingerprints work over. It sets them on the same card object sent. It returns
-//the card passed in as convenience.
-export const cardSetNormalizedTextProperties = (card) => {
+//cardWithNormalizedTextProperties sets the properties that search and
+//fingerprints work over, on a copy of the card it returns.
+export const cardWithNormalizedTextProperties = (card) => {
 	if (DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES) {
 		normalizedCount[card.id] = (normalizedCount[card.id] || 0) + 1;
 		if(normalizedCount[card.id] > 1) console.log(card.id, normalizedCount[card.id]);
 	}
+	const result = {...card};
 	//Basically it takes the output of extractContentWords and then stems each run.
-	card.normalized = Object.fromEntries(Object.entries(extractContentWords(card)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
-	return card;
+	result.normalized = Object.fromEntries(Object.entries(extractContentWords(card)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
+	return result;
 };
 
 //text should be normalized

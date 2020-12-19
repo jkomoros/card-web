@@ -47,7 +47,7 @@ import {
 } from '../card_fields.js';
 
 import {
-	cardSetNormalizedTextProperties
+	cardWithNormalizedTextProperties
 } from '../nlp.js';
 
 import {
@@ -108,7 +108,7 @@ const app = (state = INITIAL_STATE, action) => {
 	case EDITING_TEXT_FIELD_UPDATED:
 		if (!state.card) return state;
 		card = {...state.card, [action.fieldName]:action.value};
-		if(!action.skipUpdatingNormalizedFields) cardSetNormalizedTextProperties(card);
+		if(!action.skipUpdatingNormalizedFields) card = cardWithNormalizedTextProperties(card);
 		return {
 			...state,
 			card: card,
@@ -141,10 +141,9 @@ const app = (state = INITIAL_STATE, action) => {
 		let linkInfo = extractCardLinksFromBody(state.card.body);
 		card = {...state.card};
 		references(card).setLinks(linkInfo);
-		cardSetNormalizedTextProperties(card);
 		return {
 			...state,
-			card: card,
+			card: cardWithNormalizedTextProperties(card),
 		};
 	case EDITING_ADD_REFERENCE:
 		if (!state.card) return state;

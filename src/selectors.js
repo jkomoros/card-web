@@ -41,7 +41,7 @@ import {
 	wordCloudFromFingerprint,
 	extractFiltersFromQuery,
 	emptyWordCloud,
-	cardSetNormalizedTextProperties
+	cardWithNormalizedTextProperties
 } from './nlp.js';
 
 import {
@@ -160,7 +160,7 @@ export const selectReadingListLoaded = (state) => state.user ? state.user.readin
 
 export const selectCards = createObjectSelector(
 	selectRawCards,
-	(card) => cardSetNormalizedTextProperties({...card})
+	(card) => cardWithNormalizedTextProperties(card)
 );
 
 export const selectActiveCard = createSelector(

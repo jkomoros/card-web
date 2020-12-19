@@ -3,7 +3,7 @@ import {
 } from './card_fields.js';
 
 import {
-	cardSetNormalizedTextProperties,
+	cardWithNormalizedTextProperties,
 	dedupedPrettyFingerprint
 } from './nlp.js';
 
@@ -16,11 +16,10 @@ const NUM_TERMS_OF_FINGERPRINT = 8;
 const workingNotesExtractor = (card,state) => {
 	//TODO: also include first part of semantic fingerprint.
 	const date = card.updated.toDate();
-	const cardCopy = {...card};
 	//The fingerprint requires these to be up to date, but we only update these
 	//on a timeout in textFieldUpdated so typing isn't expensive. It's possible
 	//that timeout hasn't fired yet, so make sure the card content is up to date.
-	cardSetNormalizedTextProperties(cardCopy);
+	const cardCopy = cardWithNormalizedTextProperties(card);
 	const fingerprint = getSemanticFingerprintForCard(state, cardCopy);
 	const pretty = dedupedPrettyFingerprint(fingerprint, cardCopy);
 	const title = date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'2-digit'}) + ' ' + pretty.split(' ').slice(0, NUM_TERMS_OF_FINGERPRINT).join(' ');

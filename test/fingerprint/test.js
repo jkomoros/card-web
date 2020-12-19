@@ -17,7 +17,7 @@ const dom = new JSDOM('');
 overrideDocument(dom.window.document);
 
 import {
-	cardSetNormalizedTextProperties,
+	cardWithNormalizedTextProperties,
 	FingerprintGenerator,
 	PreparedQuery,
 	TESTING,
@@ -92,9 +92,9 @@ const baseCards = (extras) => {
 		...BASE_DATA,
 	};
 
-	for (let card of Object.values(cards)) {
+	for (let [id, card] of Object.entries(cards)) {
 		if (!card.card_type) card.card_type = CARD_TYPE_CONTENT;
-		cardSetNormalizedTextProperties(card);
+		cards[id] = cardWithNormalizedTextProperties(card);
 	}
 
 	return cards;
