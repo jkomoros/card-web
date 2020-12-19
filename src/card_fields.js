@@ -244,7 +244,8 @@ export const REFERENCE_TYPES = {
 		substantive: true,
 		//darkkhahki
 		color: '#BDB76B',
-		excludeFromInfoPanel: false,
+		//It's included in its own section
+		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
 			[CARD_TYPE_CONCEPT]: true,
 		}

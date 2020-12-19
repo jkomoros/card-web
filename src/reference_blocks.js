@@ -51,6 +51,11 @@ const NUM_SIMILAR_CARDS_TO_SHOW = 5;
 
 const INFO_PANEL_REFERENCE_BLOCKS = [
 	{
+		title: 'Concepts',
+		description: 'Concepts this card references',
+		collection: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_CONCEPT)])
+	},
+	{
 		title: 'Other referenced cards',
 		description: 'Cards that this card references that are not links',
 		collection: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL, true)])
