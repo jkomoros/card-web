@@ -136,6 +136,7 @@ class CardDrawer extends connect(store)(LitElement) {
 
 				.thumbnail h3 {
 					color: var(--app-dark-text-color);
+					fill: var(--app-dark-text-color);
 					text-align:center;
 					font-size: 0.8em;
 					font-family: var(--app-header-font-family);
@@ -169,6 +170,12 @@ class CardDrawer extends connect(store)(LitElement) {
 					font-size: 0.5em;
 				}
 
+				.thumbnail svg {
+					height: 1.0em;
+					width: 1.0em;
+					margin-right: 0.25em;
+				}
+
 				.thumbnail.unpublished {
 					background-color: var(--unpublished-card-color);
 				}
@@ -179,6 +186,7 @@ class CardDrawer extends connect(store)(LitElement) {
 
 				.thumbnail.highlighted h3 {
 					color: var(--app-primary-color);
+					fill: var(--app-primary-color);
 				}
 
 				.thumbnail.section-head.partial {
@@ -191,10 +199,12 @@ class CardDrawer extends connect(store)(LitElement) {
 
 				.thumbnail.section-head h3 {
 					color: var(--app-light-text-color);
+					fill: var(--app-light-text-color);
 				}
 
 				.thumbnail.section-head.highlighted h3 {
 					color: var(--app-primary-color-light);
+					fill: var(--app-primary-color-light);
 				}
 
 				.thumbnail.empty {
@@ -207,6 +217,7 @@ class CardDrawer extends connect(store)(LitElement) {
 
 				div.thumbnail:hover h3 {
 					color: var(--app-secondary-color);
+					fill: var(--app-secondary-color);
 				}
 
 				.thumbnail:hover {
@@ -215,6 +226,7 @@ class CardDrawer extends connect(store)(LitElement) {
 
 				.thumbnail.section-head:hover h3 {
 					color: var(--app-primary-color-subtle);
+					fill: var(--app-primary-color-subtle);
 				}
 
 				.thumbnail.section-head:hover {
@@ -253,7 +265,7 @@ class CardDrawer extends connect(store)(LitElement) {
 
 		return html`
 			<div  .card=${card} .index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.editable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${card.card_type} ${card && card.published ? '' : 'unpublished'} ${this._collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
-					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${getExpandedPrimaryReferenceBlocksForCard(this.collection.constructorArguments, card)}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'} ${isWorkingNotes ? 'workingnotes' : ''}'>${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
+					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${getExpandedPrimaryReferenceBlocksForCard(this.collection.constructorArguments, card)}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'} ${isWorkingNotes ? 'workingnotes' : ''}'>${cardTypeConfig.icon || ''}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
 					${cardBadges(cardTypeConfig.lightBadges, card, this._badgeMap)}
 			</div>
 		`;

@@ -5,6 +5,8 @@ const deleteSentinel = firebase.firestore.FieldValue.delete;
 
 import { html } from '@polymer/lit-element';
 
+import * as icons from './components/my-icons.js';
+
 /*
 
 On each card is a references property and a references info.
@@ -89,6 +91,9 @@ renderer when this card type is selected.
 
 lightBadges: if true, badges will render on cardThumbnail using light color
 
+icon: a reference from icons to show in front of the title everywhere it shows
+up
+
 */
 
 export const CARD_TYPE_CONFIGURATION = {
@@ -133,11 +138,13 @@ export const CARD_TYPE_CONFIGURATION = {
 				line-height:1.2;
 			}
 		</style>
-		`
+		`,
+		icon: icons.INSERT_DRIVE_FILE_ICON,
 	},
 	[CARD_TYPE_CONCEPT]: {
 		orphanedByDefault: true,
 		publishedByDefault: true,
+		icon: icons.MENU_BOOK_ICON,
 	},
 };
 
