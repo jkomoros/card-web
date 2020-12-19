@@ -145,6 +145,7 @@ export const selectQuery = (state) => state.find.query;
 //activeQuery is the query that should be routed into the query pipeline.
 const selectActiveQueryText = (state) => state.find.activeQuery;
 export const selectFindCardTypeFilter = (state) => state.find ? state.find.cardTypeFilter : '';
+export const selectFindCardTypeFilterLocked = (state) => state.find ? state.find.cardTypeFilterLocked : false;
 
 export const selectAuthPending = (state) => state.user ? state.user.pending : false;
 //Note: this will return false unless stars have been loading, even if there is

@@ -25,6 +25,8 @@ const INITIAL_STATE = {
 	//editing card to this one
 	referencing: false,
 	cardTypeFilter: '',
+	//if true, the filter shouldn't be able to be changed
+	cardTypeFilterLocked: false,
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -38,6 +40,7 @@ const app = (state = INITIAL_STATE, action) => {
 			query: action.query || '',
 			activeQuery: action.query || '',
 			cardTypeFilter: '',
+			cardTypeFilterLocked: false,
 			open: true
 		};
 	case FIND_DIALOG_CLOSE:
@@ -47,6 +50,7 @@ const app = (state = INITIAL_STATE, action) => {
 			query: '',
 			activeQuery: '',
 			cardTypeFilter: '',
+			cardTypeFilterLocked: false,
 		};
 	case FIND_UPDATE_QUERY: 
 		return {
@@ -66,6 +70,7 @@ const app = (state = INITIAL_STATE, action) => {
 			permissions: false,
 			referencing: false,
 			cardTypeFilter: '',
+			cardTypeFilterLocked: false,
 			query: action.query,
 			activeQuery: action.query
 		};
@@ -79,6 +84,7 @@ const app = (state = INITIAL_STATE, action) => {
 			query: action.query || '',
 			activeQuery: action.query || '',
 			cardTypeFilter: '',
+			cardTypeFilterLocked: false,
 		};
 	case FIND_CARD_TO_REFERENCE:
 		return {
@@ -90,6 +96,7 @@ const app = (state = INITIAL_STATE, action) => {
 			query: action.query || '',
 			activeQuery: action.query || '',
 			cardTypeFilter: action.cardTypeFilter || '',
+			cardTypeFilterLocked: !!action.cardTypeFilter,
 		};
 	case FIND_UPDATE_CARD_TYPE_FILTER:
 		return {

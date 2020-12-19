@@ -16,7 +16,8 @@ import {
 } from '../collection_description.js';
 
 import {
-	selectActiveCollectionDescription
+	selectActiveCollectionDescription,
+	selectFindCardTypeFilterLocked,
 } from '../selectors.js';
 
 export const openFindDialog = () => {
@@ -63,26 +64,31 @@ export const findCardToPermission = () => {
 	return launchFind(FIND_CARD_TO_PERMISSION);
 };
 
-export const findCardToReference = (cardTypeFilter) => {
-	return launchFind(FIND_CARD_TO_REFERENCE, '', cardTypeFilter);
+export const findCardToReference = (lockedCardTypeFilter) => {
+	return launchFind(FIND_CARD_TO_REFERENCE, '', lockedCardTypeFilter);
 };
 
-const launchFind = (typ, starterQuery, cardTypeFilter) => (dispatch, getState) => {
+const launchFind = (typ, starterQuery, lockedCardTypeFilter) => (dispatch, getState) => {
 	if (!starterQuery) {
 		const description = selectActiveCollectionDescription(getState());
 		starterQuery = queryTextFromCollectionDescription(description);
 	}
-	if (!cardTypeFilter) cardTypeFilter = '';
+	if (!lockedCardTypeFilter) lockedCardTypeFilter = '';
 	dispatch({
 		type: typ,
 		query: starterQuery,
-		cardTypeFilter: cardTypeFilter,
+		cardTypeFilter: lockedCardTypeFilter,
 	});
 };
 
-export const findUpdateCardTypeFilter = (filter) => {
-	return {
+export const findUpdateCardTypeFilter = (filter) => (dispatch, getState) =>  {
+
+	const cardTypeFilterLocked = selectFindCardTypeFilterLocked(getState());
+
+	if (cardTypeFilterLocked) return;
+
+	dispatch({
 		type: FIND_UPDATE_CARD_TYPE_FILTER,
 		filter,
-	};
+	});
 };
