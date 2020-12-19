@@ -189,20 +189,20 @@ class CardDrawer extends connect(store)(LitElement) {
 					fill: var(--app-primary-color);
 				}
 
-				.thumbnail.section-head.partial {
+				.thumbnail.dark.partial {
 					background-color: var(--app-primary-color);
 				}
 
-				.thumbnail.section-head.partial.highlighted {
+				.thumbnail.dark.partial.highlighted {
 					border: 2px solid var(--app-light-text-color);
 				}
 
-				.thumbnail.section-head h3 {
+				.thumbnail.dark h3 {
 					color: var(--app-light-text-color);
 					fill: var(--app-light-text-color);
 				}
 
-				.thumbnail.section-head.highlighted h3 {
+				.thumbnail.dark.highlighted h3 {
 					color: var(--app-primary-color-light);
 					fill: var(--app-primary-color-light);
 				}
@@ -224,12 +224,12 @@ class CardDrawer extends connect(store)(LitElement) {
 					border:2px solid var(--app-secondary-color);
 				}
 
-				.thumbnail.section-head:hover h3 {
+				.thumbnail.dark:hover h3 {
 					color: var(--app-primary-color-subtle);
 					fill: var(--app-primary-color-subtle);
 				}
 
-				.thumbnail.section-head:hover {
+				.thumbnail.dark:hover {
 					border:2px solid var(--app-primary-color-subtle);
 				}
 
@@ -264,9 +264,9 @@ class CardDrawer extends connect(store)(LitElement) {
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[card.card_type] || {};
 
 		return html`
-			<div  .card=${card} .index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.editable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${card.card_type} ${card && card.published ? '' : 'unpublished'} ${this._collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
+			<div  .card=${card} .index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.editable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${cardTypeConfig.dark ? 'dark' : ''} ${card && card.published ? '' : 'unpublished'} ${this._collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
 					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${getExpandedPrimaryReferenceBlocksForCard(this.collection.constructorArguments, card)}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'} ${isWorkingNotes ? 'workingnotes' : ''}'>${cardTypeConfig.icon || ''}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
-					${cardBadges(cardTypeConfig.lightBadges, card, this._badgeMap)}
+					${cardBadges(cardTypeConfig.dark, card, this._badgeMap)}
 			</div>
 		`;
 	}

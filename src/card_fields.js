@@ -89,7 +89,8 @@ content is the reference list.
 styleBlock: if provided, will be rendered as the style block in the card
 renderer when this card type is selected.
 
-lightBadges: if true, badges will render on cardThumbnail using light color
+dark: if true, the card is considered dark, and styles for e.g. thumbnails,
+including badge color, will swap.
 
 icon: a reference from icons to show in front of the title everywhere it shows
 up
@@ -99,7 +100,7 @@ up
 export const CARD_TYPE_CONFIGURATION = {
 	[CARD_TYPE_CONTENT]: {},
 	[CARD_TYPE_SECTION_HEAD]: {
-		lightBadges: true,
+		dark: true,
 		styleBlock: html`
 			<style>
 				.background {
