@@ -996,10 +996,15 @@ export const getCardIndexForActiveCollection = (state, cardId) => {
 };
 
 //returns an array of card-types that are in the BODY_CARD_TYPES that this user has access to
-export const selectBodyCardTypes = createSelector(
+const selectBodyCardTypes = createSelector(
 	selectFilters,
 	//we can just take advantage of the fact that cards are already set, and there's a filter per card type
 	(filters) => Object.keys(BODY_CARD_TYPES).filter(cardType => Object.keys(filters[cardType] || {}).length > 0)
+);
+
+export const selectFindLegalCardTypeFilters = createSelector(
+	selectBodyCardTypes,
+	(bodyCardTypes) => ['', ...bodyCardTypes]
 );
 
 export const selectCollectionDescriptionForQuery = createSelector(

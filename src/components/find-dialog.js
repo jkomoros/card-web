@@ -40,7 +40,7 @@ import {
 import {
 	selectCollectionForQuery,
 	selectUserMayCreateCard,
-	selectBodyCardTypes,
+	selectFindLegalCardTypeFilters,
 	selectFindCardTypeFilter,
 	selectFindReferencing,
 	selectEditingPendingReferenceType,
@@ -102,8 +102,8 @@ class FindDialog extends connect(store)(DialogElement) {
 			}
 		</style>
 		<form @submit=${this._handleFormSubmitted}>
-			${this._bodyCardTypes.length > 1 ? html`<div><span>Card type:</span>
-				${['', ...this._bodyCardTypes].map(typ => html`<input type='radio' name='card-type' @change=${this._handleCardTypeChanged} .checked=${this._cardTypeFilter === typ} value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}'>${typ || html`<em>Default</em>`}</label>`)}
+			${this._legalCardTypeFilters.length > 1 ? html`<div><span>Card type:</span>
+				${this._legalCardTypeFilters.map(typ => html`<input type='radio' name='card-type' @change=${this._handleCardTypeChanged} .checked=${this._cardTypeFilter === typ} value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}'>${typ || html`<em>Default</em>`}</label>`)}
 			</div>` : ''}
 			<div class='row'>
 				<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
@@ -124,7 +124,7 @@ class FindDialog extends connect(store)(DialogElement) {
 	constructor() {
 		super();
 		this.title = this._computedTitle;
-		this._bodyCardTypes = [];
+		this._legalCardTypeFilters = [];
 	}
 
 	_shouldClose() {
@@ -224,7 +224,7 @@ class FindDialog extends connect(store)(DialogElement) {
 			_referencing: {type:Boolean},
 			_pendingReferenceType: {type:String},
 			_userMayCreateCard: {type:Boolean},
-			_bodyCardTypes: {type:Array},
+			_legalCardTypeFilters: {type:Array},
 			_cardTypeFilter: {type:String},
 			_collectionDescription: {type:Object},
 		};
@@ -267,7 +267,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._referencing = selectFindReferencing(state);
 		this._pendingReferenceType = selectEditingPendingReferenceType(state);
 		this._userMayCreateCard = selectUserMayCreateCard(state);
-		this._bodyCardTypes = selectBodyCardTypes(state);
+		this._legalCardTypeFilters = selectFindLegalCardTypeFilters(state);
 		this._cardTypeFilter = selectFindCardTypeFilter(state);
 	}
 
