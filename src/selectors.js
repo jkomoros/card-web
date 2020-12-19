@@ -1,4 +1,5 @@
 import { createSelector } from 'reselect';
+import { createObjectSelector } from 'reselect-map';
 
 /* 
  This is the collection of all getters and selectors for state. 
@@ -39,7 +40,8 @@ import {
 	FingerprintGenerator,
 	wordCloudFromFingerprint,
 	extractFiltersFromQuery,
-	emptyWordCloud
+	emptyWordCloud,
+	cardSetNormalizedTextProperties
 } from './nlp.js';
 
 import {
@@ -109,7 +111,8 @@ export const selectSections = (state) => state.data ? state.data.sections : {};
 export const selectTags = (state) => state.data ? state.data.tags : {};
 export const selectExpectedDeletions = (state) => state.data ? state.data.expectedDeletions : {};
 //All cards downloaded to client can be assumed to be OK to use in the rest of the pipeline.
-export const selectCards = (state) => state.data ? state.data.cards : {};
+//rawCards means they don't yet have their nlp data cached. See selectCards which returns that.
+const selectRawCards = (state) => state.data ? state.data.cards : {};
 const selectPendingNewCardID = (state) => state.data ? state.data.pendingNewCardID : '';
 const selectPendingNewCardType = (state) => state.data ? state.data.pendingNewCardType : '';
 export const selectPendingNewCardIDToNavigateTo = (state) => state.data ? state.data.pendingNewCardIDToNavigateTo : '';
@@ -154,6 +157,11 @@ export const selectStarsLoaded = (state) => state.user ? state.user.starsLoaded 
 export const selectReadsLoaded = (state) => state.user ? state.user.readsLoaded : false;
 export const selectUserPermissionsLoaded = (state) => state.user ? state.user.userPermissionsLoaded : false;
 export const selectReadingListLoaded = (state) => state.user ? state.user.readingListLoaded : false;
+
+export const selectCards = createObjectSelector(
+	selectRawCards,
+	(card) => cardSetNormalizedTextProperties({...card})
+);
 
 export const selectActiveCard = createSelector(
 	selectCards,

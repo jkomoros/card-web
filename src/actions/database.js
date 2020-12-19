@@ -32,10 +32,6 @@ import {
 } from './user.js';
 
 import {
-	cardSetNormalizedTextProperties
-} from '../nlp.js';
-
-import {
 	selectUserMayViewApp
 } from '../selectors.js';
 
@@ -276,7 +272,6 @@ const cardSnapshotReceiver = (unpublished) =>{
 			//https://medium.com/firebase-developers/the-secrets-of-firestore-fieldvalue-servertimestamp-revealed-29dd7a38a82b
 			let card = doc.data({serverTimestamps: 'estimate'});
 			card.id = id;
-			cardSetNormalizedTextProperties(card);
 			cards[id] = card;
 		});
 

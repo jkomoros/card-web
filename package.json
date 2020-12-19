@@ -37,6 +37,7 @@
     "redux": "^4.0.5",
     "redux-thunk": "^2.3.0",
     "reselect": "^4.0.0",
+    "reselect-map": "^1.0.6",
     "reselect-tools": "0.0.7",
     "snarkdown": "^1.2.2"
   },

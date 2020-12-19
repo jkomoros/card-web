@@ -201,11 +201,24 @@ const destemmedWordMap = (cardOrCards) => {
 	return result;
 };
 
+
+
+//if true, will print out debug statistics about how often card normalized count
+//is happening, which can help verify that the memoization is working.s
+const DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES = false;
+let normalizedCount = {};
+
 //cardSetNormalizedTextProperties sets the properties that search and
-//fingerprints work over. It sets them on the same card object sent.
+//fingerprints work over. It sets them on the same card object sent. It returns
+//the card passed in as convenience.
 export const cardSetNormalizedTextProperties = (card) => {
+	if (DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES) {
+		normalizedCount[card.id] = (normalizedCount[card.id] || 0) + 1;
+		if(normalizedCount[card.id] > 1) console.log(card.id, normalizedCount[card.id]);
+	}
 	//Basically it takes the output of extractContentWords and then stems each run.
 	card.normalized = Object.fromEntries(Object.entries(extractContentWords(card)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
+	return card;
 };
 
 //text should be normalized
