@@ -101,6 +101,7 @@ import {
 	REFERENCE_TYPE_ACK,
 	CARD_TYPE_CONFIGURATION,
 	references,
+	cardTypeLegalForCard
 } from '../card_fields.js';
 
 import {
@@ -315,7 +316,7 @@ class CardEditor extends connect(store)(LitElement) {
 				<div>
 					<label>Card Type ${help('The type of card. Typically all published cards are content')}</label>
 					<select .value=${this._card.card_type} @change=${this._handleCardTypeChanged}>
-					${Object.keys(CARD_TYPE_CONFIGURATION).map(item => html`<option .value=${item} .selected=${item == this._card.card_type}>${item}</option>`)}
+					${Object.keys(CARD_TYPE_CONFIGURATION).map(item => html`<option .value=${item} .disabled=${!cardTypeLegalForCard(this._card, item)} .selected=${item == this._card.card_type}>${item}</option>`)}
 					</select>
 				</div>
 				<div>
