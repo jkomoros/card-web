@@ -109,7 +109,7 @@ import {
 	REFERENCE_TYPE_FORK_OF,
 	REFERENCE_TYPE_MINED_FROM,
 	SELF_KEY_CARD_ID,
-	cardTypeLegalForCard,
+	reasonCardTypeNotLegalForCard,
 } from '../card_fields.js';
 
 //When a new tag is created, it is randomly assigned one of these values.
@@ -302,9 +302,9 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 	}
 
 	if (update.card_type !== undefined) {
-
-		if (!cardTypeLegalForCard(card, update.card_type)) {
-			alert('Can\'t change the card_type: that card_type may not have inbound references of the type that this card has');
+		const illegalReason = reasonCardTypeNotLegalForCard(card, update.card_type);
+		if (illegalReason) {
+			alert('Can\'t change the card_type: ' + illegalReason);
 			dispatch(modifyCardFailure());
 			return;
 		}

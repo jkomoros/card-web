@@ -360,19 +360,22 @@ export const editableFieldsForCardType = (cardType) => {
 	return result;
 };
 
-//returns true if it would be OK to switch card to be of type cardType.
-export const cardTypeLegalForCard = (card, cardType) => {
-	const legalInboundReferenceTypes = LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE[cardType];
-	if (!legalInboundReferenceTypes) return false;
+//Returns a string with the reason that the proposed card type is not legal for
+//this card. If the string is '' then it is legal.
+export const reasonCardTypeNotLegalForCard = (card, proposedCardType) => {
+	const legalInboundReferenceTypes = LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE[proposedCardType];
+	if (!legalInboundReferenceTypes) return '' + proposedCardType + ' is not a legal card type';
 
 	//Because this is INBOUND references, the changes we might be making to
 	//the card won't have touched it.
 	const inboundReferencesByType = references(card).byTypeInbound;
 	for (let referenceType of Object.keys(inboundReferencesByType)) {
-		if (!legalInboundReferenceTypes[referenceType]) return false;
+		if (!legalInboundReferenceTypes[referenceType]) {
+			return 'The card has an inbound reference of type ' + referenceType + ', but that is not legal for the proposed card type ' + proposedCardType;
+		}
 	}
 
-	return true;
+	return '';
 };
 
 //The special key card ID that will be replaced with a given card in reference blocks
