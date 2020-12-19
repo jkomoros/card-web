@@ -101,6 +101,8 @@ const selectActiveSortName = (state) => state.collection.activeSortName;
 const selectActiveSortReversed = (state) => state.collection.activeSortReversed;
 export const selectRequestedCard = (state) => state.collection.requestedCard;
 export const selectActiveCardId = (state) => state.collection ? state.collection.activeCardId : '';
+//Note that the editing card doesn't have nlp/normalized text properties set. If
+//you want the one with that, look at selectEditingNormalizedCard.
 export const selectEditingCard = (state) => state.editor ? state.editor.card : null;
 export const selectEditingUpdatedFromContentEditable = (state) => state.editor ? state.editor.updatedFromContentEditable : {};
 export const selectEditingPendingReferenceType = (state) => state.editor ? state.editor.pendingReferenceType : '';
@@ -506,8 +508,11 @@ const selectTagsSemanticFingerprint = createSelector(
 	}
 );
 
+//selectEditingNormalizedCard is like editing card, but with nlp properties set.
+const selectEditingNormalizedCard = selectEditingCard;
+
 const selectEditingCardSemanticFingerprint = createSelector(
-	selectEditingCard,
+	selectEditingNormalizedCard,
 	selectFingerprintGenerator,
 	(card, fingerprintGenerator) => fingerprintGenerator.fingerprintForCardObj(card)
 );
@@ -518,7 +523,7 @@ const NUM_SIMILAR_TAGS_TO_SHOW = 3;
 //suggested--that is that are similar to the semantics of this card, but are not
 //yet on the card.
 export const selectEditingCardSuggestedTags = createSelector(
-	selectEditingCard,
+	selectEditingNormalizedCard,
 	selectEditingCardSemanticFingerprint,
 	selectTagsSemanticFingerprint,
 	(card, cardFingerprint, tagFingerprints) => {
@@ -558,14 +563,14 @@ export const getCardType = (state, cardID) => {
 
 //selectingEitingOrActiveCard returns either the editing card, or else the
 //active card.
-const selectEditingOrActiveCard = createSelector(
-	selectEditingCard,
+const selectEditingOrActiveNormalizedCard = createSelector(
+	selectEditingNormalizedCard,
 	selectActiveCard,
 	(editing, active) => editing && Object.keys(editing).length > 0 ? editing : active
 );
 
 export const selectWordCloudForActiveCard = createSelector(
-	selectEditingOrActiveCard,
+	selectEditingOrActiveNormalizedCard,
 	selectFingerprintGenerator,
 	(card, fingerprintGenerator) => {
 		if (!card) return emptyWordCloud();
@@ -947,7 +952,7 @@ export const selectCollectionConstructorArguments = createSelector(
 //similar cards to update live for the card.
 export const selectCollectionConstructorArgumentsWithEditingCard = createSelector(
 	selectCollectionConstructorArguments,
-	selectEditingCard,
+	selectEditingNormalizedCard,
 	(args, editingCard) => ({...args, editingCard})
 );
 
@@ -1046,7 +1051,7 @@ export const selectCollectionForQuery = createSelector(
 );
 
 export const selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard = createSelector(
-	selectEditingOrActiveCard,
+	selectEditingOrActiveNormalizedCard,
 	selectCollectionConstructorArguments,
 	(card, args) => getExpandedPrimaryReferenceBlocksForCard(args, card)
 );
@@ -1058,7 +1063,7 @@ export const selectExpandedPrimaryReferenceBlocksForPreviewCard = createSelector
 );
 
 export const selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard = createSelector(
-	selectEditingOrActiveCard,
+	selectEditingOrActiveNormalizedCard,
 	selectCollectionConstructorArgumentsWithEditingCard,
 	(card, args) => {
 		const blocks = infoPanelReferenceBlocksForCard(card);
