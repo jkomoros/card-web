@@ -3,10 +3,6 @@ import firebase from '@firebase/app';
 import '@firebase/firestore';
 const deleteSentinel = firebase.firestore.FieldValue.delete;
 
-import { html } from '@polymer/lit-element';
-
-import * as icons from './components/my-icons.js';
-
 /*
 
 On each card is a references property and a references info.
@@ -87,13 +83,16 @@ is published. This is useful for example for concept cards, where the primary
 content is the reference list.
 
 styleBlock: if provided, will be rendered as the style block in the card
-renderer when this card type is selected.
+renderer when this card type is selected. A string that will be run through html
+tag. This isn't an html tag to avoid having heavyweight imports so this can be
+included in tests.
 
 dark: if true, the card is considered dark, and styles for e.g. thumbnails,
 including badge color, will swap.
 
-icon: a reference from icons to show in front of the title everywhere it shows
-up
+iconName: a reference from icons to show in front of the title everywhere it
+shows up. A string that indexes into icons. This isn't an html tag to avoid
+having heavyweight imports so this can be included in tests.
 
 */
 
@@ -101,7 +100,7 @@ export const CARD_TYPE_CONFIGURATION = {
 	[CARD_TYPE_CONTENT]: {},
 	[CARD_TYPE_SECTION_HEAD]: {
 		dark: true,
-		styleBlock: html`
+		styleBlock: String.raw`
 			<style>
 				.background {
 					position:absolute;
@@ -132,7 +131,7 @@ export const CARD_TYPE_CONFIGURATION = {
 	[CARD_TYPE_WORKING_NOTES]: {
 		invertContentPublishWarning: true,
 		orphanedByDefault: true,
-		styleBlock: html`
+		styleBlock: `
 		<style>
 			section {
 				font-size:0.8em;
@@ -140,12 +139,12 @@ export const CARD_TYPE_CONFIGURATION = {
 			}
 		</style>
 		`,
-		icon: icons.INSERT_DRIVE_FILE_ICON,
+		iconName: 'INSERT_DRIVE_FILE_ICON',
 	},
 	[CARD_TYPE_CONCEPT]: {
 		orphanedByDefault: true,
 		publishedByDefault: true,
-		icon: icons.MENU_BOOK_ICON,
+		iconName: 'MENU_BOOK_ICON',
 	},
 };
 

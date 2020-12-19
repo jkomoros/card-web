@@ -24,6 +24,8 @@ import {
 	CARD_TYPE_CONTENT
 } from '../card_fields.js';
 
+import * as icons from './my-icons.js';
+
 class CardLink extends connect(store)(LitElement) {
 	render() {
 
@@ -166,7 +168,7 @@ class CardLink extends connect(store)(LitElement) {
 	get _icon() {
 		if (!this._cardObj) return '';
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[this._cardObj.card_type] || {};
-		return cardTypeConfig.icon || '';
+		return icons[cardTypeConfig.iconName] || '';
 	}
 
 	get _inReadingList() {

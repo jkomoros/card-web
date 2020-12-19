@@ -52,7 +52,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 	render() {
 		const cardType = this._card.card_type || CARD_TYPE_CONTENT;
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[cardType] || {};
-		const styleBlock = cardTypeConfig.styleBlock || html``;
+		const styleBlock = html([cardTypeConfig.styleBlock || '']);
 		const fieldsToRender = editableFieldsForCardType(cardType);
 		return html`
 			${SharedStyles}
