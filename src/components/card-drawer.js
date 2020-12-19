@@ -33,7 +33,6 @@ import {
 
 import {
 	CARD_TYPE_CONFIGURATION,
-	CARD_TYPE_WORKING_NOTES
 } from '../card_fields.js';
 
 class CardDrawer extends connect(store)(LitElement) {
