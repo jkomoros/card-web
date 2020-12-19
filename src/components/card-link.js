@@ -20,6 +20,7 @@ import {
 } from '../actions/app.js';
 
 import {
+	CARD_TYPE_CONFIGURATION,
 	CARD_TYPE_CONTENT
 } from '../card_fields.js';
 
@@ -35,12 +36,18 @@ class CardLink extends connect(store)(LitElement) {
 				/* cards that do not exist are likely unpublished and invisible to this user*/
 				a.card.does-not-exist {
 					color: inherit;
+					fill: inherit;
 					text-decoration: none;
 					cursor:inherit;
 				}
 
 				a {
 					color: var(--app-primary-color);
+				}
+
+				a svg{
+					height:1.0em;
+					width:1.0em;
 				}
 
 				a.strong {
@@ -58,22 +65,27 @@ class CardLink extends connect(store)(LitElement) {
 
 				a:visited {
 					color: var(--app-primary-color-light);
+					fill: var(--app-primary-color-light);
 				}
 
 				a.card.exists {
 					color: var(--app-secondary-color);
+					fill: var(--app-secondary-color);
 				}
 
 				a.card.exists:visited, a.card.exists.read {
 					color: var(--app-secondary-color-light);
+					fill: var(--app-secondary-color-light);
 				}
 
 				a.card.exists.unpublished {
 					color: var(--app-warning-color);
+					fill: var(--app-warning-color);
 				}
 
 				a.card.exists.unpublished:visited, a.card.exists.read.unpublished {
 					color: var(--app-warning-color-light);
+					fill: var(--app-warning-color-light);
 				}
 
 				a {
@@ -111,7 +123,9 @@ class CardLink extends connect(store)(LitElement) {
 			let card = this._cardObj;
 			if (card) {
 				let val = card[this.auto];
-				if (val) return val;
+				if (val) {
+					return html`${this._icon} ${val}`;
+				}
 			}
 		}
 		return html`<slot></slot>`;
@@ -147,6 +161,12 @@ class CardLink extends connect(store)(LitElement) {
 		if (!this.card) return null;
 		if (!this._cards) return null;
 		return this._cards[this.card];
+	}
+
+	get _icon() {
+		if (!this._cardObj) return '';
+		const cardTypeConfig = CARD_TYPE_CONFIGURATION[this._cardObj.card_type] || {};
+		return cardTypeConfig.icon || '';
 	}
 
 	get _inReadingList() {
