@@ -108,7 +108,8 @@ import {
 	REFERENCES_INBOUND_CARD_PROPERTY,
 	REFERENCE_TYPE_FORK_OF,
 	REFERENCE_TYPE_MINED_FROM,
-	SELF_KEY_CARD_ID
+	SELF_KEY_CARD_ID,
+	LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE
 } from '../card_fields.js';
 
 //When a new tag is created, it is randomly assigned one of these values.
@@ -285,12 +286,14 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 		if (update.section) {
 			if (!getUserMayEditSection(state, update.section)) {
 				console.log('The user cannot modify the section the card is moving to');
+				dispatch(modifyCardFailure());
 				return;
 			}
 		}
 		if (card.section) {
 			if (!getUserMayEditSection(state, card.section)) {
 				console.log('The section the card is leaving is not one the user has edit access for');
+				dispatch(modifyCardFailure());
 				return;
 			}
 		}
@@ -299,6 +302,22 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 	}
 
 	if (update.card_type !== undefined) {
+		const legalInboundReferenceTypes = LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE[update.card_type];
+		if (!legalInboundReferenceTypes) {
+			console.warn('Apparently an illegal card type');
+			return;
+		}
+		//Because this is INBOUND references, the changes we might be making to
+		//the card won't have touched it.
+		const inboundReferencesByType = references(card).byTypeInbound;
+		for (let referenceType of Object.keys(inboundReferencesByType)) {
+			if (!legalInboundReferenceTypes[referenceType]) {
+				alert('Can\'t change the card_type: that card_type may not have inbound references of type ' + referenceType + ' but this card does.');
+				dispatch(modifyCardFailure());
+				return;
+			}
+		}
+
 		cardUpdateObject.card_type = update.card_type;
 	}
 
@@ -312,6 +331,7 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 			for (let tag of update.removeTags) {
 				if (!getUserMayEditTag(state, tag)) {
 					console.log('User is not allowed to edit tag: ' + tag);
+					dispatch(modifyCardFailure());
 					return;
 				}
 			}
@@ -321,6 +341,7 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 			for (let tag of update.addTags) {
 				if (!getUserMayEditTag(state, tag)) {
 					console.log('User is not allowed to edit tag: ' + tag);
+					dispatch(modifyCardFailure());
 					return;
 				}
 			}
