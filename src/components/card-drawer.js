@@ -142,7 +142,7 @@ class CardDrawer extends connect(store)(LitElement) {
 					font-family: var(--app-header-font-family);
 				}
 
-				.thumbnail h3.nocontent, .thumbnail h3.workingnotes {
+				.thumbnail h3.nocontent {
 					font-style: italic;
 				}
 
@@ -259,13 +259,12 @@ class CardDrawer extends connect(store)(LitElement) {
 
 		const title = this._titleForCard(card);
 		const hasContent = cardHasContent(card);
-		const isWorkingNotes = card ? card.card_type == CARD_TYPE_WORKING_NOTES : false;
 
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[card.card_type] || {};
 
 		return html`
 			<div  .card=${card} .index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.editable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${cardTypeConfig.dark ? 'dark' : ''} ${card && card.published ? '' : 'unpublished'} ${this._collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
-					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${getExpandedPrimaryReferenceBlocksForCard(this.collection.constructorArguments, card)}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'} ${isWorkingNotes ? 'workingnotes' : ''}'>${cardTypeConfig.icon || ''}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
+					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${getExpandedPrimaryReferenceBlocksForCard(this.collection.constructorArguments, card)}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'}'>${cardTypeConfig.icon || ''}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
 					${cardBadges(cardTypeConfig.dark, card, this._badgeMap)}
 			</div>
 		`;
