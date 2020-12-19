@@ -215,6 +215,7 @@ export const cardWithNormalizedTextProperties = (card) => {
 		normalizedCount[card.id] = (normalizedCount[card.id] || 0) + 1;
 		if(normalizedCount[card.id] > 1) console.log(card.id, normalizedCount[card.id]);
 	}
+	if (!card) return card;
 	const result = {...card};
 	//Basically it takes the output of extractContentWords and then stems each run.
 	result.normalized = Object.fromEntries(Object.entries(extractContentWords(card)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));

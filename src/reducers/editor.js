@@ -47,10 +47,6 @@ import {
 } from '../card_fields.js';
 
 import {
-	cardWithNormalizedTextProperties
-} from '../nlp.js';
-
-import {
 	PERMISSION_EDIT_CARD
 } from '../permissions.js';
 
@@ -67,6 +63,9 @@ const INITIAL_STATE = {
 	//editable, or false or missing if it wasn't.
 	updatedFromContentEditable: {},
 	card: null,
+	//This number should increment every time EDITING_EXTRACT_LINKS fires. The
+	//selector for selectEditingNormalizedCard will return the same result until this changes.
+	cardExtractionVersion: 0,
 	substantive: false,
 	selectedTab: DEFAULT_TAB,
 	selectedEditorTab: DEFAULT_EDITOR_TAB,
@@ -82,6 +81,7 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			editing: true,
 			card: action.card,
+			cardExtractionVersion: 0,
 			substantive: false,
 			updatedFromContentEditable: {},
 			selectedTab: DEFAULT_TAB,
@@ -92,6 +92,8 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			editing:false,
 			card: null,
+			//If we don't change this, selectEditingNormalizedCard will continue returning the old one.
+			cardExtractionVersion: 0,
 			substantive:false,
 			updatedFromContentEditable: {},
 		};
@@ -108,10 +110,10 @@ const app = (state = INITIAL_STATE, action) => {
 	case EDITING_TEXT_FIELD_UPDATED:
 		if (!state.card) return state;
 		card = {...state.card, [action.fieldName]:action.value};
-		if(!action.skipUpdatingNormalizedFields) card = cardWithNormalizedTextProperties(card);
 		return {
 			...state,
 			card: card,
+			cardExtractionVersion: state.cardExtractionVersion + (action.skipUpdatingNormalizedFields ? 0 : 1),
 			updatedFromContentEditable: {...state.updatedFromContentEditable, [action.fieldName]: action.fromContentEditable},
 		};
 	case EDITING_NOTES_UPDATED:
@@ -143,7 +145,8 @@ const app = (state = INITIAL_STATE, action) => {
 		references(card).setLinks(linkInfo);
 		return {
 			...state,
-			card: cardWithNormalizedTextProperties(card),
+			cardExtractionVersion: state.cardExtractionVersion + 1,
+			card: card,
 		};
 	case EDITING_ADD_REFERENCE:
 		if (!state.card) return state;

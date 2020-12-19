@@ -104,6 +104,7 @@ export const selectActiveCardId = (state) => state.collection ? state.collection
 //Note that the editing card doesn't have nlp/normalized text properties set. If
 //you want the one with that, look at selectEditingNormalizedCard.
 export const selectEditingCard = (state) => state.editor ? state.editor.card : null;
+const selectEditingCardExtractionVersion = (state) => state.editor ? state.editor.cardExtractionVersion : 0;
 export const selectEditingUpdatedFromContentEditable = (state) => state.editor ? state.editor.updatedFromContentEditable : {};
 export const selectEditingPendingReferenceType = (state) => state.editor ? state.editor.pendingReferenceType : '';
 export const selectPendingSlug = (state) => state.editor ? state.editor.pendingSlug : '';
@@ -508,8 +509,26 @@ const selectTagsSemanticFingerprint = createSelector(
 	}
 );
 
+let memoizedEditingNormalizedCard = null;
+let memoizedEditingNormalizedCardExtractionVersion = 0;
+
 //selectEditingNormalizedCard is like editing card, but with nlp properties set.
-const selectEditingNormalizedCard = selectEditingCard;
+//It uses custom memoization because it should only update when the extraction
+//version increases, since lots of expensive nlp stuff is downstream of it, and
+//if it ran every single keystroke while editingCard was being edited it would
+//be very slow. When extractionVersion increments, that's the system saying it's
+//OK to run the expensive properties again.
+const selectEditingNormalizedCard = (state) => {
+	const extractionVersion = selectEditingCardExtractionVersion(state);
+	if (memoizedEditingNormalizedCardExtractionVersion != extractionVersion) {
+		memoizedEditingNormalizedCard = null;
+	}
+	if (!memoizedEditingNormalizedCard) {
+		memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(selectEditingCard(state));
+		memoizedEditingNormalizedCardExtractionVersion = extractionVersion;
+	}
+	return memoizedEditingNormalizedCard;
+};
 
 const selectEditingCardSemanticFingerprint = createSelector(
 	selectEditingNormalizedCard,
