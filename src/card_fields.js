@@ -87,11 +87,14 @@ content is the reference list.
 styleBlock: if provided, will be rendered as the style block in the card
 renderer when this card type is selected.
 
+lightBadges: if true, badges will render on cardThumbnail using light color
+
 */
 
 export const CARD_TYPE_CONFIGURATION = {
 	[CARD_TYPE_CONTENT]: {},
 	[CARD_TYPE_SECTION_HEAD]: {
+		lightBadges: true,
 		styleBlock: html`
 			<style>
 				.background {
