@@ -255,7 +255,7 @@ export const REFERENCE_TYPES = {
 //map of card-type -> map of reference-type -> true. So for a given card type,
 //you can check if there are any inbound references to the card that should not
 //be allowed.
-export const LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE = Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(cardType => [cardType, Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(referenceTypeEntry => !referenceTypeEntry[1].toCardTypeAllowList || referenceTypeEntry[1].toCardTypeAllowList[cardType]).map(entry => [entry[0], true]))]));
+const LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE = Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(cardType => [cardType, Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(referenceTypeEntry => !referenceTypeEntry[1].toCardTypeAllowList || referenceTypeEntry[1].toCardTypeAllowList[cardType]).map(entry => [entry[0], true]))]));
 
 /*
 html: whether or not the field allows html. NOTE: currently it's only supported
@@ -358,6 +358,21 @@ export const editableFieldsForCardType = (cardType) => {
 		result[key] = config;
 	}
 	return result;
+};
+
+//returns true if it would be OK to switch card to be of type cardType.
+export const cardTypeLegalForCard = (card, cardType) => {
+	const legalInboundReferenceTypes = LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE[cardType];
+	if (!legalInboundReferenceTypes) return false;
+
+	//Because this is INBOUND references, the changes we might be making to
+	//the card won't have touched it.
+	const inboundReferencesByType = references(card).byTypeInbound;
+	for (let referenceType of Object.keys(inboundReferencesByType)) {
+		if (!legalInboundReferenceTypes[referenceType]) return false;
+	}
+
+	return true;
 };
 
 //The special key card ID that will be replaced with a given card in reference blocks
