@@ -89,7 +89,7 @@ const app = (state = INITIAL_STATE, action) => {
 			referencing: true,
 			query: action.query || '',
 			activeQuery: action.query || '',
-			cardTypeFilter: '',
+			cardTypeFilter: action.cardTypeFilter || '',
 		};
 	case FIND_UPDATE_CARD_TYPE_FILTER:
 		return {

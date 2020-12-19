@@ -61,6 +61,10 @@ import {
 	editableFieldsForCardType,
 } from '../card_fields.js';
 
+import {
+	UNION_FILTER_DELIMITER
+} from '../filters.js';
+
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import './card-drawer.js';
@@ -171,7 +175,9 @@ class FindDialog extends connect(store)(DialogElement) {
 	_handleAddSlide() {
 		if (!this._linking && !this._referencing) return;
 
-		const cardType = this._cardTypeFilter || DEFAULT_CARD_TYPE;
+		let cardType = this._cardTypeFilter || DEFAULT_CARD_TYPE;
+		//cardTypeFilter could possibly be a union of multiple allowable card types, so use whatever the first one is.
+		cardType = cardType.split(UNION_FILTER_DELIMITER)[0];
 		const needTitle = editableFieldsForCardType(cardType)[TEXT_FIELD_TITLE];
 		let title = '';
 		if (needTitle) {

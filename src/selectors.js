@@ -1004,7 +1004,11 @@ const selectBodyCardTypes = createSelector(
 
 export const selectFindLegalCardTypeFilters = createSelector(
 	selectBodyCardTypes,
-	(bodyCardTypes) => ['', ...bodyCardTypes]
+	selectFindCardTypeFilter,
+	//'' stands for 'no filter' and will show up as 'Default'
+	//findCardTypeFilter, whatever it is, needs to show up, since it's 'selected'
+	//The set thing makes sure we don't have duplicates
+	(bodyCardTypes, findCardTypeFilter) => [... new Set(['', ...bodyCardTypes, findCardTypeFilter])]
 );
 
 export const selectCollectionDescriptionForQuery = createSelector(

@@ -85,6 +85,10 @@ import {
 	findCardToReference
 } from './find.js';
 
+import {
+	UNION_FILTER_DELIMITER
+} from '../filters.js';
+
 let lastReportedSelectionRange = null;
 //TODO: figure out a pattenr that doesn't have a single shared global
 let savedSelectionRange = null;
@@ -555,7 +559,13 @@ export const selectCardToReference = (referenceType) => (dispatch) => {
 		type:EDITING_START_REFERENCE_CARD,
 		referenceType,
 	});
-	dispatch(findCardToReference());
+	const referenceTypeConfig = REFERENCE_TYPES[referenceType];
+	if (!referenceTypeConfig) {
+		console.warn('Illegal reference type');
+		return;
+	}
+	const cardTypeFilter = referenceTypeConfig.toCardTypeAllowList ? Object.keys(referenceTypeConfig.toCardTypeAllowList).join(UNION_FILTER_DELIMITER) : '';
+	dispatch(findCardToReference(cardTypeFilter));
 };
 
 export const addReferenceToCard = (cardID, referenceType) => (dispatch, getState) => {

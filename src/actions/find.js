@@ -63,18 +63,20 @@ export const findCardToPermission = () => {
 	return launchFind(FIND_CARD_TO_PERMISSION);
 };
 
-export const findCardToReference = () => {
-	return launchFind(FIND_CARD_TO_REFERENCE);
+export const findCardToReference = (cardTypeFilter) => {
+	return launchFind(FIND_CARD_TO_REFERENCE, '', cardTypeFilter);
 };
 
-const launchFind = (typ, starterQuery) => (dispatch, getState) => {
+const launchFind = (typ, starterQuery, cardTypeFilter) => (dispatch, getState) => {
 	if (!starterQuery) {
 		const description = selectActiveCollectionDescription(getState());
 		starterQuery = queryTextFromCollectionDescription(description);
 	}
+	if (!cardTypeFilter) cardTypeFilter = '';
 	dispatch({
 		type: typ,
 		query: starterQuery,
+		cardTypeFilter: cardTypeFilter,
 	});
 };
 
