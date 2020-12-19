@@ -163,6 +163,7 @@ export const selectReadingListLoaded = (state) => state.user ? state.user.readin
 
 export const selectCards = createObjectSelector(
 	selectRawCards,
+	//Note this processing on a card to make the nlp card should be the same as what is done in selectEditingNormalizedCard.
 	(card) => cardWithNormalizedTextProperties(card)
 );
 
@@ -524,6 +525,7 @@ const selectEditingNormalizedCard = (state) => {
 		memoizedEditingNormalizedCard = null;
 	}
 	if (!memoizedEditingNormalizedCard) {
+		//Note: this processing logic should be the same as selectCards processing.
 		memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(selectEditingCard(state));
 		memoizedEditingNormalizedCardExtractionVersion = extractionVersion;
 	}
