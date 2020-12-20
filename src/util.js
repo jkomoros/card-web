@@ -159,7 +159,7 @@ export const reasonCardTypeNotLegalForCard = (card, proposedCardType) => {
 //opt into backporting via backportMissingText that don't have text will fetch
 //it from the title of the card they point to. Cards that don't have any
 //references that need backporting will return null.
-export const backportFallbackMapForCard = (card, cards) => {
+export const backportFallbackTextMapForCard = (card, cards) => {
 	//TODO: anotehr approach is to iterate through byTypeInbound, and contribute
 	//to one, shared, global fallbackMap. That would create fewer objects, but
 	//it would mean that every time the fallbackMap changed, every card would

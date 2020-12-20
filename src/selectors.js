@@ -77,7 +77,7 @@ import {
 } from './permissions.js';
 
 import {
-	backportFallbackMapForCard,
+	backportFallbackTextMapForCard,
 } from './util.js';
 
 import {
@@ -179,7 +179,7 @@ export const selectReadingListLoaded = (state) => state.user ? state.user.readin
 const selectBackportTextFallbackMapCollection = createObjectSelector(
 	selectRawCards,
 	selectRawCards,
-	(card, cards) => backportFallbackMapForCard(card, cards)
+	(card, cards) => backportFallbackTextMapForCard(card, cards)
 );
 
 const selectZippedCardAndFallbackMap = createSelector(
@@ -590,7 +590,7 @@ const selectEditingNormalizedCard = (state) => {
 		//Note: this processing logic should be the same as selectCards processing.
 		const editingCard = selectEditingCard(state);
 		const cards = selectCards(state);
-		const fallbackMap = backportFallbackMapForCard(editingCard, cards);
+		const fallbackMap = backportFallbackTextMapForCard(editingCard, cards);
 		memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap);
 		memoizedEditingNormalizedCardExtractionVersion = extractionVersion;
 	}

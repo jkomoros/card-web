@@ -13,7 +13,7 @@ import {
 } from './selectors.js';
 
 import {
-	backportFallbackMapForCard,
+	backportFallbackTextMapForCard,
 } from './util.js';
 
 const NUM_TERMS_OF_FINGERPRINT = 8;
@@ -24,7 +24,7 @@ const workingNotesExtractor = (card,state) => {
 	//The fingerprint requires these to be up to date, but we only update these
 	//on a timeout in textFieldUpdated so typing isn't expensive. It's possible
 	//that timeout hasn't fired yet, so make sure the card content is up to date.
-	const fallbackMap = backportFallbackMapForCard(card, selectCards(state));
+	const fallbackMap = backportFallbackTextMapForCard(card, selectCards(state));
 	const cardCopy = cardWithNormalizedTextProperties(card, fallbackMap);
 	const fingerprint = getSemanticFingerprintForCard(state, cardCopy);
 	const pretty = dedupedPrettyFingerprint(fingerprint, cardCopy);
