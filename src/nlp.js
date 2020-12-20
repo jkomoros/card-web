@@ -246,7 +246,7 @@ export const cardWithNormalizedTextProperties = (card, optFallbackTextMap) => {
 	if (!card) return card;
 	if (DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES) {
 		normalizedCount[card.id] = (normalizedCount[card.id] || 0) + 1;
-		if(normalizedCount[card.id] > 1) console.log(card.id, normalizedCount[card.id]);
+		if(normalizedCount[card.id] > 1) console.log(card.id, card, normalizedCount[card.id]);
 	}
 	const result = {...card};
 	if (optFallbackTextMap) result.fallbackTextMap = optFallbackTextMap;
