@@ -6,6 +6,8 @@ import {
 	TEXT_FIELD_CONFIGURATION,
 	DERIVED_FIELDS_FOR_CARD_TYPE,
 	BODY_CARD_TYPES,
+	TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND,
+	REFERENCE_TYPE_LINK,
 } from './card_fields.js';
 
 import {
@@ -142,9 +144,28 @@ const splitRuns = (text) => {
 	return text.split('\n').filter(str => str);
 };
 
+//This is the set of card field extractors for any field types that have
+//overrideExtractor in card_fields.js. The function should take a card, and a
+//(possibly null) fallbackTextMap.
+const OVERRIDE_EXTRACTORS = {
+	[TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND]: (card, fallbackTextMap) => {
+		const refsByType = references(card).withFallbackText(fallbackTextMap).byType;
+		let result = [];
+		for (const [referenceType, cardMap] of Object.entries(refsByType)) {
+			//Skip links because they're already represented in body
+			if (referenceType == REFERENCE_TYPE_LINK) continue;
+			for (const str of Object.values(cardMap)) {
+				if (str) result.push(str);
+			}
+		}
+		return result.join('\n');
+	}
+};
+
 //extractContentWords returns an object with the field to the non-de-stemmed
-//normalized words for each of the main properties.
-const extractContentWords = (card) => {
+//normalized words for each of the main properties. optFallbackTextMap will be
+//passed to the extractor func if provided.
+const extractContentWords = (card, optFallbackTextMap) => {
 	const cardType = card.card_type || '';
 	//These three properties are expected to be set by TEXT_SEARCH_PROPERTIES
 	//Fields that are derived are calculated based on other fields of the card
@@ -156,7 +177,14 @@ const extractContentWords = (card) => {
 	for (let [fieldName, config] of Object.entries(TEXT_FIELD_CONFIGURATION)) {
 		let runs = [];
 		if (!DERIVED_FIELDS_FOR_CARD_TYPE[cardType][fieldName]) {
-			const fieldValue = extractFieldValueForIndexing(card[fieldName]);
+			let fieldValue = '';
+			if (config.overrideExtractor) {
+				const extractor = OVERRIDE_EXTRACTORS[fieldName];
+				if (!extractor) throw new Error(fieldName + ' had overrideExtractor set, but no entry in OVERRIDE_EXTRACTORS');
+				fieldValue = extractor(card, optFallbackTextMap);
+			} else {
+				fieldValue = extractFieldValueForIndexing(card[fieldName]);
+			}
 			const content = config.html ? innerTextForHTML(fieldValue) : fieldValue;
 			runs = splitRuns(content);
 			//splitRuns checks for empty runs, but they could be things that will be normalized to nothing, so filter again
@@ -213,7 +241,7 @@ let normalizedCount = {};
 
 //cardWithNormalizedTextProperties sets the properties that search and
 //fingerprints work over, on a copy of the card it returns.
-export const cardWithNormalizedTextProperties = (card, fallbackMap) => {
+export const cardWithNormalizedTextProperties = (card, fallbackTextMap) => {
 	if (!card) return card;
 	if (DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES) {
 		normalizedCount[card.id] = (normalizedCount[card.id] || 0) + 1;
@@ -221,7 +249,7 @@ export const cardWithNormalizedTextProperties = (card, fallbackMap) => {
 	}
 	const result = {...card};
 	//Basically it takes the output of extractContentWords and then stems each run.
-	result.normalized = Object.fromEntries(Object.entries(extractContentWords(card)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
+	result.normalized = Object.fromEntries(Object.entries(extractContentWords(card, fallbackTextMap)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
 	return result;
 };
 

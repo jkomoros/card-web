@@ -54,6 +54,7 @@ export const TEXT_FIELD_BODY = 'body';
 export const TEXT_FIELD_TITLE = 'title';
 export const TEXT_FIELD_SUBTITLE = 'subtitle';
 export const TEXT_FIELD_REFERENCES_INFO_INBOUND = REFERENCES_INFO_INBOUND_CARD_PROPERTY;
+export const TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND = 'non-link-references';
 
 export const CARD_TYPE_CONTENT = 'content';
 export const CARD_TYPE_SECTION_HEAD = 'section-head';
@@ -294,6 +295,12 @@ used as the max value that the boost can legally be for that field. NOTE: card
 types that define reference blocks will interfere with auto-sizing currently.
 #407 tracks fixing that.
 
+overrideExtractor: boolean. If true, then nlp.js will expect there to be an
+override extractor defined in nlp.js. That is, instead of literally just
+fetching a field with that name from card, it will instead rely on an extractor
+function. (Those override extractors often require references, which would
+pollute the clean imports for this file, so they're defined there)
+
 */
 
 const DEFAULT_MAX_FONT_BOOST = 0.3;
@@ -343,6 +350,21 @@ export const TEXT_FIELD_CONFIGURATION = {
 		derivedForCardTypes: {},
 		autoFontSizeBoostForCardTypes: {},
 		matchWeight:0.95,
+	},
+	//This one has a custom extractor, so its name doesn't correspond to a
+	//literl field. It's the text of outbound references, except links. The
+	//logic is that links are already represented in text in the body, but every
+	//other type of reference is not, so it should count for indexing. This is
+	//also where backported reference text shows up.
+	[TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND]: {
+		html: false,
+		readOnly: true,
+		//null signals it's legal for all card types
+		legalCardTypes: null,
+		derivedForCardTypes: {},
+		autoFontSizeBoostForCardTypes: {},
+		matchWeight:0.5,
+		overrideExtractor: true,
 	}
 };
 
