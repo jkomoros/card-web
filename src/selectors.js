@@ -1,5 +1,9 @@
 import { createSelector } from 'reselect';
-import { createObjectSelector } from 'reselect-map';
+
+import {
+	createObjectSelector,
+	createObjectSelectorCreator
+} from 'reselect-map';
 
 /* 
  This is the collection of all getters and selectors for state. 
@@ -168,12 +172,6 @@ export const selectReadsLoaded = (state) => state.user ? state.user.readsLoaded 
 export const selectUserPermissionsLoaded = (state) => state.user ? state.user.userPermissionsLoaded : false;
 export const selectReadingListLoaded = (state) => state.user ? state.user.readingListLoaded : false;
 
-export const selectCards = createObjectSelector(
-	selectRawCards,
-	//Note this processing on a card to make the nlp card should be the same as what is done in selectEditingNormalizedCard.
-	(card) => cardWithNormalizedTextProperties(card)
-);
-
 //selects a collection of outboundCardID -> fallbackMap, where fallbackMap is
 //suitable to being passed to references.withFallbackText. The only items that
 //will be created are for refrence types that opt into backporting via
@@ -182,6 +180,32 @@ const selectBackportTextFallbackMapCollection = createObjectSelector(
 	selectRawCards,
 	selectRawCards,
 	(card, cards) => backportFallbackMapForCard(card, cards)
+);
+
+const selectZippedCardAndFallbackMap = createSelector(
+	selectRawCards,
+	selectBackportTextFallbackMapCollection,
+	(cards, fallbackTextCollection) => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
+);
+
+//arrayEquality returns true if both are arrays and each of their items are the same
+const arrayEquality = (before, after) => {
+	if (before === after) return true;
+	if (!Array.isArray(before)) return false;
+	if (!Array.isArray(after)) return false;
+	if (before.length != after.length) return false;
+	return before.every((item, i) => item === after[i]);
+};
+
+const createZippedObjectSelector = createObjectSelectorCreator(arrayEquality);
+
+//this uses createZippedObjectSelector because the cardAndFallbackMap entry will
+//be a different item, but as long as the individual items are the same as last
+//time they should be considered the same.
+export const selectCards = createZippedObjectSelector(
+	selectZippedCardAndFallbackMap,
+	//Note this processing on a card to make the nlp card should be the same as what is done in selectEditingNormalizedCard.
+	(cardAndFallbackMap) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1])
 );
 
 export const selectActiveCard = createSelector(
