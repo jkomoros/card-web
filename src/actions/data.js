@@ -114,6 +114,7 @@ import {
 	references,
 	referencesLegal,
 	applyReferencesDiff,
+	referencesCardAdditions
 } from '../references.js';
 
 //When a new tag is created, it is randomly assigned one of these values.
@@ -234,6 +235,15 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 
 	//if the properties references expects are set, then apply them 
 	if (referencesLegal(update)) {
+
+		const cardIDAdditions = referencesCardAdditions(card, update);
+		const cards = selectCards(state);
+		const referencesNonexistentCards = cardIDAdditions.some(id => !cards[id]);
+
+		if (referencesNonexistentCards) {
+			dispatch(modifyCardFailure('The card referenced a card that does not yet exist'));
+			return; 
+		}
 		//Note: update.references_info is the only property type that we accept in
 		//modifyCard's update that is NOT pre-diffed. That's because the
 		//auto-extracted links might modify the changes to make, so we have to
