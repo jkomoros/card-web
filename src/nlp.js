@@ -213,7 +213,7 @@ let normalizedCount = {};
 
 //cardWithNormalizedTextProperties sets the properties that search and
 //fingerprints work over, on a copy of the card it returns.
-export const cardWithNormalizedTextProperties = (card) => {
+export const cardWithNormalizedTextProperties = (card, fallbackMap) => {
 	if (!card) return card;
 	if (DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES) {
 		normalizedCount[card.id] = (normalizedCount[card.id] || 0) + 1;

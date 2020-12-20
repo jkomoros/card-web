@@ -8,8 +8,13 @@ import {
 } from './nlp.js';
 
 import {
-	getSemanticFingerprintForCard
+	getSemanticFingerprintForCard,
+	selectCards,
 } from './selectors.js';
+
+import {
+	backportFallbackMapForCard,
+} from './util.js';
 
 const NUM_TERMS_OF_FINGERPRINT = 8;
 
@@ -19,7 +24,8 @@ const workingNotesExtractor = (card,state) => {
 	//The fingerprint requires these to be up to date, but we only update these
 	//on a timeout in textFieldUpdated so typing isn't expensive. It's possible
 	//that timeout hasn't fired yet, so make sure the card content is up to date.
-	const cardCopy = cardWithNormalizedTextProperties(card);
+	const fallbackMap = backportFallbackMapForCard(card, selectCards(state));
+	const cardCopy = cardWithNormalizedTextProperties(card, fallbackMap);
 	const fingerprint = getSemanticFingerprintForCard(state, cardCopy);
 	const pretty = dedupedPrettyFingerprint(fingerprint, cardCopy);
 	const title = date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'2-digit'}) + ' ' + pretty.split(' ').slice(0, NUM_TERMS_OF_FINGERPRINT).join(' ');

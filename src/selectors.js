@@ -567,7 +567,10 @@ const selectEditingNormalizedCard = (state) => {
 	}
 	if (!memoizedEditingNormalizedCard) {
 		//Note: this processing logic should be the same as selectCards processing.
-		memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(selectEditingCard(state));
+		const editingCard = selectEditingCard(state);
+		const cards = selectCards(state);
+		const fallbackMap = backportFallbackMapForCard(editingCard, cards);
+		memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap);
 		memoizedEditingNormalizedCardExtractionVersion = extractionVersion;
 	}
 	return memoizedEditingNormalizedCard;
