@@ -189,13 +189,14 @@ const selectZippedCardAndFallbackMap = createSelector(
 );
 
 //objectEquality checks for objects to be the same content, allowing nested
-//objects (but no arrays)
+//objects
 const objectEquality = (before, after) => {
 	if (before === after) return true;
 	if (!before) return false;
 	if (!after) return false;
 	if (typeof before != 'object') return false;
 	if (typeof after != 'object') return false;
+	if (Array.isArray(before) && Array.isArray(after)) return arrayEquality(before, after);
 	const beforeEntries = Object.entries(before);
 	if (beforeEntries.length != Object.keys(after).length) return false;
 	return beforeEntries.every(entry => objectEquality(entry[1], after[entry[0]]));
