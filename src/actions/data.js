@@ -283,14 +283,12 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 		let section = update.section === undefined ? card.section : update.section;
 		if (!section){
 			if (!CARD_TYPE_CONFIG.orphanedByDefault && !confirm('This card being orphaned will cause it to not be findable except with a direct link. OK?')) {
-				console.log('User aborted because didn\'t confirm orphaning');
-				dispatch(modifyCardFailure());
+				dispatch(modifyCardFailure('User aborted because didn\'t confirm orphaning'));
 				return; 
 			}
 		} else {
 			if (CARD_TYPE_CONFIG.orphanedByDefault && !confirm('This is a card type that typcially is not in a section, but with this edit it will be in a section. OK?')) {
-				console.log('User aborted because didn\'t confirm not orphaning');
-				dispatch(modifyCardFailure());
+				dispatch(modifyCardFailure('User aborted because didn\'t confirm not orphaning'));
 				return; 
 			}
 		}
@@ -299,15 +297,13 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 	if (update.section !== undefined) {
 		if (update.section) {
 			if (!getUserMayEditSection(state, update.section)) {
-				console.log('The user cannot modify the section the card is moving to');
-				dispatch(modifyCardFailure());
+				dispatch(modifyCardFailure('The user cannot modify the section the card is moving to'));
 				return;
 			}
 		}
 		if (card.section) {
 			if (!getUserMayEditSection(state, card.section)) {
-				console.log('The section the card is leaving is not one the user has edit access for');
-				dispatch(modifyCardFailure());
+				dispatch(modifyCardFailure('The section the card is leaving is not one the user has edit access for'));
 				return;
 			}
 		}
@@ -318,8 +314,7 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 	if (update.card_type !== undefined) {
 		const illegalReason = reasonCardTypeNotLegalForCard(card, update.card_type);
 		if (illegalReason) {
-			alert('Can\'t change the card_type: ' + illegalReason);
-			dispatch(modifyCardFailure());
+			dispatch(modifyCardFailure('Can\'t change the card_type: ' + illegalReason));
 			return;
 		}
 
@@ -335,8 +330,7 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 		if (update.removeTags) {
 			for (let tag of update.removeTags) {
 				if (!getUserMayEditTag(state, tag)) {
-					console.log('User is not allowed to edit tag: ' + tag);
-					dispatch(modifyCardFailure());
+					dispatch(modifyCardFailure('User is not allowed to edit tag: ' + tag));
 					return;
 				}
 			}
@@ -345,8 +339,7 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 		if (update.addTags) {
 			for (let tag of update.addTags) {
 				if (!getUserMayEditTag(state, tag)) {
-					console.log('User is not allowed to edit tag: ' + tag);
-					dispatch(modifyCardFailure());
+					dispatch(modifyCardFailure('User is not allowed to edit tag: ' + tag));
 					return;
 				}
 			}
@@ -360,8 +353,7 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 		if (update.remove_editors) editors = arrayRemove(editors, update.remove_editors);
 		if (update.add_editors) {
 			if (!confirm('You\'ve added editors. Those users will be able to edit this card. OK?')) {
-				console.log('User aborted because didn\'t confirm editing');
-				dispatch(modifyCardFailure());
+				dispatch(modifyCardFailure('User aborted because didn\'t confirm editing', true));
 				return;
 			}
 			editors = arrayUnion(editors, update.add_editors);
@@ -465,7 +457,7 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 	}
 
 	if(!optBatch) batch.commit().then(() => dispatch(modifyCardSuccess()))
-		.catch((err) => dispatch(modifyCardFailure(err)));
+		.catch((err) => dispatch(modifyCardFailure('Couldn\'t save card: ' + err)));
 
 };
 
@@ -1156,8 +1148,12 @@ const modifyCardSuccess = () => (dispatch, getState) => {
 	});
 };
 
-const modifyCardFailure = (err) => {
-	console.warn(err);
+const modifyCardFailure = (err, skipAlert) => {
+	if (skipAlert) {
+		console.warn(err);
+	} else {
+		alert(err);
+	}
 	return {
 		type: MODIFY_CARD_FAILURE,
 		error: err,
