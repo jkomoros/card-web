@@ -98,19 +98,21 @@ export const keepSlugLegalWarm = () => {
 };
 
 const maintenanceModeEnabled = async () => {
-	let result = await statusCallable({type:'maintenance_mode'});
-	return result.data;
-};
-
-export const fetchMaintenanceModeEnabled = async () => {
-	let maintenanceEnabled = false;
+	let result = '';
 	try {
-		maintenanceEnabled = await maintenanceModeEnabled();
+		result = await statusCallable({type:'maintenance_mode'});
 	} catch(err) {
 		//Every so often this deadline reports as exceeded for some reason, but
 		//it should never show to a user.
 		console.warn(err);
+		return false;
 	}
+	
+	return result.data;
+};
+
+export const fetchMaintenanceModeEnabled = async () => {
+	let maintenanceEnabled = await maintenanceModeEnabled();
 	if (maintenanceEnabled) {
 		console.warn('Maintenance mode is enabled, so cards cannot be edited. Run \'gulp turn-maintenance-mode-off\' to disable it.');
 		store.dispatch(updateMaintenanceModeEnabled(true));
