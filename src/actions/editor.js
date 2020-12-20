@@ -56,8 +56,11 @@ import {
 	TEXT_FIELD_CONFIGURATION,
 	fontSizeBoosts,
 	REFERENCE_TYPES,
-	references
 } from '../card_fields.js';
+
+import {
+	references
+} from '../references.js';
 
 import {
 	CARD_TYPE_EDITING_FINISHERS

@@ -4,8 +4,12 @@ import dompurify from 'dompurify';
 import {
 	TEXT_FIELD_BODY,
 	CARD_TYPE_CONTENT,
-	references
+	LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE,
 } from './card_fields.js';
+
+import {
+	references
+} from './references.js';
 
 import {
 	getDocument
@@ -129,6 +133,24 @@ export const cardHasTodo = (card) => {
 	if (!card) return false;
 	let content = card.todo ? card.todo.trim() : '';
 	return content ? true : false;
+};
+
+//Returns a string with the reason that the proposed card type is not legal for
+//this card. If the string is '' then it is legal.
+export const reasonCardTypeNotLegalForCard = (card, proposedCardType) => {
+	const legalInboundReferenceTypes = LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE[proposedCardType];
+	if (!legalInboundReferenceTypes) return '' + proposedCardType + ' is not a legal card type';
+
+	//Because this is INBOUND references, the changes we might be making to
+	//the card won't have touched it.
+	const inboundReferencesByType = references(card).byTypeInbound;
+	for (let referenceType of Object.keys(inboundReferencesByType)) {
+		if (!legalInboundReferenceTypes[referenceType]) {
+			return 'The card has an inbound reference of type ' + referenceType + ', but that is not legal for the proposed card type ' + proposedCardType;
+		}
+	}
+
+	return '';
 };
 
 //cardBFS returns a map of cardID -> degrees of separation from the key card.

@@ -49,11 +49,14 @@ import {
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCES_INBOUND_CARD_PROPERTY,
 	REFERENCE_TYPE_LINK,
-	applyReferencesDiff,
-	references,
 	REFERENCE_TYPE_ACK,
 	fontSizeBoosts
 } from '../card_fields.js';
+
+import {
+	applyReferencesDiff,
+	references,
+} from '../references.js';
 
 const checkMaintenanceTaskHasBeenRun = async (taskName) => {
 	let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);

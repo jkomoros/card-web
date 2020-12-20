@@ -51,6 +51,7 @@ import {
 	arrayUnion,
 	normalizeSlug,
 	extractCardLinksFromBody,
+	reasonCardTypeNotLegalForCard,
 } from '../util.js';
 
 import {
@@ -99,9 +100,6 @@ import {
 	TEXT_FIELD_BODY,
 	DEFAULT_CARD_TYPE,
 	CARD_TYPE_SECTION_HEAD,
-	references,
-	referencesLegal,
-	applyReferencesDiff,
 	REFERENCES_CARD_PROPERTY,
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY, 
@@ -109,8 +107,13 @@ import {
 	REFERENCE_TYPE_FORK_OF,
 	REFERENCE_TYPE_MINED_FROM,
 	SELF_KEY_CARD_ID,
-	reasonCardTypeNotLegalForCard,
 } from '../card_fields.js';
+
+import {
+	references,
+	referencesLegal,
+	applyReferencesDiff,
+} from '../references.js';
 
 //When a new tag is created, it is randomly assigned one of these values.
 const TAG_COLORS = [

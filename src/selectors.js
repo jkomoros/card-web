@@ -33,8 +33,11 @@ import {
 
 import {
 	BODY_CARD_TYPES,
-	references
 } from './card_fields.js';
+
+import {
+	references
+} from './references.js';
 
 import {
 	FingerprintGenerator,

@@ -22,8 +22,11 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	BODY_CARD_TYPES,
 	REFERENCE_TYPES,
-	references
 } from './card_fields.js';
+
+import {
+	references
+} from './references.js';
 
 import {
 	FingerprintGenerator,

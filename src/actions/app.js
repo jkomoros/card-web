@@ -88,9 +88,12 @@ import {
 } from './prompt.js';
 
 import {
-	references,
 	REFERENCES_INBOUND_CARD_PROPERTY
 } from '../card_fields.js';
+
+import {
+	references,
+} from '../references.js';
 
 import {
 	collectionDescriptionWithQuery

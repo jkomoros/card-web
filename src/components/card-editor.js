@@ -78,7 +78,8 @@ import {
 	cardHasNotes,
 	cardHasTodo,
 	cardMissingReciprocalLinks,
-	toTitleCase
+	toTitleCase,
+	reasonCardTypeNotLegalForCard
 } from '../util.js';
 
 import {
@@ -100,9 +101,11 @@ import {
 	REFERENCE_TYPES,
 	REFERENCE_TYPE_ACK,
 	CARD_TYPE_CONFIGURATION,
-	references,
-	reasonCardTypeNotLegalForCard
 } from '../card_fields.js';
+
+import {
+	references,
+} from '../references.js';
 
 import {
 	help,

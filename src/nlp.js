@@ -6,8 +6,11 @@ import {
 	TEXT_FIELD_CONFIGURATION,
 	DERIVED_FIELDS_FOR_CARD_TYPE,
 	BODY_CARD_TYPES,
-	references,
 } from './card_fields.js';
+
+import {
+	references,
+} from './references.js';
 
 import {
 	getDocument

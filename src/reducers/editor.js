@@ -43,8 +43,8 @@ import {
 } from '../util.js';
 
 import {
-	references,
-} from '../card_fields.js';
+	references
+} from '../references.js';
 
 import {
 	PERMISSION_EDIT_CARD

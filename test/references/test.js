@@ -1,15 +1,18 @@
 /*eslint-env node*/
 
 import {
-	referencesLegal,
-	referencesDiff,
-	referencesCardsDiff,
-	applyReferencesDiff,
 	REFERENCE_TYPE_LINK,
 	REFERENCE_TYPE_DUPE_OF,
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY
 } from '../../src/card_fields.js';
+
+import {
+	referencesLegal,
+	referencesDiff,
+	referencesCardsDiff,
+	applyReferencesDiff,
+} from '../../src/references.js';
 
 //We import these only to get deleteSentinel without importing from firebase.js.
 import firebase from '@firebase/app';
