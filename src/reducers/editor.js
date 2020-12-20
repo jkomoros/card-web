@@ -154,6 +154,9 @@ const app = (state = INITIAL_STATE, action) => {
 		references(card).setCardReference(action.cardID, action.referenceType);
 		return {
 			...state,
+			//references could change e.g.similar cards, word clouds (if text is
+			//backported), etc, so make sure the nlp pipeline for the card runs
+			cardExtractionVersion: state.cardExtractionVersion + 1,
 			card: card,
 		};
 	case EDITING_REMOVE_REFERENCE:
@@ -162,6 +165,9 @@ const app = (state = INITIAL_STATE, action) => {
 		references(card).removeCardReference(action.cardID, action.referenceType);
 		return {
 			...state,
+			//references could change e.g.similar cards, word clouds (if text is
+			//backported), etc, so make sure the nlp pipeline for the card runs
+			cardExtractionVersion: state.cardExtractionVersion + 1,
 			card: card,
 		};
 	case EDITING_SLUG_ADDED:
