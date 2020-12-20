@@ -81,6 +81,7 @@ const app = (state = INITIAL_STATE, action) => {
 			reorderPending: true,
 			pendingNewCardID: action.ID,
 			pendingNewCardIDToNavigateTo: action.ID,
+			pendingNewCardType: action.cardType || '',
 		};
 	case NAVIGATED_TO_NEW_CARD:
 		return {
