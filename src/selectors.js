@@ -210,6 +210,14 @@ const arrayEquality = (before, after) => {
 	return before.every((item, i) => objectEquality(item, after[i]));
 };
 
+//note: using arrayEquality, instead of something that knows that the first item
+//is a card and the second is a two-level map, means that misses on card objects
+//will be more expensive to discover, because they'll iterate through each
+//property in the card. The upside is that because we use objectSelector, each
+//card will be presented the same for each ID consistently, so by only treating
+//them differently if something actually changed, we can save a lot of
+//downstream processing, since we do often get updateCards with no real change
+//to the card, and so much is downstream of when updateCards changes.
 const createZippedObjectSelector = createObjectSelectorCreator(arrayEquality);
 
 //this uses createZippedObjectSelector because the cardAndFallbackMap entry will
