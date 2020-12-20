@@ -27,7 +27,8 @@ import {
 	selectSectionsUserMayEdit,
 	selectUserMayChangeEditingCardSection,
 	selectPendingSlug,
-	selectReasonsUserMayNotDeleteActiveCard
+	selectReasonsUserMayNotDeleteActiveCard,
+	selectCardModificationPending
 } from '../selectors.js';
 
 import {
@@ -271,8 +272,22 @@ class CardEditor extends connect(store)(LitElement) {
           display:none;
         }
 
+		.scrim {
+			z-index:100;
+			height:100%;
+			width:100%;
+			position:absolute;
+			background-color:rgba(255,255,255,0.7);
+			display:none;
+		}
+
+		.modification-pending .scrim {
+			display:block;
+		}
+
       </style>
-      <div class='container'>
+      <div class='container ${this._cardModificationPending ? 'modification-pending' : ''}'>
+		<div class='scrim'></div>
         <div class='inputs'>
 		  <div ?hidden=${this._selectedTab !== TAB_CONTENT} class='flex body'>
 			<div class='tabs' @click=${this._handleEditorTabClicked}>
@@ -432,6 +447,7 @@ class CardEditor extends connect(store)(LitElement) {
 		_authors: { type:Object },
 		_isAdmin: { type:Boolean },
 		_pendingSlug: { type:String },
+		_cardModificationPending: {type:String},
 	};}
 
 	stateChanged(state) {
@@ -454,6 +470,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._authors = selectAuthorsForTagList(state);
 		this._isAdmin = selectUserIsAdmin(state);
 		this._pendingSlug = selectPendingSlug(state);
+		this._cardModificationPending = selectCardModificationPending(state);
 	}
 
 	shouldUpdate() {
