@@ -5,6 +5,7 @@ import {
 	TEXT_FIELD_BODY,
 	CARD_TYPE_CONTENT,
 	LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE,
+	REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT,
 } from './card_fields.js';
 
 import {
@@ -151,6 +152,37 @@ export const reasonCardTypeNotLegalForCard = (card, proposedCardType) => {
 	}
 
 	return '';
+};
+
+//returns a fallbackMap, appropriate to be passed to
+//references.withFallbackText, for card, where any of the references it has that
+//opt into backporting via backportMissingText that don't have text will fetch
+//it from the title of the card they point to. Cards that don't have any
+//references that need backporting will return null.
+export const backportFallbackMapForCard = (card, cards) => {
+	//TODO: anotehr approach is to iterate through byTypeInbound, and contribute
+	//to one, shared, global fallbackMap. That would create fewer objects, but
+	//it would mean that every time the fallbackMap changed, every card would
+	//have to have its text renormalized, even though it likely didn't need it,
+	//whereas this creates a targeted list of fallbacks per card, where most of
+	//them are null.
+	const result = {};
+	const refsByType = references(card).byType;
+	for (let referenceType of Object.keys(REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT)) {
+		const refs = refsByType[referenceType];
+		if (!refs) continue;
+		for (let [cardID, str] of Object.entries(refs)) {
+			if (str) continue;
+			const otherCard = cards[cardID];
+			if (!otherCard) continue;
+			//OK, we're going to add it
+			if (!result[cardID]) result[cardID] = {};
+			if (!result[cardID][referenceType]) result[cardID][referenceType] = {};
+			result[cardID][referenceType] = otherCard.title;
+		}
+	}
+	if (Object.keys(result).length == 0) return null;
+	return result;
 };
 
 //cardBFS returns a map of cardID -> degrees of separation from the key card.

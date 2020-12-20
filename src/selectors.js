@@ -73,6 +73,10 @@ import {
 } from './permissions.js';
 
 import {
+	backportFallbackMapForCard
+} from './util.js';
+
+import {
 	USER_DOMAIN,
 	TAB_CONFIGURATION
 } from '../config.GENERATED.SECRET.js';
@@ -168,6 +172,16 @@ export const selectCards = createObjectSelector(
 	selectRawCards,
 	//Note this processing on a card to make the nlp card should be the same as what is done in selectEditingNormalizedCard.
 	(card) => cardWithNormalizedTextProperties(card)
+);
+
+//selects a collection of outboundCardID -> fallbackMap, where fallbackMap is
+//suitable to being passed to references.withFallbackText. The only items that
+//will be created are for refrence types that opt into backporting via
+//backportMissingText, and where the card has some text that needs to be filled.
+const selectBackportTextFallbackMapCollection = createObjectSelector(
+	selectRawCards,
+	selectRawCards,
+	(card, cards) => backportFallbackMapForCard(card, cards)
 );
 
 export const selectActiveCard = createSelector(

@@ -176,6 +176,7 @@ substantive - whether the reference is important enough to acknowledge to a non-
 color - the color to use when it shows up as a tag
 excludeFromInfoPanel - if true, will not show up in the infoPanelArray. That might be because they are already visible elsewhere, or aren't important enough to show.
 toCardTypeAllowList - if null or undefined, any card of any type may be on the receiving end. If not null, then only card_types in the toCardTypeAllowList map are allowed.
+backportMissingText - if true, then if a card has an outbound reference of this type without text, it will backport the title of the to card, so for the purposes of any nlp processing, it will be as though the outbound reference included the title of the card it's pointing to. (The underlying data in the db is untouched)
 */
 export const REFERENCE_TYPES = {
 	[REFERENCE_TYPE_LINK]: {
@@ -253,9 +254,12 @@ export const REFERENCE_TYPES = {
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
 			[CARD_TYPE_CONCEPT]: true,
-		}
+		},
+		backportMissingText: true,
 	}
 };
+
+export const REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT = Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(entry => entry[1].backportMissingText).map(entry => [entry[0], true]));
 
 //map of card-type -> map of reference-type -> true. So for a given card type,
 //you can check if there are any inbound references to the card that should not
