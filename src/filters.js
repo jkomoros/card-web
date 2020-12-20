@@ -173,6 +173,7 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 
 	const func = function(card, cards, UNUSEDFilterMemberships, editingCard) {
 		if (cards != memoizedCardsLastSeen || editingCard != memoizedEditingCardLastSeen) memoizedMap = null;
+		const originalCards = cards;
 		//If editingCard is provided, use it to shadow the unedited version of itself.
 		if (editingCard) cards = {...cards, [editingCard.id]: editingCard};
 		if (!memoizedMap) {
@@ -184,7 +185,8 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 			} else {
 				memoizedMap = cardBFS(cardID, cards, count, includeKeyCard, isInbound, referenceTypes);
 			}
-			memoizedCardsLastSeen = cards;
+			memoizedCardsLastSeen = originalCards;
+			memoizedEditingCardLastSeen = editingCard;
 		}
 		let val = memoizedMap[card.id];
 		//Return the degree of separation so it's available to sort on
