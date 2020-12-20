@@ -247,6 +247,32 @@ const ReferencesAccessor = class {
 		const diff = referencesCardsDiff(this._cardObj, otherCardObj);
 		return diff.every(item => Object.keys(item).length === 0);
 	}
+	
+	//withFallbackText returns a new referencesAccesor based on this one, but
+	//where any outbound references we have that had an empty text value will be
+	//set to the given value in fallbackText, if it exists. fallbackMap is a map
+	//of CardID to (ReferenceType -> string)
+	withFallbackText(fallbackMap) {
+		if (!fallbackMap) fallbackMap = {};
+		//First, effectively clone the references object we're based on, by
+		//creating a fake card (which won't ever be accesible)
+		const newCardLikeObj = {};
+		const newReferences = new ReferencesAccessor(newCardLikeObj);
+		newReferences.ensureReferences(this._cardObj);
+
+		//Now, go through each reference type and see if any are missing.
+		for (let [cardID, referenceMap] of Object.entries(this._referencesInfo)) {
+			for (let [referenceType, str] of Object.entries(referenceMap)) {
+				if (str) continue;
+				//if we get to here, there's a gap. See if anything in the fallbackMap fills it.
+				if (!fallbackMap[cardID]) continue;
+				if (!fallbackMap[cardID][referenceType]) continue;
+				newReferences.setCardReference(cardID, referenceType, fallbackMap[cardID][referenceType]);
+			}
+		}
+
+		return newReferences;
+	}
 };
 
 //referencesLegal is a sanity check that the referencesBlock looks like it's expected to.

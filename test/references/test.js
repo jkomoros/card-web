@@ -8,6 +8,7 @@ import {
 } from '../../src/card_fields.js';
 
 import {
+	references,
 	referencesLegal,
 	referencesDiff,
 	referencesCardsDiff,
@@ -746,6 +747,157 @@ describe('card referencesDiff util functions', () => {
 		];
 		assert.deepStrictEqual(cardResult, expectedCardResult);
 
+	});
+
+});
+
+describe('references.withFallbackText', () => {
+	it('no op', () => {
+		const input = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					'ack': '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+			},
+		};
+
+		const clonedInput = JSON.parse(JSON.stringify(input));
+
+		const fallbackMap = {};
+
+		const expectedResult = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					'ack': '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+			},
+		};
+
+		const ref = references(input);
+		const fallbackRef = ref.withFallbackText(fallbackMap);
+		assert.deepStrictEqual(fallbackRef._cardObj, expectedResult);
+		//Verify the original didn't change
+		assert.deepStrictEqual(ref._cardObj, clonedInput);
+	});
+
+	it('one to replace', () => {
+		const input = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					'ack': '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+			},
+		};
+
+		const clonedInput = JSON.parse(JSON.stringify(input));
+
+		const fallbackMap = {
+			foo: {
+				ack: 'bam',
+			}
+		};
+
+		const expectedResult = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					'ack': 'bam',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+			},
+		};
+
+		const ref = references(input);
+		const fallbackRef = ref.withFallbackText(fallbackMap);
+		assert.deepStrictEqual(fallbackRef._cardObj, expectedResult);
+		//Verify the original didn't change
+		assert.deepStrictEqual(ref._cardObj, clonedInput);
+	});
+
+	it('one to replace but it already has a string', () => {
+		const input = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					'ack': 'bar',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+			},
+		};
+
+		const clonedInput = JSON.parse(JSON.stringify(input));
+
+		const fallbackMap = {
+			foo: {
+				ack: 'bam',
+			}
+		};
+
+		const expectedResult = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					'ack': 'bar',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+			},
+		};
+
+		const ref = references(input);
+		const fallbackRef = ref.withFallbackText(fallbackMap);
+		assert.deepStrictEqual(fallbackRef._cardObj, expectedResult);
+		//Verify the original didn't change
+		assert.deepStrictEqual(ref._cardObj, clonedInput);
+	});
+
+	it('no overlap in fallback map', () => {
+		const input = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					'ack': '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+			},
+		};
+
+		const clonedInput = JSON.parse(JSON.stringify(input));
+
+		const fallbackMap = {
+			bar: {
+				ack: 'bam',
+			}
+		};
+
+		const expectedResult = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					'ack': '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+			},
+		};
+
+		const ref = references(input);
+		const fallbackRef = ref.withFallbackText(fallbackMap);
+		assert.deepStrictEqual(fallbackRef._cardObj, expectedResult);
+		//Verify the original didn't change
+		assert.deepStrictEqual(ref._cardObj, clonedInput);
 	});
 
 });
