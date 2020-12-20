@@ -188,13 +188,26 @@ const selectZippedCardAndFallbackMap = createSelector(
 	(cards, fallbackTextCollection) => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
 );
 
+//objectEquality checks for objects to be the same content, allowing nested
+//objects (but no arrays)
+const objectEquality = (before, after) => {
+	if (before === after) return true;
+	if (!before) return false;
+	if (!after) return false;
+	if (typeof before != 'object') return false;
+	if (typeof after != 'object') return false;
+	const beforeEntries = Object.entries(before);
+	if (beforeEntries.length != Object.keys(after).length) return false;
+	return beforeEntries.every(entry => objectEquality(entry[1], after[entry[0]]));
+};
+
 //arrayEquality returns true if both are arrays and each of their items are the same
 const arrayEquality = (before, after) => {
 	if (before === after) return true;
 	if (!Array.isArray(before)) return false;
 	if (!Array.isArray(after)) return false;
 	if (before.length != after.length) return false;
-	return before.every((item, i) => item === after[i]);
+	return before.every((item, i) => objectEquality(item, after[i]));
 };
 
 const createZippedObjectSelector = createObjectSelectorCreator(arrayEquality);
