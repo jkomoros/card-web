@@ -77,7 +77,7 @@ import {
 } from './permissions.js';
 
 import {
-	backportFallbackMapForCard
+	backportFallbackMapForCard,
 } from './util.js';
 
 import {

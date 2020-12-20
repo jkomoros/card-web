@@ -145,11 +145,11 @@ const splitRuns = (text) => {
 };
 
 //This is the set of card field extractors for any field types that have
-//overrideExtractor in card_fields.js. The function should take a card, and a
-//(possibly null) fallbackTextMap.
+//overrideExtractor in card_fields.js. The function should take a card. It will
+//use the stashed fallbackTextMap if it exists.
 const OVERRIDE_EXTRACTORS = {
-	[TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND]: (card, fallbackTextMap) => {
-		const refsByType = references(card).withFallbackText(fallbackTextMap).byType;
+	[TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND]: (card) => {
+		const refsByType = references(card).withFallbackText(card.fallbackTextMap).byType;
 		let result = [];
 		for (const [referenceType, cardMap] of Object.entries(refsByType)) {
 			//Skip links because they're already represented in body
@@ -163,9 +163,8 @@ const OVERRIDE_EXTRACTORS = {
 };
 
 //extractContentWords returns an object with the field to the non-de-stemmed
-//normalized words for each of the main properties. optFallbackTextMap will be
-//passed to the extractor func if provided.
-const extractContentWords = (card, optFallbackTextMap) => {
+//normalized words for each of the main properties.
+const extractContentWords = (card) => {
 	const cardType = card.card_type || '';
 	//These three properties are expected to be set by TEXT_SEARCH_PROPERTIES
 	//Fields that are derived are calculated based on other fields of the card
@@ -181,7 +180,7 @@ const extractContentWords = (card, optFallbackTextMap) => {
 			if (config.overrideExtractor) {
 				const extractor = OVERRIDE_EXTRACTORS[fieldName];
 				if (!extractor) throw new Error(fieldName + ' had overrideExtractor set, but no entry in OVERRIDE_EXTRACTORS');
-				fieldValue = extractor(card, optFallbackTextMap);
+				fieldValue = extractor(card);
 			} else {
 				fieldValue = extractFieldValueForIndexing(card[fieldName]);
 			}
@@ -240,16 +239,19 @@ const DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES = false;
 let normalizedCount = {};
 
 //cardWithNormalizedTextProperties sets the properties that search and
-//fingerprints work over, on a copy of the card it returns.
-export const cardWithNormalizedTextProperties = (card, fallbackTextMap) => {
+//fingerprints work over, on a copy of the card it returns. If
+//optFallbackTextMap is set, the result will also have that stashed on the
+//returned card obj.
+export const cardWithNormalizedTextProperties = (card, optFallbackTextMap) => {
 	if (!card) return card;
 	if (DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES) {
 		normalizedCount[card.id] = (normalizedCount[card.id] || 0) + 1;
 		if(normalizedCount[card.id] > 1) console.log(card.id, normalizedCount[card.id]);
 	}
 	const result = {...card};
+	if (optFallbackTextMap) result.fallbackTextMap = optFallbackTextMap;
 	//Basically it takes the output of extractContentWords and then stems each run.
-	result.normalized = Object.fromEntries(Object.entries(extractContentWords(card, fallbackTextMap)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
+	result.normalized = Object.fromEntries(Object.entries(extractContentWords(card)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
 	return result;
 };
 
