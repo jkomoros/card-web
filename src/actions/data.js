@@ -82,6 +82,7 @@ import {
 	selectActiveCardId,
 	getReasonUserMayNotDeleteCard,
 	selectExpectedDeletions,
+	selectCardModificationPending
 } from '../selectors.js';
 
 import {
@@ -172,7 +173,7 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 	//Check to make sure card sin't being modified
 	const state = getState();
 
-	if (state.data.cardModificationPending) {
+	if (selectCardModificationPending(state)) {
 		console.log('Can\'t modify card; another card is being modified.');
 		return;
 	}
