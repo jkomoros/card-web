@@ -457,7 +457,10 @@ export const prettyFingerprintItems = (fingerprint, cardObj) => {
 	for (let ngram of fingerprint.keys()) {
 		let item = [];
 		for (let word of ngram.split(' ')) {
-			let destemmedWord = destemmedMap[word];
+			//There are some cases where there won't be a destemmedWord, like
+			//for example backported text, since we didn't pass fallbackTextMap
+			//to destemmedWordMap above.
+			let destemmedWord = destemmedMap[word] || word;
 			let titleCaseDestemmedWord = destemmedWord.charAt(0).toUpperCase() + destemmedWord.slice(1);
 			item.push(titleCaseDestemmedWord);
 		}
