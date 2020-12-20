@@ -591,7 +591,7 @@ const selectEditingNormalizedCard = (state) => {
 	if (!memoizedEditingNormalizedCard) {
 		//Note: this processing logic should be the same as selectCards processing.
 		const editingCard = selectEditingCard(state);
-		const cards = selectCards(state);
+		const cards = selectRawCards(state);
 		const fallbackMap = backportFallbackTextMapForCard(editingCard, cards);
 		memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap);
 		memoizedEditingNormalizedCardExtractionVersion = extractionVersion;
