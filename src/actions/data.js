@@ -11,6 +11,7 @@ export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
 export const REORDER_STATUS = 'REORDER_STATUS';
 export const SET_PENDING_SLUG = 'SET_PENDING_SLUG';
 export const EXPECT_NEW_CARD = 'EXPECT_NEW_CARD';
+export const EXPECTED_NEW_CARD_FAILED = 'EXPECTED_NEW_CARD_FAILED';
 export const NAVIGATED_TO_NEW_CARD = 'NAVIGATED_TO_NEW_CARD';
 export const EXPECT_CARD_DELETIONS = 'EXPECT_CARD_DELETIONS';
 export const COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED = 'COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED';
@@ -879,7 +880,7 @@ export const createCard = (opts) => async (dispatch, getState) => {
 			if (!noNavigate) {
 				//Tell it to not expect the card to be inserted anymore
 				dispatch({
-					type:NAVIGATED_TO_NEW_CARD,
+					type:EXPECTED_NEW_CARD_FAILED,
 				});
 			}
 			return;
@@ -890,7 +891,7 @@ export const createCard = (opts) => async (dispatch, getState) => {
 
 		let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
 
-		await db.runTransaction(async transaction => {
+		let transactionFunc = async transaction => {
 			let sectionDoc = await transaction.get(sectionRef);
 			if (!sectionDoc.exists) {
 				throw 'Doc doesn\'t exist!';
@@ -905,15 +906,26 @@ export const createCard = (opts) => async (dispatch, getState) => {
 			let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
 			transaction.set(sectionUpdateRef, {timestamp: serverTimestampSentinel(), cards: newArray});
 			transaction.set(cardDocRef, obj);
-		});
+		};
+
+		try {
+			await db.runTransaction(transactionFunc);
+		} catch (err) {
+			console.warn(err);
+			dispatch({type: EXPECTED_NEW_CARD_FAILED});
+		}
 	} else {
 		const batch = db.batch();
 
-
 		ensureAuthor(batch, user);
 		batch.set(cardDocRef, obj);
-	
-		batch.commit();
+
+		try {
+			await batch.commit();
+		} catch (err) {
+			console.warn(err);
+			dispatch({type: EXPECTED_NEW_CARD_FAILED});
+		}
 	}
 
 	//updateSections will be called and update the current view. card-view's

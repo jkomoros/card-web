@@ -11,6 +11,7 @@ import {
 	MODIFY_CARD_FAILURE,
 	REORDER_STATUS,
 	EXPECT_NEW_CARD,
+	EXPECTED_NEW_CARD_FAILED,
 	NAVIGATED_TO_NEW_CARD,
 	EXPECT_CARD_DELETIONS,
 	COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED,
@@ -109,6 +110,17 @@ const app = (state = INITIAL_STATE, action) => {
 		return result;
 	case REMOVE_CARDS:
 		return removeCardIDs(action.cardIDs, state);
+	case EXPECTED_NEW_CARD_FAILED:
+		return {
+			...state,
+			reorderPending: false,
+			sectionsLoaded: true,
+			publishedCardsLoaded: true,
+			unpublishedCardsLoaded: true,
+			pendingNewCardID: '',
+			pendingNewCardType: '',
+			pendingNewCardIDToNavigateTo: '',
+		};
 	case EXPECT_CARD_DELETIONS:
 		return {
 			...state,
