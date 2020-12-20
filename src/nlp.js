@@ -571,11 +571,14 @@ export class FingerprintGenerator {
 		//idf (inverse document frequency) of every word in the corpus. See
 		//https://en.wikipedia.org/wiki/Tf%E2%80%93idf
 		const idf = {};
+		let maxIDF = 0;
 		for (const [word, count] of Object.entries(corpusWords)) {
 			idf[word] = Math.log10(numCards / (count + 1));
+			if (idf[word] > maxIDF) maxIDF = idf[word];
 		}
 		//This is useful often so stash it
 		this._idfMap = idf;
+		this._maxIDF = maxIDF;
 
 		//A map of cardID to the semantic fingerprint for that card.
 		const fingerprints = {};
@@ -597,7 +600,13 @@ export class FingerprintGenerator {
 		const resultTFIDF = {};
 		const cardWordCount = Object.values(cardWordCounts).reduce((prev, curr) => prev + curr, 0);
 		for (const [word, count] of Object.entries(cardWordCounts)) {
-			resultTFIDF[word] = (count / cardWordCount) * this._idfMap[word];
+			//_idfMap should very often have all of the terms, but it can be
+			//missing one if we're using fingerprintForCardObj for a live
+			//editing card, and if it just had text added to it that inludes
+			//uni-grams or bigrams that are so distinctive that they haven't
+			//been seen before. In that case we'll use the highest IDF we've
+			//seen in this corpus.
+			resultTFIDF[word] = (count / cardWordCount) * (this._idfMap[word] || this._maxIDF);
 		}
 		return resultTFIDF;
 	}
