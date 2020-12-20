@@ -168,10 +168,13 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 	//will memoize too, because otherwise literally every card in a given run
 	//will have a NEW BFS done. So memoize as long as cards are the same.
 	let memoizedCardsLastSeen = null;
+	let memoizedEditingCardLastSeen = null;
 	let memoizedMap = null;
 
-	const func = function(card, cards) {
-		if (cards != memoizedCardsLastSeen) memoizedMap = null;
+	const func = function(card, cards, UNUSEDFilterMemberships, editingCard) {
+		if (cards != memoizedCardsLastSeen || editingCard != memoizedEditingCardLastSeen) memoizedMap = null;
+		//If editingCard is provided, use it to shadow the unedited version of itself.
+		if (editingCard) cards = {...cards, [editingCard.id]: editingCard};
 		if (!memoizedMap) {
 			if (twoWay){
 				const bfsForOutbound = cardBFS(cardID, cards, count, includeKeyCard, false, referenceTypes);
