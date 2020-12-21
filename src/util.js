@@ -106,8 +106,17 @@ export const createSlugFromArbitraryString = (str) => {
 	return normalizeSlug(str);
 };
 
+let vendedNewIDs = {};
+
+//returns true if the given ID was recently vended in this client from newID.
+export const idWasVended = (id) => {
+	return vendedNewIDs[id] || false;
+};
+
 export const newID = () => {
-	return normalizeSlug('c_' + randomString(3, randomCharSetNumbers) + '_' + randomString(3, randomCharSetLetters) + randomString(3, randomCharSetNumbers));
+	const result = normalizeSlug('c_' + randomString(3, randomCharSetNumbers) + '_' + randomString(3, randomCharSetLetters) + randomString(3, randomCharSetNumbers));
+	vendedNewIDs[result] = true;
+	return result;
 };
 
 export const urlForTweet = (tweet) => {

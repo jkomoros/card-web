@@ -48,6 +48,7 @@ import {
 
 import {
 	newID,
+	idWasVended,
 	arrayRemove,
 	arrayUnion,
 	normalizeSlug,
@@ -919,7 +920,7 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		published: obj.published,
 	});
 
-	if (idFromOpts) {
+	if (idFromOpts && !idWasVended(id)) {
 
 		//Checking id is legal is a very expensive operation. If we generated
 		//our own id via newID we can just assume it's safe and doesn't conflict
