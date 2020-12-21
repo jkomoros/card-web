@@ -82,7 +82,8 @@ import {
 	selectActiveCardId,
 	getReasonUserMayNotDeleteCard,
 	selectExpectedDeletions,
-	selectCardModificationPending
+	selectCardModificationPending,
+	getCardById,
 } from '../selectors.js';
 
 import {
@@ -117,6 +118,39 @@ import {
 	applyReferencesDiff,
 	referencesCardAdditions
 } from '../references.js';
+
+import {
+	store
+} from '../store.js';
+
+const cardExists = (cardID) => {
+	return getCardById(store.getState(), cardID) ? true : false;
+};
+
+//map of cardID => promise that's waiting
+let waitingForCards = {};
+
+const waitingForCardToExistStoreUpdated = () => {
+	for (const cardID of Object.keys(waitingForCards)) {
+		if (!cardExists(cardID)) continue;
+		for (let promise of waitingForCards[cardID]) {
+			promise.resolve();
+		}
+		delete waitingForCards[cardID];
+	}
+};
+
+let unsubscribeFromStore = null;
+
+//returns a promise that will be resolved when a card with that ID exists.
+export const waitForCardToExist = (cardID) => {
+	if (cardExists(cardID)) return Promise.resolve();
+	if (!waitingForCards[cardID]) waitingForCards[cardID] = [];
+	if (!unsubscribeFromStore) unsubscribeFromStore = store.subcribe(waitingForCardToExistStoreUpdated);
+	const promise = new Promise();
+	waitingForCards[cardID].push(promise);
+	return promise;
+};
 
 //When a new tag is created, it is randomly assigned one of these values.
 const TAG_COLORS = [
