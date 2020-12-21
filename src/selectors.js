@@ -574,7 +574,7 @@ const selectTagsSemanticFingerprint = createSelector(
 	}
 );
 
-let memoizedEditingNormalizedCard = null;
+let memoizedEditingNormalizedCard = undefined;
 let memoizedEditingNormalizedCardExtractionVersion = 0;
 
 //selectEditingNormalizedCard is like editing card, but with nlp properties set.
@@ -586,14 +586,19 @@ let memoizedEditingNormalizedCardExtractionVersion = 0;
 const selectEditingNormalizedCard = (state) => {
 	const extractionVersion = selectEditingCardExtractionVersion(state);
 	if (memoizedEditingNormalizedCardExtractionVersion != extractionVersion) {
-		memoizedEditingNormalizedCard = null;
+		memoizedEditingNormalizedCard = undefined;
 	}
-	if (!memoizedEditingNormalizedCard) {
+	//null is a totally legal value to have, so we signal we need a recalculation via undefined.
+	if (memoizedEditingNormalizedCard === undefined) {
 		//Note: this processing logic should be the same as selectCards processing.
 		const editingCard = selectEditingCard(state);
-		const cards = selectRawCards(state);
-		const fallbackMap = backportFallbackTextMapForCard(editingCard, cards);
-		memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap);
+		if (editingCard) {
+			const cards = selectRawCards(state);
+			const fallbackMap = backportFallbackTextMapForCard(editingCard, cards);
+			memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap);
+		} else {
+			memoizedEditingNormalizedCard = editingCard;
+		}
 		memoizedEditingNormalizedCardExtractionVersion = extractionVersion;
 	}
 	return memoizedEditingNormalizedCard;
