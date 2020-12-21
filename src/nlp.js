@@ -251,7 +251,7 @@ export const cardWithNormalizedTextProperties = (card, optFallbackTextMap) => {
 	const result = {...card};
 	if (optFallbackTextMap) result.fallbackTextMap = optFallbackTextMap;
 	//Basically it takes the output of extractContentWords and then stems each run.
-	result.normalized = Object.fromEntries(Object.entries(extractContentWords(card)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
+	result.normalized = Object.fromEntries(Object.entries(extractContentWords(result)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
 	return result;
 };
 
