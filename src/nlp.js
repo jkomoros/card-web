@@ -32,6 +32,11 @@ import {
 	extractStrongTextFromBody
 } from './util.js';
 
+export const getConceptStringFromConceptCard = (conceptCard) => {
+	if (conceptCard.card_type != CARD_TYPE_CONCEPT) return '';
+	return conceptCard[TEXT_FIELD_TITLE];
+};
+
 //allCardsOrConceptCards can be the map of allCards, or filtered down to just
 //concept cards for speed.
 export const getConceptCardForConcept = (allCardsOrConceptCards, conceptStr) => {

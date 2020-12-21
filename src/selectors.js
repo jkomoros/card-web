@@ -37,6 +37,7 @@ import {
 
 import {
 	BODY_CARD_TYPES,
+	CARD_TYPE_CONCEPT,
 } from './card_fields.js';
 
 import {
@@ -49,6 +50,7 @@ import {
 	extractFiltersFromQuery,
 	emptyWordCloud,
 	cardWithNormalizedTextProperties,
+	getConceptStringFromConceptCard,
 } from './nlp.js';
 
 import {
@@ -229,6 +231,18 @@ export const selectCards = createZippedObjectSelector(
 	selectZippedCardAndFallbackMap,
 	//Note this processing on a card to make the nlp card should be the same as what is done in selectEditingNormalizedCard.
 	(cardAndFallbackMap) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1])
+);
+
+const selectConceptCards = createSelector(
+	selectCards,
+	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => entry[1].card_type == CARD_TYPE_CONCEPT))
+);
+
+//selectConcepts returns a map of all concepts based on visible concept cards.
+// eslint-disable-next-line no-unused-vars
+const selectConcepts = createSelector(
+	selectConceptCards,
+	(conceptCards) => Object.fromEntries(Object.values(conceptCards).map(card => [getConceptStringFromConceptCard(card), true]))
 );
 
 export const selectActiveCard = createSelector(
