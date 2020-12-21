@@ -299,7 +299,10 @@ let memoizedNormalizedNgramMaps = new Map();
 
 const normalizeNgramMap = (ngramMap) => {
 	if (!memoizedNormalizedNgramMaps.has(ngramMap)) {
-		const normalizedMap = Object.fromEntries(Object.entries(ngramMap).map(entry => [fullyNormalizedString(entry[0]), entry[1]]));
+		//The normalizedMap both has stemmed/normalized words, but also filters
+		//out the ngrams that are small enough that they'd be trivially included
+		//anyway.
+		const normalizedMap = Object.fromEntries(Object.entries(ngramMap).map(entry => [fullyNormalizedString(entry[0]), entry[1]]).filter(entry => entry[0].split(' ').length > MAX_N_GRAM_FOR_FINGERPRINT));
 		memoizedNormalizedNgramMaps.set(ngramMap, normalizedMap);
 	}
 	return memoizedNormalizedNgramMaps.get(ngramMap);
