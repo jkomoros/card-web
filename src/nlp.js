@@ -259,7 +259,7 @@ export const cardWithNormalizedTextProperties = (card, optFallbackTextMap) => {
 const ngrams = (text, size = 2) => {
 	if (!text) return [];
 	const pieces = text.split(' ');
-	if (pieces.length < size) return [];
+	if (pieces.length < size) size = pieces.length;
 	const result = [];
 	for (let i = 0; i < (pieces.length - size + 1); i++) {
 		let subPieces = [];
