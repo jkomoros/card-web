@@ -12,6 +12,8 @@ import {
 	REFERENCE_TYPE_LINK,
 	TEXT_FIELD_BODY,
 	REFERENCE_TYPE_CONCEPT,
+	CARD_TYPE_CONCEPT,
+	TEXT_FIELD_TITLE,
 } from './card_fields.js';
 
 import {
@@ -29,6 +31,16 @@ import {
 import {
 	extractStrongTextFromBody
 } from './util.js';
+
+//allCardsOrConceptCards can be the map of allCards, or filtered down to just
+//concept cards for speed.
+export const getConceptCardForConcept = (allCardsOrConceptCards, conceptStr) => {
+	for (const card of Object.values(allCardsOrConceptCards)) {
+		if (card.card_type !== CARD_TYPE_CONCEPT) continue;
+		if (cardMatchesString(card, TEXT_FIELD_TITLE, conceptStr)) return card;
+	}
+	return null;
+};
 
 //STOP_WORDS are words that are so common that we should basically skip them. We
 //skip them when generating multi-word queries, and also for considering words

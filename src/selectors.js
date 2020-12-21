@@ -37,8 +37,6 @@ import {
 
 import {
 	BODY_CARD_TYPES,
-	CARD_TYPE_CONCEPT,
-	TEXT_FIELD_TITLE
 } from './card_fields.js';
 
 import {
@@ -51,7 +49,6 @@ import {
 	extractFiltersFromQuery,
 	emptyWordCloud,
 	cardWithNormalizedTextProperties,
-	cardMatchesString
 } from './nlp.js';
 
 import {
@@ -720,16 +717,6 @@ export const getCardById = (state, cardId) => {
 	let cards = selectCards(state);
 	if (!cards) return null;
 	return cards[cardId];
-};
-
-//allCardsOrConceptCards can be the map of allCards, or filtered down to just
-//concept cards for speed.
-export const getConceptCardForConcept = (allCardsOrConceptCards, conceptStr) => {
-	for (const card of Object.values(allCardsOrConceptCards)) {
-		if (card.card_type !== CARD_TYPE_CONCEPT) continue;
-		if (cardMatchesString(card, TEXT_FIELD_TITLE, conceptStr)) return card;
-	}
-	return null;
 };
 
 export const getIdForCard = (state, idOrSlug) => {

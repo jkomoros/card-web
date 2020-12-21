@@ -31,7 +31,8 @@ import {
 
 import {
 	FingerprintGenerator,
-	PreparedQuery
+	PreparedQuery,
+	getConceptCardForConcept
 } from './nlp.js';
 
 import {
@@ -39,10 +40,6 @@ import {
 	CollectionDescription,
 	makeConcreteInverseFilter
 } from './collection_description.js';
-
-import {
-	getConceptCardForConcept
-} from './selectors.js';
 
 export const DEFAULT_SET_NAME = 'main';
 //reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
