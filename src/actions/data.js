@@ -164,7 +164,7 @@ const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURA
 	REFERENCES_CARD_PROPERTY,
 ]).map(key => [key,true]));
 
-export const modifyCard = (card, update, substantive, optBatch) => (dispatch, getState) => {
+export const modifyCard = (card, update, substantive, optBatch) => async (dispatch, getState) => {
 
 	//If optBatch is provided, then it will not create a batch and instead make
 	//the modifications on it, and then NOT commit it. If optBatch is not
@@ -457,8 +457,15 @@ export const modifyCard = (card, update, substantive, optBatch) => (dispatch, ge
 		}
 	}
 
-	if(!optBatch) batch.commit().then(() => dispatch(modifyCardSuccess()))
-		.catch((err) => dispatch(modifyCardFailure('Couldn\'t save card: ' + err)));
+	if (!optBatch) {
+		try {
+			await batch.commit();
+			dispatch(modifyCardSuccess());
+		} catch(err) {
+			dispatch(modifyCardFailure('Couldn\'t save card: ' + err));
+			return;
+		}
+	}
 
 };
 
