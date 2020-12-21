@@ -575,7 +575,7 @@ const selectTagsSemanticFingerprint = createSelector(
 );
 
 let memoizedEditingNormalizedCard = undefined;
-let memoizedEditingNormalizedCardExtractionVersion = 0;
+let memoizedEditingNormalizedCardExtractionVersion = -1;
 
 //selectEditingNormalizedCard is like editing card, but with nlp properties set.
 //It uses custom memoization because it should only update when the extraction

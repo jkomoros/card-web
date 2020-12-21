@@ -65,7 +65,7 @@ const INITIAL_STATE = {
 	card: null,
 	//This number should increment every time EDITING_EXTRACT_LINKS fires. The
 	//selector for selectEditingNormalizedCard will return the same result until this changes.
-	cardExtractionVersion: 0,
+	cardExtractionVersion: -1,
 	substantive: false,
 	selectedTab: DEFAULT_TAB,
 	selectedEditorTab: DEFAULT_EDITOR_TAB,
@@ -93,7 +93,7 @@ const app = (state = INITIAL_STATE, action) => {
 			editing:false,
 			card: null,
 			//If we don't change this, selectEditingNormalizedCard will continue returning the old one.
-			cardExtractionVersion: 0,
+			cardExtractionVersion: -1,
 			substantive:false,
 			updatedFromContentEditable: {},
 		};
