@@ -22,6 +22,7 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	BODY_CARD_TYPES,
 	REFERENCE_TYPES,
+	REFERENCE_TYPE_CONCEPT,
 } from './card_fields.js';
 
 import {
@@ -38,6 +39,10 @@ import {
 	CollectionDescription,
 	makeConcreteInverseFilter
 } from './collection_description.js';
+
+import {
+	getConceptCardForConcept
+} from './selectors.js';
 
 export const DEFAULT_SET_NAME = 'main';
 //reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
@@ -208,6 +213,36 @@ const makeCardsConfigurableFilter = (filterName, idString) => {
 			if (idsToMatch[slug]) return true;
 		}
 		return false;
+	};
+	return [func, false];
+};
+
+const makeAboutConfigurableFilter = (filterName, conceptStr) => {
+	//conceptStr should have '-' delimiting its terms; normalize text
+	//will automatically handle them the same.
+
+	//TODO: support text delimited by '+'
+
+	//This function is pretty simple: find the concept card, then memoize the
+	//inbound concept references it has.
+
+	let memoizedMatchingCards = null;
+	let memoizedCardsLastSeen = null;
+
+	const func = function(card, cards) {
+		if (cards != memoizedCardsLastSeen) {
+			memoizedMatchingCards = undefined;
+		}
+		if (!memoizedMatchingCards) {
+			//Default to matching nothing
+			memoizedMatchingCards = {};
+			const conceptCard = getConceptCardForConcept(cards, conceptStr);
+			if (conceptCard) {
+				memoizedMatchingCards = Object.fromEntries(Object.keys(references(conceptCard).byTypeInbound[REFERENCE_TYPE_CONCEPT]).map(cardID => [cardID, true]));
+			}
+			memoizedCardsLastSeen = cards;
+		}
+		return memoizedMatchingCards[card.id];
 	};
 	return [func, false];
 };
@@ -410,6 +445,9 @@ export const QUERY_FILTER_NAME = 'query';
 const QUERY_STRICT_FILTER_NAME = 'query-strict';
 export const LIMIT_FILTER_NAME = 'limit';
 export const SIMILAR_FILTER_NAME = 'similar';
+//About as in 'about this concept'. Ideally it would have been 'concept', but
+//that's reserved for the cardType filter.
+const ABOUT_FILTER_NAME = 'about';
 
 //When these are seen in the URL as parts, how many more pieces to expect, to be
 //combined later. For things like `updated`, they want more than 1 piece more
@@ -446,6 +484,7 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[QUERY_STRICT_FILTER_NAME]: 1,
 	[LIMIT_FILTER_NAME]: 1,
 	[SIMILAR_FILTER_NAME]: 1,
+	[ABOUT_FILTER_NAME]: 1,
 };
 
 //the factories should return a filter func that takes the card to opeate on,
@@ -554,6 +593,9 @@ const CONFIGURABLE_FILTER_INFO = {
 	[SIMILAR_FILTER_NAME]: {
 		factory: makeSimilarConfigurableFilter,
 		suppressLabels: true,
+	},
+	[ABOUT_FILTER_NAME]: {
+		factory: makeAboutConfigurableFilter,
 	}
 };
 
