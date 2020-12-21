@@ -123,19 +123,16 @@ import {
 	store
 } from '../store.js';
 
-const cardExists = (cardID) => {
-	return getCardById(store.getState(), cardID) ? true : false;
-};
-
 //map of cardID => promise that's waiting
 let waitingForCards = {};
 
 const waitingForCardToExistStoreUpdated = () => {
 	let itemDeleted = false;
 	for (const cardID of Object.keys(waitingForCards)) {
-		if (!cardExists(cardID)) continue;
+		const card = getCardById(store.getState(), cardID);
+		if (!card) continue;
 		for (let promise of waitingForCards[cardID]) {
-			promise.resolve();
+			promise.resolve(card);
 		}
 		delete waitingForCards[cardID];
 		itemDeleted = true;
@@ -148,9 +145,10 @@ const waitingForCardToExistStoreUpdated = () => {
 
 let unsubscribeFromStore = null;
 
-//returns a promise that will be resolved when a card with that ID exists.
+//returns a promise that will be resolved when a card with that ID exists, returning the card.
 export const waitForCardToExist = (cardID) => {
-	if (cardExists(cardID)) return Promise.resolve();
+	const card = getCardById(store.getState(), cardID);
+	if (card) return Promise.resolve(card);
 	if (!waitingForCards[cardID]) waitingForCards[cardID] = [];
 	if (!unsubscribeFromStore) unsubscribeFromStore = store.subcribe(waitingForCardToExistStoreUpdated);
 	const promise = new Promise();
