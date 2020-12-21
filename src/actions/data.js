@@ -592,6 +592,19 @@ const setPendingSlug = (slug) => {
 	};
 };
 
+const addLegalSlugToCard = (cardID, legalSlug, setName) => {
+	//legalSlug must already be verified to be legal.
+	let batch = db.batch();
+	const cardRef = db.collection(CARDS_COLLECTION).doc(cardID);
+	let update = {
+		slugs: arrayUnionSentinel(legalSlug),
+		updated: serverTimestampSentinel(),
+	};
+	if (setName) update[name] = legalSlug;
+	batch.update(cardRef, update);
+	return batch.commit();
+};
+
 export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
  
 	newSlug = normalizeSlug(newSlug);
@@ -623,14 +636,7 @@ export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
 		return;
 	}
 
-	let batch = db.batch();
-	const cardRef = db.collection(CARDS_COLLECTION).doc(cardId);
-	batch.update(cardRef, {
-		slugs: arrayUnionSentinel(newSlug),
-		updated: serverTimestampSentinel(),
-	});
-
-	await batch.commit();
+	await addLegalSlugToCard(cardId, newSlug, false);
 
 	dispatch(setPendingSlug(''));
 
