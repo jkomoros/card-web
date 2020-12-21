@@ -295,7 +295,15 @@ const destemmedWordMap = (cardOrCards) => {
 	return result;
 };
 
+let memoizedNormalizedNgramMaps = new Map();
 
+const normalizeNgramMap = (ngramMap) => {
+	if (!memoizedNormalizedNgramMaps.has(ngramMap)) {
+		const normalizedMap = Object.fromEntries(Object.entries(ngramMap).map(entry => [fullyNormalizedString(entry[0]), entry[1]]));
+		memoizedNormalizedNgramMaps.set(ngramMap, normalizedMap);
+	}
+	return memoizedNormalizedNgramMaps.get(ngramMap);
+};
 
 //if true, will print out debug statistics about how often card normalized count
 //is happening, which can help verify that the memoization is working.s
@@ -305,7 +313,9 @@ let normalizedCount = {};
 //cardWithNormalizedTextProperties sets the properties that search and
 //fingerprints work over, on a copy of the card it returns. If
 //optFallbackTextMap is set, the result will also have that stashed on the
-//returned card obj.
+//returned card obj. optAdditionalNgramMap should be a map of strings to true,
+//specifying strings that, if their normalized/stemmed text overlaps with the
+//ngrams on a card--no matter the length--that ngram should be indexed.
 export const cardWithNormalizedTextProperties = (card, optFallbackTextMap, optAdditionalNgramMap) => {
 	if (!card) return card;
 	if (DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES) {
@@ -316,7 +326,7 @@ export const cardWithNormalizedTextProperties = (card, optFallbackTextMap, optAd
 	if (optFallbackTextMap) result.fallbackTextMap = optFallbackTextMap;
 	//TODO: normalize these once and memoize
 	//TODO: actually use these for something
-	if (optAdditionalNgramMap) result.additonalNgramMap = optAdditionalNgramMap;
+	if (optAdditionalNgramMap) result.additonalNgramMap = normalizeNgramMap(optAdditionalNgramMap);
 	//Basically it takes the output of extractContentWords and then stems each run.
 	result.normalized = Object.fromEntries(Object.entries(extractContentWords(result)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
 	return result;
