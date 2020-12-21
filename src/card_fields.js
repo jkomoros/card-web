@@ -54,7 +54,7 @@ export const TEXT_FIELD_BODY = 'body';
 export const TEXT_FIELD_TITLE = 'title';
 export const TEXT_FIELD_SUBTITLE = 'subtitle';
 export const TEXT_FIELD_REFERENCES_INFO_INBOUND = REFERENCES_INFO_INBOUND_CARD_PROPERTY;
-export const TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND = 'non-link-references';
+export const TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND = 'non_link_references';
 
 export const CARD_TYPE_CONTENT = 'content';
 export const CARD_TYPE_SECTION_HEAD = 'section-head';
