@@ -475,17 +475,19 @@ const semanticOverlap = (fingerprintOne, fingerprintTwo) => {
 //How high to go for n-grams in fingerprint. 2 = bigrams and monograms.
 const MAX_N_GRAM_FOR_FINGERPRINT = 2;
 
-const wordCountsForSemantics = (strs) => {
+const wordCountsForSemantics = (strsMap) => {
 	const cardMap = {};
-	for (const str of strs) {
-		const words = str.split(' ').filter(word => !STOP_WORDS[word]).join(' ');
-		for (let n = 1; n <= MAX_N_GRAM_FOR_FINGERPRINT; n++) {
-			for (const ngram of ngrams(words, n)) {
-				if (!ngram) continue;
-				//Each additional word in the lenght of the ngram makes them stand
-				//out more as distinctive, so pretend like you see them less, in
-				//proprition with how many there are.
-				cardMap[ngram] = (cardMap[ngram] || 0) + 1/n;
+	for (const strs of Object.values(strsMap)) {
+		for (const str of strs) {
+			const words = str.split(' ').filter(word => !STOP_WORDS[word]).join(' ');
+			for (let n = 1; n <= MAX_N_GRAM_FOR_FINGERPRINT; n++) {
+				for (const ngram of ngrams(words, n)) {
+					if (!ngram) continue;
+					//Each additional word in the lenght of the ngram makes them stand
+					//out more as distinctive, so pretend like you see them less, in
+					//proprition with how many there are.
+					cardMap[ngram] = (cardMap[ngram] || 0) + 1/n;
+				}
 			}
 		}
 	}
@@ -615,7 +617,7 @@ export class FingerprintGenerator {
 
 	_wordCountsForCardObj(cardObj) {
 		//Filter out empty items for properties that don't have any items
-		return wordCountsForSemantics(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => cardObj.normalized[prop]).filter(val => val).flat());
+		return wordCountsForSemantics(Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => [prop, cardObj.normalized[prop]]).filter(entry => entry[1])));
 	}
 
 	_cardTFIDF(cardWordCounts) {
