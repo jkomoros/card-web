@@ -90,6 +90,9 @@ iconName: a reference from icons to show in front of the title everywhere it
 shows up. A string that indexes into icons. This isn't an html tag to avoid
 having heavyweight imports so this can be included in tests.
 
+autoSlug: if true, then when a new card is created, it will try to automatically
+add a name to the card that is `CARD_TYPE-NORMALIZED-TITLE`.
+
 */
 
 export const CARD_TYPE_CONFIGURATION = {
@@ -141,6 +144,7 @@ export const CARD_TYPE_CONFIGURATION = {
 		orphanedByDefault: true,
 		publishedByDefault: true,
 		iconName: 'MENU_BOOK_ICON',
+		autoSlug: true,
 	},
 };
 

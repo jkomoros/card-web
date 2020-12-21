@@ -54,6 +54,7 @@ import {
 	normalizeSlug,
 	extractCardLinksFromBody,
 	reasonCardTypeNotLegalForCard,
+	createSlugFromArbitraryString,
 } from '../util.js';
 
 import {
@@ -942,6 +943,14 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		}
 	}
 
+	let autoSlug = '';
+	let autoSlugLegalPromise = null;
+	if (CARD_TYPE_CONFIG.autoSlug) {
+		autoSlug = normalizeSlug(cardType + '-' + createSlugFromArbitraryString(title));
+		//Kick this off in parallel. We'll await it later.
+		autoSlugLegalPromise = slugLegal(autoSlug);
+	}
+
 	if (section) {
 
 		let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
@@ -987,6 +996,23 @@ export const createCard = (opts) => async (dispatch, getState) => {
 	//updated will call navigateToNewCard once the data is fully loaded again
 	//(if EXPECT_NEW_CARD was dispatched above). If noSectionChange is true
 	//above, it will only wait for the card, not the section, to load.
+
+	if (!autoSlug) return;
+
+	await waitForCardToExist(id);
+	const autoSlugLegal = await autoSlugLegalPromise;
+
+	if (!autoSlugLegal) {
+		console.warn('The autoSlug, ' + autoSlug + ' was not legal, so it will not be proposed.');
+		return;
+	}
+
+	try {
+		await addLegalSlugToCard(id, autoSlug, true);
+	} catch(err) {
+		console.warn('Couldn\'t add slug to card: ' + err);
+	}
+
 };
 
 export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
