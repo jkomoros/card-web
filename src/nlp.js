@@ -480,7 +480,9 @@ const WHOLE_NGRAM_MAX_SIZE = 6;
 
 const wordCountsForSemantics = (strsMap) => {
 	const cardMap = {};
-	for (const strs of Object.values(strsMap)) {
+	for (const [fieldName, strs] of Object.entries(strsMap)) {
+		const textFieldConfig = TEXT_FIELD_CONFIGURATION[fieldName] || {};
+		const totalIndexingCount = (textFieldConfig.extraIndexingCount || 0) + 1;
 		for (const str of strs) {
 			const words = str.split(' ').filter(word => !STOP_WORDS[word]).join(' ');
 			for (let n = 1; n <= MAX_N_GRAM_FOR_FINGERPRINT; n++) {
@@ -489,7 +491,8 @@ const wordCountsForSemantics = (strsMap) => {
 					//Each additional word in the lenght of the ngram makes them stand
 					//out more as distinctive, so pretend like you see them less, in
 					//proprition with how many there are.
-					cardMap[ngram] = (cardMap[ngram] || 0) + 1/n;
+					const baseAmount = 1/n;
+					cardMap[ngram] = (cardMap[ngram] || 0) + (baseAmount * totalIndexingCount);
 				}
 			}
 			const splitWords = words.split(' ');
@@ -498,7 +501,8 @@ const wordCountsForSemantics = (strsMap) => {
 				//it wouldn't be automatically geneated (since it's larger than the
 				//ngram size), include it. This means that short snippets of text, like
 				//in references, will get fully indexed as an ngram.
-				cardMap[words] = (cardMap[words] || 0) + 1/splitWords.length;
+				const baseAmount = 1/splitWords.length;
+				cardMap[words] = (cardMap[words] || 0) + (baseAmount * totalIndexingCount);
 			}
 		}
 	}

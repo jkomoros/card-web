@@ -307,6 +307,11 @@ fetching a field with that name from card, it will instead rely on an extractor
 function. (Those override extractors often require references, which would
 pollute the clean imports for this file, so they're defined there)
 
+extraIndexingCount: if a number greater than zero, then when counting words from
+that text field, the wordCountForSemantics will pretend like all of the text run
+showed up that many times. So undefined or 0 would count as one, and 2 would
+triple count.
+
 */
 
 const DEFAULT_MAX_FONT_BOOST = 0.3;
@@ -389,7 +394,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 	},
 	//This counts outboudn reference text to concepts. That text will have
 	//already been counted in TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND, so this
-	//has the effect of double counting concepts since theyr'e so important.z
+	//has the effect of triple counting concepts since theyr'e so important.z
 	[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: {
 		html: false,
 		readOnly: true,
@@ -399,6 +404,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 		autoFontSizeBoostForCardTypes: {},
 		matchWeight:0.75,
 		overrideExtractor: true,
+		extraIndexingCount: 1,
 	}
 };
 
