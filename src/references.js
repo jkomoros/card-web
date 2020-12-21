@@ -66,8 +66,8 @@ const ReferencesAccessor = class {
 		this._memoizedByTypeInbound = null;
 		this._memoizedByTypeSubstantive = null;
 		this._memoizedByTypeInboundSubstantive = null;
-		this._referencesInfo = cardObj[REFERENCES_INFO_CARD_PROPERTY];
-		this._referencesInfoInbound = cardObj[REFERENCES_INFO_INBOUND_CARD_PROPERTY];
+		this._referencesInfo = cardObj[REFERENCES_INFO_CARD_PROPERTY] || {};
+		this._referencesInfoInbound = cardObj[REFERENCES_INFO_INBOUND_CARD_PROPERTY] || {};
 	}
 
 	linksArray() {
