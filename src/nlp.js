@@ -306,7 +306,7 @@ let normalizedCount = {};
 //fingerprints work over, on a copy of the card it returns. If
 //optFallbackTextMap is set, the result will also have that stashed on the
 //returned card obj.
-export const cardWithNormalizedTextProperties = (card, optFallbackTextMap) => {
+export const cardWithNormalizedTextProperties = (card, optFallbackTextMap, optAdditionalNgramMap) => {
 	if (!card) return card;
 	if (DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES) {
 		normalizedCount[card.id] = (normalizedCount[card.id] || 0) + 1;
@@ -314,6 +314,9 @@ export const cardWithNormalizedTextProperties = (card, optFallbackTextMap) => {
 	}
 	const result = {...card};
 	if (optFallbackTextMap) result.fallbackTextMap = optFallbackTextMap;
+	//TODO: normalize these once and memoize
+	//TODO: actually use these for something
+	if (optAdditionalNgramMap) result.additonalNgramMap = optAdditionalNgramMap;
 	//Basically it takes the output of extractContentWords and then stems each run.
 	result.normalized = Object.fromEntries(Object.entries(extractContentWords(result)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
 	return result;

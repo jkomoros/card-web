@@ -185,6 +185,17 @@ const selectBackportTextFallbackMapCollection = createObjectSelector(
 	(card, cards) => backportFallbackTextMapForCard(card, cards)
 );
 
+const selectRawConceptCards = createSelector(
+	selectRawCards,
+	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => entry[1].card_type == CARD_TYPE_CONCEPT))
+);
+
+//selectConcepts returns a map of all concepts based on visible concept cards.
+export const selectConcepts = createSelector(
+	selectRawConceptCards,
+	(conceptCards) => Object.fromEntries(Object.values(conceptCards).map(card => [getConceptStringFromConceptCard(card), true]))
+);
+
 const selectZippedCardAndFallbackMap = createSelector(
 	selectRawCards,
 	selectBackportTextFallbackMapCollection,
@@ -229,20 +240,15 @@ const createZippedObjectSelector = createObjectSelectorCreator(objectEquality);
 //time they should be considered the same.
 export const selectCards = createZippedObjectSelector(
 	selectZippedCardAndFallbackMap,
+	//Note that depending on selectConcepts actually doesn't lead to many
+	//recalcs. That's because a) we're using objectEquality, so as long as the
+	//map stays semantically the same cards won't be reindexed, and b) because
+	//concept cards are by default published, which means they're in the first
+	//set of cards. That means the only time every card has to be reindexed is
+	//when specifically the title of one of the concept cards changes.
+	selectConcepts,
 	//Note this processing on a card to make the nlp card should be the same as what is done in selectEditingNormalizedCard.
-	(cardAndFallbackMap) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1])
-);
-
-const selectConceptCards = createSelector(
-	selectCards,
-	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => entry[1].card_type == CARD_TYPE_CONCEPT))
-);
-
-//selectConcepts returns a map of all concepts based on visible concept cards.
-// eslint-disable-next-line no-unused-vars
-const selectConcepts = createSelector(
-	selectConceptCards,
-	(conceptCards) => Object.fromEntries(Object.values(conceptCards).map(card => [getConceptStringFromConceptCard(card), true]))
+	(cardAndFallbackMap, concepts) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts)
 );
 
 export const selectActiveCard = createSelector(
@@ -609,7 +615,8 @@ const selectEditingNormalizedCard = (state) => {
 		if (editingCard) {
 			const cards = selectRawCards(state);
 			const fallbackMap = backportFallbackTextMapForCard(editingCard, cards);
-			memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap);
+			const conceptsMap = selectConcepts(state);
+			memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap, conceptsMap);
 		} else {
 			memoizedEditingNormalizedCard = editingCard;
 		}

@@ -10,6 +10,7 @@ import {
 import {
 	getSemanticFingerprintForCard,
 	selectCards,
+	selectConcepts,
 } from './selectors.js';
 
 import {
@@ -25,7 +26,8 @@ const workingNotesExtractor = (card,state) => {
 	//on a timeout in textFieldUpdated so typing isn't expensive. It's possible
 	//that timeout hasn't fired yet, so make sure the card content is up to date.
 	const fallbackMap = backportFallbackTextMapForCard(card, selectCards(state));
-	const cardCopy = cardWithNormalizedTextProperties(card, fallbackMap);
+	const conceptsMap = selectConcepts(state);
+	const cardCopy = cardWithNormalizedTextProperties(card, fallbackMap, conceptsMap);
 	const fingerprint = getSemanticFingerprintForCard(state, cardCopy);
 	const pretty = dedupedPrettyFingerprint(fingerprint, cardCopy);
 	const title = date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'2-digit'}) + ' ' + pretty.split(' ').slice(0, NUM_TERMS_OF_FINGERPRINT).join(' ');
