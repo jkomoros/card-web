@@ -255,12 +255,23 @@ export const cardWithNormalizedTextProperties = (card, optFallbackTextMap) => {
 	return result;
 };
 
+//ngrams will additionally return an ngram of the full string if the number of
+//terms is this or smaller.
+const WHOLE_NGRAM_MAX_SIZE = 6;
+
 //text should be normalized
 const ngrams = (text, size = 2) => {
 	if (!text) return [];
 	const pieces = text.split(' ');
 	if (pieces.length < size) size = pieces.length;
 	const result = [];
+	if (pieces.length > size && pieces.length < WHOLE_NGRAM_MAX_SIZE) {
+		//if the entire text snippet is small enough to be totally counted, and
+		//it wouldn't be automatically geneated (since it's larger than the
+		//ngram size), include it. This means that short snippets of text, like
+		//in references, will get fully indexed as an ngram.
+		result.push(pieces.join(' '));
+	}
 	for (let i = 0; i < (pieces.length - size + 1); i++) {
 		let subPieces = [];
 		for (let j = 0; j < size; j++) {
