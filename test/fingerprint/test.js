@@ -400,31 +400,31 @@ describe('fingerprint generation', () => {
 		const generator = new FingerprintGenerator(cards);
 		const expectedOverlaps = {
 			[CARD_ID_ONE]: new Map([
-				[ 'three', 2.0880666882492496 ],
+				[ 'three', 2.0895310181605966 ],
 				[ 'two', 0 ],
 				[ 'four', 0 ],
 				[ 'five', 0 ]
 			]),
 			[CARD_ID_TWO]: new Map([
-				[ 'three', 1.0215005312394583 ],
+				[ 'three', 1.0219674655335855 ],
 				[ 'one', 0 ],
 				[ 'four', 0 ],
 				[ 'five', 0 ]
 			]),
 			[CARD_ID_THREE]: new Map([
-				[ 'four', 2.1143232029865926 ],
-				[ 'one', 2.0880666882492496 ],
-				[ 'two', 1.0215005312394583 ],
+				[ 'four', 2.116431872288398 ],
+				[ 'one', 2.0895310181605966 ],
+				[ 'two', 1.0219674655335855 ],
 				[ 'five', 0 ]
 			]),
 			[CARD_ID_FOUR]: new Map([
-				[ 'five', 2.122320249453976 ],
-				[ 'three', 2.1143232029865926 ],
+				[ 'five', 2.125098805985002 ],
+				[ 'three', 2.116431872288398 ],
 				[ 'one', 0 ],
 				[ 'two', 0 ]
 			]),
 			[CARD_ID_FIVE]: new Map([
-				[ 'four', 2.122320249453976 ],
+				[ 'four', 2.125098805985002 ],
 				[ 'one', 0 ],
 				[ 'two', 0 ],
 				[ 'three', 0 ]
