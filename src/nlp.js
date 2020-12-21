@@ -119,6 +119,30 @@ const stemmedNormalizedWords = (str) => {
 	return result.join(' ');
 };
 
+const memoizedFullyNormalizedString = {};
+
+const fullyNormalizedString = (rawStr) => {
+	if (!memoizedFullyNormalizedString[rawStr]) {
+		memoizedFullyNormalizedString[rawStr] = stemmedNormalizedWords(normalizedWords(rawStr));
+	}
+	return memoizedFullyNormalizedString[rawStr];
+};
+
+//returns true if the card includes precisely the given str in the given field,
+//with fully normalized/stemmed words. fieldName must be a field in
+//TEXT_FIELD_CONFIGURATION
+export const cardMatchesString = (card,fieldName, str) => {
+	const normalizedString = fullyNormalizedString(str);
+	if (!card) return false;
+	if (!card.normalized) return false;
+	if (!TEXT_FIELD_CONFIGURATION[fieldName]) return false;
+	const fieldValues = card.normalized[fieldName] || [];
+	for (const fieldValue of fieldValues) {
+		if (fieldValue.includes(normalizedString)) return true;
+	}
+	return false;
+};
+
 const innerTextForHTML = (body) => {
 	//This shouldn't be an XSS vulnerability even though body is supplied by
 	//users and thus untrusted, because the temporary element is never actually
