@@ -64,6 +64,7 @@ export const TWEETS_COLLECTION = 'tweets';
 const legalCallable = functions.httpsCallable('legal');
 const statusCallable = functions.httpsCallable('status');
 
+//slugLegal returns an object with {legal: bool, reason: string}
 export const slugLegal = async (newSlug) => {
 	const result = await legalCallable({type:'slug', value:newSlug});
 	return result.data;

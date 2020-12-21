@@ -1000,10 +1000,10 @@ export const createCard = (opts) => async (dispatch, getState) => {
 	if (!autoSlug) return;
 
 	await waitForCardToExist(id);
-	const autoSlugLegal = await autoSlugLegalPromise;
+	const autoSlugLegalResult = await autoSlugLegalPromise;
 
-	if (!autoSlugLegal) {
-		console.warn('The autoSlug, ' + autoSlug + ' was not legal, so it will not be proposed.');
+	if (!autoSlugLegalResult.legal) {
+		console.warn('The autoSlug, ' + autoSlug + ' was not legal, so it will not be proposed. Reason: ' + autoSlugLegalResult.reason);
 		return;
 	}
 
