@@ -173,10 +173,10 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 
 	const func = function(card, cards, UNUSEDFilterMemberships, editingCard) {
 		if (cards != memoizedCardsLastSeen || editingCard != memoizedEditingCardLastSeen) memoizedMap = null;
-		const originalCards = cards;
-		//If editingCard is provided, use it to shadow the unedited version of itself.
-		if (editingCard) cards = {...cards, [editingCard.id]: editingCard};
 		if (!memoizedMap) {
+			const originalCards = cards;
+			//If editingCard is provided, use it to shadow the unedited version of itself.
+			if (editingCard) cards = {...cards, [editingCard.id]: editingCard};
 			if (twoWay){
 				const bfsForOutbound = cardBFS(cardID, cards, count, includeKeyCard, false, referenceTypes);
 				const bfsForInbound = Object.fromEntries(Object.entries(cardBFS(cardID, cards, count, includeKeyCard, true, referenceTypes)).map(entry => [entry[0], entry[1] * -1]));
