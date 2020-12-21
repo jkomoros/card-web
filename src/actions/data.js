@@ -944,11 +944,15 @@ export const createCard = (opts) => async (dispatch, getState) => {
 	}
 
 	let autoSlug = '';
+	let fallbackAutoSlug = '';
 	let autoSlugLegalPromise = null;
+	let fallbackAutoSlugLegalPromise = null;
 	if (CARD_TYPE_CONFIG.autoSlug) {
-		autoSlug = normalizeSlug(cardType + '-' + createSlugFromArbitraryString(title));
+		autoSlug = createSlugFromArbitraryString(title);
+		fallbackAutoSlug = normalizeSlug(cardType + '-' + autoSlug);
 		//Kick this off in parallel. We'll await it later.
 		autoSlugLegalPromise = slugLegal(autoSlug);
+		fallbackAutoSlugLegalPromise = slugLegal(fallbackAutoSlug);
 	}
 
 	if (section) {
@@ -1001,14 +1005,17 @@ export const createCard = (opts) => async (dispatch, getState) => {
 
 	await waitForCardToExist(id);
 	const autoSlugLegalResult = await autoSlugLegalPromise;
+	const fallbackAutoSlugLegalResult = await fallbackAutoSlugLegalPromise;
 
-	if (!autoSlugLegalResult.legal) {
-		console.warn('The autoSlug, ' + autoSlug + ' was not legal, so it will not be proposed. Reason: ' + autoSlugLegalResult.reason);
+	if (!autoSlugLegalResult.legal && !fallbackAutoSlugLegalResult.legal) {
+		console.warn('The autoSlug, ' + autoSlug + ' (and its fallback ' + fallbackAutoSlug + ') was not legal, so it will not be proposed. Reason: ' + autoSlugLegalResult.reason + ' and ' + fallbackAutoSlugLegalResult.reason);
 		return;
 	}
 
+	const slugToUse = autoSlugLegalResult.legal ? autoSlug : fallbackAutoSlug;
+
 	try {
-		await addLegalSlugToCard(id, autoSlug, true);
+		await addLegalSlugToCard(id, slugToUse, true);
 	} catch(err) {
 		console.warn('Couldn\'t add slug to card: ' + err);
 	}
