@@ -312,6 +312,10 @@ that text field, the wordCountForSemantics will pretend like all of the text run
 showed up that many times. So undefined or 0 would count as one, and 2 would
 triple count.
 
+indexFullRun: if true, then the full normalized text string of each run will be
+indexed as though it were an ngram (even if the number of words is too high to
+be counted as an ngram). In addition, it will count full (not 1/wordCount).
+
 */
 
 const DEFAULT_MAX_FONT_BOOST = 0.3;
@@ -405,6 +409,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 		matchWeight:0.75,
 		overrideExtractor: true,
 		extraIndexingCount: 1,
+		indexFullRun: true,
 	}
 };
 

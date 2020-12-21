@@ -496,7 +496,15 @@ const wordCountsForSemantics = (strsMap) => {
 				}
 			}
 			const splitWords = words.split(' ');
-			if (splitWords.length > MAX_N_GRAM_FOR_FINGERPRINT && splitWords.length < WHOLE_NGRAM_MAX_SIZE) {
+
+			if (textFieldConfig.indexFullRun) {
+				//If we're told to index the full run, then index the whole
+				//thing... and count it as 1.0, not discounting for wordCount.
+				cardMap[words] = (cardMap[words] || 0) + totalIndexingCount;
+			} else if (splitWords.length > MAX_N_GRAM_FOR_FINGERPRINT && splitWords.length < WHOLE_NGRAM_MAX_SIZE) {
+				//even if index full run wasn't true, if the run only has a few
+				//words, index them as though they were valid ngrams.
+				
 				//if the entire text snippet is small enough to be totally counted, and
 				//it wouldn't be automatically geneated (since it's larger than the
 				//ngram size), include it. This means that short snippets of text, like
