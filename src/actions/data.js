@@ -131,12 +131,18 @@ const cardExists = (cardID) => {
 let waitingForCards = {};
 
 const waitingForCardToExistStoreUpdated = () => {
+	let itemDeleted = false;
 	for (const cardID of Object.keys(waitingForCards)) {
 		if (!cardExists(cardID)) continue;
 		for (let promise of waitingForCards[cardID]) {
 			promise.resolve();
 		}
 		delete waitingForCards[cardID];
+		itemDeleted = true;
+	}
+	if (itemDeleted && Object.keys(waitingForCards).length == 0) {
+		unsubscribeFromStore();
+		unsubscribeFromStore = null;
 	}
 };
 
