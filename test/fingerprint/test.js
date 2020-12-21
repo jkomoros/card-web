@@ -111,7 +111,10 @@ describe('fingerprint generation', () => {
 				],
 				'title': ['thi is the titl of thi card'],
 				'subtitle': [],
+				'concept_references': [],
+				'non_link_references': [],
 				'references_info_inbound': [],
+				'strong_body_text': [],
 			},
 			[CARD_ID_TWO]: {
 				'title': [
@@ -131,7 +134,10 @@ describe('fingerprint generation', () => {
 					'cynefin model',
 					'cynefin\' model blammo',
 					'cynenfin model dupe'
-				]
+				],
+				'concept_references': [],
+				'non_link_references': [],
+				'strong_body_text': [],
 			},
 			[CARD_ID_THREE]: {
 				'title': [
@@ -145,7 +151,10 @@ describe('fingerprint generation', () => {
 					'certain type of solut ar fundament imposs in complex although peopl who ar uncomfort with complex will continu to demand them'
 				],
 				'subtitle': [],
-				'references_info_inbound': []
+				'concept_references': [],
+				'non_link_references': [],
+				'references_info_inbound': [],
+				'strong_body_text': [],
 			},
 			[CARD_ID_FOUR]: {
 				'title': [],
@@ -161,7 +170,10 @@ describe('fingerprint generation', () => {
 					'the more it exist outsid and gener and directli affect other the more that it\' ground truth and not subject'
 				],
 				'subtitle': [],
-				'references_info_inbound': []
+				'concept_references': [],
+				'non_link_references': [],
+				'references_info_inbound': [],
+				'strong_body_text': [],
 			},
 			[CARD_ID_FIVE]: {
 				'title': [
@@ -173,7 +185,10 @@ describe('fingerprint generation', () => {
 					'anoth site to know about is komoroske.com/sudoku or even washingtonpost.com'
 				],
 				'subtitle': [],
-				'references_info_inbound': []
+				'concept_references': [],
+				'non_link_references': [],
+				'references_info_inbound': [],
+				'strong_body_text': [],
 			},
 		};
 		for (let cardID of CARD_IDS_TO_TEST) {
