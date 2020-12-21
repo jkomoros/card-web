@@ -7,7 +7,9 @@ import {
 	DERIVED_FIELDS_FOR_CARD_TYPE,
 	BODY_CARD_TYPES,
 	TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND,
+	TEXT_FIELD_STRONG_BODY_TEXT,
 	REFERENCE_TYPE_LINK,
+	TEXT_FIELD_BODY,
 } from './card_fields.js';
 
 import {
@@ -21,6 +23,10 @@ import {
 import {
 	normalizeLineBreaks,
 } from './contenteditable.js';
+
+import {
+	extractStrongTextFromBody
+} from './util.js';
 
 //STOP_WORDS are words that are so common that we should basically skip them. We
 //skip them when generating multi-word queries, and also for considering words
@@ -159,6 +165,11 @@ const OVERRIDE_EXTRACTORS = {
 			}
 		}
 		return result.join('\n');
+	},
+	[TEXT_FIELD_STRONG_BODY_TEXT]: (card) => {
+		const body = card[TEXT_FIELD_BODY];
+		if (!body) return '';
+		return extractStrongTextFromBody(body).join('\n');
 	}
 };
 

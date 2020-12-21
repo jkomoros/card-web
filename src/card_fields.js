@@ -55,6 +55,7 @@ export const TEXT_FIELD_TITLE = 'title';
 export const TEXT_FIELD_SUBTITLE = 'subtitle';
 export const TEXT_FIELD_REFERENCES_INFO_INBOUND = REFERENCES_INFO_INBOUND_CARD_PROPERTY;
 export const TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND = 'non_link_references';
+export const TEXT_FIELD_STRONG_BODY_TEXT = 'strong_body_text';
 
 export const CARD_TYPE_CONTENT = 'content';
 export const CARD_TYPE_SECTION_HEAD = 'section-head';
@@ -368,6 +369,21 @@ export const TEXT_FIELD_CONFIGURATION = {
 		derivedForCardTypes: {},
 		autoFontSizeBoostForCardTypes: {},
 		matchWeight:0.5,
+		overrideExtractor: true,
+	},
+	//This one has a custom extractor, to extract text within strong spans in
+	//the body. This effectively double-counts any text that is strong in the
+	//text, since it's also included in body. Also, since the runs are likely
+	//short, it's likely that the runs will be indexed as a full ngram by
+	//ngrams.
+	[TEXT_FIELD_STRONG_BODY_TEXT]: {
+		html: false,
+		readOnly: true,
+		//null signals it's legal for all card types
+		legalCardTypes: null,
+		derivedForCardTypes: {},
+		autoFontSizeBoostForCardTypes: {},
+		matchWeight:1.0,
 		overrideExtractor: true,
 	}
 };
