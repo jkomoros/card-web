@@ -89,6 +89,7 @@ const normalizedWords = (str) => {
 	str = str.split('--').join(' ');
 	str = str.split('&emdash;').join(' ');
 	str = str.split('-').join(' ');
+	str = str.split('+').join(' ');
 
 	const splitWords = lowercaseSplitWords(str);
 	let result = [];
