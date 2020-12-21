@@ -601,7 +601,7 @@ const addLegalSlugToCard = (cardID, legalSlug, setName) => {
 		slugs: arrayUnionSentinel(legalSlug),
 		updated: serverTimestampSentinel(),
 	};
-	if (setName) update[name] = legalSlug;
+	if (setName) update.name = legalSlug;
 	batch.update(cardRef, update);
 	return batch.commit();
 };
