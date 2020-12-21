@@ -288,7 +288,8 @@ const MULTIPLE_LINK_TEXT_DELIMITER = '\n';
 
 export const extractCardLinksFromBody = (body) => {
 	let ele = getDocument().createElement('section');
-	//TODO: is there an XSS vulnerability here?
+	//This is not an XSS vulnerability because we never append ele into the
+	//actual dom.
 	ele.innerHTML = body;
 	let result = {};
 	let nodes = ele.querySelectorAll('card-link[card]');
@@ -301,6 +302,16 @@ export const extractCardLinksFromBody = (body) => {
 		}
 	});
 	return result;
+};
+
+//returns an array of strong text.
+export const extractStrongTextFromBody = (body) => {
+	let ele = getDocument().createElement('section');
+	//This is not an XSS vulnerability because we never append ele into the
+	//actual dom.
+	ele.innerHTML = body;
+	const strongEles = [...ele.querySelectorAll('strong')];
+	return strongEles.map(ele => ele.innerText);
 };
 
 export const arrayRemove = (arr, items) => {
