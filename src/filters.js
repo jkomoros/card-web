@@ -10,6 +10,7 @@ import {
 	hash,
 	cardBFS,
 	pageRank,
+	createSlugFromArbitraryString,
 } from './util.js';
 
 import {
@@ -212,6 +213,11 @@ const makeCardsConfigurableFilter = (filterName, idString) => {
 		return false;
 	};
 	return [func, false];
+};
+
+export const aboutConfigurableFilterText = (conceptStr) => {
+	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
+	return ABOUT_FILTER_NAME + '/' + createSlugFromArbitraryString(conceptStr);
 };
 
 const makeAboutConfigurableFilter = (filterName, conceptStr) => {
