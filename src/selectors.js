@@ -51,6 +51,7 @@ import {
 	emptyWordCloud,
 	cardWithNormalizedTextProperties,
 	getConceptStringFromConceptCard,
+	suggestedConceptReferencesForCard
 } from './nlp.js';
 
 import {
@@ -249,6 +250,11 @@ export const selectCards = createZippedObjectSelector(
 	selectConcepts,
 	//Note this processing on a card to make the nlp card should be the same as what is done in selectEditingNormalizedCard.
 	(cardAndFallbackMap, concepts) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts)
+);
+
+const selectConceptCards = createSelector(
+	selectCards,
+	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => entry[1].card_type == CARD_TYPE_CONCEPT))
 );
 
 export const selectActiveCard = createSelector(
@@ -629,6 +635,14 @@ const selectEditingCardSemanticFingerprint = createSelector(
 	selectEditingNormalizedCard,
 	selectFingerprintGenerator,
 	(card, fingerprintGenerator) => fingerprintGenerator.fingerprintForCardObj(card)
+);
+
+export const selectEditingCardSuggestedConceptReferences = createSelector(
+	selectEditingNormalizedCard,
+	selectEditingCardSemanticFingerprint,
+	selectConceptCards,
+	selectConcepts,
+	(card, fingerprint, conceptCards, concepts) => suggestedConceptReferencesForCard(card, fingerprint, conceptCards, concepts)
 );
 
 const NUM_SIMILAR_TAGS_TO_SHOW = 3;
