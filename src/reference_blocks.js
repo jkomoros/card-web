@@ -28,16 +28,20 @@ import {
 /*
 
 An array where each item has:
-	collection: a collection description, possibly using SELF_KEY_CARD_ID as a placeholder
+	collectionDescription: a collection description, possibly using SELF_KEY_CARD_ID as a placeholder
 	title: a title to display
 	description: if provided, will render a help badge with this text
 	cardsToBoldFilterFactory: if not null, should be a factory that, given the expanded card object, will return a filter function to then be passed other expanded card objects to test if they should be bold. The items that return true from that second item will be shown as strong in the reference block.
 	emptyMessage: if non-falsey will show that message if no cards match. If it is falsey and no cards match, the block will not be shown.
+
+	An 'expanded' referenceBlock also has:
+	collection: the expanded Collection based on the collectionDescription
+	boldCards: a map of cards based on cardsToBoldFilterFactory
 */
 const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 	[CARD_TYPE_CONCEPT]: [
 		{
-			collection: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_CONCEPT)]),
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_CONCEPT)]),
 			title: 'Cards that reference this concept',
 			emptyMessage: 'No cards reference this concept',
 		}
@@ -53,15 +57,15 @@ const INFO_PANEL_REFERENCE_BLOCKS = [
 	{
 		title: 'Concepts',
 		description: 'Concepts this card references',
-		collection: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_CONCEPT)])
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_CONCEPT)])
 	},
 	{
 		title: 'Other referenced cards',
 		description: 'Cards that this card references that are not links',
-		collection: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL, true)])
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL, true)])
 	},
 	{
-		collection: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, SUBSTANTIVE_REFERENCE_TYPES)]),
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, SUBSTANTIVE_REFERENCE_TYPES)]),
 		title: 'Cards That Link Here',
 		description: 'Cards that link to this one.',
 		emptyMessage: 'No cards link to this one.',
@@ -70,7 +74,7 @@ const INFO_PANEL_REFERENCE_BLOCKS = [
 		}
 	},
 	{
-		collection: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + SELF_KEY_CARD_ID, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, SELF_KEY_CARD_ID, SUBSTANTIVE_REFERENCE_TYPES), LIMIT_FILTER_NAME + '/' + NUM_SIMILAR_CARDS_TO_SHOW]),
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + SELF_KEY_CARD_ID, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, SELF_KEY_CARD_ID, SUBSTANTIVE_REFERENCE_TYPES), LIMIT_FILTER_NAME + '/' + NUM_SIMILAR_CARDS_TO_SHOW]),
 		title: 'Similar Cards',
 		description: 'Cards that are neither linked to or from here but that have distinctive terms that overlap with this card.',
 	}
@@ -88,14 +92,14 @@ export const infoPanelReferenceBlocksForCard = (card) => {
 const expandReferenceBlockConfig = (card, configs) => {
 	if (!configs) return [];
 	if (!card || !card.id) return [];
-	return configs.map(block => ({...block, collection: collectionDescriptionWithKeyCard(block.collection, card.id)}));
+	return configs.map(block => ({...block, collectionDescription: collectionDescriptionWithKeyCard(block.collectionDescription, card.id)}));
 };
 
 export const expandReferenceBlocks = (card, blocks, collectionConstructorArgs) => {
 	if (blocks.length == 0) return [];
 	return blocks.map(block => {
 		const boldFilter = block.cardsToBoldFilterFactory ? block.cardsToBoldFilterFactory(card) : null;
-		const collection = block.collection.collection(collectionConstructorArgs);
+		const collection = block.collectionDescription.collection(collectionConstructorArgs);
 		const boldCards = boldFilter ? Object.fromEntries(collection.filteredCards.filter(boldFilter).map(card => [card.id, true])): {};
 		return {
 			...block,
