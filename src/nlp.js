@@ -669,6 +669,7 @@ export const emptyWordCloud = () => {
 export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrConceptCards, concepts) => {
 	const result = [];
 	if (!card || !fingerprint) return [];
+	if (!BODY_CARD_TYPES[card.card_type]) return [];
 	const itemsFromConceptReferences = fingerprintItemsFromConceptReferences(fingerprint, card);
 	const ackReferences = references(card).byType[REFERENCE_TYPE_ACK] || {};
 	const normalizedConcepts = normalizeNgramMap(concepts);
