@@ -323,10 +323,11 @@ let normalizedCount = {};
 //cardWithNormalizedTextProperties sets the properties that search and
 //fingerprints work over, on a copy of the card it returns. If
 //optFallbackTextMap is set, the result will also have that stashed on the
-//returned card obj. optAdditionalNgramMap should be a map of strings to true,
+//returned card obj. importantNgrams should be a map of strings to true,
 //specifying strings that, if their normalized/stemmed text overlaps with the
-//ngrams on a card--no matter the length--that ngram should be indexed.
-export const cardWithNormalizedTextProperties = (card, optFallbackTextMap, optAdditionalNgramMap) => {
+//ngrams on a card--no matter the length--that ngram should be indexed at a
+//non-length discounted match rate.
+export const cardWithNormalizedTextProperties = (card, optFallbackTextMap, importantNgrams) => {
 	if (!card) return card;
 	if (DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES) {
 		normalizedCount[card.id] = (normalizedCount[card.id] || 0) + 1;
@@ -334,7 +335,7 @@ export const cardWithNormalizedTextProperties = (card, optFallbackTextMap, optAd
 	}
 	const result = {...card};
 	if (optFallbackTextMap) result.fallbackTextMap = optFallbackTextMap;
-	if (optAdditionalNgramMap) result.additonalNgramMap = normalizeNgramMap(optAdditionalNgramMap);
+	if (importantNgrams) result.importantNgrams = normalizeNgramMap(importantNgrams);
 	//Basically it takes the output of extractContentWords and then stems each run.
 	result.normalized = Object.fromEntries(Object.entries(extractContentWords(result)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
 	return result;
@@ -547,7 +548,7 @@ const wordCountsForSemantics = (strsMap, cardObj) => {
 	//generator. But it we did it another way, it would break the `similar/`
 	//configurable filter.
 	const cardMap = {};
-	const additionalNgramMap = cardObj.additonalNgramMap || {};
+	const importantNgrams = cardObj.importantNgrams || {};
 	for (const [fieldName, strs] of Object.entries(strsMap)) {
 		const textFieldConfig = TEXT_FIELD_CONFIGURATION[fieldName] || {};
 		const totalIndexingCount = (textFieldConfig.extraIndexingCount || 0) + 1;
@@ -557,7 +558,7 @@ const wordCountsForSemantics = (strsMap, cardObj) => {
 				for (const ngram of ngrams(words, n)) {
 					if (!ngram) continue;
 					//If we'll count it full later, don't count it now.
-					if (additionalNgramMap[ngram]) continue;
+					if (importantNgrams[ngram]) continue;
 					//Each additional word in the lenght of the ngram makes them stand
 					//out more as distinctive, so pretend like you see them less, in
 					//proprition with how many there are.
@@ -567,7 +568,7 @@ const wordCountsForSemantics = (strsMap, cardObj) => {
 			}
 
 			//Don't count the full words if we'll count them later.
-			if (!additionalNgramMap[words]) {
+			if (!importantNgrams[words]) {
 				const splitWords = words.split(' ');
 				if (textFieldConfig.indexFullRun) {
 					//If we're told to index the full run, then index the whole
@@ -589,7 +590,7 @@ const wordCountsForSemantics = (strsMap, cardObj) => {
 			//Count any of the additionalNgramMap that are present, and count
 			//them without discounting for length. We skipped counting them in
 			//any of the 'typical' times above.
-			for (let ngram of Object.keys(additionalNgramMap)) {
+			for (let ngram of Object.keys(importantNgrams)) {
 				if (words.includes(ngram)) {
 					//This is an ngram we wouldn't have indexed by
 					//default, but we've been told it's important when
