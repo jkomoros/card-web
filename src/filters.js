@@ -260,39 +260,44 @@ const makeAboutConfigurableFilter = (filterName, conceptStr) => {
 	return [func, false];
 };
 
-const makeMissingConfigurableFilter = (filterName, subFilterType) => {
+const makeMissingConceptConfigurableFilter = (filterName, conceptStr) => {
 	//subFilter can only be a very small set of special filter names. They're
 	//done as subtypes of `missing` becuase there's no way to do a configurable
 	//filter without having a multi-part filter name.
-
-	if (!MISSING_FILTER_SUBTYPES[subFilterType]) {
-		console.warn('Unsupported sub filter type passed to missing/ filter: ' + subFilterType + '. Legal types are: ' + Object.keys(MISSING_FILTER_SUBTYPES).join(','));
-		return [() => false, false];
-	}
-
-	console.warn('Note: missing/ filters are very expensive and take a long time to run');
 
 	let memoizedFingerprintGenerator = null;
 	let memoizedConcepts = null;
 	let memoizedCardsLastSeen = null;
 	let memoizedConceptCards = null;
+	let memoizedKeyConceptCardID = '';
+
+	//+ is the way to signal 'all concept cards', otherwise we match all of them
+	const keyConceptCard = conceptStr != '+';
 
 	const func = function(card, cards) {
 		if (cards != memoizedCardsLastSeen) {
 			memoizedFingerprintGenerator = null;
 			memoizedConcepts = null;
 			memoizedConceptCards = null;
+			memoizedKeyConceptCardID = null;
 		}
 		if (!memoizedFingerprintGenerator || !memoizedConceptCards || !memoizedConceptCards) {
 			memoizedFingerprintGenerator = new FingerprintGenerator(cards);
 			memoizedConceptCards = conceptCardsFromCards(cards);
 			memoizedConcepts = getConceptsFromConceptCards(memoizedConceptCards);
+			if (keyConceptCard) {
+				const conceptCard = getConceptCardForConcept(memoizedConceptCards, conceptStr);
+				//If there's no matching concept then use a filter that won't
+				//match anything because it has illegal characters
+				memoizedKeyConceptCardID = conceptCard ? conceptCard.id : '?INVALID-ID?';
+			}
 			memoizedCardsLastSeen = cards;
 		}
 		const fingerprint = memoizedFingerprintGenerator.fingerprintForCardID(card.id);
 		const suggestedReferences = suggestedConceptReferencesForCard(card, fingerprint, memoizedConceptCards, memoizedConcepts);
-		if (suggestedReferences.length == 0) return [false, ''];
-		const firstSuggestedReference = suggestedReferences[0];
+		const filteredSuggestedReferences = keyConceptCard ? suggestedReferences.filter(id => id == memoizedKeyConceptCardID) : suggestedReferences;
+		if (filteredSuggestedReferences.length == 0) return [false, ''];
+		const firstSuggestedReference = filteredSuggestedReferences[0];
 		//Yes it is a bit weird to give a 'sort value' of the concept string,
 		//but that's the only way to get it to show up in the label.
 		return [true, getConceptStringFromConceptCard(cards[firstSuggestedReference])];
@@ -501,15 +506,7 @@ export const SIMILAR_FILTER_NAME = 'similar';
 //About as in 'about this concept'. Ideally it would have been 'concept', but
 //that's reserved for the cardType filter.
 const ABOUT_FILTER_NAME = 'about';
-const MISSING_FILTER_NAME = 'missing';
-
-const MISSING_CONCEPT_REFERENCES_SUBTYPE_FILTER_NAME_SINGULAR = 'concept-reference';
-const MISSING_CONCEPT_REFERENCES_SUBTYPE_FILTER_NAME_PLURAL = MISSING_CONCEPT_REFERENCES_SUBTYPE_FILTER_NAME_SINGULAR + 's';
-
-const MISSING_FILTER_SUBTYPES = {
-	[MISSING_CONCEPT_REFERENCES_SUBTYPE_FILTER_NAME_SINGULAR]: true,
-	[MISSING_CONCEPT_REFERENCES_SUBTYPE_FILTER_NAME_PLURAL]: true,
-};
+const MISSING_CONCEPT_FILTER_NAME = 'missing-concept';
 
 //When these are seen in the URL as parts, how many more pieces to expect, to be
 //combined later. For things like `updated`, they want more than 1 piece more
@@ -547,7 +544,7 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[LIMIT_FILTER_NAME]: 1,
 	[SIMILAR_FILTER_NAME]: 1,
 	[ABOUT_FILTER_NAME]: 1,
-	[MISSING_FILTER_NAME]: 1,
+	[MISSING_CONCEPT_FILTER_NAME]: 1,
 };
 
 //the factories should return a filter func that takes the card to opeate on,
@@ -661,8 +658,8 @@ const CONFIGURABLE_FILTER_INFO = {
 		factory: makeAboutConfigurableFilter,
 		suppressLabels: true,
 	},
-	[MISSING_FILTER_NAME]: {
-		factory: makeMissingConfigurableFilter,
+	[MISSING_CONCEPT_FILTER_NAME]: {
+		factory: makeMissingConceptConfigurableFilter,
 		labelName: 'Concept'
 	}
 };
