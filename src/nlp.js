@@ -315,18 +315,6 @@ const normalizeNgramMap = (ngramMap) => {
 	return memoizedNormalizedNgramMaps.get(ngramMap);
 };
 
-let memoizedNormalizedClippedNgramMaps = new Map();
-
-//Any items of size or smaller will be clipped
-const clipShortNGramsFromMap = (ngramMap, size) => {
-	if (!memoizedNormalizedClippedNgramMaps.has(ngramMap)) {
-		//Clip out ngrams that are size or shorter in length
-		const clippedMap = Object.fromEntries(Object.entries(ngramMap).filter(entry => entry[0].split(' ').length > size));
-		memoizedNormalizedClippedNgramMaps.set(ngramMap, clippedMap);
-	}
-	return memoizedNormalizedClippedNgramMaps.get(ngramMap);
-};
-
 //if true, will print out debug statistics about how often card normalized count
 //is happening, which can help verify that the memoization is working.s
 const DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES = false;
@@ -346,9 +334,7 @@ export const cardWithNormalizedTextProperties = (card, optFallbackTextMap, optAd
 	}
 	const result = {...card};
 	if (optFallbackTextMap) result.fallbackTextMap = optFallbackTextMap;
-
-	//We pre-clip ngrams that will already be generated, to save having to consider them in wordCountsForSemantics.
-	if (optAdditionalNgramMap) result.additonalNgramMap = clipShortNGramsFromMap(normalizeNgramMap(optAdditionalNgramMap), MAX_N_GRAM_FOR_FINGERPRINT);
+	if (optAdditionalNgramMap) result.additonalNgramMap = normalizeNgramMap(optAdditionalNgramMap);
 	//Basically it takes the output of extractContentWords and then stems each run.
 	result.normalized = Object.fromEntries(Object.entries(extractContentWords(result)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
 	return result;
@@ -561,6 +547,7 @@ const wordCountsForSemantics = (strsMap, cardObj) => {
 	//generator. But it we did it another way, it would break the `similar/`
 	//configurable filter.
 	const cardMap = {};
+	const additionalNgramMap = cardObj.additonalNgramMap || {};
 	for (const [fieldName, strs] of Object.entries(strsMap)) {
 		const textFieldConfig = TEXT_FIELD_CONFIGURATION[fieldName] || {};
 		const totalIndexingCount = (textFieldConfig.extraIndexingCount || 0) + 1;
@@ -569,6 +556,8 @@ const wordCountsForSemantics = (strsMap, cardObj) => {
 			for (let n = 1; n <= MAX_N_GRAM_FOR_FINGERPRINT; n++) {
 				for (const ngram of ngrams(words, n)) {
 					if (!ngram) continue;
+					//If we'll count it full later, don't count it now.
+					if (additionalNgramMap[ngram]) continue;
 					//Each additional word in the lenght of the ngram makes them stand
 					//out more as distinctive, so pretend like you see them less, in
 					//proprition with how many there are.
@@ -576,42 +565,36 @@ const wordCountsForSemantics = (strsMap, cardObj) => {
 					cardMap[ngram] = (cardMap[ngram] || 0) + (baseAmount * totalIndexingCount);
 				}
 			}
-			const splitWords = words.split(' ');
 
-			let fullRunIndexed = false;
-
-			if (textFieldConfig.indexFullRun) {
-				//If we're told to index the full run, then index the whole
-				//thing... and count it as 1.0, not discounting for wordCount.
-				cardMap[words] = (cardMap[words] || 0) + totalIndexingCount;
-				fullRunIndexed = true;
-			} else if (splitWords.length > MAX_N_GRAM_FOR_FINGERPRINT && splitWords.length < WHOLE_NGRAM_MAX_SIZE) {
-				//even if index full run wasn't true, if the run only has a few
-				//words, index them as though they were valid ngrams.
-				
-				//if the entire text snippet is small enough to be totally counted, and
-				//it wouldn't be automatically geneated (since it's larger than the
-				//ngram size), include it. This means that short snippets of text, like
-				//in references, will get fully indexed as an ngram.
-				const baseAmount = 1/splitWords.length;
-				cardMap[words] = (cardMap[words] || 0) + (baseAmount * totalIndexingCount);
-				fullRunIndexed = true;
+			//Don't count the full words if we'll count them later.
+			if (!additionalNgramMap[words]) {
+				const splitWords = words.split(' ');
+				if (textFieldConfig.indexFullRun) {
+					//If we're told to index the full run, then index the whole
+					//thing... and count it as 1.0, not discounting for wordCount.
+					cardMap[words] = (cardMap[words] || 0) + totalIndexingCount;
+				} else if (splitWords.length > MAX_N_GRAM_FOR_FINGERPRINT && splitWords.length < WHOLE_NGRAM_MAX_SIZE) {
+					//even if index full run wasn't true, if the run only has a few
+					//words, index them as though they were valid ngrams.
+					
+					//if the entire text snippet is small enough to be totally counted, and
+					//it wouldn't be automatically geneated (since it's larger than the
+					//ngram size), include it. This means that short snippets of text, like
+					//in references, will get fully indexed as an ngram.
+					const baseAmount = 1/splitWords.length;
+					cardMap[words] = (cardMap[words] || 0) + (baseAmount * totalIndexingCount);
+				}
 			}
 
-			//we assume this map is already clipped via clipShortNGramsFromMap to not have ngrams that we'll already generate
-			if (cardObj.additonalNgramMap) {
-				for (let longNgram of Object.keys(cardObj.additonalNgramMap)) {
-					if (words.includes(longNgram)) {
-						//Don't reindex it if we already got it above. We only
-						//got it above if the match is for the FULL string, and
-						//we noted we already indexed it.
-						if (words != longNgram || !fullRunIndexed) {
-							//This is an ngram we wouldn't have indexed by
-							//default, but we've been told it's important when
-							//we see it, so take note of it, at full value.
-							cardMap[longNgram] = (cardMap[longNgram] || 0) + totalIndexingCount;
-						}
-					}
+			//Count any of the additionalNgramMap that are present, and count
+			//them without discounting for length. We skipped counting them in
+			//any of the 'typical' times above.
+			for (let ngram of Object.keys(additionalNgramMap)) {
+				if (words.includes(ngram)) {
+					//This is an ngram we wouldn't have indexed by
+					//default, but we've been told it's important when
+					//we see it, so take note of it, at full value.
+					cardMap[ngram] = (cardMap[ngram] || 0) + totalIndexingCount;
 				}
 			}
 		}
