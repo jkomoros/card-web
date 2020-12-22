@@ -97,7 +97,9 @@ const expandReferenceBlockConfig = (card, configs) => {
 	return configs.map(block => ({...block, collectionDescription: collectionDescriptionWithKeyCard(block.collectionDescription, card.id)}));
 };
 
-export const expandReferenceBlocks = (card, blocks, collectionConstructorArgs) => {
+export const expandReferenceBlocks = (card, blocks, collectionConstructorArgs, cardIDsUserMayEdit) => {
+	//TODO: do something real with this
+	if (!cardIDsUserMayEdit) console.warn('expandReferenceBlocks called without cardIDsUserMayEdit');
 	if (blocks.length == 0) return [];
 	return blocks.map(block => {
 		const boldFilter = block.cardsToBoldFilterFactory ? block.cardsToBoldFilterFactory(card) : null;
@@ -112,23 +114,26 @@ export const expandReferenceBlocks = (card, blocks, collectionConstructorArgs) =
 };
 
 let memoizedCollectionConstructorArguments = null;
+let memoizedCardIDsUserMayEdit = null;
 let memoizedExpandedPrimaryBlocksForCard = new Map();
 
 //getExpandedPrimaryReferenceBlocksForCard is reasonably efficient because it
 //caches results, so as long as the things that a collection depends on and the
 //card hasn't changed, it won't have to recalculate the results. You can get a
 //collectionConstructorArguments from selectCollectionConstructorArguments.
-export const getExpandedPrimaryReferenceBlocksForCard = (collectionConstructorArguments, card) => {
-	if (memoizedCollectionConstructorArguments != collectionConstructorArguments) {
+//cardIDsUserMayEdit can be passed with result from selectCardIDsUserMayEdit.
+export const getExpandedPrimaryReferenceBlocksForCard = (collectionConstructorArguments, card, cardIDsUserMayEdit) => {
+	if (memoizedCollectionConstructorArguments != collectionConstructorArguments || cardIDsUserMayEdit != memoizedCardIDsUserMayEdit) {
 		memoizedExpandedPrimaryBlocksForCard = new Map();
 		memoizedCollectionConstructorArguments = collectionConstructorArguments;
+		memoizedCardIDsUserMayEdit = cardIDsUserMayEdit;
 	}
 
 	if (!memoizedExpandedPrimaryBlocksForCard.has(card)) {
 		//Generate new blocks and stash
 		const blocks = primaryReferenceBlocksForCard(card);
 		//reference-block will hide any ones that shouldn't render because of an empty collection
-		const expandedBlocks = expandReferenceBlocks(card, blocks, collectionConstructorArguments);
+		const expandedBlocks = expandReferenceBlocks(card, blocks, collectionConstructorArguments, cardIDsUserMayEdit);
 		memoizedExpandedPrimaryBlocksForCard.set(card, expandedBlocks);
 	}
 

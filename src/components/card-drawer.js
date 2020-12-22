@@ -23,9 +23,13 @@ import {
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 import { SharedStyles } from './shared-styles.js';
-import { selectBadgeMap } from '../selectors';
 import { cardHasContent } from '../util.js';
 import { cancelHoverTimeout } from '../actions/app.js';
+
+import {
+	selectBadgeMap,
+	selectCardIDsUserMayEdit
+} from '../selectors';
 
 import {
 	getExpandedPrimaryReferenceBlocksForCard
@@ -265,7 +269,7 @@ class CardDrawer extends connect(store)(LitElement) {
 
 		return html`
 			<div  .card=${card} .index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.editable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${cardTypeConfig.dark ? 'dark' : ''} ${card && card.published ? '' : 'unpublished'} ${this._collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
-					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${getExpandedPrimaryReferenceBlocksForCard(this.collection.constructorArguments, card)}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'}'>${icons[cardTypeConfig.iconName] || ''}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
+					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${getExpandedPrimaryReferenceBlocksForCard(this.collection.constructorArguments, card, this._cardIDsUserMayEdit)}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'}'>${icons[cardTypeConfig.iconName] || ''}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
 					${cardBadges(cardTypeConfig.dark, card, this._badgeMap)}
 			</div>
 		`;
@@ -450,11 +454,13 @@ class CardDrawer extends connect(store)(LitElement) {
 			//sometimes the highlightedCardId won't have been loaded yet
 			_highlightedScrolled: {type: Boolean},
 			_badgeMap: { type: Object },
+			_cardIDsUserMayEdit: { type: Object},
 		};
 	}
 
 	stateChanged(state) {
 		this._badgeMap = selectBadgeMap(state);
+		this._cardIDsUserMayEdit = selectCardIDsUserMayEdit(state);
 	}
 
 	updated(changedProps) {

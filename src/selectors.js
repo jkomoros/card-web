@@ -1193,22 +1193,25 @@ export const selectCollectionForQuery = createSelector(
 export const selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard = createSelector(
 	selectEditingOrActiveNormalizedCard,
 	selectCollectionConstructorArguments,
-	(card, args) => getExpandedPrimaryReferenceBlocksForCard(args, card)
+	selectCardIDsUserMayEdit,
+	(card, args, cardIDsUserMayEdit) => getExpandedPrimaryReferenceBlocksForCard(args, card, cardIDsUserMayEdit)
 );
 
 export const selectExpandedPrimaryReferenceBlocksForPreviewCard = createSelector(
 	selectActivePreviewCard,
 	selectCollectionConstructorArguments,
-	(card, args) => getExpandedPrimaryReferenceBlocksForCard(args, card)
+	selectCardIDsUserMayEdit,
+	(card, args, cardIDsUserMayEdit) => getExpandedPrimaryReferenceBlocksForCard(args, card, cardIDsUserMayEdit)
 );
 
 export const selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard = createSelector(
 	selectEditingOrActiveNormalizedCard,
 	selectCollectionConstructorArgumentsWithEditingCard,
-	(card, args) => {
+	selectCardIDsUserMayEdit,
+	(card, args, cardIDsUserMayEdit) => {
 		const blocks = infoPanelReferenceBlocksForCard(card);
 		if (blocks.length == 0) return [];
 		//reference-block will hide any ones that shouldn't render because of an empty collection so we don't need to filter
-		return expandReferenceBlocks(card, blocks, args);
+		return expandReferenceBlocks(card, blocks, args, cardIDsUserMayEdit);
 	}
 );
