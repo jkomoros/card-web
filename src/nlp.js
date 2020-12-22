@@ -33,9 +33,18 @@ import {
 	extractStrongTextFromBody
 } from './util.js';
 
-export const getConceptStringFromConceptCard = (conceptCard) => {
+//allCards can be raw or normalized
+export const conceptCardsFromCards = (allCards) => {
+	return Object.fromEntries(Object.entries(allCards).filter(entry => entry[1].card_type == CARD_TYPE_CONCEPT));
+};
+
+const getConceptStringFromConceptCard = (conceptCard) => {
 	if (conceptCard.card_type != CARD_TYPE_CONCEPT) return '';
 	return conceptCard[TEXT_FIELD_TITLE];
+};
+
+export const getConceptsFromConceptCards = (conceptCards) => {
+	return Object.fromEntries(Object.values(conceptCards).map(card => [getConceptStringFromConceptCard(card), true]));
 };
 
 //allCardsOrConceptCards can be the map of allCards, or filtered down to just

@@ -50,8 +50,9 @@ import {
 	extractFiltersFromQuery,
 	emptyWordCloud,
 	cardWithNormalizedTextProperties,
-	getConceptStringFromConceptCard,
-	suggestedConceptReferencesForCard
+	suggestedConceptReferencesForCard,
+	getConceptsFromConceptCards,
+	conceptCardsFromCards
 } from './nlp.js';
 
 import {
@@ -188,13 +189,13 @@ const selectBackportTextFallbackMapCollection = createObjectSelector(
 
 const selectRawConceptCards = createSelector(
 	selectRawCards,
-	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => entry[1].card_type == CARD_TYPE_CONCEPT))
+	(cards) => conceptCardsFromCards(cards)
 );
 
 //selectConcepts returns a map of all concepts based on visible concept cards.
 export const selectConcepts = createSelector(
 	selectRawConceptCards,
-	(conceptCards) => Object.fromEntries(Object.values(conceptCards).map(card => [getConceptStringFromConceptCard(card), true]))
+	(conceptCards) => getConceptsFromConceptCards(conceptCards)
 );
 
 const selectZippedCardAndFallbackMap = createSelector(
