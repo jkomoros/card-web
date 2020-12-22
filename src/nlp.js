@@ -537,7 +537,8 @@ const MAX_N_GRAM_FOR_FINGERPRINT = 2;
 //terms is this or smaller.
 const WHOLE_NGRAM_MAX_SIZE = 6;
 
-const wordCountsForSemantics = (strsMap) => {
+const wordCountsForSemantics = (strsMap, cardObj) => {
+	//TODO: instead of munging the ngram map into cardObj, couldn't we just pass it once to FingerprintGenerator?
 	const cardMap = {};
 	for (const [fieldName, strs] of Object.entries(strsMap)) {
 		const textFieldConfig = TEXT_FIELD_CONFIGURATION[fieldName] || {};
@@ -556,10 +557,13 @@ const wordCountsForSemantics = (strsMap) => {
 			}
 			const splitWords = words.split(' ');
 
+			let fullRunIndexed = false;
+
 			if (textFieldConfig.indexFullRun) {
 				//If we're told to index the full run, then index the whole
 				//thing... and count it as 1.0, not discounting for wordCount.
 				cardMap[words] = (cardMap[words] || 0) + totalIndexingCount;
+				fullRunIndexed = true;
 			} else if (splitWords.length > MAX_N_GRAM_FOR_FINGERPRINT && splitWords.length < WHOLE_NGRAM_MAX_SIZE) {
 				//even if index full run wasn't true, if the run only has a few
 				//words, index them as though they were valid ngrams.
@@ -570,6 +574,23 @@ const wordCountsForSemantics = (strsMap) => {
 				//in references, will get fully indexed as an ngram.
 				const baseAmount = 1/splitWords.length;
 				cardMap[words] = (cardMap[words] || 0) + (baseAmount * totalIndexingCount);
+				fullRunIndexed = true;
+			}
+
+			if (cardObj.additonalNgramMap) {
+				for (let longNgram of Object.keys(cardObj.additonalNgramMap)) {
+					if (words.includes(longNgram)) {
+						//Don't reindex it if we already got it above. We only
+						//got it above if the match is for the FULL string, and
+						//we noted we already indexed it.
+						if (words != longNgram || !fullRunIndexed) {
+							//This is an ngram we wouldn't have indexed by
+							//default, but we've been told it's important when
+							//we see it, so take note of it, at full value.
+							cardMap[longNgram] = (cardMap[longNgram] || 0) + totalIndexingCount;
+						}
+					}
+				}
 			}
 		}
 	}
@@ -699,7 +720,7 @@ export class FingerprintGenerator {
 
 	_wordCountsForCardObj(cardObj) {
 		//Filter out empty items for properties that don't have any items
-		return wordCountsForSemantics(Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => [prop, cardObj.normalized[prop]]).filter(entry => entry[1])));
+		return wordCountsForSemantics(Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => [prop, cardObj.normalized[prop]]).filter(entry => entry[1])), cardObj);
 	}
 
 	_cardTFIDF(cardWordCounts) {
