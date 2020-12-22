@@ -485,7 +485,7 @@ export const selectUserMayForkActiveCard = createSelector(
 	selectUserMayCreateCard,
 	selectState,
 	selectActiveCard,
-	(mayCreateCard, state, activeCard) => mayCreateCard && activeCard && getUserMayEditCard(state, activeCard.section)
+	(mayCreateCard, state, activeCard) => mayCreateCard && activeCard && getUserMayEditSection(state, activeCard.section)
 );
 
 //If it's the empty string, then user MAY delete the card
