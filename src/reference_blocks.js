@@ -34,6 +34,7 @@ An array where each item has:
 	cardsToBoldFilterFactory: if not null, should be a factory that, given the expanded card object, will return a filter function to then be passed other expanded card objects to test if they should be bold. The items that return true from that second item will be shown as strong in the reference block.
 	emptyMessage: if non-falsey will show that message if no cards match. If it is falsey and no cards match, the block will not be shown.
 	showNavigate: if true, then will show a button to navigate to that collection
+	onlyForEditors: if true, will only show this block if the keyCard is one the user may edit
 
 	An 'expanded' referenceBlock also has:
 	collection: the expanded Collection based on the collectionDescription
@@ -98,10 +99,8 @@ const expandReferenceBlockConfig = (card, configs) => {
 };
 
 export const expandReferenceBlocks = (card, blocks, collectionConstructorArgs, cardIDsUserMayEdit) => {
-	//TODO: do something real with this
-	if (!cardIDsUserMayEdit) console.warn('expandReferenceBlocks called without cardIDsUserMayEdit');
 	if (blocks.length == 0) return [];
-	return blocks.map(block => {
+	return blocks.filter(block => block.onlyForEditors ? cardIDsUserMayEdit[card.id] : true).map(block => {
 		const boldFilter = block.cardsToBoldFilterFactory ? block.cardsToBoldFilterFactory(card) : null;
 		const collection = block.collectionDescription.collection(collectionConstructorArgs);
 		const boldCards = boldFilter ? Object.fromEntries(collection.filteredCards.filter(boldFilter).map(card => [card.id, true])): {};
