@@ -234,6 +234,7 @@ const makeAboutConfigurableFilter = (filterName, conceptStr) => {
 	//inbound concept references it has.
 
 	let memoizedMatchingCards = null;
+	let memoizedConceptCardID = '';
 	let memoizedCardsLastSeen = null;
 
 	const func = function(card, cards) {
@@ -246,10 +247,14 @@ const makeAboutConfigurableFilter = (filterName, conceptStr) => {
 			const conceptCard = getConceptCardForConcept(cards, conceptStr);
 			if (conceptCard) {
 				memoizedMatchingCards = Object.fromEntries(Object.keys(references(conceptCard).byTypeInbound[REFERENCE_TYPE_CONCEPT]).map(cardID => [cardID, true]));
+				memoizedConceptCardID = conceptCard.id;
 			}
 			memoizedCardsLastSeen = cards;
 		}
-		return memoizedMatchingCards[card.id];
+		if (card.id == memoizedConceptCardID) {
+			return [true, 1];
+		}
+		return [memoizedMatchingCards[card.id], 0];
 	};
 	return [func, false];
 };
@@ -649,6 +654,7 @@ const CONFIGURABLE_FILTER_INFO = {
 	},
 	[ABOUT_FILTER_NAME]: {
 		factory: makeAboutConfigurableFilter,
+		suppressLabels: true,
 	},
 	[MISSING_FILTER_NAME]: {
 		factory: makeMissingConfigurableFilter,
