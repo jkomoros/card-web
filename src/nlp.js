@@ -667,6 +667,10 @@ const fingerprintItemsFromConceptReferences = (fingerprint, cardObj) => {
 	for (let obj of objs) {
 		let strs = obj.normalized[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND];
 		for (let str of strs) {
+			//The fingerprint will have STOP_WORDs filtered, since it's
+			//downstream of wordCountsForSemantics, so do the same to check for
+			//a match.
+			str = str.split(' ').filter(word => !STOP_WORDS[word]).join(' ');
 			if (fingerprint.has(str)) {
 				result[str] = true;
 			}
