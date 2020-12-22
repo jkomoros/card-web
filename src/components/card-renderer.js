@@ -170,7 +170,13 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 
 				.primary {
 					flex-grow: 1;
+					flex-shrink: 0;
 					overflow: scroll;
+				}
+
+				.reference-blocks {
+					overflow:scroll;
+					flex-shrink: 1;
 				}
 
 				/* Google docs pasted output includes <p> inside of li a lot. This
