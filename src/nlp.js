@@ -655,14 +655,38 @@ export const emptyWordCloud = () => {
 	return [[],{}];
 };
 
+//returns a map of fingerprintItem -> true for the fingerprint items that
+//overlap with the text in concept references for the given card obj. That is,
+//they don't just _happen_ to overlap with a concept, they come (at least
+//partially) from that explicit reference.
+const fingerprintItemsFromConceptReferences = (fingerprint, cardObj) => {
+	if (!cardObj) return {};
+	//sometimes cardObj is an array of cardObjs
+	let objs = Array.isArray(cardObj) ? cardObj : [cardObj];
+	let result = {};
+	for (let obj of objs) {
+		let strs = obj.normalized[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND];
+		for (let str of strs) {
+			if (fingerprint.has(str)) {
+				result[str] = true;
+			}
+		}
+	}
+	return result;
+};
+
 //cardObj can be null, a single card, or an array of cards.
 export const wordCloudFromFingerprint = (fingerprint, cardObj) => {
 	if (!fingerprint || fingerprint.keys().length == 0) return emptyWordCloud();
 	const displayItems = prettyFingerprintItems(fingerprint, cardObj);
 	const maxAmount = Math.max(...fingerprint.values());
+	const conceptItems = fingerprintItemsFromConceptReferences(fingerprint, cardObj);
 	const infos = Object.fromEntries([...fingerprint.entries()].map((entry,index) => {
 		const amount = entry[1] / maxAmount * 100;
-		return [entry[0], {title: displayItems[index], suppressLink:true, filter: 'opacity(' + amount + '%)'}];
+		const info = {title: displayItems[index],suppressLink:true, filter: 'opacity(' + amount + '%)'};
+		//app-secondary-color . This should not be hard-coded, see #164.
+		if (conceptItems[entry[0]]) info.color = '#009688';
+		return [entry[0], info];
 	}));
 	return [[...fingerprint.keys()], infos];
 };
