@@ -538,7 +538,10 @@ const MAX_N_GRAM_FOR_FINGERPRINT = 2;
 const WHOLE_NGRAM_MAX_SIZE = 6;
 
 const wordCountsForSemantics = (strsMap, cardObj) => {
-	//TODO: instead of munging the ngram map into cardObj, couldn't we just pass it once to FingerprintGenerator?
+	//Yes, it's weird that we stash the additionalNgramsMap on a cardObj and
+	//then pass that around instead of just passing the ngram map to FingerPrint
+	//generator. But it we did it another way, it would break the `similar/`
+	//configurable filter.
 	const cardMap = {};
 	for (const [fieldName, strs] of Object.entries(strsMap)) {
 		const textFieldConfig = TEXT_FIELD_CONFIGURATION[fieldName] || {};
