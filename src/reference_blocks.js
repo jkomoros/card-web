@@ -18,6 +18,7 @@ import {
 	SIMILAR_FILTER_NAME,
 	EXCLUDE_FILTER_NAME,
 	referencesConfigurableFilterText,
+	missingConceptConfigurableFilterText,
 	LIMIT_FILTER_NAME,
 } from './filters.js';
 
@@ -47,6 +48,12 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 			title: 'Cards that reference this concept',
 			emptyMessage: 'No cards reference this concept',
 			showNavigate: true,
+		},
+		{
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [missingConceptConfigurableFilterText(SELF_KEY_CARD_ID)]),
+			title: 'Cards that should reference this concept but don\'t',
+			showNavigate: true,
+			onlyForEditors: true,
 		}
 	]
 };

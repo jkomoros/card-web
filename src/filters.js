@@ -260,6 +260,13 @@ const makeAboutConfigurableFilter = (filterName, conceptStr) => {
 	return [func, false];
 };
 
+//if conceptStr is blank, it means 'all cards missing any concept'
+export const missingConceptConfigurableFilterText = (conceptStr) => {
+	const arg = conceptStr ? createSlugFromArbitraryString(conceptStr) : '+';
+	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
+	return MISSING_CONCEPT_FILTER_NAME + '/' + arg;
+};
+
 const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) => {
 	//subFilter can only be a very small set of special filter names. They're
 	//done as subtypes of `missing` becuase there's no way to do a configurable
