@@ -28,7 +28,8 @@ import {
 	selectUserMayChangeEditingCardSection,
 	selectPendingSlug,
 	selectReasonsUserMayNotDeleteActiveCard,
-	selectCardModificationPending
+	selectCardModificationPending,
+	selectEditingCardSuggestedConceptReferences
 } from '../selectors.js';
 
 import {
@@ -353,6 +354,10 @@ class CardEditor extends connect(store)(LitElement) {
 					<label>Suggested Tags ${help('Tags suggested because this card\'s content is similar to cards of the given tag. Tap one to add it.')}</label>
 					<tag-list .tags=${this._suggestedTags} .tagInfos=${this._tagInfos} .subtle=${true} .tapEvents=${true} @tag-tapped=${this._handleAddTag}></tag-list>
 				</div>
+				<div>
+					<label>Suggested Concepts ${help('Cards that are suggested to be added as concept references. Tap one to add it as a concept reference, or x it out to add an ACK and get it to go away.')}</label>
+					<tag-list .tags=${this._suggestedConcepts} .tagInfos=${this._cardTagInfos} .subtle=${true} .tapEvents=${true} .overrideTypeName=${'Concept'}></tag-list>
+				</div>
 			</div>
 				<div class='row'>
 					<div>
@@ -448,6 +453,7 @@ class CardEditor extends connect(store)(LitElement) {
 		_isAdmin: { type:Boolean },
 		_pendingSlug: { type:String },
 		_cardModificationPending: {type:String},
+		_suggestedConcepts: { type:Array },
 	};}
 
 	stateChanged(state) {
@@ -465,8 +471,9 @@ class CardEditor extends connect(store)(LitElement) {
 		this._userMayEditSomeTags = selectUserMayEditSomeTags(state);
 		this._tagsUserMayNotEdit = tagsUserMayNotEdit(state);
 		this._cardTagInfos = selectTagInfosForCards(state);
-		//skip the expensive selector if we're not active
+		//skip the expensive selectors if we're not active
 		this._suggestedTags = this._active ? selectEditingCardSuggestedTags(state) : [];
+		this._suggestedConcepts = this._active ? selectEditingCardSuggestedConceptReferences(state) : [];
 		this._authors = selectAuthorsForTagList(state);
 		this._isAdmin = selectUserIsAdmin(state);
 		this._pendingSlug = selectPendingSlug(state);
