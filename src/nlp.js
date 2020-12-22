@@ -137,11 +137,15 @@ const stemmedNormalizedWords = (str) => {
 	return result.join(' ');
 };
 
+const withoutStopWords = (str) => {
+	return str.split(' ').filter(word => !STOP_WORDS[word]).join(' ');
+};
+
 const memoizedFullyNormalizedString = {};
 
 const fullyNormalizedString = (rawStr) => {
 	if (!memoizedFullyNormalizedString[rawStr]) {
-		memoizedFullyNormalizedString[rawStr] = stemmedNormalizedWords(normalizedWords(rawStr));
+		memoizedFullyNormalizedString[rawStr] = withoutStopWords(stemmedNormalizedWords(normalizedWords(rawStr)));
 	}
 	return memoizedFullyNormalizedString[rawStr];
 };
@@ -156,7 +160,7 @@ export const cardMatchesString = (card,fieldName, str) => {
 	if (!TEXT_FIELD_CONFIGURATION[fieldName]) return false;
 	const fieldValues = card.normalized[fieldName] || [];
 	for (const fieldValue of fieldValues) {
-		if (fieldValue.includes(normalizedString)) return true;
+		if (fieldValue.split(' ').filter(word => !STOP_WORDS[word]).join(' ').includes(normalizedString)) return true;
 	}
 	return false;
 };
@@ -301,9 +305,10 @@ const normalizeNgramMap = (ngramMap) => {
 	if (!memoizedNormalizedNgramMaps.has(ngramMap)) {
 		//The normalizedMap both has stemmed/normalized words, but also filters
 		//out the ngrams that are small enough that they'd be trivially included
-		//anyway. We filter out stop words because the wordCountsForSemantics
-		//will be comparing it to strings with stop words removed, too.
-		const normalizedMap = Object.fromEntries(Object.entries(ngramMap).map(entry => [fullyNormalizedString(entry[0]).split(' ').filter(word => !STOP_WORDS[word]).join(' '), entry[1]]).filter(entry => entry[0].split(' ').length > MAX_N_GRAM_FOR_FINGERPRINT));
+		//anyway. We filter out stop words (via fullyNormalizedString) because
+		//the wordCountsForSemantics will be comparing it to strings with stop
+		//words removed, too.
+		const normalizedMap = Object.fromEntries(Object.entries(ngramMap).map(entry => [fullyNormalizedString(entry[0]), entry[1]]).filter(entry => entry[0].split(' ').length > MAX_N_GRAM_FOR_FINGERPRINT));
 		memoizedNormalizedNgramMaps.set(ngramMap, normalizedMap);
 	}
 	return memoizedNormalizedNgramMaps.get(ngramMap);
