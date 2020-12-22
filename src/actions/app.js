@@ -96,8 +96,13 @@ import {
 } from '../references.js';
 
 import {
-	collectionDescriptionWithQuery
+	collectionDescriptionWithQuery,
+	collectionDescriptionWithConfigurableFilter
 } from '../collection_description.js';
+
+import {
+	aboutConfigurableFilterText,
+} from '../filters.js';
 
 //if silent is true, then just passively updates the URL to reflect what it should be.
 export const navigatePathTo = (path, silent) => (dispatch, getState) => {
@@ -206,6 +211,12 @@ export const navigateToCard = (cardOrId, silent) => (dispatch) => {
 		dispatch(navigateToDefaultIfSectionsLoaded(silent));
 	}
 	dispatch(navigatePathTo(path, silent));
+};
+
+export const navigateToCollectionWithAbout = (conceptStr) => (dispatch, getState) => {
+	const collection = selectActiveCollectionDescription(getState());
+	const newCollection = collectionDescriptionWithConfigurableFilter(collection, aboutConfigurableFilterText(conceptStr));
+	dispatch(navigateToCollection(newCollection));
 };
 
 export const navigateToCollectionWithQuery = (queryText) => (dispatch, getState) => {

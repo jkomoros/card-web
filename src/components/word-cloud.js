@@ -10,7 +10,8 @@ import {
 } from '../nlp.js';
 
 import {
-	navigateToCollectionWithQuery
+	navigateToCollectionWithQuery,
+	navigateToCollectionWithAbout,
 } from '../actions/app.js';
 
 import './tag-list.js';
@@ -30,8 +31,16 @@ export class WordCloud extends connect(store)(LitElement) {
 	_handleTagTapped(e) {
 		const tagName = e.detail.tag;
 		const tagInfos = this._effectiveWordCloud[1];
-		const query = tagInfos[tagName] ? tagInfos[tagName].title : tagName;
-		store.dispatch(navigateToCollectionWithQuery(query.toLowerCase()));
+		const infoForTag = tagInfos[tagName];
+		const query = infoForTag ? infoForTag.title : tagName;
+		if (infoForTag && infoForTag.color) {
+			//Concept pivot
+			store.dispatch(navigateToCollectionWithAbout(tagName));
+		} else {
+			//query pivot
+			store.dispatch(navigateToCollectionWithQuery(query.toLowerCase()));
+		}
+		
 	}
 
 	static get properties() {
