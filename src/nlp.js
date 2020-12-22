@@ -693,8 +693,7 @@ export const wordCloudFromFingerprint = (fingerprint, cardObj) => {
 	const infos = Object.fromEntries([...fingerprint.entries()].map((entry,index) => {
 		const amount = entry[1] / maxAmount * 100;
 		const info = {title: displayItems[index],suppressLink:true, filter: 'opacity(' + amount + '%)'};
-		//app-secondary-color . This should not be hard-coded, see #164.
-		if (conceptItems[entry[0]]) info.color = '#009688';
+		if (conceptItems[entry[0]]) info.color = 'var(--app-secondary-color)';
 		return [entry[0], info];
 	}));
 	return [[...fingerprint.keys()], infos];

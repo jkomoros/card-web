@@ -19,8 +19,7 @@ import './tag-list.js';
 export class WordCloud extends connect(store)(LitElement) {
 	render() {
 		return html`
-		<!-- --app-primary-color default color This should not be hard-coded see #164 -->
-		<tag-list .tags=${this._effectiveWordCloud[0]} .tagInfos=${this._effectiveWordCloud[1]} defaultColor='#5e2b97' .tapEvents=${true} @tag-tapped=${this._handleTagTapped}></tag-list>
+		<tag-list .tags=${this._effectiveWordCloud[0]} .tagInfos=${this._effectiveWordCloud[1]} defaultColor='var(--app-primary-color)' .tapEvents=${true} @tag-tapped=${this._handleTagTapped}></tag-list>
 	`;
 	}
 
