@@ -301,8 +301,9 @@ const normalizeNgramMap = (ngramMap) => {
 	if (!memoizedNormalizedNgramMaps.has(ngramMap)) {
 		//The normalizedMap both has stemmed/normalized words, but also filters
 		//out the ngrams that are small enough that they'd be trivially included
-		//anyway.
-		const normalizedMap = Object.fromEntries(Object.entries(ngramMap).map(entry => [fullyNormalizedString(entry[0]), entry[1]]).filter(entry => entry[0].split(' ').length > MAX_N_GRAM_FOR_FINGERPRINT));
+		//anyway. We filter out stop words because the wordCountsForSemantics
+		//will be comparing it to strings with stop words removed, too.
+		const normalizedMap = Object.fromEntries(Object.entries(ngramMap).map(entry => [fullyNormalizedString(entry[0]).split(' ').filter(word => !STOP_WORDS[word]).join(' '), entry[1]]).filter(entry => entry[0].split(' ').length > MAX_N_GRAM_FOR_FINGERPRINT));
 		memoizedNormalizedNgramMaps.set(ngramMap, normalizedMap);
 	}
 	return memoizedNormalizedNgramMaps.get(ngramMap);
