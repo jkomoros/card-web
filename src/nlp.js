@@ -170,7 +170,7 @@ export const cardMatchesString = (card,fieldName, str) => {
 	if (!TEXT_FIELD_CONFIGURATION[fieldName]) return false;
 	const fieldValues = card.normalized[fieldName] || [];
 	for (const fieldValue of fieldValues) {
-		if (fieldValue.split(' ').filter(word => !STOP_WORDS[word]).join(' ').includes(normalizedString)) return true;
+		if (fieldValue.split(' ').filter(word => !STOP_WORDS[word]).join(' ') == normalizedString) return true;
 	}
 	return false;
 };
