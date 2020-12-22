@@ -175,11 +175,9 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				.primary {
 					flex-grow: 1;
 					flex-shrink: 0;
-					overflow: scroll;
 				}
 
 				.reference-blocks {
-					overflow:scroll;
 					flex-shrink: 1;
 				}
 
