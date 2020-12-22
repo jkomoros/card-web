@@ -247,7 +247,7 @@ const makeAboutConfigurableFilter = (filterName, conceptStr) => {
 			memoizedMatchingCards = {};
 			const conceptCard = getConceptCardForConcept(cards, conceptStr);
 			if (conceptCard) {
-				memoizedMatchingCards = Object.fromEntries(Object.keys(references(conceptCard).byTypeInbound[REFERENCE_TYPE_CONCEPT]).map(cardID => [cardID, true]));
+				memoizedMatchingCards = Object.fromEntries(Object.keys(references(conceptCard).byTypeInbound[REFERENCE_TYPE_CONCEPT] || {}).map(cardID => [cardID, true]));
 				memoizedConceptCardID = conceptCard.id;
 			}
 			memoizedCardsLastSeen = cards;
