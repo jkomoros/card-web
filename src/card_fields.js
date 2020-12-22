@@ -80,7 +80,8 @@ orphaned.
 
 publishedByDefault: if true, then createCard will by default create a card that
 is published. This is useful for example for concept cards, where the primary
-content is the reference list.
+content is the reference list. If this is true, then trying to save the card if
+it's not published will always warn.
 
 styleBlock: if provided, will be rendered as the style block in the card
 renderer when this card type is selected. A string that will be run through html
