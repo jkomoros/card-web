@@ -624,9 +624,9 @@ const wordCountsForSemantics = (strsMap, cardObj) => {
 	return cardMap;
 };
 
-const semanticFingerprint = (tfidf) => {
+const semanticFingerprint = (tfidf, fingerprintSize = SEMANTIC_FINGERPRINT_SIZE) => {
 	//Pick the keys for the items with the highest tfidf (the most important and specific to that card)
-	let keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, SEMANTIC_FINGERPRINT_SIZE);
+	let keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, fingerprintSize);
 	return new Map(keys.map(key => [key, tfidf[key]]));
 };
 
