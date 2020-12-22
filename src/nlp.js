@@ -830,16 +830,15 @@ export class FingerprintGenerator {
 
 	fingerprintForCardIDList(cardIDs) {
 		if (!cardIDs || !cardIDs.length) return new Map();
-		let joinedMap = new Map();
+		let combinedTFIDF = {};
 		for (const cardID of cardIDs) {
 			const fingerprint = this.fingerprintForCardID(cardID);
 			if (!fingerprint) continue;
 			for (const [word, idf] of fingerprint.entries()) {
-				joinedMap.set(word, (joinedMap.get(word) || 0) + idf);
+				combinedTFIDF[word] = (combinedTFIDF[word] || 0) + idf;
 			}
 		}
-		const sortedKeys = [...joinedMap.keys()].sort((a, b) => joinedMap.get(b) - joinedMap.get(a)).slice(0, SEMANTIC_FINGERPRINT_SIZE);
-		return new Map(sortedKeys.map(key => [key, joinedMap.get(key)]));
+		return semanticFingerprint(combinedTFIDF);
 	}
 
 	//returns a map of cardID => fingerprint for the cards that were provided to the constructor
