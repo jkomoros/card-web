@@ -605,15 +605,17 @@ const wordCountsForSemantics = (strsMap, cardObj) => {
 				}
 			}
 
-			//Count any of the additionalNgramMap that are present, and count
+			//Count any of the importantNgrams that are present, and count
 			//them without discounting for length. We skipped counting them in
 			//any of the 'typical' times above.
 			for (let ngram of Object.keys(importantNgrams)) {
 				//Only match on word boundaries, not within an ngram
 				if (wordBoundaryRegExp(ngram).test(words)) {
-					//This is an ngram we wouldn't have indexed by
-					//default, but we've been told it's important when
-					//we see it, so take note of it, at full value.
+					//This is an ngram we wouldn't necessarily have indexed by
+					//default (it might have been too long to be automatically
+					//extracted, for example), but we've been told it's
+					//important when we see it, so take note of it, at full
+					//value.
 					cardMap[ngram] = (cardMap[ngram] || 0) + totalIndexingCount;
 				}
 			}
