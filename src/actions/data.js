@@ -74,7 +74,7 @@ import {
 	selectFilters,
 	selectCards,
 	selectDataIsFullyLoaded,
-	getUserMayEditCard,
+	selectCardIDsUserMayEdit,
 	selectLastSectionID,
 	getUserMayEditSection,
 	getUserMayEditTag,
@@ -230,7 +230,7 @@ export const modifyCard = (card, update, substantive, optBatch) => async (dispat
 		return;
 	}
 
-	if (!getUserMayEditCard(state, card.id)) {
+	if (!selectCardIDsUserMayEdit(state)[card.id]) {
 		console.log('User isn\'t allowed to edit the given card');
 		return;
 	}

@@ -371,30 +371,41 @@ const selectUserMayEditCards = createSelector(
 	(userMayEdit, permissions) => userMayEdit || permissions[PERMISSION_EDIT_CARD]
 );
 
-export const getUserMayEditCard = (state, cardID) => {
-	if (selectUserMayEditCards(state)) return true;
-	const uid = selectUid(state);
-	if (!cardID) return false;
-	const card = getCard(state, cardID);
-	if (!card) return false;
-	if (card.author == uid) return true;
-	if (!card.permissions || !card.permissions[PERMISSION_EDIT_CARD]) return false;
-	for (let id of card.permissions[PERMISSION_EDIT_CARD]) {
-		if (id === uid) return true;
-	}
-	return false;
-};
-
 const selectCardsMayCurrentlyBeEdited = createSelector(
 	selectMaintenanceModeEnabled,
 	(enabled) => !enabled
 );
 
-export const selectUserMayEditActiveCard = createSelector(
-	selectState,
-	selectActiveCardId,
+export const selectCardIDsUserMayEdit = createSelector(
+	selectCards,
+	selectUserMayEditCards,
+	selectUid,
 	selectCardsMayCurrentlyBeEdited,
-	(state, cardID, cardsMayBeEdited) => cardsMayBeEdited && getUserMayEditCard(state, cardID)
+	(cards, userMayEditCards, uid, cardsMayCurrentlyBeEdited) => {
+		if (!cardsMayCurrentlyBeEdited) return {};
+		let result = {};
+		for (let [cardID, card] of Object.entries(cards)) {
+			if (userMayEditCards) {
+				result[cardID] = true;
+				continue;
+			}
+			if (!card) continue;
+			if (card.author != uid) {
+				result[cardID] = true;
+				continue;
+			}
+			if (!card.permissions || !card.permissions[PERMISSION_EDIT_CARD]) continue;
+			if (!card.permissions[PERMISSION_EDIT_CARD].some(id => id === uid)) continue;
+			result[cardID] = true;
+		}
+		return result;
+	}
+);
+
+export const selectUserMayEditActiveCard = createSelector(
+	selectCardIDsUserMayEdit,
+	selectActiveCardId,
+	(editableCardIDs, cardID) => editableCardIDs[cardID] || false
 );
 
 export const selectUserMayViewApp = createSelector(
@@ -493,7 +504,7 @@ export const getReasonUserMayNotDeleteCard = (state, card) => {
 	//NOTE: this logic is recreatedin the firestore security rules for card deletion
 	if (!card) return 'No card provided';
 
-	if (!getUserMayEditCard(state, card.id)) return 'User may not edit card.';
+	if (!selectCardIDsUserMayEdit(state)[card.id]) return 'User may not edit card.';
 
 	if (card.section) return 'Card must be orphaned to be deleted';
 
