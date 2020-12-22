@@ -69,9 +69,17 @@ class CardWebApp extends connect(store)(LitElement) {
 				--app-header-font-family: 'Raleway';
 				--app-default-font-family: 'Source Sans Pro';
 
-				--card-color: #FCFCFC;
+				/* these are where you change the color for card.
+				card-renderer's overflow scrolling expects these to be set */
+				--card-color-rgb-inner: 252, 252, 252;
+				--unpublished-card-color-rgb-inner: 238, 238, 238;
+				--card-overflow-shadow-rgb-inner: 0, 0, 0;
+
+				/* change the *-rgb-inner instead of these directly */
+				--card-color: rgb(var(--card-color-rgb-inner));
+				--unpublished-card-color: rgb(var(--unpublished-card-color-rgb-inner));
+
 				--shadow-color: #CCC;
-				--unpublished-card-color: #EEE;
 				--card-shadow-first-part: 0 2px 6px;
 				--card-shadow: var(--card-shadow-first-part) var(--shadow-color);
 

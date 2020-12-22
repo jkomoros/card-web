@@ -61,6 +61,8 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				:host {
 					display:block;
 					background-color: var(--card-color);
+					--effective-background-color: var(--card-color);
+					--effective-background-color-rgb-inner: var(--card-color-rgb-inner);
 					
 					width: ${CARD_WIDTH_IN_EMS}em;
 					height: ${CARD_HEIGHT_IN_EMS}em;
@@ -81,10 +83,12 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 
 				.container.unpublished {
 					background-color: var(--unpublished-card-color);
+					--effective-background-color: var(--unpublished-card-color);
+					--effective-background-color-rgb-inner: var(--unpublished-card-color-rgb-inner);
 				}
 
 				.container.editing {
-					box-shadow: inset 0 0 4em 1em var(--app-primary-color-light-transparent);
+					box-shadow: inset 0 0 1em 0.5em var(--app-primary-color-light-transparent);
 				}
 
 				.container.editing card-link[card] {
@@ -177,6 +181,30 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				.reference-blocks {
 					overflow:scroll;
 					flex-shrink: 1;
+				}
+
+				.primary, .reference-blocks {
+					/* inspired by https://stackoverflow.com/questions/9333379/check-if-an-elements-content-is-overflowing */
+					overflow: auto;
+					background:
+						/* Shadow covers */
+						linear-gradient(var(--effective-background-color) 30%, rgba(var(--effective-background-color-rgb-inner),0)),
+						linear-gradient(rgba(var(--effective-background-color-rgb-inner),0), var(--effective-background-color) 70%) 0 100%,
+						
+						/* Shadows */
+						radial-gradient(50% 0, farthest-side, rgba(var(--card-overflow-shadow-rgb-inner),.2), rgba(var(--card-overflow-shadow-rgb-inner),0)),
+						radial-gradient(50% 100%,farthest-side, rgba(var(--card-overflow-shadow-rgb-inner),.2), rgba(var(--card-overflow-shadow-rgb-inner),0)) 0 100%;
+					background:
+						/* Shadow covers */
+						linear-gradient(var(--effective-background-color) 30%, rgba(var(--effective-background-color-rgb-inner),0)),
+						linear-gradient(rgba(var(--effective-background-color-rgb-inner),0), var(--effective-background-color) 70%) 0 100%,
+						
+						/* Shadows */
+						radial-gradient(farthest-side at 50% 0, rgba(var(--card-overflow-shadow-rgb-inner),.2), rgba(var(--card-overflow-shadow-rgb-inner),0)),
+						radial-gradient(farthest-side at 50% 100%, rgba(var(--card-overflow-shadow-rgb-inner),.2), rgba(var(--card-overflow-shadow-rgb-inner),0)) 0 100%;
+					background-repeat: no-repeat;
+					background-size: 100% 2.5em, 100% 2.5em, 100% 1.0em, 100% 1.0em;
+					background-attachment: local, local, scroll, scroll;
 				}
 
 				/* Google docs pasted output includes <p> inside of li a lot. This
