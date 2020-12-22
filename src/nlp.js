@@ -201,10 +201,10 @@ const splitRuns = (text) => {
 
 //This is the set of card field extractors for any field types that have
 //overrideExtractor in card_fields.js. The function should take a card. It will
-//use the stashed fallbackTextMap if it exists.
+//use the stashed fallbackText if it exists.
 const OVERRIDE_EXTRACTORS = {
 	[TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND]: (card) => {
-		const refsByType = references(card).withFallbackText(card.fallbackTextMap).byType;
+		const refsByType = references(card).withFallbackText(card.fallbackText).byType;
 		let result = [];
 		for (const [referenceType, cardMap] of Object.entries(refsByType)) {
 			//Skip links because they're already represented in body
@@ -221,7 +221,7 @@ const OVERRIDE_EXTRACTORS = {
 		return extractStrongTextFromBody(body).join('\n');
 	},
 	[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: (card) => {
-		const conceptRefs = references(card).withFallbackText(card.fallbackTextMap).byType[REFERENCE_TYPE_CONCEPT];
+		const conceptRefs = references(card).withFallbackText(card.fallbackText).byType[REFERENCE_TYPE_CONCEPT];
 		if (!conceptRefs) return '';
 		let result = [];
 		for (const str of Object.values(conceptRefs)) {
@@ -321,20 +321,20 @@ const DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES = false;
 let normalizedCount = {};
 
 //cardWithNormalizedTextProperties sets the properties that search and
-//fingerprints work over, on a copy of the card it returns. If
-//optFallbackTextMap is set, the result will also have that stashed on the
-//returned card obj. importantNgrams should be a map of strings to true,
-//specifying strings that, if their normalized/stemmed text overlaps with the
-//ngrams on a card--no matter the length--that ngram should be indexed at a
-//non-length discounted match rate.
-export const cardWithNormalizedTextProperties = (card, optFallbackTextMap, importantNgrams) => {
+//fingerprints work over, on a copy of the card it returns. fallbackText will
+//be stashed on the the result so that override field extractors can access it.
+//importantNgrams should be a map of strings to true, specifying strings that,
+//if their normalized/stemmed text overlaps with the ngrams on a card--no matter
+//the length--that ngram should be indexed at a non-length discounted match
+//rate.
+export const cardWithNormalizedTextProperties = (card, fallbackText, importantNgrams) => {
 	if (!card) return card;
 	if (DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES) {
 		normalizedCount[card.id] = (normalizedCount[card.id] || 0) + 1;
 		if(normalizedCount[card.id] > 1) console.log(card.id, card, normalizedCount[card.id]);
 	}
 	const result = {...card};
-	if (optFallbackTextMap) result.fallbackTextMap = optFallbackTextMap;
+	if (fallbackText) result.fallbackText = fallbackText;
 	if (importantNgrams) result.importantNgrams = normalizeNgramMap(importantNgrams);
 	//Basically it takes the output of extractContentWords and then stems each run.
 	result.normalized = Object.fromEntries(Object.entries(extractContentWords(result)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
@@ -622,9 +622,8 @@ export const prettyFingerprintItems = (fingerprint, cardObj) => {
 	for (let ngram of fingerprint.keys()) {
 		let item = [];
 		for (let word of ngram.split(' ')) {
-			//There are some cases where there won't be a destemmedWord, like
-			//for example backported text, since we didn't pass fallbackTextMap
-			//to destemmedWordMap above.
+			//There should always be a destemmed word for word, but fall back
+			//just in case.
 			let destemmedWord = destemmedMap[word] || word;
 			let titleCaseDestemmedWord = destemmedWord.charAt(0).toUpperCase() + destemmedWord.slice(1);
 			item.push(titleCaseDestemmedWord);

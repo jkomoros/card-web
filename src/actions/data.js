@@ -823,9 +823,10 @@ export const defaultCardObject = (id, user, section, cardType) => {
 		//Defaul to epoch 1970 for things not yet tweeted
 		last_tweeted: new Date(0),
 		tweet_count: 0
-		//Note: there are two fields that are often set on cards but not persisted to database:
+		//Note: there are three fields that are often set on cards but not persisted to database:
 		//normalized - this is set by cardWithNormalizedTextProperties and is where all of the nlp-based machinery is based on.
-		//fallbackTextMap - this is stashed there so that the cardWithNormalizedTextProperties machinery can fetch it if it wants.
+		//fallbackText - this is stashed there so that the cardWithNormalizedTextProperties machinery can fetch it if it wants.
+		//importantNgrams - agains stashed here by cardWithNormalizedTextProperties so wordCountForSemantics can fetch it.
 	};
 };
 
