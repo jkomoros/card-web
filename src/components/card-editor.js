@@ -357,7 +357,7 @@ class CardEditor extends connect(store)(LitElement) {
 				</div>
 				<div>
 					<label>Suggested Concepts ${help('Cards that are suggested to be added as concept references. Tap one to add it as a concept reference, or x it out to add an ACK and get it to go away.')}</label>
-					<tag-list .tags=${this._suggestedConcepts} .tagInfos=${this._cardTagInfos} .subtle=${true} .editing=${true} .defaultColor=${REFERENCE_TYPES[REFERENCE_TYPE_CONCEPT].color} .tapEvents=${true} .disableAdd=${true} @tag-tapped=${this._handleSuggestedConceptTapped} @remove-tag=${this._handleAddAckReference} .overrideTypeName=${'Concept'}></tag-list>
+					<tag-list .tags=${this._suggestedConcepts} .tagInfos=${this._cardTagInfos} .editing=${true} .defaultColor=${REFERENCE_TYPES[REFERENCE_TYPE_CONCEPT].color} .tapEvents=${true} .disableAdd=${true} @tag-tapped=${this._handleSuggestedConceptTapped} @remove-tag=${this._handleAddAckReference} .overrideTypeName=${'Concept'}></tag-list>
 				</div>
 			</div>
 				<div class='row'>

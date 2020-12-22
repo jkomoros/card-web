@@ -45,6 +45,7 @@ import {
 	selectEditingPendingReferenceType,
 	getCardExists,
 	getCardType,
+	selectEditingCardSuggestedConceptReferences,
 } from '../selectors.js';
 
 import {
@@ -171,6 +172,12 @@ export const editingCommit = () => async (dispatch, getState) => {
 			return;
 		}
 	}
+
+	if (selectEditingCardSuggestedConceptReferences(state).length > 0) {
+		alert('The card has suggested concept references. You must either accept or reject them before saving.');
+		return;
+	}
+
 	const underlyingCard = selectActiveCard(state);
 	if (!underlyingCard || !underlyingCard.id) {
 		console.warn('That card isn\'t legal');
