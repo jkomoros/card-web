@@ -11,7 +11,6 @@ import {
 	CONFIGURABLE_FILTER_URL_PARTS,
 	CONFIGURABLE_FILTER_NAMES,
 	LIMIT_FILTER_NAME,
-	QUERY_FILTER_NAME,
 	makeConfigurableFilter,
 	queryConfigurableFilterText,
 	queryTextFromQueryFilter,
@@ -96,25 +95,32 @@ export const queryTextFromCollectionDescription = (description) => {
 	return '';
 };
 
-//collectionDescriptionWithQuery returns a new cloned collection description,
-//but that includes a configurable filter for the given queryText, replacing the
-//first existing query filter if one exists, otherwise appending it.
-export const collectionDescriptionWithQuery = (description, queryText) => {
+//Returns a collection description like description, but with
+//newConfigurableFilter added (and the first filter of the same type that
+//already exists removed).
+export const collectionDescriptionWithConfigurableFilter = (description, newConfigurableFilter) => {
 	const newFilters = [];
-	const newQuery = queryConfigurableFilterText(queryText);
-	let replacedQuery = false;
+	const filterName = newConfigurableFilter.split('/')[0];
+	let replacedFilter = false;
 	for (let filter of description.filters) {
-		if (!replacedQuery && filter.startsWith(QUERY_FILTER_NAME + '/')) {
-			replacedQuery = true;
-			newFilters.push(newQuery);
+		if (!replacedFilter && filter.startsWith(filterName + '/')) {
+			replacedFilter = true;
+			newFilters.push(newConfigurableFilter);
 			continue;
 		}
 		newFilters.push(filter);
 	}
 
-	if (!replacedQuery) newFilters.push(newQuery);
+	if (!replacedFilter) newFilters.push(newConfigurableFilter);
 
 	return new CollectionDescription(description.setNameExplicitlySet ? description.set : '', newFilters, description.sort, description.sortReversed);
+};
+
+//collectionDescriptionWithQuery returns a new cloned collection description,
+//but that includes a configurable filter for the given queryText, replacing the
+//first existing query filter if one exists, otherwise appending it.
+export const collectionDescriptionWithQuery = (description, queryText) => {
+	return collectionDescriptionWithConfigurableFilter(description, queryConfigurableFilterText(queryText));
 };
 
 //collectionDescriptionWithKeyCard returns the description, but with each instance of 'self' replaced with the given keyCardID
