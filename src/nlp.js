@@ -252,6 +252,7 @@ const extractContentWords = (card) => {
 			} else {
 				fieldValue = extractFieldValueForIndexing(card[fieldName]);
 			}
+			if (!fieldValue) fieldValue = '';
 			const content = config.html ? innerTextForHTML(fieldValue) : fieldValue;
 			runs = splitRuns(content);
 			//splitRuns checks for empty runs, but they could be things that will be normalized to nothing, so filter again
