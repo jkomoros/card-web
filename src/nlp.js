@@ -14,6 +14,7 @@ import {
 	REFERENCE_TYPE_CONCEPT,
 	CARD_TYPE_CONCEPT,
 	TEXT_FIELD_TITLE,
+	REFERENCE_TYPE_ACK,
 } from './card_fields.js';
 
 import {
@@ -671,6 +672,30 @@ export const dedupedPrettyFingerprint = (fingerprint, cardObj) => {
 
 export const emptyWordCloud = () => {
 	return [[],{}];
+};
+
+export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrConceptCards, concepts) => {
+	const result = [];
+	if (!card || !fingerprint) return [];
+	const itemsFromConceptReferences = fingerprintItemsFromConceptReferences(fingerprint, card);
+	const ackReferences = references(card).byType[REFERENCE_TYPE_ACK] || {};
+	const normalizedConcepts = normalizeNgramMap(concepts);
+	for (let fingerprintItem of fingerprint.keys()) {
+		//Skip items we already point to
+		if (itemsFromConceptReferences[fingerprintItem]) continue;
+		if (!normalizedConcepts[fingerprintItem]) continue;
+		//OK, we think there's a card that matches this fingerprint item.
+		const conceptCard = getConceptCardForConcept(allCardsOrConceptCards, fingerprintItem);
+		//false alarm
+		if (!conceptCard) continue;
+		//Don't suggest that concept cards reference themselves
+		if (conceptCard.id == card.id) continue;
+		//Having an ACK reference to the other card is how you say that you opt
+		//out of a suggested concept card.
+		if (ackReferences[conceptCard.id] !== undefined) continue;
+		result.push(conceptCard.id);
+	}
+	return result;
 };
 
 //returns a map of fingerprintItem -> true for the fingerprint items that
