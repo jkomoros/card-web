@@ -545,6 +545,15 @@ const semanticOverlap = (fingerprintOne, fingerprintTwo) => {
 	return total;
 };
 
+const memoizedWordBoundaryRegExp = {};
+
+const wordBoundaryRegExp = (ngram) => {
+	if (!memoizedWordBoundaryRegExp[ngram]) {
+		memoizedWordBoundaryRegExp[ngram] = new RegExp('(^| )' + ngram + '( |$)');
+	}
+	return memoizedWordBoundaryRegExp[ngram];
+};
+
 //How high to go for n-grams in fingerprint. 2 = bigrams and monograms.
 const MAX_N_GRAM_FOR_FINGERPRINT = 2;
 //ngrams will additionally return an ngram of the full string if the number of
@@ -600,7 +609,8 @@ const wordCountsForSemantics = (strsMap, cardObj) => {
 			//them without discounting for length. We skipped counting them in
 			//any of the 'typical' times above.
 			for (let ngram of Object.keys(importantNgrams)) {
-				if (words.includes(ngram)) {
+				//Only match on word boundaries, not within an ngram
+				if (wordBoundaryRegExp(ngram).test(words)) {
 					//This is an ngram we wouldn't have indexed by
 					//default, but we've been told it's important when
 					//we see it, so take note of it, at full value.
