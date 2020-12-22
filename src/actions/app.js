@@ -225,8 +225,12 @@ export const navigateToCollectionWithQuery = (queryText) => (dispatch, getState)
 	dispatch(navigateToCollection(newCollection));
 };
 
+export const urlForCollection = (collection) => {
+	return '/' + PAGE_DEFAULT + '/' + collection.serializeShort();
+};
+
 export const navigateToCollection = (collection) => {
-	return navigatePathTo('/' + PAGE_DEFAULT + '/' + collection.serializeShort());
+	return navigatePathTo(urlForCollection(collection));
 };
 
 export const navigated = (path, query) => (dispatch) => {

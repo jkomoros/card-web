@@ -33,6 +33,7 @@ An array where each item has:
 	description: if provided, will render a help badge with this text
 	cardsToBoldFilterFactory: if not null, should be a factory that, given the expanded card object, will return a filter function to then be passed other expanded card objects to test if they should be bold. The items that return true from that second item will be shown as strong in the reference block.
 	emptyMessage: if non-falsey will show that message if no cards match. If it is falsey and no cards match, the block will not be shown.
+	showNavigate: if true, then will show a button to navigate to that collection
 
 	An 'expanded' referenceBlock also has:
 	collection: the expanded Collection based on the collectionDescription
@@ -44,6 +45,7 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_CONCEPT)]),
 			title: 'Cards that reference this concept',
 			emptyMessage: 'No cards reference this concept',
+			showNavigate: true,
 		}
 	]
 };
