@@ -38,7 +38,7 @@ export const conceptCardsFromCards = (allCards) => {
 	return Object.fromEntries(Object.entries(allCards).filter(entry => entry[1].card_type == CARD_TYPE_CONCEPT));
 };
 
-const getConceptStringFromConceptCard = (conceptCard) => {
+export const getConceptStringFromConceptCard = (conceptCard) => {
 	if (conceptCard.card_type != CARD_TYPE_CONCEPT) return '';
 	return conceptCard[TEXT_FIELD_TITLE];
 };
