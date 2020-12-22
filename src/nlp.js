@@ -304,15 +304,26 @@ let memoizedNormalizedNgramMaps = new Map();
 
 const normalizeNgramMap = (ngramMap) => {
 	if (!memoizedNormalizedNgramMaps.has(ngramMap)) {
-		//The normalizedMap both has stemmed/normalized words, but also filters
-		//out the ngrams that are small enough that they'd be trivially included
-		//anyway. We filter out stop words (via fullyNormalizedString) because
-		//the wordCountsForSemantics will be comparing it to strings with stop
-		//words removed, too.
-		const normalizedMap = Object.fromEntries(Object.entries(ngramMap).map(entry => [fullyNormalizedString(entry[0]), entry[1]]).filter(entry => entry[0].split(' ').length > MAX_N_GRAM_FOR_FINGERPRINT));
+		//The normalizedMap both has stemmed/normalized words. We filter out
+		//stop words (via fullyNormalizedString) because the
+		//wordCountsForSemantics will be comparing it to strings with stop words
+		//removed, too.
+		const normalizedMap = Object.fromEntries(Object.entries(ngramMap).map(entry => [fullyNormalizedString(entry[0]), entry[1]]));
 		memoizedNormalizedNgramMaps.set(ngramMap, normalizedMap);
 	}
 	return memoizedNormalizedNgramMaps.get(ngramMap);
+};
+
+let memoizedNormalizedClippedNgramMaps = new Map();
+
+//Any items of size or smaller will be clipped
+const clipShortNGramsFromMap = (ngramMap, size) => {
+	if (!memoizedNormalizedClippedNgramMaps.has(ngramMap)) {
+		//Clip out ngrams that are size or shorter in length
+		const clippedMap = Object.fromEntries(Object.entries(ngramMap).filter(entry => entry[0].split(' ').length > size));
+		memoizedNormalizedClippedNgramMaps.set(ngramMap, clippedMap);
+	}
+	return memoizedNormalizedClippedNgramMaps.get(ngramMap);
 };
 
 //if true, will print out debug statistics about how often card normalized count
@@ -334,9 +345,9 @@ export const cardWithNormalizedTextProperties = (card, optFallbackTextMap, optAd
 	}
 	const result = {...card};
 	if (optFallbackTextMap) result.fallbackTextMap = optFallbackTextMap;
-	//TODO: normalize these once and memoize
-	//TODO: actually use these for something
-	if (optAdditionalNgramMap) result.additonalNgramMap = normalizeNgramMap(optAdditionalNgramMap);
+
+	//We pre-clip ngrams that will already be generated, to save having to consider them in wordCountsForSemantics.
+	if (optAdditionalNgramMap) result.additonalNgramMap = clipShortNGramsFromMap(normalizeNgramMap(optAdditionalNgramMap), MAX_N_GRAM_FOR_FINGERPRINT);
 	//Basically it takes the output of extractContentWords and then stems each run.
 	result.normalized = Object.fromEntries(Object.entries(extractContentWords(result)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
 	return result;
@@ -586,6 +597,7 @@ const wordCountsForSemantics = (strsMap, cardObj) => {
 				fullRunIndexed = true;
 			}
 
+			//we assume this map is already clipped via clipShortNGramsFromMap to not have ngrams that we'll already generate
 			if (cardObj.additonalNgramMap) {
 				for (let longNgram of Object.keys(cardObj.additonalNgramMap)) {
 					if (words.includes(longNgram)) {
