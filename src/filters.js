@@ -260,7 +260,7 @@ const makeAboutConfigurableFilter = (filterName, conceptStr) => {
 	return [func, false];
 };
 
-const makeMissingConceptConfigurableFilter = (filterName, conceptStr) => {
+const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) => {
 	//subFilter can only be a very small set of special filter names. They're
 	//done as subtypes of `missing` becuase there's no way to do a configurable
 	//filter without having a multi-part filter name.
@@ -272,7 +272,7 @@ const makeMissingConceptConfigurableFilter = (filterName, conceptStr) => {
 	let memoizedKeyConceptCardID = '';
 
 	//+ is the way to signal 'all concept cards', otherwise we match all of them
-	const keyConceptCard = conceptStr != '+';
+	const keyConceptCard = conceptStrOrCardID != '+';
 
 	const func = function(card, cards) {
 		if (cards != memoizedCardsLastSeen) {
@@ -286,10 +286,14 @@ const makeMissingConceptConfigurableFilter = (filterName, conceptStr) => {
 			memoizedConceptCards = conceptCardsFromCards(cards);
 			memoizedConcepts = getConceptsFromConceptCards(memoizedConceptCards);
 			if (keyConceptCard) {
-				const conceptCard = getConceptCardForConcept(memoizedConceptCards, conceptStr);
-				//If there's no matching concept then use a filter that won't
-				//match anything because it has illegal characters
-				memoizedKeyConceptCardID = conceptCard ? conceptCard.id : '?INVALID-ID?';
+				if (cards[conceptStrOrCardID]) {
+					memoizedKeyConceptCardID = conceptStrOrCardID;
+				} else {
+					const conceptCard = getConceptCardForConcept(memoizedConceptCards, conceptStrOrCardID);
+					//If there's no matching concept then use a filter that won't
+					//match anything because it has illegal characters
+					memoizedKeyConceptCardID = conceptCard ? conceptCard.id : '?INVALID-ID?';
+				}
 			}
 			memoizedCardsLastSeen = cards;
 		}
