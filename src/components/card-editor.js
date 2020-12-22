@@ -103,6 +103,7 @@ import {
 	REFERENCE_TYPES,
 	REFERENCE_TYPE_ACK,
 	CARD_TYPE_CONFIGURATION,
+	REFERENCE_TYPE_CONCEPT,
 } from '../card_fields.js';
 
 import {
@@ -356,7 +357,7 @@ class CardEditor extends connect(store)(LitElement) {
 				</div>
 				<div>
 					<label>Suggested Concepts ${help('Cards that are suggested to be added as concept references. Tap one to add it as a concept reference, or x it out to add an ACK and get it to go away.')}</label>
-					<tag-list .tags=${this._suggestedConcepts} .tagInfos=${this._cardTagInfos} .subtle=${true} .tapEvents=${true} .overrideTypeName=${'Concept'}></tag-list>
+					<tag-list .tags=${this._suggestedConcepts} .tagInfos=${this._cardTagInfos} .subtle=${true} .editing=${true} .tapEvents=${true} .disableAdd=${true} @tag-tapped=${this._handleSuggestedConceptTapped} @remove-tag=${this._handleAddAckReference} .overrideTypeName=${'Concept'}></tag-list>
 				</div>
 			</div>
 				<div class='row'>
@@ -486,6 +487,11 @@ class CardEditor extends connect(store)(LitElement) {
 
 	firstUpdated() {
 		document.addEventListener('keydown', e => this._handleKeyDown(e));
+	}
+
+	_handleSuggestedConceptTapped(e) {
+		const cardID = e.detail.tag;
+		store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_CONCEPT));
 	}
 
 	_handleCardTypeChanged(e) {

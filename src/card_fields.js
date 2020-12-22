@@ -213,7 +213,7 @@ export const REFERENCE_TYPES = {
 	},
 	[REFERENCE_TYPE_ACK]: {
 		name: 'Non-substantive acknowledgement',
-		description: 'For when a card wants to acknowledge another card, but not form a substantive link. Useful for making the missing-reference go away',
+		description: 'For when a card wants to acknowledge another card, but not form a substantive link. Useful for making the missing-reference or suggested-concept go away',
 		editable: true,
 		substantive: false,
 		color: '#CCCCCC',
