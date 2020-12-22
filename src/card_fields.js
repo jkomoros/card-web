@@ -66,6 +66,8 @@ export const CARD_TYPE_CONCEPT = 'concept';
 //The card type to assume if none is specified.
 export const DEFAULT_CARD_TYPE = CARD_TYPE_CONTENT;
 
+export const CONCEPT_DEFAULT_BODY = 'This is a concept card. The following cards reference this concept.';
+
 /*
 
 invertContentPublishWarning: if true, then the 'There's content but unpublished,
@@ -94,6 +96,9 @@ having heavyweight imports so this can be included in tests.
 
 autoSlug: if true, then when a new card is created, it will try to automatically
 add a name to the card that is `CARD_TYPE-NORMALIZED-TITLE`.
+
+defaultBody: if set, then when a card of this type is created, it will have this
+string.
 
 */
 
@@ -147,6 +152,7 @@ export const CARD_TYPE_CONFIGURATION = {
 		publishedByDefault: true,
 		iconName: 'MENU_BOOK_ICON',
 		autoSlug: true,
+		defaultBody: CONCEPT_DEFAULT_BODY,
 	},
 };
 
