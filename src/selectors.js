@@ -52,7 +52,8 @@ import {
 	cardWithNormalizedTextProperties,
 	suggestedConceptReferencesForCard,
 	getConceptsFromConceptCards,
-	conceptCardsFromCards
+	conceptCardsFromCards,
+	possibleMissingConcepts,
 } from './nlp.js';
 
 import {
@@ -642,6 +643,12 @@ const selectEditingNormalizedCard = (state) => {
 	}
 	return memoizedEditingNormalizedCard;
 };
+
+//Warning: this is EXTREMELY expensive. Like 10 seconds of processing expensive!
+export const selectWordCloudForPossibleMissingConcepts = createSelector(
+	selectCards,
+	(cards) => wordCloudFromFingerprint(possibleMissingConcepts(cards), Object.values(cards))
+);
 
 const selectEditingCardSemanticFingerprint = createSelector(
 	selectEditingNormalizedCard,
