@@ -678,6 +678,124 @@ export const dedupedPrettyFingerprint = (fingerprint, cardObj) => {
 	return dedupedFingerprint.join(' ');
 };
 
+const MAX_MISSING_POSSIBLE_CONCEPTS = 100;
+
+export const possibleMissingConcepts = (cards) => {
+	//Turn the size of ngrams we generate up to 11! This will help us find very long ngrams, but will use a LOT of memory and compuation.
+	const maximumFingerprintGenerator = new FingerprintGenerator(cards, SEMANTIC_FINGERPRINT_SIZE * 5, MAX_N_GRAM_FOR_FINGERPRINT + 5);
+	let cardCountForNgram = {};
+	let cumulativeTFIDFForNgram = {};
+
+	for (const fingerprint of Object.values(maximumFingerprintGenerator.fingerprints())) {
+		for (const [ngram, tfidf] of fingerprint.entries()) {
+			cardCountForNgram[ngram] = (cardCountForNgram[ngram] || 0) + 1;
+			cumulativeTFIDFForNgram[ngram] = (cumulativeTFIDFForNgram[ngram] || 0) + tfidf;
+		}
+	}
+
+	//Filter out any ngrams that didn't show up in at least 3 cards
+	cardCountForNgram = Object.fromEntries(Object.entries(cardCountForNgram).filter(entry => entry[1] > 3));
+	cumulativeTFIDFForNgram = Object.fromEntries(Object.entries(cumulativeTFIDFForNgram).filter(entry => cardCountForNgram[entry[0]]));
+
+	let ngramWordCount = {};
+	for (const ngram of Object.keys(cardCountForNgram)) {
+		ngramWordCount[ngram] = ngram.split(' ').length;
+	}
+
+	//Resort ngramWordCount by ascending number of words
+	const ngramWordCountSortedKeys = Object.keys(ngramWordCount).sort((a, b) => ngramWordCount[a] - ngramWordCount[b]);
+
+	/*
+		each ngramBundle has:
+		* ngram: the ngram at the root of this bundle
+		* individualTFIDF: the tfidf of the ngram at the root of this bundle
+		* cumulativeTFIDF: the cumulativeTFIDF of the root ngram PLUS all
+		  sub-bundles
+		* subNgrams: an array of ngrams. Each one must be a strict subset of the
+		  bundles ngram, and also a valid key into ngramBundles. No subNgram may
+		  be a strict subset of any other subNgram in the set. (This property
+		  guarantees that even though subNgrams aren't all of the same
+		  ngram-size, we always use the largest ones that cover it)
+		//TODO: document the rest of the bundle meanings
+	*/
+	const ngramBundles = {};
+
+	// We construct the ngramBundles in order going up by ngram word count, so
+	// the subBundles are already constructed and finalized by the time the
+	// larger bundles are being constructed.
+
+	for (const ngram of ngramWordCountSortedKeys) {
+		const individualTFIDF = cumulativeTFIDFForNgram[ngram];
+
+		//The only keys already in ngramBundles will be either the same size as
+		//our ngram, or smaller.
+		const subNgramCandidates = Object.keys(ngramBundles).filter(candidateNgram => ngramWithinOther(candidateNgram, ngram)).sort((a, b) => b.length - a.length);
+
+		//Now we have all candidates that might plausibly be in our subNgram
+		//set, in descending order of size. We need to pick the 'spanning' set,
+		//where no subNgram in the final set may be a strict subset of any other
+		//subNgram in the set.
+
+		const subNgrams = [];
+		for (const candidate of subNgramCandidates) {
+			if (subNgrams.some(includedNgram => ngramWithinOther(candidate, includedNgram))) continue;
+			subNgrams.push(candidate);
+		}
+
+		const cumulativeSubNgramCumulativeTFIDF = subNgrams.map(subNgram => ngramBundles[subNgram].cumulativeTFIDF).reduce((sum, x) => sum + x, 0);
+
+		//TODO: what if we discount the cumulative tfidf based on number of individual words total in all of hte subngrams?
+
+		const averageSubNgramCumulativeTFIDF = subNgrams.length ? (cumulativeSubNgramCumulativeTFIDF / subNgrams.length) : 0;
+		const subNgramTFIDFForCumulative = averageSubNgramCumulativeTFIDF;
+		const cumulativeTFIDF =  individualTFIDF + subNgramTFIDFForCumulative;
+		const individualToCumulativeRatio = individualTFIDF / cumulativeTFIDF;
+		//TODO: 'mind growth` shows up high because `mind` and `growth` are both
+		//popular words, but `mind growth` is really not. Ideally we'd punish terms
+		//that are very uncommon on their own but just have popular children.
+
+		//current best scoring for this is cumulativeTFIDF. based on individualTFIDF + averageSubNgramCumulativeTFIDF
+		const scoreForBundle = individualTFIDF + averageSubNgramCumulativeTFIDF;
+
+		//TODO: alt:
+		//const scoreForBundle = cumulativeTFIDF + (subNgrams.length > 0 ? individualToCumulativeRatio : 0.0);
+
+		//TODO: remove the properties that are unnecessary
+		ngramBundles[ngram] = {
+			ngram,
+			scoreForBundle,
+			individualTFIDF,
+			averageSubNgramCumulativeTFIDF,
+			subNgramTFIDFForCumulative,
+			cumulativeSubNgramCumulativeTFIDF,
+			individualToCumulativeRatio,
+			cumulativeTFIDF,
+			subNgrams,
+			//TODO: this is very expensive to include
+			subNgramsObject: Object.fromEntries(subNgrams.map(ngram => [ngram, ngramBundles[ngram]]))
+		};
+	}
+
+	const sortedNgramBundleKeys = Object.keys(ngramBundles).sort((a, b) => ngramBundles[b].scoreForBundle - ngramBundles[a].scoreForBundle);
+	
+	const finalNgrams = [];
+	for (const ngram of sortedNgramBundleKeys) {
+		//Skip ngrams that are full supersets or subsets of ones that have already been selected
+		if (finalNgrams.some(containerNgram => ngramWithinOther(ngram, containerNgram) || ngramWithinOther(containerNgram, ngram))) continue;
+		finalNgrams.push(ngram);
+		if (finalNgrams.length >= MAX_MISSING_POSSIBLE_CONCEPTS) break;
+	}
+	
+	//console.log(finalNgrams.map(ngram => ngramBundles[ngram]));
+
+	//TODO: factor out ngrams that already exist as cards (and maybe earlier in the pipeline, to get sub and superset conflicts?)
+
+	//TODO: what's the system to say 'nah I don't want X to be a concept'?
+
+	return new Map(finalNgrams.map(ngram => [ngram, ngramBundles[ngram].scoreForBundle]));
+
+};
+
 export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrConceptCards, concepts) => {
 	const result = [];
 	if (!card || !fingerprint) return [];
