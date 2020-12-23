@@ -818,6 +818,9 @@ export const possibleMissingConcepts = (cards) => {
 				break;
 			}
 		}
+		//TODO: don't knock out ones where the scoreForBundle for other - self
+		//divided by number of words not overlapping is quite close, because
+		//those are near misses.
 		if (knockedOut) {
 			knockedOut.otherBundle = ngramBundles[knockedOut.other];
 			knockedOut.selfBundle = ngramBundles[knockedOut.self];
