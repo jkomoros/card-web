@@ -674,10 +674,6 @@ export const dedupedPrettyFingerprint = (fingerprint, cardObj) => {
 	return dedupedFingerprint.join(' ');
 };
 
-export const emptyWordCloud = () => {
-	return [[],{}];
-};
-
 export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrConceptCards, concepts) => {
 	const result = [];
 	if (!card || !fingerprint) return [];
@@ -725,6 +721,10 @@ const fingerprintItemsFromConceptReferences = (fingerprint, cardObj) => {
 		}
 	}
 	return result;
+};
+
+export const emptyWordCloud = () => {
+	return [[],{}];
 };
 
 //cardObj can be null, a single card, or an array of cards.
