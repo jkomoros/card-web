@@ -756,11 +756,11 @@ export const possibleMissingConcepts = (cards) => {
 		//popular words, but `mind growth` is really not. Ideally we'd punish terms
 		//that are very uncommon on their own but just have popular children.
 
-		//current best scoring for this is cumulativeTFIDF. based on individualTFIDF + averageSubNgramCumulativeTFIDF
-		const scoreForBundle = individualTFIDF + averageSubNgramCumulativeTFIDF;
-
-		//TODO: alt:
-		//const scoreForBundle = cumulativeTFIDF + (subNgrams.length > 0 ? individualToCumulativeRatio : 0.0);
+		//Reward ngrams that are not leafs that are popular themselves, instead
+		//of just freeloading off of being a rare combination of individually
+		//popular words. And so that leaf ngrams can still show up, give them a
+		//tuned boost.
+		const scoreForBundle = cumulativeTFIDF + (subNgrams.length > 0 ? individualToCumulativeRatio : individualTFIDF / 5);
 
 		//TODO: remove the properties that are unnecessary
 		ngramBundles[ngram] = {
