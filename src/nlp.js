@@ -554,13 +554,13 @@ const wordBoundaryRegExp = (ngram) => {
 	return memoizedWordBoundaryRegExp[ngram];
 };
 
-//How high to go for n-grams in fingerprint. 2 = bigrams and monograms.
+//How high to go for n-grams in fingerprint by default. 2 = bigrams and monograms.
 const MAX_N_GRAM_FOR_FINGERPRINT = 2;
 //ngrams will additionally return an ngram of the full string if the number of
 //terms is this or smaller.
 const WHOLE_NGRAM_MAX_SIZE = 6;
 
-const wordCountsForSemantics = (strsMap, cardObj) => {
+const wordCountsForSemantics = (strsMap, cardObj, maxFingerprintSize) => {
 	//Yes, it's weird that we stash the additionalNgramsMap on a cardObj and
 	//then pass that around instead of just passing the ngram map to FingerPrint
 	//generator. But it we did it another way, it would break the `similar/`
@@ -572,7 +572,7 @@ const wordCountsForSemantics = (strsMap, cardObj) => {
 		const totalIndexingCount = (textFieldConfig.extraIndexingCount || 0) + 1;
 		for (const str of strs) {
 			const words = str.split(' ').filter(word => !STOP_WORDS[word]).join(' ');
-			for (let n = 1; n <= MAX_N_GRAM_FOR_FINGERPRINT; n++) {
+			for (let n = 1; n <= maxFingerprintSize; n++) {
 				for (const ngram of ngrams(words, n)) {
 					if (!ngram) continue;
 					//If we'll count it full later, don't count it now.
@@ -592,7 +592,7 @@ const wordCountsForSemantics = (strsMap, cardObj) => {
 					//If we're told to index the full run, then index the whole
 					//thing... and count it as 1.0, not discounting for wordCount.
 					cardMap[words] = (cardMap[words] || 0) + totalIndexingCount;
-				} else if (splitWords.length > MAX_N_GRAM_FOR_FINGERPRINT && splitWords.length < WHOLE_NGRAM_MAX_SIZE) {
+				} else if (splitWords.length > maxFingerprintSize && splitWords.length < WHOLE_NGRAM_MAX_SIZE) {
 					//even if index full run wasn't true, if the run only has a few
 					//words, index them as though they were valid ngrams.
 					
@@ -743,11 +743,12 @@ export const wordCloudFromFingerprint = (fingerprint, cardObj) => {
 };
 
 export class FingerprintGenerator {
-	constructor(cards, optFingerprintSize = SEMANTIC_FINGERPRINT_SIZE) {
+	constructor(cards, optFingerprintSize = SEMANTIC_FINGERPRINT_SIZE, optNgramSize = MAX_N_GRAM_FOR_FINGERPRINT) {
 
 		this._idfMap = {};
 		this._fingerprints = {};
 		this._fingerprintSize = optFingerprintSize;
+		this._ngramSize = optNgramSize;
 
 		if (!cards || Object.keys(cards).length == 0) return;
 
@@ -799,7 +800,7 @@ export class FingerprintGenerator {
 
 	_wordCountsForCardObj(cardObj) {
 		//Filter out empty items for properties that don't have any items
-		return wordCountsForSemantics(Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => [prop, cardObj.normalized[prop]]).filter(entry => entry[1])), cardObj);
+		return wordCountsForSemantics(Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => [prop, cardObj.normalized[prop]]).filter(entry => entry[1])), cardObj, this._ngramSize);
 	}
 
 	_cardTFIDF(cardWordCounts) {
