@@ -756,6 +756,9 @@ export const possibleMissingConcepts = (cards) => {
 		//popular words, but `mind growth` is really not. Ideally we'd punish terms
 		//that are very uncommon on their own but just have popular children.
 
+		//sort the ngram into a canonical order so any permuation can be detected
+		const sortedNgram = ngram.split(' ').sort().join(' ');
+
 		//Reward ngrams that are not leafs that are popular themselves, instead
 		//of just freeloading off of being a rare combination of individually
 		//popular words. And so that leaf ngrams can still show up, give them a
@@ -773,6 +776,7 @@ export const possibleMissingConcepts = (cards) => {
 			individualToCumulativeRatio,
 			cumulativeTFIDF,
 			cardCount,
+			sortedNgram,
 			subNgrams,
 			//TODO: this is very expensive to include
 			subNgramsObject: Object.fromEntries(subNgrams.map(ngram => [ngram, ngramBundles[ngram]]))
@@ -783,8 +787,8 @@ export const possibleMissingConcepts = (cards) => {
 	
 	const finalNgrams = [];
 	for (const ngram of sortedNgramBundleKeys) {
-		//Skip ngrams that are full supersets or subsets of ones that have already been selected
-		if (finalNgrams.some(containerNgram => ngramWithinOther(ngram, containerNgram) || ngramWithinOther(containerNgram, ngram))) continue;
+		//Skip ngrams that are full supersets or subsets of ones that have already been selected, or ones that are just permutations of an ngram that was already selected
+		if (finalNgrams.some(containerNgram => ngramWithinOther(ngram, containerNgram) || ngramWithinOther(containerNgram, ngram) || ngramBundles[ngram].sortedNgram == ngramBundles[containerNgram].sortedNgram)) continue;
 		finalNgrams.push(ngram);
 		if (finalNgrams.length >= MAX_MISSING_POSSIBLE_CONCEPTS) break;
 	}
