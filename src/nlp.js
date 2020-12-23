@@ -785,14 +785,50 @@ export const possibleMissingConcepts = (cards) => {
 
 	const sortedNgramBundleKeys = Object.keys(ngramBundles).sort((a, b) => ngramBundles[b].scoreForBundle - ngramBundles[a].scoreForBundle);
 	
+	//TODO: don't retain this debug informatio (maybe behind a debug flag?)
+	const knockedOutNgrams = [];
+
 	const finalNgrams = [];
 	for (const ngram of sortedNgramBundleKeys) {
+		let knockedOut = null;
 		//Skip ngrams that are full supersets or subsets of ones that have already been selected, or ones that are just permutations of an ngram that was already selected
-		if (finalNgrams.some(containerNgram => ngramWithinOther(ngram, containerNgram) || ngramWithinOther(containerNgram, ngram) || ngramBundles[ngram].sortedNgram == ngramBundles[containerNgram].sortedNgram)) continue;
+		for (const includedNgram of finalNgrams) {
+			if (ngramWithinOther(ngram, includedNgram)) {
+				knockedOut = {
+					self: ngram,
+					other: includedNgram,
+					reason: 'subset',
+				};
+				break;
+			}
+			if (ngramWithinOther(includedNgram, ngram)) {
+				knockedOut = {
+					self: ngram,
+					other: includedNgram,
+					reason: 'superset',
+				};
+				break;
+			}
+			if (ngramBundles[ngram].sortedNgram == ngramBundles[includedNgram].sortedNgram) {
+				knockedOut = {
+					self: ngram,
+					other: includedNgram,
+					reason: 'permutation',
+				};
+				break;
+			}
+		}
+		if (knockedOut) {
+			knockedOut.otherBundle = ngramBundles[knockedOut.other];
+			knockedOut.selfBundle = ngramBundles[knockedOut.self];
+			knockedOutNgrams.push(knockedOut);
+			continue;
+		}
 		finalNgrams.push(ngram);
 		if (finalNgrams.length >= MAX_MISSING_POSSIBLE_CONCEPTS) break;
 	}
 	
+	//console.log('Knocked out', knockedOutNgrams);
 	//console.log(finalNgrams.map(ngram => ngramBundles[ngram]));
 
 	//TODO: factor out ngrams that already exist as cards (and maybe earlier in the pipeline, to get sub and superset conflicts?)
