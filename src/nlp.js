@@ -545,6 +545,10 @@ const semanticOverlap = (fingerprintOne, fingerprintTwo) => {
 	return total;
 };
 
+const ngramWithinOther =(ngram, container) => {
+	return wordBoundaryRegExp(ngram).test(container);
+};
+
 const memoizedWordBoundaryRegExp = {};
 
 const wordBoundaryRegExp = (ngram) => {
@@ -610,7 +614,7 @@ const wordCountsForSemantics = (strsMap, cardObj, maxFingerprintSize) => {
 			//any of the 'typical' times above.
 			for (let ngram of Object.keys(importantNgrams)) {
 				//Only match on word boundaries, not within an ngram
-				if (wordBoundaryRegExp(ngram).test(words)) {
+				if (ngramWithinOther(ngram, words)) {
 					//This is an ngram we wouldn't necessarily have indexed by
 					//default (it might have been too long to be automatically
 					//extracted, for example), but we've been told it's
