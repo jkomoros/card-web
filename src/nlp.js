@@ -624,7 +624,7 @@ const wordCountsForSemantics = (strsMap, cardObj) => {
 	return cardMap;
 };
 
-const semanticFingerprint = (tfidf, fingerprintSize = SEMANTIC_FINGERPRINT_SIZE) => {
+const semanticFingerprint = (tfidf, fingerprintSize) => {
 	//Pick the keys for the items with the highest tfidf (the most important and specific to that card)
 	let keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, fingerprintSize);
 	return new Map(keys.map(key => [key, tfidf[key]]));
@@ -743,11 +743,10 @@ export const wordCloudFromFingerprint = (fingerprint, cardObj) => {
 };
 
 export class FingerprintGenerator {
-	constructor(cards, optFingerprintSize) {
+	constructor(cards, optFingerprintSize = SEMANTIC_FINGERPRINT_SIZE) {
 
 		this._idfMap = {};
 		this._fingerprints = {};
-		//it's OK if this is undefined.
 		this._fingerprintSize = optFingerprintSize;
 
 		if (!cards || Object.keys(cards).length == 0) return;
