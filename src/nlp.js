@@ -743,10 +743,12 @@ export const wordCloudFromFingerprint = (fingerprint, cardObj) => {
 };
 
 export class FingerprintGenerator {
-	constructor(cards) {
+	constructor(cards, optFingerprintSize) {
 
 		this._idfMap = {};
 		this._fingerprints = {};
+		//it's OK if this is undefined.
+		this._fingerprintSize = optFingerprintSize;
 
 		if (!cards || Object.keys(cards).length == 0) return;
 
@@ -791,7 +793,7 @@ export class FingerprintGenerator {
 			//See https://en.wikipedia.org/wiki/Tf%E2%80%93idf for more on
 			//TF-IDF.
 			const tfidf = this._cardTFIDF(cardWordCount);
-			fingerprints[cardID] = semanticFingerprint(tfidf);
+			fingerprints[cardID] = semanticFingerprint(tfidf, this._fingerprintSize);
 		}
 		this._fingerprints = fingerprints;
 	}
@@ -824,7 +826,7 @@ export class FingerprintGenerator {
 		if (!cardObj || Object.keys(cardObj).length == 0) return new Map();
 		const wordCounts = this._wordCountsForCardObj(cardObj);
 		const tfidf = this._cardTFIDF(wordCounts);
-		const fingerprint = semanticFingerprint(tfidf);
+		const fingerprint = semanticFingerprint(tfidf, this._fingerprintSize);
 		return fingerprint;
 	}
 
@@ -838,7 +840,7 @@ export class FingerprintGenerator {
 				combinedTFIDF[word] = (combinedTFIDF[word] || 0) + idf;
 			}
 		}
-		return semanticFingerprint(combinedTFIDF);
+		return semanticFingerprint(combinedTFIDF, this._fingerprintSize);
 	}
 
 	//returns a map of cardID => fingerprint for the cards that were provided to the constructor
