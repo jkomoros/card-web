@@ -81,6 +81,16 @@ const STOP_WORDS = {
 	'for':true,
 };
 
+//OVERRIDE_STEMS are words that stem 'wrong' and we want to have a manual
+//replacement instead of using the real stemmer. If the word being stemmed
+//starts with the key in this map, it will be 'stemmed' to the word on the
+//right.
+const OVERRIDE_STEMS = {
+	//optimism-family words and optimized-familyl words stem to the same thing
+	//but they're very different.
+	'optimiz': 'optimiz'
+};
+
 const lowercaseSplitWords = (str) => {
 	return str.toLowerCase().split(/\s+/);
 };
@@ -125,7 +135,11 @@ let memoizedStemmedWords = {};
 let reversedStemmedWords = {};
 const memorizedStemmer = (word) => {
 	if (!memoizedStemmedWords[word]) {
-		const stemmedWord = stemmer(word);
+		let stemmedWord = stemmer(word);
+		for (const [prefix, replacement] of Object.entries(OVERRIDE_STEMS)) {
+			if (!word.startsWith(prefix)) continue;
+			stemmedWord = replacement;
+		}
 		memoizedStemmedWords[word] = stemmedWord;
 		if (!reversedStemmedWords[stemmedWord]) reversedStemmedWords[stemmedWord] = {};
 		reversedStemmedWords[stemmedWord][word] = 0;
