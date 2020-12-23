@@ -288,27 +288,24 @@ const extractContentWords = (card) => {
 };
 
 //destemmedWordMap returns a map of where each given destemmed word is mapped to
-//its most common stemmed variant. If a cardObj is provided, it will use the
-//words from that cardObj--either a single cardObj or an array of them. If not, it will use the most common destemmed variant
-//from the corpus.
+//its most common stemmed variant. Itt will use the words from that
+//cardObj--either a single cardObj or an array of them.
 const destemmedWordMap = (cardOrCards) => {
-	let counts = reversedStemmedWords; 
-	if (cardOrCards) {
-		counts = {};
-		let cards = Array.isArray(cardOrCards) ? cardOrCards : [cardOrCards];
-		for (let card of cards) {
-			const content = extractContentWords(card);
-			for (let runs of Object.values(content)) {
-				const str = runs.join(' ');
-				const words = str.split(' ');
-				for (let word of words) {
-					const stemmedWord = memorizedStemmer(word);
-					if (!counts[stemmedWord]) counts[stemmedWord] = {};
-					counts[stemmedWord][word] = (counts[stemmedWord][word] || 0) + 1;
-				}
+	let counts = {};
+	let cards = Array.isArray(cardOrCards) ? cardOrCards : [cardOrCards];
+	for (let card of cards) {
+		const content = extractContentWords(card);
+		for (let runs of Object.values(content)) {
+			const str = runs.join(' ');
+			const words = str.split(' ');
+			for (let word of words) {
+				const stemmedWord = memorizedStemmer(word);
+				if (!counts[stemmedWord]) counts[stemmedWord] = {};
+				counts[stemmedWord][word] = (counts[stemmedWord][word] || 0) + 1;
 			}
 		}
 	}
+
 	//counts is now a map of destemmedWord to word.
 	const result = {};
 	for (let [destemmedWord, wordCounts] of Object.entries(counts)) {
@@ -671,8 +668,8 @@ const semanticFingerprint = (tfidf, fingerprintSize) => {
 
 //prettyFingerprintItem returns a version of the fingerprint suitable for
 //showing to a user, by de-stemming words based on the words that are most
-//common in cardObj. Returns an arary of items in Title case. cardObj can be
-//omitted to use word frequencies from the whole corpus.
+//common in cardObj. Returns an arary of items in Title case. cardObj can be a
+//single card or an array of them.
 export const prettyFingerprintItems = (fingerprint, cardObj) => {
 	if (!fingerprint) return '';
 	const destemmedMap = destemmedWordMap(cardObj);
@@ -696,7 +693,6 @@ export const prettyFingerprintItems = (fingerprint, cardObj) => {
 //dedupedPrettyFingerprint returns a version of the fingerprint suitable for
 //showing to a user, by de-stemming words based on the words that are most
 //common in cardObj. Returns a string where any dupcliates have been removed.
-//cardObj can be omitted to use word frequencies from the whole corpus.
 export const dedupedPrettyFingerprint = (fingerprint, cardObj) => {
 	const fingerprintItems = prettyFingerprintItems(fingerprint, cardObj);
 	const seenItems = {};
@@ -955,7 +951,7 @@ export const emptyWordCloud = () => {
 	return [[],{}];
 };
 
-//cardObj can be null, a single card, or an array of cards.
+//cardObj can be a single card, or an array of cards.
 export const wordCloudFromFingerprint = (fingerprint, cardObj) => {
 	if (!fingerprint || fingerprint.keys().length == 0) return emptyWordCloud();
 	const displayItems = prettyFingerprintItems(fingerprint, cardObj);
