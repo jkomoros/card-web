@@ -788,12 +788,18 @@ export const possibleMissingConcepts = (cards) => {
 	//TODO: don't retain this debug informatio (maybe behind a debug flag?)
 	const knockedOutNgrams = [];
 
+	//Sometimes an ngram that is being considered is a superset of one that's
+	//already been included. We can keep those... as long as the extra words it
+	//adds don't bring much diff individually. (Scorediff is a DECLINE in score)
+	const DIFF_PER_EXTRA_WORD_CUTOFF = 0.5;
+
 	const finalNgrams = [];
 	for (const ngram of sortedNgramBundleKeys) {
 		let knockedOut = null;
 		//Skip ngrams that are full supersets or subsets of ones that have already been selected, or ones that are just permutations of an ngram that was already selected
 		for (const includedNgram of finalNgrams) {
 			if (ngramWithinOther(ngram, includedNgram)) {
+				//TODO: Consider doing the diffPerExtraWord cutoff here, too, like in superset?
 				knockedOut = {
 					self: ngram,
 					other: includedNgram,
@@ -802,12 +808,29 @@ export const possibleMissingConcepts = (cards) => {
 				break;
 			}
 			if (ngramWithinOther(includedNgram, ngram)) {
-				knockedOut = {
+
+				//We are a superset of one that's already included. But those
+				//extra words might add a lot of meaning.
+				const extraWordCount = ngram.split(' ').length - includedNgram.split(' ').length;
+				//The includedNgram bundle score must be larger because it was already included.
+				const scoreDiff = ngramBundles[includedNgram].scoreForBundle - ngramBundles[ngram].scoreForBundle;
+				const diffPerExtraWord = scoreDiff / extraWordCount;
+
+				const knockOutObj = {
 					self: ngram,
 					other: includedNgram,
 					reason: 'superset',
+					//TODO: don't include this extra debug info
+					scoreDiff,
+					diffPerExtraWord,
 				};
-				break;
+
+				if (diffPerExtraWord > DIFF_PER_EXTRA_WORD_CUTOFF) {
+					knockedOut = knockOutObj;
+					break;
+				} else {
+					//console.log('Was going to knock out a word but decided not to', knockOutObj);
+				}
 			}
 			if (ngramBundles[ngram].sortedNgram == ngramBundles[includedNgram].sortedNgram) {
 				knockedOut = {
@@ -818,9 +841,7 @@ export const possibleMissingConcepts = (cards) => {
 				break;
 			}
 		}
-		//TODO: don't knock out ones where the scoreForBundle for other - self
-		//divided by number of words not overlapping is quite close, because
-		//those are near misses.
+
 		if (knockedOut) {
 			knockedOut.otherBundle = ngramBundles[knockedOut.other];
 			knockedOut.selfBundle = ngramBundles[knockedOut.self];
