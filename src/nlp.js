@@ -180,11 +180,11 @@ const fullyNormalizedString = (rawStr) => {
 export const cardMatchesString = (card,fieldName, str) => {
 	const normalizedString = fullyNormalizedString(str);
 	if (!card) return false;
-	if (!card.normalized) return false;
+	if (!card.nlp) return false;
 	if (!TEXT_FIELD_CONFIGURATION[fieldName]) return false;
-	const fieldValues = card.normalized[fieldName] || [];
+	const fieldValues = card.nlp.withoutStopWords[fieldName] || [];
 	for (const fieldValue of fieldValues) {
-		if (withoutStopWords(fieldValue) == normalizedString) return true;
+		if (fieldValue == normalizedString) return true;
 	}
 	return false;
 };
@@ -344,12 +344,26 @@ const DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES = false;
 let normalizedCount = {};
 
 //cardWithNormalizedTextProperties sets the properties that search and
-//fingerprints work over, on a copy of the card it returns. fallbackText will
-//be stashed on the the result so that override field extractors can access it.
+//fingerprints work over, on a copy of the card it returns. fallbackText will be
+//stashed on the the result so that override field extractors can access it.
 //importantNgrams should be a map of strings to true, specifying strings that,
 //if their normalized/stemmed text overlaps with the ngrams on a card--no matter
 //the length--that ngram should be indexed at a non-length discounted match
 //rate.
+//
+// The objects set on the resulting card will be:
+// * card.fallbackText = the fallbackText map passed, without modification
+// * card.importantNgrams = normalized importantNgrams
+// * card.nlp = object with: 
+//
+//  (for each property below, a map of TEXT_FIELD_NAME -> arrays of strings.
+//   each property will have precisely the same TEXT_FIELD_NAMES, and precisely
+//   the same number of strings. Each phase in the list below builds on each
+//   other, adding an extra processing step.)
+//
+//      normalized: the extracted text runs for that field, with all words normalized. Note that some logical runs from the original text field may already have been filtered by this step. punctuation between words will be removed, everything will be lower case.
+//		stemmed: the normalized values, but also each word will have been stemmed. Each word will still line up with each word in normalized (stemming never removes words)
+//		withoutStopWords: the stemmed values, but also with stop words removed. The number of words in this field set will likely be smaller than the two above.
 export const cardWithNormalizedTextProperties = (card, fallbackText, importantNgrams) => {
 	if (!card) return card;
 	if (DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES) {
@@ -360,7 +374,14 @@ export const cardWithNormalizedTextProperties = (card, fallbackText, importantNg
 	if (fallbackText) result.fallbackText = fallbackText;
 	if (importantNgrams) result.importantNgrams = normalizeNgramMap(importantNgrams);
 	//Basically it takes the output of extractContentWords and then stems each run.
-	result.normalized = Object.fromEntries(Object.entries(extractContentWords(result)).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
+	const normalizedFields = extractContentWords(result);
+	const stemmedFields = Object.fromEntries(Object.entries(normalizedFields).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
+	const withoutStopWordsFields = Object.fromEntries(Object.entries(stemmedFields).map(entry => [entry[0], entry[1].map(str => withoutStopWords(str))]));
+	result.nlp = {
+		normalized: normalizedFields,
+		stemmed: stemmedFields,
+		withoutStopWords: withoutStopWordsFields,
+	};
 	return result;
 };
 
@@ -400,8 +421,8 @@ export class PreparedQuery {
 	
 		for (let key of Object.keys(TEXT_FIELD_CONFIGURATION)) {
 			const propertySubQuery = this.text[key];
-			if(!propertySubQuery || !card.normalized[key]) continue;
-			const runs = card.normalized[key];
+			if(!propertySubQuery || !card.nlp || !card.nlp.stemmed || !card.nlp.stemmed[key]) continue;
+			const runs = card.nlp.stemmed[key];
 			if (runs.length == 0) continue;
 			const singleRun = runs.join(' ');
 			//propertyFullMatch should be across ALL runs. Even if no one run
@@ -578,6 +599,7 @@ const MAX_N_GRAM_FOR_FINGERPRINT = 2;
 //terms is this or smaller.
 const WHOLE_NGRAM_MAX_SIZE = 6;
 
+//strsMap is card.nlp.withoutStopWords. See cardWithNormalizedTextProperties documentation for more.
 const wordCountsForSemantics = (strsMap, cardObj, maxFingerprintSize) => {
 	//Yes, it's weird that we stash the additionalNgramsMap on a cardObj and
 	//then pass that around instead of just passing the ngram map to FingerPrint
@@ -588,8 +610,7 @@ const wordCountsForSemantics = (strsMap, cardObj, maxFingerprintSize) => {
 	for (const [fieldName, strs] of Object.entries(strsMap)) {
 		const textFieldConfig = TEXT_FIELD_CONFIGURATION[fieldName] || {};
 		const totalIndexingCount = (textFieldConfig.extraIndexingCount || 0) + 1;
-		for (const str of strs) {
-			const words = withoutStopWords(str);
+		for (const words of strs) {
 			for (let n = 1; n <= maxFingerprintSize; n++) {
 				for (const ngram of ngrams(words, n)) {
 					if (!ngram) continue;
@@ -917,12 +938,11 @@ const fingerprintItemsFromConceptReferences = (fingerprint, cardObj) => {
 	let objs = Array.isArray(cardObj) ? cardObj : [cardObj];
 	let result = {};
 	for (let obj of objs) {
-		let strs = obj.normalized[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND];
+		let strs = obj.nlp.withoutStopWords[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND];
 		for (let str of strs) {
 			//The fingerprint will have STOP_WORDs filtered, since it's
 			//downstream of wordCountsForSemantics, so do the same to check for
 			//a match.
-			str = withoutStopWords(str);
 			if (fingerprint.has(str)) {
 				result[str] = true;
 			}
@@ -1008,7 +1028,7 @@ export class FingerprintGenerator {
 
 	_wordCountsForCardObj(cardObj) {
 		//Filter out empty items for properties that don't have any items
-		return wordCountsForSemantics(Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => [prop, cardObj.normalized[prop]]).filter(entry => entry[1])), cardObj, this._ngramSize);
+		return wordCountsForSemantics(Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => [prop, cardObj.nlp.withoutStopWords[prop]]).filter(entry => entry[1])), cardObj, this._ngramSize);
 	}
 
 	_cardTFIDF(cardWordCounts) {

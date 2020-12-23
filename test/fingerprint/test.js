@@ -194,7 +194,7 @@ describe('fingerprint generation', () => {
 		for (let cardID of CARD_IDS_TO_TEST) {
 			let card = cards[cardID];
 			let normalized = expectedNormalized[cardID];
-			assert.deepStrictEqual(card.normalized, normalized);
+			assert.deepStrictEqual(card.nlp.stemmed, normalized);
 		}
 	});
 

@@ -144,7 +144,7 @@ export const cardHasSubstantiveContent = (card) => {
 	//We treat all non-content cards as having content, since the main reason to
 	//count a card has not having content is if there's nothing to see on it.
 	if (card.card_type != CARD_TYPE_CONTENT) return true;
-	let content = card.normalized && card.normalized.body ? card.normalized.body.join(' ') : '';
+	let content = card.nlp && card.nlp.stemmed && card.nlp.stemmed[TEXT_FIELD_BODY] ? card.nlp.stemmed[TEXT_FIELD_BODY].join(' ') : '';
 	return content.length > SUBSTANTIVE_CONTENT_THRESHOLD;
 };
 
