@@ -694,6 +694,9 @@ export const dedupedPrettyFingerprint = (fingerprint, cardObj) => {
 
 const MAX_MISSING_POSSIBLE_CONCEPTS = 100;
 
+//Enable while debugging possibleMissingConcepts.
+const DEBUG_PRINT_MISSING_CONCEPTS_INFO = false;
+
 export const possibleMissingConcepts = (cards) => {
 	//Turn the size of ngrams we generate up to 11! This will help us find very long ngrams, but will use a LOT of memory and compuation.
 	const maximumFingerprintGenerator = new FingerprintGenerator(cards, SEMANTIC_FINGERPRINT_SIZE * 5, MAX_N_GRAM_FOR_FINGERPRINT + 5);
@@ -843,7 +846,7 @@ export const possibleMissingConcepts = (cards) => {
 					knockedOut = knockOutObj;
 					break;
 				} else {
-					//console.log('Was going to knock out a word but decided not to', knockOutObj);
+					if (DEBUG_PRINT_MISSING_CONCEPTS_INFO) console.log('Was going to knock out a word but decided not to', knockOutObj);
 				}
 			}
 			if (ngramBundles[ngram].sortedNgram == ngramBundles[includedNgram].sortedNgram) {
@@ -865,9 +868,11 @@ export const possibleMissingConcepts = (cards) => {
 		finalNgrams.push(ngram);
 		if (finalNgrams.length >= MAX_MISSING_POSSIBLE_CONCEPTS) break;
 	}
-	
-	//console.log('Knocked out', knockedOutNgrams);
-	//console.log(finalNgrams.map(ngram => ngramBundles[ngram]));
+
+	if (DEBUG_PRINT_MISSING_CONCEPTS_INFO) {
+		console.log('Knocked out', knockedOutNgrams);
+		console.log(finalNgrams.map(ngram => ngramBundles[ngram]));
+	}
 
 	//TODO: factor out ngrams that already exist as cards (and maybe earlier in the pipeline, to get sub and superset conflicts?)
 
