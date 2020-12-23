@@ -184,7 +184,7 @@ export const cardMatchesString = (card,fieldName, str) => {
 	if (!TEXT_FIELD_CONFIGURATION[fieldName]) return false;
 	const fieldValues = card.normalized[fieldName] || [];
 	for (const fieldValue of fieldValues) {
-		if (fieldValue.split(' ').filter(word => !STOP_WORDS[word]).join(' ') == normalizedString) return true;
+		if (withoutStopWords(fieldValue) == normalizedString) return true;
 	}
 	return false;
 };
@@ -589,7 +589,7 @@ const wordCountsForSemantics = (strsMap, cardObj, maxFingerprintSize) => {
 		const textFieldConfig = TEXT_FIELD_CONFIGURATION[fieldName] || {};
 		const totalIndexingCount = (textFieldConfig.extraIndexingCount || 0) + 1;
 		for (const str of strs) {
-			const words = str.split(' ').filter(word => !STOP_WORDS[word]).join(' ');
+			const words = withoutStopWords(str);
 			for (let n = 1; n <= maxFingerprintSize; n++) {
 				for (const ngram of ngrams(words, n)) {
 					if (!ngram) continue;
@@ -922,7 +922,7 @@ const fingerprintItemsFromConceptReferences = (fingerprint, cardObj) => {
 			//The fingerprint will have STOP_WORDs filtered, since it's
 			//downstream of wordCountsForSemantics, so do the same to check for
 			//a match.
-			str = str.split(' ').filter(word => !STOP_WORDS[word]).join(' ');
+			str = withoutStopWords(str);
 			if (fingerprint.has(str)) {
 				result[str] = true;
 			}
