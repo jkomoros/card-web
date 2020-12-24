@@ -439,60 +439,6 @@ describe('fingerprint generation', () => {
 		}
 	});
 
-	it('destemmed word map for card', async () => {
-		const card = baseCards()[CARD_ID_TWO];
-		let wordMap = TESTING.destemmedWordMap(card);
-		//Filter out items that are the same on each side, to keep the expected map smaller.
-		let filteredWordMap = Object.fromEntries(Object.entries(wordMap).filter(entry => entry[0] != entry[1]));
-		let expectedWordMap = {
-			us: 'using',
-			space: 'spaces',
-			divid: 'divides',
-			type: 'types',
-			differ: 'different',
-			properti: 'properties',
-			simpl: 'simple',
-			requir: 'require',
-			complic: 'complicated',
-			knowabl: 'knowably',
-			intric: 'intricate',
-			challeng: 'challenging',
-			concret: 'concrete',
-			effici: 'efficiency',
-			focu: 'focus',
-			structur: 'structure',
-			unknow: 'unknowably',
-			goal: 'goals',
-			method: 'methods',
-			possibl: 'possible',
-			action: 'actions',
-			ar: 'are',
-			mean: 'meaning',
-			fundament: 'fundamentally',
-			approach: 'approaches',
-			inscrut: 'inscrutable',
-			imposs: 'impossible',
-			bewar: 'beware',
-			diagnos: 'diagnosing',
-			becaus: 'because',
-			'it’': 'it’s',
-			effect: 'effectively',
-			give: 'giving',
-			distinguish: 'distinguishing',
-			import: 'important',
-			practic: 'practice',
-			terminolog: 'terminology',
-			call: 'calls',
-			ambigu: 'ambiguous',
-			'i’v': 'i’ve',
-			shift: 'shifted',
-			'cynfefin’': 'cynfefin’s',
-			consist: 'consistently',
-			'cynefin\'': 'cynefin\'s'
-		};
-		assert.deepStrictEqual(filteredWordMap, expectedWordMap);
-	});
-
 	it('pretty fingerprint items with card', async () => {
 		const cards = baseCards();
 		const generator = new FingerprintGenerator(cards);
@@ -502,12 +448,12 @@ describe('fingerprint generation', () => {
 			'Cynefin',
 			'Model',
 			'Terminology',
-			'Calls',
+			'Called',
 			'Unknowably',
 			'Chaotic',
 			'Cynefin Model',
 			'Complicated',
-			'Require',
+			'Required',
 			'Cynefin\'s',
 			'Blammo',
 			'Cynenfin',
@@ -547,12 +493,12 @@ describe('fingerprint generation', () => {
 			'Cynefin',
 			'Model',
 			'Terminology',
-			'Calls',
+			'Called',
 			'Unknowably',
 			'Chaotic',
 			'Cynefin Model',
 			'Complicated',
-			'Require',
+			'Required',
 			'Cynefin\'s',
 			'Blammo',
 			'Cynenfin',
@@ -588,7 +534,7 @@ describe('fingerprint generation', () => {
 		const generator = new FingerprintGenerator(cards);
 		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
 		const pretty = dedupedPrettyFingerprint(fingerprint, cards[CARD_ID_TWO]);
-		const expectedPretty = 'Cynefin Model Terminology Calls Unknowably Chaotic Complicated Require Cynefin\'s Blammo Cynenfin Hard Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Dupe Diagnosing Simple Past Ambiguous Shifted Trivial Consistently Different Next';
+		const expectedPretty = 'Cynefin Model Terminology Called Unknowably Chaotic Complicated Required Cynefin\'s Blammo Cynenfin Hard Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Dupe Diagnosing Simple Past Ambiguous Shifted Trivial Consistently Different Next';
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});
 
@@ -597,7 +543,7 @@ describe('fingerprint generation', () => {
 		const generator = new FingerprintGenerator(cards);
 		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
 		const pretty = dedupedPrettyFingerprint(fingerprint, [cards[CARD_ID_TWO],cards[CARD_ID_THREE]]);
-		const expectedPretty = 'Cynefin Model Terminology Calls Unknowably Chaotic Complicated Require Cynefin\'s Blammo Cynenfin Hard Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Dupe Diagnosing Simple Past Ambiguous Shifted Trivial Consistently Different Next';
+		const expectedPretty = 'Cynefin Model Terminology Called Unknowably Chaotic Complicated Required Cynefin\'s Blammo Cynenfin Hard Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Dupe Diagnosing Simple Past Ambiguous Shifted Trivial Consistently Different Next';
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});
 

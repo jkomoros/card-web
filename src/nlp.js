@@ -287,40 +287,6 @@ const extractContentWords = (card) => {
 	return obj;
 };
 
-//destemmedWordMap returns a map of where each given destemmed word is mapped to
-//its most common stemmed variant. Itt will use the words from that
-//cardObj--either a single cardObj or an array of them.
-const destemmedWordMap = (cardOrCards) => {
-	let counts = {};
-	let cards = Array.isArray(cardOrCards) ? cardOrCards : [cardOrCards];
-	for (let card of cards) {
-		const content = extractContentWords(card);
-		for (let runs of Object.values(content)) {
-			const str = runs.join(' ');
-			const words = str.split(' ');
-			for (let word of words) {
-				const stemmedWord = memorizedStemmer(word);
-				if (!counts[stemmedWord]) counts[stemmedWord] = {};
-				counts[stemmedWord][word] = (counts[stemmedWord][word] || 0) + 1;
-			}
-		}
-	}
-
-	//counts is now a map of destemmedWord to word.
-	const result = {};
-	for (let [destemmedWord, wordCounts] of Object.entries(counts)) {
-		let maxCount = 0;
-		let maxWord = '';
-		for (let [word, count] of Object.entries(wordCounts)) {
-			if (count <= maxCount) continue;
-			maxCount = count;
-			maxWord = word;
-		}
-		result[destemmedWord] = maxWord;
-	}
-	return result;
-};
-
 let memoizedNormalizedNgramMaps = new Map();
 
 const normalizeNgramMap = (ngramMap) => {
@@ -722,28 +688,45 @@ const extractOriginalNgramFromRun = (targetNgram, normalizedRun, stemmedRun, wit
 
 	//If we get to here, we have a startWordIndex and wordCount that index into normalizedRun.
 	return normalizedRun.split(' ').slice(startWordIndex, startWordIndex + wordCount).join(' ');
+
 };
 
-//prettyFingerprintItem returns a version of the fingerprint suitable for
-//showing to a user, by de-stemming words based on the words that are most
-//common in cardObj. Returns an arary of items in Title case. cardObj can be a
-//single card or an array of them.
-export const prettyFingerprintItems = (fingerprint, cardObj) => {
-	if (!fingerprint) return '';
-	const destemmedMap = destemmedWordMap(cardObj);
-	let result = [];
-	//Since words might be in ngrams, and they might overlap with the same
-	//words, check for duplicates
-	for (let ngram of fingerprint.keys()) {
-		let item = [];
-		for (let word of ngram.split(' ')) {
-			//There should always be a destemmed word for word, but fall back
-			//just in case.
-			let destemmedWord = destemmedMap[word] || word;
-			let titleCaseDestemmedWord = destemmedWord.charAt(0).toUpperCase() + destemmedWord.slice(1);
-			item.push(titleCaseDestemmedWord);
+//The fingerprint must have been generated for the given cardOrCards, so that we
+//know there are ngrams to recover, otherwise you might see weird stemmed words.
+export const prettyFingerprintItems = (fingerprint, cardOrCards) => {
+	const result = [];
+	const cardArray = Array.isArray(cardOrCards) ? cardOrCards : [cardOrCards];
+	for (const ngram of fingerprint.keys()) {
+		const originalNgrams = {};
+		for (const card of cardArray) {
+			for (const [fieldName, runs] of Object.entries(card.nlp.normalized)) {
+				for (let i = 0; i < runs.length; i++) {
+					const normalizedRun = runs[i];
+					const stemmedRun = card.nlp.stemmed[fieldName][i];
+					const withoutStopWordsRun = card.nlp.withoutStopWords[fieldName][i];
+					const originalNgram = extractOriginalNgramFromRun(ngram, normalizedRun,stemmedRun,withoutStopWordsRun);
+					if (originalNgram) {
+						originalNgrams[originalNgram] = (originalNgrams[originalNgrams] || 0) + 1;
+					}
+				}
+			}
 		}
-		result.push(item.join(' '));
+		let maxCount = 0;
+		//defaul to the passed ngram if we have nothing else
+		let maxOriginalNgram = '';
+		for (const [originalNgram, count] of Object.entries(originalNgrams)) {
+			if (count < maxCount) continue;
+			maxCount = count;
+			maxOriginalNgram = originalNgram;
+		}
+		//If there were no original ngrams, then cardOrCards was likely
+		//diffferent than what was used for fingerprint.
+		if (!maxOriginalNgram) {
+			maxOriginalNgram = ngram.split(' ').map(word => reversedStemmedWords[word]).join(' ');
+		}
+
+		const titleCaseOriginalNgram = maxOriginalNgram.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+		result.push(titleCaseOriginalNgram);
 	}
 	return result;
 };
@@ -1154,7 +1137,6 @@ export class FingerprintGenerator {
 export const TESTING = {
 	splitRuns,
 	ngrams,
-	destemmedWordMap,
 	extractOriginalNgramFromRun,
 	fullyNormalizedString,
 	normalizedWords,
