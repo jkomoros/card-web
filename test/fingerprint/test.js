@@ -453,7 +453,7 @@ describe('fingerprint generation', () => {
 			'Chaotic',
 			'Cynefin Model',
 			'Complicated',
-			'Required',
+			'Require',
 			'Cynefin\'s',
 			'Blammo',
 			'Cynenfin',
@@ -498,7 +498,7 @@ describe('fingerprint generation', () => {
 			'Chaotic',
 			'Cynefin Model',
 			'Complicated',
-			'Required',
+			'Require',
 			'Cynefin\'s',
 			'Blammo',
 			'Cynenfin',
@@ -534,7 +534,7 @@ describe('fingerprint generation', () => {
 		const generator = new FingerprintGenerator(cards);
 		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
 		const pretty = dedupedPrettyFingerprint(fingerprint, cards[CARD_ID_TWO]);
-		const expectedPretty = 'Cynefin Model Terminology Called Unknowably Chaotic Complicated Required Cynefin\'s Blammo Cynenfin Hard Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Dupe Diagnosing Simple Past Ambiguous Shifted Trivial Consistently Different Next';
+		const expectedPretty = 'Cynefin Model Terminology Called Unknowably Chaotic Complicated Require Cynefin\'s Blammo Cynenfin Hard Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Dupe Diagnosing Simple Past Ambiguous Shifted Trivial Consistently Different Next';
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});
 
@@ -543,7 +543,7 @@ describe('fingerprint generation', () => {
 		const generator = new FingerprintGenerator(cards);
 		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
 		const pretty = dedupedPrettyFingerprint(fingerprint, [cards[CARD_ID_TWO],cards[CARD_ID_THREE]]);
-		const expectedPretty = 'Cynefin Model Terminology Called Unknowably Chaotic Complicated Required Cynefin\'s Blammo Cynenfin Hard Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Dupe Diagnosing Simple Past Ambiguous Shifted Trivial Consistently Different Next';
+		const expectedPretty = 'Cynefin Model Terminology Called Unknowably Chaotic Complicated Require Cynefin\'s Blammo Cynenfin Hard Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Dupe Diagnosing Simple Past Ambiguous Shifted Trivial Consistently Different Next';
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});
 
