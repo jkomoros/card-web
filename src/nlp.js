@@ -820,8 +820,9 @@ export const possibleMissingConcepts = (cards) => {
 	for (const ngram of ngramWordCountSortedKeys) {
 		const individualTFIDF = cumulativeTFIDFForNgram[ngram];
 
-		const cards = cardIDsForNgram[ngram];
-		const cardCount = cards.length;
+		const cardIDs = cardIDsForNgram[ngram];
+		const cardsExpanded = cardIDs.map(id => cards[id]);
+		const cardCount = cardIDs.length;
 
 		//The only keys already in ngramBundles will be either the same size as
 		//our ngram, or smaller.
@@ -869,7 +870,8 @@ export const possibleMissingConcepts = (cards) => {
 			cumulativeSubNgramCumulativeTFIDF,
 			individualToCumulativeRatio,
 			cumulativeTFIDF,
-			cards,
+			cardIDs,
+			cardsExpanded,
 			cardCount,
 			sortedNgram,
 			subNgrams,
