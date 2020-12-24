@@ -743,6 +743,7 @@ export const dedupedPrettyFingerprint = (fingerprint, cardObj) => {
 	for (let ngram of fingerprintItems) {
 		for (let word of ngram.split(' ')) {
 			if (seenItems[word]) continue;
+			if (STOP_WORDS[word.toLowerCase()]) continue;
 			seenItems[word] = true;
 			dedupedFingerprint.push(word);
 		}
