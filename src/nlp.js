@@ -651,9 +651,11 @@ const extractOriginalNgramFromRun = (targetNgram, normalizedRun, stemmedRun, wit
 	//How many pieces we've matched in stemmedRunPieces. Note that this increments for stop words, too.
 	let wordCount = 0;
 
-	for (let i = 0; i < stemmedRunWords.length; i++) {
+	let i = 0;
+	while (i < stemmedRunWords.length) {
 		const word = stemmedRunWords[i];
 		if (STOP_WORDS[[word]]) {
+			i++;
 			//If we're not currently matching, just ignore it
 			if (startWordIndex < 0) continue;
 			//If we're currently matching, include this in the match and contineu to next word
@@ -669,12 +671,17 @@ const extractOriginalNgramFromRun = (targetNgram, normalizedRun, stemmedRun, wit
 			if (targetNgramIndex == 0) startWordIndex = i;
 			targetNgramIndex++;
 			wordCount++;
+			i++;
 			//Was that the last piece we needed?
 			if (targetNgramIndex >= targetNgramWords.length) break;
 			continue;
 		}
-
+		
 		//If we get to here it wasn't a stop word and it wasn't a match.
+
+		//If we were in a match but just fell out of it, DON'T advance to the
+		//next word; this current word might have started a match!
+		if (startWordIndex < 0) i++;
 		startWordIndex = -1;
 		targetNgramIndex = 0;
 		wordCount = 0;

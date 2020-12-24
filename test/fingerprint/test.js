@@ -901,6 +901,24 @@ describe('extractOriginalNgramFromRun', () => {
 		assert.deepStrictEqual(result,expected);
 	});
 
+	it('returns the right words if there is an earlier partial match immediately lined up', () => {
+		//you and is are both stop words
+		const rawTarget = 'look bar';
+		const rawRun = 'Foo looking to look to bar baz';
+		const expected = 'look to bar';
+		const result = runExtractOriginalNgramFromRunTest(rawTarget, rawRun);
+		assert.deepStrictEqual(result,expected);
+	});
+
+	it('stop words outside of match don\'t get in infinite loop', () => {
+		//you and is are both stop words
+		const rawTarget = 'look bar';
+		const rawRun = 'you looking bar baz';
+		const expected = 'looking bar';
+		const result = runExtractOriginalNgramFromRunTest(rawTarget, rawRun);
+		assert.deepStrictEqual(result,expected);
+	});
+
 });
 
 describe('ngrams', () => {
