@@ -549,9 +549,18 @@ const ngramWithinOther =(ngram, container) => {
 
 const memoizedWordBoundaryRegExp = {};
 
+//from https://stackoverflow.com/a/3561711
+const escapeRegex = (string) => {
+	// eslint-disable-next-line no-useless-escape
+	return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+};
+
 const wordBoundaryRegExp = (ngram) => {
 	if (!memoizedWordBoundaryRegExp[ngram]) {
-		memoizedWordBoundaryRegExp[ngram] = new RegExp('(^| )' + ngram + '( |$)');
+		//we have to escape any special characters in the ngram so they aren't
+		//interpreted as regex control characters. Those characters are rare,
+		//but can happen if they're inside a word.
+		memoizedWordBoundaryRegExp[ngram] = new RegExp('(^| )' + escapeRegex(ngram) + '( |$)');
 	}
 	return memoizedWordBoundaryRegExp[ngram];
 };

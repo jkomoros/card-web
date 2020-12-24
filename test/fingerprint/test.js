@@ -919,6 +919,15 @@ describe('extractOriginalNgramFromRun', () => {
 		assert.deepStrictEqual(result,expected);
 	});
 
+	it('words with regexp special characters dont break', () => {
+		//you and is are both stop words
+		const rawTarget = 'look(ing bar';
+		const rawRun = 'you look(ing bar baz';
+		const expected = 'look(ing bar';
+		const result = runExtractOriginalNgramFromRunTest(rawTarget, rawRun);
+		assert.deepStrictEqual(result,expected);
+	});
+
 });
 
 describe('ngrams', () => {
