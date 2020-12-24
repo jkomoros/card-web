@@ -4,7 +4,6 @@ import {
 
 import {
 	cardWithNormalizedTextProperties,
-	dedupedPrettyFingerprint
 } from './nlp.js';
 
 import {
@@ -29,7 +28,7 @@ const workingNotesExtractor = (card,state) => {
 	const conceptsMap = selectConcepts(state);
 	const cardCopy = cardWithNormalizedTextProperties(card, fallbackMap, conceptsMap);
 	const fingerprint = getSemanticFingerprintForCard(state, cardCopy);
-	const pretty = dedupedPrettyFingerprint(fingerprint, cardCopy);
+	const pretty = fingerprint.dedupedPrettyItems();
 	const title = date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'2-digit'}) + ' ' + pretty.split(' ').slice(0, NUM_TERMS_OF_FINGERPRINT).join(' ');
 	return {
 		...card,

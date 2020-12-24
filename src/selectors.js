@@ -46,7 +46,6 @@ import {
 
 import {
 	FingerprintGenerator,
-	wordCloudFromFingerprint,
 	extractFiltersFromQuery,
 	emptyWordCloud,
 	cardWithNormalizedTextProperties,
@@ -647,7 +646,7 @@ const selectEditingNormalizedCard = (state) => {
 //Warning: this is EXTREMELY expensive. Like 10 seconds of processing expensive!
 export const selectWordCloudForPossibleMissingConcepts = createSelector(
 	selectCards,
-	(cards) => wordCloudFromFingerprint(possibleMissingConcepts(cards), Object.values(cards))
+	(cards) => possibleMissingConcepts(cards).wordCloud()
 );
 
 const selectEditingCardSemanticFingerprint = createSelector(
@@ -722,7 +721,7 @@ export const selectWordCloudForActiveCard = createSelector(
 	(card, fingerprintGenerator) => {
 		if (!card) return emptyWordCloud();
 		const fingerprint = fingerprintGenerator.fingerprintForCardObj(card);
-		return wordCloudFromFingerprint(fingerprint, card);
+		return fingerprint.wordCloud();
 	}
 );
 
@@ -1114,7 +1113,7 @@ export const selectActiveCollectionWordCloud = createSelector(
 	selectFingerprintGenerator,
 	(collection, fingerprintGenerator) => {
 		const fingerprint = fingerprintGenerator.fingerprintForCardIDList(collection.filteredCards.map(card => card.id));
-		return wordCloudFromFingerprint(fingerprint, collection.filteredCards);
+		return fingerprint.wordCloud();
 	}
 );
 

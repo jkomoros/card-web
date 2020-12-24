@@ -516,33 +516,6 @@ const queryWordsAndFilters = (queryString) => {
 	return [words.join(' '), filters];
 };
 
-//The max number of words to include in the semantic fingerprint
-const SEMANTIC_FINGERPRINT_SIZE = 35;
-
-const SEMANTIC_FINGERPRINT_MATCH_CONSTANT = 1.0;
-
-//Returns the 'overlap' between two semantic fingerprints (which can be fetched
-//from e.g. selectCardsSemanticFingerprint). Higher nubmers are better. The
-//numbers may be any number greater than 0, and only have meaning when compared
-//to other numbers from this function.
-const semanticOverlap = (fingerprintOne, fingerprintTwo) => {
-	if (!fingerprintOne) fingerprintOne = new Map();
-	if (!fingerprintTwo) fingerprintTwo = new Map();
-
-	let union = new Set([...fingerprintOne.keys(), ...fingerprintTwo.keys()]);
-	let intersection = new Map();
-	for (let key of union) {
-		if (fingerprintOne.has(key) && fingerprintTwo.has(key)) {
-			//If they match, add the tfidf for the two terms, plus a bonus
-			//constant for them having matched. This gives a big bonus for any
-			//match, but gives a higher score for better matches.
-			intersection.set(key, SEMANTIC_FINGERPRINT_MATCH_CONSTANT + fingerprintOne.get(key) + fingerprintTwo.get(key));
-		}
-	}
-	const total = [...intersection.values()].reduce((p, c) => p + c, 0);
-	return total;
-};
-
 const ngramWithinOther =(ngram, container) => {
 	return wordBoundaryRegExp(ngram).test(container);
 };
@@ -635,12 +608,6 @@ const wordCountsForSemantics = (strsMap, cardObj, maxFingerprintSize) => {
 	return cardMap;
 };
 
-const semanticFingerprint = (tfidf, fingerprintSize) => {
-	//Pick the keys for the items with the highest tfidf (the most important and specific to that card)
-	let keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, fingerprintSize);
-	return new Map(keys.map(key => [key, tfidf[key]]));
-};
-
 //targetNgram is the targted, withoutStopWords ngram to look for. *Run
 //properties are the same run, indexed out of nlp.normalized, nlp.stemmed, and
 //nlp.withoutStopWords, respectively. The result will be a substring out of
@@ -706,66 +673,6 @@ const extractOriginalNgramFromRun = (targetNgram, normalizedRun, stemmedRun, wit
 	//If we get to here, we have a startWordIndex and wordCount that index into normalizedRun.
 	return normalizedRun.split(' ').slice(startWordIndex, startWordIndex + wordCount).join(' ');
 
-};
-
-//The fingerprint must have been generated for the given cardOrCards, so that we
-//know there are ngrams to recover, otherwise you might see weird stemmed words.
-export const prettyFingerprintItems = (fingerprint, cardOrCards) => {
-	const result = [];
-	const cardArray = Array.isArray(cardOrCards) ? cardOrCards : [cardOrCards];
-	for (const ngram of fingerprint.keys()) {
-		const originalNgrams = {};
-		for (const card of cardArray) {
-			for (const [fieldName, runs] of Object.entries(card.nlp.normalized)) {
-				for (let i = 0; i < runs.length; i++) {
-					const normalizedRun = runs[i];
-					const stemmedRun = card.nlp.stemmed[fieldName][i];
-					const withoutStopWordsRun = card.nlp.withoutStopWords[fieldName][i];
-					const originalNgram = extractOriginalNgramFromRun(ngram, normalizedRun,stemmedRun,withoutStopWordsRun);
-					if (originalNgram) {
-						originalNgrams[originalNgram] = (originalNgrams[originalNgram] || 0) + 1;
-					}
-				}
-			}
-		}
-		let maxCount = 0;
-		//defaul to the passed ngram if we have nothing else
-		let maxOriginalNgram = '';
-		for (const [originalNgram, count] of Object.entries(originalNgrams)) {
-			if (count < maxCount) continue;
-			maxCount = count;
-			maxOriginalNgram = originalNgram;
-		}
-		//If there were no original ngrams, then cardOrCards was likely
-		//diffferent than what was used for fingerprint.
-		if (!maxOriginalNgram) {
-			maxOriginalNgram = ngram.split(' ').map(word => reversedStemmedWords[word]).join(' ');
-		}
-
-		const titleCaseOriginalNgram = maxOriginalNgram.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-		result.push(titleCaseOriginalNgram);
-	}
-	return result;
-};
-
-//dedupedPrettyFingerprint returns a version of the fingerprint suitable for
-//showing to a user, by de-stemming words based on the words that are most
-//common in cardObj. Returns a string where any dupcliates have been removed.
-export const dedupedPrettyFingerprint = (fingerprint, cardObj) => {
-	const fingerprintItems = prettyFingerprintItems(fingerprint, cardObj);
-	const seenItems = {};
-	let dedupedFingerprint = [];
-	//Since words might be in ngrams, and they might overlap with the same
-	//words, check for duplicates
-	for (let ngram of fingerprintItems) {
-		for (let word of ngram.split(' ')) {
-			if (seenItems[word]) continue;
-			if (STOP_WORDS[word.toLowerCase()]) continue;
-			seenItems[word] = true;
-			dedupedFingerprint.push(word);
-		}
-	}
-	return dedupedFingerprint.join(' ');
 };
 
 const MAX_MISSING_POSSIBLE_CONCEPTS = 100;
@@ -958,15 +865,15 @@ export const possibleMissingConcepts = (cards) => {
 
 	//TODO: what's the system to say 'nah I don't want X to be a concept'?
 
-	return new Map(finalNgrams.map(ngram => [ngram, ngramBundles[ngram].scoreForBundle]));
-
+	const resultMap = new Map(finalNgrams.map(ngram => [ngram, ngramBundles[ngram].scoreForBundle]));
+	return new Fingerprint(resultMap, Object.values(cards), maximumFingerprintGenerator);
 };
 
 export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrConceptCards, concepts) => {
 	const result = [];
 	if (!card || !fingerprint) return [];
 	if (!BODY_CARD_TYPES[card.card_type]) return [];
-	const itemsFromConceptReferences = fingerprintItemsFromConceptReferences(fingerprint, card);
+	const itemsFromConceptReferences = fingerprint.itemsFromConceptReferences();
 	const ackReferences = references(card).byType[REFERENCE_TYPE_ACK] || {};
 	const normalizedConcepts = normalizeNgramMap(concepts);
 	for (let fingerprintItem of fingerprint.keys()) {
@@ -987,51 +894,155 @@ export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrC
 	return result;
 };
 
-//returns a map of fingerprintItem -> true for the fingerprint items that
-//overlap with the text in concept references for the given card obj. That is,
-//they don't just _happen_ to overlap with a concept, they come (at least
-//partially) from that explicit reference.
-const fingerprintItemsFromConceptReferences = (fingerprint, cardObj) => {
-	if (!cardObj) return {};
-	//sometimes cardObj is an array of cardObjs
-	let objs = Array.isArray(cardObj) ? cardObj : [cardObj];
-	let result = {};
-	for (let obj of objs) {
-		let strs = obj.nlp.withoutStopWords[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND];
-		for (let str of strs) {
-			//The fingerprint will have STOP_WORDs filtered, since it's
-			//downstream of wordCountsForSemantics, so do the same to check for
-			//a match.
-			if (fingerprint.has(str)) {
-				result[str] = true;
-			}
-		}
-	}
-	return result;
-};
-
 export const emptyWordCloud = () => {
 	return [[],{}];
 };
 
-//cardObj can be a single card, or an array of cards.
-export const wordCloudFromFingerprint = (fingerprint, cardObj) => {
-	if (!fingerprint || fingerprint.keys().length == 0) return emptyWordCloud();
-	const displayItems = prettyFingerprintItems(fingerprint, cardObj);
-	const maxAmount = Math.max(...fingerprint.values());
-	const conceptItems = fingerprintItemsFromConceptReferences(fingerprint, cardObj);
-	const infos = Object.fromEntries([...fingerprint.entries()].map((entry,index) => {
-		const amount = entry[1] / maxAmount * 100;
-		const info = {title: displayItems[index],suppressLink:true, filter: 'opacity(' + amount + '%)'};
-		if (conceptItems[entry[0]]) info.color = 'var(--app-secondary-color)';
-		return [entry[0], info];
-	}));
-	return [[...fingerprint.keys()], infos];
-};
+//The max number of words to include in the semantic fingerprint
+const SEMANTIC_FINGERPRINT_SIZE = 35;
+
+const SEMANTIC_FINGERPRINT_MATCH_CONSTANT = 1.0;
+
+class Fingerprint {
+	constructor(items, cardOrCards, generator) {
+		this._cards = Array.isArray(cardOrCards) ? cardOrCards : [cardOrCards];
+		this._generator = generator;
+		this._items = items || new Map();
+	}
+
+	keys() {
+		return this._items.keys();
+	}
+
+	values() {
+		return this.items.values();
+	}
+
+	entries() {
+		return this._items.entries();
+	}
+
+	wordCloud() {
+		if (!this._items || this._items.keys().length == 0) return emptyWordCloud();
+		const displayItems = this.prettyItems();
+		const maxAmount = Math.max(...this._items.values());
+		const conceptItems = this.itemsFromConceptReferences();
+		const infos = Object.fromEntries([...this._items.entries()].map((entry,index) => {
+			const amount = entry[1] / maxAmount * 100;
+			const info = {title: displayItems[index],suppressLink:true, filter: 'opacity(' + amount + '%)'};
+			if (conceptItems[entry[0]]) info.color = 'var(--app-secondary-color)';
+			return [entry[0], info];
+		}));
+		return [[...this._items.keys()], infos];
+	}
+
+	prettyItems() {
+		const result = [];
+		for (const ngram of this._items.keys()) {
+			const originalNgrams = {};
+			for (const card of this._cards) {
+				for (const [fieldName, runs] of Object.entries(card.nlp.normalized)) {
+					for (let i = 0; i < runs.length; i++) {
+						const normalizedRun = runs[i];
+						const stemmedRun = card.nlp.stemmed[fieldName][i];
+						const withoutStopWordsRun = card.nlp.withoutStopWords[fieldName][i];
+						const originalNgram = extractOriginalNgramFromRun(ngram, normalizedRun,stemmedRun,withoutStopWordsRun);
+						if (originalNgram) {
+							originalNgrams[originalNgram] = (originalNgrams[originalNgram] || 0) + 1;
+						}
+					}
+				}
+			}
+			let maxCount = 0;
+			//defaul to the passed ngram if we have nothing else
+			let maxOriginalNgram = '';
+			for (const [originalNgram, count] of Object.entries(originalNgrams)) {
+				if (count < maxCount) continue;
+				maxCount = count;
+				maxOriginalNgram = originalNgram;
+			}
+			//If there were no original ngrams, then cardOrCards was likely
+			//diffferent than what was used for fingerprint.
+			if (!maxOriginalNgram) {
+				maxOriginalNgram = ngram.split(' ').map(word => reversedStemmedWords[word]).join(' ');
+			}
+
+			const titleCaseOriginalNgram = maxOriginalNgram.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+			result.push(titleCaseOriginalNgram);
+		}
+		return result;
+	}
+
+	//dedupedPrettyItems returns a version of the fingerprint suitable for
+	//showing to a user, by de-stemming words based on the words that are most
+	//common in cardObj. Returns a string where any dupcliates have been removed.
+	dedupedPrettyItems() {
+		const fingerprintItems = this.prettyItems();
+		const seenItems = {};
+		let dedupedFingerprint = [];
+		//Since words might be in ngrams, and they might overlap with the same
+		//words, check for duplicates
+		for (let ngram of fingerprintItems) {
+			for (let word of ngram.split(' ')) {
+				if (seenItems[word]) continue;
+				if (STOP_WORDS[word.toLowerCase()]) continue;
+				seenItems[word] = true;
+				dedupedFingerprint.push(word);
+			}
+		}
+		return dedupedFingerprint.join(' ');
+	}
+
+	//returns a map of fingerprintItem -> true for the fingerprint items that
+	//overlap with the text in concept references for the given card obj. That is,
+	//they don't just _happen_ to overlap with a concept, they come (at least
+	//partially) from that explicit reference.
+	itemsFromConceptReferences() {
+		if (!this._cards) return {};
+		let result = {};
+		for (let obj of this._cards) {
+			let strs = obj.nlp.withoutStopWords[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND];
+			for (let str of strs) {
+				//The fingerprint will have STOP_WORDs filtered, since it's
+				//downstream of wordCountsForSemantics, so do the same to check for
+				//a match.
+				if (this._items.has(str)) {
+					result[str] = true;
+				}
+			}
+		}
+		return result;
+	}
+
+	//Returns the 'overlap' between two semantic fingerprints (which can be fetched
+	//from e.g. selectCardsSemanticFingerprint). Higher nubmers are better. The
+	//numbers may be any number greater than 0, and only have meaning when compared
+	//to other numbers from this function.
+	semanticOverlap(otherFingerprint) {
+
+		const fingerprintOne = this._items ? this._items : new Map();
+		const fingerprintTwo = otherFingerprint && otherFingerprint._items ? otherFingerprint._items : new Map();
+
+		let union = new Set([...fingerprintOne.keys(), ...fingerprintTwo.keys()]);
+		let intersection = new Map();
+		for (let key of union) {
+			if (fingerprintOne.has(key) && fingerprintTwo.has(key)) {
+				//If they match, add the tfidf for the two terms, plus a bonus
+				//constant for them having matched. This gives a big bonus for any
+				//match, but gives a higher score for better matches.
+				intersection.set(key, SEMANTIC_FINGERPRINT_MATCH_CONSTANT + fingerprintOne.get(key) + fingerprintTwo.get(key));
+			}
+		}
+		const total = [...intersection.values()].reduce((p, c) => p + c, 0);
+		return total;
+	}
+
+}
 
 export class FingerprintGenerator {
 	constructor(cards, optFingerprintSize = SEMANTIC_FINGERPRINT_SIZE, optNgramSize = MAX_N_GRAM_FOR_FINGERPRINT) {
 
+		this._cards = cards;
 		this._idfMap = {};
 		this._fingerprints = {};
 		this._fingerprintSize = optFingerprintSize;
@@ -1080,9 +1091,16 @@ export class FingerprintGenerator {
 			//See https://en.wikipedia.org/wiki/Tf%E2%80%93idf for more on
 			//TF-IDF.
 			const tfidf = this._cardTFIDF(cardWordCount);
-			fingerprints[cardID] = semanticFingerprint(tfidf, this._fingerprintSize);
+			fingerprints[cardID] = this._fingerprintForTFIDF(tfidf, cards[cardID]);
 		}
 		this._fingerprints = fingerprints;
+	}
+
+	_fingerprintForTFIDF(tfidf, cardOrCards) {
+		//Pick the keys for the items with the highest tfidf (the most important and specific to that card)
+		let keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, this.fingerprintSize());
+		let items = new Map(keys.map(key => [key, tfidf[key]]));
+		return new Fingerprint(items, cardOrCards, this);
 	}
 
 	_wordCountsForCardObj(cardObj) {
@@ -1110,10 +1128,10 @@ export class FingerprintGenerator {
 	}
 
 	fingerprintForCardObj(cardObj) {
-		if (!cardObj || Object.keys(cardObj).length == 0) return new Map();
+		if (!cardObj || Object.keys(cardObj).length == 0) return new Fingerprint();
 		const wordCounts = this._wordCountsForCardObj(cardObj);
 		const tfidf = this._cardTFIDF(wordCounts);
-		const fingerprint = semanticFingerprint(tfidf, this._fingerprintSize);
+		const fingerprint = this._fingerprintForTFIDF(tfidf, cardObj);
 		return fingerprint;
 	}
 
@@ -1127,12 +1145,16 @@ export class FingerprintGenerator {
 				combinedTFIDF[word] = (combinedTFIDF[word] || 0) + idf;
 			}
 		}
-		return semanticFingerprint(combinedTFIDF, this._fingerprintSize);
+		return this._fingerprintForTFIDF(combinedTFIDF, cardIDs.map(id => this._cards[id]));
 	}
 
 	//returns a map of cardID => fingerprint for the cards that were provided to the constructor
 	fingerprints() {
 		return this._fingerprints;
+	}
+
+	fingerprintSize() {
+		return this._fingerprintSize;
 	}
 
 	//Returns a map sorted by how many other items match semantically, skipping ourselves.
@@ -1147,7 +1169,7 @@ export class FingerprintGenerator {
 		const overlaps = {};
 		for (const otherID of Object.keys(fingerprints)) {
 			if (otherID === keyID) continue;
-			overlaps[otherID] = semanticOverlap(keyFingerprint, fingerprints[otherID]);
+			overlaps[otherID] = keyFingerprint.semanticOverlap(fingerprints[otherID]);
 		}
 		const sortedIDs = Object.keys(overlaps).sort((a, b) => overlaps[b] - overlaps[a]);
 		return new Map(sortedIDs.map(id => [id, overlaps[id]]));

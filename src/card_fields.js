@@ -406,7 +406,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 	//This counts outboudn reference text to concepts. That text will have
 	//already been counted in TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND, so this
 	//has the effect of triple counting concepts since theyr'e so important.
-	//NOTE: fingerprintItemsFromConceptReferences in nlp.js relies on this configuration
+	//NOTE: fingerprint.itemsFromConceptReferences in nlp.js relies on this configuration
 	[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: {
 		html: false,
 		readOnly: true,
