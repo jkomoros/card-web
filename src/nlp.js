@@ -710,6 +710,7 @@ const extractOriginalNgramFromRun = (targetNgram, normalizedRun, stemmedRun, wit
 
 		//If we get to here it wasn't a stop word and it wasn't a match.
 		startWordIndex = -1;
+		targetNgramIndex = 0;
 		wordCount = 0;
 	}
 

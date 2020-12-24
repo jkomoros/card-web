@@ -929,6 +929,14 @@ describe('extractOriginalNgramFromRun', () => {
 		assert.deepStrictEqual(result,expected);
 	});
 
+	it('returns multiple words ignoring earlier partial match', () => {
+		const rawTarget = 'running bar';
+		const rawRun = 'Foo-baz running! foo running bar fizz.';
+		const expected = 'running bar';
+		const result = runExtractOriginalNgramFromRunTest(rawTarget, rawRun);
+		assert.deepStrictEqual(result,expected);
+	});
+
 	it('returns multiple words if single word match, including intervening stop words', () => {
 		//you and is are both stop words
 		const rawTarget = 'running you fizz';
@@ -938,15 +946,14 @@ describe('extractOriginalNgramFromRun', () => {
 		assert.deepStrictEqual(result,expected);
 	});
 
-	//This test fails
-	// it('returns multiple words if single word match, skipping an earlier partial match', () => {
-	// 	//you and is are both stop words
-	// 	const rawTarget = 'running you fizz';
-	// 	const rawRun = 'Foo-bar running! is bar running is is fizz';
-	// 	const expected = 'running is is fizz';
-	// 	const result = runExtractOriginalNgramFromRunTest(rawTarget, rawRun);
-	// 	assert.deepStrictEqual(result,expected);
-	// });
+	it('returns multiple words if single word match, skipping an earlier partial match', () => {
+		//you and is are both stop words
+		const rawTarget = 'running you fizz';
+		const rawRun = 'Foo-bar running! is bar running is is fizz';
+		const expected = 'running is is fizz';
+		const result = runExtractOriginalNgramFromRunTest(rawTarget, rawRun);
+		assert.deepStrictEqual(result,expected);
+	});
 
 });
 
