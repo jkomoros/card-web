@@ -908,6 +908,7 @@ class Fingerprint {
 		this._cards = Array.isArray(cardOrCards) ? cardOrCards : [cardOrCards];
 		this._generator = generator;
 		this._items = items || new Map();
+		this._memoizedWordCloud = null;
 	}
 
 	keys() {
@@ -923,6 +924,13 @@ class Fingerprint {
 	}
 
 	wordCloud() {
+		if (!this._memoizedWordCloud) {
+			this._memoizedWordCloud = this._generatewordCloud();
+		}
+		return this._memoizedWordCloud;
+	}
+
+	_generatewordCloud() {
 		if (!this._items || this._items.keys().length == 0) return emptyWordCloud();
 		const displayItems = this.prettyItems();
 		const maxAmount = Math.max(...this._items.values());
