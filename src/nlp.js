@@ -654,8 +654,9 @@ const extractOriginalNgramFromRun = (targetNgram, normalizedRun, stemmedRun, wit
 	let i = 0;
 	while (i < stemmedRunWords.length) {
 		const word = stemmedRunWords[i];
+		//Increment i now to make sure we don't forget, which would get us in an infinite loop
+		i++;
 		if (STOP_WORDS[[word]]) {
-			i++;
 			//If we're not currently matching, just ignore it
 			if (startWordIndex < 0) continue;
 			//If we're currently matching, include this in the match and contineu to next word
@@ -668,10 +669,10 @@ const extractOriginalNgramFromRun = (targetNgram, normalizedRun, stemmedRun, wit
 
 			//If it's the first word in the targetNgram, keep track of where it
 			//started.
-			if (targetNgramIndex == 0) startWordIndex = i;
+			//Note that i is already incremented so we have to decrement it
+			if (targetNgramIndex == 0) startWordIndex = i - 1;
 			targetNgramIndex++;
 			wordCount++;
-			i++;
 			//Was that the last piece we needed?
 			if (targetNgramIndex >= targetNgramWords.length) break;
 			continue;
@@ -681,7 +682,7 @@ const extractOriginalNgramFromRun = (targetNgram, normalizedRun, stemmedRun, wit
 
 		//If we were in a match but just fell out of it, DON'T advance to the
 		//next word; this current word might have started a match!
-		if (startWordIndex < 0) i++;
+		if (startWordIndex >= 0) i--;
 		startWordIndex = -1;
 		targetNgramIndex = 0;
 		wordCount = 0;
