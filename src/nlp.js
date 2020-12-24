@@ -666,6 +666,63 @@ const semanticFingerprint = (tfidf, fingerprintSize) => {
 	return new Map(keys.map(key => [key, tfidf[key]]));
 };
 
+//targetNgram is the targted, withoutStopWords ngram to look for. *Run
+//properties are the same run, indexed out of nlp.normalized, nlp.stemmed, and
+//nlp.withoutStopWords, respectively. The result will be a substring out of
+//normalizedRun corresponding to targetNgram. This will return '' if the
+//targetNgram doesn't exist as a word-boundary subset of withoutStopWordsRun.
+const extractOriginalNgramFromRun = (targetNgram, normalizedRun, stemmedRun, withoutStopWordsRun) => {
+	if (!ngramWithinOther(targetNgram, withoutStopWordsRun)) return '';
+	//We know that targetNgram is within withoutStopWordsRun. Now, look for its
+	//word index (start and length) within stemmedRun.
+	let stemmedRunWords = stemmedRun.split(' ');
+	let targetNgramWords = targetNgram.split(' ');
+
+	//which piece of the targetNgramPieces we're looking to match now
+	let targetNgramIndex = 0;
+	//Which piece the match starts on. Less than 0 if not currently matching.
+	let startWordIndex = -1;
+	//How many pieces we've matched in stemmedRunPieces. Note that this increments for stop words, too.
+	let wordCount = 0;
+
+	for (let i = 0; i < stemmedRunWords.length; i++) {
+		const word = stemmedRunWords[i];
+		if (STOP_WORDS[[word]]) {
+			//If we're not currently matching, just ignore it
+			if (startWordIndex < 0) continue;
+			//If we're currently matching, include this in the match and contineu to next word
+			wordCount++;
+			continue;
+		}
+		//Is the next piece a match for the next word of targetNgram we were looking to match?
+		if (word == targetNgramWords[targetNgramIndex]) {
+			//Found a match!
+
+			//If it's the first word in the targetNgram, keep track of where it
+			//started.
+			if (targetNgramIndex == 0) startWordIndex = i;
+			targetNgramIndex++;
+			wordCount++;
+			//Was that the last piece we needed?
+			if (targetNgramIndex >= targetNgramWords.length) break;
+			continue;
+		}
+
+		//If we get to here it wasn't a stop word and it wasn't a match.
+		startWordIndex = -1;
+		wordCount = 0;
+	}
+
+	//Did we get a full match? If we didn't, something's wrong somewhere.
+	if (targetNgramIndex < targetNgramWords.length) {
+		console.warn('Whoops we should have matched it, something went wrong');
+		return '';
+	}
+
+	//If we get to here, we have a startWordIndex and wordCount that index into normalizedRun.
+	return normalizedRun.split(' ').slice(startWordIndex, startWordIndex + wordCount).join(' ');
+};
+
 //prettyFingerprintItem returns a version of the fingerprint suitable for
 //showing to a user, by de-stemming words based on the words that are most
 //common in cardObj. Returns an arary of items in Title case. cardObj can be a
@@ -1097,4 +1154,9 @@ export const TESTING = {
 	splitRuns,
 	ngrams,
 	destemmedWordMap,
+	extractOriginalNgramFromRun,
+	fullyNormalizedString,
+	normalizedWords,
+	stemmedNormalizedWords,
+	withoutStopWords,
 };

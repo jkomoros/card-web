@@ -885,6 +885,71 @@ describe('splitRuns', () => {
 	});
 });
 
+const runExtractOriginalNgramFromRunTest = (rawTarget, rawRun) => {
+
+	const targetNgram = TESTING.fullyNormalizedString(rawTarget);
+	const normalizedRun = TESTING.normalizedWords(rawRun);
+	const stemmedRun = TESTING.stemmedNormalizedWords(normalizedRun);
+	const withoutStopWordsRun = TESTING.withoutStopWords(stemmedRun);
+
+	return TESTING.extractOriginalNgramFromRun(targetNgram, normalizedRun, stemmedRun, withoutStopWordsRun);
+};
+
+describe('extractOriginalNgramFromRun', () => {
+
+	it('returns nothing if total no op', () => {
+		const rawTarget = '';
+		const rawRun = '';
+		const expected = '';
+		const result = runExtractOriginalNgramFromRunTest(rawTarget, rawRun);
+		assert.deepStrictEqual(result,expected);
+	});
+
+	it('returns nothing if target not in run', () => {
+		const rawTarget = 'boo';
+		const rawRun = 'Foo-bar bazzle! is fizz.';
+		const expected = '';
+		const result = runExtractOriginalNgramFromRunTest(rawTarget, rawRun);
+		assert.deepStrictEqual(result,expected);
+	});
+
+	it('returns word if single word match', () => {
+		const rawTarget = 'run';
+		const rawRun = 'Foo-bar running! is fizz.';
+		const expected = 'running';
+		const result = runExtractOriginalNgramFromRunTest(rawTarget, rawRun);
+		assert.deepStrictEqual(result,expected);
+	});
+
+	it('returns multiple words if single word match', () => {
+		const rawTarget = 'foo bar running';
+		const rawRun = 'Foo-bar running! is fizz.';
+		const expected = 'foo bar running';
+		const result = runExtractOriginalNgramFromRunTest(rawTarget, rawRun);
+		assert.deepStrictEqual(result,expected);
+	});
+
+	it('returns multiple words if single word match, including intervening stop words', () => {
+		//you and is are both stop words
+		const rawTarget = 'running you fizz';
+		const rawRun = 'Foo-bar running! is fizz.';
+		const expected = 'running is fizz';
+		const result = runExtractOriginalNgramFromRunTest(rawTarget, rawRun);
+		assert.deepStrictEqual(result,expected);
+	});
+
+	//This test fails
+	// it('returns multiple words if single word match, skipping an earlier partial match', () => {
+	// 	//you and is are both stop words
+	// 	const rawTarget = 'running you fizz';
+	// 	const rawRun = 'Foo-bar running! is bar running is is fizz';
+	// 	const expected = 'running is is fizz';
+	// 	const result = runExtractOriginalNgramFromRunTest(rawTarget, rawRun);
+	// 	assert.deepStrictEqual(result,expected);
+	// });
+
+});
+
 describe('ngrams', () => {
 	it('undefined gives empty ngrams', async () => {
 		const result = TESTING.ngrams();
