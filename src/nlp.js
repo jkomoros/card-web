@@ -776,22 +776,22 @@ const DEBUG_PRINT_MISSING_CONCEPTS_INFO = false;
 export const possibleMissingConcepts = (cards) => {
 	//Turn the size of ngrams we generate up to 11! This will help us find very long ngrams, but will use a LOT of memory and compuation.
 	const maximumFingerprintGenerator = new FingerprintGenerator(cards, SEMANTIC_FINGERPRINT_SIZE * 5, MAX_N_GRAM_FOR_FINGERPRINT + 5);
-	let cardCountForNgram = {};
+	let cardIDsForNgram = {};
 	let cumulativeTFIDFForNgram = {};
 
-	for (const fingerprint of Object.values(maximumFingerprintGenerator.fingerprints())) {
+	for (const [cardID, fingerprint] of Object.entries(maximumFingerprintGenerator.fingerprints())) {
 		for (const [ngram, tfidf] of fingerprint.entries()) {
-			cardCountForNgram[ngram] = (cardCountForNgram[ngram] || 0) + 1;
+			cardIDsForNgram[ngram] = [...(cardIDsForNgram[ngram] || []), cardID];
 			cumulativeTFIDFForNgram[ngram] = (cumulativeTFIDFForNgram[ngram] || 0) + tfidf;
 		}
 	}
 
 	//Filter out any ngrams that didn't show up in at least 3 cards
-	cardCountForNgram = Object.fromEntries(Object.entries(cardCountForNgram).filter(entry => entry[1] > 3));
-	cumulativeTFIDFForNgram = Object.fromEntries(Object.entries(cumulativeTFIDFForNgram).filter(entry => cardCountForNgram[entry[0]]));
+	cardIDsForNgram = Object.fromEntries(Object.entries(cardIDsForNgram).filter(entry => entry[1].length > 3));
+	cumulativeTFIDFForNgram = Object.fromEntries(Object.keys(cardIDsForNgram).map(key => [key, cumulativeTFIDFForNgram[key]]));
 
 	let ngramWordCount = {};
-	for (const ngram of Object.keys(cardCountForNgram)) {
+	for (const ngram of Object.keys(cardIDsForNgram)) {
 		ngramWordCount[ngram] = ngram.split(' ').length;
 	}
 
@@ -820,7 +820,8 @@ export const possibleMissingConcepts = (cards) => {
 	for (const ngram of ngramWordCountSortedKeys) {
 		const individualTFIDF = cumulativeTFIDFForNgram[ngram];
 
-		const cardCount = cardCountForNgram[ngram];
+		const cards = cardIDsForNgram[ngram];
+		const cardCount = cards.length;
 
 		//The only keys already in ngramBundles will be either the same size as
 		//our ngram, or smaller.
@@ -868,6 +869,7 @@ export const possibleMissingConcepts = (cards) => {
 			cumulativeSubNgramCumulativeTFIDF,
 			individualToCumulativeRatio,
 			cumulativeTFIDF,
+			cards,
 			cardCount,
 			sortedNgram,
 			subNgrams,
