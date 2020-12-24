@@ -723,7 +723,7 @@ export const prettyFingerprintItems = (fingerprint, cardOrCards) => {
 					const withoutStopWordsRun = card.nlp.withoutStopWords[fieldName][i];
 					const originalNgram = extractOriginalNgramFromRun(ngram, normalizedRun,stemmedRun,withoutStopWordsRun);
 					if (originalNgram) {
-						originalNgrams[originalNgram] = (originalNgrams[originalNgrams] || 0) + 1;
+						originalNgrams[originalNgram] = (originalNgrams[originalNgram] || 0) + 1;
 					}
 				}
 			}
