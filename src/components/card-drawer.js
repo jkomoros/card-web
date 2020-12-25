@@ -243,8 +243,9 @@ class CardDrawer extends connect(store)(LitElement) {
 				<div class='scrolling'>
 				<div class='label' id='count'>
 					<span>${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }<strong>${this.collection ? this.collection.numCards : 0}</strong> cards</span>
-					<div ?hidden=${!this.infoExpanded}>
+					<div class='info-panel' ?hidden=${!this.infoExpanded}>
 						<word-cloud .wordCloud=${this.wordCloud}></word-cloud>
+						<slot name='info'></slot>
 					</div>
 				</div>
 				${repeat(this.collection ? this.collection.finalSortedCards : [], (i) => i.id, (i, index) => html`
