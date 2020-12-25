@@ -42,7 +42,9 @@ import {
 	selectUserMayForkActiveCard,
 	selectWordCloudForMainCardDrawer,
 	selectCardsDrawerInfoExpanded,
-	selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard
+	selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard,
+	selectSuggestMissingConceptsEnabled,
+	selectUserIsAdmin,
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -240,7 +242,12 @@ class CardView extends connect(store)(PageViewElement) {
         }
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .collection=${this._collection} @info-zippy-clicked=${this._handleInfoZippyClicked} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' @add-working-notes-card='${this._handleAddWorkingNotesCard}' .editable=${this._userMayEditActiveSection} .suppressAdd=${!this._userMayCreateCard} .showCreateWorkingNotes=${this._userMayCreateCard} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .pendingFilters=${this._pendingFilters} .wordCloud=${this._collectionWordCloud} .infoExpanded=${this._infoExpanded} .infoCanBeExpanded=${true}></card-drawer>
+        <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .collection=${this._collection} @info-zippy-clicked=${this._handleInfoZippyClicked} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' @add-working-notes-card='${this._handleAddWorkingNotesCard}' .editable=${this._userMayEditActiveSection} .suppressAdd=${!this._userMayCreateCard} .showCreateWorkingNotes=${this._userMayCreateCard} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .pendingFilters=${this._pendingFilters} .wordCloud=${this._collectionWordCloud} .infoExpanded=${this._infoExpanded} .infoCanBeExpanded=${true}>
+			${this._userIsAdmin ? html`
+			<div slot='info'>
+				<input type='checkbox' .checked=${this._suggestMissingConceptsEnabled} disabled id='suggested-concepts-enabled'><label for='suggested-concepts-enabled'>Suggest Missing Concepts <strong>(SLOW)</strong></label>
+			</div>` : ''}
+		</card-drawer>
         <div id='center'>
 			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .updatedFromContentEditable=${this._updatedFromContentEditable} @text-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped}>
 				<div slot='actions' class='presentation'>
@@ -315,6 +322,8 @@ class CardView extends connect(store)(PageViewElement) {
 			_pendingNewCardIDToNavigateTo: {type:String},
 			_collectionWordCloud: {type:Object},
 			_infoExpanded: {type: Boolean},
+			_suggestMissingConceptsEnabled: {type:Boolean},
+			_userIsAdmin: {type:Boolean},
 		};
 	}
 
@@ -479,6 +488,8 @@ class CardView extends connect(store)(PageViewElement) {
 		this._cardTodos = selectActiveCardTodosForCurrentUser(state);
 		this._pendingNewCardIDToNavigateTo = selectPendingNewCardIDToNavigateTo(state);
 		this._infoExpanded = selectCardsDrawerInfoExpanded(state);
+		this._suggestMissingConceptsEnabled = selectSuggestMissingConceptsEnabled(state);
+		this._userIsAdmin = selectUserIsAdmin(state);
 
 		if (this._cardsDrawerPanelOpen && this._infoExpanded) {
 			//This is potentially EXTREMELY expensive so only fetch it if the panel is expanded
