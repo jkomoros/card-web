@@ -56,6 +56,9 @@ const INITIAL_STATE = {
 	cardBeingFetched: false,
 	ctrlKeyPressed: false,
 	maintenanceModeEnabled: false,
+	//if this is true, then the word cloud in card-drawer will be replaced with
+	//the suggest missing concepts, which is EXTREMELY expensive.
+	suggestMissingConceptsEnabled: false,
 };
 
 const app = (state = INITIAL_STATE, action) => {

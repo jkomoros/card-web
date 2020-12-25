@@ -41,7 +41,6 @@ import {
 	selectPendingNewCardIDToNavigateTo,
 	selectUserMayForkActiveCard,
 	selectWordCloudForMainCardDrawer,
-	selectWordCloudForPossibleMissingConcepts,
 	selectCardsDrawerInfoExpanded,
 	selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard
 } from '../selectors.js';
@@ -144,11 +143,6 @@ import {
 import { SharedStyles } from './shared-styles.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
-
-//If true, will output the missing concepts word cloud if the collection word
-//cloud is expanded. This is a temporary way to output this while working on the
-//core algorithm. Note that turning this on is very, very expensive.
-const DEBUG_OUTPUT_MISSING_CONCEPTS_WORD_CLOUD = false;
 
 class CardView extends connect(store)(PageViewElement) {
 	render() {
@@ -487,8 +481,8 @@ class CardView extends connect(store)(PageViewElement) {
 		this._infoExpanded = selectCardsDrawerInfoExpanded(state);
 
 		if (this._cardsDrawerPanelOpen && this._infoExpanded) {
-			//This is expensive so only fetch it if the panel is expanded
-			this._collectionWordCloud = DEBUG_OUTPUT_MISSING_CONCEPTS_WORD_CLOUD ? selectWordCloudForPossibleMissingConcepts(state) : selectWordCloudForMainCardDrawer(state);
+			//This is potentially EXTREMELY expensive so only fetch it if the panel is expanded
+			this._collectionWordCloud = selectWordCloudForMainCardDrawer(state);
 		}
 
 	}

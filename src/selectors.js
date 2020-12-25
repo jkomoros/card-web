@@ -97,6 +97,7 @@ export const selectFetchedCard = (state) => state.app.fetchedCard;
 export const selectCardBeingFetched = (state) => state.app.cardBeingFetched;
 export const selectMaintenanceModeEnabled = (state) => state.app.maintenanceModeEnabled;
 export const selectCardsDrawerInfoExpanded = (state) => state.app.cardsDrawerInfoExpanded;
+export const selectSuggestMissingConceptsEnabled = (state) => state.app.suggestMissingConceptsEnabled;
 
 export const selectComposeOpen = (state) => state.prompt.composeOpen;
 export const selectPromptContent = (state) => state.prompt.content;
@@ -644,7 +645,7 @@ const selectEditingNormalizedCard = (state) => {
 };
 
 //Warning: this is EXTREMELY expensive. Like 10 seconds of processing expensive!
-export const selectWordCloudForPossibleMissingConcepts = createSelector(
+const selectWordCloudForPossibleMissingConcepts = createSelector(
 	selectCards,
 	(cards) => possibleMissingConcepts(cards).wordCloud()
 );
@@ -1117,7 +1118,10 @@ const selectActiveCollectionWordCloud = createSelector(
 	}
 );
 
-export const selectWordCloudForMainCardDrawer = selectActiveCollectionWordCloud;
+//NOTE: this can be EXTREMELY expensive.
+export const selectWordCloudForMainCardDrawer = (state) => {
+	return selectSuggestMissingConceptsEnabled(state) ? selectWordCloudForPossibleMissingConcepts(state) : selectActiveCollectionWordCloud(state);
+};
 
 export const selectCountsForTabs = createSelector(
 	selectExpandedTabConfig,
