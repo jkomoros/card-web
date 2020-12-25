@@ -40,7 +40,7 @@ import {
 	selectEditingUpdatedFromContentEditable,
 	selectPendingNewCardIDToNavigateTo,
 	selectUserMayForkActiveCard,
-	selectActiveCollectionWordCloud,
+	selectWordCloudForMainCardDrawer,
 	selectWordCloudForPossibleMissingConcepts,
 	selectCardsDrawerInfoExpanded,
 	selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard
@@ -488,7 +488,7 @@ class CardView extends connect(store)(PageViewElement) {
 
 		if (this._cardsDrawerPanelOpen && this._infoExpanded) {
 			//This is expensive so only fetch it if the panel is expanded
-			this._collectionWordCloud = DEBUG_OUTPUT_MISSING_CONCEPTS_WORD_CLOUD ? selectWordCloudForPossibleMissingConcepts(state) : selectActiveCollectionWordCloud(state);
+			this._collectionWordCloud = DEBUG_OUTPUT_MISSING_CONCEPTS_WORD_CLOUD ? selectWordCloudForPossibleMissingConcepts(state) : selectWordCloudForMainCardDrawer(state);
 		}
 
 	}

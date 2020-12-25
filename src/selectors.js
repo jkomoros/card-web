@@ -1108,7 +1108,7 @@ export const selectActiveCollection = createSelector(
 	(description, args) => description ? description.collection(args) : null
 );
 
-export const selectActiveCollectionWordCloud = createSelector(
+const selectActiveCollectionWordCloud = createSelector(
 	selectActiveCollection,
 	selectFingerprintGenerator,
 	(collection, fingerprintGenerator) => {
@@ -1116,6 +1116,8 @@ export const selectActiveCollectionWordCloud = createSelector(
 		return fingerprint.wordCloud();
 	}
 );
+
+export const selectWordCloudForMainCardDrawer = selectActiveCollectionWordCloud;
 
 export const selectCountsForTabs = createSelector(
 	selectExpandedTabConfig,
