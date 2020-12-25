@@ -106,6 +106,7 @@ import {
 	navigateToPreviousCard,
 	openCommentsAndInfoPanel,
 	closeCommentsAndInfoPanel,
+	turnSuggestMissingConcepts,
 } from '../actions/app.js';
 
 //Components needed by this
@@ -245,7 +246,7 @@ class CardView extends connect(store)(PageViewElement) {
         <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .collection=${this._collection} @info-zippy-clicked=${this._handleInfoZippyClicked} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' @add-working-notes-card='${this._handleAddWorkingNotesCard}' .editable=${this._userMayEditActiveSection} .suppressAdd=${!this._userMayCreateCard} .showCreateWorkingNotes=${this._userMayCreateCard} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .pendingFilters=${this._pendingFilters} .wordCloud=${this._collectionWordCloud} .infoExpanded=${this._infoExpanded} .infoCanBeExpanded=${true}>
 			${this._userIsAdmin ? html`
 			<div slot='info'>
-				<input type='checkbox' .checked=${this._suggestMissingConceptsEnabled} disabled id='suggested-concepts-enabled'><label for='suggested-concepts-enabled'>Suggest Missing Concepts <strong>(SLOW)</strong></label>
+				<input type='checkbox' .checked=${this._suggestMissingConceptsEnabled} @change=${this._handleSuggestMissingConceptsChanged} id='suggested-concepts-enabled'><label for='suggested-concepts-enabled'>Suggest Missing Concepts <strong>(SLOW)</strong></label>
 			</div>` : ''}
 		</card-drawer>
         <div id='center'>
@@ -356,6 +357,12 @@ class CardView extends connect(store)(PageViewElement) {
 		if (e.detail.direction == 'right') {
 			this._handleBackClicked(e);
 		}
+	}
+
+	_handleSuggestMissingConceptsChanged(e) {
+		const ele = e.composedPath()[0];
+		const on = ele.checked;
+		store.dispatch(turnSuggestMissingConcepts(on));
 	}
 
 	_handleTextFieldUpdated(e) {
