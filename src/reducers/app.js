@@ -29,7 +29,8 @@ import {
 	UPDATE_CTRL_KEY_PRESSED,
 	UPDATE_MAINTENANCE_MODE_ENABLED,
 	OPEN_CARDS_DRAWER_INFO,
-	CLOSE_CARDS_DRAWER_INFO
+	CLOSE_CARDS_DRAWER_INFO,
+	TURN_SUGGEST_MISSING_CONCEPTS
 } from '../actions/app.js';
 
 const HEADER_PANEL_DEFAULT_VALUE = true;
@@ -178,6 +179,11 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			cardsDrawerInfoExpanded: false,
+		};
+	case TURN_SUGGEST_MISSING_CONCEPTS:
+		return{
+			...state,
+			suggestMissingConceptsEnabled: action.on,
 		};
 	default:
 		return state;
