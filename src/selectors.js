@@ -1181,14 +1181,23 @@ export const selectFindLegalCardTypeFilters = createSelector(
 	(bodyCardTypes, findCardTypeFilter) => [... new Set(['', ...bodyCardTypes, findCardTypeFilter])]
 );
 
+//Whether the find dialog is open generically
+const selectFindGeneric = createSelector(
+	selectFindReferencing,
+	selectFindLinking,
+	selectFindPermissions,
+	(referencing, linking, permissions) => !referencing && !linking && !permissions
+);
+
 export const selectCollectionDescriptionForQuery = createSelector(
 	selectActiveQueryText,
 	selectFindCardTypeFilter,
 	selectActiveCardId,
-	(queryText, cardTypeFilter, cardID) => {
+	selectFindGeneric,
+	(queryText, cardTypeFilter, cardID, generic) => {
 		const wordsAndFilters = extractFiltersFromQuery(queryText);
 		let baseFilters = ['has-body'];
-		if (cardID) baseFilters.push(EXCLUDE_FILTER_NAME + '/' + CARDS_FILTER_NAME + '/' + cardID);
+		if (cardID && !generic) baseFilters.push(EXCLUDE_FILTER_NAME + '/' + CARDS_FILTER_NAME + '/' + cardID);
 		if (cardTypeFilter) baseFilters.push(cardTypeFilter);
 		if (!wordsAndFilters[0] && !wordsAndFilters[1].length) {
 			baseFilters.push(SIMILAR_FILTER_NAME + '/' + cardID);
