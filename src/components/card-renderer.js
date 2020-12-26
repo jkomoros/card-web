@@ -222,8 +222,12 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			<div class="container ${this.editing ? 'editing' : ''} ${this._card.published ? 'published' : 'unpublished'}">
 				<div class='background'></div>
 				<div class='content'>
+					<div class='title-container'>
+						<!-- in the common case of a title as first item, don't render it in a scrollable area -->
+						${Object.keys(fieldsToRender).length && Object.keys(fieldsToRender)[0] == TEXT_FIELD_TITLE ? this._templateForField(TEXT_FIELD_TITLE) : ''}
+					</div>
 					<div class='primary'>
-						${Object.keys(fieldsToRender).map(fieldName => this._templateForField(fieldName))}
+						${Object.keys(fieldsToRender).filter((fieldName, index) => !(fieldName == TEXT_FIELD_TITLE && index == 0)).map(fieldName => this._templateForField(fieldName))}
 					</div>
 					<div class='reference-blocks'>
 						${(this.expandedReferenceBlocks || []).map(block => html`<reference-block .block=${block}></reference-block>`)}
