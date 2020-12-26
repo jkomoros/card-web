@@ -25,6 +25,8 @@ import {
 	queryConfigurableFilterText,
 	SIMILAR_FILTER_NAME,
 	LIMIT_FILTER_NAME,
+	EXCLUDE_FILTER_NAME,
+	CARDS_FILTER_NAME,
 } from './filters.js';
 
 import {
@@ -1184,6 +1186,7 @@ export const selectCollectionDescriptionForQuery = createSelector(
 	(queryText, cardTypeFilter, cardID) => {
 		const wordsAndFilters = extractFiltersFromQuery(queryText);
 		let baseFilters = ['has-body'];
+		if (cardID) baseFilters.push(EXCLUDE_FILTER_NAME + '/' + CARDS_FILTER_NAME + '/' + cardID);
 		if (cardTypeFilter) baseFilters.push(cardTypeFilter);
 		if (!wordsAndFilters[0] && !wordsAndFilters[1].length) {
 			baseFilters.push(SIMILAR_FILTER_NAME + '/' + cardID);
