@@ -174,7 +174,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 
 				.primary {
 					flex-grow: 1;
-					flex-shrink: 0;
+					flex-shrink: 0.1;
 				}
 
 				.reference-blocks {
