@@ -201,7 +201,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 						radial-gradient(farthest-side at 50% 0, rgba(var(--card-overflow-shadow-rgb-inner),.2), rgba(var(--card-overflow-shadow-rgb-inner),0)),
 						radial-gradient(farthest-side at 50% 100%, rgba(var(--card-overflow-shadow-rgb-inner),.2), rgba(var(--card-overflow-shadow-rgb-inner),0)) 0 100%;
 					background-repeat: no-repeat;
-					background-size: 100% 2.5em, 100% 2.5em, 100% 0.8em, 100% 0.8em;
+					background-size: 100% 2.5em, 100% 2.5em, 100% 0.5em, 100% 0.5em;
 					background-attachment: local, local, scroll, scroll;
 				}
 
