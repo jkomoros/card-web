@@ -698,6 +698,9 @@ export const possibleMissingConcepts = (cards) => {
 	let cardIDsForNgram = {};
 	let cumulativeTFIDFForNgram = {};
 
+	const conceptCards = conceptCardsFromCards(cards);
+	const existingConcepts = normalizeNgramMap(getConceptsFromConceptCards(conceptCards));
+
 	for (const [cardID, fingerprint] of Object.entries(maximumFingerprintGenerator.fingerprints())) {
 		for (const [ngram, tfidf] of fingerprint.entries()) {
 			cardIDsForNgram[ngram] = [...(cardIDsForNgram[ngram] || []), cardID];
@@ -809,11 +812,15 @@ export const possibleMissingConcepts = (cards) => {
 	//adds don't bring much diff individually. (Scorediff is a DECLINE in score)
 	const DIFF_PER_EXTRA_WORD_CUTOFF = 0.5;
 
+	//The ngrams we'll return
 	const finalNgrams = [];
+	//The ngrams to skip if we come across them. Start off with the existing
+	//concept ngrams, but add items as we add more things to finalNgrams.
+	const excludeNgrams = Object.keys(existingConcepts);
 	for (const ngram of sortedNgramBundleKeys) {
 		let knockedOut = null;
 		//Skip ngrams that are full supersets or subsets of ones that have already been selected, or ones that are just permutations of an ngram that was already selected
-		for (const includedNgram of finalNgrams) {
+		for (const includedNgram of excludeNgrams) {
 			if (ngramWithinOther(ngram, includedNgram)) {
 				//TODO: Consider doing the diffPerExtraWord cutoff here, too, like in superset?
 				knockedOut = {
@@ -848,13 +855,16 @@ export const possibleMissingConcepts = (cards) => {
 					if (DEBUG_PRINT_MISSING_CONCEPTS_INFO) console.log('Was going to knock out a word but decided not to', knockOutObj);
 				}
 			}
-			if (ngramBundles[ngram].sortedNgram == ngramBundles[includedNgram].sortedNgram) {
-				knockedOut = {
-					self: ngram,
-					other: includedNgram,
-					reason: 'permutation',
-				};
-				break;
+			//some ngrams are concepts but weren't processed as serious candidates
+			if (ngramBundles[includedNgram]) {
+				if (ngramBundles[ngram].sortedNgram == ngramBundles[includedNgram].sortedNgram) {
+					knockedOut = {
+						self: ngram,
+						other: includedNgram,
+						reason: 'permutation',
+					};
+					break;
+				}
 			}
 		}
 
@@ -865,6 +875,7 @@ export const possibleMissingConcepts = (cards) => {
 			continue;
 		}
 		finalNgrams.push(ngram);
+		excludeNgrams.push(ngram);
 		if (finalNgrams.length >= MAX_MISSING_POSSIBLE_CONCEPTS) break;
 	}
 
@@ -872,10 +883,6 @@ export const possibleMissingConcepts = (cards) => {
 		console.log('Knocked out', knockedOutNgrams);
 		console.log(finalNgrams.map(ngram => ngramBundles[ngram]));
 	}
-
-	//TODO: factor out ngrams that already exist as cards (and maybe earlier in the pipeline, to get sub and superset conflicts?)
-
-	//TODO: what's the system to say 'nah I don't want X to be a concept'?
 
 	const resultMap = new Map(finalNgrams.map(ngram => [ngram, ngramBundles[ngram].scoreForBundle]));
 	return new Fingerprint(resultMap, Object.values(cards), maximumFingerprintGenerator);
