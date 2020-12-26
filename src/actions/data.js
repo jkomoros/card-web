@@ -285,6 +285,10 @@ export const modifyCard = (card, update, substantive, optBatch) => async (dispat
 			dispatch(modifyCardFailure('The card referenced a card that does not yet exist'));
 			return; 
 		}
+		if (references(update).array().filter(id => id == card.id).length) {
+			dispatch(modifyCardFailure('The card references itself which is not allowed'));
+			return;
+		}
 		//Note: update.references_info is the only property type that we accept in
 		//modifyCard's update that is NOT pre-diffed. That's because the
 		//auto-extracted links might modify the changes to make, so we have to
