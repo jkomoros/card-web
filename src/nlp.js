@@ -81,6 +81,18 @@ const STOP_WORDS = {
 	'for':true,
 };
 
+//STOP_WORDS are by default not capitalized in fingerprint.prettyItems. But
+//these are.
+const CAPITALIZED_STOP_WORDS = {
+	'that': true,
+	'you': true,
+	'is': true,
+	'ar': true,
+	'be': true,
+	'can': true,
+	'have': true,
+};
+
 //OVERRIDE_STEMS are words that stem 'wrong' and we want to have a manual
 //replacement instead of using the real stemmer. If the word being stemmed
 //starts with the key in this map, it will be 'stemmed' to the word on the
@@ -898,6 +910,13 @@ export const emptyWordCloud = () => {
 	return [[],{}];
 };
 
+const capitalizeTitleWord = (word) => {
+	const stemmedWord = stemmedNormalizedWords(word);
+	return !STOP_WORDS[stemmedWord] || CAPITALIZED_STOP_WORDS[stemmedWord];
+};
+
+const titleCase = (str) => str.split(' ').map(word => capitalizeTitleWord(word) ? word.charAt(0).toUpperCase() + word.slice(1) : word).join(' ');
+
 //The max number of words to include in the semantic fingerprint
 const SEMANTIC_FINGERPRINT_SIZE = 35;
 
@@ -975,8 +994,7 @@ class Fingerprint {
 				maxOriginalNgram = ngram.split(' ').map(word => reversedStemmedWords[word]).join(' ');
 			}
 
-			const titleCaseOriginalNgram = maxOriginalNgram.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-			result.push(titleCaseOriginalNgram);
+			result.push(titleCase(maxOriginalNgram));
 		}
 		return result;
 	}
