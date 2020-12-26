@@ -45,7 +45,9 @@ import {
 	selectFindCardTypeFilterLocked,
 	selectFindReferencing,
 	selectEditingPendingReferenceType,
-	selectCollectionDescriptionForQuery
+	selectCollectionDescriptionForQuery,
+	selectFindPermissions,
+	selectFindLinking
 } from '../selectors.js';
 
 import { 
@@ -270,8 +272,8 @@ class FindDialog extends connect(store)(DialogElement) {
 		//coalling the collection into being is expensive so only do it if we're open.
 		this._collection = this.open ? selectCollectionForQuery(state) : null;
 		this._collectionDescription = this.open ? selectCollectionDescriptionForQuery(state) : null;
-		this._linking = state.find.linking;
-		this._permissions = state.find.permissions;
+		this._linking = selectFindLinking(state);
+		this._permissions = selectFindPermissions(state);
 		this._referencing = selectFindReferencing(state);
 		this._pendingReferenceType = selectEditingPendingReferenceType(state);
 		this._userMayCreateCard = selectUserMayCreateCard(state);
