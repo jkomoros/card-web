@@ -102,9 +102,13 @@ export const infoPanelReferenceBlocksForCard = (card) => {
 	return expandReferenceBlockConfig(card, INFO_PANEL_REFERENCE_BLOCKS);
 };
 
+//In the common case that expandReferenceBlocks gets an empty array, rtuen the
+//same thing so that selectors won't re-run.
+const EMPTY_ARRAY = Object.freeze([]);
+
 const expandReferenceBlockConfig = (card, configs) => {
-	if (!configs) return [];
-	if (!card || !card.id) return [];
+	if (!configs) return EMPTY_ARRAY;
+	if (!card || !card.id) return EMPTY_ARRAY;
 	return configs.map(block => ({
 		...block,
 		collectionDescription: collectionDescriptionWithKeyCard(block.collectionDescription, card.id),
@@ -113,7 +117,7 @@ const expandReferenceBlockConfig = (card, configs) => {
 };
 
 export const expandReferenceBlocks = (card, blocks, collectionConstructorArgs, cardIDsUserMayEdit) => {
-	if (blocks.length == 0) return [];
+	if (blocks.length == 0) return EMPTY_ARRAY;
 	return blocks.filter(block => block.onlyForEditors ? cardIDsUserMayEdit[card.id] : true).map(block => {
 		const boldFilter = block.cardsToBoldFilterFactory ? block.cardsToBoldFilterFactory(card) : null;
 		const collection = block.collectionDescription.collection(collectionConstructorArgs);
