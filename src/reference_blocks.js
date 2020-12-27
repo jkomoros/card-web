@@ -19,7 +19,7 @@ import {
 	EXCLUDE_FILTER_NAME,
 	referencesConfigurableFilterText,
 	missingConceptConfigurableFilterText,
-	aboutConfigurableFilterText,
+	aboutConceptConfigurableFilterText,
 	LIMIT_FILTER_NAME,
 } from './filters.js';
 
@@ -47,7 +47,7 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 	[CARD_TYPE_CONCEPT]: [
 		{
 			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_CONCEPT)]),
-			navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [aboutConfigurableFilterText(SELF_KEY_CARD_ID)]),
+			navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [aboutConceptConfigurableFilterText(SELF_KEY_CARD_ID)]),
 			title: 'Cards that reference this concept',
 			emptyMessage: 'No cards reference this concept',
 			showNavigate: true,

@@ -102,7 +102,7 @@ import {
 } from '../collection_description.js';
 
 import {
-	aboutConfigurableFilterText,
+	aboutConceptConfigurableFilterText,
 } from '../filters.js';
 
 //if silent is true, then just passively updates the URL to reflect what it should be.
@@ -214,9 +214,9 @@ export const navigateToCard = (cardOrId, silent) => (dispatch) => {
 	dispatch(navigatePathTo(path, silent));
 };
 
-export const navigateToCollectionWithAbout = (conceptStr) => (dispatch, getState) => {
+export const navigateToCollectionWithAboutConcept = (conceptStr) => (dispatch, getState) => {
 	const collection = selectActiveCollectionDescription(getState());
-	const newCollection = collectionDescriptionWithConfigurableFilter(collection, aboutConfigurableFilterText(conceptStr));
+	const newCollection = collectionDescriptionWithConfigurableFilter(collection, aboutConceptConfigurableFilterText(conceptStr));
 	dispatch(navigateToCollection(newCollection));
 };
 

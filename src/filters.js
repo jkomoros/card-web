@@ -220,12 +220,12 @@ const makeCardsConfigurableFilter = (filterName, idString) => {
 	return [func, false];
 };
 
-export const aboutConfigurableFilterText = (conceptStr) => {
+export const aboutConceptConfigurableFilterText = (conceptStr) => {
 	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
-	return ABOUT_FILTER_NAME + '/' + createSlugFromArbitraryString(conceptStr);
+	return ABOUT_CONCEPT_FILTER_NAME + '/' + createSlugFromArbitraryString(conceptStr);
 };
 
-const makeAboutConfigurableFilter = (filterName, conceptStrOrID) => {
+const makeAboutConceptConfigurableFilter = (filterName, conceptStrOrID) => {
 	//conceptStr should have '-' delimiting its terms; normalize text
 	//will automatically handle them the same.
 
@@ -513,8 +513,9 @@ const QUERY_STRICT_FILTER_NAME = 'query-strict';
 export const LIMIT_FILTER_NAME = 'limit';
 export const SIMILAR_FILTER_NAME = 'similar';
 //About as in 'about this concept'. Ideally it would have been 'concept', but
-//that's reserved for the cardType filter.
-const ABOUT_FILTER_NAME = 'about';
+//that's reserved for the cardType filter. It used to be 'about' but that
+//conflicts with section name in production.
+const ABOUT_CONCEPT_FILTER_NAME = 'about-concept';
 const MISSING_CONCEPT_FILTER_NAME = 'missing-concept';
 
 //When these are seen in the URL as parts, how many more pieces to expect, to be
@@ -552,7 +553,7 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[QUERY_STRICT_FILTER_NAME]: 1,
 	[LIMIT_FILTER_NAME]: 1,
 	[SIMILAR_FILTER_NAME]: 1,
-	[ABOUT_FILTER_NAME]: 1,
+	[ABOUT_CONCEPT_FILTER_NAME]: 1,
 	[MISSING_CONCEPT_FILTER_NAME]: 1,
 };
 
@@ -663,8 +664,8 @@ const CONFIGURABLE_FILTER_INFO = {
 		factory: makeSimilarConfigurableFilter,
 		suppressLabels: true,
 	},
-	[ABOUT_FILTER_NAME]: {
-		factory: makeAboutConfigurableFilter,
+	[ABOUT_CONCEPT_FILTER_NAME]: {
+		factory: makeAboutConceptConfigurableFilter,
 		suppressLabels: true,
 	},
 	[MISSING_CONCEPT_FILTER_NAME]: {

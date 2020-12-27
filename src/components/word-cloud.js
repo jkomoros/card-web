@@ -11,7 +11,7 @@ import {
 
 import {
 	navigateToCollectionWithQuery,
-	navigateToCollectionWithAbout,
+	navigateToCollectionWithAboutConcept,
 } from '../actions/app.js';
 
 import './tag-list.js';
@@ -34,7 +34,7 @@ export class WordCloud extends connect(store)(LitElement) {
 		const query = infoForTag ? infoForTag.title : tagName;
 		if (infoForTag && infoForTag.color) {
 			//Concept pivot
-			store.dispatch(navigateToCollectionWithAbout(tagName));
+			store.dispatch(navigateToCollectionWithAboutConcept(tagName));
 		} else {
 			//query pivot
 			store.dispatch(navigateToCollectionWithQuery(query.toLowerCase()));
