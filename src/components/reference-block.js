@@ -46,7 +46,7 @@ export class ReferenceBlock extends LitElement {
 				}
 			</style>
 			<div class='${this.block.onlyForEditors ? 'editor' :''}'>
-			<h4>${this.block.title}${this.block.description ? help(this.block.description) : ''}${this.block.showNavigate ? html`<a title='Navigate to this collection' href=${urlForCollection(this.block.collectionDescription)} class='help'>${OPEN_IN_BROWSER_ICON}</a>` : ''}</h4>
+			<h4>${this.block.title}${this.block.description ? help(this.block.description) : ''}${this.block.showNavigate ? html`<a title='Navigate to this collection' href=${urlForCollection(this.block.navigationCollectionDescription || this.block.collectionDescription)} class='help'>${OPEN_IN_BROWSER_ICON}</a>` : ''}</h4>
 			${this.block.collection.filteredCards.length
 		? html`<ul>${this.block.collection.filteredCards.map((card) => html`<li><card-link auto='title' card='${card.id}' .strong=${this.block.boldCards[card.id]}>${card.id}</card-link></li>`)}</ul>`
 		: html`<p><em>${this.block.emptyMessage}</em></p>`

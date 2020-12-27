@@ -19,6 +19,7 @@ import {
 	EXCLUDE_FILTER_NAME,
 	referencesConfigurableFilterText,
 	missingConceptConfigurableFilterText,
+	aboutConfigurableFilterText,
 	LIMIT_FILTER_NAME,
 } from './filters.js';
 
@@ -30,6 +31,7 @@ import {
 
 An array where each item has:
 	collectionDescription: a collection description, possibly using SELF_KEY_CARD_ID as a placeholder
+	navigationCollectionDescription: a collectiond description, that if set and showNavigate is true, will be used instead of collectionDescription.
 	title: a title to display
 	description: if provided, will render a help badge with this text
 	cardsToBoldFilterFactory: if not null, should be a factory that, given the expanded card object, will return a filter function to then be passed other expanded card objects to test if they should be bold. The items that return true from that second item will be shown as strong in the reference block.
@@ -45,6 +47,7 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 	[CARD_TYPE_CONCEPT]: [
 		{
 			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_CONCEPT)]),
+			navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [aboutConfigurableFilterText(SELF_KEY_CARD_ID)]),
 			title: 'Cards that reference this concept',
 			emptyMessage: 'No cards reference this concept',
 			showNavigate: true,
@@ -102,7 +105,11 @@ export const infoPanelReferenceBlocksForCard = (card) => {
 const expandReferenceBlockConfig = (card, configs) => {
 	if (!configs) return [];
 	if (!card || !card.id) return [];
-	return configs.map(block => ({...block, collectionDescription: collectionDescriptionWithKeyCard(block.collectionDescription, card.id)}));
+	return configs.map(block => ({
+		...block,
+		collectionDescription: collectionDescriptionWithKeyCard(block.collectionDescription, card.id),
+		navigationCollectionDescription: block.navigationCollectionDescription ? collectionDescriptionWithKeyCard(block.navigationCollectionDescription, card.id) : undefined,
+	}));
 };
 
 export const expandReferenceBlocks = (card, blocks, collectionConstructorArgs, cardIDsUserMayEdit) => {
