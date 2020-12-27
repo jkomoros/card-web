@@ -188,7 +188,14 @@ export const editingCommit = () => async (dispatch, getState) => {
 
 	const cardFinisher = CARD_TYPE_EDITING_FINISHERS[rawUpdatedCard.card_type];
 
-	const updatedCard = cardFinisher ? cardFinisher(rawUpdatedCard, state) : rawUpdatedCard;
+	let updatedCard;
+
+	try {
+		updatedCard = cardFinisher ? cardFinisher(rawUpdatedCard, state) : rawUpdatedCard;
+	} catch(err) {
+		console.warn('The card finisher threw an error: ' + err);
+		return;
+	}
 
 	const CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[rawUpdatedCard.card_type];
 
