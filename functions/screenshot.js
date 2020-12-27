@@ -103,7 +103,7 @@ const makeScreenshot = async (card, cardLinkCards) => {
 	});
 
 	//networkidle2 doesn't wait long enough, so wait until we can inject the card
-	await page.waitForFunction(common.WINDOW_INJECT_FETCHED_CARD_NAME + ' !== undefined');
+	await page.waitForFunction('window[\'' + common.WINDOW_INJECT_FETCHED_CARD_NAME + '\'] !== undefined');
 
 	//Inject in the card directly, which should short-circuit the firebase fetch.
 	//Disabling no-undef because that function is defined in the context of the page
