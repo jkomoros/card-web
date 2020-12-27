@@ -115,6 +115,10 @@ import {
 } from '../card_fields.js';
 
 import {
+	CARD_TYPE_EDITING_FINISHERS
+} from '../card_finishers.js';
+
+import {
 	references,
 	referencesLegal,
 	applyReferencesDiff,
@@ -913,6 +917,17 @@ export const createCard = (opts) => async (dispatch, getState) => {
 	obj.title = title;
 	if (CARD_TYPE_CONFIG.publishedByDefault) obj.published = true;
 	if (CARD_TYPE_CONFIG.defaultBody) obj[TEXT_FIELD_BODY] = CARD_TYPE_CONFIG.defaultBody;
+
+	const cardFinisher = CARD_TYPE_EDITING_FINISHERS[cardType];
+
+	if (cardFinisher) {
+		try {
+			obj = cardFinisher(obj, state);
+		} catch(err) {
+			console.warn('Card finisher bailed: ' + err);
+			return;
+		}
+	}
 
 	let autoSlug = '';
 	let fallbackAutoSlug = '';

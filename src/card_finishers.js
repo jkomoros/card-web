@@ -42,7 +42,9 @@ const workingNotesExtractor = (card,state) => {
 //fields are to be added a copy should be returned. This is a useful point to do
 //field derivation, like title fields for working-notes cards. If the finisher
 //throws an error, then the card edit/create will not happen, which makes it
-//also a useful place to do validation before saving.
+//also a useful place to do validation before saving. Note that the card might
+//not have ever been saved before, so its timestamp fields in particular might
+//be empty or sentinel values.
 export const CARD_TYPE_EDITING_FINISHERS = {
 	[CARD_TYPE_WORKING_NOTES]: workingNotesExtractor,
 };
