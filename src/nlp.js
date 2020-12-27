@@ -47,12 +47,23 @@ export const getConceptsFromConceptCards = (conceptCards) => {
 	return Object.fromEntries(Object.values(conceptCards).map(card => [getConceptStringFromConceptCard(card), true]));
 };
 
+const cardMatchesConcept = (card, conceptStr) => {
+	if (card.card_type !== CARD_TYPE_CONCEPT) return false;
+	if (cardMatchesString(card, TEXT_FIELD_TITLE, conceptStr)) return true;
+	return false;
+};
+
+//getAllConceptCardsForConcept is like getConceptCardForConcept, but it will
+//return all of them that might exist, which helps find possible overlaps.
+export const getAllConceptCardsForConcept = (allCardsOrConceptCards, conceptStr) => {
+	return Object.values(allCardsOrConceptCards).filter(card => cardMatchesConcept(card, conceptStr));
+};
+
 //allCardsOrConceptCards can be the map of allCards, or filtered down to just
 //concept cards for speed.
 export const getConceptCardForConcept = (allCardsOrConceptCards, conceptStr) => {
 	for (const card of Object.values(allCardsOrConceptCards)) {
-		if (card.card_type !== CARD_TYPE_CONCEPT) continue;
-		if (cardMatchesString(card, TEXT_FIELD_TITLE, conceptStr)) return card;
+		if (cardMatchesConcept(card, conceptStr)) return card;
 	}
 	return null;
 };
