@@ -537,6 +537,6 @@ const cardOverflowsFieldForBoost = async (card, field, proposedBoost) => {
 	let tempCard = {...card, font_size_boost: {...card.font_size_boost, [field]:proposedBoost}};
 	ele.card = tempCard;
 	await ele.updateComplete;
-	const isOverflowing = ele.isOverflowing([field]);
+	const isOverflowing = ele.isOverflowing();
 	return isOverflowing;
 };
