@@ -425,8 +425,13 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				setTimeout(() => this._elements[TEXT_FIELD_TITLE].focus(), 0);
 			}
 		}
-		//TODO: only run this if things that could have caused this to change changed
-		this._setScrollingIndicators();
+		//TODO: only run this if things that could have caused this to change
+		//changed
+		
+		//Even though the DOM is supposed to have settled by when
+		//updated() is called, the style properties still haven't (maybe because
+		//the updates of children haven't yet completed?)
+		setTimeout(() => this._setScrollingIndicators());
 	}
 
 	_setScrollingIndicators() {
