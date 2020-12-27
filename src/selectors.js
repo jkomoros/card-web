@@ -384,29 +384,23 @@ const selectCardsMayCurrentlyBeEdited = createSelector(
 	(enabled) => !enabled
 );
 
-export const selectCardIDsUserMayEdit = createSelector(
+export const selectCardIDsUserMayEdit = createObjectSelector(
 	selectCards,
 	selectUserMayEditCards,
 	selectUid,
 	selectCardsMayCurrentlyBeEdited,
-	(cards, userMayEditCards, uid, cardsMayCurrentlyBeEdited) => {
-		if (!cardsMayCurrentlyBeEdited) return {};
-		let result = {};
-		for (let [cardID, card] of Object.entries(cards)) {
-			if (userMayEditCards) {
-				result[cardID] = true;
-				continue;
-			}
-			if (!card) continue;
-			if (card.author != uid) {
-				result[cardID] = true;
-				continue;
-			}
-			if (!card.permissions || !card.permissions[PERMISSION_EDIT_CARD]) continue;
-			if (!card.permissions[PERMISSION_EDIT_CARD].some(id => id === uid)) continue;
-			result[cardID] = true;
+	(card, userMayEditCards, uid, cardsMayCurrentlyBeEdited) => {
+		if (!cardsMayCurrentlyBeEdited) return false;
+		if (userMayEditCards) {
+			return true;
 		}
-		return result;
+		if (!card) return false;
+		if (card.author != uid) {
+			return true;
+		}
+		if (!card.permissions || !card.permissions[PERMISSION_EDIT_CARD]) return false;
+		if (!card.permissions[PERMISSION_EDIT_CARD].some(id => id === uid)) return false;
+		return true;
 	}
 );
 
