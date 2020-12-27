@@ -29,6 +29,8 @@ import {
 	editableFieldsForCardType
 } from '../card_fields.js';
 
+import * as icons from './my-icons.js';
+
 import { makeElementContentEditable } from '../util.js';
 
 //Cards that include links need card-link
@@ -54,6 +56,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[cardType] || {};
 		const styleBlock = html([cardTypeConfig.styleBlock || '']);
 		const fieldsToRender = editableFieldsForCardType(cardType);
+		const hasTitleFirst = Object.keys(fieldsToRender).length && Object.keys(fieldsToRender)[0] == TEXT_FIELD_TITLE;
 		return html`
 			${SharedStyles}
 			${badgeStyles}
@@ -101,8 +104,9 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 					margin-top:0;
 				}
 
-				h1 {
+				h1, .title-container svg {
 					color: var(--app-primary-color);
+					fill: var(--app-primary-color);
 					font-size: 1.4em;
 				}
 
@@ -181,6 +185,19 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 					flex-shrink: 1;
 				}
 
+				.title-container {
+					display:flex;
+					flex-direction:row;
+				}
+
+				.title-container svg {
+					margin-right: 0.5em;
+				}
+
+				.title-container [data-field=title] {
+					flex:1;
+				}
+
 				.primary, .reference-blocks {
 					/* inspired by https://stackoverflow.com/questions/9333379/check-if-an-elements-content-is-overflowing */
 					overflow: auto;
@@ -223,8 +240,9 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				<div class='background'></div>
 				<div class='content'>
 					<div class='title-container'>
+						${hasTitleFirst && cardTypeConfig.iconName ? html`${icons[cardTypeConfig.iconName]}` : ''}
 						<!-- in the common case of a title as first item, don't render it in a scrollable area -->
-						${Object.keys(fieldsToRender).length && Object.keys(fieldsToRender)[0] == TEXT_FIELD_TITLE ? this._templateForField(TEXT_FIELD_TITLE) : ''}
+						${hasTitleFirst ? this._templateForField(TEXT_FIELD_TITLE) : ''}
 					</div>
 					<div class='primary'>
 						${Object.keys(fieldsToRender).filter((fieldName, index) => !(fieldName == TEXT_FIELD_TITLE && index == 0)).map(fieldName => this._templateForField(fieldName))}
@@ -329,6 +347,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		}
 
 		const ele = document.createElement(config.container || 'span');
+
 		this._elements[field] = ele;
 		ele.field = field;
 		ele.dataset.field = field;
