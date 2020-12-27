@@ -194,6 +194,8 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 
 				.title-container svg {
 					margin-right: 0.5em;
+					height: 1em;
+					width: 1em;
 				}
 
 				.title-container [data-field=title] {
