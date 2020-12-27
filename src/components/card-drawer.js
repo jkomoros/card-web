@@ -255,7 +255,7 @@ class CardDrawer extends connect(store)(LitElement) {
 				</div>
 				<div class='buttons'>
 					<button class='round' @click='${this._handleCreateWorkingNotes}' ?hidden='${!this.showCreateWorkingNotes}' title="Create a new working notes card (Cmd-Shift-M)">${INSERT_DRIVE_FILE_ICON}</button>
-					<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable || this.suppressAdd}' title="Add a new content card in this section (Cmd-M)">${PLUS_ICON}</button>
+					<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable || this.suppressAdd}' title="Add a new card of the default type in this section (Cmd-M)">${PLUS_ICON}</button>
 				</div>
 			</div>
 		`;

@@ -40,6 +40,9 @@ import {
 import {
 	BODY_CARD_TYPES,
 	CARD_TYPE_CONCEPT,
+	CARD_TYPE_WORKING_NOTES,
+	DEFAULT_CARD_TYPE,
+	CARD_TYPE_CONFIGURATION
 } from './card_fields.js';
 
 import {
@@ -965,10 +968,38 @@ export const selectActiveSectionId = createSelector(
 );
 
 //Only true if there is actually an active section to edit--that is, a singluar section.
-export const selectUserMayEditActiveSection = createSelector(
+const selectUserMayEditActiveSection = createSelector(
 	selectState,
 	selectActiveSectionId,
 	(state, sectionID) => sectionID != '' && getUserMayEditSection(state, sectionID)
+);
+
+export const selectActiveCollectionCardTypeToAdd = createSelector(
+	selectActiveCollectionDescription,
+	(collectionDescription) => {
+		if (collectionDescription.set != EVERYTHING_SET_NAME) return DEFAULT_CARD_TYPE;
+		if (collectionDescription.filters.length != 1) return DEFAULT_CARD_TYPE;
+		const possibleCardType = collectionDescription.filters[0];
+		const cardTypeConfig = CARD_TYPE_CONFIGURATION[possibleCardType];
+		if (!cardTypeConfig) return DEFAULT_CARD_TYPE;
+		//Working notes already has its own button
+		if (possibleCardType === CARD_TYPE_WORKING_NOTES);
+		if (!cardTypeConfig.orphanedByDefault) return DEFAULT_CARD_TYPE;
+		return possibleCardType;
+	}
+);
+
+//Whether or not, if the user chose to add a card to the current collection, it
+//would work. This is true if the card type is content and the user may edit the
+//active section, OR it's the everything set with a single filter, for a card
+//type that is orphaned by default.
+export const selectUserMayEditActiveCollection = createSelector(
+	selectUserMayEditActiveSection,
+	selectActiveCollectionCardTypeToAdd,
+	(userMayEditActiveSection, cardTypeToAdd) => {
+		if (userMayEditActiveSection) return true;
+		return cardTypeToAdd !== DEFAULT_CARD_TYPE;
+	}
 );
 
 export const selectExpandedTabConfig = createSelector(
