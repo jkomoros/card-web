@@ -177,11 +177,13 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				}
 
 				.primary {
+					overflow: auto;
 					flex-grow: 1;
 					flex-shrink: 0.1;
 				}
 
 				.reference-blocks {
+					overflow: auto;
 					flex-shrink: 1;
 				}
 
@@ -198,9 +200,8 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 					flex:1;
 				}
 
-				.primary, .reference-blocks {
+				.scroll-indicators {
 					/* inspired by https://stackoverflow.com/questions/9333379/check-if-an-elements-content-is-overflowing */
-					overflow: auto;
 					background:
 						/* Shadow covers */
 						linear-gradient(var(--effective-background-color) 30%, rgba(var(--effective-background-color-rgb-inner),0)),
@@ -244,10 +245,10 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 						<!-- in the common case of a title as first item, don't render it in a scrollable area -->
 						${hasTitleFirst ? this._templateForField(TEXT_FIELD_TITLE) : ''}
 					</div>
-					<div class='primary'>
+					<div class='primary show-scroll-if-needed'>
 						${Object.keys(fieldsToRender).filter((fieldName, index) => !(fieldName == TEXT_FIELD_TITLE && index == 0)).map(fieldName => this._templateForField(fieldName))}
 					</div>
-					<div class='reference-blocks'>
+					<div class='reference-blocks show-scroll-if-needed'>
 						${(this.expandedReferenceBlocks || []).map(block => html`<reference-block .block=${block}></reference-block>`)}
 					</div>
 				</div>
@@ -422,6 +423,27 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				//Chrome doesn't actually focus the second item, unless we
 				//do a timeout. :shrug:
 				setTimeout(() => this._elements[TEXT_FIELD_TITLE].focus(), 0);
+			}
+		}
+		//TODO: only run this if things that could have caused this to change changed
+		this._setScrollingIndicators();
+	}
+
+	_setScrollingIndicators() {
+		//Editing will have it change constantly as the user types so just skip
+		//updating it unless it's not editing.
+		if (this.editing) return;
+		//We disable the overscroll indicators becuase on Chrome and safari they
+		//can show a 1px line intermittently even if they're not
+		//necessary--which is the vast majority of cards. This helps avoid that
+		//artifact except in cases where the scrollbars might be necessary.
+		for (const ele of this.shadowRoot.querySelectorAll('.show-scroll-if-needed')) {
+			const isScrollable = ele.scrollHeight > ele.offsetHeight;
+			const hasScrollbars = isScrollable && ele.offsetWidth > ele.scrollWidth;
+			if (isScrollable && !hasScrollbars) {
+				ele.classList.add('scroll-indicators');
+			} else {
+				ele.classList.remove('scroll-indicators');
 			}
 		}
 	}
