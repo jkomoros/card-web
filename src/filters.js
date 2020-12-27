@@ -225,11 +225,9 @@ export const aboutConfigurableFilterText = (conceptStr) => {
 	return ABOUT_FILTER_NAME + '/' + createSlugFromArbitraryString(conceptStr);
 };
 
-const makeAboutConfigurableFilter = (filterName, conceptStr) => {
+const makeAboutConfigurableFilter = (filterName, conceptStrOrID) => {
 	//conceptStr should have '-' delimiting its terms; normalize text
 	//will automatically handle them the same.
-
-	//TODO: support text delimited by '+'
 
 	//This function is pretty simple: find the concept card, then memoize the
 	//inbound concept references it has.
@@ -245,7 +243,7 @@ const makeAboutConfigurableFilter = (filterName, conceptStr) => {
 		if (!memoizedMatchingCards) {
 			//Default to matching nothing
 			memoizedMatchingCards = {};
-			const conceptCard = getConceptCardForConcept(cards, conceptStr);
+			let conceptCard = cards[conceptStrOrID] || getConceptCardForConcept(cards, conceptStrOrID);
 			if (conceptCard) {
 				memoizedMatchingCards = Object.fromEntries(Object.keys(references(conceptCard).byTypeInbound[REFERENCE_TYPE_CONCEPT] || {}).map(cardID => [cardID, true]));
 				memoizedConceptCardID = conceptCard.id;
