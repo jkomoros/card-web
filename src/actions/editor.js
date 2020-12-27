@@ -193,6 +193,7 @@ export const editingCommit = () => async (dispatch, getState) => {
 	try {
 		updatedCard = cardFinisher ? cardFinisher(rawUpdatedCard, state) : rawUpdatedCard;
 	} catch(err) {
+		alert(err);
 		console.warn('The card finisher threw an error: ' + err);
 		return;
 	}

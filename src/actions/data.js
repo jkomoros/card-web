@@ -924,7 +924,8 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		try {
 			obj = cardFinisher(obj, state);
 		} catch(err) {
-			console.warn('Card finisher bailed: ' + err);
+			alert(err);
+			console.warn('Card finisher threw an error');
 			return;
 		}
 	}
