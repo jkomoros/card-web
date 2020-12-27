@@ -190,6 +190,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				.title-container {
 					display:flex;
 					flex-direction:row;
+					flex-shrink: 0;
 				}
 
 				.title-container svg {
