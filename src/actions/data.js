@@ -914,6 +914,20 @@ export const createCard = (opts) => async (dispatch, getState) => {
 	if (CARD_TYPE_CONFIG.publishedByDefault) obj.published = true;
 	if (CARD_TYPE_CONFIG.defaultBody) obj[TEXT_FIELD_BODY] = CARD_TYPE_CONFIG.defaultBody;
 
+	let autoSlug = '';
+	let fallbackAutoSlug = '';
+	if (CARD_TYPE_CONFIG.autoSlug) {
+		autoSlug = createSlugFromArbitraryString(title);
+		fallbackAutoSlug = normalizeSlug(cardType + '-' + autoSlug);
+	}
+
+	if (CARD_TYPE_CONFIG.publishedByDefault && CARD_TYPE_CONFIG.autoSlug) {
+		if (!confirm('You\'re creating a card that will be published by default and have its slug set automatically. Is it spelled correctly?\n\nTitle: ' + title + '\nSlug:' + autoSlug + '\nAlternate Slug: ' + fallbackAutoSlug + '\n\nDo you want to proceed?')) {
+			console.log('Aborted by user');
+			return;
+		}
+	}
+
 	let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
 
 	//Tell card-view to expect a new card to be loaded, and when data is
@@ -949,13 +963,9 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		}
 	}
 
-	let autoSlug = '';
-	let fallbackAutoSlug = '';
 	let autoSlugLegalPromise = null;
 	let fallbackAutoSlugLegalPromise = null;
 	if (CARD_TYPE_CONFIG.autoSlug) {
-		autoSlug = createSlugFromArbitraryString(title);
-		fallbackAutoSlug = normalizeSlug(cardType + '-' + autoSlug);
 		//Kick this off in parallel. We'll await it later.
 		autoSlugLegalPromise = slugLegal(autoSlug);
 		fallbackAutoSlugLegalPromise = slugLegal(fallbackAutoSlug);
