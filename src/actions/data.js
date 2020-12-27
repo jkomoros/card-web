@@ -112,6 +112,8 @@ import {
 	REFERENCE_TYPE_FORK_OF,
 	REFERENCE_TYPE_MINED_FROM,
 	SELF_KEY_CARD_ID,
+	TEXT_FIELD_TITLE,
+	editableFieldsForCardType
 } from '../card_fields.js';
 
 import {
@@ -900,6 +902,15 @@ export const createCard = (opts) => async (dispatch, getState) => {
 	let noNavigate = opts.noNavigate || false;
 
 	let title = opts.title || '';
+
+	if (CARD_TYPE_CONFIG.publishedByDefault && editableFieldsForCardType(cardType)[TEXT_FIELD_TITLE] && !title) {
+		const titleFromPrompt = prompt('What should the card\'s title be?');
+		if (!titleFromPrompt) {
+			console.log('No title provided');
+			return;
+		}
+		title = titleFromPrompt;
+	}
 
 	if (section && !getUserMayEditSection(state, section)) {
 		console.log('User doesn\'t have edit permission for section the card will be added to.');
