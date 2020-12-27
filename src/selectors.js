@@ -983,7 +983,7 @@ export const selectActiveCollectionCardTypeToAdd = createSelector(
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[possibleCardType];
 		if (!cardTypeConfig) return DEFAULT_CARD_TYPE;
 		//Working notes already has its own button
-		if (possibleCardType === CARD_TYPE_WORKING_NOTES);
+		if (possibleCardType === CARD_TYPE_WORKING_NOTES) return DEFAULT_CARD_TYPE;
 		if (!cardTypeConfig.orphanedByDefault) return DEFAULT_CARD_TYPE;
 		return possibleCardType;
 	}
