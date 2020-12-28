@@ -329,6 +329,9 @@ const normalizeNgramMap = (ngramMap) => {
 const DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES = false;
 let normalizedCount = {};
 
+let memoizedNormalizedCardItems = new Set();
+let memoziedNormalizedCardImportantNgramsLastSeen = null;
+
 //cardWithNormalizedTextProperties sets the properties that search and
 //fingerprints work over, on a copy of the card it returns. fallbackText will be
 //stashed on the the result so that override field extractors can access it.
@@ -352,6 +355,14 @@ let normalizedCount = {};
 //		withoutStopWords: the stemmed values, but also with stop words removed. The number of words in this field set will likely be smaller than the two above.
 export const cardWithNormalizedTextProperties = (card, fallbackText, importantNgrams) => {
 	if (!card) return card;
+	//card and fallbackText vary together. importantNgrams is shared.
+	if (importantNgrams != memoziedNormalizedCardImportantNgramsLastSeen) {
+		memoizedNormalizedCardItems = new Map();
+		memoziedNormalizedCardImportantNgramsLastSeen = importantNgrams;
+	}
+	const memoizedItem = memoizedNormalizedCardItems.get(card);
+	if (memoizedItem && memoizedItem[0] == fallbackText) return memoizedItem[1];
+
 	if (DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES) {
 		normalizedCount[card.id] = (normalizedCount[card.id] || 0) + 1;
 		if(normalizedCount[card.id] > 1) console.log(card.id, card, normalizedCount[card.id]);
@@ -368,6 +379,7 @@ export const cardWithNormalizedTextProperties = (card, fallbackText, importantNg
 		stemmed: stemmedFields,
 		withoutStopWords: withoutStopWordsFields,
 	};
+	memoizedNormalizedCardItems.set(card, [fallbackText, result]);
 	return result;
 };
 
