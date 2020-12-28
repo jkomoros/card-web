@@ -123,7 +123,7 @@ class FindDialog extends connect(store)(DialogElement) {
 				<button ?hidden=${!isLink} class='round' @click='${this._handleRemoveLink}' title='Remove the current link'>${LINK_OFF_ICON}</button>
 				<button class='round' @click='${this._handleAddLink}' title='Link to a URL, not a card'>${LINK_ICON}</button>
 			</div>
-			<button class='round' @click='${this._handleAddSlide}' title='Create a new stub card to link to' ?hidden=${!this._userMayCreateCard}>${PLUS_ICON}</button>
+			<button class='round' @click='${this._handleAddSlide}' title=${'Create a new stub card to link to of type ' + this._cardTypeToAdd} ?hidden=${!this._userMayCreateCard}>${PLUS_ICON}</button>
 		</div>
 	`;
 	}
@@ -175,12 +175,17 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._shouldClose();
 	}
 
+	get _cardTypeToAdd() {
+		const cardType = this._cardTypeFilter || DEFAULT_CARD_TYPE;
+		//cardTypeFilter could possibly be a union of multiple allowable card types, so use whatever the first one is.
+		return cardType.split(UNION_FILTER_DELIMITER)[0];
+	}
+
 	_handleAddSlide() {
 		if (!this._linking && !this._referencing) return;
 
-		let cardType = this._cardTypeFilter || DEFAULT_CARD_TYPE;
-		//cardTypeFilter could possibly be a union of multiple allowable card types, so use whatever the first one is.
-		cardType = cardType.split(UNION_FILTER_DELIMITER)[0];
+		const cardType = this._cardTypeToAdd;
+
 		const needTitle = editableFieldsForCardType(cardType)[TEXT_FIELD_TITLE];
 		let title = '';
 		if (needTitle) {

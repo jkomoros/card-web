@@ -255,7 +255,7 @@ class CardDrawer extends connect(store)(LitElement) {
 				</div>
 				<div class='buttons'>
 					<button class='round' @click='${this._handleCreateWorkingNotes}' ?hidden='${!this.showCreateWorkingNotes}' title="Create a new working notes card (Cmd-Shift-M)">${INSERT_DRIVE_FILE_ICON}</button>
-					<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable || this.suppressAdd}' title="Add a new card of the default type in this section (Cmd-M)">${PLUS_ICON}</button>
+					<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable || this.suppressAdd}' title=${'Add a new card of type ' + this.cardTypeToAdd + ' in this section (Cmd-M)'}>${PLUS_ICON}</button>
 				</div>
 			</div>
 		`;
@@ -431,6 +431,11 @@ class CardDrawer extends connect(store)(LitElement) {
 			//instantiaion of hte drawer should allow edits.
 			grid: {type: Boolean},
 			editable: { type: Boolean},
+			//If set, this is what type of card type will be added when add is
+			//pressed. This is used entirely for display within this component;
+			//the actual card adding is done by the parent component based on
+			//the add-card event.
+			cardTypeToAdd: { type:String },
 			//If true, then even if editing is true, the add card button won't show
 			suppressAdd: { type: Boolean },
 			//If true, will show the button to add working notes card no matter what
