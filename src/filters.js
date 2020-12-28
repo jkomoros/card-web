@@ -47,6 +47,10 @@ import {
 	makeConcreteInverseFilter
 } from './collection_description.js';
 
+import {
+	memoize
+} from './memoize.js';
+
 export const DEFAULT_SET_NAME = 'main';
 //reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
 //order matters and is customizable by the user. Every other collection starts
@@ -175,28 +179,22 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 	//We have to memoize the functor we return, even though the filter machinery
 	//will memoize too, because otherwise literally every card in a given run
 	//will have a NEW BFS done. So memoize as long as cards are the same.
-	let memoizedCardsLastSeen = null;
-	let memoizedEditingCardLastSeen = null;
-	let memoizedMap = null;
+	const mapCreator = memoize((cards, editingCard) => {
+		//If editingCard is provided, use it to shadow the unedited version of itself.
+		if (editingCard) cards = {...cards, [editingCard.id]: editingCard};
+		if (twoWay){
+			const bfsForOutbound = cardBFS(cardID, cards, count, includeKeyCard, false, referenceTypes);
+			const bfsForInbound = Object.fromEntries(Object.entries(cardBFS(cardID, cards, count, includeKeyCard, true, referenceTypes)).map(entry => [entry[0], entry[1] * -1]));
+			//inbound might have a -0 in it, so have outbound be second so we get just the zero
+			return unionSet(bfsForInbound,bfsForOutbound);
+		} else {
+			return cardBFS(cardID, cards, count, includeKeyCard, isInbound, referenceTypes);
+		}
+	});
 
 	const func = function(card, cards, UNUSEDFilterMemberships, editingCard) {
-		if (cards != memoizedCardsLastSeen || editingCard != memoizedEditingCardLastSeen) memoizedMap = null;
-		if (!memoizedMap) {
-			const originalCards = cards;
-			//If editingCard is provided, use it to shadow the unedited version of itself.
-			if (editingCard) cards = {...cards, [editingCard.id]: editingCard};
-			if (twoWay){
-				const bfsForOutbound = cardBFS(cardID, cards, count, includeKeyCard, false, referenceTypes);
-				const bfsForInbound = Object.fromEntries(Object.entries(cardBFS(cardID, cards, count, includeKeyCard, true, referenceTypes)).map(entry => [entry[0], entry[1] * -1]));
-				//inbound might have a -0 in it, so have outbound be second so we get just the zero
-				memoizedMap = unionSet(bfsForInbound,bfsForOutbound);
-			} else {
-				memoizedMap = cardBFS(cardID, cards, count, includeKeyCard, isInbound, referenceTypes);
-			}
-			memoizedCardsLastSeen = originalCards;
-			memoizedEditingCardLastSeen = editingCard;
-		}
-		let val = memoizedMap[card.id];
+		
+		let val = mapCreator(cards, editingCard)[card.id];
 		//Return the degree of separation so it's available to sort on
 		return [val !== undefined, val];
 	};
