@@ -268,7 +268,7 @@ export const selectCards = createZippedObjectSelector(
 	(cardAndFallbackMap, concepts) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts)
 );
 
-const selectCardsForFiltering = createZippedObjectSelector(
+const selectCardsSnapshot = createZippedObjectSelector(
 	selectSnapshotZippedCardAndFallbackMap,
 	selectConcepts,
 	(cardAndFallbackMap, concepts) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts)
@@ -1090,19 +1090,26 @@ export const selectDefaultSet = createSelector(
 	}
 );
 
+const makeEverythingSetFromCards = (cards) => {
+	let keys = Object.keys(cards);
+	keys.sort((a, b) => {
+		let aCard = cards[a];
+		let bCard = cards[b];
+		let aTimestamp = aCard.updated && aCard.updated.seconds ? aCard.updated.seconds : 0;
+		let bTimestamp = bCard.updated && bCard.updated.seconds ? bCard.updated.seconds : 0;
+		return bTimestamp - aTimestamp;
+	});
+	return keys;
+};
+
 const selectEverythingSet = createSelector(
 	selectCards,
-	(cards) => {
-		let keys = Object.keys(cards);
-		keys.sort((a, b) => {
-			let aCard = cards[a];
-			let bCard = cards[b];
-			let aTimestamp = aCard.updated && aCard.updated.seconds ? aCard.updated.seconds : 0;
-			let bTimestamp = bCard.updated && bCard.updated.seconds ? bCard.updated.seconds : 0;
-			return bTimestamp - aTimestamp;
-		});
-		return keys;
-	}
+	makeEverythingSetFromCards,
+);
+
+const selectEverythingSetSnapshot = createSelector(
+	selectCardsSnapshot,
+	makeEverythingSetFromCards,
 );
 
 const selectAllSets = createSelector(
@@ -1116,6 +1123,19 @@ const selectAllSets = createSelector(
 			[EVERYTHING_SET_NAME]: everythingSet,
 		};
 	}
+);
+
+//The sets to use based on the snapshot. The only one we override is the
+//everything set, because the others don't have an implied order, so the only
+//reason they'd change is if a user changed them, and in that case we want to
+//show it.
+const selectSetsSnapshot = createSelector(
+	selectAllSets,
+	selectEverythingSetSnapshot,
+	(allSets, everythingSetSnapshot) => ({
+		...allSets, 
+		[EVERYTHING_SET_NAME]: everythingSetSnapshot,
+	})
 );
 
 //selectCollectionConstructorArguments returns an array that can be unpacked and
@@ -1140,9 +1160,10 @@ export const selectCollectionConstructorArguments = createSelector(
 //a ghosting one.
 export const selectCollectionConstructorArgumentsForGhostingCollection = createSelector(
 	selectCollectionConstructorArguments,
-	selectCardsForFiltering,
+	selectCardsSnapshot,
+	selectSetsSnapshot,
 	selectPendingFilters,
-	(args, cardsForFiltering, pendingFilters) => ({...args, cardsForFiltering, pendingFilters})
+	(args, cardsForFiltering, setsSnapshot, pendingFilters) => ({...args, cardsForFiltering, sets: setsSnapshot, pendingFilters})
 );
 
 //selectCollectionConstructorArgumentsWithEditingCard is like
