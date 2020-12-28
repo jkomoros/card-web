@@ -369,6 +369,17 @@ export const showCard = (requestedCard) => (dispatch, getState) => {
 		//This is where we note that we were told to navigate 
 		dispatch(navigatedToNewCard());
 
+		const card = selectActiveCard(state);
+		const cardTypeConfig = CARD_TYPE_CONFIGURATION[card.card_type] || {};
+		//If it's a card type that autoSlugs (like concept card) then don't open
+		//for editing immediately, because the autoSlug will come in later, and
+		//if the card's already open for editing then it will be ignored, and if
+		//the user then saves that card, the autoSlug will be overridden. This
+		//is kind of a hack, really what should happen is when the
+		//undelryingCard is changed, the modifications should be rediffed on
+		//top.
+		if (cardTypeConfig.autoSlug) return;
+
 		//Try to open the new card for editing. Note thta the timestamp data
 		//will be estimates only at this point (see
 		//database.js/cardSnapshotReceiver), but that's OK because they'll be
