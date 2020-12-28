@@ -101,6 +101,12 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 			//If we had a default filter URL and the card is a member of the set
 			//we're already in, leave the collection information the same.
 			if (getCardIndexForActiveCollection(state, card.id) >= 0) {
+				//TODO :this machinery should be possible to remove. Audit any
+				//cases where it's called (autoReads currently causes it to be
+				//triggered if you're on a normal default URL and click a card
+				//link to navigate to another one) and verify it's always a no
+				//op. See #422 for more about the changes that were made to the
+				//machinery that made it possibly unnecessary.
 				doUpdateCollection = false;
 			}
 
