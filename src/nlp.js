@@ -15,6 +15,7 @@ import {
 	CARD_TYPE_CONCEPT,
 	TEXT_FIELD_TITLE,
 	REFERENCE_TYPE_ACK,
+	CARD_TYPE_CONFIGURATION,
 } from './card_fields.js';
 
 import {
@@ -300,6 +301,10 @@ const extractContentWords = (card) => {
 				fieldValue = extractFieldValueForIndexing(card[fieldName]);
 			}
 			if (!fieldValue) fieldValue = '';
+			//If the text is the defaultBody for that card type, just pretend
+			//like it doesn't exist. Otherwise it will show up VERY high in the
+			//various NLP pipelines.
+			if (fieldName == TEXT_FIELD_BODY && CARD_TYPE_CONFIGURATION[cardType].defaultBody == fieldValue) fieldValue = '';
 			const content = config.html ? innerTextForHTML(fieldValue) : fieldValue;
 			runs = splitRuns(content);
 			//splitRuns checks for empty runs, but they could be things that will be normalized to nothing, so filter again
