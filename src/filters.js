@@ -341,36 +341,27 @@ const makeCombineConfigurableFilter = (filterName, ...remainingParts) => {
 	const subFilterOne = combinedDescription.filters[0];
 	const subFilterTwo = combinedDescription.filters[1];
 
-	let memoizedFilterSet = null;
-	let memoizedCards = null;
-	let memoizedFilterSetMemberships = null;
-	let memoizedEditingCard = null;
+	const generator = memoize((cards, filterSetMemberships, editingCard) => {
+		let [filterMembershipOne, excludeOne] = filterSetForFilterDefinitionItem(subFilterOne, filterSetMemberships, cards, editingCard);
+		let [filterMembershipTwo, excludeTwo] = filterSetForFilterDefinitionItem(subFilterTwo, filterSetMemberships, cards, editingCard);
 
+		//Make sure the sub filter membership is direct and not inverted
+		if (excludeOne) filterMembershipOne = makeConcreteInverseFilter(filterMembershipOne, cards);
+		if (excludeTwo) filterMembershipTwo = makeConcreteInverseFilter(filterMembershipTwo, cards);
+
+		let result = {};
+		for (const key of Object.keys(filterMembershipOne)) {
+			result[key] = true;
+		}
+		for (const key of Object.keys(filterMembershipTwo)) {
+			result[key] = true;
+		}
+		return result;
+	});
 	
 	const func = function(card, cards, filterSetMemberships, editingCard) {
-
-		if (!memoizedFilterSet || memoizedCards != cards || memoizedFilterSetMemberships != filterSetMemberships || memoizedEditingCard != editingCard) {
-			let [filterMembershipOne, excludeOne] = filterSetForFilterDefinitionItem(subFilterOne, filterSetMemberships, cards, editingCard);
-			let [filterMembershipTwo, excludeTwo] = filterSetForFilterDefinitionItem(subFilterTwo, filterSetMemberships, cards, editingCard);
-
-			//Make sure the sub filter membership is direct and not inverted
-			if (excludeOne) filterMembershipOne = makeConcreteInverseFilter(filterMembershipOne, cards);
-			if (excludeTwo) filterMembershipTwo = makeConcreteInverseFilter(filterMembershipTwo, cards);
-
-			memoizedFilterSet = {};
-			for (const key of Object.keys(filterMembershipOne)) {
-				memoizedFilterSet[key] = true;
-			}
-			for (const key of Object.keys(filterMembershipTwo)) {
-				memoizedFilterSet[key] = true;
-			}
-
-			memoizedFilterSetMemberships = filterSetMemberships;
-			memoizedCards = cards;
-			memoizedEditingCard = editingCard;
-		}
-
-		return memoizedFilterSet[card.id];
+		const filterSet = generator(cards, filterSetMemberships, editingCard);
+		return filterSet[card.id];
 	};
 
 	return [func, false];
