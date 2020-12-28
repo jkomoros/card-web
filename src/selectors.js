@@ -1120,18 +1120,29 @@ const selectAllSets = createSelector(
 
 //selectCollectionConstructorArguments returns an array that can be unpacked and
 //passed as the arguments to collectionDescription.collection(). It omits the
-//optional editingCard. See also
-//selectCollectionConstructorArgumentsWithEditingCard
+//optional editingCard, cardsForFiltering, and pendingFilters. See also
+//selectCollectionConstructorArgumentsWithEditingCard and
+//selectCollectionConstructorArgumentsForGhostingCollection.
 export const selectCollectionConstructorArguments = createSelector(
 	selectCards,
-	selectCardsForFiltering,
 	selectAllSets,
 	selectFilters,
-	selectPendingFilters,
 	selectSections,
 	selectTabCollectionFallbacks,
 	selectTabCollectionStartCards,
-	(cards, cardsForFiltering, sets, filters, pendingFilters, sections, fallbacks, startCards) => ({cards, cardsForFiltering, sets, filters, pendingFilters, sections, fallbacks, startCards})
+	(cards, sets, filters, sections, fallbacks, startCards) => ({cards, sets, filters, sections, fallbacks, startCards})
+);
+
+//Like selectCollectionConstructorArguments, but for the active collection. The
+//active collection also needs selectCardsForFiltering and selectPendingFilters,
+//which change more often than most other collections want. If you want to call
+//cardsThatWillBeRemoved, you likely want this. For example, actie collection is
+//a ghosting one.
+export const selectCollectionConstructorArgumentsForGhostingCollection = createSelector(
+	selectCollectionConstructorArguments,
+	selectCardsForFiltering,
+	selectPendingFilters,
+	(args, cardsForFiltering, pendingFilters) => ({...args, cardsForFiltering, pendingFilters})
 );
 
 //selectCollectionConstructorArgumentsWithEditingCard is like
@@ -1149,7 +1160,7 @@ export const selectCollectionConstructorArgumentsWithEditingCard = createSelecto
 
 export const selectActiveCollection = createSelector(
 	selectActiveCollectionDescription,
-	selectCollectionConstructorArguments,
+	selectCollectionConstructorArgumentsForGhostingCollection,
 	(description, args) => description ? description.collection(args) : null
 );
 
