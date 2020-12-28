@@ -18,7 +18,7 @@ import {
 } from '../actions/find.js';
 
 import {
-	navigateToCard, 
+	navigateToCardInCurrentCollection, 
 	navigateToCollection
 } from '../actions/app.js';
 
@@ -221,7 +221,7 @@ class FindDialog extends connect(store)(DialogElement) {
 			store.dispatch(setCardToReference(e.detail.card.id));
 			return;
 		}
-		store.dispatch(navigateToCard(e.detail.card));
+		store.dispatch(navigateToCardInCurrentCollection(e.detail.card));
 	}
 
 	static get properties() {

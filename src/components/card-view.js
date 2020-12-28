@@ -97,7 +97,7 @@ import {
 } from '../actions/user.js';
 
 import {
-	navigateToCard,
+	navigateToCardInCurrentCollection,
 	navigateToDefaultIfSectionsLoaded,
 	openCardsDrawerPanel,
 	closeCardsDrawerPanel,
@@ -334,7 +334,7 @@ class CardView extends connect(store)(PageViewElement) {
 		if (e.detail.ctrl) {
 			store.dispatch(toggleOnReadingList(e.detail.card));
 		} else {
-			store.dispatch(navigateToCard(e.detail.card));
+			store.dispatch(navigateToCardInCurrentCollection(e.detail.card));
 		}
 	}
 

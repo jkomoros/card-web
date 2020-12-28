@@ -36,7 +36,7 @@ import {
 } from '../firebase.js';
 
 import {
-	navigateToCard,
+	navigateToCardInCurrentCollection,
 	navigateToNextCard
 } from './app.js';
 
@@ -1251,7 +1251,7 @@ export const navigateToNewCard = () => (dispatch, getState) => {
 	//navigateToCard will intiate a chain of actions that culminates in
 	//showCard, where we will note that we navigated to new card so we don't do
 	//it again.
-	dispatch(navigateToCard(ID));
+	dispatch(navigateToCardInCurrentCollection(ID));
 };
 
 export const navigatedToNewCard = () => {

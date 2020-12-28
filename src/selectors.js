@@ -118,10 +118,10 @@ export const selectFindPermissions = (state) => state.find && state.find.permiss
 
 export const selectCommentsAndInfoPanelOpen = (state) => state.app ? state.app.commentsAndInfoPanelOpen : false;
 
-const selectActiveSetName = (state) => state.collection.activeSetName;
-const selectActiveFilterNames = (state) => state.collection.activeFilterNames;
-const selectActiveSortName = (state) => state.collection.activeSortName;
-const selectActiveSortReversed = (state) => state.collection.activeSortReversed;
+const selectActiveSetName = (state) => state.collection ? state.collection.activeSetName : '';
+const selectActiveFilterNames = (state) => state.collection ? state.collection.activeFilterNames : '';
+const selectActiveSortName = (state) => state.collection ? state.collection.activeSortName : '';
+const selectActiveSortReversed = (state) => state.collection ? state.collection.activeSortReversed : '';
 export const selectRequestedCard = (state) => state.collection.requestedCard;
 export const selectActiveCardId = (state) => state.collection ? state.collection.activeCardId : '';
 //Note that the editing card doesn't have nlp/normalized text properties set. If

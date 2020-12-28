@@ -6,7 +6,7 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 import { store } from '../store.js';
 
 import { 
-	navigateToCard, 
+	navigateToCardInDefaultCollection, 
 	navigateToComment
 } from '../actions/app.js';
 
@@ -42,7 +42,7 @@ class CommentRedirectView extends connect(store)(PageViewElement) {
 				store.dispatch(navigateToComment(this._pageExtra));
 			} else {
 				//Dispatching to '' will use default;
-				store.dispatch(navigateToCard(''));
+				store.dispatch(navigateToCardInDefaultCollection(''));
 			}
 		}
 	}

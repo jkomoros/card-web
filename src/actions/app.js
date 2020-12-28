@@ -60,7 +60,8 @@ import {
 	selectDefaultSectionID,
 	selectCtrlKeyPressed,
 	selectCardsDrawerInfoExpanded,
-	selectActiveCollectionDescription
+	selectActiveCollectionDescription,
+	getCardIndexForActiveCollection
 } from '../selectors.js';
 
 import {
@@ -130,7 +131,7 @@ export const navigateToNextCard = () => (dispatch, getState) => {
 	if (!collection) return;
 	let newId = collection[index];
 	if (!newId) return;
-	dispatch(navigateToCard(newId));
+	dispatch(navigateToCardInCurrentCollection(newId));
 };
 
 export const navigateToPreviousCard = () => (dispatch, getState) => {
@@ -141,7 +142,7 @@ export const navigateToPreviousCard = () => (dispatch, getState) => {
 	if (!collection) return;
 	let newId = collection[index];
 	if (!newId) return;
-	dispatch(navigateToCard(newId));
+	dispatch(navigateToCardInCurrentCollection(newId));
 };
 
 const urlForCard = (cardOrId) => {
@@ -182,12 +183,12 @@ export const navigateToComment = (commentId) => (dispatch, getState) => {
 
 	const message = getMessageById(state, commentId);
 	if (message) {
-		dispatch(navigateToCard(message.card));
+		dispatch(navigateToCardInDefaultCollection(message.card));
 		return;
 	}
 	const thread = getThreadById(state, commentId);
 	if (thread) {
-		dispatch(navigateToCard(thread.card));
+		dispatch(navigateToCardInDefaultCollection(thread.card));
 		return;
 	}
 	alert('That comment does not exist. Redirecting to the default card.');
@@ -205,8 +206,27 @@ export const navigateToDefaultIfSectionsLoaded = (silent) => (dispatch, getState
 	dispatch(navigatePathTo('/' + PAGE_DEFAULT + '/' + defaultSectionID + '/', silent));
 };
 
+export const navigateToCardInCurrentCollection = (cardOrID, silent) => (dispatch, getState) => {
+	const state = getState();
+	const cardID = typeof cardOrID == 'string' ? cardOrID : cardOrID.id;
+	const cardIndexinActiveCollection = getCardIndexForActiveCollection(state, cardID);
+	if (cardIndexinActiveCollection < 0) {
+		dispatch(navigateToCardInDefaultCollection(cardID, silent));
+		return;
+	}
+	//If there is an active collection, then we're in a place where the path is
+	//a collection and we can just swap out the cardID (or blank) at the end.
+	//This preserves the order of all filters, etc. ... Which feels a bit like a
+	//hack.
+	const pageExtra = selectPageExtra(state);
+	const pageExtraParts = pageExtra.split('/');
+	pageExtraParts[pageExtraParts.length - 1] = cardID;
+	const path = '/' + PAGE_DEFAULT + '/' + pageExtraParts.join('/');
+	dispatch(navigatePathTo(path, silent));
+};
+
 //if card is not provided, will try to navigate to default if sections loaded.
-export const navigateToCard = (cardOrId, silent) => (dispatch) => {
+export const navigateToCardInDefaultCollection = (cardOrId, silent) => (dispatch) => {
 	let path = urlForCard(cardOrId);
 	if (!path) {
 		dispatch(navigateToDefaultIfSectionsLoaded(silent));

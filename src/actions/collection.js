@@ -11,7 +11,7 @@ import {
 
 import {
 	navigatePathTo,
-	navigateToCard,
+	navigateToCardInDefaultCollection,
 	PAGE_DEFAULT
 } from './app.js';
 
@@ -320,7 +320,7 @@ export const redirectIfInvalidCardOrCollection = () => (dispatch, getState) => {
 	//If the card is not in this collection, then forward to a collection that
 	//it is in.
 	if (index >= 0) return;
-	dispatch(navigateToCard(card, false));
+	dispatch(navigateToCardInDefaultCollection(card, false));
 };
 
 export const showCard = (requestedCard) => (dispatch, getState) => {
