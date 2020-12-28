@@ -18,12 +18,20 @@ import {
 	EXPECT_UNPUBLISHED_CARDS,
 } from '../actions/data.js';
 
+import {
+	COMMIT_PENDING_COLLECTION_MODIFICATIONS
+} from '../actions/collection.js';
+
 const INITIAL_STATE = {
 	cards:{},
 	authors:{},
 	sections: {},
 	tags: {},
 	slugIndex: {},
+	//A snapshot of cards from last time COMMIT_PENDING_COLLECTION_MODIFICATIONS
+	//was called. Keeping a snapshot helps make sure that filtering logic in the
+	//current collection doesn't change constantly
+	cardsSnapshot: {},
 	//a map of cardID -> true for cards that we expect to be deleted imminently,
 	//since we just issued a deletion command to the datastore.
 	expectedDeletions: {},
@@ -108,6 +116,11 @@ const app = (state = INITIAL_STATE, action) => {
 			result.pendingNewCardType = '';
 		}
 		return result;
+	case COMMIT_PENDING_COLLECTION_MODIFICATIONS:
+		return {
+			...state,
+			cardsSnapshot: state.cards,
+		};
 	case REMOVE_CARDS:
 		return removeCardIDs(action.cardIDs, state);
 	case EXPECTED_NEW_CARD_FAILED:

@@ -494,7 +494,13 @@ const Collection = class {
 		this._arguments = collectionArguments;
 		Object.freeze(this._arguments);
 		this._description = description;
-		this._cards = collectionArguments.cards;
+		//Most of our logic operates on the old snapshot of cards, so when
+		//things are edited they don't pop out of the collection but rather get
+		//ghosted.
+		this._cardsForFiltering = collectionArguments.cardsForFiltering;
+		//This is the most recent version of cards. We use it for the expanded
+		//cards, and also when doing pendingFilters.
+		this._cardsForExpansion = collectionArguments.cards;
 		this._sets = collectionArguments.sets;
 		this._filters = collectionArguments.filters;
 		this._editingCard = collectionArguments.editingCard;
@@ -521,7 +527,7 @@ const Collection = class {
 		let filteredItems = baseSet;
 		//Only bother filtering down the items if there are filters defined.
 		if (this._description.filters && this._description.filters.length) {
-			const [combinedFilter, sortExtras, partialMatches] = combinedFilterForFilterDefinition(this._description.filters, this._filters, this._cards, this._editingCard);
+			const [combinedFilter, sortExtras, partialMatches] = combinedFilterForFilterDefinition(this._description.filters, this._filters, this._cardsForFiltering, this._editingCard);
 			filteredItems = baseSet.filter(item => combinedFilter(item));
 			this._sortExtras = sortExtras;
 			this._partialMatches = partialMatches;
@@ -531,7 +537,7 @@ const Collection = class {
 			this._collectionIsFallback = true;
 			filteredItems = this._fallbacks[this._description.serialize()] || [];
 		}
-		return expandCardCollection(filteredItems, this._cards);
+		return expandCardCollection(filteredItems, this._cardsForExpansion);
 	}
 
 	_ensureFilteredCards() {
@@ -588,16 +594,17 @@ const Collection = class {
 		const filterEquivalentForActiveSet = FILTER_EQUIVALENTS_FOR_SET[this._description.set];
 		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
 
-		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, this._filters, this._cards, this._editingCard);
-		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, pendingFilters, this._cards, this._editingCard);
+		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, this._filters, this._cardsForFiltering, this._editingCard);
+		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, pendingFilters, this._cardsForExpansion, this._editingCard);
 		//Return the set of items that pass the current filters but won't pass the pending filters.
-		const itemsThatWillBeRemoved = Object.keys(this._cards).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
+		const itemsThatWillBeRemoved = Object.keys(this._cardsForFiltering).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
 		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));
 	}
 
 	_makeSortInfo() {
 		const config = this._description.sortConfig;
-		let entries = this._preLimitFilteredCards.map(card => [card.id, config.extractor(card, this._sections, this._cards, this._sortExtras)]);
+		//_prelimitFilteredCards uses the most up to date version of the card, but we want to use the snapshot version.
+		let entries = this._preLimitFilteredCards.map(card => [card.id, config.extractor(this._cardsForFiltering[card.id], this._sections, this._cardsForFiltering, this._sortExtras)]);
 		return new Map(entries);
 	}
 
@@ -645,7 +652,7 @@ const Collection = class {
 
 	_ensureStartCards() {
 		if(this._startCards) return;
-		this._startCards = expandCardCollection(this._startCardsConfig[this._description.serialize()] || [], this._cards);
+		this._startCards = expandCardCollection(this._startCardsConfig[this._description.serialize()] || [], this._cardsForExpansion);
 	}
 
 	//sortedCards is the sorted cards, WITHOUT any applicable startCards

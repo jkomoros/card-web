@@ -140,6 +140,7 @@ export const selectCardModificationPending = (state) => state.data ? state.data.
 //All cards downloaded to client can be assumed to be OK to use in the rest of the pipeline.
 //rawCards means they don't yet have their nlp data cached. See selectCards which returns that.
 const selectRawCards = (state) => state.data ? state.data.cards : {};
+const selectRawCardsSnapshot = (state) => state.data ? state.data.cardsSnapshot : {};
 const selectPendingNewCardID = (state) => state.data ? state.data.pendingNewCardID : '';
 const selectPendingNewCardType = (state) => state.data ? state.data.pendingNewCardType : '';
 export const selectPendingNewCardIDToNavigateTo = (state) => state.data ? state.data.pendingNewCardIDToNavigateTo : '';
@@ -212,6 +213,12 @@ const selectZippedCardAndFallbackMap = createSelector(
 	(cards, fallbackTextCollection) => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
 );
 
+const selectSnapshotZippedCardAndFallbackMap = createSelector(
+	selectRawCardsSnapshot,
+	selectBackportTextFallbackMapCollection,
+	(cards, fallbackTextCollection) => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
+);
+
 //objectEquality checks for objects to be the same content, allowing nested
 //objects
 const objectEquality = (before, after) => {
@@ -258,6 +265,12 @@ export const selectCards = createZippedObjectSelector(
 	//when specifically the title of one of the concept cards changes.
 	selectConcepts,
 	//Note this processing on a card to make the nlp card should be the same as what is done in selectEditingNormalizedCard.
+	(cardAndFallbackMap, concepts) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts)
+);
+
+const selectCardsForFiltering = createZippedObjectSelector(
+	selectSnapshotZippedCardAndFallbackMap,
+	selectConcepts,
 	(cardAndFallbackMap, concepts) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts)
 );
 
@@ -1111,12 +1124,13 @@ const selectAllSets = createSelector(
 //selectCollectionConstructorArgumentsWithEditingCard
 export const selectCollectionConstructorArguments = createSelector(
 	selectCards,
+	selectCardsForFiltering,
 	selectAllSets,
 	selectFilters,
 	selectSections,
 	selectTabCollectionFallbacks,
 	selectTabCollectionStartCards,
-	(cards, sets, filters, sections, fallbacks, startCards) => ({cards, sets, filters, sections, fallbacks, startCards})
+	(cards, cardsForFiltering, sets, filters, sections, fallbacks, startCards) => ({cards, cardsForFiltering, sets, filters, sections, fallbacks, startCards})
 );
 
 //selectCollectionConstructorArgumentsWithEditingCard is like
