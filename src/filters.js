@@ -300,26 +300,14 @@ const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) =>
 const makeExcludeConfigurableFilter = (filterName, ...remainingParts) => {
 	const rest = remainingParts.join('/');
 
-	let memoizedFilterSet = null;
-	let memoizedReverse = false;
-	let memoizedCards = null;
-	let memoizedEditingCard = null;
-	let memoizedFilterSetMemberships = null;
+	const generator = memoize((cards, filterSetMemberships, editingCard) => {
+		return filterSetForFilterDefinitionItem(rest, filterSetMemberships, cards, editingCard);
+	});
 
 	//our func is just checking in the expanded filter.
 	const func = function(card, cards, filterSetMemberships, editingCard) {
 
-		if (!memoizedFilterSet || memoizedCards != cards || memoizedFilterSetMemberships != filterSetMemberships || memoizedEditingCard != editingCard) {
-			const [filterMembership, exclude] = filterSetForFilterDefinitionItem(rest, filterSetMemberships, cards, editingCard);
-			memoizedFilterSet = filterMembership;
-			memoizedReverse = exclude;
-			memoizedFilterSetMemberships = filterSetMemberships;
-			memoizedEditingCard = editingCard;
-			memoizedCards = cards;
-		}
-
-		const filterSet = memoizedFilterSet;
-		const reversed = memoizedReverse;
+		const [filterSet, reversed] = generator(cards, filterSetMemberships, editingCard);
 
 		const id = card.id;
 		//TODO: ideally we wouldn't create an entire new filter for all of the
