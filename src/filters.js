@@ -401,8 +401,7 @@ const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
 //We memoize the cards/generator outside even a singular configurable filter,
 //because advance to next/previous card changes the keyCardID, but not the
 //underlying card set, and that should be fast.
-let memoizedCards = null;
-let memoizedGenerator = null;
+const memoizedFingerprintGenerator = memoize(cards => new FingerprintGenerator(cards));
 
 const makeSimilarConfigurableFilter = (filterName, cardID) => {
 
@@ -411,10 +410,13 @@ const makeSimilarConfigurableFilter = (filterName, cardID) => {
 		includeKeyCard = true;
 		cardID = cardID.substring(INCLUDE_KEY_CARD_PREFIX.length);
 	}
-
-	let memoizedClosestItems = null;
-	//we don't need to memoize on filter set memberships because we don't use them
-	let memoizedEditingCard = null;
+	
+	const generator = memoize((cards, editingCard) => {
+		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
+		const editingCardFingerprint = editingCard ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
+		//passing null as fingerprint will use the current one
+		return fingerprintGenerator.closestOverlappingItems(cardID, editingCardFingerprint);
+	});
 
 	const func = function(card, cards, UNUSEDFilterMemberships,editingCard) {
 		if (card.id == cardID) {
@@ -423,19 +425,13 @@ const makeSimilarConfigurableFilter = (filterName, cardID) => {
 			}
 			return [false, Number.MIN_SAFE_INTEGER];
 		}
-		if (!memoizedClosestItems || memoizedCards != cards || memoizedEditingCard != editingCard) {
-			if (memoizedCards != cards) memoizedGenerator = new FingerprintGenerator(cards);
-			const editingCardFingerprint = editingCard ? memoizedGenerator.fingerprintForCardObj(editingCard) : null;
-			//passing null as fingerprint will use the current one
-			memoizedClosestItems = memoizedGenerator.closestOverlappingItems(cardID, editingCardFingerprint);
-			memoizedCards = cards;
-			memoizedEditingCard = editingCard;
-		}
+
+		const closestItems = generator(cards, editingCard);
 
 		//It's a bit odd that this 'filter' is only used to filter out the
 		//keycard (sometimes), but is really used for its sort value. But sorts
 		//don't have machinery for configurable sorts, so :shrug:
-		return [true, memoizedClosestItems.get(card.id)];
+		return [true, closestItems.get(card.id)];
 	};
 
 	return [func, false];
