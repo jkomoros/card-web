@@ -419,7 +419,7 @@ class CardDrawer extends connect(store)(LitElement) {
 	get _collectionItemsToGhost() {
 		if (!this.collection) return {};
 		if (!this._memoizedGhostItems) {
-			const itemsThatWillBeRemovedOnPendingFilterCommit = this.pendingFilters ? this.collection.cardsThatWillBeRemoved(this.pendingFilters) : {};
+			const itemsThatWillBeRemovedOnPendingFilterCommit = this.ghostCardsThatWillBeRemoved ? this.collection.cardsThatWillBeRemoved() : {};
 			this._memoizedGhostItems = {...this.collection.partialMatches, ...itemsThatWillBeRemovedOnPendingFilterCommit};
 		}
 		return this._memoizedGhostItems;
@@ -436,11 +436,8 @@ class CardDrawer extends connect(store)(LitElement) {
 			//If true, will show the button to add working notes card no matter what
 			showCreateWorkingNotes: { type: Boolean},
 			collection: {type:Object},
+			ghostCardsThatWillBeRemoved: {type:Boolean},
 			highlightedCardId: { type:String },
-			//If provided, then the items that will be ghosted will be the
-			//partial matches AND items that will be removed on pending filter
-			//commit.
-			pendingFilters: {type:Object},
 			fullCards: {type:Boolean},
 			reorderPending: {type:Boolean},
 			//_showing is more complicated than whether we're open or yet.
@@ -473,7 +470,7 @@ class CardDrawer extends connect(store)(LitElement) {
 		if (changedProps.has('collection')) {
 			this._scrollHighlightedThumbnailIntoView(false);
 		}
-		if (changedProps.has('collection') || changedProps.has('pendingFilters')) {
+		if (changedProps.has('collection') || changedProps.has('ghostCardsThatWillBeRemoved')) {
 			this._memoizedGhostItems = null;
 		}
 	}

@@ -503,6 +503,7 @@ const Collection = class {
 		this._cardsForExpansion = collectionArguments.cards;
 		this._sets = collectionArguments.sets;
 		this._filters = collectionArguments.filters;
+		this._pendingFilters = collectionArguments.pendingFilters;
 		this._editingCard = collectionArguments.editingCard;
 		//Needed for sort info :-(
 		this._sections = collectionArguments.sections || {};
@@ -582,7 +583,7 @@ const Collection = class {
 
 	//Returns a map of card_id --> true for all cards that are in filteredCards
 	//but would be removed if pendingFilters were used instead.
-	cardsThatWillBeRemoved(pendingFilters) {
+	cardsThatWillBeRemoved() {
 		let filterDefinition = this._description.filters;
 
 		//Extend the filter definition with the filter equilvanet for the set
@@ -595,7 +596,7 @@ const Collection = class {
 		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
 
 		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, this._filters, this._cardsForFiltering, this._editingCard);
-		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, pendingFilters, this._cardsForExpansion, this._editingCard);
+		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, this._pendingFilters, this._cardsForExpansion, this._editingCard);
 		//Return the set of items that pass the current filters but won't pass the pending filters.
 		const itemsThatWillBeRemoved = Object.keys(this._cardsForFiltering).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
 		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));

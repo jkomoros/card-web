@@ -1127,10 +1127,11 @@ export const selectCollectionConstructorArguments = createSelector(
 	selectCardsForFiltering,
 	selectAllSets,
 	selectFilters,
+	selectPendingFilters,
 	selectSections,
 	selectTabCollectionFallbacks,
 	selectTabCollectionStartCards,
-	(cards, cardsForFiltering, sets, filters, sections, fallbacks, startCards) => ({cards, cardsForFiltering, sets, filters, sections, fallbacks, startCards})
+	(cards, cardsForFiltering, sets, filters, pendingFilters, sections, fallbacks, startCards) => ({cards, cardsForFiltering, sets, filters, pendingFilters, sections, fallbacks, startCards})
 );
 
 //selectCollectionConstructorArgumentsWithEditingCard is like
