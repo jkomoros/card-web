@@ -42,7 +42,7 @@ const INITIAL_STATE = {
 	//reading-list is liable to change while the user is viewing that set, due
 	//to their own actions, and it would be weird if the cards would disappear
 	//when they hit that button.
-	readingListForSet: [],
+	readingListSnapshot: [],
 	//These two are analoges to cardsLoaded et al in data. They're set to true
 	//after UPDATE_STARS or _READS has been called at least once.  Primarily for
 	//selectDataIsFullyLoaded purposes.
@@ -114,7 +114,7 @@ const app = (state = INITIAL_STATE, action) => {
 	case UPDATE_COLLECTION_SHAPSHOT:
 		return {
 			...state,
-			readingListForSet: [...state.readingList]
+			readingListSnapshot: [...state.readingList]
 		};
 	case AUTO_MARK_READ_PENDING_CHANGED:
 		return {

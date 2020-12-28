@@ -166,7 +166,7 @@ export const selectPreviewCardY = (state) => state.app ? state.app.hoverY : 0;
 export const selectUserReads = (state) => state.user ? state.user.reads : {};
 const selectUserStars = (state) => state.user ? state.user.stars : {};
 export const selectUserReadingList = (state) => state.user ? state.user.readingList : [];
-const selectUserReadingListForSet = (state) => state.user ? state.user.readingListForSet : [];
+const selectUserReadingListSnapshot = (state) => state.user ? state.user.readingListSnapshot : [];
 
 const selectCardsDrawerPanelOpen = (state) => state.app ? state.app.cardsDrawerPanelOpen : false;
 export const selectCtrlKeyPressed = (state) => state.app ? state.app.ctrlKeyPressed : false;
@@ -1114,7 +1114,7 @@ const selectEverythingSetSnapshot = createSelector(
 
 const selectAllSets = createSelector(
 	selectDefaultSet,
-	selectUserReadingListForSet,
+	selectUserReadingList,
 	selectEverythingSet,
 	(defaultSet, readingListSet, everythingSet) => {
 		return {
@@ -1125,16 +1125,17 @@ const selectAllSets = createSelector(
 	}
 );
 
-//The sets to use based on the snapshot. The only one we override is the
-//everything set, because the others don't have an implied order, so the only
-//reason they'd change is if a user changed them, and in that case we want to
-//show it.
+//The sets to use based on the snapshot. We don't override default, because
+//default's order is set by the user, so the only time it changed is if the user
+//wanted it to change.
 const selectSetsSnapshot = createSelector(
 	selectAllSets,
 	selectEverythingSetSnapshot,
-	(allSets, everythingSetSnapshot) => ({
+	selectUserReadingListSnapshot,
+	(allSets, everythingSetSnapshot, readingListSet) => ({
 		...allSets, 
 		[EVERYTHING_SET_NAME]: everythingSetSnapshot,
+		[READING_LIST_SET_NAME]: readingListSet,
 	})
 );
 
