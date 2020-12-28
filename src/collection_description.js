@@ -497,13 +497,13 @@ const Collection = class {
 		//Most of our logic operates on the old snapshot of cards, so when
 		//things are edited they don't pop out of the collection but rather get
 		//ghosted.
-		this._cardsForFiltering = collectionArguments.cardsForFiltering;
+		this._cardsForFiltering = collectionArguments.cardsForFiltering || collectionArguments.cards;
 		//This is the most recent version of cards. We use it for the expanded
 		//cards, and also when doing pendingFilters.
 		this._cardsForExpansion = collectionArguments.cards;
 		this._sets = collectionArguments.sets;
 		this._filters = collectionArguments.filters;
-		this._pendingFilters = collectionArguments.pendingFilters;
+		this._pendingFilters = collectionArguments.pendingFilters || null;
 		this._editingCard = collectionArguments.editingCard;
 		//Needed for sort info :-(
 		this._sections = collectionArguments.sections || {};
@@ -584,6 +584,9 @@ const Collection = class {
 	//Returns a map of card_id --> true for all cards that are in filteredCards
 	//but would be removed if pendingFilters were used instead.
 	cardsThatWillBeRemoved() {
+
+		if (!this._pendingFilters) return {};
+
 		let filterDefinition = this._description.filters;
 
 		//Extend the filter definition with the filter equilvanet for the set
