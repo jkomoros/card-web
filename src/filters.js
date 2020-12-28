@@ -230,28 +230,20 @@ const makeAboutConceptConfigurableFilter = (filterName, conceptStrOrID) => {
 	//This function is pretty simple: find the concept card, then memoize the
 	//inbound concept references it has.
 
-	let memoizedMatchingCards = null;
-	let memoizedConceptCardID = '';
-	let memoizedCardsLastSeen = null;
+	const matchingCardsFunc = memoize((cards) => {
+		let conceptCard = cards[conceptStrOrID] || getConceptCardForConcept(cards, conceptStrOrID);
+		if (!conceptCard) return [{}, ''];
+		const matchingCards = Object.fromEntries(Object.keys(references(conceptCard).byTypeInbound[REFERENCE_TYPE_CONCEPT] || {}).map(cardID => [cardID, true]));
+		const conceptCardID = conceptCard.id;
+		return [matchingCards, conceptCardID];
+	});
 
 	const func = function(card, cards) {
-		if (cards != memoizedCardsLastSeen) {
-			memoizedMatchingCards = undefined;
-		}
-		if (!memoizedMatchingCards) {
-			//Default to matching nothing
-			memoizedMatchingCards = {};
-			let conceptCard = cards[conceptStrOrID] || getConceptCardForConcept(cards, conceptStrOrID);
-			if (conceptCard) {
-				memoizedMatchingCards = Object.fromEntries(Object.keys(references(conceptCard).byTypeInbound[REFERENCE_TYPE_CONCEPT] || {}).map(cardID => [cardID, true]));
-				memoizedConceptCardID = conceptCard.id;
-			}
-			memoizedCardsLastSeen = cards;
-		}
-		if (card.id == memoizedConceptCardID) {
+		const [matchingCards, conceptCardID] = matchingCardsFunc(cards);
+		if (card.id == conceptCardID) {
 			return [true, 1];
 		}
-		return [memoizedMatchingCards[card.id], 0];
+		return [matchingCards[card.id], 0];
 	};
 	return [func, false];
 };
