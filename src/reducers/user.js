@@ -17,7 +17,7 @@ import {
 } from '../util.js';
 
 import {
-	COMMIT_PENDING_COLLECTION_MODIFICATIONS 
+	UPDATE_COLLECTION_SHAPSHOT 
 } from '../actions/collection.js';
 
 const INITIAL_STATE = {
@@ -37,7 +37,7 @@ const INITIAL_STATE = {
 	reads: {},
 	readingList: [],
 	//This is the reading list that we use for the purposes of the live set. We
-	//only update it when COMMIT_PENDING_COLLECTION_MODIFICATIONS is called, for
+	//only update it when UPDATE_COLLECTION_SHAPSHOT is called, for
 	//similar reasons that we use filters/pendingFiltesr for sets. That is,
 	//reading-list is liable to change while the user is viewing that set, due
 	//to their own actions, and it would be weird if the cards would disappear
@@ -111,7 +111,7 @@ const app = (state = INITIAL_STATE, action) => {
 			userPermissions: {...action.permissions},
 			userPermissionsLoaded: true,
 		};
-	case COMMIT_PENDING_COLLECTION_MODIFICATIONS:
+	case UPDATE_COLLECTION_SHAPSHOT:
 		return {
 			...state,
 			readingListForSet: [...state.readingList]

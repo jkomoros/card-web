@@ -63,7 +63,7 @@ import {
 
 import {
 	refreshCardSelector,
-	commitPendingCollectionModifications
+	updateCollectionSnapshot,
 } from './collection.js';
 
 import {
@@ -1247,7 +1247,7 @@ export const navigateToNewCard = () => (dispatch, getState) => {
 	//called refreshCardSelector with force. But it doesn't work automatically
 	//for working-notes being added when viewinng working ntoes, since those
 	//cards are all oprhaned.
-	dispatch(commitPendingCollectionModifications());
+	dispatch(updateCollectionSnapshot());
 	//navigateToCard will intiate a chain of actions that culminates in
 	//showCard, where we will note that we navigated to new card so we don't do
 	//it again.

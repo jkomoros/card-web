@@ -1,7 +1,7 @@
 import {
 	SHOW_CARD,
 	UPDATE_COLLECTION,
-	COMMIT_PENDING_COLLECTION_MODIFICATIONS
+	UPDATE_COLLECTION_SHAPSHOT
 } from '../actions/collection.js';
 
 import {
@@ -46,7 +46,7 @@ const app = (state = INITIAL_STATE, action) => {
 			activeSortName: action.sortName,
 			activeSortReversed: action.sortReversed,
 		};
-	case COMMIT_PENDING_COLLECTION_MODIFICATIONS:
+	case UPDATE_COLLECTION_SHAPSHOT:
 		//TODO: figure out how to fire this every time one of the other ones
 		//that updates filters is fired if it's before data fully loaded.
 		return {

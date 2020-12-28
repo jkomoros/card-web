@@ -1,7 +1,7 @@
 export const SHOW_CARD = 'SHOW_CARD';
 export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
 export const RE_SHOW_CARD = 'RE_SHOW_CARD';
-export const COMMIT_PENDING_COLLECTION_MODIFICATIONS = 'COMMIT_PENDING_COLLECTION_MODIFICATIONS';
+export const UPDATE_COLLECTION_SHAPSHOT = 'UPDATE_COLLECTION_SHAPSHOT';
 
 //Collections are a complex conccept. The canonical (slightly out of date) documentation is at https://github.com/jkomoros/complexity-compendium/issues/60#issuecomment-451705854
 
@@ -145,7 +145,7 @@ export const updateCollection = (setName, filters, sortName, sortReversed) => (d
 	//make sure we're working with the newest set of filters, because now is the
 	//one time that it's generally OK to update the active filter set, since the
 	//whole collection is changing anyway.
-	dispatch(commitPendingCollectionModifications());
+	dispatch(updateCollectionSnapshot());
 	dispatch({
 		type: UPDATE_COLLECTION,
 		setName,
@@ -160,8 +160,8 @@ export const updateCollection = (setName, filters, sortName, sortReversed) => (d
 //the collection to cahnge at that moment. Often, we DON'T want it to change, to
 //emphasize consistency and so collections don't change as, for exmaple, a card
 //is read and you're viewing an unread filter set.
-export const commitPendingCollectionModifications = () => {
-	return {type:COMMIT_PENDING_COLLECTION_MODIFICATIONS};
+export const updateCollectionSnapshot = () => {
+	return {type:UPDATE_COLLECTION_SHAPSHOT};
 };
 
 export const refreshCardSelector = (forceCommit) => (dispatch, getState) => {
@@ -196,7 +196,7 @@ export const refreshCardSelector = (forceCommit) => (dispatch, getState) => {
 		//for the last item that has loaded that has made the data fully loaded;
 		//often, reads. Basically, as soon as the data is fully loaded we want
 		//to run it once.
-		dispatch(commitPendingCollectionModifications());
+		dispatch(updateCollectionSnapshot());
 	}
 
 	if (dataIsFullyLoaded && !alreadyCommittedModificationsWhenFullyLoaded) {
