@@ -1039,7 +1039,7 @@ export const CARD_FILTER_FUNCS = Object.assign(
 	},
 );
 
-//We pull this out because it has to be the same in filters and pendingFilters
+//We pull this out because it has to be the same in filters and filtersSnapshot
 //and to avoid having to duplicate it.
 const INITIAL_STATE_FILTERS = Object.assign(
 	{
@@ -1064,13 +1064,14 @@ export const INITIAL_STATE = {
 	activeFilterNames: [],
 	activeSortName: DEFAULT_SORT_NAME,
 	activeSortReversed: false,
-	//These are the actual values of the filters in current use. We queue up
-	//changes in pendingFilters and then synchronize this value to that value
-	//when we know it's OK for the collection to change.
+	//These are the actual values of the filters in current use, reflecting all
+	//of the changes. If you want the filter set that goes along with the
+	//cardSnapshot (and doesn't update until
+	//COMMIT_PENDING_COLLECTION_PODIFICATIONS) then use filtersSnapshot instead.
 	filters: INITIAL_STATE_FILTERS,
-	//The things that modify filters actuall modify pendingFilters. Only when we
-	//receive a COMMIT_PENDING_COLLECTION_MODIFICATIONS do we copy over the modifications.
-	pendingFilters: INITIAL_STATE_FILTERS,
+	//This is a snapshot of filters from the last time
+	//COMMIT_PENDING_COLLECTION_MODFICIATIONS was called.
+	filtersSnapshot: INITIAL_STATE_FILTERS,
 	//requestCard is the identifier specifically requested in the URL. This
 	//could be the card's ID, a slug for that card, or a special placeholder
 	//like `_`. The fully resolved activeCard is stored in activeCardId.

@@ -51,39 +51,39 @@ const app = (state = INITIAL_STATE, action) => {
 		//that updates filters is fired if it's before data fully loaded.
 		return {
 			...state,
-			filters: {...state.pendingFilters},
+			filtersSnapshot: state.filters,
 		};
 	case UPDATE_SECTIONS:
 		return {
 			...state,
-			pendingFilters: {...state.pendingFilters, ...makeFilterFromSection(action.sections, true)}
+			filters: {...state.filters, ...makeFilterFromSection(action.sections, true)}
 		};
 	case UPDATE_TAGS:
 		return {
 			...state,
-			pendingFilters: {...state.pendingFilters, ...makeFilterFromSection(action.tags, false)}
+			filters: {...state.filters, ...makeFilterFromSection(action.tags, false)}
 		};
 	case UPDATE_CARDS:
 		return {
 			...state,
-			pendingFilters: {...state.pendingFilters, ...makeFilterFromCards(action.cards, state.pendingFilters)}
+			filters: {...state.filters, ...makeFilterFromCards(action.cards, state.filters)}
 		};
 	case REMOVE_CARDS:
 		return removeCardIDsFromSubState(action.cardIDs, state);
 	case UPDATE_STARS:
 		return {
 			...state,
-			pendingFilters: {...state.pendingFilters, starred: setUnion(setRemove(state.pendingFilters.starred, action.starsToRemove), action.starsToAdd)}
+			filters: {...state.filters, starred: setUnion(setRemove(state.filters.starred, action.starsToRemove), action.starsToAdd)}
 		};
 	case UPDATE_READS:
 		return {
 			...state,
-			pendingFilters: {...state.pendingFilters, read: setUnion(setRemove(state.pendingFilters.read, action.readsToRemove), action.readsToAdd)}
+			filters: {...state.filters, read: setUnion(setRemove(state.filters.read, action.readsToRemove), action.readsToAdd)}
 		};
 	case UPDATE_READING_LIST:
 		return {
 			...state,
-			pendingFilters: {...state.pendingFilters, ...makeFilterFromReadingList(action.list)}
+			filters: {...state.filters, ...makeFilterFromReadingList(action.list)}
 		};
 	default:
 		return state;
@@ -134,16 +134,16 @@ const makeFilterFromCards = (cards, previousFilters) => {
 //changes are to be made, returns subState, otherwise it returns a modified
 //copy.
 const removeCardIDsFromSubState = (cardIDs, subState) => {
-	let newPendingFilters = {...subState.pendingFilters};
+	let newFilters = {...subState.filters};
 	let changesMade = false;
-	for (let [filterName, filter] of Object.entries(newPendingFilters)) {
+	for (let [filterName, filter] of Object.entries(newFilters)) {
 		let newFilter = removeCardIDsFromFilter(cardIDs, filter);
 		if (newFilter === filter) continue;
-		newPendingFilters[filterName] = newFilter;
+		newFilters[filterName] = newFilter;
 		changesMade = true;
 	}
 
-	return changesMade ? {...subState, pendingFilters: newPendingFilters} : subState;
+	return changesMade ? {...subState, filters: newFilters} : subState;
 };
 
 //Returns a filter (cardID -> true) that contains none of the cardIDs. IF no

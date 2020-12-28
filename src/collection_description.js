@@ -497,13 +497,13 @@ const Collection = class {
 		//Most of our logic operates on the old snapshot of cards, so when
 		//things are edited they don't pop out of the collection but rather get
 		//ghosted.
-		this._cardsForFiltering = collectionArguments.cardsForFiltering || collectionArguments.cards;
+		this._cardsForFiltering = collectionArguments.cardsSnapshot || collectionArguments.cards;
 		//This is the most recent version of cards. We use it for the expanded
 		//cards, and also when doing pendingFilters.
 		this._cardsForExpansion = collectionArguments.cards;
 		this._sets = collectionArguments.sets;
 		this._filters = collectionArguments.filters;
-		this._pendingFilters = collectionArguments.pendingFilters || null;
+		this._filtersSnapshot = collectionArguments.filtersSnapshot || null;
 		this._editingCard = collectionArguments.editingCard;
 		//Needed for sort info :-(
 		this._sections = collectionArguments.sections || {};
@@ -528,7 +528,7 @@ const Collection = class {
 		let filteredItems = baseSet;
 		//Only bother filtering down the items if there are filters defined.
 		if (this._description.filters && this._description.filters.length) {
-			const [combinedFilter, sortExtras, partialMatches] = combinedFilterForFilterDefinition(this._description.filters, this._filters, this._cardsForFiltering, this._editingCard);
+			const [combinedFilter, sortExtras, partialMatches] = combinedFilterForFilterDefinition(this._description.filters, this._filtersSnapshot || this._filters, this._cardsForFiltering, this._editingCard);
 			filteredItems = baseSet.filter(item => combinedFilter(item));
 			this._sortExtras = sortExtras;
 			this._partialMatches = partialMatches;
@@ -582,10 +582,10 @@ const Collection = class {
 	}
 
 	//Returns a map of card_id --> true for all cards that are in filteredCards
-	//but would be removed if pendingFilters were used instead.
+	//but would be removed if filters were used instead of filtersSnapshot.
 	cardsThatWillBeRemoved() {
 
-		if (!this._pendingFilters) return {};
+		if (!this._filtersSnapshot) return {};
 
 		let filterDefinition = this._description.filters;
 
@@ -598,8 +598,8 @@ const Collection = class {
 		const filterEquivalentForActiveSet = FILTER_EQUIVALENTS_FOR_SET[this._description.set];
 		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
 
-		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, this._filters, this._cardsForFiltering, this._editingCard);
-		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, this._pendingFilters, this._cardsForExpansion, this._editingCard);
+		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, this._filtersSnapshot, this._cardsForFiltering, this._editingCard);
+		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, this._filters, this._cardsForExpansion, this._editingCard);
 		//Return the set of items that pass the current filters but won't pass the pending filters.
 		const itemsThatWillBeRemoved = Object.keys(this._cardsForFiltering).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
 		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));

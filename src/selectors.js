@@ -132,7 +132,7 @@ export const selectEditingUpdatedFromContentEditable = (state) => state.editor ?
 export const selectEditingPendingReferenceType = (state) => state.editor ? state.editor.pendingReferenceType : '';
 export const selectPendingSlug = (state) => state.editor ? state.editor.pendingSlug : '';
 export const selectFilters = (state) => state.collection.filters;
-export const selectPendingFilters = (state) => state.collection.pendingFilters;
+const selectFiltersSnapshot = (state) => state.collection.filtersSnapshot;
 export const selectSections = (state) => state.data ? state.data.sections : {};
 export const selectTags = (state) => state.data ? state.data.tags : {};
 export const selectExpectedDeletions = (state) => state.data ? state.data.expectedDeletions : {};
@@ -1140,7 +1140,7 @@ const selectSetsSnapshot = createSelector(
 
 //selectCollectionConstructorArguments returns an array that can be unpacked and
 //passed as the arguments to collectionDescription.collection(). It omits the
-//optional editingCard, cardsForFiltering, and pendingFilters. See also
+//optional editingCard, cardsSnapshot, and filtersSnapshot. See also
 //selectCollectionConstructorArgumentsWithEditingCard and
 //selectCollectionConstructorArgumentsForGhostingCollection.
 export const selectCollectionConstructorArguments = createSelector(
@@ -1154,7 +1154,7 @@ export const selectCollectionConstructorArguments = createSelector(
 );
 
 //Like selectCollectionConstructorArguments, but for the active collection. The
-//active collection also needs selectCardsForFiltering and selectPendingFilters,
+//active collection also needs selectCardsSnapshot and selectFiltersSnapshot,
 //which change more often than most other collections want. If you want to call
 //cardsThatWillBeRemoved, you likely want this. For example, actie collection is
 //a ghosting one.
@@ -1162,8 +1162,8 @@ export const selectCollectionConstructorArgumentsForGhostingCollection = createS
 	selectCollectionConstructorArguments,
 	selectCardsSnapshot,
 	selectSetsSnapshot,
-	selectPendingFilters,
-	(args, cardsForFiltering, setsSnapshot, pendingFilters) => ({...args, cardsForFiltering, sets: setsSnapshot, pendingFilters})
+	selectFiltersSnapshot,
+	(args, cardsSnapshot, setsSnapshot, filtersSnapshot) => ({...args, cardsSnapshot, sets: setsSnapshot, filtersSnapshot})
 );
 
 //selectCollectionConstructorArgumentsWithEditingCard is like
