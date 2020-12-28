@@ -37,6 +37,7 @@ import {
 
 import {
 	CARD_TYPE_CONFIGURATION,
+	DEFAULT_CARD_TYPE
 } from '../card_fields.js';
 
 import * as icons from './my-icons.js';
@@ -255,7 +256,7 @@ class CardDrawer extends connect(store)(LitElement) {
 				</div>
 				<div class='buttons'>
 					<button class='round' @click='${this._handleCreateWorkingNotes}' ?hidden='${!this.showCreateWorkingNotes}' title="Create a new working notes card (Cmd-Shift-M)">${INSERT_DRIVE_FILE_ICON}</button>
-					<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable || this.suppressAdd}' title=${'Add a new card of type ' + this.cardTypeToAdd + ' in this section (Cmd-M)'}>${PLUS_ICON}</button>
+					<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable || this.suppressAdd}' title=${'Add a new card of type ' + this.cardTypeToAdd + ' in this section (Cmd-M)'}>${!this.cardTypeToAdd || this.cardTypeToAdd == DEFAULT_CARD_TYPE || !CARD_TYPE_CONFIGURATION[this.cardTypeToAdd].iconName ? PLUS_ICON : icons[CARD_TYPE_CONFIGURATION[this.cardTypeToAdd].iconName] }</button>
 				</div>
 			</div>
 		`;
