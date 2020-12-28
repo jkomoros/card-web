@@ -260,41 +260,34 @@ const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) =>
 	//done as subtypes of `missing` becuase there's no way to do a configurable
 	//filter without having a multi-part filter name.
 
-	let memoizedFingerprintGenerator = null;
-	let memoizedConcepts = null;
-	let memoizedCardsLastSeen = null;
-	let memoizedConceptCards = null;
-	let memoizedKeyConceptCardID = '';
-
 	//+ is the way to signal 'all concept cards', otherwise we match all of them
 	const keyConceptCard = conceptStrOrCardID != '+';
 
-	const func = function(card, cards) {
-		if (cards != memoizedCardsLastSeen) {
-			memoizedFingerprintGenerator = null;
-			memoizedConcepts = null;
-			memoizedConceptCards = null;
-			memoizedKeyConceptCardID = null;
-		}
-		if (!memoizedFingerprintGenerator || !memoizedConceptCards || !memoizedConceptCards) {
-			memoizedFingerprintGenerator = new FingerprintGenerator(cards);
-			memoizedConceptCards = conceptCardsFromCards(cards);
-			memoizedConcepts = getConceptsFromConceptCards(memoizedConceptCards);
-			if (keyConceptCard) {
-				if (cards[conceptStrOrCardID]) {
-					memoizedKeyConceptCardID = conceptStrOrCardID;
-				} else {
-					const conceptCard = getConceptCardForConcept(memoizedConceptCards, conceptStrOrCardID);
-					//If there's no matching concept then use a filter that won't
-					//match anything because it has illegal characters
-					memoizedKeyConceptCardID = conceptCard ? conceptCard.id : '?INVALID-ID?';
-				}
+	// returns [fingerprintGenerator, conceptCards, concepts, keyConceptCardID]
+	const generator = memoize(cards => {
+		const fingerprintGenerator = new FingerprintGenerator(cards);
+		const conceptCards = conceptCardsFromCards(cards);
+		const concepts = getConceptsFromConceptCards(conceptCards);
+		let keyConceptCardID = '';
+		if (keyConceptCard) {
+			if (cards[conceptStrOrCardID]) {
+				keyConceptCardID = conceptStrOrCardID;
+			} else {
+				const conceptCard = getConceptCardForConcept(conceptCards, conceptStrOrCardID);
+				//If there's no matching concept then use a filter that won't
+				//match anything because it has illegal characters
+				keyConceptCardID = conceptCard ? conceptCard.id : '?INVALID-ID?';
 			}
-			memoizedCardsLastSeen = cards;
 		}
-		const fingerprint = memoizedFingerprintGenerator.fingerprintForCardID(card.id);
-		const suggestedReferences = suggestedConceptReferencesForCard(card, fingerprint, memoizedConceptCards, memoizedConcepts);
-		const filteredSuggestedReferences = keyConceptCard ? suggestedReferences.filter(id => id == memoizedKeyConceptCardID) : suggestedReferences;
+		return [fingerprintGenerator, conceptCards, concepts, keyConceptCardID];
+	});
+
+	const func = function(card, cards) {
+
+		const [fingerprintGenerator, conceptCards, concepts, keyConceptCardID] = generator(cards);
+		const fingerprint = fingerprintGenerator.fingerprintForCardID(card.id);
+		const suggestedReferences = suggestedConceptReferencesForCard(card, fingerprint, conceptCards, concepts);
+		const filteredSuggestedReferences = keyConceptCard ? suggestedReferences.filter(id => id == keyConceptCardID) : suggestedReferences;
 		if (filteredSuggestedReferences.length == 0) return [false, ''];
 		const firstSuggestedReference = filteredSuggestedReferences[0];
 		//Yes it is a bit weird to give a 'sort value' of the concept string,
