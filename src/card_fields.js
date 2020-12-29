@@ -255,7 +255,8 @@ export const REFERENCE_TYPES = {
 		substantive: true,
 		//navy
 		color: '#000080',
-		excludeFromInfoPanel: false,
+		//Already included in its own block
+		excludeFromInfoPanel: true,
 	},
 	[REFERENCE_TYPE_CONCEPT]: {
 		name: 'Concept',

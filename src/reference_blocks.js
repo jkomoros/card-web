@@ -3,6 +3,7 @@ import {
 	REFERENCE_TYPE_CONCEPT,
 	SELF_KEY_CARD_ID,
 	REFERENCE_TYPES,
+	REFERENCE_TYPE_SEE_ALSO,
 } from './card_fields.js';
 
 import {
@@ -71,6 +72,11 @@ const INFO_PANEL_REFERENCE_BLOCKS = [
 		title: 'Concepts',
 		description: 'Concepts this card references',
 		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_CONCEPT)])
+	},
+	{
+		title: 'See Also',
+		description: 'Cards that are related to this card and make sense to consume together',
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_SEE_ALSO)])
 	},
 	{
 		title: 'Other referenced cards',
