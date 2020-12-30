@@ -180,8 +180,12 @@ export const REFERENCE_TYPE_SEE_ALSO = 'see-also';
 //For saying that the card that is pointing from uses the concept pointed to at
 //the other card. The other card may only be a concept card.
 export const REFERENCE_TYPE_CONCEPT = 'concept';
-//For concept cards that are synonym of another concept card.
+//For concept cards that are synonym of another concept card. Conceptually a
+//sub-type of the concept reference type.
 export const REFERENCE_TYPE_SYNONYM = 'synonym';
+//For cards that are an example of a more generic concept that is pointed to.
+//Conceptually a sub-type of the concept reference type.
+export const REFERENCE_TYPE_EXAMPLE_OF = 'example-of';
 
 //Any key in this object is a legal reference type
 /*
@@ -295,7 +299,21 @@ export const REFERENCE_TYPES = {
 		backportMissingText: true,
 		//Effectively a sub-type of concept reference.
 		suppressSuggestedConcept: true,
-	}
+	},
+	[REFERENCE_TYPE_EXAMPLE_OF]: {
+		name: 'Example of',
+		description: 'For cards that are an example of a more general concept',
+		editable: true,
+		substantive: true,
+		//darkkhahki
+		color: '#BDB76B',
+		excludeFromInfoPanel: false,
+		toCardTypeAllowList: {
+			[CARD_TYPE_CONCEPT]: true,
+		},
+		backportMissingText: true,
+		suppressSuggestedConcept: true,
+	},
 };
 
 export const REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT = Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(entry => entry[1].backportMissingText).map(entry => [entry[0], true]));
