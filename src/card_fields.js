@@ -180,6 +180,8 @@ export const REFERENCE_TYPE_SEE_ALSO = 'see-also';
 //For saying that the card that is pointing from uses the concept pointed to at
 //the other card. The other card may only be a concept card.
 export const REFERENCE_TYPE_CONCEPT = 'concept';
+//For concept cards that are synonym of another concept card.
+export const REFERENCE_TYPE_SYNONYM = 'synonym';
 
 //Any key in this object is a legal reference type
 /*
@@ -269,6 +271,22 @@ export const REFERENCE_TYPES = {
 		//It's included in its own section
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
+			[CARD_TYPE_CONCEPT]: true,
+		},
+		backportMissingText: true,
+	},
+	[REFERENCE_TYPE_SYNONYM]: {
+		name: 'Synonym',
+		description: 'For concept cards that are synonyms of another concept card',
+		editable: true,
+		substantive: true,
+		//darkkhahki
+		color: '#BDB76B',
+		excludeFromInfoPanel: false,
+		toCardTypeAllowList: {
+			[CARD_TYPE_CONCEPT]: true,
+		},
+		fromCardTypeAllowList: {
 			[CARD_TYPE_CONCEPT]: true,
 		},
 		backportMissingText: true,
