@@ -638,9 +638,10 @@ const wordCountsForSemantics = (strsMap, cardObj, maxFingerprintSize) => {
 					//This is an ngram we wouldn't necessarily have indexed by
 					//default (it might have been too long to be automatically
 					//extracted, for example), but we've been told it's
-					//important when we see it, so take note of it, at full
-					//value.
-					cardMap[ngram] = (cardMap[ngram] || 0) + totalIndexingCount;
+					//important when we see it, so take note of it, at more than
+					//full value to ensure it shows up in fingerprints even it
+					//it wouldn't have otherwise.
+					cardMap[ngram] = (cardMap[ngram] || 0) + totalIndexingCount + 1;
 				}
 			}
 		}
