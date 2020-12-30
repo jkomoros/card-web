@@ -289,7 +289,8 @@ export const REFERENCE_TYPES = {
 		substantive: true,
 		//darkkhahki
 		color: '#BDB76B',
-		excludeFromInfoPanel: false,
+		//Printed out on concept cards, which are the only cards that can be on the from side.
+		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
 			[CARD_TYPE_CONCEPT]: true,
 		},
@@ -307,7 +308,8 @@ export const REFERENCE_TYPES = {
 		substantive: true,
 		//darkkhahki
 		color: '#BDB76B',
-		excludeFromInfoPanel: false,
+		//Printed out in info panel
+		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
 			[CARD_TYPE_CONCEPT]: true,
 		},

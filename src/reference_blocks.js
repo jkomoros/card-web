@@ -4,6 +4,8 @@ import {
 	SELF_KEY_CARD_ID,
 	REFERENCE_TYPES,
 	REFERENCE_TYPE_SEE_ALSO,
+	REFERENCE_TYPE_SYNONYM,
+	REFERENCE_TYPE_EXAMPLE_OF
 } from './card_fields.js';
 
 import {
@@ -47,6 +49,14 @@ An array where each item has:
 const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 	[CARD_TYPE_CONCEPT]: [
 		{
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_EXAMPLE_OF)]),
+			title: 'Examples',
+		},
+		{
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_SYNONYM)]),
+			title: 'Synonyms',
+		},
+		{
 			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_CONCEPT)]),
 			navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [aboutConceptConfigurableFilterText(SELF_KEY_CARD_ID)]),
 			title: 'Cards that reference this concept',
@@ -68,6 +78,11 @@ const SUBSTANTIVE_REFERENCE_TYPES = Object.entries(REFERENCE_TYPES).filter(entry
 const NUM_SIMILAR_CARDS_TO_SHOW = 5;
 
 const INFO_PANEL_REFERENCE_BLOCKS = [
+	{
+		title: 'Example of',
+		description: 'Concepts this card is an example of',
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_EXAMPLE_OF)]),
+	},
 	{
 		title: 'Concepts',
 		description: 'Concepts this card references',
