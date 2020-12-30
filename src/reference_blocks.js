@@ -35,7 +35,8 @@ import {
 An array where each item has:
 	collectionDescription: a collection description, possibly using SELF_KEY_CARD_ID as a placeholder
 	navigationCollectionDescription: a collectiond description, that if set and showNavigate is true, will be used instead of collectionDescription.
-	title: a title to display
+	title: a title to display,
+	condensed: if true, will show up in a much smaller, inline style
 	description: if provided, will render a help badge with this text
 	cardsToBoldFilterFactory: if not null, should be a factory that, given the expanded card object, will return a filter function to then be passed other expanded card objects to test if they should be bold. The items that return true from that second item will be shown as strong in the reference block.
 	emptyMessage: if non-falsey will show that message if no cards match. If it is falsey and no cards match, the block will not be shown.
@@ -51,10 +52,12 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 		{
 			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_EXAMPLE_OF)]),
 			title: 'Examples',
+			condensed: true,
 		},
 		{
 			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_SYNONYM)]),
 			title: 'Synonyms',
+			condensed: true,
 		},
 		{
 			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_CONCEPT)]),
