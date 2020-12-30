@@ -14,7 +14,7 @@ import {
 	REFERENCE_TYPE_CONCEPT,
 	CARD_TYPE_CONCEPT,
 	TEXT_FIELD_TITLE,
-	REFERENCE_TYPE_ACK,
+	REFERENCE_TYPES,
 	CARD_TYPE_CONFIGURATION,
 } from './card_fields.js';
 
@@ -921,8 +921,8 @@ export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrC
 	if (!card || !fingerprint) return [];
 	if (!BODY_CARD_TYPES[card.card_type]) return [];
 	const itemsFromConceptReferences = fingerprint.itemsFromConceptReferences();
-	const ackReferences = references(card).byType[REFERENCE_TYPE_ACK] || {};
-	const conceptReferences = references(card).byType[REFERENCE_TYPE_CONCEPT] || {};
+	const existingReferences = references(card).byType;
+	const REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].suppressSuggestedConcept).map(entry => entry[0]);
 	const normalizedConcepts = normalizeNgramMap(concepts);
 	for (let fingerprintItem of fingerprint.keys()) {
 		//Skip items we already point to
@@ -934,16 +934,17 @@ export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrC
 		if (!conceptCard) continue;
 		//Don't suggest that concept cards reference themselves
 		if (conceptCard.id == card.id) continue;
-		//Generally concept references are already covered by
-		//itemsFromConceptReferences, but that machinery relies on normalized
-		//text being set, and there's a race for example if you just added a
-		//reference to that card and it's new--which can happen if you create
-		//the concept card from this one via Find Card to Reference.
-		//Just to be safe, don't suggest any concept cards that are already referenced.
-		if (conceptReferences[conceptCard.id] !== undefined) continue;
-		//Having an ACK reference to the other card is how you say that you opt
-		//out of a suggested concept card.
-		if (ackReferences[conceptCard.id] !== undefined) continue;
+		//Don't suggest things that already have references of type concept (and sub-types like syonym), or the generic ack.
+		let skipSuggestion = false;
+		for (const referenceType of REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT) {
+			const referencesOfType = existingReferences[referenceType];
+			if (!referencesOfType) continue;
+			if (referencesOfType[conceptCard.id] !== undefined) {
+				skipSuggestion = true;
+				break;
+			}
+		}
+		if (skipSuggestion) continue;
 		result.push(conceptCard.id);
 	}
 	return result;
