@@ -190,6 +190,7 @@ substantive - whether the reference is important enough to acknowledge to a non-
 color - the color to use when it shows up as a tag
 excludeFromInfoPanel - if true, will not show up in the infoPanelArray. That might be because they are already visible elsewhere, or aren't important enough to show.
 toCardTypeAllowList - if null or undefined, any card of any type may be on the receiving end. If not null, then only card_types in the toCardTypeAllowList map are allowed.
+fromCardTypeAllowList - if null or undefined, any card of any type may be on the sending end. If not null, then only card_types in the fromCardTypeAllowList are allowed.
 backportMissingText - if true, then if a card has an outbound reference of this type without text, it will backport the title of the to card, so for the purposes of any nlp processing, it will be as though the outbound reference included the title of the card it's pointing to. (The underlying data in the db is untouched)
 */
 export const REFERENCE_TYPES = {
@@ -280,6 +281,7 @@ export const REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT = Object.fromEntries(Obj
 //you can check if there are any inbound references to the card that should not
 //be allowed.
 export const LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE = Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(cardType => [cardType, Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(referenceTypeEntry => !referenceTypeEntry[1].toCardTypeAllowList || referenceTypeEntry[1].toCardTypeAllowList[cardType]).map(entry => [entry[0], true]))]));
+export const LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE = Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(cardType => [cardType, Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(referenceTypeEntry => !referenceTypeEntry[1].fromCardTypeAllowList || referenceTypeEntry[1].fromCardTypeAllowList[cardType]).map(entry => [entry[0], true]))]));
 
 /*
 html: whether or not the field allows html. NOTE: currently it's only supported

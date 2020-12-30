@@ -8,6 +8,7 @@ import {
 	REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT,
 	CARD_TYPE_CONFIGURATION,
 	BODY_CARD_TYPES,
+	LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE,
 } from './card_fields.js';
 
 import {
@@ -165,6 +166,7 @@ export const cardHasTodo = (card) => {
 export const reasonCardTypeNotLegalForCard = (card, proposedCardType) => {
 	const legalInboundReferenceTypes = LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE[proposedCardType];
 	if (!legalInboundReferenceTypes) return '' + proposedCardType + ' is not a legal card type';
+	const legalOutboundRefrenceTypes = LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[proposedCardType];
 
 	//Because this is INBOUND references, the changes we might be making to
 	//the card won't have touched it.
@@ -172,6 +174,13 @@ export const reasonCardTypeNotLegalForCard = (card, proposedCardType) => {
 	for (let referenceType of Object.keys(inboundReferencesByType)) {
 		if (!legalInboundReferenceTypes[referenceType]) {
 			return 'The card has an inbound reference of type ' + referenceType + ', but that is not legal for the proposed card type ' + proposedCardType;
+		}
+	}
+
+	const outboundReferencesByType = references(card).byType;
+	for (let referenceType of Object.keys(outboundReferencesByType)) {
+		if (!legalOutboundRefrenceTypes[referenceType]) {
+			return 'The card has an outbound reference of type ' + referenceType + ', but that is not legal for the proposed card type ' + proposedCardType;
 		}
 	}
 

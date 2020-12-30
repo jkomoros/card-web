@@ -576,16 +576,29 @@ export const setCardToReference = (cardID) => (dispatch, getState) => {
 	});
 };
 
-export const selectCardToReference = (referenceType) => (dispatch) => {
-	dispatch({
-		type:EDITING_START_REFERENCE_CARD,
-		referenceType,
-	});
+export const selectCardToReference = (referenceType) => (dispatch, getState) => {
+	const editingCard = selectEditingCard(getState());
+	if (!editingCard) {
+		console.warn('No editing card');
+		return;
+	}
 	const referenceTypeConfig = REFERENCE_TYPES[referenceType];
 	if (!referenceTypeConfig) {
 		console.warn('Illegal reference type');
 		return;
 	}
+
+	if (referenceTypeConfig.fromCardTypeAllowList) {
+		if (!referenceTypeConfig.fromCardTypeAllowList[editingCard.card_type]) {
+			console.warn('That reference type may not originate from cards of type ' + editingCard.card_type);
+			return;
+		}
+	}
+
+	dispatch({
+		type:EDITING_START_REFERENCE_CARD,
+		referenceType,
+	});
 	const cardTypeFilter = referenceTypeConfig.toCardTypeAllowList ? Object.keys(referenceTypeConfig.toCardTypeAllowList).join(UNION_FILTER_DELIMITER) : '';
 	dispatch(findCardToReference(cardTypeFilter));
 };
@@ -613,6 +626,19 @@ export const addReferenceToCard = (cardID, referenceType) => (dispatch, getState
 	if (referenceTypeConfig.toCardTypeAllowList) {
 		if (!referenceTypeConfig.toCardTypeAllowList[toCardType]) {
 			console.warn('That reference type may not point to cards of type ' + toCardType);
+			return;
+		}
+	}
+
+	
+	if (referenceTypeConfig.fromCardTypeAllowList) {
+		const editingCard = selectEditingCard(state);
+		if (!editingCard) {
+			console.warn('No editing card');
+			return;
+		}
+		if (!referenceTypeConfig.fromCardTypeAllowList[editingCard.card_type]) {
+			console.warn('That reference type may not originate from cards of type ' + editingCard.card_type);
 			return;
 		}
 	}

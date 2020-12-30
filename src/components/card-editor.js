@@ -104,6 +104,7 @@ import {
 	REFERENCE_TYPE_ACK,
 	CARD_TYPE_CONFIGURATION,
 	REFERENCE_TYPE_CONCEPT,
+	LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE
 } from '../card_fields.js';
 
 import {
@@ -392,7 +393,7 @@ class CardEditor extends connect(store)(LitElement) {
 					<div>
 						<select @change=${this._handleAddReference}>
 							<option value=''><em>Add a reference to a card type...</option>
-							${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]}>${entry[1].name}</option>`)}
+							${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable && LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[this._card.card_type][entry[0]]).map(entry => html`<option value=${entry[0]}>${entry[1].name}</option>`)}
 						</select>
 					</div>
 				</div>
