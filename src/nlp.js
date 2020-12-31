@@ -1189,17 +1189,20 @@ class Fingerprint {
 
 	prettyItems() {
 		const result = [];
+		const itemsNotFromCard = this.itemsNotFromCard();
 		for (const ngram of this._items.keys()) {
 			const originalNgrams = {};
-			for (const card of this._cards) {
-				for (const [fieldName, runs] of Object.entries(card.nlp.normalized)) {
-					for (let i = 0; i < runs.length; i++) {
-						const normalizedRun = runs[i];
-						const stemmedRun = card.nlp.stemmed[fieldName][i];
-						const withoutStopWordsRun = card.nlp.withoutStopWords[fieldName][i];
-						const originalNgram = extractOriginalNgramFromRun(ngram, normalizedRun,stemmedRun,withoutStopWordsRun);
-						if (originalNgram) {
-							originalNgrams[originalNgram] = (originalNgrams[originalNgram] || 0) + 1;
+			if (!itemsNotFromCard[ngram]) {
+				for (const card of this._cards) {
+					for (const [fieldName, runs] of Object.entries(card.nlp.normalized)) {
+						for (let i = 0; i < runs.length; i++) {
+							const normalizedRun = runs[i];
+							const stemmedRun = card.nlp.stemmed[fieldName][i];
+							const withoutStopWordsRun = card.nlp.withoutStopWords[fieldName][i];
+							const originalNgram = extractOriginalNgramFromRun(ngram, normalizedRun,stemmedRun,withoutStopWordsRun);
+							if (originalNgram) {
+								originalNgrams[originalNgram] = (originalNgrams[originalNgram] || 0) + 1;
+							}
 						}
 					}
 				}
