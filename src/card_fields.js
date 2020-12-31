@@ -348,6 +348,10 @@ noContentEditable: if true, even if the form field is editable, it won't be made
 editable on card renderer, the only way to modify it will be in the edit text
 field in the content tab of editor.
 
+displayPrefix: If set, then if the value is not empty then it will prefix the
+given prefix. noContentEditable should also be true, otherwise you'll get the
+prefix weirdly mixed in.
+
 readOnly: if true, a form field to edit this won't be printed out in cardEditor.
 
 matchWeight: if a match is found when searching in that field, how much weight

@@ -331,6 +331,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		}
 
 		let value = this._card[field] || '';
+		if (value && config.displayPrefix) value = config.displayPrefix + value;
 		let htmlToSet = config.html ? normalizeBodyHTML(value) : '';
 		if (!value && !this.editing) {
 			if (this._card.full_bleed) {
