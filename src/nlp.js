@@ -748,6 +748,8 @@ const MAX_N_GRAM_FOR_FINGERPRINT = 2;
 //ngrams will additionally return an ngram of the full string if the number of
 //terms is this or smaller.
 const WHOLE_NGRAM_MAX_SIZE = 6;
+//How much to discount a 'word count' of a synonym that's not literally on the card.
+const SYNONYM_DISCOUNT_FACTOR = 0.75;
 
 //strsMap is card.nlp.withoutStopWords. See cardWithNormalizedTextProperties documentation for more.
 const wordCountsForSemantics = (strsMap, cardObj, maxFingerprintSize) => {
@@ -821,7 +823,7 @@ const wordCountsForSemantics = (strsMap, cardObj, maxFingerprintSize) => {
 				//If the results already had the synonym, skip it
 				if (cardMap[synonym]) continue;
 				//Pretend we saw this word as often as the synonym
-				cardMap[synonym] = keyWordValue;
+				cardMap[synonym] = keyWordValue * SYNONYM_DISCOUNT_FACTOR;
 			}
 		}
 	}
