@@ -58,6 +58,7 @@ import {
 	getConceptsFromConceptCards,
 	conceptCardsFromCards,
 	possibleMissingConcepts,
+	synonymMap
 } from './nlp.js';
 
 import {
@@ -201,6 +202,11 @@ const selectRawConceptCards = createSelector(
 	(cards) => conceptCardsFromCards(cards)
 );
 
+const selectSynonymMap = createSelector(
+	selectRawCards,
+	(cards) => synonymMap(cards)
+);
+
 //selectConcepts returns a map of all concepts based on visible concept cards.
 export const selectConcepts = createSelector(
 	selectRawConceptCards,
@@ -264,14 +270,16 @@ export const selectCards = createZippedObjectSelector(
 	//set of cards. That means the only time every card has to be reindexed is
 	//when specifically the title of one of the concept cards changes.
 	selectConcepts,
+	selectSynonymMap,
 	//Note this processing on a card to make the nlp card should be the same as what is done in selectEditingNormalizedCard.
-	(cardAndFallbackMap, concepts) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts)
+	(cardAndFallbackMap, concepts, synonyms) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts, synonyms)
 );
 
 const selectCardsSnapshot = createZippedObjectSelector(
 	selectSnapshotZippedCardAndFallbackMap,
 	selectConcepts,
-	(cardAndFallbackMap, concepts) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts)
+	selectSynonymMap,
+	(cardAndFallbackMap, concepts, synonyms) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts, synonyms)
 );
 
 const selectConceptCards = createSelector(
@@ -649,7 +657,8 @@ const selectEditingNormalizedCard = (state) => {
 			const cards = selectRawCards(state);
 			const fallbackMap = backportFallbackTextMapForCard(editingCard, cards);
 			const conceptsMap = selectConcepts(state);
-			memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap, conceptsMap);
+			const synonyms = selectSynonymMap(state);
+			memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap, conceptsMap, synonyms);
 		} else {
 			memoizedEditingNormalizedCard = editingCard;
 		}

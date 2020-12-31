@@ -71,8 +71,7 @@ export const getConceptCardForConcept = (allCardsOrConceptCards, conceptStr) => 
 };
 
 //Returns a map of str => [synonym1, synonym2, ...]. The words won't be normalized.
-// eslint-disable-next-line no-unused-vars
-const synonymMap = (rawCards) => {
+export const synonymMap = (rawCards) => {
 	const conceptCards = conceptCardsFromCards(rawCards);
 	const result = {};
 	//NOTE: this logic relies on synonym only being legal to/from concept cards.
@@ -454,6 +453,17 @@ const extractContentWords = (card) => {
 	return obj;
 };
 
+let memoizedNormalizedSynonymMaps = new Map();
+
+const normalizeSynonymMap = (synonyms) => {
+	//synonyms is word => [synonym_word,...]
+	if (!memoizedNormalizedSynonymMaps.has(synonyms)) {
+		const normalizedMap = Object.fromEntries(Object.entries(synonyms).map(entry => [fullyNormalizedString(entry[0]), entry[1].map(str => fullyNormalizedString(str))]));
+		memoizedNormalizedSynonymMaps.set(synonyms, normalizedMap);
+	}
+	return memoizedNormalizedSynonymMaps.get(synonyms);
+};
+
 let memoizedNormalizedNgramMaps = new Map();
 
 const normalizeNgramMap = (ngramMap) => {
@@ -487,6 +497,7 @@ let memoziedNormalizedCardImportantNgramsLastSeen = null;
 // The objects set on the resulting card will be:
 // * card.fallbackText = the fallbackText map passed, without modification
 // * card.importantNgrams = normalized importantNgrams
+// * card.synonymMap = normalized synonyms
 // * card.nlp = object with: 
 //
 //  (for each property below, a map of TEXT_FIELD_NAME -> arrays of strings.
@@ -497,7 +508,7 @@ let memoziedNormalizedCardImportantNgramsLastSeen = null;
 //      normalized: the extracted text runs for that field, with all words normalized. Note that some logical runs from the original text field may already have been filtered by this step. punctuation between words will be removed, everything will be lower case.
 //		stemmed: the normalized values, but also each word will have been stemmed. Each word will still line up with each word in normalized (stemming never removes words)
 //		withoutStopWords: the stemmed values, but also with stop words removed. The number of words in this field set will likely be smaller than the two above.
-export const cardWithNormalizedTextProperties = (card, fallbackText, importantNgrams) => {
+export const cardWithNormalizedTextProperties = (card, fallbackText, importantNgrams, synonyms) => {
 	if (!card) return card;
 	//card and fallbackText vary together. importantNgrams is shared.
 	if (importantNgrams != memoziedNormalizedCardImportantNgramsLastSeen) {
@@ -514,6 +525,7 @@ export const cardWithNormalizedTextProperties = (card, fallbackText, importantNg
 	const result = {...card};
 	if (fallbackText) result.fallbackText = fallbackText;
 	if (importantNgrams) result.importantNgrams = normalizeNgramMap(importantNgrams);
+	if (synonyms) result.synonymMap = normalizeSynonymMap(synonyms);
 	//Basically it takes the output of extractContentWords and then stems each run.
 	const normalizedFields = extractContentWords(result);
 	const stemmedFields = Object.fromEntries(Object.entries(normalizedFields).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
