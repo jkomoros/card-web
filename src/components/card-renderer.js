@@ -52,7 +52,15 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[cardType] || {};
 		const styleBlock = html([cardTypeConfig.styleBlock || '']);
 		const fieldsToRender = editableFieldsForCardType(cardType);
-		const hasTitleFirst = Object.keys(fieldsToRender).length && Object.keys(fieldsToRender)[0] == TEXT_FIELD_TITLE;
+		let nonScrollableFields = [];
+		let scrollableFields = [];
+		for (const [fieldName,fieldConfig] of Object.entries(fieldsToRender)) {
+			if (fieldConfig.nonScrollable) {
+				nonScrollableFields.push(fieldName);
+			} else {
+				scrollableFields.push(fieldName);
+			}
+		}
 		return html`
 			${SharedStyles}
 			${badgeStyles}
@@ -255,12 +263,13 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				<div class='background'></div>
 				<div class='content'>
 					<div class='title-container'>
-						${hasTitleFirst && cardTypeConfig.iconName ? html`${icons[cardTypeConfig.iconName]}` : ''}
-						<!-- in the common case of a title as first item, don't render it in a scrollable area -->
-						${hasTitleFirst ? this._templateForField(TEXT_FIELD_TITLE) : ''}
+						${nonScrollableFields.length && cardTypeConfig.iconName ? html`${icons[cardTypeConfig.iconName]}` : ''}
+						<div>
+							${nonScrollableFields.map(fieldName => this._templateForField(fieldName))}
+						</div>
 					</div>
 					<div class='primary show-scroll-if-needed'>
-						${Object.keys(fieldsToRender).filter((fieldName, index) => !(fieldName == TEXT_FIELD_TITLE && index == 0)).map(fieldName => this._templateForField(fieldName))}
+						${scrollableFields.map(fieldName => this._templateForField(fieldName))}
 					</div>
 					<div class='reference-blocks show-scroll-if-needed'>
 						${(this.expandedReferenceBlocks || []).map(block => html`<reference-block .block=${block}></reference-block>`)}

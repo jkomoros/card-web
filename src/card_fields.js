@@ -363,6 +363,10 @@ hideIfEmpty: If true, then it will be hidden if there's no content.
 description: If not empty, will show a help description next to that field in
 editor.
 
+nonScrollable: If true, then it will be printed out in order in the
+non-scrollable top region, before the scrollable portions are printed out in
+order.
+
 readOnly: if true, a form field to edit this won't be printed out in cardEditor.
 
 matchWeight: if a match is found when searching in that field, how much weight
@@ -397,6 +401,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 	[TEXT_FIELD_TITLE]: {
 		html: false,
 		container: 'h1',
+		nonScrollable: true,
 		legalCardTypes: {
 			[CARD_TYPE_CONTENT]: true,
 			[CARD_TYPE_SECTION_HEAD]: true,
@@ -411,6 +416,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 	[TEXT_FIELD_TITLE_ALTERNATES]: {
 		html: false,
 		container: 'h5',
+		nonScrollable: true,
 		legalCardTypes: {[CARD_TYPE_CONCEPT]: true},
 		derivedForCardTypes: {},
 		autoFontSizeBoostForCardTypes: {},
