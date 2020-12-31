@@ -1135,12 +1135,14 @@ export class FingerprintGenerator {
 			cardWordCounts[key] = this._wordCountsForCardObj(cardObj);
 		}
 
-		//corpusWords is a set of word => totalWordCount (how many times that
-		//word occurs) for all words across all cards in corpus.
+		//corpusWords is a set of word => numCardsContainWord, that is, the
+		//number of cards that contain the term at least once. This is how idf
+		//is normally calculated; we previously used the raw count of times it
+		//showed up.
 		let corpusWords = {};
 		for (const words of Object.values(cardWordCounts)) {
-			for (const [word, count] of Object.entries(words)) {
-				corpusWords[word] = (corpusWords[word] || 0) + count;
+			for (const word of Object.keys(words)) {
+				corpusWords[word] = (corpusWords[word] || 0) + 1;
 			}
 		}
 
