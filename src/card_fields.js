@@ -352,6 +352,8 @@ displayPrefix: If set, then if the value is not empty then it will prefix the
 given prefix. noContentEditable should also be true, otherwise you'll get the
 prefix weirdly mixed in.
 
+hideIfEmpty: If true, then it will be hidden if there's no content.
+
 readOnly: if true, a form field to edit this won't be printed out in cardEditor.
 
 matchWeight: if a match is found when searching in that field, how much weight

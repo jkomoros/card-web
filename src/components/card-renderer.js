@@ -94,6 +94,10 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 					--card-link-cursor:not-allowed;
 				}
 
+				[hidden] {
+					display:none;
+				}
+
 				h1, h2, h3{
 					font-family: 'Raleway', sans-serif;
 					font-weight:bold;
@@ -352,6 +356,11 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		this._elements[field] = ele;
 		ele.field = field;
 		ele.dataset.field = field;
+
+		if (!value && config.hideIfEmpty) {
+			ele.setAttribute('hidden', '');
+		}
+
 		if (this.editing && !config.noContentEditable) {
 			makeElementContentEditable(ele);
 			ele.addEventListener('input', this._textFieldChanged.bind(this));
