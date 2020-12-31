@@ -24,7 +24,6 @@ import {
 	CARD_TYPE_CONCEPT,
 	BODY_CARD_TYPES,
 	REFERENCE_TYPES,
-	REFERENCE_TYPE_CONCEPT,
 } from './card_fields.js';
 
 import {
@@ -233,7 +232,13 @@ const makeAboutConceptConfigurableFilter = (filterName, conceptStrOrID) => {
 	const matchingCardsFunc = memoize((cards) => {
 		let conceptCard = cards[conceptStrOrID] || getConceptCardForConcept(cards, conceptStrOrID);
 		if (!conceptCard) return [{}, ''];
-		const matchingCards = Object.fromEntries(Object.keys(references(conceptCard).byTypeInbound[REFERENCE_TYPE_CONCEPT] || {}).map(cardID => [cardID, true]));
+		const conceptReferenceMap = references(conceptCard).byTypeInboundConcept;
+		let matchingCards = {};
+		for (const cardMap of Object.values(conceptReferenceMap)) {
+			for (const cardID of Object.keys(cardMap)) {
+				matchingCards[cardID] = true;
+			}
+		}
 		const conceptCardID = conceptCard.id;
 		return [matchingCards, conceptCardID];
 	});
