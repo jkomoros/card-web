@@ -9,6 +9,7 @@ import {
 	REFERENCE_TYPE_LINK,
 	REFERENCE_TYPES,
 	REFERENCES_CARD_PROPERTY,
+	REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES,
 } from './card_fields.js';
 
 const memoizedCardAccessors = new Map();
@@ -79,6 +80,10 @@ const ReferencesAccessor = class {
 		return Object.keys(byTypeToReferences(this.byTypeSubstantive));
 	}
 
+	conceptArray() {
+		return [...Object.keys(byTypeToReferences(this.byTypeConcept))];
+	}
+
 	//ALL references as an array. You typically want substantiveArray, which is only the substantive references.
 	array() {
 		if (!this._referencesInfo) return [];
@@ -91,6 +96,10 @@ const ReferencesAccessor = class {
 
 	inboundSubstantiveArray() {
 		return Object.keys(byTypeToReferences(this.byTypeInboundSubstantive));
+	}
+
+	inboundConceptArray() {
+		return [...Object.keys(byTypeToReferences(this.byTypeInboundConcept))];
 	}
 
 	//ALL inbound references as an array. You typically want inboundSubstantiveArray, which is only the substantive references.
@@ -132,6 +141,10 @@ const ReferencesAccessor = class {
 		return this._memoizedByTypeSubstantive;
 	}
 
+	get byTypeConcept() {
+		return Object.fromEntries(Object.entries(this.byType).filter(entry => REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES[entry[0]]));
+	}
+
 	//returns a new map where each key in the top level is the type, and the second level objects are card-id to string value.
 	get byTypeInbound() {
 		if (!this._memoizedByTypeInbound) {
@@ -145,6 +158,10 @@ const ReferencesAccessor = class {
 			this._memoizedByTypeInboundSubstantive = Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES[entry[0]].substantive));
 		}
 		return this._memoizedByTypeInboundSubstantive;
+	}
+
+	get byTypeInboundConcept() {
+		return Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES[entry[0]]));
 	}
 
 	//Returns an object where it's link_type => array_of_card_ids

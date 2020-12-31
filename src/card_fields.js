@@ -322,6 +322,7 @@ export const REFERENCE_TYPES = {
 };
 
 export const REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT = Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(entry => entry[1].backportMissingText).map(entry => [entry[0], true]));
+export const REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES = Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(entry => entry[1].conceptReference).map(entry => [entry[0], true]));
 
 //map of card-type -> map of reference-type -> true. So for a given card type,
 //you can check if there are any inbound references to the card that should not
