@@ -307,7 +307,7 @@ class CardEditor extends connect(store)(LitElement) {
 				${Object.entries(editableFieldsForCardType(this._card.card_type)).map(entry => html`<label>${toTitleCase(entry[0])}</label>
 					${entry[1].html
 		? html`<textarea @input='${this._handleTextFieldUpdated}' .field=${entry[0]} .value=${this._card[entry[0]]}></textarea>`
-		: html`<input type='text' @input='${this._handleTextFieldUpdated}' .field=${entry[0]} .value=${this._card[entry[0]]}></input>`}
+		: html`<input type='text' @input='${this._handleTextFieldUpdated}' .field=${entry[0]} .value=${this._card[entry[0]] || ''}></input>`}
 				`)}
 			</div>
 			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_NOTES} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
