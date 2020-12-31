@@ -351,7 +351,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		this._elements[field] = ele;
 		ele.field = field;
 		ele.dataset.field = field;
-		if (this.editing) {
+		if (this.editing && !config.noContentEditable) {
 			makeElementContentEditable(ele);
 			ele.addEventListener('input', this._textFieldChanged.bind(this));
 			if (config.html) htmlToSet = normalizeBodyToContentEditable(htmlToSet);

@@ -344,6 +344,10 @@ which the field is fully derived based on OTHER enumrated fields. Derived fields
 are already "counted" so should be skipped when extracting normalized card
 details for example in indexes.
 
+noContentEditable: if true, even if the form field is editable, it won't be made
+editable on card renderer, the only way to modify it will be in the edit text
+field in the content tab of editor.
+
 readOnly: if true, a form field to edit this won't be printed out in cardEditor.
 
 matchWeight: if a match is found when searching in that field, how much weight
