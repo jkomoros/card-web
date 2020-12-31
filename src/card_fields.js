@@ -359,6 +359,9 @@ character will also be considered as a run break (in addition to the default
 
 hideIfEmpty: If true, then it will be hidden if there's no content.
 
+description: If not empty, will show a help description next to that field in
+editor.
+
 readOnly: if true, a form field to edit this won't be printed out in cardEditor.
 
 matchWeight: if a match is found when searching in that field, how much weight
@@ -415,6 +418,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 		hideIfEmpty: true,
 		displayPrefix: 'Also known as ',
 		extraRunDelimiter: ',',
+		description: 'Words to treat as synonyms that don\'t have their own concept cards. A \',\' separates multiple ones.' 
 	},
 	[TEXT_FIELD_BODY]: {
 		html: true,
