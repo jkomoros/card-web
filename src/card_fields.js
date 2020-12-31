@@ -353,6 +353,10 @@ displayPrefix: If set, then if the value is not empty then it will prefix the
 given prefix. noContentEditable should also be true, otherwise you'll get the
 prefix weirdly mixed in.
 
+extraRunDelimiter: if true, then when deciding where to break runs, that
+character will also be considered as a run break (in addition to the default
+`\n`)
+
 hideIfEmpty: If true, then it will be hidden if there's no content.
 
 readOnly: if true, a form field to edit this won't be printed out in cardEditor.
@@ -410,6 +414,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 		noContentEditable: true,
 		hideIfEmpty: true,
 		displayPrefix: 'Also known as ',
+		extraRunDelimiter: ',',
 	},
 	[TEXT_FIELD_BODY]: {
 		html: true,

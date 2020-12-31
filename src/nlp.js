@@ -444,6 +444,7 @@ const extractContentWords = (card) => {
 			//like it doesn't exist. Otherwise it will show up VERY high in the
 			//various NLP pipelines.
 			if (fieldName == TEXT_FIELD_BODY && CARD_TYPE_CONFIGURATION[cardType].defaultBody == fieldValue) fieldValue = '';
+			if (config.extraRunDelimiter) fieldValue = fieldValue.split(config.extraRunDelimiter).join('\n');
 			const content = config.html ? innerTextForHTML(fieldValue) : fieldValue;
 			runs = splitRuns(content);
 			//splitRuns checks for empty runs, but they could be things that will be normalized to nothing, so filter again
