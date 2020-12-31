@@ -1173,6 +1173,20 @@ class Fingerprint {
 		return [[...this._items.keys()], infos];
 	}
 
+	//returns a map of item => true for fingerprint items that were not
+	//explicitly on the card. This could happen for example because of synonym
+	//expansion. 
+	itemsNotFromCard() {
+		//For each ngram we only have to search until we find a single occurance of it to know it's included.
+		return Object.fromEntries(
+			[...this._items.keys()].filter(ngram => {
+				return !this._cards.some(card => {
+					return Object.values(card.nlp.withoutStopWords).some(runs => runs.some(run => ngramWithinOther(ngram, run)));
+				});
+			}).map(ngram => [ngram, true])
+		);
+	}
+
 	prettyItems() {
 		const result = [];
 		for (const ngram of this._items.keys()) {
