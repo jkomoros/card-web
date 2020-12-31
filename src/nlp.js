@@ -1187,7 +1187,17 @@ class Fingerprint {
 			//If there were no original ngrams, then cardOrCards was likely
 			//diffferent than what was used for fingerprint.
 			if (!maxOriginalNgram) {
-				maxOriginalNgram = ngram.split(' ').map(word => reversedStemmedWords[word]).join(' ');
+				maxOriginalNgram = ngram.split(' ').map(word => {
+					const candidateMap = reversedStemmedWords[word];
+					let max = 0;
+					let maxWord = '';
+					for (const [word, count] of Object.entries(candidateMap)) {
+						if (count < max) continue;
+						max = count;
+						maxWord = word;
+					}
+					return maxWord;
+				}).join(' ');
 			}
 
 			result.push(titleCase(maxOriginalNgram));
