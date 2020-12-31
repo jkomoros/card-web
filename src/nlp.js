@@ -963,7 +963,7 @@ const capitalizeTitleWord = (word) => {
 const titleCase = (str) => str.split(' ').map(word => capitalizeTitleWord(word) ? word.charAt(0).toUpperCase() + word.slice(1) : word).join(' ');
 
 //The max number of words to include in the semantic fingerprint
-const SEMANTIC_FINGERPRINT_SIZE = 35;
+const SEMANTIC_FINGERPRINT_SIZE = 50;
 
 const SEMANTIC_FINGERPRINT_MATCH_CONSTANT = 1.0;
 
