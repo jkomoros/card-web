@@ -1181,7 +1181,8 @@ class Fingerprint {
 		return Object.fromEntries(
 			[...this._items.keys()].filter(ngram => {
 				return !this._cards.some(card => {
-					return Object.values(card.nlp.withoutStopWords).some(runs => runs.some(run => ngramWithinOther(ngram, run)));
+					const fieldsToSkip = DERIVED_FIELDS_FOR_CARD_TYPE[card.card_type] || {};
+					return Object.entries(card.nlp.withoutStopWords).filter(entry => !fieldsToSkip[entry[0]]).map(entry => entry[1]).some(runs => runs.some(run => ngramWithinOther(ngram, run)));
 				});
 			}).map(ngram => [ngram, true])
 		);
