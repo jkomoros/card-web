@@ -124,6 +124,17 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 					color: var(--app-primary-color);
 				}
 
+				[data-field=title_alternates]{
+					color: var(--app-dark-text-color);
+					font-size: 0.7em;
+					font-weight: bold;
+					margin: 0;
+				}
+
+				[data-field=title_alternates] span {
+					font-weight: normal;
+				}
+
 				section {
 					font-family: 'Source Sans Pro', sans-serif;
 					font-size: 1em;
@@ -335,8 +346,8 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		}
 
 		let value = this._card[field] || '';
-		if (value && config.displayPrefix) value = config.displayPrefix + value;
 		let htmlToSet = config.html ? normalizeBodyHTML(value) : '';
+		if (value && config.displayPrefix) htmlToSet = '<span>' + config.displayPrefix + '</span> ' + value;
 		if (!value && !this.editing) {
 			if (this._card.full_bleed) {
 				value = '';

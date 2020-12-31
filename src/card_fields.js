@@ -53,6 +53,7 @@ export const REFERENCES_INBOUND_CARD_PROPERTY = 'references_inbound';
 export const TEXT_FIELD_BODY = 'body';
 export const TEXT_FIELD_TITLE = 'title';
 export const TEXT_FIELD_SUBTITLE = 'subtitle';
+//Also duplicated in card-renderer styles
 export const TEXT_FIELD_TITLE_ALTERNATES = 'title_alternates';
 export const TEXT_FIELD_REFERENCES_INFO_INBOUND = REFERENCES_INFO_INBOUND_CARD_PROPERTY;
 export const TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND = 'non_link_references';
@@ -409,14 +410,14 @@ export const TEXT_FIELD_CONFIGURATION = {
 	},
 	[TEXT_FIELD_TITLE_ALTERNATES]: {
 		html: false,
-		container: 'div',
+		container: 'h5',
 		legalCardTypes: {[CARD_TYPE_CONCEPT]: true},
 		derivedForCardTypes: {},
 		autoFontSizeBoostForCardTypes: {},
 		matchWeight:0.75,
 		noContentEditable: true,
 		hideIfEmpty: true,
-		displayPrefix: 'Also known as ',
+		displayPrefix: 'Also known as',
 		extraRunDelimiter: ',',
 		description: 'Words to treat as synonyms that don\'t have their own concept cards. A \',\' separates multiple ones.' 
 	},
