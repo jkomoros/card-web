@@ -16,6 +16,7 @@ import {
 	TEXT_FIELD_TITLE,
 	REFERENCE_TYPES,
 	CARD_TYPE_CONFIGURATION,
+	REFERENCE_TYPE_SYNONYM,
 } from './card_fields.js';
 
 import {
@@ -67,6 +68,38 @@ export const getConceptCardForConcept = (allCardsOrConceptCards, conceptStr) => 
 		if (cardMatchesConcept(card, conceptStr)) return card;
 	}
 	return null;
+};
+
+//Returns a map of str => [synonym1, synonym2, ...]. The words won't be normalized.
+// eslint-disable-next-line no-unused-vars
+const synonymMap = (rawCards) => {
+	const conceptCards = conceptCardsFromCards(rawCards);
+	const result = {};
+	//NOTE: this logic relies on synonym only being legal to/from concept cards.
+	for (const card of Object.values(conceptCards)) {
+		const title = getConceptStringFromConceptCard(card);
+		//We treat synonym as a bidirectional link, so if a card links to US as
+		//a synonym, we'll also consider them our sysnonym.
+		//TODO: handle bidirectional linking more resiliently
+		const synonymReferencesOutbound = references(card).byType[REFERENCE_TYPE_SYNONYM] || {};
+		const synonymReferencesInbound = references(card).byTypeInbound[REFERENCE_TYPE_SYNONYM] || {};
+		//We'll use a map so we get a unique result. In particular, the card we
+		//point to as a synonym might point to us as a synonym, too.
+		const synonyms = {};
+		for (const otherCardID of [...Object.keys(synonymReferencesOutbound), ...Object.keys(synonymReferencesInbound)]) {
+			const otherCard = rawCards[otherCardID];
+			if (!otherCard) continue;
+			const otherCardTitle = getConceptStringFromConceptCard(otherCard);
+			//This shouldn't happen, but could if the other card somehow isn't a concept card
+			if (!otherCardTitle) continue;
+			synonyms[otherCardTitle] = true;
+		}
+		if (Object.keys(synonyms).length == 0) continue;
+		result[title] = [...Object.keys(synonyms)];
+	}
+	//TODO: do expansion of synonyms to synonyms so we get transitive synonyms
+	//until it stabalizes (or a count of 5 or something as a sanity check)
+	return result;
 };
 
 //STOP_WORDS are words that are so common that we should basically skip them. We
