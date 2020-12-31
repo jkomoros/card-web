@@ -198,7 +198,7 @@ excludeFromInfoPanel - if true, will not show up in the infoPanelArray. That mig
 toCardTypeAllowList - if null or undefined, any card of any type may be on the receiving end. If not null, then only card_types in the toCardTypeAllowList map are allowed.
 fromCardTypeAllowList - if null or undefined, any card of any type may be on the sending end. If not null, then only card_types in the fromCardTypeAllowList are allowed.
 backportMissingText - if true, then if a card has an outbound reference of this type without text, it will backport the title of the to card, so for the purposes of any nlp processing, it will be as though the outbound reference included the title of the card it's pointing to. (The underlying data in the db is untouched)
-suppressSuggestedConcept - if true, then cards that already have a reference of this type to TO card will not have TO card suggested as a concept even if they otherwise would have.
+conceptReference - if true, then this type of reference will be considered to be a concept reference even if it's not literally one (e.g. example-of, synonym).
 */
 export const REFERENCE_TYPES = {
 	[REFERENCE_TYPE_LINK]: {
@@ -228,7 +228,6 @@ export const REFERENCE_TYPES = {
 		color: '#CCCCCC',
 		//Not important enough
 		excludeFromInfoPanel: true,
-		suppressSuggestedConcept: true,
 	},
 	[REFERENCE_TYPE_GENERIC]: {
 		name: 'Generic reference',
@@ -280,7 +279,7 @@ export const REFERENCE_TYPES = {
 			[CARD_TYPE_CONCEPT]: true,
 		},
 		backportMissingText: true,
-		suppressSuggestedConcept: true,
+		conceptReference: true,
 	},
 	[REFERENCE_TYPE_SYNONYM]: {
 		//NOTE: synonymMap effectivley pretends that an inbound synonym
@@ -301,7 +300,7 @@ export const REFERENCE_TYPES = {
 		},
 		backportMissingText: true,
 		//Effectively a sub-type of concept reference.
-		suppressSuggestedConcept: true,
+		conceptReference: true,
 	},
 	[REFERENCE_TYPE_EXAMPLE_OF]: {
 		name: 'Example of',
@@ -316,7 +315,7 @@ export const REFERENCE_TYPES = {
 			[CARD_TYPE_CONCEPT]: true,
 		},
 		backportMissingText: true,
-		suppressSuggestedConcept: true,
+		conceptReference: true,
 	},
 };
 
