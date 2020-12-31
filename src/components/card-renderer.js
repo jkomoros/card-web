@@ -137,6 +137,10 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 					font-size: 0.7em;
 					font-weight: bold;
 					margin: 0;
+					/* total hack to consume most of the vertical space of the
+					h1 above it. This would break on cards with a
+					title_alternate but no title */
+					margin-top: -1.4em;
 				}
 
 				[data-field=title_alternates] span {
