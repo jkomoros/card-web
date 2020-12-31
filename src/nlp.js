@@ -710,7 +710,7 @@ const wordCountsForSemantics = (strsMap, cardObj, maxFingerprintSize) => {
 					//Each additional word in the lenght of the ngram makes them stand
 					//out more as distinctive, so pretend like you see them less, in
 					//proprition with how many there are.
-					const baseAmount = 1/n;
+					const baseAmount = 1/(n + 1);
 					cardMap[ngram] = (cardMap[ngram] || 0) + (baseAmount * totalIndexingCount);
 				}
 			}
@@ -730,7 +730,7 @@ const wordCountsForSemantics = (strsMap, cardObj, maxFingerprintSize) => {
 					//it wouldn't be automatically geneated (since it's larger than the
 					//ngram size), include it. This means that short snippets of text, like
 					//in references, will get fully indexed as an ngram.
-					const baseAmount = 1/splitWords.length;
+					const baseAmount = 1/(splitWords.length + 1);
 					cardMap[words] = (cardMap[words] || 0) + (baseAmount * totalIndexingCount);
 				}
 			}
@@ -747,7 +747,7 @@ const wordCountsForSemantics = (strsMap, cardObj, maxFingerprintSize) => {
 					//important when we see it, so take note of it, at more than
 					//full value to ensure it shows up in fingerprints even it
 					//it wouldn't have otherwise.
-					cardMap[ngram] = (cardMap[ngram] || 0) + totalIndexingCount + 1;
+					cardMap[ngram] = (cardMap[ngram] || 0) + totalIndexingCount;
 				}
 			}
 		}
