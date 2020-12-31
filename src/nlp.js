@@ -8,6 +8,7 @@ import {
 	BODY_CARD_TYPES,
 	TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND,
 	TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND,
+	TEXT_FIELD_TITLE_ALTERNATES,
 	TEXT_FIELD_STRONG_BODY_TEXT,
 	REFERENCE_TYPE_LINK,
 	TEXT_FIELD_BODY,
@@ -71,6 +72,10 @@ export const getConceptCardForConcept = (allCardsOrConceptCards, conceptStr) => 
 	return null;
 };
 
+const extractSynonymsFromCardTitleAlternates = (rawCard) => {
+	return extractRawContentRunsForCardField(rawCard,TEXT_FIELD_TITLE_ALTERNATES).map(str => str.trim()).filter(str => str);
+};
+
 //Returns a map of str => [synonym1, synonym2, ...]. The words won't be normalized.
 export const synonymMap = (rawCards) => {
 	const conceptCards = conceptCardsFromCards(rawCards);
@@ -93,6 +98,9 @@ export const synonymMap = (rawCards) => {
 			//This shouldn't happen, but could if the other card somehow isn't a concept card
 			if (!otherCardTitle) continue;
 			synonyms[otherCardTitle] = true;
+		}
+		for (const synonym of extractSynonymsFromCardTitleAlternates(card)) {
+			synonyms[synonym] = true;
 		}
 		if (Object.keys(synonyms).length == 0) continue;
 		result[title] = [...Object.keys(synonyms)];
