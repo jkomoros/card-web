@@ -1113,9 +1113,19 @@ export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrC
 		//cards for synonyms if we don't literally use that word on this card or
 		//one of its backported references.
 		if (itemsNotFromCard[fingerprintItem]) continue;
+		//Skip items that aren't concepts
+		if (!normalizedConcepts[fingerprintItem]) continue;
 		//Skip items we already point to
 		if (itemsFromConceptReferences[fingerprintItem]) continue;
-		if (!normalizedConcepts[fingerprintItem]) continue;
+		let skipSuggestion = false;
+		//Don't suggest concepts that are full subsets of concepts we already accepted
+		for (const containingNgram of Object.keys(itemsFromConceptReferences)) {
+			if (ngramWithinOther(fingerprintItem, containingNgram)) {
+				skipSuggestion = true;
+				break;
+			}
+		}
+		if (skipSuggestion) continue;
 		//OK, we think there's a card that matches this fingerprint item.
 		const conceptCard = getConceptCardForConcept(allCardsOrConceptCards, fingerprintItem);
 		//false alarm
@@ -1123,7 +1133,6 @@ export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrC
 		//Don't suggest that concept cards reference themselves
 		if (conceptCard.id == card.id) continue;
 		//Don't suggest things that already have references of type concept (and sub-types like syonym), or the generic ack.
-		let skipSuggestion = false;
 		for (const referenceType of REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT) {
 			const referencesOfType = existingReferences[referenceType];
 			if (!referencesOfType) continue;
