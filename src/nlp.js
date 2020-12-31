@@ -1174,8 +1174,8 @@ class Fingerprint {
 	}
 
 	//returns a map of item => true for fingerprint items that were not
-	//explicitly on the card. This could happen for example because of synonym
-	//expansion. 
+	//explicitly on the card, either direclty or via backporting reference text.
+	//This could happen for example because of synonym expansion. 
 	itemsNotFromCard() {
 		//For each ngram we only have to search until we find a single occurance of it to know it's included.
 		return Object.fromEntries(
