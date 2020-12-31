@@ -53,6 +53,7 @@ export const REFERENCES_INBOUND_CARD_PROPERTY = 'references_inbound';
 export const TEXT_FIELD_BODY = 'body';
 export const TEXT_FIELD_TITLE = 'title';
 export const TEXT_FIELD_SUBTITLE = 'subtitle';
+export const TEXT_FIELD_TITLE_ALTERNATES = 'title_alternates';
 export const TEXT_FIELD_REFERENCES_INFO_INBOUND = REFERENCES_INFO_INBOUND_CARD_PROPERTY;
 export const TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND = 'non_link_references';
 export const TEXT_FIELD_STRONG_BODY_TEXT = 'strong_body_text';
@@ -398,6 +399,17 @@ export const TEXT_FIELD_CONFIGURATION = {
 		},
 		autoFontSizeBoostForCardTypes: {},
 		matchWeight: 1.0,
+	},
+	[TEXT_FIELD_TITLE_ALTERNATES]: {
+		html: false,
+		container: 'div',
+		legalCardTypes: {[CARD_TYPE_CONCEPT]: true},
+		derivedForCardTypes: {},
+		autoFontSizeBoostForCardTypes: {},
+		matchWeight:0.75,
+		noContentEditable: true,
+		hideIfEmpty: true,
+		displayPrefix: 'Also known as ',
 	},
 	[TEXT_FIELD_BODY]: {
 		html: true,
