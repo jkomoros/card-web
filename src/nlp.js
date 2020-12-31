@@ -93,16 +93,18 @@ const STOP_WORDS = {
 	'for':true,
 };
 
-//STOP_WORDS are by default not capitalized in fingerprint.prettyItems. But
-//these are.
-const CAPITALIZED_STOP_WORDS = {
-	'that': true,
-	'you': true,
-	'is': true,
-	'ar': true,
-	'be': true,
-	'can': true,
-	'have': true,
+//STOP_WORDS that should be lowercased in fingerprint.prettyItems.
+const LOWERCASE_STOP_WORDS = {
+	'a' : true,
+	'an' : true,
+	'the' : true,
+	'in' : true,
+	'and': true,
+	'of': true,
+	'to': true,
+	'it': true,
+	'on': true,
+	'for':true,
 };
 
 //OVERRIDE_STEMS are words that stem 'wrong' and we want to have a manual
@@ -957,7 +959,7 @@ export const emptyWordCloud = () => {
 
 const capitalizeTitleWord = (word) => {
 	const stemmedWord = stemmedNormalizedWords(word);
-	return !STOP_WORDS[stemmedWord] || CAPITALIZED_STOP_WORDS[stemmedWord];
+	return !LOWERCASE_STOP_WORDS[stemmedWord];
 };
 
 const titleCase = (str) => str.split(' ').map(word => capitalizeTitleWord(word) ? word.charAt(0).toUpperCase() + word.slice(1) : word).join(' ');
