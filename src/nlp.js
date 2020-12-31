@@ -1090,7 +1090,12 @@ export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrC
 	const existingReferences = references(card).byType;
 	const REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].suppressSuggestedConcept).map(entry => entry[0]);
 	const normalizedConcepts = normalizeNgramMap(concepts);
+	const itemsNotFromCard = fingerprint.itemsNotFromCard();
 	for (let fingerprintItem of fingerprint.keys()) {
+		//Skip items we know weren't on card. This helps not suggest concept
+		//cards for synonyms if we don't literally use that word on this card or
+		//one of its backported references.
+		if (itemsNotFromCard[fingerprintItem]) continue;
 		//Skip items we already point to
 		if (itemsFromConceptReferences[fingerprintItem]) continue;
 		if (!normalizedConcepts[fingerprintItem]) continue;
