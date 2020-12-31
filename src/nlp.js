@@ -797,6 +797,20 @@ const wordCountsForSemantics = (strsMap, cardObj, maxFingerprintSize) => {
 			}
 		}
 	}
+	//Pretend we saw synonym expansions on each card
+	if (cardObj.synonymMap) {
+		for (const [keyWord, synonyms] of Object.entries(cardObj.synonymMap)) {
+			const keyWordValue = cardMap[keyWord];
+			//If that keyword wasn't on this card, skip it
+			if (keyWordValue === undefined) continue;
+			for (const synonym of synonyms) {
+				//If the results already had the synonym, skip it
+				if (cardMap[synonym]) continue;
+				//Pretend we saw this word as often as the synonym
+				cardMap[synonym] = keyWordValue;
+			}
+		}
+	}
 	return cardMap;
 };
 
