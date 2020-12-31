@@ -417,10 +417,32 @@ const OVERRIDE_EXTRACTORS = {
 	},
 };
 
+const extractRawContentRunsForCardField = (card, fieldName) => {
+	const cardType = card.card_type || '';
+	const config = TEXT_FIELD_CONFIGURATION[fieldName];
+	if (DERIVED_FIELDS_FOR_CARD_TYPE[cardType][fieldName]) return [];
+	let fieldValue = '';
+	if (config.overrideExtractor) {
+		const extractor = OVERRIDE_EXTRACTORS[fieldName];
+		if (!extractor) throw new Error(fieldName + ' had overrideExtractor set, but no entry in OVERRIDE_EXTRACTORS');
+		fieldValue = extractor(card);
+	} else {
+		fieldValue = extractFieldValueForIndexing(card[fieldName]);
+	}
+	if (!fieldValue) fieldValue = '';
+	//If the text is the defaultBody for that card type, just pretend
+	//like it doesn't exist. Otherwise it will show up VERY high in the
+	//various NLP pipelines.
+	if (fieldName == TEXT_FIELD_BODY && CARD_TYPE_CONFIGURATION[cardType].defaultBody == fieldValue) fieldValue = '';
+	if (config.extraRunDelimiter) fieldValue = fieldValue.split(config.extraRunDelimiter).join('\n');
+	const content = config.html ? innerTextForHTML(fieldValue) : fieldValue;
+	return splitRuns(content);
+};
+
 //extractContentWords returns an object with the field to the non-de-stemmed
 //normalized words for each of the main properties.
 const extractContentWords = (card) => {
-	const cardType = card.card_type || '';
+	
 	//These three properties are expected to be set by TEXT_SEARCH_PROPERTIES
 	//Fields that are derived are calculated based on other fields of the card
 	//and should not be considered to be explicit set on the card by the author.
@@ -428,28 +450,10 @@ const extractContentWords = (card) => {
 	//of the fingerprint, and for cards with not much content that use the
 	//fingerprint in a derived field that can create reinforcing loops.
 	const obj = {};
-	for (let [fieldName, config] of Object.entries(TEXT_FIELD_CONFIGURATION)) {
-		let runs = [];
-		if (!DERIVED_FIELDS_FOR_CARD_TYPE[cardType][fieldName]) {
-			let fieldValue = '';
-			if (config.overrideExtractor) {
-				const extractor = OVERRIDE_EXTRACTORS[fieldName];
-				if (!extractor) throw new Error(fieldName + ' had overrideExtractor set, but no entry in OVERRIDE_EXTRACTORS');
-				fieldValue = extractor(card);
-			} else {
-				fieldValue = extractFieldValueForIndexing(card[fieldName]);
-			}
-			if (!fieldValue) fieldValue = '';
-			//If the text is the defaultBody for that card type, just pretend
-			//like it doesn't exist. Otherwise it will show up VERY high in the
-			//various NLP pipelines.
-			if (fieldName == TEXT_FIELD_BODY && CARD_TYPE_CONFIGURATION[cardType].defaultBody == fieldValue) fieldValue = '';
-			if (config.extraRunDelimiter) fieldValue = fieldValue.split(config.extraRunDelimiter).join('\n');
-			const content = config.html ? innerTextForHTML(fieldValue) : fieldValue;
-			runs = splitRuns(content);
-			//splitRuns checks for empty runs, but they could be things that will be normalized to nothing, so filter again
-			runs = runs.map(str => normalizedWords(str)).filter(str => str);
-		}
+	for (let fieldName of Object.keys(TEXT_FIELD_CONFIGURATION)) {
+		let runs = extractRawContentRunsForCardField(card, fieldName);
+		//splitRuns checks for empty runs, but they could be things that will be normalized to nothing, so filter again
+		runs = runs.map(str => normalizedWords(str)).filter(str => str);
 		obj[fieldName] = runs;
 	}
 	return obj;
