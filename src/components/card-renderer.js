@@ -219,13 +219,15 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 					width: 1em;
 				}
 
+				.vertical-spacer {
+					/* make sure that subtitle-container always takes up space if it's empty */
+					height: 1.4em;
+				}
+
 				.sub-title-container {
 					display:flex;
 					flex-direction:row;
 					align-items: center;
-				}
-
-				.sub-title-container > [data-field], .sub-title-container > reference-block {
 					/* total hack to consume most of the vertical space of the
 					h1 above it. This would break on cards with a
 					title_alternate but no title */
@@ -293,6 +295,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 						<div>
 							${titleFields.map(fieldName => this._templateForField(fieldName))}
 							<div class='sub-title-container'>
+								<div class='vertical-spacer'></div>
 								${nonScrollableFields.map(fieldName => this._templateForField(fieldName))}
 								${condensedReferenceBlocks.map(block => html`<reference-block .block=${block}></reference-block>`)}
 							</div>
