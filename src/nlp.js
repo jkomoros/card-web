@@ -1347,6 +1347,13 @@ class Fingerprint {
 				if (this._items.has(str)) {
 					result[str] = true;
 				}
+				const synonyms = obj.synonymMap[str];
+				if (!synonyms) continue;
+				for (const synonym of synonyms) {
+					if (this._items.has(synonym)) {
+						result[synonym] = true;
+					}
+				}
 			}
 		}
 		return result;
