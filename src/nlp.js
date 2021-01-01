@@ -41,9 +41,16 @@ export const conceptCardsFromCards = (allCards) => {
 	return Object.fromEntries(Object.entries(allCards).filter(entry => entry[1].card_type == CARD_TYPE_CONCEPT));
 };
 
-export const getConceptStringFromConceptCard = (conceptCard) => {
-	if (conceptCard.card_type != CARD_TYPE_CONCEPT) return '';
-	return conceptCard[TEXT_FIELD_TITLE];
+//Rturns the primary concept string only (the title). See also getAllConceptStringsFromConceptCard
+export const getConceptStringFromConceptCard = (rawConceptCard) => {
+	if (rawConceptCard.card_type != CARD_TYPE_CONCEPT) return '';
+	return rawConceptCard[TEXT_FIELD_TITLE];
+};
+
+//REturns all strings that cardMatchesConcept would work for.
+export const getAllConceptStringsFromConceptCard = (rawConceptCard) => {
+	if (rawConceptCard.card_type != CARD_TYPE_CONCEPT) return '';
+	return [getConceptStringFromConceptCard(rawConceptCard), ...extractSynonymsFromCardTitleAlternates(rawConceptCard)];
 };
 
 export const getConceptsFromConceptCards = (conceptCards) => {

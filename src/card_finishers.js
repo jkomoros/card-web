@@ -5,7 +5,7 @@ import {
 
 import {
 	cardWithNormalizedTextProperties,
-	getConceptStringFromConceptCard,
+	getAllConceptStringsFromConceptCard,
 	getAllConceptCardsForConcept
 } from './nlp.js';
 
@@ -43,12 +43,13 @@ const conceptValidator = (card, state) => {
 	//The primary purpose of this validator is to make sure that this card's
 	//title doesn't clash with any that already exist as concepts.
 	const allCards = selectCards(state);
-	const conceptStr = getConceptStringFromConceptCard(card);
-	//Filter all OTHER cards that overlap with this card
-	const matchingCards = getAllConceptCardsForConcept(allCards, conceptStr).filter(conceptCard => card.id != conceptCard.id);
-	if (matchingCards.length > 0) {
-		const warningMessage = 'Other cards overlapped with the proposed concept name: "' + conceptStr + '": ' + matchingCards.map(card => card.id + ':"' + card.title + '"').join(',') + '\nChange the title to something that doesn\'t overlap in order to save';
-		throw new Error(warningMessage);
+	for (const conceptStr of getAllConceptStringsFromConceptCard(card)) {
+		//Filter all OTHER cards that overlap with this card
+		const matchingCards = getAllConceptCardsForConcept(allCards, conceptStr).filter(conceptCard => card.id != conceptCard.id);
+		if (matchingCards.length > 0) {
+			const warningMessage = 'Other cards overlapped with the proposed concept name or alternate title: "' + conceptStr + '": ' + matchingCards.map(card => card.id + ':"' + card.title + '"').join(',') + '\nChange the title to something that doesn\'t overlap in order to save';
+			throw new Error(warningMessage);
+		}
 	}
 	return card;
 };
