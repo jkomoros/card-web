@@ -6,7 +6,8 @@ import {
 	REFERENCE_TYPE_SEE_ALSO,
 	REFERENCE_TYPE_SYNONYM,
 	REFERENCE_TYPE_EXAMPLE_OF,
-	REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES
+	REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES,
+	REFERENCE_TYPE_OPPOSITE_OF
 } from './card_fields.js';
 
 import {
@@ -58,6 +59,11 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 		{
 			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_SYNONYM)]),
 			title: 'Synonyms',
+			condensed: true,
+		},
+		{
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_OPPOSITE_OF)]),
+			title: 'Opposite of',
 			condensed: true,
 		},
 		{

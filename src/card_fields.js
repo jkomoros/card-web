@@ -185,6 +185,9 @@ export const REFERENCE_TYPE_CONCEPT = 'concept';
 //For concept cards that are synonym of another concept card. Conceptually a
 //sub-type of the concept reference type.
 export const REFERENCE_TYPE_SYNONYM = 'synonym';
+//For concept cards that are the antonym of another concept card. Conceptually a
+//sub-type of the concept reference type.
+export const REFERENCE_TYPE_OPPOSITE_OF = 'opposite-of';
 //For cards that are an example of a more generic concept that is pointed to.
 //Conceptually a sub-type of the concept reference type.
 export const REFERENCE_TYPE_EXAMPLE_OF = 'example-of';
@@ -301,6 +304,26 @@ export const REFERENCE_TYPES = {
 			[CARD_TYPE_CONCEPT]: true,
 		},
 		backportMissingText: true,
+		//Effectively a sub-type of concept reference.
+		conceptReference: true,
+	},
+	[REFERENCE_TYPE_OPPOSITE_OF]: {
+		name: 'Opposite of',
+		description: 'For concept cards that are antonyms of another concept card',
+		editable: true,
+		substantive: true,
+		//darkkhahki
+		color: '#BDB76B',
+		//Printed out on concept cards, which are the only cards that can be on the from side.
+		excludeFromInfoPanel: true,
+		toCardTypeAllowList: {
+			[CARD_TYPE_CONCEPT]: true,
+		},
+		fromCardTypeAllowList: {
+			[CARD_TYPE_CONCEPT]: true,
+		},
+		//Don't backport text since they're the opposite!
+		backportMissingText: false,
 		//Effectively a sub-type of concept reference.
 		conceptReference: true,
 	},
