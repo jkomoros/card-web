@@ -53,8 +53,12 @@ export const getAllConceptStringsFromConceptCard = (rawConceptCard) => {
 	return [getConceptStringFromConceptCard(rawConceptCard), ...extractSynonymsFromCardTitleAlternates(rawConceptCard)];
 };
 
+//Returns all concept strings that, if provided to getConceptCardForConcept,
+//would return a card. Note that this is not a one-to-one erlationship to
+//concept cards, it might include multiple entries for each concept card if it
+//has title alternates.
 export const getConceptsFromConceptCards = (conceptCards) => {
-	return Object.fromEntries(Object.values(conceptCards).map(card => [getConceptStringFromConceptCard(card), true]));
+	return Object.fromEntries(Object.values(conceptCards).map(card => getAllConceptStringsFromConceptCard(card)).flat().map(item => [item, true]));
 };
 
 const cardMatchesConcept = (card, conceptStr) => {
