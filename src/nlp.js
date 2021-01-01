@@ -258,7 +258,9 @@ const LOWERCASE_STOP_WORDS = {
 const OVERRIDE_STEMS = {
 	//optimism-family words and optimized-familyl words stem to the same thing
 	//but they're very different.
-	'optimiz': 'optimiz'
+	'optimiz': 'optimiz',
+	//generally and generative stem to the same word otherwise
+	'generativ': 'generativ',
 };
 
 const lowercaseSplitWords = (str) => {
