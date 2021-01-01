@@ -1150,24 +1150,26 @@ export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrC
 	//larger concepts we might also suggest, since if the user were to select
 	//the larger concept then it would suppress the smaller concepts.
 
-	//consider largest concepts down to smallest to guarantee that we pick the larger ones first.
-	candidates.sort((a, b) => conceptStrForCandidateCard[b].length - conceptStrForCandidateCard[a].length);
+	//consider largest concepts down to smallest to guarantee that we pick the
+	//larger ones first. We'll sort a copy because we still want to keep the
+	//original order so we suggest higher fingerprint items first
+	let sortedCandidates = [...candidates];
+	sortedCandidates.sort((a, b) => conceptStrForCandidateCard[b].length - conceptStrForCandidateCard[a].length);
 
-	let finalResult = [];
-	for (const candidate of candidates) {
+	let cardsToIncludeInResult = {};
+	for (const candidate of sortedCandidates) {
 		let skipCandidate = false;
-		for (const includedItem of finalResult) {
+		for (const includedItem of Object.keys(cardsToIncludeInResult)) {
 			if (ngramWithinOther(conceptStrForCandidateCard[candidate], conceptStrForCandidateCard[includedItem])) {
 				skipCandidate = true;
 				break;
 			}
 		}
 		if (skipCandidate) continue;
-		finalResult.push(candidate);
+		cardsToIncludeInResult[candidate] = true;
 	}
 
-	//TODO: still suggest the concepts in the order of highest position in wordcloud, not longest size.
-	return finalResult;
+	return candidates.filter(id => cardsToIncludeInResult[id]);
 };
 
 export const emptyWordCloud = () => {
