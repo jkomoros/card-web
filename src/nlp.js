@@ -1100,7 +1100,7 @@ export const possibleMissingConcepts = (cards) => {
 };
 
 export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrConceptCards, concepts) => {
-	const result = [];
+	const candidates = [];
 	if (!card || !fingerprint) return [];
 	if (!BODY_CARD_TYPES[card.card_type]) return [];
 	const itemsFromConceptReferences = fingerprint.itemsFromConceptReferences();
@@ -1108,6 +1108,7 @@ export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrC
 	const REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].conceptReference || entry[0] == REFERENCE_TYPE_ACK).map(entry => entry[0]);
 	const normalizedConcepts = normalizeNgramMap(concepts);
 	const itemsNotFromCard = fingerprint.itemsNotFromCard();
+	const conceptStrForCandidateCard = {};
 	for (let fingerprintItem of fingerprint.keys()) {
 		//Skip items we know weren't on card. This helps not suggest concept
 		//cards for synonyms if we don't literally use that word on this card or
@@ -1142,9 +1143,31 @@ export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrC
 			}
 		}
 		if (skipSuggestion) continue;
-		result.push(conceptCard.id);
+		conceptStrForCandidateCard[conceptCard.id] = fingerprintItem;
+		candidates.push(conceptCard.id);
 	}
-	return result;
+	//Now we want to make sure we don't suggest any concepts that are subsets of
+	//larger concepts we might also suggest, since if the user were to select
+	//the larger concept then it would suppress the smaller concepts.
+
+	//consider largest concepts down to smallest to guarantee that we pick the larger ones first.
+	candidates.sort((a, b) => conceptStrForCandidateCard[b].length - conceptStrForCandidateCard[a].length);
+
+	let finalResult = [];
+	for (const candidate of candidates) {
+		let skipCandidate = false;
+		for (const includedItem of finalResult) {
+			if (ngramWithinOther(conceptStrForCandidateCard[candidate], conceptStrForCandidateCard[includedItem])) {
+				skipCandidate = true;
+				break;
+			}
+		}
+		if (skipCandidate) continue;
+		finalResult.push(candidate);
+	}
+
+	//TODO: still suggest the concepts in the order of highest position in wordcloud, not longest size.
+	return finalResult;
 };
 
 export const emptyWordCloud = () => {
