@@ -836,13 +836,8 @@ const wordCountsForSemantics = (strsMap, cardObj, maxFingerprintSize) => {
 			if (keyWordValue === undefined) continue;
 			for (const synonym of synonyms) {
 				const proposedValue = keyWordValue * SYNONYM_DISCOUNT_FACTOR;
-				//If the results already had the synonym, skip it, unless we'd
-				//set it to a higher value. This helps avoid a weird situation
-				//where the card that actually references the real word has the
-				//concept synonyms counted higher.
-				if (cardMap[synonym] && cardMap[synonym] > proposedValue) continue;
-				//Pretend we saw this word as often as the synonym
-				cardMap[synonym] = proposedValue;
+				//Add this synonym count to existing natural counts.
+				cardMap[synonym] = (cardMap[synonym] || 0) + proposedValue;
 			}
 		}
 	}
