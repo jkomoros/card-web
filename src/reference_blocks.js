@@ -113,6 +113,8 @@ const INFO_PANEL_REFERENCE_BLOCKS = [
 	},
 	{
 		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + SELF_KEY_CARD_ID, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, SELF_KEY_CARD_ID, SUBSTANTIVE_REFERENCE_TYPES), LIMIT_FILTER_NAME + '/' + NUM_SIMILAR_CARDS_TO_SHOW]),
+		navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + SELF_KEY_CARD_ID, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, SELF_KEY_CARD_ID, SUBSTANTIVE_REFERENCE_TYPES)]),
+		showNavigate: true,
 		title: 'Similar Cards',
 		description: 'Cards that are neither linked to or from here but that have distinctive terms that overlap with this card.',
 	}
