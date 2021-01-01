@@ -52,13 +52,25 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[cardType] || {};
 		const styleBlock = html([cardTypeConfig.styleBlock || '']);
 		const fieldsToRender = editableFieldsForCardType(cardType);
+		let titleFields = [];
 		let nonScrollableFields = [];
 		let scrollableFields = [];
 		for (const [fieldName,fieldConfig] of Object.entries(fieldsToRender)) {
-			if (fieldConfig.nonScrollable) {
+			if (fieldName == TEXT_FIELD_TITLE) {
+				titleFields.push(fieldName);
+			} else if (fieldConfig.nonScrollable) {
 				nonScrollableFields.push(fieldName);
 			} else {
 				scrollableFields.push(fieldName);
+			}
+		}
+		const condensedReferenceBlocks = [];
+		const normalReferenceBlocks = [];
+		for (const block of this.expandedReferenceBlocks || []) {
+			if (block.condensed) {
+				condensedReferenceBlocks.push(block);
+			} else {
+				normalReferenceBlocks.push(block);
 			}
 		}
 		return html`
@@ -130,21 +142,6 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 
 				h1 strong, h2 strong, h3 strong {
 					color: var(--app-primary-color);
-				}
-
-				[data-field=title_alternates]{
-					color: var(--app-dark-text-color);
-					font-size: 0.7em;
-					font-weight: bold;
-					margin: 0;
-					/* total hack to consume most of the vertical space of the
-					h1 above it. This would break on cards with a
-					title_alternate but no title */
-					margin-top: -1.4em;
-				}
-
-				[data-field=title_alternates] span {
-					font-weight: normal;
 				}
 
 				section {
@@ -222,8 +219,33 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 					width: 1em;
 				}
 
+				.sub-title-container {
+					display:flex;
+					flex-direction:row;
+					align-items: center;
+				}
+
+				.sub-title-container > [data-field], .sub-title-container > reference-block {
+					/* total hack to consume most of the vertical space of the
+					h1 above it. This would break on cards with a
+					title_alternate but no title */
+					margin-top: -1.4em;
+				}
+
 				.title-container [data-field=title] {
 					flex:1;
+				}
+
+				[data-field=title_alternates]{
+					color: var(--app-dark-text-color);
+					font-size: 0.7em;
+					font-weight: bold;
+					margin: 0;
+					margin-right: 0.5em;
+				}
+
+				[data-field=title_alternates] span {
+					font-weight: normal;
 				}
 
 				.scroll-indicators {
@@ -267,16 +289,20 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				<div class='background'></div>
 				<div class='content'>
 					<div class='title-container'>
-						${nonScrollableFields.length && cardTypeConfig.iconName ? html`${icons[cardTypeConfig.iconName]}` : ''}
+						${(titleFields.length || nonScrollableFields.length) && cardTypeConfig.iconName ? html`${icons[cardTypeConfig.iconName]}` : ''}
 						<div>
-							${nonScrollableFields.map(fieldName => this._templateForField(fieldName))}
+							${titleFields.map(fieldName => this._templateForField(fieldName))}
+							<div class='sub-title-container'>
+								${nonScrollableFields.map(fieldName => this._templateForField(fieldName))}
+								${condensedReferenceBlocks.map(block => html`<reference-block .block=${block}></reference-block>`)}
+							</div>
 						</div>
 					</div>
 					<div class='primary show-scroll-if-needed'>
 						${scrollableFields.map(fieldName => this._templateForField(fieldName))}
 					</div>
 					<div class='reference-blocks show-scroll-if-needed'>
-						${(this.expandedReferenceBlocks || []).map(block => html`<reference-block .block=${block}></reference-block>`)}
+						${normalReferenceBlocks.map(block => html`<reference-block .block=${block}></reference-block>`)}
 					</div>
 				</div>
 				${starBadge(this._card.star_count)}
