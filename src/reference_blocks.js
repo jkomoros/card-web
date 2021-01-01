@@ -52,6 +52,11 @@ An array where each item has:
 const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 	[CARD_TYPE_CONCEPT]: [
 		{
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_EXAMPLE_OF)]),
+			title: 'Example Of',
+			condensed: true,
+		},
+		{
 			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_EXAMPLE_OF)]),
 			title: 'Examples',
 			condensed: true,
