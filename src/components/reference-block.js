@@ -45,6 +45,10 @@ export class ReferenceBlock extends LitElement {
 					opacity: 0.5;
 				}
 
+				.condensed {
+					line-height: 1.0em;
+				}
+
 				.condensed, .condensed ul {
 					display: flex;
 					flex-direction: row;

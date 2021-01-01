@@ -48,8 +48,8 @@ class CardLink extends connect(store)(LitElement) {
 				}
 
 				a svg{
-					height:1.0em;
-					width:1.0em;
+					height: 0.9em;
+					width: 0.9em;
 				}
 
 				a.strong {
