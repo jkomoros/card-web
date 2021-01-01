@@ -53,6 +53,7 @@ export const getConceptsFromConceptCards = (conceptCards) => {
 const cardMatchesConcept = (card, conceptStr) => {
 	if (card.card_type !== CARD_TYPE_CONCEPT) return false;
 	if (cardMatchesString(card, TEXT_FIELD_TITLE, conceptStr)) return true;
+	if (cardMatchesString(card, TEXT_FIELD_TITLE_ALTERNATES, conceptStr)) return true;
 	return false;
 };
 
