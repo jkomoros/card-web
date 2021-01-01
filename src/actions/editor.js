@@ -174,8 +174,7 @@ export const editingCommit = () => async (dispatch, getState) => {
 	}
 
 	if (selectEditingCardSuggestedConceptReferences(state).length > 0) {
-		alert('The card has suggested concept references. You must either accept or reject them before saving.');
-		return;
+		if (!confirm('The card has suggested concept references. Typically you either reject or accept them before proceeding. Do you want to proceed?')) return;
 	}
 
 	const underlyingCard = selectActiveCard(state);
