@@ -48,7 +48,8 @@ import {
 } from './collection_description.js';
 
 import {
-	memoize
+	memoize,
+	memoizeFirstArg
 } from './memoize.js';
 
 export const DEFAULT_SET_NAME = 'main';
@@ -304,11 +305,12 @@ const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) =>
 		return [fingerprintGenerator, conceptCards, concepts, keyConceptCardID];
 	});
 
-	const func = function(card, cards, UNUSEDFilterSetMemberships, keyCardID) {
+	const suggestedReferencesGenerator = memoizeFirstArg((card, fingerprint, conceptCards, concepts) => suggestedConceptReferencesForCard(card, fingerprint, conceptCards, concepts));
 
+	const func = function(card, cards, UNUSEDFilterSetMemberships, keyCardID) {
 		const [fingerprintGenerator, conceptCards, concepts, keyConceptCardID] = generator(cards, keyCardID);
 		const fingerprint = fingerprintGenerator.fingerprintForCardID(card.id);
-		const suggestedReferences = suggestedConceptReferencesForCard(card, fingerprint, conceptCards, concepts);
+		const suggestedReferences = suggestedReferencesGenerator(card, fingerprint, conceptCards, concepts);
 		const filteredSuggestedReferences = keyConceptCard ? suggestedReferences.filter(id => id == keyConceptCardID) : suggestedReferences;
 		if (filteredSuggestedReferences.length == 0) return [false, ''];
 		const firstSuggestedReference = filteredSuggestedReferences[0];
