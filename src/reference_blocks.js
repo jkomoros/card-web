@@ -149,8 +149,11 @@ const expandReferenceBlockConfig = (card, configs) => {
 	if (!card || !card.id) return EMPTY_ARRAY;
 	return configs.map(block => ({
 		...block,
-		collectionDescription: collectionDescriptionWithKeyCard(block.collectionDescription, card.id),
-		navigationCollectionDescription: block.navigationCollectionDescription ? collectionDescriptionWithKeyCard(block.navigationCollectionDescription, card.id) : undefined,
+		//navigationCollectionDescription is always set, the expanded version of
+		//the collecction with the key card replaced, or 'burned in'. We base
+		//that off of the override navigationCollectionDescription, or just the
+		//default one.
+		navigationCollectionDescription: collectionDescriptionWithKeyCard(block.navigationCollectionDescription || block.collectionDescription, card.id),
 	}));
 };
 

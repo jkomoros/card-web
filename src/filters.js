@@ -24,6 +24,7 @@ import {
 	CARD_TYPE_CONCEPT,
 	BODY_CARD_TYPES,
 	REFERENCE_TYPES,
+	SELF_KEY_CARD_ID,
 } from './card_fields.js';
 
 import {
@@ -178,22 +179,23 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 	//We have to memoize the functor we return, even though the filter machinery
 	//will memoize too, because otherwise literally every card in a given run
 	//will have a NEW BFS done. So memoize as long as cards are the same.
-	const mapCreator = memoize((cards, editingCard) => {
+	const mapCreator = memoize((cards, activeCardID, editingCard) => {
+		const cardIDToUse = cardID == SELF_KEY_CARD_ID ? activeCardID : cardID;
 		//If editingCard is provided, use it to shadow the unedited version of itself.
 		if (editingCard) cards = {...cards, [editingCard.id]: editingCard};
 		if (twoWay){
-			const bfsForOutbound = cardBFS(cardID, cards, count, includeKeyCard, false, referenceTypes);
-			const bfsForInbound = Object.fromEntries(Object.entries(cardBFS(cardID, cards, count, includeKeyCard, true, referenceTypes)).map(entry => [entry[0], entry[1] * -1]));
+			const bfsForOutbound = cardBFS(cardIDToUse, cards, count, includeKeyCard, false, referenceTypes);
+			const bfsForInbound = Object.fromEntries(Object.entries(cardBFS(cardIDToUse, cards, count, includeKeyCard, true, referenceTypes)).map(entry => [entry[0], entry[1] * -1]));
 			//inbound might have a -0 in it, so have outbound be second so we get just the zero
 			return unionSet(bfsForInbound,bfsForOutbound);
 		} else {
-			return cardBFS(cardID, cards, count, includeKeyCard, isInbound, referenceTypes);
+			return cardBFS(cardIDToUse, cards, count, includeKeyCard, isInbound, referenceTypes);
 		}
 	});
 
-	const func = function(card, cards, UNUSEDFilterMemberships, UNUSEDActiveCardID, editingCard) {
+	const func = function(card, cards, UNUSEDFilterMemberships, activeCardID, editingCard) {
 		
-		let val = mapCreator(cards, editingCard)[card.id];
+		let val = mapCreator(cards, activeCardID, editingCard)[card.id];
 		//Return the degree of separation so it's available to sort on
 		return [val !== undefined, val];
 	};
@@ -203,10 +205,16 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 
 const makeCardsConfigurableFilter = (filterName, idString) => {
 	//ids can be a single id or slug, or a conjunction of them delimited by '+'
-	const idsToMatch = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
+	const rawIdsToMatch = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
+
+	//TODO: we could check if SELF_KEY_CARD_ID is in any of them, and if not
+	//never generate a new set of expanded ids to match to save a little
+	//performance.
+	const generator = memoize(keyCardID => Object.fromEntries(Object.entries(rawIdsToMatch).map(entry => [entry[0], entry[1] == SELF_KEY_CARD_ID ? keyCardID : entry[1]])));
 
 	//TODO: only calculate the slug --> id once so subsequent matches can be done with one lookup
-	const func = function(card) {
+	const func = function(card, UNUSEDCards, UNUSEDFilterSetMemberships, keyCardID) {
+		const idsToMatch = generator(keyCardID);
 		if (idsToMatch[card.id]) return true;
 		if (!card.slugs) return false;
 		for (let slug of card.slugs) {
@@ -229,8 +237,9 @@ const makeAboutConceptConfigurableFilter = (filterName, conceptStrOrID) => {
 	//This function is pretty simple: find the concept card, then memoize the
 	//inbound concept references it has.
 
-	const matchingCardsFunc = memoize((cards) => {
-		let conceptCard = cards[conceptStrOrID] || getConceptCardForConcept(cards, conceptStrOrID);
+	const matchingCardsFunc = memoize((cards, keyCardID) => {
+		const expandedConceptStrOrId = conceptStrOrID == SELF_KEY_CARD_ID ? keyCardID : conceptStrOrID;
+		let conceptCard = cards[expandedConceptStrOrId] || getConceptCardForConcept(cards, expandedConceptStrOrId);
 		if (!conceptCard) return [{}, ''];
 		const conceptReferenceMap = references(conceptCard).byTypeInboundConcept;
 		let matchingCards = {};
@@ -243,8 +252,8 @@ const makeAboutConceptConfigurableFilter = (filterName, conceptStrOrID) => {
 		return [matchingCards, conceptCardID];
 	});
 
-	const func = function(card, cards) {
-		const [matchingCards, conceptCardID] = matchingCardsFunc(cards);
+	const func = function(card, cards, UNUSEDFilterSetMemberships, keyCardID) {
+		const [matchingCards, conceptCardID] = matchingCardsFunc(cards, keyCardID);
 		if (card.id == conceptCardID) {
 			return [true, 1];
 		}
@@ -268,17 +277,25 @@ const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) =>
 	//+ is the way to signal 'all concept cards', otherwise we match all of them
 	const keyConceptCard = conceptStrOrCardID != '+';
 
-	// returns [fingerprintGenerator, conceptCards, concepts, keyConceptCardID]
-	const generator = memoize(cards => {
-		const fingerprintGenerator = new FingerprintGenerator(cards);
+	//This is very expensive, and keyCardID will change way more often than
+	//cards will, so do the two-level memoization.
+	const expensiveGenerator = memoize(cards => {
+		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
 		const conceptCards = conceptCardsFromCards(cards);
 		const concepts = getConceptsFromConceptCards(conceptCards);
+		return [fingerprintGenerator, conceptCards, concepts];
+	});
+
+	// returns [fingerprintGenerator, conceptCards, concepts, keyConceptCardID]
+	const generator = memoize((cards, keyCardID) => {
+		const [fingerprintGenerator, conceptCards, concepts] = expensiveGenerator(cards);
 		let keyConceptCardID = '';
 		if (keyConceptCard) {
-			if (cards[conceptStrOrCardID]) {
-				keyConceptCardID = conceptStrOrCardID;
+			const expandedConcepStrOrCardID = conceptStrOrCardID == SELF_KEY_CARD_ID ? keyCardID : conceptStrOrCardID;
+			if (cards[expandedConcepStrOrCardID]) {
+				keyConceptCardID = expandedConcepStrOrCardID;
 			} else {
-				const conceptCard = getConceptCardForConcept(conceptCards, conceptStrOrCardID);
+				const conceptCard = getConceptCardForConcept(conceptCards, expandedConcepStrOrCardID);
 				//If there's no matching concept then use a filter that won't
 				//match anything because it has illegal characters
 				keyConceptCardID = conceptCard ? conceptCard.id : '?INVALID-ID?';
@@ -287,9 +304,9 @@ const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) =>
 		return [fingerprintGenerator, conceptCards, concepts, keyConceptCardID];
 	});
 
-	const func = function(card, cards) {
+	const func = function(card, cards, UNUSEDFilterSetMemberships, keyCardID) {
 
-		const [fingerprintGenerator, conceptCards, concepts, keyConceptCardID] = generator(cards);
+		const [fingerprintGenerator, conceptCards, concepts, keyConceptCardID] = generator(cards, keyCardID);
 		const fingerprint = fingerprintGenerator.fingerprintForCardID(card.id);
 		const suggestedReferences = suggestedConceptReferencesForCard(card, fingerprint, conceptCards, concepts);
 		const filteredSuggestedReferences = keyConceptCard ? suggestedReferences.filter(id => id == keyConceptCardID) : suggestedReferences;
@@ -416,22 +433,23 @@ const makeSimilarConfigurableFilter = (filterName, cardID) => {
 		cardID = cardID.substring(INCLUDE_KEY_CARD_PREFIX.length);
 	}
 	
-	const generator = memoize((cards, editingCard) => {
+	const generator = memoize((cards, cardIDToUse, editingCard) => {
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
 		const editingCardFingerprint = editingCard ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
 		//passing null as fingerprint will use the current one
-		return fingerprintGenerator.closestOverlappingItems(cardID, editingCardFingerprint);
+		return fingerprintGenerator.closestOverlappingItems(cardIDToUse, editingCardFingerprint);
 	});
 
-	const func = function(card, cards, UNUSEDFilterMemberships, UNUSEDKeyCardID, editingCard) {
-		if (card.id == cardID) {
+	const func = function(card, cards, UNUSEDFilterMemberships, keyCardID, editingCard) {
+		const cardIDToUse = cardID == SELF_KEY_CARD_ID ? keyCardID : cardID;
+		if (card.id == cardIDToUse) {
 			if (includeKeyCard) {
 				return [true, Number.MAX_SAFE_INTEGER];
 			}
 			return [false, Number.MIN_SAFE_INTEGER];
 		}
 
-		const closestItems = generator(cards, editingCard);
+		const closestItems = generator(cards, cardIDToUse, editingCard);
 
 		//It's a bit odd that this 'filter' is only used to filter out the
 		//keycard (sometimes), but is really used for its sort value. But sorts

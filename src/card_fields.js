@@ -553,8 +553,16 @@ export const editableFieldsForCardType = (cardType) => {
 	return result;
 };
 
-//The special key card ID that will be replaced with a given card in reference blocks
-export const SELF_KEY_CARD_ID = 'self';
+//The special key card ID that will be replaced with a given card in reference
+//blocks, and that filters know how to accept and treat specially. This special
+//key card ID is looked for in two places: reference_blocks, when they 'burn in'
+//a key card for navigation, and also every configurable filter that accepts IDs
+//as configuration arguments handles them specially. This is so that the
+//memoization machinery to create a new configurable filter can be used ONCE,
+//and just invalidate the memoization of the internal calculations of the
+//configurable function that depends on the keyCardID. A key card is the card to
+//'pivot' off of, and is typically the active card, but not always.
+export const SELF_KEY_CARD_ID = 'key-card-id';
 
 //Returns an object with field -> boosts to set. It will return
 //card.font_size_boosts if no change, or an object like font_size_boosts, but
