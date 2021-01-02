@@ -772,7 +772,8 @@ const WHOLE_NGRAM_MAX_SIZE = 6;
 const SYNONYM_DISCOUNT_FACTOR = 0.75;
 
 //strsMap is card.nlp.withoutStopWords. See cardWithNormalizedTextProperties documentation for more.
-const wordCountsForSemantics = (strsMap, cardObj, maxFingerprintSize) => {
+const wordCountsForSemantics = (cardObj, maxFingerprintSize) => {
+	const strsMap = Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => [prop, cardObj.nlp.withoutStopWords[prop]]).filter(entry => entry[1]));
 	//Yes, it's weird that we stash the additionalNgramsMap on a cardObj and
 	//then pass that around instead of just passing the ngram map to FingerPrint
 	//generator. But it we did it another way, it would break the `similar/`
@@ -1456,7 +1457,7 @@ export class FingerprintGenerator {
 
 	_wordCountsForCardObj(cardObj) {
 		//Filter out empty items for properties that don't have any items
-		return wordCountsForSemantics(Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => [prop, cardObj.nlp.withoutStopWords[prop]]).filter(entry => entry[1])), cardObj, this._ngramSize);
+		return wordCountsForSemantics(cardObj, this._ngramSize);
 	}
 
 	_cardTFIDF(cardWordCounts) {
