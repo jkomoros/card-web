@@ -772,7 +772,7 @@ const WHOLE_NGRAM_MAX_SIZE = 6;
 const SYNONYM_DISCOUNT_FACTOR = 0.75;
 
 //strsMap is card.nlp.withoutStopWords. See cardWithNormalizedTextProperties documentation for more.
-const wordCountsForSemantics = (cardObj, maxFingerprintSize) => {
+const wordCountsForSemantics = memoizeFirstArg((cardObj, maxFingerprintSize) => {
 	const strsMap = Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => [prop, cardObj.nlp.withoutStopWords[prop]]).filter(entry => entry[1]));
 	//Yes, it's weird that we stash the additionalNgramsMap on a cardObj and
 	//then pass that around instead of just passing the ngram map to FingerPrint
@@ -848,7 +848,7 @@ const wordCountsForSemantics = (cardObj, maxFingerprintSize) => {
 		}
 	}
 	return cardMap;
-};
+});
 
 //targetNgram is the targted, withoutStopWords ngram to look for. *Run
 //properties are the same run, indexed out of nlp.normalized, nlp.stemmed, and
