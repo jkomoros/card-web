@@ -8,7 +8,7 @@ const arrayEqual = (a, b) => {
 //Like memoize, except the first argument is expected to be a thing that changes
 //often, and the rest of the arguments are assumed to change rarely.
 export const memoizeFirstArg = (fn) => {
-	const resultMap = new Map();
+	const resultMap = new WeakMap();
 	return (...args) => {
 		if (!args.length) return fn();
 		const firstArg = args[0];
