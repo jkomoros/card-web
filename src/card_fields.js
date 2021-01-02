@@ -308,7 +308,7 @@ export const REFERENCE_TYPES = {
 		conceptReference: true,
 	},
 	[REFERENCE_TYPE_OPPOSITE_OF]: {
-		name: 'Opposite of',
+		name: 'In contrast to',
 		description: 'For concept cards that are antonyms of another concept card',
 		editable: true,
 		substantive: true,

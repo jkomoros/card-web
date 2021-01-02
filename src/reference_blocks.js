@@ -68,7 +68,7 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 		},
 		{
 			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_OPPOSITE_OF)]),
-			title: 'Opposite of',
+			title: 'In contrast to',
 			condensed: true,
 		},
 		{
