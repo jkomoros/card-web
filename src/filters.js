@@ -305,14 +305,14 @@ const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) =>
 const makeExcludeConfigurableFilter = (filterName, ...remainingParts) => {
 	const rest = remainingParts.join('/');
 
-	const generator = memoize((cards, filterSetMemberships, activeCardID, editingCard) => {
-		return filterSetForFilterDefinitionItem(rest, filterSetMemberships, cards, activeCardID, editingCard);
+	const generator = memoize((cards, filterSetMemberships, keyCardID, editingCard) => {
+		return filterSetForFilterDefinitionItem(rest, filterSetMemberships, cards, keyCardID, editingCard);
 	});
 
 	//our func is just checking in the expanded filter.
-	const func = function(card, cards, filterSetMemberships, activeCardID, editingCard) {
+	const func = function(card, cards, filterSetMemberships, keyCardID, editingCard) {
 
-		const [filterSet, reversed] = generator(cards, filterSetMemberships, activeCardID, editingCard);
+		const [filterSet, reversed] = generator(cards, filterSetMemberships, keyCardID, editingCard);
 
 		const id = card.id;
 		//TODO: ideally we wouldn't create an entire new filter for all of the
@@ -346,9 +346,9 @@ const makeCombineConfigurableFilter = (filterName, ...remainingParts) => {
 	const subFilterOne = combinedDescription.filters[0];
 	const subFilterTwo = combinedDescription.filters[1];
 
-	const generator = memoize((cards, filterSetMemberships, activeCardID, editingCard) => {
-		let [filterMembershipOne, excludeOne] = filterSetForFilterDefinitionItem(subFilterOne, filterSetMemberships, cards, activeCardID, editingCard);
-		let [filterMembershipTwo, excludeTwo] = filterSetForFilterDefinitionItem(subFilterTwo, filterSetMemberships, cards, activeCardID, editingCard);
+	const generator = memoize((cards, filterSetMemberships, keyCardID, editingCard) => {
+		let [filterMembershipOne, excludeOne] = filterSetForFilterDefinitionItem(subFilterOne, filterSetMemberships, cards, keyCardID, editingCard);
+		let [filterMembershipTwo, excludeTwo] = filterSetForFilterDefinitionItem(subFilterTwo, filterSetMemberships, cards, keyCardID, editingCard);
 
 		//Make sure the sub filter membership is direct and not inverted
 		if (excludeOne) filterMembershipOne = makeConcreteInverseFilter(filterMembershipOne, cards);
@@ -364,8 +364,8 @@ const makeCombineConfigurableFilter = (filterName, ...remainingParts) => {
 		return result;
 	});
 	
-	const func = function(card, cards, filterSetMemberships, activeCardID, editingCard) {
-		const filterSet = generator(cards, filterSetMemberships, activeCardID, editingCard);
+	const func = function(card, cards, filterSetMemberships, keyCardID, editingCard) {
+		const filterSet = generator(cards, filterSetMemberships, keyCardID, editingCard);
 		return filterSet[card.id];
 	};
 
@@ -423,7 +423,7 @@ const makeSimilarConfigurableFilter = (filterName, cardID) => {
 		return fingerprintGenerator.closestOverlappingItems(cardID, editingCardFingerprint);
 	});
 
-	const func = function(card, cards, UNUSEDFilterMemberships, UNUSEDActiveCardID, editingCard) {
+	const func = function(card, cards, UNUSEDFilterMemberships, UNUSEDKeyCardID, editingCard) {
 		if (card.id == cardID) {
 			if (includeKeyCard) {
 				return [true, Number.MAX_SAFE_INTEGER];
@@ -523,13 +523,15 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 //the factories should return a filter func that takes the card to opeate on,
 //then cards. The factory will be provided with the individual parts of the
 //configuration return a func and whether or not its output should be reversed.
-//The function takes card, cards, filterSetMemberships, activeCardID, and
-//editinCard, and should return either true/false, or, if wants to make values
-//available for later sorts in sortExtras, it can emit an array [matches,
-//sortValue] where matches is a boolean and sortValue is the value to pass into
-//sortExtras for that card. It can also emit a [matches, sortValue,
-//partialMatch], where partialMatch denotes the item should be ghosted. If the
-//filter emits sortExtras, then it should also define a labelName.
+//The function takes card, cards, filterSetMemberships, keyCardID (which is
+//typically the activeCardID, but might be a different one for example if the
+//collection in question is being prepared for a hovered card), and editinCard,
+//and should return either true/false, or, if wants to make values available for
+//later sorts in sortExtras, it can emit an array [matches, sortValue] where
+//matches is a boolean and sortValue is the value to pass into sortExtras for
+//that card. It can also emit a [matches, sortValue, partialMatch], where
+//partialMatch denotes the item should be ghosted. If the filter emits
+//sortExtras, then it should also define a labelName.
 const CONFIGURABLE_FILTER_INFO = {
 	[UPDATED_FILTER_NAME]: {
 		factory: makeDateConfigurableFilter,

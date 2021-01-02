@@ -156,9 +156,13 @@ const expandReferenceBlockConfig = (card, configs) => {
 
 export const expandReferenceBlocks = (card, blocks, collectionConstructorArgs, cardIDsUserMayEdit) => {
 	if (blocks.length == 0) return EMPTY_ARRAY;
+	const keyCardCollectionConstructorArgs = {
+		...collectionConstructorArgs,
+		keyCardID: card.id,
+	};
 	return blocks.filter(block => block.onlyForEditors ? cardIDsUserMayEdit[card.id] : true).map(block => {
 		const boldFilter = block.cardsToBoldFilterFactory ? block.cardsToBoldFilterFactory(card) : null;
-		const collection = block.collectionDescription.collection(collectionConstructorArgs);
+		const collection = block.collectionDescription.collection(keyCardCollectionConstructorArgs);
 		const boldCards = boldFilter ? Object.fromEntries(collection.filteredCards.filter(boldFilter).map(card => [card.id, true])): {};
 		return {
 			...block,
