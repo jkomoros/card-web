@@ -1113,7 +1113,7 @@ export const possibleMissingConcepts = (cards) => {
 };
 
 export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrConceptCards, concepts) => {
-	const candidates = [];
+	const candidates = {};
 	if (!card || !fingerprint) return [];
 	if (!BODY_CARD_TYPES[card.card_type]) return [];
 	const itemsFromConceptReferences = fingerprint.itemsFromConceptReferences();
@@ -1146,6 +1146,9 @@ export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrC
 		if (!conceptCard) continue;
 		//Don't suggest that concept cards reference themselves
 		if (conceptCard.id == card.id) continue;
+		//Skip ones that we've already included (which could have happened if we
+		//already saw a synonym item)
+		if (candidates[conceptCard.id]) continue;
 		//Don't suggest things that already have references of type concept (and sub-types like syonym), or the generic ack.
 		for (const referenceType of REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT) {
 			const referencesOfType = existingReferences[referenceType];
@@ -1157,7 +1160,7 @@ export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrC
 		}
 		if (skipSuggestion) continue;
 		conceptStrForCandidateCard[conceptCard.id] = fingerprintItem;
-		candidates.push(conceptCard.id);
+		candidates[conceptCard.id] = true;
 	}
 	//Now we want to make sure we don't suggest any concepts that are subsets of
 	//larger concepts we might also suggest, since if the user were to select
@@ -1166,7 +1169,7 @@ export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrC
 	//consider largest concepts down to smallest to guarantee that we pick the
 	//larger ones first. We'll sort a copy because we still want to keep the
 	//original order so we suggest higher fingerprint items first
-	let sortedCandidates = [...candidates];
+	let sortedCandidates = [...Object.keys(candidates)];
 	sortedCandidates.sort((a, b) => conceptStrForCandidateCard[b].length - conceptStrForCandidateCard[a].length);
 
 	let cardsToIncludeInResult = {};
@@ -1182,7 +1185,7 @@ export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrC
 		cardsToIncludeInResult[candidate] = true;
 	}
 
-	return candidates.filter(id => cardsToIncludeInResult[id]);
+	return [...Object.keys(candidates)].filter(id => cardsToIncludeInResult[id]);
 };
 
 export const emptyWordCloud = () => {
