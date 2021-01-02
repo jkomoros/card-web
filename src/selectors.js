@@ -1300,7 +1300,7 @@ export const selectCollectionForQuery = createSelector(
 
 export const selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard = createSelector(
 	selectEditingOrActiveNormalizedCard,
-	selectCollectionConstructorArguments,
+	selectCollectionConstructorArgumentsWithEditingCard,
 	selectCardIDsUserMayEdit,
 	(card, args, cardIDsUserMayEdit) => getExpandedPrimaryReferenceBlocksForCard(args, card, cardIDsUserMayEdit)
 );
