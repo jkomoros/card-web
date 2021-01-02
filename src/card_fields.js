@@ -444,7 +444,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 		legalCardTypes: {[CARD_TYPE_CONCEPT]: true},
 		derivedForCardTypes: {},
 		autoFontSizeBoostForCardTypes: {},
-		matchWeight:0.75,
+		matchWeight:0.95,
 		noContentEditable: true,
 		hideIfEmpty: true,
 		displayPrefix: 'Also known as',
