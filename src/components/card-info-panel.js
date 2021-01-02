@@ -224,10 +224,17 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._tagInfos = selectTags(state);
 		this._tweets = selectActiveCardTweets(state);
 		this._tweetsLoading = selectTweetsLoading(state);
+
+		//Espeiclaly when a card has been saved for editing, the state is
+		//changing quickly. There might be a pending expensie properties timeout
+		//that hasn't fired yet that is no longer necessary (it uses an old
+		//state, which will break memoization of selectors by selecting old
+		//things), so skip it. 
+		window.clearTimeout(this._expensivePropertiesTimeout);
 		//selectActiveCardSimilarCards is extremly expensive to call into being,
 		//so only do it if the user is an admin, and always wait and update
 		//without blocking the main update.
-		window.setTimeout(() => {
+		this._expensivePropertiesTimeout = window.setTimeout(() => {
 			this._referenceBlocks = this._open ? selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard(state) : [];
 			this._wordCloud = this._open ? selectWordCloudForActiveCard(state) : emptyWordCloud();
 		}, 0);
