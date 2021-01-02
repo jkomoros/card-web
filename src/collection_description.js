@@ -17,7 +17,7 @@ import {
 } from './filters.js';
 
 import {
-	SELF_KEY_CARD_ID	
+	KEY_CARD_ID_PLACEHOLDER	
 } from './card_fields.js';
 
 const extractFilterNamesAndSort = (parts) => {
@@ -125,7 +125,7 @@ export const collectionDescriptionWithQuery = (description, queryText) => {
 
 //collectionDescriptionWithKeyCard returns the description, but with each instance of 'self' replaced with the given keyCardID
 export const collectionDescriptionWithKeyCard = (description, keyCardID) => {
-	return collectionDescriptionWithPartReplacements(description, {[SELF_KEY_CARD_ID]: keyCardID});
+	return collectionDescriptionWithPartReplacements(description, {[KEY_CARD_ID_PLACEHOLDER]: keyCardID});
 };
 
 //Returns a cloned colletion description where each part (split on '/') that

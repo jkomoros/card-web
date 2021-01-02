@@ -1,7 +1,7 @@
 import {
 	CARD_TYPE_CONCEPT,
 	REFERENCE_TYPE_CONCEPT,
-	SELF_KEY_CARD_ID,
+	KEY_CARD_ID_PLACEHOLDER,
 	REFERENCE_TYPES,
 	REFERENCE_TYPE_SEE_ALSO,
 	REFERENCE_TYPE_SYNONYM,
@@ -35,7 +35,7 @@ import {
 /*
 
 An array where each item has:
-	collectionDescription: a collection description, possibly using SELF_KEY_CARD_ID as a placeholder
+	collectionDescription: a collection description, possibly using KEY_CARD_ID_PLACEHOLDER as a placeholder
 	navigationCollectionDescription: a collectiond description, that if set and showNavigate is true, will be used instead of collectionDescription.
 	title: a title to display,
 	condensed: if true, will show up in a much smaller, inline style
@@ -52,34 +52,34 @@ An array where each item has:
 const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 	[CARD_TYPE_CONCEPT]: [
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_EXAMPLE_OF)]),
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_EXAMPLE_OF)]),
 			title: 'Example Of',
 			condensed: true,
 		},
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_EXAMPLE_OF)]),
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_EXAMPLE_OF)]),
 			title: 'Examples',
 			condensed: true,
 		},
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_SYNONYM)]),
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_SYNONYM)]),
 			title: 'Synonyms',
 			condensed: true,
 		},
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_OPPOSITE_OF)]),
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_OPPOSITE_OF)]),
 			title: 'Opposite of',
 			condensed: true,
 		},
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, [...Object.keys(REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES)])]),
-			navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [aboutConceptConfigurableFilterText(SELF_KEY_CARD_ID)]),
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES)])]),
+			navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [aboutConceptConfigurableFilterText(KEY_CARD_ID_PLACEHOLDER)]),
 			title: 'Cards that reference this concept',
 			emptyMessage: 'No cards reference this concept',
 			showNavigate: true,
 		},
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [missingConceptConfigurableFilterText(SELF_KEY_CARD_ID)]),
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [missingConceptConfigurableFilterText(KEY_CARD_ID_PLACEHOLDER)]),
 			title: 'Cards that should reference this concept but don\'t',
 			showNavigate: true,
 			onlyForEditors: true,
@@ -96,25 +96,25 @@ const INFO_PANEL_REFERENCE_BLOCKS = [
 	{
 		title: 'Example of',
 		description: 'Concepts this card is an example of',
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_EXAMPLE_OF)]),
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_EXAMPLE_OF)]),
 	},
 	{
 		title: 'Concepts',
 		description: 'Concepts this card references',
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_CONCEPT)])
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CONCEPT)])
 	},
 	{
 		title: 'See Also',
 		description: 'Cards that are related to this card and make sense to consume together',
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPE_SEE_ALSO)])
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_SEE_ALSO)])
 	},
 	{
 		title: 'Other referenced cards',
 		description: 'Cards that this card references that are not links',
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, SELF_KEY_CARD_ID, REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL, true)])
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL, true)])
 	},
 	{
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, SELF_KEY_CARD_ID, SUBSTANTIVE_REFERENCE_TYPES)]),
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES)]),
 		title: 'Cards That Link Here',
 		description: 'Cards that link to this one.',
 		emptyMessage: 'No cards link to this one.',
@@ -123,8 +123,8 @@ const INFO_PANEL_REFERENCE_BLOCKS = [
 		}
 	},
 	{
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + SELF_KEY_CARD_ID, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, SELF_KEY_CARD_ID, SUBSTANTIVE_REFERENCE_TYPES), LIMIT_FILTER_NAME + '/' + NUM_SIMILAR_CARDS_TO_SHOW]),
-		navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + SELF_KEY_CARD_ID, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, SELF_KEY_CARD_ID, SUBSTANTIVE_REFERENCE_TYPES)]),
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES), LIMIT_FILTER_NAME + '/' + NUM_SIMILAR_CARDS_TO_SHOW]),
+		navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES)]),
 		showNavigate: true,
 		title: 'Similar Cards',
 		description: 'Cards that are neither linked to or from here but that have distinctive terms that overlap with this card.',

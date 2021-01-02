@@ -24,7 +24,7 @@ import {
 	CARD_TYPE_CONCEPT,
 	BODY_CARD_TYPES,
 	REFERENCE_TYPES,
-	SELF_KEY_CARD_ID,
+	KEY_CARD_ID_PLACEHOLDER,
 } from './card_fields.js';
 
 import {
@@ -181,7 +181,7 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 	//will memoize too, because otherwise literally every card in a given run
 	//will have a NEW BFS done. So memoize as long as cards are the same.
 	const mapCreator = memoize((cards, activeCardID, editingCard) => {
-		const cardIDToUse = cardID == SELF_KEY_CARD_ID ? activeCardID : cardID;
+		const cardIDToUse = cardID == KEY_CARD_ID_PLACEHOLDER ? activeCardID : cardID;
 		//If editingCard is provided, use it to shadow the unedited version of itself.
 		if (editingCard) cards = {...cards, [editingCard.id]: editingCard};
 		if (twoWay){
@@ -208,10 +208,10 @@ const makeCardsConfigurableFilter = (filterName, idString) => {
 	//ids can be a single id or slug, or a conjunction of them delimited by '+'
 	const rawIdsToMatch = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
 
-	//TODO: we could check if SELF_KEY_CARD_ID is in any of them, and if not
+	//TODO: we could check if KEY_CARD_ID_PLACEHOLDER is in any of them, and if not
 	//never generate a new set of expanded ids to match to save a little
 	//performance.
-	const generator = memoize(keyCardID => Object.fromEntries(Object.entries(rawIdsToMatch).map(entry => [entry[0], entry[1] == SELF_KEY_CARD_ID ? keyCardID : entry[1]])));
+	const generator = memoize(keyCardID => Object.fromEntries(Object.entries(rawIdsToMatch).map(entry => [entry[0], entry[1] == KEY_CARD_ID_PLACEHOLDER ? keyCardID : entry[1]])));
 
 	//TODO: only calculate the slug --> id once so subsequent matches can be done with one lookup
 	const func = function(card, UNUSEDCards, UNUSEDFilterSetMemberships, keyCardID) {
@@ -239,7 +239,7 @@ const makeAboutConceptConfigurableFilter = (filterName, conceptStrOrID) => {
 	//inbound concept references it has.
 
 	const matchingCardsFunc = memoize((cards, keyCardID) => {
-		const expandedConceptStrOrId = conceptStrOrID == SELF_KEY_CARD_ID ? keyCardID : conceptStrOrID;
+		const expandedConceptStrOrId = conceptStrOrID == KEY_CARD_ID_PLACEHOLDER ? keyCardID : conceptStrOrID;
 		let conceptCard = cards[expandedConceptStrOrId] || getConceptCardForConcept(cards, expandedConceptStrOrId);
 		if (!conceptCard) return [{}, ''];
 		const conceptReferenceMap = references(conceptCard).byTypeInboundConcept;
@@ -292,7 +292,7 @@ const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) =>
 		const [fingerprintGenerator, conceptCards, concepts] = expensiveGenerator(cards);
 		let keyConceptCardID = '';
 		if (keyConceptCard) {
-			const expandedConcepStrOrCardID = conceptStrOrCardID == SELF_KEY_CARD_ID ? keyCardID : conceptStrOrCardID;
+			const expandedConcepStrOrCardID = conceptStrOrCardID == KEY_CARD_ID_PLACEHOLDER ? keyCardID : conceptStrOrCardID;
 			if (cards[expandedConcepStrOrCardID]) {
 				keyConceptCardID = expandedConcepStrOrCardID;
 			} else {
@@ -443,7 +443,7 @@ const makeSimilarConfigurableFilter = (filterName, cardID) => {
 	});
 
 	const func = function(card, cards, UNUSEDFilterMemberships, keyCardID, editingCard) {
-		const cardIDToUse = cardID == SELF_KEY_CARD_ID ? keyCardID : cardID;
+		const cardIDToUse = cardID == KEY_CARD_ID_PLACEHOLDER ? keyCardID : cardID;
 		if (card.id == cardIDToUse) {
 			if (includeKeyCard) {
 				return [true, Number.MAX_SAFE_INTEGER];

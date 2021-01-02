@@ -111,7 +111,7 @@ import {
 	REFERENCES_INBOUND_CARD_PROPERTY,
 	REFERENCE_TYPE_FORK_OF,
 	REFERENCE_TYPE_MINED_FROM,
-	SELF_KEY_CARD_ID,
+	KEY_CARD_ID_PLACEHOLDER,
 	TEXT_FIELD_TITLE,
 	editableFieldsForCardType
 } from '../card_fields.js';
@@ -667,7 +667,7 @@ const reservedCollectionName = (state, name) => {
 	}
 
 	if (name == SORT_URL_KEYWORD) return true;
-	if (name == SELF_KEY_CARD_ID) return true;
+	if (name == KEY_CARD_ID_PLACEHOLDER) return true;
 
 	//Filters already contains section names if data is fully loaded.
 	const filters = selectFilters(state) || {};

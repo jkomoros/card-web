@@ -562,7 +562,7 @@ export const editableFieldsForCardType = (cardType) => {
 //and just invalidate the memoization of the internal calculations of the
 //configurable function that depends on the keyCardID. A key card is the card to
 //'pivot' off of, and is typically the active card, but not always.
-export const SELF_KEY_CARD_ID = 'key-card-id';
+export const KEY_CARD_ID_PLACEHOLDER = 'key-card-id';
 
 //Returns an object with field -> boosts to set. It will return
 //card.font_size_boosts if no change, or an object like font_size_boosts, but
