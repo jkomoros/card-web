@@ -5,6 +5,24 @@ const arrayEqual = (a, b) => {
 	return a.every((a,index) => a === b[index]);
 };
 
+//Like memoize, except the first argument is expected to be a thing that changes
+//often, and the rest of the arguments are assumed to change rarely.
+export const memoizeFirstArg = (fn) => {
+	const resultMap = new Map();
+	return (...args) => {
+		if (!args.length) return fn();
+		const firstArg = args[0];
+		const restArgs = args.slice(1);
+		const record = resultMap.get(firstArg);
+		if (record && arrayEqual(record.restArgs, restArgs)) return record.result;
+		const result = fn(...args);
+		resultMap.set(firstArg, {restArgs, result});
+		return result;
+	};
+};
+
+//memoize will retain up to entries number of past arguments and if any match,
+//return that result instead of recalculating.
 export const memoize = (fn, entries = 3) => {
 
 	//Objects with args, result
