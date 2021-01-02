@@ -36,10 +36,14 @@ import {
 	extractStrongTextFromBody
 } from './util.js';
 
-//allCards can be raw or normalized
-export const conceptCardsFromCards = (allCards) => {
+import {
+	memoizeFirstArg
+} from './memoize.js';
+
+//allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
+export const conceptCardsFromCards = memoizeFirstArg((allCards) => {
 	return Object.fromEntries(Object.entries(allCards).filter(entry => entry[1].card_type == CARD_TYPE_CONCEPT));
-};
+});
 
 //Rturns the primary concept string only (the title). See also getAllConceptStringsFromConceptCard
 export const getConceptStringFromConceptCard = (rawConceptCard) => {
@@ -56,10 +60,11 @@ export const getAllConceptStringsFromConceptCard = (rawConceptCard) => {
 //Returns all concept strings that, if provided to getConceptCardForConcept,
 //would return a card. Note that this is not a one-to-one erlationship to
 //concept cards, it might include multiple entries for each concept card if it
-//has title alternates.
-export const getConceptsFromConceptCards = (conceptCards) => {
+//has title alternates. memoized so downstream memoizing things will get object
+//equality.
+export const getConceptsFromConceptCards = memoizeFirstArg((conceptCards) => {
 	return Object.fromEntries(Object.values(conceptCards).map(card => getAllConceptStringsFromConceptCard(card)).flat().map(item => [item, true]));
-};
+});
 
 const cardMatchesConcept = (card, conceptStr) => {
 	if (card.card_type !== CARD_TYPE_CONCEPT) return false;
@@ -1112,7 +1117,8 @@ export const possibleMissingConcepts = (cards) => {
 	return new Fingerprint(resultMap, Object.values(cards), maximumFingerprintGenerator);
 };
 
-export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrConceptCards, concepts) => {
+//suggestConceptReferencesForCard is very expensive, so memoize it.
+export const suggestedConceptReferencesForCard = memoizeFirstArg((card, fingerprint, allCardsOrConceptCards, concepts) => {
 	const candidates = {};
 	if (!card || !fingerprint) return [];
 	if (!BODY_CARD_TYPES[card.card_type]) return [];
@@ -1186,7 +1192,7 @@ export const suggestedConceptReferencesForCard = (card, fingerprint, allCardsOrC
 	}
 
 	return [...Object.keys(candidates)].filter(id => cardsToIncludeInResult[id]);
-};
+});
 
 export const emptyWordCloud = () => {
 	return [[],{}];
