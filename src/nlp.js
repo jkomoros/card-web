@@ -517,9 +517,6 @@ const normalizeNgramMap = (ngramMap) => {
 const DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES = false;
 let normalizedCount = {};
 
-let memoizedNormalizedCardItems = new Set();
-let memoziedNormalizedCardImportantNgramsLastSeen = null;
-
 //cardWithNormalizedTextProperties sets the properties that search and
 //fingerprints work over, on a copy of the card it returns. fallbackText will be
 //stashed on the the result so that override field extractors can access it.
@@ -542,16 +539,8 @@ let memoziedNormalizedCardImportantNgramsLastSeen = null;
 //      normalized: the extracted text runs for that field, with all words normalized. Note that some logical runs from the original text field may already have been filtered by this step. punctuation between words will be removed, everything will be lower case.
 //		stemmed: the normalized values, but also each word will have been stemmed. Each word will still line up with each word in normalized (stemming never removes words)
 //		withoutStopWords: the stemmed values, but also with stop words removed. The number of words in this field set will likely be smaller than the two above.
-export const cardWithNormalizedTextProperties = (card, fallbackText, importantNgrams, synonyms) => {
+export const cardWithNormalizedTextProperties = memoizeFirstArg((card, fallbackText, importantNgrams, synonyms) => {
 	if (!card) return card;
-	//card and fallbackText vary together. importantNgrams is shared.
-	if (importantNgrams != memoziedNormalizedCardImportantNgramsLastSeen) {
-		memoizedNormalizedCardItems = new Map();
-		memoziedNormalizedCardImportantNgramsLastSeen = importantNgrams;
-	}
-	const memoizedItem = memoizedNormalizedCardItems.get(card);
-	if (memoizedItem && memoizedItem[0] == fallbackText) return memoizedItem[1];
-
 	if (DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES) {
 		normalizedCount[card.id] = (normalizedCount[card.id] || 0) + 1;
 		if(normalizedCount[card.id] > 1) console.log(card.id, card, normalizedCount[card.id]);
@@ -569,9 +558,8 @@ export const cardWithNormalizedTextProperties = (card, fallbackText, importantNg
 		stemmed: stemmedFields,
 		withoutStopWords: withoutStopWordsFields,
 	};
-	memoizedNormalizedCardItems.set(card, [fallbackText, result]);
 	return result;
-};
+});
 
 //text should be normalized
 const ngrams = (text, size = 2) => {
