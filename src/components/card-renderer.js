@@ -232,6 +232,8 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				.sub-title-container {
 					display:flex;
 					flex-direction:row;
+					/* some cards have lots of synonyms etc */
+					flex-wrap: wrap;
 					align-items: center;
 					/* total hack to consume most of the vertical space of the
 					h1 above it. This would break on cards with a
