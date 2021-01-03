@@ -51,9 +51,19 @@ export const getConceptStringFromConceptCard = (rawConceptCard) => {
 	return rawConceptCard[TEXT_FIELD_TITLE];
 };
 
+const extractSynonymsFromCardTitleAlternates = (rawCard) => {
+	return extractRawContentRunsForCardField(rawCard,TEXT_FIELD_TITLE_ALTERNATES).map(str => str.trim()).filter(str => str);
+};
+
+const getAllNormalizedConceptStringsFromConceptCard = (processedConceptCard) => {
+	if (processedConceptCard.card_type != CARD_TYPE_CONCEPT) return [];
+	const wordBag = processedConceptCard.nlp.withoutStopWords;
+	return [...wordBag[TEXT_FIELD_TITLE], ...wordBag[TEXT_FIELD_TITLE_ALTERNATES]];
+};
+
 //REturns all strings that cardMatchesConcept would work for.
 export const getAllConceptStringsFromConceptCard = (rawConceptCard) => {
-	if (rawConceptCard.card_type != CARD_TYPE_CONCEPT) return '';
+	if (rawConceptCard.card_type != CARD_TYPE_CONCEPT) return [];
 	return [getConceptStringFromConceptCard(rawConceptCard), ...extractSynonymsFromCardTitleAlternates(rawConceptCard)];
 };
 
@@ -86,10 +96,6 @@ export const getConceptCardForConcept = (allCardsOrConceptCards, conceptStr) => 
 		if (cardMatchesConcept(card, conceptStr)) return card;
 	}
 	return null;
-};
-
-const extractSynonymsFromCardTitleAlternates = (rawCard) => {
-	return extractRawContentRunsForCardField(rawCard,TEXT_FIELD_TITLE_ALTERNATES).map(str => str.trim()).filter(str => str);
 };
 
 //Returns a map of str => [synonym1, synonym2, ...]. The words won't be normalized.
@@ -1332,7 +1338,10 @@ class Fingerprint {
 		if (!this._cards) return {};
 		let result = {};
 		for (let obj of this._cards) {
-			let strs = obj.nlp.withoutStopWords[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND];
+			//A concept card should count its own title/title-alts as coming
+			//from itself. getAllNormalizedConceptStringsFromConceptCard will
+			//return an empty array if the card is not a concept card.
+			let strs = [...obj.nlp.withoutStopWords[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND], ...getAllNormalizedConceptStringsFromConceptCard(obj)];
 			for (let str of strs) {
 				//The fingerprint will have STOP_WORDs filtered, since it's
 				//downstream of wordCountsForSemantics, so do the same to check for
