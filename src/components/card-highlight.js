@@ -4,8 +4,7 @@ import { LitElement, html } from '@polymer/lit-element';
 class CardHighlight extends LitElement {
 	render() {
 
-		return html`
-			<style>
+		return html`<style>
 				:host {
 					display:inline;
 					margin:0;
