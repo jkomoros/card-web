@@ -290,6 +290,8 @@ const OVERRIDE_STEMS = {
 	'optimiz': 'optimiz',
 	//generally and generative stem to the same word otherwise
 	'generativ': 'generativ',
+	//Organization and organied stem to the same word otherwise
+	'organiza': 'organiza',
 };
 
 //we can't use memoizeFirstArg because that uses WeakMap which requires an
