@@ -303,9 +303,10 @@ const memoizedRegularExpressionForOriginalNgram = {};
 const regularExpressionForOriginalNgram = (normalizedNgram) => {
 	let result = memoizedRegularExpressionForOriginalNgram[normalizedNgram];
 	if (!result) {
-		//This needs to 'undo' the normalization of normalizeString. Luckily all of
-		//that special casing is just handled by the \W character class.
-		const betweenWordsRE = '\\W*';
+		//This needs to 'undo' the normalization of normalizeString. Luckily all
+		//of that special casing is just handled by the \W character class, plus
+		//any escaped codes like &gt;
+		const betweenWordsRE = '(\\W|&(\\w*);)*';
 		const wholeRE = normalizedNgram.split(' ').map(word => escapeRegex(word)).join(betweenWordsRE);
 		result = new RegExp(wholeRE, 'ig');
 		memoizedRegularExpressionForOriginalNgram[normalizedNgram] = result;
