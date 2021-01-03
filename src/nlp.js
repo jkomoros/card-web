@@ -292,6 +292,75 @@ const OVERRIDE_STEMS = {
 	'generativ': 'generativ',
 };
 
+//we can't use memoizeFirstArg because that uses WeakMap which requires an
+//object as a key.
+const memoizedRegularExpressionForOriginalNgram = {};
+
+//Returns a regular expression that could be run over original, unprocessed text
+//and match the ngram given by normalizedNgram. Note that normalizedNgram is
+//before any stemming or stop word removal. Memoized so the RE can be compiled
+//and cached.
+const regularExpressionForOriginalNgram = (normalizedNgram) => {
+	let result = memoizedRegularExpressionForOriginalNgram[normalizedNgram];
+	if (!result) {
+		//This needs to 'undo' the normalization of normalizeString. Luckily all of
+		//that special casing is just handled by the \W character class.
+		const betweenWordsRE = '\\W*';
+		const wholeRE = normalizedNgram.split(' ').map(word => escapeRegex(word)).join(betweenWordsRE);
+		result = new RegExp(wholeRE, 'ig');
+		memoizedRegularExpressionForOriginalNgram[normalizedNgram] = result;
+	}
+	return result;
+};
+
+//Returns the HTML string, with the strings for any concept references this card
+//makes with highlighting styling. This is very expensive, so it's memoized.
+export const highlightConceptReferences = memoizeFirstArg((card, fieldName) => {
+	if (!card || Object.keys(card).length == 0) return '';
+	const fieldConfig = TEXT_FIELD_CONFIGURATION[fieldName];
+	if (!fieldConfig) return '';
+	if (!fieldConfig.html) return card[fieldName];
+	const conceptCardReferences = Object.fromEntries(references(card).conceptArray().map(item => [item, true]));
+	const filteredHighlightMap = Object.fromEntries(Object.entries(card.importantNgrams || {}).filter(entry => conceptCardReferences[entry[1]]));
+	return highlightHTMLForCard(card, fieldName, filteredHighlightMap);
+});
+
+const highlightHTMLForCard = (card, fieldName, filteredHighlightMap) => {
+
+	//filteredHighlightMap is a map of fullyNormalized string -> cardID. First
+	//we go through each run of the field and identify the normalized
+	//representation of that ngram in that run, if it exists. So for example
+	//'forc graviti' would be backed out to 'force of gravity' within the run.
+
+	const originalConceptStrs = {};
+	for (const [fullyNormalizedConceptStr, cardID] of Object.entries(filteredHighlightMap)) {
+		const runs = card.nlp.normalized[fieldName];
+		for (let i = 0; i < runs.length; i++) {
+			const normalizedRun = runs[i];
+			const stemmedRun = card.nlp.stemmed[fieldName][i];
+			const withoutStopWordsRun = card.nlp.withoutStopWords[fieldName][i];
+			const originalNgram = extractOriginalNgramFromRun(fullyNormalizedConceptStr, normalizedRun,stemmedRun,withoutStopWordsRun);
+			if (originalNgram) {
+				//TODO: look for clobbering of overlapping concepts e.g. force, external force
+				originalConceptStrs[originalNgram] = cardID;
+			}
+		}
+	}
+	//Now we have a map of all original runs of text (in normalized, not
+	//destemmed, not stop-word-removed) form, mapped to the concept they come
+	//from. We need to replace every occurance of them in the whole text, but
+	//there might be arbitrary whitespace or punctuation in between.
+	let result = card[fieldName];
+	for (const [originalConceptStr, cardID] of Object.entries(originalConceptStrs)) {
+		//Construct a regular expression that looks for that normalized text
+		//with any intervening weird space.
+		const re = regularExpressionForOriginalNgram(originalConceptStr);
+		//TODO: replace with a hovering thing
+		result = result.replace(re,(wholeMatch) => '<strong data-id="'+ cardID + '">' + wholeMatch + '</strong>');
+	}
+	return result;
+};
+
 const lowercaseSplitWords = (str) => {
 	return str.toLowerCase().split(/\s+/);
 };

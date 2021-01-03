@@ -29,6 +29,10 @@ import {
 	editableFieldsForCardType
 } from '../card_fields.js';
 
+import {
+	highlightConceptReferences
+} from '../nlp.js';
+
 import * as icons from './my-icons.js';
 
 import { makeElementContentEditable } from '../util.js';
@@ -388,7 +392,15 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		}
 
 		let value = this._card[field] || '';
-		let htmlToSet = config.html ? normalizeBodyHTML(value) : '';
+		let htmlToSet = '';
+		if (config.html) {
+			if (!this.editing) {
+				//Make sure not to do the highlighting if it's being edited, which
+				//would pollute the HTML to save with the highlights.
+				value = highlightConceptReferences(this._card, field);
+			}
+			htmlToSet = normalizeBodyHTML(value);
+		}
 		if (value && config.displayPrefix) htmlToSet = '<span>' + config.displayPrefix + '</span> ' + value;
 		if (!value && !this.editing) {
 			if (this._card.full_bleed) {
