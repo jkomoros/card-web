@@ -315,9 +315,9 @@ const regularExpressionForOriginalNgram = (normalizedNgram) => {
 
 //Returns the HTML string, with the strings for any concept references this card
 //makes with highlighting styling. This is very expensive, so it's memoized. It
-//wraps things in a <concept-reference
-//card="CARDID">content</concept-reference>, so include
-//components/concept-reference wherever you use it.
+//wraps things in a <card-highlight
+//card="CARDID">content</card-highlight>, so include
+//components/card-highlight wherever you use it.
 export const highlightConceptReferences = memoizeFirstArg((card, fieldName) => {
 	if (!card || Object.keys(card).length == 0) return '';
 	const fieldConfig = TEXT_FIELD_CONFIGURATION[fieldName];
@@ -358,7 +358,7 @@ const highlightHTMLForCard = (card, fieldName, filteredHighlightMap) => {
 		//Construct a regular expression that looks for that normalized text
 		//with any intervening weird space.
 		const re = regularExpressionForOriginalNgram(originalConceptStr);
-		result = result.replace(re,(wholeMatch) => '<concept-reference card="'+ cardID + '">' + wholeMatch + '</concept-reference>');
+		result = result.replace(re,(wholeMatch) => '<card-highlight card="'+ cardID + '">' + wholeMatch + '</card-highlight>');
 	}
 	return result;
 };

@@ -1,7 +1,7 @@
 
 import { LitElement, html } from '@polymer/lit-element';
 
-class ConceptReference extends LitElement {
+class CardHighlight extends LitElement {
 	render() {
 
 		return html`
@@ -38,4 +38,4 @@ class ConceptReference extends LitElement {
 
 }
 
-window.customElements.define('concept-reference', ConceptReference);
+window.customElements.define('card-highlight', CardHighlight);
