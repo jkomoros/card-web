@@ -1246,7 +1246,10 @@ class Fingerprint {
 		const infos = Object.fromEntries([...this._items.entries()].map((entry,index) => {
 			const amount = entry[1] / maxAmount * 100;
 			const info = {title: displayItems[index],suppressLink:true, filter: 'opacity(' + amount + '%)'};
-			if (conceptItems[entry[0]]) info.color = 'var(--app-secondary-color)';
+			if (conceptItems[entry[0]]) {
+				info.color = 'var(--app-secondary-color)';
+				info.previewCard = conceptItems[entry[0]];
+			}
 			return [entry[0], info];
 		}));
 		return [[...this._items.keys()], infos];
@@ -1353,13 +1356,13 @@ class Fingerprint {
 				//downstream of wordCountsForSemantics, so do the same to check for
 				//a match.
 				if (this._items.has(str)) {
-					result[str] = true;
+					result[str] = obj.importantNgrams[str] || '?INVALID-CARDID?';
 				}
 				const synonyms = obj.synonymMap[str];
 				if (!synonyms) continue;
 				for (const synonym of synonyms) {
 					if (this._items.has(synonym)) {
-						result[synonym] = true;
+						result[synonym] = obj.importantNgrams[str] || '?INVALID-CARDID?';
 					}
 				}
 			}
