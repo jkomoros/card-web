@@ -73,7 +73,13 @@ export const getAllConceptStringsFromConceptCard = (rawConceptCard) => {
 //has title alternates. memoized so downstream memoizing things will get object
 //equality.
 export const getConceptsFromConceptCards = memoizeFirstArg((conceptCards) => {
-	return Object.fromEntries(Object.values(conceptCards).map(card => getAllConceptStringsFromConceptCard(card)).flat().map(item => [item, true]));
+	const result = {};
+	for (const card of Object.values(conceptCards)) {
+		for (const conceptStr of getAllConceptStringsFromConceptCard(card)) {
+			result[conceptStr] = card.id;
+		}
+	}
+	return result;
 });
 
 const cardMatchesConcept = (card, conceptStr) => {
