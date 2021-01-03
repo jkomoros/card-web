@@ -1217,6 +1217,7 @@ class Fingerprint {
 		this._generator = generator;
 		this._items = items || new Map();
 		this._memoizedWordCloud = null;
+		this._memoizedFullWordCloud = null;
 	}
 
 	keys() {
@@ -1233,12 +1234,19 @@ class Fingerprint {
 
 	wordCloud() {
 		if (!this._memoizedWordCloud) {
-			this._memoizedWordCloud = this._generatewordCloud();
+			this._memoizedWordCloud = this._generatewordCloud(true);
 		}
 		return this._memoizedWordCloud;
 	}
 
-	_generatewordCloud() {
+	fullWordCloud() {
+		if (!this._memoizedFullWordCloud) {
+			this._memoizedFullWordCloud = this._generatewordCloud(false);
+		}
+		return this._memoizedFullWordCloud;
+	}
+
+	_generatewordCloud(hideItemsNotFromCard) {
 		if (!this._items || this._items.keys().length == 0) return emptyWordCloud();
 		const displayItems = this.prettyItems();
 		const maxAmount = Math.max(...this._items.values());
@@ -1252,7 +1260,8 @@ class Fingerprint {
 			}
 			return [entry[0], info];
 		}));
-		return [[...this._items.keys()], infos];
+		const itemsToHide = hideItemsNotFromCard ? this.itemsNotFromCard() : {};
+		return [[...this._items.keys()].filter(key => !itemsToHide[key]), infos];
 	}
 
 	//returns a map of item => true for fingerprint items that were not
