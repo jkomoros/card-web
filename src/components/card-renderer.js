@@ -39,6 +39,7 @@ import { makeElementContentEditable } from '../util.js';
 
 //Cards that include links need card-link
 import './card-link.js';
+import './concept-reference.js';
 import './reference-block.js';
 
 export const CARD_WIDTH_IN_EMS = 43.63;
@@ -435,7 +436,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		if (config.html) {
 			htmlToSet = dompurify.sanitize(htmlToSet, {
 				ADD_ATTR: ['card'],
-				ADD_TAGS: ['card-link'],
+				ADD_TAGS: ['card-link', 'concept-reference'],
 			});
 			if (htmlToSet === '') {
 				//This is a total hack. If the body is empty, then contenteditable
