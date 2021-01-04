@@ -620,6 +620,17 @@ export const addReferenceToCard = (cardID, referenceType) => (dispatch, getState
 		return;
 	}
 
+	const editingCard = selectEditingCard(state);
+	if (!editingCard) {
+		console.warn('No editing card');
+		return;
+	}
+
+	if (referenceTypeConfig.conceptReference && references(editingCard).conceptArray().some(id => id == cardID)) {
+		console.warn('The editing card already has a concept reference (or subtype) to that card');
+		return;
+	}
+
 	//if the reference type doesn't have a toCardTypeAllowList then any of them
 	//are legal.
 	if (referenceTypeConfig.toCardTypeAllowList) {
@@ -629,13 +640,7 @@ export const addReferenceToCard = (cardID, referenceType) => (dispatch, getState
 		}
 	}
 
-	
 	if (referenceTypeConfig.fromCardTypeAllowList) {
-		const editingCard = selectEditingCard(state);
-		if (!editingCard) {
-			console.warn('No editing card');
-			return;
-		}
 		if (!referenceTypeConfig.fromCardTypeAllowList[editingCard.card_type]) {
 			console.warn('That reference type may not originate from cards of type ' + editingCard.card_type);
 			return;
