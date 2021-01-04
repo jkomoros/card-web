@@ -289,7 +289,7 @@ export const REFERENCE_TYPES = {
 	[REFERENCE_TYPE_SYNONYM]: {
 		//NOTE: synonymMap effectivley pretends that an inbound synonym
 		//reference should count as a reciprocal outbound reference, too.
-		name: 'Synonym',
+		name: 'Interchangeable with',
 		description: 'For concept cards that are synonyms of another concept card',
 		editable: true,
 		substantive: true,
