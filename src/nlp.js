@@ -352,12 +352,16 @@ const highlightHTMLForCard = (card, fieldName, filteredHighlightMap) => {
 			}
 		}
 	}
+	//sort the concept strings so the biggest ones go first, because if the
+	//smaller ones go first they'll interfere with the bigger ones.
+	const sortedOriginalConceptStrs = [...Object.keys(originalConceptStrs)].sort((a,b) => b.length - a.length);
 	//Now we have a map of all original runs of text (in normalized, not
 	//destemmed, not stop-word-removed) form, mapped to the concept they come
 	//from. We need to replace every occurance of them in the whole text, but
 	//there might be arbitrary whitespace or punctuation in between.
 	let result = card[fieldName];
-	for (const [originalConceptStr, cardID] of Object.entries(originalConceptStrs)) {
+	for (const originalConceptStr of sortedOriginalConceptStrs) {
+		const cardID = originalConceptStrs[originalConceptStr];
 		//Construct a regular expression that looks for that normalized text
 		//with any intervening weird space.
 		const re = regularExpressionForOriginalNgram(originalConceptStr);
