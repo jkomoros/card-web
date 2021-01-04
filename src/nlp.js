@@ -1213,24 +1213,37 @@ export const suggestedConceptReferencesForCard = memoizeFirstArg((card, fingerpr
 		if (itemsNotFromCard[fingerprintItem]) continue;
 		//Skip items that aren't concepts
 		if (!normalizedConcepts[fingerprintItem]) continue;
-		//Skip items we already point to
-		if (itemsFromConceptReferences[fingerprintItem]) continue;
-		let skipSuggestion = false;
-		//Don't suggest concepts that are full subsets of concepts we already accepted
-		for (const containingNgram of Object.keys(itemsFromConceptReferences)) {
-			if (ngramWithinOther(fingerprintItem, containingNgram)) {
-				skipSuggestion = true;
-				break;
-			}
-		}
-		if (skipSuggestion) continue;
+
 		//OK, we think there's a card that matches this fingerprint item.
 		const conceptCard = getConceptCardForConcept(allCardsOrConceptCards, fingerprintItem);
 		//false alarm
 		if (!conceptCard) continue;
 		//Don't suggest that concept cards reference themselves
 		if (conceptCard.id == card.id) continue;
-		//Skip ones that we've already included (which could have happened if we
+
+		//Skip items we already point to... but only if it expands to the same
+		//card as we'll suggest. For example, if a card mentions 'agent' and
+		//'system' (synonyms) explicitly, and we already link to 'agent', but
+		//not yet 'system', system should be allowed because it expands to a
+		//different card.
+		if (itemsFromConceptReferences[fingerprintItem] == card.id) continue;
+
+		let skipSuggestion = false;
+		//Don't suggest concepts that are full subsets of concepts we already accepted
+		for (const containingNgram of Object.keys(itemsFromConceptReferences)) {
+			//If there are multiple cards that are synonyms of one another, then
+			//we might get the same fingerpintItem and containingItem, but that
+			//check should be handled the line above, where we check if that
+			//precise card id has already been included.
+			if (fingerprintItem == containingNgram) continue;
+			if (ngramWithinOther(fingerprintItem, containingNgram)) {
+				skipSuggestion = true;
+				break;
+			}
+		}
+		if (skipSuggestion) continue;
+
+		//Skip ones that we've already included as a suggestion (which could have happened if we
 		//already saw a synonym item)
 		if (candidates[conceptCard.id]) continue;
 		//Don't suggest things that already have references of type concept (and sub-types like syonym), or the generic ack.
