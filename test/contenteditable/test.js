@@ -279,8 +279,27 @@ describe('html highlighting', () => {
 		assert.strictEqual(actual, expected);
 	});
 
+	it('replacements inside of existing card-highlights are not done', () => {
+		const input = '<p>Before and <card-highlight card="c-345">and foo bar</card-highlight> and after</p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo bar', 'c-123');
+		const expected = '<p>Before and <card-highlight card="c-345">and foo bar</card-highlight> and after</p>';
+		assert.strictEqual(actual, expected);
+	});
+
+	it('replacements inside of existing card-links are not done', () => {
+		const input = '<p>Before and <card-link card="c-345">and foo bar</card-link> and after</p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo bar', 'c-123');
+		const expected = '<p>Before and <card-link card="c-345">and foo bar</card-link> and after</p>';
+		assert.strictEqual(actual, expected);
+	});
+
+	it('replacements inside of existing a\'s are done', () => {
+		const input = '<p>Before and <a href="c-345">and foo bar</a> and after</p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo bar', 'c-123');
+		const expected = '<p>Before and <a href="c-345">and <card-highlight card="c-123">foo bar</card-highlight></a> and after</p>';
+		assert.strictEqual(actual, expected);
+	});
+
 	//Test that if a word is bolded in the middle of a multi-word test string it works (that is, if the card highlight would fully contain other text nodes)
-	//Test that it doesn't highlight within another highlight
-	//Test that it doesn't highlight inside a link
 	//Test taht it doens't highlight outside of word boundaries (e.g. continuous within discontinous)
 });

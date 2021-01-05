@@ -380,6 +380,8 @@ const highlightStringInHTML = (html, targetStr, cardID) => {
 };
 
 const highlightStringInEle = (ele, re, cardID) => {
+	//don't highlight if it's inside a card-highlight, or a card-link, because that gets confusing.
+	if (ele.localName == 'card-highlight' || ele.localName == 'card-link') return;
 	if (ele.children.length == 0) {
 		if (!ele.innerHTML) return;
 		//A leaf node.
