@@ -362,15 +362,47 @@ const highlightHTMLForCard = (card, fieldName, filteredHighlightMap) => {
 	let result = card[fieldName];
 	for (const originalConceptStr of sortedOriginalConceptStrs) {
 		const cardID = originalConceptStrs[originalConceptStr];
-		//Construct a regular expression that looks for that normalized text
-		//with any intervening weird space.
-		const re = regularExpressionForOriginalNgram(originalConceptStr);
-		//cardID comes from user (ultimately) and COULD contain bad characters.
-		//However, we're upstream of HTML sanitization in cardRenderer, so it's
-		//OK.
-		result = result.replace(re,(wholeMatch) => '<card-highlight card="'+ cardID + '">' + wholeMatch + '</card-highlight>');
+		result = highlightStringInHTML(result,originalConceptStr, cardID);
 	}
 	return result;
+};
+
+//targetStr is knownto exist, modulo non-word characters, in the html. (Although it might not exist as a raw run)
+const highlightStringInHTML = (html, targetStr, cardID) => {
+	//even though html, targetStr, and cardID aren't necessarily sanitized, it's
+	//OK as long as we never put the element into the DOM.
+	const ele = getDocument().createElement('section');
+	ele.innerHTML = html;
+	const re = regularExpressionForOriginalNgram(targetStr);
+	highlightStringInEle(ele, re, cardID);
+	//reading back innerHTML replaces control characters like '&gt;' with '&amp;gt;
+	return ele.innerHTML.split('&amp;').join('&');
+};
+
+const highlightStringInEle = (ele, re, cardID) => {
+	if (ele.children.length == 0) {
+		if (!ele.innerHTML) return;
+		//A leaf node.
+		//We read back out of textContent because in innerHTML escape & will be replaced by &amp;
+		ele.innerHTML = ele.textContent.replace(re,(wholeMatch) => '<card-highlight card="'+ cardID + '">' + wholeMatch + '</card-highlight>');
+		return;
+	}
+	//ele.childNodes is a live node list but we'll be adding nodes potentially
+	//so take a snapshot.
+	for (let node of [...ele.childNodes]) {
+		if (node.nodeType == node.ELEMENT_NODE) {
+			highlightStringInEle(node, re, cardID);
+		} else if (node.nodeType == node.TEXT_NODE) {
+			if (!re.test(node.textContent)) continue;
+			//OK, the text is in there. We need to swap out this text node with multiple children (up to three).
+			const tempEle = getDocument().createElement('span');
+			tempEle.innerHTML = node.textContent;
+			highlightStringInEle(tempEle, re, cardID);
+			//Now, read back out tempEle's children and reparent in place to our parent.
+			node.replaceWith(...tempEle.childNodes);
+			
+		}
+	}
 };
 
 const lowercaseSplitWords = (str) => {
@@ -1647,4 +1679,5 @@ export const TESTING = {
 	normalizedWords,
 	stemmedNormalizedWords,
 	withoutStopWords,
+	highlightStringInHTML,
 };

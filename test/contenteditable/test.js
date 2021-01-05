@@ -16,6 +16,10 @@ import {
 	normalizeBodyHTML,
 } from '../../src/contenteditable.js';
 
+import {
+	TESTING
+} from '../../src/nlp.js';
+
 import assert from 'assert';
 
 describe('content editable scrubbing', () => {
@@ -188,4 +192,88 @@ describe('content editable scrubbing', () => {
 		assert.equal(actual, expected);
 	});
 
+});
+
+describe('html highlighting', () => {
+	it('No op simple content', () => {
+		const input = '<p>Content</p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo', 'c-123');
+		const expected = '<p>Content</p>';
+		assert.strictEqual(actual, expected);
+	});
+
+	it('Single word replacement full precise word', () => {
+		const input = '<p>foo</p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo', 'c-123');
+		const expected = '<p><card-highlight card="c-123">foo</card-highlight></p>';
+		assert.strictEqual(actual, expected);
+	});
+
+	it('multi word replacement full precise words', () => {
+		const input = '<p>foo Bar</p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo bar', 'c-123');
+		const expected = '<p><card-highlight card="c-123">foo Bar</card-highlight></p>';
+		assert.strictEqual(actual, expected);
+	});
+
+	it('multi word replacement full words with extra before and after', () => {
+		const input = '<p>Before and foo Bar after</p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo bar', 'c-123');
+		const expected = '<p>Before and <card-highlight card="c-123">foo Bar</card-highlight> after</p>';
+		assert.strictEqual(actual, expected);
+	});
+
+	it('multi word replacement with inner extra puncutation and prefixes', () => {
+		const input = '<p>Before and foo--Bar after</p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo bar', 'c-123');
+		const expected = '<p>Before and <card-highlight card="c-123">foo--Bar</card-highlight> after</p>';
+		assert.strictEqual(actual, expected);
+	});
+
+	it('multi word replacement full precise words double depth element', () => {
+		const input = '<p>Blammo <span>foo Bar</span> Blammo</p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo bar', 'c-123');
+		const expected = '<p>Blammo <span><card-highlight card="c-123">foo Bar</card-highlight></span> Blammo</p>';
+		assert.strictEqual(actual, expected);
+	});
+
+	it('multi word replacement with inner escaped puncutation and prefixes', () => {
+		const input = '<p>Before and foo&emdash;Bar after</p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo bar', 'c-123');
+		const expected = '<p>Before and <card-highlight card="c-123">foo&emdash;Bar</card-highlight> after</p>';
+		assert.strictEqual(actual, expected);
+	});
+
+	it('multi word replacement across element break is skipped', () => {
+		const input = '<p>Before and foo</p><p> Bar after</p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo bar', 'c-123');
+		const expected = '<p>Before and foo</p><p> Bar after</p>';
+		assert.strictEqual(actual, expected);
+	});
+
+	it('multi word replacement across element break is skipped', () => {
+		const input = '<p>Before and foo</p><p> Bar after</p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo bar', 'c-123');
+		const expected = '<p>Before and foo</p><p> Bar after</p>';
+		assert.strictEqual(actual, expected);
+	});
+
+	it('multi word replacement with a peer child element', () => {
+		const input = '<p>Before and foo Bar after <strong>other</strong></p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo bar', 'c-123');
+		const expected = '<p>Before and <card-highlight card="c-123">foo Bar</card-highlight> after <strong>other</strong></p>';
+		assert.strictEqual(actual, expected);
+	});
+
+	it('multi word replacement x2 with a peer child element', () => {
+		const input = '<p>Before and foo Bar after <strong>other</strong> and another foo: :bar yo</p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo bar', 'c-123');
+		const expected = '<p>Before and <card-highlight card="c-123">foo Bar</card-highlight> after <strong>other</strong> and another <card-highlight card="c-123">foo: :bar</card-highlight> yo</p>';
+		assert.strictEqual(actual, expected);
+	});
+
+	//Test that if a word is bolded in the middle of a multi-word test string it works (that is, if the card highlight would fully contain other text nodes)
+	//Test that it doesn't highlight within another highlight
+	//Test that it doesn't highlight inside a link
+	//Test taht it doens't highlight outside of word boundaries (e.g. continuous within discontinous)
 });
