@@ -272,6 +272,13 @@ describe('html highlighting', () => {
 		assert.strictEqual(actual, expected);
 	});
 
+	it('multi word replacement with a peer existing card-highlight element', () => {
+		const input = '<p>Before and <card-highlight card="c-345">slam yo</card-highlight> and then foo bar after</p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo bar', 'c-123');
+		const expected = '<p>Before and <card-highlight card="c-345">slam yo</card-highlight> and then <card-highlight card="c-123">foo bar</card-highlight> after</p>';
+		assert.strictEqual(actual, expected);
+	});
+
 	//Test that if a word is bolded in the middle of a multi-word test string it works (that is, if the card highlight would fully contain other text nodes)
 	//Test that it doesn't highlight within another highlight
 	//Test that it doesn't highlight inside a link
