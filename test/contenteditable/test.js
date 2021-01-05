@@ -300,6 +300,27 @@ describe('html highlighting', () => {
 		assert.strictEqual(actual, expected);
 	});
 
+	it('Single word replacement that\'s a part of the target word is not replaced', () => {
+		const input = '<p>food</p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo', 'c-123');
+		const expected = '<p>food</p>';
+		assert.strictEqual(actual, expected);
+	});
+
+	it('Single word replacement that\'s a middle part of the target word is not replaced', () => {
+		const input = '<p>sfood</p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo', 'c-123');
+		const expected = '<p>sfood</p>';
+		assert.strictEqual(actual, expected);
+	});
+
+	it('Single word replacement that\'s a end part of the target word is not replaced', () => {
+		const input = '<p>sfoo</p>';
+		const actual = TESTING.highlightStringInHTML(input, 'foo', 'c-123');
+		const expected = '<p>sfoo</p>';
+		assert.strictEqual(actual, expected);
+	});
+
+	//The following are bonus things 
 	//Test that if a word is bolded in the middle of a multi-word test string it works (that is, if the card highlight would fully contain other text nodes)
-	//Test taht it doens't highlight outside of word boundaries (e.g. continuous within discontinous)
 });

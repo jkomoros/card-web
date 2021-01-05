@@ -309,7 +309,8 @@ const regularExpressionForOriginalNgram = (normalizedNgram) => {
 		//of that special casing is just handled by the \W character class, plus
 		//any escaped codes like &gt;
 		const betweenWordsRE = '(\\W|&(\\w*);)*';
-		const wholeRE = normalizedNgram.split(' ').map(word => escapeRegex(word)).join(betweenWordsRE);
+		//Make sure the start and end are not word characters, so we don't match wihtin a word.
+		const wholeRE = '(?<!\\w)(' + normalizedNgram.split(' ').map(word => escapeRegex(word)).join(betweenWordsRE) + ')(?!\\w)';
 		result = new RegExp(wholeRE, 'ig');
 		memoizedRegularExpressionForOriginalNgram[normalizedNgram] = result;
 	}
