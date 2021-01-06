@@ -293,7 +293,9 @@ const OVERRIDE_STEMS = {
 	//Organization and organied stem to the same word otherwise
 	'organiza': 'organiza',
 	//Organic and organized stem to the same word
-	'organic': 'organic'
+	'organic': 'organic',
+	//Polarized and polarity stem to the same thing otherwise
+	'polarit': 'polarit'
 };
 
 //we can't use memoizeFirstArg because that uses WeakMap which requires an
