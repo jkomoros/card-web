@@ -21,21 +21,24 @@ class CardHighlight extends LitElement {
 					background-color: var(--app-secondary-color-light-very-transparent);
 				}
 
-				a:hover {
+				a.enabled:hover {
 					background-color: var(--app-secondary-color-light-somewhat-transparent);
 				}
 				/* the following is all on one line to avoid extra whitespace that would lead to gaps between the text and punctuation */
-			</style><a @mousemove=${this._handleMouseMove} href=${this._href}><slot></slot></span>`;
+			</style><a class='${this.disabled ? 'disabled' : 'enabled'}' @mousemove=${this._handleMouseMove} href=${this._href}><slot></slot></span>`;
 	}
 
 	static get properties() {
 		return {
 			card: { type: String },
+			//If disabled, then won't navigate to the card, and also won't light
+			//up on hover.
+			disabled: {type:Boolean },
 		};
 	}
 
 	get _href() {
-		return urlForCard(this.card) || 'javascript:void(0)';
+		return this.disabled ? '' : urlForCard(this.card);
 	}
 
 	_handleMouseMove(e) {
