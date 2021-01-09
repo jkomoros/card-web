@@ -754,6 +754,7 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 	let cardObject = defaultCardObject(startCardId, user, '', CARD_TYPE_SECTION_HEAD);
 	cardObject.title = displayName;
 	cardObject.subtitle = displayName + ' is a topical tag';
+	cardObject.published = true;
 
 	batch.set(startCardRef, cardObject);
 
