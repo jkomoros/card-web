@@ -145,7 +145,7 @@ export const navigateToPreviousCard = () => (dispatch, getState) => {
 	dispatch(navigateToCardInCurrentCollection(newId));
 };
 
-const urlForCard = (cardOrId) => {
+export const urlForCard = (cardOrId) => {
 	let id = cardOrId;
 	if(!id) return '';
 	//note: null is an object;

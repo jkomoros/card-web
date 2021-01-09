@@ -1,6 +1,10 @@
 
 import { LitElement, html } from '@polymer/lit-element';
 
+import {
+	urlForCard
+} from '../actions/app.js';
+
 class CardHighlight extends LitElement {
 	render() {
 
@@ -11,23 +15,27 @@ class CardHighlight extends LitElement {
 					padding:0;
 				}
 
-				span {
+				a {
+					text-decoration: none;
+					color: var(--app-dark-text-color);
 					background-color: var(--app-secondary-color-light-very-transparent);
-					/* kind of looks like a little book I guess */
-					cursor: context-menu;
 				}
 
-				span:hover {
+				a:hover {
 					background-color: var(--app-secondary-color-light-somewhat-transparent);
 				}
 				/* the following is all on one line to avoid extra whitespace that would lead to gaps between the text and punctuation */
-			</style><span @mousemove=${this._handleMouseMove}><slot></slot></span>`;
+			</style><a @mousemove=${this._handleMouseMove} href=${this._href}><slot></slot></span>`;
 	}
 
 	static get properties() {
 		return {
 			card: { type: String },
 		};
+	}
+
+	get _href() {
+		return urlForCard(this.card) || 'javascript:void(0)';
 	}
 
 	_handleMouseMove(e) {
