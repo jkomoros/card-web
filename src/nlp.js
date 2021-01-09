@@ -297,7 +297,9 @@ const OVERRIDE_STEMS = {
 	//Polarized and polarity stem to the same thing otherwise
 	'polarit': 'polarit',
 	//Useful and use all reduce down to 'us'
-	'usef': 'usef'
+	'usef': 'usef',
+	//communicate and community reduce to the same stem otherwise
+	'communit': 'communit'
 };
 
 //we can't use memoizeFirstArg because that uses WeakMap which requires an
