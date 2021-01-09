@@ -72,6 +72,7 @@ import {
 	SAVE_ICON,
 	CANCEL_ICON,
 	DELETE_FOREVER_ICON,
+	PLUS_ICON,
 } from './my-icons.js';
 
 import {
@@ -358,7 +359,10 @@ class CardEditor extends connect(store)(LitElement) {
 				</div>
 				<div>
 					<label>Suggested Concepts ${help('Cards that are suggested to be added as concept references. Tap one to add it as a concept reference, or x it out to add an ACK and get it to go away.')}</label>
-					<tag-list .tags=${this._suggestedConcepts} .tagInfos=${this._cardTagInfos} .editing=${true} .defaultColor=${REFERENCE_TYPES[REFERENCE_TYPE_CONCEPT].color} .tapEvents=${true} .disableAdd=${true} @tag-tapped=${this._handleSuggestedConceptTapped} @remove-tag=${this._handleAddAckReference} .overrideTypeName=${'Concept'}></tag-list>
+					<div class='row'>
+						<tag-list .tags=${this._suggestedConcepts} .tagInfos=${this._cardTagInfos} .editing=${true} .defaultColor=${REFERENCE_TYPES[REFERENCE_TYPE_CONCEPT].color} .tapEvents=${true} .disableAdd=${true} @tag-tapped=${this._handleSuggestedConceptTapped} @remove-tag=${this._handleAddAckReference} .overrideTypeName=${'Concept'}></tag-list>
+						<button class='small' @click=${this._handleAddAllConceptsClicked} ?hidden=${this._suggestedConcepts.length == 0} title='Add all suggested concepts'>${PLUS_ICON}</button>
+					</div>
 				</div>
 			</div>
 				<div class='row'>
@@ -493,6 +497,12 @@ class CardEditor extends connect(store)(LitElement) {
 	_handleSuggestedConceptTapped(e) {
 		const cardID = e.detail.tag;
 		store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_CONCEPT));
+	}
+
+	_handleAddAllConceptsClicked() {
+		for (const cardID of this._suggestedConcepts) {
+			store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_CONCEPT));
+		}
 	}
 
 	_handleCardTypeChanged(e) {
