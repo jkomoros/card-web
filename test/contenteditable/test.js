@@ -286,10 +286,10 @@ describe('html highlighting', () => {
 		assert.strictEqual(actual, expected);
 	});
 
-	it('replacements inside of existing card-links are not done', () => {
+	it('replacements inside of existing card-links are rendered but inactive', () => {
 		const input = '<p>Before and <card-link card="c-345">and foo bar</card-link> and after</p>';
 		const actual = TESTING.highlightStringInHTML(input, 'foo bar', 'c-123');
-		const expected = '<p>Before and <card-link card="c-345">and foo bar</card-link> and after</p>';
+		const expected = '<p>Before and <card-link card="c-345">and <card-highlight disabled="" card="c-123">foo bar</card-highlight></card-link> and after</p>';
 		assert.strictEqual(actual, expected);
 	});
 

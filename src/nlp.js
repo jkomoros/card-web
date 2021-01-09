@@ -381,32 +381,34 @@ const highlightStringInHTML = (html, targetStr, cardID) => {
 	const ele = getDocument().createElement('section');
 	ele.innerHTML = html;
 	const re = regularExpressionForOriginalNgram(targetStr);
-	highlightStringInEle(ele, re, cardID);
+	highlightStringInEle(ele, re, cardID, false);
 	//reading back innerHTML replaces control characters like '&gt;' with '&amp;gt;
 	return ele.innerHTML.split('&amp;').join('&');
 };
 
-const highlightStringInEle = (ele, re, cardID) => {
+//withinLink is whether we're within the link context
+const highlightStringInEle = (ele, re, cardID, withinLink) => {
 	//don't highlight if it's inside a card-highlight, or a card-link, because that gets confusing.
-	if (ele.localName == 'card-highlight' || ele.localName == 'card-link') return;
+	if (ele.localName == 'card-highlight') return;
+	withinLink = withinLink || ele.localName == 'card-link';
 	if (ele.children.length == 0) {
 		if (!ele.innerHTML) return;
 		//A leaf node.
 		//We read back out of textContent because in innerHTML escape & will be replaced by &amp;
-		ele.innerHTML = ele.textContent.replace(re,(wholeMatch) => '<card-highlight card="'+ cardID + '">' + wholeMatch + '</card-highlight>');
+		ele.innerHTML = ele.textContent.replace(re,(wholeMatch) => '<card-highlight ' + (withinLink ? 'disabled ' : '' ) + 'card="'+ cardID + '">' + wholeMatch + '</card-highlight>');
 		return;
 	}
 	//ele.childNodes is a live node list but we'll be adding nodes potentially
 	//so take a snapshot.
 	for (let node of [...ele.childNodes]) {
 		if (node.nodeType == node.ELEMENT_NODE) {
-			highlightStringInEle(node, re, cardID);
+			highlightStringInEle(node, re, cardID, withinLink);
 		} else if (node.nodeType == node.TEXT_NODE) {
 			if (!re.test(node.textContent)) continue;
 			//OK, the text is in there. We need to swap out this text node with multiple children (up to three).
 			const tempEle = getDocument().createElement('span');
 			tempEle.innerHTML = node.textContent;
-			highlightStringInEle(tempEle, re, cardID);
+			highlightStringInEle(tempEle, re, cardID, withinLink);
 			//Now, read back out tempEle's children and reparent in place to our parent.
 			node.replaceWith(...tempEle.childNodes);
 			
