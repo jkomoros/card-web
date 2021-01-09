@@ -13,6 +13,7 @@ module.exports = {
     'manifest.json',
     'src/**/*',
   ],
+  skipWaiting: true,
   runtimeCaching: [
     {
       urlPattern: /\/@webcomponents\/webcomponentsjs\//,
