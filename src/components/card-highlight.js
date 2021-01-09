@@ -12,9 +12,13 @@ class CardHighlight extends LitElement {
 				}
 
 				span {
-					color: var(--app-secondary-color);
+					background-color: var(--app-secondary-color-light-very-transparent);
 					/* kind of looks like a little book I guess */
 					cursor: context-menu;
+				}
+
+				span:hover {
+					background-color: var(--app-secondary-color-light-somewhat-transparent);
 				}
 				/* the following is all on one line to avoid extra whitespace that would lead to gaps between the text and punctuation */
 			</style><span @mousemove=${this._handleMouseMove}><slot></slot></span>`;
