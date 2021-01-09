@@ -38,7 +38,6 @@ import {
 	suggestedConceptReferencesForCard,
 	getConceptsFromConceptCards,
 	conceptCardsFromCards,
-	getConceptStringFromConceptCard
 } from './nlp.js';
 
 import {
@@ -309,11 +308,8 @@ const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) =>
 		const fingerprint = fingerprintGenerator.fingerprintForCardID(card.id);
 		const suggestedReferences = suggestedConceptReferencesForCard(card, fingerprint, conceptCards, concepts);
 		const filteredSuggestedReferences = keyConceptCard ? suggestedReferences.filter(id => id == keyConceptCardID) : suggestedReferences;
-		if (filteredSuggestedReferences.length == 0) return [false, ''];
-		const firstSuggestedReference = filteredSuggestedReferences[0];
-		//Yes it is a bit weird to give a 'sort value' of the concept string,
-		//but that's the only way to get it to show up in the label.
-		return [true, getConceptStringFromConceptCard(cards[firstSuggestedReference])];
+		if (filteredSuggestedReferences.length == 0) return [false, 0];
+		return [true, filteredSuggestedReferences.length];
 	};
 	return [func, false];
 };
@@ -652,7 +648,7 @@ const CONFIGURABLE_FILTER_INFO = {
 	},
 	[MISSING_CONCEPT_FILTER_NAME]: {
 		factory: makeMissingConceptConfigurableFilter,
-		labelName: 'Concept'
+		labelName: 'Suggested Concept Count'
 	}
 };
 
