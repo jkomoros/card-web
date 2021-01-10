@@ -14,7 +14,8 @@ store.addReducers({
 
 import { 
 	selectUserIsAdmin,
-	selectMaintenanceModeEnabled
+	selectMaintenanceModeEnabled,
+	selectExecutedMaintenanceTasks
 } from '../selectors.js';
 
 import {
@@ -59,7 +60,9 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 
 	_buttonForTaskName(taskName) {
 		const config = MAINTENANCE_TASKS[taskName] || {};
-		const disabled = config.maintenanceModeRequired ? !this._maintenanceModeEnabled : false;
+		let disabled = false;
+		if (config.maintenanceModeRequired && !this._maintenanceModeEnabled) disabled = true;
+		if (!config.recurring && this._executedTasks[taskName]) disabled = true; 
 		return html`<button value=${taskName} @click=${this._handleClick} .disabled=${disabled}>${taskName}</button>`;
 	}
 
@@ -67,6 +70,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 		return {
 			_isAdmin: { type: Boolean},
 			_maintenanceModeEnabled: { type: Boolean},
+			_executedTasks: { type:Object},
 		};
 	}
 
@@ -78,6 +82,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 	stateChanged(state) {
 		this._isAdmin = selectUserIsAdmin(state);
 		this._maintenanceModeEnabled = selectMaintenanceModeEnabled(state);
+		this._executedTasks = selectExecutedMaintenanceTasks(state);
 	}
 
 	_runTask(taskName) {

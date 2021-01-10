@@ -172,6 +172,8 @@ const selectUserReadingListSnapshot = (state) => state.user ? state.user.reading
 const selectCardsDrawerPanelOpen = (state) => state.app ? state.app.cardsDrawerPanelOpen : false;
 export const selectCtrlKeyPressed = (state) => state.app ? state.app.ctrlKeyPressed : false;
 
+export const selectExecutedMaintenanceTasks = (state) => state.maintenance ? state.maintenance.executedTasks : {};
+
 //selectQuery is what you should use to update the UI with the literal query
 export const selectQuery = (state) => state.find.query;
 //activeQuery is the query that should be routed into the query pipeline.
