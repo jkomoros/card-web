@@ -57,6 +57,20 @@ After the full deploy is done, the webapp will be visible to anyone at https://y
 
 Please email me at alex@komoroske.com if you actually start using the web app, so I know that I should start investing in tagging specific stable releases, make sure maintenance taksks are clear, etc.
 
+Also check out 'Keeping up to date' to keep your instance current.
+
+### Keeping up to date
+
+Once you've deployed your instance, you should periodically upgrade it with the latest changes.
+
+To do that, `cd` to the directory where you have the webapp checked out. Then run `git pull` and then `gulp deploy`.
+
+You will likely have to run maintenance tasks on your instance to upgrade the data model. (The gulp command will remind you). 
+
+To do that, go to https://your-project-domain/maintenance , hard refresh
+(Cmd-Shift-R) to make sure you have the recently-deployed version, and then run
+any maintenance tasks it tells you to.
+
 ## Extra Credit
 
 This section describes things that you don't have to do, but are a good idea
