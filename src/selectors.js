@@ -91,6 +91,10 @@ import {
 } from './util.js';
 
 import {
+	nextMaintenanceTaskName
+} from './actions/maintenance.js';
+
+import {
 	USER_DOMAIN,
 	TAB_CONFIGURATION
 } from '../config.GENERATED.SECRET.js';
@@ -188,6 +192,11 @@ export const selectStarsLoaded = (state) => state.user ? state.user.starsLoaded 
 export const selectReadsLoaded = (state) => state.user ? state.user.readsLoaded : false;
 export const selectUserPermissionsLoaded = (state) => state.user ? state.user.userPermissionsLoaded : false;
 export const selectReadingListLoaded = (state) => state.user ? state.user.readingListLoaded : false;
+
+export const selectNextMaintenanceTaskName = createSelector(
+	selectExecutedMaintenanceTasks,
+	(executedTasks) => nextMaintenanceTaskName(executedTasks)
+);
 
 //selects a collection of outboundCardID -> fallbackMap, where fallbackMap is
 //suitable to being passed to references.withFallbackText. The only items that

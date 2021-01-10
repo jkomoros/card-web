@@ -15,7 +15,8 @@ store.addReducers({
 import { 
 	selectUserIsAdmin,
 	selectMaintenanceModeEnabled,
-	selectExecutedMaintenanceTasks
+	selectExecutedMaintenanceTasks,
+	selectNextMaintenanceTaskName
 } from '../selectors.js';
 
 import {
@@ -44,6 +45,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
         </section>
         <section ?hidden=${!this._isAdmin}>
           <p>You're an admin!</p>
+		  <p>Next task to run: <strong>${this._nextTaskName || 'No remaining tasks!'}</strong></p>
 		  ${this._buttonForTaskName(INITIAL_SET_UP_TASK_NAME)}
 		  <br />
 		  <br />
@@ -72,6 +74,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 			_isAdmin: { type: Boolean},
 			_maintenanceModeEnabled: { type: Boolean},
 			_executedTasks: { type:Object},
+			_nextTaskName: { type:String},
 		};
 	}
 
@@ -84,6 +87,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 		this._isAdmin = selectUserIsAdmin(state);
 		this._maintenanceModeEnabled = selectMaintenanceModeEnabled(state);
 		this._executedTasks = selectExecutedMaintenanceTasks(state);
+		this._nextTaskName = selectNextMaintenanceTaskName(state);
 	}
 
 	_runTask(taskName) {
