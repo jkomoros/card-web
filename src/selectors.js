@@ -177,6 +177,7 @@ const selectCardsDrawerPanelOpen = (state) => state.app ? state.app.cardsDrawerP
 export const selectCtrlKeyPressed = (state) => state.app ? state.app.ctrlKeyPressed : false;
 
 export const selectExecutedMaintenanceTasks = (state) => state.maintenance ? state.maintenance.executedTasks : {};
+export const selectMaintenanceTaskActive = (state) => state.maintenance ? state.maintenance.taskActive : false;
 
 //selectQuery is what you should use to update the UI with the literal query
 export const selectQuery = (state) => state.find.query;

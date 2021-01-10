@@ -16,7 +16,8 @@ import {
 	selectUserIsAdmin,
 	selectMaintenanceModeEnabled,
 	selectExecutedMaintenanceTasks,
-	selectNextMaintenanceTaskName
+	selectNextMaintenanceTaskName,
+	selectMaintenanceTaskActive
 } from '../selectors.js';
 
 import {
@@ -60,8 +61,46 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 			  color: var(--app-dark-text-color-light);
 		  }
 
+		.scrim {
+			display:none;
+			background-color:rgba(0,0,0,0.25);
+			z-index:1;
+			height:100%;
+			width:100%;
+			position:absolute;
+			text-align:center;
+			justify-content:center;
+			align-items: center;
+		  }
+
+		  .active .scrim {
+			  display:flex;
+		  }
+
+		  @keyframes pulse {
+			  from {
+				color: var(--app-dark-text-color);
+			  }
+			  to {
+				color: var(--app-dark-text-color-light);
+			  }
+		  }
+
+		.scrim div {
+			animation-name: pulse;
+			animation-duration: 1s;
+			animation-direction: alternate;
+			animation-iteration-count: infinite;
+		}
+
 	  </style>
-      <section>
+      <section class='${this._taskActive ? 'active' : ''}'>
+		<div class='scrim'>
+			<div>
+				<h1>Processing...</h1>
+				<h4>(This can take some time, see the console for more information)</h4>
+			</div>
+		</div>
         <h2>Maintenance</h2>
         <p>This page is where maintenance can be done.</p>
         <section ?hidden=${this._isAdmin}>
@@ -109,6 +148,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 			_maintenanceModeEnabled: { type: Boolean},
 			_executedTasks: { type:Object},
 			_nextTaskName: { type:String},
+			_taskActive: {type:Boolean},
 		};
 	}
 
@@ -126,6 +166,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 		this._maintenanceModeEnabled = selectMaintenanceModeEnabled(state);
 		this._executedTasks = selectExecutedMaintenanceTasks(state);
 		this._nextTaskName = selectNextMaintenanceTaskName(state);
+		this._taskActive = selectMaintenanceTaskActive(state);
 	}
 
 	_runTask(taskName) {

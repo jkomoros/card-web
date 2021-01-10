@@ -1,4 +1,5 @@
 export const UPDATE_EXECUTED_MAINTENANCE_TASKS = 'UPDATE_EXECUTED_MAINTENANCE_TASKS';
+export const UPDATE_MAINTENANCE_TASK_ACTIVE = 'UPDATE_MAINTENANCE_TASK_ACTIVE';
 
 import {
 	CARDS_COLLECTION,
@@ -443,7 +444,6 @@ export const nextMaintenanceTaskName = (executedTasks) => {
 
 const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 	const fn = taskConfig.fn;
-	const nextTaskName = taskConfig.nextTaskName;
 	return () => async (dispatch, getState) => {
 		let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
 
@@ -456,6 +456,11 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 				}
 			}
 		}
+
+		dispatch({
+			type: UPDATE_MAINTENANCE_TASK_ACTIVE,
+			active: true,
+		});
 	
 		await fn(dispatch, getState);
 
@@ -465,7 +470,10 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 		});
 		console.log('done');
 
-		if (nextTaskName) alert('Now run ' + nextTaskName);
+		dispatch({
+			type: UPDATE_MAINTENANCE_TASK_ACTIVE,
+			active: false,
+		});
 
 		return;
 	};

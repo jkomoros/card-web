@@ -1,9 +1,11 @@
 import { 
-	UPDATE_EXECUTED_MAINTENANCE_TASKS
+	UPDATE_EXECUTED_MAINTENANCE_TASKS,
+	UPDATE_MAINTENANCE_TASK_ACTIVE
 } from '../actions/maintenance.js';
 
 const INITIAL_STATE = {
 	executedTasks: {},
+	taskActive: false,
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -12,6 +14,11 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			executedTasks: {...state.executedTasks, ...action.executedTasks}
+		};
+	case UPDATE_MAINTENANCE_TASK_ACTIVE:
+		return {
+			...state,
+			taskActive: action.active,
 		};
 	default:
 		return state;
