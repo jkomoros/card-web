@@ -380,7 +380,7 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 	if (taskConfig.recurring) return taskConfig.action;
 	const fn = taskConfig.fn;
 	const nextTaskName = taskConfig.nextTaskName;
-	return async () => async (dispatch, getState) => {
+	return () => async (dispatch, getState) => {
 		let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
 
 		let doc = await ref.get();
