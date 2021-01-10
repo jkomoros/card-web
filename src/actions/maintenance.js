@@ -144,8 +144,6 @@ const updateInboundLinks = async() => {
 
 	await batch.commit();
 
-	console.log('Done!');
-
 };
 
 const RESET_TWEETS = 'reset-tweets';
@@ -393,9 +391,8 @@ const setMaintenanceTaskVersion = async () => {
 	});
 
 	//Create entries for any items that haven't yet been run
-	for (const [taskName, taskConfig] of Object.entries(MAINTENANCE_TASKS)) {
+	for (const taskName of Object.keys(MAINTENANCE_TASKS)) {
 		if (seenTasks[taskName]) continue;
-		if (taskConfig.recurring) continue;
 		const ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
 		batch.set(ref, {timestamp: serverTimestampSentinel(), version: MAINTENANCE_TASK_VERSION, createdBy:SET_MAINTENANCE_TASK_VERSION});
 	}
@@ -426,17 +423,18 @@ export const nextMaintenanceTaskName = (executedTasks) => {
 };
 
 const makeMaintenanceActionCreator = (taskName, taskConfig) => {
-	if (taskConfig.recurring) return taskConfig.action;
 	const fn = taskConfig.fn;
 	const nextTaskName = taskConfig.nextTaskName;
 	return () => async (dispatch, getState) => {
 		let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
 
-		let doc = await ref.get();
-	
-		if (doc.exists) {
-			if (!window.confirm('This task has been run before on this database. Do you want to run it again?')) {
-				throw taskName + ' has been run before and the user didn\'t want to run again';
+		if (!taskConfig.recurring) {
+			let doc = await ref.get();
+		
+			if (doc.exists) {
+				if (!window.confirm('This task has been run before on this database. Do you want to run it again?')) {
+					throw taskName + ' has been run before and the user didn\'t want to run again';
+				}
 			}
 		}
 	
