@@ -1,3 +1,4 @@
+export const UPDATE_EXECUTED_MAINTENANCE_TASKS = 'UPDATE_EXECUTED_MAINTENANCE_TASKS';
 
 import {
 	CARDS_COLLECTION,
@@ -5,6 +6,10 @@ import {
 	MAINTENANCE_COLLECTION,
 	TWEETS_COLLECTION,
 } from './database.js';
+
+import {
+	store
+} from '../store.js';
 
 import {
 	db,
@@ -57,6 +62,33 @@ import {
 	applyReferencesDiff,
 	references,
 } from '../references.js';
+
+
+export const connectLiveExecutedMaintenanceTasks = () => {
+	db.collection(MAINTENANCE_COLLECTION).onSnapshot(snapshot => {
+
+		let tasks = {};
+
+		snapshot.docChanges().forEach(change => {
+			if (change.type === 'removed') return;
+			let doc = change.doc;
+			let id = doc.id;
+			let task = doc.data();
+			task.id = id;
+			tasks[id] = task;
+		});
+
+		store.dispatch(updateExecutedMaintenanceTasks(tasks));
+
+	});
+};
+
+const updateExecutedMaintenanceTasks = (executedTasks) => {
+	return {
+		type: UPDATE_EXECUTED_MAINTENANCE_TASKS,
+		executedTasks,
+	};
+};
 
 const NORMALIZE_CONTENT_BODY = 'normalize-content-body-again';
 

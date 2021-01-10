@@ -6,12 +6,19 @@ import { repeat } from 'lit-html/directives/repeat';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
+// We are lazy loading its reducer.
+import maintenance from '../reducers/maintenance.js';
+store.addReducers({
+	maintenance,
+});
+
 import { 
 	selectUserIsAdmin,
 	selectMaintenanceModeEnabled
 } from '../selectors.js';
 
 import {
+	connectLiveExecutedMaintenanceTasks,
 	MAINTENANCE_TASKS,
 	INITIAL_SET_UP_TASK_NAME,
 	NORMAL_MAINTENANCE_TASK_NAMES,
@@ -59,6 +66,11 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 			_isAdmin: { type: Boolean},
 			_maintenanceModeEnabled: { type: Boolean},
 		};
+	}
+
+	connectedCallback() {
+		super.connectedCallback();
+		connectLiveExecutedMaintenanceTasks();
 	}
 
 	stateChanged(state) {
