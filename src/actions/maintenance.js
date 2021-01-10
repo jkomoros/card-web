@@ -402,7 +402,7 @@ const setMaintenanceTaskVersion = async () => {
 
 //The value of MAINTENANCE_TASK_VERSION when this instance of the app was set up
 const setUpVersion = (executedTasks) => {
-	const setUpTaskRecord = executedTasks[INITIAL_SET_UP_TASK_NAME];
+	const setUpTaskRecord = executedTasks[INITIAL_SET_UP];
 	if (!setUpTaskRecord) return 0;
 	return setUpTaskRecord.version;
 };
@@ -537,7 +537,3 @@ Object.entries(RAW_TASKS).forEach(entry => {
 });
 
 export const MAINTENANCE_TASKS = Object.fromEntries(Object.entries(RAW_TASKS).map(entry => [entry[0], {...entry[1], actionCreator: makeMaintenanceActionCreator(entry[0], entry[1])}]));
-
-export const INITIAL_SET_UP_TASK_NAME = INITIAL_SET_UP;
-export const NORMAL_MAINTENANCE_TASK_NAMES = [...Object.keys(MAINTENANCE_TASKS)].filter(key => key != INITIAL_SET_UP && !MAINTENANCE_TASKS[key].maintenanceModeRequired);
-export const MAINTENANCE_MODE_MAINTENANCE_TASK_NAMES = [...Object.keys(MAINTENANCE_TASKS)].filter(key => key != INITIAL_SET_UP && MAINTENANCE_TASKS[key].maintenanceModeRequired);

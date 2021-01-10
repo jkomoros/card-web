@@ -22,9 +22,6 @@ import {
 import {
 	connectLiveExecutedMaintenanceTasks,
 	MAINTENANCE_TASKS,
-	INITIAL_SET_UP_TASK_NAME,
-	NORMAL_MAINTENANCE_TASK_NAMES,
-	MAINTENANCE_MODE_MAINTENANCE_TASK_NAMES,
 } from '../actions/maintenance.js';
 
 // These are the shared styles needed by this element.
@@ -36,7 +33,22 @@ import './card-stage.js';
 class MaintenanceView extends connect(store)(PageViewElement) {
 	render() {
 		return html`
-      ${SharedStyles}
+	  ${SharedStyles}
+	  <style>
+	  	.primary {
+			  text-align:center;
+			  font-size: 2.0em;
+		  }
+
+		  h4, h5 {
+			  margin: 0;
+		  }
+
+		  h5 {
+			  color: var(--app-dark-text-color-light);
+		  }
+
+	  </style>
       <section>
         <h2>Maintenance</h2>
         <p>This page is where maintenance can be done.</p>
@@ -45,15 +57,18 @@ class MaintenanceView extends connect(store)(PageViewElement) {
         </section>
         <section ?hidden=${!this._isAdmin}>
           <p>You're an admin!</p>
-		  <p>Next task to run: <strong>${this._nextTaskName || 'No remaining tasks!'}</strong></p>
-		  ${this._buttonForTaskName(INITIAL_SET_UP_TASK_NAME)}
+		  <div class='primary'>
+			<h2>Next task to run: </h2>
+			${this._buttonForTaskName(this._nextTaskName)}
+			<p ?hidden=${!this._nextTaskConfig.maintenanceModeRequired}>You must enable maintenance mode to run this task by running 'gulp turn-maintenance-mode-on'</p>
+		  </div>
 		  <br />
 		  <br />
 		  <br />
-          ${repeat(NORMAL_MAINTENANCE_TASK_NAMES, (item) => item, (item) => this._buttonForTaskName(item))}
-		  <br />
-		  <h5>Tasks that require maintence mode to be enabled via 'gulp turn-maintenance-mode-on'</h5>
-		  ${repeat(MAINTENANCE_MODE_MAINTENANCE_TASK_NAMES, (item) => item, (item) => this._buttonForTaskName(item))}
+		  <h4>Recurring tasks</h4>
+		  <h5>disabled ones need maintenance mode to be enabled via 'gulp turn-maintenance-mode-on'</h5>
+		  ${repeat(Object.entries(MAINTENANCE_TASKS).filter(entry => entry[1].recurring).map(entry => entry[0]), (item) => item, (item) => this._buttonForTaskName(item))}
+		  <p>Tasks that have already been run: ${[...Object.keys(this._executedTasks)].join(', ')}</p>
         </section>
 		<card-stage style='visibility:hidden;z-index:-100;position:absolute'></card-stage>
       </section>
@@ -61,6 +76,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 	}
 
 	_buttonForTaskName(taskName) {
+		if (!taskName) return html`<em>No tasks to run</em>`;
 		const config = MAINTENANCE_TASKS[taskName] || {};
 		let disabled = false;
 		if (config.maintenanceModeRequired && !this._maintenanceModeEnabled) disabled = true;
@@ -76,6 +92,11 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 			_executedTasks: { type:Object},
 			_nextTaskName: { type:String},
 		};
+	}
+
+	get _nextTaskConfig() {
+		if (!this._executedTasks) return {};
+		return this._executedTasks[this._nextTaskName] || {};
 	}
 
 	connectedCallback() {
