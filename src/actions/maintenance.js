@@ -72,7 +72,7 @@ export const connectLiveExecutedMaintenanceTasks = () => {
 			if (change.type === 'removed') return;
 			let doc = change.doc;
 			let id = doc.id;
-			let task = doc.data();
+			let task = doc.data({serverTimestamps: 'estimate'});
 			task.id = id;
 			tasks[id] = task;
 		});
@@ -407,9 +407,28 @@ const setUpVersion = (executedTasks) => {
 	return setUpTaskRecord.version;
 };
 
+const lastExecutedMaintenanceTask = (executedTasks) => {
+	let min = '';
+	let timestamp = 0;
+	for (const [taskName, taskDetails] of Object.entries(executedTasks)) {
+		if (taskDetails.timestamp.seconds < timestamp) continue;
+		min = taskName;
+		timestamp = taskDetails.timestamp.seconds;
+	}
+	return min;
+};
+
 //Returns the name of the next maintenance task to run, or '' if there aren't any.
 export const nextMaintenanceTaskName = (executedTasks) => {
 	const initialVersion = setUpVersion(executedTasks);
+	const lastTask = lastExecutedMaintenanceTask(executedTasks);
+	if (lastTask && MAINTENANCE_TASKS[lastTask].nextTaskName) {
+		const nextTask = MAINTENANCE_TASKS[lastTask].nextTaskName;
+		//If the next task was never run, suggest it
+		if (!executedTasks[nextTask]) return nextTask;
+		//If the next task was run, but BEFORE the last task, suggest it.
+		if (executedTasks[nextTask].timestamp.seconds < executedTasks[lastTask].timestamp.seconds) return nextTask;
+	}
 	//Iterating in order of maintenance tasks.
 	for (const [taskName, taskConfig] of Object.entries(MAINTENANCE_TASKS)) {
 		if (executedTasks[taskName]) continue;
