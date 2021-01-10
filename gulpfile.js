@@ -125,6 +125,7 @@ const FIREBASE_FUNCTIONS_DEPLOY_MAINTENANCE_MODE = 'deploy-maintenance-mode';
 const FIREBASE_FUNCTIONS_TURN_MAINTENANCE_MODE_ON = 'turn-maintenance-mode-on';
 const FIREBASE_FUNCTIONS_TURN_MAINTENANCE_MODE_OFF = 'turn-maintenance-mode-off';
 
+const WARN_MAINTENANCE_TASKS = 'warn-maintenance-tasks';
 
 const REGENERATE_FILES_FROM_CONFIG_TASK = 'inject-config';
 
@@ -409,6 +410,19 @@ gulp.task(ASK_IF_WANT_POLYMER_BUILD, async (cb) => {
 
 });
 
+gulp.task(WARN_MAINTENANCE_TASKS, (cb) => {
+	console.log(`******************************************************************
+*                 WARNING 
+*     You may need to run maintenance tasks. 
+*     Go to https://<YOUR-APPS-DOMAIN>/maintenance
+*     Ensure you're logged in as an admin
+*     Hard refresh (Ctrl-Shift-R)
+*     Run any maintenance tasks it tells you to.
+*
+******************************************************************`);
+	cb();
+});
+
 gulp.task(POLYMER_BUILD_OPTIONALLY, async (cb) => {
 	let task = gulp.task(POLYMER_BUILD_TASK);
 	if (wantsToSkipPolymerBuild) {
@@ -448,7 +462,8 @@ gulp.task('deploy',
 		FIREBASE_ENSURE_PROD_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
 		FIREBASE_FUNCTIONS_SET_MAINTENANCE_MODE_OFF,
-		FIREBASE_DEPLOY_TASK
+		FIREBASE_DEPLOY_TASK,
+		WARN_MAINTENANCE_TASKS,
 	)
 );
 
