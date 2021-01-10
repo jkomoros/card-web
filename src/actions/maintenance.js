@@ -409,11 +409,13 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 	maintenanceModeRequired: if true, will be grayed out unless maintenance mode is on. These are tasks that do such expensive processing htat if updateInboudnLinks were to be run it would mess with the db.
 	recurring: if true, then the task can be run multiple times.
 	nextTaskName: If set, the string name of the task the user should run next.
+	displayName: string to show in UI
 
 */
 const RAW_TASKS = {
 	[INITIAL_SET_UP]: {
 		fn: initialSetup,
+		displayName: 'Initial Set Up',
 	},
 	[NORMALIZE_CONTENT_BODY]: {
 		fn: normalizeContentBody,

@@ -62,8 +62,9 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 		const config = MAINTENANCE_TASKS[taskName] || {};
 		let disabled = false;
 		if (config.maintenanceModeRequired && !this._maintenanceModeEnabled) disabled = true;
-		if (!config.recurring && this._executedTasks[taskName]) disabled = true; 
-		return html`<button value=${taskName} @click=${this._handleClick} .disabled=${disabled}>${taskName}</button>`;
+		if (!config.recurring && this._executedTasks[taskName]) disabled = true;
+		const displayName = config.displayName || taskName;
+		return html`<button value=${taskName} @click=${this._handleClick} .disabled=${disabled}>${displayName}</button>`;
 	}
 
 	static get properties() {
