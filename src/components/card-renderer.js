@@ -404,6 +404,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			}
 			htmlToSet = normalizeBodyHTML(value);
 		}
+		if (value && config.htmlFormatter) htmlToSet = config.htmlFormatter(value);
 		if (value && config.displayPrefix) htmlToSet = '<span>' + config.displayPrefix + '</span> ' + value;
 		if (!value && !this.editing) {
 			if (this._card.full_bleed) {

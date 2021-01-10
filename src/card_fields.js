@@ -353,6 +353,13 @@ export const REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES = Object.fromEntries(Ob
 export const LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE = Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(cardType => [cardType, Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(referenceTypeEntry => !referenceTypeEntry[1].toCardTypeAllowList || referenceTypeEntry[1].toCardTypeAllowList[cardType]).map(entry => [entry[0], true]))]));
 export const LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE = Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(cardType => [cardType, Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(referenceTypeEntry => !referenceTypeEntry[1].fromCardTypeAllowList || referenceTypeEntry[1].fromCardTypeAllowList[cardType]).map(entry => [entry[0], true]))]));
 
+const TITLE_ALTERNATE_DELIMITER = ',';
+
+const titleAlternatesHTMLFormatter = (value) => {
+	if (!value) return value;
+	return '<span>Also known as</span> ' + value;
+};
+
 /*
 html: whether or not the field allows html. NOTE: currently it's only supported
 for a single field to be marked as html, and it must be called 'body'. See #345
@@ -376,7 +383,12 @@ field in the content tab of editor.
 
 displayPrefix: If set, then if the value is not empty then it will prefix the
 given prefix. noContentEditable should also be true, otherwise you'll get the
-prefix weirdly mixed in.
+prefix weirdly mixed in. Sort of sugar for htmlFormatter.
+
+htmlFormatter: if provided, is a function that takes the raw value and returns
+html to set, or '' to use the raw value. For the common case of just a prefix,
+use displayPrefix. Should be combined with noContentEditable otherwise the
+formated HTML will get mixed into the underlying value.
 
 extraRunDelimiter: if true, then when deciding where to break runs, that
 character will also be considered as a run break (in addition to the default
@@ -447,8 +459,8 @@ export const TEXT_FIELD_CONFIGURATION = {
 		matchWeight:0.95,
 		noContentEditable: true,
 		hideIfEmpty: true,
-		displayPrefix: 'Also known as',
-		extraRunDelimiter: ',',
+		htmlFormatter: titleAlternatesHTMLFormatter,
+		extraRunDelimiter: TITLE_ALTERNATE_DELIMITER,
 		description: 'Words to treat as synonyms that don\'t have their own concept cards. A \',\' separates multiple ones.' 
 	},
 	[TEXT_FIELD_BODY]: {
