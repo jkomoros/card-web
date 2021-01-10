@@ -81,9 +81,12 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 		  <h5>disabled ones need maintenance mode to be enabled via 'gulp turn-maintenance-mode-on'</h5>
 		  ${repeat(Object.entries(MAINTENANCE_TASKS).filter(entry => entry[1].recurring).map(entry => entry[0]), (item) => item, (item) => this._buttonForTaskName(item))}
 		  <p>Tasks that have already been run: ${[...Object.keys(this._executedTasks)].join(', ')}</p>
-		  <h4>Tasks that have not yet been run</h4>
-		  <h5>You should almost always only run the next task that you're told to, not do it from here</h5>
-		  ${repeat(Object.keys(MAINTENANCE_TASKS).filter(key => !(this._existingTasks || {})[key]), (item) => item, (item) => this._buttonForTaskName(item))}
+		  <details>
+			<summary>Advanced</summary>
+			<h4>Tasks that have not yet been run</h4>
+			<h5>You should almost always only run the next task that you're told to, not do it from here</h5>
+			${repeat(Object.keys(MAINTENANCE_TASKS).filter(key => !(this._existingTasks || {})[key]), (item) => item, (item) => this._buttonForTaskName(item))}
+		  </details>
         </section>
 		<card-stage style='visibility:hidden;z-index:-100;position:absolute'></card-stage>
       </section>
