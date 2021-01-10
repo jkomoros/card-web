@@ -462,7 +462,18 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 			active: true,
 		});
 	
-		await fn(dispatch, getState);
+		try {
+			await fn(dispatch, getState);
+		} catch(err) {
+			alert('Error: ' + err + '\nOpen the console, copy the contents, and create a new issue on github.com/jkomoros/card-web');
+			//Also put it in the console so they can copy and paste
+			console.warn('Error: ' + err);
+			dispatch({
+				type: UPDATE_MAINTENANCE_TASK_ACTIVE,
+				active: false,
+			});
+			return;
+		}
 
 		await db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({
 			timestamp: serverTimestampSentinel(),
