@@ -354,10 +354,27 @@ export const LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE = Object.fromEntries(Object.k
 export const LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE = Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(cardType => [cardType, Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(referenceTypeEntry => !referenceTypeEntry[1].fromCardTypeAllowList || referenceTypeEntry[1].fromCardTypeAllowList[cardType]).map(entry => [entry[0], true]))]));
 
 const TITLE_ALTERNATE_DELIMITER = ',';
+const TITLE_ALTERNATE_NEGATION = '-';
 
 const titleAlternatesHTMLFormatter = (value) => {
 	if (!value) return value;
-	return '<span>Also known as</span> ' + value;
+	const synonyms = [];
+	const antonyms = [];
+	for (const str of value.split(TITLE_ALTERNATE_DELIMITER)) {
+		const trimmedStr = str.trim();
+		if (!trimmedStr) continue;
+		if (trimmedStr[0] == TITLE_ALTERNATE_NEGATION) {
+			//Replace the first instance of the negator only, leaving the rest of whitespace intact
+			antonyms.push(str.replace(TITLE_ALTERNATE_NEGATION, ''));
+		} else {
+			synonyms.push(str);
+		}
+	}
+	let result = '';
+	if (synonyms.length) result += '<span>Also known as</span> ' + synonyms.join(TITLE_ALTERNATE_DELIMITER);
+	if (synonyms.length && antonyms.length) result += ' ';
+	if (antonyms.length) result += '<span>In contrast to</span> ' + antonyms.join(TITLE_ALTERNATE_DELIMITER);
+	return result;
 };
 
 /*
@@ -461,7 +478,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 		hideIfEmpty: true,
 		htmlFormatter: titleAlternatesHTMLFormatter,
 		extraRunDelimiter: TITLE_ALTERNATE_DELIMITER,
-		description: 'Words to treat as synonyms that don\'t have their own concept cards. A \',\' separates multiple ones.' 
+		description: 'Words to treat as synonyms that don\'t have their own concept cards. A \'' + TITLE_ALTERNATE_DELIMITER + '\' separates multiple ones, and ones that start with \'' +  TITLE_ALTERNATE_NEGATION + '\' will render as antonyms.' 
 	},
 	[TEXT_FIELD_BODY]: {
 		html: true,
