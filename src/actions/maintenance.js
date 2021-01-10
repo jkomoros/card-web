@@ -416,7 +416,7 @@ export const nextMaintenanceTaskName = (executedTasks) => {
 		if (taskConfig.recurring) continue;
 		//These are tasks that were added BEFORE this instance was set up, so
 		//they never need to be run on this instance.
-		if (initialVersion > taskConfig.minVersion) continue;
+		if (initialVersion >= taskConfig.minVersion) continue;
 		return taskName;
 	}
 	return '';
