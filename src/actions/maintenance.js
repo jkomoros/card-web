@@ -403,7 +403,7 @@ const setMaintenanceTaskVersion = async () => {
 //The value of MAINTENANCE_TASK_VERSION when this instance of the app was set up
 const setUpVersion = (executedTasks) => {
 	const setUpTaskRecord = executedTasks[INITIAL_SET_UP];
-	if (!setUpTaskRecord) return 0;
+	if (!setUpTaskRecord) return -1;
 	return setUpTaskRecord.version;
 };
 
