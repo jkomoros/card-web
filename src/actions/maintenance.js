@@ -163,7 +163,7 @@ const resetTweets = async() => {
 	await batch.commit();
 };
 
-const INITIAL_SET_UP = 'INITIAL_SET_UP';
+const INITIAL_SET_UP = 'initial-set-up';
 
 const initialSetup = () => async (_, getState) => {
 
