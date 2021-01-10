@@ -376,6 +376,33 @@ const flipAutoTodoOverrides = async () => {
 	await batch.commit();
 };
 
+const SET_MAINTENANCE_TASK_VERSION = 'set-maintenance-task-version';
+
+const setMaintenanceTaskVersion = async () => {
+	let batch = new MultiBatch(db);
+
+	let seenTasks = {};
+
+	let snapshot = await db.collection(MAINTENANCE_COLLECTION).get();
+	snapshot.forEach(doc => {
+		let taskName = doc.id;
+		seenTasks[taskName] = true;
+		let data = doc.data();
+		if (data.version !== undefined) return;
+		batch.update(doc.ref, {version: MAINTENANCE_TASK_VERSION});
+	});
+
+	//Create entries for any items that haven't yet been run
+	for (const [taskName, taskConfig] of Object.entries(MAINTENANCE_TASKS)) {
+		if (seenTasks[taskName]) continue;
+		if (taskConfig.recurring) continue;
+		const ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
+		batch.set(ref, {timestamp: serverTimestampSentinel(), version: MAINTENANCE_TASK_VERSION, createdBy:SET_MAINTENANCE_TASK_VERSION});
+	}
+
+	await batch.commit();
+};
+
 const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 	if (taskConfig.recurring) return taskConfig.action;
 	const fn = taskConfig.fn;
@@ -412,7 +439,7 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 //if you were to set up a new instance at any given moment, the non-recurring
 //maintenance tasks are already implicitly run and included in normal operation
 //of the webapp as soon as they were added.
-const MAINTENANCE_TASK_VERSION = 0;
+const MAINTENANCE_TASK_VERSION = 1;
 
 /*
 
@@ -475,7 +502,11 @@ const RAW_TASKS = {
 		minVersion: 0,
 		maintenanceModeRequired: true,
 		nextTaskName: UPDATE_INBOUND_LINKS,
-	}
+	},
+	[SET_MAINTENANCE_TASK_VERSION]: {
+		fn: setMaintenanceTaskVersion,
+		minVersion: 1,
+	},
 };
 
 //It's so important that RAW_TASKS minVersion is set correctly that we'll catch obvious mistakes here.
