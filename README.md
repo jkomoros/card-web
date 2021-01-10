@@ -63,7 +63,7 @@ Also check out 'Keeping up to date' to keep your instance current.
 
 Once you've deployed your instance, you should periodically upgrade it with the latest changes.
 
-To do that, `cd` to the directory where you have the webapp checked out. Then run `git pull` and then `gulp deploy`.
+To do that, `cd` to the directory where you have the webapp checked out. Then run `git pull` and then `gulp release`.
 
 You will likely have to run maintenance tasks on your instance to upgrade the data model. (The gulp command will remind you). 
 
