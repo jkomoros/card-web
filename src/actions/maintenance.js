@@ -349,7 +349,7 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 	if (taskConfig.recurring) return taskConfig.action;
 	const fn = taskConfig.action;
 	const nextTaskName = taskConfig.nextTaskName;
-	return async () => {
+	return async () => async (dispatch, getState) => {
 		let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
 
 		let doc = await ref.get();
@@ -360,7 +360,7 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 			}
 		}
 	
-		await fn();
+		await fn(dispatch, getState);
 
 		await db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: serverTimestampSentinel()});
 		console.log('done');
