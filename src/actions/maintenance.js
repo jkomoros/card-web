@@ -345,9 +345,9 @@ const flipAutoTodoOverrides = async () => {
 	await batch.commit();
 };
 
-const makeMaintenanceFn = (taskName, taskConfig) => {
+const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 	if (taskConfig.recurring) return taskConfig.action;
-	const action = taskConfig.action;
+	const fn = taskConfig.action;
 	const nextTaskName = taskConfig.nextTaskName;
 	return async () => {
 		let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
@@ -360,7 +360,7 @@ const makeMaintenanceFn = (taskName, taskConfig) => {
 			}
 		}
 	
-		await action();
+		await fn();
 
 		await db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: serverTimestampSentinel()});
 		console.log('done');
@@ -373,7 +373,7 @@ const makeMaintenanceFn = (taskName, taskConfig) => {
 
 /*
 
-	action: the raw function that does the thing
+	fn: the raw function that does the thing
 	maintenanceModeRequired: if true, will be grayed out unless maintenance mode is on. These are tasks that do such expensive processing htat if updateInboudnLinks were to be run it would mess with the db.
 	recurring: if true, then the task can be run multiple times.
 	nextTaskName: If set, the string name of the task the user should run next.
@@ -381,44 +381,44 @@ const makeMaintenanceFn = (taskName, taskConfig) => {
 */
 const RAW_TASKS = {
 	[INITIAL_SET_UP]: {
-		action: initialSetup,
+		fn: initialSetup,
 	},
 	[NORMALIZE_CONTENT_BODY]: {
-		action: normalizeContentBody,
+		fn: normalizeContentBody,
 	},
 	[RESET_TWEETS]: {
-		action: resetTweets,
+		fn: resetTweets,
 		recurring: true,
 	},
 	[SKIPPED_LINKS_TO_ACK_REFERENCES]: {
-		action: skippedLinksToAckReferences,
+		fn: skippedLinksToAckReferences,
 	},
 	[ADD_FONT_SIZE_BOOST]: {
-		action: addFontSizeBoost,
+		fn: addFontSizeBoost,
 	},
 	[UPDATE_FONT_SIZE_BOOST]: {
-		action: updateFontSizeBoost,
+		fn: updateFontSizeBoost,
 		recurring: true,
 	},
 	[CONVERT_MULTI_LINKS_DELIMITER]: {
-		action: convertMultiLinksDelimiter,
+		fn: convertMultiLinksDelimiter,
 	},
 	[FLIP_AUTO_TODO_OVERRIDES]: {
-		action: flipAutoTodoOverrides,
+		fn: flipAutoTodoOverrides,
 	},
 	[UPDATE_INBOUND_LINKS]: {
-		action: updateInboundLinks,
+		fn: updateInboundLinks,
 		maintenanceModeRequired: true,
 		recurring: true,
 	},
 	[LINKS_TO_REFERENCES]: {
-		action: linksToReferences,
+		fn: linksToReferences,
 		maintenanceModeRequired: true,
 		nextTaskName: UPDATE_INBOUND_LINKS,
 	}
 };
 
-export const MAINTENANCE_TASKS = Object.fromEntries(Object.entries(RAW_TASKS).map(entry => [entry[0], {...entry[1], fn: makeMaintenanceFn(entry[0], entry[1])}]));
+export const MAINTENANCE_TASKS = Object.fromEntries(Object.entries(RAW_TASKS).map(entry => [entry[0], {...entry[1], actionCreator: makeMaintenanceActionCreator(entry[0], entry[1])}]));
 
 export const INITIAL_SET_UP_TASK_NAME = INITIAL_SET_UP;
 export const NORMAL_MAINTENANCE_TASK_NAMES = [...Object.keys(MAINTENANCE_TASKS)].filter(key => key != INITIAL_SET_UP && !MAINTENANCE_TASKS[key].maintenanceModeRequired);

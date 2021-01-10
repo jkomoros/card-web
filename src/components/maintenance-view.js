@@ -73,7 +73,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 	_runTask(taskName) {
 		const taskConfig = MAINTENANCE_TASKS[taskName];
 		if (!taskConfig) throw new Error('No such task');
-		store.dispatch(taskConfig.fn());
+		store.dispatch(taskConfig.actionCreator());
 	}
 
 	_handleClick(e) {
