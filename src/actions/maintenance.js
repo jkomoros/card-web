@@ -403,6 +403,28 @@ const setMaintenanceTaskVersion = async () => {
 	await batch.commit();
 };
 
+//The value of MAINTENANCE_TASK_VERSION when this instance of the app was set up
+const setUpVersion = (executedTasks) => {
+	const setUpTaskRecord = executedTasks[INITIAL_SET_UP_TASK_NAME];
+	if (!setUpTaskRecord) return 0;
+	return setUpTaskRecord.version;
+};
+
+//Returns the name of the next maintenance task to run, or '' if there aren't any.
+export const nextMaintenanceTaskName = (executedTasks) => {
+	const initialVersion = setUpVersion(executedTasks);
+	//Iterating in order of maintenance tasks.
+	for (const [taskName, taskConfig] of Object.entries(MAINTENANCE_TASKS)) {
+		if (executedTasks[taskName]) continue;
+		if (taskConfig.recurring) continue;
+		//These are tasks that were added BEFORE this instance was set up, so
+		//they never need to be run on this instance.
+		if (initialVersion > taskConfig.minVersion) continue;
+		return taskName;
+	}
+	return '';
+};
+
 const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 	if (taskConfig.recurring) return taskConfig.action;
 	const fn = taskConfig.fn;
