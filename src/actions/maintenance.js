@@ -165,7 +165,7 @@ const resetTweets = async() => {
 
 const INITIAL_SET_UP = 'initial-set-up';
 
-const initialSetup = () => async (_, getState) => {
+const initialSetup = async (_, getState) => {
 
 	const user = selectUser(getState());
 
