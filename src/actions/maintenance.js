@@ -63,7 +63,6 @@ import {
 	references,
 } from '../references.js';
 
-
 export const connectLiveExecutedMaintenanceTasks = () => {
 	db.collection(MAINTENANCE_COLLECTION).onSnapshot(snapshot => {
 
@@ -394,7 +393,10 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 	
 		await fn(dispatch, getState);
 
-		await db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: serverTimestampSentinel()});
+		await db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({
+			timestamp: serverTimestampSentinel(),
+			version: MAINTENANCE_TASK_VERSION,
+		});
 		console.log('done');
 
 		if (nextTaskName) alert('Now run ' + nextTaskName);
@@ -403,54 +405,85 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 	};
 };
 
+//This integer should monotonically increase every time a new item is added
+//RAW_TASKS. It is how we detect if a maintenance task is eligible for this
+//instance of an app, since maintenance tasks that were implemented BEFORE this
+//instance had its initial set up called don't need them, because we assume that
+//if you were to set up a new instance at any given moment, the non-recurring
+//maintenance tasks are already implicitly run and included in normal operation
+//of the webapp as soon as they were added.
+const MAINTENANCE_TASK_VERSION = 0;
+
 /*
 
-	fn: the raw function that does the thing
-	maintenanceModeRequired: if true, will be grayed out unless maintenance mode is on. These are tasks that do such expensive processing htat if updateInboudnLinks were to be run it would mess with the db.
-	recurring: if true, then the task can be run multiple times.
-	nextTaskName: If set, the string name of the task the user should run next.
-	displayName: string to show in UI
+When adding new tasks, increment MAINTENANCE_TASK_VERSION by one. Set the new
+task's minVersion to the new raw value of MAINTENANCE_TASK_VERSION. Append the
+new task to the END of the raw_tasks list.
+
+    fn: the raw function that does the thing
+    maintenanceModeRequired: if true, will be grayed out unless maintenance mode is on. These are tasks that do such expensive processing htat if updateInboudnLinks were to be run it would mess with the db.
+    recurring: if true, then the task can be run multiple times.
+    nextTaskName: If set, the string name of the task the user should run next.
+    displayName: string to show in UI
+    minVersion: The raw value of the MAINTENANCE_TASK_VERSION when this task was added to the list. SEE ABOVE.
 
 */
 const RAW_TASKS = {
 	[INITIAL_SET_UP]: {
 		fn: initialSetup,
 		displayName: 'Initial Set Up',
+		minVersion: 0,
 	},
 	[NORMALIZE_CONTENT_BODY]: {
 		fn: normalizeContentBody,
+		minVersion: 0,
 	},
 	[RESET_TWEETS]: {
 		fn: resetTweets,
+		minVersion: 0,
 		recurring: true,
 	},
 	[SKIPPED_LINKS_TO_ACK_REFERENCES]: {
 		fn: skippedLinksToAckReferences,
+		minVersion: 0,
 	},
 	[ADD_FONT_SIZE_BOOST]: {
 		fn: addFontSizeBoost,
+		minVersion: 0,
 	},
 	[UPDATE_FONT_SIZE_BOOST]: {
 		fn: updateFontSizeBoost,
+		minVersion: 0,
 		recurring: true,
 	},
 	[CONVERT_MULTI_LINKS_DELIMITER]: {
 		fn: convertMultiLinksDelimiter,
+		minVersion: 0,
 	},
 	[FLIP_AUTO_TODO_OVERRIDES]: {
 		fn: flipAutoTodoOverrides,
+		minVersion: 0,
 	},
 	[UPDATE_INBOUND_LINKS]: {
 		fn: updateInboundLinks,
+		minVersion: 0,
 		maintenanceModeRequired: true,
 		recurring: true,
 	},
 	[LINKS_TO_REFERENCES]: {
 		fn: linksToReferences,
+		minVersion: 0,
 		maintenanceModeRequired: true,
 		nextTaskName: UPDATE_INBOUND_LINKS,
 	}
 };
+
+//It's so important that RAW_TASKS minVersion is set correctly that we'll catch obvious mistakes here.
+Object.entries(RAW_TASKS).forEach(entry => {
+	if (entry[1].minVersion === undefined || entry[1].minVersion > MAINTENANCE_TASK_VERSION) {
+		throw new Error(entry[0] + ' was missing minVersion');
+	}
+});
 
 export const MAINTENANCE_TASKS = Object.fromEntries(Object.entries(RAW_TASKS).map(entry => [entry[0], {...entry[1], actionCreator: makeMaintenanceActionCreator(entry[0], entry[1])}]));
 
