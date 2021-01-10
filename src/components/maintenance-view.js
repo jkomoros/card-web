@@ -12,9 +12,10 @@ import {
 } from '../selectors.js';
 
 import {
-	doInitialSetUp,
-	tasks,
-	maintenceModeRequiredTasks
+	MAINTENANCE_TASKS,
+	INITIAL_SET_UP_TASK_NAME,
+	NORMAL_MAINTENANCE_TASK_NAMES,
+	MAINTENANCE_MODE_MAINTENANCE_TASK_NAMES,
 } from '../actions/maintenance.js';
 
 // These are the shared styles needed by this element.
@@ -39,12 +40,12 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 		  <br />
 		  <br />
 		  <br />
-          ${repeat(Object.keys(tasks), (item) => item, (item) => html`
+          ${repeat(NORMAL_MAINTENANCE_TASK_NAMES, (item) => item, (item) => html`
               <button value="${item}" @click='${this._handleClick}'>${item}</button>
 		  `)}
 		  <br />
 		  <h5>Tasks that require maintence mode to be enabled via 'gulp turn-maintenance-mode-on'</h5>
-		  ${repeat(Object.keys(maintenceModeRequiredTasks), (item) => item, (item) => html`
+		  ${repeat(MAINTENANCE_MODE_MAINTENANCE_TASK_NAMES, (item) => item, (item) => html`
               <button value="${item}" @click='${this._handleClick}' .disabled=${!this._maintenanceModeEnabled}>${item}</button>
           `)}
         </section>
@@ -66,18 +67,18 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 	}
 
 	_handleInitialSetUp() {
-		store.dispatch(doInitialSetUp());
+		this._runTask(INITIAL_SET_UP_TASK_NAME);
+	}
+
+	_runTask(taskName) {
+		const taskConfig = MAINTENANCE_TASKS[taskName];
+		if (!taskConfig) throw new Error('No such task');
+		store.dispatch(taskConfig.fn());
 	}
 
 	_handleClick(e) {
 		let ele = e.composedPath()[0];
-		let value = ele.value;
-		let func = tasks[value] || maintenceModeRequiredTasks[value];
-		if (!func) {
-			console.log('That func isn\'t defined');
-			return;
-		}
-		func();
+		this._runTask(ele.value);
 	}
 
 }

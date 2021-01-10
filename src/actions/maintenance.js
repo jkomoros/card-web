@@ -58,29 +58,9 @@ import {
 	references,
 } from '../references.js';
 
-const checkMaintenanceTaskHasBeenRun = async (taskName) => {
-	let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
-
-	let doc = await ref.get();
-
-	if (doc.exists) {
-		if (!window.confirm('This task has been run before on this database. Do you want to run it again?')) {
-			throw taskName + ' has been run before and the user didn\'t want to run again';
-		}
-	}
-
-	return;
-};
-
-const maintenanceTaskRun = async (taskName) => {
-	db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: serverTimestampSentinel()});
-};
-
 const NORMALIZE_CONTENT_BODY = 'normalize-content-body-again';
 
-export const normalizeContentBody = async() => {
-	await checkMaintenanceTaskHasBeenRun(NORMALIZE_CONTENT_BODY);
-
+const normalizeContentBody = async() => {
 	let snapshot = await db.collection(CARDS_COLLECTION).get();
 
 	let counter = 0;
@@ -97,14 +77,11 @@ export const normalizeContentBody = async() => {
 		}
 		console.log('Processed ' + doc.id + ' (' + counter + '/' + size + ')' );
 	}
-
-	await maintenanceTaskRun(NORMALIZE_CONTENT_BODY);
-	console.log('Done!');
 };
 
 const UPDATE_INBOUND_LINKS = 'update-inbound-links';
 
-export const updateInboundLinks = async() => {
+const updateInboundLinks = async() => {
 
 	//This task is designed to run as often as you want, so we don't check if we've run it and mark as run.
 
@@ -142,7 +119,7 @@ export const updateInboundLinks = async() => {
 
 const RESET_TWEETS = 'reset-tweets';
 
-export const resetTweets = async() => {
+const resetTweets = async() => {
 	//Mark all tweets as having not been run
 	if (!confirm('Are you SURE you want to reset all tweets?')) return;
 	let batch = db.batch();
@@ -155,16 +132,13 @@ export const resetTweets = async() => {
 		batch.update(doc.ref, {'archived': true, 'archive_date': serverTimestampSentinel()});
 	});
 	await batch.commit();
-	console.log('done!');
 };
 
 const INITIAL_SET_UP = 'INITIAL_SET_UP';
 
-export const doInitialSetUp = () => async (_, getState) => {
+const initialSetup = () => async (_, getState) => {
 
 	const user = selectUser(getState());
-
-	await checkMaintenanceTaskHasBeenRun(INITIAL_SET_UP);
 
 	const starterSections = {
 		main: {
@@ -218,14 +192,11 @@ export const doInitialSetUp = () => async (_, getState) => {
 
 	await batch.commit();
 
-	await maintenanceTaskRun(INITIAL_SET_UP);
-	alert('Set up done!');
 };
 
 const LINKS_TO_REFERENCES = 'links-to-references';
 
 const linksToReferences = async () => {
-	await checkMaintenanceTaskHasBeenRun(LINKS_TO_REFERENCES);
 
 	let batch = new MultiBatch(db);
 	let snapshot = await db.collection(CARDS_COLLECTION).get();
@@ -252,17 +223,11 @@ const linksToReferences = async () => {
 	});
 
 	await batch.commit();
-
-	await maintenanceTaskRun(LINKS_TO_REFERENCES);
-	alert('Now run update_inbound_links task!');
-	console.log('done');
 };
 
 const SKIPPED_LINKS_TO_ACK_REFERENCES = 'skipped-links-to-ack-references';
 
 const skippedLinksToAckReferences = async () => {
-	await checkMaintenanceTaskHasBeenRun(SKIPPED_LINKS_TO_ACK_REFERENCES);
-
 	let batch = new MultiBatch(db);
 	let snapshot = await db.collection(CARDS_COLLECTION).get();
 	snapshot.forEach(doc => {
@@ -284,14 +249,11 @@ const skippedLinksToAckReferences = async () => {
 
 	await batch.commit();
 
-	await maintenanceTaskRun(SKIPPED_LINKS_TO_ACK_REFERENCES);
-	console.log('done');
 };
 
 const ADD_FONT_SIZE_BOOST = 'add-font-size-boost';
 
 const addFontSizeBoost = async () => {
-	await checkMaintenanceTaskHasBeenRun(ADD_FONT_SIZE_BOOST);
 
 	let batch = new MultiBatch(db);
 	let snapshot = await db.collection(CARDS_COLLECTION).get();
@@ -300,9 +262,6 @@ const addFontSizeBoost = async () => {
 	});
 
 	await batch.commit();
-
-	await maintenanceTaskRun(ADD_FONT_SIZE_BOOST);
-	console.log('done');
 };
 
 const UPDATE_FONT_SIZE_BOOST = 'update-font-size-boost';
@@ -331,14 +290,11 @@ const updateFontSizeBoost = async () => {
 
 	await batch.commit();
 
-	console.log('done');
 };
 
 const CONVERT_MULTI_LINKS_DELIMITER = 'convert-multi-links-delimiter';
 
 const convertMultiLinksDelimiter = async () => {
-	await checkMaintenanceTaskHasBeenRun(CONVERT_MULTI_LINKS_DELIMITER);
-
 	const OLD_MULTI_LINK_DELIMITER = ' || ';
 
 	let batch = new MultiBatch(db);
@@ -363,16 +319,11 @@ const convertMultiLinksDelimiter = async () => {
 	});
 
 	await batch.commit();
-
-	await maintenanceTaskRun(CONVERT_MULTI_LINKS_DELIMITER);
-	console.log('done');
 };
 
 const FLIP_AUTO_TODO_OVERRIDES = 'flip-auto-todo-overrides';
 
 const flipAutoTodoOverrides = async () => {
-	await checkMaintenanceTaskHasBeenRun(FLIP_AUTO_TODO_OVERRIDES);
-
 	let batch = new MultiBatch(db);
 	let snapshot = await db.collection(CARDS_COLLECTION).get();
 	snapshot.forEach(doc => {
@@ -392,26 +343,83 @@ const flipAutoTodoOverrides = async () => {
 	});
 
 	await batch.commit();
-
-	await maintenanceTaskRun(FLIP_AUTO_TODO_OVERRIDES);
-	console.log('done');
 };
 
-//tasks that don't require maintenance mode to be enabled are registered here
-export const tasks = {
-	[NORMALIZE_CONTENT_BODY]: normalizeContentBody,
-	[RESET_TWEETS]: resetTweets,
-	[SKIPPED_LINKS_TO_ACK_REFERENCES]: skippedLinksToAckReferences,
-	[ADD_FONT_SIZE_BOOST]: addFontSizeBoost,
-	[UPDATE_FONT_SIZE_BOOST]: updateFontSizeBoost,
-	[CONVERT_MULTI_LINKS_DELIMITER]: convertMultiLinksDelimiter,
-	[FLIP_AUTO_TODO_OVERRIDES]: flipAutoTodoOverrides,
+const makeMaintenanceFn = (taskName, taskConfig) => {
+	if (taskConfig.recurring) return taskConfig.action;
+	const action = taskConfig.action;
+	const nextTaskName = taskConfig.nextTaskName;
+	return async () => {
+		let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
+
+		let doc = await ref.get();
+	
+		if (doc.exists) {
+			if (!window.confirm('This task has been run before on this database. Do you want to run it again?')) {
+				throw taskName + ' has been run before and the user didn\'t want to run again';
+			}
+		}
+	
+		await action();
+
+		await db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({timestamp: serverTimestampSentinel()});
+		console.log('done');
+
+		if (nextTaskName) alert('Now run ' + nextTaskName);
+
+		return;
+	};
 };
 
-//Tasks that do require maintenance mode are registered here. These are
-//typically things that touch fields that updateInboundLinks or any other
-//functions that run when a card is changed.
-export const maintenceModeRequiredTasks = {
-	[UPDATE_INBOUND_LINKS]: updateInboundLinks,
-	[LINKS_TO_REFERENCES]: linksToReferences,
+/*
+
+	action: the raw function that does the thing
+	maintenanceModeRequired: if true, will be grayed out unless maintenance mode is on. These are tasks that do such expensive processing htat if updateInboudnLinks were to be run it would mess with the db.
+	recurring: if true, then the task can be run multiple times.
+	nextTaskName: If set, the string name of the task the user should run next.
+
+*/
+const RAW_TASKS = {
+	[INITIAL_SET_UP]: {
+		action: initialSetup,
+	},
+	[NORMALIZE_CONTENT_BODY]: {
+		action: normalizeContentBody,
+	},
+	[RESET_TWEETS]: {
+		action: resetTweets,
+		recurring: true,
+	},
+	[SKIPPED_LINKS_TO_ACK_REFERENCES]: {
+		action: skippedLinksToAckReferences,
+	},
+	[ADD_FONT_SIZE_BOOST]: {
+		action: addFontSizeBoost,
+	},
+	[UPDATE_FONT_SIZE_BOOST]: {
+		action: updateFontSizeBoost,
+		recurring: true,
+	},
+	[CONVERT_MULTI_LINKS_DELIMITER]: {
+		action: convertMultiLinksDelimiter,
+	},
+	[FLIP_AUTO_TODO_OVERRIDES]: {
+		action: flipAutoTodoOverrides,
+	},
+	[UPDATE_INBOUND_LINKS]: {
+		action: updateInboundLinks,
+		maintenanceModeRequired: true,
+		recurring: true,
+	},
+	[LINKS_TO_REFERENCES]: {
+		action: linksToReferences,
+		maintenanceModeRequired: true,
+		nextTaskName: UPDATE_INBOUND_LINKS,
+	}
 };
+
+export const MAINTENANCE_TASKS = Object.fromEntries(Object.entries(RAW_TASKS).map(entry => [entry[0], {...entry[1], fn: makeMaintenanceFn(entry[0], entry[1])}]));
+
+export const INITIAL_SET_UP_TASK_NAME = INITIAL_SET_UP;
+export const NORMAL_MAINTENANCE_TASK_NAMES = [...Object.keys(MAINTENANCE_TASKS)].filter(key => key != INITIAL_SET_UP && !MAINTENANCE_TASKS[key].maintenanceModeRequired);
+export const MAINTENANCE_MODE_MAINTENANCE_TASK_NAMES = [...Object.keys(MAINTENANCE_TASKS)].filter(key => key != INITIAL_SET_UP && MAINTENANCE_TASKS[key].maintenanceModeRequired);
