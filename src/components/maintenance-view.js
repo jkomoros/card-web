@@ -40,6 +40,18 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 			  font-size: 2.0em;
 		  }
 
+		  .primary button {
+			padding:0.5em;
+			font-size: 0.7em;
+			cursor: pointer;
+		  }
+
+		  .primary p {
+			  font-size: 0.7em;
+			  color: var(--app-dark-text-color-light);
+			  font-style: italic;
+		  }
+
 		  h4, h5 {
 			  margin: 0;
 		  }
@@ -95,8 +107,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 	}
 
 	get _nextTaskConfig() {
-		if (!this._executedTasks) return {};
-		return this._executedTasks[this._nextTaskName] || {};
+		return MAINTENANCE_TASKS[this._nextTaskName] || {};
 	}
 
 	connectedCallback() {
