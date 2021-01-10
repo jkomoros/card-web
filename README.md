@@ -69,7 +69,7 @@ You will likely have to run maintenance tasks on your instance to upgrade the da
 
 To do that, go to https://your-project-domain/maintenance , hard refresh
 (Cmd-Shift-R) to make sure you have the recently-deployed version, and then run
-any maintenance tasks it tells you to.
+any maintenance tasks it tells you to. Note that you might need to run multiple in a row. Run them until it says 'No tasks to run'.
 
 ## Extra Credit
 
