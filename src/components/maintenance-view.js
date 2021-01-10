@@ -43,22 +43,24 @@ class MaintenanceView extends connect(store)(PageViewElement) {
         </section>
         <section ?hidden=${!this._isAdmin}>
           <p>You're an admin!</p>
-		  <button @click='${this._handleInitialSetUp}'>Initial SetUp</button>
+		  ${this._buttonForTaskName(INITIAL_SET_UP_TASK_NAME)}
 		  <br />
 		  <br />
 		  <br />
-          ${repeat(NORMAL_MAINTENANCE_TASK_NAMES, (item) => item, (item) => html`
-              <button value="${item}" @click='${this._handleClick}'>${item}</button>
-		  `)}
+          ${repeat(NORMAL_MAINTENANCE_TASK_NAMES, (item) => item, (item) => this._buttonForTaskName(item))}
 		  <br />
 		  <h5>Tasks that require maintence mode to be enabled via 'gulp turn-maintenance-mode-on'</h5>
-		  ${repeat(MAINTENANCE_MODE_MAINTENANCE_TASK_NAMES, (item) => item, (item) => html`
-              <button value="${item}" @click='${this._handleClick}' .disabled=${!this._maintenanceModeEnabled}>${item}</button>
-          `)}
+		  ${repeat(MAINTENANCE_MODE_MAINTENANCE_TASK_NAMES, (item) => item, (item) => this._buttonForTaskName(item))}
         </section>
 		<card-stage style='visibility:hidden;z-index:-100;position:absolute'></card-stage>
       </section>
     `;
+	}
+
+	_buttonForTaskName(taskName) {
+		const config = MAINTENANCE_TASKS[taskName] || {};
+		const disabled = config.maintenanceModeRequired ? !this._maintenanceModeEnabled : false;
+		return html`<button value=${taskName} @click=${this._handleClick} .disabled=${disabled}>${taskName}</button>`;
 	}
 
 	static get properties() {
@@ -76,10 +78,6 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 	stateChanged(state) {
 		this._isAdmin = selectUserIsAdmin(state);
 		this._maintenanceModeEnabled = selectMaintenanceModeEnabled(state);
-	}
-
-	_handleInitialSetUp() {
-		this._runTask(INITIAL_SET_UP_TASK_NAME);
 	}
 
 	_runTask(taskName) {
