@@ -4,10 +4,8 @@ import {
 	KEY_CARD_ID_PLACEHOLDER,
 	REFERENCE_TYPES,
 	REFERENCE_TYPE_SEE_ALSO,
-	REFERENCE_TYPE_SYNONYM,
 	REFERENCE_TYPE_EXAMPLE_OF,
 	REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES,
-	REFERENCE_TYPE_OPPOSITE_OF
 } from './card_fields.js';
 
 import {
@@ -32,6 +30,30 @@ import {
 	cardNeedsReciprocalLinkTo
 } from './util.js';
 
+const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].conceptReference && entry[0] != REFERENCE_TYPE_CONCEPT).map(entry => {
+	const referenceType = entry[0];
+	const referenceConfig = entry[1];
+	if (referenceConfig.reciprocal) {
+		return {
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME,[referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, referenceType)]),
+			title: referenceConfig.name,
+			condensed: true,
+		};
+	}
+	return [
+		{
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME,[referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, referenceType)]),
+			title: referenceConfig.name,
+			condensed: true,
+		},
+		{
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME,[referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, referenceType)]),
+			title: referenceConfig.inboundName,
+			condensed: true,
+		},
+	];
+}).flat();
+
 /*
 
 An array where each item has:
@@ -51,26 +73,7 @@ An array where each item has:
 */
 const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 	[CARD_TYPE_CONCEPT]: [
-		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_EXAMPLE_OF)]),
-			title: 'Example Of',
-			condensed: true,
-		},
-		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_EXAMPLE_OF)]),
-			title: 'Examples',
-			condensed: true,
-		},
-		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_SYNONYM)]),
-			title: 'Interchangeable with',
-			condensed: true,
-		},
-		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_OPPOSITE_OF)]),
-			title: 'In contrast to',
-			condensed: true,
-		},
+		...CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS,
 		{
 			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_CONCEPT, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES)])]),
 			navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [aboutConceptConfigurableFilterText(KEY_CARD_ID_PLACEHOLDER)]),
