@@ -191,6 +191,9 @@ export const REFERENCE_TYPE_OPPOSITE_OF = 'opposite-of';
 //For cards that are an example of a more generic concept that is pointed to.
 //Conceptually a sub-type of the concept reference type.
 export const REFERENCE_TYPE_EXAMPLE_OF = 'example-of';
+//For cards that are a metaphor for a concept. Conceptually a sub-type of the
+//concept reference type.
+export const REFERENCE_TYPE_METAPHOR_FOR = 'metaphor-for';
 
 //Any key in this object is a legal reference type
 /*
@@ -335,6 +338,22 @@ export const REFERENCE_TYPES = {
 		name: 'Example of',
 		inboundName: 'Examples',
 		description: 'For cards that are an example of a more general concept',
+		editable: true,
+		substantive: true,
+		//darkkhahki
+		color: '#BDB76B',
+		//Printed out in info panel
+		excludeFromInfoPanel: true,
+		toCardTypeAllowList: {
+			[CARD_TYPE_CONCEPT]: true,
+		},
+		backportMissingText: true,
+		conceptReference: true,
+	},
+	[REFERENCE_TYPE_METAPHOR_FOR]: {
+		name: 'Metaphor for',
+		inboundName: 'Metaphors',
+		description: 'For cards that are a metaphor for a concept',
 		editable: true,
 		substantive: true,
 		//darkkhahki

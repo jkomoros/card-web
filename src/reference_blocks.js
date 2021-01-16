@@ -5,6 +5,7 @@ import {
 	REFERENCE_TYPES,
 	REFERENCE_TYPE_SEE_ALSO,
 	REFERENCE_TYPE_EXAMPLE_OF,
+	REFERENCE_TYPE_METAPHOR_FOR,
 	REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES,
 } from './card_fields.js';
 
@@ -99,6 +100,11 @@ const INFO_PANEL_REFERENCE_BLOCKS = [
 		title: 'Example of',
 		description: 'Concepts this card is an example of',
 		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_EXAMPLE_OF)]),
+	},
+	{
+		title: 'Metaphor for',
+		description: 'Concepts this card is an example of',
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_METAPHOR_FOR)]),
 	},
 	{
 		title: 'Concepts',
