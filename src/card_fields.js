@@ -195,6 +195,7 @@ export const REFERENCE_TYPE_EXAMPLE_OF = 'example-of';
 //Any key in this object is a legal reference type
 /*
 name - name of the reference type, for presenting in UIs
+inboundName - the name of the reference type when inbound, for presenting in UIs.
 descripton - string describing what it means
 editable - whether it should be directly editable by a user
 substantive - whether the reference is important enough to acknowledge to a non-editor-user in the UI
@@ -332,6 +333,7 @@ export const REFERENCE_TYPES = {
 	},
 	[REFERENCE_TYPE_EXAMPLE_OF]: {
 		name: 'Example of',
+		inboundName: 'Examples',
 		description: 'For cards that are an example of a more general concept',
 		editable: true,
 		substantive: true,
