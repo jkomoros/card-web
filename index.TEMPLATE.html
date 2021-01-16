@@ -52,7 +52,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         window.addEventListener('load', function() {
           navigator.serviceWorker.register('service-worker.js', {
             scope: '/',
-          });
+          }).then(reg => {
+            //Based on this stack overflow answer: https://stackoverflow.com/questions/41891031/refresh-page-on-controllerchange-in-service-worker/41896649#41896649
+            reg.onupdatefound = () => {
+              const installingWorker = reg.installing;
+              installingWorker.onstatechange = () => {
+                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // Preferably, display a message asking the user to reload...
+                  location.reload();
+                }
+              };
+            };
+          })
         });
       }
       // Redux assumes `process.env.NODE_ENV` exists in the ES module build.
