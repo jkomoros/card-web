@@ -440,6 +440,13 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		if (this.editing && !config.noContentEditable) {
 			makeElementContentEditable(ele);
 			ele.addEventListener('input', this._textFieldChanged.bind(this));
+			//When a content editable item is blurred, update it. This will have
+			//the effect of normalizing HTML, since this overall handler will
+			//run fully as long as the item is not selected. Yes, it's weird
+			//that there's a change we react to that's not in the
+			//state/properties of the object, but the focused node is state
+			//managed by the browser so :shrug:.
+			ele.addEventListener('blur', () => this.requestUpdate());
 			if (config.html) htmlToSet = normalizeBodyToContentEditable(htmlToSet);
 		}
 
