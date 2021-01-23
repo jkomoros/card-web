@@ -319,16 +319,6 @@ export const extractCardLinksFromBody = (body) => {
 	return result;
 };
 
-//returns an array of strong text.
-export const extractStrongTextFromBody = (body) => {
-	let ele = getDocument().createElement('section');
-	//This is not an XSS vulnerability because we never append ele into the
-	//actual dom.
-	ele.innerHTML = body;
-	const strongEles = [...ele.querySelectorAll('strong')];
-	return strongEles.map(ele => ele.innerText);
-};
-
 export const arrayRemove = (arr, items) => {
 	if (!items) {
 		console.warn('arrayRemove called without a second argument, which means you probably wanted arrayRemoveSentinel');
