@@ -35,7 +35,10 @@ import {
 
 import * as icons from './my-icons.js';
 
-import { makeElementContentEditable } from '../util.js';
+import {
+	makeElementContentEditable,
+	deepActiveElement
+} from '../util.js';
 
 //Cards that include links need card-link
 import './card-link.js';
@@ -390,7 +393,11 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		//the state is already in it. If we were to update it, the selection state
 		//would reset and defocus.
 		const updatedFromContentEditable = (this.updatedFromContentEditable || {})[field];
-		if (updatedFromContentEditable && this._elements[field]) {
+		//If the last update to the field came from content editable, and we
+		//already ahve an element, AND it's the currently selected element, then
+		//we don't want to mess with its focus, so return the same thing. If
+		//it's not focused, then we can update it however we want.
+		if (updatedFromContentEditable && this._elements[field] && deepActiveElement() == this._elements[field]) {
 			return this._elements[field];
 		}
 

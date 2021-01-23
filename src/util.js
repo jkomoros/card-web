@@ -65,6 +65,15 @@ export const pageRequiresMainView = (pageName) => {
 	return pageName != _PAGE_BASIC_CARD;
 };
 
+export const deepActiveElement = () => {
+	//Based on code snippet at https://developers.google.com/web/fundamentals/web-components/shadowdom
+	let a = getDocument().activeElement;
+	while (a && a.shadowRoot && a.shadowRoot.activeElement) {
+		a = a.shadowRoot.activeElement;
+	}
+	return a;
+};
+
 export const capitalizeFirstLetter = (str) => {
 	return str.charAt(0).toUpperCase() + str.slice(1);
 };
