@@ -427,14 +427,17 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			}
 		}
 
-		const ele = document.createElement(config.container || 'span');
+		let ele = this._elements[field];
 
-		this._elements[field] = ele;
-		ele.field = field;
-		ele.dataset.field = field;
+		if (!ele) {
+			ele = document.createElement(config.container || 'span');
+			this._elements[field] = ele;
+			ele.field = field;
+			ele.dataset.field = field;
 
-		if (!value && config.hideIfEmpty) {
-			ele.setAttribute('hidden', '');
+			if (!value && config.hideIfEmpty) {
+				ele.setAttribute('hidden', '');
+			}
 		}
 
 		if (this.editing && !config.noContentEditable) {
