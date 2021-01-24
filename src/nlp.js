@@ -858,6 +858,11 @@ const queryWordsAndFilters = (queryString) => {
 };
 
 const ngramWithinOther =(ngram, container) => {
+	//ngramWithinOther is _extremely_ hot. First we'll check if the whole ngram
+	//is even a strict subset of the container. If it is, then we'll
+	//additionally do the extra check to make sure that match happens at word
+	//boundaries, not within words.
+	if (!container.includes(ngram)) return false;
 	return wordBoundaryRegExp(ngram).test(container);
 };
 
