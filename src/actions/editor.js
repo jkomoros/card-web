@@ -96,10 +96,6 @@ import {
 let lastReportedSelectionRange = null;
 //TODO: figure out a pattenr that doesn't have a single shared global
 let savedSelectionRange = null;
-let selectionRangeStartOffset = -1;
-let selectionRangeEndOffset = -1;
-let selectionParent = null;
-
 
 //selection range is weird; you can only listen for changes at the document
 //level, but selections wihtin a shadow root are hidden from outside. Certain
@@ -114,66 +110,12 @@ export const reportSelectionRange = (range) => {
 
 export const saveSelectionRange = () => {
 	savedSelectionRange = lastReportedSelectionRange;
-	if (!savedSelectionRange) return;
-	let parentEle = savedSelectionRange.commonAncestorContainer;
-	//Walk up to the parent that actually has content editable set.
-	while (parentEle && parentEle.contentEditable != 'true') {
-		parentEle = parentEle.parentNode;
-	}
-	if (!parentEle) return;
-	let [start, end] = startEndOffsetInEle(parentEle,savedSelectionRange, 0);
-	selectionRangeStartOffset = start;
-	selectionRangeEndOffset = end;
-	selectionParent = parentEle;
-};
-
-const startEndOffsetInEle = (ele, range, previousCount) => {
-	let start = -1;
-	let end = -1;
-	if (!ele) return [start, end];
-	if (ele == range.startContainer) {
-		start = previousCount + range.startOffset;
-	}
-	if (ele == range.endContainer) {
-		end = previousCount + range.endOffset;
-	}
-	for (let child of ele.childNodes) {
-		if (child.nodeType != child.ELEMENT_NODE && child.nodeType != child.TEXT_NODE) continue;
-		const [innerStart, innerEnd] = startEndOffsetInEle(child, range, previousCount);
-		if (start == -1 && innerStart != -1) start = innerStart;
-		if (end == -1 && innerEnd != -1) end = innerEnd;
-		previousCount += child.textContent.length;
-	}
-	return [start, end];
-};
-
-const rangeFromOffsetsInEle = (ele, startOffset, endOffset) => {
-	//startOffset and endOffset are within the given ele.
-	if (startOffset == -1 || endOffset == -1) return null;
-	const range = document.createRange();
-	setOffsetRange(ele, range, startOffset, endOffset, 0);
-	return range;
-};
-
-const setOffsetRange = (node, range, startOffset, endOffset, offsetCount) => {
-	if (node.nodeType == node.TEXT_NODE) {
-		//We might be the candidate!
-		if (startOffset >= offsetCount && startOffset < offsetCount + node.textContent.length) range.setStart(node, startOffset - offsetCount);
-		if (endOffset >= offsetCount && endOffset < offsetCount + node.textContent.length) range.setEnd(node, endOffset - offsetCount);
-	}
-	for (let child of node.childNodes) {
-		setOffsetRange(child, range, startOffset, endOffset, offsetCount);
-		offsetCount += child.textContent.length;
-	}
 };
 
 export const restoreSelectionRange = () => {
 	let selection = document.getSelection();
 	selection.removeAllRanges();
-	//Note that this assumes that selectionParent is still literally the same element as when selection was saved.
-	let range = rangeFromOffsetsInEle(selectionParent, selectionRangeStartOffset, selectionRangeEndOffset);
-	if (!range) range = savedSelectionRange;
-	if (range) selection.addRange(range);
+	selection.addRange(savedSelectionRange);
 };
 
 export const savedSelectionRangeIsLink = () => {
