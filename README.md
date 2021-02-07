@@ -216,6 +216,10 @@ The name of your app, to show up in the titlebar of the web page, the web app
 header, and in the manifest. If the string starts with 'The ' then the The will
 be rendered a lighter color in the header.
 
+### app_description
+
+The description of your application, for use in the meta tag.
+
 ### user_domain
 
 If this is set, then it allows you to apply special permissions for users whose

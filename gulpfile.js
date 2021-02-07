@@ -40,6 +40,7 @@ const FIREBASE_DEV_PROJECT = CONFIG_FIREBASE_DEV.projectId;
 const BACKUP_BUCKET_NAME = projectConfig.backup_bucket_name && projectConfig.backup_bucket_name != CHANGE_ME_SENTINEL ? projectConfig.backup_bucket_name : ''; 
 
 const APP_TITLE = projectConfig.app_title ? projectConfig.app_title : 'Cards Web';
+const APP_DESCRIPTION = projectConfig.app_description || APP_TITLE;
 
 const TWITTER_HANDLE = projectConfig.twitter_handle && projectConfig.twitter_handle != CHANGE_ME_SENTINEL ? projectConfig.twitter_handle : '';
 
@@ -154,6 +155,8 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 
 	gulp.src('./index.TEMPLATE.html')
 		.pipe(inject.after('<!-- INJECT-META-HERE -->', META_STRING))
+		.pipe(inject.replace('@TITLE@', APP_TITLE))
+		.pipe(inject.replace('@DESCRIPTION@',APP_DESCRIPTION))
 		.pipe(rename('index.html'))
 		.pipe(gulp.dest('./'));
 

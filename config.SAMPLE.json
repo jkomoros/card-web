@@ -1,5 +1,6 @@
 {
 	"app_title": "My Card Collection",
+	"app_description": "My card collection is a collection of cards",
 	"firebase": {
 		"apiKey": "APIKEYHERE",
 		"authDomain": "PROJECT_ID.firebaseapp.com",
