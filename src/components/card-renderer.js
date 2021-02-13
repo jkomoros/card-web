@@ -492,6 +492,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			for (const image of images) {
 				const imgEle = document.createElement('img');
 				imgEle.src = image.src;
+				imgEle.alt = image.alt || '';
 				//TODO: install listeners if it needs sizing information
 				ele.prepend(imgEle);
 			}

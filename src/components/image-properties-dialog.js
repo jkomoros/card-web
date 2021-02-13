@@ -15,7 +15,8 @@ import {
 } from '../selectors.js';
 
 import {
-	closeImagePropertiesDialog
+	closeImagePropertiesDialog,
+	changeImagePropertyAtIndex
 } from '../actions/editor.js';
 
 import {
@@ -44,7 +45,7 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 				}
 			</style>
 			<label>Src</label><em>${img.src}</em>
-			<pre>${JSON.stringify(img, '', 2)}</pre>
+			<label>Alt Text</label> <input type='text' .property=${'alt'} .value=${img.alt || ''} @input=${this._handleTextInput}></input>
 			<div class='buttons'>
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
@@ -54,6 +55,11 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 	constructor() {
 		super();
 		this.title = 'Image Properties';
+	}
+
+	_handleTextInput(e) {
+		const ele = e.composedPath()[0];
+		store.dispatch(changeImagePropertyAtIndex(this._index, ele.property, ele.value));
 	}
 
 	_handleDoneClicked() {
