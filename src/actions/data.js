@@ -204,6 +204,7 @@ const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURA
 	'published',
 	'card_type',
 	'font_size_boost',
+	'images',
 	//TODO: ideally we wouldn't have to list these here, this is the only place
 	//we expect those references properties to be enumerated outside of card_fields.js
 	REFERENCES_INFO_CARD_PROPERTY,
@@ -318,6 +319,10 @@ export const modifyCard = (card, update, substantive, optBatch) => async (dispat
 
 	if (update.font_size_boost !== undefined) {
 		cardUpdateObject.font_size_boost = update.font_size_boost;
+	}
+
+	if (update.images !== undefined) {
+		cardUpdateObject.images = update.images;
 	}
 
 	//It's never legal to not have a name, so only update if it's not falsey.
