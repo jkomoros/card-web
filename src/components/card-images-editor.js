@@ -13,13 +13,27 @@ import {
 	IMAGE_CARD_TYPES
 } from '../card_fields.js';
 
+import './tag-list.js';
+
 class CardImagesEditor extends connect(store)(LitElement) {
 	render() {
 
 		if (!IMAGE_CARD_TYPES[this._effectiveCard.card_type]) return html`<em>This card type does not support images.</em>`;
 
+		const images = this._effectiveCard.images || [];
+
+		const imgTagNames = [];
+		const tagInfos = {};
+		for (let i = 0; i < images.length; i++) {
+			const key = '' + i;
+			imgTagNames.push(key);
+			tagInfos[key] = {
+				id: key,
+				title: images[i].src
+			};
+		}
 		return html`
-			<em>Images not yet supported</em>
+			<tag-list .tags=${imgTagNames} .tagInfos=${tagInfos} .editing=${true} .overrideTypeName=${'Image'}></tag-list>
 		`;
 	}
 
