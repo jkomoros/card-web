@@ -295,7 +295,7 @@ const app = (state = INITIAL_STATE, action) => {
 	case EDITING_ADD_IMAGE_URL:
 		return {
 			...state,
-			card: {...state.card, images: addImageWithURL(state.card.images, action.fieldName, action.src, action.uploadPath)}
+			card: {...state.card, images: addImageWithURL(state.card.images, action.src, action.uploadPath)}
 		};
 	default:
 		return state;

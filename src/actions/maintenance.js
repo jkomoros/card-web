@@ -408,7 +408,7 @@ const addImagesProperty = async () => {
 	let snapshot = await db.collection(CARDS_COLLECTION).get();
 	snapshot.forEach(doc => {
 		const update = {
-			images: {},
+			images: [],
 		};
 		batch.update(doc.ref, update);
 	});

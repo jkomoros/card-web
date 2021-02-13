@@ -575,10 +575,9 @@ export const manualCollaboratorAdded = (collaboratorUid) => {
 
 //src must be a fully qualified URL. uploadPath is the filename in the upload
 //bucket, if applicable.
-export const addImageWithURL = (fieldName, src, uploadPath = '') => {
+export const addImageWithURL = (src, uploadPath = '') => {
 	return {
 		type: EDITING_ADD_IMAGE_URL,
-		fieldName,
 		src,
 		uploadPath,
 	};
