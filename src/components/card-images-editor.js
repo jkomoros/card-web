@@ -13,6 +13,10 @@ import {
 	IMAGE_CARD_TYPES
 } from '../card_fields.js';
 
+import {
+	addImageWithURL
+} from '../actions/editor.js';
+
 import './tag-list.js';
 
 class CardImagesEditor extends connect(store)(LitElement) {
@@ -33,8 +37,14 @@ class CardImagesEditor extends connect(store)(LitElement) {
 			};
 		}
 		return html`
-			<tag-list .tags=${imgTagNames} .tagInfos=${tagInfos} .editing=${true} .overrideTypeName=${'Image'}></tag-list>
+			<tag-list .tags=${imgTagNames} .tagInfos=${tagInfos} .editing=${true} .overrideTypeName=${'Image'} @new-tag=${this._handleNewTag}></tag-list>
 		`;
+	}
+
+	_handleNewTag() {
+		const url = prompt('What\'s the fully qualified URL to add?');
+		if (!url) return;
+		store.dispatch(addImageWithURL(url));
 	}
 
 	get _effectiveCard() {
