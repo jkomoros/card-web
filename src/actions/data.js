@@ -823,9 +823,7 @@ export const defaultCardObject = (id, user, section, cardType) => {
 		name: id,
 		tags: [],
 		published: false,
-		//images is a map of FIELD_NAME -> array[imgObjs], where imgObj have a
-		//src, a width, a height, and an uploadPath that's set to the filename
-		//in the upload bucket.
+		//images is an imagesBlock. See src/images.js for a definition.
 		images: {},
 		//auto_todo_overrides is a map of key -> true or false, for each kind of
 		//TODO (as enumerated in TODO_OVERRIDE_LEGAL_KEYS). A value of true

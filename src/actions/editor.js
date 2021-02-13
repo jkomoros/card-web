@@ -26,6 +26,7 @@ export const EDITING_START_REFERENCE_CARD = 'EDITING_START_REFERENCE_CARD';
 export const EDITING_RESET_REFERENCE_CARD = 'EDITING_RESET_REFERENCE_CARD';
 export const EDITING_ADD_REFERENCE = 'EDITING_ADD_REFERENCE';
 export const EDITING_REMOVE_REFERENCE = 'EDITING_REMOVE_REFERENCE';
+export const EDITING_ADD_IMAGE_URL = 'EDITING_ADD_IMAGE_URL';
 
 export const TAB_CONTENT = 'content';
 export const TAB_CONFIG = 'config';
@@ -564,6 +565,17 @@ export const collaboratorRemoved = (collaboratorUid, auto) => {
 export const manualCollaboratorAdded = (collaboratorUid) => {
 	createAuthorStub(collaboratorUid);
 	return collaboratorAdded(collaboratorUid);
+};
+
+//src must be a fully qualified URL. uploadPath is the filename in the upload
+//bucket, if applicable.
+export const addImageWithURL = (fieldName, src, uploadPath = '') => {
+	return {
+		type: EDITING_ADD_IMAGE_URL,
+		fieldName,
+		src,
+		uploadPath,
+	};
 };
 
 export const setCardToReference = (cardID) => (dispatch, getState) => {

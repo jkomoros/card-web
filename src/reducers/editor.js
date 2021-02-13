@@ -27,7 +27,7 @@ import {
 	EDITING_RESET_REFERENCE_CARD,
 	EDITING_ADD_REFERENCE,
 	EDITING_REMOVE_REFERENCE,
-
+	EDITING_ADD_IMAGE_URL,
 	TAB_CONFIG,
 	EDITOR_TAB_CONTENT,
 } from '../actions/editor.js';
@@ -53,6 +53,10 @@ import {
 import {
 	TODO_OVERRIDE_LEGAL_KEYS
 } from '../filters.js';
+
+import {
+	addImageWithURL
+} from '../images.js';
 
 const DEFAULT_TAB = TAB_CONFIG;
 const DEFAULT_EDITOR_TAB = EDITOR_TAB_CONTENT;
@@ -287,6 +291,11 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			pendingReferenceType: '',
+		};
+	case EDITING_ADD_IMAGE_URL:
+		return {
+			...state,
+			card: {...state.card, images: addImageWithURL(state.card.images, action.fieldName, action.src, action.uploadPath)}
 		};
 	default:
 		return state;
