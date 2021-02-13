@@ -689,16 +689,3 @@ export const removeReferenceFromCard = (cardID, referenceType) => {
 		referenceType,
 	};
 };
-
-export const openImagePropertiesDialog = (index) => {
-	return {
-		type: EDITING_OPEN_IMAGE_PROPERTIES_DIALOG,
-		index,
-	};
-};
-
-export const closeImagePropertiesDialog = () => {
-	return {
-		type: EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG,
-	};
-};
