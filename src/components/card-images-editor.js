@@ -9,10 +9,22 @@ import {
 	selectEditingCard
 } from '../selectors.js';
 
+import {
+	IMAGE_CARD_TYPES
+} from '../card_fields.js';
+
 class CardImagesEditor extends connect(store)(LitElement) {
 	render() {
 
-		return html`<em>Images not yet supported</em>`;
+		if (!IMAGE_CARD_TYPES[this._effectiveCard.card_type]) return html`<em>This card type does not support images.</em>`;
+
+		return html`
+			<em>Images not yet supported</em>
+		`;
+	}
+
+	get _effectiveCard() {
+		return this._card || {};
 	}
 
 	static get properties() {
