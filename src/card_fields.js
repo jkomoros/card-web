@@ -500,6 +500,8 @@ indexFullRun: if true, then the full normalized text string of each run will be
 indexed as though it were an ngram (even if the number of words is too high to
 be counted as an ngram). In addition, it will count full (not 1/wordCount).
 
+imagesAllowed: if true, then images may be injected into that field.
+
 */
 
 const DEFAULT_MAX_FONT_BOOST = 0.3;
@@ -547,6 +549,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 			[CARD_TYPE_WORKING_NOTES]: DEFAULT_MAX_FONT_BOOST
 		},
 		matchWeight:0.5,
+		imagesAllowed: true,
 	},
 	[TEXT_FIELD_SUBTITLE]: {
 		html: false,
