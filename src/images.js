@@ -30,3 +30,23 @@ export const addImageWithURL = (imagesBlock, fieldName, src, uploadPath = '') =>
 	result[fieldName] = [...existingFieldNameBlock, imgItem];
 	return result;
 };
+
+export const imageBlocksEquivalent = (one, two) => {
+	if (one == two) return true;
+	if (!one || !two) return false;
+	if (Object.keys(one).length != Object.keys(two).length) return false;
+	for (const key of Object.keys(one)) {
+		const oneImgs = one[key];
+		const twoImgs = two[key];
+		if (oneImgs.length != twoImgs.length) return false;
+		for (let i = 0; i < oneImgs.length; i++) {
+			const oneImg = oneImgs[i];
+			const twoImg = twoImgs[i];
+			if (Object.keys(oneImg).length != Object.keys(twoImg).length) return false;
+			for (const imgKey of Object.keys(oneImg)) {
+				if (oneImg[imgKey] != twoImg[imgKey]) return false;
+			}
+		}
+	}
+	return true;
+};
