@@ -401,6 +401,21 @@ const setMaintenanceTaskVersion = async () => {
 	await batch.commit();
 };
 
+const ADD_IMAGES_PROPERTY = 'add-images-property';
+
+const addImagesProperty = async () => {
+	let batch = new MultiBatch(db);
+	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	snapshot.forEach(doc => {
+		const update = {
+			images: {},
+		};
+		batch.update(doc.ref, update);
+	});
+
+	await batch.commit();
+};
+
 //The value of MAINTENANCE_TASK_VERSION when this instance of the app was set up
 const setUpVersion = (executedTasks) => {
 	const setUpTaskRecord = executedTasks[INITIAL_SET_UP];
@@ -497,7 +512,7 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 //if you were to set up a new instance at any given moment, the non-recurring
 //maintenance tasks are already implicitly run and included in normal operation
 //of the webapp as soon as they were added.
-const MAINTENANCE_TASK_VERSION = 1;
+const MAINTENANCE_TASK_VERSION = 2;
 
 /*
 
@@ -565,6 +580,10 @@ const RAW_TASKS = {
 		fn: setMaintenanceTaskVersion,
 		minVersion: 1,
 	},
+	[ADD_IMAGES_PROPERTY]: {
+		fn: addImagesProperty,
+		minVersion: 2,
+	}
 };
 
 //It's so important that RAW_TASKS minVersion is set correctly that we'll catch obvious mistakes here.
