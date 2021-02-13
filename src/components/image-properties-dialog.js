@@ -10,7 +10,8 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	selectImagePropertiesDialogOpen,
-	selectImagePropertiesDialogIndex
+	selectImagePropertiesDialogIndex,
+	selectEditingCard
 } from '../selectors.js';
 
 import {
@@ -23,6 +24,9 @@ import {
 
 class ImagePropertiesDialog extends connect(store)(DialogElement) {
 	innerRender() {
+		const card = this._card || {};
+		const images = card.images || [];
+		const img = images[this._index] || {};
 		return html`
 			${ButtonSharedStyles}
 			<style>
@@ -39,7 +43,8 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 					font-weight:normal;
 				}
 			</style>
-			<em>Not yet implemented</em>
+			<label>Src</label><em>${img.src}</em>
+			<pre>${JSON.stringify(img, '', 2)}</pre>
 			<div class='buttons'>
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
@@ -62,6 +67,7 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 	static get properties() {
 		return {
 			_index: {type: Number},
+			_card: {type:Object},
 		};
 	}
 
@@ -69,6 +75,7 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = selectImagePropertiesDialogOpen(state);
 		this._index = selectImagePropertiesDialogIndex(state);
+		this._card = selectEditingCard(state);
 	}
 
 }
