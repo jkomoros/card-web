@@ -502,7 +502,7 @@ be counted as an ngram). In addition, it will count full (not 1/wordCount).
 */
 
 //The field that images will be inserted into
-const IMAGES_TEXT_FIELD = TEXT_FIELD_BODY;
+export const IMAGES_TEXT_FIELD = TEXT_FIELD_BODY;
 
 const DEFAULT_MAX_FONT_BOOST = 0.3;
 

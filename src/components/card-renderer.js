@@ -26,7 +26,8 @@ import {
 	TEXT_FIELD_CONFIGURATION,
 	CARD_TYPE_CONFIGURATION,
 	CARD_TYPE_CONTENT,
-	editableFieldsForCardType
+	editableFieldsForCardType,
+	IMAGES_TEXT_FIELD
 } from '../card_fields.js';
 
 import {
@@ -481,6 +482,18 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		} else {
 			ele.innerText = value;
 		}
+
+		if (field == IMAGES_TEXT_FIELD) {
+			const images = this._card.images || [];
+			for (const image of images) {
+				const imgEle = document.createElement('img');
+				imgEle.src = image.src;
+				//TODO: install listeners if it needs sizing information
+				ele.prepend(imgEle);
+			}
+
+		}
+
 		if(this._card.full_bleed) ele.className = 'full-bleed';
 		return ele;
 	}
