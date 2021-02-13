@@ -118,6 +118,7 @@ import {
 } from './help-badges.js';
 
 import './tag-list.js';
+import './card-images-editor.js';
 
 class CardEditor extends connect(store)(LitElement) {
 	render() {
@@ -310,6 +311,7 @@ class CardEditor extends connect(store)(LitElement) {
 		? html`<textarea @input='${this._handleTextFieldUpdated}' .field=${entry[0]} .value=${this._card[entry[0]]}></textarea>`
 		: html`<input type='text' @input='${this._handleTextFieldUpdated}' .field=${entry[0]} .value=${this._card[entry[0]] || ''}></input>`}
 				`)}
+				<label>Images</label><card-images-editor></card-images-editor>
 			</div>
 			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_NOTES} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
 			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_TODO} @input='${this._handleTodoUpdated}' .value=${this._card.todo}></textarea>
