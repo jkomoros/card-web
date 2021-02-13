@@ -499,10 +499,10 @@ triple count.
 indexFullRun: if true, then the full normalized text string of each run will be
 indexed as though it were an ngram (even if the number of words is too high to
 be counted as an ngram). In addition, it will count full (not 1/wordCount).
-
-imagesAllowed: if true, then images may be injected into that field.
-
 */
+
+//The field that images will be inserted into
+const IMAGES_TEXT_FIELD = TEXT_FIELD_BODY;
 
 const DEFAULT_MAX_FONT_BOOST = 0.3;
 
@@ -548,8 +548,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 		autoFontSizeBoostForCardTypes: {
 			[CARD_TYPE_WORKING_NOTES]: DEFAULT_MAX_FONT_BOOST
 		},
-		matchWeight:0.5,
-		imagesAllowed: true,
+		matchWeight:0.5
 	},
 	[TEXT_FIELD_SUBTITLE]: {
 		html: false,
@@ -611,6 +610,9 @@ const AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE = Object.fromEntries(Object.keys
 
 //types of card that have a body
 export const BODY_CARD_TYPES = TEXT_FIELD_CONFIGURATION[TEXT_FIELD_BODY].legalCardTypes;
+
+//types of card that may have an image
+export const IMAGE_CARD_TYPES = TEXT_FIELD_CONFIGURATION[IMAGES_TEXT_FIELD].legalCardTypes;
 
 export const editableFieldsForCardType = (cardType) => {
 	let result = {};
