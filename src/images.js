@@ -25,6 +25,15 @@ export const addImageWithURL = (imagesBlock, src, uploadPath = '') => {
 	return [...imagesBlock, imgItem];
 };
 
+export const removeImageAtIndex = (imagesBlock, index) => {
+	const result = [];
+	for (let i = 0; i < imagesBlock.length; i++) {
+		if (i == index) continue;
+		result.push(imagesBlock[i]);
+	}
+	return result;
+};
+
 export const imageBlocksEquivalent = (one, two) => {
 	if (one == two) return true;
 	if (!one || !two) return false;

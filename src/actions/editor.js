@@ -27,6 +27,7 @@ export const EDITING_RESET_REFERENCE_CARD = 'EDITING_RESET_REFERENCE_CARD';
 export const EDITING_ADD_REFERENCE = 'EDITING_ADD_REFERENCE';
 export const EDITING_REMOVE_REFERENCE = 'EDITING_REMOVE_REFERENCE';
 export const EDITING_ADD_IMAGE_URL = 'EDITING_ADD_IMAGE_URL';
+export const EDITING_REMOVE_IMAGE_AT_INDEX = 'EDITING_REMOVE_IMAGE_AT_INDEX';
 
 export const TAB_CONTENT = 'content';
 export const TAB_CONFIG = 'config';
@@ -580,6 +581,13 @@ export const addImageWithURL = (src, uploadPath = '') => {
 		type: EDITING_ADD_IMAGE_URL,
 		src,
 		uploadPath,
+	};
+};
+
+export const removeImageAtIndex = (index) => {
+	return {
+		type: EDITING_REMOVE_IMAGE_AT_INDEX,
+		index
 	};
 };
 

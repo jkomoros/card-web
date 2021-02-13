@@ -28,6 +28,7 @@ import {
 	EDITING_ADD_REFERENCE,
 	EDITING_REMOVE_REFERENCE,
 	EDITING_ADD_IMAGE_URL,
+	EDITING_REMOVE_IMAGE_AT_INDEX,
 	TAB_CONFIG,
 	EDITOR_TAB_CONTENT,
 } from '../actions/editor.js';
@@ -55,7 +56,8 @@ import {
 } from '../filters.js';
 
 import {
-	addImageWithURL
+	addImageWithURL,
+	removeImageAtIndex
 } from '../images.js';
 
 const DEFAULT_TAB = TAB_CONFIG;
@@ -296,6 +298,11 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: {...state.card, images: addImageWithURL(state.card.images, action.src, action.uploadPath)}
+		};
+	case EDITING_REMOVE_IMAGE_AT_INDEX:
+		return {
+			...state,
+			card: {...state.card, images: removeImageAtIndex(state.card.images, action.index)},
 		};
 	default:
 		return state;
