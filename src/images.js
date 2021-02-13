@@ -16,7 +16,7 @@
 */
 
 //Returns a new images block with the given image added
-export const addImageWithURL = (imagesBlock, fieldName, src, uploadPath = '') => {
+export const addImageWithURL = (imagesBlock, src, uploadPath = '') => {
 	if (!imagesBlock) imagesBlock = [];
 	const imgItem = {
 		src,
