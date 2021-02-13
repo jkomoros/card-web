@@ -9,6 +9,7 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	BODY_CARD_TYPES,
 	LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE,
+	IMAGE_CARD_TYPES
 } from './card_fields.js';
 
 import {
@@ -192,6 +193,8 @@ export const reasonCardTypeNotLegalForCard = (card, proposedCardType) => {
 			return 'The card has an outbound reference of type ' + referenceType + ', but that is not legal for the proposed card type ' + proposedCardType;
 		}
 	}
+
+	if (card.images.length > 0 && !IMAGE_CARD_TYPES[proposedCardType]) return 'The card has images but the new card type does not allow images';
 
 	return '';
 };
