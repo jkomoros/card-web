@@ -14,7 +14,8 @@ import {
 } from '../card_fields.js';
 
 import {
-	addImageWithURL
+	addImageWithURL,
+	removeImageAtIndex,
 } from '../actions/editor.js';
 
 import './tag-list.js';
@@ -37,8 +38,13 @@ class CardImagesEditor extends connect(store)(LitElement) {
 			};
 		}
 		return html`
-			<tag-list .tags=${imgTagNames} .tagInfos=${tagInfos} .editing=${true} .overrideTypeName=${'Image'} @new-tag=${this._handleNewTag}></tag-list>
+			<tag-list .tags=${imgTagNames} .tagInfos=${tagInfos} .editing=${true} .overrideTypeName=${'Image'} @new-tag=${this._handleNewTag} @remove-tag=${this._handleRemoveTag}></tag-list>
 		`;
+	}
+
+	_handleRemoveTag(e) {
+		const index = parseInt(e.detail.tag);
+		store.dispatch(removeImageAtIndex(index));
 	}
 
 	_handleNewTag() {
