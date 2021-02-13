@@ -34,6 +34,15 @@ export const removeImageAtIndex = (imagesBlock, index) => {
 	return result;
 };
 
+export const changeImagePropertyAtIndex = (imagesBlock, index, property, value) => {
+	if (index < 0 || index >= imagesBlock.length) return imagesBlock;
+	const result = [...imagesBlock];
+	const item = {...result[index]};
+	item[property] = value;
+	result[index] = item;
+	return result;
+};
+
 export const imageBlocksEquivalent = (one, two) => {
 	if (one == two) return true;
 	if (!one || !two) return false;

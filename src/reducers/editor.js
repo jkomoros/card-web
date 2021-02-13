@@ -29,6 +29,7 @@ import {
 	EDITING_REMOVE_REFERENCE,
 	EDITING_ADD_IMAGE_URL,
 	EDITING_REMOVE_IMAGE_AT_INDEX,
+	EDITING_CHANGE_IMAGE_PROPERTY,
 	EDITING_OPEN_IMAGE_PROPERTIES_DIALOG,
 	EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG,
 	TAB_CONFIG,
@@ -59,7 +60,8 @@ import {
 
 import {
 	addImageWithURL,
-	removeImageAtIndex
+	removeImageAtIndex,
+	changeImagePropertyAtIndex
 } from '../images.js';
 
 const DEFAULT_TAB = TAB_CONFIG;
@@ -307,6 +309,11 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: {...state.card, images: removeImageAtIndex(state.card.images, action.index)},
+		};
+	case EDITING_CHANGE_IMAGE_PROPERTY:
+		return {
+			...state,
+			card: {...state.card, images: changeImagePropertyAtIndex(state.card.images, action.index, action.property, action.value)},
 		};
 	case EDITING_OPEN_IMAGE_PROPERTIES_DIALOG:
 		return {
