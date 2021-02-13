@@ -123,6 +123,9 @@ export const selectFindPermissions = (state) => state.find && state.find.permiss
 
 export const selectCommentsAndInfoPanelOpen = (state) => state.app ? state.app.commentsAndInfoPanelOpen : false;
 
+export const selectImagePropertiesDialogOpen = (state) => state.editor ? state.editor.imagePropertiesDialogOpen : false;
+export const selectImagePropertiesDialogIndex = (state) => state.editor ? state.editor.imagePropertiesDialogIndex : 0;
+
 const selectActiveSetName = (state) => state.collection ? state.collection.activeSetName : '';
 const selectActiveFilterNames = (state) => state.collection ? state.collection.activeFilterNames : '';
 const selectActiveSortName = (state) => state.collection ? state.collection.activeSortName : '';

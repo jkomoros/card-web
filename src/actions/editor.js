@@ -28,6 +28,8 @@ export const EDITING_ADD_REFERENCE = 'EDITING_ADD_REFERENCE';
 export const EDITING_REMOVE_REFERENCE = 'EDITING_REMOVE_REFERENCE';
 export const EDITING_ADD_IMAGE_URL = 'EDITING_ADD_IMAGE_URL';
 export const EDITING_REMOVE_IMAGE_AT_INDEX = 'EDITING_REMOVE_IMAGE_AT_INDEX';
+export const EDITING_OPEN_IMAGE_PROPERTIES_DIALOG = 'EDITING_OPEN_IMAGE_PROPERTIES_DIALOG';
+export const EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG = 'EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG';
 
 export const TAB_CONTENT = 'content';
 export const TAB_CONFIG = 'config';
@@ -685,5 +687,18 @@ export const removeReferenceFromCard = (cardID, referenceType) => {
 		type:EDITING_REMOVE_REFERENCE,
 		cardID,
 		referenceType,
+	};
+};
+
+export const openImagePropertiesDialog = (index) => {
+	return {
+		type: EDITING_OPEN_IMAGE_PROPERTIES_DIALOG,
+		index,
+	};
+};
+
+export const closeImagePropertiesDialog = () => {
+	return {
+		type: EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG,
 	};
 };

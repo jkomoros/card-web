@@ -29,6 +29,8 @@ import {
 	EDITING_REMOVE_REFERENCE,
 	EDITING_ADD_IMAGE_URL,
 	EDITING_REMOVE_IMAGE_AT_INDEX,
+	EDITING_OPEN_IMAGE_PROPERTIES_DIALOG,
+	EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG,
 	TAB_CONFIG,
 	EDITOR_TAB_CONTENT,
 } from '../actions/editor.js';
@@ -77,6 +79,8 @@ const INITIAL_STATE = {
 	selectedEditorTab: DEFAULT_EDITOR_TAB,
 	pendingSlug: '',
 	pendingReferenceType: '',
+	imagePropertiesDialogOpen: false,
+	imagePropertiesDialogIndex: 0,
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -303,6 +307,17 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: {...state.card, images: removeImageAtIndex(state.card.images, action.index)},
+		};
+	case EDITING_OPEN_IMAGE_PROPERTIES_DIALOG:
+		return {
+			...state,
+			imagePropertiesDialogOpen: true,
+			imagePropertiesDialogIndex: action.index
+		};
+	case EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG:
+		return {
+			...state,
+			imagePropertiesDialogOpen: false
 		};
 	default:
 		return state;
