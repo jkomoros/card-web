@@ -233,6 +233,10 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 					height: 1.4em;
 				}
 
+				img {
+					float: left;
+				}
+
 				.sub-title-container {
 					display:flex;
 					flex-direction:row;
