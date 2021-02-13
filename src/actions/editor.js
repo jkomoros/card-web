@@ -272,7 +272,7 @@ export const editingCommit = () => async (dispatch, getState) => {
 	if (collaboratorAdditions.length) update.add_collaborators = collaboratorAdditions;
 	if (collaboratorDeletions.length) update.remove_collaborators = collaboratorDeletions;
 
-	if (!imageBlocksEquivalent(underlyingCard, updatedCard)) update.images = updatedCard.images;
+	if (!imageBlocksEquivalent(underlyingCard.images, updatedCard.images)) update.images = updatedCard.images;
 
 	//if references changed, pass the ENTIRE new references object in on update.
 	//We pass the whole references since modifyCard will need to extractLinks
