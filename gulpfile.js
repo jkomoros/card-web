@@ -298,7 +298,7 @@ gulp.task(GCLOUD_ENSURE_DEV_TASK, (cb) => {
 
 gulp.task(POLYMER_BUILD_TASK, makeExecutor('polymer build'));
 
-gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(TWITTER_HANDLE ? 'firebase deploy' : 'firebase deploy --only hosting,firestore,functions:updateInboundLinks,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal,functions:status'));
+gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(TWITTER_HANDLE ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:updateInboundLinks,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal,functions:status'));
 
 gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, makeExecutor('firebase functions:config:set site.last_deploy_affecting_rendering=' + RELEASE_TAG));
 
@@ -447,7 +447,7 @@ gulp.task('set-up-deploy',
 	gulp.series(
 		SET_UP_CORS,
 		FIREBASE_ENSURE_PROD_TASK,
-		makeExecutor('firebase deploy --only firestore,functions:updateInboundLinks')
+		makeExecutor('firebase deploy --only firestore,storage,functions:updateInboundLinks')
 	)
 );
 
