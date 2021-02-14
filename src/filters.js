@@ -916,6 +916,7 @@ const CARD_FILTER_CONFIGS = Object.assign(
 		//The following TODO types will never be automatically applied, because their test function always returns false, but they can be manually applied.
 		'prose': [defaultCardFilterName('prose'), () => true, TODO_TYPE_AUTO_CONTENT, 0.5, 'Whether the card has manually been marked as needing to be turned into flowing prose, as opposed to disjoint details'],
 		'citations': [defaultCardFilterName('citations'), () => true, TODO_TYPE_AUTO_CONTENT, 0.3, 'Whether the card has citations that need to be formally represented'],
+		'diagram': [defaultCardFilterName('diagram'), () => true, TODO_TYPE_AUTO_CONTENT, 0.8, 'Whether the card needs diagrams to be created or modified'],
 		//Being a priority is considered an extra TODO; not being prioritized is considered to have that TODO done.
 		//Because it always returns true, the latter two filter-names are what you actually want to use to filter.
 		'prioritized': [['not-automatically-prioritized', 'automatically-prioritized', 'not-prioritized', 'prioritized'], () => true, TODO_TYPE_AUTO_CONTENT, 0.1, 'Whether the card is marked as a priority to develop, because it talks about important topics. Kind of like a star for an author to prioritize it.'],
