@@ -15,6 +15,13 @@
 
 */
 
+export const srcSeemsValid = (src) => {
+	src = src.toLowerCase();
+	if (src.startsWith('https://')) return true;
+	if (src.startsWith('http://')) return true;
+	return false;
+};
+
 export const getImageDimensionsForImageAtURL = async (url) => {
 	const imgEle = document.createElement('img');
 	imgEle.src = url;

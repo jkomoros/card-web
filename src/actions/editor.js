@@ -100,7 +100,8 @@ import {
 
 import {
 	imageBlocksEquivalent,
-	getImageDimensionsForImageAtURL
+	getImageDimensionsForImageAtURL,
+	srcSeemsValid
 } from '../images.js';
 
 let lastReportedSelectionRange = null;
@@ -588,6 +589,12 @@ export const manualCollaboratorAdded = (collaboratorUid) => {
 //src must be a fully qualified URL. uploadPath is the filename in the upload
 //bucket, if applicable.
 export const addImageWithURL = (src, uploadPath = '') => async (dispatch, getState) => {
+
+	if (!srcSeemsValid(src)) {
+		alert('Src doesn\'t seem valid. It should start with https or http');
+		return;
+	}
+
 	let images = (selectEditingCard(getState()) || {}).images || [];
 	for (const img of images) {
 		if (img.src == src) {
@@ -602,7 +609,7 @@ export const addImageWithURL = (src, uploadPath = '') => async (dispatch, getSta
 	});
 	const dim = await getImageDimensionsForImageAtURL(src);
 	if (!dim) {
-		console.warn('Image load failed to fetch resources');
+		alert('Image load failed to fetch resources');
 		return;
 	}
 	images = (selectEditingCard(getState()) || {}).images || [];
