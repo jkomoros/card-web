@@ -706,9 +706,11 @@ export const closeImagePropertiesDialog = () => {
 	};
 };
 
-export const openImageBrowserDialog = () => {
+//index can be not provided, which defaults to adding to end.
+export const openImageBrowserDialog = (index) => {
 	return {
 		type: EDITING_OPEN_IMAGE_BROWSER_DIALOG,
+		index,
 	};
 };
 

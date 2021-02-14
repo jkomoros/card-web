@@ -86,6 +86,8 @@ const INITIAL_STATE = {
 	imagePropertiesDialogOpen: false,
 	imagePropertiesDialogIndex: 0,
 	imageBrowserDialogOpen: false,
+	//Undefined communicates 'add to end'
+	imageBrowserDialogIndex: undefined,
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -333,6 +335,7 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			imageBrowserDialogOpen: true,
+			imageBrowserDialogIndex: action.index
 		};
 	case EDITING_CLOSE_IMAGE_BROWSER_DIALOG:
 		return {

@@ -10,6 +10,7 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	selectImageBrowserDialogOpen,
+	selectImageBrowserDialogIndex
 } from '../selectors.js';
 
 import {
@@ -55,9 +56,15 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 		this.title = 'Choose Image';
 	}
 
+	static get properties() {
+		return {
+			_index: {type: Number},
+		};
+	}
+
 	_handleDoneClicked() {
 		const url = this.shadowRoot.querySelector('#src').value;
-		if (url) store.dispatch(addImageWithURL(url));
+		if (url) store.dispatch(addImageWithURL(url, this._index));
 		store.dispatch(closeImageBrowserDialog());
 	}
 
@@ -67,13 +74,14 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 
 	_handleFileInput() {
 		const ele = this.shadowRoot.querySelector('#file');
-		store.dispatch(addImageWithFile(ele.files[0]));
+		store.dispatch(addImageWithFile(ele.files[0], this._index));
 		store.dispatch(closeImageBrowserDialog());
 	}
 
 	stateChanged(state) {
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = selectImageBrowserDialogOpen(state);
+		this._index = selectImageBrowserDialogIndex(state);
 	}
 
 }
