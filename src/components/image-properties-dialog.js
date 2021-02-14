@@ -20,6 +20,10 @@ import {
 } from '../actions/editor.js';
 
 import {
+	DEFAULT_IMG_EM_SIZE
+} from '../images.js';
+
+import {
 	CHECK_CIRCLE_OUTLINE_ICON
 } from './my-icons.js';
 
@@ -47,6 +51,7 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 			<label>Src</label><em>${img.src}</em>
 			<label>Height</label><em>${img.height || 'Unknown'}</em>
 			<label>Width</label><em>${img.width || 'Unknown'}</em>
+			<label>Size</label><input type='number' min='0.5' max='30.0' step='0.5' .property=${'emSize'} .value=${img.emSize || DEFAULT_IMG_EM_SIZE} @input=${this._handleTextInput}></input>
 			<label>Alt Text</label> <input type='text' .property=${'alt'} .value=${img.alt || ''} @input=${this._handleTextInput}></input>
 			<div class='buttons'>
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>

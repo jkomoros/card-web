@@ -7,6 +7,8 @@
 		//Natural height and width in pixels
 		height: 10,
 		width: 100,
+		//Size, in ems, for the width of the image as rendered. (The height will maintain aspect ratio)
+		emSize: 10.0,
 		//If the file is an uload, the path in the upload bucket. This is usef
 		uploadPath: 'path/to/upload/image.png',
 	}
@@ -49,12 +51,15 @@ export const getImageDimensionsForImageAtURL = async (url) => {
 	return result;
 };
 
+export const DEFAULT_IMG_EM_SIZE = 15.0;
+
 //Returns a new images block with the given image added
 export const addImageWithURL = (imagesBlock, src, uploadPath = '') => {
 	if (!imagesBlock) imagesBlock = [];
 	const imgItem = {
 		src,
-		uploadPath
+		uploadPath,
+		emSize: DEFAULT_IMG_EM_SIZE,
 	};
 	return [...imagesBlock, imgItem];
 };

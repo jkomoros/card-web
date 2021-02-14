@@ -235,6 +235,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 
 				img {
 					float: left;
+					/* This will be overriden in the img.style.width */
 					width: 15em;
 					/* since height/width are set directly on img tags, the aspect ratio will be right */
 					height: auto;
@@ -498,6 +499,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				imgEle.alt = image.alt || '';
 				if (image.width !== undefined) imgEle.width = image.width;
 				if (image.height !== undefined) imgEle.height = image.height;
+				if (image.emSize !== undefined) imgEle.style.width = '' + image.emSize + 'em';
 				ele.prepend(imgEle);
 			}
 
