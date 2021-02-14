@@ -41,6 +41,8 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 			</style>
 			<label>Fully qualified src (e.g. including https://)</label>
 			<input type='text' id='src'></input>
+			<label>or...</label>
+			<input type='file' id='file' accept='image/png, image/jpeg' @input=${this._handleFileInput}></input>
 			<div class='buttons'>
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
@@ -60,6 +62,10 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 
 	_shouldClose() {
 		store.dispatch(closeImageBrowserDialog());
+	}
+
+	_handleFileInput() {
+		console.log('File selected');
 	}
 
 	stateChanged(state) {
