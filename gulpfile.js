@@ -110,6 +110,7 @@ const PUSH_TAG_TASK = 'push-tag';
 const SET_LAST_DEPLOY_IF_AFFECTS_RENDERING = 'set-last-deploy-if-affects-rendering';
 const ASK_IF_DEPLOY_AFFECTS_RENDERING = 'ask-if-deploy-affects-rendering';
 const ASK_BACKUP_MESSAGE = 'ask-backup-message';
+const SET_UP_CORS = 'set-up-cors';
 
 const GCLOUD_ENSURE_DEV_TASK = 'gcloud-ensure-dev';
 const FIREBASE_ENSURE_DEV_TASK = 'firebase-ensure-dev';
@@ -307,6 +308,12 @@ gulp.task(FIREBASE_FUNCTIONS_SET_MAINTENANCE_MODE_ON, makeExecutor('firebase fun
 
 gulp.task(FIREBASE_FUNCTIONS_DEPLOY_MAINTENANCE_MODE, makeExecutor('firebase deploy --only functions:updateInboundLinks,functions:status'));
 
+//If there is no dev then we'll just set it twice, no bigge
+gulp.task(SET_UP_CORS, gulp.series(
+	makeExecutor('gsutil cors set cors.json gs://' + CONFIG_FIREBASE_DEV.storageBucket),
+	makeExecutor('gsutil cors set cors.json gs://' + CONFIG_FIREBASE_PROD.storageBucket),
+));
+
 gulp.task(GCLOUD_BACKUP_TASK, cb => {
 	if (!BACKUP_BUCKET_NAME) {
 		console.log('Skipping backup since no backup_bucket_name set');
@@ -438,6 +445,7 @@ gulp.task(POLYMER_BUILD_OPTIONALLY, async (cb) => {
 
 gulp.task('set-up-deploy',
 	gulp.series(
+		SET_UP_CORS,
 		FIREBASE_ENSURE_PROD_TASK,
 		makeExecutor('firebase deploy --only firestore,functions:updateInboundLinks')
 	)
