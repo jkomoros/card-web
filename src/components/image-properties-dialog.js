@@ -16,7 +16,8 @@ import {
 
 import {
 	closeImagePropertiesDialog,
-	changeImagePropertyAtIndex
+	changeImagePropertyAtIndex,
+	openImageBrowserDialog
 } from '../actions/editor.js';
 
 import {
@@ -24,7 +25,8 @@ import {
 } from '../images.js';
 
 import {
-	CHECK_CIRCLE_OUTLINE_ICON
+	CHECK_CIRCLE_OUTLINE_ICON,
+	EDIT_ICON
 } from './my-icons.js';
 
 class ImagePropertiesDialog extends connect(store)(DialogElement) {
@@ -48,7 +50,7 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 					font-weight:normal;
 				}
 			</style>
-			<label>Src</label><em>${img.src}</em>
+			<label>Src</label><em>${img.src}<button class='small' title='Edit image' @click=${this._handleEditImage}>${EDIT_ICON}</button></em>
 			<label>Height</label><em>${img.height || 'Unknown'}</em>
 			<label>Width</label><em>${img.width || 'Unknown'}</em>
 			<label>Size</label><input type='number' min='0.5' max='30.0' step='0.5' .property=${'emSize'} .value=${img.emSize || DEFAULT_IMG_EM_SIZE} @input=${this._handleTextInput}></input>
@@ -72,6 +74,10 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 
 	_handleDoneClicked() {
 		store.dispatch(closeImagePropertiesDialog());
+	}
+
+	_handleEditImage() {
+		store.dispatch(openImageBrowserDialog(this._index));
 	}
 
 	_shouldClose() {
