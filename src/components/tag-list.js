@@ -45,13 +45,18 @@ class TagList  extends LitElement {
 		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} .defaultColor=${this.defaultColor} .tapEvents=${this.tapEvents}></tag-chip>`) :
 		(this.hideOnEmpty ? html`` : html`<em>No ${this.typeName.toLowerCase()}s</em>`)}
 			${((!allTags || !allTags.length) && this.hideOnEmpty) || this.disableAdd ? html`` :
-		html`<select @change=${this._handleSelectChanged}>
+		(this.disableSelect ? html`<button @click=${this._handleNew} title=${'New ' + this.typeName}>+</button>` :
+			html`<select @change=${this._handleSelectChanged}>
 				<option value='#noop' selected>Add ${this.typeName}...</option>
 				${Object.keys(tagInfos).map(item => html`<option value='${tagInfos[item].id}' title=${tagInfos[item].description}>${tagInfos[item].title}</option>`)}
 				${this.disableNew ? '' : html`<option value='#new'>New ${this.typeName}</option>`}
-			</select>`}
+			</select>`)}
 			</div>
 			`;
+	}
+
+	_handleNew() {
+		this.dispatchEvent(new CustomEvent('new-tag', {composed:true}));
 	}
 
 	_handleSelectChanged(e) {
@@ -65,7 +70,7 @@ class TagList  extends LitElement {
 				console.warn('New tag selected evey though it was supposed to be disabled');
 				return;
 			}
-			this.dispatchEvent(new CustomEvent('new-tag', {composed:true}));
+			this._handleNew();
 			return;
 		}
 		//Note: a similar event is fired in tag-chip when editing and hitting
@@ -102,6 +107,9 @@ class TagList  extends LitElement {
 			overrideTypeName: {type:String},
 			//If true, then the select option to add a new tag will not be shown.
 			disableNew: {type:Boolean},
+			//If true, then the select drop down of existing items won't be
+			//shown, rendering a button instead.
+			disableSelect: {type:Boolean},
 			//If true, then even if editing, the select to add a new item will
 			//not be shown, so only deletion will be possible.
 			disableAdd: {type:Boolean},
