@@ -29,14 +29,19 @@ class CardImagesEditor extends connect(store)(LitElement) {
 
 		const images = this._effectiveCard.images || [];
 
+		const invalidColor = '#b22222'; //firebrick
+		const loadedColor = '#006400'; //darkgreen
+
 		const imgTagNames = [];
 		const tagInfos = {};
 		for (let i = 0; i < images.length; i++) {
 			const key = '' + i;
+			const img = images[i];
 			imgTagNames.push(key);
 			tagInfos[key] = {
 				id: key,
-				title: images[i].src
+				title: img.src,
+				color: img.height !== undefined && img.width !== undefined ? loadedColor : invalidColor,
 			};
 		}
 		return html`
