@@ -4,6 +4,12 @@ import { LitElement, html } from '@polymer/lit-element';
 import './tag-chip.js';
 
 import {
+	PLUS_ICON
+} from './my-icons.js';
+
+import { ButtonSharedStyles } from './button-shared-styles.js';
+
+import {
 	arrayDiff, 
 	arrayToSet
 } from '../util.js';
@@ -23,6 +29,7 @@ class TagList  extends LitElement {
 		effectiveExcludeItems.forEach(item => excludeItemsAsMap[item] = true);
 		tagInfos = Object.fromEntries(Object.entries(tagInfos).filter(entry => !excludeItemsAsMap[entry[0]]));
 		return html`
+		${ButtonSharedStyles}
 			<style>
 				select {
 					display:none;
@@ -45,7 +52,7 @@ class TagList  extends LitElement {
 		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} .defaultColor=${this.defaultColor} .tapEvents=${this.tapEvents}></tag-chip>`) :
 		(this.hideOnEmpty ? html`` : html`<em>No ${this.typeName.toLowerCase()}s</em>`)}
 			${((!allTags || !allTags.length) && this.hideOnEmpty) || this.disableAdd ? html`` :
-		(this.disableSelect ? html`<button @click=${this._handleNew} title=${'New ' + this.typeName}>+</button>` :
+		(this.disableSelect ? html`<button class='small' @click=${this._handleNew} title=${'New ' + this.typeName}>${PLUS_ICON}</button>` :
 			html`<select @change=${this._handleSelectChanged}>
 				<option value='#noop' selected>Add ${this.typeName}...</option>
 				${Object.keys(tagInfos).map(item => html`<option value='${tagInfos[item].id}' title=${tagInfos[item].description}>${tagInfos[item].title}</option>`)}
