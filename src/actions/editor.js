@@ -593,7 +593,8 @@ export const manualCollaboratorAdded = (collaboratorUid) => {
 	return collaboratorAdded(collaboratorUid);
 };
 
-export const addImageWithFile = (file) => async (dispatch, getState) => {
+//If index is undefined, it will add a new item to the end of the list
+export const addImageWithFile = (file, index) => async (dispatch, getState) => {
 
 	const state = getState();
 
@@ -630,12 +631,12 @@ export const addImageWithFile = (file) => async (dispatch, getState) => {
 
 	const downloadURL = await fileRef.getDownloadURL();
 
-	dispatch(addImageWithURL(downloadURL, fileRef.fullPath));
+	dispatch(addImageWithURL(downloadURL, fileRef.fullPath, index));
 };
 
 //src must be a fully qualified URL. uploadPath is the filename in the upload
-//bucket, if applicable.
-export const addImageWithURL = (src, uploadPath = '') => async (dispatch, getState) => {
+//bucket, if applicable. If index is undefined, it will add a new item to the end of the list
+export const addImageWithURL = (src, uploadPath = '', index) => async (dispatch, getState) => {
 
 	if (!srcSeemsValid(src)) {
 		alert('Src doesn\'t seem valid. It should start with https or http');
@@ -653,6 +654,7 @@ export const addImageWithURL = (src, uploadPath = '') => async (dispatch, getSta
 		type: EDITING_ADD_IMAGE_URL,
 		src,
 		uploadPath,
+		index,
 	});
 	const dim = await getImageDimensionsForImageAtURL(src);
 	if (!dim) {
@@ -660,19 +662,19 @@ export const addImageWithURL = (src, uploadPath = '') => async (dispatch, getSta
 		return;
 	}
 	images = (selectEditingCard(getState()) || {}).images || [];
-	let index = -1;
+	let actualIndex = -1;
 	for (let i = 0; i < images.length; i++) {
 		if (images[i].src == src) {
-			index = i;
+			actualIndex = i;
 			break;
 		}
 	}
-	if (index < 0) {
+	if (actualIndex < 0) {
 		console.warn('Invalid index');
 		return;
 	}
-	dispatch(changeImagePropertyAtIndex(index, 'height', dim.height));
-	dispatch(changeImagePropertyAtIndex(index, 'width', dim.width));
+	dispatch(changeImagePropertyAtIndex(actualIndex, 'height', dim.height));
+	dispatch(changeImagePropertyAtIndex(actualIndex, 'width', dim.width));
 };
 
 export const removeImageAtIndex = (index) => {

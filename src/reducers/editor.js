@@ -306,7 +306,7 @@ const app = (state = INITIAL_STATE, action) => {
 	case EDITING_ADD_IMAGE_URL:
 		return {
 			...state,
-			card: {...state.card, images: addImageWithURL(state.card.images, action.src, action.uploadPath)}
+			card: {...state.card, images: addImageWithURL(state.card.images, action.src, action.uploadPath, action.index)}
 		};
 	case EDITING_REMOVE_IMAGE_AT_INDEX:
 		return {

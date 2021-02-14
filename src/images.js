@@ -55,15 +55,22 @@ export const getImageDimensionsForImageAtURL = async (url) => {
 
 export const DEFAULT_IMG_EM_SIZE = 15.0;
 
-//Returns a new images block with the given image added
-export const addImageWithURL = (imagesBlock, src, uploadPath = '') => {
+//Returns a new images block with the given image added. If index is undefined,
+//will add a new item to end.z
+export const addImageWithURL = (imagesBlock, src, uploadPath = '', index) => {
 	if (!imagesBlock) imagesBlock = [];
-	const imgItem = {
-		src,
-		uploadPath,
-		emSize: DEFAULT_IMG_EM_SIZE,
-	};
-	return [...imagesBlock, imgItem];
+	let result = [...imagesBlock];
+	if (index === undefined) {
+		result.push({
+			emSize: DEFAULT_IMG_EM_SIZE,
+		});
+		index = result.length - 1;
+	}
+	const imgItem = {...result[index]};
+	imgItem.src = src;
+	imgItem.uploadPath = uploadPath;
+	result[index] = imgItem;
+	return result;
 };
 
 export const removeImageAtIndex = (imagesBlock, index) => {
