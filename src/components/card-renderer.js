@@ -235,6 +235,9 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 
 				img {
 					float: left;
+					width: 15em;
+					/* since height/width are set directly on img tags, the aspect ratio will be right */
+					height: auto;
 				}
 
 				.sub-title-container {
