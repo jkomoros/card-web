@@ -29,6 +29,8 @@ Go back to the Firebase console. Go to the project overview for your app. Tap th
 
 In the navigation to the right, go to Authentication. Tap 'Set up sign-in method'. Next to the Google row, tap the edit icon. **Toggle the Enable toggle**. Give the project a descriptive name and pick an email. (You can change these both later). Hit Save.
 
+In the navigation to the right, go to the Storage tab. Tap 'Get Started'. Click Next. It will show you a location selection, which you can't change (since you set it in an earlier step). Tap 'Done'.
+
 Run `gulp set-up-deploy`
 
 Run `npm run start` to run the server.
