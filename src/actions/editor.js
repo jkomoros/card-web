@@ -225,6 +225,13 @@ export const editingCommit = () => async (dispatch, getState) => {
 		}
 	}
 
+	for (const img of updatedCard.images) {
+		if (img.height === undefined || img.width === undefined) {
+			alert('One of the images does not yet have its height/width set yet. It might still be loading. Try removing it and readding it.');
+			return;
+		}
+	}
+
 	//Throw out any boosts that might have been applied to an old card type.
 	if (updatedCard.card_type != underlyingCard.card_type) updatedCard.font_size_boost = {};
 
