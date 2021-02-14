@@ -11,7 +11,7 @@ service firebase.storage {
 		match /uploads/{uid}/{fileName} {
 			allow get: if true;
 			allow list: if request.auth.uid == uid;
-			allow write: if request.auth.uid == uid && !isAnonymous();
+			allow write: if request.auth.uid == uid && !isAnonymous() && request.resource.size < 10 * 1024 * 1024 && request.resource.contentType.matches('image/.*');
 		}
 	}
 }
