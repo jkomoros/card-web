@@ -125,6 +125,7 @@ export const selectCommentsAndInfoPanelOpen = (state) => state.app ? state.app.c
 
 export const selectImagePropertiesDialogOpen = (state) => state.editor ? state.editor.imagePropertiesDialogOpen : false;
 export const selectImagePropertiesDialogIndex = (state) => state.editor ? state.editor.imagePropertiesDialogIndex : 0;
+export const selectImageBrowserDialogOpen = (state) => state.editor ? state.editor.imageBrowserDialogOpen : false;
 
 const selectActiveSetName = (state) => state.collection ? state.collection.activeSetName : '';
 const selectActiveFilterNames = (state) => state.collection ? state.collection.activeFilterNames : '';

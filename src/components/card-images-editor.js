@@ -16,11 +16,13 @@ import {
 import {
 	addImageWithURL,
 	removeImageAtIndex,
-	openImagePropertiesDialog
+	openImagePropertiesDialog,
+	openImageBrowserDialog
 } from '../actions/editor.js';
 
 import './tag-list.js';
 import './image-properties-dialog.js';
+import './image-browser-dialog.js';
 
 class CardImagesEditor extends connect(store)(LitElement) {
 	render() {
@@ -47,6 +49,7 @@ class CardImagesEditor extends connect(store)(LitElement) {
 		return html`
 			<tag-list .tags=${imgTagNames} .tagInfos=${tagInfos} .editing=${true} .overrideTypeName=${'Image'} .tapEvents=${true} @tag-tapped=${this._handleTagTapped} @new-tag=${this._handleNewTag} @remove-tag=${this._handleRemoveTag}></tag-list>
 			<image-properties-dialog></image-properties-dialog>
+			<image-browser-dialog></image-browser-dialog>
 		`;
 	}
 
@@ -61,6 +64,8 @@ class CardImagesEditor extends connect(store)(LitElement) {
 	}
 
 	_handleNewTag() {
+		store.dispatch(openImageBrowserDialog());
+		//TODO: remove this behavior once the image browser handles it
 		const url = prompt('What\'s the fully qualified URL to add?');
 		if (!url) return;
 		store.dispatch(addImageWithURL(url));

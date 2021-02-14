@@ -32,6 +32,8 @@ import {
 	EDITING_CHANGE_IMAGE_PROPERTY,
 	EDITING_OPEN_IMAGE_PROPERTIES_DIALOG,
 	EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG,
+	EDITING_OPEN_IMAGE_BROWSER_DIALOG,
+	EDITING_CLOSE_IMAGE_BROWSER_DIALOG,
 	TAB_CONFIG,
 	EDITOR_TAB_CONTENT,
 } from '../actions/editor.js';
@@ -83,6 +85,7 @@ const INITIAL_STATE = {
 	pendingReferenceType: '',
 	imagePropertiesDialogOpen: false,
 	imagePropertiesDialogIndex: 0,
+	imageBrowserDialogOpen: false,
 };
 
 const app = (state = INITIAL_STATE, action) => {
@@ -325,6 +328,16 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			imagePropertiesDialogOpen: false
+		};
+	case EDITING_OPEN_IMAGE_BROWSER_DIALOG:
+		return {
+			...state,
+			imageBrowserDialogOpen: true,
+		};
+	case EDITING_CLOSE_IMAGE_BROWSER_DIALOG:
+		return {
+			...state,
+			imageBrowserDialogOpen: false
 		};
 	default:
 		return state;

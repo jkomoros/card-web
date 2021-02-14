@@ -31,6 +31,8 @@ export const EDITING_REMOVE_IMAGE_AT_INDEX = 'EDITING_REMOVE_IMAGE_AT_INDEX';
 export const EDITING_CHANGE_IMAGE_PROPERTY = 'EDITING_CHANGE_IMAGE_PROPERTY';
 export const EDITING_OPEN_IMAGE_PROPERTIES_DIALOG = 'EDITING_OPEN_IMAGE_PROPERTIES_DIALOG';
 export const EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG = 'EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG';
+export const EDITING_OPEN_IMAGE_BROWSER_DIALOG = 'EDITING_OPEN_IMAGE_BROWSER_DIALOG';
+export const EDITING_CLOSE_IMAGE_BROWSER_DIALOG = 'EDITING_CLOSE_IMAGE_BROWSER_DIALOG';
 
 export const TAB_CONTENT = 'content';
 export const TAB_CONFIG = 'config';
@@ -654,6 +656,18 @@ export const openImagePropertiesDialog = (index) => {
 export const closeImagePropertiesDialog = () => {
 	return {
 		type: EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG,
+	};
+};
+
+export const openImageBrowserDialog = () => {
+	return {
+		type: EDITING_OPEN_IMAGE_BROWSER_DIALOG,
+	};
+};
+
+export const closeImageBrowserDialog = () => {
+	return {
+		type: EDITING_CLOSE_IMAGE_BROWSER_DIALOG,
 	};
 };
 
