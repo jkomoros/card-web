@@ -53,6 +53,7 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 			<label>Width</label><em>${img.width || 'Unknown'}</em>
 			<label>Size</label><input type='number' min='0.5' max='30.0' step='0.5' .property=${'emSize'} .value=${img.emSize || DEFAULT_IMG_EM_SIZE} @input=${this._handleTextInput}></input>
 			<label>Alt Text</label> <input type='text' .property=${'alt'} .value=${img.alt || ''} @input=${this._handleTextInput}></input>
+			<label>Original Location</label> <input type='text' .property=${'original'} .value=${img.original || ''} @input=${this._handleTextInput}></input>
 			<div class='buttons'>
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>

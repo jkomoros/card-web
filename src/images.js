@@ -11,6 +11,8 @@
 		emSize: 10.0,
 		//If the file is an uload, the path in the upload bucket. This is usef
 		uploadPath: 'path/to/upload/image.png',
+		//If set, the location where the original was found, for citations, etc.
+		original: 'https://www.example.com/image.png'
 	}
 	//Other images may follow
 ]
