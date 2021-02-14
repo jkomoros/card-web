@@ -99,7 +99,8 @@ import {
 } from '../filters.js';
 
 import {
-	imageBlocksEquivalent
+	imageBlocksEquivalent,
+	getImageDimensionsForImageAtURL
 } from '../images.js';
 
 let lastReportedSelectionRange = null;
@@ -579,12 +580,20 @@ export const manualCollaboratorAdded = (collaboratorUid) => {
 
 //src must be a fully qualified URL. uploadPath is the filename in the upload
 //bucket, if applicable.
-export const addImageWithURL = (src, uploadPath = '') => {
-	return {
+export const addImageWithURL = (src, uploadPath = '') => async (dispatch, getState) => {
+	dispatch({
 		type: EDITING_ADD_IMAGE_URL,
 		src,
 		uploadPath,
-	};
+	});
+	const state = getState();
+	const card = selectEditingCard(state);
+	if (!card) return;
+	const index = card.images.length - 1;
+	const dim = await getImageDimensionsForImageAtURL(src);
+	//TODO: make this more resilient to changes while loading is happenign
+	dispatch(changeImagePropertyAtIndex(index, 'height', dim.height));
+	dispatch(changeImagePropertyAtIndex(index, 'width', dim.width));
 };
 
 export const removeImageAtIndex = (index) => {
