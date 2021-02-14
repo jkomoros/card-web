@@ -117,6 +117,7 @@ const FIREBASE_ENSURE_DEV_TASK = 'firebase-ensure-dev';
 const FIREBASE_DELETE_FIRESTORE_IF_SAFE_TASK = 'firebase-delete-firestore-if-safe';
 const FIREBASE_DELETE_FIRESTORE_TASK = 'DANGEROUS-firebase-delete-firestore';
 const GCLOUD_RESTORE_TASK = 'gcloud-restore';
+const GSUTIL_RSYNC_UPLOADS = 'gsutil-rsync-uploads';
 
 const FIREBASE_FUNCTIONS_SET_MAINTENANCE_MODE_OFF = 'set-maintenance-off';
 const FIREBASE_FUNCTIONS_SET_MAINTENANCE_MODE_ON = 'set-maintenance-on';
@@ -341,6 +342,8 @@ gulp.task(GCLOUD_RESTORE_TASK, cb => {
 	task(cb);
 });
 
+gulp.task(GSUTIL_RSYNC_UPLOADS, makeExecutor('gsutil rsync -r gs://' + CONFIG_FIREBASE_PROD.storageBucket + '/uploads gs://' + CONFIG_FIREBASE_DEV.storageBucket + '/uploads'));
+
 let BACKUP_MESSAGE = '';
 
 gulp.task(ASK_BACKUP_MESSAGE, async (cb) => {
@@ -534,6 +537,7 @@ gulp.task('reset-dev',
 		FIREBASE_ENSURE_DEV_TASK,
 		FIREBASE_DELETE_FIRESTORE_IF_SAFE_TASK,
 		GCLOUD_RESTORE_TASK,
+		GSUTIL_RSYNC_UPLOADS
 	)
 );
 
