@@ -15,6 +15,25 @@
 
 */
 
+export const getImageDimensionsForImageAtURL = async (url) => {
+	const imgEle = document.createElement('img');
+	imgEle.src = url;
+	let p = new Promise(resolve => {
+		imgEle.addEventListener('load', () => {
+			resolve();
+		});
+	});
+	imgEle.style.display = 'none';
+	document.body.append(imgEle);
+	await p;
+	const result = {
+		height: imgEle.naturalHeight,
+		width: imgEle.naturalWidth
+	};
+	imgEle.remove();
+	return result;
+};
+
 //Returns a new images block with the given image added
 export const addImageWithURL = (imagesBlock, src, uploadPath = '') => {
 	if (!imagesBlock) imagesBlock = [];
