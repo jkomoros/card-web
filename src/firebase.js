@@ -6,6 +6,7 @@ import firebase from '@firebase/app';
 import '@firebase/auth';
 import '@firebase/firestore';
 import '@firebase/functions';
+import '@firebase/storage';
 
 import {
 	FIREBASE_DEV_CONFIG,
@@ -34,6 +35,7 @@ firebase.firestore().enablePersistence()
 export const db = firebaseApp.firestore();
 export const auth = firebaseApp.auth();
 export const functions = firebaseApp.functions(FIREBASE_REGION);
+export const storage = firebaseApp.storage();
 
 //These are the only reasons to import firebase, so just reexport them to avoid
 //confusing needs for importing firebase directly
