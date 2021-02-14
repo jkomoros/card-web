@@ -77,6 +77,7 @@ import {
 import {
 	arrayDiff,
 	cardHasContent,
+	randomString,
 	triStateMapDiff,
 } from '../util.js';
 
@@ -105,6 +106,10 @@ import {
 	getImageDimensionsForImageAtURL,
 	srcSeemsValid
 } from '../images.js';
+
+import {
+	uploadsRef
+} from '../firebase.js';
 
 let lastReportedSelectionRange = null;
 //TODO: figure out a pattenr that doesn't have a single shared global
@@ -588,12 +593,51 @@ export const manualCollaboratorAdded = (collaboratorUid) => {
 	return collaboratorAdded(collaboratorUid);
 };
 
-export const addImageWithFile = (file) => async (dispatch) => {
+export const addImageWithFile = (file) => async (dispatch, getState) => {
 
-	//TODO: append some random characters in the filename;
-	alert('Not yet implemented');
+	const state = getState();
 
-	//dispatch(addImageWithURL(src, uploadPath));
+	if (!selectUserMayEditActiveCard(state)) {
+		alert('You don\'t have permission');
+		return;
+	}
+
+	const uid = selectUid(state);
+	if (!uid) return;
+
+	const userUploadRef = uploadsRef.child(uid);
+
+	const rawFileNameParts = file.name.split('.');
+
+	if (rawFileNameParts.length >= 2) {
+		rawFileNameParts[rawFileNameParts.length - 2] += '_' + randomString(6);
+	}
+	
+	const fileName = rawFileNameParts.join('.');
+	
+	const fileRef = userUploadRef.child(fileName);
+
+	let snapshot;
+
+	try {
+		snapshot = await fileRef.put(file);
+	} catch (err) {
+		console.warn(err);
+		alert('Failed to upload');
+		return;
+	}
+
+	const downloadURL = await fileRef.getDownloadURL();
+
+	const p = new Promise(resolve => {
+		snapshot.then(resolve);
+	});
+
+	await p;
+
+	//TODO: verify fullPath doesn't include the bucket
+
+	dispatch(addImageWithURL(downloadURL, fileRef.fullPath));
 };
 
 //src must be a fully qualified URL. uploadPath is the filename in the upload

@@ -37,6 +37,10 @@ export const auth = firebaseApp.auth();
 export const functions = firebaseApp.functions(FIREBASE_REGION);
 export const storage = firebaseApp.storage();
 
+const UPLOADS_FOLDER_NAME = 'uploads';
+
+export const uploadsRef = storage.ref(UPLOADS_FOLDER_NAME);
+
 //These are the only reasons to import firebase, so just reexport them to avoid
 //confusing needs for importing firebase directly
 export const serverTimestampSentinel = firebase.firestore.FieldValue.serverTimestamp;
