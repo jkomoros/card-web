@@ -39,9 +39,14 @@ class CardImagesEditor extends connect(store)(LitElement) {
 			const key = '' + i;
 			const img = images[i];
 			imgTagNames.push(key);
+			let title = img.src;
+			if (img.uploadPath) {
+				const parts = img.uploadPath.split('/');
+				title = parts[parts.length - 1];
+			}
 			tagInfos[key] = {
 				id: key,
-				title: img.src,
+				title,
 				color: img.height !== undefined && img.width !== undefined ? loadedColor : invalidColor,
 			};
 		}
