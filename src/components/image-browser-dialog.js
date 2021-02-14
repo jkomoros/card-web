@@ -14,6 +14,7 @@ import {
 
 import {
 	closeImageBrowserDialog,
+	addImageWithURL,
 } from '../actions/editor.js';
 
 import {
@@ -38,7 +39,8 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 					font-weight:normal;
 				}
 			</style>
-			<em>Not yet implemented</em>
+			<label>Fully qualified src (e.g. including https://)</label>
+			<input type='text' id='src'></input>
 			<div class='buttons'>
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
@@ -51,6 +53,8 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleDoneClicked() {
+		const url = this.shadowRoot.querySelector('#src').value;
+		if (url) store.dispatch(addImageWithURL(url));
 		store.dispatch(closeImageBrowserDialog());
 	}
 

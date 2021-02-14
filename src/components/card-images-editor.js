@@ -14,7 +14,6 @@ import {
 } from '../card_fields.js';
 
 import {
-	addImageWithURL,
 	removeImageAtIndex,
 	openImagePropertiesDialog,
 	openImageBrowserDialog
@@ -65,10 +64,6 @@ class CardImagesEditor extends connect(store)(LitElement) {
 
 	_handleNewTag() {
 		store.dispatch(openImageBrowserDialog());
-		//TODO: remove this behavior once the image browser handles it
-		const url = prompt('What\'s the fully qualified URL to add?');
-		if (!url) return;
-		store.dispatch(addImageWithURL(url));
 	}
 
 	get _effectiveCard() {
