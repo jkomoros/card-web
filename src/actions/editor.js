@@ -617,10 +617,11 @@ export const addImageWithFile = (file) => async (dispatch, getState) => {
 	
 	const fileRef = userUploadRef.child(fileName);
 
-	let snapshot;
-
 	try {
-		snapshot = await fileRef.put(file);
+		await new Promise((resolve, reject) => {
+			const snapshot = fileRef.put(file);
+			snapshot.then(resolve, reject);
+		});
 	} catch (err) {
 		console.warn(err);
 		alert('Failed to upload');
@@ -628,14 +629,6 @@ export const addImageWithFile = (file) => async (dispatch, getState) => {
 	}
 
 	const downloadURL = await fileRef.getDownloadURL();
-
-	const p = new Promise(resolve => {
-		snapshot.then(resolve);
-	});
-
-	await p;
-
-	//TODO: verify fullPath doesn't include the bucket
 
 	dispatch(addImageWithURL(downloadURL, fileRef.fullPath));
 };
