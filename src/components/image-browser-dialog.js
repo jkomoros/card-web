@@ -44,7 +44,7 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 			<label>Fully qualified src (e.g. including https://)</label>
 			<input type='text' id='src'></input>
 			<label>or...</label>
-			<input type='file' id='file' accept='image/png, image/jpeg' @input=${this._handleFileInput}></input>
+			<input type='file' id='file' accept='image/png, image/jpeg, image/gif' @input=${this._handleFileInput}></input>
 			<div class='buttons'>
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
