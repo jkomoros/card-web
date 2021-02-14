@@ -8,7 +8,7 @@ service firebase.storage {
 			return request.auth != null && request.auth.token != null && request.auth.token.firebase != null && request.auth.token.firebase.sign_in_provider == 'anonymous';
 		}
 
-		match /upload/{uid} {
+		match /uploads/{uid}/{fileName} {
 			allow get: if true;
 			allow list: if request.auth.uid == uid;
 			allow write: if request.auth.uid == uid && !isAnonymous();
