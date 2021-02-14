@@ -46,7 +46,7 @@ class CardImagesEditor extends connect(store)(LitElement) {
 		}
 		return html`
 			<tag-list .tags=${imgTagNames} .tagInfos=${tagInfos} .editing=${true} .overrideTypeName=${'Image'} .tapEvents=${true} @tag-tapped=${this._handleTagTapped} @new-tag=${this._handleNewTag} @remove-tag=${this._handleRemoveTag}></tag-list>
-			<image-properties-dialog></image-properties-editor>
+			<image-properties-dialog></image-properties-dialog>
 		`;
 	}
 
