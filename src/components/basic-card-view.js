@@ -87,7 +87,11 @@ class BasicCardView extends connect(store)(PageViewElement) {
 			//Signal to the top-level page that the card has been loaded.
 			//Screenshot service will check for this to know when to take a
 			//screenshot.
-			this.updateComplete.then(() => window[WINDOW_CARD_RENDERED_VARIABLE] = true);
+			this.updateComplete.then(() => {
+				this.shadowRoot.querySelector('card-stage').mainCardRenderer.imagesLoaded().then(() => {
+					window[WINDOW_CARD_RENDERED_VARIABLE] = true;
+				});
+			});
 		}
 	}
 

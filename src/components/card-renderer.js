@@ -548,6 +548,15 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		//updated() is called, the style properties still haven't (maybe because
 		//the updates of children haven't yet completed?)
 		setTimeout(() => this._setScrollingIndicators());
+
+		if (this._currentImagesPromise) {
+			//Make sure we're listening to any new images
+			this.updateComplete.then(() => {
+				this._listenForImageLoads();
+				//Check to see if all images are loaded (for example, if they're all gone now)
+				this._imageLoaded();
+			});
+		}
 	}
 
 	_setScrollingIndicators() {
@@ -567,6 +576,49 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				ele.classList.remove('scroll-indicators');
 			}
 		}
+	}
+
+	//called when an image with a load handler has loaded
+	_imageLoaded() {
+		//Remove this._currentImagesPromise
+		if (!this._allImagesLoaded()) return;
+		if (!this._currentImagesPromise) return;
+		if (!this._currentImagesResolve) return;
+		this._currentImagesPromise = null;
+		this._currentImagesResolve(true);
+		this._currentImagesResolve = null;
+	}
+
+	//returns true if all images are loaded
+	_allImagesLoaded() {
+		return [...this.shadowRoot.querySelectorAll('img')].every(img => img.complete);
+	}
+
+	_listenForImageLoads() {
+		const imgs = [...this.shadowRoot.querySelectorAll('img')];
+		for (const img of imgs) {
+			if (img.complete) continue;
+			if (img.hasImageLoadHandler) continue;
+			img.addEventListener('load', () => this._imageLoaded());
+			img.hasImageLoadHandler = true;
+		}
+	}
+
+	//Returns a promise that is resolved when all images in the content of the
+	//card are loaded.
+	imagesLoaded() {
+		if (this._allImagesLoaded()) return Promise.resolve(true);
+		if (this._currentImagesPromise) return this._currentImagesPromise;
+
+		//Install image load listeners where necessary. We'll need to redo this
+		//if the element is updated again while this promse is still out.
+		this._listenForImageLoads();
+
+		this._currentImagesPromise = new Promise(resolve => {
+			this._currentImagesResolve = resolve;
+		});
+
+		return this._currentImagesPromise;
 	}
 
 	//isOverflowing checks if any fields are overflowing--that is, that the
