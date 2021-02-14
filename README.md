@@ -17,6 +17,8 @@ Run `npm install` to install all of the dependencies.
 
 Run `npm install -g firebase-tools gulp polymer-cli` (you can skip any of those that you already have installed)
 
+Install the `gcloud` and `gsutil` commands by following the instructiosn at https://cloud.google.com/sdk/docs/install . (That one set of instructions will install both)
+
 Run `cp config.SAMPLE.json config.SECRET.json`
 
 Go to https://console.firebase.google.com. Create a new project. On the project overview, where it says "Get started by adding Firebase to your app", tap the web icon.  Give it a nickname. Tap set up. In the code snippet that appears, copy the JSON blob that is assigned to the `firebaseConfig` variable.
