@@ -588,6 +588,14 @@ export const manualCollaboratorAdded = (collaboratorUid) => {
 	return collaboratorAdded(collaboratorUid);
 };
 
+export const addImageWithFile = (file) => async (dispatch) => {
+
+	//TODO: append some random characters in the filename;
+	alert('Not yet implemented');
+
+	//dispatch(addImageWithURL(src, uploadPath));
+};
+
 //src must be a fully qualified URL. uploadPath is the filename in the upload
 //bucket, if applicable.
 export const addImageWithURL = (src, uploadPath = '') => async (dispatch, getState) => {

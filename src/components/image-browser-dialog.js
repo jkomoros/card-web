@@ -15,6 +15,7 @@ import {
 import {
 	closeImageBrowserDialog,
 	addImageWithURL,
+	addImageWithFile,
 } from '../actions/editor.js';
 
 import {
@@ -65,7 +66,9 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleFileInput() {
-		console.log('File selected');
+		const ele = this.shadowRoot.querySelector('#file');
+		store.dispatch(addImageWithFile(ele.files[0]));
+		store.dispatch(closeImageBrowserDialog());
 	}
 
 	stateChanged(state) {
