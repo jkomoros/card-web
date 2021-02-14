@@ -588,21 +588,35 @@ export const manualCollaboratorAdded = (collaboratorUid) => {
 //src must be a fully qualified URL. uploadPath is the filename in the upload
 //bucket, if applicable.
 export const addImageWithURL = (src, uploadPath = '') => async (dispatch, getState) => {
+	let images = (selectEditingCard(getState()) || {}).images || [];
+	for (const img of images) {
+		if (img.src == src) {
+			console.warn('An image already has that src');
+			return;
+		}
+	}
 	dispatch({
 		type: EDITING_ADD_IMAGE_URL,
 		src,
 		uploadPath,
 	});
-	const state = getState();
-	const card = selectEditingCard(state);
-	if (!card) return;
-	const index = card.images.length - 1;
 	const dim = await getImageDimensionsForImageAtURL(src);
 	if (!dim) {
 		console.warn('Image load failed to fetch resources');
 		return;
 	}
-	//TODO: make this more resilient to changes while loading is happenign
+	images = (selectEditingCard(getState()) || {}).images || [];
+	let index = -1;
+	for (let i = 0; i < images.length; i++) {
+		if (images[i].src == src) {
+			index = i;
+			break;
+		}
+	}
+	if (index < 0) {
+		console.warn('Invalid index');
+		return;
+	}
 	dispatch(changeImagePropertyAtIndex(index, 'height', dim.height));
 	dispatch(changeImagePropertyAtIndex(index, 'width', dim.width));
 };
