@@ -18,14 +18,22 @@
 export const getImageDimensionsForImageAtURL = async (url) => {
 	const imgEle = document.createElement('img');
 	imgEle.src = url;
-	let p = new Promise(resolve => {
+	let p = new Promise((resolve, reject) => {
 		imgEle.addEventListener('load', () => {
 			resolve();
+		});
+		imgEle.addEventListener('error', () => {
+			reject();
 		});
 	});
 	imgEle.style.display = 'none';
 	document.body.append(imgEle);
-	await p;
+	try {
+		await p;
+	} catch(err) {
+		console.warn(err);
+		return null;
+	}
 	const result = {
 		height: imgEle.naturalHeight,
 		width: imgEle.naturalWidth

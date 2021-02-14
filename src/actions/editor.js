@@ -591,6 +591,10 @@ export const addImageWithURL = (src, uploadPath = '') => async (dispatch, getSta
 	if (!card) return;
 	const index = card.images.length - 1;
 	const dim = await getImageDimensionsForImageAtURL(src);
+	if (!dim) {
+		console.warn('Image load failed to fetch resources');
+		return;
+	}
 	//TODO: make this more resilient to changes while loading is happenign
 	dispatch(changeImagePropertyAtIndex(index, 'height', dim.height));
 	dispatch(changeImagePropertyAtIndex(index, 'width', dim.width));
