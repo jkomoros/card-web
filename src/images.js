@@ -112,7 +112,7 @@ export const moveImageAtIndex = (imagesBlock, index, isRight) => {
 	if (!isRight && index < 1) return imagesBlock;
 	if (isRight && index > imagesBlock.length - 2) return imagesBlock;
 	const result = [...imagesBlock];
-	const ele = result.splice(index, 1);
+	const ele = result.splice(index, 1)[0];
 	const spliceIndex = isRight ? index + 1: index - 1;
 	result.splice(spliceIndex, 0, ele);
 	return result;
