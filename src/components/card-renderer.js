@@ -497,6 +497,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 
 		if (field == IMAGES_TEXT_FIELD) {
 			const images = getImagesFromCard(this._card);
+			let lastInsertedEle = null;
 			for (const image of images) {
 				const imgEle = document.createElement('img');
 				imgEle.src = image.src;
@@ -508,7 +509,13 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				if (image.width !== undefined) imgEle.width = image.width;
 				if (image.height !== undefined) imgEle.height = image.height;
 				if (image.emSize !== undefined) imgEle.style.width = '' + image.emSize + 'em';
-				ele.prepend(imgEle);
+				if (lastInsertedEle) {
+					lastInsertedEle.after(imgEle);
+				} else {
+					//First inserted image
+					ele.prepend(imgEle);
+				}
+				lastInsertedEle = imgEle;
 			}
 
 		}
