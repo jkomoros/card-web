@@ -22,8 +22,18 @@
 
 */
 
+//Will position left. Multiple images will go to the right of the one
+//immediatebly before them.
 const IMAGE_POSITION_TOP_LEFT = 'top-left';
+//Like top-left, but images after the first will stack below the ones before
+//them. For the first image, equivalent to top-left.
+const IMAGE_POSITION_LEFT = 'left';
+//Will position right. Multiple images will go to the left of the one
+//immediately before them.
 const IMAGE_POSITION_TOP_RIGHT = 'top-right';
+//Like top-right, but images after the first will stack below the ones before
+//them. For the first image, equivalent to top-right.
+const IMAGE_POSITION_RIGHT = 'right';
 
 const DEFAULT_IMAGE_POSITION = IMAGE_POSITION_TOP_LEFT;
 
@@ -32,8 +42,16 @@ export const LEGAL_IMAGE_POSITIONS = {
 	[IMAGE_POSITION_TOP_LEFT]: {
 		float: 'left'
 	},
+	[IMAGE_POSITION_LEFT]: {
+		float: 'left',
+		clear: 'left',
+	},
 	[IMAGE_POSITION_TOP_RIGHT]: {
 		float: 'right'
+	},
+	[IMAGE_POSITION_RIGHT]: {
+		float: 'right',
+		clear: 'right'
 	},
 };
 
