@@ -677,13 +677,19 @@ export const addImageWithURL = (src, uploadPath = '', index) => async (dispatch,
 	}
 	dispatch(changeImagePropertyAtIndex(actualIndex, 'height', dim.height));
 	dispatch(changeImagePropertyAtIndex(actualIndex, 'width', dim.width));
+
+	//Adding an image or changing what image shows is automatically substantive;
+	dispatch(substantiveUpdated(true, true));
 };
 
-export const removeImageAtIndex = (index) => {
-	return {
+export const removeImageAtIndex = (index) => (dispatch) => {
+	dispatch({
 		type: EDITING_REMOVE_IMAGE_AT_INDEX,
 		index
-	};
+	});
+
+	//Removing an image is automatically substantive
+	dispatch(substantiveUpdated(true, true));
 };
 
 export const moveImageAtIndex = (index, isRight) => {
