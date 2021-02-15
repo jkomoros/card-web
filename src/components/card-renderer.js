@@ -21,7 +21,8 @@ import {
 } from '../contenteditable.js';
 
 import {
-	getImagesFromCard
+	getImagesFromCard,
+	LEGAL_IMAGE_POSITIONS
 } from '../images.js';
 
 import {
@@ -238,7 +239,6 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				}
 
 				img {
-					float: left;
 					/* This will be overriden in the img.style.width */
 					width: 15em;
 					/* since height/width are set directly on img tags, the aspect ratio will be right */
@@ -501,6 +501,10 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				const imgEle = document.createElement('img');
 				imgEle.src = image.src;
 				imgEle.alt = image.alt || '';
+				const styleInfo = LEGAL_IMAGE_POSITIONS[image.position] || {};
+				for (const [property, value] of Object.entries(styleInfo)) {
+					imgEle.style[property] = value;
+				}
 				if (image.width !== undefined) imgEle.width = image.width;
 				if (image.height !== undefined) imgEle.height = image.height;
 				if (image.emSize !== undefined) imgEle.style.width = '' + image.emSize + 'em';

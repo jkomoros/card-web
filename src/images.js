@@ -13,18 +13,36 @@
 		uploadPath: 'path/to/upload/image.png',
 		//If set, the location where the original was found, for citations, etc.
 		original: 'https://www.example.com/image.png',
-		alt: 'Text that shows up in alt tag'
+		alt: 'Text that shows up in alt tag',
+		//Must be one of the values in LEGAL_IMAGE_POSITIONS
+		position: 'top-left',
 	}
 	//Other images may follow
 ]
 
 */
 
+const IMAGE_POSITION_TOP_LEFT = 'top-left';
+const IMAGE_POSITION_TOP_RIGHT = 'top-right';
+
+const DEFAULT_IMAGE_POSITION = IMAGE_POSITION_TOP_LEFT;
+
+//Each one is the style property/values to set on image eles with that value.
+export const LEGAL_IMAGE_POSITIONS = {
+	[IMAGE_POSITION_TOP_LEFT]: {
+		float: 'left'
+	},
+	[IMAGE_POSITION_TOP_RIGHT]: {
+		float: 'right'
+	},
+};
+
 const DEFAULT_IMAGE = {
 	src: '',
 	emSize: 15.0,
 	width: undefined,
 	height: undefined,
+	position: DEFAULT_IMAGE_POSITION,
 	uploadPath: '',
 	original: '',
 	alt: '',

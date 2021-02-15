@@ -21,7 +21,8 @@ import {
 } from '../actions/editor.js';
 
 import {
-	getImagesFromCard
+	getImagesFromCard,
+	LEGAL_IMAGE_POSITIONS,
 } from '../images.js';
 
 import {
@@ -55,6 +56,10 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 }
 			<label>Height x Width</label><em>${img.height || 'Unknown'} x ${img.width || 'Unknown'}</em>
 			<label>Size</label><input type='number' min='0.5' max='30.0' step='0.5' .property=${'emSize'} .value=${img.emSize} @input=${this._handleTextInput}></input>
+			<label>Position</label>
+			<select @change=${this._handleTextInput} .value=${img.position} .property=${'position'}>
+				${Object.keys(LEGAL_IMAGE_POSITIONS).map(item => html`<option value=${item} ?selected=${item == img.position}>${item}</option>`)}
+			</select>
 			<label>Alt Text</label> <input type='text' .property=${'alt'} .value=${img.alt} @input=${this._handleTextInput}></input>
 			<label>Original Location</label> <input type='text' .property=${'original'} .value=${img.original} @input=${this._handleTextInput}></input>
 			<div class='buttons'>
