@@ -66,6 +66,18 @@ const DEFAULT_IMAGE = {
 	alt: '',
 };
 
+export const setImageProperties = (img, ele) => {
+	ele.src = img.src;
+	ele.alt = img.alt || '';
+	const styleInfo = LEGAL_IMAGE_POSITIONS[img.position] || {};
+	for (const [property, value] of Object.entries(styleInfo)) {
+		ele.style[property] = value;
+	}
+	if (img.width !== undefined) ele.width = img.width;
+	if (img.height !== undefined) ele.height = img.height;
+	if (img.emSize !== undefined) ele.style.width = '' + img.emSize + 'em';
+};
+
 //getImagesFromCard gets the images from a card, filling in every item as a default.
 export const getImagesFromCard = (card) => {
 	if (!card) return [];

@@ -22,7 +22,7 @@ import {
 
 import {
 	getImagesFromCard,
-	LEGAL_IMAGE_POSITIONS
+	setImageProperties
 } from '../images.js';
 
 import {
@@ -500,15 +500,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			let lastInsertedEle = null;
 			for (const image of images) {
 				const imgEle = document.createElement('img');
-				imgEle.src = image.src;
-				imgEle.alt = image.alt || '';
-				const styleInfo = LEGAL_IMAGE_POSITIONS[image.position] || {};
-				for (const [property, value] of Object.entries(styleInfo)) {
-					imgEle.style[property] = value;
-				}
-				if (image.width !== undefined) imgEle.width = image.width;
-				if (image.height !== undefined) imgEle.height = image.height;
-				if (image.emSize !== undefined) imgEle.style.width = '' + image.emSize + 'em';
+				setImageProperties(image, imgEle);
 				if (lastInsertedEle) {
 					lastInsertedEle.after(imgEle);
 				} else {
