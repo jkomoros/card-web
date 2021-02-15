@@ -21,7 +21,7 @@ import {
 } from '../actions/editor.js';
 
 import {
-	DEFAULT_IMG_EM_SIZE
+	getImagesFromCard
 } from '../images.js';
 
 import {
@@ -31,8 +31,7 @@ import {
 
 class ImagePropertiesDialog extends connect(store)(DialogElement) {
 	innerRender() {
-		const card = this._card || {};
-		const images = card.images || [];
+		const images = getImagesFromCard(this._card);
 		const img = images[this._index] || {};
 		return html`
 			${ButtonSharedStyles}
@@ -54,9 +53,9 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 			<label>Upload Path</label><em>${img.uploadPath || ''}<button class='small' title='Edit image' @click=${this._handleEditImage}>${EDIT_ICON}</button></em>
 			<label>Height</label><em>${img.height || 'Unknown'}</em>
 			<label>Width</label><em>${img.width || 'Unknown'}</em>
-			<label>Size</label><input type='number' min='0.5' max='30.0' step='0.5' .property=${'emSize'} .value=${img.emSize || DEFAULT_IMG_EM_SIZE} @input=${this._handleTextInput}></input>
-			<label>Alt Text</label> <input type='text' .property=${'alt'} .value=${img.alt || ''} @input=${this._handleTextInput}></input>
-			<label>Original Location</label> <input type='text' .property=${'original'} .value=${img.original || ''} @input=${this._handleTextInput}></input>
+			<label>Size</label><input type='number' min='0.5' max='30.0' step='0.5' .property=${'emSize'} .value=${img.emSize} @input=${this._handleTextInput}></input>
+			<label>Alt Text</label> <input type='text' .property=${'alt'} .value=${img.alt} @input=${this._handleTextInput}></input>
+			<label>Original Location</label> <input type='text' .property=${'original'} .value=${img.original} @input=${this._handleTextInput}></input>
 			<div class='buttons'>
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>

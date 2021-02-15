@@ -12,12 +12,32 @@
 		//If the file is an uload, the path in the upload bucket. This is usef
 		uploadPath: 'path/to/upload/image.png',
 		//If set, the location where the original was found, for citations, etc.
-		original: 'https://www.example.com/image.png'
+		original: 'https://www.example.com/image.png',
+		alt: 'Text that shows up in alt tag'
 	}
 	//Other images may follow
 ]
 
 */
+
+const DEFAULT_IMAGE = {
+	src: '',
+	emSize: 15.0,
+	width: undefined,
+	height: undefined,
+	uploadPath: '',
+	original: '',
+	alt: '',
+};
+
+//getImagesFromCard gets the images from a card, filling in every item as a default.
+export const getImagesFromCard = (card) => {
+	if (!card) return [];
+	const images = card.images || [];
+	//Just in case, worst case pretend like there aren't images
+	if (!Array.isArray(images)) return [];
+	return images.map(img => ({...DEFAULT_IMAGE, ...img}));
+};
 
 export const srcSeemsValid = (src) => {
 	src = src.toLowerCase();
@@ -53,17 +73,13 @@ export const getImageDimensionsForImageAtURL = async (url) => {
 	return result;
 };
 
-export const DEFAULT_IMG_EM_SIZE = 15.0;
-
 //Returns a new images block with the given image added. If index is undefined,
 //will add a new item to end.z
 export const addImageWithURL = (imagesBlock, src, uploadPath = '', index) => {
 	if (!imagesBlock) imagesBlock = [];
 	let result = [...imagesBlock];
 	if (index === undefined) {
-		result.push({
-			emSize: DEFAULT_IMG_EM_SIZE,
-		});
+		result.push({...DEFAULT_IMAGE});
 		index = result.length - 1;
 	}
 	const imgItem = {...result[index]};
@@ -91,9 +107,9 @@ export const changeImagePropertyAtIndex = (imagesBlock, index, property, value) 
 	return result;
 };
 
-export const imageBlocksEquivalent = (one, two) => {
-	if (one == two) return true;
-	if (!one || !two) return false;
+export const imageBlocksEquivalent = (oneCard, twoCard) => {
+	const one = getImagesFromCard(oneCard);
+	const two = getImagesFromCard(twoCard);
 	if (one.length != two.length) return false;
 	for (let i = 0; i < one.length; i++) {
 		const oneImg = one[i];

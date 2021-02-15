@@ -104,7 +104,8 @@ import {
 import {
 	imageBlocksEquivalent,
 	getImageDimensionsForImageAtURL,
-	srcSeemsValid
+	srcSeemsValid,
+	getImagesFromCard
 } from '../images.js';
 
 import {
@@ -233,7 +234,7 @@ export const editingCommit = () => async (dispatch, getState) => {
 		}
 	}
 
-	for (const img of updatedCard.images) {
+	for (const img of getImagesFromCard(updatedCard)) {
 		if (img.height === undefined || img.width === undefined) {
 			alert('One of the images does not yet have its height/width set yet. It might still be loading. Try removing it and readding it.');
 			return;
@@ -288,7 +289,7 @@ export const editingCommit = () => async (dispatch, getState) => {
 	if (collaboratorAdditions.length) update.add_collaborators = collaboratorAdditions;
 	if (collaboratorDeletions.length) update.remove_collaborators = collaboratorDeletions;
 
-	if (!imageBlocksEquivalent(underlyingCard.images, updatedCard.images)) update.images = updatedCard.images;
+	if (!imageBlocksEquivalent(underlyingCard, updatedCard)) update.images = updatedCard.images;
 
 	//if references changed, pass the ENTIRE new references object in on update.
 	//We pass the whole references since modifyCard will need to extractLinks
@@ -643,7 +644,7 @@ export const addImageWithURL = (src, uploadPath = '', index) => async (dispatch,
 		return;
 	}
 
-	let images = (selectEditingCard(getState()) || {}).images || [];
+	let images = getImagesFromCard(selectEditingCard(getState()));
 	for (const img of images) {
 		if (img.src == src) {
 			console.warn('An image already has that src');
@@ -661,7 +662,7 @@ export const addImageWithURL = (src, uploadPath = '', index) => async (dispatch,
 		alert('Image load failed to fetch resources');
 		return;
 	}
-	images = (selectEditingCard(getState()) || {}).images || [];
+	images = getImagesFromCard(selectEditingCard(getState()));
 	let actualIndex = -1;
 	for (let i = 0; i < images.length; i++) {
 		if (images[i].src == src) {

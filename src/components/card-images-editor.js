@@ -19,6 +19,10 @@ import {
 	openImageBrowserDialog
 } from '../actions/editor.js';
 
+import {
+	getImagesFromCard
+} from '../images.js';
+
 import './tag-list.js';
 import './image-properties-dialog.js';
 import './image-browser-dialog.js';
@@ -28,7 +32,7 @@ class CardImagesEditor extends connect(store)(LitElement) {
 
 		if (!IMAGE_CARD_TYPES[this._effectiveCard.card_type]) return html`<em>This card type does not support images.</em>`;
 
-		const images = this._effectiveCard.images || [];
+		const images = getImagesFromCard(this._card);
 
 		const invalidColor = '#b22222'; //firebrick
 		const loadedColor = '#006400'; //darkgreen

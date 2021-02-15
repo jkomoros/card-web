@@ -21,6 +21,10 @@ import {
 } from '../contenteditable.js';
 
 import {
+	getImagesFromCard
+} from '../images.js';
+
+import {
 	TEXT_FIELD_BODY,
 	TEXT_FIELD_TITLE,
 	TEXT_FIELD_CONFIGURATION,
@@ -492,7 +496,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		}
 
 		if (field == IMAGES_TEXT_FIELD) {
-			const images = this._card.images || [];
+			const images = getImagesFromCard(this._card);
 			for (const image of images) {
 				const imgEle = document.createElement('img');
 				imgEle.src = image.src;

@@ -20,6 +20,10 @@ import {
 	getDocument
 } from './document.js';
 
+import {
+	getImagesFromCard
+} from './images.js';
+
 //define this here and then re-export form app.js so this file doesn't need any
 //other imports.
 export const _PAGE_BASIC_CARD = 'basic-card';
@@ -194,7 +198,7 @@ export const reasonCardTypeNotLegalForCard = (card, proposedCardType) => {
 		}
 	}
 
-	if (card.images.length > 0 && !IMAGE_CARD_TYPES[proposedCardType]) return 'The card has images but the new card type does not allow images';
+	if (getImagesFromCard(card).length > 0 && !IMAGE_CARD_TYPES[proposedCardType]) return 'The card has images but the new card type does not allow images';
 
 	return '';
 };
