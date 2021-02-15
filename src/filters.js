@@ -902,6 +902,7 @@ const CARD_FILTER_CONFIGS = Object.assign(
 	{
 		'comments': [defaultCardFilterName('comments'), card => card.thread_count, TODO_TYPE_NA, 0.0, 'Whether the card has comments'],
 		'notes': [defaultCardFilterName('notes'), card => cardHasNotes(card), TODO_TYPE_NA, 0.0, 'Whether the card has notes'],
+		'images': [defaultCardFilterName('images'), card => card && card.images && card.images.length, TODO_TYPE_NA, 0.0, 'Whether the card has images'],
 		'orphaned': [defaultNonTodoCardFilterName('orphaned'), card => !card.section, TODO_TYPE_NA, 0.0, 'Whether the card is part of a section or not'],
 		'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, TODO_TYPE_AUTO_CONTENT, 0.2, 'Whether the card has a slug set'],
 		'content': [defaultCardFilterName('content'), card => cardHasContent(card), TODO_TYPE_AUTO_CONTENT_AND_CONCEPT, 5.0, 'Whether the card has any content whatsoever'],
