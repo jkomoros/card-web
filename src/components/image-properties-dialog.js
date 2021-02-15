@@ -17,7 +17,8 @@ import {
 import {
 	closeImagePropertiesDialog,
 	changeImagePropertyAtIndex,
-	openImageBrowserDialog
+	openImageBrowserDialog,
+	moveImageAtIndex
 } from '../actions/editor.js';
 
 import {
@@ -27,7 +28,9 @@ import {
 
 import {
 	CHECK_CIRCLE_OUTLINE_ICON,
-	EDIT_ICON
+	EDIT_ICON,
+	ARROW_BACK_ICON,
+	ARROW_FORWARD_ICON,
 } from './my-icons.js';
 
 class ImagePropertiesDialog extends connect(store)(DialogElement) {
@@ -62,6 +65,11 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 			</select>
 			<label>Alt Text</label> <input type='text' .property=${'alt'} .value=${img.alt} @input=${this._handleTextInput}></input>
 			<label>Original Location</label> <input type='text' .property=${'original'} .value=${img.original} @input=${this._handleTextInput}></input>
+			<label>Move Image</label>
+			<div>
+				<button class='small' title='Move image left' .disabled=${this._index < 1} @click=${this._handleLeftClicked}>${ARROW_BACK_ICON}</button>
+				<button class='small' title='Move image right' .disabled=${this._index >= images.length - 1} @click=${this._handleRightClicked}>${ARROW_FORWARD_ICON}</button>
+			</div>
 			<div class='buttons'>
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
@@ -76,6 +84,14 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 	_handleTextInput(e) {
 		const ele = e.composedPath()[0];
 		store.dispatch(changeImagePropertyAtIndex(this._index, ele.property, ele.value));
+	}
+
+	_handleLeftClicked() {
+		store.dispatch(moveImageAtIndex(this._index, false));
+	}
+
+	_handleRightClicked() {
+		store.dispatch(moveImageAtIndex(this._index, true));
 	}
 
 	_handleDoneClicked() {
