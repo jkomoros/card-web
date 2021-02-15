@@ -112,7 +112,6 @@ describe('fingerprint generation', () => {
 				'concept_references': [],
 				'non_link_references': [],
 				'references_info_inbound': [],
-				'strong_body_text': [],
 				'title_alternates': [],
 			},
 			[CARD_ID_TWO]: {
@@ -136,7 +135,6 @@ describe('fingerprint generation', () => {
 				],
 				'concept_references': [],
 				'non_link_references': [],
-				'strong_body_text': [],
 				'title_alternates': [],
 			},
 			[CARD_ID_THREE]: {
@@ -154,7 +152,6 @@ describe('fingerprint generation', () => {
 				'concept_references': [],
 				'non_link_references': [],
 				'references_info_inbound': [],
-				'strong_body_text': [],
 				'title_alternates': [],
 			},
 			[CARD_ID_FOUR]: {
@@ -174,7 +171,6 @@ describe('fingerprint generation', () => {
 				'concept_references': [],
 				'non_link_references': [],
 				'references_info_inbound': [],
-				'strong_body_text': [],
 				'title_alternates': [],
 			},
 			[CARD_ID_FIVE]: {
@@ -190,7 +186,6 @@ describe('fingerprint generation', () => {
 				'concept_references': [],
 				'non_link_references': [],
 				'references_info_inbound': [],
-				'strong_body_text': [],
 				'title_alternates': [],
 			},
 		};
@@ -490,14 +485,14 @@ describe('fingerprint generation', () => {
 			'Model Blammo',
 			'Cynenfin Model',
 			'Model Dupe',
+			'Use',
 			'Effort',
 			'Next',
 			'Beware',
 			'Efficiency',
 			'Using the Cynefin',
 			'Model to Understand',
-			'Model Divides',
-			'Divides Problems'
+			'Model Divides'
 		];
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});
@@ -567,7 +562,7 @@ describe('fingerprint generation', () => {
 		const generator = new FingerprintGenerator(cards);
 		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
 		const pretty = fingerprint.dedupedPrettyItems();
-		const expectedPretty = 'Cynefin Model Terminology Called Complicated Chaotic Unknowably Require Hard Problems Complex Cynefin\'s Blammo Cynenfin Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Diagnosing Shifted Different Past Dupe Simple Ambiguous Trivial Black White Consistently Effort Next Beware Efficiency Using Understand';
+		const expectedPretty = 'Cynefin Model Terminology Called Complicated Chaotic Unknowably Require Hard Problems Complex Cynefin\'s Blammo Cynenfin Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Diagnosing Shifted Different Past Dupe Simple Ambiguous Trivial Black White Consistently Use Effort Next Beware Efficiency Using Understand';
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});
 
