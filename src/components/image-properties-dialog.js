@@ -49,8 +49,10 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 					font-weight:normal;
 				}
 			</style>
-			<label>Src</label><em>${img.src}<button class='small' title='Edit image' @click=${this._handleEditImage}>${EDIT_ICON}</button></em>
-			<label>Upload Path</label><em>${img.uploadPath || ''}<button class='small' title='Edit image' @click=${this._handleEditImage}>${EDIT_ICON}</button></em>
+			${img.uploadPath ? 
+		html`<label>Upload Path</label><em>${img.uploadPath || ''}<button class='small' title='Edit image' @click=${this._handleEditImage}>${EDIT_ICON}</button></em>` :
+		html`<label>Src</label><em>${img.src}<button class='small' title='Edit image' @click=${this._handleEditImage}>${EDIT_ICON}</button></em>`
+}
 			<label>Height x Width</label><em>${img.height || 'Unknown'} x ${img.width || 'Unknown'}</em>
 			<label>Size</label><input type='number' min='0.5' max='30.0' step='0.5' .property=${'emSize'} .value=${img.emSize} @input=${this._handleTextInput}></input>
 			<label>Alt Text</label> <input type='text' .property=${'alt'} .value=${img.alt} @input=${this._handleTextInput}></input>
