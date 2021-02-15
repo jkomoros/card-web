@@ -16,6 +16,8 @@
 		alt: 'Text that shows up in alt tag',
 		//Must be one of the values in LEGAL_IMAGE_POSITIONS
 		position: 'top-left',
+		//number in ems
+		margin: 0.25,
 	}
 	//Other images may follow
 ]
@@ -37,27 +39,40 @@ const IMAGE_POSITION_RIGHT = 'right';
 
 const DEFAULT_IMAGE_POSITION = IMAGE_POSITION_TOP_LEFT;
 
+//A distinctive thing to stand in for "the image's margin value" when setting
+//styles.
+const MARGIN_SENTINEL = {};
+
 //Each one is the style property/values to set on image eles with that value.
 export const LEGAL_IMAGE_POSITIONS = {
 	[IMAGE_POSITION_TOP_LEFT]: {
-		float: 'left'
+		float: 'left',
+		marginRight: MARGIN_SENTINEL,
+		marginBottom: MARGIN_SENTINEL,
 	},
 	[IMAGE_POSITION_LEFT]: {
 		float: 'left',
 		clear: 'left',
+		marginRight: MARGIN_SENTINEL,
+		marginBottom: MARGIN_SENTINEL,
 	},
 	[IMAGE_POSITION_TOP_RIGHT]: {
-		float: 'right'
+		float: 'right',
+		marginLeft: MARGIN_SENTINEL,
+		marginBottom: MARGIN_SENTINEL,
 	},
 	[IMAGE_POSITION_RIGHT]: {
 		float: 'right',
-		clear: 'right'
+		clear: 'right',
+		marginLeft: MARGIN_SENTINEL,
+		marginBottom: MARGIN_SENTINEL,
 	},
 };
 
 const DEFAULT_IMAGE = {
 	src: '',
 	emSize: 15.0,
+	margin: 1.0,
 	width: undefined,
 	height: undefined,
 	position: DEFAULT_IMAGE_POSITION,
@@ -70,7 +85,8 @@ export const setImageProperties = (img, ele) => {
 	ele.src = img.src;
 	ele.alt = img.alt || '';
 	const styleInfo = LEGAL_IMAGE_POSITIONS[img.position] || {};
-	for (const [property, value] of Object.entries(styleInfo)) {
+	for (let [property, value] of Object.entries(styleInfo)) {
+		if (value == MARGIN_SENTINEL) value = '' + img.margin + 'em';
 		ele.style[property] = value;
 	}
 	if (img.width !== undefined) ele.width = img.width;

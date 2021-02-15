@@ -72,6 +72,9 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 					<label>Size</label><input type='number' min='0.5' max='30.0' step='0.5' .property=${'emSize'} .value=${img.emSize} @input=${this._handleTextInput}></input>
 				</div>
 				<div>
+					<label>Margin</label><input type='number' min='0.0' max='10.0' step='0.25' .property=${'margin'} .value=${img.margin} @input=${this._handleTextInput}></input>
+				</div>
+				<div>
 					<label>Position</label>
 					<select @change=${this._handleTextInput} .value=${img.position} .property=${'position'}>
 						${Object.keys(LEGAL_IMAGE_POSITIONS).map(item => html`<option value=${item} ?selected=${item == img.position}>${item}</option>`)}
