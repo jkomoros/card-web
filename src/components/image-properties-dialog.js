@@ -52,24 +52,44 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 				h3 {
 					font-weight:normal;
 				}
+				.row {
+					display:flex;
+					flex-direction:row;
+				}
+				.row > div {
+					display: flex;
+					flex-direction: column;
+					flex-grow: 1;
+					margin:0.25em;
+				}
 			</style>
 			${img.uploadPath ? 
 		html`<label>Upload Path</label><em>${img.uploadPath || ''}<button class='small' title='Edit image' @click=${this._handleEditImage}>${EDIT_ICON}</button></em>` :
 		html`<label>Src</label><em>${img.src}<button class='small' title='Edit image' @click=${this._handleEditImage}>${EDIT_ICON}</button></em>`
 }
-			<label>Height x Width</label><em>${img.height || 'Unknown'} x ${img.width || 'Unknown'}</em>
-			<label>Size</label><input type='number' min='0.5' max='30.0' step='0.5' .property=${'emSize'} .value=${img.emSize} @input=${this._handleTextInput}></input>
-			<label>Position</label>
-			<select @change=${this._handleTextInput} .value=${img.position} .property=${'position'}>
-				${Object.keys(LEGAL_IMAGE_POSITIONS).map(item => html`<option value=${item} ?selected=${item == img.position}>${item}</option>`)}
-			</select>
+			<div class='row'>
+				<div>
+					<label>Size</label><input type='number' min='0.5' max='30.0' step='0.5' .property=${'emSize'} .value=${img.emSize} @input=${this._handleTextInput}></input>
+				</div>
+				<div>
+					<label>Position</label>
+					<select @change=${this._handleTextInput} .value=${img.position} .property=${'position'}>
+						${Object.keys(LEGAL_IMAGE_POSITIONS).map(item => html`<option value=${item} ?selected=${item == img.position}>${item}</option>`)}
+					</select>
+				</div>
+				<div>
+					<label>Move Image</label>
+					<div>
+						<button class='small' title='Move image left' .disabled=${this._index < 1} @click=${this._handleLeftClicked}>${ARROW_BACK_ICON}</button>
+						<button class='small' title='Move image right' .disabled=${this._index >= images.length - 1} @click=${this._handleRightClicked}>${ARROW_FORWARD_ICON}</button>
+					</div>
+				</div>
+				<div>
+					<label>Height x Width</label><em>${img.height || 'Unknown'} x ${img.width || 'Unknown'}</em>
+				</div>
+			</div>
 			<label>Alt Text</label> <input type='text' .property=${'alt'} .value=${img.alt} @input=${this._handleTextInput}></input>
 			<label>Original Location</label> <input type='text' .property=${'original'} .value=${img.original} @input=${this._handleTextInput}></input>
-			<label>Move Image</label>
-			<div>
-				<button class='small' title='Move image left' .disabled=${this._index < 1} @click=${this._handleLeftClicked}>${ARROW_BACK_ICON}</button>
-				<button class='small' title='Move image right' .disabled=${this._index >= images.length - 1} @click=${this._handleRightClicked}>${ARROW_FORWARD_ICON}</button>
-			</div>
 			<div class='buttons'>
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
