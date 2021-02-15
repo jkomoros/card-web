@@ -107,6 +107,17 @@ export const addImageWithURL = (imagesBlock, src, uploadPath = '', index) => {
 	return result;
 };
 
+export const moveImageAtIndex = (imagesBlock, index, isRight) => {
+	if (index < 0 || index >= imagesBlock.length) return imagesBlock;
+	if (!isRight && index < 1) return imagesBlock;
+	if (isRight && index > imagesBlock.length - 2) return imagesBlock;
+	const result = [...imagesBlock];
+	const ele = result.splice(index, 1);
+	const spliceIndex = isRight ? index + 1: index - 1;
+	result.splice(spliceIndex, 0, ele);
+	return result;
+};
+
 export const removeImageAtIndex = (imagesBlock, index) => {
 	const result = [];
 	for (let i = 0; i < imagesBlock.length; i++) {

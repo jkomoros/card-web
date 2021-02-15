@@ -29,6 +29,7 @@ import {
 	EDITING_REMOVE_REFERENCE,
 	EDITING_ADD_IMAGE_URL,
 	EDITING_REMOVE_IMAGE_AT_INDEX,
+	EDITING_MOVE_IMAGE_AT_INDEX,
 	EDITING_CHANGE_IMAGE_PROPERTY,
 	EDITING_OPEN_IMAGE_PROPERTIES_DIALOG,
 	EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG,
@@ -63,7 +64,8 @@ import {
 import {
 	addImageWithURL,
 	removeImageAtIndex,
-	changeImagePropertyAtIndex
+	changeImagePropertyAtIndex,
+	moveImageAtIndex
 } from '../images.js';
 
 const DEFAULT_TAB = TAB_CONFIG;
@@ -314,6 +316,18 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			card: {...state.card, images: removeImageAtIndex(state.card.images, action.index)},
+		};
+	case EDITING_MOVE_IMAGE_AT_INDEX:
+		//If we were looking at that item (which is the common case), also
+		//modify which element is open
+		let newIndex = state.imagePropertiesDialogIndex;
+		if (action.index == state.imagePropertiesDialogIndex) {
+			newIndex += action.isRight ? 1 : -1;
+		}
+		return {
+			...state,
+			imagePropertiesDialogIndex: newIndex,
+			card: {...state.card, images: moveImageAtIndex(state.card.images, action.index, action.isRight)},
 		};
 	case EDITING_CHANGE_IMAGE_PROPERTY:
 		return {
