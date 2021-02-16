@@ -1137,6 +1137,7 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		ID: id,
 		cardType: cardType,
 		navigate: true,
+		noSectionChange: !section,
 	});
 
 	if (!section) {
