@@ -366,6 +366,8 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 	_handleTrack(e) {
 		//Wait until the track ends, and they lift their finger
 		if (e.detail.state != 'end') return;
+		//If the sourcEvent is a mouseevent, then we're on a desktop and might have been selecting text.
+		if (e.detail.sourceEvent.type == 'mouseup') return;
 		if (e.detail.dx > SWIPE_DX) {
 			this.dispatchEvent(new CustomEvent('card-swiped', {composed:true, detail: {direction:'right'}}));
 		}
