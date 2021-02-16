@@ -72,6 +72,7 @@ import {
 } from '../actions/collection.js';
 
 import {
+	navigatePathTo,
 	toggleCardsDrawerInfo
 } from '../actions/app.js';
 
@@ -524,6 +525,17 @@ class CardView extends connect(store)(PageViewElement) {
 				store.dispatch(createCard({section: this._activeSectionId}));
 			}
 			return killEvent(e);
+		} else if (e.key == 'l') {
+			//Ctrl-Shift-L is a way to navigate to a URL in the web app without
+			//modifying the URL bar in the browser, which will lead to a full
+			//refresh.
+			if (e.shiftKey) {
+				const location = window.location.pathname;
+				const newLocation = prompt('Where do you want to navigate to?', location);
+				if (!newLocation) return;
+				if (newLocation == location) return;
+				store.dispatch(navigatePathTo(newLocation, false));
+			}
 		}
 	}
 
