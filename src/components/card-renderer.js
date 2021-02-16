@@ -440,27 +440,38 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			}
 		}
 
-		const ele = document.createElement(config.container || 'span');
+		let ele = this._elements[field];
 
-		this._elements[field] = ele;
-		ele.field = field;
-		ele.dataset.field = field;
+		if (!ele) {
+			ele = document.createElement(config.container || 'span');
+			this._elements[field] = ele;
+			ele.field = field;
+			ele.dataset.field = field;
 
-		if (!value && config.hideIfEmpty) {
-			ele.setAttribute('hidden', '');
+			if (!value && config.hideIfEmpty) {
+				ele.setAttribute('hidden', '');
+			}
 		}
 
 		if (this.editing && !config.noContentEditable) {
 			makeElementContentEditable(ele);
-			ele.addEventListener('input', this._textFieldChanged.bind(this));
-			//When a content editable item is blurred, update it. This will have
-			//the effect of normalizing HTML, since this overall handler will
-			//run fully as long as the item is not selected. Yes, it's weird
-			//that there's a change we react to that's not in the
-			//state/properties of the object, but the focused node is state
-			//managed by the browser so :shrug:.
-			ele.addEventListener('blur', () => this.requestUpdate());
+			//Only install the content editable listeners once. Otherwise, you
+			//get serious performance regressions as observed in #452.
+			if (!ele.hasContentEditableListeners) {
+				ele.addEventListener('input', this._textFieldChanged.bind(this));
+				//When a content editable item is blurred, update it. This will have
+				//the effect of normalizing HTML, since this overall handler will
+				//run fully as long as the item is not selected. Yes, it's weird
+				//that there's a change we react to that's not in the
+				//state/properties of the object, but the focused node is state
+				//managed by the browser so :shrug:.
+				ele.addEventListener('blur', () => this.requestUpdate());
+				ele.hasContentEditableListeners = true;
+			}
 			if (config.html) htmlToSet = normalizeBodyToContentEditable(htmlToSet);
+		} else {
+			//Ele might not be a fresh element, so make sure it's not editable if it's not supposed to be.
+			ele.contentEditable = 'false';
 		}
 
 		if (config.html) {
