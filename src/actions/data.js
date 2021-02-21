@@ -211,13 +211,8 @@ const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURA
 	REFERENCES_CARD_PROPERTY,
 ]).map(key => [key,true]));
 
-export const modifyCard = (card, update, substantive, optBatch) => async (dispatch, getState) => {
+export const modifyCard = (card, update, substantive) => async (dispatch, getState) => {
 
-	//If optBatch is provided, then it will not create a batch and instead make
-	//the modifications on it, and then NOT commit it. If optBatch is not
-	//provided, it will create a batch and commit it before returning.
-
-	//Check to make sure card sin't being modified
 	const state = getState();
 
 	if (selectCardModificationPending(state)) {
@@ -230,16 +225,37 @@ export const modifyCard = (card, update, substantive, optBatch) => async (dispat
 		return;
 	}
 
-	const user = selectUser(state);
+	dispatch(modifyCardAction(card.id));
 
-	if (!user) {
-		console.log('No user');
+	const batch = db.batch();
+
+	try {
+		modifyCardWithBatch(state, card, update, substantive, batch);
+	} catch (err) {
+		dispatch(modifyCardFailure(err));
 		return;
 	}
 
-	if (!selectCardIDsUserMayEdit(state)[card.id]) {
-		console.log('User isn\'t allowed to edit the given card');
+	try {
+		await batch.commit();
+		dispatch(modifyCardSuccess());
+	} catch(err) {
+		dispatch(modifyCardFailure('Couldn\'t save card: ' + err));
 		return;
+	}
+
+};
+
+const modifyCardWithBatch = (state, card, update, substantive, batch) => {
+
+	const user = selectUser(state);
+
+	if (!user) {
+		throw new Error('No user');
+	}
+
+	if (!selectCardIDsUserMayEdit(state)[card.id]) {
+		throw new Error('User isn\'t allowed to edit the given card');
 	}
 
 	let keysCount = 0;
@@ -247,17 +263,13 @@ export const modifyCard = (card, update, substantive, optBatch) => async (dispat
 	for (let key of Object.keys(update)) {
 		keysCount++;
 		if (!LEGAL_UPDATE_FIELDS[key]) {
-			console.log('Illegal field in update: ' + key, update);
-			return;
+			throw new Error('Illegal field in update: ' + key, update);
 		}
 	}
 
 	if (keysCount == 0) {
-		console.log('Nothing changed in update!');
-		return;
+		throw new Error('Nothing changed in update!');
 	}
-
-	dispatch(modifyCardAction(card.id));
 
 	let updateObject = {
 		...update,
@@ -289,12 +301,10 @@ export const modifyCard = (card, update, substantive, optBatch) => async (dispat
 		const referencesNonexistentCards = cardIDAdditions.some(id => !cards[id]);
 
 		if (referencesNonexistentCards) {
-			dispatch(modifyCardFailure('The card referenced a card that does not yet exist'));
-			return; 
+			throw new Error('The card referenced a card that does not yet exist');
 		}
 		if (references(update).array().filter(id => id == card.id).length) {
-			dispatch(modifyCardFailure('The card references itself which is not allowed'));
-			return;
+			throw new Error('The card references itself which is not allowed');
 		}
 		//Note: update.references_info is the only property type that we accept in
 		//modifyCard's update that is NOT pre-diffed. That's because the
@@ -339,13 +349,11 @@ export const modifyCard = (card, update, substantive, optBatch) => async (dispat
 		let section = update.section === undefined ? card.section : update.section;
 		if (!section){
 			if (!CARD_TYPE_CONFIG.orphanedByDefault && !confirm('This card being orphaned will cause it to not be findable except with a direct link. OK?')) {
-				dispatch(modifyCardFailure('User aborted because didn\'t confirm orphaning'));
-				return; 
+				throw new Error('User aborted because didn\'t confirm orphaning');
 			}
 		} else {
 			if (CARD_TYPE_CONFIG.orphanedByDefault && !confirm('This is a card type that typcially is not in a section, but with this edit it will be in a section. OK?')) {
-				dispatch(modifyCardFailure('User aborted because didn\'t confirm not orphaning'));
-				return; 
+				throw new Error('User aborted because didn\'t confirm not orphaning');
 			}
 		}
 	}
@@ -353,14 +361,12 @@ export const modifyCard = (card, update, substantive, optBatch) => async (dispat
 	if (update.section !== undefined) {
 		if (update.section) {
 			if (!getUserMayEditSection(state, update.section)) {
-				dispatch(modifyCardFailure('The user cannot modify the section the card is moving to'));
-				return;
+				throw new Error('The user cannot modify the section the card is moving to');
 			}
 		}
 		if (card.section) {
 			if (!getUserMayEditSection(state, card.section)) {
-				dispatch(modifyCardFailure('The section the card is leaving is not one the user has edit access for'));
-				return;
+				throw new Error('The section the card is leaving is not one the user has edit access for');
 			}
 		}
 		cardUpdateObject.section = update.section;
@@ -370,8 +376,7 @@ export const modifyCard = (card, update, substantive, optBatch) => async (dispat
 	if (update.card_type !== undefined) {
 		const illegalReason = reasonCardTypeNotLegalForCard(card, update.card_type);
 		if (illegalReason) {
-			dispatch(modifyCardFailure('Can\'t change the card_type: ' + illegalReason));
-			return;
+			throw new Error('Can\'t change the card_type: ' + illegalReason);
 		}
 
 		cardUpdateObject.card_type = update.card_type;
@@ -386,8 +391,7 @@ export const modifyCard = (card, update, substantive, optBatch) => async (dispat
 		if (update.removeTags) {
 			for (let tag of update.removeTags) {
 				if (!getUserMayEditTag(state, tag)) {
-					dispatch(modifyCardFailure('User is not allowed to edit tag: ' + tag));
-					return;
+					throw new Error('User is not allowed to edit tag: ' + tag);
 				}
 			}
 			tags = arrayRemove(tags, update.removeTags);
@@ -395,8 +399,7 @@ export const modifyCard = (card, update, substantive, optBatch) => async (dispat
 		if (update.addTags) {
 			for (let tag of update.addTags) {
 				if (!getUserMayEditTag(state, tag)) {
-					dispatch(modifyCardFailure('User is not allowed to edit tag: ' + tag));
-					return;
+					throw new Error('User is not allowed to edit tag: ' + tag);
 				}
 			}
 			tags = arrayUnion(tags, update.addTags);
@@ -409,8 +412,7 @@ export const modifyCard = (card, update, substantive, optBatch) => async (dispat
 		if (update.remove_editors) editors = arrayRemove(editors, update.remove_editors);
 		if (update.add_editors) {
 			if (!confirm('You\'ve added editors. Those users will be able to edit this card. OK?')) {
-				dispatch(modifyCardFailure('User aborted because didn\'t confirm editing', true));
-				return;
+				throw new Error('User aborted because didn\'t confirm editing');
 			}
 			editors = arrayUnion(editors, update.add_editors);
 		}
@@ -431,8 +433,6 @@ export const modifyCard = (card, update, substantive, optBatch) => async (dispat
 		if (update.auto_todo_overrides_removals) update.auto_todo_overrides_removals.forEach(key => delete overrides[key]);
 		cardUpdateObject.auto_todo_overrides = overrides;
 	}
-
-	let batch = optBatch || db.batch();
 
 	let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
 
@@ -509,16 +509,6 @@ export const modifyCard = (card, update, substantive, optBatch) => async (dispat
 			};
 			batch.update(tagRef, newTagObject);
 			batch.set(tagUpdateRef, newTagUpdateObject);
-		}
-	}
-
-	if (!optBatch) {
-		try {
-			await batch.commit();
-			dispatch(modifyCardSuccess());
-		} catch(err) {
-			dispatch(modifyCardFailure('Couldn\'t save card: ' + err));
-			return;
 		}
 	}
 
