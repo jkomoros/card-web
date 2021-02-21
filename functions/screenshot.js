@@ -124,7 +124,7 @@ const makeScreenshot = async (card, cardLinkCards) => {
 
 	//Wait a little bit longer just for good measure, especially since the card
 	//fades in as it loads in basic-card-viewer.
-	await page.waitFor(1000);
+	await page.waitForTimeout(1000);
 	const png = await page.screenshot();
 	await browser.close();
 	return png;
