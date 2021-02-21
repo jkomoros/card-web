@@ -17,6 +17,7 @@
     "firebase-admin": "^8.9.2",
     "firebase-functions": "^3.13.1",
     "fromentries": "^1.2.0",
+    "json-stringify-deterministic": "^1.0.1",
     "md5": "^2.2.1",
     "nodemailer": "^6.4.2",
     "nodemailer-postmark-transport": "^2.2.0",

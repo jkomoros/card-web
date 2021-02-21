@@ -1,11 +1,13 @@
 const common = require('./common.js');
 const puppeteer = require('puppeteer');
 const md5 = require('md5');
+//JSON.stringify is not deterministic, but we need it to be to use as a hash.
+const stringify = require('json-stringify-deterministic');
 
 //SCREENSHOT_VERSION should be incremented whenever the settings or generation
 //logic changes, such that a fetch for an unchanged card should generate a new
 //screenshot.
-const SCREENSHOT_VERSION = 6;
+const SCREENSHOT_VERSION = 7;
 const SCREENSHOT_WIDTH = 1330;
 const SCREENSHOT_HEIGHT = 768;
 
@@ -31,11 +33,15 @@ const screenshotFileNameForCard = (card, cardLinkCards) => {
 	const subtitle = card.subtitle || "";
 	const body = card.body || "";
 	const starCount = String(card.star_count || 0);
+	const images = card.images || [];
+	const imagesJSON = stringify(images);
 
 	const publishedCardKeys = Object.keys(cardLinkCards).filter(key => cardLinkCards[key].published);
 	publishedCardKeys.sort();
 
-	const hash = md5(title + ':' + subtitle + ':' + body + ':' + starCount + ':' + publishedCardKeys.join('+'));
+	const str = title + ':' + subtitle + ':' + body + ':' + starCount + ':' + publishedCardKeys.join('+') + ':' + imagesJSON;
+
+	const hash = md5(str);
 
 	//include the last prod deploy in the screenshot cache key because any time
 	//prod is deployed, the card rendering might have changed. Note that this is
