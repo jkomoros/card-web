@@ -16,7 +16,6 @@ import {
 } from '../actions/editor.js';
 
 import {
-	normalizeBodyHTML,
 	normalizeBodyToContentEditable
 } from '../contenteditable.js';
 
