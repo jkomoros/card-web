@@ -412,19 +412,22 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		//already ahve an element, AND it's the currently selected element, then
 		//we don't want to mess with its focus, so return the same thing. If
 		//it's not focused, then we can update it however we want.
-		if (updatedFromContentEditable && this._elements[field] && deepActiveElement() == this._elements[field]) {
+		const isActiveElement = deepActiveElement() == this._elements[field];
+		if (updatedFromContentEditable && this._elements[field] && isActiveElement) {
 			return this._elements[field];
 		}
 
 		let value = this._card[field] || '';
 		let htmlToSet = '';
 		if (config.html) {
-			if (!this.editing) {
-				//Make sure not to do the highlighting if it's being edited, which
-				//would pollute the HTML to save with the highlights.
+			//If not editing, then highlight. But even if editing, if the field
+			//is blurred, show which items are concepts. We strip out any
+			//card-highlights that come from contenteditable, so even if they
+			//sneak in we won't save them.
+			if (!this.editing || !isActiveElement) {
 				value = highlightConceptReferences(this._card, field);
 			}
-			htmlToSet = normalizeBodyHTML(value);
+			htmlToSet = value;
 		}
 		if (value && config.htmlFormatter) htmlToSet = config.htmlFormatter(value);
 		if (value && config.displayPrefix) htmlToSet = '<span>' + config.displayPrefix + '</span> ' + value;
@@ -468,6 +471,8 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				//state/properties of the object, but the focused node is state
 				//managed by the browser so :shrug:.
 				ele.addEventListener('blur', () => this.requestUpdate());
+				//Highlights disappear on focus
+				ele.addEventListener('focus', () => this.requestUpdate());
 				ele.hasContentEditableListeners = true;
 			}
 			if (config.html) htmlToSet = normalizeBodyToContentEditable(htmlToSet);

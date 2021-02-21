@@ -192,6 +192,13 @@ describe('content editable scrubbing', () => {
 		assert.equal(actual, expected);
 	});
 
+	it('content with a card-highlight or dir attribute is removed', async () => {
+		const input = '<p>Here\'s some <card-highlight>content</card-highlight></p>';
+		const actual = normalizeBodyHTML(input);
+		const expected = '<p>Here\'s some content</p>\n';
+		assert.equal(actual, expected);
+	});
+
 });
 
 describe('html highlighting', () => {

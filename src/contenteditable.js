@@ -71,6 +71,13 @@ const cardAttributeToHref = (a) => {
 	a.removeAttribute('card');
 
 };
+
+const spliceEle = (ele) => {
+	const parent = ele.parentNode;
+	ele.replaceWith(...ele.childNodes);
+	parent.normalize();
+};
+
 const normalizeBodyFromContentEditable = (html) => {
 
 	//Rewrite elements from content editable form to canonical form (which is
@@ -90,6 +97,8 @@ const normalizeBodyFromContentEditable = (html) => {
 	//createLink will have <a href='cardid'>. We will have changed the <a> to
 	//<card-link> already, but the href should be a card attribute.
 	section.querySelectorAll('card-link').forEach(hrefToCardAttribute);
+	//If card-highlight somehow got back in, remove it.
+	section.querySelectorAll('card-highlight').forEach(spliceEle);
 
 	return section.innerHTML;
 };
@@ -112,6 +121,9 @@ export const normalizeBodyToContentEditable = (html) => {
 	section.innerHTML = html;
 
 	section.querySelectorAll('a').forEach(cardAttributeToHref);
+	//Make sure that highlights are inactive so if you click on a card highlight
+	//to focus the field it won't navigate.
+	section.querySelectorAll('card-highlight').forEach(ele => ele.disabled = true);
 
 	return section.innerHTML;
 
