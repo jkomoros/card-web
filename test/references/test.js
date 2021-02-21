@@ -9,7 +9,7 @@ import {
 
 import {
 	references,
-	referencesLegal,
+	referencesLegalShape,
 	referencesDiff,
 	referencesCardsDiff,
 	applyReferencesDiff,
@@ -22,10 +22,10 @@ const deleteSentinel = firebase.firestore.FieldValue.delete;
 
 import assert from 'assert';
 
-describe('card referencesLegal util functions', () => {
+describe('card referencesLegalShape util functions', () => {
 	it('missing either references and references_info not legal', async () => {
 		const input = {};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, false);
 	});
 
@@ -33,7 +33,7 @@ describe('card referencesLegal util functions', () => {
 		const input = {
 			[REFERENCES_INFO_CARD_PROPERTY]: '',
 		};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, false);
 	});
 
@@ -41,7 +41,7 @@ describe('card referencesLegal util functions', () => {
 		const input = {
 			[REFERENCES_CARD_PROPERTY]: '',
 		};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, false);
 	});
 
@@ -50,7 +50,7 @@ describe('card referencesLegal util functions', () => {
 			[REFERENCES_INFO_CARD_PROPERTY]: '',
 			[REFERENCES_CARD_PROPERTY]: '',
 		};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, false);
 	});
 
@@ -59,7 +59,7 @@ describe('card referencesLegal util functions', () => {
 			[REFERENCES_INFO_CARD_PROPERTY]: null,
 			[REFERENCES_CARD_PROPERTY]: null,
 		};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, false);
 	});
 
@@ -68,7 +68,7 @@ describe('card referencesLegal util functions', () => {
 			[REFERENCES_INFO_CARD_PROPERTY]: {},
 			[REFERENCES_CARD_PROPERTY]: {},
 		};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, true);
 	});
 
@@ -76,7 +76,7 @@ describe('card referencesLegal util functions', () => {
 		const input = {
 			[REFERENCES_INFO_CARD_PROPERTY]: {},
 		};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, false);
 	});
 
@@ -89,7 +89,7 @@ describe('card referencesLegal util functions', () => {
 				'foo': true,
 			},
 		};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, false);
 	});
 
@@ -102,7 +102,7 @@ describe('card referencesLegal util functions', () => {
 				'foo': true,
 			},
 		};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, false);
 	});
 
@@ -115,7 +115,7 @@ describe('card referencesLegal util functions', () => {
 				'foo': true,
 			},
 		};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, false);
 	});
 
@@ -130,7 +130,7 @@ describe('card referencesLegal util functions', () => {
 				'foo': true,
 			},
 		};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, true);
 	});
 
@@ -145,7 +145,7 @@ describe('card referencesLegal util functions', () => {
 				'bar': true,
 			},
 		};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, false);
 	});
 
@@ -157,7 +157,7 @@ describe('card referencesLegal util functions', () => {
 				},
 			},
 		};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, false);
 	});
 
@@ -172,7 +172,7 @@ describe('card referencesLegal util functions', () => {
 				'foo': false,
 			},
 		};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, false);
 	});
 
@@ -187,7 +187,7 @@ describe('card referencesLegal util functions', () => {
 				'foo': 'bar',
 			},
 		};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, false);
 	});
 
@@ -202,7 +202,7 @@ describe('card referencesLegal util functions', () => {
 				'foo': true,
 			},
 		};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, true);
 	});
 
@@ -217,7 +217,7 @@ describe('card referencesLegal util functions', () => {
 				'foo': true,
 			},
 		};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, false);
 	});
 
@@ -232,7 +232,7 @@ describe('card referencesLegal util functions', () => {
 				'foo': true,
 			},
 		};
-		const result = referencesLegal(input);
+		const result = referencesLegalShape(input);
 		assert.strictEqual(result, false);
 	});
 

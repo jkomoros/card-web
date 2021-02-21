@@ -127,7 +127,7 @@ import {
 
 import {
 	references,
-	referencesLegal,
+	referencesLegalShape,
 	applyReferencesDiff,
 	referencesCardAdditions
 } from '../references.js';
@@ -419,7 +419,7 @@ const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 	}
 
 	//if the properties references expects are set, then apply them 
-	if (referencesLegal(update)) {
+	if (referencesLegalShape(update)) {
 
 		const cardIDAdditions = referencesCardAdditions(card, update);
 		const cards = selectCards(state);

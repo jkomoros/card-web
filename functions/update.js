@@ -6,7 +6,7 @@ const REFERENCES_INFO_CARD_PROPERTY = common.REFERENCES_INFO_CARD_PROPERTY;
 const REFERENCES_CARD_PROPERTY = common.REFERENCES_CARD_PROPERTY;
 
 //MOSTLY duplicated from src/card_fields.js;
-const referencesLegal = (cardObj) => {
+const referencesLegalShape = (cardObj) => {
 	if (!cardObj) return false;
 	if (typeof cardObj !== 'object') return false;
 	const referencesInfoBlock = cardObj[REFERENCES_INFO_CARD_PROPERTY];
@@ -62,8 +62,8 @@ const referencesCardsDiff = (beforeCard, afterCard) => {
 	const emptyCard = {[REFERENCES_INFO_CARD_PROPERTY]:{}, [REFERENCES_CARD_PROPERTY]: {}};
 	if (!beforeCard || Object.keys(beforeCard).length === 0) beforeCard = emptyCard;
 	if (!afterCard || Object.keys(afterCard).length === 0) afterCard = emptyCard;
-	if (!referencesLegal(beforeCard)) return result;
-	if (!referencesLegal(afterCard)) return result;
+	if (!referencesLegalShape(beforeCard)) return result;
+	if (!referencesLegalShape(afterCard)) return result;
 	const before = beforeCard[REFERENCES_INFO_CARD_PROPERTY];
 	const after = afterCard[REFERENCES_INFO_CARD_PROPERTY];
 	//For card blocks that exist in both before and after... but might have modifications within them

@@ -117,9 +117,9 @@ const ReferencesAccessor = class {
 	//If otherCardObj doesn't and we don't as well, then we set the trivial
 	//empty reerences. Returns itself for convenience in chaining.
 	ensureReferences(otherCardObj) {
-		if (referencesLegal(this._cardObj)) return this;
+		if (referencesLegalShape(this._cardObj)) return this;
 		let referencesInfo = {};
-		if (referencesLegal(otherCardObj)) {
+		if (referencesLegalShape(otherCardObj)) {
 			referencesInfo = references(otherCardObj)._cloneReferencesInfo();
 		}
 		this._setReferencesInfo(referencesInfo);
@@ -192,7 +192,7 @@ const ReferencesAccessor = class {
 		this._memoizedByTypeInbound = null;
 		this._memoizedByTypeSubstantive = null;
 		this._memoizedByTypeInboundSubstantive = null;
-		if (!referencesLegal(this._cardObj)) {
+		if (!referencesLegalShape(this._cardObj)) {
 			throw new Error('References block set to something illegal');
 		}
 		this._modified = true;
@@ -292,9 +292,9 @@ const ReferencesAccessor = class {
 	}
 };
 
-//referencesLegal is a sanity check that the referencesBlock looks like it's expected to.
+//referencesLegalShape is a sanity check that the referencesBlock looks like it's expected to.
 //Copied to functions/update.js
-export const referencesLegal = (cardObj) => {
+export const referencesLegalShape = (cardObj) => {
 	if (!cardObj) return false;
 	if (typeof cardObj !== 'object') return false;
 	const referencesInfoBlock = cardObj[REFERENCES_INFO_CARD_PROPERTY];
@@ -347,8 +347,8 @@ const cloneReferences = (referencesBlock) => {
 //Returns an array of cardIDs that were not referenced by beforeCard but are in
 //after.
 export const referencesCardAdditions = (beforeCard, afterCard) => {
-	if (!referencesLegal(beforeCard)) return [];
-	if (!referencesLegal(afterCard)) return [];
+	if (!referencesLegalShape(beforeCard)) return [];
+	if (!referencesLegalShape(afterCard)) return [];
 	const beforeArray = references(beforeCard).array();
 	const afterArray = references(afterCard).array();
 	const beforeMap = Object.fromEntries(beforeArray.map(id => [id, true]));
@@ -362,8 +362,8 @@ export const referencesCardAdditions = (beforeCard, afterCard) => {
 //in the path will create it.
 export const referencesDiff = (beforeCard, afterCard) => {
 	const result = [{}, {}, {}, {}];
-	if (!referencesLegal(beforeCard)) return result;
-	if (!referencesLegal(afterCard)) return result;
+	if (!referencesLegalShape(beforeCard)) return result;
+	if (!referencesLegalShape(afterCard)) return result;
 	const before = beforeCard[REFERENCES_INFO_CARD_PROPERTY];
 	const after = afterCard[REFERENCES_INFO_CARD_PROPERTY];
 	//For cards that were not in before but are in after
@@ -393,7 +393,7 @@ export const referencesDiff = (beforeCard, afterCard) => {
 	}
 
 	//NOTE: this logic can assume that if all of the keys for a card were
-	//deleted, the cardID block also was, since referencesLegal validates that.
+	//deleted, the cardID block also was, since referencesLegalShape validates that.
 
 	//Now look at the cardBlocks that exist in both and compare the leaf values
 	//to see what changed.
@@ -458,8 +458,8 @@ export const referencesCardsDiff = (beforeCard, afterCard) => {
 	const emptyCard = {[REFERENCES_INFO_CARD_PROPERTY]:{}, [REFERENCES_CARD_PROPERTY]: {}};
 	if (!beforeCard || Object.keys(beforeCard).length === 0) beforeCard = emptyCard;
 	if (!afterCard || Object.keys(afterCard).length === 0) afterCard = emptyCard;
-	if (!referencesLegal(beforeCard)) return result;
-	if (!referencesLegal(afterCard)) return result;
+	if (!referencesLegalShape(beforeCard)) return result;
+	if (!referencesLegalShape(afterCard)) return result;
 	const before = beforeCard[REFERENCES_INFO_CARD_PROPERTY];
 	const after = afterCard[REFERENCES_INFO_CARD_PROPERTY];
 	//For card blocks that exist in both before and after... but might have modifications within them
