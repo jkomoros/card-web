@@ -57,13 +57,13 @@ import {
 } from '../selectors.js';
 
 import {
-	modifyCard
+	modifyCard,
+	generateCardDiff
 } from './data.js';
 
 import {
 	CARD_TYPE_CONFIGURATION,
 	TEXT_FIELD_CONFIGURATION,
-	fontSizeBoosts,
 	REFERENCE_TYPES,
 } from '../card_fields.js';
 
@@ -72,14 +72,7 @@ import {
 } from '../references.js';
 
 import {
-	CARD_TYPE_EDITING_FINISHERS
-} from '../card_finishers.js';
-
-import {
-	arrayDiff,
-	cardHasContent,
 	randomString,
-	triStateMapDiff,
 } from '../util.js';
 
 import {
@@ -91,10 +84,6 @@ import {
 } from './comments.js';
 
 import {
-	PERMISSION_EDIT_CARD
-} from '../permissions.js';
-
-import {
 	findCardToReference
 } from './find.js';
 
@@ -103,7 +92,6 @@ import {
 } from '../filters.js';
 
 import {
-	imageBlocksEquivalent,
 	getImageDimensionsForImageAtURL,
 	srcSeemsValid,
 	getImagesFromCard
@@ -263,97 +251,15 @@ export const editingCommit = () => async (dispatch, getState) => {
 
 	const rawUpdatedCard = selectEditingCard(state);
 
-	const cardFinisher = CARD_TYPE_EDITING_FINISHERS[rawUpdatedCard.card_type];
-
-	let updatedCard;
-
+	let update;
 	try {
-		updatedCard = cardFinisher ? cardFinisher(rawUpdatedCard, state) : rawUpdatedCard;
+		update = await generateCardDiff(state, underlyingCard, rawUpdatedCard);
 	} catch(err) {
 		alert(err);
-		console.warn('The card finisher threw an error: ' + err);
 		return;
 	}
 
-	const CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[rawUpdatedCard.card_type];
-
-	//TODO: it feels like this 'confirm' logic should be all done in
-	//data.js/modifyCard, where there's other confirm-on-save logic.
-	if (CARD_TYPE_CONFIG.publishedByDefault) {
-		if (!updatedCard.published) {
-			if (!window.confirm('This card is of a type that is typically always published, but it\'s not currently published. Do you want to continue?')) return;
-		}
-	} else if (CARD_TYPE_CONFIG.invertContentPublishWarning) {
-		if (updatedCard.published) {
-			if (!window.confirm('The card is of a type that is not typically published but you\'re publishing it. Do you want to continue?')) return;
-		}
-	} else {
-		if (cardHasContent(updatedCard) && !updatedCard.published) {
-			if (!window.confirm('The card has content but is unpublished. Do you want to continue?')) return;
-		}
-	}
-
-	for (const img of getImagesFromCard(updatedCard)) {
-		if (img.height === undefined || img.width === undefined) {
-			alert('One of the images does not yet have its height/width set yet. It might still be loading. Try removing it and readding it.');
-			return;
-		}
-	}
-
-	//Throw out any boosts that might have been applied to an old card type.
-	if (updatedCard.card_type != underlyingCard.card_type) updatedCard.font_size_boost = {};
-
-	updatedCard.font_size_boost = await fontSizeBoosts(updatedCard);
-
-	let update = {};
-
-	for (let field of Object.keys(TEXT_FIELD_CONFIGURATION)) {
-		if (updatedCard[field] == underlyingCard[field]) continue;
-		const config = TEXT_FIELD_CONFIGURATION[field];
-		let value = updatedCard[field];
-		if (config.html) {
-			try {    
-				value = normalizeBodyHTML(value);
-			} catch(err) {
-				alert('Couldn\'t save: invalid HTML: ' + err);
-				return;
-			}
-		}
-		update[field] = value;
-	}
-
-	if (Object.keys(updatedCard.font_size_boost).length != Object.keys(underlyingCard.font_size_boost || {}).length || Object.entries(updatedCard.font_size_boost).some(entry => (underlyingCard.font_size_boost || {})[entry[0]] != entry[1])) update.font_size_boost = updatedCard.font_size_boost;
-	if (updatedCard.section != underlyingCard.section) update.section = updatedCard.section;
-	if (updatedCard.name != underlyingCard.section) update.name = updatedCard.name;
-	if (updatedCard.notes != underlyingCard.notes) update.notes = updatedCard.notes;
-	if (updatedCard.todo != underlyingCard.todo) update.todo = updatedCard.todo;
-	if (updatedCard.full_bleed != underlyingCard.full_bleed) update.full_bleed = updatedCard.full_bleed;
-	if (updatedCard.published !== underlyingCard.published) update.published = updatedCard.published;
-	if (updatedCard.card_type !== underlyingCard.card_type) update.card_type = updatedCard.card_type;
-
-	let [todoEnablements, todoDisablements, todoRemovals] = triStateMapDiff(underlyingCard.auto_todo_overrides || {}, updatedCard.auto_todo_overrides || {});
-	if (todoEnablements.length) update.auto_todo_overrides_enablements = todoEnablements;
-	if (todoDisablements.length) update.auto_todo_overrides_disablements = todoDisablements;
-	if (todoRemovals.length) update.auto_todo_overrides_removals = todoRemovals;
-
-	let [tagAdditions, tagDeletions] = arrayDiff(underlyingCard.tags || [], updatedCard.tags || []);
-	if (tagAdditions.length) update.addTags = tagAdditions;
-	if (tagDeletions.length) update.removeTags = tagDeletions;
-
-	let [editorAdditions, editorDeletions] = arrayDiff(underlyingCard.permissions[PERMISSION_EDIT_CARD] || [], updatedCard.permissions[PERMISSION_EDIT_CARD] || []);
-	if (editorAdditions.length) update.add_editors = editorAdditions;
-	if (editorDeletions.length) update.remove_editors = editorDeletions;
-
-	let [collaboratorAdditions, collaboratorDeletions] = arrayDiff(underlyingCard.collaborators || [], updatedCard.collaborators || []);
-	if (collaboratorAdditions.length) update.add_collaborators = collaboratorAdditions;
-	if (collaboratorDeletions.length) update.remove_collaborators = collaboratorDeletions;
-
-	if (!imageBlocksEquivalent(underlyingCard, updatedCard)) update.images = updatedCard.images;
-
-	//if references changed, pass the ENTIRE new references object in on update.
-	//We pass the whole references since modifyCard will need to extractLinks
-	//and update refernces
-	if (!references(underlyingCard).equivalentTo(updatedCard)) references(update).ensureReferences(updatedCard);
+	if (!update) return;
 
 	//modifyCard will fail if the update is a no-op.
 	dispatch(modifyCard(underlyingCard, update, state.editor.substantive));
