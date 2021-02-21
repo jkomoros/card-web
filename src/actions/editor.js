@@ -58,7 +58,8 @@ import {
 
 import {
 	modifyCard,
-	generateCardDiff
+	generateCardDiff,
+	confirmationsForCardDiff
 } from './data.js';
 
 import {
@@ -260,6 +261,10 @@ export const editingCommit = () => async (dispatch, getState) => {
 	}
 
 	if (!update) return;
+
+	//TODO: technically we shouldn't pass rawUpdatedCard, but the one that has
+	//been run through any cardFinishers in generateCardDiff.
+	if (!confirmationsForCardDiff(update, rawUpdatedCard)) return;
 
 	//modifyCard will fail if the update is a no-op.
 	dispatch(modifyCard(underlyingCard, update, state.editor.substantive));

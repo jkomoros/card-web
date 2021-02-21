@@ -227,6 +227,46 @@ const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURA
 	REFERENCES_CARD_PROPERTY,
 ]).map(key => [key,true]));
 
+//Returns true if the user has said to proceed to any confirmation warnings (if
+//any), false if the user has said to not proceed.
+export const confirmationsForCardDiff = (update, updatedCard) => {
+	const CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[update.card_type || updatedCard.card_type];
+	if (CARD_TYPE_CONFIG.publishedByDefault) {
+		if (!updatedCard.published) {
+			if (!window.confirm('This card is of a type that is typically always published, but it\'s not currently published. Do you want to continue?')) return false;
+		}
+	} else if (CARD_TYPE_CONFIG.invertContentPublishWarning) {
+		if (updatedCard.published) {
+			if (!window.confirm('The card is of a type that is not typically published but you\'re publishing it. Do you want to continue?')) return false;
+		}
+	} else {
+		if (cardHasContent(updatedCard) && !updatedCard.published) {
+			if (!window.confirm('The card has content but is unpublished. Do you want to continue?')) return false;
+		}
+	}
+	for (const img of getImagesFromCard(updatedCard)) {
+		if (img.height === undefined || img.width === undefined) {
+			alert('One of the images does not yet have its height/width set yet. It might still be loading. Try removing it and readding it.');
+			return false;
+		}
+	}
+
+	if (update.section !== undefined || update.card_type !== undefined) {
+		let section = update.section === undefined ? updatedCard.section : update.section;
+		if (!section){
+			if (!CARD_TYPE_CONFIG.orphanedByDefault && !confirm('This card being orphaned will cause it to not be findable except with a direct link. OK?')) {
+				return false;
+			}
+		} else {
+			if (CARD_TYPE_CONFIG.orphanedByDefault && !confirm('This is a card type that typcially is not in a section, but with this edit it will be in a section. OK?')) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+};
+
 export const generateCardDiff = async (state, underlyingCard, rawUpdatedCard) => {
 
 	const cardFinisher = CARD_TYPE_EDITING_FINISHERS[rawUpdatedCard.card_type];
@@ -237,30 +277,6 @@ export const generateCardDiff = async (state, underlyingCard, rawUpdatedCard) =>
 		updatedCard = cardFinisher ? cardFinisher(rawUpdatedCard, state) : rawUpdatedCard;
 	} catch(err) {
 		throw new Error('The card finisher threw an error: ' + err);
-	}
-
-	const CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[rawUpdatedCard.card_type];
-
-	//TODO: it feels like this 'confirm' logic should be all done in
-	//data.js/modifyCard, where there's other confirm-on-save logic.
-	if (CARD_TYPE_CONFIG.publishedByDefault) {
-		if (!updatedCard.published) {
-			if (!window.confirm('This card is of a type that is typically always published, but it\'s not currently published. Do you want to continue?')) return null;
-		}
-	} else if (CARD_TYPE_CONFIG.invertContentPublishWarning) {
-		if (updatedCard.published) {
-			if (!window.confirm('The card is of a type that is not typically published but you\'re publishing it. Do you want to continue?')) return null;
-		}
-	} else {
-		if (cardHasContent(updatedCard) && !updatedCard.published) {
-			if (!window.confirm('The card has content but is unpublished. Do you want to continue?')) return null;
-		}
-	}
-
-	for (const img of getImagesFromCard(updatedCard)) {
-		if (img.height === undefined || img.width === undefined) {
-			throw new Error('One of the images does not yet have its height/width set yet. It might still be loading. Try removing it and readding it.');
-		}
 	}
 
 	//Throw out any boosts that might have been applied to an old card type.
@@ -450,22 +466,7 @@ const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 		cardUpdateObject.name = update.name;
 	}
 
-	const CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[update.card_type || card.card_type];
-
 	let sectionUpdated = false;
-
-	if (update.section !== undefined || update.card_type !== undefined) {
-		let section = update.section === undefined ? card.section : update.section;
-		if (!section){
-			if (!CARD_TYPE_CONFIG.orphanedByDefault && !confirm('This card being orphaned will cause it to not be findable except with a direct link. OK?')) {
-				throw new Error('User aborted because didn\'t confirm orphaning');
-			}
-		} else {
-			if (CARD_TYPE_CONFIG.orphanedByDefault && !confirm('This is a card type that typcially is not in a section, but with this edit it will be in a section. OK?')) {
-				throw new Error('User aborted because didn\'t confirm not orphaning');
-			}
-		}
-	}
 
 	if (update.section !== undefined) {
 		if (update.section) {
