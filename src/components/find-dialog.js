@@ -25,6 +25,7 @@ import {
 import {
 	linkCard,
 	linkURL,
+	cancelLink,
 	savedSelectionRangeIsLink,
 	setCardToReference,
 } from '../actions/editor.js';
@@ -134,7 +135,10 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._legalCardTypeFilters = [];
 	}
 
-	_shouldClose() {
+	_shouldClose(cancelled) {
+		if (cancelled && this._linking) {
+			store.dispatch(cancelLink());
+		}
 		//Override base class.
 		store.dispatch(closeFindDialog());
 	}

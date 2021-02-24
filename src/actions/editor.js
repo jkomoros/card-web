@@ -270,6 +270,10 @@ export const editingCommit = () => async (dispatch, getState) => {
 
 };
 
+export const cancelLink = () => () => {
+	restoreSelectionRange();
+};
+
 export const linkURL = (href) => (dispatch, getState) => {
 	const state = getState();
 	if (!state.editor.editing) return;

@@ -84,7 +84,7 @@ export class DialogElement extends LitElement {
 			</style>
 			<div class='background ${this.mobileMode ? 'mobile': ''}' @click=${this._handleBackgroundClicked}>
 				<div class='content'>
-					<button class='small' id='close' @click=${this._shouldClose}>${CANCEL_ICON}</button>
+					<button class='small' id='close' @click=${this.cancel}>${CANCEL_ICON}</button>
 					<h2>${this.title || ''}</h2>
 					<div id='inner'>
 					${this.innerRender()}
@@ -106,7 +106,7 @@ export class DialogElement extends LitElement {
 	_handleKeyDown(e) {
 		if (!this.open) return;
 		if (e.key == 'Escape') {
-			this._shouldClose();
+			this.cancel();
 			return true;
 		}
 	}
@@ -118,6 +118,11 @@ export class DialogElement extends LitElement {
 		this._shouldClose();
 	}
 
+	cancel() {
+		this._shouldClose(true);
+	}
+
+	//Will be called with a single argument of true if cancelled
 	_shouldClose() {
 		//Override point for sub classes
 		this.dispatchEvent(new CustomEvent('dialog-should-close'));
