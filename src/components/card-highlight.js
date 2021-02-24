@@ -17,8 +17,11 @@ class CardHighlight extends LitElement {
 
 				span {
 					cursor: pointer;
-					
 					background-color: var(--app-secondary-color-light-very-transparent);
+				}
+
+				span.disabled {
+					cursor: auto;
 				}
 
 				span.enabled:hover {
