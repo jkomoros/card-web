@@ -103,10 +103,7 @@ import {
 } from '../firebase.js';
 
 let lastReportedSelectionRange = null;
-//TODO: figure out a pattenr that doesn't have a single shared global
 let savedSelectionRange = null;
-let selectionRangeStartOffset = -1;
-let selectionRangeEndOffset = -1;
 let selectionParent = null;
 
 
@@ -130,10 +127,10 @@ export const saveSelectionRange = () => {
 		parentEle = parentEle.parentNode;
 	}
 	if (!parentEle) return;
-	let [start, end] = startEndOffsetInEle(parentEle,savedSelectionRange, 0);
-	selectionRangeStartOffset = start;
-	selectionRangeEndOffset = end;
+	//a tuple of [startOffset, endOffset]
+	const offsets = startEndOffsetInEle(parentEle,savedSelectionRange, 0);
 	selectionParent = parentEle;
+	selectionParent.stashedSelectionOffset = offsets;
 };
 
 const startEndOffsetInEle = (ele, range, previousCount) => {
@@ -156,7 +153,7 @@ const startEndOffsetInEle = (ele, range, previousCount) => {
 	return [start, end];
 };
 
-const rangeFromOffsetsInEle = (ele, startOffset, endOffset) => {
+const rangeFromOffsetsInEle = (ele, startOffset = -1, endOffset = -1) => {
 	//startOffset and endOffset are within the given ele.
 	if (startOffset == -1 || endOffset == -1) return null;
 	const range = document.createRange();
@@ -177,12 +174,14 @@ const setOffsetRange = (node, range, startOffset, endOffset, offsetCount) => {
 };
 
 export const restoreSelectionRange = () => {
+	if (!selectionParent) return;
 	let selection = document.getSelection();
 	selection.removeAllRanges();
 	//Note that this assumes that selectionParent is still literally the same element as when selection was saved.
-	let range = rangeFromOffsetsInEle(selectionParent, selectionRangeStartOffset, selectionRangeEndOffset);
-	if (!range) range = savedSelectionRange;
+	const offsets = selectionParent.stashedSelectionOffset || [-1, -1];
+	let range = rangeFromOffsetsInEle(selectionParent, offsets[0], offsets[1]);
 	if (range) selection.addRange(range);
+	selectionParent.stashedSelectionOffset = undefined;
 };
 
 export const savedSelectionRangeIsLink = () => {

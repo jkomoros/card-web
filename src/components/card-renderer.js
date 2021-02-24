@@ -412,7 +412,8 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		//we don't want to mess with its focus, so return the same thing. If
 		//it's not focused, then we can update it however we want.
 		const isActiveElement = deepActiveElement() == this._elements[field];
-		if (updatedFromContentEditable && this._elements[field] && isActiveElement) {
+		const doHighlightConcepts = !this.editing || !isActiveElement;
+		if (updatedFromContentEditable && this._elements[field] && isActiveElement && this._elements[field].conceptReferencesHighlighted == doHighlightConcepts) {
 			return this._elements[field];
 		}
 
@@ -423,7 +424,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			//is blurred, show which items are concepts. We strip out any
 			//card-highlights that come from contenteditable, so even if they
 			//sneak in we won't save them.
-			if (!this.editing || !isActiveElement) {
+			if (doHighlightConcepts) {
 				value = highlightConceptReferences(this._card, field);
 			}
 			htmlToSet = value;
@@ -457,6 +458,8 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			}
 		}
 
+		ele.conceptReferencesHighlighted = doHighlightConcepts;
+
 		if (this.editing && !config.noContentEditable) {
 			makeElementContentEditable(ele);
 			//Only install the content editable listeners once. Otherwise, you
@@ -469,9 +472,15 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				//that there's a change we react to that's not in the
 				//state/properties of the object, but the focused node is state
 				//managed by the browser so :shrug:.
-				ele.addEventListener('blur', () => this.requestUpdate());
+				ele.addEventListener('blur', () => {
+					//If there's a stashed selection offset, then we're being defocused to go to a find dialog.
+					if (!ele.stashedSelectionOffset) this.requestUpdate();
+				});
 				//Highlights disappear on focus
-				ele.addEventListener('focus', () => this.requestUpdate());
+				ele.addEventListener('focus', () => {
+					//If there's a stashed selection offset, then when we're refocused, we'll have a paste happen.
+					if (!ele.stashedSelectionOffset) this.requestUpdate();
+				});
 				ele.hasContentEditableListeners = true;
 			}
 			if (config.html) htmlToSet = normalizeBodyToContentEditable(htmlToSet);
