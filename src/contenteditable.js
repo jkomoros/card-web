@@ -123,7 +123,7 @@ export const normalizeBodyToContentEditable = (html) => {
 	section.querySelectorAll('a').forEach(cardAttributeToHref);
 	//Make sure that highlights are inactive so if you click on a card highlight
 	//to focus the field it won't navigate.
-	section.querySelectorAll('card-highlight').forEach(ele => ele.disabled = true);
+	section.querySelectorAll('card-highlight').forEach(ele => ele.setAttribute('disabled', ''));
 
 	return section.innerHTML;
 
