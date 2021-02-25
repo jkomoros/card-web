@@ -477,17 +477,6 @@ export const referencesEntriesDiff = (beforeCard, afterCard) => {
 	return [...deletionsResult, ...modificationsResult];
 };
 
-//Returns an array of cardIDs that were not referenced by beforeCard but are in
-//after.
-export const referencesCardAdditions = (beforeCard, afterCard) => {
-	if (!referencesLegalShape(beforeCard)) return [];
-	if (!referencesLegalShape(afterCard)) return [];
-	const beforeArray = references(beforeCard).array();
-	const afterArray = references(afterCard).array();
-	const beforeMap = Object.fromEntries(beforeArray.map(id => [id, true]));
-	return afterArray.filter(id => !beforeMap[id]);
-};
-
 //Returns a 4-tuple of [additions, modifications, leafDeletions, cardDeletions].
 //Each one is a dotted property name. If a given cardDeletion is included, then
 //no leafDeletions that start with that CARD_ID will be included. Additions will
