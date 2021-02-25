@@ -239,6 +239,8 @@ const ReferencesAccessor = class {
 		//with others in the diff, so we'll do it on a copy.
 		const referencesCopy = references({...this._cardObj});
 		let i = 0;
+		//Deletions will come first in the diff, which is useful, because some
+		//of the deletions might resolve conflicts later.
 		for (const item of diff) {
 			const reason = referencesCopy._mayNotApplyEntryDiffItemReason(state, item);
 			if (reason) {
