@@ -215,6 +215,16 @@ const ReferencesAccessor = class {
 		this._setReferencesInfo(byTypeToReferences(byTypeReferenceBlock));
 	}
 
+	applyEntriesDiff(diff) {
+		for (const item of diff) {
+			if (item.delete) {
+				this.removeCardReference(item.cardID, item.referenceType);
+				continue;
+			}
+			this.setCardReference(item.cardID, item.referenceType, item.value);
+		}
+	}
+
 	setCardReference(cardID, referenceType, optValue) {
 		if (!optValue) optValue = '';
 		this._prepareForModifications();
