@@ -215,14 +215,39 @@ const ReferencesAccessor = class {
 		this._setReferencesInfo(byTypeToReferences(byTypeReferenceBlock));
 	}
 
+	_applyEntryDiffItem(item) {
+		if (item.delete) {
+			this.removeCardReference(item.cardID, item.referenceType);
+			return;
+		}
+		this.setCardReference(item.cardID, item.referenceType, item.value);
+	}
+
+	_mayNotApplyEntryDiffItemReason(state, item) {
+		if (item.delete) return '';
+		return this.mayNotSetCardReferenceReason(state, item.cardID, item.referenceType);
+	}
+
 	applyEntriesDiff(diff) {
 		for (const item of diff) {
-			if (item.delete) {
-				this.removeCardReference(item.cardID, item.referenceType);
-				continue;
-			}
-			this.setCardReference(item.cardID, item.referenceType, item.value);
+			this._applyEntryDiffItem(item);
 		}
+	}
+
+	mayNotApplyEntriesDiffReason(state, diff) {
+		//We have to actually apply them one by one, since some might conflict
+		//with others in the diff, so we'll do it on a copy.
+		const referencesCopy = references({...this._cardObj});
+		let i = 0;
+		for (const item of diff) {
+			const reason = referencesCopy._mayNotApplyEntryDiffItemReason(state, item);
+			if (reason) {
+				return 'The ' + i + ' diff item could not be applied: ' + reason;
+			}
+			referencesCopy._applyEntryDiffItem(item);
+			i++;
+		}
+		return '';
 	}
 
 	setCardReference(cardID, referenceType, optValue) {
