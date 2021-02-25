@@ -51,8 +51,6 @@ import {
 	selectPendingSlug,
 	selectIsEditing,
 	selectEditingPendingReferenceType,
-	getCardExists,
-	getCardType,
 	selectEditingCardSuggestedConceptReferences,
 } from '../selectors.js';
 
@@ -745,22 +743,7 @@ export const selectCardToReference = (referenceType) => (dispatch, getState) => 
 };
 
 export const addReferenceToCard = (cardID, referenceType) => (dispatch, getState) => {
-	if (!REFERENCE_TYPES[referenceType]) {
-		console.warn('Illegal reference type');
-		return;
-	}
 	const state = getState();
-	if (!getCardExists(state, cardID)) {
-		console.warn('No such card');
-		return;
-	}
-	const toCardType = getCardType(state, cardID);
-	const referenceTypeConfig = REFERENCE_TYPES[referenceType];
-
-	if (!referenceTypeConfig) {
-		console.warn('Illegal reference type');
-		return;
-	}
 
 	const editingCard = selectEditingCard(state);
 	if (!editingCard) {
@@ -768,25 +751,13 @@ export const addReferenceToCard = (cardID, referenceType) => (dispatch, getState
 		return;
 	}
 
-	if (referenceTypeConfig.conceptReference && references(editingCard).conceptArray().some(id => id == cardID)) {
-		console.warn('The editing card already has a concept reference (or subtype) to that card');
+	const editingCardCopy = {...editingCard};
+
+	const reason = references(editingCardCopy).mayNotSetCardReferenceReason(state, cardID, referenceType); 
+
+	if (reason) {
+		console.warn(reason);
 		return;
-	}
-
-	//if the reference type doesn't have a toCardTypeAllowList then any of them
-	//are legal.
-	if (referenceTypeConfig.toCardTypeAllowList) {
-		if (!referenceTypeConfig.toCardTypeAllowList[toCardType]) {
-			console.warn('That reference type may not point to cards of type ' + toCardType);
-			return;
-		}
-	}
-
-	if (referenceTypeConfig.fromCardTypeAllowList) {
-		if (!referenceTypeConfig.fromCardTypeAllowList[editingCard.card_type]) {
-			console.warn('That reference type may not originate from cards of type ' + editingCard.card_type);
-			return;
-		}
 	}
 
 	dispatch({

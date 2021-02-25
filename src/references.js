@@ -12,6 +12,11 @@ import {
 	REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES,
 } from './card_fields.js';
 
+import {
+	getCardType,
+	getCardExists
+} from './card_exists.js';
+
 const memoizedCardAccessors = new Map();
 
 //References returns a ReferencesAccessor to access references for this cardObj.
@@ -216,6 +221,40 @@ const ReferencesAccessor = class {
 		if (!this._referencesInfo[cardID]) this._referencesInfo[cardID] = {};
 		this._referencesInfo[cardID][referenceType] = optValue;
 		this._modificationsFinished();
+	}
+
+	//Returns a string describing why that reference may not be set, or '' if
+	//it's legal.
+	mayNotSetCardReferenceReason(state, cardID, referenceType) {
+		if (!getCardExists(state, cardID)) {
+			return 'No such card';
+		}
+		const toCardType = getCardType(state, cardID);
+		const referenceTypeConfig = REFERENCE_TYPES[referenceType];
+
+		if (!referenceTypeConfig) {
+			return 'Illegal referenceType: ' + referenceType;
+		}
+		
+		if (referenceTypeConfig.conceptReference && this.conceptArray().some(id => id == cardID)) {
+			return 'The editing card already has a concept reference (or subtype) to that card';
+		}
+	
+		//if the reference type doesn't have a toCardTypeAllowList then any of them
+		//are legal.
+		if (referenceTypeConfig.toCardTypeAllowList) {
+			if (!referenceTypeConfig.toCardTypeAllowList[toCardType]) {
+				return 'That reference type may not point to cards of type ' + toCardType;
+			}
+		}
+	
+		if (referenceTypeConfig.fromCardTypeAllowList) {
+			if (!referenceTypeConfig.fromCardTypeAllowList[this._cardObj.card_type]) {
+				return 'That reference type may not originate from cards of type ' + this._cardObj.card_type;
+			}
+		}
+
+		return '';
 	}
 
 	removeCardReference(cardID, referenceType) {
