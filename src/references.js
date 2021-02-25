@@ -263,6 +263,11 @@ const ReferencesAccessor = class {
 	//Returns a string describing why that reference may not be set, or '' if
 	//it's legal.
 	mayNotSetCardReferenceReason(state, cardID, referenceType) {
+
+		if (this._cardObj.id == cardID) {
+			return 'The card references itself which is not allowed';
+		}
+
 		if (!getCardExists(state, cardID)) {
 			return 'No such card';
 		}
