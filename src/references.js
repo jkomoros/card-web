@@ -344,6 +344,58 @@ const cloneReferences = (referencesBlock) => {
 	return result;
 };
 
+const expandedReferenceKey = (cardID, referenceType) => cardID + '+' + referenceType;
+const expandedReferenceObject = (cardID, referenceType, value) => ({
+	cardID,
+	referenceType,
+	value,
+});
+const expandedReferenceDeleteObject = (cardID, referenceType) => ({
+	cardID,
+	referenceType,
+	delete: true,
+});
+
+//Returns an object where keys look like `CARD_ID+REFERENCE_TYPE` and values
+//look like {cardID: 'CARD_ID', referenceType: 'REFERENCE_TYPE', value:''}
+const expandedReferences = (referencesInfo) => {
+	const result = {};
+	for (const [cardID, cardRefs] of Object.entries(referencesInfo)) {
+		for (const [referenceType, value] of Object.entries(cardRefs)) {
+			const key = expandedReferenceKey(cardID, referenceType);
+			const obj = expandedReferenceObject(cardID, referenceType, value);
+			result[key] = obj;
+		}
+	}
+	return result;
+};
+
+//Returns an array of objects with referenceType, cardID, and either value or
+//delete:true, representing the items that would have to be done via
+//setCardReference and removeCardReference to get beforeCard to look like
+//afterCard. The deletions will all come before the modifications in the diff.
+export const referencesEntriesDiff = (beforeCard, afterCard) => {
+	const modificationsResult = [];
+	const deletionsResult = [];
+	if (!referencesLegalShape(beforeCard)) return [];
+	if (!referencesLegalShape(afterCard)) return [];
+	const before = beforeCard[REFERENCES_INFO_CARD_PROPERTY];
+	const after = afterCard[REFERENCES_INFO_CARD_PROPERTY];
+	const expandedBefore = expandedReferences(before);
+	const expandedAfter = expandedReferences(after);
+	const seenInAfter = {};
+	for (const [key, afterObj] of Object.entries(expandedAfter)) {
+		seenInAfter[key] = true;
+		const beforeObj = expandedBefore[key] || {};
+		if (beforeObj.value !== afterObj.value) modificationsResult.push(afterObj);
+	}
+	for (const [key, beforeObj] of Object.entries(expandedBefore)) {
+		if (seenInAfter[key]) continue;
+		deletionsResult.push(expandedReferenceDeleteObject(beforeObj.cardID, beforeObj.referenceType));
+	}
+	return [...deletionsResult, ...modificationsResult];
+};
+
 //Returns an array of cardIDs that were not referenced by beforeCard but are in
 //after.
 export const referencesCardAdditions = (beforeCard, afterCard) => {

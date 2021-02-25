@@ -13,6 +13,7 @@ import {
 	referencesDiff,
 	referencesCardsDiff,
 	applyReferencesDiff,
+	referencesEntriesDiff,
 } from '../../src/references.js';
 
 //We import these only to get deleteSentinel without importing from firebase.js.
@@ -269,6 +270,9 @@ describe('card referencesDiff util functions', () => {
 		const cardResult = referencesCardsDiff(inputBefore, inputAfter);
 		const expectedCardResult = defaultCardDiffResult;
 		assert.deepStrictEqual(cardResult, expectedCardResult);
+		const entryResult = referencesEntriesDiff(inputBefore, inputAfter);
+		const expectedEntryResult = [];
+		assert.deepStrictEqual(entryResult, expectedEntryResult);
 	});
 
 	it('illegal for after illegal', async () => {
@@ -298,6 +302,9 @@ describe('card referencesDiff util functions', () => {
 		const cardResult = referencesCardsDiff(inputBefore, inputAfter);
 		const expectedCardResult = defaultCardDiffResult;
 		assert.deepStrictEqual(cardResult, expectedCardResult);
+		const entryResult = referencesEntriesDiff(inputBefore, inputAfter);
+		const expectedEntryResult = [];
+		assert.deepStrictEqual(entryResult, expectedEntryResult);
 	});
 
 	it('no op', async () => {
@@ -327,6 +334,9 @@ describe('card referencesDiff util functions', () => {
 		const cardResult = referencesCardsDiff(inputBefore, inputAfter);
 		const expectedCardResult = defaultCardDiffResult;
 		assert.deepStrictEqual(cardResult, expectedCardResult);
+		const entryResult = referencesEntriesDiff(inputBefore, inputAfter);
+		const expectedEntryResult = [];
+		assert.deepStrictEqual(entryResult, expectedEntryResult);
 	});
 
 	it('Add card', async () => {
@@ -358,6 +368,15 @@ describe('card referencesDiff util functions', () => {
 			{},
 		];
 		assert.deepStrictEqual(cardResult, expectedCardResult);
+		const entryResult = referencesEntriesDiff(inputBefore, inputAfter);
+		const expectedEntryResult = [
+			{
+				cardID: 'foo',
+				referenceType: REFERENCE_TYPE_LINK,
+				value: 'value',
+			}
+		];
+		assert.deepStrictEqual(entryResult, expectedEntryResult);
 	});
 
 	it('Add two items in new card', async () => {
@@ -391,6 +410,20 @@ describe('card referencesDiff util functions', () => {
 			{},
 		];
 		assert.deepStrictEqual(cardResult, expectedCardResult);
+		const entryResult = referencesEntriesDiff(inputBefore, inputAfter);
+		const expectedEntryResult = [
+			{
+				cardID: 'foo',
+				referenceType: REFERENCE_TYPE_LINK,
+				value: 'value',
+			},
+			{
+				cardID: 'foo',
+				referenceType: REFERENCE_TYPE_DUPE_OF,
+				value: 'other-value',
+			}
+		];
+		assert.deepStrictEqual(entryResult, expectedEntryResult);
 	});
 
 	it('Add item to existing card', async () => {
@@ -429,6 +462,15 @@ describe('card referencesDiff util functions', () => {
 			{},
 		];
 		assert.deepStrictEqual(cardResult, expectedCardResult);
+		const entryResult = referencesEntriesDiff(inputBefore, inputAfter);
+		const expectedEntryResult = [
+			{
+				cardID: 'foo',
+				referenceType: REFERENCE_TYPE_DUPE_OF,
+				value: 'other-value',
+			}
+		];
+		assert.deepStrictEqual(entryResult, expectedEntryResult);
 	});
 
 	it('Remove existing card', async () => {
@@ -460,6 +502,15 @@ describe('card referencesDiff util functions', () => {
 			},
 		];
 		assert.deepStrictEqual(cardResult, expectedCardResult);
+		const entryResult = referencesEntriesDiff(inputBefore, inputAfter);
+		const expectedEntryResult = [
+			{
+				cardID: 'foo',
+				referenceType: REFERENCE_TYPE_LINK,
+				delete:	true,
+			}
+		];
+		assert.deepStrictEqual(entryResult, expectedEntryResult);
 	});
 
 	it('Remove item from existing card', async () => {
@@ -498,6 +549,15 @@ describe('card referencesDiff util functions', () => {
 			{},
 		];
 		assert.deepStrictEqual(cardResult, expectedCardResult);
+		const entryResult = referencesEntriesDiff(inputBefore, inputAfter);
+		const expectedEntryResult = [
+			{
+				cardID: 'foo',
+				referenceType: REFERENCE_TYPE_DUPE_OF,
+				delete: true,
+			}
+		];
+		assert.deepStrictEqual(entryResult, expectedEntryResult);
 	});
 
 	it('Modify single item in card', async () => {
@@ -535,6 +595,15 @@ describe('card referencesDiff util functions', () => {
 			{},
 		];
 		assert.deepStrictEqual(cardResult, expectedCardResult);
+		const entryResult = referencesEntriesDiff(inputBefore, inputAfter);
+		const expectedEntryResult = [
+			{
+				cardID: 'foo',
+				referenceType: REFERENCE_TYPE_LINK,
+				value: 'value',
+			}
+		];
+		assert.deepStrictEqual(entryResult, expectedEntryResult);
 	});
 
 	it('Modify multiple items in card', async () => {
@@ -575,6 +644,20 @@ describe('card referencesDiff util functions', () => {
 			{},
 		];
 		assert.deepStrictEqual(cardResult, expectedCardResult);
+		const entryResult = referencesEntriesDiff(inputBefore, inputAfter);
+		const expectedEntryResult = [
+			{
+				cardID: 'foo',
+				referenceType: REFERENCE_TYPE_LINK,
+				value: 'value',
+			},
+			{
+				cardID: 'foo',
+				referenceType: REFERENCE_TYPE_DUPE_OF,
+				value: 'other-value',
+			}
+		];
+		assert.deepStrictEqual(entryResult, expectedEntryResult);
 	});
 
 	it('empty before object', async() => {
@@ -598,6 +681,9 @@ describe('card referencesDiff util functions', () => {
 			{},
 		];
 		assert.deepStrictEqual(cardResult, expectedCardResult);
+		const entryResult = referencesEntriesDiff(inputBefore, inputAfter);
+		const expectedEntryResult = [];
+		assert.deepStrictEqual(entryResult, expectedEntryResult);
 	});
 
 	it('empty after object', async() => {
@@ -621,6 +707,9 @@ describe('card referencesDiff util functions', () => {
 			},
 		];
 		assert.deepStrictEqual(cardResult, expectedCardResult);
+		const entryResult = referencesEntriesDiff(inputBefore, inputAfter);
+		const expectedEntryResult = [];
+		assert.deepStrictEqual(entryResult, expectedEntryResult);
 	});
 
 	it('null before object', async() => {
@@ -644,6 +733,9 @@ describe('card referencesDiff util functions', () => {
 			{},
 		];
 		assert.deepStrictEqual(cardResult, expectedCardResult);
+		const entryResult = referencesEntriesDiff(inputBefore, inputAfter);
+		const expectedEntryResult = [];
+		assert.deepStrictEqual(entryResult, expectedEntryResult);
 	});
 
 	it('null after object', async() => {
@@ -667,6 +759,9 @@ describe('card referencesDiff util functions', () => {
 			},
 		];
 		assert.deepStrictEqual(cardResult, expectedCardResult);
+		const entryResult = referencesEntriesDiff(inputBefore, inputAfter);
+		const expectedEntryResult = [];
+		assert.deepStrictEqual(entryResult, expectedEntryResult);
 	});
 
 	it('Multiple changes', async () => {
@@ -746,6 +841,35 @@ describe('card referencesDiff util functions', () => {
 			},
 		];
 		assert.deepStrictEqual(cardResult, expectedCardResult);
+		const entryResult = referencesEntriesDiff(inputBefore, inputAfter);
+		const expectedEntryResult = [
+			{
+				cardID: 'deletion-card',
+				referenceType: REFERENCE_TYPE_LINK,
+				delete: true,
+			},
+			{
+				cardID: 'deletion-card',
+				referenceType: REFERENCE_TYPE_DUPE_OF,
+				delete: true,
+			},
+			{
+				cardID: 'modification-card',
+				referenceType: REFERENCE_TYPE_DUPE_OF,
+				delete: true,
+			},
+			{
+				cardID: 'modification-card',
+				referenceType: REFERENCE_TYPE_LINK,
+				value: 'after-value',
+			},
+			{
+				cardID: 'addition-card',
+				referenceType: REFERENCE_TYPE_LINK,
+				value: 'after-value'
+			},
+		];
+		assert.deepStrictEqual(entryResult, expectedEntryResult);
 
 	});
 
