@@ -33,10 +33,7 @@ const workingNotesExtractor = (card,state) => {
 	const fingerprint = getSemanticFingerprintForCard(state, cardCopy);
 	const pretty = fingerprint.dedupedPrettyItems();
 	const title = date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'2-digit'}) + ' ' + pretty.split(' ').slice(0, NUM_TERMS_OF_FINGERPRINT).join(' ');
-	return {
-		...card,
-		title,
-	};
+	card.title = title;
 };
 
 const conceptValidator = (card, state) => {
@@ -51,18 +48,16 @@ const conceptValidator = (card, state) => {
 			throw new Error(warningMessage);
 		}
 	}
-	return card;
 };
 
 //These are the functions that should be passed a card right as editing is
 //committing. They are given the card and the state, and should return a card
-//with the fields set as they want. The card should not be modified; if new
-//fields are to be added a copy should be returned. This is a useful point to do
-//field derivation, like title fields for working-notes cards. If the finisher
-//throws an error, then the card edit/create will not happen, which makes it
-//also a useful place to do validation before saving. Note that the card might
-//not have ever been saved before, so its timestamp fields in particular might
-//be empty or sentinel values.
+//with the fields set as they want. The card may be modified in place. This is a
+//useful point to do field derivation, like title fields for working-notes
+//cards. If the finisher throws an error, then the card edit/create will not
+//happen, which makes it also a useful place to do validation before saving.
+//Note that the card might not have ever been saved before, so its timestamp
+//fields in particular might be empty or sentinel values.
 export const CARD_TYPE_EDITING_FINISHERS = {
 	[CARD_TYPE_WORKING_NOTES]: workingNotesExtractor,
 	[CARD_TYPE_CONCEPT]: conceptValidator, 

@@ -127,9 +127,8 @@ import {
 
 import {
 	references,
-	referencesLegalShape,
 	applyReferencesDiff,
-	referencesCardAdditions
+	referencesEntriesDiff
 } from '../references.js';
 
 import {
@@ -221,10 +220,7 @@ const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURA
 	'card_type',
 	'font_size_boost',
 	'images',
-	//TODO: ideally we wouldn't have to list these here, this is the only place
-	//we expect those references properties to be enumerated outside of card_fields.js
-	REFERENCES_INFO_CARD_PROPERTY,
-	REFERENCES_CARD_PROPERTY,
+	'references_diff',
 ]).map(key => [key,true]));
 
 //Returns true if the user has said to proceed to any confirmation warnings (if
@@ -271,10 +267,11 @@ export const generateCardDiff = async (state, underlyingCard, rawUpdatedCard) =>
 
 	const cardFinisher = CARD_TYPE_EDITING_FINISHERS[rawUpdatedCard.card_type];
 
-	let updatedCard;
+	//updatedCard is a copy so may be modified
+	const updatedCard = {...rawUpdatedCard};
 
 	try {
-		updatedCard = cardFinisher ? cardFinisher(rawUpdatedCard, state) : rawUpdatedCard;
+		if(cardFinisher) cardFinisher(updatedCard, state);
 	} catch(err) {
 		throw new Error('The card finisher threw an error: ' + err);
 	}
@@ -298,6 +295,9 @@ export const generateCardDiff = async (state, underlyingCard, rawUpdatedCard) =>
 			}
 		}
 		update[field] = value;
+		if (field !== TEXT_FIELD_BODY) continue;
+		let linkInfo = extractCardLinksFromBody(value);
+		references(updatedCard).setLinks(linkInfo);
 	}
 
 	if (Object.keys(updatedCard.font_size_boost).length != Object.keys(underlyingCard.font_size_boost || {}).length || Object.entries(updatedCard.font_size_boost).some(entry => (underlyingCard.font_size_boost || {})[entry[0]] != entry[1])) update.font_size_boost = updatedCard.font_size_boost;
@@ -328,10 +328,9 @@ export const generateCardDiff = async (state, underlyingCard, rawUpdatedCard) =>
 
 	if (!imageBlocksEquivalent(underlyingCard, updatedCard)) update.images = updatedCard.images;
 
-	//if references changed, pass the ENTIRE new references object in on update.
-	//We pass the whole references since modifyCard will need to extractLinks
-	//and update refernces
-	if (!references(underlyingCard).equivalentTo(updatedCard)) references(update).ensureReferences(updatedCard);
+	//references might have changed outside of this function, or because the
+	//body changed and we extracted links.
+	if (!references(underlyingCard).equivalentTo(updatedCard)) update.references_diff = referencesEntriesDiff(underlyingCard, updatedCard);
 
 	return update;
 };
@@ -410,34 +409,18 @@ const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 	for (let field of Object.keys(TEXT_FIELD_CONFIGURATION)) {
 		if (update[field] === undefined) continue;
 		cardUpdateObject[field] = update[field];
-		if (field != TEXT_FIELD_BODY) continue;
-		let linkInfo = extractCardLinksFromBody(update[field]);
-		//setLinks will modify the references of the cardUpdateObject to be
-		//the canonical references object to set, so ensure that if there isn't
-		//one already, we add one by copying over from underlying card.
-		references(update).ensureReferences(card).setLinks(linkInfo);
 	}
 
-	//if the properties references expects are set, then apply them 
-	if (referencesLegalShape(update)) {
-
-		const cardIDAdditions = referencesCardAdditions(card, update);
-		const cards = selectCards(state);
-		const referencesNonexistentCards = cardIDAdditions.some(id => !cards[id]);
-
-		if (referencesNonexistentCards) {
-			throw new Error('The card referenced a card that does not yet exist');
+	if (update.references_diff !== undefined) {
+		const cardCopy = {...card};
+		const refs = references(cardCopy);
+		const reason = refs.mayNotApplyEntriesDiffReason(state, update.references_diff);
+		if (reason) {
+			throw new Error('References diff created error: ' + reason);
 		}
-		if (references(update).array().filter(id => id == card.id).length) {
-			throw new Error('The card references itself which is not allowed');
-		}
-		//Note: update.references_info is the only property type that we accept in
-		//modifyCard's update that is NOT pre-diffed. That's because the
-		//auto-extracted links might modify the changes to make, so we have to
-		//pass the raw references in, and do the diffing here. See #368 for
-		//cleaning this up.
+		refs.applyEntriesDiff(update.references_diff);
 		//NOTE: this is where the raw references property values are also updated
-		applyReferencesDiff(card, update, cardUpdateObject);
+		applyReferencesDiff(card, cardCopy, cardUpdateObject);
 	}
 
 	if (update.notes !== undefined) {
