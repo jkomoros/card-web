@@ -84,6 +84,7 @@ import './user-chip.js';
 import './find-dialog.js';
 import './compose-dialog.js';
 import './card-preview.js';
+import './multi-edit-dialog.js';
 import { 
 	CARD_WIDTH_IN_EMS,
 	CARD_HEIGHT_IN_EMS
@@ -256,6 +257,7 @@ class MainView extends connect(store)(LitElement) {
 		<div @mousemove=${this._handleMouseMove} class='container ${this._mayViewApp ? '' : 'may-not-view'}'>
 			<find-dialog></find-dialog>
 			<compose-dialog></compose-dialog>
+			<multi-edit-dialog></multi-edit-dialog>
 			<card-preview .card=${this._activePreviewCard} .x=${this._previewCardX} .y=${this._previewCardY} .badgeMap=${this._badgeMap} .expandedReferenceBlocks=${this._previewCardReferenceBlocks}></card-preview>
 			<!-- Header -->
 			<div class='header' ?hidden=${!this._headerPanelOpen}>
