@@ -110,6 +110,10 @@ import {
 	turnSuggestMissingConcepts,
 } from '../actions/app.js';
 
+import {
+	openMultiEditDialog
+} from '../actions/multiedit.js';
+
 //Components needed by this
 import './card-drawer.js';
 import './card-stage.js';
@@ -248,6 +252,7 @@ class CardView extends connect(store)(PageViewElement) {
 			${this._userIsAdmin ? html`
 			<div slot='info'>
 				<input type='checkbox' .checked=${this._suggestMissingConceptsEnabled} @change=${this._handleSuggestMissingConceptsChanged} id='suggested-concepts-enabled'><label for='suggested-concepts-enabled'>Suggest Missing Concepts <strong>(SLOW)</strong></label>
+				<button id='edit-multi' class='small' title='Edit all cards' @click=${this._handleMultiEditClicked}>${EDIT_ICON}</button><label for='edit-multi'>Edit All Cards</label>
 			</div>` : ''}
 		</card-drawer>
         <div id='center'>
@@ -396,6 +401,10 @@ class CardView extends connect(store)(PageViewElement) {
 		} else {
 			store.dispatch(enablePresentationMode());
 		}
+	}
+
+	_handleMultiEditClicked() {
+		store.dispatch(openMultiEditDialog());
 	}
 
 	_handleFindClicked() {
