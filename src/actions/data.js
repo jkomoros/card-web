@@ -535,8 +535,9 @@ const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 	}
 
 	//If there aren't any updates to a card, that's OK. This might happen in a
-	//multiModify where some cards already have the items, for example.
-	if (Object.keys(cardUpdateObject).length == 0) return;
+	//multiModify where some cards already have the items, for example. There's
+	//always an 'updated' field, which is why we check for 1
+	if (Object.keys(cardUpdateObject).length == 1) return;
 
 	let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
 
