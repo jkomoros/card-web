@@ -11,10 +11,16 @@ store.addReducers({
 	multiedit
 });
 
+import { ButtonSharedStyles } from './button-shared-styles.js';
+
 import {
 	closeMultiEditDialog,
 	removeReference
 } from '../actions/multiedit.js';
+
+import {
+	CHECK_CIRCLE_OUTLINE_ICON
+} from './my-icons.js';
 
 import {
 	selectMultiEditDialogOpen,
@@ -45,6 +51,14 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 		return html`
 		${HelpStyles}
+		${ButtonSharedStyles}
+		<style>
+			.buttons {
+				display:flex;
+				flex-direction: row;
+				justify-content:flex-end;
+			}
+		</style>
 		<div>
 		${Object.entries(REFERENCE_TYPES).filter(entry => referencesMap[entry[0]]).map(entry => {
 		return html`<div>
@@ -52,12 +66,19 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 							<tag-list .overrideTypeName=${'Reference'} .referenceType=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .editing=${entry[1].editable} .subtle=${!entry[1].editable} .tapEvents=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveReference}></tag-list>
 						</div>`;
 	})}
+		<div class='buttons'>
+			<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
+		</div>
 	</div>`;
 	}
 
 	constructor() {
 		super();
 		this.title = 'Edit Multiple Cards';
+	}
+
+	_handleDoneClicked() {
+		this._shouldClose();
 	}
 
 	_shouldClose() {
