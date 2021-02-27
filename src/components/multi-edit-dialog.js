@@ -31,7 +31,8 @@ import {
 	selectSelectedCardsReferencesUnion,
 	selectTagInfosForCards,
 	selectMultiEditReferencesDiff,
-	selectSelectedCards
+	selectSelectedCards,
+	selectCardModificationPending
 } from '../selectors.js';
 
 import {
@@ -58,13 +59,27 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		${HelpStyles}
 		${ButtonSharedStyles}
 		<style>
+			.scrim {
+				z-index:100;
+				height:100%;
+				width:100%;
+				position:absolute;
+				background-color:rgba(255,255,255,0.7);
+				display:none;
+			}
+
+			.modification-pending .scrim {
+				display:block;
+			}
+
 			.buttons {
 				display:flex;
 				flex-direction: row;
 				justify-content:flex-end;
 			}
 		</style>
-		<div>
+		<div class='${this._cardModificationPending ? 'modification-pending' : ''}'>
+		<div class='scrim'></div>
 		${Object.entries(REFERENCE_TYPES).filter(entry => referencesMap[entry[0]] && entry[1].editable).map(entry => {
 		return html`<div>
 							<label>${entry[1].name} ${help(entry[1].description, false)}</label>
@@ -119,6 +134,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 			_cardTagInfos: {type: Object},
 			_referencesDiff: {type:Array},
 			_selectedCards: {type:Array},
+			_cardModificationPending: {type:Boolean},
 		};
 	}
 
@@ -130,6 +146,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		this._cardTagInfos = selectTagInfosForCards(state);
 		this._referencesDiff = selectMultiEditReferencesDiff(state);
 		this._selectedCards = selectSelectedCards(state);
+		this._cardModificationPending = selectCardModificationPending(state);
 	}
 
 }
