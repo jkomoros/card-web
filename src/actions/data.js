@@ -146,6 +146,10 @@ import {
 	store
 } from '../store.js';
 
+import {
+	MultiBatch
+} from '../multi_batch.js';
+
 //map of cardID => promise that's waiting
 let waitingForCards = {};
 
@@ -351,7 +355,7 @@ export const modifyCard = (card, update, substantive) => async (dispatch, getSta
 
 	dispatch(modifyCardAction(card.id));
 
-	const batch = db.batch();
+	const batch = new MultiBatch(db);
 
 	try {
 		modifyCardWithBatch(state, card, update, substantive, batch);
