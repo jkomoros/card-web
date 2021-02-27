@@ -41,6 +41,10 @@ import {
 } from './app.js';
 
 import {
+	closeMultiEditDialog
+} from './multiedit.js';
+
+import {
 	editingFinish,
 	slugAdded,
 	tagAdded
@@ -86,6 +90,7 @@ import {
 	selectExpectedDeletions,
 	selectCardModificationPending,
 	getCardById,
+	selectMultiEditDialogOpen
 } from '../selectors.js';
 
 import {
@@ -1372,8 +1377,11 @@ const modifyCardAction = () => {
 
 const modifyCardSuccess = () => (dispatch, getState) => {
 	const state = getState();
-	if (state.editor.editing) {
+	if (selectIsEditing(state)) {
 		dispatch(editingFinish());
+	}
+	if (selectMultiEditDialogOpen(state)) {
+		dispatch(closeMultiEditDialog());
 	}
 	dispatch({
 		type:MODIFY_CARD_SUCCESS,

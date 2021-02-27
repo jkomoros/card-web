@@ -103,7 +103,10 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				references_diff: this._referencesDiff,
 			};
 			store.dispatch(modifyCards(this._selectedCards, update, false, false));
+			//We'll close the dialog when modifyCardSuccess is triggered.
+			return;
 		}
+		//If we didn't have anything to do, close it now.
 		this._shouldClose();
 	}
 
