@@ -498,6 +498,9 @@ const expandedReferences = (referencesInfo) => {
 	return result;
 };
 
+export const referencesEntriesDiffWithSet = (diff = [], cardID, referenceType, value = '') => [...diff, expandedReferenceObject(cardID, referenceType, value)];
+export const referencesEntriesDiffWithRemove = (diff = [], cardID, referenceType) => [expandedReferenceObject(cardID, referenceType), ...diff];
+
 //Returns an array of objects with referenceType, cardID, and either value or
 //delete:true, representing the items that would have to be done via
 //setCardReference and removeCardReference to get beforeCard to look like
