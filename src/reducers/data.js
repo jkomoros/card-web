@@ -49,8 +49,8 @@ const INITIAL_STATE = {
 	//loaded already. If so, then even if refreshCardSelector gets called again,
 	//we won't update the collection again.
 	alreadyCommittedModificationsWhenFullyLoaded: false,
-	//The modification that is pending
-	cardModificationPending: '',
+	//Whether a card modification is pending
+	cardModificationPending: false,
 	cardModificationError: null,
 	reorderPending: false,
 	//A card that we created, but is not yet in the cards collection. This will
@@ -170,18 +170,18 @@ const app = (state = INITIAL_STATE, action) => {
 	case MODIFY_CARD:
 		return {
 			...state,
-			cardModificationPending: action.cardId,
+			cardModificationPending: true,
 			cardModificationError: null,
 		}; 
 	case MODIFY_CARD_SUCCESS:
 		return {
 			...state,
-			cardModificationPending: '',
+			cardModificationPending: false,
 		};
 	case MODIFY_CARD_FAILURE:
 		return {
 			...state,
-			cardModificationPending: '',
+			cardModificationPending: false,
 			cardModificationError: action.error
 		};
 	case REORDER_STATUS:

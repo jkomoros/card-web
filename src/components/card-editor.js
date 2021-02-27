@@ -460,7 +460,7 @@ class CardEditor extends connect(store)(LitElement) {
 		_authors: { type:Object },
 		_isAdmin: { type:Boolean },
 		_pendingSlug: { type:String },
-		_cardModificationPending: {type:String},
+		_cardModificationPending: {type:Boolean},
 		_suggestedConcepts: { type:Array },
 	};}
 

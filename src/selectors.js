@@ -152,7 +152,7 @@ const selectFiltersSnapshot = (state) => state.collection.filtersSnapshot;
 export const selectSections = (state) => state.data ? state.data.sections : {};
 export const selectTags = (state) => state.data ? state.data.tags : {};
 export const selectExpectedDeletions = (state) => state.data ? state.data.expectedDeletions : {};
-export const selectCardModificationPending = (state) => state.data ? state.data.cardModificationPending : '';
+export const selectCardModificationPending = (state) => state.data ? state.data.cardModificationPending : false;
 //All cards downloaded to client can be assumed to be OK to use in the rest of the pipeline.
 //rawCards means they don't yet have their nlp data cached. See selectCards which returns that.
 //NOTE: this next one is duplicated in simple_selectors.js

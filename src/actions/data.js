@@ -353,7 +353,7 @@ export const modifyCard = (card, update, substantive) => async (dispatch, getSta
 		return;
 	}
 
-	dispatch(modifyCardAction(card.id));
+	dispatch(modifyCardAction());
 
 	const batch = new MultiBatch(db);
 
@@ -1353,10 +1353,9 @@ export const navigatedToNewCard = () => {
 	};
 };
 
-const modifyCardAction = (cardId) => {
+const modifyCardAction = () => {
 	return {
 		type: MODIFY_CARD,
-		cardId,
 	};
 };
 
