@@ -339,8 +339,11 @@ export const generateCardDiff = async (state, underlyingCard, rawUpdatedCard) =>
 	return update;
 };
 
-export const modifyCard = (card, update, substantive) => async (dispatch, getState) => {
+export const modifyCard = (card, update, substantive) => {
+	return modifyCards([card], update, substantive, true);
+};
 
+export const modifyCards = (cards, update, substantive, failOnError) => async (dispatch, getState) => {
 	const state = getState();
 
 	if (selectCardModificationPending(state)) {
@@ -348,30 +351,37 @@ export const modifyCard = (card, update, substantive) => async (dispatch, getSta
 		return;
 	}
 
-	if (!card || !card.id) {
-		console.log('No id on card');
-		return;
-	}
-
 	dispatch(modifyCardAction());
 
 	const batch = new MultiBatch(db);
 
-	try {
-		modifyCardWithBatch(state, card, update, substantive, batch);
-	} catch (err) {
-		dispatch(modifyCardFailure(err));
-		return;
+	for (const card of cards) {
+
+		if (!card || !card.id) {
+			console.log('No id on card');
+			if (failOnError) return;
+			continue;
+		}
+
+		try {
+			modifyCardWithBatch(state, card, update, substantive, batch);
+		} catch (err) {
+			console.warn('Couldn\'t modify card: ' + err);
+			if (failOnError) {
+				dispatch(modifyCardFailure(err));
+				return;
+			}
+		}
 	}
 
 	try {
 		await batch.commit();
-		dispatch(modifyCardSuccess());
 	} catch(err) {
 		dispatch(modifyCardFailure('Couldn\'t save card: ' + err));
 		return;
 	}
 
+	dispatch(modifyCardSuccess());
 };
 
 const modifyCardWithBatch = (state, card, update, substantive, batch) => {
