@@ -26,7 +26,8 @@ import {
 	selectMultiEditDialogOpen,
 	selectSelectedCardsReferencesUnion,
 	selectTagInfosForCards,
-	selectMultiEditReferencesDiff
+	selectMultiEditReferencesDiff,
+	selectSelectedCards
 } from '../selectors.js';
 
 import {
@@ -107,6 +108,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 			_unionReferencesCard: {type: Object},
 			_cardTagInfos: {type: Object},
 			_referencesDiff: {type:Array},
+			_selectedCards: {type:Array},
 		};
 	}
 
@@ -117,6 +119,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		this._unionReferencesCard = this.open ? selectSelectedCardsReferencesUnion(state) : {};
 		this._cardTagInfos = selectTagInfosForCards(state);
 		this._referencesDiff = selectMultiEditReferencesDiff(state);
+		this._selectedCards = selectSelectedCards(state);
 	}
 
 }

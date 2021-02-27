@@ -1200,7 +1200,7 @@ export const selectActiveCollection = createSelector(
 
 //TODO: implement a proper notion of selected cards. For now we just use all
 //active cards in the collection.
-const selectSelectedCards = createSelector(
+export const selectSelectedCards = createSelector(
 	selectActiveCollection,
 	(collection) => collection.filteredCards
 );
