@@ -13,6 +13,7 @@ store.addReducers({
 
 import {
 	closeMultiEditDialog,
+	removeReference
 } from '../actions/multiedit.js';
 
 import {
@@ -61,8 +62,20 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		store.dispatch(closeMultiEditDialog());
 	}
 
-	_handleRemoveReference() {
-		alert('Not yet implemented');
+	_handleRemoveReference(e) {
+		let referenceType = '';
+		//Walk up the chain to find which tag-list has it (which will have the
+		//referenceType we set explicitly on it)
+		for (let ele of e.composedPath()) {
+			if (ele.referenceType) {
+				referenceType = ele.referenceType;
+				break;
+			}
+		}
+		if (!referenceType) {
+			console.warn('No reference type found on parents');
+		}
+		store.dispatch(removeReference(e.detail.tag, referenceType));
 	}
 
 	static get properties() {
