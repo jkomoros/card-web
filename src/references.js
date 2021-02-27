@@ -373,6 +373,23 @@ const ReferencesAccessor = class {
 	}
 };
 
+//Returns a card-like object with a reference block that is the UNION of the
+//references of all cardObjs provided.
+export const unionReferences = (cardObjs) => {
+	const fauxCard = {};
+	const refs = references(fauxCard);
+	refs.ensureReferences(null);
+	for (const card of cardObjs) {
+		const referencesInfo = card[REFERENCES_INFO_CARD_PROPERTY];
+		for (const [cardID, cardReferences] of Object.entries(referencesInfo)) {
+			for (const [referenceType, value] of Object.entries(cardReferences)) {
+				refs.setCardReference(cardID, referenceType, value);
+			}
+		}
+	}
+	return fauxCard;
+};
+
 //referencesLegalShape is a sanity check that the referencesBlock looks like it's expected to.
 //Copied to functions/update.js
 export const referencesLegalShape = (cardObj) => {

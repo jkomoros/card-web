@@ -3,6 +3,7 @@
 import {
 	REFERENCE_TYPE_LINK,
 	REFERENCE_TYPE_DUPE_OF,
+	REFERENCE_TYPE_ACK,
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY
 } from '../../src/card_fields.js';
@@ -14,6 +15,7 @@ import {
 	referencesCardsDiff,
 	applyReferencesDiff,
 	referencesEntriesDiff,
+	unionReferences
 } from '../../src/references.js';
 
 //We import these only to get deleteSentinel without importing from firebase.js.
@@ -1024,4 +1026,111 @@ describe('references.withFallbackText', () => {
 		assert.deepStrictEqual(ref._cardObj, clonedInput);
 	});
 
+});
+
+describe('unionReferences', () => {
+	it('single card', () => {
+		const input = [
+			{
+				[REFERENCES_INFO_CARD_PROPERTY]: {
+					'foo': {
+						[REFERENCE_TYPE_ACK]: '',
+					},
+				},
+			},
+		];
+
+		const expectedResult = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_ACK]: '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+			},
+		};
+
+		const result = unionReferences(input);
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
+	it('two cards partial overlap', () => {
+		const input = [
+			{
+				[REFERENCES_INFO_CARD_PROPERTY]: {
+					'foo': {
+						[REFERENCE_TYPE_ACK]: '',
+					},
+				},
+			},
+			{
+				[REFERENCES_INFO_CARD_PROPERTY]: {
+					'bar': {
+						[REFERENCE_TYPE_ACK]: 'value',
+					},
+					'foo': {
+						[REFERENCE_TYPE_ACK]: '',
+						[REFERENCE_TYPE_DUPE_OF]: '',
+					},
+				}
+			}
+		];
+
+		const expectedResult = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_ACK]: '',
+					[REFERENCE_TYPE_DUPE_OF]: '',
+				},
+				'bar': {
+					[REFERENCE_TYPE_ACK]: 'value',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+				'bar': true,
+			},
+		};
+
+		const result = unionReferences(input);
+		assert.deepStrictEqual(result, expectedResult);
+	});
+
+	it('two cards no overlap', () => {
+		const input = [
+			{
+				[REFERENCES_INFO_CARD_PROPERTY]: {
+					'foo': {
+						[REFERENCE_TYPE_ACK]: '',
+					},
+				},
+			},
+			{
+				[REFERENCES_INFO_CARD_PROPERTY]: {
+					'bar': {
+						[REFERENCE_TYPE_ACK]: 'value',
+					},
+				}
+			}
+		];
+
+		const expectedResult = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_ACK]: '',
+				},
+				'bar': {
+					[REFERENCE_TYPE_ACK]: 'value',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+				'bar': true,
+			},
+		};
+
+		const result = unionReferences(input);
+		assert.deepStrictEqual(result, expectedResult);
+	});
 });
