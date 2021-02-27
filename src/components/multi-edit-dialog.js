@@ -19,6 +19,10 @@ import {
 } from '../actions/multiedit.js';
 
 import {
+	modifyCards
+} from '../actions/data.js';
+
+import {
 	CHECK_CIRCLE_OUTLINE_ICON
 } from './my-icons.js';
 
@@ -79,6 +83,12 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleDoneClicked() {
+		if (this._referencesDiff.length) {
+			const update = {
+				references_diff: this._referencesDiff,
+			};
+			store.dispatch(modifyCards(this._selectedCards, update, false, false));
+		}
 		this._shouldClose();
 	}
 
