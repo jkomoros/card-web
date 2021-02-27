@@ -54,6 +54,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		const refs = referencesNonModifying(this._unionReferencesCard);
 		refs.applyEntriesDiff(this._referencesDiff);
 		const referencesMap = refs.byTypeArray();
+		const previousReferencesMap = referencesNonModifying(this._unionReferencesCard).byTypeArray();
 
 		return html`
 		${HelpStyles}
@@ -83,7 +84,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		${Object.entries(REFERENCE_TYPES).filter(entry => referencesMap[entry[0]] && entry[1].editable).map(entry => {
 		return html`<div>
 							<label>${entry[1].name} ${help(entry[1].description, false)}</label>
-							<tag-list .overrideTypeName=${'Reference'} .referenceType=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .editing=${true} .subtle=${!entry[1].editable} .tapEvents=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveReference}></tag-list>
+							<tag-list .overrideTypeName=${'Reference'} .referenceType=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .previousTags=${previousReferencesMap[entry[0]]} .editing=${true} .tapEvents=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveReference}></tag-list>
 						</div>`;
 	})}
 		<div class='buttons'>
