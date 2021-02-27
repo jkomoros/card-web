@@ -374,7 +374,7 @@ const ReferencesAccessor = class {
 };
 
 //Returns a card-like object with a reference block that is the UNION of the
-//references of all cardObjs provided.
+//references of all cardObjs provided. See also intersectionReferences.
 export const unionReferences = (cardObjs) => {
 	const fauxCard = {};
 	const refs = references(fauxCard);
@@ -384,6 +384,36 @@ export const unionReferences = (cardObjs) => {
 		for (const [cardID, cardReferences] of Object.entries(referencesInfo)) {
 			for (const [referenceType, value] of Object.entries(cardReferences)) {
 				refs.setCardReference(cardID, referenceType, value);
+			}
+		}
+	}
+	return fauxCard;
+};
+
+//Returns a card-like object with a reference block that is the INTERSECTION of the
+//references of all cardObjs provided. See also unionReferences.
+export const intersectionReferences = (cardObjs) => {
+	const fauxCard = {};
+	const refs = references(fauxCard);
+	const firstCard = cardObjs.length ? cardObjs[0] : null;
+	refs.ensureReferences(firstCard);
+	const fauxCardReferencesInfo = fauxCard[REFERENCES_INFO_CARD_PROPERTY];
+	//skip the first card, which we basically copied, and remove everything else.
+	for (const card of cardObjs.slice(1)){
+		const referencesInfo = card[REFERENCES_INFO_CARD_PROPERTY];
+		for (const [cardID, cardReferences] of Object.entries(referencesInfo)) {
+			for (const referenceType of Object.keys(cardReferences)) {
+				//Leave items that we have.
+				if (fauxCardReferencesInfo[cardID] && fauxCardReferencesInfo[cardID][referenceType] !== undefined) continue;
+				refs.removeCardReference(cardID, referenceType);
+			}
+		}
+		//Now remove any items from first that the others don't have
+		for (const [cardID, cardReferences] of Object.entries(fauxCardReferencesInfo)) {
+			for (const referenceType of Object.keys(cardReferences)) {
+				//Leave items that we have.
+				if (referencesInfo[cardID] && referencesInfo[cardID][referenceType] !== undefined) continue;
+				refs.removeCardReference(cardID, referenceType);
 			}
 		}
 	}

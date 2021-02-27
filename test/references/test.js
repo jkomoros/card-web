@@ -15,7 +15,8 @@ import {
 	referencesCardsDiff,
 	applyReferencesDiff,
 	referencesEntriesDiff,
-	unionReferences
+	unionReferences,
+	intersectionReferences
 } from '../../src/references.js';
 
 //We import these only to get deleteSentinel without importing from firebase.js.
@@ -1028,7 +1029,22 @@ describe('references.withFallbackText', () => {
 
 });
 
-describe('unionReferences', () => {
+describe('unionReferences and intersectionReferences', () => {
+
+	it('no cards', () => {
+		const input = [];
+
+		const expectedResult = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {},
+			[REFERENCES_CARD_PROPERTY]: {},
+		};
+
+		const result = unionReferences(input);
+		assert.deepStrictEqual(result, expectedResult);
+		const intersectionResult = intersectionReferences(input);
+		assert.deepStrictEqual(intersectionResult, expectedResult);
+	});
+
 	it('single card', () => {
 		const input = [
 			{
@@ -1037,6 +1053,9 @@ describe('unionReferences', () => {
 						[REFERENCE_TYPE_ACK]: '',
 					},
 				},
+				[REFERENCES_CARD_PROPERTY]: {
+					'foo': true,
+				}
 			},
 		];
 
@@ -1053,6 +1072,8 @@ describe('unionReferences', () => {
 
 		const result = unionReferences(input);
 		assert.deepStrictEqual(result, expectedResult);
+		const intersectionResult = intersectionReferences(input);
+		assert.deepStrictEqual(intersectionResult, expectedResult);
 	});
 
 	it('two cards partial overlap', () => {
@@ -1063,6 +1084,9 @@ describe('unionReferences', () => {
 						[REFERENCE_TYPE_ACK]: '',
 					},
 				},
+				[REFERENCES_CARD_PROPERTY]: {
+					'foo': true,
+				}
 			},
 			{
 				[REFERENCES_INFO_CARD_PROPERTY]: {
@@ -1073,6 +1097,10 @@ describe('unionReferences', () => {
 						[REFERENCE_TYPE_ACK]: '',
 						[REFERENCE_TYPE_DUPE_OF]: '',
 					},
+				},
+				[REFERENCES_CARD_PROPERTY]: {
+					'foo': true,
+					'bar': true,
 				}
 			}
 		];
@@ -1093,8 +1121,21 @@ describe('unionReferences', () => {
 			},
 		};
 
+		const expectedIntersectionResult = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_ACK]: '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+			},
+		};
+
 		const result = unionReferences(input);
 		assert.deepStrictEqual(result, expectedResult);
+		const intersectionResult = intersectionReferences(input);
+		assert.deepStrictEqual(intersectionResult, expectedIntersectionResult);
 	});
 
 	it('two cards no overlap', () => {
@@ -1105,12 +1146,18 @@ describe('unionReferences', () => {
 						[REFERENCE_TYPE_ACK]: '',
 					},
 				},
+				[REFERENCES_CARD_PROPERTY]: {
+					'foo': true,
+				}
 			},
 			{
 				[REFERENCES_INFO_CARD_PROPERTY]: {
 					'bar': {
 						[REFERENCE_TYPE_ACK]: 'value',
 					},
+				},
+				[REFERENCES_CARD_PROPERTY]: {
+					'bar': true,
 				}
 			}
 		];
@@ -1130,7 +1177,14 @@ describe('unionReferences', () => {
 			},
 		};
 
+		const expectedIntersectionResult = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {},
+			[REFERENCES_CARD_PROPERTY]: {},
+		};
+
 		const result = unionReferences(input);
 		assert.deepStrictEqual(result, expectedResult);
+		const intersectionResult = intersectionReferences(input);
+		assert.deepStrictEqual(intersectionResult, expectedIntersectionResult);
 	});
 });
