@@ -19,6 +19,14 @@ import {
 
 const memoizedCardAccessors = new Map();
 
+//Like referendces, but in a way that doesn't modify the card. It simply creates
+//a shallow copy of the card first.
+export const referencesNonModifying = (cardObj) => {
+	const cardCopy = {...cardObj};
+	//TODO: return the same copy for the same object
+	return references(cardCopy);
+};
+
 //References returns a ReferencesAccessor to access references for this cardObj.
 //It may return one that's already been returned for this card obj.
 export const references = (cardObj) => {

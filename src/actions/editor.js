@@ -67,7 +67,7 @@ import {
 } from '../card_fields.js';
 
 import {
-	references
+	referencesNonModifying
 } from '../references.js';
 
 import {
@@ -751,9 +751,7 @@ export const addReferenceToCard = (cardID, referenceType) => (dispatch, getState
 		return;
 	}
 
-	const editingCardCopy = {...editingCard};
-
-	const reason = references(editingCardCopy).mayNotSetCardReferenceReason(state, cardID, referenceType); 
+	const reason = referencesNonModifying(editingCard).mayNotSetCardReferenceReason(state, cardID, referenceType); 
 
 	if (reason) {
 		console.warn(reason);
