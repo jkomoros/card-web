@@ -46,7 +46,9 @@ import {
 } from './card_fields.js';
 
 import {
-	references
+	references,
+	unionReferences,
+	intersectionReferences
 } from './references.js';
 
 import {
@@ -1193,6 +1195,23 @@ export const selectActiveCollection = createSelector(
 	selectActiveCollectionDescription,
 	selectCollectionConstructorArgumentsForGhostingCollection,
 	(description, args) => description ? description.collection(args) : null
+);
+
+//TODO: implement a proper notion of selected cards. For now we just use all
+//active cards in the collection.
+const selectSelectedCards = createSelector(
+	selectActiveCollection,
+	(collection) => collection.filteredCards
+);
+
+export const selectSelectedCardsReferencesUnion = createSelector(
+	selectSelectedCards,
+	(cards) => unionReferences(cards)
+);
+
+export const selectSelectedCardsReferencesIntersection = createSelector(
+	selectSelectedCards,
+	(cards) => intersectionReferences(cards)
 );
 
 const selectActiveCollectionWordCloud = createSelector(
