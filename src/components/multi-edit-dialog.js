@@ -19,7 +19,8 @@ import {
 import {
 	selectMultiEditDialogOpen,
 	selectSelectedCardsReferencesUnion,
-	selectTagInfosForCards
+	selectTagInfosForCards,
+	selectMultiEditReferencesDiff
 } from '../selectors.js';
 
 import {
@@ -27,7 +28,7 @@ import {
 } from '../card_fields.js';
 
 import {
-	references,
+	referencesNonModifying,
 } from '../references.js';
 
 import {
@@ -38,7 +39,9 @@ import {
 class MultiEditDialog extends connect(store)(DialogElement) {
 	innerRender() {
 
-		const referencesMap = references(this._unionReferencesCard).byTypeArray();
+		const refs = referencesNonModifying(this._unionReferencesCard);
+		refs.applyEntriesDiff(this._referencesDiff);
+		const referencesMap = refs.byTypeArray();
 
 		return html`
 		${HelpStyles}
@@ -82,6 +85,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		return {
 			_unionReferencesCard: {type: Object},
 			_cardTagInfos: {type: Object},
+			_referencesDiff: {type:Array},
 		};
 	}
 
@@ -91,6 +95,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		//selectSelectedCardsReferencesUnion is expensive, only do it if we're open.
 		this._unionReferencesCard = this.open ? selectSelectedCardsReferencesUnion(state) : {};
 		this._cardTagInfos = selectTagInfosForCards(state);
+		this._referencesDiff = selectMultiEditReferencesDiff(state);
 	}
 
 }

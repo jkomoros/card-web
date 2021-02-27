@@ -124,6 +124,7 @@ export const selectFindLinking = (state) => state.find && state.find.linking;
 export const selectFindPermissions = (state) => state.find && state.find.permissions;
 
 export const selectMultiEditDialogOpen = (state) => state.multiedit && state.multiedit.open;
+export const selectMultiEditReferencesDiff = (state) => state.multiedit ? state.multiedit.referencesDiff : [];
 
 export const selectCommentsAndInfoPanelOpen = (state) => state.app ? state.app.commentsAndInfoPanelOpen : false;
 
