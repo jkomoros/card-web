@@ -75,7 +75,8 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	stateChanged(state) {
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = selectMultiEditDialogOpen(state);
-		this._unionReferencesCard = selectSelectedCardsReferencesUnion(state);
+		//selectSelectedCardsReferencesUnion is expensive, only do it if we're open.
+		this._unionReferencesCard = this.open ? selectSelectedCardsReferencesUnion(state) : {};
 		this._cardTagInfos = selectTagInfosForCards(state);
 	}
 
