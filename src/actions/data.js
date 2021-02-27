@@ -382,17 +382,10 @@ const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 		throw new Error('User isn\'t allowed to edit the given card');
 	}
 
-	let keysCount = 0;
-
 	for (let key of Object.keys(update)) {
-		keysCount++;
 		if (!LEGAL_UPDATE_FIELDS[key]) {
 			throw new Error('Illegal field in update: ' + key, update);
 		}
-	}
-
-	if (keysCount == 0) {
-		throw new Error('Nothing changed in update!');
 	}
 
 	let updateObject = {
@@ -526,6 +519,10 @@ const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 		if (update.auto_todo_overrides_removals) update.auto_todo_overrides_removals.forEach(key => delete overrides[key]);
 		cardUpdateObject.auto_todo_overrides = overrides;
 	}
+
+	//If there aren't any updates to a card, that's OK. This might happen in a
+	//multiModify where some cards already have the items, for example.
+	if (Object.keys(cardUpdateObject).length == 0) return;
 
 	let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
 
