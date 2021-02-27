@@ -1187,4 +1187,76 @@ describe('unionReferences and intersectionReferences', () => {
 		const intersectionResult = intersectionReferences(input);
 		assert.deepStrictEqual(intersectionResult, expectedIntersectionResult);
 	});
+
+	it('three cards some overlap', () => {
+		const input = [
+			{
+				[REFERENCES_INFO_CARD_PROPERTY]: {
+					'foo': {
+						[REFERENCE_TYPE_ACK]: '',
+						[REFERENCE_TYPE_DUPE_OF]: '',
+					},
+				},
+				[REFERENCES_CARD_PROPERTY]: {
+					'foo': true,
+				}
+			},
+			{
+				[REFERENCES_INFO_CARD_PROPERTY]: {
+					'foo': {
+						[REFERENCE_TYPE_DUPE_OF]: '',
+					},
+					'bar': {
+						[REFERENCE_TYPE_ACK]: 'value',
+					},
+				},
+				[REFERENCES_CARD_PROPERTY]: {
+					'bar': true,
+					'foo': true,
+				}
+			},
+			{
+				[REFERENCES_INFO_CARD_PROPERTY]: {
+					'foo': {
+						[REFERENCE_TYPE_DUPE_OF]: '',
+					},
+				},
+				[REFERENCES_CARD_PROPERTY]: {
+					'foo': true,
+				}
+			},
+		];
+
+		const expectedResult = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_ACK]: '',
+					[REFERENCE_TYPE_DUPE_OF]: '',
+				},
+				'bar': {
+					[REFERENCE_TYPE_ACK]: 'value',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+				'bar': true,
+			},
+		};
+
+		const expectedIntersectionResult = {
+			[REFERENCES_INFO_CARD_PROPERTY]: {
+				'foo': {
+					[REFERENCE_TYPE_DUPE_OF]: '',
+				},
+			},
+			[REFERENCES_CARD_PROPERTY]: {
+				'foo': true,
+			}
+		};
+
+		const result = unionReferences(input);
+		assert.deepStrictEqual(result, expectedResult);
+		const intersectionResult = intersectionReferences(input);
+		assert.deepStrictEqual(intersectionResult, expectedIntersectionResult);
+	});
 });
