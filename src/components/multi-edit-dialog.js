@@ -114,6 +114,12 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 			<ul class='readout'>
 				${this._referencesDiff.map(item => html`<li>${item.delete ? 'Remove' : 'Add'} ${item.referenceType} reference to <card-link auto='title' card='${item.cardID}' .noNavigate=${true}></card-link></li>`)}
 			</ul>
+			<details>
+				<summary><strong>${this._selectedCards.length}</strong> cards selected</summary>
+				<ul>
+					${this._selectedCards.map(card => html`<li><card-link auto='title' card='${card.id}' .noNavigate=${true}></card-link></li>`)}
+				</ul>
+			</details>
 			<div class='buttons'>
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
