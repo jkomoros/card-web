@@ -506,10 +506,23 @@ const expandedReferences = (referencesInfo) => {
 	return result;
 };
 
-const referencesEntriesDiffWithoutItem = (diff = [], cardID, referenceType) => diff.filter(item => item.cardID != cardID || item.referenceType != referenceType);
+const referencesEntriesDiffWithoutItem = (diff = [], cardID, referenceType, isDelete) => diff.filter(item => !(!!item.delete == isDelete && item.cardID == cardID && item.referenceType == referenceType));
 
-export const referencesEntriesDiffWithSet = (diff = [], cardID, referenceType, value = '') => [...referencesEntriesDiffWithoutItem(diff, cardID, referenceType), expandedReferenceObject(cardID, referenceType, value)];
-export const referencesEntriesDiffWithRemove = (diff = [], cardID, referenceType) => [expandedReferenceDeleteObject(cardID, referenceType), ...referencesEntriesDiffWithoutItem(diff, cardID, referenceType)];
+//Adds an entry to set the given item. If the diff had a remove command for that
+//cardID/referenceType already, it removes it instead.
+export const referencesEntriesDiffWithSet = (diff = [], cardID, referenceType, value = '') => {
+	const trimmedDiff = referencesEntriesDiffWithoutItem(diff, cardID, referenceType, true);
+	if (trimmedDiff.length < diff.length) return trimmedDiff;
+	return [...diff, expandedReferenceObject(cardID, referenceType, value)];
+};
+
+//Adds an entry to remove the given item. If the diff had a set command for that
+//cardID/referenceType already, it removes it instead.
+export const referencesEntriesDiffWithRemove = (diff = [], cardID, referenceType) => {
+	const trimmedDiff = referencesEntriesDiffWithoutItem(diff, cardID, referenceType, false);
+	if (trimmedDiff.length < diff.length) return trimmedDiff;
+	return [expandedReferenceDeleteObject(cardID, referenceType), ...diff];
+};
 
 //Returns an array of objects with referenceType, cardID, and either value or
 //delete:true, representing the items that would have to be done via
