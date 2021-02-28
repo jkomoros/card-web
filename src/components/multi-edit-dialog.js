@@ -15,7 +15,8 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	closeMultiEditDialog,
-	removeReference
+	removeReference,
+	addReference
 } from '../actions/multiedit.js';
 
 import {
@@ -84,7 +85,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		${Object.entries(REFERENCE_TYPES).filter(entry => referencesMap[entry[0]] && entry[1].editable).map(entry => {
 		return html`<div>
 							<label>${entry[1].name} ${help(entry[1].description, false)}</label>
-							<tag-list .overrideTypeName=${'Reference'} .referenceType=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .previousTags=${previousReferencesMap[entry[0]]} .editing=${true} .tapEvents=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveReference}></tag-list>
+							<tag-list .overrideTypeName=${'Reference'} .referenceType=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .previousTags=${previousReferencesMap[entry[0]]} .editing=${true} .tapEvents=${true} .disableAdd=${true} @add-tag=${this._handleUnremoveReference} @remove-tag=${this._handleRemoveReference}></tag-list>
 						</div>`;
 	})}
 		<div class='buttons'>
@@ -114,6 +115,22 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	_shouldClose() {
 		//Override base class.
 		store.dispatch(closeMultiEditDialog());
+	}
+
+	_handleUnremoveReference(e) {
+		let referenceType = '';
+		//Walk up the chain to find which tag-list has it (which will have the
+		//referenceType we set explicitly on it)
+		for (let ele of e.composedPath()) {
+			if (ele.referenceType) {
+				referenceType = ele.referenceType;
+				break;
+			}
+		}
+		if (!referenceType) {
+			console.warn('No reference type found on parents');
+		}
+		store.dispatch(addReference(e.detail.tag, referenceType));
 	}
 
 	_handleRemoveReference(e) {
