@@ -387,7 +387,7 @@ export const arrayToSet = (arr) => {
 	return result;
 };
 
-export const arrayDiffAsSets = (before, after) => {
+export const arrayDiffAsSets = (before = [], after = []) => {
 	let [additions, deletions] = arrayDiff(before,after);
 	return [arrayToSet(additions), arrayToSet(deletions)];
 };

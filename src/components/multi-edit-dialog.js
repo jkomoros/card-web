@@ -37,7 +37,8 @@ import {
 	selectTagInfosForCards,
 	selectMultiEditReferencesDiff,
 	selectSelectedCards,
-	selectCardModificationPending
+	selectCardModificationPending,
+	selectSelectedCardsReferencesIntersection
 } from '../selectors.js';
 
 import {
@@ -53,6 +54,11 @@ import {
 	HelpStyles,
 } from './help-badges.js';
 
+import {
+	arrayDiffAsSets
+} from '../util.js';
+
+
 import './card-link.js';
 
 class MultiEditDialog extends connect(store)(DialogElement) {
@@ -63,6 +69,9 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		const refs = referencesNonModifying(this._unionReferencesCard);
 		refs.applyEntriesDiff(this._referencesDiff);
 		const referencesMap = refs.byTypeArray();
+		const intersectionRefs = referencesNonModifying(this._intersectionReferencesCard);
+		intersectionRefs.applyEntriesDiff(this._referencesDiff);
+		const intersectionReferencesMap = intersectionRefs.byTypeArray();
 		const previousReferencesMap = referencesNonModifying(this._unionReferencesCard).byTypeArray();
 
 		return html`
@@ -95,9 +104,10 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]}>${entry[1].name}</option>`)}
 			</select>
 			${Object.entries(REFERENCE_TYPES).filter(entry => (referencesMap[entry[0]] || previousReferencesMap[entry[0]]) && entry[1].editable).map(entry => {
+		const subtleItems = arrayDiffAsSets(referencesMap[entry[0]], intersectionReferencesMap[entry[0]])[1];
 		return html`<div>
 								<label>${entry[1].name} ${help(entry[1].description, false)}</label>
-								<tag-list .overrideTypeName=${'Reference'} .referenceType=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .previousTags=${previousReferencesMap[entry[0]]} .editing=${true} .tapEvents=${true} .disableAdd=${true} @add-tag=${this._handleUnremoveReference} @remove-tag=${this._handleRemoveReference}></tag-list>
+								<tag-list .overrideTypeName=${'Reference'} .referenceType=${entry[0]} .tagInfos=${this._cardTagInfos} .subtleTags=${subtleItems} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .previousTags=${previousReferencesMap[entry[0]]} .editing=${true} .tapEvents=${true} .disableAdd=${true} @add-tag=${this._handleUnremoveReference} @remove-tag=${this._handleRemoveReference}></tag-list>
 							</div>`;
 	})}
 			${this._referencesDiff.length ? html`<h4>Changes that will be made to selected cards</h4>` : ''}
@@ -177,6 +187,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	static get properties() {
 		return {
 			_unionReferencesCard: {type: Object},
+			_intersectionReferencesCard: {type:Object},
 			_cardTagInfos: {type: Object},
 			_referencesDiff: {type:Array},
 			_selectedCards: {type:Array},
@@ -189,6 +200,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		this.open = selectMultiEditDialogOpen(state);
 		//selectSelectedCardsReferencesUnion is expensive, only do it if we're open.
 		this._unionReferencesCard = this.open ? selectSelectedCardsReferencesUnion(state) : {};
+		this._intersectionReferencesCard = this.open ? selectSelectedCardsReferencesIntersection(state) : {};
 		this._cardTagInfos = selectTagInfosForCards(state);
 		this._referencesDiff = selectMultiEditReferencesDiff(state);
 		this._selectedCards = selectSelectedCards(state);
