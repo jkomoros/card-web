@@ -1,10 +1,12 @@
 import {
 	MULTI_EDIT_DIALOG_OPEN,
 	MULTI_EDIT_DIALOG_CLOSE,
+	MULTI_EDIT_DIALOG_ADD_REFERENCE,
 	MULTI_EDIT_DIALOG_REMOVE_REFERENCE
 } from '../actions/multiedit.js';
 
 import {
+	referencesEntriesDiffWithSet,
 	referencesEntriesDiffWithRemove
 } from '../references.js';
 
@@ -25,6 +27,11 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			open: false,
+		};
+	case MULTI_EDIT_DIALOG_ADD_REFERENCE:
+		return {
+			...state,
+			referencesDiff: referencesEntriesDiffWithSet(state.referencesDiff, action.cardID, action.referenceType)
 		};
 	case MULTI_EDIT_DIALOG_REMOVE_REFERENCE:
 		return {
