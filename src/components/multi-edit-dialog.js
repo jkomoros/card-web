@@ -52,6 +52,8 @@ import {
 class MultiEditDialog extends connect(store)(DialogElement) {
 	innerRender() {
 
+		if (!this.open) return html``;
+
 		const refs = referencesNonModifying(this._unionReferencesCard);
 		refs.applyEntriesDiff(this._referencesDiff);
 		const referencesMap = refs.byTypeArray();
