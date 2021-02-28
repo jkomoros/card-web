@@ -3,10 +3,21 @@ export const MULTI_EDIT_DIALOG_CLOSE ='MULTI_EDIT_DIALOG_CLOSE';
 export const MULTI_EDIT_DIALOG_ADD_REFERENCE = 'MULTI_EDIT_DIALOG_ADD_REFERENCE';
 export const MULTI_EDIT_DIALOG_REMOVE_REFERENCE = 'MULTI_EDIT_DIALOG_REMOVE_REFERENCE';
 
-export const openMultiEditDialog = () => {
-	return {
+import {
+	selectIsEditing
+} from '../selectors.js';
+
+export const openMultiEditDialog = () => (dispatch, getState) => {
+
+	const state = getState();
+
+	//It's not valid to open a multi-edit dialog when an individual card is
+	//being edited
+	if (selectIsEditing(state)) return;
+
+	dispatch({
 		type: MULTI_EDIT_DIALOG_OPEN
-	};
+	});
 };
 
 export const closeMultiEditDialog = () => {
