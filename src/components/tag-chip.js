@@ -15,7 +15,11 @@ class TagChip  extends LitElement {
 					display: inline-block;
 					color: var(--app-light-text-color);
 					font-weight:bold;
+					transition: filter 0.1s ease-in-out;
 					${this._filter ? 'filter: ' + this._filter + ';' : ''}
+				}
+				:host(:hover) {
+					filter:none;
 				}
 				a.primary {
 					color: var(--app-light-text-color);
@@ -112,6 +116,14 @@ class TagChip  extends LitElement {
 		return this._suppressLink ? '' : urlForTag(this.tagName, this._cardName);
 	}
 
+	get _subtle() {
+		if (this.subtle) return true;
+		if (!this.tagInfos) return false;
+		let info = this.tagInfos[this.tagName];
+		if (!info) return false;
+		return info.subtle || false;
+	}
+
 	get _color() {
 		const defaultColor = this._effectiveDefaultColor;
 		if (!this.tagInfos) return defaultColor;
@@ -121,6 +133,7 @@ class TagChip  extends LitElement {
 	}
 
 	get _filter() {
+		if (this._subtle) return 'grayscale(80%) opacity(40%)';
 		if (!this.tagInfos) return '';
 		let info = this.tagInfos[this.tagName];
 		if (!info) return '';
@@ -154,6 +167,7 @@ class TagChip  extends LitElement {
 			editing: { type: Boolean},
 			tagInfos: {type:Object},
 			tapEvents: {type:Boolean},
+			subtle: {type:Boolean},
 			//If set, will use this defualt color if the tag doesn't have one
 			//defined. Should be of the form "#AABBCC" or some other literal
 			//color value;

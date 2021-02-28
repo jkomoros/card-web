@@ -37,19 +37,10 @@ class TagList  extends LitElement {
 				.editing select {
 					display:inline;
 				}
-				tag-chip {
-					transition: filter 0.1s ease-in-out;
-				}
-				.subtle tag-chip {
-					filter:grayscale(80%) opacity(40%);
-				}
-				tag-chip:hover {
-					filter:none;
-				}
 			</style>
 			<div class='${this.editing ? 'editing' : ''} ${this.subtle ? 'subtle' :''}'>
 			${allTags && allTags.length ?
-		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} .defaultColor=${this.defaultColor} .tapEvents=${this.tapEvents}></tag-chip>`) :
+		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} .defaultColor=${this.defaultColor} .tapEvents=${this.tapEvents} .subtle=${this.subtle}></tag-chip>`) :
 		(this.hideOnEmpty ? html`` : html`<em>No ${this.typeName.toLowerCase()}s</em>`)}
 			${((!allTags || !allTags.length) && this.hideOnEmpty) || this.disableAdd ? html`` :
 		(this.disableSelect ? html`<button class='small' @click=${this._handleNew} title=${'New ' + this.typeName}>${PLUS_ICON}</button>` :
