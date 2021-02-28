@@ -75,7 +75,11 @@ class CardLink extends connect(store)(LitElement) {
 					fill: var(--app-secondary-color);
 				}
 
-				a.card.exists:visited, a.card.exists.read {
+				a.no-navigate {
+					cursor: default;
+				}
+
+				a.card.exists:visited, a.card.exists.read, a.card.no-navigate {
 					color: var(--app-secondary-color-light);
 					fill: var(--app-secondary-color-light);
 				}
@@ -103,7 +107,7 @@ class CardLink extends connect(store)(LitElement) {
 				}
 
 			</style>
-			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''} ${this.strong ? 'strong' : ''} ${this._cardIsNotContent ? 'not-content' : ''} ${this._ctrlKeyPressed ? 'add-reading-list' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
+			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''} ${this.strong ? 'strong' : ''} ${this._cardIsNotContent ? 'not-content' : ''} ${this._ctrlKeyPressed ? 'add-reading-list' : ''} ${this.noNavigate ? 'no-navigate' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
 	}
 
 	static get properties() {
@@ -112,6 +116,7 @@ class CardLink extends connect(store)(LitElement) {
 			href: { type: String},
 			auto: { type: String},
 			strong: { type: Boolean},
+			noNavigate: {type: Boolean},
 			_reads: {type: Object},
 			_cards: { type: Object},
 			_readingListMap: { type: Object},
@@ -137,6 +142,10 @@ class CardLink extends connect(store)(LitElement) {
 		//If the user ctrl- or cmd-clicks, we should toggle reading list,
 		//otherwise we should return and allow default action.
 		if (!this.card) return;
+		if (this.noNavigate) {
+			e.preventDefault();
+			return;
+		}
 		if (!e.ctrlKey && !e.metaKey) return;
 		store.dispatch(toggleOnReadingList(this._cardObj));
 		e.preventDefault();
