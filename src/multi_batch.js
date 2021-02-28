@@ -3,6 +3,10 @@
 //readback sentinels.
 const FIRESTORE_BATCH_LIMIT = 500;
 
+import {
+	randomString
+} from './util.js';
+
 //We import these only to get deleteSentinel without importing from firebase.js.
 import firebase from '@firebase/app';
 import '@firebase/firestore';
@@ -44,6 +48,16 @@ export const MultiBatch = class {
 		this._currentBatchOperationCount = 0;
 		this._currentBatch = null;
 		this._batches = [];
+		this._id = randomString(8);
+	}
+
+	//batchID will return a random string that will be consistent for all of
+	//this batch. It's useful to persist in the db, allowing figuring out which
+	//modifications were part of the same 'logical' batch, since it's possible
+	//that the actual batches will be split up and some will fail and others
+	//won't.
+	get batchID() {
+		return this._id;
 	}
 
 	get _batch() {
