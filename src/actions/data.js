@@ -416,6 +416,7 @@ const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 
 	let updateObject = {
 		...update,
+		batch: batch.batchID || '',
 		substantive: substantive,
 		timestamp: serverTimestampSentinel()
 	};
