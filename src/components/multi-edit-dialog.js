@@ -102,7 +102,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	})}
 			${this._referencesDiff.length ? html`<h4>Changes that will be made to selected cards</h4>` : ''}
 			<ul class='readout'>
-				${this._referencesDiff.map(item => html`<li>${item.delete ? 'Remove' : 'Add'} ${item.referenceType} reference to <card-link auto='title' card='${item.cardID}'></card-link></li>`)}
+				${this._referencesDiff.map(item => html`<li>${item.delete ? 'Remove' : 'Add'} ${item.referenceType} reference to <card-link auto='title' card='${item.cardID}' .noNavigate=${true}></card-link></li>`)}
 			</ul>
 			<div class='buttons'>
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
