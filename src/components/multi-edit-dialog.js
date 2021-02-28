@@ -107,7 +107,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		const subtleItems = arrayDiffAsSets(referencesMap[entry[0]], intersectionReferencesMap[entry[0]])[1];
 		return html`<div>
 								<label>${entry[1].name} ${help(entry[1].description, false)}</label>
-								<tag-list .overrideTypeName=${'Reference'} .referenceType=${entry[0]} .tagInfos=${this._cardTagInfos} .subtleTags=${subtleItems} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .previousTags=${previousReferencesMap[entry[0]]} .editing=${true} .tapEvents=${true} .disableAdd=${true} @add-tag=${this._handleUnremoveReference} @remove-tag=${this._handleRemoveReference}></tag-list>
+								<tag-list .overrideTypeName=${'Reference'} .referenceType=${entry[0]} .tagInfos=${this._cardTagInfos} .subtleTags=${subtleItems} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .previousTags=${previousReferencesMap[entry[0]]} .editing=${true} .tapEvents=${true} .disableAdd=${true} @tag-tapped=${this._handleTagTapped} @add-tag=${this._handleUnremoveReference} @remove-tag=${this._handleRemoveReference}></tag-list>
 							</div>`;
 	})}
 			${this._referencesDiff.length ? html`<h4>Changes that will be made to selected cards</h4>` : ''}
@@ -150,6 +150,24 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		//Set it back to default
 		ele.value = '';
 		store.dispatch(selectCardToReference(value));
+	}
+
+	_handleTagTapped(e) {
+		//Only add it if not all cards already have it
+		if (!e.composedPath()[0].subtle) return;
+		let referenceType = '';
+		//Walk up the chain to find which tag-list has it (which will have the
+		//referenceType we set explicitly on it)
+		for (let ele of e.composedPath()) {
+			if (ele.referenceType) {
+				referenceType = ele.referenceType;
+				break;
+			}
+		}
+		if (!referenceType) {
+			console.warn('No reference type found on parents');
+		}
+		store.dispatch(addReference(e.detail.tag, referenceType));
 	}
 
 	_handleUnremoveReference(e) {
