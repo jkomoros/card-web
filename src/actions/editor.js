@@ -52,7 +52,12 @@ import {
 	selectIsEditing,
 	selectEditingPendingReferenceType,
 	selectEditingCardSuggestedConceptReferences,
+	selectMultiEditDialogOpen
 } from '../selectors.js';
+
+import {
+	addReference
+} from './multiedit.js';
 
 import {
 	modifyCard,
@@ -709,28 +714,38 @@ export const closeImageBrowserDialog = () => {
 export const setCardToReference = (cardID) => (dispatch, getState) => {
 	const state = getState();
 	const referenceType = selectEditingPendingReferenceType(state);
-	dispatch(addReferenceToCard(cardID, referenceType));
+	if (selectMultiEditDialogOpen(state)) {
+		dispatch(addReference(cardID, referenceType));
+	} else {
+		dispatch(addReferenceToCard(cardID, referenceType));
+	}
 	dispatch({
 		type: EDITING_RESET_REFERENCE_CARD,
 	});
 };
 
 export const selectCardToReference = (referenceType) => (dispatch, getState) => {
-	const editingCard = selectEditingCard(getState());
-	if (!editingCard) {
-		console.warn('No editing card');
-		return;
-	}
+
 	const referenceTypeConfig = REFERENCE_TYPES[referenceType];
 	if (!referenceTypeConfig) {
 		console.warn('Illegal reference type');
 		return;
 	}
 
-	if (referenceTypeConfig.fromCardTypeAllowList) {
-		if (!referenceTypeConfig.fromCardTypeAllowList[editingCard.card_type]) {
-			console.warn('That reference type may not originate from cards of type ' + editingCard.card_type);
+	const state = getState();
+
+	if (!selectMultiEditDialogOpen(state)) {
+		const editingCard = selectEditingCard(state);
+		if (!editingCard) {
+			console.warn('No editing card');
 			return;
+		}
+
+		if (referenceTypeConfig.fromCardTypeAllowList) {
+			if (!referenceTypeConfig.fromCardTypeAllowList[editingCard.card_type]) {
+				console.warn('That reference type may not originate from cards of type ' + editingCard.card_type);
+				return;
+			}
 		}
 	}
 
