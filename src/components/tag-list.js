@@ -40,7 +40,7 @@ class TagList  extends LitElement {
 			</style>
 			<div class='${this.editing ? 'editing' : ''} ${this.subtle ? 'subtle' :''}'>
 			${allTags && allTags.length ?
-		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} .defaultColor=${this.defaultColor} .tapEvents=${this.tapEvents} .subtle=${this.subtle}></tag-chip>`) :
+		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} .defaultColor=${this.defaultColor} .tapEvents=${this.tapEvents} .subtle=${this.subtle || (this.subtleTags && this.subtleTags[item])}></tag-chip>`) :
 		(this.hideOnEmpty ? html`` : html`<em>No ${this.typeName.toLowerCase()}s</em>`)}
 			${((!allTags || !allTags.length) && this.hideOnEmpty) || this.disableAdd ? html`` :
 		(this.disableSelect ? html`<button class='small' @click=${this._handleNew} title=${'New ' + this.typeName}>${PLUS_ICON}</button>` :
@@ -97,8 +97,10 @@ class TagList  extends LitElement {
 			editing: {type:Boolean},
 			//if true, instead of navigating, will emit a 'tag-tapped' event
 			tapEvents: {type:Boolean},
-			//Subtle coloring
+			//Subtle coloring for all items
 			subtle: {type:Boolean},
+			//Will flag the tags in this map as subtle individually
+			subtleTags: {type:Object},
 			//if true and empty then don't show any
 			hideOnEmpty: {type:Boolean},
 			//If set, typeName will be used in the UI to describe the types of things the tags represent, e.g. "New FOO". If not set, will default to "Tag".
