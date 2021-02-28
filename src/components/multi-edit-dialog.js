@@ -94,7 +94,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				<option value=''><em>Add a reference to a card type...</option>
 				${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]}>${entry[1].name}</option>`)}
 			</select>
-			${Object.entries(REFERENCE_TYPES).filter(entry => referencesMap[entry[0]] && entry[1].editable).map(entry => {
+			${Object.entries(REFERENCE_TYPES).filter(entry => (referencesMap[entry[0]] || previousReferencesMap[entry[0]]) && entry[1].editable).map(entry => {
 		return html`<div>
 								<label>${entry[1].name} ${help(entry[1].description, false)}</label>
 								<tag-list .overrideTypeName=${'Reference'} .referenceType=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .previousTags=${previousReferencesMap[entry[0]]} .editing=${true} .tapEvents=${true} .disableAdd=${true} @add-tag=${this._handleUnremoveReference} @remove-tag=${this._handleRemoveReference}></tag-list>
