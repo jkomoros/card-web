@@ -359,6 +359,8 @@ export const modifyCards = (cards, update, substantive, failOnError) => async (d
 	dispatch(modifyCardAction());
 
 	const batch = new MultiBatch(db);
+	let modifiedCount = 0;
+	let errorCount = 0;
 
 	for (const card of cards) {
 
@@ -369,9 +371,10 @@ export const modifyCards = (cards, update, substantive, failOnError) => async (d
 		}
 
 		try {
-			modifyCardWithBatch(state, card, update, substantive, batch);
+			if (modifyCardWithBatch(state, card, update, substantive, batch)) modifiedCount++;
 		} catch (err) {
 			console.warn('Couldn\'t modify card: ' + err);
+			errorCount++;
 			if (failOnError) {
 				dispatch(modifyCardFailure(err));
 				return;
@@ -386,9 +389,13 @@ export const modifyCards = (cards, update, substantive, failOnError) => async (d
 		return;
 	}
 
+	if (modifiedCount > 1 || errorCount > 0) alert('' + modifiedCount + ' cards modified.' + (errorCount > 0 ? '' + errorCount + ' cards errored. See the console for why.' : ''));
+
 	dispatch(modifyCardSuccess());
 };
 
+//returns true if a modificatioon was made to the card, or false if it was a no
+//op. When an error is thrown, that's an implied 'false'
 const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 
 	const user = selectUser(state);
@@ -542,7 +549,7 @@ const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 	//If there aren't any updates to a card, that's OK. This might happen in a
 	//multiModify where some cards already have the items, for example. There's
 	//always an 'updated' field, which is why we check for 1
-	if (Object.keys(cardUpdateObject).length == 1) return;
+	if (Object.keys(cardUpdateObject).length == 1) return false;
 
 	let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
 
@@ -621,6 +628,8 @@ const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 			batch.set(tagUpdateRef, newTagUpdateObject);
 		}
 	}
+
+	return true;
 
 };
 
