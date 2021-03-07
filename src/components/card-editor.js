@@ -363,7 +363,7 @@ class CardEditor extends connect(store)(LitElement) {
 					<label>Suggested Concepts ${help('Cards that are suggested to be added as concept references. Tap one to add it as a concept reference, or x it out to add an ACK and get it to go away.')}</label>
 					<div class='row'>
 						<tag-list .tags=${this._suggestedConcepts} .tagInfos=${this._cardTagInfos} .editing=${true} .defaultColor=${REFERENCE_TYPES[REFERENCE_TYPE_CONCEPT].color} .tapEvents=${true} .disableAdd=${true} @tag-tapped=${this._handleSuggestedConceptTapped} @remove-tag=${this._handleAddAckReference} .overrideTypeName=${'Concept'}></tag-list>
-						<button class='small' @click=${this._handleAddAllConceptsClicked} ?hidden=${this._suggestedConcepts.length == 0} title='Add all suggested concepts'>${PLUS_ICON}</button>
+						<button class='small' @click=${this._handleAddAllConceptsClicked} ?hidden=${this._suggestedConcepts.length == 0} title='Add all suggested concepts (Ctrl-Shift-C)'>${PLUS_ICON}</button>
 					</div>
 				</div>
 			</div>
@@ -634,6 +634,11 @@ class CardEditor extends connect(store)(LitElement) {
 		//active. But most of the time we don't want to do anything.
 		if (!this._active) return;
 		if (!e.metaKey && !e.ctrlKey) return;
+
+		if (e.shiftKey && e.key == 'c') {
+			this._handleAddAllConceptsClicked();
+			return killEvent(e);
+		}
 
 		//TODO: bail if a content editable region isn't selected. This isn't THAT
 		//big of a deal as long as we use execCommand, because those will just
