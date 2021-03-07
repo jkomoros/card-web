@@ -77,7 +77,8 @@ import {
 } from '../actions/app.js';
 
 import {
-	killEvent
+	killEvent,
+	deepActiveElement
 } from '../util.js';
 
 import {
@@ -523,6 +524,12 @@ class CardView extends connect(store)(PageViewElement) {
 		//We have to hook this to issue content editable commands when we're
 		//active. But most of the time we don't want to do anything.
 		if (!this.active) return;
+		if (e.key == 'Escape') {
+			const activeEle = deepActiveElement();
+			if (!activeEle) return;
+			activeEle.blur();
+			return killEvent(e);
+		}
 		if (!e.metaKey && !e.ctrlKey) return;
 		if (this._editing) return;
 
