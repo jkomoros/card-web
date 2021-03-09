@@ -31,7 +31,7 @@ import {
 	selectUserMayModifyReadingList,
 	selectCardsDrawerPanelShowing,
 	selectActiveCollection,
-	selectEditingCard,
+	selectEditingCardwithDelayedNormalizedProperties,
 	selectActiveCardTodosForCurrentUser,
 	selectCommentsAndInfoPanelOpen,
 	selectUserMayEditActiveCard,
@@ -469,7 +469,7 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	stateChanged(state) {
-		this._editingCard = selectEditingCard(state);
+		this._editingCard = selectEditingCardwithDelayedNormalizedProperties(state);
 		this._card = selectActiveCard(state) || {};
 		this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(state);
 		this._displayCard = this._editingCard ? this._editingCard : this._card;

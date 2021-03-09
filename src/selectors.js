@@ -689,6 +689,20 @@ const selectEditingNormalizedCard = (state) => {
 	return memoizedEditingNormalizedCard;
 };
 
+//EditingCard updates immediately upon keystroke, but doesn't have nlp set.
+//editingNormalizedCard has nlp set, but only updates after a delay. This
+//returns a hybrid object that updates whenever editingCard does, but munges in
+//the most recent nlp block.
+export const selectEditingCardwithDelayedNormalizedProperties = createSelector(
+	selectEditingCard,
+	selectEditingNormalizedCard,
+	(editing, normalized) => {
+		if (!editing) return editing;
+		if (!normalized) return editing;
+		return {...editing, nlp:normalized.nlp};
+	}
+);
+
 //Warning: this is EXTREMELY expensive. Like 10 seconds of processing expensive!
 const selectWordCloudForPossibleMissingConcepts = createSelector(
 	selectCards,
