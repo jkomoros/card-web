@@ -13,6 +13,10 @@ import {
 	selectActivePreviewCardId
 } from '../selectors.js';
 
+import {
+	killEvent
+} from '../util.js';
+
 class CardHighlight extends connect(store)(LitElement) {
 	render() {
 
@@ -33,7 +37,15 @@ class CardHighlight extends connect(store)(LitElement) {
 				}
 
 				span.disabled {
-					cursor: auto;
+					/* icon looks kind of like it will be removed. this and and
+					the next rule are for the behavior in card editor that do
+					things with the disabled-card-clicked event, which is a
+					little odd that we do something with it here. */
+					cursor: alias;
+				}
+
+				span.alternate.disabled {
+					cursor: copy;
 				}
 
 				/* the next two don't need enabled class when hover class is
@@ -52,14 +64,15 @@ class CardHighlight extends connect(store)(LitElement) {
 					color: var(--app-dark-text-color);
 				}
 				/* the following is all on one line to avoid extra whitespace that would lead to gaps between the text and punctuation */
-			</style><span class='${this.disabled ? 'disabled' : 'enabled'} ${this.alternate ? 'alternate' : ''} ${this.card == this._hoverCardID ? 'hover' : ''}' @mousemove=${this._handleMouseMove}>${this.disabled ? html`<slot></slot>` : html`<a href=${this._href}><slot></slot></a>`}</span>`;
+			</style><span class='${this.disabled ? 'disabled' : 'enabled'} ${this.alternate ? 'alternate' : ''} ${this.card == this._hoverCardID ? 'hover' : ''}' @mousedown=${this._handleMouseDown} @mousemove=${this._handleMouseMove}>${this.disabled ? html`<slot></slot>` : html`<a href=${this._href}><slot></slot></a>`}</span>`;
 	}
 
 	static get properties() {
 		return {
 			card: { type: String },
 			//If disabled, then won't navigate to the card, and also won't light
-			//up on hover.
+			//up on hover. However, a click event will be dispatched,
+			//`disabled-card-highlight-clicked`.
 			disabled: {type:Boolean },
 			//If true, will render in an alternate color
 			alternate: {type:Boolean },
@@ -73,6 +86,15 @@ class CardHighlight extends connect(store)(LitElement) {
 
 	get _href() {
 		return this.disabled ? '' : urlForCard(this.card);
+	}
+
+	_handleMouseDown(e) {
+		//This is on mousedown because if a click is generated, by then the
+		//content editable would already be focused, and the highlight would be
+		//gone.
+		if (!this.disabled) return;
+		this.dispatchEvent(new CustomEvent('disabled-card-highlight-clicked', {composed: true, detail: {card: this.card, alternate: this.alternate}}));
+		return killEvent(e);
 	}
 
 	_handleMouseMove(e) {

@@ -674,6 +674,15 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(textFieldUpdated(field, value, true));
 	}
 
+	disabledCardHighlightClicked(cardID, alternate) {
+		if (!this._active) return;
+		if(alternate) {
+			store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_CONCEPT));
+		} else {
+			store.dispatch(removeReferenceFromCard(cardID, REFERENCE_TYPE_CONCEPT));
+		}
+	}
+
 	_handleNotesUpdated(e) {
 		if (!this._active) return;
 		let ele = e.composedPath()[0];
