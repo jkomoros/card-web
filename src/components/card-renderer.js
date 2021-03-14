@@ -491,7 +491,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 
 		if (config.html) {
 			htmlToSet = dompurify.sanitize(htmlToSet, {
-				ADD_ATTR: ['card'],
+				ADD_ATTR: ['card', 'alternate'],
 				ADD_TAGS: ['card-link', 'card-highlight'],
 			});
 			if (htmlToSet === '') {
