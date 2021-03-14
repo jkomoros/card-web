@@ -324,18 +324,22 @@ const regularExpressionForOriginalNgram = (normalizedNgram) => {
 //makes with highlighting styling. This is very expensive, so it's memoized. It
 //wraps things in a <card-highlight card="CARDID">content</card-highlight>, so
 //include components/card-highlight wherever you use it. Also, make sure to
-//sanitize the result for XSS.
-export const highlightConceptReferences = memoizeFirstArg((card, fieldName) => {
+//sanitize the result for XSS. extraIDs should be an array of cardIDs to
+//highlight as alternates if found (and to proactively pretend are on card)
+export const highlightConceptReferences = memoizeFirstArg((card, fieldName, extraIDs) => {
 	if (!card || Object.keys(card).length == 0) return '';
+	if (!extraIDs) extraIDs = [];
 	const fieldConfig = TEXT_FIELD_CONFIGURATION[fieldName];
 	if (!fieldConfig) return '';
 	if (!fieldConfig.html) return card[fieldName];
+	const extraIDMap = Object.fromEntries(extraIDs.map(id => [id, true]));
 	const conceptCardReferences = Object.fromEntries(references(card).conceptArray().map(item => [item, true]));
-	const filteredHighlightMap = Object.fromEntries(Object.entries(card.importantNgrams || {}).filter(entry => conceptCardReferences[entry[1]]));
-	return highlightHTMLForCard(card, fieldName, filteredHighlightMap);
+	const allConceptCardReferences = {...extraIDMap, ...conceptCardReferences};
+	const filteredHighlightMap = Object.fromEntries(Object.entries(card.importantNgrams || {}).filter(entry => allConceptCardReferences[entry[1]]));
+	return highlightHTMLForCard(card, fieldName, filteredHighlightMap, extraIDMap);
 });
 
-const highlightHTMLForCard = (card, fieldName, filteredHighlightMap) => {
+const highlightHTMLForCard = (card, fieldName, filteredHighlightMap, alternateIDMap) => {
 
 	//filteredHighlightMap is a map of fullyNormalized string -> cardID. First
 	//we go through each run of the field and identify the normalized
@@ -366,25 +370,26 @@ const highlightHTMLForCard = (card, fieldName, filteredHighlightMap) => {
 	let result = card[fieldName];
 	for (const originalConceptStr of sortedOriginalConceptStrs) {
 		const cardID = originalConceptStrs[originalConceptStr];
-		result = highlightStringInHTML(result,originalConceptStr, cardID);
+		result = highlightStringInHTML(result,originalConceptStr, cardID, alternateIDMap[cardID] || false);
 	}
 	return result;
 };
 
 //targetStr is knownto exist, modulo non-word characters, in the html. (Although it might not exist as a raw run)
-const highlightStringInHTML = (html, targetStr, cardID) => {
+const highlightStringInHTML = (html, targetStr, cardID, isAlternate) => {
 	//even though html, targetStr, and cardID aren't necessarily sanitized, it's
 	//OK as long as we never put the element into the DOM.
 	const ele = getDocument().createElement('section');
 	ele.innerHTML = html;
 	const re = regularExpressionForOriginalNgram(targetStr);
-	highlightStringInEle(ele, re, cardID, false);
+	highlightStringInEle(ele, re, cardID, false, isAlternate);
 	//reading back innerHTML replaces control characters like '&gt;' with '&amp;gt;
 	return ele.innerHTML.split('&amp;').join('&');
 };
 
-//withinLink is whether we're within the link context
-const highlightStringInEle = (ele, re, cardID, withinLink) => {
+//withinLink is whether we're within the link context, isAlternate should be
+//true if it should be alternate
+const highlightStringInEle = (ele, re, cardID, withinLink, isAlternate) => {
 	//don't highlight if it's inside a card-highlight, or a card-link, because that gets confusing.
 	if (ele.localName == 'card-highlight') return;
 	withinLink = withinLink || ele.localName == 'card-link';
@@ -392,20 +397,20 @@ const highlightStringInEle = (ele, re, cardID, withinLink) => {
 		if (!ele.innerHTML) return;
 		//A leaf node.
 		//We read back out of textContent because in innerHTML escape & will be replaced by &amp;
-		ele.innerHTML = ele.textContent.replace(re,(wholeMatch) => '<card-highlight ' + (withinLink ? 'disabled ' : '' ) + 'card="'+ cardID + '">' + wholeMatch + '</card-highlight>');
+		ele.innerHTML = ele.textContent.replace(re,(wholeMatch) => '<card-highlight ' + (withinLink ? 'disabled ' : '' ) + (isAlternate ? 'alternate ' : '') + 'card="' + cardID + '">' + wholeMatch + '</card-highlight>');
 		return;
 	}
 	//ele.childNodes is a live node list but we'll be adding nodes potentially
 	//so take a snapshot.
 	for (let node of [...ele.childNodes]) {
 		if (node.nodeType == node.ELEMENT_NODE) {
-			highlightStringInEle(node, re, cardID, withinLink);
+			highlightStringInEle(node, re, cardID, withinLink, isAlternate);
 		} else if (node.nodeType == node.TEXT_NODE) {
 			if (!re.test(node.textContent)) continue;
 			//OK, the text is in there. We need to swap out this text node with multiple children (up to three).
 			const tempEle = getDocument().createElement('span');
 			tempEle.innerHTML = node.textContent;
-			highlightStringInEle(tempEle, re, cardID, withinLink);
+			highlightStringInEle(tempEle, re, cardID, withinLink, isAlternate);
 			//Now, read back out tempEle's children and reparent in place to our parent.
 			node.replaceWith(...tempEle.childNodes);
 			
