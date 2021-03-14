@@ -427,7 +427,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			//card-highlights that come from contenteditable, so even if they
 			//sneak in we won't save them.
 			if (doHighlightConcepts) {
-				value = highlightConceptReferences(this._card, field);
+				value = highlightConceptReferences(this._card, field, this.suggestedConcepts);
 			}
 			htmlToSet = value;
 		}
