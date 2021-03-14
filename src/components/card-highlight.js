@@ -1,11 +1,19 @@
 
 import { LitElement, html } from '@polymer/lit-element';
+import { connect } from 'pwa-helpers/connect-mixin.js';
+
+// This element is connected to the Redux store so it can render visited links
+import { store } from '../store.js';
 
 import {
 	urlForCard
 } from '../actions/app.js';
 
-class CardHighlight extends LitElement {
+import {
+	selectActivePreviewCardId
+} from '../selectors.js';
+
+class CardHighlight extends connect(store)(LitElement) {
 	render() {
 
 		return html`<style>
@@ -28,11 +36,14 @@ class CardHighlight extends LitElement {
 					cursor: auto;
 				}
 
-				span.enabled:hover {
+				/* the next two don't need enabled class when hover class is
+				also manually set, so they can highlight any time the card is
+				hovered elsewhere */
+				span.enabled:hover, span.hover {
 					background-color: var(--app-secondary-color-light-somewhat-transparent);
 				}
 
-				span.enabled.alternate:hover {
+				span.enabled.alternate:hover, span.alternate.hover {
 					background-color: var(--app-primary-color-light-somewhat-transparent);
 				}
 
@@ -41,7 +52,7 @@ class CardHighlight extends LitElement {
 					color: var(--app-dark-text-color);
 				}
 				/* the following is all on one line to avoid extra whitespace that would lead to gaps between the text and punctuation */
-			</style><span class='${this.disabled ? 'disabled' : 'enabled'} ${this.alternate ? 'alternate' : ''}' @mousemove=${this._handleMouseMove}>${this.disabled ? html`<slot></slot>` : html`<a href=${this._href}><slot></slot></a>`}</span>`;
+			</style><span class='${this.disabled ? 'disabled' : 'enabled'} ${this.alternate ? 'alternate' : ''} ${this.card == this._hoverCardID ? 'hover' : ''}' @mousemove=${this._handleMouseMove}>${this.disabled ? html`<slot></slot>` : html`<a href=${this._href}><slot></slot></a>`}</span>`;
 	}
 
 	static get properties() {
@@ -52,7 +63,12 @@ class CardHighlight extends LitElement {
 			disabled: {type:Boolean },
 			//If true, will render in an alternate color
 			alternate: {type:Boolean },
+			_hoverCardID: {type: String},
 		};
+	}
+
+	stateChanged(state) {
+		this._hoverCardID = selectActivePreviewCardId(state);
 	}
 
 	get _href() {
