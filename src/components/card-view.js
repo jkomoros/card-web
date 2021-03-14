@@ -45,6 +45,7 @@ import {
 	selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard,
 	selectSuggestMissingConceptsEnabled,
 	selectUserIsAdmin,
+	selectEditingCardSuggestedConceptReferences,
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -257,7 +258,7 @@ class CardView extends connect(store)(PageViewElement) {
 			</div>` : ''}
 		</card-drawer>
         <div id='center'>
-			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .updatedFromContentEditable=${this._updatedFromContentEditable} @text-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped}>
+			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts} .updatedFromContentEditable=${this._updatedFromContentEditable} @text-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped}>
 				<div slot='actions' class='presentation'>
 					<button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${FULL_SCREEN_ICON}</button>
 				</div>
@@ -331,6 +332,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_collectionWordCloud: {type:Object},
 			_infoExpanded: {type: Boolean},
 			_suggestMissingConceptsEnabled: {type:Boolean},
+			_suggestedConcepts: {type:Array},
 			_userIsAdmin: {type:Boolean},
 		};
 	}
@@ -508,6 +510,9 @@ class CardView extends connect(store)(PageViewElement) {
 		this._infoExpanded = selectCardsDrawerInfoExpanded(state);
 		this._suggestMissingConceptsEnabled = selectSuggestMissingConceptsEnabled(state);
 		this._userIsAdmin = selectUserIsAdmin(state);
+
+		//selectEditingCardSuggestedConceptReferences is expensive so only do it if editing
+		this._suggestedConcepts = this._editing ? selectEditingCardSuggestedConceptReferences(state) : null;
 
 		if (this._cardsDrawerPanelOpen && this._infoExpanded) {
 			//This is potentially EXTREMELY expensive so only fetch it if the panel is expanded

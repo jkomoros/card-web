@@ -159,7 +159,7 @@ class CardStage extends LitElement {
 				<div>${SCREEN_ROTATION_ICON}</div>
 				<div>Rotate your device for larger text</div>
 			</div>
-			<card-renderer id='main' .dataIsFullyLoaded=${this.dataIsFullyLoaded} .editing=${this.editing} .card=${this.card} .updatedFromContentEditable=${this.updatedFromContentEditable} .expandedReferenceBlocks=${this.expandedReferenceBlocks}></card-renderer>
+			<card-renderer id='main' .dataIsFullyLoaded=${this.dataIsFullyLoaded} .editing=${this.editing} .card=${this.card} .updatedFromContentEditable=${this.updatedFromContentEditable} .expandedReferenceBlocks=${this.expandedReferenceBlocks} .suggestedConcepts=${this.suggestedConcepts}></card-renderer>
 			<card-renderer id='sizing' style='position:absolute;visibility:hidden;z-index:-100;'></card-renderer>
 			<slot name='actions'></slot>
 			<slot name='tags'></slot>
@@ -178,6 +178,7 @@ class CardStage extends LitElement {
 			card: { type: Object},
 			updatedFromContentEditable: { type: Object},
 			expandedReferenceBlocks: {type:Array},
+			suggestedConcepts: {type:Array},
 		};
 	}
 
