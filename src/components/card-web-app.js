@@ -51,6 +51,8 @@ class CardWebApp extends connect(store)(LitElement) {
 				--app-primary-color-light: #bc9ae2;
 				--app-primary-color-subtle: #7e57c2;
 				--app-primary-color-light-transparent: #bc9ae266;
+				--app-primary-color-light-somewhat-transparent: hsla(268, 55%, 75%, 0.5);
+				--app-primary-color-light-very-transparent: hsla(268, 55%, 75%, 0.15);
 				--app-secondary-color: hsl(174, 100%, 29%);
 				--app-secondary-color-light: hsl(174, 100%, 43%);
 				--app-secondary-color-light-somewhat-transparent: hsla(174, 100%, 43%, 0.5);

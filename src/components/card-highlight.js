@@ -20,6 +20,10 @@ class CardHighlight extends LitElement {
 					background-color: var(--app-secondary-color-light-very-transparent);
 				}
 
+				span.alternate {
+					background-color: var(--app-primary-color-light-very-transparent);
+				}
+
 				span.disabled {
 					cursor: auto;
 				}
@@ -28,12 +32,16 @@ class CardHighlight extends LitElement {
 					background-color: var(--app-secondary-color-light-somewhat-transparent);
 				}
 
+				span.enabled.alternate:hover {
+					background-color: var(--app-primary-color-light-somewhat-transparent);
+				}
+
 				a {
 					text-decoration: none;
 					color: var(--app-dark-text-color);
 				}
 				/* the following is all on one line to avoid extra whitespace that would lead to gaps between the text and punctuation */
-			</style><span class='${this.disabled ? 'disabled' : 'enabled'}' @mousemove=${this._handleMouseMove}>${this.disabled ? html`<slot></slot>` : html`<a href=${this._href}><slot></slot></a>`}</span>`;
+			</style><span class='${this.disabled ? 'disabled' : 'enabled'} ${this.alternate ? 'alternate' : ''}' @mousemove=${this._handleMouseMove}>${this.disabled ? html`<slot></slot>` : html`<a href=${this._href}><slot></slot></a>`}</span>`;
 	}
 
 	static get properties() {
@@ -42,6 +50,8 @@ class CardHighlight extends LitElement {
 			//If disabled, then won't navigate to the card, and also won't light
 			//up on hover.
 			disabled: {type:Boolean },
+			//If true, will render in an alternate color
+			alternate: {type:Boolean },
 		};
 	}
 
