@@ -364,7 +364,7 @@ class CardEditor extends connect(store)(LitElement) {
 					<div class='row'>
 						<tag-list .tags=${this._suggestedConcepts} .tagInfos=${this._cardTagInfos} .editing=${true} .defaultColor=${REFERENCE_TYPES[REFERENCE_TYPE_CONCEPT].color} .tapEvents=${true} .disableAdd=${true} @tag-tapped=${this._handleSuggestedConceptTapped} @remove-tag=${this._handleAddAckReference} .overrideTypeName=${'Concept'}></tag-list>
 						<button class='small' @click=${this._handleAddAllConceptsClicked} ?hidden=${this._suggestedConcepts.length == 0} title='Add all suggested concepts (Ctrl-Shift-C)'>${PLUS_ICON}</button>
-						<button class='small' @click=${this._handleIgnoreAllConceptsClicked} ?hidden=${this._suggestedConcepts.length == 0} title='Ignore all suggested concepts (Ctrl-Shift-X)'>${CANCEL_ICON}</button>
+						<button class='small' @click=${this._handleIgnoreAllConceptsClicked} ?hidden=${this._suggestedConcepts.length == 0} title='Ignore all suggested concepts (Ctrl-Shift-I)'>${CANCEL_ICON}</button>
 					</div>
 				</div>
 			</div>
@@ -647,7 +647,7 @@ class CardEditor extends connect(store)(LitElement) {
 			return killEvent(e);
 		}
 
-		if (e.shiftKey && e.key == 'x') {
+		if (e.shiftKey && e.key == 'i') {
 			this._handleIgnoreAllConceptsClicked();
 			return killEvent(e);
 		}
