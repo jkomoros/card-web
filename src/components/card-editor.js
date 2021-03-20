@@ -364,6 +364,7 @@ class CardEditor extends connect(store)(LitElement) {
 					<div class='row'>
 						<tag-list .tags=${this._suggestedConcepts} .tagInfos=${this._cardTagInfos} .editing=${true} .defaultColor=${REFERENCE_TYPES[REFERENCE_TYPE_CONCEPT].color} .tapEvents=${true} .disableAdd=${true} @tag-tapped=${this._handleSuggestedConceptTapped} @remove-tag=${this._handleAddAckReference} .overrideTypeName=${'Concept'}></tag-list>
 						<button class='small' @click=${this._handleAddAllConceptsClicked} ?hidden=${this._suggestedConcepts.length == 0} title='Add all suggested concepts (Ctrl-Shift-C)'>${PLUS_ICON}</button>
+						<button class='small' @click=${this._handleIgnoreAllConceptsClicked} ?hidden=${this._suggestedConcepts.length == 0} title='Ignore all suggested concepts (Ctrl-Shift-X)'>${CANCEL_ICON}</button>
 					</div>
 				</div>
 			</div>
@@ -507,6 +508,12 @@ class CardEditor extends connect(store)(LitElement) {
 		}
 	}
 
+	_handleIgnoreAllConceptsClicked() {
+		for (const cardID of this._suggestedConcepts) {
+			store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_ACK));
+		}
+	}
+
 	_handleCardTypeChanged(e) {
 		if (!this._active) return;
 		let ele = e.composedPath()[0];
@@ -637,6 +644,11 @@ class CardEditor extends connect(store)(LitElement) {
 
 		if (e.shiftKey && e.key == 'c') {
 			this._handleAddAllConceptsClicked();
+			return killEvent(e);
+		}
+
+		if (e.shiftKey && e.key == 'x') {
+			this._handleIgnoreAllConceptsClicked();
 			return killEvent(e);
 		}
 
