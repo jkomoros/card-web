@@ -73,6 +73,7 @@ import {
 	CANCEL_ICON,
 	DELETE_FOREVER_ICON,
 	PLUS_ICON,
+	HIGHLIGHT_OFF_ICON,
 } from './my-icons.js';
 
 import {
@@ -364,7 +365,7 @@ class CardEditor extends connect(store)(LitElement) {
 					<div class='row'>
 						<tag-list .tags=${this._suggestedConcepts} .tagInfos=${this._cardTagInfos} .editing=${true} .defaultColor=${REFERENCE_TYPES[REFERENCE_TYPE_CONCEPT].color} .tapEvents=${true} .disableAdd=${true} @tag-tapped=${this._handleSuggestedConceptTapped} @remove-tag=${this._handleAddAckReference} .overrideTypeName=${'Concept'}></tag-list>
 						<button class='small' @click=${this._handleAddAllConceptsClicked} ?hidden=${this._suggestedConcepts.length == 0} title='Add all suggested concepts (Ctrl-Shift-C)'>${PLUS_ICON}</button>
-						<button class='small' @click=${this._handleIgnoreAllConceptsClicked} ?hidden=${this._suggestedConcepts.length == 0} title='Ignore all suggested concepts (Ctrl-Shift-I)'>${CANCEL_ICON}</button>
+						<button class='small' @click=${this._handleIgnoreAllConceptsClicked} ?hidden=${this._suggestedConcepts.length == 0} title='Ignore all suggested concepts (Ctrl-Shift-I)'>${HIGHLIGHT_OFF_ICON}</button>
 					</div>
 				</div>
 			</div>
