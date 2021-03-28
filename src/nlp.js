@@ -52,8 +52,7 @@ const extractSynonymsFromCardTitleAlternates = (rawCard) => {
 
 const getAllNormalizedConceptStringsFromConceptCard = (processedConceptCard) => {
 	if (processedConceptCard.card_type != CARD_TYPE_CONCEPT) return [];
-	const wordBag = processedConceptCard.nlp.withoutStopWords;
-	return [...wordBag[TEXT_FIELD_TITLE], ...wordBag[TEXT_FIELD_TITLE_ALTERNATES]];
+	return [...processedConceptCard.nlp[TEXT_FIELD_TITLE].map(run => run.withoutStopWords), ...processedConceptCard.nlp[TEXT_FIELD_TITLE_ALTERNATES].map(run => run.withoutStopWords)];
 };
 
 //REturns all strings that cardMatchesConcept would work for.
@@ -348,12 +347,9 @@ const highlightHTMLForCard = (card, fieldName, filteredHighlightMap, alternateID
 
 	const originalConceptStrs = {};
 	for (const [fullyNormalizedConceptStr, cardID] of Object.entries(filteredHighlightMap)) {
-		const runs = card.nlp.normalized[fieldName];
-		for (let i = 0; i < runs.length; i++) {
-			const normalizedRun = runs[i];
-			const stemmedRun = card.nlp.stemmed[fieldName][i];
-			const withoutStopWordsRun = card.nlp.withoutStopWords[fieldName][i];
-			const originalNgram = extractOriginalNgramFromRun(fullyNormalizedConceptStr, normalizedRun,stemmedRun,withoutStopWordsRun);
+		const runs = card.nlp[fieldName];
+		for (let run of runs) {
+			const originalNgram = extractOriginalNgramFromRun(fullyNormalizedConceptStr, run.normalized,run.stemmed,run.withoutStopWords);
 			if (originalNgram) {
 				//TODO: look for clobbering of overlapping concepts e.g. force, external force
 				originalConceptStrs[originalNgram] = cardID;
@@ -509,9 +505,9 @@ export const cardMatchesString = (card,fieldName, str) => {
 	if (!card) return false;
 	if (!card.nlp) return false;
 	if (!TEXT_FIELD_CONFIGURATION[fieldName]) return false;
-	const fieldValues = card.nlp.withoutStopWords[fieldName] || [];
-	for (const fieldValue of fieldValues) {
-		if (fieldValue == normalizedString) return true;
+	const runs = card.nlp[fieldName] || [];
+	for (const run of runs) {
+		if (run.normalized == normalizedString) return true;
 	}
 	return false;
 };
@@ -600,6 +596,19 @@ const extractRawContentRunsForCardField = (card, fieldName) => {
 	return splitRuns(content);
 };
 
+//returns an object with original, normalized, stemmed, withoutStopWords fields.
+const processedRun = (originalText) => {
+	const normalized = normalizedWords(originalText);
+	const stemmed = stemmedNormalizedWords(normalized);
+	const withoutStopWordsField = withoutStopWords(stemmed);
+	return {
+		original: originalText,
+		normalized,
+		stemmed,
+		withoutStopWords: withoutStopWordsField,
+	};
+};
+
 //extractContentWords returns an object with the field to the non-de-stemmed
 //normalized words for each of the main properties.
 const extractContentWords = (card) => {
@@ -614,7 +623,7 @@ const extractContentWords = (card) => {
 	for (let fieldName of Object.keys(TEXT_FIELD_CONFIGURATION)) {
 		let runs = extractRawContentRunsForCardField(card, fieldName);
 		//splitRuns checks for empty runs, but they could be things that will be normalized to nothing, so filter again
-		runs = runs.map(str => normalizedWords(str)).filter(str => str);
+		runs = runs.map(str => processedRun(str)).filter(run => run.normalized);
 		obj[fieldName] = runs;
 	}
 	return obj;
@@ -664,11 +673,8 @@ let normalizedCount = {};
 // * card.synonymMap = normalized synonyms
 // * card.nlp = object with: 
 //
-//  (for each property below, a map of TEXT_FIELD_NAME -> arrays of strings.
-//   each property will have precisely the same TEXT_FIELD_NAMES, and precisely
-//   the same number of strings. Each phase in the list below builds on each
-//   other, adding an extra processing step.)
-//
+//  one per field type, an array of ProcessedRuns objects (see processedRun). Each has the following fields:
+//		original: the original text
 //      normalized: the extracted text runs for that field, with all words normalized. Note that some logical runs from the original text field may already have been filtered by this step. punctuation between words will be removed, everything will be lower case.
 //		stemmed: the normalized values, but also each word will have been stemmed. Each word will still line up with each word in normalized (stemming never removes words)
 //		withoutStopWords: the stemmed values, but also with stop words removed. The number of words in this field set will likely be smaller than the two above.
@@ -682,15 +688,7 @@ export const cardWithNormalizedTextProperties = memoizeFirstArg((card, fallbackT
 	if (fallbackText) result.fallbackText = fallbackText;
 	if (importantNgrams) result.importantNgrams = normalizeNgramMap(importantNgrams);
 	if (synonyms) result.synonymMap = normalizeSynonymMap(synonyms);
-	//Basically it takes the output of extractContentWords and then stems each run.
-	const normalizedFields = extractContentWords(result);
-	const stemmedFields = Object.fromEntries(Object.entries(normalizedFields).map(entry => [entry[0], entry[1].map(str => stemmedNormalizedWords(str))]));
-	const withoutStopWordsFields = Object.fromEntries(Object.entries(stemmedFields).map(entry => [entry[0], entry[1].map(str => withoutStopWords(str))]));
-	result.nlp = {
-		normalized: normalizedFields,
-		stemmed: stemmedFields,
-		withoutStopWords: withoutStopWordsFields,
-	};
+	result.nlp = extractContentWords(result);
 	return result;
 });
 
@@ -730,15 +728,16 @@ export class PreparedQuery {
 	
 		for (let key of Object.keys(TEXT_FIELD_CONFIGURATION)) {
 			const propertySubQuery = this.text[key];
-			if(!propertySubQuery || !card.nlp || !card.nlp.stemmed || !card.nlp.stemmed[key]) continue;
-			const runs = card.nlp.stemmed[key];
+			if(!propertySubQuery || !card.nlp || !card.nlp[key]) continue;
+			const runs = card.nlp[key];
 			if (runs.length == 0) continue;
-			const singleRun = runs.join(' ');
+			const singleRun = runs.map(run => run.stemmed).join(' ');
+			if (singleRun.length == 0) continue;
 			//propertyFullMatch should be across ALL runs. Even if no one run
 			//has all of the words, as long as together they all do, it's OK.
 			const [, propertyFullMatch] = stringPropertyScoreForStringSubQuery(singleRun, propertySubQuery);
 			if (!fullMatch && propertyFullMatch) fullMatch = true;
-			let scoreAddition = runs.map(run => stringPropertyScoreForStringSubQuery(run, propertySubQuery)[0]).reduce((prev, curr) => prev + curr, 0.0);
+			let scoreAddition = runs.map(run => stringPropertyScoreForStringSubQuery(run.stemmed, propertySubQuery)[0]).reduce((prev, curr) => prev + curr, 0.0);
 			score += scoreAddition;
 		}
 	
@@ -899,7 +898,7 @@ const SYNONYM_DISCOUNT_FACTOR = 0.75;
 
 //strsMap is card.nlp.withoutStopWords. See cardWithNormalizedTextProperties documentation for more.
 const wordCountsForSemantics = memoizeFirstArg((cardObj, maxFingerprintSize) => {
-	const strsMap = Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => [prop, cardObj.nlp.withoutStopWords[prop]]).filter(entry => entry[1]));
+	const strsMap = Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => [prop, cardObj.nlp[prop].map(run => run.withoutStopWords)]).filter(entry => entry[1]));
 	//Yes, it's weird that we stash the additionalNgramsMap on a cardObj and
 	//then pass that around instead of just passing the ngram map to FingerPrint
 	//generator. But it we did it another way, it would break the `similar/`
@@ -1412,7 +1411,7 @@ class Fingerprint {
 			[...this._items.keys()].filter(ngram => {
 				return !this._cards.some(card => {
 					const fieldsToSkip = DERIVED_FIELDS_FOR_CARD_TYPE[card.card_type] || {};
-					return Object.entries(card.nlp.withoutStopWords).filter(entry => !fieldsToSkip[entry[0]]).map(entry => entry[1]).some(runs => runs.some(run => ngramWithinOther(ngram, run)));
+					return Object.entries(card.nlp).filter(entry => !fieldsToSkip[entry[0]]).map(entry => entry[1]).some(runs => runs.some(run => ngramWithinOther(ngram, run.withoutStopWords)));
 				});
 			}).map(ngram => [ngram, true])
 		);
@@ -1425,12 +1424,9 @@ class Fingerprint {
 			const originalNgrams = {};
 			if (!itemsNotFromCard[ngram]) {
 				for (const card of this._cards) {
-					for (const [fieldName, runs] of Object.entries(card.nlp.normalized)) {
-						for (let i = 0; i < runs.length; i++) {
-							const normalizedRun = runs[i];
-							const stemmedRun = card.nlp.stemmed[fieldName][i];
-							const withoutStopWordsRun = card.nlp.withoutStopWords[fieldName][i];
-							const originalNgram = extractOriginalNgramFromRun(ngram, normalizedRun,stemmedRun,withoutStopWordsRun);
+					for (const runs of Object.values(card.nlp)) {
+						for (const run of runs) {
+							const originalNgram = extractOriginalNgramFromRun(ngram, run.normalized,run.stemmed,run.withoutStopWords);
 							if (originalNgram) {
 								originalNgrams[originalNgram] = (originalNgrams[originalNgram] || 0) + 1;
 							}
@@ -1498,7 +1494,7 @@ class Fingerprint {
 			//A concept card should count its own title/title-alts as coming
 			//from itself. getAllNormalizedConceptStringsFromConceptCard will
 			//return an empty array if the card is not a concept card.
-			let strs = [...obj.nlp.withoutStopWords[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND], ...getAllNormalizedConceptStringsFromConceptCard(obj)];
+			let strs = [...obj.nlp[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND].map(run => run.withoutStopWords), ...getAllNormalizedConceptStringsFromConceptCard(obj)];
 			for (let str of strs) {
 				//The fingerprint will have STOP_WORDs filtered, since it's
 				//downstream of wordCountsForSemantics, so do the same to check for
