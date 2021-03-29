@@ -349,7 +349,7 @@ const highlightHTMLForCard = (card, fieldName, filteredHighlightMap, alternateID
 	for (const [fullyNormalizedConceptStr, cardID] of Object.entries(filteredHighlightMap)) {
 		const runs = card.nlp[fieldName];
 		for (let run of runs) {
-			const originalNgram = extractOriginalNgramFromRun(fullyNormalizedConceptStr, run.normalized,run.stemmed,run.withoutStopWords);
+			const originalNgram = extractOriginalNgramFromRun(fullyNormalizedConceptStr, run);
 			if (originalNgram) {
 				//TODO: look for clobbering of overlapping concepts e.g. force, external force
 				originalConceptStrs[originalNgram] = cardID;
@@ -975,16 +975,15 @@ const wordCountsForSemantics = memoizeFirstArg((cardObj, maxFingerprintSize) => 
 	return cardMap;
 });
 
-//targetNgram is the targted, withoutStopWords ngram to look for. *Run
-//properties are the same run, indexed out of nlp.normalized, nlp.stemmed, and
-//nlp.withoutStopWords, respectively. The result will be a substring out of
+//targetNgram is the targted, withoutStopWords ngram to look for. Run is the
+//processedRun to look within. The result will be a substring out of
 //normalizedRun corresponding to targetNgram. This will return '' if the
 //targetNgram doesn't exist as a word-boundary subset of withoutStopWordsRun.
-const extractOriginalNgramFromRun = (targetNgram, normalizedRun, stemmedRun, withoutStopWordsRun) => {
-	if (!ngramWithinOther(targetNgram, withoutStopWordsRun)) return '';
+const extractOriginalNgramFromRun = (targetNgram, run) => {
+	if (!ngramWithinOther(targetNgram, run.withoutStopWords)) return '';
 	//We know that targetNgram is within withoutStopWordsRun. Now, look for its
 	//word index (start and length) within stemmedRun.
-	let stemmedRunWords = stemmedRun.split(' ');
+	let stemmedRunWords = run.stemmed.split(' ');
 	let targetNgramWords = targetNgram.split(' ');
 
 	//which piece of the targetNgramPieces we're looking to match now
@@ -1038,7 +1037,7 @@ const extractOriginalNgramFromRun = (targetNgram, normalizedRun, stemmedRun, wit
 	}
 
 	//If we get to here, we have a startWordIndex and wordCount that index into normalizedRun.
-	return normalizedRun.split(' ').slice(startWordIndex, startWordIndex + wordCount).join(' ');
+	return run.normalized.split(' ').slice(startWordIndex, startWordIndex + wordCount).join(' ');
 
 };
 
@@ -1426,7 +1425,7 @@ class Fingerprint {
 				for (const card of this._cards) {
 					for (const runs of Object.values(card.nlp)) {
 						for (const run of runs) {
-							const originalNgram = extractOriginalNgramFromRun(ngram, run.normalized,run.stemmed,run.withoutStopWords);
+							const originalNgram = extractOriginalNgramFromRun(ngram, run);
 							if (originalNgram) {
 								originalNgrams[originalNgram] = (originalNgrams[originalNgram] || 0) + 1;
 							}
@@ -1685,8 +1684,6 @@ export const TESTING = {
 	ngrams,
 	extractOriginalNgramFromRun,
 	fullyNormalizedString,
-	normalizedWords,
-	stemmedNormalizedWords,
-	withoutStopWords,
+	processedRun,
 	highlightStringInHTML,
 };

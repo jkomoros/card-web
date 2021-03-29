@@ -862,11 +862,9 @@ describe('splitRuns', () => {
 const runExtractOriginalNgramFromRunTest = (rawTarget, rawRun) => {
 
 	const targetNgram = TESTING.fullyNormalizedString(rawTarget);
-	const normalizedRun = TESTING.normalizedWords(rawRun);
-	const stemmedRun = TESTING.stemmedNormalizedWords(normalizedRun);
-	const withoutStopWordsRun = TESTING.withoutStopWords(stemmedRun);
+	const run = TESTING.processedRun(rawRun);
 
-	return TESTING.extractOriginalNgramFromRun(targetNgram, normalizedRun, stemmedRun, withoutStopWordsRun);
+	return TESTING.extractOriginalNgramFromRun(targetNgram, run);
 };
 
 describe('extractOriginalNgramFromRun', () => {
