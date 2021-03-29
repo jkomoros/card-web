@@ -507,7 +507,7 @@ export const cardMatchesString = (card,fieldName, str) => {
 	if (!TEXT_FIELD_CONFIGURATION[fieldName]) return false;
 	const runs = card.nlp[fieldName] || [];
 	for (const run of runs) {
-		if (run.normalized == normalizedString) return true;
+		if (run.withoutStopWords == normalizedString) return true;
 	}
 	return false;
 };
