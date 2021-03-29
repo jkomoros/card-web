@@ -603,6 +603,10 @@ class ProcessedRun {
 		this.stemmed = stemmedNormalizedWords(this.normalized);
 		this.withoutStopWords = withoutStopWords(this.stemmed);
 	}
+
+	get empty() {
+		return this.normalized == '';
+	}
 }
 
 //returns an object with original, normalized, stemmed, withoutStopWords fields.
@@ -624,7 +628,7 @@ const extractContentWords = (card) => {
 	for (let fieldName of Object.keys(TEXT_FIELD_CONFIGURATION)) {
 		let runs = extractRawContentRunsForCardField(card, fieldName);
 		//splitRuns checks for empty runs, but they could be things that will be normalized to nothing, so filter again
-		runs = runs.map(str => processedRun(str)).filter(run => run.normalized);
+		runs = runs.map(str => processedRun(str)).filter(run => !run.empty);
 		obj[fieldName] = runs;
 	}
 	return obj;
