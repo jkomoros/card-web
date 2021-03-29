@@ -596,17 +596,18 @@ const extractRawContentRunsForCardField = (card, fieldName) => {
 	return splitRuns(content);
 };
 
+class ProcessedRun {
+	constructor(originalText) {
+		this.original = originalText;
+		this.normalized = normalizedWords(originalText);
+		this.stemmed = stemmedNormalizedWords(this.normalized);
+		this.withoutStopWords = withoutStopWords(this.stemmed);
+	}
+}
+
 //returns an object with original, normalized, stemmed, withoutStopWords fields.
 const processedRun = (originalText) => {
-	const normalized = normalizedWords(originalText);
-	const stemmed = stemmedNormalizedWords(normalized);
-	const withoutStopWordsField = withoutStopWords(stemmed);
-	return {
-		original: originalText,
-		normalized,
-		stemmed,
-		withoutStopWords: withoutStopWordsField,
-	};
+	return new ProcessedRun(originalText);
 };
 
 //extractContentWords returns an object with the field to the non-de-stemmed
