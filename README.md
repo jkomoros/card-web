@@ -81,21 +81,25 @@ This section describes things that you don't have to do, but are a good idea
 
 ### Limiting access
 
-The default app settings allow anyone to view published cards on the site. But
-sometimes you don't want that. It's possible to configure your
-config.SECRET.json to prevent access by default.
+The default app settings you copied over from config.SAMPLE.json allow anyone to
+view published cards on the site. But sometimes you don't want that. It's
+possible to configure your config.SECRET.json to prevent access by default.
+
+Each permission defaults to off (false) until set explicitly to true in the
+cascade.
 
 If you want to allow access only for users who explicitly have been granted
-access, add the following inside of your config.SECRET.json:
+access, remove the 'viewApp' key from 'all' block:
 
 ```
   "permissions" : {
-	  "all" : {
-		  "viewApp": false
-	  }
+	  "all" : {},
+	  //other configs remain the same
   }
 ```
-Then, for each user you want to give access, manually add a permissions object (like you did to create the first admin account), and add "viewApp": true to them.
+Then, you'll have to give each user view access. You can do that by going to
+YOUR-DOMAIN.com/permissions, where you can add viewApp permissions to other
+users.
 
 Of course that's a pain. Sometimes you want to give viewApp access to anyone
 with an email account from your company. To do that, add the following to your config:
@@ -103,9 +107,8 @@ with an email account from your company. To do that, add the following to your c
 ```
   "user_domain" : "mycompany.com",
   "permissions" : {
-	  "all" : {
-		  "viewApp": false
-	  },
+	  "all" : {},
+	  //Other configs remain the same
 	  "signed_in_domain": {
 		  "viewApp": true
 	  }
@@ -235,18 +238,27 @@ This value should be the part after the `@` sign in an email. For example, for
 
 ### permissions
 
-If you want to override the default BASE_PERMISSIONS of the webapp, for example
-to make it so users must be explicitly whitelisted to view the app at all, then
-put an object there with all of the true/false keys you want to override. See
-src/permissions.js.BASE_PERMISSIONS for an enumeration of all of the keys and
-what they mean.
+Permissions of the web app are set based on the contents of the permissions
+block in config.SECRET.json. You likely have reasonable defaults set based on
+what you copied from config.SAMPLE.json.
+
+Each permission defaults to false until it is set to true in the cascade, after
+which it is true from that point onward in the cascade.
 
 The different permissions objects are maps that are sub-keys of this: 'all',
 'anonymous', 'signed_in', 'signed_in_domain'.
 
 This progression from 'all' to 'signed_in_domain' all build on one another. Each
 successive level may ADD permissions, but not remove them. This means that the
-configuration you provide at any level must all have 'true'.
+configuration you provide at any level must only have 'true' keys.
+
+After those four blocks, each user also might have specific extra permissions
+set on their user object. You can visit https://YOUR-DOMAIN.com/permissions to
+manually modify permissions for individual users (for everything other than
+setting someone as an admin).
+
+You can see all of the permission keys that can be set in each block by visiting
+src/permissions.js
 
 #### permissions.all 
 
@@ -260,19 +272,11 @@ also applies if they're signed in with a real login). By default every user who
 visits the web app is signed in anonyously, so in practice this applies for
 everyone.
 
-The web app defines its own permissions that apply at this tier in
-src/permissions.js.BASE_USER_TYPE_ANONYMOUS_PERMISSIONS. Keys you provide here
-will supercede those.
-
 #### permissions.signed_in
 
 The override permissions for users who are signed in AND the sign in has a
 username and email attached. Note that this means these permissions layer on top
 of the overrides provided for permissions.anonymous.
-
-The web app defines its own permissions that apply at this tier in
-src/permissions.js.BASE_USER_TYPE_SIGNED_IN_PERMISSIONS. Keys you provide here
-will supercede those.
 
 #### permissions.signed_in_domain
 
