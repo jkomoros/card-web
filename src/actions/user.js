@@ -14,6 +14,10 @@ export const AUTO_MARK_READ_DELAY = 5000;
 import firebase from '@firebase/app';
 
 import {
+	DISABLE_ANONYMOUS_LOGIN
+} from '../../config.GENERATED.SECRET.js';
+
+import {
 	connectLiveStars,
 	disconnectLiveStars,
 	connectLiveReads,
@@ -137,6 +141,7 @@ export const signIn = () => (dispatch, getState) => {
 	let provider = new firebase.auth.GoogleAuthProvider();
 
 	if (isAnonymous) {
+		//We'll only get here if anonymous login was not disabled
 		let user = auth.currentUser;
 		if (!user) {
 			console.warn('Unexpectedly didn\'t have user');
@@ -159,7 +164,7 @@ export const signOutSuccess = () => (dispatch) =>  {
 
 	//If the user hasn't previously signed in on this device, then this might be
 	//a first page load. Try to do an anonymous account.
-	if (!hasPreviousSignIn()) {
+	if (!hasPreviousSignIn() && !DISABLE_ANONYMOUS_LOGIN) {
 		auth.signInAnonymously();
 		return;
 	}

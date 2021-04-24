@@ -24,5 +24,6 @@
 			"comment": true
 		}
 	},
-	"disable_persistence": false
+	"disable_persistence": false,
+	"disable_anonymous_login": false
 }

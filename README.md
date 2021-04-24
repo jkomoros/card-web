@@ -29,7 +29,9 @@ Run `gulp inject-config`. This copies the config you just set into various stati
 
 Go back to the Firebase console. Go to the project overview for your app. Tap the Firestore Database item in the navigation to the right. Tap 'Create Database'. Choose Production Mode. Tap next. Pick the location (the default is fine for US--if you change it, set that in your config `region` (see below)). Tap Done.
 
-In the navigation to the right, go to Authentication. Tap 'Set up sign-in method'. Next to the Google row, tap the edit icon. **Toggle the Enable toggle**. Give the project a descriptive name and pick an email. (You can change these both later). Hit Save.
+In the navigation to the right, go to Authentication. Tap 'Set up sign-in method'. Next to the Google row, tap the edit icon. **Toggle the Enable toggle**. Give the project a descriptive name and pick an email. (You can change these both later). Hit Save.  
+
+By default (unless you set disable_anonymous_login to your config.SECRET.json) anonymous users will be enabled, and you must also configure that sign in method. In the Firebase Authentication tab, under the Sign-in method, go to Anonymous and enable it.
 
 In the navigation to the right, go to the Storage tab. Tap 'Get Started'. Click Next. It will show you a location selection, which you can't change (since you set it in an earlier step). Tap 'Done'.
 
@@ -235,6 +237,19 @@ sometimes interact oddly with certain configurations. If this is set to true,
 then persistence will not be enabled. That might cause slightly slower
 second-load performance. Defaults to false.
 
+### disable_anonymous_login
+
+By default, when a user visits the webapp, they are "signed in" to an anonymous
+account. This allows them to register reads, stars, and reading lists even
+before they sign in. Later, they can properly sign in to their real account and
+merge the state they accumulated in the anonymous account with their real one.
+
+However, if you want them to either be fully logged out (no ability to star or
+mark read) or fully logged in, you can set this value to true.
+
+Note that if this is false (the default) then you need to enable Anonymous Sign
+in as a method in Firebase's Authentication console.
+
 ### user_domain
 
 If this is set, then it allows you to apply special permissions for users whose
@@ -277,8 +292,8 @@ permissions, since it applies to ALL users, including non-signed-in ones.
 
 The override permissions for users who are signed in AT LEAST anonymously (it
 also applies if they're signed in with a real login). By default every user who
-visits the web app is signed in anonyously, so in practice this applies for
-everyone.
+visits the web app is signed in anonyously (unless disable_anonymous_signin is
+true), so in practice this often applies for everyone.
 
 #### permissions.signed_in
 
