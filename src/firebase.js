@@ -11,7 +11,8 @@ import '@firebase/storage';
 import {
 	FIREBASE_DEV_CONFIG,
 	FIREBASE_PROD_CONFIG,
-	FIREBASE_REGION
+	FIREBASE_REGION,
+	DISABLE_PERSISTENCE
 } from '../../config.GENERATED.SECRET.js';
 
 export let DEV_MODE = false;
@@ -23,14 +24,16 @@ let config = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
 // Initialize Firebase
 const firebaseApp = firebase.initializeApp(config);
 
-firebase.firestore().enablePersistence()
-	.catch(function(err) {
-		if (err.code == 'failed-precondition') {
-			console.warn('Offline doesn\'t work because multiple tabs are open or something else');
-		} else if (err.code == 'unimplemented') {
-			console.warn('This browser doesn\'t support offline storage');
-		}
-	});
+if (!DISABLE_PERSISTENCE) {
+	firebase.firestore().enablePersistence()
+		.catch(function(err) {
+			if (err.code == 'failed-precondition') {
+				console.warn('Offline doesn\'t work because multiple tabs are open or something else');
+			} else if (err.code == 'unimplemented') {
+				console.warn('This browser doesn\'t support offline storage');
+			}
+		});
+}
 
 export const db = firebaseApp.firestore();
 export const auth = firebaseApp.auth();

@@ -23,5 +23,6 @@
 		"signed_in": {
 			"comment": true
 		}
-	}
+	},
+	"disable_persistence": false
 }

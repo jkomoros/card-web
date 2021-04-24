@@ -227,6 +227,14 @@ be rendered a lighter color in the header.
 
 The description of your application, for use in the meta tag.
 
+### disable_persistence
+
+By default, the web app will enable persistence for Firestore, meaning that it
+will keep a local cache of the database contents for each client. This can
+sometimes interact oddly with certain configurations. If this is set to true,
+then persistence will not be enabled. That might cause slightly slower
+second-load performance. Defaults to false.
+
 ### user_domain
 
 If this is set, then it allows you to apply special permissions for users whose
