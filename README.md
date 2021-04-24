@@ -348,6 +348,9 @@ A boolean. If true, `gulp release` will tag releases. Should only be set to true
 
 The default region for firebase is `us-central1`. However, if you use a different region, provide it here.
 
+### tabs
+If provided, should be an array of tab config objects. See src/tabs.js for more on the valid fields and what they mean.
+
 ## Favicons
 
 When logo.svg has changed, run `gulp generate-favicon`. Then merge the values in images/site.webmanifest into /manifest.json

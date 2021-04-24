@@ -1041,6 +1041,22 @@ export const selectExpandedTabConfig = createSelector(
 	(sections, tags) => tabConfiguration(TAB_CONFIGURATION, sections, tags)
 );
 
+//The CollectionDescription to load up if not provided one
+export const selectDefaultCollectionDescription = createSelector(
+	selectExpandedTabConfig,
+	selectDataIsFullyLoaded,
+	(tabConfig, dataIsFullyLoaded) => {
+		for (const tab of tabConfig) {
+			if (tab.default) return tab.collection;
+		}
+		//If everything is laoded and we still don't have one, just navigate to
+		//the default collection description.
+		if (dataIsFullyLoaded) return new CollectionDescription();
+		//there might not be one marked default if sections hasn't loaded.
+		return null;
+	}
+);
+
 export const selectTabCollectionFallbacks = createSelector(
 	selectExpandedTabConfig,
 	selectSlugIndex,
@@ -1064,20 +1080,6 @@ export const selectTabCollectionStartCards = createSelector(
 			result[item.collection.serialize()] = item.start_cards.map(idOrSlug => slugIndex[idOrSlug] || idOrSlug);
 		}
 		return result;
-	}
-);
-
-//the section that should be loaded by default if no section is specified; Will
-//return the first section, or if one is marked as default, that one.
-export const selectDefaultSectionID = createSelector(
-	selectSections,
-	(sections) => {
-		const entries = Object.entries(sections);
-		if (!entries.length) return '';
-		for (const entry of entries) {
-			if (entry[1].default) return entry[0];
-		}
-		return entries[0][0];
 	}
 );
 

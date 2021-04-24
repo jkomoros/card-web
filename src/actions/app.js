@@ -57,7 +57,7 @@ import {
 	selectIsEditing,
 	selectActiveCardIndex,
 	selectUserMayEditActiveCard,
-	selectDefaultSectionID,
+	selectDefaultCollectionDescription,
 	selectCtrlKeyPressed,
 	selectCardsDrawerInfoExpanded,
 	selectActiveCollectionDescription,
@@ -198,12 +198,12 @@ export const navigateToComment = (commentId) => (dispatch, getState) => {
 //navigateToDefaultIfSectionsLoaded will navigate to default if sections are
 //loaded. If they aren't, it won't do anything.
 export const navigateToDefaultIfSectionsLoaded = (silent) => (dispatch, getState) => {
-	const defaultSectionID = selectDefaultSectionID(getState());
-	if (!defaultSectionID) {
+	const defaultCollectionDescription = selectDefaultCollectionDescription(getState());
+	if (!defaultCollectionDescription) {
 		//must not have loaded yet
 		return;
 	}
-	dispatch(navigatePathTo('/' + PAGE_DEFAULT + '/' + defaultSectionID + '/', silent));
+	dispatch(navigatePathTo('/' + PAGE_DEFAULT + '/' + defaultCollectionDescription.serialize(), silent));
 };
 
 export const navigateToCardInCurrentCollection = (cardOrID, silent) => (dispatch, getState) => {

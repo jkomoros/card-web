@@ -86,6 +86,9 @@ Valid fields in config items:
 	//If provided, will show these start cards if the collection being show is precisely the collection described 
 	//by this descripton. The strings can be IDS or slugs for the target cards.
 	start_cards: [CARD_ID_OR_SLUG, ...]
+	//The first item that has default:true will be used as the default collection if the app is loaded without a 
+	//collection. The auto sections portion will automatically select at least one item to be default.
+	default: true
 }
 */
 
@@ -186,17 +189,27 @@ const DEFAULT_LOADING_TAB = {
 };
 
 
-const tabsForSections = (sections, doHide) => {
+const tabsForSections = (sections, doHide, doSelectDefaultIfNonProvided) => {
+	//Only doSelectDefaultIfNonProvided for sections
 	if (!doHide) doHide = false;
 	if (!sections || Object.keys(sections).length == 0) {
 		return [{...DEFAULT_LOADING_TAB, hide:doHide}];
 	}
-	return Object.values(sections).map(section => ({
+	const hasAnExplicitDefault = Object.values(sections).some(section => section.default);
+
+	const result = Object.values(sections).map(section => ({
 		display_name: section.title,
 		collection: new CollectionDescription('', [section.id]),
 		start_cards: section.start_cards,
 		hide: doHide,
+		default: section.default,
 	}));
+
+	if (!hasAnExplicitDefault && doSelectDefaultIfNonProvided) {
+		result[0].default = true;
+	}
+
+	return result;
 };
 
 const expandTabConfigItem = (configItem, sections, tags) => {
@@ -207,10 +220,10 @@ const expandTabConfigItem = (configItem, sections, tags) => {
 	if (EXPANSION_ITEMS[configItem.expand]) return [[...EXPANSION_ITEMS[configItem.expand]], true];
 
 	if (configItem.expand == 'sections') {
-		return [tabsForSections(sections), true];
+		return [tabsForSections(sections, false, true), true];
 	}
 	if (configItem.expand == 'hidden_sections') {
-		return [tabsForSections(sections, true), true];
+		return [tabsForSections(sections, true, true), true];
 	}
 	if (configItem.expand == 'tags') {
 		return [tabsForSections(tags), true];
