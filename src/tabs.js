@@ -149,7 +149,7 @@ const EXPANSION_ITEMS = {
 		{
 			icon: icons.STAR_ICON,
 			display_name: 'Your starred cards',
-			collection: new CollectionDescription('', ['starred']),
+			collection: new CollectionDescription(EVERYTHING_SET_NAME, ['starred']),
 			count: true,
 			fallback_cards: [STARS_FALLBACK_CARD],
 		}
