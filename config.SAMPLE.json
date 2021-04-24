@@ -25,5 +25,6 @@
 		}
 	},
 	"disable_persistence": false,
-	"disable_anonymous_login": false
+	"disable_anonymous_login": false,
+	"disable_service_worker": false
 }

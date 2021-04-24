@@ -250,6 +250,11 @@ mark read) or fully logged in, you can set this value to true.
 Note that if this is false (the default) then you need to enable Anonymous Sign
 in as a method in Firebase's Authentication console.
 
+### disable_service_worker
+
+If you don't want to use a service worker, set this to true. By default it will
+use a service worker.
+
 ### user_domain
 
 If this is set, then it allows you to apply special permissions for users whose

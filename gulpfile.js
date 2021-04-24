@@ -53,6 +53,7 @@ const USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS = projectConfig.permissions && proj
 
 const DISABLE_PERSISTENCE = projectConfig.disable_persistence || false;
 const DISABLE_ANONYMOUS_LOGIN = projectConfig.disable_anonymous_login || false;
+const DISABLE_SERVICE_WORKER = projectConfig.disable_service_worker || false;
 
 const TAB_CONFIGURATION = projectConfig.tabs || null;
 
@@ -160,11 +161,16 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 		META_STRING += '    <meta name="twitter:site" content="@' + TWITTER_HANDLE + '">\n';
 	}
 
-	gulp.src('./index.TEMPLATE.html')
+	let stream = gulp.src('./index.TEMPLATE.html')
 		.pipe(inject.after('<!-- INJECT-META-HERE -->', META_STRING))
 		.pipe(inject.replace('@TITLE@', APP_TITLE))
-		.pipe(inject.replace('@DESCRIPTION@',APP_DESCRIPTION))
-		.pipe(rename('index.html'))
+		.pipe(inject.replace('@DESCRIPTION@',APP_DESCRIPTION));
+
+	if (DISABLE_SERVICE_WORKER) {
+		stream = stream.pipe(inject.after('SERVICE-WORKER-START*/', '/*'));
+	}
+	
+	stream.pipe(rename('index.html'))
 		.pipe(gulp.dest('./'));
 
 	const COMPOSED_USER_TYPE_ALL_PERMISSIONS = {...USER_TYPE_ALL_PERMISSIONS};
