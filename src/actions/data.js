@@ -758,7 +758,7 @@ export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
 	}
 
 	if (!result.legal) {
-		console.log(result.reason);
+		alert('Couldn\'t add slug: ' + result.reason);
 		dispatch(setPendingSlug(''));
 		return;
 	}

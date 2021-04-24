@@ -32,7 +32,8 @@ import {
 } from './user.js';
 
 import {
-	selectUserMayViewApp
+	selectUserMayViewApp,
+	selectSlugIndex
 } from '../selectors.js';
 
 import {
@@ -66,6 +67,16 @@ const statusCallable = functions.httpsCallable('status');
 
 //slugLegal returns an object with {legal: bool, reason: string}
 export const slugLegal = async (newSlug) => {
+
+	//First, early reject any slugs we already know exist.
+	const slugIndex = selectSlugIndex(store.getState());
+	if (slugIndex[newSlug]) {
+		return {
+			legal: false,
+			reason: 'The card with ID ' + slugIndex[newSlug] + ' already has that slug.'
+		};
+	}
+
 	const result = await legalCallable({type:'slug', value:newSlug});
 	return result.data;
 };

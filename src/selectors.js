@@ -166,7 +166,7 @@ export const selectTagsLoaded = (state) => state.data ? state.data.tagsLoaded : 
 export const selectMessagesLoaded = (state) => state.comments ? state.comments.messagesLoaded : false;
 export const selectThreadsLoaded = (state) => state.comments ? state.comments.threadsLoaded : false;
 export const selectAlreadyCommittedModificationsWhenFullyLoaded = (state) => state.data ? state.data.alreadyCommittedModificationsWhenFullyLoaded : false;
-const selectSlugIndex = (state) => state.data ? state.data.slugIndex : {};
+export const selectSlugIndex = (state) => state.data ? state.data.slugIndex : {};
 export const selectMessages = (state) => state.comments ? state.comments.messages : null;
 export const selectThreads = (state) => state.comments ? state.comments.threads : null;
 export const selectAuthors = (state) => state.data.authors ? state.data.authors : null;
