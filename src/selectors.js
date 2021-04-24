@@ -1044,14 +1044,22 @@ export const selectExpandedTabConfig = createSelector(
 //The CollectionDescription to load up if not provided one
 export const selectDefaultCollectionDescription = createSelector(
 	selectExpandedTabConfig,
-	selectDataIsFullyLoaded,
-	(tabConfig, dataIsFullyLoaded) => {
+	selectSectionsLoaded,
+	(tabConfig, sectionsLoaded) => {
 		for (const tab of tabConfig) {
 			if (tab.default) return tab.collection;
 		}
 		//If everything is laoded and we still don't have one, just navigate to
-		//the default collection description.
-		if (dataIsFullyLoaded) return new CollectionDescription();
+		//the first tab item with a set collection description
+		if (sectionsLoaded) {
+			//TODO: this really should wait for data to be fully loaded, but
+			//card-view only calls us again if section status loads.
+			for (const tab of tabConfig) {
+				if (tab.collection) return tab.collection;
+			}
+			//Well, just return the default collection description I guess?
+			return new CollectionDescription();
+		}
 		//there might not be one marked default if sections hasn't loaded.
 		return null;
 	}

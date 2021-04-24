@@ -189,13 +189,12 @@ const DEFAULT_LOADING_TAB = {
 };
 
 
-const tabsForSections = (sections, doHide, doSelectDefaultIfNonProvided) => {
+const tabsForSections = (sections, doHide) => {
 	//Only doSelectDefaultIfNonProvided for sections
 	if (!doHide) doHide = false;
 	if (!sections || Object.keys(sections).length == 0) {
 		return [{...DEFAULT_LOADING_TAB, hide:doHide}];
 	}
-	const hasAnExplicitDefault = Object.values(sections).some(section => section.default);
 
 	const result = Object.values(sections).map(section => ({
 		display_name: section.title,
@@ -204,10 +203,6 @@ const tabsForSections = (sections, doHide, doSelectDefaultIfNonProvided) => {
 		hide: doHide,
 		default: section.default,
 	}));
-
-	if (!hasAnExplicitDefault && doSelectDefaultIfNonProvided) {
-		result[0].default = true;
-	}
 
 	return result;
 };
@@ -226,10 +221,10 @@ const expandTabConfigItem = (configItem, sections, tags) => {
 	if (EXPANSION_ITEMS[configItem.expand]) return [[...EXPANSION_ITEMS[configItem.expand].map(item => ({...configItemWithoutExpand, ...item}))], true];
 
 	if (configItem.expand == 'sections') {
-		return [tabsForSections(sections, false, true), true];
+		return [tabsForSections(sections, false), true];
 	}
 	if (configItem.expand == 'hidden_sections') {
-		return [tabsForSections(sections, true, true), true];
+		return [tabsForSections(sections, true), true];
 	}
 	if (configItem.expand == 'tags') {
 		return [tabsForSections(tags), true];

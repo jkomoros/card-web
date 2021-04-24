@@ -351,20 +351,27 @@ The default region for firebase is `us-central1`. However, if you use a differen
 ### tabs
 If provided, should be an array of tab config objects. See src/tabs.js for more on the valid fields and what they mean.
 
+By default, the first item in the tab collection will be selected if users visit
+and no other thing is provided. You can set 'default' to true one of the items.
+If you want a section other than the first section to be the default, set
+`default:true` on the section via the firestore editor.
+
 For example, if you had an instance that was primarily a glossary, you might set it to:
 ```
 [
 	{
-		"expand": "concepts",
-		"default": true
+		"expand": "working-notes"
 	},
 	{
-		"expand": "working-notes"
+		"expand": "concepts",
+		"default": true
 	}
 ]
 ```
 
-That would set it so only two tabs show up, and the first one will be loaded up when the app loads up and no other collection is provided.
+That would set it so only two tabs show up, and the second one will be loaded up
+when the app loads up and no other collection is provided. (If you omitted the
+'default', then the first tab would be selected)
 
 ## Favicons
 
