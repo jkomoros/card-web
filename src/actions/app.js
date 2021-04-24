@@ -192,12 +192,12 @@ export const navigateToComment = (commentId) => (dispatch, getState) => {
 		return;
 	}
 	alert('That comment does not exist. Redirecting to the default card.');
-	dispatch(navigateToDefaultIfSectionsLoaded(false));
+	dispatch(navigateToDefaultIfSectionsAndTagsLoaded(false));
 };
 
 //navigateToDefaultIfSectionsLoaded will navigate to default if sections are
 //loaded. If they aren't, it won't do anything.
-export const navigateToDefaultIfSectionsLoaded = (silent) => (dispatch, getState) => {
+export const navigateToDefaultIfSectionsAndTagsLoaded = (silent) => (dispatch, getState) => {
 	const defaultCollectionDescription = selectDefaultCollectionDescription(getState());
 	if (!defaultCollectionDescription) {
 		//must not have loaded yet
@@ -229,7 +229,7 @@ export const navigateToCardInCurrentCollection = (cardOrID, silent) => (dispatch
 export const navigateToCardInDefaultCollection = (cardOrId, silent) => (dispatch) => {
 	let path = urlForCard(cardOrId);
 	if (!path) {
-		dispatch(navigateToDefaultIfSectionsLoaded(silent));
+		dispatch(navigateToDefaultIfSectionsAndTagsLoaded(silent));
 	}
 	dispatch(navigatePathTo(path, silent));
 };

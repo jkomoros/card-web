@@ -942,6 +942,12 @@ export const selectCardsLoaded = createSelector(
 	(permissionsFinal, publishedCardsLoaded, userMayViewUnpublished, unpublishedCardsLoaded) => permissionsFinal && publishedCardsLoaded && (userMayViewUnpublished ? unpublishedCardsLoaded : true)
 );
 
+export const selectSectionsAndTagsLoaded = createSelector(
+	selectSections,
+	selectTags,
+	(sectionsLoaded, tagsLoaded) => sectionsLoaded && tagsLoaded
+);
+
 //DataIsFullyLoaded returns true if we've loaded all of the card/section
 //information we're going to load.
 export const selectDataIsFullyLoaded = createSelector(
@@ -1044,16 +1050,14 @@ export const selectExpandedTabConfig = createSelector(
 //The CollectionDescription to load up if not provided one
 export const selectDefaultCollectionDescription = createSelector(
 	selectExpandedTabConfig,
-	selectSectionsLoaded,
-	(tabConfig, sectionsLoaded) => {
+	selectSectionsAndTagsLoaded,
+	(tabConfig, sectionsAndTagsLoaded) => {
 		for (const tab of tabConfig) {
 			if (tab.default) return tab.collection;
 		}
 		//If everything is laoded and we still don't have one, just navigate to
 		//the first tab item with a set collection description
-		if (sectionsLoaded) {
-			//TODO: this really should wait for data to be fully loaded, but
-			//card-view only calls us again if section status loads.
+		if (sectionsAndTagsLoaded) {
 			for (const tab of tabConfig) {
 				if (tab.collection) return tab.collection;
 			}

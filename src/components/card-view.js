@@ -36,7 +36,7 @@ import {
 	selectCommentsAndInfoPanelOpen,
 	selectUserMayEditActiveCard,
 	selectUserMayCreateCard,
-	selectSectionsLoaded,
+	selectSectionsAndTagsLoaded,
 	selectEditingUpdatedFromContentEditable,
 	selectPendingNewCardIDToNavigateTo,
 	selectUserMayForkActiveCard,
@@ -100,7 +100,7 @@ import {
 
 import {
 	navigateToCardInCurrentCollection,
-	navigateToDefaultIfSectionsLoaded,
+	navigateToDefaultIfSectionsAndTagsLoaded,
 	openCardsDrawerPanel,
 	closeCardsDrawerPanel,
 	enablePresentationMode,
@@ -325,7 +325,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_drawerReorderPending : {type: Boolean},
 			_activeSectionId: {type: String},
 			_dataIsFullyLoaded: {type:Boolean},
-			_sectionsLoaded: {type:Boolean},
+			_sectionsAndTagsLoaded: {type:Boolean},
 			_tagInfos: {type:Object},
 			_cardTodos: {type: Array},
 			_pendingNewCardIDToNavigateTo: {type:String},
@@ -508,7 +508,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._drawerReorderPending = state.data.reorderPending;
 		this._activeSectionId = selectActiveSectionId(state);
 		this._dataIsFullyLoaded = selectDataIsFullyLoaded(state);
-		this._sectionsLoaded = selectSectionsLoaded(state);
+		this._sectionsAndTagsLoaded = selectSectionsAndTagsLoaded(state);
 		this._cardTodos = selectActiveCardTodosForCurrentUser(state);
 		this._pendingNewCardIDToNavigateTo = selectPendingNewCardIDToNavigateTo(state);
 		this._infoExpanded = selectCardsDrawerInfoExpanded(state);
@@ -589,17 +589,17 @@ class CardView extends connect(store)(PageViewElement) {
 		if (changedProps.has('_pageExtra')) {
 			if (this._pageExtra) {
 				store.dispatch(updateCardSelector(this._pageExtra));
-			} else if(this._sectionsLoaded) {
+			} else if(this._sectionsAndTagsLoaded) {
 				//Dispatching to '' will use default. This will fail if sections
 				//aren't yet loaded; we'll try again when sections loaded.
-				store.dispatch(navigateToDefaultIfSectionsLoaded());
+				store.dispatch(navigateToDefaultIfSectionsAndTagsLoaded());
 			}
 		}
-		if (changedProps.has('_sectionsLoaded') && this._sectionsLoaded) {
+		if (changedProps.has('_sectionsAndTagsLoaded') && this._sectionsAndTagsLoaded) {
 			if (!this._pageExtra) {
 				//Dispatching to '' will use default. We will have also tried if
 				//_pageExtra loaded when sections were already loaded
-				store.dispatch(navigateToDefaultIfSectionsLoaded());
+				store.dispatch(navigateToDefaultIfSectionsAndTagsLoaded());
 			}
 		}
 		if ((changedProps.has('_pendingNewCardIDToNavigateTo') || changedProps.has('_dataIsFullyLoaded')) && this._dataIsFullyLoaded && this._pendingNewCardIDToNavigateTo) {
