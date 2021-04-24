@@ -40,6 +40,10 @@ import {
 	PERMISSION_EDIT_CARD
 } from '../permissions.js';
 
+import {
+	DISABLE_CALLABLE_CLOUD_FUNCTIONS
+} from '../../config.GENERATED.SECRET.js';
+
 export const CARDS_COLLECTION = 'cards';
 export const CARD_UPDATES_COLLECTION = 'updates';
 export const SECTION_UPDATES_COLLECTION = 'updates';
@@ -77,11 +81,15 @@ export const slugLegal = async (newSlug) => {
 		};
 	}
 
+	//TODO: this may technically be wrong; a card we can't see might have the same slug.
+	if (DISABLE_CALLABLE_CLOUD_FUNCTIONS) return {legal: true, reason: ''};
+
 	const result = await legalCallable({type:'slug', value:newSlug});
 	return result.data;
 };
 
 const warmupSlugLegal = (force) => {
+	if (DISABLE_CALLABLE_CLOUD_FUNCTIONS) return;
 	if (!force && !userHadActivity) return;
 	//Mark that we've already triggered for that activity, and will need new
 	//activity to trigger again.
@@ -110,6 +118,7 @@ export const keepSlugLegalWarm = () => {
 };
 
 const maintenanceModeEnabled = async () => {
+	if (DISABLE_CALLABLE_CLOUD_FUNCTIONS) return false;
 	let result = '';
 	try {
 		result = await statusCallable({type:'maintenance_mode'});

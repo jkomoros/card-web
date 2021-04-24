@@ -255,6 +255,17 @@ in as a method in Firebase's Authentication console.
 If you don't want to use a service worker, set this to true. By default it will
 use a service worker.
 
+### disable_callable_cloud_functions
+
+The webapp uses two minor callable cloud functions. One checks to see if a
+proposed slug for a card is legal, even checking cards the current user doesn't
+have permission to see. The other checks that maintenance mode is not enabled.
+These are both two very uncommon cases.
+
+Some environments do not allow httpsCallable functions by default, so this
+setting, if true, means to not even try. This could have wrong behavior in those
+edge cases, but it allows it to run in those restricted environments.
+
 ### user_domain
 
 If this is set, then it allows you to apply special permissions for users whose

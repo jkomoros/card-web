@@ -54,6 +54,7 @@ const USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS = projectConfig.permissions && proj
 const DISABLE_PERSISTENCE = projectConfig.disable_persistence || false;
 const DISABLE_ANONYMOUS_LOGIN = projectConfig.disable_anonymous_login || false;
 const DISABLE_SERVICE_WORKER = projectConfig.disable_service_worker || false;
+const DISABLE_CALLABLE_CLOUD_FUNCTIONS = projectConfig.disable_callable_cloud_functions || false;
 
 const TAB_CONFIGURATION = projectConfig.tabs || null;
 
@@ -153,6 +154,7 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	CONFIG_JS_CONTENT += 'export const TAB_CONFIGURATION=' + JSON.stringify(TAB_CONFIGURATION) + ';\n';
 	CONFIG_JS_CONTENT += 'export const DISABLE_PERSISTENCE=' + (DISABLE_PERSISTENCE ? 'true' : 'false') + ';\n';
 	CONFIG_JS_CONTENT += 'export const DISABLE_ANONYMOUS_LOGIN=' + (DISABLE_ANONYMOUS_LOGIN ? 'true' : 'false') + ';\n';
+	CONFIG_JS_CONTENT += 'export const DISABLE_CALLABLE_CLOUD_FUNCTIONS=' + (DISABLE_CALLABLE_CLOUD_FUNCTIONS ? 'true' : 'false') + ';\n';
 	fs.writeFileSync('config.GENERATED.SECRET.js', CONFIG_JS_CONTENT);
 
 	let META_STRING = '\n    <meta name="application-name" content="' + APP_TITLE + '">\n';
