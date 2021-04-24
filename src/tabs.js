@@ -217,7 +217,13 @@ const expandTabConfigItem = (configItem, sections, tags) => {
 
 	if (!configItem.expand) return [[configItem], false];
 
-	if (EXPANSION_ITEMS[configItem.expand]) return [[...EXPANSION_ITEMS[configItem.expand]], true];
+	const configItemWithoutExpand = Object.fromEntries(Object.entries(configItem).filter(entry => entry[0] != 'expand'));
+
+	//We expand the first item (without the expand keyword) first, then the
+	//expansion item (once each for each item in the expansion). That means you
+	//can set non-default properties, e.g. {expand:'concept', default:true} and
+	//have the default:true still exist after expansion.
+	if (EXPANSION_ITEMS[configItem.expand]) return [[...EXPANSION_ITEMS[configItem.expand].map(item => ({...configItemWithoutExpand, ...item}))], true];
 
 	if (configItem.expand == 'sections') {
 		return [tabsForSections(sections, false, true), true];
