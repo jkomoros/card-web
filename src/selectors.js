@@ -943,8 +943,8 @@ export const selectCardsLoaded = createSelector(
 );
 
 export const selectSectionsAndTagsLoaded = createSelector(
-	selectSections,
-	selectTags,
+	selectSectionsLoaded,
+	selectTagsLoaded,
 	(sectionsLoaded, tagsLoaded) => sectionsLoaded && tagsLoaded
 );
 
