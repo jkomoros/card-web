@@ -454,10 +454,12 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			this._elements[field] = ele;
 			ele.field = field;
 			ele.dataset.field = field;
+		}
 
-			if (!value && config.hideIfEmpty) {
-				ele.setAttribute('hidden', '');
-			}
+		if (!value && config.hideIfEmpty) {
+			ele.setAttribute('hidden', '');
+		} else {
+			ele.removeAttribute('hidden');
 		}
 
 		ele.conceptReferencesHighlighted = doHighlightConcepts;
