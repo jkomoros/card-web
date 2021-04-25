@@ -144,5 +144,16 @@ describe('card-web url parsing', () => {
 		assert.ok(description.equivalent(golden), 'Failed: ' + description.serialize());
 	});
 
+	it('supports default view modes', async() => {
+		const description = CollectionDescription.deserialize('main/half-baked/view/list/sort/tweet-order/');
+		const golden = new CollectionDescription('main', ['half-baked'], 'tweet-order');
+		assert.ok(description.equivalent(golden));
+	});
+
+	it('supports non-default view modes', async() => {
+		const description = CollectionDescription.deserialize('main/half-baked/view/web/similar/sort/tweet-order/');
+		const golden = new CollectionDescription('main', ['half-baked'], 'tweet-order', false, 'web', 'similar');
+		assert.ok(description.equivalent(golden));
+	});
 
 });

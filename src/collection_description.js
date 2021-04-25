@@ -11,6 +11,9 @@ import {
 	CONFIGURABLE_FILTER_URL_PARTS,
 	CONFIGURABLE_FILTER_NAMES,
 	LIMIT_FILTER_NAME,
+	DEFAULT_VIEW_MODE,
+	VIEW_MODE_URL_KEYWORD,
+	LEGAL_VIEW_MODES,
 	makeConfigurableFilter,
 	queryConfigurableFilterText,
 	queryTextFromQueryFilter,
@@ -20,15 +23,19 @@ import {
 	KEY_CARD_ID_PLACEHOLDER	
 } from './card_fields.js';
 
-const extractFilterNamesAndSort = (parts) => {
+const extractFilterNamesSortAndView = (parts) => {
 	//returns the filter names, the sort name, and whether the sort is reversed
 	//parts is all of the unconsumed portions of the path that aren't the set
 	//name or the card name.
-	if (!parts.length) return [[], DEFAULT_SORT_NAME, false];
+	if (!parts.length) return [[], DEFAULT_SORT_NAME, false, DEFAULT_VIEW_MODE, ''];
 	let filters = [];
 	let sortName = DEFAULT_SORT_NAME;
 	let sortReversed = false;
+	let viewMode = DEFAULT_VIEW_MODE;
+	let viewModeExtra = '';
 	let nextPartIsSort = false;
+	let nextPartIsView = false;
+	let nextPartIsViewExtra = false;
 	//The actual multi-part filter we're accumulating
 	let multiPartFilter = [];
 	//How many more ports we need until multiPartFilter is done.
@@ -53,6 +60,25 @@ const extractFilterNamesAndSort = (parts) => {
 			//We don't know what sort names are valid, so we'll just assume it's fine.
 			sortName = part;
 			nextPartIsSort = false;
+			continue;
+		}
+		if (part == VIEW_MODE_URL_KEYWORD) {
+			nextPartIsView = true;
+			nextPartIsViewExtra = false;
+			continue;
+		}
+		if (nextPartIsView) {
+			viewMode = part;
+			nextPartIsView = false;
+			//LEGA_VIEW_MODES is a map of view mode to whether or not it expects
+			//an extra. Note that we have no way of signaling an error, so we
+			//just assume the viewMode is legal.
+			if (LEGAL_VIEW_MODES[part]) nextPartIsViewExtra = true;
+			continue;
+		}
+		if (nextPartIsViewExtra) {
+			viewModeExtra = part;
+			nextPartIsViewExtra = false;
 			continue;
 		}
 		if (CONFIGURABLE_FILTER_URL_PARTS[part]) {
@@ -83,7 +109,7 @@ const extractFilterNamesAndSort = (parts) => {
 		}
 		filters.push(part);
 	}
-	return [filters, sortName, sortReversed];
+	return [filters, sortName, sortReversed, viewMode, viewModeExtra];
 };
 
 export const queryTextFromCollectionDescription = (description) => {
@@ -140,7 +166,7 @@ const collectionDescriptionWithPartReplacements = (description, replacements) =>
 
 export const CollectionDescription = class {
 
-	constructor(setName, filterNames, sortName, sortReversed) {
+	constructor(setName, filterNames, sortName, sortReversed, viewMode, viewModeExtra) {
 		let setNameExplicitlySet = true;
 		if (!setName) {
 			setName = DEFAULT_SET_NAME;
@@ -149,10 +175,14 @@ export const CollectionDescription = class {
 		if (!sortName) sortName = DEFAULT_SORT_NAME;
 		if (!sortReversed) sortReversed = false;
 		if (!filterNames) filterNames = [];
+		if (!viewMode) viewMode = DEFAULT_VIEW_MODE;
+		if (!viewModeExtra) viewModeExtra = '';
 
 		if (typeof sortReversed != 'boolean') throw new TypeError();
 		if (typeof setName != 'string') throw new TypeError();
 		if (typeof sortName != 'string') throw new TypeError();
+		if (typeof viewMode != 'string') throw new TypeError();
+		if (typeof viewModeExtra != 'string') throw new TypeError();
 		if (!Array.isArray(filterNames)) throw new TypeError();
 		if (!filterNames.every(item => typeof item == 'string')) throw new TypeError();
 
@@ -169,6 +199,8 @@ export const CollectionDescription = class {
 		this._filters = filterNames,
 		this._sort = sortName,
 		this._sortReversed = sortReversed;
+		this._viewMode = viewMode;
+		this._viewModeExtra = viewModeExtra;
 		this._limit = limit;
 		this._serialized = this._serialize();
 		this._serializedShort = this._serializeShort();
@@ -196,6 +228,14 @@ export const CollectionDescription = class {
 
 	get sortReversed() {
 		return this._sortReversed;
+	}
+
+	get viewMode() {
+		return this._viewMode;
+	}
+
+	get viewModeExtra() {
+		return this._viewModeExtra;
 	}
 
 	get sortConfig() {
@@ -234,6 +274,12 @@ export const CollectionDescription = class {
 			if (this.sortReversed) result.push(SORT_REVERSED_URL_KEYWORD);
 			result.push(this.sort);
 		}
+
+		if (this.viewMode != DEFAULT_VIEW_MODE) {
+			result.push(VIEW_MODE_URL_KEYWORD);
+			result.push(this.viewMode);
+			if (this.viewModeExtra) result.push(this.viewModeExtra);
+		}
 	
 		//Have a trailing slash
 		result.push('');
@@ -260,6 +306,12 @@ export const CollectionDescription = class {
 			result.push(SORT_URL_KEYWORD);
 			if (this.sortReversed) result.push(SORT_REVERSED_URL_KEYWORD);
 			result.push(this.sort);
+		}
+
+		if (this.viewMode != DEFAULT_VIEW_MODE) {
+			result.push(VIEW_MODE_URL_KEYWORD);
+			result.push(this.viewMode);
+			if (this.viewModeExtra) result.push(this.viewModeExtra);
 		}
 
 		//Have a trailing slash
@@ -319,9 +371,9 @@ export const CollectionDescription = class {
 		//Get last part, which is the card selector (and might be "").
 		let extra = parts.pop();
 
-		let [filters, sortName, sortReversed] = extractFilterNamesAndSort(parts);
+		let [filters, sortName, sortReversed, viewMode, viewModeExtra] = extractFilterNamesSortAndView(parts);
 
-		return [new CollectionDescription(setName,filters,sortName,sortReversed), extra];
+		return [new CollectionDescription(setName,filters,sortName,sortReversed, viewMode, viewModeExtra), extra];
 	}
 };
 

@@ -79,6 +79,17 @@ export const SORT_REVERSED_URL_KEYWORD = 'reverse';
 export const DEFAULT_SORT_NAME = 'default';
 export const RECENT_SORT_NAME = 'recent';
 
+export const VIEW_MODE_URL_KEYWORD = 'view';
+export const DEFAULT_VIEW_MODE = 'list';
+export const VIEW_MODE_WEB = 'web';
+
+//Legal view modes, including whether an option is expected or not.
+export const LEGAL_VIEW_MODES = {
+	//Note: collection_description logic assumes that default_view_mode takes not extra option.
+	[DEFAULT_VIEW_MODE]: false,
+	[VIEW_MODE_WEB]: true,
+};
+
 const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, secondDateStr) => {
 
 	if (propName == UPDATED_FILTER_NAME) propName = 'updated_substantive';
