@@ -17,11 +17,13 @@ import {
 	makeConfigurableFilter,
 	queryConfigurableFilterText,
 	queryTextFromQueryFilter,
+	VIEW_MODE_WEB,
 } from './filters.js';
 
 import {
 	KEY_CARD_ID_PLACEHOLDER	
 } from './card_fields.js';
+import { references } from './references.js';
 
 const extractFilterNamesSortAndView = (parts) => {
 	//returns the filter names, the sort name, and whether the sort is reversed
@@ -572,6 +574,7 @@ const Collection = class {
 		this._sortedCards = null;
 		this._labels = null;
 		this._startCards = null;
+		this._webInfo = null;
 		//sortExtras is extra information that configurable filters can
 		//optionally return and then make use of in special sorts later.
 		this._sortExtras = {};
@@ -762,6 +765,30 @@ const Collection = class {
 	get finalLabels() {
 		this._ensureStartCards();
 		return [...this._startCards.map(() => ''), ...this.labels];
+	}
+
+	_ensureWebInfo() {
+		if (this._webInfo) return;
+		if (this._description.viewMode != VIEW_MODE_WEB) return {nodes:[], edges:[]};
+		const nodes = Object.fromEntries(this.filteredCards.map(card => [card.id, {id: card.title || card.id}]));
+		const edges = [];
+		for (const card of this.filteredCards) {
+			const refs = references(card);
+			for (const edge of refs.substantiveArray()) {
+				//TODO: include similarity in shape
+				edges.push({source: card.id, target: edge, value: 1});
+			}
+		}
+		this._webInfo = {
+			nodes,
+			edges,
+		};
+	}
+
+	//information necessary to build a visual graph of cards in the collection.
+	get webInfo() {
+		this._ensureWebInfo();
+		return this._webInfo;
 	}
 
 };
