@@ -775,10 +775,13 @@ const Collection = class {
 		if (this._webInfo) return;
 		if (this._description.viewMode != VIEW_MODE_WEB) return {nodes:[], edges:[]};
 		const nodes = this.filteredCards.map(card => ({id: card.id, name: card.title || card.id}));
+		const nodeMap = Object.fromEntries(nodes.map(o => [o.id, true]));
 		const edges = [];
 		for (const card of this.filteredCards) {
 			const refs = references(card);
 			for (const edge of refs.substantiveArray()) {
+				//Skip edes that point to nodes not currently selected
+				if (!nodeMap[edge]) continue;
 				//TODO: include similarity in shape
 				edges.push({source: card.id, target: edge, value: 1});
 			}
