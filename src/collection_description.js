@@ -774,7 +774,7 @@ const Collection = class {
 	_ensureWebInfo() {
 		if (this._webInfo) return;
 		if (this._description.viewMode != VIEW_MODE_WEB) return {nodes:[], edges:[]};
-		const nodes = Object.fromEntries(this.filteredCards.map(card => [card.id, {id: card.title || card.id}]));
+		const nodes = this.filteredCards.map(card => ({id: card.id, name: card.title || card.id}));
 		const edges = [];
 		for (const card of this.filteredCards) {
 			const refs = references(card);
