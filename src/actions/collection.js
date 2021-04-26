@@ -21,6 +21,8 @@ import {
 	SORT_REVERSED_URL_KEYWORD,
 	SORT_URL_KEYWORD,
 	EVERYTHING_SET_NAME,
+	DEFAULT_VIEW_MODE,
+	VIEW_MODE_URL_KEYWORD
 } from '../filters.js';
 
 import {
@@ -265,6 +267,12 @@ export const canonicalizeURL = () => (dispatch, getState) => {
 			result.push(SORT_REVERSED_URL_KEYWORD);
 		}
 		result.push(description.sort);
+	}
+
+	if (description.viewMode != DEFAULT_VIEW_MODE) {
+		result.push(VIEW_MODE_URL_KEYWORD);
+		result.push(description.viewMode);
+		if (description.viewModeExtra) result.push(description.viewModeExtra);
 	}
 
 
