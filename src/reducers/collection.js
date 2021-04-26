@@ -45,6 +45,8 @@ const app = (state = INITIAL_STATE, action) => {
 			activeFilterNames: [...action.filters],
 			activeSortName: action.sortName,
 			activeSortReversed: action.sortReversed,
+			activeViewMode: action.viewMode,
+			activeViewModeExtra: action.viewModeExtra,
 		};
 	case UPDATE_COLLECTION_SHAPSHOT:
 		//TODO: figure out how to fire this every time one of the other ones

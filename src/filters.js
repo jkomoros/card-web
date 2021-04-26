@@ -1099,6 +1099,8 @@ export const INITIAL_STATE = {
 	activeFilterNames: [],
 	activeSortName: DEFAULT_SORT_NAME,
 	activeSortReversed: false,
+	activeViewMode: DEFAULT_VIEW_MODE,
+	activeViewModeExtra: '',
 	//These are the actual values of the filters in current use, reflecting all
 	//of the changes. If you want the filter set that goes along with the
 	//cardSnapshot (and doesn't update until

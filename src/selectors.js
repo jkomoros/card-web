@@ -138,6 +138,8 @@ const selectActiveSetName = (state) => state.collection ? state.collection.activ
 const selectActiveFilterNames = (state) => state.collection ? state.collection.activeFilterNames : '';
 const selectActiveSortName = (state) => state.collection ? state.collection.activeSortName : '';
 const selectActiveSortReversed = (state) => state.collection ? state.collection.activeSortReversed : '';
+const selectActiveViewMode = (state) => state.collection ? state.collection.activeViewMode : '';
+const selectActiveViewModeExtra = (state) => state.collection ? state.collection.activeViewModeExtra : '';
 export const selectRequestedCard = (state) => state.collection.requestedCard;
 export const selectActiveCardId = (state) => state.collection ? state.collection.activeCardId : '';
 //Note that the editing card doesn't have nlp/normalized text properties set. If
@@ -988,7 +990,9 @@ export const selectActiveCollectionDescription = createSelector(
 	selectActiveFilterNames,
 	selectActiveSortName,
 	selectActiveSortReversed,
-	(setName, filterNames, sortName, sortReversed) => new CollectionDescription(setName, filterNames, sortName, sortReversed)
+	selectActiveViewMode,
+	selectActiveViewModeExtra,
+	(setName, filterNames, sortName, sortReversed, viewMode, viewModeExtra) => new CollectionDescription(setName, filterNames, sortName, sortReversed, viewMode, viewModeExtra)
 );
 
 //This means htat the active section is the only one showing. See also

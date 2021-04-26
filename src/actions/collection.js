@@ -65,8 +65,6 @@ export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
 
 export const PLACEHOLDER_CARD_ID_CHARACTER = '_';
 
-
-
 export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 
 	let queryParts = cardSelector.split('?');
@@ -140,14 +138,14 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 		}
 	}
 
-	if (doUpdateCollection || forceUpdateCollection) dispatch(updateCollection(set, filters, description.sort, description.sortReversed));
+	if (doUpdateCollection || forceUpdateCollection) dispatch(updateCollection(set, filters, description.sort, description.sortReversed, description.viewMode, description.viewModeExtra));
 	dispatch(showCard(cardIdOrSlug));
 };
 
-export const updateCollection = (setName, filters, sortName, sortReversed) => (dispatch, getState) =>{	
+export const updateCollection = (setName, filters, sortName, sortReversed, viewMode, viewModeExtra) => (dispatch, getState) =>{	
 	const state = getState();
 	const activeCollectionDescription = selectActiveCollectionDescription(state);
-	const newCollectionDescription = new CollectionDescription(setName, filters, sortName, sortReversed);
+	const newCollectionDescription = new CollectionDescription(setName, filters, sortName, sortReversed, viewMode, viewModeExtra);
 	if (activeCollectionDescription.equivalent(newCollectionDescription)) return;
 
 	//make sure we're working with the newest set of filters, because now is the
@@ -159,7 +157,9 @@ export const updateCollection = (setName, filters, sortName, sortReversed) => (d
 		setName,
 		filters,
 		sortName,
-		sortReversed
+		sortReversed,
+		viewMode,
+		viewModeExtra
 	});
 };
 
