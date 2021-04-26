@@ -3,6 +3,7 @@ import { LitElement, html } from '@polymer/lit-element';
 import './card-renderer.js';
 import './word-cloud.js';
 import './card-thumbnail-list.js';
+import './web-renderer.js';
 
 import {
 	PLUS_ICON,
@@ -18,6 +19,10 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	DEFAULT_CARD_TYPE
 } from '../card_fields.js';
+
+import {
+	VIEW_MODE_WEB
+} from '../filters.js';
 
 import * as icons from './my-icons.js';
 
@@ -90,7 +95,11 @@ class CardDrawer extends LitElement {
 							<slot name='info'></slot>
 						</div>
 					</div>
-					<card-thumbnail-list .collection=${this.collection} .grid=${this.grid} .editable=${this.editable} .fullCards=${this.fullCards} .highlightedCardId=${this.highlightedCardId} .ghostCardsThatWillBeRemoved=${this.ghostCardsThatWillBeRemoved}></card-thumbnail-list>
+					${this.collection && this.collection.description.viewMode == VIEW_MODE_WEB ?
+		html`<web-renderer .webInfo=${this.collection.webInfo}></web-renderer>` :
+		html`<card-thumbnail-list .collection=${this.collection} .grid=${this.grid} .editable=${this.editable} .fullCards=${this.fullCards} .highlightedCardId=${this.highlightedCardId} .ghostCardsThatWillBeRemoved=${this.ghostCardsThatWillBeRemoved}></card-thumbnail-list>`
+}
+					
 				</div>
 				<div class='buttons'>
 					<button class='round' @click='${this._handleCreateWorkingNotes}' ?hidden='${!this.showCreateWorkingNotes}' title="Create a new working notes card (Cmd-Shift-M)">${INSERT_DRIVE_FILE_ICON}</button>

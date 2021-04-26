@@ -581,6 +581,10 @@ const Collection = class {
 		this._partialMatches = {};
 	}
 
+	get description() {
+		return this._description;
+	}
+
 	_makeFilteredCards() {
 		const baseSet = this._sets[this._description.set] || [];
 		let filteredItems = baseSet;
