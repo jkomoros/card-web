@@ -21,9 +21,15 @@ export class WebRenderer extends LitElement {
 				z-index:1;
 				cursor:pointer;
 			}
+			circle:hover {
+				fill: var(--app-primary-color-light);
+			}
 			line {
 				stroke:var(--app-dark-text-color-light);
 				z-index:0;
+			}
+			circle.highlighted:hover {
+				fill: var(--app-secondary-color-light);
 			}
 			.highlighted {
 				fill: var(--app-secondary-color);
