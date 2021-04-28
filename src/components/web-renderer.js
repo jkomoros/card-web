@@ -4,6 +4,8 @@ import * as d3 from 'd3';
 
 export class WebRenderer extends LitElement {
 	render() {
+		const width = this.offsetWidth;
+		const height = this.offsetHeight;
 		return html`
 		<style>
 			:host {
@@ -24,7 +26,7 @@ export class WebRenderer extends LitElement {
 			}
 		</style>
 
-		<svg>
+		<svg viewBox=${'0 0 ' + width + ' ' + height}>
 			${this._calculatedGraph.edges.map(node => svg`<line x1=${node.source.x} x2=${node.target.x} y1=${node.source.y} y2=${node.target.y} stroke-width='1'></line>`)}	
 			${this._calculatedGraph.nodes.map(node => svg`<circle id=${node.id} title=${node.name} r='4' cx=${node.x} cy=${node.y}></circle>`)}
 		</svg>
@@ -46,7 +48,7 @@ export class WebRenderer extends LitElement {
 		graph.nodes = [...graph.nodes];
 		graph.edges = [...graph.edges];
 
-		//TODO: this isn't right
+		//It's gnarly to have this layout-dependent thing in here
 		const width = this.offsetWidth;
 		const height = this.offsetHeight;
 
