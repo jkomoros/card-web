@@ -19,6 +19,7 @@ export class WebRenderer extends LitElement {
 			circle {
 				fill: var(--app-primary-color);
 				z-index:1;
+				cursor:pointer;
 			}
 			line {
 				stroke:var(--app-dark-text-color-light);
@@ -31,7 +32,7 @@ export class WebRenderer extends LitElement {
 
 		<svg viewBox=${'0 0 ' + width + ' ' + height}>
 			${this._calculatedGraph.edges.map(node => svg`<line x1=${node.source.x} x2=${node.target.x} y1=${node.source.y} y2=${node.target.y} stroke-width='1'></line>`)}	
-			${this._calculatedGraph.nodes.map(node => svg`<circle id=${node.id} title=${node.name} r='4' cx=${node.x} cy=${node.y} class=${node.id == this.highlightedCardId ? 'highlighted' : ''}></circle>`)}
+			${this._calculatedGraph.nodes.map(node => svg`<circle id=${node.id} title=${node.name} r='4' cx=${node.x} cy=${node.y} class=${node.id == this.highlightedCardId ? 'highlighted' : ''} @click=${this._handleThumbnailClick} @mousemove=${this._handleThumbnailMouseMove}></circle>`)}
 		</svg>
 	`;
 	}
@@ -43,6 +44,22 @@ export class WebRenderer extends LitElement {
 			highlightedCardId: { type:String },
 			_calculatedGraph: { type:Object }
 		};
+	}
+
+	_handleThumbnailClick(e) {
+		e.stopPropagation();
+		let card = e.composedPath()[0].id;
+		const ctrl = e.ctrlKey || e.metaKey;
+		//TODO: ctrl-click on mac shouldn't show the right click menu
+		this.dispatchEvent(new CustomEvent('thumbnail-tapped', {composed:true, detail: {card: card, ctrl}}));
+	}
+
+	_handleThumbnailMouseMove(e) {
+		e.stopPropagation();
+		let id = e.composedPath()[0].id;
+		//card-web-app will catch the card-hovered event no matter where it was
+		//thrown from
+		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: id, x: e.clientX, y: e.clientY}}));
 	}
 
 	_recalcGraph() {
