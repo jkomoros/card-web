@@ -133,7 +133,7 @@ const EXPANSION_ITEMS = {
 	'recent': [
 		{
 			display_name: 'Recent',
-			collection: new CollectionDescription('', ['has-content'], RECENT_SORT_NAME, false),
+			collection: new CollectionDescription(EVERYTHING_SET_NAME, ['has-content'], RECENT_SORT_NAME, false),
 		}
 	],
 	'reading-list': [
