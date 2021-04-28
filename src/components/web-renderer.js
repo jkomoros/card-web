@@ -24,11 +24,14 @@ export class WebRenderer extends LitElement {
 				stroke:var(--app-dark-text-color-light);
 				z-index:0;
 			}
+			.highlighted {
+				fill: var(--app-secondary-color);
+			}
 		</style>
 
 		<svg viewBox=${'0 0 ' + width + ' ' + height}>
 			${this._calculatedGraph.edges.map(node => svg`<line x1=${node.source.x} x2=${node.target.x} y1=${node.source.y} y2=${node.target.y} stroke-width='1'></line>`)}	
-			${this._calculatedGraph.nodes.map(node => svg`<circle id=${node.id} title=${node.name} r='4' cx=${node.x} cy=${node.y}></circle>`)}
+			${this._calculatedGraph.nodes.map(node => svg`<circle id=${node.id} title=${node.name} r='4' cx=${node.x} cy=${node.y} class=${node.id == this.highlightedCardId ? 'highlighted' : ''}></circle>`)}
 		</svg>
 	`;
 	}
@@ -37,7 +40,8 @@ export class WebRenderer extends LitElement {
 		return {
 			//as returned from e.g. collection.webInfo
 			webInfo: {type:Object},
-			_calculatedGraph : { type:Object }
+			highlightedCardId: { type:String },
+			_calculatedGraph: { type:Object }
 		};
 	}
 

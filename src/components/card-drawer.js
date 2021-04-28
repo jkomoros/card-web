@@ -96,7 +96,7 @@ class CardDrawer extends LitElement {
 						</div>
 					</div>
 					${this.collection && this.collection.description.viewMode == VIEW_MODE_WEB ?
-		html`<web-renderer .webInfo=${this.collection.webInfo}></web-renderer>` :
+		html`<web-renderer .webInfo=${this.collection.webInfo} .highlightedCardId=${this.highlightedCardId}></web-renderer>` :
 		html`<card-thumbnail-list .collection=${this.collection} .grid=${this.grid} .editable=${this.editable} .fullCards=${this.fullCards} .highlightedCardId=${this.highlightedCardId} .ghostCardsThatWillBeRemoved=${this.ghostCardsThatWillBeRemoved}></card-thumbnail-list>`
 }
 					
