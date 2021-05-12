@@ -19,7 +19,7 @@
     "fromentries": "^1.2.0",
     "json-stringify-deterministic": "^1.0.1",
     "md5": "^2.2.1",
-    "nodemailer": "^6.4.2",
+    "nodemailer": "^6.4.16",
     "nodemailer-postmark-transport": "^2.2.0",
     "puppeteer": "^5.5.0",
     "stable": "^0.1.8",
