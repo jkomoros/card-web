@@ -80,7 +80,7 @@ const sendTweet = async (message, image) => {
     try {
         tweet = await twitterClient.post('statuses/update', tweetOptions);
     } catch(err) {
-        console.warn("Error: ", err);
+        console.error("Couldn't post to twitter", err);
         return null;
     }
 
