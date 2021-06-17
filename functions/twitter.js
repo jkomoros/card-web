@@ -76,7 +76,13 @@ const sendTweet = async (message, image) => {
         tweetOptions.media_ids = mediaResponse.media_id_string;
     }
 
-    let tweet = await twitterClient.post('statuses/update', tweetOptions);
+    let tweet;
+    try {
+        tweet = await twitterClient.post('statuses/update', tweetOptions);
+    } catch(err) {
+        console.error("Couldn't post to twitter", err);
+        return null;
+    }
 
     let media_expanded_url = '';
     let media_id = '';
