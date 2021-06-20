@@ -203,6 +203,13 @@ export const reasonCardTypeNotLegalForCard = (card, proposedCardType) => {
 	return '';
 };
 
+//eslint-disable-next-line no-unused-vars
+const getCardTitleForBackporting = (rawCard, referenceType, rawCards) => {
+	//TODO: for cards of type citation-work, check for citations of cards of type
+	//citation-author and recursively build those up.
+	return rawCard.title;
+};
+
 //returns a fallbackMap, appropriate to be passed to
 //references.withFallbackText, for card, where any of the references it has that
 //opt into backporting via backportMissingText that don't have text will fetch
@@ -227,7 +234,7 @@ export const backportFallbackTextMapForCard = (card, cards) => {
 			//OK, we're going to add it
 			if (!result[cardID]) result[cardID] = {};
 			if (!result[cardID][referenceType]) result[cardID][referenceType] = {};
-			result[cardID][referenceType] = otherCard.title;
+			result[cardID][referenceType] = getCardTitleForBackporting(otherCard, referenceType, cards);
 		}
 	}
 	if (Object.keys(result).length == 0) return null;
