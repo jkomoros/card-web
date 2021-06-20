@@ -218,6 +218,8 @@ export const selectNextMaintenanceTaskName = createSelector(
 const selectBackportTextFallbackMapCollection = createObjectSelector(
 	selectRawCards,
 	selectRawCards,
+	//Because this is a createObjectSelector, this will be called once per card
+	//in selectRawCards.
 	(card, cards) => backportFallbackTextMapForCard(card, cards)
 );
 
