@@ -63,11 +63,13 @@ export const CARD_TYPE_CONTENT = 'content';
 export const CARD_TYPE_SECTION_HEAD = 'section-head';
 export const CARD_TYPE_WORKING_NOTES = 'working-notes';
 export const CARD_TYPE_CONCEPT = 'concept';
+export const CARD_TYPE_PERSON = 'person';
 
 //The card type to assume if none is specified.
 export const DEFAULT_CARD_TYPE = CARD_TYPE_CONTENT;
 
 export const CONCEPT_DEFAULT_BODY = 'This is a concept card. The following cards reference this concept.';
+export const PERSON_DEFAULT_BODY = 'This is a card about a person. The following cards cite this person.';
 
 /*
 
@@ -155,6 +157,13 @@ export const CARD_TYPE_CONFIGURATION = {
 		iconName: 'MENU_BOOK_ICON',
 		autoSlug: true,
 		defaultBody: CONCEPT_DEFAULT_BODY,
+	},
+	[CARD_TYPE_PERSON]: {
+		orphanedByDefault: true,
+		publishedByDefault: true,
+		iconName: 'PERSON_ICON',
+		autoSlug: true,
+		defaultBody: PERSON_DEFAULT_BODY,
 	},
 };
 
@@ -515,6 +524,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 			[CARD_TYPE_CONTENT]: true,
 			[CARD_TYPE_SECTION_HEAD]: true,
 			[CARD_TYPE_CONCEPT]: true,
+			[CARD_TYPE_PERSON]: true,
 		},
 		derivedForCardTypes: {
 			[CARD_TYPE_WORKING_NOTES]: true
@@ -543,6 +553,7 @@ export const TEXT_FIELD_CONFIGURATION = {
 			[CARD_TYPE_CONTENT]: true,
 			[CARD_TYPE_WORKING_NOTES]: true,
 			[CARD_TYPE_CONCEPT]: true,
+			[CARD_TYPE_PERSON]: true,
 		},
 		derivedForCardTypes: {},
 		autoFontSizeBoostForCardTypes: {
