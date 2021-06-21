@@ -296,7 +296,7 @@ export const cardMissingReciprocalLinks = (card) => {
 	if (!card) return [];
 	let links = new Map();
 	const refs = references(card);
-	for (let link of refs.inboundArray()) {
+	for (let link of refs.inboundNeedsReciprocationArray()) {
 		links.set(link, true);
 	}
 	for (let link of refs.array()) {

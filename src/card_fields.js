@@ -259,6 +259,7 @@ backportMissingText - if true, then if a card has an outbound reference of this 
 subTypeOf - if set, then this reference type is also equivalent to the other reference type in a fundamental way. For example, example-of and synonym are equivalent to concept.
 conceptReference - if true, then this type of reference will be considered to be a concept reference even if it's not literally one (e.g. example-of, synonym). Every type is already equivalent to itself so that can be elided. A given card can only reference anohter card with one referenceType within an equivalence class.
 reciprocal - if true, then an outbound reference to a card should precisely imply the other card outbound links back to this one. 
+needsReciprocation - if true, then cards that don't reciprocate with a link will be called out.
 */
 export const REFERENCE_TYPES = {
 	[REFERENCE_TYPE_LINK]: {
@@ -270,6 +271,7 @@ export const REFERENCE_TYPES = {
 		color: '#32CD32',
 		//already visible on the card itself
 		excludeFromInfoPanel: true,
+		needsReciprocation: true,
 	},
 	[REFERENCE_TYPE_DUPE_OF]: {
 		name: 'Duplicate of',

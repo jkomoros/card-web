@@ -103,6 +103,10 @@ const ReferencesAccessor = class {
 		return Object.keys(this._referencesInfo);
 	}
 
+	inboundNeedsReciprocationArray() {
+		return [...Object.keys(byTypeToReferences(this.byTypeInboundNeedsReciprocation))];
+	}
+
 	inboundLinksArray() {
 		return [...Object.keys(this.byTypeInbound[REFERENCE_TYPE_LINK] || {})];
 	}
@@ -171,6 +175,10 @@ const ReferencesAccessor = class {
 			this._memoizedByTypeInboundSubstantive = Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES[entry[0]].substantive));
 		}
 		return this._memoizedByTypeInboundSubstantive;
+	}
+
+	get byTypeInboundNeedsReciprocation() {
+		return Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES[entry[0]].needsReciprocation));
 	}
 
 	byTypeClassInbound(baseType) {
