@@ -419,9 +419,9 @@ export const REFERENCE_TYPES = {
 		subTypeOf: REFERENCE_TYPE_CONCEPT,
 	},
 	[REFERENCE_TYPE_CITATION]: {
-		name: 'Citation',
+		name: 'Citation (Work)',
 		inboundName: 'Citations',
-		description: 'For citing works that this card is partially based on.',
+		description: 'For citing works (books, articles, tweets) that this card is partially based on.',
 		editable: true,
 		substantive: true,
 		//royalblue
@@ -436,7 +436,7 @@ export const REFERENCE_TYPES = {
 	[REFERENCE_TYPE_CITATION_PERSON]: {
 		name: 'Citation (Person)',
 		inboundName: 'Person Citations',
-		description: 'For citing people whose insights this card is partially based on.',
+		description: 'For citing people whose insights this card is partially based on. Used when there isn\'t a specific work to cite, because such a card either hasn\'t been created yet or because there is no work to cite.',
 		editable: true,
 		substantive: true,
 		//royalblue
