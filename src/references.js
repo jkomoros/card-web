@@ -17,7 +17,7 @@ import {
 	getCardExists
 } from './card_exists.js';
 
-const memoizedCardAccessors = new Map();
+const memoizedCardAccessors = new WeakMap();
 
 //Like referendces, but in a way that doesn't modify the card. It simply creates
 //a shallow copy of the card first.
