@@ -6,7 +6,8 @@ import {
 	FIND_UPDATE_ACTIVE_QUERY,
 	FIND_CARD_TO_PERMISSION,
 	FIND_CARD_TO_REFERENCE,
-	FIND_UPDATE_CARD_TYPE_FILTER
+	FIND_UPDATE_CARD_TYPE_FILTER,
+	FIND_UPDATE_SORT_BY_RECENT
 } from '../actions/find.js';
 
 const INITIAL_STATE = {
@@ -109,6 +110,11 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			cardTypeFilter: action.filter,
+		};
+	case FIND_UPDATE_SORT_BY_RECENT:
+		return {
+			...state,
+			sortByRecent: action.sortByRecent,
 		};
 	default:
 		return state;

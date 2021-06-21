@@ -6,6 +6,7 @@ export const FIND_UPDATE_ACTIVE_QUERY = 'FIND_UPDATE_ACTIVE_QUERY';
 export const FIND_CARD_TO_PERMISSION = 'FIND_CARD_TO_PERMISSION';
 export const FIND_CARD_TO_REFERENCE = 'FIND_CARD_TO_REFERENCE';
 export const FIND_UPDATE_CARD_TYPE_FILTER = 'FIND_UPDATE_CARD_TYPE_FILTER';
+export const FIND_UPDATE_SORT_BY_RECENT = 'FIND_UPDATE_SORT_BY_RECENT';
 
 import {
 	saveSelectionRange
@@ -91,4 +92,11 @@ export const findUpdateCardTypeFilter = (filter) => (dispatch, getState) =>  {
 		type: FIND_UPDATE_CARD_TYPE_FILTER,
 		filter,
 	});
+};
+
+export const findUpdateSortByRecent = (sortByRecent) => {
+	return {
+		type: FIND_UPDATE_SORT_BY_RECENT,
+		sortByRecent,
+	};
 };
