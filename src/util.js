@@ -9,7 +9,8 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	BODY_CARD_TYPES,
 	LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE,
-	IMAGE_CARD_TYPES
+	IMAGE_CARD_TYPES,
+	getCardTitleForBackporting
 } from './card_fields.js';
 
 import {
@@ -201,13 +202,6 @@ export const reasonCardTypeNotLegalForCard = (card, proposedCardType) => {
 	if (getImagesFromCard(card).length > 0 && !IMAGE_CARD_TYPES[proposedCardType]) return 'The card has images but the new card type does not allow images';
 
 	return '';
-};
-
-//eslint-disable-next-line no-unused-vars
-const getCardTitleForBackporting = (rawCard, referenceType, rawCards) => {
-	//TODO: for cards of type citation-work, check for citations of cards of type
-	//citation-author and recursively build those up.
-	return rawCard.title;
 };
 
 //returns a fallbackMap, appropriate to be passed to

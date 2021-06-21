@@ -804,3 +804,10 @@ const cardOverflowsFieldForBoost = async (card, field, proposedBoost) => {
 	const isOverflowing = ele.isOverflowing();
 	return isOverflowing;
 };
+
+//eslint-disable-next-line no-unused-vars
+export const getCardTitleForBackporting = (rawCard, referenceType, rawCards) => {
+	//TODO: for cards of type citation-work, check for citations of cards of type
+	//citation-author and recursively build those up.
+	return rawCard.title;
+};
