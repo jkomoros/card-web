@@ -343,7 +343,8 @@ class CardEditor extends connect(store)(LitElement) {
 					<select .value=${this._card.card_type} @change=${this._handleCardTypeChanged}>
 					${Object.keys(CARD_TYPE_CONFIGURATION).map(item => {
 		const illegalCardTypeReason = reasonCardTypeNotLegalForCard(this._card, item);
-		return html`<option .value=${item} .disabled=${illegalCardTypeReason} .title=${illegalCardTypeReason} .selected=${item == this._card.card_type}>${item}</option>`;
+		const title = CARD_TYPE_CONFIGURATION[item].description + (illegalCardTypeReason ? '' : '\n' + illegalCardTypeReason);
+		return html`<option .value=${item} .disabled=${illegalCardTypeReason} .title=${title} .selected=${item == this._card.card_type}>${item}</option>`;
 	})}
 					</select>
 				</div>
@@ -401,7 +402,7 @@ class CardEditor extends connect(store)(LitElement) {
 					<div>
 						<select @change=${this._handleAddReference}>
 							<option value=''><em>Add a reference to a card type...</option>
-							${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable && LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[this._card.card_type][entry[0]]).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[1].name}</option>`)}
+							${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]} title=${entry[1].description} ?disabled=${!LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[this._card.card_type][entry[0]]}>${entry[1].name}</option>`)}
 						</select>
 					</div>
 				</div>

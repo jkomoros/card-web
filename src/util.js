@@ -9,7 +9,8 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	BODY_CARD_TYPES,
 	LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE,
-	IMAGE_CARD_TYPES
+	IMAGE_CARD_TYPES,
+	getCardTitleForBackporting
 } from './card_fields.js';
 
 import {
@@ -227,7 +228,7 @@ export const backportFallbackTextMapForCard = (card, cards) => {
 			//OK, we're going to add it
 			if (!result[cardID]) result[cardID] = {};
 			if (!result[cardID][referenceType]) result[cardID][referenceType] = {};
-			result[cardID][referenceType] = otherCard.title;
+			result[cardID][referenceType] = getCardTitleForBackporting(otherCard, referenceType, cards);
 		}
 	}
 	if (Object.keys(result).length == 0) return null;

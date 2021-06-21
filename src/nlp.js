@@ -17,6 +17,8 @@ import {
 	REFERENCE_TYPES,
 	CARD_TYPE_CONFIGURATION,
 	REFERENCE_TYPE_SYNONYM,
+	REFERENCE_TYPE_CONCEPT,
+	REFERENCE_TYPES_EQUIVALENCE_CLASSES
 } from './card_fields.js';
 
 import {
@@ -277,7 +279,7 @@ export const highlightConceptReferences = memoizeFirstArg((card, fieldName, extr
 	if (!fieldConfig) return '';
 	if (!fieldConfig.html) return card[fieldName];
 	const extraIDMap = Object.fromEntries(extraIDs.map(id => [id, true]));
-	const conceptCardReferences = Object.fromEntries(references(card).conceptArray().map(item => [item, true]));
+	const conceptCardReferences = Object.fromEntries(references(card).typeClassArray(REFERENCE_TYPE_CONCEPT).map(item => [item, true]));
 	const allConceptCardReferences = {...extraIDMap, ...conceptCardReferences};
 	const filteredHighlightMap = Object.fromEntries(Object.entries(card.importantNgrams || {}).filter(entry => allConceptCardReferences[entry[1]]));
 	return highlightHTMLForCard(card, fieldName, filteredHighlightMap, extraIDMap);
@@ -507,7 +509,7 @@ const OVERRIDE_EXTRACTORS = {
 		return result.join('\n');
 	},
 	[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: (card) => {
-		const conceptRefs = references(card).withFallbackText(card.fallbackText).byTypeConcept;
+		const conceptRefs = references(card).withFallbackText(card.fallbackText).byTypeClass(REFERENCE_TYPE_CONCEPT);
 		if (!conceptRefs) return '';
 		let result = [];
 		for (const cardMap of Object.values(conceptRefs)) {
@@ -1199,7 +1201,7 @@ export const suggestedConceptReferencesForCard = memoizeFirstArg((card, fingerpr
 	if (!BODY_CARD_TYPES[card.card_type]) return [];
 	const itemsFromConceptReferences = fingerprint.itemsFromConceptReferences();
 	const existingReferences = references(card).byType;
-	const REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].conceptReference || entry[0] == REFERENCE_TYPE_ACK).map(entry => entry[0]);
+	const REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT = Object.keys(REFERENCE_TYPES).filter(key => REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT][key] || key == REFERENCE_TYPE_ACK);
 	const normalizedConcepts = normalizeNgramMap(concepts);
 	const itemsNotFromCard = fingerprint.itemsNotFromCard();
 	const conceptStrForCandidateCard = {};

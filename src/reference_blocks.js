@@ -1,12 +1,16 @@
 import {
 	CARD_TYPE_CONCEPT,
+	CARD_TYPE_WORK,
+	CARD_TYPE_PERSON,
 	REFERENCE_TYPE_CONCEPT,
+	REFERENCE_TYPE_CITATION,
+	REFERENCE_TYPE_CITATION_PERSON,
 	KEY_CARD_ID_PLACEHOLDER,
 	REFERENCE_TYPES,
 	REFERENCE_TYPE_SEE_ALSO,
 	REFERENCE_TYPE_EXAMPLE_OF,
 	REFERENCE_TYPE_METAPHOR_FOR,
-	REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES,
+	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
 } from './card_fields.js';
 
 import {
@@ -31,7 +35,7 @@ import {
 	cardNeedsReciprocalLinkTo
 } from './util.js';
 
-const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].conceptReference && entry[0] != REFERENCE_TYPE_CONCEPT).map(entry => {
+const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].subTypeOf == REFERENCE_TYPE_CONCEPT && entry[0] != REFERENCE_TYPE_CONCEPT).map(entry => {
 	const referenceType = entry[0];
 	const referenceConfig = entry[1];
 	if (referenceConfig.reciprocal) {
@@ -76,7 +80,7 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 	[CARD_TYPE_CONCEPT]: [
 		...CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS,
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_CONCEPT, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES)])]),
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_CONCEPT, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT])])]),
 			navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [aboutConceptConfigurableFilterText(KEY_CARD_ID_PLACEHOLDER)]),
 			title: 'Cards that reference this concept',
 			showNavigate: true,
@@ -87,6 +91,33 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 			showNavigate: true,
 			onlyForEditors: true,
 		}
+	],
+	[CARD_TYPE_WORK]: [
+		{
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME,[referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CITATION_PERSON)]),
+			title: 'Authors',
+			condensed: true,
+		},
+		{
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CITATION)]),
+			title: 'Cards that cite this work',
+			showNavigate: true,
+			emptyMessage: 'No cards cite this work'
+		},
+	],
+	[CARD_TYPE_PERSON]: [
+		{
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_WORK, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CITATION_PERSON)]),
+			title: 'Works that cite this person',
+			showNavigate: true,
+			emptyMessage: 'No works cite this person'
+		},
+		{
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_WORK, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CITATION_PERSON)]),
+			title: 'Cards that cite this person',
+			showNavigate: true,
+			emptyMessage: 'No cards cite this person'
+		},
 	]
 };
 
@@ -115,6 +146,13 @@ const INFO_PANEL_REFERENCE_BLOCKS = [
 		title: 'See Also',
 		description: 'Cards that are related to this card and make sense to consume together',
 		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_SEE_ALSO)])
+	},
+	{
+		title: 'Citations',
+		emptyMessage: 'No citations',
+		description: 'Works or people that insights for this card were based on',
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CITATION])])])
+
 	},
 	{
 		title: 'Other referenced cards',

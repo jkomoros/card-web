@@ -63,6 +63,7 @@ import {
 	DEFAULT_CARD_TYPE,
 	TEXT_FIELD_TITLE,
 	editableFieldsForCardType,
+	CARD_TYPE_CONFIGURATION,
 } from '../card_fields.js';
 
 import {
@@ -111,7 +112,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		</style>
 		<form @submit=${this._handleFormSubmitted}>
 			${this._legalCardTypeFilters.length > 1 ? html`<div><span>Card type:</span>
-				${this._legalCardTypeFilters.map(typ => html`<input type='radio' name='card-type' .disabled=${this._cardTypeFilterLocked} @change=${this._handleCardTypeChanged} .checked=${this._cardTypeFilter === typ} value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}'>${typ || html`<em>Default</em>`}</label>`)}
+				${this._legalCardTypeFilters.map(typ => html`<input type='radio' name='card-type' .disabled=${this._cardTypeFilterLocked} @change=${this._handleCardTypeChanged} .checked=${this._cardTypeFilter === typ} .title=${CARD_TYPE_CONFIGURATION[typ] ? CARD_TYPE_CONFIGURATION[typ].description : 'All card types'} value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}' .title=${CARD_TYPE_CONFIGURATION[typ] ? CARD_TYPE_CONFIGURATION[typ].description : 'All card types'}>${typ || html`<em>Default</em>`}</label>`)}
 			</div>` : ''}
 			<div class='row'>
 				<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>

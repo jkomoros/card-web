@@ -1,3 +1,8 @@
+
+import {
+	references
+} from './references.js';
+
 /*
 
 On each card is a references property and a references info.
@@ -63,11 +68,15 @@ export const CARD_TYPE_CONTENT = 'content';
 export const CARD_TYPE_SECTION_HEAD = 'section-head';
 export const CARD_TYPE_WORKING_NOTES = 'working-notes';
 export const CARD_TYPE_CONCEPT = 'concept';
+export const CARD_TYPE_WORK = 'work';
+export const CARD_TYPE_PERSON = 'person';
 
 //The card type to assume if none is specified.
 export const DEFAULT_CARD_TYPE = CARD_TYPE_CONTENT;
 
 export const CONCEPT_DEFAULT_BODY = 'This is a concept card. The following cards reference this concept.';
+export const WORK_DEFAULT_BODY = 'This is a card about a work (e.g. a book, article, tweet). The following cards cite this work.';
+export const PERSON_DEFAULT_BODY = 'This is a card about a person. The following cards cite this person.';
 
 /*
 
@@ -102,11 +111,20 @@ add a name to the card that is `CARD_TYPE-NORMALIZED-TITLE`.
 defaultBody: if set, then when a card of this type is created, it will have this
 string.
 
+description: the string describing what the card type is, for UI helptext.
+
+backportTitleExtractor: if defined, a function taking (rawCard, referenceType,
+allRawCards) that should return the string to be used for backporting text. If
+not defined, will just use card.title.
+
 */
 
 export const CARD_TYPE_CONFIGURATION = {
-	[CARD_TYPE_CONTENT]: {},
+	[CARD_TYPE_CONTENT]: {
+		description: 'The primary type of card, with a title and body.'
+	},
 	[CARD_TYPE_SECTION_HEAD]: {
+		description: 'A section head for a section or tag. You typically don\'t create these manually',
 		dark: true,
 		styleBlock: String.raw`
 			<style>
@@ -137,6 +155,7 @@ export const CARD_TYPE_CONFIGURATION = {
 		`
 	},
 	[CARD_TYPE_WORKING_NOTES]: {
+		description: 'A card of private rough notes, to later be forked and developed into one or more content cards',
 		invertContentPublishWarning: true,
 		orphanedByDefault: true,
 		styleBlock: `
@@ -150,11 +169,37 @@ export const CARD_TYPE_CONFIGURATION = {
 		iconName: 'INSERT_DRIVE_FILE_ICON',
 	},
 	[CARD_TYPE_CONCEPT]: {
+		description: 'A card denoting a concept that can be highlighted on other cards',
 		orphanedByDefault: true,
 		publishedByDefault: true,
 		iconName: 'MENU_BOOK_ICON',
 		autoSlug: true,
 		defaultBody: CONCEPT_DEFAULT_BODY,
+	},
+	[CARD_TYPE_PERSON]: {
+		description: 'A card of information about a person that other cards can point to as a citation',
+		orphanedByDefault: true,
+		publishedByDefault: true,
+		iconName: 'PERSON_ICON',
+		autoSlug: true,
+		defaultBody: PERSON_DEFAULT_BODY,
+	},
+	[CARD_TYPE_WORK]: {
+		description: 'A card of information about an external work (article, book, tweet) that other cards can point to as a citation',
+		orphanedByDefault: true,
+		publishedByDefault: true,
+		iconName: 'RECEIPT_ICON',
+		autoSlug: true,
+		defaultBody: WORK_DEFAULT_BODY,
+		backportTitleExtractor : (rawCard, referenceType, rawCards) => {
+			let authors = [];
+			for (const otherID of (references(rawCard).byTypeArray()[REFERENCE_TYPE_CITATION_PERSON] || [])) {
+				const otherCard = rawCards[otherID];
+				if (!otherCard) continue;
+				authors.push(getCardTitleForBackporting(otherCard, REFERENCE_TYPE_CITATION_PERSON, rawCards));
+			}
+			return rawCard.title + '\n' + authors.join('\n');
+		}
 	},
 };
 
@@ -196,6 +241,8 @@ export const REFERENCE_TYPE_EXAMPLE_OF = 'example-of';
 //For cards that are a metaphor for a concept. Conceptually a sub-type of the
 //concept reference type.
 export const REFERENCE_TYPE_METAPHOR_FOR = 'metaphor-for';
+export const REFERENCE_TYPE_CITATION = 'citation';
+export const REFERENCE_TYPE_CITATION_PERSON = 'citation-person';
 
 //Any key in this object is a legal reference type
 /*
@@ -209,7 +256,8 @@ excludeFromInfoPanel - if true, will not show up in the infoPanelArray. That mig
 toCardTypeAllowList - if null or undefined, any card of any type may be on the receiving end. If not null, then only card_types in the toCardTypeAllowList map are allowed.
 fromCardTypeAllowList - if null or undefined, any card of any type may be on the sending end. If not null, then only card_types in the fromCardTypeAllowList are allowed.
 backportMissingText - if true, then if a card has an outbound reference of this type without text, it will backport the title of the to card, so for the purposes of any nlp processing, it will be as though the outbound reference included the title of the card it's pointing to. (The underlying data in the db is untouched)
-conceptReference - if true, then this type of reference will be considered to be a concept reference even if it's not literally one (e.g. example-of, synonym).
+subTypeOf - if set, then this reference type is also equivalent to the other reference type in a fundamental way. For example, example-of and synonym are equivalent to concept.
+conceptReference - if true, then this type of reference will be considered to be a concept reference even if it's not literally one (e.g. example-of, synonym). Every type is already equivalent to itself so that can be elided. A given card can only reference anohter card with one referenceType within an equivalence class.
 reciprocal - if true, then an outbound reference to a card should precisely imply the other card outbound links back to this one. 
 */
 export const REFERENCE_TYPES = {
@@ -291,7 +339,6 @@ export const REFERENCE_TYPES = {
 			[CARD_TYPE_CONCEPT]: true,
 		},
 		backportMissingText: true,
-		conceptReference: true,
 	},
 	[REFERENCE_TYPE_SYNONYM]: {
 		//NOTE: synonymMap effectivley pretends that an inbound synonym
@@ -312,7 +359,7 @@ export const REFERENCE_TYPES = {
 		},
 		backportMissingText: true,
 		//Effectively a sub-type of concept reference.
-		conceptReference: true,
+		subTypeOf: REFERENCE_TYPE_CONCEPT,
 		reciprocal: true,
 	},
 	[REFERENCE_TYPE_OPPOSITE_OF]: {
@@ -333,7 +380,7 @@ export const REFERENCE_TYPES = {
 		//Don't backport text since they're the opposite!
 		backportMissingText: false,
 		//Effectively a sub-type of concept reference.
-		conceptReference: true,
+		subTypeOf: REFERENCE_TYPE_CONCEPT,
 		reciprocal: true,
 	},
 	[REFERENCE_TYPE_PARALLEL_TO]: {
@@ -354,7 +401,7 @@ export const REFERENCE_TYPES = {
 		//Don't backport text since they aren't literally that thing, just kind of similar.
 		backportMissingText: false,
 		//Effectively a sub-type of concept reference.
-		conceptReference: true,
+		subTypeOf: REFERENCE_TYPE_CONCEPT,
 		reciprocal: true,
 	},
 	[REFERENCE_TYPE_EXAMPLE_OF]: {
@@ -371,7 +418,7 @@ export const REFERENCE_TYPES = {
 			[CARD_TYPE_CONCEPT]: true,
 		},
 		backportMissingText: true,
-		conceptReference: true,
+		subTypeOf: REFERENCE_TYPE_CONCEPT,
 	},
 	[REFERENCE_TYPE_METAPHOR_FOR]: {
 		name: 'Metaphor for',
@@ -387,12 +434,53 @@ export const REFERENCE_TYPES = {
 			[CARD_TYPE_CONCEPT]: true,
 		},
 		backportMissingText: true,
-		conceptReference: true,
+		subTypeOf: REFERENCE_TYPE_CONCEPT,
+	},
+	[REFERENCE_TYPE_CITATION]: {
+		name: 'Citation (Work)',
+		inboundName: 'Citations',
+		description: 'For citing works (books, articles, tweets) that this card is partially based on.',
+		editable: true,
+		substantive: true,
+		//royalblue
+		color: '#4169E1',
+		//Printed out separately in info panel
+		excludeFromInfoPanel: true,
+		toCardTypeAllowList: {
+			[CARD_TYPE_WORK]: true,
+		},
+		//Allow inbound from any type of card that is not also a work, or a person (works can point to persons but not vice versa)
+		fromCardTypeAllowList: Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).filter(key => key != CARD_TYPE_WORK && key != CARD_TYPE_PERSON).map(key => [key, true])),
+		backportMissingText: true,
+	},
+	[REFERENCE_TYPE_CITATION_PERSON]: {
+		name: 'Citation (Person)',
+		inboundName: 'Person Citations',
+		description: 'For citing people whose insights this card is partially based on. Used either for citing authors from a work card, or when there isn\'t a specific work to cite, because such a card either hasn\'t been created yet or because there is no work to cite.',
+		editable: true,
+		substantive: true,
+		//royalblue
+		color: '#4169E1',
+		//Printed out separately in info panel
+		excludeFromInfoPanel: true,
+		toCardTypeAllowList: {
+			[CARD_TYPE_PERSON]: true,
+		},
+		//Allow inbound from any card that is not also a person, to avoid loops.
+		fromCardTypeAllowList: Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).filter(key => key != CARD_TYPE_PERSON).map(key => [key, true])),
+		backportMissingText: true,
+		subTypeOf: REFERENCE_TYPE_CITATION,
 	},
 };
 
 export const REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT = Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(entry => entry[1].backportMissingText).map(entry => [entry[0], true]));
-export const REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES = Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(entry => entry[1].conceptReference).map(entry => [entry[0], true]));
+//Map of baseType ==> subTypeName ==> true. The base type will also be in its own set
+export const REFERENCE_TYPES_EQUIVALENCE_CLASSES = {};
+for (let [referenceType, config] of Object.entries(REFERENCE_TYPES)) {
+	const baseType = config.subTypeOf || referenceType;
+	if (!REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType]) REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType] = {};
+	REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][referenceType] = true;
+}
 
 //map of card-type -> map of reference-type -> true. So for a given card type,
 //you can check if there are any inbound references to the card that should not
@@ -515,6 +603,8 @@ export const TEXT_FIELD_CONFIGURATION = {
 			[CARD_TYPE_CONTENT]: true,
 			[CARD_TYPE_SECTION_HEAD]: true,
 			[CARD_TYPE_CONCEPT]: true,
+			[CARD_TYPE_WORK]: true,
+			[CARD_TYPE_PERSON]: true,
 		},
 		derivedForCardTypes: {
 			[CARD_TYPE_WORKING_NOTES]: true
@@ -543,6 +633,8 @@ export const TEXT_FIELD_CONFIGURATION = {
 			[CARD_TYPE_CONTENT]: true,
 			[CARD_TYPE_WORKING_NOTES]: true,
 			[CARD_TYPE_CONCEPT]: true,
+			[CARD_TYPE_WORK]: true,
+			[CARD_TYPE_PERSON]: true,
 		},
 		derivedForCardTypes: {},
 		autoFontSizeBoostForCardTypes: {
@@ -729,4 +821,16 @@ const cardOverflowsFieldForBoost = async (card, field, proposedBoost) => {
 	await ele.updateComplete;
 	const isOverflowing = ele.isOverflowing();
 	return isOverflowing;
+};
+
+//eslint-disable-next-line no-unused-vars
+export const getCardTitleForBackporting = (rawCard, referenceType, rawCards) => {
+	const config = CARD_TYPE_CONFIGURATION[rawCard.card_type];
+	if (config) {
+		const f = config.backportTitleExtractor;
+		if (f) {
+			return f(rawCard, referenceType, rawCards);
+		}
+	}
+	return rawCard.title;
 };
