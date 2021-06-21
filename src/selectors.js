@@ -197,7 +197,7 @@ export const selectMaintenanceTaskActive = (state) => state.maintenance ? state.
 export const selectQuery = (state) => state.find.query;
 //activeQuery is the query that should be routed into the query pipeline.
 const selectActiveQueryText = (state) => state.find.activeQuery;
-const selectFindSortByRecent = (state) => state.find.sortByRecent;
+export const selectFindSortByRecent = (state) => state.find.sortByRecent;
 export const selectFindCardTypeFilter = (state) => state.find ? state.find.cardTypeFilter : '';
 export const selectFindCardTypeFilterLocked = (state) => state.find ? state.find.cardTypeFilterLocked : false;
 

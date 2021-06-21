@@ -14,7 +14,8 @@ store.addReducers({
 import {
 	closeFindDialog,
 	updateQuery,
-	findUpdateCardTypeFilter
+	findUpdateCardTypeFilter,
+	findUpdateSortByRecent
 } from '../actions/find.js';
 
 import {
@@ -48,7 +49,8 @@ import {
 	selectEditingPendingReferenceType,
 	selectCollectionDescriptionForQuery,
 	selectFindPermissions,
-	selectFindLinking
+	selectFindLinking,
+	selectFindSortByRecent
 } from '../selectors.js';
 
 import { 
@@ -111,9 +113,12 @@ class FindDialog extends connect(store)(DialogElement) {
 			}
 		</style>
 		<form @submit=${this._handleFormSubmitted}>
-			${this._legalCardTypeFilters.length > 1 ? html`<div><span>Card type:</span>
-				${this._legalCardTypeFilters.map(typ => html`<input type='radio' name='card-type' .disabled=${this._cardTypeFilterLocked} @change=${this._handleCardTypeChanged} .checked=${this._cardTypeFilter === typ} .title=${CARD_TYPE_CONFIGURATION[typ] ? CARD_TYPE_CONFIGURATION[typ].description : 'All card types'} value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}' .title=${CARD_TYPE_CONFIGURATION[typ] ? CARD_TYPE_CONFIGURATION[typ].description : 'All card types'}>${typ || html`<em>Default</em>`}</label>`)}
-			</div>` : ''}
+			<div>
+				${this._legalCardTypeFilters.length > 1 ? html`<span>Card type:</span>
+					${this._legalCardTypeFilters.map(typ => html`<input type='radio' name='card-type' .disabled=${this._cardTypeFilterLocked} @change=${this._handleCardTypeChanged} .checked=${this._cardTypeFilter === typ} .title=${CARD_TYPE_CONFIGURATION[typ] ? CARD_TYPE_CONFIGURATION[typ].description : 'All card types'} value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}' .title=${CARD_TYPE_CONFIGURATION[typ] ? CARD_TYPE_CONFIGURATION[typ].description : 'All card types'}>${typ || html`<em>Default</em>`}</label>`)}
+				` : ''}
+				<input type='checkbox' .checked=${this._sortByRecent} id='sort-by-recent' @change=${this._handleSortByRecentChanged}><label for='sort-by-recent'>Sort by Recent</label>
+			</div>
 			<div class='row'>
 				<input placeholder='Text to search for' id='query' type='search' @input=${this._handleQueryChanged} .value=${this._query}></input>
 				<button title='Navigate to this collection' @click=${this._handleNavigateCollection} class='small'>${OPEN_IN_BROWSER_ICON}</button>
@@ -162,6 +167,10 @@ class FindDialog extends connect(store)(DialogElement) {
 	_handleQueryChanged(e) {
 		let ele = e.composedPath()[0];
 		store.dispatch(updateQuery(ele.value));
+	}
+
+	_handleSortByRecentChanged(e) {
+		store.dispatch(findUpdateSortByRecent(e.target.checked));
 	}
 
 	_handleCardTypeChanged(e) {
@@ -245,6 +254,7 @@ class FindDialog extends connect(store)(DialogElement) {
 			_userMayCreateCard: {type:Boolean},
 			_legalCardTypeFilters: {type:Array},
 			_cardTypeFilter: {type:String},
+			_sortByRecent: {type:Boolean},
 			_collectionDescription: {type:Object},
 			_cardTypeFilterLocked: {type:Boolean},
 		};
@@ -290,6 +300,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._legalCardTypeFilters = selectFindLegalCardTypeFilters(state);
 		this._cardTypeFilter = selectFindCardTypeFilter(state);
 		this._cardTypeFilterLocked = selectFindCardTypeFilterLocked(state);
+		this._sortByRecent = selectFindSortByRecent(state);
 	}
 
 }
