@@ -94,6 +94,11 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 	],
 	[CARD_TYPE_WORK]: [
 		{
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME,[referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CITATION_PERSON)]),
+			title: 'Authors',
+			condensed: true,
+		},
+		{
 			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CITATION)]),
 			title: 'Cards that cite this work',
 			showNavigate: true,
