@@ -402,7 +402,7 @@ class CardEditor extends connect(store)(LitElement) {
 					<div>
 						<select @change=${this._handleAddReference}>
 							<option value=''><em>Add a reference to a card type...</option>
-							${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable && LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[this._card.card_type][entry[0]]).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[1].name}</option>`)}
+							${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]} title=${entry[1].description} ?disabled=${!LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[this._card.card_type][entry[0]]}>${entry[1].name}</option>`)}
 						</select>
 					</div>
 				</div>
