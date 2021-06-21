@@ -1,8 +1,10 @@
 import {
 	CARD_TYPE_CONCEPT,
 	CARD_TYPE_WORK,
+	CARD_TYPE_PERSON,
 	REFERENCE_TYPE_CONCEPT,
 	REFERENCE_TYPE_CITATION,
+	REFERENCE_TYPE_CITATION_PERSON,
 	KEY_CARD_ID_PLACEHOLDER,
 	REFERENCE_TYPES,
 	REFERENCE_TYPE_SEE_ALSO,
@@ -96,6 +98,20 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 			title: 'Cards that cite this work',
 			showNavigate: true,
 			emptyMessage: 'No cards cite this work'
+		},
+	],
+	[CARD_TYPE_PERSON]: [
+		{
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_WORK, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CITATION_PERSON)]),
+			title: 'Works that cite this person',
+			showNavigate: true,
+			emptyMessage: 'No works cite this person'
+		},
+		{
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_WORK, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CITATION_PERSON)]),
+			title: 'Cards that cite this person',
+			showNavigate: true,
+			emptyMessage: 'No cards cite this person'
 		},
 	]
 };
