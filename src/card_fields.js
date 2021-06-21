@@ -436,7 +436,7 @@ export const REFERENCE_TYPES = {
 	[REFERENCE_TYPE_CITATION_PERSON]: {
 		name: 'Citation (Person)',
 		inboundName: 'Person Citations',
-		description: 'For citing people whose insights this card is partially based on. Used when there isn\'t a specific work to cite, because such a card either hasn\'t been created yet or because there is no work to cite.',
+		description: 'For citing people whose insights this card is partially based on. Used either for citing authors from a work card, or when there isn\'t a specific work to cite, because such a card either hasn\'t been created yet or because there is no work to cite.',
 		editable: true,
 		substantive: true,
 		//royalblue
