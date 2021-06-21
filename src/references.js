@@ -287,7 +287,7 @@ const ReferencesAccessor = class {
 			return 'Illegal referenceType: ' + referenceType;
 		}
 		
-		if ((referenceType == REFERENCE_TYPE_CONCEPT || referenceTypeConfig.subTypeOf == REFERENCE_TYPE_CONCEPT) && this.conceptArray().some(id => id == cardID)) {
+		if (REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT][referenceType] && this.conceptArray().some(id => id == cardID)) {
 			return 'The editing card already has a concept reference (or subtype) to that card';
 		}
 	
