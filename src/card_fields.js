@@ -70,7 +70,7 @@ export const CARD_TYPE_PERSON = 'person';
 export const DEFAULT_CARD_TYPE = CARD_TYPE_CONTENT;
 
 export const CONCEPT_DEFAULT_BODY = 'This is a concept card. The following cards reference this concept.';
-export const WORK_DEFAULT_BODY = 'This is a card about a work. The following cards cite this work.';
+export const WORK_DEFAULT_BODY = 'This is a card about a work (e.g. a book, article, tweet). The following cards cite this work.';
 export const PERSON_DEFAULT_BODY = 'This is a card about a person. The following cards cite this person.';
 
 /*
