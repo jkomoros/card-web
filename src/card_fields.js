@@ -224,6 +224,7 @@ export const REFERENCE_TYPE_EXAMPLE_OF = 'example-of';
 //concept reference type.
 export const REFERENCE_TYPE_METAPHOR_FOR = 'metaphor-for';
 export const REFERENCE_TYPE_CITATION = 'citation';
+export const REFERENCE_TYPE_CITATION_PERSON = 'citation-person';
 
 //Any key in this object is a legal reference type
 /*
@@ -431,6 +432,22 @@ export const REFERENCE_TYPES = {
 			[CARD_TYPE_WORK]: true,
 		},
 		backportMissingText: true,
+	},
+	[REFERENCE_TYPE_CITATION_PERSON]: {
+		name: 'Citation (Person)',
+		inboundName: 'Person Citations',
+		description: 'For citing people whose insights this card is partially based on.',
+		editable: true,
+		substantive: true,
+		//royalblue
+		color: '#4169E1',
+		//Printed out separately in info panel
+		excludeFromInfoPanel: true,
+		toCardTypeAllowList: {
+			[CARD_TYPE_PERSON]: true,
+		},
+		backportMissingText: true,
+		subTypeOf: REFERENCE_TYPE_CITATION,
 	},
 };
 
