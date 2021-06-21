@@ -425,8 +425,8 @@ export const REFERENCE_TYPES = {
 		substantive: true,
 		//royalblue
 		color: '#4169E1',
-		//Not yet printed out in info panel
-		excludeFromInfoPanel: false,
+		//Printed out separately in info panel
+		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
 			[CARD_TYPE_WORK]: true,
 		},

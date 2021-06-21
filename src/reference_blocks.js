@@ -127,6 +127,13 @@ const INFO_PANEL_REFERENCE_BLOCKS = [
 		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_SEE_ALSO)])
 	},
 	{
+		title: 'Citations',
+		emptyMessage: 'No citations',
+		description: 'Works or people that insights for this card were based on',
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CITATION])])])
+
+	},
+	{
 		title: 'Other referenced cards',
 		description: 'Cards that this card references that are not links',
 		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL, true)])
