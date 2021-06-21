@@ -427,6 +427,20 @@ const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
 	return [func, false];
 };
 
+const makeAuthorConfigurableFilter = (filterName, idString) => {
+	const ids = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
+	//Technically the IDs are case sensitive, but the URL machinery lowercases everything.
+	//Realistically, collisions are astronomically unlikely
+	const func = function(card) {
+		if (ids[card.author.toLowerCase()]) return true;
+		for (const collab of card.collaborators) {
+			if (ids[collab.toLowerCase()]) return true;
+		}
+		return false;
+	};
+	return [func, false];
+};
+
 //We memoize the cards/generator outside even a singular configurable filter,
 //because advance to next/previous card changes the keyCardID, but not the
 //underlying card set, and that should be fast.
@@ -493,6 +507,7 @@ const REFERENCES_OUTBOUND_FILTER_NAME = REFERENCES_FILTER_NAME + OUTBOUND_SUFFIX
 export const DIRECT_REFERENCES_FILTER_NAME = DIRECT_PREFIX + REFERENCES_FILTER_NAME;
 export const DIRECT_REFERENCES_INBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_INBOUND_FILTER_NAME;
 export const DIRECT_REFERENCES_OUTBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_OUTBOUND_FILTER_NAME;
+const AUTHOR_FILTER_NAME = 'author';
 export const CARDS_FILTER_NAME = 'cards';
 export const EXCLUDE_FILTER_NAME = 'exclude';
 const COMBINE_FILTER_NAME = 'combine';
@@ -532,6 +547,7 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[DIRECT_REFERENCES_FILTER_NAME]: 2,
 	[DIRECT_REFERENCES_INBOUND_FILTER_NAME]: 2,
 	[DIRECT_REFERENCES_OUTBOUND_FILTER_NAME]: 2,
+	[AUTHOR_FILTER_NAME]: 1,
 	//Exclude takes itself, plus whatever filter comes after it
 	[EXCLUDE_FILTER_NAME]: 1,
 	//Combine takes itself, plus two other filters after it
@@ -623,6 +639,9 @@ const CONFIGURABLE_FILTER_INFO = {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+	},
+	[AUTHOR_FILTER_NAME]: {
+		factory: makeAuthorConfigurableFilter,
 	},
 	[EXCLUDE_FILTER_NAME]: {
 		factory: makeExcludeConfigurableFilter,
