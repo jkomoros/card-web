@@ -10,7 +10,6 @@ import {
 	REFERENCE_TYPES,
 	REFERENCES_CARD_PROPERTY,
 	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
-	REFERENCE_TYPE_CONCEPT,
 } from './card_fields.js';
 
 import {
@@ -287,8 +286,10 @@ const ReferencesAccessor = class {
 			return 'Illegal referenceType: ' + referenceType;
 		}
 		
-		if (REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT][referenceType] && this.typeClassArray(REFERENCE_TYPE_CONCEPT).some(id => id == cardID)) {
-			return 'The editing card already has a concept reference (or subtype) to that card';
+		const baseType = referenceTypeConfig.subTypeOf || referenceType;
+
+		if (REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][referenceType] && this.typeClassArray(baseType).some(id => id == cardID)) {
+			return 'The editing card already has a ' + baseType + ' reference (or subtype) to that card';
 		}
 	
 		//if the reference type doesn't have a toCardTypeAllowList then any of them
