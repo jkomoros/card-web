@@ -420,7 +420,7 @@ export const REFERENCE_TYPES = {
 	[REFERENCE_TYPE_CITATION]: {
 		name: 'Citation',
 		inboundName: 'Citations',
-		description: 'For cards that cite this work',
+		description: 'For citing works that this card is partially based on.',
 		editable: true,
 		substantive: true,
 		//royalblue
