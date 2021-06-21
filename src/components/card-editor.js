@@ -409,7 +409,7 @@ class CardEditor extends connect(store)(LitElement) {
 				<div class='row'>
 					${Object.entries(REFERENCE_TYPES).filter(entry => referencesMap[entry[0]]).map(entry => {
 		return html`<div>
-							<label>${entry[1].name} ${help(entry[1].description, false)}</label>
+							<label>${entry[1].name} ${help(entry[1].description, false)} <button class='small' .referenceType=${entry[0]} @click=${this._handleRemoveAllReferencesOfTypeClicked} title=${'Remove all references of type ' + entry[1].name} >${HIGHLIGHT_OFF_ICON}</button></label>
 							<tag-list .overrideTypeName=${'Reference'} .referenceType=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .editing=${entry[1].editable} .subtle=${!entry[1].editable} .tapEvents=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveReference}></tag-list>
 						</div>`;
 	})}
@@ -513,6 +513,22 @@ class CardEditor extends connect(store)(LitElement) {
 	_handleIgnoreAllConceptsClicked() {
 		for (const cardID of this._suggestedConcepts) {
 			store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_ACK));
+		}
+	}
+
+	_handleRemoveAllReferencesOfTypeClicked(e) {
+		let referenceType = '';
+		for (const ele of e.composedPath()) {
+			if (ele.referenceType) {
+				referenceType = ele.referenceType;
+				break;
+			}
+		}
+		if (!referenceType) return;
+		const ids = references(this._card).byTypeArray()[referenceType];
+		if (!ids) return;
+		for (const cardID of ids) {
+			store.dispatch(removeReferenceFromCard(cardID, referenceType));
 		}
 	}
 
