@@ -223,6 +223,7 @@ export const REFERENCE_TYPE_EXAMPLE_OF = 'example-of';
 //For cards that are a metaphor for a concept. Conceptually a sub-type of the
 //concept reference type.
 export const REFERENCE_TYPE_METAPHOR_FOR = 'metaphor-for';
+export const REFERENCE_TYPE_CITATION = 'citation';
 
 //Any key in this object is a legal reference type
 /*
@@ -415,6 +416,21 @@ export const REFERENCE_TYPES = {
 		},
 		backportMissingText: true,
 		subTypeOf: REFERENCE_TYPE_CONCEPT,
+	},
+	[REFERENCE_TYPE_CITATION]: {
+		name: 'Citation',
+		inboundName: 'Citations',
+		description: 'For cards that cite this work',
+		editable: true,
+		substantive: true,
+		//royalblue
+		color: '#4169E1',
+		//Not yet printed out in info panel
+		excludeFromInfoPanel: false,
+		toCardTypeAllowList: {
+			[CARD_TYPE_WORK]: true,
+		},
+		backportMissingText: true,
 	},
 };
 
