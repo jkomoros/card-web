@@ -1,3 +1,8 @@
+
+import {
+	references
+} from './references.js';
+
 /*
 
 On each card is a references property and a references info.
@@ -186,6 +191,15 @@ export const CARD_TYPE_CONFIGURATION = {
 		iconName: 'RECEIPT_ICON',
 		autoSlug: true,
 		defaultBody: WORK_DEFAULT_BODY,
+		backportTitleExtractor : (rawCard, referenceType, rawCards) => {
+			let authors = [];
+			for (const otherID of (references(rawCard).byTypeArray()[REFERENCE_TYPE_CITATION_PERSON] || [])) {
+				const otherCard = rawCards[otherID];
+				if (!otherCard) continue;
+				authors.push(getCardTitleForBackporting(otherCard, REFERENCE_TYPE_CITATION_PERSON, rawCards));
+			}
+			return rawCard.title + '\n' + authors.join('\n');
+		}
 	},
 };
 
