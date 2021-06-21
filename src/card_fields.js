@@ -108,6 +108,10 @@ string.
 
 description: the string describing what the card type is, for UI helptext.
 
+backportTitleExtractor: if defined, a function taking (rawCard, referenceType,
+allRawCards) that should return the string to be used for backporting text. If
+not defined, will just use card.title.
+
 */
 
 export const CARD_TYPE_CONFIGURATION = {
@@ -807,7 +811,12 @@ const cardOverflowsFieldForBoost = async (card, field, proposedBoost) => {
 
 //eslint-disable-next-line no-unused-vars
 export const getCardTitleForBackporting = (rawCard, referenceType, rawCards) => {
-	//TODO: for cards of type citation-work, check for citations of cards of type
-	//citation-author and recursively build those up.
+	const config = CARD_TYPE_CONFIGURATION[rawCard.card_type];
+	if (config) {
+		const f = config.backportTitleExtractor;
+		if (f) {
+			return f(rawCard, referenceType, rawCards);
+		}
+	}
 	return rawCard.title;
 };
