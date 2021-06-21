@@ -92,7 +92,7 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 	],
 	[CARD_TYPE_WORK]: [
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CITATION])])]),
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CITATION)]),
 			title: 'Cards that cite this work',
 			showNavigate: true,
 			emptyMessage: 'No cards cite this work'
