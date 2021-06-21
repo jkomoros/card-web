@@ -25,6 +25,7 @@ import {
 	BODY_CARD_TYPES,
 	REFERENCE_TYPES,
 	KEY_CARD_ID_PLACEHOLDER,
+	REFERENCE_TYPE_CONCEPT,
 } from './card_fields.js';
 
 import {
@@ -251,7 +252,7 @@ const makeAboutConceptConfigurableFilter = (filterName, conceptStrOrID) => {
 		const expandedConceptStrOrId = conceptStrOrID == KEY_CARD_ID_PLACEHOLDER ? keyCardID : conceptStrOrID;
 		let conceptCard = cards[expandedConceptStrOrId] || getConceptCardForConcept(cards, expandedConceptStrOrId);
 		if (!conceptCard) return [{}, ''];
-		const conceptReferenceMap = references(conceptCard).byTypeInboundConcept;
+		const conceptReferenceMap = references(conceptCard).byTypeClassInbound(REFERENCE_TYPE_CONCEPT);
 		let matchingCards = {};
 		for (const cardMap of Object.values(conceptReferenceMap)) {
 			for (const cardID of Object.keys(cardMap)) {
@@ -940,8 +941,8 @@ const CARD_FILTER_CONFIGS = Object.assign(
 		'body': [defaultCardFilterName('body'), card => card && BODY_CARD_TYPES[card.card_type], TODO_TYPE_NA, 0.0, 'Cards that are of a type that has a body field'],
 		'substantive-references': [defaultCardFilterName('substantive-references'), card => references(card).substantiveArray().length, TODO_TYPE_NA, 0.0, 'Whether the card has any substantive references of any type'],
 		'inbound-substantive-references': [defaultCardFilterName('inbound-substantive-references'), card => references(card).inboundSubstantiveArray().length, TODO_TYPE_NA, 0.0, 'Whether the card has any substantive inbound references of any type'],
-		'concept-references': [defaultCardFilterName('concept-references'), card => references(card).conceptArray().length, TODO_TYPE_NA, 0.0, 'Whether the card has any concept references of any type'],
-		'inbound-concept-references': [defaultCardFilterName('inbound-concept-references'), card => references(card).inboundConceptArray().length, TODO_TYPE_NA, 0.0, 'Whether the card has any concept inbound references of any type'],
+		'concept-references': [defaultCardFilterName('concept-references'), card => references(card).typeClassArray(REFERENCE_TYPE_CONCEPT).length, TODO_TYPE_NA, 0.0, 'Whether the card has any concept references of any type'],
+		'inbound-concept-references': [defaultCardFilterName('inbound-concept-references'), card => references(card).inboundTypeClassArray(REFERENCE_TYPE_CONCEPT).length, TODO_TYPE_NA, 0.0, 'Whether the card has any concept inbound references of any type'],
 		//TODO_COMBINED_FILTERS looks for the fourth key in the filtername array, so
 		//we just duplicate the first two since they're the same (the reason they'd
 		//differ is if there's an override key and that could make the has- and

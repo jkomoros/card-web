@@ -94,8 +94,8 @@ const ReferencesAccessor = class {
 		return Object.keys(byTypeToReferences(this.byTypeSubstantive));
 	}
 
-	conceptArray() {
-		return [...Object.keys(byTypeToReferences(this.byTypeConcept))];
+	typeClassArray(baseType) {
+		return [...Object.keys(byTypeToReferences(this.byTypeClass(baseType)))];
 	}
 
 	//ALL references as an array. You typically want substantiveArray, which is only the substantive references.
@@ -112,8 +112,8 @@ const ReferencesAccessor = class {
 		return Object.keys(byTypeToReferences(this.byTypeInboundSubstantive));
 	}
 
-	inboundConceptArray() {
-		return [...Object.keys(byTypeToReferences(this.byTypeInboundConcept))];
+	inboundTypeClassArray(baseType) {
+		return [...Object.keys(byTypeToReferences(this.byTypeClassInbound(baseType)))];
 	}
 
 	//ALL inbound references as an array. You typically want inboundSubstantiveArray, which is only the substantive references.
@@ -155,8 +155,8 @@ const ReferencesAccessor = class {
 		return this._memoizedByTypeSubstantive;
 	}
 
-	get byTypeConcept() {
-		return Object.fromEntries(Object.entries(this.byType).filter(entry => REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT][entry[0]]));
+	byTypeClass(baseType) {
+		return Object.fromEntries(Object.entries(this.byType).filter(entry => REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][entry[0]]));
 	}
 
 	//returns a new map where each key in the top level is the type, and the second level objects are card-id to string value.
@@ -174,8 +174,8 @@ const ReferencesAccessor = class {
 		return this._memoizedByTypeInboundSubstantive;
 	}
 
-	get byTypeInboundConcept() {
-		return Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT][entry[0]]));
+	byTypeClassInbound(baseType) {
+		return Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][entry[0]]));
 	}
 
 	//Returns an object where it's link_type => array_of_card_ids
@@ -287,7 +287,7 @@ const ReferencesAccessor = class {
 			return 'Illegal referenceType: ' + referenceType;
 		}
 		
-		if (REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT][referenceType] && this.conceptArray().some(id => id == cardID)) {
+		if (REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT][referenceType] && this.typeClassArray(REFERENCE_TYPE_CONCEPT).some(id => id == cardID)) {
 			return 'The editing card already has a concept reference (or subtype) to that card';
 		}
 	

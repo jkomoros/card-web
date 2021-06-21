@@ -279,7 +279,7 @@ export const highlightConceptReferences = memoizeFirstArg((card, fieldName, extr
 	if (!fieldConfig) return '';
 	if (!fieldConfig.html) return card[fieldName];
 	const extraIDMap = Object.fromEntries(extraIDs.map(id => [id, true]));
-	const conceptCardReferences = Object.fromEntries(references(card).conceptArray().map(item => [item, true]));
+	const conceptCardReferences = Object.fromEntries(references(card).typeClassArray(REFERENCE_TYPE_CONCEPT).map(item => [item, true]));
 	const allConceptCardReferences = {...extraIDMap, ...conceptCardReferences};
 	const filteredHighlightMap = Object.fromEntries(Object.entries(card.importantNgrams || {}).filter(entry => allConceptCardReferences[entry[1]]));
 	return highlightHTMLForCard(card, fieldName, filteredHighlightMap, extraIDMap);
@@ -509,7 +509,7 @@ const OVERRIDE_EXTRACTORS = {
 		return result.join('\n');
 	},
 	[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: (card) => {
-		const conceptRefs = references(card).withFallbackText(card.fallbackText).byTypeConcept;
+		const conceptRefs = references(card).withFallbackText(card.fallbackText).byTypeClass(REFERENCE_TYPE_CONCEPT);
 		if (!conceptRefs) return '';
 		let result = [];
 		for (const cardMap of Object.values(conceptRefs)) {
