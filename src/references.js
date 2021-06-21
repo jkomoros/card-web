@@ -10,6 +10,7 @@ import {
 	REFERENCE_TYPES,
 	REFERENCES_CARD_PROPERTY,
 	REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES,
+	REFERENCE_TYPE_CONCEPT,
 } from './card_fields.js';
 
 import {
@@ -286,7 +287,7 @@ const ReferencesAccessor = class {
 			return 'Illegal referenceType: ' + referenceType;
 		}
 		
-		if (referenceTypeConfig.conceptReference && this.conceptArray().some(id => id == cardID)) {
+		if ((referenceType == REFERENCE_TYPE_CONCEPT || referenceTypeConfig.subTypeOf == REFERENCE_TYPE_CONCEPT) && this.conceptArray().some(id => id == cardID)) {
 			return 'The editing card already has a concept reference (or subtype) to that card';
 		}
 	

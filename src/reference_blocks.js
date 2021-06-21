@@ -31,7 +31,7 @@ import {
 	cardNeedsReciprocalLinkTo
 } from './util.js';
 
-const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].conceptReference && entry[0] != REFERENCE_TYPE_CONCEPT).map(entry => {
+const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].subTypeOf == REFERENCE_TYPE_CONCEPT && entry[0] != REFERENCE_TYPE_CONCEPT).map(entry => {
 	const referenceType = entry[0];
 	const referenceConfig = entry[1];
 	if (referenceConfig.reciprocal) {

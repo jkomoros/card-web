@@ -17,6 +17,7 @@ import {
 	REFERENCE_TYPES,
 	CARD_TYPE_CONFIGURATION,
 	REFERENCE_TYPE_SYNONYM,
+	REFERENCE_TYPE_CONCEPT,
 } from './card_fields.js';
 
 import {
@@ -1199,7 +1200,7 @@ export const suggestedConceptReferencesForCard = memoizeFirstArg((card, fingerpr
 	if (!BODY_CARD_TYPES[card.card_type]) return [];
 	const itemsFromConceptReferences = fingerprint.itemsFromConceptReferences();
 	const existingReferences = references(card).byType;
-	const REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].conceptReference || entry[0] == REFERENCE_TYPE_ACK).map(entry => entry[0]);
+	const REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT = Object.entries(REFERENCE_TYPES).filter(entry => entry[0] == REFERENCE_TYPE_CONCEPT || entry[1].subTypeOf == REFERENCE_TYPE_CONCEPT || entry[0] == REFERENCE_TYPE_ACK).map(entry => entry[0]);
 	const normalizedConcepts = normalizeNgramMap(concepts);
 	const itemsNotFromCard = fingerprint.itemsNotFromCard();
 	const conceptStrForCandidateCard = {};

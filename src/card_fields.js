@@ -236,7 +236,8 @@ excludeFromInfoPanel - if true, will not show up in the infoPanelArray. That mig
 toCardTypeAllowList - if null or undefined, any card of any type may be on the receiving end. If not null, then only card_types in the toCardTypeAllowList map are allowed.
 fromCardTypeAllowList - if null or undefined, any card of any type may be on the sending end. If not null, then only card_types in the fromCardTypeAllowList are allowed.
 backportMissingText - if true, then if a card has an outbound reference of this type without text, it will backport the title of the to card, so for the purposes of any nlp processing, it will be as though the outbound reference included the title of the card it's pointing to. (The underlying data in the db is untouched)
-conceptReference - if true, then this type of reference will be considered to be a concept reference even if it's not literally one (e.g. example-of, synonym).
+subTypeOf - if set, then this reference type is also equivalent to the other reference type in a fundamental way. For example, example-of and synonym are equivalent to concept.
+conceptReference - if true, then this type of reference will be considered to be a concept reference even if it's not literally one (e.g. example-of, synonym). Every type is already equivalent to itself so that can be elided.
 reciprocal - if true, then an outbound reference to a card should precisely imply the other card outbound links back to this one. 
 */
 export const REFERENCE_TYPES = {
@@ -318,7 +319,6 @@ export const REFERENCE_TYPES = {
 			[CARD_TYPE_CONCEPT]: true,
 		},
 		backportMissingText: true,
-		conceptReference: true,
 	},
 	[REFERENCE_TYPE_SYNONYM]: {
 		//NOTE: synonymMap effectivley pretends that an inbound synonym
@@ -339,7 +339,7 @@ export const REFERENCE_TYPES = {
 		},
 		backportMissingText: true,
 		//Effectively a sub-type of concept reference.
-		conceptReference: true,
+		subTypeOf: REFERENCE_TYPE_CONCEPT,
 		reciprocal: true,
 	},
 	[REFERENCE_TYPE_OPPOSITE_OF]: {
@@ -360,7 +360,7 @@ export const REFERENCE_TYPES = {
 		//Don't backport text since they're the opposite!
 		backportMissingText: false,
 		//Effectively a sub-type of concept reference.
-		conceptReference: true,
+		subTypeOf: REFERENCE_TYPE_CONCEPT,
 		reciprocal: true,
 	},
 	[REFERENCE_TYPE_PARALLEL_TO]: {
@@ -381,7 +381,7 @@ export const REFERENCE_TYPES = {
 		//Don't backport text since they aren't literally that thing, just kind of similar.
 		backportMissingText: false,
 		//Effectively a sub-type of concept reference.
-		conceptReference: true,
+		subTypeOf: REFERENCE_TYPE_CONCEPT,
 		reciprocal: true,
 	},
 	[REFERENCE_TYPE_EXAMPLE_OF]: {
@@ -398,7 +398,7 @@ export const REFERENCE_TYPES = {
 			[CARD_TYPE_CONCEPT]: true,
 		},
 		backportMissingText: true,
-		conceptReference: true,
+		subTypeOf: REFERENCE_TYPE_CONCEPT,
 	},
 	[REFERENCE_TYPE_METAPHOR_FOR]: {
 		name: 'Metaphor for',
@@ -414,12 +414,13 @@ export const REFERENCE_TYPES = {
 			[CARD_TYPE_CONCEPT]: true,
 		},
 		backportMissingText: true,
-		conceptReference: true,
+		subTypeOf: REFERENCE_TYPE_CONCEPT,
 	},
 };
 
 export const REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT = Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(entry => entry[1].backportMissingText).map(entry => [entry[0], true]));
-export const REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES = Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(entry => entry[1].conceptReference).map(entry => [entry[0], true]));
+//TODO: generalize this
+export const REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES = Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(entry => entry[0] == REFERENCE_TYPE_CONCEPT || entry[1].subTypeOf == REFERENCE_TYPE_CONCEPT).map(entry => [entry[0], true]));
 
 //map of card-type -> map of reference-type -> true. So for a given card type,
 //you can check if there are any inbound references to the card that should not
