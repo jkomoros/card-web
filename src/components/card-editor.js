@@ -83,7 +83,8 @@ import {
 	cardHasTodo,
 	cardMissingReciprocalLinks,
 	toTitleCase,
-	reasonCardTypeNotLegalForCard
+	reasonCardTypeNotLegalForCard,
+	createSlugFromArbitraryString
 } from '../util.js';
 
 import {
@@ -741,7 +742,7 @@ class CardEditor extends connect(store)(LitElement) {
 		if (!this._active) return;
 		if (!this._card) return;
 		let id = this._card.id;
-		let value = prompt('Slug to add:');
+		let value = prompt('Slug to add:', createSlugFromArbitraryString(this._card.title || ''));
 		if (!value) return;
 		store.dispatch(addSlug(id, value));
 	}
