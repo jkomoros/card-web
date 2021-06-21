@@ -24,6 +24,8 @@ const INITIAL_STATE = {
 	//For when the user wants to add a specific type of reference from the
 	//editing card to this one
 	referencing: false,
+	//If true, sort by recent. Otherwise, sort by query match.
+	sortByRecent: false,
 	cardTypeFilter: '',
 	//if true, the filter shouldn't be able to be changed
 	cardTypeFilterLocked: false,
@@ -39,6 +41,7 @@ const app = (state = INITIAL_STATE, action) => {
 			referencing: false,
 			query: action.query || '',
 			activeQuery: action.query || '',
+			soryByRecent: false,
 			cardTypeFilter: '',
 			cardTypeFilterLocked: false,
 			open: true
@@ -49,6 +52,7 @@ const app = (state = INITIAL_STATE, action) => {
 			open: false,
 			query: '',
 			activeQuery: '',
+			sortByRecent: false,
 			cardTypeFilter: '',
 			cardTypeFilterLocked: false,
 		};
@@ -69,6 +73,7 @@ const app = (state = INITIAL_STATE, action) => {
 			linking: true,
 			permissions: false,
 			referencing: false,
+			sortByRecent: false,
 			cardTypeFilter: '',
 			cardTypeFilterLocked: false,
 			query: action.query,
@@ -83,6 +88,7 @@ const app = (state = INITIAL_STATE, action) => {
 			referencing: false,
 			query: action.query || '',
 			activeQuery: action.query || '',
+			sortByRecent: false,
 			cardTypeFilter: '',
 			cardTypeFilterLocked: false,
 		};
@@ -95,6 +101,7 @@ const app = (state = INITIAL_STATE, action) => {
 			referencing: true,
 			query: action.query || '',
 			activeQuery: action.query || '',
+			sortByRecent: false,
 			cardTypeFilter: action.cardTypeFilter || '',
 			cardTypeFilterLocked: !!action.cardTypeFilter,
 		};
