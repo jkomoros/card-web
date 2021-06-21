@@ -106,11 +106,16 @@ add a name to the card that is `CARD_TYPE-NORMALIZED-TITLE`.
 defaultBody: if set, then when a card of this type is created, it will have this
 string.
 
+description: the string describing what the card type is, for UI helptext.
+
 */
 
 export const CARD_TYPE_CONFIGURATION = {
-	[CARD_TYPE_CONTENT]: {},
+	[CARD_TYPE_CONTENT]: {
+		description: 'The primary type of card, with a title and body.'
+	},
 	[CARD_TYPE_SECTION_HEAD]: {
+		description: 'A section head for a section or tag. You typically don\'t create these manually',
 		dark: true,
 		styleBlock: String.raw`
 			<style>
@@ -141,6 +146,7 @@ export const CARD_TYPE_CONFIGURATION = {
 		`
 	},
 	[CARD_TYPE_WORKING_NOTES]: {
+		description: 'A card of private rough notes, to later be forked and developed into one or more content cards',
 		invertContentPublishWarning: true,
 		orphanedByDefault: true,
 		styleBlock: `
@@ -154,6 +160,7 @@ export const CARD_TYPE_CONFIGURATION = {
 		iconName: 'INSERT_DRIVE_FILE_ICON',
 	},
 	[CARD_TYPE_CONCEPT]: {
+		description: 'A card denoting a concept that can be highlighted on other cards',
 		orphanedByDefault: true,
 		publishedByDefault: true,
 		iconName: 'MENU_BOOK_ICON',
@@ -161,6 +168,7 @@ export const CARD_TYPE_CONFIGURATION = {
 		defaultBody: CONCEPT_DEFAULT_BODY,
 	},
 	[CARD_TYPE_PERSON]: {
+		description: 'A card of information about a person that other cards can point to as a citation',
 		orphanedByDefault: true,
 		publishedByDefault: true,
 		iconName: 'PERSON_ICON',
@@ -168,6 +176,7 @@ export const CARD_TYPE_CONFIGURATION = {
 		defaultBody: PERSON_DEFAULT_BODY,
 	},
 	[CARD_TYPE_WORK]: {
+		description: 'A card of information about an external work (article, book, tweet) that other cards can point to as a citation',
 		orphanedByDefault: true,
 		publishedByDefault: true,
 		iconName: 'RECEIPT_ICON',

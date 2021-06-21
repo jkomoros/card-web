@@ -343,7 +343,8 @@ class CardEditor extends connect(store)(LitElement) {
 					<select .value=${this._card.card_type} @change=${this._handleCardTypeChanged}>
 					${Object.keys(CARD_TYPE_CONFIGURATION).map(item => {
 		const illegalCardTypeReason = reasonCardTypeNotLegalForCard(this._card, item);
-		return html`<option .value=${item} .disabled=${illegalCardTypeReason} .title=${illegalCardTypeReason} .selected=${item == this._card.card_type}>${item}</option>`;
+		const title = CARD_TYPE_CONFIGURATION[item].description + (illegalCardTypeReason ? '' : '\n' + illegalCardTypeReason);
+		return html`<option .value=${item} .disabled=${illegalCardTypeReason} .title=${title} .selected=${item == this._card.card_type}>${item}</option>`;
 	})}
 					</select>
 				</div>
