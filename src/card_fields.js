@@ -431,6 +431,8 @@ export const REFERENCE_TYPES = {
 		toCardTypeAllowList: {
 			[CARD_TYPE_WORK]: true,
 		},
+		//Allow inbound from any type of card that is not also a work, or a person (works can point to persons but not vice versa)
+		fromCardTypeAllowList: Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).filter(key => key != CARD_TYPE_WORK && key != CARD_TYPE_PERSON).map(key => [key, true])),
 		backportMissingText: true,
 	},
 	[REFERENCE_TYPE_CITATION_PERSON]: {
@@ -446,6 +448,8 @@ export const REFERENCE_TYPES = {
 		toCardTypeAllowList: {
 			[CARD_TYPE_PERSON]: true,
 		},
+		//Allow inbound from any card that is not also a person, to avoid loops.
+		fromCardTypeAllowList: Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).filter(key => key != CARD_TYPE_PERSON).map(key => [key, true])),
 		backportMissingText: true,
 		subTypeOf: REFERENCE_TYPE_CITATION,
 	},
