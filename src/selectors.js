@@ -27,6 +27,8 @@ import {
 	LIMIT_FILTER_NAME,
 	EXCLUDE_FILTER_NAME,
 	CARDS_FILTER_NAME,
+	RECENT_SORT_NAME,
+	DEFAULT_SORT_NAME
 } from './filters.js';
 
 import {
@@ -195,6 +197,7 @@ export const selectMaintenanceTaskActive = (state) => state.maintenance ? state.
 export const selectQuery = (state) => state.find.query;
 //activeQuery is the query that should be routed into the query pipeline.
 const selectActiveQueryText = (state) => state.find.activeQuery;
+const selectFindSortByRecent = (state) => state.find.sortByRecent;
 export const selectFindCardTypeFilter = (state) => state.find ? state.find.cardTypeFilter : '';
 export const selectFindCardTypeFilterLocked = (state) => state.find ? state.find.cardTypeFilterLocked : false;
 
@@ -1328,9 +1331,10 @@ const selectFindGeneric = createSelector(
 export const selectCollectionDescriptionForQuery = createSelector(
 	selectActiveQueryText,
 	selectFindCardTypeFilter,
+	selectFindSortByRecent,
 	selectActiveCardId,
 	selectFindGeneric,
-	(queryText, cardTypeFilter, cardID, generic) => {
+	(queryText, cardTypeFilter, sortByRecent, cardID, generic) => {
 		const wordsAndFilters = extractFiltersFromQuery(queryText);
 		let baseFilters = ['has-body'];
 		if (cardID && !generic) baseFilters.push(EXCLUDE_FILTER_NAME + '/' + CARDS_FILTER_NAME + '/' + cardID);
@@ -1342,7 +1346,7 @@ export const selectCollectionDescriptionForQuery = createSelector(
 			return new CollectionDescription(EVERYTHING_SET_NAME, baseFilters);
 		}
 		const queryFilter = queryConfigurableFilterText(wordsAndFilters[0]);
-		return new CollectionDescription(EVERYTHING_SET_NAME,[...baseFilters, queryFilter, ...wordsAndFilters[1]]);
+		return new CollectionDescription(EVERYTHING_SET_NAME,[...baseFilters, queryFilter, ...wordsAndFilters[1]], sortByRecent ? RECENT_SORT_NAME : DEFAULT_SORT_NAME);
 	}
 );
 
