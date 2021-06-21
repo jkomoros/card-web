@@ -6,7 +6,7 @@ import {
 	REFERENCE_TYPE_SEE_ALSO,
 	REFERENCE_TYPE_EXAMPLE_OF,
 	REFERENCE_TYPE_METAPHOR_FOR,
-	REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES,
+	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
 } from './card_fields.js';
 
 import {
@@ -76,7 +76,7 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
 	[CARD_TYPE_CONCEPT]: [
 		...CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS,
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_CONCEPT, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES)])]),
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_CONCEPT, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT])])]),
 			navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [aboutConceptConfigurableFilterText(KEY_CARD_ID_PLACEHOLDER)]),
 			title: 'Cards that reference this concept',
 			showNavigate: true,

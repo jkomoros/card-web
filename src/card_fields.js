@@ -419,8 +419,13 @@ export const REFERENCE_TYPES = {
 };
 
 export const REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT = Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(entry => entry[1].backportMissingText).map(entry => [entry[0], true]));
-//TODO: generalize this
-export const REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES = Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(entry => entry[0] == REFERENCE_TYPE_CONCEPT || entry[1].subTypeOf == REFERENCE_TYPE_CONCEPT).map(entry => [entry[0], true]));
+//Map of baseType ==> subTypeName ==> true. The base type will also be in its own set
+export const REFERENCE_TYPES_EQUIVALENCE_CLASSES = {};
+for (let [referenceType, config] of Object.entries(REFERENCE_TYPES)) {
+	const baseType = config.subTypeOf || referenceType;
+	if (!REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType]) REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType] = {};
+	REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][referenceType] = true;
+}
 
 //map of card-type -> map of reference-type -> true. So for a given card type,
 //you can check if there are any inbound references to the card that should not

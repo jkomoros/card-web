@@ -9,7 +9,7 @@ import {
 	REFERENCE_TYPE_LINK,
 	REFERENCE_TYPES,
 	REFERENCES_CARD_PROPERTY,
-	REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES,
+	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
 	REFERENCE_TYPE_CONCEPT,
 } from './card_fields.js';
 
@@ -156,7 +156,7 @@ const ReferencesAccessor = class {
 	}
 
 	get byTypeConcept() {
-		return Object.fromEntries(Object.entries(this.byType).filter(entry => REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES[entry[0]]));
+		return Object.fromEntries(Object.entries(this.byType).filter(entry => REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT][entry[0]]));
 	}
 
 	//returns a new map where each key in the top level is the type, and the second level objects are card-id to string value.
@@ -175,7 +175,7 @@ const ReferencesAccessor = class {
 	}
 
 	get byTypeInboundConcept() {
-		return Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES_THAT_ARE_CONCEPT_REFERENCES[entry[0]]));
+		return Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT][entry[0]]));
 	}
 
 	//Returns an object where it's link_type => array_of_card_ids
