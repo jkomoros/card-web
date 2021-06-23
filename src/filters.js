@@ -567,14 +567,14 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 //The function takes card, and an extras object. Extras contains cards,
 //filterSetMemberships, keyCardID (which is typically the activeCardID, but
 //might be a different one for example if the collection in question is being
-//prepared for a hovered card), and editingCard. (See makeExtrasForFilterFunc to
-//see precisely the fields) The func should return either true/false, or, if
-//wants to make values available for later sorts in sortExtras, it can emit an
-//array [matches, sortValue] where matches is a boolean and sortValue is the
-//value to pass into sortExtras for that card. It can also emit a [matches,
-//sortValue, partialMatch], where partialMatch denotes the item should be
-//ghosted. If the filter emits sortExtras, then it should also define a
-//labelName. 
+//prepared for a hovered card), editingCard, and userIO. (See
+//makeExtrasForFilterFunc to see precisely the fields) The func should return
+//either true/false, or, if wants to make values available for later sorts in
+//sortExtras, it can emit an array [matches, sortValue] where matches is a
+//boolean and sortValue is the value to pass into sortExtras for that card. It
+//can also emit a [matches, sortValue, partialMatch], where partialMatch denotes
+//the item should be ghosted. If the filter emits sortExtras, then it should
+//also define a labelName. 
 const CONFIGURABLE_FILTER_INFO = {
 	[UPDATED_FILTER_NAME]: {
 		factory: makeDateConfigurableFilter,

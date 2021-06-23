@@ -1200,7 +1200,8 @@ export const selectCollectionConstructorArguments = createSelector(
 	selectSections,
 	selectTabCollectionFallbacks,
 	selectTabCollectionStartCards,
-	(cards, sets, filters, sections, fallbacks, startCards) => ({cards, sets, filters, sections, fallbacks, startCards})
+	selectUid,
+	(cards, sets, filters, sections, fallbacks, startCards, userID) => ({cards, sets, filters, sections, fallbacks, startCards, userID})
 );
 
 //Like selectCollectionConstructorArguments, but for the active collection. The
