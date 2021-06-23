@@ -23,6 +23,11 @@ import {
 import {
 	KEY_CARD_ID_PLACEHOLDER	
 } from './card_fields.js';
+
+import {
+	memoize
+} from './memoize.js';
+
 import { references } from './references.js';
 
 const extractFilterNamesSortAndView = (parts) => {
@@ -388,24 +393,18 @@ const filterNameIsConfigurableFilter = (filterName) => {
 	return filterName.includes('/');
 };
 
-let memoizedConfigurableFiltersCards = null;
-let memoizedConfigurableFilterSetMemberships = null;
-let memoizedConfigurableFiltersKeyCardID = '';
-let memoizedConfigurableFiltersEditingCard = null;
+let memoizedConfigurableFiltersExtras = null;
 let memoizedConfigurableFilters = {};
 
 //The first filter here means 'map of card id to bools', not 'filter func'
 //TODO: make it return the exclusion as second item
-const makeFilterFromConfigurableFilter = (name, filterSetMemberships, cards, keyCardID, editingCard) => {
-	if (memoizedConfigurableFiltersCards == cards && memoizedConfigurableFilterSetMemberships == filterSetMemberships && memoizedConfigurableFiltersKeyCardID == keyCardID && memoizedConfigurableFiltersEditingCard == editingCard) {
+const makeFilterFromConfigurableFilter = (name, extras) => {
+	if (memoizedConfigurableFiltersExtras == extras) {
 		if (memoizedConfigurableFilters[name]) {
 			return memoizedConfigurableFilters[name];
 		}
 	} else {
-		memoizedConfigurableFiltersCards = cards;
-		memoizedConfigurableFilterSetMemberships = filterSetMemberships;
-		memoizedConfigurableFiltersKeyCardID = keyCardID;
-		memoizedConfigurableFiltersEditingCard = editingCard;
+		memoizedConfigurableFiltersExtras = null;
 		memoizedConfigurableFilters = {};
 	}
 
@@ -413,8 +412,8 @@ const makeFilterFromConfigurableFilter = (name, filterSetMemberships, cards, key
 	const result = {};
 	let sortValues = {};
 	let partialMatches = {};
-	for (let [id, card] of Object.entries(cards)) {
-		let funcResult = func(card, cards, filterSetMemberships, keyCardID, editingCard);
+	for (let [id, card] of Object.entries(extras.cards)) {
+		let funcResult = func(card, extras);
 		let matches = funcResult;
 		let sortValue = undefined;
 		let partialMatch = false;
@@ -481,12 +480,13 @@ const makeCombinedFilter = (includeSets, excludeSets) => {
 	};
 };
 
-export const filterSetForFilterDefinitionItem = (filterDefinitionItem, filterSetMemberships, cards, keyCardID, editingCard) => {
+export const filterSetForFilterDefinitionItem = (filterDefinitionItem, extras) => {
+	const filterSetMemberships = extras.filterSetMemberships;
 	if (filterNameIsUnionFilter(filterDefinitionItem)) {
-		return [makeFilterUnionSet(filterDefinitionItem, filterSetMemberships, cards), false, null, null];
+		return [makeFilterUnionSet(filterDefinitionItem, filterSetMemberships, extras.cards), false, null, null];
 	}
 	if (filterNameIsConfigurableFilter(filterDefinitionItem)) {
-		return makeFilterFromConfigurableFilter(filterDefinitionItem, filterSetMemberships, cards, keyCardID, editingCard);
+		return makeFilterFromConfigurableFilter(filterDefinitionItem, extras);
 	}
 	if (filterSetMemberships[filterDefinitionItem]) {
 		return [filterSetMemberships[filterDefinitionItem], false, null, null];
@@ -498,14 +498,31 @@ export const filterSetForFilterDefinitionItem = (filterDefinitionItem, filterSet
 	return [{}, true, null, null];
 };
 
+//makeExtrasForFilterFunc makes a new extras object containing the extra
+//information passed to the configurable filter funcs. Many filter funcs only
+//need some subset of the information, and information that ANY func needs must
+//be passed to all. Wiring through the arguments through the whole filter func
+//path is error prone each time a new type of data needs to be wired through, so
+//we use an extras object that the filter func can unpack as necessary. The
+//extras object is memoized so you can check for equality to see if any
+//individual portion changed.
+const makeExtrasForFilterFunc = memoize((filterSetMemberships, cards, keyCardID, editingCard) => {
+	return {
+		filterSetMemberships,
+		cards,
+		keyCardID,
+		editingCard
+	};
+}, 1);
+
 //filterDefinition is an array of filter-set names (concrete or inverse or union-set)
-const combinedFilterForFilterDefinition = (filterDefinition, filterSetMemberships, cards, keyCardID, editingCard) => {
+const combinedFilterForFilterDefinition = (filterDefinition, extras) => {
 	let includeSets = [];
 	let excludeSets = [];
 	let sortExtras = {};
 	let partialExtras = {};
 	for (let name of filterDefinition) {
-		let [filterSet, reverse, sortInfos, partialMatches] = filterSetForFilterDefinitionItem(name, filterSetMemberships, cards, keyCardID, editingCard);
+		let [filterSet, reverse, sortInfos, partialMatches] = filterSetForFilterDefinitionItem(name, extras);
 		if (reverse) {
 			excludeSets.push(filterSet);
 		} else {
@@ -590,7 +607,8 @@ const Collection = class {
 		let filteredItems = baseSet;
 		//Only bother filtering down the items if there are filters defined.
 		if (this._description.filters && this._description.filters.length) {
-			const [combinedFilter, sortExtras, partialMatches] = combinedFilterForFilterDefinition(this._description.filters, this._filtersSnapshot || this._filters, this._cardsForFiltering, this._keyCardID, this._editingCard);
+			const extras = makeExtrasForFilterFunc(this._filtersSnapshot || this._filters, this._cardsForFiltering, this._keyCardID, this._editingCard);
+			const [combinedFilter, sortExtras, partialMatches] = combinedFilterForFilterDefinition(this._description.filters, extras);
 			filteredItems = baseSet.filter(item => combinedFilter(item));
 			this._sortExtras = sortExtras;
 			this._partialMatches = partialMatches;
@@ -660,8 +678,8 @@ const Collection = class {
 		const filterEquivalentForActiveSet = FILTER_EQUIVALENTS_FOR_SET[this._description.set];
 		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
 
-		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, this._filtersSnapshot, this._cardsForFiltering, this._keyCardID, this._editingCard);
-		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, this._filters, this._cardsForExpansion, this._keyCardID, this._editingCard);
+		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._filtersSnapshot, this._cardsForFiltering, this._keyCardID, this._editingCard));
+		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._filters, this._cardsForExpansion, this._keyCardID, this._editingCard));
 		//Return the set of items that pass the current filters but won't pass the pending filters.
 		const itemsThatWillBeRemoved = Object.keys(this._cardsForFiltering).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
 		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));
