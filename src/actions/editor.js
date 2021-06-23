@@ -824,9 +824,11 @@ export const mergeUpdatedUnderlyingCard = (autoMergeableChangesOnly) => (dispatc
 		return;
 	}
 
-	if (!confirm('This will incorporate the following changes: \n' + description + '\nAre you sure?')) {
-		console.log('User canelled');
-		return;
+	if (!autoMergeableChangesOnly) {
+		if (!confirm('This will incorporate the following changes: \n' + description + '\nAre you sure?')) {
+			console.log('User canelled');
+			return;
+		}
 	}
 
 	dispatch({
