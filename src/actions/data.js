@@ -274,6 +274,9 @@ export const confirmationsForCardDiff = (update, updatedCard) => {
 
 const generateCardDiff = (underlyingCard, updatedCard) => {
 
+	if (!underlyingCard) underlyingCard = {};
+	if (!updatedCard) updatedCard = {};
+
 	if (underlyingCard === updatedCard) return {};
 
 	let update = {};
