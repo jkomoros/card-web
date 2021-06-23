@@ -121,6 +121,7 @@ export const generateCardDiff = (underlyingCard, updatedCard) => {
 	for (let field of Object.keys(TEXT_FIELD_CONFIGURATION)) {
 		if (updatedCard[field] == underlyingCard[field]) continue;
 		const config = TEXT_FIELD_CONFIGURATION[field];
+		if (config.readOnly) continue;
 		let value = updatedCard[field];
 		if (config.html) {
 			try {
