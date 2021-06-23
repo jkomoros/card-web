@@ -722,10 +722,15 @@ export const selectEditingUnderlyingCard = createSelector(
 	(cards, editingCard) => editingCard ? cards[editingCard.id] : null
 );
 
-export const selectEditingUnderlyingCardSnapshotDiffDescription = createSelector(
+const selectEditingUnderlyingCardSnapshotDiff = createSelector(
 	selectEditingUnderlyingCard,
 	selectEditingUnderlyingCardSnapshot,
-	(underlyingCard, underlyingCardSnapshot) => cardDiffDescription(generateCardDiff(underlyingCard, underlyingCardSnapshot))
+	(underlyingCard, underlyingCardSnapshot) => generateCardDiff(underlyingCard, underlyingCardSnapshot)
+);
+
+export const selectEditingUnderlyingCardSnapshotDiffDescription = createSelector(
+	selectEditingUnderlyingCardSnapshotDiff,
+	(diff) => cardDiffDescription(diff)
 );
 
 //Warning: this is EXTREMELY expensive. Like 10 seconds of processing expensive!
