@@ -272,24 +272,7 @@ export const confirmationsForCardDiff = (update, updatedCard) => {
 	return true;
 };
 
-export const generateFinalCardDiff = async (state, underlyingCard, rawUpdatedCard) => {
-
-	const cardFinisher = CARD_TYPE_EDITING_FINISHERS[rawUpdatedCard.card_type];
-
-	//updatedCard is a copy so may be modified
-	const updatedCard = {...rawUpdatedCard};
-
-	try {
-		if(cardFinisher) cardFinisher(updatedCard, state);
-	} catch(err) {
-		throw new Error('The card finisher threw an error: ' + err);
-	}
-
-	//Throw out any boosts that might have been applied to an old card type.
-	if (updatedCard.card_type != underlyingCard.card_type) updatedCard.font_size_boost = {};
-
-	updatedCard.font_size_boost = await fontSizeBoosts(updatedCard);
-
+const generateCardDiff = (underlyingCard, updatedCard) => {
 	let update = {};
 
 	for (let field of Object.keys(TEXT_FIELD_CONFIGURATION)) {
@@ -309,7 +292,6 @@ export const generateFinalCardDiff = async (state, underlyingCard, rawUpdatedCar
 		references(updatedCard).setLinks(linkInfo);
 	}
 
-	if (Object.keys(updatedCard.font_size_boost).length != Object.keys(underlyingCard.font_size_boost || {}).length || Object.entries(updatedCard.font_size_boost).some(entry => (underlyingCard.font_size_boost || {})[entry[0]] != entry[1])) update.font_size_boost = updatedCard.font_size_boost;
 	if (updatedCard.section != underlyingCard.section) update.section = updatedCard.section;
 	if (updatedCard.name != underlyingCard.section) update.name = updatedCard.name;
 	if (updatedCard.notes != underlyingCard.notes) update.notes = updatedCard.notes;
@@ -340,6 +322,32 @@ export const generateFinalCardDiff = async (state, underlyingCard, rawUpdatedCar
 	//references might have changed outside of this function, or because the
 	//body changed and we extracted links.
 	if (!references(underlyingCard).equivalentTo(updatedCard)) update.references_diff = referencesEntriesDiff(underlyingCard, updatedCard);
+
+	return update;
+};
+
+//generateFinalCardDiff is like generateCardDiff but also handles fields set by cardFinishers and font size boosts.
+export const generateFinalCardDiff = async (state, underlyingCard, rawUpdatedCard) => {
+
+	const cardFinisher = CARD_TYPE_EDITING_FINISHERS[rawUpdatedCard.card_type];
+
+	//updatedCard is a copy so may be modified
+	const updatedCard = {...rawUpdatedCard};
+
+	try {
+		if(cardFinisher) cardFinisher(updatedCard, state);
+	} catch(err) {
+		throw new Error('The card finisher threw an error: ' + err);
+	}
+
+	//Throw out any boosts that might have been applied to an old card type.
+	if (updatedCard.card_type != underlyingCard.card_type) updatedCard.font_size_boost = {};
+
+	updatedCard.font_size_boost = await fontSizeBoosts(updatedCard);
+
+	const update = generateCardDiff(underlyingCard, updatedCard);
+
+	if (Object.keys(updatedCard.font_size_boost).length != Object.keys(underlyingCard.font_size_boost || {}).length || Object.entries(updatedCard.font_size_boost).some(entry => (underlyingCard.font_size_boost || {})[entry[0]] != entry[1])) update.font_size_boost = updatedCard.font_size_boost;
 
 	return update;
 };
