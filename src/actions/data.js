@@ -326,6 +326,14 @@ const generateCardDiff = (underlyingCard, updatedCard) => {
 	return update;
 };
 
+// eslint-disable-next-line no-unused-vars
+const cardDiffHasFreeTextChanges = (diff) => {
+	for (const key of Object.keys(FREE_TEXT_FIELDS)) {
+		if (diff[key] !== undefined) return true;
+	}
+	return false;
+};
+
 //generateFinalCardDiff is like generateCardDiff but also handles fields set by cardFinishers and font size boosts.
 export const generateFinalCardDiff = async (state, underlyingCard, rawUpdatedCard) => {
 
