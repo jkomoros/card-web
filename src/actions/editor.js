@@ -34,6 +34,7 @@ export const EDITING_OPEN_IMAGE_PROPERTIES_DIALOG = 'EDITING_OPEN_IMAGE_PROPERTI
 export const EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG = 'EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG';
 export const EDITING_OPEN_IMAGE_BROWSER_DIALOG = 'EDITING_OPEN_IMAGE_BROWSER_DIALOG';
 export const EDITING_CLOSE_IMAGE_BROWSER_DIALOG = 'EDITING_CLOSE_IMAGE_BROWSER_DIALOG';
+export const EDITING_MERGE_UPDATED_UNDERLYING_CARD = 'EDITING_MERGE_UPDATED_UNDERLYING_CARD';
 
 export const TAB_CONTENT = 'content';
 export const TAB_CONFIG = 'config';
@@ -53,7 +54,8 @@ import {
 	selectEditingPendingReferenceType,
 	selectEditingCardSuggestedConceptReferences,
 	selectMultiEditDialogOpen,
-	selectEditingUnderlyingCardSnapshotDiffDescription
+	selectEditingUnderlyingCardSnapshotDiffDescription,
+	selectEditingUnderlyingCard
 } from '../selectors.js';
 
 import {
@@ -797,4 +799,37 @@ export const removeReferenceFromCard = (cardID, referenceType) => {
 		cardID,
 		referenceType,
 	};
+};
+
+export const mergeUpdatedUnderlyingCard = () => (dispatch, getState) => {
+	const state = getState();
+
+	if (!selectEditingCard(state)) {
+		console.log('No editing card');
+		return;
+	}
+
+	const updatedUnderlyingCard = selectEditingUnderlyingCard(state);
+
+	if (!updatedUnderlyingCard) {
+		console.log('No updated underlying card');
+		return;
+	}
+
+	const description = selectEditingUnderlyingCardSnapshotDiffDescription(state);
+
+	if (!description) {
+		console.log('There isn\'t a diff to apply');
+		return;
+	}
+
+	if (!confirm('This will incorporate the following changes: \n' + description + '\nAre you sure?')) {
+		console.log('User canelled');
+		return;
+	}
+
+	dispatch({
+		type: EDITING_MERGE_UPDATED_UNDERLYING_CARD,
+		updatedUnderlyingCard
+	});
 };

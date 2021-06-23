@@ -51,6 +51,7 @@ import {
 	editingSelectEditorTab,
 	todoUpdated,
 	cardTypeUpdated,
+	mergeUpdatedUnderlyingCard,
 
 	TAB_CONTENT,
 	TAB_CONFIG,
@@ -511,7 +512,7 @@ class CardEditor extends connect(store)(LitElement) {
 	}
 
 	_handleMergeClicked() {
-		alert('Not yet implemented');
+		store.dispatch(mergeUpdatedUnderlyingCard());
 	}
 
 	_handleAddAllConceptsClicked() {

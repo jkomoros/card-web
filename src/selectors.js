@@ -716,7 +716,7 @@ export const selectEditingCardwithDelayedNormalizedProperties = createSelector(
 	}
 );
 
-const selectEditingUnderlyingCard = createSelector(
+export const selectEditingUnderlyingCard = createSelector(
 	selectCards,
 	selectEditingCard,
 	(cards, editingCard) => editingCard ? cards[editingCard.id] : null

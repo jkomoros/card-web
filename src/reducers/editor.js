@@ -35,6 +35,7 @@ import {
 	EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG,
 	EDITING_OPEN_IMAGE_BROWSER_DIALOG,
 	EDITING_CLOSE_IMAGE_BROWSER_DIALOG,
+	EDITING_MERGE_UPDATED_UNDERLYING_CARD,
 	TAB_CONFIG,
 	EDITOR_TAB_CONTENT,
 } from '../actions/editor.js';
@@ -60,6 +61,11 @@ import {
 import {
 	TODO_OVERRIDE_LEGAL_KEYS
 } from '../filters.js';
+
+import {
+	applyCardDiff,
+	generateCardDiff
+} from '../card_diff.js';
 
 import {
 	addImageWithURL,
@@ -360,6 +366,13 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			imageBrowserDialogOpen: false
+		};
+	case EDITING_MERGE_UPDATED_UNDERLYING_CARD:
+		const editingUpdate = applyCardDiff(action.updatedUnderlyingCard, generateCardDiff(state.underlyingCardSnapshot, state.card));
+		return {
+			...state,
+			card: {...action.updatedUnderlyingCard, ...editingUpdate},
+			underlyingCardSnapshot: action.updatedUnderlyingCard,
 		};
 	default:
 		return state;
