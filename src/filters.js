@@ -427,11 +427,19 @@ const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
 	return [func, false];
 };
 
+//The special keyword for 'my user ID' in the configurable authors filter
+const ME_AUTHOR_ID = 'me';
+
 const makeAuthorConfigurableFilter = (filterName, idString) => {
 	const ids = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
 	//Technically the IDs are case sensitive, but the URL machinery lowercases everything.
 	//Realistically, collisions are astronomically unlikely
-	const func = function(card) {
+	const func = function(card, extras) {
+		if (ids[ME_AUTHOR_ID]) {
+			const userID = extras.userID;
+			if (card.author == userID) return true;
+			if (card.collaborators.some(id => id == userID)) return true;
+		}
 		if (ids[card.author.toLowerCase()]) return true;
 		for (const collab of card.collaborators) {
 			if (ids[collab.toLowerCase()]) return true;
