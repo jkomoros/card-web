@@ -61,9 +61,12 @@ import {
 
 import {
 	modifyCard,
+} from './data.js';
+
+import {
 	generateFinalCardDiff,
 	confirmationsForCardDiff
-} from './data.js';
+} from '../card_diff.js';
 
 import {
 	CARD_TYPE_CONFIGURATION,
