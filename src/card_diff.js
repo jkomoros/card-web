@@ -49,7 +49,12 @@ import {
 
 const FREE_TEXT_FIELDS = Object.fromEntries([...Object.keys(TEXT_FIELD_CONFIGURATION).filter(key => !TEXT_FIELD_CONFIGURATION[key].readOnly), 'todo', 'notes'].map(item => [item, true]));
 
-const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(FREE_TEXT_FIELDS).concat([
+//Images can't be merged automatically because they aren't diffed.
+const NON_AUTOMATIC_MERGE_FIELDS = Object.fromEntries(Object.keys(FREE_TEXT_FIELDS).concat(
+	['images']
+).map(key => [key, true]));
+
+const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(NON_AUTOMATIC_MERGE_FIELDS).concat([
 	'name',
 	'section',
 	'full_bleed',
@@ -65,7 +70,6 @@ const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(FREE_TEXT_FIELDS).co
 	'published',
 	'card_type',
 	'font_size_boost',
-	'images',
 	'references_diff',
 ]).map(key => [key,true]));
 
