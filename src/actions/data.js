@@ -272,7 +272,7 @@ export const confirmationsForCardDiff = (update, updatedCard) => {
 	return true;
 };
 
-export const generateCardDiff = async (state, underlyingCard, rawUpdatedCard) => {
+export const generateFinalCardDiff = async (state, underlyingCard, rawUpdatedCard) => {
 
 	const cardFinisher = CARD_TYPE_EDITING_FINISHERS[rawUpdatedCard.card_type];
 

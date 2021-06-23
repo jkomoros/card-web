@@ -61,7 +61,7 @@ import {
 
 import {
 	modifyCard,
-	generateCardDiff,
+	generateFinalCardDiff,
 	confirmationsForCardDiff
 } from './data.js';
 
@@ -256,7 +256,7 @@ export const editingCommit = () => async (dispatch, getState) => {
 
 	let update;
 	try {
-		update = await generateCardDiff(state, underlyingCard, rawUpdatedCard);
+		update = await generateFinalCardDiff(state, underlyingCard, rawUpdatedCard);
 	} catch(err) {
 		alert(err);
 		return;
@@ -265,7 +265,7 @@ export const editingCommit = () => async (dispatch, getState) => {
 	if (!update) return;
 
 	//TODO: technically we shouldn't pass rawUpdatedCard, but the one that has
-	//been run through any cardFinishers in generateCardDiff.
+	//been run through any cardFinishers in generateFinalCardDiff.
 	if (!confirmationsForCardDiff(update, rawUpdatedCard)) return;
 
 	//modifyCard will fail if the update is a no-op.
