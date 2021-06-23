@@ -109,7 +109,7 @@ export const confirmationsForCardDiff = (update, updatedCard) => {
 	return true;
 };
 
-const generateCardDiff = (underlyingCard, updatedCard) => {
+export const generateCardDiff = (underlyingCard, updatedCard) => {
 
 	if (!underlyingCard) underlyingCard = {};
 	if (!updatedCard) updatedCard = {};
@@ -174,8 +174,7 @@ export const cardDiffHasChanges = (diff) => {
 	return Object.keys(diff).length > 0;
 };
 
-// eslint-disable-next-line no-unused-vars
-const cardDiffDescription = (diff) => {
+export const cardDiffDescription = (diff) => {
 	if (!cardDiffHasChanges(diff)) return '';
 	return JSON.stringify(diff, '', 2);
 };

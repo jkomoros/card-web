@@ -99,6 +99,11 @@ import {
 } from './actions/maintenance.js';
 
 import {
+	cardDiffDescription,
+	generateCardDiff,
+} from './card_diff.js';
+
+import {
 	USER_DOMAIN,
 	TAB_CONFIGURATION
 } from '../config.GENERATED.SECRET.js';
@@ -147,6 +152,7 @@ export const selectActiveCardId = (state) => state.collection ? state.collection
 //Note that the editing card doesn't have nlp/normalized text properties set. If
 //you want the one with that, look at selectEditingNormalizedCard.
 export const selectEditingCard = (state) => state.editor ? state.editor.card : null;
+const selectEditingUnderlyingCardSnapshot = (state) => state.editor ? state.editor.underlyingCardSnapshot : null;
 const selectEditingCardExtractionVersion = (state) => state.editor ? state.editor.cardExtractionVersion : 0;
 export const selectEditingUpdatedFromContentEditable = (state) => state.editor ? state.editor.updatedFromContentEditable : {};
 export const selectEditingPendingReferenceType = (state) => state.editor ? state.editor.pendingReferenceType : '';
@@ -708,6 +714,18 @@ export const selectEditingCardwithDelayedNormalizedProperties = createSelector(
 		if (!normalized) return editing;
 		return {...editing, nlp:normalized.nlp};
 	}
+);
+
+const selectEditingUnderlyingCard = createSelector(
+	selectCards,
+	selectEditingCard,
+	(cards, editingCard) => editingCard ? cards[editingCard.id] : null
+);
+
+export const selectEditingUnderlyingCardSnapshotDiffDescription = createSelector(
+	selectEditingUnderlyingCard,
+	selectEditingUnderlyingCardSnapshot,
+	(underlyingCard, underlyingCardSnapshot) => cardDiffDescription(generateCardDiff(underlyingCard, underlyingCardSnapshot))
 );
 
 //Warning: this is EXTREMELY expensive. Like 10 seconds of processing expensive!
