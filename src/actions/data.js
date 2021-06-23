@@ -210,12 +210,12 @@ const TAG_COLORS = [
 	'#4169E1',
 ];
 
-const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION).concat([
+const FREE_TEXT_FIELDS = Object.fromEntries([...Object.keys(TEXT_FIELD_CONFIGURATION).filter(key => !TEXT_FIELD_CONFIGURATION[key].readOnly), 'todo', 'notes'].map(item => [item, true]));
+
+const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(FREE_TEXT_FIELDS).concat([
 	'name',
 	'section',
 	'full_bleed',
-	'notes',
-	'todo',
 	'auto_todo_overrides_enablements',
 	'auto_todo_overrides_disablements',
 	'auto_todo_overrides_removals',
