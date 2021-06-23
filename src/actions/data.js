@@ -478,6 +478,12 @@ const applyCardDiff = (underlyingCard, diff) => {
 
 //validateCardDiff returns true if sections update. It throws an error if the diff isn't valid or was rejected by a user.
 const validateCardDiff = (state, underlyingCard, diff) => {
+	for (let key of Object.keys(diff)) {
+		if (!LEGAL_UPDATE_FIELDS[key]) {
+			throw new Error('Illegal field in update: ' + key, diff);
+		}
+	}
+
 	if (diff.references_diff !== undefined) {
 		const cardCopy = {...underlyingCard};
 		const refs = references(cardCopy);
@@ -601,12 +607,6 @@ const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 
 	if (!selectCardIDsUserMayEdit(state)[card.id]) {
 		throw new Error('User isn\'t allowed to edit the given card');
-	}
-
-	for (let key of Object.keys(update)) {
-		if (!LEGAL_UPDATE_FIELDS[key]) {
-			throw new Error('Illegal field in update: ' + key, update);
-		}
 	}
 
 	let updateObject = {
