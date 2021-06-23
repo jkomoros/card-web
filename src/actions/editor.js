@@ -52,7 +52,8 @@ import {
 	selectIsEditing,
 	selectEditingPendingReferenceType,
 	selectEditingCardSuggestedConceptReferences,
-	selectMultiEditDialogOpen
+	selectMultiEditDialogOpen,
+	selectEditingUnderlyingCardSnapshotDiffDescription
 } from '../selectors.js';
 
 import {
@@ -247,6 +248,12 @@ export const editingCommit = () => async (dispatch, getState) => {
 
 	if (selectEditingCardSuggestedConceptReferences(state).length > 0) {
 		if (!confirm('The card has suggested concept references. Typically you either reject or accept them before proceeding. Do you want to proceed?')) return;
+	}
+
+	const underlyingDiffDescription = selectEditingUnderlyingCardSnapshotDiffDescription(state);
+	if (underlyingDiffDescription) {
+		alert('Can\'t save. sThe underlying card has changed: ' + underlyingDiffDescription);
+		return;
 	}
 
 	const underlyingCard = selectActiveCard(state);
