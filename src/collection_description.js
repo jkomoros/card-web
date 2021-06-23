@@ -513,7 +513,7 @@ const makeExtrasForFilterFunc = memoize((filterSetMemberships, cards, keyCardID,
 		keyCardID,
 		editingCard
 	};
-}, 1);
+});
 
 //filterDefinition is an array of filter-set names (concrete or inverse or union-set)
 const combinedFilterForFilterDefinition = (filterDefinition, extras) => {
