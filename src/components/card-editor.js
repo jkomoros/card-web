@@ -512,7 +512,7 @@ class CardEditor extends connect(store)(LitElement) {
 	}
 
 	_handleMergeClicked() {
-		store.dispatch(mergeUpdatedUnderlyingCard());
+		store.dispatch(mergeUpdatedUnderlyingCard(false));
 	}
 
 	_handleAddAllConceptsClicked() {

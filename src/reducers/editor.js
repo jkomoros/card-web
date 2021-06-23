@@ -64,7 +64,8 @@ import {
 
 import {
 	applyCardDiff,
-	generateCardDiff
+	generateCardDiff,
+	cardDiffWithAutoMergeableFields
 } from '../card_diff.js';
 
 import {
@@ -368,7 +369,9 @@ const app = (state = INITIAL_STATE, action) => {
 			imageBrowserDialogOpen: false
 		};
 	case EDITING_MERGE_UPDATED_UNDERLYING_CARD:
-		const editingUpdate = applyCardDiff(action.updatedUnderlyingCard, generateCardDiff(state.underlyingCardSnapshot, state.card));
+		const diff = generateCardDiff(state.underlyingCardSnapshot, state.card);
+		const filteredDiff = action.autoMerge ? cardDiffWithAutoMergeableFields(diff) : diff;
+		const editingUpdate = applyCardDiff(action.updatedUnderlyingCard, filteredDiff);
 		return {
 			...state,
 			card: {...action.updatedUnderlyingCard, ...editingUpdate},
