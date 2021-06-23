@@ -152,7 +152,7 @@ export const generateCardDiff = (underlyingCard, updatedCard) => {
 	if (tagAdditions.length) update.addTags = tagAdditions;
 	if (tagDeletions.length) update.removeTags = tagDeletions;
 
-	let [editorAdditions, editorDeletions] = arrayDiff(underlyingCard.permissions[PERMISSION_EDIT_CARD] || [], updatedCard.permissions[PERMISSION_EDIT_CARD] || []);
+	let [editorAdditions, editorDeletions] = arrayDiff((underlyingCard.permissions && underlyingCard.permissions[PERMISSION_EDIT_CARD] ? underlyingCard.permissions[PERMISSION_EDIT_CARD] : []), (updatedCard.permissions && updatedCard.permissions[PERMISSION_EDIT_CARD] ? updatedCard.permissions[PERMISSION_EDIT_CARD] : []));
 	if (editorAdditions.length) update.add_editors = editorAdditions;
 	if (editorDeletions.length) update.remove_editors = editorDeletions;
 
