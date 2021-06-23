@@ -326,6 +326,10 @@ const generateCardDiff = (underlyingCard, updatedCard) => {
 	return update;
 };
 
+const cardDiffHasChanges = (diff) => {
+	return Object.keys(diff).length > 0;
+};
+
 // eslint-disable-next-line no-unused-vars
 const cardDiffHasFreeTextChanges = (diff) => {
 	for (const key of Object.keys(FREE_TEXT_FIELDS)) {
@@ -572,6 +576,10 @@ export const modifyCards = (cards, update, substantive, failOnError) => async (d
 //op. When an error is thrown, that's an implied 'false'
 const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 
+	//If there aren't any updates to a card, that's OK. This might happen in a
+	//multiModify where some cards already have the items, for example.
+	if (!cardDiffHasChanges(update)) return false;
+
 	const user = selectUser(state);
 
 	if (!user) {
@@ -601,11 +609,6 @@ const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 	let cardUpdateObject = applyCardDiff(card, update);
 	cardUpdateObject.updated = serverTimestampSentinel();
 	if (substantive) cardUpdateObject.updated_substantive = serverTimestampSentinel();
-
-	//If there aren't any updates to a card, that's OK. This might happen in a
-	//multiModify where some cards already have the items, for example. There's
-	//always an 'updated' field, which is why we check for 1
-	if (Object.keys(cardUpdateObject).length == 1) return false;
 
 	let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
 
