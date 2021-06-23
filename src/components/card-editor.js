@@ -29,7 +29,8 @@ import {
 	selectPendingSlug,
 	selectReasonsUserMayNotDeleteActiveCard,
 	selectCardModificationPending,
-	selectEditingCardSuggestedConceptReferences
+	selectEditingCardSuggestedConceptReferences,
+	selectEditingUnderlyingCardSnapshotDiffDescription
 } from '../selectors.js';
 
 import {
@@ -74,6 +75,7 @@ import {
 	DELETE_FOREVER_ICON,
 	PLUS_ICON,
 	HIGHLIGHT_OFF_ICON,
+	MERGE_TYPE_ICON
 } from './my-icons.js';
 
 import {
@@ -438,7 +440,8 @@ class CardEditor extends connect(store)(LitElement) {
             <input type='checkbox' .checked=${this._substantive} @change='${this._handleSubstantiveChanged}'></input>
           </div>
           <button class='round' @click='${this._handleCancel}'>${CANCEL_ICON}</button>
-          <button class='round primary' @click='${this._handleCommit}'>${SAVE_ICON}</button>
+		  <button class='round primary' @click=${this._handleMergeClicked} ?hidden=${!this._underlyingCardDifferences} title='${'The card you\'re editing has been changed by someone else:\n' + this._underlyingCardDifferences}'>${MERGE_TYPE_ICON}</button>
+          <button class='round primary' @click='${this._handleCommit}' ?disabled=${this._underlyingCardDifferences} title=${this._underlyingCardDifferences ? 'You must merge underlying differences before saving' : 'Commit the changes you\'ve made'}>${SAVE_ICON}</button>
         </div>
       </div>
     `;
@@ -466,6 +469,7 @@ class CardEditor extends connect(store)(LitElement) {
 		_pendingSlug: { type:String },
 		_cardModificationPending: {type:Boolean},
 		_suggestedConcepts: { type:Array },
+		_underlyingCardDifferences: {type:String},
 	};}
 
 	stateChanged(state) {
@@ -490,6 +494,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._isAdmin = selectUserIsAdmin(state);
 		this._pendingSlug = selectPendingSlug(state);
 		this._cardModificationPending = selectCardModificationPending(state);
+		this._underlyingCardDifferences = selectEditingUnderlyingCardSnapshotDiffDescription(state);
 	}
 
 	shouldUpdate() {
@@ -503,6 +508,10 @@ class CardEditor extends connect(store)(LitElement) {
 	_handleSuggestedConceptTapped(e) {
 		const cardID = e.detail.tag;
 		store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_CONCEPT));
+	}
+
+	_handleMergeClicked() {
+		alert('Not yet implemented');
 	}
 
 	_handleAddAllConceptsClicked() {
