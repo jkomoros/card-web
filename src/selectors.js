@@ -101,6 +101,7 @@ import {
 import {
 	cardDiffDescription,
 	generateCardDiff,
+	cardDiffWithAutoMergeableFields
 } from './card_diff.js';
 
 import {
@@ -726,6 +727,11 @@ const selectEditingUnderlyingCardSnapshotDiff = createSelector(
 	selectEditingUnderlyingCard,
 	selectEditingUnderlyingCardSnapshot,
 	(underlyingCard, underlyingCardSnapshot) => generateCardDiff(underlyingCard, underlyingCardSnapshot)
+);
+
+export const selectEditingUnderlyingCardSnapshotAutoMergeableDiffDescription = createSelector(
+	selectEditingUnderlyingCardSnapshotDiff,
+	(diff) => cardDiffDescription(cardDiffWithAutoMergeableFields(diff))
 );
 
 export const selectEditingUnderlyingCardSnapshotDiffDescription = createSelector(

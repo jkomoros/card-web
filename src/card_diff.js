@@ -192,7 +192,7 @@ const cardDiffHasFreeTextChanges = (diff) => {
 	return false;
 };
 
-export const cardDiffWithAutoMergeableFields = (diff) => {
+export const cardDiffWithAutoMergeableFields = (diff = {}) => {
 	return Object.fromEntries(Object.entries(diff).filter(entry => !NON_AUTOMATIC_MERGE_FIELDS[entry]));
 };
 
