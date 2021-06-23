@@ -332,6 +332,11 @@ const cardDiffHasChanges = (diff) => {
 };
 
 // eslint-disable-next-line no-unused-vars
+const cardDiffDescription = (diff) => {
+	return JSON.stringify(diff, '', 2);
+};
+
+// eslint-disable-next-line no-unused-vars
 const cardDiffHasFreeTextChanges = (diff) => {
 	for (const key of Object.keys(FREE_TEXT_FIELDS)) {
 		if (diff[key] !== undefined) return true;
