@@ -273,6 +273,9 @@ export const confirmationsForCardDiff = (update, updatedCard) => {
 };
 
 const generateCardDiff = (underlyingCard, updatedCard) => {
+
+	if (underlyingCard === updatedCard) return {};
+
 	let update = {};
 
 	for (let field of Object.keys(TEXT_FIELD_CONFIGURATION)) {
