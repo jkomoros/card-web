@@ -450,55 +450,6 @@ const applyCardDiff = (underlyingCard, diff) => {
 	return cardUpdateObject;
 };
 
-export const modifyCard = (card, update, substantive) => {
-	return modifyCards([card], update, substantive, true);
-};
-
-export const modifyCards = (cards, update, substantive, failOnError) => async (dispatch, getState) => {
-	const state = getState();
-
-	if (selectCardModificationPending(state)) {
-		console.log('Can\'t modify card; another card is being modified.');
-		return;
-	}
-
-	dispatch(modifyCardAction());
-
-	const batch = new MultiBatch(db);
-	let modifiedCount = 0;
-	let errorCount = 0;
-
-	for (const card of cards) {
-
-		if (!card || !card.id) {
-			console.log('No id on card');
-			if (failOnError) return;
-			continue;
-		}
-
-		try {
-			if (modifyCardWithBatch(state, card, update, substantive, batch)) modifiedCount++;
-		} catch (err) {
-			console.warn('Couldn\'t modify card: ' + err);
-			errorCount++;
-			if (failOnError) {
-				dispatch(modifyCardFailure(err));
-				return;
-			}
-		}
-	}
-
-	try {
-		await batch.commit();
-	} catch(err) {
-		dispatch(modifyCardFailure('Couldn\'t save card: ' + err));
-		return;
-	}
-
-	if (modifiedCount > 1 || errorCount > 0) alert('' + modifiedCount + ' cards modified.' + (errorCount > 0 ? '' + errorCount + ' cards errored. See the console for why.' : ''));
-
-	dispatch(modifyCardSuccess());
-};
 
 //validateCardDiff returns true if sections update. It throws an error if the diff isn't valid or was rejected by a user.
 const validateCardDiff = (state, underlyingCard, diff) => {
@@ -556,6 +507,57 @@ const validateCardDiff = (state, underlyingCard, diff) => {
 	}
 
 	return false;
+};
+
+
+export const modifyCard = (card, update, substantive) => {
+	return modifyCards([card], update, substantive, true);
+};
+
+export const modifyCards = (cards, update, substantive, failOnError) => async (dispatch, getState) => {
+	const state = getState();
+
+	if (selectCardModificationPending(state)) {
+		console.log('Can\'t modify card; another card is being modified.');
+		return;
+	}
+
+	dispatch(modifyCardAction());
+
+	const batch = new MultiBatch(db);
+	let modifiedCount = 0;
+	let errorCount = 0;
+
+	for (const card of cards) {
+
+		if (!card || !card.id) {
+			console.log('No id on card');
+			if (failOnError) return;
+			continue;
+		}
+
+		try {
+			if (modifyCardWithBatch(state, card, update, substantive, batch)) modifiedCount++;
+		} catch (err) {
+			console.warn('Couldn\'t modify card: ' + err);
+			errorCount++;
+			if (failOnError) {
+				dispatch(modifyCardFailure(err));
+				return;
+			}
+		}
+	}
+
+	try {
+		await batch.commit();
+	} catch(err) {
+		dispatch(modifyCardFailure('Couldn\'t save card: ' + err));
+		return;
+	}
+
+	if (modifiedCount > 1 || errorCount > 0) alert('' + modifiedCount + ' cards modified.' + (errorCount > 0 ? '' + errorCount + ' cards errored. See the console for why.' : ''));
+
+	dispatch(modifyCardSuccess());
 };
 
 //returns true if a modificatioon was made to the card, or false if it was a no
