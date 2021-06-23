@@ -327,6 +327,7 @@ const generateCardDiff = (underlyingCard, updatedCard) => {
 };
 
 const cardDiffHasChanges = (diff) => {
+	if (!diff) return false;
 	return Object.keys(diff).length > 0;
 };
 
