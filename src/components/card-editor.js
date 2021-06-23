@@ -15,7 +15,7 @@ import {
 
 import {
 	selectTags,
-	selectActiveCard,
+	selectEditingUnderlyingCardSnapshot,
 	selectEditingCard,
 	selectEditingCardAutoTodos,
 	selectEditingCardSuggestedTags,
@@ -471,7 +471,7 @@ class CardEditor extends connect(store)(LitElement) {
 	stateChanged(state) {
 		this._card= selectEditingCard(state);
 		this._autoTodos = selectEditingCardAutoTodos(state);
-		this._underlyingCard = selectActiveCard(state);
+		this._underlyingCard = selectEditingUnderlyingCardSnapshot(state);
 		this._active = state.editor.editing;
 		this._userMayChangeEditingCardSection = selectUserMayChangeEditingCardSection(state);
 		this._sectionsUserMayEdit = selectSectionsUserMayEdit(state);

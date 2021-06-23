@@ -152,7 +152,7 @@ export const selectActiveCardId = (state) => state.collection ? state.collection
 //Note that the editing card doesn't have nlp/normalized text properties set. If
 //you want the one with that, look at selectEditingNormalizedCard.
 export const selectEditingCard = (state) => state.editor ? state.editor.card : null;
-const selectEditingUnderlyingCardSnapshot = (state) => state.editor ? state.editor.underlyingCardSnapshot : null;
+export const selectEditingUnderlyingCardSnapshot = (state) => state.editor ? state.editor.underlyingCardSnapshot : null;
 const selectEditingCardExtractionVersion = (state) => state.editor ? state.editor.cardExtractionVersion : 0;
 export const selectEditingUpdatedFromContentEditable = (state) => state.editor ? state.editor.updatedFromContentEditable : {};
 export const selectEditingPendingReferenceType = (state) => state.editor ? state.editor.pendingReferenceType : '';
