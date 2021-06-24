@@ -31,7 +31,8 @@ import {
 	selectCardModificationPending,
 	selectEditingCardSuggestedConceptReferences,
 	selectEditingUnderlyingCardSnapshotDiffDescription,
-	selectOvershadowedUnderlyingCardChangesDiffDescription
+	selectOvershadowedUnderlyingCardChangesDiffDescription,
+	selectEditingCardHasUnsavedChanges
 } from '../selectors.js';
 
 import {
@@ -444,7 +445,7 @@ class CardEditor extends connect(store)(LitElement) {
           </div>
           <button class='round' @click='${this._handleCancel}'>${CANCEL_ICON}</button>
 		  <button class='round primary' @click=${this._handleMergeClicked} ?hidden=${!this._overshadowedDifferences} title='${'The card you\'re editing has been changed by someone else in a way that is overwritten by your edits:\n' + this._overshadowedDifferences + '\nClick here to choose which of these fields to revert your edits on.'}'>${MERGE_TYPE_ICON}</button>
-          <button class='round primary' @click='${this._handleCommit}' title=${'Commit the changes you\'ve made'}>${SAVE_ICON}</button>
+          <button class='round primary' @click='${this._handleCommit}' ?disabled=${!this._hasUnsavedChanges} title=${this._hasUnsavedChanges ? 'Commit the changes you\'ve made' : 'You haven\'t made any changes that need saving.'}>${SAVE_ICON}</button>
         </div>
       </div>
     `;
@@ -474,6 +475,7 @@ class CardEditor extends connect(store)(LitElement) {
 		_suggestedConcepts: { type:Array },
 		_underlyingCardDifferences: {type:String},
 		_overshadowedDifferences: {type:String},
+		_hasUnsavedChanges: {type:Boolean},
 	};}
 
 	stateChanged(state) {
@@ -500,6 +502,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._cardModificationPending = selectCardModificationPending(state);
 		this._underlyingCardDifferences = selectEditingUnderlyingCardSnapshotDiffDescription(state);
 		this._overshadowedDifferences = selectOvershadowedUnderlyingCardChangesDiffDescription(state);
+		this._hasUnsavedChanges = selectEditingCardHasUnsavedChanges(state);
 	}
 
 	updated(changedProps) {

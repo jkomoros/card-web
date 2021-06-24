@@ -101,7 +101,8 @@ import {
 import {
 	cardDiffDescription,
 	generateCardDiff,
-	overshadowedDiffChanges
+	overshadowedDiffChanges,
+	cardDiffHasChanges
 } from './card_diff.js';
 
 import {
@@ -722,6 +723,12 @@ export const selectEditingUnderlyingCard = createSelector(
 	selectCards,
 	selectEditingCard,
 	(cards, editingCard) => editingCard ? cards[editingCard.id] : null
+);
+
+export const selectEditingCardHasUnsavedChanges = createSelector(
+	selectEditingCard,
+	selectEditingUnderlyingCardSnapshot,
+	(editingCard, snapshot) => cardDiffHasChanges(generateCardDiff(snapshot, editingCard))
 );
 
 const selectEditingUnderlyingCardSnapshotDiff = createSelector(
