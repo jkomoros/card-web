@@ -36,6 +36,7 @@ import {
 	EDITING_OPEN_IMAGE_BROWSER_DIALOG,
 	EDITING_CLOSE_IMAGE_BROWSER_DIALOG,
 	EDITING_UPDATE_UNDERLYING_CARD,
+	EDITING_MERGE_OVERSHADOWED_CHANGES,
 	TAB_CONFIG,
 	EDITOR_TAB_CONTENT,
 } from '../actions/editor.js';
@@ -384,6 +385,11 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			card: updatedCard,
 			underlyingCardSnapshot: updatedSnapshotCard,
+		};
+	case EDITING_MERGE_OVERSHADOWED_CHANGES:
+		return {
+			...state,
+			card: {...state.card, ...applyCardDiff(state.card, action.diff)}
 		};
 	default:
 		return state;

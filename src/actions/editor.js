@@ -35,6 +35,7 @@ export const EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG = 'EDITING_CLOSE_IMAGE_PROPER
 export const EDITING_OPEN_IMAGE_BROWSER_DIALOG = 'EDITING_OPEN_IMAGE_BROWSER_DIALOG';
 export const EDITING_CLOSE_IMAGE_BROWSER_DIALOG = 'EDITING_CLOSE_IMAGE_BROWSER_DIALOG';
 export const EDITING_UPDATE_UNDERLYING_CARD = 'EDITING_UPDATE_UNDERLYING_CARD';
+export const EDITING_MERGE_OVERSHADOWED_CHANGES = 'EDITING_MERGE_OVERSHADOWED_CHANGES';
 
 export const TAB_CONTENT = 'content';
 export const TAB_CONFIG = 'config';
@@ -55,7 +56,9 @@ import {
 	selectEditingCardSuggestedConceptReferences,
 	selectMultiEditDialogOpen,
 	selectEditingUnderlyingCardSnapshotDiffDescription,
-	selectEditingUnderlyingCard
+	selectEditingUnderlyingCard,
+	selectOvershadowedUnderlyingCardChangesDiffDescription,
+	selectOvershadowedUnderlyingCardChangesDiff
 } from '../selectors.js';
 
 import {
@@ -826,5 +829,29 @@ export const updateUnderlyingCard = () => (dispatch, getState) => {
 	dispatch({
 		type: EDITING_UPDATE_UNDERLYING_CARD,
 		updatedUnderlyingCard
+	});
+};
+
+export const mergeOvershadowedUnderlyingChanges = () => (dispatch, getState) => {
+
+	const state = getState();
+
+	const description = selectOvershadowedUnderlyingCardChangesDiffDescription(state);
+
+	if (!description) {
+		console.log('There isn\'t a diff to copy');
+		return;
+	}
+
+	if (!confirm('You\'re about to revert your changes to match the underlying updated fields:\n' + description + '\nDo you want to proceed?')) {
+		console.log('User cancelled');
+		return;
+	}
+
+	const diff = selectOvershadowedUnderlyingCardChangesDiff(state);
+
+	dispatch({
+		type: EDITING_MERGE_OVERSHADOWED_CHANGES,
+		diff,
 	});
 };

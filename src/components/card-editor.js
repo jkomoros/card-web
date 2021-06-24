@@ -53,6 +53,7 @@ import {
 	todoUpdated,
 	cardTypeUpdated,
 	updateUnderlyingCard,
+	mergeOvershadowedUnderlyingChanges,
 
 	TAB_CONTENT,
 	TAB_CONFIG,
@@ -526,7 +527,7 @@ class CardEditor extends connect(store)(LitElement) {
 	}
 
 	_handleMergeClicked() {
-		alert('TODO: implement');
+		store.dispatch(mergeOvershadowedUnderlyingChanges());
 	}
 
 	_handleAddAllConceptsClicked() {

@@ -730,7 +730,7 @@ const selectEditingUnderlyingCardSnapshotDiff = createSelector(
 	(underlyingCard, underlyingCardSnapshot) => generateCardDiff(underlyingCardSnapshot, underlyingCard)
 );
 
-const selectOvershadowedUnderlyingCardChangesDiff = createSelector(
+export const selectOvershadowedUnderlyingCardChangesDiff = createSelector(
 	selectEditingOriginalUnderlyingCardSnapshot,
 	selectEditingUnderlyingCard,
 	selectEditingCard,
