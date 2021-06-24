@@ -51,3 +51,12 @@ export const arrayUnionSentinel = firebase.firestore.FieldValue.arrayUnion;
 export const arrayRemoveSentinel = firebase.firestore.FieldValue.arrayRemove;
 export const incrementSentinel = firebase.firestore.FieldValue.increment;
 export const deleteSentinel = firebase.firestore.FieldValue.delete;
+
+const deleteSentinelJSON = JSON.stringify(deleteSentinel());
+
+export const isDeleteSentinel = (value) => {
+	if (typeof value !== 'object') return false;
+	//deleteSentinel returns new objects every time, but for now (at least) they
+	//at least stringify the same.
+	return JSON.stringify(value) == deleteSentinelJSON;
+};
