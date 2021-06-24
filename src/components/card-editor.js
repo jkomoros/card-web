@@ -51,7 +51,7 @@ import {
 	editingSelectEditorTab,
 	todoUpdated,
 	cardTypeUpdated,
-	mergeUpdatedUnderlyingCard,
+	updateUnderlyingCard,
 
 	TAB_CONTENT,
 	TAB_CONFIG,
@@ -503,9 +503,9 @@ class CardEditor extends connect(store)(LitElement) {
 			//TODO: isn't it kind of weird to have the view be the thing thta
 			//triggers the autoMerge? Shouldn't it be some wrapper around
 			//updateCards or something?
-			console.log('Auto merging:\n', this._underlyingCardDifferences);
+			console.log('Updating underlying card:\n', this._underlyingCardDifferences);
 			//auto apply the changes
-			store.dispatch(mergeUpdatedUnderlyingCard());
+			store.dispatch(updateUnderlyingCard());
 		}
 	}
 
@@ -523,7 +523,8 @@ class CardEditor extends connect(store)(LitElement) {
 	}
 
 	_handleMergeClicked() {
-		store.dispatch(mergeUpdatedUnderlyingCard());
+		//Note: this currently never happens because we auto-update the underlying card.
+		store.dispatch(updateUnderlyingCard());
 	}
 
 	_handleAddAllConceptsClicked() {

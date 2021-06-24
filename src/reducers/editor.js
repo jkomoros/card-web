@@ -35,7 +35,7 @@ import {
 	EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG,
 	EDITING_OPEN_IMAGE_BROWSER_DIALOG,
 	EDITING_CLOSE_IMAGE_BROWSER_DIALOG,
-	EDITING_MERGE_UPDATED_UNDERLYING_CARD,
+	EDITING_UPDATE_UNDERLYING_CARD,
 	TAB_CONFIG,
 	EDITOR_TAB_CONTENT,
 } from '../actions/editor.js';
@@ -367,7 +367,7 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			imageBrowserDialogOpen: false
 		};
-	case EDITING_MERGE_UPDATED_UNDERLYING_CARD:
+	case EDITING_UPDATE_UNDERLYING_CARD:
 		const updatedSnapshotCard = action.updatedUnderlyingCard;
 		//First, figure out what edits our user has made.
 		const userEditsDiff = generateCardDiff(state.underlyingCardSnapshot, state.card);
