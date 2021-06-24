@@ -385,11 +385,15 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			card: updatedCard,
 			underlyingCardSnapshot: updatedSnapshotCard,
+			//The state could have changed e.g. references or body.
+			cardExtractionVersion: state.cardExtractionVersion + 1,
 		};
 	case EDITING_MERGE_OVERSHADOWED_CHANGES:
 		return {
 			...state,
-			card: {...state.card, ...applyCardDiff(state.card, action.diff)}
+			card: {...state.card, ...applyCardDiff(state.card, action.diff)},
+			//The state could have changed e.g. references or body.
+			cardExtractionVersion: state.cardExtractionVersion + 1,
 		};
 	default:
 		return state;
