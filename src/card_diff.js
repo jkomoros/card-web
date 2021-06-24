@@ -47,6 +47,10 @@ import {
 	triStateMapDiff,
 } from './util.js';
 
+import {
+	isDeleteSentinel
+} from './firebase.js';
+
 const FREE_TEXT_FIELDS = Object.fromEntries([...Object.keys(TEXT_FIELD_CONFIGURATION).filter(key => !TEXT_FIELD_CONFIGURATION[key].readOnly), 'todo', 'notes'].map(item => [item, true]));
 
 //Images can't be merged correctly (only overwritten) because they aren't
@@ -225,10 +229,38 @@ export const generateFinalCardDiff = async (state, underlyingCard, rawUpdatedCar
 	return update;
 };
 
-//applyCardDiff returns a cardUpdate object with only the fields that change in
-//diff set. You can modify a card object to be the new one with,
-//{...underlyingCard, ...cardUpdate}. This function does not do any validation
-//that these changes are legal.
+export const applyCardFirebaseUpdate = (baseCard, firebaseUpdate) => {
+	//This clone is only one layer deep!
+	const result = {...baseCard};
+	for (const [key, value] of Object.entries(firebaseUpdate)) {
+		setFirebaseValueOnObj(result, key.split('.'), value);
+	}
+	return result;
+};
+
+const setFirebaseValueOnObj = (obj, fieldParts, value) => {
+	const firstFieldPart = fieldParts[0];
+	//Modifies obj in place.
+	if (fieldParts.length == 1) {
+		//Base case, operate in place.
+		if (isDeleteSentinel(value)) {
+			delete obj[firstFieldPart];
+			return;
+		}
+		obj[firstFieldPart] = value;
+		return;
+	} 
+	//If descending into sub-oject, create a copy for that field before descending!
+	//And create a new sub object if necessary
+	const newObj = obj[firstFieldPart] ? {...obj[firstFieldPart]} : {};
+	obj[firstFieldPart] = newObj;
+	setFirebaseValueOnObj(newObj, fieldParts.slice(1), value);
+};
+
+//applyCardDiff returns a cardFirebaseUpdate object with only the fields that
+//change in diff set. This function does not do any validation that these
+//changes are legal. You can apply this change ot an underlying card with
+//applyCardFirebaseUpdate.
 export const applyCardDiff = (underlyingCard, diff) => {
 
 	const cardUpdateObject = {};
