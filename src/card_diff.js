@@ -229,7 +229,14 @@ export const generateFinalCardDiff = async (state, underlyingCard, rawUpdatedCar
 	return update;
 };
 
+//applyCardFirebaseUpdate takes a firebaseUpdate (like the one returned from
+//applyCardDiff) and applies it to baseCard to generate a new cloned card
+//update. FirebaseUpdates are like normal objects, but might have dotted-string
+//keys (representing deeper layers in the object) and deleteSentinels. This
+//method only clones as deeply down into the objects as it needs to.
 export const applyCardFirebaseUpdate = (baseCard, firebaseUpdate) => {
+	//TODO: test this.
+
 	//This clone is only one layer deep!
 	const result = {...baseCard};
 	for (const [key, value] of Object.entries(firebaseUpdate)) {
@@ -239,6 +246,8 @@ export const applyCardFirebaseUpdate = (baseCard, firebaseUpdate) => {
 };
 
 const setFirebaseValueOnObj = (obj, fieldParts, value) => {
+	//Obj is an object it's OK to modify, but no other subobjects are.
+
 	const firstFieldPart = fieldParts[0];
 	//Modifies obj in place.
 	if (fieldParts.length == 1) {
