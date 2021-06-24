@@ -31,6 +31,7 @@ import {
 	selectCardModificationPending,
 	selectEditingCardSuggestedConceptReferences,
 	selectEditingUnderlyingCardSnapshotDiffDescription,
+	selectOvershadowedUnderlyingCardChangesDiffDescription
 } from '../selectors.js';
 
 import {
@@ -441,7 +442,7 @@ class CardEditor extends connect(store)(LitElement) {
             <input type='checkbox' .checked=${this._substantive} @change='${this._handleSubstantiveChanged}'></input>
           </div>
           <button class='round' @click='${this._handleCancel}'>${CANCEL_ICON}</button>
-		  <button class='round primary' @click=${this._handleMergeClicked} ?hidden=${!this._underlyingCardDifferences} title='${'The card you\'re editing has been changed by someone else:\n' + this._underlyingCardDifferences}'>${MERGE_TYPE_ICON}</button>
+		  <button class='round primary' @click=${this._handleMergeClicked} ?hidden=${!this._overshadowedDifferences} title='${'The card you\'re editing has been changed by someone else in a way that is overwritten by your edits:\n' + this._overshadowedDifferences + '\nClick here to revert your edits on those fields.'}'>${MERGE_TYPE_ICON}</button>
           <button class='round primary' @click='${this._handleCommit}' ?disabled=${this._underlyingCardDifferences} title=${this._underlyingCardDifferences ? 'You must merge underlying differences before saving' : 'Commit the changes you\'ve made'}>${SAVE_ICON}</button>
         </div>
       </div>
@@ -471,6 +472,7 @@ class CardEditor extends connect(store)(LitElement) {
 		_cardModificationPending: {type:Boolean},
 		_suggestedConcepts: { type:Array },
 		_underlyingCardDifferences: {type:String},
+		_overshadowedDifferences: {type:String},
 	};}
 
 	stateChanged(state) {
@@ -496,6 +498,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._pendingSlug = selectPendingSlug(state);
 		this._cardModificationPending = selectCardModificationPending(state);
 		this._underlyingCardDifferences = selectEditingUnderlyingCardSnapshotDiffDescription(state);
+		this._overshadowedDifferences = selectOvershadowedUnderlyingCardChangesDiffDescription(state);
 	}
 
 	updated(changedProps) {
@@ -523,8 +526,7 @@ class CardEditor extends connect(store)(LitElement) {
 	}
 
 	_handleMergeClicked() {
-		//Note: this currently never happens because we auto-update the underlying card.
-		store.dispatch(updateUnderlyingCard());
+		alert('TODO: implement');
 	}
 
 	_handleAddAllConceptsClicked() {
