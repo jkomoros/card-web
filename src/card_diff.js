@@ -193,7 +193,7 @@ const cardDiffHasFreeTextChanges = (diff) => {
 };
 
 export const cardDiffWithAutoMergeableFields = (diff = {}) => {
-	return Object.fromEntries(Object.entries(diff).filter(entry => !NON_AUTOMATIC_MERGE_FIELDS[entry]));
+	return Object.fromEntries(Object.entries(diff).filter(entry => !NON_AUTOMATIC_MERGE_FIELDS[entry[0]]));
 };
 
 //generateFinalCardDiff is like generateCardDiff but also handles fields set by cardFinishers and font size boosts.
