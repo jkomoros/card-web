@@ -850,7 +850,8 @@ export const mergeOvershadowedUnderlyingChanges = () => (dispatch, getState) => 
 	let filteredDiff = {};
 	if (Object.keys(diff).length > 1) {
 		for (const [field, value] of Object.entries(diff)) {
-			if (confirm('Do you want to revert your edits to ' + field + ', resetting it to:\n' + value + '\nChoose OK to revert your edits for this field, or Cancel to keep your edits. (You\'ll be able to review other fields next)')) {
+			const strValue = typeof value == 'object' ? JSON.stringify(value) : value;
+			if (confirm('Do you want to revert your edits to ' + field + ', resetting it to:\n' + strValue + '\nChoose OK to revert your edits for this field, or Cancel to keep your edits. (You\'ll be able to review other fields next)')) {
 				filteredDiff[field] = value;
 			}
 		}
