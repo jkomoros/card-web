@@ -100,7 +100,8 @@ import {
 
 import {
 	cardDiffDescription,
-	generateCardDiff
+	generateCardDiff,
+	overshadowedDiffChanges
 } from './card_diff.js';
 
 import {
@@ -153,6 +154,7 @@ export const selectActiveCardId = (state) => state.collection ? state.collection
 //you want the one with that, look at selectEditingNormalizedCard.
 export const selectEditingCard = (state) => state.editor ? state.editor.card : null;
 export const selectEditingUnderlyingCardSnapshot = (state) => state.editor ? state.editor.underlyingCardSnapshot : null;
+const selectEditingOriginalUnderlyingCardSnapshot = (state) => state.editor ? state.editor.originalUnderlyingCardSnapshot : null;
 const selectEditingCardExtractionVersion = (state) => state.editor ? state.editor.cardExtractionVersion : 0;
 export const selectEditingUpdatedFromContentEditable = (state) => state.editor ? state.editor.updatedFromContentEditable : {};
 export const selectEditingPendingReferenceType = (state) => state.editor ? state.editor.pendingReferenceType : '';
@@ -726,6 +728,18 @@ const selectEditingUnderlyingCardSnapshotDiff = createSelector(
 	selectEditingUnderlyingCard,
 	selectEditingUnderlyingCardSnapshot,
 	(underlyingCard, underlyingCardSnapshot) => generateCardDiff(underlyingCardSnapshot, underlyingCard)
+);
+
+const selectOvershadowedUnderlyingCardChangesDiff = createSelector(
+	selectEditingOriginalUnderlyingCardSnapshot,
+	selectEditingUnderlyingCard,
+	selectEditingCard,
+	(original, snapshot, current) => overshadowedDiffChanges(original, snapshot, current)
+);
+
+export const selectOvershadowedUnderlyingCardChangesDiffDescription = createSelector(
+	selectOvershadowedUnderlyingCardChangesDiff,
+	(diff) => cardDiffDescription(diff)
 );
 
 export const selectEditingUnderlyingCardSnapshotDiffDescription = createSelector(

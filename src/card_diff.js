@@ -49,7 +49,8 @@ import {
 
 const FREE_TEXT_FIELDS = Object.fromEntries([...Object.keys(TEXT_FIELD_CONFIGURATION).filter(key => !TEXT_FIELD_CONFIGURATION[key].readOnly), 'todo', 'notes'].map(item => [item, true]));
 
-//Images can't be merged automatically because they aren't diffed.
+//Images can't be merged correctly (only overwritten) because they aren't
+//diffed. Mainly free text fields, but also the images field.
 const NON_AUTOMATIC_MERGE_FIELDS = Object.fromEntries(Object.keys(FREE_TEXT_FIELDS).concat(
 	['images']
 ).map(key => [key, true]));
@@ -182,6 +183,20 @@ export const cardDiffHasChanges = (diff) => {
 export const cardDiffDescription = (diff) => {
 	if (!cardDiffHasChanges(diff)) return '';
 	return JSON.stringify(diff, '', 2);
+};
+
+//Returns a diff that includes only fields that were modified between original
+//and snapshot and then shadowed by changes between snapshot and current.
+export const overshadowedDiffChanges = (original, snapshot, current) => {
+	const snapshotDiff = generateCardDiff(original, snapshot);
+	const currentDiff = generateCardDiff(snapshot, current);
+	const result = {};
+	for (const [field, change] of Object.entries(currentDiff)) {
+		if (!NON_AUTOMATIC_MERGE_FIELDS[field]) continue;
+		if (snapshotDiff[field] === undefined) continue;
+		result[field] = change;
+	}
+	return result;
 };
 
 //generateFinalCardDiff is like generateCardDiff but also handles fields set by cardFinishers and font size boosts.
