@@ -374,7 +374,7 @@ const app = (state = INITIAL_STATE, action) => {
 			//If automerging, first figure out the new underlying card snapshot.
 			//It's not exactly the same as the truly underlying card, but rather
 			//a filtered diff changing only the things that are allowed to change automatically.
-			let diff = cardDiffWithAutoMergeableFields(generateCardDiff(action.underlyingCardSnapshot, state.underlyingCardSnapshot));
+			let diff = cardDiffWithAutoMergeableFields(generateCardDiff(action.updatedUnderlyingCard, state.underlyingCardSnapshot));
 			let autoMergeUpdate = applyCardDiff(updatedUnderlyingCard, diff);
 			updatedUnderlyingCard = {...updatedUnderlyingCard, ...autoMergeUpdate};
 		}
