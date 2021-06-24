@@ -726,7 +726,7 @@ export const selectEditingUnderlyingCard = createSelector(
 const selectEditingUnderlyingCardSnapshotDiff = createSelector(
 	selectEditingUnderlyingCard,
 	selectEditingUnderlyingCardSnapshot,
-	(underlyingCard, underlyingCardSnapshot) => generateCardDiff(underlyingCard, underlyingCardSnapshot)
+	(underlyingCard, underlyingCardSnapshot) => generateCardDiff(underlyingCardSnapshot, underlyingCard)
 );
 
 export const selectEditingUnderlyingCardSnapshotAutoMergeableDiffDescription = createSelector(
