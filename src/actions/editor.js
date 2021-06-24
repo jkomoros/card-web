@@ -57,7 +57,8 @@ import {
 	selectMultiEditDialogOpen,
 	selectEditingUnderlyingCardSnapshotDiffDescription,
 	selectEditingUnderlyingCard,
-	selectOvershadowedUnderlyingCardChangesDiff
+	selectOvershadowedUnderlyingCardChangesDiff,
+	selectOvershadowedUnderlyingCardChangesDiffDescription
 } from '../selectors.js';
 
 import {
@@ -256,10 +257,12 @@ export const editingCommit = () => async (dispatch, getState) => {
 		if (!confirm('The card has suggested concept references. Typically you either reject or accept them before proceeding. Do you want to proceed?')) return;
 	}
 
-	const underlyingDiffDescription = selectEditingUnderlyingCardSnapshotDiffDescription(state);
+	const underlyingDiffDescription = selectOvershadowedUnderlyingCardChangesDiffDescription(state);
 	if (underlyingDiffDescription) {
-		alert('Can\'t save. sThe underlying card has changed: ' + underlyingDiffDescription);
-		return;
+		if(!confirm('There are changes that someone else has made to the card that your changes will overwrite:\n' + underlyingDiffDescription + '\nHit Cancel and then the Merge button to review these changes. If you proceed, your edits will overwrite those edits.')) {
+			console.log('User cancelled');
+			return;
+		}
 	}
 
 	const underlyingCard = selectActiveCard(state);
