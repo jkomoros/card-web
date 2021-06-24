@@ -730,8 +730,9 @@ const selectEditingUnderlyingCardSnapshotDiff = createSelector(
 );
 
 export const selectEditingUnderlyingCardSnapshotAutoMergeableDiffDescription = createSelector(
+	selectEditingCard,
 	selectEditingUnderlyingCardSnapshotDiff,
-	(diff) => cardDiffDescription(cardDiffWithAutoMergeableFields(diff))
+	(card, diff) => cardDiffDescription(cardDiffWithAutoMergeableFields(diff, card ? card.card_type : ''))
 );
 
 export const selectEditingUnderlyingCardSnapshotDiffDescription = createSelector(

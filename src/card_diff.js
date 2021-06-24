@@ -19,6 +19,7 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	TEXT_FIELD_CONFIGURATION,
 	TEXT_FIELD_BODY,
+	DERIVED_FIELDS_FOR_CARD_TYPE,
 	fontSizeBoosts
 } from './card_fields.js';
 
@@ -184,8 +185,9 @@ export const cardDiffDescription = (diff) => {
 	return JSON.stringify(diff, '', 2);
 };
 
-export const cardDiffWithAutoMergeableFields = (diff = {}) => {
-	return Object.fromEntries(Object.entries(diff).filter(entry => !NON_AUTOMATIC_MERGE_FIELDS[entry[0]]));
+export const cardDiffWithAutoMergeableFields = (diff = {}, cardTypeHint = '') => {
+	const derivedFields = DERIVED_FIELDS_FOR_CARD_TYPE[cardTypeHint] || {};
+	return Object.fromEntries(Object.entries(diff).filter(entry => !NON_AUTOMATIC_MERGE_FIELDS[entry[0]] || derivedFields[entry[0]]));
 };
 
 //generateFinalCardDiff is like generateCardDiff but also handles fields set by cardFinishers and font size boosts.
