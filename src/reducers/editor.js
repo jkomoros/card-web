@@ -369,13 +369,23 @@ const app = (state = INITIAL_STATE, action) => {
 			imageBrowserDialogOpen: false
 		};
 	case EDITING_MERGE_UPDATED_UNDERLYING_CARD:
-		const diff = generateCardDiff(state.underlyingCardSnapshot, state.card);
-		const filteredDiff = action.autoMerge ? cardDiffWithAutoMergeableFields(diff) : diff;
-		const editingUpdate = applyCardDiff(action.updatedUnderlyingCard, filteredDiff);
+		let updatedUnderlyingCard = action.updatedUnderlyingCard;
+		if (action.autoMerge) {
+			//If automerging, first figure out the new underlying card snapshot.
+			//It's not exactly the same as the truly underlying card, but rather
+			//a filtered diff changing only the things that are allowed to change automatically.
+			let diff = cardDiffWithAutoMergeableFields(generateCardDiff(action.underlyingCardSnapshot, state.underlyingCardSnapshot));
+			let autoMergeUpdate = applyCardDiff(updatedUnderlyingCard, diff);
+			updatedUnderlyingCard = {...updatedUnderlyingCard, ...autoMergeUpdate};
+		}
+		//Figure out the diff from the original snapshot to figure out the
+		//user's intent, then re-apply it on the base of the new card.
+		const editingUpdate = applyCardDiff(updatedUnderlyingCard, generateCardDiff(state.underlyingCardSnapshot, state.card));
+		const updatedCard = {...updatedUnderlyingCard, ...editingUpdate};
 		return {
 			...state,
-			card: {...action.updatedUnderlyingCard, ...editingUpdate},
-			underlyingCardSnapshot: action.updatedUnderlyingCard,
+			card: updatedCard,
+			underlyingCardSnapshot: updatedUnderlyingCard,
 		};
 	default:
 		return state;
