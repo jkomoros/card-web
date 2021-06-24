@@ -184,14 +184,6 @@ export const cardDiffDescription = (diff) => {
 	return JSON.stringify(diff, '', 2);
 };
 
-// eslint-disable-next-line no-unused-vars
-const cardDiffHasFreeTextChanges = (diff) => {
-	for (const key of Object.keys(FREE_TEXT_FIELDS)) {
-		if (diff[key] !== undefined) return true;
-	}
-	return false;
-};
-
 export const cardDiffWithAutoMergeableFields = (diff = {}) => {
 	return Object.fromEntries(Object.entries(diff).filter(entry => !NON_AUTOMATIC_MERGE_FIELDS[entry[0]]));
 };
