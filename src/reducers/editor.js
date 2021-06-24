@@ -369,23 +369,27 @@ const app = (state = INITIAL_STATE, action) => {
 			imageBrowserDialogOpen: false
 		};
 	case EDITING_MERGE_UPDATED_UNDERLYING_CARD:
-		let updatedUnderlyingCard = action.updatedUnderlyingCard;
-		if (action.autoMerge) {
-			//If automerging, first figure out the new underlying card snapshot.
-			//It's not exactly the same as the truly underlying card, but rather
-			//a filtered diff changing only the things that are allowed to change automatically.
-			let diff = cardDiffWithAutoMergeableFields(generateCardDiff(action.updatedUnderlyingCard, state.underlyingCardSnapshot));
-			let autoMergeUpdate = applyCardDiff(updatedUnderlyingCard, diff);
-			updatedUnderlyingCard = {...updatedUnderlyingCard, ...autoMergeUpdate};
-		}
-		//Figure out the diff from the original snapshot to figure out the
-		//user's intent, then re-apply it on the base of the new card.
-		const editingUpdate = applyCardDiff(updatedUnderlyingCard, generateCardDiff(state.underlyingCardSnapshot, state.card));
-		const updatedCard = {...updatedUnderlyingCard, ...editingUpdate};
+		//This logic is very finicky.
+
+		//First, figure out what edits our user has made.
+		const userEditsDiff = generateCardDiff(state.underlyingCardSnapshot, state.card);
+
+		//Then, figure out what diffs would have to be made to update the snapshot to the current underlying state.
+		const externalUpdatesDiff = generateCardDiff(state.underlyingCardSnapshot, action.updatedUnderlyingCard);
+		//Filter out fields that aren't allowed to be auto merged if we're automerging. (If the user told us to do it, just do all of it)
+		const filteredExternalUpdatesDiff = action.autoMerge ? cardDiffWithAutoMergeableFields(externalUpdatesDiff) : externalUpdatesDiff;
+
+		//Update the snapshot with the (possibly filtered) diff.
+		const snapshotUpdate = applyCardDiff(state.underlyingCardSnapshot, filteredExternalUpdatesDiff);
+		const updatedSnapshotCard = {...state.underlyingCardSnapshot, ...snapshotUpdate};
+
+		//Now apply back the user's edits on top of the new underlying card.
+		const editingUpdate = applyCardDiff(updatedSnapshotCard, userEditsDiff);
+		const updatedCard = {...updatedSnapshotCard, ...editingUpdate};
 		return {
 			...state,
 			card: updatedCard,
-			underlyingCardSnapshot: updatedUnderlyingCard,
+			underlyingCardSnapshot: updatedSnapshotCard,
 		};
 	default:
 		return state;
