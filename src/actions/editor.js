@@ -55,7 +55,6 @@ import {
 	selectEditingCardSuggestedConceptReferences,
 	selectMultiEditDialogOpen,
 	selectEditingUnderlyingCardSnapshotDiffDescription,
-	selectEditingUnderlyingCardSnapshotAutoMergeableDiffDescription,
 	selectEditingUnderlyingCard
 } from '../selectors.js';
 
@@ -802,7 +801,7 @@ export const removeReferenceFromCard = (cardID, referenceType) => {
 	};
 };
 
-export const mergeUpdatedUnderlyingCard = (autoMergeableChangesOnly) => (dispatch, getState) => {
+export const mergeUpdatedUnderlyingCard = () => (dispatch, getState) => {
 	const state = getState();
 
 	if (!selectEditingCard(state)) {
@@ -817,23 +816,15 @@ export const mergeUpdatedUnderlyingCard = (autoMergeableChangesOnly) => (dispatc
 		return;
 	}
 
-	const description = autoMergeableChangesOnly ? selectEditingUnderlyingCardSnapshotAutoMergeableDiffDescription(state) : selectEditingUnderlyingCardSnapshotDiffDescription(state);
+	const description = selectEditingUnderlyingCardSnapshotDiffDescription(state);
 
 	if (!description) {
 		console.log('There isn\'t a diff to apply');
 		return;
 	}
 
-	if (!autoMergeableChangesOnly) {
-		if (!confirm('This will incorporate the following changes: \n' + description + '\nAre you sure?')) {
-			console.log('User canelled');
-			return;
-		}
-	}
-
 	dispatch({
 		type: EDITING_MERGE_UPDATED_UNDERLYING_CARD,
-		updatedUnderlyingCard,
-		autoMerge: autoMergeableChangesOnly,
+		updatedUnderlyingCard
 	});
 };

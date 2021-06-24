@@ -65,7 +65,6 @@ import {
 import {
 	applyCardDiff,
 	generateCardDiff,
-	cardDiffWithAutoMergeableFields
 } from '../card_diff.js';
 
 import {
@@ -369,20 +368,9 @@ const app = (state = INITIAL_STATE, action) => {
 			imageBrowserDialogOpen: false
 		};
 	case EDITING_MERGE_UPDATED_UNDERLYING_CARD:
-		//This logic is very finicky.
-
+		const updatedSnapshotCard = action.updatedUnderlyingCard;
 		//First, figure out what edits our user has made.
 		const userEditsDiff = generateCardDiff(state.underlyingCardSnapshot, state.card);
-
-		//Then, figure out what diffs would have to be made to update the snapshot to the current underlying state.
-		const externalUpdatesDiff = generateCardDiff(state.underlyingCardSnapshot, action.updatedUnderlyingCard);
-		//Filter out fields that aren't allowed to be auto merged if we're automerging. (If the user told us to do it, just do all of it)
-		const filteredExternalUpdatesDiff = action.autoMerge ? cardDiffWithAutoMergeableFields(externalUpdatesDiff, state.card.card_type) : externalUpdatesDiff;
-
-		//Update the snapshot with the (possibly filtered) diff.
-		const snapshotUpdate = applyCardDiff(state.underlyingCardSnapshot, filteredExternalUpdatesDiff);
-		const updatedSnapshotCard = {...state.underlyingCardSnapshot, ...snapshotUpdate};
-
 		//Now apply back the user's edits on top of the new underlying card.
 		const editingUpdate = applyCardDiff(updatedSnapshotCard, userEditsDiff);
 		const updatedCard = {...updatedSnapshotCard, ...editingUpdate};

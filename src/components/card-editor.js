@@ -31,7 +31,6 @@ import {
 	selectCardModificationPending,
 	selectEditingCardSuggestedConceptReferences,
 	selectEditingUnderlyingCardSnapshotDiffDescription,
-	selectEditingUnderlyingCardSnapshotAutoMergeableDiffDescription
 } from '../selectors.js';
 
 import {
@@ -472,7 +471,6 @@ class CardEditor extends connect(store)(LitElement) {
 		_cardModificationPending: {type:Boolean},
 		_suggestedConcepts: { type:Array },
 		_underlyingCardDifferences: {type:String},
-		_underlyingCardAutoMergeableDifferences: {type:String},
 	};}
 
 	stateChanged(state) {
@@ -498,17 +496,16 @@ class CardEditor extends connect(store)(LitElement) {
 		this._pendingSlug = selectPendingSlug(state);
 		this._cardModificationPending = selectCardModificationPending(state);
 		this._underlyingCardDifferences = selectEditingUnderlyingCardSnapshotDiffDescription(state);
-		this._underlyingCardAutoMergeableDifferences = selectEditingUnderlyingCardSnapshotAutoMergeableDiffDescription(state);
 	}
 
 	updated(changedProps) {
-		if (changedProps.has('_underlyingCardAutoMergeableDifferences') && this._underlyingCardAutoMergeableDifferences) {
+		if (changedProps.has('_underlyingCardDifferences') && this._underlyingCardDifferences) {
 			//TODO: isn't it kind of weird to have the view be the thing thta
 			//triggers the autoMerge? Shouldn't it be some wrapper around
 			//updateCards or something?
-			console.log('Auto merging:\n', this._underlyingCardAutoMergeableDifferences);
+			console.log('Auto merging:\n', this._underlyingCardDifferences);
 			//auto apply the changes
-			store.dispatch(mergeUpdatedUnderlyingCard(true));
+			store.dispatch(mergeUpdatedUnderlyingCard());
 		}
 	}
 
@@ -526,7 +523,7 @@ class CardEditor extends connect(store)(LitElement) {
 	}
 
 	_handleMergeClicked() {
-		store.dispatch(mergeUpdatedUnderlyingCard(false));
+		store.dispatch(mergeUpdatedUnderlyingCard());
 	}
 
 	_handleAddAllConceptsClicked() {
