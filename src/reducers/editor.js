@@ -66,6 +66,7 @@ import {
 import {
 	applyCardDiff,
 	generateCardDiff,
+	applyCardFirebaseUpdate
 } from '../card_diff.js';
 
 import {
@@ -379,8 +380,8 @@ const app = (state = INITIAL_STATE, action) => {
 		//First, figure out what edits our user has made.
 		const userEditsDiff = generateCardDiff(state.underlyingCardSnapshot, state.card);
 		//Now apply back the user's edits on top of the new underlying card.
-		const editingUpdate = applyCardDiff(updatedSnapshotCard, userEditsDiff);
-		const updatedCard = {...updatedSnapshotCard, ...editingUpdate};
+		const editingFirebaseUpdate = applyCardDiff(updatedSnapshotCard, userEditsDiff);
+		const updatedCard = applyCardFirebaseUpdate(updatedSnapshotCard, editingFirebaseUpdate);
 		return {
 			...state,
 			card: updatedCard,
@@ -391,7 +392,7 @@ const app = (state = INITIAL_STATE, action) => {
 	case EDITING_MERGE_OVERSHADOWED_CHANGES:
 		return {
 			...state,
-			card: {...state.card, ...applyCardDiff(state.card, action.diff)},
+			card: applyCardFirebaseUpdate(state.card, applyCardDiff(state.card, action.diff)),
 			//The state could have changed e.g. references or body.
 			cardExtractionVersion: state.cardExtractionVersion + 1,
 		};
