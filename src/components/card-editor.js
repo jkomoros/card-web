@@ -443,7 +443,7 @@ class CardEditor extends connect(store)(LitElement) {
             <input type='checkbox' .checked=${this._substantive} @change='${this._handleSubstantiveChanged}'></input>
           </div>
           <button class='round' @click='${this._handleCancel}'>${CANCEL_ICON}</button>
-		  <button class='round primary' @click=${this._handleMergeClicked} ?hidden=${!this._overshadowedDifferences} title='${'The card you\'re editing has been changed by someone else in a way that is overwritten by your edits:\n' + this._overshadowedDifferences + '\nClick here to revert your edits on those fields.'}'>${MERGE_TYPE_ICON}</button>
+		  <button class='round primary' @click=${this._handleMergeClicked} ?hidden=${!this._overshadowedDifferences} title='${'The card you\'re editing has been changed by someone else in a way that is overwritten by your edits:\n' + this._overshadowedDifferences + '\nClick here to choose which of these fields to revert your edits on.'}'>${MERGE_TYPE_ICON}</button>
           <button class='round primary' @click='${this._handleCommit}' ?disabled=${this._underlyingCardDifferences} title=${this._underlyingCardDifferences ? 'You must merge underlying differences before saving' : 'Commit the changes you\'ve made'}>${SAVE_ICON}</button>
         </div>
       </div>

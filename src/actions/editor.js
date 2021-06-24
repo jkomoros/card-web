@@ -57,7 +57,6 @@ import {
 	selectMultiEditDialogOpen,
 	selectEditingUnderlyingCardSnapshotDiffDescription,
 	selectEditingUnderlyingCard,
-	selectOvershadowedUnderlyingCardChangesDiffDescription,
 	selectOvershadowedUnderlyingCardChangesDiff
 } from '../selectors.js';
 
@@ -71,7 +70,9 @@ import {
 
 import {
 	generateFinalCardDiff,
-	confirmationsForCardDiff
+	confirmationsForCardDiff,
+	cardDiffHasChanges,
+	cardDiffDescription
 } from '../card_diff.js';
 
 import {
@@ -836,22 +837,38 @@ export const mergeOvershadowedUnderlyingChanges = () => (dispatch, getState) => 
 
 	const state = getState();
 
-	const description = selectOvershadowedUnderlyingCardChangesDiffDescription(state);
+	const diff = selectOvershadowedUnderlyingCardChangesDiff(state);
 
-	if (!description) {
-		console.log('There isn\'t a diff to copy');
+	if (!cardDiffHasChanges(diff)) {
+		alert('No changes to make!');
 		return;
 	}
+
+	let filteredDiff = {};
+	if (Object.keys(diff).length > 1) {
+		for (const [field, value] of Object.entries(diff)) {
+			if (confirm('Do you want to revert your edits to ' + field + ', resetting it to:\n' + value + '\nChoose OK to revert your edits for this field, or Cancel to keep your edits. (You\'ll be able to review other fields next)')) {
+				filteredDiff[field] = value;
+			}
+		}
+	} else {
+		filteredDiff = diff;
+	}
+
+	if (!cardDiffHasChanges(filteredDiff)) {
+		alert('You didn\'t elect to overwrite any changed fields');
+		return;
+	}
+
+	const description = cardDiffDescription(filteredDiff);
 
 	if (!confirm('You\'re about to revert your changes to match the underlying updated fields:\n' + description + '\nDo you want to proceed?')) {
 		console.log('User cancelled');
 		return;
 	}
 
-	const diff = selectOvershadowedUnderlyingCardChangesDiff(state);
-
 	dispatch({
 		type: EDITING_MERGE_OVERSHADOWED_CHANGES,
-		diff,
+		diff: filteredDiff,
 	});
 };
