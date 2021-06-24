@@ -191,10 +191,10 @@ export const overshadowedDiffChanges = (original, snapshot, current) => {
 	const snapshotDiff = generateCardDiff(original, snapshot);
 	const currentDiff = generateCardDiff(snapshot, current);
 	const result = {};
-	for (const [field, change] of Object.entries(currentDiff)) {
+	for (const field of Object.keys(currentDiff)) {
 		if (!NON_AUTOMATIC_MERGE_FIELDS[field]) continue;
 		if (snapshotDiff[field] === undefined) continue;
-		result[field] = change;
+		result[field] = snapshotDiff[field];
 	}
 	return result;
 };
