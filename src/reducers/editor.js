@@ -35,6 +35,8 @@ import {
 	EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG,
 	EDITING_OPEN_IMAGE_BROWSER_DIALOG,
 	EDITING_CLOSE_IMAGE_BROWSER_DIALOG,
+	EDITING_UPDATE_UNDERLYING_CARD,
+	EDITING_MERGE_OVERSHADOWED_CHANGES,
 	TAB_CONFIG,
 	EDITOR_TAB_CONTENT,
 } from '../actions/editor.js';
@@ -62,6 +64,12 @@ import {
 } from '../filters.js';
 
 import {
+	applyCardDiff,
+	generateCardDiff,
+	applyCardFirebaseUpdate
+} from '../card_diff.js';
+
+import {
 	addImageWithURL,
 	removeImageAtIndex,
 	changeImagePropertyAtIndex,
@@ -77,6 +85,13 @@ const INITIAL_STATE = {
 	//editable, or false or missing if it wasn't.
 	updatedFromContentEditable: {},
 	card: null,
+	//A direct reference to the card, as it was when editing started, in the
+	//cards array. Useful for detecting when the underlying card has changed.
+	underlyingCardSnapshot: null,
+	//The very original card snapshot from when editing started. This allows us
+	//to figure out what edits have been merged in from other users while we're
+	//open for editing.
+	originalUnderlyingCardSnapshot: null,
 	//This number should increment every time EDITING_EXTRACT_LINKS fires. The
 	//selector for selectEditingNormalizedCard will return the same result until this changes.
 	cardExtractionVersion: -1,
@@ -100,6 +115,8 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			editing: true,
 			card: action.card,
+			underlyingCardSnapshot: action.card,
+			originalUnderlyingCardSnapshot: action.card,
 			cardExtractionVersion: 0,
 			substantive: false,
 			updatedFromContentEditable: {},
@@ -111,6 +128,8 @@ const app = (state = INITIAL_STATE, action) => {
 			...state,
 			editing:false,
 			card: null,
+			underlyingCardSnapshot: null,
+			originalUnderlyingCardSnapshot: null,
 			//If we don't change this, selectEditingNormalizedCard will continue returning the old one.
 			cardExtractionVersion: -1,
 			substantive:false,
@@ -355,6 +374,27 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			imageBrowserDialogOpen: false
+		};
+	case EDITING_UPDATE_UNDERLYING_CARD:
+		const updatedSnapshotCard = action.updatedUnderlyingCard;
+		//First, figure out what edits our user has made.
+		const userEditsDiff = generateCardDiff(state.underlyingCardSnapshot, state.card);
+		//Now apply back the user's edits on top of the new underlying card.
+		const editingFirebaseUpdate = applyCardDiff(updatedSnapshotCard, userEditsDiff);
+		const updatedCard = applyCardFirebaseUpdate(updatedSnapshotCard, editingFirebaseUpdate);
+		return {
+			...state,
+			card: updatedCard,
+			underlyingCardSnapshot: updatedSnapshotCard,
+			//The state could have changed e.g. references or body.
+			cardExtractionVersion: state.cardExtractionVersion + 1,
+		};
+	case EDITING_MERGE_OVERSHADOWED_CHANGES:
+		return {
+			...state,
+			card: applyCardFirebaseUpdate(state.card, applyCardDiff(state.card, action.diff)),
+			//The state could have changed e.g. references or body.
+			cardExtractionVersion: state.cardExtractionVersion + 1,
 		};
 	default:
 		return state;

@@ -15,7 +15,7 @@ import {
 
 import {
 	selectTags,
-	selectActiveCard,
+	selectEditingUnderlyingCardSnapshot,
 	selectEditingCard,
 	selectEditingCardAutoTodos,
 	selectEditingCardSuggestedTags,
@@ -29,7 +29,10 @@ import {
 	selectPendingSlug,
 	selectReasonsUserMayNotDeleteActiveCard,
 	selectCardModificationPending,
-	selectEditingCardSuggestedConceptReferences
+	selectEditingCardSuggestedConceptReferences,
+	selectEditingUnderlyingCardSnapshotDiffDescription,
+	selectOvershadowedUnderlyingCardChangesDiffDescription,
+	selectEditingCardHasUnsavedChanges
 } from '../selectors.js';
 
 import {
@@ -50,6 +53,8 @@ import {
 	editingSelectEditorTab,
 	todoUpdated,
 	cardTypeUpdated,
+	updateUnderlyingCard,
+	mergeOvershadowedUnderlyingChanges,
 
 	TAB_CONTENT,
 	TAB_CONFIG,
@@ -74,6 +79,7 @@ import {
 	DELETE_FOREVER_ICON,
 	PLUS_ICON,
 	HIGHLIGHT_OFF_ICON,
+	MERGE_TYPE_ICON
 } from './my-icons.js';
 
 import {
@@ -438,7 +444,8 @@ class CardEditor extends connect(store)(LitElement) {
             <input type='checkbox' .checked=${this._substantive} @change='${this._handleSubstantiveChanged}'></input>
           </div>
           <button class='round' @click='${this._handleCancel}'>${CANCEL_ICON}</button>
-          <button class='round primary' @click='${this._handleCommit}'>${SAVE_ICON}</button>
+		  <button class='round primary' @click=${this._handleMergeClicked} ?hidden=${!this._overshadowedDifferences} title='${'The card you\'re editing has been changed by someone else in a way that is overwritten by your edits:\n' + this._overshadowedDifferences + '\nClick here to choose which of these fields to revert your edits on.'}'>${MERGE_TYPE_ICON}</button>
+          <button class='round primary' @click='${this._handleCommit}' ?disabled=${!this._hasUnsavedChanges} title=${this._hasUnsavedChanges ? 'Commit the changes you\'ve made' : 'You haven\'t made any changes that need saving.'}>${SAVE_ICON}</button>
         </div>
       </div>
     `;
@@ -466,12 +473,15 @@ class CardEditor extends connect(store)(LitElement) {
 		_pendingSlug: { type:String },
 		_cardModificationPending: {type:Boolean},
 		_suggestedConcepts: { type:Array },
+		_underlyingCardDifferences: {type:String},
+		_overshadowedDifferences: {type:String},
+		_hasUnsavedChanges: {type:Boolean},
 	};}
 
 	stateChanged(state) {
 		this._card= selectEditingCard(state);
 		this._autoTodos = selectEditingCardAutoTodos(state);
-		this._underlyingCard = selectActiveCard(state);
+		this._underlyingCard = selectEditingUnderlyingCardSnapshot(state);
 		this._active = state.editor.editing;
 		this._userMayChangeEditingCardSection = selectUserMayChangeEditingCardSection(state);
 		this._sectionsUserMayEdit = selectSectionsUserMayEdit(state);
@@ -490,6 +500,20 @@ class CardEditor extends connect(store)(LitElement) {
 		this._isAdmin = selectUserIsAdmin(state);
 		this._pendingSlug = selectPendingSlug(state);
 		this._cardModificationPending = selectCardModificationPending(state);
+		this._underlyingCardDifferences = selectEditingUnderlyingCardSnapshotDiffDescription(state);
+		this._overshadowedDifferences = selectOvershadowedUnderlyingCardChangesDiffDescription(state);
+		this._hasUnsavedChanges = selectEditingCardHasUnsavedChanges(state);
+	}
+
+	updated(changedProps) {
+		if (changedProps.has('_underlyingCardDifferences') && this._underlyingCardDifferences) {
+			//TODO: isn't it kind of weird to have the view be the thing thta
+			//triggers the autoMerge? Shouldn't it be some wrapper around
+			//updateCards or something?
+			console.log('Updating underlying card:\n', this._underlyingCardDifferences);
+			//auto apply the changes
+			store.dispatch(updateUnderlyingCard());
+		}
 	}
 
 	shouldUpdate() {
@@ -503,6 +527,10 @@ class CardEditor extends connect(store)(LitElement) {
 	_handleSuggestedConceptTapped(e) {
 		const cardID = e.detail.tag;
 		store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_CONCEPT));
+	}
+
+	_handleMergeClicked() {
+		store.dispatch(mergeOvershadowedUnderlyingChanges());
 	}
 
 	_handleAddAllConceptsClicked() {

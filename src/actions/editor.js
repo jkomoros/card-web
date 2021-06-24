@@ -34,6 +34,8 @@ export const EDITING_OPEN_IMAGE_PROPERTIES_DIALOG = 'EDITING_OPEN_IMAGE_PROPERTI
 export const EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG = 'EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG';
 export const EDITING_OPEN_IMAGE_BROWSER_DIALOG = 'EDITING_OPEN_IMAGE_BROWSER_DIALOG';
 export const EDITING_CLOSE_IMAGE_BROWSER_DIALOG = 'EDITING_CLOSE_IMAGE_BROWSER_DIALOG';
+export const EDITING_UPDATE_UNDERLYING_CARD = 'EDITING_UPDATE_UNDERLYING_CARD';
+export const EDITING_MERGE_OVERSHADOWED_CHANGES = 'EDITING_MERGE_OVERSHADOWED_CHANGES';
 
 export const TAB_CONTENT = 'content';
 export const TAB_CONFIG = 'config';
@@ -52,7 +54,11 @@ import {
 	selectIsEditing,
 	selectEditingPendingReferenceType,
 	selectEditingCardSuggestedConceptReferences,
-	selectMultiEditDialogOpen
+	selectMultiEditDialogOpen,
+	selectEditingUnderlyingCardSnapshotDiffDescription,
+	selectEditingUnderlyingCard,
+	selectOvershadowedUnderlyingCardChangesDiff,
+	selectOvershadowedUnderlyingCardChangesDiffDescription
 } from '../selectors.js';
 
 import {
@@ -61,9 +67,14 @@ import {
 
 import {
 	modifyCard,
-	generateCardDiff,
-	confirmationsForCardDiff
 } from './data.js';
+
+import {
+	generateFinalCardDiff,
+	confirmationsForCardDiff,
+	cardDiffHasChanges,
+	cardDiffDescription
+} from '../card_diff.js';
 
 import {
 	CARD_TYPE_CONFIGURATION,
@@ -246,6 +257,14 @@ export const editingCommit = () => async (dispatch, getState) => {
 		if (!confirm('The card has suggested concept references. Typically you either reject or accept them before proceeding. Do you want to proceed?')) return;
 	}
 
+	const underlyingDiffDescription = selectOvershadowedUnderlyingCardChangesDiffDescription(state);
+	if (underlyingDiffDescription) {
+		if(!confirm('There are changes that someone else has made to the card that your changes will overwrite:\n' + underlyingDiffDescription + '\nHit Cancel and then the Merge button to review these changes. If you proceed, your edits will overwrite those edits.')) {
+			console.log('User cancelled');
+			return;
+		}
+	}
+
 	const underlyingCard = selectActiveCard(state);
 	if (!underlyingCard || !underlyingCard.id) {
 		console.warn('That card isn\'t legal');
@@ -256,7 +275,7 @@ export const editingCommit = () => async (dispatch, getState) => {
 
 	let update;
 	try {
-		update = await generateCardDiff(state, underlyingCard, rawUpdatedCard);
+		update = await generateFinalCardDiff(state, underlyingCard, rawUpdatedCard);
 	} catch(err) {
 		alert(err);
 		return;
@@ -265,7 +284,7 @@ export const editingCommit = () => async (dispatch, getState) => {
 	if (!update) return;
 
 	//TODO: technically we shouldn't pass rawUpdatedCard, but the one that has
-	//been run through any cardFinishers in generateCardDiff.
+	//been run through any cardFinishers in generateFinalCardDiff.
 	if (!confirmationsForCardDiff(update, rawUpdatedCard)) return;
 
 	//modifyCard will fail if the update is a no-op.
@@ -787,4 +806,73 @@ export const removeReferenceFromCard = (cardID, referenceType) => {
 		cardID,
 		referenceType,
 	};
+};
+
+export const updateUnderlyingCard = () => (dispatch, getState) => {
+	const state = getState();
+
+	if (!selectEditingCard(state)) {
+		console.log('No editing card');
+		return;
+	}
+
+	const updatedUnderlyingCard = selectEditingUnderlyingCard(state);
+
+	if (!updatedUnderlyingCard) {
+		console.log('No updated underlying card');
+		return;
+	}
+
+	const description = selectEditingUnderlyingCardSnapshotDiffDescription(state);
+
+	if (!description) {
+		console.log('There isn\'t a diff to apply');
+		return;
+	}
+
+	dispatch({
+		type: EDITING_UPDATE_UNDERLYING_CARD,
+		updatedUnderlyingCard
+	});
+};
+
+export const mergeOvershadowedUnderlyingChanges = () => (dispatch, getState) => {
+
+	const state = getState();
+
+	const diff = selectOvershadowedUnderlyingCardChangesDiff(state);
+
+	if (!cardDiffHasChanges(diff)) {
+		alert('No changes to make!');
+		return;
+	}
+
+	let filteredDiff = {};
+	if (Object.keys(diff).length > 1) {
+		for (const [field, value] of Object.entries(diff)) {
+			const strValue = typeof value == 'object' ? JSON.stringify(value) : value;
+			if (confirm('Do you want to revert your edits to ' + field + ', resetting it to:\n' + strValue + '\nChoose OK to revert your edits for this field, or Cancel to keep your edits. (You\'ll be able to review other fields next)')) {
+				filteredDiff[field] = value;
+			}
+		}
+	} else {
+		filteredDiff = diff;
+	}
+
+	if (!cardDiffHasChanges(filteredDiff)) {
+		alert('You didn\'t elect to overwrite any changed fields');
+		return;
+	}
+
+	const description = cardDiffDescription(filteredDiff);
+
+	if (!confirm('You\'re about to revert your changes to match the underlying updated fields:\n' + description + '\nDo you want to proceed?')) {
+		console.log('User cancelled');
+		return;
+	}
+
+	dispatch({
+		type: EDITING_MERGE_OVERSHADOWED_CHANGES,
+		diff: filteredDiff,
+	});
 };

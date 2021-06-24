@@ -41,6 +41,9 @@ export const ButtonSharedStyles = html`
 	button.primary.selected {
 		background: var(--app-primary-color-light);
 	}
+	button.primary:disabled {
+		background-color: var(--app-dark-text-color-light);
+	}
 	button.selected {
 		background: var(--app-secondary-color-light);
 	}

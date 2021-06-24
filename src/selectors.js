@@ -99,6 +99,13 @@ import {
 } from './actions/maintenance.js';
 
 import {
+	cardDiffDescription,
+	generateCardDiff,
+	overshadowedDiffChanges,
+	cardDiffHasChanges
+} from './card_diff.js';
+
+import {
 	USER_DOMAIN,
 	TAB_CONFIGURATION
 } from '../config.GENERATED.SECRET.js';
@@ -147,6 +154,8 @@ export const selectActiveCardId = (state) => state.collection ? state.collection
 //Note that the editing card doesn't have nlp/normalized text properties set. If
 //you want the one with that, look at selectEditingNormalizedCard.
 export const selectEditingCard = (state) => state.editor ? state.editor.card : null;
+export const selectEditingUnderlyingCardSnapshot = (state) => state.editor ? state.editor.underlyingCardSnapshot : null;
+const selectEditingOriginalUnderlyingCardSnapshot = (state) => state.editor ? state.editor.originalUnderlyingCardSnapshot : null;
 const selectEditingCardExtractionVersion = (state) => state.editor ? state.editor.cardExtractionVersion : 0;
 export const selectEditingUpdatedFromContentEditable = (state) => state.editor ? state.editor.updatedFromContentEditable : {};
 export const selectEditingPendingReferenceType = (state) => state.editor ? state.editor.pendingReferenceType : '';
@@ -708,6 +717,41 @@ export const selectEditingCardwithDelayedNormalizedProperties = createSelector(
 		if (!normalized) return editing;
 		return {...editing, nlp:normalized.nlp};
 	}
+);
+
+export const selectEditingUnderlyingCard = createSelector(
+	selectCards,
+	selectEditingCard,
+	(cards, editingCard) => editingCard ? cards[editingCard.id] : null
+);
+
+export const selectEditingCardHasUnsavedChanges = createSelector(
+	selectEditingCard,
+	selectEditingUnderlyingCardSnapshot,
+	(editingCard, snapshot) => cardDiffHasChanges(generateCardDiff(snapshot, editingCard))
+);
+
+const selectEditingUnderlyingCardSnapshotDiff = createSelector(
+	selectEditingUnderlyingCard,
+	selectEditingUnderlyingCardSnapshot,
+	(underlyingCard, underlyingCardSnapshot) => generateCardDiff(underlyingCardSnapshot, underlyingCard)
+);
+
+export const selectOvershadowedUnderlyingCardChangesDiff = createSelector(
+	selectEditingOriginalUnderlyingCardSnapshot,
+	selectEditingUnderlyingCard,
+	selectEditingCard,
+	(original, snapshot, current) => overshadowedDiffChanges(original, snapshot, current)
+);
+
+export const selectOvershadowedUnderlyingCardChangesDiffDescription = createSelector(
+	selectOvershadowedUnderlyingCardChangesDiff,
+	(diff) => cardDiffDescription(diff)
+);
+
+export const selectEditingUnderlyingCardSnapshotDiffDescription = createSelector(
+	selectEditingUnderlyingCardSnapshotDiff,
+	(diff) => cardDiffDescription(diff)
 );
 
 //Warning: this is EXTREMELY expensive. Like 10 seconds of processing expensive!

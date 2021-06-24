@@ -53,11 +53,7 @@ import {
 import {
 	newID,
 	idWasVended,
-	arrayRemove,
-	arrayUnion,
 	normalizeSlug,
-	extractCardLinksFromBody,
-	reasonCardTypeNotLegalForCard,
 	createSlugFromArbitraryString,
 } from '../util.js';
 
@@ -81,7 +77,6 @@ import {
 	selectCardIDsUserMayEdit,
 	selectLastSectionID,
 	getUserMayEditSection,
-	getUserMayEditTag,
 	selectUserMayCreateCard,
 	selectPendingNewCardIDToNavigateTo,
 	selectIsEditing,
@@ -106,7 +101,6 @@ import {
 
 import {
 	CARD_TYPE_CONFIGURATION,
-	TEXT_FIELD_CONFIGURATION,
 	TEXT_FIELD_BODY,
 	DEFAULT_CARD_TYPE,
 	CARD_TYPE_SECTION_HEAD,
@@ -119,12 +113,13 @@ import {
 	KEY_CARD_ID_PLACEHOLDER,
 	TEXT_FIELD_TITLE,
 	editableFieldsForCardType,
-	fontSizeBoosts
 } from '../card_fields.js';
 
 import {
-	normalizeBodyHTML
-} from '../contenteditable.js';
+	cardDiffHasChanges,
+	validateCardDiff,
+	applyCardDiff,
+} from '../card_diff.js';
 
 import {
 	CARD_TYPE_EDITING_FINISHERS
@@ -132,20 +127,7 @@ import {
 
 import {
 	references,
-	applyReferencesDiff,
-	referencesEntriesDiff
 } from '../references.js';
-
-import {
-	imageBlocksEquivalent,
-	getImagesFromCard,
-} from '../images.js';
-
-import {
-	arrayDiff,
-	cardHasContent,
-	triStateMapDiff,
-} from '../util.js';
 
 import {
 	store
@@ -210,140 +192,6 @@ const TAG_COLORS = [
 	'#4169E1',
 ];
 
-const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION).concat([
-	'name',
-	'section',
-	'full_bleed',
-	'notes',
-	'todo',
-	'auto_todo_overrides_enablements',
-	'auto_todo_overrides_disablements',
-	'auto_todo_overrides_removals',
-	'add_editors',
-	'remove_editors',
-	'add_collaborators',
-	'remove_collaborators',
-	'addTags',
-	'removeTags',
-	'published',
-	'card_type',
-	'font_size_boost',
-	'images',
-	'references_diff',
-]).map(key => [key,true]));
-
-//Returns true if the user has said to proceed to any confirmation warnings (if
-//any), false if the user has said to not proceed.
-export const confirmationsForCardDiff = (update, updatedCard) => {
-	const CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[update.card_type || updatedCard.card_type];
-	if (CARD_TYPE_CONFIG.publishedByDefault) {
-		if (!updatedCard.published) {
-			if (!window.confirm('This card is of a type that is typically always published, but it\'s not currently published. Do you want to continue?')) return false;
-		}
-	} else if (CARD_TYPE_CONFIG.invertContentPublishWarning) {
-		if (updatedCard.published) {
-			if (!window.confirm('The card is of a type that is not typically published but you\'re publishing it. Do you want to continue?')) return false;
-		}
-	} else {
-		if (cardHasContent(updatedCard) && !updatedCard.published) {
-			if (!window.confirm('The card has content but is unpublished. Do you want to continue?')) return false;
-		}
-	}
-	for (const img of getImagesFromCard(updatedCard)) {
-		if (img.height === undefined || img.width === undefined) {
-			alert('One of the images does not yet have its height/width set yet. It might still be loading. Try removing it and readding it.');
-			return false;
-		}
-	}
-
-	if (update.section !== undefined || update.card_type !== undefined) {
-		let section = update.section === undefined ? updatedCard.section : update.section;
-		if (!section){
-			if (!CARD_TYPE_CONFIG.orphanedByDefault && !confirm('This card being orphaned will cause it to not be findable except with a direct link. OK?')) {
-				return false;
-			}
-		} else {
-			if (CARD_TYPE_CONFIG.orphanedByDefault && !confirm('This is a card type that typcially is not in a section, but with this edit it will be in a section. OK?')) {
-				return false;
-			}
-		}
-	}
-
-	return true;
-};
-
-export const generateCardDiff = async (state, underlyingCard, rawUpdatedCard) => {
-
-	const cardFinisher = CARD_TYPE_EDITING_FINISHERS[rawUpdatedCard.card_type];
-
-	//updatedCard is a copy so may be modified
-	const updatedCard = {...rawUpdatedCard};
-
-	try {
-		if(cardFinisher) cardFinisher(updatedCard, state);
-	} catch(err) {
-		throw new Error('The card finisher threw an error: ' + err);
-	}
-
-	//Throw out any boosts that might have been applied to an old card type.
-	if (updatedCard.card_type != underlyingCard.card_type) updatedCard.font_size_boost = {};
-
-	updatedCard.font_size_boost = await fontSizeBoosts(updatedCard);
-
-	let update = {};
-
-	for (let field of Object.keys(TEXT_FIELD_CONFIGURATION)) {
-		if (updatedCard[field] == underlyingCard[field]) continue;
-		const config = TEXT_FIELD_CONFIGURATION[field];
-		let value = updatedCard[field];
-		if (config.html) {
-			try {
-				value = normalizeBodyHTML(value);
-			} catch(err) {
-				throw new Error('Couldn\'t save: invalid HTML: ' + err);
-			}
-		}
-		update[field] = value;
-		if (field !== TEXT_FIELD_BODY) continue;
-		let linkInfo = extractCardLinksFromBody(value);
-		references(updatedCard).setLinks(linkInfo);
-	}
-
-	if (Object.keys(updatedCard.font_size_boost).length != Object.keys(underlyingCard.font_size_boost || {}).length || Object.entries(updatedCard.font_size_boost).some(entry => (underlyingCard.font_size_boost || {})[entry[0]] != entry[1])) update.font_size_boost = updatedCard.font_size_boost;
-	if (updatedCard.section != underlyingCard.section) update.section = updatedCard.section;
-	if (updatedCard.name != underlyingCard.section) update.name = updatedCard.name;
-	if (updatedCard.notes != underlyingCard.notes) update.notes = updatedCard.notes;
-	if (updatedCard.todo != underlyingCard.todo) update.todo = updatedCard.todo;
-	if (updatedCard.full_bleed != underlyingCard.full_bleed) update.full_bleed = updatedCard.full_bleed;
-	if (updatedCard.published !== underlyingCard.published) update.published = updatedCard.published;
-	if (updatedCard.card_type !== underlyingCard.card_type) update.card_type = updatedCard.card_type;
-
-	let [todoEnablements, todoDisablements, todoRemovals] = triStateMapDiff(underlyingCard.auto_todo_overrides || {}, updatedCard.auto_todo_overrides || {});
-	if (todoEnablements.length) update.auto_todo_overrides_enablements = todoEnablements;
-	if (todoDisablements.length) update.auto_todo_overrides_disablements = todoDisablements;
-	if (todoRemovals.length) update.auto_todo_overrides_removals = todoRemovals;
-
-	let [tagAdditions, tagDeletions] = arrayDiff(underlyingCard.tags || [], updatedCard.tags || []);
-	if (tagAdditions.length) update.addTags = tagAdditions;
-	if (tagDeletions.length) update.removeTags = tagDeletions;
-
-	let [editorAdditions, editorDeletions] = arrayDiff(underlyingCard.permissions[PERMISSION_EDIT_CARD] || [], updatedCard.permissions[PERMISSION_EDIT_CARD] || []);
-	if (editorAdditions.length) update.add_editors = editorAdditions;
-	if (editorDeletions.length) update.remove_editors = editorDeletions;
-
-	let [collaboratorAdditions, collaboratorDeletions] = arrayDiff(underlyingCard.collaborators || [], updatedCard.collaborators || []);
-	if (collaboratorAdditions.length) update.add_collaborators = collaboratorAdditions;
-	if (collaboratorDeletions.length) update.remove_collaborators = collaboratorDeletions;
-
-	if (!imageBlocksEquivalent(underlyingCard, updatedCard)) update.images = updatedCard.images;
-
-	//references might have changed outside of this function, or because the
-	//body changed and we extracted links.
-	if (!references(underlyingCard).equivalentTo(updatedCard)) update.references_diff = referencesEntriesDiff(underlyingCard, updatedCard);
-
-	return update;
-};
-
 export const modifyCard = (card, update, substantive) => {
 	return modifyCards([card], update, substantive, true);
 };
@@ -398,6 +246,10 @@ export const modifyCards = (cards, update, substantive, failOnError) => async (d
 //op. When an error is thrown, that's an implied 'false'
 const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 
+	//If there aren't any updates to a card, that's OK. This might happen in a
+	//multiModify where some cards already have the items, for example.
+	if (!cardDiffHasChanges(update)) return false;
+
 	const user = selectUser(state);
 
 	if (!user) {
@@ -408,12 +260,6 @@ const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 		throw new Error('User isn\'t allowed to edit the given card');
 	}
 
-	for (let key of Object.keys(update)) {
-		if (!LEGAL_UPDATE_FIELDS[key]) {
-			throw new Error('Illegal field in update: ' + key, update);
-		}
-	}
-
 	let updateObject = {
 		...update,
 		batch: batch.batchID || '',
@@ -421,136 +267,12 @@ const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 		timestamp: serverTimestampSentinel()
 	};
 
-	let cardUpdateObject = {
-		updated: serverTimestampSentinel()
-	};
+	//validateDiff might throw, but that's OK, because we also throw
+	let sectionUpdated = validateCardDiff(state, card, update);
+
+	let cardUpdateObject = applyCardDiff(card, update);
+	cardUpdateObject.updated = serverTimestampSentinel();
 	if (substantive) cardUpdateObject.updated_substantive = serverTimestampSentinel();
-
-	for (let field of Object.keys(TEXT_FIELD_CONFIGURATION)) {
-		if (update[field] === undefined) continue;
-		cardUpdateObject[field] = update[field];
-	}
-
-	if (update.references_diff !== undefined) {
-		const cardCopy = {...card};
-		const refs = references(cardCopy);
-		const reason = refs.mayNotApplyEntriesDiffReason(state, update.references_diff);
-		if (reason) {
-			throw new Error('References diff created error: ' + reason);
-		}
-		refs.applyEntriesDiff(update.references_diff);
-		//NOTE: this is where the raw references property values are also updated
-		applyReferencesDiff(card, cardCopy, cardUpdateObject);
-	}
-
-	if (update.notes !== undefined) {
-		cardUpdateObject.notes = update.notes;
-	}
-
-	if (update.todo !== undefined) {
-		cardUpdateObject.todo = update.todo;
-	}
-
-	if (update.published !== undefined) {
-		cardUpdateObject.published = update.published;
-	}
-
-	if (update.font_size_boost !== undefined) {
-		cardUpdateObject.font_size_boost = update.font_size_boost;
-	}
-
-	if (update.images !== undefined) {
-		cardUpdateObject.images = update.images;
-	}
-
-	//It's never legal to not have a name, so only update if it's not falsey.
-	if (update.name) {
-		//TODO: really we should verify that this name is legal--that is, either the id or one of the slugs.
-		cardUpdateObject.name = update.name;
-	}
-
-	let sectionUpdated = false;
-
-	if (update.section !== undefined) {
-		if (update.section) {
-			if (!getUserMayEditSection(state, update.section)) {
-				throw new Error('The user cannot modify the section the card is moving to');
-			}
-		}
-		if (card.section) {
-			if (!getUserMayEditSection(state, card.section)) {
-				throw new Error('The section the card is leaving is not one the user has edit access for');
-			}
-		}
-		cardUpdateObject.section = update.section;
-		sectionUpdated = true;
-	}
-
-	if (update.card_type !== undefined) {
-		const illegalReason = reasonCardTypeNotLegalForCard(card, update.card_type);
-		if (illegalReason) {
-			throw new Error('Can\'t change the card_type: ' + illegalReason);
-		}
-
-		cardUpdateObject.card_type = update.card_type;
-	}
-
-	if (update.full_bleed !== undefined) {
-		cardUpdateObject.full_bleed = update.full_bleed;
-	}
-
-	if (update.addTags || update.removeTags) {
-		let tags = card.tags;
-		if (update.removeTags) {
-			for (let tag of update.removeTags) {
-				if (!getUserMayEditTag(state, tag)) {
-					throw new Error('User is not allowed to edit tag: ' + tag);
-				}
-			}
-			tags = arrayRemove(tags, update.removeTags);
-		}
-		if (update.addTags) {
-			for (let tag of update.addTags) {
-				if (!getUserMayEditTag(state, tag)) {
-					throw new Error('User is not allowed to edit tag: ' + tag);
-				}
-			}
-			tags = arrayUnion(tags, update.addTags);
-		}
-		cardUpdateObject.tags = tags;
-	}
-
-	if (update.add_editors || update.remove_editors) {
-		let editors = card.permissions[PERMISSION_EDIT_CARD];
-		if (update.remove_editors) editors = arrayRemove(editors, update.remove_editors);
-		if (update.add_editors) {
-			if (!confirm('You\'ve added editors. Those users will be able to edit this card. OK?')) {
-				throw new Error('User aborted because didn\'t confirm editing');
-			}
-			editors = arrayUnion(editors, update.add_editors);
-		}
-		cardUpdateObject['permissions.' + PERMISSION_EDIT_CARD] = editors;
-	}
-
-	if (update.add_collaborators || update.remove_collaborators) {
-		let collaborators = card.collaborators;
-		if (update.remove_collaborators) collaborators = arrayRemove(collaborators, update.remove_collaborators);
-		if (update.add_collaborators) collaborators = arrayUnion(collaborators, update.add_collaborators);
-		cardUpdateObject.collaborators = collaborators;
-	}
-
-	if (update.auto_todo_overrides_enablements || update.auto_todo_overrides_disablements || update.auto_todo_overrides_removals) {
-		let overrides = {...card.auto_todo_overrides || {}};
-		if (update.auto_todo_overrides_enablements) update.auto_todo_overrides_enablements.forEach(key => overrides[key] = true);
-		if (update.auto_todo_overrides_disablements) update.auto_todo_overrides_disablements.forEach(key => overrides[key] = false);
-		if (update.auto_todo_overrides_removals) update.auto_todo_overrides_removals.forEach(key => delete overrides[key]);
-		cardUpdateObject.auto_todo_overrides = overrides;
-	}
-
-	//If there aren't any updates to a card, that's OK. This might happen in a
-	//multiModify where some cards already have the items, for example. There's
-	//always an 'updated' field, which is why we check for 1
-	if (Object.keys(cardUpdateObject).length == 1) return false;
 
 	let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
 
