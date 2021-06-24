@@ -86,6 +86,10 @@ const INITIAL_STATE = {
 	//A direct reference to the card, as it was when editing started, in the
 	//cards array. Useful for detecting when the underlying card has changed.
 	underlyingCardSnapshot: null,
+	//The very original card snapshot from when editing started. This allows us
+	//to figure out what edits have been merged in from other users while we're
+	//open for editing.
+	originalUnderlyingCardSnapshot: null,
 	//This number should increment every time EDITING_EXTRACT_LINKS fires. The
 	//selector for selectEditingNormalizedCard will return the same result until this changes.
 	cardExtractionVersion: -1,
@@ -110,6 +114,7 @@ const app = (state = INITIAL_STATE, action) => {
 			editing: true,
 			card: action.card,
 			underlyingCardSnapshot: action.card,
+			originalUnderlyingCardSnapshot: action.card,
 			cardExtractionVersion: 0,
 			substantive: false,
 			updatedFromContentEditable: {},
@@ -122,6 +127,7 @@ const app = (state = INITIAL_STATE, action) => {
 			editing:false,
 			card: null,
 			underlyingCardSnapshot: null,
+			originalUnderlyingCardSnapshot: null,
 			//If we don't change this, selectEditingNormalizedCard will continue returning the old one.
 			cardExtractionVersion: -1,
 			substantive:false,
