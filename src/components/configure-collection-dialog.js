@@ -15,10 +15,17 @@ import {
 	closeConfigureCollectionDialog
 } from '../actions/app.js';
 
+import {
+	SET_INFOS
+} from '../filters.js';
+
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	innerRender() {
 		return html`
 			<h2>Set</h2>
+			<select disabled>
+				${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
+			</select>
 			<em>${this._collectionDescription.set}</em>
 			<h2>Filters</h2>
 			<ul>
