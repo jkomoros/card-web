@@ -146,7 +146,20 @@ export const collectionDescriptionWithConfigurableFilter = (description, newConf
 
 	if (!replacedFilter) newFilters.push(newConfigurableFilter);
 
-	return new CollectionDescription(description.setNameExplicitlySet ? description.set : '', newFilters, description.sort, description.sortReversed);
+	return collectionDescriptionWithOverrides(description, {filters: newFilters});
+};
+
+const collectionDescriptionWithOverrides = (description, overrides) => {
+	const baseValues = {
+		set: description.setNameExplicitlySet ? description.set : '',
+		filters: description.filters,
+		sort: description.sort,
+		sortReversed: description.sortReversed,
+		viewMode: description.viewMode,
+		viewModeExtra: description.viewModeExtra,
+	};
+	const overriddenValues = {...baseValues, ...overrides};
+	return new CollectionDescription(overriddenValues.set, overriddenValues.filters, overriddenValues.sort, overriddenValues.sortReversed, overriddenValues.viewMode, overriddenValues.viewModeExtra);
 };
 
 //collectionDescriptionWithQuery returns a new cloned collection description,
