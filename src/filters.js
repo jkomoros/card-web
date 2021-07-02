@@ -1156,6 +1156,7 @@ const CARD_NON_INVERTED_FILTER_DESCRIPTIONS = Object.assign(
 		'read': 'Cards that you have read',
 	},
 	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => [entry[1], 'A filter equivalent of the set ' + entry[0]])),
+	Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_INFO).map(entry => [entry[0], entry[1].description])),
 );
 
 //eslint-disable-next-line no-unused-vars
