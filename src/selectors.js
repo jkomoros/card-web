@@ -118,6 +118,7 @@ export const selectFetchedCard = (state) => state.app.fetchedCard;
 export const selectCardBeingFetched = (state) => state.app.cardBeingFetched;
 export const selectMaintenanceModeEnabled = (state) => state.app.maintenanceModeEnabled;
 export const selectCardsDrawerInfoExpanded = (state) => state.app.cardsDrawerInfoExpanded;
+export const selectConfigureCollectionDialogOpen = (state) => state.app ? state.app.configureCollectionDialogOpen : false;
 export const selectSuggestMissingConceptsEnabled = (state) => state.app.suggestMissingConceptsEnabled;
 
 export const selectComposeOpen = (state) => state.prompt.composeOpen;
