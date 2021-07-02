@@ -162,6 +162,10 @@ const collectionDescriptionWithOverrides = (description, overrides) => {
 	return new CollectionDescription(overriddenValues.set, overriddenValues.filters, overriddenValues.sort, overriddenValues.sortReversed, overriddenValues.viewMode, overriddenValues.viewModeExtra);
 };
 
+export const collectionDescriptionWithSet = (description, set) => {
+	return collectionDescriptionWithOverrides(description, {set});
+};
+
 //collectionDescriptionWithQuery returns a new cloned collection description,
 //but that includes a configurable filter for the given queryText, replacing the
 //first existing query filter if one exists, otherwise appending it.
