@@ -21,7 +21,8 @@ import {
 } from '../collection_description.js';
 
 import {
-	SET_INFOS
+	SET_INFOS,
+	SORTS
 } from '../filters.js';
 
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
@@ -36,7 +37,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				${this._collectionDescription.filters.map(filter => html`<li><em>${filter}</em></li>`)}
 			</ul>
 			<h2>Sort</h2>
-			<em>${this._collectionDescription.sort} ${this._collectionDescription.sortReversed ? html`<strong>Reversed</strong>` : ''}</em>
+			<input type='checkbox' id='reversed' .checked=${this._collectionDescription.sortReversed} disabled><label for='reversed'>Reversed</label>
+			<select disabled .value=${this._collectionDescription.sort}>
+				${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
+			</select>
 		`;
 	}
 
