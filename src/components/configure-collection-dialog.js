@@ -17,7 +17,8 @@ import {
 } from '../actions/app.js';
 
 import {
-	collectionDescriptionWithSet
+	collectionDescriptionWithSet,
+	collectionDescriptionWithSort
 } from '../collection_description.js';
 
 import {
@@ -38,7 +39,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			</ul>
 			<h2>Sort</h2>
 			<input type='checkbox' id='reversed' .checked=${this._collectionDescription.sortReversed} disabled><label for='reversed'>Reversed</label>
-			<select disabled .value=${this._collectionDescription.sort}>
+			<select @change=${this._handleSortSelectChanged} .value=${this._collectionDescription.sort}>
 				${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
 			</select>
 		`;
@@ -53,6 +54,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const ele = e.composedPath()[0];
 		const set = ele.value;
 		store.dispatch(navigateToCollection(collectionDescriptionWithSet(this._collectionDescription, set)));
+	}
+
+	_handleSortSelectChanged(e) {
+		const ele = e.composedPath()[0];
+		const sort = ele.value;
+		store.dispatch(navigateToCollection(collectionDescriptionWithSort(this._collectionDescription, sort)));
 	}
 
 	_handleDoneClicked() {

@@ -166,6 +166,10 @@ export const collectionDescriptionWithSet = (description, set) => {
 	return collectionDescriptionWithOverrides(description, {set});
 };
 
+export const collectionDescriptionWithSort = (description, sort) => {
+	return collectionDescriptionWithOverrides(description, {sort});
+};
+
 //collectionDescriptionWithQuery returns a new cloned collection description,
 //but that includes a configurable filter for the given queryText, replacing the
 //first existing query filter if one exists, otherwise appending it.
