@@ -1159,8 +1159,7 @@ const CARD_NON_INVERTED_FILTER_DESCRIPTIONS = Object.assign(
 	Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_INFO).map(entry => [entry[0], entry[1].description])),
 );
 
-//eslint-disable-next-line no-unused-vars
-const CARD_FILTER_DESCRIPTIONS = Object.assign(
+export const CARD_FILTER_DESCRIPTIONS = Object.assign(
 	CARD_NON_INVERTED_FILTER_DESCRIPTIONS,
 	Object.fromEntries(Object.entries(INVERSE_FILTER_NAMES).map(entry => [entry[0], 'Inverse of ' + entry[1]]))
 );

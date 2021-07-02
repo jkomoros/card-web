@@ -28,7 +28,8 @@ import {
 	EXCLUDE_FILTER_NAME,
 	CARDS_FILTER_NAME,
 	RECENT_SORT_NAME,
-	DEFAULT_SORT_NAME
+	DEFAULT_SORT_NAME,
+	CARD_FILTER_DESCRIPTIONS
 } from './filters.js';
 
 import {
@@ -1033,6 +1034,19 @@ export const selectActiveCardTweets = createSelector(
 export const selectEditingCardAutoTodos = createSelector(
 	selectEditingCard,
 	(card) => cardTODOConfigKeys(card, true)
+);
+
+//Map of filterName -> filterDescription for all legal filter-names (normal and configurable)
+export const selectFilterDescriptions = createSelector(
+	selectSections,
+	selectTags,
+	(sections, tags) => {
+		return {
+			...CARD_FILTER_DESCRIPTIONS,
+			...Object.fromEntries(Object.entries(sections).map(entry => [entry[0], 'Matches cards in the ' + entry[1].title + ' section'])),
+			...Object.fromEntries(Object.entries(tags).map(entry => [entry[0], 'Matches cards in the ' + entry[1].title + ' tag'])),
+		};
+	}
 );
 
 export const selectActiveCollectionDescription = createSelector(
