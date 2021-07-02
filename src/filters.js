@@ -59,19 +59,25 @@ export const DEFAULT_SET_NAME = 'main';
 export const READING_LIST_SET_NAME = 'reading-list';
 export const EVERYTHING_SET_NAME = 'everything';
 
-//Note: every time you add a new set name, add it here too and make sure that a
-//filter of that name is kept updated.
-export const FILTER_EQUIVALENTS_FOR_SET = {
-	[DEFAULT_SET_NAME]: 'in-all-set',
-	[READING_LIST_SET_NAME]: 'in-reading-list',
-	[EVERYTHING_SET_NAME]: 'in-everything-set'
+export const SET_INFOS = {
+	[DEFAULT_SET_NAME]: {
+		filterEquivalent: 'in-all-set',
+	},
+	[READING_LIST_SET_NAME]: {
+		filterEquivalent: 'in-reading-list',
+	},
+	[EVERYTHING_SET_NAME]: {
+		filterEquivalent: 'in-everything-set'
+	}
 };
+
+export const FILTER_EQUIVALENTS_FOR_SET = Object.fromEntries(Object.entries(SET_INFOS).map(entry => [entry[0], entry[1].filterEquivalent]));
 
 //If filter names have this character in them then they're actually a union of
 //the filters
 export const UNION_FILTER_DELIMITER = '+';
 
-export const SET_NAMES = Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => entry[0]);
+export const SET_NAMES = Object.keys(SET_INFOS);
 
 //The word in the URL That means "the part after this is a sort".
 export const SORT_URL_KEYWORD = 'sort';
