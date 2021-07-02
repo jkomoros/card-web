@@ -12,8 +12,13 @@ import {
 } from '../selectors.js';
 
 import {
-	closeConfigureCollectionDialog
+	closeConfigureCollectionDialog,
+	navigateToCollection
 } from '../actions/app.js';
+
+import {
+	collectionDescriptionWithSet
+} from '../collection_description.js';
 
 import {
 	SET_INFOS
@@ -23,7 +28,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	innerRender() {
 		return html`
 			<h2>Set</h2>
-			<select disabled .value=${this._collectionDescription.set}>
+			<select @change=${this._handleSetSelectChanged} .value=${this._collectionDescription.set}>
 				${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
 			</select>
 			<em>${this._collectionDescription.set}</em>
@@ -39,6 +44,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	constructor() {
 		super();
 		this.title = 'Configure Collection';
+	}
+
+	_handleSetSelectChanged(e) {
+		const ele = e.composedPath()[0];
+		const set = ele.value;
+		store.dispatch(navigateToCollection(collectionDescriptionWithSet(this._collectionDescription, set)));
 	}
 
 	_handleDoneClicked() {
