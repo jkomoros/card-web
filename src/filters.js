@@ -59,6 +59,11 @@ export const DEFAULT_SET_NAME = 'main';
 export const READING_LIST_SET_NAME = 'reading-list';
 export const EVERYTHING_SET_NAME = 'everything';
 
+/*
+  * filterEquivalent - the name of the filter that, when applied to the
+   	everything set, will filter down to contain just the items in that set
+   	(although obviously without any particular order).
+*/
 export const SET_INFOS = {
 	[DEFAULT_SET_NAME]: {
 		filterEquivalent: 'in-all-set',
