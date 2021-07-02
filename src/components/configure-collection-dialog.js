@@ -18,7 +18,14 @@ import {
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	innerRender() {
 		return html`
-			<em>${this._collectionDescription.serialize()}</em>
+			<h2>Set</h2>
+			<em>${this._collectionDescription.set}</em>
+			<h2>Filters</h2>
+			<ul>
+				${this._collectionDescription.filters.map(filter => html`<li><em>${filter}</em></li>`)}
+			</ul>
+			<h2>Sort</h2>
+			<em>${this._collectionDescription.sort} ${this._collectionDescription.sortReversed ? html`<strong>Reversed</strong>` : ''}</em>
 		`;
 	}
 
