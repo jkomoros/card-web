@@ -1097,11 +1097,11 @@ const makeDoesNotNeedFunc = (baseFunc, overrideKeyName) => {
 	};
 };
 
-const DOES_NOT_NEED_FILTER_FUNCS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2].autoApply).map(entry => [entry[1][0][2], makeDoesNotNeedFunc(entry[1][1], REVERSE_CARD_FILTER_CONFIG_MAP[entry[1][0][2]])]));
+const DOES_NOT_NEED_FILTER_FUNCS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2].autoApply).map(entry => [entry[1][0][2], {func: makeDoesNotNeedFunc(entry[1][1], REVERSE_CARD_FILTER_CONFIG_MAP[entry[1][0][2]]), description: 'Does not need ' + entry[1][4]}]));
 
 const FREEFORM_TODO_FUNC = CARD_FILTER_CONFIGS[FREEFORM_TODO_KEY][1];
 
-const COMBINED_TODO_FUNCS = [FREEFORM_TODO_FUNC, ...Object.values(DOES_NOT_NEED_FILTER_FUNCS)];
+const COMBINED_TODO_FUNCS = [FREEFORM_TODO_FUNC, ...Object.values(DOES_NOT_NEED_FILTER_FUNCS).map(obj => obj.func)];
 
 const combinedTodoFunc = (card) => {
 	//The funcs return true when it's 'done' (no todo). So if all of them return
@@ -1112,13 +1112,32 @@ const combinedTodoFunc = (card) => {
 
 export const CARD_FILTER_FUNCS = Object.assign(
 	//The main filter names
-	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][0], makeBasicCardFilterFunc(entry[1][1], entry[1][2])])),
+	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][0], {func: makeBasicCardFilterFunc(entry[1][1], entry[1][2]), description: entry[1][4]}])),
 	//does-not-need filters for TODOs
 	DOES_NOT_NEED_FILTER_FUNCS,
 	//combined filter func
 	{
-		[TODO_COMBINED_FILTER_NAME]: combinedTodoFunc,
+		[TODO_COMBINED_FILTER_NAME]: {
+			func: combinedTodoFunc,
+			description: 'Whether the card has any TODO',
+		}
 	},
+);
+
+const CARD_NON_INVERTED_FILTER_DESCRIPTIONS = Object.assign(
+	Object.fromEntries(Object.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], entry[1].description])),
+	{
+		'starred': 'Cards that you have starred',
+		'none': 'Matches no cards',
+		'read': 'Cards that you have read',
+	},
+	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => [entry[1], 'A filter equivalent of the set ' + entry[0]])),
+);
+
+//eslint-disable-next-line no-unused-vars
+const CARD_FILTER_DESCRIPTIONS = Object.assign(
+	CARD_NON_INVERTED_FILTER_DESCRIPTIONS,
+	Object.fromEntries(Object.entries(INVERSE_FILTER_NAMES).map(entry => [entry[0], 'Inverse of ' + entry[1]]))
 );
 
 //We pull this out because it has to be the same in filters and filtersSnapshot
