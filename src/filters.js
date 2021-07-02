@@ -603,91 +603,111 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 const CONFIGURABLE_FILTER_INFO = {
 	[UPDATED_FILTER_NAME]: {
 		factory: makeDateConfigurableFilter,
+		description: 'Selects cards that were updated within a given date range'
 	},
 	[LAST_TWEETED_FILTER_NAME]: {
 		factory: makeDateConfigurableFilter,
+		description: 'Selects cards that had a tweet within a given date range'
 	},
 	[CHILDREN_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that are directly referenced by a given card'
 	},
 	[DESCENDANTS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that are direct or indirectly referenced by a given card'
 	},
 	[PARENTS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that directly reference the given card'
 	},
 	[ANCESTORS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that directly or indirectly reference the given card'
 	},
 	[DIRECT_CONNECTIONS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that directly reference or are referenced by a given card'
 	},
 	[CONNECTIONS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that directly or indirectly reference (or are referenced by) a given card'
 	},
 	[REFERENCES_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that reference or are referenced by other cards with a particular type of reference'
 	},
 	[REFERENCES_INBOUND_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that is referenced by other cards with a particular type of reference'
 	},
 	[REFERENCES_OUTBOUND_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that reference other cards with a particular type of reference'
 	},
 	[DIRECT_REFERENCES_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that directly reference or are referenced by other cards with a particular type of reference'
 	},
 	[DIRECT_REFERENCES_INBOUND_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that reference other cards with a particular type of reference'
 	},
 	[DIRECT_REFERENCES_OUTBOUND_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that are referenced by other cards with a particular type of reference'
 	},
 	[AUTHOR_FILTER_NAME]: {
 		factory: makeAuthorConfigurableFilter,
+		description: 'Selects cards that are authored by the give user ID',
 	},
 	[EXCLUDE_FILTER_NAME]: {
 		factory: makeExcludeConfigurableFilter,
+		description: 'Inverts a sub-filter expression'
 	},
 	[COMBINE_FILTER_NAME]: {
 		factory: makeCombineConfigurableFilter,
+		description: 'Returns the union of two sub-filter expressions',
 	},
 	[CARDS_FILTER_NAME]: {
 		//This filter matches precisely the IDsorSlugs provided. It's generally
 		//used in conjunction with the exclude filter.
 		factory: makeCardsConfigurableFilter,
+		description: 'Selects a precise list of specific cards. It\'s typically used in conjunction with the ' + EXCLUDE_FILTER_NAME + ' filter',
 	},
 	[QUERY_FILTER_NAME]: {
 		factory: makeQueryConfigurableFilter,
 		suppressLabels: true,
+		description: 'Selects cards that contain text that at least partially matches a provided query',
 	},
 	[QUERY_STRICT_FILTER_NAME]: {
 		factory: makeQueryConfigurableFilter,
 		suppressLabels: true,
+		description: 'Selects cards that contain text that exactly matches a provided query',
 	},
 	[LIMIT_FILTER_NAME]: {
 		//Limit is a special type of filter... it must run at the very last
@@ -695,18 +715,22 @@ const CONFIGURABLE_FILTER_INFO = {
 		//concerned, it's actually a no-op filter. It's up to Collection to
 		//process it.
 		factory: makeNoOpConfigurableFilter,
+		description: 'Selects only up to a certain number of cards. Limit is a special type of filter that can only apply at the top-level, and there can only be one.',
 	},
 	[SIMILAR_FILTER_NAME]: {
 		factory: makeSimilarConfigurableFilter,
 		suppressLabels: true,
+		description: 'Selects cards that are similar to a given key card. It is primarily used for its sort order.',
 	},
 	[ABOUT_CONCEPT_FILTER_NAME]: {
 		factory: makeAboutConceptConfigurableFilter,
 		suppressLabels: true,
+		description: 'Selects cards that reference a given text concept',
 	},
 	[MISSING_CONCEPT_FILTER_NAME]: {
 		factory: makeMissingConceptConfigurableFilter,
-		labelName: 'Suggested Concept Count'
+		labelName: 'Suggested Concept Count',
+		description: 'Selects cards that appear to be missing a particular concept reference'
 	}
 };
 
