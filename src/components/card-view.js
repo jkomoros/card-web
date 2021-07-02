@@ -74,7 +74,8 @@ import {
 
 import {
 	navigatePathTo,
-	toggleCardsDrawerInfo
+	toggleCardsDrawerInfo,
+	openConfigureCollectionDialog
 } from '../actions/app.js';
 
 import {
@@ -142,7 +143,8 @@ import {
 	SEARCH_ICON,
 	PLAYLISLT_ADD_CHECK_ICON,
 	PLAYLIST_ADD_ICON,
-	FILE_COPY_ICON
+	FILE_COPY_ICON,
+	RULE_ICON
 } from './my-icons.js';
 
 import {
@@ -255,6 +257,7 @@ class CardView extends connect(store)(PageViewElement) {
 			<div slot='info'>
 				<input type='checkbox' .checked=${this._suggestMissingConceptsEnabled} @change=${this._handleSuggestMissingConceptsChanged} id='suggested-concepts-enabled'><label for='suggested-concepts-enabled'>Suggest Missing Concepts <strong>(SLOW)</strong></label>
 				<button id='edit-multi' class='small' title='Edit all cards' @click=${this._handleMultiEditClicked}>${EDIT_ICON}</button><label for='edit-multi'>Edit All Cards</label>
+				<button id='configure-collection' class='small' title='Configure collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure collection</label>
 			</div>` : ''}
 		</card-drawer>
         <div id='center'>
@@ -366,6 +369,10 @@ class CardView extends connect(store)(PageViewElement) {
 		if (e.detail.direction == 'right') {
 			this._handleBackClicked(e);
 		}
+	}
+
+	_handleConfigureCollectionClicked() {
+		store.dispatch(openConfigureCollectionDialog());
 	}
 
 	_handleSuggestMissingConceptsChanged(e) {
