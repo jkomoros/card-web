@@ -31,7 +31,6 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			<select @change=${this._handleSetSelectChanged} .value=${this._collectionDescription.set}>
 				${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
 			</select>
-			<em>${this._collectionDescription.set}</em>
 			<h2>Filters</h2>
 			<ul>
 				${this._collectionDescription.filters.map(filter => html`<li><em>${filter}</em></li>`)}
