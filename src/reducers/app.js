@@ -19,6 +19,8 @@ import {
 	CLOSE_COMMENTS_AND_INFO_PANEL,
 	OPEN_CARDS_DRAWER_PANEL,
 	CLOSE_CARDS_DRAWER_PANEL,
+	OPEN_CONFIGURE_COLLECTION_DIALOG,
+	CLOSE_CONFIGURE_COLLECTION_DIALOG,
 	ENABLE_PRESENTATION_MODE,
 	DISABLE_PRESENTATION_MODE,
 	ENABLE_MOBILE_MODE,
@@ -47,6 +49,7 @@ const INITIAL_STATE = {
 	commentsAndInfoPanelOpen: COMMENTS_AND_INFO_PANEL_DEFAULT_VALUE,
 	cardsDrawerPanelOpen: CARDS_DRAWER_PANEL_DEFAULT_VALUE,
 	cardsDrawerInfoExpanded: false,
+	configureCollectionDialogOpen: false,
 	presentationMode: false,
 	mobileMode: false,
 	hoverX: 0,
@@ -115,6 +118,16 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			cardsDrawerPanelOpen: false
+		};
+	case OPEN_CONFIGURE_COLLECTION_DIALOG:
+		return {
+			...state,
+			configureCollectionDialogOpen: true,
+		};
+	case CLOSE_CONFIGURE_COLLECTION_DIALOG:
+		return {
+			...state,
+			configureCollectionDialogOpen: false,
 		};
 	case ENABLE_PRESENTATION_MODE:
 		return {

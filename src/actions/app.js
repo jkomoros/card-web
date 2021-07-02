@@ -18,6 +18,8 @@ export const OPEN_COMMENTS_AND_INFO_PANEL = 'OPEN_COMMENTS_AND_INFO_PANEL';
 export const CLOSE_COMMENTS_AND_INFO_PANEL = 'CLOSE_COMMENTS_AND_INFO_PANEL';
 export const OPEN_CARDS_DRAWER_PANEL = 'OPEN_CARDS_DRAWER_PANEL';
 export const CLOSE_CARDS_DRAWER_PANEL = 'CLOSE_CARDS_DRAWER_PANEL';
+export const OPEN_CONFIGURE_COLLECTION_DIALOG = 'OPEN_CONFIGURE_COLLECTION_DIALOG';
+export const CLOSE_CONFIGURE_COLLECTION_DIALOG = 'CLOSE_CONFIGURE_COLLECTION_DIALOG';
 export const ENABLE_PRESENTATION_MODE = 'ENABLE_PRESENTATION_MODE';
 export const DISABLE_PRESENTATION_MODE = 'DISABLE_PRESENTATION_MODE';
 export const ENABLE_MOBILE_MODE = 'ENABLE_MOBILE_MODE';
@@ -490,6 +492,18 @@ export const openCardsDrawerPanel = () => {
 export const closeCardsDrawerPanel = () => {
 	return {
 		type: CLOSE_CARDS_DRAWER_PANEL
+	};
+};
+
+export const openConfigureCollectionDialog = () => {
+	return {
+		type: OPEN_CONFIGURE_COLLECTION_DIALOG,
+	};
+};
+
+export const closeConfigureCollectionDialog = () => {
+	return {
+		type: CLOSE_CONFIGURE_COLLECTION_DIALOG
 	};
 };
 
