@@ -36,7 +36,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			</select>
 			<h2>Filters</h2>
 			<ul>
-				${this._collectionDescription.filters.map(filter => html`<li><em>${filter}</em></li>`)}
+				${this._collectionDescription.filters.map(this._templateForFilter)}
 			</ul>
 			<h2>Sort</h2>
 			<input type='checkbox' @change=${this._handleSortReversedCheckboxChanged} id='reversed' .checked=${this._collectionDescription.sortReversed}><label for='reversed'>Reversed</label>
@@ -49,6 +49,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	constructor() {
 		super();
 		this.title = 'Configure Collection';
+	}
+
+	_templateForFilter(filterName) {
+		return html`<li><em>${filterName}</em></li>`;
 	}
 
 	_handleSetSelectChanged(e) {
