@@ -28,6 +28,10 @@ import {
 	SORTS
 } from '../filters.js';
 
+import {
+	DELETE_FOREVER_ICON,
+} from './my-icons.js';
+
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	innerRender() {
 		return html`
@@ -53,7 +57,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	_templateForFilter(filterName, index) {
-		return html`<li><em>${filterName}</em><button .index=${index} @click=${this._handleRemoveFilterClicked}>X</button></li>`;
+		return html`<li><em>${filterName}</em><button class='small' .index=${index} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button></li>`;
 	}
 
 	_handleRemoveFilterClicked(e) {
