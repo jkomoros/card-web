@@ -166,6 +166,12 @@ export const collectionDescriptionWithSet = (description, set) => {
 	return collectionDescriptionWithOverrides(description, {set});
 };
 
+export const collectionDescriptionWithFilterRemoved = (description, index) => {
+	const filters = [...description.filters];
+	filters.splice(index, 1);
+	return collectionDescriptionWithOverrides(description, {filters});
+};
+
 export const collectionDescriptionWithSort = (description, sort) => {
 	return collectionDescriptionWithOverrides(description, {sort});
 };

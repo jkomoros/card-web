@@ -19,7 +19,8 @@ import {
 import {
 	collectionDescriptionWithSet,
 	collectionDescriptionWithSort,
-	collectionDescriptionWithSortReversed
+	collectionDescriptionWithSortReversed,
+	collectionDescriptionWithFilterRemoved
 } from '../collection_description.js';
 
 import {
@@ -36,7 +37,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			</select>
 			<h2>Filters</h2>
 			<ul>
-				${this._collectionDescription.filters.map(this._templateForFilter)}
+				${this._collectionDescription.filters.map((filterName, index) => this._templateForFilter(filterName, index))}
 			</ul>
 			<h2>Sort</h2>
 			<input type='checkbox' @change=${this._handleSortReversedCheckboxChanged} id='reversed' .checked=${this._collectionDescription.sortReversed}><label for='reversed'>Reversed</label>
@@ -51,8 +52,14 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this.title = 'Configure Collection';
 	}
 
-	_templateForFilter(filterName) {
-		return html`<li><em>${filterName}</em></li>`;
+	_templateForFilter(filterName, index) {
+		return html`<li><em>${filterName}</em><button .index=${index} @click=${this._handleRemoveFilterClicked}>X</button></li>`;
+	}
+
+	_handleRemoveFilterClicked(e) {
+		const ele = e.composedPath()[0];
+		const index = ele.index;
+		store.dispatch(navigateToCollection(collectionDescriptionWithFilterRemoved(this._collectionDescription, index)));
 	}
 
 	_handleSetSelectChanged(e) {
