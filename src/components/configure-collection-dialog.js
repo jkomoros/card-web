@@ -23,7 +23,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	innerRender() {
 		return html`
 			<h2>Set</h2>
-			<select disabled>
+			<select disabled .value=${this._collectionDescription.set}>
 				${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
 			</select>
 			<em>${this._collectionDescription.set}</em>
