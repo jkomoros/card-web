@@ -74,7 +74,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_templateForFilter(filterName, index) {
 		const [firstFilterPart, restFilter] = splitCompoundFilter(filterName);
 		//TODO: handle combined normal filters e.g. `working-notes+content`
-		return html`<select @change=${this._handleModifyFilterChanged} .index=${index}>${this._filterOptions(firstFilterPart)}</select>${CONFIGURABLE_FILTER_INFO[firstFilterPart] ? html`<input type='text' .index=${index} @change=${this._handleModifyFilterRestChanged} .value=${restFilter}>` : '' }<button class='small' .index=${index} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`;
+		return html`<div><select @change=${this._handleModifyFilterChanged} .index=${index}>${this._filterOptions(firstFilterPart)}</select>${CONFIGURABLE_FILTER_INFO[firstFilterPart] ? html`<input type='text' .index=${index} @change=${this._handleModifyFilterRestChanged} .value=${restFilter}>` : '' }<button class='small' .index=${index} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button></div>`;
 	}
 
 	_filterOptions(selectedOptionName) {
