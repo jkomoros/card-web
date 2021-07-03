@@ -106,8 +106,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const ele = e.composedPath()[0];
 		const index = ele.index;
 		const firstPart = ele.value;
-		const freeTextEle = ele.parentElement.querySelector('input[type=text]');
-		const fullText = freeTextEle ? firstPart + '/' + freeTextEle.value : firstPart;
+		const configurableInfo = CONFIGURABLE_FILTER_INFO[firstPart];
+		const fullText = configurableInfo ? firstPart + '/' + configurableInfo.defaultsFactory() : firstPart;
 		store.dispatch(navigateToCollection(collectionDescriptionWithFilterModified(this._collectionDescription, index, fullText)));
 	}
 
