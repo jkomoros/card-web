@@ -84,7 +84,18 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleRemoveFilterClicked(e) {
-		const ele = e.composedPath()[0];
+		//The event likely happened on the svg but we want the button
+		let ele = null;
+		for (const possibleEle of e.composedPath()) {
+			if (possibleEle.tagName == 'BUTTON') {
+				ele = possibleEle;
+				break;
+			}
+		}
+		if (!ele) {
+			console.warn('Couldn\'t find ele');
+			return;
+		}
 		const index = ele.index;
 		store.dispatch(navigateToCollection(collectionDescriptionWithFilterRemoved(this._collectionDescription, index)));
 	}
