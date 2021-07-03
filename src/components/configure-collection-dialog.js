@@ -1,5 +1,6 @@
 import { html } from '@polymer/lit-element';
 import { connect } from 'pwa-helpers/connect-mixin.js';
+import { repeat } from 'lit-html/directives/repeat';
 
 // This element is connected to the Redux store.
 import { store } from '../store.js';
@@ -8,7 +9,8 @@ import { DialogElement } from './dialog-element.js';
 
 import {
 	selectConfigureCollectionDialogOpen,
-	selectActiveCollectionDescription
+	selectActiveCollectionDescription,
+	selectFilterDescriptions
 } from '../selectors.js';
 
 import {
@@ -57,7 +59,17 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	_templateForFilter(filterName, index) {
-		return html`<li><em>${filterName}</em><button class='small' .index=${index} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button></li>`;
+		const filterParts = filterName.split('/');
+		const firstFilterPart = filterParts[0];
+		const restFilter = filterParts.slice(1).join('/');
+		//TODO: handle combined normal filters e.g. `working-notes+content`
+		return html`<select disabled>${this._filterOptions(firstFilterPart)}</select>${restFilter.length ? html`<input type='text' disabled .value=${restFilter}>` : '' }<button class='small' .index=${index} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`;
+	}
+
+	_filterOptions(selectedOptionName) {
+		//TODO: cache?
+		//I'd rather have the current value selected in the <select>, but that wasn't working, so have the options select themselves.
+		return repeat(Object.entries(this._filterDescriptions), entry => entry[0], entry => html`<option .value=${entry[0]} .title=${entry[1]} .selected=${selectedOptionName == entry[0]}>${entry[0]} - ${entry[1]}</option>`);
 	}
 
 	_handleRemoveFilterClicked(e) {
@@ -96,6 +108,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	static get properties() {
 		return {
 			_collectionDescription: {type: Object},
+			_filterDescriptions: {type: Object},
 		};
 	}
 
@@ -103,6 +116,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = selectConfigureCollectionDialogOpen(state);
 		this._collectionDescription = selectActiveCollectionDescription(state);
+		this._filterDescriptions = selectFilterDescriptions(state);
 	}
 
 }
