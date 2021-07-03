@@ -39,6 +39,13 @@ import {
 	PLUS_ICON
 } from './my-icons.js';
 
+const splitCompoundFilter = (fullFilterName) => {
+	const filterParts = fullFilterName.split('/');
+	const firstFilterPart = filterParts[0];
+	const restFilter = filterParts.slice(1).join('/');
+	return [firstFilterPart, restFilter];
+};
+
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	innerRender() {
 		return html`
@@ -65,11 +72,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	_templateForFilter(filterName, index) {
-		const filterParts = filterName.split('/');
-		const firstFilterPart = filterParts[0];
-		const restFilter = filterParts.slice(1).join('/');
+		const [firstFilterPart, restFilter] = splitCompoundFilter(filterName);
 		//TODO: handle combined normal filters e.g. `working-notes+content`
-		return html`<select @change=${this._handleModifyFilterChanged} .index=${index}>${this._filterOptions(firstFilterPart)}</select>${restFilter.length || CONFIGURABLE_FILTER_INFO[firstFilterPart] ? html`<input type='text' disabled .value=${restFilter}>` : '' }<button class='small' .index=${index} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`;
+		return html`<select @change=${this._handleModifyFilterChanged} .index=${index}>${this._filterOptions(firstFilterPart)}</select>${CONFIGURABLE_FILTER_INFO[firstFilterPart] ? html`<input type='text' .index=${index} @change=${this._handleModifyFilterRestChanged} .value=${restFilter}>` : '' }<button class='small' .index=${index} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`;
 	}
 
 	_filterOptions(selectedOptionName) {
@@ -86,6 +91,15 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	_handleAddFilterClicked() {
 		store.dispatch(navigateToCollection(collectionDescriptionWithFilterAppended(this._collectionDescription, ALL_FILTER_NAME)));
+	}
+
+	_handleModifyFilterRestChanged(e) {
+		const ele = e.composedPath()[0];
+		const index = ele.index;
+		const oldText = this._collectionDescription.filters[index];
+		const [firstPart] = splitCompoundFilter(oldText);
+		const newText = firstPart + '/' + ele.value;
+		store.dispatch(navigateToCollection(collectionDescriptionWithFilterModified(this._collectionDescription, index, newText)));
 	}
 
 	_handleModifyFilterChanged(e) {
