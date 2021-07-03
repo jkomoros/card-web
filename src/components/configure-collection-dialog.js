@@ -28,7 +28,8 @@ import {
 
 import {
 	SET_INFOS,
-	SORTS
+	SORTS,
+	CONFIGURABLE_FILTER_INFO
 } from '../filters.js';
 
 import {
@@ -64,7 +65,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const firstFilterPart = filterParts[0];
 		const restFilter = filterParts.slice(1).join('/');
 		//TODO: handle combined normal filters e.g. `working-notes+content`
-		return html`<select @change=${this._handleModifyFilterChanged} .index=${index}>${this._filterOptions(firstFilterPart)}</select>${restFilter.length ? html`<input type='text' disabled .value=${restFilter}>` : '' }<button class='small' .index=${index} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`;
+		return html`<select @change=${this._handleModifyFilterChanged} .index=${index}>${this._filterOptions(firstFilterPart)}</select>${restFilter.length || CONFIGURABLE_FILTER_INFO[firstFilterPart] ? html`<input type='text' disabled .value=${restFilter}>` : '' }<button class='small' .index=${index} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`;
 	}
 
 	_filterOptions(selectedOptionName) {

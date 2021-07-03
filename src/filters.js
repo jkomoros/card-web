@@ -600,7 +600,7 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 //can also emit a [matches, sortValue, partialMatch], where partialMatch denotes
 //the item should be ghosted. If the filter emits sortExtras, then it should
 //also define a labelName. 
-const CONFIGURABLE_FILTER_INFO = {
+export const CONFIGURABLE_FILTER_INFO = {
 	[UPDATED_FILTER_NAME]: {
 		factory: makeDateConfigurableFilter,
 		description: 'Selects cards that were updated within a given date range'
