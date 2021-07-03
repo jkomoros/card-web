@@ -102,6 +102,7 @@ export const DEFAULT_VIEW_MODE = 'list';
 export const VIEW_MODE_WEB = 'web';
 
 export const NONE_FILTER_NAME = 'none';
+export const ALL_FILTER_NAME = 'all-cards';
 
 //Legal view modes, including whether an option is expected or not.
 export const LEGAL_VIEW_MODES = {
@@ -1092,6 +1093,7 @@ export const INVERSE_FILTER_NAMES = Object.assign(
 	{
 		'unstarred': 'starred',
 		'unread': 'read',
+		[ALL_FILTER_NAME]: NONE_FILTER_NAME,
 		[TODO_COMBINED_INVERSE_FILTER_NAME]: TODO_COMBINED_FILTER_NAME,
 	},
 	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => ['not-' + entry[1], entry[1]])),
