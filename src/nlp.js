@@ -1302,7 +1302,7 @@ const SEMANTIC_FINGERPRINT_MATCH_CONSTANT = 1.0;
 
 class Fingerprint {
 	constructor(items, cardOrCards, generator) {
-		this._cards = Array.isArray(cardOrCards) ? cardOrCards : [cardOrCards];
+		this._cards = Array.isArray(cardOrCards) ? cardOrCards : (cardOrCards ? [cardOrCards] : []);
 		this._generator = generator;
 		this._items = items || new Map();
 		this._memoizedWordCloud = null;
@@ -1589,7 +1589,7 @@ export class FingerprintGenerator {
 	}
 
 	fingerprintForCardIDList(cardIDs) {
-		if (!cardIDs || !cardIDs.length) return new Map();
+		if (!cardIDs || !cardIDs.length) return new Fingerprint();
 		let combinedTFIDF = {};
 		for (const cardID of cardIDs) {
 			const fingerprint = this.fingerprintForCardID(cardID);
