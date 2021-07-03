@@ -31,7 +31,7 @@ import {
 	SET_INFOS,
 	SORTS,
 	CONFIGURABLE_FILTER_INFO,
-	NONE_FILTER_NAME
+	ALL_FILTER_NAME
 } from '../filters.js';
 
 import {
@@ -85,7 +85,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleAddFilterClicked() {
-		store.dispatch(navigateToCollection(collectionDescriptionWithFilterAppended(this._collectionDescription, NONE_FILTER_NAME)));
+		store.dispatch(navigateToCollection(collectionDescriptionWithFilterAppended(this._collectionDescription, ALL_FILTER_NAME)));
 	}
 
 	_handleModifyFilterChanged(e) {
