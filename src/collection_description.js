@@ -251,8 +251,8 @@ export const CollectionDescription = class {
 		this._viewMode = viewMode;
 		this._viewModeExtra = viewModeExtra;
 		this._limit = limit;
-		this._serialized = this._serialize();
-		this._serializedShort = this._serializeShort();
+		this._serialized = this._serialize(false);
+		this._serializedShort = this._serializeShort(false);
 	}
 
 	//setNameExplicitlySet returns whether the setName was set explicitly or
@@ -302,6 +302,10 @@ export const CollectionDescription = class {
 		return this._serialized;
 	}
 
+	serializeOriginalOrder() {
+		return this._serialize(true);
+	}
+
 	//serialize returns a canonical string representing this collection
 	//description, which if used as a component of the URL will match these
 	//collection semantics. The string uniquely and precisely defines the
@@ -310,11 +314,11 @@ export const CollectionDescription = class {
 	//name). It also may be in  adifferent order than what is in the URL, since
 	//all items are in a canonical sorted order but the URL is optimized to stay
 	//as the user wrote it.
-	_serialize() {
+	_serialize(unsorted) {
 		let result = [this.set];
 
 		let filterNames = [...this.filters];
-		filterNames.sort();
+		if (!unsorted) filterNames.sort();
 	
 		result = result.concat(filterNames);
 	
@@ -339,15 +343,19 @@ export const CollectionDescription = class {
 		return this._serializedShort;
 	}
 
+	serializeShortOriginalOrder() {
+		return this._serializeShort(true);
+	}
+
 	//serializeShort is like serialize, but skips leading set name if it's
 	//default.
-	_serializeShort() {
+	_serializeShort(unsorted) {
 		let result = [];
 
 		if (this.set != DEFAULT_SET_NAME) result.push(this.set);
 
 		let filterNames = [...this.filters];
-		filterNames.sort();
+		if (!unsorted) filterNames.sort();
 
 		result = result.concat(filterNames);
 
