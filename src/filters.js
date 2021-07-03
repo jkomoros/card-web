@@ -101,6 +101,8 @@ export const VIEW_MODE_URL_KEYWORD = 'view';
 export const DEFAULT_VIEW_MODE = 'list';
 export const VIEW_MODE_WEB = 'web';
 
+export const NONE_FILTER_NAME = 'none';
+
 //Legal view modes, including whether an option is expected or not.
 export const LEGAL_VIEW_MODES = {
 	//Note: collection_description logic assumes that default_view_mode takes not extra option.
@@ -1152,7 +1154,7 @@ const CARD_NON_INVERTED_FILTER_DESCRIPTIONS = Object.assign(
 	Object.fromEntries(Object.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], entry[1].description])),
 	{
 		'starred': 'Cards that you have starred',
-		'none': 'Matches no cards',
+		[NONE_FILTER_NAME]: 'Matches no cards',
 		'read': 'Cards that you have read',
 	},
 	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => [entry[1], 'A filter equivalent of the set ' + entry[0]])),
@@ -1169,7 +1171,7 @@ export const CARD_FILTER_DESCRIPTIONS = Object.assign(
 const INITIAL_STATE_FILTERS = Object.assign(
 	{
 		//None will match nothing. We use it for orphans.
-		none: {},
+		[NONE_FILTER_NAME]: {},
 		starred: {},
 		read: {},
 	},

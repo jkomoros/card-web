@@ -22,7 +22,8 @@ import {
 	SORT_URL_KEYWORD,
 	EVERYTHING_SET_NAME,
 	DEFAULT_VIEW_MODE,
-	VIEW_MODE_URL_KEYWORD
+	VIEW_MODE_URL_KEYWORD,
+	NONE_FILTER_NAME
 } from '../filters.js';
 
 import {
@@ -123,7 +124,7 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 					set = EVERYTHING_SET_NAME;
 					filters = [card.card_type];
 				} else {
-					filters = ['none'];
+					filters = [NONE_FILTER_NAME];
 				}
 			}
 		} else if(!description.setNameExplicitlySet) {
@@ -134,7 +135,7 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 			//Make sure the collection has no items, so canonicalizeURL won't add
 			//'main' in it which would then load up the whole collection before
 			//redirecting.
-			filters = ['none'];
+			filters = [NONE_FILTER_NAME];
 		}
 	}
 
