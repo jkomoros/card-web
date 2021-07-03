@@ -178,6 +178,11 @@ export const collectionDescriptionWithFilterModified = (description, index, newF
 	return collectionDescriptionWithOverrides(description, {filters});
 };
 
+export const collectionDescriptionWithFilterAppended = (description, newFilter) => {
+	const filters = [...description.filters, newFilter];
+	return collectionDescriptionWithOverrides(description, {filters});
+};
+
 export const collectionDescriptionWithSort = (description, sort) => {
 	return collectionDescriptionWithOverrides(description, {sort});
 };
