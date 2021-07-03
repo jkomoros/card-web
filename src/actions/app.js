@@ -249,7 +249,7 @@ export const navigateToCollectionWithQuery = (queryText) => (dispatch, getState)
 };
 
 export const urlForCollection = (collection) => {
-	return '/' + PAGE_DEFAULT + '/' + collection.serializeShort();
+	return '/' + PAGE_DEFAULT + '/' + collection.serializeShortOriginalOrder();
 };
 
 export const navigateToCollection = (collection) => {
