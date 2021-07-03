@@ -23,17 +23,20 @@ import {
 	collectionDescriptionWithSort,
 	collectionDescriptionWithSortReversed,
 	collectionDescriptionWithFilterRemoved,
-	collectionDescriptionWithFilterModified
+	collectionDescriptionWithFilterModified,
+	collectionDescriptionWithFilterAppended
 } from '../collection_description.js';
 
 import {
 	SET_INFOS,
 	SORTS,
-	CONFIGURABLE_FILTER_INFO
+	CONFIGURABLE_FILTER_INFO,
+	NONE_FILTER_NAME
 } from '../filters.js';
 
 import {
 	DELETE_FOREVER_ICON,
+	PLUS_ICON
 } from './my-icons.js';
 
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
@@ -46,6 +49,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			<h2>Filters</h2>
 			<ul>
 				${this._collectionDescription.filters.map((filterName, index) => this._templateForFilter(filterName, index))}
+				<li><button class='small' @click=${this._handleAddFilterClicked} title='Add a new filter (ANDed with other filters)'>${PLUS_ICON}</button></li>
 			</ul>
 			<h2>Sort</h2>
 			<input type='checkbox' @change=${this._handleSortReversedCheckboxChanged} id='reversed' .checked=${this._collectionDescription.sortReversed}><label for='reversed'>Reversed</label>
@@ -78,6 +82,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const ele = e.composedPath()[0];
 		const index = ele.index;
 		store.dispatch(navigateToCollection(collectionDescriptionWithFilterRemoved(this._collectionDescription, index)));
+	}
+
+	_handleAddFilterClicked() {
+		store.dispatch(navigateToCollection(collectionDescriptionWithFilterAppended(this._collectionDescription, NONE_FILTER_NAME)));
 	}
 
 	_handleModifyFilterChanged(e) {
