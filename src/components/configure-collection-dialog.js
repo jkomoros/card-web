@@ -39,6 +39,11 @@ import {
 	PLUS_ICON
 } from './my-icons.js';
 
+import {
+	help,
+	HelpStyles,
+} from './help-badges.js';
+
 const splitCompoundFilter = (fullFilterName) => {
 	const filterParts = fullFilterName.split('/');
 	const firstFilterPart = filterParts[0];
@@ -49,6 +54,12 @@ const splitCompoundFilter = (fullFilterName) => {
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	innerRender() {
 		return html`
+			${HelpStyles}
+			<style>
+				.help {
+					font-size:0.75em;
+				}
+			</style>
 			<h2>Set</h2>
 			<select @change=${this._handleSetSelectChanged} .value=${this._collectionDescription.set}>
 				${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
@@ -74,7 +85,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_templateForFilter(filterName, index) {
 		const [firstFilterPart, restFilter] = splitCompoundFilter(filterName);
 		//TODO: handle combined normal filters e.g. `working-notes+content`
-		return html`<li><select @change=${this._handleModifyFilterChanged} .index=${index}>${this._filterOptions(firstFilterPart)}</select>${CONFIGURABLE_FILTER_INFO[firstFilterPart] ? html`<input type='text' .index=${index} @change=${this._handleModifyFilterRestChanged} .value=${restFilter}>` : '' }<button class='small' .index=${index} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button></li>`;
+		return html`<li><select @change=${this._handleModifyFilterChanged} .index=${index}>${this._filterOptions(firstFilterPart)}</select>${CONFIGURABLE_FILTER_INFO[firstFilterPart] ? html`<input type='text' .index=${index} @change=${this._handleModifyFilterRestChanged} .value=${restFilter}>` : '' }${help(this._filterDescriptions[firstFilterPart])}<button class='small' .index=${index} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button></li>`;
 	}
 
 	_filterOptions(selectedOptionName) {
