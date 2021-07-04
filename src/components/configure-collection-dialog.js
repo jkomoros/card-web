@@ -93,10 +93,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const unionFilterPieces = splitUnionFilter(firstFilterPart);
 		const isConfigurableFilter = CONFIGURABLE_FILTER_INFO[firstFilterPart] != undefined;
 		return html`<li>
-			${unionFilterPieces.map((filterPiece, i) => html`<select @change=${this._handleModifyFilterChanged} .index=${index} .subIndex=${i} .fullFilterText=${firstFilterPart}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this._filterDescriptions[filterPiece])}`)}
+			${unionFilterPieces.map((filterPiece, i) => html`<select @change=${this._handleModifyFilterChanged} .index=${index} .subIndex=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this._filterDescriptions[filterPiece])}`)}
 			${isConfigurableFilter ? 
 		html`<input type='text' .index=${index} @change=${this._handleModifyFilterRestChanged} .value=${restFilter}>` : 
-		html`<button class='small' .index=${index} @click=${this._handleAddUnionFilterClicked} .fullFilterText=${firstFilterPart} title='Add new filter to OR with previous filters in this row'>${PLUS_ICON}</button>`
+		html`<button class='small' .index=${index} @click=${this._handleAddUnionFilterClicked} title='Add new filter to OR with previous filters in this row'>${PLUS_ICON}</button>`
 }
 			<button class='small' .index=${index} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>
 		</li>`;
@@ -122,7 +122,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			return;
 		}
 		const index = ele.index;
-		const fullFilterText = ele.fullFilterText + UNION_FILTER_DELIMITER + ALL_FILTER_NAME;
+		const fullFilterText = this._collectionDescription.filters[index] + UNION_FILTER_DELIMITER + ALL_FILTER_NAME;
 		store.dispatch(navigateToCollection(collectionDescriptionWithFilterModified(this._collectionDescription, index, fullFilterText)));
 	}
 
@@ -160,7 +160,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const ele = e.composedPath()[0];
 		const index = ele.index;
 		const subIndex = ele.subIndex;
-		const fullFilterText = ele.fullFilterText;
+		const fullFilterText = this._collectionDescription.filters[index];
 		const unionPieces = splitUnionFilter(fullFilterText);
 		const firstPart = ele.value;
 		unionPieces[subIndex] = firstPart;
