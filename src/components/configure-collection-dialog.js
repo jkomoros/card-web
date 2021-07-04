@@ -53,7 +53,8 @@ const splitCompoundFilter = (fullFilterName) => {
 };
 
 const splitUnionFilter = (unionFilter) => {
-	return unionFilter.split(UNION_FILTER_DELIMITER);
+	const [firstPart] = splitCompoundFilter(unionFilter);
+	return firstPart.split(UNION_FILTER_DELIMITER);
 };
 
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
