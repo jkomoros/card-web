@@ -96,7 +96,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			${unionFilterPieces.map((filterPiece, i) => html`<select @change=${this._handleModifyFilterChanged} .index=${index} .subIndex=${i} .fullFilterText=${firstFilterPart}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this._filterDescriptions[filterPiece])}`)}
 			${isConfigurableFilter ? 
 		html`<input type='text' .index=${index} @change=${this._handleModifyFilterRestChanged} .value=${restFilter}>` : 
-		html`<button class='small' .index=${index} @click=${this._handleAddUnionFilterClicked} .fullFilterText=${firstFilterPart}>${PLUS_ICON}</button>`
+		html`<button class='small' .index=${index} @click=${this._handleAddUnionFilterClicked} .fullFilterText=${firstFilterPart} title='Add new filter to OR with previous filters in this row'>${PLUS_ICON}</button>`
 }
 			<button class='small' .index=${index} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>
 		</li>`;
