@@ -93,7 +93,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//TODO: handle combined normal filters e.g. `working-notes+content`
 		const unionFilterPieces = splitUnionFilter(firstFilterPart);
 		const isConfigurableFilter = CONFIGURABLE_FILTER_INFO[firstFilterPart] != undefined;
-		return html`<li>
+		return html`${index > 0 ? html`<li><em>AND</em></li>` : ''}
+		<li>
 			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select @change=${this._handleModifyFilterChanged} .index=${index} .subIndex=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this._filterDescriptions[filterPiece])}<button class='small' .index=${index} .subIndex=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
 			${isConfigurableFilter ? 
 		html`<input type='text' .index=${index} @change=${this._handleModifyFilterRestChanged} .value=${restFilter}>` : 
