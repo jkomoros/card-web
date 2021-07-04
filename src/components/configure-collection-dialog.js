@@ -94,7 +94,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const isConfigurableFilter = CONFIGURABLE_FILTER_INFO[firstFilterPart] != undefined;
 		return html`<li>
 			${unionFilterPieces.map((filterPiece, i) => html`<select @change=${this._handleModifyFilterChanged} .index=${index} .subIndex=${i} .fullFilterText=${firstFilterPart}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this._filterDescriptions[filterPiece])}`)}
-			${isConfigurableFilter ? html`<input type='text' .index=${index} @change=${this._handleModifyFilterRestChanged} .value=${restFilter}>` : '' }
+			${isConfigurableFilter ? 
+		html`<input type='text' .index=${index} @change=${this._handleModifyFilterRestChanged} .value=${restFilter}>` : 
+		html`<button class='small' .index=${index} @click=${this._handleAddUnionFilterClicked} .fullFilterText=${firstFilterPart}>${PLUS_ICON}</button>`
+}
 			<button class='small' .index=${index} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>
 		</li>`;
 	}
@@ -103,6 +106,24 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//TODO: cache?
 		//I'd rather have the current value selected in the <select>, but that wasn't working, so have the options select themselves.
 		return repeat(Object.entries(this._filterDescriptions), entry => entry[0], entry => html`<option .value=${entry[0]} .title=${entry[1]} .selected=${selectedOptionName == entry[0]} .disabled=${!showConfigurable && CONFIGURABLE_FILTER_INFO[entry[0]]}>${entry[0] + (CONFIGURABLE_FILTER_INFO[entry[0]] ? '*' : '')}</option>`);
+	}
+
+	_handleAddUnionFilterClicked(e) {
+		//The event likely happened on the svg but we want the button
+		let ele = null;
+		for (const possibleEle of e.composedPath()) {
+			if (possibleEle.tagName == 'BUTTON') {
+				ele = possibleEle;
+				break;
+			}
+		}
+		if (!ele) {
+			console.warn('Couldn\'t find ele');
+			return;
+		}
+		const index = ele.index;
+		const fullFilterText = ele.fullFilterText + UNION_FILTER_DELIMITER + ALL_FILTER_NAME;
+		store.dispatch(navigateToCollection(collectionDescriptionWithFilterModified(this._collectionDescription, index, fullFilterText)));
 	}
 
 	_handleRemoveFilterClicked(e) {
