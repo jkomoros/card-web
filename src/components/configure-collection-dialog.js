@@ -31,7 +31,8 @@ import {
 	SET_INFOS,
 	SORTS,
 	CONFIGURABLE_FILTER_INFO,
-	ALL_FILTER_NAME
+	ALL_FILTER_NAME,
+	UNION_FILTER_DELIMITER
 } from '../filters.js';
 
 import {
@@ -49,6 +50,10 @@ const splitCompoundFilter = (fullFilterName) => {
 	const firstFilterPart = filterParts[0];
 	const restFilter = filterParts.slice(1).join('/');
 	return [firstFilterPart, restFilter];
+};
+
+const splitUnionFilter = (unionFilter) => {
+	return unionFilter.split(UNION_FILTER_DELIMITER);
 };
 
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
@@ -85,13 +90,19 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_templateForFilter(filterName, index) {
 		const [firstFilterPart, restFilter] = splitCompoundFilter(filterName);
 		//TODO: handle combined normal filters e.g. `working-notes+content`
-		return html`<li><select @change=${this._handleModifyFilterChanged} .index=${index}>${this._filterOptions(firstFilterPart)}</select>${CONFIGURABLE_FILTER_INFO[firstFilterPart] ? html`<input type='text' .index=${index} @change=${this._handleModifyFilterRestChanged} .value=${restFilter}>` : '' }${help(this._filterDescriptions[firstFilterPart])}<button class='small' .index=${index} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button></li>`;
+		const unionFilterPieces = splitUnionFilter(firstFilterPart);
+		const isConfigurableFilter = CONFIGURABLE_FILTER_INFO[firstFilterPart] != undefined;
+		return html`<li>
+			${unionFilterPieces.map((filterPiece, i) => html`<select @change=${this._handleModifyFilterChanged} .index=${index} .subIndex=${i} .fullFilterText=${firstFilterPart}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this._filterDescriptions[filterPiece])}`)}
+			${isConfigurableFilter ? html`<input type='text' .index=${index} @change=${this._handleModifyFilterRestChanged} .value=${restFilter}>` : '' }
+			<button class='small' .index=${index} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>
+		</li>`;
 	}
 
-	_filterOptions(selectedOptionName) {
+	_filterOptions(selectedOptionName, showConfigurable) {
 		//TODO: cache?
 		//I'd rather have the current value selected in the <select>, but that wasn't working, so have the options select themselves.
-		return repeat(Object.entries(this._filterDescriptions), entry => entry[0], entry => html`<option .value=${entry[0]} .title=${entry[1]} .selected=${selectedOptionName == entry[0]}>${entry[0] + (CONFIGURABLE_FILTER_INFO[entry[0]] ? '*' : '')}</option>`);
+		return repeat(Object.entries(this._filterDescriptions), entry => entry[0], entry => html`<option .value=${entry[0]} .title=${entry[1]} .selected=${selectedOptionName == entry[0]} .disabled=${!showConfigurable && CONFIGURABLE_FILTER_INFO[entry[0]]}>${entry[0] + (CONFIGURABLE_FILTER_INFO[entry[0]] ? '*' : '')}</option>`);
 	}
 
 	_handleRemoveFilterClicked(e) {
@@ -127,9 +138,13 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_handleModifyFilterChanged(e) {
 		const ele = e.composedPath()[0];
 		const index = ele.index;
+		const subIndex = ele.subIndex;
+		const fullFilterText = ele.fullFilterText;
+		const unionPieces = splitUnionFilter(fullFilterText);
 		const firstPart = ele.value;
+		unionPieces[subIndex] = firstPart;
 		const configurableInfo = CONFIGURABLE_FILTER_INFO[firstPart];
-		const fullText = configurableInfo ? firstPart + '/' + configurableInfo.defaultsFactory() : firstPart;
+		const fullText = configurableInfo ? firstPart + '/' + configurableInfo.defaultsFactory() : unionPieces.join(UNION_FILTER_DELIMITER);
 		store.dispatch(navigateToCollection(collectionDescriptionWithFilterModified(this._collectionDescription, index, fullText)));
 	}
 
