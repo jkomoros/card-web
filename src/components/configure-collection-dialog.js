@@ -94,12 +94,11 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const unionFilterPieces = splitUnionFilter(firstFilterPart);
 		const isConfigurableFilter = CONFIGURABLE_FILTER_INFO[firstFilterPart] != undefined;
 		return html`<li>
-			${unionFilterPieces.map((filterPiece, i) => html`<select @change=${this._handleModifyFilterChanged} .index=${index} .subIndex=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this._filterDescriptions[filterPiece])}`)}
+			${unionFilterPieces.map((filterPiece, i) => html`<select @change=${this._handleModifyFilterChanged} .index=${index} .subIndex=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this._filterDescriptions[filterPiece])}<button class='small' .index=${index} .subIndex=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
 			${isConfigurableFilter ? 
 		html`<input type='text' .index=${index} @change=${this._handleModifyFilterRestChanged} .value=${restFilter}>` : 
 		html`<button class='small' .index=${index} @click=${this._handleAddUnionFilterClicked} title='Add new filter to OR with previous filters in this row'>${PLUS_ICON}</button>`
 }
-			<button class='small' .index=${index} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>
 		</li>`;
 	}
 
@@ -141,6 +140,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			return;
 		}
 		const index = ele.index;
+		const filterPieces = splitUnionFilter(this._collectionDescription.filters[index]);
+		if (filterPieces.length > 1) {
+			filterPieces.splice(ele.subIndex, 1);
+			store.dispatch(navigateToCollection(collectionDescriptionWithFilterModified(this._collectionDescription, index, filterPieces.join(UNION_FILTER_DELIMITER))));
+			return;
+		}
 		store.dispatch(navigateToCollection(collectionDescriptionWithFilterRemoved(this._collectionDescription, index)));
 	}
 
