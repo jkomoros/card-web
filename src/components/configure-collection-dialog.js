@@ -85,7 +85,7 @@ const piecesForConfigurableFilter = (fullFilterName) => {
 		}
 		switch (controlType) {
 		case URL_PART_DATE_SECTION:
-			const subPieces = [pieces.slice(pieceIndex, 2)];
+			const subPieces = pieces.slice(pieceIndex, 2);
 			pieceIndex += 2;
 			if (subPieces[0] == BETWEEN_FILTER_NAME) {
 				//one more
