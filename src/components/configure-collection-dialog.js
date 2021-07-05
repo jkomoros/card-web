@@ -148,23 +148,23 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	}
 
 	_templateForFilter(filterName, index) {
-		const [firstFilterPart, restFilter] = splitCompoundFilter(filterName);
+		const [firstFilterPart] = splitCompoundFilter(filterName);
 		//TODO: handle combined normal filters e.g. `working-notes+content`
 		const unionFilterPieces = splitUnionFilter(firstFilterPart);
 		const isConfigurableFilter = CONFIGURABLE_FILTER_INFO[firstFilterPart] != undefined;
-		const configurableFilterPieces = restFilter.split('/');
 		return html`${index > 0 ? html`<li><em>AND</em></li>` : ''}
 		<li>
 			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select @change=${this._handleModifyFilterChanged} .index=${index} .subIndex=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this._filterDescriptions[filterPiece])}<button class='small' .index=${index} .subIndex=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
 			${isConfigurableFilter ? 
-		configurableFilterPieces.map((piece, i) => this._configurableFilterPart(firstFilterPart,index, i, piece)): 
+		piecesForConfigurableFilter(filterName).map((piece, i) => this._configurableFilterPart(piece, index, i)): 
 		html`<button class='small' .index=${index} @click=${this._handleAddUnionFilterClicked} title='Add new filter to OR with previous filters in this row'>${PLUS_ICON}</button>`
 }
 		</li>`;
 	}
 
-	_configurableFilterPart(filterName, index, subIndex, text) {
-		return html`<input type='text' .index=${index} .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${text}>`;
+	_configurableFilterPart(piece, index, subIndex) {
+		//piece is obj with controlType and value
+		return html`<input type='text' .index=${index} .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>`;
 	}
 
 	_filterOptions(selectedOptionName, showConfigurable) {
@@ -224,10 +224,10 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		const index = ele.index;
 		const subIndex = ele.subIndex;
 		const oldText = this._collectionDescription.filters[index];
-		const [firstPart, rest] = splitCompoundFilter(oldText);
-		const restPieces = rest.split('/');
-		restPieces[subIndex] = ele.value;
-		const newText = firstPart + '/' + restPieces.join('/');
+		const [firstPart] = splitCompoundFilter(oldText);
+		const pieces = piecesForConfigurableFilter(oldText);
+		pieces[subIndex].value = ele.value;
+		const newText = firstPart + '/' + pieces.map(piece => piece.value).join('/');
 		store.dispatch(navigateToCollection(collectionDescriptionWithFilterModified(this._collectionDescription, index, newText)));
 	}
 
