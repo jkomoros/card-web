@@ -93,14 +93,19 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		//TODO: handle combined normal filters e.g. `working-notes+content`
 		const unionFilterPieces = splitUnionFilter(firstFilterPart);
 		const isConfigurableFilter = CONFIGURABLE_FILTER_INFO[firstFilterPart] != undefined;
+		const configurableFilterPieces = restFilter.split('/');
 		return html`${index > 0 ? html`<li><em>AND</em></li>` : ''}
 		<li>
 			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select @change=${this._handleModifyFilterChanged} .index=${index} .subIndex=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this._filterDescriptions[filterPiece])}<button class='small' .index=${index} .subIndex=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
 			${isConfigurableFilter ? 
-		html`<input type='text' .index=${index} @change=${this._handleModifyFilterRestChanged} .value=${restFilter}>` : 
+		configurableFilterPieces.map((piece, i) => this._configurableFilterPart(firstFilterPart,index, i, piece)): 
 		html`<button class='small' .index=${index} @click=${this._handleAddUnionFilterClicked} title='Add new filter to OR with previous filters in this row'>${PLUS_ICON}</button>`
 }
 		</li>`;
+	}
+
+	_configurableFilterPart(filterName, index, subIndex, text) {
+		return html`<input type='text' .index=${index} .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${text}>`;
 	}
 
 	_filterOptions(selectedOptionName, showConfigurable) {
@@ -157,9 +162,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_handleModifyFilterRestChanged(e) {
 		const ele = e.composedPath()[0];
 		const index = ele.index;
+		const subIndex = ele.subIndex;
 		const oldText = this._collectionDescription.filters[index];
-		const [firstPart] = splitCompoundFilter(oldText);
-		const newText = firstPart + '/' + ele.value;
+		const [firstPart, rest] = splitCompoundFilter(oldText);
+		const restPieces = rest.split('/');
+		restPieces[subIndex] = ele.value;
+		const newText = firstPart + '/' + restPieces.join('/');
 		store.dispatch(navigateToCollection(collectionDescriptionWithFilterModified(this._collectionDescription, index, newText)));
 	}
 
