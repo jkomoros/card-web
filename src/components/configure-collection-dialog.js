@@ -34,7 +34,10 @@ import {
 	ALL_FILTER_NAME,
 	UNION_FILTER_DELIMITER,
 	EXCLUDE_FILTER_NAME,
-	COMBINE_FILTER_NAME
+	COMBINE_FILTER_NAME,
+	URL_PART_DATE_SECTION,
+	URL_PART_SUB_FILTER,
+	BETWEEN_FILTER_NAME
 } from '../filters.js';
 
 import {
@@ -57,6 +60,60 @@ const splitCompoundFilter = (fullFilterName) => {
 const splitUnionFilter = (unionFilter) => {
 	const [firstPart] = splitCompoundFilter(unionFilter);
 	return firstPart.split(UNION_FILTER_DELIMITER);
+};
+
+const piecesForConfigurableFilter = (fullFilterName) => {
+	//TODO: it's kind of weird that this bespoke logic is here, instead of fully
+	//being driven by constant configuration from filters.js
+	const [filterName, rest] = splitCompoundFilter(fullFilterName);
+	if (!rest) {
+		console.warn('Unexpectedly no rest');
+		return [];
+	}
+	const config = CONFIGURABLE_FILTER_INFO[filterName];
+	if (!config) {
+		console.warn('Unexpectedly no config');
+		return [];
+	}
+	const pieces = rest.split('/');
+	const result = [];
+	let pieceIndex = 0;
+	for (const controlType of config.arguments) {
+		if (pieceIndex >= pieces.length) {
+			console.warn('Ran out of pieces');
+			continue;
+		}
+		switch (controlType) {
+		case URL_PART_DATE_SECTION:
+			const subPieces = [pieces.slice(pieceIndex, 2)];
+			pieceIndex += 2;
+			if (subPieces[0] == BETWEEN_FILTER_NAME) {
+				//one more
+				subPieces.push(pieces[pieceIndex]);
+				pieceIndex++;
+			}
+			result.push({
+				controlType,
+				value: subPieces.join('/')
+			});
+			break;
+		case URL_PART_SUB_FILTER:
+			//consume all remaining pieces
+			result.push({
+				controlType,
+				value: pieces.slice(pieceIndex).join('/')
+			});
+			break;
+		default:
+			//The majority of filters are one piece for one argument.
+			result.push({
+				controlType,
+				value: pieces[pieceIndex],
+			});
+			pieceIndex++;
+		}
+	}
+	return result;
 };
 
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
