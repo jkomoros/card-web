@@ -32,7 +32,9 @@ import {
 	SORTS,
 	CONFIGURABLE_FILTER_INFO,
 	ALL_FILTER_NAME,
-	UNION_FILTER_DELIMITER
+	UNION_FILTER_DELIMITER,
+	EXCLUDE_FILTER_NAME,
+	COMBINE_FILTER_NAME
 } from '../filters.js';
 
 import {
@@ -110,8 +112,9 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	_filterOptions(selectedOptionName, showConfigurable) {
 		//TODO: cache?
+		const entries = Object.entries(this._filterDescriptions).filter(entry => entry[0] != EXCLUDE_FILTER_NAME && entry[0] != COMBINE_FILTER_NAME);
 		//I'd rather have the current value selected in the <select>, but that wasn't working, so have the options select themselves.
-		return repeat(Object.entries(this._filterDescriptions), entry => entry[0], entry => html`<option .value=${entry[0]} .title=${entry[1]} .selected=${selectedOptionName == entry[0]} .disabled=${!showConfigurable && CONFIGURABLE_FILTER_INFO[entry[0]]}>${entry[0] + (CONFIGURABLE_FILTER_INFO[entry[0]] ? '*' : '')}</option>`);
+		return repeat(entries, entry => entry[0], entry => html`<option .value=${entry[0]} .title=${entry[1]} .selected=${selectedOptionName == entry[0]} .disabled=${!showConfigurable && CONFIGURABLE_FILTER_INFO[entry[0]]}>${entry[0] + (CONFIGURABLE_FILTER_INFO[entry[0]] ? '*' : '')}</option>`);
 	}
 
 	_handleAddUnionFilterClicked(e) {
