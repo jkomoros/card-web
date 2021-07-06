@@ -327,6 +327,20 @@ const selectConceptCards = createSelector(
 	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => entry[1].card_type == CARD_TYPE_CONCEPT))
 );
 
+export const selectAuthorAndCollaboratorUserIDs = createSelector(
+	selectRawCards,
+	(rawCards) => {
+		const ids = {};
+		for (const card of Object.values(rawCards)) {
+			ids[card.author] = true;
+			for (const collaborator of card.collaborators) {
+				ids[collaborator] = true;
+			}
+		}
+		return Object.keys(ids);
+	}
+);
+
 export const selectActiveCard = createSelector(
 	selectCards,
 	selectActiveCardId,

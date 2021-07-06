@@ -24,6 +24,8 @@ import {
 	piecesForConfigurableFilter,
 	URL_PART_INT,
 	URL_PART_REFERENCE_TYPE,
+	URL_PART_USER_ID,
+	ME_AUTHOR_ID
 } from '../filters.js';
 
 import {
@@ -55,6 +57,8 @@ class ConfigureCollectionFilter extends LitElement {
 	_configurableFilterPart(piece, subIndex) {
 		//piece is obj with controlType and value
 		switch (piece.controlType) {
+		case URL_PART_USER_ID:
+			return html`<select .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${[ME_AUTHOR_ID,...this.userIDs].map(item => html`<option .value=${item.toLowerCase()}>${item.toLowerCase()}</option>`)}</select>`;
 		case URL_PART_REFERENCE_TYPE:
 			return html`<select .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${Object.entries(REFERENCE_TYPES).map(entry => html`<option .value=${entry[0]} .title=${entry[1].description}>${entry[0]}</option>`)}</select>`;
 		default:
@@ -136,6 +140,7 @@ class ConfigureCollectionFilter extends LitElement {
 			index: { type: Number },
 			value: { type: String },
 			filterDescriptions: {type:Object},
+			userIDs: { type: Array},
 		};
 	}
 }

@@ -449,7 +449,7 @@ const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
 };
 
 //The special keyword for 'my user ID' in the configurable authors filter
-const ME_AUTHOR_ID = 'me';
+export const ME_AUTHOR_ID = 'me';
 
 const makeAuthorConfigurableFilter = (filterName, idString) => {
 	const ids = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
