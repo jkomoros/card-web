@@ -25,12 +25,15 @@ import {
 	URL_PART_INT,
 	URL_PART_REFERENCE_TYPE,
 	URL_PART_USER_ID,
-	ME_AUTHOR_ID
+	ME_AUTHOR_ID,
+	URL_PART_KEY_CARD
 } from '../filters.js';
 
 import {
 	REFERENCE_TYPES
 } from '../card_fields.js';
+
+import './configure-collection-key-card.js';
 
 // This element is *not* connected to the Redux store.
 class ConfigureCollectionFilter extends LitElement {
@@ -57,6 +60,8 @@ class ConfigureCollectionFilter extends LitElement {
 	_configurableFilterPart(piece, subIndex) {
 		//piece is obj with controlType and value
 		switch (piece.controlType) {
+		case URL_PART_KEY_CARD:
+			return html`<configure-collection-key-card .value=${piece.value} @change-complex=${this._handleModifyFilterRestChangedComplex} .subIndex=${subIndex}></configure-collection-key-card>`;
 		case URL_PART_USER_ID:
 			return html`<select .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${[ME_AUTHOR_ID,...this.userIDs].map(item => html`<option .value=${item.toLowerCase()}>${item.toLowerCase()}</option>`)}</select>`;
 		case URL_PART_REFERENCE_TYPE:
@@ -73,15 +78,24 @@ class ConfigureCollectionFilter extends LitElement {
 		return repeat(entries, entry => entry[0], entry => html`<option .value=${entry[0]} .title=${entry[1]} .selected=${selectedOptionName == entry[0]} .disabled=${!showConfigurable && CONFIGURABLE_FILTER_INFO[entry[0]]}>${entry[0] + (CONFIGURABLE_FILTER_INFO[entry[0]] ? '*' : '')}</option>`);
 	}
 
-	_handleModifyFilterRestChanged(e) {
-		const ele = e.composedPath()[0];
-		const subIndex = ele.subIndex;
+
+	_modifyFilterChanged(subIndex, newValue) {
 		const oldText = this.value;
 		const [firstPart] = splitCompoundFilter(oldText);
 		const pieces = piecesForConfigurableFilter(oldText);
-		pieces[subIndex].value = ele.value;
+		pieces[subIndex].value = newValue;
 		const newText = firstPart + '/' + pieces.map(piece => piece.value).join('/');
 		this.dispatchEvent(new CustomEvent('filter-modified', {composed: true, detail: {value: newText, index: this.index}}));
+	}
+
+	_handleModifyFilterRestChangedComplex(e) {
+		const ele = e.composedPath()[0];
+		this._modifyFilterChanged(ele.subIndex, e.detail.value);
+	}
+
+	_handleModifyFilterRestChanged(e) {
+		const ele = e.composedPath()[0];
+		this._modifyFilterChanged(ele.subIndex, ele.value);
 	}
 
 	_handleAddUnionFilterClicked(e) {
