@@ -153,7 +153,7 @@ class ConfigureCollectionFilter extends LitElement {
 		const firstPart = ele.value;
 		unionPieces[subIndex] = firstPart;
 		const configurableInfo = CONFIGURABLE_FILTER_INFO[firstPart];
-		const fullText = configurableInfo ? firstPart + '/' + configurableInfo.defaultsFactory() : unionPieces.join(UNION_FILTER_DELIMITER);
+		const fullText = configurableInfo ? firstPart + '/' + configurableInfo.arguments.map(arg => arg.default).join('/') : unionPieces.join(UNION_FILTER_DELIMITER);
 		this.dispatchEvent(new CustomEvent('filter-modified', {composed: true, detail: {value: fullText, index: this.index}}));
 	}
 

@@ -635,11 +635,9 @@ const beforeTodayDefaultsFactory = () => {
 	return BEFORE_FILTER_NAME + '/' + today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
 };
 
+const DEFAULT_DATE_FILTER = beforeTodayDefaultsFactory();
+
 const LINK_FILTER_BASE = INCLUDE_KEY_CARD_PREFIX + KEY_CARD_ID_PLACEHOLDER;
-
-const LINK_FILTER_REF_TYPE = '/' + REFERENCE_TYPE_LINK;
-
-const LINK_FILTER_COUNT = '/' + 2;
 
 export const URL_PART_DATE_SECTION = 'date';
 export const URL_PART_FREE_TEXT = 'text';
@@ -669,150 +667,262 @@ export const CONFIGURABLE_FILTER_INFO = {
 	[UPDATED_FILTER_NAME]: {
 		factory: makeDateConfigurableFilter,
 		description: 'Selects cards that were updated within a given date range',
-		defaultsFactory: beforeTodayDefaultsFactory,
-		arguments: [URL_PART_DATE_SECTION],
+		arguments: [{
+			type: URL_PART_DATE_SECTION,
+			description: 'Date Range',
+			default: DEFAULT_DATE_FILTER,
+		}],
 	},
 	[LAST_TWEETED_FILTER_NAME]: {
 		factory: makeDateConfigurableFilter,
 		description: 'Selects cards that had a tweet within a given date range',
-		defaultsFactory: beforeTodayDefaultsFactory,
-		arguments: [URL_PART_DATE_SECTION],
+		arguments: [{
+			type: URL_PART_DATE_SECTION,
+			description: 'Date Range',
+			default: DEFAULT_DATE_FILTER,
+		}],
 	},
 	[CHILDREN_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
 		description: 'Selects cards that are directly referenced by a given card',
-		defaultsFactory: () => LINK_FILTER_BASE,
-		arguments: [URL_PART_KEY_CARD]
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		}]
 	},
 	[DESCENDANTS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
 		description: 'Selects cards that are direct or indirectly referenced by a given card',
-		defaultsFactory: () => LINK_FILTER_BASE + LINK_FILTER_COUNT,
-		arguments: [URL_PART_KEY_CARD, URL_PART_INT]
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type:URL_PART_INT,
+			description: 'Ply',
+			default: '2',
+		}]
 	},
 	[PARENTS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
 		description: 'Selects cards that directly reference the given card',
-		defaultsFactory: () => LINK_FILTER_BASE,
-		arguments: [URL_PART_KEY_CARD]
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		}]
 	},
 	[ANCESTORS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
 		description: 'Selects cards that directly or indirectly reference the given card',
-		defaultsFactory: () => LINK_FILTER_BASE + LINK_FILTER_COUNT,
-		arguments: [URL_PART_KEY_CARD, URL_PART_INT]
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type:URL_PART_INT,
+			description: 'Ply',
+			default: '2',
+		}]
 	},
 	[DIRECT_CONNECTIONS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
 		description: 'Selects cards that directly reference or are referenced by a given card',
-		defaultsFactory: () => LINK_FILTER_BASE,
-		arguments: [URL_PART_KEY_CARD]
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		}]
 	},
 	[CONNECTIONS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
 		description: 'Selects cards that directly or indirectly reference (or are referenced by) a given card',
-		defaultsFactory: () => LINK_FILTER_BASE + LINK_FILTER_COUNT,
-		arguments: [URL_PART_KEY_CARD, URL_PART_INT]
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type:URL_PART_INT,
+			description: 'Ply',
+			default: '2',
+		}]
 	},
 	[REFERENCES_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
 		description: 'Selects cards that reference or are referenced by other cards with a particular type of reference',
-		defaultsFactory: () => LINK_FILTER_BASE + LINK_FILTER_REF_TYPE + LINK_FILTER_COUNT,
-		arguments: [URL_PART_KEY_CARD, URL_PART_REFERENCE_TYPE, URL_PART_INT]
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type: URL_PART_REFERENCE_TYPE,
+			description: 'Reference types',
+			default: REFERENCE_TYPE_LINK,
+		},{
+			type:URL_PART_INT,
+			description: 'Ply',
+			default: '2',
+		}]
 	},
 	[REFERENCES_INBOUND_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
 		description: 'Selects cards that is referenced by other cards with a particular type of reference',
-		defaultsFactory: () => LINK_FILTER_BASE + LINK_FILTER_REF_TYPE + LINK_FILTER_COUNT,
-		arguments: [URL_PART_KEY_CARD, URL_PART_REFERENCE_TYPE, URL_PART_INT]
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type: URL_PART_REFERENCE_TYPE,
+			description: 'Reference types',
+			default: REFERENCE_TYPE_LINK,
+		},{
+			type:URL_PART_INT,
+			description: 'Ply',
+			default: '2',
+		}]
 	},
 	[REFERENCES_OUTBOUND_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
 		description: 'Selects cards that reference other cards with a particular type of reference',
-		defaultsFactory: () => LINK_FILTER_BASE + LINK_FILTER_REF_TYPE + LINK_FILTER_COUNT,
-		arguments: [URL_PART_KEY_CARD, URL_PART_REFERENCE_TYPE, URL_PART_INT]
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type: URL_PART_REFERENCE_TYPE,
+			description: 'Reference types',
+			default: REFERENCE_TYPE_LINK,
+		},{
+			type:URL_PART_INT,
+			description: 'Ply',
+			default: '2',
+		}]
 	},
 	[DIRECT_REFERENCES_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
 		description: 'Selects cards that directly reference or are referenced by other cards with a particular type of reference',
-		defaultsFactory: () => LINK_FILTER_BASE + LINK_FILTER_REF_TYPE,
-		arguments: [URL_PART_KEY_CARD, URL_PART_REFERENCE_TYPE]
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type: URL_PART_REFERENCE_TYPE,
+			description: 'Reference types',
+			default: REFERENCE_TYPE_LINK,
+		}]
 	},
 	[DIRECT_REFERENCES_INBOUND_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
 		description: 'Selects cards that reference other cards with a particular type of reference',
-		defaultsFactory: () => LINK_FILTER_BASE + LINK_FILTER_REF_TYPE,
-		arguments: [URL_PART_KEY_CARD, URL_PART_REFERENCE_TYPE, URL_PART_INT]
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type: URL_PART_REFERENCE_TYPE,
+			description: 'Reference types',
+			default: REFERENCE_TYPE_LINK,
+		}]
 	},
 	[DIRECT_REFERENCES_OUTBOUND_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
 		description: 'Selects cards that are referenced by other cards with a particular type of reference',
-		defaultsFactory: () => LINK_FILTER_BASE + LINK_FILTER_REF_TYPE + LINK_FILTER_COUNT,
-		arguments: [URL_PART_KEY_CARD, URL_PART_REFERENCE_TYPE, URL_PART_INT]
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type: URL_PART_REFERENCE_TYPE,
+			description: 'Reference types',
+			default: REFERENCE_TYPE_LINK,
+		}]
 	},
 	[AUTHOR_FILTER_NAME]: {
 		factory: makeAuthorConfigurableFilter,
 		description: 'Selects cards that are authored by the give user ID',
-		defaultsFactory: () => ME_AUTHOR_ID,
-		arguments: [URL_PART_USER_ID]
+		arguments: [{
+			type: URL_PART_USER_ID,
+			description: 'User ID',
+			default: ME_AUTHOR_ID
+		}]
 	},
 	[EXCLUDE_FILTER_NAME]: {
 		factory: makeExcludeConfigurableFilter,
 		description: 'Inverts a sub-filter expression',
-		defaultsFactory: () => ALL_FILTER_NAME,
-		arguments: [URL_PART_SUB_FILTER]
+		arguments: [{
+			type: URL_PART_SUB_FILTER,
+			description: 'Sub filter to negate',
+			default: ALL_FILTER_NAME
+		}]
 	},
 	[COMBINE_FILTER_NAME]: {
 		factory: makeCombineConfigurableFilter,
 		description: 'Returns the union of two sub-filter expressions',
-		defaultsFactory: () => ALL_FILTER_NAME + '/' + ALL_FILTER_NAME,
-		arguments: [URL_PART_SUB_FILTER, URL_PART_SUB_FILTER]
+		arguments: [{
+			type: URL_PART_SUB_FILTER,
+			description: 'First sub filter to combine',
+			default: ALL_FILTER_NAME
+		}, {
+			type: URL_PART_SUB_FILTER,
+			description: 'Second sub filter to combine',
+			default: ALL_FILTER_NAME
+		}]
 	},
 	[CARDS_FILTER_NAME]: {
 		//This filter matches precisely the IDsorSlugs provided. It's generally
 		//used in conjunction with the exclude filter.
 		factory: makeCardsConfigurableFilter,
 		description: 'Selects a precise list of specific cards. It\'s typically used in conjunction with the ' + EXCLUDE_FILTER_NAME + ' filter',
-		defaultsFactory: () => KEY_CARD_ID_PLACEHOLDER,
-		arguments: [URL_PART_MULTIPLE_CARDS]
+		arguments: [{
+			type: URL_PART_MULTIPLE_CARDS,
+			description: 'Cards to include',
+			default: KEY_CARD_ID_PLACEHOLDER,
+		}]
 	},
 	[QUERY_FILTER_NAME]: {
 		factory: makeQueryConfigurableFilter,
 		suppressLabels: true,
 		description: 'Selects cards that contain text that at least partially matches a provided query',
-		defaultsFactory: () => 'foo',
-		arguments: [URL_PART_FREE_TEXT],
+		arguments: [{
+			type: URL_PART_FREE_TEXT,
+			description: 'Query text',
+			default: 'foo',
+		}],
 	},
 	[QUERY_STRICT_FILTER_NAME]: {
 		factory: makeQueryConfigurableFilter,
 		suppressLabels: true,
 		description: 'Selects cards that contain text that exactly matches a provided query',
-		defaultsFactory: () => 'foo',
-		arguments: [URL_PART_FREE_TEXT],
+		arguments: [{
+			type: URL_PART_FREE_TEXT,
+			description: 'Query text',
+			default: 'foo',
+		}],
 	},
 	[LIMIT_FILTER_NAME]: {
 		//Limit is a special type of filter... it must run at the very last
@@ -821,29 +931,41 @@ export const CONFIGURABLE_FILTER_INFO = {
 		//process it.
 		factory: makeNoOpConfigurableFilter,
 		description: 'Selects only up to a certain number of cards. Limit is a special type of filter that can only apply at the top-level, and there can only be one.',
-		defaultsFactory: () => '' + 10,
-		arguments: [URL_PART_INT],
+		arguments: [{
+			type: URL_PART_INT,
+			description: 'Limit',
+			default: '10'
+		}],
 	},
 	[SIMILAR_FILTER_NAME]: {
 		factory: makeSimilarConfigurableFilter,
 		suppressLabels: true,
 		description: 'Selects cards that are similar to a given key card. It is primarily used for its sort order.',
-		defaultsFactory: () => KEY_CARD_ID_PLACEHOLDER,
-		arguments: [URL_PART_KEY_CARD],
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'Key card',
+			default: KEY_CARD_ID_PLACEHOLDER
+		}],
 	},
 	[ABOUT_CONCEPT_FILTER_NAME]: {
 		factory: makeAboutConceptConfigurableFilter,
 		suppressLabels: true,
 		description: 'Selects cards that reference a given text concept',
-		defaultsFactory: () => 'concept-name',
-		arguments: [URL_PART_CONCEPT_STR_OR_ID],
+		arguments: [{
+			type: URL_PART_CONCEPT_STR_OR_ID,
+			description: 'Concept or CardID',
+			default: 'concept-name',
+		}],
 	},
 	[MISSING_CONCEPT_FILTER_NAME]: {
 		factory: makeMissingConceptConfigurableFilter,
 		labelName: 'Suggested Concept Count',
 		description: 'Selects cards that appear to be missing a particular concept reference',
-		defaultsFactory: () => 'concept-name',
-		arguments: [URL_PART_CONCEPT_STR_OR_ID]
+		arguments: [{
+			type: URL_PART_CONCEPT_STR_OR_ID,
+			description: 'Concept or CardID',
+			default: 'concept-name',
+		}],
 	}
 };
 
@@ -889,7 +1011,8 @@ export const piecesForConfigurableFilter = (fullFilterName) => {
 	const pieces = rest.split('/');
 	const result = [];
 	let pieceIndex = 0;
-	for (const controlType of config.arguments) {
+	for (const arg of config.arguments) {
+		const controlType = arg.type;
 		if (pieceIndex >= pieces.length) {
 			console.warn('Ran out of pieces');
 			continue;
