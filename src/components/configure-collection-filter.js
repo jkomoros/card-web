@@ -23,7 +23,12 @@ import {
 	splitCompoundFilter,
 	piecesForConfigurableFilter,
 	URL_PART_INT,
+	URL_PART_REFERENCE_TYPE,
 } from '../filters.js';
+
+import {
+	REFERENCE_TYPES
+} from '../card_fields.js';
 
 // This element is *not* connected to the Redux store.
 class ConfigureCollectionFilter extends LitElement {
@@ -50,6 +55,8 @@ class ConfigureCollectionFilter extends LitElement {
 	_configurableFilterPart(piece, subIndex) {
 		//piece is obj with controlType and value
 		switch (piece.controlType) {
+		case URL_PART_REFERENCE_TYPE:
+			return html`<select .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${Object.entries(REFERENCE_TYPES).map(entry => html`<option .value=${entry[0]} .title=${entry[1].description}>${entry[0]}</option>`)}</select>`;
 		default:
 			return html`<input type=${piece.controlType == URL_PART_INT ? 'number' : 'text'} min='0' .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>`;
 		}
