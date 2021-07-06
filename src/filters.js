@@ -112,6 +112,26 @@ export const LEGAL_VIEW_MODES = {
 	[VIEW_MODE_WEB]: true,
 };
 
+export const parseDateSection = (str) => {
+	let pieces = str.split('/');
+	const targetLength = CONFIGURABLE_FILTER_URL_PARTS[pieces[0]] + 1;
+	pieces = pieces.slice(0, targetLength);
+	if (pieces.length > 1) pieces[1] = new Date(pieces[1]);
+	//make sure there's always a second date, defaulting to now.
+	if (pieces.length > 2) pieces[2] = pieces[2] ? new Date(pieces[2]) : new Date();
+	return pieces;
+};
+
+export const makeDateSection = (comparsionType, dateOne, dateTwo) => {
+	const result = [comparsionType];
+	result.push('' + dateOne.getFullYear() + '-' + (dateOne.getMonth() + 1) + '-' + dateOne.getDate());
+	if (CONFIGURABLE_FILTER_URL_PARTS[comparsionType] == 2) {
+		if (!dateTwo) dateTwo = new Date();
+		result.push('' + dateTwo.getFullYear() + '-' + (dateTwo.getMonth() + 1) + '-' + dateTwo.getDate());
+	}
+	return result.join('/');
+};
+
 const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, secondDateStr) => {
 
 	if (propName == UPDATED_FILTER_NAME) propName = 'updated_substantive';
@@ -537,6 +557,13 @@ const LAST_TWEETED_FILTER_NAME = 'last-tweeted';
 const BEFORE_FILTER_NAME = 'before';
 const AFTER_FILTER_NAME = 'after';
 export const BETWEEN_FILTER_NAME = 'between';
+
+export const DATE_RANGE_TYPES = {
+	[BEFORE_FILTER_NAME]: true,
+	[AFTER_FILTER_NAME]: true,
+	[BETWEEN_FILTER_NAME]: true,
+};
+
 const DIRECT_CONNECTIONS_FILTER_NAME = 'direct-connections';
 const CONNECTIONS_FILTER_NAME = 'connections';
 const CHILDREN_FILTER_NAME = 'children';
