@@ -47,21 +47,41 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 				.help {
 					font-size:0.75em;
 				}
+
+				.row {
+					display: flex;
+					flex-direction: row;
+					justify-content: space-between;
+				}
+
+				.row > div {
+					display: flex;
+					flex-direction: column;
+				}
 			</style>
-			<h2>Set</h2>
-			<select @change=${this._handleSetSelectChanged} .value=${this._collectionDescription.set}>
-				${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
-			</select>
-			<h2>Filters</h2>
+			<label>Filters</label>
 			<ul>
 				${this._collectionDescription.filters.map((filterName, index) => html`<configure-collection-filter .value=${filterName} .index=${index} .filterDescriptions=${this._filterDescriptions} .cardTagInfos=${this._cardTagInfos} .userIDs=${this._userIDs} @filter-modified=${this._handleFilterModified} @filter-removed=${this._handleFilterRemoved}></configure-collection-filter>`)}
 				<li><button class='small' @click=${this._handleAddFilterClicked} title='Add a new filter (ANDed with other filters)'>${PLUS_ICON}</button></li>
 			</ul>
-			<h2>Sort</h2>
-			<input type='checkbox' @change=${this._handleSortReversedCheckboxChanged} id='reversed' .checked=${this._collectionDescription.sortReversed}><label for='reversed'>Reversed</label>
-			<select @change=${this._handleSortSelectChanged} .value=${this._collectionDescription.sort}>
-				${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
-			</select>
+			<div class='row'>
+				<div>
+					<label>Set</label>
+					<select @change=${this._handleSetSelectChanged} .value=${this._collectionDescription.set}>
+						${Object.entries(SET_INFOS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
+					</select>
+				</div>
+				<div>
+					<label>Sort</label>
+					<select @change=${this._handleSortSelectChanged} .value=${this._collectionDescription.sort}>
+						${Object.entries(SORTS).map(entry => html`<option value=${entry[0]} title=${entry[1].description}>${entry[0]}</option>`)}
+					</select>
+				</div>
+				<div>
+					<label for='reversed'>Sort Reversed</label>
+					<input type='checkbox' @change=${this._handleSortReversedCheckboxChanged} id='reversed' .checked=${this._collectionDescription.sortReversed}>
+				</div>
+			</div>
 		`;
 	}
 
