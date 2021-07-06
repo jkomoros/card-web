@@ -175,6 +175,15 @@ export const referencesConfigurableFilterText = (referencesFilterType, cardID, r
 const INCLUDE_KEY_CARD_PREFIX = '+';
 const INVERT_REFERENCE_TYPES_PREFIX = '-';
 
+export const parseKeyCardID = (cardID) => {
+	let includeKeyCard = false;
+	if (cardID.startsWith(INCLUDE_KEY_CARD_PREFIX)) {
+		includeKeyCard = true;
+		cardID = cardID.substring(INCLUDE_KEY_CARD_PREFIX.length);
+	}
+	return [cardID, includeKeyCard];
+};
+
 const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, countStr) => {
 
 	//refernces filters take typeStr as second parameter, but others skip those.
@@ -203,10 +212,7 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 	if (!cardID) cardID = '';
 
 	let includeKeyCard = false;
-	if (cardID.startsWith(INCLUDE_KEY_CARD_PREFIX)) {
-		includeKeyCard = true;
-		cardID = cardID.substring(INCLUDE_KEY_CARD_PREFIX.length);
-	}
+	[cardID, includeKeyCard] = parseKeyCardID(cardID);
 
 	//We have to memoize the functor we return, even though the filter machinery
 	//will memoize too, because otherwise literally every card in a given run
