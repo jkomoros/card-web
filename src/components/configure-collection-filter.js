@@ -22,6 +22,7 @@ import {
 	splitUnionFilter,
 	splitCompoundFilter,
 	piecesForConfigurableFilter,
+	URL_PART_INT,
 } from '../filters.js';
 
 // This element is *not* connected to the Redux store.
@@ -48,7 +49,10 @@ class ConfigureCollectionFilter extends LitElement {
 
 	_configurableFilterPart(piece, subIndex) {
 		//piece is obj with controlType and value
-		return html`<input type='text' .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>`;
+		switch (piece.controlType) {
+		default:
+			return html`<input type=${piece.controlType == URL_PART_INT ? 'number' : 'text'} min='0' .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>`;
+		}
 	}
 
 	_filterOptions(selectedOptionName, showConfigurable) {
