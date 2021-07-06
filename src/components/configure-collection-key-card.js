@@ -1,21 +1,50 @@
 import { LitElement, html } from '@polymer/lit-element';
 
+import {
+	EDIT_ICON
+} from './my-icons.js';
+
+import {
+	parseKeyCardID,
+	keyCardID
+} from '../filters.js';
+
+import { ButtonSharedStyles } from './button-shared-styles.js';
+
+import './tag-list.js';
+
 // This element is *not* connected to the Redux store.
 class ConfigureCollectionKeyCard extends LitElement {
 	render() {
+		let [cardID, includeKeyCard] = parseKeyCardID(this.value);
 		return html`
-			<input type='text' @change=${this._handleValueChanged} .value=${this.value}>
+			${ButtonSharedStyles}
+			<label for='key-card'>Include Key Card</label><input id='key-card' type='checkbox' .checked=${includeKeyCard} @change=${this._handleKeyCardChanged}>
+			<tag-list  .tagInfos=${this.cardTagInfos} .tags=${cardID ? [cardID] : []}></tag-list><button class='small' @click=${this._handleEditClicked}>${EDIT_ICON}</button>
 		`;
 	}
 
-	_handleValueChanged(e) {
+	_dispatchNewValue(newValue) {
+		this.dispatchEvent(new CustomEvent('change-complex', {composed: true, detail: {value: newValue}}));
+	}
+
+	_handleKeyCardChanged(e) {
 		const ele = e.composedPath()[0];
-		this.dispatchEvent(new CustomEvent('change-complex', {composed: true, detail: {value: ele.value}}));
+		const [oldCardID] = parseKeyCardID(this.value);
+		this._dispatchNewValue(keyCardID(oldCardID, ele.checked));
+	}
+
+	_handleEditClicked() {
+		//TODO: pop a dialog
+		const cardID = prompt('What is the ID of the card?');
+		const [, includeKeyCard] = parseKeyCardID(this.value);
+		this._dispatchNewValue(keyCardID(cardID, includeKeyCard));
 	}
 
 	static get properties() {
 		return {
 			value: { type: String },
+			cardTagInfos: { type: Object},
 		};
 	}
 }

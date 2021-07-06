@@ -10,7 +10,8 @@ import {
 	selectConfigureCollectionDialogOpen,
 	selectActiveCollectionDescription,
 	selectFilterDescriptions,
-	selectAuthorAndCollaboratorUserIDs
+	selectAuthorAndCollaboratorUserIDs,
+	selectTagInfosForCards
 } from '../selectors.js';
 
 import {
@@ -53,7 +54,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			</select>
 			<h2>Filters</h2>
 			<ul>
-				${this._collectionDescription.filters.map((filterName, index) => html`<configure-collection-filter .value=${filterName} .index=${index} .filterDescriptions=${this._filterDescriptions} .userIDs=${this._userIDs} @filter-modified=${this._handleFilterModified} @filter-removed=${this._handleFilterRemoved}></configure-collection-filter>`)}
+				${this._collectionDescription.filters.map((filterName, index) => html`<configure-collection-filter .value=${filterName} .index=${index} .filterDescriptions=${this._filterDescriptions} .cardTagInfos=${this._cardTagInfos} .userIDs=${this._userIDs} @filter-modified=${this._handleFilterModified} @filter-removed=${this._handleFilterRemoved}></configure-collection-filter>`)}
 				<li><button class='small' @click=${this._handleAddFilterClicked} title='Add a new filter (ANDed with other filters)'>${PLUS_ICON}</button></li>
 			</ul>
 			<h2>Sort</h2>
@@ -113,6 +114,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			_collectionDescription: {type: Object},
 			_filterDescriptions: {type: Object},
 			_userIDs: {type:Array},
+			_cardTagInfos: {type:Object},
 		};
 	}
 
@@ -122,6 +124,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this._collectionDescription = selectActiveCollectionDescription(state);
 		this._filterDescriptions = selectFilterDescriptions(state);
 		this._userIDs = selectAuthorAndCollaboratorUserIDs(state);
+		this._cardTagInfos = selectTagInfosForCards(state);
 	}
 
 }

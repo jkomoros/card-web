@@ -61,7 +61,7 @@ class ConfigureCollectionFilter extends LitElement {
 		//piece is obj with controlType and value
 		switch (piece.controlType) {
 		case URL_PART_KEY_CARD:
-			return html`<configure-collection-key-card .value=${piece.value} @change-complex=${this._handleModifyFilterRestChangedComplex} .subIndex=${subIndex}></configure-collection-key-card>`;
+			return html`<configure-collection-key-card .value=${piece.value} .cardTagInfos=${this.cardTagInfos} @change-complex=${this._handleModifyFilterRestChangedComplex} .subIndex=${subIndex}></configure-collection-key-card>`;
 		case URL_PART_USER_ID:
 			return html`<select .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${[ME_AUTHOR_ID,...this.userIDs].map(item => html`<option .value=${item.toLowerCase()}>${item.toLowerCase()}</option>`)}</select>`;
 		case URL_PART_REFERENCE_TYPE:
@@ -155,6 +155,7 @@ class ConfigureCollectionFilter extends LitElement {
 			value: { type: String },
 			filterDescriptions: {type:Object},
 			userIDs: { type: Array},
+			cardTagInfos: {type:Object},
 		};
 	}
 }

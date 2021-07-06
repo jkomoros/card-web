@@ -184,6 +184,10 @@ export const parseKeyCardID = (cardID) => {
 	return [cardID, includeKeyCard];
 };
 
+export const keyCardID = (cardID, includeKeyCard) => {
+	return includeKeyCard ? INCLUDE_KEY_CARD_PREFIX + cardID : cardID;
+};
+
 const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, countStr) => {
 
 	//refernces filters take typeStr as second parameter, but others skip those.
