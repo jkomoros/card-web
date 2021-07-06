@@ -30,7 +30,7 @@ class ConfigureCollectionKeyCard extends LitElement {
 			${ButtonSharedStyles}
 			<div>
 				<label for='key-card'>Include Key Card</label><input id='key-card' type='checkbox' .checked=${includeKeyCard} @change=${this._handleKeyCardChanged}>
-				<tag-list  .tagInfos=${this.cardTagInfos} .tags=${cardID ? [cardID] : []}></tag-list><button class='small' @click=${this._handleEditClicked}>${EDIT_ICON}</button>
+				<tag-list .tagInfos=${this.cardTagInfos} .tags=${cardID ? [cardID] : []} .tapEvents=${true}></tag-list><button class='small' @click=${this._handleEditClicked}>${EDIT_ICON}</button>
 			</div>
 		`;
 	}
