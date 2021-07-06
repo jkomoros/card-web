@@ -1,6 +1,5 @@
 import { html } from '@polymer/lit-element';
 import { connect } from 'pwa-helpers/connect-mixin.js';
-import { repeat } from 'lit-html/directives/repeat';
 
 // This element is connected to the Redux store.
 import { store } from '../store.js';
@@ -30,30 +29,18 @@ import {
 import {
 	SET_INFOS,
 	SORTS,
-	CONFIGURABLE_FILTER_INFO,
 	ALL_FILTER_NAME,
-	UNION_FILTER_DELIMITER,
-	EXCLUDE_FILTER_NAME,
-	COMBINE_FILTER_NAME,
-	splitUnionFilter,
-	splitCompoundFilter,
-	piecesForConfigurableFilter,
 } from '../filters.js';
 
 import {
-	DELETE_FOREVER_ICON,
 	PLUS_ICON
 } from './my-icons.js';
 
-import {
-	help,
-	HelpStyles,
-} from './help-badges.js';
+import './configure-collection-filter.js';
 
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	innerRender() {
 		return html`
-			${HelpStyles}
 			<style>
 				.help {
 					font-size:0.75em;
@@ -65,7 +52,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 			</select>
 			<h2>Filters</h2>
 			<ul>
-				${this._collectionDescription.filters.map((filterName, index) => this._templateForFilter(filterName, index))}
+				${this._collectionDescription.filters.map((filterName, index) => html`<configure-collection-filter .value=${filterName} .index=${index} .filterDescriptions=${this._filterDescriptions} @filter-modified=${this._handleFilterModified} @filter-removed=${this._handleFilterRemoved}></configure-collection-filter>`)}
 				<li><button class='small' @click=${this._handleAddFilterClicked} title='Add a new filter (ANDed with other filters)'>${PLUS_ICON}</button></li>
 			</ul>
 			<h2>Sort</h2>
@@ -81,101 +68,16 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this.title = 'Configure Collection';
 	}
 
-	_templateForFilter(filterName, index) {
-		const [firstFilterPart] = splitCompoundFilter(filterName);
-		//TODO: handle combined normal filters e.g. `working-notes+content`
-		const unionFilterPieces = splitUnionFilter(firstFilterPart);
-		const isConfigurableFilter = CONFIGURABLE_FILTER_INFO[firstFilterPart] != undefined;
-		return html`${index > 0 ? html`<li><em>AND</em></li>` : ''}
-		<li>
-			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select @change=${this._handleModifyFilterChanged} .index=${index} .subIndex=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this._filterDescriptions[filterPiece])}<button class='small' .index=${index} .subIndex=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
-			${isConfigurableFilter ? 
-		piecesForConfigurableFilter(filterName).map((piece, i) => this._configurableFilterPart(piece, index, i)): 
-		html`<button class='small' .index=${index} @click=${this._handleAddUnionFilterClicked} title='Add new filter to OR with previous filters in this row'>${PLUS_ICON}</button>`
-}
-		</li>`;
+	_handleFilterModified(e) {
+		store.dispatch(navigateToCollection(collectionDescriptionWithFilterModified(this._collectionDescription, e.detail.index, e.detail.value)));
 	}
 
-	_configurableFilterPart(piece, index, subIndex) {
-		//piece is obj with controlType and value
-		return html`<input type='text' .index=${index} .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>`;
-	}
-
-	_filterOptions(selectedOptionName, showConfigurable) {
-		//TODO: cache?
-		const entries = Object.entries(this._filterDescriptions).filter(entry => entry[0] != EXCLUDE_FILTER_NAME && entry[0] != COMBINE_FILTER_NAME);
-		//I'd rather have the current value selected in the <select>, but that wasn't working, so have the options select themselves.
-		return repeat(entries, entry => entry[0], entry => html`<option .value=${entry[0]} .title=${entry[1]} .selected=${selectedOptionName == entry[0]} .disabled=${!showConfigurable && CONFIGURABLE_FILTER_INFO[entry[0]]}>${entry[0] + (CONFIGURABLE_FILTER_INFO[entry[0]] ? '*' : '')}</option>`);
-	}
-
-	_handleAddUnionFilterClicked(e) {
-		//The event likely happened on the svg but we want the button
-		let ele = null;
-		for (const possibleEle of e.composedPath()) {
-			if (possibleEle.tagName == 'BUTTON') {
-				ele = possibleEle;
-				break;
-			}
-		}
-		if (!ele) {
-			console.warn('Couldn\'t find ele');
-			return;
-		}
-		const index = ele.index;
-		const fullFilterText = this._collectionDescription.filters[index] + UNION_FILTER_DELIMITER + ALL_FILTER_NAME;
-		store.dispatch(navigateToCollection(collectionDescriptionWithFilterModified(this._collectionDescription, index, fullFilterText)));
-	}
-
-	_handleRemoveFilterClicked(e) {
-		//The event likely happened on the svg but we want the button
-		let ele = null;
-		for (const possibleEle of e.composedPath()) {
-			if (possibleEle.tagName == 'BUTTON') {
-				ele = possibleEle;
-				break;
-			}
-		}
-		if (!ele) {
-			console.warn('Couldn\'t find ele');
-			return;
-		}
-		const index = ele.index;
-		const filterPieces = splitUnionFilter(this._collectionDescription.filters[index]);
-		if (filterPieces.length > 1) {
-			filterPieces.splice(ele.subIndex, 1);
-			store.dispatch(navigateToCollection(collectionDescriptionWithFilterModified(this._collectionDescription, index, filterPieces.join(UNION_FILTER_DELIMITER))));
-			return;
-		}
-		store.dispatch(navigateToCollection(collectionDescriptionWithFilterRemoved(this._collectionDescription, index)));
+	_handleFilterRemoved(e) {
+		store.dispatch(navigateToCollection(collectionDescriptionWithFilterRemoved(this._collectionDescription, e.detail.index)));
 	}
 
 	_handleAddFilterClicked() {
 		store.dispatch(navigateToCollection(collectionDescriptionWithFilterAppended(this._collectionDescription, ALL_FILTER_NAME)));
-	}
-
-	_handleModifyFilterRestChanged(e) {
-		const ele = e.composedPath()[0];
-		const index = ele.index;
-		const subIndex = ele.subIndex;
-		const oldText = this._collectionDescription.filters[index];
-		const [firstPart] = splitCompoundFilter(oldText);
-		const pieces = piecesForConfigurableFilter(oldText);
-		pieces[subIndex].value = ele.value;
-		const newText = firstPart + '/' + pieces.map(piece => piece.value).join('/');
-		store.dispatch(navigateToCollection(collectionDescriptionWithFilterModified(this._collectionDescription, index, newText)));
-	}
-
-	_handleModifyFilterChanged(e) {
-		const ele = e.composedPath()[0];
-		const index = ele.index;
-		const subIndex = ele.subIndex;
-		const fullFilterText = this._collectionDescription.filters[index];
-		const unionPieces = splitUnionFilter(fullFilterText);
-		const firstPart = ele.value;
-		unionPieces[subIndex] = firstPart;
-		const configurableInfo = CONFIGURABLE_FILTER_INFO[firstPart];
-		const fullText = configurableInfo ? firstPart + '/' + configurableInfo.defaultsFactory() : unionPieces.join(UNION_FILTER_DELIMITER);
-		store.dispatch(navigateToCollection(collectionDescriptionWithFilterModified(this._collectionDescription, index, fullText)));
 	}
 
 	_handleSetSelectChanged(e) {
