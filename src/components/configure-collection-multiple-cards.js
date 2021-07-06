@@ -36,6 +36,10 @@ class ConfigureCollectionMultipleCards extends LitElement {
 
 	_handleRemoveTag(e) {
 		const oldValues = parseMultipleCardIDs(this.value);
+		if (oldValues.length < 2) {
+			console.warn('You must include at least one card');
+			return;
+		}
 		this._dispatchNewValue(combineMultipleCardIDs(oldValues.filter(item => item != e.detail.tag)));
 	}
 
