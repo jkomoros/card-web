@@ -26,7 +26,8 @@ import {
 	URL_PART_REFERENCE_TYPE,
 	URL_PART_USER_ID,
 	ME_AUTHOR_ID,
-	URL_PART_KEY_CARD
+	URL_PART_KEY_CARD,
+	URL_PART_MULTIPLE_CARDS
 } from '../filters.js';
 
 import {
@@ -34,6 +35,7 @@ import {
 } from '../card_fields.js';
 
 import './configure-collection-key-card.js';
+import './configure-collection-multiple-cards.js';
 
 // This element is *not* connected to the Redux store.
 class ConfigureCollectionFilter extends LitElement {
@@ -60,6 +62,8 @@ class ConfigureCollectionFilter extends LitElement {
 	_configurableFilterPart(piece, subIndex) {
 		//piece is obj with controlType and value
 		switch (piece.controlType) {
+		case URL_PART_MULTIPLE_CARDS:
+			return html`<configure-collection-multiple-cards .value=${piece.value} .cardTagInfos=${this.cardTagInfos} @change-complex=${this._handleModifyFilterRestChangedComplex} .subIndex=${subIndex}></configure-collection-multiple-cards>`;
 		case URL_PART_KEY_CARD:
 			return html`<configure-collection-key-card .value=${piece.value} .cardTagInfos=${this.cardTagInfos} @change-complex=${this._handleModifyFilterRestChangedComplex} .subIndex=${subIndex}></configure-collection-key-card>`;
 		case URL_PART_USER_ID:

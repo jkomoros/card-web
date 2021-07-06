@@ -245,9 +245,12 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 	return [func, false];
 };
 
+export const parseMultipleCardIDs = (str) => str.split(INCLUDE_KEY_CARD_PREFIX);
+export const combineMultipleCardIDs = (cardIDs) => cardIDs.join(INCLUDE_KEY_CARD_PREFIX);
+
 const makeCardsConfigurableFilter = (filterName, idString) => {
 	//ids can be a single id or slug, or a conjunction of them delimited by '+'
-	const rawIdsToMatch = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
+	const rawIdsToMatch = Object.fromEntries(parseMultipleCardIDs(idString).map(id => [id, true]));
 
 	//TODO: we could check if KEY_CARD_ID_PLACEHOLDER is in any of them, and if not
 	//never generate a new set of expanded ids to match to save a little
