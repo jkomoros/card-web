@@ -18,9 +18,20 @@ class ConfigureCollectionKeyCard extends LitElement {
 	render() {
 		let [cardID, includeKeyCard] = parseKeyCardID(this.value);
 		return html`
+			<style>
+				:host {
+					display:inline-block;
+				}
+				div {
+					display:flex;
+					flex-direction: row;
+				}
+			</style>
 			${ButtonSharedStyles}
-			<label for='key-card'>Include Key Card</label><input id='key-card' type='checkbox' .checked=${includeKeyCard} @change=${this._handleKeyCardChanged}>
-			<tag-list  .tagInfos=${this.cardTagInfos} .tags=${cardID ? [cardID] : []}></tag-list><button class='small' @click=${this._handleEditClicked}>${EDIT_ICON}</button>
+			<div>
+				<label for='key-card'>Include Key Card</label><input id='key-card' type='checkbox' .checked=${includeKeyCard} @change=${this._handleKeyCardChanged}>
+				<tag-list  .tagInfos=${this.cardTagInfos} .tags=${cardID ? [cardID] : []}></tag-list><button class='small' @click=${this._handleEditClicked}>${EDIT_ICON}</button>
+			</div>
 		`;
 	}
 
