@@ -49,12 +49,23 @@ class ConfigureCollectionFilter extends LitElement {
 		return html`
 			${ ButtonSharedStyles }
 			${ HelpStyles }
+			<style>
+				.pieces {
+					display: flex;
+					flex-direction: row;
+				}
+				.piece {
+					display: flex;
+					flex-direction: column;
+				}
+
+			</style>
 
 			${this.index > 0 ? html`<li><em>AND</em></li>` : ''}
 		<li>
 			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select @change=${this._handleModifyFilterChanged} .subIndex=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this.filterDescriptions[filterPiece])}<button class='small' .subIndex=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
 			${isConfigurableFilter ? 
-		piecesForConfigurableFilter(this.value).map((piece, i) => this._configurableFilterPart(piece, i)): 
+		html`<div class='pieces'>${piecesForConfigurableFilter(this.value).map((piece, i) => html`<div class='piece'><label>${piece.description}</label> ${this._configurableFilterPart(piece, i)}</div>`)}</div>`: 
 		html`<button class='small' @click=${this._handleAddUnionFilterClicked} title='Add new filter to OR with previous filters in this row'>${PLUS_ICON}</button>`
 }
 		</li>
@@ -62,7 +73,7 @@ class ConfigureCollectionFilter extends LitElement {
 	}
 
 	_configurableFilterPart(piece, subIndex) {
-		//piece is obj with controlType and value
+		//piece is obj with controlType, description, and value
 		switch (piece.controlType) {
 		case URL_PART_DATE_SECTION:
 			return html`<configure-collection-date .value=${piece.value} @change-complex=${this._handleModifyFilterRestChangedComplex} .subIndex=${subIndex}></configure-collection-date>`;

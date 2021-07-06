@@ -1028,6 +1028,7 @@ export const piecesForConfigurableFilter = (fullFilterName) => {
 			}
 			result.push({
 				controlType,
+				description: arg.description,
 				value: subPieces.join('/')
 			});
 			break;
@@ -1035,6 +1036,7 @@ export const piecesForConfigurableFilter = (fullFilterName) => {
 			//consume all remaining pieces
 			result.push({
 				controlType,
+				description: arg.description,
 				value: pieces.slice(pieceIndex).join('/')
 			});
 			break;
@@ -1042,6 +1044,7 @@ export const piecesForConfigurableFilter = (fullFilterName) => {
 			//The majority of filters are one piece for one argument.
 			result.push({
 				controlType,
+				description: arg.description,
 				value: pieces[pieceIndex],
 			});
 			pieceIndex++;
