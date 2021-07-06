@@ -27,29 +27,23 @@ import {
 // This element is *not* connected to the Redux store.
 class ConfigureCollectionFilter extends LitElement {
 	render() {
-		return html`
-			${ ButtonSharedStyles }
-			${ HelpStyles }
-			<style>
-
-			</style>
-			${this._templateForFilter(this.value, this.index)}
-		`;
-	}
-
-	_templateForFilter(filterName, index) {
-		const [firstFilterPart] = splitCompoundFilter(filterName);
+		const [firstFilterPart] = splitCompoundFilter(this.value);
 		//TODO: handle combined normal filters e.g. `working-notes+content`
 		const unionFilterPieces = splitUnionFilter(firstFilterPart);
 		const isConfigurableFilter = CONFIGURABLE_FILTER_INFO[firstFilterPart] != undefined;
-		return html`${index > 0 ? html`<li><em>AND</em></li>` : ''}
+		return html`
+			${ ButtonSharedStyles }
+			${ HelpStyles }
+
+			${this.index > 0 ? html`<li><em>AND</em></li>` : ''}
 		<li>
-			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select @change=${this._handleModifyFilterChanged} .index=${index} .subIndex=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this.filterDescriptions[filterPiece])}<button class='small' .subIndex=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
+			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select @change=${this._handleModifyFilterChanged} .subIndex=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this.filterDescriptions[filterPiece])}<button class='small' .subIndex=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
 			${isConfigurableFilter ? 
-		piecesForConfigurableFilter(filterName).map((piece, i) => this._configurableFilterPart(piece, i)): 
+		piecesForConfigurableFilter(this.value).map((piece, i) => this._configurableFilterPart(piece, i)): 
 		html`<button class='small' @click=${this._handleAddUnionFilterClicked} title='Add new filter to OR with previous filters in this row'>${PLUS_ICON}</button>`
 }
-		</li>`;
+		</li>
+		`;
 	}
 
 	_configurableFilterPart(piece, subIndex) {
