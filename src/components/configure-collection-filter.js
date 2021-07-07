@@ -50,6 +50,16 @@ class ConfigureCollectionFilter extends LitElement {
 			${ ButtonSharedStyles }
 			${ HelpStyles }
 			<style>
+
+				li {
+					padding-left: 1em;
+					margin: 1em;
+				}
+
+				li.main {
+					border-left: 1px solid var(--app-divider-color);
+				}
+
 				.pieces {
 					display: flex;
 					flex-direction: row;
@@ -62,7 +72,7 @@ class ConfigureCollectionFilter extends LitElement {
 			</style>
 
 			${this.index > 0 ? html`<li><em>AND</em></li>` : ''}
-		<li>
+		<li class='main'>
 			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select @change=${this._handleModifyFilterChanged} .subIndex=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this.filterDescriptions[filterPiece])}<button class='small' .subIndex=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
 			${isConfigurableFilter ? 
 		html`<div class='pieces'>${piecesForConfigurableFilter(this.value).map((piece, i) => html`<div class='piece'><label>${piece.description}</label> ${this._configurableFilterPart(piece, i)}</div>`)}</div>`: 
