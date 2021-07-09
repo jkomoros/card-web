@@ -146,7 +146,49 @@ export const collectionDescriptionWithConfigurableFilter = (description, newConf
 
 	if (!replacedFilter) newFilters.push(newConfigurableFilter);
 
-	return new CollectionDescription(description.setNameExplicitlySet ? description.set : '', newFilters, description.sort, description.sortReversed);
+	return collectionDescriptionWithOverrides(description, {filters: newFilters});
+};
+
+const collectionDescriptionWithOverrides = (description, overrides) => {
+	const baseValues = {
+		set: description.setNameExplicitlySet ? description.set : '',
+		filters: description.filters,
+		sort: description.sort,
+		sortReversed: description.sortReversed,
+		viewMode: description.viewMode,
+		viewModeExtra: description.viewModeExtra,
+	};
+	const overriddenValues = {...baseValues, ...overrides};
+	return new CollectionDescription(overriddenValues.set, overriddenValues.filters, overriddenValues.sort, overriddenValues.sortReversed, overriddenValues.viewMode, overriddenValues.viewModeExtra);
+};
+
+export const collectionDescriptionWithSet = (description, set) => {
+	return collectionDescriptionWithOverrides(description, {set});
+};
+
+export const collectionDescriptionWithFilterRemoved = (description, index) => {
+	const filters = [...description.filters];
+	filters.splice(index, 1);
+	return collectionDescriptionWithOverrides(description, {filters});
+};
+
+export const collectionDescriptionWithFilterModified = (description, index, newFilterText) => {
+	const filters = [...description.filters];
+	filters.splice(index, 1, newFilterText);
+	return collectionDescriptionWithOverrides(description, {filters});
+};
+
+export const collectionDescriptionWithFilterAppended = (description, newFilter) => {
+	const filters = [...description.filters, newFilter];
+	return collectionDescriptionWithOverrides(description, {filters});
+};
+
+export const collectionDescriptionWithSort = (description, sort) => {
+	return collectionDescriptionWithOverrides(description, {sort});
+};
+
+export const collectionDescriptionWithSortReversed = (description, sortReversed) => {
+	return collectionDescriptionWithOverrides(description, {sortReversed});
 };
 
 //collectionDescriptionWithQuery returns a new cloned collection description,
@@ -209,8 +251,8 @@ export const CollectionDescription = class {
 		this._viewMode = viewMode;
 		this._viewModeExtra = viewModeExtra;
 		this._limit = limit;
-		this._serialized = this._serialize();
-		this._serializedShort = this._serializeShort();
+		this._serialized = this._serialize(false);
+		this._serializedShort = this._serializeShort(false);
 	}
 
 	//setNameExplicitlySet returns whether the setName was set explicitly or
@@ -260,6 +302,10 @@ export const CollectionDescription = class {
 		return this._serialized;
 	}
 
+	serializeOriginalOrder() {
+		return this._serialize(true);
+	}
+
 	//serialize returns a canonical string representing this collection
 	//description, which if used as a component of the URL will match these
 	//collection semantics. The string uniquely and precisely defines the
@@ -268,11 +314,11 @@ export const CollectionDescription = class {
 	//name). It also may be in  adifferent order than what is in the URL, since
 	//all items are in a canonical sorted order but the URL is optimized to stay
 	//as the user wrote it.
-	_serialize() {
+	_serialize(unsorted) {
 		let result = [this.set];
 
 		let filterNames = [...this.filters];
-		filterNames.sort();
+		if (!unsorted) filterNames.sort();
 	
 		result = result.concat(filterNames);
 	
@@ -297,15 +343,19 @@ export const CollectionDescription = class {
 		return this._serializedShort;
 	}
 
+	serializeShortOriginalOrder() {
+		return this._serializeShort(true);
+	}
+
 	//serializeShort is like serialize, but skips leading set name if it's
 	//default.
-	_serializeShort() {
+	_serializeShort(unsorted) {
 		let result = [];
 
 		if (this.set != DEFAULT_SET_NAME) result.push(this.set);
 
 		let filterNames = [...this.filters];
-		filterNames.sort();
+		if (!unsorted) filterNames.sort();
 
 		result = result.concat(filterNames);
 

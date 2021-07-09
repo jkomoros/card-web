@@ -26,6 +26,7 @@ import {
 	REFERENCE_TYPES,
 	KEY_CARD_ID_PLACEHOLDER,
 	REFERENCE_TYPE_CONCEPT,
+	REFERENCE_TYPE_LINK,
 } from './card_fields.js';
 
 import {
@@ -59,19 +60,36 @@ export const DEFAULT_SET_NAME = 'main';
 export const READING_LIST_SET_NAME = 'reading-list';
 export const EVERYTHING_SET_NAME = 'everything';
 
-//Note: every time you add a new set name, add it here too and make sure that a
-//filter of that name is kept updated.
-export const FILTER_EQUIVALENTS_FOR_SET = {
-	[DEFAULT_SET_NAME]: 'in-all-set',
-	[READING_LIST_SET_NAME]: 'in-reading-list',
-	[EVERYTHING_SET_NAME]: 'in-everything-set'
+/*
+* filterEquivalent - the name of the filter that, when applied to the everything
+  set, will filter down to contain just the items in that set (although
+  obviously without any particular order).
+
+* description - the description for the set, to be shown to potentially all
+  users.
+*/
+export const SET_INFOS = {
+	[DEFAULT_SET_NAME]: {
+		filterEquivalent: 'in-all-set',
+		description: 'The default set, typically containing only content cards that are specifically included in a section'
+	},
+	[READING_LIST_SET_NAME]: {
+		filterEquivalent: 'in-reading-list',
+		description: 'This user\'s list of cards they\'ve put on their reading list',
+	},
+	[EVERYTHING_SET_NAME]: {
+		filterEquivalent: 'in-everything-set',
+		description: 'Every single card of every type, including cards that aren\'t in any section (orphaned)'
+	}
 };
+
+export const FILTER_EQUIVALENTS_FOR_SET = Object.fromEntries(Object.entries(SET_INFOS).map(entry => [entry[0], entry[1].filterEquivalent]));
 
 //If filter names have this character in them then they're actually a union of
 //the filters
 export const UNION_FILTER_DELIMITER = '+';
 
-export const SET_NAMES = Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => entry[0]);
+export const SET_NAMES = Object.keys(SET_INFOS);
 
 //The word in the URL That means "the part after this is a sort".
 export const SORT_URL_KEYWORD = 'sort';
@@ -84,11 +102,34 @@ export const VIEW_MODE_URL_KEYWORD = 'view';
 export const DEFAULT_VIEW_MODE = 'list';
 export const VIEW_MODE_WEB = 'web';
 
+export const NONE_FILTER_NAME = 'none';
+export const ALL_FILTER_NAME = 'all-cards';
+
 //Legal view modes, including whether an option is expected or not.
 export const LEGAL_VIEW_MODES = {
 	//Note: collection_description logic assumes that default_view_mode takes not extra option.
 	[DEFAULT_VIEW_MODE]: false,
 	[VIEW_MODE_WEB]: true,
+};
+
+export const parseDateSection = (str) => {
+	let pieces = str.split('/');
+	const targetLength = CONFIGURABLE_FILTER_URL_PARTS[pieces[0]] + 1;
+	pieces = pieces.slice(0, targetLength);
+	if (pieces.length > 1) pieces[1] = new Date(pieces[1]);
+	//make sure there's always a second date, defaulting to now.
+	if (pieces.length > 2) pieces[2] = pieces[2] ? new Date(pieces[2]) : new Date();
+	return pieces;
+};
+
+export const makeDateSection = (comparsionType, dateOne, dateTwo) => {
+	const result = [comparsionType];
+	result.push('' + dateOne.getFullYear() + '-' + (dateOne.getMonth() + 1) + '-' + dateOne.getDate());
+	if (CONFIGURABLE_FILTER_URL_PARTS[comparsionType] == 2) {
+		if (!dateTwo) dateTwo = new Date();
+		result.push('' + dateTwo.getFullYear() + '-' + (dateTwo.getMonth() + 1) + '-' + dateTwo.getDate());
+	}
+	return result.join('/');
 };
 
 const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, secondDateStr) => {
@@ -154,6 +195,19 @@ export const referencesConfigurableFilterText = (referencesFilterType, cardID, r
 const INCLUDE_KEY_CARD_PREFIX = '+';
 const INVERT_REFERENCE_TYPES_PREFIX = '-';
 
+export const parseKeyCardID = (cardID) => {
+	let includeKeyCard = false;
+	if (cardID.startsWith(INCLUDE_KEY_CARD_PREFIX)) {
+		includeKeyCard = true;
+		cardID = cardID.substring(INCLUDE_KEY_CARD_PREFIX.length);
+	}
+	return [cardID, includeKeyCard];
+};
+
+export const keyCardID = (cardID, includeKeyCard) => {
+	return includeKeyCard ? INCLUDE_KEY_CARD_PREFIX + cardID : cardID;
+};
+
 const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, countStr) => {
 
 	//refernces filters take typeStr as second parameter, but others skip those.
@@ -182,10 +236,7 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 	if (!cardID) cardID = '';
 
 	let includeKeyCard = false;
-	if (cardID.startsWith(INCLUDE_KEY_CARD_PREFIX)) {
-		includeKeyCard = true;
-		cardID = cardID.substring(INCLUDE_KEY_CARD_PREFIX.length);
-	}
+	[cardID, includeKeyCard] = parseKeyCardID(cardID);
 
 	//We have to memoize the functor we return, even though the filter machinery
 	//will memoize too, because otherwise literally every card in a given run
@@ -214,9 +265,12 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 	return [func, false];
 };
 
+export const parseMultipleCardIDs = (str) => str.split(INCLUDE_KEY_CARD_PREFIX);
+export const combineMultipleCardIDs = (cardIDs) => cardIDs.join(INCLUDE_KEY_CARD_PREFIX);
+
 const makeCardsConfigurableFilter = (filterName, idString) => {
 	//ids can be a single id or slug, or a conjunction of them delimited by '+'
-	const rawIdsToMatch = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
+	const rawIdsToMatch = Object.fromEntries(parseMultipleCardIDs(idString).map(id => [id, true]));
 
 	//TODO: we could check if KEY_CARD_ID_PLACEHOLDER is in any of them, and if not
 	//never generate a new set of expanded ids to match to save a little
@@ -428,7 +482,7 @@ const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
 };
 
 //The special keyword for 'my user ID' in the configurable authors filter
-const ME_AUTHOR_ID = 'me';
+export const ME_AUTHOR_ID = 'me';
 
 const makeAuthorConfigurableFilter = (filterName, idString) => {
 	const ids = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
@@ -502,7 +556,14 @@ const UPDATED_FILTER_NAME = 'updated';
 const LAST_TWEETED_FILTER_NAME = 'last-tweeted';
 const BEFORE_FILTER_NAME = 'before';
 const AFTER_FILTER_NAME = 'after';
-const BETWEEN_FILTER_NAME = 'between';
+export const BETWEEN_FILTER_NAME = 'between';
+
+export const DATE_RANGE_TYPES = {
+	[BEFORE_FILTER_NAME]: true,
+	[AFTER_FILTER_NAME]: true,
+	[BETWEEN_FILTER_NAME]: true,
+};
+
 const DIRECT_CONNECTIONS_FILTER_NAME = 'direct-connections';
 const CONNECTIONS_FILTER_NAME = 'connections';
 const CHILDREN_FILTER_NAME = 'children';
@@ -518,7 +579,7 @@ export const DIRECT_REFERENCES_OUTBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES
 const AUTHOR_FILTER_NAME = 'author';
 export const CARDS_FILTER_NAME = 'cards';
 export const EXCLUDE_FILTER_NAME = 'exclude';
-const COMBINE_FILTER_NAME = 'combine';
+export const COMBINE_FILTER_NAME = 'combine';
 export const QUERY_FILTER_NAME = 'query';
 const QUERY_STRICT_FILTER_NAME = 'query-strict';
 export const LIMIT_FILTER_NAME = 'limit';
@@ -569,6 +630,25 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[MISSING_CONCEPT_FILTER_NAME]: 1,
 };
 
+const beforeTodayDefaultsFactory = () => {
+	const today = new Date();
+	return BEFORE_FILTER_NAME + '/' + today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
+};
+
+const DEFAULT_DATE_FILTER = beforeTodayDefaultsFactory();
+
+const LINK_FILTER_BASE = INCLUDE_KEY_CARD_PREFIX + KEY_CARD_ID_PLACEHOLDER;
+
+export const URL_PART_DATE_SECTION = 'date';
+export const URL_PART_FREE_TEXT = 'text';
+export const URL_PART_KEY_CARD = 'key-card';
+export const URL_PART_INT = 'int';
+export const URL_PART_REFERENCE_TYPE = 'reference-type';
+export const URL_PART_USER_ID = 'user-id';
+export const URL_PART_SUB_FILTER = 'sub-filter';
+export const URL_PART_MULTIPLE_CARDS = 'multiple-cards';
+export const URL_PART_CONCEPT_STR_OR_ID = 'concept-str-or-id';
+
 //the factories should return a filter func that takes the card to opeate on,
 //then cards. The factory will be provided with the individual parts of the
 //configuration return a func and whether or not its output should be reversed.
@@ -583,94 +663,266 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 //can also emit a [matches, sortValue, partialMatch], where partialMatch denotes
 //the item should be ghosted. If the filter emits sortExtras, then it should
 //also define a labelName. 
-const CONFIGURABLE_FILTER_INFO = {
+export const CONFIGURABLE_FILTER_INFO = {
 	[UPDATED_FILTER_NAME]: {
 		factory: makeDateConfigurableFilter,
+		description: 'Selects cards that were updated within a given date range',
+		arguments: [{
+			type: URL_PART_DATE_SECTION,
+			description: 'Date Range',
+			default: DEFAULT_DATE_FILTER,
+		}],
 	},
 	[LAST_TWEETED_FILTER_NAME]: {
 		factory: makeDateConfigurableFilter,
+		description: 'Selects cards that had a tweet within a given date range',
+		arguments: [{
+			type: URL_PART_DATE_SECTION,
+			description: 'Date Range',
+			default: DEFAULT_DATE_FILTER,
+		}],
 	},
 	[CHILDREN_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that are directly referenced by a given card',
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		}]
 	},
 	[DESCENDANTS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that are direct or indirectly referenced by a given card',
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type:URL_PART_INT,
+			description: 'Ply',
+			default: '2',
+		}]
 	},
 	[PARENTS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that directly reference the given card',
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		}]
 	},
 	[ANCESTORS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that directly or indirectly reference the given card',
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type:URL_PART_INT,
+			description: 'Ply',
+			default: '2',
+		}]
 	},
 	[DIRECT_CONNECTIONS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that directly reference or are referenced by a given card',
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		}]
 	},
 	[CONNECTIONS_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that directly or indirectly reference (or are referenced by) a given card',
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type:URL_PART_INT,
+			description: 'Ply',
+			default: '2',
+		}]
 	},
 	[REFERENCES_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that reference or are referenced by other cards with a particular type of reference',
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type: URL_PART_REFERENCE_TYPE,
+			description: 'Reference types',
+			default: REFERENCE_TYPE_LINK,
+		},{
+			type:URL_PART_INT,
+			description: 'Ply',
+			default: '2',
+		}]
 	},
 	[REFERENCES_INBOUND_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that is referenced by other cards with a particular type of reference',
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type: URL_PART_REFERENCE_TYPE,
+			description: 'Reference types',
+			default: REFERENCE_TYPE_LINK,
+		},{
+			type:URL_PART_INT,
+			description: 'Ply',
+			default: '2',
+		}]
 	},
 	[REFERENCES_OUTBOUND_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that reference other cards with a particular type of reference',
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type: URL_PART_REFERENCE_TYPE,
+			description: 'Reference types',
+			default: REFERENCE_TYPE_LINK,
+		},{
+			type:URL_PART_INT,
+			description: 'Ply',
+			default: '2',
+		}]
 	},
 	[DIRECT_REFERENCES_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that directly reference or are referenced by other cards with a particular type of reference',
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type: URL_PART_REFERENCE_TYPE,
+			description: 'Reference types',
+			default: REFERENCE_TYPE_LINK,
+		}]
 	},
 	[DIRECT_REFERENCES_INBOUND_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that reference other cards with a particular type of reference',
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type: URL_PART_REFERENCE_TYPE,
+			description: 'Reference types',
+			default: REFERENCE_TYPE_LINK,
+		}]
 	},
 	[DIRECT_REFERENCES_OUTBOUND_FILTER_NAME]: {
 		factory: makeCardLinksConfigurableFilter,
 		labelName: 'Degree',
 		flipOrder: true,
+		description: 'Selects cards that are referenced by other cards with a particular type of reference',
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'The key card',
+			default: LINK_FILTER_BASE
+		},{
+			type: URL_PART_REFERENCE_TYPE,
+			description: 'Reference types',
+			default: REFERENCE_TYPE_LINK,
+		}]
 	},
 	[AUTHOR_FILTER_NAME]: {
 		factory: makeAuthorConfigurableFilter,
+		description: 'Selects cards that are authored by the give user ID',
+		arguments: [{
+			type: URL_PART_USER_ID,
+			description: 'User ID',
+			default: ME_AUTHOR_ID
+		}]
 	},
 	[EXCLUDE_FILTER_NAME]: {
 		factory: makeExcludeConfigurableFilter,
+		description: 'Inverts a sub-filter expression',
+		arguments: [{
+			type: URL_PART_SUB_FILTER,
+			description: 'Sub filter to negate',
+			default: ALL_FILTER_NAME
+		}]
 	},
 	[COMBINE_FILTER_NAME]: {
 		factory: makeCombineConfigurableFilter,
+		description: 'Returns the union of two sub-filter expressions',
+		arguments: [{
+			type: URL_PART_SUB_FILTER,
+			description: 'First sub filter to combine',
+			default: ALL_FILTER_NAME
+		}, {
+			type: URL_PART_SUB_FILTER,
+			description: 'Second sub filter to combine',
+			default: ALL_FILTER_NAME
+		}]
 	},
 	[CARDS_FILTER_NAME]: {
 		//This filter matches precisely the IDsorSlugs provided. It's generally
 		//used in conjunction with the exclude filter.
 		factory: makeCardsConfigurableFilter,
+		description: 'Selects a precise list of specific cards. It\'s typically used in conjunction with the ' + EXCLUDE_FILTER_NAME + ' filter',
+		arguments: [{
+			type: URL_PART_MULTIPLE_CARDS,
+			description: 'Cards to include',
+			default: KEY_CARD_ID_PLACEHOLDER,
+		}]
 	},
 	[QUERY_FILTER_NAME]: {
 		factory: makeQueryConfigurableFilter,
 		suppressLabels: true,
+		description: 'Selects cards that contain text that at least partially matches a provided query',
+		arguments: [{
+			type: URL_PART_FREE_TEXT,
+			description: 'Query text',
+			default: 'foo',
+		}],
 	},
 	[QUERY_STRICT_FILTER_NAME]: {
 		factory: makeQueryConfigurableFilter,
 		suppressLabels: true,
+		description: 'Selects cards that contain text that exactly matches a provided query',
+		arguments: [{
+			type: URL_PART_FREE_TEXT,
+			description: 'Query text',
+			default: 'foo',
+		}],
 	},
 	[LIMIT_FILTER_NAME]: {
 		//Limit is a special type of filter... it must run at the very last
@@ -678,18 +930,42 @@ const CONFIGURABLE_FILTER_INFO = {
 		//concerned, it's actually a no-op filter. It's up to Collection to
 		//process it.
 		factory: makeNoOpConfigurableFilter,
+		description: 'Selects only up to a certain number of cards. Limit is a special type of filter that can only apply at the top-level, and there can only be one.',
+		arguments: [{
+			type: URL_PART_INT,
+			description: 'Limit',
+			default: '10'
+		}],
 	},
 	[SIMILAR_FILTER_NAME]: {
 		factory: makeSimilarConfigurableFilter,
 		suppressLabels: true,
+		description: 'Selects cards that are similar to a given key card. It is primarily used for its sort order.',
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'Key card',
+			default: KEY_CARD_ID_PLACEHOLDER
+		}],
 	},
 	[ABOUT_CONCEPT_FILTER_NAME]: {
 		factory: makeAboutConceptConfigurableFilter,
 		suppressLabels: true,
+		description: 'Selects cards that reference a given text concept',
+		arguments: [{
+			type: URL_PART_CONCEPT_STR_OR_ID,
+			description: 'Concept or CardID',
+			default: 'concept-name',
+		}],
 	},
 	[MISSING_CONCEPT_FILTER_NAME]: {
 		factory: makeMissingConceptConfigurableFilter,
-		labelName: 'Suggested Concept Count'
+		labelName: 'Suggested Concept Count',
+		description: 'Selects cards that appear to be missing a particular concept reference',
+		arguments: [{
+			type: URL_PART_CONCEPT_STR_OR_ID,
+			description: 'Concept or CardID',
+			default: 'concept-name',
+		}],
 	}
 };
 
@@ -705,6 +981,76 @@ export const makeConfigurableFilter = (name) => {
 		memoizedConfigurableFilters[name] = func(...parts);
 	}
 	return memoizedConfigurableFilters[name];
+};
+
+export const splitCompoundFilter = (fullFilterName) => {
+	const filterParts = fullFilterName.split('/');
+	const firstFilterPart = filterParts[0];
+	const restFilter = filterParts.slice(1).join('/');
+	return [firstFilterPart, restFilter];
+};
+
+export const splitUnionFilter = (unionFilter) => {
+	const [firstPart] = splitCompoundFilter(unionFilter);
+	return firstPart.split(UNION_FILTER_DELIMITER);
+};
+
+export const piecesForConfigurableFilter = (fullFilterName) => {
+	//TODO: it's kind of weird that this bespoke logic is here, instead of fully
+	//being driven by constant configuration from filters.js
+	const [filterName, rest] = splitCompoundFilter(fullFilterName);
+	if (!rest) {
+		console.warn('Unexpectedly no rest');
+		return [];
+	}
+	const config = CONFIGURABLE_FILTER_INFO[filterName];
+	if (!config) {
+		console.warn('Unexpectedly no config');
+		return [];
+	}
+	const pieces = rest.split('/');
+	const result = [];
+	let pieceIndex = 0;
+	for (const arg of config.arguments) {
+		const controlType = arg.type;
+		if (pieceIndex >= pieces.length) {
+			console.warn('Ran out of pieces');
+			continue;
+		}
+		switch (controlType) {
+		case URL_PART_DATE_SECTION:
+			const subPieces = pieces.slice(pieceIndex, 2);
+			pieceIndex += 2;
+			if (subPieces[0] == BETWEEN_FILTER_NAME) {
+				//one more
+				subPieces.push(pieces[pieceIndex]);
+				pieceIndex++;
+			}
+			result.push({
+				controlType,
+				description: arg.description,
+				value: subPieces.join('/')
+			});
+			break;
+		case URL_PART_SUB_FILTER:
+			//consume all remaining pieces
+			result.push({
+				controlType,
+				description: arg.description,
+				value: pieces.slice(pieceIndex).join('/')
+			});
+			break;
+		default:
+			//The majority of filters are one piece for one argument.
+			result.push({
+				controlType,
+				description: arg.description,
+				value: pieces[pieceIndex],
+			});
+			pieceIndex++;
+		}
+	}
+	return result;
 };
 
 const sectionNameForCard = (card, sections) => {
@@ -1049,6 +1395,7 @@ export const INVERSE_FILTER_NAMES = Object.assign(
 	{
 		'unstarred': 'starred',
 		'unread': 'read',
+		[ALL_FILTER_NAME]: NONE_FILTER_NAME,
 		[TODO_COMBINED_INVERSE_FILTER_NAME]: TODO_COMBINED_FILTER_NAME,
 	},
 	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => ['not-' + entry[1], entry[1]])),
@@ -1080,11 +1427,11 @@ const makeDoesNotNeedFunc = (baseFunc, overrideKeyName) => {
 	};
 };
 
-const DOES_NOT_NEED_FILTER_FUNCS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2].autoApply).map(entry => [entry[1][0][2], makeDoesNotNeedFunc(entry[1][1], REVERSE_CARD_FILTER_CONFIG_MAP[entry[1][0][2]])]));
+const DOES_NOT_NEED_FILTER_FUNCS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2].autoApply).map(entry => [entry[1][0][2], {func: makeDoesNotNeedFunc(entry[1][1], REVERSE_CARD_FILTER_CONFIG_MAP[entry[1][0][2]]), description: 'Does not need ' + entry[1][4]}]));
 
 const FREEFORM_TODO_FUNC = CARD_FILTER_CONFIGS[FREEFORM_TODO_KEY][1];
 
-const COMBINED_TODO_FUNCS = [FREEFORM_TODO_FUNC, ...Object.values(DOES_NOT_NEED_FILTER_FUNCS)];
+const COMBINED_TODO_FUNCS = [FREEFORM_TODO_FUNC, ...Object.values(DOES_NOT_NEED_FILTER_FUNCS).map(obj => obj.func)];
 
 const combinedTodoFunc = (card) => {
 	//The funcs return true when it's 'done' (no todo). So if all of them return
@@ -1095,13 +1442,32 @@ const combinedTodoFunc = (card) => {
 
 export const CARD_FILTER_FUNCS = Object.assign(
 	//The main filter names
-	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][0], makeBasicCardFilterFunc(entry[1][1], entry[1][2])])),
+	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][0], {func: makeBasicCardFilterFunc(entry[1][1], entry[1][2]), description: entry[1][4]}])),
 	//does-not-need filters for TODOs
 	DOES_NOT_NEED_FILTER_FUNCS,
 	//combined filter func
 	{
-		[TODO_COMBINED_FILTER_NAME]: combinedTodoFunc,
+		[TODO_COMBINED_FILTER_NAME]: {
+			func: combinedTodoFunc,
+			description: 'Whether the card has any TODO',
+		}
 	},
+);
+
+const CARD_NON_INVERTED_FILTER_DESCRIPTIONS = Object.assign(
+	Object.fromEntries(Object.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], entry[1].description])),
+	{
+		'starred': 'Cards that you have starred',
+		[NONE_FILTER_NAME]: 'Matches no cards',
+		'read': 'Cards that you have read',
+	},
+	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => [entry[1], 'A filter equivalent of the set ' + entry[0]])),
+	Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_INFO).map(entry => [entry[0], entry[1].description])),
+);
+
+export const CARD_FILTER_DESCRIPTIONS = Object.assign(
+	CARD_NON_INVERTED_FILTER_DESCRIPTIONS,
+	Object.fromEntries(Object.entries(INVERSE_FILTER_NAMES).map(entry => [entry[0], 'Inverse of ' + entry[1]]))
 );
 
 //We pull this out because it has to be the same in filters and filtersSnapshot
@@ -1109,7 +1475,7 @@ export const CARD_FILTER_FUNCS = Object.assign(
 const INITIAL_STATE_FILTERS = Object.assign(
 	{
 		//None will match nothing. We use it for orphans.
-		none: {},
+		[NONE_FILTER_NAME]: {},
 		starred: {},
 		read: {},
 	},

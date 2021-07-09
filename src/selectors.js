@@ -28,7 +28,8 @@ import {
 	EXCLUDE_FILTER_NAME,
 	CARDS_FILTER_NAME,
 	RECENT_SORT_NAME,
-	DEFAULT_SORT_NAME
+	DEFAULT_SORT_NAME,
+	CARD_FILTER_DESCRIPTIONS
 } from './filters.js';
 
 import {
@@ -118,6 +119,7 @@ export const selectFetchedCard = (state) => state.app.fetchedCard;
 export const selectCardBeingFetched = (state) => state.app.cardBeingFetched;
 export const selectMaintenanceModeEnabled = (state) => state.app.maintenanceModeEnabled;
 export const selectCardsDrawerInfoExpanded = (state) => state.app.cardsDrawerInfoExpanded;
+export const selectConfigureCollectionDialogOpen = (state) => state.app ? state.app.configureCollectionDialogOpen : false;
 export const selectSuggestMissingConceptsEnabled = (state) => state.app.suggestMissingConceptsEnabled;
 
 export const selectComposeOpen = (state) => state.prompt.composeOpen;
@@ -323,6 +325,20 @@ const selectCardsSnapshot = createZippedObjectSelector(
 const selectConceptCards = createSelector(
 	selectCards,
 	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => entry[1].card_type == CARD_TYPE_CONCEPT))
+);
+
+export const selectAuthorAndCollaboratorUserIDs = createSelector(
+	selectRawCards,
+	(rawCards) => {
+		const ids = {};
+		for (const card of Object.values(rawCards)) {
+			ids[card.author] = true;
+			for (const collaborator of card.collaborators) {
+				ids[collaborator] = true;
+			}
+		}
+		return Object.keys(ids);
+	}
 );
 
 export const selectActiveCard = createSelector(
@@ -1032,6 +1048,19 @@ export const selectActiveCardTweets = createSelector(
 export const selectEditingCardAutoTodos = createSelector(
 	selectEditingCard,
 	(card) => cardTODOConfigKeys(card, true)
+);
+
+//Map of filterName -> filterDescription for all legal filter-names (normal and configurable)
+export const selectFilterDescriptions = createSelector(
+	selectSections,
+	selectTags,
+	(sections, tags) => {
+		return {
+			...CARD_FILTER_DESCRIPTIONS,
+			...Object.fromEntries(Object.entries(sections).map(entry => [entry[0], 'Matches cards in the ' + entry[1].title + ' section'])),
+			...Object.fromEntries(Object.entries(tags).map(entry => [entry[0], 'Matches cards in the ' + entry[1].title + ' tag'])),
+		};
+	}
 );
 
 export const selectActiveCollectionDescription = createSelector(

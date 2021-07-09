@@ -74,7 +74,8 @@ import {
 
 import {
 	navigatePathTo,
-	toggleCardsDrawerInfo
+	toggleCardsDrawerInfo,
+	openConfigureCollectionDialog
 } from '../actions/app.js';
 
 import {
@@ -142,7 +143,8 @@ import {
 	SEARCH_ICON,
 	PLAYLISLT_ADD_CHECK_ICON,
 	PLAYLIST_ADD_ICON,
-	FILE_COPY_ICON
+	FILE_COPY_ICON,
+	RULE_ICON
 } from './my-icons.js';
 
 import {
@@ -251,11 +253,13 @@ class CardView extends connect(store)(PageViewElement) {
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
         <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .collection=${this._collection} @info-zippy-clicked=${this._handleInfoZippyClicked} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' @add-working-notes-card='${this._handleAddWorkingNotesCard}' .editable=${this._userMayEditActiveCollection} .suppressAdd=${!this._userMayCreateCard} .showCreateWorkingNotes=${this._userMayCreateCard} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .ghostCardsThatWillBeRemoved=${true} .wordCloud=${this._collectionWordCloud} .infoExpanded=${this._infoExpanded} .infoCanBeExpanded=${true} .cardTypeToAdd=${this._cardTypeToAdd}>
-			${this._userIsAdmin ? html`
 			<div slot='info'>
-				<input type='checkbox' .checked=${this._suggestMissingConceptsEnabled} @change=${this._handleSuggestMissingConceptsChanged} id='suggested-concepts-enabled'><label for='suggested-concepts-enabled'>Suggest Missing Concepts <strong>(SLOW)</strong></label>
-				<button id='edit-multi' class='small' title='Edit all cards' @click=${this._handleMultiEditClicked}>${EDIT_ICON}</button><label for='edit-multi'>Edit All Cards</label>
-			</div>` : ''}
+				${this._userIsAdmin ? html`
+				<input type='checkbox' .checked=${this._suggestMissingConceptsEnabled} @change=${this._handleSuggestMissingConceptsChanged} id='suggested-concepts-enabled'><label for='suggested-concepts-enabled'>Suggest Missing Concepts <strong>(SLOW)</strong></label><br/>
+				<button id='edit-multi' class='small' title='Edit all cards' @click=${this._handleMultiEditClicked}>${EDIT_ICON}</button><label for='edit-multi'>Edit All Cards</label><br/>
+				` : ''}
+				<button id='configure-collection' class='small' title='Configure collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure collection</label>
+			</div>
 		</card-drawer>
         <div id='center'>
 			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts} .updatedFromContentEditable=${this._updatedFromContentEditable} @text-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
@@ -366,6 +370,10 @@ class CardView extends connect(store)(PageViewElement) {
 		if (e.detail.direction == 'right') {
 			this._handleBackClicked(e);
 		}
+	}
+
+	_handleConfigureCollectionClicked() {
+		store.dispatch(openConfigureCollectionDialog());
 	}
 
 	_handleSuggestMissingConceptsChanged(e) {

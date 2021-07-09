@@ -116,7 +116,7 @@ const makeFilterFromSection = (sections, includeDefaultSet) => {
 
 const makeFilterFromCards = (cards, previousFilters) => {
 	let result = {};
-	for (const [filterName, func] of Object.entries(CARD_FILTER_FUNCS)) {
+	for (const [filterName, func] of Object.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], entry[1].func])) {
 		let newMatchingCards = [];
 		let newNonMatchingCards = [];
 		if(!func) throw new Error('Invalid func name: ' + filterName);
