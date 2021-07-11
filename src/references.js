@@ -172,7 +172,7 @@ const ReferencesAccessor = class {
 
 	get byTypeInboundSubstantive() {
 		if (!this._memoizedByTypeInboundSubstantive) {
-			this._memoizedByTypeInboundSubstantive = Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES[entry[0]].substantive));
+			this._memoizedByTypeInboundSubstantive = Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => (REFERENCE_TYPES[entry[0]] || {}).substantive));
 		}
 		return this._memoizedByTypeInboundSubstantive;
 	}

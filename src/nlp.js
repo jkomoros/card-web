@@ -524,7 +524,7 @@ const OVERRIDE_EXTRACTORS = {
 const extractRawContentRunsForCardField = (card, fieldName) => {
 	const cardType = card.card_type || '';
 	const config = TEXT_FIELD_CONFIGURATION[fieldName];
-	if (DERIVED_FIELDS_FOR_CARD_TYPE[cardType][fieldName]) return [];
+	if ((DERIVED_FIELDS_FOR_CARD_TYPE[cardType] || {})[fieldName]) return [];
 	let fieldValue = '';
 	if (config.overrideExtractor) {
 		const extractor = OVERRIDE_EXTRACTORS[fieldName];
@@ -537,7 +537,7 @@ const extractRawContentRunsForCardField = (card, fieldName) => {
 	//If the text is the defaultBody for that card type, just pretend
 	//like it doesn't exist. Otherwise it will show up VERY high in the
 	//various NLP pipelines.
-	if (fieldName == TEXT_FIELD_BODY && CARD_TYPE_CONFIGURATION[cardType].defaultBody == fieldValue) fieldValue = '';
+	if (fieldName == TEXT_FIELD_BODY && (CARD_TYPE_CONFIGURATION[cardType] || {}).defaultBody == fieldValue) fieldValue = '';
 	if (config.extraRunDelimiter) fieldValue = fieldValue.split(config.extraRunDelimiter).join('\n');
 	const content = config.html ? innerTextForHTML(fieldValue) : fieldValue;
 	return splitRuns(content);
