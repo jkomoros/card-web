@@ -257,7 +257,7 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 
 	const func = function(card, extras) {
 		
-		let val = mapCreator(extras.cards, extras.activeCardID, extras.editingCard)[card.id];
+		let val = mapCreator(extras.cards, extras.keyCardID, extras.editingCard)[card.id];
 		//Return the degree of separation so it's available to sort on
 		return [val !== undefined, val];
 	};
