@@ -740,7 +740,18 @@ const Collection = class {
 	_makeSortInfo() {
 		const config = this._description.sortConfig;
 		//_prelimitFilteredCards uses the most up to date version of the card, but we want to use the snapshot version.
-		let entries = this._preLimitFilteredCards.map(card => [card.id, config.extractor(this._cardsForFiltering[card.id], this._sections, this._cardsForFiltering, this._sortExtras)]);
+		let entries = this._preLimitFilteredCards.map(card => {
+			//In almost all cases we want to use the precise card that the
+			//filtering machinery saw (which is possibly a snapshot). however,
+			//there are some cases where the card does exist in the set but is
+			//not in the snapshot, e.g. when you're viewing a section and a card
+			//was just created in that section but a snapshot updating event
+			//hasn't happened. In that case, the best fallback is to pass the
+			//card even though it's not in the cards, to avoid downstream
+			//machinery freaking out with an undefined card.
+			const cardToPass = this._cardsForFiltering[card.id] || card;
+			return [card.id, config.extractor(cardToPass, this._sections, this._cardsForFiltering, this._sortExtras)];
+		});
 		return new Map(entries);
 	}
 
