@@ -1054,6 +1054,9 @@ export const piecesForConfigurableFilter = (fullFilterName) => {
 };
 
 const sectionNameForCard = (card, sections) => {
+	if (!card) {
+		return '';
+	}
 	let section = sections[card.section];
 	return section ? section.title : '';
 };
