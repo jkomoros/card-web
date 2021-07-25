@@ -2,6 +2,7 @@ import {
 	CARD_TYPE_CONCEPT,
 	CARD_TYPE_WORK,
 	CARD_TYPE_PERSON,
+	CARD_TYPE_WORKING_NOTES,
 	REFERENCE_TYPE_CONCEPT,
 	REFERENCE_TYPE_CITATION,
 	REFERENCE_TYPE_CITATION_PERSON,
@@ -11,6 +12,7 @@ import {
 	REFERENCE_TYPE_EXAMPLE_OF,
 	REFERENCE_TYPE_METAPHOR_FOR,
 	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
+	CARD_TYPE_CONTENT,
 } from './card_fields.js';
 
 import {
@@ -29,6 +31,9 @@ import {
 	missingConceptConfigurableFilterText,
 	aboutConceptConfigurableFilterText,
 	LIMIT_FILTER_NAME,
+	SAME_TYPE_FILTER,
+	DIFFERENT_TYPE_FILTER,
+	UNION_FILTER_DELIMITER,
 } from './filters.js';
 
 import {
@@ -169,11 +174,18 @@ const INFO_PANEL_REFERENCE_BLOCKS = [
 		}
 	},
 	{
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES), LIMIT_FILTER_NAME + '/' + NUM_SIMILAR_CARDS_TO_SHOW]),
-		navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES)]),
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, SAME_TYPE_FILTER + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES), LIMIT_FILTER_NAME + '/' + NUM_SIMILAR_CARDS_TO_SHOW]),
+		navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, SAME_TYPE_FILTER + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES)]),
 		showNavigate: true,
 		title: 'Similar Cards',
-		description: 'Cards that are neither linked to or from here but that have distinctive terms that overlap with this card.',
+		description: 'Cards that are neither linked to or from here but that have distinctive terms that overlap with this card and are the same type of card.',
+	},
+	{
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, CARD_TYPE_WORKING_NOTES + UNION_FILTER_DELIMITER + CARD_TYPE_CONTENT, DIFFERENT_TYPE_FILTER + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES), LIMIT_FILTER_NAME + '/' + NUM_SIMILAR_CARDS_TO_SHOW]),
+		navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, CARD_TYPE_WORKING_NOTES + UNION_FILTER_DELIMITER + CARD_TYPE_CONTENT, DIFFERENT_TYPE_FILTER + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES)]),
+		showNavigate: true,
+		title: 'Similar Cards (Other Type)',
+		description: 'Cards that are neither linked to or from here but that have distinctive terms that overlap with this card but are a different type (either working-notes or content)',
 	}
 ];
 

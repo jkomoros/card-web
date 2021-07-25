@@ -608,8 +608,8 @@ export const SIMILAR_FILTER_NAME = 'similar';
 //conflicts with section name in production.
 const ABOUT_CONCEPT_FILTER_NAME = 'about-concept';
 const MISSING_CONCEPT_FILTER_NAME = 'missing-concept';
-const SAME_TYPE_FILTER = 'same-type';
-const DIFFERENT_TYPE_FILTER = 'different-type';
+export const SAME_TYPE_FILTER = 'same-type';
+export const DIFFERENT_TYPE_FILTER = 'different-type';
 
 //When these are seen in the URL as parts, how many more pieces to expect, to be
 //combined later. For things like `updated`, they want more than 1 piece more
