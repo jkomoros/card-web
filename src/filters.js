@@ -334,6 +334,25 @@ export const missingConceptConfigurableFilterText = (conceptStr) => {
 	return MISSING_CONCEPT_FILTER_NAME + '/' + arg;
 };
 
+const makeSameTypeConfigurableFilter = (filterName, inputCardID) => {
+	//We use this function for both same and different type
+	const sameType = filterName == SAME_TYPE_FILTER;
+	//Technically the '+' prefix doesn't make any sense here, but temporarily
+	//we're using hte dialog config type that might give us one as a prefix, so
+	//look for it just in case.
+	const [cardID, ] = parseKeyCardID(inputCardID);
+
+	const func = (card, extras) => {
+		const actualCardID = cardID == KEY_CARD_ID_PLACEHOLDER ? extras.keyCardID : cardID;
+		const mainCard = extras.cards[actualCardID];
+		if (!mainCard) return false;
+		return sameType ? mainCard.card_type == card.card_type : mainCard.card_type != card.card_type;
+	};
+
+	return [func, false];
+
+};
+
 const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) => {
 	//subFilter can only be a very small set of special filter names. They're
 	//done as subtypes of `missing` becuase there's no way to do a configurable
@@ -589,6 +608,8 @@ export const SIMILAR_FILTER_NAME = 'similar';
 //conflicts with section name in production.
 const ABOUT_CONCEPT_FILTER_NAME = 'about-concept';
 const MISSING_CONCEPT_FILTER_NAME = 'missing-concept';
+const SAME_TYPE_FILTER = 'same-type';
+const DIFFERENT_TYPE_FILTER = 'different-type';
 
 //When these are seen in the URL as parts, how many more pieces to expect, to be
 //combined later. For things like `updated`, they want more than 1 piece more
@@ -628,6 +649,8 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[SIMILAR_FILTER_NAME]: 1,
 	[ABOUT_CONCEPT_FILTER_NAME]: 1,
 	[MISSING_CONCEPT_FILTER_NAME]: 1,
+	[SAME_TYPE_FILTER]: 1,
+	[DIFFERENT_TYPE_FILTER]: 1,
 };
 
 const beforeTodayDefaultsFactory = () => {
@@ -966,6 +989,24 @@ export const CONFIGURABLE_FILTER_INFO = {
 			description: 'Concept or CardID',
 			default: 'concept-name',
 		}],
+	},
+	[SAME_TYPE_FILTER]: {
+		factory: makeSameTypeConfigurableFilter,
+		description: 'Cards with the same type as the provided card',
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'Key Card',
+			default: KEY_CARD_ID_PLACEHOLDER,
+		}]
+	},
+	[DIFFERENT_TYPE_FILTER]: {
+		factory: makeSameTypeConfigurableFilter,
+		description: 'Cards with a different type as the provided card',
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'Key Card',
+			default: KEY_CARD_ID_PLACEHOLDER,
+		}]
 	}
 };
 
