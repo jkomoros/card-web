@@ -470,7 +470,7 @@ export const selectCardIDsUserMayEdit = createObjectSelector(
 			return true;
 		}
 		if (!card) return false;
-		if (card.author != uid) {
+		if (card.author == uid) {
 			return true;
 		}
 		if (!card.permissions || !card.permissions[PERMISSION_EDIT_CARD]) return false;
