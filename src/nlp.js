@@ -816,28 +816,19 @@ const queryWordsAndFilters = (queryString) => {
 const ngramWithinOther =(ngram, container) => {
 	//ngramWithinOther is _extremely_ hot. First we'll check if the whole ngram
 	//is even a strict subset of the container. If it is, then we'll
-	//additionally do the extra check to make sure that match happens at word
-	//boundaries, not within words.
-	if (!container.includes(ngram)) return false;
-	return wordBoundaryRegExp(ngram).test(container);
+	//additionally check to see if it is at a word boundary (the beginning or
+	//end of the string, or with spaces before AND after).
+	const index = container.indexOf(ngram);
+	if (index == -1) return false;
+	if (index == 0) return true;
+	if (index == container.length - ngram.length) return true;
+	return container.includes(' ' + ngram + ' ');
 };
-
-const memoizedWordBoundaryRegExp = {};
 
 //from https://stackoverflow.com/a/3561711
 const escapeRegex = (string) => {
 	// eslint-disable-next-line no-useless-escape
 	return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-};
-
-const wordBoundaryRegExp = (ngram) => {
-	if (!memoizedWordBoundaryRegExp[ngram]) {
-		//we have to escape any special characters in the ngram so they aren't
-		//interpreted as regex control characters. Those characters are rare,
-		//but can happen if they're inside a word.
-		memoizedWordBoundaryRegExp[ngram] = new RegExp('(^| )' + escapeRegex(ngram) + '( |$)');
-	}
-	return memoizedWordBoundaryRegExp[ngram];
 };
 
 //How high to go for n-grams in fingerprint by default. 2 = bigrams and monograms.
