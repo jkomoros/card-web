@@ -520,7 +520,7 @@ When adding new tasks, increment MAINTENANCE_TASK_VERSION by one. Set the new
 task's minVersion to the new raw value of MAINTENANCE_TASK_VERSION. Append the
 new task to the END of the raw_tasks list.
 
-    fn: the raw function that does the thing
+    fn: the raw function that does the thing. It will be passed dispatch, getState.
     maintenanceModeRequired: if true, will be grayed out unless maintenance mode is on. These are tasks that do such expensive processing htat if updateInboudnLinks were to be run it would mess with the db.
     recurring: if true, then the task can be run multiple times.
     nextTaskName: If set, the string name of the task the user should run next.
