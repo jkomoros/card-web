@@ -1217,8 +1217,8 @@ const makeEverythingSetFromCards = (cards) => {
 	keys.sort((a, b) => {
 		let aCard = cards[a];
 		let bCard = cards[b];
-		let aTimestamp = aCard.updated && aCard.updated.seconds ? aCard.updated.seconds : 0;
-		let bTimestamp = bCard.updated && bCard.updated.seconds ? bCard.updated.seconds : 0;
+		let aTimestamp = aCard.updated_substantive && aCard.updated_substantive.seconds ? aCard.updated_substantive.seconds : 0;
+		let bTimestamp = bCard.updated_substantive && bCard.updated_substantive.seconds ? bCard.updated_substantive.seconds : 0;
 		return bTimestamp - aTimestamp;
 	});
 	return keys;
