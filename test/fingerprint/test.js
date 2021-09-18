@@ -398,33 +398,33 @@ describe('fingerprint generation', () => {
 		const generator = new FingerprintGenerator(cards);
 		const expectedOverlaps = {
 			[CARD_ID_ONE]: new Map([
-				[ 'five', 2.238525282672631 ],
-				[ 'three', 2.1511149291032137 ],
-				[ 'two', 1.0433785030334493 ],
+				[ 'five', 1.1437060919230884 ],
+				[ 'three', 2.1374384267965625 ],
+				[ 'two', 1.0402524414929784 ],
 				[ 'four', 0 ]
 			]),
 			[CARD_ID_TWO]: new Map([
-				[ 'three', 3.1096554005802153 ],
-				[ 'one', 1.0433785030334493 ],
-				[ 'four', 0 ],
+				[ 'three', 3.0971289004037335 ],
+				[ 'one', 1.0402524414929784 ],
+				[ 'four', 1.020749886621064 ],
 				[ 'five', 0 ]
 			]),
 			[CARD_ID_THREE]: new Map([
-				[ 'four', 3.206607717912674 ],
-				[ 'two', 3.1096554005802153 ],
-				[ 'one', 2.1511149291032137 ],
-				[ 'five', 2.086983856053783 ]
+				[ 'four', 3.1634614028267958 ],
+				[ 'two', 3.0971289004037335 ],
+				[ 'one', 2.1374384267965625 ],
+				[ 'five', 0 ]
 			]),
 			[CARD_ID_FOUR]: new Map([
-				[ 'five', 3.2293947835416965 ],
-				[ 'three', 3.206607717912674 ],
+				[ 'five', 2.1514656920267266 ],
+				[ 'three', 3.1634614028267958 ],
 				[ 'one', 0 ],
-				[ 'two', 0 ]
+				[ 'two', 1.020749886621064 ]
 			]),
 			[CARD_ID_FIVE]: new Map([
-				[ 'four', 3.2293947835416965 ],
-				[ 'one', 2.238525282672631 ],
-				[ 'three', 2.086983856053783 ],
+				[ 'four', 2.1514656920267266 ],
+				[ 'one', 1.1437060919230884 ],
+				[ 'three', 0 ],
 				[ 'two', 0 ]
 			]),
 		};
@@ -475,6 +475,7 @@ describe('fingerprint generation', () => {
 			'Different',
 			'Past',
 			'Dupe',
+			'What',
 			'Simple',
 			'Ambiguous',
 			'Trivial',
@@ -489,10 +490,9 @@ describe('fingerprint generation', () => {
 			'Effort',
 			'Next',
 			'Beware',
+			'I',
 			'Efficiency',
-			'Using the Cynefin',
-			'Model to Understand',
-			'Model Divides'
+			'Using the Cynefin'
 		];
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});
@@ -507,16 +507,14 @@ describe('fingerprint generation', () => {
 			'Card',
 			'Title',
 			'Surfing',
+			'Body',
 			'Site',
 			'Stuff',
-			'Body',
-			'Quote',
 			'Seed',
-			'Hill',
-			'Lots',
 			'Uncertainty',
+			'Quote',
 			'Gradients',
-			'Climbing',
+			'Hill',
 			'Concept',
 			'Title of This Card',
 			'Body of This Card',
@@ -524,24 +522,29 @@ describe('fingerprint generation', () => {
 			'Crystals Crystalize',
 			'Crystalize Gradients',
 			'Gradients Surfing',
-			'Surfing Down Them a Lot',
+			'Surfing Down Them',
+			'Them a Lot',
 			'Lot Complexity',
 			'Key Concept',
 			'Concept to Understand',
 			'Understand and Uncertainty',
+			'Climbing',
 			'Complexity Is a Key',
 			'Key',
-			'Hill Climbing',
+			'Lots',
 			'Cynefin',
+			'Hill Climbing',
+			'Model',
+			'Same',
+			'Understand',
 			'Https://www.wikipedia.org/blammo',
 			'Imporant',
 			'Komoroske.com/sudoku',
 			'Washingtonpost.com',
-			'Model',
-			'Understand',
 			'Complex',
 			'Boundaries',
 			'Really',
+			'Here',
 			'Edges',
 			'Think',
 			'Card Has Lots',
@@ -549,10 +552,7 @@ describe('fingerprint generation', () => {
 			'Interesting Details',
 			'Https://www.wikipedia.org/blammo Is a Great',
 			'Great Site',
-			'Site It\'s',
-			'Important to Think',
-			'Think of Stuff',
-			'Stuff E.g'
+			'Site It\'s'
 		];
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});
@@ -562,7 +562,7 @@ describe('fingerprint generation', () => {
 		const generator = new FingerprintGenerator(cards);
 		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
 		const pretty = fingerprint.dedupedPrettyItems();
-		const expectedPretty = 'Cynefin Model Terminology Called Complicated Chaotic Unknowably Require Hard Problems Complex Cynefin\'s Blammo Cynenfin Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Diagnosing Shifted Different Past Dupe Simple Ambiguous Trivial Black White Consistently Use Effort Next Beware Efficiency Using Understand';
+		const expectedPretty = 'Cynefin Model Terminology Called Complicated Chaotic Unknowably Require Hard Problems Complex Cynefin\'s Blammo Cynenfin Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Diagnosing Shifted Different Past Dupe What Simple Ambiguous Trivial Black White Consistently Use Effort Next Beware I Efficiency Using';
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});
 
@@ -571,7 +571,7 @@ describe('fingerprint generation', () => {
 		const generator = new FingerprintGenerator(cards);
 		const fingerprint = generator.fingerprintForCardIDList([CARD_ID_TWO, CARD_ID_THREE]);
 		const pretty = fingerprint.dedupedPrettyItems();
-		const expectedPretty = 'Cynefin Complex Model Let Go Problem Truths Terminology Details Called Diagnosing Complicated Chaotic Unknowably Require Attention Become Hard Unnatural Cosmically Calm Uncomfortable Solutions Types Pay Latter Spaces Cynefin\'s Blammo Cynenfin Important Embracing Scary Correctly Divides Four Methods Inscrutable I’ve Cynfefin’s Gradients Illusion Knowably Unclear Biased';
+		const expectedPretty = 'Cynefin Complex Model Let Go Problem Terminology Truths Called Details Diagnosing Complicated Chaotic Unknowably Require Hard Attention Only Become Unnatural Cosmically Calm Uncomfortable Solutions Cynefin\'s Blammo Cynenfin Types Pay Latter Spaces Divides Four Methods Inscrutable I’ve Cynfefin’s Important Embracing Scary Knowably Unclear Correctly Gradients Intricate';
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});
 
