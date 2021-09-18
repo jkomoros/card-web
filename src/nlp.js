@@ -813,7 +813,7 @@ const queryWordsAndFilters = (queryString) => {
 	return [words.join(' '), filters];
 };
 
-const ngramWithinOther =(ngram, container) => {
+export const ngramWithinOther =(ngram, container) => {
 	//ngramWithinOther is _extremely_ hot. First we'll check if the whole ngram
 	//is even a strict subset of the container. If it is, then we'll
 	//additionally check to see if it is at a word boundary (the beginning or
