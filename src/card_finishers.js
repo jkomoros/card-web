@@ -31,7 +31,7 @@ const workingNotesExtractor = (card,state) => {
 	const conceptsMap = selectConcepts(state);
 	const cardCopy = cardWithNormalizedTextProperties(card, fallbackMap, conceptsMap);
 	const fingerprint = getSemanticFingerprintForCard(state, cardCopy);
-	const pretty = fingerprint.dedupedPrettyItems();
+	const pretty = fingerprint.dedupedPrettyItemsFromCard();
 	const title = date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'2-digit'}) + ' ' + pretty.split(' ').slice(0, NUM_TERMS_OF_FINGERPRINT).join(' ');
 	card.title = title;
 };

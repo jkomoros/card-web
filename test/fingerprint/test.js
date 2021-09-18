@@ -441,7 +441,7 @@ describe('fingerprint generation', () => {
 		const cards = baseCards();
 		const generator = new FingerprintGenerator(cards);
 		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
-		const pretty = fingerprint.prettyItems();
+		const pretty = fingerprint.prettyItems(false);
 		const expectedPretty = [
 			'Cynefin',
 			'Model',
@@ -501,7 +501,7 @@ describe('fingerprint generation', () => {
 		const cards = baseCards();
 		const generator = new FingerprintGenerator(cards);
 		const fingerprint = generator.fingerprintForCardIDList([CARD_ID_TWO, CARD_ID_ONE, CARD_ID_FIVE]);
-		const pretty = fingerprint.prettyItems();
+		const pretty = fingerprint.prettyItems(false);
 		const expectedPretty = [
 			'Crystals',
 			'Card',
@@ -561,7 +561,7 @@ describe('fingerprint generation', () => {
 		const cards = baseCards();
 		const generator = new FingerprintGenerator(cards);
 		const fingerprint = generator.fingerprintForCardID(CARD_ID_TWO);
-		const pretty = fingerprint.dedupedPrettyItems();
+		const pretty = fingerprint.dedupedPrettyItemsFromCard();
 		const expectedPretty = 'Cynefin Model Terminology Called Complicated Chaotic Unknowably Require Hard Problems Complex Cynefin\'s Blammo Cynenfin Divides Four Methods Inscrutable I’ve Cynfefin’s Knowably Unclear Intricate Distinguishing Special Diagnosing Shifted Different Past Dupe What Simple Ambiguous Trivial Black White Consistently Use Effort Next Beware I Efficiency Using';
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});
@@ -570,7 +570,7 @@ describe('fingerprint generation', () => {
 		const cards = baseCards();
 		const generator = new FingerprintGenerator(cards);
 		const fingerprint = generator.fingerprintForCardIDList([CARD_ID_TWO, CARD_ID_THREE]);
-		const pretty = fingerprint.dedupedPrettyItems();
+		const pretty = fingerprint.dedupedPrettyItemsFromCard();
 		const expectedPretty = 'Cynefin Complex Model Let Go Problem Terminology Truths Called Details Diagnosing Complicated Chaotic Unknowably Require Hard Attention Only Become Unnatural Cosmically Calm Uncomfortable Solutions Cynefin\'s Blammo Cynenfin Types Pay Latter Spaces Divides Four Methods Inscrutable I’ve Cynfefin’s Important Embracing Scary Knowably Unclear Correctly Gradients Intricate';
 		assert.deepStrictEqual(pretty, expectedPretty);
 	});
