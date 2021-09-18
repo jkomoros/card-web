@@ -64,12 +64,12 @@ describe('ngram', () => {
 		assert.ok(shouldMatch == ngramWithinOther(ngram, container));
 	});
 
-	// it('within other partial match word beginning', async () => {
-	// 	const container = 'organic juice drink';
-	// 	const ngram = 'organ';
-	// 	const shouldMatch = false;
-	// 	assert.ok(shouldMatch == ngramWithinOther(ngram, container));
-	// });
+	it('within other partial match word beginning', async () => {
+		const container = 'organic juice drink';
+		const ngram = 'organ';
+		const shouldMatch = false;
+		assert.ok(shouldMatch == ngramWithinOther(ngram, container));
+	});
 
 	it('within other partial match word middle', async () => {
 		const container = 'organic juice drink';
@@ -78,11 +78,11 @@ describe('ngram', () => {
 		assert.ok(shouldMatch == ngramWithinOther(ngram, container));
 	});
 
-	// it('within other partial match word end', async () => {
-	// 	const container = 'organic juice drink';
-	// 	const ngram = 'ink';
-	// 	const shouldMatch = false;
-	// 	assert.ok(shouldMatch == ngramWithinOther(ngram, container));
-	// });
+	it('within other partial match word end', async () => {
+		const container = 'organic juice drink';
+		const ngram = 'ink';
+		const shouldMatch = false;
+		assert.ok(shouldMatch == ngramWithinOther(ngram, container));
+	});
 
 });

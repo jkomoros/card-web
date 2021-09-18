@@ -814,15 +814,11 @@ const queryWordsAndFilters = (queryString) => {
 };
 
 export const ngramWithinOther =(ngram, container) => {
-	//ngramWithinOther is _extremely_ hot. First we'll check if the whole ngram
-	//is even a strict subset of the container. If it is, then we'll
-	//additionally check to see if it is at a word boundary (the beginning or
-	//end of the string, or with spaces before AND after).
-	const index = container.indexOf(ngram);
-	if (index == -1) return false;
-	if (index == 0) return true;
-	if (index == container.length - ngram.length) return true;
-	return container.includes(' ' + ngram + ' ');
+	//ngramWithinOther is _extremely_ hot. We'll add padding to make sure that
+	//matches only happen at word boundaries.
+	const paddedNgram = ' ' + ngram + ' ';
+	const paddedContainer = ' ' + container + ' ';
+	return paddedContainer.includes(paddedNgram);
 };
 
 //from https://stackoverflow.com/a/3561711
