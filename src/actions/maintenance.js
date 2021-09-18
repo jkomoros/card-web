@@ -31,12 +31,22 @@ import {
 } from '../multi_batch.js';
 
 import {
-	selectUser
+	selectUser,
+	selectCards,
 } from '../selectors.js';
 
 import {
-	defaultCardObject
+	defaultCardObject,
+	modifyCardWithBatch
 } from './data.js';
+
+import {
+	generateCardDiff
+} from '../card_diff.js';
+
+import {
+	CARD_TYPE_EDITING_FINISHERS
+} from '../card_finishers.js';
 
 import {
 	ensureAuthor,
@@ -63,6 +73,7 @@ import {
 	applyReferencesDiff,
 	references,
 } from '../references.js';
+import { cardDiffHasChanges } from '../card_diff.js';
 
 export const connectLiveExecutedMaintenanceTasks = () => {
 	db.collection(MAINTENANCE_COLLECTION).onSnapshot(snapshot => {
@@ -416,6 +427,31 @@ const addImagesProperty = async () => {
 	await batch.commit();
 };
 
+const RERUN_CARD_FINISHERS = 'rerun-card-finishers';
+
+const rerunCardFinishers = async (dispatch, getState) => {
+
+	let batch = new MultiBatch(db);
+
+	const state = getState();
+	const cards = selectCards(state);
+	for (const underlyingCard of Object.values(cards)) {
+		const finisher = CARD_TYPE_EDITING_FINISHERS[underlyingCard.card_type];
+		if (!finisher) continue;
+		const updatedCard = {...underlyingCard};
+		finisher(updatedCard, state);
+		const diff = generateCardDiff(underlyingCard, updatedCard);
+		if (!cardDiffHasChanges(diff)) continue;
+		console.log('Updating card ' + underlyingCard.id + '\n', underlyingCard.title, '\n', updatedCard.title);
+		try {
+			modifyCardWithBatch(state, underlyingCard, diff, false, batch);
+		} catch (err) {
+			console.warn('Card ' + underlyingCard.id + ' had error: ' + err);
+		}
+	}
+	await batch.commit();
+};
+
 //The value of MAINTENANCE_TASK_VERSION when this instance of the app was set up
 const setUpVersion = (executedTasks) => {
 	const setUpTaskRecord = executedTasks[INITIAL_SET_UP];
@@ -506,12 +542,12 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 };
 
 //This integer should monotonically increase every time a new item is added
-//RAW_TASKS. It is how we detect if a maintenance task is eligible for this
-//instance of an app, since maintenance tasks that were implemented BEFORE this
-//instance had its initial set up called don't need them, because we assume that
-//if you were to set up a new instance at any given moment, the non-recurring
-//maintenance tasks are already implicitly run and included in normal operation
-//of the webapp as soon as they were added.
+//RAW_TASKS that is not recurring. It is how we detect if a maintenance task is
+//eligible for this instance of an app, since maintenance tasks that were
+//implemented BEFORE this instance had its initial set up called don't need
+//them, because we assume that if you were to set up a new instance at any given
+//moment, the non-recurring maintenance tasks are already implicitly run and
+//included in normal operation of the webapp as soon as they were added.
 const MAINTENANCE_TASK_VERSION = 2;
 
 /*
@@ -583,6 +619,11 @@ const RAW_TASKS = {
 	[ADD_IMAGES_PROPERTY]: {
 		fn: addImagesProperty,
 		minVersion: 2,
+	},
+	[RERUN_CARD_FINISHERS]: {
+		fn: rerunCardFinishers,
+		recurring: true,
+		minVersion: 0,
 	}
 };
 

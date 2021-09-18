@@ -244,7 +244,7 @@ export const modifyCards = (cards, update, substantive, failOnError) => async (d
 
 //returns true if a modificatioon was made to the card, or false if it was a no
 //op. When an error is thrown, that's an implied 'false'
-const modifyCardWithBatch = (state, card, update, substantive, batch) => {
+export const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 
 	//If there aren't any updates to a card, that's OK. This might happen in a
 	//multiModify where some cards already have the items, for example.
