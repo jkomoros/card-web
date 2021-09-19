@@ -5,8 +5,17 @@ import {
 	FORUM_ICON,
 	VISIBILITY_ICON,
 	ASSIGNMENT_TURNED_IN_ICON,
-	STAR_ICON
+	STAR_ICON,
+	COPY_ALL_ICON
 } from './my-icons.js';
+
+import {
+	REFERENCE_TYPE_DUPE_OF
+} from '../card_fields.js';
+
+import {
+	references
+} from '../references.js';
 
 const badge = (name, icon, countOrVisible, highlighted) => {
 	const text = typeof countOrVisible == 'number' ? countOrVisible : '';
@@ -85,13 +94,13 @@ export const cardBadgesStyles = html`
 			display: flex;
 		}
 
-		.badges-container .read{
+		.badges-container .read {
 			position:absolute;
 			left: 0.25em;
 			top: 0.25em;
 		}
 
-		.badges-container .thread-count {
+		.badges-container .bottom-right {
 			position:absolute;
 			bottom:0.25em;
 			right: 0.25em;
@@ -115,6 +124,8 @@ export const cardBadges = (light, card, badgeMap) => {
 	const readingListMap = badgeMap.readingList || {};
 	const nonBlankCard = card || {};
 	const id = nonBlankCard.id;
+	const refs = references(nonBlankCard).byTypeArray()[REFERENCE_TYPE_DUPE_OF];
+	const isDupe = refs && refs.length > 0;
 	return html`
 	  <div class="badges-container ${light ? 'light' : ''}">
 		<div class='top-right'>
@@ -122,7 +133,10 @@ export const cardBadges = (light, card, badgeMap) => {
 			${badge('todo', ASSIGNMENT_TURNED_IN_ICON, todoMap[id])}
 		</div>
 		${badge('read', VISIBILITY_ICON, readMap[id])}
-		${badge('thread-count', FORUM_ICON, nonBlankCard.thread_count)}
+		<div class='bottom-right'>
+			${badge('thread-count', FORUM_ICON, nonBlankCard.thread_count)}
+			${badge('duplicate', COPY_ALL_ICON, isDupe, true)}
+		</div>
 		${badge('reading-list', PLAYLISLT_ADD_CHECK_ICON, readingListMap[id])}
 	</div>
     `;
