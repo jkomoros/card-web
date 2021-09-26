@@ -1,6 +1,7 @@
 import {
 	CARD_TYPE_WORKING_NOTES,
-	CARD_TYPE_CONCEPT
+	CARD_TYPE_CONCEPT,
+	TEXT_FIELD_BODY
 } from './card_fields.js';
 
 import {
@@ -30,7 +31,7 @@ const workingNotesExtractor = (card,state) => {
 	const fallbackMap = backportFallbackTextMapForCard(card, selectCards(state));
 	const conceptsMap = selectConcepts(state);
 	const cardCopy = cardWithNormalizedTextProperties(card, fallbackMap, conceptsMap);
-	const fingerprint = getSemanticFingerprintForCard(state, cardCopy);
+	const fingerprint = getSemanticFingerprintForCard(state, cardCopy, [TEXT_FIELD_BODY]);
 	const pretty = fingerprint.dedupedPrettyItemsFromCard();
 	const title = date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'2-digit'}) + ' ' + pretty.split(' ').slice(0, NUM_TERMS_OF_FINGERPRINT).join(' ');
 	card.title = title;

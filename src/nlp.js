@@ -1548,9 +1548,9 @@ export class FingerprintGenerator {
 		return new Fingerprint(items, cardOrCards, this);
 	}
 
-	_wordCountsForCardObj(cardObj) {
+	_wordCountsForCardObj(cardObj, optFieldList) {
 		//Filter out empty items for properties that don't have any items
-		return wordCountsForSemantics(cardObj, this._ngramSize);
+		return wordCountsForSemantics(cardObj, this._ngramSize, optFieldList);
 	}
 
 	_cardTFIDF(cardWordCounts) {
@@ -1572,9 +1572,9 @@ export class FingerprintGenerator {
 		return this.fingerprints()[cardID];
 	}
 
-	fingerprintForCardObj(cardObj) {
+	fingerprintForCardObj(cardObj, optFieldList) {
 		if (!cardObj || Object.keys(cardObj).length == 0) return new Fingerprint();
-		const wordCounts = this._wordCountsForCardObj(cardObj);
+		const wordCounts = this._wordCountsForCardObj(cardObj, optFieldList);
 		const tfidf = this._cardTFIDF(wordCounts);
 		const fingerprint = this._fingerprintForTFIDF(tfidf, cardObj);
 		return fingerprint;

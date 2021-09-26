@@ -668,8 +668,8 @@ const selectFingerprintGenerator = createSelector(
 
 //getSemanticFingerprintForCard operates on the actual cardObj passed, so it can
 //work for cards that have been modified.
-export const getSemanticFingerprintForCard = (state, cardObj) => {
-	return selectFingerprintGenerator(state).fingerprintForCardObj(cardObj);
+export const getSemanticFingerprintForCard = (state, cardObj, optFieldList) => {
+	return selectFingerprintGenerator(state).fingerprintForCardObj(cardObj, optFieldList);
 };
 
 //A map of tagID to the semantic fingerprint for that card. A tag's semantic
