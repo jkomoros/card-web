@@ -835,6 +835,9 @@ const MAX_N_GRAM_FOR_FINGERPRINT = 2;
 const WHOLE_NGRAM_MAX_SIZE = 6;
 //How much to discount a 'word count' of a synonym that's not literally on the card.
 const SYNONYM_DISCOUNT_FACTOR = 0.75;
+//how much more important to consider an important ngram. 1.0 is no boost, 2.0
+//would be double the size.
+const IMPORTANT_NGRAM_BOOST_FACTOR = 1.1;
 
 //strsMap is card.nlp.withoutStopWords. See cardWithNormalizedTextProperties documentation for more.
 const wordCountsForSemantics = memoizeFirstArg((cardObj, maxFingerprintSize = MAX_N_GRAM_FOR_FINGERPRINT, optFieldList, excludeSynonyms) => {
@@ -894,10 +897,12 @@ const wordCountsForSemantics = memoizeFirstArg((cardObj, maxFingerprintSize = MA
 					//This is an ngram we wouldn't necessarily have indexed by
 					//default (it might have been too long to be automatically
 					//extracted, for example), but we've been told it's
-					//important when we see it, so take note of it, at more than
-					//full value to ensure it shows up in fingerprints even it
-					//it wouldn't have otherwise.
-					cardMap[ngram] = (cardMap[ngram] || 0) + totalIndexingCount;
+					//important when we see it, so take note of it, at a boost
+					//above how important it would normally be to make it more
+					//likely it shows up
+					const splitNgram = ngram.split(' ');
+					const baseAmount = 1 / (splitNgram.length + 1);
+					cardMap[ngram] = (cardMap[ngram] || 0) + (baseAmount * totalIndexingCount * IMPORTANT_NGRAM_BOOST_FACTOR);
 				}
 			}
 		}
