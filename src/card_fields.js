@@ -689,7 +689,6 @@ export const TEXT_FIELD_CONFIGURATION = {
 		autoFontSizeBoostForCardTypes: {},
 		matchWeight:0.75,
 		overrideExtractor: true,
-		extraIndexingCount: 1,
 		indexFullRun: true,
 	}
 };
