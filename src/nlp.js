@@ -836,7 +836,7 @@ const WHOLE_NGRAM_MAX_SIZE = 6;
 const SYNONYM_DISCOUNT_FACTOR = 0.75;
 
 //strsMap is card.nlp.withoutStopWords. See cardWithNormalizedTextProperties documentation for more.
-const wordCountsForSemantics = memoizeFirstArg((cardObj, maxFingerprintSize = MAX_N_GRAM_FOR_FINGERPRINT, optFieldList) => {
+const wordCountsForSemantics = memoizeFirstArg((cardObj, maxFingerprintSize = MAX_N_GRAM_FOR_FINGERPRINT, optFieldList, excludeSynonyms) => {
 	const fieldsToIndex = optFieldList ? Object.fromEntries(optFieldList.map(fieldName => [fieldName, true])) : TEXT_FIELD_CONFIGURATION;
 	const strsMap = Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION)
 		.filter(fieldName => fieldsToIndex[fieldName])
@@ -901,16 +901,18 @@ const wordCountsForSemantics = memoizeFirstArg((cardObj, maxFingerprintSize = MA
 			}
 		}
 	}
-	//Pretend we saw synonym expansions on each card
-	if (cardObj.synonymMap) {
-		for (const [keyWord, synonyms] of Object.entries(cardObj.synonymMap)) {
-			const keyWordValue = cardMap[keyWord];
-			//If that keyword wasn't on this card, skip it
-			if (keyWordValue === undefined) continue;
-			for (const synonym of synonyms) {
-				const proposedValue = keyWordValue * SYNONYM_DISCOUNT_FACTOR;
-				//Add this synonym count to existing natural counts.
-				cardMap[synonym] = (cardMap[synonym] || 0) + proposedValue;
+	if (!excludeSynonyms) {
+		//Pretend we saw synonym expansions on each card
+		if (cardObj.synonymMap) {
+			for (const [keyWord, synonyms] of Object.entries(cardObj.synonymMap)) {
+				const keyWordValue = cardMap[keyWord];
+				//If that keyword wasn't on this card, skip it
+				if (keyWordValue === undefined) continue;
+				for (const synonym of synonyms) {
+					const proposedValue = keyWordValue * SYNONYM_DISCOUNT_FACTOR;
+					//Add this synonym count to existing natural counts.
+					cardMap[synonym] = (cardMap[synonym] || 0) + proposedValue;
+				}
 			}
 		}
 	}
