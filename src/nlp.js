@@ -18,7 +18,8 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	REFERENCE_TYPE_SYNONYM,
 	REFERENCE_TYPE_CONCEPT,
-	REFERENCE_TYPES_EQUIVALENCE_CLASSES
+	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
+	editableFieldsForCardType
 } from './card_fields.js';
 
 import {
@@ -1191,17 +1192,15 @@ export const suggestedConceptReferencesForCard = memoizeFirstArg((card, fingerpr
 	const candidates = {};
 	if (!card || !fingerprint) return [];
 	if (!BODY_CARD_TYPES[card.card_type]) return [];
-	const itemsFromConceptReferences = fingerprint.itemsFromConceptReferences();
+	const itemsFromConceptReferences = explicitConceptNgrams(card);
 	const existingReferences = references(card).byType;
 	const REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT = Object.keys(REFERENCE_TYPES).filter(key => REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT][key] || key == REFERENCE_TYPE_ACK);
 	const normalizedConcepts = normalizeNgramMap(concepts);
-	const itemsNotFromCard = fingerprint.itemsNotFromCard();
 	const conceptStrForCandidateCard = {};
-	for (let fingerprintItem of fingerprint.keys()) {
-		//Skip items we know weren't on card. This helps not suggest concept
-		//cards for synonyms if we don't literally use that word on this card or
-		//one of its backported references.
-		if (itemsNotFromCard[fingerprintItem]) continue;
+	//We want to get only words actually on the card. So restrict to ngrams on editable fields, and also exclude synonyms.
+	const ngrams = wordCountsForSemantics(card, undefined, Object.keys(editableFieldsForCardType(card.card_type)), true);
+	for (let fingerprintItem of Object.keys(ngrams)) {
+
 		//Skip items that aren't concepts
 		if (!normalizedConcepts[fingerprintItem]) continue;
 
