@@ -836,8 +836,11 @@ const WHOLE_NGRAM_MAX_SIZE = 6;
 const SYNONYM_DISCOUNT_FACTOR = 0.75;
 
 //strsMap is card.nlp.withoutStopWords. See cardWithNormalizedTextProperties documentation for more.
-const wordCountsForSemantics = memoizeFirstArg((cardObj, maxFingerprintSize) => {
-	const strsMap = Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION).map(prop => [prop, cardObj.nlp[prop].map(run => run.withoutStopWords)]).filter(entry => entry[1]));
+const wordCountsForSemantics = memoizeFirstArg((cardObj, maxFingerprintSize = MAX_N_GRAM_FOR_FINGERPRINT, optFieldList) => {
+	const fieldsToIndex = optFieldList ? Object.fromEntries(optFieldList.map(fieldName => [fieldName, true])) : TEXT_FIELD_CONFIGURATION;
+	const strsMap = Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION)
+		.filter(fieldName => fieldsToIndex[fieldName])
+		.map(prop => [prop, cardObj.nlp[prop].map(run => run.withoutStopWords)]).filter(entry => entry[1]));
 	//Yes, it's weird that we stash the additionalNgramsMap on a cardObj and
 	//then pass that around instead of just passing the ngram map to FingerPrint
 	//generator. But it we did it another way, it would break the `similar/`
