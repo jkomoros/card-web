@@ -1168,6 +1168,14 @@ export const SORTS = {
 		description: 'In descending order by when each card was last substantively updated',
 		labelName:'Updated',
 	},
+	'created': {
+		extractor: (card) => {
+			const timestamp = card.updated_substantive;
+			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
+		},
+		description: 'In descending order by when each card was created',
+		labelName:'Created',
+	},
 	'stars': {
 		extractor: (card) => [card.star_count || 0, '' + card.star_count],
 		description: 'In descending order by number of stars',
