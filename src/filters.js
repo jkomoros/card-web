@@ -364,15 +364,14 @@ const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) =>
 	//This is very expensive, and keyCardID will change way more often than
 	//cards will, so do the two-level memoization.
 	const expensiveGenerator = memoize(cards => {
-		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
 		const conceptCards = conceptCardsFromCards(cards);
 		const concepts = getConceptsFromConceptCards(conceptCards);
-		return [fingerprintGenerator, conceptCards, concepts];
+		return [conceptCards, concepts];
 	});
 
-	// returns [fingerprintGenerator, conceptCards, concepts, keyConceptCardID]
+	// returns [conceptCards, concepts, keyConceptCardID]
 	const generator = memoize((cards, keyCardID) => {
-		const [fingerprintGenerator, conceptCards, concepts] = expensiveGenerator(cards);
+		const [conceptCards, concepts] = expensiveGenerator(cards);
 		let keyConceptCardID = '';
 		if (keyConceptCard) {
 			const expandedConcepStrOrCardID = conceptStrOrCardID == KEY_CARD_ID_PLACEHOLDER ? keyCardID : conceptStrOrCardID;
@@ -385,13 +384,12 @@ const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) =>
 				keyConceptCardID = conceptCard ? conceptCard.id : '?INVALID-ID?';
 			}
 		}
-		return [fingerprintGenerator, conceptCards, concepts, keyConceptCardID];
+		return [conceptCards, concepts, keyConceptCardID];
 	});
 
 	const func = function(card, extras) {
-		const [fingerprintGenerator, conceptCards, concepts, keyConceptCardID] = generator(extras.cards, extras.keyCardID);
-		const fingerprint = fingerprintGenerator.fingerprintForCardID(card.id);
-		const suggestedReferences = suggestedConceptReferencesForCard(card, fingerprint, conceptCards, concepts);
+		const [conceptCards, concepts, keyConceptCardID] = generator(extras.cards, extras.keyCardID);
+		const suggestedReferences = suggestedConceptReferencesForCard(card, conceptCards, concepts);
 		const filteredSuggestedReferences = keyConceptCard ? suggestedReferences.filter(id => id == keyConceptCardID) : suggestedReferences;
 		if (filteredSuggestedReferences.length == 0) return [false, 0];
 		return [true, filteredSuggestedReferences.length];

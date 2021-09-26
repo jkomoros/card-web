@@ -1188,9 +1188,9 @@ export const possibleMissingConcepts = (cards) => {
 };
 
 //suggestConceptReferencesForCard is very expensive, so memoize it.
-export const suggestedConceptReferencesForCard = memoizeFirstArg((card, fingerprint, allCardsOrConceptCards, concepts) => {
+export const suggestedConceptReferencesForCard = memoizeFirstArg((card, allCardsOrConceptCards, concepts) => {
 	const candidates = {};
-	if (!card || !fingerprint) return [];
+	if (!card) return [];
 	if (!BODY_CARD_TYPES[card.card_type]) return [];
 	const itemsFromConceptReferences = explicitConceptNgrams(card);
 	const existingReferences = references(card).byType;
