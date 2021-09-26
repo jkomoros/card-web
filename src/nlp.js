@@ -1285,6 +1285,31 @@ const capitalizeTitleWord = (word) => {
 
 const titleCase = (str) => str.split(' ').map(word => capitalizeTitleWord(word) ? word.charAt(0).toUpperCase() + word.slice(1) : word).join(' ');
 
+//Returns a map of ngrams that, if they are present on the card, come directly
+//from explicit concept references. The value in the object is the cardID of the
+//concept being referenced. Those precise ngrams are not guaranteed to actually
+//be on the card--just that if they show up, they do come from an explicit
+//concept reference.
+const explicitConceptNgrams = (cardObj) => {
+	let result = {};
+	//A concept card should count its own title/title-alts as coming
+	//from itself. getAllNormalizedConceptStringsFromConceptCard will
+	//return an empty array if the card is not a concept card.
+	let strs = [...cardObj.nlp[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND].map(run => run.withoutStopWords), ...getAllNormalizedConceptStringsFromConceptCard(cardObj)];
+	for (let str of strs) {
+		//The fingerprint will have STOP_WORDs filtered, since it's
+		//downstream of wordCountsForSemantics, so do the same to check for
+		//a match.
+		result[str] = cardObj.importantNgrams[str] || '?INVALID-CARDID?';
+		const synonyms = cardObj.synonymMap[str];
+		if (!synonyms) continue;
+		for (const synonym of synonyms) {
+			result[synonym] = cardObj.importantNgrams[str] || '?INVALID-CARDID?';
+		}
+	}
+	return result;
+};
+
 //The max number of words to include in the semantic fingerprint
 const SEMANTIC_FINGERPRINT_SIZE = 50;
 
@@ -1433,24 +1458,11 @@ class Fingerprint {
 	itemsFromConceptReferences() {
 		if (!this._cards) return {};
 		let result = {};
-		for (let obj of this._cards) {
-			//A concept card should count its own title/title-alts as coming
-			//from itself. getAllNormalizedConceptStringsFromConceptCard will
-			//return an empty array if the card is not a concept card.
-			let strs = [...obj.nlp[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND].map(run => run.withoutStopWords), ...getAllNormalizedConceptStringsFromConceptCard(obj)];
-			for (let str of strs) {
-				//The fingerprint will have STOP_WORDs filtered, since it's
-				//downstream of wordCountsForSemantics, so do the same to check for
-				//a match.
-				if (this._items.has(str)) {
-					result[str] = obj.importantNgrams[str] || '?INVALID-CARDID?';
-				}
-				const synonyms = obj.synonymMap[str];
-				if (!synonyms) continue;
-				for (const synonym of synonyms) {
-					if (this._items.has(synonym)) {
-						result[synonym] = obj.importantNgrams[str] || '?INVALID-CARDID?';
-					}
+		for (let cardObj of this._cards) {
+			const innerResult = explicitConceptNgrams(cardObj);
+			for (const [key, value] of Object.entries(innerResult)) {
+				if (this._items.has(key)) {
+					result[key] = value;
 				}
 			}
 		}
