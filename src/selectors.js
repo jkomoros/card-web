@@ -795,7 +795,7 @@ const NUM_SIMILAR_TAGS_TO_SHOW = 3;
 //suggested--that is that are similar to the semantics of this card, but are not
 //yet on the card.
 export const selectEditingCardSuggestedTags = createSelector(
-	selectEditingNormalizedCard,
+	selectEditingCardwithDelayedNormalizedProperties,
 	selectEditingCardSemanticFingerprint,
 	selectTagsSemanticFingerprint,
 	(card, cardFingerprint, tagFingerprints) => {
