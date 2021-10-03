@@ -12,17 +12,19 @@ import firebase from '@firebase/app';
 import '@firebase/firestore';
 const serverTimestampSentinel = firebase.firestore.FieldValue.serverTimestamp;
 
+const SENTINEL_FIELD = 'e_';
+
 const extraOperationCountForValue = (val) => {
 	//Note: this function is very tied to the implementation of
 	//firestore.FieldValue and may need to change if it changes.
 	if (typeof val !== 'object') return false;
 	if (!val) return false;
-	if (!val['lc']) {
+	if (!val[SENTINEL_FIELD]) {
 		//It's not a sentinel itself, but its sub-values could be.
 		return Object.values(val).some(item => extraOperationCountForValue(item));
 	}
-	if (typeof val['lc'] !== 'string') return false;
-	const parts = val['lc'].split('.');
+	if (typeof val[SENTINEL_FIELD] !== 'string') return false;
+	const parts = val[SENTINEL_FIELD].split('.');
 	if (parts.length !== 2) return false;
 	if (parts[0] !== 'FieldValue') return false;
 	if (parts[1] !== 'serverTimestamp' && parts[1] !== 'arrayRemove' && parts[1] != 'arrayUnion') return false;
