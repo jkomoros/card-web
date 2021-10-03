@@ -12,7 +12,8 @@ import firebase from '@firebase/app';
 import '@firebase/firestore';
 const serverTimestampSentinel = firebase.firestore.FieldValue.serverTimestamp;
 
-const SENTINEL_FIELD = 'e_';
+//serverTimestampSentinel is the most basic one.
+const SENTINEL_FIELD = Object.keys(serverTimestampSentinel())[0];
 
 const extraOperationCountForValue = (val) => {
 	//Note: this function is very tied to the implementation of
