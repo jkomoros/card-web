@@ -15,6 +15,10 @@ import {
 	CARD_TYPE_CONCEPT
 } from './card_fields.js';
 
+import {
+	TWITTER_HANDLE
+} from '../config.GENERATED.SECRET.js';
+
 export const READING_LIST_FALLBACK_CARD = 'about-reading-lists';
 export const STARS_FALLBACK_CARD = 'about-stars';
 
@@ -64,8 +68,11 @@ Valid fields in config items:
 	//Note that 'sections' is a special value that will expand to the current values of sections.
 	expand: 'STRING',
 	//collection can be either a string that can be deserialized into a CollectionDescription, or an actual 
-	//CollectionDescription. It will be expanded to be a CollectionDescription either way.
+	//CollectionDescription. It will be expanded to be a CollectionDescription either way. Each item should have a collection
+	//or an href
 	collection: 'STRING_OR_COLLECTION,
+	//If set, the item will render an <a href='href' target='_blank'>
+	href: 'full-link'
 	//Can be either a string naming an ICON constant in src/components/my-icons.js, or an actual Icon template.
 	//If provided, will render that instead of the display_name text.
 	icon: 'STRING_OR_ICON_TEMPLATE',
@@ -128,6 +135,9 @@ const EXPANSION_ITEMS = {
 		},
 		{
 			expand: 'concepts',
+		},
+		{
+			expand: 'twitter',
 		}
 	],
 	'recent': [
@@ -181,6 +191,15 @@ const EXPANSION_ITEMS = {
 			hideIfEmpty: true,
 		}
 	],
+	'twitter': [
+		{
+			icon: icons.TWITTER_ICON,
+			display_name: '@' + TWITTER_HANDLE + ' tweets multiple times a day with cards from this collection. It\'s a great way to dip your toe in the content.',
+			href: 'https://twitter.com/' + TWITTER_HANDLE,
+			//Don't show the item if no twitter handle
+			hide: !TWITTER_HANDLE,
+		}
+	]
 };
 
 const DEFAULT_LOADING_TAB = {

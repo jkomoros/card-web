@@ -267,7 +267,7 @@ class MainView extends connect(store)(LitElement) {
 					<div main-title>${this._appTitleFirstPart}<span>${this._appTitleSecondPart}</span></div>
 					<div class='spacer'></div>
 					<nav class="toolbar-list">
-						${this._tabs.map(tab => html`<a class='${tab.icon ? 'icon-item' : ''}' title='${tab.display_name}' ?selected=${tab.collection.equivalent(this._collectionDescription)} href='${'/' + PAGE_DEFAULT + '/' + tab.collection.serializeShort()}' ?hidden=${tab.hide || (tab.hideIfEmpty && this._countsForTabs[tab.collection.serialize()] === 0)}>${tab.icon ? html`${tab.icon} ${tab.count ? html`<span>${this._countsForTabs[tab.collection.serialize()]}</span>` : ''}` : tab.italic ? html`<em>${tab.display_name}</em>` : html`${tab.display_name}`}</a>`)}
+						${this._tabs.map(tab => html`<a class='${tab.icon ? 'icon-item' : ''}' title='${tab.display_name}' ?selected=${tab.collection && tab.collection.equivalent(this._collectionDescription)} href='${tab.href ? tab.href : '/' + PAGE_DEFAULT + '/' + tab.collection.serializeShort()}' target=${tab.href ? '_blank': ''} ?hidden=${tab.hide || (tab.hideIfEmpty && this._countsForTabs[tab.collection.serialize()] === 0)}>${tab.icon ? html`${tab.icon} ${tab.count ? html`<span>${this._countsForTabs[tab.collection.serialize()]}</span>` : ''}` : tab.italic ? html`<em>${tab.display_name}</em>` : html`${tab.display_name}`}</a>`)}
 					</nav>
 					<div class='spacer dev'>
 						${this._devMode ? html`DEVMODE` : ''}
