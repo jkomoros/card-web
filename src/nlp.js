@@ -260,7 +260,7 @@ const regularExpressionForOriginalNgram = (normalizedNgram) => {
 		//any escaped codes like &gt;
 		const betweenWordsRE = '(\\W|&(\\w*);)*';
 		//Make sure the start and end are not word characters, so we don't match wihtin a word.
-		const wholeRE = '(?<!\\w)(' + normalizedNgram.split(' ').map(word => escapeRegex(word)).join(betweenWordsRE) + ')(?!\\w)';
+		const wholeRE = '\\b(' + normalizedNgram.split(' ').map(word => escapeRegex(word)).join(betweenWordsRE) + ')\\b';
 		result = new RegExp(wholeRE, 'ig');
 		memoizedRegularExpressionForOriginalNgram[normalizedNgram] = result;
 	}
