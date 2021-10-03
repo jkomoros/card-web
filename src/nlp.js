@@ -1363,7 +1363,7 @@ class Fingerprint {
 
 	_generatewordCloud(hideItemsNotFromCard) {
 		if (!this._items || this._items.keys().length == 0) return emptyWordCloud();
-		const displayItems = this.prettyItems(false);
+		const displayItems = this.prettyItems(false, false);
 		const maxAmount = Math.max(...this._items.values());
 		const conceptItems = this.itemsFromConceptReferences();
 		const infos = Object.fromEntries([...this._items.entries()].map((entry,index) => {
@@ -1394,10 +1394,13 @@ class Fingerprint {
 		);
 	}
 
-	prettyItems(skipItemsNotFromCard) {
+	prettyItems(skipItemsNotFromCard, skipURLs) {
 		const result = [];
 		const itemsNotFromCard = this.itemsNotFromCard();
 		for (const ngram of this._items.keys()) {
+			//URLs are useful in fingerprints (if there's an overlap it's very
+			//signfiicant) but are very distracting in pretty items.
+			if (skipURLs && wordIsUrl(ngram)) continue;
 			const originalNgrams = {};
 			if (itemsNotFromCard[ngram]) {
 				if (skipItemsNotFromCard) continue;
@@ -1446,7 +1449,7 @@ class Fingerprint {
 	//showing to a user, by de-stemming words based on the words that are most
 	//common in cardObj. Returns a string where any dupcliates have been removed.
 	dedupedPrettyItemsFromCard() {
-		const fingerprintItems = this.prettyItems(true);
+		const fingerprintItems = this.prettyItems(true, true);
 		const seenItems = {};
 		let dedupedFingerprint = [];
 		//Since words might be in ngrams, and they might overlap with the same
