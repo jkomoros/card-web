@@ -132,6 +132,7 @@ const EXPANSION_ITEMS = {
 	],
 	'recent': [
 		{
+			icon: icons.SCHEDULE_ICON,
 			display_name: 'Recent',
 			collection: new CollectionDescription(EVERYTHING_SET_NAME, ['has-content'], RECENT_SORT_NAME, false),
 		}
