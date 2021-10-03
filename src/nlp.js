@@ -371,7 +371,7 @@ const lowercaseSplitWords = (str) => {
 //assumes text is lowercase.
 const splitSlashNonURLs = (word) => {
 	if (!word || !word.includes('/')) return [word];
-	const distinctiveURLParts = ['http:', '.com', '.net', '.org'];
+	const distinctiveURLParts = ['http:', 'https:', '.com', '.net', '.org'];
 	for (let urlPart of distinctiveURLParts) {
 		if (word.includes(urlPart)) return [word];
 	}
