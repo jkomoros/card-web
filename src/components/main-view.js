@@ -198,6 +198,14 @@ class MainView extends connect(store)(LitElement) {
 				fill: var(--app-header-selected-color);
 			}
 
+			.toolbar-list > a:hover > svg {
+				fill: var(--app-header-selected-color);
+			}
+
+			.toolbar-list > a:hover {
+				color: var(--app-header-selected-color);
+			}
+
 			#may-view-warning {
 				display:none;
 				flex-direction:column;
