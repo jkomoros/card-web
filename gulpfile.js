@@ -41,6 +41,7 @@ const BACKUP_BUCKET_NAME = projectConfig.backup_bucket_name && projectConfig.bac
 
 const APP_TITLE = projectConfig.app_title ? projectConfig.app_title : 'Cards Web';
 const APP_DESCRIPTION = projectConfig.app_description || APP_TITLE;
+const GOOGLE_ANALYTICS = projectConfig.google_analytics && projectConfig.google_analytics != CHANGE_ME_SENTINEL ? projectConfig.google_analytics : 'UA-321674-11';
 
 const TWITTER_HANDLE = projectConfig.twitter_handle && projectConfig.twitter_handle != CHANGE_ME_SENTINEL ? projectConfig.twitter_handle : '';
 
@@ -166,7 +167,8 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	let stream = gulp.src('./index.TEMPLATE.html')
 		.pipe(inject.after('<!-- INJECT-META-HERE -->', META_STRING))
 		.pipe(inject.replace('@TITLE@', APP_TITLE))
-		.pipe(inject.replace('@DESCRIPTION@',APP_DESCRIPTION));
+		.pipe(inject.replace('@DESCRIPTION@',APP_DESCRIPTION))
+		.pipe(inject.replace('@GOOGLE_ANALYTICS@', GOOGLE_ANALYTICS));
 
 	if (DISABLE_SERVICE_WORKER) {
 		stream = stream.pipe(inject.after('SERVICE-WORKER-START*/', '/*'));

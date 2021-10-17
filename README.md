@@ -229,6 +229,10 @@ be rendered a lighter color in the header.
 
 The description of your application, for use in the meta tag.
 
+### google_analytics
+
+The ID to use for Google Analytics reporting.
+
 ### disable_persistence
 
 By default, the web app will enable persistence for Firestore, meaning that it

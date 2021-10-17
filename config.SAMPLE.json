@@ -24,6 +24,7 @@
 			"comment": true
 		}
 	},
+	"google_analytics": "CHANGE-ME",
 	"disable_persistence": false,
 	"disable_anonymous_login": false,
 	"disable_service_worker": false,
