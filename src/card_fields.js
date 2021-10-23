@@ -51,6 +51,10 @@ that is poitned to.
 
 */
 
+//The min and max sort order for card.sort_order that we should deliberately set.
+export const MAX_SORT_ORDER_VALUE = Number.MAX_VALUE / 3.0;
+export const MIN_SORT_ORDER_VALUE = 0.0;
+
 //NOTE: this next one is duplicated in tweet-helpers.js and both are in
 //functions/updates.js;
 export const REFERENCES_INFO_CARD_PROPERTY = 'references_info';
