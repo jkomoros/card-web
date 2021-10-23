@@ -177,7 +177,7 @@ const EXPANSION_ITEMS = {
 		{
 			icon: icons.INSERT_DRIVE_FILE_ICON,
 			display_name: 'Working note cards',
-			collection: new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_WORKING_NOTES]),
+			collection: new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_WORKING_NOTES], RECENT_SORT_NAME, false),
 			count:true,
 			hideIfEmpty: true,
 		}
