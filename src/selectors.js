@@ -1273,6 +1273,27 @@ const selectSetsSnapshot = createSelector(
 	})
 );
 
+
+//Returns a map of cardID -> sorted order in the global order
+export const selectSortOrderIndexByCard = createSelector(
+	selectEverythingSet,
+	(sortedCardIDs) => {
+		const result = {};
+		let index = 0;
+		for (const id of sortedCardIDs) {
+			result[id] = index;
+			index++;
+		}
+		return result;
+	}
+);
+
+//Returns a map of sortIndex --> cardID for the sorted order
+export const selectCardIDBySortOrderIndex = createSelector(
+	selectSortOrderIndexByCard,
+	(index) => Object.fromEntries(Object.entries(index).map(entry => [entry[1], entry[0]]))
+);
+
 //Returns the lowest sort order known to be currently in use by cards in this
 //set. This may be incorrect if there are unloaded cards.
 export const selectLowestSortOrder = createSelector(
