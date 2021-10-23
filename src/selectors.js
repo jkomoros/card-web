@@ -46,7 +46,10 @@ import {
 	CARD_TYPE_WORKING_NOTES,
 	DEFAULT_CARD_TYPE,
 	CARD_TYPE_CONFIGURATION,
-	REORDERING_DISABLED
+	REORDERING_DISABLED,
+	DEFAULT_SORT_ORDER_INCREMENT,
+	MIN_SORT_ORDER_VALUE,
+	MAX_SORT_ORDER_VALUE
 } from './card_fields.js';
 
 import {
@@ -1276,7 +1279,7 @@ export const selectLowestSortOrder = createSelector(
 	selectEverythingSet,
 	selectRawCards,
 	(sortedCardIDs, cards) => {
-		if (!sortedCardIDs || sortedCardIDs.length == 0) return 0.0;
+		if (!sortedCardIDs || sortedCardIDs.length == 0) return MIN_SORT_ORDER_VALUE;
 		const lowestCardID = sortedCardIDs[sortedCardIDs.length - 1];
 		const card = cards[lowestCardID];
 		if (!card) return 0.0;
@@ -1290,12 +1293,26 @@ export const selectHighestSortOrder = createSelector(
 	selectEverythingSet,
 	selectRawCards,
 	(sortedCardIDs, cards) => {
-		if (!sortedCardIDs || sortedCardIDs.length == 0) return 0.0;
+		if (!sortedCardIDs || sortedCardIDs.length == 0) return MAX_SORT_ORDER_VALUE;
 		const highestCardID = sortedCardIDs[0];
 		const card = cards[highestCardID];
 		if (!card) return 0.0;
 		return card.sort_order;
 	}
+);
+
+//selects the next sort order to use if you don't care about having it sort in
+//front of any cards, just appended after any other card that currently exists.
+export const selectSortOrderForGlobalAppend = createSelector(
+	selectLowestSortOrder,
+	(lowestSortOrder) => lowestSortOrder - DEFAULT_SORT_ORDER_INCREMENT
+);
+
+//selects the next sort order to use if you want it to show up in front of any
+//existing cards.
+export const selectSortOrderForGlobalPrepend = createSelector(
+	selectHighestSortOrder,
+	(highestSortOrder) => highestSortOrder + DEFAULT_SORT_ORDER_INCREMENT
 );
 
 //selectCollectionConstructorArguments returns an array that can be unpacked and
