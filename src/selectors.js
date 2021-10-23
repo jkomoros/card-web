@@ -1205,11 +1205,19 @@ export const selectActiveTagId = createSelector(
 
 export const selectDefaultSet = createSelector(
 	selectSections,
-	(sections) => {
+	selectRawCards,
+	(sections, cards) => {
 		let result = [];
 		for (let section of Object.values(sections)) {
 			result = result.concat(section.cards);
 		}
+		//The order of cards in the section object is nondterministic. The order
+		//that matters is the sort_order. Higher sort-order should sort to the top.
+		result.sort((a,b) => {
+			let cardAValue = cards[a] ? cards[a].sort_order : 0.0;
+			let cardBValue = cards[b] ? cards[b].sort_order : 0.0;
+			return cardBValue - cardAValue;
+		});
 		return result;
 	}
 );
