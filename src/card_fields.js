@@ -3,6 +3,11 @@ import {
 	references
 } from './references.js';
 
+//A temporary constant that forces reordering (in the UI, anyway) to be
+//disabled, while we're working on #199. This is here so that bisects later can
+//be clean without messing up teh data model.
+export const REORDERING_DISABLED = true;
+
 /*
 
 On each card is a references property and a references info.

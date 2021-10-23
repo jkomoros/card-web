@@ -113,6 +113,7 @@ import {
 	KEY_CARD_ID_PLACEHOLDER,
 	TEXT_FIELD_TITLE,
 	editableFieldsForCardType,
+	REORDERING_DISABLED
 } from '../card_fields.js';
 
 import {
@@ -136,6 +137,7 @@ import {
 import {
 	MultiBatch
 } from '../multi_batch.js';
+
 
 //map of cardID => promise that's waiting
 let waitingForCards = {};
@@ -359,6 +361,11 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch) => 
 export const reorderCard = (card, newIndex) => async (dispatch, getState) => {
 
 	const state = getState();
+
+	if (REORDERING_DISABLED) {
+		console.log('Reordering is disabled manually');
+		return;
+	}
 
 	if (!card || !card.id || !card.section) {
 		console.log('That card isn\'t valid');
