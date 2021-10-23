@@ -1294,6 +1294,26 @@ export const selectCardIDBySortOrderIndex = createSelector(
 	(index) => Object.fromEntries(Object.entries(index).map(entry => [entry[1], entry[0]]))
 );
 
+//Gets the sort_order to put another card adjacent to the given cardID in the
+//full set. It finds the next card in the evertyhing set and puts it halfway
+//between. By default it adds it after the given card, but if before is true it
+//will add it before.
+export const getSortOrderImmediatelyAdjacentToCard = (state, cardID, before) => {
+	const sortIndexByCard = selectSortOrderIndexByCard(state);
+	const cardIDbySortIndex = selectCardIDBySortOrderIndex(state);
+	const cards = selectRawCards(state);
+	const card = cards[cardID];
+	const numCards = Object.keys(cards).length;
+	let keyCardIndex = sortIndexByCard[cardID];
+	keyCardIndex += (before ? -1.0 : 1.0);
+	if (keyCardIndex < 0) return card.sort_order - DEFAULT_SORT_ORDER_INCREMENT;
+	if (keyCardIndex >= numCards) return card.sort_order + DEFAULT_SORT_ORDER_INCREMENT;
+	const nextCardID = cardIDbySortIndex[keyCardIndex];
+	const nextCard = cards[nextCardID];
+	//Return halfway between the two cards.
+	return (card.sort_order + nextCard.sort_order) / 2;
+};
+
 //Returns the lowest sort order known to be currently in use by cards in this
 //set. This may be incorrect if there are unloaded cards.
 export const selectLowestSortOrder = createSelector(
