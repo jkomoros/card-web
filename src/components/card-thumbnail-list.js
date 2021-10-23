@@ -201,7 +201,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		return {
 			grid: {type: Boolean},
 			collection: {type:Object},
-			editable: { type: Boolean},
+			reorderable: { type: Boolean},
 			ghostCardsThatWillBeRemoved: {type:Boolean},
 			highlightedCardId: { type:String },
 			fullCards: {type:Boolean},
@@ -224,7 +224,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[card.card_type] || {};
 
 		return html`
-			<div  .card=${card} .index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.editable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${cardTypeConfig.dark ? 'dark' : ''} ${card && card.published ? '' : 'unpublished'} ${this._collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
+			<div  .card=${card} .index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.reorderable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${cardTypeConfig.dark ? 'dark' : ''} ${card && card.published ? '' : 'unpublished'} ${this._collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
 					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${getExpandedPrimaryReferenceBlocksForCard(this.collection.constructorArguments, card, this._cardIDsUserMayEdit)}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'}'>${icons[cardTypeConfig.iconName] || ''}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
 					${cardBadges(cardTypeConfig.dark, card, this._badgeMap)}
 			</div>
@@ -249,20 +249,20 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 	}
 
 	_handleDragEnter(e) {
-		if(!this.editable) return;
+		if(!this.reorderable) return;
 		let ele = e.composedPath()[0];
 		ele.classList.add('drag-active');
 	}
 
 	_handleDragLeave(e) {
-		if(!this.editable) return;
+		if(!this.reorderable) return;
 		let ele = e.composedPath()[0];
 		ele.classList.remove('drag-active');
 	}
 
 	_handleDragStart(e) {
 
-		if (!this.editable) return;
+		if (!this.reorderable) return;
 
 		let thumbnail = null;
 		for (let item of e.composedPath()) {
@@ -287,18 +287,18 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 	}
 
 	_handleDragEnd() {
-		if (!this.editable) return;
+		if (!this.reorderable) return;
 		this._dragging = null;
 	}
 
 	_handleDragOver(e) {
-		if (!this.editable) return;
+		if (!this.reorderable) return;
 		//Necessary to say that this is a valid drop target
 		e.preventDefault();
 	}
 
 	_handleDrop(e) {
-		if (!this.editable) return;
+		if (!this.reorderable) return;
 		let target = e.composedPath()[0];
 		target.classList.remove('drag-active');
 		let thumbnail = this._dragging;
