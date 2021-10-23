@@ -68,7 +68,6 @@ import {
 
 import {
 	selectActiveSectionId,
-	selectActiveCardIndex,
 	selectUser,
 	selectUserIsAdmin,
 	selectFilters,
@@ -85,7 +84,9 @@ import {
 	selectExpectedDeletions,
 	selectCardModificationPending,
 	getCardById,
-	selectMultiEditDialogOpen
+	selectMultiEditDialogOpen,
+	selectSortOrderForGlobalAppend,
+	getSortOrderImmediatelyAdjacentToCard
 } from '../selectors.js';
 
 import {
@@ -595,7 +596,7 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 		color: color,
 	});
 
-	let cardObject = defaultCardObject(startCardId, user, '', CARD_TYPE_SECTION_HEAD);
+	let cardObject = defaultCardObject(startCardId, user, '', CARD_TYPE_SECTION_HEAD, selectSortOrderForGlobalAppend(state));
 	cardObject.title = displayName;
 	cardObject.subtitle = displayName + ' is a topical tag';
 	cardObject.published = true;
@@ -620,7 +621,7 @@ const CARD_FIELDS_TO_COPY_ON_FORK = {
 };
 
 //exported entireoly for initialSetUp in maintence.js
-export const defaultCardObject = (id, user, section, cardType) => {
+export const defaultCardObject = (id, user, section, cardType, sortOrder) => {
 	return {
 		created: serverTimestampSentinel(),
 		updated: serverTimestampSentinel(),
@@ -645,9 +646,9 @@ export const defaultCardObject = (id, user, section, cardType) => {
 		//A number that is compared to other cards to give the default sort
 		//order. Higher numbers will show up first in the default sort order.
 		//Before saving the card for the first time, you should set this to a
-		//reasonable value, typically slightly smaller than every card already
-		//known to exist.
-		sort_order: 0.0,
+		//reasonable value, typically DEFAULT_SORT_ORDER_INCREMENT smaller than
+		//every card already known to exist.
+		sort_order: sortOrder,
 		title: '',
 		section: section,
 		body: '',
@@ -770,14 +771,12 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		return;
 	}
 
-	let appendMiddle = false;
-	let appendIndex = 0;
+	let sortOrder = selectSortOrderForGlobalAppend(state);
 	if (section && selectActiveSectionId(state) == section) {
-		appendMiddle = true;
-		appendIndex = selectActiveCardIndex(state);
+		sortOrder = getSortOrderImmediatelyAdjacentToCard(state, selectActiveCardId(state), false);
 	}
 
-	let obj = defaultCardObject(id, user, section, cardType);
+	let obj = defaultCardObject(id, user, section, cardType, sortOrder);
 	obj.title = title;
 	if (CARD_TYPE_CONFIG.publishedByDefault) obj.published = true;
 	if (CARD_TYPE_CONFIG.defaultBody) obj[TEXT_FIELD_BODY] = CARD_TYPE_CONFIG.defaultBody;
@@ -860,11 +859,9 @@ export const createCard = (opts) => async (dispatch, getState) => {
 			if (!sectionDoc.exists) {
 				throw 'Doc doesn\'t exist!';
 			}
+			//The order of the IDs in section doesn't actually matter, just append.
+			//TODO: thi scan be an arrayUnion and be done without a transaction.
 			var newArray = [...sectionDoc.data().cards, id];
-			if (appendMiddle) {
-				let current = sectionDoc.data().cards;
-				newArray = [...current.slice(0,appendIndex), id, ...current.slice(appendIndex)];
-			}
 			ensureAuthor(transaction, user);
 			transaction.update(sectionRef, {cards: newArray, updated: serverTimestampSentinel()});
 			let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
@@ -955,14 +952,12 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		return;
 	}
 
-	let appendMiddle = false;
-	let appendIndex = 0;
+	let sortOrder = selectSortOrderForGlobalAppend(state);
 	if (selectActiveSectionId(state) == section) {
-		appendMiddle = true;
-		appendIndex = selectActiveCardIndex(state);
+		sortOrder = getSortOrderImmediatelyAdjacentToCard(state, selectActiveCardId(state), false);
 	}
 
-	let obj = defaultCardObject(id,user,section,cardType);
+	let obj = defaultCardObject(id,user,section,cardType, sortOrder);
 	for (let key of Object.keys(CARD_FIELDS_TO_COPY_ON_FORK)) {
 		//We can literally leave these as the same object because they'll just
 		//be sent to firestore and the actual card we'll store will be new
@@ -1015,11 +1010,9 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		if (!sectionDoc.exists) {
 			throw 'Doc doesn\'t exist!';
 		}
+		//The actual order of the ID in the section doesn't matter. 
+		//TODO: this could be an arrayUnion, which would allow it to not be a transaction.
 		var newArray = [...sectionDoc.data().cards, id];
-		if (appendMiddle) {
-			let current = sectionDoc.data().cards;
-			newArray = [...current.slice(0,appendIndex), id, ...current.slice(appendIndex)];
-		}
 		ensureAuthor(transaction, user);
 		transaction.update(sectionRef, {cards: newArray, updated: serverTimestampSentinel()});
 		let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());

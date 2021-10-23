@@ -70,7 +70,8 @@ import {
 	REFERENCE_TYPE_ACK,
 	fontSizeBoosts,
 	MAX_SORT_ORDER_VALUE,
-	MIN_SORT_ORDER_VALUE
+	MIN_SORT_ORDER_VALUE,
+	DEFAULT_SORT_ORDER_INCREMENT
 } from '../card_fields.js';
 
 import {
@@ -198,6 +199,7 @@ const initialSetup = async (_, getState) => {
 	const cardsCollection = db.collection(CARDS_COLLECTION);
 
 	let count = 0;
+	let sortOrder = (MAX_SORT_ORDER_VALUE - MIN_SORT_ORDER_VALUE) / 2;
 	for (let [key, val] of Object.entries(starterSections)) {
 		const update = {...val};
 		const startCardId = 'section-' + key;
@@ -208,24 +210,34 @@ const initialSetup = async (_, getState) => {
 		update.start_cards = [startCardId];
 		batch.set(sectionsCollection.doc(key), update);
 
-		let sectionHeadCard = defaultCardObject(startCardId,user,key,CARD_TYPE_SECTION_HEAD);
+		//Put the first card smack in the middle.
+		let sectionHeadCard = defaultCardObject(startCardId,user,key,CARD_TYPE_SECTION_HEAD, sortOrder);
+		//get sortOreder ready for next user
+		sortOrder -= DEFAULT_SORT_ORDER_INCREMENT;
+
 		sectionHeadCard.title = update.title;
 		sectionHeadCard.subtitle = update.subtitle;
 		sectionHeadCard.published = true;
 		batch.set(cardsCollection.doc(startCardId), sectionHeadCard);
 
-		const contentCard = defaultCardObject(contentCardId, user, key, CARD_TYPE_CONTENT);
+		const contentCard = defaultCardObject(contentCardId, user, key, CARD_TYPE_CONTENT, sortOrder);
+		//get sortOreder ready for next user
+		sortOrder -= DEFAULT_SORT_ORDER_INCREMENT;
 		contentCard.published = true;
 		batch.set(cardsCollection.doc(contentCardId), contentCard);
 
 		count++;
 	}
 
-	const readingListFallbackCard = defaultCardObject(READING_LIST_FALLBACK_CARD, user, '', CARD_TYPE_CONTENT);
+	const readingListFallbackCard = defaultCardObject(READING_LIST_FALLBACK_CARD, user, '', CARD_TYPE_CONTENT, sortOrder);
+	//get sortOreder ready for next user
+	sortOrder -= DEFAULT_SORT_ORDER_INCREMENT;
 	readingListFallbackCard.title = 'About Reading Lists';
 	readingListFallbackCard.body = '<p>There are a lot of cards to read in the collection, and it can be hard to keep track.</p><p>You can use a feature called <strong>reading list</strong>&nbsp;to keep track of cards you want to read next. Just hit the reading-list button below any card (it\'s the button that looks like an icon to add to a playlist) and they\'ll show up in the Reading List tab. Once you\'re done reading that card, you can simply tap the button again to remove it from your reading list.</p><p>When you see a link on any card, you can also Ctrl/Cmd-Click it to automatically add it to your reading-list even without opening it. Links to cards that are already on your reading-list will show a double-underline.</p>' ;
 	readingListFallbackCard.published = true;
-	const starsFallbackCard = defaultCardObject(STARS_FALLBACK_CARD, user, '', CARD_TYPE_CONTENT);
+	const starsFallbackCard = defaultCardObject(STARS_FALLBACK_CARD, user, '', CARD_TYPE_CONTENT, sortOrder);
+	//get sortOreder ready for next user
+	sortOrder -= DEFAULT_SORT_ORDER_INCREMENT;
 	starsFallbackCard.title = 'About Stars';
 	starsFallbackCard.body = '<p>You can star cards, and when you do they\'ll show up in the Starred list at the top nav.</p>';
 	starsFallbackCard.published = true;
