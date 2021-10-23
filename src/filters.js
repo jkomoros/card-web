@@ -1176,6 +1176,13 @@ export const SORTS = {
 		description: 'In descending order by when each card was created',
 		labelName:'Created',
 	},
+	'fractional-sort': {
+		extractor: (card) => {
+			return [card.sort_order || 0, 0];
+		},
+		description: 'Fractional sort order, a debug sort while working on #199',
+		labelName: 'Sorted by fractional sort order'
+	},
 	'stars': {
 		extractor: (card) => [card.star_count || 0, '' + card.star_count],
 		description: 'In descending order by number of stars',

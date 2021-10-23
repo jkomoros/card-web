@@ -642,6 +642,12 @@ export const defaultCardObject = (id, user, section, cardType) => {
 		tweet_retweet_count: 0,
 		thread_count: 0,
 		thread_resolved_count: 0,
+		//A number that is compared to other cards to give the default sort
+		//order. Higher numbers will show up first in the default sort order.
+		//Before saving the card for the first time, you should set this to a
+		//reasonable value, typically slightly smaller than every card already
+		//known to exist.
+		sort_order: 0.0,
 		title: '',
 		section: section,
 		body: '',

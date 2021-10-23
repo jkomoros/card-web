@@ -33,6 +33,8 @@ import {
 import {
 	selectUser,
 	selectCards,
+	selectDefaultSet,
+	selectEverythingSet
 } from '../selectors.js';
 
 import {
@@ -66,7 +68,9 @@ import {
 	REFERENCES_INBOUND_CARD_PROPERTY,
 	REFERENCE_TYPE_LINK,
 	REFERENCE_TYPE_ACK,
-	fontSizeBoosts
+	fontSizeBoosts,
+	MAX_SORT_ORDER_VALUE,
+	MIN_SORT_ORDER_VALUE
 } from '../card_fields.js';
 
 import {
@@ -452,6 +456,48 @@ const rerunCardFinishers = async (dispatch, getState) => {
 	await batch.commit();
 };
 
+const ADD_SORT_ORDER_PROPERTY = 'add-sort-order-property';
+
+const addSortOrderProperty = async (dispatch, getState) => {
+
+	let batch = new MultiBatch(db);
+
+	const state = getState();
+	const cards = selectCards(state);
+
+	if (Object.values(cards).some(card => card.sort_order)) {
+		throw new Error('At least some cards appeared to already have sort_order property');
+	}
+
+
+	//Note: this logic assume that the cards don't already have sort_order and
+	//htat defaultSet is being built in the legacy, via sections, way. 
+	
+	//IDs, not full cards.
+	const defaultSet = selectDefaultSet(state);
+	const everythingSet = [...selectEverythingSet(state)];
+	//We want newer things with higher numbers by default, but evertyhing set by default is recently updated things first
+	everythingSet.reverse();
+	//This will have all IDs in the proper order, but with every default item
+	//also showing up later in everything set.
+	const fullDupedSet = [...defaultSet, ...everythingSet];
+	//Use set to remove duplicates in order
+	const fullOrderedSet = [... new Set(fullDupedSet)];
+
+	let counter = MAX_SORT_ORDER_VALUE;
+	const increment = (MAX_SORT_ORDER_VALUE - MIN_SORT_ORDER_VALUE) / Object.keys(cards).length;
+
+	for (const cardID of fullOrderedSet) {
+		const card = cards[cardID];
+		if (!card) throw new Error(cardID + ' was not found in cards collection');
+		const ref = db.collection(CARDS_COLLECTION).doc(cardID);
+		batch.update(ref, {sort_order: counter});
+		counter -= increment;
+	}
+
+	await batch.commit();
+};
+
 //The value of MAINTENANCE_TASK_VERSION when this instance of the app was set up
 const setUpVersion = (executedTasks) => {
 	const setUpTaskRecord = executedTasks[INITIAL_SET_UP];
@@ -548,7 +594,7 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 //them, because we assume that if you were to set up a new instance at any given
 //moment, the non-recurring maintenance tasks are already implicitly run and
 //included in normal operation of the webapp as soon as they were added.
-const MAINTENANCE_TASK_VERSION = 2;
+const MAINTENANCE_TASK_VERSION = 3;
 
 /*
 
@@ -624,7 +670,11 @@ const RAW_TASKS = {
 		fn: rerunCardFinishers,
 		recurring: true,
 		minVersion: 0,
-	}
+	},
+	[ADD_SORT_ORDER_PROPERTY]: {
+		fn: addSortOrderProperty,
+		minVersion: 3,
+	},
 };
 
 //It's so important that RAW_TASKS minVersion is set correctly that we'll catch obvious mistakes here.

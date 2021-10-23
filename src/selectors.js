@@ -1226,7 +1226,7 @@ const makeEverythingSetFromCards = (cards) => {
 	return keys;
 };
 
-const selectEverythingSet = createSelector(
+export const selectEverythingSet = createSelector(
 	selectCards,
 	makeEverythingSetFromCards,
 );
