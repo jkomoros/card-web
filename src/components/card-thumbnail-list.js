@@ -190,7 +190,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 			${cardBadgesStyles}
 			<div class='${this._dragging ? 'dragging' : ''} ${this.grid ? 'grid' : ''}'>
 				${repeat(this.collection ? this.collection.finalSortedCards : [], (i) => i.id, (i, index) => html`
-				${index >= this.collection.numStartCards ? html`<div class='spacer' .index=${index} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
+				${index >= this.collection.numStartCards ? html`<div class='spacer' .cardid=${i.id} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
 				${this._labels && this._labels[index] !== undefined && this._labels[index] !== '' ? html`<div class='label'><span>${this.collection ? this.collection.sortLabelName : ''} <strong>${this._labels[index]}</strong></span></div>` : html``}
 				${this._thumbnail(i, index)}`)}
 			</div>
@@ -302,12 +302,8 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		let target = e.composedPath()[0];
 		target.classList.remove('drag-active');
 		let thumbnail = this._dragging;
-		let index = target.index;
-		//reorderCard expects the index to insert to be after popping the item out
-		//first--which means that if you drag it down to below where it was
-		//before, it's off by one.
-		if (thumbnail.index < target.index) index--;
-		this.dispatchEvent(new CustomEvent('reorder-card', {composed: true, detail: {card: thumbnail.card, index: index}}));
+		let beforeID = target.cardid;
+		this.dispatchEvent(new CustomEvent('reorder-card', {composed: true, detail: {card: thumbnail.card, beforeID: beforeID}}));
 	}
 
 	_handleThumbnailClick(e) {

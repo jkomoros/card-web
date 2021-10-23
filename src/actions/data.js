@@ -359,7 +359,8 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch) => 
 
 };
 
-export const reorderCard = (card, newIndex) => async (dispatch, getState) => {
+//beforeID is the ID of hte card we should place ourselves immediately before.
+export const reorderCard = (card, beforeID) => async (dispatch, getState) => {
 
 	const state = getState();
 
@@ -368,74 +369,32 @@ export const reorderCard = (card, newIndex) => async (dispatch, getState) => {
 		return;
 	}
 
-	if (!card || !card.id || !card.section) {
+	if (!card || !card.id) {
 		console.log('That card isn\'t valid');
 		return;
 	}
 
-	if (!getUserMayEditSection(state, card.section)) {
-		console.log('The user does not have permission to edit that section');
+	if (card.id == beforeID) {
+		console.log('Dropping into the same position it is now, which is a no op');
 		return;
 	}
 
-	let section = state.data.sections[card.section];
-
-	if (!section) {
-		console.log('That card\'s section was not valid');
-		return;
-	}
-
-	//newIndex is relative to the overall collection size; redo to be newIndex
-	let startCards = section.start_cards || [];
-	let effectiveIndex = newIndex - startCards.length;
-
-	if (effectiveIndex < 0) {
-		console.log('Effective index is less than 0');
-		return;
-	}
-
-	if (effectiveIndex > (section.cards.length - 1)) {
-		console.log('Effective index is greater than length');
-		return;
-	}
+	const newSortOrder = getSortOrderImmediatelyAdjacentToCard(state, beforeID, true);
 
 	dispatch(reorderStatus(true));
 
-	await db.runTransaction(async transaction => {
-		let sectionRef = db.collection(SECTIONS_COLLECTION).doc(card.section);
-		let doc = await transaction.get(sectionRef);
-		if (!doc.exists) {
-			throw 'Doc doesn\'t exist!';
-		}
-		let cards = doc.data().cards || [];
-		let trimmedCards = [];
-		let foundInSection = false;
-		for (let val of Object.values(cards)) {
-			if (val == card.id) {
-				if (foundInSection) {
-					throw 'Card was found in the section cards list twice';
-				}
-				foundInSection = true;
-				continue;
-			}
-			trimmedCards.push(val);
-		}
+	const batch = new MultiBatch(db);
+	const update = {
+		sort_order: newSortOrder,
+	};
+	modifyCardWithBatch(state, card, update, false, batch);
 
-		if (!foundInSection) throw 'Card was not found in section\'s card list';
-
-		let result;
-
-		if (effectiveIndex == 0) {
-			result = [card.id, ...trimmedCards];
-		} else if (effectiveIndex >= trimmedCards.length) {
-			result = [...trimmedCards, card.id];
-		} else {
-			result = [...trimmedCards.slice(0,effectiveIndex), card.id, ...trimmedCards.slice(effectiveIndex)];
-		}
-		transaction.update(sectionRef, {cards: result, updated: serverTimestampSentinel()});
-		let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
-		transaction.set(sectionUpdateRef, {timestamp: serverTimestampSentinel(), cards: result});
-	}).then(() => dispatch(reorderStatus(false))).catch(() => dispatch(reorderStatus(false)));
+	try {
+		await batch.commit();
+	} catch(err) {
+		console.warn(err);
+	}
+	dispatch(reorderStatus(false));
 
 	//We don't need to tell the store anything, because firestore will tell it
 	//automatically.
