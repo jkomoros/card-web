@@ -54,6 +54,12 @@ that is poitned to.
 //The min and max sort order for card.sort_order that we should deliberately set.
 export const MAX_SORT_ORDER_VALUE = Number.MAX_VALUE / 3.0;
 export const MIN_SORT_ORDER_VALUE = 0.0;
+//The default amount that a card's sort order should be incremented or
+//decremented beyond the next one when it's not being sandwiched in between two
+//known sort_orders. This is set so that it would give a reasonable spread even
+//if there were denominator number of cards. So the denominator should be set to
+//a number greater than any expected individual web of cards will ever have.
+export const DEFAULT_SORT_ORDER_INCREMENT = (MAX_SORT_ORDER_VALUE - MIN_SORT_ORDER_VALUE) / 100000;
 
 //NOTE: this next one is duplicated in tweet-helpers.js and both are in
 //functions/updates.js;
