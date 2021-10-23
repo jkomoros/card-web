@@ -1232,6 +1232,7 @@ const makeEverythingSetFromCards = (cards) => {
 	return keys;
 };
 
+//Note; other selectors depend on this being sorted based on descending sort_order
 export const selectEverythingSet = createSelector(
 	selectCards,
 	makeEverythingSetFromCards,
@@ -1267,6 +1268,34 @@ const selectSetsSnapshot = createSelector(
 		[EVERYTHING_SET_NAME]: everythingSetSnapshot,
 		[READING_LIST_SET_NAME]: readingListSet,
 	})
+);
+
+//Returns the lowest sort order known to be currently in use by cards in this
+//set. This may be incorrect if there are unloaded cards.
+export const selectLowestSortOrder = createSelector(
+	selectEverythingSet,
+	selectRawCards,
+	(sortedCardIDs, cards) => {
+		if (!sortedCardIDs || sortedCardIDs.length == 0) return 0.0;
+		const lowestCardID = sortedCardIDs[sortedCardIDs.length - 1];
+		const card = cards[lowestCardID];
+		if (!card) return 0.0;
+		return card.sort_order;
+	}
+);
+
+//Returns the highgest sort order known to be currently in use by cards in this
+//set. This may be incorrect if there are unloaded cards.
+export const selectHighestSortOrder = createSelector(
+	selectEverythingSet,
+	selectRawCards,
+	(sortedCardIDs, cards) => {
+		if (!sortedCardIDs || sortedCardIDs.length == 0) return 0.0;
+		const highestCardID = sortedCardIDs[0];
+		const card = cards[highestCardID];
+		if (!card) return 0.0;
+		return card.sort_order;
+	}
 );
 
 //selectCollectionConstructorArguments returns an array that can be unpacked and
