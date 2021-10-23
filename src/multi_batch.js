@@ -4,7 +4,9 @@
 const FIRESTORE_BATCH_LIMIT = 500;
 
 import {
-	randomString
+	randomString,
+	getObjectPath,
+	objectPathToValue,
 } from './util.js';
 
 //We import these only to get deleteSentinel without importing from firebase.js.
@@ -13,26 +15,27 @@ import '@firebase/firestore';
 const serverTimestampSentinel = firebase.firestore.FieldValue.serverTimestamp;
 
 //serverTimestampSentinel is the most basic one.
-const SENTINEL_FIELD = Object.keys(serverTimestampSentinel())[0];
+const SENTINEL_FIELD_PATH = objectPathToValue(serverTimestampSentinel(), 'FieldValue.serverTimestamp');
 
 const extraOperationCountForValue = (val) => {
 	//Note: this function is very tied to the implementation of
 	//firestore.FieldValue and may need to change if it changes.
 	if (typeof val !== 'object') return false;
 	if (!val) return false;
-	if (!val[SENTINEL_FIELD]) {
+	const innerVal = getObjectPath(val, SENTINEL_FIELD_PATH);
+	if (!innerVal) {
 		//It's not a sentinel itself, but its sub-values could be.
 		return Object.values(val).some(item => extraOperationCountForValue(item));
 	}
-	if (typeof val[SENTINEL_FIELD] !== 'string') return false;
-	const parts = val[SENTINEL_FIELD].split('.');
+	if (typeof innerVal !== 'string') return false;
+	const parts = innerVal.split('.');
 	if (parts.length !== 2) return false;
 	if (parts[0] !== 'FieldValue') return false;
 	if (parts[1] !== 'serverTimestamp' && parts[1] !== 'arrayRemove' && parts[1] != 'arrayUnion') return false;
 	return true;
 };
 
-const SENTINEL_DEFINITION_VALID = extraOperationCountForValue(serverTimestampSentinel());
+const SENTINEL_DEFINITION_VALID = extraOperationCountForValue(firebase.firestore.FieldValue.arrayUnion(1));
 
 if (!SENTINEL_DEFINITION_VALID) {
 	console.warn('The shape of sentinel values that Multibatch is designed to look for seems to be out of date. That means batch sizes will be smaller than they need to be.');
