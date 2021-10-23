@@ -667,3 +667,15 @@ export const pageRank = (cards) => {
 	memoizedPageRank = result;
 	return result;
 };
+
+//For {a: {b: 2}, c: 3}, a path of ['a', 'b'] would return 2.
+export const getObjectPath = (obj, path) => {
+	if (!path) return undefined;
+	if (!Array.isArray(path)) return undefined;
+	if (path.length == 0) return obj;
+	if (!obj) return undefined;
+	if (typeof obj !== 'object') return undefined;
+	const modifiedPath = [...path];
+	const firstPart = modifiedPath.shift();
+	return getObjectPath(obj[firstPart], modifiedPath);
+};
