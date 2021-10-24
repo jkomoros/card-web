@@ -46,7 +46,6 @@ import {
 	CARD_TYPE_WORKING_NOTES,
 	DEFAULT_CARD_TYPE,
 	CARD_TYPE_CONFIGURATION,
-	REORDERING_DISABLED,
 	DEFAULT_SORT_ORDER_INCREMENT,
 	MIN_SORT_ORDER_VALUE,
 	MAX_SORT_ORDER_VALUE
@@ -585,8 +584,6 @@ export const getReasonUserMayNotDeleteCard = (state, card) => {
 	//NOTE: this logic is recreatedin the firestore security rules for card deletion
 	if (!card) return 'No card provided';
 
-	if (REORDERING_DISABLED) return 'Modifying the order of any section is not allowed right now';
-
 	if (!selectCardIDsUserMayEdit(state)[card.id]) return 'User may not edit card.';
 
 	if (card.section) return 'Card must be orphaned to be deleted';
@@ -1097,7 +1094,7 @@ export const selectActiveSectionId = createSelector(
 const selectUserMayEditActiveSection = createSelector(
 	selectState,
 	selectActiveSectionId,
-	(state, sectionID) => sectionID != '' && getUserMayEditSection(state, sectionID) && !REORDERING_DISABLED
+	(state, sectionID) => sectionID != '' && getUserMayEditSection(state, sectionID)
 );
 
 export const selectActiveCollectionCardTypeToAdd = createSelector(
