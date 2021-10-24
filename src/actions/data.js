@@ -818,43 +818,29 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		fallbackAutoSlugLegalPromise = slugLegal(fallbackAutoSlug);
 	}
 
+	const batch = db.batch();
+
+	ensureAuthor(batch, user);
+	batch.set(cardDocRef, obj);
+
 	if (section) {
-
 		let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
+		let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
+		batch.update(sectionRef, {
+			cards: arrayUnionSentinel(id),
+			updated: serverTimestampSentinel(),
+		});
+		batch.set(sectionUpdateRef, {
+			timestamp: serverTimestampSentinel(), 
+			add_card: id
+		});
+	}
 
-		let transactionFunc = async transaction => {
-			let sectionDoc = await transaction.get(sectionRef);
-			if (!sectionDoc.exists) {
-				throw 'Doc doesn\'t exist!';
-			}
-			//The order of the IDs in section doesn't actually matter, just append.
-			//TODO: thi scan be an arrayUnion and be done without a transaction.
-			var newArray = [...sectionDoc.data().cards, id];
-			ensureAuthor(transaction, user);
-			transaction.update(sectionRef, {cards: newArray, updated: serverTimestampSentinel()});
-			let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
-			transaction.set(sectionUpdateRef, {timestamp: serverTimestampSentinel(), cards: newArray});
-			transaction.set(cardDocRef, obj);
-		};
-
-		try {
-			await db.runTransaction(transactionFunc);
-		} catch (err) {
-			console.warn(err);
-			dispatch({type: EXPECTED_NEW_CARD_FAILED});
-		}
-	} else {
-		const batch = db.batch();
-
-		ensureAuthor(batch, user);
-		batch.set(cardDocRef, obj);
-
-		try {
-			await batch.commit();
-		} catch (err) {
-			console.warn(err);
-			dispatch({type: EXPECTED_NEW_CARD_FAILED});
-		}
+	try {
+		await batch.commit();
+	} catch (err) {
+		console.warn(err);
+		dispatch({type: EXPECTED_NEW_CARD_FAILED});
 	}
 
 	//updateSections will be called and update the current view. card-view's
@@ -948,59 +934,40 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		noSectionChange: !section,
 	});
 
-	if (!section) {
-		//This is the simpler case of forking something that's orphaned
-		let batch = db.batch();
-		ensureAuthor(batch, user);
-		batch.set(cardDocRef, obj);
-		for (let tagName of obj.tags) {
-			let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
-			let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
-			let newTagObject = {
-				cards: arrayUnionSentinel(id),
-				updated: serverTimestampSentinel()
-			};
-			let newTagUpdateObject = {
-				timestamp: serverTimestampSentinel(),
-				add_card: id,
-			};
-			batch.update(tagRef, newTagObject);
-			batch.set(tagUpdateRef, newTagUpdateObject);
-		}
-		batch.commit();
-		return;
+	let batch = db.batch();
+	ensureAuthor(batch, user);
+	batch.set(cardDocRef, obj);
+	for (let tagName of obj.tags) {
+		let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
+		let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
+		let newTagObject = {
+			cards: arrayUnionSentinel(id),
+			updated: serverTimestampSentinel()
+		};
+		let newTagUpdateObject = {
+			timestamp: serverTimestampSentinel(),
+			add_card: id,
+		};
+		batch.update(tagRef, newTagObject);
+		batch.set(tagUpdateRef, newTagUpdateObject);
 	}
 
-	let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
-
-	await db.runTransaction(async transaction => {
-		let sectionDoc = await transaction.get(sectionRef);
-		if (!sectionDoc.exists) {
-			throw 'Doc doesn\'t exist!';
-		}
-		//The actual order of the ID in the section doesn't matter. 
-		//TODO: this could be an arrayUnion, which would allow it to not be a transaction.
-		var newArray = [...sectionDoc.data().cards, id];
-		ensureAuthor(transaction, user);
-		transaction.update(sectionRef, {cards: newArray, updated: serverTimestampSentinel()});
+	if (section) {
+		let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
+		batch.update(sectionRef, {
+			cards: arrayUnionSentinel(id),
+			updated: serverTimestampSentinel()
+		});
 		let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
-		transaction.set(sectionUpdateRef, {timestamp: serverTimestampSentinel(), cards: newArray});
-		transaction.set(cardDocRef, obj);
-		for (let tagName of obj.tags) {
-			let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
-			let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
-			let newTagObject = {
-				cards: arrayUnionSentinel(id),
-				updated: serverTimestampSentinel()
-			};
-			let newTagUpdateObject = {
-				timestamp: serverTimestampSentinel(),
-				add_card: id,
-			};
-			transaction.update(tagRef, newTagObject);
-			transaction.set(tagUpdateRef, newTagUpdateObject);
-		}
-	});
+		batch.set(sectionUpdateRef, {
+			timestamp: serverTimestampSentinel(), 
+			add_card: id,
+		});
+	}
+
+	batch.commit();
+	return;
+
 
 	//updateSections will be called and update the current view. card-view's
 	//updated will call navigateToNewCard once the data is fully loaded again
