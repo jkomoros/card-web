@@ -908,10 +908,7 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		return;
 	}
 
-	let sortOrder = selectSortOrderForGlobalAppend(state);
-	if (selectActiveSectionId(state) == section) {
-		sortOrder = getSortOrderImmediatelyAdjacentToCard(state, selectActiveCardId(state), false);
-	}
+	let sortOrder = getSortOrderImmediatelyAdjacentToCard(state, cardToFork.id, false);
 
 	let obj = defaultCardObject(id,user,section,cardType, sortOrder);
 	for (let key of Object.keys(CARD_FIELDS_TO_COPY_ON_FORK)) {
