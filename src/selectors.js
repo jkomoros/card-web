@@ -1119,7 +1119,7 @@ export const selectActiveCollectionCardTypeToAdd = createSelector(
 //would work. This is true if the card type is content and the user may edit the
 //active section, OR it's the everything set with a single filter, for a card
 //type that is orphaned by default.
-export const selectUserMayEditActiveCollection = createSelector(
+export const selectUserMayAddCardToActiveCollection = createSelector(
 	selectUserMayEditActiveSection,
 	selectActiveCollectionCardTypeToAdd,
 	(userMayEditActiveSection, cardTypeToAdd) => {
