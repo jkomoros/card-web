@@ -481,7 +481,7 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	_handleReorderCard(e) {
-		store.dispatch(reorderCard(e.detail.card, e.detail.beforeID));
+		store.dispatch(reorderCard(e.detail.card, e.detail.otherID, e.detail.isAfter));
 	}
 
 	stateChanged(state) {

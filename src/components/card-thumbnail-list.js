@@ -190,9 +190,11 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 			${cardBadgesStyles}
 			<div class='${this._dragging ? 'dragging' : ''} ${this.grid ? 'grid' : ''}'>
 				${repeat(this.collection ? this.collection.finalSortedCards : [], (i) => i.id, (i, index) => html`
-				${index >= this.collection.numStartCards ? html`<div class='spacer' .cardid=${i.id} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
+				${index >= this.collection.numStartCards ? html`<div class='spacer' .cardid=${i.id} .after=${false} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
 				${this._labels && this._labels[index] !== undefined && this._labels[index] !== '' ? html`<div class='label'><span>${this.collection ? this.collection.sortLabelName : ''} <strong>${this._labels[index]}</strong></span></div>` : html``}
-				${this._thumbnail(i, index)}`)}
+				${this._thumbnail(i, index)}
+				${index == (this.collection.finalSortedCards.length - 1) ? html`<div class='spacer' .cardid=${i.id} .after=${true} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
+				`)}
 			</div>
 		`;
 	}
@@ -302,8 +304,9 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		let target = e.composedPath()[0];
 		target.classList.remove('drag-active');
 		let thumbnail = this._dragging;
-		let beforeID = target.cardid;
-		this.dispatchEvent(new CustomEvent('reorder-card', {composed: true, detail: {card: thumbnail.card, beforeID: beforeID}}));
+		let otherID = target.cardid;
+		let isAfter = target.after ? true : false;
+		this.dispatchEvent(new CustomEvent('reorder-card', {composed: true, detail: {card: thumbnail.card, otherID: otherID, isAfter: isAfter}}));
 	}
 
 	_handleThumbnailClick(e) {

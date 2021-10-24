@@ -362,7 +362,7 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch) => 
 };
 
 //beforeID is the ID of hte card we should place ourselves immediately before.
-export const reorderCard = (card, beforeID) => async (dispatch, getState) => {
+export const reorderCard = (card, otherID, isAfter) => async (dispatch, getState) => {
 
 	const state = getState();
 
@@ -376,7 +376,7 @@ export const reorderCard = (card, beforeID) => async (dispatch, getState) => {
 		return;
 	}
 
-	if (card.id == beforeID) {
+	if (card.id == otherID) {
 		console.log('Dropping into the same position it is now, which is a no op');
 		return;
 	}
@@ -388,7 +388,9 @@ export const reorderCard = (card, beforeID) => async (dispatch, getState) => {
 
 	const collectionDescription = selectActiveCollectionDescription(state);
 
-	const newSortOrder = getSortOrderImmediatelyAdjacentToCard(state, beforeID, !collectionDescription.sortReversed);
+	if (collectionDescription.sortReversed) isAfter = !isAfter;
+
+	const newSortOrder = getSortOrderImmediatelyAdjacentToCard(state, otherID, !isAfter);
 
 	dispatch(reorderStatus(true));
 
