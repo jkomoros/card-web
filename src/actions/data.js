@@ -86,7 +86,8 @@ import {
 	getCardById,
 	selectMultiEditDialogOpen,
 	selectSortOrderForGlobalAppend,
-	getSortOrderImmediatelyAdjacentToCard
+	getSortOrderImmediatelyAdjacentToCard,
+	selectUserMayReorderActiveCollection
 } from '../selectors.js';
 
 import {
@@ -376,6 +377,11 @@ export const reorderCard = (card, beforeID) => async (dispatch, getState) => {
 
 	if (card.id == beforeID) {
 		console.log('Dropping into the same position it is now, which is a no op');
+		return;
+	}
+
+	if (!selectUserMayReorderActiveCollection(state)) {
+		console.log('Reordering the current collection is not allowed');
 		return;
 	}
 
