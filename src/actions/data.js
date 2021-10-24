@@ -116,7 +116,8 @@ import {
 	KEY_CARD_ID_PLACEHOLDER,
 	TEXT_FIELD_TITLE,
 	editableFieldsForCardType,
-	REORDERING_DISABLED
+	REORDERING_DISABLED,
+	sortOrderIsDangerous
 } from '../card_fields.js';
 
 import {
@@ -391,6 +392,11 @@ export const reorderCard = (card, otherID, isAfter) => async (dispatch, getState
 	if (collectionDescription.sortReversed) isAfter = !isAfter;
 
 	const newSortOrder = getSortOrderImmediatelyAdjacentToCard(state, otherID, !isAfter);
+
+	if (sortOrderIsDangerous(newSortOrder)) {
+		console.warn('Dangerous sort order proposed: ', newSortOrder, ' See issue #199');
+		return;
+	}
 
 	dispatch(reorderStatus(true));
 
@@ -744,6 +750,11 @@ export const createCard = (opts) => async (dispatch, getState) => {
 	let sortOrder = selectSortOrderForGlobalAppend(state);
 	if (section && selectActiveSectionId(state) == section) {
 		sortOrder = getSortOrderImmediatelyAdjacentToCard(state, selectActiveCardId(state), false);
+	}
+
+	if (sortOrderIsDangerous(sortOrder)) {
+		console.warn('Dangerous sort order proposed: ', sortOrder, ' See issue #199');
+		return;
 	}
 
 	let obj = defaultCardObject(id, user, section, cardType, sortOrder);

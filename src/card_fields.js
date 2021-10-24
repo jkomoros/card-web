@@ -61,6 +61,18 @@ export const MIN_SORT_ORDER_VALUE = 0.0;
 //a number greater than any expected individual web of cards will ever have.
 export const DEFAULT_SORT_ORDER_INCREMENT = (MAX_SORT_ORDER_VALUE - MIN_SORT_ORDER_VALUE) / 100000;
 
+const DANGEROUS_SORT_ORDER_MARGIN = MAX_SORT_ORDER_VALUE / 2;
+
+export const sortOrderIsDangerous = (proposedSortOrder) => {
+	//Aggresively warn if we start getting to sort order values htat are at the
+	//end of the allowable range. Rare, but would lead to weird overlapping
+	//issues. We'll generally hit these only fater many hundreds of thousands of
+	//cards are created at the edge.
+	if (proposedSortOrder > (Number.MAX_VALUE - DANGEROUS_SORT_ORDER_MARGIN)) return true;
+	if (proposedSortOrder < (Number.MIN_VALUE + DANGEROUS_SORT_ORDER_MARGIN)) return true;
+	return false;
+};
+
 //NOTE: this next one is duplicated in tweet-helpers.js and both are in
 //functions/updates.js;
 export const REFERENCES_INFO_CARD_PROPERTY = 'references_info';
