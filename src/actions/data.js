@@ -87,7 +87,8 @@ import {
 	selectMultiEditDialogOpen,
 	selectSortOrderForGlobalAppend,
 	getSortOrderImmediatelyAdjacentToCard,
-	selectUserMayReorderActiveCollection
+	selectUserMayReorderActiveCollection,
+	selectActiveCollectionDescription
 } from '../selectors.js';
 
 import {
@@ -385,7 +386,9 @@ export const reorderCard = (card, beforeID) => async (dispatch, getState) => {
 		return;
 	}
 
-	const newSortOrder = getSortOrderImmediatelyAdjacentToCard(state, beforeID, true);
+	const collectionDescription = selectActiveCollectionDescription(state);
+
+	const newSortOrder = getSortOrderImmediatelyAdjacentToCard(state, beforeID, !collectionDescription.sortReversed);
 
 	dispatch(reorderStatus(true));
 

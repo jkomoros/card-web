@@ -790,7 +790,6 @@ const Collection = class {
 	get reorderable() {
 		const config = this._description.sortConfig;
 		if (!config.reorderable) return false;
-		if (this._description.sortReversed) return false;
 		return config.reorderable(this._sortExtras);
 	}
 
