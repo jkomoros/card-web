@@ -747,7 +747,7 @@ export const createCard = (opts) => async (dispatch, getState) => {
 	}
 
 	if (sortOrderIsDangerous(sortOrder)) {
-		console.warn('Dangerous sort order proposed: ', sortOrder, ' See issue #199');
+		console.warn('Dangerous sort order proposed: ', sortOrder, sortOrder / Number.MAX_VALUE, ' See issue #199');
 		return;
 	}
 

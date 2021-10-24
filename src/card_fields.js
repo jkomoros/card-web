@@ -64,7 +64,7 @@ export const sortOrderIsDangerous = (proposedSortOrder) => {
 	//issues. We'll generally hit these only fater many hundreds of thousands of
 	//cards are created at the edge.
 	if (proposedSortOrder > (Number.MAX_VALUE - DANGEROUS_SORT_ORDER_MARGIN)) return true;
-	if (proposedSortOrder < (Number.MIN_VALUE + DANGEROUS_SORT_ORDER_MARGIN)) return true;
+	if (proposedSortOrder < ((Number.MAX_VALUE * -1) + DANGEROUS_SORT_ORDER_MARGIN)) return true;
 	return false;
 };
 
