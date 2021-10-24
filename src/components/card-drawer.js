@@ -103,7 +103,7 @@ class CardDrawer extends LitElement {
 				</div>
 				<div class='buttons'>
 					<button class='round' @click='${this._handleCreateWorkingNotes}' ?hidden='${!this.showCreateWorkingNotes}' title="Create a new working notes card (Cmd-Shift-M)">${INSERT_DRIVE_FILE_ICON}</button>
-					<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.editable || this.suppressAdd}' title=${'Add a new card of type ' + this.cardTypeToAdd + ' in this section (Cmd-M)'}>${!this.cardTypeToAdd || this.cardTypeToAdd == DEFAULT_CARD_TYPE || !CARD_TYPE_CONFIGURATION[this.cardTypeToAdd].iconName ? PLUS_ICON : icons[CARD_TYPE_CONFIGURATION[this.cardTypeToAdd].iconName] }</button>
+					<button class='round' @click='${this._handleAddSlide}' ?hidden='${!this.showCreateCard}' title=${'Add a new card of type ' + this.cardTypeToAdd + ' in this section (Cmd-M)'}>${!this.cardTypeToAdd || this.cardTypeToAdd == DEFAULT_CARD_TYPE || !CARD_TYPE_CONFIGURATION[this.cardTypeToAdd].iconName ? PLUS_ICON : icons[CARD_TYPE_CONFIGURATION[this.cardTypeToAdd].iconName] }</button>
 				</div>
 			</div>
 		`;
@@ -114,7 +114,7 @@ class CardDrawer extends LitElement {
 	}
 
 	_handleAddSlide() {
-		if (!this.editable) return;
+		if (!this.showCreateCard) return;
 		this.dispatchEvent(new CustomEvent('add-card', {composed:true}));
 	}
 
@@ -124,18 +124,14 @@ class CardDrawer extends LitElement {
 
 	static get properties() {
 		return {
-			//editable doesn't mean it IS editable; just that if the userMayEdit this
-			//instantiaion of hte drawer should allow edits.
 			grid: {type: Boolean},
 			reorderable: { type: Boolean },
-			editable: { type: Boolean},
 			//If set, this is what type of card type will be added when add is
 			//pressed. This is used entirely for display within this component;
 			//the actual card adding is done by the parent component based on
 			//the add-card event.
 			cardTypeToAdd: { type:String },
-			//If true, then even if editing is true, the add card button won't show
-			suppressAdd: { type: Boolean },
+			showCreateCard: { type:Boolean },
 			//If true, will show the button to add working notes card no matter what
 			showCreateWorkingNotes: { type: Boolean},
 			collection: {type:Object},
