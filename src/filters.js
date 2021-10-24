@@ -1114,7 +1114,8 @@ const RANDOM_SALT = randomString(16);
 //retrieved later. labelName is either a string OR a function that accepts a
 //sortExtra parameter and returns a string. All sorts are currently assumed to
 //be DESCENDING; if there's a new one that isn't, then add a property to config
-//called ascending and toggle that.
+//called ascending and toggle that. If reorderable is a function, it should
+//accept sortExtras and return whether it's reorderable.
 export const SORTS = {
 	//Default sort is a no-op, unless a configurable filter was used that emits
 	//sortValues, in which case it uses those. Note that
@@ -1145,12 +1146,14 @@ export const SORTS = {
 			const key = Object.keys(sortExtra)[0];
 			const config = CONFIGURABLE_FILTER_INFO[key];
 			return config && config.labelName ? config.labelName : 'Section';
-		}
+		},
+		reorderable: (sortExtra) => !sortExtra || Object.keys(sortExtra).length == 0
 	},
 	'original-order': {
 		extractor: (card, sections) => [0, sectionNameForCard(card, sections)],
 		description: 'The default order of the cards within each section in order',
 		labelName: 'Section',
+		reorderable: () => true
 	},
 	'link-count': {
 		extractor: (card) => {
@@ -1181,7 +1184,8 @@ export const SORTS = {
 			return [card.sort_order || 0, 0];
 		},
 		description: 'Fractional sort order, a debug sort while working on #199',
-		labelName: 'Sorted by fractional sort order'
+		labelName: 'Sorted by fractional sort order',
+		reorderable: () => true,
 	},
 	'stars': {
 		extractor: (card) => [card.star_count || 0, '' + card.star_count],
