@@ -63,6 +63,7 @@ const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(NON_AUTOMATIC_MERGE_
 	'name',
 	'section',
 	'full_bleed',
+	'sort_order',
 	'auto_todo_overrides_enablements',
 	'auto_todo_overrides_disablements',
 	'auto_todo_overrides_removals',
@@ -152,6 +153,7 @@ export const generateCardDiff = (underlyingCard, updatedCard) => {
 	if (updatedCard.full_bleed != underlyingCard.full_bleed) update.full_bleed = updatedCard.full_bleed;
 	if (updatedCard.published !== underlyingCard.published) update.published = updatedCard.published;
 	if (updatedCard.card_type !== underlyingCard.card_type) update.card_type = updatedCard.card_type;
+	if (updatedCard.sort_order !== underlyingCard.sort_order) update.sort_order = updatedCard.sort_order;
 
 	let [todoEnablements, todoDisablements, todoRemovals] = triStateMapDiff(underlyingCard.auto_todo_overrides || {}, updatedCard.auto_todo_overrides || {});
 	if (todoEnablements.length) update.auto_todo_overrides_enablements = todoEnablements;
@@ -313,6 +315,9 @@ export const applyCardDiff = (underlyingCard, diff) => {
 		cardUpdateObject.name = diff.name;
 	}
 
+	if (diff.sort_order !== undefined) {
+		cardUpdateObject.sort_order = diff.sort_order;
+	}
 
 	if (diff.section !== undefined) {
 		cardUpdateObject.section = diff.section;

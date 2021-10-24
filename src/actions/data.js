@@ -68,7 +68,6 @@ import {
 
 import {
 	selectActiveSectionId,
-	selectActiveCardIndex,
 	selectUser,
 	selectUserIsAdmin,
 	selectFilters,
@@ -85,7 +84,11 @@ import {
 	selectExpectedDeletions,
 	selectCardModificationPending,
 	getCardById,
-	selectMultiEditDialogOpen
+	selectMultiEditDialogOpen,
+	selectSortOrderForGlobalAppend,
+	getSortOrderImmediatelyAdjacentToCard,
+	selectUserMayReorderActiveCollection,
+	selectActiveCollectionDescription
 } from '../selectors.js';
 
 import {
@@ -113,6 +116,7 @@ import {
 	KEY_CARD_ID_PLACEHOLDER,
 	TEXT_FIELD_TITLE,
 	editableFieldsForCardType,
+	sortOrderIsDangerous
 } from '../card_fields.js';
 
 import {
@@ -136,6 +140,7 @@ import {
 import {
 	MultiBatch
 } from '../multi_batch.js';
+
 
 //map of cardID => promise that's waiting
 let waitingForCards = {};
@@ -356,78 +361,51 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch) => 
 
 };
 
-export const reorderCard = (card, newIndex) => async (dispatch, getState) => {
+//beforeID is the ID of hte card we should place ourselves immediately before.
+export const reorderCard = (card, otherID, isAfter) => async (dispatch, getState) => {
 
 	const state = getState();
 
-	if (!card || !card.id || !card.section) {
+	if (!card || !card.id) {
 		console.log('That card isn\'t valid');
 		return;
 	}
 
-	if (!getUserMayEditSection(state, card.section)) {
-		console.log('The user does not have permission to edit that section');
+	if (card.id == otherID) {
+		console.log('Dropping into the same position it is now, which is a no op');
 		return;
 	}
 
-	let section = state.data.sections[card.section];
-
-	if (!section) {
-		console.log('That card\'s section was not valid');
+	if (!selectUserMayReorderActiveCollection(state)) {
+		console.log('Reordering the current collection is not allowed');
 		return;
 	}
 
-	//newIndex is relative to the overall collection size; redo to be newIndex
-	let startCards = section.start_cards || [];
-	let effectiveIndex = newIndex - startCards.length;
+	const collectionDescription = selectActiveCollectionDescription(state);
 
-	if (effectiveIndex < 0) {
-		console.log('Effective index is less than 0');
-		return;
-	}
+	if (collectionDescription.sortReversed) isAfter = !isAfter;
 
-	if (effectiveIndex > (section.cards.length - 1)) {
-		console.log('Effective index is greater than length');
+	const newSortOrder = getSortOrderImmediatelyAdjacentToCard(state, otherID, !isAfter);
+
+	if (sortOrderIsDangerous(newSortOrder)) {
+		console.warn('Dangerous sort order proposed: ', newSortOrder, ' See issue #199');
 		return;
 	}
 
 	dispatch(reorderStatus(true));
 
-	await db.runTransaction(async transaction => {
-		let sectionRef = db.collection(SECTIONS_COLLECTION).doc(card.section);
-		let doc = await transaction.get(sectionRef);
-		if (!doc.exists) {
-			throw 'Doc doesn\'t exist!';
-		}
-		let cards = doc.data().cards || [];
-		let trimmedCards = [];
-		let foundInSection = false;
-		for (let val of Object.values(cards)) {
-			if (val == card.id) {
-				if (foundInSection) {
-					throw 'Card was found in the section cards list twice';
-				}
-				foundInSection = true;
-				continue;
-			}
-			trimmedCards.push(val);
-		}
+	const batch = new MultiBatch(db);
+	const update = {
+		sort_order: newSortOrder,
+	};
+	modifyCardWithBatch(state, card, update, false, batch);
 
-		if (!foundInSection) throw 'Card was not found in section\'s card list';
-
-		let result;
-
-		if (effectiveIndex == 0) {
-			result = [card.id, ...trimmedCards];
-		} else if (effectiveIndex >= trimmedCards.length) {
-			result = [...trimmedCards, card.id];
-		} else {
-			result = [...trimmedCards.slice(0,effectiveIndex), card.id, ...trimmedCards.slice(effectiveIndex)];
-		}
-		transaction.update(sectionRef, {cards: result, updated: serverTimestampSentinel()});
-		let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
-		transaction.set(sectionUpdateRef, {timestamp: serverTimestampSentinel(), cards: result});
-	}).then(() => dispatch(reorderStatus(false))).catch(() => dispatch(reorderStatus(false)));
+	try {
+		await batch.commit();
+	} catch(err) {
+		console.warn(err);
+	}
+	dispatch(reorderStatus(false));
 
 	//We don't need to tell the store anything, because firestore will tell it
 	//automatically.
@@ -588,7 +566,7 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 		color: color,
 	});
 
-	let cardObject = defaultCardObject(startCardId, user, '', CARD_TYPE_SECTION_HEAD);
+	let cardObject = defaultCardObject(startCardId, user, '', CARD_TYPE_SECTION_HEAD, selectSortOrderForGlobalAppend(state));
 	cardObject.title = displayName;
 	cardObject.subtitle = displayName + ' is a topical tag';
 	cardObject.published = true;
@@ -613,7 +591,7 @@ const CARD_FIELDS_TO_COPY_ON_FORK = {
 };
 
 //exported entireoly for initialSetUp in maintence.js
-export const defaultCardObject = (id, user, section, cardType) => {
+export const defaultCardObject = (id, user, section, cardType, sortOrder) => {
 	return {
 		created: serverTimestampSentinel(),
 		updated: serverTimestampSentinel(),
@@ -635,6 +613,12 @@ export const defaultCardObject = (id, user, section, cardType) => {
 		tweet_retweet_count: 0,
 		thread_count: 0,
 		thread_resolved_count: 0,
+		//A number that is compared to other cards to give the default sort
+		//order. Higher numbers will show up first in the default sort order.
+		//Before saving the card for the first time, you should set this to a
+		//reasonable value, typically DEFAULT_SORT_ORDER_INCREMENT smaller than
+		//every card already known to exist.
+		sort_order: sortOrder,
 		title: '',
 		section: section,
 		body: '',
@@ -757,14 +741,17 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		return;
 	}
 
-	let appendMiddle = false;
-	let appendIndex = 0;
+	let sortOrder = selectSortOrderForGlobalAppend(state);
 	if (section && selectActiveSectionId(state) == section) {
-		appendMiddle = true;
-		appendIndex = selectActiveCardIndex(state);
+		sortOrder = getSortOrderImmediatelyAdjacentToCard(state, selectActiveCardId(state), false);
 	}
 
-	let obj = defaultCardObject(id, user, section, cardType);
+	if (sortOrderIsDangerous(sortOrder)) {
+		console.warn('Dangerous sort order proposed: ', sortOrder, ' See issue #199');
+		return;
+	}
+
+	let obj = defaultCardObject(id, user, section, cardType, sortOrder);
 	obj.title = title;
 	if (CARD_TYPE_CONFIG.publishedByDefault) obj.published = true;
 	if (CARD_TYPE_CONFIG.defaultBody) obj[TEXT_FIELD_BODY] = CARD_TYPE_CONFIG.defaultBody;
@@ -838,45 +825,29 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		fallbackAutoSlugLegalPromise = slugLegal(fallbackAutoSlug);
 	}
 
+	const batch = db.batch();
+
+	ensureAuthor(batch, user);
+	batch.set(cardDocRef, obj);
+
 	if (section) {
-
 		let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
+		let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
+		batch.update(sectionRef, {
+			cards: arrayUnionSentinel(id),
+			updated: serverTimestampSentinel(),
+		});
+		batch.set(sectionUpdateRef, {
+			timestamp: serverTimestampSentinel(), 
+			add_card: id
+		});
+	}
 
-		let transactionFunc = async transaction => {
-			let sectionDoc = await transaction.get(sectionRef);
-			if (!sectionDoc.exists) {
-				throw 'Doc doesn\'t exist!';
-			}
-			var newArray = [...sectionDoc.data().cards, id];
-			if (appendMiddle) {
-				let current = sectionDoc.data().cards;
-				newArray = [...current.slice(0,appendIndex), id, ...current.slice(appendIndex)];
-			}
-			ensureAuthor(transaction, user);
-			transaction.update(sectionRef, {cards: newArray, updated: serverTimestampSentinel()});
-			let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
-			transaction.set(sectionUpdateRef, {timestamp: serverTimestampSentinel(), cards: newArray});
-			transaction.set(cardDocRef, obj);
-		};
-
-		try {
-			await db.runTransaction(transactionFunc);
-		} catch (err) {
-			console.warn(err);
-			dispatch({type: EXPECTED_NEW_CARD_FAILED});
-		}
-	} else {
-		const batch = db.batch();
-
-		ensureAuthor(batch, user);
-		batch.set(cardDocRef, obj);
-
-		try {
-			await batch.commit();
-		} catch (err) {
-			console.warn(err);
-			dispatch({type: EXPECTED_NEW_CARD_FAILED});
-		}
+	try {
+		await batch.commit();
+	} catch (err) {
+		console.warn(err);
+		dispatch({type: EXPECTED_NEW_CARD_FAILED});
 	}
 
 	//updateSections will be called and update the current view. card-view's
@@ -942,14 +913,9 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		return;
 	}
 
-	let appendMiddle = false;
-	let appendIndex = 0;
-	if (selectActiveSectionId(state) == section) {
-		appendMiddle = true;
-		appendIndex = selectActiveCardIndex(state);
-	}
+	let sortOrder = getSortOrderImmediatelyAdjacentToCard(state, cardToFork.id, false);
 
-	let obj = defaultCardObject(id,user,section,cardType);
+	let obj = defaultCardObject(id,user,section,cardType, sortOrder);
 	for (let key of Object.keys(CARD_FIELDS_TO_COPY_ON_FORK)) {
 		//We can literally leave these as the same object because they'll just
 		//be sent to firestore and the actual card we'll store will be new
@@ -972,61 +938,40 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		noSectionChange: !section,
 	});
 
-	if (!section) {
-		//This is the simpler case of forking something that's orphaned
-		let batch = db.batch();
-		ensureAuthor(batch, user);
-		batch.set(cardDocRef, obj);
-		for (let tagName of obj.tags) {
-			let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
-			let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
-			let newTagObject = {
-				cards: arrayUnionSentinel(id),
-				updated: serverTimestampSentinel()
-			};
-			let newTagUpdateObject = {
-				timestamp: serverTimestampSentinel(),
-				add_card: id,
-			};
-			batch.update(tagRef, newTagObject);
-			batch.set(tagUpdateRef, newTagUpdateObject);
-		}
-		batch.commit();
-		return;
+	let batch = db.batch();
+	ensureAuthor(batch, user);
+	batch.set(cardDocRef, obj);
+	for (let tagName of obj.tags) {
+		let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
+		let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
+		let newTagObject = {
+			cards: arrayUnionSentinel(id),
+			updated: serverTimestampSentinel()
+		};
+		let newTagUpdateObject = {
+			timestamp: serverTimestampSentinel(),
+			add_card: id,
+		};
+		batch.update(tagRef, newTagObject);
+		batch.set(tagUpdateRef, newTagUpdateObject);
 	}
 
-	let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
-
-	await db.runTransaction(async transaction => {
-		let sectionDoc = await transaction.get(sectionRef);
-		if (!sectionDoc.exists) {
-			throw 'Doc doesn\'t exist!';
-		}
-		var newArray = [...sectionDoc.data().cards, id];
-		if (appendMiddle) {
-			let current = sectionDoc.data().cards;
-			newArray = [...current.slice(0,appendIndex), id, ...current.slice(appendIndex)];
-		}
-		ensureAuthor(transaction, user);
-		transaction.update(sectionRef, {cards: newArray, updated: serverTimestampSentinel()});
+	if (section) {
+		let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
+		batch.update(sectionRef, {
+			cards: arrayUnionSentinel(id),
+			updated: serverTimestampSentinel()
+		});
 		let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
-		transaction.set(sectionUpdateRef, {timestamp: serverTimestampSentinel(), cards: newArray});
-		transaction.set(cardDocRef, obj);
-		for (let tagName of obj.tags) {
-			let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
-			let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
-			let newTagObject = {
-				cards: arrayUnionSentinel(id),
-				updated: serverTimestampSentinel()
-			};
-			let newTagUpdateObject = {
-				timestamp: serverTimestampSentinel(),
-				add_card: id,
-			};
-			transaction.update(tagRef, newTagObject);
-			transaction.set(tagUpdateRef, newTagUpdateObject);
-		}
-	});
+		batch.set(sectionUpdateRef, {
+			timestamp: serverTimestampSentinel(), 
+			add_card: id,
+		});
+	}
+
+	batch.commit();
+	return;
+
 
 	//updateSections will be called and update the current view. card-view's
 	//updated will call navigateToNewCard once the data is fully loaded again

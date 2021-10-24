@@ -20,7 +20,8 @@ import {
 	selectActiveSectionId,
 	selectDataIsFullyLoaded,
 	selectUserSignedIn,
-	selectUserMayEditActiveCollection,
+	selectUserMayAddCardToActiveCollection,
+	selectUserMayReorderActiveCollection,
 	selectActiveCollectionCardTypeToAdd,
 	selectUserMayStar,
 	selectUserMayMarkRead,
@@ -252,7 +253,7 @@ class CardView extends connect(store)(PageViewElement) {
         }
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .collection=${this._collection} @info-zippy-clicked=${this._handleInfoZippyClicked} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' @add-working-notes-card='${this._handleAddWorkingNotesCard}' .editable=${this._userMayEditActiveCollection} .suppressAdd=${!this._userMayCreateCard} .showCreateWorkingNotes=${this._userMayCreateCard} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .ghostCardsThatWillBeRemoved=${true} .wordCloud=${this._collectionWordCloud} .infoExpanded=${this._infoExpanded} .infoCanBeExpanded=${true} .cardTypeToAdd=${this._cardTypeToAdd}>
+        <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .collection=${this._collection} @info-zippy-clicked=${this._handleInfoZippyClicked} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' @add-working-notes-card='${this._handleAddWorkingNotesCard}' .reorderable=${this._userMayReorderCollection} .showCreateCard=${this._userMayAddCardToActiveCollection} .showCreateWorkingNotes=${this._userMayCreateCard} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .ghostCardsThatWillBeRemoved=${true} .wordCloud=${this._collectionWordCloud} .infoExpanded=${this._infoExpanded} .infoCanBeExpanded=${true} .cardTypeToAdd=${this._cardTypeToAdd}>
 			<div slot='info'>
 				${this._userIsAdmin ? html`
 				<input type='checkbox' .checked=${this._suggestMissingConceptsEnabled} @change=${this._handleSuggestMissingConceptsChanged} id='suggested-concepts-enabled'><label for='suggested-concepts-enabled'>Suggest Missing Concepts <strong>(SLOW)</strong></label><br/>
@@ -305,7 +306,8 @@ class CardView extends connect(store)(PageViewElement) {
 			_pageExtra: {type: String},
 			_userMayEdit: { type: Boolean },
 			_cardTypeToAdd: {type:String},
-			_userMayEditActiveCollection: {type: Boolean},
+			_userMayAddCardToActiveCollection: {type: Boolean},
+			_userMayReorderCollection: {type: Boolean},
 			_userMayCreateCard: { type: Boolean },
 			_userMayStar: { type: Boolean },
 			_userMayMarkRead: { type: Boolean },
@@ -479,7 +481,7 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	_handleReorderCard(e) {
-		store.dispatch(reorderCard(e.detail.card, e.detail.index));
+		store.dispatch(reorderCard(e.detail.card, e.detail.otherID, e.detail.isAfter));
 	}
 
 	stateChanged(state) {
@@ -496,7 +498,8 @@ class CardView extends connect(store)(PageViewElement) {
 		this._autoMarkReadPending = state.user.autoMarkReadPending;
 		this._userMayEdit = selectUserMayEditActiveCard(state);
 		this._cardTypeToAdd = selectActiveCollectionCardTypeToAdd(state);
-		this._userMayEditActiveCollection = selectUserMayEditActiveCollection(state);
+		this._userMayAddCardToActiveCollection = selectUserMayAddCardToActiveCollection(state);
+		this._userMayReorderCollection = selectUserMayReorderActiveCollection(state);
 		this._userMayCreateCard = selectUserMayCreateCard(state);
 		this._userMayForkCard = selectUserMayForkActiveCard(state);
 		this._headerPanelOpen = state.app.headerPanelOpen;

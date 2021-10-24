@@ -33,6 +33,8 @@ import {
 import {
 	selectUser,
 	selectCards,
+	selectDefaultSet,
+	selectEverythingSet
 } from '../selectors.js';
 
 import {
@@ -66,7 +68,10 @@ import {
 	REFERENCES_INBOUND_CARD_PROPERTY,
 	REFERENCE_TYPE_LINK,
 	REFERENCE_TYPE_ACK,
-	fontSizeBoosts
+	fontSizeBoosts,
+	MAX_SORT_ORDER_VALUE,
+	MIN_SORT_ORDER_VALUE,
+	DEFAULT_SORT_ORDER_INCREMENT
 } from '../card_fields.js';
 
 import {
@@ -194,6 +199,7 @@ const initialSetup = async (_, getState) => {
 	const cardsCollection = db.collection(CARDS_COLLECTION);
 
 	let count = 0;
+	let sortOrder = (MAX_SORT_ORDER_VALUE - MIN_SORT_ORDER_VALUE) / 2;
 	for (let [key, val] of Object.entries(starterSections)) {
 		const update = {...val};
 		const startCardId = 'section-' + key;
@@ -204,24 +210,34 @@ const initialSetup = async (_, getState) => {
 		update.start_cards = [startCardId];
 		batch.set(sectionsCollection.doc(key), update);
 
-		let sectionHeadCard = defaultCardObject(startCardId,user,key,CARD_TYPE_SECTION_HEAD);
+		//Put the first card smack in the middle.
+		let sectionHeadCard = defaultCardObject(startCardId,user,key,CARD_TYPE_SECTION_HEAD, sortOrder);
+		//get sortOreder ready for next user
+		sortOrder -= DEFAULT_SORT_ORDER_INCREMENT;
+
 		sectionHeadCard.title = update.title;
 		sectionHeadCard.subtitle = update.subtitle;
 		sectionHeadCard.published = true;
 		batch.set(cardsCollection.doc(startCardId), sectionHeadCard);
 
-		const contentCard = defaultCardObject(contentCardId, user, key, CARD_TYPE_CONTENT);
+		const contentCard = defaultCardObject(contentCardId, user, key, CARD_TYPE_CONTENT, sortOrder);
+		//get sortOreder ready for next user
+		sortOrder -= DEFAULT_SORT_ORDER_INCREMENT;
 		contentCard.published = true;
 		batch.set(cardsCollection.doc(contentCardId), contentCard);
 
 		count++;
 	}
 
-	const readingListFallbackCard = defaultCardObject(READING_LIST_FALLBACK_CARD, user, '', CARD_TYPE_CONTENT);
+	const readingListFallbackCard = defaultCardObject(READING_LIST_FALLBACK_CARD, user, '', CARD_TYPE_CONTENT, sortOrder);
+	//get sortOreder ready for next user
+	sortOrder -= DEFAULT_SORT_ORDER_INCREMENT;
 	readingListFallbackCard.title = 'About Reading Lists';
 	readingListFallbackCard.body = '<p>There are a lot of cards to read in the collection, and it can be hard to keep track.</p><p>You can use a feature called <strong>reading list</strong>&nbsp;to keep track of cards you want to read next. Just hit the reading-list button below any card (it\'s the button that looks like an icon to add to a playlist) and they\'ll show up in the Reading List tab. Once you\'re done reading that card, you can simply tap the button again to remove it from your reading list.</p><p>When you see a link on any card, you can also Ctrl/Cmd-Click it to automatically add it to your reading-list even without opening it. Links to cards that are already on your reading-list will show a double-underline.</p>' ;
 	readingListFallbackCard.published = true;
-	const starsFallbackCard = defaultCardObject(STARS_FALLBACK_CARD, user, '', CARD_TYPE_CONTENT);
+	const starsFallbackCard = defaultCardObject(STARS_FALLBACK_CARD, user, '', CARD_TYPE_CONTENT, sortOrder);
+	//get sortOreder ready for next user
+	sortOrder -= DEFAULT_SORT_ORDER_INCREMENT;
 	starsFallbackCard.title = 'About Stars';
 	starsFallbackCard.body = '<p>You can star cards, and when you do they\'ll show up in the Starred list at the top nav.</p>';
 	starsFallbackCard.published = true;
@@ -452,6 +468,48 @@ const rerunCardFinishers = async (dispatch, getState) => {
 	await batch.commit();
 };
 
+const ADD_SORT_ORDER_PROPERTY = 'add-sort-order-property';
+
+const addSortOrderProperty = async (dispatch, getState) => {
+
+	let batch = new MultiBatch(db);
+
+	const state = getState();
+	const cards = selectCards(state);
+
+	if (Object.values(cards).some(card => card.sort_order)) {
+		throw new Error('At least some cards appeared to already have sort_order property');
+	}
+
+
+	//Note: this logic assume that the cards don't already have sort_order and
+	//htat defaultSet is being built in the legacy, via sections, way. 
+	
+	//IDs, not full cards.
+	const defaultSet = selectDefaultSet(state);
+	const everythingSet = [...selectEverythingSet(state)];
+	//We want newer things with higher numbers by default, but evertyhing set by default is recently updated things first
+	everythingSet.reverse();
+	//This will have all IDs in the proper order, but with every default item
+	//also showing up later in everything set.
+	const fullDupedSet = [...defaultSet, ...everythingSet];
+	//Use set to remove duplicates in order
+	const fullOrderedSet = [... new Set(fullDupedSet)];
+
+	let counter = MAX_SORT_ORDER_VALUE;
+	const increment = (MAX_SORT_ORDER_VALUE - MIN_SORT_ORDER_VALUE) / Object.keys(cards).length;
+
+	for (const cardID of fullOrderedSet) {
+		const card = cards[cardID];
+		if (!card) throw new Error(cardID + ' was not found in cards collection');
+		const ref = db.collection(CARDS_COLLECTION).doc(cardID);
+		batch.update(ref, {sort_order: counter});
+		counter -= increment;
+	}
+
+	await batch.commit();
+};
+
 //The value of MAINTENANCE_TASK_VERSION when this instance of the app was set up
 const setUpVersion = (executedTasks) => {
 	const setUpTaskRecord = executedTasks[INITIAL_SET_UP];
@@ -548,7 +606,7 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 //them, because we assume that if you were to set up a new instance at any given
 //moment, the non-recurring maintenance tasks are already implicitly run and
 //included in normal operation of the webapp as soon as they were added.
-const MAINTENANCE_TASK_VERSION = 2;
+const MAINTENANCE_TASK_VERSION = 3;
 
 /*
 
@@ -624,7 +682,11 @@ const RAW_TASKS = {
 		fn: rerunCardFinishers,
 		recurring: true,
 		minVersion: 0,
-	}
+	},
+	[ADD_SORT_ORDER_PROPERTY]: {
+		fn: addSortOrderProperty,
+		minVersion: 3,
+	},
 };
 
 //It's so important that RAW_TASKS minVersion is set correctly that we'll catch obvious mistakes here.

@@ -45,7 +45,10 @@ import {
 	CARD_TYPE_CONCEPT,
 	CARD_TYPE_WORKING_NOTES,
 	DEFAULT_CARD_TYPE,
-	CARD_TYPE_CONFIGURATION
+	CARD_TYPE_CONFIGURATION,
+	DEFAULT_SORT_ORDER_INCREMENT,
+	MIN_SORT_ORDER_VALUE,
+	MAX_SORT_ORDER_VALUE
 } from './card_fields.js';
 
 import {
@@ -1113,7 +1116,7 @@ export const selectActiveCollectionCardTypeToAdd = createSelector(
 //would work. This is true if the card type is content and the user may edit the
 //active section, OR it's the everything set with a single filter, for a card
 //type that is orphaned by default.
-export const selectUserMayEditActiveCollection = createSelector(
+export const selectUserMayAddCardToActiveCollection = createSelector(
 	selectUserMayEditActiveSection,
 	selectActiveCollectionCardTypeToAdd,
 	(userMayEditActiveSection, cardTypeToAdd) => {
@@ -1202,11 +1205,19 @@ export const selectActiveTagId = createSelector(
 
 export const selectDefaultSet = createSelector(
 	selectSections,
-	(sections) => {
+	selectRawCards,
+	(sections, cards) => {
 		let result = [];
 		for (let section of Object.values(sections)) {
 			result = result.concat(section.cards);
 		}
+		//The order of cards in the section object is nondterministic. The order
+		//that matters is the sort_order. Higher sort-order should sort to the top.
+		result.sort((a,b) => {
+			let cardAValue = cards[a] ? cards[a].sort_order : 0.0;
+			let cardBValue = cards[b] ? cards[b].sort_order : 0.0;
+			return cardBValue - cardAValue;
+		});
 		return result;
 	}
 );
@@ -1214,16 +1225,15 @@ export const selectDefaultSet = createSelector(
 const makeEverythingSetFromCards = (cards) => {
 	let keys = Object.keys(cards);
 	keys.sort((a, b) => {
-		let aCard = cards[a];
-		let bCard = cards[b];
-		let aTimestamp = aCard.updated_substantive && aCard.updated_substantive.seconds ? aCard.updated_substantive.seconds : 0;
-		let bTimestamp = bCard.updated_substantive && bCard.updated_substantive.seconds ? bCard.updated_substantive.seconds : 0;
-		return bTimestamp - aTimestamp;
+		let cardAValue = cards[a] ? cards[a].sort_order : 0.0;
+		let cardBValue = cards[b] ? cards[b].sort_order : 0.0;
+		return cardBValue - cardAValue;
 	});
 	return keys;
 };
 
-const selectEverythingSet = createSelector(
+//Note; other selectors depend on this being sorted based on descending sort_order
+export const selectEverythingSet = createSelector(
 	selectCards,
 	makeEverythingSetFromCards,
 );
@@ -1258,6 +1268,89 @@ const selectSetsSnapshot = createSelector(
 		[EVERYTHING_SET_NAME]: everythingSetSnapshot,
 		[READING_LIST_SET_NAME]: readingListSet,
 	})
+);
+
+
+//Returns a map of cardID -> sorted order in the global order
+export const selectSortOrderIndexByCard = createSelector(
+	selectEverythingSet,
+	(sortedCardIDs) => {
+		const result = {};
+		let index = 0;
+		for (const id of sortedCardIDs) {
+			result[id] = index;
+			index++;
+		}
+		return result;
+	}
+);
+
+//Returns a map of sortIndex --> cardID for the sorted order
+export const selectCardIDBySortOrderIndex = createSelector(
+	selectSortOrderIndexByCard,
+	(index) => Object.fromEntries(Object.entries(index).map(entry => [entry[1], entry[0]]))
+);
+
+//Gets the sort_order to put another card adjacent to the given cardID in the
+//full set. It finds the next card in the evertyhing set and puts it halfway
+//between. By default it adds it after the given card, but if before is true it
+//will add it before.
+export const getSortOrderImmediatelyAdjacentToCard = (state, cardID, before) => {
+	const sortIndexByCard = selectSortOrderIndexByCard(state);
+	const cardIDbySortIndex = selectCardIDBySortOrderIndex(state);
+	const cards = selectRawCards(state);
+	const card = cards[cardID];
+	const numCards = Object.keys(cards).length;
+	let keyCardIndex = sortIndexByCard[cardID];
+	keyCardIndex += (before ? -1.0 : 1.0);
+	if (keyCardIndex < 0) return card.sort_order - DEFAULT_SORT_ORDER_INCREMENT;
+	if (keyCardIndex >= numCards) return card.sort_order + DEFAULT_SORT_ORDER_INCREMENT;
+	const nextCardID = cardIDbySortIndex[keyCardIndex];
+	const nextCard = cards[nextCardID];
+	//Return halfway between the two cards.
+	return (card.sort_order + nextCard.sort_order) / 2;
+};
+
+//Returns the lowest sort order known to be currently in use by cards in this
+//set. This may be incorrect if there are unloaded cards.
+export const selectLowestSortOrder = createSelector(
+	selectEverythingSet,
+	selectRawCards,
+	(sortedCardIDs, cards) => {
+		if (!sortedCardIDs || sortedCardIDs.length == 0) return MIN_SORT_ORDER_VALUE;
+		const lowestCardID = sortedCardIDs[sortedCardIDs.length - 1];
+		const card = cards[lowestCardID];
+		if (!card) return 0.0;
+		return card.sort_order;
+	}
+);
+
+//Returns the highgest sort order known to be currently in use by cards in this
+//set. This may be incorrect if there are unloaded cards.
+export const selectHighestSortOrder = createSelector(
+	selectEverythingSet,
+	selectRawCards,
+	(sortedCardIDs, cards) => {
+		if (!sortedCardIDs || sortedCardIDs.length == 0) return MAX_SORT_ORDER_VALUE;
+		const highestCardID = sortedCardIDs[0];
+		const card = cards[highestCardID];
+		if (!card) return 0.0;
+		return card.sort_order;
+	}
+);
+
+//selects the next sort order to use if you don't care about having it sort in
+//front of any cards, just appended after any other card that currently exists.
+export const selectSortOrderForGlobalAppend = createSelector(
+	selectLowestSortOrder,
+	(lowestSortOrder) => lowestSortOrder - DEFAULT_SORT_ORDER_INCREMENT
+);
+
+//selects the next sort order to use if you want it to show up in front of any
+//existing cards.
+export const selectSortOrderForGlobalPrepend = createSelector(
+	selectHighestSortOrder,
+	(highestSortOrder) => highestSortOrder + DEFAULT_SORT_ORDER_INCREMENT
 );
 
 //selectCollectionConstructorArguments returns an array that can be unpacked and
@@ -1306,6 +1399,16 @@ export const selectActiveCollection = createSelector(
 	selectActiveCollectionDescription,
 	selectCollectionConstructorArgumentsForGhostingCollection,
 	(description, args) => description ? description.collection(args) : null
+);
+
+//Whether they're ALLOWED to edit cards, and whether they're in a collection in
+//which reordering is legal. Note: this means that even if it is legal in
+//genearl to reorder a collection and the user can modify one card in
+//partiuclar, they won't be able to reorder it.
+export const selectUserMayReorderActiveCollection = createSelector(
+	selectUserMayEditCards,
+	selectActiveCollection,
+	(userMayEditCards, collection) => userMayEditCards && collection.reorderable
 );
 
 //TODO: implement a proper notion of selected cards. For now we just use all

@@ -787,6 +787,12 @@ const Collection = class {
 		this._sortedCards = this._makeSortedCards();
 	}
 
+	get reorderable() {
+		const config = this._description.sortConfig;
+		if (!config.reorderable) return false;
+		return config.reorderable(this._sortExtras);
+	}
+
 	get sortLabelName() {
 		this._ensureFilteredCards();
 		const config = this._description.sortConfig;
