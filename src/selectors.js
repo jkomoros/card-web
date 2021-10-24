@@ -1404,6 +1404,16 @@ export const selectActiveCollection = createSelector(
 	(description, args) => description ? description.collection(args) : null
 );
 
+//Whether they're ALLOWED to edit cards, and whether they're in a collection in
+//which reordering is legal. Note: this means that even if it is legal in
+//genearl to reorder a collection and the user can modify one card in
+//partiuclar, they won't be able to reorder it.
+export const selectUserMayReorderActiveCollection = createSelector(
+	selectUserMayEditCards,
+	selectActiveCollection,
+	(userMayEditCards, collection) => userMayEditCards && collection.reorderable
+);
+
 //TODO: implement a proper notion of selected cards. For now we just use all
 //active cards in the collection.
 export const selectSelectedCards = createSelector(
