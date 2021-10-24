@@ -304,6 +304,10 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		let target = e.composedPath()[0];
 		target.classList.remove('drag-active');
 		let thumbnail = this._dragging;
+		if (thumbnail.index < this.collection.numStartCards) {
+			console.log('Start card can\'t be reordered');
+			return;
+		}
 		let otherID = target.cardid;
 		let isAfter = target.after ? true : false;
 		this.dispatchEvent(new CustomEvent('reorder-card', {composed: true, detail: {card: thumbnail.card, otherID: otherID, isAfter: isAfter}}));
