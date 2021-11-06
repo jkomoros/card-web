@@ -55,8 +55,12 @@ export const CARD_HEIGHT_IN_EMS = 24.54;
 export const CARD_VERTICAL_PADDING_IN_EMS = 1.0;
 export const CARD_HORIZONTAL_PADDING_IN_EMS = 1.45;
 
-//Number of pixels until a track is considered a swipe
+// Number of pixels until a track is considered a swipe.
 const SWIPE_DX = 15.0;
+// Max duration of gesture to qualify as a swipe, in milliseconds.
+const SWIPE_MAX_GESTURE_DURATION = 200;
+// Timestamps of 'start' gestures.
+var startGestureTimestamps = {};
 
 // This element is *not* connected to the Redux store.
 export class CardRenderer extends GestureEventListeners(LitElement) {
@@ -365,10 +369,31 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 	}
 
 	_handleTrack(e) {
-		//Wait until the track ends, and they lift their finger
-		if (e.detail.state != 'end') return;
-		//If the sourcEvent is a mouseevent, then we're on a desktop and might have been selecting text.
-		if (e.detail.sourceEvent.type == 'mouseup') return;
+		if (e.detail.state != 'start' && e.detail.state != 'end') {
+			return;
+		}
+
+		let startX = e.detail.x - e.detail.dx;
+		let startY = e.detail.y - e.detail.dy;
+		let key = `${startX},${startY}`;
+		let currentTimestamp = e.timeStamp;
+
+		if (e.detail.state == 'start') {
+			// Save start data for later, but should not be handled further.
+			startGestureTimestamps[key] = currentTimestamp;
+			return;
+		}
+
+		// Gesture is ending.
+		let startTimestamp = startGestureTimestamps[key];
+		delete startGestureTimestamps[key];
+		let gestureDuration = currentTimestamp - startTimestamp;
+
+		// Discard gestures with a duration greater than the threshold.
+		if (gestureDuration > SWIPE_MAX_GESTURE_DURATION) {
+			return;
+		}
+
 		if (e.detail.dx > SWIPE_DX) {
 			this.dispatchEvent(new CustomEvent('card-swiped', {composed:true, detail: {direction:'right'}}));
 		}
