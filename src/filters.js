@@ -601,6 +601,7 @@ export const COMBINE_FILTER_NAME = 'combine';
 export const QUERY_FILTER_NAME = 'query';
 const QUERY_STRICT_FILTER_NAME = 'query-strict';
 export const LIMIT_FILTER_NAME = 'limit';
+export const OFFSET_FILTER_NAME = 'offset';
 export const SIMILAR_FILTER_NAME = 'similar';
 //About as in 'about this concept'. Ideally it would have been 'concept', but
 //that's reserved for the cardType filter. It used to be 'about' but that
@@ -645,6 +646,7 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[QUERY_FILTER_NAME]: 1,
 	[QUERY_STRICT_FILTER_NAME]: 1,
 	[LIMIT_FILTER_NAME]: 1,
+	[OFFSET_FILTER_NAME]: 1,
 	[SIMILAR_FILTER_NAME]: 1,
 	[ABOUT_CONCEPT_FILTER_NAME]: 1,
 	[MISSING_CONCEPT_FILTER_NAME]: 1,
@@ -956,6 +958,19 @@ export const CONFIGURABLE_FILTER_INFO = {
 		arguments: [{
 			type: URL_PART_INT,
 			description: 'Limit',
+			default: '10'
+		}],
+	},
+	[OFFSET_FILTER_NAME]: {
+		//Offset is a special type of filter... it must run at the very last
+		//phase after all cards are sorted. So as far as the normal machinery is
+		//concerned, it's actually a no-op filter. It's up to Collection to
+		//process it.
+		factory: makeNoOpConfigurableFilter,
+		description: 'Drops the first n cards from the returned set. When used in conjunction with limit, allows pagination. Offset is a special type of filter that can only apply at the top-level, and there can only be one.',
+		arguments: [{
+			type: URL_PART_INT,
+			description: 'Offset',
 			default: '10'
 		}],
 	},

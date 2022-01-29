@@ -11,6 +11,7 @@ import {
 	CONFIGURABLE_FILTER_URL_PARTS,
 	CONFIGURABLE_FILTER_NAMES,
 	LIMIT_FILTER_NAME,
+	OFFSET_FILTER_NAME,
 	DEFAULT_VIEW_MODE,
 	VIEW_MODE_URL_KEYWORD,
 	LEGAL_VIEW_MODES,
@@ -236,11 +237,17 @@ export const CollectionDescription = class {
 		if (!filterNames.every(item => typeof item == 'string')) throw new TypeError();
 
 		let limit = 0;
+		let offset = 0;
 		for (let filter of filterNames) {
-			if (!filter.startsWith(LIMIT_FILTER_NAME + '/')) continue;
-			limit = parseInt(filter.split('/')[1]);
-			if (isNaN(limit)) limit = 0;
-			if (limit < 0) limit = 0;
+			if (filter.startsWith(LIMIT_FILTER_NAME + '/')){
+				limit = parseInt(filter.split('/')[1]);
+				if (isNaN(limit)) limit = 0;
+				if (limit < 0) limit = 0;
+			} else if (filter.startsWith(OFFSET_FILTER_NAME + '/')) {
+				offset = parseInt(filter.split('/')[1]);
+				if (isNaN(offset)) offset = 0;
+				if (offset < 0) offset = 0;
+			}
 		}
 
 		this._setNameExplicitlySet = setNameExplicitlySet;
@@ -251,6 +258,7 @@ export const CollectionDescription = class {
 		this._viewMode = viewMode;
 		this._viewModeExtra = viewModeExtra;
 		this._limit = limit;
+		this._offset = offset;
 		this._serialized = this._serialize(false);
 		this._serializedShort = this._serializeShort(false);
 	}
@@ -296,6 +304,13 @@ export const CollectionDescription = class {
 	//capped.
 	get limit() {
 		return this._limit;
+	}
+
+	//IF the collection wants to offset how many items to return, this will
+	//return a number greater than zero, for how many items should be skipped at
+	//the front.
+	get offset() {
+		return this._offset;
 	}
 
 	serialize() {
@@ -689,8 +704,11 @@ const Collection = class {
 	//start_cards or anything like that.
 	get numCards() {
 		this._ensureFilteredCards();
-		//A limit of 0 means 
-		return this._description.limit ? Math.min(this._preLimitlength, this._description.limit) : this._preLimitlength;
+		//The default offset is 0. It's how many items to skip at the front.
+		let len = this._preLimitlength - this._description.offset;
+		//A limit of 0 means no limit. 
+		if (this._description.limit) len = Math.min(len, this._description.limit);
+		return len;
 	}
 
 	get _preLimitFilteredCards() {
@@ -700,10 +718,10 @@ const Collection = class {
 
 	get filteredCards() {
 		this._ensureFilteredCards();
-		//a limit of 0 is 'all cards'. If there is a limit, we have to sort the
-		//cards before taking the limit. this.sortedCards will also include the
-		//limited subset.
-		return this._description.limit ? this.sortedCards : this._filteredCards;
+		//a limit of 0 is 'all cards'. If there is a limit (or a non-zero
+		//offset), we have to sort the cards before taking the limit/offset.
+		//this.sortedCards will also include the limited subset.
+		return (this._description.limit || this._description.offset) ? this.sortedCards : this._filteredCards;
 	}
 
 	get isFallback() {
@@ -812,11 +830,13 @@ const Collection = class {
 	//prepended. See also finalSortedCards.
 	get sortedCards() {
 		this._ensureSortedCards();
-		//A limit of 0 is 'all cards'; This is where the actual limit filter
-		//happens, since the cards have to be sorted first before taking the
-		//limit. filteredCards will return the results from this if there's a
-		//limit in place.
-		return this._description.limit ? this._sortedCards.slice(0, this._description.limit) : this._sortedCards;
+		//A limit of 0 is 'all cards'; This is where the actual limit / offset
+		//filter happens, since the cards have to be sorted first before taking
+		//the limit or offset. filteredCards will return the results from this if there's
+		//a limit in place.
+		let sortedCards = this._sortedCards.slice(this._description.offset);
+		if (this._description.limit) sortedCards = sortedCards.slice(0, this._description.limit);
+		return sortedCards;
 	}
 
 	get finalSortedCards() {
