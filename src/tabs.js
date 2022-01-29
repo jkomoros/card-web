@@ -1,5 +1,6 @@
 import {
 	RECENT_SORT_NAME,
+	STARS_SORT_NAME,
 	READING_LIST_SET_NAME,
 	EVERYTHING_SET_NAME
 } from './filters.js';
@@ -119,6 +120,9 @@ const EXPANSION_ITEMS = {
 	],
 	'default_end_tabs': [
 		{
+			expand: 'popular'
+		},
+		{
 			expand: 'recent'
 		},
 		{
@@ -138,6 +142,13 @@ const EXPANSION_ITEMS = {
 		},
 		{
 			expand: 'twitter',
+		}
+	],
+	'popular': [
+		{
+			icon: icons.INSIGHTS_ICON,
+			display_name: 'Popular',
+			collection: new CollectionDescription(EVERYTHING_SET_NAME, ['has-content'], STARS_SORT_NAME, false),
 		}
 	],
 	'recent': [

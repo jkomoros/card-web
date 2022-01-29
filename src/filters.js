@@ -97,6 +97,7 @@ export const SORT_REVERSED_URL_KEYWORD = 'reverse';
 
 export const DEFAULT_SORT_NAME = 'default';
 export const RECENT_SORT_NAME = 'recent';
+export const STARS_SORT_NAME = 'stars';
 
 export const VIEW_MODE_URL_KEYWORD = 'view';
 export const DEFAULT_VIEW_MODE = 'list';
@@ -1179,7 +1180,7 @@ export const SORTS = {
 		description: 'In descending order by when each card was created',
 		labelName:'Created',
 	},
-	'stars': {
+	[STARS_SORT_NAME]: {
 		extractor: (card) => [card.star_count || 0, '' + card.star_count],
 		description: 'In descending order by number of stars',
 		labelName: 'Stars',
