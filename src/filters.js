@@ -1181,9 +1181,8 @@ export const SORTS = {
 		labelName:'Created',
 	},
 	[STARS_SORT_NAME]: {
-		extractor: (card) => [card.star_count || 0, '' + card.star_count],
+		extractor: (card) => [card.star_count || 0, ''],
 		description: 'In descending order by number of stars',
-		labelName: 'Stars',
 	},
 	'commented': {
 		extractor: (card) => {
