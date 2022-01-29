@@ -31,6 +31,11 @@ import {
 	selectCardIDsUserMayEdit
 } from '../selectors';
 
+//How many cards to cap the rendering limit at (unless overriden by the parent
+//of this element). This should be set to a number of elements that can be
+//rendered without bad performance on typical hardware.
+const DEFAULT_RENDER_LIMIT = 250;
+
 class CardThumbnailList  extends connect(store)(LitElement) {
 	render() {
 		return html`
@@ -189,7 +194,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 			</style>
 			${cardBadgesStyles}
 			<div class='${this._dragging ? 'dragging' : ''} ${this.grid ? 'grid' : ''}'>
-				${repeat(this.collection ? this.collection.finalSortedCards : [], (i) => i.id, (i, index) => html`
+				${repeat(this._cards, (i) => i.id, (i, index) => html`
 				${index >= this.collection.numStartCards ? html`<div class='spacer' .cardid=${i.id} .after=${false} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
 				${this._labels && this._labels[index] !== undefined && this._labels[index] !== '' ? html`<div class='label'><span>${this.collection ? this.collection.sortLabelName : ''} <strong>${this._labels[index]}</strong></span></div>` : html``}
 				${this._thumbnail(i, index)}
@@ -197,6 +202,17 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 				`)}
 			</div>
 		`;
+	}
+
+	get _cards() {
+		if (!this.collection) return [];
+		return this.collection.finalSortedCards.slice(this.renderOffset, this.renderLimit);
+	}
+
+	constructor() {
+		super();
+		this.renderOffset = 0;
+		this.renderLimit = DEFAULT_RENDER_LIMIT;
 	}
 
 	static get properties() {
@@ -207,6 +223,8 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 			ghostCardsThatWillBeRemoved: {type:Boolean},
 			highlightedCardId: { type:String },
 			fullCards: {type:Boolean},
+			renderOffset: {type:Number},
+			renderLimit: {type:Number},
 			_memoizedGhostItems: {type:Object},
 			_dragging: {type: Boolean},
 			_highlightedViaClick: {type: Boolean},
