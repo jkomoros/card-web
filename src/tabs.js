@@ -149,6 +149,8 @@ const EXPANSION_ITEMS = {
 			icon: icons.INSIGHTS_ICON,
 			display_name: 'Popular',
 			collection: new CollectionDescription(EVERYTHING_SET_NAME, ['has-content'], STARS_SORT_NAME, false),
+			//If any section has default set to true first, it will be default. This is thus a fallback.
+			default:true,
 		}
 	],
 	'recent': [
