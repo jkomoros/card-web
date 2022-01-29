@@ -2,7 +2,8 @@ import {
 	RECENT_SORT_NAME,
 	STARS_SORT_NAME,
 	READING_LIST_SET_NAME,
-	EVERYTHING_SET_NAME
+	EVERYTHING_SET_NAME,
+	DEFAULT_SET_NAME
 } from './filters.js';
 
 import {
@@ -148,7 +149,7 @@ const EXPANSION_ITEMS = {
 		{
 			icon: icons.INSIGHTS_ICON,
 			display_name: 'Popular',
-			collection: new CollectionDescription(EVERYTHING_SET_NAME, ['has-content'], STARS_SORT_NAME, false),
+			collection: new CollectionDescription(DEFAULT_SET_NAME,[], STARS_SORT_NAME, false),
 			//If any section has default set to true first, it will be default. This is thus a fallback.
 			default:true,
 		}
