@@ -1528,7 +1528,7 @@ export const selectCollectionDescriptionForQuery = createSelector(
 
 export const selectCollectionForQuery = createSelector(
 	selectCollectionDescriptionForQuery,
-	selectCollectionConstructorArguments,
+	selectCollectionConstructorArgumentsWithEditingCard,
 	(description, args) => description.collection(args)
 );
 
