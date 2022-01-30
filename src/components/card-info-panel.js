@@ -5,6 +5,7 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 import { store } from '../store.js';
 
 import { SharedStyles } from './shared-styles.js';
+import { ScrollingSharedStyles } from './scrolling-shared-styles.js';
 
 import {
 	REPEAT_ICON,
@@ -66,6 +67,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		return html`
 		${SharedStyles}
 		${HelpStyles}
+		${ScrollingSharedStyles}
 			<style>
 
 				:host {
@@ -90,7 +92,6 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 					padding: 0 0.5em 0.5em 0.5em;
 					position:relative;
 					color: var(--app-dark-text-color);
-					overflow: scroll;
 				}
 
 				h3 {
@@ -123,7 +124,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				}
 			</style>
 			<h3 ?hidden=${!this._open}>Card Info</h3>
-			<div class='container' ?hidden=${!this._open}>
+			<div class='container scroller' ?hidden=${!this._open}>
 				${this._referenceBlocks.map(item => html`<reference-block .block=${item}></reference-block>`)}
 				<div>
 					<h4>Notes${help('Notes are notes left by the author of the card.')}</h4>
