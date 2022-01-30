@@ -194,12 +194,14 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 			</style>
 			${cardBadgesStyles}
 			<div class='${this._dragging ? 'dragging' : ''} ${this.grid ? 'grid' : ''}'>
+				${this.renderOffset ? html`<em>Previous ${this._offsetChunk} Cards</em>` : ''}
 				${repeat(this._cards, (i) => i.id, (i, index) => html`
 				${index >= this.collection.numStartCards ? html`<div class='spacer' .cardid=${i.id} .after=${false} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
 				${this._labels && this._labels[index] !== undefined && this._labels[index] !== '' ? html`<div class='label'><span>${this.collection ? this.collection.sortLabelName : ''} <strong>${this._labels[index]}</strong></span></div>` : html``}
 				${this._thumbnail(i, index)}
 				${index == (this.collection.finalSortedCards.length - 1) ? html`<div class='spacer' .cardid=${i.id} .after=${true} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
 				`)}
+				${this._cardsClipped ? html`<em>Next ${this._offsetChunk} Cards</em>` : ''}
 			</div>
 		`;
 	}
@@ -207,6 +209,19 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 	get _cards() {
 		if (!this.collection) return [];
 		return this.collection.finalSortedCards.slice(this.renderOffset, this.renderLimit);
+	}
+
+	get _cardsClipped() {
+		//Returns true if there are cards at the end that are clipped.
+		if (!this.collection) return false;
+		const offsetCards = this.collection.finalSortedCards.slice(this.renderOffset);
+		return offsetCards.length > this.renderLimit;
+	}
+
+	get _offsetChunk() {
+		//How many cards to show afforadances to move up or down.
+		//TODO: do something smarter, like seeing which is the highest of [500,250,100, 50, 25, 10, 5, 1] that clean divides and using that
+		return this.renderLimit;
 	}
 
 	constructor() {
