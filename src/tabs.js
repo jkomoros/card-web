@@ -3,7 +3,6 @@ import {
 	STARS_SORT_NAME,
 	READING_LIST_SET_NAME,
 	EVERYTHING_SET_NAME,
-	DEFAULT_SET_NAME
 } from './filters.js';
 
 import {
@@ -149,7 +148,8 @@ const EXPANSION_ITEMS = {
 		{
 			icon: icons.INSIGHTS_ICON,
 			display_name: 'Popular',
-			collection: new CollectionDescription(DEFAULT_SET_NAME,[], STARS_SORT_NAME, false),
+			//TODO: this should be DEFAULT_SET_NAME, but if you click on the tab with DEFAULT_SET_NAME and a sort and no filters, it breaks
+			collection: new CollectionDescription(EVERYTHING_SET_NAME,[], STARS_SORT_NAME, false),
 			//If any section has default set to true first, it will be default. This is thus a fallback.
 			default:true,
 		}
