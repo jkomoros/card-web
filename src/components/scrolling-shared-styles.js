@@ -41,7 +41,7 @@ const visibleScrollBars = html`
 	}
 
 	.scroller:hover::-webkit-scrollbar-thumb {
-		background-color: rgba(0,0,0, 0.3);
+		background-color: rgba(0,0,0, 0.5);
 	}
 </style>
 `;
