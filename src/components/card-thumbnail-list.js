@@ -43,6 +43,8 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 //rendered without bad performance on typical hardware.
 const DEFAULT_RENDER_LIMIT = 250;
 
+const OFFSET_CHUNKS = [250, 100, 50, 25, 10, 5, 1];
+
 class CardThumbnailList  extends connect(store)(LitElement) {
 	render() {
 		return html`
@@ -253,7 +255,10 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	get _offsetChunk() {
 		//How many cards to show afforadances to move up or down.
-		//TODO: do something smarter, like seeing which is the highest of [500,250,100, 50, 25, 10, 5, 1] that clean divides and using that
+		//See which of the built in chunks cleanly divides the renderLimit.
+		for (const num of OFFSET_CHUNKS) {
+			if (this.renderLimit % num == 0) return num;
+		}
 		return this.renderLimit;
 	}
 
