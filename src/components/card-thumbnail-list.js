@@ -448,6 +448,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 						offset += this._offsetChunk;
 					}
 					if (offset != this.renderOffset) {
+						//Ask our parent to change to this offset
 						this.dispatchEvent(new CustomEvent('update-render-offset', {composed: true, detail: {value: offset}}));
 					}
 				}
@@ -476,7 +477,8 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		}
 		//collection might change for example on first load when unpublished
 		//cards are loaded,but we're OK with it not happening if the scroll already happened.
-		if (changedProps.has('collection')) {
+		//Also do it if renderOFfset or renderLimit has changed, (we might have asked our parent to change it)
+		if (changedProps.has('collection') || changedProps.has('renderOffset') || changedProps.has('renderLimit')) {
 			this._scrollHighlightedThumbnailIntoView(false);
 		}
 		if (changedProps.has('collection') || changedProps.has('ghostCardsThatWillBeRemoved')) {
