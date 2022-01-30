@@ -194,16 +194,24 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 			</style>
 			${cardBadgesStyles}
 			<div class='${this._dragging ? 'dragging' : ''} ${this.grid ? 'grid' : ''}'>
-				${this.renderOffset ? html`<em>Previous ${this._offsetChunk} Cards</em>` : ''}
+				${this.renderOffset ? html`<em @click=${this._handlePreviousClicked}>Previous ${this._offsetChunk} Cards</em>` : ''}
 				${repeat(this._cards, (i) => i.id, (i, index) => html`
 				${index >= this.collection.numStartCards ? html`<div class='spacer' .cardid=${i.id} .after=${false} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
 				${this._labels && this._labels[index] !== undefined && this._labels[index] !== '' ? html`<div class='label'><span>${this.collection ? this.collection.sortLabelName : ''} <strong>${this._labels[index]}</strong></span></div>` : html``}
 				${this._thumbnail(i, index)}
 				${index == (this.collection.finalSortedCards.length - 1) ? html`<div class='spacer' .cardid=${i.id} .after=${true} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
 				`)}
-				${this._cardsClipped ? html`<em>Next ${this._offsetChunk} Cards</em>` : ''}
+				${this._cardsClipped ? html`<em @click=${this._handleNextClicked}>Next ${this._offsetChunk} Cards</em>` : ''}
 			</div>
 		`;
+	}
+
+	_handleNextClicked() {
+		this.dispatchEvent(new CustomEvent('update-render-offset', {composed: true, detail: {value: this.renderOffset + this._offsetChunk}}));
+	}
+
+	_handlePreviousClicked() {
+		this.dispatchEvent(new CustomEvent('update-render-offset', {composed: true, detail: {value: Math.max(0, this.renderOffset - this._offsetChunk)}}));
 	}
 
 	get _cards() {
