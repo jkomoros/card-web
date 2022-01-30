@@ -97,7 +97,7 @@ class CardDrawer extends LitElement {
 					</div>
 					${this.collection && this.collection.description.viewMode == VIEW_MODE_WEB ?
 		html`<web-renderer .webInfo=${this.collection.webInfo} .highlightedCardId=${this.highlightedCardId}></web-renderer>` :
-		html`<card-thumbnail-list .collection=${this.collection} .grid=${this.grid} .reorderable=${this.reorderable} .fullCards=${this.fullCards} .highlightedCardId=${this.highlightedCardId} .ghostCardsThatWillBeRemoved=${this.ghostCardsThatWillBeRemoved}></card-thumbnail-list>`
+		html`<card-thumbnail-list .collection=${this.collection} .grid=${this.grid} .reorderable=${this.reorderable} .fullCards=${this.fullCards} .highlightedCardId=${this.highlightedCardId} .ghostCardsThatWillBeRemoved=${this.ghostCardsThatWillBeRemoved} .renderOffset=${this.renderOffset}></card-thumbnail-list>`
 }
 					
 				</div>
@@ -122,6 +122,11 @@ class CardDrawer extends LitElement {
 		this.dispatchEvent(new CustomEvent('add-working-notes-card', {composed:true}));
 	}
 
+	constructor() {
+		super();
+		this.renderOffset = 0;
+	}
+
 	static get properties() {
 		return {
 			grid: {type: Boolean},
@@ -135,6 +140,7 @@ class CardDrawer extends LitElement {
 			//If true, will show the button to add working notes card no matter what
 			showCreateWorkingNotes: { type: Boolean},
 			collection: {type:Object},
+			renderOffset: {type:Number},
 			ghostCardsThatWillBeRemoved: {type:Boolean},
 			highlightedCardId: { type:String },
 			fullCards: {type:Boolean},
