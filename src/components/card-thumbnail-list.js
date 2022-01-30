@@ -427,6 +427,30 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 			if (ele) {
 				ele.scrollIntoView({behavior:'auto', block:'center'});
 				this._highlightedScrolled = true;
+			} else if (this.collection) {
+				//it might be that we're loaded but our renderOffset doesn't show it, update the renderOffset to show it.
+				let cardIndex = -1;
+				const cards = this.collection.finalSortedCards;
+				for (let [i, card] of cards.entries()) {
+					if (card.id == this.highlightedCardId) {
+						cardIndex = i;
+						break;
+					}
+				}
+				if (cardIndex >= 0) {
+					//OK we might need to change the offset to allow it to be seen.
+					let offset = 0;
+					while (offset <= cards.length) {
+						if (cardIndex > offset && cardIndex <= offset + this.renderLimit) {
+							//Found it!
+							break;
+						}
+						offset += this._offsetChunk;
+					}
+					if (offset != this.renderOffset) {
+						this.dispatchEvent(new CustomEvent('update-render-offset', {composed: true, detail: {value: offset}}));
+					}
+				}
 			}
 		}
 		this._highlightedViaClick = false;
