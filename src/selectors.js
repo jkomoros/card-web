@@ -210,6 +210,7 @@ export const selectMaintenanceTaskActive = (state) => state.maintenance ? state.
 
 //selectQuery is what you should use to update the UI with the literal query
 export const selectQuery = (state) => state.find.query;
+export const selectFindRenderOffset = (state) => state.find ? state.find.renderOffset : 0;
 //activeQuery is the query that should be routed into the query pipeline.
 const selectActiveQueryText = (state) => state.find.activeQuery;
 export const selectFindSortByRecent = (state) => state.find.sortByRecent;

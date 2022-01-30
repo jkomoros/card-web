@@ -2,6 +2,7 @@ export const FIND_DIALOG_OPEN = 'FIND_DIALOG_OPEN';
 export const FIND_DIALOG_CLOSE ='FIND_DIALOG_CLOSE';
 export const FIND_UPDATE_QUERY = 'FIND_UPDATE_QUERY';
 export const FIND_CARD_TO_LINK = 'FIND_CARD_TO_LINK';
+export const FIND_UPDATE_RENDER_OFFSET = 'FIND_UPDATE_RENDER_OFFSET';
 export const FIND_UPDATE_ACTIVE_QUERY = 'FIND_UPDATE_ACTIVE_QUERY';
 export const FIND_CARD_TO_PERMISSION = 'FIND_CARD_TO_PERMISSION';
 export const FIND_CARD_TO_REFERENCE = 'FIND_CARD_TO_REFERENCE';
@@ -67,6 +68,13 @@ export const findCardToPermission = () => {
 
 export const findCardToReference = (lockedCardTypeFilter) => {
 	return launchFind(FIND_CARD_TO_REFERENCE, '', lockedCardTypeFilter);
+};
+
+export const findUpdateRenderOffset = (renderOffset) => {
+	return {
+		type: FIND_UPDATE_RENDER_OFFSET,
+		renderOffset,
+	};
 };
 
 const launchFind = (typ, starterQuery, lockedCardTypeFilter) => (dispatch, getState) => {

@@ -2,6 +2,7 @@ import {
 	FIND_DIALOG_OPEN,
 	FIND_DIALOG_CLOSE,
 	FIND_UPDATE_QUERY,
+	FIND_UPDATE_RENDER_OFFSET,
 	FIND_CARD_TO_LINK,
 	FIND_UPDATE_ACTIVE_QUERY,
 	FIND_CARD_TO_PERMISSION,
@@ -18,6 +19,7 @@ const INITIAL_STATE = {
 	//update this every so often as query is updated, because it is expensive
 	//and drives expensive template updating, introducing lag.
 	activeQuery: '',
+	renderOffset: 0,
 	//For when the user is looking to link specific highlighted text to that card
 	linking: false,
 	//For when the user is looking to add permissions to a given card
@@ -42,6 +44,7 @@ const app = (state = INITIAL_STATE, action) => {
 			referencing: false,
 			query: action.query || '',
 			activeQuery: action.query || '',
+			renderOffset: 0,
 			soryByRecent: false,
 			cardTypeFilter: '',
 			cardTypeFilterLocked: false,
@@ -66,6 +69,7 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			activeQuery: state.query,
+			renderOffset: 0,
 		};
 	case FIND_CARD_TO_LINK:
 		return {
@@ -76,6 +80,7 @@ const app = (state = INITIAL_STATE, action) => {
 			referencing: false,
 			sortByRecent: false,
 			cardTypeFilter: '',
+			renderOffset: 0,
 			cardTypeFilterLocked: false,
 			query: action.query,
 			activeQuery: action.query
@@ -89,6 +94,7 @@ const app = (state = INITIAL_STATE, action) => {
 			referencing: false,
 			query: action.query || '',
 			activeQuery: action.query || '',
+			renderOffset: 0,
 			sortByRecent: false,
 			cardTypeFilter: '',
 			cardTypeFilterLocked: false,
@@ -102,9 +108,15 @@ const app = (state = INITIAL_STATE, action) => {
 			referencing: true,
 			query: action.query || '',
 			activeQuery: action.query || '',
+			renderOffset: 0,
 			sortByRecent: false,
 			cardTypeFilter: action.cardTypeFilter || '',
 			cardTypeFilterLocked: !!action.cardTypeFilter,
+		};
+	case FIND_UPDATE_RENDER_OFFSET:
+		return {
+			...state,
+			renderOffset: action.renderOffset,
 		};
 	case FIND_UPDATE_CARD_TYPE_FILTER:
 		return {
