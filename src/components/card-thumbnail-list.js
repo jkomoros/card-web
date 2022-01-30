@@ -216,7 +216,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	get _cards() {
 		if (!this.collection) return [];
-		return this.collection.finalSortedCards.slice(this.renderOffset, this.renderLimit);
+		return this.collection.finalSortedCards.slice(this.renderOffset, this.renderOffset + this.renderLimit);
 	}
 
 	get _cardsClipped() {
