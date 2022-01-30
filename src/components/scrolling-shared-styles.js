@@ -54,4 +54,10 @@ const hiddenScrollBars = html`
 </style>
 `;
 
+//On Macs, there might be overlay scrolling, or if the user has picked the
+//Always system setting, or has a USB mouse plugged in wiht a scrollwheel, the
+//scrollsbars will always show. If it's in a forced scrolling mode then we want
+//to use our faux scrollbars (which have some visual tells like not animating
+//opacity). But if it's not, then we want to just do normal scrollbars, and get
+//the default system styling.
 export const ScrollingSharedStyles = areScrollbarsVisible() ? visibleScrollBars : hiddenScrollBars;
