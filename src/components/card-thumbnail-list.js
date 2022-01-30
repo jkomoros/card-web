@@ -82,6 +82,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 				label.interactive {
 					cursor: pointer;
+					color: var(--app-dark-text-color);
 				}
 
 				label.interactive:hover {
