@@ -31,6 +31,13 @@ import {
 	selectCardIDsUserMayEdit
 } from '../selectors';
 
+import {
+	ARROW_UPWARD_ICON,
+	ARROW_DOWNWARD_ICON
+} from './my-icons.js';
+
+import { ButtonSharedStyles } from './button-shared-styles.js';
+
 //How many cards to cap the rendering limit at (unless overriden by the parent
 //of this element). This should be set to a number of elements that can be
 //rendered without bad performance on typical hardware.
@@ -41,6 +48,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		return html`
 			<style>
 
+				${ButtonSharedStyles}
 				:host {
 					width: 100%;
 				}
@@ -70,6 +78,14 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 					color: var(--app-dark-text-color);
 					font-weight:normal;
 					margin:0.5em;
+				}
+
+				label.interactive {
+					cursor: pointer;
+				}
+
+				label.interactive:hover {
+					color: var(--app-dark-text-color-light);
 				}
 
 				.label span {
@@ -194,14 +210,14 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 			</style>
 			${cardBadgesStyles}
 			<div class='${this._dragging ? 'dragging' : ''} ${this.grid ? 'grid' : ''}'>
-				${this.renderOffset ? html`<em @click=${this._handlePreviousClicked}>Previous ${this._offsetChunk} Cards</em>` : ''}
+				${this.renderOffset ? html`<button id='prev' class='small' title='Previous cards' @click=${this._handlePreviousClicked}>${ARROW_UPWARD_ICON}</button><label class='interactive' for='prev'>Previous ${this._offsetChunk} cards</label><br/>` : ''}
 				${repeat(this._cards, (i) => i.id, (i, index) => html`
 				${index >= this.collection.numStartCards ? html`<div class='spacer' .cardid=${i.id} .after=${false} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
 				${this._labels && this._labels[index] !== undefined && this._labels[index] !== '' ? html`<div class='label'><span>${this.collection ? this.collection.sortLabelName : ''} <strong>${this._labels[index]}</strong></span></div>` : html``}
 				${this._thumbnail(i, index)}
 				${index == (this.collection.finalSortedCards.length - 1) ? html`<div class='spacer' .cardid=${i.id} .after=${true} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
 				`)}
-				${this._cardsClipped ? html`<em @click=${this._handleNextClicked}>Next ${this._offsetChunk} Cards</em>` : ''}
+				${this._cardsClipped ? html`<button id='next' class='small' title='Next cards' @click=${this._handleNextClicked}>${ARROW_DOWNWARD_ICON}</button><label class='interactive' for='next'>Next ${this._offsetChunk} cards</label><br/>` : ''}
 			</div>
 		`;
 	}
