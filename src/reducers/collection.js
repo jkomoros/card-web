@@ -1,6 +1,7 @@
 import {
 	SHOW_CARD,
 	UPDATE_COLLECTION,
+	UPDATE_RENDER_OFFSET,
 	UPDATE_COLLECTION_SHAPSHOT
 } from '../actions/collection.js';
 
@@ -38,6 +39,11 @@ const app = (state = INITIAL_STATE, action) => {
 			requestedCard: action.requestedCard,
 			activeCardId: action.card,
 		};
+	case UPDATE_RENDER_OFFSET:
+		return {
+			...state,
+			activeRenderOffset: action.renderOffset
+		};
 	case UPDATE_COLLECTION:
 		return {
 			...state,
@@ -47,6 +53,7 @@ const app = (state = INITIAL_STATE, action) => {
 			activeSortReversed: action.sortReversed,
 			activeViewMode: action.viewMode,
 			activeViewModeExtra: action.viewModeExtra,
+			activeRenderOffset: 0,
 		};
 	case UPDATE_COLLECTION_SHAPSHOT:
 		//TODO: figure out how to fire this every time one of the other ones

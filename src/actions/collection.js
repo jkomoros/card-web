@@ -1,5 +1,6 @@
 export const SHOW_CARD = 'SHOW_CARD';
 export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
+export const UPDATE_RENDER_OFFSET = 'UPDATE_RENDER_OFFSET';
 export const RE_SHOW_CARD = 'RE_SHOW_CARD';
 export const UPDATE_COLLECTION_SHAPSHOT = 'UPDATE_COLLECTION_SHAPSHOT';
 
@@ -171,6 +172,13 @@ export const updateCollection = (setName, filters, sortName, sortReversed, viewM
 //is read and you're viewing an unread filter set.
 export const updateCollectionSnapshot = () => {
 	return {type:UPDATE_COLLECTION_SHAPSHOT};
+};
+
+export const updateRenderOffset = (renderOffset) => {
+	return {
+		type: UPDATE_RENDER_OFFSET,
+		renderOffset
+	};
 };
 
 export const refreshCardSelector = (forceCommit) => (dispatch, getState) => {

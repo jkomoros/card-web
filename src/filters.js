@@ -1580,4 +1580,5 @@ export const INITIAL_STATE = {
 	//the fully resolved literal ID of the active card (not slug, not special
 	//placeholder).
 	activeCardId: '',
+	activeRenderOffset: 0,
 };

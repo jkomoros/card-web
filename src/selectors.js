@@ -148,6 +148,7 @@ export const selectImageBrowserDialogOpen = (state) => state.editor ? state.edit
 //undefined signals to add to end
 export const selectImageBrowserDialogIndex = (state) => state.editor ? state.editor.imageBrowserDialogIndex : undefined;
 
+export const selectActiveRenderOffset = (state) => state.collection ? state.collection.activeRenderOffset : 0;
 const selectActiveSetName = (state) => state.collection ? state.collection.activeSetName : '';
 const selectActiveFilterNames = (state) => state.collection ? state.collection.activeFilterNames : '';
 const selectActiveSortName = (state) => state.collection ? state.collection.activeSortName : '';
