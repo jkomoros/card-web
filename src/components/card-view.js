@@ -47,6 +47,7 @@ import {
 	selectSuggestMissingConceptsEnabled,
 	selectUserIsAdmin,
 	selectEditingCardSuggestedConceptReferences,
+	selectActiveRenderOffset
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -253,7 +254,7 @@ class CardView extends connect(store)(PageViewElement) {
         }
       </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .collection=${this._collection} @info-zippy-clicked=${this._handleInfoZippyClicked} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' @add-working-notes-card='${this._handleAddWorkingNotesCard}' .reorderable=${this._userMayReorderCollection} .showCreateCard=${this._userMayAddCardToActiveCollection} .showCreateWorkingNotes=${this._userMayCreateCard} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .ghostCardsThatWillBeRemoved=${true} .wordCloud=${this._collectionWordCloud} .infoExpanded=${this._infoExpanded} .infoCanBeExpanded=${true} .cardTypeToAdd=${this._cardTypeToAdd}>
+        <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .collection=${this._collection} @info-zippy-clicked=${this._handleInfoZippyClicked} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' @add-working-notes-card='${this._handleAddWorkingNotesCard}' .reorderable=${this._userMayReorderCollection} .showCreateCard=${this._userMayAddCardToActiveCollection} .showCreateWorkingNotes=${this._userMayCreateCard} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .ghostCardsThatWillBeRemoved=${true} .wordCloud=${this._collectionWordCloud} .infoExpanded=${this._infoExpanded} .infoCanBeExpanded=${true} .cardTypeToAdd=${this._cardTypeToAdd} .renderOffset=${this._renderOffset}>
 			<div slot='info'>
 				${this._userIsAdmin ? html`
 				<input type='checkbox' .checked=${this._suggestMissingConceptsEnabled} @change=${this._handleSuggestMissingConceptsChanged} id='suggested-concepts-enabled'><label for='suggested-concepts-enabled'>Suggest Missing Concepts <strong>(SLOW)</strong></label><br/>
@@ -328,6 +329,7 @@ class CardView extends connect(store)(PageViewElement) {
 			_cardInReadingList: {type: Boolean},
 			_collection: {type: Object},
 			_collectionIsFallback: {type:Boolean},
+			_renderOffset: {type:Number},
 			_drawerReorderPending : {type: Boolean},
 			_activeSectionId: {type: String},
 			_dataIsFullyLoaded: {type:Boolean},
@@ -515,6 +517,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._cardInReadingList = getCardInReadingList(state, this._card ? this._card.id : '');
 		this._collection = selectActiveCollection(state);
 		this._collectionIsFallback = this._collection && this._collection.isFallback;
+		this._renderOffset = selectActiveRenderOffset(state);
 		this._tagInfos = selectTags(state);
 		this._drawerReorderPending = state.data.reorderPending;
 		this._activeSectionId = selectActiveSectionId(state);
