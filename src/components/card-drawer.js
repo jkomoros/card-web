@@ -14,6 +14,7 @@ import {
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 import { SharedStyles } from './shared-styles.js';
+import { ScrollingSharedStyles } from './scrolling-shared-styles.js';
 
 import {
 	CARD_TYPE_CONFIGURATION,
@@ -31,6 +32,7 @@ class CardDrawer extends LitElement {
 		return html`
 			${SharedStyles}
 			${ButtonSharedStyles}
+			${ScrollingSharedStyles}
 			<style>
 				:host {
 					max-height:100%;
@@ -47,7 +49,6 @@ class CardDrawer extends LitElement {
 				}
 
 				.scrolling {
-					overflow:scroll;
 					max-height:100%;
 					flex-grow:1;
 				}
@@ -87,7 +88,7 @@ class CardDrawer extends LitElement {
 				}
 			</style>
 			<div ?hidden='${!this.showing}' class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
-				<div class='scrolling'>
+				<div class='scrolling scroller'>
 					<div class='label' id='count'>
 						<span>${this.infoCanBeExpanded ? html`<button class='small' @click=${this._handleZippyClicked}>${this.infoExpanded ? ARROW_DOWN_ICON : ARROW_RIGHT_ICON}</button>` : '' }<strong>${this.collection ? this.collection.numCards : 0}</strong> cards</span>
 						<div class='info-panel' ?hidden=${!this.infoExpanded}>
