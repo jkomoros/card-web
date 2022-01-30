@@ -3,6 +3,7 @@ import {GestureEventListeners} from '@polymer/polymer/lib/mixins/gesture-event-l
 import * as Gestures from '@polymer/polymer/lib/utils/gestures.js';
 
 import { SharedStyles } from './shared-styles.js';
+import { ScrollingSharedStyles } from './scrolling-shared-styles.js';
 
 import {
 	badgeStyles,
@@ -93,6 +94,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		return html`
 			${SharedStyles}
 			${badgeStyles}
+			${ScrollingSharedStyles}
 			<style>
 				:host {
 					display:block;
@@ -214,13 +216,11 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				}
 
 				.primary {
-					overflow: auto;
 					flex-grow: 1;
 					flex-shrink: 0.1;
 				}
 
 				.reference-blocks {
-					overflow: auto;
 					flex-shrink: 1;
 				}
 
@@ -327,10 +327,10 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 							</div>
 						</div>
 					</div>
-					<div class='primary show-scroll-if-needed'>
+					<div class='primary show-scroll-if-needed scroller'>
 						${scrollableFields.map(fieldName => this._templateForField(fieldName))}
 					</div>
-					<div class='reference-blocks show-scroll-if-needed'>
+					<div class='reference-blocks show-scroll-if-needed scroller'>
 						${normalReferenceBlocks.map(block => html`<reference-block .block=${block}></reference-block>`)}
 					</div>
 				</div>
