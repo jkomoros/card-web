@@ -276,6 +276,11 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 			ghostCardsThatWillBeRemoved: {type:Boolean},
 			highlightedCardId: { type:String },
 			fullCards: {type:Boolean},
+			//renderOffset and renderLimit behave like the filters offset and
+			//limit, but they operate only at the level of rendering and not the
+			//underlying data model. Together they help ensure that very very
+			//long lists of cards aren't rendered (which is a large source of
+			//slowdowns for product card webs), while still allowing pagination.
 			renderOffset: {type:Number},
 			renderLimit: {type:Number},
 			_memoizedGhostItems: {type:Object},
