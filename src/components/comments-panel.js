@@ -10,6 +10,7 @@ import './comment-thread.js';
 
 import { SharedStyles } from './shared-styles.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
+import { ScrollingSharedStyles } from './scrolling-shared-styles.js';
 
 import {
 	deleteMessage,
@@ -43,6 +44,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 		return html`
       ${SharedStyles}
       ${ButtonSharedStyles}
+	  ${ScrollingSharedStyles}
       <style>
         :host {
 		  overflow: hidden;
@@ -64,7 +66,6 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 			height: 3em;
 		}
         .comments {
-          overflow:scroll;
           max-height:100%;
           width:100%;
         }
@@ -85,7 +86,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
       </style>
       <div ?hidden=${!this._open} class='container ${this._composedThreads.length ? '' : 'no-comments'}'>
         <h3>Comments</h3>
-        <div class='comments'>
+        <div class='comments scroller'>
         ${this._composedThreads.length
 		? html`${this._composedThreads.map( (item) => html`
                 <comment-thread .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @delete-message=${this._handleDeleteMessage} @resolve-thread=${this._handleResolveThread} @show-need-signin=${this._handleShowNeedSignin} .userMayComment=${this._userMayComment}></comment-thread>`)}`
