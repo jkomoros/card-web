@@ -15,7 +15,8 @@ import {
 	closeFindDialog,
 	updateQuery,
 	findUpdateCardTypeFilter,
-	findUpdateSortByRecent
+	findUpdateSortByRecent,
+	findUpdateRenderOffset
 } from '../actions/find.js';
 
 import {
@@ -50,7 +51,8 @@ import {
 	selectCollectionDescriptionForQuery,
 	selectFindPermissions,
 	selectFindLinking,
-	selectFindSortByRecent
+	selectFindSortByRecent,
+	selectFindRenderOffset
 } from '../selectors.js';
 
 import { 
@@ -124,7 +126,7 @@ class FindDialog extends connect(store)(DialogElement) {
 				<button title='Navigate to this collection' @click=${this._handleNavigateCollection} class='small'>${OPEN_IN_BROWSER_ICON}</button>
 			</div>
 		</form>
-		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection}></card-drawer>
+		<card-drawer showing grid @thumbnail-tapped=${this._handleThumbnailTapped} .collection=${this._collection} .renderOffset=${this._renderOffset} @update-render-offset=${this._handleUpdateRenderOffset}></card-drawer>
 		<div ?hidden=${!this._linking && !this._referencing} class='add'>
 			<div ?hidden=${!this._linking}>
 				<button ?hidden=${!isLink} class='round' @click='${this._handleRemoveLink}' title='Remove the current link'>${LINK_OFF_ICON}</button>
@@ -157,6 +159,10 @@ class FindDialog extends connect(store)(DialogElement) {
 		if(!this._query.startsWith('http')) return;
 		store.dispatch(linkURL(this._query));
 		this._shouldClose();
+	}
+
+	_handleUpdateRenderOffset(e) {
+		store.dispatch(findUpdateRenderOffset(e.detail.value));
 	}
 
 	_handleNavigateCollection() {
@@ -247,6 +253,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		return {
 			_query: {type: String},
 			_collection: {type:Object},
+			_renderOffset: {type:Number},
 			_linking: {type:Boolean},
 			_permissions: {type:Boolean},
 			_referencing: {type:Boolean},
@@ -292,6 +299,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		//coalling the collection into being is expensive so only do it if we're open.
 		this._collection = this.open ? selectCollectionForQuery(state) : null;
 		this._collectionDescription = this.open ? selectCollectionDescriptionForQuery(state) : null;
+		this._renderOffset = selectFindRenderOffset(state);
 		this._linking = selectFindLinking(state);
 		this._permissions = selectFindPermissions(state);
 		this._referencing = selectFindReferencing(state);
