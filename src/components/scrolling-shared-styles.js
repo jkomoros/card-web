@@ -35,13 +35,13 @@ const visibleScrollBars = html`
 
 	.scroller::-webkit-scrollbar-thumb {
 		border-radius: 4px;
-		background-color: rgba(0,0,0,.2);
+		background-color: transparent;
 		-webkit-box-shadow: 0 0 1px rgba(255,255,255,.5);
 		box-shadow:0 0 1px rgba(255,255,255,.5);
 	}
 
 	.scroller:hover::-webkit-scrollbar-thumb {
-		background-color: rgba(0.0,0, 0.5);
+		background-color: rgba(0,0,0, 0.3);
 	}
 </style>
 `;
