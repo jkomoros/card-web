@@ -1515,13 +1515,23 @@ export const selectCollectionDescriptionForQuery = createSelector(
 	(queryText, cardTypeFilter, sortByRecent, cardID, generic) => {
 		const wordsAndFilters = extractFiltersFromQuery(queryText);
 		let baseFilters = ['has-body'];
+		let sort = undefined;
 		if (cardID && !generic) baseFilters.push(EXCLUDE_FILTER_NAME + '/' + CARDS_FILTER_NAME + '/' + cardID);
 		if (cardTypeFilter) baseFilters.push(cardTypeFilter);
 		if (!wordsAndFilters[0] && !wordsAndFilters[1].length) {
-			baseFilters.push(SIMILAR_FILTER_NAME + '/' + cardID);
+			if (generic) {
+				//If it's a generic search, we don't want similar cards to
+				//current card (which might be a boring section title card), we
+				//just want recent cards.
+				sort = RECENT_SORT_NAME;
+			} else {
+				//If it's a search to find a card to link etc we do want it to
+				//be related to the card we're on.
+				baseFilters.push(SIMILAR_FILTER_NAME + '/' + cardID);
+			}
 			baseFilters.push(LIMIT_FILTER_NAME + '/' + 10);
 			//If there's no query, return the similar cards to the current card
-			return new CollectionDescription(EVERYTHING_SET_NAME, baseFilters);
+			return new CollectionDescription(EVERYTHING_SET_NAME, baseFilters, sort);
 		}
 		const queryFilter = queryConfigurableFilterText(wordsAndFilters[0]);
 		return new CollectionDescription(EVERYTHING_SET_NAME,[...baseFilters, queryFilter, ...wordsAndFilters[1]], sortByRecent ? RECENT_SORT_NAME : DEFAULT_SORT_NAME);
