@@ -747,7 +747,7 @@ export const selectEditingUnderlyingCard = createSelector(
 );
 
 export const selectEditingCardHasUnsavedChanges = createSelector(
-	selectEditingNormalizedCard,
+	selectEditingCard,
 	selectEditingUnderlyingCardSnapshot,
 	(editingCard, snapshot) => cardDiffHasChanges(generateCardDiff(snapshot, editingCard))
 );
@@ -761,7 +761,7 @@ const selectEditingUnderlyingCardSnapshotDiff = createSelector(
 export const selectOvershadowedUnderlyingCardChangesDiff = createSelector(
 	selectEditingOriginalUnderlyingCardSnapshot,
 	selectEditingUnderlyingCard,
-	selectEditingNormalizedCard,
+	selectEditingCard,
 	(original, snapshot, current) => overshadowedDiffChanges(original, snapshot, current)
 );
 
