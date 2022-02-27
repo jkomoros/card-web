@@ -119,7 +119,7 @@ export const confirmationsForCardDiff = (update, updatedCard) => {
 	return true;
 };
 
-export const generateCardDiff = (underlyingCard, updatedCard) => {
+export const generateCardDiff = (underlyingCard, updatedCard, normalizeHTMLFields = false) => {
 
 	if (!underlyingCard) underlyingCard = {};
 	if (!updatedCard) updatedCard = {};
@@ -133,7 +133,7 @@ export const generateCardDiff = (underlyingCard, updatedCard) => {
 		const config = TEXT_FIELD_CONFIGURATION[field];
 		if (config.readOnly) continue;
 		let value = updatedCard[field];
-		if (config.html) {
+		if (config.html && normalizeHTMLFields) {
 			try {
 				value = normalizeBodyHTML(value);
 			} catch(err) {
@@ -224,7 +224,7 @@ export const generateFinalCardDiff = async (state, underlyingCard, rawUpdatedCar
 
 	updatedCard.font_size_boost = await fontSizeBoosts(updatedCard);
 
-	const update = generateCardDiff(underlyingCard, updatedCard);
+	const update = generateCardDiff(underlyingCard, updatedCard, true);
 
 	if (Object.keys(updatedCard.font_size_boost).length != Object.keys(underlyingCard.font_size_boost || {}).length || Object.entries(updatedCard.font_size_boost).some(entry => (underlyingCard.font_size_boost || {})[entry[0]] != entry[1])) update.font_size_boost = updatedCard.font_size_boost;
 

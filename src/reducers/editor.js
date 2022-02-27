@@ -377,7 +377,11 @@ const app = (state = INITIAL_STATE, action) => {
 		};
 	case EDITING_UPDATE_UNDERLYING_CARD:
 		const updatedSnapshotCard = action.updatedUnderlyingCard;
-		//First, figure out what edits our user has made.
+		//First, figure out what edits our user has made. Note that when #503 is
+		//fixed, it is no longer a safe assumption to just skip normalizing HTML
+		//here (by not passing true), because we'd need to do an
+		//intra-text-field diff and the one that came in from the commit was
+		//presumably normalized.
 		const userEditsDiff = generateCardDiff(state.underlyingCardSnapshot, state.card);
 		//Now apply back the user's edits on top of the new underlying card.
 		const editingFirebaseUpdate = applyCardDiff(updatedSnapshotCard, userEditsDiff);
