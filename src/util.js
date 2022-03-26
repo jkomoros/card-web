@@ -235,30 +235,39 @@ export const backportFallbackTextMapForCard = (card, cards) => {
 	return result;
 };
 
-//cardBFS returns a map of cardID -> degrees of separation from the key card.
-//Note that if the keyCard is included, it will map that keyID -> 0, which is
-//falsey, so when checking for existence, you should check whether it's
-//undefined or not. if optReferenceType is falsey, it will use all substantive
-//references. Otherwise, it will filter to only references of the given type, if
-//it's a string, or any reference types listed if it's an array.
-export const cardBFS = (keyCardIDOrSlug, cards, ply, includeKeyCard, isInbound, optReferenceTypes) => {
-	if (!cards[keyCardIDOrSlug]) {
-		let foundID = '';
-		//The ID isn't in the list of cards. Check to see if maybe it's a slug.
-		//getIdForCard requires a state to access slugIndex, so we'll just brute force it.
+//cardBFS returns a map of cardID -> degrees of separation from the key card
+//(which is eitehr a string, or an array of ids-or-slugs-of start cards). Note
+//that if the keyCard is included, it will map that keyID -> 0, which is falsey,
+//so when checking for existence, you should check whether it's undefined or
+//not. if optReferenceType is falsey, it will use all substantive references.
+//Otherwise, it will filter to only references of the given type, if it's a
+//string, or any reference types listed if it's an array.
+export const cardBFS = (keyCardIDOrSlugList, cards, ply, includeKeyCard, isInbound, optReferenceTypes) => {
+	if (!Array.isArray(keyCardIDOrSlugList)) keyCardIDOrSlugList = [keyCardIDOrSlugList];
+	const missingCardIDs = {};
+	for (const idOrSlug of keyCardIDOrSlugList) {
+		if (cards[idOrSlug]) continue;
+		missingCardIDs[idOrSlug] = idOrSlug;
+	}
+	if (Object.keys(missingCardIDs).length) {
+		//These are the slugs we have to figure out what their IDs are
 		for (let card of Object.values(cards)) {
 			for (let slug of card.slugs || []) {
-				if (slug == keyCardIDOrSlug) {
-					foundID = card.id;
-					break;
+				if (missingCardIDs[slug]) {
+					missingCardIDs[slug] = card.id;
 				}
 			}
-			if (foundID) break;
 		}
-		keyCardIDOrSlug = foundID;
+		keyCardIDOrSlugList = keyCardIDOrSlugList.map(idOrSlug => missingCardIDs[idOrSlug] || idOrSlug);
 	}
-	let seenCards = {[keyCardIDOrSlug]: 0};
-	let cardsToProcess = [keyCardIDOrSlug];
+
+	let seenCards = {};
+	let cardsToProcess = [];
+
+	for (let id of keyCardIDOrSlugList) {
+		seenCards[id] = 0;
+		cardsToProcess.push(id);
+	}
 
 	//if optReferenceTypes is provided, make sure it's an array
 	if (optReferenceTypes && !Array.isArray(optReferenceTypes)) optReferenceTypes = [optReferenceTypes];
@@ -286,7 +295,11 @@ export const cardBFS = (keyCardIDOrSlug, cards, ply, includeKeyCard, isInbound, 
 			cardsToProcess.push(linkItem);
 		}
 	}
-	if (!includeKeyCard) delete seenCards[keyCardIDOrSlug];
+	if (!includeKeyCard) {
+		for (const id of keyCardIDOrSlugList) {
+			delete seenCards[id];
+		}
+	}
 	return seenCards;
 };
 
