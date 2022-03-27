@@ -442,6 +442,18 @@ const makeExcludeConfigurableFilter = (filterName, ...remainingParts) => {
 	return [func, true];
 };
 
+const extractSubFilters = (parts) => {
+	//It's not clear where the first filter argument ends and the second one
+	//starts because they'll all be smooshed together. We'll rely on
+	//CollectionDescription machinery to parse it. If we don't include a
+	//trailing '/' then it will interpret the last part as a CardID.
+	const rest = parts.join('/') + '/';
+
+	const combinedDescription = CollectionDescription.deserialize(rest);
+
+	return combinedDescription.filters;
+};
+
 const makeExpandConfigurableFilter = (filterName, ...remainingParts) => {
 	const [mainFilter, linksFilter] = extractSubFilters(remainingParts);
 	if (!mainFilter || !linksFilter) {
@@ -466,18 +478,6 @@ const makeExpandConfigurableFilter = (filterName, ...remainingParts) => {
 	};
 
 	return [func, false];
-};
-
-const extractSubFilters = (parts) => {
-	//It's not clear where the first filter argument ends and the second one
-	//starts because they'll all be smooshed together. We'll rely on
-	//CollectionDescription machinery to parse it. If we don't include a
-	//trailing '/' then it will interpret the last part as a CardID.
-	const rest = parts.join('/') + '/';
-
-	const combinedDescription = CollectionDescription.deserialize(rest);
-
-	return combinedDescription.filters;
 };
 
 const makeCombineConfigurableFilter = (filterName, ...remainingParts) => {
