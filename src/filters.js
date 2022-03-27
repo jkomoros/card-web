@@ -616,6 +616,43 @@ const makeSimilarConfigurableFilter = (filterName, cardID) => {
 	return [func, false];
 };
 
+const makeSimilarCutoffConfigurableFilter = (filterName, cardID, floatCutoff) => {
+
+	let includeKeyCard = false;
+	if (cardID.startsWith(INCLUDE_KEY_CARD_PREFIX)) {
+		includeKeyCard = true;
+		cardID = cardID.substring(INCLUDE_KEY_CARD_PREFIX.length);
+	}
+
+	floatCutoff = parseFloat(floatCutoff || 0);
+	if (isNaN(floatCutoff)) floatCutoff = 0;
+	
+	const generator = memoize((cards, cardIDToUse, editingCard) => {
+		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
+		const editingCardFingerprint = editingCard ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
+		//passing null as fingerprint will use the current one
+		return fingerprintGenerator.closestOverlappingItems(cardIDToUse, editingCardFingerprint);
+	});
+
+	const func = function(card, extras) {
+		const cardIDToUse = cardID == KEY_CARD_ID_PLACEHOLDER ? extras.keyCardID : cardID;
+		if (card.id == cardIDToUse) {
+			if (includeKeyCard) {
+				return [true, Number.MAX_SAFE_INTEGER];
+			}
+			return [false, Number.MIN_SAFE_INTEGER];
+		}
+
+		const closestItems = generator(extras.cards, cardIDToUse, extras.editingCard);
+
+		const value = closestItems.get(card.id);
+
+		return [value ? value > floatCutoff : false, value];
+	};
+
+	return [func, false];
+};
+
 //Fallback configurable filter
 const makeNoOpConfigurableFilter = () => {
 	return [() => true, false];
@@ -659,6 +696,7 @@ const QUERY_STRICT_FILTER_NAME = 'query-strict';
 export const LIMIT_FILTER_NAME = 'limit';
 export const OFFSET_FILTER_NAME = 'offset';
 export const SIMILAR_FILTER_NAME = 'similar';
+const SIMILAR_CUTOFF_FILTER_NAME = 'similar-cutoff';
 //About as in 'about this concept'. Ideally it would have been 'concept', but
 //that's reserved for the cardType filter. It used to be 'about' but that
 //conflicts with section name in production.
@@ -706,6 +744,8 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[LIMIT_FILTER_NAME]: 1,
 	[OFFSET_FILTER_NAME]: 1,
 	[SIMILAR_FILTER_NAME]: 1,
+	//key card, float
+	[SIMILAR_CUTOFF_FILTER_NAME]: 2,
 	[ABOUT_CONCEPT_FILTER_NAME]: 1,
 	[MISSING_CONCEPT_FILTER_NAME]: 1,
 	[SAME_TYPE_FILTER]: 1,
@@ -1057,6 +1097,21 @@ export const CONFIGURABLE_FILTER_INFO = {
 			type: URL_PART_KEY_CARD,
 			description: 'Key card',
 			default: KEY_CARD_ID_PLACEHOLDER
+		}],
+	},
+	[SIMILAR_CUTOFF_FILTER_NAME]: {
+		factory: makeSimilarCutoffConfigurableFilter,
+		suppressLabels: true,
+		description: 'Selects cards that are similar to a given key card and above some float threshold of similarity',
+		arguments: [{
+			type: URL_PART_KEY_CARD,
+			description: 'Key card',
+			default: KEY_CARD_ID_PLACEHOLDER
+		},
+		{
+			type: URL_PART_FLOAT,
+			description: 'Float cutoff',
+			default: 0.5,
 		}],
 	},
 	[ABOUT_CONCEPT_FILTER_NAME]: {
