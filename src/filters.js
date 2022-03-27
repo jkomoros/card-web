@@ -467,9 +467,17 @@ const makeExpandConfigurableFilter = (filterName, ...remainingParts) => {
 		//Make sure the sub filter membership is direct and not inverted
 		if (excludeMain) filterMembershipMain = makeConcreteInverseFilter(filterMembershipMain, extras.cards);
 
-		//TODO: do something with linksFilter
+		const linksFilterPieces = linksFilter.split('/');
 
-		return filterMembershipMain;
+		const bfs = cardBFSMaker(linksFilterPieces[0], linksFilterPieces[1], linksFilterPieces[2], linksFilterPieces[3], filterMembershipMain);
+
+		if (bfs == INVALID_FILTER_NAME_SENTINEL) {
+			console.warn('Invalid links filter for second part: ' + linksFilter);
+			return filterMembershipMain;
+		}
+
+		//We just pass '' for activeCardID each time because we don't acutally use it since we passed filterMembershipMain
+		return unionSet(filterMembershipMain, bfs(extras.cards, '', extras.editingCard));
 	});
 	
 	const func = function(card, extras) {
