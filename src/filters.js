@@ -727,6 +727,7 @@ export const URL_PART_DATE_SECTION = 'date';
 export const URL_PART_FREE_TEXT = 'text';
 export const URL_PART_KEY_CARD = 'key-card';
 export const URL_PART_INT = 'int';
+export const URL_PART_FLOAT = 'float';
 export const URL_PART_REFERENCE_TYPE = 'reference-type';
 export const URL_PART_USER_ID = 'user-id';
 export const URL_PART_SUB_FILTER = 'sub-filter';

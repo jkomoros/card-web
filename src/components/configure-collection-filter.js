@@ -23,6 +23,7 @@ import {
 	splitCompoundFilter,
 	piecesForConfigurableFilter,
 	URL_PART_INT,
+	URL_PART_FLOAT,
 	URL_PART_REFERENCE_TYPE,
 	URL_PART_USER_ID,
 	ME_AUTHOR_ID,
@@ -96,7 +97,7 @@ class ConfigureCollectionFilter extends LitElement {
 		case URL_PART_REFERENCE_TYPE:
 			return html`<select .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${Object.entries(REFERENCE_TYPES).map(entry => html`<option .value=${entry[0]} .title=${entry[1].description}>${entry[0]}</option>`)}</select>`;
 		default:
-			return html`<input type=${piece.controlType == URL_PART_INT ? 'number' : 'text'} min='0' .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>`;
+			return html`<input type=${piece.controlType == URL_PART_INT ? 'number' : 'text'} min='0' step=${piece.controlType == URL_PART_FLOAT ? 0.0001 : 1} .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>`;
 		}
 	}
 
