@@ -1608,6 +1608,8 @@ export class FingerprintGenerator {
 
 	fingerprintForCardIDList(cardIDs) {
 		if (!cardIDs || !cardIDs.length) return new Fingerprint();
+		//Special case the generation of a single card ID
+		if (cardIDs.length == 1) return this.fingerprintForCardID(cardIDs[0]);
 		let combinedTFIDF = {};
 		for (const cardID of cardIDs) {
 			const fingerprint = this.fingerprintForCardID(cardID);
