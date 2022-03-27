@@ -219,6 +219,7 @@ const INVALID_FILTER_NAME_SENTINEL = () => ({});
 //a map of cardID -> depth from the keycard. If optOverrideCards is defined,
 //then cardID is ignored, and instead it passes the keys of that map to the BFS.
 const cardBFSMaker = (filterName, cardID, countOrTypeStr, countStr, optOverrideCards) => {
+	//note: makeExpandConfigurableFilter needs to be updated if the number or order of parameters changes.
 
 	if (!LINKS_FILTER_NAMES[filterName]) {
 		console.warn('Expected a links filter for cardBFSMaker, got: ', filterName);
@@ -472,16 +473,29 @@ const makeExpandConfigurableFilter = (filterName, ...remainingParts) => {
 		if (excludeMain) filterMembershipMain = makeConcreteInverseFilter(filterMembershipMain, extras.cards);
 
 		const expandFilterPieces = expandFilter.split('/');
+		let expandedSet = {};
 
-		const bfs = cardBFSMaker(expandFilterPieces[0], expandFilterPieces[1], expandFilterPieces[2], expandFilterPieces[3], filterMembershipMain);
+		if (expandFilterPieces[0] == SIMILAR_CUTOFF_FILTER_NAME) {
+			const [similarFilter] = makeSimilarCutoffConfigurableFilter(SIMILAR_CUTOFF_FILTER_NAME, keyCardID(Object.keys(filterMembershipMain), false), expandFilterPieces[2]);
+			//Walk through each card and run the similarFilter manually.
+			for (const card of Object.values(extras.cards)) {
+				const [include] = similarFilter(card, extras);
+				if (include) expandedSet[card.id] = true;
+			}
+		} else {
+			//Must be a link style secondary filter
+			const bfs = cardBFSMaker(expandFilterPieces[0], expandFilterPieces[1], expandFilterPieces[2], expandFilterPieces[3], filterMembershipMain);
 
-		if (bfs == INVALID_FILTER_NAME_SENTINEL) {
-			console.warn('Invalid links filter for second part: ' + expandFilter);
-			return filterMembershipMain;
+			if (bfs == INVALID_FILTER_NAME_SENTINEL) {
+				console.warn('Invalid links filter for second part: ' + expandFilter);
+				return filterMembershipMain;
+			}
+
+			//We just pass '' for activeCardID each time because we don't acutally use it since we passed filterMembershipMain
+			expandedSet = bfs(extras.cards, '', extras.editingCard);
 		}
 
-		//We just pass '' for activeCardID each time because we don't acutally use it since we passed filterMembershipMain
-		return unionSet(filterMembershipMain, bfs(extras.cards, '', extras.editingCard));
+		return unionSet(filterMembershipMain, expandedSet);
 	});
 	
 	const func = function(card, extras) {
@@ -620,6 +634,7 @@ const makeSimilarConfigurableFilter = (filterName, rawCardID) => {
 };
 
 const makeSimilarCutoffConfigurableFilter = (filterName, rawCardID, floatCutoff) => {
+	//note: makeExpandConfigurableFilter needs to be updated if the number or order of parameters changes.
 
 	const [, includeKeyCard, cardIDs] = parseKeyCardID(rawCardID);
 
