@@ -196,16 +196,19 @@ export const referencesConfigurableFilterText = (referencesFilterType, cardID, r
 const INCLUDE_KEY_CARD_PREFIX = '+';
 const INVERT_REFERENCE_TYPES_PREFIX = '-';
 
+//returns the cardID, whether it's a key card, and an array of all cardIDs if it's a union
 export const parseKeyCardID = (cardID) => {
 	let includeKeyCard = false;
 	if (cardID.startsWith(INCLUDE_KEY_CARD_PREFIX)) {
 		includeKeyCard = true;
 		cardID = cardID.substring(INCLUDE_KEY_CARD_PREFIX.length);
 	}
-	return [cardID, includeKeyCard];
+	const ids = cardID.split(UNION_FILTER_DELIMITER);
+	return [ids[0], includeKeyCard, ids];
 };
 
 export const keyCardID = (cardID, includeKeyCard) => {
+	if (Array.isArray(cardID)) cardID = cardID.join(UNION_FILTER_DELIMITER);
 	return includeKeyCard ? INCLUDE_KEY_CARD_PREFIX + cardID : cardID;
 };
 
