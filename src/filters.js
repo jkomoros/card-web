@@ -775,7 +775,8 @@ export const URL_PART_USER_ID = 'user-id';
 export const URL_PART_SUB_FILTER = 'sub-filter';
 export const URL_PART_MULTIPLE_CARDS = 'multiple-cards';
 export const URL_PART_CONCEPT_STR_OR_ID = 'concept-str-or-id';
-export const URL_PART_LINK_FILTER = 'link-filter';
+//A sub-filter that expand knows how to pass multiple cards to
+export const URL_PART_EXPAND_FILTER = 'expand-filter';
 
 //the factories should return a filter func that takes the card to opeate on,
 //then cards. The factory will be provided with the individual parts of the
@@ -1029,7 +1030,7 @@ export const CONFIGURABLE_FILTER_INFO = {
 			description: 'First sub filter to select the starter set of cards to expand',
 			default: ALL_FILTER_NAME
 		}, {
-			type: URL_PART_LINK_FILTER,
+			type: URL_PART_EXPAND_FILTER,
 			description: 'The link filter to expand the result set from the first part by',
 			default: DEFAULT_LINK_SUB_FILTER
 		}]
@@ -1222,7 +1223,7 @@ export const piecesForConfigurableFilter = (fullFilterName) => {
 			});
 			break;
 		case URL_PART_SUB_FILTER:
-		case URL_PART_LINK_FILTER:
+		case URL_PART_EXPAND_FILTER:
 			//consume the pices for this first subfilter
 			const [nextSubFilter] = extractSubFilters(pieces.slice(pieceIndex));
 			result.push({
