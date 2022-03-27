@@ -235,17 +235,12 @@ export const backportFallbackTextMapForCard = (card, cards) => {
 	return result;
 };
 
-//cardBFS returns a map of cardID -> degrees of separation from the key card
-//(which is eitehr a string, or an array of ids-or-slugs-of start cards). Note
-//that if the keyCard is included, it will map that keyID -> 0, which is falsey,
-//so when checking for existence, you should check whether it's undefined or
-//not. if optReferenceType is falsey, it will use all substantive references.
-//Otherwise, it will filter to only references of the given type, if it's a
-//string, or any reference types listed if it's an array.
-export const cardBFS = (keyCardIDOrSlugList, cards, ply, includeKeyCard, isInbound, optReferenceTypes) => {
-	if (!Array.isArray(keyCardIDOrSlugList)) keyCardIDOrSlugList = [keyCardIDOrSlugList];
+//Takes a string (single id/slug) or an array of strings of id/slugs, and
+//returns an array where every item is a normalized id.
+export const normalizeCardSlugOrIDList = (slugOrIDList, cards) => {
+	if (!Array.isArray(slugOrIDList)) slugOrIDList = [slugOrIDList];
 	const missingCardIDs = {};
-	for (const idOrSlug of keyCardIDOrSlugList) {
+	for (const idOrSlug of slugOrIDList) {
 		if (cards[idOrSlug]) continue;
 		missingCardIDs[idOrSlug] = idOrSlug;
 	}
@@ -258,8 +253,22 @@ export const cardBFS = (keyCardIDOrSlugList, cards, ply, includeKeyCard, isInbou
 				}
 			}
 		}
-		keyCardIDOrSlugList = keyCardIDOrSlugList.map(idOrSlug => missingCardIDs[idOrSlug] || idOrSlug);
+		//convert the list to ids, and remove any items that ended up not being found as valid ids
+		slugOrIDList = slugOrIDList.map(idOrSlug => missingCardIDs[idOrSlug] || idOrSlug).filter(id => cards[id]);
 	}
+	return slugOrIDList;
+};
+
+//cardBFS returns a map of cardID -> degrees of separation from the key card
+//(which is eitehr a string, or an array of ids-or-slugs-of start cards). Note
+//that if the keyCard is included, it will map that keyID -> 0, which is falsey,
+//so when checking for existence, you should check whether it's undefined or
+//not. if optReferenceType is falsey, it will use all substantive references.
+//Otherwise, it will filter to only references of the given type, if it's a
+//string, or any reference types listed if it's an array.
+export const cardBFS = (keyCardIDOrSlugList, cards, ply, includeKeyCard, isInbound, optReferenceTypes) => {
+
+	keyCardIDOrSlugList = normalizeCardSlugOrIDList(keyCardIDOrSlugList, cards);
 
 	let seenCards = {};
 	let cardsToProcess = [];
