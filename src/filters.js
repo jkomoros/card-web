@@ -459,8 +459,8 @@ const extractSubFilters = (parts) => {
 };
 
 const makeExpandConfigurableFilter = (filterName, ...remainingParts) => {
-	const [mainFilter, linksFilter] = extractSubFilters(remainingParts);
-	if (!mainFilter || !linksFilter) {
+	const [mainFilter, expandFilter] = extractSubFilters(remainingParts);
+	if (!mainFilter || !expandFilter) {
 		console.warn('Expected two sub-filters for expand but didn\'t get it');
 		return [() => false, false];
 	}
@@ -471,12 +471,12 @@ const makeExpandConfigurableFilter = (filterName, ...remainingParts) => {
 		//Make sure the sub filter membership is direct and not inverted
 		if (excludeMain) filterMembershipMain = makeConcreteInverseFilter(filterMembershipMain, extras.cards);
 
-		const linksFilterPieces = linksFilter.split('/');
+		const expandFilterPieces = expandFilter.split('/');
 
-		const bfs = cardBFSMaker(linksFilterPieces[0], linksFilterPieces[1], linksFilterPieces[2], linksFilterPieces[3], filterMembershipMain);
+		const bfs = cardBFSMaker(expandFilterPieces[0], expandFilterPieces[1], expandFilterPieces[2], expandFilterPieces[3], filterMembershipMain);
 
 		if (bfs == INVALID_FILTER_NAME_SENTINEL) {
-			console.warn('Invalid links filter for second part: ' + linksFilter);
+			console.warn('Invalid links filter for second part: ' + expandFilter);
 			return filterMembershipMain;
 		}
 
