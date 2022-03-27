@@ -584,13 +584,9 @@ const makeAuthorConfigurableFilter = (filterName, idString) => {
 //underlying card set, and that should be fast.
 const memoizedFingerprintGenerator = memoize(cards => new FingerprintGenerator(cards));
 
-const makeSimilarConfigurableFilter = (filterName, cardID) => {
+const makeSimilarConfigurableFilter = (filterName, rawCardID) => {
 
-	let includeKeyCard = false;
-	if (cardID.startsWith(INCLUDE_KEY_CARD_PREFIX)) {
-		includeKeyCard = true;
-		cardID = cardID.substring(INCLUDE_KEY_CARD_PREFIX.length);
-	}
+	const [cardID, includeKeyCard] = parseKeyCardID(rawCardID);
 	
 	const generator = memoize((cards, cardIDToUse, editingCard) => {
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
@@ -619,13 +615,9 @@ const makeSimilarConfigurableFilter = (filterName, cardID) => {
 	return [func, false];
 };
 
-const makeSimilarCutoffConfigurableFilter = (filterName, cardID, floatCutoff) => {
+const makeSimilarCutoffConfigurableFilter = (filterName, rawCardID, floatCutoff) => {
 
-	let includeKeyCard = false;
-	if (cardID.startsWith(INCLUDE_KEY_CARD_PREFIX)) {
-		includeKeyCard = true;
-		cardID = cardID.substring(INCLUDE_KEY_CARD_PREFIX.length);
-	}
+	const [cardID, includeKeyCard] = parseKeyCardID(rawCardID);
 
 	floatCutoff = parseFloat(floatCutoff || 0);
 	if (isNaN(floatCutoff)) floatCutoff = 0;
