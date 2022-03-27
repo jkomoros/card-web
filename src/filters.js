@@ -1164,12 +1164,15 @@ export const piecesForConfigurableFilter = (fullFilterName) => {
 			});
 			break;
 		case URL_PART_SUB_FILTER:
-			//consume all remaining pieces
+		case URL_PART_LINK_FILTER:
+			//consume the pices for this first subfilter
+			const [nextSubFilter] = extractSubFilters(pieces.slice(pieceIndex));
 			result.push({
 				controlType,
 				description: arg.description,
-				value: pieces.slice(pieceIndex).join('/')
+				value: nextSubFilter,
 			});
+			pieceIndex += nextSubFilter.split('/').length;
 			break;
 		default:
 			//The majority of filters are one piece for one argument.
