@@ -434,6 +434,11 @@ const makeExcludeConfigurableFilter = (filterName, ...remainingParts) => {
 	return [func, true];
 };
 
+const makeExpandConfigurableFilter = () => {
+	//TODO: actually do something
+	return [() => true, false];
+};
+
 const makeCombineConfigurableFilter = (filterName, ...remainingParts) => {
 
 	//It's not clear where the first filter argument ends and the second one
@@ -608,6 +613,7 @@ const AUTHOR_FILTER_NAME = 'author';
 export const CARDS_FILTER_NAME = 'cards';
 export const EXCLUDE_FILTER_NAME = 'exclude';
 export const COMBINE_FILTER_NAME = 'combine';
+export const EXPAND_FILTER_NAME = 'expand';
 export const QUERY_FILTER_NAME = 'query';
 const QUERY_STRICT_FILTER_NAME = 'query-strict';
 export const LIMIT_FILTER_NAME = 'limit';
@@ -652,6 +658,8 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[EXCLUDE_FILTER_NAME]: 1,
 	//Combine takes itself, plus two other filters after it
 	[COMBINE_FILTER_NAME]: 2,
+	//Expand takes one sub-filter, and then one expanding link filter
+	[EXPAND_FILTER_NAME]: 2,
 	[CARDS_FILTER_NAME]: 1,
 	[QUERY_FILTER_NAME]: 1,
 	[QUERY_STRICT_FILTER_NAME]: 1,
@@ -673,6 +681,8 @@ const DEFAULT_DATE_FILTER = beforeTodayDefaultsFactory();
 
 const LINK_FILTER_BASE = INCLUDE_KEY_CARD_PREFIX + KEY_CARD_ID_PLACEHOLDER;
 
+const DEFAULT_LINK_SUB_FILTER = CHILDREN_FILTER_NAME + '/' + LINK_FILTER_BASE;
+
 export const URL_PART_DATE_SECTION = 'date';
 export const URL_PART_FREE_TEXT = 'text';
 export const URL_PART_KEY_CARD = 'key-card';
@@ -682,6 +692,7 @@ export const URL_PART_USER_ID = 'user-id';
 export const URL_PART_SUB_FILTER = 'sub-filter';
 export const URL_PART_MULTIPLE_CARDS = 'multiple-cards';
 export const URL_PART_CONCEPT_STR_OR_ID = 'concept-str-or-id';
+export const URL_PART_LINK_FILTER = 'link-filter';
 
 //the factories should return a filter func that takes the card to opeate on,
 //then cards. The factory will be provided with the individual parts of the
@@ -925,6 +936,19 @@ export const CONFIGURABLE_FILTER_INFO = {
 			type: URL_PART_SUB_FILTER,
 			description: 'Second sub filter to combine',
 			default: ALL_FILTER_NAME
+		}]
+	},
+	[EXPAND_FILTER_NAME]: {
+		factory: makeExpandConfigurableFilter,
+		description: 'Filters the first sub expression, but then expands the result set to be any cards connected given the given connection type',
+		arguments: [{
+			type: URL_PART_SUB_FILTER,
+			description: 'First sub filter to select the starter set of cards to expand',
+			default: ALL_FILTER_NAME
+		}, {
+			type: URL_PART_LINK_FILTER,
+			description: 'The link filter to expand the result set from the first part by',
+			default: DEFAULT_LINK_SUB_FILTER
 		}]
 	},
 	[CARDS_FILTER_NAME]: {
