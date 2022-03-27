@@ -439,23 +439,26 @@ const makeExpandConfigurableFilter = () => {
 	return [() => true, false];
 };
 
-const makeCombineConfigurableFilter = (filterName, ...remainingParts) => {
-
+const extractSubFilters = (parts) => {
 	//It's not clear where the first filter argument ends and the second one
 	//starts because they'll all be smooshed together. We'll rely on
 	//CollectionDescription machinery to parse it. If we don't include a
 	//trailing '/' then it will interpret the last part as a CardID.
-	const rest = remainingParts.join('/') + '/';
+	const rest = parts.join('/') + '/';
 
 	const combinedDescription = CollectionDescription.deserialize(rest);
 
-	if (combinedDescription.filters.length != 2) {
+	return combinedDescription.filters;
+};
+
+const makeCombineConfigurableFilter = (filterName, ...remainingParts) => {
+
+	const [subFilterOne, subFilterTwo] = extractSubFilters(remainingParts);
+
+	if (!subFilterOne || !subFilterTwo) {
 		console.warn('Expected two sub-filters for combine but didn\'t get it');
 		return [() => false, false];
 	}
-
-	const subFilterOne = combinedDescription.filters[0];
-	const subFilterTwo = combinedDescription.filters[1];
 
 	const generator = memoize((extras) => {
 		let [filterMembershipOne, excludeOne] = filterSetForFilterDefinitionItem(subFilterOne, extras);
