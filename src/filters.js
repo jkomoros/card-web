@@ -209,6 +209,8 @@ export const keyCardID = (cardID, includeKeyCard) => {
 	return includeKeyCard ? INCLUDE_KEY_CARD_PREFIX + cardID : cardID;
 };
 
+const INVALID_FILTER_NAME_SENTINEL = () => ({});
+
 //Returns a function that takes cards, activeCardID, and editingCard and returns
 //a map of cardID -> depth from the keycard. If optOverrideCards is defined,
 //then cardID is ignored, and instead it passes the keys of that map to the BFS.
@@ -216,7 +218,7 @@ const cardBFSMaker = (filterName, cardID, countOrTypeStr, countStr, optOverrideC
 
 	if (!LINKS_FILTER_NAMES[filterName]) {
 		console.warn('Expected a links filter for cardBFSMaker, got: ', filterName);
-		return () => ({});
+		return INVALID_FILTER_NAME_SENTINEL;
 	}
 
 	//refernces filters take typeStr as second parameter, but others skip those.
