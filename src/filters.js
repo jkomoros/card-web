@@ -213,6 +213,12 @@ export const keyCardID = (cardID, includeKeyCard) => {
 //a map of cardID -> depth from the keycard. If optOverrideCards is defined,
 //then cardID is ignored, and instead it passes the keys of that map to the BFS.
 const cardBFSMaker = (filterName, cardID, countOrTypeStr, countStr, optOverrideCards) => {
+
+	if (!LINKS_FILTER_NAMES[filterName]) {
+		console.warn('Expected a links filter for cardBFSMaker, got: ', filterName);
+		return () => ({});
+	}
+
 	//refernces filters take typeStr as second parameter, but others skip those.
 	const referenceFilter = filterName.includes(REFERENCES_FILTER_NAME);
 	//we always pass referenceTypes to cardBFS, so make sure it's falsey unless it's a reference filter.
@@ -1084,6 +1090,8 @@ export const CONFIGURABLE_FILTER_INFO = {
 
 //The configurable filters that are allowed to start a multi-part filter.
 export const CONFIGURABLE_FILTER_NAMES = Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_INFO).map(entry => [entry[0], true]));
+
+const LINKS_FILTER_NAMES = Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_INFO).filter(entry => entry[1].factory == makeCardLinksConfigurableFilter).map(entry => [entry[0], true]));
 
 let memoizedConfigurableFilters = {};
 
