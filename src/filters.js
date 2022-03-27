@@ -210,8 +210,9 @@ export const keyCardID = (cardID, includeKeyCard) => {
 };
 
 //Returns a function that takes cards, activeCardID, and editingCard and returns
-//a map of cardID -> depth from the keycard.
-const cardBFSMaker = (filterName, cardID, countOrTypeStr, countStr) => {
+//a map of cardID -> depth from the keycard. If optOverrideCards is defined,
+//then cardID is ignored, and instead it passes the keys of that map to the BFS.
+const cardBFSMaker = (filterName, cardID, countOrTypeStr, countStr, optOverrideCards) => {
 	//refernces filters take typeStr as second parameter, but others skip those.
 	const referenceFilter = filterName.includes(REFERENCES_FILTER_NAME);
 	//we always pass referenceTypes to cardBFS, so make sure it's falsey unless it's a reference filter.
@@ -240,6 +241,8 @@ const cardBFSMaker = (filterName, cardID, countOrTypeStr, countStr) => {
 	let includeKeyCard = false;
 	[cardID, includeKeyCard] = parseKeyCardID(cardID);
 
+	const overrideCardIDs = optOverrideCards ? Object.keys(optOverrideCards) : null;
+
 	//We have to memoize the functor we return, even though the filter machinery
 	//will memoize too, because otherwise literally every card in a given run
 	//will have a NEW BFS done. So memoize as long as cards are the same.
@@ -247,13 +250,14 @@ const cardBFSMaker = (filterName, cardID, countOrTypeStr, countStr) => {
 		const cardIDToUse = cardID == KEY_CARD_ID_PLACEHOLDER ? activeCardID : cardID;
 		//If editingCard is provided, use it to shadow the unedited version of itself.
 		if (editingCard) cards = {...cards, [editingCard.id]: editingCard};
+		const starterSet = overrideCardIDs || cardIDToUse;
 		if (twoWay){
-			const bfsForOutbound = cardBFS(cardIDToUse, cards, count, includeKeyCard, false, referenceTypes);
-			const bfsForInbound = Object.fromEntries(Object.entries(cardBFS(cardIDToUse, cards, count, includeKeyCard, true, referenceTypes)).map(entry => [entry[0], entry[1] * -1]));
+			const bfsForOutbound = cardBFS(starterSet, cards, count, includeKeyCard, false, referenceTypes);
+			const bfsForInbound = Object.fromEntries(Object.entries(cardBFS(starterSet, cards, count, includeKeyCard, true, referenceTypes)).map(entry => [entry[0], entry[1] * -1]));
 			//inbound might have a -0 in it, so have outbound be second so we get just the zero
 			return unionSet(bfsForInbound,bfsForOutbound);
 		} else {
-			return cardBFS(cardIDToUse, cards, count, includeKeyCard, isInbound, referenceTypes);
+			return cardBFS(starterSet, cards, count, includeKeyCard, isInbound, referenceTypes);
 		}
 	});
 };
