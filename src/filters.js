@@ -11,6 +11,7 @@ import {
 	cardBFS,
 	pageRank,
 	createSlugFromArbitraryString,
+	normalizeCardSlugOrIDList
 } from './util.js';
 
 import {
@@ -586,25 +587,28 @@ const memoizedFingerprintGenerator = memoize(cards => new FingerprintGenerator(c
 
 const makeSimilarConfigurableFilter = (filterName, rawCardID) => {
 
-	const [cardID, includeKeyCard] = parseKeyCardID(rawCardID);
+	const [, includeKeyCard, cardIDs] = parseKeyCardID(rawCardID);
 	
-	const generator = memoize((cards, cardIDToUse, editingCard) => {
+	const generator = memoize((cards, rawCardIDsToUse, editingCard) => {
+		const cardIDsToUse = normalizeCardSlugOrIDList(rawCardIDsToUse, cards);
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
-		const editingCardFingerprint = editingCard && editingCard.id == cardIDToUse ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
-		//passing null as fingerprint will use the current one
-		return fingerprintGenerator.closestOverlappingItems(cardIDToUse, editingCardFingerprint);
+		const editingCardFingerprint = editingCard && cardIDsToUse.some(id => id == editingCard.id) ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
+		const fingerprint = editingCardFingerprint || fingerprintGenerator.fingerprintForCardIDList(cardIDsToUse);
+		return fingerprintGenerator.closestOverlappingItems('', fingerprint);
 	});
 
+	const replacedCardIDsGenerator = memoize((cardIDs, keyCardID) => cardIDs.map(id => id == KEY_CARD_ID_PLACEHOLDER ? keyCardID : id));
+
 	const func = function(card, extras) {
-		const cardIDToUse = cardID == KEY_CARD_ID_PLACEHOLDER ? extras.keyCardID : cardID;
-		if (card.id == cardIDToUse) {
+		const cardIDsToUse = replacedCardIDsGenerator(cardIDs, extras.keyCardID);
+		if (cardIDsToUse.some(id => id == card.id)) {
 			if (includeKeyCard) {
 				return [true, Number.MAX_SAFE_INTEGER];
 			}
 			return [false, Number.MIN_SAFE_INTEGER];
 		}
 
-		const closestItems = generator(extras.cards, cardIDToUse, extras.editingCard);
+		const closestItems = generator(extras.cards, cardIDsToUse, extras.editingCard);
 
 		//It's a bit odd that this 'filter' is only used to filter out the
 		//keycard (sometimes), but is really used for its sort value. But sorts
@@ -617,28 +621,31 @@ const makeSimilarConfigurableFilter = (filterName, rawCardID) => {
 
 const makeSimilarCutoffConfigurableFilter = (filterName, rawCardID, floatCutoff) => {
 
-	const [cardID, includeKeyCard] = parseKeyCardID(rawCardID);
+	const [, includeKeyCard, cardIDs] = parseKeyCardID(rawCardID);
 
 	floatCutoff = parseFloat(floatCutoff || 0);
 	if (isNaN(floatCutoff)) floatCutoff = 0;
 	
-	const generator = memoize((cards, cardIDToUse, editingCard) => {
+	const generator = memoize((cards, rawCardIDsToUse, editingCard) => {
+		const cardIDsToUse = normalizeCardSlugOrIDList(rawCardIDsToUse, cards);
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
-		const editingCardFingerprint = editingCard && editingCard.id == cardIDToUse ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
-		//passing null as fingerprint will use the current one
-		return fingerprintGenerator.closestOverlappingItems(cardIDToUse, editingCardFingerprint);
+		const editingCardFingerprint = editingCard && cardIDsToUse.some(id => id == editingCard.id) ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
+		const fingerprint = editingCardFingerprint || fingerprintGenerator.fingerprintForCardIDList(cardIDsToUse);
+		return fingerprintGenerator.closestOverlappingItems('', fingerprint);
 	});
 
+	const replacedCardIDsGenerator = memoize((cardIDs, keyCardID) => cardIDs.map(id => id == KEY_CARD_ID_PLACEHOLDER ? keyCardID : id));
+
 	const func = function(card, extras) {
-		const cardIDToUse = cardID == KEY_CARD_ID_PLACEHOLDER ? extras.keyCardID : cardID;
-		if (card.id == cardIDToUse) {
+		const cardIDsToUse = replacedCardIDsGenerator(cardIDs, extras.keyCardID);
+		if (cardIDsToUse.some(id => id == card.id)) {
 			if (includeKeyCard) {
 				return [true, Number.MAX_SAFE_INTEGER];
 			}
 			return [false, Number.MIN_SAFE_INTEGER];
 		}
 
-		const closestItems = generator(extras.cards, cardIDToUse, extras.editingCard);
+		const closestItems = generator(extras.cards, cardIDsToUse, extras.editingCard);
 
 		const value = closestItems.get(card.id);
 
