@@ -590,7 +590,7 @@ const makeSimilarConfigurableFilter = (filterName, rawCardID) => {
 	
 	const generator = memoize((cards, cardIDToUse, editingCard) => {
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
-		const editingCardFingerprint = editingCard ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
+		const editingCardFingerprint = editingCard && editingCard.id == cardIDToUse ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
 		//passing null as fingerprint will use the current one
 		return fingerprintGenerator.closestOverlappingItems(cardIDToUse, editingCardFingerprint);
 	});
@@ -624,7 +624,7 @@ const makeSimilarCutoffConfigurableFilter = (filterName, rawCardID, floatCutoff)
 	
 	const generator = memoize((cards, cardIDToUse, editingCard) => {
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
-		const editingCardFingerprint = editingCard ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
+		const editingCardFingerprint = editingCard && editingCard.id == cardIDToUse ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
 		//passing null as fingerprint will use the current one
 		return fingerprintGenerator.closestOverlappingItems(cardIDToUse, editingCardFingerprint);
 	});
