@@ -434,9 +434,30 @@ const makeExcludeConfigurableFilter = (filterName, ...remainingParts) => {
 	return [func, true];
 };
 
-const makeExpandConfigurableFilter = () => {
-	//TODO: actually do something
-	return [() => true, false];
+const makeExpandConfigurableFilter = (filterName, ...remainingParts) => {
+	const [mainFilter, linksFilter] = extractSubFilters(remainingParts);
+	if (!mainFilter || !linksFilter) {
+		console.warn('Expected two sub-filters for expand but didn\'t get it');
+		return [() => false, false];
+	}
+
+	const generator = memoize((extras) => {
+		let [filterMembershipMain, excludeMain] = filterSetForFilterDefinitionItem(mainFilter, extras);
+
+		//Make sure the sub filter membership is direct and not inverted
+		if (excludeMain) filterMembershipMain = makeConcreteInverseFilter(filterMembershipMain, extras.cards);
+
+		//TODO: do something with linksFilter
+
+		return filterMembershipMain;
+	});
+	
+	const func = function(card, extras) {
+		const filterSet = generator(extras);
+		return filterSet[card.id];
+	};
+
+	return [func, false];
 };
 
 const extractSubFilters = (parts) => {
