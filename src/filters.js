@@ -209,8 +209,9 @@ export const keyCardID = (cardID, includeKeyCard) => {
 	return includeKeyCard ? INCLUDE_KEY_CARD_PREFIX + cardID : cardID;
 };
 
-const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, countStr) => {
-
+//Returns a function that takes cards, activeCardID, and editingCard and returns
+//a map of cardID -> depth from the keycard.
+const cardBFSMaker = (filterName, cardID, countOrTypeStr, countStr) => {
 	//refernces filters take typeStr as second parameter, but others skip those.
 	const referenceFilter = filterName.includes(REFERENCES_FILTER_NAME);
 	//we always pass referenceTypes to cardBFS, so make sure it's falsey unless it's a reference filter.
@@ -242,7 +243,7 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 	//We have to memoize the functor we return, even though the filter machinery
 	//will memoize too, because otherwise literally every card in a given run
 	//will have a NEW BFS done. So memoize as long as cards are the same.
-	const mapCreator = memoize((cards, activeCardID, editingCard) => {
+	return memoize((cards, activeCardID, editingCard) => {
 		const cardIDToUse = cardID == KEY_CARD_ID_PLACEHOLDER ? activeCardID : cardID;
 		//If editingCard is provided, use it to shadow the unedited version of itself.
 		if (editingCard) cards = {...cards, [editingCard.id]: editingCard};
@@ -255,6 +256,11 @@ const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, cou
 			return cardBFS(cardIDToUse, cards, count, includeKeyCard, isInbound, referenceTypes);
 		}
 	});
+};
+
+const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, countStr) => {
+
+	const mapCreator = cardBFSMaker(filterName, cardID, countOrTypeStr, countStr);
 
 	const func = function(card, extras) {
 		
