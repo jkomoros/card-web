@@ -611,6 +611,7 @@ const makeSimilarConfigurableFilter = (filterName, rawCardID) => {
 		return fingerprintGenerator.closestOverlappingItems('', fingerprint);
 	});
 
+	//Make sure that the key of the IDs list will have object equality for a downstream memoized thing
 	const replacedCardIDsGenerator = memoize((cardIDs, keyCardID) => cardIDs.map(id => id == KEY_CARD_ID_PLACEHOLDER ? keyCardID : id));
 
 	const func = function(card, extras) {
@@ -649,6 +650,7 @@ const makeSimilarCutoffConfigurableFilter = (filterName, rawCardID, floatCutoff)
 		return fingerprintGenerator.closestOverlappingItems('', fingerprint);
 	});
 
+	//Make sure that the key of the IDs list will have object equality for a downstream memoized thing
 	const replacedCardIDsGenerator = memoize((cardIDs, keyCardID) => cardIDs.map(id => id == KEY_CARD_ID_PLACEHOLDER ? keyCardID : id));
 
 	const func = function(card, extras) {
