@@ -1198,7 +1198,7 @@ export const possibleMissingConcepts = (cards) => {
 };
 
 //suggestConceptReferencesForCard is very expensive, so memoize it.
-export const suggestedConceptReferencesForCard = memoizeFirstArg((card, allCardsOrConceptCards, concepts) => {
+export const suggestedConceptReferencesForCard = memoizeFirstArg((card, conceptCards, concepts) => {
 	const candidates = {};
 	if (!card) return [];
 	if (!BODY_CARD_TYPES[card.card_type]) return [];
@@ -1215,7 +1215,7 @@ export const suggestedConceptReferencesForCard = memoizeFirstArg((card, allCards
 		if (!normalizedConcepts[fingerprintItem]) continue;
 
 		//OK, we think there's a card that matches this fingerprint item.
-		const conceptCard = getConceptCardForConcept(allCardsOrConceptCards, fingerprintItem);
+		const conceptCard = getConceptCardForConcept(conceptCards, fingerprintItem);
 		//false alarm
 		if (!conceptCard) continue;
 		//Don't suggest that concept cards reference themselves
