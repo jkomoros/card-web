@@ -35,13 +35,14 @@ import {
 } from './contenteditable.js';
 
 import {
-	memoizeFirstArg
+	memoizeFirstArg,
+	deepEqualReturnSame
 } from './memoize.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
-export const conceptCardsFromCards = memoizeFirstArg((allCards) => {
+export const conceptCardsFromCards = deepEqualReturnSame(memoizeFirstArg((allCards) => {
 	return Object.fromEntries(Object.entries(allCards).filter(entry => entry[1].card_type == CARD_TYPE_CONCEPT));
-});
+}));
 
 //Rturns the primary concept string only (the title). See also getAllConceptStringsFromConceptCard
 export const getConceptStringFromConceptCard = (rawConceptCard) => {
@@ -69,7 +70,7 @@ export const getAllConceptStringsFromConceptCard = (rawConceptCard) => {
 //concept cards, it might include multiple entries for each concept card if it
 //has title alternates. memoized so downstream memoizing things will get object
 //equality.
-export const getConceptsFromConceptCards = memoizeFirstArg((conceptCards) => {
+export const getConceptsFromConceptCards = deepEqualReturnSame(memoizeFirstArg((conceptCards) => {
 	const result = {};
 	for (const card of Object.values(conceptCards)) {
 		for (const conceptStr of getAllConceptStringsFromConceptCard(card)) {
@@ -77,7 +78,7 @@ export const getConceptsFromConceptCards = memoizeFirstArg((conceptCards) => {
 		}
 	}
 	return result;
-});
+}));
 
 const cardMatchesConcept = (card, conceptStr) => {
 	if (card.card_type !== CARD_TYPE_CONCEPT) return false;
