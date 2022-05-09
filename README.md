@@ -146,6 +146,12 @@ Every so often it makes sense to reset the dev database with the most recent pro
 
 Do that with `gulp reset-dev`.
 
+You might see an error message about permissions. If you do, take note of the service-account in the error message that needs permission. It will look like `service-DESTINATION-FIREBASE-PROJECT-NUMBEr@gcp-sa-firestore.iam.gserviceaccount.com` where DESTINATION-FIREBASE-PROJECT-NUMBER is the number of the project that is trying to import and can be found at https://console.firebase.google.com on the Project Settings > Project number.
+
+Go to `https://console.cloud.google.com/storage/browser/[BACKUP_BUCKET_NAME];tab=permissions` and hit the 'Add' button, then in the dialog, paste in that service account number as the Principal and give it the role of `Firestore Service Agent`.
+
+See also https://cloud.google.com/datastore/docs/export-import-entities#service_agent_migration for more on this permissions issue.
+
 If you don't have a dev/prod account, just a prod one, it will ask for confirmation before resetting the database.
 
 ### Dev and Prod
