@@ -1,3 +1,4 @@
+import { deepEqual } from './util.js';
 
 
 const arrayEqual = (a, b) => {
@@ -18,6 +19,28 @@ export const memoizeFirstArg = (fn) => {
 		const result = fn(...args);
 		resultMap.set(firstArg, {restArgs, result});
 		return result;
+	};
+};
+
+//deepEqualReturnSame is designed to wrap functions. If the result of the
+//function is deepEqual to the last result, then it will return literally the
+//last result. This is very useful in cases where there are values that have
+//tons of expensive downstream calculations driven off of them, and where a
+//small change to their inputs but no change in output is common. But note that
+//deepEqual is expensive, so don't use it unless you know that the output is
+//upstream of a LOT of calculations.
+export const deepEqualReturnSame = (fn) => {
+	//The precise, equality key of the last result to check to see if they're exactly the same
+	let resultKey;
+	//The value to return if they're deep equal.
+	let resultValue;
+	return (...args) => {
+		resultKey = fn(...args);
+		if (deepEqual(resultKey, resultValue)) {
+			return resultValue;
+		}
+		resultValue = resultKey;
+		return resultValue;
 	};
 };
 
