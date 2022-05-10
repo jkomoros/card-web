@@ -588,7 +588,7 @@ const extractContentWords = (card) => {
 	return obj;
 };
 
-let memoizedNormalizedSynonymMaps = new Map();
+let memoizedNormalizedSynonymMaps = new WeakMap();
 
 const normalizeSynonymMap = (synonyms) => {
 	//synonyms is word => [synonym_word,...]
