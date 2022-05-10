@@ -408,12 +408,12 @@ const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) =>
 				keyConceptCardID = conceptCard ? conceptCard.id : '?INVALID-ID?';
 			}
 		}
-		return [conceptCards, concepts, keyConceptCardID];
+		return [concepts, keyConceptCardID];
 	});
 
 	const func = function(card, extras) {
-		const [conceptCards, concepts, keyConceptCardID] = generator(extras.cards, extras.keyCardID);
-		const suggestedReferences = suggestedConceptReferencesForCard(card, conceptCards, concepts);
+		const [concepts, keyConceptCardID] = generator(extras.cards, extras.keyCardID);
+		const suggestedReferences = suggestedConceptReferencesForCard(card, concepts);
 		const filteredSuggestedReferences = keyConceptCard ? suggestedReferences.filter(id => id == keyConceptCardID) : suggestedReferences;
 		if (filteredSuggestedReferences.length == 0) return [false, 0];
 		return [true, filteredSuggestedReferences.length];

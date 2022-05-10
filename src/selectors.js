@@ -42,7 +42,6 @@ import {
 
 import {
 	BODY_CARD_TYPES,
-	CARD_TYPE_CONCEPT,
 	CARD_TYPE_WORKING_NOTES,
 	DEFAULT_CARD_TYPE,
 	CARD_TYPE_CONFIGURATION,
@@ -325,11 +324,6 @@ const selectCardsSnapshot = createZippedObjectSelector(
 	selectConcepts,
 	selectSynonymMap,
 	(cardAndFallbackMap, concepts, synonyms) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts, synonyms)
-);
-
-const selectConceptCards = createSelector(
-	selectCards,
-	(cards) => Object.fromEntries(Object.entries(cards).filter(entry => entry[1].card_type == CARD_TYPE_CONCEPT))
 );
 
 export const selectAuthorAndCollaboratorUserIDs = createSelector(
@@ -789,9 +783,8 @@ const selectEditingCardSemanticFingerprint = createSelector(
 
 export const selectEditingCardSuggestedConceptReferences = createSelector(
 	selectEditingNormalizedCard,
-	selectConceptCards,
 	selectConcepts,
-	(card, conceptCards, concepts) => suggestedConceptReferencesForCard(card, conceptCards, concepts)
+	(card, concepts) => suggestedConceptReferencesForCard(card, concepts)
 );
 
 const NUM_SIMILAR_TAGS_TO_SHOW = 3;

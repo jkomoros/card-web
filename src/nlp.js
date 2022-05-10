@@ -1199,7 +1199,7 @@ export const possibleMissingConcepts = (cards) => {
 };
 
 //suggestConceptReferencesForCard is very expensive, so memoize it.
-export const suggestedConceptReferencesForCard = memoizeFirstArg((card, conceptCards, concepts) => {
+export const suggestedConceptReferencesForCard = memoizeFirstArg((card, concepts) => {
 	const candidates = {};
 	if (!card) return [];
 	if (!BODY_CARD_TYPES[card.card_type]) return [];
@@ -1212,15 +1212,13 @@ export const suggestedConceptReferencesForCard = memoizeFirstArg((card, conceptC
 	const ngrams = wordCountsForSemantics(card, undefined, Object.keys(editableFieldsForCardType(card.card_type)), true);
 	for (let fingerprintItem of Object.keys(ngrams)) {
 
-		//Skip items that aren't concepts
-		if (!normalizedConcepts[fingerprintItem]) continue;
+		const conceptCardID = normalizedConcepts[fingerprintItem];
 
-		//OK, we think there's a card that matches this fingerprint item.
-		const conceptCard = getConceptCardForConcept(conceptCards, fingerprintItem);
-		//false alarm
-		if (!conceptCard) continue;
+		//Skip items that aren't concepts
+		if (!conceptCardID) continue;
+
 		//Don't suggest that concept cards reference themselves
-		if (conceptCard.id == card.id) continue;
+		if (conceptCardID == card.id) continue;
 
 		//Skip items we already point to... but only if it expands to the same
 		//card as we'll suggest. For example, if a card mentions 'agent' and
@@ -1246,19 +1244,19 @@ export const suggestedConceptReferencesForCard = memoizeFirstArg((card, conceptC
 
 		//Skip ones that we've already included as a suggestion (which could have happened if we
 		//already saw a synonym item)
-		if (candidates[conceptCard.id]) continue;
+		if (candidates[conceptCardID]) continue;
 		//Don't suggest things that already have references of type concept (and sub-types like syonym), or the generic ack.
 		for (const referenceType of REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT) {
 			const referencesOfType = existingReferences[referenceType];
 			if (!referencesOfType) continue;
-			if (referencesOfType[conceptCard.id] !== undefined) {
+			if (referencesOfType[conceptCardID] !== undefined) {
 				skipSuggestion = true;
 				break;
 			}
 		}
 		if (skipSuggestion) continue;
-		conceptStrForCandidateCard[conceptCard.id] = fingerprintItem;
-		candidates[conceptCard.id] = true;
+		conceptStrForCandidateCard[conceptCardID] = fingerprintItem;
+		candidates[conceptCardID] = true;
 	}
 	//Now we want to make sure we don't suggest any concepts that are subsets of
 	//larger concepts we might also suggest, since if the user were to select
