@@ -599,7 +599,7 @@ const normalizeSynonymMap = (synonyms) => {
 	return memoizedNormalizedSynonymMaps.get(synonyms);
 };
 
-let memoizedNormalizedNgramMaps = new Map();
+let memoizedNormalizedNgramMaps = new WeakMap();
 
 const normalizeNgramMap = (ngramMap) => {
 	if (!memoizedNormalizedNgramMaps.has(ngramMap)) {
