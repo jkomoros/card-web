@@ -52,6 +52,8 @@ export const arrayRemoveSentinel = firebase.firestore.FieldValue.arrayRemove;
 export const incrementSentinel = firebase.firestore.FieldValue.increment;
 export const deleteSentinel = firebase.firestore.FieldValue.delete;
 
+export const currentTimestamp = firebase.firestore.Timestamp.now;
+
 const deleteSentinelJSON = JSON.stringify(deleteSentinel());
 const serverTimestampSentinelJSON = JSON.stringify(serverTimestampSentinel());
 
