@@ -256,7 +256,7 @@ export const modifyCards = (cards, update, substantive, failOnError) => async (d
 //op. When an error is thrown, that's an implied 'false'. if updatedCardsOverlay
 //is an object, then card.id will be added to it, with the card + final update
 //in it (pass the same overlay object for everything using the same batch). When
-//the batch is done, updatedCardsOverlay can be sent to updateCards.
+//the batch is done, updatedCardsOverlay can be sent to updateCardsWithOverlay.
 export const modifyCardWithBatch = (state, card, update, substantive, batch, updatedCardsOverlay = null) => {
 
 	//If there aren't any updates to a card, that's OK. This might happen in a
@@ -1150,6 +1150,23 @@ export const updateTags = (tags) => (dispatch) => {
 		tags,
 	});
 	dispatch(refreshCardSelector(false));
+};
+
+//eslint-disable-next-line no-unused-vars
+const updateCardsWithOverlay = (cardsOverlay) => (dispatch) => {
+	const publishedOverlay = {};
+	const unpublishedOverlay = {};
+	for (const card of Object.values(cardsOverlay)) {
+		if (card.published) {
+			publishedOverlay[card.id] = card;
+			continue;
+		}
+		unpublishedOverlay[card.id] = card;
+	}
+
+	if (Object.keys(publishedOverlay).length) dispatch(updateCards(publishedOverlay, false));
+	if (Object.keys(unpublishedOverlay).length) dispatch(updateCards(unpublishedOverlay, true));
+
 };
 
 export const updateCards = (cards, unpublished) => (dispatch, getState) => {
