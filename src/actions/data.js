@@ -32,7 +32,8 @@ import {
 	db,
 	serverTimestampSentinel,
 	arrayUnionSentinel,
-	arrayRemoveSentinel
+	arrayRemoveSentinel,
+	deepEqualIgnoringTimestamps
 } from '../firebase.js';
 
 import {
@@ -1151,10 +1152,27 @@ export const updateTags = (tags) => (dispatch) => {
 	dispatch(refreshCardSelector(false));
 };
 
-export const updateCards = (cards, unpublished) => (dispatch) => {
+export const updateCards = (cards, unpublished) => (dispatch, getState) => {
+	const existingCards = selectCards(getState());
+	const cardsToUpdate = {};
+	for (const card of Object.values(cards)) {
+		//Check ot see if we already have effectively the same card locally with no notional changes.
+		if (existingCards[card.id] && deepEqualIgnoringTimestamps(existingCards[card.id], card)) continue;
+		cardsToUpdate[card.id] = card;
+	}
+
+	if (Object.keys(cardsToUpdate).length == 0) {
+		//There's an empty update. Sometimes that's becasue cards was
+		//deliberately passed an empty cards set to signal later in the
+		//pipeline. But if it's because we filtered out all the cards update,
+		//then just drop the whole dispatch.
+		if (Object.keys(cards).length != 0) {
+			return;
+		}
+	}
 	dispatch({
-		type:UPDATE_CARDS,
-		cards,
+		type: UPDATE_CARDS,
+		cards: cardsToUpdate,
 		unpublished
 	});
 	dispatch(refreshCardSelector(false));
