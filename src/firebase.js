@@ -60,3 +60,5 @@ export const isDeleteSentinel = (value) => {
 	//at least stringify the same.
 	return JSON.stringify(value) == deleteSentinelJSON;
 };
+
+export const isFirestoreTimestamp = (value) => value instanceof firebase.firestore.Timestamp;
