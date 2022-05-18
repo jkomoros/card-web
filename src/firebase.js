@@ -8,6 +8,8 @@ import '@firebase/firestore';
 import '@firebase/functions';
 import '@firebase/storage';
 
+import { deepEqual } from './util.js';
+
 import {
 	FIREBASE_DEV_CONFIG,
 	FIREBASE_PROD_CONFIG,
@@ -72,3 +74,5 @@ export const isServerTimestampSentinel = (value) => {
 };
 
 export const isFirestoreTimestamp = (value) => value instanceof firebase.firestore.Timestamp;
+
+export const deepEqualIgnoringTimestamps = (a, b) => deepEqual(a, b, isFirestoreTimestamp);
