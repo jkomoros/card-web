@@ -254,7 +254,8 @@ export const modifyCards = (cards, update, substantive, failOnError) => async (d
 //returns true if a modificatioon was made to the card, or false if it was a no
 //op. When an error is thrown, that's an implied 'false'. if updatedCardsOverlay
 //is an object, then card.id will be added to it, with the card + final update
-//in it. When the batch is done, updatedCardsOverlay can be sent to updateCards.
+//in it (pass the same overlay object for everything using the same batch). When
+//the batch is done, updatedCardsOverlay can be sent to updateCards.
 export const modifyCardWithBatch = (state, card, update, substantive, batch, updatedCardsOverlay = null) => {
 
 	//If there aren't any updates to a card, that's OK. This might happen in a
@@ -286,8 +287,10 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch, upd
 	if (substantive) cardUpdateObject.updated_substantive = serverTimestampSentinel();
 
 	if (updatedCardsOverlay) {
+		//If the card has already been updated in this batch then layer edits on top.
+		const baseCard = updatedCardsOverlay[card.id] || card;
 		//Expand the timestamps to be real timestamps
-		updatedCardsOverlay[card.id] = applyCardFirebaseUpdate(card, cardUpdateObject, true);
+		updatedCardsOverlay[card.id] = applyCardFirebaseUpdate(baseCard, cardUpdateObject, true);
 	}
 
 	let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
