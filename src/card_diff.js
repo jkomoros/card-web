@@ -48,7 +48,9 @@ import {
 } from './util.js';
 
 import {
-	isDeleteSentinel
+	isDeleteSentinel,
+	isServerTimestampSentinel,
+	currentTimestamp
 } from './firebase.js';
 
 const FREE_TEXT_FIELDS = Object.fromEntries([...Object.keys(TEXT_FIELD_CONFIGURATION).filter(key => !TEXT_FIELD_CONFIGURATION[key].readOnly), 'todo', 'notes'].map(item => [item, true]));
@@ -235,19 +237,22 @@ export const generateFinalCardDiff = async (state, underlyingCard, rawUpdatedCar
 //applyCardDiff) and applies it to baseCard to generate a new cloned card
 //update. FirebaseUpdates are like normal objects, but might have dotted-string
 //keys (representing deeper layers in the object) and deleteSentinels. This
-//method only clones as deeply down into the objects as it needs to.
-export const applyCardFirebaseUpdate = (baseCard, firebaseUpdate) => {
+//method only clones as deeply down into the objects as it needs to. If
+//replaceTimestampSentinels is true, then every time it sees a
+//serverTimestampSentinel in the firebaseUpdate, it will instead put in a
+//currentTimestamp()>
+export const applyCardFirebaseUpdate = (baseCard, firebaseUpdate, replaceTimestampSentinels = false) => {
 	//TODO: test this.
 
 	//This clone is only one layer deep!
 	const result = {...baseCard};
 	for (const [key, value] of Object.entries(firebaseUpdate)) {
-		setFirebaseValueOnObj(result, key.split('.'), value);
+		setFirebaseValueOnObj(result, key.split('.'), value, replaceTimestampSentinels);
 	}
 	return result;
 };
 
-const setFirebaseValueOnObj = (obj, fieldParts, value) => {
+const setFirebaseValueOnObj = (obj, fieldParts, value, replaceTimestampSentinels = false) => {
 	//Obj is an object it's OK to modify, but no other subobjects are.
 
 	const firstFieldPart = fieldParts[0];
@@ -258,6 +263,10 @@ const setFirebaseValueOnObj = (obj, fieldParts, value) => {
 			delete obj[firstFieldPart];
 			return;
 		}
+		if (isServerTimestampSentinel(value)) {
+			obj[firstFieldPart] = currentTimestamp();
+			return;
+		}
 		obj[firstFieldPart] = value;
 		return;
 	} 
@@ -265,7 +274,7 @@ const setFirebaseValueOnObj = (obj, fieldParts, value) => {
 	//And create a new sub object if necessary
 	const newObj = obj[firstFieldPart] ? {...obj[firstFieldPart]} : {};
 	obj[firstFieldPart] = newObj;
-	setFirebaseValueOnObj(newObj, fieldParts.slice(1), value);
+	setFirebaseValueOnObj(newObj, fieldParts.slice(1), value, replaceTimestampSentinels);
 };
 
 //applyCardDiff returns a cardFirebaseUpdate object with only the fields that
