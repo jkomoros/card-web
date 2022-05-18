@@ -173,8 +173,9 @@ export const selectExpectedDeletions = (state) => state.data ? state.data.expect
 export const selectCardModificationPending = (state) => state.data ? state.data.cardModificationPending : false;
 //All cards downloaded to client can be assumed to be OK to use in the rest of the pipeline.
 //rawCards means they don't yet have their nlp data cached. See selectCards which returns that.
+//This is only exposed so that updateCards can check for dupes directly.
 //NOTE: this next one is duplicated in simple_selectors.js
-const selectRawCards = (state) => state.data ? state.data.cards : {};
+export const selectRawCards = (state) => state.data ? state.data.cards : {};
 const selectRawCardsSnapshot = (state) => state.data ? state.data.cardsSnapshot : {};
 export const selectPendingNewCardIDToNavigateTo = (state) => state.data ? state.data.pendingNewCardIDToNavigateTo : '';
 const selectPublishedCardsLoaded = (state) => state.data ? state.data.publishedCardsLoaded : false;

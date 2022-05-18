@@ -89,7 +89,8 @@ import {
 	selectSortOrderForGlobalAppend,
 	getSortOrderImmediatelyAdjacentToCard,
 	selectUserMayReorderActiveCollection,
-	selectActiveCollectionDescription
+	selectActiveCollectionDescription,
+	selectRawCards
 } from '../selectors.js';
 
 import {
@@ -1170,7 +1171,7 @@ const updateCardsWithOverlay = (cardsOverlay) => (dispatch) => {
 };
 
 export const updateCards = (cards, unpublished) => (dispatch, getState) => {
-	const existingCards = selectCards(getState());
+	const existingCards = selectRawCards(getState());
 	const cardsToUpdate = {};
 	for (const card of Object.values(cards)) {
 		//Check ot see if we already have effectively the same card locally with no notional changes.
