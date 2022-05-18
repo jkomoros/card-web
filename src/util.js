@@ -691,8 +691,10 @@ export const pageRank = (cards) => {
 };
 
 //Tests for deep eqaulity of a and b. note: not yet tested for anythong other
-//than objects, arrays, strings, numbers, bools.∑
-export const deepEqual = (a, b) => {
+//than objects, arrays, strings, numbers, bools.∑ If a and b are too non-equal
+//objecst, and objectChecker is provided, then if both return true from
+//objectChecker then deepEqual will short-circuit and return true.
+export const deepEqual = (a, b, objectChecker = null) => {
 	if (a === b) return true;
 	if (!a || !b) return false;
 	if (typeof a != 'object' || typeof b != 'object') return false;
@@ -700,14 +702,15 @@ export const deepEqual = (a, b) => {
 		if (!Array.isArray(b)) return false;
 		if (a.length != b.length) return false;
 		for (const [i, val] of a.entries()) {
-			if (!deepEqual(b[i], val)) return false;
+			if (!deepEqual(b[i], val, objectChecker)) return false;
 		}
 		return true;
 	}
+	if (objectChecker && objectChecker(a) && objectChecker(b)) return true;
 	//Two objects
 	if (Object.keys(a).length != Object.keys(b).length) return false;
 	for (const [key, val] of Object.entries(a)) {
-		if (!deepEqual(val, b[key])) return false;
+		if (!deepEqual(val, b[key], objectChecker)) return false;
 	}
 	return true;
 };
