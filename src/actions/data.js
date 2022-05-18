@@ -123,6 +123,7 @@ import {
 	cardDiffHasChanges,
 	validateCardDiff,
 	applyCardDiff,
+	applyCardFirebaseUpdate,
 } from '../card_diff.js';
 
 import {
@@ -212,6 +213,7 @@ export const modifyCards = (cards, update, substantive, failOnError) => async (d
 	dispatch(modifyCardAction());
 
 	const batch = new MultiBatch(db);
+	const updatedCardsOverlay = {};
 	let modifiedCount = 0;
 	let errorCount = 0;
 
@@ -224,7 +226,7 @@ export const modifyCards = (cards, update, substantive, failOnError) => async (d
 		}
 
 		try {
-			if (modifyCardWithBatch(state, card, update, substantive, batch)) modifiedCount++;
+			if (modifyCardWithBatch(state, card, update, substantive, batch, updatedCardsOverlay)) modifiedCount++;
 		} catch (err) {
 			console.warn('Couldn\'t modify card: ' + err);
 			errorCount++;
@@ -242,14 +244,18 @@ export const modifyCards = (cards, update, substantive, failOnError) => async (d
 		return;
 	}
 
+	//TODO: send updatedCardsOverlay to updateCards.
+
 	if (modifiedCount > 1 || errorCount > 0) alert('' + modifiedCount + ' cards modified.' + (errorCount > 0 ? '' + errorCount + ' cards errored. See the console for why.' : ''));
 
 	dispatch(modifyCardSuccess());
 };
 
 //returns true if a modificatioon was made to the card, or false if it was a no
-//op. When an error is thrown, that's an implied 'false'
-export const modifyCardWithBatch = (state, card, update, substantive, batch) => {
+//op. When an error is thrown, that's an implied 'false'. if updatedCardsOverlay
+//is an object, then card.id will be added to it, with the card + final update
+//in it. When the batch is done, updatedCardsOverlay can be sent to updateCards.
+export const modifyCardWithBatch = (state, card, update, substantive, batch, updatedCardsOverlay = null) => {
 
 	//If there aren't any updates to a card, that's OK. This might happen in a
 	//multiModify where some cards already have the items, for example.
@@ -278,6 +284,11 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch) => 
 	let cardUpdateObject = applyCardDiff(card, update);
 	cardUpdateObject.updated = serverTimestampSentinel();
 	if (substantive) cardUpdateObject.updated_substantive = serverTimestampSentinel();
+
+	if (updatedCardsOverlay) {
+		//Expand the timestamps to be real timestamps
+		updatedCardsOverlay[card.id] = applyCardFirebaseUpdate(card, cardUpdateObject, true);
+	}
 
 	let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
 
