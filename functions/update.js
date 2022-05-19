@@ -133,7 +133,7 @@ const inboundLinks = (change, context) => {
 
 	const updatesToApply = inboundLinksUpdates(cardID, beforeCard, afterCard);
 
-	if (Object.keys(updatesToApply).length == 0) return Promise.resolve();
+	if (Object.keys(updatesToApply).length === 0) return Promise.resolve();
 	
 	let batch = db.batch();
 
