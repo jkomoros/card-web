@@ -103,8 +103,8 @@ const inboundLinksUpdates = (cardID, beforeCard, afterCard) => {
 	const updatesToApply = {};
 
 	if (Object.keys(changes).length) {
-		const afterReferencesInfo = afterCard[common.REFERENCES_INFO_CARD_PROPERTY];
-		const afterReferences = afterCard[common.REFERENCES_CARD_PROPERTY];
+		const afterReferencesInfo = afterCard[REFERENCES_INFO_CARD_PROPERTY];
+		const afterReferences = afterCard[REFERENCES_CARD_PROPERTY];
 		for (let otherCardID of Object.keys(changes)) {
 			let update = {
 				[REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferencesInfo[otherCardID],
