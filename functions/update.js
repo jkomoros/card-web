@@ -1,9 +1,12 @@
 const common = require('./common.js');
 const db = common.db;
-const FieldValue = common.FieldValue;
 
+const CARDS_COLLECTION = 'cards';
 const REFERENCES_INFO_CARD_PROPERTY = common.REFERENCES_INFO_CARD_PROPERTY;
 const REFERENCES_CARD_PROPERTY = common.REFERENCES_CARD_PROPERTY;
+const REFERENCES_INBOUND_CARD_PROPERTY = common.REFERENCES_INBOUND_CARD_PROPERTY;
+const REFERENCES_INFO_INBOUND_CARD_PROPERTY = common.REFERENCES_INFO_INBOUND_CARD_PROPERTY;
+const deleteSentinel = common.FieldValue.delete;
 
 //MOSTLY duplicated from src/card_fields.js;
 const referencesLegalShape = (cardObj) => {
@@ -102,8 +105,8 @@ const inboundLinksUpdates = (cardID, beforeCard, afterCard) => {
 		const afterReferences = afterCard[common.REFERENCES_CARD_PROPERTY];
 		for (let otherCardID of Object.keys(changes)) {
 			let update = {
-				[common.REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferencesInfo[otherCardID],
-				[common.REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferences[otherCardID],
+				[REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferencesInfo[otherCardID],
+				[REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferences[otherCardID],
 			};
 			updatesToApply[otherCardID] = update;
 		}
@@ -111,8 +114,8 @@ const inboundLinksUpdates = (cardID, beforeCard, afterCard) => {
 
 	for (let otherCardID of Object.keys(deletions)) {
 		let update = {
-			[common.REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: FieldValue.delete(),
-			[common.REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: FieldValue.delete(),
+			[REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: deleteSentinel(),
+			[REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: deleteSentinel(),
 		};
 		updatesToApply[otherCardID] = update;
 	}
@@ -138,7 +141,7 @@ const inboundLinks = (change, context) => {
 	let batch = db.batch();
 
 	for (const [otherCardID, update] of Object.entries(updatesToApply)) {
-		const ref = db.collection('cards').doc(otherCardID);
+		const ref = db.collection(CARDS_COLLECTION).doc(otherCardID);
 		batch.update(ref, update);
 	}
 
