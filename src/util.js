@@ -690,6 +690,8 @@ export const pageRank = (cards) => {
 	return result;
 };
 
+const LOG_DEEP_EQUAL_DIFFERENCES = false;
+
 //Tests for deep eqaulity of a and b. note: not yet tested for anythong other
 //than objects, arrays, strings, numbers, bools.∑ If a and b are too non-equal
 //objecst, and objectChecker is provided, then if both return true from
@@ -708,9 +710,27 @@ export const deepEqual = (a, b, objectChecker = null) => {
 	}
 	if (objectChecker && objectChecker(a) && objectChecker(b)) return true;
 	//Two objects
-	if (Object.keys(a).length != Object.keys(b).length) return false;
+	if (Object.keys(a).length != Object.keys(b).length) {
+		if (LOG_DEEP_EQUAL_DIFFERENCES) {
+			let aKeys = new Set(Object.keys(a));
+			let bKeys = new Set(Object.keys(b));
+			if (aKeys.size > aKeys.size) {
+				const difference = [...aKeys].filter(x => !bKeys.has(x));
+				console.log('a has keys ', difference, 'that b lacks', a, b);
+			} else {
+				const difference = [...bKeys].filter(x => !aKeys.has(x));
+				console.log('b has keys ', difference, 'that a lacks', a, b);
+			}
+		}
+		return false;
+	}
 	for (const [key, val] of Object.entries(a)) {
-		if (!deepEqual(val, b[key], objectChecker)) return false;
+		if (!deepEqual(val, b[key], objectChecker)) {
+			if (LOG_DEEP_EQUAL_DIFFERENCES) {
+				console.log('Key', key, ' is different in a and b: ', val, b[key], a, b);
+			}
+			return false;
+		}
 	}
 	return true;
 };
