@@ -92,6 +92,8 @@ const referencesCardsDiff = (beforeCard, afterCard) => {
 	return result;
 };
 
+//Returns an object of cardID -> firebaseUpdate to make to bring the
+//inboundLinks to parity based on the change in beforeCard to afterCard.
 const inboundLinksUpdates = (cardID, beforeCard, afterCard) => {
 
 	const [changes, deletions] = referencesCardsDiff(beforeCard, afterCard);
