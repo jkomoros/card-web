@@ -714,7 +714,7 @@ export const deepEqual = (a, b, objectChecker = null) => {
 		if (LOG_DEEP_EQUAL_DIFFERENCES) {
 			let aKeys = new Set(Object.keys(a));
 			let bKeys = new Set(Object.keys(b));
-			if (aKeys.size > aKeys.size) {
+			if (aKeys.size > bKeys.size) {
 				const difference = [...aKeys].filter(x => !bKeys.has(x));
 				console.log('a has keys ', difference, 'that b lacks', a, b);
 			} else {
