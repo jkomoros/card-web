@@ -246,7 +246,7 @@ export const modifyCards = (cards, update, substantive, failOnError) => async (d
 		return;
 	}
 
-	//TODO: send updatedCardsOverlay to updateCards.
+	dispatch(updateCardsWithOverlay(updatedCardsOverlay));
 
 	if (modifiedCount > 1 || errorCount > 0) alert('' + modifiedCount + ' cards modified.' + (errorCount > 0 ? '' + errorCount + ' cards errored. See the console for why.' : ''));
 
@@ -1159,7 +1159,6 @@ export const updateTags = (tags) => (dispatch) => {
 	dispatch(refreshCardSelector(false));
 };
 
-//eslint-disable-next-line no-unused-vars
 const updateCardsWithOverlay = (cardsOverlay) => (dispatch) => {
 	const publishedOverlay = {};
 	const unpublishedOverlay = {};
