@@ -290,7 +290,13 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch, upd
 
 	if (updatedCardsOverlay) {
 		//If the card has already been updated in this batch then layer edits on top.
-		const baseCard = updatedCardsOverlay[card.id] || card;
+		let baseCard = updatedCardsOverlay[card.id];
+		if (!baseCard) {
+			//We can't use card as baseCard, because it likely has many other
+			//things than rawCard, including things like nlp, importantNgrams, etc.
+			const existingRawCards = selectRawCards(state);
+			baseCard = existingRawCards[card.id];
+		}
 		//Expand the timestamps to be real timestamps
 		updatedCardsOverlay[card.id] = applyCardFirebaseUpdate(baseCard, cardUpdateObject, true);
 	}
