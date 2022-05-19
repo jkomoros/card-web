@@ -19,6 +19,10 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	TEXT_FIELD_CONFIGURATION,
 	TEXT_FIELD_BODY,
+	REFERENCES_INFO_CARD_PROPERTY,
+	REFERENCES_CARD_PROPERTY,
+	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
+	REFERENCES_INBOUND_CARD_PROPERTY,
 	fontSizeBoosts
 } from './card_fields.js';
 
@@ -33,7 +37,8 @@ import {
 import {
 	references,
 	applyReferencesDiff,
-	referencesEntriesDiff
+	referencesEntriesDiff,
+	referencesCardsDiff
 } from './references.js';
 
 import {
@@ -50,7 +55,8 @@ import {
 import {
 	isDeleteSentinel,
 	isServerTimestampSentinel,
-	currentTimestamp
+	currentTimestamp,
+	deleteSentinel
 } from './firebase.js';
 
 const FREE_TEXT_FIELDS = Object.fromEntries([...Object.keys(TEXT_FIELD_CONFIGURATION).filter(key => !TEXT_FIELD_CONFIGURATION[key].readOnly), 'todo', 'notes'].map(item => [item, true]));
@@ -441,4 +447,38 @@ export const validateCardDiff = (state, underlyingCard, diff) => {
 	}
 
 	return false;
+};
+
+//Returns an object of cardID -> firebaseUpdate to make to bring the
+//inboundLinks to parity based on the change in beforeCard to afterCard.
+//Duplicated from functions/update.js
+export const inboundLinksUpdates = (cardID, beforeCard, afterCard) => {
+
+	const [changes, deletions] = referencesCardsDiff(beforeCard, afterCard);
+
+	if (Object.keys(changes).length === 0 && Object.keys(deletions).length === 0) return {};
+
+	const updatesToApply = {};
+
+	if (Object.keys(changes).length) {
+		const afterReferencesInfo = afterCard[REFERENCES_INFO_CARD_PROPERTY];
+		const afterReferences = afterCard[REFERENCES_CARD_PROPERTY];
+		for (let otherCardID of Object.keys(changes)) {
+			let update = {
+				[REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferencesInfo[otherCardID],
+				[REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferences[otherCardID],
+			};
+			updatesToApply[otherCardID] = update;
+		}
+	}
+
+	for (let otherCardID of Object.keys(deletions)) {
+		let update = {
+			[REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: deleteSentinel(),
+			[REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: deleteSentinel(),
+		};
+		updatesToApply[otherCardID] = update;
+	}
+
+	return updatesToApply;
 };
