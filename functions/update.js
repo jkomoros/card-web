@@ -59,7 +59,7 @@ const cardReferenceBlockHasDifference = (before, after) => {
 	return false;
 }
 
-//Duplicated from src/card_fields.js
+//Duplicated from src/references.js
 const referencesCardsDiff = (beforeCard, afterCard) => {
 	const result = [{}, {}];
 	const emptyCard = {[REFERENCES_INFO_CARD_PROPERTY]:{}, [REFERENCES_CARD_PROPERTY]: {}};
