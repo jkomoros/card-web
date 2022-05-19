@@ -126,6 +126,7 @@ import {
 	validateCardDiff,
 	applyCardDiff,
 	applyCardFirebaseUpdate,
+	inboundLinksUpdates,
 } from '../card_diff.js';
 
 import {
@@ -293,14 +294,23 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch, upd
 	if (updatedRawCardsOverlay) {
 		//If the card has already been updated in this batch then layer edits on top.
 		let baseCard = updatedRawCardsOverlay[card.id];
+		const existingRawCards = selectRawCards(state);
 		if (!baseCard) {
 			//We can't use card as baseCard, because it likely has many other
 			//things than rawCard, including things like nlp, importantNgrams, etc.
-			const existingRawCards = selectRawCards(state);
 			baseCard = existingRawCards[card.id];
 		}
 		//Expand the timestamps to be real timestamps
-		updatedRawCardsOverlay[card.id] = applyCardFirebaseUpdate(baseCard, cardUpdateObject, true);
+		const updatedCard = applyCardFirebaseUpdate(baseCard, cardUpdateObject, true);
+		
+		updatedRawCardsOverlay[card.id] = updatedCard;
+
+		const inboundUpdates = inboundLinksUpdates(card.id, baseCard, updatedCard);
+		for (const [otherCardID, inboundUpdate] of Object.entries(inboundUpdates)) {
+			const otherCard = updatedRawCardsOverlay[otherCardID] || existingRawCards[otherCardID];
+			if (!otherCard) continue;
+			updatedRawCardsOverlay[otherCardID] = applyCardFirebaseUpdate(otherCard, inboundUpdate, true);
+		}
 	}
 
 	let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
