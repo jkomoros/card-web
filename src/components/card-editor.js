@@ -417,7 +417,7 @@ class CardEditor extends connect(store)(LitElement) {
 					${Object.entries(REFERENCE_TYPES).filter(entry => referencesMap[entry[0]]).map(entry => {
 		return html`<div>
 							<label>${entry[1].name} ${help(entry[1].description, false)} <button class='small' .referenceType=${entry[0]} @click=${this._handleRemoveAllReferencesOfTypeClicked} title=${'Remove all references of type ' + entry[1].name} >${HIGHLIGHT_OFF_ICON}</button></label>
-							<tag-list .overrideTypeName=${'Reference'} .disableTagIfMissingTagInfo=${true} .referenceType=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .editing=${entry[1].editable} .subtle=${!entry[1].editable} .tapEvents=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveReference}></tag-list>
+							<tag-list .overrideTypeName=${'Reference'} .disableTagIfMissingTagInfo=${true} .disabledDescription=${'You do not have permission to view this card so you may not remove the reference to it.'} .referenceType=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .editing=${entry[1].editable} .subtle=${!entry[1].editable} .tapEvents=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveReference}></tag-list>
 						</div>`;
 	})}
 				</div>
