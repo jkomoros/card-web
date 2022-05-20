@@ -7,18 +7,20 @@ class TagChip  extends LitElement {
 		return html`
 			<style>
 				:host {
-					background-color: ${this._color};
-					border-radius: 0.3em;
-					font-size: 0.7em;
-					padding: 0.2em;
 					margin: 0 0.2em;
 					display: inline-block;
 					color: var(--app-light-text-color);
 					font-weight:bold;
+				}
+				span {
+					padding: 0.2em;
+					border-radius: 0.3em;
+					font-size: 0.7em;
+					background-color: ${this._color};
 					transition: filter 0.1s ease-in-out;
 					${this._filter ? 'filter: ' + this._filter + ';' : ''}
 				}
-				:host(:hover) {
+				span.enabled:hover {
 					filter:none;
 				}
 				a.primary {
@@ -41,11 +43,11 @@ class TagChip  extends LitElement {
 					color: var(--app-light-text-color);
 					padding: 0 0.3em;
 				}
-				span.editing a.delete {
+				span.enabled.editing a.delete {
 					display:inline;
 				}
 			</style>
-			<span class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''}' title='${this._description}' @mousemove=${this._handleMouseMove}><a class='primary' href='${this._url}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
+			<span class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''} ${this._disabled ? 'disabled' : 'enabled'}' title='${this._description}' @mousemove=${this._handleMouseMove}><a class='primary' href='${this._url}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
 			`;
 	}
 
@@ -60,6 +62,10 @@ class TagChip  extends LitElement {
 	}
 
 	_handleTagClicked(e) {
+		if (this._disabled) {
+			e.preventDefault();
+			return false;
+		}
 		if (this.tapEvents) {
 			e.preventDefault();
 			this.dispatchEvent(new CustomEvent('tag-tapped', {composed: true, detail: {tag: this.tagName}}));
@@ -79,6 +85,7 @@ class TagChip  extends LitElement {
 	}
 
 	_handleXClicked(e) {
+		if (this._disabled) return false;
 		e.preventDefault();
 		if (this.deletion) {
 			//In this (special) case, the user has removed us previously and so
@@ -113,7 +120,7 @@ class TagChip  extends LitElement {
 	}
 
 	get _url() {
-		return this._suppressLink ? '' : urlForTag(this.tagName, this._cardName);
+		return this._suppressLink || this._disabled ? '' : urlForTag(this.tagName, this._cardName);
 	}
 
 	get _subtle() {
@@ -133,11 +140,19 @@ class TagChip  extends LitElement {
 	}
 
 	get _filter() {
-		if (this._subtle) return 'grayscale(80%) opacity(40%)';
+		if (this._subtle || this._disabled) return 'grayscale(80%) opacity(40%)';
 		if (!this.tagInfos) return '';
 		let info = this.tagInfos[this.tagName];
 		if (!info) return '';
 		return info.filter || '';
+	}
+
+	get _disabled() {
+		if (this.disabled) return true;
+		if (!this.tagInfos) return false;
+		let info = this.tagInfos[this.tagName];
+		if (!info) return false;
+		return info.disabled || false;
 	}
 
 	get _displayName() {
@@ -168,6 +183,7 @@ class TagChip  extends LitElement {
 			tagInfos: {type:Object},
 			tapEvents: {type:Boolean},
 			subtle: {type:Boolean},
+			disabled: {type:Boolean},
 			//If set, will use this defualt color if the tag doesn't have one
 			//defined. Should be of the form "#AABBCC" or some other literal
 			//color value;
