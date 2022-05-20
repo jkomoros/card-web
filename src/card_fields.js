@@ -71,10 +71,12 @@ export const sortOrderIsDangerous = (proposedSortOrder) => {
 //NOTE: this next one is duplicated in tweet-helpers.js and both are in
 //functions/updates.js;
 export const REFERENCES_INFO_CARD_PROPERTY = 'references_info';
+//Also referenced directly in firestore.TEMPLATE.rules
 export const REFERENCES_INFO_INBOUND_CARD_PROPERTY = 'references_info_inbound';
 //These two properties are exactly like the normal references fields exccept
 //it's a map of cardID -> true for cards that are referenced.
 export const REFERENCES_CARD_PROPERTY = 'references';
+//Also referenced directly in firestore.TEMPLATE.rules
 export const REFERENCES_INBOUND_CARD_PROPERTY = 'references_inbound';
 
 export const TEXT_FIELD_BODY = 'body';

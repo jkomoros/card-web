@@ -153,6 +153,17 @@ service cloud.firestore {
       return requestData.diff(resourceData).affectedKeys().hasOnly([incKey, decKey]) && resourceData[decKey] - 1 == requestData[decKey] && resourceData[incKey] + 1 == requestData[incKey];
     }
 
+    function cardEditInboundReferences() {
+      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      let allKeys = ['references_inbound', 'references_info_inbound'];
+      //TODO: for each modifiedCardID, verify userMayEditCard. There is no way
+      //to access keys by index in the set, or to loop currently which will mean
+      //it would always be hacky.
+
+      //let modifiedCardIDs = request.resource.data.get('references_inbound', {}).diff(resource.data.get('references_inbound', {})).changedKeys();
+      return (resource.data.published || userMayViewUnpublished()) && affectedKeys.hasOnly(allKeys) && affectedKeys.hasAny(allKeys);
+    }
+
     function cardEditMinor() {
       let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
       //we can bail only if there are any keys not in this set, or if they aren't any keys in this set, without doing the more expensive calculations.
@@ -240,7 +251,7 @@ service cloud.firestore {
     match /cards/{card} {
       allow read: if userMayViewApp() && (resource.data.published == true || userMayViewUnpublished());
       allow create: if userMayCreateCard() && createIsAuthor();
-      allow update: if cardEditMinor() || userMayEditCard(card);
+      allow update: if cardEditMinor() || cardEditInboundReferences() || userMayEditCard(card);
       //This logic mirrors the logic in selectors/getReasonUserMayNotDeleteCard
       allow delete: if userMayEditCard(card) && resource.data.get('section', '') == '' && resource.data.get('tags', []).size() == 0 && resource.data.get('references_inbound', {}).size() == 0;
     

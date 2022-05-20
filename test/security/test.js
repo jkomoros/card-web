@@ -87,6 +87,8 @@ async function setupDatabase() {
 		star_count: cardStarCount,
 		star_count_manual: cardStarCount,
 		published: true,
+		references_inbound: {},
+		references_info_inbound:{},
 	});
 	await db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId).set({
 		foo:3,
@@ -100,6 +102,8 @@ async function setupDatabase() {
 		star_count: cardStarCount,
 		star_count_manual: cardStarCount,
 		published: false,
+		references_inbound: {},
+		references_info_inbound:{},
 	});
 
 	await db.collection(CARDS_COLLECTION).doc(unpublishedCardIdSallyAuthor).set({
@@ -111,6 +115,8 @@ async function setupDatabase() {
 		star_count: cardStarCount,
 		star_count_manual: cardStarCount,
 		published: false,
+		references_inbound: {},
+		references_info_inbound:{},
 	});
 
 	await db.collection(CARDS_COLLECTION).doc(unpublishedCardIdSallyEditor).set({
@@ -124,6 +130,8 @@ async function setupDatabase() {
 		star_count: cardStarCount,
 		star_count_manual: cardStarCount,
 		published: false,
+		references_inbound: {},
+		references_info_inbound:{},
 	});
 
 	await db.collection(TAGS_COLLECTION).doc(cardId).set({
@@ -1108,6 +1116,43 @@ describe('Compendium Rules', () => {
 		const db = authedApp(bobAuth);
 		const update = db.collection(CARDS_COLLECTION).doc(cardId).collection(UPDATES_COLLECTION).doc(updateId);
 		await firebase.assertSucceeds(update.delete());
+	});
+
+	it('allows users to update inbound links on a card they can see but cant edit', async() => {
+		const db = authedApp(genericAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertSucceeds(card.update({
+			['references_inbound.' + unpublishedCardId]: true,
+			['references_info_inbound.' + unpublishedCardId + '.link']: '',
+		}));
+	});
+
+	it('disallows users to update inbound links on a card they can see but cant edit if the update contains other edits', async() => {
+		const db = authedApp(genericAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(cardId);
+		await firebase.assertFails(card.update({
+			['references_inbound.' + unpublishedCardId]: true,
+			['references_info_inbound.' + unpublishedCardId + '.link']: '',
+			body: 'bam'
+		}));
+	});
+
+	it('disallows users to update inbound links on a card they cannot see', async() => {
+		const db = authedApp(genericAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardId);
+		await firebase.assertFails(card.update({
+			['references_inbound.' + cardId]: true,
+			['references_info_inbound.' + cardId + '.link']: '',
+		}));
+	});
+
+	it('allows users to update inbound links on an unpublished card they can see but cant edit', async() => {
+		const db = authedApp(sallyAuth);
+		const card = db.collection(CARDS_COLLECTION).doc(unpublishedCardIdSallyAuthor);
+		await firebase.assertSucceeds(card.update({
+			['references_inbound.' + cardId]: true,
+			['references_info_inbound.' + cardId + '.link']: '',
+		}));
 	});
 
 });
