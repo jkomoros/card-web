@@ -216,7 +216,6 @@ export const modifyCards = (cards, update, substantive, failOnError) => async (d
 	dispatch(modifyCardAction());
 
 	const batch = new MultiBatch(db);
-	const updatedRawCardsOverlay = {};
 	let modifiedCount = 0;
 	let errorCount = 0;
 
@@ -229,7 +228,7 @@ export const modifyCards = (cards, update, substantive, failOnError) => async (d
 		}
 
 		try {
-			if (modifyCardWithBatch(state, card, update, substantive, batch, updatedRawCardsOverlay)) modifiedCount++;
+			if (modifyCardWithBatch(state, card, update, substantive, batch)) modifiedCount++;
 		} catch (err) {
 			console.warn('Couldn\'t modify card: ' + err);
 			errorCount++;
@@ -247,21 +246,14 @@ export const modifyCards = (cards, update, substantive, failOnError) => async (d
 		return;
 	}
 
-	dispatch(updateCardsWithOverlay(updatedRawCardsOverlay));
-
 	if (modifiedCount > 1 || errorCount > 0) alert('' + modifiedCount + ' cards modified.' + (errorCount > 0 ? '' + errorCount + ' cards errored. See the console for why.' : ''));
 
 	dispatch(modifyCardSuccess());
 };
 
 //returns true if a modificatioon was made to the card, or false if it was a no
-//op. When an error is thrown, that's an implied 'false'. if
-//updatedRawCardsOverlay is an object, then card.id will be added to it, with
-//the card + final update in it, equivalent to roughly what we expect to hear
-//back from the server later (pass the same overlay object for everything using
-//the same batch). When the batch is done, updatedRawCardsOverlay can be sent to
-//updateCardsWithOverlay.
-export const modifyCardWithBatch = (state, card, update, substantive, batch, updatedRawCardsOverlay = null) => {
+//op. When an error is thrown, that's an implied 'false'.
+export const modifyCardWithBatch = (state, card, update, substantive, batch) => {
 
 	//If there aren't any updates to a card, that's OK. This might happen in a
 	//multiModify where some cards already have the items, for example.
@@ -291,26 +283,13 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch, upd
 	cardUpdateObject.updated = serverTimestampSentinel();
 	if (substantive) cardUpdateObject.updated_substantive = serverTimestampSentinel();
 
-	if (updatedRawCardsOverlay) {
-		//If the card has already been updated in this batch then layer edits on top.
-		let baseCard = updatedRawCardsOverlay[card.id];
-		const existingRawCards = selectRawCards(state);
-		if (!baseCard) {
-			//We can't use card as baseCard, because it likely has many other
-			//things than rawCard, including things like nlp, importantNgrams, etc.
-			baseCard = existingRawCards[card.id];
-		}
-		//Expand the timestamps to be real timestamps
-		const updatedCard = applyCardFirebaseUpdate(baseCard, cardUpdateObject, true);
-		
-		updatedRawCardsOverlay[card.id] = updatedCard;
-
-		const inboundUpdates = inboundLinksUpdates(card.id, baseCard, updatedCard);
-		for (const [otherCardID, inboundUpdate] of Object.entries(inboundUpdates)) {
-			const otherCard = updatedRawCardsOverlay[otherCardID] || existingRawCards[otherCardID];
-			if (!otherCard) continue;
-			updatedRawCardsOverlay[otherCardID] = applyCardFirebaseUpdate(otherCard, inboundUpdate, true);
-		}
+	const existingRawCards = selectRawCards(state);
+	const updatedCard = applyCardFirebaseUpdate(card, cardUpdateObject);
+	const inboundUpdates = inboundLinksUpdates(card.id, card, updatedCard);
+	for (const otherCardID of Object.keys(inboundUpdates)) {
+		//We need to throw BEFORE adding any updates to batch, so check now for
+		//any references to cards we can't see now.
+		if (!existingRawCards[otherCardID]) throw new Error(otherCardID + 'is in the reference update but does not already exist');
 	}
 
 	let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
@@ -319,6 +298,11 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch, upd
 
 	batch.set(updateRef, updateObject);
 	batch.update(cardRef, cardUpdateObject);
+
+	for (const [otherCardID, otherCardUpdate] of Object.entries(inboundUpdates)) {
+		const ref = db.collection(CARDS_COLLECTION).doc(otherCardID);
+		batch.update(ref, otherCardUpdate);
+	}
 
 	ensureAuthor(batch, user);
 
@@ -1169,22 +1153,6 @@ export const updateTags = (tags) => (dispatch) => {
 		tags,
 	});
 	dispatch(refreshCardSelector(false));
-};
-
-const updateCardsWithOverlay = (cardsOverlay) => (dispatch) => {
-	const publishedOverlay = {};
-	const unpublishedOverlay = {};
-	for (const card of Object.values(cardsOverlay)) {
-		if (card.published) {
-			publishedOverlay[card.id] = card;
-			continue;
-		}
-		unpublishedOverlay[card.id] = card;
-	}
-
-	if (Object.keys(publishedOverlay).length) dispatch(updateCards(publishedOverlay, false));
-	if (Object.keys(unpublishedOverlay).length) dispatch(updateCards(unpublishedOverlay, true));
-
 };
 
 export const updateCards = (cards, unpublished) => (dispatch, getState) => {
