@@ -163,6 +163,7 @@ class TagChip  extends LitElement {
 	}
 
 	get _description() {
+		if (this._disabled && this.disabledDescription) return this.disabledDescription;
 		if (!this.tagInfos) return this.tagName;
 		let info = this.tagInfos[this.tagName];
 		if (!info) return this.tagName;
@@ -184,6 +185,8 @@ class TagChip  extends LitElement {
 			tapEvents: {type:Boolean},
 			subtle: {type:Boolean},
 			disabled: {type:Boolean},
+			//If the tag is disabled, what should the description be?
+			disabledDescription: {type:String},
 			//If set, will use this defualt color if the tag doesn't have one
 			//defined. Should be of the form "#AABBCC" or some other literal
 			//color value;
