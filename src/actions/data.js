@@ -933,16 +933,16 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 
 	let sortOrder = getSortOrderImmediatelyAdjacentToCard(state, cardToFork.id, false);
 
-	let obj = defaultCardObject(id,user,section,cardType, sortOrder);
+	let newCard = defaultCardObject(id,user,section,cardType, sortOrder);
 	for (let key of Object.keys(CARD_FIELDS_TO_COPY_ON_FORK)) {
 		//We can literally leave these as the same object because they'll just
 		//be sent to firestore and the actual card we'll store will be new
-		obj[key] = cardToFork[key];
+		newCard[key] = cardToFork[key];
 	}
 	//references accessor will copy the references on setting something
 	//If the card we're copying was itself a fork, we want to overwrite that otherwise it gets confusing.
-	references(obj).setCardReferencesOfType(REFERENCE_TYPE_FORK_OF, [cardToFork.id]);
-	references(obj).setCardReference(cardToFork.id, REFERENCE_TYPE_MINED_FROM);
+	references(newCard).setCardReferencesOfType(REFERENCE_TYPE_FORK_OF, [cardToFork.id]);
+	references(newCard).setCardReference(cardToFork.id, REFERENCE_TYPE_MINED_FROM);
 
 	let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
 
@@ -958,8 +958,8 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 
 	let batch = db.batch();
 	ensureAuthor(batch, user);
-	batch.set(cardDocRef, obj);
-	for (let tagName of obj.tags) {
+	batch.set(cardDocRef, newCard);
+	for (let tagName of newCard.tags) {
 		let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
 		let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
 		let newTagObject = {
@@ -975,7 +975,7 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 	}
 
 	if (section) {
-		let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
+		let sectionRef = db.collection(SECTIONS_COLLECTION).doc(newCard.section);
 		batch.update(sectionRef, {
 			cards: arrayUnionSentinel(id),
 			updated: serverTimestampSentinel()
