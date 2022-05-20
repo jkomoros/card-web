@@ -244,6 +244,13 @@ const ReferencesAccessor = class {
 		return this.mayNotSetCardReferenceReason(state, item.cardID, item.referenceType);
 	}
 
+	//Removes all references for the given card.
+	removeAllReferencesForCard(cardID) {
+		this._prepareForModifications();
+		delete this._referencesInfo[cardID];
+		this._modificationsFinished();
+	}
+
 	applyEntriesDiff(diff) {
 		for (const item of diff) {
 			this._applyEntryDiffItem(item);
