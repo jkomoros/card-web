@@ -240,7 +240,7 @@ const ReferencesAccessor = class {
 	}
 
 	_mayNotApplyEntryDiffItemReason(state, item) {
-		if (item.delete) return '';
+		if (item.delete) return this.mayNotRemoveCardReferenceReason(state, item.cardID, item.referenceType);
 		return this.mayNotSetCardReferenceReason(state, item.cardID, item.referenceType);
 	}
 
@@ -278,6 +278,21 @@ const ReferencesAccessor = class {
 
 	//Returns a string describing why that reference may not be set, or '' if
 	//it's legal.
+	mayNotRemoveCardReferenceReason(state, cardID, referenceType) {
+		if (!getCardExists(state, cardID)) {
+			return 'The other card is not known to exist, which means we wouldn\'t be able to update its inboundLinks.';
+		}
+		if (!this._referencesInfo[cardID]) {
+			return 'No references exist to that card';
+		}
+		if (this._referencesInfo[cardID][referenceType] === undefined) {
+			return 'A reference of that type to that card does not exist';
+		}
+		return '';
+	}
+
+	//Returns a string describing why that reference may not be set, or '' if
+	//it's legal.
 	mayNotSetCardReferenceReason(state, cardID, referenceType) {
 
 		if (this._cardObj.id == cardID) {
@@ -285,8 +300,9 @@ const ReferencesAccessor = class {
 		}
 
 		if (!getCardExists(state, cardID)) {
-			return 'No such card';
+			return 'No such card known to exist on the client';
 		}
+
 		const toCardType = getCardType(state, cardID);
 		const referenceTypeConfig = REFERENCE_TYPES[referenceType];
 
