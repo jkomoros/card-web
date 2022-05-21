@@ -90,7 +90,8 @@ import {
 	getSortOrderImmediatelyAdjacentToCard,
 	selectUserMayReorderActiveCollection,
 	selectActiveCollectionDescription,
-	selectRawCards
+	selectRawCards,
+	getUserMayEditTag
 } from '../selectors.js';
 
 import {
@@ -920,8 +921,6 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		return;
 	}
 
-	//TODO: iterate through all of the tags and make sure the user can edit them
-
 	let user = selectUser(state);
 
 	if (!user) {
@@ -977,6 +976,20 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		for (const otherCardID of Object.keys(illegalOtherCards)) {
 			references(newCard).removeAllReferencesForCard(otherCardID);
 		}
+	}
+
+	const illegalTags = {};
+	for (const tag of cardToFork.tags) {
+		if (!getUserMayEditTag(state, tag)) illegalTags[tag] = true;
+	}
+
+	if (Object.keys(illegalTags).length) {
+		const message = 'The card you are forking contains tags (' + Object.keys(illegalTags).join(', ') + ') that you do not have edit access on. Hit OK to fork the card, minus those tags. Hit cancel to abort forking.';
+		if (!confirm(message)) {
+			console.log('User aborted fork due to illegal tags');
+			return;
+		}
+		newCard.tags = newCard.tags.filter(tag => !illegalTags[tag]);
 	}
 
 	let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
