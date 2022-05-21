@@ -474,6 +474,10 @@ export const inboundLinksUpdates = (cardID, beforeCard, afterCard) => {
 		}
 	}
 
+	//These deletions are only if the _entire_ block of references for that
+	//cardID is gone; if only some of the keys are gone, that counts as a
+	//modification and is properly handled above, and also means we can safely
+	//remove the boolean value too.
 	for (let otherCardID of Object.keys(deletions)) {
 		let update = {
 			[REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: deleteSentinel(),
