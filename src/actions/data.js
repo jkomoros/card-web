@@ -946,7 +946,7 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 	references(newCard).setCardReferencesOfType(REFERENCE_TYPE_FORK_OF, [cardToFork.id]);
 	references(newCard).setCardReference(cardToFork.id, REFERENCE_TYPE_MINED_FROM);
 
-	const inboundUpdates = inboundLinksUpdates(id, null, newCard);
+	let inboundUpdates = inboundLinksUpdates(id, null, newCard);
 	const existingCards = selectCards(state);
 	const illegalOtherCards = {};
 	//We need to check for illegal other cards BEFORE adding any updates to
@@ -976,6 +976,10 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		for (const otherCardID of Object.keys(illegalOtherCards)) {
 			references(newCard).removeAllReferencesForCard(otherCardID);
 		}
+
+		//Regenerate, now that we've removed the illegal ones.
+		inboundUpdates = inboundLinksUpdates(id, null, newCard);
+
 	}
 
 	const illegalTags = {};
