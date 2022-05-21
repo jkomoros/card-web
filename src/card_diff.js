@@ -464,6 +464,9 @@ export const inboundLinksUpdates = (cardID, beforeCard, afterCard) => {
 		const afterReferences = afterCard[REFERENCES_CARD_PROPERTY];
 		for (let otherCardID of Object.keys(changes)) {
 			let update = {
+				//I have confirmed that multiple sets like this (to an object)
+				//int he same transaction won't stomp on each others edits but
+				//will accumulate.
 				[REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferencesInfo[otherCardID],
 				[REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: afterReferences[otherCardID],
 			};
