@@ -28,7 +28,6 @@ export const UPDATE_HOVERED_CARD = 'UPDATE_HOVERED_CARD';
 export const UPDATE_FETCHED_CARD = 'UPDATE_FETCHED_CARD';
 export const CARD_BEING_FETCHED = 'CARD_BEING_FETCHED';
 export const UPDATE_CTRL_KEY_PRESSED = 'UPDATE_CTRL_KEY_PRESSED';
-export const UPDATE_MAINTENANCE_MODE_ENABLED = 'UPDATE_MAINTENANCE_MODE_ENABLED';
 export const OPEN_CARDS_DRAWER_INFO = 'OPEN_CARDS_DRAWER_INFO';
 export const CLOSE_CARDS_DRAWER_INFO = 'CLOSE_CARDS_DRAWER_INFO';
 export const TURN_SUGGEST_MISSING_CONCEPTS = 'TURN_SUGGEST_MISSING_CONCEPTS';
@@ -537,13 +536,6 @@ export const ctrlKeyPressed = (pressed) => (dispatch, getState) => {
 		type: UPDATE_CTRL_KEY_PRESSED,
 		pressed,
 	});
-};
-
-export const updateMaintenanceModeEnabled = (enabled) => {
-	return {
-		type: UPDATE_MAINTENANCE_MODE_ENABLED,
-		enabled,
-	};
 };
 
 //export const OPEN_CARDS_DRAWER_INFO_PANEL = 'OPEN_CARDS_DRAWER_INFO_PANEL';

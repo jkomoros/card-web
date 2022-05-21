@@ -29,7 +29,6 @@ import {
 	UPDATE_FETCHED_CARD,
 	CARD_BEING_FETCHED,
 	UPDATE_CTRL_KEY_PRESSED,
-	UPDATE_MAINTENANCE_MODE_ENABLED,
 	OPEN_CARDS_DRAWER_INFO,
 	CLOSE_CARDS_DRAWER_INFO,
 	TURN_SUGGEST_MISSING_CONCEPTS
@@ -59,7 +58,6 @@ const INITIAL_STATE = {
 	fetchedCard: {},
 	cardBeingFetched: false,
 	ctrlKeyPressed: false,
-	maintenanceModeEnabled: false,
 	//if this is true, then the word cloud in card-drawer will be replaced with
 	//the suggest missing concepts, which is EXTREMELY expensive.
 	suggestMissingConceptsEnabled: false,
@@ -177,11 +175,6 @@ const app = (state = INITIAL_STATE, action) => {
 		return {
 			...state,
 			ctrlKeyPressed: action.pressed
-		};
-	case UPDATE_MAINTENANCE_MODE_ENABLED:
-		return {
-			...state,
-			maintenanceModeEnabled: action.enabled,
 		};
 	case OPEN_CARDS_DRAWER_INFO:
 		return {

@@ -17,10 +17,6 @@ import {
 } from './data.js';
 
 import {
-	updateMaintenanceModeEnabled
-} from './app.js';
-
-import {
 	updateMessages,
 	updateThreads
 } from './comments.js';
@@ -114,19 +110,6 @@ export const keepSlugLegalWarm = () => {
 	document.addEventListener('keydown', userActivity);
 	warmupSlugLegal(true);
 	slugLegalInterval = setInterval(warmupSlugLegal, KEEP_WARM_INTERVAL);
-};
-
-const maintenanceModeEnabled = async () => {
-	//TODO: remove this whole function clientside
-	return false;
-};
-
-export const fetchMaintenanceModeEnabled = async () => {
-	let maintenanceEnabled = await maintenanceModeEnabled();
-	if (maintenanceEnabled) {
-		console.warn('Maintenance mode is enabled, so cards cannot be edited. Run \'gulp turn-maintenance-mode-off\' to disable it.');
-		store.dispatch(updateMaintenanceModeEnabled(true));
-	}
 };
 
 export const connectLiveMessages = () => {

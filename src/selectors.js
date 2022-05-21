@@ -119,7 +119,6 @@ export const selectPage = (state) => state.app.page;
 export const selectPageExtra = (state) => state.app.pageExtra;
 export const selectFetchedCard = (state) => state.app.fetchedCard;
 export const selectCardBeingFetched = (state) => state.app.cardBeingFetched;
-export const selectMaintenanceModeEnabled = (state) => state.app.maintenanceModeEnabled;
 export const selectCardsDrawerInfoExpanded = (state) => state.app.cardsDrawerInfoExpanded;
 export const selectConfigureCollectionDialogOpen = (state) => state.app ? state.app.configureCollectionDialogOpen : false;
 export const selectSuggestMissingConceptsEnabled = (state) => state.app.suggestMissingConceptsEnabled;
@@ -454,18 +453,11 @@ const selectUserMayEditCards = createSelector(
 	(userMayEdit, permissions) => userMayEdit || permissions[PERMISSION_EDIT_CARD]
 );
 
-const selectCardsMayCurrentlyBeEdited = createSelector(
-	selectMaintenanceModeEnabled,
-	(enabled) => !enabled
-);
-
 export const selectCardIDsUserMayEdit = createObjectSelector(
 	selectCards,
 	selectUserMayEditCards,
 	selectUid,
-	selectCardsMayCurrentlyBeEdited,
-	(card, userMayEditCards, uid, cardsMayCurrentlyBeEdited) => {
-		if (!cardsMayCurrentlyBeEdited) return false;
+	(card, userMayEditCards, uid) => {
 		if (userMayEditCards) {
 			return true;
 		}
@@ -565,8 +557,7 @@ export const tagsUserMayNotEdit = createSelector(
 export const selectUserMayCreateCard = createSelector(
 	selectUserMayEdit,
 	selectComposedPermissions,
-	selectCardsMayCurrentlyBeEdited,
-	(userMayEdit, permissions, mayCurrentlyEdit) => mayCurrentlyEdit && (userMayEdit || permissions[PERMISSION_CREATE_CARD])
+	(userMayEdit, permissions) => userMayEdit || permissions[PERMISSION_CREATE_CARD]
 );
 
 export const selectUserMayForkActiveCard = createSelector(

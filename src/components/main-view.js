@@ -54,7 +54,6 @@ import {
 	connectLiveThreads,
 	connectLiveMessages,
 	connectLiveUnpublishedCardsForUser,
-	fetchMaintenanceModeEnabled,
 } from '../actions/database.js';
 
 import {
@@ -358,7 +357,6 @@ class MainView extends connect(store)(LitElement) {
 		connectLiveAuthors();
 		connectLiveThreads();
 		connectLiveMessages();
-		fetchMaintenanceModeEnabled();
 	}
 
 	_handleResize() {

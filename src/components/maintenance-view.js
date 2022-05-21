@@ -14,7 +14,6 @@ store.addReducers({
 
 import { 
 	selectUserIsAdmin,
-	selectMaintenanceModeEnabled,
 	selectExecutedMaintenanceTasks,
 	selectNextMaintenanceTaskName,
 	selectMaintenanceTaskActive
@@ -111,7 +110,6 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 		  <div class='primary'>
 			<h2>Next task to run: </h2>
 			${this._buttonForTaskName(this._nextTaskName)}
-			<p ?hidden=${!this._nextTaskConfig.maintenanceModeRequired}>You must enable maintenance mode to run this task by running 'gulp turn-maintenance-mode-on'</p>
 		  </div>
 		  <br />
 		  <br />
@@ -136,7 +134,6 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 		if (!taskName) return html`<em>No tasks to run</em>`;
 		const config = MAINTENANCE_TASKS[taskName] || {};
 		let disabled = false;
-		if (config.maintenanceModeRequired && !this._maintenanceModeEnabled) disabled = true;
 		if (!config.recurring && this._executedTasks[taskName]) disabled = true;
 		const displayName = config.displayName || taskName;
 		return html`<button value=${taskName} @click=${this._handleClick} .disabled=${disabled}>${displayName}</button>`;
@@ -145,7 +142,6 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 	static get properties() {
 		return {
 			_isAdmin: { type: Boolean},
-			_maintenanceModeEnabled: { type: Boolean},
 			_executedTasks: { type:Object},
 			_nextTaskName: { type:String},
 			_taskActive: {type:Boolean},
@@ -163,7 +159,6 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 
 	stateChanged(state) {
 		this._isAdmin = selectUserIsAdmin(state);
-		this._maintenanceModeEnabled = selectMaintenanceModeEnabled(state);
 		this._executedTasks = selectExecutedMaintenanceTasks(state);
 		this._nextTaskName = selectNextMaintenanceTaskName(state);
 		this._taskActive = selectMaintenanceTaskActive(state);
