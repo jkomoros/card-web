@@ -284,13 +284,13 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch) => 
 	cardUpdateObject.updated = serverTimestampSentinel();
 	if (substantive) cardUpdateObject.updated_substantive = serverTimestampSentinel();
 
-	const existingRawCards = selectRawCards(state);
+	const existingCards = selectCards(state);
 	const updatedCard = applyCardFirebaseUpdate(card, cardUpdateObject);
 	const inboundUpdates = inboundLinksUpdates(card.id, card, updatedCard);
 	for (const otherCardID of Object.keys(inboundUpdates)) {
 		//We need to throw BEFORE adding any updates to batch, so check now for
 		//any references to cards we can't see now.
-		if (!existingRawCards[otherCardID]) throw new Error(otherCardID + 'is in the reference update but does not already exist');
+		if (!existingCards[otherCardID]) throw new Error(otherCardID + 'is in the reference update but does not already exist');
 	}
 
 	let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
@@ -948,12 +948,12 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 	references(newCard).setCardReference(cardToFork.id, REFERENCE_TYPE_MINED_FROM);
 
 	const inboundUpdates = inboundLinksUpdates(id, null, newCard);
-	const existingRawCards = selectRawCards(state);
+	const existingCards = selectCards(state);
 	const illegalOtherCards = {};
 	//We need to check for illegal other cards BEFORE adding any updates to
 	//batch, so check now for any references to cards we can't see now.
 	for (const otherCardID of Object.keys(inboundUpdates)) {
-		if (!existingRawCards[otherCardID]) illegalOtherCards[otherCardID] = true;
+		if (!existingCards[otherCardID]) illegalOtherCards[otherCardID] = true;
 	}
 
 	if (Object.keys(illegalOtherCards).length) {
