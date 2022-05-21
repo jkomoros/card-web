@@ -118,7 +118,8 @@ import {
 	KEY_CARD_ID_PLACEHOLDER,
 	TEXT_FIELD_TITLE,
 	editableFieldsForCardType,
-	sortOrderIsDangerous
+	sortOrderIsDangerous,
+	REFERENCE_TYPE_LINK
 } from '../card_fields.js';
 
 import {
@@ -919,6 +920,8 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		return;
 	}
 
+	//TODO: iterate through all of the tags and make sure the user can edit them
+
 	let user = selectUser(state);
 
 	if (!user) {
@@ -944,6 +947,38 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 	references(newCard).setCardReferencesOfType(REFERENCE_TYPE_FORK_OF, [cardToFork.id]);
 	references(newCard).setCardReference(cardToFork.id, REFERENCE_TYPE_MINED_FROM);
 
+	const inboundUpdates = inboundLinksUpdates(newCard.id, null, newCard);
+	const existingRawCards = selectRawCards(state);
+	const illegalOtherCards = {};
+	//We need to check for illegal other cards BEFORE adding any updates to
+	//batch, so check now for any references to cards we can't see now.
+	for (const otherCardID of Object.keys(inboundUpdates)) {
+		if (!existingRawCards[otherCardID]) illegalOtherCards[otherCardID] = true;
+	}
+
+	if (Object.keys(illegalOtherCards).length) {
+
+		//We can forcibly remove most references to illegal cards in the next
+		//step, but not link references (which are fully implied by links in
+		//body), so verify none of the illegal card IDs are from links.
+		const linkReferences = references(newCard).byType[REFERENCE_TYPE_LINK] || {};
+		for (const otherCardID of Object.keys(illegalOtherCards)) {
+			if (linkReferences[otherCardID]) {
+				alert('The card you are trying to fork links to a card that you do not have access to: ' + otherCardID + '. To fork the card, remove that link and try again.');
+				return;
+			}
+		}
+
+		const message = 'The card you are forking contains references to cards (' + Object.keys(illegalOtherCards).join(', ') + ') that you don\'t have access to. Hit OK to continue forking the card, but elide those illegal references, or cancel to cancel the fork.';
+		if (!confirm(message)) {
+			console.log('User aborted fork due to illegal other cards');
+			return;
+		}
+		for (const otherCardID of Object.keys(illegalOtherCards)) {
+			references(newCard).removeAllReferencesForCard(otherCardID);
+		}
+	}
+
 	let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
 
 	//Tell card-view to expect a new card to be loaded, and when data is
@@ -958,7 +993,14 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 
 	let batch = db.batch();
 	ensureAuthor(batch, user);
+
 	batch.set(cardDocRef, newCard);
+
+	for (const [otherCardID, otherCardUpdate] of Object.entries(inboundUpdates)) {
+		const ref = db.collection(CARDS_COLLECTION).doc(otherCardID);
+		batch.update(ref, otherCardUpdate);
+	}
+
 	for (let tagName of newCard.tags) {
 		let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
 		let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
