@@ -7,7 +7,6 @@ const express = require('express');
 
 const email = require('./email.js');
 const twitter = require('./twitter.js');
-const update = require('./update.js');
 const screenshot = require('./screenshot.js');
 const legal = require('./legal.js');
 
@@ -63,5 +62,3 @@ exports.legal = functions.https.onCall(async (data) => {
         reason: result
     };
 });
-
-exports.status = functions.https.onCall(update.status);

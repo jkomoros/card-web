@@ -125,15 +125,6 @@ const FIREBASE_DELETE_FIRESTORE_TASK = 'DANGEROUS-firebase-delete-firestore';
 const GCLOUD_RESTORE_TASK = 'gcloud-restore';
 const GSUTIL_RSYNC_UPLOADS = 'gsutil-rsync-uploads';
 
-const FIREBASE_FUNCTIONS_SET_MAINTENANCE_MODE_OFF = 'set-maintenance-off';
-const FIREBASE_FUNCTIONS_SET_MAINTENANCE_MODE_ON = 'set-maintenance-on';
-//Actually push the maintenance mode setting to server.
-const FIREBASE_FUNCTIONS_DEPLOY_MAINTENANCE_MODE = 'deploy-maintenance-mode';
-
-//Sets maintenance on AND deploys
-const FIREBASE_FUNCTIONS_TURN_MAINTENANCE_MODE_ON = 'turn-maintenance-mode-on';
-const FIREBASE_FUNCTIONS_TURN_MAINTENANCE_MODE_OFF = 'turn-maintenance-mode-off';
-
 const WARN_MAINTENANCE_TASKS = 'warn-maintenance-tasks';
 
 const REGENERATE_FILES_FROM_CONFIG_TASK = 'inject-config';
@@ -287,15 +278,9 @@ gulp.task(GCLOUD_ENSURE_DEV_TASK, (cb) => {
 
 gulp.task(POLYMER_BUILD_TASK, makeExecutor('polymer build'));
 
-gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(TWITTER_HANDLE ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal,functions:status'));
+gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(TWITTER_HANDLE ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal'));
 
 gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, makeExecutor('firebase functions:config:set site.last_deploy_affecting_rendering=' + RELEASE_TAG));
-
-gulp.task(FIREBASE_FUNCTIONS_SET_MAINTENANCE_MODE_OFF, makeExecutor('firebase functions:config:unset updates.disable_card_functions'));
-
-gulp.task(FIREBASE_FUNCTIONS_SET_MAINTENANCE_MODE_ON, makeExecutor('firebase functions:config:set updates.disable_card_functions=disabled'));
-
-gulp.task(FIREBASE_FUNCTIONS_DEPLOY_MAINTENANCE_MODE, makeExecutor('firebase deploy --only functions:status'));
 
 //If there is no dev then we'll just set it twice, no bigge
 gulp.task(SET_UP_CORS, gulp.series(
@@ -450,7 +435,6 @@ gulp.task('dev-deploy',
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		FIREBASE_ENSURE_DEV_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
-		FIREBASE_FUNCTIONS_SET_MAINTENANCE_MODE_OFF,
 		FIREBASE_DEPLOY_TASK
 	)
 );
@@ -463,23 +447,8 @@ gulp.task('deploy',
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		FIREBASE_ENSURE_PROD_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
-		FIREBASE_FUNCTIONS_SET_MAINTENANCE_MODE_OFF,
 		FIREBASE_DEPLOY_TASK,
 		WARN_MAINTENANCE_TASKS,
-	)
-);
-
-gulp.task(FIREBASE_FUNCTIONS_TURN_MAINTENANCE_MODE_ON,
-	gulp.series(
-		FIREBASE_FUNCTIONS_SET_MAINTENANCE_MODE_ON,
-		FIREBASE_FUNCTIONS_DEPLOY_MAINTENANCE_MODE
-	)
-);
-
-gulp.task(FIREBASE_FUNCTIONS_TURN_MAINTENANCE_MODE_OFF,
-	gulp.series(
-		FIREBASE_FUNCTIONS_SET_MAINTENANCE_MODE_OFF,
-		FIREBASE_FUNCTIONS_DEPLOY_MAINTENANCE_MODE
 	)
 );
 

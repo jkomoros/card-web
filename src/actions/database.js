@@ -67,7 +67,6 @@ export const PERMISSIONS_COLLECTION = 'permissions';
 export const TWEETS_COLLECTION = 'tweets';
 
 const legalCallable = functions.httpsCallable('legal');
-const statusCallable = functions.httpsCallable('status');
 
 //slugLegal returns an object with {legal: bool, reason: string}
 export const slugLegal = async (newSlug) => {
@@ -118,18 +117,8 @@ export const keepSlugLegalWarm = () => {
 };
 
 const maintenanceModeEnabled = async () => {
-	if (DISABLE_CALLABLE_CLOUD_FUNCTIONS) return false;
-	let result = '';
-	try {
-		result = await statusCallable({type:'maintenance_mode'});
-	} catch(err) {
-		//Every so often this deadline reports as exceeded for some reason, but
-		//it should never show to a user.
-		console.warn(err);
-		return false;
-	}
-	
-	return result.data;
+	//TODO: remove this whole function clientside
+	return false;
 };
 
 export const fetchMaintenanceModeEnabled = async () => {
