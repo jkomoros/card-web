@@ -947,7 +947,7 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 	references(newCard).setCardReferencesOfType(REFERENCE_TYPE_FORK_OF, [cardToFork.id]);
 	references(newCard).setCardReference(cardToFork.id, REFERENCE_TYPE_MINED_FROM);
 
-	const inboundUpdates = inboundLinksUpdates(newCard.id, null, newCard);
+	const inboundUpdates = inboundLinksUpdates(id, null, newCard);
 	const existingRawCards = selectRawCards(state);
 	const illegalOtherCards = {};
 	//We need to check for illegal other cards BEFORE adding any updates to
