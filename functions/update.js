@@ -1,12 +1,5 @@
 const common = require('./common.js');
 
-const inboundLinks = () => {
-
-	//A stub implementation since all of the work is now done clientside.
-	return Promise.resolve();
-
-}
-
 const TYPE_MAINTENANCE_MODE = 'maintenance_mode';
 
 //data is expected to have a type
@@ -21,5 +14,4 @@ const status = (data) => {
 	return false;
 };
 
-exports.inboundLinks = inboundLinks;
 exports.status = status;

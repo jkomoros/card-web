@@ -40,9 +40,9 @@ trick, but that requires a separate index for each subkey)
 
 Cards also have references_inbound and references_info_inbound. These have
 exactly the same shape, but represent the card references blocks from cards that
-point TO this card. Those are maintained in the updateInboundLinks cloud
-function, and basically just copy the sub-object from refrences_info to the card
-that is poitned to.
+point TO this card. Those are maintained by modifyCardWithBatch and
+createForkedCard, and basically just copy the sub-object from refrences_info to
+the card that is poitned to.
 
 */
 

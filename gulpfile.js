@@ -287,7 +287,7 @@ gulp.task(GCLOUD_ENSURE_DEV_TASK, (cb) => {
 
 gulp.task(POLYMER_BUILD_TASK, makeExecutor('polymer build'));
 
-gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(TWITTER_HANDLE ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:updateInboundLinks,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal,functions:status'));
+gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(TWITTER_HANDLE ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal,functions:status'));
 
 gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, makeExecutor('firebase functions:config:set site.last_deploy_affecting_rendering=' + RELEASE_TAG));
 
@@ -295,7 +295,7 @@ gulp.task(FIREBASE_FUNCTIONS_SET_MAINTENANCE_MODE_OFF, makeExecutor('firebase fu
 
 gulp.task(FIREBASE_FUNCTIONS_SET_MAINTENANCE_MODE_ON, makeExecutor('firebase functions:config:set updates.disable_card_functions=disabled'));
 
-gulp.task(FIREBASE_FUNCTIONS_DEPLOY_MAINTENANCE_MODE, makeExecutor('firebase deploy --only functions:updateInboundLinks,functions:status'));
+gulp.task(FIREBASE_FUNCTIONS_DEPLOY_MAINTENANCE_MODE, makeExecutor('firebase deploy --only functions:status'));
 
 //If there is no dev then we'll just set it twice, no bigge
 gulp.task(SET_UP_CORS, gulp.series(
@@ -438,7 +438,7 @@ gulp.task('set-up-deploy',
 	gulp.series(
 		SET_UP_CORS,
 		FIREBASE_ENSURE_PROD_TASK,
-		makeExecutor('firebase deploy --only firestore,storage,functions:updateInboundLinks')
+		makeExecutor('firebase deploy --only firestore,storage')
 	)
 );
 

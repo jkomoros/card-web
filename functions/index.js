@@ -33,11 +33,6 @@ exports.emailAdminOnMessage = functions.firestore.
     document('messages/{messageId}').
     onCreate(email.onMessage);
 
-
-exports.updateInboundLinks = functions.firestore.
-    document('cards/{cardId}').
-    onWrite(update.inboundLinks);
-
 const screenshotApp = express();
 screenshotApp.get('/:id', async (req, res) => {
     const png = await screenshot.fetchScreenshotByIDOrSlug(req.params.id);
