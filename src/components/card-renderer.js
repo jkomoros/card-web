@@ -567,7 +567,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 
 		}
 
-		if(this._card.full_bleed) ele.className = 'full-bleed';
+		ele.className = this._card.full_bleed ? 'full-bleed' : '';
 		return ele;
 	}
 
