@@ -1029,7 +1029,7 @@ export const selectActiveCardTodosForCurrentUser = createSelector(
 export const selectActiveCardTweets = createSelector(
 	selectActiveCard,
 	selectTweets,
-	(card, tweets) => Object.fromEntries(Object.entries(tweets).filter(entry => entry[1].card == card.id))
+	(card, tweets) => Object.fromEntries(Object.entries(tweets).filter(entry => entry[1].card == card ? card.id : ''))
 );
 
 //selectEditingCardAutoTodos will opeate on not the actual filter set, but one
