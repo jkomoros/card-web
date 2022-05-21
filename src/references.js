@@ -462,7 +462,6 @@ export const intersectionReferences = (cardObjs) => {
 };
 
 //referencesLegalShape is a sanity check that the referencesBlock looks like it's expected to.
-//Copied to functions/update.js
 export const referencesLegalShape = (cardObj) => {
 	if (!cardObj) return false;
 	if (typeof cardObj !== 'object') return false;
@@ -680,7 +679,6 @@ const cardReferenceBlockHasDifference = (before, after) => {
 //Inspired by referencesDiff from card_fields.js Returns
 //[cardIDAdditionsOrModifications, cardIDDeletions]. each is a map of cardID =>
 //true, and say that you should copy over the whole block.
-//Duplicated in functions/update.js
 export const referencesCardsDiff = (beforeCard, afterCard) => {
 	const result = [{}, {}];
 	const emptyCard = {[REFERENCES_INFO_CARD_PROPERTY]:{}, [REFERENCES_CARD_PROPERTY]: {}};

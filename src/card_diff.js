@@ -451,7 +451,6 @@ export const validateCardDiff = (state, underlyingCard, diff) => {
 
 //Returns an object of cardID -> firebaseUpdate to make to bring the
 //inboundLinks to parity based on the change in beforeCard to afterCard.
-//Duplicated from functions/update.js
 export const inboundLinksUpdates = (cardID, beforeCard, afterCard) => {
 
 	const [changes, deletions] = referencesCardsDiff(beforeCard, afterCard);
