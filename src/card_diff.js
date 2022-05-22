@@ -1,7 +1,7 @@
 
 import {
-	arrayRemove,
-	arrayUnion,
+	arrayRemoveUtil,
+	arrayUnionUtil,
 	extractCardLinksFromBody,
 	reasonCardTypeNotLegalForCard,
 } from './util.js';
@@ -352,27 +352,27 @@ export const applyCardDiff = (underlyingCard, diff) => {
 	if (diff.addTags || diff.removeTags) {
 		let tags = underlyingCard.tags;
 		if (diff.removeTags) {
-			tags = arrayRemove(tags, diff.removeTags);
+			tags = arrayRemoveUtil(tags, diff.removeTags);
 		}
 		if (diff.addTags) {
-			tags = arrayUnion(tags, diff.addTags);
+			tags = arrayUnionUtil(tags, diff.addTags);
 		}
 		cardUpdateObject.tags = tags;
 	}
 
 	if (diff.add_editors || diff.remove_editors) {
 		let editors = underlyingCard.permissions[PERMISSION_EDIT_CARD];
-		if (diff.remove_editors) editors = arrayRemove(editors, diff.remove_editors);
+		if (diff.remove_editors) editors = arrayRemoveUtil(editors, diff.remove_editors);
 		if (diff.add_editors) {
-			editors = arrayUnion(editors, diff.add_editors);
+			editors = arrayUnionUtil(editors, diff.add_editors);
 		}
 		cardUpdateObject['permissions.' + PERMISSION_EDIT_CARD] = editors;
 	}
 
 	if (diff.add_collaborators || diff.remove_collaborators) {
 		let collaborators = underlyingCard.collaborators;
-		if (diff.remove_collaborators) collaborators = arrayRemove(collaborators, diff.remove_collaborators);
-		if (diff.add_collaborators) collaborators = arrayUnion(collaborators, diff.add_collaborators);
+		if (diff.remove_collaborators) collaborators = arrayRemoveUtil(collaborators, diff.remove_collaborators);
+		if (diff.add_collaborators) collaborators = arrayUnionUtil(collaborators, diff.add_collaborators);
 		cardUpdateObject.collaborators = collaborators;
 	}
 
