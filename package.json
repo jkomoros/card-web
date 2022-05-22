@@ -1,11 +1,7 @@
 {
-  "name": "pwa-starter-kit",
-  "version": "0.9.0",
-  "contributors": [
-    "The Polymer Authors"
-  ],
+  "name": "card-web-app",
   "license": "BSD-3-Clause",
-  "repository": "Polymer/pwa-starter-kit",
+  "repository": "jkomoros/card-web",
   "scripts": {
     "start": "gulp inject-config && polymer serve",
     "build": "npm run build:prpl-server && npm run build:static",
