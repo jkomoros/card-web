@@ -20,8 +20,8 @@ import {
 } from '../../src/references.js';
 
 //We import these only to get deleteSentinel without importing from firebase.js.
-import firebase from '@firebase/app';
-import '@firebase/firestore';
+import firebase from 'firebase/app';
+import 'firebase/firestore';
 const deleteSentinel = firebase.firestore.FieldValue.delete;
 
 import assert from 'assert';

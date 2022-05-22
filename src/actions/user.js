@@ -11,7 +11,7 @@ export const UPDATE_USER_PERMISSIONS = 'UPDATE_USER_PERMISSIONS';
 
 export const AUTO_MARK_READ_DELAY = 5000;
 
-import firebase from '@firebase/app';
+import firebase from 'firebase/app';
 
 import {
 	DISABLE_ANONYMOUS_LOGIN

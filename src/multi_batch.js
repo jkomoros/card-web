@@ -10,8 +10,8 @@ import {
 } from './util.js';
 
 //We import these only to get deleteSentinel without importing from firebase.js.
-import firebase from '@firebase/app';
-import '@firebase/firestore';
+import firebase from 'firebase/app';
+import 'firebase/firestore';
 const serverTimestampSentinel = firebase.firestore.FieldValue.serverTimestamp;
 
 //serverTimestampSentinel is the most basic one.

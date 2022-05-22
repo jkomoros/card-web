@@ -1,12 +1,12 @@
 //This is the only place that should import firebase, to make sure every use is
 //intiialized by the time of use.
 
-import firebase from '@firebase/app';
+import firebase from 'firebase/app';
 
-import '@firebase/auth';
-import '@firebase/firestore';
-import '@firebase/functions';
-import '@firebase/storage';
+import 'firebase/auth';
+import 'firebase/firestore';
+import 'firebase/functions';
+import 'firebase/storage';
 
 import { deepEqual } from './util.js';
 
