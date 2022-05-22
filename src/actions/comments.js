@@ -14,13 +14,13 @@ import {
 import {
 	doc,
 	writeBatch,
-	runTransaction
+	runTransaction,
+	arrayUnion,
+	serverTimestamp
 } from 'firebase/firestore';
 
 import {
 	db,
-	serverTimestampSentinel,
-	arrayUnionSentinel
 } from '../firebase.js';
 
 import {
@@ -42,7 +42,7 @@ import {
 
 export const ensureAuthor = (batch, user) => {
 	batch.set(doc(db, AUTHORS_COLLECTION, user.uid), {
-		updated: serverTimestampSentinel(),
+		updated: serverTimestamp(),
 		photoURL: user.photoURL,
 		displayName: user.displayName
 	});
@@ -86,7 +86,7 @@ export const resolveThread = (thread) => (dispatch, getState) => {
 		transaction.update(cardRef, {thread_count: newThreadCount, thread_resolved_count: newThreadResolvedCount});
 		transaction.update(threadRef, {
 			resolved: true,
-			updated: serverTimestampSentinel()
+			updated: serverTimestamp()
 		});
 	});
 };
@@ -108,7 +108,7 @@ export const deleteMessage = (message) => (dispatch, getState) => {
 	batch.update(doc(db, MESSAGES_COLLECTION, message.id), {
 		message: '',
 		deleted: true,
-		updated: serverTimestampSentinel()
+		updated: serverTimestamp()
 	});
 
 	batch.commit();
@@ -133,7 +133,7 @@ export const editMessage = (message, newMessage) => (dispatch, getState) => {
 	batch.update(doc(db, MESSAGES_COLLECTION, message.id), {
 		message: newMessage,
 		deleted: false,
-		updated: serverTimestampSentinel()
+		updated: serverTimestamp()
 	});
 
 	batch.commit();
@@ -184,12 +184,12 @@ export const addMessage = (thread, message) => (dispatch, getState) => {
 	ensureAuthor(batch, user);
 
 	batch.update(doc(db, THREADS_COLLECTION, threadId), {
-		updated: serverTimestampSentinel(),
-		messages: arrayUnionSentinel(messageId)
+		updated: serverTimestamp(),
+		messages: arrayUnion(messageId)
 	});
 
 	batch.update(doc(db, CARDS_COLLECTION, card.id),{
-		updated_message: serverTimestampSentinel(),
+		updated_message: serverTimestamp(),
 	});
 
 	batch.set(doc(db, MESSAGES_COLLECTION, messageId), {
@@ -197,8 +197,8 @@ export const addMessage = (thread, message) => (dispatch, getState) => {
 		message: message,
 		thread: threadId,
 		author: user.uid,
-		created: serverTimestampSentinel(),
-		updated: serverTimestampSentinel(),
+		created: serverTimestamp(),
+		updated: serverTimestamp(),
 		deleted: false
 	});
 
@@ -252,7 +252,7 @@ export const createThread = (message) => (dispatch, getState) => {
 		let newThreadCount = (cardDoc.data().thread_count || 0) + 1;
 		transaction.update(cardRef, {
 			thread_count: newThreadCount,
-			updated_message: serverTimestampSentinel(),
+			updated_message: serverTimestamp(),
 		});
 
 		ensureAuthor(transaction, user);
@@ -262,8 +262,8 @@ export const createThread = (message) => (dispatch, getState) => {
 			message: message,
 			thread: threadId,
 			author: user.uid,
-			created: serverTimestampSentinel(),
-			updated: serverTimestampSentinel(),
+			created: serverTimestamp(),
+			updated: serverTimestamp(),
 			deleted: false
 		});
 
@@ -272,8 +272,8 @@ export const createThread = (message) => (dispatch, getState) => {
 			parent_message: '',
 			messages: [messageId],
 			author: user.uid,
-			created: serverTimestampSentinel(),
-			updated: serverTimestampSentinel(),
+			created: serverTimestamp(),
+			updated: serverTimestamp(),
 			resolved: false,
 			deleted: false
 		});

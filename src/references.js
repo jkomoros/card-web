@@ -2,8 +2,6 @@ import {
 	deleteField
 } from 'firebase/firestore';
 
-const deleteSentinel = deleteField;
-
 import {
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
@@ -714,7 +712,7 @@ export const referencesCardsDiff = (beforeCard, afterCard) => {
 
 //applyReferencesDiff will generate the modifications necessary to go from
 //references_info.before to references_info.after, and accumulate them IN PLACE as keys on
-//update, including using deleteSentinel. update should be a cardUpdateObject,
+//update, including using deleteField. update should be a cardUpdateObject,
 //so the keys this sets will have references_info. This also sets the necessary keys
 //on references. prepended. update object is also returned as a
 //convenience.
@@ -731,11 +729,11 @@ export const applyReferencesDiff = (beforeCard, afterCard, update) => {
 		update[REFERENCES_INFO_CARD_PROPERTY + '.' + key] = val;
 	}
 	for (let key of Object.keys(leafDeletions)) {
-		update[REFERENCES_INFO_CARD_PROPERTY + '.' + key] = deleteSentinel();
+		update[REFERENCES_INFO_CARD_PROPERTY + '.' + key] = deleteField();
 	}
 	for (let key of Object.keys(cardDeletions)) {
-		update[REFERENCES_INFO_CARD_PROPERTY + '.' + key] = deleteSentinel();
-		update[REFERENCES_CARD_PROPERTY + '.' + key] = deleteSentinel();
+		update[REFERENCES_INFO_CARD_PROPERTY + '.' + key] = deleteField();
+		update[REFERENCES_CARD_PROPERTY + '.' + key] = deleteField();
 	}
 	return update;
 };

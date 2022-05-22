@@ -19,7 +19,6 @@ import {
 
 import {
 	db,
-	deleteSentinel
 } from '../firebase.js';
 
 import {
@@ -40,7 +39,8 @@ import {
 	setDoc,
 	updateDoc,
 	deleteDoc,
-	doc
+	doc,
+	deleteField
 } from 'firebase/firestore';
 
 export const setCardToAddPermissionTo = (cardID) => (dispatch, getState) => {
@@ -145,5 +145,5 @@ export const addEnabledPermission = (uid, key) => () => {
 };
 
 export const clearPermission = (uid, key) => () => {
-	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {[key]: deleteSentinel()}, {merge: true});
+	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {[key]: deleteField()}, {merge: true});
 };

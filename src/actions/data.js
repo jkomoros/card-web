@@ -30,9 +30,6 @@ import {
 
 import {
 	db,
-	serverTimestampSentinel,
-	arrayUnionSentinel,
-	arrayRemoveSentinel,
 	deepEqualIgnoringTimestamps
 } from '../firebase.js';
 
@@ -44,7 +41,10 @@ import {
 	query,
 	where,
 	orderBy,
-	collection
+	collection,
+	arrayUnion,
+	arrayRemove,
+	serverTimestamp
 } from 'firebase/firestore';
 
 import {
@@ -286,15 +286,15 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch) => 
 		...update,
 		batch: batch.batchID || '',
 		substantive: substantive,
-		timestamp: serverTimestampSentinel()
+		timestamp: serverTimestamp()
 	};
 
 	//validateDiff might throw, but that's OK, because we also throw
 	let sectionUpdated = validateCardDiff(state, card, update);
 
 	let cardUpdateObject = applyCardDiff(card, update);
-	cardUpdateObject.updated = serverTimestampSentinel();
-	if (substantive) cardUpdateObject.updated_substantive = serverTimestampSentinel();
+	cardUpdateObject.updated = serverTimestamp();
+	if (substantive) cardUpdateObject.updated_substantive = serverTimestamp();
 
 	const existingCards = selectCards(state);
 	const updatedCard = applyCardFirebaseUpdate(card, cardUpdateObject);
@@ -326,11 +326,11 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch) => 
 			let newSectionRef = doc(db, SECTIONS_COLLECTION, newSection);
 			let newSectionUpdateRef = doc(newSectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
 			let newSectionObject = {
-				cards: arrayUnionSentinel(card.id),
-				updated: serverTimestampSentinel()
+				cards: arrayUnion(card.id),
+				updated: serverTimestamp()
 			};
 			let newSectionUpdateObject = {
-				timestamp: serverTimestampSentinel(),
+				timestamp: serverTimestamp(),
 				add_card: card.id
 			};
 			batch.update(newSectionRef, newSectionObject);
@@ -341,11 +341,11 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch) => 
 			let oldSectionRef = doc(db, SECTIONS_COLLECTION, oldSection);
 			let oldSectionUpdateRef = doc(oldSectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
 			let oldSectionObject = {
-				cards: arrayRemoveSentinel(card.id),
-				updated: serverTimestampSentinel()
+				cards: arrayRemove(card.id),
+				updated: serverTimestamp()
 			};
 			let oldSectionUpdateObject = {
-				timestamp: serverTimestampSentinel(),
+				timestamp: serverTimestamp(),
 				remove_card: card.id
 			};
 			batch.update(oldSectionRef, oldSectionObject);
@@ -359,11 +359,11 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch) => 
 			let tagRef = doc(db, TAGS_COLLECTION, tagName);
 			let tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
 			let newTagObject = {
-				cards: arrayUnionSentinel(card.id),
-				updated: serverTimestampSentinel()
+				cards: arrayUnion(card.id),
+				updated: serverTimestamp()
 			};
 			let newTagUpdateObject = {
-				timestamp: serverTimestampSentinel(),
+				timestamp: serverTimestamp(),
 				add_card: card.id
 			};
 			batch.update(tagRef, newTagObject);
@@ -376,11 +376,11 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch) => 
 			let tagRef = doc(db, TAGS_COLLECTION, tagName);
 			let tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
 			let newTagObject = {
-				cards: arrayRemoveSentinel(card.id),
-				updated: serverTimestampSentinel()
+				cards: arrayRemove(card.id),
+				updated: serverTimestamp()
 			};
 			let newTagUpdateObject = {
-				timestamp: serverTimestampSentinel(),
+				timestamp: serverTimestamp(),
 				remove_card: card.id
 			};
 			batch.update(tagRef, newTagObject);
@@ -455,8 +455,8 @@ const addLegalSlugToCard = (cardID, legalSlug, setName) => {
 	let batch = writeBatch(db);
 	const cardRef = doc(db, CARDS_COLLECTION, cardID);
 	let update = {
-		slugs: arrayUnionSentinel(legalSlug),
-		updated: serverTimestampSentinel(),
+		slugs: arrayUnion(legalSlug),
+		updated: serverTimestamp(),
 	};
 	if (setName) update.name = legalSlug;
 	batch.update(cardRef, update);
@@ -593,7 +593,7 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 		cards: [],
 		start_cards: [startCardId],
 		title:displayName,
-		updated: serverTimestampSentinel(),
+		updated: serverTimestamp(),
 		color: color,
 	});
 
@@ -624,15 +624,15 @@ const CARD_FIELDS_TO_COPY_ON_FORK = {
 //exported entireoly for initialSetUp in maintence.js
 export const defaultCardObject = (id, user, section, cardType, sortOrder) => {
 	return {
-		created: serverTimestampSentinel(),
-		updated: serverTimestampSentinel(),
+		created: serverTimestamp(),
+		updated: serverTimestamp(),
 		author: user.uid,
 		permissions: {
 			[PERMISSION_EDIT_CARD]: [],
 		},
 		collaborators: [],
-		updated_substantive: serverTimestampSentinel(),
-		updated_message: serverTimestampSentinel(),
+		updated_substantive: serverTimestamp(),
+		updated_message: serverTimestamp(),
 		//star_count is sum of star_count_manual, tweet_favorite_count, tweet_retweet_count.
 		star_count: 0,
 		//star_count_manual is the count of stars in the stars collection (as
@@ -657,9 +657,9 @@ export const defaultCardObject = (id, user, section, cardType, sortOrder) => {
 		//for information on the shape of these fields.
 		[REFERENCES_INFO_CARD_PROPERTY]: {},
 		[REFERENCES_INFO_INBOUND_CARD_PROPERTY]: {},
-		//Sentinel version are like the normal properties, but where it's a map
+		// version are like the normal properties, but where it's a map
 		//of cardID to true if there's ANY kind of refernce. Whenever a card is
-		//modified, these sentinels are automatically mirrored basd on the value
+		//modified, these s are automatically mirrored basd on the value
 		//of references. They're popped out primarily so that you can do
 		//firestore qureies on them to find cards that link to another.
 		[REFERENCES_CARD_PROPERTY]: {},
@@ -865,11 +865,11 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		let sectionRef = doc(db, SECTIONS_COLLECTION, obj.section);
 		let sectionUpdateRef = doc(sectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
 		batch.update(sectionRef, {
-			cards: arrayUnionSentinel(id),
-			updated: serverTimestampSentinel(),
+			cards: arrayUnion(id),
+			updated: serverTimestamp(),
 		});
 		batch.set(sectionUpdateRef, {
-			timestamp: serverTimestampSentinel(), 
+			timestamp: serverTimestamp(), 
 			add_card: id
 		});
 	}
@@ -1033,11 +1033,11 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		let tagRef = doc(db, TAGS_COLLECTION, tagName);
 		let tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
 		let newTagObject = {
-			cards: arrayUnionSentinel(id),
-			updated: serverTimestampSentinel()
+			cards: arrayUnion(id),
+			updated: serverTimestamp()
 		};
 		let newTagUpdateObject = {
-			timestamp: serverTimestampSentinel(),
+			timestamp: serverTimestamp(),
 			add_card: id,
 		};
 		batch.update(tagRef, newTagObject);
@@ -1047,12 +1047,12 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 	if (section) {
 		let sectionRef = doc(db, SECTIONS_COLLECTION, newCard.section);
 		batch.update(sectionRef, {
-			cards: arrayUnionSentinel(id),
-			updated: serverTimestampSentinel()
+			cards: arrayUnion(id),
+			updated: serverTimestamp()
 		});
 		let sectionUpdateRef = doc(sectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
 		batch.set(sectionUpdateRef, {
-			timestamp: serverTimestampSentinel(), 
+			timestamp: serverTimestamp(), 
 			add_card: id,
 		});
 	}

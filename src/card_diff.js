@@ -56,8 +56,11 @@ import {
 	isDeleteSentinel,
 	isServerTimestampSentinel,
 	currentTimestamp,
-	deleteSentinel
 } from './firebase.js';
+
+import {
+	deleteField
+} from 'firebase/firestore';
 
 const FREE_TEXT_FIELDS = Object.fromEntries([...Object.keys(TEXT_FIELD_CONFIGURATION).filter(key => !TEXT_FIELD_CONFIGURATION[key].readOnly), 'todo', 'notes'].map(item => [item, true]));
 
@@ -480,8 +483,8 @@ export const inboundLinksUpdates = (cardID, beforeCard, afterCard) => {
 	//remove the boolean value too.
 	for (let otherCardID of Object.keys(deletions)) {
 		let update = {
-			[REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: deleteSentinel(),
-			[REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: deleteSentinel(),
+			[REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: deleteField(),
+			[REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: deleteField(),
 		};
 		updatesToApply[otherCardID] = update;
 	}

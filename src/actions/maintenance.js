@@ -13,9 +13,7 @@ import {
 } from '../store.js';
 
 import {
-	db,
-	deleteSentinel,
-	serverTimestampSentinel
+	db
 } from '../firebase.js';
 
 import {
@@ -88,7 +86,9 @@ import {
 	writeBatch,
 	doc,
 	setDoc,
-	getDoc
+	getDoc,
+	deleteField,
+	serverTimestamp
 } from 'firebase/firestore';
 
 import { cardDiffHasChanges } from '../card_diff.js';
@@ -133,7 +133,7 @@ const normalizeContentBody = async() => {
 		if (body) {
 			await doc.ref.update({
 				body: normalizeBodyHTML(body),
-				updated_normalize_body: serverTimestampSentinel(),
+				updated_normalize_body: serverTimestamp(),
 			});
 		}
 		console.log('Processed ' + doc.id + ' (' + counter + '/' + size + ')' );
@@ -164,7 +164,7 @@ const updateInboundLinks = async() => {
 				referencesInboundSentinel[linkingCard.id] = linkingCard.data()[REFERENCES_CARD_PROPERTY][doc.id];
 			});
 			batch.update(doc.ref, {
-				updated_references_inbound: serverTimestampSentinel(),
+				updated_references_inbound: serverTimestamp(),
 				[REFERENCES_INFO_INBOUND_CARD_PROPERTY]: referencesInbound,
 				[REFERENCES_INBOUND_CARD_PROPERTY]: referencesInboundSentinel,
 			});
@@ -188,7 +188,7 @@ const resetTweets = async() => {
 	});
 	let tweetSnapshot = await getDocs(collection(db, TWEETS_COLLECTION));
 	tweetSnapshot.forEach(doc => {
-		batch.update(doc.ref, {'archived': true, 'archive_date': serverTimestampSentinel()});
+		batch.update(doc.ref, {'archived': true, 'archive_date': serverTimestamp()});
 	});
 	await batch.commit();
 };
@@ -217,7 +217,7 @@ const initialSetup = async (_, getState) => {
 		const update = {...val};
 		const startCardId = 'section-' + key;
 		const contentCardId = newID();
-		update.updated = serverTimestampSentinel();
+		update.updated = serverTimestamp();
 		update.cards = [contentCardId];
 		update.order = count;
 		update.start_cards = [startCardId];
@@ -285,10 +285,10 @@ const linksToReferences = async () => {
 		batch.update(doc.ref, {
 			[REFERENCES_INFO_CARD_PROPERTY]: references,
 			[REFERENCES_CARD_PROPERTY]: referencesSentinels,
-			links: deleteSentinel(),
-			links_inbound: deleteSentinel(),
-			links_text: deleteSentinel(),
-			links_inbound_text: deleteSentinel(),
+			links: deleteField(),
+			links_inbound: deleteField(),
+			links_text: deleteField(),
+			links_inbound_text: deleteField(),
 		});
 	});
 
@@ -309,7 +309,7 @@ const skippedLinksToAckReferences = async () => {
 		references(updateCard).addCardReferencesOfType(REFERENCE_TYPE_ACK, card.auto_todo_skipped_links_inbound || []);
 
 		let update = {
-			auto_todo_skipped_links_inbound: deleteSentinel(),
+			auto_todo_skipped_links_inbound: deleteField(),
 		};
 
 		applyReferencesDiff(card, updateCard, update);
@@ -435,7 +435,7 @@ const setMaintenanceTaskVersion = async () => {
 	for (const taskName of Object.keys(MAINTENANCE_TASKS)) {
 		if (seenTasks[taskName]) continue;
 		const ref = doc(db, MAINTENANCE_COLLECTION, taskName);
-		batch.set(ref, {timestamp: serverTimestampSentinel(), version: MAINTENANCE_TASK_VERSION, createdBy:SET_MAINTENANCE_TASK_VERSION});
+		batch.set(ref, {timestamp: serverTimestamp(), version: MAINTENANCE_TASK_VERSION, createdBy:SET_MAINTENANCE_TASK_VERSION});
 	}
 
 	await batch.commit();
@@ -598,7 +598,7 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 		}
 
 		await setDoc(doc(db, MAINTENANCE_COLLECTION, taskName), {
-			timestamp: serverTimestampSentinel(),
+			timestamp: serverTimestamp(),
 			version: MAINTENANCE_TASK_VERSION,
 		});
 		console.log('done');

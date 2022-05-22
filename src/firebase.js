@@ -6,9 +6,6 @@ import { initializeApp } from 'firebase/app';
 import { 
 	getFirestore,
 	serverTimestamp,
-	arrayUnion,
-	arrayRemove,
-	increment,
 	deleteField,
 	Timestamp
 } from 'firebase/firestore';
@@ -52,18 +49,10 @@ const UPLOADS_FOLDER_NAME = 'uploads';
 
 export const uploadsRef = storageRef(storage, UPLOADS_FOLDER_NAME);
 
-//These are the only reasons to import firebase, so just reexport them to avoid
-//confusing needs for importing firebase directly
-export const serverTimestampSentinel = serverTimestamp;
-export const arrayUnionSentinel = arrayUnion;
-export const arrayRemoveSentinel = arrayRemove;
-export const incrementSentinel = increment;
-export const deleteSentinel = deleteField;
-
 export const currentTimestamp = Timestamp.now;
 
-const deleteSentinelJSON = JSON.stringify(deleteSentinel());
-const serverTimestampSentinelJSON = JSON.stringify(serverTimestampSentinel());
+const deleteSentinelJSON = JSON.stringify(deleteField());
+const serverTimestampSentinelJSON = JSON.stringify(serverTimestamp());
 
 export const isDeleteSentinel = (value) => {
 	if (typeof value !== 'object') return false;
