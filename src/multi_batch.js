@@ -15,10 +15,8 @@ import {
 	writeBatch
 } from 'firebase/firestore';
 
-const serverTimestampSentinel = serverTimestamp;
-
 //serverTimestampSentinel is the most basic one.
-const SENTINEL_FIELD_PATH = objectPathToValue(serverTimestampSentinel(), 'serverTimestamp');
+const SENTINEL_FIELD_PATH = objectPathToValue(serverTimestamp(), 'serverTimestamp');
 
 const extraOperationCountForValue = (val) => {
 	//Note: this function is very tied to the implementation of
