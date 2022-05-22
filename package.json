@@ -4,8 +4,9 @@
   "repository": "jkomoros/card-web",
   "scripts": {
     "start": "gulp inject-config && npm run serve",
-    "build": "npm run build:rollup && npm run build:service-worker",
     "serve": "wds --node-resolve --watch --port=8081",
+    "build": "npm run build:clean && npm run build:rollup && npm run build:service-worker",
+    "build:clean": "rm -rf build/",
     "build:rollup": "rollup -c",
     "build:service-worker": "workbox generateSW workbox-config.js",
     "test": "npm run test:security && npm run test:url && npm run test:contenteditable && npm run test:references && npm run test:fingerprint && npm run test:ngram && npm run test:objpath",
