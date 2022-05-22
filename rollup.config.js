@@ -9,7 +9,7 @@ export default {
 	input: 'src/components/card-web-app.js',
 	output: {
 		dir: 'build/src/components',
-		format: 'iife',
+		format: 'es',
 	},
 	plugins: [
 		minifyHTML(),
