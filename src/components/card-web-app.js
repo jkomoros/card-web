@@ -87,7 +87,7 @@ class CardWebApp extends connect(store)(LitElement) {
 				--card-shadow-first-part: 0 2px 6px;
 				--card-shadow: var(--card-shadow-first-part) var(--shadow-color);
 
-				--canvas-color: ${this._devMode ? html`#bc9ae233` : html`var(--app-divider-color)`};
+				--canvas-color: var(--app-divider-color);
 
 				--app-header-background-color: white;
 				--app-header-text-color: var(--app-dark-text-color);
