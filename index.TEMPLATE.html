@@ -49,7 +49,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     <script>
       /* SERVICE-WORKER-START*/
       // Load and register pre-caching Service Worker
-      if ('serviceWorker' in navigator) {
+      //TODO: enable serviceWorker again
+      if ('serviceWorker' in navigator && false) {
         window.addEventListener('load', function() {
           navigator.serviceWorker.register('service-worker.js', {
             scope: '/',

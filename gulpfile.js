@@ -276,7 +276,8 @@ gulp.task(GCLOUD_ENSURE_DEV_TASK, (cb) => {
 	gcloudUseDev(cb);
 });
 
-gulp.task(POLYMER_BUILD_TASK, makeExecutor('polymer build'));
+//TODO: rename POLYMER_BUILD_TASK and messages
+gulp.task(POLYMER_BUILD_TASK, makeExecutor('npm run build'));
 
 gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(TWITTER_HANDLE ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal'));
 
