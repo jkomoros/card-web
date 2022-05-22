@@ -4,7 +4,7 @@
   "repository": "jkomoros/card-web",
   "scripts": {
     "start": "gulp inject-config && npm run serve",
-    "serve": "wds --node-resolve --watch --port=8081",
+    "serve": "wds --node-resolve --port=8081",
     "build": "npm run build:clean && npm run build:rollup && npm run build:service-worker",
     "build:clean": "rm -rf build/",
     "build:rollup": "rollup -c",
