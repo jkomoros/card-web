@@ -11,7 +11,9 @@
 /*eslint-env node*/
 
 module.exports = {
-	staticFileGlobs: [
+	globDirectory: 'build',
+	swDest: 'build/service-worker.js',
+	globPatterns: [
 		'manifest.json',
 		'src/**/*',
 	],
@@ -19,11 +21,11 @@ module.exports = {
 	runtimeCaching: [
 		{
 			urlPattern: /\/@webcomponents\/webcomponentsjs\//,
-			handler: 'fastest'
+			handler: 'StaleWhileRevalidate'
 		},
 		{
 			urlPattern: /^https:\/\/fonts.gstatic.com\//,
-			handler: 'fastest'
+			handler: 'StaleWhileRevalidate'
 		}
 	]
 };

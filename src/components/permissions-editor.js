@@ -99,9 +99,10 @@ class PermissionsEditor extends connect(store)(LitElement) {
 		html`<span>${entry[0]}</span> <tag-list .permission=${entry[0]} .tags=${entry[1]} .tagInfos=${this._tagInfosForCards} .tapEvents=${true} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveCardPermission}></tag-list> <button @click=${this._handleAddCardPermission} .permission=${entry[0]}>+</button>`)}
 				${this._unusedCardPermissions.length && this.uid ? 
 		html`<select @change=${this._handleAddPermissionType}>
-					<option value=''><em>Add a cards permission type...</option>
-					${this._unusedCardPermissions.map(item => html`<option value=${item}>${item}</option>`)}
-				</select>` : ''}
+						<option value=''><em>Add a cards permission type...</option>
+						${this._unusedCardPermissions.map(item => html`<option value=${item}>${item}</option>`)}
+					</select>` : ''}
+				</div>
 			</div>
 			`;
 	}

@@ -351,12 +351,13 @@ class CardEditor extends connect(store)(LitElement) {
 					${Object.keys(CARD_TYPE_CONFIGURATION).map(item => {
 		const illegalCardTypeReason = reasonCardTypeNotLegalForCard(this._card, item);
 		const title = CARD_TYPE_CONFIGURATION[item].description + (illegalCardTypeReason ? '' : '\n' + illegalCardTypeReason);
-		return html`<option .value=${item} .disabled=${illegalCardTypeReason} .title=${title} .selected=${item == this._card.card_type}>${item}</option>`;
+		return html`<option .value=${item} .disabled=${illegalCardTypeReason 
+		!= ''} .title=${title} .selected=${item == this._card.card_type}>${item}</option>`;
 	})}
 					</select>
 				</div>
 				<div>
-					<button class='small' @click=${this._handleDeleteClicked} ?disabled=${this._mayNotDeleteReason} title='${this._mayNotDeleteReason ? 'Cards cannot be deleted unless they are orphaned, have no tags, and no other cards references them' : 'Delete card permanently'}'>${DELETE_FOREVER_ICON}</button>
+					<button class='small' @click=${this._handleDeleteClicked} ?disabled=${this._mayNotDeleteReason != ''} title='${this._mayNotDeleteReason ? 'Cards cannot be deleted unless they are orphaned, have no tags, and no other cards references them' : 'Delete card permanently'}'>${DELETE_FOREVER_ICON}</button>
 				</div>
 			</div>
 			<div class='row'>

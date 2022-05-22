@@ -1,19 +1,7 @@
-/**
-@license
-Copyright (c) 2018 The Polymer Project Authors. All rights reserved.
-This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
-The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
-The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
-Code distributed by Google as part of the polymer project is also
-subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
-*/
-
 /*eslint-env node*/
 
 const gulp = require('gulp');
 const rename = require('gulp-rename');
-const replace = require('gulp-replace');
-const del = require('del');
 const spawnSync = require('child_process').spawnSync;
 //Only used for `reset-dev` because htat uses subcommands
 const exec = require('child_process').exec;
@@ -103,9 +91,9 @@ const makeExecutor = cmdAndArgs => {
 	};
 };
 
-const POLYMER_BUILD_TASK = 'polymer-build';
-const POLYMER_BUILD_OPTIONALLY = 'polymer-build-optionally';
-const ASK_IF_WANT_POLYMER_BUILD = 'ask-if-want-polymer-build';
+const BUILD_TASK = 'build';
+const BUILD_OPTIONALLY = 'build-optionally';
+const ASK_IF_WANT_BUILD = 'ask-if-want-build';
 const FIREBASE_ENSURE_PROD_TASK = 'firebase-ensure-prod';
 const FIREBASE_DEPLOY_TASK = 'firebase-deploy';
 const FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING = 'firebase-set-config-last-deploy-affecting-rendering';
@@ -276,7 +264,7 @@ gulp.task(GCLOUD_ENSURE_DEV_TASK, (cb) => {
 	gcloudUseDev(cb);
 });
 
-gulp.task(POLYMER_BUILD_TASK, makeExecutor('polymer build'));
+gulp.task(BUILD_TASK, makeExecutor('npm run build'));
 
 gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(TWITTER_HANDLE ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal'));
 
@@ -376,11 +364,11 @@ gulp.task(SET_LAST_DEPLOY_IF_AFFECTS_RENDERING, (cb) => {
 	task(cb);
 });
 
-let wantsToSkipPolymerBuild = undefined;
+let wantsToSkipBuild = undefined;
 
-gulp.task(ASK_IF_WANT_POLYMER_BUILD, async (cb) => {
-	if (wantsToSkipPolymerBuild !== undefined) {
-		console.log('Already asked if the user wants a polymer build');
+gulp.task(ASK_IF_WANT_BUILD, async (cb) => {
+	if (wantsToSkipBuild !== undefined) {
+		console.log('Already asked if the user wants a build');
 		cb();
 		return;
 	}
@@ -388,10 +376,10 @@ gulp.task(ASK_IF_WANT_POLYMER_BUILD, async (cb) => {
 		type:'confirm',
 		name: 'value',
 		initial: false,
-		message: 'Do you want to skip building, because the polymer build output is already up to date?',
+		message: 'Do you want to skip building, because the build output is already up to date?',
 	});
 
-	wantsToSkipPolymerBuild = response.value;
+	wantsToSkipBuild = response.value;
 	cb();
 
 });
@@ -409,10 +397,10 @@ gulp.task(WARN_MAINTENANCE_TASKS, (cb) => {
 	cb();
 });
 
-gulp.task(POLYMER_BUILD_OPTIONALLY, async (cb) => {
-	let task = gulp.task(POLYMER_BUILD_TASK);
-	if (wantsToSkipPolymerBuild) {
-		console.log('Skipping polymer build because the user asked to skip it');
+gulp.task(BUILD_OPTIONALLY, async (cb) => {
+	let task = gulp.task(BUILD_TASK);
+	if (wantsToSkipBuild) {
+		console.log('Skipping build because the user asked to skip it');
 		cb();
 		return;
 	}
@@ -430,8 +418,8 @@ gulp.task('set-up-deploy',
 gulp.task('dev-deploy',
 	gulp.series(
 		REGENERATE_FILES_FROM_CONFIG_TASK,
-		ASK_IF_WANT_POLYMER_BUILD,
-		POLYMER_BUILD_OPTIONALLY,
+		ASK_IF_WANT_BUILD,
+		BUILD_OPTIONALLY,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		FIREBASE_ENSURE_DEV_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
@@ -442,8 +430,8 @@ gulp.task('dev-deploy',
 gulp.task('deploy', 
 	gulp.series(
 		REGENERATE_FILES_FROM_CONFIG_TASK,
-		ASK_IF_WANT_POLYMER_BUILD,
-		POLYMER_BUILD_OPTIONALLY,
+		ASK_IF_WANT_BUILD,
+		BUILD_OPTIONALLY,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		FIREBASE_ENSURE_PROD_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
@@ -481,7 +469,7 @@ gulp.task('release',
 		//Ask at the beginning so the user can walk away after running
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		ASK_BACKUP_MESSAGE,
-		ASK_IF_WANT_POLYMER_BUILD,
+		ASK_IF_WANT_BUILD,
 		'backup',
 		'deploy',
 		'maybe-tag-release'
@@ -497,35 +485,6 @@ gulp.task('reset-dev',
 		GSUTIL_RSYNC_UPLOADS
 	)
 );
-
-/**
- * Cleans the prpl-server build in the server directory.
- */
-gulp.task('prpl-server:clean', () => {
-	return del('server/build');
-});
-
-/**
- * Copies the prpl-server build to the server directory while renaming the
- * node_modules directory so services like App Engine will upload it.
- */
-gulp.task('prpl-server:build', () => {
-	const pattern = 'node_modules';
-	const replacement = 'node_assets';
-
-	return gulp.src('build/**')
-		.pipe(rename(((path) => {
-			path.basename = path.basename.replace(pattern, replacement);
-			path.dirname = path.dirname.replace(pattern, replacement);
-		})))
-		.pipe(replace(pattern, replacement))
-		.pipe(gulp.dest('server/build'));
-});
-
-gulp.task('prpl-server', gulp.series(
-	'prpl-server:clean',
-	'prpl-server:build'
-));
 
 var realFavicon = require ('gulp-real-favicon');
 

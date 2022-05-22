@@ -18,10 +18,10 @@ class TagChip  extends LitElement {
 					font-size: 0.7em;
 					background-color: ${this._color};
 					transition: filter 0.1s ease-in-out;
-					${this._filter ? 'filter: ' + this._filter + ';' : ''}
 				}
 				span.enabled:hover {
-					filter:none;
+					/* !important necessary to reach up and override the styles setting directly on element */
+					filter:none !important;
 				}
 				a.primary {
 					color: var(--app-light-text-color);
@@ -47,7 +47,7 @@ class TagChip  extends LitElement {
 					display:inline;
 				}
 			</style>
-			<span class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''} ${this._disabled ? 'disabled' : 'enabled'}' title='${this._description}' @mousemove=${this._handleMouseMove}><a class='primary' href='${this._url}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
+			<span style=${this._filter ? 'filter: ' + this._filter : ''} class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''} ${this._disabled ? 'disabled' : 'enabled'}' title='${this._description}' @mousemove=${this._handleMouseMove}><a class='primary' href='${this._url}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
 			`;
 	}
 
