@@ -4,7 +4,6 @@
 import { initializeApp } from 'firebase/app';
 
 import { 
-	enableIndexedDbPersistence,
 	getFirestore,
 	serverTimestamp,
 	arrayUnion,
@@ -33,7 +32,6 @@ import {
 	FIREBASE_DEV_CONFIG,
 	FIREBASE_PROD_CONFIG,
 	FIREBASE_REGION,
-	DISABLE_PERSISTENCE
 } from '../config.GENERATED.SECRET.js';
 
 export let DEV_MODE = false;
@@ -46,18 +44,6 @@ let config = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
 const firebaseApp = initializeApp(config);
 
 export const db = getFirestore(firebaseApp);
-
-if (!DISABLE_PERSISTENCE) {
-	enableIndexedDbPersistence(db)
-		.catch(function(err) {
-			if (err.code == 'failed-precondition') {
-				console.warn('Offline doesn\'t work because multiple tabs are open or something else');
-			} else if (err.code == 'unimplemented') {
-				console.warn('This browser doesn\'t support offline storage');
-			}
-		});
-}
-
 export const auth = getAuth(firebaseApp);
 export const functions = getFunctions(firebaseApp, FIREBASE_REGION);
 export const storage = getStorage(firebaseApp);
