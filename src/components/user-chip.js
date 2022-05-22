@@ -31,6 +31,10 @@ import {
 	auth
 } from '../firebase.js';
 
+import {
+	onAuthStateChanged
+} from 'firebase/auth';
+
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 class UserChip extends connect(store)(LitElement) {
@@ -69,7 +73,7 @@ class UserChip extends connect(store)(LitElement) {
 	}
 
 	firstUpdated() {
-		auth.onAuthStateChanged(this._handleAuthStateChanged);
+		onAuthStateChanged(auth, this._handleAuthStateChanged);
 	}
 
 	_handleAuthStateChanged(user) {

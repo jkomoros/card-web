@@ -37,6 +37,17 @@ import {
 } from '../firebase.js';
 
 import {
+	doc,
+	writeBatch,
+	getDoc,
+	getDocs,
+	query,
+	where,
+	orderBy,
+	collection
+} from 'firebase/firestore';
+
+import {
 	navigateToCardInCurrentCollection,
 	navigateToNextCard
 } from './app.js';
@@ -294,15 +305,15 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch) => 
 		if (!existingCards[otherCardID]) throw new Error(otherCardID + 'is in the reference update but does not already exist');
 	}
 
-	let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
+	let cardRef = doc(db, CARDS_COLLECTION, card.id);
 
-	let updateRef = cardRef.collection(CARD_UPDATES_COLLECTION).doc('' + Date.now());
+	let updateRef = doc(cardRef, CARD_UPDATES_COLLECTION, '' + Date.now());
 
 	batch.set(updateRef, updateObject);
 	batch.update(cardRef, cardUpdateObject);
 
 	for (const [otherCardID, otherCardUpdate] of Object.entries(inboundUpdates)) {
-		const ref = db.collection(CARDS_COLLECTION).doc(otherCardID);
+		const ref = doc(db, CARDS_COLLECTION, otherCardID);
 		batch.update(ref, otherCardUpdate);
 	}
 
@@ -312,8 +323,8 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch) => 
 		//Need to update the section objects too.
 		let newSection = cardUpdateObject.section;
 		if (newSection) {
-			let newSectionRef = db.collection(SECTIONS_COLLECTION).doc(newSection);
-			let newSectionUpdateRef = newSectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
+			let newSectionRef = doc(db, SECTIONS_COLLECTION, newSection);
+			let newSectionUpdateRef = doc(newSectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
 			let newSectionObject = {
 				cards: arrayUnionSentinel(card.id),
 				updated: serverTimestampSentinel()
@@ -327,8 +338,8 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch) => 
 		}
 		let oldSection = card.section;
 		if (oldSection) {
-			let oldSectionRef = db.collection(SECTIONS_COLLECTION).doc(oldSection);
-			let oldSectionUpdateRef = oldSectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
+			let oldSectionRef = doc(db, SECTIONS_COLLECTION, oldSection);
+			let oldSectionUpdateRef = doc(oldSectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
 			let oldSectionObject = {
 				cards: arrayRemoveSentinel(card.id),
 				updated: serverTimestampSentinel()
@@ -345,8 +356,8 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch) => 
 	if (update.addTags && update.addTags.length) {
 		//Note: similar logic is replicated in createForkedCard
 		for (let tagName of update.addTags) {
-			let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
-			let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
+			let tagRef = doc(db, TAGS_COLLECTION, tagName);
+			let tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
 			let newTagObject = {
 				cards: arrayUnionSentinel(card.id),
 				updated: serverTimestampSentinel()
@@ -362,8 +373,8 @@ export const modifyCardWithBatch = (state, card, update, substantive, batch) => 
 
 	if (update.removeTags && update.removeTags.length) {
 		for (let tagName of update.removeTags) {
-			let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
-			let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
+			let tagRef = doc(db, TAGS_COLLECTION, tagName);
+			let tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
 			let newTagObject = {
 				cards: arrayRemoveSentinel(card.id),
 				updated: serverTimestampSentinel()
@@ -441,8 +452,8 @@ const setPendingSlug = (slug) => {
 
 const addLegalSlugToCard = (cardID, legalSlug, setName) => {
 	//legalSlug must already be verified to be legal.
-	let batch = db.batch();
-	const cardRef = db.collection(CARDS_COLLECTION).doc(cardID);
+	let batch = writeBatch(db);
+	const cardRef = doc(db, CARDS_COLLECTION, cardID);
 	let update = {
 		slugs: arrayUnionSentinel(legalSlug),
 		updated: serverTimestampSentinel(),
@@ -553,21 +564,21 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 		return;
 	}
 
-	let tagRef = db.collection(TAGS_COLLECTION).doc(name);
+	let tagRef = doc(db, TAGS_COLLECTION, name);
 
-	let tag = await tagRef.get();
+	let tag = await getDoc(tagRef);
 
-	if (tag.exists) {
+	if (tag.exists()) {
 		console.warn('A tag with that name already exists');
 		return;
 	}
 
 	let startCardId = 'tag-' + name;
-	let startCardRef = db.collection(CARDS_COLLECTION).doc(startCardId);
+	let startCardRef = doc(db, CARDS_COLLECTION, startCardId);
 
-	let card = await startCardRef.get();
+	let card = await getDoc(startCardRef);
 
-	if (card.exists) {
+	if (card.exists()) {
 		console.warn('A card with that id already exists');
 		return;
 	}
@@ -576,7 +587,7 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 	//can just edit it by hand in the DB.
 	let color = TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)];
 
-	let batch = db.batch();
+	let batch = writeBatch(db);
 
 	batch.set(tagRef, {
 		cards: [],
@@ -802,7 +813,7 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		}
 	}
 
-	let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
+	let cardDocRef = doc(db, CARDS_COLLECTION, id);
 
 	//Tell card-view to expect a new card to be loaded, and when data is
 	//fully loaded again, it will then trigger the navigation.
@@ -845,14 +856,14 @@ export const createCard = (opts) => async (dispatch, getState) => {
 		fallbackAutoSlugLegalPromise = slugLegal(fallbackAutoSlug);
 	}
 
-	const batch = db.batch();
+	const batch = writeBatch(db);
 
 	ensureAuthor(batch, user);
 	batch.set(cardDocRef, obj);
 
 	if (section) {
-		let sectionRef = db.collection(SECTIONS_COLLECTION).doc(obj.section);
-		let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
+		let sectionRef = doc(db, SECTIONS_COLLECTION, obj.section);
+		let sectionUpdateRef = doc(sectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
 		batch.update(sectionRef, {
 			cards: arrayUnionSentinel(id),
 			updated: serverTimestampSentinel(),
@@ -996,7 +1007,7 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		newCard.tags = newCard.tags.filter(tag => !illegalTags[tag]);
 	}
 
-	let cardDocRef = db.collection(CARDS_COLLECTION).doc(id);
+	let cardDocRef = doc(db, CARDS_COLLECTION, id);
 
 	//Tell card-view to expect a new card to be loaded, and when data is
 	//fully loaded again, it will then trigger the navigation.
@@ -1008,19 +1019,19 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		noSectionChange: !section,
 	});
 
-	let batch = db.batch();
+	let batch = writeBatch(db);
 	ensureAuthor(batch, user);
 
 	batch.set(cardDocRef, newCard);
 
 	for (const [otherCardID, otherCardUpdate] of Object.entries(inboundUpdates)) {
-		const ref = db.collection(CARDS_COLLECTION).doc(otherCardID);
+		const ref = doc(db, CARDS_COLLECTION, otherCardID);
 		batch.update(ref, otherCardUpdate);
 	}
 
 	for (let tagName of newCard.tags) {
-		let tagRef = db.collection(TAGS_COLLECTION).doc(tagName);
-		let tagUpdateRef = tagRef.collection(TAG_UPDATES_COLLECTION).doc('' + Date.now());
+		let tagRef = doc(db, TAGS_COLLECTION, tagName);
+		let tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
 		let newTagObject = {
 			cards: arrayUnionSentinel(id),
 			updated: serverTimestampSentinel()
@@ -1034,12 +1045,12 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 	}
 
 	if (section) {
-		let sectionRef = db.collection(SECTIONS_COLLECTION).doc(newCard.section);
+		let sectionRef = doc(db, SECTIONS_COLLECTION, newCard.section);
 		batch.update(sectionRef, {
 			cards: arrayUnionSentinel(id),
 			updated: serverTimestampSentinel()
 		});
-		let sectionUpdateRef = sectionRef.collection(SECTION_UPDATES_COLLECTION).doc('' + Date.now());
+		let sectionUpdateRef = doc(sectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
 		batch.set(sectionUpdateRef, {
 			timestamp: serverTimestampSentinel(), 
 			add_card: id,
@@ -1080,9 +1091,9 @@ export const deleteCard = (card) => async (dispatch, getState) => {
 		dispatch(navigateToNextCard());
 	}
 
-	let batch = db.batch();
-	let ref = db.collection(CARDS_COLLECTION).doc(card.id);
-	let updates = await ref.collection(CARD_UPDATES_COLLECTION).get();
+	let batch = writeBatch(db);
+	let ref = doc(db, CARDS_COLLECTION, card.id);
+	let updates = await getDocs(ref, CARD_UPDATES_COLLECTION);
 	for (let update of updates.docs) {
 		batch.delete(update.ref);
 	}
@@ -1192,7 +1203,7 @@ export const updateAuthors = (authors) => (dispatch, getState) => {
 				//without already being in the authors table. We should ensure
 				//author!
 				console.log('Saving extra author information because our authors rec was missing it');
-				let batch = db.batch();
+				let batch = writeBatch(db);
 				ensureAuthor(batch, user);
 				//don't need to wait for it resolve
 				batch.commit();
@@ -1318,7 +1329,7 @@ export const fetchTweets = (card) => async (dispatch) => {
 	});
 
 	//This query requires an index, defined in firestore.indexes.json
-	const snapshot = await db.collection(TWEETS_COLLECTION).where('card', '==', card.id).where('archived', '==', false).orderBy('created', 'desc').get();
+	const snapshot = await getDocs(query(collection(db, TWEETS_COLLECTION), where('card', '==', card.id), where('archived', '==', false), orderBy('created', 'desc')));
 
 	if (snapshot.empty) {
 		dispatch({

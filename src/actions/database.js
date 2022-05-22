@@ -37,6 +37,18 @@ import {
 } from '../permissions.js';
 
 import {
+	collection,
+	onSnapshot,
+	where,
+	query,
+	orderBy
+} from 'firebase/firestore';
+
+import {
+	httpsCallable
+} from 'firebase/functions';
+
+import {
 	DISABLE_CALLABLE_CLOUD_FUNCTIONS
 } from '../../config.GENERATED.SECRET.js';
 
@@ -62,7 +74,7 @@ export const READING_LISTS_UPDATES_COLLECTION = 'updates';
 export const PERMISSIONS_COLLECTION = 'permissions';
 export const TWEETS_COLLECTION = 'tweets';
 
-const legalCallable = functions.httpsCallable('legal');
+const legalCallable = httpsCallable(functions, 'legal');
 
 //slugLegal returns an object with {legal: bool, reason: string}
 export const slugLegal = async (newSlug) => {
@@ -115,7 +127,7 @@ export const keepSlugLegalWarm = () => {
 export const connectLiveMessages = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
 	//Deliberately DO fetch deleted messages, so we can render stubs for them.
-	db.collection(MESSAGES_COLLECTION).onSnapshot(snapshot => {
+	onSnapshot(collection(db, MESSAGES_COLLECTION), snapshot => {
 		let messages = {};
 		snapshot.docChanges().forEach(change => {
 			if (change.type === 'removed') return;
@@ -132,7 +144,7 @@ export const connectLiveMessages = () => {
 
 export const connectLiveThreads = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
-	db.collection(THREADS_COLLECTION).where('deleted', '==', false).where('resolved', '==', false).onSnapshot(snapshot => {
+	onSnapshot(query(collection(db, THREADS_COLLECTION), where('deleted', '==', false), where('resolved', '==', false)), snapshot => {
 		let threads = {};
 		let threadsToAdd = [];
 		let threadsToRemove = [];
@@ -165,7 +177,7 @@ export const disconnectLiveStars = () => {
 
 export const connectLiveStars = (uid) => {
 	disconnectLiveStars();
-	liveStarsUnsubscribe = db.collection(STARS_COLLECTION).where('owner', '==', uid).onSnapshot( snapshot => {
+	liveStarsUnsubscribe = onSnapshot(query(collection(db, STARS_COLLECTION), where('owner', '==', uid)), snapshot => {
 		let starsToAdd = [];
 		let starsToRemove = [];
 		snapshot.docChanges().forEach(change => {
@@ -189,7 +201,7 @@ export const disconnectLiveReads = () => {
 
 export const connectLiveReads = (uid) => {
 	disconnectLiveReads();
-	liveReadsUnsubscribe = db.collection(READS_COLLECTION).where('owner', '==', uid).onSnapshot( snapshot => {
+	liveReadsUnsubscribe = onSnapshot(query(collection(db, READS_COLLECTION), where('owner', '==', uid)),  snapshot => {
 		let readsToAdd = [];
 		let readsToRemove = [];
 		snapshot.docChanges().forEach(change => {
@@ -213,7 +225,7 @@ export const disconnectLiveReadingList = () => {
 
 export const connectLiveReadingList = (uid) => {
 	disconnectLiveReadingList();
-	liveReadingListUnsubscribe = db.collection(READING_LISTS_COLLECTION).where('owner', '==', uid).onSnapshot( snapshot => {
+	liveReadingListUnsubscribe = onSnapshot(query(collection(db, READING_LISTS_COLLECTION), where('owner', '==', uid)), snapshot => {
 		let list = [];
 		snapshot.docChanges().forEach(change => {
 			let doc = change.doc;
@@ -228,7 +240,7 @@ export const connectLiveReadingList = (uid) => {
 
 export const connectLiveAuthors = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
-	db.collection(AUTHORS_COLLECTION).onSnapshot(snapshot => {
+	onSnapshot(collection(db, AUTHORS_COLLECTION), snapshot => {
 
 		let authors = {};
 
@@ -278,7 +290,7 @@ const cardSnapshotReceiver = (unpublished) =>{
 
 export const connectLivePublishedCards = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
-	db.collection(CARDS_COLLECTION).where('published', '==', true).onSnapshot(cardSnapshotReceiver(false));
+	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', true)), cardSnapshotReceiver(false));
 };
 
 let liveUnpublishedCardsForUserAuthorUnsubscribe = null;
@@ -290,8 +302,8 @@ export const connectLiveUnpublishedCardsForUser = (uid) => {
 	if (!uid) return;
 	//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
 	store.dispatch(expectUnpublishedCards());
-	liveUnpublishedCardsForUserAuthorUnsubscribe = db.collection(CARDS_COLLECTION).where('author', '==', uid).where('published', '==', false).onSnapshot(cardSnapshotReceiver(true));
-	liveUnpublishedCardsForUserEditorUnsubscribe = db.collection(CARDS_COLLECTION).where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid).where('published', '==', false).onSnapshot(cardSnapshotReceiver(true));
+	liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false)), cardSnapshotReceiver(true));
+	liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)), cardSnapshotReceiver(true));
 };
 
 const disconnectLiveUnpublishedCardsForUser = () => {
@@ -310,12 +322,12 @@ export const connectLiveUnpublishedCards = () => {
 	disconnectLiveUnpublishedCardsForUser();
 	//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
 	store.dispatch(expectUnpublishedCards());
-	db.collection(CARDS_COLLECTION).where('published', '==', false).onSnapshot(cardSnapshotReceiver(true));
+	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false)), cardSnapshotReceiver(true));
 };
 
 export const connectLiveSections = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
-	db.collection(SECTIONS_COLLECTION).orderBy('order').onSnapshot(snapshot => {
+	onSnapshot(query(collection(db, SECTIONS_COLLECTION), orderBy('order')), snapshot => {
 
 		let sections = {};
 
@@ -335,7 +347,7 @@ export const connectLiveSections = () => {
 
 export const connectLiveTags = () => {
 	if (!selectUserMayViewApp(store.getState())) return;
-	db.collection(TAGS_COLLECTION).onSnapshot(snapshot => {
+	onSnapshot(collection(db, TAGS_COLLECTION), snapshot => {
 
 		let tags = {};
 

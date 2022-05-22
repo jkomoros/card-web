@@ -78,10 +78,23 @@ import {
 	applyReferencesDiff,
 	references,
 } from '../references.js';
+
+import {
+	onSnapshot,
+	collection,
+	getDocs,
+	query,
+	where,
+	writeBatch,
+	doc,
+	setDoc,
+	getDoc
+} from 'firebase/firestore';
+
 import { cardDiffHasChanges } from '../card_diff.js';
 
 export const connectLiveExecutedMaintenanceTasks = () => {
-	db.collection(MAINTENANCE_COLLECTION).onSnapshot(snapshot => {
+	onSnapshot(collection(db, MAINTENANCE_COLLECTION), snapshot => {
 
 		let tasks = {};
 
@@ -109,7 +122,7 @@ const updateExecutedMaintenanceTasks = (executedTasks) => {
 const NORMALIZE_CONTENT_BODY = 'normalize-content-body-again';
 
 const normalizeContentBody = async() => {
-	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 
 	let counter = 0;
 	let size = snapshot.size;
@@ -133,7 +146,7 @@ const updateInboundLinks = async() => {
 
 	//This task is designed to run as often as you want, so we don't check if we've run it and mark as run.
 
-	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	let snapshot = await getDocs(collection(db,CARDS_COLLECTION));
 
 	let counter = 0;
 	let size = snapshot.size;
@@ -142,7 +155,7 @@ const updateInboundLinks = async() => {
 
 	for (let doc of snapshot.docs) {
 		counter++;
-		let linkingCardsSnapshot = await db.collection(CARDS_COLLECTION).where(REFERENCES_CARD_PROPERTY + '.' + doc.id, '==', true).get();
+		let linkingCardsSnapshot = await getDocs(query(collection(db, CARDS_COLLECTION), where(REFERENCES_CARD_PROPERTY + '.' + doc.id, '==', true)));
 		if(!linkingCardsSnapshot.empty) {
 			let referencesInbound = {};
 			let referencesInboundSentinel = {};
@@ -168,12 +181,12 @@ const RESET_TWEETS = 'reset-tweets';
 const resetTweets = async() => {
 	//Mark all tweets as having not been run
 	if (!confirm('Are you SURE you want to reset all tweets?')) return;
-	let batch = db.batch();
-	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	let batch = writeBatch(db);
+	let snapshot = await getDocs(collection(db,CARDS_COLLECTION));
 	snapshot.forEach(doc => {
 		batch.update(doc.ref, {'tweet_count': 0, 'last_tweeted': new Date(0)});
 	});
-	let tweetSnapshot = await db.collection(TWEETS_COLLECTION).get();
+	let tweetSnapshot = await getDocs(collection(db, TWEETS_COLLECTION));
 	tweetSnapshot.forEach(doc => {
 		batch.update(doc.ref, {'archived': true, 'archive_date': serverTimestampSentinel()});
 	});
@@ -195,8 +208,8 @@ const initialSetup = async (_, getState) => {
 
 	let batch = new MultiBatch(db);
 
-	const sectionsCollection = db.collection(SECTIONS_COLLECTION);
-	const cardsCollection = db.collection(CARDS_COLLECTION);
+	const sectionsCollection = collection(db, SECTIONS_COLLECTION);
+	const cardsCollection = collection(db, CARDS_COLLECTION);
 
 	let count = 0;
 	let sortOrder = (MAX_SORT_ORDER_VALUE - MIN_SORT_ORDER_VALUE) / 2;
@@ -208,7 +221,7 @@ const initialSetup = async (_, getState) => {
 		update.cards = [contentCardId];
 		update.order = count;
 		update.start_cards = [startCardId];
-		batch.set(sectionsCollection.doc(key), update);
+		batch.set(doc(sectionsCollection, key), update);
 
 		//Put the first card smack in the middle.
 		let sectionHeadCard = defaultCardObject(startCardId,user,key,CARD_TYPE_SECTION_HEAD, sortOrder);
@@ -218,13 +231,13 @@ const initialSetup = async (_, getState) => {
 		sectionHeadCard.title = update.title;
 		sectionHeadCard.subtitle = update.subtitle;
 		sectionHeadCard.published = true;
-		batch.set(cardsCollection.doc(startCardId), sectionHeadCard);
+		batch.set(doc(cardsCollection, startCardId), sectionHeadCard);
 
 		const contentCard = defaultCardObject(contentCardId, user, key, CARD_TYPE_CONTENT, sortOrder);
 		//get sortOreder ready for next user
 		sortOrder -= DEFAULT_SORT_ORDER_INCREMENT;
 		contentCard.published = true;
-		batch.set(cardsCollection.doc(contentCardId), contentCard);
+		batch.set(doc(cardsCollection, contentCardId), contentCard);
 
 		count++;
 	}
@@ -242,8 +255,8 @@ const initialSetup = async (_, getState) => {
 	starsFallbackCard.body = '<p>You can star cards, and when you do they\'ll show up in the Starred list at the top nav.</p>';
 	starsFallbackCard.published = true;
 
-	batch.set(cardsCollection.doc(READING_LIST_FALLBACK_CARD), readingListFallbackCard);
-	batch.set(cardsCollection.doc(STARS_FALLBACK_CARD), starsFallbackCard);
+	batch.set(doc(cardsCollection, READING_LIST_FALLBACK_CARD), readingListFallbackCard);
+	batch.set(doc(cardsCollection, STARS_FALLBACK_CARD), starsFallbackCard);
 
 	ensureAuthor(batch, user);
 
@@ -256,7 +269,7 @@ const LINKS_TO_REFERENCES = 'links-to-references';
 const linksToReferences = async () => {
 
 	let batch = new MultiBatch(db);
-	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	snapshot.forEach(doc => {
 
 		let data = doc.data();
@@ -286,7 +299,7 @@ const SKIPPED_LINKS_TO_ACK_REFERENCES = 'skipped-links-to-ack-references';
 
 const skippedLinksToAckReferences = async () => {
 	let batch = new MultiBatch(db);
-	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	snapshot.forEach(doc => {
 
 		const card = doc.data();
@@ -313,7 +326,7 @@ const ADD_FONT_SIZE_BOOST = 'add-font-size-boost';
 const addFontSizeBoost = async () => {
 
 	let batch = new MultiBatch(db);
-	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	snapshot.forEach(doc => {
 		batch.update(doc.ref, {font_size_boost: {}});
 	});
@@ -326,7 +339,7 @@ const UPDATE_FONT_SIZE_BOOST = 'update-font-size-boost';
 const updateFontSizeBoost = async () => {
 
 	let batch = new MultiBatch(db);
-	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	let counter = 0;
 	//if this were forEach then the async gets weird as multiple queue up.
 	for (let doc of snapshot.docs) {
@@ -355,7 +368,7 @@ const convertMultiLinksDelimiter = async () => {
 	const OLD_MULTI_LINK_DELIMITER = ' || ';
 
 	let batch = new MultiBatch(db);
-	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	snapshot.forEach(doc => {
 		let card = doc.data();
 		let update = {};
@@ -382,7 +395,7 @@ const FLIP_AUTO_TODO_OVERRIDES = 'flip-auto-todo-overrides';
 
 const flipAutoTodoOverrides = async () => {
 	let batch = new MultiBatch(db);
-	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	snapshot.forEach(doc => {
 		let card = doc.data();
 
@@ -409,7 +422,7 @@ const setMaintenanceTaskVersion = async () => {
 
 	let seenTasks = {};
 
-	let snapshot = await db.collection(MAINTENANCE_COLLECTION).get();
+	let snapshot = await getDocs(collection(db, MAINTENANCE_COLLECTION));
 	snapshot.forEach(doc => {
 		let taskName = doc.id;
 		seenTasks[taskName] = true;
@@ -421,7 +434,7 @@ const setMaintenanceTaskVersion = async () => {
 	//Create entries for any items that haven't yet been run
 	for (const taskName of Object.keys(MAINTENANCE_TASKS)) {
 		if (seenTasks[taskName]) continue;
-		const ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
+		const ref = doc(db, MAINTENANCE_COLLECTION, taskName);
 		batch.set(ref, {timestamp: serverTimestampSentinel(), version: MAINTENANCE_TASK_VERSION, createdBy:SET_MAINTENANCE_TASK_VERSION});
 	}
 
@@ -432,7 +445,7 @@ const ADD_IMAGES_PROPERTY = 'add-images-property';
 
 const addImagesProperty = async () => {
 	let batch = new MultiBatch(db);
-	let snapshot = await db.collection(CARDS_COLLECTION).get();
+	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	snapshot.forEach(doc => {
 		const update = {
 			images: [],
@@ -502,7 +515,7 @@ const addSortOrderProperty = async (dispatch, getState) => {
 	for (const cardID of fullOrderedSet) {
 		const card = cards[cardID];
 		if (!card) throw new Error(cardID + ' was not found in cards collection');
-		const ref = db.collection(CARDS_COLLECTION).doc(cardID);
+		const ref = doc(db, CARDS_COLLECTION, cardID);
 		batch.update(ref, {sort_order: counter});
 		counter -= increment;
 	}
@@ -554,12 +567,12 @@ export const nextMaintenanceTaskName = (executedTasks) => {
 const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 	const fn = taskConfig.fn;
 	return () => async (dispatch, getState) => {
-		let ref = db.collection(MAINTENANCE_COLLECTION).doc(taskName);
+		let ref = doc(db, MAINTENANCE_COLLECTION, taskName);
 
 		if (!taskConfig.recurring) {
-			let doc = await ref.get();
+			let doc = await getDoc(ref);
 		
-			if (doc.exists) {
+			if (doc.exists()) {
 				if (!window.confirm('This task has been run before on this database. Do you want to run it again?')) {
 					throw taskName + ' has been run before and the user didn\'t want to run again';
 				}
@@ -584,7 +597,7 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 			return;
 		}
 
-		await db.collection(MAINTENANCE_COLLECTION).doc(taskName).set({
+		await setDoc(doc(db, MAINTENANCE_COLLECTION, taskName), {
 			timestamp: serverTimestampSentinel(),
 			version: MAINTENANCE_TASK_VERSION,
 		});

@@ -1,7 +1,8 @@
-//We import these only to get deleteSentinel without importing from firebase.js.
-import firebase from 'firebase/app';
-import 'firebase/firestore';
-const deleteSentinel = firebase.firestore.FieldValue.delete;
+import {
+	deleteField
+} from 'firebase/firestore';
+
+const deleteSentinel = deleteField;
 
 import {
 	REFERENCES_INFO_CARD_PROPERTY,

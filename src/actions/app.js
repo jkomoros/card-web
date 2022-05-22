@@ -107,6 +107,16 @@ import {
 	aboutConceptConfigurableFilterText,
 } from '../filters.js';
 
+import {
+	getDocs,
+	query,
+	where,
+	collection,
+	limit,
+	getDoc,
+	doc
+} from 'firebase/firestore';
+
 //if silent is true, then just passively updates the URL to reflect what it should be.
 export const navigatePathTo = (path, silent) => (dispatch, getState) => {
 	const state = getState();
@@ -316,12 +326,12 @@ const updatePage = (location, page, pageExtra) => {
 
 const fetchCardFromDb = async (cardIDOrSlug) => {
 	//Cards are more likely to be fetched via slug, so try that first
-	let cards = await db.collection(CARDS_COLLECTION).where('published', '==', true).where('slugs', 'array-contains', cardIDOrSlug).limit(1).get();
+	let cards = await getDocs(query(collection(db, CARDS_COLLECTION), where('published', '==', true), where('slugs', 'array-contains', cardIDOrSlug), limit(1)));
 	if (cards && !cards.empty) {
 		return cards.docs[0];
 	}
-	let card = await db.collection(CARDS_COLLECTION).doc(cardIDOrSlug).get();
-	if (card && card.exists) {
+	let card = await getDoc(doc(db, CARDS_COLLECTION, cardIDOrSlug));
+	if (card && card.exists()) {
 		return card;
 	}
 	return null;
@@ -329,7 +339,7 @@ const fetchCardFromDb = async (cardIDOrSlug) => {
 
 const fetchCardLinkCardsForFetchedCardFromDb = async (card) => {
 	//orderBy is effectively a filter to only items that have 'references.CARD_ID' key.
-	const rawQuery =  await db.collection(CARDS_COLLECTION).where('published', '==', true).where(REFERENCES_INBOUND_CARD_PROPERTY + '.' + card.id, '==', true).get();
+	const rawQuery = await getDocs(query(collection(db, CARDS_COLLECTION), where('published', '==', true), where(REFERENCES_INBOUND_CARD_PROPERTY + '.' + card.id, '==', true)));
 	if (rawQuery.empty) return {};
 	return Object.fromEntries(rawQuery.docs.map(doc => [doc.id, {...doc.data(), id: doc.id}]));
 };
