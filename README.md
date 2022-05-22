@@ -15,7 +15,7 @@ Download this repository and cd into it.
 
 Run `npm install` to install all of the dependencies.
 
-Run `npm install -g firebase-tools gulp polymer-cli` (you can skip any of those that you already have installed)
+Run `npm install -g firebase-tools gulp` (you can skip any of those that you already have installed)
 
 Also run `npm install` in the `functions/` directory.
 
