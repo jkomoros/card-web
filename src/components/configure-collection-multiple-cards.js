@@ -25,7 +25,7 @@ class ConfigureCollectionMultipleCards extends LitElement {
 			</style>
 			${ButtonSharedStyles}
 			<div>
-				<tag-list .overrideTypeName='Card' .tagInfos=${this.cardTagInfos} .tags=${cardIDs} .tapEvents=${true} .editing=${true} .disableSelect=${true} @tag-tapped=${this._handleTagTapped} @new-tag=${this._handleNewTag} @remove-tag=${this._handleRemoveTag}></tag-list>
+				<tag-list .overrideTypeName=${'Card'} .tagInfos=${this.cardTagInfos} .tags=${cardIDs} .tapEvents=${true} .editing=${true} .disableSelect=${true} @tag-tapped=${this._handleTagTapped} @new-tag=${this._handleNewTag} @remove-tag=${this._handleRemoveTag}></tag-list>
 			</div>
 		`;
 	}
