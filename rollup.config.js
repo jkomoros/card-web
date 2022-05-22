@@ -23,7 +23,11 @@ export default {
 			],
 		}),
 		resolve(),
-		terser(),
+		terser({
+			format: {
+				comments: false,
+			}
+		}),
 		commonjs(),
 		summary(),
 	],
