@@ -19,7 +19,6 @@ import {
 
 import {
 	db,
-	deleteSentinel
 } from '../firebase.js';
 
 import {
@@ -33,6 +32,16 @@ import {
 import {
 	findCardToPermission
 } from './find.js';
+
+import {
+	onSnapshot,
+	collection,
+	setDoc,
+	updateDoc,
+	deleteDoc,
+	doc,
+	deleteField
+} from 'firebase/firestore';
 
 export const setCardToAddPermissionTo = (cardID) => (dispatch, getState) => {
 	const state = getState();
@@ -89,7 +98,7 @@ export const removeUserPermissionFromCard = (cardID, permissionType, uid) => (di
 
 export const connectLivePermissions = () => {
 	if (!selectUserMayEditPermissions(store.getState())) return;
-	db.collection(PERMISSIONS_COLLECTION).onSnapshot(snapshot => {
+	onSnapshot(collection(db, PERMISSIONS_COLLECTION), snapshot => {
 
 		let permissionsToAdd = {};
 		let permissionsToRemove = {};
@@ -120,21 +129,21 @@ const updatePermissions = (permissionsToAdd, permissionsToRemove) => {
 };
 
 export const addPermissionsObjectForUser = (uid) => () => {
-	db.collection(PERMISSIONS_COLLECTION).doc(uid).set({}, {merge: true});
+	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {}, {merge: true});
 };
 
 export const deletePermissionsObjectForUser = (uid) => () => {
-	db.collection(PERMISSIONS_COLLECTION).doc(uid).delete();
+	deleteDoc(doc(db, PERMISSIONS_COLLECTION, uid));
 };
 
 export const updateUserNote = (uid, note) => () => {
-	db.collection(PERMISSIONS_COLLECTION).doc(uid).update({notes:note});
+	updateDoc(doc(db, PERMISSIONS_COLLECTION, uid), {notes:note});
 };
 
 export const addEnabledPermission = (uid, key) => () => {
-	db.collection(PERMISSIONS_COLLECTION).doc(uid).set({[key]: true}, {merge: true});
+	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {[key]: true}, {merge: true});
 };
 
 export const clearPermission = (uid, key) => () => {
-	db.collection(PERMISSIONS_COLLECTION).doc(uid).set({[key]: deleteSentinel()}, {merge: true});
+	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {[key]: deleteField()}, {merge: true});
 };

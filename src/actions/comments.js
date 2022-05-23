@@ -12,9 +12,15 @@ import {
 } from './database.js';
 
 import {
+	doc,
+	writeBatch,
+	runTransaction,
+	arrayUnion,
+	serverTimestamp
+} from 'firebase/firestore';
+
+import {
 	db,
-	serverTimestampSentinel,
-	arrayUnionSentinel
 } from '../firebase.js';
 
 import {
@@ -35,8 +41,8 @@ import {
 } from './app.js';
 
 export const ensureAuthor = (batch, user) => {
-	batch.set(db.collection(AUTHORS_COLLECTION).doc(user.uid), {
-		updated: serverTimestampSentinel(),
+	batch.set(doc(db, AUTHORS_COLLECTION, user.uid), {
+		updated: serverTimestamp(),
 		photoURL: user.photoURL,
 		displayName: user.displayName
 	});
@@ -46,10 +52,10 @@ export const createAuthorStub = (uid) => {
 	//useful if you want to create an author stub to be filled in by that user
 	//when they next login, for example to manually add an editor or
 	//collaborator to a card.
-	let batch = db.batch();
+	let batch = writeBatch(db);
 	//By using set with merge:true, if it already exists, we won't overwrite any
 	//fields, but will ensure a stub exists.
-	batch.set(db.collection(AUTHORS_COLLECTION).doc(uid), {}, {merge:true});
+	batch.set(doc(db, AUTHORS_COLLECTION, uid), {}, {merge:true});
 	batch.commit();
 };
 
@@ -66,12 +72,12 @@ export const resolveThread = (thread) => (dispatch, getState) => {
 		return;
 	}
 
-	let cardRef = db.collection(CARDS_COLLECTION).doc(thread.card);
-	let threadRef = db.collection(THREADS_COLLECTION).doc(thread.id);
+	let cardRef = doc(db, CARDS_COLLECTION, thread.card);
+	let threadRef = doc(db, THREADS_COLLECTION, thread.id);
 
-	db.runTransaction(async transaction => {
+	runTransaction(db, async transaction => {
 		let cardDoc = await transaction.get(cardRef);
-		if (!cardDoc.exists) {
+		if (!cardDoc.exists()) {
 			throw 'Doc doesn\'t exist!';
 		}
 		let newThreadCount = (cardDoc.data().thread_count || 0) - 1;
@@ -80,7 +86,7 @@ export const resolveThread = (thread) => (dispatch, getState) => {
 		transaction.update(cardRef, {thread_count: newThreadCount, thread_resolved_count: newThreadResolvedCount});
 		transaction.update(threadRef, {
 			resolved: true,
-			updated: serverTimestampSentinel()
+			updated: serverTimestamp()
 		});
 	});
 };
@@ -97,12 +103,12 @@ export const deleteMessage = (message) => (dispatch, getState) => {
 		return;
 	}
 
-	let batch = db.batch();
+	let batch = writeBatch(db);
 
-	batch.update(db.collection(MESSAGES_COLLECTION).doc(message.id), {
+	batch.update(doc(db, MESSAGES_COLLECTION, message.id), {
 		message: '',
 		deleted: true,
-		updated: serverTimestampSentinel()
+		updated: serverTimestamp()
 	});
 
 	batch.commit();
@@ -122,12 +128,12 @@ export const editMessage = (message, newMessage) => (dispatch, getState) => {
 		return;
 	}
 
-	let batch = db.batch();
+	let batch = writeBatch(db);
 
-	batch.update(db.collection(MESSAGES_COLLECTION).doc(message.id), {
+	batch.update(doc(db, MESSAGES_COLLECTION, message.id), {
 		message: newMessage,
 		deleted: false,
-		updated: serverTimestampSentinel()
+		updated: serverTimestamp()
 	});
 
 	batch.commit();
@@ -173,26 +179,26 @@ export const addMessage = (thread, message) => (dispatch, getState) => {
 	let messageId = randomString(16);
 	let threadId = thread.id;
 
-	let batch = db.batch();
+	let batch = writeBatch(db);
 
 	ensureAuthor(batch, user);
 
-	batch.update(db.collection(THREADS_COLLECTION).doc(threadId), {
-		updated: serverTimestampSentinel(),
-		messages: arrayUnionSentinel(messageId)
+	batch.update(doc(db, THREADS_COLLECTION, threadId), {
+		updated: serverTimestamp(),
+		messages: arrayUnion(messageId)
 	});
 
-	batch.update(db.collection(CARDS_COLLECTION).doc(card.id),{
-		updated_message: serverTimestampSentinel(),
+	batch.update(doc(db, CARDS_COLLECTION, card.id),{
+		updated_message: serverTimestamp(),
 	});
 
-	batch.set(db.collection(MESSAGES_COLLECTION).doc(messageId), {
+	batch.set(doc(db, MESSAGES_COLLECTION, messageId), {
 		card: card.id,
 		message: message,
 		thread: threadId,
 		author: user.uid,
-		created: serverTimestampSentinel(),
-		updated: serverTimestampSentinel(),
+		created: serverTimestamp(),
+		updated: serverTimestamp(),
 		deleted: false
 	});
 
@@ -234,19 +240,19 @@ export const createThread = (message) => (dispatch, getState) => {
 	let messageId = randomString(16);
 	let threadId = randomString(16);
 
-	let cardRef = db.collection(CARDS_COLLECTION).doc(card.id);
-	let threadRef = db.collection(THREADS_COLLECTION).doc(threadId);
-	let messageRef = db.collection(MESSAGES_COLLECTION).doc(messageId);
+	let cardRef = doc(db, CARDS_COLLECTION, card.id);
+	let threadRef = doc(db, THREADS_COLLECTION, threadId);
+	let messageRef = doc(db, MESSAGES_COLLECTION, messageId);
 
-	db.runTransaction(async transaction => {
+	runTransaction(db, async transaction => {
 		let cardDoc = await transaction.get(cardRef);
-		if (!cardDoc.exists) {
+		if (!cardDoc.exists()) {
 			throw 'Doc doesn\'t exist!';
 		}
 		let newThreadCount = (cardDoc.data().thread_count || 0) + 1;
 		transaction.update(cardRef, {
 			thread_count: newThreadCount,
-			updated_message: serverTimestampSentinel(),
+			updated_message: serverTimestamp(),
 		});
 
 		ensureAuthor(transaction, user);
@@ -256,8 +262,8 @@ export const createThread = (message) => (dispatch, getState) => {
 			message: message,
 			thread: threadId,
 			author: user.uid,
-			created: serverTimestampSentinel(),
-			updated: serverTimestampSentinel(),
+			created: serverTimestamp(),
+			updated: serverTimestamp(),
 			deleted: false
 		});
 
@@ -266,8 +272,8 @@ export const createThread = (message) => (dispatch, getState) => {
 			parent_message: '',
 			messages: [messageId],
 			author: user.uid,
-			created: serverTimestampSentinel(),
-			updated: serverTimestampSentinel(),
+			created: serverTimestamp(),
+			updated: serverTimestamp(),
 			resolved: false,
 			deleted: false
 		});

@@ -46,8 +46,8 @@ import {
 } from '../actions/data.js';
 
 import {
-	arrayRemove,
-	arrayUnion,
+	arrayRemoveUtil,
+	arrayUnionUtil,
 	extractCardLinksFromBody
 } from '../util.js';
 
@@ -250,37 +250,37 @@ const app = (state = INITIAL_STATE, action) => {
 		if (!state.card) return state;
 		return {
 			...state,
-			card: {...state.card, tags: arrayUnion(state.card.tags, [action.tag])}
+			card: {...state.card, tags: arrayUnionUtil(state.card.tags, [action.tag])}
 		};
 	case EDITING_TAG_REMOVED:
 		if (!state.card) return state;
 		return {
 			...state,
-			card: {...state.card, tags: arrayRemove(state.card.tags, [action.tag])}
+			card: {...state.card, tags: arrayRemoveUtil(state.card.tags, [action.tag])}
 		};
 	case EDITING_EDITOR_ADDED:
 		if (!state.card) return state;
 		return {
 			...state,
-			card: {...state.card, permissions: {...state.card.permissions, [PERMISSION_EDIT_CARD]: arrayUnion(state.card.permissions[PERMISSION_EDIT_CARD], [action.editor])}}
+			card: {...state.card, permissions: {...state.card.permissions, [PERMISSION_EDIT_CARD]: arrayUnionUtil(state.card.permissions[PERMISSION_EDIT_CARD], [action.editor])}}
 		};
 	case EDITING_EDITOR_REMOVED:
 		if (!state.card) return state;
 		return {
 			...state,
-			card: {...state.card, permissions: {...state.card.permissions, [PERMISSION_EDIT_CARD]: arrayRemove(state.card.permissions[PERMISSION_EDIT_CARD], [action.editor])}}
+			card: {...state.card, permissions: {...state.card.permissions, [PERMISSION_EDIT_CARD]: arrayRemoveUtil(state.card.permissions[PERMISSION_EDIT_CARD], [action.editor])}}
 		};
 	case EDITING_COLLABORATOR_ADDED:
 		if (!state.card) return state;
 		return {
 			...state,
-			card: {...state.card, collaborators: arrayUnion(state.card.collaborators, [action.collaborator])}
+			card: {...state.card, collaborators: arrayUnionUtil(state.card.collaborators, [action.collaborator])}
 		};
 	case EDITING_COLLABORATOR_REMOVED:
 		if (!state.card) return state;
 		return {
 			...state,
-			card: {...state.card, collaborators: arrayRemove(state.card.collaborators, [action.collaborator])}
+			card: {...state.card, collaborators: arrayRemoveUtil(state.card.collaborators, [action.collaborator])}
 		};
 	case EDITING_NAME_UPDATED:
 		if (!state.card) return state;

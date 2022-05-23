@@ -9,13 +9,14 @@ import {
 	objectPathToValue,
 } from './util.js';
 
-//We import these only to get deleteSentinel without importing from firebase.js.
-import firebase from '@firebase/app';
-import '@firebase/firestore';
-const serverTimestampSentinel = firebase.firestore.FieldValue.serverTimestamp;
+import {
+	serverTimestamp,
+	arrayUnion,
+	writeBatch
+} from 'firebase/firestore';
 
 //serverTimestampSentinel is the most basic one.
-const SENTINEL_FIELD_PATH = objectPathToValue(serverTimestampSentinel(), 'FieldValue.serverTimestamp');
+const SENTINEL_FIELD_PATH = objectPathToValue(serverTimestamp(), 'serverTimestamp');
 
 const extraOperationCountForValue = (val) => {
 	//Note: this function is very tied to the implementation of
@@ -28,14 +29,11 @@ const extraOperationCountForValue = (val) => {
 		return Object.values(val).some(item => extraOperationCountForValue(item));
 	}
 	if (typeof innerVal !== 'string') return false;
-	const parts = innerVal.split('.');
-	if (parts.length !== 2) return false;
-	if (parts[0] !== 'FieldValue') return false;
-	if (parts[1] !== 'serverTimestamp' && parts[1] !== 'arrayRemove' && parts[1] != 'arrayUnion') return false;
+	if (innerVal !== 'serverTimestamp' && innerVal !== 'arrayRemove' && innerVal != 'arrayUnion') return false;
 	return true;
 };
 
-const SENTINEL_DEFINITION_VALID = extraOperationCountForValue(firebase.firestore.FieldValue.arrayUnion(1));
+const SENTINEL_DEFINITION_VALID = extraOperationCountForValue(arrayUnion(1));
 
 if (!SENTINEL_DEFINITION_VALID) {
 	console.warn('The shape of sentinel values that Multibatch is designed to look for seems to be out of date. That means batch sizes will be smaller than they need to be.');
@@ -71,7 +69,7 @@ export const MultiBatch = class {
 			this._currentBatch = null;
 		}
 		if (!this._currentBatch) {
-			this._currentBatch = this._db.batch();
+			this._currentBatch = writeBatch(this._db);
 			this._batches.push(this._currentBatch);
 			this._currentBatchOperationCount = 0;
 		}

@@ -19,10 +19,10 @@ import {
 	intersectionReferences
 } from '../../src/references.js';
 
-//We import these only to get deleteSentinel without importing from firebase.js.
-import firebase from '@firebase/app';
-import '@firebase/firestore';
-const deleteSentinel = firebase.firestore.FieldValue.delete;
+//We import these only to get deleteField without importing from firebase.js.
+import {
+	deleteField
+} from 'firebase/firestore';
 
 import assert from 'assert';
 
@@ -826,9 +826,9 @@ describe('card referencesDiff util functions', () => {
 			[REFERENCES_INFO_CARD_PROPERTY + '.addition-card.' + REFERENCE_TYPE_LINK]: 'after-value',
 			[REFERENCES_CARD_PROPERTY + '.addition-card']: true,
 			[REFERENCES_INFO_CARD_PROPERTY + '.modification-card.' + REFERENCE_TYPE_LINK]: 'after-value',
-			[REFERENCES_INFO_CARD_PROPERTY + '.modification-card.' + REFERENCE_TYPE_DUPE_OF]: deleteSentinel(),
-			[REFERENCES_INFO_CARD_PROPERTY + '.deletion-card']: deleteSentinel(),
-			[REFERENCES_CARD_PROPERTY + '.deletion-card']: deleteSentinel(),
+			[REFERENCES_INFO_CARD_PROPERTY + '.modification-card.' + REFERENCE_TYPE_DUPE_OF]: deleteField(),
+			[REFERENCES_INFO_CARD_PROPERTY + '.deletion-card']: deleteField(),
+			[REFERENCES_CARD_PROPERTY + '.deletion-card']: deleteField(),
 		};
 
 		assert.deepStrictEqual(updateObj, expectedUpdateObj);

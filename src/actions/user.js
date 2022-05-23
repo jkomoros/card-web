@@ -11,7 +11,15 @@ export const UPDATE_USER_PERMISSIONS = 'UPDATE_USER_PERMISSIONS';
 
 export const AUTO_MARK_READ_DELAY = 5000;
 
-import firebase from '@firebase/app';
+import {
+	GoogleAuthProvider,
+	signInWithCredential,
+	linkWithRedirect,
+	signInWithRedirect,
+	signInAnonymously,
+	signOut as firebaseSignOut,
+	getRedirectResult
+} from 'firebase/auth';
 
 import {
 	DISABLE_ANONYMOUS_LOGIN
@@ -36,11 +44,17 @@ import {
 import {
 	db,
 	auth,
-	serverTimestampSentinel,
-	arrayUnionSentinel,
-	arrayRemoveSentinel,
-	incrementSentinel
 } from '../firebase.js';
+
+import {
+	writeBatch,
+	doc,
+	getDoc,
+	arrayUnion,
+	arrayRemove,
+	serverTimestamp,
+	increment
+} from 'firebase/firestore';
 
 import {
 	idForPersonalCardInfo
@@ -62,7 +76,7 @@ import {
 
 let prevAnonymousMergeUser = null;
 
-auth.getRedirectResult().catch( async err => {
+getRedirectResult(auth).catch( async err => {
 
 	if (err.code != 'auth/credential-already-in-use') {
 		alert('Couldn\'t sign in (' + err.code + '): ' + err.message);
@@ -87,7 +101,7 @@ auth.getRedirectResult().catch( async err => {
 		return;
 	}
 
-	auth.signInAndRetrieveDataWithCredential(credential);
+	signInWithCredential(auth, credential);
 
 });
 
@@ -99,7 +113,7 @@ export const saveUserInfo = () => (dispatch, getState) => {
 
 	if (!user) return;
 
-	let batch = db.batch();
+	let batch = writeBatch(db);
 	ensureUserInfo(batch, user);
 	//If we had a merge user, null it out on successful save, so we don't keep saving it.
 	batch.commit().then(() => prevAnonymousMergeUser = null);
@@ -110,18 +124,18 @@ export const ensureUserInfo = (batchOrTransaction, user) => {
 	if (!user) return;
 
 	let data = {
-		lastSeen: serverTimestampSentinel(),
+		lastSeen: serverTimestamp(),
 		isAnonymous: user.isAnonymous,
 	};
 
 	//If this is set then we just signed in after a failed merge, so we want to
 	//keep record that we failed.
 	if (prevAnonymousMergeUser) {
-		data.previousUids = arrayUnionSentinel(prevAnonymousMergeUser.uid);
+		data.previousUids = arrayUnion(prevAnonymousMergeUser.uid);
 		//This will be nulled out in saveUserInfo on successful commit.
 	}
 
-	batchOrTransaction.set(db.collection(USERS_COLLECTION).doc(user.uid), data, {merge: true});
+	batchOrTransaction.set(doc(db, USERS_COLLECTION, user.uid), data, {merge: true});
 };
 
 export const showNeedSignin = () => (dispatch) => {
@@ -138,7 +152,7 @@ export const signIn = () => (dispatch, getState) => {
 
 	dispatch({type:SIGNIN_USER});
 
-	let provider = new firebase.auth.GoogleAuthProvider();
+	let provider = new GoogleAuthProvider();
 
 	if (isAnonymous) {
 		//We'll only get here if anonymous login was not disabled
@@ -147,11 +161,11 @@ export const signIn = () => (dispatch, getState) => {
 			console.warn('Unexpectedly didn\'t have user');
 			return;
 		}
-		user.linkWithRedirect(provider);
+		linkWithRedirect(user, provider);
 		return;
 	}
 
-	auth.signInWithRedirect(provider).catch(err => {
+	signInWithRedirect(auth, provider).catch(err => {
 		dispatch({type:SIGNIN_FAILURE, error: err});
 	});
 
@@ -165,7 +179,7 @@ export const signOutSuccess = () => (dispatch) =>  {
 	//If the user hasn't previously signed in on this device, then this might be
 	//a first page load. Try to do an anonymous account.
 	if (!hasPreviousSignIn() && !DISABLE_ANONYMOUS_LOGIN) {
-		auth.signInAnonymously();
+		signInAnonymously(auth);
 		return;
 	}
 
@@ -240,7 +254,7 @@ export const updatePermissions = (uid) => async (dispatch) => {
 	}
 	let snapshot;
 	try {
-		snapshot = await db.collection(PERMISSIONS_COLLECTION).doc(uid).get();
+		snapshot = await getDoc(doc(db, PERMISSIONS_COLLECTION, uid));
 	} catch(err) {
 		dispatch({
 			type: UPDATE_USER_PERMISSIONS,
@@ -296,7 +310,7 @@ export const signOut = () => (dispatch, getState) => {
 	dispatch({type:SIGNOUT_USER});
 	flagHasPreviousSignIn();
 	updatePermissions('');
-	auth.signOut();
+	firebaseSignOut(auth);
 };
 
 export const updateStars = (starsToAdd = [], starsToRemove = []) => (dispatch) => {
@@ -342,19 +356,19 @@ export const addToReadingList = (cardToAdd) => (dispatch, getState) => {
 		return;
 	}
 
-	let batch = db.batch();
+	let batch = writeBatch(db);
 
-	let readingListRef = db.collection(READING_LISTS_COLLECTION).doc(uid);
-	let readingListUpdateRef = readingListRef.collection(READING_LISTS_UPDATES_COLLECTION).doc('' + Date.now());
+	let readingListRef = doc(db, READING_LISTS_COLLECTION, uid);
+	let readingListUpdateRef = doc(readingListRef, READING_LISTS_UPDATES_COLLECTION, '' + Date.now());
 
 	let readingListObject = {
-		cards: arrayUnionSentinel(cardToAdd.id),
-		updated: serverTimestampSentinel(),
+		cards: arrayUnion(cardToAdd.id),
+		updated: serverTimestamp(),
 		owner: uid,
 	};
 
 	let readingListUpdateObject = {
-		timestamp: serverTimestampSentinel(),
+		timestamp: serverTimestamp(),
 		add_card: cardToAdd.id
 	};
 
@@ -385,19 +399,19 @@ export const removeFromReadingList = (cardToRemove) => (dispatch, getState) => {
 		return;
 	}
 
-	let batch = db.batch();
+	let batch = writeBatch(db);
 
-	let readingListRef = db.collection(READING_LISTS_COLLECTION).doc(uid);
-	let readingListUpdateRef = readingListRef.collection(READING_LISTS_UPDATES_COLLECTION).doc('' + Date.now());
+	let readingListRef = doc(db, READING_LISTS_COLLECTION, uid);
+	let readingListUpdateRef = doc(readingListRef, READING_LISTS_UPDATES_COLLECTION, '' + Date.now());
 
 	let readingListObject = {
-		cards: arrayRemoveSentinel(cardToRemove.id),
-		updated: serverTimestampSentinel(),
+		cards: arrayRemove(cardToRemove.id),
+		updated: serverTimestamp(),
 		owner: uid
 	};
 
 	let readingListUpdateObject = {
-		timestamp: serverTimestampSentinel(),
+		timestamp: serverTimestamp(),
 		remove_card: cardToRemove.id
 	};
 
@@ -429,16 +443,16 @@ export const addStar = (cardToStar) => (dispatch, getState) => {
 		return;
 	}
 
-	let cardRef = db.collection(CARDS_COLLECTION).doc(cardToStar.id);
-	let starRef = db.collection(STARS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToStar.id));
+	let cardRef = doc(db, CARDS_COLLECTION, cardToStar.id);
+	let starRef = doc(db, STARS_COLLECTION, idForPersonalCardInfo(uid, cardToStar.id));
 
-	let batch = db.batch();
+	let batch = writeBatch(db);
 	batch.update(cardRef, {
-		star_count: incrementSentinel(1),
-		star_count_manual: incrementSentinel(1),
+		star_count: increment(1),
+		star_count_manual: increment(1),
 	});
 	batch.set(starRef, {
-		created: serverTimestampSentinel(), 
+		created: serverTimestamp(), 
 		owner: uid, 
 		card:cardToStar.id
 	});
@@ -466,13 +480,13 @@ export const removeStar = (cardToStar) => (dispatch, getState) => {
 		return;
 	}
 
-	let cardRef = db.collection(CARDS_COLLECTION).doc(cardToStar.id);
-	let starRef = db.collection(STARS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToStar.id));
+	let cardRef = doc(db, CARDS_COLLECTION, cardToStar.id);
+	let starRef = doc(db, STARS_COLLECTION, idForPersonalCardInfo(uid, cardToStar.id));
 
-	let batch = db.batch();
+	let batch = writeBatch(db);
 	batch.update(cardRef, {
-		star_count: incrementSentinel(-1),
-		star_count_manual: incrementSentinel(-1),
+		star_count: increment(-1),
+		star_count_manual: increment(-1),
 	});
 	batch.delete(starRef);
 	batch.commit();
@@ -570,10 +584,10 @@ export const markRead = (cardToMarkRead, existingReadDoesNotError) => (dispatch,
 		}
 	}
 
-	let readRef = db.collection(READS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToMarkRead.id));
+	let readRef = doc(db, READS_COLLECTION, idForPersonalCardInfo(uid, cardToMarkRead.id));
 
-	let batch = db.batch();
-	batch.set(readRef, {created: serverTimestampSentinel(), owner: uid, card: cardToMarkRead.id});
+	let batch = writeBatch(db);
+	batch.set(readRef, {created: serverTimestamp(), owner: uid, card: cardToMarkRead.id});
 	batch.commit();
 };
 
@@ -606,9 +620,9 @@ export const markUnread = (cardToMarkUnread) => (dispatch, getState) => {
 	//Just in case we were planning on setting this card as read.
 	cancelPendingAutoMarkRead();
 
-	let readRef = db.collection(READS_COLLECTION).doc(idForPersonalCardInfo(uid, cardToMarkUnread.id));
+	let readRef = doc(db, READS_COLLECTION, idForPersonalCardInfo(uid, cardToMarkUnread.id));
 
-	let batch = db.batch();
+	let batch = writeBatch(db);
 	batch.delete(readRef);
 	batch.commit();
 

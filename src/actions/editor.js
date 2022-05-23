@@ -116,6 +116,10 @@ import {
 	uploadsRef
 } from '../firebase.js';
 
+import {
+	ref
+} from 'firebase/storage';
+
 let lastReportedSelectionRange = null;
 let savedSelectionRange = null;
 let selectionParent = null;
@@ -602,7 +606,7 @@ export const addImageWithFile = (file, index) => async (dispatch, getState) => {
 	const uid = selectUid(state);
 	if (!uid) return;
 
-	const userUploadRef = uploadsRef.child(uid);
+	const userUploadRef = ref(uploadsRef, uid);
 
 	const rawFileNameParts = file.name.split('.');
 
