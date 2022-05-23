@@ -41,7 +41,7 @@
     "snarkdown": "^1.2.2"
   },
   "devDependencies": {
-    "@firebase/rules-unit-testing": "^2.0.2",
+    "@firebase/testing": "^0.19.6",
     "@polymer/test-fixture": "^4.0.2",
     "@rollup/plugin-commonjs": "^22.0.0",
     "@rollup/plugin-node-resolve": "^13.3.0",
