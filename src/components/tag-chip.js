@@ -1,5 +1,5 @@
 
-import { LitElement, html } from '@polymer/lit-element';
+import { LitElement, html } from 'lit';
 import { urlForTag } from '../actions/app';
 
 class TagChip  extends LitElement {

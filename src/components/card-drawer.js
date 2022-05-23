@@ -1,4 +1,4 @@
-import { LitElement, html } from '@polymer/lit-element';
+import { LitElement, html } from 'lit';
 
 import './card-renderer.js';
 import './word-cloud.js';

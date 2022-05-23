@@ -1,5 +1,5 @@
-import { LitElement, html } from '@polymer/lit-element';
-import { repeat } from 'lit-html/directives/repeat';
+import { LitElement, html } from 'lit';
+import { repeat } from 'lit/directives/repeat.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 

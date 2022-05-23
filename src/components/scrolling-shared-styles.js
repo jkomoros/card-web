@@ -1,4 +1,4 @@
-import { html } from '@polymer/lit-element';
+import { html } from 'lit';
 
 //Based on https://gist.github.com/IceCreamYou/cd517596e5847a88e2bb0a091da43fb4
 const areScrollbarsVisible = () => {

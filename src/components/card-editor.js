@@ -1,6 +1,6 @@
-import { LitElement, html } from '@polymer/lit-element';
+import { LitElement, html } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
-import { repeat } from 'lit-html/directives/repeat';
+import { repeat } from 'lit/directives/repeat.js';
 
 // This element is connected to the Redux store.
 import { store } from '../store.js';
