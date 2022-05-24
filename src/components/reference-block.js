@@ -1,4 +1,4 @@
-import { html, LitElement } from 'lit';
+import { html, LitElement, css } from 'lit';
 
 import {
 	help,
@@ -16,12 +16,10 @@ import {
 import './card-link.js';
 
 export class ReferenceBlock extends LitElement {
-	render() {
-		if (this._shouldHide()) return html``;
-		return html`
-			<!-- isn't this expensive to repeat for every reference block? -->
-			${HelpStyles}
-			<style>
+
+	static get styles() {
+		return [
+			css`
 				:host {
 					color: var(--app-dark-text-color);
 				}
@@ -67,7 +65,15 @@ export class ReferenceBlock extends LitElement {
 				.condensed card-link {
 					font-size: 0.7em;
 				}
-			</style>
+			`
+		];
+	}
+
+	render() {
+		if (this._shouldHide()) return html``;
+		return html`
+			<!-- isn't this expensive to repeat for every reference block? -->
+			${HelpStyles}
 			<div class='${this.block.onlyForEditors ? 'editor' :''} ${this.block.condensed ? 'condensed' : ''}'>
 			<h4>${this.block.title}${this.block.description ? help(this.block.description) : ''}${this.block.showNavigate ? html`<a title='Navigate to this collection' href=${urlForCollection(this.block.navigationCollectionDescription || this.block.collectionDescription)} class='help'>${OPEN_IN_BROWSER_ICON}</a>` : ''}</h4>
 			${this.block.collection.filteredCards.length
