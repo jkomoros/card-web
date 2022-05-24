@@ -17,7 +17,6 @@ class TagChip  extends LitElement {
 					padding: 0.2em;
 					border-radius: 0.3em;
 					font-size: 0.7em;
-					background-color: ${this._color};
 					transition: filter 0.1s ease-in-out;
 				}
 				span.enabled:hover {
@@ -53,7 +52,7 @@ class TagChip  extends LitElement {
 
 	render() {
 		return html`
-			<span style=${this._filter ? 'filter: ' + this._filter : ''} class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''} ${this._disabled ? 'disabled' : 'enabled'}' title='${this._description}' @mousemove=${this._handleMouseMove}><a class='primary' href='${this._url}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
+			<span style=${'background-color: ' + this._color + '; ' + (this._filter ? 'filter: ' + this._filter : '')} class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''} ${this._disabled ? 'disabled' : 'enabled'}' title='${this._description}' @mousemove=${this._handleMouseMove}><a class='primary' href='${this._url}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
 			`;
 	}
 
