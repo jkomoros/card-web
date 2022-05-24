@@ -1,9 +1,9 @@
-import { LitElement } from 'lit';
+import { LitElement, css } from 'lit';
 
 import {
 	unsafeStatic,
 	//We import the static-html so we can use unsafeStatic.
-	html
+	html,
 } from 'lit/static-html.js';
 
 import {GestureEventListeners} from '@polymer/polymer/lib/mixins/gesture-event-listeners.js';
@@ -72,37 +72,10 @@ var startGestureTimestamps = {};
 
 // This element is *not* connected to the Redux store.
 export class CardRenderer extends GestureEventListeners(LitElement) {
-	render() {
-		const cardType = this._card.card_type || CARD_TYPE_CONTENT;
-		const cardTypeConfig = CARD_TYPE_CONFIGURATION[cardType] || {};
-		const styleBlock = cardTypeConfig.styleBlock || '';
-		const fieldsToRender = editableFieldsForCardType(cardType);
-		let titleFields = [];
-		let nonScrollableFields = [];
-		let scrollableFields = [];
-		for (const [fieldName,fieldConfig] of Object.entries(fieldsToRender)) {
-			if (fieldName == TEXT_FIELD_TITLE) {
-				titleFields.push(fieldName);
-			} else if (fieldConfig.nonScrollable) {
-				nonScrollableFields.push(fieldName);
-			} else {
-				scrollableFields.push(fieldName);
-			}
-		}
-		const condensedReferenceBlocks = [];
-		const normalReferenceBlocks = [];
-		for (const block of this.expandedReferenceBlocks || []) {
-			if (block.condensed) {
-				condensedReferenceBlocks.push(block);
-			} else {
-				normalReferenceBlocks.push(block);
-			}
-		}
-		return html`
-			${SharedStyles}
-			${badgeStyles}
-			${ScrollingSharedStyles}
-			<style>
+
+	static get styles() {
+		return [
+			css`
 				:host {
 					display:block;
 					background-color: var(--card-color);
@@ -311,13 +284,46 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				li > p {
 					display:inline;
 				}
+			`
+		];
+	}
 
+	render() {
+		const cardType = this._card.card_type || CARD_TYPE_CONTENT;
+		const cardTypeConfig = CARD_TYPE_CONFIGURATION[cardType] || {};
+		const styleBlock = cardTypeConfig.styleBlock || '';
+		const fieldsToRender = editableFieldsForCardType(cardType);
+		let titleFields = [];
+		let nonScrollableFields = [];
+		let scrollableFields = [];
+		for (const [fieldName,fieldConfig] of Object.entries(fieldsToRender)) {
+			if (fieldName == TEXT_FIELD_TITLE) {
+				titleFields.push(fieldName);
+			} else if (fieldConfig.nonScrollable) {
+				nonScrollableFields.push(fieldName);
+			} else {
+				scrollableFields.push(fieldName);
+			}
+		}
+		const condensedReferenceBlocks = [];
+		const normalReferenceBlocks = [];
+		for (const block of this.expandedReferenceBlocks || []) {
+			if (block.condensed) {
+				condensedReferenceBlocks.push(block);
+			} else {
+				normalReferenceBlocks.push(block);
+			}
+		}
+		return html`
+			${SharedStyles}
+			${badgeStyles}
+			${ScrollingSharedStyles}
+			<style>
 				${Object.entries(this.editing ? {} : (this._card.font_size_boost || {})).map(entry => {
 		return html`[data-field=${entry[0]}] {
 						font-size: ${1.0 + entry[1]}em;
 					}`;
 	})}
-
 			</style>
 			${unsafeStatic(styleBlock)}
 			<div class="container ${this.editing ? 'editing' : ''} ${this._card.published ? 'published' : 'unpublished'}">
