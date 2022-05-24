@@ -1,10 +1,11 @@
 
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 
 class AuthorChip extends LitElement {
-	render() {
-		return html`
-			<style>
+
+	static get styles () {
+		return [
+			css`
 				div {
 					display:flex;
 					align-items:center;
@@ -21,7 +22,11 @@ class AuthorChip extends LitElement {
 				span {
 					color: var(--app-dark-text-color);
 				}
-			</style>
+			`
+		];
+	}
+	render() {
+		return html`
 			<div>
 				<img src='${this.author && this.author.photoURL ? this.author.photoURL : '/images/person.svg'}'>
 				<span>${this.author && this.author.displayName ? this.author.displayName : 'Unknown user'}</span>
