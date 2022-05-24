@@ -1,5 +1,5 @@
 
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store so it can render visited links
@@ -14,7 +14,7 @@ import {
 
 import { toggleOnReadingList } from '../actions/user.js';
 
-import { 
+import {
 	PAGE_DEFAULT, 
 	PAGE_BASIC_CARD
 } from '../actions/app.js';
@@ -27,10 +27,10 @@ import {
 import * as icons from './my-icons.js';
 
 class CardLink extends connect(store)(LitElement) {
-	render() {
-
-		return html`
-			<style>
+	
+	static get styles() {
+		return [
+			css`
 				:host {
 					display:inline;
 				}
@@ -106,7 +106,13 @@ class CardLink extends connect(store)(LitElement) {
 					font-style: italic;
 				}
 
-			</style>
+			`
+		];
+	}
+	
+	render() {
+
+		return html`
 			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''} ${this.strong ? 'strong' : ''} ${this._cardIsNotContent ? 'not-content' : ''} ${this._ctrlKeyPressed ? 'add-reading-list' : ''} ${this.noNavigate ? 'no-navigate' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
 	}
 
