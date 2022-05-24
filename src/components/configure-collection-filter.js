@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
@@ -42,16 +42,10 @@ import './configure-collection-date.js';
 
 // This element is *not* connected to the Redux store.
 class ConfigureCollectionFilter extends LitElement {
-	render() {
-		const [firstFilterPart] = splitCompoundFilter(this.value);
-		//TODO: handle combined normal filters e.g. `working-notes+content`
-		const unionFilterPieces = splitUnionFilter(firstFilterPart);
-		const isConfigurableFilter = CONFIGURABLE_FILTER_INFO[firstFilterPart] != undefined;
-		return html`
-			${ ButtonSharedStyles }
-			${ HelpStyles }
-			<style>
 
+	static get styles() {
+		return [
+			css`
 				li {
 					padding-left: 1em;
 					margin: 1em;
@@ -70,8 +64,18 @@ class ConfigureCollectionFilter extends LitElement {
 					flex-direction: column;
 				}
 
-			</style>
+			`
+		];
+	}
 
+	render() {
+		const [firstFilterPart] = splitCompoundFilter(this.value);
+		//TODO: handle combined normal filters e.g. `working-notes+content`
+		const unionFilterPieces = splitUnionFilter(firstFilterPart);
+		const isConfigurableFilter = CONFIGURABLE_FILTER_INFO[firstFilterPart] != undefined;
+		return html`
+			${ ButtonSharedStyles }
+			${ HelpStyles }
 			${this.index > 0 ? html`<li><em>AND</em></li>` : ''}
 		<li class='main'>
 			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select @change=${this._handleModifyFilterChanged} .subIndex=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this.filterDescriptions[filterPiece])}<button class='small' .subIndex=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
