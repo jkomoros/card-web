@@ -1,4 +1,4 @@
-import { html } from 'lit';
+import { html, css } from 'lit';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -11,12 +11,21 @@ import {
 } from '../actions/app.js';
 
 class CommentRedirectView extends connect(store)(PageViewElement) {
-	render() {
-		return html`
-			<style>
+
+	static get styles() {
+		return [
+			css`
 				div {
 					padding: 2em;
 				}
+			`
+		];
+	}
+
+	render() {
+		return html`
+			<style>
+
 			</style>
 			<div>
 				<h3>
