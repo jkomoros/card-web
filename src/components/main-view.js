@@ -1,14 +1,4 @@
-/**
-@license
-Copyright (c) 2018 The Polymer Project Authors. All rights reserved.
-This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
-The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
-The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
-Code distributed by Google as part of the polymer project is also
-subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
-*/
-
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -95,173 +85,177 @@ import {
 } from '../../config.GENERATED.SECRET.js';
 
 class MainView extends connect(store)(LitElement) {
+
+	static get styles() {
+		return [
+			css`
+				.container {
+					height:100vh;
+					width: 100vw;
+					display:flex;
+					flex-direction:column;
+					background-color: var(--app-light-text-color);
+				}
+
+				.header {
+					padding: 0 1em;
+					box-sizing:border-box;
+
+					width: 100%;
+					text-align: center;
+					background-color: var(--app-header-background-color);
+					color: var(--app-header-text-color);
+					border-bottom: 1px solid var(--app-divider-color);
+				}
+
+				.header > .inner {
+					/* bug in many browsers with nested flexboxes; splitting like this fixes it. See issue #25 */
+					display:flex;
+					flex-direction:row;
+					align-items: center; 
+				}
+
+				.spacer {
+					flex-grow:1;
+				}
+
+				.toolbar-list {
+					align-self: flex-end;
+				}
+
+				.dev {
+					font-size: 18px;
+					color: red;
+					font-weight:bold;
+				}
+
+				.toolbar-top {
+					background-color: var(--app-header-background-color);
+				}
+
+				[main-title] {
+					font-family: var(--app-header-font-family);
+					font-weight:bold;
+					font-size: 26px;
+					color: var(--app-dark-text-color-light);
+				}
+
+				[main-title] span {
+					color: var(--app-primary-color);
+				}
+
+				.toolbar-list {
+					display:flex;
+				}
+
+				.toolbar-list > a {
+					display: inline-block;
+					color: var(--app-header-text-color);
+					text-decoration: none;
+					line-height: 30px;
+					padding: 4px 8px;
+					font-size: 14px;
+					/* make it so that when it's selected and there's a border there's no jump */
+					border-bottom: 4px solid transparent;
+				}
+
+				.toolbar-list > a.icon-item {
+					display:inline-flex;
+					flex-direction: column;
+					justify-content: center;
+					position:relative;	
+				}
+
+				.toolbar-list > a.icon-item span {
+					position:absolute;
+					display:inline-block;
+					bottom:-0.75em;
+					right:0.25em;
+					font-size:12px;
+				}
+
+				.toolbar-list > a[selected] {
+					color: var(--app-header-selected-color);
+					border-bottom: 4px solid var(--app-header-selected-color);
+				}
+
+				.toolbar-list > a > svg {
+					fill: var(--app-header-text-color);
+				}
+
+				.toolbar-list > a[selected] > svg {
+					fill: var(--app-header-selected-color);
+				}
+
+				.toolbar-list > a:hover > svg {
+					fill: var(--app-header-selected-color);
+				}
+
+				.toolbar-list > a:hover {
+					color: var(--app-header-selected-color);
+				}
+
+				#may-view-warning {
+					display:none;
+					flex-direction:column;
+					justify-content:center;
+					align-items: center;
+				}
+
+				#may-view-warning div {
+					max-width:50%;
+					text-align:center;
+				}
+
+				#may-view-warning h3 {
+					font-style:italic;
+					font-size:3.0em;
+					color: var(--app-dark-text-color-subtle);
+				}
+
+				.may-not-view #may-view-warning {
+					position:absolute;
+					height: 100%;
+					width: 100%;
+					top: 0;
+					left: 0;
+					background-color: white;
+					display:flex;
+					/* This is a hack to ensure the message shows up over the action
+					buttons, see the note in card-stage for their style and why it's
+					set. */
+					z-index:2;
+				}
+
+				/* Workaround for IE11 displaying <main> as inline */
+				main {
+					display: block;
+				}
+
+				.main-content {
+					flex-grow:1;
+					overflow:hidden;
+					position:relative;
+				}
+
+				.page {
+					display: none;
+				}
+
+				.page[active] {
+					display: block;
+				}
+
+				[hidden] {
+					display:none !important;
+				}
+			`
+		];
+	}
+
 	render() {
 		// Anything that's related to rendering should be done in here.
 		return html`
-		<style>
-			.container {
-				height:100vh;
-				width: 100vw;
-				display:flex;
-				flex-direction:column;
-				background-color: var(--app-light-text-color);
-			}
-
-			.header {
-				padding: 0 1em;
-				box-sizing:border-box;
-
-				width: 100%;
-				text-align: center;
-				background-color: var(--app-header-background-color);
-				color: var(--app-header-text-color);
-				border-bottom: 1px solid var(--app-divider-color);
-			}
-
-			.header > .inner {
-				/* bug in many browsers with nested flexboxes; splitting like this fixes it. See issue #25 */
-				display:flex;
-				flex-direction:row;
-				align-items: center; 
-			}
-
-			.spacer {
-				flex-grow:1;
-			}
-
-			.toolbar-list {
-				align-self: flex-end;
-			}
-
-			.dev {
-				font-size: 18px;
-				color: red;
-				font-weight:bold;
-			}
-
-			.toolbar-top {
-				background-color: var(--app-header-background-color);
-			}
-
-			[main-title] {
-				font-family: var(--app-header-font-family);
-				font-weight:bold;
-				font-size: 26px;
-				color: var(--app-dark-text-color-light);
-			}
-
-			[main-title] span {
-				color: var(--app-primary-color);
-			}
-
-			.toolbar-list {
-				display:flex;
-			}
-
-			.toolbar-list > a {
-				display: inline-block;
-				color: var(--app-header-text-color);
-				text-decoration: none;
-				line-height: 30px;
-				padding: 4px 8px;
-				font-size: 14px;
-				/* make it so that when it's selected and there's a border there's no jump */
-				border-bottom: 4px solid transparent;
-			}
-
-			 .toolbar-list > a.icon-item {
-				display:inline-flex;
-				flex-direction: column;
-				justify-content: center;
-				position:relative;	
-			}
-
-			.toolbar-list > a.icon-item span {
-				position:absolute;
-				display:inline-block;
-				bottom:-0.75em;
-				right:0.25em;
-				font-size:12px;
-			}
-
-			.toolbar-list > a[selected] {
-				color: var(--app-header-selected-color);
-				border-bottom: 4px solid var(--app-header-selected-color);
-			}
-
-			.toolbar-list > a > svg {
-				fill: var(--app-header-text-color);
-			}
-
-			.toolbar-list > a[selected] > svg {
-				fill: var(--app-header-selected-color);
-			}
-
-			.toolbar-list > a:hover > svg {
-				fill: var(--app-header-selected-color);
-			}
-
-			.toolbar-list > a:hover {
-				color: var(--app-header-selected-color);
-			}
-
-			#may-view-warning {
-				display:none;
-				flex-direction:column;
-				justify-content:center;
-				align-items: center;
-			}
-
-			#may-view-warning div {
-				max-width:50%;
-				text-align:center;
-			}
-
-			#may-view-warning h3 {
-				font-style:italic;
-				font-size:3.0em;
-				color: var(--app-dark-text-color-subtle);
-			}
-
-			.may-not-view #may-view-warning {
-				position:absolute;
-				height: 100%;
-				width: 100%;
-				top: 0;
-				left: 0;
-				background-color: white;
-				display:flex;
-				/* This is a hack to ensure the message shows up over the action
-				buttons, see the note in card-stage for their style and why it's
-				set. */
-				z-index:2;
-			}
-
-			/* Workaround for IE11 displaying <main> as inline */
-			main {
-				display: block;
-			}
-
-			.main-content {
-				flex-grow:1;
-				overflow:hidden;
-				position:relative;
-			}
-
-			.page {
-				display: none;
-			}
-
-			.page[active] {
-				display: block;
-			}
-
-			[hidden] {
-				display:none !important;
-			}
-
-		</style>
-
 		<div @mousemove=${this._handleMouseMove} class='container ${this._mayViewApp ? '' : 'may-not-view'}'>
 			<multi-edit-dialog></multi-edit-dialog>
 			<find-dialog></find-dialog>
