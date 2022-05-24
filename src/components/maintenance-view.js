@@ -1,4 +1,4 @@
-import { html } from 'lit';
+import { html, css } from 'lit';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 import { repeat } from 'lit/directives/repeat.js';
@@ -31,68 +31,73 @@ import { SharedStyles } from './shared-styles.js';
 import './card-stage.js';
 
 class MaintenanceView extends connect(store)(PageViewElement) {
+
+	static get styles() {
+		return [
+			css`
+				.primary {
+					text-align:center;
+					font-size: 2.0em;
+				}
+
+				.primary button {
+					padding:0.5em;
+					font-size: 0.7em;
+					cursor: pointer;
+				}
+
+				.primary p {
+					font-size: 0.7em;
+					color: var(--app-dark-text-color-light);
+					font-style: italic;
+				}
+
+				h4, h5 {
+					margin: 0;
+				}
+
+				h5 {
+					color: var(--app-dark-text-color-light);
+				}
+
+				.scrim {
+					display:none;
+					background-color:rgba(0,0,0,0.25);
+					z-index:1;
+					height:100%;
+					width:100%;
+					position:absolute;
+					text-align:center;
+					justify-content:center;
+					align-items: center;
+				}
+
+				.active .scrim {
+					display:flex;
+				}
+
+				@keyframes pulse {
+					from {
+						color: var(--app-dark-text-color);
+					}
+					to {
+						color: var(--app-dark-text-color-light);
+					}
+				}
+
+				.scrim div {
+					animation-name: pulse;
+					animation-duration: 1s;
+					animation-direction: alternate;
+					animation-iteration-count: infinite;
+				}
+			`
+		];
+	}
+
 	render() {
 		return html`
 	  ${SharedStyles}
-	  <style>
-	  	.primary {
-			  text-align:center;
-			  font-size: 2.0em;
-		  }
-
-		  .primary button {
-			padding:0.5em;
-			font-size: 0.7em;
-			cursor: pointer;
-		  }
-
-		  .primary p {
-			  font-size: 0.7em;
-			  color: var(--app-dark-text-color-light);
-			  font-style: italic;
-		  }
-
-		  h4, h5 {
-			  margin: 0;
-		  }
-
-		  h5 {
-			  color: var(--app-dark-text-color-light);
-		  }
-
-		.scrim {
-			display:none;
-			background-color:rgba(0,0,0,0.25);
-			z-index:1;
-			height:100%;
-			width:100%;
-			position:absolute;
-			text-align:center;
-			justify-content:center;
-			align-items: center;
-		  }
-
-		  .active .scrim {
-			  display:flex;
-		  }
-
-		  @keyframes pulse {
-			  from {
-				color: var(--app-dark-text-color);
-			  }
-			  to {
-				color: var(--app-dark-text-color-light);
-			  }
-		  }
-
-		.scrim div {
-			animation-name: pulse;
-			animation-duration: 1s;
-			animation-direction: alternate;
-			animation-iteration-count: infinite;
-		}
-
-	  </style>
       <section class='${this._taskActive ? 'active' : ''}'>
 		<div class='scrim'>
 			<div>
