@@ -1,4 +1,4 @@
-import { html } from '@polymer/lit-element';
+import { html } from 'lit';
 
 import {
 	PLAYLISLT_ADD_CHECK_ICON,

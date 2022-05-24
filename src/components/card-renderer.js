@@ -1,4 +1,11 @@
-import { LitElement, html } from '@polymer/lit-element';
+import { LitElement } from 'lit';
+
+import {
+	unsafeStatic,
+	//We import the static-html so we can use unsafeStatic.
+	html
+} from 'lit/static-html.js';
+
 import {GestureEventListeners} from '@polymer/polymer/lib/mixins/gesture-event-listeners.js';
 import * as Gestures from '@polymer/polymer/lib/utils/gestures.js';
 
@@ -68,7 +75,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 	render() {
 		const cardType = this._card.card_type || CARD_TYPE_CONTENT;
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[cardType] || {};
-		const styleBlock = html([cardTypeConfig.styleBlock || '']);
+		const styleBlock = cardTypeConfig.styleBlock || '';
 		const fieldsToRender = editableFieldsForCardType(cardType);
 		let titleFields = [];
 		let nonScrollableFields = [];
@@ -312,7 +319,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 	})}
 
 			</style>
-			${styleBlock}
+			${unsafeStatic(styleBlock)}
 			<div class="container ${this.editing ? 'editing' : ''} ${this._card.published ? 'published' : 'unpublished'}">
 				<div class='background'></div>
 				<div class='content'>

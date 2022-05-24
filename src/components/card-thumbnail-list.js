@@ -1,6 +1,6 @@
 
-import { LitElement, html } from '@polymer/lit-element';
-import { repeat } from 'lit-html/directives/repeat';
+import { LitElement, html } from 'lit';
+import { repeat } from 'lit/directives/repeat.js';
 
 import { connect } from 'pwa-helpers/connect-mixin.js';
 

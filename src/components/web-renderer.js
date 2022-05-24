@@ -1,4 +1,4 @@
-import { html, LitElement, svg } from '@polymer/lit-element';
+import { html, LitElement, svg } from 'lit';
 
 import * as d3 from 'd3';
 

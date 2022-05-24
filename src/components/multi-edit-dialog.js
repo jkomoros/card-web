@@ -1,4 +1,4 @@
-import { html } from '@polymer/lit-element';
+import { html } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
