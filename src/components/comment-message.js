@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 
 import './author-chip.js';
 
@@ -21,10 +21,10 @@ import {
 
 // This element is *not* connected to the Redux store.
 class CommentMessage extends LitElement {
-	render() {
-		return html`
-			${ ButtonSharedStyles }
-			<style>
+	
+	static get styles() {
+		return [
+			css`
 				:host {
 					font-size: 0.85em;
 					display:block;
@@ -50,7 +50,12 @@ class CommentMessage extends LitElement {
 				.row author-chip {
 					flex-grow:1;
 				}
-			</style>
+			`
+		];
+	}
+	render() {
+		return html`
+			${ ButtonSharedStyles }
 			<div class='container'>
 				<div class='row'>
 					<author-chip .author=${this.message.author}></author-chip>
