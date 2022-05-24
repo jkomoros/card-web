@@ -42,61 +42,61 @@ import {
 class CommentsPanel extends connect(store)(PageViewElement) {
 	render() {
 		return html`
-      ${SharedStyles}
-      ${ButtonSharedStyles}
-	  ${ScrollingSharedStyles}
-      <style>
-        :host {
-		  overflow: hidden;
-		  flex-shrink: 0.5;
-        }
-        .container {
-          min-width: 13em;
-          height:100%;
-          padding:0.5em;
-          border-left: 1px solid var(--app-divider-color);
-          position:relative;
-        }
-        .spacer {
-          /* Ensure that it's possible to scroll the last comment's reply button above the FAB */
-          height: 6em;
-          width:100%;
-        }
-		.no-comments .spacer {
-			height: 3em;
-		}
-        .comments {
-          max-height:100%;
-          width:100%;
-        }
-        .comments > p {
-          color: var(--app-dark-text-color-light);
-          margin:0;
-        }
-        h3 {
-          margin:0;
-          font-weight:normal;
-          color: var(--app-dark-text-color-light);
-        }
-        button {
-          position:absolute;
-          bottom:1em;
-          right:1em;
-        }
-      </style>
-      <div ?hidden=${!this._open} class='container ${this._composedThreads.length ? '' : 'no-comments'}'>
-        <h3>Comments</h3>
-        <div class='comments scroller'>
-			${this._composedThreads.length
+	  	${SharedStyles}
+	  	${ButtonSharedStyles}
+	  	${ScrollingSharedStyles}
+		<style>
+			:host {
+				overflow: hidden;
+				flex-shrink: 0.5;
+			}
+			.container {
+				min-width: 13em;
+				height:100%;
+				padding:0.5em;
+				border-left: 1px solid var(--app-divider-color);
+				position:relative;
+			}
+			.spacer {
+				/* Ensure that it's possible to scroll the last comment's reply button above the FAB */
+				height: 6em;
+				width:100%;
+			}
+			.no-comments .spacer {
+				height: 3em;
+			}
+			.comments {
+				max-height:100%;
+				width:100%;
+			}
+			.comments > p {
+				color: var(--app-dark-text-color-light);
+				margin:0;
+			}
+			h3 {
+				margin:0;
+				font-weight:normal;
+				color: var(--app-dark-text-color-light);
+			}
+			button {
+				position:absolute;
+				bottom:1em;
+				right:1em;
+			}
+		</style>
+	  <div ?hidden=${!this._open} class='container ${this._composedThreads.length ? '' : 'no-comments'}'>
+			<h3>Comments</h3>
+			<div class='comments scroller'>
+				${this._composedThreads.length
 		? html`${this._composedThreads.map( (item) => html`
-					<comment-thread .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @delete-message=${this._handleDeleteMessage} @resolve-thread=${this._handleResolveThread} @show-need-signin=${this._handleShowNeedSignin} .userMayComment=${this._userMayComment}></comment-thread>`)}`
+						<comment-thread .thread=${item} @add-message='${this._handleAddMessage}' @edit-message='${this._handleEditMessage}' @delete-message=${this._handleDeleteMessage} @resolve-thread=${this._handleResolveThread} @show-need-signin=${this._handleShowNeedSignin} .userMayComment=${this._userMayComment}></comment-thread>`)}`
 		: html`<p><em>No comments yet.</em></p><p><em>You should leave one!</em></p>`
 }
-			<div class='spacer'></div>
-			<button ?disabled=${this._collectionIsFallback} class='round ${this._userMayComment ? '' : 'need-signin'}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${ADD_COMMENT_ICON}</button>
+				<div class='spacer'></div>
+				<button ?disabled=${this._collectionIsFallback} class='round ${this._userMayComment ? '' : 'need-signin'}' title='${this._userMayComment ? 'Start new comment thread' : 'Sign in to start new comment thread'}' @click='${this._handleCreateThreadClicked}'>${ADD_COMMENT_ICON}</button>
+			</div>
 		</div>
-	</div>
-    `;
+	`;
 	}
 
 	static get properties() {
