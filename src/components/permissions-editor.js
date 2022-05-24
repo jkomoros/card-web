@@ -1,5 +1,5 @@
 
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -38,13 +38,10 @@ const MODIFIABLE_PERMISSIONS = Object.fromEntries(Object.entries(ALL_PERMISSIONS
 const LOCKED_PERMISSIONS = Object.fromEntries(Object.entries(ALL_PERMISSIONS).filter(entry => entry[1].locked));
 
 class PermissionsEditor extends connect(store)(LitElement) {
-	render() {
-		const lockedPermissionColor = '#7f7f7f';
-		const enabledPermissionColor = '#006400'; //darkgreen
 
-		return html`
-			<style>
-
+	static get styles() {
+		return [
+			css`
 				:host {
 					display: block;
 					margin-top: 1em;
@@ -87,8 +84,15 @@ class PermissionsEditor extends connect(store)(LitElement) {
 				tag-list {
 					display: inline-block;
 				}
+			`
+		];
+	}
 
-			</style>
+	render() {
+		const lockedPermissionColor = '#7f7f7f';
+		const enabledPermissionColor = '#006400'; //darkgreen
+
+		return html`
 			<div class="container ${this._editable ? 'editable' : ''}">
 				<p><strong>${this._title}</strong> ${this.description ? html`<em>${this.description}</em>` : ''}&nbsp;&nbsp;&nbsp;<strong>Notes</strong> ${this._effectivePermissions.notes || html`<em>No notes</em>`} <span class='edit' ?hidden=${!this._editable} @click=${this._handleEditNotes}>${EDIT_ICON}</span><span class='edit' ?hidden=${!this._editable} @click=${this._handleDelete}>${DELETE_FOREVER_ICON}</span></p>
 				<tag-list .tags=${this._enabledLockedPermissions} .tagInfos=${LOCKED_PERMISSIONS} .overrideTypeName=${'Permission'} .defaultColor=${lockedPermissionColor} .hideOnEmpty=${true}></tag-list>
