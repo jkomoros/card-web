@@ -1,14 +1,4 @@
-/**
-@license
-Copyright (c) 2018 The Polymer Project Authors. All rights reserved.
-This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
-The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
-The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
-Code distributed by Google as part of the polymer project is also
-subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
-*/
-
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { setPassiveTouchGestures } from '@polymer/polymer/lib/utils/settings.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 import { installOfflineWatcher } from 'pwa-helpers/network.js';
@@ -39,68 +29,73 @@ import {
 } from '../selectors.js';
 
 class CardWebApp extends connect(store)(LitElement) {
+
+	static get styles() {
+		return [
+			css`
+				:host {
+					--app-drawer-width: 256px;
+					display: block;
+
+					--app-primary-color: #5e2b97;
+					--app-primary-color-light: #bc9ae2;
+					--app-primary-color-subtle: #7e57c2;
+					--app-primary-color-light-transparent: #bc9ae266;
+					--app-primary-color-light-somewhat-transparent: hsla(268, 55%, 75%, 0.5);
+					--app-primary-color-light-very-transparent: hsla(268, 55%, 75%, 0.15);
+					--app-secondary-color: hsl(174, 100%, 29%);
+					--app-secondary-color-light: hsl(174, 100%, 43%);
+					--app-secondary-color-light-somewhat-transparent: hsla(174, 100%, 43%, 0.5);
+					--app-secondary-color-light-very-transparent: hsla(174, 100%, 43%, 0.15);
+					--app-warning-color: #CC0000;
+					--app-warning-color-light: #EE0000;
+
+					/* note: this is also replicated in index.TEMPLATE.html */
+					--app-dark-text-color: #7f7f7f;
+					--app-light-text-color: white;
+					--app-section-even-color: #f7f7f7;
+					--app-section-odd-color: white;
+
+					--app-dark-text-color-light: #AAA;
+					--app-dark-text-color-subtle: #CCC;
+					--app-divider-color: #eee;
+
+					--app-header-font-family: 'Raleway';
+					--app-default-font-family: 'Source Sans Pro';
+
+					/* these are where you change the color for card.
+					card-renderer's overflow scrolling expects these to be set */
+					--card-color-rgb-inner: 252, 252, 252;
+					--unpublished-card-color-rgb-inner: 238, 238, 238;
+					--card-overflow-shadow-rgb-inner: 0, 0, 0;
+
+					/* change the *-rgb-inner instead of these directly */
+					--card-color: rgb(var(--card-color-rgb-inner));
+					--unpublished-card-color: rgb(var(--unpublished-card-color-rgb-inner));
+
+					--shadow-color: #CCC;
+					--card-shadow-first-part: 0 2px 6px;
+					--card-shadow: var(--card-shadow-first-part) var(--shadow-color);
+
+					--canvas-color: var(--app-divider-color);
+
+					--app-header-background-color: white;
+					--app-header-text-color: var(--app-dark-text-color);
+					--app-header-selected-color: var(--app-primary-color);
+
+					--app-drawer-background-color: var(--app-secondary-color);
+					--app-drawer-text-color: var(--app-light-text-color);
+					--app-drawer-selected-color: #78909C;
+
+					--transition-fade: 0.25s linear;
+				}
+			`
+		];
+	}
+
 	render() {
 		// Anything that's related to rendering should be done in here.
 		return html`
-		<style>
-			:host {
-				--app-drawer-width: 256px;
-				display: block;
-
-				--app-primary-color: #5e2b97;
-				--app-primary-color-light: #bc9ae2;
-				--app-primary-color-subtle: #7e57c2;
-				--app-primary-color-light-transparent: #bc9ae266;
-				--app-primary-color-light-somewhat-transparent: hsla(268, 55%, 75%, 0.5);
-				--app-primary-color-light-very-transparent: hsla(268, 55%, 75%, 0.15);
-				--app-secondary-color: hsl(174, 100%, 29%);
-				--app-secondary-color-light: hsl(174, 100%, 43%);
-				--app-secondary-color-light-somewhat-transparent: hsla(174, 100%, 43%, 0.5);
-				--app-secondary-color-light-very-transparent: hsla(174, 100%, 43%, 0.15);
-				--app-warning-color: #CC0000;
-				--app-warning-color-light: #EE0000;
-
-				/* note: this is also replicated in index.TEMPLATE.html */
-				--app-dark-text-color: #7f7f7f;
-				--app-light-text-color: white;
-				--app-section-even-color: #f7f7f7;
-				--app-section-odd-color: white;
-
-				--app-dark-text-color-light: #AAA;
-				--app-dark-text-color-subtle: #CCC;
-				--app-divider-color: #eee;
-
-				--app-header-font-family: 'Raleway';
-				--app-default-font-family: 'Source Sans Pro';
-
-				/* these are where you change the color for card.
-				card-renderer's overflow scrolling expects these to be set */
-				--card-color-rgb-inner: 252, 252, 252;
-				--unpublished-card-color-rgb-inner: 238, 238, 238;
-				--card-overflow-shadow-rgb-inner: 0, 0, 0;
-
-				/* change the *-rgb-inner instead of these directly */
-				--card-color: rgb(var(--card-color-rgb-inner));
-				--unpublished-card-color: rgb(var(--unpublished-card-color-rgb-inner));
-
-				--shadow-color: #CCC;
-				--card-shadow-first-part: 0 2px 6px;
-				--card-shadow: var(--card-shadow-first-part) var(--shadow-color);
-
-				--canvas-color: var(--app-divider-color);
-
-				--app-header-background-color: white;
-				--app-header-text-color: var(--app-dark-text-color);
-				--app-header-selected-color: var(--app-primary-color);
-
-				--app-drawer-background-color: var(--app-secondary-color);
-				--app-drawer-text-color: var(--app-light-text-color);
-				--app-drawer-selected-color: #78909C;
-
-				--transition-fade: 0.25s linear;
-			}
-		</style>
-
 		<main-view ?active=${pageRequiresMainView(this._page)}></main-view>
 		<basic-card-view ?active=${this._page == PAGE_BASIC_CARD}></basic-card-view>
 		<snack-bar ?active="${this._snackbarOpened}">
