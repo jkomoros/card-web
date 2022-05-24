@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 
 import {
 	parseDateSection,
@@ -12,11 +12,10 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 // This element is *not* connected to the Redux store.
 class ConfigureCollectionDate extends LitElement {
-	render() {
-		const [typ, dateOne, dateTwo] = parseDateSection(this.value);
-		const typeRequiresSecondDate = CONFIGURABLE_FILTER_URL_PARTS[typ] == 2;
-		return html`
-			<style>
+
+	static get styles() {
+		return [
+			css`
 				:host {
 					display:inline-block;
 				}
@@ -24,7 +23,14 @@ class ConfigureCollectionDate extends LitElement {
 					display:flex;
 					flex-direction: row;
 				}
-			</style>
+			`
+		];
+	}
+
+	render() {
+		const [typ, dateOne, dateTwo] = parseDateSection(this.value);
+		const typeRequiresSecondDate = CONFIGURABLE_FILTER_URL_PARTS[typ] == 2;
+		return html`
 			${ButtonSharedStyles}
 			<div>
 				<select .value=${typ} @change=${this._handleTypeChanged}>
