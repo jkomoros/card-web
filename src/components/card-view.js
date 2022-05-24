@@ -1,14 +1,4 @@
-/**
-@license
-Copyright (c) 2018 The Polymer Project Authors. All rights reserved.
-This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
-The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
-The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
-Code distributed by Google as part of the polymer project is also
-subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
-*/
-
-import { html } from 'lit';
+import { html, css } from 'lit';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -160,100 +150,106 @@ import { SharedStyles } from './shared-styles.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 class CardView extends connect(store)(PageViewElement) {
+
+	static get styles() {
+		return [
+			css`
+				:host {
+					height: 100%;
+					width: 100%;
+					position:absolute;
+				}
+				.container {
+					display:flex;
+					height:100%;
+					width:100%;
+				}
+
+				#center {
+					flex-grow:1;
+					/* The next property means that we take up as much space as we're given, and our content doesn't create a floor of size */
+					overflow:hidden;
+					display:flex;
+					flex-direction:column;
+				}
+
+				.next-prev {
+					display:none;
+				}
+
+				.presenting .next-prev {
+					display:flex;
+				}
+
+				.presenting .panels {
+					display:none;
+				}
+
+				card-editor {
+					display:none;
+				}
+
+				card-editor[active] {
+					display:block;
+					width:100%;
+					flex-grow: 1;
+					min-height: 300px;
+				}
+
+				[slot=tags] {
+					display:flex;
+					flex-direction: column;
+					align-items: center;
+				}
+
+				card-drawer.showing {
+					border-right: 1px solid var(--app-divider-color);
+				}
+
+				[hidden] {
+					display:none;
+				}
+
+				.auto-read {
+					display: none;
+					height: 100%;
+					width: 100%;
+					border-radius: 50%;
+					position: absolute;
+					top: 0;
+					left: 0;
+					z-index:1;
+					background-color:#FFFFFF66;
+				}
+
+				.auto-read.pending {
+					display:block;
+					animation-name: autoread;
+					animation-duration: ${AUTO_MARK_READ_DELAY / 1000 }s;
+					animation-timing-function: linear;
+				}
+
+				.right-panel {
+					display:flex;
+					flex-direction: column;
+				}
+
+				@keyframes autoread {
+					from {
+						transform: scale(1.0);
+					}
+					to {
+						transform: scale(0.0);
+					}
+				}
+			`
+		];
+	}
+
 	render() {
 		return html`
       ${SharedStyles}
       ${ButtonSharedStyles}
-      <style>
-        :host {
-          height: 100%;
-          width: 100%;
-          position:absolute;
-        }
-        .container {
-          display:flex;
-          height:100%;
-          width:100%;
-        }
-
-        #center {
-          flex-grow:1;
-          /* The next property means that we take up as much space as we're given, and our content doesn't create a floor of size */
-          overflow:hidden;
-          display:flex;
-          flex-direction:column;
-        }
-
-        .next-prev {
-          display:none;
-        }
-
-        .presenting .next-prev {
-          display:flex;
-        }
-
-        .presenting .panels {
-          display:none;
-        }
-
-        card-editor {
-          display:none;
-        }
-
-        card-editor[active] {
-          display:block;
-          width:100%;
-          flex-grow: 1;
-		  min-height: 300px;
-        }
-
-		[slot=tags] {
-			display:flex;
-			flex-direction: column;
-			align-items: center;
-		}
-
-        card-drawer.showing {
-          border-right: 1px solid var(--app-divider-color);
-        }
-
-        [hidden] {
-          display:none;
-        }
-
-        .auto-read {
-          display: none;
-          height: 100%;
-          width: 100%;
-          border-radius: 50%;
-          position: absolute;
-          top: 0;
-          left: 0;
-          z-index:1;
-          background-color:#FFFFFF66;
-        }
-
-        .auto-read.pending {
-          display:block;
-          animation-name: autoread;
-          animation-duration: ${AUTO_MARK_READ_DELAY / 1000 }s;
-          animation-timing-function: linear;
-        }
-
-		.right-panel {
-			display:flex;
-			flex-direction: column;
-		}
-
-        @keyframes autoread {
-          from {
-            transform: scale(1.0);
-          }
-          to {
-            transform: scale(0.0);
-          }
-        }
-      </style>
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
         <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .collection=${this._collection} @info-zippy-clicked=${this._handleInfoZippyClicked} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' @add-working-notes-card='${this._handleAddWorkingNotesCard}' @update-render-offset=${this._handleUpdateRenderOffset} .reorderable=${this._userMayReorderCollection} .showCreateCard=${this._userMayAddCardToActiveCollection} .showCreateWorkingNotes=${this._userMayCreateCard} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .ghostCardsThatWillBeRemoved=${true} .wordCloud=${this._collectionWordCloud} .infoExpanded=${this._infoExpanded} .infoCanBeExpanded=${true} .cardTypeToAdd=${this._cardTypeToAdd} .renderOffset=${this._renderOffset}>
 			<div slot='info'>
