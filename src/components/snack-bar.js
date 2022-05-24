@@ -1,9 +1,10 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 
 class SnackBar extends LitElement {
-	render() {
-		return html`
-				<style>
+
+	static get styles() {
+		return [
+			css`
 				:host {
 					display: block;
 					position: fixed;
@@ -31,7 +32,12 @@ class SnackBar extends LitElement {
 						margin: auto;
 					}
 				}
-			</style>
+			`
+		];
+	}
+
+	render() {
+		return html`
 			<slot></slot>
 		`;
 	}
