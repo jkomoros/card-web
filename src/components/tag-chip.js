@@ -1,11 +1,12 @@
 
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { urlForTag } from '../actions/app';
 
 class TagChip  extends LitElement {
-	render() {
-		return html`
-			<style>
+
+	static get styles() {
+		return [
+			css`
 				:host {
 					margin: 0 0.2em;
 					display: inline-block;
@@ -46,7 +47,12 @@ class TagChip  extends LitElement {
 				span.enabled.editing a.delete {
 					display:inline;
 				}
-			</style>
+			`
+		];
+	}
+
+	render() {
+		return html`
 			<span style=${this._filter ? 'filter: ' + this._filter : ''} class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''} ${this._disabled ? 'disabled' : 'enabled'}' title='${this._description}' @mousemove=${this._handleMouseMove}><a class='primary' href='${this._url}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
 			`;
 	}
