@@ -1,4 +1,4 @@
-import { html } from 'lit';
+import { html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -63,13 +63,10 @@ import './reference-block.js';
 
 
 class CardInfoPanel extends connect(store)(PageViewElement) {
-	render() {
-		return html`
-		${SharedStyles}
-		${HelpStyles}
-		${ScrollingSharedStyles}
-			<style>
 
+	static get styles() {
+		return [
+			css`
 				:host {
 					flex-grow: 1;
 					border-bottom: 1px solid var(--app-divider-color);
@@ -122,7 +119,15 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 					height: 3em;
 					width:100%;
 				}
-			</style>
+			`
+		];
+	}
+
+	render() {
+		return html`
+		${SharedStyles}
+		${HelpStyles}
+		${ScrollingSharedStyles}
 			<h3 ?hidden=${!this._open}>Card Info</h3>
 			<div class='container scroller' ?hidden=${!this._open}>
 				${this._referenceBlocks.map(item => html`<reference-block .block=${item}></reference-block>`)}
