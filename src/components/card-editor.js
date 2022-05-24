@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 import { repeat } from 'lit/directives/repeat.js';
 
@@ -129,6 +129,156 @@ import './tag-list.js';
 import './card-images-editor.js';
 
 class CardEditor extends connect(store)(LitElement) {
+
+	static get styles() {
+		return [
+			css`
+				:host {
+				position:relative;
+				background-color: white;
+				}
+
+				.container {
+				width: 100%;
+				height:100%;
+				display:flex;
+				flex-direction: column;
+				/* The up-down padding comes from margins in the top and bottom elements */
+				padding: 0 0.5em;
+				box-sizing:border-box;
+				position:absolute;
+				}
+
+				.inputs {
+				display:flex;
+				flex-direction:column;
+				width:100%;
+				flex-grow:1;
+				overflow:scroll;
+				}
+
+				input, textarea {
+				border: 0 solid black;
+				font-size:0.8em;
+				border-bottom:1px solid var(--app-dark-text-color);
+				width: 100%;
+				}
+
+				textarea {
+				flex-grow:1;
+				}
+
+				label {
+					/* TODO: consider changing this at the button-shared-styles layer instead */
+					margin-top: 0.5em;
+				}
+
+				svg {
+					height:1.3em;
+					width:1.3em;
+					fill: var(--app-dark-text-color-subtle);
+				}
+
+				.flex {
+				flex-grow:1;
+				}
+
+				.body {
+				display:flex;
+				flex-direction:column;
+				}
+
+				.buttons {
+				display:flex;
+				flex-direction:row;
+				width:100%;
+				}
+
+				.buttons h3 {
+				font-size:1em;
+				opacity:0.5;
+				font-weight:normal;
+				margin-right:0.5em;
+				}
+
+				.inputs .row {
+				display:flex;
+				flex-direction:row;
+				align-items:center;
+				}
+
+				.inputs .row > div {
+				flex-grow:1;
+				}
+
+				.tabs {
+					display:flex;
+					flex-direction:row;
+				}
+
+				.tabs label {
+					cursor:pointer;
+					padding-right:0.5em;
+					border-bottom:1px solid transparent;
+					font-weight:bold;
+				}
+
+				.tabs label.help {
+					font-weight: normal;
+					font-style: italic;
+				}
+
+				.tabs label[selected] {
+					color: var(--app-primary-color);
+					border-bottom-color: var(--app-primary-color);
+				}
+
+				.tabs label[empty] {
+					font-weight:inherit;
+				}
+
+				.tabs label[modified] {
+					font-style: italic;
+				}
+
+				.tabs.main {
+					font-size:1.25em;
+				}
+
+				.tabs.main label {
+					font-weight: inherit;
+					border-top: 2px solid transparent;
+					border-bottom: none;
+					padding: 0.5em 2em;
+				}
+
+				.tabs.main label[selected] {
+					color: var(--app-primary-color);
+					border-top-color: var(--app-primary-color);
+					font-weight: bold;
+				}
+
+				[hidden] {
+				display:none;
+				}
+
+				.scrim {
+					z-index:100;
+					height:100%;
+					width:100%;
+					position:absolute;
+					background-color:rgba(255,255,255,0.7);
+					display:none;
+				}
+
+				.modification-pending .scrim {
+					display:block;
+				}
+
+			`
+		];
+	}
+
 	render() {
 
 		const hasContent = cardHasContent(this._card);
@@ -154,151 +304,6 @@ class CardEditor extends connect(store)(LitElement) {
 		return html`
 	  ${ButtonSharedStyles}
 	  ${HelpStyles}
-      <style>
-
-        :host {
-          position:relative;
-          background-color: white;
-        }
-
-        .container {
-          width: 100%;
-          height:100%;
-          display:flex;
-          flex-direction: column;
-		  /* The up-down padding comes from margins in the top and bottom elements */
-          padding: 0 0.5em;
-          box-sizing:border-box;
-          position:absolute;
-        }
-
-        .inputs {
-          display:flex;
-          flex-direction:column;
-          width:100%;
-          flex-grow:1;
-		  overflow:scroll;
-        }
-
-        input, textarea {
-          border: 0 solid black;
-          font-size:0.8em;
-          border-bottom:1px solid var(--app-dark-text-color);
-          width: 100%;
-        }
-
-        textarea {
-          flex-grow:1;
-        }
-
-		label {
-			/* TODO: consider changing this at the button-shared-styles layer instead */
-			margin-top: 0.5em;
-		}
-
-		svg {
-			height:1.3em;
-			width:1.3em;
-			fill: var(--app-dark-text-color-subtle);
-		}
-
-        .flex {
-          flex-grow:1;
-        }
-
-        .body {
-          display:flex;
-          flex-direction:column;
-        }
-
-        .buttons {
-          display:flex;
-          flex-direction:row;
-          width:100%;
-        }
-
-        .buttons h3 {
-          font-size:1em;
-          opacity:0.5;
-          font-weight:normal;
-		  margin-right:0.5em;
-        }
-
-        .inputs .row {
-          display:flex;
-          flex-direction:row;
-          align-items:center;
-        }
-
-        .inputs .row > div {
-          flex-grow:1;
-        }
-
-		.tabs {
-			display:flex;
-			flex-direction:row;
-		}
-
-		.tabs label {
-			cursor:pointer;
-			padding-right:0.5em;
-			border-bottom:1px solid transparent;
-			font-weight:bold;
-		}
-
-		.tabs label.help {
-			font-weight: normal;
-			font-style: italic;
-		}
-
-		.tabs label[selected] {
-			color: var(--app-primary-color);
-			border-bottom-color: var(--app-primary-color);
-		}
-
-		.tabs label[empty] {
-			font-weight:inherit;
-		}
-
-		.tabs label[modified] {
-			font-style: italic;
-		}
-
-		.tabs.main {
-			font-size:1.25em;
-		}
-
-		.tabs.main label {
-			font-weight: inherit;
-			border-top: 2px solid transparent;
-			border-bottom: none;
-			padding: 0.5em 2em;
-		}
-
-		.tabs.main label[selected] {
-			color: var(--app-primary-color);
-			border-top-color: var(--app-primary-color);
-			font-weight: bold;
-		}
-
-		[hidden] {
-          display:none;
-        }
-
-		.scrim {
-			z-index:100;
-			height:100%;
-			width:100%;
-			position:absolute;
-			background-color:rgba(255,255,255,0.7);
-			display:none;
-		}
-
-		.modification-pending .scrim {
-			display:block;
-		}
-
-      </style>
       <div class='container ${this._cardModificationPending ? 'modification-pending' : ''}'>
 		<div class='scrim'></div>
         <div class='inputs'>
