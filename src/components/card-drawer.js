@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 
 import './card-renderer.js';
 import './word-cloud.js';
@@ -28,12 +28,9 @@ import {
 import * as icons from './my-icons.js';
 
 class CardDrawer extends LitElement {
-	render() {
-		return html`
-			${SharedStyles}
-			${ButtonSharedStyles}
-			${ScrollingSharedStyles}
-			<style>
+	static get styles() {
+		return [
+			css`
 				:host {
 					max-height:100%;
 				}
@@ -86,7 +83,14 @@ class CardDrawer extends LitElement {
 					/* tag-list can get wide, but keep it thin */
 					width: 12em;
 				}
-			</style>
+			`
+		];
+	}
+	render() {
+		return html`
+			${SharedStyles}
+			${ButtonSharedStyles}
+			${ScrollingSharedStyles}
 			<div ?hidden='${!this.showing}' class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
 				<div class='scrolling scroller'>
 					<div class='label' id='count'>
