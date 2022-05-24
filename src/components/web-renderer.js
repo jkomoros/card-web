@@ -1,41 +1,46 @@
-import { html, LitElement, svg } from 'lit';
+import { html, LitElement, svg, css } from 'lit';
 
 import * as d3 from 'd3';
 
 export class WebRenderer extends LitElement {
+
+	static get styles() {
+		return [
+			css`
+				:host {
+					height:100%;
+					width:100%;
+				}
+				svg {
+					height: 100%;
+					width: 100%;
+				}
+				circle {
+					fill: var(--app-primary-color);
+					z-index:1;
+					cursor:pointer;
+				}
+				circle:hover {
+					fill: var(--app-primary-color-light);
+				}
+				line {
+					stroke:var(--app-dark-text-color-light);
+					z-index:0;
+				}
+				circle.highlighted:hover {
+					fill: var(--app-secondary-color-light);
+				}
+				.highlighted {
+					fill: var(--app-secondary-color);
+				}
+			`
+		];
+	}
+
 	render() {
 		const width = this.offsetWidth;
 		const height = this.offsetHeight;
 		return html`
-		<style>
-			:host {
-				height:100%;
-				width:100%;
-			}
-			svg {
-				height: 100%;
-				width: 100%;
-			}
-			circle {
-				fill: var(--app-primary-color);
-				z-index:1;
-				cursor:pointer;
-			}
-			circle:hover {
-				fill: var(--app-primary-color-light);
-			}
-			line {
-				stroke:var(--app-dark-text-color-light);
-				z-index:0;
-			}
-			circle.highlighted:hover {
-				fill: var(--app-secondary-color-light);
-			}
-			.highlighted {
-				fill: var(--app-secondary-color);
-			}
-		</style>
-
 		<svg viewBox=${'0 0 ' + width + ' ' + height}>
 			${this._calculatedGraph.edges.map(node => svg`<line x1=${node.source.x} x2=${node.target.x} y1=${node.source.y} y2=${node.target.y} stroke-width='1'></line>`)}	
 			${this._calculatedGraph.nodes.map(node => svg`<circle id=${node.id} title=${node.name} r='4' cx=${node.x} cy=${node.y} class=${node.id == this.highlightedCardId ? 'highlighted' : ''} @click=${this._handleThumbnailClick} @mousemove=${this._handleThumbnailMouseMove}></circle>`)}
