@@ -1,4 +1,4 @@
-import { html } from 'lit';
+import { html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -40,50 +40,57 @@ import {
 } from './page-view-element.js';
 
 class CommentsPanel extends connect(store)(PageViewElement) {
+	
+	static get styles() {
+		return [
+			css`
+				:host {
+					overflow: hidden;
+					flex-shrink: 0.5;
+				}
+				.container {
+					min-width: 13em;
+					height:100%;
+					padding:0.5em;
+					border-left: 1px solid var(--app-divider-color);
+					position:relative;
+				}
+				.spacer {
+					/* Ensure that it's possible to scroll the last comment's reply button above the FAB */
+					height: 6em;
+					width:100%;
+				}
+				.no-comments .spacer {
+					height: 3em;
+				}
+				.comments {
+					max-height:100%;
+					width:100%;
+				}
+				.comments > p {
+					color: var(--app-dark-text-color-light);
+					margin:0;
+				}
+				h3 {
+					margin:0;
+					font-weight:normal;
+					color: var(--app-dark-text-color-light);
+				}
+				button {
+					position:absolute;
+					bottom:1em;
+					right:1em;
+				}
+			`
+		];
+	}
+	
 	render() {
 		return html`
 	  	${SharedStyles}
 	  	${ButtonSharedStyles}
 	  	${ScrollingSharedStyles}
-		<style>
-			:host {
-				overflow: hidden;
-				flex-shrink: 0.5;
-			}
-			.container {
-				min-width: 13em;
-				height:100%;
-				padding:0.5em;
-				border-left: 1px solid var(--app-divider-color);
-				position:relative;
-			}
-			.spacer {
-				/* Ensure that it's possible to scroll the last comment's reply button above the FAB */
-				height: 6em;
-				width:100%;
-			}
-			.no-comments .spacer {
-				height: 3em;
-			}
-			.comments {
-				max-height:100%;
-				width:100%;
-			}
-			.comments > p {
-				color: var(--app-dark-text-color-light);
-				margin:0;
-			}
-			h3 {
-				margin:0;
-				font-weight:normal;
-				color: var(--app-dark-text-color-light);
-			}
-			button {
-				position:absolute;
-				bottom:1em;
-				right:1em;
-			}
-		</style>
+
 	  <div ?hidden=${!this._open} class='container ${this._composedThreads.length ? '' : 'no-comments'}'>
 			<h3>Comments</h3>
 			<div class='comments scroller'>
