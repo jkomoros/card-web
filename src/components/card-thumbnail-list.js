@@ -1,5 +1,5 @@
 
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -46,11 +46,10 @@ const DEFAULT_RENDER_LIMIT = 250;
 const OFFSET_CHUNKS = [250, 100, 50, 25, 10, 5, 1];
 
 class CardThumbnailList  extends connect(store)(LitElement) {
-	render() {
-		return html`
-			<style>
 
-				${ButtonSharedStyles}
+	static get styles() {
+		return [
+			css`
 				:host {
 					width: 100%;
 				}
@@ -218,7 +217,13 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 				.thumbnail.dark:hover {
 					border:2px solid var(--app-primary-color-subtle);
 				}
-			</style>
+			`
+		];
+	}
+
+	render() {
+		return html`
+			${ButtonSharedStyles}
 			${cardBadgesStyles}
 			${this.renderOffset ? html`<div class='row'><button id='prev' class='small' title='Previous cards' @click=${this._handlePreviousClicked}>${ARROW_UPWARD_ICON}</button><label class='interactive' for='prev'>Previous ${this._offsetChunk} cards</label></div>` : ''}
 			<div class='${this._dragging ? 'dragging' : ''} ${this.grid ? 'grid' : ''}'>
