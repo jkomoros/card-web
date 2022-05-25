@@ -120,7 +120,9 @@ it's not published will always warn.
 styleBlock: if provided, will be rendered as the style block in the card
 renderer when this card type is selected. A string that will be run through html
 tag. This isn't an html tag to avoid having heavyweight imports so this can be
-included in tests.
+included in tests. The adopted stylesheets for card-renderer will take
+precedence, so the best practices is to prepend `.${CARD_TYPE_mytype} ` in front
+of any rules you add. 
 
 dark: if true, the card is considered dark, and styles for e.g. thumbnails,
 including badge color, will swap.
@@ -152,7 +154,7 @@ export const CARD_TYPE_CONFIGURATION = {
 		dark: true,
 		styleBlock: String.raw`
 			<style>
-				.background {
+				.${CARD_TYPE_SECTION_HEAD} .background {
 					position:absolute;
 					display:block;
 					height:50%;
@@ -162,13 +164,13 @@ export const CARD_TYPE_CONFIGURATION = {
 					/* counteract the padding in the base card */
 					margin-left:-1.45em;
 				}
-				h1 {
+				.${CARD_TYPE_SECTION_HEAD} h1 {
 					font:var(--app-header-font-family);
 					font-weight:bold;
 					font-size:3.0em;
 					margin-top:2.25em;
 				}
-				h2 {
+				.${CARD_TYPE_SECTION_HEAD} h2 {
 					color: var(--app-primary-color-subtle);
 					font-size:1.2em;
 					font-weight:normal;
@@ -184,7 +186,7 @@ export const CARD_TYPE_CONFIGURATION = {
 		orphanedByDefault: true,
 		styleBlock: `
 		<style>
-			section {
+			.${CARD_TYPE_WORKING_NOTES} section {
 				font-size:0.8em;
 				line-height:1.2;
 			}

@@ -326,7 +326,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 	})}
 			</style>
 			${unsafeStatic(styleBlock)}
-			<div class="container ${this.editing ? 'editing' : ''} ${this._card.published ? 'published' : 'unpublished'}">
+			<div class="container ${this.editing ? 'editing' : ''} ${this._card.published ? 'published' : 'unpublished'} ${cardType}">
 				<div class='background'></div>
 				<div class='content'>
 					<div class='title-container'>
