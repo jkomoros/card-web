@@ -13,19 +13,17 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 // This element is *not* connected to the Redux store.
 class ConfigureCollectionDate extends LitElement {
 
-	static get styles() {
-		return [
-			css`
-				:host {
-					display:inline-block;
-				}
-				div {
-					display:flex;
-					flex-direction: row;
-				}
-			`
-		];
-	}
+	static styles = [
+		css`
+			:host {
+				display:inline-block;
+			}
+			div {
+				display:flex;
+				flex-direction: row;
+			}
+		`
+	];
 
 	render() {
 		const [typ, dateOne, dateTwo] = parseDateSection(this.value);

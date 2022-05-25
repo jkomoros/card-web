@@ -64,64 +64,62 @@ import './reference-block.js';
 
 class CardInfoPanel extends connect(store)(PageViewElement) {
 
-	static get styles() {
-		return [
-			css`
-				:host {
-					flex-grow: 1;
-					border-bottom: 1px solid var(--app-divider-color);
-					overflow: hidden;
-				}
+	static styles = [
+		css`
+			:host {
+				flex-grow: 1;
+				border-bottom: 1px solid var(--app-divider-color);
+				overflow: hidden;
+			}
 
-				svg {
-					height:1.3em;
-					width:1.3em;
-					fill: var(--app-dark-text-color-subtle);
-				}
+			svg {
+				height:1.3em;
+				width:1.3em;
+				fill: var(--app-dark-text-color-subtle);
+			}
 
-				h3 {
-					padding: 0.5em 0.5em 0;
-				}
+			h3 {
+				padding: 0.5em 0.5em 0;
+			}
 
-				.container {
-					width: 13em;
-					height:100%;
-					padding: 0 0.5em 0.5em 0.5em;
-					position:relative;
-					color: var(--app-dark-text-color);
-				}
+			.container {
+				width: 13em;
+				height:100%;
+				padding: 0 0.5em 0.5em 0.5em;
+				position:relative;
+				color: var(--app-dark-text-color);
+			}
 
-				h3 {
-					margin:0;
-					font-weight:normal;
-					color: var(--app-dark-text-color-light);
-				}
-				div>h4 {
-					font-size:0.7em;
-					font-weight:normal;
-					margin:0;
-				}
-				div>p {
-					margin:0;
-				}
-				div>ul {
-					margin:0;
-					padding-inline-start: 1.2em;
-				}
-				.container > div {
-					margin: 0.5em 0;
-				}
-				.loading {
-					opacity:0.7;
-				}
-				.spacer {
-					/* Ensure that there's ample space below the scroll. Note: this is likely related to the height of the h3 */
-					height: 3em;
-					width:100%;
-				}
-			`
-		];
-	}
+			h3 {
+				margin:0;
+				font-weight:normal;
+				color: var(--app-dark-text-color-light);
+			}
+			div>h4 {
+				font-size:0.7em;
+				font-weight:normal;
+				margin:0;
+			}
+			div>p {
+				margin:0;
+			}
+			div>ul {
+				margin:0;
+				padding-inline-start: 1.2em;
+			}
+			.container > div {
+				margin: 0.5em 0;
+			}
+			.loading {
+				opacity:0.7;
+			}
+			.spacer {
+				/* Ensure that there's ample space below the scroll. Note: this is likely related to the height of the h3 */
+				height: 3em;
+				width:100%;
+			}
+		`
+	];
 
 	render() {
 		return html`

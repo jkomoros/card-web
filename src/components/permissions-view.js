@@ -46,20 +46,18 @@ import './permissions-editor.js';
 
 class PermissionsView extends connect(store)(PageViewElement) {
 
-	static get styles() {
-		return [
-			css`
-				:host {
-					height: 100%;
-					overflow: scroll; 
-				}
+	static styles = [
+		css`
+			:host {
+				height: 100%;
+				overflow: scroll; 
+			}
 
-				section {
-					margin: 1em;
-				}
-			`
-		];
-	}
+			section {
+				margin: 1em;
+			}
+		`
+	];
 
 	render() {
 		return html`

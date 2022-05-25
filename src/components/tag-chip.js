@@ -4,51 +4,49 @@ import { urlForTag } from '../actions/app';
 
 class TagChip  extends LitElement {
 
-	static get styles() {
-		return [
-			css`
-				:host {
-					margin: 0 0.2em;
-					display: inline-block;
-					color: var(--app-light-text-color);
-					font-weight:bold;
-				}
-				span {
-					padding: 0.2em;
-					border-radius: 0.3em;
-					font-size: 0.7em;
-					transition: filter 0.1s ease-in-out;
-				}
-				span.enabled:hover {
-					/* !important necessary to reach up and override the styles setting directly on element */
-					filter:none !important;
-				}
-				a.primary {
-					color: var(--app-light-text-color);
-					text-decoration:none;
-				}
-				span.editing a.primary {
-					/* We'll cancel navigation, so don't make it look clikable */
-					cursor:default;
-				}
-				span.deletion {
-					font-style: italic;
-					text-decoration-line:line-through;
-				}
-				span.addition {
-					font-style:italic;
-				}
-				span a.delete {
-					display:none;
-					color: var(--app-light-text-color);
-					padding: 0 0.3em;
-				}
-				span.enabled.editing a.delete {
-					display:inline;
-				}
-			`
-		];
-	}
+	static styles = [
+		css`
+			:host {
+				margin: 0 0.2em;
+				display: inline-block;
+				color: var(--app-light-text-color);
+				font-weight:bold;
+			}
+			span {
+				padding: 0.2em;
+				border-radius: 0.3em;
+				font-size: 0.7em;
+				transition: filter 0.1s ease-in-out;
+			}
+			span.enabled:hover {
+				/* !important necessary to reach up and override the styles setting directly on element */
+				filter:none !important;
+			}
+			a.primary {
+				color: var(--app-light-text-color);
+				text-decoration:none;
+			}
+			span.editing a.primary {
+				/* We'll cancel navigation, so don't make it look clikable */
+				cursor:default;
+			}
+			span.deletion {
+				font-style: italic;
+				text-decoration-line:line-through;
+			}
+			span.addition {
+				font-style:italic;
+			}
+			span a.delete {
+				display:none;
+				color: var(--app-light-text-color);
+				padding: 0 0.3em;
+			}
+			span.enabled.editing a.delete {
+				display:inline;
+			}
+		`
+	];
 
 	render() {
 		return html`

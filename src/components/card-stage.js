@@ -21,138 +21,136 @@ import {
 
 class CardStage extends LitElement {
 
-	static get styles() {
-		return [
-			css`
-				:host, #canvas {
-					flex-grow: 1;
-					display:flex;
-					flex-direction:column;
-					justify-content:center;
-					align-items: center;
-					background-color: var(--canvas-color);
-					position:relative;
-				}
+	static styles = [
+		css`
+			:host, #canvas {
+				flex-grow: 1;
+				display:flex;
+				flex-direction:column;
+				justify-content:center;
+				align-items: center;
+				background-color: var(--canvas-color);
+				position:relative;
+			}
 
-				#canvas {
-					height:100%;
-					width:100%;
-				}
+			#canvas {
+				height:100%;
+				width:100%;
+			}
 
-				[name=tags] {
-					margin:0.5em;
-				}
+			[name=tags] {
+				margin:0.5em;
+			}
 
-				#canvas.presenting  {
-					background-color: var(--app-dark-text-color);
-				}
+			#canvas.presenting  {
+				background-color: var(--app-dark-text-color);
+			}
 
-				.presenting {
-					--shadow-color:#444;
-					/* have to redefine it because it uses the variables at the site where it's derived */
-					--card-shadow: var(--card-shadow-first-part) var(--shadow-color);
-				}
+			.presenting {
+				--shadow-color:#444;
+				/* have to redefine it because it uses the variables at the site where it's derived */
+				--card-shadow: var(--card-shadow-first-part) var(--shadow-color);
+			}
 
-				.presenting [name="tags"] {
-					display:none;
-				}
+			.presenting [name="tags"] {
+				display:none;
+			}
+
+			.presenting [name="actions"] {
+				position:absolute;
+				bottom:0.5em;
+				right:0.5em;
+				display:flex;
+				flex-direction:column;
+				opacity: 0.3;
+				transition: opacity var(--transition-fade);
+			}
+
+			.mobile [name="actions"]::slotted(*) {
+				font-size:0.8em;
+			}
+
+			.presenting [name="actions"]:hover {
+				opacity:1.0;
+			}
+
+			.presenting [name="actions"]::slotted(*) {
+				display:flex;
+				flex-direction: column;
+			}
+
+			[name="actions"]{
+				/* This is a hack to allow the information/edit buttons to be on
+				top of a section-head-card container. See #44.
+				main-view.may-not-view also sets styles to be on top of this.*/
+				z-index: 1;
+				display:flex;
+				flex-direction:row;
+			}
+
+			.editing [name="actions"], .editing [name="tags"] {
+				display:none;
+			}
+
+			[hidden] {
+				display:none;
+			}
+
+			card-renderer {
+				/* this will be overridden via an explicit property set directly on card-renderer */
+				font-size:20px;
+			}
+
+			#portrait-message {
+				display:none;
+			}
+
+			#portrait-message svg {
+				fill: var(--app-light-text-color);
+				height:1em;
+				width: 1em;
+			}
+
+			card-renderer {
+				transition: opacity ease-in-out 0.2s;
+			}
+
+			.loading card-renderer {
+				opacity: 0.6;
+			}
+
+			@media (orientation:portrait) {
+				/* If we're in portrait mode there's more space for the actions along
+				the bottom rail, not the right rail */
 
 				.presenting [name="actions"] {
-					position:absolute;
-					bottom:0.5em;
-					right:0.5em;
-					display:flex;
-					flex-direction:column;
-					opacity: 0.3;
-					transition: opacity var(--transition-fade);
-				}
-
-				.mobile [name="actions"]::slotted(*) {
-					font-size:0.8em;
-				}
-
-				.presenting [name="actions"]:hover {
-					opacity:1.0;
-				}
-
-				.presenting [name="actions"]::slotted(*) {
-					display:flex;
-					flex-direction: column;
-				}
-
-				[name="actions"]{
-					/* This is a hack to allow the information/edit buttons to be on
-					top of a section-head-card container. See #44.
-					main-view.may-not-view also sets styles to be on top of this.*/
-					z-index: 1;
-					display:flex;
 					flex-direction:row;
 				}
 
-				.editing [name="actions"], .editing [name="tags"] {
-					display:none;
+				.presenting [name="actions"]::slotted(*) {
+					flex-direction: row;
 				}
 
-				[hidden] {
-					display:none;
+				.mobile #portrait-message {
+					color: var(--app-light-text-color);
+					font-size:1.2em;
+					opacity:0.3;
+					display:flex;
+					flex-direction:row;
+					justify-content:center;
+					align-items: center;
+					width:100%;
+					position: absolute;
+					top: 0.5em;
+					left: 0.5em;
 				}
 
-				card-renderer {
-					/* this will be overridden via an explicit property set directly on card-renderer */
-					font-size:20px;
+				#portrait-message > div {
+					margin:0.5em;
 				}
-
-				#portrait-message {
-					display:none;
-				}
-
-				#portrait-message svg {
-					fill: var(--app-light-text-color);
-					height:1em;
-					width: 1em;
-				}
-
-				card-renderer {
-					transition: opacity ease-in-out 0.2s;
-				}
-
-				.loading card-renderer {
-					opacity: 0.6;
-				}
-
-				@media (orientation:portrait) {
-					/* If we're in portrait mode there's more space for the actions along
-					the bottom rail, not the right rail */
-
-					.presenting [name="actions"] {
-						flex-direction:row;
-					}
-
-					.presenting [name="actions"]::slotted(*) {
-						flex-direction: row;
-					}
-
-					.mobile #portrait-message {
-						color: var(--app-light-text-color);
-						font-size:1.2em;
-						opacity:0.3;
-						display:flex;
-						flex-direction:row;
-						justify-content:center;
-						align-items: center;
-						width:100%;
-						position: absolute;
-						top: 0.5em;
-						left: 0.5em;
-					}
-
-					#portrait-message > div {
-						margin:0.5em;
-					}
-				}
-			`
-		];
-	}
+			}
+		`
+	];
 
 	render() {
 		return html`

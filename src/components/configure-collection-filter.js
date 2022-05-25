@@ -43,30 +43,28 @@ import './configure-collection-date.js';
 // This element is *not* connected to the Redux store.
 class ConfigureCollectionFilter extends LitElement {
 
-	static get styles() {
-		return [
-			css`
-				li {
-					padding-left: 1em;
-					margin: 1em;
-				}
+	static styles = [
+		css`
+			li {
+				padding-left: 1em;
+				margin: 1em;
+			}
 
-				li.main {
-					border-left: 1px solid var(--app-divider-color);
-				}
+			li.main {
+				border-left: 1px solid var(--app-divider-color);
+			}
 
-				.pieces {
-					display: flex;
-					flex-direction: row;
-				}
-				.piece {
-					display: flex;
-					flex-direction: column;
-				}
+			.pieces {
+				display: flex;
+				flex-direction: row;
+			}
+			.piece {
+				display: flex;
+				flex-direction: column;
+			}
 
-			`
-		];
-	}
+		`
+	];
 
 	render() {
 		const [firstFilterPart] = splitCompoundFilter(this.value);

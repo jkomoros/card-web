@@ -4,38 +4,36 @@ import * as d3 from 'd3';
 
 export class WebRenderer extends LitElement {
 
-	static get styles() {
-		return [
-			css`
-				:host {
-					height:100%;
-					width:100%;
-				}
-				svg {
-					height: 100%;
-					width: 100%;
-				}
-				circle {
-					fill: var(--app-primary-color);
-					z-index:1;
-					cursor:pointer;
-				}
-				circle:hover {
-					fill: var(--app-primary-color-light);
-				}
-				line {
-					stroke:var(--app-dark-text-color-light);
-					z-index:0;
-				}
-				circle.highlighted:hover {
-					fill: var(--app-secondary-color-light);
-				}
-				.highlighted {
-					fill: var(--app-secondary-color);
-				}
-			`
-		];
-	}
+	static styles = [
+		css`
+			:host {
+				height:100%;
+				width:100%;
+			}
+			svg {
+				height: 100%;
+				width: 100%;
+			}
+			circle {
+				fill: var(--app-primary-color);
+				z-index:1;
+				cursor:pointer;
+			}
+			circle:hover {
+				fill: var(--app-primary-color-light);
+			}
+			line {
+				stroke:var(--app-dark-text-color-light);
+				z-index:0;
+			}
+			circle.highlighted:hover {
+				fill: var(--app-secondary-color-light);
+			}
+			.highlighted {
+				fill: var(--app-secondary-color);
+			}
+		`
+	];
 
 	render() {
 		const width = this.offsetWidth;

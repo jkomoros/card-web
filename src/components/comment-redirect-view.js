@@ -12,15 +12,13 @@ import {
 
 class CommentRedirectView extends connect(store)(PageViewElement) {
 
-	static get styles() {
-		return [
-			css`
-				div {
-					padding: 2em;
-				}
-			`
-		];
-	}
+	static styles = [
+		css`
+			div {
+				padding: 2em;
+			}
+		`
+	];
 
 	render() {
 		return html`

@@ -39,32 +39,30 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 class UserChip extends connect(store)(LitElement) {
 
-	static get styles() {
-		return [
-			css`
-				div {
-					display:flex;
-					justify-content:center;
-					align-items:center;
-				}
-				img {
-					--user-image-size: 36px;
-					height:var(--user-image-size);
-					width: var(--user-image-size);
-					border-radius:calc(var(--user-image-size) / 2);
-					margin: calc(var(--user-image-size) / 4);
-					cursor:pointer;
-				}
-				img:hover {
-					opacity:0.5;
-					filter: saturate(0%);
-				}
-				div.pending {
-					font-style:italic;
-				}
-			`
-		];
-	}
+	static styles = [
+		css`
+			div {
+				display:flex;
+				justify-content:center;
+				align-items:center;
+			}
+			img {
+				--user-image-size: 36px;
+				height:var(--user-image-size);
+				width: var(--user-image-size);
+				border-radius:calc(var(--user-image-size) / 2);
+				margin: calc(var(--user-image-size) / 4);
+				cursor:pointer;
+			}
+			img:hover {
+				opacity:0.5;
+				filter: saturate(0%);
+			}
+			div.pending {
+				font-style:italic;
+			}
+		`
+	];
 
 	render() {
 		return html`

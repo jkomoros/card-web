@@ -47,179 +47,177 @@ const OFFSET_CHUNKS = [250, 100, 50, 25, 10, 5, 1];
 
 class CardThumbnailList  extends connect(store)(LitElement) {
 
-	static get styles() {
-		return [
-			css`
-				:host {
-					width: 100%;
-				}
+	static styles = [
+		css`
+			:host {
+				width: 100%;
+			}
 
-				.grid {
-					width:100%;
-					display:flex;
-					flex-direction:row;
-					flex-wrap: wrap;
-				}
+			.grid {
+				width:100%;
+				display:flex;
+				flex-direction:row;
+				flex-wrap: wrap;
+			}
 
-				.dragging .spacer {
-					/* When dragging, move these on top to give htem a bigger drop target (even if it isn't that visible) */
-					position:relative;
-					z-index:10000;
-				}
+			.dragging .spacer {
+				/* When dragging, move these on top to give htem a bigger drop target (even if it isn't that visible) */
+				position:relative;
+				z-index:10000;
+			}
 
-				.row {
-					display: flex;
-					flex-direction: row;
-					justify-content: center;
-					align-items: center;
-				}
+			.row {
+				display: flex;
+				flex-direction: row;
+				justify-content: center;
+				align-items: center;
+			}
 
-				.grid .spacer {
-					display:none;
-				}
+			.grid .spacer {
+				display:none;
+			}
 
-				.grid .label {
-					display: none;
-				}
+			.grid .label {
+				display: none;
+			}
 
-				.label {
-					color: var(--app-dark-text-color);
-					font-weight:normal;
-					margin:0.5em;
-				}
+			.label {
+				color: var(--app-dark-text-color);
+				font-weight:normal;
+				margin:0.5em;
+			}
 
-				label.interactive {
-					cursor: pointer;
-					margin-top: 0;
-					color: var(--app-dark-text-color);
-				}
+			label.interactive {
+				cursor: pointer;
+				margin-top: 0;
+				color: var(--app-dark-text-color);
+			}
 
-				label.interactive:hover {
-					color: var(--app-dark-text-color-light);
-				}
+			label.interactive:hover {
+				color: var(--app-dark-text-color-light);
+			}
 
-				.label span {
-					/* can't be on .label itself because then it affects margin */
-					font-size:0.7em;
-				}
+			.label span {
+				/* can't be on .label itself because then it affects margin */
+				font-size:0.7em;
+			}
 
-				.spacer {
-					/* Big drop target, but no change in layout */
-					height:4em;
-					margin-bottom:-4em;
-					margin-left: 1em;
-					margin-right: 1em;
-				}
+			.spacer {
+				/* Big drop target, but no change in layout */
+				height:4em;
+				margin-bottom:-4em;
+				margin-left: 1em;
+				margin-right: 1em;
+			}
 
-				.spacer.drag-active {
-					/* Get some space in the layout and render a bar */
-					/* TODO: render a bar in the middle of the opened space */
-					margin-top: -1.5em;
-					height: 8em;
-					margin-bottom:-5em;
-				}
+			.spacer.drag-active {
+				/* Get some space in the layout and render a bar */
+				/* TODO: render a bar in the middle of the opened space */
+				margin-top: -1.5em;
+				height: 8em;
+				margin-bottom:-5em;
+			}
 
-				.thumbnail h3 {
-					color: var(--app-dark-text-color);
-					fill: var(--app-dark-text-color);
-					text-align:center;
-					font-size: 0.8em;
-					font-family: var(--app-header-font-family);
-				}
+			.thumbnail h3 {
+				color: var(--app-dark-text-color);
+				fill: var(--app-dark-text-color);
+				text-align:center;
+				font-size: 0.8em;
+				font-family: var(--app-header-font-family);
+			}
 
-				.thumbnail h3.nocontent {
-					font-style: italic;
-				}
+			.thumbnail h3.nocontent {
+				font-style: italic;
+			}
 
-				.thumbnail {
-					cursor:pointer;
-					margin:0.5em;
-					box-sizing:border-box;
-					position:relative;
-					border: 2px solid transparent;
-				}
+			.thumbnail {
+				cursor:pointer;
+				margin:0.5em;
+				box-sizing:border-box;
+				position:relative;
+				border: 2px solid transparent;
+			}
 
-				.thumbnail.partial {
-					height: 6em;
-					width: 12em;
-					padding: 0.5em;
-					display:flex;
-					align-items:center;
-					justify-content:center;
-					background-color: var(--card-color);
-					box-shadow: var(--card-shadow);
-					overflow:hidden;
-				}
+			.thumbnail.partial {
+				height: 6em;
+				width: 12em;
+				padding: 0.5em;
+				display:flex;
+				align-items:center;
+				justify-content:center;
+				background-color: var(--card-color);
+				box-shadow: var(--card-shadow);
+				overflow:hidden;
+			}
 
-				.thumbnail card-renderer {
-					font-size: 0.5em;
-				}
+			.thumbnail card-renderer {
+				font-size: 0.5em;
+			}
 
-				.thumbnail svg {
-					height: 1.0em;
-					width: 1.0em;
-					margin-right: 0.25em;
-				}
+			.thumbnail svg {
+				height: 1.0em;
+				width: 1.0em;
+				margin-right: 0.25em;
+			}
 
-				.thumbnail.unpublished {
-					background-color: var(--unpublished-card-color);
-				}
+			.thumbnail.unpublished {
+				background-color: var(--unpublished-card-color);
+			}
 
-				.thumbnail.highlighted {
-					border:2px solid var(--app-primary-color);
-				}
+			.thumbnail.highlighted {
+				border:2px solid var(--app-primary-color);
+			}
 
-				.thumbnail.highlighted h3 {
-					color: var(--app-primary-color);
-					fill: var(--app-primary-color);
-				}
+			.thumbnail.highlighted h3 {
+				color: var(--app-primary-color);
+				fill: var(--app-primary-color);
+			}
 
-				.thumbnail.dark.partial {
-					background-color: var(--app-primary-color);
-				}
+			.thumbnail.dark.partial {
+				background-color: var(--app-primary-color);
+			}
 
-				.thumbnail.dark.partial.highlighted {
-					border: 2px solid var(--app-light-text-color);
-				}
+			.thumbnail.dark.partial.highlighted {
+				border: 2px solid var(--app-light-text-color);
+			}
 
-				.thumbnail.dark h3 {
-					color: var(--app-light-text-color);
-					fill: var(--app-light-text-color);
-				}
+			.thumbnail.dark h3 {
+				color: var(--app-light-text-color);
+				fill: var(--app-light-text-color);
+			}
 
-				.thumbnail.dark.highlighted h3 {
-					color: var(--app-primary-color-light);
-					fill: var(--app-primary-color-light);
-				}
+			.thumbnail.dark.highlighted h3 {
+				color: var(--app-primary-color-light);
+				fill: var(--app-primary-color-light);
+			}
 
-				.thumbnail.empty {
-					opacity:0.5;
-				}
+			.thumbnail.empty {
+				opacity:0.5;
+			}
 
-				.thumbnail.ghost {
-					opacity:0.5;
-				}
+			.thumbnail.ghost {
+				opacity:0.5;
+			}
 
-				div.thumbnail:hover h3 {
-					color: var(--app-secondary-color);
-					fill: var(--app-secondary-color);
-				}
+			div.thumbnail:hover h3 {
+				color: var(--app-secondary-color);
+				fill: var(--app-secondary-color);
+			}
 
-				.thumbnail:hover {
-					border:2px solid var(--app-secondary-color);
-				}
+			.thumbnail:hover {
+				border:2px solid var(--app-secondary-color);
+			}
 
-				.thumbnail.dark:hover h3 {
-					color: var(--app-primary-color-subtle);
-					fill: var(--app-primary-color-subtle);
-				}
+			.thumbnail.dark:hover h3 {
+				color: var(--app-primary-color-subtle);
+				fill: var(--app-primary-color-subtle);
+			}
 
-				.thumbnail.dark:hover {
-					border:2px solid var(--app-primary-color-subtle);
-				}
-			`
-		];
-	}
+			.thumbnail.dark:hover {
+				border:2px solid var(--app-primary-color-subtle);
+			}
+		`
+	];
 
 	render() {
 		return html`

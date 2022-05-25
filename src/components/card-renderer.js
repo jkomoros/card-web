@@ -73,220 +73,218 @@ var startGestureTimestamps = {};
 // This element is *not* connected to the Redux store.
 export class CardRenderer extends GestureEventListeners(LitElement) {
 
-	static get styles() {
-		return [
-			css`
-				:host {
-					display:block;
-					background-color: var(--card-color);
-					--effective-background-color: var(--card-color);
-					--effective-background-color-rgb-inner: var(--card-color-rgb-inner);
+	static styles = [
+		css`
+			:host {
+				display:block;
+				background-color: var(--card-color);
+				--effective-background-color: var(--card-color);
+				--effective-background-color-rgb-inner: var(--card-color-rgb-inner);
+				
+				width: ${CARD_WIDTH_IN_EMS}em;
+				height: ${CARD_HEIGHT_IN_EMS}em;
+				
+
+				box-shadow: var(--card-shadow);
+				box-sizing: border-box;
+				line-height:1.4;
+				position:relative;
+			}
+
+			.container {
+				height:100%;
+				width:100%;
+				padding: ${CARD_VERTICAL_PADDING_IN_EMS}em ${CARD_HORIZONTAL_PADDING_IN_EMS}em;
+				box-sizing:border-box;
+			}
+
+			.container.unpublished {
+				background-color: var(--unpublished-card-color);
+				--effective-background-color: var(--unpublished-card-color);
+				--effective-background-color-rgb-inner: var(--unpublished-card-color-rgb-inner);
+			}
+
+			.container.editing {
+				box-shadow: inset 0 0 1em 0.5em var(--app-primary-color-light-transparent);
+			}
+
+			.container.editing card-link[card] {
+				--card-link-cursor:not-allowed;
+			}
+
+			[hidden] {
+				display:none;
+			}
+
+			h1, h2, h3{
+				font-family: 'Raleway', sans-serif;
+				font-weight:bold;
+				margin-top:0;
+			}
+
+			h1, .title-container svg {
+				color: var(--app-primary-color);
+				fill: var(--app-primary-color);
+				font-size: 1.4em;
+			}
+
+			h2 {
+				color: var(--app-dark-text-color);
+				font-size: 1.2em;
+			}
+
+			h3 {
+				color: var(--app-dark-text-color);
+				font-size: 1.1em;
+			}
+
+			h1 strong, h2 strong, h3 strong {
+				color: var(--app-primary-color);
+			}
+
+			section {
+				font-family: 'Source Sans Pro', sans-serif;
+				font-size: 1em;
+				color: var(--app-dark-text-color);
+				background-color:transparent;
+			}
+
+			section p {
+				/* make it so the top most item doesn't push the whole
+				section down. p still have margin-bottom that previously
+				would collapse with margin-top so the only effect is
+				allowing boosted p to not push down the screen */
+				margin-top:0;
+			}
+
+			section.full-bleed {
+				top:0;
+				left:0;
+				height:100%;
+				width:100%;
+				position:absolute;
+				display:flex;
+				flex-direction:column;
+				justify-content:center;
+				align-items:center;
+			}
+
+			.small {
+				font-size:0.72em;
+			}
+			.loading {
+				font-style:italic;
+				opacity: 0.5;
+			}
+
+			.star-count {
+				position:absolute;
+				top:0.5em;
+				right:0.5em;
+			}
+
+			.background {
+				display: none;
+			}
+
+			.content {
+				display: flex;
+				flex-direction: column;
+				height: 100%;
+				width: 100%;
+			}
+
+			.primary {
+				flex-grow: 1;
+				flex-shrink: 0.1;
+			}
+
+			.reference-blocks {
+				flex-shrink: 1;
+			}
+
+			.title-container {
+				display:flex;
+				flex-direction:row;
+				flex-shrink: 0;
+			}
+
+			.title-container svg {
+				margin-right: 0.5em;
+				height: 1em;
+				width: 1em;
+			}
+
+			.vertical-spacer {
+				/* make sure that subtitle-container always takes up space if it's empty */
+				height: 1.4em;
+			}
+
+			img {
+				/* This will be overriden in the img.style.width */
+				width: 15em;
+				/* since height/width are set directly on img tags, the aspect ratio will be right */
+				height: auto;
+			}
+
+			.sub-title-container {
+				display:flex;
+				flex-direction:row;
+				/* some cards have lots of synonyms etc */
+				flex-wrap: wrap;
+				align-items: center;
+				/* total hack to consume most of the vertical space of the
+				h1 above it. This would break on cards with a
+				title_alternate but no title */
+				margin-top: -1.4em;
+			}
+
+			.title-container [data-field=title] {
+				flex:1;
+			}
+
+			[data-field=title_alternates]{
+				color: var(--app-dark-text-color);
+				font-size: 0.7em;
+				font-weight: bold;
+				margin: 0;
+				margin-right: 0.5em;
+			}
+
+			[data-field=title_alternates] span {
+				font-weight: normal;
+			}
+
+			.scroll-indicators {
+				/* inspired by https://stackoverflow.com/questions/9333379/check-if-an-elements-content-is-overflowing */
+				background:
+					/* Shadow covers */
+					linear-gradient(var(--effective-background-color) 30%, rgba(var(--effective-background-color-rgb-inner),0)),
+					linear-gradient(rgba(var(--effective-background-color-rgb-inner),0), var(--effective-background-color) 70%) 0 100%,
 					
-					width: ${CARD_WIDTH_IN_EMS}em;
-					height: ${CARD_HEIGHT_IN_EMS}em;
+					/* Shadows */
+					radial-gradient(50% 0, farthest-side, rgba(var(--card-overflow-shadow-rgb-inner),.2), rgba(var(--card-overflow-shadow-rgb-inner),0)),
+					radial-gradient(50% 100%,farthest-side, rgba(var(--card-overflow-shadow-rgb-inner),.2), rgba(var(--card-overflow-shadow-rgb-inner),0)) 0 100%;
+				background:
+					/* Shadow covers */
+					linear-gradient(var(--effective-background-color) 30%, rgba(var(--effective-background-color-rgb-inner),0)),
+					linear-gradient(rgba(var(--effective-background-color-rgb-inner),0), var(--effective-background-color) 70%) 0 100%,
 					
+					/* Shadows */
+					radial-gradient(farthest-side at 50% 0, rgba(var(--card-overflow-shadow-rgb-inner),.2), rgba(var(--card-overflow-shadow-rgb-inner),0)),
+					radial-gradient(farthest-side at 50% 100%, rgba(var(--card-overflow-shadow-rgb-inner),.2), rgba(var(--card-overflow-shadow-rgb-inner),0)) 0 100%;
+				background-repeat: no-repeat;
+				background-size: 100% 2.5em, 100% 2.5em, 100% 0.5em, 100% 0.5em;
+				background-attachment: local, local, scroll, scroll;
+			}
 
-					box-shadow: var(--card-shadow);
-					box-sizing: border-box;
-					line-height:1.4;
-					position:relative;
-				}
-
-				.container {
-					height:100%;
-					width:100%;
-					padding: ${CARD_VERTICAL_PADDING_IN_EMS}em ${CARD_HORIZONTAL_PADDING_IN_EMS}em;
-					box-sizing:border-box;
-				}
-
-				.container.unpublished {
-					background-color: var(--unpublished-card-color);
-					--effective-background-color: var(--unpublished-card-color);
-					--effective-background-color-rgb-inner: var(--unpublished-card-color-rgb-inner);
-				}
-
-				.container.editing {
-					box-shadow: inset 0 0 1em 0.5em var(--app-primary-color-light-transparent);
-				}
-
-				.container.editing card-link[card] {
-					--card-link-cursor:not-allowed;
-				}
-
-				[hidden] {
-					display:none;
-				}
-
-				h1, h2, h3{
-					font-family: 'Raleway', sans-serif;
-					font-weight:bold;
-					margin-top:0;
-				}
-
-				h1, .title-container svg {
-					color: var(--app-primary-color);
-					fill: var(--app-primary-color);
-					font-size: 1.4em;
-				}
-
-				h2 {
-					color: var(--app-dark-text-color);
-					font-size: 1.2em;
-				}
-
-				h3 {
-					color: var(--app-dark-text-color);
-					font-size: 1.1em;
-				}
-
-				h1 strong, h2 strong, h3 strong {
-					color: var(--app-primary-color);
-				}
-
-				section {
-					font-family: 'Source Sans Pro', sans-serif;
-					font-size: 1em;
-					color: var(--app-dark-text-color);
-					background-color:transparent;
-				}
-
-				section p {
-					/* make it so the top most item doesn't push the whole
-					section down. p still have margin-bottom that previously
-					would collapse with margin-top so the only effect is
-					allowing boosted p to not push down the screen */
-					margin-top:0;
-				}
-
-				section.full-bleed {
-					top:0;
-					left:0;
-					height:100%;
-					width:100%;
-					position:absolute;
-					display:flex;
-					flex-direction:column;
-					justify-content:center;
-					align-items:center;
-				}
-
-				.small {
-					font-size:0.72em;
-				}
-				.loading {
-					font-style:italic;
-					opacity: 0.5;
-				}
-
-				.star-count {
-					position:absolute;
-					top:0.5em;
-					right:0.5em;
-				}
-
-				.background {
-					display: none;
-				}
-
-				.content {
-					display: flex;
-					flex-direction: column;
-					height: 100%;
-					width: 100%;
-				}
-
-				.primary {
-					flex-grow: 1;
-					flex-shrink: 0.1;
-				}
-
-				.reference-blocks {
-					flex-shrink: 1;
-				}
-
-				.title-container {
-					display:flex;
-					flex-direction:row;
-					flex-shrink: 0;
-				}
-
-				.title-container svg {
-					margin-right: 0.5em;
-					height: 1em;
-					width: 1em;
-				}
-
-				.vertical-spacer {
-					/* make sure that subtitle-container always takes up space if it's empty */
-					height: 1.4em;
-				}
-
-				img {
-					/* This will be overriden in the img.style.width */
-					width: 15em;
-					/* since height/width are set directly on img tags, the aspect ratio will be right */
-					height: auto;
-				}
-
-				.sub-title-container {
-					display:flex;
-					flex-direction:row;
-					/* some cards have lots of synonyms etc */
-					flex-wrap: wrap;
-					align-items: center;
-					/* total hack to consume most of the vertical space of the
-					h1 above it. This would break on cards with a
-					title_alternate but no title */
-					margin-top: -1.4em;
-				}
-
-				.title-container [data-field=title] {
-					flex:1;
-				}
-
-				[data-field=title_alternates]{
-					color: var(--app-dark-text-color);
-					font-size: 0.7em;
-					font-weight: bold;
-					margin: 0;
-					margin-right: 0.5em;
-				}
-
-				[data-field=title_alternates] span {
-					font-weight: normal;
-				}
-
-				.scroll-indicators {
-					/* inspired by https://stackoverflow.com/questions/9333379/check-if-an-elements-content-is-overflowing */
-					background:
-						/* Shadow covers */
-						linear-gradient(var(--effective-background-color) 30%, rgba(var(--effective-background-color-rgb-inner),0)),
-						linear-gradient(rgba(var(--effective-background-color-rgb-inner),0), var(--effective-background-color) 70%) 0 100%,
-						
-						/* Shadows */
-						radial-gradient(50% 0, farthest-side, rgba(var(--card-overflow-shadow-rgb-inner),.2), rgba(var(--card-overflow-shadow-rgb-inner),0)),
-						radial-gradient(50% 100%,farthest-side, rgba(var(--card-overflow-shadow-rgb-inner),.2), rgba(var(--card-overflow-shadow-rgb-inner),0)) 0 100%;
-					background:
-						/* Shadow covers */
-						linear-gradient(var(--effective-background-color) 30%, rgba(var(--effective-background-color-rgb-inner),0)),
-						linear-gradient(rgba(var(--effective-background-color-rgb-inner),0), var(--effective-background-color) 70%) 0 100%,
-						
-						/* Shadows */
-						radial-gradient(farthest-side at 50% 0, rgba(var(--card-overflow-shadow-rgb-inner),.2), rgba(var(--card-overflow-shadow-rgb-inner),0)),
-						radial-gradient(farthest-side at 50% 100%, rgba(var(--card-overflow-shadow-rgb-inner),.2), rgba(var(--card-overflow-shadow-rgb-inner),0)) 0 100%;
-					background-repeat: no-repeat;
-					background-size: 100% 2.5em, 100% 2.5em, 100% 0.5em, 100% 0.5em;
-					background-attachment: local, local, scroll, scroll;
-				}
-
-				/* Google docs pasted output includes <p> inside of li a lot. This
-				is a hack, #361 covers fixing it */
-				li > p {
-					display:inline;
-				}
-			`
-		];
-	}
+			/* Google docs pasted output includes <p> inside of li a lot. This
+			is a hack, #361 covers fixing it */
+			li > p {
+				display:inline;
+			}
+		`
+	];
 
 	render() {
 		const cardType = this._card.card_type || CARD_TYPE_CONTENT;

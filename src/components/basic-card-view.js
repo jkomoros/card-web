@@ -31,21 +31,20 @@ export const WINDOW_CARD_RENDERED_VARIABLE = 'BASIC_CARD_RENDERED';
 export const WINDOW_INJECT_FETCHED_CARD_NAME = 'injectFetchedCard';
 
 class BasicCardView extends connect(store)(PageViewElement) {
-	static get styles() {
-		return [
-			css`
-				:host {
-					height: 100%;
-					width: 100%;
-					position:absolute;
-				}
-				card-stage {
-					height: 100%;
-					width: 100%;
-				}
-			`
-		];
-	}
+	static  styles = [
+		css`
+			:host {
+				height: 100%;
+				width: 100%;
+				position:absolute;
+			}
+			card-stage {
+				height: 100%;
+				width: 100%;
+			}
+		`
+	];
+
 	render() {
 		return html`
 	  ${SharedStyles}

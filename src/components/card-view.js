@@ -151,100 +151,98 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 class CardView extends connect(store)(PageViewElement) {
 
-	static get styles() {
-		return [
-			css`
-				:host {
-					height: 100%;
-					width: 100%;
-					position:absolute;
-				}
-				.container {
-					display:flex;
-					height:100%;
-					width:100%;
-				}
+	static styles = [
+		css`
+			:host {
+				height: 100%;
+				width: 100%;
+				position:absolute;
+			}
+			.container {
+				display:flex;
+				height:100%;
+				width:100%;
+			}
 
-				#center {
-					flex-grow:1;
-					/* The next property means that we take up as much space as we're given, and our content doesn't create a floor of size */
-					overflow:hidden;
-					display:flex;
-					flex-direction:column;
-				}
+			#center {
+				flex-grow:1;
+				/* The next property means that we take up as much space as we're given, and our content doesn't create a floor of size */
+				overflow:hidden;
+				display:flex;
+				flex-direction:column;
+			}
 
-				.next-prev {
-					display:none;
-				}
+			.next-prev {
+				display:none;
+			}
 
-				.presenting .next-prev {
-					display:flex;
-				}
+			.presenting .next-prev {
+				display:flex;
+			}
 
-				.presenting .panels {
-					display:none;
-				}
+			.presenting .panels {
+				display:none;
+			}
 
-				card-editor {
-					display:none;
-				}
+			card-editor {
+				display:none;
+			}
 
-				card-editor[active] {
-					display:block;
-					width:100%;
-					flex-grow: 1;
-					min-height: 300px;
-				}
+			card-editor[active] {
+				display:block;
+				width:100%;
+				flex-grow: 1;
+				min-height: 300px;
+			}
 
-				[slot=tags] {
-					display:flex;
-					flex-direction: column;
-					align-items: center;
-				}
+			[slot=tags] {
+				display:flex;
+				flex-direction: column;
+				align-items: center;
+			}
 
-				card-drawer.showing {
-					border-right: 1px solid var(--app-divider-color);
-				}
+			card-drawer.showing {
+				border-right: 1px solid var(--app-divider-color);
+			}
 
-				[hidden] {
-					display:none;
-				}
+			[hidden] {
+				display:none;
+			}
 
-				.auto-read {
-					display: none;
-					height: 100%;
-					width: 100%;
-					border-radius: 50%;
-					position: absolute;
-					top: 0;
-					left: 0;
-					z-index:1;
-					background-color:#FFFFFF66;
-				}
+			.auto-read {
+				display: none;
+				height: 100%;
+				width: 100%;
+				border-radius: 50%;
+				position: absolute;
+				top: 0;
+				left: 0;
+				z-index:1;
+				background-color:#FFFFFF66;
+			}
 
-				.auto-read.pending {
-					display:block;
-					animation-name: autoread;
-					animation-duration: ${AUTO_MARK_READ_DELAY / 1000 }s;
-					animation-timing-function: linear;
-				}
+			.auto-read.pending {
+				display:block;
+				animation-name: autoread;
+				animation-duration: ${AUTO_MARK_READ_DELAY / 1000 }s;
+				animation-timing-function: linear;
+			}
 
-				.right-panel {
-					display:flex;
-					flex-direction: column;
-				}
+			.right-panel {
+				display:flex;
+				flex-direction: column;
+			}
 
-				@keyframes autoread {
-					from {
-						transform: scale(1.0);
-					}
-					to {
-						transform: scale(0.0);
-					}
+			@keyframes autoread {
+				from {
+					transform: scale(1.0);
 				}
-			`
-		];
-	}
+				to {
+					transform: scale(0.0);
+				}
+			}
+		`
+	];
 
 	render() {
 		return html`

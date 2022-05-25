@@ -16,18 +16,16 @@ import {
 
 class TagList  extends LitElement {
 	
-	static get styles() {
-		return [
-			css`
-				select {
-					display:none;
-				}
-				.editing select {
-					display:inline;
-				}
-			`
-		];
-	}
+	static styles = [
+		css`
+			select {
+				display:none;
+			}
+			.editing select {
+				display:inline;
+			}
+		`
+	];
 	
 	render() {
 		let effectiveTags = this.tags || [];

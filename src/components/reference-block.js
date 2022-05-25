@@ -17,57 +17,55 @@ import './card-link.js';
 
 export class ReferenceBlock extends LitElement {
 
-	static get styles() {
-		return [
-			css`
-				:host {
-					color: var(--app-dark-text-color);
-				}
+	static styles = [
+		css`
+			:host {
+				color: var(--app-dark-text-color);
+			}
 
-				h4 {
-					font-size:0.7em;
-					font-weight:normal;
-					margin:0;
-				}
+			h4 {
+				font-size:0.7em;
+				font-weight:normal;
+				margin:0;
+			}
 
-				ul {
-					margin:0;
-					padding-inline-start: 1.2em;
-				}
+			ul {
+				margin:0;
+				padding-inline-start: 1.2em;
+			}
 
-				p {
-					margin: 0;
-				}
+			p {
+				margin: 0;
+			}
 
-				.editor {
-					opacity: 0.5;
-				}
+			.editor {
+				opacity: 0.5;
+			}
 
-				.condensed {
-					line-height: 1.0em;
-				}
+			.condensed {
+				line-height: 1.0em;
+			}
 
-				.condensed, .condensed ul {
-					display: flex;
-					flex-direction: row;
-					align-items: center;
-				}
+			.condensed, .condensed ul {
+				display: flex;
+				flex-direction: row;
+				align-items: center;
+			}
 
-				.condensed ul {
-					padding-inline-start: 0.5em;
-					list-style-type: none;
-				}
+			.condensed ul {
+				padding-inline-start: 0.5em;
+				list-style-type: none;
+			}
 
-				.condensed li {
-					margin-right: 0.5em;
-				}
+			.condensed li {
+				margin-right: 0.5em;
+			}
 
-				.condensed card-link {
-					font-size: 0.7em;
-				}
-			`
-		];
-	}
+			.condensed card-link {
+				font-size: 0.7em;
+			}
+		`
+	];
 
 	render() {
 		if (this._shouldHide()) return html``;

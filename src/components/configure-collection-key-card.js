@@ -16,19 +16,17 @@ import './tag-list.js';
 // This element is *not* connected to the Redux store.
 class ConfigureCollectionKeyCard extends LitElement {
 
-	static get styles() {
-		return [
-			css`
-				:host {
-					display:inline-block;
-				}
-				div {
-					display:flex;
-					flex-direction: row;
-				}
-			`
-		];
-	}
+	static styles = [
+		css`
+			:host {
+				display:inline-block;
+			}
+			div {
+				display:flex;
+				flex-direction: row;
+			}
+		`
+	];
 
 	render() {
 		let [cardID, includeKeyCard] = parseKeyCardID(this.value);

@@ -14,44 +14,42 @@ import {
 // This element is *not* connected to the Redux store.
 class CommentThread extends LitElement {
 
-	static get styles() {
-		return [
-			css`
-				.container {
-					padding: 0.5em;
-					width: 12em;
-					overflow:hidden;
-					display:flex;
-					flex-direction:column;
-					align-items:center;
-					justify-content:center;
-					background-color: var(--card-color);
-					box-shadow: var(--card-shadow);
-					margin:0.5em;
-					box-sizing:border-box;
-				}
-				.buttons {
-					display:flex;
-					flex-direction:row;
-					justify-content:flex-end;
-					width:100%;
-				}
-				.buttons.left {
-					justify-content:flex-start;
-				}
-				.content {
-					display:none;
-					width:100%;
-				}
-				.content.expanded {
-					display:block;
-				}
-				.flex {
-					flex-grow:1;
-				}
-			`
-		];
-	}
+	static styles = [
+		css`
+			.container {
+				padding: 0.5em;
+				width: 12em;
+				overflow:hidden;
+				display:flex;
+				flex-direction:column;
+				align-items:center;
+				justify-content:center;
+				background-color: var(--card-color);
+				box-shadow: var(--card-shadow);
+				margin:0.5em;
+				box-sizing:border-box;
+			}
+			.buttons {
+				display:flex;
+				flex-direction:row;
+				justify-content:flex-end;
+				width:100%;
+			}
+			.buttons.left {
+				justify-content:flex-start;
+			}
+			.content {
+				display:none;
+				width:100%;
+			}
+			.content.expanded {
+				display:block;
+			}
+			.flex {
+				flex-grow:1;
+			}
+		`
+	];
 
 	render() {
 		return html`

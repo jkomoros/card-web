@@ -30,68 +30,66 @@ import {
 
 class CardWebApp extends connect(store)(LitElement) {
 
-	static get styles() {
-		return [
-			css`
-				:host {
-					--app-drawer-width: 256px;
-					display: block;
+	static styles = [
+		css`
+			:host {
+				--app-drawer-width: 256px;
+				display: block;
 
-					--app-primary-color: #5e2b97;
-					--app-primary-color-light: #bc9ae2;
-					--app-primary-color-subtle: #7e57c2;
-					--app-primary-color-light-transparent: #bc9ae266;
-					--app-primary-color-light-somewhat-transparent: hsla(268, 55%, 75%, 0.5);
-					--app-primary-color-light-very-transparent: hsla(268, 55%, 75%, 0.15);
-					--app-secondary-color: hsl(174, 100%, 29%);
-					--app-secondary-color-light: hsl(174, 100%, 43%);
-					--app-secondary-color-light-somewhat-transparent: hsla(174, 100%, 43%, 0.5);
-					--app-secondary-color-light-very-transparent: hsla(174, 100%, 43%, 0.15);
-					--app-warning-color: #CC0000;
-					--app-warning-color-light: #EE0000;
+				--app-primary-color: #5e2b97;
+				--app-primary-color-light: #bc9ae2;
+				--app-primary-color-subtle: #7e57c2;
+				--app-primary-color-light-transparent: #bc9ae266;
+				--app-primary-color-light-somewhat-transparent: hsla(268, 55%, 75%, 0.5);
+				--app-primary-color-light-very-transparent: hsla(268, 55%, 75%, 0.15);
+				--app-secondary-color: hsl(174, 100%, 29%);
+				--app-secondary-color-light: hsl(174, 100%, 43%);
+				--app-secondary-color-light-somewhat-transparent: hsla(174, 100%, 43%, 0.5);
+				--app-secondary-color-light-very-transparent: hsla(174, 100%, 43%, 0.15);
+				--app-warning-color: #CC0000;
+				--app-warning-color-light: #EE0000;
 
-					/* note: this is also replicated in index.TEMPLATE.html */
-					--app-dark-text-color: #7f7f7f;
-					--app-light-text-color: white;
-					--app-section-even-color: #f7f7f7;
-					--app-section-odd-color: white;
+				/* note: this is also replicated in index.TEMPLATE.html */
+				--app-dark-text-color: #7f7f7f;
+				--app-light-text-color: white;
+				--app-section-even-color: #f7f7f7;
+				--app-section-odd-color: white;
 
-					--app-dark-text-color-light: #AAA;
-					--app-dark-text-color-subtle: #CCC;
-					--app-divider-color: #eee;
+				--app-dark-text-color-light: #AAA;
+				--app-dark-text-color-subtle: #CCC;
+				--app-divider-color: #eee;
 
-					--app-header-font-family: 'Raleway';
-					--app-default-font-family: 'Source Sans Pro';
+				--app-header-font-family: 'Raleway';
+				--app-default-font-family: 'Source Sans Pro';
 
-					/* these are where you change the color for card.
-					card-renderer's overflow scrolling expects these to be set */
-					--card-color-rgb-inner: 252, 252, 252;
-					--unpublished-card-color-rgb-inner: 238, 238, 238;
-					--card-overflow-shadow-rgb-inner: 0, 0, 0;
+				/* these are where you change the color for card.
+				card-renderer's overflow scrolling expects these to be set */
+				--card-color-rgb-inner: 252, 252, 252;
+				--unpublished-card-color-rgb-inner: 238, 238, 238;
+				--card-overflow-shadow-rgb-inner: 0, 0, 0;
 
-					/* change the *-rgb-inner instead of these directly */
-					--card-color: rgb(var(--card-color-rgb-inner));
-					--unpublished-card-color: rgb(var(--unpublished-card-color-rgb-inner));
+				/* change the *-rgb-inner instead of these directly */
+				--card-color: rgb(var(--card-color-rgb-inner));
+				--unpublished-card-color: rgb(var(--unpublished-card-color-rgb-inner));
 
-					--shadow-color: #CCC;
-					--card-shadow-first-part: 0 2px 6px;
-					--card-shadow: var(--card-shadow-first-part) var(--shadow-color);
+				--shadow-color: #CCC;
+				--card-shadow-first-part: 0 2px 6px;
+				--card-shadow: var(--card-shadow-first-part) var(--shadow-color);
 
-					--canvas-color: var(--app-divider-color);
+				--canvas-color: var(--app-divider-color);
 
-					--app-header-background-color: white;
-					--app-header-text-color: var(--app-dark-text-color);
-					--app-header-selected-color: var(--app-primary-color);
+				--app-header-background-color: white;
+				--app-header-text-color: var(--app-dark-text-color);
+				--app-header-selected-color: var(--app-primary-color);
 
-					--app-drawer-background-color: var(--app-secondary-color);
-					--app-drawer-text-color: var(--app-light-text-color);
-					--app-drawer-selected-color: #78909C;
+				--app-drawer-background-color: var(--app-secondary-color);
+				--app-drawer-text-color: var(--app-light-text-color);
+				--app-drawer-selected-color: #78909C;
 
-					--transition-fade: 0.25s linear;
-				}
-			`
-		];
-	}
+				--transition-fade: 0.25s linear;
+			}
+		`
+	];
 
 	render() {
 		// Anything that's related to rendering should be done in here.

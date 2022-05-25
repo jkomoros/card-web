@@ -39,54 +39,52 @@ const LOCKED_PERMISSIONS = Object.fromEntries(Object.entries(ALL_PERMISSIONS).fi
 
 class PermissionsEditor extends connect(store)(LitElement) {
 
-	static get styles() {
-		return [
-			css`
-				:host {
-					display: block;
-					margin-top: 1em;
-				}
+	static styles = [
+		css`
+			:host {
+				display: block;
+				margin-top: 1em;
+			}
 
-				p {
-					margin: 0;
-				}
+			p {
+				margin: 0;
+			}
 
-				.container {
-					color: var(--app-dark-text-color-subtle);
-				}
+			.container {
+				color: var(--app-dark-text-color-subtle);
+			}
 
-				.editable {
-					color: var(--app-dark-text-color);
-				}
+			.editable {
+				color: var(--app-dark-text-color);
+			}
 
-				.edit {
-					cursor: pointer;
-				}
+			.edit {
+				cursor: pointer;
+			}
 
-				[hidden] {
-					display: none;
-				}
+			[hidden] {
+				display: none;
+			}
 
-				div {
-					margin-left: 1em;
-				}
+			div {
+				margin-left: 1em;
+			}
 
-				svg {
-					height:1.3em;
-					width:1.3em;
-					fill: var(--app-dark-text-color-subtle);
-				}
+			svg {
+				height:1.3em;
+				width:1.3em;
+				fill: var(--app-dark-text-color-subtle);
+			}
 
-				svg:hover {
-					fill: var(--app-dark-text-color);
-				}
+			svg:hover {
+				fill: var(--app-dark-text-color);
+			}
 
-				tag-list {
-					display: inline-block;
-				}
-			`
-		];
-	}
+			tag-list {
+				display: inline-block;
+			}
+		`
+	];
 
 	render() {
 		const lockedPermissionColor = '#7f7f7f';

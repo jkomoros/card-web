@@ -22,37 +22,36 @@ import {
 // This element is *not* connected to the Redux store.
 class CommentMessage extends LitElement {
 	
-	static get styles() {
-		return [
-			css`
-				:host {
-					font-size: 0.85em;
-					display:block;
-					border-bottom:1px solid var(--app-divider-color);
-					width:100%;
-					padding-bottom:0.25em;
-					margin-bottom:0.25em;
-				}
+	static styles = [
+		css`
+			:host {
+				font-size: 0.85em;
+				display:block;
+				border-bottom:1px solid var(--app-divider-color);
+				width:100%;
+				padding-bottom:0.25em;
+				margin-bottom:0.25em;
+			}
 
-				.container {
-					width:100%;
-				}
-				span {
-					color: var(--app-dark-text-color-light);
-				}
-				.row {
-					display:flex;
-					flex-direction:row;
-					align-items:center;
-					width:100%;
-				}
+			.container {
+				width:100%;
+			}
+			span {
+				color: var(--app-dark-text-color-light);
+			}
+			.row {
+				display:flex;
+				flex-direction:row;
+				align-items:center;
+				width:100%;
+			}
 
-				.row author-chip {
-					flex-grow:1;
-				}
-			`
-		];
-	}
+			.row author-chip {
+				flex-grow:1;
+			}
+		`
+	];
+
 	render() {
 		return html`
 			${ ButtonSharedStyles }
