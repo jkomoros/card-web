@@ -66,6 +66,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 
 	static styles = [
 		ScrollingSharedStyles,
+		HelpStyles,
 		css`
 			:host {
 				flex-grow: 1;
@@ -125,7 +126,6 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 	render() {
 		return html`
 		${SharedStyles}
-		${HelpStyles}
 			<h3 ?hidden=${!this._open}>Card Info</h3>
 			<div class='container scroller' ?hidden=${!this._open}>
 				${this._referenceBlocks.map(item => html`<reference-block .block=${item}></reference-block>`)}

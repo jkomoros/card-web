@@ -66,6 +66,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	static styles = [
 		DialogElement.styles,
 		ButtonSharedStyles,
+		HelpStyles,
 		css`
 			.scrim {
 				z-index:100;
@@ -101,7 +102,6 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		const previousReferencesMap = referencesNonModifying(this._unionReferencesCard).byTypeArray();
 
 		return html`
-		${HelpStyles}
 		<div class='${this._cardModificationPending ? 'modification-pending' : ''}'>
 			<div class='scrim'></div>
 			<select @change=${this._handleAddReference}>
