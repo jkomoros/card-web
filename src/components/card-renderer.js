@@ -74,6 +74,7 @@ var startGestureTimestamps = {};
 export class CardRenderer extends GestureEventListeners(LitElement) {
 
 	static styles = [
+		badgeStyles,
 		css`
 			:host {
 				display:block;
@@ -314,7 +315,6 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		}
 		return html`
 			${SharedStyles}
-			${badgeStyles}
 			${ScrollingSharedStyles}
 			<style>
 				${Object.entries(this.editing ? {} : (this._card.font_size_boost || {})).map(entry => {

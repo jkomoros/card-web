@@ -49,6 +49,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	static styles = [
 		ButtonSharedStyles,
+		cardBadgesStyles,
 		css`
 			:host {
 				width: 100%;
@@ -222,7 +223,6 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	render() {
 		return html`
-			${cardBadgesStyles}
 			${this.renderOffset ? html`<div class='row'><button id='prev' class='small' title='Previous cards' @click=${this._handlePreviousClicked}>${ARROW_UPWARD_ICON}</button><label class='interactive' for='prev'>Previous ${this._offsetChunk} cards</label></div>` : ''}
 			<div class='${this._dragging ? 'dragging' : ''} ${this.grid ? 'grid' : ''}'>
 				${repeat(this._cards, (i) => i.id, (i, index) => html`

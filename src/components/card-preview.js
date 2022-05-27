@@ -11,6 +11,11 @@ import {
 } from './card-renderer.js';
 
 class CardPreview extends LitElement {
+
+	static styles = [
+		cardBadgesStyles
+	];
+
 	render() {
 		const cardWidthInPixels = CARD_WIDTH_IN_EMS * this.previewSize;
 		const cardHeightInPixels = CARD_HEIGHT_IN_EMS * this.previewSize;
@@ -35,7 +40,6 @@ class CardPreview extends LitElement {
 			}
 
 	  </style>
-	  ${cardBadgesStyles}
       <div ?hidden='${!this.card}'>
 		<card-renderer .card=${this.card} .expandedReferenceBlocks=${this.expandedReferenceBlocks}></card-renderer>
 		${cardBadges(false, this.card, this.badgeMap)}
