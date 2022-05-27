@@ -1,5 +1,6 @@
 
 import { LitElement, html, css } from 'lit';
+import { styleMap } from 'lit/directives/style-map.js';
 import { urlForTag } from '../actions/app';
 
 class TagChip  extends LitElement {
@@ -49,8 +50,12 @@ class TagChip  extends LitElement {
 	];
 
 	render() {
+		const styles = {
+			backgroundColor: this._color,
+		};
+		if (this._filter) styles.filter = this._filter;
 		return html`
-			<span style=${'background-color: ' + this._color + '; ' + (this._filter ? 'filter: ' + this._filter : '')} class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''} ${this._disabled ? 'disabled' : 'enabled'}' title='${this._description}' @mousemove=${this._handleMouseMove}><a class='primary' href='${this._url}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
+			<span style=${styleMap(styles)} class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''} ${this._disabled ? 'disabled' : 'enabled'}' title='${this._description}' @mousemove=${this._handleMouseMove}><a class='primary' href='${this._url}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
 			`;
 	}
 
