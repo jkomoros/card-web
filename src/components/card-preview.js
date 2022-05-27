@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import {
@@ -14,7 +14,15 @@ import {
 class CardPreview extends LitElement {
 
 	static styles = [
-		cardBadgesStyles
+		cardBadgesStyles,
+		css`
+			:host {
+				position:absolute;
+				/* TODO: this z-index ia a bit of a hack to make sure it shows up
+				above e.g. dialogs, which are 1000 */
+				z-index: 10001;
+			}
+		`
 	];
 
 	render() {
@@ -33,14 +41,6 @@ class CardPreview extends LitElement {
 		this.style.top = (positionUp ? (this.y - cardHeightInPixels - this.cardOffset) : (this.y + this.cardOffset)) + 'px';
 
 		return html`
-		<style>
-			:host {
-				position:absolute;
-				/* TODO: this z-index ia a bit of a hack to make sure it shows up
-				above e.g. dialogs, which are 1000 */
-				z-index: 10001;
-			}
-	  </style>
       <div ?hidden='${!this.card}'>
 		<card-renderer .card=${this.card} .expandedReferenceBlocks=${this.expandedReferenceBlocks} style=${styleMap(cardRendererStyles)}></card-renderer>
 		${cardBadges(false, this.card, this.badgeMap)}
