@@ -1,4 +1,4 @@
-import { html } from 'lit';
+import { html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -41,24 +41,29 @@ import {
 import './configure-collection-filter.js';
 
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
+
+	static styles = [
+		DialogElement.styles,
+		css`
+			.help {
+				font-size:0.75em;
+			}
+
+			.row {
+				display: flex;
+				flex-direction: row;
+				justify-content: space-between;
+			}
+
+			.row > div {
+				display: flex;
+				flex-direction: column;
+			}
+		`
+	];
+
 	innerRender() {
 		return html`
-			<style>
-				.help {
-					font-size:0.75em;
-				}
-
-				.row {
-					display: flex;
-					flex-direction: row;
-					justify-content: space-between;
-				}
-
-				.row > div {
-					display: flex;
-					flex-direction: column;
-				}
-			</style>
 			<label>Filters</label>
 			<ul>
 				${this._collectionDescription.filters.map((filterName, index) => html`<configure-collection-filter .value=${filterName} .index=${index} .filterDescriptions=${this._filterDescriptions} .cardTagInfos=${this._cardTagInfos} .userIDs=${this._userIDs} @filter-modified=${this._handleFilterModified} @filter-removed=${this._handleFilterRemoved}></configure-collection-filter>`)}
