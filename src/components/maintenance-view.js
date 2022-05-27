@@ -33,6 +33,7 @@ import './card-stage.js';
 class MaintenanceView extends connect(store)(PageViewElement) {
 
 	static styles = [
+		SharedStyles,
 		css`
 			.primary {
 				text-align:center;
@@ -95,7 +96,6 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 
 	render() {
 		return html`
-	  ${SharedStyles}
       <section class='${this._taskActive ? 'active' : ''}'>
 		<div class='scrim'>
 			<div>

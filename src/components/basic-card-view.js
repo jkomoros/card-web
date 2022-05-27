@@ -32,6 +32,7 @@ export const WINDOW_INJECT_FETCHED_CARD_NAME = 'injectFetchedCard';
 
 class BasicCardView extends connect(store)(PageViewElement) {
 	static  styles = [
+		SharedStyles,
 		css`
 			:host {
 				height: 100%;
@@ -47,7 +48,6 @@ class BasicCardView extends connect(store)(PageViewElement) {
 
 	render() {
 		return html`
-	  ${SharedStyles}
 	  <card-stage .card=${this._card} .presenting=${true} .loading=${this._cardBeingFetched || !this._cardsLoaded}></card-stage>
     `;
 	}

@@ -31,6 +31,7 @@ class CardDrawer extends LitElement {
 	static styles = [
 		ButtonSharedStyles,
 		ScrollingSharedStyles,
+		SharedStyles,
 		css`
 			:host {
 				max-height:100%;
@@ -89,7 +90,6 @@ class CardDrawer extends LitElement {
 
 	render() {
 		return html`
-			${SharedStyles}
 			<div ?hidden='${!this.showing}' class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
 				<div class='scrolling scroller'>
 					<div class='label' id='count'>

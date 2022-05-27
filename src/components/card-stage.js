@@ -23,6 +23,7 @@ class CardStage extends LitElement {
 
 	static styles = [
 		ButtonSharedStyles,
+		SharedStyles,
 		css`
 			:host, #canvas {
 				flex-grow: 1;
@@ -155,7 +156,6 @@ class CardStage extends LitElement {
 
 	render() {
 		return html`
-		${SharedStyles}
 		<div id='canvas' class="${this.presenting ? 'presenting' : ''} ${this.editing ? 'editing' : ''} ${this.mobile ? 'mobile' : ''} ${this.loading ? 'loading' : ''}">
 			<div id='portrait-message'>
 				<div>${SCREEN_ROTATION_ICON}</div>
