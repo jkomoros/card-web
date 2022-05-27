@@ -1,4 +1,5 @@
 import { LitElement, html } from 'lit';
+import { styleMap } from 'lit/directives/style-map.js';
 
 import {
 	cardBadges,
@@ -22,6 +23,11 @@ class CardPreview extends LitElement {
 		const positionLeft = (this.x + cardWidthInPixels) > window.innerWidth;
 		const positionUp = (this.y + cardHeightInPixels) > window.innerHeight;
 
+		const cardRendererStyles = {
+			// font-size is the primary way to affect the size of a card-renderer
+			fontSize: this.previewSize + 'px',
+		};
+
 		return html`
 		<style>
 			:host {
@@ -33,15 +39,9 @@ class CardPreview extends LitElement {
 				above e.g. dialogs, which are 1000 */
 				z-index: 10001;
 			}
-
-			card-renderer {
-				/* font-size is the primary way to affect the size of a card-renderer */
-				font-size: ${this.previewSize}px;
-			}
-
 	  </style>
       <div ?hidden='${!this.card}'>
-		<card-renderer .card=${this.card} .expandedReferenceBlocks=${this.expandedReferenceBlocks}></card-renderer>
+		<card-renderer .card=${this.card} .expandedReferenceBlocks=${this.expandedReferenceBlocks} style=${styleMap(cardRendererStyles)}></card-renderer>
 		${cardBadges(false, this.card, this.badgeMap)}
       </div>
     `;
