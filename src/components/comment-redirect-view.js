@@ -22,9 +22,6 @@ class CommentRedirectView extends connect(store)(PageViewElement) {
 
 	render() {
 		return html`
-			<style>
-
-			</style>
 			<div>
 				<h3>
 					Please wait while we redirect you to that comment...
