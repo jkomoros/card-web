@@ -75,6 +75,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 
 	static styles = [
 		badgeStyles,
+		ScrollingSharedStyles,
 		css`
 			:host {
 				display:block;
@@ -315,7 +316,6 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		}
 		return html`
 			${SharedStyles}
-			${ScrollingSharedStyles}
 			<style>
 				${Object.entries(this.editing ? {} : (this._card.font_size_boost || {})).map(entry => {
 		return html`[data-field=${entry[0]}] {
