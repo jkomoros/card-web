@@ -28,13 +28,14 @@ class CardPreview extends LitElement {
 			fontSize: this.previewSize + 'px',
 		};
 
+		//TODO: is it weird to have render() affect the inline styles of the parent?
+		this.style.left = (positionLeft ? (this.x - cardWidthInPixels - this.cardOffset) : (this.x + this.cardOffset)) + 'px';
+		this.style.top = (positionUp ? (this.y - cardHeightInPixels - this.cardOffset) : (this.y + this.cardOffset)) + 'px';
+
 		return html`
 		<style>
 			:host {
 				position:absolute;
-				left: ${positionLeft ? html`${this.x - cardWidthInPixels - this.cardOffset}` : html`${this.x + this.cardOffset}`}px;
-				top: ${positionUp ? html`${this.y - cardHeightInPixels - this.cardOffset}` : html`${this.y + this.cardOffset}`}px;
-
 				/* TODO: this z-index ia a bit of a hack to make sure it shows up
 				above e.g. dialogs, which are 1000 */
 				z-index: 10001;
