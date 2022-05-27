@@ -40,6 +40,7 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 class UserChip extends connect(store)(LitElement) {
 
 	static styles = [
+		ButtonSharedStyles,
 		css`
 			div {
 				display:flex;
@@ -66,7 +67,6 @@ class UserChip extends connect(store)(LitElement) {
 
 	render() {
 		return html`
-			${ButtonSharedStyles}
 			<div class='${this._pending ? 'pending' : ''}'>
 				${this._signedIn
 		? html`<span>${this._effectiveUser.displayName}</span><img title='${this._effectiveUser.displayName + ' - ' + this._effectiveUser.email + ' - Click to sign out'}' src='${this._effectiveUser.photoURL}' @click=${this._handleSignOutClick}>`

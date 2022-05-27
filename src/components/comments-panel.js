@@ -42,6 +42,7 @@ import {
 class CommentsPanel extends connect(store)(PageViewElement) {
 	
 	static styles = [
+		ButtonSharedStyles,
 		css`
 			:host {
 				overflow: hidden;
@@ -86,7 +87,6 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 	render() {
 		return html`
 	  	${SharedStyles}
-	  	${ButtonSharedStyles}
 	  	${ScrollingSharedStyles}
 
 	  <div ?hidden=${!this._open} class='container ${this._composedThreads.length ? '' : 'no-comments'}'>

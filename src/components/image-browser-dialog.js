@@ -27,6 +27,7 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 
 	static styles = [
 		DialogElement.styles,
+		ButtonSharedStyles,
 		css`
 			textarea {
 				flex-grow:1;
@@ -45,7 +46,6 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 
 	innerRender() {
 		return html`
-			${ButtonSharedStyles}
 			<label>Fully qualified src (e.g. including https://)</label>
 			<input type='text' id='src'></input>
 			<label>or...</label>

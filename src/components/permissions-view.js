@@ -47,6 +47,7 @@ import './permissions-editor.js';
 class PermissionsView extends connect(store)(PageViewElement) {
 
 	static styles = [
+		ButtonSharedStyles,
 		css`
 			:host {
 				height: 100%;
@@ -62,7 +63,6 @@ class PermissionsView extends connect(store)(PageViewElement) {
 	render() {
 		return html`
 	  ${SharedStyles}
-	  ${ButtonSharedStyles}
       <section>
         <h2>Permissions</h2>
         <p>This page is where permissions can be changed.</p>

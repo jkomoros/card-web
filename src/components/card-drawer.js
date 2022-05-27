@@ -29,6 +29,7 @@ import * as icons from './my-icons.js';
 
 class CardDrawer extends LitElement {
 	static styles = [
+		ButtonSharedStyles,
 		css`
 			:host {
 				max-height:100%;
@@ -88,7 +89,6 @@ class CardDrawer extends LitElement {
 	render() {
 		return html`
 			${SharedStyles}
-			${ButtonSharedStyles}
 			${ScrollingSharedStyles}
 			<div ?hidden='${!this.showing}' class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
 				<div class='scrolling scroller'>

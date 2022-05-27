@@ -13,6 +13,7 @@ import './tag-list.js';
 class ConfigureCollectionMultipleCards extends LitElement {
 
 	static styles = [
+		ButtonSharedStyles,
 		css`
 			:host {
 				display:inline-block;
@@ -27,7 +28,6 @@ class ConfigureCollectionMultipleCards extends LitElement {
 	render() {
 		let cardIDs = parseMultipleCardIDs(this.value);
 		return html`
-			${ButtonSharedStyles}
 			<div>
 				<tag-list .overrideTypeName=${'Card'} .tagInfos=${this.cardTagInfos} .tags=${cardIDs} .tapEvents=${true} .editing=${true} .disableSelect=${true} @tag-tapped=${this._handleTagTapped} @new-tag=${this._handleNewTag} @remove-tag=${this._handleRemoveTag}></tag-list>
 			</div>

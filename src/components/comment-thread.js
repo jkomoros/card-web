@@ -15,6 +15,7 @@ import {
 class CommentThread extends LitElement {
 
 	static styles = [
+		ButtonSharedStyles,
 		css`
 			.container {
 				padding: 0.5em;
@@ -53,7 +54,6 @@ class CommentThread extends LitElement {
 
 	render() {
 		return html`
-      	${ButtonSharedStyles}
 		<div class='container'>
 			<div class='buttons'>
 				<div class='flex'>

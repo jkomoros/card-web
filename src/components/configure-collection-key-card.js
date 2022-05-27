@@ -17,6 +17,7 @@ import './tag-list.js';
 class ConfigureCollectionKeyCard extends LitElement {
 
 	static styles = [
+		ButtonSharedStyles,
 		css`
 			:host {
 				display:inline-block;
@@ -31,7 +32,6 @@ class ConfigureCollectionKeyCard extends LitElement {
 	render() {
 		let [cardID, includeKeyCard] = parseKeyCardID(this.value);
 		return html`
-			${ButtonSharedStyles}
 			<div>
 				<input title='Include key card' type='checkbox' .checked=${includeKeyCard} @change=${this._handleKeyCardChanged}>
 				<tag-list .tagInfos=${this.cardTagInfos} .tags=${cardID ? [cardID] : []} .tapEvents=${true}></tag-list><button class='small' @click=${this._handleEditClicked}>${EDIT_ICON}</button>

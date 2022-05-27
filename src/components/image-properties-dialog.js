@@ -37,6 +37,7 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 
 	static styles = [
 		DialogElement.styles,
+		ButtonSharedStyles,
 		css`
 			textarea {
 				flex-grow:1;
@@ -67,7 +68,6 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 		const images = getImagesFromCard(this._card);
 		const img = images[this._index] || {};
 		return html`
-			${ButtonSharedStyles}
 			${img.uploadPath ? 
 		html`<label>Upload Path</label><em>${img.uploadPath || ''}<button class='small' title='Edit image' @click=${this._handleEditImage}>${EDIT_ICON}</button></em>` :
 		html`<label>Src</label><em>${img.src}<button class='small' title='Edit image' @click=${this._handleEditImage}>${EDIT_ICON}</button></em>`

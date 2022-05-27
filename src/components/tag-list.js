@@ -17,6 +17,7 @@ import {
 class TagList  extends LitElement {
 	
 	static styles = [
+		ButtonSharedStyles,
 		css`
 			select {
 				display:none;
@@ -41,7 +42,6 @@ class TagList  extends LitElement {
 		effectiveExcludeItems.forEach(item => excludeItemsAsMap[item] = true);
 		tagInfos = Object.fromEntries(Object.entries(tagInfos).filter(entry => !excludeItemsAsMap[entry[0]]));
 		return html`
-		${ButtonSharedStyles}
 			<div class='${this.editing ? 'editing' : ''} ${this.subtle ? 'subtle' :''}'>
 			${allTags && allTags.length ?
 		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} .defaultColor=${this.defaultColor} .disabled=${this.disableTagIfMissingTagInfo && this.tagInfos && !this.tagInfos[item]} .disabledDescription=${this.disabledDescription || 'Disabled'} .tapEvents=${this.tapEvents} .subtle=${this.subtle || (this.subtleTags && this.subtleTags[item])}></tag-chip>`) :

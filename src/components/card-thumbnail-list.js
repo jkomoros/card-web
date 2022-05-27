@@ -48,6 +48,7 @@ const OFFSET_CHUNKS = [250, 100, 50, 25, 10, 5, 1];
 class CardThumbnailList  extends connect(store)(LitElement) {
 
 	static styles = [
+		ButtonSharedStyles,
 		css`
 			:host {
 				width: 100%;
@@ -221,7 +222,6 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	render() {
 		return html`
-			${ButtonSharedStyles}
 			${cardBadgesStyles}
 			${this.renderOffset ? html`<div class='row'><button id='prev' class='small' title='Previous cards' @click=${this._handlePreviousClicked}>${ARROW_UPWARD_ICON}</button><label class='interactive' for='prev'>Previous ${this._offsetChunk} cards</label></div>` : ''}
 			<div class='${this._dragging ? 'dragging' : ''} ${this.grid ? 'grid' : ''}'>

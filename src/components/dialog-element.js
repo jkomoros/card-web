@@ -11,6 +11,7 @@ import {
 export class DialogElement extends LitElement {
 
 	static styles = [
+		ButtonSharedStyles,
 		css`
 			:host {
 				position:absolute;
@@ -95,7 +96,6 @@ export class DialogElement extends LitElement {
 	render() {
 		return html`
 			${SharedStyles}
-			${ButtonSharedStyles}
 			<div class='container ${this.open ? 'open' : 'closed'}'>
 				<div class='background ${this.mobileMode ? 'mobile': ''}' @click=${this._handleBackgroundClicked}>
 					<div class='content'>

@@ -131,6 +131,7 @@ import './card-images-editor.js';
 class CardEditor extends connect(store)(LitElement) {
 
 	static styles = [
+		ButtonSharedStyles,
 		css`
 			:host {
 			position:relative;
@@ -300,7 +301,6 @@ class CardEditor extends connect(store)(LitElement) {
 		const referencesMap = references(this._card).byTypeArray();
 
 		return html`
-	  ${ButtonSharedStyles}
 	  ${HelpStyles}
       <div class='container ${this._cardModificationPending ? 'modification-pending' : ''}'>
 		<div class='scrim'></div>

@@ -87,6 +87,7 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	static styles = [
 		DialogElement.styles,
+		ButtonSharedStyles,
 		css`
 			card-drawer {
 				font-size:14px;
@@ -118,7 +119,6 @@ class FindDialog extends connect(store)(DialogElement) {
 		const isLink = savedSelectionRangeIsLink();
 
 		return html`
-		${ButtonSharedStyles}
 		<form @submit=${this._handleFormSubmitted}>
 			<div>
 				${this._legalCardTypeFilters.length > 1 ? html`<span>Card type:</span>
