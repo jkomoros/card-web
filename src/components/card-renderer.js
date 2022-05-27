@@ -316,13 +316,6 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			}
 		}
 		return html`
-			<style>
-				${Object.entries(this.editing ? {} : (this._card.font_size_boost || {})).map(entry => {
-		return html`[data-field=${entry[0]}] {
-						font-size: ${1.0 + entry[1]}em;
-					}`;
-	})}
-			</style>
 			${unsafeStatic(styleBlock)}
 			<div class="container ${this.editing ? 'editing' : ''} ${this._card.published ? 'published' : 'unpublished'} ${cardType}">
 				<div class='background'></div>
@@ -491,6 +484,13 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			ele.field = field;
 			ele.dataset.field = field;
 		}
+
+		//Add or remove a font size boost if there is one for this card and fieldName.
+		let fontSizeBoost = '';
+		if (!this.editing && this._card.font_size_boost && this._card.font_size_boost[field]) {
+			fontSizeBoost = (1.0 + this._card.font_size_boost[field]) + 'em';
+		}
+		ele.style.fontSize = fontSizeBoost;
 
 		if (!value && config.hideIfEmpty) {
 			ele.setAttribute('hidden', '');
