@@ -1,4 +1,4 @@
-import { html } from 'lit';
+import { html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -24,23 +24,28 @@ import {
 } from './my-icons.js';
 
 class ImageBrowserDialog extends connect(store)(DialogElement) {
+
+	static styles = [
+		DialogElement.styles,
+		ButtonSharedStyles,
+		css`
+			textarea {
+				flex-grow:1;
+				width:100%;
+			}
+			.buttons {
+				display:flex;
+				flex-direction: row;
+				justify-content:flex-end;
+			}
+			h3 {
+				font-weight:normal;
+			}
+		`
+	];
+
 	innerRender() {
 		return html`
-			${ButtonSharedStyles}
-			<style>
-				textarea {
-					flex-grow:1;
-					width:100%;
-				}
-				.buttons {
-					display:flex;
-					flex-direction: row;
-					justify-content:flex-end;
-				}
-				h3 {
-					font-weight:normal;
-				}
-			</style>
 			<label>Fully qualified src (e.g. including https://)</label>
 			<input type='text' id='src'></input>
 			<label>or...</label>

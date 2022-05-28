@@ -1,4 +1,5 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
+import { styleMap } from 'lit/directives/style-map.js';
 
 import {
 	cardBadges,
@@ -11,33 +12,37 @@ import {
 } from './card-renderer.js';
 
 class CardPreview extends LitElement {
+
+	static styles = [
+		cardBadgesStyles,
+		css`
+			:host {
+				position:absolute;
+				/* TODO: this z-index ia a bit of a hack to make sure it shows up
+				above e.g. dialogs, which are 1000 */
+				z-index: 10001;
+			}
+		`
+	];
+
 	render() {
 		const cardWidthInPixels = CARD_WIDTH_IN_EMS * this.previewSize;
 		const cardHeightInPixels = CARD_HEIGHT_IN_EMS * this.previewSize;
 		const positionLeft = (this.x + cardWidthInPixels) > window.innerWidth;
 		const positionUp = (this.y + cardHeightInPixels) > window.innerHeight;
 
+		const cardRendererStyles = {
+			// font-size is the primary way to affect the size of a card-renderer
+			fontSize: this.previewSize + 'px',
+		};
+
+		//TODO: is it weird to have render() affect the inline styles of the parent?
+		this.style.left = (positionLeft ? (this.x - cardWidthInPixels - this.cardOffset) : (this.x + this.cardOffset)) + 'px';
+		this.style.top = (positionUp ? (this.y - cardHeightInPixels - this.cardOffset) : (this.y + this.cardOffset)) + 'px';
+
 		return html`
-		<style>
-			:host {
-				position:absolute;
-				left: ${positionLeft ? html`${this.x - cardWidthInPixels - this.cardOffset}` : html`${this.x + this.cardOffset}`}px;
-				top: ${positionUp ? html`${this.y - cardHeightInPixels - this.cardOffset}` : html`${this.y + this.cardOffset}`}px;
-
-				/* TODO: this z-index ia a bit of a hack to make sure it shows up
-				above e.g. dialogs, which are 1000 */
-				z-index: 10001;
-			}
-
-			card-renderer {
-				/* font-size is the primary way to affect the size of a card-renderer */
-				font-size: ${this.previewSize}px;
-			}
-
-	  </style>
-	  ${cardBadgesStyles}
       <div ?hidden='${!this.card}'>
-		<card-renderer .card=${this.card} .expandedReferenceBlocks=${this.expandedReferenceBlocks}></card-renderer>
+		<card-renderer .card=${this.card} .expandedReferenceBlocks=${this.expandedReferenceBlocks} style=${styleMap(cardRendererStyles)}></card-renderer>
 		${cardBadges(false, this.card, this.badgeMap)}
       </div>
     `;

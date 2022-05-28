@@ -1,4 +1,4 @@
-import { html } from 'lit';
+import { html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -84,13 +84,11 @@ import {
 } from '../util.js';
 
 class FindDialog extends connect(store)(DialogElement) {
-	innerRender() {
 
-		const isLink = savedSelectionRangeIsLink();
-
-		return html`
-		${ButtonSharedStyles}
-		<style>
+	static styles = [
+		DialogElement.styles,
+		ButtonSharedStyles,
+		css`
 			card-drawer {
 				font-size:14px;
 			}
@@ -113,7 +111,14 @@ class FindDialog extends connect(store)(DialogElement) {
 				bottom: 0.5em;
 				right: 0.5em;
 			}
-		</style>
+		`
+	];
+
+	innerRender() {
+
+		const isLink = savedSelectionRangeIsLink();
+
+		return html`
 		<form @submit=${this._handleFormSubmitted}>
 			<div>
 				${this._legalCardTypeFilters.length > 1 ? html`<span>Card type:</span>

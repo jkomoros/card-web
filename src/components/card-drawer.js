@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 
 import './card-renderer.js';
 import './word-cloud.js';
@@ -28,65 +28,68 @@ import {
 import * as icons from './my-icons.js';
 
 class CardDrawer extends LitElement {
+	static styles = [
+		ButtonSharedStyles,
+		ScrollingSharedStyles,
+		SharedStyles,
+		css`
+			:host {
+				max-height:100%;
+			}
+
+			.container {
+				height:100%;
+				display:flex;
+				flex-direction:column;
+			}
+
+			.container.grid {
+				width:100%;
+			}
+
+			.scrolling {
+				max-height:100%;
+				flex-grow:1;
+			}
+
+			.buttons {
+				position: absolute;
+				display:flex;
+				left: 1em;
+				bottom: 1em;
+			}
+
+			.reordering {
+				opacity:0.7;
+			}
+
+			.label {
+				color: var(--app-dark-text-color);
+				font-weight:normal;
+				margin:0.5em;
+			}
+
+			.label span {
+				/* can't be on .label itself because then it affects margin */
+				font-size:0.7em;
+			}
+
+			.grid #count {
+				width: 100%;
+			}
+
+			#count {
+				text-align: center;
+				margin-top: 0;
+				margin-bottom: 0;
+				/* tag-list can get wide, but keep it thin */
+				width: 12em;
+			}
+		`
+	];
+
 	render() {
 		return html`
-			${SharedStyles}
-			${ButtonSharedStyles}
-			${ScrollingSharedStyles}
-			<style>
-				:host {
-					max-height:100%;
-				}
-
-				.container {
-					height:100%;
-					display:flex;
-					flex-direction:column;
-				}
-
-				.container.grid {
-					width:100%;
-				}
-
-				.scrolling {
-					max-height:100%;
-					flex-grow:1;
-				}
-
-				.buttons {
-					position: absolute;
-					display:flex;
-					left: 1em;
-					bottom: 1em;
-				}
-
-				.reordering {
-					opacity:0.7;
-				}
-
-				.label {
-					color: var(--app-dark-text-color);
-					font-weight:normal;
-					margin:0.5em;
-				}
-
-				.label span {
-					/* can't be on .label itself because then it affects margin */
-					font-size:0.7em;
-				}
-
-				.grid #count {
-					width: 100%;
-				}
-
-				#count {
-					text-align: center;
-					margin-top: 0;
-					margin-bottom: 0;
-					/* tag-list can get wide, but keep it thin */
-					width: 12em;
-				}
-			</style>
 			<div ?hidden='${!this.showing}' class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
 				<div class='scrolling scroller'>
 					<div class='label' id='count'>

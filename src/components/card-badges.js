@@ -1,4 +1,4 @@
-import { html } from 'lit';
+import { html, css } from 'lit';
 
 import {
 	PLAYLISLT_ADD_CHECK_ICON,
@@ -27,92 +27,88 @@ export const starBadge = (count, highlighted) => {
 	return badge('star-count', STAR_ICON, count, highlighted);
 };
 
-export const badgeStyles =  html`
-	<style>
-		.badge {
-				display:block;
-				font-size:0.8em;
+export const badgeStyles =  css`
+	.badge {
+			display:block;
+			font-size:0.8em;
+	}
+
+	.badge[hidden] {
+		display:none;
+	}
+
+		.badge > div {
+			display:flex;
+			flex-direction:row;
+			align-items:center;
+			color: var(--app-dark-text-color-light);
 		}
 
-		.badge[hidden] {
-			display:none;
+		.light {
+			color: var(--app-light-text-color);
 		}
 
-			.badge > div {
-				display:flex;
-				flex-direction:row;
-				align-items:center;
-				color: var(--app-dark-text-color-light);
-			}
+		.badge.highlighted {
+			color: var(--app-primary-color-subtle);
+		}
 
-			.light {
-				color: var(--app-light-text-color);
-			}
+		.light .badge.highlighted {
+			color: var(--app-primary-color-light);
+		}
 
-			.badge.highlighted {
-				color: var(--app-primary-color-subtle);
-			}
+		.badge svg {
+			height: 1em;
+			width: 1em;
+			fill: var(--app-dark-text-color-light);
+		}
 
-			.light .badge.highlighted {
-				color: var(--app-primary-color-light);
-			}
+		.light svg {
+			fill: var(--app-light-text-color);
+		}
 
-			.badge svg {
-				height: 1em;
-				width: 1em;
-				fill: var(--app-dark-text-color-light);
-			}
+		.badge.highlighted svg {
+			fill: var(--app-primary-color-subtle);
+		}
 
-			.light svg {
-				fill: var(--app-light-text-color);
-			}
-
-			.badge.highlighted svg {
-				fill: var(--app-primary-color-subtle);
-			}
-
-			.light .badge.highlighted {
-				fill: var(--app-primary-color-light);
-			}
-	</style>
+		.light .badge.highlighted {
+			fill: var(--app-primary-color-light);
+		}
 `;
 
-export const cardBadgesStyles = html`
-      <style>
-		.badges-container {
-			position:absolute;
-			top: 0;
-			left: 0;
-			height: 100%;
-			width: 100%;
-		}
+export const cardBadgesStyles = css`
+	.badges-container {
+		position:absolute;
+		top: 0;
+		left: 0;
+		height: 100%;
+		width: 100%;
+	}
 
-		.badges-container .top-right {
-			position:absolute;
-			top: 0.25em;
-			right: 0.25em;
-			display: flex;
-		}
+	.badges-container .top-right {
+		position:absolute;
+		top: 0.25em;
+		right: 0.25em;
+		display: flex;
+	}
 
-		.badges-container .read {
-			position:absolute;
-			left: 0.25em;
-			top: 0.25em;
-		}
+	.badges-container .read {
+		position:absolute;
+		left: 0.25em;
+		top: 0.25em;
+	}
 
-		.badges-container .bottom-right {
-			position:absolute;
-			bottom:0.25em;
-			right: 0.25em;
-		}
+	.badges-container .bottom-right {
+		position:absolute;
+		bottom:0.25em;
+		right: 0.25em;
+	}
 
-		.badges-container .reading-list {
-			position: absolute;
-			bottom:0.25em;
-			left: 0.25em;
-		}
-		</style>
-		${badgeStyles}
+	.badges-container .reading-list {
+		position: absolute;
+		bottom:0.25em;
+		left: 0.25em;
+	}
+	${badgeStyles}
 `;
 
 //badgeMap is the result of selectBadgeMap (or null is fine); Warning: you also need to embed cardBadgeStyles at least once

@@ -1,5 +1,5 @@
 
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -38,38 +38,42 @@ import {
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 class UserChip extends connect(store)(LitElement) {
+
+	static styles = [
+		ButtonSharedStyles,
+		css`
+			div {
+				display:flex;
+				justify-content:center;
+				align-items:center;
+			}
+			img {
+				--user-image-size: 36px;
+				height:var(--user-image-size);
+				width: var(--user-image-size);
+				border-radius:calc(var(--user-image-size) / 2);
+				margin: calc(var(--user-image-size) / 4);
+				cursor:pointer;
+			}
+			img:hover {
+				opacity:0.5;
+				filter: saturate(0%);
+			}
+			div.pending {
+				font-style:italic;
+			}
+		`
+	];
+
 	render() {
 		return html`
-      ${ButtonSharedStyles}
-      <style>
-        div {
-          display:flex;
-          justify-content:center;
-          align-items:center;
-        }
-        img {
-          --user-image-size: 36px;
-          height:var(--user-image-size);
-          width: var(--user-image-size);
-          border-radius:calc(var(--user-image-size) / 2);
-          margin: calc(var(--user-image-size) / 4);
-          cursor:pointer;
-        }
-        img:hover {
-          opacity:0.5;
-          filter: saturate(0%);
-        }
-        div.pending {
-          font-style:italic;
-        }
-      </style>
-      <div class='${this._pending ? 'pending' : ''}'>
-        ${this._signedIn
+			<div class='${this._pending ? 'pending' : ''}'>
+				${this._signedIn
 		? html`<span>${this._effectiveUser.displayName}</span><img title='${this._effectiveUser.displayName + ' - ' + this._effectiveUser.email + ' - Click to sign out'}' src='${this._effectiveUser.photoURL}' @click=${this._handleSignOutClick}>`
 		: html`<span>Sign in with your Google Account</span><button class='round' @click=${this._handleSignInClick}>${PERSON_ICON}</button>`
 }
-      </div>
-      `;
+			</div>
+	  	`;
 	}
 
 	firstUpdated() {

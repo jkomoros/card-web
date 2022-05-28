@@ -102,6 +102,12 @@ export const CONCEPT_DEFAULT_BODY = 'This is a concept card. The following cards
 export const WORK_DEFAULT_BODY = 'This is a card about a work (e.g. a book, article, tweet). The following cards cite this work.';
 export const PERSON_DEFAULT_BODY = 'This is a card about a person. The following cards cite this person.';
 
+//styleBlockForCardType returns a style block appropriate for being run through
+//lit-css and used to add styles that will only be activated for cards of a
+//given type. selectors is an object of css selector to an array of individual
+//style lines, with or without a trailing ';'.
+const styleBlockForCardType = (cardType, selectors) => Object.entries(selectors).map(selectorEntry => '.container.' + cardType + ' ' + selectorEntry[0] + ' {\n' + selectorEntry[1].map(propertyEntry => '\t' + propertyEntry + (propertyEntry.endsWith(';') ? '' : (!propertyEntry.startsWith('/') ? ';' : ''))).join('\n') + '\n}\n').join('\n');
+
 /*
 
 invertContentPublishWarning: if true, then the 'There's content but unpublished,
@@ -118,9 +124,10 @@ content is the reference list. If this is true, then trying to save the card if
 it's not published will always warn.
 
 styleBlock: if provided, will be rendered as the style block in the card
-renderer when this card type is selected. A string that will be run through html
-tag. This isn't an html tag to avoid having heavyweight imports so this can be
-included in tests.
+renderer when this card type is selected. A string that will be run through css
+tag. This isn't an css tag to avoid having heavyweight imports so this can be
+included in tests. You should use styleBlockForCardType to generate the string,
+so that the right selector guards and indentation are added.
 
 dark: if true, the card is considered dark, and styles for e.g. thumbnails,
 including badge color, will swap.
@@ -150,46 +157,42 @@ export const CARD_TYPE_CONFIGURATION = {
 	[CARD_TYPE_SECTION_HEAD]: {
 		description: 'A section head for a section or tag. You typically don\'t create these manually',
 		dark: true,
-		styleBlock: String.raw`
-			<style>
-				.background {
-					position:absolute;
-					display:block;
-					height:50%;
-					bottom:0;
-					width:100%;
-					background-color: var(--app-primary-color);
-					/* counteract the padding in the base card */
-					margin-left:-1.45em;
-				}
-				h1 {
-					font:var(--app-header-font-family);
-					font-weight:bold;
-					font-size:3.0em;
-					margin-top:2.25em;
-				}
-				h2 {
-					color: var(--app-primary-color-subtle);
-					font-size:1.2em;
-					font-weight:normal;
-					position:absolute;
-					bottom:1em;
-				}
-			</style>
-		`
+		styleBlock: styleBlockForCardType(CARD_TYPE_SECTION_HEAD, {
+			'.background': [
+				'position: absolute',
+				'display: block',
+				'height: 50%',
+				'bottom: 0',
+				'width: 100%',
+				'background-color: var(--app-primary-color)',
+				'/* counteract the padding in the base card */',
+				'margin-left:-1.45em'
+			],
+			'h1': [
+				'font:var(--app-header-font-family);',
+				'font-weight:bold;',
+				'font-size:3.0em;',
+				'margin-top:2.25em;',
+			],
+			'h2': [
+				'color: var(--app-primary-color-subtle);',
+				'font-size:1.2em;',
+				'font-weight:normal;',
+				'position:absolute;',
+				'bottom:1em;'
+			],
+		})
 	},
 	[CARD_TYPE_WORKING_NOTES]: {
 		description: 'A card of private rough notes, to later be forked and developed into one or more content cards',
 		invertContentPublishWarning: true,
 		orphanedByDefault: true,
-		styleBlock: `
-		<style>
-			section {
-				font-size:0.8em;
-				line-height:1.2;
-			}
-		</style>
-		`,
+		styleBlock: styleBlockForCardType(CARD_TYPE_WORKING_NOTES, {
+			'section': [
+				'font-size:0.8em;',
+				'line-height:1.2;',
+			]
+		}),
 		iconName: 'INSERT_DRIVE_FILE_ICON',
 	},
 	[CARD_TYPE_CONCEPT]: {

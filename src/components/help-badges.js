@@ -1,4 +1,4 @@
-import { html } from 'lit';
+import { html, css } from 'lit';
 
 import {
 	WARNING_ICON,
@@ -10,16 +10,14 @@ export const help = (message, isAlert) => {
 	return html`<span class='help' title="${message}">${isAlert ? WARNING_ICON : HELP_ICON}</span>`;
 };
 
-export const HelpStyles =  html`
-	<style>
-		.help {
-			margin-left:0.4em;
-		}
+export const HelpStyles =  css`
+	.help {
+		margin-left:0.4em;
+	}
 
-		.help svg {
-			height:1.3em;
-			width:1.3em;
-			fill: var(--app-dark-text-color-subtle);
-		}
-	</style>
+	.help svg {
+		height:1.3em;
+		width:1.3em;
+		fill: var(--app-dark-text-color-subtle);
+	}
 `;

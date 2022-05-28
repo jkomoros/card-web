@@ -1,4 +1,4 @@
-import { html, LitElement } from 'lit';
+import { html, LitElement, css } from 'lit';
 
 import {
 	SCREEN_ROTATION_ICON,
@@ -20,12 +20,11 @@ import {
 } from '../card_fields.js';
 
 class CardStage extends LitElement {
-	render() {
-		return html`
-		${SharedStyles}
-		${ButtonSharedStyles}
-		<style>
 
+	static styles = [
+		ButtonSharedStyles,
+		SharedStyles,
+		css`
 			:host, #canvas {
 				flex-grow: 1;
 				display:flex;
@@ -152,8 +151,11 @@ class CardStage extends LitElement {
 					margin:0.5em;
 				}
 			}
+		`
+	];
 
-		</style>
+	render() {
+		return html`
 		<div id='canvas' class="${this.presenting ? 'presenting' : ''} ${this.editing ? 'editing' : ''} ${this.mobile ? 'mobile' : ''} ${this.loading ? 'loading' : ''}">
 			<div id='portrait-message'>
 				<div>${SCREEN_ROTATION_ICON}</div>

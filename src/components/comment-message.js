@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 
 import './author-chip.js';
 
@@ -21,36 +21,40 @@ import {
 
 // This element is *not* connected to the Redux store.
 class CommentMessage extends LitElement {
+	
+	static styles = [
+		css`
+			:host {
+				font-size: 0.85em;
+				display:block;
+				border-bottom:1px solid var(--app-divider-color);
+				width:100%;
+				padding-bottom:0.25em;
+				margin-bottom:0.25em;
+			}
+
+			.container {
+				width:100%;
+			}
+			span {
+				color: var(--app-dark-text-color-light);
+			}
+			.row {
+				display:flex;
+				flex-direction:row;
+				align-items:center;
+				width:100%;
+			}
+
+			.row author-chip {
+				flex-grow:1;
+			}
+		`
+	];
+
 	render() {
 		return html`
 			${ ButtonSharedStyles }
-			<style>
-				:host {
-					font-size: 0.85em;
-					display:block;
-					border-bottom:1px solid var(--app-divider-color);
-					width:100%;
-					padding-bottom:0.25em;
-					margin-bottom:0.25em;
-				}
-
-				.container {
-					width:100%;
-				}
-				span {
-					color: var(--app-dark-text-color-light);
-				}
-				.row {
-					display:flex;
-					flex-direction:row;
-					align-items:center;
-					width:100%;
-				}
-
-				.row author-chip {
-					flex-grow:1;
-				}
-			</style>
 			<div class='container'>
 				<div class='row'>
 					<author-chip .author=${this.message.author}></author-chip>

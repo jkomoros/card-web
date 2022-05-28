@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 
 import {
 	EDIT_ICON
@@ -15,19 +15,23 @@ import './tag-list.js';
 
 // This element is *not* connected to the Redux store.
 class ConfigureCollectionKeyCard extends LitElement {
+
+	static styles = [
+		ButtonSharedStyles,
+		css`
+			:host {
+				display:inline-block;
+			}
+			div {
+				display:flex;
+				flex-direction: row;
+			}
+		`
+	];
+
 	render() {
 		let [cardID, includeKeyCard] = parseKeyCardID(this.value);
 		return html`
-			<style>
-				:host {
-					display:inline-block;
-				}
-				div {
-					display:flex;
-					flex-direction: row;
-				}
-			</style>
-			${ButtonSharedStyles}
 			<div>
 				<input title='Include key card' type='checkbox' .checked=${includeKeyCard} @change=${this._handleKeyCardChanged}>
 				<tag-list .tagInfos=${this.cardTagInfos} .tags=${cardID ? [cardID] : []} .tapEvents=${true}></tag-list><button class='small' @click=${this._handleEditClicked}>${EDIT_ICON}</button>

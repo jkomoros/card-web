@@ -1,5 +1,5 @@
 
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 
 import './tag-chip.js';
 
@@ -15,6 +15,19 @@ import {
 } from '../util.js';
 
 class TagList  extends LitElement {
+	
+	static styles = [
+		ButtonSharedStyles,
+		css`
+			select {
+				display:none;
+			}
+			.editing select {
+				display:inline;
+			}
+		`
+	];
+	
 	render() {
 		let effectiveTags = this.tags || [];
 		let effectivePreviousTags = this.previousTags ? (this.previousTags.length ? this.previousTags : []) : effectiveTags;
@@ -29,15 +42,6 @@ class TagList  extends LitElement {
 		effectiveExcludeItems.forEach(item => excludeItemsAsMap[item] = true);
 		tagInfos = Object.fromEntries(Object.entries(tagInfos).filter(entry => !excludeItemsAsMap[entry[0]]));
 		return html`
-		${ButtonSharedStyles}
-			<style>
-				select {
-					display:none;
-				}
-				.editing select {
-					display:inline;
-				}
-			</style>
 			<div class='${this.editing ? 'editing' : ''} ${this.subtle ? 'subtle' :''}'>
 			${allTags && allTags.length ?
 		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} .defaultColor=${this.defaultColor} .disabled=${this.disableTagIfMissingTagInfo && this.tagInfos && !this.tagInfos[item]} .disabledDescription=${this.disabledDescription || 'Disabled'} .tapEvents=${this.tapEvents} .subtle=${this.subtle || (this.subtleTags && this.subtleTags[item])}></tag-chip>`) :

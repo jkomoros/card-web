@@ -1,4 +1,4 @@
-import { html } from 'lit';
+import { html, css } from 'lit';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -45,21 +45,24 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 import './permissions-editor.js';
 
 class PermissionsView extends connect(store)(PageViewElement) {
+
+	static styles = [
+		ButtonSharedStyles,
+		SharedStyles,
+		css`
+			:host {
+				height: 100%;
+				overflow: scroll; 
+			}
+
+			section {
+				margin: 1em;
+			}
+		`
+	];
+
 	render() {
 		return html`
-	  ${SharedStyles}
-	  ${ButtonSharedStyles}
-	  <style>
-
-		:host {
-			height: 100%;
-			overflow: scroll; 
-		}
-
-		section {
-			margin: 1em;
-		}
-	  </style>
       <section>
         <h2>Permissions</h2>
         <p>This page is where permissions can be changed.</p>

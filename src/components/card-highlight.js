@@ -1,5 +1,5 @@
 
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store so it can render visited links
@@ -18,9 +18,10 @@ import {
 } from '../util.js';
 
 class CardHighlight extends connect(store)(LitElement) {
-	render() {
 
-		return html`<style>
+	static get styles() {
+		return [
+			css`
 				:host {
 					display:inline;
 					margin:0;
@@ -63,8 +64,13 @@ class CardHighlight extends connect(store)(LitElement) {
 					text-decoration: none;
 					color: var(--app-dark-text-color);
 				}
-				/* the following is all on one line to avoid extra whitespace that would lead to gaps between the text and punctuation */
-			</style><span class='${this.disabled ? 'disabled' : 'enabled'} ${this.alternate ? 'alternate' : ''} ${this.card == this._hoverCardID ? 'hover' : ''}' @mousedown=${this._handleMouseDown} @mousemove=${this._handleMouseMove}>${this.disabled ? html`<slot></slot>` : html`<a href=${this._href}><slot></slot></a>`}</span>`;
+			`
+		];
+	}
+
+	render() {
+		/* the following is all on one line to avoid extra whitespace that would lead to gaps between the text and punctuation */
+		return html`<span class='${this.disabled ? 'disabled' : 'enabled'} ${this.alternate ? 'alternate' : ''} ${this.card == this._hoverCardID ? 'hover' : ''}' @mousedown=${this._handleMouseDown} @mousemove=${this._handleMouseMove}>${this.disabled ? html`<slot></slot>` : html`<a href=${this._href}><slot></slot></a>`}</span>`;
 	}
 
 	static get properties() {

@@ -1,5 +1,5 @@
 
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -38,57 +38,59 @@ const MODIFIABLE_PERMISSIONS = Object.fromEntries(Object.entries(ALL_PERMISSIONS
 const LOCKED_PERMISSIONS = Object.fromEntries(Object.entries(ALL_PERMISSIONS).filter(entry => entry[1].locked));
 
 class PermissionsEditor extends connect(store)(LitElement) {
+
+	static styles = [
+		css`
+			:host {
+				display: block;
+				margin-top: 1em;
+			}
+
+			p {
+				margin: 0;
+			}
+
+			.container {
+				color: var(--app-dark-text-color-subtle);
+			}
+
+			.editable {
+				color: var(--app-dark-text-color);
+			}
+
+			.edit {
+				cursor: pointer;
+			}
+
+			[hidden] {
+				display: none;
+			}
+
+			div {
+				margin-left: 1em;
+			}
+
+			svg {
+				height:1.3em;
+				width:1.3em;
+				fill: var(--app-dark-text-color-subtle);
+			}
+
+			svg:hover {
+				fill: var(--app-dark-text-color);
+			}
+
+			tag-list {
+				display: inline-block;
+			}
+		`
+	];
+
 	render() {
 		const lockedPermissionColor = '#7f7f7f';
 		const enabledPermissionColor = '#006400'; //darkgreen
 
 		return html`
-			<style>
-
-				:host {
-					display: block;
-					margin-top: 1em;
-				}
-
-				p {
-					margin: 0;
-				}
-
-				.container {
-					color: var(--app-dark-text-color-subtle);
-				}
-
-				.editable {
-					color: var(--app-dark-text-color);
-				}
-
-				.edit {
-					cursor: pointer;
-				}
-
-				[hidden] {
-					display: none;
-				}
-
-				div {
-					margin-left: 1em;
-				}
-
-				svg {
-					height:1.3em;
-					width:1.3em;
-					fill: var(--app-dark-text-color-subtle);
-				}
-
-				svg:hover {
-					fill: var(--app-dark-text-color);
-				}
-
-				tag-list {
-					display: inline-block;
-				}
-
-			</style>
 			<div class="container ${this._editable ? 'editable' : ''}">
 				<p><strong>${this._title}</strong> ${this.description ? html`<em>${this.description}</em>` : ''}&nbsp;&nbsp;&nbsp;<strong>Notes</strong> ${this._effectivePermissions.notes || html`<em>No notes</em>`} <span class='edit' ?hidden=${!this._editable} @click=${this._handleEditNotes}>${EDIT_ICON}</span><span class='edit' ?hidden=${!this._editable} @click=${this._handleDelete}>${DELETE_FOREVER_ICON}</span></p>
 				<tag-list .tags=${this._enabledLockedPermissions} .tagInfos=${LOCKED_PERMISSIONS} .overrideTypeName=${'Permission'} .defaultColor=${lockedPermissionColor} .hideOnEmpty=${true}></tag-list>

@@ -1,5 +1,5 @@
 
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store so it can render visited links
@@ -14,7 +14,7 @@ import {
 
 import { toggleOnReadingList } from '../actions/user.js';
 
-import { 
+import {
 	PAGE_DEFAULT, 
 	PAGE_BASIC_CARD
 } from '../actions/app.js';
@@ -27,86 +27,90 @@ import {
 import * as icons from './my-icons.js';
 
 class CardLink extends connect(store)(LitElement) {
+	
+	static styles = [
+		css`
+			:host {
+				display:inline;
+			}
+
+			/* cards that do not exist are likely unpublished and invisible to this user*/
+			a.card.does-not-exist {
+				color: inherit;
+				fill: inherit;
+				text-decoration: none;
+				cursor:inherit;
+			}
+
+			a {
+				color: var(--app-primary-color);
+			}
+
+			a svg{
+				height: 0.9em;
+				width: 0.9em;
+			}
+
+			a.strong {
+				/* It's a bit weird to have styling passed as a property on
+				the link, but for some reason the linter was complaining
+				about the ways of passing style in card-info-panel so
+				whatever.
+				*/
+				font-weight:bold;
+			}
+
+			a.card.reading-list {
+				text-decoration-style: double;
+			}
+
+			a:visited {
+				color: var(--app-primary-color-light);
+				fill: var(--app-primary-color-light);
+			}
+
+			a.card.exists {
+				color: var(--app-secondary-color);
+				fill: var(--app-secondary-color);
+			}
+
+			a.no-navigate {
+				cursor: default;
+			}
+
+			a.card.exists:visited, a.card.exists.read, a.card.no-navigate {
+				color: var(--app-secondary-color-light);
+				fill: var(--app-secondary-color-light);
+			}
+
+			a.card.exists.unpublished {
+				color: var(--app-warning-color);
+				fill: var(--app-warning-color);
+			}
+
+			a.card.exists.unpublished:visited, a.card.exists.read.unpublished {
+				color: var(--app-warning-color-light);
+				fill: var(--app-warning-color-light);
+			}
+
+			a {
+				cursor: var(--card-link-cursor, pointer);
+			}
+
+			a.add-reading-list {
+				cursor: var(--card-link-cursor, copy);
+			}
+
+			a.not-content {
+				font-style: italic;
+			}
+
+		`
+	];
+	
 	render() {
 
 		return html`
-			<style>
-				:host {
-					display:inline;
-				}
-
-				/* cards that do not exist are likely unpublished and invisible to this user*/
-				a.card.does-not-exist {
-					color: inherit;
-					fill: inherit;
-					text-decoration: none;
-					cursor:inherit;
-				}
-
-				a {
-					color: var(--app-primary-color);
-				}
-
-				a svg{
-					height: 0.9em;
-					width: 0.9em;
-				}
-
-				a.strong {
-					/* It's a bit weird to have styling passed as a property on
-					the link, but for some reason the linter was complaining
-					about the ways of passing style in card-info-panel so
-					whatever.
-					*/
-					font-weight:bold;
-				}
-
-				a.card.reading-list {
-					text-decoration-style: double;
-				}
-
-				a:visited {
-					color: var(--app-primary-color-light);
-					fill: var(--app-primary-color-light);
-				}
-
-				a.card.exists {
-					color: var(--app-secondary-color);
-					fill: var(--app-secondary-color);
-				}
-
-				a.no-navigate {
-					cursor: default;
-				}
-
-				a.card.exists:visited, a.card.exists.read, a.card.no-navigate {
-					color: var(--app-secondary-color-light);
-					fill: var(--app-secondary-color-light);
-				}
-
-				a.card.exists.unpublished {
-					color: var(--app-warning-color);
-					fill: var(--app-warning-color);
-				}
-
-				a.card.exists.unpublished:visited, a.card.exists.read.unpublished {
-					color: var(--app-warning-color-light);
-					fill: var(--app-warning-color-light);
-				}
-
-				a {
-					cursor: var(--card-link-cursor, pointer);
-				}
-
-				a.add-reading-list {
-					cursor: var(--card-link-cursor, copy);
-				}
-
-				a.not-content {
-					font-style: italic;
-				}
-
-			</style>
 			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''} ${this.strong ? 'strong' : ''} ${this._cardIsNotContent ? 'not-content' : ''} ${this._ctrlKeyPressed ? 'add-reading-list' : ''} ${this.noNavigate ? 'no-navigate' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
 	}
 

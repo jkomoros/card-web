@@ -1,4 +1,4 @@
-import { html } from 'lit';
+import { html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -62,22 +62,12 @@ import {
 import './card-link.js';
 
 class MultiEditDialog extends connect(store)(DialogElement) {
-	innerRender() {
 
-		if (!this.open) return html``;
-
-		const refs = referencesNonModifying(this._unionReferencesCard);
-		refs.applyEntriesDiff(this._referencesDiff);
-		const referencesMap = refs.byTypeArray();
-		const intersectionRefs = referencesNonModifying(this._intersectionReferencesCard);
-		intersectionRefs.applyEntriesDiff(this._referencesDiff);
-		const intersectionReferencesMap = intersectionRefs.byTypeArray();
-		const previousReferencesMap = referencesNonModifying(this._unionReferencesCard).byTypeArray();
-
-		return html`
-		${HelpStyles}
-		${ButtonSharedStyles}
-		<style>
+	static styles = [
+		DialogElement.styles,
+		ButtonSharedStyles,
+		HelpStyles,
+		css`
 			.scrim {
 				z-index:100;
 				height:100%;
@@ -96,7 +86,22 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				flex-direction: row;
 				justify-content:flex-end;
 			}
-		</style>
+		`
+	];
+
+	innerRender() {
+
+		if (!this.open) return html``;
+
+		const refs = referencesNonModifying(this._unionReferencesCard);
+		refs.applyEntriesDiff(this._referencesDiff);
+		const referencesMap = refs.byTypeArray();
+		const intersectionRefs = referencesNonModifying(this._intersectionReferencesCard);
+		intersectionRefs.applyEntriesDiff(this._referencesDiff);
+		const intersectionReferencesMap = intersectionRefs.byTypeArray();
+		const previousReferencesMap = referencesNonModifying(this._unionReferencesCard).byTypeArray();
+
+		return html`
 		<div class='${this._cardModificationPending ? 'modification-pending' : ''}'>
 			<div class='scrim'></div>
 			<select @change=${this._handleAddReference}>

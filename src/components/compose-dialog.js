@@ -1,12 +1,10 @@
-import { html } from 'lit';
+import { html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
 import { DialogElement } from './dialog-element.js';
-
-import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	selectComposeOpen,
@@ -25,23 +23,27 @@ import {
 } from './my-icons.js';
 
 class ComposeDialog extends connect(store)(DialogElement) {
+
+	static styles = [
+		DialogElement.styles,
+		css`
+			textarea {
+				flex-grow:1;
+				width:100%;
+			}
+			.buttons {
+				display:flex;
+				flex-direction: row;
+				justify-content:flex-end;
+			}
+			h3 {
+				font-weight:normal;
+			}
+		`
+	];
+
 	innerRender() {
 		return html`
-			${ButtonSharedStyles}
-			<style>
-				textarea {
-					flex-grow:1;
-					width:100%;
-				}
-				.buttons {
-					display:flex;
-					flex-direction: row;
-					justify-content:flex-end;
-				}
-				h3 {
-					font-weight:normal;
-				}
-			</style>
 			<h3>${this._message}</h3>
 			<textarea .value=${this._content} @input=${this._handleContentUpdated}></textarea>
 			<div class='buttons'>

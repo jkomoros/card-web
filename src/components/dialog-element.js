@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 
 import { SharedStyles } from './shared-styles.js';
 
@@ -9,85 +9,93 @@ import {
 } from './my-icons.js';
 
 export class DialogElement extends LitElement {
+
+	static styles = [
+		ButtonSharedStyles,
+		SharedStyles,
+		css`
+			.container {
+				position: absolute;
+				height: 100%;
+				width: 100%;
+				top: 0;
+				left: 0;
+				/* Note that card-preview has a z-index higher than this to
+				show up above it */
+				z-index: 1000;
+				display: none;
+			}
+
+			.container.open {
+				display: block;
+			}
+
+			.background {
+				position:absolute;
+				height:100%;
+				width:100%;
+				top:0;
+				left:0;
+				background-color:#FFFFFFCC;
+				display:flex;
+				flex-direction:column;
+				align-items: center;
+				justify-content:center;
+			}
+
+			.content {
+				background-color:white;
+				padding:1em;
+				box-sizing: border-box;
+				box-shadow: var(--card-shadow);
+				position:relative;
+				display:flex;
+				flex-direction:column;
+				min-height: 40%;
+				min-width: 40%;
+				max-height:90%;
+				max-width:70%;
+			}
+
+			.mobile .content {
+				height:100%;
+				width:100%;
+				max-height:none;
+				max-width:none;
+			}
+
+			h2 {
+				font-weight: normal;
+				font-size:1.5em;
+				text-align:left;
+				margin:0;
+			}
+
+			#close {
+				position: absolute;
+				top: 0.5em;
+				right: 0.5em;
+			}
+
+			#inner {
+				flex-grow:1;
+				display:flex;
+				flex-direction:column;
+				overflow:scroll;
+			}
+		`
+	];
+
 	render() {
 		return html`
-			${SharedStyles}
-			${ButtonSharedStyles}
-			<style>
-				:host {
-					position:absolute;
-					height:100%;
-					width:100%;
-					top:0;
-					left:0;
-					/* Note that card-preview has a z-index higher than this to
-					show up above it */
-					z-index:1000;
-					display: ${this.open ? 'block' : 'none'}
-				}
-
-				.background {
-					position:absolute;
-					height:100%;
-					width:100%;
-					top:0;
-					left:0;
-					background-color:#FFFFFFCC;
-					display:flex;
-					flex-direction:column;
-					align-items: center;
-					justify-content:center;
-				}
-
-				.content {
-					background-color:white;
-					padding:1em;
-					box-sizing: border-box;
-					box-shadow: var(--card-shadow);
-					position:relative;
-					display:flex;
-					flex-direction:column;
-					min-height: 40%;
-					min-width: 40%;
-					max-height:90%;
-					max-width:70%;
-				}
-
-				.mobile .content {
-					height:100%;
-					width:100%;
-					max-height:none;
-					max-width:none;
-				}
-
-				h2 {
-					font-weight: normal;
-					font-size:1.5em;
-					text-align:left;
-					margin:0;
-				}
-
-				#close {
-					position: absolute;
-					top: 0.5em;
-					right: 0.5em;
-				}
-
-				#inner {
-					flex-grow:1;
-					display:flex;
-					flex-direction:column;
-					overflow:scroll;
-				}
-
-
-			</style>
-			<div class='background ${this.mobileMode ? 'mobile': ''}' @click=${this._handleBackgroundClicked}>
-				<div class='content'>
-					<button class='small' id='close' @click=${this.cancel}>${CANCEL_ICON}</button>
-					<h2>${this.title || ''}</h2>
-					<div id='inner'>
-					${this.innerRender()}
+			<div class='container ${this.open ? 'open' : 'closed'}'>
+				<div class='background ${this.mobileMode ? 'mobile': ''}' @click=${this._handleBackgroundClicked}>
+					<div class='content'>
+						<button class='small' id='close' @click=${this.cancel}>${CANCEL_ICON}</button>
+						<h2>${this.title || ''}</h2>
+						<div id='inner'>
+						${this.innerRender()}
+						</div>
 					</div>
 				</div>
 			</div>

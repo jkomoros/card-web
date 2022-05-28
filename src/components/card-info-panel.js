@@ -1,4 +1,4 @@
-import { html } from 'lit';
+import { html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -63,66 +63,69 @@ import './reference-block.js';
 
 
 class CardInfoPanel extends connect(store)(PageViewElement) {
+
+	static styles = [
+		ScrollingSharedStyles,
+		HelpStyles,
+		SharedStyles,
+		css`
+			:host {
+				flex-grow: 1;
+				border-bottom: 1px solid var(--app-divider-color);
+				overflow: hidden;
+			}
+
+			svg {
+				height:1.3em;
+				width:1.3em;
+				fill: var(--app-dark-text-color-subtle);
+			}
+
+			h3 {
+				padding: 0.5em 0.5em 0;
+			}
+
+			.container {
+				width: 13em;
+				height:100%;
+				padding: 0 0.5em 0.5em 0.5em;
+				position:relative;
+				color: var(--app-dark-text-color);
+			}
+
+			h3 {
+				margin:0;
+				font-weight:normal;
+				color: var(--app-dark-text-color-light);
+			}
+			div>h4 {
+				font-size:0.7em;
+				font-weight:normal;
+				margin:0;
+			}
+			div>p {
+				margin:0;
+			}
+			div>ul {
+				margin:0;
+				padding-inline-start: 1.2em;
+			}
+			.container > div {
+				margin: 0.5em 0;
+			}
+			.loading {
+				opacity:0.7;
+			}
+			.spacer {
+				/* Ensure that there's ample space below the scroll. Note: this is likely related to the height of the h3 */
+				height: 3em;
+				width:100%;
+			}
+		`
+	];
+
 	render() {
 		return html`
-		${SharedStyles}
-		${HelpStyles}
-		${ScrollingSharedStyles}
-			<style>
-
-				:host {
-					flex-grow: 1;
-					border-bottom: 1px solid var(--app-divider-color);
-					overflow: hidden;
-				}
-
-				svg {
-					height:1.3em;
-					width:1.3em;
-					fill: var(--app-dark-text-color-subtle);
-				}
-
-				h3 {
-					padding: 0.5em 0.5em 0;
-				}
-
-				.container {
-					width: 13em;
-					height:100%;
-					padding: 0 0.5em 0.5em 0.5em;
-					position:relative;
-					color: var(--app-dark-text-color);
-				}
-
-				h3 {
-					margin:0;
-					font-weight:normal;
-					color: var(--app-dark-text-color-light);
-				}
-				div>h4 {
-					font-size:0.7em;
-					font-weight:normal;
-					margin:0;
-				}
-				div>p {
-					margin:0;
-				}
-				div>ul {
-					margin:0;
-					padding-inline-start: 1.2em;
-				}
-				.container > div {
-					margin: 0.5em 0;
-				}
-				.loading {
-					opacity:0.7;
-				}
-				.spacer {
-					/* Ensure that there's ample space below the scroll. Note: this is likely related to the height of the h3 */
-					height: 3em;
-					width:100%;
-				}
-			</style>
 			<h3 ?hidden=${!this._open}>Card Info</h3>
 			<div class='container scroller' ?hidden=${!this._open}>
 				${this._referenceBlocks.map(item => html`<reference-block .block=${item}></reference-block>`)}

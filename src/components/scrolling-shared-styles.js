@@ -1,4 +1,4 @@
-import { html } from 'lit';
+import { css } from 'lit';
 
 //Based on https://gist.github.com/IceCreamYou/cd517596e5847a88e2bb0a091da43fb4
 const areScrollbarsVisible = () => {
@@ -17,9 +17,7 @@ const areScrollbarsVisible = () => {
 	return diff > 0;
 };
 
-const visibleScrollBars = html`
-<style>
-
+const visibleScrollBars = css`
 	.scroller {
 		overflow: overlay;
 	}
@@ -43,15 +41,12 @@ const visibleScrollBars = html`
 	.scroller:hover::-webkit-scrollbar-thumb {
 		background-color: rgba(0,0,0, 0.5);
 	}
-</style>
 `;
 
-const hiddenScrollBars = html`
-<style>
+const hiddenScrollBars = css`
 	.scroller {
 		overflow: overlay;
 	}
-</style>
 `;
 
 //On Macs, there might be overlay scrolling, or if the user has picked the

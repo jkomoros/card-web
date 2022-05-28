@@ -1,53 +1,61 @@
 
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
+import { styleMap } from 'lit/directives/style-map.js';
 import { urlForTag } from '../actions/app';
 
 class TagChip  extends LitElement {
+
+	static styles = [
+		css`
+			:host {
+				margin: 0 0.2em;
+				display: inline-block;
+				color: var(--app-light-text-color);
+				font-weight:bold;
+			}
+			span {
+				padding: 0.2em;
+				border-radius: 0.3em;
+				font-size: 0.7em;
+				transition: filter 0.1s ease-in-out;
+			}
+			span.enabled:hover {
+				/* !important necessary to reach up and override the styles setting directly on element */
+				filter:none !important;
+			}
+			a.primary {
+				color: var(--app-light-text-color);
+				text-decoration:none;
+			}
+			span.editing a.primary {
+				/* We'll cancel navigation, so don't make it look clikable */
+				cursor:default;
+			}
+			span.deletion {
+				font-style: italic;
+				text-decoration-line:line-through;
+			}
+			span.addition {
+				font-style:italic;
+			}
+			span a.delete {
+				display:none;
+				color: var(--app-light-text-color);
+				padding: 0 0.3em;
+			}
+			span.enabled.editing a.delete {
+				display:inline;
+			}
+		`
+	];
+
 	render() {
+		const styles = {
+			backgroundColor: this._color,
+		};
+		if (this._filter) styles.filter = this._filter;
 		return html`
-			<style>
-				:host {
-					margin: 0 0.2em;
-					display: inline-block;
-					color: var(--app-light-text-color);
-					font-weight:bold;
-				}
-				span {
-					padding: 0.2em;
-					border-radius: 0.3em;
-					font-size: 0.7em;
-					background-color: ${this._color};
-					transition: filter 0.1s ease-in-out;
-				}
-				span.enabled:hover {
-					/* !important necessary to reach up and override the styles setting directly on element */
-					filter:none !important;
-				}
-				a.primary {
-					color: var(--app-light-text-color);
-					text-decoration:none;
-				}
-				span.editing a.primary {
-					/* We'll cancel navigation, so don't make it look clikable */
-					cursor:default;
-				}
-				span.deletion {
-					font-style: italic;
-					text-decoration-line:line-through;
-				}
-				span.addition {
-					font-style:italic;
-				}
-				span a.delete {
-					display:none;
-					color: var(--app-light-text-color);
-					padding: 0 0.3em;
-				}
-				span.enabled.editing a.delete {
-					display:inline;
-				}
-			</style>
-			<span style=${this._filter ? 'filter: ' + this._filter : ''} class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''} ${this._disabled ? 'disabled' : 'enabled'}' title='${this._description}' @mousemove=${this._handleMouseMove}><a class='primary' href='${this._url}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
+			<span style=${styleMap(styles)} class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''} ${this._disabled ? 'disabled' : 'enabled'}' title='${this._description}' @mousemove=${this._handleMouseMove}><a class='primary' href='${this._url}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
 			`;
 	}
 

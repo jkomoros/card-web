@@ -1,13 +1,11 @@
-import { html, LitElement, svg } from 'lit';
+import { html, LitElement, svg, css } from 'lit';
 
 import * as d3 from 'd3';
 
 export class WebRenderer extends LitElement {
-	render() {
-		const width = this.offsetWidth;
-		const height = this.offsetHeight;
-		return html`
-		<style>
+
+	static styles = [
+		css`
 			:host {
 				height:100%;
 				width:100%;
@@ -34,8 +32,13 @@ export class WebRenderer extends LitElement {
 			.highlighted {
 				fill: var(--app-secondary-color);
 			}
-		</style>
+		`
+	];
 
+	render() {
+		const width = this.offsetWidth;
+		const height = this.offsetHeight;
+		return html`
 		<svg viewBox=${'0 0 ' + width + ' ' + height}>
 			${this._calculatedGraph.edges.map(node => svg`<line x1=${node.source.x} x2=${node.target.x} y1=${node.source.y} y2=${node.target.y} stroke-width='1'></line>`)}	
 			${this._calculatedGraph.nodes.map(node => svg`<circle id=${node.id} title=${node.name} r='4' cx=${node.x} cy=${node.y} class=${node.id == this.highlightedCardId ? 'highlighted' : ''} @click=${this._handleThumbnailClick} @mousemove=${this._handleThumbnailMouseMove}></circle>`)}

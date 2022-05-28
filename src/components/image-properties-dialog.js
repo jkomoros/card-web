@@ -1,4 +1,4 @@
-import { html } from 'lit';
+import { html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -34,35 +34,40 @@ import {
 } from './my-icons.js';
 
 class ImagePropertiesDialog extends connect(store)(DialogElement) {
+
+	static styles = [
+		DialogElement.styles,
+		ButtonSharedStyles,
+		css`
+			textarea {
+				flex-grow:1;
+				width:100%;
+			}
+			.buttons {
+				display:flex;
+				flex-direction: row;
+				justify-content:flex-end;
+			}
+			h3 {
+				font-weight:normal;
+			}
+			.row {
+				display:flex;
+				flex-direction:row;
+			}
+			.row > div {
+				display: flex;
+				flex-direction: column;
+				flex-grow: 1;
+				margin:0.25em;
+			}
+		`
+	];
+
 	innerRender() {
 		const images = getImagesFromCard(this._card);
 		const img = images[this._index] || {};
 		return html`
-			${ButtonSharedStyles}
-			<style>
-				textarea {
-					flex-grow:1;
-					width:100%;
-				}
-				.buttons {
-					display:flex;
-					flex-direction: row;
-					justify-content:flex-end;
-				}
-				h3 {
-					font-weight:normal;
-				}
-				.row {
-					display:flex;
-					flex-direction:row;
-				}
-				.row > div {
-					display: flex;
-					flex-direction: column;
-					flex-grow: 1;
-					margin:0.25em;
-				}
-			</style>
 			${img.uploadPath ? 
 		html`<label>Upload Path</label><em>${img.uploadPath || ''}<button class='small' title='Edit image' @click=${this._handleEditImage}>${EDIT_ICON}</button></em>` :
 		html`<label>Src</label><em>${img.src}<button class='small' title='Edit image' @click=${this._handleEditImage}>${EDIT_ICON}</button></em>`

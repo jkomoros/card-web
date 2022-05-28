@@ -1,14 +1,4 @@
-/**
-@license
-Copyright (c) 2018 The Polymer Project Authors. All rights reserved.
-This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
-The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
-The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
-Code distributed by Google as part of the polymer project is also
-subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
-*/
-
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -95,10 +85,9 @@ import {
 } from '../../config.GENERATED.SECRET.js';
 
 class MainView extends connect(store)(LitElement) {
-	render() {
-		// Anything that's related to rendering should be done in here.
-		return html`
-		<style>
+
+	static styles = [
+		css`
 			.container {
 				height:100vh;
 				width: 100vw;
@@ -169,7 +158,7 @@ class MainView extends connect(store)(LitElement) {
 				border-bottom: 4px solid transparent;
 			}
 
-			 .toolbar-list > a.icon-item {
+			.toolbar-list > a.icon-item {
 				display:inline-flex;
 				flex-direction: column;
 				justify-content: center;
@@ -259,9 +248,12 @@ class MainView extends connect(store)(LitElement) {
 			[hidden] {
 				display:none !important;
 			}
+		`
+	];
 
-		</style>
-
+	render() {
+		// Anything that's related to rendering should be done in here.
+		return html`
 		<div @mousemove=${this._handleMouseMove} class='container ${this._mayViewApp ? '' : 'may-not-view'}'>
 			<multi-edit-dialog></multi-edit-dialog>
 			<find-dialog></find-dialog>
