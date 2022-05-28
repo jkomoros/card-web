@@ -23,6 +23,7 @@ import {
 class CommentMessage extends LitElement {
 	
 	static styles = [
+		ButtonSharedStyles,
 		css`
 			:host {
 				font-size: 0.85em;
@@ -54,7 +55,6 @@ class CommentMessage extends LitElement {
 
 	render() {
 		return html`
-			${ ButtonSharedStyles }
 			<div class='container'>
 				<div class='row'>
 					<author-chip .author=${this.message.author}></author-chip>

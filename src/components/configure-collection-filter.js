@@ -44,6 +44,8 @@ import './configure-collection-date.js';
 class ConfigureCollectionFilter extends LitElement {
 
 	static styles = [
+		ButtonSharedStyles,
+		HelpStyles,
 		css`
 			li {
 				padding-left: 1em;
@@ -72,8 +74,6 @@ class ConfigureCollectionFilter extends LitElement {
 		const unionFilterPieces = splitUnionFilter(firstFilterPart);
 		const isConfigurableFilter = CONFIGURABLE_FILTER_INFO[firstFilterPart] != undefined;
 		return html`
-			${ ButtonSharedStyles }
-			${ HelpStyles }
 			${this.index > 0 ? html`<li><em>AND</em></li>` : ''}
 		<li class='main'>
 			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select @change=${this._handleModifyFilterChanged} .subIndex=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this.filterDescriptions[filterPiece])}<button class='small' .subIndex=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
