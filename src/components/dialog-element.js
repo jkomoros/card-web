@@ -14,14 +14,6 @@ export class DialogElement extends LitElement {
 		ButtonSharedStyles,
 		SharedStyles,
 		css`
-			:host {
-				position:absolute;
-				height:100%;
-				width:100%;
-				top:0;
-				left:0;
-			}
-
 			.container {
 				position: absolute;
 				height: 100%;
