@@ -1,10 +1,4 @@
-import { LitElement, css } from 'lit';
-
-import {
-	unsafeStatic,
-	//We import the static-html so we can use unsafeStatic.
-	html,
-} from 'lit/static-html.js';
+import { LitElement, css, html, unsafeCSS } from 'lit';
 
 import {GestureEventListeners} from '@polymer/polymer/lib/mixins/gesture-event-listeners.js';
 import * as Gestures from '@polymer/polymer/lib/utils/gestures.js';
@@ -70,6 +64,10 @@ const SWIPE_MAX_GESTURE_DURATION = 200;
 // Timestamps of 'start' gestures.
 var startGestureTimestamps = {};
 
+const CARD_TYPE_STYLE_BLOCKS_RAW_CONTENT = Object.entries(CARD_TYPE_CONFIGURATION).filter(entry => entry[1].styleBlock).map(entry => '/* Styles for ' + entry[0] + ' */\n' + entry[1].styleBlock).join('\n\n');
+
+const CARD_TYPE_STYLE_BLOCKS = unsafeCSS(CARD_TYPE_STYLE_BLOCKS_RAW_CONTENT);
+
 // This element is *not* connected to the Redux store.
 export class CardRenderer extends GestureEventListeners(LitElement) {
 
@@ -77,6 +75,10 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		badgeStyles,
 		ScrollingSharedStyles,
 		SharedStyles,
+		//All of these are known to be guarded by a .container.CARD_TYPE, so
+		//they can just be statically prepended, and their styles will be
+		//activated based on the actual card-type of the card instance.
+		CARD_TYPE_STYLE_BLOCKS,
 		css`
 			:host {
 				display:block;
@@ -292,7 +294,6 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 	render() {
 		const cardType = this._card.card_type || CARD_TYPE_CONTENT;
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[cardType] || {};
-		const styleBlock = cardTypeConfig.styleBlock || '';
 		const fieldsToRender = editableFieldsForCardType(cardType);
 		let titleFields = [];
 		let nonScrollableFields = [];
@@ -316,7 +317,6 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			}
 		}
 		return html`
-			${unsafeStatic(styleBlock)}
 			<div class="container ${this.editing ? 'editing' : ''} ${this._card.published ? 'published' : 'unpublished'} ${cardType}">
 				<div class='background'></div>
 				<div class='content'>
