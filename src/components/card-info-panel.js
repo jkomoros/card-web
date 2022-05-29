@@ -22,7 +22,7 @@ import {
 
 import {
 	TWITTER_HANDLE
-} from '../../config.GENERATED.SECRET.js';
+} from '../config.GENERATED.SECRET.js';
 
 import {
 	selectActiveCard,

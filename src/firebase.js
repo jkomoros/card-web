@@ -29,7 +29,7 @@ import {
 	FIREBASE_DEV_CONFIG,
 	FIREBASE_PROD_CONFIG,
 	FIREBASE_REGION,
-} from '../config.GENERATED.SECRET.js';
+} from './config.GENERATED.SECRET.js';
 
 export let DEV_MODE = false;
 //Deliberately only do devmode if the host is localhost. If you want it

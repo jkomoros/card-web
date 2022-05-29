@@ -23,7 +23,7 @@ import {
 
 import {
 	DISABLE_ANONYMOUS_LOGIN
-} from '../../config.GENERATED.SECRET.js';
+} from '../config.GENERATED.SECRET.js';
 
 import {
 	connectLiveStars,

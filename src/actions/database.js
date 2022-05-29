@@ -50,7 +50,7 @@ import {
 
 import {
 	DISABLE_CALLABLE_CLOUD_FUNCTIONS
-} from '../../config.GENERATED.SECRET.js';
+} from '../config.GENERATED.SECRET.js';
 
 export const CARDS_COLLECTION = 'cards';
 export const CARD_UPDATES_COLLECTION = 'updates';

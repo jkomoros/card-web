@@ -7,7 +7,7 @@ import { store } from '../store.js';
 import {
 	APP_TITLE,
 	USER_DOMAIN
-} from '../../config.GENERATED.SECRET.js';
+} from '../config.GENERATED.SECRET.js';
 
 // We are lazy loading its reducer.
 import editor from '../reducers/editor.js';

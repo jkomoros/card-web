@@ -111,7 +111,7 @@ import {
 import {
 	USER_DOMAIN,
 	TAB_CONFIGURATION
-} from '../config.GENERATED.SECRET.js';
+} from './config.GENERATED.SECRET.js';
 
 const selectState = (state) => state;
 

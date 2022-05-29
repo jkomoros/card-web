@@ -18,7 +18,7 @@ import {
 
 import {
 	TWITTER_HANDLE
-} from '../config.GENERATED.SECRET.js';
+} from './config.GENERATED.SECRET.js';
 
 export const READING_LIST_FALLBACK_CARD = 'about-reading-lists';
 export const STARS_FALLBACK_CARD = 'about-stars';
