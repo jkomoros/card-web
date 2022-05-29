@@ -4,7 +4,10 @@ import { connect } from 'pwa-helpers/connect-mixin.js';
 // This element is connected to the Redux store.
 import { store } from '../store.js';
 
-import { APP_TITLE } from '../../config.GENERATED.SECRET.js';
+import {
+	APP_TITLE,
+	USER_DOMAIN
+} from '../../config.GENERATED.SECRET.js';
 
 // We are lazy loading its reducer.
 import editor from '../reducers/editor.js';
@@ -79,10 +82,6 @@ import {
 	CARD_WIDTH_IN_EMS,
 	CARD_HEIGHT_IN_EMS
 } from './card-renderer.js';
-
-import {
-	USER_DOMAIN
-} from '../../config.GENERATED.SECRET.js';
 
 class MainView extends connect(store)(LitElement) {
 
