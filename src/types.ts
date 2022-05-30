@@ -42,7 +42,7 @@ type ReferencesMap = {
 }
 
 //TODO: tighten this
-type Referencetype = string;
+export type ReferenceType = string;
 
 type ReferencesInfoMap = {
     [id : CardID]: {

@@ -9,7 +9,8 @@ import {
 	Card,
 	ProcessedCard,
 	Cards,
-	CardType
+	CardType,
+	ReferenceType
 } from './types.js';
 
 import {
@@ -226,7 +227,7 @@ export const backportFallbackTextMapForCard = (card : Card, cards : Cards) => {
 	//have to have its text renormalized, even though it likely didn't need it,
 	//whereas this creates a targeted list of fallbacks per card, where most of
 	//them are null.
-	const result = {};
+	const result : {[id : CardID]: {[referenceType : ReferenceType]: string}} = {};
 	const refsByType = references(card).byType;
 	for (let referenceType of Object.keys(REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT)) {
 		const refs = refsByType[referenceType];
@@ -237,7 +238,6 @@ export const backportFallbackTextMapForCard = (card : Card, cards : Cards) => {
 			if (!otherCard) continue;
 			//OK, we're going to add it
 			if (!result[cardID]) result[cardID] = {};
-			if (!result[cardID][referenceType]) result[cardID][referenceType] = {};
 			result[cardID][referenceType] = getCardTitleForBackporting(otherCard, referenceType, cards);
 		}
 	}
