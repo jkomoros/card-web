@@ -614,8 +614,17 @@ export const idForPersonalCardInfo = (uid : Uid, cardId : CardID) => {
 	return '' + uid + '+' + cardId;
 };
 
-let memoizedPageRank : {[id : CardID]: number} = null;
-let memoizedPageRankInput : Cards = null;
+let memoizedPageRank : {[id : CardID]: number} | null = null;
+let memoizedPageRankInput : Cards | null = null;
+
+type NodeInfo = {
+	id: CardID,
+	rank: number,
+	previousRank: number,
+	outDegree: number,
+	inDegree: number,
+	inboundLinks: CardID[]
+}
 
 //return a map of id to rank for each card.
 export const pageRank = (cards : Cards) => {
@@ -630,8 +639,8 @@ export const pageRank = (cards : Cards) => {
 	//iterations.
 	const maxIterations = 50;
 
-	const nodes = {};
-	const inboundLinksMap = {};
+	const nodes : {[id: CardID]: NodeInfo} = {};
+	const inboundLinksMap : {[id : CardID]: CardID[]} = {};
 	const numNodes = Object.keys(cards).length;
 	const initialRank = 1 / numNodes;
 
