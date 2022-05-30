@@ -2,6 +2,13 @@ import snarkdown from 'snarkdown';
 import dompurify from 'dompurify';
 
 import {
+	CardID,
+	Slug,
+	CardIdentifier,
+	Uid,
+} from './types.js';
+
+import {
 	TEXT_FIELD_BODY,
 	CARD_TYPE_CONTENT,
 	LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE,
@@ -96,7 +103,7 @@ const slugIllegalPartExpression = /[^a-zA-Z0-9-_ ]/g;
 const slugRegularExpression = /^[a-zA-Z0-9-_]+$/;
 
 //returns if the given uid looks like it could be legal
-export const legalUid = (uid : string) => {
+export const legalUid = (uid : Uid) => {
 	if (!slugRegularExpression.test(uid)) return false;
 	if (uid.length < 10) return false;
 	return true;
@@ -105,7 +112,7 @@ export const legalUid = (uid : string) => {
 //normalizes a mostly-OK slug, returning '' if it wasn't legal. If you want to
 //generate a good one given an arbitrary string that may contain illegal
 //characters to strip, see createSlugFromArbitraryString
-export const normalizeSlug = (slug : string) => {
+export const normalizeSlug = (slug : Slug) : Slug => {
 	slug = slug.trim();
 	slug = slug.toLowerCase();
 	slug = slug.split(' ').join('-');
@@ -116,19 +123,19 @@ export const normalizeSlug = (slug : string) => {
 	return slug;
 };
 
-export const createSlugFromArbitraryString = (str : string) => {
+export const createSlugFromArbitraryString = (str : string) : Slug => {
 	str = str.replace(slugIllegalPartExpression, '');
 	return normalizeSlug(str);
 };
 
-let vendedNewIDs : {[name: string]: boolean} = {};
+let vendedNewIDs : {[name: CardID]: boolean} = {};
 
 //returns true if the given ID was recently vended in this client from newID.
-export const idWasVended = (id : string) => {
+export const idWasVended = (id : CardID) => {
 	return vendedNewIDs[id] || false;
 };
 
-export const newID = () => {
+export const newID = () : CardID => {
 	const result = normalizeSlug('c_' + randomString(3, randomCharSetNumbers) + '_' + randomString(3, randomCharSetLetters) + randomString(3, randomCharSetNumbers));
 	vendedNewIDs[result] = true;
 	return result;
@@ -234,7 +241,7 @@ export const backportFallbackTextMapForCard = (card, cards) => {
 
 //Takes a string (single id/slug) or an array of strings of id/slugs, and
 //returns an array where every item is a normalized id.
-export const normalizeCardSlugOrIDList = (slugOrIDList, cards) => {
+export const normalizeCardSlugOrIDList = (slugOrIDList : CardIdentifier[], cards) => {
 	if (!Array.isArray(slugOrIDList)) slugOrIDList = [slugOrIDList];
 	const missingCardIDs = {};
 	for (const idOrSlug of slugOrIDList) {
@@ -263,7 +270,7 @@ export const normalizeCardSlugOrIDList = (slugOrIDList, cards) => {
 //not. if optReferenceType is falsey, it will use all substantive references.
 //Otherwise, it will filter to only references of the given type, if it's a
 //string, or any reference types listed if it's an array.
-export const cardBFS = (keyCardIDOrSlugList, cards, ply, includeKeyCard, isInbound, optReferenceTypes) => {
+export const cardBFS = (keyCardIDOrSlugList : CardID | Slug[], cards, ply : number, includeKeyCard : boolean, isInbound, optReferenceTypes) => {
 
 	keyCardIDOrSlugList = normalizeCardSlugOrIDList(keyCardIDOrSlugList, cards);
 
