@@ -777,7 +777,8 @@ export const getObjectPath = (obj : any, path : string[]) : any => {
 	if (typeof obj !== 'object') return undefined;
 	const modifiedPath = [...path];
 	const firstPart = modifiedPath.shift();
-	return getObjectPath(obj[firstPart], modifiedPath);
+	const subObject = firstPart === undefined ? undefined : obj[firstPart];
+	return getObjectPath(subObject, modifiedPath);
 };
 
 //Returns a path within the given object to find an occurance of sentinel value.
