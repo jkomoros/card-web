@@ -199,6 +199,10 @@ type Section = {
     id : string
 }
 
+export type Sections = {
+    [sectionName : string]: Section
+}
+
 export type Sets = {
     [setName : SetName] : CardID[]
 }
@@ -209,19 +213,17 @@ export type Filters = {
     }
 }
 
+export type SerializedDescriptionToCardList = {
+    [serializedDescription: string] : CardID[],
+}
+
 export interface CollectionConstructorArguments {
     cards? : Cards,
     sets? : Sets,
     filters? : Filters,
-    sections? : {
-        [sectionName : string]: Section
-    },
-    fallbacks? : {
-        [serializedDescription: string] : CardID[],
-    }
-    startCards? : {
-        [serializedDescription : string] : CardID[],
-    },
+    sections? : Sections,
+    fallbacks? : SerializedDescriptionToCardList,
+    startCards? : SerializedDescriptionToCardList,
     userID? : Uid,
     keyCardID? : CardID,
     cardsSnapshot? : Cards,
