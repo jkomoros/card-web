@@ -153,6 +153,46 @@ export type CardTypeConfigurationMap = {
 	}
 }
 
+//TODO: tighten this
+type CSSColorString = string;
+
+export type ReferenceTypeConfigurationMap = {
+    [type : ReferenceType] : {
+        //name - name of the reference type, for presenting in UIs
+        name : string,
+        //inboundName - the name of the reference type when inbound, for presenting in UIs.
+        inboundName? : string,
+        //descripton - string describing what it means
+        description: string,
+        //editable - whether it should be directly editable by a user
+        editable? : boolean,
+        //substantive - whether the reference is important enough to acknowledge to a non-editor-user in the UI
+        substantive? : boolean,
+        //color - the color to use when it shows up as a tag
+        color: CSSColorString,
+        //excludeFromInfoPanel - if true, will not show up in the infoPanelArray. That might be because they are already visible elsewhere, or aren't important enough to show.
+        excludeFromInfoPanel? : boolean,
+        //toCardTypeAllowList - if null or undefined, any card of any type may be on the receiving end. If not null, then only card_types in the toCardTypeAllowList map are allowed.
+        toCardTypeAllowList? : {
+            [cardType : CardType]: true,
+        },
+        //fromCardTypeAllowList - if null or undefined, any card of any type may be on the sending end. If not null, then only card_types in the fromCardTypeAllowList are allowed.
+        fromCardTypeAllowList? : {
+            [cardType : CardType]: true,
+        },
+        //backportMissingText - if true, then if a card has an outbound reference of this type without text, it will backport the title of the to card, so for the purposes of any nlp processing, it will be as though the outbound reference included the title of the card it's pointing to. (The underlying data in the db is untouched)
+        backportMissingText? : boolean,
+        //subTypeOf - if set, then this reference type is also equivalent to the other reference type in a fundamental way. For example, example-of and synonym are equivalent to concept.
+        subTypeOf? : ReferenceType,
+        //conceptReference - if true, then this type of reference will be considered to be a concept reference even if it's not literally one (e.g. example-of, synonym). Every type is already equivalent to itself so that can be elided. A given card can only reference anohter card with one referenceType within an equivalence class.
+        conceptReference? : boolean,
+        //reciprocal - if true, then an outbound reference to a card should precisely imply the other card outbound links back to this one. 
+        reciprocal? : boolean,
+        //needsReciprocation - if true, then cards that don't reciprocate with a link will be called out.
+        needsReciprocation? : boolean
+    }
+}
+
 export interface Card {
     id: CardID,
     created: FirestoreTimestamp,
