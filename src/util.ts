@@ -599,7 +599,7 @@ export const prettyTime = (date) => {
 	return date.toDateString();
 };
 
-export const killEvent = (e) => {
+export const killEvent = (e : Event) => {
 	if (e) {
 		e.preventDefault();
 	}
@@ -759,7 +759,7 @@ export const deepEqual = (a : any, b : any, objectChecker : ((object: any) => bo
 };
 
 //For {a: {b: 2}, c: 3}, a path of ['a', 'b'] would return 2.
-export const getObjectPath = (obj, path) => {
+export const getObjectPath = (obj : any, path : string[]) : any => {
 	if (!path) return undefined;
 	if (!Array.isArray(path)) return undefined;
 	if (path.length == 0) return obj;
@@ -771,7 +771,7 @@ export const getObjectPath = (obj, path) => {
 };
 
 //Returns a path within the given object to find an occurance of sentinel value.
-export const objectPathToValue = (obj, sentinel) => {
+export const objectPathToValue = (obj : any, sentinel : any) : undefined | string[] => {
 	if (!obj) return undefined;
 	if (typeof obj !== 'object') return undefined;
 	for (const [key, value] of Object.entries(obj)) {
