@@ -22,10 +22,18 @@ import {
 } from './filters.js';
 
 import {
+	Card,
 	CardID,
+	Cards,
+	CollectionConstructorArguments,
+	SerializedDescriptionToCardList,
+	Filters,
+	Sections,
 	SetName,
+	Sets,
 	SortName,
-	ViewMode
+	ViewMode,
+	Uid
 } from './types.js';
 
 import {
@@ -647,12 +655,23 @@ class Collection {
 
 	_description : CollectionDescription;
 	_keyCardID : CardID | '';
+	_arguments : CollectionConstructorArguments;
+	_cardsForFiltering : Cards;
+	_cardsForExpansion : Cards;
+	_sets : Sets;
+	_filters : Filters;
+	_filtersSnapshot : Filters | null;
+	_editingCard? : Card;
+	_sections : Sections;
+	_fallbacks : SerializedDescriptionToCardList;
+	_startCardsConfig : SerializedDescriptionToCardList;
+	_userID : Uid;
 
 	//See CollectionDescription.collection() for the shape of the
 	//collectionArguments object. It's passed in as an object and not as an
 	//unpacked array so we can maintain the object identity so that memoizing
 	//machinery can keep track. You can get one from selectCollectionConstructorArguments
-	constructor(description : CollectionDescription, collectionArguments) {
+	constructor(description : CollectionDescription, collectionArguments : CollectionConstructorArguments) {
 		if (!collectionArguments) collectionArguments = {};
 		this._arguments = collectionArguments;
 		Object.freeze(this._arguments);
