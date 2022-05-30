@@ -582,8 +582,10 @@ export const makeElementContentEditable = (ele : HTMLElement) => {
 };
 
 //Returns a safe markdown element that can be emitted in a lit-html template.
-export const markdownElement = (content : string) => {
-	let div = getDocument().createElement('div');
+export const markdownElement = (content : string) : HTMLElement | null => {
+	const document = getDocument();
+	if (!document) return null;
+	let div = document.createElement('div');
 	let html = snarkdown(content);
 	let sanitizedHTML = dompurify.sanitize(html);
 	div.innerHTML = sanitizedHTML;
