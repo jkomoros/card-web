@@ -157,10 +157,10 @@ export const cardHasContent = (card : Card) => {
 	//We treat all non-body-card cards as having content, since the main reason
 	//to count a card has not having content is if there's nothing to see on it.
 	if (!BODY_CARD_TYPES[card.card_type]) return true;
-	const cardTypeConfig = CARD_TYPE_CONFIGURATION[card.card_type] || {};
+	const cardTypeConfig = CARD_TYPE_CONFIGURATION[card.card_type];
 	//If it just uses the default content for that card type then it's as though
 	//it doesn't have content at all.
-	if (cardTypeConfig.defaultBody == card[TEXT_FIELD_BODY]) return false;
+	if (cardTypeConfig && cardTypeConfig.defaultBody == card[TEXT_FIELD_BODY]) return false;
 	let content = card[TEXT_FIELD_BODY] ? card[TEXT_FIELD_BODY].trim() : '';
 	return content ? true : false;
 };
