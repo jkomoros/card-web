@@ -135,7 +135,7 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	CONFIG_JS_CONTENT += 'export const DISABLE_PERSISTENCE=' + (DISABLE_PERSISTENCE ? 'true' : 'false') + ';\n';
 	CONFIG_JS_CONTENT += 'export const DISABLE_ANONYMOUS_LOGIN=' + (DISABLE_ANONYMOUS_LOGIN ? 'true' : 'false') + ';\n';
 	CONFIG_JS_CONTENT += 'export const DISABLE_CALLABLE_CLOUD_FUNCTIONS=' + (DISABLE_CALLABLE_CLOUD_FUNCTIONS ? 'true' : 'false') + ';\n';
-	fs.writeFileSync('src/config.GENERATED.SECRET.js', CONFIG_JS_CONTENT);
+	fs.writeFileSync('src/config.GENERATED.SECRET.ts', CONFIG_JS_CONTENT);
 
 	let META_STRING = '\n    <meta name="application-name" content="' + APP_TITLE + '">\n';
 	META_STRING += '    <meta property="og:site_name" content="' + APP_TITLE + '">\n';

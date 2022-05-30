@@ -25,6 +25,17 @@ export const COMPOSED_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS = {...COMPOSED_USER
 
 //NOTE: all of the logic above this line is effectively recreated in gulpfile.js
 
+interface PermissionInfo {
+	displayName : string,
+	description : string,
+	locked? : boolean,
+	legalOnCard? : boolean,
+}
+
+interface PermissionInfoCollection {
+	[string]: PermissionInfo
+}
+
 export const PERMISSIONS_INFO = {
 	[PERMISSION_ADMIN]: {
 		displayName: 'Admin',
