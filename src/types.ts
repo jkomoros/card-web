@@ -11,6 +11,7 @@ export type Slug = string;
 export type CardIdentifier = CardID | Slug;
 
 //TODO: lock this down more
+//TODO: should this be the same as PermissionInfoType?
 type CardPermissionType = string;
 
 type CardPermissions = {
