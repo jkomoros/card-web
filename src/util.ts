@@ -79,9 +79,11 @@ export const pageRequiresMainView = (pageName : string) => {
 	return pageName != _PAGE_BASIC_CARD;
 };
 
-export const deepActiveElement = () => {
+export const deepActiveElement = () : HTMLElement | null => {
 	//Based on code snippet at https://developers.google.com/web/fundamentals/web-components/shadowdom
-	let a = getDocument().activeElement;
+	let doc = getDocument();
+	if (!doc) return null;
+	let a = doc.activeElement;
 	while (a && a.shadowRoot && a.shadowRoot.activeElement) {
 		a = a.shadowRoot.activeElement;
 	}
@@ -563,11 +565,13 @@ export const setUnion = (obj, items) => {
 
 //This logic is finicky and we have a few defaults we want to have, so wrap it
 //in a util.
-export const makeElementContentEditable = (ele) => {
+export const makeElementContentEditable = (ele : HTMLElement) => {
 	ele.contentEditable = 'true';
 	//It's OK if we have already done these commands to do them again
 
 	let document = getDocument();
+
+	if (!document) return;
 
 	//styleWithCSS turns off styling spans with CSS and just uses presentational
 	//attributes. 
