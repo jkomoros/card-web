@@ -183,7 +183,7 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 		iconName: 'RECEIPT_ICON',
 		autoSlug: true,
 		defaultBody: WORK_DEFAULT_BODY,
-		backportTitleExtractor : (rawCard, referenceType, rawCards) => {
+		backportTitleExtractor : (rawCard, _, rawCards) => {
 			let authors = [];
 			for (const otherID of (references(rawCard).byTypeArray()[REFERENCE_TYPE_CITATION_PERSON] || [])) {
 				const otherCard = rawCards[otherID];
