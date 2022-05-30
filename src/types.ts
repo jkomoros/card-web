@@ -189,3 +189,34 @@ export type SetName = string;
 export type SortName = string;
 //TODO: lock this down
 export type ViewMode = string;
+
+type Section = {
+    start_cards : CardID[],
+    order : number,
+    cards : CardID[],
+    title : string,
+    updated : FirestoreTimestamp,
+    id : string
+}
+
+export interface CollectionConstructorArguments {
+    cards : Cards,
+    sets : {
+        [setName : SetName] : CardID[]
+    },
+    filters : {
+        [filterName : string] : {
+            [id : CardID] : true
+        }
+    },
+    sections: {
+        [sectionName : string]: Section
+    },
+    fallbacks : {
+        [serializedDescription: string] : CardID[],
+    }
+    startCards : {
+        [serializedDescription : string] : CardID[],
+    },
+    userID : Uid,
+}
