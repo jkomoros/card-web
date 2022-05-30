@@ -430,7 +430,7 @@ export const arrayDiffAsSets = (before = [], after = []) => {
 	return [arrayToSet(additions), arrayToSet(deletions)];
 };
 
-export const arrayDiff = (before, after) => {
+export const arrayDiff = (before : any[] = [], after : any[] = []) : [any[], any[]]=> {
 	if (!before) before = [];
 	if (!after) after = [];
 	let afterMap = new Map();
