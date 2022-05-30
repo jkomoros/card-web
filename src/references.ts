@@ -3,6 +3,12 @@ import {
 } from 'firebase/firestore';
 
 import {
+	Card,
+	ReferencesInfoMap,
+	ReferencesInfoMapByType
+} from './types.js';
+
+import {
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCE_TYPE_LINK,
@@ -66,14 +72,23 @@ const byTypeToReferences = (byTypeMap) => {
 };
 
 const ReferencesAccessor = class {
+
+	private _cardObj : Card;
+	private _modified : boolean;
+	private _memoizedByType : ReferencesInfoMapByType;
+	private _memoizedByTypeInbound : ReferencesInfoMapByType;
+	private _memoizedByTypeSubstantive : ReferencesInfoMapByType;
+	private _memoizedByTypeInboundSubstantive : ReferencesInfoMapByType;
+	private _referencesInfo : ReferencesInfoMap;
+	private _referencesInfoInbound : ReferencesInfoMap;
+
 	//ReferencesAccessor assumes that, if you do one of the mutating methods,
 	//it's legal to modify cardObj, but NOT the previously set reference blocks.
 	//(That is, that cardObj is a mutable shallow copy from any state objects).
 	//If you modify anything, it will overwrite the references blocks instead of
 	//modifying them.
-	constructor(cardObj) {
+	constructor(cardObj : Card) {
 		this._cardObj = cardObj;
-		if (!this._cardObj) return;
 		this._modified = false;
 		this._memoizedByType = null;
 		this._memoizedByTypeInbound = null;
@@ -394,7 +409,7 @@ const ReferencesAccessor = class {
 		if (!fallbackMap) fallbackMap = {};
 		//First, effectively clone the references object we're based on, by
 		//creating a fake card (which won't ever be accesible)
-		const newCardLikeObj = {};
+		const newCardLikeObj = {...this._cardObj};
 		const newReferences = new ReferencesAccessor(newCardLikeObj);
 		newReferences.ensureReferences(this._cardObj);
 

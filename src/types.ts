@@ -44,9 +44,15 @@ type ReferencesMap = {
 //TODO: tighten this
 export type ReferenceType = string;
 
-type ReferencesInfoMap = {
+export type ReferencesInfoMap = {
     [id : CardID]: {
         [typ : ReferenceType]: string
+    }
+}
+
+export type ReferencesInfoMapByType = {
+    [typ : ReferenceType]: {
+        [id : CardID]: string
     }
 }
 
