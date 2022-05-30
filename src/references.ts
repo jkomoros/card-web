@@ -4,6 +4,8 @@ import {
 
 import {
 	Card,
+	CardID,
+	ReferenceType,
 	ReferencesInfoMap,
 	ReferencesInfoMapByType
 } from './types.js';
@@ -526,13 +528,25 @@ const cloneReferences = (referencesBlock) => {
 	return result;
 };
 
-const expandedReferenceKey = (cardID, referenceType) => cardID + '+' + referenceType;
-const expandedReferenceObject = (cardID, referenceType, value) => ({
+type ExpandedReferenceKey = string;
+type ExpandedReferenceObject = {
+	cardID : CardID,
+	referenceType : ReferenceType,
+	value : string
+}
+type ExpandedReferenceDelete = {
+	cardID : CardID,
+	referenceType : ReferenceType,
+	delete : true
+}
+
+const expandedReferenceKey = (cardID : CardID, referenceType : ReferenceType) : ExpandedReferenceKey => cardID + '+' + referenceType;
+const expandedReferenceObject = (cardID : CardID, referenceType : ReferenceType, value : string) : ExpandedReferenceObject => ({
 	cardID,
 	referenceType,
 	value,
 });
-const expandedReferenceDeleteObject = (cardID, referenceType) => ({
+const expandedReferenceDeleteObject = (cardID : CardID, referenceType : ReferenceType) : ExpandedReferenceDelete => ({
 	cardID,
 	referenceType,
 	delete: true,
@@ -540,8 +554,8 @@ const expandedReferenceDeleteObject = (cardID, referenceType) => ({
 
 //Returns an object where keys look like `CARD_ID+REFERENCE_TYPE` and values
 //look like {cardID: 'CARD_ID', referenceType: 'REFERENCE_TYPE', value:''}
-const expandedReferences = (referencesInfo) => {
-	const result = {};
+const expandedReferences = (referencesInfo : ReferencesInfoMap) => {
+	const result : {[key : ExpandedReferenceKey] : ExpandedReferenceObject} = {};
 	for (const [cardID, cardRefs] of Object.entries(referencesInfo)) {
 		for (const [referenceType, value] of Object.entries(cardRefs)) {
 			const key = expandedReferenceKey(cardID, referenceType);
@@ -574,7 +588,7 @@ export const referencesEntriesDiffWithRemove = (diff = [], cardID, referenceType
 //delete:true, representing the items that would have to be done via
 //setCardReference and removeCardReference to get beforeCard to look like
 //afterCard. The deletions will all come before the modifications in the diff.
-export const referencesEntriesDiff = (beforeCard, afterCard) => {
+export const referencesEntriesDiff = (beforeCard : Card, afterCard : Card) => {
 	const modificationsResult = [];
 	const deletionsResult = [];
 	if (!referencesLegalShape(beforeCard)) return [];
@@ -586,7 +600,8 @@ export const referencesEntriesDiff = (beforeCard, afterCard) => {
 	const seenInAfter = {};
 	for (const [key, afterObj] of Object.entries(expandedAfter)) {
 		seenInAfter[key] = true;
-		const beforeObj = expandedBefore[key] || {};
+		const beforeObj = expandedBefore[key];
+		if (!beforeObj) continue;
 		if (beforeObj.value !== afterObj.value) modificationsResult.push(afterObj);
 	}
 	for (const [key, beforeObj] of Object.entries(expandedBefore)) {
