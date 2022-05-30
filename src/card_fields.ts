@@ -3,6 +3,12 @@ import {
 	references
 } from './references.js';
 
+import {
+	CardTypeConfigurationMap,
+	SelectorStyleMap,
+	CardType
+} from './types.js';
+
 /*
 
 On each card is a references property and a references info.
@@ -106,51 +112,9 @@ export const PERSON_DEFAULT_BODY = 'This is a card about a person. The following
 //lit-css and used to add styles that will only be activated for cards of a
 //given type. selectors is an object of css selector to an array of individual
 //style lines, with or without a trailing ';'.
-const styleBlockForCardType = (cardType, selectors) => Object.entries(selectors).map(selectorEntry => '.container.' + cardType + ' ' + selectorEntry[0] + ' {\n' + selectorEntry[1].map(propertyEntry => '\t' + propertyEntry + (propertyEntry.endsWith(';') ? '' : (!propertyEntry.startsWith('/') ? ';' : ''))).join('\n') + '\n}\n').join('\n');
+const styleBlockForCardType = (cardType : CardType, selectors : SelectorStyleMap) => Object.entries(selectors).map(selectorEntry => '.container.' + cardType + ' ' + selectorEntry[0] + ' {\n' + selectorEntry[1].map(propertyEntry => '\t' + propertyEntry + (propertyEntry.endsWith(';') ? '' : (!propertyEntry.startsWith('/') ? ';' : ''))).join('\n') + '\n}\n').join('\n');
 
-/*
-
-invertContentPublishWarning: if true, then the 'There's content but unpublished,
-are you sure?' will not trigger... unelss you try to publish in which case it
-will ask for confirmation.
-
-orphanedByDefault: if true, then the confirmation of 'You're about to make this
-card orphaned' will be flipped, and the natural location of them will be
-orphaned.
-
-publishedByDefault: if true, then createCard will by default create a card that
-is published. This is useful for example for concept cards, where the primary
-content is the reference list. If this is true, then trying to save the card if
-it's not published will always warn.
-
-styleBlock: if provided, will be rendered as the style block in the card
-renderer when this card type is selected. A string that will be run through css
-tag. This isn't an css tag to avoid having heavyweight imports so this can be
-included in tests. You should use styleBlockForCardType to generate the string,
-so that the right selector guards and indentation are added.
-
-dark: if true, the card is considered dark, and styles for e.g. thumbnails,
-including badge color, will swap.
-
-iconName: a reference from icons to show in front of the title everywhere it
-shows up. A string that indexes into icons. This isn't an html tag to avoid
-having heavyweight imports so this can be included in tests.
-
-autoSlug: if true, then when a new card is created, it will try to automatically
-add a name to the card that is `CARD_TYPE-NORMALIZED-TITLE`.
-
-defaultBody: if set, then when a card of this type is created, it will have this
-string.
-
-description: the string describing what the card type is, for UI helptext.
-
-backportTitleExtractor: if defined, a function taking (rawCard, referenceType,
-allRawCards) that should return the string to be used for backporting text. If
-not defined, will just use card.title.
-
-*/
-
-export const CARD_TYPE_CONFIGURATION = {
+export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 	[CARD_TYPE_CONTENT]: {
 		description: 'The primary type of card, with a title and body.'
 	},
