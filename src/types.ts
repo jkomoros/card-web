@@ -28,8 +28,30 @@ type FontSizeBoostMap = {
 //TODO: lock this down more
 export type CardType = string;
 
+//TOOD: tighten
+type ImagePosition = string;
+
+interface ImageInfo {
+    //Must always be set to a fully resolved url
+    src: string,
+    //Natural height and width in pixels
+    height: number,
+    width: number,
+    //Size, in ems, for the width of the image as rendered. (The height will maintain aspect ratio)
+    emSize: number,
+    //If the file is an uload, the path in the upload bucket. This is usef
+    uploadPath: string,
+    //If set, the location where the original was found, for citations, etc.
+    original: string,
+    alt: string,
+    //Must be one of the values in LEGAL_IMAGE_POSITIONS
+    position: ImagePosition
+    //number in ems
+    margin: number,
+}
+
 //TODO: lock this down more
-type ImageBlock = any;
+type ImageBlock = ImageInfo[];
 
 //TODO: lock this down more
 type TODOType = string;
