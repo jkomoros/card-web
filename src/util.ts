@@ -29,7 +29,7 @@ import {
 //other imports.
 export const _PAGE_BASIC_CARD = 'basic-card';
 
-export const allSubstrings = (str) => {
+export const allSubstrings = (str : string) => {
 	let result = [];
 
 	for (let i = 0; i < str.length; i++) {
@@ -40,7 +40,7 @@ export const allSubstrings = (str) => {
 	return result;
 };
 
-export const hash = (str) => {
+export const hash = (str : string) => {
 	//Adapted from https://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript
 	let hash = 0, i, chr;
 	for (i = 0; i < str.length; i++) {
@@ -55,10 +55,7 @@ const randomCharSetNumbers = '0123456789';
 const randomCharSetLetters = 'abcdef';
 const randomCharSet = randomCharSetNumbers + randomCharSetLetters;
 
-export const randomString = (length, charSet) => {
-	if (!charSet) {
-		charSet = randomCharSet;
-	}
+export const randomString = (length : number, charSet = randomCharSet) => {
 	let text = '';
 	for (let i = 0; i < length; i++) {
 		text += charSet.charAt(Math.floor(Math.random() * charSet.length));
@@ -67,7 +64,7 @@ export const randomString = (length, charSet) => {
 };
 
 //TODO: consider renaming this, because we also use it in selectFullDataNeeded.
-export const pageRequiresMainView = (pageName) => {
+export const pageRequiresMainView = (pageName : string) => {
 	return pageName != _PAGE_BASIC_CARD;
 };
 
@@ -80,17 +77,17 @@ export const deepActiveElement = () => {
 	return a;
 };
 
-export const capitalizeFirstLetter = (str) => {
+export const capitalizeFirstLetter = (str : string) => {
 	return str.charAt(0).toUpperCase() + str.slice(1);
 };
 
-export const toTitleCase = (str) => {
+export const toTitleCase = (str : string) => {
 	//Based on https://gomakethings.com/converting-a-string-to-title-case-with-vanilla-javascript/
-	str = str.toLowerCase().split(' ');
-	for (var i = 0; i < str.length; i++) {
-		str[i] = str[i].charAt(0).toUpperCase() + str[i].slice(1);
+	let parts = str.toLowerCase().split(' ');
+	for (var i = 0; i < parts.length; i++) {
+		parts[i] = parts[i].charAt(0).toUpperCase() + parts[i].slice(1);
 	}
-	return str.join(' ');
+	return parts.join(' ');
 };
 
 //note: these are recreated in functions/legal.js
@@ -99,7 +96,7 @@ const slugIllegalPartExpression = /[^a-zA-Z0-9-_ ]/g;
 const slugRegularExpression = /^[a-zA-Z0-9-_]+$/;
 
 //returns if the given uid looks like it could be legal
-export const legalUid = (uid) => {
+export const legalUid = (uid : string) => {
 	if (!slugRegularExpression.test(uid)) return false;
 	if (uid.length < 10) return false;
 	return true;
@@ -108,7 +105,7 @@ export const legalUid = (uid) => {
 //normalizes a mostly-OK slug, returning '' if it wasn't legal. If you want to
 //generate a good one given an arbitrary string that may contain illegal
 //characters to strip, see createSlugFromArbitraryString
-export const normalizeSlug = (slug) => {
+export const normalizeSlug = (slug : string) => {
 	slug = slug.trim();
 	slug = slug.toLowerCase();
 	slug = slug.split(' ').join('-');
@@ -119,15 +116,15 @@ export const normalizeSlug = (slug) => {
 	return slug;
 };
 
-export const createSlugFromArbitraryString = (str) => {
+export const createSlugFromArbitraryString = (str : string) => {
 	str = str.replace(slugIllegalPartExpression, '');
 	return normalizeSlug(str);
 };
 
-let vendedNewIDs = {};
+let vendedNewIDs : {[name: string]: boolean} = {};
 
 //returns true if the given ID was recently vended in this client from newID.
-export const idWasVended = (id) => {
+export const idWasVended = (id : string) => {
 	return vendedNewIDs[id] || false;
 };
 
