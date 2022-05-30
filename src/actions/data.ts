@@ -633,40 +633,20 @@ export const defaultCardObject = (id, user, section, cardType, sortOrder) => {
 		collaborators: [],
 		updated_substantive: serverTimestamp(),
 		updated_message: serverTimestamp(),
-		//star_count is sum of star_count_manual, tweet_favorite_count, tweet_retweet_count.
 		star_count: 0,
-		//star_count_manual is the count of stars in the stars collection (as
-		//opposed to faux stars that are tweet enagement actions)
 		star_count_manual: 0,
-		//The sum of favorite counts for all tweets for this card
 		tweet_favorite_count: 0,
-		//The sum of retweet counts for all tweets for this card
 		tweet_retweet_count: 0,
 		thread_count: 0,
 		thread_resolved_count: 0,
-		//A number that is compared to other cards to give the default sort
-		//order. Higher numbers will show up first in the default sort order.
-		//Before saving the card for the first time, you should set this to a
-		//reasonable value, typically DEFAULT_SORT_ORDER_INCREMENT smaller than
-		//every card already known to exist.
 		sort_order: sortOrder,
 		title: '',
 		section: section,
 		body: '',
-		//See the documentation for these two string contants in card_fields.js
-		//for information on the shape of these fields.
 		[REFERENCES_INFO_CARD_PROPERTY]: {},
 		[REFERENCES_INFO_INBOUND_CARD_PROPERTY]: {},
-		// version are like the normal properties, but where it's a map
-		//of cardID to true if there's ANY kind of refernce. Whenever a card is
-		//modified, these s are automatically mirrored basd on the value
-		//of references. They're popped out primarily so that you can do
-		//firestore qureies on them to find cards that link to another.
 		[REFERENCES_CARD_PROPERTY]: {},
 		[REFERENCES_INBOUND_CARD_PROPERTY]: {},
-		//Keys in this object denote fields that should have their emsize
-		//boosted, with a missing key equal to a boost of 0.0. The font size is
-		//1.0 + the boost, in ems.
 		font_size_boost: {},
 		card_type: cardType,
 		notes: '',
@@ -675,23 +655,10 @@ export const defaultCardObject = (id, user, section, cardType, sortOrder) => {
 		name: id,
 		tags: [],
 		published: false,
-		//images is an imagesBlock. See src/images.js for a definition.
 		images: [],
-		//auto_todo_overrides is a map of key -> true or false, for each kind of
-		//TODO (as enumerated in TODO_OVERRIDE_LEGAL_KEYS). A value of true
-		//means that the TODO is overrided to the "done" state for that TODO, no
-		//matter how else the card is configured. A false means it it is
-		//overridden to the "not done" state no mater how the rest of the card
-		//is configured. And a missing key means "based on what the TODO
-		//function said for that key based on being passed the card"
 		auto_todo_overrides: {},
-		//Defaul to epoch 1970 for things not yet tweeted
 		last_tweeted: new Date(0),
 		tweet_count: 0
-		//Note: there are three fields that are often set on cards but not persisted to database:
-		//normalized - this is set by cardWithNormalizedTextProperties and is where all of the nlp-based machinery is based on.
-		//fallbackText - this is stashed there so that the cardWithNormalizedTextProperties machinery can fetch it if it wants.
-		//importantNgrams - agains stashed here by cardWithNormalizedTextProperties so wordCountForSemantics can fetch it.
 	};
 };
 
