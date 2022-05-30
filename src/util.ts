@@ -708,7 +708,7 @@ const LOG_DEEP_EQUAL_DIFFERENCES = false;
 //than objects, arrays, strings, numbers, bools.∑ If a and b are too non-equal
 //objecst, and objectChecker is provided, then if both return true from
 //objectChecker then deepEqual will short-circuit and return true.
-export const deepEqual = (a, b, objectChecker = null) => {
+export const deepEqual = (a : any, b : any, objectChecker : ((object: any) => boolean) | null = null) => {
 	if (a === b) return true;
 	if (!a || !b) return false;
 	if (typeof a != 'object' || typeof b != 'object') return false;
