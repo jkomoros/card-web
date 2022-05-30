@@ -452,10 +452,14 @@ export const arrayDiff = (before : any[] = [], after : any[] = []) : [any[], any
 	return [additions, deletions];
 };
 
+type TriStateMap = {
+	[name : string]: boolean
+}
+
 //triStateMapDiff operates on objects that have keys that are either true or
 //false. It returns keys to explicit set to true, keys to explicitly set to
 //false, and keys to remove.
-export const triStateMapDiff = (before, after) => {
+export const triStateMapDiff = (before : TriStateMap, after : TriStateMap) : [string[], string[], string[]] => {
 	if (!before) before = {};
 	if (!after) after = {};
 	//Generat the list of removals by looking for keys that do not exist in
