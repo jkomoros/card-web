@@ -280,8 +280,8 @@ export const cardBFS = (keyCardIDOrSlugList : CardID | Slug[], cards : Cards, pl
 
 	keyCardIDOrSlugList = normalizeCardSlugOrIDList(keyCardIDOrSlugList, cards);
 
-	let seenCards = {};
-	let cardsToProcess = [];
+	let seenCards : {[id : CardID]: number} = {};
+	let cardsToProcess : CardID[] = [];
 
 	for (let id of keyCardIDOrSlugList) {
 		seenCards[id] = 0;
@@ -293,12 +293,13 @@ export const cardBFS = (keyCardIDOrSlugList : CardID | Slug[], cards : Cards, pl
 
 	while (cardsToProcess.length) {
 		const id = cardsToProcess.shift();
+		if (!id) continue;
 		const card = cards[id];
 		//Must be unpublished
 		if (!card) continue;
 		const newCardDepth = (seenCards[id] || 0) + 1;
 		if (newCardDepth > ply) continue;
-		let links = [];
+		let links : CardID[] = [];
 		if (optReferenceTypes) {
 			for (const referenceType of optReferenceTypes) {
 				//Some of these will be dupes and that's OK because we skip items that are already seen
