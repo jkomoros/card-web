@@ -48,6 +48,7 @@ type ReferencesInfoMap = {
 }
 
 export interface Card {
+    id: CardID,
     created: FirestoreTimestamp,
     updated: FirestoreTimestamp,
     author: Uid,
