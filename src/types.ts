@@ -182,3 +182,10 @@ export interface PermissionInfo {
 export interface PermissionInfoCollection {
 	[name: PermissionInfoType]: PermissionInfo
 }
+
+//TODO: lock this down
+export type SetName = string;
+//TODO: lock this down
+export type SortName = string;
+//TODO: lock this down
+export type ViewMode = string;

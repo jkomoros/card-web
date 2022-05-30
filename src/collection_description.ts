@@ -22,6 +22,13 @@ import {
 } from './filters.js';
 
 import {
+	CardID,
+	SetName,
+	SortName,
+	ViewMode
+} from './types.js';
+
+import {
 	KEY_CARD_ID_PLACEHOLDER	
 } from './card_fields.js';
 
@@ -31,7 +38,7 @@ import {
 
 import { references } from './references.js';
 
-const extractFilterNamesSortAndView = (parts) => {
+const extractFilterNamesSortAndView = (parts) : [string[], SortName, boolean, ViewMode, string] => {
 	//returns the filter names, the sort name, and whether the sort is reversed
 	//parts is all of the unconsumed portions of the path that aren't the set
 	//name or the card name.
@@ -150,8 +157,17 @@ export const collectionDescriptionWithConfigurableFilter = (description, newConf
 	return collectionDescriptionWithOverrides(description, {filters: newFilters});
 };
 
-const collectionDescriptionWithOverrides = (description, overrides) => {
-	const baseValues = {
+interface CollectionDescriptionOverrides {
+	set? : SetName,
+	filters? : string[],
+	sort? : SortName,
+	sortReversed? : boolean,
+	viewMode? : ViewMode,
+	viewModeExtra? : string
+}
+
+const collectionDescriptionWithOverrides = (description : CollectionDescription, overrides : CollectionDescriptionOverrides) => {
+	const baseValues : CollectionDescriptionOverrides = {
 		set: description.setNameExplicitlySet ? description.set : '',
 		filters: description.filters,
 		sort: description.sort,
@@ -214,9 +230,21 @@ const collectionDescriptionWithPartReplacements = (description, replacements) =>
 	return CollectionDescription.deserialize(replacedParts.join('/'));
 };
 
-export const CollectionDescription = class {
+export class CollectionDescription {
 
-	constructor(setName, filterNames, sortName, sortReversed, viewMode, viewModeExtra) {
+	_setNameExplicitlySet : boolean;
+	_set : SetName;
+	_filters : string[];
+	_sort : SortName;
+	_sortReversed : boolean;
+	_viewMode : ViewMode;
+	_viewModeExtra : string;
+	_limit : number;
+	_offset : number;
+	_serialized : string;
+	_serializedShort : string;
+
+	constructor(setName : SetName, filterNames : string[], sortName : SortName, sortReversed : boolean, viewMode : ViewMode, viewModeExtra : string) {
 		let setNameExplicitlySet = true;
 		if (!setName) {
 			setName = DEFAULT_SET_NAME;
@@ -227,14 +255,6 @@ export const CollectionDescription = class {
 		if (!filterNames) filterNames = [];
 		if (!viewMode) viewMode = DEFAULT_VIEW_MODE;
 		if (!viewModeExtra) viewModeExtra = '';
-
-		if (typeof sortReversed != 'boolean') throw new TypeError();
-		if (typeof setName != 'string') throw new TypeError();
-		if (typeof sortName != 'string') throw new TypeError();
-		if (typeof viewMode != 'string') throw new TypeError();
-		if (typeof viewModeExtra != 'string') throw new TypeError();
-		if (!Array.isArray(filterNames)) throw new TypeError();
-		if (!filterNames.every(item => typeof item == 'string')) throw new TypeError();
 
 		let limit = 0;
 		let offset = 0;
@@ -623,12 +643,16 @@ const removeUnnecessaryLabels = (arr) => {
 
 const expandCardCollection = (collection, cards) => collection.map(id => cards[id] || null).filter(card => card ? true : false);
 
-const Collection = class {
+class Collection {
+
+	_description : CollectionDescription;
+	_keyCardID : CardID | '';
+
 	//See CollectionDescription.collection() for the shape of the
 	//collectionArguments object. It's passed in as an object and not as an
 	//unpacked array so we can maintain the object identity so that memoizing
 	//machinery can keep track. You can get one from selectCollectionConstructorArguments
-	constructor(description, collectionArguments) {
+	constructor(description : CollectionDescription, collectionArguments) {
 		if (!collectionArguments) collectionArguments = {};
 		this._arguments = collectionArguments;
 		Object.freeze(this._arguments);
