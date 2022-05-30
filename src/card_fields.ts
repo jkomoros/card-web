@@ -112,7 +112,7 @@ export const PERSON_DEFAULT_BODY = 'This is a card about a person. The following
 //lit-css and used to add styles that will only be activated for cards of a
 //given type. selectors is an object of css selector to an array of individual
 //style lines, with or without a trailing ';'.
-const styleBlockForCardType = (cardType : CardType, selectors : SelectorStyleMap) => Object.entries(selectors).map(selectorEntry => '.container.' + cardType + ' ' + selectorEntry[0] + ' {\n' + selectorEntry[1].map(propertyEntry => '\t' + propertyEntry + (propertyEntry.endsWith(';') ? '' : (!propertyEntry.startsWith('/') ? ';' : ''))).join('\n') + '\n}\n').join('\n');
+const styleBlockForCardType = (cardType : CardType, selectors : SelectorStyleMap) : string => Object.entries(selectors).map(selectorEntry => '.container.' + cardType + ' ' + selectorEntry[0] + ' {\n' + selectorEntry[1].map(propertyEntry => '\t' + propertyEntry + (propertyEntry.endsWith(';') ? '' : (!propertyEntry.startsWith('/') ? ';' : ''))).join('\n') + '\n}\n').join('\n');
 
 export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 	[CARD_TYPE_CONTENT]: {
