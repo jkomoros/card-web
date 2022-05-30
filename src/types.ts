@@ -25,7 +25,7 @@ type FontSizeBoostMap = {
 }
 
 //TODO: lock this down more
-type CardType = string;
+export type CardType = string;
 
 //TODO: lock this down more
 type ImageBlock = any;
@@ -47,7 +47,7 @@ type ReferencesInfoMap = {
     }
 }
 
-interface BaseCard {
+export interface Card {
     created: FirestoreTimestamp,
     updated: FirestoreTimestamp,
     author: Uid,
@@ -81,4 +81,23 @@ interface BaseCard {
     auto_todo_overrides: TODOOverrides,
     last_tweeted: FirestoreTimestamp,
     tweet_count: number,
+}
+
+export interface ProcessedCard extends Card {
+    //TODO: lock this down more
+    fallbackText: any,
+    //TODO: lock this down more
+    importantNgrams: any,
+    //TODO: lock this down more
+    synonymMap: any,
+    //TODO: lock this down more
+    nlp: any,
+}
+
+export type Cards = {
+    [id : CardID]: Card
+}
+
+export type ProcessedCards = {
+    [id: CardID]: ProcessedCard
 }
