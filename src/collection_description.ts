@@ -666,6 +666,15 @@ class Collection {
 	_fallbacks : SerializedDescriptionToCardList;
 	_startCardsConfig : SerializedDescriptionToCardList;
 	_userID : Uid;
+	_filteredCards : Card[] | null;
+	_collectionIsFallback : boolean;
+	_sortedCards : Card[] | null;
+	_labels : string[] | null;
+	_startCards : Card[] | null;
+	//TODO: correct title casing
+	_preLimitlength : number;
+	
+
 
 	//See CollectionDescription.collection() for the shape of the
 	//collectionArguments object. It's passed in as an object and not as an
@@ -696,7 +705,7 @@ class Collection {
 		//The filtered cards... before any size limit has been applied, if necessary
 		this._filteredCards = null;
 		this._preLimitlength = 0;
-		this._collectionIsFallback = null;
+		this._collectionIsFallback = false;
 		this._sortInfo = null;
 		this._sortedCards = null;
 		this._labels = null;
