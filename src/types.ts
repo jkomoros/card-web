@@ -259,6 +259,10 @@ export interface Card {
     tweet_count: number,
 }
 
+type SynonymMap = {
+    [input : string]: string[]
+}
+
 export interface ProcessedCard extends Card {
     //TODO: lock this down more
     //this is stashed there so that the cardWithNormalizedTextProperties machinery can fetch it if it wants.
@@ -266,8 +270,7 @@ export interface ProcessedCard extends Card {
     //TODO: lock this down more
     //agains stashed here by cardWithNormalizedTextProperties so wordCountForSemantics can fetch it.
     importantNgrams: any,
-    //TODO: lock this down more
-    synonymMap: any,
+    synonymMap: SynonymMap,
     //TODO: lock this down more
     nlp: any,
 }
