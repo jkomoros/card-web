@@ -48,6 +48,17 @@ type ReferencesInfoMap = {
 }
 
 export interface TweetInfo {
+    id : string
+    user_screen_name : string
+    user_id : string
+    posted_text : string
+    supplied_text : string
+    truncated : boolean
+    auto_tweet_version : number
+    media_expanded_url : string
+    media_id : string
+    media_url_https : string
+    fake : boolean
     created : FirestoreTimestamp
     card : CardID
     archived : boolean
