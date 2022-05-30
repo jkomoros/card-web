@@ -249,7 +249,7 @@ export const backportFallbackTextMapForCard = (card : Card, cards : Cards) => {
 //returns an array where every item is a normalized id.
 export const normalizeCardSlugOrIDList = (slugOrIDList : CardIdentifier | CardIdentifier[], cards : Cards) => {
 	if (!Array.isArray(slugOrIDList)) slugOrIDList = [slugOrIDList];
-	const missingCardIDs = {};
+	const missingCardIDs : {[name : CardIdentifier] : Slug} = {};
 	for (const idOrSlug of slugOrIDList) {
 		if (cards[idOrSlug]) continue;
 		missingCardIDs[idOrSlug] = idOrSlug;
