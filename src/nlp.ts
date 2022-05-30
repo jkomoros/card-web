@@ -40,7 +40,8 @@ import {
 } from './memoize.js';
 
 import {
-	Cards
+	Cards,
+	SynonymMap
 } from './types.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
@@ -107,7 +108,7 @@ export const getConceptCardForConcept = (allCardsOrConceptCards, conceptStr) => 
 };
 
 //Returns a map of str => [synonym1, synonym2, ...]. The words won't be normalized.
-export const synonymMap = (rawCards) => {
+export const synonymMap = (rawCards : Cards) : SynonymMap => {
 	const conceptCards = conceptCardsFromCards(rawCards);
 	const result = {};
 	//NOTE: this logic relies on synonym only being legal to/from concept cards.

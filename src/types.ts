@@ -259,7 +259,7 @@ export interface Card {
     tweet_count: number,
 }
 
-type SynonymMap = {
+export type SynonymMap = {
     [input : string]: string[]
 }
 
