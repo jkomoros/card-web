@@ -167,3 +167,17 @@ export type Cards = {
 export type ProcessedCards = {
     [id: CardID]: ProcessedCard
 }
+
+//TODO: lock this down more
+export type PermissionInfoType = string;
+
+export interface PermissionInfo {
+	displayName : string,
+	description : string,
+	locked? : boolean,
+	legalOnCard? : boolean,
+}
+
+export interface PermissionInfoCollection {
+	[name: PermissionInfoType]: PermissionInfo
+}

@@ -1,3 +1,7 @@
+import {
+	PermissionInfoCollection
+} from './types.js';
+
 export const PERMISSION_ADMIN = 'admin';
 export const PERMISSION_VIEW_APP = 'viewApp';
 export const PERMISSION_EDIT = 'edit';
@@ -25,18 +29,7 @@ export const COMPOSED_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS = {...COMPOSED_USER
 
 //NOTE: all of the logic above this line is effectively recreated in gulpfile.js
 
-interface PermissionInfo {
-	displayName : string,
-	description : string,
-	locked? : boolean,
-	legalOnCard? : boolean,
-}
-
-interface PermissionInfoCollection {
-	[string]: PermissionInfo
-}
-
-export const PERMISSIONS_INFO = {
+export const PERMISSIONS_INFO : PermissionInfoCollection = {
 	[PERMISSION_ADMIN]: {
 		displayName: 'Admin',
 		description: 'admin is the highest permission, which allows basically all actions, including deleting things. Note that this may only be set to true on a specific permissions record for a user, not at any other override point, since it\'s so sensitive. It also may not be set within the permissions editor, but only manually in the firebase console due to its sensitivity.',
