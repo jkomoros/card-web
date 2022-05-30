@@ -79,7 +79,7 @@ export const pageRequiresMainView = (pageName : string) => {
 	return pageName != _PAGE_BASIC_CARD;
 };
 
-export const deepActiveElement = () : HTMLElement | null => {
+export const deepActiveElement = () : Element | null => {
 	//Based on code snippet at https://developers.google.com/web/fundamentals/web-components/shadowdom
 	let doc = getDocument();
 	if (!doc) return null;
