@@ -47,6 +47,20 @@ type ReferencesInfoMap = {
     }
 }
 
+export interface TweetInfo {
+    created : FirestoreTimestamp
+    card : CardID
+    archived : boolean
+    archive_date : FirestoreTimestamp
+    retweet_count : number;
+    favorite_count : number;
+    //Last time we fetched and updated the retweet and favorite counts
+    engagement_last_fetched : FirestoreTimestamp
+    //Last time the retweet or favorite counts CHANGED from what we already had
+    //stored.
+    engagement_last_changed : FirestoreTimestamp
+}
+
 export interface Card {
     id: CardID,
     created: FirestoreTimestamp,
