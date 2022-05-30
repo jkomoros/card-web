@@ -1,28 +1,8 @@
-//card.images is an imagesBlock. It has the following shape:
-/*
-[
-	{
-		//Must always be set to a fully resolved url
-		src: 'https://www.example.com/image.png',
-		//Natural height and width in pixels
-		height: 10,
-		width: 100,
-		//Size, in ems, for the width of the image as rendered. (The height will maintain aspect ratio)
-		emSize: 10.0,
-		//If the file is an uload, the path in the upload bucket. This is usef
-		uploadPath: 'path/to/upload/image.png',
-		//If set, the location where the original was found, for citations, etc.
-		original: 'https://www.example.com/image.png',
-		alt: 'Text that shows up in alt tag',
-		//Must be one of the values in LEGAL_IMAGE_POSITIONS
-		position: 'top-left',
-		//number in ems
-		margin: 0.25,
-	}
-	//Other images may follow
-]
-
-*/
+import {
+	ImageInfo,
+	ImageBlock,
+	Card
+} from './types.js';
 
 //Will position left. Multiple images will go to the right of the one
 //immediatebly before them.
@@ -69,7 +49,7 @@ export const LEGAL_IMAGE_POSITIONS = {
 	},
 };
 
-const DEFAULT_IMAGE = {
+const DEFAULT_IMAGE : ImageInfo = {
 	src: '',
 	emSize: 15.0,
 	margin: 1.0,
@@ -81,7 +61,7 @@ const DEFAULT_IMAGE = {
 	alt: '',
 };
 
-export const setImageProperties = (img, ele) => {
+export const setImageProperties = (img : ImageInfo, ele) => {
 	ele.src = img.src;
 	ele.alt = img.alt || '';
 	const styleInfo = LEGAL_IMAGE_POSITIONS[img.position] || {};
@@ -95,7 +75,7 @@ export const setImageProperties = (img, ele) => {
 };
 
 //getImagesFromCard gets the images from a card, filling in every item as a default.
-export const getImagesFromCard = (card) => {
+export const getImagesFromCard = (card : Card) => {
 	if (!card) return [];
 	const images = card.images || [];
 	//Just in case, worst case pretend like there aren't images
@@ -113,7 +93,7 @@ export const srcSeemsValid = (src) => {
 export const getImageDimensionsForImageAtURL = async (url) => {
 	const imgEle = document.createElement('img');
 	imgEle.src = url;
-	let p = new Promise((resolve, reject) => {
+	let p = new Promise<void>((resolve, reject) => {
 		imgEle.addEventListener('load', () => {
 			resolve();
 		});
@@ -139,7 +119,7 @@ export const getImageDimensionsForImageAtURL = async (url) => {
 
 //Returns a new images block with the given image added. If index is undefined,
 //will add a new item to end.z
-export const addImageWithURL = (imagesBlock, src, uploadPath = '', index) => {
+export const addImageWithURL = (imagesBlock : ImageBlock, src : string, uploadPath = '', index : number) => {
 	if (!imagesBlock) imagesBlock = [];
 	let result = [...imagesBlock];
 	if (index === undefined) {
@@ -153,7 +133,7 @@ export const addImageWithURL = (imagesBlock, src, uploadPath = '', index) => {
 	return result;
 };
 
-export const moveImageAtIndex = (imagesBlock, index, isRight) => {
+export const moveImageAtIndex = (imagesBlock : ImageBlock, index : number, isRight : boolean) => {
 	if (index < 0 || index >= imagesBlock.length) return imagesBlock;
 	if (!isRight && index < 1) return imagesBlock;
 	if (isRight && index > imagesBlock.length - 2) return imagesBlock;
@@ -164,7 +144,7 @@ export const moveImageAtIndex = (imagesBlock, index, isRight) => {
 	return result;
 };
 
-export const removeImageAtIndex = (imagesBlock, index) => {
+export const removeImageAtIndex = (imagesBlock : ImageBlock, index : number) => {
 	const result = [];
 	for (let i = 0; i < imagesBlock.length; i++) {
 		if (i == index) continue;
@@ -173,7 +153,7 @@ export const removeImageAtIndex = (imagesBlock, index) => {
 	return result;
 };
 
-export const changeImagePropertyAtIndex = (imagesBlock, index, property, value) => {
+export const changeImagePropertyAtIndex = (imagesBlock : ImageBlock, index : number, property : string, value : any) => {
 	if (index < 0 || index >= imagesBlock.length) return imagesBlock;
 	const result = [...imagesBlock];
 	const item = {...result[index]};
@@ -182,7 +162,7 @@ export const changeImagePropertyAtIndex = (imagesBlock, index, property, value) 
 	return result;
 };
 
-export const imageBlocksEquivalent = (oneCard, twoCard) => {
+export const imageBlocksEquivalent = (oneCard : Card, twoCard : Card) => {
 	const one = getImagesFromCard(oneCard);
 	const two = getImagesFromCard(twoCard);
 	if (one.length != two.length) return false;

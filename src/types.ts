@@ -31,7 +31,7 @@ export type CardType = string;
 //TOOD: tighten
 type ImagePosition = string;
 
-interface ImageInfo {
+export interface ImageInfo {
     //Must always be set to a fully resolved url
     src: string,
     //Natural height and width in pixels
@@ -50,8 +50,7 @@ interface ImageInfo {
     margin: number,
 }
 
-//TODO: lock this down more
-type ImageBlock = ImageInfo[];
+export type ImageBlock = ImageInfo[];
 
 //TODO: lock this down more
 type TODOType = string;
