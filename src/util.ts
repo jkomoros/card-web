@@ -540,8 +540,8 @@ testTriStateMapDiff();
 */
 
 //items is an array
-export const setRemove = (obj, items) => {
-	let result = {};
+export const setRemove = (obj : object, items : string[]) => {
+	let result : {[name : string] : any} = {};
 	for (let key of Object.keys(obj)) {
 		result[key] = true;
 	}
@@ -552,8 +552,8 @@ export const setRemove = (obj, items) => {
 };
 
 //items is an array
-export const setUnion = (obj, items) => {
-	let result = {};
+export const setUnion = (obj : object, items : string[]) => {
+	let result : {[name : string]: any } = {};
 	for (let key of Object.keys(obj)) {
 		result[key] = true;
 	}
