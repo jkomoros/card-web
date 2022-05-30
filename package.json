@@ -46,6 +46,7 @@
     "@polymer/test-fixture": "^4.0.2",
     "@rollup/plugin-commonjs": "^22.0.0",
     "@rollup/plugin-node-resolve": "^13.3.0",
+    "@types/dompurify": "^2.3.3",
     "@web/dev-server": "^0.1.31",
     "@web/dev-server-rollup": "^0.3.17",
     "axe-core": "^3.5.5",
