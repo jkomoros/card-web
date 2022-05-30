@@ -350,19 +350,24 @@ export const cardNeedsReciprocalLinkTo = (card : Card, other: CardID | Card) => 
 
 const MULTIPLE_LINK_TEXT_DELIMITER = '\n';
 
-export const extractCardLinksFromBody = (body) => {
-	let ele = getDocument().createElement('section');
+export const extractCardLinksFromBody = (body : string) : {[name : CardID] : string} => {
+	const document = getDocument();
+	if (!document) return {};
+	let ele = document.createElement('section');
 	//This is not an XSS vulnerability because we never append ele into the
 	//actual dom.
 	ele.innerHTML = body;
-	let result = {};
+	let result : {[name : CardID]: string} = {};
 	let nodes = ele.querySelectorAll('card-link[card]');
 	nodes.forEach(link => {
-		const id = link.getAttribute('card');
+		const attribute = link.getAttribute('card');
+		if (!attribute) return;
+		const id : CardID = attribute;
+		const linkAsHTMLElement = link as HTMLElement;
 		if (result[id]) {
-			result[id] = result[id] + MULTIPLE_LINK_TEXT_DELIMITER + link.innerText;
+			result[id] = result[id] + MULTIPLE_LINK_TEXT_DELIMITER + linkAsHTMLElement.innerText;
 		} else {
-			result[id] = link.innerText;
+			result[id] = linkAsHTMLElement.innerText;
 		}
 	});
 	return result;
