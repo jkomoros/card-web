@@ -368,7 +368,7 @@ export const extractCardLinksFromBody = (body) => {
 	return result;
 };
 
-export const arrayRemoveUtil = (arr, items) => {
+export const arrayRemoveUtil = (arr : any[], items : any[]) => {
 	if (!items) {
 		console.warn('arrayRemoveUtil called without a second argument, which means you probably wanted arrayRemoveSentinel');
 	}
@@ -384,7 +384,7 @@ export const arrayRemoveUtil = (arr, items) => {
 	return result;
 };
 
-export const arrayUnionUtil = (arr, items) => {
+export const arrayUnionUtil = (arr : any[], items : any[]) => {
 	if (!items) {
 		console.warn('arrayUnionUtil called without a second argument, which means you probably wanted arrayUnionSentinel');
 	}
@@ -401,7 +401,7 @@ export const arrayUnionUtil = (arr, items) => {
 	return result;
 };
 
-export const arrayUnique = (arr) => {
+export const arrayUnique = (arr : any[]) => {
 	let seenItems = new Map();
 	let result = [];
 	for (let item of arr) {
@@ -412,8 +412,8 @@ export const arrayUnique = (arr) => {
 	return result;
 };
 
-export const arrayToSet = (arr) => {
-	let result = {};
+export const arrayToSet = (arr : string[]) => {
+	let result : {[name : string] : true} = {};
 	for (let item of arr) {
 		result[item] = true;
 	}
