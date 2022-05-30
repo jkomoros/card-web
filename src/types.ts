@@ -199,7 +199,11 @@ type Section = {
     id : string
 }
 
-type Filters = {
+export type Sets = {
+    [setName : SetName] : CardID[]
+}
+
+export type Filters = {
     [filterName : string] : {
         [id : CardID] : true
     }
@@ -207,9 +211,7 @@ type Filters = {
 
 export interface CollectionConstructorArguments {
     cards? : Cards,
-    sets? : {
-        [setName : SetName] : CardID[]
-    },
+    sets? : Sets,
     filters? : Filters,
     sections? : {
         [sectionName : string]: Section
