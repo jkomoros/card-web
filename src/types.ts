@@ -41,9 +41,12 @@ type ReferencesMap = {
     [id: CardID]: boolean
 }
 
+//TODO: tighten this
+type Referencetype = string;
+
 type ReferencesInfoMap = {
     [id : CardID]: {
-        [typ : CardType]: string
+        [typ : ReferenceType]: string
     }
 }
 
