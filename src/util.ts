@@ -6,6 +6,10 @@ import {
 	Slug,
 	CardIdentifier,
 	Uid,
+	Card,
+	ProcessedCard,
+	Cards,
+	CardType
 } from './types.js';
 
 import {
@@ -145,7 +149,7 @@ export const urlForTweet = (tweet) => {
 	return 'https://twitter.com/' + tweet.user_screen_name + '/status/' + tweet.id;
 };
 
-export const cardHasContent = (card) => {
+export const cardHasContent = (card : Card) => {
 	if (!card) return false;
 	//We treat all non-body-card cards as having content, since the main reason
 	//to count a card has not having content is if there's nothing to see on it.
@@ -159,7 +163,7 @@ export const cardHasContent = (card) => {
 };
 
 const SUBSTANTIVE_CONTENT_THRESHOLD = 300;
-export const cardHasSubstantiveContent = (card) => {
+export const cardHasSubstantiveContent = (card : ProcessedCard) => {
 	if (!card) return false;
 	//We treat all non-content cards as having content, since the main reason to
 	//count a card has not having content is if there's nothing to see on it.
@@ -168,13 +172,13 @@ export const cardHasSubstantiveContent = (card) => {
 	return content.length > SUBSTANTIVE_CONTENT_THRESHOLD;
 };
 
-export const cardHasNotes = (card) => {
+export const cardHasNotes = (card : Card) => {
 	if (!card) return false;
 	let content = card.notes ? card.notes.trim() : '';
 	return content ? true : false;
 };
 
-export const cardHasTodo = (card) => {
+export const cardHasTodo = (card : Card) => {
 	if (!card) return false;
 	let content = card.todo ? card.todo.trim() : '';
 	return content ? true : false;
@@ -182,7 +186,7 @@ export const cardHasTodo = (card) => {
 
 //Returns a string with the reason that the proposed card type is not legal for
 //this card. If the string is '' then it is legal.
-export const reasonCardTypeNotLegalForCard = (card, proposedCardType) => {
+export const reasonCardTypeNotLegalForCard = (card : Card, proposedCardType : CardType) => {
 	const legalInboundReferenceTypes = LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE[proposedCardType];
 	if (!legalInboundReferenceTypes) return '' + proposedCardType + ' is not a legal card type';
 	const legalOutboundRefrenceTypes = LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[proposedCardType];
@@ -213,7 +217,7 @@ export const reasonCardTypeNotLegalForCard = (card, proposedCardType) => {
 //opt into backporting via backportMissingText that don't have text will fetch
 //it from the title of the card they point to. Cards that don't have any
 //references that need backporting will return null.
-export const backportFallbackTextMapForCard = (card, cards) => {
+export const backportFallbackTextMapForCard = (card : Card, cards : Cards) => {
 	//TODO: anotehr approach is to iterate through byTypeInbound, and contribute
 	//to one, shared, global fallbackMap. That would create fewer objects, but
 	//it would mean that every time the fallbackMap changed, every card would
@@ -241,7 +245,7 @@ export const backportFallbackTextMapForCard = (card, cards) => {
 
 //Takes a string (single id/slug) or an array of strings of id/slugs, and
 //returns an array where every item is a normalized id.
-export const normalizeCardSlugOrIDList = (slugOrIDList : CardIdentifier[], cards) => {
+export const normalizeCardSlugOrIDList = (slugOrIDList : CardIdentifier | CardIdentifier[], cards : Cards) => {
 	if (!Array.isArray(slugOrIDList)) slugOrIDList = [slugOrIDList];
 	const missingCardIDs = {};
 	for (const idOrSlug of slugOrIDList) {
@@ -270,7 +274,7 @@ export const normalizeCardSlugOrIDList = (slugOrIDList : CardIdentifier[], cards
 //not. if optReferenceType is falsey, it will use all substantive references.
 //Otherwise, it will filter to only references of the given type, if it's a
 //string, or any reference types listed if it's an array.
-export const cardBFS = (keyCardIDOrSlugList : CardID | Slug[], cards, ply : number, includeKeyCard : boolean, isInbound, optReferenceTypes) => {
+export const cardBFS = (keyCardIDOrSlugList : CardID | Slug[], cards : Cards, ply : number, includeKeyCard : boolean, isInbound : boolean, optReferenceTypes) => {
 
 	keyCardIDOrSlugList = normalizeCardSlugOrIDList(keyCardIDOrSlugList, cards);
 
@@ -318,7 +322,7 @@ export const cardBFS = (keyCardIDOrSlugList : CardID | Slug[], cards, ply : numb
 
 //cardMissingReciprocalLinks returns the links that point to a card that are not
 //reciprocated and not explicitly listed as OK to skip.
-export const cardMissingReciprocalLinks = (card) => {
+export const cardMissingReciprocalLinks = (card : Card) => {
 	if (!card) return [];
 	let links = new Map();
 	const refs = references(card);
@@ -332,7 +336,7 @@ export const cardMissingReciprocalLinks = (card) => {
 };
 
 //other can be a card ID or a card
-export const cardNeedsReciprocalLinkTo = (card, other) => {
+export const cardNeedsReciprocalLinkTo = (card : Card, other: CardID | Card) => {
 	if (typeof other == 'object') other = other.id;
 	if (!card || !other) return false;
 	const missingReciprocalLinks = cardMissingReciprocalLinks(card);
@@ -574,7 +578,7 @@ export const makeElementContentEditable = (ele) => {
 };
 
 //Returns a safe markdown element that can be emitted in a lit-html template.
-export const markdownElement = (content) => {
+export const markdownElement = (content : string) => {
 	let div = getDocument().createElement('div');
 	let html = snarkdown(content);
 	let sanitizedHTML = dompurify.sanitize(html);
@@ -596,21 +600,21 @@ export const killEvent = (e) => {
 	return true;
 };
 
-export const isWhitespace = (s) => {
+export const isWhitespace = (s : string) => {
 	return /^\s*$/.test(s);
 };
 
 //Items in the reads and stars collections are stored at a canonical id given
 //a uid and card id.
-export const idForPersonalCardInfo = (uid, cardId) => {
+export const idForPersonalCardInfo = (uid : Uid, cardId : CardID) => {
 	return '' + uid + '+' + cardId;
 };
 
-let memoizedPageRank = null;
-let memoizedPageRankInput = null;
+let memoizedPageRank : {[id : CardID]: number} = null;
+let memoizedPageRankInput : Cards = null;
 
 //return a map of id to rank for each card.
-export const pageRank = (cards) => {
+export const pageRank = (cards : Cards) => {
 
 	if (memoizedPageRankInput === cards) {
 		return memoizedPageRank;
