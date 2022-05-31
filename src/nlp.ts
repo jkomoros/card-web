@@ -1547,6 +1547,9 @@ class Fingerprint {
 export class FingerprintGenerator {
 
 	_cards : Cards;
+	_idfMap : {
+		[ngram : string] : number
+	};
 	_fingerprintSize : number;
 	_ngramSize : number;
 	_maxIDF : number;
