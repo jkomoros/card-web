@@ -186,9 +186,11 @@ export type WebInfo = {
     edges: {source : CardID, target : CardID, value : number}[]
 };
 
+export type SortExtractorResult = [sortValue : number, label : string];
+
 export type SortConfigurationMap = {
     [sortName : string]: {
-        extractor : (card : ProcessedCard, sections : Sections, cards : ProcessedCards, sortExtras : SortExtras) => [sortValue : number, label : string] ,
+        extractor : (card : ProcessedCard, sections : Sections, cards : ProcessedCards, sortExtras : SortExtras) => SortExtractorResult ,
         description : string,
         labelName? : string | ((sortExtras : SortExtras) => string),
         reorderable? : (sortExtras : SortExtras) => boolean,

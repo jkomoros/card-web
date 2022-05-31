@@ -30,6 +30,7 @@ import {
 	SerializedDescriptionToCardList,
 	SortExtra,
 	SortExtras,
+	SortExtractorResult,
 	Filters,
 	Sections,
 	SetName,
@@ -835,7 +836,7 @@ class Collection {
 	_makeSortInfo() {
 		const config = this._description.sortConfig;
 		//_prelimitFilteredCards uses the most up to date version of the card, but we want to use the snapshot version.
-		let entries = this._preLimitFilteredCards.map(card => {
+		let entries : [CardID, SortExtractorResult][] = this._preLimitFilteredCards.map((card : ProcessedCard) => {
 			//In almost all cases we want to use the precise card that the
 			//filtering machinery saw (which is possibly a snapshot). however,
 			//there are some cases where the card does exist in the set but is
