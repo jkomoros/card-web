@@ -938,7 +938,10 @@ class Collection {
 
 	_ensureWebInfo() {
 		if (this._webInfo) return;
-		if (this._description.viewMode != VIEW_MODE_WEB) return {nodes:[], edges:[]};
+		if (this._description.viewMode != VIEW_MODE_WEB) {
+			this._webInfo = {nodes:[], edges:[]};
+			return;
+		}
 		const nodes = this.filteredCards.map(card => ({id: card.id, name: card.title || card.id}));
 		const nodeMap = Object.fromEntries(nodes.map(o => [o.id, true]));
 		const edges = [];
