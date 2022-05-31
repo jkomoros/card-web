@@ -13,7 +13,7 @@ const ELEMENT_NODE = 1;
 const TEXT_NODE = 3;
 
 
-const replaceAsWithCardLinks = (body) => {
+const replaceAsWithCardLinks = (body : string) : string=> {
 	//Replaces all a's with card-links.
 	//TODO: consider modifying the actual nodes in place, which is more robust.;
 	body = body.split('<a').join('<card-link');
@@ -21,14 +21,14 @@ const replaceAsWithCardLinks = (body) => {
 	return body;
 };
 
-const replaceCardLinksWithAs = (body) => {
+const replaceCardLinksWithAs = (body : string) : string => {
 	//Inverse of replaceAwsWithCardLinks
 	body = body.split('<card-link').join('<a');
 	body = body.split('</card-link>').join('</a>');
 	return body;
 };
 
-const hrefToCardAttribute = (cardLink) => {
+const hrefToCardAttribute = (cardLink : HTMLAnchorElement) => {
   
 	let cardAttribute = cardLink.getAttribute('card');
 	//Sometimes the HTML erroneously has a normal href in the card, so look for
