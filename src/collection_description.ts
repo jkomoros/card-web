@@ -677,7 +677,10 @@ class Collection {
 		[filterName : string]: {
 			[cardID : CardID] : number
 		}
-	}
+	};
+	_partialMatches : {
+		[cardID : CardID] : boolean
+	};
 
 	//See CollectionDescription.collection() for the shape of the
 	//collectionArguments object. It's passed in as an object and not as an
