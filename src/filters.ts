@@ -641,12 +641,12 @@ const makeSimilarConfigurableFilter = (filterName, rawCardID) => {
 	return [func, false];
 };
 
-const makeSimilarCutoffConfigurableFilter = (filterName, rawCardID, floatCutoff) => {
+const makeSimilarCutoffConfigurableFilter = (filterName, rawCardID : string, rawFloatCutoff : string) => {
 	//note: makeExpandConfigurableFilter needs to be updated if the number or order of parameters changes.
 
 	const [, includeKeyCard, cardIDs] = parseKeyCardID(rawCardID);
 
-	floatCutoff = parseFloat(floatCutoff || 0);
+	let floatCutoff = parseFloat(rawFloatCutoff || '0');
 	if (isNaN(floatCutoff)) floatCutoff = 0;
 	
 	const generator = memoize((cards, rawCardIDsToUse, editingCard) => {
