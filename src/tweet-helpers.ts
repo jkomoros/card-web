@@ -121,7 +121,7 @@ const tweetOrderExtractorImpl = (card, sections, allCards) => {
 		}
 	}
 
-	return [baseValue, baseValue];
+	return [baseValue, String(baseValue)];
 };
 
 //Below this line are the only changes between the two versions of this file,
