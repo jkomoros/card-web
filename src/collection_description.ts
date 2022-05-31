@@ -514,15 +514,7 @@ const makeFilterFromConfigurableFilter = (name, extras) => {
 	let sortValues = {};
 	let partialMatches = {};
 	for (let [id, card] of Object.entries(extras.cards)) {
-		let funcResult = func(card, extras);
-		let matches = funcResult;
-		let sortValue = undefined;
-		let partialMatch = false;
-		if (Array.isArray(funcResult)) {
-			matches = funcResult[0];
-			sortValue = funcResult[1];
-			if (funcResult.length >= 3) partialMatch = funcResult[2];
-		}
+		let [matches, sortValue, partialMatch] = func(card, extras);
 		//TODO: this doesn't handle cases where the func is a reversed func,
 		//right? This isn't currently exercised, since none of the reversed
 		//configurable filters emit sortValues.

@@ -155,23 +155,23 @@ const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, seco
 	const firstDate = firstDateStr ? new Date(firstDateStr) : null;
 	const secondDate = secondDateStr ? new Date(secondDateStr) : null;
 
-	let func : ((card : ProcessedCard) => boolean) = () => false;
+	let func : ((card : ProcessedCard) => [boolean]) = () => [false];
 
 	switch (comparisonType) {
 	case BEFORE_FILTER_NAME:
 		func = function(card) {
 			const val = card[propName];
-			if (!val) return false;
+			if (!val) return [false];
 			const difference = val.toMillis() - firstDate.getTime();
-			return difference < 0;
+			return [difference < 0];
 		};
 		break;
 	case AFTER_FILTER_NAME:
 		func = function(card) {
 			const val = card[propName];
-			if (!val) return false;
+			if (!val) return [false];
 			const difference = val.toMillis() - firstDate.getTime();
-			return difference > 0;
+			return [difference > 0];
 		};
 		break;
 	case BETWEEN_FILTER_NAME:
@@ -179,10 +179,10 @@ const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, seco
 		if (secondDate) {
 			func = function(card) {
 				const val = card[propName];
-				if (!val) return false;
+				if (!val) return [false];
 				const firstDifference = val.toMillis() - firstDate.getTime();
 				const secondDifference = val.toMillis() - secondDate.getTime();
-				return (firstDifference > 0 && secondDifference < 0) || (firstDifference < 0 && secondDifference > 0) ;
+				return [(firstDifference > 0 && secondDifference < 0) || (firstDifference < 0 && secondDifference > 0)] ;
 			};
 		}
 	}
@@ -318,14 +318,14 @@ const makeCardsConfigurableFilter = (_, idString : string) : ConfigurableFilterF
 	const generator = memoize((keyCardID : CardID) => Object.fromEntries(Object.entries(rawIdsToMatch).map(entry => [entry[0], entry[1] == KEY_CARD_ID_PLACEHOLDER ? keyCardID : entry[1]])));
 
 	//TODO: only calculate the slug --> id once so subsequent matches can be done with one lookup
-	const func = function(card : ProcessedCard, extras : FilterExtras) {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean] {
 		const idsToMatch = generator(extras.keyCardID);
-		if (idsToMatch[card.id]) return true;
-		if (!card.slugs) return false;
+		if (idsToMatch[card.id]) return [true];
+		if (!card.slugs) return [false];
 		for (let slug of card.slugs) {
-			if (idsToMatch[slug]) return true;
+			if (idsToMatch[slug]) return [true];
 		}
-		return false;
+		return [false];
 	};
 	return [func, false];
 };
@@ -382,11 +382,11 @@ const makeSameTypeConfigurableFilter = (filterName : string, inputCardID : strin
 	//look for it just in case.
 	const [cardID, ] = parseKeyCardID(inputCardID);
 
-	const func = (card : ProcessedCard, extras : FilterExtras) : boolean => {
+	const func = (card : ProcessedCard, extras : FilterExtras) : [boolean] => {
 		const actualCardID = cardID == KEY_CARD_ID_PLACEHOLDER ? extras.keyCardID : cardID;
 		const mainCard = extras.cards[actualCardID];
-		if (!mainCard) return false;
-		return sameType ? mainCard.card_type == card.card_type : mainCard.card_type != card.card_type;
+		if (!mainCard) return [false];
+		return [sameType ? mainCard.card_type == card.card_type : mainCard.card_type != card.card_type];
 	};
 
 	return [func, false];
@@ -479,7 +479,7 @@ const makeExpandConfigurableFilter = (_, ...remainingParts) : ConfigurableFilter
 	const [mainFilter, expandFilter] = extractSubFilters(remainingParts);
 	if (!mainFilter || !expandFilter) {
 		console.warn('Expected two sub-filters for expand but didn\'t get it');
-		return [() => false, false];
+		return [() => [false], false];
 	}
 
 	const generator = memoize((extras : FilterExtras) => {
@@ -528,7 +528,7 @@ const makeCombineConfigurableFilter = (_, ...remainingParts : string[]) : Config
 
 	if (!subFilterOne || !subFilterTwo) {
 		console.warn('Expected two sub-filters for combine but didn\'t get it');
-		return [() => false, false];
+		return [() => [false], false];
 	}
 
 	const generator = memoize((extras : FilterExtras) => {
@@ -596,17 +596,17 @@ const makeAuthorConfigurableFilter = (_, idString : string) : ConfigurableFilter
 	const ids = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
 	//Technically the IDs are case sensitive, but the URL machinery lowercases everything.
 	//Realistically, collisions are astronomically unlikely
-	const func = function(card : ProcessedCard, extras : FilterExtras) {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean] {
 		if (ids[ME_AUTHOR_ID]) {
 			const userID = extras.userID;
-			if (card.author == userID) return true;
-			if (card.collaborators.some(id => id == userID)) return true;
+			if (card.author == userID) return [true];
+			if (card.collaborators.some(id => id == userID)) return [true];
 		}
-		if (ids[card.author.toLowerCase()]) return true;
+		if (ids[card.author.toLowerCase()]) return [true];
 		for (const collab of card.collaborators) {
-			if (ids[collab.toLowerCase()]) return true;
+			if (ids[collab.toLowerCase()]) return [true];
 		}
-		return false;
+		return [false];
 	};
 	return [func, false];
 };
@@ -691,7 +691,7 @@ const makeSimilarCutoffConfigurableFilter = (_, rawCardID : string, rawFloatCuto
 
 //Fallback configurable filter
 const makeNoOpConfigurableFilter = () : ConfigurableFilterFuncFactoryResult => {
-	return [() => true, false];
+	return [() => [true], false];
 };
 
 const INBOUND_SUFFIX = '-inbound';
