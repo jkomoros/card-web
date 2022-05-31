@@ -64,6 +64,7 @@ import {
 	FilterExtras,
 	CardIDMap
 } from './types.js';
+import { ValueSanitizer } from 'lit';
 
 export const DEFAULT_SET_NAME = 'main';
 //reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
@@ -567,7 +568,7 @@ export const queryTextFromQueryFilter = (queryFilter) => {
 	return decodeURIComponent(rawQueryString).split('+').join(' ');
 };
 
-const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
+const makeQueryConfigurableFilter = (filterName : string, rawQueryString : string) : ConfigurableFilterFuncFactoryResult => {
 
 	const decodedQueryString = decodeURIComponent(rawQueryString).split('+').join(' ');
 
@@ -575,10 +576,11 @@ const makeQueryConfigurableFilter = (filterName, rawQueryString) => {
 
 	const strict = filterName === QUERY_STRICT_FILTER_NAME;
 
-	const func = function(card) {
+	const func = function(card : ProcessedCard) : [boolean, number, string] {
 		const [score, fullMatch] = query.cardScore(card);
 		const matches = strict ? fullMatch && score > 0.0 : score > 0.0;
-		return [matches, score, !fullMatch];
+		//TODO: is returning a boolean for last argument intentional?
+		return [matches, score, '' + !fullMatch];
 	};
 
 	return [func, false];
