@@ -518,7 +518,7 @@ const makeExpandConfigurableFilter = (_, ...remainingParts) => {
 	return [func, false];
 };
 
-const makeCombineConfigurableFilter = (filterName, ...remainingParts) => {
+const makeCombineConfigurableFilter = (_, ...remainingParts : string[]) : ConfigurableFilterFuncFactoryResult => {
 
 	const [subFilterOne, subFilterTwo] = extractSubFilters(remainingParts);
 
@@ -527,7 +527,7 @@ const makeCombineConfigurableFilter = (filterName, ...remainingParts) => {
 		return [() => false, false];
 	}
 
-	const generator = memoize((extras) => {
+	const generator = memoize((extras : FilterExtras) => {
 		let [filterMembershipOne, excludeOne] = filterSetForFilterDefinitionItem(subFilterOne, extras);
 		let [filterMembershipTwo, excludeTwo] = filterSetForFilterDefinitionItem(subFilterTwo, extras);
 
@@ -545,7 +545,7 @@ const makeCombineConfigurableFilter = (filterName, ...remainingParts) => {
 		return result;
 	});
 	
-	const func = function(card, extras) {
+	const func = function(card : ProcessedCard, extras : FilterExtras) {
 		const filterSet = generator(extras);
 		return filterSet[card.id];
 	};
