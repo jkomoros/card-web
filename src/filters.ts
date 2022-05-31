@@ -471,7 +471,7 @@ const extractSubFilters = (parts) => {
 	return combinedDescription.filters;
 };
 
-const makeExpandConfigurableFilter = (_, ...remainingParts) => {
+const makeExpandConfigurableFilter = (_, ...remainingParts) : ConfigurableFilterFuncFactoryResult => {
 	const [mainFilter, expandFilter] = extractSubFilters(remainingParts);
 	if (!mainFilter || !expandFilter) {
 		console.warn('Expected two sub-filters for expand but didn\'t get it');
