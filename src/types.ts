@@ -183,7 +183,7 @@ export type SortConfigurationMap = {
     [sortName : string]: {
         extractor : (card : ProcessedCard, sections : Sections, cards : ProcessedCards, sortExtras : SortExtras) => [sortValue : number, label : string] ,
         description : string,
-        labelName : string | ((sortExtras : SortExtras) => string),
+        labelName? : string | ((sortExtras : SortExtras) => string),
         reorderable? : (sortExtras : SortExtras) => boolean,
     }
 }
