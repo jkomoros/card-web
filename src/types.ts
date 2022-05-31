@@ -199,7 +199,9 @@ export type SortConfigurationMap = {
 
 export type ConfigurableFilterFunc = (card : ProcessedCard, extras? : FilterExtras) => (boolean | [ matches : boolean, sortExtra : number] | [ matches : boolean, sortExtra : number, label : string]);
 
-type ConfigurableFilterFuncFactory = (...parts : string[]) => [func : ConfigurableFilterFunc, reverse : boolean];
+export type ConfigurableFilterFuncFactoryResult = [func : ConfigurableFilterFunc, reverse : boolean];
+
+type ConfigurableFilterFuncFactory = (...parts : string[]) => ConfigurableFilterFuncFactoryResult;
 
 //TODO: tighten to e.g. URL_PART_* constant values
 type ConfigurableFilterFuncURLPart = string;
