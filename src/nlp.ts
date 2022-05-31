@@ -45,6 +45,7 @@ import {
 	CardFieldType,
 	SynonymMap,
 	ProcessedCard,
+	ProcessedCards,
 	WordCloud,
 	WordCloudItemInfo,
 	WordCloudItemInfos
@@ -876,7 +877,7 @@ const SYNONYM_DISCOUNT_FACTOR = 0.75;
 const IMPORTANT_NGRAM_BOOST_FACTOR = 1.1;
 
 //strsMap is card.nlp.withoutStopWords. See cardWithNormalizedTextProperties documentation for more.
-const wordCountsForSemantics = memoizeFirstArg((cardObj, maxFingerprintSize = MAX_N_GRAM_FOR_FINGERPRINT, optFieldList, excludeSynonyms) => {
+const wordCountsForSemantics = memoizeFirstArg((cardObj : ProcessedCard, maxFingerprintSize : number = MAX_N_GRAM_FOR_FINGERPRINT, optFieldList? : CardFieldType[], excludeSynonyms? : boolean) => {
 	const fieldsToIndex = optFieldList ? Object.fromEntries(optFieldList.map(fieldName => [fieldName, true])) : TEXT_FIELD_CONFIGURATION;
 	const strsMap = Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION)
 		.filter(fieldName => fieldsToIndex[fieldName])
@@ -1557,7 +1558,7 @@ export class FingerprintGenerator {
 		[id : CardID] : Fingerprint
 	}
 
-	constructor(cards : Cards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT) {
+	constructor(cards : ProcessedCards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT) {
 
 		this._cards = cards;
 		this._idfMap = {};
@@ -1622,7 +1623,7 @@ export class FingerprintGenerator {
 		return new Fingerprint(items, cardOrCards, this);
 	}
 
-	_wordCountsForCardObj(cardObj, optFieldList) {
+	_wordCountsForCardObj(cardObj : ProcessedCard, optFieldList? : CardFieldType) {
 		//Filter out empty items for properties that don't have any items
 		return wordCountsForSemantics(cardObj, this._ngramSize, optFieldList);
 	}
