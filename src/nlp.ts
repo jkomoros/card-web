@@ -418,10 +418,10 @@ const normalizedWords = (str) => {
 	return result.join(' ');
 };
 
-let memoizedStemmedWords = {};
+let memoizedStemmedWords : {[word : string] : string} = {};
 //Inverse: the stemmed result, to a map of words and their counts with how often
 //they're handed out
-let reversedStemmedWords = {};
+let reversedStemmedWords : {[stemmedWord : string] : {[word : string] : number}} = {};
 const memorizedStemmer = (word) => {
 	if (!memoizedStemmedWords[word]) {
 		let stemmedWord = stemmer(word);
@@ -1431,14 +1431,14 @@ class Fingerprint {
 		);
 	}
 
-	prettyItems(skipItemsNotFromCard, skipURLs) {
+	prettyItems(skipItemsNotFromCard? : boolean, skipURLs? : boolean) {
 		const result = [];
 		const itemsNotFromCard = this.itemsNotFromCard();
 		for (const ngram of this._items.keys()) {
 			//URLs are useful in fingerprints (if there's an overlap it's very
 			//signfiicant) but are very distracting in pretty items.
 			if (skipURLs && wordIsUrl(ngram)) continue;
-			const originalNgrams = {};
+			const originalNgrams : {[ngram : string] : number} = {};
 			if (itemsNotFromCard[ngram]) {
 				if (skipItemsNotFromCard) continue;
 			} else {
