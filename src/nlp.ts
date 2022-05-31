@@ -1577,7 +1577,7 @@ export class FingerprintGenerator {
 		//words to their count in that card. This uses all words htat could be
 		//searched over, and is the input to the IDF calculation pipeline and
 		//others.
-		let cardWordCounts = {};
+		let cardWordCounts : {[word : string] : number} = {};
 		for (const [key, cardObj] of Object.entries(cards)) {
 			cardWordCounts[key] = this._wordCountsForCardObj(cardObj);
 		}
@@ -1628,7 +1628,7 @@ export class FingerprintGenerator {
 		return wordCountsForSemantics(cardObj, this._ngramSize, optFieldList);
 	}
 
-	_cardTFIDF(cardWordCounts) {
+	_cardTFIDF(cardWordCounts : {[word : string] : number}) {
 		const resultTFIDF = {};
 		const cardWordCount = Object.values(cardWordCounts).reduce((prev, curr) => prev + curr, 0);
 		for (const [word, count] of Object.entries(cardWordCounts)) {
