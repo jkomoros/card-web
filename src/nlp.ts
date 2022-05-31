@@ -40,6 +40,7 @@ import {
 } from './memoize.js';
 
 import {
+	Card,
 	CardID,
 	Cards,
 	CardFieldType,
@@ -107,7 +108,7 @@ export const getAllConceptCardsForConcept = (allCardsOrConceptCards, conceptStr)
 
 //allCardsOrConceptCards can be the map of allCards, or filtered down to just
 //concept cards for speed.
-export const getConceptCardForConcept = (allCardsOrConceptCards, conceptStr) => {
+export const getConceptCardForConcept = (allCardsOrConceptCards : Cards, conceptStr : string) : Card | null => {
 	for (const card of Object.values(allCardsOrConceptCards)) {
 		if (cardMatchesConcept(card, conceptStr)) return card;
 	}
