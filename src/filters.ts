@@ -687,7 +687,7 @@ const makeSimilarCutoffConfigurableFilter = (filterName, rawCardID : string, raw
 };
 
 //Fallback configurable filter
-const makeNoOpConfigurableFilter = () => {
+const makeNoOpConfigurableFilter = () : ConfigurableFilterFuncFactoryResult => {
 	return [() => true, false];
 };
 
