@@ -681,6 +681,7 @@ class Collection {
 	_partialMatches : {
 		[cardID : CardID] : boolean
 	};
+	_sortInfo : Map<CardID, [sortValue : number, label : string]>;
 
 	//See CollectionDescription.collection() for the shape of the
 	//collectionArguments object. It's passed in as an object and not as an
