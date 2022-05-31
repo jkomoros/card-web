@@ -197,6 +197,29 @@ export type SortConfigurationMap = {
     }
 }
 
+export type ConfigurableFilterFunc = (card : ProcessedCard, extras? : FilterExtras) => (boolean | [ matches : boolean, sortExtra : number] | [ matches : boolean, sortExtra : number, label : string]);
+
+type ConfigurableFilterFuncFactory = (...parts : string[]) => [func : ConfigurableFilterFunc, reverse : boolean];
+
+//TODO: tighten to e.g. URL_PART_* constant values
+type ConfigurableFilterFuncURLPart = string;
+
+type ConfigurableFilterFuncArgument = {
+    type : ConfigurableFilterFuncURLPart,
+    description : string,
+    default : number | string | boolean,
+};
+
+export type ConfigurableFilterConfigurationMap = {
+    [filterName : string] : {
+        factory : ConfigurableFilterFuncFactory,
+        labelName? : string,
+        flipOrder? : boolean,
+        description : string,
+        arguments : ConfigurableFilterFuncArgument[],
+    }
+};
+
 //TODO: tighten this
 type HTMLTagName = string;
 

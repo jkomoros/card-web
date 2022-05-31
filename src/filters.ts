@@ -57,7 +57,9 @@ import {
 	SortConfigurationMap,
 	ProcessedCard,
 	Cards,
-	CardID
+	CardID,
+	ConfigurableFilterConfigurationMap,
+	ConfigurableFilterFunc
 } from './types.js';
 
 export const DEFAULT_SET_NAME = 'main';
@@ -141,7 +143,7 @@ export const makeDateSection = (comparsionType, dateOne, dateTwo) => {
 	return result.join('/');
 };
 
-const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, secondDateStr) => {
+const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, secondDateStr) : ConfigurableFilterFunc => {
 
 	if (propName == UPDATED_FILTER_NAME) propName = 'updated_substantive';
 	if (propName == LAST_TWEETED_FILTER_NAME) propName = 'last_tweeted';
@@ -816,7 +818,7 @@ export const URL_PART_EXPAND_FILTER = 'expand-filter';
 //can also emit a [matches, sortValue, partialMatch], where partialMatch denotes
 //the item should be ghosted. If the filter emits sortExtras, then it should
 //also define a labelName. 
-export const CONFIGURABLE_FILTER_INFO = {
+export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 	[UPDATED_FILTER_NAME]: {
 		factory: makeDateConfigurableFilter,
 		description: 'Selects cards that were updated within a given date range',
