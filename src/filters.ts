@@ -56,15 +56,13 @@ import {
 import {
 	SortConfigurationMap,
 	ProcessedCard,
-	Cards,
+	Card,
 	CardID,
 	ConfigurableFilterConfigurationMap,
-	ConfigurableFilterFunc,
 	ConfigurableFilterFuncFactoryResult,
 	FilterExtras,
 	CardIDMap
 } from './types.js';
-import { ValueSanitizer } from 'lit';
 
 export const DEFAULT_SET_NAME = 'main';
 //reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
