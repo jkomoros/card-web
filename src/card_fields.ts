@@ -6,6 +6,7 @@ import {
 import {
 	CardTypeConfigurationMap,
 	ReferenceTypeConfigurationMap,
+	CardFieldTypeConfigurationMap,
 	SelectorStyleMap,
 	CardType
 } from './types.js';
@@ -496,82 +497,12 @@ const titleAlternatesHTMLFormatter = (value) => {
 	return result;
 };
 
-/*
-html: whether or not the field allows html. NOTE: currently it's only supported
-for a single field to be marked as html, and it must be called 'body'. See #345
-for fixing that.
-
-container: the type of container element the field should be printed out into
-(the actual card custom element will decide whether to print it out in the first
-place)
-
-legalCardTypes: a map of CARD_TYPE constant to true for cards it is legal on. If
-this field is null, it signals it's legal on all card types.
-
-derivedForCardTypes: a map of CARD_TYPE constant to true for card types for
-which the field is fully derived based on OTHER enumrated fields. Derived fields
-are already "counted" so should be skipped when extracting normalized card
-details for example in indexes.
-
-noContentEditable: if true, even if the form field is editable, it won't be made
-editable on card renderer, the only way to modify it will be in the edit text
-field in the content tab of editor.
-
-displayPrefix: If set, then if the value is not empty then it will prefix the
-given prefix. noContentEditable should also be true, otherwise you'll get the
-prefix weirdly mixed in. Sort of sugar for htmlFormatter.
-
-htmlFormatter: if provided, is a function that takes the raw value and returns
-html to set, or '' to use the raw value. For the common case of just a prefix,
-use displayPrefix. Should be combined with noContentEditable otherwise the
-formated HTML will get mixed into the underlying value.
-
-extraRunDelimiter: if true, then when deciding where to break runs, that
-character will also be considered as a run break (in addition to the default
-`\n`)
-
-hideIfEmpty: If true, then it will be hidden if there's no content.
-
-description: If not empty, will show a help description next to that field in
-editor.
-
-nonScrollable: If true, then it will be printed out in order in the
-non-scrollable top region, before the scrollable portions are printed out in
-order.
-
-readOnly: if true, a form field to edit this won't be printed out in cardEditor.
-
-matchWeight: if a match is found when searching in that field, how much weight
-should it receive?
-
-autoFontSizeBoostForCardTypes: For any card type that has a key, fontSizeBoosts
-will auto-set the font size for that field, with the value for that field being
-used as the max value that the boost can legally be for that field. NOTE: card
-types that define reference blocks will interfere with auto-sizing currently.
-#407 tracks fixing that.
-
-overrideExtractor: boolean. If true, then nlp.js will expect there to be an
-override extractor defined in nlp.js. That is, instead of literally just
-fetching a field with that name from card, it will instead rely on an extractor
-function. (Those override extractors often require references, which would
-pollute the clean imports for this file, so they're defined there)
-
-extraIndexingCount: if a number greater than zero, then when counting words from
-that text field, the wordCountForSemantics will pretend like all of the text run
-showed up that many times. So undefined or 0 would count as one, and 2 would
-triple count.
-
-indexFullRun: if true, then the full normalized text string of each run will be
-indexed as though it were an ngram (even if the number of words is too high to
-be counted as an ngram). In addition, it will count full (not 1/wordCount).
-*/
-
 //The field that images will be inserted into
 export const IMAGES_TEXT_FIELD = TEXT_FIELD_BODY;
 
 const DEFAULT_MAX_FONT_BOOST = 0.3;
 
-export const TEXT_FIELD_CONFIGURATION = {
+export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 	[TEXT_FIELD_TITLE]: {
 		html: false,
 		container: 'h1',
