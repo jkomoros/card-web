@@ -62,7 +62,8 @@ import {
 	ConfigurableFilterConfigurationMap,
 	ConfigurableFilterFuncFactoryResult,
 	FilterExtras,
-	CardIDMap
+	CardIDMap,
+	Sections
 } from './types.js';
 
 export const DEFAULT_SET_NAME = 'main';
@@ -1400,7 +1401,7 @@ export const SORTS : SortConfigurationMap = {
 		labelName: 'Tweet Count',
 	},
 	'tweet-order': {
-		extractor: tweetOrderExtractor,
+		extractor: tweetOrderExtractor as (card : ProcessedCard, sections : Sections, allCards : ProcessedCards) => [number, string],
 		description: 'In descending order of the ones that are most deserving of a tweet',
 		labelName: 'Tweet Worthiness',
 	},
