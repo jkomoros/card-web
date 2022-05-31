@@ -370,7 +370,7 @@ export const missingConceptConfigurableFilterText = (conceptStr) => {
 	return MISSING_CONCEPT_FILTER_NAME + '/' + arg;
 };
 
-const makeSameTypeConfigurableFilter = (filterName, inputCardID) => {
+const makeSameTypeConfigurableFilter = (filterName : string, inputCardID : string) : ConfigurableFilterFuncFactoryResult => {
 	//We use this function for both same and different type
 	const sameType = filterName == SAME_TYPE_FILTER;
 	//Technically the '+' prefix doesn't make any sense here, but temporarily
@@ -378,7 +378,7 @@ const makeSameTypeConfigurableFilter = (filterName, inputCardID) => {
 	//look for it just in case.
 	const [cardID, ] = parseKeyCardID(inputCardID);
 
-	const func = (card, extras) => {
+	const func = (card : ProcessedCard, extras : FilterExtras) : boolean => {
 		const actualCardID = cardID == KEY_CARD_ID_PLACEHOLDER ? extras.keyCardID : cardID;
 		const mainCard = extras.cards[actualCardID];
 		if (!mainCard) return false;
