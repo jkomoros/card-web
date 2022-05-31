@@ -1406,7 +1406,7 @@ export const SORTS : SortConfigurationMap = {
 		labelName: 'Tweet Worthiness',
 	},
 	'todo-difficulty': {
-		extractor: (card) => {
+		extractor: (card : ProcessedCard) => {
 			const result = MAX_TOTAL_TODO_DIFFICULTY - cardTODOConfigKeys(card).map(key => TODO_DIFFICULTY_MAP[key]).reduce((prev, curr) => prev + curr, 0.0);
 			return [result, '' + result];
 		},
@@ -1598,7 +1598,7 @@ const MAX_TOTAL_TODO_DIFFICULTY = Object.entries(TODO_DIFFICULTY_MAP).map(entry 
 //TODOs that are NOT marked done. If onlyNonOverrides is true, then it will skip
 //any keys that are only true (not done) because they're overridden to be marked
 //as not done.
-export const cardTODOConfigKeys = (card, onlyNonOverrides) => {
+export const cardTODOConfigKeys = (card : ProcessedCard, onlyNonOverrides : boolean = false) : string[] => {
 	//TODO: this ideally should be in util.js (with the other cardHasContent
 	//functions), but because of entanglement of constants this has to live next
 	//to these constants.
