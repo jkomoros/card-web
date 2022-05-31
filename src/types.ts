@@ -222,6 +222,7 @@ export type ConfigurableFilterConfigurationMap = {
         labelName? : string,
         flipOrder? : boolean,
         description : string,
+        suppressLabels? : boolean,
         arguments : ConfigurableFilterFuncArgument[],
     }
 };
