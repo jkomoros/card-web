@@ -673,8 +673,11 @@ class Collection {
 	_startCards : Card[] | null;
 	//TODO: correct title casing
 	_preLimitlength : number;
-	
-
+	_sortExtras : {
+		[filterName : string]: {
+			[cardID : CardID] : number
+		}
+	}
 
 	//See CollectionDescription.collection() for the shape of the
 	//collectionArguments object. It's passed in as an object and not as an
