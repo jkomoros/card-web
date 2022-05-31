@@ -19,7 +19,7 @@ type CardPermissions = {
 }
 
 //TODO: lock this down more
-type CardFieldType = string;
+export type CardFieldType = string;
 
 type FontSizeBoostMap = {
     [name: CardFieldType]: number,

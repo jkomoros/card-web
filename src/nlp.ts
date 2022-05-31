@@ -40,8 +40,11 @@ import {
 } from './memoize.js';
 
 import {
+	CardID,
 	Cards,
-	SynonymMap
+	CardFieldType,
+	SynonymMap,
+	ProcessedCard
 } from './types.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
@@ -279,7 +282,7 @@ const regularExpressionForOriginalNgram = (normalizedNgram) => {
 //include components/card-highlight wherever you use it. Also, make sure to
 //sanitize the result for XSS. extraIDs should be an array of cardIDs to
 //highlight as alternates if found (and to proactively pretend are on card)
-export const highlightConceptReferences = memoizeFirstArg((card, fieldName, extraIDs) => {
+export const highlightConceptReferences = memoizeFirstArg((card : ProcessedCard, fieldName : CardFieldType, extraIDs : CardID[] | undefined) => {
 	if (!card || Object.keys(card).length == 0) return '';
 	if (!extraIDs) extraIDs = [];
 	const fieldConfig = TEXT_FIELD_CONFIGURATION[fieldName];
@@ -601,7 +604,7 @@ const extractContentWords = (card) => {
 
 let memoizedNormalizedSynonymMaps = new WeakMap();
 
-const normalizeSynonymMap = (synonyms) => {
+const normalizeSynonymMap = (synonyms : SynonymMap) => {
 	//synonyms is word => [synonym_word,...]
 	if (!memoizedNormalizedSynonymMaps.has(synonyms)) {
 		const normalizedMap = Object.fromEntries(Object.entries(synonyms).map(entry => [fullyNormalizedString(entry[0]), entry[1].map(str => fullyNormalizedString(str))]));
