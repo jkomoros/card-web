@@ -145,7 +145,7 @@ export const makeDateSection = (comparsionType, dateOne, dateTwo) => {
 	return result.join('/');
 };
 
-const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, secondDateStr) : ConfigurableFilterFunc => {
+const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, secondDateStr) : ConfigurableFilterFuncFactoryResult => {
 
 	if (propName == UPDATED_FILTER_NAME) propName = 'updated_substantive';
 	if (propName == LAST_TWEETED_FILTER_NAME) propName = 'last_tweeted';
