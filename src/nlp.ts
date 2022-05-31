@@ -1036,7 +1036,7 @@ const DEBUG_PRINT_MISSING_CONCEPTS_INFO = false;
 export const possibleMissingConcepts = (cards) => {
 	//Turn the size of ngrams we generate up to 11! This will help us find very long ngrams, but will use a LOT of memory and compuation.
 	const maximumFingerprintGenerator = new FingerprintGenerator(cards, SEMANTIC_FINGERPRINT_SIZE * 5, MAX_N_GRAM_FOR_FINGERPRINT + 5);
-	let cardIDsForNgram = {};
+	let cardIDsForNgram : {[ngram : string]: CardID[]} = {};
 	let cumulativeTFIDFForNgram = {};
 
 	const conceptCards = conceptCardsFromCards(cards);
