@@ -63,7 +63,8 @@ import {
 	ConfigurableFilterFuncFactoryResult,
 	FilterExtras,
 	CardIDMap,
-	Sections
+	Sections,
+	CardType
 } from './types.js';
 
 export const DEFAULT_SET_NAME = 'main';
@@ -1432,11 +1433,11 @@ export const SORTS : SortConfigurationMap = {
 	}
 };
 
-const defaultCardFilterName = (basename) => {
+const defaultCardFilterName = (basename) : [string, string, string, string] => {
 	return ['has-' + basename, 'no-' + basename, 'does-not-need-' + basename, 'needs-' + basename];
 };
 
-const defaultNonTodoCardFilterName = (basename) => {
+const defaultNonTodoCardFilterName = (basename) : [string, string, string, string] => {
 	return [basename, 'not-' + basename, basename, 'not-' + basename];
 };
 
@@ -1509,12 +1510,31 @@ const TODO_TYPE_FREEFORM = {
 	autoApply: false,
 };
 
+type TODOType = {
+	type : string,
+	isTODO : boolean,
+	autoApply : boolean,
+	cardTypes? : {
+		[type : CardType] : true
+	}
+}
+
+type CardFilterConfigItem = [filterNames: [string, string, string, string], test: (card : ProcessedCard) => boolean, typ : TODOType, weight : number, description : string];
+
+type CardFilterConfigMap = {
+	[name : string] : CardFilterConfigItem
+}
+
+const CARD_FILTER_CONFIGS_FOR_TYPE : CardFilterConfigMap= Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(function(cardType){return ['type-' + cardType, [defaultNonTodoCardFilterName(cardType), card => card.card_type == cardType, TODO_TYPE_NA, 0.0, 'Card that is of ' + cardType + ' type.']];}));
+const CARD_FILTER_CONFIGS_FOR_REFERENCES : CardFilterConfigMap= Object.fromEntries(Object.keys(REFERENCE_TYPES).map(key => [key, [defaultCardFilterName(key + '-references'), card => references(card).byType[key], TODO_TYPE_NA, 0.0, 'Whether the card has any references of type ' + key]]));
+const CARD_FILTER_CONFIGS_FOR_REFERENCES_INBOUND : CardFilterConfigMap = Object.fromEntries(Object.keys(REFERENCE_TYPES).map(key => ['inbound-' + key, [defaultCardFilterName('inbound-' + key + '-references'), card => references(card).byTypeInbound[key], TODO_TYPE_NA, 0.0, 'Whether the card has any inbound references of type ' + key]]));
+
 //Card filters are filters that can tell if a given card is in it given only the
 //card object itself. They're so common that in order to reduce extra machinery
 //they're factored into a single config here and all of the other machinery uses
 //it (and extends with non-card-filter-types as appropriate). The keys of each
 //config object are used as the keys in card.auto_todo_overrides map.
-const CARD_FILTER_CONFIGS = Object.assign(
+const CARD_FILTER_CONFIGS : CardFilterConfigMap = Object.assign(
 	/*
 		Tuple of:
 		0) good/bad filtername (good is primary), including no-todo/todo version if applicable, 
@@ -1561,9 +1581,9 @@ const CARD_FILTER_CONFIGS = Object.assign(
 		//needs- filters be different, and there isn't.)
 		[FREEFORM_TODO_KEY]: [['no-freeform-todo', 'has-freeform-todo', 'no-freeform-todo', 'has-freeform-todo'], card => !cardHasTodo(card), TODO_TYPE_FREEFORM, 1.0, 'Whether the card has any text in its freeform TODO field'],
 	},
-	Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(function(cardType){return ['type-' + cardType, [defaultNonTodoCardFilterName(cardType), card => card.card_type == cardType, TODO_TYPE_NA, 0.0, 'Card that is of ' + cardType + ' type.']];})),
-	Object.fromEntries(Object.keys(REFERENCE_TYPES).map(key => [key, [defaultCardFilterName(key + '-references'), card => references(card).byType[key], TODO_TYPE_NA, 0.0, 'Whether the card has any references of type ' + key]])),
-	Object.fromEntries(Object.keys(REFERENCE_TYPES).map(key => ['inbound-' + key, [defaultCardFilterName('inbound-' + key + '-references'), card => references(card).byTypeInbound[key], TODO_TYPE_NA, 0.0, 'Whether the card has any inbound references of type ' + key]])),
+	CARD_FILTER_CONFIGS_FOR_TYPE,
+	CARD_FILTER_CONFIGS_FOR_REFERENCES,
+	CARD_FILTER_CONFIGS_FOR_REFERENCES_INBOUND
 );
 
 
