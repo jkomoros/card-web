@@ -304,17 +304,17 @@ const makeCardLinksConfigurableFilter = (filterName : string, cardID : string, c
 export const parseMultipleCardIDs = (str) => str.split(INCLUDE_KEY_CARD_PREFIX);
 export const combineMultipleCardIDs = (cardIDs) => cardIDs.join(INCLUDE_KEY_CARD_PREFIX);
 
-const makeCardsConfigurableFilter = (filterName, idString) => {
+const makeCardsConfigurableFilter = (_, idString : string) : ConfigurableFilterFuncFactoryResult => {
 	//ids can be a single id or slug, or a conjunction of them delimited by '+'
 	const rawIdsToMatch = Object.fromEntries(parseMultipleCardIDs(idString).map(id => [id, true]));
 
 	//TODO: we could check if KEY_CARD_ID_PLACEHOLDER is in any of them, and if not
 	//never generate a new set of expanded ids to match to save a little
 	//performance.
-	const generator = memoize(keyCardID => Object.fromEntries(Object.entries(rawIdsToMatch).map(entry => [entry[0], entry[1] == KEY_CARD_ID_PLACEHOLDER ? keyCardID : entry[1]])));
+	const generator = memoize((keyCardID : CardID) => Object.fromEntries(Object.entries(rawIdsToMatch).map(entry => [entry[0], entry[1] == KEY_CARD_ID_PLACEHOLDER ? keyCardID : entry[1]])));
 
 	//TODO: only calculate the slug --> id once so subsequent matches can be done with one lookup
-	const func = function(card, extras) {
+	const func = function(card : ProcessedCard, extras : FilterExtras) {
 		const idsToMatch = generator(extras.keyCardID);
 		if (idsToMatch[card.id]) return true;
 		if (!card.slugs) return false;
