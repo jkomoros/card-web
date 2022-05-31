@@ -24,6 +24,7 @@ import {
 import {
 	Card,
 	CardID,
+	Cards,
 	ProcessedCard,
 	ProcessedCards,
 	CollectionConstructorArguments,
@@ -549,7 +550,7 @@ const makeFilterFromConfigurableFilter = (name, extras) => {
 //never made literal like this, this is most useful for creating
 //unionFilterSets. allCardsFilter can also just be the full set of id =>
 //fullCard.
-export const makeConcreteInverseFilter = (inverseFilter : FilterMap, allCardsFilter : FilterMap) : FilterMap => {
+export const makeConcreteInverseFilter = (inverseFilter : FilterMap, allCardsFilter : FilterMap | Cards) : FilterMap => {
 	return Object.fromEntries(Object.entries(allCardsFilter).filter(entry => !inverseFilter[entry[0]]).map(entry => [entry[0], true]));
 };
 
