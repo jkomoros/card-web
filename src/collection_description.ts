@@ -34,7 +34,8 @@ import {
 	Sets,
 	SortName,
 	ViewMode,
-	Uid
+	Uid,
+	WebInfo
 } from './types.js';
 
 import {
@@ -679,6 +680,7 @@ class Collection {
 		[cardID : CardID] : boolean
 	};
 	_sortInfo : Map<CardID, [sortValue : number, label : string]>;
+	_webInfo : WebInfo;
 
 	//See CollectionDescription.collection() for the shape of the
 	//collectionArguments object. It's passed in as an object and not as an
