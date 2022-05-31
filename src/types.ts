@@ -460,6 +460,14 @@ export type Sets = {
     [setName : SetName] : CardID[]
 }
 
+export type FilterExtras = {
+	filterSetMemberships : Filters,
+	cards : ProcessedCards,
+	keyCardID : CardID,
+	editingCard : Card,
+	userID : Uid,
+};
+
 export type FilterMap = {
     [id : CardID] : true
 };

@@ -39,7 +39,8 @@ import {
 	ViewMode,
 	Uid,
 	WebInfo,
-	FilterMap
+	FilterMap,
+	FilterExtras
 } from './types.js';
 
 import {
@@ -623,14 +624,6 @@ type FilterDefinition = FilterDefinitionItem[];
 
 type PartialMatches = {
 	[cardID : CardID] : boolean
-};
-
-type FilterExtras = {
-	filterSetMemberships : Filters,
-	cards : ProcessedCards,
-	keyCardID : CardID,
-	editingCard : Card,
-	userID : Uid,
 };
 
 //filterDefinition is an array of filter-set names (concrete or inverse or union-set)
