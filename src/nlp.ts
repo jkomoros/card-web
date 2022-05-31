@@ -1532,7 +1532,16 @@ class Fingerprint {
 }
 
 export class FingerprintGenerator {
-	constructor(cards, optFingerprintSize = SEMANTIC_FINGERPRINT_SIZE, optNgramSize = MAX_N_GRAM_FOR_FINGERPRINT) {
+
+	_cards : Cards;
+	_fingerprintSize : number;
+	_ngramSize : number;
+	_maxIDF : number;
+	_fingerprints : {
+		[id : CardID] : Fingerprint
+	}
+
+	constructor(cards : Cards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT) {
 
 		this._cards = cards;
 		this._idfMap = {};
