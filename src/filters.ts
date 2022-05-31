@@ -53,6 +53,10 @@ import {
 	memoize,
 } from './memoize.js';
 
+import {
+	SortConfigurationMap
+} from './types.js';
+
 export const DEFAULT_SET_NAME = 'main';
 //reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
 //order matters and is customizable by the user. Every other collection starts
@@ -1287,7 +1291,7 @@ const RANDOM_SALT = randomString(16);
 //be DESCENDING; if there's a new one that isn't, then add a property to config
 //called ascending and toggle that. If reorderable is a function, it should
 //accept sortExtras and return whether it's reorderable.
-export const SORTS = {
+export const SORTS : SortConfigurationMap = {
 	//Default sort is a no-op, unless a configurable filter was used that emits
 	//sortValues, in which case it uses those. Note that
 	//collection._makeSortedCards has logic tailored to this to know when it can
