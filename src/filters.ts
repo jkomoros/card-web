@@ -54,7 +54,8 @@ import {
 } from './memoize.js';
 
 import {
-	SortConfigurationMap
+	SortConfigurationMap,
+	ProcessedCard
 } from './types.js';
 
 export const DEFAULT_SET_NAME = 'main';
@@ -145,7 +146,7 @@ const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, seco
 	const firstDate = firstDateStr ? new Date(firstDateStr) : null;
 	const secondDate = secondDateStr ? new Date(secondDateStr) : null;
 
-	let func = () => false;
+	let func : ((card : ProcessedCard) => boolean) = () => false;
 
 	switch (comparisonType) {
 	case BEFORE_FILTER_NAME:
