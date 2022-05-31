@@ -61,7 +61,8 @@ import {
 	ConfigurableFilterConfigurationMap,
 	ConfigurableFilterFunc,
 	ConfigurableFilterFuncFactoryResult,
-	FilterExtras
+	FilterExtras,
+	CardIDMap
 } from './types.js';
 
 export const DEFAULT_SET_NAME = 'main';
@@ -229,7 +230,7 @@ const INVALID_FILTER_NAME_SENTINEL = () => ({});
 //Returns a function that takes cards, activeCardID, and editingCard and returns
 //a map of cardID -> depth from the keycard. If optOverrideCards is defined,
 //then cardID is ignored, and instead it passes the keys of that map to the BFS.
-const cardBFSMaker = (filterName : string, cardID : CardID, countOrTypeStr : string, countStr : string, optOverrideCards? : Cards) => {
+const cardBFSMaker = (filterName : string, cardID : CardID, countOrTypeStr : string, countStr : string, optOverrideCards? : CardIDMap) => {
 	//note: makeExpandConfigurableFilter needs to be updated if the number or order of parameters changes.
 
 	if (!LINKS_FILTER_NAMES[filterName]) {
@@ -490,7 +491,7 @@ const makeExpandConfigurableFilter = (_, ...remainingParts) => {
 			const [similarFilter] = makeSimilarCutoffConfigurableFilter(SIMILAR_CUTOFF_FILTER_NAME, keyCardID(Object.keys(filterMembershipMain), false), expandFilterPieces[2]);
 			//Walk through each card and run the similarFilter manually.
 			for (const card of Object.values(extras.cards)) {
-				const [include] = similarFilter(card, extras) as [boolean];
+				const [include] = similarFilter(card, extras);
 				if (include) expandedSet[card.id] = true;
 			}
 		} else {
