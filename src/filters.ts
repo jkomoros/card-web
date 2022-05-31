@@ -1306,7 +1306,7 @@ export const SORTS : SortConfigurationMap = {
 	//collection._makeSortedCards has logic tailored to this to know when it can
 	//bail out early
 	[DEFAULT_SORT_NAME]: {
-		extractor: (card, sections, cards, sortExtra) => {
+		extractor: (card, sections, cards, sortExtra) : [number, string] => {
 			if (!sortExtra || Object.keys(sortExtra).length == 0) return [0, sectionNameForCard(card, sections)];
 			//Pick whatever is the first key stored, which will be the first
 			//configurable filter that emitted sortValues from left to right in
@@ -1318,7 +1318,7 @@ export const SORTS : SortConfigurationMap = {
 			//You might want to flip the sort order while having the displayed
 			//order be the same. For example, any of the link-degree
 			//configurable filters want the key card to go first.
-			const result = [config.flipOrder ? value * -1 : value, config.suppressLabels ? '' : value];
+			const result : [number, string] = [config.flipOrder ? value * -1 : value, config.suppressLabels ? '' : '' + value];
 			return result;
 		},
 		description: 'The default order of the cards within each section in order',
