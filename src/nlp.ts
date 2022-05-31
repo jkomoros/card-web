@@ -556,6 +556,12 @@ const extractRawContentRunsForCardField = (card, fieldName) => {
 };
 
 class ProcessedRun {
+
+	original : string;
+	normalized : string;
+	stemmed : string;
+	withoutStopWords : string;
+
 	constructor(originalText) {
 		this.original = originalText;
 		this.normalized = normalizedWords(originalText);
@@ -563,7 +569,7 @@ class ProcessedRun {
 		this.withoutStopWords = withoutStopWords(this.stemmed);
 	}
 
-	get empty() {
+	get empty() : boolean {
 		return this.normalized == '';
 	}
 }

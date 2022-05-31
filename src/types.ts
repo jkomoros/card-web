@@ -263,6 +263,19 @@ export type SynonymMap = {
     [input : string]: string[]
 }
 
+//TODO: is there a better way to do this since ProcessRun just flat out exists in nlp.js?
+interface ProcessedRunInterface {
+    normalized : string,
+    original : string,
+    stemmed : string,
+    withoutStopWords : string,
+    readonly empty : boolean
+}
+
+type NLPInfo = {
+    [field : CardFieldType]: ProcessedRunInterface[]
+}
+
 export interface ProcessedCard extends Card {
     //TODO: lock this down more
     //this is stashed there so that the cardWithNormalizedTextProperties machinery can fetch it if it wants.
@@ -272,7 +285,7 @@ export interface ProcessedCard extends Card {
     importantNgrams: any,
     synonymMap: SynonymMap,
     //TODO: lock this down more
-    nlp: any,
+    nlp: NLPInfo,
 }
 
 export type Cards = {
