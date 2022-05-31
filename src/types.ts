@@ -186,6 +186,10 @@ export type WebInfo = {
     edges: {source : CardID, target : CardID, value : number}[]
 };
 
+export type CardIDMap = {
+    [id : CardID] : true | Card | ProcessedCard
+};
+
 export type SortExtractorResult = [sortValue : number, label : string];
 
 export type SortConfigurationMap = {
