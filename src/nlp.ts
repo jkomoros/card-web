@@ -879,7 +879,7 @@ const IMPORTANT_NGRAM_BOOST_FACTOR = 1.1;
 //strsMap is card.nlp.withoutStopWords. See cardWithNormalizedTextProperties documentation for more.
 const wordCountsForSemantics = memoizeFirstArg((cardObj : ProcessedCard, maxFingerprintSize : number = MAX_N_GRAM_FOR_FINGERPRINT, optFieldList? : CardFieldType[], excludeSynonyms? : boolean) => {
 	const fieldsToIndex = optFieldList ? Object.fromEntries(optFieldList.map(fieldName => [fieldName, true])) : TEXT_FIELD_CONFIGURATION;
-	const strsMap = Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION)
+	const strsMap : {[type : CardFieldType] : string[]} = Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION)
 		.filter(fieldName => fieldsToIndex[fieldName])
 		.map(prop => [prop, cardObj.nlp[prop].map(run => run.withoutStopWords)]).filter(entry => entry[1]));
 	//Yes, it's weird that we stash the additionalNgramsMap on a cardObj and
