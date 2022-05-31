@@ -28,6 +28,26 @@ type FontSizeBoostMap = {
 //TODO: lock this down more
 export type CardType = string;
 
+//TODO: lock this down more
+type CSSPartString = string;
+
+export type WordCloudItemInfo = {
+    title : string,
+    suppressLink : boolean,
+    filter : CSSPartString,
+    color? : CSSColorString,
+    previewCard? : CardID
+}
+
+export type WordCloudItemInfos = {
+    [id : string]: WordCloudItemInfo
+};
+
+export type WordCloud = [
+    string[],
+    WordCloudItemInfos
+];
+
 //TOOD: tighten
 type ImagePosition = string;
 

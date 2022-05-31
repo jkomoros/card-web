@@ -44,7 +44,10 @@ import {
 	Cards,
 	CardFieldType,
 	SynonymMap,
-	ProcessedCard
+	ProcessedCard,
+	WordCloud,
+	WordCloudItemInfo,
+	WordCloudItemInfos
 } from './types.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
@@ -1298,7 +1301,7 @@ export const suggestedConceptReferencesForCard = memoizeFirstArg((card, concepts
 	return [...Object.keys(candidates)].filter(id => cardsToIncludeInResult[id]);
 });
 
-export const emptyWordCloud = () => {
+export const emptyWordCloud = () : WordCloud => {
 	return [[],{}];
 };
 
@@ -1340,6 +1343,13 @@ const SEMANTIC_FINGERPRINT_SIZE = 50;
 const SEMANTIC_FINGERPRINT_MATCH_CONSTANT = 1.0;
 
 class Fingerprint {
+
+	_cards : ProcessedCard[];
+	_generator : FingerprintGenerator;
+	_items : Map<string, number>;
+	_memoizedWordCloud : WordCloud;
+	_memoizedFullWordCloud : WordCloud;
+
 	constructor(items, cardOrCards, generator) {
 		this._cards = Array.isArray(cardOrCards) ? cardOrCards : (cardOrCards ? [cardOrCards] : []);
 		this._generator = generator;
@@ -1353,7 +1363,7 @@ class Fingerprint {
 	}
 
 	values() {
-		return this.items.values();
+		return this._items.values();
 	}
 
 	entries() {
@@ -1374,14 +1384,14 @@ class Fingerprint {
 		return this._memoizedFullWordCloud;
 	}
 
-	_generatewordCloud(hideItemsNotFromCard) {
+	_generatewordCloud(hideItemsNotFromCard) : WordCloud {
 		if (!this._items || this._items.keys().length == 0) return emptyWordCloud();
 		const displayItems = this.prettyItems(false, false);
 		const maxAmount = Math.max(...this._items.values());
 		const conceptItems = this.itemsFromConceptReferences();
-		const infos = Object.fromEntries([...this._items.entries()].map((entry,index) => {
+		const infos : WordCloudItemInfos = Object.fromEntries([...this._items.entries()].map((entry,index) => {
 			const amount = entry[1] / maxAmount * 100;
-			const info = {title: displayItems[index],suppressLink:true, filter: 'opacity(' + amount + '%)'};
+			const info : WordCloudItemInfo = {title: displayItems[index],suppressLink:true, filter: 'opacity(' + amount + '%)'};
 			if (conceptItems[entry[0]]) {
 				info.color = 'var(--app-secondary-color)';
 				info.previewCard = conceptItems[entry[0]];
