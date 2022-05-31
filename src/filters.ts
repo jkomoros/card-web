@@ -613,11 +613,11 @@ const makeAuthorConfigurableFilter = (filterName : string, idString : string) : 
 //underlying card set, and that should be fast.
 const memoizedFingerprintGenerator = memoize(cards => new FingerprintGenerator(cards));
 
-const makeSimilarConfigurableFilter = (filterName, rawCardID) => {
+const makeSimilarConfigurableFilter = (_, rawCardID : string) : ConfigurableFilterFuncFactoryResult => {
 
 	const [, includeKeyCard, cardIDs] = parseKeyCardID(rawCardID);
 	
-	const generator = memoize((cards, rawCardIDsToUse, editingCard) => {
+	const generator = memoize((cards : ProcessedCard, rawCardIDsToUse : CardID[], editingCard : Card) => {
 		const cardIDsToUse = normalizeCardSlugOrIDList(rawCardIDsToUse, cards);
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
 		const editingCardFingerprint = editingCard && cardIDsToUse.some(id => id == editingCard.id) ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
@@ -626,9 +626,9 @@ const makeSimilarConfigurableFilter = (filterName, rawCardID) => {
 	});
 
 	//Make sure that the key of the IDs list will have object equality for a downstream memoized thing
-	const replacedCardIDsGenerator = memoize((cardIDs, keyCardID) => cardIDs.map(id => id == KEY_CARD_ID_PLACEHOLDER ? keyCardID : id));
+	const replacedCardIDsGenerator = memoize((cardIDs : CardID[], keyCardID : CardID) => cardIDs.map(id => id == KEY_CARD_ID_PLACEHOLDER ? keyCardID : id));
 
-	const func = function(card, extras) {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean, number] {
 		const cardIDsToUse = replacedCardIDsGenerator(cardIDs, extras.keyCardID);
 		if (cardIDsToUse.some(id => id == card.id)) {
 			if (includeKeyCard) {
