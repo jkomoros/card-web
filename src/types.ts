@@ -173,10 +173,12 @@ export type CardTypeConfigurationMap = {
 	}
 }
 
+export type SortExtra = {
+    [cardID : CardID] : number
+};
+
 export type SortExtras = {
-    [filterName : string]: {
-        [cardID : CardID] : number
-    }
+    [filterName : string]: SortExtra
 };
 
 export type WebInfo = {
@@ -456,10 +458,12 @@ export type Sets = {
     [setName : SetName] : CardID[]
 }
 
+export type FilterMap = {
+    [id : CardID] : true
+};
+
 export type Filters = {
-    [filterName : string] : {
-        [id : CardID] : true
-    }
+    [filterName : string] : FilterMap
 }
 
 export type SerializedDescriptionToCardList = {

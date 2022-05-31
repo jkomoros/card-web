@@ -28,6 +28,7 @@ import {
 	ProcessedCards,
 	CollectionConstructorArguments,
 	SerializedDescriptionToCardList,
+	SortExtra,
 	SortExtras,
 	Filters,
 	Sections,
@@ -36,7 +37,8 @@ import {
 	SortName,
 	ViewMode,
 	Uid,
-	WebInfo
+	WebInfo,
+	FilterMap
 } from './types.js';
 
 import {
@@ -576,7 +578,7 @@ const makeCombinedFilter = (includeSets, excludeSets) => {
 	};
 };
 
-export const filterSetForFilterDefinitionItem = (filterDefinitionItem, extras) => {
+export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterDefinitionItem, extras : FilterExtras) : [filter : FilterMap, reverse : boolean, sortExtra : SortExtra | null, partialMathces : PartialMatches | null ]=> {
 	const filterSetMemberships = extras.filterSetMemberships;
 	if (filterNameIsUnionFilter(filterDefinitionItem)) {
 		return [makeFilterUnionSet(filterDefinitionItem, filterSetMemberships, extras.cards), false, null, null];
@@ -602,7 +604,7 @@ export const filterSetForFilterDefinitionItem = (filterDefinitionItem, extras) =
 //we use an extras object that the filter func can unpack as necessary. The
 //extras object is memoized so you can check for equality to see if any
 //individual portion changed.
-const makeExtrasForFilterFunc = memoize((filterSetMemberships, cards, keyCardID, editingCard, userID) => {
+const makeExtrasForFilterFunc = memoize((filterSetMemberships : Filters, cards : ProcessedCards, keyCardID : CardID, editingCard : Card, userID : Uid) : FilterExtras => {
 	return {
 		filterSetMemberships,
 		cards,
@@ -612,8 +614,24 @@ const makeExtrasForFilterFunc = memoize((filterSetMemberships, cards, keyCardID,
 	};
 });
 
+type FilterDefinitionItem = string;
+
+type FilterDefinition = FilterDefinitionItem[];
+
+type PartialMatches = {
+	[cardID : CardID] : boolean
+};
+
+type FilterExtras = {
+	filterSetMemberships : Filters,
+	cards : ProcessedCards,
+	keyCardID : CardID,
+	editingCard : Card,
+	userID : Uid,
+};
+
 //filterDefinition is an array of filter-set names (concrete or inverse or union-set)
-const combinedFilterForFilterDefinition = (filterDefinition, extras) => {
+const combinedFilterForFilterDefinition = (filterDefinition : FilterDefinition, extras : FilterExtras) => {
 	let includeSets = [];
 	let excludeSets = [];
 	let sortExtras = {};
@@ -677,9 +695,7 @@ class Collection {
 	//TODO: correct title casing
 	_preLimitlength : number;
 	_sortExtras : SortExtras;
-	_partialMatches : {
-		[cardID : CardID] : boolean
-	};
+	_partialMatches : PartialMatches;
 	_sortInfo : Map<CardID, [sortValue : number, label : string]>;
 	_webInfo : WebInfo;
 
