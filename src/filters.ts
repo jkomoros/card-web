@@ -477,7 +477,7 @@ const makeExpandConfigurableFilter = (_, ...remainingParts) => {
 		return [() => false, false];
 	}
 
-	const generator = memoize((extras) => {
+	const generator = memoize((extras : FilterExtras) => {
 		let [filterMembershipMain, excludeMain] = filterSetForFilterDefinitionItem(mainFilter, extras);
 
 		//Make sure the sub filter membership is direct and not inverted
@@ -490,7 +490,7 @@ const makeExpandConfigurableFilter = (_, ...remainingParts) => {
 			const [similarFilter] = makeSimilarCutoffConfigurableFilter(SIMILAR_CUTOFF_FILTER_NAME, keyCardID(Object.keys(filterMembershipMain), false), expandFilterPieces[2]);
 			//Walk through each card and run the similarFilter manually.
 			for (const card of Object.values(extras.cards)) {
-				const [include] = similarFilter(card, extras);
+				const [include] = similarFilter(card, extras) as [boolean];
 				if (include) expandedSet[card.id] = true;
 			}
 		} else {
@@ -509,7 +509,7 @@ const makeExpandConfigurableFilter = (_, ...remainingParts) => {
 		return unionSet(filterMembershipMain, expandedSet);
 	});
 	
-	const func = function(card, extras) {
+	const func = function(card : ProcessedCard, extras : FilterExtras) {
 		const filterSet = generator(extras);
 		return filterSet[card.id];
 	};
