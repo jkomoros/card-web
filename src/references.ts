@@ -600,9 +600,8 @@ export const referencesEntriesDiff = (beforeCard : Card, afterCard : Card) => {
 	const seenInAfter = {};
 	for (const [key, afterObj] of Object.entries(expandedAfter)) {
 		seenInAfter[key] = true;
-		const beforeObj = expandedBefore[key];
-		if (!beforeObj) continue;
-		if (beforeObj.value !== afterObj.value) modificationsResult.push(afterObj);
+		const beforeObjValue = expandedBefore[key] ? expandedBefore[key].value : undefined;
+		if (beforeObjValue !== afterObj.value) modificationsResult.push(afterObj);
 	}
 	for (const [key, beforeObj] of Object.entries(expandedBefore)) {
 		if (seenInAfter[key]) continue;
