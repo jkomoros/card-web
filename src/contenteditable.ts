@@ -48,7 +48,7 @@ const hrefToCardAttribute = (cardLink : HTMLAnchorElement) => {
 	//realistic sentinel so it can be tested in a unit test.
 	let prefix = 'http://localhost:8081/';
 	try {
-		prefix = window.location.orign + '/';
+		prefix = window.location.origin + '/';
 	} catch(err) {
 		//This must be in a unit test. That's OK.
 	}
