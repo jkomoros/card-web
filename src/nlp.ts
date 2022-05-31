@@ -985,7 +985,7 @@ const extractOriginalNgramFromRun = (targetNgram, run) => {
 		const word = stemmedRunWords[i];
 		//Increment i now to make sure we don't forget, which would get us in an infinite loop
 		i++;
-		if (STOP_WORDS[[word]]) {
+		if (STOP_WORDS[word]) {
 			//If we're not currently matching, just ignore it
 			if (startWordIndex < 0) continue;
 			//If we're currently matching, include this in the match and contineu to next word
