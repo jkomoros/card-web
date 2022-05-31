@@ -165,6 +165,7 @@ const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, seco
 			const difference = val.toMillis() - firstDate.getTime();
 			return difference < 0;
 		};
+		break;
 	case AFTER_FILTER_NAME:
 		func = function(card) {
 			const val = card[propName];
@@ -172,6 +173,7 @@ const makeDateConfigurableFilter = (propName, comparisonType, firstDateStr, seco
 			const difference = val.toMillis() - firstDate.getTime();
 			return difference > 0;
 		};
+		break;
 	case BETWEEN_FILTER_NAME:
 		//Bail if the second date isn't provided
 		if (secondDate) {
