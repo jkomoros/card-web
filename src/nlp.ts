@@ -1364,7 +1364,7 @@ class Fingerprint {
 	_memoizedWordCloud : WordCloud;
 	_memoizedFullWordCloud : WordCloud;
 
-	constructor(items, cardOrCards, generator) {
+	constructor(items? : Map<string, number>, cardOrCards? : ProcessedCard | ProcessedCard[], generator? : FingerprintGenerator) {
 		this._cards = Array.isArray(cardOrCards) ? cardOrCards : (cardOrCards ? [cardOrCards] : []);
 		this._generator = generator;
 		this._items = items || new Map();
@@ -1558,7 +1558,7 @@ export class FingerprintGenerator {
 		[id : CardID] : Fingerprint
 	}
 
-	constructor(cards : ProcessedCards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT) {
+	constructor(cards? : ProcessedCards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT) {
 
 		this._cards = cards;
 		this._idfMap = {};
@@ -1623,7 +1623,7 @@ export class FingerprintGenerator {
 		return new Fingerprint(items, cardOrCards, this);
 	}
 
-	_wordCountsForCardObj(cardObj : ProcessedCard, optFieldList? : CardFieldType) {
+	_wordCountsForCardObj(cardObj : ProcessedCard, optFieldList? : CardFieldType[]) {
 		//Filter out empty items for properties that don't have any items
 		return wordCountsForSemantics(cardObj, this._ngramSize, optFieldList);
 	}
@@ -1647,7 +1647,7 @@ export class FingerprintGenerator {
 		return this.fingerprints()[cardID];
 	}
 
-	fingerprintForCardObj(cardObj, optFieldList) {
+	fingerprintForCardObj(cardObj : ProcessedCard, optFieldList? : CardFieldType[]) {
 		if (!cardObj || Object.keys(cardObj).length == 0) return new Fingerprint();
 		const wordCounts = this._wordCountsForCardObj(cardObj, optFieldList);
 		const tfidf = this._cardTFIDF(wordCounts);
