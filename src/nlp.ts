@@ -286,7 +286,7 @@ const regularExpressionForOriginalNgram = (normalizedNgram) => {
 //include components/card-highlight wherever you use it. Also, make sure to
 //sanitize the result for XSS. extraIDs should be an array of cardIDs to
 //highlight as alternates if found (and to proactively pretend are on card)
-export const highlightConceptReferences = memoizeFirstArg((card : ProcessedCard, fieldName : CardFieldType, extraIDs : CardID[] | undefined) => {
+export const highlightConceptReferences = memoizeFirstArg((card : ProcessedCard, fieldName : CardFieldType, extraIDs? : CardID[]) => {
 	if (!card || Object.keys(card).length == 0) return '';
 	if (!extraIDs) extraIDs = [];
 	const fieldConfig = TEXT_FIELD_CONFIGURATION[fieldName];
