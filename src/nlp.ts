@@ -689,7 +689,20 @@ export const extractFiltersFromQuery = (queryTextIncludingFilters) => {
 	return queryWordsAndFilters(rewriteQueryFilters(queryTextIncludingFilters));
 };
 
+type PreparedQueryConfigurationLeaf = [
+	string[],
+	number,
+	boolean
+]
+
+type PreparedQueryConfiguration = {
+	[field : CardFieldType] : PreparedQueryConfigurationLeaf[]
+}
+
 export class PreparedQuery {
+
+	text : PreparedQueryConfiguration;
+
 	//queryText should not include any filters, but be a raw string
 	constructor(queryText) {
 		this.text = {};
@@ -758,11 +771,11 @@ const rewriteQueryFilters = (query) => {
 	return result.join(' ');
 };
 
-const textSubQueryForWords = (words) => {
+const textSubQueryForWords = (words) : PreparedQueryConfiguration => {
 	return Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).map(entry => [entry[0], textPropertySubQueryForWords(words, entry[1].matchWeight)]));
 };
 
-const textPropertySubQueryForWords = (joinedWords, startValue) => {
+const textPropertySubQueryForWords = (joinedWords, startValue) : PreparedQueryConfigurationLeaf[] => {
 	const words = joinedWords.split(' ');
 
 	//The format of the return value is a list of items that could match. For
@@ -773,7 +786,7 @@ const textPropertySubQueryForWords = (joinedWords, startValue) => {
 
 	//Full exact matches are the best, but if you have all of the sub-words,
 	//that's good too, just less good.
-	let result = [[[joinedWords], startValue, true]];
+	let result : PreparedQueryConfigurationLeaf[] = [[[joinedWords], startValue, true]];
 
 	if (words.length > 1) {
 		result.push([words, startValue / 2, true]);
