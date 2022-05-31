@@ -287,11 +287,11 @@ const cardBFSMaker = (filterName : string, cardID : CardID, countOrTypeStr : str
 	});
 };
 
-const makeCardLinksConfigurableFilter = (filterName, cardID, countOrTypeStr, countStr) => {
+const makeCardLinksConfigurableFilter = (filterName : string, cardID : string, countOrTypeStr : string, countStr : string) : ConfigurableFilterFuncFactoryResult => {
 
 	const mapCreator = cardBFSMaker(filterName, cardID, countOrTypeStr, countStr);
 
-	const func = function(card, extras) {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean, number] {
 		
 		let val = mapCreator(extras.cards, extras.keyCardID, extras.editingCard)[card.id];
 		//Return the degree of separation so it's available to sort on
