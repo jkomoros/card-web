@@ -433,15 +433,15 @@ const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) =>
 	return [func, false];
 };
 
-const makeExcludeConfigurableFilter = (filterName, ...remainingParts) => {
+const makeExcludeConfigurableFilter = (_, ...remainingParts : string[]) : ConfigurableFilterFuncFactoryResult => {
 	const rest = remainingParts.join('/');
 
-	const generator = memoize((extras) => {
+	const generator = memoize((extras : FilterExtras) => {
 		return filterSetForFilterDefinitionItem(rest, extras);
 	});
 
 	//our func is just checking in the expanded filter.
-	const func = function(card, extras) {
+	const func = function(card : ProcessedCard, extras : FilterExtras) {
 
 		const [filterSet, reversed] = generator(extras);
 
