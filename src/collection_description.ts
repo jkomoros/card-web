@@ -24,7 +24,8 @@ import {
 import {
 	Card,
 	CardID,
-	Cards,
+	ProcessedCard,
+	ProcessedCards,
 	CollectionConstructorArguments,
 	SerializedDescriptionToCardList,
 	SortExtras,
@@ -658,8 +659,8 @@ class Collection {
 	_description : CollectionDescription;
 	_keyCardID : CardID | '';
 	_arguments : CollectionConstructorArguments;
-	_cardsForFiltering : Cards;
-	_cardsForExpansion : Cards;
+	_cardsForFiltering : ProcessedCards;
+	_cardsForExpansion : ProcessedCards;
 	_sets : Sets;
 	_filters : Filters;
 	_filtersSnapshot : Filters | null;
@@ -668,11 +669,11 @@ class Collection {
 	_fallbacks : SerializedDescriptionToCardList;
 	_startCardsConfig : SerializedDescriptionToCardList;
 	_userID : Uid;
-	_filteredCards : Card[] | null;
+	_filteredCards : ProcessedCard[] | null;
 	_collectionIsFallback : boolean;
-	_sortedCards : Card[] | null;
+	_sortedCards : ProcessedCard[] | null;
 	_labels : string[] | null;
-	_startCards : Card[] | null;
+	_startCards : ProcessedCard[] | null;
 	//TODO: correct title casing
 	_preLimitlength : number;
 	_sortExtras : SortExtras;

@@ -467,7 +467,7 @@ export type SerializedDescriptionToCardList = {
 }
 
 export interface CollectionConstructorArguments {
-    cards? : Cards,
+    cards? : ProcessedCards,
     sets? : Sets,
     filters? : Filters,
     sections? : Sections,
@@ -475,7 +475,7 @@ export interface CollectionConstructorArguments {
     startCards? : SerializedDescriptionToCardList,
     userID? : Uid,
     keyCardID? : CardID,
-    cardsSnapshot? : Cards,
+    cardsSnapshot? : ProcessedCards,
     filtersSnapshot? : Filters,
     editingCard? : Card
 }
