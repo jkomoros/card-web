@@ -297,9 +297,8 @@ type NLPInfo = {
 }
 
 export interface ProcessedCard extends Card {
-    //TODO: lock this down more
     //this is stashed there so that the cardWithNormalizedTextProperties machinery can fetch it if it wants.
-    fallbackText: any,
+    fallbackText: ReferencesInfoMap,
     //agains stashed here by cardWithNormalizedTextProperties so wordCountForSemantics can fetch it.
     importantNgrams: {
         [ngram : string] : CardID

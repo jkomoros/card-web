@@ -10,7 +10,7 @@ import {
 	ProcessedCard,
 	Cards,
 	CardType,
-	ReferenceType
+	ReferencesInfoMap
 } from './types.js';
 
 import {
@@ -220,14 +220,14 @@ export const reasonCardTypeNotLegalForCard = (card : Card, proposedCardType : Ca
 //opt into backporting via backportMissingText that don't have text will fetch
 //it from the title of the card they point to. Cards that don't have any
 //references that need backporting will return null.
-export const backportFallbackTextMapForCard = (card : Card, cards : Cards) => {
+export const backportFallbackTextMapForCard = (card : Card, cards : Cards) : ReferencesInfoMap => {
 	//TODO: anotehr approach is to iterate through byTypeInbound, and contribute
 	//to one, shared, global fallbackMap. That would create fewer objects, but
 	//it would mean that every time the fallbackMap changed, every card would
 	//have to have its text renormalized, even though it likely didn't need it,
 	//whereas this creates a targeted list of fallbacks per card, where most of
 	//them are null.
-	const result : {[id : CardID]: {[referenceType : ReferenceType]: string}} = {};
+	const result : ReferencesInfoMap = {};
 	const refsByType = references(card).byType;
 	for (let referenceType of Object.keys(REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT)) {
 		const refs = refsByType[referenceType];
