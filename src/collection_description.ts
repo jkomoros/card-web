@@ -27,6 +27,7 @@ import {
 	Cards,
 	CollectionConstructorArguments,
 	SerializedDescriptionToCardList,
+	SortExtras,
 	Filters,
 	Sections,
 	SetName,
@@ -673,11 +674,7 @@ class Collection {
 	_startCards : Card[] | null;
 	//TODO: correct title casing
 	_preLimitlength : number;
-	_sortExtras : {
-		[filterName : string]: {
-			[cardID : CardID] : number
-		}
-	};
+	_sortExtras : SortExtras;
 	_partialMatches : {
 		[cardID : CardID] : boolean
 	};

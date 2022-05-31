@@ -173,6 +173,12 @@ export type CardTypeConfigurationMap = {
 	}
 }
 
+export type SortExtras = {
+    [filterName : string]: {
+        [cardID : CardID] : number
+    }
+}
+
 //TODO: tighten this
 type HTMLTagName = string;
 
