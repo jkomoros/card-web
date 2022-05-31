@@ -300,9 +300,10 @@ export interface ProcessedCard extends Card {
     //TODO: lock this down more
     //this is stashed there so that the cardWithNormalizedTextProperties machinery can fetch it if it wants.
     fallbackText: any,
-    //TODO: lock this down more
     //agains stashed here by cardWithNormalizedTextProperties so wordCountForSemantics can fetch it.
-    importantNgrams: any,
+    importantNgrams: {
+        [ngram : string] : CardID
+    },
     synonymMap: SynonymMap,
     //TODO: lock this down more
     nlp: NLPInfo,
