@@ -592,7 +592,7 @@ const makeQueryConfigurableFilter = (filterName : string, rawQueryString : strin
 //The special keyword for 'my user ID' in the configurable authors filter
 export const ME_AUTHOR_ID = 'me';
 
-const makeAuthorConfigurableFilter = (filterName : string, idString : string) : ConfigurableFilterFuncFactoryResult => {
+const makeAuthorConfigurableFilter = (_, idString : string) : ConfigurableFilterFuncFactoryResult => {
 	const ids = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
 	//Technically the IDs are case sensitive, but the URL machinery lowercases everything.
 	//Realistically, collisions are astronomically unlikely
@@ -651,7 +651,7 @@ const makeSimilarConfigurableFilter = (_, rawCardID : string) : ConfigurableFilt
 	return [func, false];
 };
 
-const makeSimilarCutoffConfigurableFilter = (filterName, rawCardID : string, rawFloatCutoff : string) : ConfigurableFilterFuncFactoryResult => {
+const makeSimilarCutoffConfigurableFilter = (_, rawCardID : string, rawFloatCutoff : string) : ConfigurableFilterFuncFactoryResult => {
 	//note: makeExpandConfigurableFilter needs to be updated if the number or order of parameters changes.
 
 	const [, includeKeyCard, cardIDs] = parseKeyCardID(rawCardID);
@@ -1310,7 +1310,7 @@ export const SORTS : SortConfigurationMap = {
 	//collection._makeSortedCards has logic tailored to this to know when it can
 	//bail out early
 	[DEFAULT_SORT_NAME]: {
-		extractor: (card, sections, cards, sortExtra) : [number, string] => {
+		extractor: (card, sections, _, sortExtra) : [number, string] => {
 			if (!sortExtra || Object.keys(sortExtra).length == 0) return [0, sectionNameForCard(card, sections)];
 			//Pick whatever is the first key stored, which will be the first
 			//configurable filter that emitted sortValues from left to right in
@@ -1424,7 +1424,7 @@ export const SORTS : SortConfigurationMap = {
 		labelName: 'Random Order'
 	},
 	'card-rank': {
-		extractor: (card, sections, cards) => {
+		extractor: (card, _, cards) => {
 			//This is memoized so as long as cards is the same it won't be re-run.
 			let ranks = pageRank(cards);
 			let rank = ranks[card.id] || 0.0;
