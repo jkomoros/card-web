@@ -389,7 +389,7 @@ const makeSameTypeConfigurableFilter = (filterName, inputCardID) => {
 
 };
 
-const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) => {
+const makeMissingConceptConfigurableFilter = (_, conceptStrOrCardID : string) : ConfigurableFilterFuncFactoryResult => {
 	//subFilter can only be a very small set of special filter names. They're
 	//done as subtypes of `missing` becuase there's no way to do a configurable
 	//filter without having a multi-part filter name.
@@ -399,14 +399,14 @@ const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) =>
 
 	//This is very expensive, and keyCardID will change way more often than
 	//cards will, so do the two-level memoization.
-	const expensiveGenerator = memoize(cards => {
+	const expensiveGenerator = memoize((cards : ProcessedCards) => {
 		const conceptCards = conceptCardsFromCards(cards);
 		const concepts = getConceptsFromConceptCards(conceptCards);
 		return [conceptCards, concepts];
 	});
 
 	// returns [conceptCards, concepts, keyConceptCardID]
-	const generator = memoize((cards, keyCardID) => {
+	const generator = memoize((cards : ProcessedCards, keyCardID : CardID) => {
 		const [conceptCards, concepts] = expensiveGenerator(cards);
 		let keyConceptCardID = '';
 		if (keyConceptCard) {
@@ -423,7 +423,7 @@ const makeMissingConceptConfigurableFilter = (filterName, conceptStrOrCardID) =>
 		return [concepts, keyConceptCardID];
 	});
 
-	const func = function(card, extras) {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean, number] {
 		const [concepts, keyConceptCardID] = generator(extras.cards, extras.keyCardID);
 		const suggestedReferences = suggestedConceptReferencesForCard(card, concepts);
 		const filteredSuggestedReferences = keyConceptCard ? suggestedReferences.filter(id => id == keyConceptCardID) : suggestedReferences;
