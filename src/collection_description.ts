@@ -566,7 +566,7 @@ const makeFilterUnionSet = (unionFilterDefinition, filterSetMemberships, cards) 
 
 //Returns a function that takes an item and returns true if it's in ALL
 //includeSets and not in any exclude sets.
-const makeCombinedFilter = (includeSets, excludeSets) => {
+const makeCombinedFilter = (includeSets : FilterMap[], excludeSets : FilterMap[]) : FilterFunc => {
 	return function(item) {
 		for (let set of includeSets) {
 			if (!set[item]) return false;
@@ -614,6 +614,8 @@ const makeExtrasForFilterFunc = memoize((filterSetMemberships : Filters, cards :
 	};
 });
 
+type FilterFunc = (id : CardID) => boolean;
+
 type FilterDefinitionItem = string;
 
 type FilterDefinition = FilterDefinitionItem[];
@@ -631,7 +633,7 @@ type FilterExtras = {
 };
 
 //filterDefinition is an array of filter-set names (concrete or inverse or union-set)
-const combinedFilterForFilterDefinition = (filterDefinition : FilterDefinition, extras : FilterExtras) => {
+const combinedFilterForFilterDefinition = (filterDefinition : FilterDefinition, extras : FilterExtras) : [filter : FilterFunc, sortExtras : SortExtras, partialMatches : PartialMatches] => {
 	let includeSets = [];
 	let excludeSets = [];
 	let sortExtras = {};
