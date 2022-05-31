@@ -331,14 +331,14 @@ export const aboutConceptConfigurableFilterText = (conceptStr) => {
 	return ABOUT_CONCEPT_FILTER_NAME + '/' + createSlugFromArbitraryString(conceptStr);
 };
 
-const makeAboutConceptConfigurableFilter = (filterName, conceptStrOrID) => {
+const makeAboutConceptConfigurableFilter = (_, conceptStrOrID : string) : ConfigurableFilterFuncFactoryResult => {
 	//conceptStr should have '-' delimiting its terms; normalize text
 	//will automatically handle them the same.
 
 	//This function is pretty simple: find the concept card, then memoize the
 	//inbound concept references it has.
 
-	const matchingCardsFunc = memoize((cards, keyCardID) => {
+	const matchingCardsFunc = memoize((cards : ProcessedCards, keyCardID : CardID) => {
 		const expandedConceptStrOrId = conceptStrOrID == KEY_CARD_ID_PLACEHOLDER ? keyCardID : conceptStrOrID;
 		let conceptCard = cards[expandedConceptStrOrId] || getConceptCardForConcept(cards, expandedConceptStrOrId);
 		if (!conceptCard) return [{}, ''];
@@ -353,7 +353,7 @@ const makeAboutConceptConfigurableFilter = (filterName, conceptStrOrID) => {
 		return [matchingCards, conceptCardID];
 	});
 
-	const func = function(card, extras) {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean, number] {
 		const [matchingCards, conceptCardID] = matchingCardsFunc(extras.cards, extras.keyCardID);
 		if (card.id == conceptCardID) {
 			return [true, 1];
