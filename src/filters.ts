@@ -59,7 +59,9 @@ import {
 	Cards,
 	CardID,
 	ConfigurableFilterConfigurationMap,
-	ConfigurableFilterFunc
+	ConfigurableFilterFunc,
+	ConfigurableFilterFuncFactoryResult,
+	FilterExtras
 } from './types.js';
 
 export const DEFAULT_SET_NAME = 'main';
@@ -207,7 +209,7 @@ const INCLUDE_KEY_CARD_PREFIX = '+';
 const INVERT_REFERENCE_TYPES_PREFIX = '-';
 
 //returns the cardID, whether it's a key card, and an array of all cardIDs if it's a union
-export const parseKeyCardID = (cardID) => {
+export const parseKeyCardID = (cardID : string) : [id : CardID, includeKeyCard : boolean, allIDs : CardID[]] => {
 	let includeKeyCard = false;
 	if (cardID.startsWith(INCLUDE_KEY_CARD_PREFIX)) {
 		includeKeyCard = true;
@@ -643,7 +645,7 @@ const makeSimilarConfigurableFilter = (filterName, rawCardID) => {
 	return [func, false];
 };
 
-const makeSimilarCutoffConfigurableFilter = (filterName, rawCardID : string, rawFloatCutoff : string) => {
+const makeSimilarCutoffConfigurableFilter = (filterName, rawCardID : string, rawFloatCutoff : string) : ConfigurableFilterFuncFactoryResult => {
 	//note: makeExpandConfigurableFilter needs to be updated if the number or order of parameters changes.
 
 	const [, includeKeyCard, cardIDs] = parseKeyCardID(rawCardID);
@@ -662,7 +664,7 @@ const makeSimilarCutoffConfigurableFilter = (filterName, rawCardID : string, raw
 	//Make sure that the key of the IDs list will have object equality for a downstream memoized thing
 	const replacedCardIDsGenerator = memoize((cardIDs, keyCardID) => cardIDs.map(id => id == KEY_CARD_ID_PLACEHOLDER ? keyCardID : id));
 
-	const func = function(card, extras) {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean, number] {
 		const cardIDsToUse = replacedCardIDsGenerator(cardIDs, extras.keyCardID);
 		if (cardIDsToUse.some(id => id == card.id)) {
 			if (includeKeyCard) {
@@ -673,7 +675,7 @@ const makeSimilarCutoffConfigurableFilter = (filterName, rawCardID : string, raw
 
 		const closestItems = generator(extras.cards, cardIDsToUse, extras.editingCard);
 
-		const value = closestItems.get(card.id);
+		const value : number = closestItems.get(card.id);
 
 		return [value ? value > floatCutoff : false, value];
 	};
