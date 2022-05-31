@@ -712,7 +712,7 @@ export class PreparedQuery {
 		this.text = textSubQueryForWords(stemmedNormalizedWords(normalizedWords(lowercaseSplitWords(queryText).join(' '))));
 	}
 
-	cardScore(card) {
+	cardScore(card : ProcessedCard) : [value : number, fullMatch : boolean] {
 		if (!card) return [0.0, false];
 		let score = 0.0;
 		let fullMatch = false;
@@ -814,7 +814,7 @@ const textPropertySubQueryForWords = (joinedWords, startValue) : PreparedQueryCo
 	return result;
 };
 
-const stringPropertyScoreForStringSubQuery = (propertyValue, preparedSubquery) => {
+const stringPropertyScoreForStringSubQuery = (propertyValue, preparedSubquery) : [value : number, fullMatch : boolean] => {
 	const value = propertyValue.toLowerCase();
 	let result = 0.0;
 	let fullMatch = false;
