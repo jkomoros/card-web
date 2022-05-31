@@ -1399,7 +1399,7 @@ class Fingerprint {
 	}
 
 	_generatewordCloud(hideItemsNotFromCard) : WordCloud {
-		if (!this._items || this._items.keys().length == 0) return emptyWordCloud();
+		if (!this._items || [...this._items.keys()].length == 0) return emptyWordCloud();
 		const displayItems = this.prettyItems(false, false);
 		const maxAmount = Math.max(...this._items.values());
 		const conceptItems = this.itemsFromConceptReferences();
