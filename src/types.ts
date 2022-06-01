@@ -70,6 +70,18 @@ export interface ImageInfo {
     margin: number,
 }
 
+export type ExpandedReferenceKey = string;
+export type ExpandedReferenceObject = {
+	cardID : CardID,
+	referenceType : ReferenceType,
+	value : string
+}
+export type ExpandedReferenceDelete = {
+	cardID : CardID,
+	referenceType : ReferenceType,
+	delete : true
+}
+
 export type ImageBlock = ImageInfo[];
 
 //TODO: lock this down more

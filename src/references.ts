@@ -7,7 +7,10 @@ import {
 	CardID,
 	ReferenceType,
 	ReferencesInfoMap,
-	ReferencesInfoMapByType
+	ReferencesInfoMapByType,
+	ExpandedReferenceKey,
+	ExpandedReferenceDelete,
+	ExpandedReferenceObject
 } from './types.js';
 
 import {
@@ -527,18 +530,6 @@ const cloneReferences = (referencesBlock) => {
 	}
 	return result;
 };
-
-type ExpandedReferenceKey = string;
-type ExpandedReferenceObject = {
-	cardID : CardID,
-	referenceType : ReferenceType,
-	value : string
-}
-type ExpandedReferenceDelete = {
-	cardID : CardID,
-	referenceType : ReferenceType,
-	delete : true
-}
 
 const expandedReferenceKey = (cardID : CardID, referenceType : ReferenceType) : ExpandedReferenceKey => cardID + '+' + referenceType;
 const expandedReferenceObject = (cardID : CardID, referenceType : ReferenceType, value : string) : ExpandedReferenceObject => ({
