@@ -3,7 +3,21 @@ import {
 	COMMENTS_UPDATE_MESSAGES
 } from '../actions/comments.js';
 
-const INITIAL_STATE = {
+import {
+	CommentMessage,
+	CommentMessageID,
+	CommentThread,
+	CommentThreadID
+} from '../types.js';
+
+type CommentsState = {
+	messages: {[id : CommentMessageID]: CommentMessage},
+	threads: {[id : CommentThreadID]: CommentThread},
+	messagesLoaded: boolean,
+	threadsLoaded: boolean,
+}
+
+const INITIAL_STATE : CommentsState = {
 	messages: {},
 	threads: {},
 	messagesLoaded: false,
