@@ -11,13 +11,8 @@ import {
 } from '../references.js';
 
 import {
-	ReferencesEntriesDiff
+	MultiEditState
 } from '../types.js';
-
-type MultiEditState = {
-	open: boolean,
-	referencesDiff: ReferencesEntriesDiff,
-};
 
 const INITIAL_STATE : MultiEditState = {
 	open: false,

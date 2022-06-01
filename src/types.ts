@@ -785,3 +785,8 @@ export type MaintenanceState = {
 	executedTasks: {[id : MaintenanceTaskID]: MaintenanceTask},
 	taskActive: false,
 }
+
+export type MultiEditState = {
+	open: boolean,
+	referencesDiff: ReferencesEntriesDiff,
+};
