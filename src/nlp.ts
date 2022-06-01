@@ -1357,7 +1357,8 @@ const SEMANTIC_FINGERPRINT_SIZE = 50;
 
 const SEMANTIC_FINGERPRINT_MATCH_CONSTANT = 1.0;
 
-class Fingerprint {
+//Exported to resolve typescript warnings; don't create one yourself.
+export class Fingerprint {
 
 	_cards : ProcessedCard[];
 	_generator : FingerprintGenerator;
