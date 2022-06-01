@@ -28,8 +28,16 @@ import {
 	FILTER_EQUIVALENTS_FOR_SET,
 	DEFAULT_SET_NAME,
 	READING_LIST_SET_NAME,
-	CARD_FILTER_FUNCS
+	CARD_FILTER_FUNCS,
+	CollectionState
 } from '../filters.js';
+
+import {
+	Filters,
+	Cards,
+	CardID,
+	FilterMap
+} from '../types.js';
 
 const app = (state = INITIAL_STATE, action) => {
 	switch (action.type) {
@@ -121,8 +129,8 @@ const makeFilterFromSection = (sections, includeDefaultSet) => {
 	return result;
 };
 
-const makeFilterFromCards = (cards, previousFilters) => {
-	let result = {};
+const makeFilterFromCards = (cards : Cards, previousFilters : Filters) => {
+	let result : Filters = {};
 	for (const [filterName, func] of Object.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], entry[1].func])) {
 		let newMatchingCards = [];
 		let newNonMatchingCards = [];
@@ -142,7 +150,7 @@ const makeFilterFromCards = (cards, previousFilters) => {
 //Returns a subState where cardIDs are removed from pendingFilters. If no
 //changes are to be made, returns subState, otherwise it returns a modified
 //copy.
-const removeCardIDsFromSubState = (cardIDs, subState) => {
+const removeCardIDsFromSubState = (cardIDs : CardID[], subState : CollectionState) => {
 	let newFilters = {...subState.filters};
 	let changesMade = false;
 	for (let [filterName, filter] of Object.entries(newFilters)) {
@@ -157,7 +165,7 @@ const removeCardIDsFromSubState = (cardIDs, subState) => {
 
 //Returns a filter (cardID -> true) that contains none of the cardIDs. IF no
 //changes are made, returns the filter.
-const removeCardIDsFromFilter = (cardIDs, filter) => {
+const removeCardIDsFromFilter = (cardIDs : CardID[], filter : FilterMap) => {
 	const newFilter = {...filter};
 	let changesMade = false;
 	for (let id of cardIDs) {

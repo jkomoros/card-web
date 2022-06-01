@@ -1749,7 +1749,7 @@ const INITIAL_STATE_FILTERS = Object.assign(
 	Object.fromEntries(Object.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], {}])),
 );
 
-type CollectionState = {
+export type CollectionState = {
 	activeSetName: SetName,
 	//activeFilterNames is the list of named filters to apply to the default
 	//set. These names are either concrete filters, inverse filters, or union
