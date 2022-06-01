@@ -10,12 +10,21 @@ import {
 	referencesEntriesDiffWithRemove
 } from '../references.js';
 
-const INITIAL_STATE = {
+import {
+	ReferencesEntriesDiff
+} from '../types.js';
+
+type MultiEditState = {
+	open: boolean,
+	referencesDiff: ReferencesEntriesDiff,
+};
+
+const INITIAL_STATE : MultiEditState = {
 	open: false,
 	referencesDiff: [],
 };
 
-const app = (state = INITIAL_STATE, action) => {
+const app = (state : MultiEditState = INITIAL_STATE, action) : MultiEditState => {
 	switch (action.type) {
 	case MULTI_EDIT_DIALOG_OPEN:
 		return {
