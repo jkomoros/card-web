@@ -248,6 +248,14 @@ export type EditorTab = string;
 //TODO: this name is confusing, in the state this is called editorTab
 export type EditorContentTab = string;
 
+export type UserInfo = {
+    uid: Uid,
+    isAnonymous: boolean,
+    photoURL: string,
+    displayName: string,
+    email: string,
+};
+
 export type Author = {
     id: Uid,
     displayName : string,
