@@ -121,7 +121,7 @@ export const keepSlugLegalWarm = () => {
 	document.addEventListener('mousemove', userActivity);
 	document.addEventListener('keydown', userActivity);
 	warmupSlugLegal(true);
-	slugLegalInterval = setInterval(warmupSlugLegal, KEEP_WARM_INTERVAL);
+	slugLegalInterval = window.setInterval(warmupSlugLegal, KEEP_WARM_INTERVAL);
 };
 
 export const connectLiveMessages = () => {
