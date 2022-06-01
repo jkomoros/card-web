@@ -154,7 +154,7 @@ export const selectActiveRenderOffset = (state : State) => state.collection ? st
 const selectActiveSetName = (state : State) => state.collection ? state.collection.activeSetName : '';
 const selectActiveFilterNames = (state : State) => state.collection ? state.collection.activeFilterNames : [];
 const selectActiveSortName = (state : State) => state.collection ? state.collection.activeSortName : '';
-const selectActiveSortReversed = (state : State) => state.collection ? state.collection.activeSortReversed : '';
+const selectActiveSortReversed = (state : State) => state.collection ? state.collection.activeSortReversed : false;
 const selectActiveViewMode = (state : State) => state.collection ? state.collection.activeViewMode : '';
 const selectActiveViewModeExtra = (state : State) => state.collection ? state.collection.activeViewModeExtra : '';
 export const selectRequestedCard = (state : State) => state.collection.requestedCard;
