@@ -260,7 +260,7 @@ export class CollectionDescription {
 	_serialized : string;
 	_serializedShort : string;
 
-	constructor(setName : SetName, filterNames : string[], sortName : SortName, sortReversed : boolean, viewMode : ViewMode, viewModeExtra : string) {
+	constructor(setName? : SetName, filterNames? : string[], sortName? : SortName, sortReversed? : boolean, viewMode? : ViewMode, viewModeExtra? : string) {
 		let setNameExplicitlySet = true;
 		if (!setName) {
 			setName = DEFAULT_SET_NAME;
