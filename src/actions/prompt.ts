@@ -18,7 +18,12 @@ import {
 	createThread,
 } from './comments.js';
 
-export const COMMIT_ACTIONS = {
+import {
+	CommitActionType
+} from '../types.js';
+
+//When adding a type, also add to CommitActionType
+export const COMMIT_ACTIONS : {[typ : string] : CommitActionType} = {
 	CONSOLE_LOG: 'CONSOLE_LOG',
 	EDIT_MESSAGE: 'EDIT_MESSAGE',
 	ADD_MESSAGE: 'ADD_MESSAGE',

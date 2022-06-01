@@ -545,6 +545,9 @@ export type UserPermissionsMap = {
 	[person: Uid]: UserPermissions
 };
 
+//When adding to this also extend src/actions/prompt.ts:COMMIT_ACTIONS
+export type CommitActionType = 'CONSOLE_LOG' | 'EDIT_MESSAGE' | 'ADD_MESSAGE' | 'CREATE_THREAD';
+
 //TODO: lock this down
 export type SetName = string;
 //TODO: lock this down
