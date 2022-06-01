@@ -24,7 +24,7 @@ const INITIAL_STATE : CommentsState = {
 	threadsLoaded: false,
 };
 
-const app = (state = INITIAL_STATE, action) => {
+const app = (state : CommentsState = INITIAL_STATE, action) : CommentsState => {
 	switch (action.type) {
 	case COMMENTS_UPDATE_MESSAGES: 
 		return {

@@ -101,7 +101,7 @@ const INITIAL_STATE : DataState = {
 	pendingNewCardIDToNavigateTo: ''
 };
 
-const app = (state = INITIAL_STATE, action) => {
+const app = (state: DataState = INITIAL_STATE, action) : DataState => {
 	switch (action.type) {
 	case EXPECT_NEW_CARD:
 		//This means that although we may think we're fully loaded now, there's

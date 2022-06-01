@@ -87,7 +87,7 @@ const INITIAL_STATE : AppState = {
 	suggestMissingConceptsEnabled: false,
 };
 
-const app = (state = INITIAL_STATE, action) => {
+const app = (state : AppState = INITIAL_STATE, action) : AppState => {
 	switch (action.type) {
 	case UPDATE_PAGE:
 		return {

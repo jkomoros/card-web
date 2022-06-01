@@ -39,7 +39,7 @@ import {
 	FilterMap
 } from '../types.js';
 
-const app = (state = INITIAL_STATE, action) => {
+const app = (state : CollectionState = INITIAL_STATE, action) : CollectionState => {
 	switch (action.type) {
 	case SHOW_CARD:
 		return {
