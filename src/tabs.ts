@@ -20,10 +20,58 @@ import {
 	TWITTER_HANDLE
 } from './config.GENERATED.SECRET.js';
 
+import {
+	CardIdentifier,
+	IconName,
+	Sections
+} from './types.js';
+
+import {
+	TemplateResult
+} from 'lit';
+
 export const READING_LIST_FALLBACK_CARD = 'about-reading-lists';
 export const STARS_FALLBACK_CARD = 'about-stars';
 
-export const tabConfiguration = (config, sections, tags) => {
+type TabConfig = TabConfigItem[];
+
+type TabConfigItem = {
+	//If set, will expand in line for the named expansion. See src/tabs.js for named expansions.
+	//Applies recursively until no expansions remain.
+	//Note that 'sections' is a special value that will expand to the current values of sections.
+	expand?: string,
+	//collection can be either a string that can be deserialized into a CollectionDescription, or an actual 
+	//CollectionDescription. It will be expanded to be a CollectionDescription either way. Each item should have a collection
+	//or an href
+	collection?: string | CollectionDescription,
+	//If set, the item will render an <a href='href' target='_blank'>
+	href?: string,
+	//Can be either a string naming an ICON constant in src/components/my-icons.js, or an actual Icon template.
+	//If provided, will render that instead of the display_name text.
+	icon?: IconName | TemplateResult,
+	//The text string to show. Alway used for title of the tab, but also will use if no icon provided.
+	display_name?: string,
+	//If true, the display_name will be rendered with italics
+	italics?: boolean,
+	//If true, a count of how many cards are in the collection will be calculated and rendered.
+	count?: boolean,
+	//If true, will not show the item if the count is 0. count config property must also be true.
+	hideIfEmpty?: boolean,
+	//If true, the item will not be rendered. This is useful if you want fallback_cards or start_cards 
+	//to be available but don't want the tab to show up.
+	hide?: boolean,
+	//If provided, will show these fallback cards if no real cards match the collection. The strings can be IDs or 
+	//slugs for the target cards.
+	fallback_cards?: CardIdentifier[],
+	//If provided, will show these start cards if the collection being show is precisely the collection described 
+	//by this descripton. The strings can be IDS or slugs for the target cards.
+	start_cards?: CardIdentifier[],
+	//The first item that has default:true will be used as the default collection if the app is loaded without a 
+	//collection. The auto sections portion will automatically select at least one item to be default.
+	default?: boolean
+}
+
+export const tabConfiguration = (config : TabConfig, sections : Sections, tags : Sections) => {
 	if (!config) config = DEFAULT_CONFIG;
 	let array = config;
 	let lastArray = [];
@@ -43,7 +91,7 @@ export const tabConfiguration = (config, sections, tags) => {
 	return inflateCollectionsAndIcons(array);
 };
 
-const inflateCollectionsAndIcons = (config) => {
+const inflateCollectionsAndIcons = (config : TabConfig) => {
 	let result = [];
 	for (let item of config) {
 		let itemToAdd = {...item};
@@ -61,52 +109,13 @@ const inflateCollectionsAndIcons = (config) => {
 	return result;
 };
 
-/*
-Valid fields in config items:
-{
-	//If set, will expand in line for the named expansion. See src/tabs.js for named expansions.
-	//Applies recursively until no expansions remain.
-	//Note that 'sections' is a special value that will expand to the current values of sections.
-	expand: 'STRING',
-	//collection can be either a string that can be deserialized into a CollectionDescription, or an actual 
-	//CollectionDescription. It will be expanded to be a CollectionDescription either way. Each item should have a collection
-	//or an href
-	collection: 'STRING_OR_COLLECTION,
-	//If set, the item will render an <a href='href' target='_blank'>
-	href: 'full-link'
-	//Can be either a string naming an ICON constant in src/components/my-icons.js, or an actual Icon template.
-	//If provided, will render that instead of the display_name text.
-	icon: 'STRING_OR_ICON_TEMPLATE',
-	//The text string to show. Alway used for title of the tab, but also will use if no icon provided.
-	display_name: 'STRING',
-	//If true, the display_name will be rendered with italics
-	italics: true,
-	//If true, a count of how many cards are in the collection will be calculated and rendered.
-	count: true,
-	//If true, will not show the item if the count is 0. count config property must also be true.
-	hideIfEmpty: true,
-	//If true, the item will not be rendered. This is useful if you want fallback_cards or start_cards 
-	//to be available but don't want the tab to show up.
-	hide: true,
-	//If provided, will show these fallback cards if no real cards match the collection. The strings can be IDs or 
-	//slugs for the target cards.
-	fallback_cards: [CARD_ID_OR_SLUG, ...]
-	//If provided, will show these start cards if the collection being show is precisely the collection described 
-	//by this descripton. The strings can be IDS or slugs for the target cards.
-	start_cards: [CARD_ID_OR_SLUG, ...]
-	//The first item that has default:true will be used as the default collection if the app is loaded without a 
-	//collection. The auto sections portion will automatically select at least one item to be default.
-	default: true
-}
-*/
-
-const DEFAULT_CONFIG = [
+const DEFAULT_CONFIG : TabConfig = [
 	{
 		expand: 'default_tabs'
 	}
 ];
 
-const EXPANSION_ITEMS = {
+const EXPANSION_ITEMS : {[name : string]: TabConfig} = {
 	'default_tabs': [
 		{
 			expand: 'sections',
@@ -216,14 +225,14 @@ const EXPANSION_ITEMS = {
 	]
 };
 
-const DEFAULT_LOADING_TAB = {
+const DEFAULT_LOADING_TAB : TabConfigItem = {
 	collection: new CollectionDescription(),
 	display_name: 'Loading...',
 	italics: true,
 };
 
 
-const tabsForSections = (sections, doHide) => {
+const tabsForSections = (sections : Sections, doHide? : boolean) : TabConfig => {
 	//Only doSelectDefaultIfNonProvided for sections
 	if (!doHide) doHide = false;
 	if (!sections || Object.keys(sections).length == 0) {
@@ -241,7 +250,7 @@ const tabsForSections = (sections, doHide) => {
 	return result;
 };
 
-const expandTabConfigItem = (configItem, sections, tags) => {
+const expandTabConfigItem = (configItem : TabConfigItem, sections : Sections, tags : Sections) : [expandedConfig: TabConfig, changesMade : boolean] => {
 	if (!configItem) return [[configItem], false];
 
 	if (!configItem.expand) return [[configItem], false];
