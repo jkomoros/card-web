@@ -117,8 +117,13 @@ import {
 	doc
 } from 'firebase/firestore';
 
+import {
+	CardID,
+	Card
+} from '../types.js';
+
 //if silent is true, then just passively updates the URL to reflect what it should be.
-export const navigatePathTo = (path, silent) => (dispatch, getState) => {
+export const navigatePathTo = (path : string, silent? : boolean) => (dispatch, getState) => {
 	const state = getState();
 	//If we're already pointed there, no need to navigate
 	if ('/' + path === window.location.pathname) return;
@@ -217,7 +222,7 @@ export const navigateToDefaultIfSectionsAndTagsLoaded = (silent) => (dispatch, g
 	dispatch(navigatePathTo('/' + PAGE_DEFAULT + '/' + defaultCollectionDescription.serialize(), silent));
 };
 
-export const navigateToCardInCurrentCollection = (cardOrID, silent) => (dispatch, getState) => {
+export const navigateToCardInCurrentCollection = (cardOrID : Card | CardID, silent? : boolean) => (dispatch, getState) => {
 	const state = getState();
 	const cardID = typeof cardOrID == 'string' ? cardOrID : cardOrID.id;
 	const cardIndexinActiveCollection = getCardIndexForActiveCollection(state, cardID);
@@ -237,7 +242,7 @@ export const navigateToCardInCurrentCollection = (cardOrID, silent) => (dispatch
 };
 
 //if card is not provided, will try to navigate to default if sections loaded.
-export const navigateToCardInDefaultCollection = (cardOrId, silent) => (dispatch) => {
+export const navigateToCardInDefaultCollection = (cardOrId : Card | CardID, silent? : boolean) => (dispatch) => {
 	let path = urlForCard(cardOrId);
 	if (!path) {
 		dispatch(navigateToDefaultIfSectionsAndTagsLoaded(silent));
@@ -394,7 +399,7 @@ export const fetchCard = (cardIDOrSlug) => async (dispatch, getState) =>  {
 		console.warn('no cards matched');
 		return;
 	}
-	let card = {...rawCard.data(), id: rawCard.id};
+	let card = {...rawCard.data(), id: rawCard.id} as Card;
 	if (!card.published) {
 		console.warn('Card wasn\'t published');
 		return;
