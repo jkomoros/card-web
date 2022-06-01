@@ -566,3 +566,11 @@ export interface CollectionConstructorArguments {
     filtersSnapshot? : Filters,
     editingCard? : Card
 }
+
+//TODO: tighten this
+export type MaintenanceTaskID = string;
+export type MaintenanceTask = {
+    id: MaintenanceTaskID,
+    timestamp: FirestoreTimestamp,
+    version: number,
+};
