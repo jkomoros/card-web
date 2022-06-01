@@ -114,7 +114,8 @@ import {
 } from './config.GENERATED.SECRET.js';
 
 import {
-	State
+	State,
+	Cards
 } from './types.js';
 
 const selectState = (state : State) : State => state;
@@ -634,7 +635,7 @@ export const selectCollaboratorInfosForActiveCard = createSelector(
 //A map of uid -> permissionKey -> [cardID], for any uid that is listed in any card's permissions object.
 export const selectUserPermissionsForCardsMap = createSelector(
 	selectCards,
-	(cards) => {
+	(cards : Cards) => {
 		let result = {};
 		for (let card of Object.values(cards)) {
 			if (!card.permissions) continue;
