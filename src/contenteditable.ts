@@ -153,19 +153,17 @@ const removeZombieSpans = (ele : Element) => {
 	}
 
 	let removedZombies = false;
-	for (let child of Object.values(ele.childNodes)) {
+	for (let child of Object.values(ele.children)) {
 		//Spans are legal to use if they have a classname, like 'small'.
 		if (!child.className && (child.localName == 'span' || child.localName == 'font')) {
 			//Replace it with either just the text if it's only got 
 			child.replaceWith(...child.childNodes);
 			removedZombies = true;
 		}
-		if (child.removeAttribute) {
-			child.removeAttribute('style');
-			//content pasted from Google docs has these
-			child.removeAttribute('role');
-			child.removeAttribute('dir');
-		}
+		child.removeAttribute('style');
+		//content pasted from Google docs has these
+		child.removeAttribute('role');
+		child.removeAttribute('dir');
 	}
 	//Combine adjacent text nodes, otherwise when you add back in a space it
 	//will show as &nbsp; because it will be between two runs not within one.
