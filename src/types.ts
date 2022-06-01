@@ -82,6 +82,8 @@ export type ExpandedReferenceDelete = {
 	delete : true
 }
 
+export type ReferencesEntriesDiff = (ExpandedReferenceObject | ExpandedReferenceDelete)[];
+
 export type ImageBlock = ImageInfo[];
 
 //TODO: lock this down more
