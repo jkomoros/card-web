@@ -11,30 +11,47 @@ import {
 	FIND_UPDATE_SORT_BY_RECENT
 } from '../actions/find.js';
 
-const INITIAL_STATE = {
-	open: false,
+import {
+	CardType
+} from '../types.js';
+
+type FindState = {
+	open: boolean,
 	//query is the query as input by the user, as quick as we can update state.
-	query: '',
+	query: string,
 	//activeQuery is the query that goes into the processing pipeline. We only
 	//update this every so often as query is updated, because it is expensive
 	//and drives expensive template updating, introducing lag.
-	activeQuery: '',
-	renderOffset: 0,
+	activeQuery: string,
+	renderOffset: number,
 	//For when the user is looking to link specific highlighted text to that card
-	linking: false,
+	linking: boolean,
 	//For when the user is looking to add permissions to a given card
-	permissions: false,
+	permissions: boolean,
 	//For when the user wants to add a specific type of reference from the
 	//editing card to this one
-	referencing: false,
+	referencing: boolean,
 	//If true, sort by recent. Otherwise, sort by query match.
+	sortByRecent: boolean,
+	cardTypeFilter: CardType,
+	//if true, the filter shouldn't be able to be changed
+	cardTypeFilterLocked: boolean,
+}
+
+const INITIAL_STATE : FindState = {
+	open: false,
+	query: '',
+	activeQuery: '',
+	renderOffset: 0,
+	linking: false,
+	permissions: false,
+	referencing: false,
 	sortByRecent: false,
 	cardTypeFilter: '',
-	//if true, the filter shouldn't be able to be changed
 	cardTypeFilterLocked: false,
 };
 
-const app = (state = INITIAL_STATE, action) => {
+const app = (state : FindState = INITIAL_STATE, action) : FindState => {
 	switch (action.type) {
 	case FIND_DIALOG_OPEN:
 		return {
