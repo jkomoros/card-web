@@ -757,3 +757,26 @@ export type EditorState = {
 	//Undefined communicates 'add to end'
 	imageBrowserDialogIndex?: number,
 }
+
+export type FindState = {
+	open: boolean,
+	//query is the query as input by the user, as quick as we can update state.
+	query: string,
+	//activeQuery is the query that goes into the processing pipeline. We only
+	//update this every so often as query is updated, because it is expensive
+	//and drives expensive template updating, introducing lag.
+	activeQuery: string,
+	renderOffset: number,
+	//For when the user is looking to link specific highlighted text to that card
+	linking: boolean,
+	//For when the user is looking to add permissions to a given card
+	permissions: boolean,
+	//For when the user wants to add a specific type of reference from the
+	//editing card to this one
+	referencing: boolean,
+	//If true, sort by recent. Otherwise, sort by query match.
+	sortByRecent: boolean,
+	cardTypeFilter: CardType,
+	//if true, the filter shouldn't be able to be changed
+	cardTypeFilterLocked: boolean,
+}
