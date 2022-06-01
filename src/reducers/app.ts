@@ -25,6 +25,10 @@ import {
 } from '../actions/app.js';
 
 import {
+	EMPTY_CARD
+} from '../actions/data.js';
+
+import {
 	Card,
 	CardID
 } from '../types.js';
@@ -75,7 +79,7 @@ const INITIAL_STATE : AppState = {
 	hoverY: 0,
 	hoverCardId: '',
 	//the card that was fetched as a singleton, for example in basic-card-view.
-	fetchedCard: {},
+	fetchedCard: EMPTY_CARD,
 	cardBeingFetched: false,
 	ctrlKeyPressed: false,
 	//if this is true, then the word cloud in card-drawer will be replaced with
