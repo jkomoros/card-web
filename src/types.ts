@@ -227,6 +227,13 @@ export type ConfigurableFilterConfigurationMap = {
     }
 };
 
+//TODO: tighten
+//TODO: this name is confusing, in the state this is just called tab
+export type EditorTab = string;
+//TODO: tighten
+//TODO: this name is confusing, in the state this is called editorTab
+export type EditorContentTab = string;
+
 export type Author = {
     id: Uid,
     displayName : string,
