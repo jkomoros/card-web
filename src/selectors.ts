@@ -794,7 +794,7 @@ export const selectEditingCardSuggestedTags = createSelector(
 	selectTagsSemanticFingerprint,
 	(card, cardFingerprint, tagFingerprints) => {
 		if (!card || Object.keys(card).length == 0) return [];
-		if (!tagFingerprints || tagFingerprints.size == 0) return [];
+		if (!tagFingerprints || Object.keys(tagFingerprints).length == 0) return [];
 		const closestTags = new FingerprintGenerator().closestOverlappingItems('', cardFingerprint, tagFingerprints);
 		if (closestTags.size == 0) return [];
 		const excludeIDs = new Set(card.tags);
