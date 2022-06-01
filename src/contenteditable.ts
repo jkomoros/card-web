@@ -7,6 +7,10 @@ import {
 	getDocument
 } from './document.js';
 
+import {
+	HTMLTagName
+} from './types.js';
+
 //We don't just use Node.ELEMENT_NODE and friends because this also runs in the
 //Node context for testing.
 const ELEMENT_NODE = 1;
@@ -61,7 +65,7 @@ const hrefToCardAttribute = (cardLink : HTMLAnchorElement) => {
 
 };
 
-const cardAttributeToHref = (a) => {
+const cardAttributeToHref = (a : HTMLAnchorElement) => {
 
 	let card = a.getAttribute('card');
 
@@ -72,13 +76,13 @@ const cardAttributeToHref = (a) => {
 
 };
 
-const spliceEle = (ele) => {
+const spliceEle = (ele : Element) => {
 	const parent = ele.parentNode;
 	ele.replaceWith(...ele.childNodes);
 	parent.normalize();
 };
 
-const normalizeBodyFromContentEditable = (html) => {
+const normalizeBodyFromContentEditable = (html : string) => {
 
 	//Rewrite elements from content editable form to canonical form (which is
 	//primarily replacing <a>'s with <card-link>.)
@@ -103,7 +107,7 @@ const normalizeBodyFromContentEditable = (html) => {
 	return section.innerHTML;
 };
 
-export const normalizeBodyToContentEditable = (html) => {
+export const normalizeBodyToContentEditable = (html : string) => {
 	//inverse transform of normalizeBodyFromContentEditable. contentEditable
 	//expects links to be, for example, actual link elements. We only do
 	//transforms that are necessary for Chrome's content editable to understand
@@ -178,7 +182,7 @@ const legalTopLevelNodes = {
 	'h4': true,
 };
 
-const cleanUpTopLevelHTML = (html, tag = 'p') => {
+const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
 	//Does deeper changes that require parsing.
 	//1) make sure all text in top is within a p tag.
 	//2) make sure that p elements don't have any line breaks inside.
@@ -244,7 +248,7 @@ const cleanUpTopLevelHTML = (html, tag = 'p') => {
 
 };
 
-export const normalizeLineBreaks = (html) => {
+export const normalizeLineBreaks = (html : string) => {
 	if (!html) return html;
 	//Remove all line breaks. We'll put them back in.
 	html = html.split('\n').join('');
@@ -262,7 +266,7 @@ export const normalizeLineBreaks = (html) => {
 	return html;
 };
 
-export const normalizeBodyHTML = (html) => {
+export const normalizeBodyHTML = (html : string) => {
 
 	if (!html) return html;
 

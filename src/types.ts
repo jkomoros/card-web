@@ -290,7 +290,7 @@ export type CommentThread = {
 };
 
 //TODO: tighten this
-type HTMLTagName = string;
+export type HTMLTagName = string;
 
 type CardTypeMap = {
     [typ : CardType] : boolean
