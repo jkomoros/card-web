@@ -227,6 +227,32 @@ export type ConfigurableFilterConfigurationMap = {
     }
 };
 
+export type CommentThreadID = string;
+export type CommentMessageID = string;
+
+export type CommentMessage = {
+    id: CommentMessageID
+    author: Uid,
+    card: CardID,
+    created: FirestoreTimestamp,
+    deleted: boolean,
+    message: string,
+    thread: CommentThreadID,
+    updated: FirestoreTimestamp
+};
+
+export type CommentThread = {
+    id: CommentThreadID,
+    author: Uid,
+    card: CardID,
+    created: FirestoreTimestamp,
+    deleted: boolean,
+    messages: CommentMessageID[],
+    parent_message: CommentMessageID,
+    resolved: boolean,
+    updated: FirestoreTimestamp,
+};
+
 //TODO: tighten this
 type HTMLTagName = string;
 
