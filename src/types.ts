@@ -453,6 +453,8 @@ export interface Card {
     //Defaul to epoch 1970 for things not yet tweeted
     last_tweeted: FirestoreTimestamp,
     tweet_count: number,
+    //TODO: we should have this explicitly set on all cards, but in practice only some do.
+    full_bleed? : boolean,
 }
 
 export type SynonymMap = {
