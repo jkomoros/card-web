@@ -227,6 +227,13 @@ export type ConfigurableFilterConfigurationMap = {
     }
 };
 
+export type Author = {
+    id: Uid,
+    displayName : string,
+    photoURL : string,
+    updated: FirestoreTimestamp
+};
+
 export type CommentThreadID = string;
 export type CommentMessageID = string;
 
