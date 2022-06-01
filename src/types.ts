@@ -806,8 +806,7 @@ export type PromptState = {
 	associatedId: CommentMessageID | CommentThreadID,
 }
 
-export 
-type UserState = {
+export type UserState = {
 	user : UserInfo,
 	//pending is true whenever we are expecting either a SIGNIN_SUCCESS or
 	//SIGNOUT_SUCCESS. That's true both when the page loads before we get the
