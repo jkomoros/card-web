@@ -65,6 +65,6 @@ import {
 getStateWith(() => store.getState());  // allows you to get selector inputs and outputs
 registerSelectors(selectors); // register string names for selectors
 
-type ThunkResult = ThunkAction<void, State, undefined, AnyAction>;
+export type ThunkResult = ThunkAction<void, State, undefined, AnyAction>;
 
 export type AppActionCreator = ActionCreator<ThunkResult>;

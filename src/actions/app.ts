@@ -122,8 +122,12 @@ import {
 	Card
 } from '../types.js';
 
+import {
+	AppActionCreator
+} from '../store.js';
+
 //if silent is true, then just passively updates the URL to reflect what it should be.
-export const navigatePathTo = (path : string, silent? : boolean) => (dispatch, getState) => {
+export const navigatePathTo : AppActionCreator = (path : string, silent? : boolean) => (dispatch, getState) => {
 	const state = getState();
 	//If we're already pointed there, no need to navigate
 	if ('/' + path === window.location.pathname) return;
@@ -139,7 +143,7 @@ export const navigatePathTo = (path : string, silent? : boolean) => (dispatch, g
 	dispatch(navigated(path, location.search));
 };
 
-export const navigateToNextCard = () => (dispatch, getState) => {
+export const navigateToNextCard : AppActionCreator = () => (dispatch, getState) => {
 	const state = getState();
 	let index = selectActiveCardIndex(state);
 	index++;
@@ -150,7 +154,7 @@ export const navigateToNextCard = () => (dispatch, getState) => {
 	dispatch(navigateToCardInCurrentCollection(newId));
 };
 
-export const navigateToPreviousCard = () => (dispatch, getState) => {
+export const navigateToPreviousCard : AppActionCreator = () => (dispatch, getState) => {
 	const state = getState();
 	let index = selectActiveCardIndex(state);
 	index--;
@@ -179,7 +183,7 @@ export const urlForTag = (tagName, optCardId) => {
 //Should be called any time we might want to redirect to the given comment. For
 //example, when the redirect comment view boots, or when threads or messages are
 //loaded.
-export const refreshCommentRedirect = () => (dispatch, getState) => {
+export const refreshCommentRedirect : AppActionCreator = () => (dispatch, getState) => {
 	//Called when cards and sections update, just in case we now have
 	//information to do this better. Also called when stars and reads update,
 	//because if we're filtering to one of those filters we might not yet know
@@ -192,7 +196,7 @@ export const refreshCommentRedirect = () => (dispatch, getState) => {
 	dispatch(navigateToComment(pageExtra));
 };
 
-export const navigateToComment = (commentId) => (dispatch, getState) => {
+export const navigateToComment : AppActionCreator = (commentId) => (dispatch, getState) => {
 	//commentId is either a thread or message id.
 	const state = getState();
 	if (!selectCommentsAreFullyLoaded(state)) return;
@@ -213,7 +217,7 @@ export const navigateToComment = (commentId) => (dispatch, getState) => {
 
 //navigateToDefaultIfSectionsLoaded will navigate to default if sections are
 //loaded. If they aren't, it won't do anything.
-export const navigateToDefaultIfSectionsAndTagsLoaded = (silent) => (dispatch, getState) => {
+export const navigateToDefaultIfSectionsAndTagsLoaded : AppActionCreator = (silent) => (dispatch, getState) => {
 	const defaultCollectionDescription = selectDefaultCollectionDescription(getState());
 	if (!defaultCollectionDescription) {
 		//must not have loaded yet
@@ -222,7 +226,7 @@ export const navigateToDefaultIfSectionsAndTagsLoaded = (silent) => (dispatch, g
 	dispatch(navigatePathTo('/' + PAGE_DEFAULT + '/' + defaultCollectionDescription.serialize(), silent));
 };
 
-export const navigateToCardInCurrentCollection = (cardOrID : Card | CardID, silent? : boolean) => (dispatch, getState) => {
+export const navigateToCardInCurrentCollection : AppActionCreator = (cardOrID : Card | CardID, silent? : boolean) => (dispatch, getState) => {
 	const state = getState();
 	const cardID = typeof cardOrID == 'string' ? cardOrID : cardOrID.id;
 	const cardIndexinActiveCollection = getCardIndexForActiveCollection(state, cardID);
@@ -242,7 +246,7 @@ export const navigateToCardInCurrentCollection = (cardOrID : Card | CardID, sile
 };
 
 //if card is not provided, will try to navigate to default if sections loaded.
-export const navigateToCardInDefaultCollection = (cardOrId : Card | CardID, silent? : boolean) => (dispatch) => {
+export const navigateToCardInDefaultCollection : AppActionCreator = (cardOrId : Card | CardID, silent? : boolean) => (dispatch) => {
 	let path = urlForCard(cardOrId);
 	if (!path) {
 		dispatch(navigateToDefaultIfSectionsAndTagsLoaded(silent));
@@ -250,13 +254,13 @@ export const navigateToCardInDefaultCollection = (cardOrId : Card | CardID, sile
 	dispatch(navigatePathTo(path, silent));
 };
 
-export const navigateToCollectionWithAboutConcept = (conceptStr) => (dispatch, getState) => {
+export const navigateToCollectionWithAboutConcept : AppActionCreator = (conceptStr) => (dispatch, getState) => {
 	const collection = selectActiveCollectionDescription(getState());
 	const newCollection = collectionDescriptionWithConfigurableFilter(collection, aboutConceptConfigurableFilterText(conceptStr));
 	dispatch(navigateToCollection(newCollection));
 };
 
-export const navigateToCollectionWithQuery = (queryText) => (dispatch, getState) => {
+export const navigateToCollectionWithQuery : AppActionCreator = (queryText) => (dispatch, getState) => {
 	const collection = selectActiveCollectionDescription(getState());
 	const newCollection = collectionDescriptionWithQuery(collection, queryText);
 	dispatch(navigateToCollection(newCollection));
@@ -270,7 +274,7 @@ export const navigateToCollection = (collection) => {
 	return navigatePathTo(urlForCollection(collection));
 };
 
-export const navigated = (path, query) => (dispatch) => {
+export const navigated : AppActionCreator = (path, query) => (dispatch) => {
 
 	// Extract the page name from path.
 	const page = path === '/' ? PAGE_DEFAULT : path.slice(1);
@@ -281,7 +285,7 @@ export const navigated = (path, query) => (dispatch) => {
 
 };
 
-const loadPage = (pathname, query) => (dispatch) => {
+const loadPage : AppActionCreator = (pathname, query) => (dispatch) => {
 
 	//pathname is the whole path minus starting '/', like 'c/VIEW_ID'
 	let pieces = pathname.split('/');
@@ -378,7 +382,7 @@ export const fetchCardLinkCardsForFetchedCard = async (fetchedCard) => async (di
 	dispatch(updateCards(cards, false));
 };
 
-export const fetchCard = (cardIDOrSlug) => async (dispatch, getState) =>  {
+export const fetchCard : AppActionCreator = (cardIDOrSlug) => async (dispatch, getState) =>  {
 	if (!cardIDOrSlug) return;
 
 	//If we already fetched the card in question we can stop.
@@ -410,7 +414,7 @@ export const fetchCard = (cardIDOrSlug) => async (dispatch, getState) =>  {
 
 //A generic commit action, depending on what is happening. If editing, commit
 //the edit. If composing, commit the compose.
-export const doCommit  = () => (dispatch, getState) => {
+export const doCommit : AppActionCreator = () => (dispatch, getState) => {
 	const state = getState();
 	if (selectIsEditing(state)) {
 		dispatch(editingCommit());
@@ -436,14 +440,14 @@ export const cancelHoverTimeout = () => {
 	hoverPreviewTimer = 0;
 };
 
-export const hoveredCardMouseMoved = () => (dispatch, getState) => {
+export const hoveredCardMouseMoved : AppActionCreator = () => (dispatch, getState) => {
 	cancelHoverTimeout();
 	const activePreviewCardId = selectActivePreviewCardId(getState());
 	if (!activePreviewCardId) return;
 	dispatch({ type: UPDATE_HOVERED_CARD, x: 0, y: 0, cardId: ''});
 };
 
-export const updateHoveredCard = (x,y,cardId) => (dispatch) => {
+export const updateHoveredCard : AppActionCreator = (x,y,cardId) => (dispatch) => {
 	cancelHoverTimeout();
 	hoverPreviewTimer = window.setTimeout(() => {
 		hoverPreviewTimer = 0;
@@ -453,7 +457,7 @@ export const updateHoveredCard = (x,y,cardId) => (dispatch) => {
 
 let snackbarTimer;
 
-export const showSnackbar = () => (dispatch) => {
+export const showSnackbar : AppActionCreator = () => (dispatch) => {
 	dispatch({
 		type: OPEN_SNACKBAR
 	});
@@ -462,7 +466,7 @@ export const showSnackbar = () => (dispatch) => {
 		dispatch({ type: CLOSE_SNACKBAR }), 3000);
 };
 
-export const updateOffline = (offline) => (dispatch, getState) => {
+export const updateOffline : AppActionCreator = (offline) => (dispatch, getState) => {
 	// Show the snackbar only if offline status changes.
 	if (offline !== getState().app.offline) {
 		dispatch(showSnackbar());
@@ -534,7 +538,7 @@ export const disablePresentationMode = () => {
 	};
 };
 
-export const turnMobileMode = (on) => (dispatch) => {
+export const turnMobileMode : AppActionCreator= (on) => (dispatch) => {
 	if (on) {
 		dispatch(enablePresentationMode());
 		dispatch({type:ENABLE_MOBILE_MODE});
@@ -544,7 +548,7 @@ export const turnMobileMode = (on) => (dispatch) => {
 	dispatch({type:DISABLE_MOBILE_MODE});
 };
 
-export const ctrlKeyPressed = (pressed) => (dispatch, getState) => {
+export const ctrlKeyPressed : AppActionCreator= (pressed) => (dispatch, getState) => {
 	//Only dispatch if it will make a change
 	if (selectCtrlKeyPressed(getState()) === pressed) return;
 	dispatch({
@@ -569,7 +573,7 @@ const closeCardsDrawerInfo = () => {
 	};
 };
 
-export const toggleCardsDrawerInfo = () => (dispatch, getState) => {
+export const toggleCardsDrawerInfo : AppActionCreator = () => (dispatch, getState) => {
 	const isOpen = selectCardsDrawerInfoExpanded(getState());
 	dispatch(isOpen ? closeCardsDrawerInfo() : openCardsDrawerInfo());
 };
