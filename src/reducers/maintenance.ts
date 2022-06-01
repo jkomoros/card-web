@@ -4,14 +4,8 @@ import {
 } from '../actions/maintenance.js';
 
 import {
-	MaintenanceTaskID,
-	MaintenanceTask
+	MaintenanceState
 } from '../types.js';
-
-type MaintenanceState = {
-	executedTasks: {[id : MaintenanceTaskID]: MaintenanceTask},
-	taskActive: false,
-}
 
 const INITIAL_STATE : MaintenanceState = {
 	executedTasks: {},

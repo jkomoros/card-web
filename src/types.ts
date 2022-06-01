@@ -780,3 +780,8 @@ export type FindState = {
 	//if true, the filter shouldn't be able to be changed
 	cardTypeFilterLocked: boolean,
 }
+
+export type MaintenanceState = {
+	executedTasks: {[id : MaintenanceTaskID]: MaintenanceTask},
+	taskActive: false,
+}
