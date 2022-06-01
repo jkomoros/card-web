@@ -4,16 +4,32 @@ import {
 	PERMISSIONS_RESET_ADD_CARD
 } from '../actions/permissions.js';
 
-const INITIAL_STATE = {
+import {
+	UserPermissionsMap,
+	PermissionType,
+	Uid
+} from '../types.js';
+
+type PermissionsState = {
+	permissions: UserPermissionsMap,
+	pendingUid : Uid,
+	pendingPermissionType: PermissionType
+}
+
+const INITIAL_STATE : PermissionsState = {
 	permissions: {},
 	pendingUid : '',
 	pendingPermissionType: ''
 };
 
-const app = (state = INITIAL_STATE, action) => {
+const updatedPermissions = (currentPermissions : UserPermissionsMap, permissionsToAdd : UserPermissionsMap, permissionsToRemove : {[uid : Uid] : true}) => {
+	return Object.fromEntries(Object.entries({...currentPermissions, ...permissionsToAdd}).filter(entry => !permissionsToRemove[entry[0]]));
+};
+
+const app = (state : PermissionsState = INITIAL_STATE, action) : PermissionsState => {
 	switch (action.type) {
 	case PERMISSIONS_UPDATE_PERMISSIONS:
-		return {...state, permissions:Object.fromEntries(Object.entries({...state.permissions, ...action.permissionsToAdd}).filter(entry => !action.permissionsToRemove[entry[0]]))};
+		return {...state, permissions:updatedPermissions(state.permissions, action.permissionsToAdd, action.permissionsToRemove)};
 	case PERMISSIONS_START_ADD_CARD:
 		return {
 			...state,
