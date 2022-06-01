@@ -790,3 +790,9 @@ export type MultiEditState = {
 	open: boolean,
 	referencesDiff: ReferencesEntriesDiff,
 };
+
+export type PermissionsState = {
+	permissions: UserPermissionsMap,
+	pendingUid : Uid,
+	pendingPermissionType: PermissionType
+}

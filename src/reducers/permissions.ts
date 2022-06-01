@@ -5,16 +5,10 @@ import {
 } from '../actions/permissions.js';
 
 import {
+	PermissionsState,
 	UserPermissionsMap,
-	PermissionType,
 	Uid
 } from '../types.js';
-
-type PermissionsState = {
-	permissions: UserPermissionsMap,
-	pendingUid : Uid,
-	pendingPermissionType: PermissionType
-}
 
 const INITIAL_STATE : PermissionsState = {
 	permissions: {},
