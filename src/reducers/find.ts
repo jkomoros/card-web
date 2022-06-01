@@ -62,7 +62,7 @@ const app = (state : FindState = INITIAL_STATE, action) : FindState => {
 			query: action.query || '',
 			activeQuery: action.query || '',
 			renderOffset: 0,
-			soryByRecent: false,
+			sortByRecent: false,
 			cardTypeFilter: '',
 			cardTypeFilterLocked: false,
 			open: true
