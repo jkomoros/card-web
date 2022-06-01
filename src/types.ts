@@ -532,7 +532,7 @@ export interface PermissionInfoCollection {
 }
 
 export interface UserPermissions {
-    id : Uid,
+    id? : Uid,
     notes? : string,
     //The remaining properties are conceptually an enumeration of PermissionType.
     admin? : boolean,
