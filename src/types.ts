@@ -11,7 +11,7 @@ export type Slug = string;
 export type CardIdentifier = CardID | Slug;
 
 //TODO: lock this down more
-//TODO: should this be the same as PermissionInfoType?
+//TODO: should this be the same as PermissionType?
 type CardPermissionType = string;
 
 type CardPermissions = {
@@ -509,7 +509,7 @@ export type ProcessedCards = {
 }
 
 //TODO: lock this down more
-export type PermissionInfoType = string;
+export type PermissionType = string;
 
 export interface PermissionInfo {
 	displayName : string,
@@ -519,7 +519,7 @@ export interface PermissionInfo {
 }
 
 export interface PermissionInfoCollection {
-	[name: PermissionInfoType]: PermissionInfo
+	[name: PermissionType]: PermissionInfo
 }
 
 //TODO: lock this down
