@@ -74,6 +74,10 @@ import {
 	getCardInReadingList
 } from '../selectors.js';
 
+import {
+	UserInfo
+} from '../types.js';
+
 let prevAnonymousMergeUser = null;
 
 getRedirectResult(auth).catch( async err => {
@@ -287,7 +291,7 @@ export const signInSuccess = (firebaseUser) => (dispatch) => {
 	connectLiveReadingList(firebaseUser.uid);
 };
 
-const _userInfo = (info) => {
+const _userInfo = (info) : UserInfo => {
 	return {
 		uid: info.uid,
 		isAnonymous: info.isAnonymous,
