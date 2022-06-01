@@ -509,6 +509,7 @@ export type ProcessedCards = {
 }
 
 //TODO: lock this down more
+//UserPermissions enumerates each legal value by hand.
 export type PermissionType = string;
 
 export interface PermissionInfo {
@@ -521,6 +522,28 @@ export interface PermissionInfo {
 export interface PermissionInfoCollection {
 	[name: PermissionType]: PermissionInfo
 }
+
+export interface UserPermissions {
+    id : Uid,
+    notes? : string,
+    //The remaining properties are conceptually an enumeration of PermissionType.
+    admin? : boolean,
+    viewApp? : boolean,
+    edit? : boolean,
+    editSection? : boolean,
+    editTag? : boolean,
+    editCard? : boolean,
+    createCard? : boolean,
+    viewUnpublished? : boolean,
+    comment? : boolean,
+    star? : boolean,
+    markRead? : boolean,
+    modifyReadingList? : boolean,
+};
+
+export type UserPermissionsMap = {
+	[person: Uid]: UserPermissions
+};
 
 //TODO: lock this down
 export type SetName = string;

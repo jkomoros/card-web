@@ -2,6 +2,7 @@ import {
 	PermissionInfoCollection
 } from './types.js';
 
+//Note: when adding one to this, also update UserPermissions type.
 export const PERMISSION_ADMIN = 'admin';
 export const PERMISSION_VIEW_APP = 'viewApp';
 export const PERMISSION_EDIT = 'edit';
