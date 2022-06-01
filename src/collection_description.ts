@@ -661,7 +661,8 @@ const removeUnnecessaryLabels = (arr) => {
 
 const expandCardCollection = (collection, cards) => collection.map(id => cards[id] || null).filter(card => card ? true : false);
 
-class Collection {
+//Exported to resolve typescript warnings, but don't create directly, get one from CollectionDescription.collection()
+export class Collection {
 
 	_description : CollectionDescription;
 	_keyCardID : CardID | '';
