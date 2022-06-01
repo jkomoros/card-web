@@ -113,116 +113,120 @@ import {
 	TAB_CONFIGURATION
 } from './config.GENERATED.SECRET.js';
 
-const selectState = (state) => state;
+import {
+	State
+} from './types.js';
 
-export const selectPage = (state) => state.app.page;
-export const selectPageExtra = (state) => state.app.pageExtra;
-export const selectFetchedCard = (state) => state.app.fetchedCard;
-export const selectCardBeingFetched = (state) => state.app.cardBeingFetched;
-export const selectCardsDrawerInfoExpanded = (state) => state.app.cardsDrawerInfoExpanded;
-export const selectConfigureCollectionDialogOpen = (state) => state.app ? state.app.configureCollectionDialogOpen : false;
-export const selectSuggestMissingConceptsEnabled = (state) => state.app.suggestMissingConceptsEnabled;
+const selectState = (state : State) : State => state;
 
-export const selectComposeOpen = (state) => state.prompt.composeOpen;
-export const selectPromptContent = (state) => state.prompt.content;
-export const selectPromptMessage = (state) => state.prompt.message;
-export const selectPromptAction = (state) => state.prompt.action;
-export const selectPromptAssociatedId = (state) => state.prompt.associatedId;
+export const selectPage = (state : State) => state.app.page;
+export const selectPageExtra = (state : State) => state.app.pageExtra;
+export const selectFetchedCard = (state : State) => state.app.fetchedCard;
+export const selectCardBeingFetched = (state : State) => state.app.cardBeingFetched;
+export const selectCardsDrawerInfoExpanded = (state : State) => state.app.cardsDrawerInfoExpanded;
+export const selectConfigureCollectionDialogOpen = (state : State) => state.app ? state.app.configureCollectionDialogOpen : false;
+export const selectSuggestMissingConceptsEnabled = (state : State) => state.app.suggestMissingConceptsEnabled;
 
-export const selectIsEditing = (state) => state.editor && state.editor.editing;
-const selectFindDialogOpen = (state) => state.find && state.find.open;
-export const selectFindReferencing = (state) => state.find && state.find.referencing;
-export const selectFindLinking = (state) => state.find && state.find.linking;
-export const selectFindPermissions = (state) => state.find && state.find.permissions;
+export const selectComposeOpen = (state : State) => state.prompt.composeOpen;
+export const selectPromptContent = (state : State) => state.prompt.content;
+export const selectPromptMessage = (state : State) => state.prompt.message;
+export const selectPromptAction = (state : State) => state.prompt.action;
+export const selectPromptAssociatedId = (state : State) => state.prompt.associatedId;
 
-export const selectMultiEditDialogOpen = (state) => state.multiedit && state.multiedit.open;
-export const selectMultiEditReferencesDiff = (state) => state.multiedit ? state.multiedit.referencesDiff : [];
+export const selectIsEditing = (state : State) => state.editor && state.editor.editing;
+const selectFindDialogOpen = (state : State) => state.find && state.find.open;
+export const selectFindReferencing = (state : State) => state.find && state.find.referencing;
+export const selectFindLinking = (state : State) => state.find && state.find.linking;
+export const selectFindPermissions = (state : State) => state.find && state.find.permissions;
 
-export const selectCommentsAndInfoPanelOpen = (state) => state.app ? state.app.commentsAndInfoPanelOpen : false;
+export const selectMultiEditDialogOpen = (state : State) => state.multiedit && state.multiedit.open;
+export const selectMultiEditReferencesDiff = (state : State) => state.multiedit ? state.multiedit.referencesDiff : [];
 
-export const selectImagePropertiesDialogOpen = (state) => state.editor ? state.editor.imagePropertiesDialogOpen : false;
-export const selectImagePropertiesDialogIndex = (state) => state.editor ? state.editor.imagePropertiesDialogIndex : 0;
-export const selectImageBrowserDialogOpen = (state) => state.editor ? state.editor.imageBrowserDialogOpen : false;
+export const selectCommentsAndInfoPanelOpen = (state : State) => state.app ? state.app.commentsAndInfoPanelOpen : false;
+
+export const selectImagePropertiesDialogOpen = (state : State) => state.editor ? state.editor.imagePropertiesDialogOpen : false;
+export const selectImagePropertiesDialogIndex = (state : State) => state.editor ? state.editor.imagePropertiesDialogIndex : 0;
+export const selectImageBrowserDialogOpen = (state : State) => state.editor ? state.editor.imageBrowserDialogOpen : false;
 //undefined signals to add to end
-export const selectImageBrowserDialogIndex = (state) => state.editor ? state.editor.imageBrowserDialogIndex : undefined;
+export const selectImageBrowserDialogIndex = (state : State) => state.editor ? state.editor.imageBrowserDialogIndex : undefined;
 
-export const selectActiveRenderOffset = (state) => state.collection ? state.collection.activeRenderOffset : 0;
-const selectActiveSetName = (state) => state.collection ? state.collection.activeSetName : '';
-const selectActiveFilterNames = (state) => state.collection ? state.collection.activeFilterNames : '';
-const selectActiveSortName = (state) => state.collection ? state.collection.activeSortName : '';
-const selectActiveSortReversed = (state) => state.collection ? state.collection.activeSortReversed : '';
-const selectActiveViewMode = (state) => state.collection ? state.collection.activeViewMode : '';
-const selectActiveViewModeExtra = (state) => state.collection ? state.collection.activeViewModeExtra : '';
-export const selectRequestedCard = (state) => state.collection.requestedCard;
-export const selectActiveCardId = (state) => state.collection ? state.collection.activeCardId : '';
+export const selectActiveRenderOffset = (state : State) => state.collection ? state.collection.activeRenderOffset : 0;
+const selectActiveSetName = (state : State) => state.collection ? state.collection.activeSetName : '';
+const selectActiveFilterNames = (state : State) => state.collection ? state.collection.activeFilterNames : '';
+const selectActiveSortName = (state : State) => state.collection ? state.collection.activeSortName : '';
+const selectActiveSortReversed = (state : State) => state.collection ? state.collection.activeSortReversed : '';
+const selectActiveViewMode = (state : State) => state.collection ? state.collection.activeViewMode : '';
+const selectActiveViewModeExtra = (state : State) => state.collection ? state.collection.activeViewModeExtra : '';
+export const selectRequestedCard = (state : State) => state.collection.requestedCard;
+export const selectActiveCardId = (state : State) => state.collection ? state.collection.activeCardId : '';
 //Note that the editing card doesn't have nlp/normalized text properties set. If
 //you want the one with that, look at selectEditingNormalizedCard.
-export const selectEditingCard = (state) => state.editor ? state.editor.card : null;
-export const selectEditingUnderlyingCardSnapshot = (state) => state.editor ? state.editor.underlyingCardSnapshot : null;
-const selectEditingOriginalUnderlyingCardSnapshot = (state) => state.editor ? state.editor.originalUnderlyingCardSnapshot : null;
-const selectEditingCardExtractionVersion = (state) => state.editor ? state.editor.cardExtractionVersion : 0;
-export const selectEditingUpdatedFromContentEditable = (state) => state.editor ? state.editor.updatedFromContentEditable : {};
-export const selectEditingPendingReferenceType = (state) => state.editor ? state.editor.pendingReferenceType : '';
-export const selectPendingSlug = (state) => state.editor ? state.editor.pendingSlug : '';
-export const selectFilters = (state) => state.collection.filters;
-const selectFiltersSnapshot = (state) => state.collection.filtersSnapshot;
-export const selectSections = (state) => state.data ? state.data.sections : {};
-export const selectTags = (state) => state.data ? state.data.tags : {};
-export const selectExpectedDeletions = (state) => state.data ? state.data.expectedDeletions : {};
-export const selectCardModificationPending = (state) => state.data ? state.data.cardModificationPending : false;
+export const selectEditingCard = (state : State) => state.editor ? state.editor.card : null;
+export const selectEditingUnderlyingCardSnapshot = (state : State) => state.editor ? state.editor.underlyingCardSnapshot : null;
+const selectEditingOriginalUnderlyingCardSnapshot = (state : State) => state.editor ? state.editor.originalUnderlyingCardSnapshot : null;
+const selectEditingCardExtractionVersion = (state : State) => state.editor ? state.editor.cardExtractionVersion : 0;
+export const selectEditingUpdatedFromContentEditable = (state : State) => state.editor ? state.editor.updatedFromContentEditable : {};
+export const selectEditingPendingReferenceType = (state : State) => state.editor ? state.editor.pendingReferenceType : '';
+export const selectPendingSlug = (state : State) => state.editor ? state.editor.pendingSlug : '';
+export const selectFilters = (state : State) => state.collection.filters;
+const selectFiltersSnapshot = (state : State) => state.collection.filtersSnapshot;
+export const selectSections = (state : State) => state.data ? state.data.sections : {};
+export const selectTags = (state : State) => state.data ? state.data.tags : {};
+export const selectExpectedDeletions = (state : State) => state.data ? state.data.expectedDeletions : {};
+export const selectCardModificationPending = (state : State) => state.data ? state.data.cardModificationPending : false;
 //All cards downloaded to client can be assumed to be OK to use in the rest of the pipeline.
 //rawCards means they don't yet have their nlp data cached. See selectCards which returns that.
 //This is only exposed so that updateCards can check for dupes directly.
 //NOTE: this next one is duplicated in simple_selectors.js
-export const selectRawCards = (state) => state.data ? state.data.cards : {};
-const selectRawCardsSnapshot = (state) => state.data ? state.data.cardsSnapshot : {};
-export const selectPendingNewCardIDToNavigateTo = (state) => state.data ? state.data.pendingNewCardIDToNavigateTo : '';
-const selectPublishedCardsLoaded = (state) => state.data ? state.data.publishedCardsLoaded : false;
-const selectUnpublishedCardsLoaded = (state) => state.data ? state.data.unpublishedCardsLoaded : false;
-export const selectSectionsLoaded = (state) => state.data ? state.data.sectionsLoaded : false;
-export const selectTagsLoaded = (state) => state.data ? state.data.tagsLoaded : false;
-export const selectMessagesLoaded = (state) => state.comments ? state.comments.messagesLoaded : false;
-export const selectThreadsLoaded = (state) => state.comments ? state.comments.threadsLoaded : false;
-export const selectAlreadyCommittedModificationsWhenFullyLoaded = (state) => state.data ? state.data.alreadyCommittedModificationsWhenFullyLoaded : false;
-export const selectSlugIndex = (state) => state.data ? state.data.slugIndex : {};
-export const selectMessages = (state) => state.comments ? state.comments.messages : null;
-export const selectThreads = (state) => state.comments ? state.comments.threads : null;
-export const selectAuthors = (state) => state.data.authors ? state.data.authors : null;
-export const selectAllPermissions = (state) => state.permissions ? state.permissions.permissions : null;
-export const selectPermissionsPendingUid = (state) => state.permissions ? state.permissions.pendingUid : '';
-export const selectPermissionsPendingPermissionType = (state) => state.permissions ? state.permissions.pendingPermissionType : '';
-const selectTweets = (state) => state.data ? state.data.tweets : {};
-export const selectTweetsLoading = (state) => state.data ? state.data.tweetsLoading : false;
-export const selectActivePreviewCardId = (state) => state.app ? state.app.hoverCardId : '';
-export const selectPreviewCardX = (state) => state.app ? state.app.hoverX : 0;
-export const selectPreviewCardY = (state) => state.app ? state.app.hoverY : 0;
-export const selectUserReads = (state) => state.user ? state.user.reads : {};
-const selectUserStars = (state) => state.user ? state.user.stars : {};
-export const selectUserReadingList = (state) => state.user ? state.user.readingList : [];
-const selectUserReadingListSnapshot = (state) => state.user ? state.user.readingListSnapshot : [];
+export const selectRawCards = (state : State) => state.data ? state.data.cards : {};
+const selectRawCardsSnapshot = (state : State) => state.data ? state.data.cardsSnapshot : {};
+export const selectPendingNewCardIDToNavigateTo = (state : State) => state.data ? state.data.pendingNewCardIDToNavigateTo : '';
+const selectPublishedCardsLoaded = (state : State) => state.data ? state.data.publishedCardsLoaded : false;
+const selectUnpublishedCardsLoaded = (state : State) => state.data ? state.data.unpublishedCardsLoaded : false;
+export const selectSectionsLoaded = (state : State) => state.data ? state.data.sectionsLoaded : false;
+export const selectTagsLoaded = (state : State) => state.data ? state.data.tagsLoaded : false;
+export const selectMessagesLoaded = (state : State) => state.comments ? state.comments.messagesLoaded : false;
+export const selectThreadsLoaded = (state : State) => state.comments ? state.comments.threadsLoaded : false;
+export const selectAlreadyCommittedModificationsWhenFullyLoaded = (state : State) => state.data ? state.data.alreadyCommittedModificationsWhenFullyLoaded : false;
+export const selectSlugIndex = (state : State) => state.data ? state.data.slugIndex : {};
+export const selectMessages = (state : State) => state.comments ? state.comments.messages : null;
+export const selectThreads = (state : State) => state.comments ? state.comments.threads : null;
+export const selectAuthors = (state : State) => state.data.authors ? state.data.authors : null;
+export const selectAllPermissions = (state : State) => state.permissions ? state.permissions.permissions : null;
+export const selectPermissionsPendingUid = (state : State) => state.permissions ? state.permissions.pendingUid : '';
+export const selectPermissionsPendingPermissionType = (state : State) => state.permissions ? state.permissions.pendingPermissionType : '';
+const selectTweets = (state : State) => state.data ? state.data.tweets : {};
+export const selectTweetsLoading = (state : State) => state.data ? state.data.tweetsLoading : false;
+export const selectActivePreviewCardId = (state : State) => state.app ? state.app.hoverCardId : '';
+export const selectPreviewCardX = (state : State) => state.app ? state.app.hoverX : 0;
+export const selectPreviewCardY = (state : State) => state.app ? state.app.hoverY : 0;
+export const selectUserReads = (state : State) => state.user ? state.user.reads : {};
+const selectUserStars = (state : State) => state.user ? state.user.stars : {};
+export const selectUserReadingList = (state : State) => state.user ? state.user.readingList : [];
+const selectUserReadingListSnapshot = (state : State) => state.user ? state.user.readingListSnapshot : [];
 
-const selectCardsDrawerPanelOpen = (state) => state.app ? state.app.cardsDrawerPanelOpen : false;
-export const selectCtrlKeyPressed = (state) => state.app ? state.app.ctrlKeyPressed : false;
+const selectCardsDrawerPanelOpen = (state : State) => state.app ? state.app.cardsDrawerPanelOpen : false;
+export const selectCtrlKeyPressed = (state : State) => state.app ? state.app.ctrlKeyPressed : false;
 
-export const selectExecutedMaintenanceTasks = (state) => state.maintenance ? state.maintenance.executedTasks : {};
-export const selectMaintenanceTaskActive = (state) => state.maintenance ? state.maintenance.taskActive : false;
+export const selectExecutedMaintenanceTasks = (state : State) => state.maintenance ? state.maintenance.executedTasks : {};
+export const selectMaintenanceTaskActive = (state : State) => state.maintenance ? state.maintenance.taskActive : false;
 
 //selectQuery is what you should use to update the UI with the literal query
-export const selectQuery = (state) => state.find.query;
-export const selectFindRenderOffset = (state) => state.find ? state.find.renderOffset : 0;
+export const selectQuery = (state : State) => state.find.query;
+export const selectFindRenderOffset = (state : State) => state.find ? state.find.renderOffset : 0;
 //activeQuery is the query that should be routed into the query pipeline.
-const selectActiveQueryText = (state) => state.find.activeQuery;
-export const selectFindSortByRecent = (state) => state.find.sortByRecent;
-export const selectFindCardTypeFilter = (state) => state.find ? state.find.cardTypeFilter : '';
-export const selectFindCardTypeFilterLocked = (state) => state.find ? state.find.cardTypeFilterLocked : false;
+const selectActiveQueryText = (state : State) => state.find.activeQuery;
+export const selectFindSortByRecent = (state : State) => state.find.sortByRecent;
+export const selectFindCardTypeFilter = (state : State) => state.find ? state.find.cardTypeFilter : '';
+export const selectFindCardTypeFilterLocked = (state : State) => state.find ? state.find.cardTypeFilterLocked : false;
 
-export const selectAuthPending = (state) => state.user ? state.user.pending : false;
+export const selectAuthPending = (state : State) => state.user ? state.user.pending : false;
 //Note: this will return false unless stars have been loading, even if there is
 //no user to load stars or reads for.
-export const selectStarsLoaded = (state) => state.user ? state.user.starsLoaded : false;
-export const selectReadsLoaded = (state) => state.user ? state.user.readsLoaded : false;
-export const selectUserPermissionsLoaded = (state) => state.user ? state.user.userPermissionsLoaded : false;
-export const selectReadingListLoaded = (state) => state.user ? state.user.readingListLoaded : false;
+export const selectStarsLoaded = (state : State) => state.user ? state.user.starsLoaded : false;
+export const selectReadsLoaded = (state : State) => state.user ? state.user.readsLoaded : false;
+export const selectUserPermissionsLoaded = (state : State) => state.user ? state.user.userPermissionsLoaded : false;
+export const selectReadingListLoaded = (state : State) => state.user ? state.user.readingListLoaded : false;
 
 export const selectNextMaintenanceTaskName = createSelector(
 	selectExecutedMaintenanceTasks,
