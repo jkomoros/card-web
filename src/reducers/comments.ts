@@ -4,18 +4,8 @@ import {
 } from '../actions/comments.js';
 
 import {
-	CommentMessage,
-	CommentMessageID,
-	CommentThread,
-	CommentThreadID
+	CommentsState,
 } from '../types.js';
-
-type CommentsState = {
-	messages: {[id : CommentMessageID]: CommentMessage},
-	threads: {[id : CommentThreadID]: CommentThread},
-	messagesLoaded: boolean,
-	threadsLoaded: boolean,
-}
 
 const INITIAL_STATE : CommentsState = {
 	messages: {},

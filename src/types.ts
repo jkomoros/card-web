@@ -677,3 +677,10 @@ export type CollectionState = {
 	activeCardId: CardID,
 	activeRenderOffset: number,
 }
+
+export type CommentsState = {
+	messages: {[id : CommentMessageID]: CommentMessage},
+	threads: {[id : CommentThreadID]: CommentThread},
+	messagesLoaded: boolean,
+	threadsLoaded: boolean,
+}
