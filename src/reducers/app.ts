@@ -29,38 +29,12 @@ import {
 } from '../actions/data.js';
 
 import {
-	Card,
-	CardID
+	AppState,
 } from '../types.js';
 
 const HEADER_PANEL_DEFAULT_VALUE = true;
 const COMMENTS_AND_INFO_PANEL_DEFAULT_VALUE = true;
 const CARDS_DRAWER_PANEL_DEFAULT_VALUE = true;
-
-type AppState = {
-	location: string,
-	page: string,
-	pageExtra: string,
-	offline: boolean,
-	snackbarOpened: boolean,
-	headerPanelOpen: boolean,
-	commentsAndInfoPanelOpen: boolean,
-	cardsDrawerPanelOpen: boolean,
-	cardsDrawerInfoExpanded: boolean,
-	configureCollectionDialogOpen: boolean,
-	presentationMode: boolean,
-	mobileMode: boolean,
-	hoverX: number,
-	hoverY: number,
-	hoverCardId: CardID,
-	//the card that was fetched as a singleton, for example in basic-card-view.
-	fetchedCard: Card,
-	cardBeingFetched: boolean,
-	ctrlKeyPressed: boolean,
-	//if this is true, then the word cloud in card-drawer will be replaced with
-	//the suggest missing concepts, which is EXTREMELY expensive.
-	suggestMissingConceptsEnabled: boolean,
-}
 
 const INITIAL_STATE : AppState = {
 	location: '',

@@ -622,3 +622,28 @@ export type MaintenanceTask = {
     timestamp: FirestoreTimestamp,
     version: number,
 };
+
+export type AppState = {
+	location: string,
+	page: string,
+	pageExtra: string,
+	offline: boolean,
+	snackbarOpened: boolean,
+	headerPanelOpen: boolean,
+	commentsAndInfoPanelOpen: boolean,
+	cardsDrawerPanelOpen: boolean,
+	cardsDrawerInfoExpanded: boolean,
+	configureCollectionDialogOpen: boolean,
+	presentationMode: boolean,
+	mobileMode: boolean,
+	hoverX: number,
+	hoverY: number,
+	hoverCardId: CardID,
+	//the card that was fetched as a singleton, for example in basic-card-view.
+	fetchedCard: Card,
+	cardBeingFetched: boolean,
+	ctrlKeyPressed: boolean,
+	//if this is true, then the word cloud in card-drawer will be replaced with
+	//the suggest missing concepts, which is EXTREMELY expensive.
+	suggestMissingConceptsEnabled: boolean,
+}
