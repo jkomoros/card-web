@@ -133,7 +133,7 @@ export const normalizeBodyToContentEditable = (html : string) => {
 
 };
 
-const removeZombieSpans = (ele) => {
+const removeZombieSpans = (ele : Element) => {
 	//Remove zombie spans (which can show up if you backspace to remove
 	//a paragraph break, and then can start infecting all content as you
 	//edit.)
@@ -201,10 +201,11 @@ const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
 			}
 			hoistNode.innerHTML += child.textContent;
 		} else if (child.nodeType == ELEMENT_NODE) {
+			const ele = child as HTMLElement;
 			//Normally we allow only the explicitly legal items. But also allow
 			//the hoist tag (since that's the thing we'll hoist to, we can skip
 			//hoisting to it!). This covers the <li> inner use.
-			if (legalTopLevelNodes[child.localName] || child.localName == tag) {
+			if (legalTopLevelNodes[ele.localName] || ele.localName == tag) {
 				//The child is already OK at top-level. But if we have an active
 				//hoistNode, the next things to hoist should go into a new one.
 				hoistNode = null;
@@ -216,7 +217,7 @@ const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
 			} else {
 				child.parentNode.removeChild(child);
 			}
-			hoistNode.innerHTML += child.outerHTML;
+			hoistNode.innerHTML += ele.outerHTML;
 		}
 	}
 	//OK, we now know all top-level children are valid types. Do additional cleanup.
@@ -227,19 +228,19 @@ const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
 			continue;
 		}
 		if (child.nodeType == ELEMENT_NODE) {
-
-			child.removeAttribute('style');
+			const ele = child as HTMLElement;
+			ele.removeAttribute('style');
 			//content pasted from Google docs has these
-			child.removeAttribute('role');
-			child.removeAttribute('dir');
-			removeZombieSpans(child);
+			ele.removeAttribute('role');
+			ele.removeAttribute('dir');
+			removeZombieSpans(ele);
 
-			let inner = child.innerHTML;
+			let inner = ele.innerHTML;
 			inner = inner.trim();
-			child.innerHTML = inner;
+			ele.innerHTML = inner;
 
-			if (child.localName == 'ol' || child.localName == 'ul') {
-				child.innerHTML = cleanUpTopLevelHTML(child.innerHTML, 'li');
+			if (ele.localName == 'ol' || ele.localName == 'ul') {
+				ele.innerHTML = cleanUpTopLevelHTML(ele.innerHTML, 'li');
 			}
 		}
 	}
