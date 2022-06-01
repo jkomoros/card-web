@@ -64,7 +64,8 @@ import {
 	FilterExtras,
 	CardIDMap,
 	Sections,
-	CardType
+	CardType,
+	ReferenceType
 } from './types.js';
 
 export const DEFAULT_SET_NAME = 'main';
@@ -201,7 +202,7 @@ const unionSet = (...sets) => {
 	return result;
 };
 
-export const referencesConfigurableFilterText = (referencesFilterType, cardID, referencesTypes, invertReferencesTypes, ply) => {
+export const referencesConfigurableFilterText = (referencesFilterType : string, cardID : CardID, referencesTypes : ReferenceType | ReferenceType[], invertReferencesTypes? : boolean, ply? : number) => {
 	if (!referencesFilterType.includes(REFERENCES_FILTER_NAME)) throw new Error(referencesFilterType + ' is not a valid type for this function');
 	if (!referencesTypes) throw new Error('referenceTypes must be a string or array');
 	if (typeof referencesTypes != 'string' && !Array.isArray(referencesTypes)) throw new Error('referencesTypes must be a string or array');
