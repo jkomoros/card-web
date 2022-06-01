@@ -647,3 +647,33 @@ export type AppState = {
 	//the suggest missing concepts, which is EXTREMELY expensive.
 	suggestMissingConceptsEnabled: boolean,
 }
+
+export type CollectionState = {
+	activeSetName: SetName,
+	//activeFilterNames is the list of named filters to apply to the default
+	//set. These names are either concrete filters, inverse filters, or union
+	//filters (i.e. they concatenate conrete or inverse filternames delimited by
+	//'+'). For the purposes of processing URLs though they can all be treated
+	//as though they're concrete filters named their literal name in this.
+	activeFilterNames: string[],
+	activeSortName: SortName,
+	activeSortReversed: boolean,
+	activeViewMode: ViewMode,
+	activeViewModeExtra: string,
+	//These are the actual values of the filters in current use, reflecting all
+	//of the changes. If you want the filter set that goes along with the
+	//cardSnapshot (and doesn't update until
+	//COMMIT_PENDING_COLLECTION_PODIFICATIONS) then use filtersSnapshot instead.
+	filters: Filters,
+	//This is a snapshot of filters from the last time
+	//COMMIT_PENDING_COLLECTION_MODFICIATIONS was called.
+	filtersSnapshot: Filters,
+	//requestCard is the identifier specifically requested in the URL. This
+	//could be the card's ID, a slug for that card, or a special placeholder
+	//like `_`. The fully resolved activeCard is stored in activeCardId.
+	requestedCard: CardID,
+	//the fully resolved literal ID of the active card (not slug, not special
+	//placeholder).
+	activeCardId: CardID,
+	activeRenderOffset: number,
+}

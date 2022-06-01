@@ -29,10 +29,10 @@ import {
 	DEFAULT_SET_NAME,
 	READING_LIST_SET_NAME,
 	CARD_FILTER_FUNCS,
-	CollectionState
 } from '../filters.js';
 
 import {
+	CollectionState,
 	Filters,
 	Cards,
 	CardID,
