@@ -7,19 +7,8 @@ import {
 } from '../actions/prompt.js';
 
 import {
-	CommentMessageID,
-	CommentThreadID,
-	CommitActionType
+	PromptState
 } from '../types.js';
-
-type PromptState = {
-	composeOpen: boolean,
-	content: string,
-	message: string,
-	action: CommitActionType,
-	//Depends on what the action is. For EDIT_MESSAGE, for example, is a message ID.
-	associatedId: CommentMessageID | CommentThreadID,
-}
 
 const INITIAL_STATE : PromptState = {
 	composeOpen: false,

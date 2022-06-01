@@ -796,3 +796,12 @@ export type PermissionsState = {
 	pendingUid : Uid,
 	pendingPermissionType: PermissionType
 }
+
+export type PromptState = {
+	composeOpen: boolean,
+	content: string,
+	message: string,
+	action: CommitActionType,
+	//Depends on what the action is. For EDIT_MESSAGE, for example, is a message ID.
+	associatedId: CommentMessageID | CommentThreadID,
+}
