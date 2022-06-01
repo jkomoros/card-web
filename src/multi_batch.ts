@@ -12,7 +12,9 @@ import {
 import {
 	serverTimestamp,
 	arrayUnion,
-	writeBatch
+	writeBatch,
+	Firestore,
+	WriteBatch
 } from 'firebase/firestore';
 
 //serverTimestampSentinel is the most basic one.
@@ -47,7 +49,14 @@ const EFFECTIVE_BATCH_LIMIT = SENTINEL_DEFINITION_VALID ? FIRESTORE_BATCH_LIMIT 
 //getting close to the limit. Note that unlike a normal batch, it's possible for
 //a partial failure if one batch fails and others don't.
 export const MultiBatch = class {
-	constructor(db) {
+
+	_db : Firestore;
+	_currentBatchOperationCount : number;
+	_currentBatch? : WriteBatch;
+	_batches : WriteBatch[];
+	_id : string;
+
+	constructor(db : Firestore) {
 		this._db = db;
 		this._currentBatchOperationCount = 0;
 		this._currentBatch = null;
@@ -64,7 +73,7 @@ export const MultiBatch = class {
 		return this._id;
 	}
 
-	get _batch() {
+	get _batch() : WriteBatch {
 		if (this._currentBatchOperationCount >= EFFECTIVE_BATCH_LIMIT) {
 			this._currentBatch = null;
 		}
