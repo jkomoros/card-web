@@ -52,6 +52,10 @@ import {
 	DISABLE_CALLABLE_CLOUD_FUNCTIONS
 } from '../config.GENERATED.SECRET.js';
 
+import {
+	State
+} from '../types.js';
+
 export const CARDS_COLLECTION = 'cards';
 export const CARD_UPDATES_COLLECTION = 'updates';
 export const SECTION_UPDATES_COLLECTION = 'updates';
@@ -80,7 +84,7 @@ const legalCallable = httpsCallable(functions, 'legal');
 export const slugLegal = async (newSlug) => {
 
 	//First, early reject any slugs we already know exist.
-	const slugIndex = selectSlugIndex(store.getState());
+	const slugIndex = selectSlugIndex(store.getState() as State);
 	if (slugIndex[newSlug]) {
 		return {
 			legal: false,
