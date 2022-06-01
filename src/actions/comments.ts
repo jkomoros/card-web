@@ -59,7 +59,7 @@ export const createAuthorStub = (uid) => {
 	batch.commit();
 };
 
-export const resolveThread = (thread) => (dispatch, getState) => {
+export const resolveThread = (thread) => (_, getState) => {
 	const state = getState();
 
 	if (!thread || !thread.id) {
@@ -91,7 +91,7 @@ export const resolveThread = (thread) => (dispatch, getState) => {
 	});
 };
 
-export const deleteMessage = (message) => (dispatch, getState) => {
+export const deleteMessage = (message) => (_, getState) => {
 	const state = getState();
 	if (!getUserMayEditMessage(state, message)) {
 		console.log('User isn\'t allowed to edit that message!');
@@ -114,7 +114,7 @@ export const deleteMessage = (message) => (dispatch, getState) => {
 	batch.commit();
 };
 
-export const editMessage = (message, newMessage) => (dispatch, getState) => {
+export const editMessage = (message, newMessage) => (_, getState) => {
   
 	const state = getState();
 
@@ -140,7 +140,7 @@ export const editMessage = (message, newMessage) => (dispatch, getState) => {
 
 };
 
-export const addMessage = (thread, message) => (dispatch, getState) => {
+export const addMessage = (thread, message) => (_, getState) => {
 	const state = getState();
 	const card = selectActiveCard(state);
 	if (!card || !card.id) {
@@ -206,7 +206,7 @@ export const addMessage = (thread, message) => (dispatch, getState) => {
 
 };
 
-export const createThread = (message) => (dispatch, getState) => {
+export const createThread = (message) => (_, getState) => {
 	const state = getState();
 	const card = selectActiveCard(state);
 	if (!card || !card.id) {
