@@ -6,16 +6,30 @@ import {
 	PROMPT_CONFIGURE_ACTION,
 } from '../actions/prompt.js';
 
-const INITIAL_STATE = {
+import {
+	CommentMessageID,
+	CommentThreadID,
+	CommitActionType
+} from '../types.js';
+
+type PromptState = {
+	composeOpen: boolean,
+	content: string,
+	message: string,
+	action: CommitActionType,
+	//Depends on what the action is. For EDIT_MESSAGE, for example, is a message ID.
+	associatedId: CommentMessageID | CommentThreadID,
+}
+
+const INITIAL_STATE : PromptState = {
 	composeOpen: false,
 	content: '',
 	message: '',
 	action: '',
-	//Depends on what the action is. For EDIT_MESSAGE, for example, is a message ID.
 	associatedId: '',
 };
 
-const app = (state = INITIAL_STATE, action) => {
+const app = (state : PromptState = INITIAL_STATE, action) : PromptState => {
 	switch (action.type) {
 	case PROMPT_COMPOSE_SHOW:
 		return {
