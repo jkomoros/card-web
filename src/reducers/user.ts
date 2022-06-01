@@ -20,32 +20,55 @@ import {
 	UPDATE_COLLECTION_SHAPSHOT 
 } from '../actions/collection.js';
 
-const INITIAL_STATE = {
-	user : null,
+import {
+	CardID,
+	FilterMap,
+	UserInfo,
+	UserPermissions
+} from '../types.js';
+
+type UserState = {
+	user : UserInfo,
 	//pending is true whenever we are expecting either a SIGNIN_SUCCESS or
 	//SIGNOUT_SUCCESS. That's true both when the page loads before we get the
 	//initial auth state (which is why it defaults to true), and also when the
 	//user has proactively hit the signIn or signOut buttons.
-	pending: true,
-	error: null,
+	pending: boolean,
+	error: Error,
 	//userPermissions is the object that tells us what we're allowed to do. The
 	//security rules will actually enforce this; this is mainly just to not have
 	//affordances in the client UI if they won't work. See BASE_PERMISSIONS
 	//documentation for what the legal values are.
-	userPermissions: {},
-	stars : {},
-	reads: {},
-	readingList: [],
+	userPermissions: UserPermissions,
+	stars : FilterMap,
+	reads: FilterMap,
+	readingList: CardID[],
 	//This is the reading list that we use for the purposes of the live set. We
 	//only update it when UPDATE_COLLECTION_SHAPSHOT is called, for
 	//similar reasons that we use filters/pendingFiltesr for sets. That is,
 	//reading-list is liable to change while the user is viewing that set, due
 	//to their own actions, and it would be weird if the cards would disappear
 	//when they hit that button.
-	readingListSnapshot: [],
+	readingListSnapshot: CardID[],
 	//These two are analoges to cardsLoaded et al in data. They're set to true
 	//after UPDATE_STARS or _READS has been called at least once.  Primarily for
 	//selectDataIsFullyLoaded purposes.
+	starsLoaded: boolean,
+	readsLoaded: boolean,
+	readingListLoaded: boolean,
+	userPermissionsLoaded: boolean,
+	autoMarkReadPending: boolean,
+}
+
+const INITIAL_STATE : UserState = {
+	user : null,
+	pending: true,
+	error: null,
+	userPermissions: {},
+	stars : {},
+	reads: {},
+	readingList: [],
+	readingListSnapshot: [],
 	starsLoaded: false,
 	readsLoaded: false,
 	readingListLoaded: false,
@@ -53,7 +76,7 @@ const INITIAL_STATE = {
 	autoMarkReadPending: false,
 };
 
-const app = (state = INITIAL_STATE, action) => {
+const app = (state : UserState = INITIAL_STATE, action) : UserState => {
 	switch (action.type) {
 	case SIGNIN_USER:
 		return {
