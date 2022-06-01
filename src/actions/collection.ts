@@ -387,7 +387,7 @@ export const showCard = (requestedCard) => (dispatch, getState) => {
 		dispatch(navigatedToNewCard());
 
 		const card = selectActiveCard(state);
-		const cardTypeConfig = CARD_TYPE_CONFIGURATION[card.card_type] || {};
+		const cardTypeConfig = CARD_TYPE_CONFIGURATION[card.card_type];
 		//If it's a card type that autoSlugs (like concept card) then don't open
 		//for editing immediately, because the autoSlug will come in later, and
 		//if the card's already open for editing then it will be ignored, and if
@@ -395,7 +395,7 @@ export const showCard = (requestedCard) => (dispatch, getState) => {
 		//is kind of a hack, really what should happen is when the
 		//undelryingCard is changed, the modifications should be rediffed on
 		//top.
-		if (cardTypeConfig.autoSlug) return;
+		if (cardTypeConfig && cardTypeConfig.autoSlug) return;
 
 		//Try to open the new card for editing. Note thta the timestamp data
 		//will be estimates only at this point (see
