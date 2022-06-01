@@ -838,3 +838,17 @@ export type UserState = {
 	userPermissionsLoaded: boolean,
 	autoMarkReadPending: boolean,
 }
+
+export type State = {
+    app: AppState,
+    data: DataState,
+    find? : FindState,
+    editor? : EditorState,
+	collection? : CollectionState,
+	prompt? : PromptState,
+	comments? : CommentsState,
+    maintenance? : MaintenanceState,
+    multiedit? : MultiEditState,
+    permissions? : PermissionsState,
+    user? : UserState
+}
