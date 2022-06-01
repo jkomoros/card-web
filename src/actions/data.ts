@@ -665,46 +665,44 @@ export const defaultCardObject = (id, user, section, cardType, sortOrder) => {
 	};
 };
 
-export const emptyCard = () : Card => {
-	return {
-		created: currentTimestamp(),
-		updated: currentTimestamp(),
-		author: '',
-		permissions: {
-			[PERMISSION_EDIT_CARD]: [],
-		},
-		collaborators: [],
-		updated_substantive: currentTimestamp(),
-		updated_message: currentTimestamp(),
-		star_count: 0,
-		star_count_manual: 0,
-		tweet_favorite_count: 0,
-		tweet_retweet_count: 0,
-		thread_count: 0,
-		thread_resolved_count: 0,
-		sort_order: Number.MAX_SAFE_INTEGER / 2,
-		title: '',
-		section: '',
-		body: '',
-		[REFERENCES_INFO_CARD_PROPERTY]: {},
-		[REFERENCES_INFO_INBOUND_CARD_PROPERTY]: {},
-		[REFERENCES_CARD_PROPERTY]: {},
-		[REFERENCES_INBOUND_CARD_PROPERTY]: {},
-		font_size_boost: {},
-		card_type: CARD_TYPE_CONTENT,
-		notes: '',
-		todo: '',
-		slugs: [],
-		name: '',
-		tags: [],
-		id: 'INVALID-CARD',
-		published: false,
-		images: [],
-		auto_todo_overrides: {},
-		last_tweeted: currentTimestamp(),
-		tweet_count: 0
-	};
-}
+export const EMPTY_CARD : Card = {
+	created: currentTimestamp(),
+	updated: currentTimestamp(),
+	author: '',
+	permissions: {
+		[PERMISSION_EDIT_CARD]: [],
+	},
+	collaborators: [],
+	updated_substantive: currentTimestamp(),
+	updated_message: currentTimestamp(),
+	star_count: 0,
+	star_count_manual: 0,
+	tweet_favorite_count: 0,
+	tweet_retweet_count: 0,
+	thread_count: 0,
+	thread_resolved_count: 0,
+	sort_order: Number.MAX_SAFE_INTEGER / 2,
+	title: '',
+	section: '',
+	body: '',
+	[REFERENCES_INFO_CARD_PROPERTY]: {},
+	[REFERENCES_INFO_INBOUND_CARD_PROPERTY]: {},
+	[REFERENCES_CARD_PROPERTY]: {},
+	[REFERENCES_INBOUND_CARD_PROPERTY]: {},
+	font_size_boost: {},
+	card_type: CARD_TYPE_CONTENT,
+	notes: '',
+	todo: '',
+	slugs: [],
+	name: '',
+	tags: [],
+	id: 'INVALID-CARD',
+	published: false,
+	images: [],
+	auto_todo_overrides: {},
+	last_tweeted: currentTimestamp(),
+	tweet_count: 0
+};
 
 //createCard creates an inserts a new card. see also createWorkingNotesCard
 //which is similar but simpler.
