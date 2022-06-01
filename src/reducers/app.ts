@@ -1,13 +1,3 @@
-/**
-@license
-Copyright (c) 2018 The Polymer Project Authors. All rights reserved.
-This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
-The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
-The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
-Code distributed by Google as part of the polymer project is also
-subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
-*/
-
 import {
 	UPDATE_PAGE,
 	UPDATE_OFFLINE,
@@ -34,11 +24,41 @@ import {
 	TURN_SUGGEST_MISSING_CONCEPTS
 } from '../actions/app.js';
 
+import {
+	Card,
+	CardID
+} from '../types.js';
+
 const HEADER_PANEL_DEFAULT_VALUE = true;
 const COMMENTS_AND_INFO_PANEL_DEFAULT_VALUE = true;
 const CARDS_DRAWER_PANEL_DEFAULT_VALUE = true;
 
-const INITIAL_STATE = {
+type AppState = {
+	location: string,
+	page: string,
+	pageExtra: string,
+	offline: boolean,
+	snackbarOpened: boolean,
+	headerPanelOpen: boolean,
+	commentsAndInfoPanelOpen: boolean,
+	cardsDrawerPanelOpen: boolean,
+	cardsDrawerInfoExpanded: boolean,
+	configureCollectionDialogOpen: boolean,
+	presentationMode: boolean,
+	mobileMode: boolean,
+	hoverX: number,
+	hoverY: number,
+	hoverCardId: CardID,
+	//the card that was fetched as a singleton, for example in basic-card-view.
+	fetchedCard: Card,
+	cardBeingFetched: boolean,
+	ctrlKeyPressed: boolean,
+	//if this is true, then the word cloud in card-drawer will be replaced with
+	//the suggest missing concepts, which is EXTREMELY expensive.
+	suggestMissingConceptsEnabled: boolean,
+}
+
+const INITIAL_STATE : AppState = {
 	location: '',
 	page: '',
 	pageExtra: '',
