@@ -1,5 +1,5 @@
 //TODO: just use the firestore definition?
-interface FirestoreTimestamp {
+export interface FirestoreTimestamp {
     seconds: number,
     nanoseconds: number,
 }
