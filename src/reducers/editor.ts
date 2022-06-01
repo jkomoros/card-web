@@ -77,44 +77,11 @@ import {
 } from '../images.js';
 
 import {
-	CardFieldType,
-	Card,
-	EditorContentTab,
-	EditorTab,
-	Slug,
-	ReferenceType
+	EditorState
 } from '../types.js';
 
 const DEFAULT_TAB = TAB_CONFIG;
 const DEFAULT_EDITOR_TAB = EDITOR_TAB_CONTENT;
-
-type EditorState = {
-	editing: boolean,
-	//this is a map of field name to true if it was updated last from content
-	//editable, or false or missing if it wasn't.
-	updatedFromContentEditable: {[field : CardFieldType] : true},
-	card: Card,
-	//A direct reference to the card, as it was when editing started, in the
-	//cards array. Useful for detecting when the underlying card has changed.
-	underlyingCardSnapshot: Card,
-	//The very original card snapshot from when editing started. This allows us
-	//to figure out what edits have been merged in from other users while we're
-	//open for editing.
-	originalUnderlyingCardSnapshot: Card,
-	//This number should increment every time EDITING_EXTRACT_LINKS fires. The
-	//selector for selectEditingNormalizedCard will return the same result until this changes.
-	cardExtractionVersion: number,
-	substantive: boolean,
-	selectedTab: EditorTab,
-	selectedEditorTab: EditorContentTab,
-	pendingSlug: Slug,
-	pendingReferenceType: ReferenceType,
-	imagePropertiesDialogOpen: boolean,
-	imagePropertiesDialogIndex: number,
-	imageBrowserDialogOpen: boolean,
-	//Undefined communicates 'add to end'
-	imageBrowserDialogIndex?: number,
-}
 
 const INITIAL_STATE : EditorState = {
 	editing: false,
