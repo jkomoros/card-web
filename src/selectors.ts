@@ -152,7 +152,7 @@ export const selectImageBrowserDialogIndex = (state : State) => state.editor ? s
 
 export const selectActiveRenderOffset = (state : State) => state.collection ? state.collection.activeRenderOffset : 0;
 const selectActiveSetName = (state : State) => state.collection ? state.collection.activeSetName : '';
-const selectActiveFilterNames = (state : State) => state.collection ? state.collection.activeFilterNames : '';
+const selectActiveFilterNames = (state : State) => state.collection ? state.collection.activeFilterNames : [];
 const selectActiveSortName = (state : State) => state.collection ? state.collection.activeSortName : '';
 const selectActiveSortReversed = (state : State) => state.collection ? state.collection.activeSortReversed : '';
 const selectActiveViewMode = (state : State) => state.collection ? state.collection.activeViewMode : '';
