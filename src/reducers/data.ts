@@ -23,60 +23,8 @@ import {
 } from '../actions/collection.js';
 
 import {
-	CardID,
-	Cards,
-	CardType,
-	Sections,
-	Slug,
-	TweetInfo,
-	Uid,
-	Author
+	DataState,
 } from '../types.js';
-
-type DataState = {
-	cards: Cards,
-	authors: {[id : Uid]: Author},
-	sections: Sections,
-	tags: Sections,
-	slugIndex: {[slug : Slug] : CardID},
-	//A snapshot of cards from last time UPDATE_COLLECTION_SHAPSHOT was called.
-	//Keeping a snapshot helps make sure that filtering logic in the current
-	//collection doesn't change constantly
-	cardsSnapshot: Cards,
-	//a map of cardID -> true for cards that we expect to be deleted imminently,
-	//since we just issued a deletion command to the datastore.
-	expectedDeletions: {[id : CardID] : true},
-	//true while we're loading tweets for the current card
-	tweetsLoading: boolean,
-	//We only fetch tweets for cards that we have already viewed.
-	tweets: {[tweetID : string]: TweetInfo},
-	//These three are flipped to true on the first UPDATE_type entry, primarily
-	//as a flag to  selectDataisFullyLoaded.
-	publishedCardsLoaded: boolean,
-	unpublishedCardsLoaded: boolean,
-	sectionsLoaded: boolean,
-	tagsLoaded: boolean,
-	//keeps track of whether we committed any pending collections on being fully
-	//loaded already. If so, then even if refreshCardSelector gets called again,
-	//we won't update the collection again.
-	alreadyCommittedModificationsWhenFullyLoaded: boolean,
-	//Whether a card modification is pending
-	cardModificationPending: boolean,
-	cardModificationError: Error,
-	reorderPending: boolean,
-	//A card that we created, but is not yet in the cards collection. This will
-	//be cleared as soon as that card is received and added.
-	pendingNewCardID: CardID,
-	//The card_type of the card denoted by pendingNewCardID
-	pendingNewCardType: CardType,
-	//Similar to pendingNewCardID, but specifically for a new card that was
-	//created that--when it is loaded--we should navigate to. This is either the
-	//value of pendingNewCardID, or blank. Note that there's a brief moment
-	//where the new card has been received, so pendingNewCardID is cleared, but
-	//pendingNewCardIDToNavigateTo is not yet cleared, because the navigation
-	//hasn't yet happened.
-	pendingNewCardIDToNavigateTo: CardID
-}
 
 const INITIAL_STATE : DataState = {
 	cards:{},
