@@ -5,10 +5,11 @@ import {
 	combineReducers,
 	StoreEnhancer,
 	Reducer,
-	AnyAction
+	AnyAction,
+	ActionCreator
 } from 'redux';
 
-import thunk, { ThunkMiddleware } from 'redux-thunk';
+import thunk, { ThunkAction, ThunkMiddleware } from 'redux-thunk';
 import { lazyReducerEnhancer } from 'pwa-helpers/lazy-reducer-enhancer.js';
 
 import { State } from './types.js';
@@ -63,3 +64,7 @@ import {
 } from 'reselect-tools/src';
 getStateWith(() => store.getState());  // allows you to get selector inputs and outputs
 registerSelectors(selectors); // register string names for selectors
+
+type ThunkResult = ThunkAction<void, State, undefined, AnyAction>;
+
+export type AppActionCreator = ActionCreator<ThunkResult>;
