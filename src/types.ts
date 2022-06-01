@@ -124,7 +124,7 @@ export interface TweetInfo {
 }
 
 //TODO: tighten this
-type IconName = string;
+export type IconName = string;
 
 export type SelectorStyleMap = {
     [selector : string]: string[]
@@ -479,7 +479,8 @@ type Section = {
     cards : CardID[],
     title : string,
     updated : FirestoreTimestamp,
-    id : string
+    id : string,
+    default? : boolean,
 }
 
 export type Sections = {
