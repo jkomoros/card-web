@@ -88,7 +88,8 @@ import {
 	setDoc,
 	getDoc,
 	deleteField,
-	serverTimestamp
+	serverTimestamp,
+	updateDoc
 } from 'firebase/firestore';
 
 import { cardDiffHasChanges } from '../card_diff.js';
@@ -131,7 +132,7 @@ const normalizeContentBody = async() => {
 		counter++;
 		let body = doc.data().body;
 		if (body) {
-			await doc.ref.update({
+			await updateDoc(doc.ref,{
 				body: normalizeBodyHTML(body),
 				updated_normalize_body: serverTimestamp(),
 			});
