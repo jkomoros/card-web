@@ -9,6 +9,8 @@ import {
 } from './database.js';
 
 import {
+	AppThunkDispatch,
+	AppGetState,
 	store
 } from '../store.js';
 
@@ -96,7 +98,8 @@ import { cardDiffHasChanges } from '../card_diff.js';
 
 import {
 	SectionUpdate,
-	MaintenanceTaskMap
+	MaintenanceTaskMap,
+	MaintenanceTaskID
 } from '../types.js';
 
 export const connectLiveExecutedMaintenanceTasks = () => {
@@ -627,20 +630,26 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 //included in normal operation of the webapp as soon as they were added.
 const MAINTENANCE_TASK_VERSION = 3;
 
-/*
 
+interface MaintenanceTaskDefinition {
+	//the raw function that does the thing. It will be passed dispatch, getState.
+	fn : (dispatch: AppThunkDispatch, getState: AppGetState) => void,
+	//string to show in UI
+	displayName? : string,
+	//The raw value of the MAINTENANCE_TASK_VERSION when this task was added to the list. SEE BELOW.
+	minVersion: number,
+	// if true, then the task can be run multiple times.
+	recurring? : boolean,
+	//If set, the string name of the task the user should run next.
+	nextTaskName? : MaintenanceTaskID
+}
+
+/*
 When adding new tasks, increment MAINTENANCE_TASK_VERSION by one. Set the new
 task's minVersion to the new raw value of MAINTENANCE_TASK_VERSION. Append the
 new task to the END of the raw_tasks list.
-
-    fn: the raw function that does the thing. It will be passed dispatch, getState.
-    recurring: if true, then the task can be run multiple times.
-    nextTaskName: If set, the string name of the task the user should run next.
-    displayName: string to show in UI
-    minVersion: The raw value of the MAINTENANCE_TASK_VERSION when this task was added to the list. SEE ABOVE.
-
 */
-const RAW_TASKS = {
+const RAW_TASKS : {[id : MaintenanceTaskID]: MaintenanceTaskDefinition} = {
 	[INITIAL_SET_UP]: {
 		fn: initialSetup,
 		displayName: 'Initial Set Up',
