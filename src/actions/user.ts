@@ -53,7 +53,8 @@ import {
 	arrayUnion,
 	arrayRemove,
 	serverTimestamp,
-	increment
+	increment,
+	FieldValue
 } from 'firebase/firestore';
 
 import {
@@ -124,10 +125,16 @@ export const saveUserInfo = () => (dispatch, getState) => {
 
 };
 
+interface userInfoUpdate {
+	lastSeen: FieldValue,
+	isAnonymous: boolean,
+	previousUids?: FieldValue,
+}
+
 export const ensureUserInfo = (batchOrTransaction, user) => {
 	if (!user) return;
 
-	let data = {
+	let data : userInfoUpdate = {
 		lastSeen: serverTimestamp(),
 		isAnonymous: user.isAnonymous,
 	};
