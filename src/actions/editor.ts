@@ -120,6 +120,10 @@ import {
 	ref
 } from 'firebase/storage';
 
+import {
+	Uid 
+} from '../types.js';
+
 let lastReportedSelectionRange = null;
 let savedSelectionRange = null;
 let selectionParent = null;
@@ -566,7 +570,7 @@ export const manualEditorAdded = (editorUid) => {
 	return editorAdded(editorUid);
 };
 
-export const collaboratorAdded = (collaboratorUid, auto) => (dispatch, getState) => {
+export const collaboratorAdded = (collaboratorUid : Uid, auto? : boolean) => (dispatch, getState) => {
 	const card = selectEditingCard(getState());
 	if (!card) return;
 	if (collaboratorUid == card.author) {
