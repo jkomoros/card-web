@@ -99,13 +99,14 @@ export const slugLegal = async (newSlug) => {
 	return result.data;
 };
 
-const warmupSlugLegal = (force) => {
+const warmupSlugLegal = (force) : void => {
 	if (DISABLE_CALLABLE_CLOUD_FUNCTIONS) return;
 	if (!force && !userHadActivity) return;
 	//Mark that we've already triggered for that activity, and will need new
 	//activity to trigger again.
 	userHadActivity = false;
-	return legalCallable({type:'warmup'});
+	legalCallable({type:'warmup'});
+	return;
 };
 
 let slugLegalInterval = 0;
