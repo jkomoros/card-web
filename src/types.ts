@@ -1,12 +1,7 @@
 import {
-    FieldValue
+    FieldValue,
+    Timestamp
 } from 'firebase/firestore';
-
-//TODO: just use the firestore definition?
-export interface FirestoreTimestamp {
-    seconds: number,
-    nanoseconds: number,
-}
 
 export type Uid = string;
 
@@ -128,17 +123,17 @@ export interface TweetInfo {
     media_id : string
     media_url_https : string
     fake : boolean
-    created : FirestoreTimestamp
+    created : Timestamp
     card : CardID
     archived : boolean
-    archive_date : FirestoreTimestamp
+    archive_date : Timestamp
     retweet_count : number;
     favorite_count : number;
     //Last time we fetched and updated the retweet and favorite counts
-    engagement_last_fetched : FirestoreTimestamp
+    engagement_last_fetched : Timestamp
     //Last time the retweet or favorite counts CHANGED from what we already had
     //stored.
-    engagement_last_changed : FirestoreTimestamp
+    engagement_last_changed : Timestamp
 }
 
 //TODO: tighten this
@@ -264,7 +259,7 @@ export type Author = {
     id: Uid,
     displayName : string,
     photoURL : string,
-    updated: FirestoreTimestamp
+    updated: Timestamp
 };
 
 export type CommentThreadID = string;
@@ -274,23 +269,23 @@ export type CommentMessage = {
     id: CommentMessageID
     author: Uid,
     card: CardID,
-    created: FirestoreTimestamp,
+    created: Timestamp,
     deleted: boolean,
     message: string,
     thread: CommentThreadID,
-    updated: FirestoreTimestamp
+    updated: Timestamp
 };
 
 export type CommentThread = {
     id: CommentThreadID,
     author: Uid,
     card: CardID,
-    created: FirestoreTimestamp,
+    created: Timestamp,
     deleted: boolean,
     messages: CommentMessageID[],
     parent_message: CommentMessageID,
     resolved: boolean,
-    updated: FirestoreTimestamp,
+    updated: Timestamp,
 };
 
 //TODO: tighten this
@@ -417,13 +412,13 @@ export type ReferenceTypeConfigurationMap = {
 
 export interface Card {
     id: CardID,
-    created: FirestoreTimestamp,
-    updated: FirestoreTimestamp,
+    created: Timestamp,
+    updated: Timestamp,
     author: Uid,
     permissions: CardPermissions,
     collaborators: Uid[],
-    updated_substantive: FirestoreTimestamp,
-    updated_message: FirestoreTimestamp,
+    updated_substantive: Timestamp,
+    updated_message: Timestamp,
     //star_count is sum of star_count_manual, tweet_favorite_count, tweet_retweet_count.
     star_count: number,
     //star_count_manual is the count of stars in the stars collection (as
@@ -477,7 +472,7 @@ export interface Card {
     //function said for that key based on being passed the card"
     auto_todo_overrides: TODOOverrides,
     //Defaul to epoch 1970 for things not yet tweeted
-    last_tweeted: FirestoreTimestamp,
+    last_tweeted: Timestamp,
     tweet_count: number,
     //TODO: we should have this explicitly set on all cards, but in practice only some do.
     full_bleed? : boolean,
@@ -573,7 +568,7 @@ type Section = {
     order : number,
     cards : CardID[],
     title : string,
-    updated : FirestoreTimestamp,
+    updated : Timestamp,
     id : string,
     default? : boolean,
 }
@@ -635,7 +630,7 @@ export interface CollectionConstructorArguments {
 export type MaintenanceTaskID = string;
 export type MaintenanceTask = {
     id: MaintenanceTaskID,
-    timestamp: FirestoreTimestamp,
+    timestamp: Timestamp,
     version: number,
 };
 
