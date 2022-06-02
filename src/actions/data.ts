@@ -162,6 +162,7 @@ import {
 
 import {
 	Card,
+	Cards,
 	CardID,
 	CardUpdate,
 	CardType,
@@ -1243,7 +1244,7 @@ export const updateTags = (tags) => (dispatch) => {
 	dispatch(refreshCardSelector(false));
 };
 
-export const updateCards = (cards, unpublished) => (dispatch, getState) => {
+export const updateCards = (cards: Cards, unpublished? : boolean) => (dispatch, getState) => {
 	const existingCards = selectRawCards(getState());
 	const cardsToUpdate = {};
 	for (const card of Object.values(cards)) {
