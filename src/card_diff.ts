@@ -63,6 +63,7 @@ import {
 } from 'firebase/firestore';
 
 import {
+	Card,
 	CardDiff
 } from './types.js';
 
@@ -134,14 +135,14 @@ export const confirmationsForCardDiff = (update, updatedCard) => {
 	return true;
 };
 
-export const generateCardDiff = (underlyingCard, updatedCard, normalizeHTMLFields = false) => {
+export const generateCardDiff = (underlyingCard : Card, updatedCard : Card, normalizeHTMLFields : boolean = false) : CardDiff => {
 
 	if (!underlyingCard) underlyingCard = {};
 	if (!updatedCard) updatedCard = {};
 
 	if (underlyingCard === updatedCard) return {};
 
-	let update = {};
+	let update : CardDiff = {};
 
 	for (let field of Object.keys(TEXT_FIELD_CONFIGURATION)) {
 		if (updatedCard[field] == underlyingCard[field]) continue;
@@ -221,7 +222,7 @@ export const overshadowedDiffChanges = (original, snapshot, current) => {
 };
 
 //generateFinalCardDiff is like generateCardDiff but also handles fields set by cardFinishers and font size boosts.
-export const generateFinalCardDiff = async (state, underlyingCard, rawUpdatedCard) : CardDiff => {
+export const generateFinalCardDiff = async (state, underlyingCard, rawUpdatedCard) : Promise<CardDiff> => {
 
 	const cardFinisher = CARD_TYPE_EDITING_FINISHERS[rawUpdatedCard.card_type];
 
@@ -294,7 +295,7 @@ const setFirebaseValueOnObj = (obj, fieldParts, value, replaceTimestampSentinels
 //change in diff set. This function does not do any validation that these
 //changes are legal. You can apply this change ot an underlying card with
 //applyCardFirebaseUpdate.
-export const applyCardDiff = (underlyingCard, diff) => {
+export const applyCardDiff = (underlyingCard : Card, diff : CardDiff) => {
 
 	const cardUpdateObject = {};
 
