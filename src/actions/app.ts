@@ -119,7 +119,8 @@ import {
 
 import {
 	CardID,
-	Card
+	Card,
+	Cards
 } from '../types.js';
 
 import {
@@ -346,11 +347,11 @@ const fetchCardFromDb = async (cardIDOrSlug) => {
 	return null;
 };
 
-const fetchCardLinkCardsForFetchedCardFromDb = async (card) => {
+const fetchCardLinkCardsForFetchedCardFromDb : ((card : Card) => Promise<Cards>) = async (card : Card) => {
 	//orderBy is effectively a filter to only items that have 'references.CARD_ID' key.
 	const rawQuery = await getDocs(query(collection(db, CARDS_COLLECTION), where('published', '==', true), where(REFERENCES_INBOUND_CARD_PROPERTY + '.' + card.id, '==', true)));
 	if (rawQuery.empty) return {};
-	return Object.fromEntries(rawQuery.docs.map(doc => [doc.id, {...doc.data(), id: doc.id}]));
+	return Object.fromEntries(rawQuery.docs.map(doc => [doc.id, {...doc.data(), id: doc.id} as Card]));
 };
 
 //Exposed so basic-card-view can expose an endpoint. Typically you use
