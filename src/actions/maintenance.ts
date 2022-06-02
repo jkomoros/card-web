@@ -95,7 +95,8 @@ import {
 import { cardDiffHasChanges } from '../card_diff.js';
 
 import {
-	SectionUpdate
+	SectionUpdate,
+	MaintenanceTaskMap
 } from '../types.js';
 
 export const connectLiveExecutedMaintenanceTasks = () => {
@@ -529,13 +530,13 @@ const addSortOrderProperty = async (dispatch, getState) => {
 };
 
 //The value of MAINTENANCE_TASK_VERSION when this instance of the app was set up
-const setUpVersion = (executedTasks) => {
+const setUpVersion = (executedTasks : MaintenanceTaskMap) => {
 	const setUpTaskRecord = executedTasks[INITIAL_SET_UP];
 	if (!setUpTaskRecord) return -1;
 	return setUpTaskRecord.version;
 };
 
-const lastExecutedMaintenanceTask = (executedTasks) => {
+const lastExecutedMaintenanceTask = (executedTasks : MaintenanceTaskMap) => {
 	let min = '';
 	let timestamp = 0;
 	for (const [taskName, taskDetails] of Object.entries(executedTasks)) {
@@ -547,7 +548,7 @@ const lastExecutedMaintenanceTask = (executedTasks) => {
 };
 
 //Returns the name of the next maintenance task to run, or '' if there aren't any.
-export const nextMaintenanceTaskName = (executedTasks) => {
+export const nextMaintenanceTaskName = (executedTasks : MaintenanceTaskMap) => {
 	const initialVersion = setUpVersion(executedTasks);
 	const lastTask = lastExecutedMaintenanceTask(executedTasks);
 	if (lastTask && MAINTENANCE_TASKS[lastTask] && MAINTENANCE_TASKS[lastTask].nextTaskName) {
