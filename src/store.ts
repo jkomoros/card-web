@@ -9,7 +9,7 @@ import {
 	ActionCreator
 } from 'redux';
 
-import thunk, { ThunkAction, ThunkMiddleware } from 'redux-thunk';
+import thunk, { ThunkAction, ThunkDispatch, ThunkMiddleware } from 'redux-thunk';
 import { lazyReducerEnhancer } from 'pwa-helpers/lazy-reducer-enhancer.js';
 
 import { State } from './types.js';
@@ -68,3 +68,7 @@ registerSelectors(selectors); // register string names for selectors
 export type ThunkResult = ThunkAction<void, State, undefined, AnyAction>;
 
 export type AppActionCreator = ActionCreator<ThunkResult>;
+
+export type AppThunkDispatch = ThunkDispatch<State, undefined, AnyAction>;
+
+export type AppGetState = () => State;
