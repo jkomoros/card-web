@@ -306,7 +306,7 @@ export const cancelLink = () => () => {
 	restoreSelectionRange();
 };
 
-export const linkURL = (href) => (dispatch, getState) => {
+export const linkURL = (href) => (_, getState) => {
 	const state = getState();
 	if (!state.editor.editing) return;
 	//TODO: it's weird we do this here, it really should be done on the card-
@@ -319,7 +319,7 @@ export const linkURL = (href) => (dispatch, getState) => {
 	}
 };
 
-export const linkCard = (cardID) => (dispatch, getState) => {
+export const linkCard = (cardID) => (_, getState) => {
 	const state = getState();
 	if (!state.editor.editing) return;
 	//TODO: it's weird we do this here, it really should be done on the card-
