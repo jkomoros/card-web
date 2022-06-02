@@ -870,8 +870,12 @@ export type FindState = {
 	cardTypeFilterLocked: boolean,
 }
 
+export type MaintenanceTaskMap = {
+    [id : MaintenanceTaskID]: MaintenanceTask
+}
+
 export type MaintenanceState = {
-	executedTasks: {[id : MaintenanceTaskID]: MaintenanceTask},
+	executedTasks: MaintenanceTaskMap,
 	taskActive: false,
 }
 
