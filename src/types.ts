@@ -593,17 +593,7 @@ type Section = {
     default? : boolean,
 }
 
-//See also Section
-export interface SectionUpdate {
-    start_cards? : CardID[],
-    order? : number,
-    cards? : CardID[],
-    title? : string,
-    subtitle? : string,
-    updated? : FieldValue,
-    id? : SectionID,
-    default? : boolean,
-}
+export type SectionUpdate = TimestampToFieldValue<OptionalFields<Section>>;
 
 export type Sections = {
     [sectionName : SectionID]: Section
