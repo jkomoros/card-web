@@ -1,3 +1,7 @@
+import {
+    FieldValue
+} from 'firebase/firestore';
+
 //TODO: just use the firestore definition?
 export interface FirestoreTimestamp {
     seconds: number,
@@ -563,6 +567,7 @@ export type SortName = string;
 //TODO: lock this down
 export type ViewMode = string;
 
+//See also SectionUpdate
 type Section = {
     start_cards : CardID[],
     order : number,
@@ -570,6 +575,17 @@ type Section = {
     title : string,
     updated : FirestoreTimestamp,
     id : string,
+    default? : boolean,
+}
+
+//See also Section
+export interface SectionUpdate {
+    start_cards? : CardID[],
+    order? : number,
+    cards? : CardID[],
+    title? : string,
+    updated? : FieldValue,
+    id? : string,
     default? : boolean,
 }
 
