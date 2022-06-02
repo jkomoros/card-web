@@ -22,6 +22,11 @@ import {
 	selectFindCardTypeFilterLocked,
 } from '../selectors.js';
 
+import {
+	CardType,
+	FindDialogType
+} from '../types.js';
+
 export const openFindDialog = () => {
 	return launchFind(FIND_DIALOG_OPEN);
 };
@@ -77,7 +82,7 @@ export const findUpdateRenderOffset = (renderOffset) => {
 	};
 };
 
-const launchFind = (typ, starterQuery, lockedCardTypeFilter) => (dispatch, getState) => {
+const launchFind = (typ : FindDialogType, starterQuery? : string, lockedCardTypeFilter? : CardType) => (dispatch, getState) => {
 	if (!starterQuery) {
 		const description = selectActiveCollectionDescription(getState());
 		starterQuery = queryTextFromCollectionDescription(description);

@@ -623,6 +623,9 @@ export type MaintenanceTask = {
     version: number,
 };
 
+//TODO: tighten to things like FIND_CARD_TO_PERMISSION et al
+export type FindDialogType = string;
+
 export type AppState = {
 	location: string,
 	page: string,
