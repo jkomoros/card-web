@@ -66,7 +66,9 @@ import {
 	Sections,
 	CardType,
 	ReferenceType,
-	CollectionState
+	CollectionState,
+	FilterMap,
+	SortExtra,
 } from './types.js';
 
 export const DEFAULT_SET_NAME = 'main';
@@ -442,12 +444,12 @@ const makeMissingConceptConfigurableFilter = (_, conceptStrOrCardID : string) : 
 const makeExcludeConfigurableFilter = (_, ...remainingParts : string[]) : ConfigurableFilterFuncFactoryResult => {
 	const rest = remainingParts.join('/');
 
-	const generator = memoize((extras : FilterExtras) => {
+	const generator = memoize((extras : FilterExtras) : [filter : FilterMap, reverse : boolean, sortExtra : SortExtra | null, partialMathces : {[id : CardID] : boolean} | null ] => {
 		return filterSetForFilterDefinitionItem(rest, extras);
 	});
 
 	//our func is just checking in the expanded filter.
-	const func = function(card : ProcessedCard, extras : FilterExtras) {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean] {
 
 		const [filterSet, reversed] = generator(extras);
 
@@ -458,7 +460,7 @@ const makeExcludeConfigurableFilter = (_, ...remainingParts : string[]) : Config
 		//good way to figure out if it will be reversed early enough to say
 		//whether the function's results should be reversed. The current
 		//approach works, it just requires a bit more memory.
-		return reversed ? !filterSet[id] : filterSet[id];
+		return reversed ? [!filterSet[id]] : [filterSet[id]];
 	};
 	//The true is the whole business end of this configurable filter,
 	//reversing the filter it operates on.
