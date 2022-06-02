@@ -62,6 +62,10 @@ import {
 	deleteField
 } from 'firebase/firestore';
 
+import {
+	CardDiff
+} from './types.js';
+
 const FREE_TEXT_FIELDS = Object.fromEntries([...Object.keys(TEXT_FIELD_CONFIGURATION).filter(key => !TEXT_FIELD_CONFIGURATION[key].readOnly), 'todo', 'notes'].map(item => [item, true]));
 
 //Images can't be merged correctly (only overwritten) because they aren't
@@ -217,7 +221,7 @@ export const overshadowedDiffChanges = (original, snapshot, current) => {
 };
 
 //generateFinalCardDiff is like generateCardDiff but also handles fields set by cardFinishers and font size boosts.
-export const generateFinalCardDiff = async (state, underlyingCard, rawUpdatedCard) => {
+export const generateFinalCardDiff = async (state, underlyingCard, rawUpdatedCard) : CardDiff => {
 
 	const cardFinisher = CARD_TYPE_EDITING_FINISHERS[rawUpdatedCard.card_type];
 
