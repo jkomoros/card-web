@@ -267,7 +267,7 @@ export const modifyCards = (cards, update, substantive, failOnError) => async (d
 	try {
 		await batch.commit();
 	} catch(err) {
-		dispatch(modifyCardFailure('Couldn\'t save card: ' + err));
+		dispatch(modifyCardFailure(new Error('Couldn\'t save card: ' + err)));
 		return;
 	}
 
@@ -1171,7 +1171,7 @@ const modifyCardSuccess = () => (dispatch, getState) => {
 	});
 };
 
-const modifyCardFailure = (err, skipAlert) => {
+const modifyCardFailure = (err : Error, skipAlert? : boolean) => {
 	if (skipAlert) {
 		console.warn(err);
 	} else {
