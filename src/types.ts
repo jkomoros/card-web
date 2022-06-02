@@ -633,6 +633,8 @@ export type SortName = string;
 //TODO: lock this down
 export type ViewMode = string;
 
+export type SectionID = string;
+
 //See also SectionUpdate
 type Section = {
     start_cards : CardID[],
@@ -641,7 +643,7 @@ type Section = {
     title : string,
     subtitle? : string,
     updated : Timestamp,
-    id : string,
+    id : SectionID,
     default? : boolean,
 }
 
@@ -653,12 +655,12 @@ export interface SectionUpdate {
     title? : string,
     subtitle? : string,
     updated? : FieldValue,
-    id? : string,
+    id? : SectionID,
     default? : boolean,
 }
 
 export type Sections = {
-    [sectionName : string]: Section
+    [sectionName : SectionID]: Section
 }
 
 export type Sets = {

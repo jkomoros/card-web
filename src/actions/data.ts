@@ -164,7 +164,8 @@ import {
 	Card,
 	CardUpdate,
 	CardType,
-	UserInfo
+	UserInfo,
+	SectionID
 } from '../types.js';
 
 
@@ -631,7 +632,7 @@ const CARD_FIELDS_TO_COPY_ON_FORK = {
 };
 
 //exported entireoly for initialSetUp in maintence.js
-export const defaultCardObject = (id : CardID, user : UserInfo, section : string, cardType : CardType, sortOrder : number) : CardUpdate => {
+export const defaultCardObject = (id : CardID, user : UserInfo, section : SectionID, cardType : CardType, sortOrder : number) : CardUpdate => {
 	return {
 		created: serverTimestamp(),
 		updated: serverTimestamp(),
