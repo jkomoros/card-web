@@ -196,7 +196,7 @@ export const waitForCardToExist = (cardID) => {
 	const card = getCardById(store.getState(), cardID);
 	if (card) return Promise.resolve(card);
 	if (!waitingForCards[cardID]) waitingForCards[cardID] = [];
-	if (!unsubscribeFromStore) unsubscribeFromStore = store.subcribe(waitingForCardToExistStoreUpdated);
+	if (!unsubscribeFromStore) unsubscribeFromStore = store.subscribe(waitingForCardToExistStoreUpdated);
 	const promise = new Promise();
 	waitingForCards[cardID].push(promise);
 	return promise;
