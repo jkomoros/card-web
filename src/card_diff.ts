@@ -65,7 +65,8 @@ import {
 import {
 	State,
 	Card,
-	CardDiff
+	CardDiff,
+	CardUpdate
 } from './types.js';
 
 const FREE_TEXT_FIELDS = Object.fromEntries([...Object.keys(TEXT_FIELD_CONFIGURATION).filter(key => !TEXT_FIELD_CONFIGURATION[key].readOnly), 'todo', 'notes'].map(item => [item, true]));
@@ -296,9 +297,9 @@ const setFirebaseValueOnObj = (obj, fieldParts, value, replaceTimestampSentinels
 //change in diff set. This function does not do any validation that these
 //changes are legal. You can apply this change ot an underlying card with
 //applyCardFirebaseUpdate.
-export const applyCardDiff = (underlyingCard : Card, diff : CardDiff) => {
+export const applyCardDiff = (underlyingCard : Card, diff : CardDiff) : CardUpdate => {
 
-	const cardUpdateObject = {};
+	const cardUpdateObject : CardUpdate = {};
 
 	for (let field of Object.keys(TEXT_FIELD_CONFIGURATION)) {
 		if (diff[field] === undefined) continue;
