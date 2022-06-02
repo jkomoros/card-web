@@ -94,6 +94,10 @@ import {
 
 import { cardDiffHasChanges } from '../card_diff.js';
 
+import {
+	SectionUpdate
+} from '../types.js';
+
 export const connectLiveExecutedMaintenanceTasks = () => {
 	onSnapshot(collection(db, MAINTENANCE_COLLECTION), snapshot => {
 
@@ -200,7 +204,7 @@ const initialSetup = async (_, getState) => {
 
 	const user = selectUser(getState());
 
-	const starterSections = {
+	const starterSections : {[sectionName : string] : SectionUpdate} = {
 		main: {
 			title: 'Main',
 			subtitle: 'The main collection of cards',
