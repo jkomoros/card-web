@@ -439,7 +439,7 @@ export interface Card {
     sort_order: number,
     title: string,
     subtitle? : string,
-    section: string,
+    section: SectionID,
     body: string,
     //See the documentation for these two string contants in card_fields.js
     //for information on the shape of these fields.
@@ -508,7 +508,7 @@ export interface CardUpdate {
     sort_order?: number,
     title?: string,
     subtitle? : string,
-    section?: string,
+    section?: SectionID,
     body?: string,
     //See the documentation for these two string contants in card_fields.js
     //for information on the shape of these fields.
