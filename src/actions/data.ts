@@ -159,7 +159,13 @@ import {
 import {
 	MultiBatch
 } from '../multi_batch.js';
-import { Card } from '../types.js';
+
+import {
+	Card,
+	CardUpdate,
+	CardType,
+	UserInfo
+} from '../types.js';
 
 
 //map of cardID => promise that's waiting
@@ -625,7 +631,7 @@ const CARD_FIELDS_TO_COPY_ON_FORK = {
 };
 
 //exported entireoly for initialSetUp in maintence.js
-export const defaultCardObject = (id, user, section, cardType, sortOrder) => {
+export const defaultCardObject = (id : CardID, user : UserInfo, section : string, cardType : CardType, sortOrder : number) : CardUpdate => {
 	return {
 		created: serverTimestamp(),
 		updated: serverTimestamp(),
