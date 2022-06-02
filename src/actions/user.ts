@@ -110,7 +110,7 @@ getRedirectResult(auth).catch( async err => {
 
 });
 
-export const saveUserInfo = () => (dispatch, getState) => {
+export const saveUserInfo = () => (_, getState) => {
 
 	const state = getState();
 
@@ -346,7 +346,7 @@ export const toggleOnReadingList = (cardToToggle) => (dispatch, getState) => {
 	dispatch(onReadingList ? removeFromReadingList(cardToToggle) : addToReadingList(cardToToggle));
 };
 
-export const addToReadingList = (cardToAdd) => (dispatch, getState) => {
+export const addToReadingList = (cardToAdd) => (_, getState) => {
 	if (!cardToAdd || !cardToAdd.id) {
 		console.log('Invalid card provided');
 		return;
@@ -389,7 +389,7 @@ export const addToReadingList = (cardToAdd) => (dispatch, getState) => {
 	batch.commit();
 };
 
-export const removeFromReadingList = (cardToRemove) => (dispatch, getState) => {
+export const removeFromReadingList = (cardToRemove) => (_, getState) => {
 	if (!cardToRemove || !cardToRemove.id) {
 		console.log('Invalid card provided');
 		return;
@@ -432,7 +432,7 @@ export const removeFromReadingList = (cardToRemove) => (dispatch, getState) => {
 	batch.commit();
 };
 
-export const addStar = (cardToStar) => (dispatch, getState) => {
+export const addStar = (cardToStar) => (_, getState) => {
 
 	if (!cardToStar || !cardToStar.id) {
 		console.log('Invalid card provided');
@@ -470,7 +470,7 @@ export const addStar = (cardToStar) => (dispatch, getState) => {
 	batch.commit();
 };
 
-export const removeStar = (cardToStar) => (dispatch, getState) => {
+export const removeStar = (cardToStar) => (_, getState) => {
 	if (!cardToStar || !cardToStar.id) {
 		console.log('Invalid card provided');
 		return;
@@ -566,7 +566,7 @@ export const markActiveCardReadIfLoggedIn = () => (dispatch, getState) => {
 	dispatch(markRead(activeCard, true));
 };
 
-export const markRead = (cardToMarkRead, existingReadDoesNotError) => (dispatch, getState) => {
+export const markRead = (cardToMarkRead, existingReadDoesNotError) => (_, getState) => {
 
 	if (!cardToMarkRead || !cardToMarkRead.id) {
 		console.log('Invalid card provided');
@@ -602,7 +602,7 @@ export const markRead = (cardToMarkRead, existingReadDoesNotError) => (dispatch,
 	batch.commit();
 };
 
-export const markUnread = (cardToMarkUnread) => (dispatch, getState) => {
+export const markUnread = (cardToMarkUnread) => (_, getState) => {
 	if (!cardToMarkUnread || !cardToMarkUnread.id) {
 		console.log('Invalid card provided');
 		return;
