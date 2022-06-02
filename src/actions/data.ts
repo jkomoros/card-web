@@ -162,6 +162,7 @@ import {
 
 import {
 	Card,
+	CardID,
 	CardUpdate,
 	CardType,
 	UserInfo,
@@ -169,16 +170,16 @@ import {
 } from '../types.js';
 
 
-//map of cardID => promise that's waiting
-let waitingForCards = {};
+//map of cardID => promiseResolver that's waiting
+let waitingForCards : {[id : CardID]: ((card : Card) => void)[]} = {};
 
 const waitingForCardToExistStoreUpdated = () => {
 	let itemDeleted = false;
 	for (const cardID of Object.keys(waitingForCards)) {
 		const card = getCardById(store.getState(), cardID);
 		if (!card) continue;
-		for (let promise of waitingForCards[cardID]) {
-			promise.resolve(card);
+		for (let promiseResolver of waitingForCards[cardID]) {
+			promiseResolver(card);
 		}
 		delete waitingForCards[cardID];
 		itemDeleted = true;
@@ -192,13 +193,14 @@ const waitingForCardToExistStoreUpdated = () => {
 let unsubscribeFromStore = null;
 
 //returns a promise that will be resolved when a card with that ID exists, returning the card.
-export const waitForCardToExist = (cardID) => {
+export const waitForCardToExist = (cardID : CardID) => {
 	const card = getCardById(store.getState(), cardID);
 	if (card) return Promise.resolve(card);
 	if (!waitingForCards[cardID]) waitingForCards[cardID] = [];
 	if (!unsubscribeFromStore) unsubscribeFromStore = store.subscribe(waitingForCardToExistStoreUpdated);
-	const promise = new Promise();
-	waitingForCards[cardID].push(promise);
+	const promise = new Promise<Card>((resolve) => {
+		waitingForCards[cardID].push(resolve);
+	});
 	return promise;
 };
 
