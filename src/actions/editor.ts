@@ -117,7 +117,9 @@ import {
 } from '../firebase.js';
 
 import {
-	ref
+	ref,
+	uploadBytes,
+	getDownloadURL
 } from 'firebase/storage';
 
 import {
@@ -620,20 +622,17 @@ export const addImageWithFile = (file, index) => async (dispatch, getState) => {
 	
 	const fileName = rawFileNameParts.join('.');
 	
-	const fileRef = userUploadRef.child(fileName);
+	const fileRef = ref(userUploadRef, fileName);
 
 	try {
-		await new Promise((resolve, reject) => {
-			const snapshot = fileRef.put(file);
-			snapshot.then(resolve, reject);
-		});
+		await uploadBytes(fileRef, file);
 	} catch (err) {
 		console.warn(err);
 		alert('Failed to upload');
 		return;
 	}
 
-	const downloadURL = await fileRef.getDownloadURL();
+	const downloadURL = await getDownloadURL(fileRef);
 
 	dispatch(addImageWithURL(downloadURL, fileRef.fullPath, index));
 };
