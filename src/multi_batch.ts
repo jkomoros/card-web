@@ -49,7 +49,7 @@ const EFFECTIVE_BATCH_LIMIT = SENTINEL_DEFINITION_VALID ? FIRESTORE_BATCH_LIMIT 
 //batch, and will automatically split into multiple underlying batches if it's
 //getting close to the limit. Note that unlike a normal batch, it's possible for
 //a partial failure if one batch fails and others don't.
-export const MultiBatch = class {
+export class MultiBatch {
 
 	_db : Firestore;
 	_currentBatchOperationCount : number;

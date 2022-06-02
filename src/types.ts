@@ -549,6 +549,9 @@ export interface CardUpdate {
     full_bleed? : boolean,
 }
 
+//TODO: tighten
+export type CardDiff = any;
+
 export type SynonymMap = {
     [input : string]: string[]
 }
