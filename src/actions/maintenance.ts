@@ -467,7 +467,7 @@ const addImagesProperty = async () => {
 
 const RERUN_CARD_FINISHERS = 'rerun-card-finishers';
 
-const rerunCardFinishers = async (dispatch, getState) => {
+const rerunCardFinishers = async (_, getState) => {
 
 	let batch = new MultiBatch(db);
 
@@ -492,7 +492,7 @@ const rerunCardFinishers = async (dispatch, getState) => {
 
 const ADD_SORT_ORDER_PROPERTY = 'add-sort-order-property';
 
-const addSortOrderProperty = async (dispatch, getState) => {
+const addSortOrderProperty = async (_, getState) => {
 
 	let batch = new MultiBatch(db);
 
