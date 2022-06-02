@@ -63,6 +63,7 @@ import {
 } from 'firebase/firestore';
 
 import {
+	State,
 	Card,
 	CardDiff
 } from './types.js';
@@ -394,10 +395,10 @@ export const applyCardDiff = (underlyingCard : Card, diff : CardDiff) => {
 
 
 //validateCardDiff returns true if sections update. It throws an error if the diff isn't valid or was rejected by a user.
-export const validateCardDiff = (state, underlyingCard, diff) => {
+export const validateCardDiff = (state : State, underlyingCard : Card, diff : CardDiff) => {
 	for (let key of Object.keys(diff)) {
 		if (!LEGAL_UPDATE_FIELDS[key]) {
-			throw new Error('Illegal field in update: ' + key, diff);
+			throw new Error('Illegal field in update: ' + key + diff);
 		}
 	}
 
