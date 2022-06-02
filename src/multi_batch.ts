@@ -14,7 +14,8 @@ import {
 	arrayUnion,
 	writeBatch,
 	Firestore,
-	WriteBatch
+	WriteBatch,
+	SetOptions
 } from 'firebase/firestore';
 
 //serverTimestampSentinel is the most basic one.
@@ -101,7 +102,7 @@ export const MultiBatch = class {
 		return this;
 	}
 
-	set(ref, data, options) {
+	set(ref, data, options? : SetOptions) {
 		this._batch.set(ref, data, options);
 		this._currentBatchOperationCount += this._writeCountForUpdate(data);
 		return this;
