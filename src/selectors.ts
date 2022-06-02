@@ -367,7 +367,7 @@ const selectUserPermissions = (state) => state.user ? state.user.userPermissions
 const userObjectExists = user => user && user.uid != '';
 const userSignedIn = user => userObjectExists(user) && !user.isAnonymous;
 
-export const selectUser = state => {
+export const selectUser = (state : State) => {
 	if (!state.user) return null;
 	if (!state.user.user) return null;
 	return state.user.user;
