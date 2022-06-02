@@ -10,7 +10,8 @@ import {
 	ReferencesInfoMapByType,
 	ExpandedReferenceKey,
 	ExpandedReferenceDelete,
-	ExpandedReferenceObject
+	ExpandedReferenceObject,
+	OptionalFieldsCard
 } from './types.js';
 
 import {
@@ -579,7 +580,7 @@ export const referencesEntriesDiffWithRemove = (diff = [], cardID, referenceType
 //delete:true, representing the items that would have to be done via
 //setCardReference and removeCardReference to get beforeCard to look like
 //afterCard. The deletions will all come before the modifications in the diff.
-export const referencesEntriesDiff = (beforeCard : Card, afterCard : Card) => {
+export const referencesEntriesDiff = (beforeCard : OptionalFieldsCard, afterCard : OptionalFieldsCard) => {
 	const modificationsResult = [];
 	const deletionsResult = [];
 	if (!referencesLegalShape(beforeCard)) return [];

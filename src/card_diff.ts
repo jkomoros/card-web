@@ -66,7 +66,8 @@ import {
 	State,
 	Card,
 	CardDiff,
-	CardUpdate
+	CardUpdate,
+	OptionalFieldsCard
 } from './types.js';
 
 const FREE_TEXT_FIELDS = Object.fromEntries([...Object.keys(TEXT_FIELD_CONFIGURATION).filter(key => !TEXT_FIELD_CONFIGURATION[key].readOnly), 'todo', 'notes'].map(item => [item, true]));
@@ -137,10 +138,10 @@ export const confirmationsForCardDiff = (update, updatedCard) => {
 	return true;
 };
 
-export const generateCardDiff = (underlyingCard : Card, updatedCard : Card, normalizeHTMLFields : boolean = false) : CardDiff => {
+export const generateCardDiff = (underlyingCardIn : Card, updatedCardIn : Card, normalizeHTMLFields : boolean = false) : CardDiff => {
 
-	if (!underlyingCard) underlyingCard = {};
-	if (!updatedCard) updatedCard = {};
+	const underlyingCard : OptionalFieldsCard = underlyingCardIn || {};
+	const updatedCard : OptionalFieldsCard = updatedCardIn || {};
 
 	if (underlyingCard === updatedCard) return {};
 

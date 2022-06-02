@@ -1,7 +1,7 @@
 import {
 	ImageInfo,
 	ImageBlock,
-	Card
+	OptionalFieldsCard
 } from './types.js';
 
 //Will position left. Multiple images will go to the right of the one
@@ -75,7 +75,7 @@ export const setImageProperties = (img : ImageInfo, ele) => {
 };
 
 //getImagesFromCard gets the images from a card, filling in every item as a default.
-export const getImagesFromCard = (card : Card) => {
+export const getImagesFromCard = (card : OptionalFieldsCard) => {
 	if (!card) return [];
 	const images = card.images || [];
 	//Just in case, worst case pretend like there aren't images
@@ -162,7 +162,7 @@ export const changeImagePropertyAtIndex = (imagesBlock : ImageBlock, index : num
 	return result;
 };
 
-export const imageBlocksEquivalent = (oneCard : Card, twoCard : Card) => {
+export const imageBlocksEquivalent = (oneCard : OptionalFieldsCard, twoCard : OptionalFieldsCard) => {
 	const one = getImagesFromCard(oneCard);
 	const two = getImagesFromCard(twoCard);
 	if (one.length != two.length) return false;
