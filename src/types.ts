@@ -410,6 +410,7 @@ export type ReferenceTypeConfigurationMap = {
     }
 }
 
+//See also CardUpdate
 export interface Card {
     id: CardID,
     created: Timestamp,
@@ -437,6 +438,7 @@ export interface Card {
     //every card already known to exist.
     sort_order: number,
     title: string,
+    subtitle? : string,
     section: string,
     body: string,
     //See the documentation for these two string contants in card_fields.js
@@ -474,6 +476,75 @@ export interface Card {
     //Defaul to epoch 1970 for things not yet tweeted
     last_tweeted: Timestamp,
     tweet_count: number,
+    //TODO: we should have this explicitly set on all cards, but in practice only some do.
+    full_bleed? : boolean,
+}
+
+export interface CardUpdate {
+    id?: CardID,
+    created?: FieldValue,
+    updated?: FieldValue,
+    author?: Uid,
+    permissions?: CardPermissions,
+    collaborators?: Uid[],
+    updated_substantive?: FieldValue,
+    updated_message?: FieldValue,
+    //star_count is sum of star_count_manual, tweet_favorite_count, tweet_retweet_count.
+    star_count?: number,
+    //star_count_manual is the count of stars in the stars collection (as
+    //opposed to faux stars that are tweet enagement actions)
+    star_count_manual?: number,
+    //The sum of favorite counts for all tweets for this card
+    tweet_favorite_count?: number,
+    //The sum of retweet counts for all tweets for this card
+    tweet_retweet_count?: number,
+    thread_count?: number,
+    thread_resolved_count?: number,
+    //A number that is compared to other cards to give the default sort
+    //order. Higher numbers will show up first in the default sort order.
+    //Before saving the card for the first time, you should set this to a
+    //reasonable value, typically DEFAULT_SORT_ORDER_INCREMENT smaller than
+    //every card already known to exist.
+    sort_order?: number,
+    title?: string,
+    subtitle? : string,
+    section?: string,
+    body?: string,
+    //See the documentation for these two string contants in card_fields.js
+    //for information on the shape of these fields.
+    references_info?: ReferencesInfoMap,
+    references_info_inbound?: ReferencesInfoMap,
+    // version are like the normal properties, but where it's a map
+    //of cardID to true if there's ANY kind of refernce. Whenever a card is
+    //modified, these s are automatically mirrored basd on the value
+    //of references. They're popped out primarily so that you can do
+    //firestore qureies on them to find cards that link to another.
+    references?: ReferencesMap,
+    references_inbound?: ReferencesMap,
+    //Keys in this object denote fields that should have their emsize
+    //boosted, with a missing key equal to a boost of 0.0. The font size is
+    //1.0 + the boost, in ems.
+    font_size_boost?: FontSizeBoostMap,
+    card_type?: CardType,
+    notes?: string,
+    todo?: string,
+    slugs?: Slug[],
+    name?: CardIdentifier,
+    tags?: string[],
+    published?: boolean,
+    //images is an imagesBlock. See src/images.js for a definition.
+    images?: ImageBlock,
+    //auto_todo_overrides is a map of key -> true or false, for each kind of
+    //TODO (as enumerated in TODO_OVERRIDE_LEGAL_KEYS). A value of true
+    //means that the TODO is overrided to the "done" state for that TODO, no
+    //matter how else the card is configured. A false means it it is
+    //overridden to the "not done" state no mater how the rest of the card
+    //is configured. And a missing key means "based on what the TODO
+    //function said for that key based on being passed the card"
+    auto_todo_overrides?: TODOOverrides,
+    //Defaul to epoch 1970 for things not yet tweeted
+    last_tweeted?: FieldValue,
+    tweet_count?: number,
     //TODO: we should have this explicitly set on all cards, but in practice only some do.
     full_bleed? : boolean,
 }
