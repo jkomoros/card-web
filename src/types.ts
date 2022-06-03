@@ -410,7 +410,7 @@ export type ReferenceTypeConfigurationMap = {
     }
 }
 
-//See also CardUpdate
+//When adding a field here, consider whether it should also be in CardDiff.
 export interface Card {
     id: CardID,
 
@@ -505,8 +505,48 @@ type TimestampToFieldValue<Type> = {
 
 export type CardUpdate = TimestampToFieldValue<OptionalFieldsCard>;
 
-//TODO: tighten
-export type CardDiff = any;
+//These are fields in CardDiff that cannot be auto-merged when edits are made by
+//someone else.
+interface NonAutoMergeableCardDiff {
+    //Freeform text fields
+    title? : string,
+    title_alternates? : string,
+    body? : string,
+    subtitle? : string,
+    todo? : string,
+    notes? : string,
+
+    //Special sub-objec that doesn't have diffing yet.
+    images? : ImageBlock,
+}
+
+//Every field in here (or NonAutoMergeableCardDiff) has to be known how to be handled in various functions in card_diff.ts
+export interface CardDiff extends NonAutoMergeableCardDiff  {
+
+    //Every field directly on here (and not in NonAutoMergeableCardDiff) can
+    //safely be auto-merged.
+
+    name? : string,
+    section? : SectionID,
+    full_bleed? : boolean,
+    sort_order? : number,
+    published? : boolean,
+    card_type? : CardType,
+
+
+    font_size_boost? : FontSizeBoostMap,
+    references_diff? : ReferencesEntriesDiff,
+
+    auto_todo_overrides_enablements? : TODOType[],
+    auto_todo_overrides_disablements? : TODOType[],
+    auto_todo_overrides_removals? : TODOType[],
+    add_editors? : Uid[],
+    remove_editors? : Uid[],
+    add_collaborators? : Uid[],
+    remove_collaborators? : Uid[],
+    addTags? : TagID[],
+    removeTags? : TagID[],
+}
 
 export type SynonymMap = {
     [input : string]: string[]
