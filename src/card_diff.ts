@@ -78,26 +78,6 @@ const NON_AUTOMATIC_MERGE_FIELDS = Object.fromEntries(Object.keys(FREE_TEXT_FIEL
 	['images']
 ).map(key => [key, true]));
 
-const LEGAL_UPDATE_FIELDS =  Object.fromEntries(Object.keys(NON_AUTOMATIC_MERGE_FIELDS).concat([
-	'name',
-	'section',
-	'full_bleed',
-	'sort_order',
-	'auto_todo_overrides_enablements',
-	'auto_todo_overrides_disablements',
-	'auto_todo_overrides_removals',
-	'add_editors',
-	'remove_editors',
-	'add_collaborators',
-	'remove_collaborators',
-	'addTags',
-	'removeTags',
-	'published',
-	'card_type',
-	'font_size_boost',
-	'references_diff',
-]).map(key => [key,true]));
-
 //Returns true if the user has said to proceed to any confirmation warnings (if
 //any), false if the user has said to not proceed.
 export const confirmationsForCardDiff = (update, updatedCard) => {
@@ -398,11 +378,6 @@ export const applyCardDiff = (underlyingCard : Card, diff : CardDiff) : CardUpda
 
 //validateCardDiff returns true if sections update. It throws an error if the diff isn't valid or was rejected by a user.
 export const validateCardDiff = (state : State, underlyingCard : Card, diff : CardDiff) => {
-	for (let key of Object.keys(diff)) {
-		if (!LEGAL_UPDATE_FIELDS[key]) {
-			throw new Error('Illegal field in update: ' + key + diff);
-		}
-	}
 
 	if (diff.references_diff !== undefined) {
 		const cardCopy = {...underlyingCard};
