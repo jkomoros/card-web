@@ -12,7 +12,8 @@ import {
 	ExpandedReferenceDelete,
 	ExpandedReferenceObject,
 	OptionalFieldsCard,
-	ReferencesEntriesDiff
+	ReferencesEntriesDiff,
+	CardUpdate
 } from './types.js';
 
 import {
@@ -749,7 +750,7 @@ export const referencesCardsDiff = (beforeCard, afterCard) => {
 //so the keys this sets will have references_info. This also sets the necessary keys
 //on references. prepended. update object is also returned as a
 //convenience.
-export const applyReferencesDiff = (beforeCard, afterCard, update) => {
+export const applyReferencesDiff = (beforeCard : Card, afterCard : Card, update : CardUpdate) => {
 	if (!update) update = {};
 	let [additions, modifications, leafDeletions, cardDeletions] = referencesDiff(beforeCard,afterCard);
 	for (let [key, val] of Object.entries(additions)) {
