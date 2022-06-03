@@ -184,19 +184,19 @@ export const generateCardDiff = (underlyingCardIn : Card, updatedCardIn : Card, 
 	return update;
 };
 
-export const cardDiffHasChanges = (diff : CardDiff) => {
+export const cardDiffHasChanges = (diff : CardDiff) : boolean => {
 	if (!diff) return false;
 	return Object.keys(diff).length > 0;
 };
 
-export const cardDiffDescription = (diff : CardDiff) => {
+export const cardDiffDescription = (diff : CardDiff) : string => {
 	if (!cardDiffHasChanges(diff)) return '';
 	return JSON.stringify(diff, null, 2);
 };
 
 //Returns a diff that includes only fields that were modified between original
 //and snapshot and then shadowed by changes between snapshot and current.
-export const overshadowedDiffChanges = (original : Card, snapshot : Card, current : Card) => {
+export const overshadowedDiffChanges = (original : Card, snapshot : Card, current : Card) : CardDiff => {
 	const snapshotDiff = generateCardDiff(original, snapshot);
 	const currentDiff = generateCardDiff(snapshot, current);
 	const result = {};
@@ -242,7 +242,7 @@ export const generateFinalCardDiff = async (state : State, underlyingCard : Card
 //replaceTimestampSentinels is true, then every time it sees a
 //serverTimestampSentinel in the firebaseUpdate, it will instead put in a
 //currentTimestamp()>
-export const applyCardFirebaseUpdate = (baseCard, firebaseUpdate, replaceTimestampSentinels = false) => {
+export const applyCardFirebaseUpdate = (baseCard : Card, firebaseUpdate : CardUpdate, replaceTimestampSentinels : boolean = false) : Card => {
 	//TODO: test this.
 
 	//This clone is only one layer deep!
@@ -253,7 +253,7 @@ export const applyCardFirebaseUpdate = (baseCard, firebaseUpdate, replaceTimesta
 	return result;
 };
 
-const setFirebaseValueOnObj = (obj, fieldParts, value, replaceTimestampSentinels = false) => {
+const setFirebaseValueOnObj = (obj : object, fieldParts : string[], value, replaceTimestampSentinels : boolean = false) => {
 	//Obj is an object it's OK to modify, but no other subobjects are.
 
 	const firstFieldPart = fieldParts[0];
