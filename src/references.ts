@@ -11,7 +11,8 @@ import {
 	ExpandedReferenceKey,
 	ExpandedReferenceDelete,
 	ExpandedReferenceObject,
-	OptionalFieldsCard
+	OptionalFieldsCard,
+	ReferencesEntriesDiff
 } from './types.js';
 
 import {
@@ -558,11 +559,22 @@ const expandedReferences = (referencesInfo : ReferencesInfoMap) => {
 	return result;
 };
 
-const referencesEntriesDiffWithoutItem = (diff = [], cardID, referenceType, isDelete) => diff.filter(item => !(!!item.delete == isDelete && item.cardID == cardID && item.referenceType == referenceType));
+function isExpandedReferenceDelete(obj : ExpandedReferenceObject | ExpandedReferenceDelete) : obj is ExpandedReferenceDelete {
+	return (obj as ExpandedReferenceDelete).delete != undefined;
+}
+
+const referencesEntriesDiffWithoutItem = (diff : ReferencesEntriesDiff = [], cardID : CardID, referenceType : ReferenceType, isDelete : boolean) : ReferencesEntriesDiff => {
+	return diff.filter(item => {
+		if (item.cardID != cardID) return false;
+		if (item.referenceType != referenceType) return false;
+		if (isExpandedReferenceDelete(item) != isDelete) return false;
+		return true;
+	});
+};
 
 //Adds an entry to set the given item. If the diff had a remove command for that
 //cardID/referenceType already, it removes it instead.
-export const referencesEntriesDiffWithSet = (diff = [], cardID, referenceType, value = '') => {
+export const referencesEntriesDiffWithSet = (diff : ReferencesEntriesDiff = [], cardID : CardID, referenceType : ReferenceType, value : string = '') : ReferencesEntriesDiff => {
 	const trimmedDiff = referencesEntriesDiffWithoutItem(diff, cardID, referenceType, true);
 	if (trimmedDiff.length < diff.length) return trimmedDiff;
 	return [...diff, expandedReferenceObject(cardID, referenceType, value)];
@@ -570,7 +582,7 @@ export const referencesEntriesDiffWithSet = (diff = [], cardID, referenceType, v
 
 //Adds an entry to remove the given item. If the diff had a set command for that
 //cardID/referenceType already, it removes it instead.
-export const referencesEntriesDiffWithRemove = (diff = [], cardID, referenceType) => {
+export const referencesEntriesDiffWithRemove = (diff : ReferencesEntriesDiff = [], cardID : CardID, referenceType : ReferenceType) : ReferencesEntriesDiff => {
 	const trimmedDiff = referencesEntriesDiffWithoutItem(diff, cardID, referenceType, false);
 	if (trimmedDiff.length < diff.length) return trimmedDiff;
 	return [expandedReferenceDeleteObject(cardID, referenceType), ...diff];
@@ -580,7 +592,7 @@ export const referencesEntriesDiffWithRemove = (diff = [], cardID, referenceType
 //delete:true, representing the items that would have to be done via
 //setCardReference and removeCardReference to get beforeCard to look like
 //afterCard. The deletions will all come before the modifications in the diff.
-export const referencesEntriesDiff = (beforeCard : OptionalFieldsCard, afterCard : OptionalFieldsCard) => {
+export const referencesEntriesDiff = (beforeCard : OptionalFieldsCard, afterCard : OptionalFieldsCard) : ReferencesEntriesDiff => {
 	const modificationsResult = [];
 	const deletionsResult = [];
 	if (!referencesLegalShape(beforeCard)) return [];
