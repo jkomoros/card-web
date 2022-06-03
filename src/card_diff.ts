@@ -191,7 +191,7 @@ export const cardDiffHasChanges = (diff : CardDiff) => {
 
 export const cardDiffDescription = (diff : CardDiff) => {
 	if (!cardDiffHasChanges(diff)) return '';
-	return JSON.stringify(diff, '', 2);
+	return JSON.stringify(diff, null, 2);
 };
 
 //Returns a diff that includes only fields that were modified between original
