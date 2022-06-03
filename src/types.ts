@@ -429,7 +429,7 @@ export interface Card {
     sort_order: number,
     card_type: CardType,
     section: SectionID,
-    tags: string[],
+    tags: TagID[],
 
 
     published: boolean,
@@ -594,6 +594,8 @@ export type ViewMode = string;
 
 export type SectionID = string;
 
+export type TagID = string;
+
 //See also SectionUpdate
 type Section = {
     start_cards : CardID[],
@@ -602,11 +604,15 @@ type Section = {
     title : string,
     subtitle? : string,
     updated : Timestamp,
-    id : SectionID,
+    id : SectionID | TagID,
     default? : boolean,
 }
 
 export type SectionUpdate = TimestampToFieldValue<OptionalFields<Section>>;
+
+export type Tags = {
+    [tagName : TagID] : Section
+}
 
 export type Sections = {
     [sectionName : SectionID]: Section
@@ -727,7 +733,7 @@ export type DataState = {
 	cards: Cards,
 	authors: {[id : Uid]: Author},
 	sections: Sections,
-	tags: Sections,
+	tags: Tags,
 	slugIndex: {[slug : Slug] : CardID},
 	//A snapshot of cards from last time UPDATE_COLLECTION_SHAPSHOT was called.
 	//Keeping a snapshot helps make sure that filtering logic in the current
