@@ -65,6 +65,7 @@ import {
 import {
 	State,
 	Card,
+	CardID,
 	CardDiff,
 	CardUpdate,
 	OptionalFieldsCard
@@ -83,7 +84,7 @@ const NON_AUTOMATIC_MERGE_FIELDS = {
 
 //Returns true if the user has said to proceed to any confirmation warnings (if
 //any), false if the user has said to not proceed.
-export const confirmationsForCardDiff = (update, updatedCard) => {
+export const confirmationsForCardDiff = (update :CardDiff, updatedCard : Card) => {
 	const CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[update.card_type || updatedCard.card_type];
 	if (CARD_TYPE_CONFIG.publishedByDefault) {
 		if (!updatedCard.published) {
@@ -183,19 +184,19 @@ export const generateCardDiff = (underlyingCardIn : Card, updatedCardIn : Card, 
 	return update;
 };
 
-export const cardDiffHasChanges = (diff) => {
+export const cardDiffHasChanges = (diff : CardDiff) => {
 	if (!diff) return false;
 	return Object.keys(diff).length > 0;
 };
 
-export const cardDiffDescription = (diff) => {
+export const cardDiffDescription = (diff : CardDiff) => {
 	if (!cardDiffHasChanges(diff)) return '';
 	return JSON.stringify(diff, '', 2);
 };
 
 //Returns a diff that includes only fields that were modified between original
 //and snapshot and then shadowed by changes between snapshot and current.
-export const overshadowedDiffChanges = (original, snapshot, current) => {
+export const overshadowedDiffChanges = (original : Card, snapshot : Card, current : Card) => {
 	const snapshotDiff = generateCardDiff(original, snapshot);
 	const currentDiff = generateCardDiff(snapshot, current);
 	const result = {};
@@ -208,7 +209,7 @@ export const overshadowedDiffChanges = (original, snapshot, current) => {
 };
 
 //generateFinalCardDiff is like generateCardDiff but also handles fields set by cardFinishers and font size boosts.
-export const generateFinalCardDiff = async (state, underlyingCard, rawUpdatedCard) : Promise<CardDiff> => {
+export const generateFinalCardDiff = async (state : State, underlyingCard : Card, rawUpdatedCard : Card) : Promise<CardDiff> => {
 
 	const cardFinisher = CARD_TYPE_EDITING_FINISHERS[rawUpdatedCard.card_type];
 
@@ -440,7 +441,7 @@ export const validateCardDiff = (state : State, underlyingCard : Card, diff : Ca
 
 //Returns an object of cardID -> firebaseUpdate to make to bring the
 //inboundLinks to parity based on the change in beforeCard to afterCard.
-export const inboundLinksUpdates = (cardID, beforeCard, afterCard) => {
+export const inboundLinksUpdates = (cardID : CardID, beforeCard : Card, afterCard : Card) => {
 
 	const [changes, deletions] = referencesCardsDiff(beforeCard, afterCard);
 
