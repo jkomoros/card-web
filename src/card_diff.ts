@@ -70,13 +70,16 @@ import {
 	OptionalFieldsCard
 } from './types.js';
 
-const FREE_TEXT_FIELDS = Object.fromEntries([...Object.keys(TEXT_FIELD_CONFIGURATION).filter(key => !TEXT_FIELD_CONFIGURATION[key].readOnly), 'todo', 'notes'].map(item => [item, true]));
-
-//Images can't be merged correctly (only overwritten) because they aren't
-//diffed. Mainly free text fields, but also the images field.
-const NON_AUTOMATIC_MERGE_FIELDS = Object.fromEntries(Object.keys(FREE_TEXT_FIELDS).concat(
-	['images']
-).map(key => [key, true]));
+//A JS-native version of the allowed fields in type NonAutoMergeableCardDiff
+const NON_AUTOMATIC_MERGE_FIELDS = {
+	title : true,
+    title_alternates : true,
+    body : true,
+    subtitle : true,
+    todo : true,
+    notes : true,
+    images : true,
+}
 
 //Returns true if the user has said to proceed to any confirmation warnings (if
 //any), false if the user has said to not proceed.

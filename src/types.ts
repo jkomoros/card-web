@@ -508,6 +508,9 @@ export type CardUpdate = TimestampToFieldValue<OptionalFieldsCard>;
 //These are fields in CardDiff that cannot be auto-merged when edits are made by
 //someone else.
 interface NonAutoMergeableCardDiff {
+
+    //Note: if you add or remove something here, also modify src/card_diff.ts:NON_AUTOMATIC_MERGE_FIELDS
+
     //Freeform text fields
     title? : string,
     title_alternates? : string,
