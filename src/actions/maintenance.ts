@@ -67,17 +67,11 @@ import {
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCES_INBOUND_CARD_PROPERTY,
 	REFERENCE_TYPE_LINK,
-	REFERENCE_TYPE_ACK,
 	fontSizeBoosts,
 	MAX_SORT_ORDER_VALUE,
 	MIN_SORT_ORDER_VALUE,
 	DEFAULT_SORT_ORDER_INCREMENT
 } from '../card_fields.js';
-
-import {
-	applyReferencesDiff,
-	references,
-} from '../references.js';
 
 import {
 	onSnapshot,
@@ -302,32 +296,6 @@ const linksToReferences = async () => {
 	});
 
 	await batch.commit();
-};
-
-const SKIPPED_LINKS_TO_ACK_REFERENCES = 'skipped-links-to-ack-references';
-
-const skippedLinksToAckReferences = async () => {
-	let batch = new MultiBatch(db);
-	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
-	snapshot.forEach(doc => {
-
-		const card = doc.data();
-
-		const updateCard = {...card};
-
-		references(updateCard).addCardReferencesOfType(REFERENCE_TYPE_ACK, card.auto_todo_skipped_links_inbound || []);
-
-		let update = {
-			auto_todo_skipped_links_inbound: deleteField(),
-		};
-
-		applyReferencesDiff(card, updateCard, update);
-
-		batch.update(doc.ref, update);
-	});
-
-	await batch.commit();
-
 };
 
 const ADD_FONT_SIZE_BOOST = 'add-font-size-boost';
@@ -663,10 +631,6 @@ const RAW_TASKS : {[id : MaintenanceTaskID]: MaintenanceTaskDefinition} = {
 		fn: resetTweets,
 		minVersion: 0,
 		recurring: true,
-	},
-	[SKIPPED_LINKS_TO_ACK_REFERENCES]: {
-		fn: skippedLinksToAckReferences,
-		minVersion: 0,
 	},
 	[ADD_FONT_SIZE_BOOST]: {
 		fn: addFontSizeBoost,
