@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
 
 import './author-chip.js';
 
@@ -19,10 +20,17 @@ import {
 	PAGE_COMMENT
 } from '../actions/app.js';
 
-// This element is *not* connected to the Redux store.
+import {
+	ComposedCommentMessage
+} from '../types.js';
+
+@customElement('comment-message')
 class CommentMessage extends LitElement {
 	
-	static styles = [
+	@property({ type : Object })
+	message: ComposedCommentMessage;
+
+	static override styles = [
 		ButtonSharedStyles,
 		css`
 			:host {
@@ -53,7 +61,7 @@ class CommentMessage extends LitElement {
 		`
 	];
 
-	render() {
+	override render() {
 		return html`
 			<div class='container'>
 				<div class='row'>
@@ -89,11 +97,10 @@ class CommentMessage extends LitElement {
 		this.dispatchEvent(new CustomEvent('delete-message', {composed: true, detail: {message: this.message}}));
 	}
 
-	static get properties() {
-		return {
-			message: { type: Object },
-		};
-	}
 }
 
-window.customElements.define('comment-message', CommentMessage);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'comment-message': CommentMessage;
+	}
+}
