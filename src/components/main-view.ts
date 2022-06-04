@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit';
+import { html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -103,8 +103,10 @@ import {
 	ExpandedReferenceBlocks
 } from '../reference_blocks.js';
 
+import { PageViewElement } from './page-view-element.js';
+
 @customElement('main-view')
-class MainView extends connect(store)(LitElement) {
+class MainView extends connect(store)(PageViewElement) {
 
 	@state()
 	_page: string;
