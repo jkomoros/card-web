@@ -503,7 +503,13 @@ type TimestampToFieldValue<Type> = {
     [Property in keyof Type]: Type[Property] extends Timestamp ? FieldValue : Type[Property]
 };
 
-export type CardUpdate = TimestampToFieldValue<OptionalFieldsCard>;
+//Firebase updates allow arrayUnion and arrayRemove sentinels
+//TODO: arent' there at least some fields that are deletable (e.g. FieldValue:deleteSentinel)
+type ArrayToFieldValueUnion<Type> = {
+    [Property in keyof Type]: Type[Property] extends any[] ? Type[Property] | FieldValue : Type[Property]
+}
+
+export type CardUpdate = ArrayToFieldValueUnion<TimestampToFieldValue<OptionalFieldsCard>>;
 
 //These are fields in CardDiff that cannot be auto-merged when edits are made by
 //someone else.
