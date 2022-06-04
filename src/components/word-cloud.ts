@@ -1,4 +1,5 @@
 import { html, LitElement } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
 
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -16,8 +17,17 @@ import {
 
 import './tag-list.js';
 
+import {
+	WordCloud as WordCloudType
+} from '../types.js';
+
+@customElement('word-cloud')
 export class WordCloud extends connect(store)(LitElement) {
-	render() {
+
+	@property({ type : Array })
+	wordCloud: WordCloudType;
+
+	override render() {
 		return html`
 		<tag-list .tags=${this._effectiveWordCloud[0]} .tagInfos=${this._effectiveWordCloud[1]} defaultColor='var(--app-primary-color)' .tapEvents=${true} @tag-tapped=${this._handleTagTapped}></tag-list>
 	`;
@@ -42,12 +52,10 @@ export class WordCloud extends connect(store)(LitElement) {
 		
 	}
 
-	static get properties() {
-		return {
-			wordCloud: {type:Object},
-		};
-	}
-
 }
 
-window.customElements.define('word-cloud', WordCloud);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'word-cloud': WordCloud;
+	}
+}
