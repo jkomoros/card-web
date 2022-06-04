@@ -249,7 +249,7 @@ class MainView extends connect(store)(PageViewElement) {
 				font-size:12px;
 			}
 
-			.toolbar-list > a[selected] {
+			.toolbar-list > a[data-selected] {
 				color: var(--app-header-selected-color);
 				border-bottom: 4px solid var(--app-header-selected-color);
 			}
@@ -258,7 +258,7 @@ class MainView extends connect(store)(PageViewElement) {
 				fill: var(--app-header-text-color);
 			}
 
-			.toolbar-list > a[selected] > svg {
+			.toolbar-list > a[data-selected] > svg {
 				fill: var(--app-header-selected-color);
 			}
 
@@ -342,7 +342,7 @@ class MainView extends connect(store)(PageViewElement) {
 					<div data-main-title>${this._appTitleFirstPart}<span>${this._appTitleSecondPart}</span></div>
 					<div class='spacer'></div>
 					<nav class="toolbar-list">
-						${this._tabs.map(tab => html`<a class='${tab.icon ? 'icon-item' : ''}' title='${tab.display_name}' ?selected=${tab.expandedCollection && tab.expandedCollection.equivalent(this._collectionDescription)} href='${tab.href ? tab.href : '/' + PAGE_DEFAULT + '/' + tab.expandedCollection.serializeShort()}' target=${tab.href ? '_blank': ''} ?hidden=${tab.hide || (tab.hideIfEmpty && this._countsForTabs[tab.expandedCollection.serialize()] === 0)}>${tab.icon ? html`${tab.icon} ${tab.count ? html`<span>${this._countsForTabs[tab.expandedCollection.serialize()]}</span>` : ''}` : tab.italics ? html`<em>${tab.display_name}</em>` : html`${tab.display_name}`}</a>`)}
+						${this._tabs.map(tab => html`<a class='${tab.icon ? 'icon-item' : ''}' title='${tab.display_name}' ?data-selected=${tab.expandedCollection && tab.expandedCollection.equivalent(this._collectionDescription)} href='${tab.href ? tab.href : '/' + PAGE_DEFAULT + '/' + tab.expandedCollection.serializeShort()}' target=${tab.href ? '_blank': ''} ?hidden=${tab.hide || (tab.hideIfEmpty && this._countsForTabs[tab.expandedCollection.serialize()] === 0)}>${tab.icon ? html`${tab.icon} ${tab.count ? html`<span>${this._countsForTabs[tab.expandedCollection.serialize()]}</span>` : ''}` : tab.italics ? html`<em>${tab.display_name}</em>` : html`${tab.display_name}`}</a>`)}
 					</nav>
 					<div class='spacer dev'>
 						${this._devMode ? html`DEVMODE` : ''}
