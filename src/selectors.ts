@@ -1169,7 +1169,7 @@ export const selectTabCollectionFallbacks = createSelector(
 		let result = {};
 		for (const item of config) {
 			if (!item.fallback_cards) continue;
-			result[item.collection.serialize()] = item.fallback_cards.map(idOrSlug => slugIndex[idOrSlug] || idOrSlug);
+			result[item.expandedCollection.serialize()] = item.fallback_cards.map(idOrSlug => slugIndex[idOrSlug] || idOrSlug);
 		}
 		return result;
 	}
@@ -1182,7 +1182,7 @@ export const selectTabCollectionStartCards = createSelector(
 		let result = {};
 		for (const item of config) {
 			if (!item.start_cards) continue;
-			result[item.collection.serialize()] = item.start_cards.map(idOrSlug => slugIndex[idOrSlug] || idOrSlug);
+			result[item.expandedCollection.serialize()] = item.start_cards.map(idOrSlug => slugIndex[idOrSlug] || idOrSlug);
 		}
 		return result;
 	}
@@ -1458,7 +1458,7 @@ export const selectCountsForTabs = createSelector(
 		let result = {};
 		for (let tab of tabs) {
 			if (!tab.count) continue;
-			result[tab.collection.serialize()] = tab.collection.collection(args).numCards;
+			result[tab.expandedCollection.serialize()] = tab.expandedCollection.collection(args).numCards;
 		}
 		return result;
 	}

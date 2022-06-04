@@ -34,8 +34,9 @@ export const READING_LIST_FALLBACK_CARD = 'about-reading-lists';
 export const STARS_FALLBACK_CARD = 'about-stars';
 
 export type TabConfig = TabConfigItem[];
+export type ExpandedTabConfig = ExpandedTabConfigItem[];
 
-type TabConfigItem = {
+interface TabConfigItem {
 	//If set, will expand in line for the named expansion. See src/tabs.js for named expansions.
 	//Applies recursively until no expansions remain.
 	//Note that 'sections' is a special value that will expand to the current values of sections.
@@ -71,7 +72,12 @@ type TabConfigItem = {
 	default?: boolean
 }
 
-export const tabConfiguration = (config : TabConfig, sections : Sections, tags : Sections) : TabConfig => {
+interface ExpandedTabConfigItem extends TabConfigItem {
+	expandedCollection: CollectionDescription,
+	expandedIcon: TemplateResult
+}
+
+export const tabConfiguration = (config : TabConfig, sections : Sections, tags : Sections) : ExpandedTabConfig => {
 	if (!config) config = DEFAULT_CONFIG;
 	let array = config;
 	let lastArray = [];
@@ -91,19 +97,15 @@ export const tabConfiguration = (config : TabConfig, sections : Sections, tags :
 	return inflateCollectionsAndIcons(array);
 };
 
-const inflateCollectionsAndIcons = (config : TabConfig) : TabConfig => {
+const inflateCollectionsAndIcons = (config : TabConfig) : ExpandedTabConfig => {
 	let result = [];
 	for (let item of config) {
-		let itemToAdd = {...item};
-		if (item.collection && !(item.collection instanceof CollectionDescription)) {
-			itemToAdd.collection = CollectionDescription.deserialize(item.collection);
-		}
-		if (item.icon && typeof item.icon == 'string') {
-			itemToAdd.icon = icons[item.icon];
-			if (!itemToAdd.icon) {
-				console.warn('Invalid icon name: ' + item.icon);
-			}
-		}
+		let itemToAdd : ExpandedTabConfigItem = {
+			...item,
+			expandedCollection:  (item.collection instanceof CollectionDescription) ? item.collection : CollectionDescription.deserialize(item.collection),
+			expandedIcon: (typeof item.icon != 'string') ? item.icon : icons[item.icon]
+		};
+		if (item.icon && !itemToAdd.expandedIcon) console.warn('Invalid icon name: ' + item.icon);
 		result.push(itemToAdd);
 	}
 	return result;
