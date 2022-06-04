@@ -1,4 +1,5 @@
 import { html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -61,10 +62,56 @@ import './tag-list.js';
 import './word-cloud.js';
 import './reference-block.js';
 
+import {
+	Author,
+	Card,
+	State,
+	TagInfos,
+	TweetMap,
+	WordCloud
+} from '../types.js';
 
+import {
+	ExpandedReferenceBlocks
+} from '../reference_blocks.js';
+
+@customElement('card-info-panel')
 class CardInfoPanel extends connect(store)(PageViewElement) {
 
-	static styles = [
+	@state()
+	_open: boolean;
+
+	@state()
+	_card: Card;
+
+	@state()
+	_sectionTitle: string;
+
+	@state()
+	_author: Author;
+
+	@state()
+	_collaborators: Author[];
+
+	@state()
+	_tagInfos: TagInfos;
+
+	@state()
+	_referenceBlocks: ExpandedReferenceBlocks;
+
+	@state()
+	_tweets: TweetMap;
+
+	@state()
+	_tweetsLoading: boolean;
+
+	@state()
+	_wordCloud: WordCloud;
+
+	@state()
+	_expensivePropertiesTimeout: number;
+
+	static override styles = [
 		ScrollingSharedStyles,
 		HelpStyles,
 		SharedStyles,
@@ -124,7 +171,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		`
 	];
 
-	render() {
+	override render() {
 		return html`
 			<h3 ?hidden=${!this._open}>Card Info</h3>
 			<div class='container scroller' ?hidden=${!this._open}>
@@ -182,8 +229,8 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				<div>
 					<h4>Author</h4>
 					<p><author-chip .author=${this._author}></author-chip></p>
-					${this._collaborators.length ?
-		html`<h4>Collaborator${this._collaborators.length > 1 ? 's' : ''}</h4>
+					${this._collaborators && this._collaborators.length ?
+		html`<h4>Collaborator${this._collaborators && this._collaborators.length > 1 ? 's' : ''}</h4>
 					<p>
 					${this._collaborators.map(item => html`<author-chip .author=${item}></author-chip>`)}
 					</p>
@@ -201,25 +248,11 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._wordCloud = emptyWordCloud();
 	}
 
-	static get properties() {
-		return {
-			_open: {type: Boolean},
-			_card: {type: Object},
-			_sectionTitle: { type: String},
-			_author: {type:Object},
-			_tagInfos: {type: Object},
-			_referenceBlocks: {type:Array},
-			_tweets: {type: Object},
-			_tweetsLoading: {type: Boolean},
-			_wordCloud: { type:Object},
-		};
-	}
-
 	_tweet(tweet) {
 		return html`<li><a href='${urlForTweet(tweet)}' target='_blank'>${prettyTime(tweet.created)}</a> ${FAVORITE_ICON} ${tweet.favorite_count} ${REPEAT_ICON} ${tweet.retweet_count}</li>`;
 	}
 
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		this._open = selectCommentsAndInfoPanelOpen(state);
 		this._card = selectActiveCard(state) || {};
 		this._sectionTitle = sectionTitle(state, this._card ? this._card.section : '');
@@ -245,7 +278,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		
 	}
 
-	updated(changedProps) {
+	override updated(changedProps) {
 		if (changedProps.has('_card') || changedProps.has('_open')) {
 			if (this._open && this._card && Object.values(this._card).length != 0) {
 				store.dispatch(fetchTweets(this._card));
@@ -255,4 +288,8 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 
 }
 
-window.customElements.define('card-info-panel', CardInfoPanel);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'card-info-panel': CardInfoPanel;
+	}
+}
