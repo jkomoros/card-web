@@ -45,7 +45,8 @@ import {
 	collection,
 	arrayUnion,
 	arrayRemove,
-	serverTimestamp
+	serverTimestamp,
+	Timestamp
 } from 'firebase/firestore';
 
 import {
@@ -673,7 +674,7 @@ export const defaultCardObject = (id : CardID, user : UserInfo, section : Sectio
 		published: false,
 		images: [],
 		auto_todo_overrides: {},
-		last_tweeted: new Date(0),
+		last_tweeted: Timestamp.fromDate(new Date(0)),
 		tweet_count: 0
 	};
 };
