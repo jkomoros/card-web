@@ -1054,20 +1054,21 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 		const ref = doc(db, CARDS_COLLECTION, otherCardID);
 		batch.update(ref, otherCardUpdate);
 	}
-
-	for (let tagName of newCard.tags) {
-		let tagRef = doc(db, TAGS_COLLECTION, tagName);
-		let tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
-		let newTagObject = {
-			cards: arrayUnion(id),
-			updated: serverTimestamp()
-		};
-		let newTagUpdateObject = {
-			timestamp: serverTimestamp(),
-			add_card: id,
-		};
-		batch.update(tagRef, newTagObject);
-		batch.set(tagUpdateRef, newTagUpdateObject);
+	if (Array.isArray(newCard.tags)) {
+		for (let tagName of newCard.tags) {
+			let tagRef = doc(db, TAGS_COLLECTION, tagName);
+			let tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
+			let newTagObject = {
+				cards: arrayUnion(id),
+				updated: serverTimestamp()
+			};
+			let newTagUpdateObject = {
+				timestamp: serverTimestamp(),
+				add_card: id,
+			};
+			batch.update(tagRef, newTagObject);
+			batch.set(tagUpdateRef, newTagUpdateObject);
+		}
 	}
 
 	if (section) {
