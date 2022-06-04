@@ -169,7 +169,8 @@ import {
 	CardUpdate,
 	CardType,
 	UserInfo,
-	SectionID
+	SectionID,
+	Slug
 } from '../types.js';
 
 
@@ -465,11 +466,11 @@ const setPendingSlug = (slug) => {
 	};
 };
 
-const addLegalSlugToCard = (cardID, legalSlug, setName) => {
+const addLegalSlugToCard = (cardID : CardID, legalSlug : Slug, setName? : boolean) => {
 	//legalSlug must already be verified to be legal.
 	let batch = writeBatch(db);
 	const cardRef = doc(db, CARDS_COLLECTION, cardID);
-	let update = {
+	let update : CardUpdate = {
 		slugs: arrayUnion(legalSlug),
 		updated: serverTimestamp(),
 	};
