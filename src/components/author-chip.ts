@@ -1,9 +1,15 @@
 
 import { LitElement, html, css } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
+import { Author } from '../types.js';
 
+@customElement('author-chip')
 class AuthorChip extends LitElement {
 
-	static styles = [
+	@property( { type: Object })
+	author : Author;
+
+	static override styles = [
 		css`
 			div {
 				display:flex;
@@ -24,7 +30,7 @@ class AuthorChip extends LitElement {
 		`
 	];
 
-	render() {
+	override render() {
 		return html`
 			<div>
 				<img src='${this.author && this.author.photoURL ? this.author.photoURL : '/images/person.svg'}'>
@@ -32,12 +38,10 @@ class AuthorChip extends LitElement {
 			</div>
 			`;
 	}
-
-	static get properties() {
-		return {
-			author: { type: Object },
-		};
-	}
 }
 
-window.customElements.define('author-chip', AuthorChip);
+declare global {
+	interface HTMLElementTagNameMap {
+	  "author-chip": AuthorChip;
+	}
+  }

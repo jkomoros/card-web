@@ -9,6 +9,7 @@
     "inlineSources": true,
     "rootDir": "./src",
     "noUnusedLocals": true,
+    "useDefineForClassFields": false,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
