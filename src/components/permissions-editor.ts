@@ -1,5 +1,5 @@
-
 import { LitElement, html, css } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -33,13 +33,50 @@ import {
 
 import './tag-list.js';
 
+import {
+	State,
+	Uid,
+	UserPermissions,
+	UserPermissionsMap,
+	UserPermissionsForCards,
+	AuthorsMap,
+	TagInfos
+} from '../types.js';
+
 const ALL_PERMISSIONS = Object.fromEntries(Object.entries(PERMISSIONS_INFO).map(entry => [entry[0], {...entry[1], id: entry[0], title:entry[1].displayName, suppressLink:true}]));
 const MODIFIABLE_PERMISSIONS = Object.fromEntries(Object.entries(ALL_PERMISSIONS).filter(entry => !entry[1].locked));
 const LOCKED_PERMISSIONS = Object.fromEntries(Object.entries(ALL_PERMISSIONS).filter(entry => entry[1].locked));
 
+@customElement('permissions-editor')
 class PermissionsEditor extends connect(store)(LitElement) {
 
-	static styles = [
+	@property({ type : Object })
+	permissions: UserPermissions;
+	
+	//If provided, will title it this
+	@property({ type : String })
+	override title: string;
+
+	@property({ type : String })
+	description: string;
+
+	//If provided, will show the permissions for the given user
+	@property({ type : String })
+	uid: Uid;
+
+	@state()
+	_allPermissions: UserPermissionsMap;
+
+	@state()
+	_userPermissionsForCardsMap: UserPermissionsForCards;
+
+	@state()
+	_authors: AuthorsMap;
+
+	@state()
+	_tagInfosForCards: TagInfos;
+
+	static override styles = [
 		css`
 			:host {
 				display: block;
@@ -86,7 +123,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 		`
 	];
 
-	render() {
+	override render() {
 		const lockedPermissionColor = '#7f7f7f';
 		const enabledPermissionColor = '#006400'; //darkgreen
 
@@ -107,22 +144,6 @@ class PermissionsEditor extends connect(store)(LitElement) {
 				</div>
 			</div>
 			`;
-	}
-
-	static get properties() {
-		return {
-			//If provided, will use this
-			permissions: { type: Object },
-			//If provided, will title it this
-			title: { type: String },
-			description: { type: String},
-			//If provided, will show the permissions for the given user
-			uid: { type: String },
-			_allPermissions: { type: Object },
-			_userPermissionsForCardsMap: { type: Object },
-			_authors: { type: Object },
-			_tagInfosForCards: {type: Object},
-		};
 	}
 
 	get _editable() {
@@ -160,7 +181,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 		return Object.entries(this._effectivePermissions).filter(entry => entry[1]).map(entry => entry[0]).filter(item => LOCKED_PERMISSIONS[item]);
 	}
 
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		this._allPermissions = selectAllPermissions(state);
 		this._authors = selectAuthors(state);
 		this._userPermissionsForCardsMap = selectUserPermissionsForCardsMap(state);
@@ -219,4 +240,8 @@ class PermissionsEditor extends connect(store)(LitElement) {
 
 }
 
-window.customElements.define('permissions-editor', PermissionsEditor);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'permissions-editor': PermissionsEditor;
+	}
+}
