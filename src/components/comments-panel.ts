@@ -1,4 +1,5 @@
 import { html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -39,9 +40,33 @@ import {
 	PageViewElement
 } from './page-view-element.js';
 
+import {
+	Card,
+	ComposedCommentThread,
+	State
+} from '../types.js';
+
+@customElement('comments-panel')
 class CommentsPanel extends connect(store)(PageViewElement) {
 	
-	static styles = [
+	@state()
+	_open: boolean;
+
+	@state()
+	_card: Card;
+
+	//If the card showing is a fallback card shown for an empty thing,
+	//disallow comments.
+	@state()
+	_collectionIsFallback: boolean;
+
+	@state()
+	_composedThreads: ComposedCommentThread[]
+
+	@state()
+	_userMayComment: boolean;
+
+	static override styles = [
 		ButtonSharedStyles,
 		ScrollingSharedStyles,
 		SharedStyles,
@@ -86,7 +111,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 		`
 	];
 	
-	render() {
+	override render() {
 		return html`
 
 	  <div ?hidden=${!this._open} class='container ${this._composedThreads.length ? '' : 'no-comments'}'>
@@ -102,18 +127,6 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 			</div>
 		</div>
 	`;
-	}
-
-	static get properties() {
-		return {
-			_open: {type: Boolean},
-			_card: {type: Object},
-			//If the card showing is a fallback card shown for an empty thing,
-			//disallow comments.
-			_collectionIsFallback: {type:Boolean},
-			_composedThreads: {type: Array},
-			_userMayComment: { type: Boolean},
-		};
 	}
 
 	_handleShowNeedSignin() {
@@ -153,7 +166,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 		store.dispatch(resolveThread(e.detail.thread));
 	}
 
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		this._open = selectCommentsAndInfoPanelOpen(state);
 		this._card = selectActiveCard(state);
 		const activeCollection = selectActiveCollection(state);
@@ -163,4 +176,8 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 	}
 }
 
-window.customElements.define('comments-panel', CommentsPanel);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'comments-panel': CommentsPanel;
+	}
+}
