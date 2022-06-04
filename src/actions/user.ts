@@ -76,7 +76,8 @@ import {
 } from '../selectors.js';
 
 import {
-	UserInfo
+	UserInfo,
+	Card
 } from '../types.js';
 
 let prevAnonymousMergeUser = null;
@@ -566,7 +567,7 @@ export const markActiveCardReadIfLoggedIn = () => (dispatch, getState) => {
 	dispatch(markRead(activeCard, true));
 };
 
-export const markRead = (cardToMarkRead, existingReadDoesNotError) => (_, getState) => {
+export const markRead = (cardToMarkRead : Card, existingReadDoesNotError? : boolean) => (_, getState) => {
 
 	if (!cardToMarkRead || !cardToMarkRead.id) {
 		console.log('Invalid card provided');
