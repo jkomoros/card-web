@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -83,9 +84,83 @@ import {
 	CARD_HEIGHT_IN_EMS
 } from './card-renderer.js';
 
+import {
+	BadgeMap,
+	Card,
+	State,
+	Uid
+} from '../types.js';
+
+import {
+	CollectionDescription
+} from '../collection_description.js';
+
+import {
+	ExpandedTabConfig,
+} from '../tabs.js';
+
+import {
+	ExpandedReferenceBlocks
+} from '../reference_blocks.js';
+
+@customElement('main-view')
 class MainView extends connect(store)(LitElement) {
 
-	static styles = [
+	@state()
+	_page: string;
+
+	@state()
+	_headerPanelOpen: boolean;
+
+	@state()
+	_editing: boolean;
+
+	@state()
+	_devMode: boolean;
+
+	@state()
+	_card: Card;
+
+	@state()
+	_collectionDescription: CollectionDescription;
+
+	@state()
+	_tabs: ExpandedTabConfig;
+
+	@state()
+	_countsForTabs : {[serializedCollectionDescription : string] : number }
+
+	@state()
+	_keyboardNavigates: boolean;
+
+	@state()
+	_activePreviewCard: Card;
+
+	@state()
+	_previewCardX : number;
+
+	@state()
+	_previewCardY : number;
+
+	@state()
+	_previewCardReferenceBlocks: ExpandedReferenceBlocks;
+
+	@state()
+	_mayViewUnpublished : boolean;
+
+	@state()
+	_mayViewApp: boolean;
+
+	@state()
+	_userPermissionsFinal: boolean;
+
+	@state()
+	_uid : Uid;
+
+	@state()
+	_badgeMap: BadgeMap;
+
+	static override styles = [
 		css`
 			.container {
 				height:100vh;
@@ -250,7 +325,7 @@ class MainView extends connect(store)(LitElement) {
 		`
 	];
 
-	render() {
+	override render() {
 		// Anything that's related to rendering should be done in here.
 		return html`
 		<div @mousemove=${this._handleMouseMove} class='container ${this._mayViewApp ? '' : 'may-not-view'}'>
@@ -298,30 +373,6 @@ class MainView extends connect(store)(LitElement) {
 		`;
 	}
 
-	static get properties() {
-		return {
-			_page: { type: String },
-			_headerPanelOpen: {type: Boolean },
-			_editing: { type: Boolean },
-			_devMode: { type: Boolean },
-			_card: { type: Object },
-			_collectionDescription: { type: Object},
-			_tabs: { type: Array },
-			_countsForTabs : {type: Object},
-			_keyboardNavigates: {type:Boolean},
-			_swRegistration : {type:Object},
-			_activePreviewCard: { type:Object },
-			_previewCardX : { type:Number },
-			_previewCardY : { type:Number },
-			_previewCardReferenceBlocks: { type: Array},
-			_mayViewUnpublished : { type:Boolean },
-			_mayViewApp: { type:Boolean },
-			_userPermissionsFinal: { type:Boolean },
-			_uid : { type:String },
-			_badgeMap: {type:Object},
-		};
-	}
-
 	get appTitle() {
 		return APP_TITLE;
 	}
@@ -334,7 +385,7 @@ class MainView extends connect(store)(LitElement) {
 		return this.appTitle.substring(this._appTitleFirstPart.length);
 	}
 
-	firstUpdated() {
+	override firstUpdated() {
 		window.addEventListener('resize', () => this._handleResize());
 		this._handleResize();
 		window.addEventListener('keydown', e => this._handleKeyPressed(e));
@@ -360,7 +411,8 @@ class MainView extends connect(store)(LitElement) {
 		//which can be HUGE in landscape mode. So set it to innerHeight
 		//automatically.  See
 		//https://medium.com/@susiekim9/how-to-compensate-for-the-ios-viewport-unit-bug-46e78d54af0d
-		this.shadowRoot.querySelector('.container').style.height = '' + window.innerHeight + 'px';
+		const ele = this.shadowRoot.querySelector('.container') as HTMLElement;
+		ele.style.height = '' + window.innerHeight + 'px';
 	}
 
 	_updatePreviewSize() {
@@ -426,7 +478,7 @@ class MainView extends connect(store)(LitElement) {
 		store.dispatch(hoveredCardMouseMoved());
 	}
 
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		this._card = selectActiveCard(state) || {};
 		this._headerPanelOpen = state.app.headerPanelOpen;
 		this._page = state.app.page;
@@ -447,7 +499,7 @@ class MainView extends connect(store)(LitElement) {
 		this._badgeMap = selectBadgeMap(state);
 	}
 
-	updated(changedProps) {
+	override updated(changedProps) {
 		if (changedProps.has('_mayViewUnpublished')) {
 			if (this._mayViewUnpublished) {
 				connectLiveUnpublishedCards();
@@ -470,4 +522,8 @@ class MainView extends connect(store)(LitElement) {
 	}
 }
 
-window.customElements.define('main-view', MainView);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'main-view': MainView;
+	}
+}
