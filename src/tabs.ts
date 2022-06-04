@@ -33,7 +33,7 @@ import {
 export const READING_LIST_FALLBACK_CARD = 'about-reading-lists';
 export const STARS_FALLBACK_CARD = 'about-stars';
 
-type TabConfig = TabConfigItem[];
+export type TabConfig = TabConfigItem[];
 
 type TabConfigItem = {
 	//If set, will expand in line for the named expansion. See src/tabs.js for named expansions.
@@ -71,7 +71,7 @@ type TabConfigItem = {
 	default?: boolean
 }
 
-export const tabConfiguration = (config : TabConfig, sections : Sections, tags : Sections) => {
+export const tabConfiguration = (config : TabConfig, sections : Sections, tags : Sections) : TabConfig => {
 	if (!config) config = DEFAULT_CONFIG;
 	let array = config;
 	let lastArray = [];
@@ -91,7 +91,7 @@ export const tabConfiguration = (config : TabConfig, sections : Sections, tags :
 	return inflateCollectionsAndIcons(array);
 };
 
-const inflateCollectionsAndIcons = (config : TabConfig) => {
+const inflateCollectionsAndIcons = (config : TabConfig) : TabConfig => {
 	let result = [];
 	for (let item of config) {
 		let itemToAdd = {...item};
