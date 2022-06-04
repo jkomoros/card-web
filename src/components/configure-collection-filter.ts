@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit';
+import { customElement, property } from 'lit/decorators';
 import { repeat } from 'lit/directives/repeat.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
@@ -40,10 +41,30 @@ import './configure-collection-key-card.js';
 import './configure-collection-multiple-cards.js';
 import './configure-collection-date.js';
 
-// This element is *not* connected to the Redux store.
+import {
+	TagInfos,
+	Uid
+} from '../types.js';
+
+@customElement('configure-collection-filter')
 class ConfigureCollectionFilter extends LitElement {
 
-	static styles = [
+	@property({ type : Number })
+	index: number;
+
+	@property({ type : String })
+	value: string;
+
+	@property({ type : Object })
+	filterDescriptions: {[name : string] : string}
+
+	@property({ type : Array })
+	userIDs: Uid[];
+
+	@property({ type : Object })
+	cardTagInfos: TagInfos
+
+	static override styles = [
 		ButtonSharedStyles,
 		HelpStyles,
 		css`
@@ -68,7 +89,7 @@ class ConfigureCollectionFilter extends LitElement {
 		`
 	];
 
-	render() {
+	override render() {
 		const [firstFilterPart] = splitCompoundFilter(this.value);
 		//TODO: handle combined normal filters e.g. `working-notes+content`
 		const unionFilterPieces = splitUnionFilter(firstFilterPart);
@@ -181,15 +202,10 @@ class ConfigureCollectionFilter extends LitElement {
 		this.dispatchEvent(new CustomEvent('filter-modified', {composed: true, detail: {value: fullText, index: this.index}}));
 	}
 
-	static get properties() {
-		return {
-			index: { type: Number },
-			value: { type: String },
-			filterDescriptions: {type:Object},
-			userIDs: { type: Array},
-			cardTagInfos: {type:Object},
-		};
-	}
 }
 
-window.customElements.define('configure-collection-filter', ConfigureCollectionFilter);
+declare global {
+	interface HTMLElementTagNameMap {
+		'configure-collection-filter': ConfigureCollectionFilter;
+	}
+}
