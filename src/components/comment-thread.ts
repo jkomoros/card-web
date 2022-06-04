@@ -62,7 +62,7 @@ class CommentThread extends LitElement {
 				<button class='small' title='${this.thread.mayResolve ? 'Resolve comment thread' : 'You may only resolve comment threads you started'}' ?disabled='${!this.thread.mayResolve}' @click=${this._handleResolveClicked}>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
 			<div class='content ${this._expanded ? 'expanded' :''}'>
-				${repeat(this.thread.messages, (message) => message.id, (item) => html`
+				${repeat(this.thread.expandedMessages, (message) => message.id, (item) => html`
 				<comment-message .message=${item}></comment-message>`)}
 				<div class='buttons'>
 				<button class='small ${this.userMayComment ? '' : 'need-signin'}' title='${this.userMayComment ? 'Reply' : 'Sign in to reply'}' @click=${this._handleAddMessage}>${REPLY_ICON}</button>

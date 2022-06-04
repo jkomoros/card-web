@@ -261,7 +261,7 @@ export type Author = {
 export type CommentThreadID = string;
 export type CommentMessageID = string;
 
-export type CommentMessage = {
+export interface CommentMessage {
     id: CommentMessageID
     author: Uid,
     card: CardID,
@@ -272,7 +272,12 @@ export type CommentMessage = {
     updated: Timestamp
 };
 
-export type CommentThread = {
+export interface ComposedCommentMessage extends CommentMessage {
+    expandedAuthor: Author,
+    mayEdit: boolean,
+}
+
+export interface CommentThread {
     id: CommentThreadID,
     author: Uid,
     card: CardID,
@@ -283,6 +288,12 @@ export type CommentThread = {
     resolved: boolean,
     updated: Timestamp,
 };
+
+export interface ComposedCommentThread extends CommentThread {
+    expandedMessages: ComposedCommentMessage[],
+    expandedAuthor: Author,
+    mayResolve: boolean,
+}
 
 export type CommentMessages = {
     [id : CommentMessageID]: CommentMessage

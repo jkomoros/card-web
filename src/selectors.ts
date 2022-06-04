@@ -115,7 +115,18 @@ import {
 
 import {
 	State,
-	Cards
+	Cards,
+	CommentMessageID,
+	CommentMessages,
+	AuthorsMap,
+	CommentThreadID,
+	CommentThreads,
+	ComposedCommentMessage,
+	ComposedCommentThread,
+	CommentThread,
+	CommentMessage,
+	Uid,
+	Author,
 } from './types.js';
 
 const selectState = (state : State) : State => state;
@@ -419,20 +430,20 @@ const selectComposedPermissions = createSelector(
 	(userTypePermissions, userPermissions) => ({...userTypePermissions, ...userPermissions})
 );
 
-const userMayResolveThread = (state, thread) => {
+const userMayResolveThread = (state : State, thread : CommentThread) => {
 	if (selectUserIsAdmin(state)) return true;
 	if (!selectUserMayComment(state)) return false;
 	if (!thread || typeof thread !== 'object') return false;
 	const uid = selectUid(state);
-	return uid == thread.author.id;
+	return uid == thread.author;
 };
 
-const userMayEditMessage = (state, message) => {
+const userMayEditMessage = (state : State, message : CommentMessage) => {
 	if (selectUserIsAdmin(state)) return true;
 	if (!selectUserMayComment(state)) return false;
-	if (!message || !message.author || !message.author.id) return false;
+	if (!message || !message.author) return false;
 	const uid = selectUid(state);
-	return uid == message.author.id;
+	return uid == message.author;
 };
 
 export const selectUid = createSelector(
@@ -883,10 +894,15 @@ export const getAuthorForId = (state, authorId) => {
 	return authorOrDefault(authorId, authors);
 };
 
-const authorOrDefault = (authorId, authors) => {
+const authorOrDefault = (authorId : Uid, authors : AuthorsMap) : Author => {
 	let author = authors[authorId];
 	if (!author){
-		return {displayName: 'Unknown user'};
+		return {
+			id: '',
+			photoURL: '',
+			updated: null,
+			displayName: 'Unknown user'
+		};
 	}
 	return author;
 };
@@ -935,29 +951,31 @@ export const selectActiveCardComposedThreads = createSelector(
 	(state, threadIds, threads, messages, authors) => threadIds.map(id => composedThread(state, id, threads, messages, authors)).filter(thread => !!thread)
 );
 
-const composedThread = (state, threadId, threads, messages, authors) => {
+const composedThread = (state : State, threadId : CommentThreadID, threads : CommentThreads, messages : CommentMessages , authors : AuthorsMap) : ComposedCommentThread => {
 	let originalThread = threads[threadId];
 	if (!originalThread) return null;
-	let thread = {...originalThread};
 	let expandedMessages = [];
-	for (let messageId of Object.values(thread.messages)) {
+	for (let messageId of Object.values(originalThread.messages)) {
 		let message = composedMessage(state, messageId, messages, authors);
 		if (message) expandedMessages.push(message);
 	}
-	thread.messages = expandedMessages;
-	thread.author = authorOrDefault(originalThread.author, authors);
-	thread.mayResolve = userMayResolveThread(state, thread);
-	return thread;
+	return {
+		...originalThread,
+		expandedMessages: expandedMessages,
+		expandedAuthor: authorOrDefault(originalThread.author, authors),
+		mayResolve: userMayResolveThread(state, originalThread),
+	};
 };
 
-const composedMessage = (state, messageId, messages, authors) => {
+const composedMessage = (state : State, messageId : CommentMessageID, messages : CommentMessages, authors : AuthorsMap) : ComposedCommentMessage => {
 	//TODO: return composed children for threads if there are parents
 	let originalMessage = messages[messageId];
 	if (!originalMessage) return null;
-	let message = {...originalMessage};
-	message.author = authorOrDefault(originalMessage.author, authors);
-	message.mayEdit = userMayEditMessage(state, message);
-	return message;
+	return {
+		...originalMessage,
+		expandedAuthor: authorOrDefault(originalMessage.author, authors),
+		mayEdit: userMayEditMessage(state, originalMessage)
+	};
 };
 
 export const selectUserDataIsFullyLoaded = createSelector(

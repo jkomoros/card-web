@@ -57,7 +57,7 @@ class CommentMessage extends LitElement {
 		return html`
 			<div class='container'>
 				<div class='row'>
-					<author-chip .author=${this.message.author}></author-chip>
+					<author-chip .author=${this.message.expandedAuthor}></author-chip>
 					<div ?hidden=${!this.message.mayEdit}>
 						<button class='small' ?hidden=${this.message.deleted} @click=${this._handleDeleteClicked}>${DELETE_FOREVER_ICON}</button>
 						<button class='small' @click=${this._handleEditClicked}>${EDIT_ICON}</button>
