@@ -1,18 +1,29 @@
 import { LitElement, html, css } from 'lit';
+import { customElement, property } from 'lit/decorators';
 
 import {
 	parseMultipleCardIDs,
 	combineMultipleCardIDs
 } from '../filters.js';
 
+import {
+	TagInfos
+} from '../types.js';
+
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import './tag-list.js';
 
-// This element is *not* connected to the Redux store.
+@customElement('configure-collection-multiple-cards')
 class ConfigureCollectionMultipleCards extends LitElement {
 
-	static styles = [
+	@property({ type : String })
+	value: string;
+
+	@property({ type : Object })
+	cardTagInfos: TagInfos;
+
+	static override styles = [
 		ButtonSharedStyles,
 		css`
 			:host {
@@ -25,7 +36,7 @@ class ConfigureCollectionMultipleCards extends LitElement {
 		`
 	];
 
-	render() {
+	override render() {
 		let cardIDs = parseMultipleCardIDs(this.value);
 		return html`
 			<div>
@@ -62,12 +73,10 @@ class ConfigureCollectionMultipleCards extends LitElement {
 		this._dispatchNewValue(combineMultipleCardIDs(oldValues.map(item => item == e.detail.tag ? cardID : item)));
 	}
 
-	static get properties() {
-		return {
-			value: { type: String },
-			cardTagInfos: { type: Object},
-		};
-	}
 }
 
-window.customElements.define('configure-collection-multiple-cards', ConfigureCollectionMultipleCards);
+declare global {
+	interface HTMLElementTagNameMap {
+		'configure-collection-multiple-cards': ConfigureCollectionMultipleCards;
+	}
+}
