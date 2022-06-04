@@ -70,7 +70,7 @@ class CommentMessage extends LitElement {
 						<button class='small' ?hidden=${this.message.deleted} @click=${this._handleDeleteClicked}>${DELETE_FOREVER_ICON}</button>
 						<button class='small' @click=${this._handleEditClicked}>${EDIT_ICON}</button>
 					</div>
-					<button class='small' alt='Link to this comment' @click=${this._handleLinkClicked}>${BASELINK_LINK_ICON}</button>
+					<button class='small' @click=${this._handleLinkClicked}>${BASELINK_LINK_ICON}</button>
 				</div>
 				<span>${prettyTime(this.message.updated)}</span>
 				<div>
