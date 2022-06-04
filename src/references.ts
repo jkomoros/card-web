@@ -560,7 +560,7 @@ const expandedReferences = (referencesInfo : ReferencesInfoMap) => {
 	return result;
 };
 
-function isExpandedReferenceDelete(obj : ExpandedReferenceObject | ExpandedReferenceDelete) : obj is ExpandedReferenceDelete {
+export function isExpandedReferenceDelete(obj : ExpandedReferenceObject | ExpandedReferenceDelete) : obj is ExpandedReferenceDelete {
 	return (obj as ExpandedReferenceDelete).delete != undefined;
 }
 
