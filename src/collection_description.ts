@@ -41,7 +41,8 @@ import {
 	WebInfo,
 	FilterMap,
 	FilterExtras,
-	CardIDMap
+	CardIDMap,
+	CardBooleanMap
 } from './types.js';
 
 import {
@@ -573,7 +574,7 @@ const makeCombinedFilter = (includeSets : FilterMap[], excludeSets : FilterMap[]
 	};
 };
 
-export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterDefinitionItem, extras : FilterExtras) : [filter : FilterMap, reverse : boolean, sortExtra : SortExtra | null, partialMathces : PartialMatches | null ]=> {
+export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterDefinitionItem, extras : FilterExtras) : [filter : FilterMap, reverse : boolean, sortExtra : SortExtra | null, partialMathces : CardBooleanMap | null ]=> {
 	const filterSetMemberships = extras.filterSetMemberships;
 	if (filterNameIsUnionFilter(filterDefinitionItem)) {
 		return [makeFilterUnionSet(filterDefinitionItem, filterSetMemberships, extras.cards), false, null, null];
@@ -615,12 +616,8 @@ type FilterDefinitionItem = string;
 
 type FilterDefinition = FilterDefinitionItem[];
 
-type PartialMatches = {
-	[cardID : CardID] : boolean
-};
-
 //filterDefinition is an array of filter-set names (concrete or inverse or union-set)
-const combinedFilterForFilterDefinition = (filterDefinition : FilterDefinition, extras : FilterExtras) : [filter : FilterFunc, sortExtras : SortExtras, partialMatches : PartialMatches] => {
+const combinedFilterForFilterDefinition = (filterDefinition : FilterDefinition, extras : FilterExtras) : [filter : FilterFunc, sortExtras : SortExtras, partialMatches : CardBooleanMap] => {
 	let includeSets = [];
 	let excludeSets = [];
 	let sortExtras = {};
@@ -685,7 +682,7 @@ export class Collection {
 	//TODO: correct title casing
 	_preLimitlength : number;
 	_sortExtras : SortExtras;
-	_partialMatches : PartialMatches;
+	_partialMatches : CardBooleanMap;
 	_sortInfo : Map<CardID, [sortValue : number, label : string]>;
 	_webInfo : WebInfo;
 
