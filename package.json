@@ -23,6 +23,7 @@
     "test:objpath": "mocha -r esm test/objpath --timeout=10000"
   },
   "dependencies": {
+    "@types/express-serve-static-core": "^4.17.21",
     "@polymer/polymer": "^3.4.1",
     "@webcomponents/webcomponentsjs": "^2.4.4",
     "d3": "^6.7.0",
