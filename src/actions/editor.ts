@@ -640,7 +640,7 @@ export const addImageWithFile = (file, index) => async (dispatch, getState) => {
 
 //src must be a fully qualified URL. uploadPath is the filename in the upload
 //bucket, if applicable. If index is undefined, it will add a new item to the end of the list
-export const addImageWithURL = (src, uploadPath = '', index) => async (dispatch, getState) => {
+export const addImageWithURL = (src : string, uploadPath : string = '', index? : number) => async (dispatch, getState) => {
 
 	if (!srcSeemsValid(src)) {
 		alert('Src doesn\'t seem valid. It should start with https or http');
