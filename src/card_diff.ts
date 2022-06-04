@@ -68,7 +68,8 @@ import {
 	CardID,
 	CardDiff,
 	CardUpdate,
-	OptionalFieldsCard
+	OptionalFieldsCard,
+	CardLike
 } from './types.js';
 
 //A JS-native version of the allowed fields in type NonAutoMergeableCardDiff
@@ -441,7 +442,7 @@ export const validateCardDiff = (state : State, underlyingCard : Card, diff : Ca
 
 //Returns an object of cardID -> firebaseUpdate to make to bring the
 //inboundLinks to parity based on the change in beforeCard to afterCard.
-export const inboundLinksUpdates = (cardID : CardID, beforeCard : Card, afterCard : Card) => {
+export const inboundLinksUpdates = (cardID : CardID, beforeCard : CardLike, afterCard : CardLike) => {
 
 	const [changes, deletions] = referencesCardsDiff(beforeCard, afterCard);
 
