@@ -509,6 +509,10 @@ type ArrayToFieldValueUnion<Type> = {
     [Property in keyof Type]: Type[Property] extends any[] ? Type[Property] | FieldValue : Type[Property]
 }
 
+//CardUpdate is a thing htat might be sent to updateDoc(cardRef, update :
+//CardUpdate). Note that in practice there are often additional fields, like the
+//ones added by applyReferencesDiff, like [references_info.abc123.link] =
+//deleteSentinel
 export type CardUpdate = ArrayToFieldValueUnion<TimestampToFieldValue<OptionalFieldsCard>>;
 
 //These are fields in CardDiff that cannot be auto-merged when edits are made by
