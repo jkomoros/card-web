@@ -807,9 +807,13 @@ export type TweetMap = {
     [tweetID : string]: TweetInfo
 }
 
+export type AuthorsMap = {
+    [id : Uid] : Author
+}
+
 export type DataState = {
 	cards: Cards,
-	authors: {[id : Uid]: Author},
+	authors: AuthorsMap,
 	sections: Sections,
 	tags: Tags,
 	slugIndex: {[slug : Slug] : CardID},
