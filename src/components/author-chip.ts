@@ -44,4 +44,4 @@ declare global {
 	interface HTMLElementTagNameMap {
 	  "author-chip": AuthorChip;
 	}
-  }
+}
