@@ -745,6 +745,10 @@ export type MaintenanceTask = {
     version: number,
 };
 
+export interface HTMLElementWithStashedSelectionOffset extends HTMLElement {
+    stashedSelectionOffset?: [number, number]
+}
+
 //TODO: tighten to things like FIND_CARD_TO_PERMISSION et al
 export type FindDialogType = string;
 
@@ -818,6 +822,10 @@ export type AuthorsMap = {
     [id : Uid] : Author
 }
 
+export type CardFieldMap = {
+    [field : CardFieldType] : true
+}
+
 export type DataState = {
 	cards: Cards,
 	authors: AuthorsMap,
@@ -867,7 +875,7 @@ export type EditorState = {
 	editing: boolean,
 	//this is a map of field name to true if it was updated last from content
 	//editable, or false or missing if it wasn't.
-	updatedFromContentEditable: {[field : CardFieldType] : true},
+	updatedFromContentEditable: CardFieldMap,
 	card: Card,
 	//A direct reference to the card, as it was when editing started, in the
 	//cards array. Useful for detecting when the underlying card has changed.
