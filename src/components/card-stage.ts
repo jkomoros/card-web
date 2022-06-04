@@ -1,4 +1,5 @@
 import { html, LitElement, css } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
 
 import {
 	SCREEN_ROTATION_ICON,
@@ -19,9 +20,50 @@ import {
 	setFontSizingCardRendererProvider
 } from '../card_fields.js';
 
+import {
+	Card,
+	CardID,
+	CardFieldMap
+} from '../types.js';
+
+import {
+	ExpandedReferenceBlocks
+} from '../reference_blocks.js';
+
+@customElement('card-stage')
 class CardStage extends LitElement {
 
-	static styles = [
+	@property({ type : Boolean })
+	mobile: boolean;
+
+	@property({ type : Boolean })
+	loading: boolean;
+
+	@property({ type : Boolean })
+	presenting: boolean;
+
+	@property({ type : Boolean })
+	highPadding: boolean;
+
+	@property({ type : Boolean })
+	dataIsFullyLoaded : boolean;
+
+	@property({ type : Boolean })
+	editing: boolean;
+
+	@property({ type : Object })
+	card: Card;
+
+	@property({ type : Object })
+	updatedFromContentEditable: CardFieldMap;
+
+	@property({ type : Array })
+	expandedReferenceBlocks: ExpandedReferenceBlocks;
+
+	@property({ type : Array })
+	suggestedConcepts: CardID[];
+
+	static override styles = [
 		ButtonSharedStyles,
 		SharedStyles,
 		css`
@@ -154,7 +196,7 @@ class CardStage extends LitElement {
 		`
 	];
 
-	render() {
+	override render() {
 		return html`
 		<div id='canvas' class="${this.presenting ? 'presenting' : ''} ${this.editing ? 'editing' : ''} ${this.mobile ? 'mobile' : ''} ${this.loading ? 'loading' : ''}">
 			<div id='portrait-message'>
@@ -167,21 +209,6 @@ class CardStage extends LitElement {
 			<slot name='tags'></slot>
 		</div>
 	`;
-	}
-
-	static get properties() {
-		return {
-			mobile: { type: Boolean},
-			loading: { type: Boolean},
-			presenting: { type: Boolean},
-			highPadding: { type: Boolean},
-			dataIsFullyLoaded : { type: Boolean},
-			editing: { type: Boolean},
-			card: { type: Object},
-			updatedFromContentEditable: { type: Object},
-			expandedReferenceBlocks: {type:Array},
-			suggestedConcepts: {type:Array},
-		};
 	}
 
 	//Call this whenever the card might need to be resized (other than the
@@ -237,11 +264,15 @@ class CardStage extends LitElement {
 		return this.shadowRoot.querySelector('#sizing');
 	}
 
-	firstUpdated() {
+	override firstUpdated() {
 		setFontSizingCardRendererProvider(this);
 		window.addEventListener('resize', () => this.resizeCard());
 		this.resizeCard();
 	}
 }
 
-window.customElements.define('card-stage', CardStage);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'card-stage': CardStage;
+	}
+}
