@@ -67,8 +67,7 @@ export const stemmer = (function(){
 			re,
 			re2,
 			re3,
-			re4,
-			origword = w;
+			re4;
 
 		if (w.length < 3) { return w; }
 
