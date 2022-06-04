@@ -626,6 +626,12 @@ export interface PermissionInfo {
 	legalOnCard? : boolean,
 }
 
+export interface UserPermissionsForCards {
+    [uid : Uid]: {
+        [permissionType : PermissionType]: CardID[]
+    }
+}
+
 export interface PermissionInfoCollection {
 	[name: PermissionType]: PermissionInfo
 }
