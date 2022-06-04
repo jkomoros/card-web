@@ -113,9 +113,9 @@ class CardWebApp extends connect(store)(LitElement) {
 	override render() {
 		// Anything that's related to rendering should be done in here.
 		return html`
-		<main-view ?active=${pageRequiresMainView(this._page)}></main-view>
-		<basic-card-view ?active=${this._page == PAGE_BASIC_CARD}></basic-card-view>
-		<snack-bar ?active="${this._snackbarOpened}">
+		<main-view .active=${pageRequiresMainView(this._page)}></main-view>
+		<basic-card-view .active=${this._page == PAGE_BASIC_CARD}></basic-card-view>
+		<snack-bar .active="${this._snackbarOpened}">
 				You are now ${this._offline ? 'offline' : 'online'}.</snack-bar>
 		`;
 	}
