@@ -73,7 +73,7 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 	_handleDoneClicked() {
 		const ele = this.shadowRoot.querySelector('#src') as HTMLInputElement;
 		const url = ele.value;
-		if (url) store.dispatch(addImageWithURL(url, this._index));
+		if (url) store.dispatch(addImageWithURL(url, '', this._index));
 		store.dispatch(closeImageBrowserDialog());
 	}
 
