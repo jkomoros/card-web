@@ -1,8 +1,13 @@
 import { LitElement, html, css } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
 
+@customElement('snack-bar')
 class SnackBar extends LitElement {
 
-	static styles = [
+	@property({ type : Boolean })
+	active: boolean;
+
+	static override styles = [
 		css`
 			:host {
 				display: block;
@@ -34,15 +39,16 @@ class SnackBar extends LitElement {
 		`
 	];
 
-	render() {
+	override render() {
 		return html`
 			<slot></slot>
 		`;
 	}
 
-	static get properties() { return {
-		active: { type: Boolean },
-	};}
 }
 
-window.customElements.define('snack-bar', SnackBar);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'snack-bar': SnackBar;
+	}
+}
