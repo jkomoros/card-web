@@ -1,4 +1,4 @@
-import { html, css } from 'lit';
+import { html, css, TemplateResult } from 'lit';
 
 import {
 	PLAYLISLT_ADD_CHECK_ICON,
@@ -17,13 +17,19 @@ import {
 	references
 } from '../references.js';
 
-const badge = (name, icon, countOrVisible, highlighted) => {
+import {
+	OptionalFieldsCard
+} from '../types.js';
+
+type BadgeName = string;
+
+const badge = (name : BadgeName, icon : TemplateResult, countOrVisible : boolean | number, highlighted? : boolean) => {
 	const text = typeof countOrVisible == 'number' ? countOrVisible : '';
 	return html`<div class='badge ${name} ${highlighted ? 'highlighted' : ''}' ?hidden=${!countOrVisible}><div>${icon}${text}</div></div>`;
 };
 
 //if you use starBadge, also print out badgeStyles within your component's shadowDOM.
-export const starBadge = (count, highlighted) => {
+export const starBadge = (count : number, highlighted : boolean) => {
 	return badge('star-count', STAR_ICON, count, highlighted);
 };
 
@@ -112,7 +118,7 @@ export const cardBadgesStyles = css`
 `;
 
 //badgeMap is the result of selectBadgeMap (or null is fine); Warning: you also need to embed cardBadgeStyles at least once
-export const cardBadges = (light, card, badgeMap) => {
+export const cardBadges = (light : boolean, card : OptionalFieldsCard, badgeMap) => {
 	if (!badgeMap) badgeMap = {};
 	const starMap = badgeMap.stars || {};
 	const readMap = badgeMap.reads || {};
