@@ -1,4 +1,5 @@
 import { html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -25,7 +26,8 @@ import {
 	collectionDescriptionWithSortReversed,
 	collectionDescriptionWithFilterRemoved,
 	collectionDescriptionWithFilterModified,
-	collectionDescriptionWithFilterAppended
+	collectionDescriptionWithFilterAppended,
+	CollectionDescription
 } from '../collection_description.js';
 
 import {
@@ -40,10 +42,29 @@ import {
 
 import './configure-collection-filter.js';
 
+import {
+	TagInfos,
+	State,
+	Uid
+} from '../types.js';
+
+@customElement('configure-collection-dialog')
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
-	static styles = [
-		DialogElement.styles,
+	@state()
+	_collectionDescription: CollectionDescription;
+
+	@state()
+	_filterDescriptions: {[filterName : string]: string}
+
+	@state()
+	_userIDs: Uid[];
+
+	@state()
+	_cardTagInfos: TagInfos
+
+	static override styles = [
+		...DialogElement.styles,
 		css`
 			.help {
 				font-size:0.75em;
@@ -62,7 +83,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		`
 	];
 
-	innerRender() {
+	override innerRender() {
 		return html`
 			<label>Filters</label>
 			<ul>
@@ -129,21 +150,12 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		store.dispatch(closeConfigureCollectionDialog());
 	}
 
-	_shouldClose() {
+	override _shouldClose() {
 		//Override base class.
 		store.dispatch(closeConfigureCollectionDialog());
 	}
 
-	static get properties() {
-		return {
-			_collectionDescription: {type: Object},
-			_filterDescriptions: {type: Object},
-			_userIDs: {type:Array},
-			_cardTagInfos: {type:Object},
-		};
-	}
-
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = selectConfigureCollectionDialogOpen(state);
 		this._collectionDescription = selectActiveCollectionDescription(state);
@@ -154,4 +166,8 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 }
 
-window.customElements.define('configure-collection-dialog', ConfigureCollectionDialog);
+declare global {
+	interface HTMLElementTagNameMap {
+		'configure-collection-dialog': ConfigureCollectionDialog;
+	}
+}
