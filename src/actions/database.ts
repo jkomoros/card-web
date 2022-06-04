@@ -53,7 +53,8 @@ import {
 } from '../config.GENERATED.SECRET.js';
 
 import {
-	State
+	State,
+	Slug
 } from '../types.js';
 
 export const CARDS_COLLECTION = 'cards';
@@ -80,8 +81,13 @@ export const TWEETS_COLLECTION = 'tweets';
 
 const legalCallable = httpsCallable(functions, 'legal');
 
+type LegalResult = {
+	legal : boolean,
+	reason : string,
+}
+
 //slugLegal returns an object with {legal: bool, reason: string}
-export const slugLegal = async (newSlug) => {
+export const slugLegal = async (newSlug : Slug) : Promise<LegalResult>  => {
 
 	//First, early reject any slugs we already know exist.
 	const slugIndex = selectSlugIndex(store.getState() as State);
@@ -96,7 +102,7 @@ export const slugLegal = async (newSlug) => {
 	if (DISABLE_CALLABLE_CLOUD_FUNCTIONS) return {legal: true, reason: ''};
 
 	const result = await legalCallable({type:'slug', value:newSlug});
-	return result.data;
+	return result.data as LegalResult;
 };
 
 const warmupSlugLegal = (force) : void => {
