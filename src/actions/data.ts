@@ -1120,7 +1120,7 @@ export const deleteCard = (card) => async (dispatch, getState) => {
 
 	let batch = writeBatch(db);
 	let ref = doc(db, CARDS_COLLECTION, card.id);
-	let updates = await getDocs(ref, CARD_UPDATES_COLLECTION);
+	let updates = await getDocs(collection(ref, CARD_UPDATES_COLLECTION));
 	for (let update of updates.docs) {
 		batch.delete(update.ref);
 	}
