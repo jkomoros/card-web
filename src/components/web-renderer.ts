@@ -1,10 +1,29 @@
 import { html, LitElement, svg, css } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
 
 import * as d3 from 'd3';
 
+import {
+	CardID,
+	WebInfo,
+	WebInfoNodeWithLayout,
+	WebInfoWithLayout
+} from '../types';
+
+@customElement('web-renderer')
 export class WebRenderer extends LitElement {
 
-	static styles = [
+	//as returned from e.g. collection.webInfo
+	@property({ type : Object })
+	webInfo: WebInfo;
+
+	@property({ type : String })
+	highlightedCardId: CardID;
+
+	@state()
+	_calculatedGraph: WebInfoWithLayout;
+
+	static override styles = [
 		css`
 			:host {
 				height:100%;
@@ -35,24 +54,15 @@ export class WebRenderer extends LitElement {
 		`
 	];
 
-	render() {
+	override render() {
 		const width = this.offsetWidth;
 		const height = this.offsetHeight;
 		return html`
 		<svg viewBox=${'0 0 ' + width + ' ' + height}>
-			${this._calculatedGraph.edges.map(node => svg`<line x1=${node.source.x} x2=${node.target.x} y1=${node.source.y} y2=${node.target.y} stroke-width='1'></line>`)}	
+			${this._calculatedGraph.edges.map(edge => svg`<line x1=${edge.source.x} x2=${edge.target.x} y1=${edge.source.y} y2=${edge.target.y} stroke-width='1'></line>`)}	
 			${this._calculatedGraph.nodes.map(node => svg`<circle id=${node.id} title=${node.name} r='4' cx=${node.x} cy=${node.y} class=${node.id == this.highlightedCardId ? 'highlighted' : ''} @click=${this._handleThumbnailClick} @mousemove=${this._handleThumbnailMouseMove}></circle>`)}
 		</svg>
 	`;
-	}
-
-	static get properties() {
-		return {
-			//as returned from e.g. collection.webInfo
-			webInfo: {type:Object},
-			highlightedCardId: { type:String },
-			_calculatedGraph: { type:Object }
-		};
 	}
 
 	_handleThumbnailClick(e) {
@@ -71,7 +81,7 @@ export class WebRenderer extends LitElement {
 		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: id, x: e.clientX, y: e.clientY}}));
 	}
 
-	_recalcGraph() {
+	_recalcGraph() : WebInfoWithLayout {
 		//Make a deep copy of the graph, because d3 will operate on it.
 		const graph = {...this.webInfo};
 		if (Object.keys(graph).length == 0) return {nodes:[], edges:[]};
@@ -92,8 +102,10 @@ export class WebRenderer extends LitElement {
 			.links(graph.edges);
 		
 		for (var i = 0; i < 300; ++i) simulation.tick();
-
-		return graph;
+		return {
+			nodes: graph.nodes as WebInfoNodeWithLayout[],
+			edges: graph.edges.map(edge => ({source: edge.source as unknown as WebInfoNodeWithLayout, target: edge.target as unknown as  WebInfoNodeWithLayout, value: edge.value})),
+		};
 	}
 
 	constructor() {
@@ -101,7 +113,7 @@ export class WebRenderer extends LitElement {
 		this._calculatedGraph = {nodes:[], edges:[]};
 	}
 
-	updated(changedProps) {
+	override updated(changedProps) {
 		if (changedProps.has('webInfo')) {
 			this._calculatedGraph = this._recalcGraph();
 		}
@@ -109,4 +121,8 @@ export class WebRenderer extends LitElement {
 
 }
 
-window.customElements.define('web-renderer', WebRenderer);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'web-renderer': WebRenderer;
+	}
+}
