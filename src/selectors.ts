@@ -1146,13 +1146,13 @@ export const selectDefaultCollectionDescription = createSelector(
 	selectSectionsAndTagsLoaded,
 	(tabConfig, sectionsAndTagsLoaded) => {
 		for (const tab of tabConfig) {
-			if (tab.default) return tab.collection;
+			if (tab.default) return tab.expandedCollection;
 		}
 		//If everything is laoded and we still don't have one, just navigate to
 		//the first tab item with a set collection description
 		if (sectionsAndTagsLoaded) {
 			for (const tab of tabConfig) {
-				if (tab.collection) return tab.collection;
+				if (tab.collection) return tab.expandedCollection;
 			}
 			//Well, just return the default collection description I guess?
 			return new CollectionDescription();
