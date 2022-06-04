@@ -32,7 +32,7 @@ const replaceCardLinksWithAs = (body : string) : string => {
 	return body;
 };
 
-const hrefToCardAttribute = (cardLink : HTMLAnchorElement) => {
+const hrefToCardAttribute = (cardLink : HTMLElement) => {
   
 	let cardAttribute = cardLink.getAttribute('card');
 	//Sometimes the HTML erroneously has a normal href in the card, so look for
