@@ -1027,7 +1027,10 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 			console.log('User aborted fork due to illegal tags');
 			return;
 		}
-		newCard.tags = newCard.tags.filter(tag => !illegalTags[tag]);
+		//newCard.tags could TECHNICALLY be a FieldValue (e.g. an arrayUnion).
+		if (Array.isArray(newCard.tags)) {
+			newCard.tags = newCard.tags.filter(tag => !illegalTags[tag]);
+		}
 	}
 
 	let cardDocRef = doc(db, CARDS_COLLECTION, id);
