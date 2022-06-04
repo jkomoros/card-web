@@ -1,5 +1,6 @@
 
 import { LitElement, html, css } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store so it can render visited links
@@ -26,9 +27,48 @@ import {
 
 import * as icons from './my-icons.js';
 
+import {
+	CardBooleanMap,
+	CardID,
+	Cards,
+	FilterMap,
+	State
+} from '../types.js';
+
+@customElement('card-link')
 class CardLink extends connect(store)(LitElement) {
 	
-	static styles = [
+	@property({ type : String })
+	card: CardID;
+
+	@property({ type : String })
+	href: string;
+	
+	@property({ type : String})
+	auto: string;
+
+	@property({ type : Boolean })
+	strong: boolean;
+
+	@property({ type : Boolean })
+	noNavigate: boolean;
+
+	@state()
+	_reads: FilterMap;
+
+	@state()
+	_cards: Cards;
+
+	@state()
+	_readingListMap: CardBooleanMap;
+
+	@state()
+	_page: string;
+
+	@state()
+	_ctrlKeyPressed: boolean;
+
+	static override styles = [
 		css`
 			:host {
 				display:inline;
@@ -108,25 +148,10 @@ class CardLink extends connect(store)(LitElement) {
 		`
 	];
 	
-	render() {
+	override render() {
 
 		return html`
 			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''} ${this.strong ? 'strong' : ''} ${this._cardIsNotContent ? 'not-content' : ''} ${this._ctrlKeyPressed ? 'add-reading-list' : ''} ${this.noNavigate ? 'no-navigate' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
-	}
-
-	static get properties() {
-		return {
-			card: { type: String },
-			href: { type: String},
-			auto: { type: String},
-			strong: { type: Boolean},
-			noNavigate: {type: Boolean},
-			_reads: {type: Object},
-			_cards: { type: Object},
-			_readingListMap: { type: Object},
-			_page: { type: String },
-			_ctrlKeyPressed: { type: Boolean},
-		};
 	}
 
 	get _inner() {
@@ -164,7 +189,7 @@ class CardLink extends connect(store)(LitElement) {
 		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: this.card, x: e.clientX, y: e.clientY}}));
 	}
 
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		this._reads = selectUserReads(state);
 		this._cards = selectCards(state);
 		this._readingListMap = selectUserReadingListMap(state);
@@ -180,7 +205,8 @@ class CardLink extends connect(store)(LitElement) {
 
 	get _icon() {
 		if (!this._cardObj) return '';
-		const cardTypeConfig = CARD_TYPE_CONFIGURATION[this._cardObj.card_type] || {};
+		const cardTypeConfig = CARD_TYPE_CONFIGURATION[this._cardObj.card_type];
+		if (!cardTypeConfig) return '';
 		return icons[cardTypeConfig.iconName] || '';
 	}
 
@@ -221,4 +247,8 @@ class CardLink extends connect(store)(LitElement) {
 
 }
 
-window.customElements.define('card-link', CardLink);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'card-link': CardLink;
+	}
+}
