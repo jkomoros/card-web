@@ -1,5 +1,6 @@
 
 import { LitElement, html, css } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
 
 import './tag-chip.js';
 
@@ -14,9 +15,89 @@ import {
 	arrayToSet
 } from '../util.js';
 
+import {
+	Card,
+	CSSColorString,
+	TagInfos
+} from '../types.js';
+
+@customElement('tag-list')
 class TagList  extends LitElement {
 	
-	static styles = [
+	@property({ type : Array })
+	tags: string[];
+
+	//If set, will be considereed the uncommitted tags, and will have a diff rendered against them.
+	@property({ type : Array })
+	previousTags: string[];
+
+	//if this list has any items, those items will be omitted from the
+	//select drop down even if they're in tagInfos and not yet in the
+	//tags list.
+	@property({ type : Array })
+	excludeItems: string[];
+
+	//tagInfos is a map that includes objects, with an id property, a
+	//title property, and optionally a color and cardPreview property.
+	//Typically it's just the result of selectTags, but if the tag-list
+	//is displaying other things then it could be any kinds of objects.
+	@property({ type : Object })
+	tagInfos: TagInfos;
+
+	@property({ type : Boolean })
+	editing: boolean;
+
+	//if true, instead of navigating, will emit a 'tag-tapped' event
+	@property({ type : Boolean })
+	tapEvents: boolean;
+
+	//Subtle coloring for all items
+	@property({ type : Boolean })
+	subtle: boolean;
+
+	//Will flag the tags in this map as subtle individually
+	@property({ type : Object })
+	subtleTags: {[name : string] : true};
+
+	//if true and empty then don't show any
+	@property({ type : Boolean })
+	hideOnEmpty: boolean;
+
+	//If set, typeName will be used in the UI to describe the types of things the tags represent, e.g. "New FOO". If not set, will default to "Tag".
+	@property({ type : String })
+	overrideTypeName: string;
+
+	//If true, then any tagName that doesn't also exist in tagInfo will be set to disabled
+	@property({ type : Boolean })
+	disableTagIfMissingTagInfo: boolean;
+
+	//Passed through to tag-chip.disabledDescription
+	@property({ type : String })
+	disabledDescription: string;
+
+	//If true, then the select option to add a new tag will not be shown.
+	@property({ type : Boolean })
+	disableNew: boolean;
+
+	//If true, then the select drop down of existing items won't be
+	//shown, rendering a button instead.
+	@property({ type : Boolean })
+	disableSelect: boolean;
+
+	//If true, then even if editing, the select to add a new item will
+	//not be shown, so only deletion will be possible.
+	@property({ type : Boolean })
+	disableAdd: boolean;
+
+	//Will be passed on to the tag-chips, which will provide the color
+	//if the tag itself doesn't have one specified in the tagInfos.
+	@property({ type : String })
+	defaultColor: CSSColorString;
+
+	@property({ type : Object })
+	card: Card;
+
+	static override styles = [
 		ButtonSharedStyles,
 		css`
 			select {
@@ -28,7 +109,7 @@ class TagList  extends LitElement {
 		`
 	];
 	
-	render() {
+	override render() {
 		let effectiveTags = this.tags || [];
 		let effectivePreviousTags = this.previousTags ? (this.previousTags.length ? this.previousTags : []) : effectiveTags;
 		let [additionsArray, deletionsArray] = arrayDiff(effectivePreviousTags, effectiveTags);
@@ -84,49 +165,10 @@ class TagList  extends LitElement {
 		return this.overrideTypeName || 'Tag';
 	}
 
-	static get properties() {
-		return {
-			tags: { type: Array },
-			//If set, will be considereed the uncommitted tags, and will have a diff rendered against them.
-			previousTags: {type:Array},
-			//if this list has any items, those items will be omitted from the
-			//select drop down even if they're in tagInfos and not yet in the
-			//tags list.
-			excludeItems: { type:Array },
-			//tagInfos is a map that includes objects, with an id property, a
-			//title property, and optionally a color and cardPreview property.
-			//Typically it's just the result of selectTags, but if the tag-list
-			//is displaying other things then it could be any kinds of objects.
-			tagInfos: {type:Object},
-			editing: {type:Boolean},
-			//if true, instead of navigating, will emit a 'tag-tapped' event
-			tapEvents: {type:Boolean},
-			//Subtle coloring for all items
-			subtle: {type:Boolean},
-			//Will flag the tags in this map as subtle individually
-			subtleTags: {type:Object},
-			//if true and empty then don't show any
-			hideOnEmpty: {type:Boolean},
-			//If set, typeName will be used in the UI to describe the types of things the tags represent, e.g. "New FOO". If not set, will default to "Tag".
-			overrideTypeName: {type:String},
-			//If true, then any tagName that doesn't also exist in tagInfo will be set to disabled
-			disableTagIfMissingTagInfo: {type:Boolean},
-			//Passed through to tag-chip.disabledDescription
-			disabledDescription: {type:String},
-			//If true, then the select option to add a new tag will not be shown.
-			disableNew: {type:Boolean},
-			//If true, then the select drop down of existing items won't be
-			//shown, rendering a button instead.
-			disableSelect: {type:Boolean},
-			//If true, then even if editing, the select to add a new item will
-			//not be shown, so only deletion will be possible.
-			disableAdd: {type:Boolean},
-			//Will be passed on to the tag-chips, which will provide the color
-			//if the tag itself doesn't have one specified in the tagInfos.
-			defaultColor: {type:String},
-			card: {type:Object},
-		};
-	}
 }
 
-window.customElements.define('tag-list', TagList);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'tag-list': TagList;
+	}
+}
