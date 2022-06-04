@@ -1,4 +1,5 @@
 import { html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -83,10 +84,60 @@ import {
 	capitalizeFirstLetter
 } from '../util.js';
 
+import {
+	CardType,
+	ReferenceType,
+	State
+} from '../types.js';
+
+import {
+	Collection, CollectionDescription
+} from '../collection_description.js';
+
+@customElement('find-dialog')
 class FindDialog extends connect(store)(DialogElement) {
 
-	static styles = [
-		DialogElement.styles,
+	@state()
+	_query: string;
+
+	@state()
+	_collection: Collection;
+
+	@state()
+	_renderOffset: number;
+
+	@state()
+	_linking: boolean;
+
+	@state()
+	_permissions: boolean;
+
+	@state()
+	_referencing: boolean;
+
+	@state()
+	_pendingReferenceType: ReferenceType;
+
+	@state()
+	_userMayCreateCard: boolean;
+
+	@state()
+	_legalCardTypeFilters: CardType[];
+	
+	@state()
+	_cardTypeFilter: CardType;
+
+	@state()
+	_sortByRecent: boolean;
+
+	@state()
+	_collectionDescription: CollectionDescription;
+
+	@state()
+	_cardTypeFilterLocked: boolean;
+
+	static override styles = [
+		...DialogElement.styles,
 		ButtonSharedStyles,
 		css`
 			card-drawer {
@@ -114,7 +165,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		`
 	];
 
-	innerRender() {
+	override innerRender() {
 
 		const isLink = savedSelectionRangeIsLink();
 
@@ -148,7 +199,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._legalCardTypeFilters = [];
 	}
 
-	_shouldClose(cancelled) {
+	override _shouldClose(cancelled : boolean = false) {
 		if (cancelled && this._linking) {
 			store.dispatch(cancelLink());
 		}
@@ -254,24 +305,6 @@ class FindDialog extends connect(store)(DialogElement) {
 		store.dispatch(navigateToCardInCurrentCollection(e.detail.card));
 	}
 
-	static get properties() {
-		return {
-			_query: {type: String},
-			_collection: {type:Object},
-			_renderOffset: {type:Number},
-			_linking: {type:Boolean},
-			_permissions: {type:Boolean},
-			_referencing: {type:Boolean},
-			_pendingReferenceType: {type:String},
-			_userMayCreateCard: {type:Boolean},
-			_legalCardTypeFilters: {type:Array},
-			_cardTypeFilter: {type:String},
-			_sortByRecent: {type:Boolean},
-			_collectionDescription: {type:Object},
-			_cardTypeFilterLocked: {type:Boolean},
-		};
-	}
-
 	get _computedTitle() {
 		if (this._linking) {
 			return 'Find card to link';
@@ -285,21 +318,23 @@ class FindDialog extends connect(store)(DialogElement) {
 		return 'Search';
 	}
 
-	updated(changedProps) {
+	override updated(changedProps) {
 		if (changedProps.has('open') && this.open) {
 			//When first opened, select the text in query, so if the starter
 			//query is wrong as you long keep typing it will be no cost
-			this.shadowRoot.getElementById('query').select();
+			
+			const ele = this.shadowRoot.getElementById('query') as HTMLInputElement;
+			ele.select();
 		}
 		if (changedProps.has('_linking') || changedProps.has('_referencing') || changedProps.has('_permissions')) {
 			this.title = this._computedTitle;
 		}
 	}
 
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = state.find.open;
-		this.mobileMode = state.app.mobileMode;
+		this.mobile = state.app.mobileMode;
 		this._query = state.find.query;
 		//coalling the collection into being is expensive so only do it if we're open.
 		this._collection = this.open ? selectCollectionForQuery(state) : null;
@@ -318,4 +353,8 @@ class FindDialog extends connect(store)(DialogElement) {
 
 }
 
-window.customElements.define('find-dialog', FindDialog);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'find-dialog': FindDialog;
+	}
+}
