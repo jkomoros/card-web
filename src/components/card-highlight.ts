@@ -1,5 +1,6 @@
 
 import { LitElement, html, css } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store so it can render visited links
@@ -17,9 +18,32 @@ import {
 	killEvent
 } from '../util.js';
 
+import {
+	CardID,
+	State
+} from '../types.js';
+
+@customElement('card-highlight')
 class CardHighlight extends connect(store)(LitElement) {
 
-	static get styles() {
+	@property({ type : String})
+	card: CardID;
+
+	//If disabled, then won't navigate to the card, and also won't light
+	//up on hover. However, a click event will be dispatched,
+	//`disabled-card-highlight-clicked`.
+	@property({ type : Boolean })
+	disabled: boolean;
+
+	//If true, will render in an alternate color
+	@property({ type : Boolean })
+	alternate: boolean;
+
+	@state()
+	_hoverCardID: CardID;
+
+	//TODO: switch to static styles property
+	static override get styles() {
 		return [
 			css`
 				:host {
@@ -68,25 +92,12 @@ class CardHighlight extends connect(store)(LitElement) {
 		];
 	}
 
-	render() {
+	override render() {
 		/* the following is all on one line to avoid extra whitespace that would lead to gaps between the text and punctuation */
 		return html`<span class='${this.disabled ? 'disabled' : 'enabled'} ${this.alternate ? 'alternate' : ''} ${this.card == this._hoverCardID ? 'hover' : ''}' @mousedown=${this._handleMouseDown} @mousemove=${this._handleMouseMove}>${this.disabled ? html`<slot></slot>` : html`<a href=${this._href}><slot></slot></a>`}</span>`;
 	}
 
-	static get properties() {
-		return {
-			card: { type: String },
-			//If disabled, then won't navigate to the card, and also won't light
-			//up on hover. However, a click event will be dispatched,
-			//`disabled-card-highlight-clicked`.
-			disabled: {type:Boolean },
-			//If true, will render in an alternate color
-			alternate: {type:Boolean },
-			_hoverCardID: {type: String},
-		};
-	}
-
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		this._hoverCardID = selectActivePreviewCardId(state);
 	}
 
@@ -98,7 +109,7 @@ class CardHighlight extends connect(store)(LitElement) {
 		//This is on mousedown because if a click is generated, by then the
 		//content editable would already be focused, and the highlight would be
 		//gone.
-		if (!this.disabled) return;
+		if (!this.disabled) return false;
 		this.dispatchEvent(new CustomEvent('disabled-card-highlight-clicked', {composed: true, detail: {card: this.card, alternate: this.alternate}}));
 		return killEvent(e);
 	}
@@ -115,4 +126,8 @@ class CardHighlight extends connect(store)(LitElement) {
 
 }
 
-window.customElements.define('card-highlight', CardHighlight);
+declare global {
+	interface HTMLElementTagNameMap {
+	  "card-highlight": CardHighlight;
+	}
+}
