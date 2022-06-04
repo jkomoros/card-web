@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit';
+import { customElement, property } from 'lit/decorators';
 
 import {
 	parseDateSection,
@@ -10,10 +11,13 @@ import {
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 
-// This element is *not* connected to the Redux store.
+@customElement('configure-collection-date')
 class ConfigureCollectionDate extends LitElement {
 
-	static styles = [
+	@property({ type : String })
+	value: string;
+
+	static override styles = [
 		ButtonSharedStyles,
 		css`
 			:host {
@@ -26,7 +30,7 @@ class ConfigureCollectionDate extends LitElement {
 		`
 	];
 
-	render() {
+	override render() {
 		const [typ, dateOne, dateTwo] = parseDateSection(this.value);
 		const typeRequiresSecondDate = CONFIGURABLE_FILTER_URL_PARTS[typ] == 2;
 		return html`
@@ -62,11 +66,10 @@ class ConfigureCollectionDate extends LitElement {
 		this._dispatchNewValue(makeDateSection(typ, dateOne, dateTwo));
 	}
 
-	static get properties() {
-		return {
-			value: { type: String },
-		};
-	}
 }
 
-window.customElements.define('configure-collection-date', ConfigureCollectionDate);
+declare global {
+	interface HTMLElementTagNameMap {
+		'configure-collection-date': ConfigureCollectionDate;
+	}
+}
