@@ -1,4 +1,5 @@
 import { html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -23,10 +24,18 @@ import {
 	CHECK_CIRCLE_OUTLINE_ICON
 } from './my-icons.js';
 
+import {
+	State
+} from '../types.js';
+
+@customElement('image-browser-dialog')
 class ImageBrowserDialog extends connect(store)(DialogElement) {
 
-	static styles = [
-		DialogElement.styles,
+	@state()
+	_index: number;
+
+	static override styles = [
+		...DialogElement.styles,
 		ButtonSharedStyles,
 		css`
 			textarea {
@@ -44,7 +53,7 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 		`
 	];
 
-	innerRender() {
+	override innerRender() {
 		return html`
 			<label>Fully qualified src (e.g. including https://)</label>
 			<input type='text' id='src'></input>
@@ -61,29 +70,24 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 		this.title = 'Choose Image';
 	}
 
-	static get properties() {
-		return {
-			_index: {type: Number},
-		};
-	}
-
 	_handleDoneClicked() {
-		const url = this.shadowRoot.querySelector('#src').value;
+		const ele = this.shadowRoot.querySelector('#src') as HTMLInputElement;
+		const url = ele.value;
 		if (url) store.dispatch(addImageWithURL(url, this._index));
 		store.dispatch(closeImageBrowserDialog());
 	}
 
-	_shouldClose() {
+	override _shouldClose() {
 		store.dispatch(closeImageBrowserDialog());
 	}
 
 	_handleFileInput() {
-		const ele = this.shadowRoot.querySelector('#file');
+		const ele = this.shadowRoot.querySelector('#file') as HTMLInputElement;
 		store.dispatch(addImageWithFile(ele.files[0], this._index));
 		store.dispatch(closeImageBrowserDialog());
 	}
 
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = selectImageBrowserDialogOpen(state);
 		this._index = selectImageBrowserDialogIndex(state);
@@ -91,4 +95,8 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 
 }
 
-window.customElements.define('image-browser-dialog', ImageBrowserDialog);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'image-browser-dialog': ImageBrowserDialog;
+	}
+}
