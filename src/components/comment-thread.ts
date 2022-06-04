@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import './comment-message.js';
@@ -11,10 +12,23 @@ import {
 	CHECK_CIRCLE_OUTLINE_ICON
 } from './my-icons.js';
 
-// This element is *not* connected to the Redux store.
+import { 
+	ComposedCommentThread
+} from '../types.js';
+
+@customElement('comment-thread')
 class CommentThread extends LitElement {
 
-	static styles = [
+	@property({ type : Object })
+	thread: ComposedCommentThread
+
+	@property({ type : Boolean })
+	userMayComment: boolean;
+
+	@state()
+	_expanded: boolean;
+
+	static override styles = [
 		ButtonSharedStyles,
 		css`
 			.container {
@@ -52,7 +66,7 @@ class CommentThread extends LitElement {
 		`
 	];
 
-	render() {
+	override render() {
 		return html`
 		<div class='container'>
 			<div class='buttons'>
@@ -72,15 +86,7 @@ class CommentThread extends LitElement {
     `;
 	}
 
-	static get properties() {
-		return {
-			thread: { type: Object },
-			userMayComment: {type:Boolean},
-			_expanded: {type: Boolean}
-		};
-	}
-
-	firstUpdated() {
+	override firstUpdated() {
 		this._expanded = true;
 	}
 
@@ -101,4 +107,9 @@ class CommentThread extends LitElement {
 	}
 }
 
-window.customElements.define('comment-thread', CommentThread);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'comment-thread': CommentThread;
+	}
+}
+
