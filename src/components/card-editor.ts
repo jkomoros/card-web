@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';;
 import { connect } from 'pwa-helpers/connect-mixin.js';
 import { repeat } from 'lit/directives/repeat.js';
 
@@ -128,9 +129,93 @@ import {
 import './tag-list.js';
 import './card-images-editor.js';
 
+import {
+	Card,
+	TODOType,
+	Sections,
+	EditorTab,
+	EditorContentTab,
+	TagInfos,
+	TagID,
+	Slug,
+	CardID,
+	State
+} from '../types.js';
+
+@customElement('card-editor')
 class CardEditor extends connect(store)(LitElement) {
 
-	static styles = [
+	@state()
+	_card: Card;
+
+	@state()
+	_autoTodos: TODOType[];
+
+	@state()
+	_active: boolean;
+
+	@state()
+	_sectionsUserMayEdit: Sections;
+
+	@state()
+	_userMayChangeEditingCardSection: boolean;
+
+	@state()
+	_mayNotDeleteReason: string;
+
+	@state()
+	_substantive: boolean;
+
+	@state()
+	_selectedTab: EditorTab;
+
+	@state()
+	_selectedEditorTab: EditorContentTab;
+
+	@state()
+	_tagInfos: TagInfos;
+
+	@state()
+	_userMayEditSomeTags: boolean;
+
+	@state()
+	_tagsUserMayNotEdit: TagID[];
+
+	@state()
+	_cardTagInfos: TagInfos;
+
+	//The card before any edits
+	@state()
+	_underlyingCard: Card;
+
+	@state()
+	_suggestedTags: TagID[];
+
+	@state()
+	_authors: TagInfos;
+
+	@state()
+	_isAdmin: boolean;
+
+	@state()
+	_pendingSlug: Slug;
+
+	@state()
+	_cardModificationPending: boolean;
+
+	@state()
+	_suggestedConcepts: CardID[];
+
+	@state()
+	_underlyingCardDifferences: string;
+
+	@state()
+	_overshadowedDifferences: string;
+
+	@state()
+	_hasUnsavedChanges: boolean;
+
+	static override styles = [
 		ButtonSharedStyles,
 		HelpStyles,
 		css`
@@ -279,7 +364,7 @@ class CardEditor extends connect(store)(LitElement) {
 		`
 	];
 
-	render() {
+	override render() {
 
 		const hasContent = cardHasContent(this._card);
 		const hasNotes = cardHasNotes(this._card);
@@ -455,34 +540,7 @@ class CardEditor extends connect(store)(LitElement) {
     `;
 	}
 
-	static get properties() { return {
-		_card: { type: Object },
-		_autoTodos: { type:Array },
-		_active: {type: Boolean },
-		_sectionsUserMayEdit: {type: Object },
-		_userMayChangeEditingCardSection: { type:Boolean },
-		_mayNotDeleteReason: {type:String},
-		_substantive: {type: Object},
-		_selectedTab: {type: String},
-		_selectedEditorTab: {type:String},
-		_tagInfos: {type: Object},
-		_userMayEditSomeTags: { type: Boolean},
-		_tagsUserMayNotEdit: { type: Array},
-		_cardTagInfos: {type: Object},
-		//The card before any edits
-		_underlyingCard: {type:Object},
-		_suggestedTags: { type: Array},
-		_authors: { type:Object },
-		_isAdmin: { type:Boolean },
-		_pendingSlug: { type:String },
-		_cardModificationPending: {type:Boolean},
-		_suggestedConcepts: { type:Array },
-		_underlyingCardDifferences: {type:String},
-		_overshadowedDifferences: {type:String},
-		_hasUnsavedChanges: {type:Boolean},
-	};}
-
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		this._card= selectEditingCard(state);
 		this._autoTodos = selectEditingCardAutoTodos(state);
 		this._underlyingCard = selectEditingUnderlyingCardSnapshot(state);
@@ -509,7 +567,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._hasUnsavedChanges = selectEditingCardHasUnsavedChanges(state);
 	}
 
-	updated(changedProps) {
+	override updated(changedProps) {
 		if (changedProps.has('_underlyingCardDifferences') && this._underlyingCardDifferences) {
 			//TODO: isn't it kind of weird to have the view be the thing thta
 			//triggers the autoMerge? Shouldn't it be some wrapper around
@@ -520,11 +578,11 @@ class CardEditor extends connect(store)(LitElement) {
 		}
 	}
 
-	shouldUpdate() {
+	override shouldUpdate() {
 		return this._active;
 	}
 
-	firstUpdated() {
+	override firstUpdated() {
 		document.addEventListener('keydown', e => this._handleKeyDown(e));
 	}
 
@@ -807,4 +865,8 @@ class CardEditor extends connect(store)(LitElement) {
 
 }
 
-window.customElements.define('card-editor', CardEditor);
+declare global {
+	interface HTMLElementTagNameMap {
+	  "card-editor": CardEditor;
+	}
+}
