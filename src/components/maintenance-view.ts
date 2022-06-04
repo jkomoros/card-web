@@ -1,4 +1,5 @@
 import { html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 import { repeat } from 'lit/directives/repeat.js';
@@ -30,9 +31,28 @@ import { SharedStyles } from './shared-styles.js';
 //the maintence task update-font-size-boost can work
 import './card-stage.js';
 
+import {
+	State,
+	MaintenanceTaskMap,
+	MaintenanceTaskID
+} from '../types.js';
+
+@customElement('maintenance-view')
 class MaintenanceView extends connect(store)(PageViewElement) {
 
-	static styles = [
+	@state()
+	_isAdmin: boolean;
+
+	@state()
+	_executedTasks: MaintenanceTaskMap;
+
+	@state()
+	_nextTaskName: MaintenanceTaskID;
+
+	@state()
+	_taskActive: boolean;
+
+	static override styles = [
 		SharedStyles,
 		css`
 			.primary {
@@ -94,7 +114,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 		`
 	];
 
-	render() {
+	override render() {
 		return html`
       <section class='${this._taskActive ? 'active' : ''}'>
 		<div class='scrim'>
@@ -125,7 +145,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 			<summary>Advanced</summary>
 			<h4>Tasks that have not yet been run</h4>
 			<h5>You should almost always only run the next task that you're told to, not do it from here</h5>
-			${repeat(Object.keys(MAINTENANCE_TASKS).filter(key => !(this._existingTasks || {})[key]), (item) => item, (item) => this._buttonForTaskName(item))}
+			${repeat(Object.keys(MAINTENANCE_TASKS).filter(key => !(this._executedTasks || {})[key]), (item) => item, (item) => this._buttonForTaskName(item))}
 		  </details>
         </section>
 		<card-stage style='visibility:hidden;z-index:-100;position:absolute'></card-stage>
@@ -135,32 +155,23 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 
 	_buttonForTaskName(taskName) {
 		if (!taskName) return html`<em>No tasks to run</em>`;
-		const config = MAINTENANCE_TASKS[taskName] || {};
+		const config = MAINTENANCE_TASKS[taskName];
 		let disabled = false;
 		if (!config.recurring && this._executedTasks[taskName]) disabled = true;
 		const displayName = config.displayName || taskName;
 		return html`<button value=${taskName} @click=${this._handleClick} .disabled=${disabled}>${displayName}</button>`;
 	}
 
-	static get properties() {
-		return {
-			_isAdmin: { type: Boolean},
-			_executedTasks: { type:Object},
-			_nextTaskName: { type:String},
-			_taskActive: {type:Boolean},
-		};
-	}
-
 	get _nextTaskConfig() {
 		return MAINTENANCE_TASKS[this._nextTaskName] || {};
 	}
 
-	connectedCallback() {
+	override connectedCallback() {
 		super.connectedCallback();
 		connectLiveExecutedMaintenanceTasks();
 	}
 
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		this._isAdmin = selectUserIsAdmin(state);
 		this._executedTasks = selectExecutedMaintenanceTasks(state);
 		this._nextTaskName = selectNextMaintenanceTaskName(state);
@@ -180,4 +191,8 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 
 }
 
-window.customElements.define('maintenance-view', MaintenanceView);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'maintenance-view': MaintenanceView;
+	}
+}
