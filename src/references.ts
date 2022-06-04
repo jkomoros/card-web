@@ -438,7 +438,7 @@ const ReferencesAccessor = class {
 
 //Returns a card-like object with a reference block that is the UNION of the
 //references of all cardObjs provided. See also intersectionReferences.
-export const unionReferences = (cardObjs) => {
+export const unionReferences = (cardObjs : Card[]) : CardLike => {
 	const fauxCard = {};
 	const refs = references(fauxCard);
 	refs.ensureReferences(null);
@@ -455,7 +455,7 @@ export const unionReferences = (cardObjs) => {
 
 //Returns a card-like object with a reference block that is the INTERSECTION of the
 //references of all cardObjs provided. See also unionReferences.
-export const intersectionReferences = (cardObjs) => {
+export const intersectionReferences = (cardObjs : Card[]) : CardLike => {
 	const fauxCard = {};
 	const refs = references(fauxCard);
 	const firstCard = cardObjs.length ? cardObjs[0] : null;
