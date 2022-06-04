@@ -704,6 +704,10 @@ export type FilterExtras = {
 	userID : Uid,
 };
 
+export type CardBooleanMap = {
+    [id : CardID] : boolean
+}
+
 export type FilterMap = {
     [id : CardID] : true
 };
