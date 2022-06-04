@@ -11,9 +11,9 @@ import {
 	ExpandedReferenceKey,
 	ExpandedReferenceDelete,
 	ExpandedReferenceObject,
-	OptionalFieldsCard,
 	ReferencesEntriesDiff,
-	CardUpdate
+	CardUpdate,
+	CardLike
 } from './types.js';
 
 import {
@@ -42,7 +42,7 @@ export const referencesNonModifying = (cardObj) => {
 
 //References returns a ReferencesAccessor to access references for this cardObj.
 //It may return one that's already been returned for this card obj.
-export const references = (cardObj) => {
+export const references = (cardObj : CardLike) => {
 	let accessor = memoizedCardAccessors.get(cardObj);
 	if (!accessor) {
 		accessor = new ReferencesAccessor(cardObj);
@@ -81,7 +81,7 @@ const byTypeToReferences = (byTypeMap) => {
 
 const ReferencesAccessor = class {
 
-	private _cardObj : Card;
+	private _cardObj : CardLike;
 	private _modified : boolean;
 	private _memoizedByType : ReferencesInfoMapByType;
 	private _memoizedByTypeInbound : ReferencesInfoMapByType;
@@ -95,7 +95,7 @@ const ReferencesAccessor = class {
 	//(That is, that cardObj is a mutable shallow copy from any state objects).
 	//If you modify anything, it will overwrite the references blocks instead of
 	//modifying them.
-	constructor(cardObj : Card) {
+	constructor(cardObj : CardLike) {
 		this._cardObj = cardObj;
 		this._modified = false;
 		this._memoizedByType = null;
@@ -484,7 +484,7 @@ export const intersectionReferences = (cardObjs) => {
 };
 
 //referencesLegalShape is a sanity check that the referencesBlock looks like it's expected to.
-export const referencesLegalShape = (cardObj) => {
+export const referencesLegalShape = (cardObj : CardLike) => {
 	if (!cardObj) return false;
 	if (typeof cardObj !== 'object') return false;
 	const referencesInfoBlock = cardObj[REFERENCES_INFO_CARD_PROPERTY];
@@ -593,7 +593,7 @@ export const referencesEntriesDiffWithRemove = (diff : ReferencesEntriesDiff = [
 //delete:true, representing the items that would have to be done via
 //setCardReference and removeCardReference to get beforeCard to look like
 //afterCard. The deletions will all come before the modifications in the diff.
-export const referencesEntriesDiff = (beforeCard : OptionalFieldsCard, afterCard : OptionalFieldsCard) : ReferencesEntriesDiff => {
+export const referencesEntriesDiff = (beforeCard : CardLike, afterCard : CardLike) : ReferencesEntriesDiff => {
 	const modificationsResult = [];
 	const deletionsResult = [];
 	if (!referencesLegalShape(beforeCard)) return [];
@@ -712,7 +712,7 @@ const cardReferenceBlockHasDifference = (before, after) => {
 //Inspired by referencesDiff from card_fields.js Returns
 //[cardIDAdditionsOrModifications, cardIDDeletions]. each is a map of cardID =>
 //true, and say that you should copy over the whole block.
-export const referencesCardsDiff = (beforeCard, afterCard) => {
+export const referencesCardsDiff = (beforeCard : CardLike, afterCard : CardLike) => {
 	const result = [{}, {}];
 	const emptyCard = {[REFERENCES_INFO_CARD_PROPERTY]:{}, [REFERENCES_CARD_PROPERTY]: {}};
 	if (!beforeCard || Object.keys(beforeCard).length === 0) beforeCard = emptyCard;

@@ -515,6 +515,8 @@ type ArrayToFieldValueUnion<Type> = {
 //deleteSentinel
 export type CardUpdate = ArrayToFieldValueUnion<TimestampToFieldValue<OptionalFieldsCard>>;
 
+export type CardLike = Card | CardUpdate;
+
 //These are fields in CardDiff that cannot be auto-merged when edits are made by
 //someone else.
 interface NonAutoMergeableCardDiff {
