@@ -16,6 +16,7 @@ import {
 } from './card_fields.js';
 
 import {
+	Collection,
 	CollectionDescription,
 	collectionDescriptionWithKeyCard
 } from './collection_description.js';
@@ -37,10 +38,50 @@ import {
 } from './filters.js';
 
 import {
+	CardBooleanMap,
+	Card,
+	CardType,
+	CollectionConstructorArguments,
+	FilterMap
+} from './types.js';
+
+import {
 	cardNeedsReciprocalLinkTo
 } from './util.js';
 
-const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].subTypeOf == REFERENCE_TYPE_CONCEPT && entry[0] != REFERENCE_TYPE_CONCEPT).map(entry => {
+export interface ReferenceBlock {
+    // collectionDescription: a collection description, possibly using KEY_CARD_ID_PLACEHOLDER as a placeholder
+	collectionDescription: CollectionDescription;
+    // navigationCollectionDescription: a collectiond description, that if set and showNavigate is true, will be used instead of collectionDescription.
+	navigationCollectionDescription? : CollectionDescription;
+    // title: a title to display,
+	title: string;
+    // condensed: if true, will show up in a much smaller, inline style
+	condensed?: boolean;
+    // description: if provided, will render a help badge with this text
+	description? : string;
+    // cardsToBoldFilterFactory: if not null, should be a factory that, given the expanded card object, will return a filter function to then be passed other expanded card objects to test if they should be bold. The items that return true from that second item will be shown as strong in the reference block.
+	cardsToBoldFilterFactory? : (card : Card) => ((otherCard : Card) => boolean)
+    // emptyMessage: if non-falsey will show that message if no cards match. If it is falsey and no cards match, the block will not be shown.
+	emptyMessage? : string;
+    // showNavigate: if true, then will show a button to navigate to that collection
+	showNavigate? : boolean;
+    // onlyForEditors: if true, will only show this block if the keyCard is one the user may edit
+	onlyForEditors? : boolean;
+}
+
+export interface ExpandedReferenceBlock extends ReferenceBlock {
+    //collection: the expanded Collection based on the collectionDescription
+    collection: Collection;
+    //boldCards: a map of cards based on cardsToBoldFilterFactory
+    boldCards: FilterMap;
+}
+
+export type ReferenceBlocks = readonly ReferenceBlock[];
+
+export type ExpandedReferenceBlocks = readonly ExpandedReferenceBlock[];
+
+const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS : ReferenceBlocks = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].subTypeOf == REFERENCE_TYPE_CONCEPT && entry[0] != REFERENCE_TYPE_CONCEPT).map(entry => {
 	const referenceType = entry[0];
 	const referenceConfig = entry[1];
 	if (referenceConfig.reciprocal) {
@@ -64,24 +105,7 @@ const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS = Object.entries(REFERENCE_TYPES).
 	];
 }).flat();
 
-/*
-
-An array where each item has:
-	collectionDescription: a collection description, possibly using KEY_CARD_ID_PLACEHOLDER as a placeholder
-	navigationCollectionDescription: a collectiond description, that if set and showNavigate is true, will be used instead of collectionDescription.
-	title: a title to display,
-	condensed: if true, will show up in a much smaller, inline style
-	description: if provided, will render a help badge with this text
-	cardsToBoldFilterFactory: if not null, should be a factory that, given the expanded card object, will return a filter function to then be passed other expanded card objects to test if they should be bold. The items that return true from that second item will be shown as strong in the reference block.
-	emptyMessage: if non-falsey will show that message if no cards match. If it is falsey and no cards match, the block will not be shown.
-	showNavigate: if true, then will show a button to navigate to that collection
-	onlyForEditors: if true, will only show this block if the keyCard is one the user may edit
-
-	An 'expanded' referenceBlock also has:
-	collection: the expanded Collection based on the collectionDescription
-	boldCards: a map of cards based on cardsToBoldFilterFactory
-*/
-const REFERENCE_BLOCKS_FOR_CARD_TYPE = {
+const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType : CardType] : ReferenceBlocks}= {
 	[CARD_TYPE_CONCEPT]: [
 		...CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS,
 		{
@@ -131,7 +155,7 @@ const SUBSTANTIVE_REFERENCE_TYPES = Object.entries(REFERENCE_TYPES).filter(entry
 
 const NUM_SIMILAR_CARDS_TO_SHOW = 5;
 
-const INFO_PANEL_REFERENCE_BLOCKS = [
+const INFO_PANEL_REFERENCE_BLOCKS : ReferenceBlocks = [
 	{
 		title: 'Example of',
 		description: 'Concepts this card is an example of',
@@ -189,12 +213,12 @@ const INFO_PANEL_REFERENCE_BLOCKS = [
 	}
 ];
 
-export const primaryReferenceBlocksForCard = (card) => {
+export const primaryReferenceBlocksForCard = (card : Card) : ReferenceBlocks => {
 	if (!card) return []; 
 	return expandReferenceBlockConfig(card, REFERENCE_BLOCKS_FOR_CARD_TYPE[card.card_type]);
 };
 
-export const infoPanelReferenceBlocksForCard = (card) => {
+export const infoPanelReferenceBlocksForCard = (card : Card) : ReferenceBlocks => {
 	return expandReferenceBlockConfig(card, INFO_PANEL_REFERENCE_BLOCKS);
 };
 
@@ -202,7 +226,7 @@ export const infoPanelReferenceBlocksForCard = (card) => {
 //same thing so that selectors won't re-run.
 const EMPTY_ARRAY = Object.freeze([]);
 
-const expandReferenceBlockConfig = (card, configs) => {
+const expandReferenceBlockConfig = (card : Card, configs : ReferenceBlocks) : ReferenceBlocks => {
 	if (!configs) return EMPTY_ARRAY;
 	if (!card || !card.id) return EMPTY_ARRAY;
 	return configs.map(block => ({
@@ -215,7 +239,7 @@ const expandReferenceBlockConfig = (card, configs) => {
 	}));
 };
 
-export const expandReferenceBlocks = (card, blocks, collectionConstructorArgs, cardIDsUserMayEdit) => {
+export const expandReferenceBlocks = (card : Card, blocks : ReferenceBlocks, collectionConstructorArgs : CollectionConstructorArguments, cardIDsUserMayEdit : CardBooleanMap) : ExpandedReferenceBlocks => {
 	if (blocks.length == 0) return EMPTY_ARRAY;
 	const keyCardCollectionConstructorArgs = {
 		...collectionConstructorArgs,
@@ -224,7 +248,7 @@ export const expandReferenceBlocks = (card, blocks, collectionConstructorArgs, c
 	return blocks.filter(block => block.onlyForEditors ? cardIDsUserMayEdit[card.id] : true).map(block => {
 		const boldFilter = block.cardsToBoldFilterFactory ? block.cardsToBoldFilterFactory(card) : null;
 		const collection = block.collectionDescription.collection(keyCardCollectionConstructorArgs);
-		const boldCards = boldFilter ? Object.fromEntries(collection.filteredCards.filter(boldFilter).map(card => [card.id, true])): {};
+		const boldCards : FilterMap = boldFilter ? Object.fromEntries(collection.filteredCards.filter(boldFilter).map(card => [card.id, true])): {};
 		return {
 			...block,
 			collection,
@@ -235,14 +259,14 @@ export const expandReferenceBlocks = (card, blocks, collectionConstructorArgs, c
 
 let memoizedCollectionConstructorArguments = null;
 let memoizedCardIDsUserMayEdit = null;
-let memoizedExpandedPrimaryBlocksForCard = new Map();
+let memoizedExpandedPrimaryBlocksForCard : Map<Card, ExpandedReferenceBlocks> = new Map();
 
 //getExpandedPrimaryReferenceBlocksForCard is reasonably efficient because it
 //caches results, so as long as the things that a collection depends on and the
 //card hasn't changed, it won't have to recalculate the results. You can get a
 //collectionConstructorArguments from selectCollectionConstructorArguments.
 //cardIDsUserMayEdit can be passed with result from selectCardIDsUserMayEdit.
-export const getExpandedPrimaryReferenceBlocksForCard = (collectionConstructorArguments, card, cardIDsUserMayEdit) => {
+export const getExpandedPrimaryReferenceBlocksForCard = (collectionConstructorArguments : CollectionConstructorArguments, card : Card, cardIDsUserMayEdit? : CardBooleanMap) : ExpandedReferenceBlocks => {
 	if (memoizedCollectionConstructorArguments != collectionConstructorArguments || cardIDsUserMayEdit != memoizedCardIDsUserMayEdit) {
 		memoizedExpandedPrimaryBlocksForCard = new Map();
 		memoizedCollectionConstructorArguments = collectionConstructorArguments;
