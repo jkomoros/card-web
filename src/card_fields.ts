@@ -613,7 +613,7 @@ export const BODY_CARD_TYPES = TEXT_FIELD_CONFIGURATION[TEXT_FIELD_BODY].legalCa
 //types of card that may have an image
 export const IMAGE_CARD_TYPES = TEXT_FIELD_CONFIGURATION[IMAGES_TEXT_FIELD].legalCardTypes;
 
-export const editableFieldsForCardType = (cardType) => {
+export const editableFieldsForCardType = (cardType : CardType) : CardFieldTypeConfigurationMap => {
 	let result = {};
 	for (let key of Object.keys(TEXT_FIELD_CONFIGURATION)) {
 		const config = TEXT_FIELD_CONFIGURATION[key];
