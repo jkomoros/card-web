@@ -1,4 +1,5 @@
 import { html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -47,6 +48,7 @@ import {
 
 import {
 	referencesNonModifying,
+	isExpandedReferenceDelete
 } from '../references.js';
 
 import {
@@ -61,10 +63,37 @@ import {
 
 import './card-link.js';
 
+import {
+	Card,
+	CardLike,
+	ReferencesEntriesDiff,
+	State,
+	TagInfos
+} from '../types.js';
+
+@customElement('multi-edit-dialog')
 class MultiEditDialog extends connect(store)(DialogElement) {
 
-	static styles = [
-		DialogElement.styles,
+	@state()
+	_unionReferencesCard: CardLike;
+
+	@state()
+	_intersectionReferencesCard: CardLike;
+
+	@state()
+	_cardTagInfos: TagInfos;
+
+	@state()
+	_referencesDiff: ReferencesEntriesDiff;
+
+	@state()
+	_selectedCards: Card[];
+
+	@state()
+	_cardModificationPending: boolean;
+
+	static override styles = [
+		...DialogElement.styles,
 		ButtonSharedStyles,
 		HelpStyles,
 		css`
@@ -89,7 +118,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		`
 	];
 
-	innerRender() {
+	override innerRender() {
 
 		if (!this.open) return html``;
 
@@ -117,7 +146,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	})}
 			${this._referencesDiff.length ? html`<h4>Changes that will be made to selected cards</h4>` : ''}
 			<ul class='readout'>
-				${this._referencesDiff.map(item => html`<li>${item.delete ? 'Remove' : 'Add'} ${item.referenceType} reference to <card-link auto='title' card='${item.cardID}' .noNavigate=${true}></card-link></li>`)}
+				${this._referencesDiff.map(item => html`<li>${isExpandedReferenceDelete(item) ? 'Remove' : 'Add'} ${item.referenceType} reference to <card-link auto='title' card='${item.cardID}' .noNavigate=${true}></card-link></li>`)}
 			</ul>
 			<details>
 				<summary><strong>${this._selectedCards.length}</strong> cards selected</summary>
@@ -149,7 +178,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		this._shouldClose();
 	}
 
-	_shouldClose() {
+	override _shouldClose() {
 		//Override base class.
 		store.dispatch(closeMultiEditDialog());
 	}
@@ -213,18 +242,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		store.dispatch(removeReference(e.detail.tag, referenceType));
 	}
 
-	static get properties() {
-		return {
-			_unionReferencesCard: {type: Object},
-			_intersectionReferencesCard: {type:Object},
-			_cardTagInfos: {type: Object},
-			_referencesDiff: {type:Array},
-			_selectedCards: {type:Array},
-			_cardModificationPending: {type:Boolean},
-		};
-	}
-
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = selectMultiEditDialogOpen(state);
 		//selectSelectedCardsReferencesUnion is expensive, only do it if we're open.
@@ -238,4 +256,8 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 }
 
-window.customElements.define('multi-edit-dialog', MultiEditDialog);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'multi-edit-dialog': MultiEditDialog;
+	}
+}
