@@ -20,9 +20,14 @@ import {
 	backportFallbackTextMapForCard,
 } from './util.js';
 
+import {
+	Card,
+	State
+} from './types.js';
+
 const NUM_TERMS_OF_FINGERPRINT = 8;
 
-const workingNotesExtractor = (card,state) => {
+const workingNotesExtractor = (card : Card, state : State) => {
 	//TODO: also include first part of semantic fingerprint.
 	const date = card.updated && card.updated.toDate ? card.updated.toDate() : new Date();
 	//The fingerprint requires these to be up to date, but we only update these
@@ -37,7 +42,7 @@ const workingNotesExtractor = (card,state) => {
 	card.title = title;
 };
 
-const conceptValidator = (card, state) => {
+const conceptValidator = (card : Card, state : State) => {
 	//The primary purpose of this validator is to make sure that this card's
 	//title doesn't clash with any that already exist as concepts.
 	const allCards = selectCards(state);

@@ -102,7 +102,7 @@ const cardMatchesConcept = (card, conceptStr) => {
 
 //getAllConceptCardsForConcept is like getConceptCardForConcept, but it will
 //return all of them that might exist, which helps find possible overlaps.
-export const getAllConceptCardsForConcept = (allCardsOrConceptCards, conceptStr) => {
+export const getAllConceptCardsForConcept = (allCardsOrConceptCards : Cards, conceptStr : string) : Card[] => {
 	return Object.values(allCardsOrConceptCards).filter(card => cardMatchesConcept(card, conceptStr));
 };
 
