@@ -1,16 +1,18 @@
 import { html } from 'lit';
+import { customElement } from 'lit/decorators';
 import { PageViewElement } from './page-view-element.js';
 
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
 
+@customElement('my-view404')
 class MyView404 extends PageViewElement {
 
-	static styles = [
+	static override styles = [
 		SharedStyles,
 	];
 
-	render() {
+	override render() {
 		return html`
 			<section>
 				<h2>Oops! You hit a 404</h2>
@@ -22,4 +24,8 @@ class MyView404 extends PageViewElement {
 	}
 }
 
-window.customElements.define('my-view404', MyView404);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'my-view404': MyView404;
+	}
+}
