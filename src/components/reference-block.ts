@@ -1,4 +1,5 @@
 import { html, LitElement, css } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
 
 import {
 	help,
@@ -14,10 +15,16 @@ import {
 } from './my-icons.js';
 
 import './card-link.js';
+import { ExpandedReferenceBlock } from '../reference_blocks.js';
 
+@customElement('reference-block')
 export class ReferenceBlock extends LitElement {
 
-	static styles = [
+	//expandedBlock, as returned from e.g. getExpandedReferenceBlocksForCard
+	@property({ type : Object })
+	block: ExpandedReferenceBlock;
+
+	static override styles = [
 		//isn't this expensive to repeat for every reference block?
 		HelpStyles,
 		css`
@@ -69,7 +76,7 @@ export class ReferenceBlock extends LitElement {
 		`
 	];
 
-	render() {
+	override render() {
 		if (this._shouldHide()) return html``;
 		return html`
 			<div class='${this.block.onlyForEditors ? 'editor' :''} ${this.block.condensed ? 'condensed' : ''}'>
@@ -86,13 +93,10 @@ export class ReferenceBlock extends LitElement {
 		return !this.block || (this.block.collection.filteredCards.length == 0 && !this.block.emptyMessage);
 	}
 
-	static get properties() {
-		return {
-			//expandedBlock, as returned from e.g. getExpandedReferenceBlocksForCard
-			block: {type:Object},
-		};
-	}
-
 }
 
-window.customElements.define('reference-block', ReferenceBlock);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'reference-block': ReferenceBlock;
+	}
+}
