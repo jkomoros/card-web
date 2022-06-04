@@ -730,6 +730,13 @@ export interface CollectionConstructorArguments {
     editingCard? : Card
 }
 
+export interface BadgeMap {
+    stars: FilterMap,
+    reads: FilterMap,
+    todos: FilterMap,
+    readingList: FilterMap,
+}
+
 //TODO: tighten this
 export type MaintenanceTaskID = string;
 export type MaintenanceTask = {
