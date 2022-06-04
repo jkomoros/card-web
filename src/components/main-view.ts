@@ -208,14 +208,14 @@ class MainView extends connect(store)(PageViewElement) {
 				background-color: var(--app-header-background-color);
 			}
 
-			[main-title] {
+			[data-main-title] {
 				font-family: var(--app-header-font-family);
 				font-weight:bold;
 				font-size: 26px;
 				color: var(--app-dark-text-color-light);
 			}
 
-			[main-title] span {
+			[data-main-title] span {
 				color: var(--app-primary-color);
 			}
 
@@ -339,7 +339,7 @@ class MainView extends connect(store)(PageViewElement) {
 			<!-- Header -->
 			<div class='header' ?hidden=${!this._headerPanelOpen}>
 				<div class='inner'>
-					<div main-title>${this._appTitleFirstPart}<span>${this._appTitleSecondPart}</span></div>
+					<div data-main-title>${this._appTitleFirstPart}<span>${this._appTitleSecondPart}</span></div>
 					<div class='spacer'></div>
 					<nav class="toolbar-list">
 						${this._tabs.map(tab => html`<a class='${tab.icon ? 'icon-item' : ''}' title='${tab.display_name}' ?selected=${tab.expandedCollection && tab.expandedCollection.equivalent(this._collectionDescription)} href='${tab.href ? tab.href : '/' + PAGE_DEFAULT + '/' + tab.expandedCollection.serializeShort()}' target=${tab.href ? '_blank': ''} ?hidden=${tab.hide || (tab.hideIfEmpty && this._countsForTabs[tab.expandedCollection.serialize()] === 0)}>${tab.icon ? html`${tab.icon} ${tab.count ? html`<span>${this._countsForTabs[tab.expandedCollection.serialize()]}</span>` : ''}` : tab.italics ? html`<em>${tab.display_name}</em>` : html`${tab.display_name}`}</a>`)}
