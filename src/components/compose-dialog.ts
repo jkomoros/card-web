@@ -1,4 +1,5 @@
 import { html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -22,10 +23,21 @@ import {
 	CHECK_CIRCLE_OUTLINE_ICON
 } from './my-icons.js';
 
+import {
+	State
+} from '../types.js';
+
+@customElement('compose-dialog')
 class ComposeDialog extends connect(store)(DialogElement) {
 
-	static styles = [
-		DialogElement.styles,
+	@state()
+	_content: string;
+
+	@state()
+	_message: string;
+
+	static override styles = [
+		...DialogElement.styles,
 		css`
 			textarea {
 				flex-grow:1;
@@ -42,7 +54,7 @@ class ComposeDialog extends connect(store)(DialogElement) {
 		`
 	];
 
-	innerRender() {
+	override innerRender() {
 		return html`
 			<h3>${this._message}</h3>
 			<textarea .value=${this._content} @input=${this._handleContentUpdated}></textarea>
@@ -66,19 +78,12 @@ class ComposeDialog extends connect(store)(DialogElement) {
 		store.dispatch(composeCommit());
 	}
 
-	_shouldClose() {
+	override _shouldClose() {
 		//Override base class.
 		store.dispatch(composeCancel());
 	}
 
-	static get properties() {
-		return {
-			_content: {type: String},
-			_message: {type: String},
-		};
-	}
-
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = selectComposeOpen(state);
 		this._content = selectPromptContent(state);
@@ -87,4 +92,8 @@ class ComposeDialog extends connect(store)(DialogElement) {
 
 }
 
-window.customElements.define('compose-dialog', ComposeDialog);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'compose-dialog': ComposeDialog;
+	}
+}
