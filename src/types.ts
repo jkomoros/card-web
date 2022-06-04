@@ -803,6 +803,10 @@ export type CommentsState = {
 	threadsLoaded: boolean,
 }
 
+export type TweetMap = {
+    [tweetID : string]: TweetInfo
+}
+
 export type DataState = {
 	cards: Cards,
 	authors: {[id : Uid]: Author},
@@ -819,7 +823,7 @@ export type DataState = {
 	//true while we're loading tweets for the current card
 	tweetsLoading: boolean,
 	//We only fetch tweets for cards that we have already viewed.
-	tweets: {[tweetID : string]: TweetInfo},
+	tweets: TweetMap,
 	//These three are flipped to true on the first UPDATE_type entry, primarily
 	//as a flag to  selectDataisFullyLoaded.
 	publishedCardsLoaded: boolean,
