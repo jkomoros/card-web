@@ -335,7 +335,7 @@ class CardView extends connect(store)(PageViewElement) {
 				display:none;
 			}
 
-			card-editor[active] {
+			card-editor[data-active] {
 				display:block;
 				width:100%;
 				flex-grow: 1;
@@ -430,7 +430,7 @@ class CardView extends connect(store)(PageViewElement) {
 					<tag-list .hideOnEmpty=${true} .tags=${this._cardTodos} .tagInfos=${TODO_ALL_INFOS}></tag-list>
 				</div>
           </card-stage>
-          <card-editor ?active=${this._editing} ></card-editor>
+          <card-editor ?data-active=${this._editing} ></card-editor>
         </div>
 		<div class='right-panel'>
         	<card-info-panel .active=${this.active}></card-info-panel>
