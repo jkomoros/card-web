@@ -338,7 +338,7 @@ class CardEditor extends connect(store)(LitElement) {
 				padding: 0.5em 2em;
 			}
 
-			.tabs.main label[selected] {
+			.tabs.main label[data-selected] {
 				color: var(--app-primary-color);
 				border-top-color: var(--app-primary-color);
 				font-weight: bold;
@@ -392,9 +392,9 @@ class CardEditor extends connect(store)(LitElement) {
         <div class='inputs'>
 		  <div ?hidden=${this._selectedTab !== TAB_CONTENT} class='flex body'>
 			<div class='tabs' @click=${this._handleEditorTabClicked}>
-				<label name='${EDITOR_TAB_CONTENT}' ?data-selected=${this._selectedEditorTab == EDITOR_TAB_CONTENT} ?data-empty=${!hasContent} ?data-modified=${contentModified}>Content</label>
-				<label name='${EDITOR_TAB_NOTES}' ?data-selected=${this._selectedEditorTab == EDITOR_TAB_NOTES} ?data-empty=${!hasNotes} ?data-modified=${notesModified}>Notes</label>
-				<label name='${EDITOR_TAB_TODO}' ?data-selected=${this._selectedEditorTab == EDITOR_TAB_TODO} ?data-empty=${!hasTodo} ?data-modified=${todoModified}>Freeform TODO</label>
+				<label data-name='${EDITOR_TAB_CONTENT}' ?data-selected=${this._selectedEditorTab == EDITOR_TAB_CONTENT} ?data-empty=${!hasContent} ?data-modified=${contentModified}>Content</label>
+				<label data-name='${EDITOR_TAB_NOTES}' ?data-selected=${this._selectedEditorTab == EDITOR_TAB_NOTES} ?data-empty=${!hasNotes} ?data-modified=${notesModified}>Notes</label>
+				<label data-name='${EDITOR_TAB_TODO}' ?data-selected=${this._selectedEditorTab == EDITOR_TAB_TODO} ?data-empty=${!hasTodo} ?data-modified=${todoModified}>Freeform TODO</label>
 				<span class='flex'></span>
 				<label class='help' ?hidden=${this._selectedEditorTab !== EDITOR_TAB_CONTENT}>Content is what shows up on the main body of the card</label>
 				<label class='help' ?hidden=${this._selectedEditorTab !== EDITOR_TAB_NOTES}>Notes are visible in the info panel to all readers and are for permanent asides</label>
@@ -515,8 +515,8 @@ class CardEditor extends connect(store)(LitElement) {
         <div class='buttons'>
 		  <h3>Editing</h3>
 		  <div class='tabs main' @click=${this._handleTabClicked}>
-			  <label name='${TAB_CONFIG}' ?selected=${this._selectedTab == TAB_CONFIG}>Configuration</label>
-			  <label name='${TAB_CONTENT}' ?selected=${this._selectedTab == TAB_CONTENT}>Content</label>
+			  <label data-name='${TAB_CONFIG}' ?data-selected=${this._selectedTab == TAB_CONFIG}>Configuration</label>
+			  <label data-name='${TAB_CONTENT}' ?data-selected=${this._selectedTab == TAB_CONTENT}>Content</label>
 		  </div>
 		  <div class='flex'>
 		  </div>
@@ -667,7 +667,7 @@ class CardEditor extends connect(store)(LitElement) {
 	_handleTabClicked(e) {
 		const ele = e.path[0];
 		if (!ele) return;
-		const name = ele.getAttribute('name');
+		const name = ele.getAttribute('data-name');
 		if (!name) return;
 		store.dispatch(editingSelectTab(name));
 	}
@@ -675,7 +675,7 @@ class CardEditor extends connect(store)(LitElement) {
 	_handleEditorTabClicked(e) {
 		const ele = e.path[0];
 		if (!ele) return;
-		const name = ele.getAttribute('name');
+		const name = ele.getAttribute('data-name');
 		if (!name) return;
 		store.dispatch(editingSelectEditorTab(name));
 	}
