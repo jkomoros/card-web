@@ -314,16 +314,16 @@ class CardEditor extends connect(store)(LitElement) {
 				font-style: italic;
 			}
 
-			.tabs label[selected] {
+			.tabs label[data-selected] {
 				color: var(--app-primary-color);
 				border-bottom-color: var(--app-primary-color);
 			}
 
-			.tabs label[empty] {
+			.tabs label[data-empty] {
 				font-weight:inherit;
 			}
 
-			.tabs label[modified] {
+			.tabs label[data-modified] {
 				font-style: italic;
 			}
 
@@ -392,9 +392,9 @@ class CardEditor extends connect(store)(LitElement) {
         <div class='inputs'>
 		  <div ?hidden=${this._selectedTab !== TAB_CONTENT} class='flex body'>
 			<div class='tabs' @click=${this._handleEditorTabClicked}>
-				<label name='${EDITOR_TAB_CONTENT}' ?selected=${this._selectedEditorTab == EDITOR_TAB_CONTENT} ?empty=${!hasContent} ?modified=${contentModified}>Content</label>
-				<label name='${EDITOR_TAB_NOTES}' ?selected=${this._selectedEditorTab == EDITOR_TAB_NOTES} ?empty=${!hasNotes} ?modified=${notesModified}>Notes</label>
-				<label name='${EDITOR_TAB_TODO}' ?selected=${this._selectedEditorTab == EDITOR_TAB_TODO} ?empty=${!hasTodo} ?modified=${todoModified}>Freeform TODO</label>
+				<label name='${EDITOR_TAB_CONTENT}' ?data-selected=${this._selectedEditorTab == EDITOR_TAB_CONTENT} ?data-empty=${!hasContent} ?data-modified=${contentModified}>Content</label>
+				<label name='${EDITOR_TAB_NOTES}' ?data-selected=${this._selectedEditorTab == EDITOR_TAB_NOTES} ?data-empty=${!hasNotes} ?data-modified=${notesModified}>Notes</label>
+				<label name='${EDITOR_TAB_TODO}' ?data-selected=${this._selectedEditorTab == EDITOR_TAB_TODO} ?data-empty=${!hasTodo} ?data-modified=${todoModified}>Freeform TODO</label>
 				<span class='flex'></span>
 				<label class='help' ?hidden=${this._selectedEditorTab !== EDITOR_TAB_CONTENT}>Content is what shows up on the main body of the card</label>
 				<label class='help' ?hidden=${this._selectedEditorTab !== EDITOR_TAB_NOTES}>Notes are visible in the info panel to all readers and are for permanent asides</label>
