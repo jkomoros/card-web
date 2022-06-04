@@ -190,10 +190,25 @@ export type SortExtras = {
     [filterName : string]: SortExtra
 };
 
+interface WebInfoNode {
+    id: CardID,
+    name: string
+}
+
+interface WebInfoNodeWithLayout extends WebInfoNode {
+    x : number,
+    y : number,
+}
+
 export type WebInfo = {
-    nodes: {id : CardID, name: string}[],
+    nodes: WebInfoNode[],
     edges: {source : CardID, target : CardID, value : number}[]
 };
+
+export type WebInfoWithLayout = {
+    nodes: WebInfoNodeWithLayout[]
+    edges: {source: WebInfoNodeWithLayout, target: WebInfoNodeWithLayout, value : number}[]
+}
 
 export type CardIDMap = {
     [id : CardID] : true | Card | ProcessedCard
