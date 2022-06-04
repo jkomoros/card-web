@@ -92,10 +92,6 @@ type TODOOverrides = {
     [name: TODOType]: boolean
 }
 
-type ReferencesMap = {
-    [id: CardID]: boolean
-}
-
 //TODO: tighten this
 export type ReferenceType = string;
 
@@ -451,8 +447,8 @@ export interface Card {
     //modified, these s are automatically mirrored basd on the value
     //of references. They're popped out primarily so that you can do
     //firestore qureies on them to find cards that link to another.
-    references: ReferencesMap,
-    references_inbound: ReferencesMap,
+    references: CardBooleanMap,
+    references_inbound: CardBooleanMap,
 
     //Keys in this object denote fields that should have their emsize
     //boosted, with a missing key equal to a boost of 0.0. The font size is
@@ -819,7 +815,7 @@ export type DataState = {
 	cardsSnapshot: Cards,
 	//a map of cardID -> true for cards that we expect to be deleted imminently,
 	//since we just issued a deletion command to the datastore.
-	expectedDeletions: {[id : CardID] : true},
+	expectedDeletions: CardBooleanMap,
 	//true while we're loading tweets for the current card
 	tweetsLoading: boolean,
 	//We only fetch tweets for cards that we have already viewed.
