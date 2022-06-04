@@ -1,4 +1,5 @@
 import { html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -22,6 +23,7 @@ import {
 } from '../actions/editor.js';
 
 import {
+	DEFAULT_IMAGE,
 	getImagesFromCard,
 	LEGAL_IMAGE_POSITIONS,
 } from '../images.js';
@@ -33,10 +35,22 @@ import {
 	ARROW_FORWARD_ICON,
 } from './my-icons.js';
 
+import {
+	Card,
+	State
+} from '../types.js';
+
+@customElement('image-properties-dialog')
 class ImagePropertiesDialog extends connect(store)(DialogElement) {
 
-	static styles = [
-		DialogElement.styles,
+	@state()
+	_index: number;
+
+	@state()
+	_card: Card;
+
+	static override styles = [
+		...DialogElement.styles,
 		ButtonSharedStyles,
 		css`
 			textarea {
@@ -64,9 +78,9 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 		`
 	];
 
-	innerRender() {
+	override innerRender() {
 		const images = getImagesFromCard(this._card);
-		const img = images[this._index] || {};
+		const img = images[this._index] || DEFAULT_IMAGE;
 		return html`
 			${img.uploadPath ? 
 		html`<label>Upload Path</label><em>${img.uploadPath || ''}<button class='small' title='Edit image' @click=${this._handleEditImage}>${EDIT_ICON}</button></em>` :
@@ -74,10 +88,10 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 }
 			<div class='row'>
 				<div>
-					<label>Size</label><input type='number' min='0.5' max='30.0' step='0.5' .property=${'emSize'} .value=${img.emSize} @input=${this._handleTextInput}></input>
+					<label>Size</label><input type='number' min='0.5' max='30.0' step='0.5' .property=${'emSize'} .value=${String(img.emSize)} @input=${this._handleTextInput}></input>
 				</div>
 				<div>
-					<label>Margin</label><input type='number' min='0.0' max='10.0' step='0.25' .property=${'margin'} .value=${img.margin} @input=${this._handleTextInput}></input>
+					<label>Margin</label><input type='number' min='0.0' max='10.0' step='0.25' .property=${'margin'} .value=${String(img.margin)} @input=${this._handleTextInput}></input>
 				</div>
 				<div>
 					<label>Position</label>
@@ -130,18 +144,11 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 		store.dispatch(openImageBrowserDialog(this._index));
 	}
 
-	_shouldClose() {
+	override _shouldClose() {
 		store.dispatch(closeImagePropertiesDialog());
 	}
 
-	static get properties() {
-		return {
-			_index: {type: Number},
-			_card: {type:Object},
-		};
-	}
-
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = selectImagePropertiesDialogOpen(state);
 		this._index = selectImagePropertiesDialogIndex(state);
@@ -150,4 +157,8 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 
 }
 
-window.customElements.define('image-properties-dialog', ImagePropertiesDialog);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'image-properties-dialog': ImagePropertiesDialog;
+	}
+}
