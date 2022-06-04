@@ -69,6 +69,7 @@ import {
 	CollectionState,
 	FilterMap,
 	SortExtra,
+	TODOType
 } from './types.js';
 
 export const DEFAULT_SET_NAME = 'main';
@@ -1516,7 +1517,7 @@ const TODO_TYPE_FREEFORM = {
 	autoApply: false,
 };
 
-type TODOType = {
+type TODOTypeInfo = {
 	type : string,
 	isTODO : boolean,
 	autoApply : boolean,
@@ -1525,7 +1526,7 @@ type TODOType = {
 	}
 }
 
-type CardFilterConfigItem = [filterNames: [string, string, string, string], test: (card : Card) => boolean, typ : TODOType, weight : number, description : string];
+type CardFilterConfigItem = [filterNames: [string, string, string, string], test: (card : Card) => boolean, typ : TODOTypeInfo, weight : number, description : string];
 
 type CardFilterConfigMap = {
 	[name : string] : CardFilterConfigItem
@@ -1624,7 +1625,7 @@ const MAX_TOTAL_TODO_DIFFICULTY = Object.entries(TODO_DIFFICULTY_MAP).map(entry 
 //TODOs that are NOT marked done. If onlyNonOverrides is true, then it will skip
 //any keys that are only true (not done) because they're overridden to be marked
 //as not done.
-export const cardTODOConfigKeys = (card : Card, onlyNonOverrides : boolean = false) : string[] => {
+export const cardTODOConfigKeys = (card : Card, onlyNonOverrides : boolean = false) : TODOType[] => {
 	//TODO: this ideally should be in util.js (with the other cardHasContent
 	//functions), but because of entanglement of constants this has to live next
 	//to these constants.
