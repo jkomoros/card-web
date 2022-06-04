@@ -1,4 +1,5 @@
 import { html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -10,9 +11,17 @@ import {
 	navigateToComment
 } from '../actions/app.js';
 
+import {
+	State
+} from '../types.js';
+
+@customElement('comment-redirect-view')
 class CommentRedirectView extends connect(store)(PageViewElement) {
 
-	static styles = [
+	@state()
+	_pageExtra: string;
+
+	static override styles = [
 		css`
 			div {
 				padding: 2em;
@@ -20,7 +29,7 @@ class CommentRedirectView extends connect(store)(PageViewElement) {
 		`
 	];
 
-	render() {
+	override render() {
 		return html`
 			<div>
 				<h3>
@@ -30,17 +39,11 @@ class CommentRedirectView extends connect(store)(PageViewElement) {
     `;
 	}
 
-	static get properties() {
-		return {
-			_pageExtra: {type: String},
-		};
-	}
-
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		this._pageExtra = state.app.pageExtra;
 	}
 
-	updated(changedProps) {
+	override updated(changedProps) {
 		if (changedProps.has('_pageExtra')) {
 			if (this._pageExtra) {
 				store.dispatch(navigateToComment(this._pageExtra));
@@ -52,4 +55,8 @@ class CommentRedirectView extends connect(store)(PageViewElement) {
 	}
 }
 
-window.customElements.define('comment-redirect-view', CommentRedirectView);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'comment-redirect-view': CommentRedirectView;
+	}
+}
