@@ -1,5 +1,6 @@
 
 import { LitElement, html, css } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -38,6 +39,18 @@ import {
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
+import {
+	BadgeMap,
+	Card,
+	CardBooleanMap,
+	CardID,
+	State
+} from '../types.js';
+
+import {
+	Collection
+} from '../collection_description.js';
+
 //How many cards to cap the rendering limit at (unless overriden by the parent
 //of this element). This should be set to a number of elements that can be
 //rendered without bad performance on typical hardware.
@@ -45,9 +58,65 @@ const DEFAULT_RENDER_LIMIT = 250;
 
 const OFFSET_CHUNKS = [250, 100, 50, 25, 10, 5, 1];
 
+interface DraggableHTMLElement extends HTMLElement {
+	index : number,
+	card : Card,
+}
+
+@customElement('card-thumbnail-list')
 class CardThumbnailList  extends connect(store)(LitElement) {
 
-	static styles = [
+	@property({ type : Boolean })
+	grid: boolean;
+
+	@property({ type : Object })
+	collection: Collection;
+
+	@property({ type : Boolean })
+	reorderable: boolean;
+
+	@property({ type : Boolean })
+	ghostCardsThatWillBeRemoved: boolean;
+
+	@property({ type : String })
+	highlightedCardId: CardID;
+
+	@property({ type : Boolean })
+	fullCards: boolean;
+
+	//renderOffset and renderLimit behave like the filters offset and
+	//limit, but they operate only at the level of rendering and not the
+	//underlying data model. Together they help ensure that very very
+	//long lists of cards aren't rendered (which is a large source of
+	//slowdowns for product card webs), while still allowing pagination.
+
+	@property({ type : Number })
+	renderOffset: number;
+
+	@property({ type : Number })
+	renderLimit: number;
+
+	@state()
+	_memoizedGhostItems: CardBooleanMap;
+
+	@state()
+	_dragging: DraggableHTMLElement;
+
+	@state()
+	_highlightedViaClick: boolean;
+
+	//Keeps track of if we've scrolled to the highlighted card yet;
+	//sometimes the highlightedCardId won't have been loaded yet
+	@state()
+	_highlightedScrolled: boolean;
+
+	@state()
+	_badgeMap: BadgeMap;
+
+	@state()
+	_cardIDsUserMayEdit: CardBooleanMap;
+
+	static override styles = [
 		ButtonSharedStyles,
 		cardBadgesStyles,
 		css`
@@ -221,7 +290,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		`
 	];
 
-	render() {
+	override render() {
 		return html`
 			${this.renderOffset ? html`<div class='row'><button id='prev' class='small' title='Previous cards' @click=${this._handlePreviousClicked}>${ARROW_UPWARD_ICON}</button><label class='interactive' for='prev'>Previous ${this._offsetChunk} cards</label></div>` : ''}
 			<div class='${this._dragging ? 'dragging' : ''} ${this.grid ? 'grid' : ''}'>
@@ -271,38 +340,12 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		this.renderLimit = DEFAULT_RENDER_LIMIT;
 	}
 
-	static get properties() {
-		return {
-			grid: {type: Boolean},
-			collection: {type:Object},
-			reorderable: { type: Boolean},
-			ghostCardsThatWillBeRemoved: {type:Boolean},
-			highlightedCardId: { type:String },
-			fullCards: {type:Boolean},
-			//renderOffset and renderLimit behave like the filters offset and
-			//limit, but they operate only at the level of rendering and not the
-			//underlying data model. Together they help ensure that very very
-			//long lists of cards aren't rendered (which is a large source of
-			//slowdowns for product card webs), while still allowing pagination.
-			renderOffset: {type:Number},
-			renderLimit: {type:Number},
-			_memoizedGhostItems: {type:Object},
-			_dragging: {type: Boolean},
-			_highlightedViaClick: {type: Boolean},
-			//Keeps track of if we've scrolled to the highlighted card yet;
-			//sometimes the highlightedCardId won't have been loaded yet
-			_highlightedScrolled: {type: Boolean},
-			_badgeMap: { type: Object },
-			_cardIDsUserMayEdit: { type: Object},
-		};
-	}
-
 	_thumbnail(card, index) {
 
 		const title = this._titleForCard(card);
 		const hasContent = cardHasContent(card);
 
-		const cardTypeConfig = CARD_TYPE_CONFIGURATION[card.card_type] || {};
+		const cardTypeConfig = CARD_TYPE_CONFIGURATION[card.card_type];
 
 		return html`
 			<div  .card=${card} .index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.reorderable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${cardTypeConfig.dark ? 'dark' : ''} ${card && card.published ? '' : 'unpublished'} ${this._collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
@@ -474,12 +517,12 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		return this._memoizedGhostItems;
 	}
 
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		this._badgeMap = selectBadgeMap(state);
 		this._cardIDsUserMayEdit = selectCardIDsUserMayEdit(state);
 	}
 
-	updated(changedProps) {
+	override updated(changedProps) {
 		if(changedProps.has('highlightedCardId') && this.highlightedCardId) {
 			this._scrollHighlightedThumbnailIntoView(true);
 		}
@@ -495,4 +538,8 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 	}
 }
 
-window.customElements.define('card-thumbnail-list', CardThumbnailList);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'card-thumbnail-list': CardThumbnailList;
+	}
+}
