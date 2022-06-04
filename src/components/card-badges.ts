@@ -29,7 +29,7 @@ const badge = (name : BadgeName, icon : TemplateResult, countOrVisible : boolean
 };
 
 //if you use starBadge, also print out badgeStyles within your component's shadowDOM.
-export const starBadge = (count : number, highlighted : boolean) => {
+export const starBadge = (count : number, highlighted? : boolean) => {
 	return badge('star-count', STAR_ICON, count, highlighted);
 };
 
