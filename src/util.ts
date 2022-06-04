@@ -609,11 +609,10 @@ export const prettyTime = (date) => {
 	return date.toDateString();
 };
 
-export const killEvent = (e : Event) => {
+export const killEvent = (e : Event) : void => {
 	if (e) {
 		e.preventDefault();
 	}
-	return true;
 };
 
 export const isWhitespace = (s : string) => {
