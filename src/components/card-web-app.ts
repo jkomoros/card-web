@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 import { setPassiveTouchGestures } from '@polymer/polymer/lib/utils/settings.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 import { installOfflineWatcher } from 'pwa-helpers/network.js';
@@ -28,9 +29,27 @@ import {
 	selectActiveCard
 } from '../selectors.js';
 
+import {
+	Card,
+	State
+} from '../types.js';
+
+@customElement('card-web-app')
 class CardWebApp extends connect(store)(LitElement) {
 
-	static styles = [
+	@state()
+	_card: Card;
+
+	@state()
+	_page: string;
+
+	@state()
+	_snackbarOpened: boolean;
+
+	@state()
+	_offline: boolean;
+
+	static override styles = [
 		css`
 			:host {
 				--app-drawer-width: 256px;
@@ -91,7 +110,7 @@ class CardWebApp extends connect(store)(LitElement) {
 		`
 	];
 
-	render() {
+	override render() {
 		// Anything that's related to rendering should be done in here.
 		return html`
 		<main-view ?active=${pageRequiresMainView(this._page)}></main-view>
@@ -99,15 +118,6 @@ class CardWebApp extends connect(store)(LitElement) {
 		<snack-bar ?active="${this._snackbarOpened}">
 				You are now ${this._offline ? 'offline' : 'online'}.</snack-bar>
 		`;
-	}
-
-	static get properties() {
-		return {
-			_card: { type: Object },
-			_page: { type: String },
-			_snackbarOpened: { type: Boolean },
-			_offline: { type: Boolean },
-		};
 	}
 
 	get appTitle() {
@@ -142,7 +152,7 @@ class CardWebApp extends connect(store)(LitElement) {
 		store.dispatch(ctrlKeyPressed(false));
 	}
 
-	firstUpdated() {
+	override firstUpdated() {
 		installRouter((location) => store.dispatch(navigated(location.pathname, location.search)));
 		installOfflineWatcher((offline) => store.dispatch(updateOffline(offline)));
 		installMediaQueryWatcher('(max-width: 900px)',(isMobile) => {
@@ -153,7 +163,7 @@ class CardWebApp extends connect(store)(LitElement) {
 		window.addEventListener('blur', this._handleBlur.bind(this));
 	}
 
-	updated(changedProps) {
+	override updated(changedProps) {
 		if (changedProps.has('_card') && this._card) {
 			const pageTitle = (this._card.title ? this._card.title + ' - ' : '') + this.appTitle ;
 			updateMetadata({
@@ -164,7 +174,7 @@ class CardWebApp extends connect(store)(LitElement) {
 		}
 	}
 
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		this._card = selectActiveCard(state);
 		this._page = state.app.page;
 		this._offline = state.app.offline;
@@ -172,4 +182,8 @@ class CardWebApp extends connect(store)(LitElement) {
 	}
 }
 
-window.customElements.define('card-web-app', CardWebApp);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'card-web-app': CardWebApp;
+	}
+}
