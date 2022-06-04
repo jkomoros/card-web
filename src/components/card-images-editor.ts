@@ -1,5 +1,6 @@
 
 import { LitElement, html } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store so it can render visited links
@@ -27,8 +28,20 @@ import './tag-list.js';
 import './image-properties-dialog.js';
 import './image-browser-dialog.js';
 
+import {
+	Card,
+	State
+} from '../types.js';
+import { EMPTY_CARD } from '../actions/data.js';
+
+@customElement('card-images-editor')
 class CardImagesEditor extends connect(store)(LitElement) {
-	render() {
+
+
+	@state()
+	_card: Card;
+
+	override render() {
 
 		if (!IMAGE_CARD_TYPES[this._effectiveCard.card_type]) return html`<em>This card type does not support images.</em>`;
 
@@ -76,18 +89,16 @@ class CardImagesEditor extends connect(store)(LitElement) {
 	}
 
 	get _effectiveCard() {
-		return this._card || {};
+		return this._card || EMPTY_CARD;
 	}
 
-	static get properties() {
-		return {
-			_card: { type: Object },
-		};
-	}
-
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		this._card = selectEditingCard(state);
 	}
 }
 
-window.customElements.define('card-images-editor', CardImagesEditor);
+declare global {
+	interface HTMLElementTagNameMap {
+	  "card-images-editor": CardImagesEditor;
+	}
+}
