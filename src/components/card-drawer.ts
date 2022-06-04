@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
 
 import './card-renderer.js';
 import './word-cloud.js';
@@ -27,8 +28,71 @@ import {
 
 import * as icons from './my-icons.js';
 
+import {
+	CardID,
+	CardType,
+	WordCloud
+} from '../types.js';
+
+import {
+	Collection
+} from '../collection_description.js';
+
+@customElement('card-drawer')
 class CardDrawer extends LitElement {
-	static styles = [
+
+	@property({ type : Boolean })
+	grid: boolean;
+
+	@property({ type : Boolean })
+	reorderable: boolean;
+
+	//If set, this is what type of card type will be added when add is
+	//pressed. This is used entirely for display within this component;
+	//the actual card adding is done by the parent component based on
+	//the add-card event.
+	@property({ type : String})
+	cardTypeToAdd: CardType;
+
+	@property({ type : Boolean })
+	showCreateCard: boolean;
+
+	//If true, will show the button to add working notes card no matter what
+	@property({ type : Boolean })
+	showCreateWorkingNotes: boolean;
+
+	@property({ type : Object })
+	collection: Collection;
+
+	@property({ type : Number })
+	renderOffset: number;
+
+	@property({ type : Boolean })
+	ghostCardsThatWillBeRemoved: boolean;
+
+	@property({ type : String })
+	highlightedCardId: CardID;
+
+	@property({ type : Boolean })
+	fullCards: boolean;
+
+	@property({ type : Boolean })
+	reorderPending: boolean;
+
+	//_showing is more complicated than whether we're open or yet.
+	@property({ type : Boolean })
+	showing: boolean;
+
+	@property({ type : Array })
+	wordCloud: WordCloud
+
+	@property({ type : Boolean })
+	infoExpanded: boolean;
+
+	@property({ type : Boolean })
+	infoCanBeExpanded: boolean;
+
+	static override styles = [
 		ButtonSharedStyles,
 		ScrollingSharedStyles,
 		SharedStyles,
@@ -88,7 +152,7 @@ class CardDrawer extends LitElement {
 		`
 	];
 
-	render() {
+	override render() {
 		return html`
 			<div ?hidden='${!this.showing}' class='container ${this.reorderPending ? 'reordering':''} ${this.grid ? 'grid' : ''}'>
 				<div class='scrolling scroller'>
@@ -131,31 +195,10 @@ class CardDrawer extends LitElement {
 		this.renderOffset = 0;
 	}
 
-	static get properties() {
-		return {
-			grid: {type: Boolean},
-			reorderable: { type: Boolean },
-			//If set, this is what type of card type will be added when add is
-			//pressed. This is used entirely for display within this component;
-			//the actual card adding is done by the parent component based on
-			//the add-card event.
-			cardTypeToAdd: { type:String },
-			showCreateCard: { type:Boolean },
-			//If true, will show the button to add working notes card no matter what
-			showCreateWorkingNotes: { type: Boolean},
-			collection: {type:Object},
-			renderOffset: {type:Number},
-			ghostCardsThatWillBeRemoved: {type:Boolean},
-			highlightedCardId: { type:String },
-			fullCards: {type:Boolean},
-			reorderPending: {type:Boolean},
-			//_showing is more complicated than whether we're open or yet.
-			showing: {type:Boolean},
-			wordCloud: {type:Object},
-			infoExpanded: {type:Boolean},
-			infoCanBeExpanded: {type:Boolean},
-		};
-	}
 }
 
-window.customElements.define('card-drawer', CardDrawer);
+declare global {
+	interface HTMLElementTagNameMap {
+	  "card-drawer": CardDrawer;
+	}
+}
