@@ -1,4 +1,5 @@
 import { html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -149,9 +150,153 @@ import { SharedStyles } from './shared-styles.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
+import {
+	Card,
+	CardFieldMap,
+	CardID,
+	CardType,
+	SectionID,
+	State,
+	TagInfos,
+	TODOType,
+	WordCloud
+} from '../types.js';
+
+import {
+	Collection
+} from '../collection_description.js';
+import { ExpandedReferenceBlocks } from '../reference_blocks.js';
+
+@customElement('card-view')
 class CardView extends connect(store)(PageViewElement) {
 
-	static styles = [
+	@state()
+	_card: Card;
+
+	@state()
+	_editing: boolean;
+
+	@state()
+	_pageExtra: string;
+
+	@state()
+	_userMayEdit: boolean;
+
+	@state()
+	_cardTypeToAdd: CardType;
+
+	@state()
+	_userMayAddCardToActiveCollection: boolean;
+
+	@state()
+	_userMayReorderCollection: boolean;
+
+	@state()
+	_userMayCreateCard: boolean;
+
+	@state()
+	_userMayStar: boolean;
+
+	@state()
+	_userMayMarkRead: boolean;
+
+	@state()
+	_userMayModifyReadingList: boolean;
+
+	@state()
+	_userMayForkCard: boolean;
+
+	@state()
+	_autoMarkReadPending: boolean;
+
+	@state()
+	_displayCard: Card;
+
+	@state()
+	_editingCard: Card;
+
+	@state()
+	_commentsAndInfoPanelOpen : boolean;
+
+	@state()
+	_cardsDrawerPanelOpen: boolean;
+
+	@state()
+	_cardsDrawerPanelShowing: boolean;
+
+	@state()
+	_headerPanelOpen: boolean;
+
+	@state()
+	_updatedFromContentEditable: CardFieldMap;
+
+	@state()
+	_presentationMode: boolean;
+
+	@state()
+	_mobileMode: boolean;
+
+	@state()
+	_cardHasStar: boolean;
+
+	@state()
+	_cardIsRead: boolean;
+
+	@state()
+	_cardInReadingList: boolean;
+
+	@state()
+	_collection: Collection;
+
+	@state()
+	_collectionIsFallback: boolean;
+
+	@state()
+	_renderOffset: number;
+
+	@state()
+	_drawerReorderPending : boolean;
+
+	@state()
+	_activeSectionId: SectionID;
+
+	@state()
+	_dataIsFullyLoaded: boolean;
+
+	@state()
+	_sectionsAndTagsLoaded: boolean;
+
+	@state()
+	_tagInfos: TagInfos;
+
+	@state()
+	_cardTodos: TODOType[];
+
+	@state()
+	_pendingNewCardIDToNavigateTo: CardID;
+
+	@state()
+	_collectionWordCloud: WordCloud;
+
+	@state()
+	_infoExpanded: boolean;
+
+	@state()
+	_suggestMissingConceptsEnabled: boolean;
+
+	@state()
+	_suggestedConcepts: CardID[];
+
+	@state()
+	_userIsAdmin: boolean;
+
+	@state()
+	_cardReferenceBlocks: ExpandedReferenceBlocks;
+
+	@state()
+	_signedIn: boolean;
+
+	static override styles = [
 		ButtonSharedStyles,
 		SharedStyles,
 		css`
@@ -246,7 +391,7 @@ class CardView extends connect(store)(PageViewElement) {
 		`
 	];
 
-	render() {
+	override render() {
 		return html`
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
         <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .collection=${this._collection} @info-zippy-clicked=${this._handleInfoZippyClicked} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' @add-working-notes-card='${this._handleAddWorkingNotesCard}' @update-render-offset=${this._handleUpdateRenderOffset} .reorderable=${this._userMayReorderCollection} .showCreateCard=${this._userMayAddCardToActiveCollection} .showCreateWorkingNotes=${this._userMayCreateCard} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .ghostCardsThatWillBeRemoved=${true} .wordCloud=${this._collectionWordCloud} .infoExpanded=${this._infoExpanded} .infoCanBeExpanded=${true} .cardTypeToAdd=${this._cardTypeToAdd} .renderOffset=${this._renderOffset}>
@@ -295,51 +440,6 @@ class CardView extends connect(store)(PageViewElement) {
     `;
 	}
 
-	static get properties() {
-		return {
-			_card: { type: Object },
-			_editing: {type: Boolean },
-			_pageExtra: {type: String},
-			_userMayEdit: { type: Boolean },
-			_cardTypeToAdd: {type:String},
-			_userMayAddCardToActiveCollection: {type: Boolean},
-			_userMayReorderCollection: {type: Boolean},
-			_userMayCreateCard: { type: Boolean },
-			_userMayStar: { type: Boolean },
-			_userMayMarkRead: { type: Boolean },
-			_userMayModifyReadingList: { type: Boolean},
-			_userMayForkCard: {type:Boolean},
-			_autoMarkReadPending : { type: Boolean},
-			_displayCard: { type: Object },
-			_editingCard: { type: Object },
-			_commentsAndInfoPanelOpen : {type: Object},
-			_cardsDrawerPanelOpen: {type:Boolean},
-			_cardsDrawerPanelShowing: {type: Boolean},
-			_headerPanelOpen: {type: Boolean},
-			_updatedFromContentEditable: {type: Object},
-			_presentationMode: {type:Boolean},
-			_mobileMode: {type: Boolean},
-			_cardHasStar: {type: Boolean},
-			_cardIsRead: {type: Boolean},
-			_cardInReadingList: {type: Boolean},
-			_collection: {type: Object},
-			_collectionIsFallback: {type:Boolean},
-			_renderOffset: {type:Number},
-			_drawerReorderPending : {type: Boolean},
-			_activeSectionId: {type: String},
-			_dataIsFullyLoaded: {type:Boolean},
-			_sectionsAndTagsLoaded: {type:Boolean},
-			_tagInfos: {type:Object},
-			_cardTodos: {type: Array},
-			_pendingNewCardIDToNavigateTo: {type:String},
-			_collectionWordCloud: {type:Object},
-			_infoExpanded: {type: Boolean},
-			_suggestMissingConceptsEnabled: {type:Boolean},
-			_suggestedConcepts: {type:Array},
-			_userIsAdmin: {type:Boolean},
-		};
-	}
-
 	_thumbnailActivatedHandler(e) {
 		if (e.detail.ctrl) {
 			store.dispatch(toggleOnReadingList(e.detail.card));
@@ -353,10 +453,7 @@ class CardView extends connect(store)(PageViewElement) {
 		store.dispatch(updateRenderOffset(e.detail.value));
 	}
 
-	_handleEditClicked(e) {
-		if (this._editing) {
-			return this._handleCloseEditor(e);
-		}
+	_handleEditClicked() {
 		store.dispatch(editingStart());
 	}
 
@@ -369,10 +466,10 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_handleCardSwiped(e) {
 		if (e.detail.direction == 'left') {
-			this._handleForwardClicked(e);
+			this._handleForwardClicked();
 		}
 		if (e.detail.direction == 'right') {
-			this._handleBackClicked(e);
+			this._handleBackClicked();
 		}
 	}
 
@@ -486,7 +583,7 @@ class CardView extends connect(store)(PageViewElement) {
 		store.dispatch(reorderCard(e.detail.card, e.detail.otherID, e.detail.isAfter));
 	}
 
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		this._editingCard = selectEditingCardwithDelayedNormalizedProperties(state);
 		this._card = selectActiveCard(state) || {};
 		this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(state);
@@ -539,22 +636,22 @@ class CardView extends connect(store)(PageViewElement) {
 
 	}
 
-	firstUpdated() {
+	override firstUpdated() {
 		document.addEventListener('keydown', e => this._handleKeyDown(e));
 	}
 
 	_handleKeyDown(e) {
 		//We have to hook this to issue content editable commands when we're
 		//active. But most of the time we don't want to do anything.
-		if (!this.active) return;
+		if (!this.active) return false;
 		if (e.key == 'Escape') {
 			const activeEle = deepActiveElement();
-			if (!activeEle) return;
-			activeEle.blur();
+			if (!activeEle) return false;
+			if (activeEle instanceof HTMLElement) activeEle.blur();
 			return killEvent(e);
 		}
-		if (!e.metaKey && !e.ctrlKey) return;
-		if (this._editing) return;
+		if (!e.metaKey && !e.ctrlKey) return false;
+		if (this._editing) return false;
 
 		if (e.key == 'm') {
 			//these action creators will fail if the user may not do these now.
@@ -571,8 +668,8 @@ class CardView extends connect(store)(PageViewElement) {
 			if (e.shiftKey) {
 				const location = window.location.pathname;
 				const newLocation = prompt('Where do you want to navigate to?', location);
-				if (!newLocation) return;
-				if (newLocation == location) return;
+				if (!newLocation) return false;
+				if (newLocation == location) return false;
 				store.dispatch(navigatePathTo(newLocation, false));
 			}
 		}
@@ -599,7 +696,7 @@ class CardView extends connect(store)(PageViewElement) {
 		stage.resizeCard();
 	}
 
-	updated(changedProps) {
+	override updated(changedProps) {
 		if (changedProps.has('_pageExtra')) {
 			if (this._pageExtra) {
 				store.dispatch(updateCardSelector(this._pageExtra));
@@ -641,4 +738,8 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 }
 
-window.customElements.define('card-view', CardView);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'card-view': CardView;
+	}
+}
