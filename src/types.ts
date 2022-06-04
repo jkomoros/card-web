@@ -284,6 +284,14 @@ export type CommentThread = {
     updated: Timestamp,
 };
 
+export type CommentMessages = {
+    [id : CommentMessageID]: CommentMessage
+}
+
+export type CommentThreads = {
+    [id : CommentThreadID]: CommentThread
+}
+
 //TODO: tighten this
 export type HTMLTagName = string;
 
@@ -808,8 +816,8 @@ export type CollectionState = {
 }
 
 export type CommentsState = {
-	messages: {[id : CommentMessageID]: CommentMessage},
-	threads: {[id : CommentThreadID]: CommentThread},
+	messages: CommentMessages,
+	threads: CommentThreads,
 	messagesLoaded: boolean,
 	threadsLoaded: boolean,
 }
