@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
 
 import { SharedStyles } from './shared-styles.js';
 
@@ -8,9 +9,19 @@ import {
 	CANCEL_ICON
 } from './my-icons.js';
 
+@customElement('dialog-element')
 export class DialogElement extends LitElement {
 
-	static styles = [
+	@property({ type : Boolean })
+	open: boolean;
+
+	@property({ type : String })
+	override title: string;
+
+	@property({ type : Boolean })
+	mobile: boolean;
+
+	static override styles = [
 		ButtonSharedStyles,
 		SharedStyles,
 		css`
@@ -86,10 +97,10 @@ export class DialogElement extends LitElement {
 		`
 	];
 
-	render() {
+	override render() {
 		return html`
 			<div class='container ${this.open ? 'open' : 'closed'}'>
-				<div class='background ${this.mobileMode ? 'mobile': ''}' @click=${this._handleBackgroundClicked}>
+				<div class='background ${this.mobile ? 'mobile': ''}' @click=${this._handleBackgroundClicked}>
 					<div class='content'>
 						<button class='small' id='close' @click=${this.cancel}>${CANCEL_ICON}</button>
 						<h2>${this.title || ''}</h2>
@@ -107,7 +118,7 @@ export class DialogElement extends LitElement {
 		return html`<slot></slot>`;
 	}
 
-	firstUpdated() {
+	override firstUpdated() {
 		window.addEventListener('keydown', e => this._handleKeyDown(e));
 	}
 
@@ -115,7 +126,7 @@ export class DialogElement extends LitElement {
 		if (!this.open) return;
 		if (e.key == 'Escape') {
 			this.cancel();
-			return true;
+			return;
 		}
 	}
 
@@ -131,9 +142,9 @@ export class DialogElement extends LitElement {
 	}
 
 	//Will be called with a single argument of true if cancelled
-	_shouldClose() {
+	_shouldClose(cancelled: boolean = false) {
 		//Override point for sub classes
-		this.dispatchEvent(new CustomEvent('dialog-should-close'));
+		this.dispatchEvent(new CustomEvent('dialog-should-close', {detail: {cancelled}}));
 	}
 
 	_focusInputOnOpen() {
@@ -145,18 +156,10 @@ export class DialogElement extends LitElement {
 		if (!input) input = this.shadowRoot.querySelector('input[type=search]');
 		if (!input) input = this.shadowRoot.querySelector('textarea');
 		if (!input) return;
-		input.focus();
+		if (input instanceof HTMLElement) input.focus();
 	}
 
-	static get properties() {
-		return {
-			open: {type:Boolean},
-			title: {type:String},
-			mobile: {type:Boolean},
-		};
-	}
-
-	updated(changedProps) {
+	override updated(changedProps) {
 		if (changedProps.has('open') && this.open) {
 			this._focusInputOnOpen();
 		}
@@ -164,4 +167,8 @@ export class DialogElement extends LitElement {
 
 }
 
-window.customElements.define('dialog-element', DialogElement);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'dialog-element': DialogElement;
+	}
+}
