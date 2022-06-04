@@ -19,6 +19,8 @@ import {
 } from './comments.js';
 
 import {
+	CommentMessageID,
+	CommentThreadID,
 	CommitActionType
 } from '../types.js';
 
@@ -30,7 +32,7 @@ export const COMMIT_ACTIONS : {[typ : string] : CommitActionType} = {
 	CREATE_THREAD: 'CREATE_THREAD',
 };
 
-export const configureCommitAction = (commitAction, associatedId) => {
+export const configureCommitAction = (commitAction : CommitActionType, associatedId? : CommentMessageID | CommentThreadID) => {
 	if (!associatedId) associatedId = '';
 	return {
 		type: PROMPT_CONFIGURE_ACTION,
