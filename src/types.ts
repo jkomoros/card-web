@@ -86,7 +86,7 @@ export type ReferencesEntriesDiff = (ExpandedReferenceObject | ExpandedReference
 export type ImageBlock = ImageInfo[];
 
 //TODO: lock this down more
-type TODOType = string;
+export type TODOType = string;
 
 type TODOOverrides = {
     [name: TODOType]: boolean
@@ -667,6 +667,25 @@ export type SectionUpdate = TimestampToFieldValue<OptionalFields<Section>>;
 
 export type Tags = {
     [tagName : TagID] : Section
+}
+
+//TODO: tighten?
+type CSSFilterString = string;
+
+export type TagInfo = {
+    title : string,
+    id : string,
+    description? : string,
+    previewCard? : CardID,
+    suppressLink? : boolean,
+    subtle? : boolean,
+    color? : CSSColorString,
+    filter? : CSSFilterString,
+    disabled? : boolean,
+}
+
+export type TagInfos = {
+    [name : string]: TagInfo
 }
 
 export type Sections = {
