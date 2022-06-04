@@ -1,5 +1,12 @@
 import { LitElement, html, css } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
+import { ExpandedReferenceBlocks } from '../reference_blocks.js';
+
+import {
+	BadgeMap,
+	Card
+} from '../types.js';
 
 import {
 	cardBadges,
@@ -11,9 +18,33 @@ import {
 	CARD_HEIGHT_IN_EMS
 } from './card-renderer.js';
 
+@customElement('card-preview')
 class CardPreview extends LitElement {
 
-	static styles = [
+	@property({ type : Object })
+	card: Card;
+
+	@property({ type : Object })
+	badgeMap: BadgeMap;
+
+	@property({ type : Number })
+	x: number;
+
+	@property({ type : Number })
+	y: number;
+
+	@property({ type : Array })
+	expandedReferenceBlocks: ExpandedReferenceBlocks;
+
+	/* size of font for card in px*/
+	@property({ type : Number })
+	previewSize: number;
+
+	/* offset from the cursor in pixels */
+	@property({ type : Number })
+	cardOffset : number;
+
+	static override styles = [
 		cardBadgesStyles,
 		css`
 			:host {
@@ -25,7 +56,7 @@ class CardPreview extends LitElement {
 		`
 	];
 
-	render() {
+	override render() {
 		const cardWidthInPixels = CARD_WIDTH_IN_EMS * this.previewSize;
 		const cardHeightInPixels = CARD_HEIGHT_IN_EMS * this.previewSize;
 		const positionLeft = (this.x + cardWidthInPixels) > window.innerWidth;
@@ -54,21 +85,10 @@ class CardPreview extends LitElement {
 		this.cardOffset = 10.0;
 	}
 
-	static get properties() { 
-		return {
-			card: {type: Object},
-			badgeMap: { type:Object },
-			x: { type: Number },
-			y: { type: Number },
-			expandedReferenceBlocks: { type: Array},
-			/* size of font for card in px*/
-			previewSize: { type: Number },
-			/* offset from the cursor in pixels */
-			cardOffset : { type: Number },
-		};
-	}
-
-
 }
 
-window.customElements.define('card-preview', CardPreview);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'card-preview': CardPreview;
+	}
+}
