@@ -123,12 +123,13 @@ import {
 } from 'firebase/storage';
 
 import {
+	HTMLElementWithStashedSelectionOffset,
 	Uid 
 } from '../types.js';
 
-let lastReportedSelectionRange = null;
-let savedSelectionRange = null;
-let selectionParent = null;
+let lastReportedSelectionRange : Range = null;
+let savedSelectionRange : Range = null;
+let selectionParent : HTMLElementWithStashedSelectionOffset = null;
 
 
 //selection range is weird; you can only listen for changes at the document
@@ -138,17 +139,17 @@ let selectionParent = null;
 //selection will be lost. The solution we go with is that elements who might
 //have a content editable target (e.g. content-card in editing mode) report
 //their selected ranged when they have one here, globally.
-export const reportSelectionRange = (range) => {
+export const reportSelectionRange = (range : Range) => {
 	lastReportedSelectionRange = range;
 };
 
 export const saveSelectionRange = () => {
 	savedSelectionRange = lastReportedSelectionRange;
 	if (!savedSelectionRange) return;
-	let parentEle = savedSelectionRange.commonAncestorContainer;
+	let parentEle = savedSelectionRange.commonAncestorContainer as HTMLElement;
 	//Walk up to the parent that actually has content editable set.
 	while (parentEle && parentEle.contentEditable != 'true') {
-		parentEle = parentEle.parentNode;
+		parentEle = parentEle.parentNode as HTMLElement;
 	}
 	if (!parentEle) return;
 	//a tuple of [startOffset, endOffset]
@@ -157,7 +158,7 @@ export const saveSelectionRange = () => {
 	selectionParent.stashedSelectionOffset = offsets;
 };
 
-const startEndOffsetInEle = (ele, range, previousCount) => {
+const startEndOffsetInEle = (ele : Node, range : Range, previousCount : number) : [number, number] => {
 	let start = -1;
 	let end = -1;
 	if (!ele) return [start, end];
@@ -177,7 +178,7 @@ const startEndOffsetInEle = (ele, range, previousCount) => {
 	return [start, end];
 };
 
-const rangeFromOffsetsInEle = (ele, startOffset = -1, endOffset = -1) => {
+const rangeFromOffsetsInEle = (ele : Node, startOffset = -1, endOffset = -1) => {
 	//startOffset and endOffset are within the given ele.
 	if (startOffset == -1 || endOffset == -1) return null;
 	const range = document.createRange();
@@ -185,7 +186,7 @@ const rangeFromOffsetsInEle = (ele, startOffset = -1, endOffset = -1) => {
 	return range;
 };
 
-const setOffsetRange = (node, range, startOffset, endOffset, offsetCount) => {
+const setOffsetRange = (node : Node, range : Range, startOffset : number, endOffset : number, offsetCount : number) => {
 	if (node.nodeType == node.TEXT_NODE) {
 		//We might be the candidate!
 		if (startOffset >= offsetCount && startOffset < offsetCount + node.textContent.length) range.setStart(node, startOffset - offsetCount);
