@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit';
+import { customElement, property } from 'lit/decorators';
 
 import {
 	EDIT_ICON
@@ -13,10 +14,20 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import './tag-list.js';
 
-// This element is *not* connected to the Redux store.
+import {
+	TagInfos
+} from '../types.js';
+
+@customElement('configure-collection-key-card')
 class ConfigureCollectionKeyCard extends LitElement {
 
-	static styles = [
+	@property({ type : String })
+	value: string;
+
+	@property({ type : Object })
+	cardTagInfos: TagInfos;
+
+	static override styles = [
 		ButtonSharedStyles,
 		css`
 			:host {
@@ -29,7 +40,7 @@ class ConfigureCollectionKeyCard extends LitElement {
 		`
 	];
 
-	render() {
+	override render() {
 		let [cardID, includeKeyCard] = parseKeyCardID(this.value);
 		return html`
 			<div>
@@ -56,12 +67,10 @@ class ConfigureCollectionKeyCard extends LitElement {
 		this._dispatchNewValue(keyCardID(cardID, includeKeyCard));
 	}
 
-	static get properties() {
-		return {
-			value: { type: String },
-			cardTagInfos: { type: Object},
-		};
-	}
 }
 
-window.customElements.define('configure-collection-key-card', ConfigureCollectionKeyCard);
+declare global {
+	interface HTMLElementTagNameMap {
+		'configure-collection-key-card': ConfigureCollectionKeyCard;
+	}
+}
