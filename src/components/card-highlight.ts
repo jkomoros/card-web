@@ -43,54 +43,52 @@ class CardHighlight extends connect(store)(LitElement) {
 	_hoverCardID: CardID;
 
 	//TODO: switch to static styles property
-	static override get styles() {
-		return [
-			css`
-				:host {
-					display:inline;
-					margin:0;
-					padding:0;
-				}
+	static override styles = [
+		css`
+			:host {
+				display:inline;
+				margin:0;
+				padding:0;
+			}
 
-				span {
-					cursor: pointer;
-					background-color: var(--app-secondary-color-light-very-transparent);
-				}
+			span {
+				cursor: pointer;
+				background-color: var(--app-secondary-color-light-very-transparent);
+			}
 
-				span.alternate {
-					background-color: var(--app-primary-color-light-very-transparent);
-				}
+			span.alternate {
+				background-color: var(--app-primary-color-light-very-transparent);
+			}
 
-				span.disabled {
-					/* icon looks kind of like it will be removed. this and and
-					the next rule are for the behavior in card editor that do
-					things with the disabled-card-clicked event, which is a
-					little odd that we do something with it here. */
-					cursor: alias;
-				}
+			span.disabled {
+				/* icon looks kind of like it will be removed. this and and
+				the next rule are for the behavior in card editor that do
+				things with the disabled-card-clicked event, which is a
+				little odd that we do something with it here. */
+				cursor: alias;
+			}
 
-				span.alternate.disabled {
-					cursor: copy;
-				}
+			span.alternate.disabled {
+				cursor: copy;
+			}
 
-				/* the next two don't need enabled class when hover class is
-				also manually set, so they can highlight any time the card is
-				hovered elsewhere */
-				span.enabled:hover, span.hover {
-					background-color: var(--app-secondary-color-light-somewhat-transparent);
-				}
+			/* the next two don't need enabled class when hover class is
+			also manually set, so they can highlight any time the card is
+			hovered elsewhere */
+			span.enabled:hover, span.hover {
+				background-color: var(--app-secondary-color-light-somewhat-transparent);
+			}
 
-				span.enabled.alternate:hover, span.alternate.hover {
-					background-color: var(--app-primary-color-light-somewhat-transparent);
-				}
+			span.enabled.alternate:hover, span.alternate.hover {
+				background-color: var(--app-primary-color-light-somewhat-transparent);
+			}
 
-				a {
-					text-decoration: none;
-					color: var(--app-dark-text-color);
-				}
-			`
-		];
-	}
+			a {
+				text-decoration: none;
+				color: var(--app-dark-text-color);
+			}
+		`
+	];
 
 	override render() {
 		/* the following is all on one line to avoid extra whitespace that would lead to gaps between the text and punctuation */
