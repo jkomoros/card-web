@@ -1,5 +1,6 @@
 
 import { LitElement, html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -37,9 +38,26 @@ import {
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
+import {
+	State, UserInfo
+} from '../types.js';
+
+@customElement('user-chip')
 class UserChip extends connect(store)(LitElement) {
 
-	static styles = [
+	@state()
+	_pending: boolean;
+
+	@state()
+	_user: UserInfo;
+
+	@state()
+	_signedIn: boolean;
+
+	@state()
+	_error: Error;
+
+	static override styles = [
 		ButtonSharedStyles,
 		css`
 			div {
@@ -65,7 +83,7 @@ class UserChip extends connect(store)(LitElement) {
 		`
 	];
 
-	render() {
+	override render() {
 		return html`
 			<div class='${this._pending ? 'pending' : ''}'>
 				${this._signedIn
@@ -76,7 +94,7 @@ class UserChip extends connect(store)(LitElement) {
 	  	`;
 	}
 
-	firstUpdated() {
+	override firstUpdated() {
 		onAuthStateChanged(auth, this._handleAuthStateChanged);
 	}
 
@@ -105,16 +123,7 @@ class UserChip extends connect(store)(LitElement) {
 		};
 	}
 
-	static get properties() {
-		return {
-			_pending: { type: Boolean },
-			_user: { type: Object },
-			_signedIn: { type: Boolean},
-			_error: { type: Object },
-		};
-	}
-
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		this._pending = state.user.pending;
 		this._user = selectUser(state);
 		this._signedIn = selectUserSignedIn(state);
@@ -124,4 +133,8 @@ class UserChip extends connect(store)(LitElement) {
 
 }
 
-window.customElements.define('user-chip', UserChip);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'user-chip': UserChip;
+	}
+}
