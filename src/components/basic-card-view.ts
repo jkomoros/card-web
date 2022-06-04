@@ -1,5 +1,6 @@
 import { html, css } from 'lit';
-import { PageViewElement } from './page-view-element.js';
+import { PageViewElement } from './page-view-element.js'
+import { customElement, state } from 'lit/decorators.js';;
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -26,12 +27,31 @@ import {
 
 import './card-stage.js';
 
+import {
+	Card,
+	State
+} from '../types.js';
+
 //recreated in functions/common.js
 export const WINDOW_CARD_RENDERED_VARIABLE = 'BASIC_CARD_RENDERED';
 export const WINDOW_INJECT_FETCHED_CARD_NAME = 'injectFetchedCard';
 
+@customElement('basic-card-view')
 class BasicCardView extends connect(store)(PageViewElement) {
-	static  styles = [
+
+	@state()
+	protected _card: Card;
+	
+	@state()
+	protected _pageExtra: string;
+
+	@state()
+	protected _cardBeingFetched: boolean;
+
+	@state()
+	protected _cardsLoaded: boolean;
+
+	static override styles = [
 		SharedStyles,
 		css`
 			:host {
@@ -46,22 +66,13 @@ class BasicCardView extends connect(store)(PageViewElement) {
 		`
 	];
 
-	render() {
+	override render() {
 		return html`
 	  <card-stage .card=${this._card} .presenting=${true} .loading=${this._cardBeingFetched || !this._cardsLoaded}></card-stage>
     `;
 	}
 
-	static get properties() {
-		return {
-			_card: { type: Object},
-			_pageExtra: { type:String },
-			_cardBeingFetched: { type: Boolean},
-			_cardsLoaded : { type: Boolean},
-		};
-	}
-
-	connectedCallback() {
+	override connectedCallback() {
 		super.connectedCallback();
 		//Expose an override injection point that can be used via puppeteer to
 		//inject the data.
@@ -75,14 +86,14 @@ class BasicCardView extends connect(store)(PageViewElement) {
 		};
 	}
 
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		this._card = selectFetchedCard(state);
 		this._pageExtra = selectPageExtra(state);
 		this._cardBeingFetched = selectCardBeingFetched(state);
 		this._cardsLoaded = selectCardsLoaded(state);
 	}
 
-	updated(changedProps) {
+	override updated(changedProps) {
 		if (changedProps.has('_pageExtra')) {
 			store.dispatch(fetchCard(this._pageExtra));
 		}
@@ -100,4 +111,8 @@ class BasicCardView extends connect(store)(PageViewElement) {
 
 }
 
-window.customElements.define('basic-card-view', BasicCardView);
+declare global {
+	interface HTMLElementTagNameMap {
+	  "basic-card-view": BasicCardView;
+	}
+}
