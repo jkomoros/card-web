@@ -195,19 +195,31 @@ interface WebInfoNode {
     name: string
 }
 
-interface WebInfoNodeWithLayout extends WebInfoNode {
+export interface WebInfoNodeWithLayout extends WebInfoNode {
     x : number,
     y : number,
 }
 
+interface WebInfoEdge {
+    source : CardID,
+    target : CardID,
+    value : number
+}
+
+export interface WebInfoEdgeWithLayout {
+    source: WebInfoNodeWithLayout,
+    target: WebInfoNodeWithLayout,
+    value : number
+}
+
 export type WebInfo = {
     nodes: WebInfoNode[],
-    edges: {source : CardID, target : CardID, value : number}[]
+    edges: WebInfoEdge[]
 };
 
 export type WebInfoWithLayout = {
     nodes: WebInfoNodeWithLayout[]
-    edges: {source: WebInfoNodeWithLayout, target: WebInfoNodeWithLayout, value : number}[]
+    edges: WebInfoEdgeWithLayout[]
 }
 
 export type CardIDMap = {
