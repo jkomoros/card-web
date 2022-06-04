@@ -49,7 +49,7 @@ export const LEGAL_IMAGE_POSITIONS = {
 	},
 };
 
-const DEFAULT_IMAGE : ImageInfo = {
+export const DEFAULT_IMAGE : ImageInfo = {
 	src: '',
 	emSize: 15.0,
 	margin: 1.0,
@@ -75,7 +75,7 @@ export const setImageProperties = (img : ImageInfo, ele) => {
 };
 
 //getImagesFromCard gets the images from a card, filling in every item as a default.
-export const getImagesFromCard = (card : CardLike) => {
+export const getImagesFromCard = (card : CardLike) : ImageBlock => {
 	if (!card) return [];
 	const images = card.images || [];
 	//Just in case, worst case pretend like there aren't images
