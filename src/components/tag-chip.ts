@@ -1,11 +1,57 @@
 
 import { LitElement, html, css } from 'lit';
-import { styleMap } from 'lit/directives/style-map.js';
+import { customElement, property } from 'lit/decorators.js';
+import { StyleInfo, styleMap } from 'lit/directives/style-map.js';
 import { urlForTag } from '../actions/app';
 
+import {
+	Card,
+	CSSColorString,
+	TagInfos
+} from '../types';
+
+@customElement('tag-chip')
 class TagChip  extends LitElement {
 
-	static styles = [
+	@property({ type : Boolean })
+	addition: boolean;
+
+	@property({ type : Boolean })
+	deletion: boolean;
+
+	//TODO: maybe we should rename this so it doesn't overlap with LitElement.tagName?
+	@property({ type : String })
+	override tagName: string;
+
+	@property({ type : Boolean })
+	editing: boolean;
+
+	@property({ type : Object })
+	tagInfos: TagInfos;
+
+	@property({ type : Boolean })
+	tapEvents: boolean;
+
+	@property({ type : Boolean })
+	subtle: boolean;
+
+	@property({ type : Boolean })
+	disabled: boolean;
+
+	//If the tag is disabled, what should the description be?
+	@property({ type : String })
+	disabledDescription: string;
+
+	//If set, will use this defualt color if the tag doesn't have one
+	//defined. Should be of the form "#AABBCC" or some other literal
+	//color value;
+	@property({ type : String })
+	defaultColor: CSSColorString;
+
+	@property({ type : Object })
+	card: Card;
+
+	static override styles = [
 		css`
 			:host {
 				margin: 0 0.2em;
@@ -49,8 +95,8 @@ class TagChip  extends LitElement {
 		`
 	];
 
-	render() {
-		const styles = {
+	override render() {
+		const styles : StyleInfo = {
 			backgroundColor: this._color,
 		};
 		if (this._filter) styles.filter = this._filter;
@@ -72,22 +118,22 @@ class TagChip  extends LitElement {
 	_handleTagClicked(e) {
 		if (this._disabled) {
 			e.preventDefault();
-			return false;
+			return;
 		}
 		if (this.tapEvents) {
 			e.preventDefault();
 			this.dispatchEvent(new CustomEvent('tag-tapped', {composed: true, detail: {tag: this.tagName}}));
-			return false;
+			return;
 		}
 		if (this.editing) {
 			e.preventDefault();
-			return false;
+			return;
 		}
 		//There's no good way to remove the href if suppressLink is true, so if
 		//we don't also prevent default here we'd navigate to `/`.
 		if (this._suppressLink) {
 			e.preventDefault();
-			return false;
+			return;
 		}
 		//Allow it go on and navigate
 	}
@@ -183,25 +229,10 @@ class TagChip  extends LitElement {
 		return this.card.name;
 	}
 
-	static get properties() {
-		return {
-			addition: {type:Boolean},
-			deletion: {type:Boolean},
-			tagName: { type: String },
-			editing: { type: Boolean},
-			tagInfos: {type:Object},
-			tapEvents: {type:Boolean},
-			subtle: {type:Boolean},
-			disabled: {type:Boolean},
-			//If the tag is disabled, what should the description be?
-			disabledDescription: {type:String},
-			//If set, will use this defualt color if the tag doesn't have one
-			//defined. Should be of the form "#AABBCC" or some other literal
-			//color value;
-			defaultColor: {type:String},
-			card: {type:Object},
-		};
-	}
 }
 
-window.customElements.define('tag-chip', TagChip);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'tag-chip': TagChip;
+	}
+}

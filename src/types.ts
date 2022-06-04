@@ -386,7 +386,7 @@ export type CardFieldTypeConfigurationMap = {
 }
 
 //TODO: tighten this
-type CSSColorString = string;
+export type CSSColorString = string;
 
 export type ReferenceTypeConfigurationMap = {
     [type : ReferenceType] : {
