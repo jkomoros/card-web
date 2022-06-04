@@ -1,4 +1,5 @@
 import { html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -44,9 +45,24 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import './permissions-editor.js';
 
+import {
+	State,
+	Uid
+} from '../types.js';
+
+@customElement('permissions-view')
 class PermissionsView extends connect(store)(PageViewElement) {
 
-	static styles = [
+	@state()
+	_userMayEditPermissions: boolean;
+
+	@state()
+	_uidsWithPermissions: {[id : Uid] : true}
+
+	@state()
+	_permissionsLoaded: boolean;
+
+	static override styles = [
 		ButtonSharedStyles,
 		SharedStyles,
 		css`
@@ -61,7 +77,7 @@ class PermissionsView extends connect(store)(PageViewElement) {
 		`
 	];
 
-	render() {
+	override render() {
 		return html`
       <section>
         <h2>Permissions</h2>
@@ -82,21 +98,13 @@ class PermissionsView extends connect(store)(PageViewElement) {
     `;
 	}
 
-	static get properties() {
-		return {
-			_userMayEditPermissions: { type: Boolean},
-			_uidsWithPermissions: { type: Object },
-			_permissionsLoaded: { type: Boolean },
-		};
-	}
-
-	stateChanged(state) {
+	override stateChanged(state : State) {
 		this._userMayEditPermissions = selectUserMayEditPermissions(state);
 		this._uidsWithPermissions = selectUidsWithPermissions(state);
 		this._permissionsLoaded = selectUserPermissionsLoaded(state);
 	}
 
-	updated(changedProps) {
+	override updated(changedProps) {
 		if (changedProps.has('_userMayEditPermissions')) {
 			if (this._userMayEditPermissions) {
 				connectLivePermissions();
@@ -116,4 +124,8 @@ class PermissionsView extends connect(store)(PageViewElement) {
 
 }
 
-window.customElements.define('permissions-view', PermissionsView);
+declare global {
+	interface HTMLElementTagNameMap {
+	  'permissions-view': PermissionsView;
+	}
+}
