@@ -6,7 +6,7 @@ import {
 } from './my-icons.js';
 
 //if you use help, also print out helpStyles
-export const help = (message, isAlert) => {
+export const help = (message : string, isAlert? : boolean) => {
 	return html`<span class='help' title="${message}">${isAlert ? WARNING_ICON : HELP_ICON}</span>`;
 };
 
