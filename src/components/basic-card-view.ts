@@ -1,6 +1,6 @@
 import { html, css } from 'lit';
 import { PageViewElement } from './page-view-element.js'
-import { customElement, state } from 'lit/decorators.js';;
+import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
