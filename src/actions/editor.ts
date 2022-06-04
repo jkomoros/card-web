@@ -436,7 +436,7 @@ export const nameUpdated = (newName) => {
 	};
 };
 
-export const substantiveUpdated = (checked, auto) => (dispatch, getState) => {
+export const substantiveUpdated = (checked: boolean, auto? : boolean) => (dispatch, getState) => {
 
 	const state = getState();
 	const editingCard = selectEditingCard(state);
@@ -586,7 +586,7 @@ export const collaboratorAdded = (collaboratorUid : Uid, auto? : boolean) => (di
 	});
 };
 
-export const collaboratorRemoved = (collaboratorUid, auto) => {
+export const collaboratorRemoved = (collaboratorUid : Uid, auto? : boolean) => {
 	return {
 		type: EDITING_COLLABORATOR_REMOVED,
 		collaborator:collaboratorUid,
