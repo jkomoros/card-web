@@ -734,7 +734,7 @@ export interface BadgeMap {
     stars: FilterMap,
     reads: FilterMap,
     todos: FilterMap,
-    readingList: FilterMap,
+    readingList: CardBooleanMap,
 }
 
 //TODO: tighten this
