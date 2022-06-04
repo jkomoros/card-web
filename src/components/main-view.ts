@@ -303,7 +303,7 @@ class MainView extends connect(store)(PageViewElement) {
 			}
 
 			/* Workaround for IE11 displaying <main> as inline */
-			main {
+			div [role=main] {
 				display: block;
 			}
 
@@ -352,7 +352,7 @@ class MainView extends connect(store)(PageViewElement) {
 			</div>
 
 			<!-- Main content -->
-			<main role="main" class="main-content">
+			<div role="main" class="main-content">
 				<card-view class="page" ?active="${this._page === PAGE_DEFAULT}"></card-view>
 				<comment-redirect-view class='page' ?active="${this._page === PAGE_COMMENT}"></comment-redirect-view>
 				<my-view404 class="page" ?active="${this._page === PAGE_404}"></my-view404>
@@ -370,7 +370,7 @@ class MainView extends connect(store)(PageViewElement) {
 						<h3>Loading...</h3>
 					</div>
 				</div>
-			</main>
+			</div>
 		</div>
 		`;
 	}
