@@ -13,7 +13,8 @@ import {
 	CARD_WIDTH_IN_EMS,
 	CARD_HORIZONTAL_PADDING_IN_EMS,
 	CARD_HEIGHT_IN_EMS,
-	CARD_VERTICAL_PADDING_IN_EMS
+	CARD_VERTICAL_PADDING_IN_EMS,
+	CardRenderer
 } from './card-renderer.js';
 
 import {
@@ -31,7 +32,7 @@ import {
 } from '../reference_blocks.js';
 
 @customElement('card-stage')
-class CardStage extends LitElement {
+export class CardStage extends LitElement {
 
 	@property({ type : Boolean })
 	mobile: boolean;
@@ -256,12 +257,12 @@ class CardStage extends LitElement {
 		renderer.style.fontSize = '' + fontSize + 'px';
 	}
 
-	get mainCardRenderer() {
-		return this.shadowRoot.querySelector('#main');
+	get mainCardRenderer() : CardRenderer {
+		return this.shadowRoot.querySelector('#main') as CardRenderer;
 	}
 
-	get sizingCardRenderer() {
-		return this.shadowRoot.querySelector('#sizing');
+	get sizingCardRenderer() : CardRenderer {
+		return this.shadowRoot.querySelector('#sizing') as CardRenderer;
 	}
 
 	override firstUpdated() {

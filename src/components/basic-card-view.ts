@@ -25,7 +25,10 @@ import {
 	updateCards,
 } from '../actions/data.js';
 
-import './card-stage.js';
+//We also import this implicitly for the custom element to be loaded.
+import {
+	CardStage
+} from './card-stage.js';
 
 import {
 	Card,
@@ -102,7 +105,8 @@ class BasicCardView extends connect(store)(PageViewElement) {
 			//Screenshot service will check for this to know when to take a
 			//screenshot.
 			this.updateComplete.then(() => {
-				this.shadowRoot.querySelector('card-stage').mainCardRenderer.imagesLoaded().then(() => {
+				const cardStage : CardStage = this.shadowRoot.querySelector('card-stage') as CardStage;
+				cardStage.mainCardRenderer.imagesLoaded().then(() => {
 					window[WINDOW_CARD_RENDERED_VARIABLE] = true;
 				});
 			});
