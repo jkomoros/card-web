@@ -97,7 +97,7 @@ class ConfigureCollectionFilter extends LitElement {
 		return html`
 			${this.index > 0 ? html`<li><em>AND</em></li>` : ''}
 		<li class='main'>
-			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select @change=${this._handleModifyFilterChanged} .subIndex=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this.filterDescriptions[filterPiece])}<button class='small' .subIndex=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
+			${unionFilterPieces.map((filterPiece, i) => html`${i > 0 ? html` <em>OR</em> ` : ''}<select @change=${this._handleModifyFilterChanged} data-sub-index=${i}>${this._filterOptions(filterPiece, unionFilterPieces.length <= 1)}</select>${help(this.filterDescriptions[filterPiece])}<button class='small' data-sub-index=${i} @click=${this._handleRemoveFilterClicked}>${DELETE_FOREVER_ICON}</button>`)}
 			${isConfigurableFilter ? 
 		html`<div class='pieces'>${piecesForConfigurableFilter(this.value).map((piece, i) => html`<div class='piece'><label>${piece.description}</label> ${this._configurableFilterPart(piece, i)}</div>`)}</div>`: 
 		html`<button class='small' @click=${this._handleAddUnionFilterClicked} title='Add new filter to OR with previous filters in this row'>${PLUS_ICON}</button>`
@@ -110,17 +110,17 @@ class ConfigureCollectionFilter extends LitElement {
 		//piece is obj with controlType, description, and value
 		switch (piece.controlType) {
 		case URL_PART_DATE_SECTION:
-			return html`<configure-collection-date .value=${piece.value} @change-complex=${this._handleModifyFilterRestChangedComplex} .subIndex=${subIndex}></configure-collection-date>`;
+			return html`<configure-collection-date .value=${piece.value} @change-complex=${this._handleModifyFilterRestChangedComplex} data-sub-index=${subIndex}></configure-collection-date>`;
 		case URL_PART_MULTIPLE_CARDS:
-			return html`<configure-collection-multiple-cards .value=${piece.value} .cardTagInfos=${this.cardTagInfos} @change-complex=${this._handleModifyFilterRestChangedComplex} .subIndex=${subIndex}></configure-collection-multiple-cards>`;
+			return html`<configure-collection-multiple-cards .value=${piece.value} .cardTagInfos=${this.cardTagInfos} @change-complex=${this._handleModifyFilterRestChangedComplex} data-sub-index=${subIndex}></configure-collection-multiple-cards>`;
 		case URL_PART_KEY_CARD:
-			return html`<configure-collection-key-card .value=${piece.value} .cardTagInfos=${this.cardTagInfos} @change-complex=${this._handleModifyFilterRestChangedComplex} .subIndex=${subIndex}></configure-collection-key-card>`;
+			return html`<configure-collection-key-card .value=${piece.value} .cardTagInfos=${this.cardTagInfos} @change-complex=${this._handleModifyFilterRestChangedComplex} data-sub-index=${subIndex}></configure-collection-key-card>`;
 		case URL_PART_USER_ID:
-			return html`<select .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${[ME_AUTHOR_ID,...this.userIDs].map(item => html`<option .value=${item.toLowerCase()}>${item.toLowerCase()}</option>`)}</select>`;
+			return html`<select data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${[ME_AUTHOR_ID,...this.userIDs].map(item => html`<option .value=${item.toLowerCase()}>${item.toLowerCase()}</option>`)}</select>`;
 		case URL_PART_REFERENCE_TYPE:
-			return html`<select .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${Object.entries(REFERENCE_TYPES).map(entry => html`<option .value=${entry[0]} .title=${entry[1].description}>${entry[0]}</option>`)}</select>`;
+			return html`<select data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${Object.entries(REFERENCE_TYPES).map(entry => html`<option .value=${entry[0]} .title=${entry[1].description}>${entry[0]}</option>`)}</select>`;
 		default:
-			return html`<input type=${piece.controlType == URL_PART_INT ? 'number' : 'text'} min='0' step=${piece.controlType == URL_PART_FLOAT ? 0.0001 : 1} .subIndex=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>`;
+			return html`<input type=${piece.controlType == URL_PART_INT ? 'number' : 'text'} min='0' step=${piece.controlType == URL_PART_FLOAT ? 0.0001 : 1} data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>`;
 		}
 	}
 
@@ -132,7 +132,7 @@ class ConfigureCollectionFilter extends LitElement {
 	}
 
 
-	_modifyFilterChanged(subIndex, newValue) {
+	_modifyFilterChanged(subIndex : number, newValue) {
 		const oldText = this.value;
 		const [firstPart] = splitCompoundFilter(oldText);
 		const pieces = piecesForConfigurableFilter(oldText);
@@ -143,12 +143,12 @@ class ConfigureCollectionFilter extends LitElement {
 
 	_handleModifyFilterRestChangedComplex(e) {
 		const ele = e.composedPath()[0];
-		this._modifyFilterChanged(ele.subIndex, e.detail.value);
+		this._modifyFilterChanged(parseInt(ele.dataset.subIndex), e.detail.value);
 	}
 
 	_handleModifyFilterRestChanged(e) {
 		const ele = e.composedPath()[0];
-		this._modifyFilterChanged(ele.subIndex, ele.value);
+		this._modifyFilterChanged(parseInt(ele.data.subIndex), ele.value);
 	}
 
 	_handleAddUnionFilterClicked(e) {
@@ -183,7 +183,7 @@ class ConfigureCollectionFilter extends LitElement {
 		}
 		const filterPieces = splitUnionFilter(this.value);
 		if (filterPieces.length > 1) {
-			filterPieces.splice(ele.subIndex, 1);
+			filterPieces.splice(parseInt(ele.data.subIndex), 1);
 			this.dispatchEvent(new CustomEvent('filter-modified', {composed: true, detail: {value: filterPieces.join(UNION_FILTER_DELIMITER), index: this.index}}));
 			return;
 		}
@@ -192,7 +192,7 @@ class ConfigureCollectionFilter extends LitElement {
 
 	_handleModifyFilterChanged(e) {
 		const ele = e.composedPath()[0];
-		const subIndex = ele.subIndex;
+		const subIndex = parseInt(ele.dataset.subIndex);
 		const fullFilterText = this.value;
 		const unionPieces = splitUnionFilter(fullFilterText);
 		const firstPart = ele.value;
