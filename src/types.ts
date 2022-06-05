@@ -85,6 +85,16 @@ export type ReferencesEntriesDiffItem = ExpandedReferenceObject | ExpandedRefere
 
 export type ReferencesEntriesDiff = ReferencesEntriesDiffItem[];
 
+type ReferencesDiffItem = {
+    [propName : string] : string
+}
+
+type ReferencesDiffItemDelete = {
+    [propName : string] : boolean
+}
+
+export type ReferencesDiff = [ReferencesDiffItem, ReferencesDiffItem, ReferencesDiffItemDelete, ReferencesDiffItemDelete];
+
 export type ImageBlock = ImageInfo[];
 
 //TODO: lock this down more
