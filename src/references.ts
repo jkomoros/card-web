@@ -16,7 +16,8 @@ import {
 	CardUpdate,
 	CardLike,
 	ReferencesEntriesDiffItem,
-	State
+	State,
+	CardBooleanMap
 } from './types.js';
 
 import {
@@ -227,7 +228,7 @@ class ReferencesAccessor {
 	_prepareForModifications() : void {
 		if (this._modified) return;
 		this._cardObj[REFERENCES_INFO_CARD_PROPERTY] = cloneReferences(this._cardObj[REFERENCES_INFO_CARD_PROPERTY]);
-		this._cardObj[REFERENCES_CARD_PROPERTY] = cloneReferences(this._cardObj[REFERENCES_CARD_PROPERTY]);
+		this._cardObj[REFERENCES_CARD_PROPERTY] = cloneReferencesBoolean(this._cardObj[REFERENCES_CARD_PROPERTY]);
 		this._referencesInfo = this._cardObj[REFERENCES_INFO_CARD_PROPERTY];
 		this._modified = true;
 	}
@@ -487,7 +488,7 @@ export const intersectionReferences = (cardObjs : Card[]) : CardLike => {
 };
 
 //referencesLegalShape is a sanity check that the referencesBlock looks like it's expected to.
-export const referencesLegalShape = (cardObj : CardLike) => {
+export const referencesLegalShape = (cardObj : CardLike) : boolean => {
 	if (!cardObj) return false;
 	if (typeof cardObj !== 'object') return false;
 	const referencesInfoBlock = cardObj[REFERENCES_INFO_CARD_PROPERTY];
@@ -524,15 +525,20 @@ export const referencesLegalShape = (cardObj : CardLike) => {
 	return true;
 };
 
-const cloneReferences = (referencesBlock) => {
-	let result = {};
+const cloneReferencesBoolean = (referencesBlock : CardBooleanMap) : CardBooleanMap => {
+	let result : CardBooleanMap = {};
 	for (let [key, value] of Object.entries(referencesBlock)) {
-		if (typeof value === 'object') {
-			result[key] = {...value};
-		} else {
-			//e.g. a boolean
-			result[key] = value;
-		}
+		//e.g. a boolean
+		result[key] = value;
+	}
+	return result;
+};
+
+
+const cloneReferences = (referencesBlock : ReferencesInfoMap) : ReferencesInfoMap => {
+	let result : ReferencesInfoMap = {};
+	for (let [key, value] of Object.entries(referencesBlock)) {
+		result[key] = {...value};
 	}
 	return result;
 };
