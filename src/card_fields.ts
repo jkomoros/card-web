@@ -8,7 +8,8 @@ import {
 	ReferenceTypeConfigurationMap,
 	CardFieldTypeConfigurationMap,
 	SelectorStyleMap,
-	CardType
+	CardType,
+	ReferenceType
 } from './types.js';
 
 /*
@@ -453,7 +454,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 
 export const REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT = Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(entry => entry[1].backportMissingText).map(entry => [entry[0], true]));
 //Map of baseType ==> subTypeName ==> true. The base type will also be in its own set
-export const REFERENCE_TYPES_EQUIVALENCE_CLASSES = {};
+export const REFERENCE_TYPES_EQUIVALENCE_CLASSES : {[base : ReferenceType]: {[other : ReferenceType] : true}} = {};
 for (let [referenceType, config] of Object.entries(REFERENCE_TYPES)) {
 	const baseType = config.subTypeOf || referenceType;
 	if (!REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType]) REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType] = {};
