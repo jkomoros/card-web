@@ -81,7 +81,9 @@ export type ExpandedReferenceDelete = {
 	delete : true
 }
 
-export type ReferencesEntriesDiff = (ExpandedReferenceObject | ExpandedReferenceDelete)[];
+export type ReferencesEntriesDiffItem = ExpandedReferenceObject | ExpandedReferenceDelete;
+
+export type ReferencesEntriesDiff = ReferencesEntriesDiffItem[];
 
 export type ImageBlock = ImageInfo[];
 
