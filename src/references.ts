@@ -6,6 +6,7 @@ import {
 	Card,
 	CardID,
 	ReferenceType,
+	ReferencesArrayByType,
 	ReferencesInfoMap,
 	ReferencesInfoMapByType,
 	ExpandedReferenceKey,
@@ -13,7 +14,9 @@ import {
 	ExpandedReferenceObject,
 	ReferencesEntriesDiff,
 	CardUpdate,
-	CardLike
+	CardLike,
+	ReferencesEntriesDiffItem,
+	State
 } from './types.js';
 
 import {
@@ -34,7 +37,7 @@ const memoizedCardAccessors = new WeakMap();
 
 //Like referendces, but in a way that doesn't modify the card. It simply creates
 //a shallow copy of the card first.
-export const referencesNonModifying = (cardObj) => {
+export const referencesNonModifying = (cardObj : CardLike) => {
 	const cardCopy = {...cardObj};
 	//TODO: return the same copy for the same object
 	return references(cardCopy);
@@ -51,12 +54,12 @@ export const references = (cardObj : CardLike) => {
 	return accessor;
 };
 
-const byTypeMapToArray = (byTypeMap) => {
+const byTypeMapToArray = (byTypeMap : ReferencesInfoMapByType) : ReferencesArrayByType => {
 	return Object.fromEntries(Object.entries(byTypeMap).map(entry => [entry[0], [...Object.keys(entry[1])]]));
 };
 
-const referencesToByType = (referencesMap) => {
-	let result = {};
+const referencesToByType = (referencesMap : ReferencesInfoMap) : ReferencesInfoMapByType => {
+	let result : ReferencesInfoMapByType = {};
 	if (!referencesMap) referencesMap = {};
 	for (const [cardID, referenceBlock] of Object.entries(referencesMap)) {
 		for (const [referenceType, str] of Object.entries(referenceBlock)) {
@@ -67,8 +70,8 @@ const referencesToByType = (referencesMap) => {
 	return result;
 };
 
-const byTypeToReferences = (byTypeMap) => {
-	const result = {};
+const byTypeToReferences = (byTypeMap : ReferencesInfoMapByType) : ReferencesInfoMap => {
+	const result : ReferencesInfoMap = {};
 	if (!byTypeMap) byTypeMap = {};
 	for (let [referenceType, referenceBlock] of Object.entries(byTypeMap)) {
 		for (let [cardID, str] of Object.entries(referenceBlock)) {
@@ -79,7 +82,7 @@ const byTypeToReferences = (byTypeMap) => {
 	return result;
 };
 
-const ReferencesAccessor = class {
+class ReferencesAccessor {
 
 	private _cardObj : CardLike;
 	private _modified : boolean;
@@ -115,7 +118,7 @@ const ReferencesAccessor = class {
 		return Object.keys(byTypeToReferences(this.byTypeSubstantive));
 	}
 
-	typeClassArray(baseType) {
+	typeClassArray(baseType : ReferenceType) {
 		return [...Object.keys(byTypeToReferences(this.byTypeClass(baseType)))];
 	}
 
@@ -137,7 +140,7 @@ const ReferencesAccessor = class {
 		return Object.keys(byTypeToReferences(this.byTypeInboundSubstantive));
 	}
 
-	inboundTypeClassArray(baseType) {
+	inboundTypeClassArray(baseType : ReferenceType) {
 		return [...Object.keys(byTypeToReferences(this.byTypeClassInbound(baseType)))];
 	}
 
@@ -155,7 +158,7 @@ const ReferencesAccessor = class {
 	//references. If it doesn, and otherCardObj does, it clones it from there.
 	//If otherCardObj doesn't and we don't as well, then we set the trivial
 	//empty reerences. Returns itself for convenience in chaining.
-	ensureReferences(otherCardObj) {
+	ensureReferences(otherCardObj : CardLike) {
 		if (referencesLegalShape(this._cardObj)) return this;
 		let referencesInfo = {};
 		if (referencesLegalShape(otherCardObj)) {
@@ -166,62 +169,62 @@ const ReferencesAccessor = class {
 	}
 
 	//returns a new map where each key in the top level is the type, and the second level objects are card-id to string value.
-	get byType() {
+	get byType() : ReferencesInfoMapByType {
 		if (!this._memoizedByType) {
 			this._memoizedByType = referencesToByType(this._referencesInfo);
 		}
 		return this._memoizedByType;
 	}
 
-	get byTypeSubstantive() {
+	get byTypeSubstantive() : ReferencesInfoMapByType {
 		if (!this._memoizedByTypeSubstantive) {
 			this._memoizedByTypeSubstantive = Object.fromEntries(Object.entries(this.byType).filter(entry => (REFERENCE_TYPES[entry[0]] || {}).substantive));
 		}
 		return this._memoizedByTypeSubstantive;
 	}
 
-	byTypeClass(baseType) {
+	byTypeClass(baseType : ReferenceType) : ReferencesInfoMapByType {
 		return Object.fromEntries(Object.entries(this.byType).filter(entry => REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][entry[0]]));
 	}
 
 	//returns a new map where each key in the top level is the type, and the second level objects are card-id to string value.
-	get byTypeInbound() {
+	get byTypeInbound() : ReferencesInfoMapByType {
 		if (!this._memoizedByTypeInbound) {
 			this._memoizedByTypeInbound = referencesToByType(this._referencesInfoInbound);
 		}
 		return this._memoizedByTypeInbound;
 	}
 
-	get byTypeInboundSubstantive() {
+	get byTypeInboundSubstantive() : ReferencesInfoMapByType {
 		if (!this._memoizedByTypeInboundSubstantive) {
 			this._memoizedByTypeInboundSubstantive = Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => (REFERENCE_TYPES[entry[0]] || {}).substantive));
 		}
 		return this._memoizedByTypeInboundSubstantive;
 	}
 
-	get byTypeInboundNeedsReciprocation() {
+	get byTypeInboundNeedsReciprocation() : ReferencesInfoMapByType {
 		return Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES[entry[0]].needsReciprocation));
 	}
 
-	byTypeClassInbound(baseType) {
+	byTypeClassInbound(baseType : ReferenceType) : ReferencesInfoMapByType {
 		return Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][entry[0]]));
 	}
 
 	//Returns an object where it's link_type => array_of_card_ids
-	byTypeArray() {
+	byTypeArray() : ReferencesArrayByType {
 		//Generally it should be that if it's a method it returns a copy, if it's a getter it returns a shared resource
 		return byTypeMapToArray(this.byType);
 	}
 
 	//Returns an object where it's link_type => array_of_card_ids
-	byTypeInboundArray() {
+	byTypeInboundArray() : ReferencesArrayByType {
 		return byTypeMapToArray(this.byTypeInbound);
 	}
 
 	//We're allowed to modify the card object we're associated with, but NOT its
 	//inner refrence properties. If we want to touch them, we have to copy them
 	//over from their original values.
-	_prepareForModifications() {
+	_prepareForModifications() : void {
 		if (this._modified) return;
 		this._cardObj[REFERENCES_INFO_CARD_PROPERTY] = cloneReferences(this._cardObj[REFERENCES_INFO_CARD_PROPERTY]);
 		this._cardObj[REFERENCES_CARD_PROPERTY] = cloneReferences(this._cardObj[REFERENCES_CARD_PROPERTY]);
@@ -229,7 +232,7 @@ const ReferencesAccessor = class {
 		this._modified = true;
 	}
 
-	_modificationsFinished() {
+	_modificationsFinished() : void {
 		this._cardObj[REFERENCES_CARD_PROPERTY] = Object.fromEntries(Object.entries(this._cardObj[REFERENCES_INFO_CARD_PROPERTY]).map(entry => [entry[0], true]));
 		this._memoizedByType = null;
 		this._memoizedByTypeInbound = null;
@@ -241,7 +244,7 @@ const ReferencesAccessor = class {
 		this._modified = true;
 	}
 
-	_setReferencesInfo(referenceBlock) {
+	_setReferencesInfo(referenceBlock : ReferencesInfoMap) : void {
 		//We set these directly and don't use prepareForModifications because we'll just blow away all of the changes anyway.
 		this._cardObj[REFERENCES_INFO_CARD_PROPERTY] = referenceBlock;
 		this._referencesInfo = referenceBlock;
@@ -249,37 +252,37 @@ const ReferencesAccessor = class {
 	}
 
 	//Consumes a referenceBlock organized by type (e.g. as received by byType)
-	_setWithByTypeReferences(byTypeReferenceBlock) {
+	_setWithByTypeReferences(byTypeReferenceBlock : ReferencesInfoMapByType) : void {
 		this._setReferencesInfo(byTypeToReferences(byTypeReferenceBlock));
 	}
 
-	_applyEntryDiffItem(item) {
-		if (item.delete) {
+	_applyEntryDiffItem(item : ReferencesEntriesDiffItem) : void {
+		if (isExpandedReferenceDelete(item)) {
 			this.removeCardReference(item.cardID, item.referenceType);
 			return;
 		}
 		this.setCardReference(item.cardID, item.referenceType, item.value);
 	}
 
-	_mayNotApplyEntryDiffItemReason(state, item) {
-		if (item.delete) return this.mayNotRemoveCardReferenceReason(state, item.cardID, item.referenceType);
+	_mayNotApplyEntryDiffItemReason(state : State, item : ReferencesEntriesDiffItem) : string {
+		if (isExpandedReferenceDelete(item)) return this.mayNotRemoveCardReferenceReason(state, item.cardID, item.referenceType);
 		return this.mayNotSetCardReferenceReason(state, item.cardID, item.referenceType);
 	}
 
 	//Removes all references for the given card.
-	removeAllReferencesForCard(cardID) {
+	removeAllReferencesForCard(cardID : CardID) : void {
 		this._prepareForModifications();
 		delete this._referencesInfo[cardID];
 		this._modificationsFinished();
 	}
 
-	applyEntriesDiff(diff) {
+	applyEntriesDiff(diff : ReferencesEntriesDiff) : void {
 		for (const item of diff) {
 			this._applyEntryDiffItem(item);
 		}
 	}
 
-	mayNotApplyEntriesDiffReason(state, diff) {
+	mayNotApplyEntriesDiffReason(state : State, diff : ReferencesEntriesDiff) : string {
 		//We have to actually apply them one by one, since some might conflict
 		//with others in the diff, so we'll do it on a copy.
 		const referencesCopy = references({...this._cardObj});
@@ -297,7 +300,7 @@ const ReferencesAccessor = class {
 		return '';
 	}
 
-	setCardReference(cardID, referenceType, optValue) {
+	setCardReference(cardID : CardID, referenceType : ReferenceType, optValue? : string) : void {
 		if (!optValue) optValue = '';
 		this._prepareForModifications();
 		if (!this._referencesInfo[cardID]) this._referencesInfo[cardID] = {};
@@ -307,7 +310,7 @@ const ReferencesAccessor = class {
 
 	//Returns a string describing why that reference may not be set, or '' if
 	//it's legal.
-	mayNotRemoveCardReferenceReason(state, cardID, referenceType) {
+	mayNotRemoveCardReferenceReason(state : State, cardID : CardID, referenceType : ReferenceType) : string {
 		if (!getCardExists(state, cardID)) {
 			return 'The other card is not known to exist, which means we wouldn\'t be able to update its inboundLinks.';
 		}
@@ -322,7 +325,7 @@ const ReferencesAccessor = class {
 
 	//Returns a string describing why that reference may not be set, or '' if
 	//it's legal.
-	mayNotSetCardReferenceReason(state, cardID, referenceType) {
+	mayNotSetCardReferenceReason(state : State, cardID : CardID, referenceType : ReferenceType) : string {
 
 		if (this._cardObj.id == cardID) {
 			return 'The card references itself which is not allowed';
@@ -362,7 +365,7 @@ const ReferencesAccessor = class {
 		return '';
 	}
 
-	removeCardReference(cardID, referenceType) {
+	removeCardReference(cardID : CardID, referenceType : ReferenceType) : void {
 		if (!this._referencesInfo[cardID]) return;
 		//Leaf values might be '', which are falsey but should count as being set
 		if (this._referencesInfo[cardID][referenceType] === undefined) return;
@@ -377,16 +380,16 @@ const ReferencesAccessor = class {
 	//Sets it so that all references of that type will be set to the values in
 	//valueObj. valueObj may be a map of CARD_ID -> str value, or it may be an
 	//array of CARD_IDs.
-	setCardReferencesOfType(referenceType, valueObj) {
+	setCardReferencesOfType(referenceType : ReferenceType, valueObj : CardID[] | {[id : CardID] : string}) : void {
 		this._modifyCardReferencesOfType(referenceType,valueObj, true);
 	}
 
 	//Like setCardReferencesOfType but doesn't remove existing values
-	addCardReferencesOfType(referenceType, valueObj) {
+	addCardReferencesOfType(referenceType : ReferenceType, valueObj: CardID[] | {[id : CardID] : string}) : void {
 		this._modifyCardReferencesOfType(referenceType,valueObj, false);
 	}
 
-	_modifyCardReferencesOfType(referenceType, valueObj, overwrite) {
+	_modifyCardReferencesOfType(referenceType : ReferenceType, valueObj : CardID[] | {[id : CardID] : string}, overwrite? : boolean) : void {
 		const byType = this.byType;
 		if (typeof valueObj !== 'object' || !valueObj) {
 			throw new Error('valueObj not object or array');
@@ -400,11 +403,11 @@ const ReferencesAccessor = class {
 	//linksObj should be a cardID -> str value map. It will replace all
 	//currently set references of the current type. A simple wrapper around
 	//setCardReferencesOfType with the constant for links burned in
-	setLinks(linksObj) {
+	setLinks(linksObj: {[id : CardID]: string}) : void {
 		this.setCardReferencesOfType(REFERENCE_TYPE_LINK, linksObj);
 	}
 
-	equivalentTo(otherCardObj) {
+	equivalentTo(otherCardObj : CardLike) : boolean {
 		const diff = referencesCardsDiff(this._cardObj, otherCardObj);
 		return diff.every(item => Object.keys(item).length === 0);
 	}
@@ -413,7 +416,7 @@ const ReferencesAccessor = class {
 	//where any outbound references we have that had an empty text value will be
 	//set to the given value in fallbackText, if it exists. fallbackMap is a map
 	//of CardID to (ReferenceType -> string)
-	withFallbackText(fallbackMap) {
+	withFallbackText(fallbackMap : ReferencesInfoMap) : ReferencesAccessor {
 		if (!fallbackMap) fallbackMap = {};
 		//First, effectively clone the references object we're based on, by
 		//creating a fake card (which won't ever be accesible)
