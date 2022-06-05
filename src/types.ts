@@ -3,6 +3,10 @@ import {
     Timestamp
 } from 'firebase/firestore';
 
+import {
+    TEXT_FIELD_TYPES
+} from './card_field_constants.js';
+
 export type Uid = string;
 
 export type CardID = string;
@@ -18,10 +22,10 @@ type CardPermissions = {
 }
 
 //TODO: lock this down more
-export type CardFieldType = string;
+export type CardFieldType = keyof(typeof TEXT_FIELD_TYPES);
 
 type FontSizeBoostMap = {
-    [name: CardFieldType]: number,
+    [name in CardFieldType]+?: number
 }
 
 //TODO: lock this down more
@@ -356,7 +360,7 @@ type CardTypeMap = {
 }
 
 export type CardFieldTypeConfigurationMap = {
-    [typ : CardFieldType]: {
+    [typ in CardFieldType]+?: {
         // html: whether or not the field allows html. NOTE: currently it's only supported
         // for a single field to be marked as html, and it must be called 'body'. See #345
         // for fixing that.
@@ -637,7 +641,7 @@ interface ProcessedRunInterface {
 }
 
 type NLPInfo = {
-    [field : CardFieldType]: ProcessedRunInterface[]
+    [field in CardFieldType]+?: ProcessedRunInterface[]
 }
 
 export interface ProcessedCard extends Card {
@@ -893,7 +897,7 @@ export type AuthorsMap = {
 }
 
 export type CardFieldMap = {
-    [field : CardFieldType] : true
+    [field in CardFieldType]+?: true
 }
 
 export type DataState = {

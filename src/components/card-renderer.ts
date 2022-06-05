@@ -127,7 +127,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 	expandedReferenceBlocks: ExpandedReferenceBlocks;
 
 	@state()
-	_elements: {[cardType : CardFieldType]: ExtendedHTMLElement}
+	_elements: {[cardType in CardFieldType]+?: ExtendedHTMLElement}
 
 	@state()
 	_currentImagesResolve: (boolean) => void;
