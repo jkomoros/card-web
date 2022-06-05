@@ -404,8 +404,8 @@ class CardEditor extends connect(store)(LitElement) {
 			<div ?hidden=${this._selectedEditorTab !== EDITOR_TAB_CONTENT} class='body flex'>
 				${Object.entries(editableFieldsForCardType(this._card.card_type)).map(entry => html`<label>${toTitleCase(entry[0])}${entry[1].description ? help(entry[1].description) : ''}</label>
 					${entry[1].html
-		? html`<textarea @input='${this._handleTextFieldUpdated}' .field=${entry[0]} .value=${this._card[entry[0]]}></textarea>`
-		: html`<input type='text' @input='${this._handleTextFieldUpdated}' .field=${entry[0]} .value=${this._card[entry[0]] || ''}></input>`}
+		? html`<textarea @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${this._card[entry[0]]}></textarea>`
+		: html`<input type='text' @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${this._card[entry[0]] || ''}></input>`}
 				`)}
 				<label>Images</label><card-images-editor></card-images-editor>
 			</div>
@@ -505,8 +505,8 @@ class CardEditor extends connect(store)(LitElement) {
 				<div class='row'>
 					${Object.entries(REFERENCE_TYPES).filter(entry => referencesMap[entry[0]]).map(entry => {
 		return html`<div>
-							<label>${entry[1].name} ${help(entry[1].description, false)} <button class='small' .referenceType=${entry[0]} @click=${this._handleRemoveAllReferencesOfTypeClicked} title=${'Remove all references of type ' + entry[1].name} >${HIGHLIGHT_OFF_ICON}</button></label>
-							<tag-list .overrideTypeName=${'Reference'} .disableTagIfMissingTagInfo=${true} .disabledDescription=${'You do not have permission to view this card so you may not remove the reference to it.'} .referenceType=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .editing=${entry[1].editable} .subtle=${!entry[1].editable} .tapEvents=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveReference}></tag-list>
+							<label>${entry[1].name} ${help(entry[1].description, false)} <button class='small' data-reference-type=${entry[0]} @click=${this._handleRemoveAllReferencesOfTypeClicked} title=${'Remove all references of type ' + entry[1].name} >${HIGHLIGHT_OFF_ICON}</button></label>
+							<tag-list .overrideTypeName=${'Reference'} .disableTagIfMissingTagInfo=${true} .disabledDescription=${'You do not have permission to view this card so you may not remove the reference to it.'} data-reference-type=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .editing=${entry[1].editable} .subtle=${!entry[1].editable} .tapEvents=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveReference}></tag-list>
 						</div>`;
 	})}
 				</div>
@@ -610,8 +610,10 @@ class CardEditor extends connect(store)(LitElement) {
 	_handleRemoveAllReferencesOfTypeClicked(e) {
 		let referenceType = '';
 		for (const ele of e.composedPath()) {
-			if (ele.referenceType) {
-				referenceType = ele.referenceType;
+			//Could be a documentfragment
+			if (!ele.dataset) continue;
+			if (ele.dataset.referenceType) {
+				referenceType = ele.dataset.referenceType;
 				break;
 			}
 		}
@@ -653,8 +655,10 @@ class CardEditor extends connect(store)(LitElement) {
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
 		for (let ele of e.composedPath()) {
-			if (ele.referenceType) {
-				referenceType = ele.referenceType;
+			//Could be a documentfragment
+			if (!ele.dataset) continue;
+			if (ele.dataset.referenceType) {
+				referenceType = ele.dataset.referenceType;
 				break;
 			}
 		}
@@ -788,7 +792,7 @@ class CardEditor extends connect(store)(LitElement) {
 	_handleTextFieldUpdated(e) {
 		if (!this._active) return;
 		let ele = e.composedPath()[0];
-		store.dispatch(textFieldUpdated(ele.field, ele.value, false));
+		store.dispatch(textFieldUpdated(ele.dataset.field, ele.value, false));
 	}
 
 	textFieldUpdatedFromContentEditable(field, value) {
