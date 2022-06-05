@@ -135,7 +135,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 				<div>
 					<p><strong>Cards</strong> <em>These are permissions that are specific to an individual card.</em></p>
 		${Object.entries(this._effectivePermissionsForCards).map(entry => 
-		html`<span>${entry[0]}</span> <tag-list .permission=${entry[0]} .tags=${entry[1]} .tagInfos=${this._tagInfosForCards} .tapEvents=${true} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveCardPermission}></tag-list> <button @click=${this._handleAddCardPermission} .permission=${entry[0]}>+</button>`)}
+		html`<span>${entry[0]}</span> <tag-list data-permission=${entry[0]} .tags=${entry[1]} .tagInfos=${this._tagInfosForCards} .tapEvents=${true} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveCardPermission}></tag-list> <button @click=${this._handleAddCardPermission} data-permission=${entry[0]}>+</button>`)}
 				${this._unusedCardPermissions.length && this.uid ? 
 		html`<select @change=${this._handleAddPermissionType}>
 						<option value=''><em>Add a cards permission type...</option>
@@ -220,7 +220,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 
 	_handleAddCardPermission(e) {
 		const button = e.composedPath()[0];
-		store.dispatch(selectCardToAddPermissionTo(button.permission, this.uid));
+		store.dispatch(selectCardToAddPermissionTo(button.dataset.permission, this.uid));
 	}
 
 	_handleRemoveCardPermission(e) {
@@ -235,7 +235,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 			console.warn('Couldn\'t find tag list');
 			return;
 		}
-		store.dispatch(removeUserPermissionFromCard(e.detail.tag, tagList.permission, this.uid));
+		store.dispatch(removeUserPermissionFromCard(e.detail.tag, tagList.dataset.permission, this.uid));
 	}
 
 }
