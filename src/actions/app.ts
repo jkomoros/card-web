@@ -100,7 +100,8 @@ import {
 
 import {
 	collectionDescriptionWithQuery,
-	collectionDescriptionWithConfigurableFilter
+	collectionDescriptionWithConfigurableFilter,
+	CollectionDescription
 } from '../collection_description.js';
 
 import {
@@ -120,7 +121,9 @@ import {
 import {
 	CardID,
 	Card,
-	Cards
+	Cards,
+	TagID,
+	CardIdentifier
 } from '../types.js';
 
 import {
@@ -166,7 +169,7 @@ export const navigateToPreviousCard : AppActionCreator = () => (dispatch, getSta
 	dispatch(navigateToCardInCurrentCollection(newId));
 };
 
-export const urlForCard = (cardOrId) => {
+export const urlForCard = (cardOrId : Card | CardID) => {
 	let id = cardOrId;
 	if(!id) return '';
 	//note: null is an object;
@@ -176,7 +179,7 @@ export const urlForCard = (cardOrId) => {
 	return '/' + PAGE_DEFAULT + '/' + id;
 };
 
-export const urlForTag = (tagName, optCardId) => {
+export const urlForTag = (tagName : TagID, optCardId? : CardID) => {
 	if (!optCardId) optCardId = '';
 	return '/' + PAGE_DEFAULT + '/' + tagName + '/' + optCardId;
 };
@@ -266,11 +269,11 @@ export const navigateToCollectionWithQuery : AppActionCreator = (queryText) => (
 	dispatch(navigateToCollection(newCollection));
 };
 
-export const urlForCollection = (collection) => {
+export const urlForCollection = (collection : CollectionDescription) => {
 	return '/' + PAGE_DEFAULT + '/' + collection.serializeShortOriginalOrder();
 };
 
-export const navigateToCollection = (collection) => {
+export const navigateToCollection = (collection : CollectionDescription) => {
 	return navigatePathTo(urlForCollection(collection));
 };
 
@@ -324,7 +327,7 @@ const loadPage : AppActionCreator = (pathname, query) => (dispatch) => {
 	dispatch(updatePage(pathname, page, pageExtra));
 };
 
-const updatePage = (location, page, pageExtra) => {
+const updatePage = (location : string, page : string, pageExtra : string) => {
 	return {
 		type: UPDATE_PAGE,
 		location,
@@ -333,7 +336,7 @@ const updatePage = (location, page, pageExtra) => {
 	};
 };
 
-const fetchCardFromDb = async (cardIDOrSlug) => {
+const fetchCardFromDb = async (cardIDOrSlug : CardIdentifier) => {
 	//Cards are more likely to be fetched via slug, so try that first
 	let cards = await getDocs(query(collection(db, CARDS_COLLECTION), where('published', '==', true), where('slugs', 'array-contains', cardIDOrSlug), limit(1)));
 	if (cards && !cards.empty) {
@@ -355,14 +358,14 @@ const fetchCardLinkCardsForFetchedCardFromDb : ((card : Card) => Promise<Cards>)
 
 //Exposed so basic-card-view can expose an endpoint. Typically you use
 //fetchCard.
-export const updateFetchedCard = (card) => {
+export const updateFetchedCard = (card : Card) => {
 	return {
 		type: UPDATE_FETCHED_CARD,
 		card
 	};
 };
 
-export const fetchCardLinkCardsForFetchedCard = async (fetchedCard) => async (dispatch, getState) =>{
+export const fetchCardLinkCardsForFetchedCard = async (fetchedCard : Card) => async (dispatch, getState) =>{
 	if (!fetchedCard || Object.values(fetchedCard).length == 0) return;
 
 	//If all of the cards were already fetched we can bail early.
@@ -431,7 +434,7 @@ export const doCommit : AppActionCreator = () => (dispatch, getState) => {
 	return;
 };
 
-let hoverPreviewTimer;
+let hoverPreviewTimer : number;
 let HOVER_CARD_PREVIEW_DELAY = 500;
 
 export const cancelHoverTimeout = () => {
@@ -455,7 +458,7 @@ export const updateHoveredCard : AppActionCreator = (x,y,cardId) => (dispatch) =
 	}, HOVER_CARD_PREVIEW_DELAY);
 };
 
-let snackbarTimer;
+let snackbarTimer : number;
 
 export const showSnackbar : AppActionCreator = () => (dispatch) => {
 	dispatch({
@@ -578,7 +581,7 @@ export const toggleCardsDrawerInfo : AppActionCreator = () => (dispatch, getStat
 	dispatch(isOpen ? closeCardsDrawerInfo() : openCardsDrawerInfo());
 };
 
-export const turnSuggestMissingConcepts = (on) => {
+export const turnSuggestMissingConcepts = (on : boolean) => {
 	return {
 		type: TURN_SUGGEST_MISSING_CONCEPTS,
 		on,
