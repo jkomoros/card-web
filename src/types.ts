@@ -107,6 +107,10 @@ export type ReferencesInfoMapByType = {
     }
 }
 
+export type ReferencesArrayByType = {
+    [typ : ReferenceType] : CardID[]
+}
+
 export interface TweetInfo {
     id : string
     user_screen_name : string
