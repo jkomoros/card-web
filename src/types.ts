@@ -95,6 +95,8 @@ type ReferencesDiffItemDelete = {
 
 export type ReferencesDiff = [ReferencesDiffItem, ReferencesDiffItem, ReferencesDiffItemDelete, ReferencesDiffItemDelete];
 
+export type ReferencesCardsDiff = [additionsOrModifications : CardBooleanMap, deletions : CardBooleanMap];
+
 export type ImageBlock = ImageInfo[];
 
 //TODO: lock this down more
