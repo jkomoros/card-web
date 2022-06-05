@@ -87,3 +87,23 @@ export const REFERENCE_TYPE_EXAMPLE_OF = 'example-of';
 export const REFERENCE_TYPE_METAPHOR_FOR = 'metaphor-for';
 export const REFERENCE_TYPE_CITATION = 'citation';
 export const REFERENCE_TYPE_CITATION_PERSON = 'citation-person';
+
+//ReferenceType literal values are driven off of this object
+export const REFERENCE_TYPE_TYPES = {
+    '': true,
+    [REFERENCE_TYPE_LINK]: true,
+    [REFERENCE_TYPE_DUPE_OF]: true,
+    [REFERENCE_TYPE_ACK] : true,
+    [REFERENCE_TYPE_GENERIC]: true,
+    [REFERENCE_TYPE_FORK_OF]: true,
+    [REFERENCE_TYPE_MINED_FROM]: true,
+    [REFERENCE_TYPE_SEE_ALSO]: true,
+    [REFERENCE_TYPE_CONCEPT]: true,
+    [REFERENCE_TYPE_SYNONYM]: true,
+    [REFERENCE_TYPE_OPPOSITE_OF]: true,
+    [REFERENCE_TYPE_PARALLEL_TO]: true,
+    [REFERENCE_TYPE_EXAMPLE_OF]: true,
+    [REFERENCE_TYPE_METAPHOR_FOR]: true,
+    [REFERENCE_TYPE_CITATION]: true,
+    [REFERENCE_TYPE_CITATION_PERSON]: true
+}

@@ -5,7 +5,8 @@ import {
 
 import {
     CARD_TYPE_TYPES,
-    TEXT_FIELD_TYPES
+    TEXT_FIELD_TYPES,
+    REFERENCE_TYPE_TYPES
 } from './card_field_constants.js';
 
 export type Uid = string;
@@ -109,23 +110,22 @@ type TODOOverrides = {
     [name: TODOType]: boolean
 }
 
-//TODO: tighten this
-export type ReferenceType = string;
+export type ReferenceType = keyof(typeof REFERENCE_TYPE_TYPES);
 
 export type ReferencesInfoMap = {
     [id : CardID]: {
-        [typ : ReferenceType]: string
+        [typ in ReferenceType]+?: string
     }
 }
 
 export type ReferencesInfoMapByType = {
-    [typ : ReferenceType]: {
+    [typ in ReferenceType]+?: {
         [id : CardID]: string
     }
 }
 
 export type ReferencesArrayByType = {
-    [typ : ReferenceType] : CardID[]
+    [typ in ReferenceType]+?: CardID[]
 }
 
 export interface TweetInfo {
@@ -437,7 +437,7 @@ export type CardFieldTypeConfigurationMap = {
 export type CSSColorString = string;
 
 export type ReferenceTypeConfigurationMap = {
-    [type : ReferenceType] : {
+    [type in ReferenceType]+?: {
         //name - name of the reference type, for presenting in UIs
         name : string,
         //inboundName - the name of the reference type when inbound, for presenting in UIs.

@@ -45,7 +45,8 @@ import {
 	Card,
 	CardType,
 	CollectionConstructorArguments,
-	FilterMap
+	FilterMap,
+	ReferenceType
 } from './types.js';
 
 import {
@@ -85,7 +86,7 @@ export type ReferenceBlocks = readonly ReferenceBlock[];
 export type ExpandedReferenceBlocks = readonly ExpandedReferenceBlock[];
 
 const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS : ReferenceBlocks = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].subTypeOf == REFERENCE_TYPE_CONCEPT && entry[0] != REFERENCE_TYPE_CONCEPT).map(entry => {
-	const referenceType = entry[0];
+	const referenceType = entry[0] as ReferenceType;
 	const referenceConfig = entry[1];
 	if (referenceConfig.reciprocal) {
 		return {
@@ -112,7 +113,7 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBloc
 	[CARD_TYPE_CONCEPT]: [
 		...CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS,
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_CONCEPT, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT])])]),
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_CONCEPT, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT]) as ReferenceType[]])]),
 			navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [aboutConceptConfigurableFilterText(KEY_CARD_ID_PLACEHOLDER)]),
 			title: 'Cards that reference this concept',
 			showNavigate: true,
@@ -153,8 +154,8 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBloc
 	]
 };
 
-const REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].excludeFromInfoPanel).map(entry => entry[0]);
-const SUBSTANTIVE_REFERENCE_TYPES = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].substantive).map(entry => entry[0]);
+const REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].excludeFromInfoPanel).map(entry => entry[0]) as ReferenceType[];
+const SUBSTANTIVE_REFERENCE_TYPES = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].substantive).map(entry => entry[0]) as ReferenceType[];
 
 const NUM_SIMILAR_CARDS_TO_SHOW = 5;
 
@@ -183,7 +184,7 @@ const INFO_PANEL_REFERENCE_BLOCKS : ReferenceBlocks = [
 		title: 'Citations',
 		emptyMessage: 'No citations',
 		description: 'Works or people that insights for this card were based on',
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CITATION])])])
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CITATION]) as ReferenceType[]])])
 
 	},
 	{
