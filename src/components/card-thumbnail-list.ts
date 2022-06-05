@@ -348,7 +348,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[card.card_type];
 
 		return html`
-			<div  .card=${card} data-index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.reorderable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${cardTypeConfig.dark ? 'dark' : ''} ${card && card.published ? '' : 'unpublished'} ${this._collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
+			<div  data-card=${card.id} data-index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.reorderable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${cardTypeConfig.dark ? 'dark' : ''} ${card && card.published ? '' : 'unpublished'} ${this._collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
 					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${getExpandedPrimaryReferenceBlocksForCard(this.collection.constructorArguments, card, this._cardIDsUserMayEdit)}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'}'>${icons[cardTypeConfig.iconName] || ''}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
 					${cardBadges(cardTypeConfig.dark, card, this._badgeMap)}
 			</div>
@@ -390,7 +390,9 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 		let thumbnail = null;
 		for (let item of e.composedPath()) {
-			if (item.card) {
+			//e.g. documentFragment
+			if (!item.dataset) continue;
+			if (item.dataset.card) {
 				thumbnail = item;
 			}
 		}
@@ -431,39 +433,43 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 			console.log('Start card can\'t be reordered');
 			return;
 		}
+		const cardID = thumbnail.dataset.card;
 		let otherID = target.dataset.cardid;
 		let isAfter = target.dataset.after ? true : false;
-		this.dispatchEvent(new CustomEvent('reorder-card', {composed: true, detail: {card: thumbnail.card.id, otherID: otherID, isAfter: isAfter}}));
+		this.dispatchEvent(new CustomEvent('reorder-card', {composed: true, detail: {card: cardID, otherID: otherID, isAfter: isAfter}}));
 	}
 
 	_handleThumbnailClick(e) {
 		e.stopPropagation();
-		let card = null;
+		let cardID = '';
 		for (let ele of e.composedPath()) {
-			if (ele.card) {
-				card = ele.card;
+			//e.g. documentFragment
+			if (!ele.dataset) continue;
+			if (ele.dataset.card) {
+				cardID = ele.dataset.card;
 				break;
 			}
 		}
 		this._highlightedViaClick = true;
 		const ctrl = e.ctrlKey || e.metaKey;
 		//TODO: ctrl-click on mac shouldn't show the right click menu
-		this.dispatchEvent(new CustomEvent('thumbnail-tapped', {composed:true, detail: {card: card.id, ctrl}}));
+		this.dispatchEvent(new CustomEvent('thumbnail-tapped', {composed:true, detail: {card: cardID, ctrl}}));
 	}
 
 	_handleThumbnailMouseMove(e) {
 		e.stopPropagation();
-		let card = null;
+		let cardID = '';
 		for (let ele of e.composedPath()) {
-			if (ele.card) {
-				card = ele.card;
+			//e.g. documentFragment
+			if (!ele.dataset) continue;
+			if (ele.dataset.card) {
+				cardID = ele.dataset.card;
 				break;
 			}
 		}
-		let id = card ? card.id : '';
 		//card-web-app will catch the card-hovered event no matter where it was
 		//thrown from
-		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: id, x: e.clientX, y: e.clientY}}));
+		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: cardID, x: e.clientX, y: e.clientY}}));
 	}
 
 	_scrollHighlightedThumbnailIntoView(force) {
