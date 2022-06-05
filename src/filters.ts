@@ -1525,7 +1525,7 @@ type TODOTypeInfo = {
 	isTODO : boolean,
 	autoApply : boolean,
 	cardTypes? : {
-		[type : CardType] : true
+		[type in CardType]+? : true
 	}
 }
 

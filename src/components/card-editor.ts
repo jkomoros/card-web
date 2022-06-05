@@ -135,6 +135,7 @@ import './card-images-editor.js';
 import {
 	Card,
 	TODOType,
+	CardType,
 	Sections,
 	EditorTab,
 	EditorContentTab,
@@ -439,7 +440,7 @@ class CardEditor extends connect(store)(LitElement) {
 				<div>
 					<label>Card Type ${help('The type of card. Typically all published cards are content')}</label>
 					<select .value=${this._card.card_type} @change=${this._handleCardTypeChanged}>
-					${Object.keys(CARD_TYPE_CONFIGURATION).map(item => {
+					${(Object.keys(CARD_TYPE_CONFIGURATION) as CardType[]).map(item => {
 		const illegalCardTypeReason = reasonCardTypeNotLegalForCard(this._card, item);
 		const title = CARD_TYPE_CONFIGURATION[item].description + (illegalCardTypeReason ? '' : '\n' + illegalCardTypeReason);
 		return html`<option .value=${item} .disabled=${illegalCardTypeReason 

@@ -18,6 +18,7 @@ export const TEXT_FIELD_REFERENCES_INFO_INBOUND = REFERENCES_INFO_INBOUND_CARD_P
 export const TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND = 'non_link_references';
 export const TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND = 'concept_references';
 
+//CardFieldType is driven off of these keys
 export const TEXT_FIELD_TYPES = {
     [TEXT_FIELD_BODY]: true,
     [TEXT_FIELD_TITLE]: true,
@@ -34,6 +35,17 @@ export const CARD_TYPE_WORKING_NOTES = 'working-notes';
 export const CARD_TYPE_CONCEPT = 'concept';
 export const CARD_TYPE_WORK = 'work';
 export const CARD_TYPE_PERSON = 'person';
+
+//CardType literal values are driven off of this object
+export const CARD_TYPE_TYPES = {
+    '' : true,
+    [CARD_TYPE_CONTENT]: true,
+    [CARD_TYPE_SECTION_HEAD]: true,
+    [CARD_TYPE_WORKING_NOTES]: true,
+    [CARD_TYPE_CONCEPT]: true,
+    [CARD_TYPE_WORK]: true,
+    [CARD_TYPE_PERSON]: true,
+};
 
 //For card-links within body content
 //NOTE: duplicated in tweet-helpers.js

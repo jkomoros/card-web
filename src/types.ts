@@ -4,6 +4,7 @@ import {
 } from 'firebase/firestore';
 
 import {
+    CARD_TYPE_TYPES,
     TEXT_FIELD_TYPES
 } from './card_field_constants.js';
 
@@ -21,15 +22,13 @@ type CardPermissions = {
     [name : CardPermissionType]: Uid[]
 }
 
-//TODO: lock this down more
 export type CardFieldType = keyof(typeof TEXT_FIELD_TYPES);
 
 type FontSizeBoostMap = {
     [name in CardFieldType]+?: number
 }
 
-//TODO: lock this down more
-export type CardType = string;
+export type CardType = keyof(typeof CARD_TYPE_TYPES);
 
 //TODO: lock this down more
 type CSSPartString = string;
@@ -162,7 +161,7 @@ export type SelectorStyleMap = {
 }
 
 export type CardTypeConfigurationMap = {
-	[typ : CardType] : {
+	[typ in CardType]+?: {
         //invertContentPublishWarning: if true, then the 'There's content but unpublished,
         //are you sure?' will not trigger... unelss you try to publish in which case it
         //will ask for confirmation.
@@ -356,7 +355,7 @@ export type CommentThreads = {
 export type HTMLTagName = string;
 
 type CardTypeMap = {
-    [typ : CardType] : boolean
+    [typ in CardType]+?: boolean
 }
 
 export type CardFieldTypeConfigurationMap = {
@@ -414,7 +413,7 @@ export type CardFieldTypeConfigurationMap = {
         // types that define reference blocks will interfere with auto-sizing currently.
         // #407 tracks fixing that.
         autoFontSizeBoostForCardTypes? : {
-            [typ : CardType]: number
+            [typ in CardType]+?: number
         },
         // overrideExtractor: boolean. If true, then nlp.js will expect there to be an
         // override extractor defined in nlp.js. That is, instead of literally just
@@ -455,11 +454,11 @@ export type ReferenceTypeConfigurationMap = {
         excludeFromInfoPanel? : boolean,
         //toCardTypeAllowList - if null or undefined, any card of any type may be on the receiving end. If not null, then only card_types in the toCardTypeAllowList map are allowed.
         toCardTypeAllowList? : {
-            [cardType : CardType]: true,
+            [cardType in CardType]+?: true
         },
         //fromCardTypeAllowList - if null or undefined, any card of any type may be on the sending end. If not null, then only card_types in the fromCardTypeAllowList are allowed.
         fromCardTypeAllowList? : {
-            [cardType : CardType]: true,
+            [cardType in CardType]+?: true
         },
         //backportMissingText - if true, then if a card has an outbound reference of this type without text, it will backport the title of the to card, so for the purposes of any nlp processing, it will be as though the outbound reference included the title of the card it's pointing to. (The underlying data in the db is untouched)
         backportMissingText? : boolean,

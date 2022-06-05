@@ -108,7 +108,7 @@ const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS : ReferenceBlocks = Object.entries
 	];
 }).flat();
 
-const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType : CardType] : ReferenceBlocks}= {
+const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBlocks} = {
 	[CARD_TYPE_CONCEPT]: [
 		...CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS,
 		{
@@ -230,8 +230,8 @@ export const infoPanelReferenceBlocksForCard = (card : Card) : ReferenceBlocks =
 const EMPTY_ARRAY = Object.freeze([]);
 
 const expandReferenceBlockConfig = (card : Card, configs : ReferenceBlocks) : ReferenceBlocks => {
-	if (!configs) return EMPTY_ARRAY;
-	if (!card || !card.id) return EMPTY_ARRAY;
+	if (!configs) return EMPTY_ARRAY as ReferenceBlocks;
+	if (!card || !card.id) return EMPTY_ARRAY as ReferenceBlocks;
 	return configs.map(block => ({
 		...block,
 		//navigationCollectionDescription is always set, the expanded version of
