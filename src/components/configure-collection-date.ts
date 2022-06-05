@@ -38,8 +38,8 @@ class ConfigureCollectionDate extends LitElement {
 				<select .value=${typ} @change=${this._handleTypeChanged}>
 					${Object.keys(DATE_RANGE_TYPES).map(typ => html`<option .value=${typ}>${typ}</option>`)}
 				</select>
-				<input type='date' .value=${dateOne} .index=${0} @change=${this._handleDateChanged}>
-				<input type='date' .value=${dateTwo} .index=${1} ?hidden=${!typeRequiresSecondDate} @change=${this._handleDateChanged}>
+				<input type='date' .value=${dateOne} data-first=${true} @change=${this._handleDateChanged}>
+				<input type='date' .value=${dateTwo} ?hidden=${!typeRequiresSecondDate} @change=${this._handleDateChanged}>
 			</div>
 		`;
 	}
@@ -58,7 +58,7 @@ class ConfigureCollectionDate extends LitElement {
 		const ele = e.composedPath()[0];
 		let [typ, dateOne, dateTwo] = parseDateSection(this.value);
 		const dt = new Date(ele.value);
-		if (ele.index == 0) {
+		if (ele.dataset.first) {
 			dateOne = dt;
 		} else {
 			dateTwo = dt;
