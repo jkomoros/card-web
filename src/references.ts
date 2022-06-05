@@ -18,7 +18,8 @@ import {
 	ReferencesEntriesDiffItem,
 	State,
 	CardBooleanMap,
-	ReferencesDiff
+	ReferencesDiff,
+	ReferencesCardsDiff
 } from './types.js';
 
 import {
@@ -708,7 +709,7 @@ export const referencesDiff = (beforeCard : CardLike, afterCard : CardLike) : Re
 	return result;
 };
 
-const cardReferenceBlockHasDifference = (before, after) => {
+const cardReferenceBlockHasDifference = (before : {[typ : ReferenceType] : string}, after: {[typ : ReferenceType] : string}) : boolean => {
 	for(let linkType of Object.keys(before)) {
 		if (after[linkType] === undefined) return true;
 		if (after[linkType] !== before[linkType]) return true;
@@ -722,8 +723,8 @@ const cardReferenceBlockHasDifference = (before, after) => {
 //Inspired by referencesDiff from card_fields.js Returns
 //[cardIDAdditionsOrModifications, cardIDDeletions]. each is a map of cardID =>
 //true, and say that you should copy over the whole block.
-export const referencesCardsDiff = (beforeCard : CardLike, afterCard : CardLike) => {
-	const result = [{}, {}];
+export const referencesCardsDiff = (beforeCard : CardLike, afterCard : CardLike) : ReferencesCardsDiff => {
+	const result : ReferencesCardsDiff = [{}, {}];
 	const emptyCard = {[REFERENCES_INFO_CARD_PROPERTY]:{}, [REFERENCES_CARD_PROPERTY]: {}};
 	if (!beforeCard || Object.keys(beforeCard).length === 0) beforeCard = emptyCard;
 	if (!afterCard || Object.keys(afterCard).length === 0) afterCard = emptyCard;
@@ -732,7 +733,7 @@ export const referencesCardsDiff = (beforeCard : CardLike, afterCard : CardLike)
 	const before = beforeCard[REFERENCES_INFO_CARD_PROPERTY];
 	const after = afterCard[REFERENCES_INFO_CARD_PROPERTY];
 	//For card blocks that exist in both before and after... but might have modifications within them
-	let cardSame = {};
+	let cardSame : CardBooleanMap = {};
 	for (let cardID of Object.keys(before)) {
 		if (after[cardID]) {
 			cardSame[cardID] = true;
