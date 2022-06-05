@@ -557,7 +557,7 @@ const expandedReferenceDeleteObject = (cardID : CardID, referenceType : Referenc
 
 //Returns an object where keys look like `CARD_ID+REFERENCE_TYPE` and values
 //look like {cardID: 'CARD_ID', referenceType: 'REFERENCE_TYPE', value:''}
-const expandedReferences = (referencesInfo : ReferencesInfoMap) => {
+const expandedReferences = (referencesInfo : ReferencesInfoMap) : {[key : ExpandedReferenceKey]: {cardID : CardID, referenceType : ReferenceType, value : string}}=> {
 	const result : {[key : ExpandedReferenceKey] : ExpandedReferenceObject} = {};
 	for (const [cardID, cardRefs] of Object.entries(referencesInfo)) {
 		for (const [referenceType, value] of Object.entries(cardRefs)) {
@@ -640,7 +640,7 @@ export const referencesDiff = (beforeCard, afterCard) => {
 	//For card blocks that exist in both before and after... but might have modifications within them
 	let cardSame = {};
 	//For card blocks that are not in after but were in before.
-	let cardDeletions = {};
+	let cardDeletions : CardBooleanMap = {};
 	for (let cardID of Object.keys(before)) {
 		if (after[cardID]) {
 			cardSame[cardID] = true;
