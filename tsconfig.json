@@ -19,6 +19,7 @@
     "forceConsistentCasingInFileNames": true,
     "noImplicitOverride": true,
     "noImplicitThis": true,
+    "noEmitOnError": true,
     "plugins": [
       {
         "name": "ts-lit-plugin",
