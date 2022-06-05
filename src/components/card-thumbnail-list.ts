@@ -295,7 +295,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 			${this.renderOffset ? html`<div class='row'><button id='prev' class='small' title='Previous cards' @click=${this._handlePreviousClicked}>${ARROW_UPWARD_ICON}</button><label class='interactive' for='prev'>Previous ${this._offsetChunk} cards</label></div>` : ''}
 			<div class='${this._dragging ? 'dragging' : ''} ${this.grid ? 'grid' : ''}'>
 				${repeat(this._cards, (i) => i.id, (i, index) => html`
-				${index >= this.collection.numStartCards ? html`<div class='spacer' data-cardid=${i.id} data-after=${false} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
+				${index >= this.collection.numStartCards ? html`<div class='spacer' data-cardid=${i.id} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
 				${this._labels && this._labels[index] !== undefined && this._labels[index] !== '' ? html`<div class='label'><span>${this.collection ? this.collection.sortLabelName : ''} <strong>${this._labels[index]}</strong></span></div>` : html``}
 				${this._thumbnail(i, index)}
 				${index == (this.collection.finalSortedCards.length - 1) ? html`<div class='spacer' data-cardid=${i.id} data-after=${true} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
