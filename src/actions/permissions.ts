@@ -43,7 +43,11 @@ import {
 	deleteField
 } from 'firebase/firestore';
 
-export const setCardToAddPermissionTo = (cardID) => (dispatch, getState) => {
+import {
+	CardID
+} from '../types.js';
+
+export const setCardToAddPermissionTo = (cardID : CardID) => (dispatch, getState) => {
 	const state = getState();
 	const permissionType = selectPermissionsPendingPermissionType(state);
 	const uid = selectPermissionsPendingUid(state);

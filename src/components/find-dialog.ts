@@ -291,15 +291,15 @@ class FindDialog extends connect(store)(DialogElement) {
 	_handleThumbnailTapped(e) {
 		this._shouldClose();
 		if (this._linking) {
-			store.dispatch(linkCard(e.detail.card.id));
+			store.dispatch(linkCard(e.detail.card));
 			return;
 		}
 		if (this._permissions) {
-			store.dispatch(setCardToAddPermissionTo(e.detail.card.id));
+			store.dispatch(setCardToAddPermissionTo(e.detail.card));
 			return;
 		}
 		if (this._referencing) {
-			store.dispatch(setCardToReference(e.detail.card.id));
+			store.dispatch(setCardToReference(e.detail.card));
 			return;
 		}
 		store.dispatch(navigateToCardInCurrentCollection(e.detail.card));

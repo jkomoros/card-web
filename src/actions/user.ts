@@ -77,7 +77,8 @@ import {
 
 import {
 	UserInfo,
-	Card
+	Card,
+	CardID
 } from '../types.js';
 
 let prevAnonymousMergeUser = null;
@@ -334,21 +335,21 @@ export const updateStars = (starsToAdd = [], starsToRemove = []) => (dispatch) =
 	dispatch(refreshCardSelector(false));
 };
 
-export const toggleOnReadingList = (cardToToggle) => (dispatch, getState) => {
+export const toggleOnReadingList = (cardToToggle : CardID) => (dispatch, getState) => {
 
-	if (!cardToToggle || !cardToToggle.id) {
+	if (!cardToToggle) {
 		console.log('Invalid card provided');
 		return;
 	}
 
 	const state = getState();
-	const onReadingList = getCardInReadingList(state, cardToToggle.id);
+	const onReadingList = getCardInReadingList(state, cardToToggle);
 
 	dispatch(onReadingList ? removeFromReadingList(cardToToggle) : addToReadingList(cardToToggle));
 };
 
-export const addToReadingList = (cardToAdd) => (_, getState) => {
-	if (!cardToAdd || !cardToAdd.id) {
+export const addToReadingList = (cardToAdd : CardID) => (_, getState) => {
+	if (!cardToAdd) {
 		console.log('Invalid card provided');
 		return;
 	}
@@ -374,14 +375,14 @@ export const addToReadingList = (cardToAdd) => (_, getState) => {
 	let readingListUpdateRef = doc(readingListRef, READING_LISTS_UPDATES_COLLECTION, '' + Date.now());
 
 	let readingListObject = {
-		cards: arrayUnion(cardToAdd.id),
+		cards: arrayUnion(cardToAdd),
 		updated: serverTimestamp(),
 		owner: uid,
 	};
 
 	let readingListUpdateObject = {
 		timestamp: serverTimestamp(),
-		add_card: cardToAdd.id
+		add_card: cardToAdd
 	};
 
 	batch.set(readingListRef, readingListObject, {merge:true});
@@ -390,8 +391,8 @@ export const addToReadingList = (cardToAdd) => (_, getState) => {
 	batch.commit();
 };
 
-export const removeFromReadingList = (cardToRemove) => (_, getState) => {
-	if (!cardToRemove || !cardToRemove.id) {
+export const removeFromReadingList = (cardToRemove : CardID) => (_, getState) => {
+	if (!cardToRemove) {
 		console.log('Invalid card provided');
 		return;
 	}
@@ -417,14 +418,14 @@ export const removeFromReadingList = (cardToRemove) => (_, getState) => {
 	let readingListUpdateRef = doc(readingListRef, READING_LISTS_UPDATES_COLLECTION, '' + Date.now());
 
 	let readingListObject = {
-		cards: arrayRemove(cardToRemove.id),
+		cards: arrayRemove(cardToRemove),
 		updated: serverTimestamp(),
 		owner: uid
 	};
 
 	let readingListUpdateObject = {
 		timestamp: serverTimestamp(),
-		remove_card: cardToRemove.id
+		remove_card: cardToRemove
 	};
 
 	batch.set(readingListRef, readingListObject, {merge:true});

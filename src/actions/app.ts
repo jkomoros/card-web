@@ -227,9 +227,8 @@ export const navigateToDefaultIfSectionsAndTagsLoaded : AppActionCreator = (sile
 	dispatch(navigatePathTo('/' + PAGE_DEFAULT + '/' + defaultCollectionDescription.serialize(), silent));
 };
 
-export const navigateToCardInCurrentCollection : AppActionCreator = (cardOrID : Card | CardID, silent? : boolean) => (dispatch, getState) => {
+export const navigateToCardInCurrentCollection : AppActionCreator = (cardID : CardID, silent? : boolean) => (dispatch, getState) => {
 	const state = getState();
-	const cardID = typeof cardOrID == 'string' ? cardOrID : cardOrID.id;
 	const cardIndexinActiveCollection = getCardIndexForActiveCollection(state, cardID);
 	if (cardIndexinActiveCollection < 0) {
 		dispatch(navigateToCardInDefaultCollection(cardID, silent));

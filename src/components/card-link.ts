@@ -176,7 +176,7 @@ class CardLink extends connect(store)(LitElement) {
 			return;
 		}
 		if (!e.ctrlKey && !e.metaKey) return;
-		store.dispatch(toggleOnReadingList(this._cardObj));
+		store.dispatch(toggleOnReadingList(this._cardObj.id));
 		e.preventDefault();
 	}
 

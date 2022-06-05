@@ -123,6 +123,7 @@ import {
 } from 'firebase/storage';
 
 import {
+	CardID,
 	HTMLElementWithStashedSelectionOffset,
 	Uid 
 } from '../types.js';
@@ -320,7 +321,7 @@ export const linkURL = (href) => (_, getState) => {
 	}
 };
 
-export const linkCard = (cardID) => (_, getState) => {
+export const linkCard = (cardID : CardID) => (_, getState) => {
 	const state = getState();
 	if (!state.editor.editing) return;
 	//TODO: it's weird we do this here, it really should be done on the card-
@@ -738,7 +739,7 @@ export const closeImageBrowserDialog = () => {
 	};
 };
 
-export const setCardToReference = (cardID) => (dispatch, getState) => {
+export const setCardToReference = (cardID : CardID) => (dispatch, getState) => {
 	const state = getState();
 	const referenceType = selectEditingPendingReferenceType(state);
 	if (selectMultiEditDialogOpen(state)) {

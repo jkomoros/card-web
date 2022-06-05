@@ -448,7 +448,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		this._highlightedViaClick = true;
 		const ctrl = e.ctrlKey || e.metaKey;
 		//TODO: ctrl-click on mac shouldn't show the right click menu
-		this.dispatchEvent(new CustomEvent('thumbnail-tapped', {composed:true, detail: {card: card, ctrl}}));
+		this.dispatchEvent(new CustomEvent('thumbnail-tapped', {composed:true, detail: {card: card.id, ctrl}}));
 	}
 
 	_handleThumbnailMouseMove(e) {

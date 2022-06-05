@@ -553,9 +553,9 @@ class CardView extends connect(store)(PageViewElement) {
 			return;
 		}
 		if (this._cardInReadingList) {
-			store.dispatch(removeFromReadingList(this._card));
+			store.dispatch(removeFromReadingList(this._card.id));
 		} else {
-			store.dispatch(addToReadingList(this._card));
+			store.dispatch(addToReadingList(this._card.id));
 		}
 	}
 
