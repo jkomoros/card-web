@@ -433,7 +433,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		}
 		let otherID = target.dataset.cardid;
 		let isAfter = target.dataset.after ? true : false;
-		this.dispatchEvent(new CustomEvent('reorder-card', {composed: true, detail: {card: thumbnail.card, otherID: otherID, isAfter: isAfter}}));
+		this.dispatchEvent(new CustomEvent('reorder-card', {composed: true, detail: {card: thumbnail.card.id, otherID: otherID, isAfter: isAfter}}));
 	}
 
 	_handleThumbnailClick(e) {
