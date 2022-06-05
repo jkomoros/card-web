@@ -14,8 +14,6 @@ import {
 } from './types.js';
 
 import {
-	TEXT_FIELD_BODY,
-	CARD_TYPE_CONTENT,
 	LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE,
 	REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT,
 	CARD_TYPE_CONFIGURATION,
@@ -24,6 +22,11 @@ import {
 	IMAGE_CARD_TYPES,
 	getCardTitleForBackporting
 } from './card_fields.js';
+
+import {
+	TEXT_FIELD_BODY,
+	CARD_TYPE_CONTENT,
+} from './card_field_constants.js';
 
 import {
 	references

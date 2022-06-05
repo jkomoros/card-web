@@ -79,7 +79,7 @@ import {
 
 import {
 	CARD_TYPE_WORKING_NOTES
-} from '../card_fields.js';
+} from '../card_field_constants.js';
 
 import {
 	addStar,

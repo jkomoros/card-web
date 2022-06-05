@@ -14,7 +14,7 @@ import * as icons from './components/my-icons.js';
 import {
 	CARD_TYPE_WORKING_NOTES,
 	CARD_TYPE_CONCEPT
-} from './card_fields.js';
+} from './card_field_constants.js';
 
 import {
 	TWITTER_HANDLE

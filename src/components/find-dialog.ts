@@ -66,10 +66,13 @@ import {
 import {
 	REFERENCE_TYPES,
 	DEFAULT_CARD_TYPE,
-	TEXT_FIELD_TITLE,
 	editableFieldsForCardType,
 	CARD_TYPE_CONFIGURATION,
 } from '../card_fields.js';
+
+import {
+	TEXT_FIELD_TITLE,
+} from '../card_field_constants.js';
 
 import {
 	UNION_FILTER_DELIMITER

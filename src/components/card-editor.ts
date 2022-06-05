@@ -108,14 +108,17 @@ import {
 } from '../permissions.js';
 
 import {
-	TEXT_FIELD_BODY,
 	editableFieldsForCardType,
 	REFERENCE_TYPES,
-	REFERENCE_TYPE_ACK,
 	CARD_TYPE_CONFIGURATION,
-	REFERENCE_TYPE_CONCEPT,
 	LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE
 } from '../card_fields.js';
+
+import {
+	TEXT_FIELD_BODY,
+	REFERENCE_TYPE_ACK,
+	REFERENCE_TYPE_CONCEPT,
+} from '../card_field_constants.js';
 
 import {
 	references,

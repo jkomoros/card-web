@@ -21,9 +21,12 @@ import {
 } from '../actions/app.js';
 
 import {
-	CARD_TYPE_CONFIGURATION,
-	CARD_TYPE_CONTENT
+	CARD_TYPE_CONFIGURATION
 } from '../card_fields.js';
+
+import {
+	CARD_TYPE_CONTENT
+} from '../card_field_constants.js';
 
 import * as icons from './my-icons.js';
 

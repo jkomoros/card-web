@@ -23,13 +23,16 @@ import {
 } from './types.js';
 
 import {
+	REFERENCE_TYPES,
+	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
+} from './card_fields.js';
+
+import {
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCE_TYPE_LINK,
-	REFERENCE_TYPES,
 	REFERENCES_CARD_PROPERTY,
-	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
-} from './card_fields.js';
+} from './card_field_constants.js';
 
 import {
 	getCardType,

@@ -18,13 +18,16 @@ import {
 import {
 	CARD_TYPE_CONFIGURATION,
 	TEXT_FIELD_CONFIGURATION,
+	fontSizeBoosts
+} from './card_fields.js';
+
+import {
 	TEXT_FIELD_BODY,
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCES_INBOUND_CARD_PROPERTY,
-	fontSizeBoosts
-} from './card_fields.js';
+} from './card_field_constants.js';
 
 import {
 	normalizeBodyHTML

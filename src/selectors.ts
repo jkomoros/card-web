@@ -42,13 +42,16 @@ import {
 
 import {
 	BODY_CARD_TYPES,
-	CARD_TYPE_WORKING_NOTES,
 	DEFAULT_CARD_TYPE,
 	CARD_TYPE_CONFIGURATION,
 	DEFAULT_SORT_ORDER_INCREMENT,
 	MIN_SORT_ORDER_VALUE,
 	MAX_SORT_ORDER_VALUE
 } from './card_fields.js';
+
+import {
+	CARD_TYPE_WORKING_NOTES,
+} from './card_field_constants.js';
 
 import {
 	references,

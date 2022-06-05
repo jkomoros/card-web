@@ -2,7 +2,7 @@ import {
 	CARD_TYPE_WORKING_NOTES,
 	CARD_TYPE_CONCEPT,
 	TEXT_FIELD_BODY
-} from './card_fields.js';
+} from './card_field_constants.js';
 
 import {
 	cardWithNormalizedTextProperties,

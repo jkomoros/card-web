@@ -28,14 +28,17 @@ import {
 } from '../images.js';
 
 import {
-	TEXT_FIELD_BODY,
-	TEXT_FIELD_TITLE,
 	TEXT_FIELD_CONFIGURATION,
 	CARD_TYPE_CONFIGURATION,
-	CARD_TYPE_CONTENT,
 	editableFieldsForCardType,
 	IMAGES_TEXT_FIELD
 } from '../card_fields.js';
+
+import {
+	TEXT_FIELD_BODY,
+	TEXT_FIELD_TITLE,
+	CARD_TYPE_CONTENT,
+} from '../card_field_constants.js';
 
 import {
 	highlightConceptReferences

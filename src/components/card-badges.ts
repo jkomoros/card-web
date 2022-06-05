@@ -11,7 +11,7 @@ import {
 
 import {
 	REFERENCE_TYPE_DUPE_OF
-} from '../card_fields.js';
+} from '../card_field_constants.js';
 
 import {
 	references
