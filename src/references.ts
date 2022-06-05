@@ -462,7 +462,7 @@ export const unionReferences = (cardObjs : Card[]) : CardLike => {
 //Returns a card-like object with a reference block that is the INTERSECTION of the
 //references of all cardObjs provided. See also unionReferences.
 export const intersectionReferences = (cardObjs : Card[]) : CardLike => {
-	const fauxCard = {};
+	const fauxCard : CardLike = {};
 	const refs = references(fauxCard);
 	const firstCard = cardObjs.length ? cardObjs[0] : null;
 	refs.ensureReferences(firstCard);
@@ -613,7 +613,7 @@ export const referencesEntriesDiff = (beforeCard : CardLike, afterCard : CardLik
 	const after = afterCard[REFERENCES_INFO_CARD_PROPERTY];
 	const expandedBefore = expandedReferences(before);
 	const expandedAfter = expandedReferences(after);
-	const seenInAfter = {};
+	const seenInAfter : {[key : ExpandedReferenceKey] : true} = {};
 	for (const [key, afterObj] of Object.entries(expandedAfter)) {
 		seenInAfter[key] = true;
 		const beforeObjValue = expandedBefore[key] ? expandedBefore[key].value : undefined;
