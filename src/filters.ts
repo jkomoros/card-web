@@ -19,16 +19,19 @@ import {
 } from './tweet-helpers.js';
 
 import {
-	CARD_TYPE_CONTENT,
-	CARD_TYPE_WORKING_NOTES,
 	CARD_TYPE_CONFIGURATION,
-	CARD_TYPE_CONCEPT,
 	BODY_CARD_TYPES,
 	REFERENCE_TYPES,
 	KEY_CARD_ID_PLACEHOLDER,
+} from './card_fields.js';
+
+import {
+	CARD_TYPE_CONTENT,
+	CARD_TYPE_WORKING_NOTES,
+	CARD_TYPE_CONCEPT,
 	REFERENCE_TYPE_CONCEPT,
 	REFERENCE_TYPE_LINK,
-} from './card_fields.js';
+} from './card_field_constants.js';
 
 import {
 	references
@@ -1522,7 +1525,7 @@ type TODOTypeInfo = {
 	isTODO : boolean,
 	autoApply : boolean,
 	cardTypes? : {
-		[type : CardType] : true
+		[type in CardType]+? : true
 	}
 }
 

@@ -6,6 +6,13 @@ import {
 	TEXT_FIELD_CONFIGURATION,
 	DERIVED_FIELDS_FOR_CARD_TYPE,
 	BODY_CARD_TYPES,
+	REFERENCE_TYPES,
+	CARD_TYPE_CONFIGURATION,
+	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
+	editableFieldsForCardType
+} from './card_fields.js';
+
+import {
 	TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND,
 	TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND,
 	TEXT_FIELD_TITLE_ALTERNATES,
@@ -14,13 +21,9 @@ import {
 	REFERENCE_TYPE_ACK,
 	CARD_TYPE_CONCEPT,
 	TEXT_FIELD_TITLE,
-	REFERENCE_TYPES,
-	CARD_TYPE_CONFIGURATION,
 	REFERENCE_TYPE_SYNONYM,
 	REFERENCE_TYPE_CONCEPT,
-	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
-	editableFieldsForCardType
-} from './card_fields.js';
+} from './card_field_constants.js';
 
 import {
 	references,
@@ -698,7 +701,7 @@ type PreparedQueryConfigurationLeaf = [
 ]
 
 type PreparedQueryConfiguration = {
-	[field : CardFieldType] : PreparedQueryConfigurationLeaf[]
+	[field in CardFieldType]+? : PreparedQueryConfigurationLeaf[]
 }
 
 export class PreparedQuery {
@@ -880,7 +883,7 @@ const IMPORTANT_NGRAM_BOOST_FACTOR = 1.1;
 //strsMap is card.nlp.withoutStopWords. See cardWithNormalizedTextProperties documentation for more.
 const wordCountsForSemantics = memoizeFirstArg((cardObj : ProcessedCard, maxFingerprintSize : number = MAX_N_GRAM_FOR_FINGERPRINT, optFieldList? : CardFieldType[], excludeSynonyms? : boolean) => {
 	const fieldsToIndex = optFieldList ? Object.fromEntries(optFieldList.map(fieldName => [fieldName, true])) : TEXT_FIELD_CONFIGURATION;
-	const strsMap : {[type : CardFieldType] : string[]} = Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION)
+	const strsMap : {[type in CardFieldType]+?: string[]} = Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION)
 		.filter(fieldName => fieldsToIndex[fieldName])
 		.map(prop => [prop, cardObj.nlp[prop].map(run => run.withoutStopWords)]).filter(entry => entry[1]));
 	//Yes, it's weird that we stash the additionalNgramsMap on a cardObj and

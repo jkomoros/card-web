@@ -23,13 +23,16 @@ import {
 } from './types.js';
 
 import {
+	REFERENCE_TYPES,
+	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
+} from './card_fields.js';
+
+import {
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCE_TYPE_LINK,
-	REFERENCE_TYPES,
 	REFERENCES_CARD_PROPERTY,
-	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
-} from './card_fields.js';
+} from './card_field_constants.js';
 
 import {
 	getCardType,
@@ -429,7 +432,7 @@ class ReferencesAccessor {
 
 		//Now, go through each reference type and see if any are missing.
 		for (let [cardID, referenceMap] of Object.entries(this._referencesInfo)) {
-			for (let [referenceType, str] of Object.entries(referenceMap)) {
+			for (let [referenceType, str] of Object.entries(referenceMap) as [ReferenceType, string][]) {
 				if (str) continue;
 				//if we get to here, there's a gap. See if anything in the fallbackMap fills it.
 				if (!fallbackMap[cardID]) continue;
@@ -562,7 +565,7 @@ const expandedReferenceDeleteObject = (cardID : CardID, referenceType : Referenc
 const expandedReferences = (referencesInfo : ReferencesInfoMap) : {[key : ExpandedReferenceKey]: {cardID : CardID, referenceType : ReferenceType, value : string}}=> {
 	const result : {[key : ExpandedReferenceKey] : ExpandedReferenceObject} = {};
 	for (const [cardID, cardRefs] of Object.entries(referencesInfo)) {
-		for (const [referenceType, value] of Object.entries(cardRefs)) {
+		for (const [referenceType, value] of Object.entries(cardRefs) as [ReferenceType, string][]) {
 			const key = expandedReferenceKey(cardID, referenceType);
 			const obj = expandedReferenceObject(cardID, referenceType, value);
 			result[key] = obj;
@@ -709,7 +712,7 @@ export const referencesDiff = (beforeCard : CardLike, afterCard : CardLike) : Re
 	return result;
 };
 
-const cardReferenceBlockHasDifference = (before : {[typ : ReferenceType] : string}, after: {[typ : ReferenceType] : string}) : boolean => {
+const cardReferenceBlockHasDifference = (before : {[typ in ReferenceType]+?: string}, after: {[typ in ReferenceType]+?: string}) : boolean => {
 	for(let linkType of Object.keys(before)) {
 		if (after[linkType] === undefined) return true;
 		if (after[linkType] !== before[linkType]) return true;

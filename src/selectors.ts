@@ -33,6 +33,7 @@ import {
 } from './filters.js';
 
 import {
+	Collection,
 	CollectionDescription,
 } from './collection_description.js';
 
@@ -42,13 +43,16 @@ import {
 
 import {
 	BODY_CARD_TYPES,
-	CARD_TYPE_WORKING_NOTES,
 	DEFAULT_CARD_TYPE,
 	CARD_TYPE_CONFIGURATION,
 	DEFAULT_SORT_ORDER_INCREMENT,
 	MIN_SORT_ORDER_VALUE,
 	MAX_SORT_ORDER_VALUE
 } from './card_fields.js';
+
+import {
+	CARD_TYPE_WORKING_NOTES,
+} from './card_field_constants.js';
 
 import {
 	references,
@@ -72,6 +76,7 @@ import {
 	infoPanelReferenceBlocksForCard,
 	expandReferenceBlocks,
 	getExpandedPrimaryReferenceBlocksForCard,
+	ExpandedReferenceBlocks,
 } from './reference_blocks.js';
 
 import {
@@ -127,6 +132,7 @@ import {
 	CommentMessage,
 	Uid,
 	Author,
+	CardType,
 } from './types.js';
 
 const selectState = (state : State) : State => state;
@@ -1108,7 +1114,7 @@ const selectUserMayEditActiveSection = createSelector(
 
 export const selectActiveCollectionCardTypeToAdd = createSelector(
 	selectActiveCollectionDescription,
-	(collectionDescription) => {
+	(collectionDescription) : CardType => {
 		if (collectionDescription.set != EVERYTHING_SET_NAME) return DEFAULT_CARD_TYPE;
 		if (collectionDescription.filters.length != 1) return DEFAULT_CARD_TYPE;
 		const possibleCardType = collectionDescription.filters[0];
@@ -1117,7 +1123,7 @@ export const selectActiveCollectionCardTypeToAdd = createSelector(
 		//Working notes already has its own button
 		if (possibleCardType === CARD_TYPE_WORKING_NOTES) return DEFAULT_CARD_TYPE;
 		if (!cardTypeConfig.orphanedByDefault) return DEFAULT_CARD_TYPE;
-		return possibleCardType;
+		return possibleCardType as CardType;
 	}
 );
 
@@ -1493,7 +1499,7 @@ export const getCardIndexForActiveCollection = (state, cardId) => {
 const selectBodyCardTypes = createSelector(
 	selectFilters,
 	//we can just take advantage of the fact that cards are already set, and there's a filter per card type
-	(filters) => Object.keys(BODY_CARD_TYPES).filter(cardType => Object.keys(filters[cardType] || {}).length > 0)
+	(filters) : CardType[] => (Object.keys(BODY_CARD_TYPES) as CardType[]).filter(cardType => Object.keys(filters[cardType] || {}).length > 0)
 );
 
 export const selectFindLegalCardTypeFilters = createSelector(
@@ -1502,7 +1508,7 @@ export const selectFindLegalCardTypeFilters = createSelector(
 	//'' stands for 'no filter' and will show up as 'Default'
 	//findCardTypeFilter, whatever it is, needs to show up, since it's 'selected'
 	//The set thing makes sure we don't have duplicates
-	(bodyCardTypes, findCardTypeFilter) => [... new Set(['', ...bodyCardTypes, findCardTypeFilter])]
+	(bodyCardTypes, findCardTypeFilter) : CardType[] => [... new Set(['', ...bodyCardTypes, findCardTypeFilter])] as CardType[]
 );
 
 //Whether the find dialog is open generically
@@ -1548,28 +1554,28 @@ export const selectCollectionDescriptionForQuery = createSelector(
 export const selectCollectionForQuery = createSelector(
 	selectCollectionDescriptionForQuery,
 	selectCollectionConstructorArgumentsWithEditingCard,
-	(description, args) => description.collection(args)
+	(description, args) : Collection => description.collection(args)
 );
 
 export const selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard = createSelector(
 	selectEditingOrActiveNormalizedCard,
 	selectCollectionConstructorArgumentsWithEditingCard,
 	selectCardIDsUserMayEdit,
-	(card, args, cardIDsUserMayEdit) => getExpandedPrimaryReferenceBlocksForCard(args, card, cardIDsUserMayEdit)
+	(card, args, cardIDsUserMayEdit) : ExpandedReferenceBlocks => getExpandedPrimaryReferenceBlocksForCard(args, card, cardIDsUserMayEdit)
 );
 
 export const selectExpandedPrimaryReferenceBlocksForPreviewCard = createSelector(
 	selectActivePreviewCard,
 	selectCollectionConstructorArguments,
 	selectCardIDsUserMayEdit,
-	(card, args, cardIDsUserMayEdit) => getExpandedPrimaryReferenceBlocksForCard(args, card, cardIDsUserMayEdit)
+	(card, args, cardIDsUserMayEdit) : ExpandedReferenceBlocks => getExpandedPrimaryReferenceBlocksForCard(args, card, cardIDsUserMayEdit)
 );
 
 export const selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard = createSelector(
 	selectEditingOrActiveNormalizedCard,
 	selectCollectionConstructorArgumentsWithEditingCard,
 	selectCardIDsUserMayEdit,
-	(card, args, cardIDsUserMayEdit) => {
+	(card, args, cardIDsUserMayEdit) : ExpandedReferenceBlocks => {
 		const blocks = infoPanelReferenceBlocksForCard(card);
 		if (blocks.length == 0) return [];
 		//reference-block will hide any ones that shouldn't render because of an empty collection so we don't need to filter

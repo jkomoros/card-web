@@ -66,10 +66,13 @@ import {
 import {
 	REFERENCE_TYPES,
 	DEFAULT_CARD_TYPE,
-	TEXT_FIELD_TITLE,
 	editableFieldsForCardType,
 	CARD_TYPE_CONFIGURATION,
 } from '../card_fields.js';
+
+import {
+	TEXT_FIELD_TITLE,
+} from '../card_field_constants.js';
 
 import {
 	UNION_FILTER_DELIMITER
@@ -251,10 +254,10 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._shouldClose();
 	}
 
-	get _cardTypeToAdd() {
+	get _cardTypeToAdd() : CardType {
 		const cardType = this._cardTypeFilter || DEFAULT_CARD_TYPE;
 		//cardTypeFilter could possibly be a union of multiple allowable card types, so use whatever the first one is.
-		return cardType.split(UNION_FILTER_DELIMITER)[0];
+		return cardType.split(UNION_FILTER_DELIMITER)[0] as CardType;
 	}
 
 	_handleAddSlide() {

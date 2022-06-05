@@ -3,6 +3,12 @@ import {
     Timestamp
 } from 'firebase/firestore';
 
+import {
+    CARD_TYPE_TYPES,
+    TEXT_FIELD_TYPES,
+    REFERENCE_TYPE_TYPES
+} from './card_field_constants.js';
+
 export type Uid = string;
 
 export type CardID = string;
@@ -17,15 +23,13 @@ type CardPermissions = {
     [name : CardPermissionType]: Uid[]
 }
 
-//TODO: lock this down more
-export type CardFieldType = string;
+export type CardFieldType = keyof(typeof TEXT_FIELD_TYPES);
 
 type FontSizeBoostMap = {
-    [name: CardFieldType]: number,
+    [name in CardFieldType]+?: number
 }
 
-//TODO: lock this down more
-export type CardType = string;
+export type CardType = keyof(typeof CARD_TYPE_TYPES);
 
 //TODO: lock this down more
 type CSSPartString = string;
@@ -106,23 +110,22 @@ type TODOOverrides = {
     [name: TODOType]: boolean
 }
 
-//TODO: tighten this
-export type ReferenceType = string;
+export type ReferenceType = keyof(typeof REFERENCE_TYPE_TYPES);
 
 export type ReferencesInfoMap = {
     [id : CardID]: {
-        [typ : ReferenceType]: string
+        [typ in ReferenceType]+?: string
     }
 }
 
 export type ReferencesInfoMapByType = {
-    [typ : ReferenceType]: {
+    [typ in ReferenceType]+?: {
         [id : CardID]: string
     }
 }
 
 export type ReferencesArrayByType = {
-    [typ : ReferenceType] : CardID[]
+    [typ in ReferenceType]+?: CardID[]
 }
 
 export interface TweetInfo {
@@ -158,7 +161,7 @@ export type SelectorStyleMap = {
 }
 
 export type CardTypeConfigurationMap = {
-	[typ : CardType] : {
+	[typ in CardType]+?: {
         //invertContentPublishWarning: if true, then the 'There's content but unpublished,
         //are you sure?' will not trigger... unelss you try to publish in which case it
         //will ask for confirmation.
@@ -352,11 +355,11 @@ export type CommentThreads = {
 export type HTMLTagName = string;
 
 type CardTypeMap = {
-    [typ : CardType] : boolean
+    [typ in CardType]+?: boolean
 }
 
 export type CardFieldTypeConfigurationMap = {
-    [typ : CardFieldType]: {
+    [typ in CardFieldType]+?: {
         // html: whether or not the field allows html. NOTE: currently it's only supported
         // for a single field to be marked as html, and it must be called 'body'. See #345
         // for fixing that.
@@ -410,7 +413,7 @@ export type CardFieldTypeConfigurationMap = {
         // types that define reference blocks will interfere with auto-sizing currently.
         // #407 tracks fixing that.
         autoFontSizeBoostForCardTypes? : {
-            [typ : CardType]: number
+            [typ in CardType]+?: number
         },
         // overrideExtractor: boolean. If true, then nlp.js will expect there to be an
         // override extractor defined in nlp.js. That is, instead of literally just
@@ -434,7 +437,7 @@ export type CardFieldTypeConfigurationMap = {
 export type CSSColorString = string;
 
 export type ReferenceTypeConfigurationMap = {
-    [type : ReferenceType] : {
+    [type in ReferenceType]+?: {
         //name - name of the reference type, for presenting in UIs
         name : string,
         //inboundName - the name of the reference type when inbound, for presenting in UIs.
@@ -451,11 +454,11 @@ export type ReferenceTypeConfigurationMap = {
         excludeFromInfoPanel? : boolean,
         //toCardTypeAllowList - if null or undefined, any card of any type may be on the receiving end. If not null, then only card_types in the toCardTypeAllowList map are allowed.
         toCardTypeAllowList? : {
-            [cardType : CardType]: true,
+            [cardType in CardType]+?: true
         },
         //fromCardTypeAllowList - if null or undefined, any card of any type may be on the sending end. If not null, then only card_types in the fromCardTypeAllowList are allowed.
         fromCardTypeAllowList? : {
-            [cardType : CardType]: true,
+            [cardType in CardType]+?: true
         },
         //backportMissingText - if true, then if a card has an outbound reference of this type without text, it will backport the title of the to card, so for the purposes of any nlp processing, it will be as though the outbound reference included the title of the card it's pointing to. (The underlying data in the db is untouched)
         backportMissingText? : boolean,
@@ -637,7 +640,7 @@ interface ProcessedRunInterface {
 }
 
 type NLPInfo = {
-    [field : CardFieldType]: ProcessedRunInterface[]
+    [field in CardFieldType]+?: ProcessedRunInterface[]
 }
 
 export interface ProcessedCard extends Card {
@@ -893,7 +896,7 @@ export type AuthorsMap = {
 }
 
 export type CardFieldMap = {
-    [field : CardFieldType] : true
+    [field in CardFieldType]+?: true
 }
 
 export type DataState = {

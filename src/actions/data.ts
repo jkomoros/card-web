@@ -120,8 +120,14 @@ import {
 
 import {
 	CARD_TYPE_CONFIGURATION,
-	TEXT_FIELD_BODY,
 	DEFAULT_CARD_TYPE,
+	KEY_CARD_ID_PLACEHOLDER,
+	editableFieldsForCardType,
+	sortOrderIsDangerous
+} from '../card_fields.js';
+
+import {
+	TEXT_FIELD_BODY,
 	CARD_TYPE_SECTION_HEAD,
 	REFERENCES_CARD_PROPERTY,
 	REFERENCES_INFO_CARD_PROPERTY,
@@ -129,13 +135,10 @@ import {
 	REFERENCES_INBOUND_CARD_PROPERTY,
 	REFERENCE_TYPE_FORK_OF,
 	REFERENCE_TYPE_MINED_FROM,
-	KEY_CARD_ID_PLACEHOLDER,
 	TEXT_FIELD_TITLE,
-	editableFieldsForCardType,
-	sortOrderIsDangerous,
 	REFERENCE_TYPE_LINK,
 	CARD_TYPE_CONTENT
-} from '../card_fields.js';
+} from '../card_field_constants.js';
 
 import {
 	cardDiffHasChanges,

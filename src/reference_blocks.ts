@@ -1,4 +1,10 @@
 import {
+	KEY_CARD_ID_PLACEHOLDER,
+	REFERENCE_TYPES,
+	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
+} from './card_fields.js';
+
+import {
 	CARD_TYPE_CONCEPT,
 	CARD_TYPE_WORK,
 	CARD_TYPE_PERSON,
@@ -6,14 +12,11 @@ import {
 	REFERENCE_TYPE_CONCEPT,
 	REFERENCE_TYPE_CITATION,
 	REFERENCE_TYPE_CITATION_PERSON,
-	KEY_CARD_ID_PLACEHOLDER,
-	REFERENCE_TYPES,
 	REFERENCE_TYPE_SEE_ALSO,
 	REFERENCE_TYPE_EXAMPLE_OF,
 	REFERENCE_TYPE_METAPHOR_FOR,
-	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
 	CARD_TYPE_CONTENT,
-} from './card_fields.js';
+} from './card_field_constants.js';
 
 import {
 	Collection,
@@ -42,7 +45,8 @@ import {
 	Card,
 	CardType,
 	CollectionConstructorArguments,
-	FilterMap
+	FilterMap,
+	ReferenceType
 } from './types.js';
 
 import {
@@ -82,7 +86,7 @@ export type ReferenceBlocks = readonly ReferenceBlock[];
 export type ExpandedReferenceBlocks = readonly ExpandedReferenceBlock[];
 
 const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS : ReferenceBlocks = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].subTypeOf == REFERENCE_TYPE_CONCEPT && entry[0] != REFERENCE_TYPE_CONCEPT).map(entry => {
-	const referenceType = entry[0];
+	const referenceType = entry[0] as ReferenceType;
 	const referenceConfig = entry[1];
 	if (referenceConfig.reciprocal) {
 		return {
@@ -105,11 +109,11 @@ const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS : ReferenceBlocks = Object.entries
 	];
 }).flat();
 
-const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType : CardType] : ReferenceBlocks}= {
+const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBlocks} = {
 	[CARD_TYPE_CONCEPT]: [
 		...CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS,
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_CONCEPT, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT])])]),
+			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_CONCEPT, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT]) as ReferenceType[]])]),
 			navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [aboutConceptConfigurableFilterText(KEY_CARD_ID_PLACEHOLDER)]),
 			title: 'Cards that reference this concept',
 			showNavigate: true,
@@ -150,8 +154,8 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType : CardType] : ReferenceBlocks}
 	]
 };
 
-const REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].excludeFromInfoPanel).map(entry => entry[0]);
-const SUBSTANTIVE_REFERENCE_TYPES = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].substantive).map(entry => entry[0]);
+const REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].excludeFromInfoPanel).map(entry => entry[0]) as ReferenceType[];
+const SUBSTANTIVE_REFERENCE_TYPES = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].substantive).map(entry => entry[0]) as ReferenceType[];
 
 const NUM_SIMILAR_CARDS_TO_SHOW = 5;
 
@@ -180,7 +184,7 @@ const INFO_PANEL_REFERENCE_BLOCKS : ReferenceBlocks = [
 		title: 'Citations',
 		emptyMessage: 'No citations',
 		description: 'Works or people that insights for this card were based on',
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CITATION])])])
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CITATION]) as ReferenceType[]])])
 
 	},
 	{
@@ -227,8 +231,8 @@ export const infoPanelReferenceBlocksForCard = (card : Card) : ReferenceBlocks =
 const EMPTY_ARRAY = Object.freeze([]);
 
 const expandReferenceBlockConfig = (card : Card, configs : ReferenceBlocks) : ReferenceBlocks => {
-	if (!configs) return EMPTY_ARRAY;
-	if (!card || !card.id) return EMPTY_ARRAY;
+	if (!configs) return EMPTY_ARRAY as ReferenceBlocks;
+	if (!card || !card.id) return EMPTY_ARRAY as ReferenceBlocks;
 	return configs.map(block => ({
 		...block,
 		//navigationCollectionDescription is always set, the expanded version of

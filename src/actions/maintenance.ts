@@ -60,6 +60,13 @@ import {
 } from '../tabs.js';
 
 import {
+	fontSizeBoosts,
+	MAX_SORT_ORDER_VALUE,
+	MIN_SORT_ORDER_VALUE,
+	DEFAULT_SORT_ORDER_INCREMENT
+} from '../card_fields.js';
+
+import {
 	CARD_TYPE_CONTENT,
 	CARD_TYPE_SECTION_HEAD,
 	REFERENCES_INFO_CARD_PROPERTY,
@@ -67,11 +74,7 @@ import {
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCES_INBOUND_CARD_PROPERTY,
 	REFERENCE_TYPE_LINK,
-	fontSizeBoosts,
-	MAX_SORT_ORDER_VALUE,
-	MIN_SORT_ORDER_VALUE,
-	DEFAULT_SORT_ORDER_INCREMENT
-} from '../card_fields.js';
+} from '../card_field_constants.js';
 
 import {
 	onSnapshot,

@@ -108,14 +108,17 @@ import {
 } from '../permissions.js';
 
 import {
-	TEXT_FIELD_BODY,
 	editableFieldsForCardType,
 	REFERENCE_TYPES,
-	REFERENCE_TYPE_ACK,
 	CARD_TYPE_CONFIGURATION,
-	REFERENCE_TYPE_CONCEPT,
 	LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE
 } from '../card_fields.js';
+
+import {
+	TEXT_FIELD_BODY,
+	REFERENCE_TYPE_ACK,
+	REFERENCE_TYPE_CONCEPT,
+} from '../card_field_constants.js';
 
 import {
 	references,
@@ -132,6 +135,7 @@ import './card-images-editor.js';
 import {
 	Card,
 	TODOType,
+	CardType,
 	Sections,
 	EditorTab,
 	EditorContentTab,
@@ -436,7 +440,7 @@ class CardEditor extends connect(store)(LitElement) {
 				<div>
 					<label>Card Type ${help('The type of card. Typically all published cards are content')}</label>
 					<select .value=${this._card.card_type} @change=${this._handleCardTypeChanged}>
-					${Object.keys(CARD_TYPE_CONFIGURATION).map(item => {
+					${(Object.keys(CARD_TYPE_CONFIGURATION) as CardType[]).map(item => {
 		const illegalCardTypeReason = reasonCardTypeNotLegalForCard(this._card, item);
 		const title = CARD_TYPE_CONFIGURATION[item].description + (illegalCardTypeReason ? '' : '\n' + illegalCardTypeReason);
 		return html`<option .value=${item} .disabled=${illegalCardTypeReason 
