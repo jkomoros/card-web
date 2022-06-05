@@ -17,7 +17,8 @@ import {
 	CardLike,
 	ReferencesEntriesDiffItem,
 	State,
-	CardBooleanMap
+	CardBooleanMap,
+	ReferencesDiff
 } from './types.js';
 
 import {
@@ -629,16 +630,16 @@ export const referencesEntriesDiff = (beforeCard : CardLike, afterCard : CardLik
 //no leafDeletions that start with that CARD_ID will be included. Additions will
 //not create new card objects, it will assume the dotted accesor that implies it
 //in the path will create it.
-export const referencesDiff = (beforeCard, afterCard) => {
-	const result = [{}, {}, {}, {}];
+export const referencesDiff = (beforeCard : CardLike, afterCard : CardLike) : ReferencesDiff => {
+	const result : ReferencesDiff = [{}, {}, {}, {}];
 	if (!referencesLegalShape(beforeCard)) return result;
 	if (!referencesLegalShape(afterCard)) return result;
 	const before = beforeCard[REFERENCES_INFO_CARD_PROPERTY];
 	const after = afterCard[REFERENCES_INFO_CARD_PROPERTY];
 	//For cards that were not in before but are in after
-	let cardAdditions = {};
+	let cardAdditions : CardBooleanMap = {};
 	//For card blocks that exist in both before and after... but might have modifications within them
-	let cardSame = {};
+	let cardSame : CardBooleanMap = {};
 	//For card blocks that are not in after but were in before.
 	let cardDeletions : CardBooleanMap = {};
 	for (let cardID of Object.keys(before)) {
@@ -672,9 +673,9 @@ export const referencesDiff = (beforeCard, afterCard) => {
 
 		//Whether keys exist (even if the string value for them is different) in
 		//before and after.
-		let keyAdditions = {};
-		let keySame = {};
-		let keyDeletions = {};
+		let keyAdditions : CardBooleanMap= {};
+		let keySame : CardBooleanMap = {};
+		let keyDeletions : CardBooleanMap = {};
 		for (let key of Object.keys(beforeCardBlock)) {
 			if (afterCardBlock[key] === undefined) {
 				keyDeletions[key] = true;
