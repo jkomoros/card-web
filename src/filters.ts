@@ -72,7 +72,7 @@ import {
 	CollectionState,
 	FilterMap,
 	SortExtra,
-	TODOType
+	TODOType,
 } from './types.js';
 
 export const DEFAULT_SET_NAME = 'main';
@@ -411,8 +411,9 @@ const makeMissingConceptConfigurableFilter = (_, conceptStrOrCardID : string) : 
 
 	//This is very expensive, and keyCardID will change way more often than
 	//cards will, so do the two-level memoization.
-	const expensiveGenerator = memoize((cards : ProcessedCards) => {
-		const conceptCards = conceptCardsFromCards(cards);
+	const expensiveGenerator = memoize((cards : ProcessedCards) : [conceptCards : ProcessedCards, concepts : {[conceptStr : string] : CardID} ]  => {
+		//TODO: have conceptCardsFromCards return ProcessedCards if it was passed ProcessedCards
+		const conceptCards = conceptCardsFromCards(cards) as ProcessedCards;
 		const concepts = getConceptsFromConceptCards(conceptCards);
 		return [conceptCards, concepts];
 	});

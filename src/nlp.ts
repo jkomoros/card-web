@@ -56,7 +56,7 @@ import {
 } from './types.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
-export const conceptCardsFromCards = deepEqualReturnSame(memoizeFirstArg((allCards : Cards) => {
+export const conceptCardsFromCards = deepEqualReturnSame(memoizeFirstArg((allCards : Cards) : Cards => {
 	return Object.fromEntries(Object.entries(allCards).filter(entry => entry[1].card_type == CARD_TYPE_CONCEPT));
 }));
 
@@ -86,7 +86,7 @@ export const getAllConceptStringsFromConceptCard = (rawConceptCard : Card) : str
 //concept cards, it might include multiple entries for each concept card if it
 //has title alternates. memoized so downstream memoizing things will get object
 //equality.
-export const getConceptsFromConceptCards = deepEqualReturnSame(memoizeFirstArg((conceptCards : Cards) => {
+export const getConceptsFromConceptCards = deepEqualReturnSame(memoizeFirstArg((conceptCards : Cards) : {[conceptStr : string]: CardID}=> {
 	const result : {[conceptStr : string] : CardID } = {};
 	for (const card of Object.values(conceptCards)) {
 		for (const conceptStr of getAllConceptStringsFromConceptCard(card)) {

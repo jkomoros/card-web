@@ -57,7 +57,7 @@ import './card-highlight.js';
 import './reference-block.js';
 
 import {
-	Card,
+	ProcessedCard,
 	CardID,
 	CardFieldType,
 	CardFieldMap,
@@ -107,7 +107,7 @@ interface ShadowRootWithGetSelection extends ShadowRoot {
 export class CardRenderer extends GestureEventListeners(LitElement) {
 
 	@property({ type : Object })
-	card: Card;
+	card: ProcessedCard;
 
 	@property({ type : Boolean })
 	editing: boolean;
