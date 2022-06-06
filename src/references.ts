@@ -68,7 +68,7 @@ const referencesToByType = (referencesMap : ReferencesInfoMap) : ReferencesInfoM
 	let result : ReferencesInfoMapByType = {};
 	if (!referencesMap) referencesMap = {};
 	for (const [cardID, referenceBlock] of Object.entries(referencesMap)) {
-		for (const [referenceType, str] of Object.entries(referenceBlock)) {
+		for (const [referenceType, str] of Object.entries(referenceBlock) as [referenceType : ReferenceType, str : string][]) {
 			if (!result[referenceType]) result[referenceType] = {};
 			result[referenceType][cardID] = str;
 		}
@@ -79,8 +79,8 @@ const referencesToByType = (referencesMap : ReferencesInfoMap) : ReferencesInfoM
 const byTypeToReferences = (byTypeMap : ReferencesInfoMapByType) : ReferencesInfoMap => {
 	const result : ReferencesInfoMap = {};
 	if (!byTypeMap) byTypeMap = {};
-	for (let [referenceType, referenceBlock] of Object.entries(byTypeMap)) {
-		for (let [cardID, str] of Object.entries(referenceBlock)) {
+	for (let [referenceType, referenceBlock] of Object.entries(byTypeMap) as [referenceType : ReferenceType, block : {[cardID : CardID]: string}][]) {
+		for (let [cardID, str] of Object.entries(referenceBlock) as [cardID : CardID, str : string][]) {
 			if (!result[cardID]) result[cardID] = {};
 			result[cardID][referenceType] = str;
 		}
@@ -184,13 +184,13 @@ class ReferencesAccessor {
 
 	get byTypeSubstantive() : ReferencesInfoMapByType {
 		if (!this._memoizedByTypeSubstantive) {
-			this._memoizedByTypeSubstantive = Object.fromEntries(Object.entries(this.byType).filter(entry => (REFERENCE_TYPES[entry[0]] || {}).substantive));
+			this._memoizedByTypeSubstantive = Object.fromEntries(Object.entries(this.byType).filter(entry => (REFERENCE_TYPES[entry[0] as ReferenceType] || {}).substantive));
 		}
 		return this._memoizedByTypeSubstantive;
 	}
 
 	byTypeClass(baseType : ReferenceType) : ReferencesInfoMapByType {
-		return Object.fromEntries(Object.entries(this.byType).filter(entry => REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][entry[0]]));
+		return Object.fromEntries(Object.entries(this.byType).filter(entry => REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][entry[0] as ReferenceType]));
 	}
 
 	//returns a new map where each key in the top level is the type, and the second level objects are card-id to string value.
@@ -203,17 +203,17 @@ class ReferencesAccessor {
 
 	get byTypeInboundSubstantive() : ReferencesInfoMapByType {
 		if (!this._memoizedByTypeInboundSubstantive) {
-			this._memoizedByTypeInboundSubstantive = Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => (REFERENCE_TYPES[entry[0]] || {}).substantive));
+			this._memoizedByTypeInboundSubstantive = Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => (REFERENCE_TYPES[entry[0] as ReferenceType] || {}).substantive));
 		}
 		return this._memoizedByTypeInboundSubstantive;
 	}
 
 	get byTypeInboundNeedsReciprocation() : ReferencesInfoMapByType {
-		return Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES[entry[0]].needsReciprocation));
+		return Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES[entry[0] as ReferenceType].needsReciprocation));
 	}
 
 	byTypeClassInbound(baseType : ReferenceType) : ReferencesInfoMapByType {
-		return Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][entry[0]]));
+		return Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][entry[0] as ReferenceType]));
 	}
 
 	//Returns an object where it's link_type => array_of_card_ids
