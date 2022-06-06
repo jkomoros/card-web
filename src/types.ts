@@ -501,6 +501,7 @@ export interface Card {
 
     title: string,
     subtitle? : string,
+    title_alternates? : string,
     body: string,
     notes: string,
     todo: string,
