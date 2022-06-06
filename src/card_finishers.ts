@@ -14,6 +14,7 @@ import {
 	getSemanticFingerprintForCard,
 	selectCards,
 	selectConcepts,
+	selectSynonymMap
 } from './selectors.js';
 
 import {
@@ -35,7 +36,8 @@ const workingNotesExtractor = (card : Card, state : State) => {
 	//that timeout hasn't fired yet, so make sure the card content is up to date.
 	const fallbackMap = backportFallbackTextMapForCard(card, selectCards(state));
 	const conceptsMap = selectConcepts(state);
-	const cardCopy = cardWithNormalizedTextProperties(card, fallbackMap, conceptsMap);
+	const synonymMap = selectSynonymMap(state);
+	const cardCopy = cardWithNormalizedTextProperties(card, fallbackMap, conceptsMap, synonymMap);
 	const fingerprint = getSemanticFingerprintForCard(state, cardCopy, [TEXT_FIELD_BODY]);
 	const pretty = fingerprint.dedupedPrettyItemsFromCard();
 	const title = date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'2-digit'}) + ' ' + pretty.split(' ').slice(0, NUM_TERMS_OF_FINGERPRINT).join(' ');

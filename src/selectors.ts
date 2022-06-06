@@ -287,7 +287,7 @@ const selectRawConceptCards = createSelector(
 	(cards) => conceptCardsFromCards(cards)
 );
 
-const selectSynonymMap = createSelector(
+export const selectSynonymMap = createSelector(
 	selectRawCards,
 	(cards) => synonymMap(cards)
 );
