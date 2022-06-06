@@ -769,7 +769,7 @@ export type FilterExtras = {
 	filterSetMemberships : Filters,
 	cards : ProcessedCards,
 	keyCardID : CardID,
-	editingCard : Card,
+	editingCard : ProcessedCard,
 	userID : Uid,
 };
 
@@ -800,7 +800,7 @@ export interface CollectionConstructorArguments {
     keyCardID? : CardID,
     cardsSnapshot? : ProcessedCards,
     filtersSnapshot? : Filters,
-    editingCard? : Card
+    editingCard? : ProcessedCard
 }
 
 export interface BadgeMap {

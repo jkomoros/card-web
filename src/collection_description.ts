@@ -22,7 +22,6 @@ import {
 } from './filters.js';
 
 import {
-	Card,
 	CardID,
 	ProcessedCard,
 	ProcessedCards,
@@ -600,7 +599,7 @@ export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterDe
 //we use an extras object that the filter func can unpack as necessary. The
 //extras object is memoized so you can check for equality to see if any
 //individual portion changed.
-const makeExtrasForFilterFunc = memoize((filterSetMemberships : Filters, cards : ProcessedCards, keyCardID : CardID, editingCard : Card, userID : Uid) : FilterExtras => {
+const makeExtrasForFilterFunc = memoize((filterSetMemberships : Filters, cards : ProcessedCards, keyCardID : CardID, editingCard : ProcessedCard, userID : Uid) : FilterExtras => {
 	return {
 		filterSetMemberships,
 		cards,
@@ -669,7 +668,7 @@ export class Collection {
 	_sets : Sets;
 	_filters : Filters;
 	_filtersSnapshot : Filters | null;
-	_editingCard? : Card;
+	_editingCard? : ProcessedCard;
 	_sections : Sections;
 	_fallbacks : SerializedDescriptionToCardList;
 	_startCardsConfig : SerializedDescriptionToCardList;

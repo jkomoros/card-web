@@ -628,7 +628,7 @@ const makeSimilarConfigurableFilter = (_, rawCardID : string) : ConfigurableFilt
 
 	const [, includeKeyCard, cardIDs] = parseKeyCardID(rawCardID);
 	
-	const generator = memoize((cards : ProcessedCards, rawCardIDsToUse : CardID[], editingCard : Card) => {
+	const generator = memoize((cards : ProcessedCards, rawCardIDsToUse : CardID[], editingCard : ProcessedCard) => {
 		const cardIDsToUse = normalizeCardSlugOrIDList(rawCardIDsToUse, cards);
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
 		const editingCardFingerprint = editingCard && cardIDsToUse.some(id => id == editingCard.id) ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
