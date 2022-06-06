@@ -6,7 +6,8 @@ import {
 import {
     CARD_TYPE_TYPES,
     TEXT_FIELD_TYPES,
-    REFERENCE_TYPE_TYPES
+    REFERENCE_TYPE_TYPES,
+    TEXT_FIELD_TYPES_EDITABLE
 } from './card_field_constants.js';
 
 export type Uid = string;
@@ -22,6 +23,8 @@ type CardPermissionType = string;
 type CardPermissions = {
     [name : CardPermissionType]: Uid[]
 }
+
+export type CardFieldTypeEditable = keyof(typeof TEXT_FIELD_TYPES_EDITABLE)
 
 export type CardFieldType = keyof(typeof TEXT_FIELD_TYPES);
 
@@ -402,7 +405,9 @@ export type CardFieldTypeConfigurationMap = {
         // non-scrollable top region, before the scrollable portions are printed out in
         // order.
         nonScrollable? : boolean,
-        // readOnly: if true, a form field to edit this won't be printed out in cardEditor.
+        // readOnly: if true, a form field to edit this won't be printed out in
+        // cardEditor. Note: if you flip this value, you need to also change the
+        // boolean value in TEXT_FIELD_TYPES in card_field_constants.ts
         readOnly? : boolean,
         // matchWeight: if a match is found when searching in that field, how much weight
         // should it receive?
