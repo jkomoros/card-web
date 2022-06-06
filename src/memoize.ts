@@ -46,12 +46,13 @@ export const deepEqualReturnSame = (fn) => {
 
 //memoize will retain up to entries number of past arguments and if any match,
 //return that result instead of recalculating.
-export const memoize = (fn, entries = 3) => {
+//Using pattern described at https://stackoverflow.com/a/43382807
+export function memoize<R, T extends (...args: any[]) => R>(fn : T, entries : number = 3) : T {
 
 	//Objects with args, result
-	const memoizedRecords = [];
+	const memoizedRecords : {args: any[], result: R}[] = [];
 
-	return (...args) => {
+	const g = (...args) => {
 		for (const record of memoizedRecords) {
 			if (arrayEqual(record.args, args)) return record.result;
 		}
@@ -63,4 +64,6 @@ export const memoize = (fn, entries = 3) => {
 		}
 		return result;
 	};
+
+	return g as T;
 };
