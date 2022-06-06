@@ -1688,7 +1688,7 @@ export class FingerprintGenerator {
 	//keyID - id of item that is self, so skip matching that item. May be null if optKeyFingerprint is not null.
 	//optKeyFingerprint - if not null, will use that for the key item's fingerprint instead of optFingerprintsToMatchOver[keyID]
 	//optFingerprintsToMatchOver - object mapping ID to fingerprint, the collection of things to match over. If empty, will use this.fingerprints()
-	closestOverlappingItems(keyID, optKeyFingerprint, optFingerprintsToMatchOver) {
+	closestOverlappingItems(keyID : CardID, optKeyFingerprint? : Fingerprint, optFingerprintsToMatchOver? : {[id : string]: Fingerprint}) {
 		const fingerprints = optFingerprintsToMatchOver || this.fingerprints();
 		const keyFingerprint = optKeyFingerprint || fingerprints[keyID];
 

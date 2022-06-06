@@ -490,7 +490,7 @@ const makeExpandConfigurableFilter = (_, ...remainingParts) : ConfigurableFilter
 		return [() => [false], false];
 	}
 
-	const generator = memoize((extras : FilterExtras) => {
+	const generator = memoize((extras : FilterExtras) : FilterMap => {
 		let [filterMembershipMain, excludeMain] = filterSetForFilterDefinitionItem(mainFilter, extras);
 
 		//Make sure the sub filter membership is direct and not inverted
@@ -522,9 +522,9 @@ const makeExpandConfigurableFilter = (_, ...remainingParts) : ConfigurableFilter
 		return unionSet(filterMembershipMain, expandedSet);
 	});
 	
-	const func = function(card : ProcessedCard, extras : FilterExtras) {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean] {
 		const filterSet = generator(extras);
-		return filterSet[card.id];
+		return [filterSet[card.id]];
 	};
 
 	return [func, false];
@@ -539,7 +539,7 @@ const makeCombineConfigurableFilter = (_, ...remainingParts : string[]) : Config
 		return [() => [false], false];
 	}
 
-	const generator = memoize((extras : FilterExtras) => {
+	const generator = memoize((extras : FilterExtras) : FilterMap => {
 		let [filterMembershipOne, excludeOne] = filterSetForFilterDefinitionItem(subFilterOne, extras);
 		let [filterMembershipTwo, excludeTwo] = filterSetForFilterDefinitionItem(subFilterTwo, extras);
 
@@ -547,7 +547,7 @@ const makeCombineConfigurableFilter = (_, ...remainingParts : string[]) : Config
 		if (excludeOne) filterMembershipOne = makeConcreteInverseFilter(filterMembershipOne, extras.cards);
 		if (excludeTwo) filterMembershipTwo = makeConcreteInverseFilter(filterMembershipTwo, extras.cards);
 
-		let result = {};
+		let result : FilterMap = {};
 		for (const key of Object.keys(filterMembershipOne)) {
 			result[key] = true;
 		}
@@ -557,9 +557,9 @@ const makeCombineConfigurableFilter = (_, ...remainingParts : string[]) : Config
 		return result;
 	});
 	
-	const func = function(card : ProcessedCard, extras : FilterExtras) {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean] {
 		const filterSet = generator(extras);
-		return filterSet[card.id];
+		return [filterSet[card.id]];
 	};
 
 	return [func, false];
