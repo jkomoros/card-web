@@ -3,6 +3,10 @@ import {
 } from 'firebase/firestore';
 
 import {
+	TypedObject
+} from './typed_object.js';
+
+import {
 	Card,
 	CardID,
 	ReferenceType,
@@ -473,16 +477,16 @@ export const intersectionReferences = (cardObjs : Card[]) : CardLike => {
 	//skip the first card, which we basically copied, and remove everything else.
 	for (const card of cardObjs.slice(1)){
 		const referencesInfo = card[REFERENCES_INFO_CARD_PROPERTY];
-		for (const [cardID, cardReferences] of Object.entries(referencesInfo)) {
-			for (const referenceType of Object.keys(cardReferences)) {
+		for (const [cardID, cardReferences] of TypedObject.entries(referencesInfo)) {
+			for (const referenceType of TypedObject.keys(cardReferences)) {
 				//Leave items that we have.
 				if (fauxCardReferencesInfo[cardID] && fauxCardReferencesInfo[cardID][referenceType] !== undefined) continue;
 				refs.removeCardReference(cardID, referenceType);
 			}
 		}
 		//Now remove any items from first that the others don't have
-		for (const [cardID, cardReferences] of Object.entries(fauxCardReferencesInfo)) {
-			for (const referenceType of Object.keys(cardReferences)) {
+		for (const [cardID, cardReferences] of TypedObject.entries(fauxCardReferencesInfo)) {
+			for (const referenceType of TypedObject.keys(cardReferences)) {
 				//Leave items that we have.
 				if (referencesInfo[cardID] && referencesInfo[cardID][referenceType] !== undefined) continue;
 				refs.removeCardReference(cardID, referenceType);
@@ -517,7 +521,7 @@ export const referencesLegalShape = (cardObj : CardLike) : boolean => {
 		if (Array.isArray(cardBlock)) return false;
 		//If a card block is empty is shouldn't exist
 		if (Object.keys(cardBlock).length === 0) return false;
-		for (let [key, value] of Object.entries(cardBlock)) {
+		for (let [key, value] of TypedObject.entries(cardBlock)) {
 			//The only types of keys that are allowed are the explicitly defined reference types
 			if (!REFERENCE_TYPES[key]) return false;
 			if (typeof value !== 'string') return false;
@@ -680,28 +684,28 @@ export const referencesDiff = (beforeCard : CardLike, afterCard : CardLike) : Re
 		let keyAdditions : {[typ in ReferenceType]+?: true} = {};
 		let keySame : {[typ in ReferenceType]+?: true} = {};
 		let keyDeletions : {[typ in ReferenceType]+?: true} = {};
-		for (let key of Object.keys(beforeCardBlock)) {
+		for (let key of TypedObject.keys(beforeCardBlock)) {
 			if (afterCardBlock[key] === undefined) {
 				keyDeletions[key] = true;
 			} else {
 				keySame[key] = true;
 			}
 		}
-		for (let key of Object.keys(afterCardBlock)) {
+		for (let key of TypedObject.keys(afterCardBlock)) {
 			if (beforeCardBlock[key] === undefined) {
 				keyAdditions[key] = true;
 			}
 		}
 
-		for (let key of Object.keys(keyAdditions)) {
+		for (let key of TypedObject.keys(keyAdditions)) {
 			result[0][cardID + '.' + key] = afterCardBlock[key];
 		}
 
-		for (let key of Object.keys(keyDeletions)) {
+		for (let key of TypedObject.keys(keyDeletions)) {
 			result[2][cardID + '.' + key] = true;
 		}
 
-		for (let key of Object.keys(keySame)) {
+		for (let key of TypedObject.keys(keySame)) {
 			if (beforeCardBlock[key] === afterCardBlock[key]) continue;
 			result[1][cardID + '.' + key] = afterCardBlock[key];
 		}
