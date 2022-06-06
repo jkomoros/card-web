@@ -143,8 +143,11 @@ import {
 	Card,
 	UserPermissionsForCards,
 	ProcessedCard,
+	ProcessedCards,
 	CardFieldType,
-	Sections
+	Sections,
+	CardIdentifier,
+	Section
 } from './types.js';
 
 const selectState = (state : State) : State => state;
@@ -339,7 +342,7 @@ const createZippedObjectSelector = createObjectSelectorCreator(objectEquality);
 //this uses createZippedObjectSelector because the cardAndFallbackMap entry will
 //be a different item, but as long as the individual items are the same as last
 //time they should be considered the same.
-export const selectCards = createZippedObjectSelector(
+export const selectCards : (state : State) => ProcessedCards = createZippedObjectSelector(
 	selectZippedCardAndFallbackMap,
 	//Note that depending on selectConcepts actually doesn't lead to many
 	//recalcs. That's because a) we're using objectEquality, so as long as the
@@ -377,7 +380,7 @@ export const selectAuthorAndCollaboratorUserIDs = createSelector(
 export const selectActiveCard = createSelector(
 	selectCards,
 	selectActiveCardId,
-	(cards, activeCard) => cards[activeCard] || null
+	(cards : ProcessedCards, activeCard : CardID ) : ProcessedCard => cards[activeCard] || null
 );
 
 export const selectKeyboardNavigates = createSelector(
@@ -762,7 +765,7 @@ export const selectEditingCardwithDelayedNormalizedProperties = createSelector(
 export const selectEditingUnderlyingCard = createSelector(
 	selectCards,
 	selectEditingCard,
-	(cards, editingCard) => editingCard ? cards[editingCard.id] : null
+	(cards : ProcessedCards, editingCard : Card) : ProcessedCard => editingCard ? cards[editingCard.id] : null
 );
 
 export const selectEditingCardHasUnsavedChanges = createSelector(
@@ -869,45 +872,45 @@ export const selectTagInfosForCards = createSelector(
 	cards => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], {id: entry[0], title:entry[1] ? entry[1].name : '', previewCard: entry[0]}]))
 );
 
-export const getCardHasStar = (state, cardId) => {
+export const getCardHasStar = (state : State, cardId : CardID) : boolean => {
 	return (selectUserStars(state) || {})[cardId] || false;
 };
 
-export const getCardIsRead = (state, cardId) => {
+export const getCardIsRead = (state : State, cardId : CardID) : boolean => {
 	return (selectUserReads(state) || {})[cardId] || false;
 };
 
-export const getCardInReadingList = (state, cardId) => {
+export const getCardInReadingList = (state : State, cardId : CardID) : boolean => {
 	return (selectUserReadingListMap(state) || {})[cardId] || false;
 };
 
 export const getUserMayResolveThread = userMayResolveThread;
 export const getUserMayEditMessage = userMayEditMessage;
 
-export const getMessageById = (state, messageId) => {
+export const getMessageById = (state : State, messageId : CommentMessageID) : CommentMessage => {
 	let messages = selectMessages(state);
 	if (!messages) return null;
 	return messages[messageId];
 };
 
-export const getThreadById = (state, threadId) => {
+export const getThreadById = (state : State, threadId : CommentThreadID) : CommentThread => {
 	let threads = selectThreads(state);
 	if (!threads) return null;
 	return threads[threadId];
 };
 
-export const getCardById = (state, cardId) => {
+export const getCardById = (state : State, cardId : CardID) : ProcessedCard => {
 	let cards = selectCards(state);
 	if (!cards) return null;
 	return cards[cardId];
 };
 
-export const getIdForCard = (state, idOrSlug) => {
+export const getIdForCard = (state : State, idOrSlug : CardIdentifier) : CardID => {
 	const slugIndex = selectSlugIndex(state);
 	return slugIndex[idOrSlug] || idOrSlug;
 };
 
-export const getAuthorForId = (state, authorId) => {
+export const getAuthorForId = (state : State, authorId : Uid) : Author => {
 	let authors = selectAuthors(state);
 	return authorOrDefault(authorId, authors);
 };
@@ -925,9 +928,9 @@ const authorOrDefault = (authorId : Uid, authors : AuthorsMap) : Author => {
 	return author;
 };
 
-export const getCard = (state, cardIdOrSlug)  => getCardById(state, getIdForCard(state, cardIdOrSlug));
+export const getCard = (state : State, cardIdOrSlug : CardIdentifier) : ProcessedCard  => getCardById(state, getIdForCard(state, cardIdOrSlug));
 
-export const getSection = (state, sectionId) => {
+export const getSection = (state : State, sectionId : SectionID) : Section => {
 	if (!state.data) return null;
 	return state.data.sections[sectionId] || null;
 };
@@ -1069,7 +1072,7 @@ export const selectActiveCardTodosForCurrentUser = createSelector(
 export const selectActiveCardTweets = createSelector(
 	selectActiveCard,
 	selectTweets,
-	(card, tweets) => Object.fromEntries(Object.entries(tweets).filter(entry => entry[1].card == card ? card.id : ''))
+	(card, tweets) => Object.fromEntries(Object.entries(tweets).filter(entry => entry[1].card == (card ? card.id : '')))
 );
 
 //selectEditingCardAutoTodos will opeate on not the actual filter set, but one

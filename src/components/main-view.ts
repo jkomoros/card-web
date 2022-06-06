@@ -481,7 +481,7 @@ class MainView extends connect(store)(PageViewElement) {
 	}
 
 	override stateChanged(state : State) {
-		this._card = selectActiveCard(state) || {};
+		this._card = selectActiveCard(state);
 		this._headerPanelOpen = state.app.headerPanelOpen;
 		this._page = state.app.page;
 		this._editing = state.editor.editing;

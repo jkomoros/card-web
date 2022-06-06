@@ -721,7 +721,7 @@ export type SectionID = string;
 export type TagID = string;
 
 //See also SectionUpdate
-type Section = {
+export type Section = {
     start_cards : CardID[],
     order : number,
     cards : CardID[],

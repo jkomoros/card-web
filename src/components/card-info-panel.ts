@@ -193,7 +193,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				</div>` : html``}
 				<div>
 					<h4>Tags</h4>
-					<tag-list .card=${this._card} .tags=${this._card.tags} .tagInfos=${this._tagInfos}></tag-list>
+					<tag-list .card=${this._card} .tags=${this._card?.tags} .tagInfos=${this._tagInfos}></tag-list>
 				</div>
 				<div>
 					<h4>Word Cloud</h4>
@@ -201,15 +201,15 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				</div>
 				<div>
 					<h4>Last Updated</h4>
-					<p>${prettyTime(this._card.updated_substantive)}</p>
+					<p>${prettyTime(this._card?.updated_substantive)}</p>
 				</div>
 				<div>
 					<h4>Name${help('The preferred name for this card, which will show up in the URL when you visit. Must be either the id or one of the slugs')}</h4>
-					<p>${this._card.name}</p>
+					<p>${this._card?.name}</p>
 				</div>
 				<div>
 					<h4>ID${help('The underlying id of this card, which never changes. Navigating to this name will always come here')}</h4>
-					<p>${this._card.id}</p>
+					<p>${this._card?.id}</p>
 				</div>
 				<div>
 					<h4>Slugs${help('The alternate names that will navigate to this card.')}</h4>
@@ -224,7 +224,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				</div>
 				<div>
 					<h4>Created</h4>
-					<p>${prettyTime(this._card.created)}</p>
+					<p>${prettyTime(this._card?.created)}</p>
 				</div>
 				<div>
 					<h4>Author</h4>
@@ -254,9 +254,9 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 
 	override stateChanged(state : State) {
 		this._open = selectCommentsAndInfoPanelOpen(state);
-		this._card = selectActiveCard(state) || {};
+		this._card = selectActiveCard(state);
 		this._sectionTitle = sectionTitle(state, this._card ? this._card.section : '');
-		this._author = getAuthorForId(state, this._card.author);
+		this._author = getAuthorForId(state, this._card?.author);
 		this._collaborators = selectCollaboratorInfosForActiveCard(state);
 		this._tagInfos = selectTags(state);
 		this._tweets = selectActiveCardTweets(state);
