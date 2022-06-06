@@ -61,22 +61,22 @@ export const conceptCardsFromCards = deepEqualReturnSame(memoizeFirstArg((allCar
 }));
 
 //Rturns the primary concept string only (the title). See also getAllConceptStringsFromConceptCard
-export const getConceptStringFromConceptCard = (rawConceptCard) => {
+export const getConceptStringFromConceptCard = (rawConceptCard : Card) : string => {
 	if (rawConceptCard.card_type != CARD_TYPE_CONCEPT) return '';
 	return rawConceptCard[TEXT_FIELD_TITLE];
 };
 
-const extractSynonymsFromCardTitleAlternates = (rawCard) => {
-	return extractRawContentRunsForCardField(rawCard,TEXT_FIELD_TITLE_ALTERNATES).map(str => str.trim()).filter(str => str);
+const extractSynonymsFromCardTitleAlternates = (rawCard : Card) : string[] => {
+	return extractRawContentRunsForCardField(rawCard,TEXT_FIELD_TITLE_ALTERNATES).map((str : string) => str.trim()).filter((str : string) => str);
 };
 
-const getAllNormalizedConceptStringsFromConceptCard = (processedConceptCard) => {
+const getAllNormalizedConceptStringsFromConceptCard = (processedConceptCard : ProcessedCard) : string[] => {
 	if (processedConceptCard.card_type != CARD_TYPE_CONCEPT) return [];
 	return [...processedConceptCard.nlp[TEXT_FIELD_TITLE].map(run => run.withoutStopWords), ...processedConceptCard.nlp[TEXT_FIELD_TITLE_ALTERNATES].map(run => run.withoutStopWords)];
 };
 
 //REturns all strings that cardMatchesConcept would work for.
-export const getAllConceptStringsFromConceptCard = (rawConceptCard) => {
+export const getAllConceptStringsFromConceptCard = (rawConceptCard : Card) : string[] => {
 	if (rawConceptCard.card_type != CARD_TYPE_CONCEPT) return [];
 	return [getConceptStringFromConceptCard(rawConceptCard), ...extractSynonymsFromCardTitleAlternates(rawConceptCard)];
 };
@@ -87,7 +87,7 @@ export const getAllConceptStringsFromConceptCard = (rawConceptCard) => {
 //has title alternates. memoized so downstream memoizing things will get object
 //equality.
 export const getConceptsFromConceptCards = deepEqualReturnSame(memoizeFirstArg((conceptCards : Cards) => {
-	const result = {};
+	const result : {[conceptStr : string] : CardID } = {};
 	for (const card of Object.values(conceptCards)) {
 		for (const conceptStr of getAllConceptStringsFromConceptCard(card)) {
 			result[conceptStr] = card.id;
@@ -96,7 +96,7 @@ export const getConceptsFromConceptCards = deepEqualReturnSame(memoizeFirstArg((
 	return result;
 }));
 
-const cardMatchesConcept = (card, conceptStr) => {
+const cardMatchesConcept = (card : ProcessedCard, conceptStr : string) : boolean => {
 	if (card.card_type !== CARD_TYPE_CONCEPT) return false;
 	if (cardMatchesString(card, TEXT_FIELD_TITLE, conceptStr)) return true;
 	if (cardMatchesString(card, TEXT_FIELD_TITLE_ALTERNATES, conceptStr)) return true;
@@ -105,13 +105,13 @@ const cardMatchesConcept = (card, conceptStr) => {
 
 //getAllConceptCardsForConcept is like getConceptCardForConcept, but it will
 //return all of them that might exist, which helps find possible overlaps.
-export const getAllConceptCardsForConcept = (allCardsOrConceptCards : Cards, conceptStr : string) : Card[] => {
+export const getAllConceptCardsForConcept = (allCardsOrConceptCards : ProcessedCards, conceptStr : string) : Card[] => {
 	return Object.values(allCardsOrConceptCards).filter(card => cardMatchesConcept(card, conceptStr));
 };
 
 //allCardsOrConceptCards can be the map of allCards, or filtered down to just
 //concept cards for speed.
-export const getConceptCardForConcept = (allCardsOrConceptCards : Cards, conceptStr : string) : Card | null => {
+export const getConceptCardForConcept = (allCardsOrConceptCards : ProcessedCards, conceptStr : string) : Card | null => {
 	for (const card of Object.values(allCardsOrConceptCards)) {
 		if (cardMatchesConcept(card, conceptStr)) return card;
 	}
@@ -121,9 +121,9 @@ export const getConceptCardForConcept = (allCardsOrConceptCards : Cards, concept
 //Returns a map of str => [synonym1, synonym2, ...]. The words won't be normalized.
 export const synonymMap = (rawCards : Cards) : SynonymMap => {
 	const conceptCards = conceptCardsFromCards(rawCards);
-	const result = {};
+	const result : SynonymMap = {};
 	//NOTE: this logic relies on synonym only being legal to/from concept cards.
-	for (const card of Object.values(conceptCards)) {
+	for (const card of Object.values(conceptCards) as Card[]) {
 		const title = getConceptStringFromConceptCard(card);
 		//We treat synonym as a bidirectional link, so if a card links to US as
 		//a synonym, we'll also consider them our sysnonym.
@@ -132,7 +132,7 @@ export const synonymMap = (rawCards : Cards) : SynonymMap => {
 		const synonymReferencesInbound = references(card).byTypeInbound[REFERENCE_TYPE_SYNONYM] || {};
 		//We'll use a map so we get a unique result. In particular, the card we
 		//point to as a synonym might point to us as a synonym, too.
-		const synonyms = {};
+		const synonyms : {[synonym : string] : true} = {};
 		for (const otherCardID of [...Object.keys(synonymReferencesOutbound), ...Object.keys(synonymReferencesInbound)]) {
 			const otherCard = rawCards[otherCardID];
 			if (!otherCard) continue;
@@ -263,13 +263,13 @@ const OVERRIDE_STEMS = {
 
 //we can't use memoizeFirstArg because that uses WeakMap which requires an
 //object as a key.
-const memoizedRegularExpressionForOriginalNgram = {};
+const memoizedRegularExpressionForOriginalNgram : {[ngram : string] : RegExp} = {};
 
 //Returns a regular expression that could be run over original, unprocessed text
 //and match the ngram given by normalizedNgram. Note that normalizedNgram is
 //before any stemming or stop word removal. Memoized so the RE can be compiled
 //and cached.
-const regularExpressionForOriginalNgram = (normalizedNgram) => {
+const regularExpressionForOriginalNgram = (normalizedNgram : string) : RegExp => {
 	let result = memoizedRegularExpressionForOriginalNgram[normalizedNgram];
 	if (!result) {
 		//This needs to 'undo' the normalization of normalizeString. Luckily all
