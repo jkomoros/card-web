@@ -1,16 +1,16 @@
 import { deepEqual } from './util.js';
 
 
-const arrayEqual = (a, b) => {
+const arrayEqual = (a : any[], b : any[]) : boolean => {
 	if (a.length != b.length) return false;
 	return a.every((a,index) => a === b[index]);
 };
 
 //Like memoize, except the first argument is expected to be a thing that changes
 //often, and the rest of the arguments are assumed to change rarely.
-export const memoizeFirstArg = (fn) => {
+export function memoizeFirstArg<R, T extends (...args: any[]) => R>(fn : T) : T {
 	const resultMap = new WeakMap();
-	return (...args) => {
+	let g = (...args) => {
 		if (!args.length) return fn();
 		const firstArg = args[0];
 		const restArgs = args.slice(1);
@@ -20,6 +20,7 @@ export const memoizeFirstArg = (fn) => {
 		resultMap.set(firstArg, {restArgs, result});
 		return result;
 	};
+	return g as T;
 };
 
 //deepEqualReturnSame is designed to wrap functions. If the result of the
