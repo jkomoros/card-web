@@ -10,7 +10,7 @@ const arrayEqual = (a : any[], b : any[]) : boolean => {
 //often, and the rest of the arguments are assumed to change rarely.
 export function memoizeFirstArg<R, T extends (...args: any[]) => R>(fn : T) : T {
 	const resultMap = new WeakMap();
-	let g = (...args) => {
+	let g = (...args: any[]) => {
 		if (!args.length) return fn();
 		const firstArg = args[0];
 		const restArgs = args.slice(1);
@@ -34,8 +34,8 @@ export function deepEqualReturnSame<R, T extends (...args: any[]) => R>(fn : T) 
 	//The precise, equality key of the last result to check to see if they're exactly the same
 	let resultKey;
 	//The value to return if they're deep equal.
-	let resultValue;
-	let g = (...args) => {
+	let resultValue : R;
+	let g = (...args : any[]) : R => {
 		resultKey = fn(...args);
 		if (deepEqual(resultKey, resultValue)) {
 			return resultValue;
@@ -54,7 +54,7 @@ export function memoize<R, T extends (...args: any[]) => R>(fn : T, entries : nu
 	//Objects with args, result
 	const memoizedRecords : {args: any[], result: R}[] = [];
 
-	const g = (...args) => {
+	const g = (...args : any[]) : R => {
 		for (const record of memoizedRecords) {
 			if (arrayEqual(record.args, args)) return record.result;
 		}
