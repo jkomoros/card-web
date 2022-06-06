@@ -16,7 +16,7 @@
 // Release 2 (substantially revised) by Christopher McKenzie, Aug 2009
 
 export const stemmer = (function(){
-	var step2list = {
+	var step2list : {[key : string] : string} = {
 			"ational" : "ate",
 			"tional" : "tion",
 			"enci" : "ence",
@@ -40,7 +40,7 @@ export const stemmer = (function(){
 			"logi" : "log"
 		},
 
-		step3list = {
+		step3list : {[key : string] : string} = {
 			"icate" : "ic",
 			"ative" : "",
 			"alize" : "al",
@@ -60,7 +60,7 @@ export const stemmer = (function(){
 		mgr1 = "^(" + C + ")?" + V + C + V + C,       // [C]VCVC... is m>1
 		s_v = "^(" + C + ")?" + v;                   // vowel in stem
 
-	return function (w) {
+	return function (w : string) {
 		var 	stem,
 			suffix,
 			firstch,
