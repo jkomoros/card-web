@@ -717,11 +717,11 @@ export const referencesDiff = (beforeCard : CardLike, afterCard : CardLike) : Re
 };
 
 const cardReferenceBlockHasDifference = (before : {[typ in ReferenceType]+?: string}, after: {[typ in ReferenceType]+?: string}) : boolean => {
-	for(let linkType of Object.keys(before)) {
+	for(let linkType of TypedObject.keys(before)) {
 		if (after[linkType] === undefined) return true;
 		if (after[linkType] !== before[linkType]) return true;
 	}
-	for (let linkType of Object.keys(after)) {
+	for (let linkType of TypedObject.keys(after)) {
 		if (before[linkType] === undefined) return true;
 	}
 	return false;
