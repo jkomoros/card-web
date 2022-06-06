@@ -677,9 +677,9 @@ export const referencesDiff = (beforeCard : CardLike, afterCard : CardLike) : Re
 
 		//Whether keys exist (even if the string value for them is different) in
 		//before and after.
-		let keyAdditions : CardBooleanMap= {};
-		let keySame : CardBooleanMap = {};
-		let keyDeletions : CardBooleanMap = {};
+		let keyAdditions : {[typ in ReferenceType]+?: true} = {};
+		let keySame : {[typ in ReferenceType]+?: true} = {};
+		let keyDeletions : {[typ in ReferenceType]+?: true} = {};
 		for (let key of Object.keys(beforeCardBlock)) {
 			if (afterCardBlock[key] === undefined) {
 				keyDeletions[key] = true;
