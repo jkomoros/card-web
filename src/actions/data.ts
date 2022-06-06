@@ -174,7 +174,8 @@ import {
 	CardType,
 	UserInfo,
 	SectionID,
-	Slug
+	Slug,
+	ProcessedCard
 } from '../types.js';
 
 
@@ -724,6 +725,14 @@ export const EMPTY_CARD : Card = {
 	last_tweeted: currentTimestamp(),
 	tweet_count: 0
 };
+
+export const EMPTY_PROCESSED_CARD : ProcessedCard = {
+	...EMPTY_CARD,
+	fallbackText: {},
+    importantNgrams: {},
+    synonymMap: {},
+    nlp: {}
+}
 
 //createCard creates an inserts a new card. see also createWorkingNotesCard
 //which is similar but simpler.
