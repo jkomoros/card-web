@@ -71,8 +71,8 @@ const byTypeMapToArray = (byTypeMap : ReferencesInfoMapByType) : ReferencesArray
 const referencesToByType = (referencesMap : ReferencesInfoMap) : ReferencesInfoMapByType => {
 	let result : ReferencesInfoMapByType = {};
 	if (!referencesMap) referencesMap = {};
-	for (const [cardID, referenceBlock] of Object.entries(referencesMap)) {
-		for (const [referenceType, str] of Object.entries(referenceBlock) as [referenceType : ReferenceType, str : string][]) {
+	for (const [cardID, referenceBlock] of TypedObject.entries(referencesMap)) {
+		for (const [referenceType, str] of TypedObject.entries(referenceBlock)) {
 			if (!result[referenceType]) result[referenceType] = {};
 			result[referenceType][cardID] = str;
 		}
@@ -83,8 +83,8 @@ const referencesToByType = (referencesMap : ReferencesInfoMap) : ReferencesInfoM
 const byTypeToReferences = (byTypeMap : ReferencesInfoMapByType) : ReferencesInfoMap => {
 	const result : ReferencesInfoMap = {};
 	if (!byTypeMap) byTypeMap = {};
-	for (let [referenceType, referenceBlock] of Object.entries(byTypeMap) as [referenceType : ReferenceType, block : {[cardID : CardID]: string}][]) {
-		for (let [cardID, str] of Object.entries(referenceBlock) as [cardID : CardID, str : string][]) {
+	for (let [referenceType, referenceBlock] of TypedObject.entries(byTypeMap)) {
+		for (let [cardID, str] of TypedObject.entries(referenceBlock)) {
 			if (!result[cardID]) result[cardID] = {};
 			result[cardID][referenceType] = str;
 		}
@@ -188,13 +188,13 @@ class ReferencesAccessor {
 
 	get byTypeSubstantive() : ReferencesInfoMapByType {
 		if (!this._memoizedByTypeSubstantive) {
-			this._memoizedByTypeSubstantive = Object.fromEntries(Object.entries(this.byType).filter(entry => (REFERENCE_TYPES[entry[0] as ReferenceType] || {}).substantive));
+			this._memoizedByTypeSubstantive = Object.fromEntries(TypedObject.entries(this.byType).filter(entry => (REFERENCE_TYPES[entry[0]] || {}).substantive));
 		}
 		return this._memoizedByTypeSubstantive;
 	}
 
 	byTypeClass(baseType : ReferenceType) : ReferencesInfoMapByType {
-		return Object.fromEntries(Object.entries(this.byType).filter(entry => REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][entry[0] as ReferenceType]));
+		return Object.fromEntries(TypedObject.entries(this.byType).filter(entry => REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][entry[0]]));
 	}
 
 	//returns a new map where each key in the top level is the type, and the second level objects are card-id to string value.
@@ -207,17 +207,17 @@ class ReferencesAccessor {
 
 	get byTypeInboundSubstantive() : ReferencesInfoMapByType {
 		if (!this._memoizedByTypeInboundSubstantive) {
-			this._memoizedByTypeInboundSubstantive = Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => (REFERENCE_TYPES[entry[0] as ReferenceType] || {}).substantive));
+			this._memoizedByTypeInboundSubstantive = Object.fromEntries(TypedObject.entries(this.byTypeInbound).filter(entry => (REFERENCE_TYPES[entry[0]] || {}).substantive));
 		}
 		return this._memoizedByTypeInboundSubstantive;
 	}
 
 	get byTypeInboundNeedsReciprocation() : ReferencesInfoMapByType {
-		return Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES[entry[0] as ReferenceType].needsReciprocation));
+		return Object.fromEntries(TypedObject.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES[entry[0]].needsReciprocation));
 	}
 
 	byTypeClassInbound(baseType : ReferenceType) : ReferencesInfoMapByType {
-		return Object.fromEntries(Object.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][entry[0] as ReferenceType]));
+		return Object.fromEntries(TypedObject.entries(this.byTypeInbound).filter(entry => REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][entry[0]]));
 	}
 
 	//Returns an object where it's link_type => array_of_card_ids
@@ -436,7 +436,7 @@ class ReferencesAccessor {
 
 		//Now, go through each reference type and see if any are missing.
 		for (let [cardID, referenceMap] of Object.entries(this._referencesInfo)) {
-			for (let [referenceType, str] of Object.entries(referenceMap) as [ReferenceType, string][]) {
+			for (let [referenceType, str] of TypedObject.entries(referenceMap)) {
 				if (str) continue;
 				//if we get to here, there's a gap. See if anything in the fallbackMap fills it.
 				if (!fallbackMap[cardID]) continue;
@@ -569,7 +569,7 @@ const expandedReferenceDeleteObject = (cardID : CardID, referenceType : Referenc
 const expandedReferences = (referencesInfo : ReferencesInfoMap) : {[key : ExpandedReferenceKey]: {cardID : CardID, referenceType : ReferenceType, value : string}}=> {
 	const result : {[key : ExpandedReferenceKey] : ExpandedReferenceObject} = {};
 	for (const [cardID, cardRefs] of Object.entries(referencesInfo)) {
-		for (const [referenceType, value] of Object.entries(cardRefs) as [ReferenceType, string][]) {
+		for (const [referenceType, value] of TypedObject.entries(cardRefs)) {
 			const key = expandedReferenceKey(cardID, referenceType);
 			const obj = expandedReferenceObject(cardID, referenceType, value);
 			result[key] = obj;
