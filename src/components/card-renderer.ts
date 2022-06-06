@@ -69,7 +69,7 @@ import {
 } from '../reference_blocks.js';
 
 import {
-	EMPTY_CARD
+	EMPTY_PROCESSED_CARD
 } from '../actions/data.js';
 
 export const CARD_WIDTH_IN_EMS = 43.63;
@@ -408,7 +408,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 	}
 
 	get _card() {
-		return this.card || EMPTY_CARD;
+		return this.card || EMPTY_PROCESSED_CARD;
 	}
 
 	_handleClick(e) {
