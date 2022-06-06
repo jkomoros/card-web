@@ -10,7 +10,9 @@ import {
 	ProcessedCard,
 	Cards,
 	CardType,
-	ReferencesInfoMap
+	ReferencesInfoMap,
+	TweetInfo,
+	ReferenceType
 } from './types.js';
 
 import {
@@ -39,6 +41,10 @@ import {
 import {
 	getImagesFromCard
 } from './images.js';
+
+import {
+	Timestamp
+} from 'firebase/firestore';
 
 //define this here and then re-export form app.js so this file doesn't need any
 //other imports.
@@ -151,7 +157,7 @@ export const newID = () : CardID => {
 	return result;
 };
 
-export const urlForTweet = (tweet) => {
+export const urlForTweet = (tweet : TweetInfo) => {
 	return 'https://twitter.com/' + tweet.user_screen_name + '/status/' + tweet.id;
 };
 
@@ -232,10 +238,10 @@ export const backportFallbackTextMapForCard = (card : Card, cards : Cards) : Ref
 	//them are null.
 	const result : ReferencesInfoMap = {};
 	const refsByType = references(card).byType;
-	for (let referenceType of Object.keys(REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT)) {
+	for (let referenceType of Object.keys(REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT) as ReferenceType[]) {
 		const refs = refsByType[referenceType];
 		if (!refs) continue;
-		for (let [cardID, str] of Object.entries(refs)) {
+		for (let [cardID, str] of Object.entries(refs) as [CardID, string][]) {
 			if (str) continue;
 			const otherCard = cards[cardID];
 			if (!otherCard) continue;
@@ -279,7 +285,7 @@ export const normalizeCardSlugOrIDList = (slugOrIDList : CardIdentifier | CardId
 //not. if optReferenceType is falsey, it will use all substantive references.
 //Otherwise, it will filter to only references of the given type, if it's a
 //string, or any reference types listed if it's an array.
-export const cardBFS = (keyCardIDOrSlugList : CardID | Slug[], cards : Cards, ply : number, includeKeyCard : boolean, isInbound : boolean, optReferenceTypes) => {
+export const cardBFS = (keyCardIDOrSlugList : CardID | Slug[], cards : Cards, ply : number, includeKeyCard : boolean, isInbound : boolean, optReferenceTypes? : ReferenceType | ReferenceType[]) => {
 
 	keyCardIDOrSlugList = normalizeCardSlugOrIDList(keyCardIDOrSlugList, cards);
 
@@ -429,7 +435,7 @@ export const arrayToSet = (arr : string[]) => {
 	return result;
 };
 
-export const arrayDiffAsSets = (before = [], after = []) => {
+export const arrayDiffAsSets = (before : any[] = [], after : any[] = []) => {
 	let [additions, deletions] = arrayDiff(before,after);
 	return [arrayToSet(additions), arrayToSet(deletions)];
 };
@@ -606,10 +612,10 @@ export const markdownElement = (content : string) : HTMLElement | null => {
 };
 
 //date may be a firestore timestamp or a date object.
-export const prettyTime = (date) => {
+export const prettyTime = (date : Timestamp | Date) => {
 	if (!date) return '';
-	if (typeof date.toDate == 'function') date = date.toDate();
-	return date.toDateString();
+	const dateDate : Date = typeof (date as Timestamp).toDate == 'function' ? (date as Timestamp).toDate() : date as Date;
+	return dateDate.toDateString();
 };
 
 export const killEvent = (e : Event) : void => {
@@ -662,7 +668,7 @@ export const pageRank = (cards : Cards) => {
 		//We can't trust links or inbound_links as they exist, because they
 		//might point to unpublished cards, and it's important for the
 		//convergence of the algorithm that we have the proper indegree and outdegree. 
-		const links = arrayUnique(references(card).substantiveArray().filter(id => cards[id]));
+		const links = arrayUnique(references(card).substantiveArray().filter((id : CardID) => cards[id]));
 		for (let id of links) {
 			let list = inboundLinksMap[id];
 			if (!list) {
