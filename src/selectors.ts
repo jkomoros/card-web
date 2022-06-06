@@ -149,7 +149,9 @@ import {
 	Sections,
 	CardIdentifier,
 	Section,
-	Slug
+	Slug,
+	WordCloud,
+	CollectionConstructorArguments
 } from './types.js';
 
 const selectState = (state : State) : State => state;
@@ -272,12 +274,12 @@ export const selectNextMaintenanceTaskName = createSelector(
 //suitable to being passed to references.withFallbackText. The only items that
 //will be created are for refrence types that opt into backporting via
 //backportMissingText, and where the card has some text that needs to be filled.
-const selectBackportTextFallbackMapCollection = createObjectSelector(
+const selectBackportTextFallbackMapCollection : (state : State) => ReferencesInfoMap = createObjectSelector(
 	selectRawCards,
 	selectRawCards,
 	//Because this is a createObjectSelector, this will be called once per card
 	//in selectRawCards.
-	(card, cards) : ReferencesInfoMap => backportFallbackTextMapForCard(card, cards)
+	(card : Card, cards : Cards) : ReferencesInfoMap => backportFallbackTextMapForCard(card, cards)
 );
 
 const selectRawConceptCards = createSelector(
@@ -1190,8 +1192,8 @@ export const selectDefaultCollectionDescription = createSelector(
 export const selectTabCollectionFallbacks = createSelector(
 	selectExpandedTabConfig,
 	selectSlugIndex,
-	(config, slugIndex) => {
-		let result = {};
+	(config : ExpandedTabConfig, slugIndex : {[slug : Slug] : CardID}) : {[collectionDescription : string] : CardID[]} => {
+		let result : {[collectionDescription : string] : CardID[]} = {};
 		for (const item of config) {
 			if (!item.fallback_cards) continue;
 			result[item.expandedCollection.serialize()] = item.fallback_cards.map(idOrSlug => slugIndex[idOrSlug] || idOrSlug);
@@ -1256,7 +1258,7 @@ export const selectDefaultSet = createSelector(
 	}
 );
 
-const makeEverythingSetFromCards = (cards) => {
+const makeEverythingSetFromCards = (cards : Cards) : CardID[] => {
 	let keys = Object.keys(cards);
 	keys.sort((a, b) => {
 		let cardAValue = cards[a] ? cards[a].sort_order : 0.0;
@@ -1309,7 +1311,7 @@ const selectSetsSnapshot = createSelector(
 export const selectSortOrderIndexByCard = createSelector(
 	selectEverythingSet,
 	(sortedCardIDs : CardID[]) : {[id : CardID] : number} => {
-		const result : {[id : CardID] : number}= {};
+		const result : {[id : CardID] : number} = {};
 		let index = 0;
 		for (const id of sortedCardIDs) {
 			result[id] = index;
@@ -1472,15 +1474,15 @@ const selectActiveCollectionWordCloud = createSelector(
 );
 
 //NOTE: this can be EXTREMELY expensive.
-export const selectWordCloudForMainCardDrawer = (state) => {
+export const selectWordCloudForMainCardDrawer = (state : State) : WordCloud => {
 	return selectSuggestMissingConceptsEnabled(state) ? selectWordCloudForPossibleMissingConcepts(state) : selectActiveCollectionWordCloud(state);
 };
 
 export const selectCountsForTabs = createSelector(
 	selectExpandedTabConfig,
 	selectCollectionConstructorArguments,
-	(tabs, args) => {
-		let result = {};
+	(tabs : ExpandedTabConfig, args : CollectionConstructorArguments) : {[tabDescription : string] : number} => {
+		let result : {[tabDescription : string] : number} = {};
 		for (let tab of tabs) {
 			if (!tab.count) continue;
 			result[tab.expandedCollection.serialize()] = tab.expandedCollection.collection(args).numCards;
@@ -1509,7 +1511,7 @@ export const selectActiveCardIndex = createSelector(
 	(cardId, collection) => collection.map(card => card.id).indexOf(cardId)
 );
 
-export const getCardIndexForActiveCollection = (state, cardId) => {
+export const getCardIndexForActiveCollection = (state : State, cardId: CardID) : number => {
 	let collection = selectActiveCollectionCards(state);
 	return collection.map(card => card.id).indexOf(cardId);
 };
