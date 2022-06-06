@@ -261,8 +261,8 @@ export const expandReferenceBlocks = (card : Card, blocks : ReferenceBlocks, col
 	});
 };
 
-let memoizedCollectionConstructorArguments = null;
-let memoizedCardIDsUserMayEdit = null;
+let memoizedCollectionConstructorArguments : CollectionConstructorArguments = null;
+let memoizedCardIDsUserMayEdit : CardBooleanMap = null;
 let memoizedExpandedPrimaryBlocksForCard : Map<Card, ExpandedReferenceBlocks> = new Map();
 
 //getExpandedPrimaryReferenceBlocksForCard is reasonably efficient because it
