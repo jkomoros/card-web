@@ -20,6 +20,7 @@ import data from './reducers/data.js';
 declare global {
 	interface Window {
 	  process?: Object;
+	  DEBUG_STORE: Object;
 	  __REDUX_DEVTOOLS_EXTENSION_COMPOSE__?: typeof compose;
 	}
   }
