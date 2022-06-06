@@ -29,12 +29,12 @@ export const memoizeFirstArg = (fn) => {
 //small change to their inputs but no change in output is common. But note that
 //deepEqual is expensive, so don't use it unless you know that the output is
 //upstream of a LOT of calculations.
-export const deepEqualReturnSame = (fn) => {
+export function deepEqualReturnSame<R, T extends (...args: any[]) => R>(fn : T) : T {
 	//The precise, equality key of the last result to check to see if they're exactly the same
 	let resultKey;
 	//The value to return if they're deep equal.
 	let resultValue;
-	return (...args) => {
+	let g = (...args) => {
 		resultKey = fn(...args);
 		if (deepEqual(resultKey, resultValue)) {
 			return resultValue;
@@ -42,6 +42,7 @@ export const deepEqualReturnSame = (fn) => {
 		resultValue = resultKey;
 		return resultValue;
 	};
+	return g as T;
 };
 
 //memoize will retain up to entries number of past arguments and if any match,
