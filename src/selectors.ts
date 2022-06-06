@@ -38,6 +38,7 @@ import {
 } from './collection_description.js';
 
 import {
+	ExpandedTabConfig,
 	tabConfiguration
 } from './tabs.js';
 
@@ -147,7 +148,8 @@ import {
 	CardFieldType,
 	Sections,
 	CardIdentifier,
-	Section
+	Section,
+	Slug
 } from './types.js';
 
 const selectState = (state : State) : State => state;
@@ -490,7 +492,7 @@ const selectUserMayEditCards = createSelector(
 	(userMayEdit, permissions) => userMayEdit || permissions[PERMISSION_EDIT_CARD]
 );
 
-export const selectCardIDsUserMayEdit = createObjectSelector(
+export const selectCardIDsUserMayEdit : ((state: State) => CardBooleanMap) = createObjectSelector(
 	selectCards,
 	selectUserMayEditCards,
 	selectUid,
@@ -1132,7 +1134,9 @@ export const selectActiveCollectionCardTypeToAdd = createSelector(
 	(collectionDescription) : CardType => {
 		if (collectionDescription.set != EVERYTHING_SET_NAME) return DEFAULT_CARD_TYPE;
 		if (collectionDescription.filters.length != 1) return DEFAULT_CARD_TYPE;
-		const possibleCardType = collectionDescription.filters[0];
+		//Note: we aren't sure that the first filter is a CardType, but it's
+		//safe to try because we're just using it to index.
+		const possibleCardType = collectionDescription.filters[0] as CardType;
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[possibleCardType];
 		if (!cardTypeConfig) return DEFAULT_CARD_TYPE;
 		//Working notes already has its own button
@@ -1199,8 +1203,8 @@ export const selectTabCollectionFallbacks = createSelector(
 export const selectTabCollectionStartCards = createSelector(
 	selectExpandedTabConfig,
 	selectSlugIndex,
-	(config, slugIndex) => {
-		let result = {};
+	(config : ExpandedTabConfig, slugIndex :{[slug: Slug] : CardID} ) : {[collectionDescription : string] : CardID[]} => {
+		let result : {[collectionDescription : string] : CardID[]} = {};
 		for (const item of config) {
 			if (!item.start_cards) continue;
 			result[item.expandedCollection.serialize()] = item.start_cards.map(idOrSlug => slugIndex[idOrSlug] || idOrSlug);
@@ -1236,8 +1240,8 @@ export const selectActiveTagId = createSelector(
 export const selectDefaultSet = createSelector(
 	selectSections,
 	selectRawCards,
-	(sections, cards) => {
-		let result = [];
+	(sections : Sections, cards : Cards) : CardID[] => {
+		let result : CardID[] = [];
 		for (let section of Object.values(sections)) {
 			result = result.concat(section.cards);
 		}
@@ -1304,8 +1308,8 @@ const selectSetsSnapshot = createSelector(
 //Returns a map of cardID -> sorted order in the global order
 export const selectSortOrderIndexByCard = createSelector(
 	selectEverythingSet,
-	(sortedCardIDs) => {
-		const result = {};
+	(sortedCardIDs : CardID[]) : {[id : CardID] : number} => {
+		const result : {[id : CardID] : number}= {};
 		let index = 0;
 		for (const id of sortedCardIDs) {
 			result[id] = index;
@@ -1325,7 +1329,7 @@ export const selectCardIDBySortOrderIndex = createSelector(
 //full set. It finds the next card in the evertyhing set and puts it halfway
 //between. By default it adds it after the given card, but if before is true it
 //will add it before.
-export const getSortOrderImmediatelyAdjacentToCard = (state, cardID, before) => {
+export const getSortOrderImmediatelyAdjacentToCard = (state : State, cardID : CardID, before : boolean) => {
 	const sortIndexByCard = selectSortOrderIndexByCard(state);
 	const cardIDbySortIndex = selectCardIDBySortOrderIndex(state);
 	const cards = selectRawCards(state);
