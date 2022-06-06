@@ -61,6 +61,7 @@ import {
 } from './references.js';
 
 import {
+	Fingerprint,
 	FingerprintGenerator,
 	extractFiltersFromQuery,
 	emptyWordCloud,
@@ -133,6 +134,17 @@ import {
 	Uid,
 	Author,
 	CardType,
+	ReferencesInfoMap,
+	UserInfo,
+	CardBooleanMap,
+	CardID,
+	SectionID,
+	TagID,
+	Card,
+	UserPermissionsForCards,
+	ProcessedCard,
+	CardFieldType,
+	Sections
 } from './types.js';
 
 const selectState = (state : State) : State => state;
@@ -260,7 +272,7 @@ const selectBackportTextFallbackMapCollection = createObjectSelector(
 	selectRawCards,
 	//Because this is a createObjectSelector, this will be called once per card
 	//in selectRawCards.
-	(card, cards) => backportFallbackTextMapForCard(card, cards)
+	(card, cards) : ReferencesInfoMap => backportFallbackTextMapForCard(card, cards)
 );
 
 const selectRawConceptCards = createSelector(
@@ -282,7 +294,7 @@ export const selectConcepts = createSelector(
 const selectZippedCardAndFallbackMap = createSelector(
 	selectRawCards,
 	selectBackportTextFallbackMapCollection,
-	(cards, fallbackTextCollection) => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
+	(cards : Cards, fallbackTextCollection : ReferencesInfoMap) => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
 );
 
 const selectSnapshotZippedCardAndFallbackMap = createSelector(
@@ -293,7 +305,7 @@ const selectSnapshotZippedCardAndFallbackMap = createSelector(
 
 //objectEquality checks for objects to be the same content, allowing nested
 //objects
-const objectEquality = (before, after) => {
+const objectEquality = (before : any, after : any) : boolean => {
 	if (before === after) return true;
 	if (!before) return false;
 	if (!after) return false;
@@ -306,7 +318,7 @@ const objectEquality = (before, after) => {
 };
 
 //arrayEquality returns true if both are arrays and each of their items are the same
-const arrayEquality = (before, after) => {
+const arrayEquality = (before : any[], after : any[]) : boolean => {
 	if (before === after) return true;
 	if (!Array.isArray(before)) return false;
 	if (!Array.isArray(after)) return false;
@@ -350,8 +362,8 @@ const selectCardsSnapshot = createZippedObjectSelector(
 
 export const selectAuthorAndCollaboratorUserIDs = createSelector(
 	selectRawCards,
-	(rawCards) => {
-		const ids = {};
+	(rawCards : Cards) : Uid[] => {
+		const ids : {[id : Uid] : true} = {};
 		for (const card of Object.values(rawCards)) {
 			ids[card.author] = true;
 			for (const collaborator of card.collaborators) {
@@ -377,12 +389,12 @@ export const selectKeyboardNavigates = createSelector(
 
 //This is just the userPermissions fetched; for the actual permissions object in
 //use, see selectCOmposedPermissions.
-const selectUserPermissions = (state) => state.user ? state.user.userPermissions : {};
+const selectUserPermissions = (state : State) => state.user ? state.user.userPermissions : {};
 
 //For actions, like starring and marking read, that are OK to do when signed
 //in anonymously.
-const userObjectExists = user => user && user.uid != '';
-const userSignedIn = user => userObjectExists(user) && !user.isAnonymous;
+const userObjectExists = (user : UserInfo) : boolean => user && user.uid != '';
+const userSignedIn = (user : UserInfo) : boolean => userObjectExists(user) && !user.isAnonymous;
 
 export const selectUser = (state : State) => {
 	if (!state.user) return null;
@@ -488,7 +500,7 @@ export const selectCardIDsUserMayEdit = createObjectSelector(
 			return true;
 		}
 		if (!card.permissions || !card.permissions[PERMISSION_EDIT_CARD]) return false;
-		if (!card.permissions[PERMISSION_EDIT_CARD].some(id => id === uid)) return false;
+		if (!card.permissions[PERMISSION_EDIT_CARD].some((id : Uid) => id === uid)) return false;
 		return true;
 	}
 );
@@ -496,7 +508,7 @@ export const selectCardIDsUserMayEdit = createObjectSelector(
 export const selectUserMayEditActiveCard = createSelector(
 	selectCardIDsUserMayEdit,
 	selectActiveCardId,
-	(editableCardIDs, cardID) => editableCardIDs[cardID] || false
+	(editableCardIDs : CardBooleanMap, cardID : CardID) : boolean => editableCardIDs[cardID] || false
 );
 
 export const selectUserMayViewApp = createSelector(
@@ -518,7 +530,7 @@ export const selectUserMayEditPermissions = createSelector(
 	(admin) => admin
 );
 
-export const getUserMayEditSection = (state, sectionID) => {
+export const getUserMayEditSection = (state : State, sectionID : SectionID) => {
 	if (selectUserMayEditSections(state)) return true;
 	//orphaned 'section' is always editable
 	if (!sectionID) return true;
@@ -546,7 +558,7 @@ export const selectSectionsUserMayEdit = createSelector(
 	(state, sections) => Object.fromEntries(Object.entries(sections).filter(entry => getUserMayEditSection(state, entry[0])))
 );
 
-export const getUserMayEditTag = (state, _tagID) => {
+export const getUserMayEditTag = (state : State, _tagID : TagID) => {
 	if (selectUserMayEditTags(state)) return true;
 	//TODO: check if the named tagID has an override;
 	return false;
@@ -589,7 +601,7 @@ export const selectUserMayForkActiveCard = createSelector(
 );
 
 //If it's the empty string, then user MAY delete the card
-export const getReasonUserMayNotDeleteCard = (state, card) => {
+export const getReasonUserMayNotDeleteCard = (state : State, card : Card) => {
 	//NOTE: this logic is recreatedin the firestore security rules for card deletion
 	if (!card) return 'No card provided';
 
@@ -645,14 +657,14 @@ export const selectAuthorsForTagList = createSelector(
 export const selectCollaboratorInfosForActiveCard = createSelector(
 	selectActiveCard,
 	selectAuthors,
-	(card, authors) => card ? card.collaborators.map(uid => authors[uid]) : []
+	(card, authors) => card ? card.collaborators.map((uid : Uid) => authors[uid]) : []
 );
 
 //A map of uid -> permissionKey -> [cardID], for any uid that is listed in any card's permissions object.
 export const selectUserPermissionsForCardsMap = createSelector(
 	selectCards,
-	(cards : Cards) => {
-		let result = {};
+	(cards : Cards) : UserPermissionsForCards => {
+		let result : UserPermissionsForCards = {};
 		for (let card of Object.values(cards)) {
 			if (!card.permissions) continue;
 			for (let [permissionKey, uids] of Object.entries(card.permissions)) {
@@ -680,7 +692,7 @@ const selectFingerprintGenerator = createSelector(
 
 //getSemanticFingerprintForCard operates on the actual cardObj passed, so it can
 //work for cards that have been modified.
-export const getSemanticFingerprintForCard = (state, cardObj, optFieldList) => {
+export const getSemanticFingerprintForCard = (state : State, cardObj : ProcessedCard, optFieldList? : CardFieldType[]) => {
 	return selectFingerprintGenerator(state).fingerprintForCardObj(cardObj, optFieldList);
 };
 
@@ -691,9 +703,9 @@ export const getSemanticFingerprintForCard = (state, cardObj, optFieldList) => {
 const selectTagsSemanticFingerprint = createSelector(
 	selectTags,
 	selectFingerprintGenerator,
-	(tags, fingerprintGenerator) => {
+	(tags : Sections, fingerprintGenerator : FingerprintGenerator) : {[id : TagID]: Fingerprint} => {
 		if (!tags) return {};
-		let result = {};
+		let result : {[id : TagID]: Fingerprint} = {};
 		for (const [tagID, tag] of Object.entries(tags)) {
 			result[tagID] = fingerprintGenerator.fingerprintForCardIDList(tag.cards);
 		}
@@ -701,7 +713,7 @@ const selectTagsSemanticFingerprint = createSelector(
 	}
 );
 
-let memoizedEditingNormalizedCard = undefined;
+let memoizedEditingNormalizedCard : ProcessedCard = undefined;
 let memoizedEditingNormalizedCardExtractionVersion = -1;
 
 //selectEditingNormalizedCard is like editing card, but with nlp properties set.
@@ -710,7 +722,7 @@ let memoizedEditingNormalizedCardExtractionVersion = -1;
 //if it ran every single keystroke while editingCard was being edited it would
 //be very slow. When extractionVersion increments, that's the system saying it's
 //OK to run the expensive properties again.
-const selectEditingNormalizedCard = (state) => {
+const selectEditingNormalizedCard = (state : State) : ProcessedCard => {
 	const extractionVersion = selectEditingCardExtractionVersion(state);
 	if (memoizedEditingNormalizedCardExtractionVersion != extractionVersion) {
 		memoizedEditingNormalizedCard = undefined;
@@ -726,7 +738,7 @@ const selectEditingNormalizedCard = (state) => {
 			const synonyms = selectSynonymMap(state);
 			memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap, conceptsMap, synonyms);
 		} else {
-			memoizedEditingNormalizedCard = editingCard;
+			memoizedEditingNormalizedCard = undefined;
 		}
 		memoizedEditingNormalizedCardExtractionVersion = extractionVersion;
 	}

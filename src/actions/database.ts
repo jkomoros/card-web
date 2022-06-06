@@ -136,7 +136,7 @@ export const keepSlugLegalWarm = () => {
 };
 
 export const connectLiveMessages = () => {
-	if (!selectUserMayViewApp(store.getState())) return;
+	if (!selectUserMayViewApp(store.getState() as State)) return;
 	//Deliberately DO fetch deleted messages, so we can render stubs for them.
 	onSnapshot(collection(db, MESSAGES_COLLECTION), snapshot => {
 		let messages = {};
@@ -154,7 +154,7 @@ export const connectLiveMessages = () => {
 };
 
 export const connectLiveThreads = () => {
-	if (!selectUserMayViewApp(store.getState())) return;
+	if (!selectUserMayViewApp(store.getState() as State)) return;
 	onSnapshot(query(collection(db, THREADS_COLLECTION), where('deleted', '==', false), where('resolved', '==', false)), snapshot => {
 		let threads = {};
 		let threadsToAdd = [];
@@ -250,7 +250,7 @@ export const connectLiveReadingList = (uid) => {
 };
 
 export const connectLiveAuthors = () => {
-	if (!selectUserMayViewApp(store.getState())) return;
+	if (!selectUserMayViewApp(store.getState() as State)) return;
 	onSnapshot(collection(db, AUTHORS_COLLECTION), snapshot => {
 
 		let authors = {};
@@ -300,7 +300,7 @@ const cardSnapshotReceiver = (unpublished) =>{
 };
 
 export const connectLivePublishedCards = () => {
-	if (!selectUserMayViewApp(store.getState())) return;
+	if (!selectUserMayViewApp(store.getState() as State)) return;
 	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', true)), cardSnapshotReceiver(false));
 };
 
@@ -308,7 +308,7 @@ let liveUnpublishedCardsForUserAuthorUnsubscribe = null;
 let liveUnpublishedCardsForUserEditorUnsubscribe = null;
 
 export const connectLiveUnpublishedCardsForUser = (uid) => {
-	if (!selectUserMayViewApp(store.getState())) return;
+	if (!selectUserMayViewApp(store.getState() as State)) return;
 	disconnectLiveUnpublishedCardsForUser();
 	if (!uid) return;
 	//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
@@ -329,7 +329,7 @@ const disconnectLiveUnpublishedCardsForUser = () => {
 };
 
 export const connectLiveUnpublishedCards = () => {
-	if (!selectUserMayViewApp(store.getState())) return;
+	if (!selectUserMayViewApp(store.getState() as State)) return;
 	disconnectLiveUnpublishedCardsForUser();
 	//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
 	store.dispatch(expectUnpublishedCards());
@@ -337,7 +337,7 @@ export const connectLiveUnpublishedCards = () => {
 };
 
 export const connectLiveSections = () => {
-	if (!selectUserMayViewApp(store.getState())) return;
+	if (!selectUserMayViewApp(store.getState() as State)) return;
 	onSnapshot(query(collection(db, SECTIONS_COLLECTION), orderBy('order')), snapshot => {
 
 		let sections = {};
@@ -357,7 +357,7 @@ export const connectLiveSections = () => {
 };
 
 export const connectLiveTags = () => {
-	if (!selectUserMayViewApp(store.getState())) return;
+	if (!selectUserMayViewApp(store.getState() as State)) return;
 	onSnapshot(collection(db, TAGS_COLLECTION), snapshot => {
 
 		let tags = {};

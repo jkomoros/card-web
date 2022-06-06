@@ -631,7 +631,7 @@ export type SynonymMap = {
 }
 
 //TODO: is there a better way to do this since ProcessRun just flat out exists in nlp.js?
-interface ProcessedRunInterface {
+export interface ProcessedRunInterface {
     normalized : string,
     original : string,
     stemmed : string,

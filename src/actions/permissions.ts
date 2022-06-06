@@ -44,7 +44,8 @@ import {
 } from 'firebase/firestore';
 
 import {
-	CardID
+	CardID,
+	State
 } from '../types.js';
 
 export const setCardToAddPermissionTo = (cardID : CardID) => (dispatch, getState) => {
@@ -101,7 +102,7 @@ export const removeUserPermissionFromCard = (cardID, permissionType, uid) => (di
 };
 
 export const connectLivePermissions = () => {
-	if (!selectUserMayEditPermissions(store.getState())) return;
+	if (!selectUserMayEditPermissions(store.getState() as State)) return;
 	onSnapshot(collection(db, PERMISSIONS_COLLECTION), snapshot => {
 
 		let permissionsToAdd = {};
