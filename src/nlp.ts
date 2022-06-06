@@ -1244,7 +1244,7 @@ export const suggestedConceptReferencesForCard = memoizeFirstArg((card, concepts
 	const normalizedConcepts = normalizeNgramMap(concepts);
 	const conceptStrForCandidateCard = {};
 	//We want to get only words actually on the card. So restrict to ngrams on editable fields, and also exclude synonyms.
-	const ngrams = wordCountsForSemantics(card, undefined, Object.keys(editableFieldsForCardType(card.card_type)), true);
+	const ngrams = wordCountsForSemantics(card, undefined, Object.keys(editableFieldsForCardType(card.card_type)) as CardFieldType[], true);
 	for (let fingerprintItem of Object.keys(ngrams)) {
 
 		const conceptCardID = normalizedConcepts[fingerprintItem];
