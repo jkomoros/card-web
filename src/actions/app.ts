@@ -123,7 +123,9 @@ import {
 	Card,
 	Cards,
 	TagID,
-	CardIdentifier
+	CardIdentifier,
+	CommentMessageID,
+	CommentThreadID
 } from '../types.js';
 
 import {
@@ -200,7 +202,7 @@ export const refreshCommentRedirect : AppActionCreator = () => (dispatch, getSta
 	dispatch(navigateToComment(pageExtra));
 };
 
-export const navigateToComment : AppActionCreator = (commentId) => (dispatch, getState) => {
+export const navigateToComment : AppActionCreator = (commentId : CommentMessageID | CommentThreadID) => (dispatch, getState) => {
 	//commentId is either a thread or message id.
 	const state = getState();
 	if (!selectCommentsAreFullyLoaded(state)) return;
@@ -221,7 +223,7 @@ export const navigateToComment : AppActionCreator = (commentId) => (dispatch, ge
 
 //navigateToDefaultIfSectionsLoaded will navigate to default if sections are
 //loaded. If they aren't, it won't do anything.
-export const navigateToDefaultIfSectionsAndTagsLoaded : AppActionCreator = (silent) => (dispatch, getState) => {
+export const navigateToDefaultIfSectionsAndTagsLoaded : AppActionCreator = (silent? : boolean) => (dispatch, getState) => {
 	const defaultCollectionDescription = selectDefaultCollectionDescription(getState());
 	if (!defaultCollectionDescription) {
 		//must not have loaded yet
@@ -257,13 +259,13 @@ export const navigateToCardInDefaultCollection : AppActionCreator = (cardOrId : 
 	dispatch(navigatePathTo(path, silent));
 };
 
-export const navigateToCollectionWithAboutConcept : AppActionCreator = (conceptStr) => (dispatch, getState) => {
+export const navigateToCollectionWithAboutConcept : AppActionCreator = (conceptStr : string) => (dispatch, getState) => {
 	const collection = selectActiveCollectionDescription(getState());
 	const newCollection = collectionDescriptionWithConfigurableFilter(collection, aboutConceptConfigurableFilterText(conceptStr));
 	dispatch(navigateToCollection(newCollection));
 };
 
-export const navigateToCollectionWithQuery : AppActionCreator = (queryText) => (dispatch, getState) => {
+export const navigateToCollectionWithQuery : AppActionCreator = (queryText : string) => (dispatch, getState) => {
 	const collection = selectActiveCollectionDescription(getState());
 	const newCollection = collectionDescriptionWithQuery(collection, queryText);
 	dispatch(navigateToCollection(newCollection));
@@ -277,7 +279,7 @@ export const navigateToCollection = (collection : CollectionDescription) => {
 	return navigatePathTo(urlForCollection(collection));
 };
 
-export const navigated : AppActionCreator = (path, query) => (dispatch) => {
+export const navigated : AppActionCreator = (path : string, query : string) => (dispatch) => {
 
 	// Extract the page name from path.
 	const page = path === '/' ? PAGE_DEFAULT : path.slice(1);
@@ -288,7 +290,7 @@ export const navigated : AppActionCreator = (path, query) => (dispatch) => {
 
 };
 
-const loadPage : AppActionCreator = (pathname, query) => (dispatch) => {
+const loadPage : AppActionCreator = (pathname : string, query : string) => (dispatch) => {
 
 	//pathname is the whole path minus starting '/', like 'c/VIEW_ID'
 	let pieces = pathname.split('/');
@@ -385,7 +387,7 @@ export const fetchCardLinkCardsForFetchedCard = async (fetchedCard : Card) => as
 	dispatch(updateCards(cards, false));
 };
 
-export const fetchCard : AppActionCreator = (cardIDOrSlug) => async (dispatch, getState) =>  {
+export const fetchCard : AppActionCreator = (cardIDOrSlug : CardIdentifier) => async (dispatch, getState) =>  {
 	if (!cardIDOrSlug) return;
 
 	//If we already fetched the card in question we can stop.
@@ -450,7 +452,7 @@ export const hoveredCardMouseMoved : AppActionCreator = () => (dispatch, getStat
 	dispatch({ type: UPDATE_HOVERED_CARD, x: 0, y: 0, cardId: ''});
 };
 
-export const updateHoveredCard : AppActionCreator = (x,y,cardId) => (dispatch) => {
+export const updateHoveredCard : AppActionCreator = (x : number,y : number,cardId : CardID) => (dispatch) => {
 	cancelHoverTimeout();
 	hoverPreviewTimer = window.setTimeout(() => {
 		hoverPreviewTimer = 0;
@@ -469,7 +471,7 @@ export const showSnackbar : AppActionCreator = () => (dispatch) => {
 		dispatch({ type: CLOSE_SNACKBAR }), 3000);
 };
 
-export const updateOffline : AppActionCreator = (offline) => (dispatch, getState) => {
+export const updateOffline : AppActionCreator = (offline : boolean) => (dispatch, getState) => {
 	// Show the snackbar only if offline status changes.
 	if (offline !== getState().app.offline) {
 		dispatch(showSnackbar());
@@ -541,7 +543,7 @@ export const disablePresentationMode = () => {
 	};
 };
 
-export const turnMobileMode : AppActionCreator= (on) => (dispatch) => {
+export const turnMobileMode : AppActionCreator= (on : boolean) => (dispatch) => {
 	if (on) {
 		dispatch(enablePresentationMode());
 		dispatch({type:ENABLE_MOBILE_MODE});
@@ -551,7 +553,7 @@ export const turnMobileMode : AppActionCreator= (on) => (dispatch) => {
 	dispatch({type:DISABLE_MOBILE_MODE});
 };
 
-export const ctrlKeyPressed : AppActionCreator= (pressed) => (dispatch, getState) => {
+export const ctrlKeyPressed : AppActionCreator= (pressed : boolean) => (dispatch, getState) => {
 	//Only dispatch if it will make a change
 	if (selectCtrlKeyPressed(getState()) === pressed) return;
 	dispatch({
