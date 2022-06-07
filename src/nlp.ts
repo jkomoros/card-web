@@ -312,7 +312,7 @@ const highlightHTMLForCard = (card : ProcessedCard, fieldName : CardFieldTypeEdi
 	//representation of that ngram in that run, if it exists. So for example
 	//'forc graviti' would be backed out to 'force of gravity' within the run.
 
-	const originalConceptStrs = {};
+	const originalConceptStrs : {[ngram : string]: CardID} = {};
 	for (const [fullyNormalizedConceptStr, cardID] of Object.entries(filteredHighlightMap)) {
 		const runs = card.nlp[fieldName];
 		for (let run of runs) {
@@ -339,7 +339,7 @@ const highlightHTMLForCard = (card : ProcessedCard, fieldName : CardFieldTypeEdi
 };
 
 //targetStr is knownto exist, modulo non-word characters, in the html. (Although it might not exist as a raw run)
-const highlightStringInHTML = (html, targetStr, cardID, isAlternate) => {
+const highlightStringInHTML = (html : string, targetStr : string, cardID : CardID, isAlternate? : boolean) : string => {
 	//even though html, targetStr, and cardID aren't necessarily sanitized, it's
 	//OK as long as we never put the element into the DOM.
 	const ele = getDocument().createElement('section');
@@ -972,7 +972,7 @@ const wordCountsForSemantics = memoizeFirstArg((cardObj : ProcessedCard, maxFing
 //processedRun to look within. The result will be a substring out of
 //normalizedRun corresponding to targetNgram. This will return '' if the
 //targetNgram doesn't exist as a word-boundary subset of withoutStopWordsRun.
-const extractOriginalNgramFromRun = (targetNgram, run) => {
+const extractOriginalNgramFromRun = (targetNgram : string, run : ProcessedRun) : string => {
 	if (!ngramWithinOther(targetNgram, run.withoutStopWords)) return '';
 	//We know that targetNgram is within withoutStopWordsRun. Now, look for its
 	//word index (start and length) within stemmedRun.
