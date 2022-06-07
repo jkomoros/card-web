@@ -61,7 +61,8 @@ import {
 	CardBooleanMap,
 	CardWithOptionalFallbackText,
 	StringCardMap,
-	ReferencesInfoMap
+	ReferencesInfoMap,
+	FilterMap
 } from './types.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
@@ -1274,15 +1275,15 @@ export const possibleMissingConcepts = (cards : ProcessedCards) : Fingerprint =>
 };
 
 //suggestConceptReferencesForCard is very expensive, so memoize it.
-export const suggestedConceptReferencesForCard = memoizeFirstArg((card, concepts) => {
-	const candidates = {};
+export const suggestedConceptReferencesForCard = memoizeFirstArg((card : ProcessedCard, concepts : StringCardMap) : CardID[] => {
+	const candidates : FilterMap = {};
 	if (!card) return [];
 	if (!BODY_CARD_TYPES[card.card_type]) return [];
 	const itemsFromConceptReferences = explicitConceptNgrams(card);
 	const existingReferences = references(card).byType;
-	const REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT = Object.keys(REFERENCE_TYPES).filter(key => REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT][key] || key == REFERENCE_TYPE_ACK);
+	const REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT = TypedObject.keys(REFERENCE_TYPES).filter(key => REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT][key] || key == REFERENCE_TYPE_ACK);
 	const normalizedConcepts = normalizeNgramMap(concepts);
-	const conceptStrForCandidateCard = {};
+	const conceptStrForCandidateCard : {[id : CardID] : string } = {};
 	//We want to get only words actually on the card. So restrict to ngrams on editable fields, and also exclude synonyms.
 	const ngrams = wordCountsForSemantics(card, undefined, Object.keys(editableFieldsForCardType(card.card_type)) as CardFieldType[], true);
 	for (let fingerprintItem of Object.keys(ngrams)) {
@@ -1340,10 +1341,10 @@ export const suggestedConceptReferencesForCard = memoizeFirstArg((card, concepts
 	//consider largest concepts down to smallest to guarantee that we pick the
 	//larger ones first. We'll sort a copy because we still want to keep the
 	//original order so we suggest higher fingerprint items first
-	let sortedCandidates = [...Object.keys(candidates)];
+	let sortedCandidates : CardID[] = [...Object.keys(candidates)];
 	sortedCandidates.sort((a, b) => conceptStrForCandidateCard[b].length - conceptStrForCandidateCard[a].length);
 
-	let cardsToIncludeInResult = {};
+	let cardsToIncludeInResult : FilterMap = {};
 	for (const candidate of sortedCandidates) {
 		let skipCandidate = false;
 		for (const includedItem of Object.keys(cardsToIncludeInResult)) {
@@ -1375,8 +1376,8 @@ const titleCase = (str) => str.split(' ').map(word => capitalizeTitleWord(word) 
 //concept being referenced. Those precise ngrams are not guaranteed to actually
 //be on the card--just that if they show up, they do come from an explicit
 //concept reference.
-const explicitConceptNgrams = (cardObj) => {
-	let result = {};
+const explicitConceptNgrams = (cardObj : ProcessedCard) : StringCardMap=> {
+	let result : StringCardMap = {};
 	//A concept card should count its own title/title-alts as coming
 	//from itself. getAllNormalizedConceptStringsFromConceptCard will
 	//return an empty array if the card is not a concept card.

@@ -420,7 +420,7 @@ const makeMissingConceptConfigurableFilter = (_, conceptStrOrCardID : string) : 
 	});
 
 	// returns [conceptCards, concepts, keyConceptCardID]
-	const generator = memoize((cards : ProcessedCards, keyCardID : CardID) => {
+	const generator = memoize((cards : ProcessedCards, keyCardID : CardID) : [concepts : StringCardMap, keyConceptCardID : CardID] => {
 		const [conceptCards, concepts] = expensiveGenerator(cards);
 		let keyConceptCardID = '';
 		if (keyConceptCard) {
