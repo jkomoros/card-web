@@ -27,6 +27,7 @@ import {
 	REFERENCES_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCES_INBOUND_CARD_PROPERTY,
+	TEXT_FIELD_TYPES_EDITABLE
 } from './card_field_constants.js';
 
 import {
@@ -74,6 +75,10 @@ import {
 	OptionalFieldsCard,
 	CardLike
 } from './types.js';
+
+import {
+	TypedObject
+} from './typed_object.js';
 
 //A JS-native version of the allowed fields in type NonAutoMergeableCardDiff
 const NON_AUTOMATIC_MERGE_FIELDS = {
@@ -135,7 +140,7 @@ export const generateCardDiff = (underlyingCardIn : Card, updatedCardIn : Card, 
 
 	let update : CardDiff = {};
 
-	for (let field of Object.keys(TEXT_FIELD_CONFIGURATION)) {
+	for (let field of TypedObject.keys(TEXT_FIELD_TYPES_EDITABLE)) {
 		if (updatedCard[field] == underlyingCard[field]) continue;
 		const config = TEXT_FIELD_CONFIGURATION[field];
 		if (config.readOnly) continue;
@@ -203,7 +208,7 @@ export const cardDiffDescription = (diff : CardDiff) : string => {
 export const overshadowedDiffChanges = (original : Card, snapshot : Card, current : Card) : CardDiff => {
 	const snapshotDiff = generateCardDiff(original, snapshot);
 	const currentDiff = generateCardDiff(snapshot, current);
-	const result = {};
+	const result : CardDiff = {};
 	for (const field of Object.keys(currentDiff)) {
 		if (!NON_AUTOMATIC_MERGE_FIELDS[field]) continue;
 		if (snapshotDiff[field] === undefined) continue;
