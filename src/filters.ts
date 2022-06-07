@@ -201,6 +201,10 @@ const makeDateConfigurableFilter = (propName : string, comparisonType : DateRang
 				return [(firstDifference > 0 && secondDifference < 0) || (firstDifference < 0 && secondDifference > 0)] ;
 			};
 		}
+		break;
+	default:
+		const _exhaustiveCheck : never = comparisonType;
+		return _exhaustiveCheck ? [func, false] : [func, false];
 	}
 
 	return [func, false];
