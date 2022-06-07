@@ -1593,7 +1593,7 @@ export class Fingerprint {
 
 export class FingerprintGenerator {
 
-	_cards : Cards;
+	_cards : ProcessedCards;
 	_idfMap : {
 		[ngram : string] : number
 	};
