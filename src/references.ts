@@ -119,43 +119,43 @@ class ReferencesAccessor {
 		this._referencesInfoInbound = cardObj[REFERENCES_INFO_INBOUND_CARD_PROPERTY] || {};
 	}
 
-	linksArray() {
+	linksArray() : CardID[] {
 		//NOTE: similar manual logic is duplicated manually in tweets-helper.js
 		return [...Object.keys(this.byType[REFERENCE_TYPE_LINK] || {})];
 	}
 
-	substantiveArray() {
+	substantiveArray() : CardID[] {
 		return Object.keys(byTypeToReferences(this.byTypeSubstantive));
 	}
 
-	typeClassArray(baseType : ReferenceType) {
+	typeClassArray(baseType : ReferenceType) : CardID[] {
 		return [...Object.keys(byTypeToReferences(this.byTypeClass(baseType)))];
 	}
 
 	//ALL references as an array. You typically want substantiveArray, which is only the substantive references.
-	array() {
+	array() : CardID[] {
 		if (!this._referencesInfo) return [];
 		return Object.keys(this._referencesInfo);
 	}
 
-	inboundNeedsReciprocationArray() {
+	inboundNeedsReciprocationArray() : CardID[] {
 		return [...Object.keys(byTypeToReferences(this.byTypeInboundNeedsReciprocation))];
 	}
 
-	inboundLinksArray() {
+	inboundLinksArray() : CardID[] {
 		return [...Object.keys(this.byTypeInbound[REFERENCE_TYPE_LINK] || {})];
 	}
 
-	inboundSubstantiveArray() {
+	inboundSubstantiveArray() : CardID[] {
 		return Object.keys(byTypeToReferences(this.byTypeInboundSubstantive));
 	}
 
-	inboundTypeClassArray(baseType : ReferenceType) {
+	inboundTypeClassArray(baseType : ReferenceType) : CardID[] {
 		return [...Object.keys(byTypeToReferences(this.byTypeClassInbound(baseType)))];
 	}
 
 	//ALL inbound references as an array. You typically want inboundSubstantiveArray, which is only the substantive references.
-	inboundArray() {
+	inboundArray() : CardID[] {
 		if (!this._referencesInfoInbound) return [];
 		return Object.keys(this._referencesInfoInbound);
 	}
