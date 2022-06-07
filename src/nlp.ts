@@ -60,7 +60,8 @@ import {
 	CardFieldTypeEditable,
 	CardBooleanMap,
 	CardWithOptionalFallbackText,
-	StringCardMap
+	StringCardMap,
+	ReferencesInfoMap
 } from './types.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
@@ -646,7 +647,7 @@ const normalizeNgramMap = (ngramMap : StringCardMap) : StringCardMap => {
 //if true, will print out debug statistics about how often card normalized count
 //is happening, which can help verify that the memoization is working.s
 const DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES = false;
-let normalizedCount = {};
+let normalizedCount : {[id : CardID] : number } = {};
 
 //cardWithNormalizedTextProperties sets the properties that search and
 //fingerprints work over, on a copy of the card it returns. fallbackText will be
@@ -667,18 +668,22 @@ let normalizedCount = {};
 //      normalized: the extracted text runs for that field, with all words normalized. Note that some logical runs from the original text field may already have been filtered by this step. punctuation between words will be removed, everything will be lower case.
 //		stemmed: the normalized values, but also each word will have been stemmed. Each word will still line up with each word in normalized (stemming never removes words)
 //		withoutStopWords: the stemmed values, but also with stop words removed. The number of words in this field set will likely be smaller than the two above.
-export const cardWithNormalizedTextProperties = memoizeFirstArg((card, fallbackText, importantNgrams, synonyms) => {
-	if (!card) return card;
+export const cardWithNormalizedTextProperties = memoizeFirstArg((card : Card, fallbackText : ReferencesInfoMap, importantNgrams : StringCardMap, synonyms : SynonymMap) : ProcessedCard => {
+	if (!card) return card === undefined ? undefined : null;
 	if (DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES) {
 		normalizedCount[card.id] = (normalizedCount[card.id] || 0) + 1;
 		if(normalizedCount[card.id] > 1) console.log(card.id, card, normalizedCount[card.id]);
 	}
-	const result = {...card};
-	if (fallbackText) result.fallbackText = fallbackText;
-	if (importantNgrams) result.importantNgrams = normalizeNgramMap(importantNgrams);
-	if (synonyms) result.synonymMap = normalizeSynonymMap(synonyms);
-	result.nlp = extractContentWords(result);
-	return result;
+	const preliminaryResult = {
+		...card,
+		fallbackText,
+		importantNgrams: normalizeNgramMap(importantNgrams),
+		synonymMap: normalizeSynonymMap(synonyms),
+	}
+	return {
+		...preliminaryResult,
+		nlp: extractContentWords(preliminaryResult),
+	};
 });
 
 //text should be normalized
