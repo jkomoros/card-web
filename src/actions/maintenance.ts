@@ -94,6 +94,8 @@ import {
 import { cardDiffHasChanges } from '../card_diff.js';
 
 import {
+	Card,
+	CardID,
 	SectionUpdate,
 	MaintenanceTaskMap,
 	MaintenanceTaskID
@@ -325,8 +327,7 @@ const updateFontSizeBoost = async () => {
 	for (let doc of snapshot.docs) {
 		console.log('Processing ' + counter + '/' + snapshot.size);
 		counter++;
-		const card = doc.data();
-		card.id = doc.id;
+		const card : Card = {...doc.data() as Card, id : doc.id as CardID};
 
 		const beforeBoosts = card.font_size_boost;
 		//NOTE: maintence-view includes a hidden card-stage so this will have a card renderer to use

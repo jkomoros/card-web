@@ -6,12 +6,15 @@ import {
 import * as CONSTANTS from './card_field_constants.js';
 
 import {
+	Card,
 	CardTypeConfigurationMap,
 	ReferenceTypeConfigurationMap,
 	CardFieldTypeConfigurationMap,
 	SelectorStyleMap,
 	CardType,
-	ReferenceType
+	ReferenceType,
+	FontSizeBoostMap,
+	CardFieldType
 } from './types.js';
 
 import {
@@ -542,7 +545,7 @@ export const DERIVED_FIELDS_FOR_CARD_TYPE = Object.fromEntries(TypedObject.keys(
 	return [typ, Object.fromEntries(TypedObject.entries(TEXT_FIELD_CONFIGURATION).filter(entry => entry[1].derivedForCardTypes ? entry[1].derivedForCardTypes[typ] : false).map(entry => [entry[0], true]))];
 }));
 
-const AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE = Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).map(typ => {
+const AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE : {[cardType in CardType]+?: {[fieldType in CardFieldType]+?: true}} = Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).map(typ => {
 	return [typ, Object.fromEntries(TypedObject.entries(TEXT_FIELD_CONFIGURATION).filter(entry => entry[1].autoFontSizeBoostForCardTypes ? entry[1].autoFontSizeBoostForCardTypes[typ] : false).map(entry => [entry[0], true]))];
 }));
 
@@ -553,8 +556,8 @@ export const BODY_CARD_TYPES = TEXT_FIELD_CONFIGURATION[CONSTANTS.TEXT_FIELD_BOD
 export const IMAGE_CARD_TYPES = TEXT_FIELD_CONFIGURATION[IMAGES_TEXT_FIELD].legalCardTypes;
 
 export const editableFieldsForCardType = (cardType : CardType) : CardFieldTypeConfigurationMap => {
-	let result = {};
-	for (let key of Object.keys(TEXT_FIELD_CONFIGURATION)) {
+	let result : CardFieldTypeConfigurationMap = {};
+	for (let key of TypedObject.keys(TEXT_FIELD_CONFIGURATION)) {
 		const config = TEXT_FIELD_CONFIGURATION[key];
 		//Items with null for legalCardTypes are legal in all card types
 		if (config.legalCardTypes && !config.legalCardTypes[cardType]) continue;
@@ -579,13 +582,13 @@ export const KEY_CARD_ID_PLACEHOLDER = 'key-card-id';
 //card.font_size_boosts if no change, or an object like font_size_boosts, but
 //with modifications made as appropriate leaving any untouched keys the same,
 //and any keys it modifies but sets to 0.0 deleted.
-export const fontSizeBoosts = async (card) => {
+export const fontSizeBoosts = async (card : Card) : Promise<FontSizeBoostMap> => {
 	if (!card) return {};
 	const fields = AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE[card.card_type] || {};
 	const currentBoost = card.font_size_boost || {};
 	if (Object.keys(fields).length === 0) return currentBoost;
-	const result = {...currentBoost};
-	for (const field of Object.keys(fields)) {
+	const result : FontSizeBoostMap = {...currentBoost};
+	for (const field of TypedObject.keys(fields)) {
 		const boost = await calculateBoostForCardField(card, field);
 		if (boost == 0.0) {
 			if (result[field] !== undefined) delete result[field];

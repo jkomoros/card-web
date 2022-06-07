@@ -28,7 +28,7 @@ export type CardFieldTypeEditable = keyof(typeof TEXT_FIELD_TYPES_EDITABLE)
 
 export type CardFieldType = keyof(typeof TEXT_FIELD_TYPES);
 
-type FontSizeBoostMap = {
+export type FontSizeBoostMap = {
     [name in CardFieldType]+?: number
 }
 
