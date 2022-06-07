@@ -170,7 +170,7 @@ const removeZombieSpans = (ele : Element) => {
 	if (removedZombies) ele.normalize();
 };
 
-const legalTopLevelNodes = {
+const legalTopLevelNodes : {[tag : HTMLTagName] : true} = {
 	'p': true,
 	'ol': true,
 	'ul': true,
