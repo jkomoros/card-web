@@ -41,8 +41,8 @@ class ConfigureCollectionDate extends LitElement {
 				<select .value=${typ} @change=${this._handleTypeChanged}>
 					${Object.keys(DATE_RANGE_TYPES).map(typ => html`<option .value=${typ}>${typ}</option>`)}
 				</select>
-				<input type='date' .value=${dateOne} data-first=${true} @change=${this._handleDateChanged}>
-				<input type='date' .value=${dateTwo} ?hidden=${!typeRequiresSecondDate} @change=${this._handleDateChanged}>
+				<input type='date' .value=${String(dateOne)} data-first=${true} @change=${this._handleDateChanged}>
+				<input type='date' .value=${String(dateTwo)} ?hidden=${!typeRequiresSecondDate} @change=${this._handleDateChanged}>
 			</div>
 		`;
 	}

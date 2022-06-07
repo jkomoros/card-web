@@ -78,6 +78,7 @@ import {
 	TODOType,
 	StringCardMap,
 	ViewMode,
+	DateRangeType,
 } from './types.js';
 
 export const DEFAULT_SET_NAME = 'main';
@@ -141,14 +142,16 @@ export const LEGAL_VIEW_MODES : {[mode : ViewMode] : boolean} = {
 	[VIEW_MODE_WEB]: true,
 };
 
-export const parseDateSection = (str) => {
+export const parseDateSection = (str : string) : [dateType : DateRangeType, firstDate : Date, secondDate : Date] => {
 	let pieces = str.split('/');
 	const targetLength = CONFIGURABLE_FILTER_URL_PARTS[pieces[0]] + 1;
 	pieces = pieces.slice(0, targetLength);
-	if (pieces.length > 1) pieces[1] = new Date(pieces[1]);
+	let firstDate = null;
+	let secondDate = null;
+	if (pieces.length > 1) firstDate = new Date(pieces[1]);
 	//make sure there's always a second date, defaulting to now.
-	if (pieces.length > 2) pieces[2] = pieces[2] ? new Date(pieces[2]) : new Date();
-	return pieces;
+	if (pieces.length > 2) secondDate = pieces[2] ? new Date(pieces[2]) : new Date();
+	return [pieces[0] as DateRangeType, firstDate, secondDate];
 };
 
 export const makeDateSection = (comparsionType, dateOne, dateTwo) => {
