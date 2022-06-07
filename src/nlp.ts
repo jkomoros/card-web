@@ -352,7 +352,7 @@ const highlightStringInHTML = (html : string, targetStr : string, cardID : CardI
 
 //withinLink is whether we're within the link context, isAlternate should be
 //true if it should be alternate
-const highlightStringInEle = (ele, re, cardID, withinLink, isAlternate) => {
+const highlightStringInEle = (ele : Element, re :RegExp, cardID : CardID, withinLink : boolean, isAlternate : boolean) : void => {
 	//don't highlight if it's inside a card-highlight, or a card-link, because that gets confusing.
 	if (ele.localName == 'card-highlight') return;
 	withinLink = withinLink || ele.localName == 'card-link';
@@ -367,7 +367,7 @@ const highlightStringInEle = (ele, re, cardID, withinLink, isAlternate) => {
 	//so take a snapshot.
 	for (let node of [...ele.childNodes]) {
 		if (node.nodeType == node.ELEMENT_NODE) {
-			highlightStringInEle(node, re, cardID, withinLink, isAlternate);
+			highlightStringInEle(node as Element, re, cardID, withinLink, isAlternate);
 		} else if (node.nodeType == node.TEXT_NODE) {
 			if (!re.test(node.textContent)) continue;
 			//OK, the text is in there. We need to swap out this text node with multiple children (up to three).
