@@ -22,6 +22,10 @@ import {
 } from './filters.js';
 
 import {
+	TypedObject
+} from './typed_object.js';
+
+import {
 	CardID,
 	ProcessedCard,
 	ProcessedCards,
@@ -513,7 +517,7 @@ const makeFilterFromConfigurableFilter = (name, extras) => {
 	const result = {};
 	let sortValues = {};
 	let partialMatches = {};
-	for (let [id, card] of Object.entries(extras.cards)) {
+	for (let [id, card] of TypedObject.entries(extras.cards)) {
 		let [matches, sortValue, partialMatch] = func(card, extras);
 		//TODO: this doesn't handle cases where the func is a reversed func,
 		//right? This isn't currently exercised, since none of the reversed

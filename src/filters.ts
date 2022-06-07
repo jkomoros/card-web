@@ -1207,9 +1207,9 @@ export const CONFIGURABLE_FILTER_NAMES = Object.fromEntries(Object.entries(CONFI
 
 const LINKS_FILTER_NAMES = Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_INFO).filter(entry => entry[1].factory == makeCardLinksConfigurableFilter).map(entry => [entry[0], true]));
 
-let memoizedConfigurableFilters = {};
+let memoizedConfigurableFilters : {[name : string] : ConfigurableFilterFuncFactoryResult} = {};
 
-export const makeConfigurableFilter = (name) => {
+export const makeConfigurableFilter = (name : string) : ConfigurableFilterFuncFactoryResult => {
 	if (!memoizedConfigurableFilters[name]) {
 		const parts = name.split('/');
 		const func = CONFIGURABLE_FILTER_INFO[parts[0]].factory || makeNoOpConfigurableFilter;
