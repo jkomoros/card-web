@@ -32,7 +32,8 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	editableFieldsForCardType,
 	IMAGES_TEXT_FIELD,
-	EMPTY_PROCESSED_CARD
+	EMPTY_PROCESSED_CARD,
+	EMPTY_CARD_ID
 } from '../card_fields.js';
 
 import {
@@ -514,7 +515,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			if (this._card.full_bleed) {
 				value = '';
 			} else {
-				if (this._card.id) {
+				if (this._card.id != EMPTY_CARD_ID) {
 					htmlToSet = '<span class=\'loading\'>Content goes here...</span>';
 				} else if (this.dataIsFullyLoaded) {
 					htmlToSet = 'No card by that name, try a link from above.';
