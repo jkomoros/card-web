@@ -62,7 +62,8 @@ import {
 	CardWithOptionalFallbackText,
 	StringCardMap,
 	ReferencesInfoMap,
-	FilterMap
+	FilterMap,
+	SortExtra
 } from './types.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
@@ -1570,7 +1571,7 @@ export class Fingerprint {
 	//from e.g. selectCardsSemanticFingerprint). Higher nubmers are better. The
 	//numbers may be any number greater than 0, and only have meaning when compared
 	//to other numbers from this function.
-	semanticOverlap(otherFingerprint : Fingerprint) {
+	semanticOverlap(otherFingerprint : Fingerprint) : number {
 
 		const fingerprintOne = this._items ? this._items : new Map();
 		const fingerprintTwo = otherFingerprint && otherFingerprint._items ? otherFingerprint._items : new Map();
@@ -1590,6 +1591,10 @@ export class Fingerprint {
 	}
 
 }
+
+type WordNumbers = {
+	[word : string] : number
+};
 
 export class FingerprintGenerator {
 
@@ -1632,7 +1637,7 @@ export class FingerprintGenerator {
 		//number of cards that contain the term at least once. This is how idf
 		//is normally calculated; we previously used the raw count of times it
 		//showed up.
-		let corpusWords : {[word : string] : number} = {};
+		let corpusWords : WordNumbers = {};
 		for (const words of Object.values(cardWordCounts)) {
 			for (const word of Object.keys(words)) {
 				corpusWords[word] = (corpusWords[word] || 0) + 1;
@@ -1641,7 +1646,7 @@ export class FingerprintGenerator {
 
 		//idf (inverse document frequency) of every word in the corpus. See
 		//https://en.wikipedia.org/wiki/Tf%E2%80%93idf
-		const idf = {};
+		const idf : WordNumbers = {};
 		let maxIDF = 0;
 		for (const [word, count] of Object.entries(corpusWords)) {
 			idf[word] = Math.log10(numCards / (count + 1));
@@ -1652,7 +1657,7 @@ export class FingerprintGenerator {
 		this._maxIDF = maxIDF;
 
 		//A map of cardID to the semantic fingerprint for that card.
-		const fingerprints = {};
+		const fingerprints : {[cardID : CardID] : Fingerprint} = {};
 		for (const [cardID, cardWordCount] of Object.entries(cardWordCounts)) {
 			//See https://en.wikipedia.org/wiki/Tf%E2%80%93idf for more on
 			//TF-IDF.
@@ -1662,7 +1667,7 @@ export class FingerprintGenerator {
 		this._fingerprints = fingerprints;
 	}
 
-	_fingerprintForTFIDF(tfidf, cardOrCards) {
+	_fingerprintForTFIDF(tfidf : WordNumbers, cardOrCards : ProcessedCard | ProcessedCard[]) {
 		//Pick the keys for the items with the highest tfidf (the most important and specific to that card)
 		let keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, this.fingerprintSize());
 		let items = new Map(keys.map(key => [key, tfidf[key]]));
@@ -1674,10 +1679,10 @@ export class FingerprintGenerator {
 		return wordCountsForSemantics(cardObj, this._ngramSize, optFieldList);
 	}
 
-	_cardTFIDF(cardWordCounts : {[word : string] : number}) {
-		const resultTFIDF = {};
+	_cardTFIDF(cardWordCounts : WordNumbers) : WordNumbers {
+		const resultTFIDF : WordNumbers = {};
 		const cardWordCount = Object.values(cardWordCounts).reduce((prev, curr) => prev + curr, 0);
-		for (const [word, count] of Object.entries(cardWordCounts)) {
+		for (const [word, count] of TypedObject.entries(cardWordCounts)) {
 			//_idfMap should very often have all of the terms, but it can be
 			//missing one if we're using fingerprintForCardObj for a live
 			//editing card, and if it just had text added to it that inludes
@@ -1689,7 +1694,7 @@ export class FingerprintGenerator {
 		return resultTFIDF;
 	}
 
-	fingerprintForCardID(cardID) {
+	fingerprintForCardID(cardID : CardID) : Fingerprint {
 		return this.fingerprints()[cardID];
 	}
 
@@ -1701,11 +1706,11 @@ export class FingerprintGenerator {
 		return fingerprint;
 	}
 
-	fingerprintForCardIDList(cardIDs) {
+	fingerprintForCardIDList(cardIDs : CardID[]) : Fingerprint {
 		if (!cardIDs || !cardIDs.length) return new Fingerprint();
 		//Special case the generation of a single card ID
 		if (cardIDs.length == 1) return this.fingerprintForCardID(cardIDs[0]);
-		let combinedTFIDF = {};
+		let combinedTFIDF : WordNumbers = {};
 		for (const cardID of cardIDs) {
 			const fingerprint = this.fingerprintForCardID(cardID);
 			if (!fingerprint) continue;
@@ -1734,7 +1739,7 @@ export class FingerprintGenerator {
 		const keyFingerprint = optKeyFingerprint || fingerprints[keyID];
 
 		if (!fingerprints || !keyFingerprint) return new Map();
-		const overlaps = {};
+		const overlaps : SortExtra = {};
 		for (const otherID of Object.keys(fingerprints)) {
 			if (otherID === keyID) continue;
 			overlaps[otherID] = keyFingerprint.semanticOverlap(fingerprints[otherID]);
