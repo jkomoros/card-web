@@ -649,6 +649,10 @@ type NLPInfo = {
     [field in CardFieldType]+?: ProcessedRunInterface[]
 }
 
+export interface CardWithOptionalFallbackText extends Card {
+    fallbackText?: ReferencesInfoMap,
+}
+
 export interface ProcessedCard extends Card {
     //this is stashed there so that the cardWithNormalizedTextProperties machinery can fetch it if it wants.
     fallbackText: ReferencesInfoMap,
