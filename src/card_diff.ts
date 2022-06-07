@@ -81,7 +81,7 @@ import {
 } from './typed_object.js';
 
 //A JS-native version of the allowed fields in type NonAutoMergeableCardDiff
-const NON_AUTOMATIC_MERGE_FIELDS = {
+const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
 	title : true,
     title_alternates : true,
     body : true,
@@ -208,13 +208,7 @@ export const cardDiffDescription = (diff : CardDiff) : string => {
 export const overshadowedDiffChanges = (original : Card, snapshot : Card, current : Card) : CardDiff => {
 	const snapshotDiff = generateCardDiff(original, snapshot);
 	const currentDiff = generateCardDiff(snapshot, current);
-	const result : CardDiff = {};
-	for (const field of Object.keys(currentDiff)) {
-		if (!NON_AUTOMATIC_MERGE_FIELDS[field]) continue;
-		if (snapshotDiff[field] === undefined) continue;
-		result[field] = snapshotDiff[field];
-	}
-	return result;
+	return Object.fromEntries(TypedObject.entries(currentDiff).filter(entry => !NON_AUTOMATIC_MERGE_FIELDS[entry[0]] && snapshotDiff[entry[0]] !== undefined));
 };
 
 //generateFinalCardDiff is like generateCardDiff but also handles fields set by cardFinishers and font size boosts.
