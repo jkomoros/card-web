@@ -3,6 +3,10 @@ import {
 } from './stemmer.js';
 
 import {
+	TypedObject
+} from './typed_object.js';
+
+import {
 	TEXT_FIELD_CONFIGURATION,
 	DERIVED_FIELDS_FOR_CARD_TYPE,
 	BODY_CARD_TYPES,
@@ -54,7 +58,8 @@ import {
 	WordCloudItemInfo,
 	WordCloudItemInfos,
 	CardFieldTypeEditable,
-	CardBooleanMap
+	CardBooleanMap,
+	CardWithOptionalFallbackText
 } from './types.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
@@ -500,7 +505,7 @@ const innerTextForHTML = (body : string) : string => {
 //are) they're joined by ' '. This allows it to work straightforwardly for
 //normal text properties, as well as arrays, objects, or even nested objects
 //that have string values at the terminus.
-const extractFieldValueForIndexing = (fieldValue) => {
+const extractFieldValueForIndexing = (fieldValue : string | object) : string => {
 	if (typeof fieldValue !== 'object') return fieldValue;
 	if (!fieldValue) return '';
 	//Join multi ones with the split character
@@ -511,7 +516,7 @@ const extractFieldValueForIndexing = (fieldValue) => {
 //logically separate from one another, such that a word at the end of one run
 //shouldn't be considered to be 'next to' the beginning word of the next run.
 //Block-level elements, separate links, etc, all are considered new runs.
-const splitRuns = (text) => {
+const splitRuns = (text : string) : string[] => {
 	if (!text) return [];
 	//TODO: also split for e.g. parantheses, quotes, etc
 	return text.split('\n').filter(str => str);
@@ -520,8 +525,8 @@ const splitRuns = (text) => {
 //This is the set of card field extractors for any field types that have
 //overrideExtractor in card_fields.js. The function should take a card. It will
 //use the stashed fallbackText if it exists.
-const OVERRIDE_EXTRACTORS = {
-	[TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND]: (card) => {
+const OVERRIDE_EXTRACTORS : {[field in CardFieldType]+? : (card : CardWithOptionalFallbackText) => string}= {
+	[TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND]: (card : CardWithOptionalFallbackText) : string => {
 		const refsByType = references(card).withFallbackText(card.fallbackText).byType;
 		let result = [];
 		for (const [referenceType, cardMap] of Object.entries(refsByType)) {
@@ -533,7 +538,7 @@ const OVERRIDE_EXTRACTORS = {
 		}
 		return result.join('\n');
 	},
-	[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: (card) => {
+	[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: (card : CardWithOptionalFallbackText) : string => {
 		const conceptRefs = references(card).withFallbackText(card.fallbackText).byTypeClass(REFERENCE_TYPE_CONCEPT);
 		if (!conceptRefs) return '';
 		let result = [];
@@ -546,23 +551,24 @@ const OVERRIDE_EXTRACTORS = {
 	},
 };
 
-const extractRawContentRunsForCardField = (card, fieldName) => {
+const extractRawContentRunsForCardField = (card : Card, fieldName : CardFieldType) : string[] => {
 	const cardType = card.card_type || '';
 	const config = TEXT_FIELD_CONFIGURATION[fieldName];
 	if ((DERIVED_FIELDS_FOR_CARD_TYPE[cardType] || {})[fieldName]) return [];
+	const safeFieldName = fieldName as CardFieldTypeEditable;
 	let fieldValue = '';
 	if (config.overrideExtractor) {
-		const extractor = OVERRIDE_EXTRACTORS[fieldName];
-		if (!extractor) throw new Error(fieldName + ' had overrideExtractor set, but no entry in OVERRIDE_EXTRACTORS');
+		const extractor = OVERRIDE_EXTRACTORS[safeFieldName];
+		if (!extractor) throw new Error(safeFieldName + ' had overrideExtractor set, but no entry in OVERRIDE_EXTRACTORS');
 		fieldValue = extractor(card);
 	} else {
-		fieldValue = extractFieldValueForIndexing(card[fieldName]);
+		fieldValue = extractFieldValueForIndexing(card[safeFieldName]);
 	}
 	if (!fieldValue) fieldValue = '';
 	//If the text is the defaultBody for that card type, just pretend
 	//like it doesn't exist. Otherwise it will show up VERY high in the
 	//various NLP pipelines.
-	if (fieldName == TEXT_FIELD_BODY && (CARD_TYPE_CONFIGURATION[cardType] || {}).defaultBody == fieldValue) fieldValue = '';
+	if (safeFieldName == TEXT_FIELD_BODY && (CARD_TYPE_CONFIGURATION[cardType] || {}).defaultBody == fieldValue) fieldValue = '';
 	if (config.extraRunDelimiter) fieldValue = fieldValue.split(config.extraRunDelimiter).join('\n');
 	const content = config.html ? innerTextForHTML(fieldValue) : fieldValue;
 	return splitRuns(content);
@@ -603,11 +609,10 @@ const extractContentWords = (card) => {
 	//of the fingerprint, and for cards with not much content that use the
 	//fingerprint in a derived field that can create reinforcing loops.
 	const obj = {};
-	for (let fieldName of Object.keys(TEXT_FIELD_CONFIGURATION)) {
+	for (let fieldName of TypedObject.keys(TEXT_FIELD_CONFIGURATION)) {
 		let runs = extractRawContentRunsForCardField(card, fieldName);
 		//splitRuns checks for empty runs, but they could be things that will be normalized to nothing, so filter again
-		runs = runs.map(str => processedRun(str)).filter(run => !run.empty);
-		obj[fieldName] = runs;
+		obj[fieldName] = runs.map(str => processedRun(str)).filter(run => !run.empty);;
 	}
 	return obj;
 };
