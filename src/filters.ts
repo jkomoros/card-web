@@ -31,6 +31,9 @@ import {
 	CARD_TYPE_CONCEPT,
 	REFERENCE_TYPE_CONCEPT,
 	REFERENCE_TYPE_LINK,
+	BEFORE_FILTER_NAME,
+	AFTER_FILTER_NAME,
+	BETWEEN_FILTER_NAME
 } from './card_field_constants.js';
 
 import {
@@ -711,15 +714,6 @@ const DIRECT_PREFIX = 'direct-';
 
 const UPDATED_FILTER_NAME = 'updated';
 const LAST_TWEETED_FILTER_NAME = 'last-tweeted';
-const BEFORE_FILTER_NAME = 'before';
-const AFTER_FILTER_NAME = 'after';
-export const BETWEEN_FILTER_NAME = 'between';
-
-export const DATE_RANGE_TYPES = {
-	[BEFORE_FILTER_NAME]: true,
-	[AFTER_FILTER_NAME]: true,
-	[BETWEEN_FILTER_NAME]: true,
-};
 
 const DIRECT_CONNECTIONS_FILTER_NAME = 'direct-connections';
 const CONNECTIONS_FILTER_NAME = 'connections';

@@ -4,9 +4,12 @@ import { customElement, property } from 'lit/decorators.js';
 import {
 	parseDateSection,
 	makeDateSection,
-	DATE_RANGE_TYPES,
 	CONFIGURABLE_FILTER_URL_PARTS
 } from '../filters.js';
+
+import {
+	DATE_RANGE_TYPES
+} from '../card_field_constants.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 

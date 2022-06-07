@@ -114,3 +114,13 @@ export const REFERENCE_TYPE_TYPES = {
     [REFERENCE_TYPE_CITATION]: true,
     [REFERENCE_TYPE_CITATION_PERSON]: true
 }
+
+export const BEFORE_FILTER_NAME = 'before';
+export const AFTER_FILTER_NAME = 'after';
+export const BETWEEN_FILTER_NAME = 'between';
+
+export const DATE_RANGE_TYPES = {
+	[BEFORE_FILTER_NAME]: true,
+	[AFTER_FILTER_NAME]: true,
+	[BETWEEN_FILTER_NAME]: true,
+};
