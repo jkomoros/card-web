@@ -28,7 +28,16 @@ import {
 
 import {
 	DataState,
+	CardID,
+	Cards,
+	Slug,
+	State,
+	SectionID
 } from '../types.js';
+
+import {
+	TypedObject
+} from '../typed_object.js';
 
 const INITIAL_STATE : DataState = {
 	cards:{},
@@ -194,7 +203,7 @@ const app = (state: DataState = INITIAL_STATE, action : AnyAction) : DataState =
 //Returns a data subState that doesn't have the given cardIDs. If no
 //modifications need to be made, it simply return subState, otherwise it will
 //return a copy. cardIDs is an array of cardIDs to remove
-const removeCardIDs = (cardIDs, subState) => {
+const removeCardIDs = (cardIDs : CardID[], subState : DataState) : DataState => {
 	let newCards = {...subState.cards};
 	let newSlugIndex = {...subState.slugIndex};
 	let newExpectedDeletions = {...subState.expectedDeletions};
@@ -214,23 +223,22 @@ const removeCardIDs = (cardIDs, subState) => {
 	return {...subState, cards: newCards, slugIndex: newSlugIndex, expectedDeletions: newExpectedDeletions};
 };
 
-const extractSlugIndex = cards => {
-	let result = {};
+const extractSlugIndex = (cards : Cards) : {[slug : Slug]: CardID} => {
+	let result : {[slug : Slug]: CardID} = {};
 
-	Object.keys(cards).forEach(key => {
-		let card = cards[key];
+	for (let cardID of TypedObject.keys(cards) as CardID[]) {
+		let card = cards[cardID];
 		let slugs = card.slugs;
-		if (!slugs) return;
-		if (typeof slugs !== 'object') slugs = slugs.split(',');
+		if (!slugs) continue;
 		for (let val of slugs) {
-			result[val] = key;
+			result[val] = cardID;
 		}
-	});
+	};
 
 	return result;
 };
 
-export const sectionTitle = (state, sectionId) => {
+export const sectionTitle = (state : State, sectionId : SectionID) : string => {
 	let section = state.data.sections[sectionId];
 	if (!section) return '';
 	return section.title;
