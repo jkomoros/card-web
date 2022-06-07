@@ -53,7 +53,8 @@ import {
 	WordCloud,
 	WordCloudItemInfo,
 	WordCloudItemInfos,
-	CardFieldTypeEditable
+	CardFieldTypeEditable,
+	CardBooleanMap
 } from './types.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
@@ -291,7 +292,7 @@ const regularExpressionForOriginalNgram = (normalizedNgram : string) : RegExp =>
 //include components/card-highlight wherever you use it. Also, make sure to
 //sanitize the result for XSS. extraIDs should be an array of cardIDs to
 //highlight as alternates if found (and to proactively pretend are on card)
-export const highlightConceptReferences = memoizeFirstArg((card : ProcessedCard, fieldName : CardFieldTypeEditable, extraIDs? : CardID[]) => {
+export const highlightConceptReferences = memoizeFirstArg((card : ProcessedCard, fieldName : CardFieldTypeEditable, extraIDs? : CardID[]) : string => {
 	if (!card || Object.keys(card).length == 0) return '';
 	if (!extraIDs) extraIDs = [];
 	const fieldConfig = TEXT_FIELD_CONFIGURATION[fieldName];
@@ -304,7 +305,7 @@ export const highlightConceptReferences = memoizeFirstArg((card : ProcessedCard,
 	return highlightHTMLForCard(card, fieldName, filteredHighlightMap, extraIDMap);
 });
 
-const highlightHTMLForCard = (card, fieldName, filteredHighlightMap, alternateIDMap) => {
+const highlightHTMLForCard = (card : ProcessedCard, fieldName : CardFieldTypeEditable, filteredHighlightMap : {[ngram : string] : string}, alternateIDMap : CardBooleanMap) : string => {
 
 	//filteredHighlightMap is a map of fullyNormalized string -> cardID. First
 	//we go through each run of the field and identify the normalized
