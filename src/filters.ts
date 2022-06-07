@@ -210,8 +210,8 @@ const makeDateConfigurableFilter = (propName : string, comparisonType : DateRang
 	return [func, false];
 };
 
-const unionSet = (...sets) => {
-	let result = {};
+function unionSet<T>(...sets : {[name : string] : T}[]) : {[name : string] : T} {
+	let result : {[name : string] : T} = {};
 	for (let set of sets) {
 		if (!set) continue;
 		for (let key of Object.keys(set)) {
