@@ -154,7 +154,7 @@ export const parseDateSection = (str : string) : [dateType : DateRangeType, firs
 	return [pieces[0] as DateRangeType, firstDate, secondDate];
 };
 
-export const makeDateSection = (comparsionType, dateOne, dateTwo) => {
+export const makeDateSection = (comparsionType : DateRangeType, dateOne : Date, dateTwo : Date) : string => {
 	const result = [comparsionType];
 	result.push('' + dateOne.getFullYear() + '-' + (dateOne.getMonth() + 1) + '-' + dateOne.getDate());
 	if (CONFIGURABLE_FILTER_URL_PARTS[comparsionType] == 2) {
