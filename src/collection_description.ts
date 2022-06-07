@@ -54,7 +54,7 @@ import {
 
 import { references } from './references.js';
 
-const extractFilterNamesSortAndView = (parts) : [string[], SortName, boolean, ViewMode, string] => {
+const extractFilterNamesSortAndView = (parts : string[]) : [string[], SortName, boolean, ViewMode, string] => {
 	//returns the filter names, the sort name, and whether the sort is reversed
 	//parts is all of the unconsumed portions of the path that aren't the set
 	//name or the card name.
@@ -143,7 +143,7 @@ const extractFilterNamesSortAndView = (parts) : [string[], SortName, boolean, Vi
 	return [filters, sortName, sortReversed, viewMode, viewModeExtra];
 };
 
-export const queryTextFromCollectionDescription = (description) => {
+export const queryTextFromCollectionDescription = (description : CollectionDescription) : string => {
 	if (!description) return '';
 	for (let filterName of description.filters) {
 		const queryText = queryTextFromQueryFilter(filterName);
@@ -155,7 +155,7 @@ export const queryTextFromCollectionDescription = (description) => {
 //Returns a collection description like description, but with
 //newConfigurableFilter added (and the first filter of the same type that
 //already exists removed).
-export const collectionDescriptionWithConfigurableFilter = (description, newConfigurableFilter) => {
+export const collectionDescriptionWithConfigurableFilter = (description : CollectionDescription, newConfigurableFilter : string) : CollectionDescription => {
 	const newFilters = [];
 	const filterName = newConfigurableFilter.split('/')[0];
 	let replacedFilter = false;
@@ -195,51 +195,51 @@ const collectionDescriptionWithOverrides = (description : CollectionDescription,
 	return new CollectionDescription(overriddenValues.set, overriddenValues.filters, overriddenValues.sort, overriddenValues.sortReversed, overriddenValues.viewMode, overriddenValues.viewModeExtra);
 };
 
-export const collectionDescriptionWithSet = (description, set) => {
+export const collectionDescriptionWithSet = (description : CollectionDescription, set : SetName) : CollectionDescription => {
 	return collectionDescriptionWithOverrides(description, {set});
 };
 
-export const collectionDescriptionWithFilterRemoved = (description, index) => {
+export const collectionDescriptionWithFilterRemoved = (description : CollectionDescription, index : number) : CollectionDescription => {
 	const filters = [...description.filters];
 	filters.splice(index, 1);
 	return collectionDescriptionWithOverrides(description, {filters});
 };
 
-export const collectionDescriptionWithFilterModified = (description, index, newFilterText) => {
+export const collectionDescriptionWithFilterModified = (description : CollectionDescription, index : number, newFilterText : string) : CollectionDescription => {
 	const filters = [...description.filters];
 	filters.splice(index, 1, newFilterText);
 	return collectionDescriptionWithOverrides(description, {filters});
 };
 
-export const collectionDescriptionWithFilterAppended = (description, newFilter) => {
+export const collectionDescriptionWithFilterAppended = (description : CollectionDescription, newFilter : string) : CollectionDescription => {
 	const filters = [...description.filters, newFilter];
 	return collectionDescriptionWithOverrides(description, {filters});
 };
 
-export const collectionDescriptionWithSort = (description, sort) => {
+export const collectionDescriptionWithSort = (description : CollectionDescription, sort : SortName) : CollectionDescription => {
 	return collectionDescriptionWithOverrides(description, {sort});
 };
 
-export const collectionDescriptionWithSortReversed = (description, sortReversed) => {
+export const collectionDescriptionWithSortReversed = (description : CollectionDescription, sortReversed : boolean) : CollectionDescription => {
 	return collectionDescriptionWithOverrides(description, {sortReversed});
 };
 
 //collectionDescriptionWithQuery returns a new cloned collection description,
 //but that includes a configurable filter for the given queryText, replacing the
 //first existing query filter if one exists, otherwise appending it.
-export const collectionDescriptionWithQuery = (description, queryText) => {
+export const collectionDescriptionWithQuery = (description : CollectionDescription, queryText : string) : CollectionDescription => {
 	return collectionDescriptionWithConfigurableFilter(description, queryConfigurableFilterText(queryText));
 };
 
 //collectionDescriptionWithKeyCard returns the description, but with each instance of 'self' replaced with the given keyCardID
-export const collectionDescriptionWithKeyCard = (description, keyCardID) => {
+export const collectionDescriptionWithKeyCard = (description : CollectionDescription, keyCardID : CardID) : CollectionDescription => {
 	return collectionDescriptionWithPartReplacements(description, {[KEY_CARD_ID_PLACEHOLDER]: keyCardID});
 };
 
 //Returns a cloned colletion description where each part (split on '/') that
 //precisely matches an item in the passed dict is replaced with the given
 //replacement.
-const collectionDescriptionWithPartReplacements = (description, replacements) => {
+const collectionDescriptionWithPartReplacements = (description : CollectionDescription, replacements : {[part : string] : string}) : CollectionDescription => {
 	if (!replacements) replacements = {};
 	const parts = description.serialize().split('/');
 	const replacedParts = parts.map(part => replacements[part] || part);

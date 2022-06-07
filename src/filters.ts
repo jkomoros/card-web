@@ -74,6 +74,7 @@ import {
 	SortExtra,
 	TODOType,
 	StringCardMap,
+	ViewMode,
 } from './types.js';
 
 export const DEFAULT_SET_NAME = 'main';
@@ -131,7 +132,7 @@ export const NONE_FILTER_NAME = 'none';
 export const ALL_FILTER_NAME = 'all-cards';
 
 //Legal view modes, including whether an option is expected or not.
-export const LEGAL_VIEW_MODES = {
+export const LEGAL_VIEW_MODES : {[mode : ViewMode] : boolean} = {
 	//Note: collection_description logic assumes that default_view_mode takes not extra option.
 	[DEFAULT_VIEW_MODE]: false,
 	[VIEW_MODE_WEB]: true,
