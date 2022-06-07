@@ -7,7 +7,8 @@ import {
     CARD_TYPE_TYPES,
     TEXT_FIELD_TYPES,
     REFERENCE_TYPE_TYPES,
-    TEXT_FIELD_TYPES_EDITABLE
+    TEXT_FIELD_TYPES_EDITABLE,
+    DATE_RANGE_TYPES,
 } from './card_field_constants.js';
 
 export type Uid = string;
@@ -27,6 +28,8 @@ type CardPermissions = {
 export type CardFieldTypeEditable = keyof(typeof TEXT_FIELD_TYPES_EDITABLE)
 
 export type CardFieldType = keyof(typeof TEXT_FIELD_TYPES);
+
+export type DateRangeType = keyof(typeof DATE_RANGE_TYPES);
 
 export type FontSizeBoostMap = {
     [name in CardFieldType]+?: number
