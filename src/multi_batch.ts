@@ -15,13 +15,14 @@ import {
 	writeBatch,
 	Firestore,
 	WriteBatch,
-	SetOptions
+	SetOptions,
+	DocumentReference
 } from 'firebase/firestore';
 
 //serverTimestampSentinel is the most basic one.
 const SENTINEL_FIELD_PATH = objectPathToValue(serverTimestamp(), 'serverTimestamp');
 
-const extraOperationCountForValue = (val) => {
+const extraOperationCountForValue = (val : any) : boolean => {
 	//Note: this function is very tied to the implementation of
 	//firestore.FieldValue and may need to change if it changes.
 	if (typeof val !== 'object') return false;
@@ -86,7 +87,7 @@ export class MultiBatch {
 		return this._currentBatch;
 	}
 
-	_writeCountForUpdate(update) {
+	_writeCountForUpdate(update : object) : number {
 		//Firestore treats updates as counting for 1, unless there are 1 or more
 		//of {serverTimestamp, arrayUnion, or arrayRemove}.
 		
@@ -96,19 +97,19 @@ export class MultiBatch {
 		return 1;
 	}
 
-	delete(ref) {
+	delete(ref : DocumentReference) {
 		this._batch.delete(ref);
 		this._currentBatchOperationCount++;
 		return this;
 	}
 
-	set(ref, data, options? : SetOptions) {
+	set(ref : DocumentReference, data : object, options? : SetOptions) {
 		this._batch.set(ref, data, options);
 		this._currentBatchOperationCount += this._writeCountForUpdate(data);
 		return this;
 	}
 
-	update(ref, data) {
+	update(ref : DocumentReference, data : object) {
 		//TODO: the signature in the documentation is kind of weird for this
 		//one. Are there two different modes?
 		this._batch.update(ref, data);

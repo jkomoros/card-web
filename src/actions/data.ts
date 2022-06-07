@@ -29,6 +29,10 @@ import {
 } from './database.js';
 
 import {
+	TypedObject
+} from '../typed_object.js';
+
+import {
 	currentTimestamp,
 	db,
 	deepEqualIgnoringTimestamps
@@ -333,7 +337,7 @@ export const modifyCardWithBatch = (state : State, card : Card, update : CardDif
 	batch.set(updateRef, updateObject);
 	batch.update(cardRef, cardUpdateObject);
 
-	for (const [otherCardID, otherCardUpdate] of Object.entries(inboundUpdates)) {
+	for (const [otherCardID, otherCardUpdate] of TypedObject.entries(inboundUpdates)) {
 		const ref = doc(db, CARDS_COLLECTION, otherCardID);
 		batch.update(ref, otherCardUpdate);
 	}
