@@ -630,7 +630,7 @@ const normalizeSynonymMap = (synonyms : SynonymMap) => {
 
 let memoizedNormalizedNgramMaps = new WeakMap();
 
-const normalizeNgramMap = (ngramMap) => {
+const normalizeNgramMap = (ngramMap : {[ngram : string] : CardID}) : {[ngram : string] : CardID} => {
 	if (!memoizedNormalizedNgramMaps.has(ngramMap)) {
 		//The normalizedMap both has stemmed/normalized words. We filter out
 		//stop words (via fullyNormalizedString) because the
