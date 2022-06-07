@@ -555,7 +555,7 @@ export const makeConcreteInverseFilter = (inverseFilter : FilterMap, allCardsFil
 //makeFilterUnionSet takes a definition like "starred+in-reading-list" and
 //returns a synthetic filter object that is the union of all of the filters
 //named. The individual names may be normal filters or inverse filters.
-const makeFilterUnionSet = (unionFilterDefinition, filterSetMemberships, cards) => {
+const makeFilterUnionSet = (unionFilterDefinition : string, filterSetMemberships : Filters, cards : CardIDMap) : FilterMap => {
 	const subFilterNames = unionFilterDefinition.split(UNION_FILTER_DELIMITER);
 	const subFilters = subFilterNames.map(filterName => {
 		if (filterSetMemberships[filterName]) return filterSetMemberships[filterName];
@@ -625,8 +625,8 @@ type FilterDefinition = FilterDefinitionItem[];
 const combinedFilterForFilterDefinition = (filterDefinition : FilterDefinition, extras : FilterExtras) : [filter : FilterFunc, sortExtras : SortExtras, partialMatches : CardBooleanMap] => {
 	let includeSets = [];
 	let excludeSets = [];
-	let sortExtras = {};
-	let partialExtras = {};
+	let sortExtras : SortExtras = {};
+	let partialExtras : CardBooleanMap = {};
 	for (let name of filterDefinition) {
 		let [filterSet, reverse, sortInfos, partialMatches] = filterSetForFilterDefinitionItem(name, extras);
 		if (reverse) {
@@ -642,7 +642,7 @@ const combinedFilterForFilterDefinition = (filterDefinition : FilterDefinition, 
 };
 
 //Removes labels that are the same as the one htat came before them.
-const removeUnnecessaryLabels = (arr) => {
+const removeUnnecessaryLabels = (arr : string[]) : string[] => {
 	let result = [];
 	let lastLabel = '';
 	let labelCount = 0;
@@ -661,7 +661,7 @@ const removeUnnecessaryLabels = (arr) => {
 	return result;
 };
 
-const expandCardCollection = (collection, cards) => collection.map(id => cards[id] || null).filter(card => card ? true : false);
+const expandCardCollection = (collection : CardID[], cards : ProcessedCards) : ProcessedCard[] => collection.map(id => cards[id] || null).filter(card => card ? true : false);
 
 //Exported to resolve typescript warnings, but don't create directly, get one from CollectionDescription.collection()
 export class Collection {
@@ -854,7 +854,7 @@ export class Collection {
 			return collection;
 		}
 		const sortInfo = this._sortInfo;
-		let sort = (left, right) => {
+		let sort = (left : ProcessedCard, right : ProcessedCard) => {
 			if(!left || !right) return 0;
 			//Info is the underlying sort value, then the label value.
 			const leftInfo = sortInfo.get(left.id);
