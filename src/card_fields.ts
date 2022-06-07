@@ -14,6 +14,10 @@ import {
 	ReferenceType
 } from './types.js';
 
+import {
+	TypedObject
+} from './typed_object.js';
+
 /*
 
 On each card is a references property and a references info.
@@ -69,7 +73,7 @@ export const DEFAULT_SORT_ORDER_INCREMENT = (MAX_SORT_ORDER_VALUE - MIN_SORT_ORD
 
 const DANGEROUS_SORT_ORDER_MARGIN = MAX_SORT_ORDER_VALUE / 2;
 
-export const sortOrderIsDangerous = (proposedSortOrder) => {
+export const sortOrderIsDangerous = (proposedSortOrder : number) : boolean => {
 	//Aggresively warn if we start getting to sort order values htat are at the
 	//end of the allowable range. Rare, but would lead to weird overlapping
 	//issues. We'll generally hit these only fater many hundreds of thousands of
@@ -389,7 +393,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 export const REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT = Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(entry => entry[1].backportMissingText).map(entry => [entry[0], true]));
 //Map of baseType ==> subTypeName ==> true. The base type will also be in its own set
 export const REFERENCE_TYPES_EQUIVALENCE_CLASSES : {[base in ReferenceType]+?: {[other in ReferenceType]+?: true}} = {};
-for (let [referenceType, config] of Object.entries(REFERENCE_TYPES)) {
+for (let [referenceType, config] of TypedObject.entries(REFERENCE_TYPES)) {
 	const baseType = config.subTypeOf || referenceType;
 	if (!REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType]) REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType] = {};
 	REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][referenceType] = true;
@@ -398,8 +402,8 @@ for (let [referenceType, config] of Object.entries(REFERENCE_TYPES)) {
 //map of card-type -> map of reference-type -> true. So for a given card type,
 //you can check if there are any inbound references to the card that should not
 //be allowed.
-export const LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE = Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(cardType => [cardType, Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(referenceTypeEntry => !referenceTypeEntry[1].toCardTypeAllowList || referenceTypeEntry[1].toCardTypeAllowList[cardType]).map(entry => [entry[0], true]))]));
-export const LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE = Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(cardType => [cardType, Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(referenceTypeEntry => !referenceTypeEntry[1].fromCardTypeAllowList || referenceTypeEntry[1].fromCardTypeAllowList[cardType]).map(entry => [entry[0], true]))]));
+export const LEGAL_INBOUND_REFERENCES_BY_CARD_TYPE = Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).map(cardType => [cardType, Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(referenceTypeEntry => !referenceTypeEntry[1].toCardTypeAllowList || referenceTypeEntry[1].toCardTypeAllowList[cardType]).map(entry => [entry[0], true]))]));
+export const LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE = Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).map(cardType => [cardType, Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(referenceTypeEntry => !referenceTypeEntry[1].fromCardTypeAllowList || referenceTypeEntry[1].fromCardTypeAllowList[cardType]).map(entry => [entry[0], true]))]));
 
 const TITLE_ALTERNATE_DELIMITER = ',';
 const TITLE_ALTERNATE_NEGATION = '-';
@@ -411,7 +415,7 @@ title_alternates with a special prefix makes it so all of the other downstream
 text processing works, while still making it clear that the term is the opposite of the primary term.
 
 */
-const titleAlternatesHTMLFormatter = (value) => {
+const titleAlternatesHTMLFormatter = (value : string) : string => {
 	if (!value) return value;
 	const synonyms = [];
 	const antonyms = [];
@@ -534,12 +538,12 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 	}
 };
 
-export const DERIVED_FIELDS_FOR_CARD_TYPE = Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(typ => {
-	return [typ, Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).filter(entry => (entry[1].derivedForCardTypes || {})[typ]).map(entry => [entry[0], true]))];
+export const DERIVED_FIELDS_FOR_CARD_TYPE = Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).map(typ => {
+	return [typ, Object.fromEntries(TypedObject.entries(TEXT_FIELD_CONFIGURATION).filter(entry => entry[1].derivedForCardTypes ? entry[1].derivedForCardTypes[typ] : false).map(entry => [entry[0], true]))];
 }));
 
-const AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE = Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(typ => {
-	return [typ, Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).filter(entry => (entry[1].autoFontSizeBoostForCardTypes || {})[typ]).map(entry => [entry[0], true]))];
+const AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE = Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).map(typ => {
+	return [typ, Object.fromEntries(TypedObject.entries(TEXT_FIELD_CONFIGURATION).filter(entry => entry[1].autoFontSizeBoostForCardTypes ? entry[1].autoFontSizeBoostForCardTypes[typ] : false).map(entry => [entry[0], true]))];
 }));
 
 //types of card that have a body
