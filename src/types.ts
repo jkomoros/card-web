@@ -261,7 +261,7 @@ export type SortConfigurationMap = {
     }
 }
 
-export type ConfigurableFilterFunc = (card : ProcessedCard, extras? : FilterExtras) => ([matches : boolean] | [ matches : boolean, sortExtra : number] | [ matches : boolean, sortExtra : number, label : string]);
+export type ConfigurableFilterFunc = (card : ProcessedCard, extras? : FilterExtras) => ([matches : boolean] | [ matches : boolean, sortExtra : number] | [ matches : boolean, sortExtra : number, partialMatch : boolean]);
 
 export type ConfigurableFilterFuncFactoryResult = [func : ConfigurableFilterFunc, reverse : boolean];
 

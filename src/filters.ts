@@ -590,11 +590,11 @@ const makeQueryConfigurableFilter = (filterName : string, rawQueryString : strin
 
 	const strict = filterName === QUERY_STRICT_FILTER_NAME;
 
-	const func = function(card : ProcessedCard) : [boolean, number, string] {
+	const func = function(card : ProcessedCard) : [boolean, number, boolean] {
 		const [score, fullMatch] = query.cardScore(card);
 		const matches = strict ? fullMatch && score > 0.0 : score > 0.0;
 		//TODO: is returning a boolean for last argument intentional?
-		return [matches, score, '' + !fullMatch];
+		return [matches, score, !fullMatch];
 	};
 
 	return [func, false];
