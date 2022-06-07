@@ -162,7 +162,7 @@ export const synonymMap = (rawCards : Cards) : SynonymMap => {
 //https://gist.github.com/sebleier/554280, filtered to cut off things from
 //"once" and downward, and also prononuns like `I`, 'my', 'mine', `myself` and
 //the 2nd and 3rd person variations.
-const STOP_WORDS = {
+const STOP_WORDS : {[word : string] : boolean} = {
 	'a' : true,
 	'an' : true,
 	'the' : true,
@@ -381,11 +381,11 @@ const highlightStringInEle = (ele : Element, re :RegExp, cardID : CardID, within
 	}
 };
 
-const lowercaseSplitWords = (str) => {
+const lowercaseSplitWords = (str : string) : string[] => {
 	return str.toLowerCase().split(/\s+/);
 };
 
-const wordIsUrl = (word) => {
+const wordIsUrl = (word : string) : boolean => {
 	if (!word || !word.includes('/')) return false;
 	const distinctiveURLParts = ['http:', 'https:', '.com', '.net', '.org'];
 	for (let urlPart of distinctiveURLParts) {
@@ -397,12 +397,12 @@ const wordIsUrl = (word) => {
 //splitSlashNonURLs will return an array of words, with either a single item, or
 //n items, split on '/'. If the item looks like a URL it won't split slashes. It
 //assumes text is lowercase.
-const splitSlashNonURLs = (word) => {
+const splitSlashNonURLs = (word : string) : string[]  => {
 	if (!word || !word.includes('/')) return [word];
 	return wordIsUrl(word) ? [word] : word.split('/');
 };
 
-const normalizedWords = (str) => {
+const normalizedWords = (str : string) : string => {
 	if (!str) str = '';
 
 	//Pretend like em-dashes are just spaces
@@ -428,7 +428,7 @@ let memoizedStemmedWords : {[word : string] : string} = {};
 //Inverse: the stemmed result, to a map of words and their counts with how often
 //they're handed out
 let reversedStemmedWords : {[stemmedWord : string] : {[word : string] : number}} = {};
-const memorizedStemmer = (word) => {
+const memorizedStemmer = (word : string) : string => {
 	if (!memoizedStemmedWords[word]) {
 		let stemmedWord = stemmer(word);
 		for (const [prefix, replacement] of Object.entries(OVERRIDE_STEMS)) {
@@ -445,7 +445,7 @@ const memorizedStemmer = (word) => {
 };
 
 //A more aggressive form of normalization
-const stemmedNormalizedWords = (str) => {
+const stemmedNormalizedWords = (str : string) : string => {
 	//Assumes the words are already run through nomralizedWords
 
 	const splitWords = str.split(' ');
@@ -456,13 +456,13 @@ const stemmedNormalizedWords = (str) => {
 	return result.join(' ');
 };
 
-const withoutStopWords = (str) => {
+const withoutStopWords = (str : string) : string => {
 	return str.split(' ').filter(word => !STOP_WORDS[word]).join(' ');
 };
 
-const memoizedFullyNormalizedString = {};
+const memoizedFullyNormalizedString : {[raw : string] : string} = {};
 
-const fullyNormalizedString = (rawStr) => {
+const fullyNormalizedString = (rawStr : string) : string => {
 	if (!memoizedFullyNormalizedString[rawStr]) {
 		memoizedFullyNormalizedString[rawStr] = withoutStopWords(stemmedNormalizedWords(normalizedWords(rawStr)));
 	}
@@ -472,7 +472,7 @@ const fullyNormalizedString = (rawStr) => {
 //returns true if the card includes precisely the given str in the given field,
 //with fully normalized/stemmed words. fieldName must be a field in
 //TEXT_FIELD_CONFIGURATION
-export const cardMatchesString = (card,fieldName, str) => {
+export const cardMatchesString = (card : ProcessedCard, fieldName : CardFieldType, str : string) : boolean => {
 	const normalizedString = fullyNormalizedString(str);
 	if (!card) return false;
 	if (!card.nlp) return false;
@@ -484,7 +484,7 @@ export const cardMatchesString = (card,fieldName, str) => {
 	return false;
 };
 
-const innerTextForHTML = (body) => {
+const innerTextForHTML = (body : string) : string => {
 	//This shouldn't be an XSS vulnerability even though body is supplied by
 	//users and thus untrusted, because the temporary element is never actually
 	//appended into the DOM
