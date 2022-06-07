@@ -40,7 +40,8 @@ import {
 	Filters,
 	Cards,
 	CardID,
-	FilterMap
+	FilterMap,
+	Sections
 } from '../types.js';
 
 const app = (state : CollectionState = INITIAL_STATE, action : AnyAction) : CollectionState => {
@@ -111,17 +112,17 @@ const app = (state : CollectionState = INITIAL_STATE, action : AnyAction) : Coll
 	}
 };
 
-const makeFilterFromReadingList = (readingList) => {
+const makeFilterFromReadingList = (readingList : CardID[]) : {[filterName : string] : FilterMap} => {
 	return {
 		[FILTER_EQUIVALENTS_FOR_SET[READING_LIST_SET_NAME]]: Object.fromEntries(readingList.map(id => [id, true]))
 	};
 };
 
-const makeFilterFromSection = (sections, includeDefaultSet) => {
-	let result = {};
-	let combinedSet = {};
+const makeFilterFromSection = (sections : Sections, includeDefaultSet? : boolean) : {[filterName : string] : FilterMap} => {
+	let result : {[filterName : string] : FilterMap} = {};
+	let combinedSet : FilterMap = {};
 	for (let key of Object.keys(sections)) {
-		let filter = {};
+		let filter : FilterMap = {};
 		let section = sections[key];
 		section.cards.forEach(card => {
 			filter[card] = true;
