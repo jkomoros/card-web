@@ -20,6 +20,7 @@ import {
 import {
 	TypedObject
 } from './typed_object.js';
+import { CardRenderer } from './components/card-renderer.js';
 
 /*
 
@@ -599,7 +600,11 @@ export const fontSizeBoosts = async (card : Card) : Promise<FontSizeBoostMap> =>
 	return result;
 };
 
-let cardRendererProvider = null;
+type CardRendererProvider = {
+	sizingCardRenderer : CardRenderer
+}
+
+let cardRendererProvider : CardRendererProvider = null;
 
 //Custom elements that have a sizing card-renderer should all this to offer
 //themselves up. This module can't create its own card-renderer because a)
@@ -608,7 +613,7 @@ let cardRendererProvider = null;
 //it can size accurately. provider should hae a sizingCardRenderer property we
 //can fetch an instance of card-renderer from that we may inject our own card
 //into.
-export const setFontSizingCardRendererProvider = (provider) => {
+export const setFontSizingCardRendererProvider = (provider : CardRendererProvider) => {
 	if (!cardRendererProvider) cardRendererProvider = provider;
 };
 
