@@ -653,13 +653,15 @@ export interface CardWithOptionalFallbackText extends Card {
     fallbackText?: ReferencesInfoMap,
 }
 
+export interface StringCardMap {
+    [ngram : string] : CardID
+}
+
 export interface ProcessedCard extends Card {
     //this is stashed there so that the cardWithNormalizedTextProperties machinery can fetch it if it wants.
     fallbackText: ReferencesInfoMap,
     //agains stashed here by cardWithNormalizedTextProperties so wordCountForSemantics can fetch it.
-    importantNgrams: {
-        [ngram : string] : CardID
-    },
+    importantNgrams: StringCardMap,
     synonymMap: SynonymMap,
     //TODO: lock this down more
     nlp: NLPInfo,
