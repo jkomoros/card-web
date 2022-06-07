@@ -367,7 +367,7 @@ export const updateFetchedCard = (card : Card) => {
 	};
 };
 
-export const fetchCardLinkCardsForFetchedCard = async (fetchedCard : Card) => async (dispatch, getState) =>{
+export const fetchCardLinkCardsForFetchedCard : AppActionCreator = (fetchedCard : Card) => async (dispatch, getState) =>{
 	if (!fetchedCard || Object.values(fetchedCard).length == 0) return;
 
 	//If all of the cards were already fetched we can bail early.
