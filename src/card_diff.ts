@@ -256,7 +256,7 @@ export const applyCardFirebaseUpdate = (baseCard : Card, firebaseUpdate : CardUp
 	return result;
 };
 
-const setFirebaseValueOnObj = (obj : object, fieldParts : string[], value : any, replaceTimestampSentinels : boolean = false) => {
+const setFirebaseValueOnObj = (obj : {[field : string]: any}, fieldParts : string[], value : any, replaceTimestampSentinels : boolean = false) => {
 	//Obj is an object it's OK to modify, but no other subobjects are.
 
 	const firstFieldPart = fieldParts[0];
@@ -289,7 +289,7 @@ export const applyCardDiff = (underlyingCard : Card, diff : CardDiff) : CardUpda
 
 	const cardUpdateObject : CardUpdate = {};
 
-	for (let field of Object.keys(TEXT_FIELD_CONFIGURATION)) {
+	for (let field of TypedObject.keys(TEXT_FIELD_TYPES_EDITABLE)) {
 		if (diff[field] === undefined) continue;
 		cardUpdateObject[field] = diff[field];
 	}
@@ -450,7 +450,7 @@ export const inboundLinksUpdates = (cardID : CardID, beforeCard : CardLike, afte
 
 	if (Object.keys(changes).length === 0 && Object.keys(deletions).length === 0) return {};
 
-	const updatesToApply = {};
+	const updatesToApply : {[id : CardID] : CardUpdate } = {};
 
 	if (Object.keys(changes).length) {
 		const afterReferencesInfo = afterCard[REFERENCES_INFO_CARD_PROPERTY];
