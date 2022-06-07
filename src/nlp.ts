@@ -581,7 +581,7 @@ class ProcessedRun {
 	stemmed : string;
 	withoutStopWords : string;
 
-	constructor(originalText) {
+	constructor(originalText : string) {
 		this.original = originalText;
 		this.normalized = normalizedWords(originalText);
 		this.stemmed = stemmedNormalizedWords(this.normalized);
@@ -594,13 +594,13 @@ class ProcessedRun {
 }
 
 //returns an object with original, normalized, stemmed, withoutStopWords fields.
-const processedRun = (originalText) => {
+const processedRun = (originalText : string) : ProcessedRun => {
 	return new ProcessedRun(originalText);
 };
 
 //extractContentWords returns an object with the field to the non-de-stemmed
 //normalized words for each of the main properties.
-const extractContentWords = (card) => {
+const extractContentWords = (card : CardWithOptionalFallbackText) => {
 	
 	//These three properties are expected to be set by TEXT_SEARCH_PROPERTIES
 	//Fields that are derived are calculated based on other fields of the card
@@ -608,7 +608,7 @@ const extractContentWords = (card) => {
 	//For thse fields, skip them in normalized*, since they'll otherwise be part
 	//of the fingerprint, and for cards with not much content that use the
 	//fingerprint in a derived field that can create reinforcing loops.
-	const obj = {};
+	const obj : {[field in CardFieldType]+?: ProcessedRun[]} = {};
 	for (let fieldName of TypedObject.keys(TEXT_FIELD_CONFIGURATION)) {
 		let runs = extractRawContentRunsForCardField(card, fieldName);
 		//splitRuns checks for empty runs, but they could be things that will be normalized to nothing, so filter again
