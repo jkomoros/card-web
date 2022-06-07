@@ -236,7 +236,7 @@ const STOP_WORDS : {[word : string] : boolean} = {
 };
 
 //STOP_WORDS that should be lowercased in fingerprint.prettyItems.
-const LOWERCASE_STOP_WORDS = {
+const LOWERCASE_STOP_WORDS : {[word : string] : boolean } = {
 	'a' : true,
 	'an' : true,
 	'the' : true,
@@ -1364,12 +1364,12 @@ export const emptyWordCloud = () : WordCloud => {
 	return [[],{}];
 };
 
-const capitalizeTitleWord = (word) => {
+const capitalizeTitleWord = (word : string) : boolean => {
 	const stemmedWord = stemmedNormalizedWords(word);
 	return !LOWERCASE_STOP_WORDS[stemmedWord];
 };
 
-const titleCase = (str) => str.split(' ').map(word => capitalizeTitleWord(word) ? word.charAt(0).toUpperCase() + word.slice(1) : word).join(' ');
+const titleCase = (str : string) : string => str.split(' ').map(word => capitalizeTitleWord(word) ? word.charAt(0).toUpperCase() + word.slice(1) : word).join(' ');
 
 //Returns a map of ngrams that, if they are present on the card, come directly
 //from explicit concept references. The value in the object is the cardID of the
@@ -1444,7 +1444,7 @@ export class Fingerprint {
 		return this._memoizedFullWordCloud;
 	}
 
-	_generatewordCloud(hideItemsNotFromCard) : WordCloud {
+	_generatewordCloud(hideItemsNotFromCard? : boolean) : WordCloud {
 		if (!this._items || [...this._items.keys()].length == 0) return emptyWordCloud();
 		const displayItems = this.prettyItems(false, false);
 		const maxAmount = Math.max(...this._items.values());
@@ -1477,7 +1477,7 @@ export class Fingerprint {
 		);
 	}
 
-	prettyItems(skipItemsNotFromCard? : boolean, skipURLs? : boolean) {
+	prettyItems(skipItemsNotFromCard? : boolean, skipURLs? : boolean) : string[] {
 		const result = [];
 		const itemsNotFromCard = this.itemsNotFromCard();
 		for (const ngram of this._items.keys()) {
@@ -1533,7 +1533,7 @@ export class Fingerprint {
 	//common in cardObj. Returns a string where any dupcliates have been removed.
 	dedupedPrettyItemsFromCard() {
 		const fingerprintItems = this.prettyItems(true, true);
-		const seenItems = {};
+		const seenItems : {[word : string] : true} = {};
 		let dedupedFingerprint = [];
 		//Since words might be in ngrams, and they might overlap with the same
 		//words, check for duplicates
@@ -1552,12 +1552,12 @@ export class Fingerprint {
 	//overlap with the text in concept references for the given card obj. That is,
 	//they don't just _happen_ to overlap with a concept, they come (at least
 	//partially) from that explicit reference.
-	itemsFromConceptReferences() {
+	itemsFromConceptReferences() : StringCardMap {
 		if (!this._cards) return {};
-		let result = {};
+		let result : StringCardMap = {};
 		for (let cardObj of this._cards) {
 			const innerResult = explicitConceptNgrams(cardObj);
-			for (const [key, value] of Object.entries(innerResult)) {
+			for (const [key, value] of TypedObject.entries(innerResult)) {
 				if (this._items.has(key)) {
 					result[key] = value;
 				}
@@ -1570,7 +1570,7 @@ export class Fingerprint {
 	//from e.g. selectCardsSemanticFingerprint). Higher nubmers are better. The
 	//numbers may be any number greater than 0, and only have meaning when compared
 	//to other numbers from this function.
-	semanticOverlap(otherFingerprint) {
+	semanticOverlap(otherFingerprint : Fingerprint) {
 
 		const fingerprintOne = this._items ? this._items : new Map();
 		const fingerprintTwo = otherFingerprint && otherFingerprint._items ? otherFingerprint._items : new Map();
