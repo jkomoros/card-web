@@ -232,7 +232,7 @@ export const generateFinalCardDiff = async (state : State, underlyingCard : Card
 
 	const update = generateCardDiff(underlyingCard, updatedCard, true);
 
-	if (Object.keys(updatedCard.font_size_boost).length != Object.keys(underlyingCard.font_size_boost || {}).length || Object.entries(updatedCard.font_size_boost).some(entry => (underlyingCard.font_size_boost || {})[entry[0]] != entry[1])) update.font_size_boost = updatedCard.font_size_boost;
+	if (Object.keys(updatedCard.font_size_boost).length != Object.keys(underlyingCard.font_size_boost || {}).length || TypedObject.entries(updatedCard.font_size_boost).some(entry => (underlyingCard.font_size_boost || {})[entry[0]] != entry[1])) update.font_size_boost = updatedCard.font_size_boost;
 
 	return update;
 };
@@ -256,7 +256,7 @@ export const applyCardFirebaseUpdate = (baseCard : Card, firebaseUpdate : CardUp
 	return result;
 };
 
-const setFirebaseValueOnObj = (obj : object, fieldParts : string[], value, replaceTimestampSentinels : boolean = false) => {
+const setFirebaseValueOnObj = (obj : object, fieldParts : string[], value : any, replaceTimestampSentinels : boolean = false) => {
 	//Obj is an object it's OK to modify, but no other subobjects are.
 
 	const firstFieldPart = fieldParts[0];

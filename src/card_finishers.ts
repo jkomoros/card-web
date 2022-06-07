@@ -23,6 +23,7 @@ import {
 
 import {
 	Card,
+	CardType,
 	State
 } from './types.js';
 
@@ -66,7 +67,7 @@ const conceptValidator = (card : Card, state : State) => {
 //happen, which makes it also a useful place to do validation before saving.
 //Note that the card might not have ever been saved before, so its timestamp
 //fields in particular might be empty or sentinel values.
-export const CARD_TYPE_EDITING_FINISHERS = {
+export const CARD_TYPE_EDITING_FINISHERS : {[type in CardType]+?: (card : Card, state : State) => void} = {
 	[CARD_TYPE_WORKING_NOTES]: workingNotesExtractor,
 	[CARD_TYPE_CONCEPT]: conceptValidator, 
 };
