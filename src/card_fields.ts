@@ -31,6 +31,8 @@ import {
 	Timestamp
 } from 'firebase/firestore';
 
+export const EMPTY_CARD_ID = '?EMPTY-CARD?';
+
 export const EMPTY_CARD : Card = {
 	created: Timestamp.now(),
 	updated: Timestamp.now(),
@@ -60,7 +62,7 @@ export const EMPTY_CARD : Card = {
 	slugs: [],
 	name: '',
 	tags: [],
-	id: 'INVALID-CARD',
+	id: EMPTY_CARD_ID,
 	published: false,
 	images: [],
 	auto_todo_overrides: {},
