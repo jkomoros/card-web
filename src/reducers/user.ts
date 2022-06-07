@@ -1,3 +1,7 @@
+import {
+	AnyAction
+} from 'redux';
+
 import { 
 	SIGNIN_USER,
 	SIGNIN_SUCCESS,
@@ -40,7 +44,7 @@ const INITIAL_STATE : UserState = {
 	autoMarkReadPending: false,
 };
 
-const app = (state : UserState = INITIAL_STATE, action) : UserState => {
+const app = (state : UserState = INITIAL_STATE, action : AnyAction) : UserState => {
 	switch (action.type) {
 	case SIGNIN_USER:
 		return {

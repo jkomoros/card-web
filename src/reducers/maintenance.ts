@@ -1,3 +1,7 @@
+import {
+	AnyAction
+} from 'redux';
+
 import { 
 	UPDATE_EXECUTED_MAINTENANCE_TASKS,
 	UPDATE_MAINTENANCE_TASK_ACTIVE
@@ -12,7 +16,7 @@ const INITIAL_STATE : MaintenanceState = {
 	taskActive: false,
 };
 
-const app = (state : MaintenanceState = INITIAL_STATE, action) : MaintenanceState => {
+const app = (state : MaintenanceState = INITIAL_STATE, action : AnyAction) : MaintenanceState => {
 	switch (action.type) {
 	case UPDATE_EXECUTED_MAINTENANCE_TASKS: 
 		return {

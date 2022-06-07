@@ -1,4 +1,8 @@
 import {
+	AnyAction
+} from 'redux';
+
+import {
 	FIND_DIALOG_OPEN,
 	FIND_DIALOG_CLOSE,
 	FIND_UPDATE_QUERY,
@@ -28,7 +32,7 @@ const INITIAL_STATE : FindState = {
 	cardTypeFilterLocked: false,
 };
 
-const app = (state : FindState = INITIAL_STATE, action) : FindState => {
+const app = (state : FindState = INITIAL_STATE, action : AnyAction) : FindState => {
 	switch (action.type) {
 	case FIND_DIALOG_OPEN:
 		return {

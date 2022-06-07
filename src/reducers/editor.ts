@@ -1,3 +1,7 @@
+import {
+	AnyAction
+} from 'redux';
+
 import { 
 	EDITING_START,
 	EDITING_FINISH,
@@ -101,7 +105,7 @@ const INITIAL_STATE : EditorState = {
 	imageBrowserDialogIndex: undefined,
 };
 
-const app = (state : EditorState = INITIAL_STATE, action) : EditorState => {
+const app = (state : EditorState = INITIAL_STATE, action : AnyAction) : EditorState => {
 	let card;
 	switch (action.type) {
 	case EDITING_START:

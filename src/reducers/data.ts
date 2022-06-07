@@ -1,3 +1,7 @@
+import {
+	AnyAction
+} from 'redux';
+
 import { 
 	UPDATE_CARDS,
 	UPDATE_SECTIONS,
@@ -49,7 +53,7 @@ const INITIAL_STATE : DataState = {
 	pendingNewCardIDToNavigateTo: ''
 };
 
-const app = (state: DataState = INITIAL_STATE, action) : DataState => {
+const app = (state: DataState = INITIAL_STATE, action : AnyAction) : DataState => {
 	switch (action.type) {
 	case EXPECT_NEW_CARD:
 		//This means that although we may think we're fully loaded now, there's

@@ -1,4 +1,8 @@
 import {
+	AnyAction
+} from 'redux';
+
+import {
 	PROMPT_COMPOSE_SHOW,
 	PROMPT_COMPOSE_CANCEL,
 	PROMPT_COMPOSE_COMMIT,
@@ -18,7 +22,7 @@ const INITIAL_STATE : PromptState = {
 	associatedId: '',
 };
 
-const app = (state : PromptState = INITIAL_STATE, action) : PromptState => {
+const app = (state : PromptState = INITIAL_STATE, action : AnyAction) : PromptState => {
 	switch (action.type) {
 	case PROMPT_COMPOSE_SHOW:
 		return {

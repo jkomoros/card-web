@@ -1,3 +1,7 @@
+import {
+	AnyAction
+} from 'redux';
+
 import { 
 	COMMENTS_UPDATE_THREADS,
 	COMMENTS_UPDATE_MESSAGES
@@ -14,7 +18,7 @@ const INITIAL_STATE : CommentsState = {
 	threadsLoaded: false,
 };
 
-const app = (state : CommentsState = INITIAL_STATE, action) : CommentsState => {
+const app = (state : CommentsState = INITIAL_STATE, action : AnyAction) : CommentsState => {
 	switch (action.type) {
 	case COMMENTS_UPDATE_MESSAGES: 
 		return {

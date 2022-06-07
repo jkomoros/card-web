@@ -1,4 +1,8 @@
 import {
+	AnyAction
+} from 'redux';
+
+import {
 	MULTI_EDIT_DIALOG_OPEN,
 	MULTI_EDIT_DIALOG_CLOSE,
 	MULTI_EDIT_DIALOG_ADD_REFERENCE,
@@ -19,7 +23,7 @@ const INITIAL_STATE : MultiEditState = {
 	referencesDiff: [],
 };
 
-const app = (state : MultiEditState = INITIAL_STATE, action) : MultiEditState => {
+const app = (state : MultiEditState = INITIAL_STATE, action : AnyAction) : MultiEditState => {
 	switch (action.type) {
 	case MULTI_EDIT_DIALOG_OPEN:
 		return {

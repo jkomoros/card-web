@@ -1,4 +1,8 @@
 import {
+	AnyAction
+} from 'redux';
+
+import {
 	SHOW_CARD,
 	UPDATE_COLLECTION,
 	UPDATE_RENDER_OFFSET,
@@ -39,7 +43,7 @@ import {
 	FilterMap
 } from '../types.js';
 
-const app = (state : CollectionState = INITIAL_STATE, action) : CollectionState => {
+const app = (state : CollectionState = INITIAL_STATE, action : AnyAction) : CollectionState => {
 	switch (action.type) {
 	case SHOW_CARD:
 		return {

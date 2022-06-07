@@ -1,4 +1,8 @@
 import {
+	AnyAction
+} from 'redux';
+
+import {
 	PERMISSIONS_UPDATE_PERMISSIONS,
 	PERMISSIONS_START_ADD_CARD,
 	PERMISSIONS_RESET_ADD_CARD
@@ -20,7 +24,7 @@ const updatedPermissions = (currentPermissions : UserPermissionsMap, permissions
 	return Object.fromEntries(Object.entries({...currentPermissions, ...permissionsToAdd}).filter(entry => !permissionsToRemove[entry[0]]));
 };
 
-const app = (state : PermissionsState = INITIAL_STATE, action) : PermissionsState => {
+const app = (state : PermissionsState = INITIAL_STATE, action : AnyAction) : PermissionsState => {
 	switch (action.type) {
 	case PERMISSIONS_UPDATE_PERMISSIONS:
 		return {...state, permissions:updatedPermissions(state.permissions, action.permissionsToAdd, action.permissionsToRemove)};
