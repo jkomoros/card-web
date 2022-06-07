@@ -30,7 +30,7 @@ import {
 
 import {
 	EMPTY_CARD
-} from '../actions/data.js';
+} from '../card_fields.js';
 
 import {
 	AppState,

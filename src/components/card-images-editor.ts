@@ -11,7 +11,8 @@ import {
 } from '../selectors.js';
 
 import {
-	IMAGE_CARD_TYPES
+	IMAGE_CARD_TYPES,
+	EMPTY_CARD
 } from '../card_fields.js';
 
 import {
@@ -32,7 +33,6 @@ import {
 	Card,
 	State
 } from '../types.js';
-import { EMPTY_CARD } from '../actions/data.js';
 
 @customElement('card-images-editor')
 class CardImagesEditor extends connect(store)(LitElement) {

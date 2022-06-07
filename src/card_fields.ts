@@ -6,10 +6,6 @@ import {
 import * as CONSTANTS from './card_field_constants.js';
 
 import {
-	EMPTY_PROCESSED_CARD
-} from './actions/data.js';
-
-import {
 	Card,
 	Cards,
 	ProcessedCard,
@@ -30,6 +26,55 @@ import {
 import {
 	CardRenderer
 } from './components/card-renderer.js';
+
+import {
+	Timestamp
+} from 'firebase/firestore';
+
+export const EMPTY_CARD : Card = {
+	created: Timestamp.now(),
+	updated: Timestamp.now(),
+	author: '',
+	permissions: {},
+	collaborators: [],
+	updated_substantive: Timestamp.now(),
+	updated_message: Timestamp.now(),
+	star_count: 0,
+	star_count_manual: 0,
+	tweet_favorite_count: 0,
+	tweet_retweet_count: 0,
+	thread_count: 0,
+	thread_resolved_count: 0,
+	sort_order: Number.MAX_SAFE_INTEGER / 2,
+	title: '',
+	section: '',
+	body: '',
+	[CONSTANTS.REFERENCES_INFO_CARD_PROPERTY]: {},
+	[CONSTANTS.REFERENCES_INFO_INBOUND_CARD_PROPERTY]: {},
+	[CONSTANTS.REFERENCES_CARD_PROPERTY]: {},
+	[CONSTANTS.REFERENCES_INBOUND_CARD_PROPERTY]: {},
+	font_size_boost: {},
+	card_type: CONSTANTS.CARD_TYPE_CONTENT,
+	notes: '',
+	todo: '',
+	slugs: [],
+	name: '',
+	tags: [],
+	id: 'INVALID-CARD',
+	published: false,
+	images: [],
+	auto_todo_overrides: {},
+	last_tweeted: Timestamp.now(),
+	tweet_count: 0
+};
+
+export const EMPTY_PROCESSED_CARD : ProcessedCard = {
+	...EMPTY_CARD,
+	fallbackText: {},
+    importantNgrams: {},
+    synonymMap: {},
+    nlp: {}
+}
 
 /*
 

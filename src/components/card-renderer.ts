@@ -31,7 +31,8 @@ import {
 	TEXT_FIELD_CONFIGURATION,
 	CARD_TYPE_CONFIGURATION,
 	editableFieldsForCardType,
-	IMAGES_TEXT_FIELD
+	IMAGES_TEXT_FIELD,
+	EMPTY_PROCESSED_CARD
 } from '../card_fields.js';
 
 import {
@@ -67,10 +68,6 @@ import {
 import {
 	ExpandedReferenceBlocks
 } from '../reference_blocks.js';
-
-import {
-	EMPTY_PROCESSED_CARD
-} from '../actions/data.js';
 
 export const CARD_WIDTH_IN_EMS = 43.63;
 export const CARD_HEIGHT_IN_EMS = 24.54;
