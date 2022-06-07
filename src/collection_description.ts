@@ -489,21 +489,23 @@ export class CollectionDescription {
 	}
 };
 
-const filterNameIsUnionFilter = (filterName) => {
+const filterNameIsUnionFilter = (filterName : string) : boolean => {
 	//the + can be include in a configurable filter, e.g `children/+ab123`
 	return filterName.includes(UNION_FILTER_DELIMITER)  && !filterNameIsConfigurableFilter(filterName);
 };
 
-const filterNameIsConfigurableFilter = (filterName) => {
+const filterNameIsConfigurableFilter = (filterName : string) : boolean => {
 	return filterName.includes('/');
 };
 
-let memoizedConfigurableFiltersExtras = null;
-let memoizedConfigurableFilters = {};
+type ConfigurableFilterResult = [result : FilterMap, reverse : boolean, sortValues : SortExtra, partialMatches: CardBooleanMap ]
+
+let memoizedConfigurableFiltersExtras : FilterExtras = null;
+let memoizedConfigurableFilters : {[name : string] : ConfigurableFilterResult} = {};
 
 //The first filter here means 'map of card id to bools', not 'filter func'
 //TODO: make it return the exclusion as second item
-const makeFilterFromConfigurableFilter = (name, extras) => {
+const makeFilterFromConfigurableFilter = (name : string, extras : FilterExtras) : ConfigurableFilterResult => {
 	if (memoizedConfigurableFiltersExtras == extras) {
 		if (memoizedConfigurableFilters[name]) {
 			return memoizedConfigurableFilters[name];
@@ -514,9 +516,9 @@ const makeFilterFromConfigurableFilter = (name, extras) => {
 	}
 
 	const [func, reverse] = makeConfigurableFilter(name);
-	const result = {};
-	let sortValues = {};
-	let partialMatches = {};
+	const result : FilterMap = {};
+	let sortValues : SortExtra = {};
+	let partialMatches : CardBooleanMap = {};
 	for (let [id, card] of TypedObject.entries(extras.cards)) {
 		let [matches, sortValue, partialMatch] = func(card, extras);
 		//TODO: this doesn't handle cases where the func is a reversed func,
@@ -532,7 +534,7 @@ const makeFilterFromConfigurableFilter = (name, extras) => {
 	if (Object.keys(sortValues).length == 0) sortValues = null;
 	if (Object.keys(partialMatches).length == 0) partialMatches = null;
 
-	let fullResult = [result, reverse, sortValues, partialMatches];
+	let fullResult : ConfigurableFilterResult = [result, reverse, sortValues, partialMatches];
 
 	memoizedConfigurableFilters[name] = fullResult;
 
