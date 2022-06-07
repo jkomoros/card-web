@@ -6,7 +6,12 @@ import {
 import * as CONSTANTS from './card_field_constants.js';
 
 import {
+	EMPTY_PROCESSED_CARD
+} from './actions/data.js';
+
+import {
 	Card,
+	ProcessedCard,
 	CardTypeConfigurationMap,
 	ReferenceTypeConfigurationMap,
 	CardFieldTypeConfigurationMap,
@@ -14,13 +19,16 @@ import {
 	CardType,
 	ReferenceType,
 	FontSizeBoostMap,
-	CardFieldType
+	CardFieldTypeEditable
 } from './types.js';
 
 import {
 	TypedObject
 } from './typed_object.js';
-import { CardRenderer } from './components/card-renderer.js';
+
+import {
+	CardRenderer
+} from './components/card-renderer.js';
 
 /*
 
@@ -546,7 +554,7 @@ export const DERIVED_FIELDS_FOR_CARD_TYPE = Object.fromEntries(TypedObject.keys(
 	return [typ, Object.fromEntries(TypedObject.entries(TEXT_FIELD_CONFIGURATION).filter(entry => entry[1].derivedForCardTypes ? entry[1].derivedForCardTypes[typ] : false).map(entry => [entry[0], true]))];
 }));
 
-const AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE : {[cardType in CardType]+?: {[fieldType in CardFieldType]+?: true}} = Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).map(typ => {
+const AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE : {[cardType in CardType]+?: {[fieldType in CardFieldTypeEditable]+?: true}} = Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).map(typ => {
 	return [typ, Object.fromEntries(TypedObject.entries(TEXT_FIELD_CONFIGURATION).filter(entry => entry[1].autoFontSizeBoostForCardTypes ? entry[1].autoFontSizeBoostForCardTypes[typ] : false).map(entry => [entry[0], true]))];
 }));
 
@@ -622,7 +630,7 @@ const MAX_FONT_BOOST_BISECT_STEPS = 3;
 //calculateBoostForCardField is an expensive method because it repeatedly
 //changes layout and then reads it back. But even with that, it typically takes
 //less than 15ms or so on a normal computer.
-const calculateBoostForCardField = async (card, field) => {
+const calculateBoostForCardField = async (card : Card, field : CardFieldTypeEditable) : Promise<number> => {
 
 	const max = TEXT_FIELD_CONFIGURATION[field].autoFontSizeBoostForCardTypes[card.card_type];
 	let low = 0.0;
@@ -660,7 +668,7 @@ const calculateBoostForCardField = async (card, field) => {
 	return middle;
 };
 
-const cardOverflowsFieldForBoost = async (card, field, proposedBoost) => {
+const cardOverflowsFieldForBoost = async (card : Card, field : CardFieldTypeEditable, proposedBoost : number) : Promise<boolean> => {
 	if (!cardRendererProvider) {
 		console.warn('No card renderer provider provided');
 		return false;
@@ -670,7 +678,7 @@ const cardOverflowsFieldForBoost = async (card, field, proposedBoost) => {
 		console.warn('No active card renderer');
 		return false;
 	}
-	let tempCard = {...card, font_size_boost: {...card.font_size_boost, [field]:proposedBoost}};
+	let tempCard : ProcessedCard = {...EMPTY_PROCESSED_CARD, ...card, font_size_boost: {...card.font_size_boost, [field]:proposedBoost}};
 	ele.card = tempCard;
 	await ele.updateComplete;
 	const isOverflowing = ele.isOverflowing();
