@@ -1045,16 +1045,43 @@ const extractOriginalNgramFromRun = (targetNgram : string, run : ProcessedRun) :
 
 };
 
+type missingConceptsNgramBundle = {
+	ngram : string,
+	scoreForBundle : number,
+	individualTFIDF : number,
+	averageSubNgramCumulativeTFIDF : number,
+	subNgramTFIDFForCumulative : number,
+	cumulativeSubNgramCumulativeTFIDF : number,
+	individualToCumulativeRatio : number,
+	cumulativeTFIDF : number,
+	cardIDs : CardID[],
+	cardsExpanded : ProcessedCard[],
+	cardCount : number,
+	sortedNgram : string,
+	subNgrams : string[],
+	subNgramsObject: {[ngram : string] : missingConceptsNgramBundle}
+};
+
+type missingConceptsKnockedOutBundle = {
+	self : string,
+	other : string,
+	reason : string,
+	scoreDiff? : number,
+	diffPerExtraWord? : number,
+	otherBundle? : missingConceptsNgramBundle,
+	selfBundle? : missingConceptsNgramBundle
+};
+
 const MAX_MISSING_POSSIBLE_CONCEPTS = 100;
 
 //Enable while debugging possibleMissingConcepts.
 const DEBUG_PRINT_MISSING_CONCEPTS_INFO = false;
 
-export const possibleMissingConcepts = (cards) => {
+export const possibleMissingConcepts = (cards : ProcessedCards) : Fingerprint => {
 	//Turn the size of ngrams we generate up to 11! This will help us find very long ngrams, but will use a LOT of memory and compuation.
 	const maximumFingerprintGenerator = new FingerprintGenerator(cards, SEMANTIC_FINGERPRINT_SIZE * 5, MAX_N_GRAM_FOR_FINGERPRINT + 5);
 	let cardIDsForNgram : {[ngram : string]: CardID[]} = {};
-	let cumulativeTFIDFForNgram = {};
+	let cumulativeTFIDFForNgram : {[ngram : string]: number} = {};
 
 	const conceptCards = conceptCardsFromCards(cards);
 	const existingConcepts = normalizeNgramMap(getConceptsFromConceptCards(conceptCards));
@@ -1070,7 +1097,7 @@ export const possibleMissingConcepts = (cards) => {
 	cardIDsForNgram = Object.fromEntries(Object.entries(cardIDsForNgram).filter(entry => entry[1].length > 3));
 	cumulativeTFIDFForNgram = Object.fromEntries(Object.keys(cardIDsForNgram).map(key => [key, cumulativeTFIDFForNgram[key]]));
 
-	let ngramWordCount = {};
+	let ngramWordCount : {[ngram : string] : number}= {};
 	for (const ngram of Object.keys(cardIDsForNgram)) {
 		ngramWordCount[ngram] = ngram.split(' ').length;
 	}
@@ -1091,7 +1118,7 @@ export const possibleMissingConcepts = (cards) => {
 		  ngram-size, we always use the largest ones that cover it)
 		//TODO: document the rest of the bundle meanings
 	*/
-	const ngramBundles = {};
+	const ngramBundles : {[ngram : string] : missingConceptsNgramBundle } = {};
 
 	// We construct the ngramBundles in order going up by ngram word count, so
 	// the subBundles are already constructed and finalized by the time the
@@ -1113,7 +1140,7 @@ export const possibleMissingConcepts = (cards) => {
 		//where no subNgram in the final set may be a strict subset of any other
 		//subNgram in the set.
 
-		const subNgrams = [];
+		const subNgrams : string[] = [];
 		for (const candidate of subNgramCandidates) {
 			if (subNgrams.some(includedNgram => ngramWithinOther(candidate, includedNgram))) continue;
 			subNgrams.push(candidate);
@@ -1176,7 +1203,7 @@ export const possibleMissingConcepts = (cards) => {
 	//concept ngrams, but add items as we add more things to finalNgrams.
 	const excludeNgrams = Object.keys(existingConcepts);
 	for (const ngram of sortedNgramBundleKeys) {
-		let knockedOut = null;
+		let knockedOut : missingConceptsKnockedOutBundle = null;
 		//Skip ngrams that are full supersets or subsets of ones that have already been selected, or ones that are just permutations of an ngram that was already selected
 		for (const includedNgram of excludeNgrams) {
 			if (ngramWithinOther(ngram, includedNgram)) {
