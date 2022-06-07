@@ -687,7 +687,7 @@ export const cardWithNormalizedTextProperties = memoizeFirstArg((card : Card, fa
 });
 
 //text should be normalized
-const ngrams = (text, size = 2) => {
+const ngrams = (text : string, size : number = 2) : string[]  => {
 	if (!text) return [];
 	const pieces = text.split(' ');
 	if (pieces.length < size) return [];
@@ -703,7 +703,7 @@ const ngrams = (text, size = 2) => {
 };
 
 //Returns the words and filters in the text.
-export const extractFiltersFromQuery = (queryTextIncludingFilters) => {
+export const extractFiltersFromQuery = (queryTextIncludingFilters : string) : [query : string, filters : string[]] => {
 	return queryWordsAndFilters(rewriteQueryFilters(queryTextIncludingFilters));
 };
 
@@ -722,7 +722,7 @@ export class PreparedQuery {
 	text : PreparedQueryConfiguration;
 
 	//queryText should not include any filters, but be a raw string
-	constructor(queryText) {
+	constructor(queryText : string) {
 		this.text = {};
 		if (!queryText) return;
 		this.text = textSubQueryForWords(stemmedNormalizedWords(normalizedWords(lowercaseSplitWords(queryText).join(' '))));
@@ -733,7 +733,7 @@ export class PreparedQuery {
 		let score = 0.0;
 		let fullMatch = false;
 	
-		for (let key of Object.keys(TEXT_FIELD_CONFIGURATION)) {
+		for (let key of TypedObject.keys(TEXT_FIELD_CONFIGURATION)) {
 			const propertySubQuery = this.text[key];
 			if(!propertySubQuery || !card.nlp || !card.nlp[key]) continue;
 			const runs = card.nlp[key];
@@ -766,7 +766,7 @@ const SIMPLE_FILTER_REWRITES = ['is:', 'section:', 'tag:'];
 const HAS_FILTER_PREFIX = 'has:';
 
 //rewriteQueryFilters rewrites things like 'has:comments` to `filter:has-comments`
-const rewriteQueryFilters = (query) => {
+const rewriteQueryFilters = (query : string) : string => {
 	let result = [];
 	for (let word of query.split(' ')) {
 		for (let prefix of SIMPLE_FILTER_REWRITES) {
@@ -789,11 +789,11 @@ const rewriteQueryFilters = (query) => {
 	return result.join(' ');
 };
 
-const textSubQueryForWords = (words) : PreparedQueryConfiguration => {
+const textSubQueryForWords = (words : string) : PreparedQueryConfiguration => {
 	return Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).map(entry => [entry[0], textPropertySubQueryForWords(words, entry[1].matchWeight)]));
 };
 
-const textPropertySubQueryForWords = (joinedWords, startValue) : PreparedQueryConfigurationLeaf[] => {
+const textPropertySubQueryForWords = (joinedWords : string, startValue : number) : PreparedQueryConfigurationLeaf[] => {
 	const words = joinedWords.split(' ');
 
 	//The format of the return value is a list of items that could match. For
@@ -830,7 +830,7 @@ const textPropertySubQueryForWords = (joinedWords, startValue) : PreparedQueryCo
 	return result;
 };
 
-const stringPropertyScoreForStringSubQuery = (propertyValue, preparedSubquery) : [value : number, fullMatch : boolean] => {
+const stringPropertyScoreForStringSubQuery = (propertyValue : string, preparedSubquery : PreparedQueryConfigurationLeaf[]) : [value : number, fullMatch : boolean] => {
 	const value = propertyValue.toLowerCase();
 	let result = 0.0;
 	let fullMatch = false;
@@ -847,13 +847,13 @@ const stringPropertyScoreForStringSubQuery = (propertyValue, preparedSubquery) :
 
 const FILTER_PREFIX = 'filter:';
 
-const filterForWord = (word) => {
+const filterForWord = (word : string) : string => {
 	if (word.indexOf(FILTER_PREFIX) < 0) return '';
 	return word.split(FILTER_PREFIX).join('');
 };
 
 //extracts the raw, non filter words from a query, then also the filters.
-const queryWordsAndFilters = (queryString) => {
+const queryWordsAndFilters = (queryString : string) : [string, string[]] => {
 	let words = [];
 	let filters = [];
 	for (let word of lowercaseSplitWords(queryString)) {
@@ -868,7 +868,7 @@ const queryWordsAndFilters = (queryString) => {
 	return [words.join(' '), filters];
 };
 
-export const ngramWithinOther =(ngram, container) => {
+export const ngramWithinOther =(ngram : string, container : string) : boolean => {
 	//ngramWithinOther is _extremely_ hot. We'll add padding to make sure that
 	//matches only happen at word boundaries.
 	const paddedNgram = ' ' + ngram + ' ';
@@ -877,7 +877,7 @@ export const ngramWithinOther =(ngram, container) => {
 };
 
 //from https://stackoverflow.com/a/3561711
-const escapeRegex = (string) => {
+const escapeRegex = (string : string) : string => {
 	// eslint-disable-next-line no-useless-escape
 	return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 };
@@ -896,16 +896,16 @@ const IMPORTANT_NGRAM_BOOST_FACTOR = 1.1;
 //strsMap is card.nlp.withoutStopWords. See cardWithNormalizedTextProperties documentation for more.
 const wordCountsForSemantics = memoizeFirstArg((cardObj : ProcessedCard, maxFingerprintSize : number = MAX_N_GRAM_FOR_FINGERPRINT, optFieldList? : CardFieldType[], excludeSynonyms? : boolean) => {
 	const fieldsToIndex = optFieldList ? Object.fromEntries(optFieldList.map(fieldName => [fieldName, true])) : TEXT_FIELD_CONFIGURATION;
-	const strsMap : {[type in CardFieldType]+?: string[]} = Object.fromEntries(Object.keys(TEXT_FIELD_CONFIGURATION)
+	const strsMap : {[type in CardFieldType]+?: string[]} = Object.fromEntries(TypedObject.keys(TEXT_FIELD_CONFIGURATION)
 		.filter(fieldName => fieldsToIndex[fieldName])
 		.map(prop => [prop, cardObj.nlp[prop].map(run => run.withoutStopWords)]).filter(entry => entry[1]));
 	//Yes, it's weird that we stash the additionalNgramsMap on a cardObj and
 	//then pass that around instead of just passing the ngram map to FingerPrint
 	//generator. But it we did it another way, it would break the `similar/`
 	//configurable filter.
-	const cardMap = {};
+	const cardMap : {[str : string] : number}= {};
 	const importantNgrams = cardObj.importantNgrams || {};
-	for (const [fieldName, strs] of Object.entries(strsMap)) {
+	for (const [fieldName, strs] of TypedObject.entries(strsMap)) {
 		const textFieldConfig = TEXT_FIELD_CONFIGURATION[fieldName] || {};
 		const totalIndexingCount = (textFieldConfig.extraIndexingCount || 0) + 1;
 		for (const words of strs) {
