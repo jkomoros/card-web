@@ -59,7 +59,8 @@ import {
 	WordCloudItemInfos,
 	CardFieldTypeEditable,
 	CardBooleanMap,
-	CardWithOptionalFallbackText
+	CardWithOptionalFallbackText,
+	StringCardMap
 } from './types.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
@@ -93,8 +94,8 @@ export const getAllConceptStringsFromConceptCard = (rawConceptCard : Card) : str
 //concept cards, it might include multiple entries for each concept card if it
 //has title alternates. memoized so downstream memoizing things will get object
 //equality.
-export const getConceptsFromConceptCards = deepEqualReturnSame(memoizeFirstArg((conceptCards : Cards) : {[conceptStr : string]: CardID}=> {
-	const result : {[conceptStr : string] : CardID } = {};
+export const getConceptsFromConceptCards = deepEqualReturnSame(memoizeFirstArg((conceptCards : Cards) : StringCardMap => {
+	const result : StringCardMap = {};
 	for (const card of Object.values(conceptCards)) {
 		for (const conceptStr of getAllConceptStringsFromConceptCard(card)) {
 			result[conceptStr] = card.id;
@@ -317,7 +318,7 @@ const highlightHTMLForCard = (card : ProcessedCard, fieldName : CardFieldTypeEdi
 	//representation of that ngram in that run, if it exists. So for example
 	//'forc graviti' would be backed out to 'force of gravity' within the run.
 
-	const originalConceptStrs : {[ngram : string]: CardID} = {};
+	const originalConceptStrs : StringCardMap = {};
 	for (const [fullyNormalizedConceptStr, cardID] of Object.entries(filteredHighlightMap)) {
 		const runs = card.nlp[fieldName];
 		for (let run of runs) {
@@ -630,7 +631,7 @@ const normalizeSynonymMap = (synonyms : SynonymMap) => {
 
 let memoizedNormalizedNgramMaps = new WeakMap();
 
-const normalizeNgramMap = (ngramMap : {[ngram : string] : CardID}) : {[ngram : string] : CardID} => {
+const normalizeNgramMap = (ngramMap : StringCardMap) : StringCardMap => {
 	if (!memoizedNormalizedNgramMaps.has(ngramMap)) {
 		//The normalizedMap both has stemmed/normalized words. We filter out
 		//stop words (via fullyNormalizedString) because the
