@@ -25,7 +25,8 @@ import {
 	updateCards,
 } from '../actions/data.js';
 
-//We also import this implicitly for the custom element to be loaded.
+//We need the implicit import AND the specific class CardStage.
+import './card-stage.js';
 import {
 	CardStage
 } from './card-stage.js';
