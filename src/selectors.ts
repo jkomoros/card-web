@@ -151,7 +151,7 @@ import {
 	Section,
 	Slug,
 	WordCloud,
-	CollectionConstructorArguments
+	CollectionConstructorArguments,
 } from './types.js';
 
 const selectState = (state : State) : State => state;
@@ -301,13 +301,13 @@ export const selectConcepts = createSelector(
 const selectZippedCardAndFallbackMap = createSelector(
 	selectRawCards,
 	selectBackportTextFallbackMapCollection,
-	(cards : Cards, fallbackTextCollection : ReferencesInfoMap) => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
+	(cards : Cards, fallbackTextCollection : {[id : CardID] :ReferencesInfoMap}) : {[id : CardID] : [card : Card, fallbackText: ReferencesInfoMap]} => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
 );
 
 const selectSnapshotZippedCardAndFallbackMap = createSelector(
 	selectRawCardsSnapshot,
 	selectBackportTextFallbackMapCollection,
-	(cards, fallbackTextCollection) => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
+	(cards : Cards, fallbackTextCollection : {[id : CardID] :ReferencesInfoMap}) : {[id : CardID] : [card : Card, fallbackText: ReferencesInfoMap]}  => Object.fromEntries(Object.entries(cards).map(entry => [entry[0], [entry[1], fallbackTextCollection[entry[0]]]]))
 );
 
 //objectEquality checks for objects to be the same content, allowing nested
