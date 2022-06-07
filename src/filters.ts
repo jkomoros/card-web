@@ -81,6 +81,10 @@ import {
 	DateRangeType,
 } from './types.js';
 
+import {
+	TypedObject
+} from './typed_object.js';
+
 export const DEFAULT_SET_NAME = 'main';
 //reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
 //order matters and is customizable by the user. Every other collection starts
@@ -244,7 +248,7 @@ export const parseKeyCardID = (cardID : string) : [id : CardID, includeKeyCard :
 	return [ids[0], includeKeyCard, ids];
 };
 
-export const keyCardID = (cardID, includeKeyCard) => {
+export const keyCardID = (cardID : CardID | CardID[], includeKeyCard? : boolean) : CardID => {
 	if (Array.isArray(cardID)) cardID = cardID.join(UNION_FILTER_DELIMITER);
 	return includeKeyCard ? INCLUDE_KEY_CARD_PREFIX + cardID : cardID;
 };
@@ -265,16 +269,16 @@ const cardBFSMaker = (filterName : string, cardID : CardID, countOrTypeStr : str
 	//refernces filters take typeStr as second parameter, but others skip those.
 	const referenceFilter = filterName.includes(REFERENCES_FILTER_NAME);
 	//we always pass referenceTypes to cardBFS, so make sure it's falsey unless it's a reference filter.
-	let referenceTypes = null;
+	let referenceTypes : ReferenceType[] = null;
 	if (referenceFilter) {
 		let typeStr = countOrTypeStr;
 		const invertReferenceTypes = typeStr.startsWith(INVERT_REFERENCE_TYPES_PREFIX);
 		if (invertReferenceTypes) typeStr = typeStr.substring(INVERT_REFERENCE_TYPES_PREFIX.length);
-		referenceTypes = typeStr.split(UNION_FILTER_DELIMITER);
+		referenceTypes = typeStr.split(UNION_FILTER_DELIMITER) as ReferenceType[];
 		//if we were told to invert, include any reference type that WASN'T passed.
 		if (invertReferenceTypes) {
 			let providedTypesMap = Object.fromEntries(referenceTypes.map(item => [item, true]));
-			referenceTypes = Object.keys(REFERENCE_TYPES).filter(key => !providedTypesMap[key]);
+			referenceTypes = TypedObject.keys(REFERENCE_TYPES).filter(key => !providedTypesMap[key]);
 		}
 	}
 	if (!referenceFilter) countStr = countOrTypeStr;
