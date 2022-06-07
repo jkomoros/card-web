@@ -330,9 +330,9 @@ const makeCardLinksConfigurableFilter = (filterName : string, cardID : string, c
 };
 
 export const parseMultipleCardIDs = (str) => str.split(INCLUDE_KEY_CARD_PREFIX);
-export const combineMultipleCardIDs = (cardIDs) => cardIDs.join(INCLUDE_KEY_CARD_PREFIX);
+export const combineMultipleCardIDs = (cardIDs : CardID[]) : string => cardIDs.join(INCLUDE_KEY_CARD_PREFIX);
 
-const makeCardsConfigurableFilter = (_, idString : string) : ConfigurableFilterFuncFactoryResult => {
+const makeCardsConfigurableFilter = (_ : string, idString : string) : ConfigurableFilterFuncFactoryResult => {
 	//ids can be a single id or slug, or a conjunction of them delimited by '+'
 	const rawIdsToMatch = Object.fromEntries(parseMultipleCardIDs(idString).map(id => [id, true]));
 
@@ -354,24 +354,24 @@ const makeCardsConfigurableFilter = (_, idString : string) : ConfigurableFilterF
 	return [func, false];
 };
 
-export const aboutConceptConfigurableFilterText = (conceptStr) => {
+export const aboutConceptConfigurableFilterText = (conceptStr : string) : string => {
 	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
 	return ABOUT_CONCEPT_FILTER_NAME + '/' + createSlugFromArbitraryString(conceptStr);
 };
 
-const makeAboutConceptConfigurableFilter = (_, conceptStrOrID : string) : ConfigurableFilterFuncFactoryResult => {
+const makeAboutConceptConfigurableFilter = (_ : string, conceptStrOrID : string) : ConfigurableFilterFuncFactoryResult => {
 	//conceptStr should have '-' delimiting its terms; normalize text
 	//will automatically handle them the same.
 
 	//This function is pretty simple: find the concept card, then memoize the
 	//inbound concept references it has.
 
-	const matchingCardsFunc = memoize((cards : ProcessedCards, keyCardID : CardID) => {
+	const matchingCardsFunc = memoize((cards : ProcessedCards, keyCardID : CardID) : [FilterMap, CardID]=> {
 		const expandedConceptStrOrId = conceptStrOrID == KEY_CARD_ID_PLACEHOLDER ? keyCardID : conceptStrOrID;
 		let conceptCard = cards[expandedConceptStrOrId] || getConceptCardForConcept(cards, expandedConceptStrOrId);
 		if (!conceptCard) return [{}, ''];
 		const conceptReferenceMap = references(conceptCard).byTypeClassInbound(REFERENCE_TYPE_CONCEPT);
-		let matchingCards = {};
+		let matchingCards : FilterMap = {};
 		for (const cardMap of Object.values(conceptReferenceMap)) {
 			for (const cardID of Object.keys(cardMap)) {
 				matchingCards[cardID] = true;
@@ -392,7 +392,7 @@ const makeAboutConceptConfigurableFilter = (_, conceptStrOrID : string) : Config
 };
 
 //if conceptStr is blank, it means 'all cards missing any concept'
-export const missingConceptConfigurableFilterText = (conceptStr) => {
+export const missingConceptConfigurableFilterText = (conceptStr : string) : string => {
 	const arg = conceptStr ? createSlugFromArbitraryString(conceptStr) : '+';
 	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
 	return MISSING_CONCEPT_FILTER_NAME + '/' + arg;
@@ -417,7 +417,7 @@ const makeSameTypeConfigurableFilter = (filterName : string, inputCardID : strin
 
 };
 
-const makeMissingConceptConfigurableFilter = (_, conceptStrOrCardID : string) : ConfigurableFilterFuncFactoryResult => {
+const makeMissingConceptConfigurableFilter = (_ : string, conceptStrOrCardID : string) : ConfigurableFilterFuncFactoryResult => {
 	//subFilter can only be a very small set of special filter names. They're
 	//done as subtypes of `missing` becuase there's no way to do a configurable
 	//filter without having a multi-part filter name.
@@ -462,7 +462,7 @@ const makeMissingConceptConfigurableFilter = (_, conceptStrOrCardID : string) : 
 	return [func, false];
 };
 
-const makeExcludeConfigurableFilter = (_, ...remainingParts : string[]) : ConfigurableFilterFuncFactoryResult => {
+const makeExcludeConfigurableFilter = (_ : string, ...remainingParts : string[]) : ConfigurableFilterFuncFactoryResult => {
 	const rest = remainingParts.join('/');
 
 	const generator = memoize((extras : FilterExtras) : [filter : FilterMap, reverse : boolean, sortExtra : SortExtra | null, partialMathces : {[id : CardID] : boolean} | null ] => {
@@ -488,7 +488,7 @@ const makeExcludeConfigurableFilter = (_, ...remainingParts : string[]) : Config
 	return [func, true];
 };
 
-const extractSubFilters = (parts) => {
+const extractSubFilters = (parts : string[]) : string[] => {
 	//It's not clear where the first filter argument ends and the second one
 	//starts because they'll all be smooshed together. We'll rely on
 	//CollectionDescription machinery to parse it. If we don't include a
@@ -500,7 +500,7 @@ const extractSubFilters = (parts) => {
 	return combinedDescription.filters;
 };
 
-const makeExpandConfigurableFilter = (_, ...remainingParts) : ConfigurableFilterFuncFactoryResult => {
+const makeExpandConfigurableFilter = (_ : string, ...remainingParts : string[]) : ConfigurableFilterFuncFactoryResult => {
 	const [mainFilter, expandFilter] = extractSubFilters(remainingParts);
 	if (!mainFilter || !expandFilter) {
 		console.warn('Expected two sub-filters for expand but didn\'t get it');
@@ -514,7 +514,7 @@ const makeExpandConfigurableFilter = (_, ...remainingParts) : ConfigurableFilter
 		if (excludeMain) filterMembershipMain = makeConcreteInverseFilter(filterMembershipMain, extras.cards);
 
 		const expandFilterPieces = expandFilter.split('/');
-		let expandedSet = {};
+		let expandedSet : FilterMap = {};
 
 		if (expandFilterPieces[0] == SIMILAR_CUTOFF_FILTER_NAME) {
 			const [similarFilter] = makeSimilarCutoffConfigurableFilter(SIMILAR_CUTOFF_FILTER_NAME, keyCardID(Object.keys(filterMembershipMain), false), expandFilterPieces[2]);
@@ -533,7 +533,7 @@ const makeExpandConfigurableFilter = (_, ...remainingParts) : ConfigurableFilter
 			}
 
 			//We just pass '' for activeCardID each time because we don't acutally use it since we passed filterMembershipMain
-			expandedSet = bfs(extras.cards, '', extras.editingCard);
+			expandedSet = Object.fromEntries(Object.entries(bfs(extras.cards, '', extras.editingCard)).map(entry => [entry[0], true]));
 		}
 
 		return unionSet(filterMembershipMain, expandedSet);
