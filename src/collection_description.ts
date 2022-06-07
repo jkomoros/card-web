@@ -365,7 +365,7 @@ export class CollectionDescription {
 	//name). It also may be in  adifferent order than what is in the URL, since
 	//all items are in a canonical sorted order but the URL is optimized to stay
 	//as the user wrote it.
-	_serialize(unsorted) {
+	_serialize(unsorted? : boolean) : string {
 		let result = [this.set];
 
 		let filterNames = [...this.filters];
@@ -390,17 +390,17 @@ export class CollectionDescription {
 		return result.join('/');
 	}
 
-	serializeShort() {
+	serializeShort() : string {
 		return this._serializedShort;
 	}
 
-	serializeShortOriginalOrder() {
+	serializeShortOriginalOrder() : string {
 		return this._serializeShort(true);
 	}
 
 	//serializeShort is like serialize, but skips leading set name if it's
 	//default.
-	_serializeShort(unsorted) {
+	_serializeShort(unsorted? : boolean) : string {
 		let result = [];
 
 		if (this.set != DEFAULT_SET_NAME) result.push(this.set);
@@ -427,7 +427,7 @@ export class CollectionDescription {
 		return result.join('/');
 	}
 
-	equivalent(other) {
+	equivalent(other : CollectionDescription) : boolean {
 		if (other instanceof CollectionDescription) {
 			return this.serialize() == other.serialize();
 		}
@@ -443,11 +443,11 @@ export class CollectionDescription {
 	//collectiondescription. You can use selectCollectionConstructorArguments to
 	//select all of the items at once.
 	//Arguments: {cards, sets, filters, editingCard, sections, fallbacks, startCards}
-	collection(collectionArguments) {
+	collection(collectionArguments : CollectionConstructorArguments) : Collection {
 		return new Collection(this, collectionArguments);
 	}
 
-	static deserialize(input) {
+	static deserialize(input : string) : CollectionDescription {
 		let [result, ] = CollectionDescription.deserializeWithExtra(input);
 		return result;
 	}
@@ -455,7 +455,7 @@ export class CollectionDescription {
 	//deserializeWithExtra takes the output of serialize() (which is a part of a URL). It
 	//returns an array with two items: 1) the CollectionDescription, and 2) the
 	//'rest', which is likely the card ID or '' if nothing.
-	static deserializeWithExtra(input) {
+	static deserializeWithExtra(input : string) : [description : CollectionDescription, rest : string] {
 		let parts = input.split('/');
 
 		//We do not remove a trailing slash; we take a trailing slash to mean
