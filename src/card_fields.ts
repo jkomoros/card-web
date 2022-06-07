@@ -11,6 +11,7 @@ import {
 
 import {
 	Card,
+	Cards,
 	ProcessedCard,
 	CardTypeConfigurationMap,
 	ReferenceTypeConfigurationMap,
@@ -686,7 +687,7 @@ const cardOverflowsFieldForBoost = async (card : Card, field : CardFieldTypeEdit
 };
 
 //eslint-disable-next-line no-unused-vars
-export const getCardTitleForBackporting = (rawCard, referenceType, rawCards) => {
+export const getCardTitleForBackporting = (rawCard : Card, referenceType : ReferenceType, rawCards : Cards) : string => {
 	const config = CARD_TYPE_CONFIGURATION[rawCard.card_type];
 	if (config) {
 		const f = config.backportTitleExtractor;
