@@ -47,7 +47,7 @@ const memoizedCardAccessors = new WeakMap();
 
 //Like referendces, but in a way that doesn't modify the card. It simply creates
 //a shallow copy of the card first.
-export const referencesNonModifying = (cardObj : CardLike) => {
+export const referencesNonModifying = (cardObj : CardLike) : ReferencesAccessor => {
 	const cardCopy = {...cardObj};
 	//TODO: return the same copy for the same object
 	return references(cardCopy);
@@ -55,7 +55,7 @@ export const referencesNonModifying = (cardObj : CardLike) => {
 
 //References returns a ReferencesAccessor to access references for this cardObj.
 //It may return one that's already been returned for this card obj.
-export const references = (cardObj : CardLike) => {
+export const references = (cardObj : CardLike) : ReferencesAccessor => {
 	let accessor = memoizedCardAccessors.get(cardObj);
 	if (!accessor) {
 		accessor = new ReferencesAccessor(cardObj);
@@ -458,7 +458,7 @@ export const unionReferences = (cardObjs : Card[]) : CardLike => {
 	for (const card of cardObjs) {
 		const referencesInfo = card[REFERENCES_INFO_CARD_PROPERTY];
 		for (const [cardID, cardReferences] of Object.entries(referencesInfo)) {
-			for (const [referenceType, value] of Object.entries(cardReferences)) {
+			for (const [referenceType, value] of TypedObject.entries(cardReferences)) {
 				refs.setCardReference(cardID, referenceType, value);
 			}
 		}
