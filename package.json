@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@polymer/polymer": "^3.4.1",
+    "@types/d3": "^7.4.0",
     "@types/express-serve-static-core": "^4.17.21",
     "@webcomponents/webcomponentsjs": "^2.4.4",
     "d3": "^6.7.0",

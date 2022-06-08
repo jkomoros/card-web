@@ -92,14 +92,11 @@ export class WebRenderer extends LitElement {
 		const width = this.offsetWidth;
 		const height = this.offsetHeight;
 
-		const simulation = d3.forceSimulation(graph.nodes)
-			.force('link', d3.forceLink().id(d => d.id))
+		const simulation = d3.forceSimulation(graph.nodes as d3.SimulationNodeDatum[])
+			.force('link', d3.forceLink(graph.edges).id((d : WebInfoNodeWithLayout) => d.id))
 			.force('charge', d3.forceManyBody())
 			.force('center', d3.forceCenter(width / 2, height / 2))
 			.stop();
-		
-		simulation.force('link')
-			.links(graph.edges);
 		
 		for (var i = 0; i < 300; ++i) simulation.tick();
 		return {
