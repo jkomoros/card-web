@@ -310,7 +310,7 @@ export const cardBFS = (keyCardIDOrSlugList : CardID | Slug[], cards : Cards, pl
 		if (newCardDepth > ply) continue;
 		let links : CardID[] = [];
 		if (optReferenceTypes) {
-			for (const referenceType of optReferenceTypes) {
+			for (const referenceType of optReferenceTypes as ReferenceType[]) {
 				//Some of these will be dupes and that's OK because we skip items that are already seen
 				links = links.concat((isInbound ? references(card).byTypeInboundArray()[referenceType] : references(card).byTypeArray()[referenceType]) || []);
 			}
