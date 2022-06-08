@@ -1578,20 +1578,20 @@ const CARD_FILTER_CONFIGS : CardFilterConfigMap = Object.assign(
 		4) then a description of what the TODO means.
 	*/
 	{
-		'comments': [defaultCardFilterName('comments'), card => card.thread_count, TODO_TYPE_NA, 0.0, 'Whether the card has comments'],
-		'notes': [defaultCardFilterName('notes'), card => cardHasNotes(card), TODO_TYPE_NA, 0.0, 'Whether the card has notes'],
-		'images': [defaultCardFilterName('images'), card => card && card.images && card.images.length, TODO_TYPE_NA, 0.0, 'Whether the card has images'],
-		'orphaned': [defaultNonTodoCardFilterName('orphaned'), card => !card.section, TODO_TYPE_NA, 0.0, 'Whether the card is part of a section or not'],
-		'slug': [defaultCardFilterName('slug'), card => card.slugs && card.slugs.length, TODO_TYPE_AUTO_CONTENT, 0.2, 'Whether the card has a slug set'],
-		'content': [defaultCardFilterName('content'), card => cardHasContent(card), TODO_TYPE_AUTO_CONTENT_AND_CONCEPT, 5.0, 'Whether the card has any content whatsoever'],
-		'substantive-content': [defaultCardFilterName('substantive-content'), card => cardHasSubstantiveContent(card), TODO_TYPE_AUTO_CONTENT, 3.0, 'Whether the card has more than a reasonable minimum amount of content'],
+		'comments': [defaultCardFilterName('comments'), (card : Card) => card.thread_count, TODO_TYPE_NA, 0.0, 'Whether the card has comments'],
+		'notes': [defaultCardFilterName('notes'), (card : Card) => cardHasNotes(card), TODO_TYPE_NA, 0.0, 'Whether the card has notes'],
+		'images': [defaultCardFilterName('images'), (card : Card) => card && card.images && card.images.length, TODO_TYPE_NA, 0.0, 'Whether the card has images'],
+		'orphaned': [defaultNonTodoCardFilterName('orphaned'), (card : Card) => !card.section, TODO_TYPE_NA, 0.0, 'Whether the card is part of a section or not'],
+		'slug': [defaultCardFilterName('slug'), (card : Card) => card.slugs && card.slugs.length, TODO_TYPE_AUTO_CONTENT, 0.2, 'Whether the card has a slug set'],
+		'content': [defaultCardFilterName('content'), (card : Card) => cardHasContent(card), TODO_TYPE_AUTO_CONTENT_AND_CONCEPT, 5.0, 'Whether the card has any content whatsoever'],
+		'substantive-content': [defaultCardFilterName('substantive-content'), (card : ProcessedCard) => cardHasSubstantiveContent(card), TODO_TYPE_AUTO_CONTENT, 3.0, 'Whether the card has more than a reasonable minimum amount of content'],
 		//NOTE: links and inbound-links are very similar to link-reference, but whereas those are TODO_TYPE_NA, these are TODO_TYPE_AUTO
-		'links': [defaultCardFilterName('links'), card => references(card).linksArray().length, TODO_TYPE_AUTO_CONTENT, 1.0, 'Whether the card links out to other cards'],
-		'inbound-links': [defaultCardFilterName('inbound-links'), card => references(card).inboundLinksArray().length, TODO_TYPE_AUTO_CONTENT, 2.0, 'Whether the card has other cards that link to it'],
-		'reciprocal-links': [['has-all-reciprocal-links', 'missing-reciprocal-links', 'does-not-need-reciprocal-links', 'needs-reciprocal-links'], card => cardMissingReciprocalLinks(card).length == 0, TODO_TYPE_AUTO_CONTENT, 1.0, 'Whether every inbound link has a matching outbound link'],
-		'tags': [defaultCardFilterName('tags'), card => card.tags && card.tags.length, TODO_TYPE_AUTO_CONTENT, 1.0, 'Whether the card has any tags'],
-		'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], card => card.published, TODO_TYPE_AUTO_CONTENT, 0.5, 'Whether the card is published'],
-		'tweet': [defaultCardFilterName('tweet'), card => card.tweet_count > 0, TODO_TYPE_NA, 0.0, 'Whether the card has any tweets from the bot'],
+		'links': [defaultCardFilterName('links'), (card : Card) => references(card).linksArray().length, TODO_TYPE_AUTO_CONTENT, 1.0, 'Whether the card links out to other cards'],
+		'inbound-links': [defaultCardFilterName('inbound-links'), (card : Card) => references(card).inboundLinksArray().length, TODO_TYPE_AUTO_CONTENT, 2.0, 'Whether the card has other cards that link to it'],
+		'reciprocal-links': [['has-all-reciprocal-links', 'missing-reciprocal-links', 'does-not-need-reciprocal-links', 'needs-reciprocal-links'], (card : Card) => cardMissingReciprocalLinks(card).length == 0, TODO_TYPE_AUTO_CONTENT, 1.0, 'Whether every inbound link has a matching outbound link'],
+		'tags': [defaultCardFilterName('tags'), (card : Card) => card.tags && card.tags.length, TODO_TYPE_AUTO_CONTENT, 1.0, 'Whether the card has any tags'],
+		'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], (card : Card) => card.published, TODO_TYPE_AUTO_CONTENT, 0.5, 'Whether the card is published'],
+		'tweet': [defaultCardFilterName('tweet'), (card : Card) => card.tweet_count > 0, TODO_TYPE_NA, 0.0, 'Whether the card has any tweets from the bot'],
 		//The following TODO types will never be automatically applied, because their test function always returns false, but they can be manually applied.
 		'prose': [defaultCardFilterName('prose'), () => true, TODO_TYPE_AUTO_CONTENT, 0.5, 'Whether the card has manually been marked as needing to be turned into flowing prose, as opposed to disjoint details'],
 		'citations': [defaultCardFilterName('citations'), () => true, TODO_TYPE_AUTO_CONTENT, 0.3, 'Whether the card has citations that need to be formally represented'],
@@ -1604,16 +1604,16 @@ const CARD_FILTER_CONFIGS : CardFilterConfigMap = Object.assign(
 		'content-mined': [['mined-for-content', 'not-mined-for-content', 'does-not-need-to-be-mined-for-content', 'needs-to-be-mined-for-content'], () => false, TODO_TYPE_AUTO_WORKING_NOTES, 2.0, 'Whether the card has had its insights \'mined\' into other cards. Only automatically applied to working-notes cards. The only way to clear it is to add a force TODO disable for it'],
 		[EVERYTHING_SET_NAME]: [defaultNonTodoCardFilterName(FILTER_EQUIVALENTS_FOR_SET[EVERYTHING_SET_NAME]), () => true, TODO_TYPE_NA, 0.0, 'Every card is in the everything set'],
 		//note: a number of things rely on `has-body` filter which is derived from this configuration
-		'body': [defaultCardFilterName('body'), card => card && BODY_CARD_TYPES[card.card_type], TODO_TYPE_NA, 0.0, 'Cards that are of a type that has a body field'],
-		'substantive-references': [defaultCardFilterName('substantive-references'), card => references(card).substantiveArray().length, TODO_TYPE_NA, 0.0, 'Whether the card has any substantive references of any type'],
-		'inbound-substantive-references': [defaultCardFilterName('inbound-substantive-references'), card => references(card).inboundSubstantiveArray().length, TODO_TYPE_NA, 0.0, 'Whether the card has any substantive inbound references of any type'],
-		'concept-references': [defaultCardFilterName('concept-references'), card => references(card).typeClassArray(REFERENCE_TYPE_CONCEPT).length, TODO_TYPE_NA, 0.0, 'Whether the card has any concept references of any type'],
-		'inbound-concept-references': [defaultCardFilterName('inbound-concept-references'), card => references(card).inboundTypeClassArray(REFERENCE_TYPE_CONCEPT).length, TODO_TYPE_NA, 0.0, 'Whether the card has any concept inbound references of any type'],
+		'body': [defaultCardFilterName('body'), (card : Card) => card && BODY_CARD_TYPES[card.card_type], TODO_TYPE_NA, 0.0, 'Cards that are of a type that has a body field'],
+		'substantive-references': [defaultCardFilterName('substantive-references'), (card : Card) => references(card).substantiveArray().length, TODO_TYPE_NA, 0.0, 'Whether the card has any substantive references of any type'],
+		'inbound-substantive-references': [defaultCardFilterName('inbound-substantive-references'), (card : Card) => references(card).inboundSubstantiveArray().length, TODO_TYPE_NA, 0.0, 'Whether the card has any substantive inbound references of any type'],
+		'concept-references': [defaultCardFilterName('concept-references'), (card : Card) => references(card).typeClassArray(REFERENCE_TYPE_CONCEPT).length, TODO_TYPE_NA, 0.0, 'Whether the card has any concept references of any type'],
+		'inbound-concept-references': [defaultCardFilterName('inbound-concept-references'), (card : Card) => references(card).inboundTypeClassArray(REFERENCE_TYPE_CONCEPT).length, TODO_TYPE_NA, 0.0, 'Whether the card has any concept inbound references of any type'],
 		//TODO_COMBINED_FILTERS looks for the fourth key in the filtername array, so
 		//we just duplicate the first two since they're the same (the reason they'd
 		//differ is if there's an override key and that could make the has- and
 		//needs- filters be different, and there isn't.)
-		[FREEFORM_TODO_KEY]: [['no-freeform-todo', 'has-freeform-todo', 'no-freeform-todo', 'has-freeform-todo'], card => !cardHasTodo(card), TODO_TYPE_FREEFORM, 1.0, 'Whether the card has any text in its freeform TODO field'],
+		[FREEFORM_TODO_KEY]: [['no-freeform-todo', 'has-freeform-todo', 'no-freeform-todo', 'has-freeform-todo'], (card : Card) => !cardHasTodo(card), TODO_TYPE_FREEFORM, 1.0, 'Whether the card has any text in its freeform TODO field'],
 	},
 	CARD_FILTER_CONFIGS_FOR_TYPE,
 	CARD_FILTER_CONFIGS_FOR_REFERENCES,
