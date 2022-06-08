@@ -694,7 +694,7 @@ const makeSimilarCutoffConfigurableFilter = (_ : string, rawCardID : string, raw
 	});
 
 	//Make sure that the key of the IDs list will have object equality for a downstream memoized thing
-	const replacedCardIDsGenerator = memoize((cardIDs, keyCardID) => cardIDs.map(id => id == KEY_CARD_ID_PLACEHOLDER ? keyCardID : id));
+	const replacedCardIDsGenerator = memoize((cardIDs : CardID[], keyCardID : CardID) => cardIDs.map(id => id == KEY_CARD_ID_PLACEHOLDER ? keyCardID : id));
 
 	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean, number] {
 		const cardIDsToUse = replacedCardIDsGenerator(cardIDs, extras.keyCardID);
@@ -1224,14 +1224,14 @@ export const makeConfigurableFilter = (name : string) : ConfigurableFilterFuncFa
 	return memoizedConfigurableFilters[name];
 };
 
-export const splitCompoundFilter = (fullFilterName) => {
+export const splitCompoundFilter = (fullFilterName : string) : [firstPart : string, rest: string] => {
 	const filterParts = fullFilterName.split('/');
 	const firstFilterPart = filterParts[0];
 	const restFilter = filterParts.slice(1).join('/');
 	return [firstFilterPart, restFilter];
 };
 
-export const splitUnionFilter = (unionFilter) => {
+export const splitUnionFilter = (unionFilter : string) : string[] => {
 	const [firstPart] = splitCompoundFilter(unionFilter);
 	return firstPart.split(UNION_FILTER_DELIMITER);
 };
