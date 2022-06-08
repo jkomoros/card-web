@@ -13,6 +13,8 @@ import {
     IMAGE_POSITION_TYPES,
 } from './card_field_constants.js';
 
+import * as icons from './components/my-icons.js';
+
 export type Uid = string;
 
 export type CardID = string;
@@ -171,8 +173,7 @@ export interface TweetInfo {
     engagement_last_changed : Timestamp
 }
 
-//TODO: tighten this
-export type IconName = string;
+export type IconName = keyof(typeof icons);
 
 export type SelectorStyleMap = {
     [selector : string]: string[]
