@@ -1,7 +1,8 @@
 import {
 	ImageInfo,
 	ImageBlock,
-	CardLike
+	CardLike,
+	ImagePositionType
 } from './types.js';
 
 import {
@@ -17,8 +18,14 @@ const DEFAULT_IMAGE_POSITION = IMAGE_POSITION_TOP_LEFT;
 //styles.
 const MARGIN_SENTINEL = {};
 
+type CSSPositionPropertyName = 'float' | 'clear' | 'marginRight' | 'marginBottom' | 'marginLeft';
+
+type ImagePositionConfiguration = {
+	[type in CSSPositionPropertyName]+?: string | {}
+}
+
 //Each one is the style property/values to set on image eles with that value.
-export const LEGAL_IMAGE_POSITIONS = {
+export const LEGAL_IMAGE_POSITIONS : {[type in ImagePositionType]: ImagePositionConfiguration} = {
 	[IMAGE_POSITION_TOP_LEFT]: {
 		float: 'left',
 		marginRight: MARGIN_SENTINEL,
@@ -55,13 +62,12 @@ export const DEFAULT_IMAGE : ImageInfo = {
 	alt: '',
 };
 
-export const setImageProperties = (img : ImageInfo, ele) => {
+export const setImageProperties = (img : ImageInfo, ele : HTMLImageElement) : void => {
 	ele.src = img.src;
 	ele.alt = img.alt || '';
 	const styleInfo = LEGAL_IMAGE_POSITIONS[img.position] || {};
 	for (let [property, value] of Object.entries(styleInfo)) {
-		if (value == MARGIN_SENTINEL) value = '' + img.margin + 'em';
-		ele.style[property] = value;
+		ele.style[property] = value == MARGIN_SENTINEL ? '' + img.margin + 'em' : value;;
 	}
 	if (img.width !== undefined) ele.width = img.width;
 	if (img.height !== undefined) ele.height = img.height;
