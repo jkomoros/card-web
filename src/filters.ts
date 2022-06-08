@@ -1312,7 +1312,7 @@ export const piecesForConfigurableFilter = (fullFilterName : string) : Configura
 	return result;
 };
 
-const sectionNameForCard = (card, sections) => {
+const sectionNameForCard = (card : Card, sections : Sections) : string => {
 	if (!card) {
 		return '';
 	}
@@ -1467,11 +1467,11 @@ export const SORTS : SortConfigurationMap = {
 	}
 };
 
-const defaultCardFilterName = (basename) : [string, string, string, string] => {
+const defaultCardFilterName = (basename : string) : [string, string, string, string] => {
 	return ['has-' + basename, 'no-' + basename, 'does-not-need-' + basename, 'needs-' + basename];
 };
 
-const defaultNonTodoCardFilterName = (basename) : [string, string, string, string] => {
+const defaultNonTodoCardFilterName = (basename : string) : [string, string, string, string] => {
 	return [basename, 'not-' + basename, basename, 'not-' + basename];
 };
 
@@ -1481,7 +1481,7 @@ const TODO_COMBINED_INVERSE_FILTER_NAME = 'no-todo';
 
 //this is whether the given type of TODO might be _automaticaly_ applied. Any
 //card can manually have a TODO applied via auto_todo_overrides.
-const cardMayHaveAutoTODO = (card, todoConfig) => {
+const cardMayHaveAutoTODO = (card : Card, todoConfig : TODOTypeInfo) : boolean => {
 	return card && todoConfig.autoApply && (todoConfig.cardTypes ? todoConfig.cardTypes[card.card_type] : true);
 };
 
