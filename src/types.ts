@@ -567,6 +567,11 @@ export interface Card {
 
 }
 
+//Inspired by https://stackoverflow.com/a/54520829
+type KeysMatching<T, V> = {[K in keyof T]-?: T[K] extends V ? K : never}[keyof T];
+
+export type CardTimestampPropertyName = KeysMatching<Card,Timestamp>;
+
 type OptionalFields<Type> = {
     [Property in keyof Type]+?: Type[Property]
 };
