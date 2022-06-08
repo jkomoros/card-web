@@ -1236,7 +1236,13 @@ export const splitUnionFilter = (unionFilter : string) : string[] => {
 	return firstPart.split(UNION_FILTER_DELIMITER);
 };
 
-export const piecesForConfigurableFilter = (fullFilterName) => {
+type ConfigurableFilterControlPiece = {
+	controlType : string,
+	description : string,
+	value : string
+}
+
+export const piecesForConfigurableFilter = (fullFilterName : string) : ConfigurableFilterControlPiece[] => {
 	//TODO: it's kind of weird that this bespoke logic is here, instead of fully
 	//being driven by constant configuration from filters.js
 	const [filterName, rest] = splitCompoundFilter(fullFilterName);
