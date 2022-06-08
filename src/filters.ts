@@ -548,7 +548,7 @@ const makeExpandConfigurableFilter = (_ : string, ...remainingParts : string[]) 
 	return [func, false];
 };
 
-const makeCombineConfigurableFilter = (_, ...remainingParts : string[]) : ConfigurableFilterFuncFactoryResult => {
+const makeCombineConfigurableFilter = (_ : string, ...remainingParts : string[]) : ConfigurableFilterFuncFactoryResult => {
 
 	const [subFilterOne, subFilterTwo] = extractSubFilters(remainingParts);
 
@@ -583,15 +583,15 @@ const makeCombineConfigurableFilter = (_, ...remainingParts : string[]) : Config
 	return [func, false];
 };
 
-export const queryConfigurableFilterText = (queryText) => {
+export const queryConfigurableFilterText = (queryText : string) : string => {
 	return QUERY_FILTER_NAME + '/' + encodeURIComponent(queryText).split('%20').join('+');
 };
 
-const configurableFilterIsQuery = (filterName) => {
+const configurableFilterIsQuery = (filterName : string) : boolean => {
 	return filterName.startsWith(QUERY_FILTER_NAME + '/');
 };
 
-export const queryTextFromQueryFilter = (queryFilter) => {
+export const queryTextFromQueryFilter = (queryFilter : string) : string => {
 	if (!configurableFilterIsQuery(queryFilter)) return '';
 	const rawQueryString = queryFilter.split('/')[1];
 	return decodeURIComponent(rawQueryString).split('+').join(' ');
@@ -618,7 +618,7 @@ const makeQueryConfigurableFilter = (filterName : string, rawQueryString : strin
 //The special keyword for 'my user ID' in the configurable authors filter
 export const ME_AUTHOR_ID = 'me';
 
-const makeAuthorConfigurableFilter = (_, idString : string) : ConfigurableFilterFuncFactoryResult => {
+const makeAuthorConfigurableFilter = (_ : string, idString : string) : ConfigurableFilterFuncFactoryResult => {
 	const ids = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
 	//Technically the IDs are case sensitive, but the URL machinery lowercases everything.
 	//Realistically, collisions are astronomically unlikely
@@ -642,7 +642,7 @@ const makeAuthorConfigurableFilter = (_, idString : string) : ConfigurableFilter
 //underlying card set, and that should be fast.
 const memoizedFingerprintGenerator = memoize(cards => new FingerprintGenerator(cards));
 
-const makeSimilarConfigurableFilter = (_, rawCardID : string) : ConfigurableFilterFuncFactoryResult => {
+const makeSimilarConfigurableFilter = (_ : string, rawCardID : string) : ConfigurableFilterFuncFactoryResult => {
 
 	const [, includeKeyCard, cardIDs] = parseKeyCardID(rawCardID);
 	
@@ -677,7 +677,7 @@ const makeSimilarConfigurableFilter = (_, rawCardID : string) : ConfigurableFilt
 	return [func, false];
 };
 
-const makeSimilarCutoffConfigurableFilter = (_, rawCardID : string, rawFloatCutoff : string) : ConfigurableFilterFuncFactoryResult => {
+const makeSimilarCutoffConfigurableFilter = (_ : string, rawCardID : string, rawFloatCutoff : string) : ConfigurableFilterFuncFactoryResult => {
 	//note: makeExpandConfigurableFilter needs to be updated if the number or order of parameters changes.
 
 	const [, includeKeyCard, cardIDs] = parseKeyCardID(rawCardID);
