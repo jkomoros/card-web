@@ -41,8 +41,13 @@ import {
 	Cards,
 	CardID,
 	FilterMap,
-	Sections
+	Sections,
+	CardTestFunc
 } from '../types.js';
+
+import {
+	TypedObject
+} from '../typed_object.js';
 
 const app = (state : CollectionState = INITIAL_STATE, action : AnyAction) : CollectionState => {
 	switch (action.type) {
@@ -136,7 +141,7 @@ const makeFilterFromSection = (sections : Sections, includeDefaultSet? : boolean
 
 const makeFilterFromCards = (cards : Cards, previousFilters : Filters) => {
 	let result : Filters = {};
-	for (const [filterName, func] of Object.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], entry[1].func])) {
+	for (const [filterName, func] of TypedObject.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], entry[1].func] as [string,  CardTestFunc])) {
 		let newMatchingCards = [];
 		let newNonMatchingCards = [];
 		if(!func) throw new Error('Invalid func name: ' + filterName);

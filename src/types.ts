@@ -481,6 +481,8 @@ export type ReferenceTypeConfigurationMap = {
     }
 }
 
+export type CardTestFunc = (card : Card) => boolean;
+
 //When adding a field here, consider whether it should also be in CardDiff.
 export interface Card {
     id: CardID,
