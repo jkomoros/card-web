@@ -175,7 +175,7 @@ export const changeImagePropertyAtIndex = (imagesBlock : ImageBlock, index : num
 	return result;
 };
 
-export const imageBlocksEquivalent = (oneCard : CardLike, twoCard : CardLike) => {
+export const imageBlocksEquivalent = (oneCard : CardLike, twoCard : CardLike) : boolean => {
 	const one = getImagesFromCard(oneCard);
 	const two = getImagesFromCard(twoCard);
 	if (one.length != two.length) return false;
@@ -183,7 +183,7 @@ export const imageBlocksEquivalent = (oneCard : CardLike, twoCard : CardLike) =>
 		const oneImg = one[i];
 		const twoImg = two[i];
 		if (Object.keys(oneImg).length != Object.keys(twoImg).length) return false;
-		for (const imgKey of Object.keys(oneImg)) {
+		for (const imgKey of TypedObject.keys(oneImg)) {
 			if (oneImg[imgKey] != twoImg[imgKey]) return false;
 		}
 	}
