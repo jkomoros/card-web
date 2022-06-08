@@ -12,16 +12,22 @@ import {
 	IMAGE_POSITION_RIGHT
 } from './card_field_constants.js';
 
+import {
+	TypedObject
+} from './typed_object.js';
+
 const DEFAULT_IMAGE_POSITION = IMAGE_POSITION_TOP_LEFT;
 
 //A distinctive thing to stand in for "the image's margin value" when setting
 //styles.
-const MARGIN_SENTINEL = {};
+const MARGIN_SENTINEL = {
+	__margin__: true,
+};
 
 type CSSPositionPropertyName = 'float' | 'clear' | 'marginRight' | 'marginBottom' | 'marginLeft';
 
 type ImagePositionConfiguration = {
-	[type in CSSPositionPropertyName]+?: string | {}
+	[type in CSSPositionPropertyName]+?: string | typeof MARGIN_SENTINEL
 }
 
 //Each one is the style property/values to set on image eles with that value.
@@ -66,8 +72,10 @@ export const setImageProperties = (img : ImageInfo, ele : HTMLImageElement) : vo
 	ele.src = img.src;
 	ele.alt = img.alt || '';
 	const styleInfo = LEGAL_IMAGE_POSITIONS[img.position] || {};
-	for (let [property, value] of Object.entries(styleInfo)) {
-		ele.style[property] = value == MARGIN_SENTINEL ? '' + img.margin + 'em' : value;;
+	for (let [property, value] of TypedObject.entries(styleInfo)) {
+		//Tedhnically it's possible that value is not LITERALLY MARGIN_SENTINEL but that should be rare
+		const finalValue : string = value == MARGIN_SENTINEL ? '' + img.margin + 'em' : value as string;
+		ele.style[property] = finalValue;
 	}
 	if (img.width !== undefined) ele.width = img.width;
 	if (img.height !== undefined) ele.height = img.height;
