@@ -1560,8 +1560,8 @@ type CardFilterConfigMap = {
 }
 
 const CARD_FILTER_CONFIGS_FOR_TYPE : CardFilterConfigMap= Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).map(function(cardType){return ['type-' + cardType, [defaultNonTodoCardFilterName(cardType), card => card.card_type == cardType, TODO_TYPE_NA, 0.0, 'Card that is of ' + cardType + ' type.']];}));
-const CARD_FILTER_CONFIGS_FOR_REFERENCES : CardFilterConfigMap= Object.fromEntries(Object.keys(REFERENCE_TYPES).map(key => [key, [defaultCardFilterName(key + '-references'), card => references(card).byType[key], TODO_TYPE_NA, 0.0, 'Whether the card has any references of type ' + key]]));
-const CARD_FILTER_CONFIGS_FOR_REFERENCES_INBOUND : CardFilterConfigMap = Object.fromEntries(Object.keys(REFERENCE_TYPES).map(key => ['inbound-' + key, [defaultCardFilterName('inbound-' + key + '-references'), card => references(card).byTypeInbound[key], TODO_TYPE_NA, 0.0, 'Whether the card has any inbound references of type ' + key]]));
+const CARD_FILTER_CONFIGS_FOR_REFERENCES : CardFilterConfigMap= Object.fromEntries(TypedObject.keys(REFERENCE_TYPES).map(key => [key, [defaultCardFilterName(key + '-references'), card => references(card).byType[key] !== undefined, TODO_TYPE_NA, 0.0, 'Whether the card has any references of type ' + key]]));
+const CARD_FILTER_CONFIGS_FOR_REFERENCES_INBOUND : CardFilterConfigMap = Object.fromEntries(TypedObject.keys(REFERENCE_TYPES).map(key => ['inbound-' + key, [defaultCardFilterName('inbound-' + key + '-references'), card => references(card).byTypeInbound[key] !== undefined, TODO_TYPE_NA, 0.0, 'Whether the card has any inbound references of type ' + key]]));
 
 //Card filters are filters that can tell if a given card is in it given only the
 //card object itself. They're so common that in order to reduce extra machinery
