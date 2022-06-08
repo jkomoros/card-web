@@ -54,20 +54,20 @@ export const currentTimestamp = Timestamp.now;
 const deleteSentinelJSON = JSON.stringify(deleteField());
 const serverTimestampSentinelJSON = JSON.stringify(serverTimestamp());
 
-export const isDeleteSentinel = (value) => {
+export const isDeleteSentinel = (value : any) : boolean => {
 	if (typeof value !== 'object') return false;
 	//deleteSentinel returns new objects every time, but for now (at least) they
 	//at least stringify the same.
 	return JSON.stringify(value) == deleteSentinelJSON;
 };
 
-export const isServerTimestampSentinel = (value) => {
+export const isServerTimestampSentinel = (value : any) : boolean => {
 	if (typeof value !== 'object') return false;
 	//serverTimestampSentinel returns new objects every time, but for now (at least) they
 	//at least stringify the same.
 	return JSON.stringify(value) == serverTimestampSentinelJSON;
 };
 
-export const isFirestoreTimestamp = (value) => value instanceof Timestamp;
+export const isFirestoreTimestamp = (value : any) : boolean => value instanceof Timestamp;
 
-export const deepEqualIgnoringTimestamps = (a, b) => deepEqual(a, b, isFirestoreTimestamp);
+export const deepEqualIgnoringTimestamps = (a : any, b : any) : boolean => deepEqual(a, b, isFirestoreTimestamp);
