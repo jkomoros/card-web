@@ -106,6 +106,44 @@ export const DEFAULT_SET_NAME = 'main';
 export const READING_LIST_SET_NAME = 'reading-list';
 export const EVERYTHING_SET_NAME = 'everything';
 
+const INBOUND_SUFFIX = '-inbound';
+const OUTBOUND_SUFFIX = '-outbound';
+const DIRECT_PREFIX = 'direct-';
+
+const UPDATED_FILTER_NAME = 'updated';
+const LAST_TWEETED_FILTER_NAME = 'last-tweeted';
+
+const DIRECT_CONNECTIONS_FILTER_NAME = 'direct-connections';
+const CONNECTIONS_FILTER_NAME = 'connections';
+const CHILDREN_FILTER_NAME = 'children';
+const DESCENDANTS_FILTER_NAME = 'descendants';
+const PARENTS_FILTER_NAME = 'parents';
+const ANCESTORS_FILTER_NAME = 'ancestors';
+const REFERENCES_FILTER_NAME = 'references';
+const REFERENCES_INBOUND_FILTER_NAME = REFERENCES_FILTER_NAME + INBOUND_SUFFIX;
+const REFERENCES_OUTBOUND_FILTER_NAME = REFERENCES_FILTER_NAME + OUTBOUND_SUFFIX;
+export const DIRECT_REFERENCES_FILTER_NAME = DIRECT_PREFIX + REFERENCES_FILTER_NAME;
+export const DIRECT_REFERENCES_INBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_INBOUND_FILTER_NAME;
+export const DIRECT_REFERENCES_OUTBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_OUTBOUND_FILTER_NAME;
+const AUTHOR_FILTER_NAME = 'author';
+export const CARDS_FILTER_NAME = 'cards';
+export const EXCLUDE_FILTER_NAME = 'exclude';
+export const COMBINE_FILTER_NAME = 'combine';
+export const EXPAND_FILTER_NAME = 'expand';
+export const QUERY_FILTER_NAME = 'query';
+const QUERY_STRICT_FILTER_NAME = 'query-strict';
+export const LIMIT_FILTER_NAME = 'limit';
+export const OFFSET_FILTER_NAME = 'offset';
+export const SIMILAR_FILTER_NAME = 'similar';
+const SIMILAR_CUTOFF_FILTER_NAME = 'similar-cutoff';
+//About as in 'about this concept'. Ideally it would have been 'concept', but
+//that's reserved for the cardType filter. It used to be 'about' but that
+//conflicts with section name in production.
+const ABOUT_CONCEPT_FILTER_NAME = 'about-concept';
+const MISSING_CONCEPT_FILTER_NAME = 'missing-concept';
+export const SAME_TYPE_FILTER = 'same-type';
+export const DIFFERENT_TYPE_FILTER = 'different-type';
+
 /*
 * filterEquivalent - the name of the filter that, when applied to the everything
   set, will filter down to contain just the items in that set (although
@@ -731,44 +769,6 @@ const makeSimilarCutoffConfigurableFilter = (_ : string, rawCardID : string, raw
 const makeNoOpConfigurableFilter = () : ConfigurableFilterFuncFactoryResult => {
 	return [() => [true], false];
 };
-
-const INBOUND_SUFFIX = '-inbound';
-const OUTBOUND_SUFFIX = '-outbound';
-const DIRECT_PREFIX = 'direct-';
-
-const UPDATED_FILTER_NAME = 'updated';
-const LAST_TWEETED_FILTER_NAME = 'last-tweeted';
-
-const DIRECT_CONNECTIONS_FILTER_NAME = 'direct-connections';
-const CONNECTIONS_FILTER_NAME = 'connections';
-const CHILDREN_FILTER_NAME = 'children';
-const DESCENDANTS_FILTER_NAME = 'descendants';
-const PARENTS_FILTER_NAME = 'parents';
-const ANCESTORS_FILTER_NAME = 'ancestors';
-const REFERENCES_FILTER_NAME = 'references';
-const REFERENCES_INBOUND_FILTER_NAME = REFERENCES_FILTER_NAME + INBOUND_SUFFIX;
-const REFERENCES_OUTBOUND_FILTER_NAME = REFERENCES_FILTER_NAME + OUTBOUND_SUFFIX;
-export const DIRECT_REFERENCES_FILTER_NAME = DIRECT_PREFIX + REFERENCES_FILTER_NAME;
-export const DIRECT_REFERENCES_INBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_INBOUND_FILTER_NAME;
-export const DIRECT_REFERENCES_OUTBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_OUTBOUND_FILTER_NAME;
-const AUTHOR_FILTER_NAME = 'author';
-export const CARDS_FILTER_NAME = 'cards';
-export const EXCLUDE_FILTER_NAME = 'exclude';
-export const COMBINE_FILTER_NAME = 'combine';
-export const EXPAND_FILTER_NAME = 'expand';
-export const QUERY_FILTER_NAME = 'query';
-const QUERY_STRICT_FILTER_NAME = 'query-strict';
-export const LIMIT_FILTER_NAME = 'limit';
-export const OFFSET_FILTER_NAME = 'offset';
-export const SIMILAR_FILTER_NAME = 'similar';
-const SIMILAR_CUTOFF_FILTER_NAME = 'similar-cutoff';
-//About as in 'about this concept'. Ideally it would have been 'concept', but
-//that's reserved for the cardType filter. It used to be 'about' but that
-//conflicts with section name in production.
-const ABOUT_CONCEPT_FILTER_NAME = 'about-concept';
-const MISSING_CONCEPT_FILTER_NAME = 'missing-concept';
-export const SAME_TYPE_FILTER = 'same-type';
-export const DIFFERENT_TYPE_FILTER = 'different-type';
 
 //When these are seen in the URL as parts, how many more pieces to expect, to be
 //combined later. For things like `updated`, they want more than 1 piece more
