@@ -10,6 +10,7 @@ import {
     TEXT_FIELD_TYPES_EDITABLE,
     DATE_RANGE_TYPES,
     URL_PART_TYPES,
+    IMAGE_POSITION_TYPES,
 } from './card_field_constants.js';
 
 export type Uid = string;
@@ -58,8 +59,7 @@ export type WordCloud = [
     WordCloudItemInfos
 ];
 
-//TOOD: tighten
-type ImagePosition = string;
+export type ImagePositionType = keyof(typeof IMAGE_POSITION_TYPES);
 
 export interface ImageInfo {
     //Must always be set to a fully resolved url
@@ -75,7 +75,7 @@ export interface ImageInfo {
     original: string,
     alt: string,
     //Must be one of the values in LEGAL_IMAGE_POSITIONS
-    position: ImagePosition
+    position: ImagePositionType,
     //number in ems
     margin: number,
 }
