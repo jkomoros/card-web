@@ -2,7 +2,12 @@ import {
 	ImageInfo,
 	ImageBlock,
 	CardLike,
-	ImagePositionType
+	ImagePositionType,
+	ImageInfoStringProperty,
+	ImageInfoNumberProperty,
+	ImageInfoImagePositionTypeProperty,
+	ImageInfoProperty,
+	ImageInfoPropertyValue
 } from './types.js';
 
 import {
@@ -166,11 +171,29 @@ export const removeImageAtIndex = (imagesBlock : ImageBlock, index : number) => 
 	return result;
 };
 
-export const changeImagePropertyAtIndex = (imagesBlock : ImageBlock, index : number, property : string, value : any) => {
+const isImagePositionTypeProperty = (property : ImageInfoProperty): property is ImageInfoImagePositionTypeProperty => {
+	return property == 'position';
+}
+
+const isStringTypeProperty = (property : ImageInfoProperty, value : ImageInfoPropertyValue): property is ImageInfoStringProperty => {
+	return typeof value == 'string' && !isImagePositionTypeProperty(property);
+}
+
+export function changeImagePropertyAtIndex(imagesBlock : ImageBlock, index : number, property : ImageInfoStringProperty, value : string) : ImageBlock;
+export function changeImagePropertyAtIndex(imagesBlock : ImageBlock, index : number, property : ImageInfoNumberProperty, value : number) : ImageBlock;
+export function changeImagePropertyAtIndex(imagesBlock : ImageBlock, index : number, property : ImageInfoImagePositionTypeProperty, value : ImagePositionType) : ImageBlock;
+export function changeImagePropertyAtIndex(imagesBlock : ImageBlock, index : number, property : ImageInfoProperty, value : ImageInfoPropertyValue) : ImageBlock {
 	if (index < 0 || index >= imagesBlock.length) return imagesBlock;
 	const result = [...imagesBlock];
 	const item = {...result[index]};
-	item[property] = value;
+	if (isImagePositionTypeProperty(property)) {
+		item[property] = value as ImagePositionType;
+	} else if (isStringTypeProperty(property, value)) {
+		item[property] = value as string;
+	} else if (typeof value == 'number') {
+		item[property as ImageInfoNumberProperty] = value as number;
+	}
+	
 	result[index] = item;
 	return result;
 };
