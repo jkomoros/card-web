@@ -91,8 +91,13 @@ import {
 	ViewMode,
 	DateRangeType,
 	CardIdentifier,
-	CardTestFunc
+	CardTestFunc,
+	CardTimestampPropertyName
 } from './types.js';
+
+import {
+	Timestamp
+} from 'firebase/firestore';
 
 import {
 	TypedObject
@@ -219,10 +224,15 @@ export const makeDateSection = (comparsionType : DateRangeType, dateOne : Date, 
 	return result.join('/');
 };
 
-const makeDateConfigurableFilter = (propName : string, comparisonType : DateRangeType, firstDateStr? : string, secondDateStr? : string) : ConfigurableFilterFuncFactoryResult => {
+const dateConfigurableFilterMap : {[name : string] : CardTimestampPropertyName} = {
+	[UPDATED_FILTER_NAME] : 'updated_substantive' as CardTimestampPropertyName,
+	[LAST_TWEETED_FILTER_NAME]: 'last_tweeted' as CardTimestampPropertyName,
+}
 
-	if (propName == UPDATED_FILTER_NAME) propName = 'updated_substantive';
-	if (propName == LAST_TWEETED_FILTER_NAME) propName = 'last_tweeted';
+const makeDateConfigurableFilter = (propName : CardTimestampPropertyName | typeof UPDATED_FILTER_NAME | typeof LAST_TWEETED_FILTER_NAME, comparisonType : DateRangeType, firstDateStr? : string, secondDateStr? : string) : ConfigurableFilterFuncFactoryResult => {
+
+	const cardKey = dateConfigurableFilterMap[propName] || propName as CardTimestampPropertyName;
+
 	const firstDate = firstDateStr ? new Date(firstDateStr) : null;
 	const secondDate = secondDateStr ? new Date(secondDateStr) : null;
 
@@ -231,7 +241,7 @@ const makeDateConfigurableFilter = (propName : string, comparisonType : DateRang
 	switch (comparisonType) {
 	case BEFORE_FILTER_NAME:
 		func = function(card) {
-			const val = card[propName];
+			const val = card[cardKey] as Timestamp;
 			if (!val) return [false];
 			const difference = val.toMillis() - firstDate.getTime();
 			return [difference < 0];
@@ -239,7 +249,7 @@ const makeDateConfigurableFilter = (propName : string, comparisonType : DateRang
 		break;
 	case AFTER_FILTER_NAME:
 		func = function(card) {
-			const val = card[propName];
+			const val = card[cardKey] as Timestamp;
 			if (!val) return [false];
 			const difference = val.toMillis() - firstDate.getTime();
 			return [difference > 0];
@@ -249,7 +259,7 @@ const makeDateConfigurableFilter = (propName : string, comparisonType : DateRang
 		//Bail if the second date isn't provided
 		if (secondDate) {
 			func = function(card) {
-				const val = card[propName];
+				const val = card[cardKey] as Timestamp;
 				if (!val) return [false];
 				const firstDifference = val.toMillis() - firstDate.getTime();
 				const secondDifference = val.toMillis() - secondDate.getTime();
