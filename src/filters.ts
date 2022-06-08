@@ -1288,7 +1288,14 @@ export const piecesForConfigurableFilter = (fullFilterName : string) : Configura
 			});
 			pieceIndex += nextSubFilter.split('/').length;
 			break;
-		default:
+		case URL_PART_FREE_TEXT:
+		case URL_PART_KEY_CARD:
+		case URL_PART_INT:
+		case URL_PART_FLOAT:
+		case URL_PART_REFERENCE_TYPE:
+		case URL_PART_USER_ID:
+		case URL_PART_MULTIPLE_CARDS:
+		case URL_PART_CONCEPT_STR_OR_ID:
 			//The majority of filters are one piece for one argument.
 			result.push({
 				controlType,
@@ -1296,6 +1303,10 @@ export const piecesForConfigurableFilter = (fullFilterName : string) : Configura
 				value: pieces[pieceIndex],
 			});
 			pieceIndex++;
+			break;
+		default:
+			const _exhaustiveCheck : never = controlType;
+			throw new Error(_exhaustiveCheck);
 		}
 	}
 	return result;
