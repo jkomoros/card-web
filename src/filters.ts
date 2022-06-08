@@ -79,6 +79,7 @@ import {
 	StringCardMap,
 	ViewMode,
 	DateRangeType,
+	CardIdentifier
 } from './types.js';
 
 import {
@@ -339,7 +340,7 @@ const makeCardsConfigurableFilter = (_ : string, idString : string) : Configurab
 	//TODO: we could check if KEY_CARD_ID_PLACEHOLDER is in any of them, and if not
 	//never generate a new set of expanded ids to match to save a little
 	//performance.
-	const generator = memoize((keyCardID : CardID) => Object.fromEntries(Object.entries(rawIdsToMatch).map(entry => [entry[0], entry[1] == KEY_CARD_ID_PLACEHOLDER ? keyCardID : entry[1]])));
+	const generator = memoize((keyCardID : CardID) : {[id : CardIdentifier] : true} => Object.fromEntries(Object.entries(rawIdsToMatch).map(entry => [entry[0] == KEY_CARD_ID_PLACEHOLDER ? keyCardID : entry[0], entry[1]])));
 
 	//TODO: only calculate the slug --> id once so subsequent matches can be done with one lookup
 	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean] {
