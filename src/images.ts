@@ -91,14 +91,19 @@ export const getImagesFromCard = (card : CardLike) : ImageBlock => {
 	return images.map(img => ({...DEFAULT_IMAGE, ...img}));
 };
 
-export const srcSeemsValid = (src) => {
+export const srcSeemsValid = (src : string) : boolean => {
 	src = src.toLowerCase();
 	if (src.startsWith('https://')) return true;
 	if (src.startsWith('http://')) return true;
 	return false;
 };
 
-export const getImageDimensionsForImageAtURL = async (url) => {
+type imageDimensions = {
+	height : number,
+	width : number,
+}
+
+export const getImageDimensionsForImageAtURL = async (url : string) : Promise<imageDimensions> => {
 	const imgEle = document.createElement('img');
 	imgEle.src = url;
 	let p = new Promise<void>((resolve, reject) => {
