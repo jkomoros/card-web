@@ -9,6 +9,7 @@ import {
     REFERENCE_TYPE_TYPES,
     TEXT_FIELD_TYPES_EDITABLE,
     DATE_RANGE_TYPES,
+    URL_PART_TYPES,
 } from './card_field_constants.js';
 
 export type Uid = string;
@@ -270,8 +271,7 @@ export type ConfigurableFilterFuncFactoryResult = [func : ConfigurableFilterFunc
 
 type ConfigurableFilterFuncFactory = (...parts : string[]) => ConfigurableFilterFuncFactoryResult;
 
-//TODO: tighten to e.g. URL_PART_* constant values
-type ConfigurableFilterFuncURLPart = string;
+type ConfigurableFilterFuncURLPart = keyof(typeof URL_PART_TYPES);
 
 type ConfigurableFilterFuncArgument = {
     type : ConfigurableFilterFuncURLPart,

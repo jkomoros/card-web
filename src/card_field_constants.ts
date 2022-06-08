@@ -138,6 +138,7 @@ export const URL_PART_CONCEPT_STR_OR_ID = 'concept-str-or-id';
 //A sub-filter that expand knows how to pass multiple cards to
 export const URL_PART_EXPAND_FILTER = 'expand-filter';
 
+//These drive ConfigurableFilterFuncURLPart type
 export const URL_PART_TYPES = {
     [URL_PART_DATE_SECTION]: true,
     [URL_PART_FREE_TEXT] : true,
