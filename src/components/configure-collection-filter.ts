@@ -23,19 +23,22 @@ import {
 	splitUnionFilter,
 	splitCompoundFilter,
 	piecesForConfigurableFilter,
-	URL_PART_INT,
-	URL_PART_FLOAT,
-	URL_PART_REFERENCE_TYPE,
-	URL_PART_USER_ID,
 	ME_AUTHOR_ID,
-	URL_PART_KEY_CARD,
-	URL_PART_MULTIPLE_CARDS,
-	URL_PART_DATE_SECTION
 } from '../filters.js';
 
 import {
 	REFERENCE_TYPES
 } from '../card_fields.js';
+
+import {
+	URL_PART_INT,
+	URL_PART_FLOAT,
+	URL_PART_REFERENCE_TYPE,
+	URL_PART_USER_ID,
+	URL_PART_KEY_CARD,
+	URL_PART_MULTIPLE_CARDS,
+	URL_PART_DATE_SECTION
+} from '../card_field_constants.js';
 
 import './configure-collection-key-card.js';
 import './configure-collection-multiple-cards.js';

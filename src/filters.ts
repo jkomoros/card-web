@@ -33,7 +33,18 @@ import {
 	REFERENCE_TYPE_LINK,
 	BEFORE_FILTER_NAME,
 	AFTER_FILTER_NAME,
-	BETWEEN_FILTER_NAME
+	BETWEEN_FILTER_NAME,
+	URL_PART_DATE_SECTION,
+	URL_PART_FREE_TEXT,
+	URL_PART_KEY_CARD,
+	URL_PART_INT,
+	URL_PART_FLOAT,
+	URL_PART_REFERENCE_TYPE,
+	URL_PART_USER_ID,
+	URL_PART_SUB_FILTER,
+	URL_PART_MULTIPLE_CARDS,
+	URL_PART_CONCEPT_STR_OR_ID,
+	URL_PART_EXPAND_FILTER
 } from './card_field_constants.js';
 
 import {
@@ -815,19 +826,6 @@ const DEFAULT_DATE_FILTER = beforeTodayDefaultsFactory();
 const LINK_FILTER_BASE = INCLUDE_KEY_CARD_PREFIX + KEY_CARD_ID_PLACEHOLDER;
 
 const DEFAULT_LINK_SUB_FILTER = CHILDREN_FILTER_NAME + '/' + LINK_FILTER_BASE;
-
-export const URL_PART_DATE_SECTION = 'date';
-export const URL_PART_FREE_TEXT = 'text';
-export const URL_PART_KEY_CARD = 'key-card';
-export const URL_PART_INT = 'int';
-export const URL_PART_FLOAT = 'float';
-export const URL_PART_REFERENCE_TYPE = 'reference-type';
-export const URL_PART_USER_ID = 'user-id';
-export const URL_PART_SUB_FILTER = 'sub-filter';
-export const URL_PART_MULTIPLE_CARDS = 'multiple-cards';
-export const URL_PART_CONCEPT_STR_OR_ID = 'concept-str-or-id';
-//A sub-filter that expand knows how to pass multiple cards to
-export const URL_PART_EXPAND_FILTER = 'expand-filter';
 
 //the factories should return a filter func that takes the card to opeate on,
 //then cards. The factory will be provided with the individual parts of the

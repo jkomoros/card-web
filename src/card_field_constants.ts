@@ -124,3 +124,30 @@ export const DATE_RANGE_TYPES = {
 	[AFTER_FILTER_NAME]: true,
 	[BETWEEN_FILTER_NAME]: true,
 };
+
+export const URL_PART_DATE_SECTION = 'date';
+export const URL_PART_FREE_TEXT = 'text';
+export const URL_PART_KEY_CARD = 'key-card';
+export const URL_PART_INT = 'int';
+export const URL_PART_FLOAT = 'float';
+export const URL_PART_REFERENCE_TYPE = 'reference-type';
+export const URL_PART_USER_ID = 'user-id';
+export const URL_PART_SUB_FILTER = 'sub-filter';
+export const URL_PART_MULTIPLE_CARDS = 'multiple-cards';
+export const URL_PART_CONCEPT_STR_OR_ID = 'concept-str-or-id';
+//A sub-filter that expand knows how to pass multiple cards to
+export const URL_PART_EXPAND_FILTER = 'expand-filter';
+
+export const URL_PART_TYPES = {
+    [URL_PART_DATE_SECTION]: true,
+    [URL_PART_FREE_TEXT] : true,
+    [URL_PART_KEY_CARD] : true,
+    [URL_PART_INT] : true,
+    [URL_PART_FLOAT] : true,
+    [URL_PART_REFERENCE_TYPE] : true,
+    [URL_PART_USER_ID] : true,
+    [URL_PART_SUB_FILTER] : true,
+    [URL_PART_MULTIPLE_CARDS] : true,
+    [URL_PART_CONCEPT_STR_OR_ID] : true,
+    [URL_PART_EXPAND_FILTER] : true
+}
