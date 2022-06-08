@@ -59,8 +59,13 @@ export type WordCloud = [
     WordCloudItemInfos
 ];
 
+//Inspired by https://stackoverflow.com/a/54520829
+type KeysMatching<T, V> = {[K in keyof T]-?: T[K] extends V ? K : never}[keyof T];
+
 export type ImagePositionType = keyof(typeof IMAGE_POSITION_TYPES);
 
+//Note: images.ts:isImagePositionTypeProperty relies on position being the only
+//key for ImagePositionType
 export interface ImageInfo {
     //Must always be set to a fully resolved url
     src: string,
@@ -79,6 +84,12 @@ export interface ImageInfo {
     //number in ems
     margin: number,
 }
+
+export type ImageInfoStringProperty = KeysMatching<ImageInfo,string>;
+export type ImageInfoNumberProperty = KeysMatching<ImageInfo,number>;
+export type ImageInfoImagePositionTypeProperty = KeysMatching<ImageInfo,ImagePositionType>;
+export type ImageInfoProperty = ImageInfoStringProperty | ImageInfoNumberProperty | ImageInfoImagePositionTypeProperty;
+export type ImageInfoPropertyValue = string | number | ImagePositionType;
 
 export type ExpandedReferenceKey = string;
 export type ExpandedReferenceObject = {
@@ -566,9 +577,6 @@ export interface Card {
     tweet_count: number,
 
 }
-
-//Inspired by https://stackoverflow.com/a/54520829
-type KeysMatching<T, V> = {[K in keyof T]-?: T[K] extends V ? K : never}[keyof T];
 
 export type CardTimestampPropertyName = KeysMatching<Card,Timestamp>;
 
