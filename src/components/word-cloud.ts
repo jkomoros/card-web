@@ -37,7 +37,7 @@ export class WordCloud extends connect(store)(LitElement) {
 		return this.wordCloud || emptyWordCloud();
 	}
 
-	_handleTagTapped(e) {
+	_handleTagTapped(e : CustomEvent) {
 		const tagName = e.detail.tag;
 		const tagInfos = this._effectiveWordCloud[1];
 		const infoForTag = tagInfos[tagName];
