@@ -40,6 +40,7 @@ import {
 
 import {
 	makeAddCardEvent,
+	makeAddWorkingNotesCardEvent,
 	makeInfoZippyClickedEvent
 } from '../events.js';
 
@@ -192,7 +193,7 @@ class CardDrawer extends LitElement {
 	}
 
 	_handleCreateWorkingNotes() {
-		this.dispatchEvent(new CustomEvent('add-working-notes-card', {composed:true}));
+		this.dispatchEvent(makeAddWorkingNotesCardEvent());
 	}
 
 	constructor() {

@@ -233,3 +233,11 @@ export const ADD_CARD_EVENT_NAME = 'add-card';
 export const makeAddCardEvent = () : AddCardEvent => {
     return new CustomEvent(ADD_CARD_EVENT_NAME, {composed : true, detail: null})
 }
+
+export type AddWorkingNotesCardEvent = CustomEvent<null>;
+
+export const ADD_WORKING_NOTES_CARD_EVENT_NAME = 'add-working-notes-card';
+
+export const makeAddWorkingNotesCardEvent = () : AddWorkingNotesCardEvent => {
+    return new CustomEvent(ADD_WORKING_NOTES_CARD_EVENT_NAME, {composed : true, detail: null})
+}
