@@ -70,17 +70,21 @@ export class WebRenderer extends LitElement {
 	`;
 	}
 
-	_handleThumbnailClick(e) {
+	_handleThumbnailClick(e : MouseEvent) {
 		e.stopPropagation();
-		let card = e.composedPath()[0].id;
+		let ele = e.composedPath()[0];
+		if (!(ele instanceof SVGElement)) return;
+		let card = ele.id;
 		const ctrl = e.ctrlKey || e.metaKey;
 		//TODO: ctrl-click on mac shouldn't show the right click menu
 		this.dispatchEvent(makeThumbnailTappedEvent(card, ctrl));
 	}
 
-	_handleThumbnailMouseMove(e) {
+	_handleThumbnailMouseMove(e : MouseEvent) {
 		e.stopPropagation();
-		let id = e.composedPath()[0].id;
+		let ele = e.composedPath()[0];
+		if (!(ele instanceof SVGElement)) return;
+		let id = ele.id;
 		//card-web-app will catch the card-hovered event no matter where it was
 		//thrown from
 		this.dispatchEvent(makeCardHoveredEvent(id, e.clientX, e.clientY));
@@ -115,7 +119,7 @@ export class WebRenderer extends LitElement {
 		this._calculatedGraph = {nodes:[], edges:[]};
 	}
 
-	override updated(changedProps) {
+	override updated(changedProps : Map<string, any>) {
 		if (changedProps.has('webInfo')) {
 			this._calculatedGraph = this._recalcGraph();
 		}
