@@ -115,7 +115,7 @@ class TagChip  extends LitElement {
 			`;
 	}
 
-	_handleMouseMove(e) {
+	_handleMouseMove(e : MouseEvent) {
 		if (!this._previewCard) return;
 		//if any buttons are down (which could happen for e.g. a drag), don't report the hover
 		if (e.buttons) return;
@@ -125,7 +125,7 @@ class TagChip  extends LitElement {
 		this.dispatchEvent(makeCardHoveredEvent(this._previewCard, e.clientX, e.clientY));
 	}
 
-	_handleTagClicked(e) {
+	_handleTagClicked(e : MouseEvent) {
 		if (this._disabled) {
 			e.preventDefault();
 			return;
@@ -148,7 +148,7 @@ class TagChip  extends LitElement {
 		//Allow it go on and navigate
 	}
 
-	_handleXClicked(e) {
+	_handleXClicked(e : MouseEvent) {
 		if (this._disabled) return false;
 		e.preventDefault();
 		if (this.deletion) {
