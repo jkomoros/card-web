@@ -38,6 +38,10 @@ import {
 	Collection
 } from '../collection_description.js';
 
+import {
+	makeInfoZippyClickedEvent
+} from '../events.js';
+
 @customElement('card-drawer')
 class CardDrawer extends LitElement {
 
@@ -178,7 +182,7 @@ class CardDrawer extends LitElement {
 	}
 
 	_handleZippyClicked() {
-		this.dispatchEvent(new CustomEvent('info-zippy-clicked', {composed: true}));
+		this.dispatchEvent(makeInfoZippyClickedEvent());
 	}
 
 	_handleAddSlide() {

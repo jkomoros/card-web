@@ -217,3 +217,11 @@ export const REORDER_CARD_EVENT_NAME = 'reorder-card';
 export const makeReorderCardEvent = (card : CardID, otherID : CardID, isAfter : boolean = true ) : ReorderCardEvent => {
     return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {card, otherID, isAfter}});
 }
+
+export type InfoZippyClickedEvent = CustomEvent<null>;
+
+export const INFO_ZIPPY_CLICKED_EVENT_NAME = 'info-zippy-clicked';
+
+export const makeInfoZippyClickedEvent = () : InfoZippyClickedEvent => {
+    return new CustomEvent(INFO_ZIPPY_CLICKED_EVENT_NAME, {composed : true, detail: null})
+}
