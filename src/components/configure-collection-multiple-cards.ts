@@ -53,7 +53,7 @@ class ConfigureCollectionMultipleCards extends LitElement {
 		this.dispatchEvent(new CustomEvent('change-complex', {composed: true, detail: {value: newValue}}));
 	}
 
-	_handleRemoveTag(e) {
+	_handleRemoveTag(e : TagEvent) {
 		const oldValues = parseMultipleCardIDs(this.value);
 		if (oldValues.length < 2) {
 			console.warn('You must include at least one card');

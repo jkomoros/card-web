@@ -83,7 +83,7 @@ class CardImagesEditor extends connect(store)(LitElement) {
 		store.dispatch(openImagePropertiesDialog(index));
 	}
 
-	_handleRemoveTag(e) {
+	_handleRemoveTag(e : TagEvent) {
 		const index = parseInt(e.detail.tag);
 		store.dispatch(removeImageAtIndex(index));
 	}

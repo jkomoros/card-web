@@ -208,7 +208,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 		store.dispatch(addEnabledPermission(this.uid, e.detail.tag));
 	}
 
-	_handleRemove(e){
+	_handleRemove(e : TagEvent){
 		store.dispatch(clearPermission(this.uid, e.detail.tag));
 	}
 
@@ -224,9 +224,10 @@ class PermissionsEditor extends connect(store)(LitElement) {
 		store.dispatch(selectCardToAddPermissionTo(button.dataset.permission, this.uid));
 	}
 
-	_handleRemoveCardPermission(e) {
+	_handleRemoveCardPermission(e : TagEvent) {
 		let tagList = null;
 		for (let ele of e.composedPath()) {
+			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.localName == 'tag-list') {
 				tagList = ele;
 				break;

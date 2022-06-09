@@ -652,19 +652,19 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(selectCardToReference(value));
 	}
 
-	_handleAddAckReference(e) {
+	_handleAddAckReference(e : TagEvent) {
 		const cardID = e.detail.tag;
 		store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_ACK));
 	}
 
-	_handleRemoveReference(e) {
+	_handleRemoveReference(e : TagEvent) {
 		const cardID = e.detail.tag;
 		let referenceType = '';
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
 		for (let ele of e.composedPath()) {
 			//Could be a documentfragment
-			if (!ele.dataset) continue;
+			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
 				referenceType = ele.dataset.referenceType;
 				break;
@@ -704,7 +704,7 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(tagAdded(e.detail.tag));
 	}
 
-	_handleRemoveTag(e) {
+	_handleRemoveTag(e : TagEvent) {
 		store.dispatch(tagRemoved(e.detail.tag));
 	}
 
@@ -712,7 +712,7 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(editorAdded(e.detail.tag));
 	}
 
-	_handleRemoveEditor(e) {
+	_handleRemoveEditor(e : TagEvent) {
 		store.dispatch(editorRemoved(e.detail.tag));
 	}
 
@@ -724,7 +724,7 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(collaboratorAdded(e.detail.tag));
 	}
 
-	_handleRemoveCollaborator(e) {
+	_handleRemoveCollaborator(e : TagEvent) {
 		store.dispatch(collaboratorRemoved(e.detail.tag));
 	}
 
@@ -753,7 +753,7 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(autoTodoOverrideDisabled(e.detail.tag));
 	}
 
-	_handleRemoveTodoOverride(e) {
+	_handleRemoveTodoOverride(e : TagEvent) {
 		store.dispatch(autoTodoOverrideRemoved(e.detail.tag));
 	}
 

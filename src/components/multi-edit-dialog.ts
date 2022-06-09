@@ -234,7 +234,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		store.dispatch(addReference(e.detail.tag, referenceType));
 	}
 
-	_handleRemoveReference(e) {
+	_handleRemoveReference(e : TagEvent) {
 		let referenceType = '';
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)

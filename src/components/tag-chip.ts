@@ -9,7 +9,8 @@ import {
 
 import {
 	makeTagTappedEvent,
-	makeTagAddedEvent
+	makeTagAddedEvent,
+	makeTagRemovedEvent
 } from '../events.js';
 
 import {
@@ -155,7 +156,7 @@ class TagChip  extends LitElement {
 			this.dispatchEvent(makeTagAddedEvent(this.tagName));
 		} else {
 			//the dfeault case, this will fire a remove-tag
-			this.dispatchEvent(new CustomEvent('remove-tag', {composed: true, detail: {tag: this.tagName}}));
+			this.dispatchEvent(makeTagRemovedEvent(this.tagName));
 		}
 		
 		return false;
