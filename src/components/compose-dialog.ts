@@ -69,8 +69,9 @@ class ComposeDialog extends connect(store)(DialogElement) {
 		this.title = 'Compose';
 	}
 
-	_handleContentUpdated(e) {
+	_handleContentUpdated(e : InputEvent) {
 		let ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLTextAreaElement)) throw new Error('not textarea element');
 		store.dispatch(composeUpdateContent(ele.value));
 	}
 
