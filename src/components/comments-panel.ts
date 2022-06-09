@@ -45,7 +45,7 @@ import {
 	ComposedCommentThread,
 	State
 } from '../types.js';
-import { CommmentMessageEvent } from '../events.js';
+import { CommmentMessageEvent, CommmentThreadEvent } from '../events.js';
 
 @customElement('comments-panel')
 class CommentsPanel extends connect(store)(PageViewElement) {
@@ -163,7 +163,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 		store.dispatch(deleteMessage(e.detail.message));
 	}
 
-	_handleResolveThread(e) {
+	_handleResolveThread(e : CommmentThreadEvent) {
 		store.dispatch(resolveThread(e.detail.thread));
 	}
 

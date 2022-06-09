@@ -1,6 +1,7 @@
 import {
     CardID,
-    ComposedCommentMessage
+    ComposedCommentMessage,
+    ComposedCommentThread
 } from './types.js';
 
 type TagEventDetail = {
@@ -115,4 +116,16 @@ export const makeCommentEditMessageEvent = (message : ComposedCommentMessage) : 
 
 export const makeCommentDeleteMessageEvent = (message : ComposedCommentMessage) : CommmentMessageEvent => {
     return new CustomEvent(COMMENT_DELETE_MESSAGE_NAME, {composed : true, detail: {message}});
+}
+
+type CommentThreadDetail = {
+    thread : ComposedCommentThread;
+}
+
+export type CommmentThreadEvent = CustomEvent<CommentThreadDetail>;
+
+export const COMMENT_RESOLVE_THREAD_NAME = 'resolve-thread';
+
+export const makeCommentResolveThreadEvent = (thread : ComposedCommentThread) : CommmentThreadEvent => {
+    return new CustomEvent(COMMENT_RESOLVE_THREAD_NAME, {composed : true, detail: {thread}});
 }
