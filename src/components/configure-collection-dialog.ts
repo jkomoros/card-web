@@ -132,20 +132,23 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		store.dispatch(navigateToCollection(collectionDescriptionWithFilterAppended(this._collectionDescription, ALL_FILTER_NAME)));
 	}
 
-	_handleSetSelectChanged(e) {
+	_handleSetSelectChanged(e : Event) {
 		const ele = e.composedPath()[0];
+		if(!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		const set = ele.value;
 		store.dispatch(navigateToCollection(collectionDescriptionWithSet(this._collectionDescription, set)));
 	}
 
-	_handleSortSelectChanged(e) {
+	_handleSortSelectChanged(e : Event) {
 		const ele = e.composedPath()[0];
+		if(!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		const sort = ele.value;
 		store.dispatch(navigateToCollection(collectionDescriptionWithSort(this._collectionDescription, sort)));
 	}
 
-	_handleSortReversedCheckboxChanged(e) {
+	_handleSortReversedCheckboxChanged(e : Event) {
 		const ele = e.composedPath()[0];
+		if(!(ele instanceof HTMLInputElement)) throw new Error('not input element');
 		const sortReversed = ele.checked;
 		store.dispatch(navigateToCollection(collectionDescriptionWithSortReversed(this._collectionDescription, sortReversed)));
 	}
