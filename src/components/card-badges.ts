@@ -18,6 +18,7 @@ import {
 } from '../references.js';
 
 import {
+	BadgeMap,
 	OptionalFieldsCard
 } from '../types.js';
 
@@ -118,8 +119,13 @@ export const cardBadgesStyles = css`
 `;
 
 //badgeMap is the result of selectBadgeMap (or null is fine); Warning: you also need to embed cardBadgeStyles at least once
-export const cardBadges = (light : boolean, card : OptionalFieldsCard, badgeMap) => {
-	if (!badgeMap) badgeMap = {};
+export const cardBadges = (light : boolean, card : OptionalFieldsCard, badgeMap : BadgeMap) => {
+	if (!badgeMap) badgeMap = {
+		stars: {},
+		reads: {},
+		todos: {},
+		readingList: {},
+	};
 	const starMap = badgeMap.stars || {};
 	const readMap = badgeMap.reads || {};
 	const todoMap = badgeMap.todos || {};
