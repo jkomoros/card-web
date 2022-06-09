@@ -4,12 +4,12 @@ interface TagChipElementInterface extends HTMLElement {
     tagName : string
 }
 
-type TagTappedEventDetail = {
+type TagEventDetail = {
     tag : string,
     ele : TagChipElementInterface,
 };
 
-export type TagTappedEvent = CustomEvent<TagTappedEventDetail>;
+export type TagTappedEvent = CustomEvent<TagEventDetail>;
 
 export const TAG_TAPPED_EVENT_NAME = 'tag-tapped';
 
