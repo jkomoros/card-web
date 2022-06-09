@@ -172,6 +172,7 @@ import {
 
 import {
 	CardSwipedEvent,
+	DisabledCardHighlightClickedEvent,
 	ThumbnailTappedEvent,
 	UpdateRenderOffsetEvent
 } from '../events.js';
@@ -496,7 +497,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this.shadowRoot.querySelector('card-editor').textFieldUpdatedFromContentEditable(e.detail.field, e.detail.value);
 	}
 
-	_handleDisabledCardHighlightClicked(e) {
+	_handleDisabledCardHighlightClicked(e : DisabledCardHighlightClickedEvent) {
 		this.shadowRoot.querySelector('card-editor').disabledCardHighlightClicked(e.detail.card, e.detail.alternate);
 	}
 

@@ -24,7 +24,8 @@ import {
 } from '../types.js';
 
 import {
-	makeCardHoveredEvent
+	makeCardHoveredEvent,
+	makeDisabledCardHighlightClickedEvent
 } from '../events.js';
 
 @customElement('card-highlight')
@@ -112,7 +113,7 @@ class CardHighlight extends connect(store)(LitElement) {
 		//content editable would already be focused, and the highlight would be
 		//gone.
 		if (!this.disabled) return false;
-		this.dispatchEvent(new CustomEvent('disabled-card-highlight-clicked', {composed: true, detail: {card: this.card, alternate: this.alternate}}));
+		this.dispatchEvent(makeDisabledCardHighlightClickedEvent(this.card, this.alternate));
 		return killEvent(e);
 	}
 

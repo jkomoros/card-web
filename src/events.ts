@@ -176,3 +176,16 @@ export const CARD_SWIPED_EVENT_NAME = 'card-swiped';
 export const makeCardSwipedEvent = (direction : CardSwipeDirection) : CardSwipedEvent => {
     return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {direction}});
 }
+
+type DisabledCardHighlightClickedDetail = {
+    card : CardID,
+    alternate : boolean,
+}
+
+export type DisabledCardHighlightClickedEvent = CustomEvent<DisabledCardHighlightClickedDetail>;
+
+export const DISABLED_CARD_HIGHLIGHT_CLICKED_EVENT_NAME = 'disabled-card-highlight-clicked';
+
+export const makeDisabledCardHighlightClickedEvent = (card : CardID, alternate : boolean) : DisabledCardHighlightClickedEvent => {
+    return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {card, alternate}});
+}
