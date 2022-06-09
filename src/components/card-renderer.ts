@@ -63,7 +63,8 @@ import {
 	CardID,
 	CardFieldType,
 	CardFieldMap,
-	HTMLElementWithStashedSelectionOffset
+	HTMLElementWithStashedSelectionOffset,
+	CardFieldTypeEditable
 } from '../types.js';
 
 import {
@@ -470,10 +471,14 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		this._elements = {};
 	}
 
-	_textFieldChanged(e) {
+	_textFieldChanged(e : InputEvent) {
 		let ele = e.composedPath()[0];
-		const field = ele.field;
-		const config = TEXT_FIELD_CONFIGURATION[field] || {};
+		if (!(ele instanceof HTMLElement)) throw new Error('not html element');
+		const rawField = ele.dataset.field;
+		if (!rawField) throw new Error('no field dataset');
+		const field = rawField as CardFieldTypeEditable;
+		const config = TEXT_FIELD_CONFIGURATION[field];
+		if (!config) throw new Error('unknown field type');
 		const value = config.html ? ele.innerHTML : ele.innerText;
 		this.dispatchEvent(makeEditableCardFieldUpdatedEvent(field, value));
 	}
