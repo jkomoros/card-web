@@ -51,6 +51,10 @@ import {
 	Collection
 } from '../collection_description.js';
 
+import {
+	makeCardHoveredEvent
+} from '../events.js';
+
 //How many cards to cap the rendering limit at (unless overriden by the parent
 //of this element). This should be set to a number of elements that can be
 //rendered without bad performance on typical hardware.
@@ -469,7 +473,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		}
 		//card-web-app will catch the card-hovered event no matter where it was
 		//thrown from
-		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: cardID, x: e.clientX, y: e.clientY}}));
+		this.dispatchEvent(makeCardHoveredEvent(cardID, e.clientX, e.clientY));
 	}
 
 	_scrollHighlightedThumbnailIntoView(force) {

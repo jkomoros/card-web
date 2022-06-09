@@ -10,7 +10,8 @@ import {
 import {
 	makeTagTappedEvent,
 	makeTagAddedEvent,
-	makeTagRemovedEvent
+	makeTagRemovedEvent,
+	makeCardHoveredEvent
 } from '../events.js';
 
 import {
@@ -121,7 +122,7 @@ class TagChip  extends LitElement {
 		e.stopPropagation();
 		//card-web-app will catch the card-hovered event no matter where it was
 		//thrown from
-		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: this._previewCard, x: e.clientX, y: e.clientY}}));
+		this.dispatchEvent(makeCardHoveredEvent(this._previewCard, e.clientX, e.clientY));
 	}
 
 	_handleTagClicked(e) {

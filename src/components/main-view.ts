@@ -105,6 +105,11 @@ import {
 
 import { PageViewElement } from './page-view-element.js';
 
+import {
+	CardHoveredEvent,
+	CARD_HOVERED_EVENT_NAME
+} from '../events.js';
+
 @customElement('main-view')
 class MainView extends connect(store)(PageViewElement) {
 
@@ -391,7 +396,7 @@ class MainView extends connect(store)(PageViewElement) {
 		window.addEventListener('resize', () => this._handleResize());
 		this._handleResize();
 		window.addEventListener('keydown', e => this._handleKeyPressed(e));
-		this.addEventListener('card-hovered', e => this._handleCardHovered(e));
+		this.addEventListener(CARD_HOVERED_EVENT_NAME, (e : CardHoveredEvent) => this._handleCardHovered(e));
 	}
 
 	_connectViewAppData() {
@@ -471,7 +476,7 @@ class MainView extends connect(store)(PageViewElement) {
 		}
 	}
 
-	_handleCardHovered(e) {
+	_handleCardHovered(e : CardHoveredEvent) {
 		store.dispatch(hoveredCardMouseMoved());
 		store.dispatch(updateHoveredCard(e.detail.x, e.detail.y, e.detail.card));
 	}

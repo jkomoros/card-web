@@ -38,6 +38,10 @@ import {
 	State
 } from '../types.js';
 
+import {
+	makeCardHoveredEvent
+} from '../events.js';
+
 @customElement('card-link')
 class CardLink extends connect(store)(LitElement) {
 	
@@ -189,7 +193,7 @@ class CardLink extends connect(store)(LitElement) {
 		e.stopPropagation();
 		//cards-web-app will catch the card-hovered event no matter where it was
 		//thrown from
-		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: this.card, x: e.clientX, y: e.clientY}}));
+		this.dispatchEvent(makeCardHoveredEvent(this.card, e.clientX, e.clientY));
 	}
 
 	override stateChanged(state : State) {

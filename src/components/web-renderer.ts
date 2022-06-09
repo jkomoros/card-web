@@ -9,6 +9,7 @@ import {
 	WebInfoNodeWithLayout,
 	WebInfoWithLayout
 } from '../types';
+import { makeCardHoveredEvent } from '../events';
 
 @customElement('web-renderer')
 export class WebRenderer extends LitElement {
@@ -78,7 +79,7 @@ export class WebRenderer extends LitElement {
 		let id = e.composedPath()[0].id;
 		//card-web-app will catch the card-hovered event no matter where it was
 		//thrown from
-		this.dispatchEvent(new CustomEvent('card-hovered', {composed:true, detail: {card: id, x: e.clientX, y: e.clientY}}));
+		this.dispatchEvent(makeCardHoveredEvent(id, e.clientX, e.clientY));
 	}
 
 	_recalcGraph() : WebInfoWithLayout {
