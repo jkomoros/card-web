@@ -32,6 +32,7 @@ import * as icons from './my-icons.js';
 
 import {
 	CardBooleanMap,
+	CardFieldTypeEditable,
 	CardID,
 	Cards,
 	FilterMap,
@@ -52,7 +53,7 @@ class CardLink extends connect(store)(LitElement) {
 	href: string;
 	
 	@property({ type : String})
-	auto: string;
+	auto: CardFieldTypeEditable;
 
 	@property({ type : Boolean })
 	strong: boolean;
@@ -174,7 +175,7 @@ class CardLink extends connect(store)(LitElement) {
 		return html`<slot></slot>`;
 	}
 
-	_handleMouseClick(e) {
+	_handleMouseClick(e : MouseEvent) {
 		//If the user ctrl- or cmd-clicks, we should toggle reading list,
 		//otherwise we should return and allow default action.
 		if (!this.card) return;
@@ -187,7 +188,7 @@ class CardLink extends connect(store)(LitElement) {
 		e.preventDefault();
 	}
 
-	_handleMouseMove(e) {
+	_handleMouseMove(e : MouseEvent) {
 		//if any buttons are down (which could happen for e.g. a drag), don't report the hover
 		if (e.buttons) return;
 		e.stopPropagation();
