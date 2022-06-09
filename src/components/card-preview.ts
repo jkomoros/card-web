@@ -5,7 +5,7 @@ import { ExpandedReferenceBlocks } from '../reference_blocks.js';
 
 import {
 	BadgeMap,
-	Card
+	ProcessedCard
 } from '../types.js';
 
 import {
@@ -22,7 +22,7 @@ import {
 class CardPreview extends LitElement {
 
 	@property({ type : Object })
-	card: Card;
+	card: ProcessedCard;
 
 	@property({ type : Object })
 	badgeMap: BadgeMap;
