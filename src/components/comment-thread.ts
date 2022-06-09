@@ -17,6 +17,7 @@ import {
 } from '../types.js';
 
 import {
+	makeCommentAddMessageToThreadEvent,
 	makeCommentResolveThreadEvent,
 	makeShowNeedSigninEvent
 } from '../events.js';
@@ -108,7 +109,7 @@ class CommentThread extends LitElement {
 			this.dispatchEvent(makeShowNeedSigninEvent());
 			return;
 		}
-		this.dispatchEvent(new CustomEvent('add-message', {composed:true, detail: {thread: this.thread}}));
+		this.dispatchEvent(makeCommentAddMessageToThreadEvent(this.thread));
 	}
 }
 

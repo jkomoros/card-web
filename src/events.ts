@@ -128,7 +128,13 @@ export type CommmentThreadEvent = CustomEvent<CommentThreadDetail>;
 
 //TODO: name to thread-resolve?
 export const COMMENT_RESOLVE_THREAD_NAME = 'resolve-thread';
+//TODO: name to thread-add-message?
+export const COMMENT_ADD_MESSAGE_TO_THREAD_NAME = 'add-message';
 
 export const makeCommentResolveThreadEvent = (thread : ComposedCommentThread) : CommmentThreadEvent => {
     return new CustomEvent(COMMENT_RESOLVE_THREAD_NAME, {composed : true, detail: {thread}});
+}
+
+export const makeCommentAddMessageToThreadEvent = (thread : ComposedCommentThread) : CommmentThreadEvent => {
+    return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {thread}});
 }
