@@ -22,7 +22,7 @@ import {
 } from '../card_fields.js';
 
 import {
-	Card,
+	ProcessedCard,
 	CardID,
 	CardFieldMap
 } from '../types.js';
@@ -53,7 +53,7 @@ export class CardStage extends LitElement {
 	editing: boolean;
 
 	@property({ type : Object })
-	card: Card;
+	card: ProcessedCard;
 
 	@property({ type : Object })
 	updatedFromContentEditable: CardFieldMap;
