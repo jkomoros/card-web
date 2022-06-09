@@ -22,7 +22,8 @@ import {
 } from '../types.js';
 
 import {
-	makeTagAddedEvent
+	makeTagAddedEvent,
+	makeTagNewEvent
 } from '../events.js';
 
 @customElement('tag-list')
@@ -143,7 +144,7 @@ class TagList  extends LitElement {
 	}
 
 	_handleNew() {
-		this.dispatchEvent(new CustomEvent('new-tag', {composed:true}));
+		this.dispatchEvent(makeTagNewEvent());
 	}
 
 	_handleSelectChanged(e) {
