@@ -53,10 +53,10 @@ const makeTagEvent = (eventName : string, tagName : string, subtle : boolean = f
     return new CustomEvent(eventName, {composed: true, detail: {tag: tagName, subtle}});
 }
 
-export const makeCardHoveredEvent = (card : CardID, x : number, y : number) => {
+export const makeCardHoveredEvent = (card : CardID, x : number, y : number) : CardHoveredEvent => {
     return new CustomEvent(CARD_HOVERED_EVENT_NAME, {composed : true, detail: {card, x, y}});
 }
 
-export const makeThumbnailTappedEvent = (card : CardID, ctrl : boolean) => {
+export const makeThumbnailTappedEvent = (card : CardID, ctrl : boolean) : ThumbnailTappedEvent => {
     return new CustomEvent(THUMBNAIL_TAPPED_EVENT_NAME, {composed : true, detail: {card, ctrl}});
 }
