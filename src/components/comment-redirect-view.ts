@@ -43,7 +43,7 @@ class CommentRedirectView extends connect(store)(PageViewElement) {
 		this._pageExtra = state.app.pageExtra;
 	}
 
-	override updated(changedProps) {
+	override updated(changedProps : Map<string, any>) {
 		if (changedProps.has('_pageExtra')) {
 			if (this._pageExtra) {
 				store.dispatch(navigateToComment(this._pageExtra));
