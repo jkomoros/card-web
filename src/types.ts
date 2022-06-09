@@ -461,6 +461,10 @@ export type CardFieldTypeConfigurationMap = {
     [typ in CardFieldType]+?: CardFieldTypeConfiguration
 }
 
+export type CardFieldTypeEditableConfigurationMap = {
+    [typ in CardFieldTypeEditable]+?: CardFieldTypeConfiguration
+}
+
 //TODO: tighten this
 export type CSSColorString = string;
 

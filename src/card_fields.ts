@@ -16,7 +16,8 @@ import {
 	CardType,
 	ReferenceType,
 	FontSizeBoostMap,
-	CardFieldTypeEditable
+	CardFieldTypeEditable,
+	CardFieldTypeEditableConfigurationMap
 } from './types.js';
 
 import {
@@ -612,7 +613,7 @@ export const BODY_CARD_TYPES = TEXT_FIELD_CONFIGURATION[CONSTANTS.TEXT_FIELD_BOD
 //types of card that may have an image
 export const IMAGE_CARD_TYPES = TEXT_FIELD_CONFIGURATION[IMAGES_TEXT_FIELD].legalCardTypes;
 
-export const editableFieldsForCardType = (cardType : CardType) : CardFieldTypeConfigurationMap => {
+export const editableFieldsForCardType = (cardType : CardType) : CardFieldTypeEditableConfigurationMap => {
 	let result : CardFieldTypeConfigurationMap = {};
 	for (let key of TypedObject.keys(TEXT_FIELD_CONFIGURATION)) {
 		const config = TEXT_FIELD_CONFIGURATION[key];
