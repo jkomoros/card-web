@@ -18,6 +18,10 @@ import {
 	TagInfos
 } from '../types.js';
 
+import {
+	makeFilterModifiedComplexEvent
+} from '../events.js';
+
 @customElement('configure-collection-key-card')
 class ConfigureCollectionKeyCard extends LitElement {
 
@@ -51,7 +55,7 @@ class ConfigureCollectionKeyCard extends LitElement {
 	}
 
 	_dispatchNewValue(newValue) {
-		this.dispatchEvent(new CustomEvent('change-complex', {composed: true, detail: {value: newValue}}));
+		this.dispatchEvent(makeFilterModifiedComplexEvent(newValue));
 	}
 
 	_handleKeyCardChanged(e) {

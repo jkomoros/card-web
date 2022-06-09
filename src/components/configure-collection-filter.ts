@@ -50,6 +50,7 @@ import {
 } from '../types.js';
 
 import {
+	FilterModifiedEvent,
 	makeFilterModifiedEvent,
 	makeFilterRemovedEvent
 } from '../events.js';
@@ -149,8 +150,9 @@ class ConfigureCollectionFilter extends LitElement {
 		this.dispatchEvent(makeFilterModifiedEvent(newText, this.index));
 	}
 
-	_handleModifyFilterRestChangedComplex(e) {
+	_handleModifyFilterRestChangedComplex(e : FilterModifiedEvent) {
 		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLElement)) return;
 		this._modifyFilterChanged(parseInt(ele.dataset.subIndex), e.detail.value);
 	}
 

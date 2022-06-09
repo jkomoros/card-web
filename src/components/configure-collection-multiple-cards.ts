@@ -2,6 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 import {
+	makeFilterModifiedComplexEvent,
 	TagEvent
 } from '../events.js';
 
@@ -50,7 +51,7 @@ class ConfigureCollectionMultipleCards extends LitElement {
 	}
 
 	_dispatchNewValue(newValue) {
-		this.dispatchEvent(new CustomEvent('change-complex', {composed: true, detail: {value: newValue}}));
+		this.dispatchEvent(makeFilterModifiedComplexEvent(newValue));
 	}
 
 	_handleRemoveTag(e : TagEvent) {

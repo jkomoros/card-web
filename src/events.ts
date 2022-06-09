@@ -148,6 +148,8 @@ export type FilterModifiedEvent = CustomEvent<FilterModifiedDetail>;
 
 export const FILTER_MODIFIED_EVENT_NAME = 'filter-modified';
 export const FILTER_REMOVED_EVENT_NAME = 'filter-removed';
+//TODO: rename this to filter-modified-complex, or just get rid of it and do filter-modified?
+export const FILTER_MODIFIED_COMPLEX_EVENT_NAME = 'change-complex';
 
 export const makeFilterModifiedEvent = (value : string, index : number = 0) : FilterModifiedEvent => {
     return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {value, index}});
@@ -155,4 +157,8 @@ export const makeFilterModifiedEvent = (value : string, index : number = 0) : Fi
 
 export const makeFilterRemovedEvent = (index : number) : FilterModifiedEvent => {
     return makeFilterModifiedEvent('', index);
+}
+
+export const makeFilterModifiedComplexEvent = (value : string) : FilterModifiedEvent => {
+    return makeFilterModifiedEvent(value);
 }

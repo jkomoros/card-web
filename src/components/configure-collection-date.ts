@@ -13,6 +13,10 @@ import {
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
+import {
+	makeFilterModifiedComplexEvent
+} from '../events.js';
+
 
 @customElement('configure-collection-date')
 class ConfigureCollectionDate extends LitElement {
@@ -48,7 +52,7 @@ class ConfigureCollectionDate extends LitElement {
 	}
 
 	_dispatchNewValue(newValue) {
-		this.dispatchEvent(new CustomEvent('change-complex', {composed: true, detail: {value: newValue}}));
+		this.dispatchEvent(makeFilterModifiedComplexEvent(newValue));
 	}
 
 	_handleTypeChanged(e) {
