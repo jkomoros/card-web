@@ -126,7 +126,7 @@ export class DialogElement extends LitElement {
 		window.addEventListener('keydown', e => this._handleKeyDown(e));
 	}
 
-	_handleKeyDown(e) {
+	_handleKeyDown(e : KeyboardEvent) {
 		if (!this.open) return;
 		if (e.key == 'Escape') {
 			this.cancel();
@@ -134,7 +134,7 @@ export class DialogElement extends LitElement {
 		}
 	}
 
-	_handleBackgroundClicked(e) {
+	_handleBackgroundClicked(e : MouseEvent) {
 		let background = this.shadowRoot.querySelector('.background');
 		//If the click wasn't actualy directly on the background then ignore it.
 		if (e.composedPath()[0] != background) return;
@@ -163,7 +163,7 @@ export class DialogElement extends LitElement {
 		if (input instanceof HTMLElement) input.focus();
 	}
 
-	override updated(changedProps) {
+	override updated(changedProps : Map<string, any>) {
 		if (changedProps.has('open') && this.open) {
 			this._focusInputOnOpen();
 		}
