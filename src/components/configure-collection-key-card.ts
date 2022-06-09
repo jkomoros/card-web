@@ -54,12 +54,13 @@ class ConfigureCollectionKeyCard extends LitElement {
 		`;
 	}
 
-	_dispatchNewValue(newValue) {
+	_dispatchNewValue(newValue : string) {
 		this.dispatchEvent(makeFilterModifiedComplexEvent(newValue));
 	}
 
-	_handleKeyCardChanged(e) {
+	_handleKeyCardChanged(e : Event) {
 		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLInputElement)) return;
 		const [oldCardID] = parseKeyCardID(this.value);
 		this._dispatchNewValue(keyCardID(oldCardID, ele.checked));
 	}
