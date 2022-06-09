@@ -189,8 +189,9 @@ class PermissionsEditor extends connect(store)(LitElement) {
 		this._tagInfosForCards = selectTagInfosForCards(state);
 	}
 
-	_handleAddPermissionType(e) {
+	_handleAddPermissionType(e : Event) {
 		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLSelectElement)) return;
 		if (!ele.value) return;
 		const value = ele.value;
 		//Set it back to default
@@ -219,8 +220,9 @@ class PermissionsEditor extends connect(store)(LitElement) {
 		store.dispatch(deletePermissionsObjectForUser(this.uid));
 	}
 
-	_handleAddCardPermission(e) {
+	_handleAddCardPermission(e : MouseEvent) {
 		const button = e.composedPath()[0];
+		if (!(button instanceof HTMLButtonElement)) return;
 		store.dispatch(selectCardToAddPermissionTo(button.dataset.permission, this.uid));
 	}
 
