@@ -444,7 +444,7 @@ class MainView extends connect(store)(PageViewElement) {
 		ele.previewSize = Math.round(targetSize);
 	}
 
-	_handleKeyPressed(e) {
+	_handleKeyPressed(e : KeyboardEvent) {
 		if (e.key == 'Enter' && e.metaKey) {
 			e.stopPropagation();
 			e.preventDefault();
@@ -506,7 +506,7 @@ class MainView extends connect(store)(PageViewElement) {
 		this._badgeMap = selectBadgeMap(state);
 	}
 
-	override updated(changedProps) {
+	override updated(changedProps : Map<string, any>) {
 		if (changedProps.has('_mayViewUnpublished')) {
 			if (this._mayViewUnpublished) {
 				connectLiveUnpublishedCards();
