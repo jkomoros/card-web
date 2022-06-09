@@ -25,7 +25,8 @@ import {
 } from '../types.js';
 
 import {
-	makeCommentEditMessageEvent
+	makeCommentEditMessageEvent,
+	makeCommentDeleteMessageEvent
 } from '../events.js';
 
 @customElement('comment-message')
@@ -98,7 +99,7 @@ class CommentMessage extends LitElement {
 		if (!confirm('Delete this message forever? This action cannot be undone.')) {
 			return;
 		}
-		this.dispatchEvent(new CustomEvent('delete-message', {composed: true, detail: {message: this.message}}));
+		this.dispatchEvent(makeCommentDeleteMessageEvent(this.message));
 	}
 
 }

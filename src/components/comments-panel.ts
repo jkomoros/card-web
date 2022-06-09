@@ -159,7 +159,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 		store.dispatch(composeShow('What is your message? (Markdown syntax is supported)', content));
 	}
 
-	_handleDeleteMessage(e) {
+	_handleDeleteMessage(e : CommmentMessageEvent) {
 		store.dispatch(deleteMessage(e.detail.message));
 	}
 

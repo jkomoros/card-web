@@ -107,7 +107,12 @@ type CommentMessageDetail = {
 export type CommmentMessageEvent = CustomEvent<CommentMessageDetail>;
 
 export const COMMENT_EDIT_MESSAGE_NAME = 'edit-message';
+export const COMMENT_DELETE_MESSAGE_NAME = 'delete-message';
 
 export const makeCommentEditMessageEvent = (message : ComposedCommentMessage) : CommmentMessageEvent => {
     return new CustomEvent(COMMENT_EDIT_MESSAGE_NAME, {composed : true, detail: {message}});
+}
+
+export const makeCommentDeleteMessageEvent = (message : ComposedCommentMessage) : CommmentMessageEvent => {
+    return new CustomEvent(COMMENT_DELETE_MESSAGE_NAME, {composed : true, detail: {message}});
 }
