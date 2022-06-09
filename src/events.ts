@@ -22,11 +22,16 @@ type UpdateRenderOffsetDetail = {
     value : number;
 }
 
+type DialogShouldCloseDetail = {
+    cancelled : boolean;
+}
+
 export type TagEvent = CustomEvent<TagEventDetail>;
 export type NewTagEvent = CustomEvent<null>;
 export type CardHoveredEvent = CustomEvent<CardHoveredEventDetail>;
 export type ThumbnailTappedEvent = CustomEvent<ThumbnailTappedDetail>;
 export type UpdateRenderOffsetEvent = CustomEvent<UpdateRenderOffsetDetail>;
+export type DialogShouldCloseEvent = CustomEvent<DialogShouldCloseDetail>;
 
 export const TAG_TAPPED_EVENT_NAME = 'tag-tapped';
 //TODO: change to 'tag-added'
@@ -38,6 +43,7 @@ export const TAG_NEW_EVENT_NAME = 'new-tag';
 export const CARD_HOVERED_EVENT_NAME = 'card-hovered';
 export const THUMBNAIL_TAPPED_EVENT_NAME = 'thumbnail-tapped';
 export const UPDATE_RENDER_OFFSET_EVENT_NAME = 'update-render-offset';
+export const DIALOG_SHOULD_CLOSE_EVENT_NAME = 'dialog-should-close';
 
 export const makeTagTappedEvent = (tagName : string, subtle? : boolean) : TagEvent => {
     return makeTagEvent(TAG_TAPPED_EVENT_NAME, tagName, subtle);
@@ -70,3 +76,7 @@ export const makeThumbnailTappedEvent = (card : CardID, ctrl : boolean) : Thumbn
 export const makeUpdateRenderOffsetEvent = (value : number) : UpdateRenderOffsetEvent => {
     return new CustomEvent(UPDATE_RENDER_OFFSET_EVENT_NAME, {composed : true, detail : {value}});
 };
+
+export const makeDialogShouldCloseEvent = (cancelled : boolean = false) : DialogShouldCloseEvent => {
+    return new CustomEvent(DIALOG_SHOULD_CLOSE_EVENT_NAME, {composed : true, detail: {cancelled}});
+}
