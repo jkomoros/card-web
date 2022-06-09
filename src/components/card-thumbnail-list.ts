@@ -54,7 +54,8 @@ import {
 import {
 	makeCardHoveredEvent,
 	makeThumbnailTappedEvent,
-	makeUpdateRenderOffsetEvent
+	makeUpdateRenderOffsetEvent,
+	makeReorderCardEvent
 } from '../events.js';
 
 //How many cards to cap the rendering limit at (unless overriden by the parent
@@ -442,7 +443,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		const cardID = thumbnail.dataset.card;
 		let otherID = target.dataset.cardid;
 		let isAfter = target.dataset.after ? true : false;
-		this.dispatchEvent(new CustomEvent('reorder-card', {composed: true, detail: {card: cardID, otherID: otherID, isAfter: isAfter}}));
+		this.dispatchEvent(makeReorderCardEvent(cardID,otherID, isAfter));
 	}
 
 	_handleThumbnailClick(e) {

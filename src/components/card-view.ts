@@ -174,6 +174,7 @@ import {
 	CardSwipedEvent,
 	DisabledCardHighlightClickedEvent,
 	EditabledCardFieldUpdatedEvent,
+	ReorderCardEvent,
 	ThumbnailTappedEvent,
 	UpdateRenderOffsetEvent
 } from '../events.js';
@@ -590,7 +591,7 @@ class CardView extends connect(store)(PageViewElement) {
 		store.dispatch(createCard({cardType: CARD_TYPE_WORKING_NOTES}));
 	}
 
-	_handleReorderCard(e) {
+	_handleReorderCard(e : ReorderCardEvent) {
 		store.dispatch(reorderCard(e.detail.card, e.detail.otherID, e.detail.isAfter));
 	}
 

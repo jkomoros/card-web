@@ -203,3 +203,17 @@ export const EDITABLE_CARD_FIELD_UPDATED_EVENT_NAME = 'text-field-updated';
 export const makeEditableCardFieldUpdatedEvent = (field : CardFieldTypeEditable, value : string) : EditabledCardFieldUpdatedEvent => {
     return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {field, value}});
 }
+
+type ReorderCardDetail = {
+    card: CardID,
+    otherID: CardID,
+    isAfter : boolean
+}
+
+export type ReorderCardEvent = CustomEvent<ReorderCardDetail>;
+
+export const REORDER_CARD_EVENT_NAME = 'reorder-card';
+
+export const makeReorderCardEvent = (card : CardID, otherID : CardID, isAfter : boolean = true ) : ReorderCardEvent => {
+    return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {card, otherID, isAfter}});
+}
