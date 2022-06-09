@@ -195,7 +195,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 	_handleTagTapped(e : TagTappedEvent) {
 		//Only add it if not all cards already have it
-		if (!e.detail.ele.subtle) return;
+		if (!e.detail.subtle) return;
 		let referenceType = '';
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
