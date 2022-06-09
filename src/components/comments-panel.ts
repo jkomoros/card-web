@@ -159,7 +159,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 		this._showCompose(e.detail.message.message);
 	}
 
-	_showCompose(content) {
+	_showCompose(content : string) {
 		store.dispatch(composeShow('What is your message? (Markdown syntax is supported)', content));
 	}
 
