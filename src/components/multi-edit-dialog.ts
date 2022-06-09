@@ -70,7 +70,10 @@ import {
 	State,
 	TagInfos
 } from '../types.js';
-import { TagTappedEvent } from '../events.js';
+
+import {
+	TagEvent
+} from '../events.js';
 
 @customElement('multi-edit-dialog')
 class MultiEditDialog extends connect(store)(DialogElement) {
@@ -193,7 +196,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		store.dispatch(selectCardToReference(value));
 	}
 
-	_handleTagTapped(e : TagTappedEvent) {
+	_handleTagTapped(e : TagEvent) {
 		//Only add it if not all cards already have it
 		if (!e.detail.subtle) return;
 		let referenceType = '';

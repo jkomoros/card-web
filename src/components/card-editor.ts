@@ -147,7 +147,7 @@ import {
 } from '../types.js';
 
 import {
-	TagTappedEvent
+	TagEvent
 } from '../events.js';
 
 @customElement('card-editor')
@@ -594,7 +594,7 @@ class CardEditor extends connect(store)(LitElement) {
 		document.addEventListener('keydown', e => this._handleKeyDown(e));
 	}
 
-	_handleSuggestedConceptTapped(e : TagTappedEvent) {
+	_handleSuggestedConceptTapped(e : TagEvent) {
 		const cardID = e.detail.tag;
 		store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_CONCEPT));
 	}
@@ -700,7 +700,7 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(createTag(name, displayName));
 	}
 
-	_handleAddTag(e : TagTappedEvent) {
+	_handleAddTag(e : TagEvent) {
 		store.dispatch(tagAdded(e.detail.tag));
 	}
 

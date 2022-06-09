@@ -2,7 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 import {
-	TagTappedEvent
+	TagEvent
 } from '../events.js';
 
 import {
@@ -69,7 +69,7 @@ class ConfigureCollectionMultipleCards extends LitElement {
 		this._dispatchNewValue(combineMultipleCardIDs([...oldValues, cardID]));
 	}
 
-	_handleTagTapped(e : TagTappedEvent) {
+	_handleTagTapped(e : TagEvent) {
 		//TODO: pop a dialog
 		const cardID = prompt('What is the ID of the card?');
 		if (!cardID) return;

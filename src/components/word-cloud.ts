@@ -22,7 +22,7 @@ import {
 } from '../types.js';
 
 import {
-	TagTappedEvent
+	TagEvent
 } from '../events.js';
 
 @customElement('word-cloud')
@@ -41,7 +41,7 @@ export class WordCloud extends connect(store)(LitElement) {
 		return this.wordCloud || emptyWordCloud();
 	}
 
-	_handleTagTapped(e : TagTappedEvent) {
+	_handleTagTapped(e : TagEvent) {
 		const tagName = e.detail.tag;
 		const tagInfos = this._effectiveWordCloud[1];
 		const infoForTag = tagInfos[tagName];

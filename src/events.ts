@@ -3,14 +3,14 @@ type TagEventDetail = {
     subtle : boolean,
 };
 
-export type TagTappedEvent = CustomEvent<TagEventDetail>;
+export type TagEvent = CustomEvent<TagEventDetail>;
 
 export const TAG_TAPPED_EVENT_NAME = 'tag-tapped';
 
-export const makeTagTappedEvent = (tagName : string, subtle? : boolean) : TagTappedEvent => {
+export const makeTagTappedEvent = (tagName : string, subtle? : boolean) : TagEvent => {
     return makeTagEvent(TAG_TAPPED_EVENT_NAME, tagName, subtle);
 }
 
-const makeTagEvent = (eventName : string, tagName : string, subtle? : boolean) : CustomEvent<TagEventDetail> => {
+const makeTagEvent = (eventName : string, tagName : string, subtle? : boolean) : TagEvent => {
     return new CustomEvent(eventName, {composed: true, detail: {tag: tagName, subtle}});
 }
