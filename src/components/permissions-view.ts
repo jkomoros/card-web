@@ -104,7 +104,7 @@ class PermissionsView extends connect(store)(PageViewElement) {
 		this._permissionsLoaded = selectUserPermissionsLoaded(state);
 	}
 
-	override updated(changedProps) {
+	override updated(changedProps : Map<string, any>) {
 		if (changedProps.has('_userMayEditPermissions')) {
 			if (this._userMayEditPermissions) {
 				connectLivePermissions();
