@@ -123,8 +123,9 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 		this.title = 'Image Properties';
 	}
 
-	_handleTextInput(e) {
+	_handleTextInput(e : InputEvent) {
 		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLInputElement)) return;
 		store.dispatch(changeImagePropertyAtIndex(this._index, ele.dataset.property, ele.value));
 	}
 
