@@ -70,6 +70,10 @@ import {
 	ExpandedReferenceBlocks
 } from '../reference_blocks.js';
 
+import {
+	makeCardSwipedEvent
+} from '../events.js';
+
 export const CARD_WIDTH_IN_EMS = 43.63;
 export const CARD_HEIGHT_IN_EMS = 24.54;
 export const CARD_VERTICAL_PADDING_IN_EMS = 1.0;
@@ -447,10 +451,10 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		}
 
 		if (e.detail.dx > SWIPE_DX) {
-			this.dispatchEvent(new CustomEvent('card-swiped', {composed:true, detail: {direction:'right'}}));
+			this.dispatchEvent(makeCardSwipedEvent('right'));
 		}
 		if (e.detail.dx < - 1 *SWIPE_DX) {
-			this.dispatchEvent(new CustomEvent('card-swiped', {composed:true, detail: {direction:'left'}}));
+			this.dispatchEvent(makeCardSwipedEvent('left'));
 		}
 	}
 

@@ -162,3 +162,17 @@ export const makeFilterRemovedEvent = (index : number) : FilterModifiedEvent => 
 export const makeFilterModifiedComplexEvent = (value : string) : FilterModifiedEvent => {
     return makeFilterModifiedEvent(value);
 }
+
+type CardSwipeDirection = 'left' | 'right';
+
+type CardSwipedDetail = {
+    direction : CardSwipeDirection
+}
+
+export type CardSwipedEvent = CustomEvent<CardSwipedDetail>;
+
+export const CARD_SWIPED_EVENT_NAME = 'card-swiped';
+
+export const makeCardSwipedEvent = (direction : CardSwipeDirection) : CardSwipedEvent => {
+    return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {direction}});
+}

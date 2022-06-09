@@ -171,6 +171,7 @@ import {
 } from '../reference_blocks.js';
 
 import {
+	CardSwipedEvent,
 	ThumbnailTappedEvent,
 	UpdateRenderOffsetEvent
 } from '../events.js';
@@ -472,7 +473,7 @@ class CardView extends connect(store)(PageViewElement) {
 		store.dispatch(createForkedCard(this._card));
 	}
 
-	_handleCardSwiped(e) {
+	_handleCardSwiped(e : CardSwipedEvent) {
 		if (e.detail.direction == 'left') {
 			this._handleForwardClicked();
 		}
