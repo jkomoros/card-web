@@ -225,3 +225,11 @@ export const INFO_ZIPPY_CLICKED_EVENT_NAME = 'info-zippy-clicked';
 export const makeInfoZippyClickedEvent = () : InfoZippyClickedEvent => {
     return new CustomEvent(INFO_ZIPPY_CLICKED_EVENT_NAME, {composed : true, detail: null})
 }
+
+export type AddCardEvent = CustomEvent<null>;
+
+export const ADD_CARD_EVENT_NAME = 'add-card';
+
+export const makeAddCardEvent = () : AddCardEvent => {
+    return new CustomEvent(ADD_CARD_EVENT_NAME, {composed : true, detail: null})
+}

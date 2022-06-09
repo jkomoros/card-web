@@ -39,6 +39,7 @@ import {
 } from '../collection_description.js';
 
 import {
+	makeAddCardEvent,
 	makeInfoZippyClickedEvent
 } from '../events.js';
 
@@ -187,7 +188,7 @@ class CardDrawer extends LitElement {
 
 	_handleAddSlide() {
 		if (!this.showCreateCard) return;
-		this.dispatchEvent(new CustomEvent('add-card', {composed:true}));
+		this.dispatchEvent(makeAddCardEvent());
 	}
 
 	_handleCreateWorkingNotes() {
