@@ -156,7 +156,7 @@ class ConfigureCollectionFilter extends LitElement {
 
 	_handleModifyFilterRestChanged(e) {
 		const ele = e.composedPath()[0];
-		this._modifyFilterChanged(parseInt(ele.data.subIndex), ele.value);
+		this._modifyFilterChanged(parseInt(ele.dataset.subIndex), ele.value);
 	}
 
 	_handleAddUnionFilterClicked(e) {
@@ -191,7 +191,7 @@ class ConfigureCollectionFilter extends LitElement {
 		}
 		const filterPieces = splitUnionFilter(this.value);
 		if (filterPieces.length > 1) {
-			filterPieces.splice(parseInt(ele.data.subIndex), 1);
+			filterPieces.splice(parseInt(ele.dataset.subIndex), 1);
 			this.dispatchEvent(makeFilterModifiedEvent(filterPieces.join(UNION_FILTER_DELIMITER), this.index));
 			return;
 		}
