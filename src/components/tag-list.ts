@@ -21,6 +21,10 @@ import {
 	TagInfos
 } from '../types.js';
 
+import {
+	makeTagAddedEvent
+} from '../events.js';
+
 @customElement('tag-list')
 class TagList  extends LitElement {
 	
@@ -158,7 +162,7 @@ class TagList  extends LitElement {
 		}
 		//Note: a similar event is fired in tag-chip when editing and hitting
 		//the x and deletion is true.
-		this.dispatchEvent(new CustomEvent('add-tag', {composed: true, detail:{tag: value}}));
+		this.dispatchEvent(makeTagAddedEvent(value));
 	}
 
 	get typeName() {

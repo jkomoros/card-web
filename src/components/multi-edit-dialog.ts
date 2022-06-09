@@ -216,13 +216,13 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		store.dispatch(addReference(e.detail.tag, referenceType));
 	}
 
-	_handleUnremoveReference(e) {
+	_handleUnremoveReference(e : TagEvent) {
 		let referenceType = '';
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
 		for (let ele of e.composedPath()) {
 			//e.g. documentFragment
-			if (!ele.dataset) continue;
+			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
 				referenceType = ele.dataset.referenceType;
 				break;

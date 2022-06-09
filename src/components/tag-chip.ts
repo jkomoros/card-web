@@ -8,7 +8,8 @@ import {
 } from '../actions/app.js';
 
 import {
-	makeTagTappedEvent
+	makeTagTappedEvent,
+	makeTagAddedEvent
 } from '../events.js';
 
 import {
@@ -151,7 +152,7 @@ class TagChip  extends LitElement {
 		if (this.deletion) {
 			//In this (special) case, the user has removed us previously and so
 			//now clicking again should UN-delete us, by firing an add-tag.
-			this.dispatchEvent(new CustomEvent('add-tag', {composed: true, detail: {tag: this.tagName}}));
+			this.dispatchEvent(makeTagAddedEvent(this.tagName));
 		} else {
 			//the dfeault case, this will fire a remove-tag
 			this.dispatchEvent(new CustomEvent('remove-tag', {composed: true, detail: {tag: this.tagName}}));

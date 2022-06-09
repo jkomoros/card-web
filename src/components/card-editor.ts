@@ -708,7 +708,7 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(tagRemoved(e.detail.tag));
 	}
 
-	_handleAddEditor(e) {
+	_handleAddEditor(e : TagEvent) {
 		store.dispatch(editorAdded(e.detail.tag));
 	}
 
@@ -720,7 +720,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._addNewEditorOrCollaborator(true);
 	}
 
-	_handleAddCollaborator(e) {
+	_handleAddCollaborator(e : TagEvent) {
 		store.dispatch(collaboratorAdded(e.detail.tag));
 	}
 
@@ -745,11 +745,11 @@ class CardEditor extends connect(store)(LitElement) {
 		}
 	}
 
-	_handleAddTodoOverrideEnabled(e) {
+	_handleAddTodoOverrideEnabled(e : TagEvent) {
 		store.dispatch(autoTodoOverrideEnabled(e.detail.tag));
 	}
 
-	_handleAddTodoOverrideDisabled(e) {
+	_handleAddTodoOverrideDisabled(e : TagEvent) {
 		store.dispatch(autoTodoOverrideDisabled(e.detail.tag));
 	}
 

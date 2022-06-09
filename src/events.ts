@@ -6,9 +6,15 @@ type TagEventDetail = {
 export type TagEvent = CustomEvent<TagEventDetail>;
 
 export const TAG_TAPPED_EVENT_NAME = 'tag-tapped';
+//TODO: change to 'tag-added'
+export const TAG_ADDED_EVENT_NAME = 'add-tag';
 
 export const makeTagTappedEvent = (tagName : string, subtle? : boolean) : TagEvent => {
     return makeTagEvent(TAG_TAPPED_EVENT_NAME, tagName, subtle);
+}
+
+export const makeTagAddedEvent = (tagName : string) : TagEvent => {
+    return makeTagEvent(TAG_ADDED_EVENT_NAME, tagName);
 }
 
 const makeTagEvent = (eventName : string, tagName : string, subtle? : boolean) : TagEvent => {
