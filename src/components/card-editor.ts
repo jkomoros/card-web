@@ -143,12 +143,18 @@ import {
 	TagID,
 	Slug,
 	CardID,
-	State
+	State,
+	ReferenceType,
+	CardFieldType
 } from '../types.js';
 
 import {
 	TagEvent
 } from '../events.js';
+
+import {
+	TypedObject
+} from '../typed_object.js';
 
 @customElement('card-editor')
 class CardEditor extends connect(store)(LitElement) {
@@ -410,7 +416,7 @@ class CardEditor extends connect(store)(LitElement) {
 
 			</div>
 			<div ?hidden=${this._selectedEditorTab !== EDITOR_TAB_CONTENT} class='body flex'>
-				${Object.entries(editableFieldsForCardType(this._card.card_type)).map(entry => html`<label>${toTitleCase(entry[0])}${entry[1].description ? help(entry[1].description) : ''}</label>
+				${TypedObject.entries(editableFieldsForCardType(this._card.card_type)).map(entry => html`<label>${toTitleCase(entry[0])}${entry[1].description ? help(entry[1].description) : ''}</label>
 					${entry[1].html
 		? html`<textarea @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${this._card[entry[0]]}></textarea>`
 		: html`<input type='text' @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${this._card[entry[0]] || ''}></input>`}
@@ -511,7 +517,7 @@ class CardEditor extends connect(store)(LitElement) {
 					</div>
 				</div>
 				<div class='row'>
-					${Object.entries(REFERENCE_TYPES).filter(entry => referencesMap[entry[0]]).map(entry => {
+					${TypedObject.entries(REFERENCE_TYPES).filter(entry => referencesMap[entry[0]]).map(entry => {
 		return html`<div>
 							<label>${entry[1].name} ${help(entry[1].description, false)} <button class='small' data-reference-type=${entry[0]} @click=${this._handleRemoveAllReferencesOfTypeClicked} title=${'Remove all references of type ' + entry[1].name} >${HIGHLIGHT_OFF_ICON}</button></label>
 							<tag-list .overrideTypeName=${'Reference'} .disableTagIfMissingTagInfo=${true} .disabledDescription=${'You do not have permission to view this card so you may not remove the reference to it.'} data-reference-type=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .editing=${entry[1].editable} .subtle=${!entry[1].editable} .tapEvents=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveReference}></tag-list>
@@ -575,7 +581,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._hasUnsavedChanges = selectEditingCardHasUnsavedChanges(state);
 	}
 
-	override updated(changedProps) {
+	override updated(changedProps : Map<string, any>) {
 		if (changedProps.has('_underlyingCardDifferences') && this._underlyingCardDifferences) {
 			//TODO: isn't it kind of weird to have the view be the thing thta
 			//triggers the autoMerge? Shouldn't it be some wrapper around
@@ -615,27 +621,28 @@ class CardEditor extends connect(store)(LitElement) {
 		}
 	}
 
-	_handleRemoveAllReferencesOfTypeClicked(e) {
+	_handleRemoveAllReferencesOfTypeClicked(e : MouseEvent) {
 		let referenceType = '';
 		for (const ele of e.composedPath()) {
 			//Could be a documentfragment
-			if (!ele.dataset) continue;
+			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
 				referenceType = ele.dataset.referenceType;
 				break;
 			}
 		}
 		if (!referenceType) return;
-		const ids = references(this._card).byTypeArray()[referenceType];
+		const ids = references(this._card).byTypeArray()[referenceType as ReferenceType];
 		if (!ids) return;
 		for (const cardID of ids) {
 			store.dispatch(removeReferenceFromCard(cardID, referenceType));
 		}
 	}
 
-	_handleCardTypeChanged(e) {
+	_handleCardTypeChanged(e : Event) {
 		if (!this._active) return;
 		let ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLSelectElement)) throw new Error('ele not select');
 		store.dispatch(cardTypeUpdated(ele.value));
 	}
 
@@ -643,8 +650,9 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(deleteCard(this._card));
 	}
 
-	_handleAddReference(e) {
+	_handleAddReference(e : Event) {
 		const ele = e.composedPath()[0];
+		if(!(ele instanceof HTMLSelectElement)) throw new Error('ele not select');
 		if (!ele.value) return;
 		const value = ele.value;
 		//Set it back to default
@@ -676,17 +684,17 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(removeReferenceFromCard(cardID, referenceType));
 	}
 
-	_handleTabClicked(e) {
-		const ele = e.path[0];
-		if (!ele) return;
+	_handleTabClicked(e : MouseEvent) {
+		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLElement)) throw new Error('ele not html element');
 		const name = ele.getAttribute('data-name');
 		if (!name) return;
 		store.dispatch(editingSelectTab(name));
 	}
 
-	_handleEditorTabClicked(e) {
-		const ele = e.path[0];
-		if (!ele) return;
+	_handleEditorTabClicked(e : MouseEvent) {
+		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLElement)) throw new Error('ele not html element');
 		const name = ele.getAttribute('data-name');
 		if (!name) return;
 		store.dispatch(editingSelectEditorTab(name));
@@ -732,7 +740,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._addNewEditorOrCollaborator(false);
 	}
 
-	_addNewEditorOrCollaborator(isEditor) {
+	_addNewEditorOrCollaborator(isEditor : boolean) {
 		const uid = prompt('What is the uid of the user to add? You can get this from the firebase authentication console.');
 		if (!uid) {
 			console.log('No uid provided');
@@ -757,7 +765,7 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(autoTodoOverrideRemoved(e.detail.tag));
 	}
 
-	_handleKeyDown(e) {
+	_handleKeyDown(e : KeyboardEvent) {
 		//We have to hook this to issue content editable commands when we're
 		//active. But most of the time we don't want to do anything.
 		if (!this._active) return;
@@ -797,17 +805,18 @@ class CardEditor extends connect(store)(LitElement) {
 		}
 	}
 
-	_handleTextFieldUpdated(e) {
+	_handleTextFieldUpdated(e : InputEvent) {
 		if (!this._active) return;
 		let ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLTextAreaElement)) throw new Error('ele not textarea');
 		store.dispatch(textFieldUpdated(ele.dataset.field, ele.value, false));
 	}
 
-	textFieldUpdatedFromContentEditable(field, value) {
+	textFieldUpdatedFromContentEditable(field : CardFieldType, value : string) {
 		store.dispatch(textFieldUpdated(field, value, true));
 	}
 
-	disabledCardHighlightClicked(cardID, alternate) {
+	disabledCardHighlightClicked(cardID : CardID, alternate : boolean) {
 		if (!this._active) return;
 		if(alternate) {
 			store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_CONCEPT));
@@ -816,27 +825,31 @@ class CardEditor extends connect(store)(LitElement) {
 		}
 	}
 
-	_handleNotesUpdated(e) {
+	_handleNotesUpdated(e : InputEvent) {
 		if (!this._active) return;
 		let ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLTextAreaElement)) throw new Error('ele not textarea');
 		store.dispatch(notesUpdated(ele.value));
 	}
 
-	_handleTodoUpdated(e) {
+	_handleTodoUpdated(e : InputEvent) {
 		if (!this._active) return;
 		let ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLTextAreaElement)) throw new Error('ele not textarea');
 		store.dispatch(todoUpdated(ele.value));
 	}
 
-	_handleSectionUpdated(e) {
+	_handleSectionUpdated(e : Event) {
 		if (!this._active) return;
 		let ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLSelectElement)) throw new Error('ele not select');
 		store.dispatch(sectionUpdated(ele.value));
 	}
 
-	_handleNameUpdated(e) {
+	_handleNameUpdated(e : Event) {
 		if (!this._active) return;
 		let ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLSelectElement)) throw new Error('ele not select');
 		store.dispatch(nameUpdated(ele.value));
 	}
 
@@ -849,21 +862,24 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(addSlug(id, value));
 	}
 
-	_handleFullBleedUpdated(e) {
+	_handleFullBleedUpdated(e : Event) {
 		if(!this._active) return; 
 		let ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLInputElement)) throw new Error('ele not input');
 		store.dispatch(fullBleedUpdated(ele.checked));
 	}
 
-	_handlePublishedUpdated(e) {
+	_handlePublishedUpdated(e : Event) {
 		if(!this._active) return; 
 		let ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLInputElement)) throw new Error('ele not input');
 		store.dispatch(publishedUpdated(ele.checked));
 	}
 
-	_handleSubstantiveChanged(e) {
-		if (!this._active) return;
+	_handleSubstantiveChanged(e : Event) {
+		if(!this._active) return; 
 		let ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLInputElement)) throw new Error('ele not input');
 		store.dispatch(substantiveUpdated(ele.checked));
 	}
 
