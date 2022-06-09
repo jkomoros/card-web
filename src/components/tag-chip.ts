@@ -2,14 +2,20 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { StyleInfo, styleMap } from 'lit/directives/style-map.js';
-import { urlForTag } from '../actions/app';
-import { makeTagTappedEvent } from '../events';
+
+import {
+	urlForTag
+} from '../actions/app.js';
+
+import {
+	makeTagTappedEvent
+} from '../events.js';
 
 import {
 	Card,
 	CSSColorString,
 	TagInfos
-} from '../types';
+} from '../types.js';
 
 @customElement('tag-chip')
 class TagChip  extends LitElement {
