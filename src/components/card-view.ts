@@ -489,8 +489,9 @@ class CardView extends connect(store)(PageViewElement) {
 		store.dispatch(openConfigureCollectionDialog());
 	}
 
-	_handleSuggestMissingConceptsChanged(e) {
+	_handleSuggestMissingConceptsChanged(e : Event) {
 		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLInputElement)) throw new Error('not input element');
 		const on = ele.checked;
 		store.dispatch(turnSuggestMissingConcepts(on));
 	}
@@ -652,7 +653,7 @@ class CardView extends connect(store)(PageViewElement) {
 		document.addEventListener('keydown', e => this._handleKeyDown(e));
 	}
 
-	_handleKeyDown(e) {
+	_handleKeyDown(e : KeyboardEvent) {
 		//We have to hook this to issue content editable commands when we're
 		//active. But most of the time we don't want to do anything.
 		if (!this.active) return false;
@@ -687,7 +688,7 @@ class CardView extends connect(store)(PageViewElement) {
 		}
 	}
 
-	_changedPropsAffectCanvasSize(changedProps) {
+	_changedPropsAffectCanvasSize(changedProps : Map<string, any>) {
 		let sizeProps = [
 			'_headerPanelOpen',
 			'_commentsAndInfoPanelOpen',
@@ -708,7 +709,7 @@ class CardView extends connect(store)(PageViewElement) {
 		stage.resizeCard();
 	}
 
-	override updated(changedProps) {
+	override updated(changedProps : Map<string, any>) {
 		if (changedProps.has('_pageExtra')) {
 			if (this._pageExtra) {
 				store.dispatch(updateCardSelector(this._pageExtra));
