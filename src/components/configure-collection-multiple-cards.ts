@@ -50,7 +50,7 @@ class ConfigureCollectionMultipleCards extends LitElement {
 		`;
 	}
 
-	_dispatchNewValue(newValue) {
+	_dispatchNewValue(newValue : string) {
 		this.dispatchEvent(makeFilterModifiedComplexEvent(newValue));
 	}
 
