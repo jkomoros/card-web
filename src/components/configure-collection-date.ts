@@ -17,6 +17,9 @@ import {
 	makeFilterModifiedComplexEvent
 } from '../events.js';
 
+import {
+	DateRangeType
+} from '../types.js';
 
 @customElement('configure-collection-date')
 class ConfigureCollectionDate extends LitElement {
@@ -51,18 +54,20 @@ class ConfigureCollectionDate extends LitElement {
 		`;
 	}
 
-	_dispatchNewValue(newValue) {
+	_dispatchNewValue(newValue : string) {
 		this.dispatchEvent(makeFilterModifiedComplexEvent(newValue));
 	}
 
-	_handleTypeChanged(e) {
+	_handleTypeChanged(e : Event) {
 		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		const [, dateOne, dateTwo] = parseDateSection(this.value);
-		this._dispatchNewValue(makeDateSection(ele.value, dateOne, dateTwo));
+		this._dispatchNewValue(makeDateSection(ele.value as DateRangeType, dateOne, dateTwo));
 	}
 
-	_handleDateChanged(e) {
+	_handleDateChanged(e : Event) {
 		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLInputElement)) throw new Error('not input element');
 		let [typ, dateOne, dateTwo] = parseDateSection(this.value);
 		const dt = new Date(ele.value);
 		if (ele.dataset.first) {
