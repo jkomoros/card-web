@@ -50,7 +50,8 @@ import {
 } from '../types.js';
 
 import {
-	makeFilterModifiedEvent
+	makeFilterModifiedEvent,
+	makeFilterRemovedEvent
 } from '../events.js';
 
 @customElement('configure-collection-filter')
@@ -194,7 +195,7 @@ class ConfigureCollectionFilter extends LitElement {
 			this.dispatchEvent(makeFilterModifiedEvent(filterPieces.join(UNION_FILTER_DELIMITER), this.index));
 			return;
 		}
-		this.dispatchEvent(new CustomEvent('filter-removed', {composed: true, detail: {index:this.index}}));
+		this.dispatchEvent(makeFilterRemovedEvent(this.index));
 	}
 
 	_handleModifyFilterChanged(e) {

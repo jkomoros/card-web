@@ -147,7 +147,12 @@ type FilterModifiedDetail = {
 export type FilterModifiedEvent = CustomEvent<FilterModifiedDetail>;
 
 export const FILTER_MODIFIED_EVENT_NAME = 'filter-modified';
+export const FILTER_REMOVED_EVENT_NAME = 'filter-removed';
 
 export const makeFilterModifiedEvent = (value : string, index : number = 0) : FilterModifiedEvent => {
     return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {value, index}});
+}
+
+export const makeFilterRemovedEvent = (index : number) : FilterModifiedEvent => {
+    return makeFilterModifiedEvent('', index);
 }

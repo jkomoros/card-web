@@ -124,7 +124,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		store.dispatch(navigateToCollection(collectionDescriptionWithFilterModified(this._collectionDescription, e.detail.index, e.detail.value)));
 	}
 
-	_handleFilterRemoved(e) {
+	_handleFilterRemoved(e : FilterModifiedEvent) {
 		store.dispatch(navigateToCollection(collectionDescriptionWithFilterRemoved(this._collectionDescription, e.detail.index)));
 	}
 
