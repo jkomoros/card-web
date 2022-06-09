@@ -8,8 +8,11 @@ import {
 	WebInfo,
 	WebInfoNodeWithLayout,
 	WebInfoWithLayout
-} from '../types';
-import { makeCardHoveredEvent } from '../events';
+} from '../types.js';
+
+import {
+	makeCardHoveredEvent
+} from '../events.js';
 
 @customElement('web-renderer')
 export class WebRenderer extends LitElement {
