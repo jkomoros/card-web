@@ -123,7 +123,7 @@ class TagChip  extends LitElement {
 		}
 		if (this.tapEvents) {
 			e.preventDefault();
-			this.dispatchEvent(makeTagTappedEvent(this.tagName, this));
+			this.dispatchEvent(makeTagTappedEvent(this));
 			return;
 		}
 		if (this.editing) {

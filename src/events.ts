@@ -13,6 +13,6 @@ export type TagTappedEvent = CustomEvent<TagTappedEventDetail>;
 
 export const TAG_TAPPED_EVENT_NAME = 'tag-tapped';
 
-export const makeTagTappedEvent = (tag : string, ele : TagChipElementInterface) : TagTappedEvent => {
-    return new CustomEvent(TAG_TAPPED_EVENT_NAME, {composed: true, detail: {tag, ele}});
+export const makeTagTappedEvent = (source : TagChipElementInterface) : TagTappedEvent => {
+    return new CustomEvent(TAG_TAPPED_EVENT_NAME, {composed: true, detail: {tag: source.tagName, ele: source}});
 }
