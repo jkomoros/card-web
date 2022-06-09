@@ -1,4 +1,4 @@
-import { html, css } from 'lit';
+import { html, css, TemplateResult } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { PageViewElement } from './page-view-element.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
@@ -153,7 +153,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
     `;
 	}
 
-	_buttonForTaskName(taskName) {
+	_buttonForTaskName(taskName : MaintenanceTaskID) : TemplateResult {
 		if (!taskName) return html`<em>No tasks to run</em>`;
 		const config = MAINTENANCE_TASKS[taskName];
 		let disabled = false;
@@ -178,14 +178,15 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 		this._taskActive = selectMaintenanceTaskActive(state);
 	}
 
-	_runTask(taskName) {
+	_runTask(taskName : MaintenanceTaskID) {
 		const taskConfig = MAINTENANCE_TASKS[taskName];
 		if (!taskConfig) throw new Error('No such task');
 		store.dispatch(taskConfig.actionCreator());
 	}
 
-	_handleClick(e) {
+	_handleClick(e : Event) {
 		let ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLButtonElement)) return;
 		this._runTask(ele.value);
 	}
 
