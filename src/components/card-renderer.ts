@@ -76,6 +76,10 @@ import {
 	makeEditableCardFieldUpdatedEvent
 } from '../events.js';
 
+import {
+	TypedObject
+} from '../typed_object.js';
+
 export const CARD_WIDTH_IN_EMS = 43.63;
 export const CARD_HEIGHT_IN_EMS = 24.54;
 export const CARD_VERTICAL_PADDING_IN_EMS = 1.0;
@@ -134,7 +138,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 	_elements: {[cardType in CardFieldType]+?: ExtendedHTMLElement}
 
 	@state()
-	_currentImagesResolve: (boolean) => void;
+	_currentImagesResolve: (imagesLoaded : boolean) => void;
 
 	@state()
 	_currentImagesPromise : Promise<boolean>;
@@ -363,10 +367,10 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		const cardType = this._card.card_type || CARD_TYPE_CONTENT;
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[cardType];
 		const fieldsToRender = editableFieldsForCardType(cardType);
-		let titleFields = [];
-		let nonScrollableFields = [];
-		let scrollableFields = [];
-		for (const [fieldName,fieldConfig] of Object.entries(fieldsToRender)) {
+		let titleFields : CardFieldTypeEditable[] = [];
+		let nonScrollableFields : CardFieldTypeEditable[] = [];
+		let scrollableFields : CardFieldTypeEditable[] = [];
+		for (const [fieldName,fieldConfig] of TypedObject.entries(fieldsToRender)) {
 			if (fieldName == TEXT_FIELD_TITLE) {
 				titleFields.push(fieldName);
 			} else if (fieldConfig.nonScrollable) {
@@ -415,13 +419,15 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		return this.card || EMPTY_PROCESSED_CARD;
 	}
 
-	_handleClick(e) {
+	_handleClick(e : MouseEvent) {
 		//We only cancel link following if editing is true
 		if (!this.editing) return;
 		let ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLElement)) throw new Error('not html element');
 		if (ele.localName != 'a') return;
+		const aEle = ele as HTMLAnchorElement;
 		//Links that will open a new tab are fine
-		if (ele.target == '_blank') return;
+		if (aEle.target == '_blank') return;
 		e.preventDefault();
 
 	}
@@ -490,7 +496,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		reportSelectionRange(selection.getRangeAt(0));
 	}
 
-	_templateForField(field) {
+	_templateForField(field : CardFieldTypeEditable) {
 		const config = TEXT_FIELD_CONFIGURATION[field] || {};
 
 		//If the update to body came from contentEditable then don't change it,
@@ -641,7 +647,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		return ele;
 	}
 
-	override updated(changedProps) {
+	override updated(changedProps : Map<string, any>) {
 		if (changedProps.has('editing') && this.editing) {
 			//If we just started editing, focus the content editable immediately
 			//(the title if there's no title)
