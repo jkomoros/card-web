@@ -90,7 +90,7 @@ const SWIPE_DX = 15.0;
 // Max duration of gesture to qualify as a swipe, in milliseconds.
 const SWIPE_MAX_GESTURE_DURATION = 200;
 // Timestamps of 'start' gestures.
-var startGestureTimestamps = {};
+var startGestureTimestamps : {[key : string] : number} = {};
 
 const CARD_TYPE_STYLE_BLOCKS_RAW_CONTENT = Object.entries(CARD_TYPE_CONFIGURATION).filter(entry => entry[1].styleBlock).map(entry => '/* Styles for ' + entry[0] + ' */\n' + entry[1].styleBlock).join('\n\n');
 
@@ -110,6 +110,18 @@ interface ExtenedHTMLImageElement extends HTMLImageElement {
 interface ShadowRootWithGetSelection extends ShadowRoot {
 	getSelection() : Selection
 }
+
+//Polymer Gestures doesn't have type information for events, so just do it
+//manually.
+type GestureEventDetail = {
+	state : 'start' | 'end';
+	x : number,
+	y : number,
+	dx : number,
+	dy : number
+};
+
+type GestureEvent = CustomEvent<GestureEventDetail>;
 
 @customElement('card-renderer')
 export class CardRenderer extends GestureEventListeners(LitElement) {
@@ -432,7 +444,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 
 	}
 
-	_handleTrack(e) {
+	_handleTrack(e : GestureEvent) {
 		if (e.detail.state != 'start' && e.detail.state != 'end') {
 			return;
 		}
@@ -468,7 +480,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 
 	override firstUpdated() {
 		this.addEventListener('click', e => this._handleClick(e));
-		Gestures.addListener(this, 'track', e => this._handleTrack(e));
+		Gestures.addListener(this, 'track', (e : GestureEvent) => this._handleTrack(e));
 		document.addEventListener('selectionchange', this._selectionChanged.bind(this));
 	}
 
