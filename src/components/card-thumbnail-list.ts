@@ -1,5 +1,5 @@
 
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
@@ -44,7 +44,8 @@ import {
 	Card,
 	CardBooleanMap,
 	CardID,
-	State
+	State,
+	ProcessedCard
 } from '../types.js';
 
 import {
@@ -64,11 +65,6 @@ import {
 const DEFAULT_RENDER_LIMIT = 250;
 
 const OFFSET_CHUNKS = [250, 100, 50, 25, 10, 5, 1];
-
-interface DraggableHTMLElement extends HTMLElement {
-	index : number,
-	card : Card,
-}
 
 @customElement('card-thumbnail-list')
 class CardThumbnailList  extends connect(store)(LitElement) {
@@ -107,7 +103,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 	_memoizedGhostItems: CardBooleanMap;
 
 	@state()
-	_dragging: DraggableHTMLElement;
+	_dragging: HTMLElement;
 
 	@state()
 	_highlightedViaClick: boolean;
@@ -347,7 +343,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		this.renderLimit = DEFAULT_RENDER_LIMIT;
 	}
 
-	_thumbnail(card, index) {
+	_thumbnail(card : ProcessedCard, index : number) : TemplateResult {
 
 		const title = this._titleForCard(card);
 		const hasContent = cardHasContent(card);
@@ -362,7 +358,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		`;
 	}
 
-	_titleForCard(card) {
+	_titleForCard(card : Card) : string {
 		if (card.title) return card.title;
 		//It' sonly legal to not have a title if you're full-bleed;
 		if (!card.full_bleed) return '';
@@ -379,26 +375,28 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		return this.collection.finalLabels;
 	}
 
-	_handleDragEnter(e) {
+	_handleDragEnter(e : DragEvent) {
 		if(!this.reorderable) return;
 		let ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLElement)) throw new Error('not an element');
 		ele.classList.add('drag-active');
 	}
 
-	_handleDragLeave(e) {
+	_handleDragLeave(e : DragEvent) {
 		if(!this.reorderable) return;
 		let ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLElement)) throw new Error('not an element');
 		ele.classList.remove('drag-active');
 	}
 
-	_handleDragStart(e) {
+	_handleDragStart(e : DragEvent) {
 
 		if (!this.reorderable) return;
 
-		let thumbnail = null;
+		let thumbnail : HTMLElement = null;
 		for (let item of e.composedPath()) {
 			//e.g. documentFragment
-			if (!item.dataset) continue;
+			if (!(item instanceof HTMLElement)) continue;
 			if (item.dataset.card) {
 				thumbnail = item;
 			}
@@ -424,15 +422,16 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		this._dragging = null;
 	}
 
-	_handleDragOver(e) {
+	_handleDragOver(e : DragEvent) {
 		if (!this.reorderable) return;
 		//Necessary to say that this is a valid drop target
 		e.preventDefault();
 	}
 
-	_handleDrop(e) {
+	_handleDrop(e : DragEvent) {
 		if (!this.reorderable) return;
 		let target = e.composedPath()[0];
+		if (!(target instanceof HTMLElement)) throw new Error('not HTML element');
 		target.classList.remove('drag-active');
 		let thumbnail = this._dragging;
 		const index = parseInt(thumbnail.dataset.index);
@@ -446,12 +445,12 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		this.dispatchEvent(makeReorderCardEvent(cardID,otherID, isAfter));
 	}
 
-	_handleThumbnailClick(e) {
+	_handleThumbnailClick(e : MouseEvent) {
 		e.stopPropagation();
 		let cardID = '';
 		for (let ele of e.composedPath()) {
 			//e.g. documentFragment
-			if (!ele.dataset) continue;
+			if ((!(ele instanceof HTMLElement))) continue;
 			if (ele.dataset.card) {
 				cardID = ele.dataset.card;
 				break;
@@ -463,12 +462,12 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		this.dispatchEvent(makeThumbnailTappedEvent(cardID, ctrl));
 	}
 
-	_handleThumbnailMouseMove(e) {
+	_handleThumbnailMouseMove(e : MouseEvent) {
 		e.stopPropagation();
 		let cardID = '';
 		for (let ele of e.composedPath()) {
 			//e.g. documentFragment
-			if (!ele.dataset) continue;
+			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.card) {
 				cardID = ele.dataset.card;
 				break;
@@ -479,7 +478,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		this.dispatchEvent(makeCardHoveredEvent(cardID, e.clientX, e.clientY));
 	}
 
-	_scrollHighlightedThumbnailIntoView(force) {
+	_scrollHighlightedThumbnailIntoView(force : boolean = false) {
 		if (force) {
 			//note that we should scroll eiterh this time or next time we're called.
 			this._highlightedScrolled = false;
@@ -536,7 +535,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		this._cardIDsUserMayEdit = selectCardIDsUserMayEdit(state);
 	}
 
-	override updated(changedProps) {
+	override updated(changedProps : Map<string, any>) {
 		if(changedProps.has('highlightedCardId') && this.highlightedCardId) {
 			this._scrollHighlightedThumbnailIntoView(true);
 		}
