@@ -71,7 +71,8 @@ import {
 } from '../reference_blocks.js';
 
 import {
-	makeCardSwipedEvent
+	makeCardSwipedEvent,
+	makeEditableCardFieldUpdatedEvent
 } from '../events.js';
 
 export const CARD_WIDTH_IN_EMS = 43.63;
@@ -474,7 +475,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		const field = ele.field;
 		const config = TEXT_FIELD_CONFIGURATION[field] || {};
 		const value = config.html ? ele.innerHTML : ele.innerText;
-		this.dispatchEvent(new CustomEvent('text-field-updated', {composed:true, detail: {field: field, value: value}}));
+		this.dispatchEvent(makeEditableCardFieldUpdatedEvent(field, value));
 	}
 
 	_selectionChanged() {

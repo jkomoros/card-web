@@ -173,6 +173,7 @@ import {
 import {
 	CardSwipedEvent,
 	DisabledCardHighlightClickedEvent,
+	EditabledCardFieldUpdatedEvent,
 	ThumbnailTappedEvent,
 	UpdateRenderOffsetEvent
 } from '../events.js';
@@ -493,7 +494,7 @@ class CardView extends connect(store)(PageViewElement) {
 		store.dispatch(turnSuggestMissingConcepts(on));
 	}
 
-	_handleTextFieldUpdated(e) {
+	_handleTextFieldUpdated(e : EditabledCardFieldUpdatedEvent) {
 		this.shadowRoot.querySelector('card-editor').textFieldUpdatedFromContentEditable(e.detail.field, e.detail.value);
 	}
 

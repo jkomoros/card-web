@@ -1,4 +1,5 @@
 import {
+    CardFieldTypeEditable,
     CardID,
     ComposedCommentMessage,
     ComposedCommentThread
@@ -188,4 +189,17 @@ export const DISABLED_CARD_HIGHLIGHT_CLICKED_EVENT_NAME = 'disabled-card-highlig
 
 export const makeDisabledCardHighlightClickedEvent = (card : CardID, alternate : boolean) : DisabledCardHighlightClickedEvent => {
     return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {card, alternate}});
+}
+
+type EditabledCardFieldUpdatedDetail = {
+    field : CardFieldTypeEditable,
+    value : string,
+}
+
+export type EditabledCardFieldUpdatedEvent = CustomEvent<EditabledCardFieldUpdatedDetail>;
+//TODO: rename to be consistent with type name?
+export const EDITABLE_CARD_FIELD_UPDATED_EVENT_NAME = 'text-field-updated';
+
+export const makeEditableCardFieldUpdatedEvent = (field : CardFieldTypeEditable, value : string) : EditabledCardFieldUpdatedEvent => {
+    return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {field, value}});
 }
