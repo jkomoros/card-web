@@ -120,7 +120,7 @@ class TagList  extends LitElement {
 		let [additionsArray, deletionsArray] = arrayDiff(effectivePreviousTags, effectiveTags);
 		let additions = arrayToSet(additionsArray);
 		let deletions = arrayToSet(deletionsArray);
-		let allTags = [];
+		let allTags : string[] = [];
 		if (effectiveTags && deletionsArray) allTags = [...effectiveTags, ...deletionsArray];
 		let tagInfos = this.tagInfos || {};
 		let excludeItemsAsMap = Object.fromEntries(effectiveTags.map(item => [item, true]));
@@ -147,8 +147,9 @@ class TagList  extends LitElement {
 		this.dispatchEvent(makeTagNewEvent());
 	}
 
-	_handleSelectChanged(e) {
+	_handleSelectChanged(e : Event) {
 		let ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLInputElement)) return;
 		if (ele.value == '#noop') return;
 		let value = ele.value;
 		//Set it back to #noop.
