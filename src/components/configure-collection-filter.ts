@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
@@ -46,7 +46,8 @@ import './configure-collection-date.js';
 
 import {
 	TagInfos,
-	Uid
+	Uid,
+	ConfigurableFilterControlPiece
 } from '../types.js';
 
 import {
@@ -115,7 +116,7 @@ class ConfigureCollectionFilter extends LitElement {
 		`;
 	}
 
-	_configurableFilterPart(piece, subIndex) {
+	_configurableFilterPart(piece : ConfigurableFilterControlPiece, subIndex : number) : TemplateResult {
 		//piece is obj with controlType, description, and value
 		switch (piece.controlType) {
 		case URL_PART_DATE_SECTION:
@@ -133,7 +134,7 @@ class ConfigureCollectionFilter extends LitElement {
 		}
 	}
 
-	_filterOptions(selectedOptionName, showConfigurable) {
+	_filterOptions(selectedOptionName : string, showConfigurable : boolean) : unknown {
 		//TODO: cache?
 		const entries = Object.entries(this.filterDescriptions).filter(entry => entry[0] != EXCLUDE_FILTER_NAME && entry[0] != COMBINE_FILTER_NAME);
 		//I'd rather have the current value selected in the <select>, but that wasn't working, so have the options select themselves.
@@ -141,7 +142,7 @@ class ConfigureCollectionFilter extends LitElement {
 	}
 
 
-	_modifyFilterChanged(subIndex : number, newValue) {
+	_modifyFilterChanged(subIndex : number, newValue : string) {
 		const oldText = this.value;
 		const [firstPart] = splitCompoundFilter(oldText);
 		const pieces = piecesForConfigurableFilter(oldText);
@@ -156,15 +157,17 @@ class ConfigureCollectionFilter extends LitElement {
 		this._modifyFilterChanged(parseInt(ele.dataset.subIndex), e.detail.value);
 	}
 
-	_handleModifyFilterRestChanged(e) {
+	_handleModifyFilterRestChanged(e : Event) {
 		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		this._modifyFilterChanged(parseInt(ele.dataset.subIndex), ele.value);
 	}
 
-	_handleAddUnionFilterClicked(e) {
+	_handleAddUnionFilterClicked(e : MouseEvent) {
 		//The event likely happened on the svg but we want the button
 		let ele = null;
 		for (const possibleEle of e.composedPath()) {
+			if (!(possibleEle instanceof HTMLElement)) continue;
 			if (possibleEle.tagName == 'BUTTON') {
 				ele = possibleEle;
 				break;
@@ -178,10 +181,11 @@ class ConfigureCollectionFilter extends LitElement {
 		this.dispatchEvent(makeFilterModifiedEvent(fullFilterText, this.index));
 	}
 
-	_handleRemoveFilterClicked(e) {
+	_handleRemoveFilterClicked(e : MouseEvent) {
 		//The event likely happened on the svg but we want the button
 		let ele = null;
 		for (const possibleEle of e.composedPath()) {
+			if (!(possibleEle instanceof HTMLElement)) continue;
 			if (possibleEle.tagName == 'BUTTON') {
 				ele = possibleEle;
 				break;
@@ -200,8 +204,9 @@ class ConfigureCollectionFilter extends LitElement {
 		this.dispatchEvent(makeFilterRemovedEvent(this.index));
 	}
 
-	_handleModifyFilterChanged(e) {
+	_handleModifyFilterChanged(e : Event) {
 		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		const subIndex = parseInt(ele.dataset.subIndex);
 		const fullFilterText = this.value;
 		const unionPieces = splitUnionFilter(fullFilterText);
