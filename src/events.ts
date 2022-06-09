@@ -107,6 +107,8 @@ type CommentMessageDetail = {
 
 export type CommmentMessageEvent = CustomEvent<CommentMessageDetail>;
 
+//TODO: rename to message-edit?
+//TODO: rename to message-delete?
 export const COMMENT_EDIT_MESSAGE_NAME = 'edit-message';
 export const COMMENT_DELETE_MESSAGE_NAME = 'delete-message';
 
@@ -124,6 +126,7 @@ type CommentThreadDetail = {
 
 export type CommmentThreadEvent = CustomEvent<CommentThreadDetail>;
 
+//TODO: name to thread-resolve?
 export const COMMENT_RESOLVE_THREAD_NAME = 'resolve-thread';
 
 export const makeCommentResolveThreadEvent = (thread : ComposedCommentThread) : CommmentThreadEvent => {
