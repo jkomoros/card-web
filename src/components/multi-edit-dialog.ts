@@ -75,6 +75,10 @@ import {
 	TagEvent
 } from '../events.js';
 
+import {
+	TypedObject
+} from '../typed_object.js';
+
 @customElement('multi-edit-dialog')
 class MultiEditDialog extends connect(store)(DialogElement) {
 
@@ -141,7 +145,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				<option value=''><em>Add a reference to a card type...</option>
 				${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]}>${entry[1].name}</option>`)}
 			</select>
-			${Object.entries(REFERENCE_TYPES).filter(entry => (referencesMap[entry[0]] || previousReferencesMap[entry[0]]) && entry[1].editable).map(entry => {
+			${TypedObject.entries(REFERENCE_TYPES).filter(entry => (referencesMap[entry[0]] || previousReferencesMap[entry[0]]) && entry[1].editable).map(entry => {
 		const subtleItems = arrayDiffAsSets(referencesMap[entry[0]], intersectionReferencesMap[entry[0]])[1];
 		return html`<div>
 								<label>${entry[1].name} ${help(entry[1].description, false)}</label>
@@ -187,8 +191,9 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		store.dispatch(closeMultiEditDialog());
 	}
 
-	_handleAddReference(e) {
+	_handleAddReference(e : Event) {
 		const ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLSelectElement)) return;
 		if (!ele.value) return;
 		const value = ele.value;
 		//Set it back to default
