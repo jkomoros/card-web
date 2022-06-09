@@ -131,13 +131,13 @@ class CardWebApp extends connect(store)(LitElement) {
 		setPassiveTouchGestures(true);
 	}
 
-	_handleKeyDown(e) {
+	_handleKeyDown(e : KeyboardEvent) {
 		if (e.key == 'Meta' || e.key == 'Control') {
 			store.dispatch(ctrlKeyPressed(true));
 		}
 	}
 
-	_handleKeyUp(e) {
+	_handleKeyUp(e : KeyboardEvent) {
 		if (e.key == 'Meta' || e.key == 'Control') {
 			store.dispatch(ctrlKeyPressed(false));
 		}
@@ -163,7 +163,7 @@ class CardWebApp extends connect(store)(LitElement) {
 		window.addEventListener('blur', this._handleBlur.bind(this));
 	}
 
-	override updated(changedProps) {
+	override updated(changedProps : Map<string, any>) {
 		if (changedProps.has('_card') && this._card) {
 			const pageTitle = (this._card.title ? this._card.title + ' - ' : '') + this.appTitle ;
 			updateMetadata({
