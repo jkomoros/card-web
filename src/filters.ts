@@ -92,7 +92,8 @@ import {
 	DateRangeType,
 	CardIdentifier,
 	CardTestFunc,
-	CardTimestampPropertyName
+	CardTimestampPropertyName,
+	ConfigurableFilterControlPiece
 } from './types.js';
 
 import {
@@ -1244,12 +1245,6 @@ export const splitUnionFilter = (unionFilter : string) : string[] => {
 	const [firstPart] = splitCompoundFilter(unionFilter);
 	return firstPart.split(UNION_FILTER_DELIMITER);
 };
-
-type ConfigurableFilterControlPiece = {
-	controlType : string,
-	description : string,
-	value : string
-}
 
 export const piecesForConfigurableFilter = (fullFilterName : string) : ConfigurableFilterControlPiece[] => {
 	//TODO: it's kind of weird that this bespoke logic is here, instead of fully

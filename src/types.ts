@@ -277,6 +277,12 @@ export type SortConfigurationMap = {
     }
 }
 
+export type ConfigurableFilterControlPiece = {
+	controlType : string,
+	description : string,
+	value : string
+}
+
 export type ConfigurableFilterFunc = (card : ProcessedCard, extras? : FilterExtras) => ([matches : boolean] | [ matches : boolean, sortExtra : number] | [ matches : boolean, sortExtra : number, partialMatch : boolean]);
 
 export type ConfigurableFilterFuncFactoryResult = [func : ConfigurableFilterFunc, reverse : boolean];
