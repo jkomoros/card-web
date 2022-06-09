@@ -215,7 +215,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		store.dispatch(closeFindDialog());
 	}
 
-	_handleFormSubmitted(e) {
+	_handleFormSubmitted(e : SubmitEvent) {
 		e.preventDefault();
 		if(!this._linking) return;
 		if(this._collection && this._collection.numCards > 0) return;
@@ -234,17 +234,22 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._shouldClose();
 	}
 
-	_handleQueryChanged(e) {
+	_handleQueryChanged(e : InputEvent) {
 		let ele = e.composedPath()[0];
+		if (!(ele instanceof HTMLInputElement)) return;
 		store.dispatch(updateQuery(ele.value));
 	}
 
-	_handleSortByRecentChanged(e) {
-		store.dispatch(findUpdateSortByRecent(e.target.checked));
+	_handleSortByRecentChanged(e : Event) {
+		const ele = e.target;
+		if (!(ele instanceof HTMLInputElement)) return;
+		store.dispatch(findUpdateSortByRecent(ele.checked));
 	}
 
-	_handleCardTypeChanged(e) {
-		const filter = e.target.value;
+	_handleCardTypeChanged(e : Event) {
+		const ele = e.target;
+		if (!(ele instanceof HTMLInputElement)) return;
+		const filter = ele.value;
 		store.dispatch(findUpdateCardTypeFilter(filter));
 	}
 
@@ -326,7 +331,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		return 'Search';
 	}
 
-	override updated(changedProps) {
+	override updated(changedProps : Map<string, any>) {
 		if (changedProps.has('open') && this.open) {
 			//When first opened, select the text in query, so if the starter
 			//query is wrong as you long keep typing it will be no cost
