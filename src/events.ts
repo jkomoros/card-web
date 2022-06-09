@@ -40,6 +40,14 @@ export const makeTagNewEvent = () : NewTagEvent => {
     return new CustomEvent(TAG_NEW_EVENT_NAME, {composed : true, detail: null})
 }
 
+export type ShowNeedSigninEvent = CustomEvent<null>;
+
+export const SHOW_NEED_SIGNIN_EVENT_NAME = 'show-need-signin';
+
+export const makeShowNeedSigninEvent = () : ShowNeedSigninEvent => {
+    return new CustomEvent(SHOW_NEED_SIGNIN_EVENT_NAME, {composed : true, detail: null})
+}
+
 type CardHoveredEventDetail = {
     card : CardID;
     x : number;

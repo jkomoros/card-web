@@ -16,6 +16,10 @@ import {
 	ComposedCommentThread
 } from '../types.js';
 
+import {
+	makeShowNeedSigninEvent
+} from '../events.js';
+
 @customElement('comment-thread')
 class CommentThread extends LitElement {
 
@@ -100,7 +104,7 @@ class CommentThread extends LitElement {
 
 	_handleAddMessage() {
 		if (!this.userMayComment) {
-			this.dispatchEvent(new CustomEvent('show-need-signin'));
+			this.dispatchEvent(makeShowNeedSigninEvent());
 			return;
 		}
 		this.dispatchEvent(new CustomEvent('add-message', {composed:true, detail: {thread: this.thread}}));
