@@ -138,3 +138,16 @@ export const makeCommentResolveThreadEvent = (thread : ComposedCommentThread) : 
 export const makeCommentAddMessageToThreadEvent = (thread : ComposedCommentThread) : CommmentThreadEvent => {
     return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {thread}});
 }
+
+type FilterModifiedDetail = {
+    value : string,
+    index : number
+}
+
+export type FilterModifiedEvent = CustomEvent<FilterModifiedDetail>;
+
+export const FILTER_MODIFIED_EVENT_NAME = 'filter-modified';
+
+export const makeFilterModifiedEvent = (value : string, index : number = 0) : FilterModifiedEvent => {
+    return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {value, index}});
+}

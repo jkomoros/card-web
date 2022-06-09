@@ -48,6 +48,10 @@ import {
 	Uid
 } from '../types.js';
 
+import {
+	FilterModifiedEvent
+} from '../events.js';
+
 @customElement('configure-collection-dialog')
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
@@ -116,7 +120,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 		this.title = 'Configure Collection';
 	}
 
-	_handleFilterModified(e) {
+	_handleFilterModified(e : FilterModifiedEvent) {
 		store.dispatch(navigateToCollection(collectionDescriptionWithFilterModified(this._collectionDescription, e.detail.index, e.detail.value)));
 	}
 

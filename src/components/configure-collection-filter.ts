@@ -49,6 +49,10 @@ import {
 	Uid
 } from '../types.js';
 
+import {
+	makeFilterModifiedEvent
+} from '../events.js';
+
 @customElement('configure-collection-filter')
 class ConfigureCollectionFilter extends LitElement {
 
@@ -141,7 +145,7 @@ class ConfigureCollectionFilter extends LitElement {
 		const pieces = piecesForConfigurableFilter(oldText);
 		pieces[subIndex].value = newValue;
 		const newText = firstPart + '/' + pieces.map(piece => piece.value).join('/');
-		this.dispatchEvent(new CustomEvent('filter-modified', {composed: true, detail: {value: newText, index: this.index}}));
+		this.dispatchEvent(makeFilterModifiedEvent(newText, this.index));
 	}
 
 	_handleModifyFilterRestChangedComplex(e) {
@@ -168,7 +172,7 @@ class ConfigureCollectionFilter extends LitElement {
 			return;
 		}
 		const fullFilterText = this.value + UNION_FILTER_DELIMITER + ALL_FILTER_NAME;
-		this.dispatchEvent(new CustomEvent('filter-modified', {composed: true, detail: {value: fullFilterText, index: this.index}}));
+		this.dispatchEvent(makeFilterModifiedEvent(fullFilterText, this.index));
 	}
 
 	_handleRemoveFilterClicked(e) {
@@ -187,7 +191,7 @@ class ConfigureCollectionFilter extends LitElement {
 		const filterPieces = splitUnionFilter(this.value);
 		if (filterPieces.length > 1) {
 			filterPieces.splice(parseInt(ele.data.subIndex), 1);
-			this.dispatchEvent(new CustomEvent('filter-modified', {composed: true, detail: {value: filterPieces.join(UNION_FILTER_DELIMITER), index: this.index}}));
+			this.dispatchEvent(makeFilterModifiedEvent(filterPieces.join(UNION_FILTER_DELIMITER), this.index));
 			return;
 		}
 		this.dispatchEvent(new CustomEvent('filter-removed', {composed: true, detail: {index:this.index}}));
@@ -202,7 +206,7 @@ class ConfigureCollectionFilter extends LitElement {
 		unionPieces[subIndex] = firstPart;
 		const configurableInfo = CONFIGURABLE_FILTER_INFO[firstPart];
 		const fullText = configurableInfo ? firstPart + '/' + configurableInfo.arguments.map(arg => arg.default).join('/') : unionPieces.join(UNION_FILTER_DELIMITER);
-		this.dispatchEvent(new CustomEvent('filter-modified', {composed: true, detail: {value: fullText, index: this.index}}));
+		this.dispatchEvent(makeFilterModifiedEvent(fullText, this.index));
 	}
 
 }
