@@ -31,7 +31,8 @@ import './image-browser-dialog.js';
 
 import {
 	Card,
-	State
+	State,
+	TagInfos
 } from '../types.js';
 
 import {
@@ -55,7 +56,7 @@ class CardImagesEditor extends connect(store)(LitElement) {
 		const loadedColor = '#006400'; //darkgreen
 
 		const imgTagNames = [];
-		const tagInfos = {};
+		const tagInfos : TagInfos = {};
 		for (let i = 0; i < images.length; i++) {
 			const key = '' + i;
 			const img = images[i];
