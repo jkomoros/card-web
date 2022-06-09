@@ -53,7 +53,8 @@ import {
 
 import {
 	makeCardHoveredEvent,
-	makeThumbnailTappedEvent
+	makeThumbnailTappedEvent,
+	makeUpdateRenderOffsetEvent
 } from '../events.js';
 
 //How many cards to cap the rendering limit at (unless overriden by the parent
@@ -311,11 +312,11 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 	}
 
 	_handleNextClicked() {
-		this.dispatchEvent(new CustomEvent('update-render-offset', {composed: true, detail: {value: this.renderOffset + this._offsetChunk}}));
+		this.dispatchEvent(makeUpdateRenderOffsetEvent(this.renderOffset + this._offsetChunk));
 	}
 
 	_handlePreviousClicked() {
-		this.dispatchEvent(new CustomEvent('update-render-offset', {composed: true, detail: {value: Math.max(0, this.renderOffset - this._offsetChunk)}}));
+		this.dispatchEvent(makeUpdateRenderOffsetEvent(Math.max(0, this.renderOffset - this._offsetChunk)));
 	}
 
 	get _cards() {
@@ -512,7 +513,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 					}
 					if (offset != this.renderOffset) {
 						//Ask our parent to change to this offset
-						this.dispatchEvent(new CustomEvent('update-render-offset', {composed: true, detail: {value: offset}}));
+						this.dispatchEvent(makeUpdateRenderOffsetEvent(offset));
 					}
 				}
 			}

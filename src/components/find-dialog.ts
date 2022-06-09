@@ -98,7 +98,8 @@ import {
 } from '../collection_description.js';
 
 import {
-	ThumbnailTappedEvent
+	ThumbnailTappedEvent,
+	UpdateRenderOffsetEvent
 } from '../events.js';
 
 @customElement('find-dialog')
@@ -224,7 +225,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._shouldClose();
 	}
 
-	_handleUpdateRenderOffset(e) {
+	_handleUpdateRenderOffset(e : UpdateRenderOffsetEvent) {
 		store.dispatch(findUpdateRenderOffset(e.detail.value));
 	}
 

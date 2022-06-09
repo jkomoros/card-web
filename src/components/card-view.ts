@@ -171,7 +171,8 @@ import {
 } from '../reference_blocks.js';
 
 import {
-	ThumbnailTappedEvent
+	ThumbnailTappedEvent,
+	UpdateRenderOffsetEvent
 } from '../events.js';
 
 @customElement('card-view')
@@ -455,7 +456,7 @@ class CardView extends connect(store)(PageViewElement) {
 		}
 	}
 
-	_handleUpdateRenderOffset(e) {
+	_handleUpdateRenderOffset(e : UpdateRenderOffsetEvent) {
 		if (this._editing) return;
 		store.dispatch(updateRenderOffset(e.detail.value));
 	}
