@@ -13,9 +13,15 @@ type CardHoveredEventDetail = {
     y : number;
 }
 
+type ThumbnailTappedDetail = {
+    card : CardID;
+    ctrl : boolean;
+}
+
 export type TagEvent = CustomEvent<TagEventDetail>;
 export type NewTagEvent = CustomEvent<null>;
 export type CardHoveredEvent = CustomEvent<CardHoveredEventDetail>;
+export type ThumbnailTappedEvent = CustomEvent<ThumbnailTappedDetail>;
 
 export const TAG_TAPPED_EVENT_NAME = 'tag-tapped';
 //TODO: change to 'tag-added'
@@ -25,6 +31,7 @@ export const TAG_REMOVED_EVENT_NAME = 'remove-tag';
 //TODO: change to 'tag-new'
 export const TAG_NEW_EVENT_NAME = 'new-tag';
 export const CARD_HOVERED_EVENT_NAME = 'card-hovered';
+export const THUMBNAIL_TAPPED_EVENT_NAME = 'thumbnail-tapped';
 
 export const makeTagTappedEvent = (tagName : string, subtle? : boolean) : TagEvent => {
     return makeTagEvent(TAG_TAPPED_EVENT_NAME, tagName, subtle);
@@ -48,4 +55,8 @@ const makeTagEvent = (eventName : string, tagName : string, subtle : boolean = f
 
 export const makeCardHoveredEvent = (card : CardID, x : number, y : number) => {
     return new CustomEvent(CARD_HOVERED_EVENT_NAME, {composed : true, detail: {card, x, y}});
+}
+
+export const makeThumbnailTappedEvent = (card : CardID, ctrl : boolean) => {
+    return new CustomEvent(THUMBNAIL_TAPPED_EVENT_NAME, {composed : true, detail: {card, ctrl}});
 }

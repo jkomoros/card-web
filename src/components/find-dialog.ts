@@ -97,6 +97,10 @@ import {
 	Collection, CollectionDescription
 } from '../collection_description.js';
 
+import {
+	ThumbnailTappedEvent
+} from '../events.js';
+
 @customElement('find-dialog')
 class FindDialog extends connect(store)(DialogElement) {
 
@@ -291,7 +295,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._shouldClose();
 	}
 
-	_handleThumbnailTapped(e) {
+	_handleThumbnailTapped(e : ThumbnailTappedEvent) {
 		this._shouldClose();
 		if (this._linking) {
 			store.dispatch(linkCard(e.detail.card));

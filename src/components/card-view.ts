@@ -165,7 +165,14 @@ import {
 import {
 	Collection
 } from '../collection_description.js';
-import { ExpandedReferenceBlocks } from '../reference_blocks.js';
+
+import {
+	ExpandedReferenceBlocks
+} from '../reference_blocks.js';
+
+import {
+	ThumbnailTappedEvent
+} from '../events.js';
 
 @customElement('card-view')
 class CardView extends connect(store)(PageViewElement) {
@@ -440,7 +447,7 @@ class CardView extends connect(store)(PageViewElement) {
     `;
 	}
 
-	_thumbnailActivatedHandler(e) {
+	_thumbnailActivatedHandler(e : ThumbnailTappedEvent) {
 		if (e.detail.ctrl) {
 			store.dispatch(toggleOnReadingList(e.detail.card));
 		} else {

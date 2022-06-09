@@ -11,7 +11,8 @@ import {
 } from '../types.js';
 
 import {
-	makeCardHoveredEvent
+	makeCardHoveredEvent,
+	makeThumbnailTappedEvent
 } from '../events.js';
 
 @customElement('web-renderer')
@@ -74,7 +75,7 @@ export class WebRenderer extends LitElement {
 		let card = e.composedPath()[0].id;
 		const ctrl = e.ctrlKey || e.metaKey;
 		//TODO: ctrl-click on mac shouldn't show the right click menu
-		this.dispatchEvent(new CustomEvent('thumbnail-tapped', {composed:true, detail: {card: card, ctrl}}));
+		this.dispatchEvent(makeThumbnailTappedEvent(card, ctrl));
 	}
 
 	_handleThumbnailMouseMove(e) {

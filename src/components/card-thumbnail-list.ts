@@ -52,7 +52,8 @@ import {
 } from '../collection_description.js';
 
 import {
-	makeCardHoveredEvent
+	makeCardHoveredEvent,
+	makeThumbnailTappedEvent
 } from '../events.js';
 
 //How many cards to cap the rendering limit at (unless overriden by the parent
@@ -457,7 +458,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		this._highlightedViaClick = true;
 		const ctrl = e.ctrlKey || e.metaKey;
 		//TODO: ctrl-click on mac shouldn't show the right click menu
-		this.dispatchEvent(new CustomEvent('thumbnail-tapped', {composed:true, detail: {card: cardID, ctrl}}));
+		this.dispatchEvent(makeThumbnailTappedEvent(cardID, ctrl));
 	}
 
 	_handleThumbnailMouseMove(e) {
