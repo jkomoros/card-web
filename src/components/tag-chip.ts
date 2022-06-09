@@ -3,6 +3,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { StyleInfo, styleMap } from 'lit/directives/style-map.js';
 import { urlForTag } from '../actions/app';
+import { makeTagTappedEvent } from '../events';
 
 import {
 	Card,
@@ -122,7 +123,7 @@ class TagChip  extends LitElement {
 		}
 		if (this.tapEvents) {
 			e.preventDefault();
-			this.dispatchEvent(new CustomEvent('tag-tapped', {composed: true, detail: {tag: this.tagName}}));
+			this.dispatchEvent(makeTagTappedEvent(this.tagName, this));
 			return;
 		}
 		if (this.editing) {

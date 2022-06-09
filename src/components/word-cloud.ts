@@ -18,8 +18,12 @@ import {
 import './tag-list.js';
 
 import {
-	WordCloud as WordCloudType
+	WordCloud as WordCloudType,
 } from '../types.js';
+
+import {
+	TagTappedEvent
+} from '../events.js';
 
 @customElement('word-cloud')
 export class WordCloud extends connect(store)(LitElement) {
@@ -37,7 +41,7 @@ export class WordCloud extends connect(store)(LitElement) {
 		return this.wordCloud || emptyWordCloud();
 	}
 
-	_handleTagTapped(e : CustomEvent) {
+	_handleTagTapped(e : TagTappedEvent) {
 		const tagName = e.detail.tag;
 		const tagInfos = this._effectiveWordCloud[1];
 		const infoForTag = tagInfos[tagName];

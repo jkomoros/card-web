@@ -70,6 +70,7 @@ import {
 	State,
 	TagInfos
 } from '../types.js';
+import { TagTappedEvent } from '../events.js';
 
 @customElement('multi-edit-dialog')
 class MultiEditDialog extends connect(store)(DialogElement) {
@@ -192,15 +193,15 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		store.dispatch(selectCardToReference(value));
 	}
 
-	_handleTagTapped(e) {
+	_handleTagTapped(e : TagTappedEvent) {
 		//Only add it if not all cards already have it
-		if (!e.composedPath()[0].subtle) return;
+		if (!e.detail.ele.subtle) return;
 		let referenceType = '';
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
 		for (let ele of e.composedPath()) {
-			//documentFragment
-			if (!ele.dataset) continue;
+			//e.g. documentFragment
+			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
 				referenceType = ele.dataset.referenceType;
 				break;

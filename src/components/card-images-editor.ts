@@ -34,6 +34,10 @@ import {
 	State
 } from '../types.js';
 
+import {
+	TagTappedEvent
+} from '../events.js';
+
 @customElement('card-images-editor')
 class CardImagesEditor extends connect(store)(LitElement) {
 
@@ -74,7 +78,7 @@ class CardImagesEditor extends connect(store)(LitElement) {
 		`;
 	}
 
-	_handleTagTapped(e) {
+	_handleTagTapped(e : TagTappedEvent) {
 		const index = parseInt(e.detail.tag);
 		store.dispatch(openImagePropertiesDialog(index));
 	}
