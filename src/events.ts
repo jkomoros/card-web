@@ -1,5 +1,6 @@
 import {
-    CardID
+    CardID,
+    ComposedCommentMessage
 } from './types.js';
 
 type TagEventDetail = {
@@ -97,4 +98,16 @@ export const DIALOG_SHOULD_CLOSE_EVENT_NAME = 'dialog-should-close';
 
 export const makeDialogShouldCloseEvent = (cancelled : boolean = false) : DialogShouldCloseEvent => {
     return new CustomEvent(DIALOG_SHOULD_CLOSE_EVENT_NAME, {composed : true, detail: {cancelled}});
+}
+
+type CommentMessageDetail = {
+    message : ComposedCommentMessage;
+}
+
+export type CommmentMessageEvent = CustomEvent<CommentMessageDetail>;
+
+export const COMMENT_EDIT_MESSAGE_NAME = 'edit-message';
+
+export const makeCommentEditMessageEvent = (message : ComposedCommentMessage) : CommmentMessageEvent => {
+    return new CustomEvent(COMMENT_EDIT_MESSAGE_NAME, {composed : true, detail: {message}});
 }

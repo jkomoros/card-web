@@ -45,6 +45,7 @@ import {
 	ComposedCommentThread,
 	State
 } from '../types.js';
+import { CommmentMessageEvent } from '../events.js';
 
 @customElement('comments-panel')
 class CommentsPanel extends connect(store)(PageViewElement) {
@@ -148,7 +149,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 		this._showCompose('');
 	}
 
-	_handleEditMessage(e) {
+	_handleEditMessage(e : CommmentMessageEvent) {
 		if (!e.detail.message || !e.detail.message.id) return;
 		store.dispatch(configureCommitAction(COMMIT_ACTIONS.EDIT_MESSAGE, e.detail.message.id));
 		this._showCompose(e.detail.message.message);

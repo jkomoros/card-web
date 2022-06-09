@@ -24,6 +24,10 @@ import {
 	ComposedCommentMessage
 } from '../types.js';
 
+import {
+	makeCommentEditMessageEvent
+} from '../events.js';
+
 @customElement('comment-message')
 class CommentMessage extends LitElement {
 	
@@ -87,7 +91,7 @@ class CommentMessage extends LitElement {
 	}
 
 	_handleEditClicked() {
-		this.dispatchEvent(new CustomEvent('edit-message', {composed:true, detail: {message: this.message}}));
+		this.dispatchEvent(makeCommentEditMessageEvent(this.message));
 	}
 
 	_handleDeleteClicked() {
