@@ -67,6 +67,7 @@ import {
 	Card,
 	State,
 	TagInfos,
+	TweetInfo,
 	TweetMap,
 	WordCloud
 } from '../types.js';
@@ -248,7 +249,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._wordCloud = emptyWordCloud();
 	}
 
-	_tweet(tweet) {
+	_tweet(tweet : TweetInfo) {
 		return html`<li><a href='${urlForTweet(tweet)}' target='_blank'>${prettyTime(tweet.created)}</a> ${FAVORITE_ICON} ${tweet.favorite_count} ${REPEAT_ICON} ${tweet.retweet_count}</li>`;
 	}
 
@@ -278,7 +279,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		
 	}
 
-	override updated(changedProps) {
+	override updated(changedProps : Map<string, any>) {
 		if (changedProps.has('_card') || changedProps.has('_open')) {
 			if (this._open && this._card && Object.values(this._card).length != 0) {
 				store.dispatch(fetchTweets(this._card));
