@@ -108,7 +108,7 @@ class CardHighlight extends connect(store)(LitElement) {
 		return this.disabled ? '' : urlForCard(this.card);
 	}
 
-	_handleMouseDown(e) {
+	_handleMouseDown(e : MouseEvent) {
 		//This is on mousedown because if a click is generated, by then the
 		//content editable would already be focused, and the highlight would be
 		//gone.
@@ -117,7 +117,7 @@ class CardHighlight extends connect(store)(LitElement) {
 		return killEvent(e);
 	}
 
-	_handleMouseMove(e) {
+	_handleMouseMove(e : MouseEvent) {
 		//if any buttons are down (which could happen for e.g. a drag), don't report the hover
 		if (e.buttons) return;
 		if (this.disabled) return;
