@@ -24,6 +24,10 @@ import {
 	CommitActionType
 } from '../types.js';
 
+import {
+	AppActionCreator 
+} from '../store.js';
+
 //When adding a type, also add to CommitActionType
 export const COMMIT_ACTIONS : {[typ : string] : CommitActionType} = {
 	CONSOLE_LOG: 'CONSOLE_LOG',
@@ -56,7 +60,7 @@ export const composeCancel = () => {
 	};
 };
 
-export const composeCommit = () => (dispatch, getState) => {
+export const composeCommit : AppActionCreator = () => (dispatch, getState) => {
 
 	const state = getState();
 
