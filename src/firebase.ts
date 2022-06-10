@@ -61,11 +61,34 @@ export const isDeleteSentinel = (value : any) : boolean => {
 	return JSON.stringify(value) == deleteSentinelJSON;
 };
 
+//Returns an object like object, but where every top-level value that passes
+//isServerTimestampSentinel is ensured to be a literal serverTimestamp. This
+//allows serverTimestampSentinel() objects to be converted to serverTimestamps
+//right before setting.
+export const installServerTimestamps = (value : object) : object => {
+	return Object.fromEntries(Object.entries(value).map(entry => [entry[0], isServerTimestampSentinel(entry[1]) ? serverTimestamp() : entry[1]]));
+}
+
+//Also aware of normal Timestamps vended by serverTimestampSentinel.
 export const isServerTimestampSentinel = (value : any) : boolean => {
 	if (typeof value !== 'object') return false;
+	//Also normal timestamps that we vended from serverTimestampSentinel.
+	if (vendedTimestamps.get(value)) return true;
 	//serverTimestampSentinel returns new objects every time, but for now (at least) they
 	//at least stringify the same.
 	return JSON.stringify(value) == serverTimestampSentinelJSON;
+};
+
+const vendedTimestamps : WeakMap<Timestamp, true> = new WeakMap();
+
+//serverTimestampSentinel is like serverTimestamp, except instead of vending a
+//FieldValue, it vends a normal currentTimestamp, but keeps track that its
+//meaning is a serverTimestamp sentinel, so later calls to
+//isServerTimestampSentinel will detect it as a sentinel.
+export const serverTimestampSentinel = () : Timestamp => {
+	const result = currentTimestamp();
+	vendedTimestamps.set(result, true);
+	return result;
 };
 
 export const isFirestoreTimestamp = (value : any) : boolean => value instanceof Timestamp;
