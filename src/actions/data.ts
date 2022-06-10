@@ -159,6 +159,7 @@ import {
 } from '../references.js';
 
 import {
+	AppActionCreator,
 	store
 } from '../store.js';
 
@@ -240,7 +241,7 @@ export const modifyCard = (card, update, substantive) => {
 	return modifyCards([card], update, substantive, true);
 };
 
-export const modifyCards = (cards, update, substantive, failOnError) => async (dispatch, getState) => {
+export const modifyCards : AppActionCreator = (cards, update, substantive, failOnError) => async (dispatch, getState) => {
 	const state = getState();
 
 	if (selectCardModificationPending(state)) {
@@ -415,7 +416,7 @@ export const modifyCardWithBatch = (state : State, card : Card, update : CardDif
 };
 
 //beforeID is the ID of hte card we should place ourselves immediately before.
-export const reorderCard = (cardID : CardID, otherID: CardID, isAfter : boolean) => async (dispatch, getState) => {
+export const reorderCard : AppActionCreator = (cardID : CardID, otherID: CardID, isAfter : boolean) => async (dispatch, getState) => {
 
 	const state = getState();
 
@@ -489,7 +490,7 @@ const addLegalSlugToCard = (cardID : CardID, legalSlug : Slug, setName? : boolea
 	return batch.commit();
 };
 
-export const addSlug = (cardId, newSlug) => async (dispatch, getState) => {
+export const addSlug : AppActionCreator = (cardId, newSlug) => async (dispatch, getState) => {
  
 	newSlug = normalizeSlug(newSlug);
 
@@ -552,7 +553,7 @@ const reservedCollectionName = (state, name) => {
 	return false;
 };
 
-export const createTag = (name, displayName) => async (dispatch, getState) => {
+export const createTag : AppActionCreator = (name, displayName) => async (dispatch, getState) => {
 
 	if (!name) {
 		console.warn('No short name provided');
@@ -630,7 +631,7 @@ export const createTag = (name, displayName) => async (dispatch, getState) => {
 
 	batch.set(startCardRef, cardObject);
 
-	batch.commit().then(dispatch(tagAdded(name)));
+	batch.commit().then(() => dispatch(tagAdded(name)));
 
 };
 
@@ -696,7 +697,7 @@ export const defaultCardObject = (id : CardID, user : UserInfo, section : Sectio
 // id: ID to use
 // noNavigate: if true, will not navigate to the card when created
 // title: title of card
-export const createCard = (opts) => async (dispatch, getState) => {
+export const createCard : AppActionCreator = (opts) => async (dispatch, getState) => {
 
 	//NOTE: if you modify this card you may also want to modify createForkedCard
 
@@ -900,7 +901,7 @@ export const createCard = (opts) => async (dispatch, getState) => {
 
 };
 
-export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
+export const createForkedCard : AppActionCreator = (cardToFork) => async (dispatch, getState) => {
 	//NOTE: if you modify this card you likely also want to modify
 	//createWorkingNotesCard too and likely also createForkedCard
 
@@ -1063,7 +1064,7 @@ export const createForkedCard = (cardToFork) => async (dispatch, getState) => {
 	//(if EXPECT_NEW_CARD was dispatched above)
 };
 
-export const deleteCard = (card) => async (dispatch, getState) => {
+export const deleteCard : AppActionCreator = (card) => async (dispatch, getState) => {
 
 	const state = getState();
 
@@ -1109,7 +1110,7 @@ export const deleteCard = (card) => async (dispatch, getState) => {
 
 };
 
-export const navigateToNewCard = () => (dispatch, getState) => {
+export const navigateToNewCard : AppActionCreator = () => (dispatch, getState) => {
 	const ID = selectPendingNewCardIDToNavigateTo(getState());
 	if (!ID) return;
 	//navigateToNewCard is called when the expected cards/sections are loaded.
@@ -1137,7 +1138,7 @@ const modifyCardAction = () => {
 	};
 };
 
-const modifyCardSuccess = () => (dispatch, getState) => {
+const modifyCardSuccess : AppActionCreator = () => (dispatch, getState) => {
 	const state = getState();
 	if (selectIsEditing(state)) {
 		dispatch(editingFinish());
@@ -1169,7 +1170,7 @@ export const reorderStatus = (pending) => {
 	};
 };
 
-export const updateSections = (sections) => (dispatch, getState) => {
+export const updateSections : AppActionCreator = (sections) => (dispatch, getState) => {
 	dispatch({
 		type: UPDATE_SECTIONS,
 		sections,
@@ -1184,7 +1185,7 @@ export const updateSections = (sections) => (dispatch, getState) => {
 	dispatch(refreshCardSelector(force));
 };
 
-export const updateAuthors = (authors) => (dispatch, getState) => {
+export const updateAuthors : AppActionCreator = (authors) => (dispatch, getState) => {
 
 	const state = getState();
 
@@ -1214,7 +1215,7 @@ export const updateAuthors = (authors) => (dispatch, getState) => {
 	});
 };
 
-export const updateTags = (tags) => (dispatch) => {
+export const updateTags : AppActionCreator = (tags) => (dispatch) => {
 	dispatch({
 		type:UPDATE_TAGS,
 		tags,
@@ -1222,7 +1223,7 @@ export const updateTags = (tags) => (dispatch) => {
 	dispatch(refreshCardSelector(false));
 };
 
-export const updateCards = (cards: Cards, unpublished? : boolean) => (dispatch, getState) => {
+export const updateCards : AppActionCreator = (cards: Cards, unpublished? : boolean) => (dispatch, getState) => {
 	const existingCards = selectRawCards(getState());
 	const cardsToUpdate = {};
 	for (const card of Object.values(cards)) {
@@ -1253,7 +1254,7 @@ export const updateCards = (cards: Cards, unpublished? : boolean) => (dispatch, 
 //when it fires.
 const REMOVE_CARDS_TIMEOUT = 3000;
 
-export const removeCards = (cardIDs, unpublished) => (dispatch, getState) => {
+export const removeCards : AppActionCreator = (cardIDs, unpublished) => (dispatch, getState) => {
 
 	//cards that we expected to be deleted won't show up in the other query
 	//ever, so we don't have to wait for the timeout and can delete them now.
@@ -1298,7 +1299,7 @@ export const removeCards = (cardIDs, unpublished) => (dispatch, getState) => {
 //card in the state wasn't put there by the unpublished side when this runs,
 //then it shouldn't be removed, because a more recent copy was put there by the
 //published side.
-const actuallyRemoveCards = (cardIDs, unpublished) => (dispatch, getState) => {
+const actuallyRemoveCards : AppActionCreator = (cardIDs, unpublished) => (dispatch, getState) => {
 
 	const published = !unpublished;
 	const cards = selectCards(getState());
@@ -1316,7 +1317,7 @@ const actuallyRemoveCards = (cardIDs, unpublished) => (dispatch, getState) => {
 	});
 };
 
-export const fetchTweets = (card) => async (dispatch) => {
+export const fetchTweets : AppActionCreator = (card) => async (dispatch) => {
 
 	if (!card || Object.values(card).length == 0) return;
 
