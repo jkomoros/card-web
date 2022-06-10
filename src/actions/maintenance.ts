@@ -606,9 +606,11 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 //included in normal operation of the webapp as soon as they were added.
 const MAINTENANCE_TASK_VERSION = 3;
 
+type MaintenanceTaskFunction = (dispatch: AppThunkDispatch, getState: AppGetState) => void
+
 interface MaintenanceTaskDefinition {
 	//the raw function that does the thing. It will be passed dispatch, getState.
-	fn : (dispatch: AppThunkDispatch, getState: AppGetState) => void,
+	fn : MaintenanceTaskFunction,
 	//string to show in UI
 	displayName? : string,
 	//The raw value of the MAINTENANCE_TASK_VERSION when this task was added to the list. SEE BELOW.
