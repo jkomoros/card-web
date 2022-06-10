@@ -132,6 +132,10 @@ import {
 	AppActionCreator
 } from '../store.js';
 
+import {
+	AnyAction
+} from 'redux';
+
 let lastReportedSelectionRange : Range = null;
 let savedSelectionRange : Range = null;
 let selectionParent : HTMLElementWithStashedSelectionOffset = null;
@@ -221,14 +225,14 @@ export const savedSelectionRangeIsLink = () => {
 	return false;
 };
 
-export const editingSelectTab = (tab) => {
+export const editingSelectTab = (tab) : AnyAction => {
 	return {
 		type: EDITING_SELECT_TAB,
 		tab,
 	};
 };
 
-export const editingSelectEditorTab = (tab) => {
+export const editingSelectEditorTab = (tab) : AnyAction => {
 	return {
 		type: EDITING_SELECT_EDITOR_TAB,
 		tab,
@@ -334,18 +338,18 @@ export const linkCard : AppActionCreator = (cardID : CardID) => (_, getState) =>
 	document.execCommand('createLink', null, cardID);
 };
 
-export const editingFinish = () => {
+export const editingFinish = () : AnyAction => {
 	return {type: EDITING_FINISH};
 };
 
-export const notesUpdated = (newNotes) => {
+export const notesUpdated = (newNotes) : AnyAction => {
 	return {
 		type: EDITING_NOTES_UPDATED,
 		notes:newNotes,
 	};
 };
 
-export const todoUpdated = (newTodo) => {
+export const todoUpdated = (newTodo) : AnyAction => {
 	return {
 		type: EDITING_TODO_UPDATED,
 		todo: newTodo,
@@ -428,14 +432,14 @@ export const sectionUpdated : AppActionCreator = (newSection) => (dispatch, getS
 	});
 };
 
-export const slugAdded = (newSlug) => {
+export const slugAdded = (newSlug) : AnyAction => {
 	return {
 		type: EDITING_SLUG_ADDED,
 		slug: newSlug
 	};
 };
 
-export const nameUpdated = (newName) => {
+export const nameUpdated = (newName) : AnyAction => {
 	return {
 		type: EDITING_NAME_UPDATED,
 		name: newName
@@ -511,42 +515,42 @@ export const publishedUpdated : AppActionCreator = (published) => (dispatch, get
 	});
 };
 
-export const fullBleedUpdated = (fullBleed) => {
+export const fullBleedUpdated = (fullBleed) : AnyAction => {
 	return {
 		type: EDITING_FULL_BLEED_UPDATED,
 		fullBleed
 	};
 };
 
-export const autoTodoOverrideEnabled = (todo) => {
+export const autoTodoOverrideEnabled = (todo) : AnyAction => {
 	return {
 		type: EDITING_AUTO_TODO_OVERRIDE_ENABLED,
 		todo
 	};
 };
 
-export const autoTodoOverrideDisabled = (todo) => {
+export const autoTodoOverrideDisabled = (todo) : AnyAction => {
 	return {
 		type: EDITING_AUTO_TODO_OVERRIDE_DISABLED,
 		todo
 	};
 };
 
-export const autoTodoOverrideRemoved = (todo) => {
+export const autoTodoOverrideRemoved = (todo) : AnyAction => {
 	return {
 		type: EDITING_AUTO_TODO_OVERRIDE_REMOVED,
 		todo
 	};
 };
 
-export const tagAdded = (tag) => {
+export const tagAdded = (tag) : AnyAction => {
 	return {
 		type: EDITING_TAG_ADDED,
 		tag
 	};
 };
 
-export const tagRemoved = (tag) => {
+export const tagRemoved = (tag) : AnyAction => {
 	return {
 		type: EDITING_TAG_REMOVED,
 		tag
@@ -566,7 +570,7 @@ export const editorAdded : AppActionCreator = (editorUid) => (dispatch, getState
 	});
 };
 
-export const editorRemoved = (editorUid) => {
+export const editorRemoved = (editorUid) : AnyAction => {
 	return {
 		type: EDITING_EDITOR_REMOVED,
 		editor:editorUid
@@ -592,7 +596,7 @@ export const collaboratorAdded : AppActionCreator = (collaboratorUid : Uid, auto
 	});
 };
 
-export const collaboratorRemoved = (collaboratorUid : Uid, auto? : boolean) => {
+export const collaboratorRemoved = (collaboratorUid : Uid, auto? : boolean) : AnyAction => {
 	return {
 		type: EDITING_COLLABORATOR_REMOVED,
 		collaborator:collaboratorUid,
@@ -699,7 +703,7 @@ export const removeImageAtIndex : AppActionCreator = (index) => (dispatch) => {
 	dispatch(substantiveUpdated(true, true));
 };
 
-export const moveImageAtIndex = (index, isRight) => {
+export const moveImageAtIndex = (index, isRight) : AnyAction => {
 	return {
 		type: EDITING_MOVE_IMAGE_AT_INDEX,
 		index,
@@ -707,7 +711,7 @@ export const moveImageAtIndex = (index, isRight) => {
 	};
 };
 
-export const changeImagePropertyAtIndex = (index, property, value) => {
+export const changeImagePropertyAtIndex = (index, property, value) : AnyAction => {
 	return {
 		type: EDITING_CHANGE_IMAGE_PROPERTY,
 		index,
@@ -716,28 +720,28 @@ export const changeImagePropertyAtIndex = (index, property, value) => {
 	};
 };
 
-export const openImagePropertiesDialog = (index) => {
+export const openImagePropertiesDialog = (index) : AnyAction => {
 	return {
 		type: EDITING_OPEN_IMAGE_PROPERTIES_DIALOG,
 		index,
 	};
 };
 
-export const closeImagePropertiesDialog = () => {
+export const closeImagePropertiesDialog = () : AnyAction => {
 	return {
 		type: EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG,
 	};
 };
 
 //index can be not provided, which defaults to adding to end.
-export const openImageBrowserDialog = (index? : number) => {
+export const openImageBrowserDialog = (index? : number) : AnyAction => {
 	return {
 		type: EDITING_OPEN_IMAGE_BROWSER_DIALOG,
 		index,
 	};
 };
 
-export const closeImageBrowserDialog = () => {
+export const closeImageBrowserDialog = () : AnyAction => {
 	return {
 		type: EDITING_CLOSE_IMAGE_BROWSER_DIALOG,
 	};
@@ -813,7 +817,7 @@ export const addReferenceToCard : AppActionCreator = (cardID, referenceType) => 
 
 };
 
-export const removeReferenceFromCard = (cardID, referenceType) => {
+export const removeReferenceFromCard = (cardID, referenceType) : AnyAction => {
 	return {
 		type:EDITING_REMOVE_REFERENCE,
 		cardID,
