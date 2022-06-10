@@ -66,6 +66,7 @@ export const isDeleteSentinel = (value : any) : boolean => {
 //allows serverTimestampSentinel() objects to be converted to serverTimestamps
 //right before setting.
 export const installServerTimestamps = (value : object) : object => {
+	if (!Object.values(value).some(value => isServerTimestampSentinel(value))) return value;
 	return Object.fromEntries(Object.entries(value).map(entry => [entry[0], isServerTimestampSentinel(entry[1]) ? serverTimestamp() : entry[1]]));
 }
 
