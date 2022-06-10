@@ -123,8 +123,14 @@ import {
 } from 'firebase/storage';
 
 import {
+	CardFieldTypeEditable,
 	CardID,
+	CardIdentifier,
+	CardType,
+	EditorContentTab,
+	EditorTab,
 	HTMLElementWithStashedSelectionOffset,
+	Slug,
 	Uid 
 } from '../types.js';
 
@@ -225,14 +231,14 @@ export const savedSelectionRangeIsLink = () => {
 	return false;
 };
 
-export const editingSelectTab = (tab) : AnyAction => {
+export const editingSelectTab = (tab : EditorTab) : AnyAction => {
 	return {
 		type: EDITING_SELECT_TAB,
 		tab,
 	};
 };
 
-export const editingSelectEditorTab = (tab) : AnyAction => {
+export const editingSelectEditorTab = (tab : EditorContentTab) : AnyAction => {
 	return {
 		type: EDITING_SELECT_EDITOR_TAB,
 		tab,
@@ -342,23 +348,23 @@ export const editingFinish = () : AnyAction => {
 	return {type: EDITING_FINISH};
 };
 
-export const notesUpdated = (newNotes) : AnyAction => {
+export const notesUpdated = (newNotes : string) : AnyAction => {
 	return {
 		type: EDITING_NOTES_UPDATED,
 		notes:newNotes,
 	};
 };
 
-export const todoUpdated = (newTodo) : AnyAction => {
+export const todoUpdated = (newTodo : string) : AnyAction => {
 	return {
 		type: EDITING_TODO_UPDATED,
 		todo: newTodo,
 	};
 };
 
-var extractLinksTimeout;
+var extractLinksTimeout : number;
 
-export const textFieldUpdated : AppActionCreator = (fieldName, value, fromContentEditable) => (dispatch, getState) => {
+export const textFieldUpdated : AppActionCreator = (fieldName : CardFieldTypeEditable, value : string, fromContentEditable : boolean = false) => (dispatch, getState) => {
 	if (!fromContentEditable) fromContentEditable = false;
 
 	const config = TEXT_FIELD_CONFIGURATION[fieldName] || {};
@@ -432,14 +438,14 @@ export const sectionUpdated : AppActionCreator = (newSection) => (dispatch, getS
 	});
 };
 
-export const slugAdded = (newSlug) : AnyAction => {
+export const slugAdded = (newSlug : Slug) : AnyAction => {
 	return {
 		type: EDITING_SLUG_ADDED,
 		slug: newSlug
 	};
 };
 
-export const nameUpdated = (newName) : AnyAction => {
+export const nameUpdated = (newName : CardIdentifier) : AnyAction => {
 	return {
 		type: EDITING_NAME_UPDATED,
 		name: newName
@@ -467,7 +473,7 @@ export const substantiveUpdated : AppActionCreator = (checked: boolean, auto? : 
 	});
 };
 
-export const cardTypeUpdated : AppActionCreator = (cardType) => (dispatch, getState) => {
+export const cardTypeUpdated : AppActionCreator = (cardType : CardType) => (dispatch, getState) => {
 	const state = getState();
 	const baseCard = selectActiveCard(state);
 	const currentlySubstantive = state.editor.substantive;
