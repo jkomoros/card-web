@@ -66,8 +66,8 @@ export const isDeleteSentinel = (value : any) : boolean => {
 //allows serverTimestampSentinel() objects to be converted to serverTimestamps
 //right before setting.
 export const installServerTimestamps = (value : object) : object => {
-	if (!Object.values(value).some(value => isServerTimestampSentinel(value))) return value;
-	return Object.fromEntries(Object.entries(value).map(entry => [entry[0], isServerTimestampSentinel(entry[1]) ? serverTimestamp() : entry[1]]));
+	if (!Object.values(value).some(value => fieldNeedsServerTimestamp(value))) return value;
+	return Object.fromEntries(Object.entries(value).map(entry => [entry[0], fieldNeedsServerTimestamp(entry[1]) ? serverTimestamp() : entry[1]]));
 }
 
 //Also aware of normal Timestamps vended by serverTimestampSentinel.
@@ -75,6 +75,16 @@ export const isServerTimestampSentinel = (value : any) : boolean => {
 	if (typeof value !== 'object') return false;
 	//Also normal timestamps that we vended from serverTimestampSentinel.
 	if (vendedTimestamps.get(value)) return true;
+	//serverTimestampSentinel returns new objects every time, but for now (at least) they
+	//at least stringify the same.
+	return JSON.stringify(value) == serverTimestampSentinelJSON;
+};
+
+//Fields that are already serverTimestamp don't need a new one.
+const fieldNeedsServerTimestamp = (value : any) : boolean => isServerTimestampSentinel(value) && !isLiteralServerTimestamp(value);
+
+const isLiteralServerTimestamp = (value : any) : boolean => {
+	if (typeof value !== 'object') return false;
 	//serverTimestampSentinel returns new objects every time, but for now (at least) they
 	//at least stringify the same.
 	return JSON.stringify(value) == serverTimestampSentinelJSON;
