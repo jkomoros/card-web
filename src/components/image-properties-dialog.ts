@@ -37,6 +37,7 @@ import {
 
 import {
 	Card,
+	ImageInfoProperty,
 	State
 } from '../types.js';
 
@@ -126,7 +127,7 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 	_handleTextInput(e : InputEvent) {
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLInputElement)) return;
-		store.dispatch(changeImagePropertyAtIndex(this._index, ele.dataset.property, ele.value));
+		store.dispatch(changeImagePropertyAtIndex(this._index, ele.dataset.property as ImageInfoProperty, ele.value));
 	}
 
 	_handleLeftClicked() {

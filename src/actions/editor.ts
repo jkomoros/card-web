@@ -131,6 +131,8 @@ import {
 	EditorContentTab,
 	EditorTab,
 	HTMLElementWithStashedSelectionOffset,
+	ImageInfoProperty,
+	ImageInfoPropertyValue,
 	ReferenceType,
 	Slug,
 	TagID,
@@ -721,7 +723,9 @@ export const moveImageAtIndex = (index : number, isRight : boolean) : AnyAction 
 	};
 };
 
-export const changeImagePropertyAtIndex = (index, property, value) : AnyAction => {
+//We considered doing the same function alternates as we do in
+//images.ts:changeImagePropertyAtIndex but the callsit for this can't do the proper casting anyway so :shrug:
+export const changeImagePropertyAtIndex = (index : number, property : ImageInfoProperty, value : ImageInfoPropertyValue) : AnyAction => {
 	return {
 		type: EDITING_CHANGE_IMAGE_PROPERTY,
 		index,
