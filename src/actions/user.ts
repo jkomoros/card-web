@@ -81,6 +81,10 @@ import {
 	CardID
 } from '../types.js';
 
+import {
+	AppActionCreator
+} from '../store.js';
+
 let prevAnonymousMergeUser = null;
 
 getRedirectResult(auth).catch( async err => {
@@ -112,7 +116,7 @@ getRedirectResult(auth).catch( async err => {
 
 });
 
-export const saveUserInfo = () => (_, getState) => {
+export const saveUserInfo : AppActionCreator = () => (_, getState) => {
 
 	const state = getState();
 
@@ -151,13 +155,13 @@ export const ensureUserInfo = (batchOrTransaction, user) => {
 	batchOrTransaction.set(doc(db, USERS_COLLECTION, user.uid), data, {merge: true});
 };
 
-export const showNeedSignin = () => (dispatch) => {
+export const showNeedSignin : AppActionCreator = () => (dispatch) => {
 	let doSignIn = confirm('Doing that action requires signing in with your Google account. Do you want to sign in?');
 	if (!doSignIn) return;
 	dispatch(signIn());
 };
 
-export const signIn = () => (dispatch, getState) => {
+export const signIn : AppActionCreator = () => (dispatch, getState) => {
 
 	const state = getState();
 
@@ -184,7 +188,7 @@ export const signIn = () => (dispatch, getState) => {
 
 };
 
-export const signOutSuccess = () => (dispatch) =>  {
+export const signOutSuccess : AppActionCreator = () => (dispatch) =>  {
 
 	//Note that this is actually called anytime onAuthStateChange notices we're not signed
 	//in, which can both be a manual sign out, as well as a page load with no user.
@@ -217,7 +221,7 @@ const hasPreviousSignIn = () => {
 	return localStorage.getItem(HAS_PREVIOUS_SIGN_IN_KEY) ? true : false;
 };
 
-const ensureRichestDataForUser = (firebaseUser) => (dispatch) => {
+const ensureRichestDataForUser : AppActionCreator = (firebaseUser) => (dispatch) => {
 	//Whatever the first account was will be the default photoUrl, displayName,
 	//etc. So if your first account was an anonymous one (no photoUrl or
 	//displayName) then even when you sign in with e.g. gmail we'll still have
@@ -248,7 +252,7 @@ const ensureRichestDataForUser = (firebaseUser) => (dispatch) => {
 
 };
 
-const updateUserInfo = (firebaseUser) => (dispatch) => {
+const updateUserInfo : AppActionCreator = (firebaseUser) => (dispatch) => {
 	let info = _userInfo(firebaseUser);
 	dispatch({
 		type: SIGNIN_SUCCESS,
@@ -256,7 +260,7 @@ const updateUserInfo = (firebaseUser) => (dispatch) => {
 	});
 };
 
-export const updatePermissions = (uid) => async (dispatch) => {
+export const updatePermissions : AppActionCreator = (uid) => async (dispatch) => {
 	if (!uid) {
 		//This is only trigger on e.g. logout
 		dispatch({
@@ -283,7 +287,7 @@ export const updatePermissions = (uid) => async (dispatch) => {
 	});
 };
 
-export const signInSuccess = (firebaseUser) => (dispatch) => {
+export const signInSuccess : AppActionCreator = (firebaseUser) => (dispatch) => {
 
 	//Note that even when this is done, selectUserSignedIn might still return
 	//false, if the user is signed in anonymously.
@@ -310,7 +314,7 @@ const _userInfo = (info) : UserInfo => {
 	};
 };
 
-export const signOut = () => (dispatch, getState) => {
+export const signOut : AppActionCreator = () => (dispatch, getState) => {
 
 	const state = getState();
 
@@ -326,7 +330,7 @@ export const signOut = () => (dispatch, getState) => {
 	firebaseSignOut(auth);
 };
 
-export const updateStars = (starsToAdd = [], starsToRemove = []) => (dispatch) => {
+export const updateStars : AppActionCreator = (starsToAdd = [], starsToRemove = []) => (dispatch) => {
 	dispatch({
 		type: UPDATE_STARS,
 		starsToAdd,
@@ -335,7 +339,7 @@ export const updateStars = (starsToAdd = [], starsToRemove = []) => (dispatch) =
 	dispatch(refreshCardSelector(false));
 };
 
-export const toggleOnReadingList = (cardToToggle : CardID) => (dispatch, getState) => {
+export const toggleOnReadingList : AppActionCreator = (cardToToggle : CardID) => (dispatch, getState) => {
 
 	if (!cardToToggle) {
 		console.log('Invalid card provided');
@@ -348,7 +352,7 @@ export const toggleOnReadingList = (cardToToggle : CardID) => (dispatch, getStat
 	dispatch(onReadingList ? removeFromReadingList(cardToToggle) : addToReadingList(cardToToggle));
 };
 
-export const addToReadingList = (cardToAdd : CardID) => (_, getState) => {
+export const addToReadingList : AppActionCreator = (cardToAdd : CardID) => (_, getState) => {
 	if (!cardToAdd) {
 		console.log('Invalid card provided');
 		return;
@@ -391,7 +395,7 @@ export const addToReadingList = (cardToAdd : CardID) => (_, getState) => {
 	batch.commit();
 };
 
-export const removeFromReadingList = (cardToRemove : CardID) => (_, getState) => {
+export const removeFromReadingList : AppActionCreator = (cardToRemove : CardID) => (_, getState) => {
 	if (!cardToRemove) {
 		console.log('Invalid card provided');
 		return;
@@ -434,7 +438,7 @@ export const removeFromReadingList = (cardToRemove : CardID) => (_, getState) =>
 	batch.commit();
 };
 
-export const addStar = (cardToStar) => (_, getState) => {
+export const addStar : AppActionCreator = (cardToStar) => (_, getState) => {
 
 	if (!cardToStar || !cardToStar.id) {
 		console.log('Invalid card provided');
@@ -472,7 +476,7 @@ export const addStar = (cardToStar) => (_, getState) => {
 	batch.commit();
 };
 
-export const removeStar = (cardToStar) => (_, getState) => {
+export const removeStar : AppActionCreator = (cardToStar) => (_, getState) => {
 	if (!cardToStar || !cardToStar.id) {
 		console.log('Invalid card provided');
 		return;
@@ -506,7 +510,7 @@ export const removeStar = (cardToStar) => (_, getState) => {
 
 };
 
-export const updateReads = (readsToAdd = [], readsToRemove = []) => (dispatch) => {
+export const updateReads : AppActionCreator = (readsToAdd = [], readsToRemove = []) => (dispatch) => {
 	dispatch({
 		type: UPDATE_READS,
 		readsToAdd,
@@ -515,7 +519,7 @@ export const updateReads = (readsToAdd = [], readsToRemove = []) => (dispatch) =
 	dispatch(refreshCardSelector(false));
 };
 
-export const updateReadingList = (list = []) => (dispatch) => {
+export const updateReadingList : AppActionCreator = (list = []) => (dispatch) => {
 	dispatch({
 		type: UPDATE_READING_LIST,
 		list,
@@ -525,7 +529,7 @@ export const updateReadingList = (list = []) => (dispatch) => {
 
 let autoMarkReadTimeoutId = null;
 
-export const scheduleAutoMarkRead = () => (dispatch, getState) => {
+export const scheduleAutoMarkRead : AppActionCreator = () => (dispatch, getState) => {
 
 	cancelPendingAutoMarkRead();
 
@@ -548,7 +552,7 @@ export const scheduleAutoMarkRead = () => (dispatch, getState) => {
 	dispatch({type: AUTO_MARK_READ_PENDING_CHANGED, pending: true});
 };
 
-export const cancelPendingAutoMarkRead = () => (dispatch) => {
+export const cancelPendingAutoMarkRead : AppActionCreator = () => (dispatch) => {
 	if (autoMarkReadTimeoutId) {
 		dispatch({type: AUTO_MARK_READ_PENDING_CHANGED, pending: false});
 		clearTimeout(autoMarkReadTimeoutId);
@@ -556,7 +560,7 @@ export const cancelPendingAutoMarkRead = () => (dispatch) => {
 	}
 };
 
-export const markActiveCardReadIfLoggedIn = () => (dispatch, getState) => {
+export const markActiveCardReadIfLoggedIn : AppActionCreator = () => (dispatch, getState) => {
 	//It's the responsibility of the thing that scheduled this to ensure that it
 	//only fires if the card we wnat to mark read is still active.
 	const state = getState();
@@ -568,7 +572,7 @@ export const markActiveCardReadIfLoggedIn = () => (dispatch, getState) => {
 	dispatch(markRead(activeCard, true));
 };
 
-export const markRead = (cardToMarkRead : Card, existingReadDoesNotError? : boolean) => (_, getState) => {
+export const markRead : AppActionCreator = (cardToMarkRead : Card, existingReadDoesNotError? : boolean) => (_, getState) => {
 
 	if (!cardToMarkRead || !cardToMarkRead.id) {
 		console.log('Invalid card provided');
@@ -604,7 +608,7 @@ export const markRead = (cardToMarkRead : Card, existingReadDoesNotError? : bool
 	batch.commit();
 };
 
-export const markUnread = (cardToMarkUnread) => (_, getState) => {
+export const markUnread : AppActionCreator = (cardToMarkUnread) => (_, getState) => {
 	if (!cardToMarkUnread || !cardToMarkUnread.id) {
 		console.log('Invalid card provided');
 		return;
