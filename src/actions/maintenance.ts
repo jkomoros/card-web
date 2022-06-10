@@ -11,7 +11,8 @@ import {
 import {
 	AppThunkDispatch,
 	AppGetState,
-	store
+	store,
+	AppActionCreator
 } from '../store.js';
 
 import {
@@ -521,7 +522,7 @@ export const nextMaintenanceTaskName = (executedTasks : MaintenanceTaskMap) => {
 	return '';
 };
 
-const makeMaintenanceActionCreator = (taskName, taskConfig) => {
+const makeMaintenanceActionCreator = (taskName : MaintenanceTaskID, taskConfig : RawMaintenanceTaskDefinition) : AppActionCreator => {
 	const fn = taskConfig.fn;
 	return () => async (dispatch, getState) => {
 		let ref = doc(db, MAINTENANCE_COLLECTION, taskName);
@@ -580,7 +581,7 @@ const MAINTENANCE_TASK_VERSION = 3;
 
 type MaintenanceTaskFunction = (dispatch: AppThunkDispatch, getState: AppGetState) => void
 
-interface MaintenanceTaskDefinition {
+interface RawMaintenanceTaskDefinition {
 	//the raw function that does the thing. It will be passed dispatch, getState.
 	fn : MaintenanceTaskFunction,
 	//string to show in UI
@@ -593,12 +594,16 @@ interface MaintenanceTaskDefinition {
 	nextTaskName? : MaintenanceTaskID
 }
 
+interface MaintenanceTaskDefinition extends RawMaintenanceTaskDefinition {
+	actionCreator: AppActionCreator,
+}
+
 /*
 When adding new tasks, increment MAINTENANCE_TASK_VERSION by one. Set the new
 task's minVersion to the new raw value of MAINTENANCE_TASK_VERSION. Append the
 new task to the END of the raw_tasks list.
 */
-const RAW_TASKS : {[id : MaintenanceTaskID]: MaintenanceTaskDefinition} = {
+const RAW_TASKS : {[id : MaintenanceTaskID]: RawMaintenanceTaskDefinition} = {
 	[INITIAL_SET_UP]: {
 		fn: initialSetup,
 		displayName: 'Initial Set Up',
@@ -661,4 +666,4 @@ Object.entries(RAW_TASKS).forEach(entry => {
 	}
 });
 
-export const MAINTENANCE_TASKS = Object.fromEntries(Object.entries(RAW_TASKS).map(entry => [entry[0], {...entry[1], actionCreator: makeMaintenanceActionCreator(entry[0], entry[1])}]));
+export const MAINTENANCE_TASKS : {[id : MaintenanceTaskID] : MaintenanceTaskDefinition} = Object.fromEntries(TypedObject.entries(RAW_TASKS).map(entry => [entry[0], {...entry[1], actionCreator: makeMaintenanceActionCreator(entry[0], entry[1])}]));
