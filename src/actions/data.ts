@@ -34,7 +34,8 @@ import {
 
 import {
 	db,
-	deepEqualIgnoringTimestamps
+	deepEqualIgnoringTimestamps,
+	serverTimestampSentinel
 } from '../firebase.js';
 
 import {
@@ -648,17 +649,18 @@ const CARD_FIELDS_TO_COPY_ON_FORK = {
 };
 
 //exported entireoly for initialSetUp in maintence.js
-export const defaultCardObject = (id : CardID, user : UserInfo, section : SectionID, cardType : CardType, sortOrder : number) : CardUpdate => {
+export const defaultCardObject = (id : CardID, user : UserInfo, section : SectionID, cardType : CardType, sortOrder : number) : Card => {
 	return {
-		created: serverTimestamp(),
-		updated: serverTimestamp(),
+		id : '?DEFAULT-INVALID-ID?',
+		created: serverTimestampSentinel(),
+		updated: serverTimestampSentinel(),
 		author: user.uid,
 		permissions: {
 			[PERMISSION_EDIT_CARD]: [],
 		},
 		collaborators: [],
-		updated_substantive: serverTimestamp(),
-		updated_message: serverTimestamp(),
+		updated_substantive: serverTimestampSentinel(),
+		updated_message: serverTimestampSentinel(),
 		star_count: 0,
 		star_count_manual: 0,
 		tweet_favorite_count: 0,
