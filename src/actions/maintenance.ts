@@ -133,7 +133,7 @@ const updateExecutedMaintenanceTasks = (executedTasks : MaintenanceTaskMap) : An
 
 const NORMALIZE_CONTENT_BODY = 'normalize-content-body-again';
 
-const normalizeContentBody = async() => {
+const normalizeContentBody : MaintenanceTaskFunction = async() => {
 	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 
 	let counter = 0;
@@ -154,7 +154,7 @@ const normalizeContentBody = async() => {
 
 const UPDATE_INBOUND_LINKS = 'update-inbound-links';
 
-const updateInboundLinks = async() => {
+const updateInboundLinks : MaintenanceTaskFunction = async() => {
 
 	//This task is designed to run as often as you want, so we don't check if we've run it and mark as run.
 
@@ -190,7 +190,7 @@ const updateInboundLinks = async() => {
 
 const RESET_TWEETS = 'reset-tweets';
 
-const resetTweets = async() => {
+const resetTweets : MaintenanceTaskFunction = async() => {
 	//Mark all tweets as having not been run
 	if (!confirm('Are you SURE you want to reset all tweets?')) return;
 	let batch = new MultiBatch(db);
@@ -207,7 +207,7 @@ const resetTweets = async() => {
 
 const INITIAL_SET_UP = 'initial-set-up';
 
-const initialSetup = async (_, getState) => {
+const initialSetup : MaintenanceTaskFunction = async (_, getState) => {
 
 	const user = selectUser(getState());
 
@@ -278,7 +278,7 @@ const initialSetup = async (_, getState) => {
 
 const LINKS_TO_REFERENCES = 'links-to-references';
 
-const linksToReferences = async () => {
+const linksToReferences : MaintenanceTaskFunction = async () => {
 
 	let batch = new MultiBatch(db);
 	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
@@ -309,7 +309,7 @@ const linksToReferences = async () => {
 
 const ADD_FONT_SIZE_BOOST = 'add-font-size-boost';
 
-const addFontSizeBoost = async () => {
+const addFontSizeBoost : MaintenanceTaskFunction = async () => {
 
 	let batch = new MultiBatch(db);
 	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
@@ -322,7 +322,7 @@ const addFontSizeBoost = async () => {
 
 const UPDATE_FONT_SIZE_BOOST = 'update-font-size-boost';
 
-const updateFontSizeBoost = async () => {
+const updateFontSizeBoost : MaintenanceTaskFunction = async () => {
 
 	let batch = new MultiBatch(db);
 	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
@@ -349,7 +349,7 @@ const updateFontSizeBoost = async () => {
 
 const CONVERT_MULTI_LINKS_DELIMITER = 'convert-multi-links-delimiter';
 
-const convertMultiLinksDelimiter = async () => {
+const convertMultiLinksDelimiter : MaintenanceTaskFunction = async () => {
 	const OLD_MULTI_LINK_DELIMITER = ' || ';
 
 	let batch = new MultiBatch(db);
@@ -378,7 +378,7 @@ const convertMultiLinksDelimiter = async () => {
 
 const FLIP_AUTO_TODO_OVERRIDES = 'flip-auto-todo-overrides';
 
-const flipAutoTodoOverrides = async () => {
+const flipAutoTodoOverrides : MaintenanceTaskFunction = async () => {
 	let batch = new MultiBatch(db);
 	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	snapshot.forEach(doc => {
@@ -402,7 +402,7 @@ const flipAutoTodoOverrides = async () => {
 
 const SET_MAINTENANCE_TASK_VERSION = 'set-maintenance-task-version';
 
-const setMaintenanceTaskVersion = async () => {
+const setMaintenanceTaskVersion : MaintenanceTaskFunction = async () => {
 	let batch = new MultiBatch(db);
 
 	let seenTasks = {};
@@ -428,7 +428,7 @@ const setMaintenanceTaskVersion = async () => {
 
 const ADD_IMAGES_PROPERTY = 'add-images-property';
 
-const addImagesProperty = async () => {
+const addImagesProperty : MaintenanceTaskFunction = async () => {
 	let batch = new MultiBatch(db);
 	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	snapshot.forEach(doc => {
@@ -443,7 +443,7 @@ const addImagesProperty = async () => {
 
 const RERUN_CARD_FINISHERS = 'rerun-card-finishers';
 
-const rerunCardFinishers = async (_, getState) => {
+const rerunCardFinishers : MaintenanceTaskFunction = async (_, getState) => {
 
 	let batch = new MultiBatch(db);
 
@@ -468,7 +468,7 @@ const rerunCardFinishers = async (_, getState) => {
 
 const ADD_SORT_ORDER_PROPERTY = 'add-sort-order-property';
 
-const addSortOrderProperty = async (_, getState) => {
+const addSortOrderProperty : MaintenanceTaskFunction = async (_, getState) => {
 
 	let batch = new MultiBatch(db);
 
