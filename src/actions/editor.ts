@@ -148,6 +148,10 @@ import {
 	AnyAction
 } from 'redux';
 
+import {
+	TypedObject
+} from '../typed_object.js';
+
 let lastReportedSelectionRange : Range = null;
 let savedSelectionRange : Range = null;
 let selectionParent : HTMLElementWithStashedSelectionOffset = null;
@@ -878,16 +882,14 @@ export const mergeOvershadowedUnderlyingChanges : AppActionCreator = () => (disp
 		return;
 	}
 
-	let filteredDiff : CardDiff = {};
+	let filteredDiff : CardDiff = {...diff};
 	if (Object.keys(diff).length > 1) {
-		for (const [field, value] of Object.entries(diff)) {
+		for (const [field, value] of TypedObject.entries(diff)) {
 			const strValue = typeof value == 'object' ? JSON.stringify(value) : value;
-			if (confirm('Do you want to revert your edits to ' + field + ', resetting it to:\n' + strValue + '\nChoose OK to revert your edits for this field, or Cancel to keep your edits. (You\'ll be able to review other fields next)')) {
-				filteredDiff[field] = value;
+			if (!confirm('Do you want to revert your edits to ' + field + ', resetting it to:\n' + strValue + '\nChoose OK to revert your edits for this field, or Cancel to keep your edits. (You\'ll be able to review other fields next)')) {
+				delete filteredDiff[field];
 			}
 		}
-	} else {
-		filteredDiff = diff;
 	}
 
 	if (!cardDiffHasChanges(filteredDiff)) {
