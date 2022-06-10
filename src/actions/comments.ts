@@ -40,6 +40,10 @@ import {
 	refreshCommentRedirect
 } from './app.js';
 
+import {
+	AppActionCreator
+} from '../store.js';
+
 export const ensureAuthor = (batch, user) => {
 	batch.set(doc(db, AUTHORS_COLLECTION, user.uid), {
 		updated: serverTimestamp(),
@@ -59,7 +63,7 @@ export const createAuthorStub = (uid) => {
 	batch.commit();
 };
 
-export const resolveThread = (thread) => (_, getState) => {
+export const resolveThread : AppActionCreator = (thread) => (_, getState) => {
 	const state = getState();
 
 	if (!thread || !thread.id) {
@@ -91,7 +95,7 @@ export const resolveThread = (thread) => (_, getState) => {
 	});
 };
 
-export const deleteMessage = (message) => (_, getState) => {
+export const deleteMessage : AppActionCreator = (message) => (_, getState) => {
 	const state = getState();
 	if (!getUserMayEditMessage(state, message)) {
 		console.log('User isn\'t allowed to edit that message!');
@@ -114,7 +118,7 @@ export const deleteMessage = (message) => (_, getState) => {
 	batch.commit();
 };
 
-export const editMessage = (message, newMessage) => (_, getState) => {
+export const editMessage : AppActionCreator = (message, newMessage) => (_, getState) => {
   
 	const state = getState();
 
@@ -140,7 +144,7 @@ export const editMessage = (message, newMessage) => (_, getState) => {
 
 };
 
-export const addMessage = (thread, message) => (_, getState) => {
+export const addMessage : AppActionCreator = (thread, message) => (_, getState) => {
 	const state = getState();
 	const card = selectActiveCard(state);
 	if (!card || !card.id) {
@@ -206,7 +210,7 @@ export const addMessage = (thread, message) => (_, getState) => {
 
 };
 
-export const createThread = (message) => (_, getState) => {
+export const createThread : AppActionCreator = (message) => (_, getState) => {
 	const state = getState();
 	const card = selectActiveCard(state);
 	if (!card || !card.id) {
@@ -282,7 +286,7 @@ export const createThread = (message) => (_, getState) => {
 
 };
 
-export const updateThreads = (threads) => (dispatch) => {
+export const updateThreads : AppActionCreator = (threads) => (dispatch) => {
 	dispatch({
 		type: COMMENTS_UPDATE_THREADS,
 		threads
@@ -290,7 +294,7 @@ export const updateThreads = (threads) => (dispatch) => {
 	dispatch(refreshCommentRedirect());
 };
 
-export const updateMessages = (messages) => (dispatch) => {
+export const updateMessages : AppActionCreator = (messages) => (dispatch) => {
 	dispatch({
 		type: COMMENTS_UPDATE_MESSAGES,
 		messages
