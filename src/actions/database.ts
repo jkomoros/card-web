@@ -59,7 +59,9 @@ import {
 	CommentMessage,
 	CommentThreads,
 	CommentThread,
-	CommentThreadID
+	CommentThreadID,
+	Uid,
+	CardID
 } from '../types.js';
 
 export const CARDS_COLLECTION = 'cards';
@@ -178,9 +180,9 @@ export const connectLiveThreads = () => {
 	});
 };
 
-let liveStarsUnsubscribe = null;
-let liveReadsUnsubscribe = null;
-let liveReadingListUnsubscribe = null;
+let liveStarsUnsubscribe : () => void = null;
+let liveReadsUnsubscribe : () => void  = null;
+let liveReadingListUnsubscribe : () => void = null;
 
 export const disconnectLiveStars = () => {
 	if (liveStarsUnsubscribe) {
@@ -189,11 +191,11 @@ export const disconnectLiveStars = () => {
 	}
 };
 
-export const connectLiveStars = (uid) => {
+export const connectLiveStars = (uid : Uid) => {
 	disconnectLiveStars();
 	liveStarsUnsubscribe = onSnapshot(query(collection(db, STARS_COLLECTION), where('owner', '==', uid)), snapshot => {
-		let starsToAdd = [];
-		let starsToRemove = [];
+		let starsToAdd : CardID[] = [];
+		let starsToRemove : CardID[] = [];
 		snapshot.docChanges().forEach(change => {
 			let doc = change.doc;
 			if (change.type === 'removed') {
@@ -213,11 +215,11 @@ export const disconnectLiveReads = () => {
 	}
 };
 
-export const connectLiveReads = (uid) => {
+export const connectLiveReads = (uid : Uid) => {
 	disconnectLiveReads();
 	liveReadsUnsubscribe = onSnapshot(query(collection(db, READS_COLLECTION), where('owner', '==', uid)),  snapshot => {
-		let readsToAdd = [];
-		let readsToRemove = [];
+		let readsToAdd : CardID[] = [];
+		let readsToRemove : CardID[] = [];
 		snapshot.docChanges().forEach(change => {
 			let doc = change.doc;
 			if (change.type === 'removed') {
@@ -237,10 +239,10 @@ export const disconnectLiveReadingList = () => {
 	}
 };
 
-export const connectLiveReadingList = (uid) => {
+export const connectLiveReadingList = (uid : Uid) => {
 	disconnectLiveReadingList();
 	liveReadingListUnsubscribe = onSnapshot(query(collection(db, READING_LISTS_COLLECTION), where('owner', '==', uid)), snapshot => {
-		let list = [];
+		let list : CardID[] = [];
 		snapshot.docChanges().forEach(change => {
 			let doc = change.doc;
 			if (change.type === 'removed') {
