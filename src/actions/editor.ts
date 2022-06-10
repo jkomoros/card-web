@@ -128,6 +128,10 @@ import {
 	Uid 
 } from '../types.js';
 
+import {
+	AppActionCreator
+} from '../store.js';
+
 let lastReportedSelectionRange : Range = null;
 let savedSelectionRange : Range = null;
 let selectionParent : HTMLElementWithStashedSelectionOffset = null;
@@ -231,7 +235,7 @@ export const editingSelectEditorTab = (tab) => {
 	};
 };
 
-export const editingStart = () => (dispatch, getState) => {
+export const editingStart : AppActionCreator = () => (dispatch, getState) => {
 	const state = getState();
 	if (selectIsEditing(state)) {
 		console.warn('Can\'t start editing because already editing');
@@ -249,7 +253,7 @@ export const editingStart = () => (dispatch, getState) => {
 	dispatch({type: EDITING_START, card: card});
 };
 
-export const editingCommit = () => async (dispatch, getState) => {
+export const editingCommit : AppActionCreator = () => async (dispatch, getState) => {
 	const state = getState();
 	if (!selectIsEditing(state)) {
 		console.warn('Editing not active');
@@ -308,7 +312,7 @@ export const cancelLink = () => () => {
 	restoreSelectionRange();
 };
 
-export const linkURL = (href) => (_, getState) => {
+export const linkURL : AppActionCreator = (href) => (_, getState) => {
 	const state = getState();
 	if (!state.editor.editing) return;
 	//TODO: it's weird we do this here, it really should be done on the card-
@@ -321,7 +325,7 @@ export const linkURL = (href) => (_, getState) => {
 	}
 };
 
-export const linkCard = (cardID : CardID) => (_, getState) => {
+export const linkCard : AppActionCreator = (cardID : CardID) => (_, getState) => {
 	const state = getState();
 	if (!state.editor.editing) return;
 	//TODO: it's weird we do this here, it really should be done on the card-
@@ -350,7 +354,7 @@ export const todoUpdated = (newTodo) => {
 
 var extractLinksTimeout;
 
-export const textFieldUpdated = (fieldName, value, fromContentEditable) => (dispatch, getState) => {
+export const textFieldUpdated : AppActionCreator = (fieldName, value, fromContentEditable) => (dispatch, getState) => {
 	if (!fromContentEditable) fromContentEditable = false;
 
 	const config = TEXT_FIELD_CONFIGURATION[fieldName] || {};
@@ -392,7 +396,7 @@ export const textFieldUpdated = (fieldName, value, fromContentEditable) => (disp
 	}
 };
 
-export const sectionUpdated = (newSection) => (dispatch, getState) => {
+export const sectionUpdated : AppActionCreator = (newSection) => (dispatch, getState) => {
 	const state = getState();
 	const baseCard = selectActiveCard(state);
 	const sections = selectSections(state);
@@ -438,7 +442,7 @@ export const nameUpdated = (newName) => {
 	};
 };
 
-export const substantiveUpdated = (checked: boolean, auto? : boolean) => (dispatch, getState) => {
+export const substantiveUpdated : AppActionCreator = (checked: boolean, auto? : boolean) => (dispatch, getState) => {
 
 	const state = getState();
 	const editingCard = selectEditingCard(state);
@@ -459,7 +463,7 @@ export const substantiveUpdated = (checked: boolean, auto? : boolean) => (dispat
 	});
 };
 
-export const cardTypeUpdated = (cardType) => (dispatch, getState) => {
+export const cardTypeUpdated : AppActionCreator = (cardType) => (dispatch, getState) => {
 	const state = getState();
 	const baseCard = selectActiveCard(state);
 	const currentlySubstantive = state.editor.substantive;
@@ -484,7 +488,7 @@ export const cardTypeUpdated = (cardType) => (dispatch, getState) => {
 	});
 };
 
-export const publishedUpdated = (published) => (dispatch, getState) => {
+export const publishedUpdated : AppActionCreator = (published) => (dispatch, getState) => {
 
 	const state = getState();
 	const baseCard = selectActiveCard(state);
@@ -549,7 +553,7 @@ export const tagRemoved = (tag) => {
 	};
 };
 
-export const editorAdded = (editorUid) => (dispatch, getState) => {
+export const editorAdded : AppActionCreator = (editorUid) => (dispatch, getState) => {
 	const card = selectEditingCard(getState());
 	if (!card) return;
 	if (editorUid == card.author) {
@@ -574,7 +578,7 @@ export const manualEditorAdded = (editorUid) => {
 	return editorAdded(editorUid);
 };
 
-export const collaboratorAdded = (collaboratorUid : Uid, auto? : boolean) => (dispatch, getState) => {
+export const collaboratorAdded : AppActionCreator = (collaboratorUid : Uid, auto? : boolean) => (dispatch, getState) => {
 	const card = selectEditingCard(getState());
 	if (!card) return;
 	if (collaboratorUid == card.author) {
@@ -602,7 +606,7 @@ export const manualCollaboratorAdded = (collaboratorUid) => {
 };
 
 //If index is undefined, it will add a new item to the end of the list
-export const addImageWithFile = (file, index) => async (dispatch, getState) => {
+export const addImageWithFile : AppActionCreator = (file, index) => async (dispatch, getState) => {
 
 	const state = getState();
 
@@ -641,7 +645,7 @@ export const addImageWithFile = (file, index) => async (dispatch, getState) => {
 
 //src must be a fully qualified URL. uploadPath is the filename in the upload
 //bucket, if applicable. If index is undefined, it will add a new item to the end of the list
-export const addImageWithURL = (src : string, uploadPath : string = '', index? : number) => async (dispatch, getState) => {
+export const addImageWithURL : AppActionCreator = (src : string, uploadPath : string = '', index? : number) => async (dispatch, getState) => {
 
 	if (!srcSeemsValid(src)) {
 		alert('Src doesn\'t seem valid. It should start with https or http');
@@ -685,7 +689,7 @@ export const addImageWithURL = (src : string, uploadPath : string = '', index? :
 	dispatch(substantiveUpdated(true, true));
 };
 
-export const removeImageAtIndex = (index) => (dispatch) => {
+export const removeImageAtIndex : AppActionCreator = (index) => (dispatch) => {
 	dispatch({
 		type: EDITING_REMOVE_IMAGE_AT_INDEX,
 		index
@@ -739,7 +743,7 @@ export const closeImageBrowserDialog = () => {
 	};
 };
 
-export const setCardToReference = (cardID : CardID) => (dispatch, getState) => {
+export const setCardToReference : AppActionCreator = (cardID : CardID) => (dispatch, getState) => {
 	const state = getState();
 	const referenceType = selectEditingPendingReferenceType(state);
 	if (selectMultiEditDialogOpen(state)) {
@@ -752,7 +756,7 @@ export const setCardToReference = (cardID : CardID) => (dispatch, getState) => {
 	});
 };
 
-export const selectCardToReference = (referenceType) => (dispatch, getState) => {
+export const selectCardToReference : AppActionCreator = (referenceType) => (dispatch, getState) => {
 
 	const referenceTypeConfig = REFERENCE_TYPES[referenceType];
 	if (!referenceTypeConfig) {
@@ -785,7 +789,7 @@ export const selectCardToReference = (referenceType) => (dispatch, getState) => 
 	dispatch(findCardToReference(cardTypeFilter));
 };
 
-export const addReferenceToCard = (cardID, referenceType) => (dispatch, getState) => {
+export const addReferenceToCard : AppActionCreator = (cardID, referenceType) => (dispatch, getState) => {
 	const state = getState();
 
 	const editingCard = selectEditingCard(state);
@@ -817,7 +821,7 @@ export const removeReferenceFromCard = (cardID, referenceType) => {
 	};
 };
 
-export const updateUnderlyingCard = () => (dispatch, getState) => {
+export const updateUnderlyingCard : AppActionCreator = () => (dispatch, getState) => {
 	const state = getState();
 
 	if (!selectEditingCard(state)) {
@@ -845,7 +849,7 @@ export const updateUnderlyingCard = () => (dispatch, getState) => {
 	});
 };
 
-export const mergeOvershadowedUnderlyingChanges = () => (dispatch, getState) => {
+export const mergeOvershadowedUnderlyingChanges : AppActionCreator = () => (dispatch, getState) => {
 
 	const state = getState();
 
