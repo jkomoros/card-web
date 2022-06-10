@@ -600,7 +600,7 @@ type OptionalFields<Type> = {
 export type OptionalFieldsCard = OptionalFields<Card>;
 
 type TimestampToFieldValue<Type> = {
-    [Property in keyof Type]: Type[Property] extends Timestamp ? FieldValue : Type[Property]
+    [Property in keyof Type]: Type[Property] extends Timestamp ? FieldValue | Type[Property] : Type[Property]
 };
 
 //Firebase updates allow arrayUnion and arrayRemove sentinels
