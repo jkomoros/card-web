@@ -16,7 +16,8 @@ import {
 	writeBatch,
 	runTransaction,
 	arrayUnion,
-	serverTimestamp
+	serverTimestamp,
+	DocumentReference
 } from 'firebase/firestore';
 
 import {
@@ -44,7 +45,20 @@ import {
 	AppActionCreator
 } from '../store.js';
 
-export const ensureAuthor = (batch, user) => {
+import {
+	CommentMessage,
+	CommentMessages,
+	CommentThread,
+	CommentThreads,
+	Uid,
+	UserInfo
+} from '../types.js';
+
+type BatchLikeSet = {
+	set(ref : DocumentReference, data : object) : void
+}
+
+export const ensureAuthor = (batch : BatchLikeSet, user : UserInfo) => {
 	batch.set(doc(db, AUTHORS_COLLECTION, user.uid), {
 		updated: serverTimestamp(),
 		photoURL: user.photoURL,
@@ -52,7 +66,7 @@ export const ensureAuthor = (batch, user) => {
 	});
 };
 
-export const createAuthorStub = (uid) => {
+export const createAuthorStub = (uid : Uid) => {
 	//useful if you want to create an author stub to be filled in by that user
 	//when they next login, for example to manually add an editor or
 	//collaborator to a card.
@@ -63,7 +77,7 @@ export const createAuthorStub = (uid) => {
 	batch.commit();
 };
 
-export const resolveThread : AppActionCreator = (thread) => (_, getState) => {
+export const resolveThread : AppActionCreator = (thread : CommentThread) => (_, getState) => {
 	const state = getState();
 
 	if (!thread || !thread.id) {
@@ -95,7 +109,7 @@ export const resolveThread : AppActionCreator = (thread) => (_, getState) => {
 	});
 };
 
-export const deleteMessage : AppActionCreator = (message) => (_, getState) => {
+export const deleteMessage : AppActionCreator = (message : CommentMessage) => (_, getState) => {
 	const state = getState();
 	if (!getUserMayEditMessage(state, message)) {
 		console.log('User isn\'t allowed to edit that message!');
@@ -118,7 +132,7 @@ export const deleteMessage : AppActionCreator = (message) => (_, getState) => {
 	batch.commit();
 };
 
-export const editMessage : AppActionCreator = (message, newMessage) => (_, getState) => {
+export const editMessage : AppActionCreator = (message : CommentMessage, newMessage : string) => (_, getState) => {
   
 	const state = getState();
 
@@ -144,7 +158,7 @@ export const editMessage : AppActionCreator = (message, newMessage) => (_, getSt
 
 };
 
-export const addMessage : AppActionCreator = (thread, message) => (_, getState) => {
+export const addMessage : AppActionCreator = (thread : CommentThread, message : CommentMessage) => (_, getState) => {
 	const state = getState();
 	const card = selectActiveCard(state);
 	if (!card || !card.id) {
@@ -210,7 +224,7 @@ export const addMessage : AppActionCreator = (thread, message) => (_, getState) 
 
 };
 
-export const createThread : AppActionCreator = (message) => (_, getState) => {
+export const createThread : AppActionCreator = (message : CommentMessage) => (_, getState) => {
 	const state = getState();
 	const card = selectActiveCard(state);
 	if (!card || !card.id) {
@@ -286,7 +300,7 @@ export const createThread : AppActionCreator = (message) => (_, getState) => {
 
 };
 
-export const updateThreads : AppActionCreator = (threads) => (dispatch) => {
+export const updateThreads : AppActionCreator = (threads : CommentThreads) => (dispatch) => {
 	dispatch({
 		type: COMMENTS_UPDATE_THREADS,
 		threads
@@ -294,7 +308,7 @@ export const updateThreads : AppActionCreator = (threads) => (dispatch) => {
 	dispatch(refreshCommentRedirect());
 };
 
-export const updateMessages : AppActionCreator = (messages) => (dispatch) => {
+export const updateMessages : AppActionCreator = (messages : CommentMessages) => (dispatch) => {
 	dispatch({
 		type: COMMENTS_UPDATE_MESSAGES,
 		messages
