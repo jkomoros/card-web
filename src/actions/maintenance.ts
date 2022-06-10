@@ -97,12 +97,17 @@ import {
 	SectionUpdate,
 	MaintenanceTaskMap,
 	MaintenanceTaskID,
-	MaintenanceTask
+	MaintenanceTask,
+	ImageBlock
 } from '../types.js';
 
 import {
 	AnyAction
 } from 'redux';
+
+import {
+	TypedObject
+} from '../typed_object.js';
 
 export const connectLiveExecutedMaintenanceTasks = () => {
 	onSnapshot(collection(db, MAINTENANCE_COLLECTION), snapshot => {
@@ -304,7 +309,7 @@ const updateFontSizeBoost : MaintenanceTaskFunction = async () => {
 		//NOTE: maintence-view includes a hidden card-stage so this will have a card renderer to use
 		const afterBoosts = await fontSizeBoosts(card);
 
-		if (Object.keys(beforeBoosts).length == Object.keys(afterBoosts).length && Object.entries(beforeBoosts).every(entry => entry[1] == afterBoosts[entry[0]])) continue;
+		if (Object.keys(beforeBoosts).length == Object.keys(afterBoosts).length && TypedObject.entries(beforeBoosts).every(entry => entry[1] == afterBoosts[entry[0]])) continue;
 
 		console.log('Card ' + doc.id + ' had an updated boost');
 		batch.update(doc.ref, {font_size_boost: afterBoosts});
@@ -372,11 +377,11 @@ const SET_MAINTENANCE_TASK_VERSION = 'set-maintenance-task-version';
 const setMaintenanceTaskVersion : MaintenanceTaskFunction = async () => {
 	let batch = new MultiBatch(db);
 
-	let seenTasks = {};
+	let seenTasks : {[id : MaintenanceTaskID] : true} = {};
 
 	let snapshot = await getDocs(collection(db, MAINTENANCE_COLLECTION));
 	snapshot.forEach(doc => {
-		let taskName = doc.id;
+		let taskName = doc.id as MaintenanceTaskID;
 		seenTasks[taskName] = true;
 		let data = doc.data();
 		if (data.version !== undefined) return;
@@ -400,7 +405,7 @@ const addImagesProperty : MaintenanceTaskFunction = async () => {
 	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	snapshot.forEach(doc => {
 		const update = {
-			images: [],
+			images: [] as ImageBlock,
 		};
 		batch.update(doc.ref, update);
 	});
