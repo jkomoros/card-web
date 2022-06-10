@@ -115,7 +115,8 @@ import {
 	collection,
 	limit,
 	getDoc,
-	doc
+	doc,
+	DocumentSnapshot
 } from 'firebase/firestore';
 
 import {
@@ -131,6 +132,10 @@ import {
 import {
 	AppActionCreator
 } from '../store.js';
+
+import {
+	AnyAction
+} from 'redux';
 
 //if silent is true, then just passively updates the URL to reflect what it should be.
 export const navigatePathTo : AppActionCreator = (path : string, silent? : boolean) => (dispatch, getState) => {
@@ -171,7 +176,7 @@ export const navigateToPreviousCard : AppActionCreator = () => (dispatch, getSta
 	dispatch(navigateToCardInCurrentCollection(newId));
 };
 
-export const urlForCard = (cardOrId : Card | CardID) => {
+export const urlForCard = (cardOrId : Card | CardID) : string => {
 	let id = cardOrId;
 	if(!id) return '';
 	//note: null is an object;
@@ -181,7 +186,7 @@ export const urlForCard = (cardOrId : Card | CardID) => {
 	return '/' + PAGE_DEFAULT + '/' + id;
 };
 
-export const urlForTag = (tagName : TagID, optCardId? : CardID) => {
+export const urlForTag = (tagName : TagID, optCardId? : CardID) : string => {
 	if (!optCardId) optCardId = '';
 	return '/' + PAGE_DEFAULT + '/' + tagName + '/' + optCardId;
 };
@@ -271,7 +276,7 @@ export const navigateToCollectionWithQuery : AppActionCreator = (queryText : str
 	dispatch(navigateToCollection(newCollection));
 };
 
-export const urlForCollection = (collection : CollectionDescription) => {
+export const urlForCollection = (collection : CollectionDescription) : string => {
 	return '/' + PAGE_DEFAULT + '/' + collection.serializeShortOriginalOrder();
 };
 
@@ -329,7 +334,7 @@ const loadPage : AppActionCreator = (pathname : string, query : string) => (disp
 	dispatch(updatePage(pathname, page, pageExtra));
 };
 
-const updatePage = (location : string, page : string, pageExtra : string) => {
+const updatePage = (location : string, page : string, pageExtra : string) : AnyAction => {
 	return {
 		type: UPDATE_PAGE,
 		location,
@@ -338,7 +343,7 @@ const updatePage = (location : string, page : string, pageExtra : string) => {
 	};
 };
 
-const fetchCardFromDb = async (cardIDOrSlug : CardIdentifier) => {
+const fetchCardFromDb = async (cardIDOrSlug : CardIdentifier) : Promise<DocumentSnapshot> => {
 	//Cards are more likely to be fetched via slug, so try that first
 	let cards = await getDocs(query(collection(db, CARDS_COLLECTION), where('published', '==', true), where('slugs', 'array-contains', cardIDOrSlug), limit(1)));
 	if (cards && !cards.empty) {
@@ -360,7 +365,7 @@ const fetchCardLinkCardsForFetchedCardFromDb : ((card : Card) => Promise<Cards>)
 
 //Exposed so basic-card-view can expose an endpoint. Typically you use
 //fetchCard.
-export const updateFetchedCard = (card : Card) => {
+export const updateFetchedCard = (card : Card) : AnyAction => {
 	return {
 		type: UPDATE_FETCHED_CARD,
 		card
@@ -482,62 +487,62 @@ export const updateOffline : AppActionCreator = (offline : boolean) => (dispatch
 	});
 };
 
-export const openHeaderPanel = () => {
+export const openHeaderPanel = () : AnyAction => {
 	return {
 		type: OPEN_HEADER_PANEL
 	};
 };
 
-export const closeHeaderPanel = () => {
+export const closeHeaderPanel = () : AnyAction => {
 	return {
 		type: CLOSE_HEADER_PANEL
 	};
 };
 
-export const openCommentsAndInfoPanel = () => {
+export const openCommentsAndInfoPanel = () : AnyAction => {
 	return {
 		type: OPEN_COMMENTS_AND_INFO_PANEL
 	};
 };
 
-export const closeCommentsAndInfoPanel = () => {
+export const closeCommentsAndInfoPanel = () : AnyAction => {
 	return {
 		type: CLOSE_COMMENTS_AND_INFO_PANEL
 	};
 };
 
-export const openCardsDrawerPanel = () => {
+export const openCardsDrawerPanel = () : AnyAction => {
 	return {
 		type: OPEN_CARDS_DRAWER_PANEL
 	};
 };
 
-export const closeCardsDrawerPanel = () => {
+export const closeCardsDrawerPanel = () : AnyAction => {
 	return {
 		type: CLOSE_CARDS_DRAWER_PANEL
 	};
 };
 
-export const openConfigureCollectionDialog = () => {
+export const openConfigureCollectionDialog = () : AnyAction => {
 	return {
 		type: OPEN_CONFIGURE_COLLECTION_DIALOG,
 	};
 };
 
-export const closeConfigureCollectionDialog = () => {
+export const closeConfigureCollectionDialog = () : AnyAction => {
 	return {
 		type: CLOSE_CONFIGURE_COLLECTION_DIALOG
 	};
 };
 
 
-export const enablePresentationMode = () => {
+export const enablePresentationMode = () : AnyAction => {
 	return {
 		type: ENABLE_PRESENTATION_MODE,
 	};
 };
 
-export const disablePresentationMode = () => {
+export const disablePresentationMode = () : AnyAction => {
 	return {
 		type: DISABLE_PRESENTATION_MODE,
 	};
@@ -565,14 +570,14 @@ export const ctrlKeyPressed : AppActionCreator= (pressed : boolean) => (dispatch
 //export const OPEN_CARDS_DRAWER_INFO_PANEL = 'OPEN_CARDS_DRAWER_INFO_PANEL';
 //export const CLOSE_CARDS_DRAWER_INFO_PANEL = 'CLOSE_CARDS_DRAWER_INFO_PANEL';
 
-const openCardsDrawerInfo = () => {
+const openCardsDrawerInfo = () : AnyAction => {
 	return {
 		type:OPEN_CARDS_DRAWER_INFO,
 	};
 };
 
 
-const closeCardsDrawerInfo = () => {
+const closeCardsDrawerInfo = () : AnyAction => {
 	return {
 		type:CLOSE_CARDS_DRAWER_INFO,
 	};
@@ -583,7 +588,7 @@ export const toggleCardsDrawerInfo : AppActionCreator = () => (dispatch, getStat
 	dispatch(isOpen ? closeCardsDrawerInfo() : openCardsDrawerInfo());
 };
 
-export const turnSuggestMissingConcepts = (on : boolean) => {
+export const turnSuggestMissingConcepts = (on : boolean) : AnyAction => {
 	return {
 		type: TURN_SUGGEST_MISSING_CONCEPTS,
 		on,
