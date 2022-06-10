@@ -33,6 +33,7 @@ import {
 
 import {
 	Card,
+	Cards,
 	State
 } from '../types.js';
 
@@ -80,7 +81,7 @@ class BasicCardView extends connect(store)(PageViewElement) {
 		super.connectedCallback();
 		//Expose an override injection point that can be used via puppeteer to
 		//inject the data.
-		window[WINDOW_INJECT_FETCHED_CARD_NAME] = (card, cardLinkCards) => {
+		window[WINDOW_INJECT_FETCHED_CARD_NAME] = (card : Card, cardLinkCards : Cards) => {
 			//Set the flag down, so we can be used multiple times and still
 			//waitFor the flag to raise for multiple screenshots.
 			window[WINDOW_CARD_RENDERED_VARIABLE] = false;
@@ -97,7 +98,7 @@ class BasicCardView extends connect(store)(PageViewElement) {
 		this._cardsLoaded = selectCardsLoaded(state);
 	}
 
-	override updated(changedProps) {
+	override updated(changedProps : Map<string, any>) {
 		if (changedProps.has('_pageExtra')) {
 			store.dispatch(fetchCard(this._pageExtra));
 		}
