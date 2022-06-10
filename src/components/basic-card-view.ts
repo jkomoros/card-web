@@ -37,9 +37,17 @@ import {
 	State
 } from '../types.js';
 
-//recreated in functions/common.js
+//recreated in functions/common.js, and used as a literal immediately below as a
+//global declaration
 export const WINDOW_CARD_RENDERED_VARIABLE = 'BASIC_CARD_RENDERED';
 export const WINDOW_INJECT_FETCHED_CARD_NAME = 'injectFetchedCard';
+
+declare global {
+	interface Window {
+		BASIC_CARD_RENDERED : boolean;
+		injectFetchedCard : (card : Card, cardLinkCards : Cards) => void;
+	}
+  }
 
 @customElement('basic-card-view')
 class BasicCardView extends connect(store)(PageViewElement) {
