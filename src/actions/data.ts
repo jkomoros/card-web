@@ -180,6 +180,10 @@ import {
 	Slug,
 } from '../types.js';
 
+import {
+	AnyAction
+} from 'redux';
+
 
 //map of cardID => promiseResolver that's waiting
 let waitingForCards : {[id : CardID]: ((card : Card) => void)[]} = {};
@@ -470,7 +474,7 @@ export const reorderCard : AppActionCreator = (cardID : CardID, otherID: CardID,
 
 };
 
-const setPendingSlug = (slug) => {
+const setPendingSlug = (slug) : AnyAction => {
 	return {
 		type:SET_PENDING_SLUG,
 		slug
@@ -1127,13 +1131,13 @@ export const navigateToNewCard : AppActionCreator = () => (dispatch, getState) =
 	dispatch(navigateToCardInCurrentCollection(ID));
 };
 
-export const navigatedToNewCard = () => {
+export const navigatedToNewCard = () : AnyAction => {
 	return {
 		type:NAVIGATED_TO_NEW_CARD,
 	};
 };
 
-const modifyCardAction = () => {
+const modifyCardAction = () : AnyAction => {
 	return {
 		type: MODIFY_CARD,
 	};
@@ -1152,7 +1156,7 @@ const modifyCardSuccess : AppActionCreator = () => (dispatch, getState) => {
 	});
 };
 
-const modifyCardFailure = (err : Error, skipAlert? : boolean) => {
+const modifyCardFailure = (err : Error, skipAlert? : boolean) : AnyAction => {
 	if (skipAlert) {
 		console.warn(err);
 	} else {
@@ -1164,7 +1168,7 @@ const modifyCardFailure = (err : Error, skipAlert? : boolean) => {
 	};
 };
 
-export const reorderStatus = (pending) => {
+export const reorderStatus = (pending) : AnyAction => {
 	return {
 		type: REORDER_STATUS,
 		pending
@@ -1346,7 +1350,7 @@ export const fetchTweets : AppActionCreator = (card) => async (dispatch) => {
 	});
 };
 
-export const expectUnpublishedCards = () => {
+export const expectUnpublishedCards = () : AnyAction => {
 	return {
 		type: EXPECT_UNPUBLISHED_CARDS,
 	};
@@ -1354,7 +1358,7 @@ export const expectUnpublishedCards = () => {
 
 //Denotes that we just did a pending filters commit when the data was fully
 //loaded... and shouldn't do it again.
-export const committedFiltersWhenFullyLoaded = () => {
+export const committedFiltersWhenFullyLoaded = () : AnyAction => {
 	return {
 		type: COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED,
 	};
