@@ -3,6 +3,7 @@ export const PERMISSIONS_START_ADD_CARD = 'PERMISSIONS_START_ADD_CARD';
 export const PERMISSIONS_RESET_ADD_CARD = 'PERMISSIONS_RESET_ADD_CARD';
 
 import {
+	AppActionCreator,
 	store
 } from '../store.js';
 
@@ -48,7 +49,7 @@ import {
 	State
 } from '../types.js';
 
-export const setCardToAddPermissionTo = (cardID : CardID) => (dispatch, getState) => {
+export const setCardToAddPermissionTo : AppActionCreator = (cardID : CardID) => (dispatch, getState) => {
 	const state = getState();
 	const permissionType = selectPermissionsPendingPermissionType(state);
 	const uid = selectPermissionsPendingUid(state);
@@ -58,7 +59,7 @@ export const setCardToAddPermissionTo = (cardID : CardID) => (dispatch, getState
 	});
 };
 
-export const selectCardToAddPermissionTo = (permissionType, uid) => (dispatch) => {
+export const selectCardToAddPermissionTo : AppActionCreator = (permissionType, uid) => (dispatch) => {
 	dispatch({
 		type:PERMISSIONS_START_ADD_CARD,
 		permissionType,
@@ -67,7 +68,7 @@ export const selectCardToAddPermissionTo = (permissionType, uid) => (dispatch) =
 	dispatch(findCardToPermission());
 };
 
-const addUserPermissionToCard = (cardID, permissionType, uid) => (dispatch, getState) => {
+const addUserPermissionToCard : AppActionCreator = (cardID, permissionType, uid) => (dispatch, getState) => {
 	if (permissionType != PERMISSION_EDIT_CARD) {
 		console.warn('Illegal permission type');
 		return;
@@ -84,7 +85,7 @@ const addUserPermissionToCard = (cardID, permissionType, uid) => (dispatch, getS
 	dispatch(modifyCard(card, update, false));
 };
 
-export const removeUserPermissionFromCard = (cardID, permissionType, uid) => (dispatch, getState) => {
+export const removeUserPermissionFromCard : AppActionCreator = (cardID, permissionType, uid) => (dispatch, getState) => {
 	if (permissionType != PERMISSION_EDIT_CARD) {
 		console.warn('Illegal permission type');
 		return;
@@ -133,22 +134,22 @@ const updatePermissions = (permissionsToAdd, permissionsToRemove) => {
 	};
 };
 
-export const addPermissionsObjectForUser = (uid) => () => {
+export const addPermissionsObjectForUser : AppActionCreator = (uid) => () => {
 	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {}, {merge: true});
 };
 
-export const deletePermissionsObjectForUser = (uid) => () => {
+export const deletePermissionsObjectForUser : AppActionCreator = (uid) => () => {
 	deleteDoc(doc(db, PERMISSIONS_COLLECTION, uid));
 };
 
-export const updateUserNote = (uid, note) => () => {
+export const updateUserNote : AppActionCreator = (uid, note) => () => {
 	updateDoc(doc(db, PERMISSIONS_COLLECTION, uid), {notes:note});
 };
 
-export const addEnabledPermission = (uid, key) => () => {
+export const addEnabledPermission : AppActionCreator = (uid, key) => () => {
 	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {[key]: true}, {merge: true});
 };
 
-export const clearPermission = (uid, key) => () => {
+export const clearPermission : AppActionCreator = (uid, key) => () => {
 	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {[key]: deleteField()}, {merge: true});
 };
