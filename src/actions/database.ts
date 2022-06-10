@@ -66,7 +66,10 @@ import {
 	AuthorsMap,
 	Author,
 	Cards,
-	Card
+	Card,
+	Sections,
+	Tags,
+	Section,
 } from '../types.js';
 
 export const CARDS_COLLECTION = 'cards';
@@ -312,10 +315,10 @@ export const connectLivePublishedCards = () => {
 	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', true)), cardSnapshotReceiver(false));
 };
 
-let liveUnpublishedCardsForUserAuthorUnsubscribe = null;
-let liveUnpublishedCardsForUserEditorUnsubscribe = null;
+let liveUnpublishedCardsForUserAuthorUnsubscribe : () => void = null;
+let liveUnpublishedCardsForUserEditorUnsubscribe : () => void  = null;
 
-export const connectLiveUnpublishedCardsForUser = (uid) => {
+export const connectLiveUnpublishedCardsForUser = (uid : Uid) => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	disconnectLiveUnpublishedCardsForUser();
 	if (!uid) return;
@@ -348,14 +351,13 @@ export const connectLiveSections = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	onSnapshot(query(collection(db, SECTIONS_COLLECTION), orderBy('order')), snapshot => {
 
-		let sections = {};
+		let sections : Sections = {};
 
 		snapshot.docChanges().forEach(change => {
 			if (change.type === 'removed') return;
 			let doc = change.doc;
 			let id = doc.id;
-			let section = doc.data();
-			section.id = id;
+			let section = {...doc.data(), id} as Section;
 			sections[id] = section;
 		});
 
@@ -368,14 +370,13 @@ export const connectLiveTags = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	onSnapshot(collection(db, TAGS_COLLECTION), snapshot => {
 
-		let tags = {};
+		let tags : Tags = {};
 
 		snapshot.docChanges().forEach(change => {
 			if (change.type === 'removed') return;
 			let doc = change.doc;
 			let id = doc.id;
-			let tag = doc.data();
-			tag.id = id;
+			let tag = {...doc.data(), id} as Section;
 			tags[id] = tag;
 		});
 
