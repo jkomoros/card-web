@@ -67,11 +67,23 @@ import {
 	AppActionCreator
 } from '../store.js';
 
+import {
+	SetName,
+	SortName,
+	ViewMode,
+	CardID,
+	Card
+} from '../types.js';
+
+import {
+	AnyAction
+} from 'redux';
+
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
 
 export const PLACEHOLDER_CARD_ID_CHARACTER = '_';
 
-export const updateCardSelector : AppActionCreator = (cardSelector) => (dispatch, getState) => {
+export const updateCardSelector : AppActionCreator = (cardSelector : string) => (dispatch, getState) => {
 
 	let queryParts = cardSelector.split('?');
 
@@ -148,7 +160,7 @@ export const updateCardSelector : AppActionCreator = (cardSelector) => (dispatch
 	dispatch(showCard(cardIdOrSlug));
 };
 
-export const updateCollection : AppActionCreator = (setName, filters, sortName, sortReversed, viewMode, viewModeExtra) => (dispatch, getState) =>{	
+export const updateCollection : AppActionCreator = (setName : SetName, filters : string[], sortName : SortName, sortReversed : boolean, viewMode : ViewMode, viewModeExtra : string) => (dispatch, getState) =>{	
 	const state = getState();
 	const activeCollectionDescription = selectActiveCollectionDescription(state);
 	const newCollectionDescription = new CollectionDescription(setName, filters, sortName, sortReversed, viewMode, viewModeExtra);
@@ -174,18 +186,18 @@ export const updateCollection : AppActionCreator = (setName, filters, sortName, 
 //the collection to cahnge at that moment. Often, we DON'T want it to change, to
 //emphasize consistency and so collections don't change as, for exmaple, a card
 //is read and you're viewing an unread filter set.
-export const updateCollectionSnapshot = () => {
+export const updateCollectionSnapshot = () : AnyAction => {
 	return {type:UPDATE_COLLECTION_SHAPSHOT};
 };
 
-export const updateRenderOffset = (renderOffset) => {
+export const updateRenderOffset = (renderOffset : number) : AnyAction => {
 	return {
 		type: UPDATE_RENDER_OFFSET,
 		renderOffset
 	};
 };
 
-export const refreshCardSelector : AppActionCreator = (forceCommit) => (dispatch, getState) => {
+export const refreshCardSelector : AppActionCreator = (forceCommit? : boolean) => (dispatch, getState) => {
 	//Called when cards and sections update, just in case we now have
 	//information to do this better. Also called when stars and reads update,
 	//because if we're filtering to one of those filters we might not yet know
@@ -307,12 +319,12 @@ export const canonicalizeURL : AppActionCreator = () => (dispatch, getState) => 
 
 //cardIdIsPlaceholder is whether the cardId (the last part of the URL) starts
 //with a "_"
-const cardIdIsPlaceholder = (cardId) => {
+const cardIdIsPlaceholder = (cardId : CardID) : boolean => {
 	if (!cardId) return false;
 	return cardId[0] == PLACEHOLDER_CARD_ID_CHARACTER;
 };
 
-const cardIdForPlaceholder = (requestedCard, collection) => {
+const cardIdForPlaceholder = (requestedCard : CardID, collection : Card[]) : CardID => {
 	//Collection is an expanded collection of cards, not card ids.
 	if (!cardIdIsPlaceholder(requestedCard)) return '';
 	if (!collection || !collection.length) return '';
@@ -350,7 +362,7 @@ export const redirectIfInvalidCardOrCollection : AppActionCreator = () => (dispa
 	dispatch(navigateToCardInDefaultCollection(card, false));
 };
 
-export const showCard : AppActionCreator = (requestedCard) => (dispatch, getState) => {
+export const showCard : AppActionCreator = (requestedCard : CardID) => (dispatch, getState) => {
 
 	const state = getState();
 
