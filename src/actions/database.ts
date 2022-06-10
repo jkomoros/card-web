@@ -41,7 +41,8 @@ import {
 	onSnapshot,
 	where,
 	query,
-	orderBy
+	orderBy,
+	QuerySnapshot
 } from 'firebase/firestore';
 
 import {
@@ -61,7 +62,11 @@ import {
 	CommentThread,
 	CommentThreadID,
 	Uid,
-	CardID
+	CardID,
+	AuthorsMap,
+	Author,
+	Cards,
+	Card
 } from '../types.js';
 
 export const CARDS_COLLECTION = 'cards';
@@ -258,14 +263,13 @@ export const connectLiveAuthors = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	onSnapshot(collection(db, AUTHORS_COLLECTION), snapshot => {
 
-		let authors = {};
+		let authors : AuthorsMap = {};
 
 		snapshot.docChanges().forEach(change => {
 			if (change.type === 'removed') return;
 			let doc = change.doc;
 			let id = doc.id;
-			let author = doc.data();
-			author.id = id;
+			let author : Author = {...doc.data(), id} as Author;
 			authors[id] = author;
 		});
 
@@ -274,11 +278,11 @@ export const connectLiveAuthors = () => {
 	});
 };
 
-const cardSnapshotReceiver = (unpublished) =>{
+const cardSnapshotReceiver = (unpublished : boolean) =>{
 	
-	return (snapshot) => {
-		let cards = {};
-		let cardIDsToRemove = [];
+	return (snapshot : QuerySnapshot) => {
+		let cards : Cards = {};
+		let cardIDsToRemove : CardID[] = [];
 
 		snapshot.docChanges().forEach(change => {
 			if (change.type === 'removed') {
@@ -286,15 +290,14 @@ const cardSnapshotReceiver = (unpublished) =>{
 				return;
 			}
 			let doc = change.doc;
-			let id = doc.id;
+			let id : CardID = doc.id;
 			//Ensure that timestamps are never null. If this isn't set, then
 			//when cards are first created (and other times) they will have null
 			//timestamps on some of the updates, an if we read them we'll get
 			//confused. Without this you can't open a card immediately for
 			//editing for example. See
 			//https://medium.com/firebase-developers/the-secrets-of-firestore-fieldvalue-servertimestamp-revealed-29dd7a38a82b
-			let card = doc.data({serverTimestamps: 'estimate'});
-			card.id = id;
+			let card : Card = {...doc.data({serverTimestamps: 'estimate'}), id} as Card;
 			cards[id] = card;
 		});
 
