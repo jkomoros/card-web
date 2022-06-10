@@ -87,7 +87,8 @@ import {
 	getDoc,
 	deleteField,
 	serverTimestamp,
-	updateDoc
+	updateDoc,
+	DocumentSnapshot
 } from 'firebase/firestore';
 
 import { cardDiffHasChanges } from '../card_diff.js';
@@ -168,9 +169,9 @@ const updateInboundLinks = async() => {
 		counter++;
 		let linkingCardsSnapshot = await getDocs(query(collection(db, CARDS_COLLECTION), where(REFERENCES_CARD_PROPERTY + '.' + doc.id, '==', true)));
 		if(!linkingCardsSnapshot.empty) {
-			let referencesInbound = {};
-			let referencesInboundSentinel = {};
-			linkingCardsSnapshot.forEach(linkingCard => {
+			let referencesInbound : {[name : string] : any} = {};
+			let referencesInboundSentinel: {[name : string] : any} = {};
+			linkingCardsSnapshot.forEach((linkingCard : DocumentSnapshot) => {
 				referencesInbound[linkingCard.id] = linkingCard.data()[REFERENCES_INFO_CARD_PROPERTY][doc.id];
 				referencesInboundSentinel[linkingCard.id] = linkingCard.data()[REFERENCES_CARD_PROPERTY][doc.id];
 			});
@@ -604,7 +605,6 @@ const makeMaintenanceActionCreator = (taskName, taskConfig) => {
 //moment, the non-recurring maintenance tasks are already implicitly run and
 //included in normal operation of the webapp as soon as they were added.
 const MAINTENANCE_TASK_VERSION = 3;
-
 
 interface MaintenanceTaskDefinition {
 	//the raw function that does the thing. It will be passed dispatch, getState.
