@@ -329,7 +329,7 @@ const convertMultiLinksDelimiter : MaintenanceTaskFunction = async () => {
 	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	snapshot.forEach(doc => {
 		let card = doc.data();
-		let update = {};
+		let update : {[name : string] : any} = {};
 
 		let referencesInfo = card[REFERENCES_INFO_CARD_PROPERTY];
 		for (let [otherCardID, referenceMap] of Object.entries(referencesInfo)) {
