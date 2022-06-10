@@ -27,6 +27,10 @@ import {
 	FindDialogType
 } from '../types.js';
 
+import {
+	AppActionCreator
+} from '../store.js';
+
 export const openFindDialog = () => {
 	return launchFind(FIND_DIALOG_OPEN);
 };
@@ -41,7 +45,7 @@ let updateActiveQueryTimeout = 0;
 //This time should be how long after the user stops typing to wait.
 const QUERY_UPDATE_INTERVAL = 250;
 
-export const updateQuery = (query) => (dispatch) => {
+export const updateQuery : AppActionCreator  = (query) => (dispatch) => {
 
 	if (updateActiveQueryTimeout) {
 		window.clearTimeout(updateActiveQueryTimeout);
@@ -82,7 +86,7 @@ export const findUpdateRenderOffset = (renderOffset) => {
 	};
 };
 
-const launchFind = (typ : FindDialogType, starterQuery? : string, lockedCardTypeFilter? : CardType) => (dispatch, getState) => {
+const launchFind : AppActionCreator = (typ : FindDialogType, starterQuery? : string, lockedCardTypeFilter? : CardType) => (dispatch, getState) => {
 	if (!starterQuery) {
 		const description = selectActiveCollectionDescription(getState());
 		starterQuery = queryTextFromCollectionDescription(description);
@@ -95,7 +99,7 @@ const launchFind = (typ : FindDialogType, starterQuery? : string, lockedCardType
 	});
 };
 
-export const findUpdateCardTypeFilter = (filter) => (dispatch, getState) =>  {
+export const findUpdateCardTypeFilter : AppActionCreator = (filter) => (dispatch, getState) =>  {
 
 	const cardTypeFilterLocked = selectFindCardTypeFilterLocked(getState());
 
