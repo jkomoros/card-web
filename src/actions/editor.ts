@@ -123,6 +123,7 @@ import {
 } from 'firebase/storage';
 
 import {
+	CardDiff,
 	CardFieldTypeEditable,
 	CardID,
 	CardIdentifier,
@@ -130,7 +131,10 @@ import {
 	EditorContentTab,
 	EditorTab,
 	HTMLElementWithStashedSelectionOffset,
+	ReferenceType,
 	Slug,
+	TagID,
+	TODOType,
 	Uid 
 } from '../types.js';
 
@@ -521,42 +525,42 @@ export const publishedUpdated : AppActionCreator = (published) => (dispatch, get
 	});
 };
 
-export const fullBleedUpdated = (fullBleed) : AnyAction => {
+export const fullBleedUpdated = (fullBleed : boolean) : AnyAction => {
 	return {
 		type: EDITING_FULL_BLEED_UPDATED,
 		fullBleed
 	};
 };
 
-export const autoTodoOverrideEnabled = (todo) : AnyAction => {
+export const autoTodoOverrideEnabled = (todo : TODOType) : AnyAction => {
 	return {
 		type: EDITING_AUTO_TODO_OVERRIDE_ENABLED,
 		todo
 	};
 };
 
-export const autoTodoOverrideDisabled = (todo) : AnyAction => {
+export const autoTodoOverrideDisabled = (todo : TODOType) : AnyAction => {
 	return {
 		type: EDITING_AUTO_TODO_OVERRIDE_DISABLED,
 		todo
 	};
 };
 
-export const autoTodoOverrideRemoved = (todo) : AnyAction => {
+export const autoTodoOverrideRemoved = (todo : TODOType) : AnyAction => {
 	return {
 		type: EDITING_AUTO_TODO_OVERRIDE_REMOVED,
 		todo
 	};
 };
 
-export const tagAdded = (tag) : AnyAction => {
+export const tagAdded = (tag : TagID) : AnyAction => {
 	return {
 		type: EDITING_TAG_ADDED,
 		tag
 	};
 };
 
-export const tagRemoved = (tag) : AnyAction => {
+export const tagRemoved = (tag : TagID) : AnyAction => {
 	return {
 		type: EDITING_TAG_REMOVED,
 		tag
@@ -576,14 +580,14 @@ export const editorAdded : AppActionCreator = (editorUid) => (dispatch, getState
 	});
 };
 
-export const editorRemoved = (editorUid) : AnyAction => {
+export const editorRemoved = (editorUid : Uid) : AnyAction => {
 	return {
 		type: EDITING_EDITOR_REMOVED,
 		editor:editorUid
 	};
 };
 
-export const manualEditorAdded = (editorUid) => {
+export const manualEditorAdded = (editorUid : Uid) => {
 	createAuthorStub(editorUid);
 	return editorAdded(editorUid);
 };
@@ -610,13 +614,13 @@ export const collaboratorRemoved = (collaboratorUid : Uid, auto? : boolean) : An
 	};
 };
 
-export const manualCollaboratorAdded = (collaboratorUid) => {
+export const manualCollaboratorAdded = (collaboratorUid : Uid) => {
 	createAuthorStub(collaboratorUid);
 	return collaboratorAdded(collaboratorUid);
 };
 
 //If index is undefined, it will add a new item to the end of the list
-export const addImageWithFile : AppActionCreator = (file, index) => async (dispatch, getState) => {
+export const addImageWithFile : AppActionCreator = (file : File, index : number) => async (dispatch, getState) => {
 
 	const state = getState();
 
@@ -709,7 +713,7 @@ export const removeImageAtIndex : AppActionCreator = (index) => (dispatch) => {
 	dispatch(substantiveUpdated(true, true));
 };
 
-export const moveImageAtIndex = (index, isRight) : AnyAction => {
+export const moveImageAtIndex = (index : number, isRight : boolean) : AnyAction => {
 	return {
 		type: EDITING_MOVE_IMAGE_AT_INDEX,
 		index,
@@ -726,7 +730,7 @@ export const changeImagePropertyAtIndex = (index, property, value) : AnyAction =
 	};
 };
 
-export const openImagePropertiesDialog = (index) : AnyAction => {
+export const openImagePropertiesDialog = (index : number) : AnyAction => {
 	return {
 		type: EDITING_OPEN_IMAGE_PROPERTIES_DIALOG,
 		index,
@@ -766,7 +770,7 @@ export const setCardToReference : AppActionCreator = (cardID : CardID) => (dispa
 	});
 };
 
-export const selectCardToReference : AppActionCreator = (referenceType) => (dispatch, getState) => {
+export const selectCardToReference : AppActionCreator = (referenceType : ReferenceType) => (dispatch, getState) => {
 
 	const referenceTypeConfig = REFERENCE_TYPES[referenceType];
 	if (!referenceTypeConfig) {
@@ -823,7 +827,7 @@ export const addReferenceToCard : AppActionCreator = (cardID, referenceType) => 
 
 };
 
-export const removeReferenceFromCard = (cardID, referenceType) : AnyAction => {
+export const removeReferenceFromCard = (cardID : CardID, referenceType : ReferenceType) : AnyAction => {
 	return {
 		type:EDITING_REMOVE_REFERENCE,
 		cardID,
@@ -870,7 +874,7 @@ export const mergeOvershadowedUnderlyingChanges : AppActionCreator = () => (disp
 		return;
 	}
 
-	let filteredDiff = {};
+	let filteredDiff : CardDiff = {};
 	if (Object.keys(diff).length > 1) {
 		for (const [field, value] of Object.entries(diff)) {
 			const strValue = typeof value == 'object' ? JSON.stringify(value) : value;

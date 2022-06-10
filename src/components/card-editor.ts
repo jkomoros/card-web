@@ -622,12 +622,12 @@ class CardEditor extends connect(store)(LitElement) {
 	}
 
 	_handleRemoveAllReferencesOfTypeClicked(e : MouseEvent) {
-		let referenceType = '';
+		let referenceType : ReferenceType = '';
 		for (const ele of e.composedPath()) {
 			//Could be a documentfragment
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
-				referenceType = ele.dataset.referenceType;
+				referenceType = ele.dataset.referenceType as ReferenceType;
 				break;
 			}
 		}
@@ -667,14 +667,14 @@ class CardEditor extends connect(store)(LitElement) {
 
 	_handleRemoveReference(e : TagEvent) {
 		const cardID = e.detail.tag;
-		let referenceType = '';
+		let referenceType : ReferenceType = '';
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
 		for (let ele of e.composedPath()) {
 			//Could be a documentfragment
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
-				referenceType = ele.dataset.referenceType;
+				referenceType = ele.dataset.referenceType as ReferenceType;
 				break;
 			}
 		}
