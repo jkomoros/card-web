@@ -7,7 +7,11 @@ import {
 	selectIsEditing
 } from '../selectors.js';
 
-export const openMultiEditDialog = () => (dispatch, getState) => {
+import {
+	AppActionCreator
+} from '../store.js';
+
+export const openMultiEditDialog : AppActionCreator = () => (dispatch, getState) => {
 
 	const state = getState();
 
