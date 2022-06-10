@@ -60,11 +60,13 @@ import './reference-block.js';
 
 import {
 	ProcessedCard,
+	Card,
 	CardID,
 	CardFieldType,
 	CardFieldMap,
 	HTMLElementWithStashedSelectionOffset,
-	CardFieldTypeEditable
+	CardFieldTypeEditable,
+	isProcessedCard
 } from '../types.js';
 
 import {
@@ -127,7 +129,7 @@ type GestureEvent = CustomEvent<GestureEventDetail>;
 export class CardRenderer extends GestureEventListeners(LitElement) {
 
 	@property({ type : Object })
-	card: ProcessedCard;
+	card: ProcessedCard | Card;
 
 	@property({ type : Boolean })
 	editing: boolean;
@@ -532,7 +534,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			//is blurred, show which items are concepts. We strip out any
 			//card-highlights that come from contenteditable, so even if they
 			//sneak in we won't save them.
-			if (doHighlightConcepts) {
+			if (doHighlightConcepts && isProcessedCard(this._card)) {
 				value = highlightConceptReferences(this._card, field, this.suggestedConcepts);
 			}
 			htmlToSet = value;

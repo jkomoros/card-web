@@ -688,6 +688,10 @@ export interface StringCardMap {
     [ngram : string] : CardID
 }
 
+export function isProcessedCard(card : Card | ProcessedCard) : card is ProcessedCard {
+    return (card as any).nlp !== undefined;
+}
+
 export interface ProcessedCard extends Card {
     //this is stashed there so that the cardWithNormalizedTextProperties machinery can fetch it if it wants.
     fallbackText: ReferencesInfoMap,
