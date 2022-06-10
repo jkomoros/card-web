@@ -97,20 +97,24 @@ import {
 	CardID,
 	SectionUpdate,
 	MaintenanceTaskMap,
-	MaintenanceTaskID
+	MaintenanceTaskID,
+	MaintenanceTask
 } from '../types.js';
+
+import {
+	AnyAction
+} from 'redux';
 
 export const connectLiveExecutedMaintenanceTasks = () => {
 	onSnapshot(collection(db, MAINTENANCE_COLLECTION), snapshot => {
 
-		let tasks = {};
+		let tasks : MaintenanceTaskMap = {};
 
 		snapshot.docChanges().forEach(change => {
 			if (change.type === 'removed') return;
 			let doc = change.doc;
 			let id = doc.id;
-			let task = doc.data({serverTimestamps: 'estimate'});
-			task.id = id;
+			let task = {...doc.data({serverTimestamps: 'estimate'}), id} as MaintenanceTask;
 			tasks[id] = task;
 		});
 
@@ -119,7 +123,7 @@ export const connectLiveExecutedMaintenanceTasks = () => {
 	});
 };
 
-const updateExecutedMaintenanceTasks = (executedTasks) => {
+const updateExecutedMaintenanceTasks = (executedTasks : MaintenanceTaskMap) : AnyAction => {
 	return {
 		type: UPDATE_EXECUTED_MAINTENANCE_TASKS,
 		executedTasks,
