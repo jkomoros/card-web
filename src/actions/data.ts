@@ -126,7 +126,8 @@ import {
 	DEFAULT_CARD_TYPE,
 	KEY_CARD_ID_PLACEHOLDER,
 	editableFieldsForCardType,
-	sortOrderIsDangerous
+	sortOrderIsDangerous,
+	EMPTY_CARD_ID
 } from '../card_fields.js';
 
 import {
@@ -178,6 +179,11 @@ import {
 	UserInfo,
 	SectionID,
 	Slug,
+	TagID,
+	Sections,
+	AuthorsMap,
+	Tags,
+	CardBooleanMap,
 } from '../types.js';
 
 import {
@@ -205,7 +211,7 @@ const waitingForCardToExistStoreUpdated = () => {
 	}
 };
 
-let unsubscribeFromStore = null;
+let unsubscribeFromStore : () => void = null;
 
 //returns a promise that will be resolved when a card with that ID exists, returning the card.
 export const waitForCardToExist = (cardID : CardID) => {
@@ -241,11 +247,11 @@ const TAG_COLORS = [
 	'#4169E1',
 ];
 
-export const modifyCard = (card, update, substantive) => {
+export const modifyCard = (card : Card, update : CardDiff, substantive : boolean = false) => {
 	return modifyCards([card], update, substantive, true);
 };
 
-export const modifyCards : AppActionCreator = (cards, update, substantive, failOnError) => async (dispatch, getState) => {
+export const modifyCards : AppActionCreator = (cards : Card[], update : CardDiff, substantive : boolean = false, failOnError : boolean = false) => async (dispatch, getState) => {
 	const state = getState();
 
 	if (selectCardModificationPending(state)) {
@@ -474,14 +480,14 @@ export const reorderCard : AppActionCreator = (cardID : CardID, otherID: CardID,
 
 };
 
-const setPendingSlug = (slug) : AnyAction => {
+const setPendingSlug = (slug : Slug) : AnyAction => {
 	return {
 		type:SET_PENDING_SLUG,
 		slug
 	};
 };
 
-const addLegalSlugToCard = (cardID : CardID, legalSlug : Slug, setName? : boolean) => {
+const addLegalSlugToCard = (cardID : CardID, legalSlug : Slug, setName? : boolean) : Promise<void[]> => {
 	//legalSlug must already be verified to be legal.
 	let batch = new MultiBatch(db);
 	const cardRef = doc(db, CARDS_COLLECTION, cardID);
@@ -494,7 +500,7 @@ const addLegalSlugToCard = (cardID : CardID, legalSlug : Slug, setName? : boolea
 	return batch.commit();
 };
 
-export const addSlug : AppActionCreator = (cardId, newSlug) => async (dispatch, getState) => {
+export const addSlug : AppActionCreator = (cardId : CardID, newSlug : Slug) => async (dispatch, getState) => {
  
 	newSlug = normalizeSlug(newSlug);
 
@@ -536,7 +542,7 @@ export const addSlug : AppActionCreator = (cardId, newSlug) => async (dispatch, 
 
 };
 
-const reservedCollectionName = (state, name) => {
+const reservedCollectionName = (state : State, name : string) : boolean => {
 
 	if (!selectDataIsFullyLoaded(state)) {
 		console.warn('Sections not loaded');
@@ -557,7 +563,7 @@ const reservedCollectionName = (state, name) => {
 	return false;
 };
 
-export const createTag : AppActionCreator = (name, displayName) => async (dispatch, getState) => {
+export const createTag : AppActionCreator = (name : TagID, displayName : string) => async (dispatch, getState) => {
 
 	if (!name) {
 		console.warn('No short name provided');
@@ -702,7 +708,16 @@ export const defaultCardObject = (id : CardID, user : UserInfo, section : Sectio
 // id: ID to use
 // noNavigate: if true, will not navigate to the card when created
 // title: title of card
-export const createCard : AppActionCreator = (opts) => async (dispatch, getState) => {
+
+type CreateCardOpts = {
+	cardType? : CardType;
+	section? : SectionID;
+	id? : CardID;
+	noNavigate? : boolean;
+	title? : string,
+}
+
+export const createCard : AppActionCreator = (opts : CreateCardOpts) => async (dispatch, getState) => {
 
 	//NOTE: if you modify this card you may also want to modify createForkedCard
 
@@ -722,7 +737,7 @@ export const createCard : AppActionCreator = (opts) => async (dispatch, getState
 		return;
 	}
 
-	let cardType = opts.cardType || DEFAULT_CARD_TYPE;
+	let cardType : CardType = opts.cardType || DEFAULT_CARD_TYPE;
 
 	let CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[cardType] || null;
 	if (!CARD_TYPE_CONFIG) {
@@ -946,7 +961,7 @@ export const createForkedCard : AppActionCreator = (cardToFork) => async (dispat
 	let sortOrder = getSortOrderImmediatelyAdjacentToCard(state, cardToFork.id, false);
 
 	let newCard = defaultCardObject(id,user,section,cardType, sortOrder);
-	for (let key of Object.keys(CARD_FIELDS_TO_COPY_ON_FORK)) {
+	for (let key of TypedObject.keys(CARD_FIELDS_TO_COPY_ON_FORK)) {
 		//We can literally leave these as the same object because they'll just
 		//be sent to firestore and the actual card we'll store will be new
 		newCard[key] = cardToFork[key];
@@ -958,7 +973,7 @@ export const createForkedCard : AppActionCreator = (cardToFork) => async (dispat
 
 	let inboundUpdates = inboundLinksUpdates(id, null, newCard);
 	const existingCards = selectCards(state);
-	const illegalOtherCards = {};
+	const illegalOtherCards : CardBooleanMap = {};
 	//We need to check for illegal other cards BEFORE adding any updates to
 	//batch, so check now for any references to cards we can't see now.
 	for (const otherCardID of Object.keys(inboundUpdates)) {
@@ -992,7 +1007,7 @@ export const createForkedCard : AppActionCreator = (cardToFork) => async (dispat
 
 	}
 
-	const illegalTags = {};
+	const illegalTags : {[tag : TagID] : true} = {};
 	for (const tag of cardToFork.tags) {
 		if (!getUserMayEditTag(state, tag)) illegalTags[tag] = true;
 	}
@@ -1069,7 +1084,7 @@ export const createForkedCard : AppActionCreator = (cardToFork) => async (dispat
 	//(if EXPECT_NEW_CARD was dispatched above)
 };
 
-export const deleteCard : AppActionCreator = (card) => async (dispatch, getState) => {
+export const deleteCard : AppActionCreator = (card : Card) => async (dispatch, getState) => {
 
 	const state = getState();
 
@@ -1168,14 +1183,14 @@ const modifyCardFailure = (err : Error, skipAlert? : boolean) : AnyAction => {
 	};
 };
 
-export const reorderStatus = (pending) : AnyAction => {
+export const reorderStatus = (pending : boolean) : AnyAction => {
 	return {
 		type: REORDER_STATUS,
 		pending
 	};
 };
 
-export const updateSections : AppActionCreator = (sections) => (dispatch, getState) => {
+export const updateSections : AppActionCreator = (sections : Sections) => (dispatch, getState) => {
 	dispatch({
 		type: UPDATE_SECTIONS,
 		sections,
@@ -1190,7 +1205,7 @@ export const updateSections : AppActionCreator = (sections) => (dispatch, getSta
 	dispatch(refreshCardSelector(force));
 };
 
-export const updateAuthors : AppActionCreator = (authors) => (dispatch, getState) => {
+export const updateAuthors : AppActionCreator = (authors : AuthorsMap) => (dispatch, getState) => {
 
 	const state = getState();
 
@@ -1220,7 +1235,7 @@ export const updateAuthors : AppActionCreator = (authors) => (dispatch, getState
 	});
 };
 
-export const updateTags : AppActionCreator = (tags) => (dispatch) => {
+export const updateTags : AppActionCreator = (tags : Tags) => (dispatch) => {
 	dispatch({
 		type:UPDATE_TAGS,
 		tags,
@@ -1230,7 +1245,7 @@ export const updateTags : AppActionCreator = (tags) => (dispatch) => {
 
 export const updateCards : AppActionCreator = (cards: Cards, unpublished? : boolean) => (dispatch, getState) => {
 	const existingCards = selectRawCards(getState());
-	const cardsToUpdate = {};
+	const cardsToUpdate : Cards = {};
 	for (const card of Object.values(cards)) {
 		//Check ot see if we already have effectively the same card locally with no notional changes.
 		if (existingCards[card.id] && deepEqualIgnoringTimestamps(existingCards[card.id], card)) continue;
@@ -1259,7 +1274,7 @@ export const updateCards : AppActionCreator = (cards: Cards, unpublished? : bool
 //when it fires.
 const REMOVE_CARDS_TIMEOUT = 3000;
 
-export const removeCards : AppActionCreator = (cardIDs, unpublished) => (dispatch, getState) => {
+export const removeCards : AppActionCreator = (cardIDs : CardID[], unpublished : boolean) => (dispatch, getState) => {
 
 	//cards that we expected to be deleted won't show up in the other query
 	//ever, so we don't have to wait for the timeout and can delete them now.
@@ -1268,8 +1283,8 @@ export const removeCards : AppActionCreator = (cardIDs, unpublished) => (dispatc
 
 	let expectedDeletions = selectExpectedDeletions(getState());
 
-	let nonDeletions = [];
-	let deletions = [];
+	let nonDeletions : CardID[] = [];
+	let deletions : CardID[] = [];
 
 	for (let id of cardIDs) {
 		if (expectedDeletions[id]) {
@@ -1304,7 +1319,7 @@ export const removeCards : AppActionCreator = (cardIDs, unpublished) => (dispatc
 //card in the state wasn't put there by the unpublished side when this runs,
 //then it shouldn't be removed, because a more recent copy was put there by the
 //published side.
-const actuallyRemoveCards : AppActionCreator = (cardIDs, unpublished) => (dispatch, getState) => {
+const actuallyRemoveCards : AppActionCreator = (cardIDs : CardID[], unpublished : boolean) => (dispatch, getState) => {
 
 	const published = !unpublished;
 	const cards = selectCards(getState());
@@ -1322,9 +1337,9 @@ const actuallyRemoveCards : AppActionCreator = (cardIDs, unpublished) => (dispat
 	});
 };
 
-export const fetchTweets : AppActionCreator = (card) => async (dispatch) => {
+export const fetchTweets : AppActionCreator = (card : Card) => async (dispatch) => {
 
-	if (!card || Object.values(card).length == 0) return;
+	if (!card || Object.values(card).length == 0 || card.id == EMPTY_CARD_ID) return;
 
 	dispatch({
 		type: TWEETS_LOADING,
