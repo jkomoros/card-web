@@ -21,12 +21,17 @@ import {
 import {
 	CommentMessageID,
 	CommentThreadID,
-	CommitActionType
+	CommitActionType,
+	State
 } from '../types.js';
 
 import {
-	AppActionCreator 
+	AppActionCreator, AppThunkDispatch 
 } from '../store.js';
+
+import {
+	AnyAction
+} from 'redux';
 
 //When adding a type, also add to CommitActionType
 export const COMMIT_ACTIONS : {[typ : string] : CommitActionType} = {
@@ -45,7 +50,7 @@ export const configureCommitAction = (commitAction : CommitActionType, associate
 	};
 };
 
-export const composeShow = (message, starterContent) => {
+export const composeShow = (message : string, starterContent : string) : AnyAction => {
 	if (!starterContent) starterContent = '';
 	return {
 		type: PROMPT_COMPOSE_SHOW,
@@ -54,7 +59,7 @@ export const composeShow = (message, starterContent) => {
 	};
 };
 
-export const composeCancel = () => {
+export const composeCancel = () : AnyAction => {
 	return {
 		type: PROMPT_COMPOSE_CANCEL
 	};
@@ -72,7 +77,7 @@ export const composeCommit : AppActionCreator = () => (dispatch, getState) => {
 
 };
 
-export const composeUpdateContent = (content) => {
+export const composeUpdateContent = (content : string) : AnyAction => {
 	return {
 		type: PROMPT_COMPOSE_UPDATE_CONTENT,
 		content
@@ -80,7 +85,8 @@ export const composeUpdateContent = (content) => {
 };
 
 
-const doAction = (dispatch, state, action, content, associatedId) => {
+//TODO: use functionOverloading on expected types
+const doAction = (dispatch : AppThunkDispatch, state : State, action : CommitActionType, content? : string, associatedId? : CommentMessageID | CommentThreadID) => {
 	if (!action) return;
 	switch (action) {
 	case COMMIT_ACTIONS.CONSOLE_LOG:
