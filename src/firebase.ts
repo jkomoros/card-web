@@ -64,7 +64,8 @@ export const isDeleteSentinel = (value : any) : boolean => {
 //Returns an object like object, but where every top-level value that passes
 //isServerTimestampSentinel is ensured to be a literal serverTimestamp. This
 //allows serverTimestampSentinel() objects to be converted to serverTimestamps
-//right before setting.
+//right before setting. This is called automatically before set or update
+//operations in MultiBatch.
 export const installServerTimestamps = (value : object) : object => {
 	if (!Object.values(value).some(value => fieldNeedsServerTimestamp(value))) return value;
 	return Object.fromEntries(Object.entries(value).map(entry => [entry[0], fieldNeedsServerTimestamp(entry[1]) ? serverTimestamp() : entry[1]]));
@@ -95,7 +96,8 @@ const vendedTimestamps : WeakMap<Timestamp, true> = new WeakMap();
 //serverTimestampSentinel is like serverTimestamp, except instead of vending a
 //FieldValue, it vends a normal currentTimestamp, but keeps track that its
 //meaning is a serverTimestamp sentinel, so later calls to
-//isServerTimestampSentinel will detect it as a sentinel.
+//isServerTimestampSentinel will detect it as a sentinel. MultiBatch.set and
+//.update are aware.
 export const serverTimestampSentinel = () : Timestamp => {
 	const result = currentTimestamp();
 	vendedTimestamps.set(result, true);

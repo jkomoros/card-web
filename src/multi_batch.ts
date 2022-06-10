@@ -10,6 +10,10 @@ import {
 } from './util.js';
 
 import {
+	installServerTimestamps
+} from './firebase.js';
+
+import {
 	serverTimestamp,
 	arrayUnion,
 	writeBatch,
@@ -103,13 +107,17 @@ export class MultiBatch {
 		return this;
 	}
 
+	//A wrapper around batch.set that also calls installServerTimestamps on the object
 	set(ref : DocumentReference, data : object, options? : SetOptions) {
+		data = installServerTimestamps(data);
 		this._batch.set(ref, data, options);
 		this._currentBatchOperationCount += this._writeCountForUpdate(data);
 		return this;
 	}
 
+	//A wrapper around batch.update that also calls installServerTimestamps on the object
 	update(ref : DocumentReference, data : object) {
+		data = installServerTimestamps(data);
 		//TODO: the signature in the documentation is kind of weird for this
 		//one. Are there two different modes?
 		this._batch.update(ref, data);
