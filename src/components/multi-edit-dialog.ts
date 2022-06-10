@@ -67,6 +67,7 @@ import {
 	Card,
 	CardLike,
 	ReferencesEntriesDiff,
+	ReferenceType,
 	State,
 	TagInfos
 } from '../types.js';
@@ -204,14 +205,14 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	_handleTagTapped(e : TagEvent) {
 		//Only add it if not all cards already have it
 		if (!e.detail.subtle) return;
-		let referenceType = '';
+		let referenceType : ReferenceType = '';
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
 		for (let ele of e.composedPath()) {
 			//e.g. documentFragment
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
-				referenceType = ele.dataset.referenceType;
+				referenceType = ele.dataset.referenceType as ReferenceType;
 				break;
 			}
 		}
@@ -222,14 +223,14 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleUnremoveReference(e : TagEvent) {
-		let referenceType = '';
+		let referenceType : ReferenceType = '';
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
 		for (let ele of e.composedPath()) {
 			//e.g. documentFragment
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
-				referenceType = ele.dataset.referenceType;
+				referenceType = ele.dataset.referenceType as ReferenceType;
 				break;
 			}
 		}
@@ -240,13 +241,13 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleRemoveReference(e : TagEvent) {
-		let referenceType = '';
+		let referenceType : ReferenceType = '';
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
 		for (let ele of e.composedPath()) {
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
-				referenceType = ele.dataset.referenceType;
+				referenceType = ele.dataset.referenceType as ReferenceType;
 				break;
 			}
 		}
