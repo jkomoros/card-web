@@ -63,11 +63,15 @@ import {
 	editingStart
 } from './editor.js';
 
+import {
+	AppActionCreator
+} from '../store.js';
+
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
 
 export const PLACEHOLDER_CARD_ID_CHARACTER = '_';
 
-export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
+export const updateCardSelector : AppActionCreator = (cardSelector) => (dispatch, getState) => {
 
 	let queryParts = cardSelector.split('?');
 
@@ -144,7 +148,7 @@ export const updateCardSelector = (cardSelector) => (dispatch, getState) => {
 	dispatch(showCard(cardIdOrSlug));
 };
 
-export const updateCollection = (setName, filters, sortName, sortReversed, viewMode, viewModeExtra) => (dispatch, getState) =>{	
+export const updateCollection : AppActionCreator = (setName, filters, sortName, sortReversed, viewMode, viewModeExtra) => (dispatch, getState) =>{	
 	const state = getState();
 	const activeCollectionDescription = selectActiveCollectionDescription(state);
 	const newCollectionDescription = new CollectionDescription(setName, filters, sortName, sortReversed, viewMode, viewModeExtra);
@@ -181,7 +185,7 @@ export const updateRenderOffset = (renderOffset) => {
 	};
 };
 
-export const refreshCardSelector = (forceCommit) => (dispatch, getState) => {
+export const refreshCardSelector : AppActionCreator = (forceCommit) => (dispatch, getState) => {
 	//Called when cards and sections update, just in case we now have
 	//information to do this better. Also called when stars and reads update,
 	//because if we're filtering to one of those filters we might not yet know
@@ -223,7 +227,7 @@ export const refreshCardSelector = (forceCommit) => (dispatch, getState) => {
 	dispatch(updateCardSelector(pageExtra));
 };
 
-export const canonicalizeURL = () => (dispatch, getState) => {
+export const canonicalizeURL : AppActionCreator = () => (dispatch, getState) => {
 
 	//Called to ensure that the URL is canonical given activeSet, activeFilters, etc.
 
@@ -316,7 +320,7 @@ const cardIdForPlaceholder = (requestedCard, collection) => {
 	return collection[0].id;
 };
 
-export const redirectIfInvalidCardOrCollection = () => (dispatch, getState) => {
+export const redirectIfInvalidCardOrCollection : AppActionCreator = () => (dispatch, getState) => {
 
 	//This routine is called to make sure that if there is a valid card, we're
 	//actually sitting in a collection that contains it. If we aren't, we
@@ -346,7 +350,7 @@ export const redirectIfInvalidCardOrCollection = () => (dispatch, getState) => {
 	dispatch(navigateToCardInDefaultCollection(card, false));
 };
 
-export const showCard = (requestedCard) => (dispatch, getState) => {
+export const showCard : AppActionCreator = (requestedCard) => (dispatch, getState) => {
 
 	const state = getState();
 
