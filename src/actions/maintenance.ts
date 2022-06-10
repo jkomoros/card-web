@@ -72,8 +72,7 @@ import {
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
-	REFERENCES_INBOUND_CARD_PROPERTY,
-	REFERENCE_TYPE_LINK,
+	REFERENCES_INBOUND_CARD_PROPERTY
 } from '../card_field_constants.js';
 
 import {
@@ -85,7 +84,6 @@ import {
 	doc,
 	setDoc,
 	getDoc,
-	deleteField,
 	serverTimestamp,
 	updateDoc,
 	DocumentSnapshot
@@ -274,37 +272,6 @@ const initialSetup : MaintenanceTaskFunction = async (_, getState) => {
 
 	await batch.commit();
 
-};
-
-const LINKS_TO_REFERENCES = 'links-to-references';
-
-const linksToReferences : MaintenanceTaskFunction = async () => {
-
-	let batch = new MultiBatch(db);
-	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
-	snapshot.forEach(doc => {
-
-		let data = doc.data();
-		let references = {};
-		let referencesSentinels = {};
-		for (let cardID of data.links) {
-			references[cardID] = {
-				[REFERENCE_TYPE_LINK]:data.links_text[cardID],
-			};
-			referencesSentinels[cardID] = true;
-		}
-
-		batch.update(doc.ref, {
-			[REFERENCES_INFO_CARD_PROPERTY]: references,
-			[REFERENCES_CARD_PROPERTY]: referencesSentinels,
-			links: deleteField(),
-			links_inbound: deleteField(),
-			links_text: deleteField(),
-			links_inbound_text: deleteField(),
-		});
-	});
-
-	await batch.commit();
 };
 
 const ADD_FONT_SIZE_BOOST = 'add-font-size-boost';
@@ -662,11 +629,6 @@ const RAW_TASKS : {[id : MaintenanceTaskID]: MaintenanceTaskDefinition} = {
 		fn: updateInboundLinks,
 		minVersion: 0,
 		recurring: true,
-	},
-	[LINKS_TO_REFERENCES]: {
-		fn: linksToReferences,
-		minVersion: 0,
-		nextTaskName: UPDATE_INBOUND_LINKS,
 	},
 	[SET_MAINTENANCE_TASK_VERSION]: {
 		fn: setMaintenanceTaskVersion,
