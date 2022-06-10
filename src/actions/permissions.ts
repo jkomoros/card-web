@@ -46,8 +46,15 @@ import {
 
 import {
 	CardID,
-	State
+	PermissionType,
+	State,
+	Uid,
+	UserPermissionsMap
 } from '../types.js';
+
+import {
+	AnyAction
+} from 'redux';
 
 export const setCardToAddPermissionTo : AppActionCreator = (cardID : CardID) => (dispatch, getState) => {
 	const state = getState();
@@ -59,7 +66,7 @@ export const setCardToAddPermissionTo : AppActionCreator = (cardID : CardID) => 
 	});
 };
 
-export const selectCardToAddPermissionTo : AppActionCreator = (permissionType, uid) => (dispatch) => {
+export const selectCardToAddPermissionTo : AppActionCreator = (permissionType : PermissionType, uid : Uid) => (dispatch) => {
 	dispatch({
 		type:PERMISSIONS_START_ADD_CARD,
 		permissionType,
@@ -68,7 +75,7 @@ export const selectCardToAddPermissionTo : AppActionCreator = (permissionType, u
 	dispatch(findCardToPermission());
 };
 
-const addUserPermissionToCard : AppActionCreator = (cardID, permissionType, uid) => (dispatch, getState) => {
+const addUserPermissionToCard : AppActionCreator = (cardID : CardID, permissionType : PermissionType, uid : Uid) => (dispatch, getState) => {
 	if (permissionType != PERMISSION_EDIT_CARD) {
 		console.warn('Illegal permission type');
 		return;
@@ -85,7 +92,7 @@ const addUserPermissionToCard : AppActionCreator = (cardID, permissionType, uid)
 	dispatch(modifyCard(card, update, false));
 };
 
-export const removeUserPermissionFromCard : AppActionCreator = (cardID, permissionType, uid) => (dispatch, getState) => {
+export const removeUserPermissionFromCard : AppActionCreator = (cardID : CardID, permissionType : PermissionType, uid : Uid) => (dispatch, getState) => {
 	if (permissionType != PERMISSION_EDIT_CARD) {
 		console.warn('Illegal permission type');
 		return;
@@ -106,8 +113,8 @@ export const connectLivePermissions = () => {
 	if (!selectUserMayEditPermissions(store.getState() as State)) return;
 	onSnapshot(collection(db, PERMISSIONS_COLLECTION), snapshot => {
 
-		let permissionsToAdd = {};
-		let permissionsToRemove = {};
+		let permissionsToAdd : UserPermissionsMap = {};
+		let permissionsToRemove : {[user : Uid] : true} = {};
 
 		snapshot.docChanges().forEach(change => {
 			let doc = change.doc;
@@ -126,7 +133,7 @@ export const connectLivePermissions = () => {
 	});
 };
 
-const updatePermissions = (permissionsToAdd, permissionsToRemove) => {
+const updatePermissions = (permissionsToAdd : UserPermissionsMap, permissionsToRemove : {[user : Uid]: true}) : AnyAction => {
 	return {
 		type:PERMISSIONS_UPDATE_PERMISSIONS,
 		permissionsToAdd,
@@ -134,22 +141,22 @@ const updatePermissions = (permissionsToAdd, permissionsToRemove) => {
 	};
 };
 
-export const addPermissionsObjectForUser : AppActionCreator = (uid) => () => {
+export const addPermissionsObjectForUser : AppActionCreator = (uid : Uid) => () => {
 	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {}, {merge: true});
 };
 
-export const deletePermissionsObjectForUser : AppActionCreator = (uid) => () => {
+export const deletePermissionsObjectForUser : AppActionCreator = (uid : Uid) => () => {
 	deleteDoc(doc(db, PERMISSIONS_COLLECTION, uid));
 };
 
-export const updateUserNote : AppActionCreator = (uid, note) => () => {
+export const updateUserNote : AppActionCreator = (uid : Uid, note : string) => () => {
 	updateDoc(doc(db, PERMISSIONS_COLLECTION, uid), {notes:note});
 };
 
-export const addEnabledPermission : AppActionCreator = (uid, key) => () => {
+export const addEnabledPermission : AppActionCreator = (uid: Uid, key : PermissionType) => () => {
 	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {[key]: true}, {merge: true});
 };
 
-export const clearPermission : AppActionCreator = (uid, key) => () => {
+export const clearPermission : AppActionCreator = (uid : Uid, key : PermissionType) => () => {
 	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {[key]: deleteField()}, {merge: true});
 };
