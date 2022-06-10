@@ -54,7 +54,12 @@ import {
 
 import {
 	State,
-	Slug
+	Slug,
+	CommentMessages,
+	CommentMessage,
+	CommentThreads,
+	CommentThread,
+	CommentThreadID
 } from '../types.js';
 
 export const CARDS_COLLECTION = 'cards';
@@ -105,7 +110,7 @@ export const slugLegal = async (newSlug : Slug) : Promise<LegalResult>  => {
 	return result.data as LegalResult;
 };
 
-const warmupSlugLegal = (force) : void => {
+const warmupSlugLegal = (force : boolean = false) : void => {
 	if (DISABLE_CALLABLE_CLOUD_FUNCTIONS) return;
 	if (!force && !userHadActivity) return;
 	//Mark that we've already triggered for that activity, and will need new
@@ -139,13 +144,12 @@ export const connectLiveMessages = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	//Deliberately DO fetch deleted messages, so we can render stubs for them.
 	onSnapshot(collection(db, MESSAGES_COLLECTION), snapshot => {
-		let messages = {};
+		let messages : CommentMessages = {};
 		snapshot.docChanges().forEach(change => {
 			if (change.type === 'removed') return;
 			let doc = change.doc;
 			let id = doc.id;
-			let message = doc.data();
-			message.id = id;
+			let message : CommentMessage = {...doc.data(), id} as CommentMessage;
 			messages[id] = message;
 		});
 
@@ -156,9 +160,9 @@ export const connectLiveMessages = () => {
 export const connectLiveThreads = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	onSnapshot(query(collection(db, THREADS_COLLECTION), where('deleted', '==', false), where('resolved', '==', false)), snapshot => {
-		let threads = {};
-		let threadsToAdd = [];
-		let threadsToRemove = [];
+		let threads : CommentThreads = {};
+		let threadsToAdd : CommentThreadID[] = [];
+		let threadsToRemove : CommentThreadID[] = [];
 		snapshot.docChanges().forEach(change => {
 			let doc = change.doc;
 			if (change.type === 'removed') {
@@ -166,8 +170,7 @@ export const connectLiveThreads = () => {
 				return;
 			}
 			let id = doc.id;
-			let thread = doc.data();
-			thread.id = id;
+			let thread : CommentThread = {...doc.data(), id} as CommentThread;
 			threadsToAdd.push(id);
 			threads[id] = thread;
 		});
