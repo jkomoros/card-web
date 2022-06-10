@@ -47,7 +47,6 @@ import {
 } from '../firebase.js';
 
 import {
-	writeBatch,
 	doc,
 	getDoc,
 	arrayUnion,
@@ -84,6 +83,10 @@ import {
 import {
 	AppActionCreator
 } from '../store.js';
+
+import {
+	MultiBatch
+} from '../multi_batch.js';
 
 let prevAnonymousMergeUser = null;
 
@@ -124,7 +127,7 @@ export const saveUserInfo : AppActionCreator = () => (_, getState) => {
 
 	if (!user) return;
 
-	let batch = writeBatch(db);
+	let batch = new MultiBatch(db);
 	ensureUserInfo(batch, user);
 	//If we had a merge user, null it out on successful save, so we don't keep saving it.
 	batch.commit().then(() => prevAnonymousMergeUser = null);
@@ -373,7 +376,7 @@ export const addToReadingList : AppActionCreator = (cardToAdd : CardID) => (_, g
 		return;
 	}
 
-	let batch = writeBatch(db);
+	let batch = new MultiBatch(db);
 
 	let readingListRef = doc(db, READING_LISTS_COLLECTION, uid);
 	let readingListUpdateRef = doc(readingListRef, READING_LISTS_UPDATES_COLLECTION, '' + Date.now());
@@ -416,7 +419,7 @@ export const removeFromReadingList : AppActionCreator = (cardToRemove : CardID) 
 		return;
 	}
 
-	let batch = writeBatch(db);
+	let batch = new MultiBatch(db);
 
 	let readingListRef = doc(db, READING_LISTS_COLLECTION, uid);
 	let readingListUpdateRef = doc(readingListRef, READING_LISTS_UPDATES_COLLECTION, '' + Date.now());
@@ -463,7 +466,7 @@ export const addStar : AppActionCreator = (cardToStar) => (_, getState) => {
 	let cardRef = doc(db, CARDS_COLLECTION, cardToStar.id);
 	let starRef = doc(db, STARS_COLLECTION, idForPersonalCardInfo(uid, cardToStar.id));
 
-	let batch = writeBatch(db);
+	let batch = new MultiBatch(db);
 	batch.update(cardRef, {
 		star_count: increment(1),
 		star_count_manual: increment(1),
@@ -500,7 +503,7 @@ export const removeStar : AppActionCreator = (cardToStar) => (_, getState) => {
 	let cardRef = doc(db, CARDS_COLLECTION, cardToStar.id);
 	let starRef = doc(db, STARS_COLLECTION, idForPersonalCardInfo(uid, cardToStar.id));
 
-	let batch = writeBatch(db);
+	let batch = new MultiBatch(db);
 	batch.update(cardRef, {
 		star_count: increment(-1),
 		star_count_manual: increment(-1),
@@ -603,7 +606,7 @@ export const markRead : AppActionCreator = (cardToMarkRead : Card, existingReadD
 
 	let readRef = doc(db, READS_COLLECTION, idForPersonalCardInfo(uid, cardToMarkRead.id));
 
-	let batch = writeBatch(db);
+	let batch = new MultiBatch(db);
 	batch.set(readRef, {created: serverTimestamp(), owner: uid, card: cardToMarkRead.id});
 	batch.commit();
 };
@@ -639,7 +642,7 @@ export const markUnread : AppActionCreator = (cardToMarkUnread) => (_, getState)
 
 	let readRef = doc(db, READS_COLLECTION, idForPersonalCardInfo(uid, cardToMarkUnread.id));
 
-	let batch = writeBatch(db);
+	let batch = new MultiBatch(db);
 	batch.delete(readRef);
 	batch.commit();
 

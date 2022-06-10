@@ -82,7 +82,6 @@ import {
 	getDocs,
 	query,
 	where,
-	writeBatch,
 	doc,
 	setDoc,
 	getDoc,
@@ -189,7 +188,7 @@ const RESET_TWEETS = 'reset-tweets';
 const resetTweets = async() => {
 	//Mark all tweets as having not been run
 	if (!confirm('Are you SURE you want to reset all tweets?')) return;
-	let batch = writeBatch(db);
+	let batch = new MultiBatch(db);
 	let snapshot = await getDocs(collection(db,CARDS_COLLECTION));
 	snapshot.forEach(doc => {
 		batch.update(doc.ref, {'tweet_count': 0, 'last_tweeted': new Date(0)});

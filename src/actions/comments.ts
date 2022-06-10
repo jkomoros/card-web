@@ -13,7 +13,6 @@ import {
 
 import {
 	doc,
-	writeBatch,
 	runTransaction,
 	arrayUnion,
 	serverTimestamp,
@@ -54,6 +53,10 @@ import {
 	UserInfo
 } from '../types.js';
 
+import {
+	MultiBatch
+} from '../multi_batch.js';
+
 type BatchLikeSet = {
 	set(ref : DocumentReference, data : object) : void
 }
@@ -70,7 +73,7 @@ export const createAuthorStub = (uid : Uid) => {
 	//useful if you want to create an author stub to be filled in by that user
 	//when they next login, for example to manually add an editor or
 	//collaborator to a card.
-	let batch = writeBatch(db);
+	let batch = new MultiBatch(db);
 	//By using set with merge:true, if it already exists, we won't overwrite any
 	//fields, but will ensure a stub exists.
 	batch.set(doc(db, AUTHORS_COLLECTION, uid), {}, {merge:true});
@@ -121,7 +124,7 @@ export const deleteMessage : AppActionCreator = (message : CommentMessage) => (_
 		return;
 	}
 
-	let batch = writeBatch(db);
+	let batch = new MultiBatch(db);
 
 	batch.update(doc(db, MESSAGES_COLLECTION, message.id), {
 		message: '',
@@ -146,7 +149,7 @@ export const editMessage : AppActionCreator = (message : CommentMessage, newMess
 		return;
 	}
 
-	let batch = writeBatch(db);
+	let batch = new MultiBatch(db);
 
 	batch.update(doc(db, MESSAGES_COLLECTION, message.id), {
 		message: newMessage,
@@ -197,7 +200,7 @@ export const addMessage : AppActionCreator = (thread : CommentThread, message : 
 	let messageId = randomString(16);
 	let threadId = thread.id;
 
-	let batch = writeBatch(db);
+	let batch = new MultiBatch(db);
 
 	ensureAuthor(batch, user);
 

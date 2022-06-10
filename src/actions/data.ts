@@ -39,7 +39,6 @@ import {
 
 import {
 	doc,
-	writeBatch,
 	getDoc,
 	getDocs,
 	query,
@@ -479,7 +478,7 @@ const setPendingSlug = (slug) => {
 
 const addLegalSlugToCard = (cardID : CardID, legalSlug : Slug, setName? : boolean) => {
 	//legalSlug must already be verified to be legal.
-	let batch = writeBatch(db);
+	let batch = new MultiBatch(db);
 	const cardRef = doc(db, CARDS_COLLECTION, cardID);
 	let update : CardUpdate = {
 		slugs: arrayUnion(legalSlug),
@@ -614,7 +613,7 @@ export const createTag : AppActionCreator = (name, displayName) => async (dispat
 	//can just edit it by hand in the DB.
 	let color = TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)];
 
-	let batch = writeBatch(db);
+	let batch = new MultiBatch(db);
 
 	batch.set(tagRef, {
 		cards: [],
@@ -850,7 +849,7 @@ export const createCard : AppActionCreator = (opts) => async (dispatch, getState
 		fallbackAutoSlugLegalPromise = slugLegal(fallbackAutoSlug);
 	}
 
-	const batch = writeBatch(db);
+	const batch = new MultiBatch(db);
 
 	ensureAuthor(batch, user);
 	batch.set(cardDocRef, obj);
@@ -1016,7 +1015,7 @@ export const createForkedCard : AppActionCreator = (cardToFork) => async (dispat
 		noSectionChange: !section,
 	});
 
-	let batch = writeBatch(db);
+	let batch = new MultiBatch(db);
 	ensureAuthor(batch, user);
 
 	batch.set(cardDocRef, newCard);
@@ -1089,7 +1088,7 @@ export const deleteCard : AppActionCreator = (card) => async (dispatch, getState
 		dispatch(navigateToNextCard());
 	}
 
-	let batch = writeBatch(db);
+	let batch = new MultiBatch(db);
 	let ref = doc(db, CARDS_COLLECTION, card.id);
 	let updates = await getDocs(collection(ref, CARD_UPDATES_COLLECTION));
 	for (let update of updates.docs) {
@@ -1201,7 +1200,7 @@ export const updateAuthors : AppActionCreator = (authors) => (dispatch, getState
 				//without already being in the authors table. We should ensure
 				//author!
 				console.log('Saving extra author information because our authors rec was missing it');
-				let batch = writeBatch(db);
+				let batch = new MultiBatch(db);
 				ensureAuthor(batch, user);
 				//don't need to wait for it resolve
 				batch.commit();
