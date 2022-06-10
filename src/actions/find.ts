@@ -31,11 +31,15 @@ import {
 	AppActionCreator
 } from '../store.js';
 
+import {
+	AnyAction
+} from 'redux';
+
 export const openFindDialog = () => {
 	return launchFind(FIND_DIALOG_OPEN);
 };
 
-export const closeFindDialog = () => {
+export const closeFindDialog = () : AnyAction => {
 	return {
 		type: FIND_DIALOG_CLOSE
 	};
@@ -65,8 +69,7 @@ export const updateQuery : AppActionCreator  = (query) => (dispatch) => {
 	});
 };
 
-export const findCardToLink = (starterQuery) => {
-	if (!starterQuery) starterQuery = '';
+export const findCardToLink = (starterQuery : string = '') => {
 	saveSelectionRange();
 	return launchFind(FIND_CARD_TO_LINK, starterQuery);
 };
@@ -75,11 +78,12 @@ export const findCardToPermission = () => {
 	return launchFind(FIND_CARD_TO_PERMISSION);
 };
 
-export const findCardToReference = (lockedCardTypeFilter) => {
+//lockedCardTypeFilter might be a union filter, or a single cardtype, or ''
+export const findCardToReference = (lockedCardTypeFilter : string) => {
 	return launchFind(FIND_CARD_TO_REFERENCE, '', lockedCardTypeFilter);
 };
 
-export const findUpdateRenderOffset = (renderOffset) => {
+export const findUpdateRenderOffset = (renderOffset : number) : AnyAction => {
 	return {
 		type: FIND_UPDATE_RENDER_OFFSET,
 		renderOffset,
@@ -111,7 +115,7 @@ export const findUpdateCardTypeFilter : AppActionCreator = (filter) => (dispatch
 	});
 };
 
-export const findUpdateSortByRecent = (sortByRecent) => {
+export const findUpdateSortByRecent = (sortByRecent : boolean) : AnyAction => {
 	return {
 		type: FIND_UPDATE_SORT_BY_RECENT,
 		sortByRecent,
