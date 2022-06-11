@@ -38,7 +38,6 @@ import {
 } from './collection_description.js';
 
 import {
-	ExpandedTabConfig,
 	tabConfiguration
 } from './tabs.js';
 
@@ -152,6 +151,7 @@ import {
 	Slug,
 	WordCloud,
 	CollectionConstructorArguments,
+	ExpandedTabConfig,
 } from './types.js';
 
 const selectState = (state : State) : State => state;

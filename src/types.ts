@@ -15,6 +15,14 @@ import {
 
 import * as icons from './components/my-icons.js';
 
+import {
+    CollectionDescription
+} from './collection_description.js';
+
+import {
+    TemplateResult
+} from 'lit';
+
 export type Uid = string;
 
 export type CardID = string;
@@ -945,6 +953,51 @@ export type AuthorsMap = {
 export type CardFieldMap = {
     [field in CardFieldType]+?: true
 }
+
+export type TabConfig = TabConfigItem[];
+
+export interface TabConfigItem {
+	//If set, will expand in line for the named expansion. See src/tabs.js for named expansions.
+	//Applies recursively until no expansions remain.
+	//Note that 'sections' is a special value that will expand to the current values of sections.
+	expand?: string,
+	//collection can be either a string that can be deserialized into a CollectionDescription, or an actual 
+	//CollectionDescription. It will be expanded to be a CollectionDescription either way. Each item should have a collection
+	//or an href
+	collection?: string | CollectionDescription,
+	//If set, the item will render an <a href='href' target='_blank'>
+	href?: string,
+	//Can be either a string naming an ICON constant in src/components/my-icons.js, or an actual Icon template.
+	//If provided, will render that instead of the display_name text.
+	icon?: IconName | TemplateResult,
+	//The text string to show. Alway used for title of the tab, but also will use if no icon provided.
+	display_name?: string,
+	//If true, the display_name will be rendered with italics
+	italics?: boolean,
+	//If true, a count of how many cards are in the collection will be calculated and rendered.
+	count?: boolean,
+	//If true, will not show the item if the count is 0. count config property must also be true.
+	hideIfEmpty?: boolean,
+	//If true, the item will not be rendered. This is useful if you want fallback_cards or start_cards 
+	//to be available but don't want the tab to show up.
+	hide?: boolean,
+	//If provided, will show these fallback cards if no real cards match the collection. The strings can be IDs or 
+	//slugs for the target cards.
+	fallback_cards?: CardIdentifier[],
+	//If provided, will show these start cards if the collection being show is precisely the collection described 
+	//by this descripton. The strings can be IDS or slugs for the target cards.
+	start_cards?: CardIdentifier[],
+	//The first item that has default:true will be used as the default collection if the app is loaded without a 
+	//collection. The auto sections portion will automatically select at least one item to be default.
+	default?: boolean
+}
+
+export interface ExpandedTabConfigItem extends TabConfigItem {
+	expandedCollection: CollectionDescription,
+	expandedIcon: TemplateResult
+}
+
+export type ExpandedTabConfig = ExpandedTabConfigItem[];
 
 export type DataState = {
 	cards: Cards,

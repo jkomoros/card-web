@@ -88,16 +88,13 @@ import {
 	BadgeMap,
 	Card,
 	State,
-	Uid
+	Uid,
+	ExpandedTabConfig,
 } from '../types.js';
 
 import {
 	CollectionDescription
 } from '../collection_description.js';
-
-import {
-	ExpandedTabConfig,
-} from '../tabs.js';
 
 import {
 	ExpandedReferenceBlocks
