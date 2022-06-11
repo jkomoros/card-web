@@ -18,7 +18,10 @@ import {
 	signInWithRedirect,
 	signInAnonymously,
 	signOut as firebaseSignOut,
-	getRedirectResult
+	getRedirectResult,
+	User,
+	updateProfile,
+	updateEmail
 } from 'firebase/auth';
 
 import {
@@ -224,7 +227,7 @@ const hasPreviousSignIn = () => {
 	return localStorage.getItem(HAS_PREVIOUS_SIGN_IN_KEY) ? true : false;
 };
 
-const ensureRichestDataForUser : AppActionCreator = (firebaseUser) => (dispatch) => {
+const ensureRichestDataForUser : AppActionCreator = (firebaseUser : User) => async (dispatch) => {
 	//Whatever the first account was will be the default photoUrl, displayName,
 	//etc. So if your first account was an anonymous one (no photoUrl or
 	//displayName) then even when you sign in with e.g. gmail we'll still have
@@ -239,19 +242,33 @@ const ensureRichestDataForUser : AppActionCreator = (firebaseUser) => (dispatch)
 	let bestDisplayName = null;
 	let bestEmail = null;
 
-	firebaseUser.providerData.forEach(data => {
-		if (!bestPhotoURL && data.photoURL) bestPhotoURL = data.photoURL;
-		if (!bestDisplayName && data.displayName) bestDisplayName = data.displayName;
-		if (!bestEmail && data.email) bestEmail = data.email;
-	});
+	for (const userInfo of firebaseUser.providerData) {
+		if (!bestPhotoURL && userInfo.photoURL) bestPhotoURL = userInfo.photoURL;
+		if (!bestDisplayName && userInfo.displayName) bestDisplayName = userInfo.displayName;
+		if (!bestEmail && userInfo.email) bestEmail = userInfo.email;
+	};
 
 	//Even after updating the user we need to tell the UI it's updated.
+	if (!bestPhotoURL && !bestDisplayName && !bestEmail) return;
 
-	firebaseUser.updateProfile({
-		photoURL: bestPhotoURL,
-		displayName: bestDisplayName,
-		email: bestEmail,
-	}).then(firebaseUser => dispatch(updateUserInfo(firebaseUser))).catch(err => console.warn('Couldn\'t update profile: ', err));
+	if (bestPhotoURL || bestDisplayName) {
+		await updateProfile(firebaseUser, {
+			photoURL: bestPhotoURL,
+			displayName: bestDisplayName,
+		})
+		//firebaseUser has now been updated in place, based on testing in
+		//Chrome.
+	}
+
+	if (bestEmail && !firebaseUser.email) {
+		//Note that in our testing, after merging an anon account into a gmail
+		//account, email is automatically set but displayName and photoURL are not,
+		//so this won't run. But that's not documented anywhere so might as well do
+		//this just in case to be safe.
+		await updateEmail(firebaseUser, bestEmail);
+	}
+
+	dispatch(updateUserInfo(firebaseUser));
 
 };
 
