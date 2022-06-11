@@ -53,19 +53,6 @@ store.addReducers({
 //Stash this here so it's easy to get access to it via console.
 window['DEBUG_STORE'] = store;
 
-//Connect it up so the reselect-tools extension will show the selector graph.
-//https://github.com/skortchmark9/reselect-tools for how to install the
-//extension
-import * as selectors from './selectors.js';
-//TODO: why can I not use the basic import? The es build output doesn't have any
-//export keywords, maybe it's configured wrong?
-import {
-	getStateWith,
-	registerSelectors,
-} from 'reselect-tools/src';
-getStateWith(() => store.getState());  // allows you to get selector inputs and outputs
-registerSelectors(selectors); // register string names for selectors
-
 export type ThunkResult = ThunkAction<void, State, undefined, AnyAction>;
 
 export type AppActionCreator = ActionCreator<ThunkResult>;
