@@ -91,7 +91,7 @@ import {
 	MultiBatch
 } from '../multi_batch.js';
 
-let prevAnonymousMergeUser = null;
+let prevAnonymousMergeUser : User = null;
 
 getRedirectResult(auth).catch( async err => {
 
@@ -143,7 +143,7 @@ interface userInfoUpdate {
 	previousUids?: FieldValue,
 }
 
-export const ensureUserInfo = (batchOrTransaction, user) => {
+export const ensureUserInfo = (batch : MultiBatch, user : UserInfo) => {
 	if (!user) return;
 
 	let data : userInfoUpdate = {
@@ -158,7 +158,7 @@ export const ensureUserInfo = (batchOrTransaction, user) => {
 		//This will be nulled out in saveUserInfo on successful commit.
 	}
 
-	batchOrTransaction.set(doc(db, USERS_COLLECTION, user.uid), data, {merge: true});
+	batch.set(doc(db, USERS_COLLECTION, user.uid), data, {merge: true});
 };
 
 export const showNeedSignin : AppActionCreator = () => (dispatch) => {
@@ -272,7 +272,7 @@ const ensureRichestDataForUser : AppActionCreator = (firebaseUser : User) => asy
 
 };
 
-const updateUserInfo : AppActionCreator = (firebaseUser) => (dispatch) => {
+const updateUserInfo : AppActionCreator = (firebaseUser : User) => (dispatch) => {
 	let info = _userInfo(firebaseUser);
 	dispatch({
 		type: SIGNIN_SUCCESS,
@@ -324,7 +324,7 @@ export const signInSuccess : AppActionCreator = (firebaseUser) => (dispatch) => 
 	connectLiveReadingList(firebaseUser.uid);
 };
 
-const _userInfo = (info) : UserInfo => {
+const _userInfo = (info : User) : UserInfo => {
 	return {
 		uid: info.uid,
 		isAnonymous: info.isAnonymous,
@@ -350,7 +350,7 @@ export const signOut : AppActionCreator = () => (dispatch, getState) => {
 	firebaseSignOut(auth);
 };
 
-export const updateStars : AppActionCreator = (starsToAdd = [], starsToRemove = []) => (dispatch) => {
+export const updateStars : AppActionCreator = (starsToAdd : CardID[] = [], starsToRemove : CardID[] = []) => (dispatch) => {
 	dispatch({
 		type: UPDATE_STARS,
 		starsToAdd,
@@ -458,7 +458,7 @@ export const removeFromReadingList : AppActionCreator = (cardToRemove : CardID) 
 	batch.commit();
 };
 
-export const addStar : AppActionCreator = (cardToStar) => (_, getState) => {
+export const addStar : AppActionCreator = (cardToStar : Card) => (_, getState) => {
 
 	if (!cardToStar || !cardToStar.id) {
 		console.log('Invalid card provided');
@@ -496,7 +496,7 @@ export const addStar : AppActionCreator = (cardToStar) => (_, getState) => {
 	batch.commit();
 };
 
-export const removeStar : AppActionCreator = (cardToStar) => (_, getState) => {
+export const removeStar : AppActionCreator = (cardToStar : Card) => (_, getState) => {
 	if (!cardToStar || !cardToStar.id) {
 		console.log('Invalid card provided');
 		return;
@@ -530,7 +530,7 @@ export const removeStar : AppActionCreator = (cardToStar) => (_, getState) => {
 
 };
 
-export const updateReads : AppActionCreator = (readsToAdd = [], readsToRemove = []) => (dispatch) => {
+export const updateReads : AppActionCreator = (readsToAdd : CardID[] = [], readsToRemove : CardID[] = []) => (dispatch) => {
 	dispatch({
 		type: UPDATE_READS,
 		readsToAdd,
@@ -539,7 +539,7 @@ export const updateReads : AppActionCreator = (readsToAdd = [], readsToRemove = 
 	dispatch(refreshCardSelector(false));
 };
 
-export const updateReadingList : AppActionCreator = (list = []) => (dispatch) => {
+export const updateReadingList : AppActionCreator = (list : CardID[] = []) => (dispatch) => {
 	dispatch({
 		type: UPDATE_READING_LIST,
 		list,
@@ -547,7 +547,7 @@ export const updateReadingList : AppActionCreator = (list = []) => (dispatch) =>
 	dispatch(refreshCardSelector(false));
 };
 
-let autoMarkReadTimeoutId = null;
+let autoMarkReadTimeoutId : number;
 
 export const scheduleAutoMarkRead : AppActionCreator = () => (dispatch, getState) => {
 
@@ -567,7 +567,7 @@ export const scheduleAutoMarkRead : AppActionCreator = () => (dispatch, getState
 	if (!activeCard) return;
 	if (getCardIsRead(state, activeCard.id)) return;
 
-	autoMarkReadTimeoutId = setTimeout(() => dispatch(markActiveCardReadIfLoggedIn()), AUTO_MARK_READ_DELAY);
+	autoMarkReadTimeoutId = window.setTimeout(() => dispatch(markActiveCardReadIfLoggedIn()), AUTO_MARK_READ_DELAY);
 
 	dispatch({type: AUTO_MARK_READ_PENDING_CHANGED, pending: true});
 };
@@ -628,7 +628,7 @@ export const markRead : AppActionCreator = (cardToMarkRead : Card, existingReadD
 	batch.commit();
 };
 
-export const markUnread : AppActionCreator = (cardToMarkUnread) => (_, getState) => {
+export const markUnread : AppActionCreator = (cardToMarkUnread : Card) => (_, getState) => {
 	if (!cardToMarkUnread || !cardToMarkUnread.id) {
 		console.log('Invalid card provided');
 		return;
