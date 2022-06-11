@@ -256,6 +256,7 @@ export const applyCardFirebaseUpdate = (baseCard : Card, firebaseUpdate : CardUp
 	return result;
 };
 
+//Similar to util.ts:setValueOnObj
 const setFirebaseValueOnObj = (obj : {[field : string]: any}, fieldParts : string[], value : any, replaceTimestampSentinels : boolean = false) => {
 	//Obj is an object it's OK to modify, but no other subobjects are.
 
