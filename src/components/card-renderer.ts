@@ -661,7 +661,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		return ele;
 	}
 
-	override updated(changedProps : Map<string, any>) {
+	override updated(changedProps : Map<string, CardRenderer[keyof CardRenderer]>) {
 		if (changedProps.has('editing') && this.editing) {
 			//If we just started editing, focus the content editable immediately
 			//(the title if there's no title)
