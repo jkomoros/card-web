@@ -312,7 +312,7 @@ const selectSnapshotZippedCardAndFallbackMap = createSelector(
 
 //objectEquality checks for objects to be the same content, allowing nested
 //objects
-const objectEquality = (before : any, after : any) : boolean => {
+const objectEquality = (before : unknown, after : unknown) : boolean => {
 	if (before === after) return true;
 	if (!before) return false;
 	if (!after) return false;
@@ -320,12 +320,13 @@ const objectEquality = (before : any, after : any) : boolean => {
 	if (typeof after != 'object') return false;
 	if (Array.isArray(before) && Array.isArray(after)) return arrayEquality(before, after);
 	const beforeEntries = Object.entries(before);
+	const objAfter : {[name :string]: unknown} = after as {[name : string] : unknown};
 	if (beforeEntries.length != Object.keys(after).length) return false;
-	return beforeEntries.every(entry => objectEquality(entry[1], after[entry[0]]));
+	return beforeEntries.every(entry => objectEquality(entry[1], objAfter[entry[0]]));
 };
 
 //arrayEquality returns true if both are arrays and each of their items are the same
-const arrayEquality = (before : any[], after : any[]) : boolean => {
+const arrayEquality = (before : unknown[], after : unknown[]) : boolean => {
 	if (before === after) return true;
 	if (!Array.isArray(before)) return false;
 	if (!Array.isArray(after)) return false;
