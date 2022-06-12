@@ -51,7 +51,7 @@ import {
 export const _PAGE_BASIC_CARD = 'basic-card';
 
 export const allSubstrings = (str : string) => {
-	let result = [];
+	const result = [];
 
 	for (let i = 0; i < str.length; i++) {
 		for (let j = i + 1; j < str.length + 1; j++) {
@@ -91,7 +91,7 @@ export const pageRequiresMainView = (pageName : string) => {
 
 export const deepActiveElement = () : Element | null => {
 	//Based on code snippet at https://developers.google.com/web/fundamentals/web-components/shadowdom
-	let doc = getDocument();
+	const doc = getDocument();
 	if (!doc) return null;
 	let a = doc.activeElement;
 	while (a && a.shadowRoot && a.shadowRoot.activeElement) {
@@ -106,8 +106,8 @@ export const capitalizeFirstLetter = (str : string) => {
 
 export const toTitleCase = (str : string) => {
 	//Based on https://gomakethings.com/converting-a-string-to-title-case-with-vanilla-javascript/
-	let parts = str.toLowerCase().split(' ');
-	for (var i = 0; i < parts.length; i++) {
+	const parts = str.toLowerCase().split(' ');
+	for (let i = 0; i < parts.length; i++) {
 		parts[i] = parts[i].charAt(0).toUpperCase() + parts[i].slice(1);
 	}
 	return parts.join(' ');
@@ -144,7 +144,7 @@ export const createSlugFromArbitraryString = (str : string) : Slug => {
 	return normalizeSlug(str);
 };
 
-let vendedNewIDs : {[name: CardID]: boolean} = {};
+const vendedNewIDs : {[name: CardID]: boolean} = {};
 
 //returns true if the given ID was recently vended in this client from newID.
 export const idWasVended = (id : CardID) => {
@@ -170,7 +170,7 @@ export const cardHasContent = (card : Card) => {
 	//If it just uses the default content for that card type then it's as though
 	//it doesn't have content at all.
 	if (cardTypeConfig && cardTypeConfig.defaultBody == card[TEXT_FIELD_BODY]) return false;
-	let content = card[TEXT_FIELD_BODY] ? card[TEXT_FIELD_BODY].trim() : '';
+	const content = card[TEXT_FIELD_BODY] ? card[TEXT_FIELD_BODY].trim() : '';
 	return content ? true : false;
 };
 
@@ -180,19 +180,19 @@ export const cardHasSubstantiveContent = (card : ProcessedCard) => {
 	//We treat all non-content cards as having content, since the main reason to
 	//count a card has not having content is if there's nothing to see on it.
 	if (card.card_type != CARD_TYPE_CONTENT) return true;
-	let content = card.nlp && card.nlp[TEXT_FIELD_BODY] ? card.nlp[TEXT_FIELD_BODY].map(run => run.stemmed).join(' ') : '';
+	const content = card.nlp && card.nlp[TEXT_FIELD_BODY] ? card.nlp[TEXT_FIELD_BODY].map(run => run.stemmed).join(' ') : '';
 	return content.length > SUBSTANTIVE_CONTENT_THRESHOLD;
 };
 
 export const cardHasNotes = (card : Card) => {
 	if (!card) return false;
-	let content = card.notes ? card.notes.trim() : '';
+	const content = card.notes ? card.notes.trim() : '';
 	return content ? true : false;
 };
 
 export const cardHasTodo = (card : Card) => {
 	if (!card) return false;
-	let content = card.todo ? card.todo.trim() : '';
+	const content = card.todo ? card.todo.trim() : '';
 	return content ? true : false;
 };
 
@@ -206,14 +206,14 @@ export const reasonCardTypeNotLegalForCard = (card : Card, proposedCardType : Ca
 	//Because this is INBOUND references, the changes we might be making to
 	//the card won't have touched it.
 	const inboundReferencesByType = references(card).byTypeInbound;
-	for (let referenceType of Object.keys(inboundReferencesByType)) {
+	for (const referenceType of Object.keys(inboundReferencesByType)) {
 		if (!legalInboundReferenceTypes[referenceType]) {
 			return 'The card has an inbound reference of type ' + referenceType + ', but that is not legal for the proposed card type ' + proposedCardType;
 		}
 	}
 
 	const outboundReferencesByType = references(card).byType;
-	for (let referenceType of Object.keys(outboundReferencesByType)) {
+	for (const referenceType of Object.keys(outboundReferencesByType)) {
 		if (!legalOutboundRefrenceTypes[referenceType]) {
 			return 'The card has an outbound reference of type ' + referenceType + ', but that is not legal for the proposed card type ' + proposedCardType;
 		}
@@ -238,10 +238,10 @@ export const backportFallbackTextMapForCard = (card : Card, cards : Cards) : Ref
 	//them are null.
 	const result : ReferencesInfoMap = {};
 	const refsByType = references(card).byType;
-	for (let referenceType of Object.keys(REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT) as ReferenceType[]) {
+	for (const referenceType of Object.keys(REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT) as ReferenceType[]) {
 		const refs = refsByType[referenceType];
 		if (!refs) continue;
-		for (let [cardID, str] of Object.entries(refs) as [CardID, string][]) {
+		for (const [cardID, str] of Object.entries(refs) as [CardID, string][]) {
 			if (str) continue;
 			const otherCard = cards[cardID];
 			if (!otherCard) continue;
@@ -265,8 +265,8 @@ export const normalizeCardSlugOrIDList = (slugOrIDList : CardIdentifier | CardId
 	}
 	if (Object.keys(missingCardIDs).length) {
 		//These are the slugs we have to figure out what their IDs are
-		for (let card of Object.values(cards)) {
-			for (let slug of card.slugs || []) {
+		for (const card of Object.values(cards)) {
+			for (const slug of card.slugs || []) {
 				if (missingCardIDs[slug]) {
 					missingCardIDs[slug] = card.id;
 				}
@@ -289,10 +289,10 @@ export const cardBFS = (keyCardIDOrSlugList : CardID | Slug[], cards : Cards, pl
 
 	keyCardIDOrSlugList = normalizeCardSlugOrIDList(keyCardIDOrSlugList, cards);
 
-	let seenCards : {[id : CardID]: number} = {};
-	let cardsToProcess : CardID[] = [];
+	const seenCards : {[id : CardID]: number} = {};
+	const cardsToProcess : CardID[] = [];
 
-	for (let id of keyCardIDOrSlugList) {
+	for (const id of keyCardIDOrSlugList) {
 		seenCards[id] = 0;
 		cardsToProcess.push(id);
 	}
@@ -317,7 +317,7 @@ export const cardBFS = (keyCardIDOrSlugList : CardID | Slug[], cards : Cards, pl
 		} else {
 			links = isInbound ? references(card).inboundSubstantiveArray() : references(card).substantiveArray();
 		}
-		for (let linkItem of links) {
+		for (const linkItem of links) {
 			//Skip ones that have already been seen
 			if (seenCards[linkItem] !== undefined) continue;
 			seenCards[linkItem] = newCardDepth;
@@ -336,12 +336,12 @@ export const cardBFS = (keyCardIDOrSlugList : CardID | Slug[], cards : Cards, pl
 //reciprocated and not explicitly listed as OK to skip.
 export const cardMissingReciprocalLinks = (card : Card) => {
 	if (!card) return [];
-	let links = new Map();
+	const links = new Map();
 	const refs = references(card);
-	for (let link of refs.inboundNeedsReciprocationArray()) {
+	for (const link of refs.inboundNeedsReciprocationArray()) {
 		links.set(link, true);
 	}
-	for (let link of refs.array()) {
+	for (const link of refs.array()) {
 		links.delete(link);
 	}
 	return [...links.keys()];
@@ -352,7 +352,7 @@ export const cardNeedsReciprocalLinkTo = (card : Card, other: CardID | Card) => 
 	if (typeof other == 'object') other = other.id;
 	if (!card || !other) return false;
 	const missingReciprocalLinks = cardMissingReciprocalLinks(card);
-	for (let link of missingReciprocalLinks) {
+	for (const link of missingReciprocalLinks) {
 		if (link == other) return true;
 	}
 	return false;
@@ -363,12 +363,12 @@ const MULTIPLE_LINK_TEXT_DELIMITER = '\n';
 export const extractCardLinksFromBody = (body : string) : {[name : CardID] : string} => {
 	const document = getDocument();
 	if (!document) return {};
-	let ele = document.createElement('section');
+	const ele = document.createElement('section');
 	//This is not an XSS vulnerability because we never append ele into the
 	//actual dom.
 	ele.innerHTML = body;
-	let result : {[name : CardID]: string} = {};
-	let nodes = ele.querySelectorAll('card-link[card]');
+	const result : {[name : CardID]: string} = {};
+	const nodes = ele.querySelectorAll('card-link[card]');
 	nodes.forEach(link => {
 		const attribute = link.getAttribute('card');
 		if (!attribute) return;
@@ -387,12 +387,12 @@ export const arrayRemoveUtil = (arr : any[], items : any[]) => {
 	if (!items) {
 		console.warn('arrayRemoveUtil called without a second argument, which means you probably wanted arrayRemoveSentinel');
 	}
-	let itemsToRemove = new Map();
-	for (let item of Object.values(items)) {
+	const itemsToRemove = new Map();
+	for (const item of Object.values(items)) {
 		itemsToRemove.set(item, true);
 	}
-	let result = [];
-	for (let val of Object.values(arr)) {
+	const result = [];
+	for (const val of Object.values(arr)) {
 		if (itemsToRemove.has(val)) continue;
 		result.push(val);
 	}
@@ -403,13 +403,13 @@ export const arrayUnionUtil = (arr : any[], items : any[]) => {
 	if (!items) {
 		console.warn('arrayUnionUtil called without a second argument, which means you probably wanted arrayUnionSentinel');
 	}
-	let result = [];
-	let seenItems = new Map();
-	for (let val of Object.values(arr)) {
+	const result = [];
+	const seenItems = new Map();
+	for (const val of Object.values(arr)) {
 		seenItems.set(val, true);
 		result.push(val);
 	}
-	for (let val of Object.values(items)) {
+	for (const val of Object.values(items)) {
 		if (seenItems.has(val)) continue;
 		result.push(val);
 	}	
@@ -417,9 +417,9 @@ export const arrayUnionUtil = (arr : any[], items : any[]) => {
 };
 
 export const arrayUnique = (arr : any[]) => {
-	let seenItems = new Map();
-	let result = [];
-	for (let item of arr) {
+	const seenItems = new Map();
+	const result = [];
+	for (const item of arr) {
 		if (seenItems.has(item)) continue;
 		result.push(item);
 		seenItems.set(item, true);
@@ -428,27 +428,27 @@ export const arrayUnique = (arr : any[]) => {
 };
 
 export const arrayToSet = (arr : string[]) => {
-	let result : {[name : string] : true} = {};
-	for (let item of arr) {
+	const result : {[name : string] : true} = {};
+	for (const item of arr) {
 		result[item] = true;
 	}
 	return result;
 };
 
 export const arrayDiffAsSets = (before : any[] = [], after : any[] = []) => {
-	let [additions, deletions] = arrayDiff(before,after);
+	const [additions, deletions] = arrayDiff(before,after);
 	return [arrayToSet(additions), arrayToSet(deletions)];
 };
 
 export const arrayDiff = (before : any[] = [], after : any[] = []) : [any[], any[]]=> {
 	if (!before) before = [];
 	if (!after) after = [];
-	let afterMap = new Map();
-	for (let item of after) {
+	const afterMap = new Map();
+	for (const item of after) {
 		afterMap.set(item, true);
 	}
-	let deletions = [];
-	for (let item of before) {
+	const deletions = [];
+	for (const item of before) {
 		if (afterMap.has(item)) {
 			//Keep track of that we've seen this one
 			afterMap.delete(item);
@@ -457,7 +457,7 @@ export const arrayDiff = (before : any[] = [], after : any[] = []) : [any[], any
 		}
 	}
 	//Additions is the keys not remved in afterMap
-	let additions = [...afterMap.keys()];
+	const additions = [...afterMap.keys()];
 	return [additions, deletions];
 };
 
@@ -473,16 +473,16 @@ export const triStateMapDiff = (before : TriStateMap, after : TriStateMap) : [st
 	if (!after) after = {};
 	//Generat the list of removals by looking for keys that do not exist in
 	//after but are in before.
-	let removals = [];
-	for (let beforeKey of Object.keys(before)) {
+	const removals = [];
+	for (const beforeKey of Object.keys(before)) {
 		if (after[beforeKey] === undefined) {
 			removals.push(beforeKey);
 		}
 	}
 
-	let enabled = [];
-	let disabled = [];
-	for (let afterKey of Object.keys(after)) {
+	const enabled = [];
+	const disabled = [];
+	for (const afterKey of Object.keys(after)) {
 		//If before has the after key undefined or false it doesn't matter; in
 		//either case it requires an explicit set.
 		if(before[afterKey] != after[afterKey]) {
@@ -560,11 +560,11 @@ testTriStateMapDiff();
 
 //items is an array
 export const setRemove = (obj : object, items : string[]) => {
-	let result : {[name : string] : any} = {};
-	for (let key of Object.keys(obj)) {
+	const result : {[name : string] : any} = {};
+	for (const key of Object.keys(obj)) {
 		result[key] = true;
 	}
-	for (let item of items) {
+	for (const item of items) {
 		delete result[item];
 	}
 	return result;
@@ -572,11 +572,11 @@ export const setRemove = (obj : object, items : string[]) => {
 
 //items is an array
 export const setUnion = (obj : object, items : string[]) => {
-	let result : {[name : string]: any } = {};
-	for (let key of Object.keys(obj)) {
+	const result : {[name : string]: any } = {};
+	for (const key of Object.keys(obj)) {
 		result[key] = true;
 	}
-	for (let item of items) {
+	for (const item of items) {
 		result[item] = true;
 	}
 	return result;
@@ -588,7 +588,7 @@ export const makeElementContentEditable = (ele : HTMLElement) => {
 	ele.contentEditable = 'true';
 	//It's OK if we have already done these commands to do them again
 
-	let document = getDocument();
+	const document = getDocument();
 
 	if (!document) return;
 
@@ -604,9 +604,9 @@ export const makeElementContentEditable = (ele : HTMLElement) => {
 export const markdownElement = (content : string) : HTMLElement | null => {
 	const document = getDocument();
 	if (!document) return null;
-	let div = document.createElement('div');
-	let html = snarkdown(content);
-	let sanitizedHTML = dompurify.sanitize(html);
+	const div = document.createElement('div');
+	const html = snarkdown(content);
+	const sanitizedHTML = dompurify.sanitize(html);
 	div.innerHTML = sanitizedHTML;
 	return div;
 };
@@ -664,12 +664,12 @@ export const pageRank = (cards : Cards) => {
 	const numNodes = Object.keys(cards).length;
 	const initialRank = 1 / numNodes;
 
-	for (let card of Object.values(cards)) {
+	for (const card of Object.values(cards)) {
 		//We can't trust links or inbound_links as they exist, because they
 		//might point to unpublished cards, and it's important for the
 		//convergence of the algorithm that we have the proper indegree and outdegree. 
 		const links = arrayUnique(references(card).substantiveArray().filter((id : CardID) => cards[id]));
-		for (let id of links) {
+		for (const id of links) {
 			let list = inboundLinksMap[id];
 			if (!list) {
 				list = [];
@@ -689,8 +689,8 @@ export const pageRank = (cards : Cards) => {
 	}
 
 	//inboundLinks is now set, so we can set the inDegree.
-	for (let id of Object.keys(nodes)) {
-		let inboundLinks = inboundLinksMap[id] || [];
+	for (const id of Object.keys(nodes)) {
+		const inboundLinks = inboundLinksMap[id] || [];
 		nodes[id].inDegree = inboundLinks.length;
 		nodes[id].inboundLinks = inboundLinks;
 	}
@@ -702,13 +702,13 @@ export const pageRank = (cards : Cards) => {
 	do {
 		numIterations++;
 		let totalDistributedRank = 0;
-		for (let node of Object.values(nodes)) {
+		for (const node of Object.values(nodes)) {
 			if (node.inDegree === 0) {
 				node.rank = 0.0;
 			} else {
 				let currentRank = 0.0;
-				for (let linkID of node.inboundLinks) {
-					let otherNode = nodes[linkID];
+				for (const linkID of node.inboundLinks) {
+					const otherNode = nodes[linkID];
 					if (!otherNode) continue;
 					currentRank += nodes[linkID].previousRank / nodes[linkID].outDegree;
 				}
@@ -716,10 +716,10 @@ export const pageRank = (cards : Cards) => {
 				totalDistributedRank += node.rank;
 			}
 		}
-		let leakedRankPerNode = (1 - totalDistributedRank) / numNodes;
+		const leakedRankPerNode = (1 - totalDistributedRank) / numNodes;
 		updateDistance = 0;
-		for (let node of Object.values(nodes)) {
-			let currentRank = node.rank + leakedRankPerNode;
+		for (const node of Object.values(nodes)) {
+			const currentRank = node.rank + leakedRankPerNode;
 			updateDistance += Math.abs(currentRank - node.previousRank);
 			node.previousRank = currentRank;
 		}
@@ -753,8 +753,8 @@ export const deepEqual = (a : any, b : any, objectChecker : ((object: any) => bo
 	//Two objects
 	if (Object.keys(a).length != Object.keys(b).length) {
 		if (LOG_DEEP_EQUAL_DIFFERENCES) {
-			let aKeys = new Set(Object.keys(a));
-			let bKeys = new Set(Object.keys(b));
+			const aKeys = new Set(Object.keys(a));
+			const bKeys = new Set(Object.keys(b));
 			if (aKeys.size > bKeys.size) {
 				const difference = [...aKeys].filter(x => !bKeys.has(x));
 				console.log('a has keys ', difference, 'that b lacks', a, b);
