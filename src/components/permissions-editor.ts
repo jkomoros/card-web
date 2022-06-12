@@ -52,30 +52,30 @@ const LOCKED_PERMISSIONS = Object.fromEntries(Object.entries(ALL_PERMISSIONS).fi
 class PermissionsEditor extends connect(store)(LitElement) {
 
 	@property({ type : Object })
-	permissions: UserPermissions;
+		permissions: UserPermissions;
 	
 	//If provided, will title it this
 	@property({ type : String })
 	override title: string;
 
 	@property({ type : String })
-	description: string;
+		description: string;
 
 	//If provided, will show the permissions for the given user
 	@property({ type : String })
-	uid: Uid;
+		uid: Uid;
 
 	@state()
-	_allPermissions: UserPermissionsMap;
+		_allPermissions: UserPermissionsMap;
 
 	@state()
-	_userPermissionsForCardsMap: UserPermissionsForCards;
+		_userPermissionsForCardsMap: UserPermissionsForCards;
 
 	@state()
-	_authors: AuthorsMap;
+		_authors: AuthorsMap;
 
 	@state()
-	_tagInfosForCards: TagInfos;
+		_tagInfosForCards: TagInfos;
 
 	static override styles = [
 		css`
@@ -228,7 +228,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 
 	_handleRemoveCardPermission(e : TagEvent) {
 		let tagList = null;
-		for (let ele of e.composedPath()) {
+		for (const ele of e.composedPath()) {
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.localName == 'tag-list') {
 				tagList = ele;
@@ -246,6 +246,6 @@ class PermissionsEditor extends connect(store)(LitElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'permissions-editor': PermissionsEditor;
+		'permissions-editor': PermissionsEditor;
 	}
 }
