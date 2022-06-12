@@ -383,7 +383,7 @@ export const extractCardLinksFromBody = (body : string) : {[name : CardID] : str
 	return result;
 };
 
-export const arrayRemoveUtil = (arr : any[], items : any[]) => {
+export function arrayRemoveUtil<T>(arr : T[], items : T[]) : T[] {
 	if (!items) {
 		console.warn('arrayRemoveUtil called without a second argument, which means you probably wanted arrayRemoveSentinel');
 	}
@@ -391,13 +391,13 @@ export const arrayRemoveUtil = (arr : any[], items : any[]) => {
 	for (const item of Object.values(items)) {
 		itemsToRemove.set(item, true);
 	}
-	const result = [];
+	const result : T[] = [];
 	for (const val of Object.values(arr)) {
 		if (itemsToRemove.has(val)) continue;
 		result.push(val);
 	}
 	return result;
-};
+}
 
 export const arrayUnionUtil = (arr : any[], items : any[]) => {
 	if (!items) {
