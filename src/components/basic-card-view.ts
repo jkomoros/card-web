@@ -1,5 +1,5 @@
 import { html, css } from 'lit';
-import { PageViewElement } from './page-view-element.js'
+import { PageViewElement } from './page-view-element.js';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -127,6 +127,6 @@ class BasicCardView extends connect(store)(PageViewElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  "basic-card-view": BasicCardView;
+		'basic-card-view': BasicCardView;
 	}
 }
