@@ -120,7 +120,7 @@ export const slugLegal = async (newSlug : Slug) : Promise<LegalResult>  => {
 	return result.data as LegalResult;
 };
 
-const warmupSlugLegal = (force : boolean = false) : void => {
+const warmupSlugLegal = (force = false) : void => {
 	if (DISABLE_CALLABLE_CLOUD_FUNCTIONS) return;
 	if (!force && !userHadActivity) return;
 	//Mark that we've already triggered for that activity, and will need new
@@ -154,12 +154,12 @@ export const connectLiveMessages = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	//Deliberately DO fetch deleted messages, so we can render stubs for them.
 	onSnapshot(collection(db, MESSAGES_COLLECTION), snapshot => {
-		let messages : CommentMessages = {};
+		const messages : CommentMessages = {};
 		snapshot.docChanges().forEach(change => {
 			if (change.type === 'removed') return;
-			let doc = change.doc;
-			let id = doc.id;
-			let message : CommentMessage = {...doc.data(), id} as CommentMessage;
+			const doc = change.doc;
+			const id = doc.id;
+			const message : CommentMessage = {...doc.data(), id} as CommentMessage;
 			messages[id] = message;
 		});
 
@@ -170,17 +170,17 @@ export const connectLiveMessages = () => {
 export const connectLiveThreads = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	onSnapshot(query(collection(db, THREADS_COLLECTION), where('deleted', '==', false), where('resolved', '==', false)), snapshot => {
-		let threads : CommentThreads = {};
-		let threadsToAdd : CommentThreadID[] = [];
-		let threadsToRemove : CommentThreadID[] = [];
+		const threads : CommentThreads = {};
+		const threadsToAdd : CommentThreadID[] = [];
+		const threadsToRemove : CommentThreadID[] = [];
 		snapshot.docChanges().forEach(change => {
-			let doc = change.doc;
+			const doc = change.doc;
 			if (change.type === 'removed') {
 				threadsToRemove.push(doc.id);
 				return;
 			}
-			let id = doc.id;
-			let thread : CommentThread = {...doc.data(), id} as CommentThread;
+			const id = doc.id;
+			const thread : CommentThread = {...doc.data(), id} as CommentThread;
 			threadsToAdd.push(id);
 			threads[id] = thread;
 		});
@@ -202,10 +202,10 @@ export const disconnectLiveStars = () => {
 export const connectLiveStars = (uid : Uid) => {
 	disconnectLiveStars();
 	liveStarsUnsubscribe = onSnapshot(query(collection(db, STARS_COLLECTION), where('owner', '==', uid)), snapshot => {
-		let starsToAdd : CardID[] = [];
-		let starsToRemove : CardID[] = [];
+		const starsToAdd : CardID[] = [];
+		const starsToRemove : CardID[] = [];
 		snapshot.docChanges().forEach(change => {
-			let doc = change.doc;
+			const doc = change.doc;
 			if (change.type === 'removed') {
 				starsToRemove.push(doc.data().card);
 				return;
@@ -226,10 +226,10 @@ export const disconnectLiveReads = () => {
 export const connectLiveReads = (uid : Uid) => {
 	disconnectLiveReads();
 	liveReadsUnsubscribe = onSnapshot(query(collection(db, READS_COLLECTION), where('owner', '==', uid)),  snapshot => {
-		let readsToAdd : CardID[] = [];
-		let readsToRemove : CardID[] = [];
+		const readsToAdd : CardID[] = [];
+		const readsToRemove : CardID[] = [];
 		snapshot.docChanges().forEach(change => {
-			let doc = change.doc;
+			const doc = change.doc;
 			if (change.type === 'removed') {
 				readsToRemove.push(doc.data().card);
 				return;
@@ -252,7 +252,7 @@ export const connectLiveReadingList = (uid : Uid) => {
 	liveReadingListUnsubscribe = onSnapshot(query(collection(db, READING_LISTS_COLLECTION), where('owner', '==', uid)), snapshot => {
 		let list : CardID[] = [];
 		snapshot.docChanges().forEach(change => {
-			let doc = change.doc;
+			const doc = change.doc;
 			if (change.type === 'removed') {
 				return;
 			}
@@ -266,13 +266,13 @@ export const connectLiveAuthors = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	onSnapshot(collection(db, AUTHORS_COLLECTION), snapshot => {
 
-		let authors : AuthorsMap = {};
+		const authors : AuthorsMap = {};
 
 		snapshot.docChanges().forEach(change => {
 			if (change.type === 'removed') return;
-			let doc = change.doc;
-			let id = doc.id;
-			let author : Author = {...doc.data(), id} as Author;
+			const doc = change.doc;
+			const id = doc.id;
+			const author : Author = {...doc.data(), id} as Author;
 			authors[id] = author;
 		});
 
@@ -284,23 +284,23 @@ export const connectLiveAuthors = () => {
 const cardSnapshotReceiver = (unpublished : boolean) =>{
 	
 	return (snapshot : QuerySnapshot) => {
-		let cards : Cards = {};
-		let cardIDsToRemove : CardID[] = [];
+		const cards : Cards = {};
+		const cardIDsToRemove : CardID[] = [];
 
 		snapshot.docChanges().forEach(change => {
 			if (change.type === 'removed') {
 				cardIDsToRemove.push(change.doc.id);
 				return;
 			}
-			let doc = change.doc;
-			let id : CardID = doc.id;
+			const doc = change.doc;
+			const id : CardID = doc.id;
 			//Ensure that timestamps are never null. If this isn't set, then
 			//when cards are first created (and other times) they will have null
 			//timestamps on some of the updates, an if we read them we'll get
 			//confused. Without this you can't open a card immediately for
 			//editing for example. See
 			//https://medium.com/firebase-developers/the-secrets-of-firestore-fieldvalue-servertimestamp-revealed-29dd7a38a82b
-			let card : Card = {...doc.data({serverTimestamps: 'estimate'}), id} as Card;
+			const card : Card = {...doc.data({serverTimestamps: 'estimate'}), id} as Card;
 			cards[id] = card;
 		});
 
@@ -351,13 +351,13 @@ export const connectLiveSections = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	onSnapshot(query(collection(db, SECTIONS_COLLECTION), orderBy('order')), snapshot => {
 
-		let sections : Sections = {};
+		const sections : Sections = {};
 
 		snapshot.docChanges().forEach(change => {
 			if (change.type === 'removed') return;
-			let doc = change.doc;
-			let id = doc.id;
-			let section = {...doc.data(), id} as Section;
+			const doc = change.doc;
+			const id = doc.id;
+			const section = {...doc.data(), id} as Section;
 			sections[id] = section;
 		});
 
@@ -370,13 +370,13 @@ export const connectLiveTags = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	onSnapshot(collection(db, TAGS_COLLECTION), snapshot => {
 
-		let tags : Tags = {};
+		const tags : Tags = {};
 
 		snapshot.docChanges().forEach(change => {
 			if (change.type === 'removed') return;
-			let doc = change.doc;
-			let id = doc.id;
-			let tag = {...doc.data(), id} as Section;
+			const doc = change.doc;
+			const id = doc.id;
+			const tag = {...doc.data(), id} as Section;
 			tags[id] = tag;
 		});
 
