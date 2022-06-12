@@ -279,7 +279,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		
 	}
 
-	override updated(changedProps : Map<string, any>) {
+	override updated(changedProps : Map<string, CardInfoPanel[keyof CardInfoPanel]>) {
 		if (changedProps.has('_card') || changedProps.has('_open')) {
 			if (this._open && this._card && Object.values(this._card).length != 0) {
 				store.dispatch(fetchTweets(this._card));
