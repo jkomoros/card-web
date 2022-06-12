@@ -26,6 +26,6 @@ class MyView404 extends PageViewElement {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'my-view404': MyView404;
+		'my-view404': MyView404;
 	}
 }
