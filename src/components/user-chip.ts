@@ -47,16 +47,16 @@ import {
 class UserChip extends connect(store)(LitElement) {
 
 	@state()
-	_pending: boolean;
+		_pending: boolean;
 
 	@state()
-	_user: UserInfo;
+		_user: UserInfo;
 
 	@state()
-	_signedIn: boolean;
+		_signedIn: boolean;
 
 	@state()
-	_error: Error;
+		_error: Error;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -136,6 +136,6 @@ class UserChip extends connect(store)(LitElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'user-chip': UserChip;
+		'user-chip': UserChip;
 	}
 }
