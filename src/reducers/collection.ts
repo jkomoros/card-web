@@ -124,11 +124,11 @@ const makeFilterFromReadingList = (readingList : CardID[]) : {[filterName : stri
 };
 
 const makeFilterFromSection = (sections : Sections, includeDefaultSet? : boolean) : {[filterName : string] : FilterMap} => {
-	let result : {[filterName : string] : FilterMap} = {};
-	let combinedSet : FilterMap = {};
-	for (let key of Object.keys(sections)) {
-		let filter : FilterMap = {};
-		let section = sections[key];
+	const result : {[filterName : string] : FilterMap} = {};
+	const combinedSet : FilterMap = {};
+	for (const key of Object.keys(sections)) {
+		const filter : FilterMap = {};
+		const section = sections[key];
 		section.cards.forEach(card => {
 			filter[card] = true;
 			combinedSet[card] = true;
@@ -140,12 +140,12 @@ const makeFilterFromSection = (sections : Sections, includeDefaultSet? : boolean
 };
 
 const makeFilterFromCards = (cards : Cards, previousFilters : Filters) => {
-	let result : Filters = {};
+	const result : Filters = {};
 	for (const [filterName, func] of TypedObject.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], entry[1].func] as [string,  CardTestFunc])) {
-		let newMatchingCards = [];
-		let newNonMatchingCards = [];
+		const newMatchingCards = [];
+		const newNonMatchingCards = [];
 		if(!func) throw new Error('Invalid func name: ' + filterName);
-		for (let card of Object.values(cards)) {
+		for (const card of Object.values(cards)) {
 			if(func(card)) {
 				newMatchingCards.push(card.id);
 			} else {
@@ -161,10 +161,10 @@ const makeFilterFromCards = (cards : Cards, previousFilters : Filters) => {
 //changes are to be made, returns subState, otherwise it returns a modified
 //copy.
 const removeCardIDsFromSubState = (cardIDs : CardID[], subState : CollectionState) => {
-	let newFilters = {...subState.filters};
+	const newFilters = {...subState.filters};
 	let changesMade = false;
-	for (let [filterName, filter] of Object.entries(newFilters)) {
-		let newFilter = removeCardIDsFromFilter(cardIDs, filter);
+	for (const [filterName, filter] of Object.entries(newFilters)) {
+		const newFilter = removeCardIDsFromFilter(cardIDs, filter);
 		if (newFilter === filter) continue;
 		newFilters[filterName] = newFilter;
 		changesMade = true;
@@ -178,7 +178,7 @@ const removeCardIDsFromSubState = (cardIDs : CardID[], subState : CollectionStat
 const removeCardIDsFromFilter = (cardIDs : CardID[], filter : FilterMap) => {
 	const newFilter = {...filter};
 	let changesMade = false;
-	for (let id of cardIDs) {
+	for (const id of cardIDs) {
 		if (!newFilter[id]) continue;
 		delete newFilter[id];
 		changesMade = true;
