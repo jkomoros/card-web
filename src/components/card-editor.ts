@@ -1,5 +1,5 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, state } from 'lit/decorators.js';;
+import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 import { repeat } from 'lit/directives/repeat.js';
 
@@ -160,74 +160,74 @@ import {
 class CardEditor extends connect(store)(LitElement) {
 
 	@state()
-	_card: Card;
+		_card: Card;
 
 	@state()
-	_autoTodos: TODOType[];
+		_autoTodos: TODOType[];
 
 	@state()
-	_active: boolean;
+		_active: boolean;
 
 	@state()
-	_sectionsUserMayEdit: Sections;
+		_sectionsUserMayEdit: Sections;
 
 	@state()
-	_userMayChangeEditingCardSection: boolean;
+		_userMayChangeEditingCardSection: boolean;
 
 	@state()
-	_mayNotDeleteReason: string;
+		_mayNotDeleteReason: string;
 
 	@state()
-	_substantive: boolean;
+		_substantive: boolean;
 
 	@state()
-	_selectedTab: EditorTab;
+		_selectedTab: EditorTab;
 
 	@state()
-	_selectedEditorTab: EditorContentTab;
+		_selectedEditorTab: EditorContentTab;
 
 	@state()
-	_tagInfos: TagInfos;
+		_tagInfos: TagInfos;
 
 	@state()
-	_userMayEditSomeTags: boolean;
+		_userMayEditSomeTags: boolean;
 
 	@state()
-	_tagsUserMayNotEdit: TagID[];
+		_tagsUserMayNotEdit: TagID[];
 
 	@state()
-	_cardTagInfos: TagInfos;
+		_cardTagInfos: TagInfos;
 
 	//The card before any edits
 	@state()
-	_underlyingCard: Card;
+		_underlyingCard: Card;
 
 	@state()
-	_suggestedTags: TagID[];
+		_suggestedTags: TagID[];
 
 	@state()
-	_authors: TagInfos;
+		_authors: TagInfos;
 
 	@state()
-	_isAdmin: boolean;
+		_isAdmin: boolean;
 
 	@state()
-	_pendingSlug: Slug;
+		_pendingSlug: Slug;
 
 	@state()
-	_cardModificationPending: boolean;
+		_cardModificationPending: boolean;
 
 	@state()
-	_suggestedConcepts: CardID[];
+		_suggestedConcepts: CardID[];
 
 	@state()
-	_underlyingCardDifferences: string;
+		_underlyingCardDifferences: string;
 
 	@state()
-	_overshadowedDifferences: string;
+		_overshadowedDifferences: string;
 
 	@state()
-	_hasUnsavedChanges: boolean;
+		_hasUnsavedChanges: boolean;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -641,7 +641,7 @@ class CardEditor extends connect(store)(LitElement) {
 
 	_handleCardTypeChanged(e : Event) {
 		if (!this._active) return;
-		let ele = e.composedPath()[0];
+		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLSelectElement)) throw new Error('ele not select');
 		store.dispatch(cardTypeUpdated(ele.value));
 	}
@@ -670,7 +670,7 @@ class CardEditor extends connect(store)(LitElement) {
 		let referenceType : ReferenceType = '';
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
-		for (let ele of e.composedPath()) {
+		for (const ele of e.composedPath()) {
 			//Could be a documentfragment
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
@@ -701,9 +701,9 @@ class CardEditor extends connect(store)(LitElement) {
 	}
 
 	_handleNewTag() {
-		let name = prompt('What is the base name of the tag?');
+		const name = prompt('What is the base name of the tag?');
 		if (!name) return;
-		let displayName = prompt('What is the display name for the tag?', name);
+		const displayName = prompt('What is the display name for the tag?', name);
 		if (!displayName) return;
 		store.dispatch(createTag(name, displayName));
 	}
@@ -807,7 +807,7 @@ class CardEditor extends connect(store)(LitElement) {
 
 	_handleTextFieldUpdated(e : InputEvent) {
 		if (!this._active) return;
-		let ele = e.composedPath()[0];
+		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLTextAreaElement)) throw new Error('ele not textarea');
 		store.dispatch(textFieldUpdated(ele.dataset.field, ele.value, false));
 	}
@@ -827,28 +827,28 @@ class CardEditor extends connect(store)(LitElement) {
 
 	_handleNotesUpdated(e : InputEvent) {
 		if (!this._active) return;
-		let ele = e.composedPath()[0];
+		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLTextAreaElement)) throw new Error('ele not textarea');
 		store.dispatch(notesUpdated(ele.value));
 	}
 
 	_handleTodoUpdated(e : InputEvent) {
 		if (!this._active) return;
-		let ele = e.composedPath()[0];
+		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLTextAreaElement)) throw new Error('ele not textarea');
 		store.dispatch(todoUpdated(ele.value));
 	}
 
 	_handleSectionUpdated(e : Event) {
 		if (!this._active) return;
-		let ele = e.composedPath()[0];
+		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLSelectElement)) throw new Error('ele not select');
 		store.dispatch(sectionUpdated(ele.value));
 	}
 
 	_handleNameUpdated(e : Event) {
 		if (!this._active) return;
-		let ele = e.composedPath()[0];
+		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLSelectElement)) throw new Error('ele not select');
 		store.dispatch(nameUpdated(ele.value));
 	}
@@ -856,29 +856,29 @@ class CardEditor extends connect(store)(LitElement) {
 	_handleAddSlug() {
 		if (!this._active) return;
 		if (!this._card) return;
-		let id = this._card.id;
-		let value = prompt('Slug to add:', createSlugFromArbitraryString(this._card.title || ''));
+		const id = this._card.id;
+		const value = prompt('Slug to add:', createSlugFromArbitraryString(this._card.title || ''));
 		if (!value) return;
 		store.dispatch(addSlug(id, value));
 	}
 
 	_handleFullBleedUpdated(e : Event) {
 		if(!this._active) return; 
-		let ele = e.composedPath()[0];
+		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLInputElement)) throw new Error('ele not input');
 		store.dispatch(fullBleedUpdated(ele.checked));
 	}
 
 	_handlePublishedUpdated(e : Event) {
 		if(!this._active) return; 
-		let ele = e.composedPath()[0];
+		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLInputElement)) throw new Error('ele not input');
 		store.dispatch(publishedUpdated(ele.checked));
 	}
 
 	_handleSubstantiveChanged(e : Event) {
 		if(!this._active) return; 
-		let ele = e.composedPath()[0];
+		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLInputElement)) throw new Error('ele not input');
 		store.dispatch(substantiveUpdated(ele.checked));
 	}
@@ -895,6 +895,6 @@ class CardEditor extends connect(store)(LitElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  "card-editor": CardEditor;
+		'card-editor': CardEditor;
 	}
 }
