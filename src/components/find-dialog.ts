@@ -106,43 +106,43 @@ import {
 class FindDialog extends connect(store)(DialogElement) {
 
 	@state()
-	_query: string;
+		_query: string;
 
 	@state()
-	_collection: Collection;
+		_collection: Collection;
 
 	@state()
-	_renderOffset: number;
+		_renderOffset: number;
 
 	@state()
-	_linking: boolean;
+		_linking: boolean;
 
 	@state()
-	_permissions: boolean;
+		_permissions: boolean;
 
 	@state()
-	_referencing: boolean;
+		_referencing: boolean;
 
 	@state()
-	_pendingReferenceType: ReferenceType;
+		_pendingReferenceType: ReferenceType;
 
 	@state()
-	_userMayCreateCard: boolean;
+		_userMayCreateCard: boolean;
 
 	@state()
-	_legalCardTypeFilters: CardType[];
+		_legalCardTypeFilters: CardType[];
 	
 	@state()
-	_cardTypeFilter: CardType;
+		_cardTypeFilter: CardType;
 
 	@state()
-	_sortByRecent: boolean;
+		_sortByRecent: boolean;
 
 	@state()
-	_collectionDescription: CollectionDescription;
+		_collectionDescription: CollectionDescription;
 
 	@state()
-	_cardTypeFilterLocked: boolean;
+		_cardTypeFilterLocked: boolean;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -207,7 +207,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		this._legalCardTypeFilters = [];
 	}
 
-	override _shouldClose(cancelled : boolean = false) {
+	override _shouldClose(cancelled  = false) {
 		if (cancelled && this._linking) {
 			store.dispatch(cancelLink());
 		}
@@ -235,7 +235,7 @@ class FindDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleQueryChanged(e : InputEvent) {
-		let ele = e.composedPath()[0];
+		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLInputElement)) throw new Error('not input ele');
 		store.dispatch(updateQuery(ele.value));
 	}
@@ -254,7 +254,7 @@ class FindDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleAddLink() {
-		let href = prompt('Where should the URL point?', this._query);
+		const href = prompt('Where should the URL point?', this._query);
 		store.dispatch(linkURL(href));
 		this._shouldClose();
 	}
@@ -331,7 +331,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		return 'Search';
 	}
 
-	override updated(changedProps : Map<string, any>) {
+	override updated(changedProps : Map<string, FindDialog[keyof FindDialog]>) {
 		if (changedProps.has('open') && this.open) {
 			//When first opened, select the text in query, so if the starter
 			//query is wrong as you long keep typing it will be no cost
@@ -368,6 +368,6 @@ class FindDialog extends connect(store)(DialogElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'find-dialog': FindDialog;
+		'find-dialog': FindDialog;
 	}
 }
