@@ -160,7 +160,7 @@ export const navigateToNextCard : AppActionCreator = () => (dispatch, getState) 
 	index++;
 	const collection = selectActiveCollectionCards(state);
 	if (!collection) return;
-	let newId = collection[index];
+	const newId = collection[index];
 	if (!newId) return;
 	dispatch(navigateToCardInCurrentCollection(newId));
 };
@@ -171,7 +171,7 @@ export const navigateToPreviousCard : AppActionCreator = () => (dispatch, getSta
 	index--;
 	const collection = selectActiveCollectionCards(state);
 	if (!collection) return;
-	let newId = collection[index];
+	const newId = collection[index];
 	if (!newId) return;
 	dispatch(navigateToCardInCurrentCollection(newId));
 };
@@ -201,9 +201,9 @@ export const refreshCommentRedirect : AppActionCreator = () => (dispatch, getSta
 	//if we're in that collection or not.
 	const state = getState();
 
-	let page = selectPage(state);
+	const page = selectPage(state);
 	if (page != PAGE_COMMENT) return;
-	let pageExtra = selectPageExtra(state);
+	const pageExtra = selectPageExtra(state);
 	dispatch(navigateToComment(pageExtra));
 };
 
@@ -257,7 +257,7 @@ export const navigateToCardInCurrentCollection : AppActionCreator = (cardID : Ca
 
 //if card is not provided, will try to navigate to default if sections loaded.
 export const navigateToCardInDefaultCollection : AppActionCreator = (cardOrId : Card | CardID, silent? : boolean) => (dispatch) => {
-	let path = urlForCard(cardOrId);
+	const path = urlForCard(cardOrId);
 	if (!path) {
 		dispatch(navigateToDefaultIfSectionsAndTagsLoaded(silent));
 	}
@@ -298,7 +298,7 @@ export const navigated : AppActionCreator = (path : string, query : string) => (
 const loadPage : AppActionCreator = (pathname : string, query : string) => (dispatch) => {
 
 	//pathname is the whole path minus starting '/', like 'c/VIEW_ID'
-	let pieces = pathname.split('/');
+	const pieces = pathname.split('/');
 
 	let page = pieces[0];
 	let pageExtra = pieces.length < 2 ? '' : pieces.slice(1).join('/');
@@ -345,11 +345,11 @@ const updatePage = (location : string, page : string, pageExtra : string) : AnyA
 
 const fetchCardFromDb = async (cardIDOrSlug : CardIdentifier) : Promise<DocumentSnapshot> => {
 	//Cards are more likely to be fetched via slug, so try that first
-	let cards = await getDocs(query(collection(db, CARDS_COLLECTION), where('published', '==', true), where('slugs', 'array-contains', cardIDOrSlug), limit(1)));
+	const cards = await getDocs(query(collection(db, CARDS_COLLECTION), where('published', '==', true), where('slugs', 'array-contains', cardIDOrSlug), limit(1)));
 	if (cards && !cards.empty) {
 		return cards.docs[0];
 	}
-	let card = await getDoc(doc(db, CARDS_COLLECTION, cardIDOrSlug));
+	const card = await getDoc(doc(db, CARDS_COLLECTION, cardIDOrSlug));
 	if (card && card.exists()) {
 		return card;
 	}
@@ -408,12 +408,12 @@ export const fetchCard : AppActionCreator = (cardIDOrSlug : CardIdentifier) => a
 	});
 	
 	//To be used to fetch a singular card from the store, as in basic-card-view.
-	let rawCard = await fetchCardFromDb(cardIDOrSlug);
+	const rawCard = await fetchCardFromDb(cardIDOrSlug);
 	if (!rawCard) {
 		console.warn('no cards matched');
 		return;
 	}
-	let card = {...rawCard.data(), id: rawCard.id} as Card;
+	const card = {...rawCard.data(), id: rawCard.id} as Card;
 	if (!card.published) {
 		console.warn('Card wasn\'t published');
 		return;
@@ -442,7 +442,7 @@ export const doCommit : AppActionCreator = () => (dispatch, getState) => {
 };
 
 let hoverPreviewTimer : number;
-let HOVER_CARD_PREVIEW_DELAY = 500;
+const HOVER_CARD_PREVIEW_DELAY = 500;
 
 export const cancelHoverTimeout = () => {
 	if (!hoverPreviewTimer) return;
