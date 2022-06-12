@@ -73,7 +73,7 @@ export const createAuthorStub = (uid : Uid) => {
 	//useful if you want to create an author stub to be filled in by that user
 	//when they next login, for example to manually add an editor or
 	//collaborator to a card.
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 	//By using set with merge:true, if it already exists, we won't overwrite any
 	//fields, but will ensure a stub exists.
 	batch.set(doc(db, AUTHORS_COLLECTION, uid), {}, {merge:true});
@@ -93,17 +93,17 @@ export const resolveThread : AppActionCreator = (thread : CommentThread) => (_, 
 		return;
 	}
 
-	let cardRef = doc(db, CARDS_COLLECTION, thread.card);
-	let threadRef = doc(db, THREADS_COLLECTION, thread.id);
+	const cardRef = doc(db, CARDS_COLLECTION, thread.card);
+	const threadRef = doc(db, THREADS_COLLECTION, thread.id);
 
 	runTransaction(db, async transaction => {
-		let cardDoc = await transaction.get(cardRef);
+		const cardDoc = await transaction.get(cardRef);
 		if (!cardDoc.exists()) {
 			throw 'Doc doesn\'t exist!';
 		}
 		let newThreadCount = (cardDoc.data().thread_count || 0) - 1;
 		if (newThreadCount < 0) newThreadCount = 0;
-		let newThreadResolvedCount = (cardDoc.data().thread_resolved_count || 0) + 1;
+		const newThreadResolvedCount = (cardDoc.data().thread_resolved_count || 0) + 1;
 		transaction.update(cardRef, {thread_count: newThreadCount, thread_resolved_count: newThreadResolvedCount});
 		transaction.update(threadRef, {
 			resolved: true,
@@ -124,7 +124,7 @@ export const deleteMessage : AppActionCreator = (message : CommentMessage) => (_
 		return;
 	}
 
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 
 	batch.update(doc(db, MESSAGES_COLLECTION, message.id), {
 		message: '',
@@ -149,7 +149,7 @@ export const editMessage : AppActionCreator = (message : CommentMessage, newMess
 		return;
 	}
 
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 
 	batch.update(doc(db, MESSAGES_COLLECTION, message.id), {
 		message: newMessage,
@@ -183,7 +183,7 @@ export const addMessage : AppActionCreator = (thread : CommentThread, message : 
 		return;
 	}
   
-	let user = selectUser(state);
+	const user = selectUser(state);
 
 	if (!user) {
 		console.warn('No uid');
@@ -197,10 +197,10 @@ export const addMessage : AppActionCreator = (thread : CommentThread, message : 
 		return;
 	}
 
-	let messageId = randomString(16);
-	let threadId = thread.id;
+	const messageId = randomString(16);
+	const threadId = thread.id;
 
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 
 	ensureAuthor(batch, user);
 
@@ -244,7 +244,7 @@ export const createThread : AppActionCreator = (message : CommentMessage) => (_,
 		return;
 	}
   
-	let user = selectUser(state);
+	const user = selectUser(state);
 
 	if (!user) {
 		console.warn('No uid');
@@ -258,19 +258,19 @@ export const createThread : AppActionCreator = (message : CommentMessage) => (_,
 		return;
 	}
 
-	let messageId = randomString(16);
-	let threadId = randomString(16);
+	const messageId = randomString(16);
+	const threadId = randomString(16);
 
-	let cardRef = doc(db, CARDS_COLLECTION, card.id);
-	let threadRef = doc(db, THREADS_COLLECTION, threadId);
-	let messageRef = doc(db, MESSAGES_COLLECTION, messageId);
+	const cardRef = doc(db, CARDS_COLLECTION, card.id);
+	const threadRef = doc(db, THREADS_COLLECTION, threadId);
+	const messageRef = doc(db, MESSAGES_COLLECTION, messageId);
 
 	runTransaction(db, async transaction => {
-		let cardDoc = await transaction.get(cardRef);
+		const cardDoc = await transaction.get(cardRef);
 		if (!cardDoc.exists()) {
 			throw 'Doc doesn\'t exist!';
 		}
-		let newThreadCount = (cardDoc.data().thread_count || 0) + 1;
+		const newThreadCount = (cardDoc.data().thread_count || 0) + 1;
 		transaction.update(cardRef, {
 			thread_count: newThreadCount,
 			updated_message: serverTimestamp(),
