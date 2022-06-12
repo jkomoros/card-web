@@ -20,6 +20,7 @@
     "noImplicitOverride": true,
     "noImplicitThis": true,
     "noEmitOnError": true,
+    "noImplicitAny": true,
     "plugins": [
       {
         "name": "ts-lit-plugin",
