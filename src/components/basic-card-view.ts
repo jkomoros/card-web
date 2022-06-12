@@ -106,7 +106,7 @@ class BasicCardView extends connect(store)(PageViewElement) {
 		this._cardsLoaded = selectCardsLoaded(state);
 	}
 
-	override updated(changedProps : Map<string, any>) {
+	override updated(changedProps : Map<string, BasicCardView[keyof BasicCardView]>) {
 		if (changedProps.has('_pageExtra')) {
 			store.dispatch(fetchCard(this._pageExtra));
 		}
