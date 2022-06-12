@@ -26,10 +26,10 @@ import {
 class ConfigureCollectionKeyCard extends LitElement {
 
 	@property({ type : String })
-	value: string;
+		value: string;
 
 	@property({ type : Object })
-	cardTagInfos: TagInfos;
+		cardTagInfos: TagInfos;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -45,7 +45,7 @@ class ConfigureCollectionKeyCard extends LitElement {
 	];
 
 	override render() {
-		let [cardID, includeKeyCard] = parseKeyCardID(this.value);
+		const [cardID, includeKeyCard] = parseKeyCardID(this.value);
 		return html`
 			<div>
 				<input title='Include key card' type='checkbox' .checked=${includeKeyCard} @change=${this._handleKeyCardChanged}>
