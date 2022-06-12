@@ -36,7 +36,7 @@ export let DEV_MODE = false;
 //in local mode, just do 127.0.0.1 instead.
 if (window.location.hostname == 'localhost') DEV_MODE = true;
 if (window.location.hostname.indexOf('dev-') >= 0) DEV_MODE = true;
-let config = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
+const config = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
 // Initialize Firebase
 const firebaseApp = initializeApp(config);
 
@@ -69,7 +69,7 @@ export const isDeleteSentinel = (value : any) : boolean => {
 export const installServerTimestamps = (value : object) : object => {
 	if (!Object.values(value).some(value => fieldNeedsServerTimestamp(value))) return value;
 	return Object.fromEntries(Object.entries(value).map(entry => [entry[0], fieldNeedsServerTimestamp(entry[1]) ? serverTimestamp() : entry[1]]));
-}
+};
 
 //Also aware of normal Timestamps vended by serverTimestampSentinel.
 export const isServerTimestampSentinel = (value : any) : boolean => {
