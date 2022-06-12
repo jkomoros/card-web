@@ -23,10 +23,10 @@ import './tag-list.js';
 class ConfigureCollectionMultipleCards extends LitElement {
 
 	@property({ type : String })
-	value: string;
+		value: string;
 
 	@property({ type : Object })
-	cardTagInfos: TagInfos;
+		cardTagInfos: TagInfos;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -42,7 +42,7 @@ class ConfigureCollectionMultipleCards extends LitElement {
 	];
 
 	override render() {
-		let cardIDs = parseMultipleCardIDs(this.value);
+		const cardIDs = parseMultipleCardIDs(this.value);
 		return html`
 			<div>
 				<tag-list .overrideTypeName=${'Card'} .tagInfos=${this.cardTagInfos} .tags=${cardIDs} .tapEvents=${true} .editing=${true} .disableSelect=${true} @tag-tapped=${this._handleTagTapped} @new-tag=${this._handleNewTag} @remove-tag=${this._handleRemoveTag}></tag-list>
