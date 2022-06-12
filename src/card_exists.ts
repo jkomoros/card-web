@@ -2,7 +2,7 @@ import {
 	CardID,
 	CardType,
 	State
-} from "./types.js";
+} from './types.js';
 
 //selectRawCards is duplicated from selectors.js
 const selectRawCards = (state : State) => state.data ? state.data.cards : {};
