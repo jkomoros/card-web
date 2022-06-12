@@ -80,37 +80,37 @@ import {
 class CardInfoPanel extends connect(store)(PageViewElement) {
 
 	@state()
-	_open: boolean;
+		_open: boolean;
 
 	@state()
-	_card: Card;
+		_card: Card;
 
 	@state()
-	_sectionTitle: string;
+		_sectionTitle: string;
 
 	@state()
-	_author: Author;
+		_author: Author;
 
 	@state()
-	_collaborators: Author[];
+		_collaborators: Author[];
 
 	@state()
-	_tagInfos: TagInfos;
+		_tagInfos: TagInfos;
 
 	@state()
-	_referenceBlocks: ExpandedReferenceBlocks;
+		_referenceBlocks: ExpandedReferenceBlocks;
 
 	@state()
-	_tweets: TweetMap;
+		_tweets: TweetMap;
 
 	@state()
-	_tweetsLoading: boolean;
+		_tweetsLoading: boolean;
 
 	@state()
-	_wordCloud: WordCloud;
+		_wordCloud: WordCloud;
 
 	@state()
-	_expensivePropertiesTimeout: number;
+		_expensivePropertiesTimeout: number;
 
 	static override styles = [
 		ScrollingSharedStyles,
@@ -291,6 +291,6 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'card-info-panel': CardInfoPanel;
+		'card-info-panel': CardInfoPanel;
 	}
 }
