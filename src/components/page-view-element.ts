@@ -4,7 +4,7 @@ import { property } from 'lit/decorators.js';
 export class PageViewElement extends LitElement {
 
 	@property({ type: Boolean })
-	active : boolean;
+		active : boolean;
 
 	// Only render this page if it's actually visible.
 	override shouldUpdate() {
