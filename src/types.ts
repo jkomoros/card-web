@@ -1,26 +1,26 @@
 import {
-    FieldValue,
-    Timestamp
+	FieldValue,
+	Timestamp
 } from 'firebase/firestore';
 
 import {
-    CARD_TYPE_TYPES,
-    TEXT_FIELD_TYPES,
-    REFERENCE_TYPE_TYPES,
-    TEXT_FIELD_TYPES_EDITABLE,
-    DATE_RANGE_TYPES,
-    URL_PART_TYPES,
-    IMAGE_POSITION_TYPES,
+	CARD_TYPE_TYPES,
+	TEXT_FIELD_TYPES,
+	REFERENCE_TYPE_TYPES,
+	TEXT_FIELD_TYPES_EDITABLE,
+	DATE_RANGE_TYPES,
+	URL_PART_TYPES,
+	IMAGE_POSITION_TYPES,
 } from './type_constants.js';
 
 import * as icons from './components/my-icons.js';
 
 import {
-    CollectionDescription
+	CollectionDescription
 } from './collection_description.js';
 
 import {
-    TemplateResult
+	TemplateResult
 } from 'lit';
 
 export type Uid = string;
@@ -350,7 +350,7 @@ export interface CommentMessage {
     message: string,
     thread: CommentThreadID,
     updated: Timestamp
-};
+}
 
 export interface ComposedCommentMessage extends CommentMessage {
     expandedAuthor: Author,
@@ -367,7 +367,7 @@ export interface CommentThread {
     parent_message: CommentMessageID,
     resolved: boolean,
     updated: Timestamp,
-};
+}
 
 export interface ComposedCommentThread extends CommentThread {
     expandedMessages: ComposedCommentMessage[],
@@ -711,7 +711,7 @@ export interface StringCardMap {
 }
 
 export function isProcessedCard(card : Card | ProcessedCard) : card is ProcessedCard {
-    return (card as any).nlp !== undefined;
+	return (card as any).nlp !== undefined;
 }
 
 export interface ProcessedCard extends Card {
@@ -769,7 +769,7 @@ export interface UserPermissions {
     star? : boolean,
     markRead? : boolean,
     modifyReadingList? : boolean,
-};
+}
 
 export type UserPermissionsMap = {
 	[person: Uid]: UserPermissions
