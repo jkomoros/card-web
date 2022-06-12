@@ -74,7 +74,8 @@ import {
 	CardUpdate,
 	OptionalFieldsCard,
 	CardLike,
-	DottedCardUpdate
+	DottedCardUpdate,
+	FirestoreLeafValue
 } from './types.js';
 
 import {
@@ -258,7 +259,7 @@ export const applyCardFirebaseUpdate = (baseCard : Card, firebaseUpdate : CardUp
 };
 
 //Similar to util.ts:setValueOnObj
-const setFirebaseValueOnObj = (obj : {[field : string]: unknown}, fieldParts : string[], value : unknown, replaceTimestampSentinels  = false) => {
+const setFirebaseValueOnObj = (obj : {[field : string]: unknown}, fieldParts : string[], value : FirestoreLeafValue, replaceTimestampSentinels  = false) => {
 	//Obj is an object it's OK to modify, but no other subobjects are.
 
 	const firstFieldPart = fieldParts[0];

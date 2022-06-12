@@ -30,6 +30,7 @@ import {
 	FIREBASE_PROD_CONFIG,
 	FIREBASE_REGION,
 } from './config.GENERATED.SECRET.js';
+import { FirestoreLeafValue } from './types.js';
 
 export let DEV_MODE = false;
 //Deliberately only do devmode if the host is localhost. If you want it
@@ -54,7 +55,7 @@ export const currentTimestamp = Timestamp.now;
 const deleteSentinelJSON = JSON.stringify(deleteField());
 const serverTimestampSentinelJSON = JSON.stringify(serverTimestamp());
 
-export const isDeleteSentinel = (value : any) : boolean => {
+export const isDeleteSentinel = (value : FirestoreLeafValue) : boolean => {
 	if (typeof value !== 'object') return false;
 	//deleteSentinel returns new objects every time, but for now (at least) they
 	//at least stringify the same.
@@ -72,7 +73,7 @@ export const installServerTimestamps = (value : object) : object => {
 };
 
 //Also aware of normal Timestamps vended by serverTimestampSentinel.
-export const isServerTimestampSentinel = (value : any) : boolean => {
+export const isServerTimestampSentinel = (value : FirestoreLeafValue) : boolean => {
 	if (typeof value !== 'object') return false;
 	//Also normal timestamps that we vended from serverTimestampSentinel.
 	if (vendedTimestamps.get(value)) return true;
@@ -82,16 +83,16 @@ export const isServerTimestampSentinel = (value : any) : boolean => {
 };
 
 //Fields that are already serverTimestamp don't need a new one.
-const fieldNeedsServerTimestamp = (value : any) : boolean => isServerTimestampSentinel(value) && !isLiteralServerTimestamp(value);
+const fieldNeedsServerTimestamp = (value : FirestoreLeafValue) : boolean => isServerTimestampSentinel(value) && !isLiteralServerTimestamp(value);
 
-const isLiteralServerTimestamp = (value : any) : boolean => {
+const isLiteralServerTimestamp = (value : FirestoreLeafValue) : boolean => {
 	if (typeof value !== 'object') return false;
 	//serverTimestampSentinel returns new objects every time, but for now (at least) they
 	//at least stringify the same.
 	return JSON.stringify(value) == serverTimestampSentinelJSON;
 };
 
-const vendedTimestamps : WeakMap<Timestamp, true> = new WeakMap();
+const vendedTimestamps : WeakMap<object, true> = new WeakMap();
 
 //serverTimestampSentinel is like serverTimestamp, except instead of vending a
 //FieldValue, it vends a normal currentTimestamp, but keeps track that its
@@ -104,6 +105,6 @@ export const serverTimestampSentinel = () : Timestamp => {
 	return result;
 };
 
-export const isFirestoreTimestamp = (value : any) : boolean => value instanceof Timestamp;
+export const isFirestoreTimestamp = (value : FirestoreLeafValue) : boolean => value instanceof Timestamp;
 
-export const deepEqualIgnoringTimestamps = (a : any, b : any) : boolean => deepEqual(a, b, isFirestoreTimestamp);
+export const deepEqualIgnoringTimestamps = (a : unknown, b : unknown) : boolean => deepEqual(a, b, isFirestoreTimestamp);
