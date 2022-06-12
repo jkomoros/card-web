@@ -41,7 +41,7 @@ export const tabConfiguration = (config : TabConfig, sections : Sections, tags :
 		changesMade = false;
 		lastArray = array;
 		array = [];
-		for (let item of lastArray) {
+		for (const item of lastArray) {
 			const [expandedItems, didExpand] = expandTabConfigItem(item, sections, tags);
 			if (didExpand) changesMade = true;
 			array = array.concat(...expandedItems);
@@ -52,9 +52,9 @@ export const tabConfiguration = (config : TabConfig, sections : Sections, tags :
 };
 
 const inflateCollectionsAndIcons = (config : TabConfig) : ExpandedTabConfig => {
-	let result = [];
-	for (let item of config) {
-		let itemToAdd : ExpandedTabConfigItem = {
+	const result = [];
+	for (const item of config) {
+		const itemToAdd : ExpandedTabConfigItem = {
 			...item,
 			expandedCollection:  (item.collection instanceof CollectionDescription) ? item.collection : (item.collection ? CollectionDescription.deserialize(item.collection as string) : null),
 			expandedIcon: (typeof item.icon != 'string') ? item.icon : icons[item.icon]
