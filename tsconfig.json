@@ -27,7 +27,33 @@
         "strict": true,
         "rules" : {
           "no-missing-element-type-definition": "error",
-        }
+          "no-unknown-event": "error"
+        },
+        "globalEvents": [
+          "tag-tapped",
+          "add-tag",
+          "remove-tag",
+          "new-tag",
+          "show-need-signin",
+          "thumbnail-tapped",
+          "update-render-offset",
+          "card-hovered",
+          "dialog-should-close",
+          "edit-message",
+          "delete-message",
+          "resolve-thread",
+          "add-message",
+          "filter-modified",
+          "filter-removed",
+          "change-complex",
+          "card-swiped",
+          "disabled-card-highlight-clicked",
+          "text-field-updated",
+          "reorder-card",
+          "info-zippy-clicked",
+          "add-card",
+          "add-working-notes-card"
+        ]
       }
     ]
   },

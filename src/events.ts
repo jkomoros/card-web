@@ -10,6 +10,13 @@ type TagEventDetail = {
     subtle : boolean,
 };
 
+/******************
+
+NOTE: when a new even name is added here, also add it to
+tsconfig.json:plugins:0:globalEvents.
+
+*******************/
+
 export const TAG_TAPPED_EVENT_NAME = 'tag-tapped';
 //TODO: change to 'tag-added'
 export const TAG_ADDED_EVENT_NAME = 'add-tag';
