@@ -399,7 +399,7 @@ export function arrayRemoveUtil<T>(arr : T[], items : T[]) : T[] {
 	return result;
 }
 
-export const arrayUnionUtil = (arr : any[], items : any[]) => {
+export function arrayUnionUtil<T>(arr : T[], items : T[]) : T[]{
 	if (!items) {
 		console.warn('arrayUnionUtil called without a second argument, which means you probably wanted arrayUnionSentinel');
 	}
@@ -414,7 +414,7 @@ export const arrayUnionUtil = (arr : any[], items : any[]) => {
 		result.push(val);
 	}	
 	return result;
-};
+}
 
 export const arrayUnique = (arr : any[]) => {
 	const seenItems = new Map();
