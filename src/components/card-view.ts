@@ -183,130 +183,130 @@ import {
 class CardView extends connect(store)(PageViewElement) {
 
 	@state()
-	_card: Card;
+		_card: Card;
 
 	@state()
-	_editing: boolean;
+		_editing: boolean;
 
 	@state()
-	_pageExtra: string;
+		_pageExtra: string;
 
 	@state()
-	_userMayEdit: boolean;
+		_userMayEdit: boolean;
 
 	@state()
-	_cardTypeToAdd: CardType;
+		_cardTypeToAdd: CardType;
 
 	@state()
-	_userMayAddCardToActiveCollection: boolean;
+		_userMayAddCardToActiveCollection: boolean;
 
 	@state()
-	_userMayReorderCollection: boolean;
+		_userMayReorderCollection: boolean;
 
 	@state()
-	_userMayCreateCard: boolean;
+		_userMayCreateCard: boolean;
 
 	@state()
-	_userMayStar: boolean;
+		_userMayStar: boolean;
 
 	@state()
-	_userMayMarkRead: boolean;
+		_userMayMarkRead: boolean;
 
 	@state()
-	_userMayModifyReadingList: boolean;
+		_userMayModifyReadingList: boolean;
 
 	@state()
-	_userMayForkCard: boolean;
+		_userMayForkCard: boolean;
 
 	@state()
-	_autoMarkReadPending: boolean;
+		_autoMarkReadPending: boolean;
 
 	@state()
-	_displayCard: Card;
+		_displayCard: Card;
 
 	@state()
-	_editingCard: Card;
+		_editingCard: Card;
 
 	@state()
-	_commentsAndInfoPanelOpen : boolean;
+		_commentsAndInfoPanelOpen : boolean;
 
 	@state()
-	_cardsDrawerPanelOpen: boolean;
+		_cardsDrawerPanelOpen: boolean;
 
 	@state()
-	_cardsDrawerPanelShowing: boolean;
+		_cardsDrawerPanelShowing: boolean;
 
 	@state()
-	_headerPanelOpen: boolean;
+		_headerPanelOpen: boolean;
 
 	@state()
-	_updatedFromContentEditable: CardFieldMap;
+		_updatedFromContentEditable: CardFieldMap;
 
 	@state()
-	_presentationMode: boolean;
+		_presentationMode: boolean;
 
 	@state()
-	_mobileMode: boolean;
+		_mobileMode: boolean;
 
 	@state()
-	_cardHasStar: boolean;
+		_cardHasStar: boolean;
 
 	@state()
-	_cardIsRead: boolean;
+		_cardIsRead: boolean;
 
 	@state()
-	_cardInReadingList: boolean;
+		_cardInReadingList: boolean;
 
 	@state()
-	_collection: Collection;
+		_collection: Collection;
 
 	@state()
-	_collectionIsFallback: boolean;
+		_collectionIsFallback: boolean;
 
 	@state()
-	_renderOffset: number;
+		_renderOffset: number;
 
 	@state()
-	_drawerReorderPending : boolean;
+		_drawerReorderPending : boolean;
 
 	@state()
-	_activeSectionId: SectionID;
+		_activeSectionId: SectionID;
 
 	@state()
-	_dataIsFullyLoaded: boolean;
+		_dataIsFullyLoaded: boolean;
 
 	@state()
-	_sectionsAndTagsLoaded: boolean;
+		_sectionsAndTagsLoaded: boolean;
 
 	@state()
-	_tagInfos: TagInfos;
+		_tagInfos: TagInfos;
 
 	@state()
-	_cardTodos: TODOType[];
+		_cardTodos: TODOType[];
 
 	@state()
-	_pendingNewCardIDToNavigateTo: CardID;
+		_pendingNewCardIDToNavigateTo: CardID;
 
 	@state()
-	_collectionWordCloud: WordCloud;
+		_collectionWordCloud: WordCloud;
 
 	@state()
-	_infoExpanded: boolean;
+		_infoExpanded: boolean;
 
 	@state()
-	_suggestMissingConceptsEnabled: boolean;
+		_suggestMissingConceptsEnabled: boolean;
 
 	@state()
-	_suggestedConcepts: CardID[];
+		_suggestedConcepts: CardID[];
 
 	@state()
-	_userIsAdmin: boolean;
+		_userIsAdmin: boolean;
 
 	@state()
-	_cardReferenceBlocks: ExpandedReferenceBlocks;
+		_cardReferenceBlocks: ExpandedReferenceBlocks;
 
 	@state()
-	_signedIn: boolean;
+		_signedIn: boolean;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -688,14 +688,14 @@ class CardView extends connect(store)(PageViewElement) {
 		}
 	}
 
-	_changedPropsAffectCanvasSize(changedProps : Map<string, any>) {
-		let sizeProps = [
+	_changedPropsAffectCanvasSize(changedProps : Map<string, unknown>) {
+		const sizeProps = [
 			'_headerPanelOpen',
 			'_commentsAndInfoPanelOpen',
 			'_cardsDrawerPanelShowing',
 			'_editing'
 		];
-		for (let item of sizeProps) {
+		for (const item of sizeProps) {
 			if (changedProps.has(item)) return true;
 		}
 		return false;
@@ -704,12 +704,12 @@ class CardView extends connect(store)(PageViewElement) {
 	_resizeCard() {
 		//This is called when we've changed something that should resize the
 		//card.
-		let stage = this.shadowRoot.querySelector('card-stage');
+		const stage = this.shadowRoot.querySelector('card-stage');
 		if (!stage) return;
 		stage.resizeCard();
 	}
 
-	override updated(changedProps : Map<string, any>) {
+	override updated(changedProps : Map<string, CardView[keyof CardView]>) {
 		if (changedProps.has('_pageExtra')) {
 			if (this._pageExtra) {
 				store.dispatch(updateCardSelector(this._pageExtra));
@@ -753,6 +753,6 @@ class CardView extends connect(store)(PageViewElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'card-view': CardView;
+		'card-view': CardView;
 	}
 }
