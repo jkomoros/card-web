@@ -8,20 +8,17 @@ const arrayEqual = (a : any[], b : any[]) : boolean => {
 
 //Like memoize, except the first argument is expected to be a thing that changes
 //often, and the rest of the arguments are assumed to change rarely.
-export function memoizeFirstArg<R, T extends (...args: any[]) => R>(fn : T) : T {
+export function memoizeFirstArg<R, T extends (firstArg : object, ...restArgs: unknown[]) => R>(fn : T) : T {
 	const resultMap = new WeakMap();
-	let g = (...args: any[]) => {
-		if (!args.length) return fn();
-		const firstArg = args[0];
-		const restArgs = args.slice(1);
+	const g = (firstArg : object, ...restArgs: unknown[]) => {
 		const record = resultMap.get(firstArg);
 		if (record && arrayEqual(record.restArgs, restArgs)) return record.result;
-		const result = fn(...args);
+		const result = fn(firstArg, ...restArgs);
 		resultMap.set(firstArg, {restArgs, result});
 		return result;
 	};
 	return g as T;
-};
+}
 
 //deepEqualReturnSame is designed to wrap functions. If the result of the
 //function is deepEqual to the last result, then it will return literally the
@@ -35,7 +32,7 @@ export function deepEqualReturnSame<R, T extends (...args: any[]) => R>(fn : T) 
 	let resultKey;
 	//The value to return if they're deep equal.
 	let resultValue : R;
-	let g = (...args : any[]) : R => {
+	const g = (...args : any[]) : R => {
 		resultKey = fn(...args);
 		if (deepEqual(resultKey, resultValue)) {
 			return resultValue;
@@ -44,12 +41,12 @@ export function deepEqualReturnSame<R, T extends (...args: any[]) => R>(fn : T) 
 		return resultValue;
 	};
 	return g as T;
-};
+}
 
 //memoize will retain up to entries number of past arguments and if any match,
 //return that result instead of recalculating.
 //Using pattern described at https://stackoverflow.com/a/43382807
-export function memoize<R, T extends (...args: any[]) => R>(fn : T, entries : number = 3) : T {
+export function memoize<R, T extends (...args: any[]) => R>(fn : T, entries  = 3) : T {
 
 	//Objects with args, result
 	const memoizedRecords : {args: any[], result: R}[] = [];
@@ -68,4 +65,4 @@ export function memoize<R, T extends (...args: any[]) => R>(fn : T, entries : nu
 	};
 
 	return g as T;
-};
+}
