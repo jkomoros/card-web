@@ -565,6 +565,7 @@ export const selectSectionsUserMayEdit = createSelector(
 	(state, sections) => Object.fromEntries(Object.entries(sections).filter(entry => getUserMayEditSection(state, entry[0])))
 );
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const getUserMayEditTag = (state : State, _tagID : TagID) => {
 	if (selectUserMayEditTags(state)) return true;
 	//TODO: check if the named tagID has an override;
