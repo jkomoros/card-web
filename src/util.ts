@@ -427,7 +427,7 @@ export function arrayUnique<T>(arr : T[]) : T[] {
 	return result;
 }
 
-export const arrayToSet = (arr : string[]) => {
+export const arrayToSet = (arr : string[]) : {[name : string]: true} => {
 	const result : {[name : string] : true} = {};
 	for (const item of arr) {
 		result[item] = true;
