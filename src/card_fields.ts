@@ -1,4 +1,3 @@
-
 import {
 	references
 } from './references.js';
@@ -74,10 +73,10 @@ export const EMPTY_CARD : Card = {
 export const EMPTY_PROCESSED_CARD : ProcessedCard = {
 	...EMPTY_CARD,
 	fallbackText: {},
-    importantNgrams: {},
-    synonymMap: {},
-    nlp: {}
-}
+	importantNgrams: {},
+	synonymMap: {},
+	nlp: {}
+};
 
 /*
 
@@ -226,7 +225,7 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 		autoSlug: true,
 		defaultBody: WORK_DEFAULT_BODY,
 		backportTitleExtractor : (rawCard, _, rawCards) => {
-			let authors = [];
+			const authors = [];
 			for (const otherID of (references(rawCard).byTypeArray()[CONSTANTS.REFERENCE_TYPE_CITATION_PERSON] || [])) {
 				const otherCard = rawCards[otherID];
 				if (!otherCard) continue;
@@ -454,7 +453,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 export const REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT = Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(entry => entry[1].backportMissingText).map(entry => [entry[0], true]));
 //Map of baseType ==> subTypeName ==> true. The base type will also be in its own set
 export const REFERENCE_TYPES_EQUIVALENCE_CLASSES : {[base in ReferenceType]+?: {[other in ReferenceType]+?: true}} = {};
-for (let [referenceType, config] of TypedObject.entries(REFERENCE_TYPES)) {
+for (const [referenceType, config] of TypedObject.entries(REFERENCE_TYPES)) {
 	const baseType = config.subTypeOf || referenceType;
 	if (!REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType]) REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType] = {};
 	REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][referenceType] = true;
@@ -614,8 +613,8 @@ export const BODY_CARD_TYPES = TEXT_FIELD_CONFIGURATION[CONSTANTS.TEXT_FIELD_BOD
 export const IMAGE_CARD_TYPES = TEXT_FIELD_CONFIGURATION[IMAGES_TEXT_FIELD].legalCardTypes;
 
 export const editableFieldsForCardType = (cardType : CardType) : CardFieldTypeEditableConfigurationMap => {
-	let result : CardFieldTypeConfigurationMap = {};
-	for (let key of TypedObject.keys(TEXT_FIELD_CONFIGURATION)) {
+	const result : CardFieldTypeConfigurationMap = {};
+	for (const key of TypedObject.keys(TEXT_FIELD_CONFIGURATION)) {
 		const config = TEXT_FIELD_CONFIGURATION[key];
 		//Items with null for legalCardTypes are legal in all card types
 		if (config.legalCardTypes && !config.legalCardTypes[cardType]) continue;
@@ -722,12 +721,12 @@ const cardOverflowsFieldForBoost = async (card : Card, field : CardFieldTypeEdit
 		console.warn('No card renderer provider provided');
 		return false;
 	}
-	let ele = cardRendererProvider.sizingCardRenderer;
+	const ele = cardRendererProvider.sizingCardRenderer;
 	if (!ele) {
 		console.warn('No active card renderer');
 		return false;
 	}
-	let tempCard : ProcessedCard = {...EMPTY_PROCESSED_CARD, ...card, font_size_boost: {...card.font_size_boost, [field]:proposedBoost}};
+	const tempCard : ProcessedCard = {...EMPTY_PROCESSED_CARD, ...card, font_size_boost: {...card.font_size_boost, [field]:proposedBoost}};
 	ele.card = tempCard;
 	await ele.updateComplete;
 	const isOverflowing = ele.isOverflowing();
