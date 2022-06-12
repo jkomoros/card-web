@@ -20,13 +20,13 @@ export class WebRenderer extends LitElement {
 
 	//as returned from e.g. collection.webInfo
 	@property({ type : Object })
-	webInfo: WebInfo;
+		webInfo: WebInfo;
 
 	@property({ type : String })
-	highlightedCardId: CardID;
+		highlightedCardId: CardID;
 
 	@state()
-	_calculatedGraph: WebInfoWithLayout;
+		_calculatedGraph: WebInfoWithLayout;
 
 	static override styles = [
 		css`
@@ -72,9 +72,9 @@ export class WebRenderer extends LitElement {
 
 	_handleThumbnailClick(e : MouseEvent) {
 		e.stopPropagation();
-		let ele = e.composedPath()[0];
+		const ele = e.composedPath()[0];
 		if (!(ele instanceof SVGElement)) throw new Error('not svg element');
-		let card = ele.id;
+		const card = ele.id;
 		const ctrl = e.ctrlKey || e.metaKey;
 		//TODO: ctrl-click on mac shouldn't show the right click menu
 		this.dispatchEvent(makeThumbnailTappedEvent(card, ctrl));
@@ -82,9 +82,9 @@ export class WebRenderer extends LitElement {
 
 	_handleThumbnailMouseMove(e : MouseEvent) {
 		e.stopPropagation();
-		let ele = e.composedPath()[0];
+		const ele = e.composedPath()[0];
 		if (!(ele instanceof SVGElement)) throw new Error('not svg element');
-		let id = ele.id;
+		const id = ele.id;
 		//card-web-app will catch the card-hovered event no matter where it was
 		//thrown from
 		this.dispatchEvent(makeCardHoveredEvent(id, e.clientX, e.clientY));
@@ -107,7 +107,7 @@ export class WebRenderer extends LitElement {
 			.force('center', d3.forceCenter(width / 2, height / 2))
 			.stop();
 		
-		for (var i = 0; i < 300; ++i) simulation.tick();
+		for (let i = 0; i < 300; ++i) simulation.tick();
 		return {
 			nodes: graph.nodes as WebInfoNodeWithLayout[],
 			edges: graph.edges.map(edge => ({source: edge.source as unknown as WebInfoNodeWithLayout, target: edge.target as unknown as  WebInfoNodeWithLayout, value: edge.value})),
@@ -119,7 +119,7 @@ export class WebRenderer extends LitElement {
 		this._calculatedGraph = {nodes:[], edges:[]};
 	}
 
-	override updated(changedProps : Map<string, any>) {
+	override updated(changedProps : Map<string, WebRenderer[keyof WebRenderer]>) {
 		if (changedProps.has('webInfo')) {
 			this._calculatedGraph = this._recalcGraph();
 		}
@@ -129,6 +129,6 @@ export class WebRenderer extends LitElement {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'web-renderer': WebRenderer;
+		'web-renderer': WebRenderer;
 	}
 }
