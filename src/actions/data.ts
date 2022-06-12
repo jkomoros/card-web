@@ -141,7 +141,7 @@ import {
 	REFERENCE_TYPE_MINED_FROM,
 	TEXT_FIELD_TITLE,
 	REFERENCE_TYPE_LINK,
-} from '../card_field_constants.js';
+} from '../type_constants.js';
 
 import {
 	cardDiffHasChanges,

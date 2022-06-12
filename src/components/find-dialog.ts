@@ -72,7 +72,7 @@ import {
 
 import {
 	TEXT_FIELD_TITLE,
-} from '../card_field_constants.js';
+} from '../type_constants.js';
 
 import {
 	UNION_FILTER_DELIMITER

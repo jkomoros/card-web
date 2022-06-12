@@ -45,7 +45,7 @@ import {
 	URL_PART_MULTIPLE_CARDS,
 	URL_PART_CONCEPT_STR_OR_ID,
 	URL_PART_EXPAND_FILTER
-} from './card_field_constants.js';
+} from './type_constants.js';
 
 import {
 	references

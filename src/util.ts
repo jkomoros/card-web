@@ -28,7 +28,7 @@ import {
 import {
 	TEXT_FIELD_BODY,
 	CARD_TYPE_CONTENT,
-} from './card_field_constants.js';
+} from './type_constants.js';
 
 import {
 	references

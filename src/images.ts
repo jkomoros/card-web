@@ -15,7 +15,7 @@ import {
 	IMAGE_POSITION_TOP_RIGHT,
 	IMAGE_POSITION_LEFT,
 	IMAGE_POSITION_RIGHT
-} from './card_field_constants.js';
+} from './type_constants.js';
 
 import {
 	TypedObject

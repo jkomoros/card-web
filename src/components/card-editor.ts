@@ -118,7 +118,7 @@ import {
 	TEXT_FIELD_BODY,
 	REFERENCE_TYPE_ACK,
 	REFERENCE_TYPE_CONCEPT,
-} from '../card_field_constants.js';
+} from '../type_constants.js';
 
 import {
 	references,

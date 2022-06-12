@@ -52,7 +52,7 @@ import {
 
 import {
 	CARD_TYPE_WORKING_NOTES,
-} from './card_field_constants.js';
+} from './type_constants.js';
 
 import {
 	references,

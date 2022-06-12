@@ -92,7 +92,7 @@ import {
 
 import {
 	REFERENCES_INBOUND_CARD_PROPERTY
-} from '../card_field_constants';
+} from '../type_constants.js';
 
 import {
 	references,

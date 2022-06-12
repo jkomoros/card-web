@@ -26,7 +26,7 @@ import {
 
 import {
 	CARD_TYPE_CONTENT
-} from '../card_field_constants.js';
+} from '../type_constants.js';
 
 import * as icons from './my-icons.js';
 

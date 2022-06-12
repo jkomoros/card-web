@@ -3,7 +3,7 @@ import {
 	references
 } from './references.js';
 
-import * as CONSTANTS from './card_field_constants.js';
+import * as CONSTANTS from './type_constants.js';
 
 import {
 	Card,

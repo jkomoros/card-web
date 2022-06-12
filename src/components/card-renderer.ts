@@ -40,7 +40,7 @@ import {
 	TEXT_FIELD_BODY,
 	TEXT_FIELD_TITLE,
 	CARD_TYPE_CONTENT,
-} from '../card_field_constants.js';
+} from '../type_constants.js';
 
 import {
 	highlightConceptReferences

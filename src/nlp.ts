@@ -27,7 +27,7 @@ import {
 	TEXT_FIELD_TITLE,
 	REFERENCE_TYPE_SYNONYM,
 	REFERENCE_TYPE_CONCEPT,
-} from './card_field_constants.js';
+} from './type_constants.js';
 
 import {
 	references,

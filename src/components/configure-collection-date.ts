@@ -9,7 +9,7 @@ import {
 
 import {
 	DATE_RANGE_TYPES
-} from '../card_field_constants.js';
+} from '../type_constants.js';
 
 import { ButtonSharedStyles } from './button-shared-styles.js';
 

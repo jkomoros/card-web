@@ -28,7 +28,7 @@ import {
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCES_INBOUND_CARD_PROPERTY,
 	TEXT_FIELD_TYPES_EDITABLE
-} from './card_field_constants.js';
+} from './type_constants.js';
 
 import {
 	normalizeBodyHTML

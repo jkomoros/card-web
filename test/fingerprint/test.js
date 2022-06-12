@@ -35,7 +35,7 @@ import {
 	REFERENCE_TYPE_ACK,
 	REFERENCE_TYPE_DUPE_OF,
 	TEXT_FIELD_TITLE,
-} from '../../src/card_field_constants.js';
+} from '../../src/type_constants.js';
 
 import assert from 'assert';
 

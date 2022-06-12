@@ -74,7 +74,7 @@ import {
 	REFERENCES_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCES_INBOUND_CARD_PROPERTY
-} from '../card_field_constants.js';
+} from '../type_constants.js';
 
 import {
 	onSnapshot,

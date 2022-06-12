@@ -38,7 +38,7 @@ import {
 	URL_PART_KEY_CARD,
 	URL_PART_MULTIPLE_CARDS,
 	URL_PART_DATE_SECTION
-} from '../card_field_constants.js';
+} from '../type_constants.js';
 
 import './configure-collection-key-card.js';
 import './configure-collection-multiple-cards.js';

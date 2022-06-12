@@ -36,7 +36,7 @@ import {
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCE_TYPE_LINK,
 	REFERENCES_CARD_PROPERTY,
-} from './card_field_constants.js';
+} from './type_constants.js';
 
 import {
 	getCardType,

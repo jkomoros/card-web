@@ -6,7 +6,7 @@ import {
 	REFERENCE_TYPE_ACK,
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY
-} from '../../src/card_field_constants.js';
+} from '../../src/type_constants.js';
 
 import {
 	references,

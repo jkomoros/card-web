@@ -16,7 +16,7 @@ import {
 	REFERENCE_TYPE_EXAMPLE_OF,
 	REFERENCE_TYPE_METAPHOR_FOR,
 	CARD_TYPE_CONTENT,
-} from './card_field_constants.js';
+} from './type_constants.js';
 
 import {
 	Collection,

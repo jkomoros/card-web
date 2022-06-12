@@ -11,7 +11,7 @@ import {
     DATE_RANGE_TYPES,
     URL_PART_TYPES,
     IMAGE_POSITION_TYPES,
-} from './card_field_constants.js';
+} from './type_constants.js';
 
 import * as icons from './components/my-icons.js';
 
@@ -435,7 +435,7 @@ type CardFieldTypeConfiguration = {
     nonScrollable? : boolean,
     // readOnly: if true, a form field to edit this won't be printed out in
     // cardEditor. Note: if you flip this value, you need to also change the
-    // boolean value in TEXT_FIELD_TYPES in card_field_constants.ts
+    // boolean value in TEXT_FIELD_TYPES in type_constants.ts
     readOnly? : boolean,
     // matchWeight: if a match is found when searching in that field, how much weight
     // should it receive?
