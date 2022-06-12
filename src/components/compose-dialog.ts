@@ -31,10 +31,10 @@ import {
 class ComposeDialog extends connect(store)(DialogElement) {
 
 	@state()
-	_content: string;
+		_content: string;
 
 	@state()
-	_message: string;
+		_message: string;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -70,7 +70,7 @@ class ComposeDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleContentUpdated(e : InputEvent) {
-		let ele = e.composedPath()[0];
+		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLTextAreaElement)) throw new Error('not textarea element');
 		store.dispatch(composeUpdateContent(ele.value));
 	}
@@ -95,6 +95,6 @@ class ComposeDialog extends connect(store)(DialogElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'compose-dialog': ComposeDialog;
+		'compose-dialog': ComposeDialog;
 	}
 }
