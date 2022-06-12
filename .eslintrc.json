@@ -36,6 +36,11 @@
         ],
         "no-console": "off",
         "no-case-declarations": "off",
-        "no-fallthrough": "off"
+        "no-fallthrough": "off",
+        "prefer-const": [ "error",
+            {
+                "destructuring" : "all"
+            }
+        ]
     }
 }
