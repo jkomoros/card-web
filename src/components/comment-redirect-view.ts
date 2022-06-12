@@ -19,7 +19,7 @@ import {
 class CommentRedirectView extends connect(store)(PageViewElement) {
 
 	@state()
-	_pageExtra: string;
+		_pageExtra: string;
 
 	static override styles = [
 		css`
@@ -43,7 +43,7 @@ class CommentRedirectView extends connect(store)(PageViewElement) {
 		this._pageExtra = state.app.pageExtra;
 	}
 
-	override updated(changedProps : Map<string, any>) {
+	override updated(changedProps : Map<string, CommentRedirectView[keyof CommentRedirectView]>) {
 		if (changedProps.has('_pageExtra')) {
 			if (this._pageExtra) {
 				store.dispatch(navigateToComment(this._pageExtra));
@@ -57,6 +57,6 @@ class CommentRedirectView extends connect(store)(PageViewElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'comment-redirect-view': CommentRedirectView;
+		'comment-redirect-view': CommentRedirectView;
 	}
 }
