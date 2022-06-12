@@ -23,17 +23,17 @@ export const TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND = 'concept_references';
 //TEXT_fIELD_CONIGURATION.readOnly
 
 export const TEXT_FIELD_TYPES_EDITABLE = {
-    [TEXT_FIELD_BODY]: true,
-    [TEXT_FIELD_TITLE]: true,
-    [TEXT_FIELD_SUBTITLE]: true,
-    [TEXT_FIELD_TITLE_ALTERNATES]: true
-}
+	[TEXT_FIELD_BODY]: true,
+	[TEXT_FIELD_TITLE]: true,
+	[TEXT_FIELD_SUBTITLE]: true,
+	[TEXT_FIELD_TITLE_ALTERNATES]: true
+};
 
 export const TEXT_FIELD_TYPES = {
-    ...TEXT_FIELD_TYPES_EDITABLE,
-    [TEXT_FIELD_REFERENCES_INFO_INBOUND]: true,
-    [TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND]: true,
-    [TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: true,
+	...TEXT_FIELD_TYPES_EDITABLE,
+	[TEXT_FIELD_REFERENCES_INFO_INBOUND]: true,
+	[TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND]: true,
+	[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: true,
 };
 
 export const CARD_TYPE_CONTENT = 'content';
@@ -45,13 +45,13 @@ export const CARD_TYPE_PERSON = 'person';
 
 //CardType literal values are driven off of this object
 export const CARD_TYPE_TYPES = {
-    '' : true,
-    [CARD_TYPE_CONTENT]: true,
-    [CARD_TYPE_SECTION_HEAD]: true,
-    [CARD_TYPE_WORKING_NOTES]: true,
-    [CARD_TYPE_CONCEPT]: true,
-    [CARD_TYPE_WORK]: true,
-    [CARD_TYPE_PERSON]: true,
+	'' : true,
+	[CARD_TYPE_CONTENT]: true,
+	[CARD_TYPE_SECTION_HEAD]: true,
+	[CARD_TYPE_WORKING_NOTES]: true,
+	[CARD_TYPE_CONCEPT]: true,
+	[CARD_TYPE_WORK]: true,
+	[CARD_TYPE_PERSON]: true,
 };
 
 //For card-links within body content
@@ -97,23 +97,23 @@ export const REFERENCE_TYPE_CITATION_PERSON = 'citation-person';
 
 //ReferenceType literal values are driven off of this object
 export const REFERENCE_TYPE_TYPES = {
-    '': true,
-    [REFERENCE_TYPE_LINK]: true,
-    [REFERENCE_TYPE_DUPE_OF]: true,
-    [REFERENCE_TYPE_ACK] : true,
-    [REFERENCE_TYPE_GENERIC]: true,
-    [REFERENCE_TYPE_FORK_OF]: true,
-    [REFERENCE_TYPE_MINED_FROM]: true,
-    [REFERENCE_TYPE_SEE_ALSO]: true,
-    [REFERENCE_TYPE_CONCEPT]: true,
-    [REFERENCE_TYPE_SYNONYM]: true,
-    [REFERENCE_TYPE_OPPOSITE_OF]: true,
-    [REFERENCE_TYPE_PARALLEL_TO]: true,
-    [REFERENCE_TYPE_EXAMPLE_OF]: true,
-    [REFERENCE_TYPE_METAPHOR_FOR]: true,
-    [REFERENCE_TYPE_CITATION]: true,
-    [REFERENCE_TYPE_CITATION_PERSON]: true
-}
+	'': true,
+	[REFERENCE_TYPE_LINK]: true,
+	[REFERENCE_TYPE_DUPE_OF]: true,
+	[REFERENCE_TYPE_ACK] : true,
+	[REFERENCE_TYPE_GENERIC]: true,
+	[REFERENCE_TYPE_FORK_OF]: true,
+	[REFERENCE_TYPE_MINED_FROM]: true,
+	[REFERENCE_TYPE_SEE_ALSO]: true,
+	[REFERENCE_TYPE_CONCEPT]: true,
+	[REFERENCE_TYPE_SYNONYM]: true,
+	[REFERENCE_TYPE_OPPOSITE_OF]: true,
+	[REFERENCE_TYPE_PARALLEL_TO]: true,
+	[REFERENCE_TYPE_EXAMPLE_OF]: true,
+	[REFERENCE_TYPE_METAPHOR_FOR]: true,
+	[REFERENCE_TYPE_CITATION]: true,
+	[REFERENCE_TYPE_CITATION_PERSON]: true
+};
 
 export const BEFORE_FILTER_NAME = 'before';
 export const AFTER_FILTER_NAME = 'after';
@@ -140,18 +140,18 @@ export const URL_PART_EXPAND_FILTER = 'expand-filter';
 
 //These drive ConfigurableFilterFuncURLPart type
 export const URL_PART_TYPES = {
-    [URL_PART_DATE_SECTION]: true,
-    [URL_PART_FREE_TEXT] : true,
-    [URL_PART_KEY_CARD] : true,
-    [URL_PART_INT] : true,
-    [URL_PART_FLOAT] : true,
-    [URL_PART_REFERENCE_TYPE] : true,
-    [URL_PART_USER_ID] : true,
-    [URL_PART_SUB_FILTER] : true,
-    [URL_PART_MULTIPLE_CARDS] : true,
-    [URL_PART_CONCEPT_STR_OR_ID] : true,
-    [URL_PART_EXPAND_FILTER] : true
-}
+	[URL_PART_DATE_SECTION]: true,
+	[URL_PART_FREE_TEXT] : true,
+	[URL_PART_KEY_CARD] : true,
+	[URL_PART_INT] : true,
+	[URL_PART_FLOAT] : true,
+	[URL_PART_REFERENCE_TYPE] : true,
+	[URL_PART_USER_ID] : true,
+	[URL_PART_SUB_FILTER] : true,
+	[URL_PART_MULTIPLE_CARDS] : true,
+	[URL_PART_CONCEPT_STR_OR_ID] : true,
+	[URL_PART_EXPAND_FILTER] : true
+};
 
 //Will position left. Multiple images will go to the right of the one
 //immediatebly before them.
@@ -168,8 +168,8 @@ export const IMAGE_POSITION_RIGHT = 'right';
 
 //Drives ImagePositionType
 export const IMAGE_POSITION_TYPES = {
-    [IMAGE_POSITION_LEFT]: true,
-    [IMAGE_POSITION_RIGHT]: true,
-    [IMAGE_POSITION_TOP_LEFT]: true,
-    [IMAGE_POSITION_TOP_RIGHT]: true,
-}
+	[IMAGE_POSITION_LEFT]: true,
+	[IMAGE_POSITION_RIGHT]: true,
+	[IMAGE_POSITION_TOP_LEFT]: true,
+	[IMAGE_POSITION_TOP_RIGHT]: true,
+};
