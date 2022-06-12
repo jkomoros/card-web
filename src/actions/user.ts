@@ -100,7 +100,7 @@ getRedirectResult(auth).catch( async err => {
 		return;
 	}
 
-	let doSignin = confirm('You have already signed in with that account on another device. If you proceed, you will be logged in and any cards you\'ve starred or marked read on this device will be lost. If you do not proceed, you will not be logged in.');
+	const doSignin = confirm('You have already signed in with that account on another device. If you proceed, you will be logged in and any cards you\'ve starred or marked read on this device will be lost. If you do not proceed, you will not be logged in.');
 
 	if (!doSignin) return;
 
@@ -111,7 +111,7 @@ getRedirectResult(auth).catch( async err => {
 	//notice this global is set and save it to the db.
 	prevAnonymousMergeUser = auth.currentUser;
 
-	let credential = err.credential;
+	const credential = err.credential;
 
 	if (!credential) {
 		alert('No credential provided, can\'t proceed');
@@ -130,7 +130,7 @@ export const saveUserInfo : AppActionCreator = () => (_, getState) => {
 
 	if (!user) return;
 
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 	ensureUserInfo(batch, user);
 	//If we had a merge user, null it out on successful save, so we don't keep saving it.
 	batch.commit().then(() => prevAnonymousMergeUser = null);
@@ -146,7 +146,7 @@ interface userInfoUpdate {
 export const ensureUserInfo = (batch : MultiBatch, user : UserInfo) => {
 	if (!user) return;
 
-	let data : userInfoUpdate = {
+	const data : userInfoUpdate = {
 		lastSeen: serverTimestamp(),
 		isAnonymous: user.isAnonymous,
 	};
@@ -162,7 +162,7 @@ export const ensureUserInfo = (batch : MultiBatch, user : UserInfo) => {
 };
 
 export const showNeedSignin : AppActionCreator = () => (dispatch) => {
-	let doSignIn = confirm('Doing that action requires signing in with your Google account. Do you want to sign in?');
+	const doSignIn = confirm('Doing that action requires signing in with your Google account. Do you want to sign in?');
 	if (!doSignIn) return;
 	dispatch(signIn());
 };
@@ -171,15 +171,15 @@ export const signIn : AppActionCreator = () => (dispatch, getState) => {
 
 	const state = getState();
 
-	let isAnonymous = selectUserIsAnonymous(state);
+	const isAnonymous = selectUserIsAnonymous(state);
 
 	dispatch({type:SIGNIN_USER});
 
-	let provider = new GoogleAuthProvider();
+	const provider = new GoogleAuthProvider();
 
 	if (isAnonymous) {
 		//We'll only get here if anonymous login was not disabled
-		let user = auth.currentUser;
+		const user = auth.currentUser;
 		if (!user) {
 			console.warn('Unexpectedly didn\'t have user');
 			return;
@@ -246,7 +246,7 @@ const ensureRichestDataForUser : AppActionCreator = (firebaseUser : User) => asy
 		if (!bestPhotoURL && userInfo.photoURL) bestPhotoURL = userInfo.photoURL;
 		if (!bestDisplayName && userInfo.displayName) bestDisplayName = userInfo.displayName;
 		if (!bestEmail && userInfo.email) bestEmail = userInfo.email;
-	};
+	}
 
 	//Even after updating the user we need to tell the UI it's updated.
 	if (!bestPhotoURL && !bestDisplayName && !bestEmail) return;
@@ -255,7 +255,7 @@ const ensureRichestDataForUser : AppActionCreator = (firebaseUser : User) => asy
 		await updateProfile(firebaseUser, {
 			photoURL: bestPhotoURL,
 			displayName: bestDisplayName,
-		})
+		});
 		//firebaseUser has now been updated in place, based on testing in
 		//Chrome.
 	}
@@ -273,7 +273,7 @@ const ensureRichestDataForUser : AppActionCreator = (firebaseUser : User) => asy
 };
 
 const updateUserInfo : AppActionCreator = (firebaseUser : User) => (dispatch) => {
-	let info = _userInfo(firebaseUser);
+	const info = _userInfo(firebaseUser);
 	dispatch({
 		type: SIGNIN_SUCCESS,
 		user: info,
@@ -338,7 +338,7 @@ export const signOut : AppActionCreator = () => (dispatch, getState) => {
 
 	const state = getState();
 
-	let user = selectUser(state);
+	const user = selectUser(state);
 
 	if (!user) return;
 	//We don't sign out anonymous users
@@ -379,7 +379,7 @@ export const addToReadingList : AppActionCreator = (cardToAdd : CardID) => (_, g
 	}
 
 	const state = getState();
-	let uid = selectUid(state);
+	const uid = selectUid(state);
 
 	if (!uid) {
 		console.log('Not logged in');
@@ -393,18 +393,18 @@ export const addToReadingList : AppActionCreator = (cardToAdd : CardID) => (_, g
 		return;
 	}
 
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 
-	let readingListRef = doc(db, READING_LISTS_COLLECTION, uid);
-	let readingListUpdateRef = doc(readingListRef, READING_LISTS_UPDATES_COLLECTION, '' + Date.now());
+	const readingListRef = doc(db, READING_LISTS_COLLECTION, uid);
+	const readingListUpdateRef = doc(readingListRef, READING_LISTS_UPDATES_COLLECTION, '' + Date.now());
 
-	let readingListObject = {
+	const readingListObject = {
 		cards: arrayUnion(cardToAdd),
 		updated: serverTimestamp(),
 		owner: uid,
 	};
 
-	let readingListUpdateObject = {
+	const readingListUpdateObject = {
 		timestamp: serverTimestamp(),
 		add_card: cardToAdd
 	};
@@ -422,7 +422,7 @@ export const removeFromReadingList : AppActionCreator = (cardToRemove : CardID) 
 	}
 
 	const state = getState();
-	let uid = selectUid(state);
+	const uid = selectUid(state);
 
 	if (!uid) {
 		console.log('Not logged in');
@@ -436,18 +436,18 @@ export const removeFromReadingList : AppActionCreator = (cardToRemove : CardID) 
 		return;
 	}
 
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 
-	let readingListRef = doc(db, READING_LISTS_COLLECTION, uid);
-	let readingListUpdateRef = doc(readingListRef, READING_LISTS_UPDATES_COLLECTION, '' + Date.now());
+	const readingListRef = doc(db, READING_LISTS_COLLECTION, uid);
+	const readingListUpdateRef = doc(readingListRef, READING_LISTS_UPDATES_COLLECTION, '' + Date.now());
 
-	let readingListObject = {
+	const readingListObject = {
 		cards: arrayRemove(cardToRemove),
 		updated: serverTimestamp(),
 		owner: uid
 	};
 
-	let readingListUpdateObject = {
+	const readingListUpdateObject = {
 		timestamp: serverTimestamp(),
 		remove_card: cardToRemove
 	};
@@ -466,7 +466,7 @@ export const addStar : AppActionCreator = (cardToStar : Card) => (_, getState) =
 	}
 
 	const state = getState();
-	let uid = selectUid(state);
+	const uid = selectUid(state);
 
 	if (!uid) {
 		console.log('Not logged in');
@@ -480,10 +480,10 @@ export const addStar : AppActionCreator = (cardToStar : Card) => (_, getState) =
 		return;
 	}
 
-	let cardRef = doc(db, CARDS_COLLECTION, cardToStar.id);
-	let starRef = doc(db, STARS_COLLECTION, idForPersonalCardInfo(uid, cardToStar.id));
+	const cardRef = doc(db, CARDS_COLLECTION, cardToStar.id);
+	const starRef = doc(db, STARS_COLLECTION, idForPersonalCardInfo(uid, cardToStar.id));
 
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 	batch.update(cardRef, {
 		star_count: increment(1),
 		star_count_manual: increment(1),
@@ -503,7 +503,7 @@ export const removeStar : AppActionCreator = (cardToStar : Card) => (_, getState
 	}
 
 	const state = getState();
-	let uid = selectUid(state);
+	const uid = selectUid(state);
 
 	if (!uid) {
 		console.log('Not logged in');
@@ -517,10 +517,10 @@ export const removeStar : AppActionCreator = (cardToStar : Card) => (_, getState
 		return;
 	}
 
-	let cardRef = doc(db, CARDS_COLLECTION, cardToStar.id);
-	let starRef = doc(db, STARS_COLLECTION, idForPersonalCardInfo(uid, cardToStar.id));
+	const cardRef = doc(db, CARDS_COLLECTION, cardToStar.id);
+	const starRef = doc(db, STARS_COLLECTION, idForPersonalCardInfo(uid, cardToStar.id));
 
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 	batch.update(cardRef, {
 		star_count: increment(-1),
 		star_count_manual: increment(-1),
@@ -600,7 +600,7 @@ export const markRead : AppActionCreator = (cardToMarkRead : Card, existingReadD
 	}
 
 	const state = getState();
-	let uid = selectUid(state);
+	const uid = selectUid(state);
 
 	if (!uid) {
 		console.log('Not logged in');
@@ -621,9 +621,9 @@ export const markRead : AppActionCreator = (cardToMarkRead : Card, existingReadD
 		}
 	}
 
-	let readRef = doc(db, READS_COLLECTION, idForPersonalCardInfo(uid, cardToMarkRead.id));
+	const readRef = doc(db, READS_COLLECTION, idForPersonalCardInfo(uid, cardToMarkRead.id));
 
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 	batch.set(readRef, {created: serverTimestamp(), owner: uid, card: cardToMarkRead.id});
 	batch.commit();
 };
@@ -635,7 +635,7 @@ export const markUnread : AppActionCreator = (cardToMarkUnread : Card) => (_, ge
 	}
 
 	const state = getState();
-	let uid = selectUid(state);
+	const uid = selectUid(state);
 
 	if (!uid) {
 		console.log('Not logged in');
@@ -657,9 +657,9 @@ export const markUnread : AppActionCreator = (cardToMarkUnread : Card) => (_, ge
 	//Just in case we were planning on setting this card as read.
 	cancelPendingAutoMarkRead();
 
-	let readRef = doc(db, READS_COLLECTION, idForPersonalCardInfo(uid, cardToMarkUnread.id));
+	const readRef = doc(db, READS_COLLECTION, idForPersonalCardInfo(uid, cardToMarkUnread.id));
 
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 	batch.delete(readRef);
 	batch.commit();
 
