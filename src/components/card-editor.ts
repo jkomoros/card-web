@@ -581,7 +581,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._hasUnsavedChanges = selectEditingCardHasUnsavedChanges(state);
 	}
 
-	override updated(changedProps : Map<string, any>) {
+	override updated(changedProps : Map<string, CardEditor[keyof CardEditor]>) {
 		if (changedProps.has('_underlyingCardDifferences') && this._underlyingCardDifferences) {
 			//TODO: isn't it kind of weird to have the view be the thing thta
 			//triggers the autoMerge? Shouldn't it be some wrapper around
