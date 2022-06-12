@@ -1,8 +1,8 @@
 import {
-    CardFieldTypeEditable,
-    CardID,
-    ComposedCommentMessage,
-    ComposedCommentThread
+	CardFieldTypeEditable,
+	CardID,
+	ComposedCommentMessage,
+	ComposedCommentThread
 } from './types.js';
 
 type TagEventDetail = {
@@ -53,32 +53,32 @@ export const ADD_WORKING_NOTES_CARD_EVENT_NAME = 'add-working-notes-card';
 export type TagEvent = CustomEvent<TagEventDetail>;
 
 export const makeTagTappedEvent = (tagName : string, subtle? : boolean) : TagEvent => {
-    return makeTagEvent(TAG_TAPPED_EVENT_NAME, tagName, subtle);
-}
+	return makeTagEvent(TAG_TAPPED_EVENT_NAME, tagName, subtle);
+};
 
 export const makeTagAddedEvent = (tagName : string) : TagEvent => {
-    return makeTagEvent(TAG_ADDED_EVENT_NAME, tagName);
-}
+	return makeTagEvent(TAG_ADDED_EVENT_NAME, tagName);
+};
 
 export const makeTagRemovedEvent = (tagName : string) : TagEvent => {
-    return makeTagEvent(TAG_REMOVED_EVENT_NAME, tagName);
-}
+	return makeTagEvent(TAG_REMOVED_EVENT_NAME, tagName);
+};
 
-const makeTagEvent = (eventName : string, tagName : string, subtle : boolean = false) : TagEvent => {
-    return new CustomEvent(eventName, {composed: true, detail: {tag: tagName, subtle}});
-}
+const makeTagEvent = (eventName : string, tagName : string, subtle  = false) : TagEvent => {
+	return new CustomEvent(eventName, {composed: true, detail: {tag: tagName, subtle}});
+};
 
 export type NewTagEvent = CustomEvent<null>;
 
 export const makeTagNewEvent = () : NewTagEvent => {
-    return new CustomEvent(TAG_NEW_EVENT_NAME, {composed : true, detail: null})
-}
+	return new CustomEvent(TAG_NEW_EVENT_NAME, {composed : true, detail: null});
+};
 
 export type ShowNeedSigninEvent = CustomEvent<null>;
 
 export const makeShowNeedSigninEvent = () : ShowNeedSigninEvent => {
-    return new CustomEvent(SHOW_NEED_SIGNIN_EVENT_NAME, {composed : true, detail: null})
-}
+	return new CustomEvent(SHOW_NEED_SIGNIN_EVENT_NAME, {composed : true, detail: null});
+};
 
 type CardHoveredEventDetail = {
     card : CardID;
@@ -89,8 +89,8 @@ type CardHoveredEventDetail = {
 export type CardHoveredEvent = CustomEvent<CardHoveredEventDetail>;
 
 export const makeCardHoveredEvent = (card : CardID, x : number, y : number) : CardHoveredEvent => {
-    return new CustomEvent(CARD_HOVERED_EVENT_NAME, {composed : true, detail: {card, x, y}});
-}
+	return new CustomEvent(CARD_HOVERED_EVENT_NAME, {composed : true, detail: {card, x, y}});
+};
 
 type ThumbnailTappedDetail = {
     card : CardID;
@@ -100,8 +100,8 @@ type ThumbnailTappedDetail = {
 export type ThumbnailTappedEvent = CustomEvent<ThumbnailTappedDetail>;
 
 export const makeThumbnailTappedEvent = (card : CardID, ctrl : boolean) : ThumbnailTappedEvent => {
-    return new CustomEvent(THUMBNAIL_TAPPED_EVENT_NAME, {composed : true, detail: {card, ctrl}});
-}
+	return new CustomEvent(THUMBNAIL_TAPPED_EVENT_NAME, {composed : true, detail: {card, ctrl}});
+};
 
 type UpdateRenderOffsetDetail = {
     value : number;
@@ -110,7 +110,7 @@ type UpdateRenderOffsetDetail = {
 export type UpdateRenderOffsetEvent = CustomEvent<UpdateRenderOffsetDetail>;
 
 export const makeUpdateRenderOffsetEvent = (value : number) : UpdateRenderOffsetEvent => {
-    return new CustomEvent(UPDATE_RENDER_OFFSET_EVENT_NAME, {composed : true, detail : {value}});
+	return new CustomEvent(UPDATE_RENDER_OFFSET_EVENT_NAME, {composed : true, detail : {value}});
 };
 
 type DialogShouldCloseDetail = {
@@ -119,9 +119,9 @@ type DialogShouldCloseDetail = {
 
 export type DialogShouldCloseEvent = CustomEvent<DialogShouldCloseDetail>;
 
-export const makeDialogShouldCloseEvent = (cancelled : boolean = false) : DialogShouldCloseEvent => {
-    return new CustomEvent(DIALOG_SHOULD_CLOSE_EVENT_NAME, {composed : true, detail: {cancelled}});
-}
+export const makeDialogShouldCloseEvent = (cancelled  = false) : DialogShouldCloseEvent => {
+	return new CustomEvent(DIALOG_SHOULD_CLOSE_EVENT_NAME, {composed : true, detail: {cancelled}});
+};
 
 type CommentMessageDetail = {
     message : ComposedCommentMessage;
@@ -130,12 +130,12 @@ type CommentMessageDetail = {
 export type CommmentMessageEvent = CustomEvent<CommentMessageDetail>;
 
 export const makeCommentEditMessageEvent = (message : ComposedCommentMessage) : CommmentMessageEvent => {
-    return new CustomEvent(COMMENT_EDIT_MESSAGE_NAME, {composed : true, detail: {message}});
-}
+	return new CustomEvent(COMMENT_EDIT_MESSAGE_NAME, {composed : true, detail: {message}});
+};
 
 export const makeCommentDeleteMessageEvent = (message : ComposedCommentMessage) : CommmentMessageEvent => {
-    return new CustomEvent(COMMENT_DELETE_MESSAGE_NAME, {composed : true, detail: {message}});
-}
+	return new CustomEvent(COMMENT_DELETE_MESSAGE_NAME, {composed : true, detail: {message}});
+};
 
 type CommentThreadDetail = {
     thread : ComposedCommentThread;
@@ -144,12 +144,12 @@ type CommentThreadDetail = {
 export type CommmentThreadEvent = CustomEvent<CommentThreadDetail>;
 
 export const makeCommentResolveThreadEvent = (thread : ComposedCommentThread) : CommmentThreadEvent => {
-    return new CustomEvent(COMMENT_RESOLVE_THREAD_NAME, {composed : true, detail: {thread}});
-}
+	return new CustomEvent(COMMENT_RESOLVE_THREAD_NAME, {composed : true, detail: {thread}});
+};
 
 export const makeCommentAddMessageToThreadEvent = (thread : ComposedCommentThread) : CommmentThreadEvent => {
-    return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {thread}});
-}
+	return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {thread}});
+};
 
 type FilterModifiedDetail = {
     value : string,
@@ -158,17 +158,17 @@ type FilterModifiedDetail = {
 
 export type FilterModifiedEvent = CustomEvent<FilterModifiedDetail>;
 
-export const makeFilterModifiedEvent = (value : string, index : number = 0) : FilterModifiedEvent => {
-    return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {value, index}});
-}
+export const makeFilterModifiedEvent = (value : string, index  = 0) : FilterModifiedEvent => {
+	return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {value, index}});
+};
 
 export const makeFilterRemovedEvent = (index : number) : FilterModifiedEvent => {
-    return makeFilterModifiedEvent('', index);
-}
+	return makeFilterModifiedEvent('', index);
+};
 
 export const makeFilterModifiedComplexEvent = (value : string) : FilterModifiedEvent => {
-    return makeFilterModifiedEvent(value);
-}
+	return makeFilterModifiedEvent(value);
+};
 
 type CardSwipeDirection = 'left' | 'right';
 
@@ -179,8 +179,8 @@ type CardSwipedDetail = {
 export type CardSwipedEvent = CustomEvent<CardSwipedDetail>;
 
 export const makeCardSwipedEvent = (direction : CardSwipeDirection) : CardSwipedEvent => {
-    return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {direction}});
-}
+	return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {direction}});
+};
 
 type DisabledCardHighlightClickedDetail = {
     card : CardID,
@@ -190,8 +190,8 @@ type DisabledCardHighlightClickedDetail = {
 export type DisabledCardHighlightClickedEvent = CustomEvent<DisabledCardHighlightClickedDetail>;
 
 export const makeDisabledCardHighlightClickedEvent = (card : CardID, alternate : boolean) : DisabledCardHighlightClickedEvent => {
-    return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {card, alternate}});
-}
+	return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {card, alternate}});
+};
 
 type EditabledCardFieldUpdatedDetail = {
     field : CardFieldTypeEditable,
@@ -201,8 +201,8 @@ type EditabledCardFieldUpdatedDetail = {
 export type EditabledCardFieldUpdatedEvent = CustomEvent<EditabledCardFieldUpdatedDetail>;
 
 export const makeEditableCardFieldUpdatedEvent = (field : CardFieldTypeEditable, value : string) : EditabledCardFieldUpdatedEvent => {
-    return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {field, value}});
-}
+	return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {field, value}});
+};
 
 type ReorderCardDetail = {
     card: CardID,
@@ -212,24 +212,24 @@ type ReorderCardDetail = {
 
 export type ReorderCardEvent = CustomEvent<ReorderCardDetail>;
 
-export const makeReorderCardEvent = (card : CardID, otherID : CardID, isAfter : boolean = true ) : ReorderCardEvent => {
-    return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {card, otherID, isAfter}});
-}
+export const makeReorderCardEvent = (card : CardID, otherID : CardID, isAfter  = true ) : ReorderCardEvent => {
+	return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {card, otherID, isAfter}});
+};
 
 export type InfoZippyClickedEvent = CustomEvent<null>;
 
 export const makeInfoZippyClickedEvent = () : InfoZippyClickedEvent => {
-    return new CustomEvent(INFO_ZIPPY_CLICKED_EVENT_NAME, {composed : true, detail: null})
-}
+	return new CustomEvent(INFO_ZIPPY_CLICKED_EVENT_NAME, {composed : true, detail: null});
+};
 
 export type AddCardEvent = CustomEvent<null>;
 
 export const makeAddCardEvent = () : AddCardEvent => {
-    return new CustomEvent(ADD_CARD_EVENT_NAME, {composed : true, detail: null})
-}
+	return new CustomEvent(ADD_CARD_EVENT_NAME, {composed : true, detail: null});
+};
 
 export type AddWorkingNotesCardEvent = CustomEvent<null>;
 
 export const makeAddWorkingNotesCardEvent = () : AddWorkingNotesCardEvent => {
-    return new CustomEvent(ADD_WORKING_NOTES_CARD_EVENT_NAME, {composed : true, detail: null})
-}
+	return new CustomEvent(ADD_WORKING_NOTES_CARD_EVENT_NAME, {composed : true, detail: null});
+};
