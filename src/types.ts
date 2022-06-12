@@ -617,17 +617,23 @@ type ArrayToFieldValueUnion<Type> = {
     [Property in keyof Type]: Type[Property] extends any[] ? Type[Property] | FieldValue : Type[Property]
 }
 
-//CardUpdate is a thing htat might be sent to updateDoc(cardRef, update :
-//CardUpdate). Note that in practice there are often additional fields, like the
-//ones added by applyReferencesDiff, like [references_info.abc123.link] =
-//deleteSentinel
-export type CardUpdate = ArrayToFieldValueUnion<TimestampToFieldValue<OptionalFieldsCard>>;
+type CardUpdateIntermediate = ArrayToFieldValueUnion<TimestampToFieldValue<OptionalFieldsCard>>;
 
 //A partial udpate using possible dottedFieldPath property names that is
 //appropriate for being updateDoc(ref, DottedCardUpdate)
 export type DottedCardUpdate = {
+    //The only actual type the string keys can be are ones that start with
+    //'references(_info)?(_inbound)?.' or 'permissions.' and then are either a
+    //FieldValue or a boolean or a string. But index types must be the union of
+    //all of the possible keys so they're very permissive here
     [dottedPropertyName : string] : any
 }
+
+//CardUpdate is a thing htat might be sent to updateDoc(cardRef, update :
+//CardUpdate). Note that while there are explicit knonw keeys there are often additional fields, like the
+//ones added by applyReferencesDiff, like [references_info.abc123.link] =
+//deleteSentinel. This is because updateDoc() expects dottedFieldPath names for sub-objects to partially modify.
+export type CardUpdate = CardUpdateIntermediate & DottedCardUpdate;
 
 export type CardLike = Card | CardUpdate;
 
