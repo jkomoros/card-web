@@ -7,13 +7,13 @@ type Entries<T> = { [K in keyof T]: [K, T[K]] }[keyof T];
 
 export class TypedObject {
 
-    //Based on https://stackoverflow.com/a/59459000
-    static keys<T extends object>(t : T): Array<keyof T> {
-        return Object.keys(t) as any;
-    }
+	//Based on https://stackoverflow.com/a/59459000
+	static keys<T extends object>(t : T): Array<keyof T> {
+		return Object.keys(t) as any;
+	}
 
-    //Based on https://stackoverflow.com/a/62055863
-    static entries<T extends object>(t: T): Entries<T>[] {
-        return Object.entries(t) as any;
-    }
-};
+	//Based on https://stackoverflow.com/a/62055863
+	static entries<T extends object>(t: T): Entries<T>[] {
+		return Object.entries(t) as any;
+	}
+}
