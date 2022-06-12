@@ -26,7 +26,7 @@
         "name": "ts-lit-plugin",
         "strict": true,
         "rules" : {
-          "no-missing-element-type-definition": true,
+          "no-missing-element-type-definition": "error",
         }
       }
     ]
