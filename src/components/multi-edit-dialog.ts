@@ -194,7 +194,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 	_handleAddReference(e : Event) {
 		const ele = e.composedPath()[0];
-		if (!(ele instanceof HTMLSelectElement)) return;
+		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		if (!ele.value) return;
 		const value = ele.value;
 		//Set it back to default

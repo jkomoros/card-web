@@ -73,7 +73,7 @@ export class WebRenderer extends LitElement {
 	_handleThumbnailClick(e : MouseEvent) {
 		e.stopPropagation();
 		let ele = e.composedPath()[0];
-		if (!(ele instanceof SVGElement)) return;
+		if (!(ele instanceof SVGElement)) throw new Error('not svg element');
 		let card = ele.id;
 		const ctrl = e.ctrlKey || e.metaKey;
 		//TODO: ctrl-click on mac shouldn't show the right click menu
@@ -83,7 +83,7 @@ export class WebRenderer extends LitElement {
 	_handleThumbnailMouseMove(e : MouseEvent) {
 		e.stopPropagation();
 		let ele = e.composedPath()[0];
-		if (!(ele instanceof SVGElement)) return;
+		if (!(ele instanceof SVGElement)) throw new Error('not svg element');
 		let id = ele.id;
 		//card-web-app will catch the card-hovered event no matter where it was
 		//thrown from

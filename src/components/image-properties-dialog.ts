@@ -126,7 +126,7 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 
 	_handleTextInput(e : InputEvent) {
 		const ele = e.composedPath()[0];
-		if (!(ele instanceof HTMLInputElement)) return;
+		if (!(ele instanceof HTMLInputElement)) throw new Error('not input ele');
 		store.dispatch(changeImagePropertyAtIndex(this._index, ele.dataset.property as ImageInfoProperty, ele.value));
 	}
 

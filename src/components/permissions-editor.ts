@@ -191,7 +191,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 
 	_handleAddPermissionType(e : Event) {
 		const ele = e.composedPath()[0];
-		if (!(ele instanceof HTMLSelectElement)) return;
+		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		if (!ele.value) return;
 		const value = ele.value;
 		//Set it back to default
@@ -222,7 +222,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 
 	_handleAddCardPermission(e : MouseEvent) {
 		const button = e.composedPath()[0];
-		if (!(button instanceof HTMLButtonElement)) return;
+		if (!(button instanceof HTMLButtonElement)) throw new Error('not button element');
 		store.dispatch(selectCardToAddPermissionTo(button.dataset.permission, this.uid));
 	}
 

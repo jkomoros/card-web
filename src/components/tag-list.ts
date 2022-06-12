@@ -149,7 +149,7 @@ class TagList  extends LitElement {
 
 	_handleSelectChanged(e : Event) {
 		let ele = e.composedPath()[0];
-		if (!(ele instanceof HTMLInputElement)) return;
+		if (!(ele instanceof HTMLInputElement)) throw new Error('not input element');
 		if (ele.value == '#noop') return;
 		let value = ele.value;
 		//Set it back to #noop.

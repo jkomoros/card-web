@@ -60,7 +60,7 @@ class ConfigureCollectionKeyCard extends LitElement {
 
 	_handleKeyCardChanged(e : Event) {
 		const ele = e.composedPath()[0];
-		if (!(ele instanceof HTMLInputElement)) return;
+		if (!(ele instanceof HTMLInputElement)) throw new Error('not input ele');
 		const [oldCardID] = parseKeyCardID(this.value);
 		this._dispatchNewValue(keyCardID(oldCardID, ele.checked));
 	}

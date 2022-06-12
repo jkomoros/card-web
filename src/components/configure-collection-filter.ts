@@ -153,7 +153,7 @@ class ConfigureCollectionFilter extends LitElement {
 
 	_handleModifyFilterRestChangedComplex(e : FilterModifiedEvent) {
 		const ele = e.composedPath()[0];
-		if (!(ele instanceof HTMLElement)) return;
+		if (!(ele instanceof HTMLElement)) throw new Error('not html element');
 		this._modifyFilterChanged(parseInt(ele.dataset.subIndex), e.detail.value);
 	}
 

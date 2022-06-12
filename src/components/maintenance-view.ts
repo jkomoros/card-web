@@ -186,7 +186,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 
 	_handleClick(e : Event) {
 		let ele = e.composedPath()[0];
-		if (!(ele instanceof HTMLButtonElement)) return;
+		if (!(ele instanceof HTMLButtonElement)) throw new Error('not button ele');
 		this._runTask(ele.value);
 	}
 

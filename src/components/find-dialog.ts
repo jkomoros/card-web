@@ -236,19 +236,19 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	_handleQueryChanged(e : InputEvent) {
 		let ele = e.composedPath()[0];
-		if (!(ele instanceof HTMLInputElement)) return;
+		if (!(ele instanceof HTMLInputElement)) throw new Error('not input ele');
 		store.dispatch(updateQuery(ele.value));
 	}
 
 	_handleSortByRecentChanged(e : Event) {
 		const ele = e.target;
-		if (!(ele instanceof HTMLInputElement)) return;
+		if (!(ele instanceof HTMLInputElement)) throw new Error('not input ele');
 		store.dispatch(findUpdateSortByRecent(ele.checked));
 	}
 
 	_handleCardTypeChanged(e : Event) {
 		const ele = e.target;
-		if (!(ele instanceof HTMLInputElement)) return;
+		if (!(ele instanceof HTMLInputElement)) throw new Error('not input ele');
 		const filter = ele.value;
 		store.dispatch(findUpdateCardTypeFilter(filter));
 	}
