@@ -113,17 +113,17 @@ export const connectLivePermissions = () => {
 	if (!selectUserMayEditPermissions(store.getState() as State)) return;
 	onSnapshot(collection(db, PERMISSIONS_COLLECTION), snapshot => {
 
-		let permissionsToAdd : UserPermissionsMap = {};
-		let permissionsToRemove : {[user : Uid] : true} = {};
+		const permissionsToAdd : UserPermissionsMap = {};
+		const permissionsToRemove : {[user : Uid] : true} = {};
 
 		snapshot.docChanges().forEach(change => {
-			let doc = change.doc;
-			let id = doc.id;
+			const doc = change.doc;
+			const id = doc.id;
 			if (change.type === 'removed') {
 				permissionsToRemove[id] = true;
 				return;
 			}
-			let permission = doc.data();
+			const permission = doc.data();
 			permission.id = id;
 			permissionsToAdd[id] = permission;
 		});
