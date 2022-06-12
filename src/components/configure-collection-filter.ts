@@ -60,19 +60,19 @@ import {
 class ConfigureCollectionFilter extends LitElement {
 
 	@property({ type : Number })
-	index: number;
+		index: number;
 
 	@property({ type : String })
-	value: string;
+		value: string;
 
 	@property({ type : Object })
-	filterDescriptions: {[name : string] : string}
+		filterDescriptions: {[name : string] : string};
 
 	@property({ type : Array })
-	userIDs: Uid[];
+		userIDs: Uid[];
 
 	@property({ type : Object })
-	cardTagInfos: TagInfos
+		cardTagInfos: TagInfos;
 
 	static override styles = [
 		ButtonSharedStyles,
