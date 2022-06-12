@@ -25,7 +25,7 @@ import {
 class ConfigureCollectionDate extends LitElement {
 
 	@property({ type : String })
-	value: string;
+		value: string;
 
 	static override styles = [
 		ButtonSharedStyles,
