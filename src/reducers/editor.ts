@@ -176,7 +176,7 @@ const app = (state : EditorState = INITIAL_STATE, action : AnyAction) : EditorSt
 		//but updating them now allows things like the live list of reciprocal
 		//links to be updated away. This is also when we do expensive processing
 		//of body, like re-extracting words to cause suggested tags to change.
-		let linkInfo = extractCardLinksFromBody(state.card.body);
+		const linkInfo = extractCardLinksFromBody(state.card.body);
 		card = {...state.card};
 		references(card).setLinks(linkInfo);
 		return {
