@@ -41,16 +41,16 @@ import {
 class MaintenanceView extends connect(store)(PageViewElement) {
 
 	@state()
-	_isAdmin: boolean;
+		_isAdmin: boolean;
 
 	@state()
-	_executedTasks: MaintenanceTaskMap;
+		_executedTasks: MaintenanceTaskMap;
 
 	@state()
-	_nextTaskName: MaintenanceTaskID;
+		_nextTaskName: MaintenanceTaskID;
 
 	@state()
-	_taskActive: boolean;
+		_taskActive: boolean;
 
 	static override styles = [
 		SharedStyles,
@@ -185,7 +185,7 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 	}
 
 	_handleClick(e : Event) {
-		let ele = e.composedPath()[0];
+		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLButtonElement)) throw new Error('not button ele');
 		this._runTask(ele.value);
 	}
@@ -194,6 +194,6 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'maintenance-view': MaintenanceView;
+		'maintenance-view': MaintenanceView;
 	}
 }
