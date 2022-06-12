@@ -1,7 +1,6 @@
 import { deepEqual } from './util.js';
 
-
-const arrayEqual = (a : any[], b : any[]) : boolean => {
+const arrayEqual = (a : unknown[], b : unknown[]) : boolean => {
 	if (a.length != b.length) return false;
 	return a.every((a,index) => a === b[index]);
 };
