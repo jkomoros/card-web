@@ -63,7 +63,7 @@ const extractFilterNamesSortAndView = (parts : string[]) : [string[], SortName, 
 	//parts is all of the unconsumed portions of the path that aren't the set
 	//name or the card name.
 	if (!parts.length) return [[], DEFAULT_SORT_NAME, false, DEFAULT_VIEW_MODE, ''];
-	let filters = [];
+	const filters = [];
 	let sortName = DEFAULT_SORT_NAME;
 	let sortReversed = false;
 	let viewMode = DEFAULT_VIEW_MODE;
@@ -149,7 +149,7 @@ const extractFilterNamesSortAndView = (parts : string[]) : [string[], SortName, 
 
 export const queryTextFromCollectionDescription = (description : CollectionDescription) : string => {
 	if (!description) return '';
-	for (let filterName of description.filters) {
+	for (const filterName of description.filters) {
 		const queryText = queryTextFromQueryFilter(filterName);
 		if (queryText) return queryText;
 	}
@@ -163,7 +163,7 @@ export const collectionDescriptionWithConfigurableFilter = (description : Collec
 	const newFilters = [];
 	const filterName = newConfigurableFilter.split('/')[0];
 	let replacedFilter = false;
-	for (let filter of description.filters) {
+	for (const filter of description.filters) {
 		if (!replacedFilter && filter.startsWith(filterName + '/')) {
 			replacedFilter = true;
 			newFilters.push(newConfigurableFilter);
@@ -278,7 +278,7 @@ export class CollectionDescription {
 
 		let limit = 0;
 		let offset = 0;
-		for (let filter of filterNames) {
+		for (const filter of filterNames) {
 			if (filter.startsWith(LIMIT_FILTER_NAME + '/')){
 				limit = parseInt(filter.split('/')[1]);
 				if (isNaN(limit)) limit = 0;
@@ -372,7 +372,7 @@ export class CollectionDescription {
 	_serialize(unsorted? : boolean) : string {
 		let result = [this.set];
 
-		let filterNames = [...this.filters];
+		const filterNames = [...this.filters];
 		if (!unsorted) filterNames.sort();
 	
 		result = result.concat(filterNames);
@@ -409,7 +409,7 @@ export class CollectionDescription {
 
 		if (this.set != DEFAULT_SET_NAME) result.push(this.set);
 
-		let filterNames = [...this.filters];
+		const filterNames = [...this.filters];
 		if (!unsorted) filterNames.sort();
 
 		result = result.concat(filterNames);
@@ -452,7 +452,7 @@ export class CollectionDescription {
 	}
 
 	static deserialize(input : string) : CollectionDescription {
-		let [result, ] = CollectionDescription.deserializeWithExtra(input);
+		const [result, ] = CollectionDescription.deserializeWithExtra(input);
 		return result;
 	}
 
@@ -460,7 +460,7 @@ export class CollectionDescription {
 	//returns an array with two items: 1) the CollectionDescription, and 2) the
 	//'rest', which is likely the card ID or '' if nothing.
 	static deserializeWithExtra(input : string) : [description : CollectionDescription, rest : string] {
-		let parts = input.split('/');
+		const parts = input.split('/');
 
 		//We do not remove a trailing slash; we take a trailing slash to mean
 		//"deafult item in the collection".
@@ -468,11 +468,11 @@ export class CollectionDescription {
 		//in some weird situations, like during editing commit, we might be at no
 		//route even when our view is active. Not entirely clear how, but it
 		//happens... for a second.
-		let firstPart = parts.length ? parts[0] : '';
+		const firstPart = parts.length ? parts[0] : '';
 
 		let setName = '';
 
-		for (let name of SET_NAMES) {
+		for (const name of SET_NAMES) {
 			if (name == firstPart) {
 				setName = firstPart;
 				parts.shift();
@@ -481,13 +481,13 @@ export class CollectionDescription {
 		}
 
 		//Get last part, which is the card selector (and might be "").
-		let extra = parts.pop();
+		const extra = parts.pop();
 
-		let [filters, sortName, sortReversed, viewMode, viewModeExtra] = extractFilterNamesSortAndView(parts);
+		const [filters, sortName, sortReversed, viewMode, viewModeExtra] = extractFilterNamesSortAndView(parts);
 
 		return [new CollectionDescription(setName,filters,sortName,sortReversed, viewMode, viewModeExtra), extra];
 	}
-};
+}
 
 const filterNameIsUnionFilter = (filterName : string) : boolean => {
 	//the + can be include in a configurable filter, e.g `children/+ab123`
@@ -519,8 +519,8 @@ const makeFilterFromConfigurableFilter = (name : string, extras : FilterExtras) 
 	const result : FilterMap = {};
 	let sortValues : SortExtra = {};
 	let partialMatches : CardBooleanMap = {};
-	for (let [id, card] of TypedObject.entries(extras.cards)) {
-		let [matches, sortValue, partialMatch] = func(card, extras);
+	for (const [id, card] of TypedObject.entries(extras.cards)) {
+		const [matches, sortValue, partialMatch] = func(card, extras);
 		//TODO: this doesn't handle cases where the func is a reversed func,
 		//right? This isn't currently exercised, since none of the reversed
 		//configurable filters emit sortValues.
@@ -534,7 +534,7 @@ const makeFilterFromConfigurableFilter = (name : string, extras : FilterExtras) 
 	if (Object.keys(sortValues).length == 0) sortValues = null;
 	if (Object.keys(partialMatches).length == 0) partialMatches = null;
 
-	let fullResult : ConfigurableFilterResult = [result, reverse, sortValues, partialMatches];
+	const fullResult : ConfigurableFilterResult = [result, reverse, sortValues, partialMatches];
 
 	memoizedConfigurableFilters[name] = fullResult;
 
@@ -569,10 +569,10 @@ const makeFilterUnionSet = (unionFilterDefinition : string, filterSetMemberships
 //includeSets and not in any exclude sets.
 const makeCombinedFilter = (includeSets : FilterMap[], excludeSets : FilterMap[]) : FilterFunc => {
 	return function(item) {
-		for (let set of includeSets) {
+		for (const set of includeSets) {
 			if (!set[item]) return false;
 		}
-		for (let set of excludeSets) {
+		for (const set of excludeSets) {
 			if (set[item]) return false;
 		}
 		return true;
@@ -623,12 +623,12 @@ type FilterDefinition = FilterDefinitionItem[];
 
 //filterDefinition is an array of filter-set names (concrete or inverse or union-set)
 const combinedFilterForFilterDefinition = (filterDefinition : FilterDefinition, extras : FilterExtras) : [filter : FilterFunc, sortExtras : SortExtras, partialMatches : CardBooleanMap] => {
-	let includeSets = [];
-	let excludeSets = [];
-	let sortExtras : SortExtras = {};
+	const includeSets = [];
+	const excludeSets = [];
+	const sortExtras : SortExtras = {};
 	let partialExtras : CardBooleanMap = {};
-	for (let name of filterDefinition) {
-		let [filterSet, reverse, sortInfos, partialMatches] = filterSetForFilterDefinitionItem(name, extras);
+	for (const name of filterDefinition) {
+		const [filterSet, reverse, sortInfos, partialMatches] = filterSetForFilterDefinitionItem(name, extras);
 		if (reverse) {
 			excludeSets.push(filterSet);
 		} else {
@@ -643,10 +643,10 @@ const combinedFilterForFilterDefinition = (filterDefinition : FilterDefinition, 
 
 //Removes labels that are the same as the one htat came before them.
 const removeUnnecessaryLabels = (arr : string[]) : string[] => {
-	let result = [];
+	const result = [];
 	let lastLabel = '';
 	let labelCount = 0;
-	for (let item of arr) {
+	for (const item of arr) {
 		if (item === lastLabel) {
 			result.push('');
 			continue;
@@ -825,7 +825,7 @@ export class Collection {
 	_makeSortInfo() {
 		const config = this._description.sortConfig;
 		//_prelimitFilteredCards uses the most up to date version of the card, but we want to use the snapshot version.
-		let entries : [CardID, SortExtractorResult][] = this._preLimitFilteredCards.map((card : ProcessedCard) => {
+		const entries : [CardID, SortExtractorResult][] = this._preLimitFilteredCards.map((card : ProcessedCard) => {
 			//In almost all cases we want to use the precise card that the
 			//filtering machinery saw (which is possibly a snapshot). however,
 			//there are some cases where the card does exist in the set but is
@@ -854,7 +854,7 @@ export class Collection {
 			return collection;
 		}
 		const sortInfo = this._sortInfo;
-		let sort = (left : ProcessedCard, right : ProcessedCard) => {
+		const sort = (left : ProcessedCard, right : ProcessedCard) => {
 			if(!left || !right) return 0;
 			//Info is the underlying sort value, then the label value.
 			const leftInfo = sortInfo.get(left.id);
@@ -975,4 +975,4 @@ export class Collection {
 		return this._webInfo;
 	}
 
-};
+}
