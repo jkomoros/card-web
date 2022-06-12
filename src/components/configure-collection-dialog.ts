@@ -56,16 +56,16 @@ import {
 class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 
 	@state()
-	_collectionDescription: CollectionDescription;
+		_collectionDescription: CollectionDescription;
 
 	@state()
-	_filterDescriptions: {[filterName : string]: string}
+		_filterDescriptions: {[filterName : string]: string};
 
 	@state()
-	_userIDs: Uid[];
+		_userIDs: Uid[];
 
 	@state()
-	_cardTagInfos: TagInfos
+		_cardTagInfos: TagInfos;
 
 	static override styles = [
 		...DialogElement.styles,
