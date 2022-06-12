@@ -24,42 +24,42 @@ import {
 class TagChip  extends LitElement {
 
 	@property({ type : Boolean })
-	addition: boolean;
+		addition: boolean;
 
 	@property({ type : Boolean })
-	deletion: boolean;
+		deletion: boolean;
 
 	//TODO: maybe we should rename this so it doesn't overlap with LitElement.tagName?
 	@property({ type : String })
 	override tagName: string;
 
 	@property({ type : Boolean })
-	editing: boolean;
+		editing: boolean;
 
 	@property({ type : Object })
-	tagInfos: TagInfos;
+		tagInfos: TagInfos;
 
 	@property({ type : Boolean })
-	tapEvents: boolean;
+		tapEvents: boolean;
 
 	@property({ type : Boolean })
-	subtle: boolean;
+		subtle: boolean;
 
 	@property({ type : Boolean })
-	disabled: boolean;
+		disabled: boolean;
 
 	//If the tag is disabled, what should the description be?
 	@property({ type : String })
-	disabledDescription: string;
+		disabledDescription: string;
 
 	//If set, will use this defualt color if the tag doesn't have one
 	//defined. Should be of the form "#AABBCC" or some other literal
 	//color value;
 	@property({ type : String })
-	defaultColor: CSSColorString;
+		defaultColor: CSSColorString;
 
 	@property({ type : Object })
-	card: Card;
+		card: Card;
 
 	static override styles = [
 		css`
@@ -190,7 +190,7 @@ class TagChip  extends LitElement {
 	get _subtle() {
 		if (this.subtle) return true;
 		if (!this.tagInfos) return false;
-		let info = this.tagInfos[this.tagName];
+		const info = this.tagInfos[this.tagName];
 		if (!info) return false;
 		return info.subtle || false;
 	}
@@ -198,7 +198,7 @@ class TagChip  extends LitElement {
 	get _color() {
 		const defaultColor = this._effectiveDefaultColor;
 		if (!this.tagInfos) return defaultColor;
-		let info = this.tagInfos[this.tagName];
+		const info = this.tagInfos[this.tagName];
 		if (!info) return defaultColor;
 		return info.color || defaultColor;
 	}
@@ -206,7 +206,7 @@ class TagChip  extends LitElement {
 	get _filter() {
 		if (this._subtle || this._disabled) return 'grayscale(80%) opacity(40%)';
 		if (!this.tagInfos) return '';
-		let info = this.tagInfos[this.tagName];
+		const info = this.tagInfos[this.tagName];
 		if (!info) return '';
 		return info.filter || '';
 	}
@@ -214,14 +214,14 @@ class TagChip  extends LitElement {
 	get _disabled() {
 		if (this.disabled) return true;
 		if (!this.tagInfos) return false;
-		let info = this.tagInfos[this.tagName];
+		const info = this.tagInfos[this.tagName];
 		if (!info) return false;
 		return info.disabled || false;
 	}
 
 	get _displayName() {
 		if (!this.tagInfos) return this.tagName;
-		let info = this.tagInfos[this.tagName];
+		const info = this.tagInfos[this.tagName];
 		if (!info) return this.tagName;
 		return info.title || this.tagName;
 	}
@@ -229,7 +229,7 @@ class TagChip  extends LitElement {
 	get _description() {
 		if (this._disabled && this.disabledDescription) return this.disabledDescription;
 		if (!this.tagInfos) return this.tagName;
-		let info = this.tagInfos[this.tagName];
+		const info = this.tagInfos[this.tagName];
 		if (!info) return this.tagName;
 		return info.description || this.tagName;
 	}
@@ -243,6 +243,6 @@ class TagChip  extends LitElement {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'tag-chip': TagChip;
+		'tag-chip': TagChip;
 	}
 }
