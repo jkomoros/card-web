@@ -22,7 +22,7 @@ export class ReferenceBlock extends LitElement {
 
 	//expandedBlock, as returned from e.g. getExpandedReferenceBlocksForCard
 	@property({ type : Object })
-	block: ExpandedReferenceBlock;
+		block: ExpandedReferenceBlock;
 
 	static override styles = [
 		//isn't this expensive to repeat for every reference block?
@@ -97,6 +97,6 @@ export class ReferenceBlock extends LitElement {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'reference-block': ReferenceBlock;
+		'reference-block': ReferenceBlock;
 	}
 }
