@@ -113,13 +113,13 @@ import {
 export const connectLiveExecutedMaintenanceTasks = () => {
 	onSnapshot(collection(db, MAINTENANCE_COLLECTION), snapshot => {
 
-		let tasks : MaintenanceTaskMap = {};
+		const tasks : MaintenanceTaskMap = {};
 
 		snapshot.docChanges().forEach(change => {
 			if (change.type === 'removed') return;
-			let doc = change.doc;
-			let id = doc.id;
-			let task = {...doc.data({serverTimestamps: 'estimate'}), id} as MaintenanceTask;
+			const doc = change.doc;
+			const id = doc.id;
+			const task = {...doc.data({serverTimestamps: 'estimate'}), id} as MaintenanceTask;
 			tasks[id] = task;
 		});
 
@@ -138,14 +138,14 @@ const updateExecutedMaintenanceTasks = (executedTasks : MaintenanceTaskMap) : An
 const NORMALIZE_CONTENT_BODY = 'normalize-content-body-again';
 
 const normalizeContentBody : MaintenanceTaskFunction = async() => {
-	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
+	const snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 
 	let counter = 0;
-	let size = snapshot.size;
+	const size = snapshot.size;
 
-	for (let doc of snapshot.docs) {
+	for (const doc of snapshot.docs) {
 		counter++;
-		let body = doc.data().body;
+		const body = doc.data().body;
 		if (body) {
 			await updateDoc(doc.ref,{
 				body: normalizeBodyHTML(body),
@@ -162,19 +162,19 @@ const updateInboundLinks : MaintenanceTaskFunction = async() => {
 
 	//This task is designed to run as often as you want, so we don't check if we've run it and mark as run.
 
-	let snapshot = await getDocs(collection(db,CARDS_COLLECTION));
+	const snapshot = await getDocs(collection(db,CARDS_COLLECTION));
 
 	let counter = 0;
-	let size = snapshot.size;
+	const size = snapshot.size;
 
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 
-	for (let doc of snapshot.docs) {
+	for (const doc of snapshot.docs) {
 		counter++;
-		let linkingCardsSnapshot = await getDocs(query(collection(db, CARDS_COLLECTION), where(REFERENCES_CARD_PROPERTY + '.' + doc.id, '==', true)));
+		const linkingCardsSnapshot = await getDocs(query(collection(db, CARDS_COLLECTION), where(REFERENCES_CARD_PROPERTY + '.' + doc.id, '==', true)));
 		if(!linkingCardsSnapshot.empty) {
-			let referencesInbound : {[name : string] : any} = {};
-			let referencesInboundSentinel: {[name : string] : any} = {};
+			const referencesInbound : {[name : string] : any} = {};
+			const referencesInboundSentinel: {[name : string] : any} = {};
 			linkingCardsSnapshot.forEach((linkingCard : DocumentSnapshot) => {
 				referencesInbound[linkingCard.id] = linkingCard.data()[REFERENCES_INFO_CARD_PROPERTY][doc.id];
 				referencesInboundSentinel[linkingCard.id] = linkingCard.data()[REFERENCES_CARD_PROPERTY][doc.id];
@@ -197,12 +197,12 @@ const RESET_TWEETS = 'reset-tweets';
 const resetTweets : MaintenanceTaskFunction = async() => {
 	//Mark all tweets as having not been run
 	if (!confirm('Are you SURE you want to reset all tweets?')) return;
-	let batch = new MultiBatch(db);
-	let snapshot = await getDocs(collection(db,CARDS_COLLECTION));
+	const batch = new MultiBatch(db);
+	const snapshot = await getDocs(collection(db,CARDS_COLLECTION));
 	snapshot.forEach(doc => {
 		batch.update(doc.ref, {'tweet_count': 0, 'last_tweeted': new Date(0)});
 	});
-	let tweetSnapshot = await getDocs(collection(db, TWEETS_COLLECTION));
+	const tweetSnapshot = await getDocs(collection(db, TWEETS_COLLECTION));
 	tweetSnapshot.forEach(doc => {
 		batch.update(doc.ref, {'archived': true, 'archive_date': serverTimestamp()});
 	});
@@ -222,14 +222,14 @@ const initialSetup : MaintenanceTaskFunction = async (_, getState) => {
 		},
 	};
 
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 
 	const sectionsCollection = collection(db, SECTIONS_COLLECTION);
 	const cardsCollection = collection(db, CARDS_COLLECTION);
 
 	let count = 0;
 	let sortOrder = (MAX_SORT_ORDER_VALUE - MIN_SORT_ORDER_VALUE) / 2;
-	for (let [key, val] of Object.entries(starterSections)) {
+	for (const [key, val] of Object.entries(starterSections)) {
 		const update = {...val};
 		const startCardId = 'section-' + key;
 		const contentCardId = newID();
@@ -240,7 +240,7 @@ const initialSetup : MaintenanceTaskFunction = async (_, getState) => {
 		batch.set(doc(sectionsCollection, key), update);
 
 		//Put the first card smack in the middle.
-		let sectionHeadCard = defaultCardObject(startCardId,user,key,CARD_TYPE_SECTION_HEAD, sortOrder);
+		const sectionHeadCard = defaultCardObject(startCardId,user,key,CARD_TYPE_SECTION_HEAD, sortOrder);
 		//get sortOreder ready for next user
 		sortOrder -= DEFAULT_SORT_ORDER_INCREMENT;
 
@@ -284,8 +284,8 @@ const ADD_FONT_SIZE_BOOST = 'add-font-size-boost';
 
 const addFontSizeBoost : MaintenanceTaskFunction = async () => {
 
-	let batch = new MultiBatch(db);
-	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
+	const batch = new MultiBatch(db);
+	const snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	snapshot.forEach(doc => {
 		batch.update(doc.ref, {font_size_boost: {}});
 	});
@@ -297,11 +297,11 @@ const UPDATE_FONT_SIZE_BOOST = 'update-font-size-boost';
 
 const updateFontSizeBoost : MaintenanceTaskFunction = async () => {
 
-	let batch = new MultiBatch(db);
-	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
+	const batch = new MultiBatch(db);
+	const snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	let counter = 0;
 	//if this were forEach then the async gets weird as multiple queue up.
-	for (let doc of snapshot.docs) {
+	for (const doc of snapshot.docs) {
 		console.log('Processing ' + counter + '/' + snapshot.size);
 		counter++;
 		const card : Card = {...doc.data() as Card, id : doc.id as CardID};
@@ -325,14 +325,14 @@ const CONVERT_MULTI_LINKS_DELIMITER = 'convert-multi-links-delimiter';
 const convertMultiLinksDelimiter : MaintenanceTaskFunction = async () => {
 	const OLD_MULTI_LINK_DELIMITER = ' || ';
 
-	let batch = new MultiBatch(db);
-	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
+	const batch = new MultiBatch(db);
+	const snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	snapshot.forEach(doc => {
-		let card = doc.data();
-		let update : {[name : string] : any} = {};
+		const card = doc.data();
+		const update : {[name : string] : any} = {};
 
-		let referencesInfo = card[REFERENCES_INFO_CARD_PROPERTY];
-		for (let [otherCardID, referenceMap] of Object.entries(referencesInfo)) {
+		const referencesInfo = card[REFERENCES_INFO_CARD_PROPERTY];
+		for (const [otherCardID, referenceMap] of Object.entries(referencesInfo)) {
 			for (let [referenceType, value] of Object.entries(referenceMap)) {
 				if (value.includes(OLD_MULTI_LINK_DELIMITER)) {
 					value = value.split(OLD_MULTI_LINK_DELIMITER).join('\n');
@@ -352,10 +352,10 @@ const convertMultiLinksDelimiter : MaintenanceTaskFunction = async () => {
 const FLIP_AUTO_TODO_OVERRIDES = 'flip-auto-todo-overrides';
 
 const flipAutoTodoOverrides : MaintenanceTaskFunction = async () => {
-	let batch = new MultiBatch(db);
-	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
+	const batch = new MultiBatch(db);
+	const snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	snapshot.forEach(doc => {
-		let card = doc.data();
+		const card = doc.data();
 
 		const originalOverrides = card.auto_todo_overrides || {};
 
@@ -376,15 +376,15 @@ const flipAutoTodoOverrides : MaintenanceTaskFunction = async () => {
 const SET_MAINTENANCE_TASK_VERSION = 'set-maintenance-task-version';
 
 const setMaintenanceTaskVersion : MaintenanceTaskFunction = async () => {
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 
-	let seenTasks : {[id : MaintenanceTaskID] : true} = {};
+	const seenTasks : {[id : MaintenanceTaskID] : true} = {};
 
-	let snapshot = await getDocs(collection(db, MAINTENANCE_COLLECTION));
+	const snapshot = await getDocs(collection(db, MAINTENANCE_COLLECTION));
 	snapshot.forEach(doc => {
-		let taskName = doc.id as MaintenanceTaskID;
+		const taskName = doc.id as MaintenanceTaskID;
 		seenTasks[taskName] = true;
-		let data = doc.data();
+		const data = doc.data();
 		if (data.version !== undefined) return;
 		batch.update(doc.ref, {version: MAINTENANCE_TASK_VERSION});
 	});
@@ -402,8 +402,8 @@ const setMaintenanceTaskVersion : MaintenanceTaskFunction = async () => {
 const ADD_IMAGES_PROPERTY = 'add-images-property';
 
 const addImagesProperty : MaintenanceTaskFunction = async () => {
-	let batch = new MultiBatch(db);
-	let snapshot = await getDocs(collection(db, CARDS_COLLECTION));
+	const batch = new MultiBatch(db);
+	const snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	snapshot.forEach(doc => {
 		const update = {
 			images: [] as ImageBlock,
@@ -418,7 +418,7 @@ const RERUN_CARD_FINISHERS = 'rerun-card-finishers';
 
 const rerunCardFinishers : MaintenanceTaskFunction = async (_, getState) => {
 
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 
 	const state = getState();
 	const cards = selectCards(state);
@@ -443,7 +443,7 @@ const ADD_SORT_ORDER_PROPERTY = 'add-sort-order-property';
 
 const addSortOrderProperty : MaintenanceTaskFunction = async (_, getState) => {
 
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 
 	const state = getState();
 	const cards = selectCards(state);
@@ -525,10 +525,10 @@ export const nextMaintenanceTaskName = (executedTasks : MaintenanceTaskMap) => {
 const makeMaintenanceActionCreator = (taskName : MaintenanceTaskID, taskConfig : RawMaintenanceTaskDefinition) : AppActionCreator => {
 	const fn = taskConfig.fn;
 	return () => async (dispatch, getState) => {
-		let ref = doc(db, MAINTENANCE_COLLECTION, taskName);
+		const ref = doc(db, MAINTENANCE_COLLECTION, taskName);
 
 		if (!taskConfig.recurring) {
-			let doc = await getDoc(ref);
+			const doc = await getDoc(ref);
 		
 			if (doc.exists()) {
 				if (!window.confirm('This task has been run before on this database. Do you want to run it again?')) {
