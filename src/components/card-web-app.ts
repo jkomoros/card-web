@@ -38,16 +38,16 @@ import {
 class CardWebApp extends connect(store)(LitElement) {
 
 	@state()
-	_card: Card;
+		_card: Card;
 
 	@state()
-	_page: string;
+		_page: string;
 
 	@state()
-	_snackbarOpened: boolean;
+		_snackbarOpened: boolean;
 
 	@state()
-	_offline: boolean;
+		_offline: boolean;
 
 	static override styles = [
 		css`
@@ -163,7 +163,7 @@ class CardWebApp extends connect(store)(LitElement) {
 		window.addEventListener('blur', this._handleBlur.bind(this));
 	}
 
-	override updated(changedProps : Map<string, any>) {
+	override updated(changedProps : Map<string, CardWebApp[keyof CardWebApp]>) {
 		if (changedProps.has('_card') && this._card) {
 			const pageTitle = (this._card.title ? this._card.title + ' - ' : '') + this.appTitle ;
 			updateMetadata({
@@ -184,6 +184,6 @@ class CardWebApp extends connect(store)(LitElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'card-web-app': CardWebApp;
+		'card-web-app': CardWebApp;
 	}
 }
