@@ -77,7 +77,7 @@ export const setImageProperties = (img : ImageInfo, ele : HTMLImageElement) : vo
 	ele.src = img.src;
 	ele.alt = img.alt || '';
 	const styleInfo = LEGAL_IMAGE_POSITIONS[img.position] || {};
-	for (let [property, value] of TypedObject.entries(styleInfo)) {
+	for (const [property, value] of TypedObject.entries(styleInfo)) {
 		//Tedhnically it's possible that value is not LITERALLY MARGIN_SENTINEL but that should be rare
 		const finalValue : string = value == MARGIN_SENTINEL ? '' + img.margin + 'em' : value as string;
 		ele.style[property] = finalValue;
@@ -111,7 +111,7 @@ type imageDimensions = {
 export const getImageDimensionsForImageAtURL = async (url : string) : Promise<imageDimensions> => {
 	const imgEle = document.createElement('img');
 	imgEle.src = url;
-	let p = new Promise<void>((resolve, reject) => {
+	const p = new Promise<void>((resolve, reject) => {
 		imgEle.addEventListener('load', () => {
 			resolve();
 		});
@@ -139,7 +139,7 @@ export const getImageDimensionsForImageAtURL = async (url : string) : Promise<im
 //will add a new item to end.z
 export const addImageWithURL = (imagesBlock : ImageBlock, src : string, uploadPath = '', index : number) => {
 	if (!imagesBlock) imagesBlock = [];
-	let result = [...imagesBlock];
+	const result = [...imagesBlock];
 	if (index === undefined) {
 		result.push({...DEFAULT_IMAGE});
 		index = result.length - 1;
@@ -173,11 +173,11 @@ export const removeImageAtIndex = (imagesBlock : ImageBlock, index : number) => 
 
 const isImagePositionTypeProperty = (property : ImageInfoProperty): property is ImageInfoImagePositionTypeProperty => {
 	return property == 'position';
-}
+};
 
 const isStringTypeProperty = (property : ImageInfoProperty, value : ImageInfoPropertyValue): property is ImageInfoStringProperty => {
 	return typeof value == 'string' && !isImagePositionTypeProperty(property);
-}
+};
 
 export function changeImagePropertyAtIndex(imagesBlock : ImageBlock, index : number, property : ImageInfoStringProperty, value : string) : ImageBlock;
 export function changeImagePropertyAtIndex(imagesBlock : ImageBlock, index : number, property : ImageInfoNumberProperty, value : number) : ImageBlock;
@@ -196,7 +196,7 @@ export function changeImagePropertyAtIndex(imagesBlock : ImageBlock, index : num
 	
 	result[index] = item;
 	return result;
-};
+}
 
 export const imageBlocksEquivalent = (oneCard : CardLike, twoCard : CardLike) : boolean => {
 	const one = getImagesFromCard(oneCard);
