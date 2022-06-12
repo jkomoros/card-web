@@ -671,11 +671,11 @@ export const selectCollaboratorInfosForActiveCard = createSelector(
 export const selectUserPermissionsForCardsMap = createSelector(
 	selectCards,
 	(cards : Cards) : UserPermissionsForCards => {
-		let result : UserPermissionsForCards = {};
-		for (let card of Object.values(cards)) {
+		const result : UserPermissionsForCards = {};
+		for (const card of Object.values(cards)) {
 			if (!card.permissions) continue;
-			for (let [permissionKey, uids] of Object.entries(card.permissions)) {
-				for (let uid of uids) {
+			for (const [permissionKey, uids] of Object.entries(card.permissions)) {
+				for (const uid of uids) {
 					if (!result[uid]) result[uid] = {};
 					if (!result[uid][permissionKey]) result[uid][permissionKey] = [];
 					result[uid][permissionKey].push(card.id);
@@ -712,7 +712,7 @@ const selectTagsSemanticFingerprint = createSelector(
 	selectFingerprintGenerator,
 	(tags : Sections, fingerprintGenerator : FingerprintGenerator) : {[id : TagID]: Fingerprint} => {
 		if (!tags) return {};
-		let result : {[id : TagID]: Fingerprint} = {};
+		const result : {[id : TagID]: Fingerprint} = {};
 		for (const [tagID, tag] of Object.entries(tags)) {
 			result[tagID] = fingerprintGenerator.fingerprintForCardIDList(tag.cards);
 		}
@@ -834,7 +834,7 @@ export const selectEditingCardSuggestedTags = createSelector(
 		const closestTags = new FingerprintGenerator().closestOverlappingItems('', cardFingerprint, tagFingerprints);
 		if (closestTags.size == 0) return [];
 		const excludeIDs = new Set(card.tags);
-		let result = [];
+		const result = [];
 		for (const tagID of closestTags.keys()) {
 			if (excludeIDs.has(tagID)) continue;
 			result.push(tagID);
@@ -892,19 +892,19 @@ export const getUserMayResolveThread = userMayResolveThread;
 export const getUserMayEditMessage = userMayEditMessage;
 
 export const getMessageById = (state : State, messageId : CommentMessageID) : CommentMessage => {
-	let messages = selectMessages(state);
+	const messages = selectMessages(state);
 	if (!messages) return null;
 	return messages[messageId];
 };
 
 export const getThreadById = (state : State, threadId : CommentThreadID) : CommentThread => {
-	let threads = selectThreads(state);
+	const threads = selectThreads(state);
 	if (!threads) return null;
 	return threads[threadId];
 };
 
 export const getCardById = (state : State, cardId : CardID) : ProcessedCard => {
-	let cards = selectCards(state);
+	const cards = selectCards(state);
 	if (!cards) return null;
 	return cards[cardId];
 };
@@ -915,12 +915,12 @@ export const getIdForCard = (state : State, idOrSlug : CardIdentifier) : CardID 
 };
 
 export const getAuthorForId = (state : State, authorId : Uid) : Author => {
-	let authors = selectAuthors(state);
+	const authors = selectAuthors(state);
 	return authorOrDefault(authorId, authors);
 };
 
 const authorOrDefault = (authorId : Uid, authors : AuthorsMap) : Author => {
-	let author = authors[authorId];
+	const author = authors[authorId];
 	if (!author){
 		return {
 			id: '',
@@ -977,11 +977,11 @@ export const selectActiveCardComposedThreads = createSelector(
 );
 
 const composedThread = (state : State, threadId : CommentThreadID, threads : CommentThreads, messages : CommentMessages , authors : AuthorsMap) : ComposedCommentThread => {
-	let originalThread = threads[threadId];
+	const originalThread = threads[threadId];
 	if (!originalThread) return null;
-	let expandedMessages = [];
-	for (let messageId of Object.values(originalThread.messages)) {
-		let message = composedMessage(state, messageId, messages, authors);
+	const expandedMessages = [];
+	for (const messageId of Object.values(originalThread.messages)) {
+		const message = composedMessage(state, messageId, messages, authors);
 		if (message) expandedMessages.push(message);
 	}
 	return {
@@ -994,7 +994,7 @@ const composedThread = (state : State, threadId : CommentThreadID, threads : Com
 
 const composedMessage = (state : State, messageId : CommentMessageID, messages : CommentMessages, authors : AuthorsMap) : ComposedCommentMessage => {
 	//TODO: return composed children for threads if there are parents
-	let originalMessage = messages[messageId];
+	const originalMessage = messages[messageId];
 	if (!originalMessage) return null;
 	return {
 		...originalMessage,
@@ -1193,7 +1193,7 @@ export const selectTabCollectionFallbacks = createSelector(
 	selectExpandedTabConfig,
 	selectSlugIndex,
 	(config : ExpandedTabConfig, slugIndex : {[slug : Slug] : CardID}) : {[collectionDescription : string] : CardID[]} => {
-		let result : {[collectionDescription : string] : CardID[]} = {};
+		const result : {[collectionDescription : string] : CardID[]} = {};
 		for (const item of config) {
 			if (!item.fallback_cards) continue;
 			result[item.expandedCollection.serialize()] = item.fallback_cards.map(idOrSlug => slugIndex[idOrSlug] || idOrSlug);
@@ -1206,7 +1206,7 @@ export const selectTabCollectionStartCards = createSelector(
 	selectExpandedTabConfig,
 	selectSlugIndex,
 	(config : ExpandedTabConfig, slugIndex :{[slug: Slug] : CardID} ) : {[collectionDescription : string] : CardID[]} => {
-		let result : {[collectionDescription : string] : CardID[]} = {};
+		const result : {[collectionDescription : string] : CardID[]} = {};
 		for (const item of config) {
 			if (!item.start_cards) continue;
 			result[item.expandedCollection.serialize()] = item.start_cards.map(idOrSlug => slugIndex[idOrSlug] || idOrSlug);
@@ -1244,14 +1244,14 @@ export const selectDefaultSet = createSelector(
 	selectRawCards,
 	(sections : Sections, cards : Cards) : CardID[] => {
 		let result : CardID[] = [];
-		for (let section of Object.values(sections)) {
+		for (const section of Object.values(sections)) {
 			result = result.concat(section.cards);
 		}
 		//The order of cards in the section object is nondterministic. The order
 		//that matters is the sort_order. Higher sort-order should sort to the top.
 		result.sort((a,b) => {
-			let cardAValue = cards[a] ? cards[a].sort_order : 0.0;
-			let cardBValue = cards[b] ? cards[b].sort_order : 0.0;
+			const cardAValue = cards[a] ? cards[a].sort_order : 0.0;
+			const cardBValue = cards[b] ? cards[b].sort_order : 0.0;
 			return cardBValue - cardAValue;
 		});
 		return result;
@@ -1259,10 +1259,10 @@ export const selectDefaultSet = createSelector(
 );
 
 const makeEverythingSetFromCards = (cards : Cards) : CardID[] => {
-	let keys = Object.keys(cards);
+	const keys = Object.keys(cards);
 	keys.sort((a, b) => {
-		let cardAValue = cards[a] ? cards[a].sort_order : 0.0;
-		let cardBValue = cards[b] ? cards[b].sort_order : 0.0;
+		const cardAValue = cards[a] ? cards[a].sort_order : 0.0;
+		const cardBValue = cards[b] ? cards[b].sort_order : 0.0;
 		return cardBValue - cardAValue;
 	});
 	return keys;
@@ -1482,8 +1482,8 @@ export const selectCountsForTabs = createSelector(
 	selectExpandedTabConfig,
 	selectCollectionConstructorArguments,
 	(tabs : ExpandedTabConfig, args : CollectionConstructorArguments) : {[tabDescription : string] : number} => {
-		let result : {[tabDescription : string] : number} = {};
-		for (let tab of tabs) {
+		const result : {[tabDescription : string] : number} = {};
+		for (const tab of tabs) {
 			if (!tab.count) continue;
 			result[tab.expandedCollection.serialize()] = tab.expandedCollection.collection(args).numCards;
 		}
@@ -1512,7 +1512,7 @@ export const selectActiveCardIndex = createSelector(
 );
 
 export const getCardIndexForActiveCollection = (state : State, cardId: CardID) : number => {
-	let collection = selectActiveCollectionCards(state);
+	const collection = selectActiveCollectionCards(state);
 	return collection.map(card => card.id).indexOf(cardId);
 };
 
@@ -1548,7 +1548,7 @@ export const selectCollectionDescriptionForQuery = createSelector(
 	selectFindGeneric,
 	(queryText, cardTypeFilter, sortByRecent, cardID, generic) => {
 		const wordsAndFilters = extractFiltersFromQuery(queryText);
-		let baseFilters = ['has-body'];
+		const baseFilters = ['has-body'];
 		let sort = undefined;
 		if (cardID && !generic) baseFilters.push(EXCLUDE_FILTER_NAME + '/' + CARDS_FILTER_NAME + '/' + cardID);
 		if (cardTypeFilter) baseFilters.push(cardTypeFilter);
