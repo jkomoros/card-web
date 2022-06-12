@@ -26,13 +26,13 @@ import {
 class CommentThread extends LitElement {
 
 	@property({ type : Object })
-	thread: ComposedCommentThread
+		thread: ComposedCommentThread;
 
 	@property({ type : Boolean })
-	userMayComment: boolean;
+		userMayComment: boolean;
 
 	@state()
-	_expanded: boolean;
+		_expanded: boolean;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -115,7 +115,7 @@ class CommentThread extends LitElement {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'comment-thread': CommentThread;
+		'comment-thread': CommentThread;
 	}
 }
 
