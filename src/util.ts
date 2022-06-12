@@ -559,8 +559,8 @@ testTriStateMapDiff();
 */
 
 //items is an array
-export const setRemove = (obj : object, items : string[]) => {
-	const result : {[name : string] : any} = {};
+export const setRemove = (obj : {[name : string] : unknown}, items : string[]) : {[name : string] : unknown} => {
+	const result : {[name : string] : unknown} = {};
 	for (const key of Object.keys(obj)) {
 		result[key] = true;
 	}
