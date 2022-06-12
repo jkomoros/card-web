@@ -69,7 +69,7 @@ const byTypeMapToArray = (byTypeMap : ReferencesInfoMapByType) : ReferencesArray
 };
 
 const referencesToByType = (referencesMap : ReferencesInfoMap) : ReferencesInfoMapByType => {
-	let result : ReferencesInfoMapByType = {};
+	const result : ReferencesInfoMapByType = {};
 	if (!referencesMap) referencesMap = {};
 	for (const [cardID, referenceBlock] of TypedObject.entries(referencesMap)) {
 		for (const [referenceType, str] of TypedObject.entries(referenceBlock)) {
@@ -83,8 +83,8 @@ const referencesToByType = (referencesMap : ReferencesInfoMap) : ReferencesInfoM
 const byTypeToReferences = (byTypeMap : ReferencesInfoMapByType) : ReferencesInfoMap => {
 	const result : ReferencesInfoMap = {};
 	if (!byTypeMap) byTypeMap = {};
-	for (let [referenceType, referenceBlock] of TypedObject.entries(byTypeMap)) {
-		for (let [cardID, str] of TypedObject.entries(referenceBlock)) {
+	for (const [referenceType, referenceBlock] of TypedObject.entries(byTypeMap)) {
+		for (const [cardID, str] of TypedObject.entries(referenceBlock)) {
 			if (!result[cardID]) result[cardID] = {};
 			result[cardID][referenceType] = str;
 		}
@@ -435,8 +435,8 @@ class ReferencesAccessor {
 		newReferences.ensureReferences(this._cardObj);
 
 		//Now, go through each reference type and see if any are missing.
-		for (let [cardID, referenceMap] of Object.entries(this._referencesInfo)) {
-			for (let [referenceType, str] of TypedObject.entries(referenceMap)) {
+		for (const [cardID, referenceMap] of Object.entries(this._referencesInfo)) {
+			for (const [referenceType, str] of TypedObject.entries(referenceMap)) {
 				if (str) continue;
 				//if we get to here, there's a gap. See if anything in the fallbackMap fills it.
 				if (!fallbackMap[cardID]) continue;
@@ -447,7 +447,7 @@ class ReferencesAccessor {
 
 		return newReferences;
 	}
-};
+}
 
 //Returns a card-like object with a reference block that is the UNION of the
 //references of all cardObjs provided. See also intersectionReferences.
@@ -515,18 +515,18 @@ export const referencesLegalShape = (cardObj : CardLike) : boolean => {
 
 	if (Object.keys(referencesInfoBlock).length !== Object.keys(referencesBlock).length) return false;
 
-	for (let [cardID, cardBlock] of Object.entries(referencesInfoBlock)) {
+	for (const [cardID, cardBlock] of Object.entries(referencesInfoBlock)) {
 		if (!cardBlock) return false;
 		if (typeof cardBlock !== 'object') return false;
 		if (Array.isArray(cardBlock)) return false;
 		//If a card block is empty is shouldn't exist
 		if (Object.keys(cardBlock).length === 0) return false;
-		for (let [key, value] of TypedObject.entries(cardBlock)) {
+		for (const [key, value] of TypedObject.entries(cardBlock)) {
 			//The only types of keys that are allowed are the explicitly defined reference types
 			if (!REFERENCE_TYPES[key]) return false;
 			if (typeof value !== 'string') return false;
 		}
-		let referenceValue = referencesBlock[cardID];
+		const referenceValue = referencesBlock[cardID];
 		if (typeof referenceValue !== 'boolean') return false;
 		//only true is allowed, since it shows that an object exists at that key in references_info
 		if (!referenceValue) return false;
@@ -535,8 +535,8 @@ export const referencesLegalShape = (cardObj : CardLike) : boolean => {
 };
 
 const cloneReferencesBoolean = (referencesBlock : CardBooleanMap) : CardBooleanMap => {
-	let result : CardBooleanMap = {};
-	for (let [key, value] of Object.entries(referencesBlock)) {
+	const result : CardBooleanMap = {};
+	for (const [key, value] of Object.entries(referencesBlock)) {
 		//e.g. a boolean
 		result[key] = value;
 	}
@@ -545,8 +545,8 @@ const cloneReferencesBoolean = (referencesBlock : CardBooleanMap) : CardBooleanM
 
 
 const cloneReferences = (referencesBlock : ReferencesInfoMap) : ReferencesInfoMap => {
-	let result : ReferencesInfoMap = {};
-	for (let [key, value] of Object.entries(referencesBlock)) {
+	const result : ReferencesInfoMap = {};
+	for (const [key, value] of Object.entries(referencesBlock)) {
 		result[key] = {...value};
 	}
 	return result;
@@ -593,7 +593,7 @@ const referencesEntriesDiffWithoutItem = (diff : ReferencesEntriesDiff = [], car
 
 //Adds an entry to set the given item. If the diff had a remove command for that
 //cardID/referenceType already, it removes it instead.
-export const referencesEntriesDiffWithSet = (diff : ReferencesEntriesDiff = [], cardID : CardID, referenceType : ReferenceType, value : string = '') : ReferencesEntriesDiff => {
+export const referencesEntriesDiffWithSet = (diff : ReferencesEntriesDiff = [], cardID : CardID, referenceType : ReferenceType, value  = '') : ReferencesEntriesDiff => {
 	const trimmedDiff = referencesEntriesDiffWithoutItem(diff, cardID, referenceType, true);
 	if (trimmedDiff.length < diff.length) return trimmedDiff;
 	return [...diff, expandedReferenceObject(cardID, referenceType, value)];
@@ -645,27 +645,27 @@ export const referencesDiff = (beforeCard : CardLike, afterCard : CardLike) : Re
 	const before = beforeCard[REFERENCES_INFO_CARD_PROPERTY];
 	const after = afterCard[REFERENCES_INFO_CARD_PROPERTY];
 	//For cards that were not in before but are in after
-	let cardAdditions : CardBooleanMap = {};
+	const cardAdditions : CardBooleanMap = {};
 	//For card blocks that exist in both before and after... but might have modifications within them
-	let cardSame : CardBooleanMap = {};
+	const cardSame : CardBooleanMap = {};
 	//For card blocks that are not in after but were in before.
-	let cardDeletions : CardBooleanMap = {};
-	for (let cardID of Object.keys(before)) {
+	const cardDeletions : CardBooleanMap = {};
+	for (const cardID of Object.keys(before)) {
 		if (after[cardID]) {
 			cardSame[cardID] = true;
 		} else {
 			cardDeletions[cardID] = true;
 		}
 	}
-	for (let cardID of Object.keys(after)) {
+	for (const cardID of Object.keys(after)) {
 		if (!before[cardID]) {
 			cardAdditions[cardID] = true;
 		}
 	}
 
-	for (let cardID of Object.keys(cardAdditions)) {
+	for (const cardID of Object.keys(cardAdditions)) {
 		//All of the properties in the cardID block are additions.
-		for (let [key, value] of Object.entries(after[cardID])) {
+		for (const [key, value] of Object.entries(after[cardID])) {
 			result[0][cardID + '.' + key] = value;
 		}
 	}
@@ -675,37 +675,37 @@ export const referencesDiff = (beforeCard : CardLike, afterCard : CardLike) : Re
 
 	//Now look at the cardBlocks that exist in both and compare the leaf values
 	//to see what changed.
-	for (let cardID of Object.keys(cardSame)) {
-		let beforeCardBlock = before[cardID];
-		let afterCardBlock = after[cardID];
+	for (const cardID of Object.keys(cardSame)) {
+		const beforeCardBlock = before[cardID];
+		const afterCardBlock = after[cardID];
 
 		//Whether keys exist (even if the string value for them is different) in
 		//before and after.
-		let keyAdditions : {[typ in ReferenceType]+?: true} = {};
-		let keySame : {[typ in ReferenceType]+?: true} = {};
-		let keyDeletions : {[typ in ReferenceType]+?: true} = {};
-		for (let key of TypedObject.keys(beforeCardBlock)) {
+		const keyAdditions : {[typ in ReferenceType]+?: true} = {};
+		const keySame : {[typ in ReferenceType]+?: true} = {};
+		const keyDeletions : {[typ in ReferenceType]+?: true} = {};
+		for (const key of TypedObject.keys(beforeCardBlock)) {
 			if (afterCardBlock[key] === undefined) {
 				keyDeletions[key] = true;
 			} else {
 				keySame[key] = true;
 			}
 		}
-		for (let key of TypedObject.keys(afterCardBlock)) {
+		for (const key of TypedObject.keys(afterCardBlock)) {
 			if (beforeCardBlock[key] === undefined) {
 				keyAdditions[key] = true;
 			}
 		}
 
-		for (let key of TypedObject.keys(keyAdditions)) {
+		for (const key of TypedObject.keys(keyAdditions)) {
 			result[0][cardID + '.' + key] = afterCardBlock[key];
 		}
 
-		for (let key of TypedObject.keys(keyDeletions)) {
+		for (const key of TypedObject.keys(keyDeletions)) {
 			result[2][cardID + '.' + key] = true;
 		}
 
-		for (let key of TypedObject.keys(keySame)) {
+		for (const key of TypedObject.keys(keySame)) {
 			if (beforeCardBlock[key] === afterCardBlock[key]) continue;
 			result[1][cardID + '.' + key] = afterCardBlock[key];
 		}
@@ -717,11 +717,11 @@ export const referencesDiff = (beforeCard : CardLike, afterCard : CardLike) : Re
 };
 
 const cardReferenceBlockHasDifference = (before : {[typ in ReferenceType]+?: string}, after: {[typ in ReferenceType]+?: string}) : boolean => {
-	for(let linkType of TypedObject.keys(before)) {
+	for(const linkType of TypedObject.keys(before)) {
 		if (after[linkType] === undefined) return true;
 		if (after[linkType] !== before[linkType]) return true;
 	}
-	for (let linkType of TypedObject.keys(after)) {
+	for (const linkType of TypedObject.keys(after)) {
 		if (before[linkType] === undefined) return true;
 	}
 	return false;
@@ -740,22 +740,22 @@ export const referencesCardsDiff = (beforeCard : CardLike, afterCard : CardLike)
 	const before = beforeCard[REFERENCES_INFO_CARD_PROPERTY];
 	const after = afterCard[REFERENCES_INFO_CARD_PROPERTY];
 	//For card blocks that exist in both before and after... but might have modifications within them
-	let cardSame : CardBooleanMap = {};
-	for (let cardID of Object.keys(before)) {
+	const cardSame : CardBooleanMap = {};
+	for (const cardID of Object.keys(before)) {
 		if (after[cardID]) {
 			cardSame[cardID] = true;
 		} else {
 			result[1][cardID] = true;
 		}
 	}
-	for (let cardID of Object.keys(after)) {
+	for (const cardID of Object.keys(after)) {
 		if (!before[cardID]) {
 			result[0][cardID] = true;
 		}
 	}
 
 	//For cards that are bin both before and after, are there any things that changed?
-	for (let cardID of Object.keys(cardSame)) {
+	for (const cardID of Object.keys(cardSame)) {
 		if (cardReferenceBlockHasDifference(before[cardID], after[cardID])) result[0][cardID] = true;
 	}
 
@@ -770,20 +770,20 @@ export const referencesCardsDiff = (beforeCard : CardLike, afterCard : CardLike)
 //convenience.
 export const applyReferencesDiff = (beforeCard : Card, afterCard : Card, update : CardUpdate) => {
 	if (!update) update = {};
-	let [additions, modifications, leafDeletions, cardDeletions] = referencesDiff(beforeCard,afterCard);
-	for (let [key, val] of Object.entries(additions)) {
-		let parts = key.split('.');
-		let cardID = parts[0];
+	const [additions, modifications, leafDeletions, cardDeletions] = referencesDiff(beforeCard,afterCard);
+	for (const [key, val] of Object.entries(additions)) {
+		const parts = key.split('.');
+		const cardID = parts[0];
 		update[REFERENCES_INFO_CARD_PROPERTY + '.' + key] = val;
 		update[REFERENCES_CARD_PROPERTY + '.' + cardID] = true;
 	}
-	for (let [key, val] of Object.entries(modifications)) {
+	for (const [key, val] of Object.entries(modifications)) {
 		update[REFERENCES_INFO_CARD_PROPERTY + '.' + key] = val;
 	}
-	for (let key of Object.keys(leafDeletions)) {
+	for (const key of Object.keys(leafDeletions)) {
 		update[REFERENCES_INFO_CARD_PROPERTY + '.' + key] = deleteField();
 	}
-	for (let key of Object.keys(cardDeletions)) {
+	for (const key of Object.keys(cardDeletions)) {
 		update[REFERENCES_INFO_CARD_PROPERTY + '.' + key] = deleteField();
 		update[REFERENCES_CARD_PROPERTY + '.' + key] = deleteField();
 	}
