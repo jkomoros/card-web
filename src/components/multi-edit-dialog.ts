@@ -84,22 +84,22 @@ import {
 class MultiEditDialog extends connect(store)(DialogElement) {
 
 	@state()
-	_unionReferencesCard: CardLike;
+		_unionReferencesCard: CardLike;
 
 	@state()
-	_intersectionReferencesCard: CardLike;
+		_intersectionReferencesCard: CardLike;
 
 	@state()
-	_cardTagInfos: TagInfos;
+		_cardTagInfos: TagInfos;
 
 	@state()
-	_referencesDiff: ReferencesEntriesDiff;
+		_referencesDiff: ReferencesEntriesDiff;
 
 	@state()
-	_selectedCards: Card[];
+		_selectedCards: Card[];
 
 	@state()
-	_cardModificationPending: boolean;
+		_cardModificationPending: boolean;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -208,7 +208,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		let referenceType : ReferenceType = '';
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
-		for (let ele of e.composedPath()) {
+		for (const ele of e.composedPath()) {
 			//e.g. documentFragment
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
@@ -226,7 +226,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		let referenceType : ReferenceType = '';
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
-		for (let ele of e.composedPath()) {
+		for (const ele of e.composedPath()) {
 			//e.g. documentFragment
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
@@ -244,7 +244,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		let referenceType : ReferenceType = '';
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
-		for (let ele of e.composedPath()) {
+		for (const ele of e.composedPath()) {
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
 				referenceType = ele.dataset.referenceType as ReferenceType;
@@ -273,6 +273,6 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'multi-edit-dialog': MultiEditDialog;
+		'multi-edit-dialog': MultiEditDialog;
 	}
 }
