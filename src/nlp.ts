@@ -324,7 +324,7 @@ const highlightHTMLForCard = (card : ProcessedCard, fieldName : CardFieldTypeEdi
 	const originalConceptStrs : StringCardMap = {};
 	for (const [fullyNormalizedConceptStr, cardID] of Object.entries(filteredHighlightMap)) {
 		const runs = card.nlp[fieldName];
-		for (let run of runs) {
+		for (const run of runs) {
 			const originalNgram = extractOriginalNgramFromRun(fullyNormalizedConceptStr, run);
 			if (originalNgram) {
 				//TODO: look for clobbering of overlapping concepts e.g. force, external force
@@ -374,7 +374,7 @@ const highlightStringInEle = (ele : Element, re :RegExp, cardID : CardID, within
 	}
 	//ele.childNodes is a live node list but we'll be adding nodes potentially
 	//so take a snapshot.
-	for (let node of [...ele.childNodes]) {
+	for (const node of [...ele.childNodes]) {
 		if (node.nodeType == node.ELEMENT_NODE) {
 			highlightStringInEle(node as Element, re, cardID, withinLink, isAlternate);
 		} else if (node.nodeType == node.TEXT_NODE) {
@@ -397,7 +397,7 @@ const lowercaseSplitWords = (str : string) : string[] => {
 const wordIsUrl = (word : string) : boolean => {
 	if (!word || !word.includes('/')) return false;
 	const distinctiveURLParts = ['http:', 'https:', '.com', '.net', '.org'];
-	for (let urlPart of distinctiveURLParts) {
+	for (const urlPart of distinctiveURLParts) {
 		if (word.includes(urlPart)) return true;
 	}
 	return false;
@@ -421,8 +421,8 @@ const normalizedWords = (str : string) : string => {
 	str = str.split('+').join(' ');
 
 	const splitWords = lowercaseSplitWords(str);
-	let result = [];
-	for (let word of splitWords) {
+	const result = [];
+	for (const word of splitWords) {
 		for (let subWord of splitSlashNonURLs(word)) {
 			subWord = subWord.replace(/^\W*/, '');
 			subWord = subWord.replace(/\W*$/, '');
@@ -433,10 +433,10 @@ const normalizedWords = (str : string) : string => {
 	return result.join(' ');
 };
 
-let memoizedStemmedWords : {[word : string] : string} = {};
+const memoizedStemmedWords : {[word : string] : string} = {};
 //Inverse: the stemmed result, to a map of words and their counts with how often
 //they're handed out
-let reversedStemmedWords : {[stemmedWord : string] : {[word : string] : number}} = {};
+const reversedStemmedWords : {[stemmedWord : string] : {[word : string] : number}} = {};
 const memorizedStemmer = (word : string) : string => {
 	if (!memoizedStemmedWords[word]) {
 		let stemmedWord = stemmer(word);
@@ -458,8 +458,8 @@ const stemmedNormalizedWords = (str : string) : string => {
 	//Assumes the words are already run through nomralizedWords
 
 	const splitWords = str.split(' ');
-	let result = [];
-	for (let word of splitWords) {
+	const result = [];
+	for (const word of splitWords) {
 		result.push(memorizedStemmer(word));
 	}
 	return result.join(' ');
@@ -497,7 +497,7 @@ const innerTextForHTML = (body : string) : string => {
 	//This shouldn't be an XSS vulnerability even though body is supplied by
 	//users and thus untrusted, because the temporary element is never actually
 	//appended into the DOM
-	let ele = getDocument().createElement('section');
+	const ele = getDocument().createElement('section');
 	// makes sure line breaks are in the right place after each legal block level element
 	body = normalizeLineBreaks(body);
 	ele.innerHTML = body;
@@ -532,7 +532,7 @@ const splitRuns = (text : string) : string[] => {
 const OVERRIDE_EXTRACTORS : {[field in CardFieldType]+? : (card : CardWithOptionalFallbackText) => string}= {
 	[TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND]: (card : CardWithOptionalFallbackText) : string => {
 		const refsByType = references(card).withFallbackText(card.fallbackText).byType;
-		let result = [];
+		const result = [];
 		for (const [referenceType, cardMap] of Object.entries(refsByType)) {
 			//Skip links because they're already represented in body
 			if (referenceType == REFERENCE_TYPE_LINK) continue;
@@ -545,7 +545,7 @@ const OVERRIDE_EXTRACTORS : {[field in CardFieldType]+? : (card : CardWithOption
 	[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: (card : CardWithOptionalFallbackText) : string => {
 		const conceptRefs = references(card).withFallbackText(card.fallbackText).byTypeClass(REFERENCE_TYPE_CONCEPT);
 		if (!conceptRefs) return '';
-		let result = [];
+		const result = [];
 		for (const cardMap of Object.values(conceptRefs)) {
 			for (const str of Object.values(cardMap)) {
 				if (str) result.push(str);
@@ -613,15 +613,15 @@ const extractContentWords = (card : CardWithOptionalFallbackText) => {
 	//of the fingerprint, and for cards with not much content that use the
 	//fingerprint in a derived field that can create reinforcing loops.
 	const obj : {[field in CardFieldType]+?: ProcessedRun[]} = {};
-	for (let fieldName of TypedObject.keys(TEXT_FIELD_CONFIGURATION)) {
-		let runs = extractRawContentRunsForCardField(card, fieldName);
+	for (const fieldName of TypedObject.keys(TEXT_FIELD_CONFIGURATION)) {
+		const runs = extractRawContentRunsForCardField(card, fieldName);
 		//splitRuns checks for empty runs, but they could be things that will be normalized to nothing, so filter again
-		obj[fieldName] = runs.map(str => processedRun(str)).filter(run => !run.empty);;
+		obj[fieldName] = runs.map(str => processedRun(str)).filter(run => !run.empty);
 	}
 	return obj;
 };
 
-let memoizedNormalizedSynonymMaps = new WeakMap();
+const memoizedNormalizedSynonymMaps = new WeakMap();
 
 const normalizeSynonymMap = (synonyms : SynonymMap) => {
 	//synonyms is word => [synonym_word,...]
@@ -632,7 +632,7 @@ const normalizeSynonymMap = (synonyms : SynonymMap) => {
 	return memoizedNormalizedSynonymMaps.get(synonyms);
 };
 
-let memoizedNormalizedNgramMaps = new WeakMap();
+const memoizedNormalizedNgramMaps = new WeakMap();
 
 const normalizeNgramMap = (ngramMap : StringCardMap) : StringCardMap => {
 	if (!memoizedNormalizedNgramMaps.has(ngramMap)) {
@@ -649,7 +649,7 @@ const normalizeNgramMap = (ngramMap : StringCardMap) : StringCardMap => {
 //if true, will print out debug statistics about how often card normalized count
 //is happening, which can help verify that the memoization is working.s
 const DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES = false;
-let normalizedCount : {[id : CardID] : number } = {};
+const normalizedCount : {[id : CardID] : number } = {};
 
 //cardWithNormalizedTextProperties sets the properties that search and
 //fingerprints work over, on a copy of the card it returns. fallbackText will be
@@ -681,7 +681,7 @@ export const cardWithNormalizedTextProperties = memoizeFirstArg((card : Card, fa
 		fallbackText,
 		importantNgrams: normalizeNgramMap(importantNgrams),
 		synonymMap: normalizeSynonymMap(synonyms),
-	}
+	};
 	return {
 		...preliminaryResult,
 		nlp: extractContentWords(preliminaryResult),
@@ -689,13 +689,13 @@ export const cardWithNormalizedTextProperties = memoizeFirstArg((card : Card, fa
 });
 
 //text should be normalized
-const ngrams = (text : string, size : number = 2) : string[]  => {
+const ngrams = (text : string, size  = 2) : string[]  => {
 	if (!text) return [];
 	const pieces = text.split(' ');
 	if (pieces.length < size) return [];
 	const result = [];
 	for (let i = 0; i < (pieces.length - size + 1); i++) {
-		let subPieces = [];
+		const subPieces = [];
 		for (let j = 0; j < size; j++) {
 			subPieces.push(pieces[i + j]);
 		}
@@ -735,7 +735,7 @@ export class PreparedQuery {
 		let score = 0.0;
 		let fullMatch = false;
 	
-		for (let key of TypedObject.keys(TEXT_FIELD_CONFIGURATION)) {
+		for (const key of TypedObject.keys(TEXT_FIELD_CONFIGURATION)) {
 			const propertySubQuery = this.text[key];
 			if(!propertySubQuery || !card.nlp || !card.nlp[key]) continue;
 			const runs = card.nlp[key];
@@ -746,13 +746,13 @@ export class PreparedQuery {
 			//has all of the words, as long as together they all do, it's OK.
 			const [, propertyFullMatch] = stringPropertyScoreForStringSubQuery(singleRun, propertySubQuery);
 			if (!fullMatch && propertyFullMatch) fullMatch = true;
-			let scoreAddition = runs.map(run => stringPropertyScoreForStringSubQuery(run.stemmed, propertySubQuery)[0]).reduce((prev, curr) => prev + curr, 0.0);
+			const scoreAddition = runs.map(run => stringPropertyScoreForStringSubQuery(run.stemmed, propertySubQuery)[0]).reduce((prev, curr) => prev + curr, 0.0);
 			score += scoreAddition;
 		}
 	
 		//Give a boost to cards that have more inbound cards, implying they're more
 		//important cards.
-		let inboundLinks = references(card).inboundSubstantiveArray();
+		const inboundLinks = references(card).inboundSubstantiveArray();
 		if (inboundLinks.length > 0) {
 			//Tweak the score, but only by a very tiny amount. Once the 'juice' is
 			//not just the count of inbound-links, but the transitive count, then
@@ -769,9 +769,9 @@ const HAS_FILTER_PREFIX = 'has:';
 
 //rewriteQueryFilters rewrites things like 'has:comments` to `filter:has-comments`
 const rewriteQueryFilters = (query : string) : string => {
-	let result = [];
+	const result = [];
 	for (let word of query.split(' ')) {
-		for (let prefix of SIMPLE_FILTER_REWRITES) {
+		for (const prefix of SIMPLE_FILTER_REWRITES) {
 			if (word.toLowerCase().startsWith(prefix)) {
 				word = FILTER_PREFIX + word.slice(prefix.length);
 			}
@@ -806,13 +806,13 @@ const textPropertySubQueryForWords = (joinedWords : string, startValue : number)
 
 	//Full exact matches are the best, but if you have all of the sub-words,
 	//that's good too, just less good.
-	let result : PreparedQueryConfigurationLeaf[] = [[[joinedWords], startValue, true]];
+	const result : PreparedQueryConfigurationLeaf[] = [[[joinedWords], startValue, true]];
 
 	if (words.length > 1) {
 		result.push([words, startValue / 2, true]);
 
 		//Also return partial matches, but at a much lower rate.
-		for (let word of words) {
+		for (const word of words) {
 			if (STOP_WORDS[word]) continue;
 			//Words that are longer should count for more (as a crude proxy for how
 			//rare they are).
@@ -820,10 +820,10 @@ const textPropertySubQueryForWords = (joinedWords : string, startValue : number)
 		}
 	}
 
-	let bigrams = ngrams(joinedWords);
+	const bigrams = ngrams(joinedWords);
 	//if there's one bigram, then it's just equivalent to the full query
 	if (bigrams.length > 1) {
-		for (let bigram of bigrams) {
+		for (const bigram of bigrams) {
 			//Bigrams are much better than a single word matching
 			result.push([[bigram], startValue * 0.75, false]);
 		}
@@ -836,7 +836,7 @@ const stringPropertyScoreForStringSubQuery = (propertyValue : string, preparedSu
 	const value = propertyValue.toLowerCase();
 	let result = 0.0;
 	let fullMatch = false;
-	for (let item of preparedSubquery) {
+	for (const item of preparedSubquery) {
 		//strings is a list of strings that all must match independently
 		const strings = item[0];
 		if (strings.every(str => value.indexOf(str) >= 0)) {
@@ -856,11 +856,11 @@ const filterForWord = (word : string) : string => {
 
 //extracts the raw, non filter words from a query, then also the filters.
 const queryWordsAndFilters = (queryString : string) : [string, string[]] => {
-	let words = [];
-	let filters = [];
-	for (let word of lowercaseSplitWords(queryString)) {
+	const words = [];
+	const filters = [];
+	for (const word of lowercaseSplitWords(queryString)) {
 		if (!word) continue;
-		let filter = filterForWord(word);
+		const filter = filterForWord(word);
 		if (filter) {
 			filters.push(filter);
 		} else {
@@ -947,7 +947,7 @@ const wordCountsForSemantics = memoizeFirstArg((cardObj : ProcessedCard, maxFing
 			//Count any of the importantNgrams that are present, and count
 			//them without discounting for length. We skipped counting them in
 			//any of the 'typical' times above.
-			for (let ngram of Object.keys(importantNgrams)) {
+			for (const ngram of Object.keys(importantNgrams)) {
 				//Only match on word boundaries, not within an ngram
 				if (ngramWithinOther(ngram, words)) {
 					//This is an ngram we wouldn't necessarily have indexed by
@@ -989,8 +989,8 @@ const extractOriginalNgramFromRun = (targetNgram : string, run : ProcessedRun) :
 	if (!ngramWithinOther(targetNgram, run.withoutStopWords)) return '';
 	//We know that targetNgram is within withoutStopWordsRun. Now, look for its
 	//word index (start and length) within stemmedRun.
-	let stemmedRunWords = run.stemmed.split(' ');
-	let targetNgramWords = targetNgram.split(' ');
+	const stemmedRunWords = run.stemmed.split(' ');
+	const targetNgramWords = targetNgram.split(' ');
 
 	//which piece of the targetNgramPieces we're looking to match now
 	let targetNgramIndex = 0;
@@ -1099,7 +1099,7 @@ export const possibleMissingConcepts = (cards : ProcessedCards) : Fingerprint =>
 	cardIDsForNgram = Object.fromEntries(Object.entries(cardIDsForNgram).filter(entry => entry[1].length > 3));
 	cumulativeTFIDFForNgram = Object.fromEntries(Object.keys(cardIDsForNgram).map(key => [key, cumulativeTFIDFForNgram[key]]));
 
-	let ngramWordCount : {[ngram : string] : number}= {};
+	const ngramWordCount : {[ngram : string] : number}= {};
 	for (const ngram of Object.keys(cardIDsForNgram)) {
 		ngramWordCount[ngram] = ngram.split(' ').length;
 	}
@@ -1287,7 +1287,7 @@ export const suggestedConceptReferencesForCard = memoizeFirstArg((card : Process
 	const conceptStrForCandidateCard : {[id : CardID] : string } = {};
 	//We want to get only words actually on the card. So restrict to ngrams on editable fields, and also exclude synonyms.
 	const ngrams = wordCountsForSemantics(card, undefined, Object.keys(editableFieldsForCardType(card.card_type)) as CardFieldType[], true);
-	for (let fingerprintItem of Object.keys(ngrams)) {
+	for (const fingerprintItem of Object.keys(ngrams)) {
 
 		const conceptCardID = normalizedConcepts[fingerprintItem];
 
@@ -1342,10 +1342,10 @@ export const suggestedConceptReferencesForCard = memoizeFirstArg((card : Process
 	//consider largest concepts down to smallest to guarantee that we pick the
 	//larger ones first. We'll sort a copy because we still want to keep the
 	//original order so we suggest higher fingerprint items first
-	let sortedCandidates : CardID[] = [...Object.keys(candidates)];
+	const sortedCandidates : CardID[] = [...Object.keys(candidates)];
 	sortedCandidates.sort((a, b) => conceptStrForCandidateCard[b].length - conceptStrForCandidateCard[a].length);
 
-	let cardsToIncludeInResult : FilterMap = {};
+	const cardsToIncludeInResult : FilterMap = {};
 	for (const candidate of sortedCandidates) {
 		let skipCandidate = false;
 		for (const includedItem of Object.keys(cardsToIncludeInResult)) {
@@ -1378,12 +1378,12 @@ const titleCase = (str : string) : string => str.split(' ').map(word => capitali
 //be on the card--just that if they show up, they do come from an explicit
 //concept reference.
 const explicitConceptNgrams = (cardObj : ProcessedCard) : StringCardMap=> {
-	let result : StringCardMap = {};
+	const result : StringCardMap = {};
 	//A concept card should count its own title/title-alts as coming
 	//from itself. getAllNormalizedConceptStringsFromConceptCard will
 	//return an empty array if the card is not a concept card.
-	let strs = [...cardObj.nlp[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND].map(run => run.withoutStopWords), ...getAllNormalizedConceptStringsFromConceptCard(cardObj)];
-	for (let str of strs) {
+	const strs = [...cardObj.nlp[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND].map(run => run.withoutStopWords), ...getAllNormalizedConceptStringsFromConceptCard(cardObj)];
+	for (const str of strs) {
 		//The fingerprint will have STOP_WORDs filtered, since it's
 		//downstream of wordCountsForSemantics, so do the same to check for
 		//a match.
@@ -1535,11 +1535,11 @@ export class Fingerprint {
 	dedupedPrettyItemsFromCard() {
 		const fingerprintItems = this.prettyItems(true, true);
 		const seenItems : {[word : string] : true} = {};
-		let dedupedFingerprint = [];
+		const dedupedFingerprint = [];
 		//Since words might be in ngrams, and they might overlap with the same
 		//words, check for duplicates
-		for (let ngram of fingerprintItems) {
-			for (let word of ngram.split(' ')) {
+		for (const ngram of fingerprintItems) {
+			for (const word of ngram.split(' ')) {
 				if (seenItems[word]) continue;
 				if (STOP_WORDS[word.toLowerCase()]) continue;
 				seenItems[word] = true;
@@ -1555,8 +1555,8 @@ export class Fingerprint {
 	//partially) from that explicit reference.
 	itemsFromConceptReferences() : StringCardMap {
 		if (!this._cards) return {};
-		let result : StringCardMap = {};
-		for (let cardObj of this._cards) {
+		const result : StringCardMap = {};
+		for (const cardObj of this._cards) {
 			const innerResult = explicitConceptNgrams(cardObj);
 			for (const [key, value] of TypedObject.entries(innerResult)) {
 				if (this._items.has(key)) {
@@ -1576,9 +1576,9 @@ export class Fingerprint {
 		const fingerprintOne = this._items ? this._items : new Map();
 		const fingerprintTwo = otherFingerprint && otherFingerprint._items ? otherFingerprint._items : new Map();
 
-		let union = new Set([...fingerprintOne.keys(), ...fingerprintTwo.keys()]);
-		let intersection = new Map();
-		for (let key of union) {
+		const union = new Set([...fingerprintOne.keys(), ...fingerprintTwo.keys()]);
+		const intersection = new Map();
+		for (const key of union) {
 			if (fingerprintOne.has(key) && fingerprintTwo.has(key)) {
 				//If they match, add the tfidf for the two terms, plus a bonus
 				//constant for them having matched. This gives a big bonus for any
@@ -1607,7 +1607,7 @@ export class FingerprintGenerator {
 	_maxIDF : number;
 	_fingerprints : {
 		[id : CardID] : Fingerprint
-	}
+	};
 
 	constructor(cards? : ProcessedCards, optFingerprintSize : number = SEMANTIC_FINGERPRINT_SIZE, optNgramSize : number = MAX_N_GRAM_FOR_FINGERPRINT) {
 
@@ -1628,7 +1628,7 @@ export class FingerprintGenerator {
 		//words to their count in that card. This uses all words htat could be
 		//searched over, and is the input to the IDF calculation pipeline and
 		//others.
-		let cardWordCounts : {[cardID : CardID]: {[word : string] : number}} = {};
+		const cardWordCounts : {[cardID : CardID]: {[word : string] : number}} = {};
 		for (const [key, cardObj] of Object.entries(cards)) {
 			cardWordCounts[key] = this._wordCountsForCardObj(cardObj);
 		}
@@ -1637,7 +1637,7 @@ export class FingerprintGenerator {
 		//number of cards that contain the term at least once. This is how idf
 		//is normally calculated; we previously used the raw count of times it
 		//showed up.
-		let corpusWords : WordNumbers = {};
+		const corpusWords : WordNumbers = {};
 		for (const words of Object.values(cardWordCounts)) {
 			for (const word of Object.keys(words)) {
 				corpusWords[word] = (corpusWords[word] || 0) + 1;
@@ -1669,8 +1669,8 @@ export class FingerprintGenerator {
 
 	_fingerprintForTFIDF(tfidf : WordNumbers, cardOrCards : ProcessedCard | ProcessedCard[]) {
 		//Pick the keys for the items with the highest tfidf (the most important and specific to that card)
-		let keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, this.fingerprintSize());
-		let items = new Map(keys.map(key => [key, tfidf[key]]));
+		const keys = Object.keys(tfidf).sort((a, b) => tfidf[b] - tfidf[a]).slice(0, this.fingerprintSize());
+		const items = new Map(keys.map(key => [key, tfidf[key]]));
 		return new Fingerprint(items, cardOrCards, this);
 	}
 
@@ -1710,7 +1710,7 @@ export class FingerprintGenerator {
 		if (!cardIDs || !cardIDs.length) return new Fingerprint();
 		//Special case the generation of a single card ID
 		if (cardIDs.length == 1) return this.fingerprintForCardID(cardIDs[0]);
-		let combinedTFIDF : WordNumbers = {};
+		const combinedTFIDF : WordNumbers = {};
 		for (const cardID of cardIDs) {
 			const fingerprint = this.fingerprintForCardID(cardID);
 			if (!fingerprint) continue;
