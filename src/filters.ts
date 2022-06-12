@@ -93,7 +93,8 @@ import {
 	CardIdentifier,
 	CardTestFunc,
 	CardTimestampPropertyName,
-	ConfigurableFilterControlPiece
+	ConfigurableFilterControlPiece,
+	Cards
 } from './types.js';
 
 import {
@@ -361,7 +362,7 @@ const cardBFSMaker = (filterName : string, cardID : CardID, countOrTypeStr : str
 	//We have to memoize the functor we return, even though the filter machinery
 	//will memoize too, because otherwise literally every card in a given run
 	//will have a NEW BFS done. So memoize as long as cards are the same.
-	return memoize((cards, activeCardID, editingCard) => {
+	return memoize((cards : Cards, activeCardID : CardID, editingCard : Card) => {
 		const cardIDToUse = cardID == KEY_CARD_ID_PLACEHOLDER ? activeCardID : cardID;
 		//If editingCard is provided, use it to shadow the unedited version of itself.
 		if (editingCard) cards = {...cards, [editingCard.id]: editingCard};
@@ -701,7 +702,7 @@ const makeAuthorConfigurableFilter = (_ : string, idString : string) : Configura
 //We memoize the cards/generator outside even a singular configurable filter,
 //because advance to next/previous card changes the keyCardID, but not the
 //underlying card set, and that should be fast.
-const memoizedFingerprintGenerator = memoize(cards => new FingerprintGenerator(cards));
+const memoizedFingerprintGenerator = memoize((cards : ProcessedCards) => new FingerprintGenerator(cards));
 
 const makeSimilarConfigurableFilter = (_ : string, rawCardID : string) : ConfigurableFilterFuncFactoryResult => {
 
@@ -746,7 +747,7 @@ const makeSimilarCutoffConfigurableFilter = (_ : string, rawCardID : string, raw
 	let floatCutoff = parseFloat(rawFloatCutoff || '0');
 	if (isNaN(floatCutoff)) floatCutoff = 0;
 	
-	const generator = memoize((cards, rawCardIDsToUse, editingCard) => {
+	const generator = memoize((cards : ProcessedCards, rawCardIDsToUse : CardID[], editingCard : ProcessedCard) => {
 		const cardIDsToUse = normalizeCardSlugOrIDList(rawCardIDsToUse, cards);
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
 		const editingCardFingerprint = editingCard && cardIDsToUse.some(id => id == editingCard.id) ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
