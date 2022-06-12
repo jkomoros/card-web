@@ -32,7 +32,7 @@ import {
 class ImageBrowserDialog extends connect(store)(DialogElement) {
 
 	@state()
-	_index: number;
+		_index: number;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -97,6 +97,6 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'image-browser-dialog': ImageBrowserDialog;
+		'image-browser-dialog': ImageBrowserDialog;
 	}
 }
