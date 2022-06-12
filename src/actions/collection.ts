@@ -85,19 +85,18 @@ export const PLACEHOLDER_CARD_ID_CHARACTER = '_';
 
 export const updateCardSelector : AppActionCreator = (cardSelector : string) => (dispatch, getState) => {
 
-	let queryParts = cardSelector.split('?');
+	const queryParts = cardSelector.split('?');
 
 	let forceUpdateCollection = false;
 
 	if (queryParts.length > 1) {
-		let queryParams = queryParts[1].split('&');
-		for (let param of queryParams) {
+		const queryParams = queryParts[1].split('&');
+		for (const param of queryParams) {
 			if (param == FORCE_COLLECTION_URL_PARAM) forceUpdateCollection = true;
 		}
 	}
 
-	let path = queryParts[0].toLowerCase();
-
+	const path = queryParts[0].toLowerCase();
 	let [description, cardIdOrSlug] = CollectionDescription.deserializeWithExtra(path);
 
 	//If the requestedCard is actually "" we'll pretend throughout the pipeline
@@ -114,7 +113,7 @@ export const updateCardSelector : AppActionCreator = (cardSelector : string) => 
 
 	if (filters.length == 0) {
 		const state = getState();
-		let card = getCard(state, cardIdOrSlug);
+		const card = getCard(state, cardIdOrSlug);
 		if (card) {
 			//If we had a default filter URL and the card is a member of the set
 			//we're already in, leave the collection information the same.
@@ -208,9 +207,9 @@ export const refreshCardSelector : AppActionCreator = (forceCommit? : boolean) =
 
 	const state = getState();
 
-	let page = selectPage(state);
+	const page = selectPage(state);
 	if (page != PAGE_DEFAULT) return;
-	let pageExtra = selectPageExtra(state);
+	const pageExtra = selectPageExtra(state);
 
 	const dataIsFullyLoaded = selectDataIsFullyLoaded(state);
 	const alreadyCommittedModificationsWhenFullyLoaded = selectAlreadyCommittedModificationsWhenFullyLoaded(state);
@@ -243,18 +242,18 @@ export const canonicalizeURL : AppActionCreator = () => (dispatch, getState) => 
 
 	//Called to ensure that the URL is canonical given activeSet, activeFilters, etc.
 
-	let state = getState();
+	const state = getState();
 
-	let card = selectActiveCard(state);
+	const card = selectActiveCard(state);
 
 	if (!card) return;
 
-	let activeSectionId = selectActiveSectionId(state);
+	const activeSectionId = selectActiveSectionId(state);
 	const description = selectActiveCollectionDescription(state);
 	const collection = selectActiveCollection(state);
 	const collectionContainsCards = collection && collection.numCards > 0;
 
-	let result = [PAGE_DEFAULT];
+	const result = [PAGE_DEFAULT];
 
 	let requestedCard = selectRequestedCard(state);
 	//If the selector was "_" then canonically replace it with just blank.
@@ -310,7 +309,7 @@ export const canonicalizeURL : AppActionCreator = () => (dispatch, getState) => 
 		result.push(card.name);
 	}
 
-	let path = result.join('/');
+	const path = result.join('/');
 
 	//Ensure that the article name that we're shwoing--no matter how they
 	//havigated here--is the preferred slug name.
@@ -344,8 +343,8 @@ export const redirectIfInvalidCardOrCollection : AppActionCreator = () => (dispa
 
 	const state = getState();
 	if (!selectDataIsFullyLoaded(state)) return;
-	let card = selectActiveCard(state);
-	let collection = selectActiveCollectionCards(state);
+	const card = selectActiveCard(state);
+	const collection = selectActiveCollectionCards(state);
 	if (!card) {
 		
 		//If we get here, we could navigate to a default card (we know that the
@@ -355,7 +354,7 @@ export const redirectIfInvalidCardOrCollection : AppActionCreator = () => (dispa
 	}
   
 	if (!collection.length) return;
-	let index = selectActiveCardIndex(state);
+	const index = selectActiveCardIndex(state);
 	//If the card is not in this collection, then forward to a collection that
 	//it is in.
 	if (index >= 0) return;
@@ -381,7 +380,7 @@ export const showCard : AppActionCreator = (requestedCard : CardID) => (dispatch
 		//because the cardID is canonically removed from the URL, it doesn't
 		//really matter if we change the requested card later. This logic will
 		//need updating if/when we support other placeholders like _random.
-		let collection = selectActiveCollectionCards(state);
+		const collection = selectActiveCollectionCards(state);
 		cardId = cardIdForPlaceholder(requestedCard, collection);
 		//If there's no valid card then give up.
 		if (!cardId) return;
