@@ -5,7 +5,7 @@ import { customElement, property } from 'lit/decorators.js';
 class SnackBar extends LitElement {
 
 	@property({ type : Boolean })
-	active: boolean;
+		active: boolean;
 
 	static override styles = [
 		css`
@@ -49,6 +49,6 @@ class SnackBar extends LitElement {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'snack-bar': SnackBar;
+		'snack-bar': SnackBar;
 	}
 }
