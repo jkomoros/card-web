@@ -48,55 +48,55 @@ import {
 class CardDrawer extends LitElement {
 
 	@property({ type : Boolean })
-	grid: boolean;
+		grid: boolean;
 
 	@property({ type : Boolean })
-	reorderable: boolean;
+		reorderable: boolean;
 
 	//If set, this is what type of card type will be added when add is
 	//pressed. This is used entirely for display within this component;
 	//the actual card adding is done by the parent component based on
 	//the add-card event.
 	@property({ type : String})
-	cardTypeToAdd: CardType;
+		cardTypeToAdd: CardType;
 
 	@property({ type : Boolean })
-	showCreateCard: boolean;
+		showCreateCard: boolean;
 
 	//If true, will show the button to add working notes card no matter what
 	@property({ type : Boolean })
-	showCreateWorkingNotes: boolean;
+		showCreateWorkingNotes: boolean;
 
 	@property({ type : Object })
-	collection: Collection;
+		collection: Collection;
 
 	@property({ type : Number })
-	renderOffset: number;
+		renderOffset: number;
 
 	@property({ type : Boolean })
-	ghostCardsThatWillBeRemoved: boolean;
+		ghostCardsThatWillBeRemoved: boolean;
 
 	@property({ type : String })
-	highlightedCardId: CardID;
+		highlightedCardId: CardID;
 
 	@property({ type : Boolean })
-	fullCards: boolean;
+		fullCards: boolean;
 
 	@property({ type : Boolean })
-	reorderPending: boolean;
+		reorderPending: boolean;
 
 	//_showing is more complicated than whether we're open or yet.
 	@property({ type : Boolean })
-	showing: boolean;
+		showing: boolean;
 
 	@property({ type : Array })
-	wordCloud: WordCloud
+		wordCloud: WordCloud;
 
 	@property({ type : Boolean })
-	infoExpanded: boolean;
+		infoExpanded: boolean;
 
 	@property({ type : Boolean })
-	infoCanBeExpanded: boolean;
+		infoCanBeExpanded: boolean;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -205,6 +205,6 @@ class CardDrawer extends LitElement {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  "card-drawer": CardDrawer;
+		'card-drawer': CardDrawer;
 	}
 }
