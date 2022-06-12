@@ -45,10 +45,10 @@ import {
 class ImagePropertiesDialog extends connect(store)(DialogElement) {
 
 	@state()
-	_index: number;
+		_index: number;
 
 	@state()
-	_card: Card;
+		_card: Card;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -161,6 +161,6 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'image-properties-dialog': ImagePropertiesDialog;
+		'image-properties-dialog': ImagePropertiesDialog;
 	}
 }
