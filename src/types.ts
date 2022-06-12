@@ -614,7 +614,7 @@ type TimestampToFieldValue<Type> = {
 //Firebase updates allow arrayUnion and arrayRemove sentinels
 //TODO: arent' there at least some fields that are deletable (e.g. FieldValue:deleteSentinel)
 type ArrayToFieldValueUnion<Type> = {
-    [Property in keyof Type]: Type[Property] extends any[] ? Type[Property] | FieldValue : Type[Property]
+    [Property in keyof Type]: Type[Property] extends unknown[] ? Type[Property] | FieldValue : Type[Property]
 }
 
 type CardUpdateIntermediate = ArrayToFieldValueUnion<TimestampToFieldValue<OptionalFieldsCard>>;
@@ -711,7 +711,7 @@ export interface StringCardMap {
 }
 
 export function isProcessedCard(card : Card | ProcessedCard) : card is ProcessedCard {
-	return (card as any).nlp !== undefined;
+	return (card as {nlp : unknown}).nlp !== undefined;
 }
 
 export interface ProcessedCard extends Card {
