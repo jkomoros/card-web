@@ -416,7 +416,7 @@ export function arrayUnionUtil<T>(arr : T[], items : T[]) : T[]{
 	return result;
 }
 
-export const arrayUnique = (arr : any[]) => {
+export function arrayUnique<T>(arr : T[]) : T[] {
 	const seenItems = new Map();
 	const result = [];
 	for (const item of arr) {
@@ -425,7 +425,7 @@ export const arrayUnique = (arr : any[]) => {
 		seenItems.set(item, true);
 	}
 	return result;
-};
+}
 
 export const arrayToSet = (arr : string[]) => {
 	const result : {[name : string] : true} = {};
