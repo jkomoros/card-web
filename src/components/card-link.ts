@@ -47,34 +47,34 @@ import {
 class CardLink extends connect(store)(LitElement) {
 	
 	@property({ type : String })
-	card: CardID;
+		card: CardID;
 
 	@property({ type : String })
-	href: string;
+		href: string;
 	
 	@property({ type : String})
-	auto: CardFieldTypeEditable;
+		auto: CardFieldTypeEditable;
 
 	@property({ type : Boolean })
-	strong: boolean;
+		strong: boolean;
 
 	@property({ type : Boolean })
-	noNavigate: boolean;
+		noNavigate: boolean;
 
 	@state()
-	_reads: FilterMap;
+		_reads: FilterMap;
 
 	@state()
-	_cards: Cards;
+		_cards: Cards;
 
 	@state()
-	_readingListMap: CardBooleanMap;
+		_readingListMap: CardBooleanMap;
 
 	@state()
-	_page: string;
+		_page: string;
 
 	@state()
-	_ctrlKeyPressed: boolean;
+		_ctrlKeyPressed: boolean;
 
 	static override styles = [
 		css`
@@ -164,9 +164,9 @@ class CardLink extends connect(store)(LitElement) {
 
 	get _inner() {
 		if (this.auto) {
-			let card = this._cardObj;
+			const card = this._cardObj;
 			if (card) {
-				let val = card[this.auto];
+				const val = card[this.auto];
 				if (val) {
 					return html`${this._icon} ${val}`;
 				}
@@ -257,6 +257,6 @@ class CardLink extends connect(store)(LitElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'card-link': CardLink;
+		'card-link': CardLink;
 	}
 }
