@@ -26,7 +26,7 @@ import {
 //serverTimestampSentinel is the most basic one.
 const SENTINEL_FIELD_PATH = objectPathToValue(serverTimestamp(), 'serverTimestamp');
 
-const extraOperationCountForValue = (val : any) : boolean => {
+const extraOperationCountForValue = (val : unknown) : boolean => {
 	//Note: this function is very tied to the implementation of
 	//firestore.FieldValue and may need to change if it changes.
 	if (typeof val !== 'object') return false;
@@ -95,7 +95,7 @@ export class MultiBatch {
 		//Firestore treats updates as counting for 1, unless there are 1 or more
 		//of {serverTimestamp, arrayUnion, or arrayRemove}.
 		
-		for (let val of Object.values(update)) {
+		for (const val of Object.values(update)) {
 			if (extraOperationCountForValue(val)) return 2;
 		}
 		return 1;
@@ -129,4 +129,4 @@ export class MultiBatch {
 		return Promise.all(this._batches.map(batch => batch.commit()));
 	}
 
-};
+}
