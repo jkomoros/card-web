@@ -96,7 +96,7 @@ const app = (state: DataState = INITIAL_STATE, action : AnyAction) : DataState =
 			pendingNewCardIDToNavigateTo: '',
 		};
 	case UPDATE_CARDS:
-		let result = {
+		const result = {
 			...state,
 			cards: {...state.cards, ...action.cards},
 			slugIndex: {...state.slugIndex, ...extractSlugIndex(action.cards)},
@@ -204,17 +204,17 @@ const app = (state: DataState = INITIAL_STATE, action : AnyAction) : DataState =
 //modifications need to be made, it simply return subState, otherwise it will
 //return a copy. cardIDs is an array of cardIDs to remove
 const removeCardIDs = (cardIDs : CardID[], subState : DataState) : DataState => {
-	let newCards = {...subState.cards};
-	let newSlugIndex = {...subState.slugIndex};
-	let newExpectedDeletions = {...subState.expectedDeletions};
+	const newCards = {...subState.cards};
+	const newSlugIndex = {...subState.slugIndex};
+	const newExpectedDeletions = {...subState.expectedDeletions};
 	let changesMade = false;
-	for (let id of cardIDs) {
+	for (const id of cardIDs) {
 		if (!newCards[id]) continue;
 		const cardToDelete = newCards[id];
 		delete newCards[id];
 		if(newExpectedDeletions[id]) delete newExpectedDeletions[id];
-		let slugs = cardToDelete.slugs || [];
-		for (let slug of slugs) {
+		const slugs = cardToDelete.slugs || [];
+		for (const slug of slugs) {
 			delete newSlugIndex[slug];
 		}
 		changesMade = true;
@@ -224,22 +224,22 @@ const removeCardIDs = (cardIDs : CardID[], subState : DataState) : DataState => 
 };
 
 const extractSlugIndex = (cards : Cards) : {[slug : Slug]: CardID} => {
-	let result : {[slug : Slug]: CardID} = {};
+	const result : {[slug : Slug]: CardID} = {};
 
-	for (let cardID of TypedObject.keys(cards) as CardID[]) {
-		let card = cards[cardID];
-		let slugs = card.slugs;
+	for (const cardID of TypedObject.keys(cards) as CardID[]) {
+		const card = cards[cardID];
+		const slugs = card.slugs;
 		if (!slugs) continue;
-		for (let val of slugs) {
+		for (const val of slugs) {
 			result[val] = cardID;
 		}
-	};
+	}
 
 	return result;
 };
 
 export const sectionTitle = (state : State, sectionId : SectionID) : string => {
-	let section = state.data.sections[sectionId];
+	const section = state.data.sections[sectionId];
 	if (!section) return '';
 	return section.title;
 };
