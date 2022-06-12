@@ -54,13 +54,13 @@ import {
 class PermissionsView extends connect(store)(PageViewElement) {
 
 	@state()
-	_userMayEditPermissions: boolean;
+		_userMayEditPermissions: boolean;
 
 	@state()
-	_uidsWithPermissions: {[id : Uid] : true}
+		_uidsWithPermissions: {[id : Uid] : true};
 
 	@state()
-	_permissionsLoaded: boolean;
+		_permissionsLoaded: boolean;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -104,7 +104,7 @@ class PermissionsView extends connect(store)(PageViewElement) {
 		this._permissionsLoaded = selectUserPermissionsLoaded(state);
 	}
 
-	override updated(changedProps : Map<string, any>) {
+	override updated(changedProps : Map<string, PermissionsView[keyof PermissionsView]>) {
 		if (changedProps.has('_userMayEditPermissions')) {
 			if (this._userMayEditPermissions) {
 				connectLivePermissions();
@@ -126,6 +126,6 @@ class PermissionsView extends connect(store)(PageViewElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'permissions-view': PermissionsView;
+		'permissions-view': PermissionsView;
 	}
 }
