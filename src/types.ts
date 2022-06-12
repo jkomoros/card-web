@@ -619,6 +619,8 @@ type ArrayToFieldValueUnion<Type> = {
 
 type CardUpdateIntermediate = ArrayToFieldValueUnion<TimestampToFieldValue<OptionalFieldsCard>>;
 
+export type FirestoreLeafValue = boolean | string | number | object | FieldValue;
+
 //A partial udpate using possible dottedFieldPath property names that is
 //appropriate for being updateDoc(ref, DottedCardUpdate)
 export type DottedCardUpdate = {
@@ -626,7 +628,7 @@ export type DottedCardUpdate = {
     //'references(_info)?(_inbound)?.' or 'permissions.' and then are either a
     //FieldValue or a boolean or a string. But index types must be the union of
     //all of the possible keys so they're very permissive here
-    [dottedPropertyName : string] : any
+    [dottedPropertyName : string] : FirestoreLeafValue
 }
 
 //CardUpdate is a thing htat might be sent to updateDoc(cardRef, update :
