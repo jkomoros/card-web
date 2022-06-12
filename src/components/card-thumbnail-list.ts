@@ -70,22 +70,22 @@ const OFFSET_CHUNKS = [250, 100, 50, 25, 10, 5, 1];
 class CardThumbnailList  extends connect(store)(LitElement) {
 
 	@property({ type : Boolean })
-	grid: boolean;
+		grid: boolean;
 
 	@property({ type : Object })
-	collection: Collection;
+		collection: Collection;
 
 	@property({ type : Boolean })
-	reorderable: boolean;
+		reorderable: boolean;
 
 	@property({ type : Boolean })
-	ghostCardsThatWillBeRemoved: boolean;
+		ghostCardsThatWillBeRemoved: boolean;
 
 	@property({ type : String })
-	highlightedCardId: CardID;
+		highlightedCardId: CardID;
 
 	@property({ type : Boolean })
-	fullCards: boolean;
+		fullCards: boolean;
 
 	//renderOffset and renderLimit behave like the filters offset and
 	//limit, but they operate only at the level of rendering and not the
@@ -94,30 +94,30 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 	//slowdowns for product card webs), while still allowing pagination.
 
 	@property({ type : Number })
-	renderOffset: number;
+		renderOffset: number;
 
 	@property({ type : Number })
-	renderLimit: number;
+		renderLimit: number;
 
 	@state()
-	_memoizedGhostItems: CardBooleanMap;
+		_memoizedGhostItems: CardBooleanMap;
 
 	@state()
-	_dragging: HTMLElement;
+		_dragging: HTMLElement;
 
 	@state()
-	_highlightedViaClick: boolean;
+		_highlightedViaClick: boolean;
 
 	//Keeps track of if we've scrolled to the highlighted card yet;
 	//sometimes the highlightedCardId won't have been loaded yet
 	@state()
-	_highlightedScrolled: boolean;
+		_highlightedScrolled: boolean;
 
 	@state()
-	_badgeMap: BadgeMap;
+		_badgeMap: BadgeMap;
 
 	@state()
-	_cardIDsUserMayEdit: CardBooleanMap;
+		_cardIDsUserMayEdit: CardBooleanMap;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -363,7 +363,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		//It' sonly legal to not have a title if you're full-bleed;
 		if (!card.full_bleed) return '';
 		if (!card.body) return '';
-		let section = document.createElement('section');
+		const section = document.createElement('section');
 		section.innerHTML = card.body;
 		let ele = section.querySelector('strong');
 		if (!ele) ele = section;
@@ -377,14 +377,14 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	_handleDragEnter(e : DragEvent) {
 		if(!this.reorderable) return;
-		let ele = e.composedPath()[0];
+		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLElement)) throw new Error('not an element');
 		ele.classList.add('drag-active');
 	}
 
 	_handleDragLeave(e : DragEvent) {
 		if(!this.reorderable) return;
-		let ele = e.composedPath()[0];
+		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLElement)) throw new Error('not an element');
 		ele.classList.remove('drag-active');
 	}
@@ -394,7 +394,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		if (!this.reorderable) return;
 
 		let thumbnail : HTMLElement = null;
-		for (let item of e.composedPath()) {
+		for (const item of e.composedPath()) {
 			//e.g. documentFragment
 			if (!(item instanceof HTMLElement)) continue;
 			if (item.dataset.card) {
@@ -430,25 +430,25 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	_handleDrop(e : DragEvent) {
 		if (!this.reorderable) return;
-		let target = e.composedPath()[0];
+		const target = e.composedPath()[0];
 		if (!(target instanceof HTMLElement)) throw new Error('not HTML element');
 		target.classList.remove('drag-active');
-		let thumbnail = this._dragging;
+		const thumbnail = this._dragging;
 		const index = parseInt(thumbnail.dataset.index);
 		if (index < this.collection.numStartCards) {
 			console.log('Start card can\'t be reordered');
 			return;
 		}
 		const cardID = thumbnail.dataset.card;
-		let otherID = target.dataset.cardid;
-		let isAfter = target.dataset.after ? true : false;
+		const otherID = target.dataset.cardid;
+		const isAfter = target.dataset.after ? true : false;
 		this.dispatchEvent(makeReorderCardEvent(cardID,otherID, isAfter));
 	}
 
 	_handleThumbnailClick(e : MouseEvent) {
 		e.stopPropagation();
 		let cardID = '';
-		for (let ele of e.composedPath()) {
+		for (const ele of e.composedPath()) {
 			//e.g. documentFragment
 			if ((!(ele instanceof HTMLElement))) continue;
 			if (ele.dataset.card) {
@@ -465,7 +465,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 	_handleThumbnailMouseMove(e : MouseEvent) {
 		e.stopPropagation();
 		let cardID = '';
-		for (let ele of e.composedPath()) {
+		for (const ele of e.composedPath()) {
 			//e.g. documentFragment
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.card) {
@@ -478,7 +478,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		this.dispatchEvent(makeCardHoveredEvent(cardID, e.clientX, e.clientY));
 	}
 
-	_scrollHighlightedThumbnailIntoView(force : boolean = false) {
+	_scrollHighlightedThumbnailIntoView(force  = false) {
 		if (force) {
 			//note that we should scroll eiterh this time or next time we're called.
 			this._highlightedScrolled = false;
@@ -495,7 +495,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 				//it might be that we're loaded but our renderOffset doesn't show it, update the renderOffset to show it.
 				let cardIndex = -1;
 				const cards = this.collection.finalSortedCards;
-				for (let [i, card] of cards.entries()) {
+				for (const [i, card] of cards.entries()) {
 					if (card.id == this.highlightedCardId) {
 						cardIndex = i;
 						break;
@@ -535,7 +535,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		this._cardIDsUserMayEdit = selectCardIDsUserMayEdit(state);
 	}
 
-	override updated(changedProps : Map<string, any>) {
+	override updated(changedProps : Map<string, CardThumbnailList[keyof CardThumbnailList]>) {
 		if(changedProps.has('highlightedCardId') && this.highlightedCardId) {
 			this._scrollHighlightedThumbnailIntoView(true);
 		}
@@ -553,6 +553,6 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'card-thumbnail-list': CardThumbnailList;
+		'card-thumbnail-list': CardThumbnailList;
 	}
 }
