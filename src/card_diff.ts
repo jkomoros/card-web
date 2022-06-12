@@ -258,7 +258,7 @@ export const applyCardFirebaseUpdate = (baseCard : Card, firebaseUpdate : CardUp
 };
 
 //Similar to util.ts:setValueOnObj
-const setFirebaseValueOnObj = (obj : {[field : string]: any}, fieldParts : string[], value : any, replaceTimestampSentinels  = false) => {
+const setFirebaseValueOnObj = (obj : {[field : string]: unknown}, fieldParts : string[], value : unknown, replaceTimestampSentinels  = false) => {
 	//Obj is an object it's OK to modify, but no other subobjects are.
 
 	const firstFieldPart = fieldParts[0];
@@ -278,7 +278,7 @@ const setFirebaseValueOnObj = (obj : {[field : string]: any}, fieldParts : strin
 	} 
 	//If descending into sub-oject, create a copy for that field before descending!
 	//And create a new sub object if necessary
-	const newObj = obj[firstFieldPart] ? {...obj[firstFieldPart]} : {};
+	const newObj = obj[firstFieldPart] && typeof obj[firstFieldPart] == 'object' ? {...(obj[firstFieldPart] as object)} : {};
 	obj[firstFieldPart] = newObj;
 	setFirebaseValueOnObj(newObj, fieldParts.slice(1), value, replaceTimestampSentinels);
 };
