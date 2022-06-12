@@ -192,14 +192,14 @@ import {
 
 
 //map of cardID => promiseResolver that's waiting
-let waitingForCards : {[id : CardID]: ((card : Card) => void)[]} = {};
+const waitingForCards : {[id : CardID]: ((card : Card) => void)[]} = {};
 
 const waitingForCardToExistStoreUpdated = () => {
 	let itemDeleted = false;
 	for (const cardID of Object.keys(waitingForCards)) {
 		const card = getCardById(store.getState() as State, cardID);
 		if (!card) continue;
-		for (let promiseResolver of waitingForCards[cardID]) {
+		for (const promiseResolver of waitingForCards[cardID]) {
 			promiseResolver(card);
 		}
 		delete waitingForCards[cardID];
@@ -247,11 +247,11 @@ const TAG_COLORS = [
 	'#4169E1',
 ];
 
-export const modifyCard = (card : Card, update : CardDiff, substantive : boolean = false) => {
+export const modifyCard = (card : Card, update : CardDiff, substantive = false) => {
 	return modifyCards([card], update, substantive, true);
 };
 
-export const modifyCards : AppActionCreator = (cards : Card[], update : CardDiff, substantive : boolean = false, failOnError : boolean = false) => async (dispatch, getState) => {
+export const modifyCards : AppActionCreator = (cards : Card[], update : CardDiff, substantive = false, failOnError = false) => async (dispatch, getState) => {
 	const state = getState();
 
 	if (selectCardModificationPending(state)) {
@@ -315,7 +315,7 @@ export const modifyCardWithBatch = (state : State, card : Card, update : CardDif
 		throw new Error('User isn\'t allowed to edit the given card');
 	}
 
-	let updateObject = {
+	const updateObject = {
 		...update,
 		batch: batch.batchID || '',
 		substantive: substantive,
@@ -323,9 +323,9 @@ export const modifyCardWithBatch = (state : State, card : Card, update : CardDif
 	};
 
 	//validateDiff might throw, but that's OK, because we also throw
-	let sectionUpdated = validateCardDiff(state, card, update);
+	const sectionUpdated = validateCardDiff(state, card, update);
 
-	let cardUpdateObject = applyCardDiff(card, update);
+	const cardUpdateObject = applyCardDiff(card, update);
 	cardUpdateObject.updated = serverTimestamp();
 	if (substantive) cardUpdateObject.updated_substantive = serverTimestamp();
 
@@ -338,9 +338,9 @@ export const modifyCardWithBatch = (state : State, card : Card, update : CardDif
 		if (!existingCards[otherCardID]) throw new Error(otherCardID + 'is in the reference update but does not already exist');
 	}
 
-	let cardRef = doc(db, CARDS_COLLECTION, card.id);
+	const cardRef = doc(db, CARDS_COLLECTION, card.id);
 
-	let updateRef = doc(cardRef, CARD_UPDATES_COLLECTION, '' + Date.now());
+	const updateRef = doc(cardRef, CARD_UPDATES_COLLECTION, '' + Date.now());
 
 	batch.set(updateRef, updateObject);
 	batch.update(cardRef, cardUpdateObject);
@@ -354,30 +354,30 @@ export const modifyCardWithBatch = (state : State, card : Card, update : CardDif
 
 	if (sectionUpdated) {
 		//Need to update the section objects too.
-		let newSection = cardUpdateObject.section;
+		const newSection = cardUpdateObject.section;
 		if (newSection) {
-			let newSectionRef = doc(db, SECTIONS_COLLECTION, newSection);
-			let newSectionUpdateRef = doc(newSectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
-			let newSectionObject = {
+			const newSectionRef = doc(db, SECTIONS_COLLECTION, newSection);
+			const newSectionUpdateRef = doc(newSectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
+			const newSectionObject = {
 				cards: arrayUnion(card.id),
 				updated: serverTimestamp()
 			};
-			let newSectionUpdateObject = {
+			const newSectionUpdateObject = {
 				timestamp: serverTimestamp(),
 				add_card: card.id
 			};
 			batch.update(newSectionRef, newSectionObject);
 			batch.set(newSectionUpdateRef, newSectionUpdateObject);
 		}
-		let oldSection = card.section;
+		const oldSection = card.section;
 		if (oldSection) {
-			let oldSectionRef = doc(db, SECTIONS_COLLECTION, oldSection);
-			let oldSectionUpdateRef = doc(oldSectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
-			let oldSectionObject = {
+			const oldSectionRef = doc(db, SECTIONS_COLLECTION, oldSection);
+			const oldSectionUpdateRef = doc(oldSectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
+			const oldSectionObject = {
 				cards: arrayRemove(card.id),
 				updated: serverTimestamp()
 			};
-			let oldSectionUpdateObject = {
+			const oldSectionUpdateObject = {
 				timestamp: serverTimestamp(),
 				remove_card: card.id
 			};
@@ -388,14 +388,14 @@ export const modifyCardWithBatch = (state : State, card : Card, update : CardDif
 
 	if (update.addTags && update.addTags.length) {
 		//Note: similar logic is replicated in createForkedCard
-		for (let tagName of update.addTags) {
-			let tagRef = doc(db, TAGS_COLLECTION, tagName);
-			let tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
-			let newTagObject = {
+		for (const tagName of update.addTags) {
+			const tagRef = doc(db, TAGS_COLLECTION, tagName);
+			const tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
+			const newTagObject = {
 				cards: arrayUnion(card.id),
 				updated: serverTimestamp()
 			};
-			let newTagUpdateObject = {
+			const newTagUpdateObject = {
 				timestamp: serverTimestamp(),
 				add_card: card.id
 			};
@@ -405,14 +405,14 @@ export const modifyCardWithBatch = (state : State, card : Card, update : CardDif
 	}
 
 	if (update.removeTags && update.removeTags.length) {
-		for (let tagName of update.removeTags) {
-			let tagRef = doc(db, TAGS_COLLECTION, tagName);
-			let tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
-			let newTagObject = {
+		for (const tagName of update.removeTags) {
+			const tagRef = doc(db, TAGS_COLLECTION, tagName);
+			const tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
+			const newTagObject = {
 				cards: arrayRemove(card.id),
 				updated: serverTimestamp()
 			};
-			let newTagUpdateObject = {
+			const newTagUpdateObject = {
 				timestamp: serverTimestamp(),
 				remove_card: card.id
 			};
@@ -489,9 +489,9 @@ const setPendingSlug = (slug : Slug) : AnyAction => {
 
 const addLegalSlugToCard = (cardID : CardID, legalSlug : Slug, setName? : boolean) : Promise<void[]> => {
 	//legalSlug must already be verified to be legal.
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 	const cardRef = doc(db, CARDS_COLLECTION, cardID);
-	let update : CardUpdate = {
+	const update : CardUpdate = {
 		slugs: arrayUnion(legalSlug),
 		updated: serverTimestamp(),
 	};
@@ -509,7 +509,7 @@ export const addSlug : AppActionCreator = (cardId : CardID, newSlug : Slug) => a
 		return;
 	}
 
-	let state = getState();
+	const state = getState();
 	const isEditingCard = state.editor.card && state.editor.card.id == cardId;
 
 	//slugLegal is a http callable, and it might take multiple seconds if the
@@ -555,9 +555,9 @@ const reservedCollectionName = (state : State, name : string) : boolean => {
 	//Filters already contains section names if data is fully loaded.
 	const filters = selectFilters(state) || {};
 
-	let keys = [...Object.keys(filters), ...Object.keys(INVERSE_FILTER_NAMES), ...SET_NAMES, ...Object.keys(CONFIGURABLE_FILTER_URL_PARTS)];
+	const keys = [...Object.keys(filters), ...Object.keys(INVERSE_FILTER_NAMES), ...SET_NAMES, ...Object.keys(CONFIGURABLE_FILTER_URL_PARTS)];
 
-	for (let key of keys) {
+	for (const key of keys) {
 		if (name == key) return true;
 	}
 	return false;
@@ -589,7 +589,7 @@ export const createTag : AppActionCreator = (name : TagID, displayName : string)
 		return;
 	}
 
-	let user = selectUser(state);
+	const user = selectUser(state);
 
 	if (!user) {
 		console.warn('No user logged in');
@@ -601,19 +601,19 @@ export const createTag : AppActionCreator = (name : TagID, displayName : string)
 		return;
 	}
 
-	let tagRef = doc(db, TAGS_COLLECTION, name);
+	const tagRef = doc(db, TAGS_COLLECTION, name);
 
-	let tag = await getDoc(tagRef);
+	const tag = await getDoc(tagRef);
 
 	if (tag.exists()) {
 		console.warn('A tag with that name already exists');
 		return;
 	}
 
-	let startCardId = 'tag-' + name;
-	let startCardRef = doc(db, CARDS_COLLECTION, startCardId);
+	const startCardId = 'tag-' + name;
+	const startCardRef = doc(db, CARDS_COLLECTION, startCardId);
 
-	let card = await getDoc(startCardRef);
+	const card = await getDoc(startCardRef);
 
 	if (card.exists()) {
 		console.warn('A card with that id already exists');
@@ -622,9 +622,9 @@ export const createTag : AppActionCreator = (name : TagID, displayName : string)
 
 	//Randomly pick a tag color to start with. If an admin wants to edit it they
 	//can just edit it by hand in the DB.
-	let color = TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)];
+	const color = TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)];
 
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 
 	batch.set(tagRef, {
 		cards: [],
@@ -634,7 +634,7 @@ export const createTag : AppActionCreator = (name : TagID, displayName : string)
 		color: color,
 	});
 
-	let cardObject = defaultCardObject(startCardId, user, '', CARD_TYPE_SECTION_HEAD, selectSortOrderForGlobalAppend(state));
+	const cardObject = defaultCardObject(startCardId, user, '', CARD_TYPE_SECTION_HEAD, selectSortOrderForGlobalAppend(state));
 	cardObject.title = displayName;
 	cardObject.subtitle = displayName + ' is a topical tag';
 	cardObject.published = true;
@@ -725,7 +725,7 @@ export const createCard : AppActionCreator = (opts : CreateCardOpts) => async (d
 
 	const state = getState();
 
-	let user = selectUser(state);
+	const user = selectUser(state);
 
 	if (!user) {
 		console.log('No user');
@@ -737,9 +737,9 @@ export const createCard : AppActionCreator = (opts : CreateCardOpts) => async (d
 		return;
 	}
 
-	let cardType : CardType = opts.cardType || DEFAULT_CARD_TYPE;
+	const cardType : CardType = opts.cardType || DEFAULT_CARD_TYPE;
 
-	let CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[cardType] || null;
+	const CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[cardType] || null;
 	if (!CARD_TYPE_CONFIG) {
 		console.log('Invalid cardType: ' + cardType);
 		return;
@@ -760,7 +760,7 @@ export const createCard : AppActionCreator = (opts : CreateCardOpts) => async (d
 	}
 
 	let id = opts.id;
-	let idFromOpts = opts.id !== undefined;
+	const idFromOpts = opts.id !== undefined;
 
 	if (id) {
 		id = normalizeSlug(id);
@@ -768,7 +768,7 @@ export const createCard : AppActionCreator = (opts : CreateCardOpts) => async (d
 		id = newID();
 	}
 
-	let noNavigate = opts.noNavigate || false;
+	const noNavigate = opts.noNavigate || false;
 
 	let title = opts.title || '';
 
@@ -796,7 +796,7 @@ export const createCard : AppActionCreator = (opts : CreateCardOpts) => async (d
 		return;
 	}
 
-	let obj = defaultCardObject(id, user, section, cardType, sortOrder);
+	const obj = defaultCardObject(id, user, section, cardType, sortOrder);
 	obj.title = title;
 	if (CARD_TYPE_CONFIG.publishedByDefault) obj.published = true;
 	if (CARD_TYPE_CONFIG.defaultBody) obj[TEXT_FIELD_BODY] = CARD_TYPE_CONFIG.defaultBody;
@@ -827,7 +827,7 @@ export const createCard : AppActionCreator = (opts : CreateCardOpts) => async (d
 		}
 	}
 
-	let cardDocRef = doc(db, CARDS_COLLECTION, id);
+	const cardDocRef = doc(db, CARDS_COLLECTION, id);
 
 	//Tell card-view to expect a new card to be loaded, and when data is
 	//fully loaded again, it will then trigger the navigation.
@@ -876,8 +876,8 @@ export const createCard : AppActionCreator = (opts : CreateCardOpts) => async (d
 	batch.set(cardDocRef, obj);
 
 	if (section) {
-		let sectionRef = doc(db, SECTIONS_COLLECTION, obj.section);
-		let sectionUpdateRef = doc(sectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
+		const sectionRef = doc(db, SECTIONS_COLLECTION, obj.section);
+		const sectionUpdateRef = doc(sectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
 		batch.update(sectionRef, {
 			cards: arrayUnion(id),
 			updated: serverTimestamp(),
@@ -936,7 +936,7 @@ export const createForkedCard : AppActionCreator = (cardToFork) => async (dispat
 
 	const state = getState();
 
-	let id = newID();
+	const id = newID();
 
 	const section = cardToFork.section;
 	const cardType = cardToFork.card_type;
@@ -946,7 +946,7 @@ export const createForkedCard : AppActionCreator = (cardToFork) => async (dispat
 		return;
 	}
 
-	let user = selectUser(state);
+	const user = selectUser(state);
 
 	if (!user) {
 		console.log('No user');
@@ -958,10 +958,10 @@ export const createForkedCard : AppActionCreator = (cardToFork) => async (dispat
 		return;
 	}
 
-	let sortOrder = getSortOrderImmediatelyAdjacentToCard(state, cardToFork.id, false);
+	const sortOrder = getSortOrderImmediatelyAdjacentToCard(state, cardToFork.id, false);
 
-	let newCard = defaultCardObject(id,user,section,cardType, sortOrder);
-	for (let key of TypedObject.keys(CARD_FIELDS_TO_COPY_ON_FORK)) {
+	const newCard = defaultCardObject(id,user,section,cardType, sortOrder);
+	for (const key of TypedObject.keys(CARD_FIELDS_TO_COPY_ON_FORK)) {
 		//We can literally leave these as the same object because they'll just
 		//be sent to firestore and the actual card we'll store will be new
 		newCard[key] = cardToFork[key];
@@ -1024,7 +1024,7 @@ export const createForkedCard : AppActionCreator = (cardToFork) => async (dispat
 		}
 	}
 
-	let cardDocRef = doc(db, CARDS_COLLECTION, id);
+	const cardDocRef = doc(db, CARDS_COLLECTION, id);
 
 	//Tell card-view to expect a new card to be loaded, and when data is
 	//fully loaded again, it will then trigger the navigation.
@@ -1036,7 +1036,7 @@ export const createForkedCard : AppActionCreator = (cardToFork) => async (dispat
 		noSectionChange: !section,
 	});
 
-	let batch = new MultiBatch(db);
+	const batch = new MultiBatch(db);
 	ensureAuthor(batch, user);
 
 	batch.set(cardDocRef, newCard);
@@ -1046,14 +1046,14 @@ export const createForkedCard : AppActionCreator = (cardToFork) => async (dispat
 		batch.update(ref, otherCardUpdate);
 	}
 	if (Array.isArray(newCard.tags)) {
-		for (let tagName of newCard.tags) {
-			let tagRef = doc(db, TAGS_COLLECTION, tagName);
-			let tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
-			let newTagObject = {
+		for (const tagName of newCard.tags) {
+			const tagRef = doc(db, TAGS_COLLECTION, tagName);
+			const tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
+			const newTagObject = {
 				cards: arrayUnion(id),
 				updated: serverTimestamp()
 			};
-			let newTagUpdateObject = {
+			const newTagUpdateObject = {
 				timestamp: serverTimestamp(),
 				add_card: id,
 			};
@@ -1063,12 +1063,12 @@ export const createForkedCard : AppActionCreator = (cardToFork) => async (dispat
 	}
 
 	if (section) {
-		let sectionRef = doc(db, SECTIONS_COLLECTION, newCard.section);
+		const sectionRef = doc(db, SECTIONS_COLLECTION, newCard.section);
 		batch.update(sectionRef, {
 			cards: arrayUnion(id),
 			updated: serverTimestamp()
 		});
-		let sectionUpdateRef = doc(sectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
+		const sectionUpdateRef = doc(sectionRef, SECTION_UPDATES_COLLECTION, '' + Date.now());
 		batch.set(sectionUpdateRef, {
 			timestamp: serverTimestamp(), 
 			add_card: id,
@@ -1088,7 +1088,7 @@ export const deleteCard : AppActionCreator = (card : Card) => async (dispatch, g
 
 	const state = getState();
 
-	let reason = getReasonUserMayNotDeleteCard(state, card);
+	const reason = getReasonUserMayNotDeleteCard(state, card);
 
 	if (reason) {
 		console.warn(reason);
@@ -1109,10 +1109,10 @@ export const deleteCard : AppActionCreator = (card : Card) => async (dispatch, g
 		dispatch(navigateToNextCard());
 	}
 
-	let batch = new MultiBatch(db);
-	let ref = doc(db, CARDS_COLLECTION, card.id);
-	let updates = await getDocs(collection(ref, CARD_UPDATES_COLLECTION));
-	for (let update of updates.docs) {
+	const batch = new MultiBatch(db);
+	const ref = doc(db, CARDS_COLLECTION, card.id);
+	const updates = await getDocs(collection(ref, CARD_UPDATES_COLLECTION));
+	for (const update of updates.docs) {
 		batch.delete(update.ref);
 	}
 	batch.delete(ref);
@@ -1221,7 +1221,7 @@ export const updateAuthors : AppActionCreator = (authors : AuthorsMap) => (dispa
 				//without already being in the authors table. We should ensure
 				//author!
 				console.log('Saving extra author information because our authors rec was missing it');
-				let batch = new MultiBatch(db);
+				const batch = new MultiBatch(db);
 				ensureAuthor(batch, user);
 				//don't need to wait for it resolve
 				batch.commit();
@@ -1281,12 +1281,12 @@ export const removeCards : AppActionCreator = (cardIDs : CardID[], unpublished :
 	//cards that we weren't told were going to be deleted might show up in the
 	//other collection, so wait.
 
-	let expectedDeletions = selectExpectedDeletions(getState());
+	const expectedDeletions = selectExpectedDeletions(getState());
 
-	let nonDeletions : CardID[] = [];
-	let deletions : CardID[] = [];
+	const nonDeletions : CardID[] = [];
+	const deletions : CardID[] = [];
 
-	for (let id of cardIDs) {
+	for (const id of cardIDs) {
 		if (expectedDeletions[id]) {
 			deletions.push(id);
 		} else {
