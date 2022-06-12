@@ -84,13 +84,13 @@ import {
 //A JS-native version of the allowed fields in type NonAutoMergeableCardDiff
 const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
 	title : true,
-    title_alternates : true,
-    body : true,
-    subtitle : true,
-    todo : true,
-    notes : true,
-    images : true,
-}
+	title_alternates : true,
+	body : true,
+	subtitle : true,
+	todo : true,
+	notes : true,
+	images : true,
+};
 
 //Returns true if the user has said to proceed to any confirmation warnings (if
 //any), false if the user has said to not proceed.
@@ -117,7 +117,7 @@ export const confirmationsForCardDiff = (update :CardDiff, updatedCard : Card) =
 	}
 
 	if (update.section !== undefined || update.card_type !== undefined) {
-		let section = update.section === undefined ? updatedCard.section : update.section;
+		const section = update.section === undefined ? updatedCard.section : update.section;
 		if (!section){
 			if (!CARD_TYPE_CONFIG.orphanedByDefault && !confirm('This card being orphaned will cause it to not be findable except with a direct link. OK?')) {
 				return false;
@@ -132,16 +132,16 @@ export const confirmationsForCardDiff = (update :CardDiff, updatedCard : Card) =
 	return true;
 };
 
-export const generateCardDiff = (underlyingCardIn : Card, updatedCardIn : Card, normalizeHTMLFields : boolean = false) : CardDiff => {
+export const generateCardDiff = (underlyingCardIn : Card, updatedCardIn : Card, normalizeHTMLFields  = false) : CardDiff => {
 
 	const underlyingCard : OptionalFieldsCard = underlyingCardIn || {};
 	const updatedCard : OptionalFieldsCard = updatedCardIn || {};
 
 	if (underlyingCard === updatedCard) return {};
 
-	let update : CardDiff = {};
+	const update : CardDiff = {};
 
-	for (let field of TypedObject.keys(TEXT_FIELD_TYPES_EDITABLE)) {
+	for (const field of TypedObject.keys(TEXT_FIELD_TYPES_EDITABLE)) {
 		if (updatedCard[field] == underlyingCard[field]) continue;
 		const config = TEXT_FIELD_CONFIGURATION[field];
 		if (config.readOnly) continue;
@@ -155,7 +155,7 @@ export const generateCardDiff = (underlyingCardIn : Card, updatedCardIn : Card, 
 		}
 		update[field] = value;
 		if (field !== TEXT_FIELD_BODY) continue;
-		let linkInfo = extractCardLinksFromBody(value);
+		const linkInfo = extractCardLinksFromBody(value);
 		references(updatedCard).setLinks(linkInfo);
 	}
 
@@ -168,20 +168,20 @@ export const generateCardDiff = (underlyingCardIn : Card, updatedCardIn : Card, 
 	if (updatedCard.card_type !== underlyingCard.card_type) update.card_type = updatedCard.card_type;
 	if (updatedCard.sort_order !== underlyingCard.sort_order) update.sort_order = updatedCard.sort_order;
 
-	let [todoEnablements, todoDisablements, todoRemovals] = triStateMapDiff(underlyingCard.auto_todo_overrides || {}, updatedCard.auto_todo_overrides || {});
+	const [todoEnablements, todoDisablements, todoRemovals] = triStateMapDiff(underlyingCard.auto_todo_overrides || {}, updatedCard.auto_todo_overrides || {});
 	if (todoEnablements.length) update.auto_todo_overrides_enablements = todoEnablements;
 	if (todoDisablements.length) update.auto_todo_overrides_disablements = todoDisablements;
 	if (todoRemovals.length) update.auto_todo_overrides_removals = todoRemovals;
 
-	let [tagAdditions, tagDeletions] = arrayDiff(underlyingCard.tags || [], updatedCard.tags || []);
+	const [tagAdditions, tagDeletions] = arrayDiff(underlyingCard.tags || [], updatedCard.tags || []);
 	if (tagAdditions.length) update.addTags = tagAdditions;
 	if (tagDeletions.length) update.removeTags = tagDeletions;
 
-	let [editorAdditions, editorDeletions] = arrayDiff((underlyingCard.permissions && underlyingCard.permissions[PERMISSION_EDIT_CARD] ? underlyingCard.permissions[PERMISSION_EDIT_CARD] : []), (updatedCard.permissions && updatedCard.permissions[PERMISSION_EDIT_CARD] ? updatedCard.permissions[PERMISSION_EDIT_CARD] : []));
+	const [editorAdditions, editorDeletions] = arrayDiff((underlyingCard.permissions && underlyingCard.permissions[PERMISSION_EDIT_CARD] ? underlyingCard.permissions[PERMISSION_EDIT_CARD] : []), (updatedCard.permissions && updatedCard.permissions[PERMISSION_EDIT_CARD] ? updatedCard.permissions[PERMISSION_EDIT_CARD] : []));
 	if (editorAdditions.length) update.add_editors = editorAdditions;
 	if (editorDeletions.length) update.remove_editors = editorDeletions;
 
-	let [collaboratorAdditions, collaboratorDeletions] = arrayDiff(underlyingCard.collaborators || [], updatedCard.collaborators || []);
+	const [collaboratorAdditions, collaboratorDeletions] = arrayDiff(underlyingCard.collaborators || [], updatedCard.collaborators || []);
 	if (collaboratorAdditions.length) update.add_collaborators = collaboratorAdditions;
 	if (collaboratorDeletions.length) update.remove_collaborators = collaboratorDeletions;
 
@@ -246,7 +246,7 @@ export const generateFinalCardDiff = async (state : State, underlyingCard : Card
 //replaceTimestampSentinels is true, then every time it sees a
 //serverTimestampSentinel in the firebaseUpdate, it will instead put in a
 //currentTimestamp()>
-export const applyCardFirebaseUpdate = (baseCard : Card, firebaseUpdate : CardUpdate, replaceTimestampSentinels : boolean = false) : Card => {
+export const applyCardFirebaseUpdate = (baseCard : Card, firebaseUpdate : CardUpdate, replaceTimestampSentinels  = false) : Card => {
 	//TODO: test this.
 
 	//This clone is only one layer deep!
@@ -258,7 +258,7 @@ export const applyCardFirebaseUpdate = (baseCard : Card, firebaseUpdate : CardUp
 };
 
 //Similar to util.ts:setValueOnObj
-const setFirebaseValueOnObj = (obj : {[field : string]: any}, fieldParts : string[], value : any, replaceTimestampSentinels : boolean = false) => {
+const setFirebaseValueOnObj = (obj : {[field : string]: any}, fieldParts : string[], value : any, replaceTimestampSentinels  = false) => {
 	//Obj is an object it's OK to modify, but no other subobjects are.
 
 	const firstFieldPart = fieldParts[0];
@@ -291,7 +291,7 @@ export const applyCardDiff = (underlyingCard : Card, diff : CardDiff) : CardUpda
 
 	const cardUpdateObject : CardUpdate = {};
 
-	for (let field of TypedObject.keys(TEXT_FIELD_TYPES_EDITABLE)) {
+	for (const field of TypedObject.keys(TEXT_FIELD_TYPES_EDITABLE)) {
 		if (diff[field] === undefined) continue;
 		cardUpdateObject[field] = diff[field];
 	}
@@ -374,7 +374,7 @@ export const applyCardDiff = (underlyingCard : Card, diff : CardDiff) : CardUpda
 	}
 
 	if (diff.auto_todo_overrides_enablements || diff.auto_todo_overrides_disablements || diff.auto_todo_overrides_removals) {
-		let overrides = {...underlyingCard.auto_todo_overrides || {}};
+		const overrides = {...underlyingCard.auto_todo_overrides || {}};
 		if (diff.auto_todo_overrides_enablements) diff.auto_todo_overrides_enablements.forEach(key => overrides[key] = true);
 		if (diff.auto_todo_overrides_disablements) diff.auto_todo_overrides_disablements.forEach(key => overrides[key] = false);
 		if (diff.auto_todo_overrides_removals) diff.auto_todo_overrides_removals.forEach(key => delete overrides[key]);
@@ -406,14 +406,14 @@ export const validateCardDiff = (state : State, underlyingCard : Card, diff : Ca
 
 	if (diff.addTags || diff.removeTags) {
 		if (diff.removeTags) {
-			for (let tag of diff.removeTags) {
+			for (const tag of diff.removeTags) {
 				if (!getUserMayEditTag(state, tag)) {
 					throw new Error('User is not allowed to edit tag: ' + tag);
 				}
 			}
 		}
 		if (diff.addTags) {
-			for (let tag of diff.addTags) {
+			for (const tag of diff.addTags) {
 				if (!getUserMayEditTag(state, tag)) {
 					throw new Error('User is not allowed to edit tag: ' + tag);
 				}
@@ -457,8 +457,8 @@ export const inboundLinksUpdates = (cardID : CardID, beforeCard : CardLike, afte
 	if (Object.keys(changes).length) {
 		const afterReferencesInfo = afterCard[REFERENCES_INFO_CARD_PROPERTY];
 		const afterReferences = afterCard[REFERENCES_CARD_PROPERTY];
-		for (let otherCardID of Object.keys(changes)) {
-			let update = {
+		for (const otherCardID of Object.keys(changes)) {
+			const update = {
 				//I have confirmed that multiple sets like this (to an object)
 				//int he same transaction won't stomp on each others edits but
 				//will accumulate.
@@ -473,8 +473,8 @@ export const inboundLinksUpdates = (cardID : CardID, beforeCard : CardLike, afte
 	//cardID is gone; if only some of the keys are gone, that counts as a
 	//modification and is properly handled above, and also means we can safely
 	//remove the boolean value too.
-	for (let otherCardID of Object.keys(deletions)) {
-		let update = {
+	for (const otherCardID of Object.keys(deletions)) {
+		const update = {
 			[REFERENCES_INFO_INBOUND_CARD_PROPERTY + '.' + cardID]: deleteField(),
 			[REFERENCES_INBOUND_CARD_PROPERTY + '.' + cardID]: deleteField(),
 		};
