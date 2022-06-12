@@ -193,7 +193,7 @@ const startEndOffsetInEle = (ele : Node, range : Range, previousCount : number) 
 	if (ele == range.endContainer) {
 		end = previousCount + range.endOffset;
 	}
-	for (let child of ele.childNodes) {
+	for (const child of ele.childNodes) {
 		if (child.nodeType != child.ELEMENT_NODE && child.nodeType != child.TEXT_NODE) continue;
 		const [innerStart, innerEnd] = startEndOffsetInEle(child, range, previousCount);
 		if (start == -1 && innerStart != -1) start = innerStart;
@@ -217,7 +217,7 @@ const setOffsetRange = (node : Node, range : Range, startOffset : number, endOff
 		if (startOffset >= offsetCount && startOffset < offsetCount + node.textContent.length) range.setStart(node, startOffset - offsetCount);
 		if (endOffset >= offsetCount && endOffset < offsetCount + node.textContent.length) range.setEnd(node, endOffset - offsetCount);
 	}
-	for (let child of node.childNodes) {
+	for (const child of node.childNodes) {
 		setOffsetRange(child, range, startOffset, endOffset, offsetCount);
 		offsetCount += child.textContent.length;
 	}
@@ -225,11 +225,11 @@ const setOffsetRange = (node : Node, range : Range, startOffset : number, endOff
 
 export const restoreSelectionRange = () => {
 	if (!selectionParent) return;
-	let selection = document.getSelection();
+	const selection = document.getSelection();
 	selection.removeAllRanges();
 	//Note that this assumes that selectionParent is still literally the same element as when selection was saved.
 	const offsets = selectionParent.stashedSelectionOffset || [-1, -1];
-	let range = rangeFromOffsetsInEle(selectionParent, offsets[0], offsets[1]);
+	const range = rangeFromOffsetsInEle(selectionParent, offsets[0], offsets[1]);
 	if (range) selection.addRange(range);
 	selectionParent.stashedSelectionOffset = undefined;
 };
@@ -372,9 +372,9 @@ export const todoUpdated = (newTodo : string) : AnyAction => {
 	};
 };
 
-var extractLinksTimeout : number;
+let extractLinksTimeout : number;
 
-export const textFieldUpdated : AppActionCreator = (fieldName : CardFieldTypeEditable, value : string, fromContentEditable : boolean = false) => (dispatch, getState) => {
+export const textFieldUpdated : AppActionCreator = (fieldName : CardFieldTypeEditable, value : string, fromContentEditable = false) => (dispatch, getState) => {
 	if (!fromContentEditable) fromContentEditable = false;
 
 	const config = TEXT_FIELD_CONFIGURATION[fieldName] || {};
@@ -423,11 +423,11 @@ export const sectionUpdated : AppActionCreator = (newSection) => (dispatch, getS
 	const currentlySubstantive = state.editor.substantive;
 	if (baseCard && sections) {
 		const oldSection = baseCard.section;
-		let sectionKeys = Object.keys(sections);
+		const sectionKeys = Object.keys(sections);
 		let oldSectionIndex = 1000;
 		let newSectionIndex = 1000;
 		for (let i = 0; i < sectionKeys.length; i++) {
-			let sectionKey = sectionKeys[i];
+			const sectionKey = sectionKeys[i];
 			if (oldSection == sectionKey) oldSectionIndex = i;
 			if (newSection == sectionKey) newSectionIndex = i;
 		}
@@ -665,7 +665,7 @@ export const addImageWithFile : AppActionCreator = (file : File, index : number)
 
 //src must be a fully qualified URL. uploadPath is the filename in the upload
 //bucket, if applicable. If index is undefined, it will add a new item to the end of the list
-export const addImageWithURL : AppActionCreator = (src : string, uploadPath : string = '', index? : number) => async (dispatch, getState) => {
+export const addImageWithURL : AppActionCreator = (src : string, uploadPath = '', index? : number) => async (dispatch, getState) => {
 
 	if (!srcSeemsValid(src)) {
 		alert('Src doesn\'t seem valid. It should start with https or http');
@@ -882,7 +882,7 @@ export const mergeOvershadowedUnderlyingChanges : AppActionCreator = () => (disp
 		return;
 	}
 
-	let filteredDiff : CardDiff = {...diff};
+	const filteredDiff : CardDiff = {...diff};
 	if (Object.keys(diff).length > 1) {
 		for (const [field, value] of TypedObject.entries(diff)) {
 			const strValue = typeof value == 'object' ? JSON.stringify(value) : value;
