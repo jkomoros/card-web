@@ -44,7 +44,7 @@ class CardImagesEditor extends connect(store)(LitElement) {
 
 
 	@state()
-	_card: Card;
+		_card: Card;
 
 	override render() {
 
@@ -104,6 +104,6 @@ class CardImagesEditor extends connect(store)(LitElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  "card-images-editor": CardImagesEditor;
+		'card-images-editor': CardImagesEditor;
 	}
 }
