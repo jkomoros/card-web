@@ -34,7 +34,7 @@ const replaceCardLinksWithAs = (body : string) : string => {
 
 const hrefToCardAttribute = (cardLink : HTMLElement) => {
   
-	let cardAttribute = cardLink.getAttribute('card');
+	const cardAttribute = cardLink.getAttribute('card');
 	//Sometimes the HTML erroneously has a normal href in the card, so look for
 	//that too and put it in the href property, where we expect it to be. See
 	//#97.
@@ -67,7 +67,7 @@ const hrefToCardAttribute = (cardLink : HTMLElement) => {
 
 const cardAttributeToHref = (a : HTMLAnchorElement) => {
 
-	let card = a.getAttribute('card');
+	const card = a.getAttribute('card');
 
 	if (!card) return;
 
@@ -94,7 +94,7 @@ const normalizeBodyFromContentEditable = (html : string) => {
 	//This is the part where we do live-node fix-ups of stuff that
 	//contenteditable might have erroneously spewed in.
 
-	let section = getDocument().createElement('section');
+	const section = getDocument().createElement('section');
 	//TODO: catch syntax errors
 	section.innerHTML = html;
 
@@ -120,7 +120,7 @@ export const normalizeBodyToContentEditable = (html : string) => {
 	//This is the part where we do live-node fix-ups of stuff that
 	//contenteditable might have erroneously spewed in.
 
-	let section = getDocument().createElement('section');
+	const section = getDocument().createElement('section');
 	//TODO: catch syntax errors
 	section.innerHTML = html;
 
@@ -147,13 +147,13 @@ const removeZombieSpans = (ele : Element) => {
 	//paragraph separator).
 
 	if (ele.children.length > 0) {
-		for (let child of ele.children) {
+		for (const child of ele.children) {
 			removeZombieSpans(child);
 		}
 	}
 
 	let removedZombies = false;
-	for (let child of Object.values(ele.children)) {
+	for (const child of Object.values(ele.children)) {
 		//Spans are legal to use if they have a classname, like 'small'.
 		if (!child.className && (child.localName == 'span' || child.localName == 'font')) {
 			//Replace it with either just the text if it's only got 
@@ -184,12 +184,12 @@ const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
 	//Does deeper changes that require parsing.
 	//1) make sure all text in top is within a p tag.
 	//2) make sure that p elements don't have any line breaks inside.
-	let section = getDocument().createElement('section');
+	const section = getDocument().createElement('section');
 	section.innerHTML = html;
-	let children = section.childNodes;
+	const children = section.childNodes;
 	let hoistNode = null;
 	//First, go through an hoist up any children that are not valid at this level.
-	for (let child of Object.values(children)) {
+	for (const child of Object.values(children)) {
 		if (child.nodeType == TEXT_NODE) {
 			if (!hoistNode) {
 				hoistNode = getDocument().createElement(tag);
@@ -219,7 +219,7 @@ const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
 		}
 	}
 	//OK, we now know all top-level children are valid types. Do additional cleanup.
-	for (let child of Object.values(children)) {
+	for (const child of Object.values(children)) {
 		if (isWhitespace(child.textContent)) {
 			//It's all text content, just get rid of it
 			child.parentNode.removeChild(child);
@@ -253,7 +253,7 @@ export const normalizeLineBreaks = (html : string) => {
 	html = html.split('\n').join('');
 
 	//Add in line breaks
-	for (let key of Object.keys(legalTopLevelNodes)) {
+	for (const key of Object.keys(legalTopLevelNodes)) {
 		const closeTag = '</' + key + '>';
 		html = html.split(closeTag).join(closeTag + '\n');
 	}
