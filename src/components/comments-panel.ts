@@ -55,21 +55,21 @@ import {
 class CommentsPanel extends connect(store)(PageViewElement) {
 	
 	@state()
-	_open: boolean;
+		_open: boolean;
 
 	@state()
-	_card: Card;
+		_card: Card;
 
 	//If the card showing is a fallback card shown for an empty thing,
 	//disallow comments.
 	@state()
-	_collectionIsFallback: boolean;
+		_collectionIsFallback: boolean;
 
 	@state()
-	_composedThreads: ComposedCommentThread[]
+		_composedThreads: ComposedCommentThread[];
 
 	@state()
-	_userMayComment: boolean;
+		_userMayComment: boolean;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -183,6 +183,6 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'comments-panel': CommentsPanel;
+		'comments-panel': CommentsPanel;
 	}
 }
