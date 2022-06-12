@@ -111,58 +111,58 @@ import {
 class MainView extends connect(store)(PageViewElement) {
 
 	@state()
-	_page: string;
+		_page: string;
 
 	@state()
-	_headerPanelOpen: boolean;
+		_headerPanelOpen: boolean;
 
 	@state()
-	_editing: boolean;
+		_editing: boolean;
 
 	@state()
-	_devMode: boolean;
+		_devMode: boolean;
 
 	@state()
-	_card: Card;
+		_card: Card;
 
 	@state()
-	_collectionDescription: CollectionDescription;
+		_collectionDescription: CollectionDescription;
 
 	@state()
-	_tabs: ExpandedTabConfig;
+		_tabs: ExpandedTabConfig;
 
 	@state()
-	_countsForTabs : {[serializedCollectionDescription : string] : number }
+		_countsForTabs : {[serializedCollectionDescription : string] : number };
 
 	@state()
-	_keyboardNavigates: boolean;
+		_keyboardNavigates: boolean;
 
 	@state()
-	_activePreviewCard: Card;
+		_activePreviewCard: Card;
 
 	@state()
-	_previewCardX : number;
+		_previewCardX : number;
 
 	@state()
-	_previewCardY : number;
+		_previewCardY : number;
 
 	@state()
-	_previewCardReferenceBlocks: ExpandedReferenceBlocks;
+		_previewCardReferenceBlocks: ExpandedReferenceBlocks;
 
 	@state()
-	_mayViewUnpublished : boolean;
+		_mayViewUnpublished : boolean;
 
 	@state()
-	_mayViewApp: boolean;
+		_mayViewApp: boolean;
 
 	@state()
-	_userPermissionsFinal: boolean;
+		_userPermissionsFinal: boolean;
 
 	@state()
-	_uid : Uid;
+		_uid : Uid;
 
 	@state()
-	_badgeMap: BadgeMap;
+		_badgeMap: BadgeMap;
 
 	static override styles = [
 		css`
@@ -503,7 +503,7 @@ class MainView extends connect(store)(PageViewElement) {
 		this._badgeMap = selectBadgeMap(state);
 	}
 
-	override updated(changedProps : Map<string, any>) {
+	override updated(changedProps : Map<string, MainView[keyof MainView]>) {
 		if (changedProps.has('_mayViewUnpublished')) {
 			if (this._mayViewUnpublished) {
 				connectLiveUnpublishedCards();
@@ -528,6 +528,6 @@ class MainView extends connect(store)(PageViewElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'main-view': MainView;
+		'main-view': MainView;
 	}
 }
