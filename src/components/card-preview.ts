@@ -23,27 +23,27 @@ import {
 class CardPreview extends LitElement {
 
 	@property({ type : Object })
-	card: Card | ProcessedCard;
+		card: Card | ProcessedCard;
 
 	@property({ type : Object })
-	badgeMap: BadgeMap;
+		badgeMap: BadgeMap;
 
 	@property({ type : Number })
-	x: number;
+		x: number;
 
 	@property({ type : Number })
-	y: number;
+		y: number;
 
 	@property({ type : Array })
-	expandedReferenceBlocks: ExpandedReferenceBlocks;
+		expandedReferenceBlocks: ExpandedReferenceBlocks;
 
 	/* size of font for card in px*/
 	@property({ type : Number })
-	previewSize: number;
+		previewSize: number;
 
 	/* offset from the cursor in pixels */
 	@property({ type : Number })
-	cardOffset : number;
+		cardOffset : number;
 
 	static override styles = [
 		cardBadgesStyles,
@@ -90,6 +90,6 @@ class CardPreview extends LitElement {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'card-preview': CardPreview;
+		'card-preview': CardPreview;
 	}
 }
