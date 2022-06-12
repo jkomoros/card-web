@@ -17,13 +17,13 @@ import {
 export class DialogElement extends LitElement {
 
 	@property({ type : Boolean })
-	open: boolean;
+		open: boolean;
 
 	@property({ type : String })
 	override title: string;
 
 	@property({ type : Boolean })
-	mobile: boolean;
+		mobile: boolean;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -135,7 +135,7 @@ export class DialogElement extends LitElement {
 	}
 
 	_handleBackgroundClicked(e : MouseEvent) {
-		let background = this.shadowRoot.querySelector('.background');
+		const background = this.shadowRoot.querySelector('.background');
 		//If the click wasn't actualy directly on the background then ignore it.
 		if (e.composedPath()[0] != background) return;
 		this._shouldClose();
@@ -146,7 +146,7 @@ export class DialogElement extends LitElement {
 	}
 
 	//Will be called with a single argument of true if cancelled
-	_shouldClose(cancelled: boolean = false) {
+	_shouldClose(cancelled = false) {
 		//Override point for sub classes
 		this.dispatchEvent(makeDialogShouldCloseEvent(cancelled));
 	}
@@ -163,7 +163,7 @@ export class DialogElement extends LitElement {
 		if (input instanceof HTMLElement) input.focus();
 	}
 
-	override updated(changedProps : Map<string, any>) {
+	override updated(changedProps : Map<string, DialogElement[keyof DialogElement]>) {
 		if (changedProps.has('open') && this.open) {
 			this._focusInputOnOpen();
 		}
@@ -173,6 +173,6 @@ export class DialogElement extends LitElement {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'dialog-element': DialogElement;
+		'dialog-element': DialogElement;
 	}
 }
