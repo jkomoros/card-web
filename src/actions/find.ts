@@ -69,7 +69,7 @@ export const updateQuery : AppActionCreator  = (query) => (dispatch) => {
 	});
 };
 
-export const findCardToLink = (starterQuery : string = '') => {
+export const findCardToLink = (starterQuery = '') => {
 	saveSelectionRange();
 	return launchFind(FIND_CARD_TO_LINK, starterQuery);
 };
