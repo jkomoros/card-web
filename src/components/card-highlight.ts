@@ -32,20 +32,20 @@ import {
 class CardHighlight extends connect(store)(LitElement) {
 
 	@property({ type : String})
-	card: CardID;
+		card: CardID;
 
 	//If disabled, then won't navigate to the card, and also won't light
 	//up on hover. However, a click event will be dispatched,
 	//`disabled-card-highlight-clicked`.
 	@property({ type : Boolean })
-	disabled: boolean;
+		disabled: boolean;
 
 	//If true, will render in an alternate color
 	@property({ type : Boolean })
-	alternate: boolean;
+		alternate: boolean;
 
 	@state()
-	_hoverCardID: CardID;
+		_hoverCardID: CardID;
 
 	//TODO: switch to static styles property
 	static override styles = [
@@ -131,6 +131,6 @@ class CardHighlight extends connect(store)(LitElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  "card-highlight": CardHighlight;
+		'card-highlight': CardHighlight;
 	}
 }
