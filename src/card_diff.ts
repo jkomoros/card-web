@@ -73,7 +73,8 @@ import {
 	CardDiff,
 	CardUpdate,
 	OptionalFieldsCard,
-	CardLike
+	CardLike,
+	DottedCardUpdate
 } from './types.js';
 
 import {
@@ -445,13 +446,13 @@ export const validateCardDiff = (state : State, underlyingCard : Card, diff : Ca
 
 //Returns an object of cardID -> firebaseUpdate to make to bring the
 //inboundLinks to parity based on the change in beforeCard to afterCard.
-export const inboundLinksUpdates = (cardID : CardID, beforeCard : CardLike, afterCard : CardLike) : {[id : CardID] : CardUpdate } => {
+export const inboundLinksUpdates = (cardID : CardID, beforeCard : CardLike, afterCard : CardLike) : {[id : CardID] : DottedCardUpdate } => {
 
 	const [changes, deletions] = referencesCardsDiff(beforeCard, afterCard);
 
 	if (Object.keys(changes).length === 0 && Object.keys(deletions).length === 0) return {};
 
-	const updatesToApply : {[id : CardID] : CardUpdate } = {};
+	const updatesToApply : {[id : CardID] : DottedCardUpdate } = {};
 
 	if (Object.keys(changes).length) {
 		const afterReferencesInfo = afterCard[REFERENCES_INFO_CARD_PROPERTY];

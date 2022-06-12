@@ -623,6 +623,12 @@ type ArrayToFieldValueUnion<Type> = {
 //deleteSentinel
 export type CardUpdate = ArrayToFieldValueUnion<TimestampToFieldValue<OptionalFieldsCard>>;
 
+//A partial udpate using possible dottedFieldPath property names that is
+//appropriate for being updateDoc(ref, DottedCardUpdate)
+export type DottedCardUpdate = {
+    [dottedPropertyName : string] : any
+}
+
 export type CardLike = Card | CardUpdate;
 
 //These are fields in CardDiff that cannot be auto-merged when edits are made by
