@@ -7,7 +7,7 @@ import { Author } from '../types.js';
 class AuthorChip extends LitElement {
 
 	@property( { type: Object })
-	author : Author;
+		author : Author;
 
 	static override styles = [
 		css`
@@ -42,6 +42,6 @@ class AuthorChip extends LitElement {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  "author-chip": AuthorChip;
+		'author-chip': AuthorChip;
 	}
 }
