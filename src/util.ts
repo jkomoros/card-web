@@ -440,7 +440,7 @@ export const arrayDiffAsSets = (before : any[] = [], after : any[] = []) => {
 	return [arrayToSet(additions), arrayToSet(deletions)];
 };
 
-export const arrayDiff = (before : any[] = [], after : any[] = []) : [any[], any[]]=> {
+export function arrayDiff<T>(before : T[] = [], after : T[] = []) : [T[], T[]] {
 	if (!before) before = [];
 	if (!after) after = [];
 	const afterMap = new Map();
@@ -459,7 +459,7 @@ export const arrayDiff = (before : any[] = [], after : any[] = []) : [any[], any
 	//Additions is the keys not remved in afterMap
 	const additions = [...afterMap.keys()];
 	return [additions, deletions];
-};
+}
 
 type TriStateMap = {
 	[name : string]: boolean
