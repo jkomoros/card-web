@@ -29,7 +29,7 @@ import {
 export class WordCloud extends connect(store)(LitElement) {
 
 	@property({ type : Array })
-	wordCloud: WordCloudType;
+		wordCloud: WordCloudType;
 
 	override render() {
 		return html`
@@ -60,6 +60,6 @@ export class WordCloud extends connect(store)(LitElement) {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'word-cloud': WordCloud;
+		'word-cloud': WordCloud;
 	}
 }
