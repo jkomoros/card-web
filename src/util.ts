@@ -435,7 +435,7 @@ export const arrayToSet = (arr : string[]) : {[name : string]: true} => {
 	return result;
 };
 
-export const arrayDiffAsSets = (before : any[] = [], after : any[] = []) => {
+export const arrayDiffAsSets = (before : string[] = [], after : string[] = []) : [{[name : string] : true}, {[name : string] : true}] => {
 	const [additions, deletions] = arrayDiff(before,after);
 	return [arrayToSet(additions), arrayToSet(deletions)];
 };
