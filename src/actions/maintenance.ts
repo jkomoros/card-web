@@ -99,7 +99,9 @@ import {
 	MaintenanceTaskMap,
 	MaintenanceTaskID,
 	MaintenanceTask,
-	ImageBlock
+	ImageBlock,
+	ReferencesInfoMap,
+	DottedCardUpdate
 } from '../types.js';
 
 import {
@@ -173,8 +175,8 @@ const updateInboundLinks : MaintenanceTaskFunction = async() => {
 		counter++;
 		const linkingCardsSnapshot = await getDocs(query(collection(db, CARDS_COLLECTION), where(REFERENCES_CARD_PROPERTY + '.' + doc.id, '==', true)));
 		if(!linkingCardsSnapshot.empty) {
-			const referencesInbound : {[name : string] : any} = {};
-			const referencesInboundSentinel: {[name : string] : any} = {};
+			const referencesInbound : ReferencesInfoMap = {};
+			const referencesInboundSentinel: {[name : CardID] : boolean} = {};
 			linkingCardsSnapshot.forEach((linkingCard : DocumentSnapshot) => {
 				referencesInbound[linkingCard.id] = linkingCard.data()[REFERENCES_INFO_CARD_PROPERTY][doc.id];
 				referencesInboundSentinel[linkingCard.id] = linkingCard.data()[REFERENCES_CARD_PROPERTY][doc.id];
@@ -329,7 +331,7 @@ const convertMultiLinksDelimiter : MaintenanceTaskFunction = async () => {
 	const snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	snapshot.forEach(doc => {
 		const card = doc.data();
-		const update : {[name : string] : any} = {};
+		const update : DottedCardUpdate = {};
 
 		const referencesInfo = card[REFERENCES_INFO_CARD_PROPERTY];
 		for (const [otherCardID, referenceMap] of Object.entries(referencesInfo)) {
