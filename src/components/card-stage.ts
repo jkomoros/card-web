@@ -36,34 +36,34 @@ import {
 export class CardStage extends LitElement {
 
 	@property({ type : Boolean })
-	mobile: boolean;
+		mobile: boolean;
 
 	@property({ type : Boolean })
-	loading: boolean;
+		loading: boolean;
 
 	@property({ type : Boolean })
-	presenting: boolean;
+		presenting: boolean;
 
 	@property({ type : Boolean })
-	highPadding: boolean;
+		highPadding: boolean;
 
 	@property({ type : Boolean })
-	dataIsFullyLoaded : boolean;
+		dataIsFullyLoaded : boolean;
 
 	@property({ type : Boolean })
-	editing: boolean;
+		editing: boolean;
 
 	@property({ type : Object })
-	card: ProcessedCard | Card;
+		card: ProcessedCard | Card;
 
 	@property({ type : Object })
-	updatedFromContentEditable: CardFieldMap;
+		updatedFromContentEditable: CardFieldMap;
 
 	@property({ type : Array })
-	expandedReferenceBlocks: ExpandedReferenceBlocks;
+		expandedReferenceBlocks: ExpandedReferenceBlocks;
 
 	@property({ type : Array })
-	suggestedConcepts: CardID[];
+		suggestedConcepts: CardID[];
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -237,13 +237,13 @@ export class CardStage extends LitElement {
 		const totalCardWidthInEms = cardWidthInEms + cardWidthPaddingInEms;
 		const totalCardHeighInEms = cardHeightInEms + cardHeightPaddingInEms;
 
-		let targetWidth = rect.width - paddingInPx;
+		const targetWidth = rect.width - paddingInPx;
 		//TODO: take into account size of actions bar.
 		//On small screens don't worry about any vertical padding.
-		let targetHeight = rect.height - (this.mobile ? 0 : paddingInPx);
+		const targetHeight = rect.height - (this.mobile ? 0 : paddingInPx);
 
-		let widthFontSize = targetWidth / totalCardWidthInEms;
-		let heightFontSize = targetHeight / totalCardHeighInEms;
+		const widthFontSize = targetWidth / totalCardWidthInEms;
+		const heightFontSize = targetHeight / totalCardHeighInEms;
 
 		//Pick the smaller of the two
 		fontSize = widthFontSize;
@@ -275,6 +275,6 @@ export class CardStage extends LitElement {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'card-stage': CardStage;
+		'card-stage': CardStage;
 	}
 }
