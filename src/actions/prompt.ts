@@ -93,11 +93,11 @@ const doAction = (dispatch : AppThunkDispatch, state : State, action : CommitAct
 		console.log(content, associatedId);
 		return;
 	case COMMIT_ACTIONS.EDIT_MESSAGE:
-		let message = getMessageById(state, associatedId);
+		const message = getMessageById(state, associatedId);
 		dispatch(editMessage(message, content));
 		return;
 	case COMMIT_ACTIONS.ADD_MESSAGE:
-		let thread = getThreadById(state, associatedId);
+		const thread = getThreadById(state, associatedId);
 		dispatch(addMessage(thread, content));
 		return;
 	case COMMIT_ACTIONS.CREATE_THREAD:
