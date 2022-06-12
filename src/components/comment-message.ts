@@ -33,7 +33,7 @@ import {
 class CommentMessage extends LitElement {
 	
 	@property({ type : Object })
-	message: ComposedCommentMessage;
+		message: ComposedCommentMessage;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -106,6 +106,6 @@ class CommentMessage extends LitElement {
 
 declare global {
 	interface HTMLElementTagNameMap {
-	  'comment-message': CommentMessage;
+		'comment-message': CommentMessage;
 	}
 }
