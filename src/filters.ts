@@ -228,7 +228,7 @@ export const makeDateSection = (comparsionType : DateRangeType, dateOne : Date, 
 const dateConfigurableFilterMap : {[name : string] : CardTimestampPropertyName} = {
 	[UPDATED_FILTER_NAME] : 'updated_substantive' as CardTimestampPropertyName,
 	[LAST_TWEETED_FILTER_NAME]: 'last_tweeted' as CardTimestampPropertyName,
-}
+};
 
 const makeDateConfigurableFilter = (propName : CardTimestampPropertyName | typeof UPDATED_FILTER_NAME | typeof LAST_TWEETED_FILTER_NAME, comparisonType : DateRangeType, firstDateStr? : string, secondDateStr? : string) : ConfigurableFilterFuncFactoryResult => {
 
@@ -277,15 +277,15 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName | typeo
 };
 
 function unionSet<T>(...sets : {[name : string] : T}[]) : {[name : string] : T} {
-	let result : {[name : string] : T} = {};
-	for (let set of sets) {
+	const result : {[name : string] : T} = {};
+	for (const set of sets) {
 		if (!set) continue;
-		for (let key of Object.keys(set)) {
+		for (const key of Object.keys(set)) {
 			result[key] = set[key];
 		}
 	}
 	return result;
-};
+}
 
 export const referencesConfigurableFilterText = (referencesFilterType : string, cardID : CardID, referencesTypes : ReferenceType | ReferenceType[], invertReferencesTypes? : boolean, ply? : number) => {
 	if (!referencesFilterType.includes(REFERENCES_FILTER_NAME)) throw new Error(referencesFilterType + ' is not a valid type for this function');
@@ -339,7 +339,7 @@ const cardBFSMaker = (filterName : string, cardID : CardID, countOrTypeStr : str
 		referenceTypes = typeStr.split(UNION_FILTER_DELIMITER) as ReferenceType[];
 		//if we were told to invert, include any reference type that WASN'T passed.
 		if (invertReferenceTypes) {
-			let providedTypesMap = Object.fromEntries(referenceTypes.map(item => [item, true]));
+			const providedTypesMap = Object.fromEntries(referenceTypes.map(item => [item, true]));
 			referenceTypes = TypedObject.keys(REFERENCE_TYPES).filter(key => !providedTypesMap[key]);
 		}
 	}
@@ -383,7 +383,7 @@ const makeCardLinksConfigurableFilter = (filterName : string, cardID : string, c
 
 	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean, number] {
 		
-		let val = mapCreator(extras.cards, extras.keyCardID, extras.editingCard)[card.id];
+		const val = mapCreator(extras.cards, extras.keyCardID, extras.editingCard)[card.id];
 		//Return the degree of separation so it's available to sort on
 		return [val !== undefined, val];
 	};
@@ -408,7 +408,7 @@ const makeCardsConfigurableFilter = (_ : string, idString : string) : Configurab
 		const idsToMatch = generator(extras.keyCardID);
 		if (idsToMatch[card.id]) return [true];
 		if (!card.slugs) return [false];
-		for (let slug of card.slugs) {
+		for (const slug of card.slugs) {
 			if (idsToMatch[slug]) return [true];
 		}
 		return [false];
@@ -430,10 +430,10 @@ const makeAboutConceptConfigurableFilter = (_ : string, conceptStrOrID : string)
 
 	const matchingCardsFunc = memoize((cards : ProcessedCards, keyCardID : CardID) : [FilterMap, CardID]=> {
 		const expandedConceptStrOrId = conceptStrOrID == KEY_CARD_ID_PLACEHOLDER ? keyCardID : conceptStrOrID;
-		let conceptCard = cards[expandedConceptStrOrId] || getConceptCardForConcept(cards, expandedConceptStrOrId);
+		const conceptCard = cards[expandedConceptStrOrId] || getConceptCardForConcept(cards, expandedConceptStrOrId);
 		if (!conceptCard) return [{}, ''];
 		const conceptReferenceMap = references(conceptCard).byTypeClassInbound(REFERENCE_TYPE_CONCEPT);
-		let matchingCards : FilterMap = {};
+		const matchingCards : FilterMap = {};
 		for (const cardMap of Object.values(conceptReferenceMap)) {
 			for (const cardID of Object.keys(cardMap)) {
 				matchingCards[cardID] = true;
@@ -626,7 +626,7 @@ const makeCombineConfigurableFilter = (_ : string, ...remainingParts : string[])
 		if (excludeOne) filterMembershipOne = makeConcreteInverseFilter(filterMembershipOne, extras.cards);
 		if (excludeTwo) filterMembershipTwo = makeConcreteInverseFilter(filterMembershipTwo, extras.cards);
 
-		let result : FilterMap = {};
+		const result : FilterMap = {};
 		for (const key of Object.keys(filterMembershipOne)) {
 			result[key] = true;
 		}
@@ -1223,7 +1223,7 @@ export const CONFIGURABLE_FILTER_NAMES = Object.fromEntries(Object.entries(CONFI
 
 const LINKS_FILTER_NAMES = Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_INFO).filter(entry => entry[1].factory == makeCardLinksConfigurableFilter).map(entry => [entry[0], true]));
 
-let memoizedConfigurableFilters : {[name : string] : ConfigurableFilterFuncFactoryResult} = {};
+const memoizedConfigurableFilters : {[name : string] : ConfigurableFilterFuncFactoryResult} = {};
 
 export const makeConfigurableFilter = (name : string) : ConfigurableFilterFuncFactoryResult => {
 	if (!memoizedConfigurableFilters[name]) {
@@ -1322,7 +1322,7 @@ const sectionNameForCard = (card : Card, sections : Sections) : string => {
 	if (!card) {
 		return '';
 	}
-	let section = sections[card.section];
+	const section = sections[card.section];
 	return section ? section.title : '';
 };
 
@@ -1464,8 +1464,8 @@ export const SORTS : SortConfigurationMap = {
 	'card-rank': {
 		extractor: (card, _, cards) => {
 			//This is memoized so as long as cards is the same it won't be re-run.
-			let ranks = pageRank(cards);
-			let rank = ranks[card.id] || 0.0;
+			const ranks = pageRank(cards);
+			const rank = ranks[card.id] || 0.0;
 			return [rank, '' + Math.round(rank * 100000)];
 		},
 		description: 'Ranked by card rank (like page rank but for cards)',
@@ -1658,15 +1658,15 @@ const MAX_TOTAL_TODO_DIFFICULTY = Object.entries(TODO_DIFFICULTY_MAP).map(entry 
 //TODOs that are NOT marked done. If onlyNonOverrides is true, then it will skip
 //any keys that are only true (not done) because they're overridden to be marked
 //as not done.
-export const cardTODOConfigKeys = (card : Card, onlyNonOverrides : boolean = false) : TODOType[] => {
+export const cardTODOConfigKeys = (card : Card, onlyNonOverrides  = false) : TODOType[] => {
 	//TODO: this ideally should be in util.js (with the other cardHasContent
 	//functions), but because of entanglement of constants this has to live next
 	//to these constants.
 	if (!card) return [];
 
-	let result = [];
+	const result = [];
 
-	for (let configKey of Object.keys(CARD_FILTER_CONFIGS)) {
+	for (const configKey of Object.keys(CARD_FILTER_CONFIGS)) {
 		const config = CARD_FILTER_CONFIGS[configKey];
 		const todoConfig = config[2];
 		if (!todoConfig.isTODO) continue;
