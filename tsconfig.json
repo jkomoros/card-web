@@ -39,7 +39,7 @@
           "update-render-offset",
           "card-hovered",
           "dialog-should-close",
-          "edit-message",
+          "message-edit",
           "delete-message",
           "resolve-thread",
           "add-message",

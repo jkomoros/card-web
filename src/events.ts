@@ -26,9 +26,8 @@ export const THUMBNAIL_TAPPED_EVENT_NAME = 'thumbnail-tapped';
 export const UPDATE_RENDER_OFFSET_EVENT_NAME = 'update-render-offset';
 export const CARD_HOVERED_EVENT_NAME = 'card-hovered';
 export const DIALOG_SHOULD_CLOSE_EVENT_NAME = 'dialog-should-close';
-//TODO: rename to message-edit?
 //TODO: rename to message-delete?
-export const COMMENT_EDIT_MESSAGE_NAME = 'edit-message';
+export const COMMENT_EDIT_MESSAGE_NAME = 'message-edit';
 export const COMMENT_DELETE_MESSAGE_NAME = 'delete-message';
 //TODO: name to thread-resolve?
 export const COMMENT_RESOLVE_THREAD_NAME = 'resolve-thread';
