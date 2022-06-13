@@ -4,7 +4,6 @@ import {
 	DEFAULT_SORT_NAME,
 	SORT_URL_KEYWORD,
 	SORT_REVERSED_URL_KEYWORD,
-	DEFAULT_SET_NAME,
 	SET_NAMES,
 	UNION_FILTER_DELIMITER,
 	FILTER_EQUIVALENTS_FOR_SET,
@@ -20,6 +19,10 @@ import {
 	queryTextFromQueryFilter,
 	VIEW_MODE_WEB,
 } from './filters.js';
+
+import {
+	DEFAULT_SET_NAME,
+} from './type_constants.js';
 
 import {
 	TypedObject
@@ -470,11 +473,11 @@ export class CollectionDescription {
 		//happens... for a second.
 		const firstPart = parts.length ? parts[0] : '';
 
-		let setName = '';
+		let setName : SetName = '';
 
 		for (const name of SET_NAMES) {
 			if (name == firstPart) {
-				setName = firstPart;
+				setName = firstPart as SetName;
 				parts.shift();
 				break;
 			}

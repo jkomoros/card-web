@@ -173,3 +173,18 @@ export const IMAGE_POSITION_TYPES = {
 	[IMAGE_POSITION_TOP_LEFT]: true,
 	[IMAGE_POSITION_TOP_RIGHT]: true,
 };
+
+export const DEFAULT_SET_NAME = 'main';
+//reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
+//order matters and is customizable by the user. Every other collection starts
+//from the `all` set and then filters and then maybe sorts, but reading-list
+//lets a custom order.
+export const READING_LIST_SET_NAME = 'reading-list';
+export const EVERYTHING_SET_NAME = 'everything';
+
+//Drives SetName type
+export const SET_NAME_TYPES = {
+	[DEFAULT_SET_NAME]: true,
+	[READING_LIST_SET_NAME]: true,
+	[EVERYTHING_SET_NAME]: true
+};

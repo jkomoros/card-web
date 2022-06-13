@@ -45,7 +45,8 @@ import './configure-collection-filter.js';
 import {
 	TagInfos,
 	State,
-	Uid
+	Uid,
+	SetName
 } from '../types.js';
 
 import {
@@ -135,7 +136,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_handleSetSelectChanged(e : Event) {
 		const ele = e.composedPath()[0];
 		if(!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
-		const set = ele.value;
+		const set = ele.value as SetName;
 		store.dispatch(navigateToCollection(collectionDescriptionWithSet(this._collectionDescription, set)));
 	}
 

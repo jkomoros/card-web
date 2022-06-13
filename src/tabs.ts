@@ -1,8 +1,6 @@
 import {
 	RECENT_SORT_NAME,
-	STARS_SORT_NAME,
-	READING_LIST_SET_NAME,
-	EVERYTHING_SET_NAME,
+	STARS_SORT_NAME
 } from './filters.js';
 
 import {
@@ -13,7 +11,9 @@ import * as icons from './components/my-icons.js';
 
 import {
 	CARD_TYPE_WORKING_NOTES,
-	CARD_TYPE_CONCEPT
+	CARD_TYPE_CONCEPT,
+	READING_LIST_SET_NAME,
+	EVERYTHING_SET_NAME
 } from './type_constants.js';
 
 import {

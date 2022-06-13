@@ -44,7 +44,10 @@ import {
 	URL_PART_SUB_FILTER,
 	URL_PART_MULTIPLE_CARDS,
 	URL_PART_CONCEPT_STR_OR_ID,
-	URL_PART_EXPAND_FILTER
+	URL_PART_EXPAND_FILTER,
+	DEFAULT_SET_NAME,
+	READING_LIST_SET_NAME,
+	EVERYTHING_SET_NAME
 } from './type_constants.js';
 
 import {
@@ -104,14 +107,6 @@ import {
 import {
 	TypedObject
 } from './typed_object.js';
-
-export const DEFAULT_SET_NAME = 'main';
-//reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
-//order matters and is customizable by the user. Every other collection starts
-//from the `all` set and then filters and then maybe sorts, but reading-list
-//lets a custom order.
-export const READING_LIST_SET_NAME = 'reading-list';
-export const EVERYTHING_SET_NAME = 'everything';
 
 const INBOUND_SUFFIX = '-inbound';
 const OUTBOUND_SUFFIX = '-outbound';
@@ -180,7 +175,7 @@ export const FILTER_EQUIVALENTS_FOR_SET = Object.fromEntries(Object.entries(SET_
 //the filters
 export const UNION_FILTER_DELIMITER = '+';
 
-export const SET_NAMES = Object.keys(SET_INFOS);
+export const SET_NAMES = TypedObject.keys(SET_INFOS);
 
 //The word in the URL That means "the part after this is a sort".
 export const SORT_URL_KEYWORD = 'sort';

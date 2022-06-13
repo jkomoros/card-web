@@ -18,9 +18,6 @@ import {
 
 import {
 	TODO_COMBINED_FILTER_NAME,
-	DEFAULT_SET_NAME,
-	READING_LIST_SET_NAME,
-	EVERYTHING_SET_NAME,
 	cardTODOConfigKeys,
 	queryConfigurableFilterText,
 	SIMILAR_FILTER_NAME,
@@ -52,6 +49,9 @@ import {
 
 import {
 	CARD_TYPE_WORKING_NOTES,
+	DEFAULT_SET_NAME,
+	READING_LIST_SET_NAME,
+	EVERYTHING_SET_NAME,
 } from './type_constants.js';
 
 import {

@@ -30,10 +30,13 @@ import {
 import {
 	INITIAL_STATE,
 	FILTER_EQUIVALENTS_FOR_SET,
-	DEFAULT_SET_NAME,
-	READING_LIST_SET_NAME,
 	CARD_FILTER_FUNCS,
 } from '../filters.js';
+
+import {
+	DEFAULT_SET_NAME,
+	READING_LIST_SET_NAME,
+} from '../type_constants.js';
 
 import {
 	CollectionState,

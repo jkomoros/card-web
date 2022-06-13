@@ -11,6 +11,7 @@ import {
 	DATE_RANGE_TYPES,
 	URL_PART_TYPES,
 	IMAGE_POSITION_TYPES,
+	SET_NAME_TYPES
 } from './type_constants.js';
 
 import * as icons from './components/my-icons.js';
@@ -777,8 +778,7 @@ export type UserPermissionsMap = {
 //When adding to this also extend src/actions/prompt.ts:COMMIT_ACTIONS
 export type CommitActionType = '' | 'CONSOLE_LOG' | 'EDIT_MESSAGE' | 'ADD_MESSAGE' | 'CREATE_THREAD';
 
-//TODO: lock this down
-export type SetName = string;
+export type SetName = '' | keyof(typeof SET_NAME_TYPES);
 //TODO: lock this down
 export type SortName = string;
 //TODO: lock this down
@@ -830,7 +830,7 @@ export type Sections = {
 }
 
 export type Sets = {
-    [setName : SetName] : CardID[]
+    [setName in SetName]+?: CardID[]
 }
 
 export type FilterExtras = {
