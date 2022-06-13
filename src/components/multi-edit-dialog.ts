@@ -150,7 +150,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		const subtleItems = arrayDiffAsSets(referencesMap[entry[0]], intersectionReferencesMap[entry[0]])[1];
 		return html`<div>
 								<label>${entry[1].name} ${help(entry[1].description, false)}</label>
-								<tag-list .overrideTypeName=${'Reference'} data-reference-type=${entry[0]} .tagInfos=${this._cardTagInfos} .subtleTags=${subtleItems} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .previousTags=${previousReferencesMap[entry[0]]} .editing=${true} .tapEvents=${true} .disableAdd=${true} @tag-tapped=${this._handleTagTapped} @add-tag=${this._handleUnremoveReference} @remove-tag=${this._handleRemoveReference}></tag-list>
+								<tag-list .overrideTypeName=${'Reference'} data-reference-type=${entry[0]} .tagInfos=${this._cardTagInfos} .subtleTags=${subtleItems} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .previousTags=${previousReferencesMap[entry[0]]} .editing=${true} .tapEvents=${true} .disableAdd=${true} @tag-tapped=${this._handleTagTapped} @tag-added=${this._handleUnremoveReference} @remove-tag=${this._handleRemoveReference}></tag-list>
 							</div>`;
 	})}
 			${this._referencesDiff.length ? html`<h4>Changes that will be made to selected cards</h4>` : ''}

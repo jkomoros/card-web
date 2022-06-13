@@ -31,7 +31,7 @@
         },
         "globalEvents": [
           "tag-tapped",
-          "add-tag",
+          "tag-added",
           "remove-tag",
           "new-tag",
           "show-need-signin",

@@ -153,7 +153,7 @@ class TagChip  extends LitElement {
 		e.preventDefault();
 		if (this.deletion) {
 			//In this (special) case, the user has removed us previously and so
-			//now clicking again should UN-delete us, by firing an add-tag.
+			//now clicking again should UN-delete us, by firing an tag-added.
 			this.dispatchEvent(makeTagAddedEvent(this.tagName));
 		} else {
 			//the dfeault case, this will fire a remove-tag
