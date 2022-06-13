@@ -809,7 +809,7 @@ export const getObjectPath = (obj : unknown, path : string[]) : unknown => {
 };
 
 //Returns a path within the given object to find an occurance of sentinel value.
-export const objectPathToValue = (obj : any, sentinel : any) : undefined | string[] => {
+export const objectPathToValue = (obj : unknown, sentinel : unknown) : string[] => {
 	if (!obj) return undefined;
 	if (typeof obj !== 'object') return undefined;
 	for (const [key, value] of Object.entries(obj)) {
