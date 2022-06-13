@@ -775,7 +775,7 @@ export const deepEqual = (a : unknown, b : unknown, objectChecker : ((object: un
 //{b: VALUE}}. It implies intermediate keys into existence as objects, and
 //errors if those keys already exist and are not objects.
 //Similar to card_diff.ts:estFirebaseValueOnObj but with different semantics.
-export const setValueOnObj = (obj : {[field : string]: any}, fieldParts : string[], value : any) : void => {
+export const setValueOnObj = (obj : {[field : string]: unknown}, fieldParts : string[], value : unknown) : void => {
 	//Obj is an object it's OK to modify
 	const firstFieldPart = fieldParts[0];
 	//Modifies obj in place.
@@ -790,7 +790,8 @@ export const setValueOnObj = (obj : {[field : string]: any}, fieldParts : string
 		if (typeof obj[firstFieldPart] != 'object' || obj[firstFieldPart] == null || Array.isArray(obj[firstFieldPart])) throw new Error('Existing field is not a sub object');
 	}
 	if (!obj[firstFieldPart]) obj[firstFieldPart] = {};
-	setValueOnObj(obj[firstFieldPart], fieldParts.slice(1), value);
+	const subObject = obj[firstFieldPart] as {[field : string] : unknown};
+	setValueOnObj(subObject, fieldParts.slice(1), value);
 };
 
 //For {a: {b: 2}, c: 3}, a path of ['a', 'b'] would return 2.
