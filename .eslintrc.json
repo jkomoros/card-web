@@ -4,7 +4,15 @@
         "es6": true,
         "mocha": true
     },
-    "extends": "eslint:recommended",
+    "parser": "@typescript-eslint/parser",
+    "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/eslint-recommended",
+        "plugin:@typescript-eslint/recommended"
+    ],
+    "plugins": [
+        "@typescript-eslint"
+    ],
     "parserOptions": {
         "ecmaVersion": 2022,
         "sourceType": "module"
@@ -28,6 +36,11 @@
         ],
         "no-console": "off",
         "no-case-declarations": "off",
-        "no-fallthrough": "off"
+        "no-fallthrough": "off",
+        "prefer-const": [ "error",
+            {
+                "destructuring" : "all"
+            }
+        ]
     }
 }

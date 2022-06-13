@@ -25,14 +25,17 @@ import {
 } from '../../src/nlp.js';
 
 import {
+	TEXT_FIELD_CONFIGURATION,
+} from '../../src/card_fields.js';
+
+import {
 	CARD_TYPE_CONTENT,
 	CARD_TYPE_WORKING_NOTES,
 	REFERENCE_TYPE_LINK,
 	REFERENCE_TYPE_ACK,
 	REFERENCE_TYPE_DUPE_OF,
-	TEXT_FIELD_CONFIGURATION,
 	TEXT_FIELD_TITLE,
-} from '../../src/card_fields.js';
+} from '../../src/type_constants.js';
 
 import assert from 'assert';
 

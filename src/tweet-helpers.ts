@@ -2,11 +2,22 @@
 //at the very end) in /functions/tweet-helpers.js and
 //src/tweet-helpers.js. See #134 for de-duping
 
+import {
+	CardLike,
+	Card,
+	Cards,
+	Sections,
+	SectionID,
+	ReferenceType
+} from './types.js';
+
+type SectionTwiddlerMap = Map<SectionID, number>;
+
 //cachedSectionTwidderMapForSections is the sections map we were last passed; if
 //it's different then we should regenerate cachedSectionTwidderMap.
-let cachedSectionTwidderMapForSections = null;
+let cachedSectionTwidderMapForSections : Sections = null;
 //The cached map to pass back out if cachedSectionTwidderMapForSections is the same as last time.
-let cachedSectionTwiddlerMap = null;
+let cachedSectionTwiddlerMap : SectionTwiddlerMap = null;
 
 const SECTION_TWIDDLE_AMOUNT = 0.20;
 const UNPUBLISHED_LINKS_TWIDDLE_AMOUNT = 0.2;
@@ -15,11 +26,11 @@ const UNPUBLISHED_LINKS_TWIDDLE_AMOUNT = 0.2;
 //values up for earlier sections. It's memoized so if sections doesn't change it
 //returns the same thing--and generally it should only have to be generated
 //once.
-const sectionTwiddlerMap = (sections) => {
+const sectionTwiddlerMap = (sections : Sections) : Map<SectionID, number> => {
 
 	if (cachedSectionTwidderMapForSections === sections && cachedSectionTwiddlerMap) return cachedSectionTwiddlerMap;
 
-	let twiddlerMap = new Map();
+	const twiddlerMap = new Map();
 	const sectionKeys = Object.keys(sections);
 	for (let i = 0; i < sectionKeys.length; i++) {
 		let multiplier = 1.0;
@@ -46,14 +57,14 @@ const REFERENCES_INFO_CARD_PROPERTY = 'references_info';
 
 //cardGetReferencesArray returns an array of CARD_IDs this card points to via links.
 //NOTE: this is duplicated from card_fields.js
-const cardGetReferencesArray = (cardObj) => {
+const cardGetReferencesArray = (cardObj : CardLike) : ReferenceType[] => {
 	if (!cardObj) return [];
 	const references = cardObj[REFERENCES_INFO_CARD_PROPERTY];
 	if (!references) return [];
-	return Object.keys(references);
+	return Object.keys(references) as ReferenceType[];
 };
 
-const tweetOrderExtractorImpl = (card, sections, allCards) => {
+const tweetOrderExtractorImpl = (card : Card, sections : Sections, allCards : Cards) : [number, string] => {
 	//Note: this logic is just manually equivalent to the logic that
 	//will be applied server-side, and is thus duplicated there.
 
@@ -127,4 +138,4 @@ const tweetOrderExtractorImpl = (card, sections, allCards) => {
 //Below this line are the only changes between the two versions of this file,
 //for ES6 and CommonJS export styles.
 
-exports.tweetOrderExtractor = tweetOrderExtractorImpl;
+export const tweetOrderExtractor = tweetOrderExtractorImpl;

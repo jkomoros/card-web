@@ -1,0 +1,62 @@
+{
+  "compilerOptions": {
+    "target": "es2019",
+    "module": "es2020",
+    "lib": ["es2020", "DOM", "DOM.Iterable"],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "inlineSources": true,
+    "rootDir": "./src",
+    "noUnusedLocals": true,
+    "useDefineForClassFields": false,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitOverride": true,
+    "noImplicitThis": true,
+    "noEmitOnError": true,
+    "noImplicitAny": true,
+    "plugins": [
+      {
+        "name": "ts-lit-plugin",
+        "strict": true,
+        "rules" : {
+          "no-missing-element-type-definition": "error",
+          "no-unknown-event": "error"
+        },
+        "globalEvents": [
+          "tag-tapped",
+          "add-tag",
+          "remove-tag",
+          "new-tag",
+          "show-need-signin",
+          "thumbnail-tapped",
+          "update-render-offset",
+          "card-hovered",
+          "dialog-should-close",
+          "edit-message",
+          "delete-message",
+          "resolve-thread",
+          "add-message",
+          "filter-modified",
+          "filter-removed",
+          "change-complex",
+          "card-swiped",
+          "disabled-card-highlight-clicked",
+          "text-field-updated",
+          "reorder-card",
+          "info-zippy-clicked",
+          "add-card",
+          "add-working-notes-card"
+        ]
+      }
+    ]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": []
+}
