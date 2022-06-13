@@ -20,8 +20,7 @@ tsconfig.json:plugins:0:globalEvents.
 export const TAG_TAPPED_EVENT_NAME = 'tag-tapped';
 export const TAG_ADDED_EVENT_NAME = 'tag-added';
 export const TAG_REMOVED_EVENT_NAME = 'tag-removed';
-//TODO: change to 'tag-new'
-export const TAG_NEW_EVENT_NAME = 'new-tag';
+export const TAG_NEW_EVENT_NAME = 'tag-new';
 export const SHOW_NEED_SIGNIN_EVENT_NAME = 'show-need-signin';
 export const THUMBNAIL_TAPPED_EVENT_NAME = 'thumbnail-tapped';
 export const UPDATE_RENDER_OFFSET_EVENT_NAME = 'update-render-offset';

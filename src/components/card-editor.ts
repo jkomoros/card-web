@@ -464,7 +464,7 @@ class CardEditor extends connect(store)(LitElement) {
 			<div class='row'>
 				<div>
 					<label>Tags ${help('Tags are collections, visible to all viewers, that a card can be in. A card can be in 0 or more tags.')}</label>
-					<tag-list .tags=${this._card.tags} .previousTags=${this._underlyingCard ? this._underlyingCard.tags : null} .editing=${this._userMayEditSomeTags} .excludeItems=${this._tagsUserMayNotEdit} .tagInfos=${this._tagInfos} @tag-added=${this._handleAddTag} @tag-removed=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
+					<tag-list .tags=${this._card.tags} .previousTags=${this._underlyingCard ? this._underlyingCard.tags : null} .editing=${this._userMayEditSomeTags} .excludeItems=${this._tagsUserMayNotEdit} .tagInfos=${this._tagInfos} @tag-added=${this._handleAddTag} @tag-removed=${this._handleRemoveTag} @tag-new=${this._handleNewTag}></tag-list>
 				</div>
 				<div>
 					<label>Suggested Tags ${help('Tags suggested because this card\'s content is similar to cards of the given tag. Tap one to add it.')}</label>
@@ -496,11 +496,11 @@ class CardEditor extends connect(store)(LitElement) {
 				<div class='row'>
 					<div>
 						<label>Editors ${help('Editors are people who should be able to edit this card.')}</label>
-						<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.permissions[PERMISSION_EDIT_CARD]} .editing=${true} @tag-removed=${this._handleRemoveEditor} @tag-added=${this._handleAddEditor} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewEditor} .excludeItems=${[this._card.author]}></tag-list>
+						<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.permissions[PERMISSION_EDIT_CARD]} .editing=${true} @tag-removed=${this._handleRemoveEditor} @tag-added=${this._handleAddEditor} .disableNew=${!this._isAdmin} @tag-new=${this._handleNewEditor} .excludeItems=${[this._card.author]}></tag-list>
 					</div>
 					<div>
 						<label>Collaborators ${help('Collaborators are people who helped author the card. Collaborators are visible to all viewers of a card. By default any editor who edits a card is marked as a collaborator.')}</label>
-						<tag-list .overrideTypeName=${'Collaborator'} .tagInfos=${this._authors} .tags=${this._card.collaborators} .editing=${true} @tag-removed=${this._handleRemoveCollaborator} @tag-added=${this._handleAddCollaborator} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewCollaborator} .excludeItems=${[this._card.author]}></tag-list>
+						<tag-list .overrideTypeName=${'Collaborator'} .tagInfos=${this._authors} .tags=${this._card.collaborators} .editing=${true} @tag-removed=${this._handleRemoveCollaborator} @tag-added=${this._handleAddCollaborator} .disableNew=${!this._isAdmin} @tag-new=${this._handleNewCollaborator} .excludeItems=${[this._card.author]}></tag-list>
 					</div>
 				</div>
 				<div class='row'>

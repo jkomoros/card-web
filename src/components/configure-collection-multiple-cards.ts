@@ -45,7 +45,7 @@ class ConfigureCollectionMultipleCards extends LitElement {
 		const cardIDs = parseMultipleCardIDs(this.value);
 		return html`
 			<div>
-				<tag-list .overrideTypeName=${'Card'} .tagInfos=${this.cardTagInfos} .tags=${cardIDs} .tapEvents=${true} .editing=${true} .disableSelect=${true} @tag-tapped=${this._handleTagTapped} @new-tag=${this._handleNewTag} @tag-removed=${this._handleRemoveTag}></tag-list>
+				<tag-list .overrideTypeName=${'Card'} .tagInfos=${this.cardTagInfos} .tags=${cardIDs} .tapEvents=${true} .editing=${true} .disableSelect=${true} @tag-tapped=${this._handleTagTapped} @tag-new=${this._handleNewTag} @tag-removed=${this._handleRemoveTag}></tag-list>
 			</div>
 		`;
 	}

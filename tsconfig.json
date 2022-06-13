@@ -33,7 +33,7 @@
           "tag-tapped",
           "tag-added",
           "tag-removed",
-          "new-tag",
+          "tag-new",
           "show-need-signin",
           "thumbnail-tapped",
           "update-render-offset",
