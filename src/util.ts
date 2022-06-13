@@ -795,15 +795,16 @@ export const setValueOnObj = (obj : {[field : string]: unknown}, fieldParts : st
 };
 
 //For {a: {b: 2}, c: 3}, a path of ['a', 'b'] would return 2.
-export const getObjectPath = (obj : any, path : string[]) : any => {
+export const getObjectPath = (obj : unknown, path : string[]) : unknown => {
 	if (!path) return undefined;
 	if (!Array.isArray(path)) return undefined;
 	if (path.length == 0) return obj;
 	if (!obj) return undefined;
 	if (typeof obj !== 'object') return undefined;
+	const stringKeyedObj = obj as {[field : string] : unknown};
 	const modifiedPath = [...path];
 	const firstPart = modifiedPath.shift();
-	const subObject = firstPart === undefined ? undefined : obj[firstPart];
+	const subObject = firstPart === undefined ? undefined : stringKeyedObj[firstPart];
 	return getObjectPath(subObject, modifiedPath);
 };
 
