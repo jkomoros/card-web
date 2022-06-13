@@ -42,7 +42,14 @@ import {
 	AuthorsMap,
 	TagInfos
 } from '../types.js';
-import { TagEvent } from '../events.js';
+
+import {
+	TagEvent
+} from '../events.js';
+
+import {
+	TypedObject
+} from '../typed_object.js';
 
 const ALL_PERMISSIONS = Object.fromEntries(Object.entries(PERMISSIONS_INFO).map(entry => [entry[0], {...entry[1], id: entry[0], title:entry[1].displayName, suppressLink:true}]));
 const MODIFIABLE_PERMISSIONS = Object.fromEntries(Object.entries(ALL_PERMISSIONS).filter(entry => !entry[1].locked));
@@ -171,7 +178,7 @@ class PermissionsEditor extends connect(store)(LitElement) {
 	get _unusedCardPermissions() {
 		//the card permissions that aren't currently showing for this uid but could be
 		const effectivePerms = this._effectivePermissionsForCards;
-		return Object.keys(PERMISSIONS_LEGAL_ON_CARD_INFO).filter(key => !effectivePerms[key]);
+		return TypedObject.keys(PERMISSIONS_LEGAL_ON_CARD_INFO).filter(key => !effectivePerms[key]);
 	}
 
 	get _enabledModifiablePermissions() {

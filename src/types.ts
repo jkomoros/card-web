@@ -33,7 +33,7 @@ export type CardIdentifier = CardID | Slug;
 type CardPermissionType = PermissionType;
 
 type CardPermissions = {
-    [name : CardPermissionType]: Uid[]
+    [name in CardPermissionType]+?: Uid[]
 }
 
 export type CardFieldTypeEditable = keyof(typeof TEXT_FIELD_TYPES_EDITABLE)
@@ -730,9 +730,7 @@ export type ProcessedCards = {
     [id: CardID]: ProcessedCard
 }
 
-//TODO: lock this down more
-//UserPermissions enumerates each legal value by hand.
-export type PermissionType = string;
+export type PermissionType = '' | keyof UserPermissionsCore;
 
 export interface PermissionInfo {
 	displayName : string,
@@ -743,18 +741,16 @@ export interface PermissionInfo {
 
 export interface UserPermissionsForCards {
     [uid : Uid]: {
-        [permissionType : PermissionType]: CardID[]
+        [permissionType in PermissionType]+?: CardID[]
     }
 }
 
-export interface PermissionInfoCollection {
-	[name: PermissionType]: PermissionInfo
+export type PermissionInfoCollection = {
+	[permissionType in PermissionType]+?: PermissionInfo
 }
 
-export interface UserPermissions {
-    id? : Uid,
-    notes? : string,
-    //The remaining properties are conceptually an enumeration of PermissionType.
+//This is the the type that PermissionType is driven off of.
+type UserPermissionsCore = {
     admin? : boolean,
     viewApp? : boolean,
     edit? : boolean,
@@ -767,6 +763,11 @@ export interface UserPermissions {
     star? : boolean,
     markRead? : boolean,
     modifyReadingList? : boolean,
+}
+
+export interface UserPermissions extends UserPermissionsCore {
+    id? : Uid,
+    notes? : string,
 }
 
 export type UserPermissionsMap = {

@@ -154,6 +154,10 @@ import {
 	ExpandedTabConfig,
 } from './types.js';
 
+import {
+	TypedObject
+} from './typed_object.js';
+
 const selectState = (state : State) : State => state;
 
 export const selectPage = (state : State) => state.app.page;
@@ -676,7 +680,7 @@ export const selectUserPermissionsForCardsMap = createSelector(
 		const result : UserPermissionsForCards = {};
 		for (const card of Object.values(cards)) {
 			if (!card.permissions) continue;
-			for (const [permissionKey, uids] of Object.entries(card.permissions)) {
+			for (const [permissionKey, uids] of TypedObject.entries(card.permissions)) {
 				for (const uid of uids) {
 					if (!result[uid]) result[uid] = {};
 					if (!result[uid][permissionKey]) result[uid][permissionKey] = [];

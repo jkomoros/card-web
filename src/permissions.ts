@@ -83,4 +83,4 @@ export const PERMISSIONS_INFO : PermissionInfoCollection = {
 	},
 };
 
-export const PERMISSIONS_LEGAL_ON_CARD_INFO = Object.fromEntries(Object.entries(PERMISSIONS_INFO).filter(entry => entry[1].legalOnCard));
+export const PERMISSIONS_LEGAL_ON_CARD_INFO : PermissionInfoCollection = Object.fromEntries(Object.entries(PERMISSIONS_INFO).filter(entry => entry[1].legalOnCard));
