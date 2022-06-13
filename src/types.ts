@@ -806,7 +806,6 @@ export type Tags = {
     [tagName : TagID] : Section
 }
 
-//TODO: tighten?
 type CSSFilterString = string;
 
 export type TagInfo = {
