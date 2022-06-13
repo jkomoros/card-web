@@ -35,8 +35,7 @@ export const FILTER_REMOVED_EVENT_NAME = 'filter-removed';
 export const FILTER_MODIFIED_COMPLEX_EVENT_NAME = 'filter-modified-complex';
 export const CARD_SWIPED_EVENT_NAME = 'card-swiped';
 export const DISABLED_CARD_HIGHLIGHT_CLICKED_EVENT_NAME = 'disabled-card-highlight-clicked';
-//TODO: rename to be consistent with type name?
-export const EDITABLE_CARD_FIELD_UPDATED_EVENT_NAME = 'text-field-updated';
+export const EDITABLE_CARD_FIELD_UPDATED_EVENT_NAME = 'editable-card-field-updated';
 export const REORDER_CARD_EVENT_NAME = 'reorder-card';
 export const INFO_ZIPPY_CLICKED_EVENT_NAME = 'info-zippy-clicked';
 export const ADD_CARD_EVENT_NAME = 'add-card';

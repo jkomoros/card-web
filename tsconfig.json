@@ -48,7 +48,7 @@
           "filter-modified-complex",
           "card-swiped",
           "disabled-card-highlight-clicked",
-          "text-field-updated",
+          "editable-card-field-updated",
           "reorder-card",
           "info-zippy-clicked",
           "add-card",
