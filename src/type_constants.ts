@@ -45,7 +45,6 @@ export const CARD_TYPE_PERSON = 'person';
 
 //CardType literal values are driven off of this object
 export const CARD_TYPE_TYPES = {
-	'' : true,
 	[CARD_TYPE_CONTENT]: true,
 	[CARD_TYPE_SECTION_HEAD]: true,
 	[CARD_TYPE_WORKING_NOTES]: true,

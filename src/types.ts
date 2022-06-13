@@ -47,7 +47,7 @@ export type FontSizeBoostMap = {
 	[name in CardFieldType]+?: number
 }
 
-export type CardType = keyof(typeof CARD_TYPE_TYPES);
+export type CardType = '' | keyof(typeof CARD_TYPE_TYPES);
 
 type CSSPartString = string;
 
