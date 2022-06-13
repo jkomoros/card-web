@@ -9,11 +9,13 @@ export class TypedObject {
 
 	//Based on https://stackoverflow.com/a/59459000
 	static keys<T extends object>(t : T): Array<keyof T> {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		return Object.keys(t) as any;
 	}
 
 	//Based on https://stackoverflow.com/a/62055863
 	static entries<T extends object>(t: T): Entries<T>[] {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		return Object.entries(t) as any;
 	}
 }
