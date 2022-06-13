@@ -559,28 +559,22 @@ testTriStateMapDiff();
 */
 
 //items is an array
-export const setRemove = (obj : {[name : string] : unknown}, items : string[]) : {[name : string] : unknown} => {
-	const result : {[name : string] : unknown} = {};
-	for (const key of Object.keys(obj)) {
-		result[key] = true;
-	}
+export function setRemove(obj : {[name : string] : true}, items : string[]) : {[name : string] : true} {
+	const result : {[name : string] : true } = {...obj};
 	for (const item of items) {
 		delete result[item];
 	}
 	return result;
-};
+}
 
 //items is an array
-export const setUnion = (obj : object, items : string[]) => {
-	const result : {[name : string]: any } = {};
-	for (const key of Object.keys(obj)) {
-		result[key] = true;
-	}
+export function setUnion(obj : {[name : string] : true}, items : string[]) : {[name : string] : true} {
+	const result : {[name : string]: true } = {...obj};
 	for (const item of items) {
 		result[item] = true;
 	}
 	return result;
-};
+}
 
 //This logic is finicky and we have a few defaults we want to have, so wrap it
 //in a util.
