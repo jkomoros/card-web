@@ -120,11 +120,11 @@ class ConfigureCollectionFilter extends LitElement {
 		//piece is obj with controlType, description, and value
 		switch (piece.controlType) {
 		case URL_PART_DATE_SECTION:
-			return html`<configure-collection-date .value=${piece.value} @change-complex=${this._handleModifyFilterRestChangedComplex} data-sub-index=${subIndex}></configure-collection-date>`;
+			return html`<configure-collection-date .value=${piece.value} @filter-modified-complex=${this._handleModifyFilterRestChangedComplex} data-sub-index=${subIndex}></configure-collection-date>`;
 		case URL_PART_MULTIPLE_CARDS:
-			return html`<configure-collection-multiple-cards .value=${piece.value} .cardTagInfos=${this.cardTagInfos} @change-complex=${this._handleModifyFilterRestChangedComplex} data-sub-index=${subIndex}></configure-collection-multiple-cards>`;
+			return html`<configure-collection-multiple-cards .value=${piece.value} .cardTagInfos=${this.cardTagInfos} @filter-modified-complex=${this._handleModifyFilterRestChangedComplex} data-sub-index=${subIndex}></configure-collection-multiple-cards>`;
 		case URL_PART_KEY_CARD:
-			return html`<configure-collection-key-card .value=${piece.value} .cardTagInfos=${this.cardTagInfos} @change-complex=${this._handleModifyFilterRestChangedComplex} data-sub-index=${subIndex}></configure-collection-key-card>`;
+			return html`<configure-collection-key-card .value=${piece.value} .cardTagInfos=${this.cardTagInfos} @filter-modified-complex=${this._handleModifyFilterRestChangedComplex} data-sub-index=${subIndex}></configure-collection-key-card>`;
 		case URL_PART_USER_ID:
 			return html`<select data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${[ME_AUTHOR_ID,...this.userIDs].map(item => html`<option .value=${item.toLowerCase()}>${item.toLowerCase()}</option>`)}</select>`;
 		case URL_PART_REFERENCE_TYPE:

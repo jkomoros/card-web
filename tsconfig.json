@@ -45,7 +45,7 @@
           "thread-add-message",
           "filter-modified",
           "filter-removed",
-          "change-complex",
+          "filter-modified-complex",
           "card-swiped",
           "disabled-card-highlight-clicked",
           "text-field-updated",

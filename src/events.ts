@@ -32,8 +32,7 @@ export const COMMENT_RESOLVE_THREAD_NAME = 'thread-resolve';
 export const COMMENT_ADD_MESSAGE_TO_THREAD_NAME = 'thread-add-message';
 export const FILTER_MODIFIED_EVENT_NAME = 'filter-modified';
 export const FILTER_REMOVED_EVENT_NAME = 'filter-removed';
-//TODO: rename this to filter-modified-complex, or just get rid of it and do filter-modified?
-export const FILTER_MODIFIED_COMPLEX_EVENT_NAME = 'change-complex';
+export const FILTER_MODIFIED_COMPLEX_EVENT_NAME = 'filter-modified-complex';
 export const CARD_SWIPED_EVENT_NAME = 'card-swiped';
 export const DISABLED_CARD_HIGHLIGHT_CLICKED_EVENT_NAME = 'disabled-card-highlight-clicked';
 //TODO: rename to be consistent with type name?
