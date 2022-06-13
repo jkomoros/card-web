@@ -97,7 +97,6 @@ export const REFERENCE_TYPE_CITATION_PERSON = 'citation-person';
 
 //ReferenceType literal values are driven off of this object
 export const REFERENCE_TYPE_TYPES = {
-	'': true,
 	[REFERENCE_TYPE_LINK]: true,
 	[REFERENCE_TYPE_DUPE_OF]: true,
 	[REFERENCE_TYPE_ACK] : true,

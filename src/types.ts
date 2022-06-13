@@ -137,7 +137,7 @@ type TODOOverrides = {
 	[name: TODOType]: boolean
 }
 
-export type ReferenceType = keyof(typeof REFERENCE_TYPE_TYPES);
+export type ReferenceType = '' | keyof(typeof REFERENCE_TYPE_TYPES);
 
 export type ReferencesInfoMap = {
 	[id : CardID]: {
