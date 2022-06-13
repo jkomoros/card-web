@@ -170,7 +170,7 @@ const removeZombieSpans = (ele : Element) => {
 	if (removedZombies) ele.normalize();
 };
 
-const legalTopLevelNodes : {[tag : HTMLTagName] : true} = {
+const legalTopLevelNodes : {[tag in HTMLTagName]+?: true} = {
 	'p': true,
 	'ol': true,
 	'ul': true,
@@ -203,7 +203,7 @@ const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
 			//Normally we allow only the explicitly legal items. But also allow
 			//the hoist tag (since that's the thing we'll hoist to, we can skip
 			//hoisting to it!). This covers the <li> inner use.
-			if (legalTopLevelNodes[ele.localName] || ele.localName == tag) {
+			if (legalTopLevelNodes[ele.localName as HTMLTagName] || ele.localName == tag) {
 				//The child is already OK at top-level. But if we have an active
 				//hoistNode, the next things to hoist should go into a new one.
 				hoistNode = null;

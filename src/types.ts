@@ -383,8 +383,7 @@ export type CommentThreads = {
 	[id : CommentThreadID]: CommentThread
 }
 
-//TODO: tighten this
-export type HTMLTagName = string;
+export type HTMLTagName = 'div' | 'p' | 'ol' | 'ul' | 'li' | 'h1' | 'h2' | 'h3'| 'h4' | 'h5' | 'section';
 
 type CardTypeMap = {
 	[typ in CardType]+?: boolean
