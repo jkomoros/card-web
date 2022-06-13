@@ -47,7 +47,9 @@ import {
 	URL_PART_EXPAND_FILTER,
 	DEFAULT_SET_NAME,
 	READING_LIST_SET_NAME,
-	EVERYTHING_SET_NAME
+	EVERYTHING_SET_NAME,
+	VIEW_MODE_WEB,
+	DEFAULT_VIEW_MODE
 } from './type_constants.js';
 
 import {
@@ -186,14 +188,12 @@ export const RECENT_SORT_NAME = 'recent';
 export const STARS_SORT_NAME = 'stars';
 
 export const VIEW_MODE_URL_KEYWORD = 'view';
-export const DEFAULT_VIEW_MODE = 'list';
-export const VIEW_MODE_WEB = 'web';
 
 export const NONE_FILTER_NAME = 'none';
 export const ALL_FILTER_NAME = 'all-cards';
 
 //Legal view modes, including whether an option is expected or not.
-export const LEGAL_VIEW_MODES : {[mode : ViewMode] : boolean} = {
+export const LEGAL_VIEW_MODES : {[mode in ViewMode]+?: boolean} = {
 	//Note: collection_description logic assumes that default_view_mode takes not extra option.
 	[DEFAULT_VIEW_MODE]: false,
 	[VIEW_MODE_WEB]: true,

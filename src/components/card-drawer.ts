@@ -22,10 +22,6 @@ import {
 	DEFAULT_CARD_TYPE
 } from '../card_fields.js';
 
-import {
-	VIEW_MODE_WEB
-} from '../filters.js';
-
 import * as icons from './my-icons.js';
 
 import {
@@ -43,6 +39,10 @@ import {
 	makeAddWorkingNotesCardEvent,
 	makeInfoZippyClickedEvent
 } from '../events.js';
+
+import {
+	VIEW_MODE_WEB
+} from '../type_constants.js';
 
 @customElement('card-drawer')
 class CardDrawer extends LitElement {

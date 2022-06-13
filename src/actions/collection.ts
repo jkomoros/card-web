@@ -20,7 +20,6 @@ import {
 	DEFAULT_SORT_NAME,
 	SORT_REVERSED_URL_KEYWORD,
 	SORT_URL_KEYWORD,
-	DEFAULT_VIEW_MODE,
 	VIEW_MODE_URL_KEYWORD,
 	NONE_FILTER_NAME
 } from '../filters.js';
@@ -28,6 +27,7 @@ import {
 import {
 	DEFAULT_SET_NAME,
 	EVERYTHING_SET_NAME,
+	DEFAULT_VIEW_MODE,
 } from '../type_constants.js';
 
 import {

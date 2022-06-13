@@ -188,3 +188,12 @@ export const SET_NAME_TYPES = {
 	[READING_LIST_SET_NAME]: true,
 	[EVERYTHING_SET_NAME]: true
 };
+
+export const DEFAULT_VIEW_MODE = 'list';
+export const VIEW_MODE_WEB = 'web';
+
+//Drives ViewMode type
+export const VIEW_MODE_TYPES = {
+	[DEFAULT_VIEW_MODE]: true,
+	[VIEW_MODE_WEB]: true
+};

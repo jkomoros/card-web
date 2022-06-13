@@ -11,17 +11,17 @@ import {
 	CONFIGURABLE_FILTER_NAMES,
 	LIMIT_FILTER_NAME,
 	OFFSET_FILTER_NAME,
-	DEFAULT_VIEW_MODE,
 	VIEW_MODE_URL_KEYWORD,
 	LEGAL_VIEW_MODES,
 	makeConfigurableFilter,
 	queryConfigurableFilterText,
 	queryTextFromQueryFilter,
-	VIEW_MODE_WEB,
 } from './filters.js';
 
 import {
 	DEFAULT_SET_NAME,
+	DEFAULT_VIEW_MODE,
+	VIEW_MODE_WEB
 } from './type_constants.js';
 
 import {
@@ -69,7 +69,7 @@ const extractFilterNamesSortAndView = (parts : string[]) : [string[], SortName, 
 	const filters = [];
 	let sortName = DEFAULT_SORT_NAME;
 	let sortReversed = false;
-	let viewMode = DEFAULT_VIEW_MODE;
+	let viewMode : ViewMode = DEFAULT_VIEW_MODE;
 	let viewModeExtra = '';
 	let nextPartIsSort = false;
 	let nextPartIsView = false;
@@ -106,12 +106,12 @@ const extractFilterNamesSortAndView = (parts : string[]) : [string[], SortName, 
 			continue;
 		}
 		if (nextPartIsView) {
-			viewMode = part;
+			viewMode = part as ViewMode;
 			nextPartIsView = false;
 			//LEGA_VIEW_MODES is a map of view mode to whether or not it expects
 			//an extra. Note that we have no way of signaling an error, so we
 			//just assume the viewMode is legal.
-			if (LEGAL_VIEW_MODES[part]) nextPartIsViewExtra = true;
+			if (LEGAL_VIEW_MODES[part as ViewMode]) nextPartIsViewExtra = true;
 			continue;
 		}
 		if (nextPartIsViewExtra) {
