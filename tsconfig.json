@@ -42,7 +42,7 @@
           "message-edit",
           "message-delete",
           "thread-resolve",
-          "add-message",
+          "thread-add-message",
           "filter-modified",
           "filter-removed",
           "change-complex",

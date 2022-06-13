@@ -29,8 +29,7 @@ export const DIALOG_SHOULD_CLOSE_EVENT_NAME = 'dialog-should-close';
 export const COMMENT_EDIT_MESSAGE_NAME = 'message-edit';
 export const COMMENT_DELETE_MESSAGE_NAME = 'message-delete';
 export const COMMENT_RESOLVE_THREAD_NAME = 'thread-resolve';
-//TODO: name to thread-add-message?
-export const COMMENT_ADD_MESSAGE_TO_THREAD_NAME = 'add-message';
+export const COMMENT_ADD_MESSAGE_TO_THREAD_NAME = 'thread-add-message';
 export const FILTER_MODIFIED_EVENT_NAME = 'filter-modified';
 export const FILTER_REMOVED_EVENT_NAME = 'filter-removed';
 //TODO: rename this to filter-modified-complex, or just get rid of it and do filter-modified?

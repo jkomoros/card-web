@@ -124,7 +124,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 			<div class='comments scroller'>
 				${this._composedThreads.length
 		? html`${this._composedThreads.map( (item) => html`
-						<comment-thread .thread=${item} @add-message='${this._handleAddMessage}' @message-edit='${this._handleEditMessage}' @message-delete=${this._handleDeleteMessage} @thread-resolve=${this._handleResolveThread} @show-need-signin=${this._handleShowNeedSignin} .userMayComment=${this._userMayComment}></comment-thread>`)}`
+						<comment-thread .thread=${item} @thread-add-message='${this._handleAddMessage}' @message-edit='${this._handleEditMessage}' @message-delete=${this._handleDeleteMessage} @thread-resolve=${this._handleResolveThread} @show-need-signin=${this._handleShowNeedSignin} .userMayComment=${this._userMayComment}></comment-thread>`)}`
 		: html`<p><em>No comments yet.</em></p><p><em>You should leave one!</em></p>`
 }
 				<div class='spacer'></div>
