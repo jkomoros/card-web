@@ -195,3 +195,23 @@ export const VIEW_MODE_TYPES = {
 	[DEFAULT_VIEW_MODE]: true,
 	[VIEW_MODE_WEB]: true
 };
+
+export const TAB_CONTENT = 'content';
+export const TAB_CONFIG = 'config';
+
+//Drives EditorTab type
+export const EDITOR_TAB_TYPES = {
+	[TAB_CONTENT]: true,
+	[TAB_CONFIG]: true
+};
+
+export const EDITOR_TAB_CONTENT = 'content';
+export const EDITOR_TAB_NOTES = 'notes';
+export const EDITOR_TAB_TODO = 'todo';
+
+//Drives EditorContentTab type
+export const EDITOR_CONTENT_TAB_TYPES = {
+	[EDITOR_TAB_CONTENT]: true,
+	[EDITOR_TAB_NOTES]: true,
+	[EDITOR_TAB_TODO]: true,
+};

@@ -12,7 +12,9 @@ import {
 	URL_PART_TYPES,
 	IMAGE_POSITION_TYPES,
 	SET_NAME_TYPES,
-	VIEW_MODE_TYPES
+	VIEW_MODE_TYPES,
+	EDITOR_TAB_TYPES,
+	EDITOR_CONTENT_TAB_TYPES
 } from './type_constants.js';
 
 import * as icons from './components/my-icons.js';
@@ -315,12 +317,10 @@ export type ConfigurableFilterConfigurationMap = {
 	}
 };
 
-//TODO: tighten
 //TODO: this name is confusing, in the state this is just called tab
-export type EditorTab = string;
-//TODO: tighten
+export type EditorTab = keyof(typeof EDITOR_TAB_TYPES);
 //TODO: this name is confusing, in the state this is called editorTab
-export type EditorContentTab = string;
+export type EditorContentTab = keyof(typeof EDITOR_CONTENT_TAB_TYPES);
 
 export type UserInfo = {
 	uid: Uid,

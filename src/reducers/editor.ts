@@ -41,9 +41,12 @@ import {
 	EDITING_CLOSE_IMAGE_BROWSER_DIALOG,
 	EDITING_UPDATE_UNDERLYING_CARD,
 	EDITING_MERGE_OVERSHADOWED_CHANGES,
+} from '../actions/editor.js';
+
+import {
 	TAB_CONFIG,
 	EDITOR_TAB_CONTENT,
-} from '../actions/editor.js';
+} from '../type_constants.js';
 
 import {
 	SET_PENDING_SLUG

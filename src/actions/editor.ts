@@ -37,13 +37,6 @@ export const EDITING_CLOSE_IMAGE_BROWSER_DIALOG = 'EDITING_CLOSE_IMAGE_BROWSER_D
 export const EDITING_UPDATE_UNDERLYING_CARD = 'EDITING_UPDATE_UNDERLYING_CARD';
 export const EDITING_MERGE_OVERSHADOWED_CHANGES = 'EDITING_MERGE_OVERSHADOWED_CHANGES';
 
-export const TAB_CONTENT = 'content';
-export const TAB_CONFIG = 'config';
-
-export const EDITOR_TAB_CONTENT = 'content';
-export const EDITOR_TAB_NOTES = 'notes';
-export const EDITOR_TAB_TODO = 'todo';
-
 import {
 	selectActiveCard,
 	selectUserMayEditActiveCard,

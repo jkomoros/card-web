@@ -56,12 +56,6 @@ import {
 	cardTypeUpdated,
 	updateUnderlyingCard,
 	mergeOvershadowedUnderlyingChanges,
-
-	TAB_CONTENT,
-	TAB_CONFIG,
-	EDITOR_TAB_CONTENT,
-	EDITOR_TAB_NOTES,
-	EDITOR_TAB_TODO,
 	autoTodoOverrideDisabled,
 	editorAdded,
 	editorRemoved,
@@ -118,6 +112,11 @@ import {
 	TEXT_FIELD_BODY,
 	REFERENCE_TYPE_ACK,
 	REFERENCE_TYPE_CONCEPT,
+	TAB_CONTENT,
+	TAB_CONFIG,
+	EDITOR_TAB_CONTENT,
+	EDITOR_TAB_NOTES,
+	EDITOR_TAB_TODO
 } from '../type_constants.js';
 
 import {
@@ -687,7 +686,7 @@ class CardEditor extends connect(store)(LitElement) {
 	_handleTabClicked(e : MouseEvent) {
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLElement)) throw new Error('ele not html element');
-		const name = ele.getAttribute('data-name');
+		const name = ele.getAttribute('data-name') as EditorTab;
 		if (!name) return;
 		store.dispatch(editingSelectTab(name));
 	}
@@ -695,7 +694,7 @@ class CardEditor extends connect(store)(LitElement) {
 	_handleEditorTabClicked(e : MouseEvent) {
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLElement)) throw new Error('ele not html element');
-		const name = ele.getAttribute('data-name');
+		const name = ele.getAttribute('data-name') as EditorContentTab;
 		if (!name) return;
 		store.dispatch(editingSelectEditorTab(name));
 	}
