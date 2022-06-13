@@ -30,7 +30,6 @@ export type CardID = string;
 export type Slug = string;
 export type CardIdentifier = CardID | Slug;
 
-//TODO: lock this down more
 type CardPermissionType = PermissionType;
 
 type CardPermissions = {
