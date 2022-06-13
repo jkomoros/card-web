@@ -30,8 +30,7 @@ export type Slug = string;
 export type CardIdentifier = CardID | Slug;
 
 //TODO: lock this down more
-//TODO: should this be the same as PermissionType?
-type CardPermissionType = string;
+type CardPermissionType = PermissionType;
 
 type CardPermissions = {
     [name : CardPermissionType]: Uid[]
@@ -720,7 +719,6 @@ export interface ProcessedCard extends Card {
     //agains stashed here by cardWithNormalizedTextProperties so wordCountForSemantics can fetch it.
     importantNgrams: StringCardMap,
     synonymMap: SynonymMap,
-    //TODO: lock this down more
     nlp: NLPInfo,
 }
 
