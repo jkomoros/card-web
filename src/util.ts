@@ -731,7 +731,7 @@ const LOG_DEEP_EQUAL_DIFFERENCES = false;
 //than objects, arrays, strings, numbers, bools.∑ If a and b are too non-equal
 //objecst, and objectChecker is provided, then if both return true from
 //objectChecker then deepEqual will short-circuit and return true.
-export const deepEqual = (a : any, b : any, objectChecker : ((object: any) => boolean) | null = null) => {
+export const deepEqual = (a : unknown, b : unknown, objectChecker : ((object: unknown) => boolean) | null = null) => {
 	if (a === b) return true;
 	if (!a || !b) return false;
 	if (typeof a != 'object' || typeof b != 'object') return false;
@@ -759,10 +759,11 @@ export const deepEqual = (a : any, b : any, objectChecker : ((object: any) => bo
 		}
 		return false;
 	}
+	const stringKeyedB = b as {[key : string] : unknown};
 	for (const [key, val] of Object.entries(a)) {
-		if (!deepEqual(val, b[key], objectChecker)) {
+		if (!deepEqual(val, stringKeyedB[key], objectChecker)) {
 			if (LOG_DEEP_EQUAL_DIFFERENCES) {
-				console.log('Key', key, ' is different in a and b: ', val, b[key], a, b);
+				console.log('Key', key, ' is different in a and b: ', val, stringKeyedB[key], a, b);
 			}
 			return false;
 		}
