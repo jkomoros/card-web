@@ -40,7 +40,7 @@
           "card-hovered",
           "dialog-should-close",
           "message-edit",
-          "delete-message",
+          "message-delete",
           "resolve-thread",
           "add-message",
           "filter-modified",
