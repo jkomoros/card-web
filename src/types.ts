@@ -49,7 +49,6 @@ export type FontSizeBoostMap = {
 
 export type CardType = keyof(typeof CARD_TYPE_TYPES);
 
-//TODO: lock this down more
 type CSSPartString = string;
 
 export type WordCloudItemInfo = {
@@ -472,7 +471,6 @@ export type CardFieldTypeEditableConfigurationMap = {
 	[typ in CardFieldTypeEditable]+?: CardFieldTypeConfiguration
 }
 
-//TODO: tighten this
 export type CSSColorString = string;
 
 export type ReferenceTypeConfigurationMap = {
