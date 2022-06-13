@@ -41,7 +41,7 @@
           "dialog-should-close",
           "message-edit",
           "message-delete",
-          "resolve-thread",
+          "thread-resolve",
           "add-message",
           "filter-modified",
           "filter-removed",
