@@ -464,7 +464,7 @@ class CardEditor extends connect(store)(LitElement) {
 			<div class='row'>
 				<div>
 					<label>Tags ${help('Tags are collections, visible to all viewers, that a card can be in. A card can be in 0 or more tags.')}</label>
-					<tag-list .tags=${this._card.tags} .previousTags=${this._underlyingCard ? this._underlyingCard.tags : null} .editing=${this._userMayEditSomeTags} .excludeItems=${this._tagsUserMayNotEdit} .tagInfos=${this._tagInfos} @tag-added=${this._handleAddTag} @remove-tag=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
+					<tag-list .tags=${this._card.tags} .previousTags=${this._underlyingCard ? this._underlyingCard.tags : null} .editing=${this._userMayEditSomeTags} .excludeItems=${this._tagsUserMayNotEdit} .tagInfos=${this._tagInfos} @tag-added=${this._handleAddTag} @tag-removed=${this._handleRemoveTag} @new-tag=${this._handleNewTag}></tag-list>
 				</div>
 				<div>
 					<label>Suggested Tags ${help('Tags suggested because this card\'s content is similar to cards of the given tag. Tap one to add it.')}</label>
@@ -473,7 +473,7 @@ class CardEditor extends connect(store)(LitElement) {
 				<div>
 					<label>Suggested Concepts ${help('Cards that are suggested to be added as concept references. Tap one to add it as a concept reference, or x it out to add an ACK and get it to go away.')}</label>
 					<div class='row'>
-						<tag-list .tags=${this._suggestedConcepts} .tagInfos=${this._cardTagInfos} .editing=${true} .defaultColor=${REFERENCE_TYPES[REFERENCE_TYPE_CONCEPT].color} .tapEvents=${true} .disableAdd=${true} @tag-tapped=${this._handleSuggestedConceptTapped} @remove-tag=${this._handleAddAckReference} .overrideTypeName=${'Concept'}></tag-list>
+						<tag-list .tags=${this._suggestedConcepts} .tagInfos=${this._cardTagInfos} .editing=${true} .defaultColor=${REFERENCE_TYPES[REFERENCE_TYPE_CONCEPT].color} .tapEvents=${true} .disableAdd=${true} @tag-tapped=${this._handleSuggestedConceptTapped} @tag-removed=${this._handleAddAckReference} .overrideTypeName=${'Concept'}></tag-list>
 						<button class='small' @click=${this._handleAddAllConceptsClicked} ?hidden=${this._suggestedConcepts.length == 0} title='Add all suggested concepts (Ctrl-Shift-C)'>${PLUS_ICON}</button>
 						<button class='small' @click=${this._handleIgnoreAllConceptsClicked} ?hidden=${this._suggestedConcepts.length == 0} title='Ignore all suggested concepts (Ctrl-Shift-I)'>${HIGHLIGHT_OFF_ICON}</button>
 					</div>
@@ -482,11 +482,11 @@ class CardEditor extends connect(store)(LitElement) {
 				<div class='row'>
 					<div>
 						<label>Force Enable TODO ${help('Add a TODO manually')}</label>
-						<tag-list .defaultColor=${enableTODOColor} .tags=${todoOverridesEnabled} .previousTags=${todoOverridesPreviouslyEnabled} .disableNew=${true} .overrideTypeName=${'Enabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @tag-added=${this._handleAddTodoOverrideEnabled} @remove-tag=${this._handleRemoveTodoOverride}></tag-list>
+						<tag-list .defaultColor=${enableTODOColor} .tags=${todoOverridesEnabled} .previousTags=${todoOverridesPreviouslyEnabled} .disableNew=${true} .overrideTypeName=${'Enabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @tag-added=${this._handleAddTodoOverrideEnabled} @tag-removed=${this._handleRemoveTodoOverride}></tag-list>
 					</div>
 					<div>
 						<label>Force Disable TODO ${help('Affirmatively mark that even if an auto-todo WOULD have applied, it has been addressed.')}</label>
-						<tag-list .defaultColor=${disableTODOColor} .tags=${todoOverridesDisabled} .previousTags=${todoOverridesPreviouslyDisabled} .disableNew=${true} .overrideTypeName=${'Disabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @tag-added=${this._handleAddTodoOverrideDisabled} @remove-tag=${this._handleRemoveTodoOverride}></tag-list>
+						<tag-list .defaultColor=${disableTODOColor} .tags=${todoOverridesDisabled} .previousTags=${todoOverridesPreviouslyDisabled} .disableNew=${true} .overrideTypeName=${'Disabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @tag-added=${this._handleAddTodoOverrideDisabled} @tag-removed=${this._handleRemoveTodoOverride}></tag-list>
 					</div>
 					<div>
 						<label>Auto TODO ${help('Todos that are automatically applied because of the values of the card. Add a Force Disable TODO to remove one of these if it doesn\'t apply.')}</label>
@@ -496,17 +496,17 @@ class CardEditor extends connect(store)(LitElement) {
 				<div class='row'>
 					<div>
 						<label>Editors ${help('Editors are people who should be able to edit this card.')}</label>
-						<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.permissions[PERMISSION_EDIT_CARD]} .editing=${true} @remove-tag=${this._handleRemoveEditor} @tag-added=${this._handleAddEditor} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewEditor} .excludeItems=${[this._card.author]}></tag-list>
+						<tag-list .overrideTypeName=${'Editor'} .tagInfos=${this._authors} .tags=${this._card.permissions[PERMISSION_EDIT_CARD]} .editing=${true} @tag-removed=${this._handleRemoveEditor} @tag-added=${this._handleAddEditor} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewEditor} .excludeItems=${[this._card.author]}></tag-list>
 					</div>
 					<div>
 						<label>Collaborators ${help('Collaborators are people who helped author the card. Collaborators are visible to all viewers of a card. By default any editor who edits a card is marked as a collaborator.')}</label>
-						<tag-list .overrideTypeName=${'Collaborator'} .tagInfos=${this._authors} .tags=${this._card.collaborators} .editing=${true} @remove-tag=${this._handleRemoveCollaborator} @tag-added=${this._handleAddCollaborator} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewCollaborator} .excludeItems=${[this._card.author]}></tag-list>
+						<tag-list .overrideTypeName=${'Collaborator'} .tagInfos=${this._authors} .tags=${this._card.collaborators} .editing=${true} @tag-removed=${this._handleRemoveCollaborator} @tag-added=${this._handleAddCollaborator} .disableNew=${!this._isAdmin} @new-tag=${this._handleNewCollaborator} .excludeItems=${[this._card.author]}></tag-list>
 					</div>
 				</div>
 				<div class='row'>
 					<div>
 						<label>Missing Reciprocal Links ${help('These are cards that reference this one, but we don\'t yet reference in any way. If this is non-empty, then there will be an Auto TODO of reciprocal links. X one out to add a Non-substantive acknowledgement back to that card.')}</label>
-						<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${enableTODOColor} .tags=${cardMissingReciprocalLinks(this._card)} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleAddAckReference}></tag-list>
+						<tag-list .overrideTypeName=${'Link'} .tagInfos=${this._cardTagInfos} .defaultColor=${enableTODOColor} .tags=${cardMissingReciprocalLinks(this._card)} .editing=${true} .disableAdd=${true} @tag-removed=${this._handleAddAckReference}></tag-list>
 					</div>
 					<div>
 						<select @change=${this._handleAddReference}>
@@ -519,7 +519,7 @@ class CardEditor extends connect(store)(LitElement) {
 					${TypedObject.entries(REFERENCE_TYPES).filter(entry => referencesMap[entry[0]]).map(entry => {
 		return html`<div>
 							<label>${entry[1].name} ${help(entry[1].description, false)} <button class='small' data-reference-type=${entry[0]} @click=${this._handleRemoveAllReferencesOfTypeClicked} title=${'Remove all references of type ' + entry[1].name} >${HIGHLIGHT_OFF_ICON}</button></label>
-							<tag-list .overrideTypeName=${'Reference'} .disableTagIfMissingTagInfo=${true} .disabledDescription=${'You do not have permission to view this card so you may not remove the reference to it.'} data-reference-type=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .editing=${entry[1].editable} .subtle=${!entry[1].editable} .tapEvents=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveReference}></tag-list>
+							<tag-list .overrideTypeName=${'Reference'} .disableTagIfMissingTagInfo=${true} .disabledDescription=${'You do not have permission to view this card so you may not remove the reference to it.'} data-reference-type=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .editing=${entry[1].editable} .subtle=${!entry[1].editable} .tapEvents=${true} .disableAdd=${true} @tag-removed=${this._handleRemoveReference}></tag-list>
 						</div>`;
 	})}
 				</div>

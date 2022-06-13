@@ -156,7 +156,7 @@ class TagChip  extends LitElement {
 			//now clicking again should UN-delete us, by firing an tag-added.
 			this.dispatchEvent(makeTagAddedEvent(this.tagName));
 		} else {
-			//the dfeault case, this will fire a remove-tag
+			//the dfeault case, this will fire a tag-removed
 			this.dispatchEvent(makeTagRemovedEvent(this.tagName));
 		}
 		

@@ -73,7 +73,7 @@ class CardImagesEditor extends connect(store)(LitElement) {
 			};
 		}
 		return html`
-			<tag-list .tags=${imgTagNames} .disableSelect=${true} .tagInfos=${tagInfos} .editing=${true} .overrideTypeName=${'Image'} .tapEvents=${true} @tag-tapped=${this._handleTagTapped} @new-tag=${this._handleNewTag} @remove-tag=${this._handleRemoveTag}></tag-list>
+			<tag-list .tags=${imgTagNames} .disableSelect=${true} .tagInfos=${tagInfos} .editing=${true} .overrideTypeName=${'Image'} .tapEvents=${true} @tag-tapped=${this._handleTagTapped} @new-tag=${this._handleNewTag} @tag-removed=${this._handleRemoveTag}></tag-list>
 			<image-properties-dialog></image-properties-dialog>
 			<image-browser-dialog></image-browser-dialog>
 		`;

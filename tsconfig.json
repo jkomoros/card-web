@@ -32,7 +32,7 @@
         "globalEvents": [
           "tag-tapped",
           "tag-added",
-          "remove-tag",
+          "tag-removed",
           "new-tag",
           "show-need-signin",
           "thumbnail-tapped",

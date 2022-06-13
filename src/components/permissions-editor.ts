@@ -139,11 +139,11 @@ class PermissionsEditor extends connect(store)(LitElement) {
 			<div class="container ${this._editable ? 'editable' : ''}">
 				<p><strong>${this._title}</strong> ${this.description ? html`<em>${this.description}</em>` : ''}&nbsp;&nbsp;&nbsp;<strong>Notes</strong> ${this._effectivePermissions.notes || html`<em>No notes</em>`} <span class='edit' ?hidden=${!this._editable} @click=${this._handleEditNotes}>${EDIT_ICON}</span><span class='edit' ?hidden=${!this._editable} @click=${this._handleDelete}>${DELETE_FOREVER_ICON}</span></p>
 				<tag-list .tags=${this._enabledLockedPermissions} .tagInfos=${LOCKED_PERMISSIONS} .overrideTypeName=${'Permission'} .defaultColor=${lockedPermissionColor} .hideOnEmpty=${true}></tag-list>
-				<tag-list .tags=${this._enabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @tag-added=${this._handleAddEnabled} @remove-tag=${this._handleRemove} .overrideTypeName=${'Permission'} .defaultColor=${enabledPermissionColor}></tag-list>
+				<tag-list .tags=${this._enabledModifiablePermissions} .tagInfos=${MODIFIABLE_PERMISSIONS} .editing=${this._editable} .disableNew=${true} @tag-added=${this._handleAddEnabled} @tag-removed=${this._handleRemove} .overrideTypeName=${'Permission'} .defaultColor=${enabledPermissionColor}></tag-list>
 				<div>
 					<p><strong>Cards</strong> <em>These are permissions that are specific to an individual card.</em></p>
 		${Object.entries(this._effectivePermissionsForCards).map(entry => 
-		html`<span>${entry[0]}</span> <tag-list data-permission=${entry[0]} .tags=${entry[1]} .tagInfos=${this._tagInfosForCards} .tapEvents=${true} .editing=${true} .disableAdd=${true} @remove-tag=${this._handleRemoveCardPermission}></tag-list> <button @click=${this._handleAddCardPermission} data-permission=${entry[0]}>+</button>`)}
+		html`<span>${entry[0]}</span> <tag-list data-permission=${entry[0]} .tags=${entry[1]} .tagInfos=${this._tagInfosForCards} .tapEvents=${true} .editing=${true} .disableAdd=${true} @tag-removed=${this._handleRemoveCardPermission}></tag-list> <button @click=${this._handleAddCardPermission} data-permission=${entry[0]}>+</button>`)}
 				${this._unusedCardPermissions.length && this.uid ? 
 		html`<select @change=${this._handleAddPermissionType}>
 						<option value=''><em>Add a cards permission type...</option>
