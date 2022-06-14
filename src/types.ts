@@ -773,6 +773,7 @@ export type UserPermissionsMap = {
 };
 
 //When adding to this also extend src/actions/prompt.ts:COMMIT_ACTIONS
+//TODO: create this automatically via keyof(typeof) pattern
 export type CommitActionType = '' | 'CONSOLE_LOG' | 'EDIT_MESSAGE' | 'ADD_MESSAGE' | 'CREATE_THREAD';
 
 export type SetName = '' | keyof(typeof SET_NAME_TYPES);
