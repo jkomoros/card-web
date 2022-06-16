@@ -150,15 +150,15 @@ type FilterModifiedDetail = {
 export type FilterModifiedEvent = CustomEvent<FilterModifiedDetail>;
 
 export const makeFilterModifiedEvent = (value : string, index  = 0) : FilterModifiedEvent => {
-	return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {value, index}});
+	return new CustomEvent(FILTER_MODIFIED_EVENT_NAME, {composed : true, detail: {value, index}});
 };
 
 export const makeFilterRemovedEvent = (index : number) : FilterModifiedEvent => {
-	return makeFilterModifiedEvent('', index);
+	return new CustomEvent(FILTER_REMOVED_EVENT_NAME, {composed : true, detail: {value: '', index}});
 };
 
 export const makeFilterModifiedComplexEvent = (value : string) : FilterModifiedEvent => {
-	return makeFilterModifiedEvent(value);
+	return new CustomEvent(FILTER_MODIFIED_COMPLEX_EVENT_NAME, {composed : true, detail: {value, index : 0}});
 };
 
 type CardSwipeDirection = 'left' | 'right';
@@ -170,7 +170,7 @@ type CardSwipedDetail = {
 export type CardSwipedEvent = CustomEvent<CardSwipedDetail>;
 
 export const makeCardSwipedEvent = (direction : CardSwipeDirection) : CardSwipedEvent => {
-	return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {direction}});
+	return new CustomEvent(CARD_SWIPED_EVENT_NAME, {composed : true, detail: {direction}});
 };
 
 type DisabledCardHighlightClickedDetail = {
@@ -181,7 +181,7 @@ type DisabledCardHighlightClickedDetail = {
 export type DisabledCardHighlightClickedEvent = CustomEvent<DisabledCardHighlightClickedDetail>;
 
 export const makeDisabledCardHighlightClickedEvent = (card : CardID, alternate : boolean) : DisabledCardHighlightClickedEvent => {
-	return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {card, alternate}});
+	return new CustomEvent(DISABLED_CARD_HIGHLIGHT_CLICKED_EVENT_NAME, {composed : true, detail: {card, alternate}});
 };
 
 type EditabledCardFieldUpdatedDetail = {
@@ -192,7 +192,7 @@ type EditabledCardFieldUpdatedDetail = {
 export type EditabledCardFieldUpdatedEvent = CustomEvent<EditabledCardFieldUpdatedDetail>;
 
 export const makeEditableCardFieldUpdatedEvent = (field : CardFieldTypeEditable, value : string) : EditabledCardFieldUpdatedEvent => {
-	return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {field, value}});
+	return new CustomEvent(EDITABLE_CARD_FIELD_UPDATED_EVENT_NAME, {composed : true, detail: {field, value}});
 };
 
 type ReorderCardDetail = {
@@ -204,7 +204,7 @@ type ReorderCardDetail = {
 export type ReorderCardEvent = CustomEvent<ReorderCardDetail>;
 
 export const makeReorderCardEvent = (card : CardID, otherID : CardID, isAfter  = true ) : ReorderCardEvent => {
-	return new CustomEvent(COMMENT_ADD_MESSAGE_TO_THREAD_NAME, {composed : true, detail: {card, otherID, isAfter}});
+	return new CustomEvent(REORDER_CARD_EVENT_NAME, {composed : true, detail: {card, otherID, isAfter}});
 };
 
 export type InfoZippyClickedEvent = CustomEvent<null>;
