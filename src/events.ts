@@ -17,29 +17,29 @@ tsconfig.json:plugins:0:globalEvents.
 
 *******************/
 
-export const TAG_TAPPED_EVENT_NAME = 'tag-tapped';
-export const TAG_ADDED_EVENT_NAME = 'tag-added';
-export const TAG_REMOVED_EVENT_NAME = 'tag-removed';
-export const TAG_NEW_EVENT_NAME = 'tag-new';
-export const SHOW_NEED_SIGNIN_EVENT_NAME = 'show-need-signin';
-export const THUMBNAIL_TAPPED_EVENT_NAME = 'thumbnail-tapped';
-export const UPDATE_RENDER_OFFSET_EVENT_NAME = 'update-render-offset';
+const TAG_TAPPED_EVENT_NAME = 'tag-tapped';
+const TAG_ADDED_EVENT_NAME = 'tag-added';
+const TAG_REMOVED_EVENT_NAME = 'tag-removed';
+const TAG_NEW_EVENT_NAME = 'tag-new';
+const SHOW_NEED_SIGNIN_EVENT_NAME = 'show-need-signin';
+const THUMBNAIL_TAPPED_EVENT_NAME = 'thumbnail-tapped';
+const UPDATE_RENDER_OFFSET_EVENT_NAME = 'update-render-offset';
 export const CARD_HOVERED_EVENT_NAME = 'card-hovered';
-export const DIALOG_SHOULD_CLOSE_EVENT_NAME = 'dialog-should-close';
-export const COMMENT_EDIT_MESSAGE_NAME = 'message-edit';
-export const COMMENT_DELETE_MESSAGE_NAME = 'message-delete';
-export const COMMENT_RESOLVE_THREAD_NAME = 'thread-resolve';
-export const COMMENT_ADD_MESSAGE_TO_THREAD_NAME = 'thread-add-message';
-export const FILTER_MODIFIED_EVENT_NAME = 'filter-modified';
-export const FILTER_REMOVED_EVENT_NAME = 'filter-removed';
-export const FILTER_MODIFIED_COMPLEX_EVENT_NAME = 'filter-modified-complex';
-export const CARD_SWIPED_EVENT_NAME = 'card-swiped';
-export const DISABLED_CARD_HIGHLIGHT_CLICKED_EVENT_NAME = 'disabled-card-highlight-clicked';
-export const EDITABLE_CARD_FIELD_UPDATED_EVENT_NAME = 'editable-card-field-updated';
-export const REORDER_CARD_EVENT_NAME = 'reorder-card';
-export const INFO_ZIPPY_CLICKED_EVENT_NAME = 'info-zippy-clicked';
-export const ADD_CARD_EVENT_NAME = 'add-card';
-export const ADD_WORKING_NOTES_CARD_EVENT_NAME = 'add-working-notes-card';
+const DIALOG_SHOULD_CLOSE_EVENT_NAME = 'dialog-should-close';
+const COMMENT_EDIT_MESSAGE_NAME = 'message-edit';
+const COMMENT_DELETE_MESSAGE_NAME = 'message-delete';
+const COMMENT_RESOLVE_THREAD_NAME = 'thread-resolve';
+const COMMENT_ADD_MESSAGE_TO_THREAD_NAME = 'thread-add-message';
+const FILTER_MODIFIED_EVENT_NAME = 'filter-modified';
+const FILTER_REMOVED_EVENT_NAME = 'filter-removed';
+const FILTER_MODIFIED_COMPLEX_EVENT_NAME = 'filter-modified-complex';
+const CARD_SWIPED_EVENT_NAME = 'card-swiped';
+const DISABLED_CARD_HIGHLIGHT_CLICKED_EVENT_NAME = 'disabled-card-highlight-clicked';
+const EDITABLE_CARD_FIELD_UPDATED_EVENT_NAME = 'editable-card-field-updated';
+const REORDER_CARD_EVENT_NAME = 'reorder-card';
+const INFO_ZIPPY_CLICKED_EVENT_NAME = 'info-zippy-clicked';
+const ADD_CARD_EVENT_NAME = 'add-card';
+const ADD_WORKING_NOTES_CARD_EVENT_NAME = 'add-working-notes-card';
 
 export type TagEvent = CustomEvent<TagEventDetail>;
 
