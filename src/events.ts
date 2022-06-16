@@ -6,8 +6,8 @@ import {
 } from './types.js';
 
 type TagEventDetail = {
-    tag : string,
-    subtle : boolean,
+	tag : string,
+	subtle : boolean,
 };
 
 /******************
@@ -72,9 +72,9 @@ export const makeShowNeedSigninEvent = () : ShowNeedSigninEvent => {
 };
 
 type CardHoveredEventDetail = {
-    card : CardID;
-    x : number;
-    y : number;
+	card : CardID;
+	x : number;
+	y : number;
 }
 
 export type CardHoveredEvent = CustomEvent<CardHoveredEventDetail>;
@@ -84,8 +84,8 @@ export const makeCardHoveredEvent = (card : CardID, x : number, y : number) : Ca
 };
 
 type ThumbnailTappedDetail = {
-    card : CardID;
-    ctrl : boolean;
+	card : CardID;
+	ctrl : boolean;
 }
 
 export type ThumbnailTappedEvent = CustomEvent<ThumbnailTappedDetail>;
@@ -95,7 +95,7 @@ export const makeThumbnailTappedEvent = (card : CardID, ctrl : boolean) : Thumbn
 };
 
 type UpdateRenderOffsetDetail = {
-    value : number;
+	value : number;
 }
 
 export type UpdateRenderOffsetEvent = CustomEvent<UpdateRenderOffsetDetail>;
@@ -105,7 +105,7 @@ export const makeUpdateRenderOffsetEvent = (value : number) : UpdateRenderOffset
 };
 
 type DialogShouldCloseDetail = {
-    cancelled : boolean;
+	cancelled : boolean;
 }
 
 export type DialogShouldCloseEvent = CustomEvent<DialogShouldCloseDetail>;
@@ -115,7 +115,7 @@ export const makeDialogShouldCloseEvent = (cancelled  = false) : DialogShouldClo
 };
 
 type CommentMessageDetail = {
-    message : ComposedCommentMessage;
+	message : ComposedCommentMessage;
 }
 
 export type CommmentMessageEvent = CustomEvent<CommentMessageDetail>;
@@ -129,7 +129,7 @@ export const makeCommentDeleteMessageEvent = (message : ComposedCommentMessage) 
 };
 
 type CommentThreadDetail = {
-    thread : ComposedCommentThread;
+	thread : ComposedCommentThread;
 }
 
 export type CommmentThreadEvent = CustomEvent<CommentThreadDetail>;
@@ -143,8 +143,8 @@ export const makeCommentAddMessageToThreadEvent = (thread : ComposedCommentThrea
 };
 
 type FilterModifiedDetail = {
-    value : string,
-    index : number
+	value : string,
+	index : number
 }
 
 export type FilterModifiedEvent = CustomEvent<FilterModifiedDetail>;
@@ -164,7 +164,7 @@ export const makeFilterModifiedComplexEvent = (value : string) : FilterModifiedE
 type CardSwipeDirection = 'left' | 'right';
 
 type CardSwipedDetail = {
-    direction : CardSwipeDirection
+	direction : CardSwipeDirection
 }
 
 export type CardSwipedEvent = CustomEvent<CardSwipedDetail>;
@@ -174,8 +174,8 @@ export const makeCardSwipedEvent = (direction : CardSwipeDirection) : CardSwiped
 };
 
 type DisabledCardHighlightClickedDetail = {
-    card : CardID,
-    alternate : boolean,
+	card : CardID,
+	alternate : boolean,
 }
 
 export type DisabledCardHighlightClickedEvent = CustomEvent<DisabledCardHighlightClickedDetail>;
@@ -185,8 +185,8 @@ export const makeDisabledCardHighlightClickedEvent = (card : CardID, alternate :
 };
 
 type EditabledCardFieldUpdatedDetail = {
-    field : CardFieldTypeEditable,
-    value : string,
+	field : CardFieldTypeEditable,
+	value : string,
 }
 
 export type EditabledCardFieldUpdatedEvent = CustomEvent<EditabledCardFieldUpdatedDetail>;
@@ -196,9 +196,9 @@ export const makeEditableCardFieldUpdatedEvent = (field : CardFieldTypeEditable,
 };
 
 type ReorderCardDetail = {
-    card: CardID,
-    otherID: CardID,
-    isAfter : boolean
+	card: CardID,
+	otherID: CardID,
+	isAfter : boolean
 }
 
 export type ReorderCardEvent = CustomEvent<ReorderCardDetail>;
