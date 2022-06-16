@@ -19,7 +19,7 @@ const sectionTwiddlerMap = (sections) => {
 
 	if (cachedSectionTwidderMapForSections === sections && cachedSectionTwiddlerMap) return cachedSectionTwiddlerMap;
 
-	let twiddlerMap = new Map();
+	const twiddlerMap = new Map();
 	const sectionKeys = Object.keys(sections);
 	for (let i = 0; i < sectionKeys.length; i++) {
 		let multiplier = 1.0;

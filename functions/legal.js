@@ -16,26 +16,26 @@ const normalizeSlug = (slug) => {
 
 //returns a reason why the slug is not legal, or '' if it is legal.
 const slug = async (newSlug) => {
-    newSlug = normalizeSlug(newSlug);
+	newSlug = normalizeSlug(newSlug);
 
-    if (!newSlug) {
-        return 'Provided slug is not a valid slug';
-    }
+	if (!newSlug) {
+		return 'Provided slug is not a valid slug';
+	}
 
-    const db = common.db;
+	const db = common.db;
     
-    let doc = await db.collection('cards').doc(newSlug).get();
+	const doc = await db.collection('cards').doc(newSlug).get();
     
-    if (doc.exists) {
-        return 'That slug is already the id of another item';
-    }
+	if (doc.exists) {
+		return 'That slug is already the id of another item';
+	}
     
-    let snapshot = await db.collection('cards').where('slugs', 'array-contains', newSlug).get();
-    if (snapshot.size > 0) {
-        return 'Another document already has that slug';
-    }
+	const snapshot = await db.collection('cards').where('slugs', 'array-contains', newSlug).get();
+	if (snapshot.size > 0) {
+		return 'Another document already has that slug';
+	}
 
-    return '';
+	return '';
     
 };
 
