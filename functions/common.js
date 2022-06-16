@@ -18,7 +18,7 @@ const DEV_MODE = PROJECT_NAME.includes('dev-') || PROJECT_NAME.includes('-dev');
 //firebaseapp.com is whitelisted automatically in auth, but '*.web.app' isn't
 const HOSTING_DOMAIN =  PROJECT_NAME + '.firebaseapp.com';
 const DOMAIN = (config.site || {})  .domain || HOSTING_DOMAIN;
-const LAST_DEPLOY_AFFECTING_RENDERING = (config.site || {}).last_deploy_affecting_rendering || "deploy-not-set";
+const LAST_DEPLOY_AFFECTING_RENDERING = (config.site || {}).last_deploy_affecting_rendering || 'deploy-not-set';
 //Copied from src/actions/app.js
 const PAGE_DEFAULT = 'c';
 const PAGE_COMMENT = 'comment';
@@ -35,46 +35,46 @@ const REFERENCES_CARD_PROPERTY = 'references';
 const REFERENCES_INBOUND_CARD_PROPERTY = 'references_inbound';
 
 const urlForBasicCard = (idOrSlug) => {
-    //we use HOSTING_DOMAIN so that we use the prod or dev card renderer
-    //depending on our mode.
-    return 'https://' + HOSTING_DOMAIN + '/' + PAGE_BASIC_CARD + '/' + idOrSlug;
-}
+	//we use HOSTING_DOMAIN so that we use the prod or dev card renderer
+	//depending on our mode.
+	return 'https://' + HOSTING_DOMAIN + '/' + PAGE_BASIC_CARD + '/' + idOrSlug;
+};
 
 const getCardByIDOrSlug = async (idOrSlug) => {
-    let card = await db.collection('cards').doc(idOrSlug).get();
-    if (card && card.exists) {
-        return Object.assign({id: card.id}, card.data());
-    }
-    //Try fetching by slug
-    let cards = await db.collection('cards').where('slugs', 'array-contains', idOrSlug).limit(1).get();
-    if (cards && !cards.empty) {
-        card = cards.docs[0];
-        return Object.assign({id: card.id}, card.data());
-    }
-    return null;
-}
+	let card = await db.collection('cards').doc(idOrSlug).get();
+	if (card && card.exists) {
+		return Object.assign({id: card.id}, card.data());
+	}
+	//Try fetching by slug
+	const cards = await db.collection('cards').where('slugs', 'array-contains', idOrSlug).limit(1).get();
+	if (cards && !cards.empty) {
+		card = cards.docs[0];
+		return Object.assign({id: card.id}, card.data());
+	}
+	return null;
+};
 
 const getCardLinkCardsForCard = async (card) => {
-    //orderBy is effectively a filter down to only cards that have 'references.CARD_ID' set.
-    const rawQuery =  await db.collection('cards').where('published', '==', true).where(REFERENCES_INBOUND_CARD_PROPERTY + '.' + card.id, '==', true).get();
+	//orderBy is effectively a filter down to only cards that have 'references.CARD_ID' set.
+	const rawQuery =  await db.collection('cards').where('published', '==', true).where(REFERENCES_INBOUND_CARD_PROPERTY + '.' + card.id, '==', true).get();
 	if (rawQuery.empty) return {};
 	return fromEntries(rawQuery.docs.map(doc => [doc.id, Object.assign({id: doc.id}, doc.data())]));
-}
+};
 
 const getUserDisplayName = async (uid) => {
-    let user = await auth.getUser(uid);
-    return user.displayName
-}
+	const user = await auth.getUser(uid);
+	return user.displayName;
+};
 
 const getCardName = async (cardId) => {
-    //TODO: use the actual constants for cards collection (see #134)
-    let card = await db.collection('cards').doc(cardId).get();
-    return card.data().name || cardId;
-}
+	//TODO: use the actual constants for cards collection (see #134)
+	const card = await db.collection('cards').doc(cardId).get();
+	return card.data().name || cardId;
+};
 
 const prettyCardURL = (card) => {
-    return 'https://' + DOMAIN + '/' +  PAGE_DEFAULT + '/' + card.name;
-}
+	return 'https://' + DOMAIN + '/' +  PAGE_DEFAULT + '/' + card.name;
+};
 
 exports.admin = admin;
 exports.FieldValue = FieldValue;

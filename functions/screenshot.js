@@ -29,9 +29,9 @@ const screenshotFileNameForCard = (card, cardLinkCards) => {
 	//visual display of the card. The logic can change anytime the
 	//SCREENSHOT_VERSION increments.
 
-	const title = card.title || "";
-	const subtitle = card.subtitle || "";
-	const body = card.body || "";
+	const title = card.title || '';
+	const subtitle = card.subtitle || '';
+	const body = card.body || '';
 	const starCount = String(card.star_count || 0);
 	const images = card.images || [];
 	const imagesJSON = stringify(images);
@@ -48,24 +48,24 @@ const screenshotFileNameForCard = (card, cardLinkCards) => {
 	//slightly in error because now we use the card renderer that is deployed
 	//for this project, not just the prod rendrer as before.
 	return 'screenshots/v' + SCREENSHOT_VERSION + '/' + common.LAST_DEPLOY_AFFECTING_RENDERING + '/' + card.id + '/' + hash + '.png';
-}
+};
 
 const fetchScreenshotByIDOrSlug = async (idOrSlug) => {
-	let card = await common.getCardByIDOrSlug(idOrSlug);
+	const card = await common.getCardByIDOrSlug(idOrSlug);
 	if (!card) {
-		console.warn("No such card: " + idOrSlug);
+		console.warn('No such card: ' + idOrSlug);
 		return null;
 	}
 	return await fetchScreenshot(card);
-}
+};
 
 const fetchScreenshot = async(card) =>{
 	if (!card) {
-		console.warn("No card provided");
+		console.warn('No card provided');
 		return null;
 	}
 	if (!card.published) {
-		console.warn("The card wasn't published");
+		console.warn('The card wasn\'t published');
 		return null;
 	}
 	const cardLinkCards = await common.getCardLinkCardsForCard(card);
@@ -74,18 +74,18 @@ const fetchScreenshot = async(card) =>{
 	const existsResponse = await file.exists();
 	if (existsResponse[0]) {
 		if (DISABLE_SCREENSHOT_CACHE) {
-			console.log("Screenshot exists in cache, but the cache has been disabled.")
+			console.log('Screenshot exists in cache, but the cache has been disabled.');
 		} else {
 			//Screenshot exists, return it
 			const downloadFileResponse = await file.download();
 			return downloadFileResponse[0];
 		}
 	}
-	console.log("Screenshot " + filename + " didn't exist in storage, creating.");
+	console.log('Screenshot ' + filename + ' didn\'t exist in storage, creating.');
 	const screenshot = await makeScreenshot(card, cardLinkCards);
 	await file.save(screenshot);
 	return screenshot;
-}
+};
 
 const makeScreenshot = async (card, cardLinkCards) => {
 	const browser = await puppeteer.launch({
@@ -99,8 +99,8 @@ const makeScreenshot = async (card, cardLinkCards) => {
 	const page = await browser.newPage();
 	//forward any console messages from the page to our own log
 	page.on('console', e => {
-		console.log("Page logged via console: " + e.text());
-	})
+		console.log('Page logged via console: ' + e.text());
+	});
 
 	//Wait for networkidle0, otherwise bold fonts etc might not have finished
 	//loading.
@@ -128,7 +128,7 @@ const makeScreenshot = async (card, cardLinkCards) => {
 	const png = await page.screenshot();
 	await browser.close();
 	return png;
-}
+};
 
 exports.fetchScreenshotByIDOrSlug = fetchScreenshotByIDOrSlug;
 exports.fetchScreenshot = fetchScreenshot;
