@@ -67,7 +67,7 @@ const extractFilterNamesSortAndView = (parts : string[]) : [string[], SortName, 
 	//name or the card name.
 	if (!parts.length) return [[], SORT_NAME_DEFAULT, false, DEFAULT_VIEW_MODE, ''];
 	const filters = [];
-	let sortName = SORT_NAME_DEFAULT;
+	let sortName : SortName = SORT_NAME_DEFAULT;
 	let sortReversed = false;
 	let viewMode : ViewMode = DEFAULT_VIEW_MODE;
 	let viewModeExtra = '';
@@ -96,7 +96,7 @@ const extractFilterNamesSortAndView = (parts : string[]) : [string[], SortName, 
 				continue;
 			}
 			//We don't know what sort names are valid, so we'll just assume it's fine.
-			sortName = part;
+			sortName = part as SortName;
 			nextPartIsSort = false;
 			continue;
 		}

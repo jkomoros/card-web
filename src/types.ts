@@ -15,7 +15,8 @@ import {
 	VIEW_MODE_TYPES,
 	EDITOR_TAB_TYPES,
 	EDITOR_CONTENT_TAB_TYPES,
-	COMMIT_ACTION_TYPES
+	COMMIT_ACTION_TYPES,
+	SORT_NAME_TYPES
 } from './type_constants.js';
 
 import * as icons from './components/my-icons.js';
@@ -776,8 +777,8 @@ export type UserPermissionsMap = {
 export type CommitActionType = keyof(typeof COMMIT_ACTION_TYPES);
 
 export type SetName = '' | keyof(typeof SET_NAME_TYPES);
-//TODO: lock this down
-export type SortName = string;
+
+export type SortName = '' | keyof(typeof SORT_NAME_TYPES);
 
 export type ViewMode = '' | keyof(typeof VIEW_MODE_TYPES);
 

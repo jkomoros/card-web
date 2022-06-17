@@ -152,6 +152,7 @@ import {
 	WordCloud,
 	CollectionConstructorArguments,
 	ExpandedTabConfig,
+	SortName
 } from './types.js';
 
 import {
@@ -1555,7 +1556,7 @@ export const selectCollectionDescriptionForQuery = createSelector(
 	(queryText, cardTypeFilter, sortByRecent, cardID, generic) => {
 		const wordsAndFilters = extractFiltersFromQuery(queryText);
 		const baseFilters = ['has-body'];
-		let sort = undefined;
+		let sort : SortName = undefined;
 		if (cardID && !generic) baseFilters.push(EXCLUDE_FILTER_NAME + '/' + CARDS_FILTER_NAME + '/' + cardID);
 		if (cardTypeFilter) baseFilters.push(cardTypeFilter);
 		if (!wordsAndFilters[0] && !wordsAndFilters[1].length) {

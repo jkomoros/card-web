@@ -46,7 +46,8 @@ import {
 	TagInfos,
 	State,
 	Uid,
-	SetName
+	SetName,
+	SortName
 } from '../types.js';
 
 import {
@@ -143,7 +144,7 @@ class ConfigureCollectionDialog extends connect(store)(DialogElement) {
 	_handleSortSelectChanged(e : Event) {
 		const ele = e.composedPath()[0];
 		if(!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
-		const sort = ele.value;
+		const sort = ele.value as SortName;
 		store.dispatch(navigateToCollection(collectionDescriptionWithSort(this._collectionDescription, sort)));
 	}
 
