@@ -63,51 +63,66 @@ const inflateCollectionsAndIcons = (config : TabConfig) : ExpandedTabConfig => {
 	return result;
 };
 
+export const TAB_CONFIG_DEFAULT_TABS = 'default_tabs';
+export const TAB_CONFIG_DEFAULT_END_TABS = 'default_end_tabs';
+export const TAB_CONFIG_SECTIONS = 'sections';
+export const TAB_CONFIG_HIDDEN_SECTIONS = 'hidden_sections';
+export const TAB_CONFIG_TAGS = 'tags';
+export const TAB_CONFIG_HIDDEN_TAGS = 'hidden_tags';
+export const TAB_CONFIG_POPULAR = 'popular';
+export const TAB_CONFIG_RECENT = 'recent';
+export const TAB_CONFIG_READING_LIST = 'reading-list';
+export const TAB_CONFIG_STARRED = 'starred';
+export const TAB_CONFIG_UNREAD = 'unread';
+export const TAB_CONFIG_WORKING_NOTES = 'working-notes';
+export const TAB_CONFIG_CONCEPTS = 'concepts';
+export const TAB_CONFIG_TWITTER = 'twitter';
+
 const DEFAULT_CONFIG : TabConfig = [
 	{
-		expand: 'default_tabs'
+		expand: TAB_CONFIG_DEFAULT_TABS
 	}
 ];
 
 const EXPANSION_ITEMS : {[name : TabConfigName]: TabConfig} = {
-	'default_tabs': [
+	[TAB_CONFIG_DEFAULT_TABS]: [
 		{
-			expand: 'sections',
+			expand: TAB_CONFIG_SECTIONS,
 		},
 		{
-			expand: 'hidden_tags',
+			expand: TAB_CONFIG_HIDDEN_TAGS,
 		},
 		{
-			expand: 'default_end_tabs',
+			expand: TAB_CONFIG_DEFAULT_END_TABS,
 		}
 	],
-	'default_end_tabs': [
+	[TAB_CONFIG_DEFAULT_END_TABS]: [
 		{
-			expand: 'popular'
+			expand: TAB_CONFIG_POPULAR,
 		},
 		{
-			expand: 'recent'
+			expand: TAB_CONFIG_RECENT,
 		},
 		{
-			expand: 'reading-list'
+			expand: TAB_CONFIG_READING_LIST,
 		},
 		{
-			expand: 'starred'
+			expand: TAB_CONFIG_STARRED,
 		},
 		{
-			expand: 'unread'
+			expand: TAB_CONFIG_UNREAD,
 		},
 		{
-			expand: 'working-notes',
+			expand: TAB_CONFIG_WORKING_NOTES,
 		},
 		{
-			expand: 'concepts',
+			expand: TAB_CONFIG_CONCEPTS,
 		},
 		{
-			expand: 'twitter',
+			expand: TAB_CONFIG_TWITTER,
 		}
 	],
-	'popular': [
+	[TAB_CONFIG_POPULAR]: [
 		{
 			icon: icons.INSIGHTS_ICON,
 			display_name: 'Popular',
@@ -117,14 +132,14 @@ const EXPANSION_ITEMS : {[name : TabConfigName]: TabConfig} = {
 			default:true,
 		}
 	],
-	'recent': [
+	[TAB_CONFIG_RECENT]: [
 		{
 			icon: icons.SCHEDULE_ICON,
 			display_name: 'Recent',
 			collection: new CollectionDescription(EVERYTHING_SET_NAME, ['has-content'], SORT_NAME_RECENT, false),
 		}
 	],
-	'reading-list': [
+	[TAB_CONFIG_READING_LIST]: [
 		{
 			icon: icons.PLAYLIST_PLAY_ICON,
 			display_name: 'Your reading list',
@@ -133,7 +148,7 @@ const EXPANSION_ITEMS : {[name : TabConfigName]: TabConfig} = {
 			fallback_cards: [READING_LIST_FALLBACK_CARD],
 		}
 	],
-	'starred': [
+	[TAB_CONFIG_STARRED]: [
 		{
 			icon: icons.STAR_ICON,
 			display_name: 'Your starred cards',
@@ -142,7 +157,7 @@ const EXPANSION_ITEMS : {[name : TabConfigName]: TabConfig} = {
 			fallback_cards: [STARS_FALLBACK_CARD],
 		}
 	],
-	'unread': [
+	[TAB_CONFIG_UNREAD]: [
 		{
 			icon: icons.VISIBILITY_ICON,
 			display_name: 'Cards you haven\'t read yet',
@@ -150,7 +165,7 @@ const EXPANSION_ITEMS : {[name : TabConfigName]: TabConfig} = {
 			count: true,
 		}
 	],
-	'working-notes': [
+	[TAB_CONFIG_WORKING_NOTES]: [
 		{
 			icon: icons.INSERT_DRIVE_FILE_ICON,
 			display_name: 'Working note cards',
@@ -159,7 +174,7 @@ const EXPANSION_ITEMS : {[name : TabConfigName]: TabConfig} = {
 			hideIfEmpty: true,
 		}
 	],
-	'concepts': [
+	[TAB_CONFIG_CONCEPTS]: [
 		{
 			icon: icons.MENU_BOOK_ICON,
 			display_name: 'Concept cards',
@@ -168,7 +183,7 @@ const EXPANSION_ITEMS : {[name : TabConfigName]: TabConfig} = {
 			hideIfEmpty: true,
 		}
 	],
-	'twitter': [
+	[TAB_CONFIG_TWITTER]: [
 		{
 			icon: icons.TWITTER_ICON,
 			display_name: '@' + TWITTER_HANDLE + ' tweets multiple times a day with cards from this collection. It\'s a great way to dip your toe in the content.',
@@ -217,16 +232,16 @@ const expandTabConfigItem = (configItem : TabConfigItem, sections : Sections, ta
 	//have the default:true still exist after expansion.
 	if (EXPANSION_ITEMS[configItem.expand]) return [[...EXPANSION_ITEMS[configItem.expand].map(item => ({...configItemWithoutExpand, ...item}))], true];
 
-	if (configItem.expand == 'sections') {
+	if (configItem.expand == TAB_CONFIG_SECTIONS) {
 		return [tabsForSections(sections, false), true];
 	}
-	if (configItem.expand == 'hidden_sections') {
+	if (configItem.expand == TAB_CONFIG_HIDDEN_SECTIONS) {
 		return [tabsForSections(sections, true), true];
 	}
-	if (configItem.expand == 'tags') {
+	if (configItem.expand == TAB_CONFIG_TAGS) {
 		return [tabsForSections(tags), true];
 	}
-	if (configItem.expand == 'hidden_tags') {
+	if (configItem.expand == TAB_CONFIG_HIDDEN_TAGS) {
 		return [tabsForSections(tags, true), true];
 	}
 
