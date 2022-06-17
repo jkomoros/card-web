@@ -26,20 +26,19 @@ import {
 } from '../types.js';
 
 import {
+	COMMIT_ACTION_CONSOLE_LOG,
+	COMMIT_ACTION_EDIT_MESSAGE,
+	COMMIT_ACTION_ADD_MESSAGE,
+	COMMIT_ACTION_CREATE_THREAD
+} from '../type_constants.js';
+
+import {
 	AppActionCreator, AppThunkDispatch 
 } from '../store.js';
 
 import {
 	AnyAction
 } from 'redux';
-
-//When adding a type, also add to CommitActionType
-export const COMMIT_ACTIONS : {[typ : string] : CommitActionType} = {
-	CONSOLE_LOG: 'CONSOLE_LOG',
-	EDIT_MESSAGE: 'EDIT_MESSAGE',
-	ADD_MESSAGE: 'ADD_MESSAGE',
-	CREATE_THREAD: 'CREATE_THREAD',
-};
 
 export const configureCommitAction = (commitAction : CommitActionType, associatedId? : CommentMessageID | CommentThreadID) => {
 	if (!associatedId) associatedId = '';
@@ -89,18 +88,18 @@ export const composeUpdateContent = (content : string) : AnyAction => {
 const doAction = (dispatch : AppThunkDispatch, state : State, action : CommitActionType, content? : string, associatedId? : CommentMessageID | CommentThreadID) => {
 	if (!action) return;
 	switch (action) {
-	case COMMIT_ACTIONS.CONSOLE_LOG:
+	case COMMIT_ACTION_CONSOLE_LOG:
 		console.log(content, associatedId);
 		return;
-	case COMMIT_ACTIONS.EDIT_MESSAGE:
+	case COMMIT_ACTION_EDIT_MESSAGE:
 		const message = getMessageById(state, associatedId);
 		dispatch(editMessage(message, content));
 		return;
-	case COMMIT_ACTIONS.ADD_MESSAGE:
+	case COMMIT_ACTION_ADD_MESSAGE:
 		const thread = getThreadById(state, associatedId);
 		dispatch(addMessage(thread, content));
 		return;
-	case COMMIT_ACTIONS.CREATE_THREAD:
+	case COMMIT_ACTION_CREATE_THREAD:
 		dispatch(createThread(content));
 		return;
 	}

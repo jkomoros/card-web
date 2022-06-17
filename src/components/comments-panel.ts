@@ -32,8 +32,7 @@ import {
 
 import {
 	configureCommitAction,
-	composeShow,
-	COMMIT_ACTIONS
+	composeShow
 } from '../actions/prompt.js';
 
 import {
@@ -50,6 +49,12 @@ import {
 	CommmentMessageEvent,
 	CommmentThreadEvent
 } from '../events.js';
+
+import{
+	COMMIT_ACTION_CREATE_THREAD,
+	COMMIT_ACTION_ADD_MESSAGE,
+	COMMIT_ACTION_EDIT_MESSAGE
+} from '../type_constants.js';
 
 @customElement('comments-panel')
 class CommentsPanel extends connect(store)(PageViewElement) {
@@ -143,19 +148,19 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 			store.dispatch(showNeedSignin());
 			return;
 		}
-		store.dispatch(configureCommitAction(COMMIT_ACTIONS.CREATE_THREAD));
+		store.dispatch(configureCommitAction(COMMIT_ACTION_CREATE_THREAD));
 		this._showCompose('');
 	}
 
 	_handleAddMessage(e : CommmentThreadEvent) {
 		if (!e.detail.thread || !e.detail.thread.id) return;
-		store.dispatch(configureCommitAction(COMMIT_ACTIONS.ADD_MESSAGE, e.detail.thread.id));
+		store.dispatch(configureCommitAction(COMMIT_ACTION_ADD_MESSAGE, e.detail.thread.id));
 		this._showCompose('');
 	}
 
 	_handleEditMessage(e : CommmentMessageEvent) {
 		if (!e.detail.message || !e.detail.message.id) return;
-		store.dispatch(configureCommitAction(COMMIT_ACTIONS.EDIT_MESSAGE, e.detail.message.id));
+		store.dispatch(configureCommitAction(COMMIT_ACTION_EDIT_MESSAGE, e.detail.message.id));
 		this._showCompose(e.detail.message.message);
 	}
 
