@@ -186,6 +186,17 @@ export const SORT_REVERSED_URL_KEYWORD = 'reverse';
 export const SORT_NAME_DEFAULT = 'default';
 export const SORT_NAME_RECENT = 'recent';
 export const SORT_NAME_STARS = 'stars';
+export const SORT_NAME_ORIGINAL_ORDER = 'original-order';
+export const SORT_NAME_LINK_COUNT = 'link-count';
+export const SORT_NAME_UPDATED = 'updated';
+export const SORT_NAME_CREATED = 'created';
+export const SORT_NAME_COMMENTED = 'commented';
+export const SORT_NAME_LAST_TWEETED = 'last-tweeted';
+export const SORT_NAME_TWEET_COUNT = 'tweet-count';
+export const SORT_NAME_TWEET_ORDER = 'tweet-order';
+export const SORT_NAME_TODO_DIFFICULTY = 'todo-difficulty';
+export const SORT_NAME_RANDOM = 'random';
+export const SORT_NAME_CARD_RANK = 'card-rank';
 
 export const VIEW_MODE_URL_KEYWORD = 'view';
 
@@ -1371,13 +1382,13 @@ export const SORTS : SortConfigurationMap = {
 		},
 		reorderable: (sortExtra) => !sortExtra || Object.keys(sortExtra).length == 0
 	},
-	'original-order': {
+	[SORT_NAME_ORIGINAL_ORDER]: {
 		extractor: (card, sections) => [0, sectionNameForCard(card, sections)],
 		description: 'The default order of the cards within each section in order',
 		labelName: 'Section',
 		reorderable: () => true
 	},
-	'link-count': {
+	[SORT_NAME_LINK_COUNT]: {
 		extractor: (card) => {
 			const inbound_links = references(card).inboundLinksArray();
 			return [inbound_links.length, '' + inbound_links.length];
@@ -1385,7 +1396,7 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In descending order by number of inbound links',
 		labelName: 'Link Count',
 	},
-	'updated': {
+	[SORT_NAME_UPDATED]: {
 		extractor: (card) => {
 			const timestamp = card.updated_substantive;
 			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
@@ -1393,7 +1404,7 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In descending order by when each card was last substantively updated',
 		labelName:'Updated',
 	},
-	'created': {
+	[SORT_NAME_CREATED]: {
 		extractor: (card) => {
 			const timestamp = card.updated_substantive;
 			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
@@ -1405,7 +1416,7 @@ export const SORTS : SortConfigurationMap = {
 		extractor: (card) => [card.star_count || 0, ''],
 		description: 'In descending order by number of stars',
 	},
-	'commented': {
+	[SORT_NAME_COMMENTED]: {
 		extractor: (card) => {
 			const timestamp = card.updated_message;
 			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
@@ -1425,24 +1436,24 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In descending order by when each card was last updated or had a new message',
 		labelName: 'Last Activity',
 	},
-	'last-tweeted': {
+	[SORT_NAME_LAST_TWEETED]: {
 		extractor: (card) => {
 			return [card.last_tweeted.seconds, prettyTime(card.last_tweeted)];
 		},
 		description: 'In descending order of when they were last auto-tweeted',
 		labelName: 'Tweeted'
-	},
-	'tweet-count': {
+	},	
+	[SORT_NAME_TWEET_COUNT]: {
 		extractor: (card) => [card.tweet_count, '' + card.tweet_count],
 		description: 'In descending order of how many times the card has been tweeted',
 		labelName: 'Tweet Count',
 	},
-	'tweet-order': {
+	[SORT_NAME_TWEET_ORDER]: {
 		extractor: tweetOrderExtractor as (card : ProcessedCard, sections : Sections, allCards : ProcessedCards) => [number, string],
 		description: 'In descending order of the ones that are most deserving of a tweet',
 		labelName: 'Tweet Worthiness',
 	},
-	'todo-difficulty': {
+	[SORT_NAME_TODO_DIFFICULTY]: {
 		extractor: (card : ProcessedCard) => {
 			const result = MAX_TOTAL_TODO_DIFFICULTY - cardTODOConfigKeys(card).map(key => TODO_DIFFICULTY_MAP[key]).reduce((prev, curr) => prev + curr, 0.0);
 			return [result, '' + result];
@@ -1450,14 +1461,14 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In ascending order of how difficult remaining TODOs are',
 		labelName: 'TODO Difficulty'
 	},
-	'random': {
+	[SORT_NAME_RANDOM]: {
 		extractor: (card) => {
 			return [hash(card.id + RANDOM_SALT), ''];
 		},
 		description: 'A random order',
 		labelName: 'Random Order'
 	},
-	'card-rank': {
+	[SORT_NAME_CARD_RANK]: {
 		extractor: (card, _, cards) => {
 			//This is memoized so as long as cards is the same it won't be re-run.
 			const ranks = pageRank(cards);
