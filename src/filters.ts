@@ -49,7 +49,21 @@ import {
 	READING_LIST_SET_NAME,
 	EVERYTHING_SET_NAME,
 	VIEW_MODE_WEB,
-	DEFAULT_VIEW_MODE
+	DEFAULT_VIEW_MODE,
+	SORT_NAME_DEFAULT,
+	SORT_NAME_RECENT,
+	SORT_NAME_STARS,
+	SORT_NAME_ORIGINAL_ORDER,
+	SORT_NAME_LINK_COUNT,
+	SORT_NAME_UPDATED,
+	SORT_NAME_CREATED,
+	SORT_NAME_COMMENTED,
+	SORT_NAME_LAST_TWEETED,
+	SORT_NAME_TWEET_COUNT,
+	SORT_NAME_TWEET_ORDER,
+	SORT_NAME_TODO_DIFFICULTY,
+	SORT_NAME_RANDOM,
+	SORT_NAME_CARD_RANK
 } from './type_constants.js';
 
 import {
@@ -182,21 +196,6 @@ export const SET_NAMES = TypedObject.keys(SET_INFOS);
 //The word in the URL That means "the part after this is a sort".
 export const SORT_URL_KEYWORD = 'sort';
 export const SORT_REVERSED_URL_KEYWORD = 'reverse';
-
-export const SORT_NAME_DEFAULT = 'default';
-export const SORT_NAME_RECENT = 'recent';
-export const SORT_NAME_STARS = 'stars';
-export const SORT_NAME_ORIGINAL_ORDER = 'original-order';
-export const SORT_NAME_LINK_COUNT = 'link-count';
-export const SORT_NAME_UPDATED = 'updated';
-export const SORT_NAME_CREATED = 'created';
-export const SORT_NAME_COMMENTED = 'commented';
-export const SORT_NAME_LAST_TWEETED = 'last-tweeted';
-export const SORT_NAME_TWEET_COUNT = 'tweet-count';
-export const SORT_NAME_TWEET_ORDER = 'tweet-order';
-export const SORT_NAME_TODO_DIFFICULTY = 'todo-difficulty';
-export const SORT_NAME_RANDOM = 'random';
-export const SORT_NAME_CARD_RANK = 'card-rank';
 
 export const VIEW_MODE_URL_KEYWORD = 'view';
 

@@ -17,7 +17,6 @@ import {
 } from './app.js';
 
 import {
-	SORT_NAME_DEFAULT,
 	SORT_REVERSED_URL_KEYWORD,
 	SORT_URL_KEYWORD,
 	VIEW_MODE_URL_KEYWORD,
@@ -28,6 +27,7 @@ import {
 	DEFAULT_SET_NAME,
 	EVERYTHING_SET_NAME,
 	DEFAULT_VIEW_MODE,
+	SORT_NAME_DEFAULT
 } from '../type_constants.js';
 
 import {

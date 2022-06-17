@@ -1,9 +1,4 @@
 import {
-	SORT_NAME_RECENT,
-	SORT_NAME_STARS
-} from './filters.js';
-
-import {
 	CollectionDescription
 } from './collection_description.js';
 
@@ -13,7 +8,9 @@ import {
 	CARD_TYPE_WORKING_NOTES,
 	CARD_TYPE_CONCEPT,
 	READING_LIST_SET_NAME,
-	EVERYTHING_SET_NAME
+	EVERYTHING_SET_NAME,
+	SORT_NAME_RECENT,
+	SORT_NAME_STARS
 } from './type_constants.js';
 
 import {

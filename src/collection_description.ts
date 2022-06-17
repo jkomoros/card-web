@@ -1,7 +1,6 @@
 import {
 	INVERSE_FILTER_NAMES,
 	SORTS,
-	SORT_NAME_DEFAULT,
 	SORT_URL_KEYWORD,
 	SORT_REVERSED_URL_KEYWORD,
 	SET_NAMES,
@@ -21,7 +20,8 @@ import {
 import {
 	DEFAULT_SET_NAME,
 	DEFAULT_VIEW_MODE,
-	VIEW_MODE_WEB
+	VIEW_MODE_WEB,
+	SORT_NAME_DEFAULT,
 } from './type_constants.js';
 
 import {
