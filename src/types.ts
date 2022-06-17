@@ -280,6 +280,9 @@ export type CardIDMap = {
 export type SortExtractorResult = [sortValue : number, label : string];
 
 export type SortConfigurationMap = {
+	//TODO: make it so no field is optional, which will help detect places where
+	//you forgot to add a configuration block for a type. And then do this for
+	//others, too.
 	[sortName in SortName]+?: {
 		extractor : (card : ProcessedCard, sections : Sections, cards : ProcessedCards, sortExtras : SortExtras) => SortExtractorResult ,
 		description : string,
