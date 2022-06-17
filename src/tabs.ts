@@ -22,7 +22,8 @@ import {
 	TabConfig,
 	ExpandedTabConfig,
 	ExpandedTabConfigItem,
-	Sections
+	Sections,
+	TabConfigName
 } from './types.js';
 
 export const READING_LIST_FALLBACK_CARD = 'about-reading-lists';
@@ -68,7 +69,7 @@ const DEFAULT_CONFIG : TabConfig = [
 	}
 ];
 
-const EXPANSION_ITEMS : {[name : string]: TabConfig} = {
+const EXPANSION_ITEMS : {[name : TabConfigName]: TabConfig} = {
 	'default_tabs': [
 		{
 			expand: 'sections',

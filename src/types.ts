@@ -967,13 +967,16 @@ export type CardFieldMap = {
 	[field in CardFieldType]+?: true
 }
 
+//TODO: tighten
+export type TabConfigName = string;
+
 export type TabConfig = TabConfigItem[];
 
 export interface TabConfigItem {
 	//If set, will expand in line for the named expansion. See src/tabs.js for named expansions.
 	//Applies recursively until no expansions remain.
 	//Note that 'sections' is a special value that will expand to the current values of sections.
-	expand?: string,
+	expand?: TabConfigName,
 	//collection can be either a string that can be deserialized into a CollectionDescription, or an actual 
 	//CollectionDescription. It will be expanded to be a CollectionDescription either way. Each item should have a collection
 	//or an href
