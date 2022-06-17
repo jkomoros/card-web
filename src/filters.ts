@@ -183,9 +183,9 @@ export const SET_NAMES = TypedObject.keys(SET_INFOS);
 export const SORT_URL_KEYWORD = 'sort';
 export const SORT_REVERSED_URL_KEYWORD = 'reverse';
 
-export const DEFAULT_SORT_NAME = 'default';
-export const RECENT_SORT_NAME = 'recent';
-export const STARS_SORT_NAME = 'stars';
+export const SORT_NAME_DEFAULT = 'default';
+export const SORT_NAME_RECENT = 'recent';
+export const SORT_NAME_STARS = 'stars';
 
 export const VIEW_MODE_URL_KEYWORD = 'view';
 
@@ -1343,7 +1343,7 @@ export const SORTS : SortConfigurationMap = {
 	//sortValues, in which case it uses those. Note that
 	//collection._makeSortedCards has logic tailored to this to know when it can
 	//bail out early
-	[DEFAULT_SORT_NAME]: {
+	[SORT_NAME_DEFAULT]: {
 		extractor: (card, sections, _, sortExtra) : [number, string] => {
 			if (!sortExtra || Object.keys(sortExtra).length == 0) return [0, sectionNameForCard(card, sections)];
 			//Pick whatever is the first key stored, which will be the first
@@ -1401,7 +1401,7 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In descending order by when each card was created',
 		labelName:'Created',
 	},
-	[STARS_SORT_NAME]: {
+	[SORT_NAME_STARS]: {
 		extractor: (card) => [card.star_count || 0, ''],
 		description: 'In descending order by number of stars',
 	},
@@ -1413,7 +1413,7 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In descending order by when each card last had a new message',
 		labelName: 'Commented',
 	},
-	[RECENT_SORT_NAME]: {
+	[SORT_NAME_RECENT]: {
 		extractor: (card) => {
 			const messageValue = card.updated_message ? card.updated_message.seconds : 0;
 			const updatedValue = card.updated_substantive ? card.updated_substantive.seconds : 0;
@@ -1781,7 +1781,7 @@ const INITIAL_STATE_FILTERS = Object.assign(
 export const INITIAL_STATE : CollectionState = {
 	activeSetName: DEFAULT_SET_NAME,
 	activeFilterNames: [],
-	activeSortName: DEFAULT_SORT_NAME,
+	activeSortName: SORT_NAME_DEFAULT,
 	activeSortReversed: false,
 	activeViewMode: DEFAULT_VIEW_MODE,
 	activeViewModeExtra: '',

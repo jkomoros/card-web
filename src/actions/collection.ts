@@ -17,7 +17,7 @@ import {
 } from './app.js';
 
 import {
-	DEFAULT_SORT_NAME,
+	SORT_NAME_DEFAULT,
 	SORT_REVERSED_URL_KEYWORD,
 	SORT_URL_KEYWORD,
 	VIEW_MODE_URL_KEYWORD,
@@ -288,7 +288,7 @@ export const canonicalizeURL : AppActionCreator = () => (dispatch, getState) => 
 	}
 
 	//TODO: it's weird to recreate the logic of CollectionDescription.serialize() here.
-	if (description.sort != DEFAULT_SORT_NAME || description.sortReversed) {
+	if (description.sort != SORT_NAME_DEFAULT || description.sortReversed) {
 		result.push(SORT_URL_KEYWORD);
 		if(description.sortReversed) {
 			result.push(SORT_REVERSED_URL_KEYWORD);

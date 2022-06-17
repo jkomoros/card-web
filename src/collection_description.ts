@@ -1,7 +1,7 @@
 import {
 	INVERSE_FILTER_NAMES,
 	SORTS,
-	DEFAULT_SORT_NAME,
+	SORT_NAME_DEFAULT,
 	SORT_URL_KEYWORD,
 	SORT_REVERSED_URL_KEYWORD,
 	SET_NAMES,
@@ -65,9 +65,9 @@ const extractFilterNamesSortAndView = (parts : string[]) : [string[], SortName, 
 	//returns the filter names, the sort name, and whether the sort is reversed
 	//parts is all of the unconsumed portions of the path that aren't the set
 	//name or the card name.
-	if (!parts.length) return [[], DEFAULT_SORT_NAME, false, DEFAULT_VIEW_MODE, ''];
+	if (!parts.length) return [[], SORT_NAME_DEFAULT, false, DEFAULT_VIEW_MODE, ''];
 	const filters = [];
-	let sortName = DEFAULT_SORT_NAME;
+	let sortName = SORT_NAME_DEFAULT;
 	let sortReversed = false;
 	let viewMode : ViewMode = DEFAULT_VIEW_MODE;
 	let viewModeExtra = '';
@@ -273,7 +273,7 @@ export class CollectionDescription {
 			setName = DEFAULT_SET_NAME;
 			setNameExplicitlySet = false;
 		}
-		if (!sortName) sortName = DEFAULT_SORT_NAME;
+		if (!sortName) sortName = SORT_NAME_DEFAULT;
 		if (!sortReversed) sortReversed = false;
 		if (!filterNames) filterNames = [];
 		if (!viewMode) viewMode = DEFAULT_VIEW_MODE;
@@ -339,7 +339,7 @@ export class CollectionDescription {
 	}
 
 	get sortConfig() {
-		return SORTS[this.sort] || SORTS[DEFAULT_SORT_NAME];
+		return SORTS[this.sort] || SORTS[SORT_NAME_DEFAULT];
 	}
 
 	//IF the collection wants to limit how many items to return, this will
@@ -380,7 +380,7 @@ export class CollectionDescription {
 	
 		result = result.concat(filterNames);
 	
-		if (this.sort != DEFAULT_SORT_NAME || this.sortReversed) {
+		if (this.sort != SORT_NAME_DEFAULT || this.sortReversed) {
 			result.push(SORT_URL_KEYWORD);
 			if (this.sortReversed) result.push(SORT_REVERSED_URL_KEYWORD);
 			result.push(this.sort);
@@ -417,7 +417,7 @@ export class CollectionDescription {
 
 		result = result.concat(filterNames);
 
-		if (this.sort != DEFAULT_SORT_NAME || this.sortReversed) {
+		if (this.sort != SORT_NAME_DEFAULT || this.sortReversed) {
 			result.push(SORT_URL_KEYWORD);
 			if (this.sortReversed) result.push(SORT_REVERSED_URL_KEYWORD);
 			result.push(this.sort);
@@ -853,7 +853,7 @@ export class Collection {
 		this._ensureSortInfo();
 		//Skip the work of sorting in the default case, as everything is already
 		//sorted. No-op collections still might be created and should be fast.
-		if (this._description.set == DEFAULT_SET_NAME && this._description.sort == DEFAULT_SORT_NAME && !this._description.sortReversed && (!this._sortExtras || Object.keys(this._sortExtras).length == 0)) {
+		if (this._description.set == DEFAULT_SET_NAME && this._description.sort == SORT_NAME_DEFAULT && !this._description.sortReversed && (!this._sortExtras || Object.keys(this._sortExtras).length == 0)) {
 			return collection;
 		}
 		const sortInfo = this._sortInfo;

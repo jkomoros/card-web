@@ -24,8 +24,8 @@ import {
 	LIMIT_FILTER_NAME,
 	EXCLUDE_FILTER_NAME,
 	CARDS_FILTER_NAME,
-	RECENT_SORT_NAME,
-	DEFAULT_SORT_NAME,
+	SORT_NAME_RECENT,
+	SORT_NAME_DEFAULT,
 	CARD_FILTER_DESCRIPTIONS
 } from './filters.js';
 
@@ -1563,7 +1563,7 @@ export const selectCollectionDescriptionForQuery = createSelector(
 				//If it's a generic search, we don't want similar cards to
 				//current card (which might be a boring section title card), we
 				//just want recent cards.
-				sort = RECENT_SORT_NAME;
+				sort = SORT_NAME_RECENT;
 			} else {
 				//If it's a search to find a card to link etc we do want it to
 				//be related to the card we're on.
@@ -1574,7 +1574,7 @@ export const selectCollectionDescriptionForQuery = createSelector(
 			return new CollectionDescription(EVERYTHING_SET_NAME, baseFilters, sort);
 		}
 		const queryFilter = queryConfigurableFilterText(wordsAndFilters[0]);
-		return new CollectionDescription(EVERYTHING_SET_NAME,[...baseFilters, queryFilter, ...wordsAndFilters[1]], sortByRecent ? RECENT_SORT_NAME : DEFAULT_SORT_NAME);
+		return new CollectionDescription(EVERYTHING_SET_NAME,[...baseFilters, queryFilter, ...wordsAndFilters[1]], sortByRecent ? SORT_NAME_RECENT : SORT_NAME_DEFAULT);
 	}
 );
 

@@ -1,6 +1,6 @@
 import {
-	RECENT_SORT_NAME,
-	STARS_SORT_NAME
+	SORT_NAME_RECENT,
+	SORT_NAME_STARS
 } from './filters.js';
 
 import {
@@ -114,7 +114,7 @@ const EXPANSION_ITEMS : {[name : string]: TabConfig} = {
 			icon: icons.INSIGHTS_ICON,
 			display_name: 'Popular',
 			//TODO: this should be DEFAULT_SET_NAME, but if you click on the tab with DEFAULT_SET_NAME and a sort and no filters, it breaks
-			collection: new CollectionDescription(EVERYTHING_SET_NAME,[], STARS_SORT_NAME, false),
+			collection: new CollectionDescription(EVERYTHING_SET_NAME,[], SORT_NAME_STARS, false),
 			//If any section has default set to true first, it will be default. This is thus a fallback.
 			default:true,
 		}
@@ -123,7 +123,7 @@ const EXPANSION_ITEMS : {[name : string]: TabConfig} = {
 		{
 			icon: icons.SCHEDULE_ICON,
 			display_name: 'Recent',
-			collection: new CollectionDescription(EVERYTHING_SET_NAME, ['has-content'], RECENT_SORT_NAME, false),
+			collection: new CollectionDescription(EVERYTHING_SET_NAME, ['has-content'], SORT_NAME_RECENT, false),
 		}
 	],
 	'reading-list': [
@@ -156,7 +156,7 @@ const EXPANSION_ITEMS : {[name : string]: TabConfig} = {
 		{
 			icon: icons.INSERT_DRIVE_FILE_ICON,
 			display_name: 'Working note cards',
-			collection: new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_WORKING_NOTES], RECENT_SORT_NAME, false),
+			collection: new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_WORKING_NOTES], SORT_NAME_RECENT, false),
 			count:true,
 			hideIfEmpty: true,
 		}
