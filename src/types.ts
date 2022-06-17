@@ -280,7 +280,7 @@ export type CardIDMap = {
 export type SortExtractorResult = [sortValue : number, label : string];
 
 export type SortConfigurationMap = {
-	[sortName : string]: {
+	[sortName in SortName]+?: {
 		extractor : (card : ProcessedCard, sections : Sections, cards : ProcessedCards, sortExtras : SortExtras) => SortExtractorResult ,
 		description : string,
 		labelName? : string | ((sortExtras : SortExtras) => string),
