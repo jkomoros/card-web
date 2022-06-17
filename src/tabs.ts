@@ -83,7 +83,7 @@ const DEFAULT_CONFIG : TabConfig = [
 	}
 ];
 
-const EXPANSION_ITEMS : {[name : TabConfigName]: TabConfig} = {
+const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 	[TAB_CONFIG_DEFAULT_TABS]: [
 		{
 			expand: TAB_CONFIG_SECTIONS,

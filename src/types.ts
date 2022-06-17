@@ -16,7 +16,8 @@ import {
 	EDITOR_TAB_TYPES,
 	EDITOR_CONTENT_TAB_TYPES,
 	COMMIT_ACTION_TYPES,
-	SORT_NAME_TYPES
+	SORT_NAME_TYPES,
+	TAB_CONFIG_TYPES
 } from './type_constants.js';
 
 import * as icons from './components/my-icons.js';
@@ -967,8 +968,7 @@ export type CardFieldMap = {
 	[field in CardFieldType]+?: true
 }
 
-//TODO: tighten
-export type TabConfigName = string;
+export type TabConfigName = keyof(typeof TAB_CONFIG_TYPES);
 
 export type TabConfig = TabConfigItem[];
 
