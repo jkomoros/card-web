@@ -10,7 +10,21 @@ import {
 	READING_LIST_SET_NAME,
 	EVERYTHING_SET_NAME,
 	SORT_NAME_RECENT,
-	SORT_NAME_STARS
+	SORT_NAME_STARS,
+	TAB_CONFIG_DEFAULT_TABS,
+	TAB_CONFIG_DEFAULT_END_TABS,
+	TAB_CONFIG_SECTIONS,
+	TAB_CONFIG_HIDDEN_SECTIONS,
+	TAB_CONFIG_TAGS,
+	TAB_CONFIG_HIDDEN_TAGS,
+	TAB_CONFIG_POPULAR,
+	TAB_CONFIG_RECENT,
+	TAB_CONFIG_READING_LIST,
+	TAB_CONFIG_STARRED,
+	TAB_CONFIG_UNREAD,
+	TAB_CONFIG_WORKING_NOTES,
+	TAB_CONFIG_CONCEPTS,
+	TAB_CONFIG_TWITTER
 } from './type_constants.js';
 
 import {
@@ -62,21 +76,6 @@ const inflateCollectionsAndIcons = (config : TabConfig) : ExpandedTabConfig => {
 	}
 	return result;
 };
-
-export const TAB_CONFIG_DEFAULT_TABS = 'default_tabs';
-export const TAB_CONFIG_DEFAULT_END_TABS = 'default_end_tabs';
-export const TAB_CONFIG_SECTIONS = 'sections';
-export const TAB_CONFIG_HIDDEN_SECTIONS = 'hidden_sections';
-export const TAB_CONFIG_TAGS = 'tags';
-export const TAB_CONFIG_HIDDEN_TAGS = 'hidden_tags';
-export const TAB_CONFIG_POPULAR = 'popular';
-export const TAB_CONFIG_RECENT = 'recent';
-export const TAB_CONFIG_READING_LIST = 'reading-list';
-export const TAB_CONFIG_STARRED = 'starred';
-export const TAB_CONFIG_UNREAD = 'unread';
-export const TAB_CONFIG_WORKING_NOTES = 'working-notes';
-export const TAB_CONFIG_CONCEPTS = 'concepts';
-export const TAB_CONFIG_TWITTER = 'twitter';
 
 const DEFAULT_CONFIG : TabConfig = [
 	{
