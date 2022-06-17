@@ -14,7 +14,8 @@ import {
 	SET_NAME_TYPES,
 	VIEW_MODE_TYPES,
 	EDITOR_TAB_TYPES,
-	EDITOR_CONTENT_TAB_TYPES
+	EDITOR_CONTENT_TAB_TYPES,
+	COMMIT_ACTION_TYPES
 } from './type_constants.js';
 
 import * as icons from './components/my-icons.js';
@@ -772,9 +773,7 @@ export type UserPermissionsMap = {
 	[person: Uid]: UserPermissions
 };
 
-//When adding to this also extend src/actions/prompt.ts:COMMIT_ACTIONS
-//TODO: create this automatically via keyof(typeof) pattern
-export type CommitActionType = '' | 'CONSOLE_LOG' | 'EDIT_MESSAGE' | 'ADD_MESSAGE' | 'CREATE_THREAD';
+export type CommitActionType = keyof(typeof COMMIT_ACTION_TYPES);
 
 export type SetName = '' | keyof(typeof SET_NAME_TYPES);
 //TODO: lock this down

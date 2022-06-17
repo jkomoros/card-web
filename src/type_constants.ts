@@ -221,7 +221,6 @@ export const COMMIT_ACTION_EDIT_MESSAGE = 'EDIT_MESSAGE';
 export const COMMIT_ACTION_ADD_MESSAGE = 'ADD_MESSAGE';
 export const COMMIT_ACTION_CREATE_THREAD = 'CREATE_THREAD';
 
-//When adding a type, also add to CommitActionType
 export const COMMIT_ACTION_TYPES = {
 	[COMMIT_ACTION_CONSOLE_LOG]: true,
 	[COMMIT_ACTION_EDIT_MESSAGE]: true,
