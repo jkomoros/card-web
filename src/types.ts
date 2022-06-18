@@ -302,7 +302,7 @@ export type ConfigurableFilterFunc = (card : ProcessedCard, extras? : FilterExtr
 
 export type ConfigurableFilterFuncFactoryResult = [func : ConfigurableFilterFunc, reverse : boolean];
 
-type ConfigurableFilterFuncFactory = (...parts : string[]) => ConfigurableFilterFuncFactoryResult;
+type ConfigurableFilterFuncFactory = (filterType : ConfigurableFilterType, ...parts : URLPart[]) => ConfigurableFilterFuncFactoryResult;
 
 type ConfigurableFilterFuncURLPart = keyof(typeof URL_PART_TYPES);
 
@@ -313,7 +313,7 @@ type ConfigurableFilterFuncArgument = {
 };
 
 export type ConfigurableFilterConfigurationMap = {
-	[filterName : string] : {
+	[filterName : ConfigurableFilterType] : {
 		factory : ConfigurableFilterFuncFactory,
 		labelName? : string,
 		flipOrder? : boolean,
@@ -784,6 +784,28 @@ export type SetName = '' | keyof(typeof SET_NAME_TYPES);
 
 export type SortName = '' | keyof(typeof SORT_NAME_TYPES);
 
+//A part of a URL in a collection description. These pieces are delimited by '/' in the URL.
+export type URLPart = string;
+
+//A filtername that is a concrete filter (or inverse filter name)
+export type ConcreteFilterName = string;
+
+//A filtername that is a union of multiple concerte filter names, separated by '+'
+export type UnionFilterName = string;
+
+//The full defininiton of a ConfigurableFilter, including ConfigurableFilterType + '/' + ConfigurableFilterRest
+export type ConfigurableFilterName = string;
+
+//The first part of a ConfigurableFilterName, that determines what type of filter factory to use.
+export type ConfigurableFilterType = string;
+
+//The rest of the arguments to a given ConfigurableFilter as URLPart, delimited
+//by '/'. The lenght and contents are specific to the ConfigurableFilterType.
+export type ConfigurableFilterRest = string;
+
+//A full description of one filter
+export type FilterName = ConcreteFilterName | UnionFilterName | ConfigurableFilterName;
+
 export type ViewMode = '' | keyof(typeof VIEW_MODE_TYPES);
 
 export type SectionID = string;
@@ -851,7 +873,7 @@ export type FilterMap = {
 };
 
 export type Filters = {
-	[filterName : string] : FilterMap
+	[filterName : ConcreteFilterName] : FilterMap
 }
 
 export type SerializedDescriptionToCardList = {
@@ -926,7 +948,7 @@ export type CollectionState = {
 	//filters (i.e. they concatenate conrete or inverse filternames delimited by
 	//'+'). For the purposes of processing URLs though they can all be treated
 	//as though they're concrete filters named their literal name in this.
-	activeFilterNames: string[],
+	activeFilterNames: FilterName[],
 	activeSortName: SortName,
 	activeSortReversed: boolean,
 	activeViewMode: ViewMode,

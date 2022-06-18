@@ -48,7 +48,11 @@ import {
 	FilterMap,
 	FilterExtras,
 	CardIDMap,
-	CardBooleanMap
+	CardBooleanMap,
+	FilterName,
+	URLPart,
+	ConfigurableFilterName,
+	UnionFilterName
 } from './types.js';
 
 import {
@@ -61,12 +65,12 @@ import {
 
 import { references } from './references.js';
 
-const extractFilterNamesSortAndView = (parts : string[]) : [string[], SortName, boolean, ViewMode, string] => {
+const extractFilterNamesSortAndView = (parts : URLPart[]) : [FilterName[], SortName, boolean, ViewMode, string] => {
 	//returns the filter names, the sort name, and whether the sort is reversed
 	//parts is all of the unconsumed portions of the path that aren't the set
 	//name or the card name.
 	if (!parts.length) return [[], SORT_NAME_DEFAULT, false, DEFAULT_VIEW_MODE, ''];
-	const filters = [];
+	const filters : FilterName[] = [];
 	let sortName : SortName = SORT_NAME_DEFAULT;
 	let sortReversed = false;
 	let viewMode : ViewMode = DEFAULT_VIEW_MODE;
@@ -246,7 +250,7 @@ export const collectionDescriptionWithKeyCard = (description : CollectionDescrip
 //Returns a cloned colletion description where each part (split on '/') that
 //precisely matches an item in the passed dict is replaced with the given
 //replacement.
-const collectionDescriptionWithPartReplacements = (description : CollectionDescription, replacements : {[part : string] : string}) : CollectionDescription => {
+const collectionDescriptionWithPartReplacements = (description : CollectionDescription, replacements : {[part : URLPart] : URLPart}) : CollectionDescription => {
 	if (!replacements) replacements = {};
 	const parts = description.serialize().split('/');
 	const replacedParts = parts.map(part => replacements[part] || part);
@@ -257,7 +261,7 @@ export class CollectionDescription {
 
 	_setNameExplicitlySet : boolean;
 	_set : SetName;
-	_filters : string[];
+	_filters : FilterName[];
 	_sort : SortName;
 	_sortReversed : boolean;
 	_viewMode : ViewMode;
@@ -267,7 +271,7 @@ export class CollectionDescription {
 	_serialized : string;
 	_serializedShort : string;
 
-	constructor(setName? : SetName, filterNames? : string[], sortName? : SortName, sortReversed? : boolean, viewMode? : ViewMode, viewModeExtra? : string) {
+	constructor(setName? : SetName, filterNames? : FilterName[], sortName? : SortName, sortReversed? : boolean, viewMode? : ViewMode, viewModeExtra? : string) {
 		let setNameExplicitlySet = true;
 		if (!setName) {
 			setName = DEFAULT_SET_NAME;
@@ -492,12 +496,12 @@ export class CollectionDescription {
 	}
 }
 
-const filterNameIsUnionFilter = (filterName : string) : boolean => {
+const filterNameIsUnionFilter = (filterName : FilterName) : boolean => {
 	//the + can be include in a configurable filter, e.g `children/+ab123`
 	return filterName.includes(UNION_FILTER_DELIMITER)  && !filterNameIsConfigurableFilter(filterName);
 };
 
-const filterNameIsConfigurableFilter = (filterName : string) : boolean => {
+const filterNameIsConfigurableFilter = (filterName : FilterName) : filterName is ConfigurableFilterName => {
 	return filterName.includes('/');
 };
 
@@ -508,7 +512,7 @@ let memoizedConfigurableFilters : {[name : string] : ConfigurableFilterResult} =
 
 //The first filter here means 'map of card id to bools', not 'filter func'
 //TODO: make it return the exclusion as second item
-const makeFilterFromConfigurableFilter = (name : string, extras : FilterExtras) : ConfigurableFilterResult => {
+const makeFilterFromConfigurableFilter = (name : ConfigurableFilterName, extras : FilterExtras) : ConfigurableFilterResult => {
 	if (memoizedConfigurableFiltersExtras == extras) {
 		if (memoizedConfigurableFilters[name]) {
 			return memoizedConfigurableFilters[name];
@@ -558,7 +562,7 @@ export const makeConcreteInverseFilter = (inverseFilter : FilterMap, allCardsFil
 //makeFilterUnionSet takes a definition like "starred+in-reading-list" and
 //returns a synthetic filter object that is the union of all of the filters
 //named. The individual names may be normal filters or inverse filters.
-const makeFilterUnionSet = (unionFilterDefinition : string, filterSetMemberships : Filters, cards : CardIDMap) : FilterMap => {
+const makeFilterUnionSet = (unionFilterDefinition : UnionFilterName, filterSetMemberships : Filters, cards : CardIDMap) : FilterMap => {
 	const subFilterNames = unionFilterDefinition.split(UNION_FILTER_DELIMITER);
 	const subFilters = subFilterNames.map(filterName => {
 		if (filterSetMemberships[filterName]) return filterSetMemberships[filterName];
@@ -582,7 +586,7 @@ const makeCombinedFilter = (includeSets : FilterMap[], excludeSets : FilterMap[]
 	};
 };
 
-export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterDefinitionItem, extras : FilterExtras) : [filter : FilterMap, reverse : boolean, sortExtra : SortExtra | null, partialMathces : CardBooleanMap | null ]=> {
+export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterName, extras : FilterExtras) : [filter : FilterMap, reverse : boolean, sortExtra : SortExtra | null, partialMathces : CardBooleanMap | null ]=> {
 	const filterSetMemberships = extras.filterSetMemberships;
 	if (filterNameIsUnionFilter(filterDefinitionItem)) {
 		return [makeFilterUnionSet(filterDefinitionItem, filterSetMemberships, extras.cards), false, null, null];
@@ -620,9 +624,7 @@ const makeExtrasForFilterFunc = memoize((filterSetMemberships : Filters, cards :
 
 type FilterFunc = (id : CardID) => boolean;
 
-type FilterDefinitionItem = string;
-
-type FilterDefinition = FilterDefinitionItem[];
+type FilterDefinition = FilterName[];
 
 //filterDefinition is an array of filter-set names (concrete or inverse or union-set)
 const combinedFilterForFilterDefinition = (filterDefinition : FilterDefinition, extras : FilterExtras) : [filter : FilterFunc, sortExtras : SortExtras, partialMatches : CardBooleanMap] => {

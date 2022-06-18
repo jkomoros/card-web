@@ -113,7 +113,14 @@ import {
 	CardTestFunc,
 	CardTimestampPropertyName,
 	ConfigurableFilterControlPiece,
-	Cards
+	Cards,
+	ConfigurableFilterName,
+	ConfigurableFilterType,
+	URLPart,
+	FilterName,
+	ConfigurableFilterRest,
+	UnionFilterName,
+	ConcreteFilterName
 } from './types.js';
 
 import {
@@ -326,7 +333,7 @@ const INVALID_FILTER_NAME_SENTINEL = () => ({});
 //Returns a function that takes cards, activeCardID, and editingCard and returns
 //a map of cardID -> depth from the keycard. If optOverrideCards is defined,
 //then cardID is ignored, and instead it passes the keys of that map to the BFS.
-const cardBFSMaker = (filterName : string, cardID : CardID, countOrTypeStr : string, countStr : string, optOverrideCards? : CardIDMap) => {
+const cardBFSMaker = (filterName : ConfigurableFilterType, cardID : CardID, countOrTypeStr : string, countStr : string, optOverrideCards? : CardIDMap) => {
 	//note: makeExpandConfigurableFilter needs to be updated if the number or order of parameters changes.
 
 	if (!LINKS_FILTER_NAMES[filterName]) {
@@ -383,7 +390,7 @@ const cardBFSMaker = (filterName : string, cardID : CardID, countOrTypeStr : str
 	});
 };
 
-const makeCardLinksConfigurableFilter = (filterName : string, cardID : string, countOrTypeStr : string, countStr : string) : ConfigurableFilterFuncFactoryResult => {
+const makeCardLinksConfigurableFilter = (filterName : ConfigurableFilterType, cardID : string, countOrTypeStr : string, countStr : string) : ConfigurableFilterFuncFactoryResult => {
 
 	const mapCreator = cardBFSMaker(filterName, cardID, countOrTypeStr, countStr);
 
@@ -400,7 +407,7 @@ const makeCardLinksConfigurableFilter = (filterName : string, cardID : string, c
 export const parseMultipleCardIDs = (str : string) : CardIdentifier[] => str.split(INCLUDE_KEY_CARD_PREFIX);
 export const combineMultipleCardIDs = (cardIDs : CardIdentifier[]) : string => cardIDs.join(INCLUDE_KEY_CARD_PREFIX);
 
-const makeCardsConfigurableFilter = (_ : string, idString : string) : ConfigurableFilterFuncFactoryResult => {
+const makeCardsConfigurableFilter = (_ : ConfigurableFilterType, idString : string) : ConfigurableFilterFuncFactoryResult => {
 	//ids can be a single id or slug, or a conjunction of them delimited by '+'
 	const rawIdsToMatch : {[id : CardIdentifier] : true} = Object.fromEntries(parseMultipleCardIDs(idString).map(id => [id, true]));
 
@@ -422,12 +429,12 @@ const makeCardsConfigurableFilter = (_ : string, idString : string) : Configurab
 	return [func, false];
 };
 
-export const aboutConceptConfigurableFilterText = (conceptStr : string) : string => {
+export const aboutConceptConfigurableFilterText = (conceptStr : string) : ConfigurableFilterName => {
 	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
 	return ABOUT_CONCEPT_FILTER_NAME + '/' + createSlugFromArbitraryString(conceptStr);
 };
 
-const makeAboutConceptConfigurableFilter = (_ : string, conceptStrOrID : string) : ConfigurableFilterFuncFactoryResult => {
+const makeAboutConceptConfigurableFilter = (_ : ConfigurableFilterType, conceptStrOrID : string) : ConfigurableFilterFuncFactoryResult => {
 	//conceptStr should have '-' delimiting its terms; normalize text
 	//will automatically handle them the same.
 
@@ -460,13 +467,13 @@ const makeAboutConceptConfigurableFilter = (_ : string, conceptStrOrID : string)
 };
 
 //if conceptStr is blank, it means 'all cards missing any concept'
-export const missingConceptConfigurableFilterText = (conceptStr : string) : string => {
+export const missingConceptConfigurableFilterText = (conceptStr : string) : ConfigurableFilterName => {
 	const arg = conceptStr ? createSlugFromArbitraryString(conceptStr) : '+';
 	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
 	return MISSING_CONCEPT_FILTER_NAME + '/' + arg;
 };
 
-const makeSameTypeConfigurableFilter = (filterName : string, inputCardID : string) : ConfigurableFilterFuncFactoryResult => {
+const makeSameTypeConfigurableFilter = (filterName : ConfigurableFilterType, inputCardID : string) : ConfigurableFilterFuncFactoryResult => {
 	//We use this function for both same and different type
 	const sameType = filterName == SAME_TYPE_FILTER;
 	//Technically the '+' prefix doesn't make any sense here, but temporarily
@@ -485,7 +492,7 @@ const makeSameTypeConfigurableFilter = (filterName : string, inputCardID : strin
 
 };
 
-const makeMissingConceptConfigurableFilter = (_ : string, conceptStrOrCardID : string) : ConfigurableFilterFuncFactoryResult => {
+const makeMissingConceptConfigurableFilter = (_ : ConfigurableFilterType, conceptStrOrCardID : URLPart) : ConfigurableFilterFuncFactoryResult => {
 	//subFilter can only be a very small set of special filter names. They're
 	//done as subtypes of `missing` becuase there's no way to do a configurable
 	//filter without having a multi-part filter name.
@@ -530,7 +537,7 @@ const makeMissingConceptConfigurableFilter = (_ : string, conceptStrOrCardID : s
 	return [func, false];
 };
 
-const makeExcludeConfigurableFilter = (_ : string, ...remainingParts : string[]) : ConfigurableFilterFuncFactoryResult => {
+const makeExcludeConfigurableFilter = (_ : ConfigurableFilterType, ...remainingParts : URLPart[]) : ConfigurableFilterFuncFactoryResult => {
 	const rest = remainingParts.join('/');
 
 	const generator = memoize((extras : FilterExtras) : [filter : FilterMap, reverse : boolean, sortExtra : SortExtra | null, partialMathces : {[id : CardID] : boolean} | null ] => {
@@ -556,7 +563,7 @@ const makeExcludeConfigurableFilter = (_ : string, ...remainingParts : string[])
 	return [func, true];
 };
 
-const extractSubFilters = (parts : string[]) : string[] => {
+const extractSubFilters = (parts : URLPart[]) : FilterName[] => {
 	//It's not clear where the first filter argument ends and the second one
 	//starts because they'll all be smooshed together. We'll rely on
 	//CollectionDescription machinery to parse it. If we don't include a
@@ -568,7 +575,7 @@ const extractSubFilters = (parts : string[]) : string[] => {
 	return combinedDescription.filters;
 };
 
-const makeExpandConfigurableFilter = (_ : string, ...remainingParts : string[]) : ConfigurableFilterFuncFactoryResult => {
+const makeExpandConfigurableFilter = (_ : ConfigurableFilterType, ...remainingParts : URLPart[]) : ConfigurableFilterFuncFactoryResult => {
 	const [mainFilter, expandFilter] = extractSubFilters(remainingParts);
 	if (!mainFilter || !expandFilter) {
 		console.warn('Expected two sub-filters for expand but didn\'t get it');
@@ -615,7 +622,7 @@ const makeExpandConfigurableFilter = (_ : string, ...remainingParts : string[]) 
 	return [func, false];
 };
 
-const makeCombineConfigurableFilter = (_ : string, ...remainingParts : string[]) : ConfigurableFilterFuncFactoryResult => {
+const makeCombineConfigurableFilter = (_ : ConfigurableFilterType, ...remainingParts : URLPart[]) : ConfigurableFilterFuncFactoryResult => {
 
 	const [subFilterOne, subFilterTwo] = extractSubFilters(remainingParts);
 
@@ -650,7 +657,7 @@ const makeCombineConfigurableFilter = (_ : string, ...remainingParts : string[])
 	return [func, false];
 };
 
-export const queryConfigurableFilterText = (queryText : string) : string => {
+export const queryConfigurableFilterText = (queryText : string) : ConfigurableFilterName => {
 	return QUERY_FILTER_NAME + '/' + encodeURIComponent(queryText).split('%20').join('+');
 };
 
@@ -658,13 +665,13 @@ const configurableFilterIsQuery = (filterName : string) : boolean => {
 	return filterName.startsWith(QUERY_FILTER_NAME + '/');
 };
 
-export const queryTextFromQueryFilter = (queryFilter : string) : string => {
+export const queryTextFromQueryFilter = (queryFilter : ConfigurableFilterName) : string => {
 	if (!configurableFilterIsQuery(queryFilter)) return '';
 	const rawQueryString = queryFilter.split('/')[1];
 	return decodeURIComponent(rawQueryString).split('+').join(' ');
 };
 
-const makeQueryConfigurableFilter = (filterName : string, rawQueryString : string) : ConfigurableFilterFuncFactoryResult => {
+const makeQueryConfigurableFilter = (filterName : ConfigurableFilterType, rawQueryString : URLPart) : ConfigurableFilterFuncFactoryResult => {
 
 	const decodedQueryString = decodeURIComponent(rawQueryString).split('+').join(' ');
 
@@ -685,7 +692,7 @@ const makeQueryConfigurableFilter = (filterName : string, rawQueryString : strin
 //The special keyword for 'my user ID' in the configurable authors filter
 export const ME_AUTHOR_ID = 'me';
 
-const makeAuthorConfigurableFilter = (_ : string, idString : string) : ConfigurableFilterFuncFactoryResult => {
+const makeAuthorConfigurableFilter = (_ : ConfigurableFilterName, idString : URLPart) : ConfigurableFilterFuncFactoryResult => {
 	const ids = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
 	//Technically the IDs are case sensitive, but the URL machinery lowercases everything.
 	//Realistically, collisions are astronomically unlikely
@@ -709,7 +716,7 @@ const makeAuthorConfigurableFilter = (_ : string, idString : string) : Configura
 //underlying card set, and that should be fast.
 const memoizedFingerprintGenerator = memoize((cards : ProcessedCards) => new FingerprintGenerator(cards));
 
-const makeSimilarConfigurableFilter = (_ : string, rawCardID : string) : ConfigurableFilterFuncFactoryResult => {
+const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : URLPart) : ConfigurableFilterFuncFactoryResult => {
 
 	const [, includeKeyCard, cardIDs] = parseKeyCardID(rawCardID);
 	
@@ -744,7 +751,7 @@ const makeSimilarConfigurableFilter = (_ : string, rawCardID : string) : Configu
 	return [func, false];
 };
 
-const makeSimilarCutoffConfigurableFilter = (_ : string, rawCardID : string, rawFloatCutoff : string) : ConfigurableFilterFuncFactoryResult => {
+const makeSimilarCutoffConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : URLPart, rawFloatCutoff : URLPart) : ConfigurableFilterFuncFactoryResult => {
 	//note: makeExpandConfigurableFilter needs to be updated if the number or order of parameters changes.
 
 	const [, includeKeyCard, cardIDs] = parseKeyCardID(rawCardID);
@@ -1229,30 +1236,30 @@ export const CONFIGURABLE_FILTER_NAMES = Object.fromEntries(Object.entries(CONFI
 
 const LINKS_FILTER_NAMES = Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_INFO).filter(entry => entry[1].factory == makeCardLinksConfigurableFilter).map(entry => [entry[0], true]));
 
-const memoizedConfigurableFilters : {[name : string] : ConfigurableFilterFuncFactoryResult} = {};
+const memoizedConfigurableFilters : {[name : ConfigurableFilterName] : ConfigurableFilterFuncFactoryResult} = {};
 
-export const makeConfigurableFilter = (name : string) : ConfigurableFilterFuncFactoryResult => {
+export const makeConfigurableFilter = (name : ConfigurableFilterName) : ConfigurableFilterFuncFactoryResult => {
 	if (!memoizedConfigurableFilters[name]) {
 		const parts = name.split('/');
 		const func = CONFIGURABLE_FILTER_INFO[parts[0]].factory || makeNoOpConfigurableFilter;
-		memoizedConfigurableFilters[name] = func(...parts);
+		memoizedConfigurableFilters[name] = func(parts[0], ...parts.slice(1));
 	}
 	return memoizedConfigurableFilters[name];
 };
 
-export const splitCompoundFilter = (fullFilterName : string) : [firstPart : string, rest: string] => {
+export const splitCompoundFilter = (fullFilterName : ConfigurableFilterName) : [firstPart : ConfigurableFilterType, rest: ConfigurableFilterRest] => {
 	const filterParts = fullFilterName.split('/');
 	const firstFilterPart = filterParts[0];
 	const restFilter = filterParts.slice(1).join('/');
 	return [firstFilterPart, restFilter];
 };
 
-export const splitUnionFilter = (unionFilter : string) : string[] => {
+export const splitUnionFilter = (unionFilter : UnionFilterName) : ConcreteFilterName[] => {
 	const [firstPart] = splitCompoundFilter(unionFilter);
 	return firstPart.split(UNION_FILTER_DELIMITER);
 };
 
-export const piecesForConfigurableFilter = (fullFilterName : string) : ConfigurableFilterControlPiece[] => {
+export const piecesForConfigurableFilter = (fullFilterName : FilterName) : ConfigurableFilterControlPiece[] => {
 	//TODO: it's kind of weird that this bespoke logic is here, instead of fully
 	//being driven by constant configuration from filters.js
 	const [filterName, rest] = splitCompoundFilter(fullFilterName);
