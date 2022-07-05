@@ -588,7 +588,7 @@ export const makeElementContentEditable = (ele : HTMLElement) => {
 
 	//styleWithCSS turns off styling spans with CSS and just uses presentational
 	//attributes. 
-	document.execCommand('styleWithCSS', false);
+	document.execCommand('styleWithCSS', false, 'false');
 	//Browsers currently insert a "<div>" as default paragraph separator but we
 	//want 'p'; 
 	document.execCommand('defaultParagraphSeparator', false, 'p');
