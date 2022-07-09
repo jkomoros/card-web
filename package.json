@@ -5,7 +5,7 @@
   "scripts": {
     "start": "gulp inject-config && npm run serve",
     "serve": "tsc --watch --preserveWatchOutput & wds --node-resolve --port=8081",
-    "serve:clean": "npm install && npm run clean && gulp inject-config && npm run serve",
+    "serve:clean": "npm install && npm run build:clean && gulp inject-config && npm run serve",
     "build": "npm run build:clean && npm run build:typescript && npm run build:rollup && npm run build:service-worker",
     "build:clean": "npm run build:clean:build && npm run build:clean:typescript",
     "build:clean:build": "rm -rf build/",
