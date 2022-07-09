@@ -807,7 +807,7 @@ class CardEditor extends connect(store)(LitElement) {
 	_handleTextFieldUpdated(e : InputEvent) {
 		if (!this._active) return;
 		const ele = e.composedPath()[0];
-		if (!(ele instanceof HTMLTextAreaElement)) throw new Error('ele not textarea');
+		if (!(ele instanceof HTMLTextAreaElement) && !(ele instanceof HTMLInputElement)) throw new Error('ele not textarea or text input');
 		store.dispatch(textFieldUpdated(ele.dataset.field, ele.value, false));
 	}
 
