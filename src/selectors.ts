@@ -1504,7 +1504,9 @@ export const selectCountsForTabs = createSelector(
 export const selectCardsDrawerPanelShowing = createSelector(
 	selectActiveCollection,
 	selectCardsDrawerPanelOpen,
-	(activeCollection, panelOpen) => !activeCollection || activeCollection.isFallback ? false : panelOpen
+	selectIsEditing,
+	selectEditorMinimized,
+	(activeCollection, panelOpen, isEditing, editorMinimized) => (isEditing && editorMinimized) ? false : !activeCollection || activeCollection.isFallback ? false : panelOpen
 );
 
 //This is the final expanded, sorted collection, including start cards.
