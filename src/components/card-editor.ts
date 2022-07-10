@@ -573,7 +573,7 @@ class CardEditor extends connect(store)(LitElement) {
 		html`
 			<div class='tags'>
 				<tag-list .defaultColor=${autoTODOColor} .tags=${this._autoTodos} .overrideTypeName=${'Auto TODO'} .tagInfos=${TODO_ALL_INFOS} .hideOnEmpty=${true}></tag-list>
-				<tag-list .defaultColor=${enableTODOColor} .tags=${todoOverridesEnabled} .previousTags=${todoOverridesPreviouslyEnabled} .disableNew=${true} .overrideTypeName=${'Enabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @tag-added=${this._handleAddTodoOverrideEnabled} @tag-removed=${this._handleRemoveTodoOverride}></tag-list>
+				<tag-list .defaultColor=${enableTODOColor} .tags=${todoOverridesEnabled} .previousTags=${todoOverridesPreviouslyEnabled} .disableNew=${true} .overrideTypeName=${'Enabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @tag-added=${this._handleAddTodoOverrideEnabled} @tag-removed=${this._handleRemoveTodoOverride} .hideMessageOnEmpty=${true}></tag-list>
 			</div>
 		` :
 		html`<div class='tabs main' @click=${this._handleTabClicked}>
