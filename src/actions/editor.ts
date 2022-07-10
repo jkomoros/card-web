@@ -18,7 +18,7 @@ export const EDITING_AUTO_TODO_OVERRIDE_DISABLED = 'EDITING_AUTO_TODO_OVERRIDE_D
 export const EDITING_AUTO_TODO_OVERRIDE_REMOVED = 'EDITING_AUTO_TODO_OVERRIDE_REMOVED';
 export const EDITING_TAG_ADDED = 'EDITING_TAG_ADDED';
 export const EDITING_TAG_REMOVED = 'EDITING_TAG_REMOVED';
-export const EDITING_EXTRACT_LINKS = 'EDITING_EXTRACT_LINKS';
+export const EDITING_PROCESS_NORMALIZED_TEXT_PROPERTIES = 'EDITING_PROCESS_NORMALIZED_TEXT_PROPERTIES';
 export const EDITING_EDITOR_ADDED = 'EDITING_EDITOR_ADDED';
 export const EDITING_EDITOR_REMOVED = 'EDITING_EDITOR_REMOVED';
 export const EDITING_COLLABORATOR_ADDED = 'EDITING_COLLABORATOR_ADDED';
@@ -366,7 +366,7 @@ export const todoUpdated = (newTodo : string) : AnyAction => {
 	};
 };
 
-let extractLinksTimeout : number;
+let processNormalizedTextPropertiesTimeout : number;
 
 export const textFieldUpdated : AppActionCreator = (fieldName : CardFieldTypeEditable, value : string, fromContentEditable = false) => (dispatch, getState) => {
 	if (!fromContentEditable) fromContentEditable = false;
@@ -400,10 +400,10 @@ export const textFieldUpdated : AppActionCreator = (fieldName : CardFieldTypeEdi
 	});
 
 	//Make sure we have a timeout to kick off normalized text processing, but in the future.
-	if (extractLinksTimeout) window.clearTimeout(extractLinksTimeout);
-	extractLinksTimeout = window.setTimeout(() => {
-		extractLinksTimeout = 0;
-		dispatch({type: EDITING_EXTRACT_LINKS});
+	if (processNormalizedTextPropertiesTimeout) window.clearTimeout(processNormalizedTextPropertiesTimeout);
+	processNormalizedTextPropertiesTimeout = window.setTimeout(() => {
+		processNormalizedTextPropertiesTimeout = 0;
+		dispatch({type: EDITING_PROCESS_NORMALIZED_TEXT_PROPERTIES});
 	}, 1000);
 };
 

@@ -23,7 +23,7 @@ import {
 	EDITING_AUTO_TODO_OVERRIDE_REMOVED,
 	EDITING_TAG_ADDED,
 	EDITING_TAG_REMOVED,
-	EDITING_EXTRACT_LINKS,
+	EDITING_PROCESS_NORMALIZED_TEXT_PROPERTIES,
 	EDITING_EDITOR_ADDED,
 	EDITING_EDITOR_REMOVED,
 	EDITING_COLLABORATOR_ADDED,
@@ -180,13 +180,18 @@ const app = (state : EditorState = INITIAL_STATE, action : AnyAction) : EditorSt
 			...state,
 			card: {...state.card, section:action.section}
 		};
-	case EDITING_EXTRACT_LINKS:
+	case EDITING_PROCESS_NORMALIZED_TEXT_PROPERTIES:
 		if (!state.card) return state;
 		//These links will be recomputed for real when the card is committed,
 		//but updating them now allows things like the live list of reciprocal
 		//links to be updated away. This is also when we do expensive processing
-		//of body, like re-extracting words to cause suggested tags to change.
+		//of body, like re-extracting words to cause suggested tags to change. 
+
+		//Whenever cardExtractionVersion increments, that invalidates all of the
+		//reselect caches based on normalized text properties, so they're all
+		//recomputed, which can be VERY expensive.
 		const linkInfo = extractCardLinksFromBody(state.card.body);
+		//TODO: if links don't change, then don't duplciate card.
 		card = {...state.card};
 		references(card).setLinks(linkInfo);
 		return {
