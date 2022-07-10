@@ -21,7 +21,8 @@ import {
 	getRedirectResult,
 	User,
 	updateProfile,
-	updateEmail
+	updateEmail,
+	OAuthProvider
 } from 'firebase/auth';
 
 import {
@@ -48,6 +49,10 @@ import {
 	db,
 	auth,
 } from '../firebase.js';
+
+import {
+	FirebaseError
+} from 'firebase/app';
 
 import {
 	doc,
@@ -93,7 +98,7 @@ import {
 
 let prevAnonymousMergeUser : User = null;
 
-getRedirectResult(auth).catch( async err => {
+getRedirectResult(auth).catch( async (err : FirebaseError) => {
 
 	if (err.code != 'auth/credential-already-in-use') {
 		alert('Couldn\'t sign in (' + err.code + '): ' + err.message);
@@ -111,7 +116,7 @@ getRedirectResult(auth).catch( async err => {
 	//notice this global is set and save it to the db.
 	prevAnonymousMergeUser = auth.currentUser;
 
-	const credential = err.credential;
+	const credential = OAuthProvider.credentialFromError(err);
 
 	if (!credential) {
 		alert('No credential provided, can\'t proceed');
