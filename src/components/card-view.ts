@@ -178,6 +178,7 @@ import {
 	ThumbnailTappedEvent,
 	UpdateRenderOffsetEvent
 } from '../events.js';
+import { selectEditorMinimized } from '../selectors';
 
 @customElement('card-view')
 class CardView extends connect(store)(PageViewElement) {
@@ -187,6 +188,9 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_editing: boolean;
+
+	@state()
+		_editorMinimized: boolean;
 
 	@state()
 		_pageExtra: string;
@@ -354,6 +358,11 @@ class CardView extends connect(store)(PageViewElement) {
 				min-height: 300px;
 			}
 
+			card-editor[data-minimized] {
+				flex-grow: initial;
+				min-height: initial;
+			}
+
 			[slot=tags] {
 				display:flex;
 				flex-direction: column;
@@ -442,7 +451,7 @@ class CardView extends connect(store)(PageViewElement) {
 					<tag-list .hideOnEmpty=${true} .tags=${this._cardTodos} .tagInfos=${TODO_ALL_INFOS}></tag-list>
 				</div>
           </card-stage>
-          <card-editor ?data-active=${this._editing} ></card-editor>
+          <card-editor ?data-active=${this._editing} ?data-minimized=${this._editorMinimized}></card-editor>
         </div>
 		<div class='right-panel'>
         	<card-info-panel .active=${this.active}></card-info-panel>
@@ -603,6 +612,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._displayCard = this._editingCard ? this._editingCard : this._card;
 		this._pageExtra = state.app.pageExtra;
 		this._editing = state.editor.editing; 
+		this._editorMinimized = selectEditorMinimized(state);
 		this._signedIn = selectUserSignedIn(state);
 		this._userMayStar  =  selectUserMayStar(state);
 		this._userMayMarkRead =  selectUserMayMarkRead(state);

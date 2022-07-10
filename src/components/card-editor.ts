@@ -249,7 +249,10 @@ class CardEditor extends connect(store)(LitElement) {
 			/* The up-down padding comes from margins in the top and bottom elements */
 			padding: 0 0.5em;
 			box-sizing:border-box;
-			position:absolute;
+			}
+
+			.container.not-minimized {
+				position:absolute;
 			}
 
 			.inputs {
@@ -408,7 +411,7 @@ class CardEditor extends connect(store)(LitElement) {
 		const referencesMap = references(this._card).byTypeArray();
 
 		return html`
-      <div class='container ${this._cardModificationPending ? 'modification-pending' : ''} ${this._minimized ? 'minimized' : ''}'>
+      <div class='container ${this._cardModificationPending ? 'modification-pending' : ''} ${this._minimized ? 'minimized' : 'not-minimized'}'>
 		<div class='scrim'></div>
         <div class='inputs'>
 		  <div ?hidden=${this._selectedTab !== TAB_CONTENT} class='flex body'>
