@@ -67,6 +67,7 @@ import {
 	selectCardToReference,
 	removeReferenceFromCard,
 	addReferenceToCard,
+	setEditorMinimized
 } from '../actions/editor.js';
 
 import {
@@ -155,6 +156,11 @@ import {
 import {
 	TypedObject
 } from '../typed_object.js';
+
+import {
+	ARROW_UP_ICON,
+	ARROW_RIGHT_ICON
+} from './my-icons';
 
 @customElement('card-editor')
 class CardEditor extends connect(store)(LitElement) {
@@ -541,6 +547,7 @@ class CardEditor extends connect(store)(LitElement) {
 			</div>
         </div>
         <div class='buttons'>
+			<button class='small' @click=${this._handleMinimizedClicked}>${this._minimized ? ARROW_RIGHT_ICON : ARROW_UP_ICON}</button>
 		  <h3>Editing</h3>
 		  <div class='tabs main' @click=${this._handleTabClicked}>
 			  <label data-name='${TAB_CONFIG}' ?data-selected=${this._selectedTab == TAB_CONFIG}>Configuration</label>
@@ -659,6 +666,10 @@ class CardEditor extends connect(store)(LitElement) {
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLSelectElement)) throw new Error('ele not select');
 		store.dispatch(cardTypeUpdated(ele.value));
+	}
+
+	_handleMinimizedClicked() {
+		store.dispatch(setEditorMinimized(!this._minimized));
 	}
 
 	_handleDeleteClicked() {
