@@ -437,6 +437,7 @@ class CardEditor extends connect(store)(LitElement) {
 		const autoTODOColor = '#cc9494'; //firebrick, but less saturated and lighter
 
 		const referencesMap = references(this._card).byTypeArray();
+		const previousReferencesMap = references(this._underlyingCard).byTypeArray();
 
 		return html`
       <div class='container ${this._cardModificationPending ? 'modification-pending' : ''} ${this._minimized ? 'minimized' : 'not-minimized'}'>
@@ -558,7 +559,7 @@ class CardEditor extends connect(store)(LitElement) {
 					${TypedObject.entries(REFERENCE_TYPES).filter(entry => referencesMap[entry[0]]).map(entry => {
 		return html`<div>
 							<label>${entry[1].name} ${help(entry[1].description, false)} <button class='small' data-reference-type=${entry[0]} @click=${this._handleRemoveAllReferencesOfTypeClicked} title=${'Remove all references of type ' + entry[1].name} >${HIGHLIGHT_OFF_ICON}</button></label>
-							<tag-list .overrideTypeName=${'Reference'} .disableTagIfMissingTagInfo=${true} .disabledDescription=${'You do not have permission to view this card so you may not remove the reference to it.'} data-reference-type=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .editing=${entry[1].editable} .subtle=${!entry[1].editable} .tapEvents=${true} .disableAdd=${true} @tag-removed=${this._handleRemoveReference}></tag-list>
+							<tag-list .overrideTypeName=${'Reference'} .disableTagIfMissingTagInfo=${true} .disabledDescription=${'You do not have permission to view this card so you may not remove the reference to it.'} data-reference-type=${entry[0]} .tagInfos=${this._cardTagInfos} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]]} .previousTags=${previousReferencesMap[entry[0]] || []} .editing=${entry[1].editable} .subtle=${!entry[1].editable} .tapEvents=${true} .disableAdd=${true} @tag-removed=${this._handleRemoveReference} @tag-added=${this._handleReAddReference}></tag-list>
 						</div>`;
 	})}
 				</div>
@@ -725,6 +726,23 @@ class CardEditor extends connect(store)(LitElement) {
 	_handleAddAckReference(e : TagEvent) {
 		const cardID = e.detail.tag;
 		store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_ACK));
+	}
+
+	_handleReAddReference(e : TagEvent) {
+		const cardID = e.detail.tag;
+		let referenceType : ReferenceType = '';
+		//Walk up the chain to find which tag-list has it (which will have the
+		//referenceType we set explicitly on it)
+		for (const ele of e.composedPath()) {
+			//Could be a documentfragment
+			if (!(ele instanceof HTMLElement)) continue;
+			if (ele.dataset.referenceType) {
+				referenceType = ele.dataset.referenceType as ReferenceType;
+				break;
+			}
+		}
+		if (!referenceType) throw new Error('couldn\'t find referenceType');
+		store.dispatch(addReferenceToCard(cardID, referenceType));
 	}
 
 	_handleRemoveReference(e : TagEvent) {
