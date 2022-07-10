@@ -277,6 +277,15 @@ class CardEditor extends connect(store)(LitElement) {
 				display: none;
 			}
 
+			.buttons .checkboxes {
+				display: flex;
+				flex-direction: row;
+			}
+
+			.minimized .buttons .checkboxes {
+				display: none;
+			}
+
 			input, textarea {
 			border: 0 solid black;
 			font-size:0.8em;
@@ -555,18 +564,20 @@ class CardEditor extends connect(store)(LitElement) {
 		  </div>
 		  <div class='flex'>
 		  </div>
-		  <div>
-              <label>Full Bleed</label>
-              <input type='checkbox' ?checked='${this._card.full_bleed}' @change='${this._handleFullBleedUpdated}'></input>
-            </div>
-		  <div>
-            <label>Published</label>
-            <input type='checkbox' .checked=${this._card.published} @change='${this._handlePublishedUpdated}'></input>
-          </div>
-          <div>
-            <label>Substantive</label>
-            <input type='checkbox' .checked=${this._substantive} @change='${this._handleSubstantiveChanged}'></input>
-          </div>
+		  <div class='checkboxes'>
+			<div>
+				<label>Full Bleed</label>
+				<input type='checkbox' ?checked='${this._card.full_bleed}' @change='${this._handleFullBleedUpdated}'></input>
+				</div>
+			<div>
+				<label>Published</label>
+				<input type='checkbox' .checked=${this._card.published} @change='${this._handlePublishedUpdated}'></input>
+			</div>
+			<div>
+				<label>Substantive</label>
+				<input type='checkbox' .checked=${this._substantive} @change='${this._handleSubstantiveChanged}'></input>
+			</div>
+		  </div>
           <button class='round' @click='${this._handleCancel}'>${CANCEL_ICON}</button>
 		  <button class='round primary' @click=${this._handleMergeClicked} ?hidden=${!this._overshadowedDifferences} title='${'The card you\'re editing has been changed by someone else in a way that is overwritten by your edits:\n' + this._overshadowedDifferences + '\nClick here to choose which of these fields to revert your edits on.'}'>${MERGE_TYPE_ICON}</button>
           <button class='round primary' @click='${this._handleCommit}' ?disabled=${!this._hasUnsavedChanges} title=${this._hasUnsavedChanges ? 'Commit the changes you\'ve made' : 'You haven\'t made any changes that need saving.'}>${SAVE_ICON}</button>
