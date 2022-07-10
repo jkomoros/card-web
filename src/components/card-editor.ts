@@ -557,30 +557,30 @@ class CardEditor extends connect(store)(LitElement) {
         </div>
         <div class='buttons'>
 			<button class='small' @click=${this._handleMinimizedClicked}>${this._minimized ? ARROW_RIGHT_ICON : ARROW_UP_ICON}</button>
-		  <h3>Editing</h3>
-		  <div class='tabs main' @click=${this._handleTabClicked}>
-			  <label data-name='${TAB_CONFIG}' ?data-selected=${this._selectedTab == TAB_CONFIG}>Configuration</label>
-			  <label data-name='${TAB_CONTENT}' ?data-selected=${this._selectedTab == TAB_CONTENT}>Content</label>
-		  </div>
-		  <div class='flex'>
-		  </div>
-		  <div class='checkboxes'>
-			<div>
-				<label>Full Bleed</label>
-				<input type='checkbox' ?checked='${this._card.full_bleed}' @change='${this._handleFullBleedUpdated}'></input>
+			<h3>Editing</h3>
+			<div class='tabs main' @click=${this._handleTabClicked}>
+				<label data-name='${TAB_CONFIG}' ?data-selected=${this._selectedTab == TAB_CONFIG}>Configuration</label>
+				<label data-name='${TAB_CONTENT}' ?data-selected=${this._selectedTab == TAB_CONTENT}>Content</label>
+			</div>
+			<div class='flex'>
+			</div>
+			<div class='checkboxes'>
+				<div>
+					<label>Full Bleed</label>
+					<input type='checkbox' ?checked='${this._card.full_bleed}' @change='${this._handleFullBleedUpdated}'></input>
+					</div>
+				<div>
+					<label>Published</label>
+					<input type='checkbox' .checked=${this._card.published} @change='${this._handlePublishedUpdated}'></input>
 				</div>
-			<div>
-				<label>Published</label>
-				<input type='checkbox' .checked=${this._card.published} @change='${this._handlePublishedUpdated}'></input>
+				<div>
+					<label>Substantive</label>
+					<input type='checkbox' .checked=${this._substantive} @change='${this._handleSubstantiveChanged}'></input>
+				</div>
 			</div>
-			<div>
-				<label>Substantive</label>
-				<input type='checkbox' .checked=${this._substantive} @change='${this._handleSubstantiveChanged}'></input>
-			</div>
-		  </div>
-          <button class='round' @click='${this._handleCancel}'>${CANCEL_ICON}</button>
-		  <button class='round primary' @click=${this._handleMergeClicked} ?hidden=${!this._overshadowedDifferences} title='${'The card you\'re editing has been changed by someone else in a way that is overwritten by your edits:\n' + this._overshadowedDifferences + '\nClick here to choose which of these fields to revert your edits on.'}'>${MERGE_TYPE_ICON}</button>
-          <button class='round primary' @click='${this._handleCommit}' ?disabled=${!this._hasUnsavedChanges} title=${this._hasUnsavedChanges ? 'Commit the changes you\'ve made' : 'You haven\'t made any changes that need saving.'}>${SAVE_ICON}</button>
+			<button class='round' @click='${this._handleCancel}'>${CANCEL_ICON}</button>
+			<button class='round primary' @click=${this._handleMergeClicked} ?hidden=${!this._overshadowedDifferences} title='${'The card you\'re editing has been changed by someone else in a way that is overwritten by your edits:\n' + this._overshadowedDifferences + '\nClick here to choose which of these fields to revert your edits on.'}'>${MERGE_TYPE_ICON}</button>
+			<button class='round primary' @click='${this._handleCommit}' ?disabled=${!this._hasUnsavedChanges} title=${this._hasUnsavedChanges ? 'Commit the changes you\'ve made' : 'You haven\'t made any changes that need saving.'}>${SAVE_ICON}</button>
         </div>
       </div>
     `;
