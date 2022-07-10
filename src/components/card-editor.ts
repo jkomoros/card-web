@@ -273,9 +273,10 @@ class CardEditor extends connect(store)(LitElement) {
 				display: none;
 			}
 
-			.buttons .checkboxes, .buttons .header {
+			.buttons .checkboxes, .buttons .header, .buttons .tags {
 				display: flex;
 				flex-direction: row;
+				align-items: center;
 			}
 
 			.buttons .header {
@@ -568,7 +569,13 @@ class CardEditor extends connect(store)(LitElement) {
 				<button class='small'>${this._minimized ? ARROW_RIGHT_ICON : ARROW_UP_ICON}</button>
 				<h3>Editing</h3>
 			</div>
-			${this._minimized ? html`` :
+			${this._minimized ? 
+		html`
+			<div class='tags'>
+				<tag-list .defaultColor=${autoTODOColor} .tags=${this._autoTodos} .overrideTypeName=${'Auto TODO'} .tagInfos=${TODO_ALL_INFOS} .hideOnEmpty=${true}></tag-list>
+				<tag-list .defaultColor=${enableTODOColor} .tags=${todoOverridesEnabled} .previousTags=${todoOverridesPreviouslyEnabled} .disableNew=${true} .overrideTypeName=${'Enabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @tag-added=${this._handleAddTodoOverrideEnabled} @tag-removed=${this._handleRemoveTodoOverride}></tag-list>
+			</div>
+		` :
 		html`<div class='tabs main' @click=${this._handleTabClicked}>
 				<label data-name='${TAB_CONFIG}' ?data-selected=${this._selectedTab == TAB_CONFIG}>Configuration</label>
 				<label data-name='${TAB_CONTENT}' ?data-selected=${this._selectedTab == TAB_CONTENT}>Content</label>
