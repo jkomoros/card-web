@@ -267,6 +267,10 @@ class CardEditor extends connect(store)(LitElement) {
 				display: none;
 			}
 
+			.minimized .tabs.main {
+				display: none;
+			}
+
 			input, textarea {
 			border: 0 solid black;
 			font-size:0.8em;
