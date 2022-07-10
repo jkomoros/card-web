@@ -33,7 +33,8 @@ import {
 	selectEditingCardSuggestedConceptReferences,
 	selectEditingUnderlyingCardSnapshotDiffDescription,
 	selectOvershadowedUnderlyingCardChangesDiffDescription,
-	selectEditingCardHasUnsavedChanges
+	selectEditingCardHasUnsavedChanges,
+	selectEditorMinimized
 } from '../selectors.js';
 
 import {
@@ -154,7 +155,6 @@ import {
 import {
 	TypedObject
 } from '../typed_object.js';
-import { selectEditorMinimized } from '../selectors';
 
 @customElement('card-editor')
 class CardEditor extends connect(store)(LitElement) {
