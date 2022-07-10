@@ -1084,6 +1084,9 @@ export type DataState = {
 
 export type EditorState = {
 	editing: boolean,
+	//If true, then the editor shows up as a single collapsed line, saving
+	//vertical space for small screens.
+	editorMinimized: boolean,
 	//this is a map of field name to true if it was updated last from content
 	//editable, or false or missing if it wasn't.
 	updatedFromContentEditable: CardFieldMap,

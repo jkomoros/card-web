@@ -92,6 +92,7 @@ const DEFAULT_EDITOR_TAB = EDITOR_TAB_CONTENT;
 
 const INITIAL_STATE : EditorState = {
 	editing: false,
+	editorMinimized: false,
 	updatedFromContentEditable: {},
 	card: null,
 	underlyingCardSnapshot: null,
