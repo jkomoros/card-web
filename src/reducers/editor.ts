@@ -5,6 +5,7 @@ import {
 import { 
 	EDITING_START,
 	EDITING_FINISH,
+	EDITING_EDITOR_MINIMIZED,
 	EDITING_SELECT_TAB,
 	EDITING_SELECT_EDITOR_TAB,
 	EDITING_TEXT_FIELD_UPDATED,
@@ -136,6 +137,11 @@ const app = (state : EditorState = INITIAL_STATE, action : AnyAction) : EditorSt
 			cardExtractionVersion: -1,
 			substantive:false,
 			updatedFromContentEditable: {},
+		};
+	case EDITING_EDITOR_MINIMIZED:
+		return {
+			...state,
+			editorMinimized: action.minimized
 		};
 	case EDITING_SELECT_TAB:
 		return {

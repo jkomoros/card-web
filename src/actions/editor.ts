@@ -1,5 +1,6 @@
 export const EDITING_START = 'EDITING_START';
 export const EDITING_FINISH = 'EDITING_FINISH';
+export const EDITING_EDITOR_MINIMIZED = 'EDITING_EDITOR_MINIMIZED';
 export const EDITING_SELECT_TAB = 'EDITING_SELECT_TAB';
 export const EDITING_SELECT_EDITOR_TAB = 'EDITING_SELECT_EDITOR_TAB';
 export const EDITING_TEXT_FIELD_UPDATED = 'EDITING_TEXT_FIELD_UPDATED';
@@ -901,4 +902,11 @@ export const mergeOvershadowedUnderlyingChanges : AppActionCreator = () => (disp
 		type: EDITING_MERGE_OVERSHADOWED_CHANGES,
 		diff: filteredDiff,
 	});
+};
+
+export const setEditorMinimized = (minimized : boolean) : AnyAction => {
+	return {
+		type: EDITING_EDITOR_MINIMIZED,
+		minimized
+	};
 };
