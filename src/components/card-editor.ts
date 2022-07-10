@@ -529,7 +529,7 @@ class CardEditor extends connect(store)(LitElement) {
 					</div>
 					<div>
 						<label>Auto TODO ${help('Todos that are automatically applied because of the values of the card. Add a Force Disable TODO to remove one of these if it doesn\'t apply.')}</label>
-						<tag-list .defaultColor=${autoTODOColor} .tags=${this._autoTodos} .overrideTypeName=${'Auto TODO'} .tagInfos=${TODO_ALL_INFOS}></tag-list>
+						<tag-list .defaultColor=${autoTODOColor} .tags=${this._autoTodos} .overrideTypeName=${'Auto TODO'} .tagInfos=${TODO_ALL_INFOS} .disableAdd=${true} .editing=${true} @tag-removed=${this._handleAddTodoOverrideDisabled}></tag-list>
 					</div>
 				</div>
 				<div class='row'>
@@ -572,7 +572,7 @@ class CardEditor extends connect(store)(LitElement) {
 			${this._minimized ? 
 		html`
 			<div class='tags'>
-				<tag-list .defaultColor=${autoTODOColor} .tags=${this._autoTodos} .overrideTypeName=${'Auto TODO'} .tagInfos=${TODO_ALL_INFOS} .hideOnEmpty=${true}></tag-list>
+				<tag-list .defaultColor=${autoTODOColor} .tags=${this._autoTodos} .overrideTypeName=${'Auto TODO'} .tagInfos=${TODO_ALL_INFOS} .hideOnEmpty=${true} .disableAdd=${true} .editing=${true} @tag-removed=${this._handleAddTodoOverrideDisabled}></tag-list>
 				<tag-list .defaultColor=${enableTODOColor} .tags=${todoOverridesEnabled} .previousTags=${todoOverridesPreviouslyEnabled} .disableNew=${true} .overrideTypeName=${'Enabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @tag-added=${this._handleAddTodoOverrideEnabled} @tag-removed=${this._handleRemoveTodoOverride} .hideMessageOnEmpty=${true}></tag-list>
 			</div>
 		` :
