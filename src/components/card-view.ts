@@ -703,7 +703,8 @@ class CardView extends connect(store)(PageViewElement) {
 			'_headerPanelOpen',
 			'_commentsAndInfoPanelOpen',
 			'_cardsDrawerPanelShowing',
-			'_editing'
+			'_editing',
+			'_editorMinimized'
 		];
 		for (const item of sizeProps) {
 			if (changedProps.has(item)) return true;
