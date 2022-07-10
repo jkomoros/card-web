@@ -64,8 +64,6 @@ class TagChip  extends LitElement {
 	static override styles = [
 		css`
 			:host {
-				margin: 0 0.2em;
-				display: inline-block;
 				color: var(--app-light-text-color);
 				font-weight:bold;
 			}
@@ -73,6 +71,8 @@ class TagChip  extends LitElement {
 				padding: 0.2em;
 				border-radius: 0.3em;
 				font-size: 0.7em;
+				margin: 0 0.1em;
+				display: inline-block;
 				transition: filter 0.1s ease-in-out;
 			}
 			span.enabled:hover {
