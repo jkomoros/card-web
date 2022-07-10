@@ -64,9 +64,13 @@ class TagList  extends LitElement {
 	@property({ type : Object })
 		subtleTags: {[name : string] : true};
 
-	//if true and empty then don't show any
+	//if true and empty then don't show any message or UI
 	@property({ type : Boolean })
 		hideOnEmpty: boolean;
+
+	//If true and empty then don't show any message... but do show other UI, e.g. the select drop down.
+	@property({ type : Boolean })
+		hideMessageOnEmpty: boolean;
 
 	//If set, typeName will be used in the UI to describe the types of things the tags represent, e.g. "New FOO". If not set, will default to "Tag".
 	@property({ type : String })
@@ -131,7 +135,7 @@ class TagList  extends LitElement {
 			<div class='${this.editing ? 'editing' : ''} ${this.subtle ? 'subtle' :''}'>
 			${allTags && allTags.length ?
 		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} .defaultColor=${this.defaultColor} .disabled=${this.disableTagIfMissingTagInfo && this.tagInfos && !this.tagInfos[item]} .disabledDescription=${this.disabledDescription || 'Disabled'} .tapEvents=${this.tapEvents} .subtle=${this.subtle || (this.subtleTags && this.subtleTags[item])}></tag-chip>`) :
-		(this.hideOnEmpty ? html`` : html`<em>No ${this.typeName.toLowerCase()}s</em>`)}
+		(this.hideOnEmpty || this.hideMessageOnEmpty ? html`` : html`<em>No ${this.typeName.toLowerCase()}s</em>`)}
 			${((!allTags || !allTags.length) && this.hideOnEmpty) || this.disableAdd ? html`` :
 		(this.disableSelect ? html`<button class='small' @click=${this._handleNew} title=${'New ' + this.typeName}>${PLUS_ICON}</button>` :
 			html`<select @change=${this._handleSelectChanged}>
