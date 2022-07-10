@@ -571,9 +571,16 @@ class CardEditor extends connect(store)(LitElement) {
 			</div>
 			${this._minimized ? 
 		html`
+			<div class='flex'></div>
 			<div class='tags'>
 				<tag-list .defaultColor=${autoTODOColor} .tags=${this._autoTodos} .overrideTypeName=${'Auto TODO'} .tagInfos=${TODO_ALL_INFOS} .hideOnEmpty=${true} .disableAdd=${true} .editing=${true} @tag-removed=${this._handleAddTodoOverrideDisabled}></tag-list>
 				<tag-list .defaultColor=${enableTODOColor} .tags=${todoOverridesEnabled} .previousTags=${todoOverridesPreviouslyEnabled} .disableNew=${true} .overrideTypeName=${'Enabled'} .editing=${true} .tagInfos=${TODO_AUTO_INFOS} @tag-added=${this._handleAddTodoOverrideEnabled} @tag-removed=${this._handleRemoveTodoOverride} .hideMessageOnEmpty=${true}></tag-list>
+			</div>
+			<div class='flex'></div>
+			<div class='tags'>
+				<tag-list .tags=${this._suggestedConcepts} .tagInfos=${this._cardTagInfos} .editing=${true} .defaultColor=${REFERENCE_TYPES[REFERENCE_TYPE_CONCEPT].color} .tapEvents=${true} .disableAdd=${true} @tag-tapped=${this._handleSuggestedConceptTapped} @tag-removed=${this._handleAddAckReference} .overrideTypeName=${'Concept'}></tag-list>
+				<button class='small' @click=${this._handleAddAllConceptsClicked} ?hidden=${this._suggestedConcepts.length == 0} title='Add all suggested concepts (Ctrl-Shift-C)'>${PLUS_ICON}</button>
+				<button class='small' @click=${this._handleIgnoreAllConceptsClicked} ?hidden=${this._suggestedConcepts.length == 0} title='Ignore all suggested concepts (Ctrl-Shift-I)'>${HIGHLIGHT_OFF_ICON}</button>
 			</div>
 		` :
 		html`<div class='tabs main' @click=${this._handleTabClicked}>
