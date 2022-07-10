@@ -207,6 +207,7 @@ export const selectEditingCard = (state : State) => state.editor ? state.editor.
 export const selectEditingUnderlyingCardSnapshot = (state : State) => state.editor ? state.editor.underlyingCardSnapshot : null;
 const selectEditingOriginalUnderlyingCardSnapshot = (state : State) => state.editor ? state.editor.originalUnderlyingCardSnapshot : null;
 const selectEditingCardExtractionVersion = (state : State) => state.editor ? state.editor.cardExtractionVersion : 0;
+export const selectEditorMinimized = (state : State) => state.editor ? state.editor.editorMinimized : false;
 export const selectEditingUpdatedFromContentEditable = (state : State) => state.editor ? state.editor.updatedFromContentEditable : {};
 export const selectEditingPendingReferenceType = (state : State) => state.editor ? state.editor.pendingReferenceType : '';
 export const selectPendingSlug = (state : State) => state.editor ? state.editor.pendingSlug : '';
