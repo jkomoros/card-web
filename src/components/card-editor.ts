@@ -243,18 +243,18 @@ class CardEditor extends connect(store)(LitElement) {
 		HelpStyles,
 		css`
 			:host {
-			position:relative;
-			background-color: white;
+				position:relative;
+				background-color: white;
 			}
 
 			.container {
-			width: 100%;
-			height:100%;
-			display:flex;
-			flex-direction: column;
-			/* The up-down padding comes from margins in the top and bottom elements */
-			padding: 0 0.5em;
-			box-sizing:border-box;
+				width: 100%;
+				height:100%;
+				display:flex;
+				flex-direction: column;
+				/* The up-down padding comes from margins in the top and bottom elements */
+				padding: 0 0.5em;
+				box-sizing:border-box;
 			}
 
 			.container.not-minimized {
@@ -262,11 +262,11 @@ class CardEditor extends connect(store)(LitElement) {
 			}
 
 			.inputs {
-			display:flex;
-			flex-direction:column;
-			width:100%;
-			flex-grow:1;
-			overflow:scroll;
+				display:flex;
+				flex-direction:column;
+				width:100%;
+				flex-grow:1;
+				overflow:scroll;
 			}
 
 			.minimized .inputs {
@@ -300,10 +300,10 @@ class CardEditor extends connect(store)(LitElement) {
 			}
 
 			input, textarea {
-			border: 0 solid black;
-			font-size:0.8em;
-			border-bottom:1px solid var(--app-dark-text-color);
-			width: 100%;
+				border: 0 solid black;
+				font-size:0.8em;
+				border-bottom:1px solid var(--app-dark-text-color);
+				width: 100%;
 			}
 
 			textarea {
@@ -322,30 +322,30 @@ class CardEditor extends connect(store)(LitElement) {
 			}
 
 			.flex {
-			flex-grow:1;
+				flex-grow:1;
 			}
 
 			.body {
-			display:flex;
-			flex-direction:column;
+				display:flex;
+				flex-direction:column;
 			}
 
 			.buttons {
-			display:flex;
-			flex-direction:row;
-			width:100%;
+				display:flex;
+				flex-direction:row;
+				width:100%;
 			}
 
 			.buttons h3 {
-			font-size:1em;
-			font-weight:normal;
-			margin-right:0.5em;
+				font-size:1em;
+				font-weight:normal;
+				margin-right:0.5em;
 			}
 
 			.inputs .row {
-			display:flex;
-			flex-direction:row;
-			align-items:center;
+				display:flex;
+				flex-direction:row;
+				align-items:center;
 			}
 
 			.inputs .row > div {
@@ -400,7 +400,7 @@ class CardEditor extends connect(store)(LitElement) {
 			}
 
 			[hidden] {
-			display:none;
+				display:none;
 			}
 
 			.scrim {
