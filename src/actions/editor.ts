@@ -395,19 +395,16 @@ export const textFieldUpdated : AppActionCreator = (fieldName : CardFieldTypeEdi
 	dispatch({
 		type: EDITING_TEXT_FIELD_UPDATED,
 		fieldName: fieldName,
-		skipUpdatingNormalizedFields: config.html,
 		value: value,
 		fromContentEditable
 	});
 
-	if (config.html) {
-		//Make sure we have a timeout to extract links a bit of time after the last edit was made.
-		if (extractLinksTimeout) window.clearTimeout(extractLinksTimeout);
-		extractLinksTimeout = window.setTimeout(() => {
-			extractLinksTimeout = 0;
-			dispatch({type: EDITING_EXTRACT_LINKS});
-		}, 1000);
-	}
+	//Make sure we have a timeout to kick off normalized text processing, but in the future.
+	if (extractLinksTimeout) window.clearTimeout(extractLinksTimeout);
+	extractLinksTimeout = window.setTimeout(() => {
+		extractLinksTimeout = 0;
+		dispatch({type: EDITING_EXTRACT_LINKS});
+	}, 1000);
 };
 
 export const sectionUpdated : AppActionCreator = (newSection) => (dispatch, getState) => {

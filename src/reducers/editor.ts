@@ -159,7 +159,7 @@ const app = (state : EditorState = INITIAL_STATE, action : AnyAction) : EditorSt
 		return {
 			...state,
 			card: card,
-			cardExtractionVersion: state.cardExtractionVersion + (action.skipUpdatingNormalizedFields ? 0 : 1),
+			//We don't update cardExtractionVersion; cardExtractLinks later will do that.
 			updatedFromContentEditable: {...state.updatedFromContentEditable, [action.fieldName]: action.fromContentEditable},
 		};
 	case EDITING_NOTES_UPDATED:
