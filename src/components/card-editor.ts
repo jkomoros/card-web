@@ -154,6 +154,7 @@ import {
 import {
 	TypedObject
 } from '../typed_object.js';
+import { selectEditorMinimized } from '../selectors';
 
 @customElement('card-editor')
 class CardEditor extends connect(store)(LitElement) {
@@ -166,6 +167,9 @@ class CardEditor extends connect(store)(LitElement) {
 
 	@state()
 		_active: boolean;
+
+	@state()
+		_minimized: boolean;
 
 	@state()
 		_sectionsUserMayEdit: Sections;
@@ -558,6 +562,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._autoTodos = selectEditingCardAutoTodos(state);
 		this._underlyingCard = selectEditingUnderlyingCardSnapshot(state);
 		this._active = state.editor.editing;
+		this._minimized = selectEditorMinimized(state);
 		this._userMayChangeEditingCardSection = selectUserMayChangeEditingCardSection(state);
 		this._sectionsUserMayEdit = selectSectionsUserMayEdit(state);
 		this._mayNotDeleteReason = selectReasonsUserMayNotDeleteActiveCard(state);
