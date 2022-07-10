@@ -277,7 +277,7 @@ class CardEditor extends connect(store)(LitElement) {
 				display: none;
 			}
 
-			.buttons .checkboxes {
+			.buttons .checkboxes, .buttons .header {
 				display: flex;
 				flex-direction: row;
 			}
@@ -556,8 +556,10 @@ class CardEditor extends connect(store)(LitElement) {
 			</div>
         </div>
         <div class='buttons'>
-			<button class='small' @click=${this._handleMinimizedClicked}>${this._minimized ? ARROW_RIGHT_ICON : ARROW_UP_ICON}</button>
-			<h3>Editing</h3>
+			<div class='header'>
+				<button class='small' @click=${this._handleMinimizedClicked}>${this._minimized ? ARROW_RIGHT_ICON : ARROW_UP_ICON}</button>
+				<h3>Editing</h3>
+			</div>
 			<div class='tabs main' @click=${this._handleTabClicked}>
 				<label data-name='${TAB_CONFIG}' ?data-selected=${this._selectedTab == TAB_CONFIG}>Configuration</label>
 				<label data-name='${TAB_CONTENT}' ?data-selected=${this._selectedTab == TAB_CONTENT}>Content</label>
