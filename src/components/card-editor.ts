@@ -282,6 +282,19 @@ class CardEditor extends connect(store)(LitElement) {
 				flex-direction: row;
 			}
 
+			.buttons .header {
+				color: var(--app-dark-text-color);
+			}
+
+			.buttons .header:hover {
+				cursor: pointer;
+				color: var(--app-dark-text-color-light);
+			}
+
+			.buttons .header:hover svg {
+				fill: var(--app-dark-text-color-light);
+			}
+
 			.minimized .buttons .checkboxes {
 				display: none;
 			}
@@ -325,7 +338,6 @@ class CardEditor extends connect(store)(LitElement) {
 
 			.buttons h3 {
 			font-size:1em;
-			opacity:0.5;
 			font-weight:normal;
 			margin-right:0.5em;
 			}
@@ -556,8 +568,8 @@ class CardEditor extends connect(store)(LitElement) {
 			</div>
         </div>
         <div class='buttons'>
-			<div class='header'>
-				<button class='small' @click=${this._handleMinimizedClicked}>${this._minimized ? ARROW_RIGHT_ICON : ARROW_UP_ICON}</button>
+			<div class='header' @click=${this._handleMinimizedClicked}>
+				<button class='small'>${this._minimized ? ARROW_RIGHT_ICON : ARROW_UP_ICON}</button>
 				<h3>Editing</h3>
 			</div>
 			<div class='tabs main' @click=${this._handleTabClicked}>
