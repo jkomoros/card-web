@@ -260,6 +260,10 @@ class CardEditor extends connect(store)(LitElement) {
 			overflow:scroll;
 			}
 
+			.minimized .inputs {
+				display: none;
+			}
+
 			input, textarea {
 			border: 0 solid black;
 			font-size:0.8em;
@@ -404,7 +408,7 @@ class CardEditor extends connect(store)(LitElement) {
 		const referencesMap = references(this._card).byTypeArray();
 
 		return html`
-      <div class='container ${this._cardModificationPending ? 'modification-pending' : ''}'>
+      <div class='container ${this._cardModificationPending ? 'modification-pending' : ''} ${this._minimized ? 'minimized' : ''}'>
 		<div class='scrim'></div>
         <div class='inputs'>
 		  <div ?hidden=${this._selectedTab !== TAB_CONTENT} class='flex body'>
