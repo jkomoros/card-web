@@ -583,6 +583,13 @@ class CardEditor extends connect(store)(LitElement) {
 				<button class='small' @click=${this._handleAddAllConceptsClicked} ?hidden=${this._suggestedConcepts.length == 0} title='Add all suggested concepts (Ctrl-Shift-C)'>${PLUS_ICON}</button>
 				<button class='small' @click=${this._handleIgnoreAllConceptsClicked} ?hidden=${this._suggestedConcepts.length == 0} title='Ignore all suggested concepts (Ctrl-Shift-I)'>${HIGHLIGHT_OFF_ICON}</button>
 			</div>
+			<div class='flex'></div>
+			<div class='tags'>
+				<select @change=${this._handleAddReference} style='max-width:10em'>
+					<option value=''><em>Add reference...</em></option>
+					${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]} title=${entry[1].description} ?disabled=${!LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[this._card.card_type][entry[0]]}>${entry[1].name}</option>`)}
+				</select>
+			</div>
 		` :
 		html`<div class='tabs main' @click=${this._handleTabClicked}>
 				<label data-name='${TAB_CONFIG}' ?data-selected=${this._selectedTab == TAB_CONFIG}>Configuration</label>
