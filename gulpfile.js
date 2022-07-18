@@ -132,7 +132,7 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	CONFIG_JS_CONTENT += 'export const USER_DOMAIN = \'' + USER_DOMAIN + '\';\n';
 	CONFIG_JS_CONTENT += 'export const FIREBASE_REGION = \'' + FIREBASE_REGION + '\';\n';
 	CONFIG_JS_CONTENT += 'export const TWITTER_HANDLE = \'' + TWITTER_HANDLE + '\';\n';
-	CONFIG_JS_CONTENT += 'export const TAB_CONFIGURATION : TabConfig = ' + JSON.stringify(TAB_CONFIGURATION) + ';\n';
+	CONFIG_JS_CONTENT += 'export const TAB_CONFIGURATION : TabConfig = ' + JSON.stringify(TAB_CONFIGURATION).split('"').join('\'') + ';\n';
 	CONFIG_JS_CONTENT += 'export const DISABLE_PERSISTENCE = ' + (DISABLE_PERSISTENCE ? 'true' : 'false') + ';\n';
 	CONFIG_JS_CONTENT += 'export const DISABLE_ANONYMOUS_LOGIN = ' + (DISABLE_ANONYMOUS_LOGIN ? 'true' : 'false') + ';\n';
 	CONFIG_JS_CONTENT += 'export const DISABLE_CALLABLE_CLOUD_FUNCTIONS = ' + (DISABLE_CALLABLE_CLOUD_FUNCTIONS ? 'true' : 'false') + ';\n';
