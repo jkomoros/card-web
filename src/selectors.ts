@@ -1492,7 +1492,8 @@ export const selectCountsForTabs = createSelector(
 	(tabs : ExpandedTabConfig, args : CollectionConstructorArguments) : {[tabDescription : string] : number} => {
 		const result : {[tabDescription : string] : number} = {};
 		for (const tab of tabs) {
-			if (!tab.count) continue;
+			//hideIfEmpty also requires calculating count
+			if (!tab.count && !tab.hideIfEmpty) continue;
 			result[tab.expandedCollection.serialize()] = tab.expandedCollection.collection(args).numCards;
 		}
 		return result;

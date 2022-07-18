@@ -1001,7 +1001,7 @@ export interface TabConfigItem {
 	expand?: TabConfigName,
 	//collection can be either a string that can be deserialized into a CollectionDescription, or an actual 
 	//CollectionDescription. It will be expanded to be a CollectionDescription either way. Each item should have a collection
-	//or an href
+	//or an href. If it's a string, remember it should start with a setname, e/g. 'everything/working-notes'
 	collection?: string | CollectionDescription,
 	//If set, the item will render an <a href='href' target='_blank'>
 	href?: string,
@@ -1014,7 +1014,7 @@ export interface TabConfigItem {
 	italics?: boolean,
 	//If true, a count of how many cards are in the collection will be calculated and rendered.
 	count?: boolean,
-	//If true, will not show the item if the count is 0. count config property must also be true.
+	//If true, will not show the item if the count is 0.
 	hideIfEmpty?: boolean,
 	//If true, the item will not be rendered. This is useful if you want fallback_cards or start_cards 
 	//to be available but don't want the tab to show up.
