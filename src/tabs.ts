@@ -57,9 +57,26 @@ export const tabConfiguration = (config : TabConfig, overrides : TabConfigOverri
 		changesMade = false;
 		lastArray = array;
 		array = [];
-		for (const item of lastArray) {
-			const [expandedItems, didExpand] = expandTabConfigItem(tabConfigItem(item), sections, tags);
+		for (const rawItem of lastArray) {
+			const item = tabConfigItem(rawItem);
+			let [expandedItems, didExpand] = expandTabConfigItem(item, sections, tags);
 			if (didExpand) changesMade = true;
+			if (item.expand) {
+				if (overrides.before) {
+					const override = overrides.before[item.expand];
+					if (override) {
+						expandedItems = [override, ...expandedItems];
+						changesMade = true;
+					}
+				}
+				if (overrides.after) {
+					const override = overrides.after[item.expand];
+					if (override) {
+						expandedItems = [...expandedItems, override];
+						changesMade = true;
+					}
+				}
+			}
 			array = array.concat(...expandedItems);
 		}
 		count++;
