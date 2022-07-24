@@ -363,6 +363,9 @@ The default region for firebase is `us-central1`. However, if you use a differen
 ### tabs
 If provided, should be an array of tab config objects. See src/tabs.js for more on the valid fields and what they mean.
 
+You can also use tab_overrides, which might be easier and more future-proof if
+you want to keep most of the defaults, just adding one or two tabs.
+
 By default, the first item in the tab collection will be selected if users visit
 and no other thing is provided. You can set 'default' to true one of the items.
 If you want a section other than the first section to be the default, set
@@ -401,6 +404,25 @@ and
 ]
 ```
 are equivalent.
+
+### tab_overrides
+
+If provided, should be an object with a shape like:
+
+```
+{
+	"before": {
+		"default_end_tabs": {
+			collection: "everything/working-notes",
+			icon: "SAVE_ICON"
+		}
+	}
+}
+```
+
+The above config would inject a TabConfigItem with the given shape immediately before "default_end_tabs".
+
+You can also have a "after" object with similar shapes.
 
 ## Favicons
 
