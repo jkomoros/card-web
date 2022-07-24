@@ -1031,6 +1031,9 @@ export interface TabConfigItem {
 	default?: boolean
 }
 
+//Items in the before map will be placed immediately before any item matching
+//the name. Items in the after map will be placed immediately after the item
+//matching hte name.
 export type TabConfigOverrides = {
 	before?: {
 		[name in TabConfigName] : TabConfigItem
