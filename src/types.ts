@@ -1036,10 +1036,10 @@ export interface TabConfigItem {
 //matching hte name.
 export type TabConfigOverrides = {
 	before?: {
-		[name in TabConfigName] : TabConfigItem
+		[name in TabConfigName]+? : TabConfigItem
 	},
 	after?: {
-		[name in TabConfigName] : TabConfigItem
+		[name in TabConfigName]+?: TabConfigItem
 	}
 }
 
