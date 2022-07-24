@@ -385,6 +385,23 @@ That would set it so only two tabs show up, and the second one will be loaded up
 when the app loads up and no other collection is provided. (If you omitted the
 'default', then the first tab would be selected)
 
+Note that if you have an object in the array that is only an expand name, you
+can replace it with just the strong of the expand. So
+```
+[
+	{
+		expand: "working-notes"
+	}
+]
+```
+and
+```
+[
+	"working-notes"
+]
+```
+are equivalent.
+
 ## Favicons
 
 When logo.svg has changed, run `gulp generate-favicon`. Then merge the values in images/site.webmanifest into /manifest.json

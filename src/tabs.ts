@@ -54,7 +54,7 @@ export const tabConfiguration = (config : TabConfig, sections : Sections, tags :
 		lastArray = array;
 		array = [];
 		for (const item of lastArray) {
-			const [expandedItems, didExpand] = expandTabConfigItem(item, sections, tags);
+			const [expandedItems, didExpand] = expandTabConfigItem(tabConfigItem(item), sections, tags);
 			if (didExpand) changesMade = true;
 			array = array.concat(...expandedItems);
 		}
@@ -63,9 +63,14 @@ export const tabConfiguration = (config : TabConfig, sections : Sections, tags :
 	return inflateCollectionsAndIcons(array);
 };
 
+const tabConfigItem = (input : TabConfigName | TabConfigItem) : TabConfigItem => {
+	return typeof input == 'string' ? {expand: input} : input; 
+};
+
 const inflateCollectionsAndIcons = (config : TabConfig) : ExpandedTabConfig => {
 	const result = [];
-	for (const item of config) {
+	for (const rawItem of config) {
+		const item = tabConfigItem(rawItem);
 		const itemToAdd : ExpandedTabConfigItem = {
 			...item,
 			expandedCollection:  (item.collection instanceof CollectionDescription) ? item.collection : (item.collection ? CollectionDescription.deserialize(item.collection as string) : null),
@@ -229,7 +234,7 @@ const expandTabConfigItem = (configItem : TabConfigItem, sections : Sections, ta
 	//expansion item (once each for each item in the expansion). That means you
 	//can set non-default properties, e.g. {expand:'concept', default:true} and
 	//have the default:true still exist after expansion.
-	if (EXPANSION_ITEMS[configItem.expand]) return [[...EXPANSION_ITEMS[configItem.expand].map(item => ({...configItemWithoutExpand, ...item}))], true];
+	if (EXPANSION_ITEMS[configItem.expand]) return [[...EXPANSION_ITEMS[configItem.expand].map(item => ({...configItemWithoutExpand, ...tabConfigItem(item)}))], true];
 
 	if (configItem.expand == TAB_CONFIG_SECTIONS) {
 		return [tabsForSections(sections, false), true];

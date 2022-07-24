@@ -992,7 +992,8 @@ export type CardFieldMap = {
 
 export type TabConfigName = keyof(typeof TAB_CONFIG_TYPES);
 
-export type TabConfig = TabConfigItem[];
+//If a TabConfigName is given, then it will be treated as though it were {expand:"<NAME>"}
+export type TabConfig = (TabConfigName | TabConfigItem)[];
 
 export interface TabConfigItem {
 	//If set, will expand in line for the named expansion. See src/tabs.js for named expansions.
