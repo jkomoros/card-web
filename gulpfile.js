@@ -292,7 +292,7 @@ gulp.task(MAKE_TAG_TASK, makeExecutor('git tag ' + RELEASE_TAG));
 
 gulp.task(PUSH_TAG_TASK, makeExecutor('git push origin ' + RELEASE_TAG));
 
-gulp.task(FIREBASE_DELETE_FIRESTORE_TASK, makeExecutor('firebase firestore:delete --all-collections --yes'));
+gulp.task(FIREBASE_DELETE_FIRESTORE_TASK, makeExecutor('firebase firestore:delete --all-collections --force'));
 
 //run doesn't support sub-commands embedded in the command, so use exec.
 gulp.task(GCLOUD_RESTORE_TASK, cb => {
