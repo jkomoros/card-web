@@ -414,18 +414,17 @@ const splitSlashNonURLs = (word : string) : string[]  => {
 const normalizedWords = (str : string) : string => {
 	if (!str) str = '';
 
-	//Pretend like em-dashes are just spaces
-	str = str.split('--').join(' ');
-	str = str.split('&emdash;').join(' ');
-	str = str.split('-').join(' ');
-	str = str.split('+').join(' ');
-
 	const splitWords = lowercaseSplitWords(str);
 	const result = [];
 	for (const word of splitWords) {
 		for (let subWord of splitSlashNonURLs(word)) {
 			subWord = subWord.replace(/^\W*/, '');
 			subWord = subWord.replace(/\W*$/, '');
+			//Pretend like em-dashes are just spaces
+			subWord = subWord.split('--').join(' ');
+			subWord = subWord.split('&emdash;').join(' ');
+			subWord = subWord.split('-').join(' ');
+			subWord = subWord.split('+').join(' ');
 			if (!subWord) continue;
 			result.push(subWord);
 		}
