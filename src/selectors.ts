@@ -1172,7 +1172,7 @@ export const selectUserMayAddCardToActiveCollection = createSelector(
 export const selectExpandedTabConfig = createSelector(
 	selectSections,
 	selectTags,
-	(sections, tags) => tabConfiguration(TAB_CONFIGURATION, sections, tags)
+	(sections, tags) => tabConfiguration(TAB_CONFIGURATION, null, sections, tags)
 );
 
 //The CollectionDescription to load up if not provided one

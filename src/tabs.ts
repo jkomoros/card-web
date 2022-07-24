@@ -37,14 +37,18 @@ import {
 	ExpandedTabConfig,
 	ExpandedTabConfigItem,
 	Sections,
-	TabConfigName
+	TabConfigName,
+	TabConfigOverrides
 } from './types.js';
 
 export const READING_LIST_FALLBACK_CARD = 'about-reading-lists';
 export const STARS_FALLBACK_CARD = 'about-stars';
 
-export const tabConfiguration = (config : TabConfig, sections : Sections, tags : Sections) : ExpandedTabConfig => {
+const DEFAULT_OVERRIDES : TabConfigOverrides = {before: {}, after: {}};
+
+export const tabConfiguration = (config : TabConfig, overrides : TabConfigOverrides, sections : Sections, tags : Sections) : ExpandedTabConfig => {
 	if (!config) config = DEFAULT_CONFIG;
+	if (!overrides) overrides = DEFAULT_OVERRIDES;
 	let array = config;
 	let lastArray = [];
 	let changesMade = false;
