@@ -1031,6 +1031,15 @@ export interface TabConfigItem {
 	default?: boolean
 }
 
+export type TabConfigOverrides = {
+	before?: {
+		[name in TabConfigName] : TabConfigItem
+	},
+	after?: {
+		[name in TabConfigName] : TabConfigItem
+	}
+}
+
 export interface ExpandedTabConfigItem extends TabConfigItem {
 	expandedCollection: CollectionDescription,
 	expandedIcon: TemplateResult
