@@ -116,7 +116,8 @@ import {
 
 import {
 	USER_DOMAIN,
-	TAB_CONFIGURATION
+	TAB_CONFIGURATION,
+	TAB_OVERRIDES_CONFIGURATION
 } from './config.GENERATED.SECRET.js';
 
 import {
@@ -1172,7 +1173,7 @@ export const selectUserMayAddCardToActiveCollection = createSelector(
 export const selectExpandedTabConfig = createSelector(
 	selectSections,
 	selectTags,
-	(sections, tags) => tabConfiguration(TAB_CONFIGURATION, null, sections, tags)
+	(sections, tags) => tabConfiguration(TAB_CONFIGURATION, TAB_OVERRIDES_CONFIGURATION, sections, tags)
 );
 
 //The CollectionDescription to load up if not provided one
