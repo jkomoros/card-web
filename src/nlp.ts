@@ -269,7 +269,9 @@ const OVERRIDE_STEMS = {
 	//Useful and use all reduce down to 'us'
 	'usef': 'usef',
 	//communicate and community reduce to the same stem otherwise
-	'communit': 'communit'
+	'communit': 'communit',
+	//later and lateral reduce to the same
+	'lateral': 'lateral'
 };
 
 //we can't use memoizeFirstArg because that uses WeakMap which requires an
