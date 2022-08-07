@@ -140,7 +140,8 @@ import {
 	PLAYLISLT_ADD_CHECK_ICON,
 	PLAYLIST_ADD_ICON,
 	FILE_COPY_ICON,
-	RULE_ICON
+	RULE_ICON,
+	CASINO_ICON
 } from './my-icons.js';
 
 import {
@@ -424,6 +425,9 @@ class CardView extends connect(store)(PageViewElement) {
 				` : ''}
 				<button id='configure-collection' class='small' title='Configure collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure collection</label>
 			</div>
+			${this._collection.description.isRandom ? html`<div slot='visible-info'>
+				<button id='randomize' class='small' title='Randomize' @click=${this._handleRandomizeClicked}>${CASINO_ICON}</button><label for='randomize'>Randomize</label>
+			</div>` : ''}
 		</card-drawer>
         <div id='center'>
 			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
@@ -512,6 +516,10 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_handleDisabledCardHighlightClicked(e : DisabledCardHighlightClickedEvent) {
 		this.shadowRoot.querySelector('card-editor').disabledCardHighlightClicked(e.detail.card, e.detail.alternate);
+	}
+
+	_handleRandomizeClicked() {
+		store.dispatch(randomizeSalt());
 	}
 
 	_handleCommentsOrInfoPanelClicked() {
