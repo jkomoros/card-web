@@ -38,7 +38,8 @@ import {
 	selectSuggestMissingConceptsEnabled,
 	selectUserIsAdmin,
 	selectEditingCardSuggestedConceptReferences,
-	selectActiveRenderOffset
+	selectActiveRenderOffset,
+	selectEditorMinimized
 } from '../selectors.js';
 
 import { updateCardSelector } from '../actions/collection.js';
@@ -179,7 +180,6 @@ import {
 	ThumbnailTappedEvent,
 	UpdateRenderOffsetEvent
 } from '../events.js';
-import { selectEditorMinimized } from '../selectors';
 
 @customElement('card-view')
 class CardView extends connect(store)(PageViewElement) {
