@@ -888,6 +888,7 @@ export interface CollectionConstructorArguments {
 	fallbacks? : SerializedDescriptionToCardList,
 	startCards? : SerializedDescriptionToCardList,
 	userID? : Uid,
+	randomSalt? : string,
 	keyCardID? : CardID,
 	cardsSnapshot? : ProcessedCards,
 	filtersSnapshot? : Filters,

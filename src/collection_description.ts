@@ -684,6 +684,7 @@ export class Collection {
 	_fallbacks : SerializedDescriptionToCardList;
 	_startCardsConfig : SerializedDescriptionToCardList;
 	_userID : Uid;
+	_randomSalt : string;
 	_filteredCards : ProcessedCard[] | null;
 	_collectionIsFallback : boolean;
 	_sortedCards : ProcessedCard[] | null;
@@ -722,6 +723,7 @@ export class Collection {
 		this._fallbacks = collectionArguments.fallbacks || {};
 		this._startCardsConfig = collectionArguments.startCards || {};
 		this._userID = collectionArguments.userID || '';
+		this._randomSalt = collectionArguments.randomSalt || '';
 		//The filtered cards... before any size limit has been applied, if necessary
 		this._filteredCards = null;
 		this._preLimitlength = 0;
