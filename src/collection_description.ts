@@ -850,7 +850,7 @@ export class Collection {
 			//card even though it's not in the cards, to avoid downstream
 			//machinery freaking out with an undefined card.
 			const cardToPass = this._cardsForFiltering[card.id] || card;
-			return [card.id, config.extractor(cardToPass, this._sections, this._cardsForFiltering, this._sortExtras)];
+			return [card.id, config.extractor(cardToPass, this._sections, this._cardsForFiltering, this._sortExtras, this._filterExtras)];
 		});
 		return new Map(entries);
 	}

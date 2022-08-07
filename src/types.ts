@@ -285,7 +285,7 @@ export type SortConfigurationMap = {
 	//you forgot to add a configuration block for a type. And then do this for
 	//others, too.
 	[sortName in SortName]+?: {
-		extractor : (card : ProcessedCard, sections : Sections, cards : ProcessedCards, sortExtras : SortExtras) => SortExtractorResult ,
+		extractor : (card : ProcessedCard, sections : Sections, cards : ProcessedCards, sortExtras : SortExtras, filterExtras: FilterExtras) => SortExtractorResult ,
 		description : string,
 		labelName? : string | ((sortExtras : SortExtras) => string),
 		reorderable? : (sortExtras : SortExtras) => boolean,
