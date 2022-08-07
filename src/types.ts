@@ -1034,6 +1034,8 @@ export interface TabConfigItem {
 	//The first item that has default:true will be used as the default collection if the app is loaded without a 
 	//collection. The auto sections portion will automatically select at least one item to be default.
 	default?: boolean
+	//If provided, will also execute the action
+	action? : () => void;
 }
 
 //Items in the before map will be placed immediately before any item matching

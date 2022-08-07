@@ -344,7 +344,7 @@ class MainView extends connect(store)(PageViewElement) {
 					<div data-main-title>${this._appTitleFirstPart}<span>${this._appTitleSecondPart}</span></div>
 					<div class='spacer'></div>
 					<nav class="toolbar-list">
-						${this._tabs.map(tab => html`<a class='${tab.icon ? 'icon-item' : ''}' title='${tab.display_name}' ?data-selected=${tab.expandedCollection && tab.expandedCollection.equivalent(this._collectionDescription)} href='${tab.href ? tab.href : '/' + PAGE_DEFAULT + '/' + tab.expandedCollection.serializeShort()}' target=${tab.href ? '_blank': ''} ?hidden=${tab.hide || (tab.hideIfEmpty && this._countsForTabs[tab.expandedCollection.serialize()] === 0)}>${tab.icon ? html`${tab.icon} ${tab.count ? html`<span>${this._countsForTabs[tab.expandedCollection.serialize()]}</span>` : ''}` : tab.italics ? html`<em>${tab.display_name}</em>` : html`${tab.display_name}`}</a>`)}
+						${this._tabs.map(tab => html`<a class='${tab.icon ? 'icon-item' : ''}' title='${tab.display_name}' ?data-selected=${tab.expandedCollection && tab.expandedCollection.equivalent(this._collectionDescription)} @click=${tab.action ? tab.action : () => {return;}} href='${tab.href ? tab.href : '/' + PAGE_DEFAULT + '/' + tab.expandedCollection.serializeShort()}' target=${tab.href ? '_blank': ''} ?hidden=${tab.hide || (tab.hideIfEmpty && this._countsForTabs[tab.expandedCollection.serialize()] === 0)}>${tab.icon ? html`${tab.icon} ${tab.count ? html`<span>${this._countsForTabs[tab.expandedCollection.serialize()]}</span>` : ''}` : tab.italics ? html`<em>${tab.display_name}</em>` : html`${tab.display_name}`}</a>`)}
 					</nav>
 					<div class='spacer dev'>
 						${this._devMode ? html`DEVMODE` : ''}
