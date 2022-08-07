@@ -168,6 +168,9 @@ class CardDrawer extends LitElement {
 							<word-cloud .wordCloud=${this.wordCloud}></word-cloud>
 							<slot name='info'></slot>
 						</div>
+						<div class='info-panel'>
+							<slot name='visible-info'></slot>
+						</div>
 					</div>
 					${this.collection && this.collection.description.viewMode == VIEW_MODE_WEB ?
 		html`<web-renderer .webInfo=${this.collection.webInfo} .highlightedCardId=${this.highlightedCardId}></web-renderer>` :
