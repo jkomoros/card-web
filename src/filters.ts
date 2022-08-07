@@ -1339,10 +1339,6 @@ const sectionNameForCard = (card : Card, sections : Sections) : string => {
 	return section ? section.title : '';
 };
 
-//The sale for the random sort, which should stay the same within a session (so
-//the sort order doesn't change randomly) but be different across sessions.
-const RANDOM_SALT = randomString(16);
-
 //EAch sort is an extractor, a description (currently just useful for
 //documentation; not shown anywhere), and a labelName to show in the drawer next
 //to the label that extractor returns. The extractor is given the card object
@@ -1468,8 +1464,8 @@ export const SORTS : SortConfigurationMap = {
 		labelName: 'TODO Difficulty'
 	},
 	[SORT_NAME_RANDOM]: {
-		extractor: (card) => {
-			return [hash(card.id + RANDOM_SALT), ''];
+		extractor: (card, _, __, ___, filterExtras) => {
+			return [hash(card.id + filterExtras.randomSalt), ''];
 		},
 		description: 'A random order',
 		labelName: 'Random Order'
