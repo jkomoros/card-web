@@ -687,6 +687,7 @@ export class Collection {
 	_userID : Uid;
 	_randomSalt : string;
 	_filteredCards : ProcessedCard[] | null;
+	_cachedFilterExtras : FilterExtras;
 	_collectionIsFallback : boolean;
 	_sortedCards : ProcessedCard[] | null;
 	_labels : string[] | null;
@@ -744,13 +745,19 @@ export class Collection {
 		return this._description;
 	}
 
+	get _filterExtras() : FilterExtras {
+		if (!this._cachedFilterExtras) {
+			this._cachedFilterExtras = makeExtrasForFilterFunc(this._filtersSnapshot || this._filters, this._cardsForFiltering, this._keyCardID, this._editingCard, this._userID, this._randomSalt);
+		}
+		return this._cachedFilterExtras;
+	}
+
 	_makeFilteredCards() {
 		const baseSet = this._sets[this._description.set] || [];
 		let filteredItems = baseSet;
 		//Only bother filtering down the items if there are filters defined.
 		if (this._description.filters && this._description.filters.length) {
-			const extras = makeExtrasForFilterFunc(this._filtersSnapshot || this._filters, this._cardsForFiltering, this._keyCardID, this._editingCard, this._userID, this._randomSalt);
-			const [combinedFilter, sortExtras, partialMatches] = combinedFilterForFilterDefinition(this._description.filters, extras);
+			const [combinedFilter, sortExtras, partialMatches] = combinedFilterForFilterDefinition(this._description.filters, this._filterExtras);
 			filteredItems = baseSet.filter(item => combinedFilter(item));
 			this._sortExtras = sortExtras;
 			this._partialMatches = partialMatches;
