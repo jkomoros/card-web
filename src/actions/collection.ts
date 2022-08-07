@@ -3,6 +3,7 @@ export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
 export const UPDATE_RENDER_OFFSET = 'UPDATE_RENDER_OFFSET';
 export const RE_SHOW_CARD = 'RE_SHOW_CARD';
 export const UPDATE_COLLECTION_SHAPSHOT = 'UPDATE_COLLECTION_SHAPSHOT';
+export const RANDOMIZE_SALT = 'RANDOMIZE_SALT';
 
 //Collections are a complex conccept. The canonical (slightly out of date) documentation is at https://github.com/jkomoros/complexity-compendium/issues/60#issuecomment-451705854
 
@@ -421,4 +422,10 @@ export const showCard : AppActionCreator = (requestedCard : CardID) => (dispatch
 		//set properly later.
 		dispatch(editingStart());
 	}
+};
+
+export const randomizeSalt = () : AnyAction => {
+	return {
+		type: RANDOMIZE_SALT,
+	};
 };

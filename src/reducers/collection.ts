@@ -6,7 +6,8 @@ import {
 	SHOW_CARD,
 	UPDATE_COLLECTION,
 	UPDATE_RENDER_OFFSET,
-	UPDATE_COLLECTION_SHAPSHOT
+	UPDATE_COLLECTION_SHAPSHOT,
+	RANDOMIZE_SALT
 } from '../actions/collection.js';
 
 import {
@@ -51,6 +52,10 @@ import {
 import {
 	TypedObject
 } from '../typed_object.js';
+
+import {
+	randomString
+} from '../util.js';
 
 const app = (state : CollectionState = INITIAL_STATE, action : AnyAction) : CollectionState => {
 	switch (action.type) {
@@ -114,6 +119,11 @@ const app = (state : CollectionState = INITIAL_STATE, action : AnyAction) : Coll
 		return {
 			...state,
 			filters: {...state.filters, ...makeFilterFromReadingList(action.list)}
+		};
+	case RANDOMIZE_SALT:
+		return {
+			...state,
+			randomSalt: randomString(16)
 		};
 	default:
 		return state;
