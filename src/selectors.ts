@@ -202,6 +202,7 @@ const selectActiveViewMode = (state : State) => state.collection ? state.collect
 const selectActiveViewModeExtra = (state : State) => state.collection ? state.collection.activeViewModeExtra : '';
 export const selectRequestedCard = (state : State) => state.collection.requestedCard;
 export const selectActiveCardId = (state : State) => state.collection ? state.collection.activeCardId : '';
+const selectRandomSalt = (state : State) => state.collection ? state.collection.randomSalt : '';
 //Note that the editing card doesn't have nlp/normalized text properties set. If
 //you want the one with that, look at selectEditingNormalizedCard.
 export const selectEditingCard = (state : State) => state.editor ? state.editor.card : null;
@@ -1411,7 +1412,8 @@ export const selectCollectionConstructorArguments = createSelector(
 	selectTabCollectionFallbacks,
 	selectTabCollectionStartCards,
 	selectUid,
-	(cards, sets, filters, sections, fallbacks, startCards, userID) => ({cards, sets, filters, sections, fallbacks, startCards, userID})
+	selectRandomSalt,
+	(cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt) => ({cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt})
 );
 
 //Like selectCollectionConstructorArguments, but for the active collection. The
