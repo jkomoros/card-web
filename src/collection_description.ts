@@ -22,6 +22,7 @@ import {
 	DEFAULT_VIEW_MODE,
 	VIEW_MODE_WEB,
 	SORT_NAME_DEFAULT,
+	SORT_NAME_RANDOM
 } from './type_constants.js';
 
 import {
@@ -351,6 +352,10 @@ export class CollectionDescription {
 	//capped.
 	get limit() {
 		return this._limit;
+	}
+
+	get isRandom() {
+		return this.sort == SORT_NAME_RANDOM;
 	}
 
 	//IF the collection wants to offset how many items to return, this will
