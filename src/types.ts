@@ -862,6 +862,7 @@ export type FilterExtras = {
 	keyCardID : CardID,
 	editingCard : ProcessedCard,
 	userID : Uid,
+	randomSalt: string,
 };
 
 export type CardBooleanMap = {
