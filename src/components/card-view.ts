@@ -63,7 +63,8 @@ import {
 
 import {
 	canonicalizeURL,
-	updateRenderOffset
+	updateRenderOffset,
+	randomizeSalt
 } from '../actions/collection.js';
 
 import {
@@ -695,6 +696,9 @@ class CardView extends connect(store)(PageViewElement) {
 				if (newLocation == location) return false;
 				store.dispatch(navigatePathTo(newLocation, false));
 			}
+		} else if (e.key == 'z') {
+			if (!e.metaKey || !e.ctrlKey) return false;
+			store.dispatch(randomizeSalt());
 		}
 	}
 
