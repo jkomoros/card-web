@@ -61,7 +61,7 @@
     "gulp-rename": "^1.4.0",
     "gulp-run-command": "0.0.9",
     "jsdom": "^16.7.0",
-    "mocha": "^5.2.0",
+    "mocha": "^10.0.0",
     "pixelmatch": "^4.0.2",
     "prettier": "^2.1.2",
     "prompts": "^2.3.2",
