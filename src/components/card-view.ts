@@ -42,7 +42,10 @@ import {
 	selectEditorMinimized
 } from '../selectors.js';
 
-import { updateCardSelector } from '../actions/collection.js';
+import {
+	randomizeCollection,
+	updateCardSelector
+} from '../actions/collection.js';
 
 import {
 	editingStart
@@ -519,7 +522,7 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	_handleRandomizeClicked() {
-		store.dispatch(randomizeSalt());
+		store.dispatch(randomizeCollection());
 	}
 
 	_handleCommentsOrInfoPanelClicked() {

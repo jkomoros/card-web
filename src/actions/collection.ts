@@ -14,6 +14,7 @@ import {
 import {
 	navigatePathTo,
 	navigateToCardInDefaultCollection,
+	navigateToCollection,
 	PAGE_DEFAULT
 } from './app.js';
 
@@ -428,4 +429,11 @@ export const randomizeSalt = () : AnyAction => {
 	return {
 		type: RANDOMIZE_SALT,
 	};
+};
+
+export const randomizeCollection : AppActionCreator = () => (dispatch, getState) => {
+	dispatch(randomizeSalt());
+	const collection = selectActiveCollectionDescription(getState());
+	if (!collection.isRandom) return;
+	dispatch(navigateToCollection(collection));
 };
