@@ -24,7 +24,9 @@ import {
 	TAB_CONFIG_UNREAD,
 	TAB_CONFIG_WORKING_NOTES,
 	TAB_CONFIG_CONCEPTS,
-	TAB_CONFIG_TWITTER
+	TAB_CONFIG_TWITTER,
+	TAB_CONFIG_RANDOM,
+	SORT_NAME_RANDOM
 } from './type_constants.js';
 
 import {
@@ -40,6 +42,18 @@ import {
 	TabConfigName,
 	TabConfigOverrides
 } from './types.js';
+
+import {
+	limitConfigurableFilterText
+} from './filters.js';
+
+import {
+	store
+} from './store.js';
+
+import {
+	randomizeCollection
+} from './actions/collection.js';
 
 export const READING_LIST_FALLBACK_CARD = 'about-reading-lists';
 export const STARS_FALLBACK_CARD = 'about-stars';
@@ -215,6 +229,14 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 			href: 'https://twitter.com/' + TWITTER_HANDLE,
 			//Don't show the item if no twitter handle
 			hide: !TWITTER_HANDLE,
+		}
+	],
+	[TAB_CONFIG_RANDOM]: [
+		{
+			icon: icons.CASINO_ICON,
+			display_name: 'Random card',
+			collection: new CollectionDescription(EVERYTHING_SET_NAME, [limitConfigurableFilterText(1)], SORT_NAME_RANDOM, false),
+			action: () => store.dispatch(randomizeCollection())
 		}
 	]
 };

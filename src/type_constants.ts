@@ -274,6 +274,7 @@ export const TAB_CONFIG_UNREAD = 'unread';
 export const TAB_CONFIG_WORKING_NOTES = 'working-notes';
 export const TAB_CONFIG_CONCEPTS = 'concepts';
 export const TAB_CONFIG_TWITTER = 'twitter';
+export const TAB_CONFIG_RANDOM = 'random';
 
 export const TAB_CONFIG_TYPES = {
 	[TAB_CONFIG_DEFAULT_TABS]: true,
@@ -289,5 +290,6 @@ export const TAB_CONFIG_TYPES = {
 	[TAB_CONFIG_UNREAD]: true,
 	[TAB_CONFIG_WORKING_NOTES]: true,
 	[TAB_CONFIG_CONCEPTS]: true,
-	[TAB_CONFIG_TWITTER]: true
+	[TAB_CONFIG_TWITTER]: true,
+	[TAB_CONFIG_RANDOM]: true
 };
