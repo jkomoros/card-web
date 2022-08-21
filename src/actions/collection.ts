@@ -432,6 +432,8 @@ export const randomizeSalt = () : AnyAction => {
 
 export const randomizeCollection : AppActionCreator = () => (dispatch, getState) => {
 	dispatch(randomizeSalt());
+	//Only show card if it's the default page ('c') where a card collection is selected
+	if (selectPage(getState()) != PAGE_DEFAULT) return;
 	const collection = selectActiveCollectionDescription(getState());
 	if (!collection.isRandom) return;
 	//showCard without an argument will show the default card in a collection, immediately
