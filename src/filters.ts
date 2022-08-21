@@ -429,6 +429,10 @@ const makeCardsConfigurableFilter = (_ : ConfigurableFilterType, idString : stri
 	return [func, false];
 };
 
+export const limitConfigurableFilterText = (limit : number) : ConfigurableFilterName => {
+	return LIMIT_FILTER_NAME + '/' + String(limit);
+};
+
 export const aboutConceptConfigurableFilterText = (conceptStr : string) : ConfigurableFilterName => {
 	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
 	return ABOUT_CONCEPT_FILTER_NAME + '/' + createSlugFromArbitraryString(conceptStr);
