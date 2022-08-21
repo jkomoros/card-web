@@ -21,14 +21,16 @@ import {
 	SORT_REVERSED_URL_KEYWORD,
 	SORT_URL_KEYWORD,
 	VIEW_MODE_URL_KEYWORD,
-	NONE_FILTER_NAME
+	NONE_FILTER_NAME,
+	limitConfigurableFilterText
 } from '../filters.js';
 
 import {
 	DEFAULT_SET_NAME,
 	EVERYTHING_SET_NAME,
 	DEFAULT_VIEW_MODE,
-	SORT_NAME_DEFAULT
+	SORT_NAME_DEFAULT,
+	SORT_NAME_RANDOM
 } from '../type_constants.js';
 
 import {
@@ -423,6 +425,8 @@ export const showCard : AppActionCreator = (requestedCard : CardID = PLACEHOLDER
 		dispatch(editingStart());
 	}
 };
+
+export const RANDOM_CARD_COLLECTION = new CollectionDescription(EVERYTHING_SET_NAME, [limitConfigurableFilterText(1)], SORT_NAME_RANDOM, false);
 
 export const randomizeSalt = () : AnyAction => {
 	return {

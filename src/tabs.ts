@@ -25,8 +25,7 @@ import {
 	TAB_CONFIG_WORKING_NOTES,
 	TAB_CONFIG_CONCEPTS,
 	TAB_CONFIG_TWITTER,
-	TAB_CONFIG_RANDOM,
-	SORT_NAME_RANDOM
+	TAB_CONFIG_RANDOM
 } from './type_constants.js';
 
 import {
@@ -44,15 +43,12 @@ import {
 } from './types.js';
 
 import {
-	limitConfigurableFilterText
-} from './filters.js';
-
-import {
 	store
 } from './store.js';
 
 import {
-	randomizeCollection
+	randomizeCollection,
+	RANDOM_CARD_COLLECTION
 } from './actions/collection.js';
 
 export const READING_LIST_FALLBACK_CARD = 'about-reading-lists';
@@ -235,7 +231,7 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 		{
 			icon: icons.CASINO_ICON,
 			display_name: 'Random card',
-			collection: new CollectionDescription(EVERYTHING_SET_NAME, [limitConfigurableFilterText(1)], SORT_NAME_RANDOM, false),
+			collection: RANDOM_CARD_COLLECTION,
 			action: () => store.dispatch(randomizeCollection())
 		}
 	]
