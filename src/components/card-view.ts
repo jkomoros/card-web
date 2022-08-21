@@ -44,7 +44,9 @@ import {
 
 import {
 	randomizeCollection,
-	updateCardSelector
+	updateCardSelector,
+	canonicalizeURL,
+	updateRenderOffset
 } from '../actions/collection.js';
 
 import {
@@ -64,11 +66,6 @@ import {
 import {
 	openFindDialog
 } from '../actions/find.js';
-
-import {
-	canonicalizeURL,
-	updateRenderOffset
-} from '../actions/collection.js';
 
 import {
 	navigatePathTo,
