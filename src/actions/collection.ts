@@ -14,7 +14,6 @@ import {
 import {
 	navigatePathTo,
 	navigateToCardInDefaultCollection,
-	navigateToCollection,
 	PAGE_DEFAULT
 } from './app.js';
 
@@ -435,5 +434,6 @@ export const randomizeCollection : AppActionCreator = () => (dispatch, getState)
 	dispatch(randomizeSalt());
 	const collection = selectActiveCollectionDescription(getState());
 	if (!collection.isRandom) return;
-	dispatch(navigateToCollection(collection));
+	//showCard without an argument will show the default card in a collection, immediately
+	dispatch(showCard());
 };
