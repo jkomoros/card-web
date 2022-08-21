@@ -15,7 +15,7 @@
   "dependencies": {
     "express": "^4.17.1",
     "firebase-admin": "^11.0.1",
-    "firebase-functions": "^3.21.2",
+    "firebase-functions": "^3.22.0",
     "fromentries": "^1.2.0",
     "json-stringify-deterministic": "^1.0.1",
     "md5": "^2.2.1",
