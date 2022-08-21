@@ -46,7 +46,8 @@ import {
 	randomizeCollection,
 	updateCardSelector,
 	canonicalizeURL,
-	updateRenderOffset
+	updateRenderOffset,
+	navigateToRandomCard
 } from '../actions/collection.js';
 
 import {
@@ -705,7 +706,13 @@ class CardView extends connect(store)(PageViewElement) {
 			}
 			//If you hold Alt then e.key will not be z
 		} else if (e.code == 'KeyZ') {
-			if (e.altKey) store.dispatch(randomizeCollection());
+			if (e.altKey) {
+				if (e.shiftKey) {
+					store.dispatch(navigateToRandomCard());
+				} else {
+					store.dispatch(randomizeCollection());
+				}
+			}
 		}
 	}
 
