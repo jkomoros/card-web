@@ -366,7 +366,7 @@ export const redirectIfInvalidCardOrCollection : AppActionCreator = () => (dispa
 	dispatch(navigateToCardInDefaultCollection(card, false));
 };
 
-export const showCard : AppActionCreator = (requestedCard : CardID) => (dispatch, getState) => {
+export const showCard : AppActionCreator = (requestedCard : CardID = PLACEHOLDER_CARD_ID_CHARACTER) => (dispatch, getState) => {
 
 	const state = getState();
 
