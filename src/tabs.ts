@@ -154,6 +154,9 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 			expand: TAB_CONFIG_CONCEPTS,
 		},
 		{
+			expand: TAB_CONFIG_RANDOM,
+		},
+		{
 			expand: TAB_CONFIG_TWITTER,
 		}
 	],
