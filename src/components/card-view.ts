@@ -685,7 +685,7 @@ class CardView extends connect(store)(PageViewElement) {
 			if (activeEle instanceof HTMLElement) activeEle.blur();
 			return killEvent(e);
 		}
-		if (!e.metaKey && !e.ctrlKey) return false;
+		if (!e.metaKey && !e.ctrlKey && !e.altKey) return false;
 		if (this._editing) return false;
 
 		if (e.key == 'm') {
@@ -707,9 +707,9 @@ class CardView extends connect(store)(PageViewElement) {
 				if (newLocation == location) return false;
 				store.dispatch(navigatePathTo(newLocation, false));
 			}
-		} else if (e.key == 'z') {
-			if (!e.metaKey || !e.ctrlKey) return false;
-			store.dispatch(randomizeSalt());
+			//If you hold Alt then e.key will not be z
+		} else if (e.code == 'KeyZ') {
+			if (e.altKey) store.dispatch(randomizeSalt());
 		}
 	}
 
