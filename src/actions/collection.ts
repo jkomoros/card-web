@@ -428,7 +428,7 @@ export const showCard : AppActionCreator = (requestedCard : CardID = PLACEHOLDER
 
 export const RANDOM_CARD_COLLECTION = new CollectionDescription(EVERYTHING_SET_NAME, [limitConfigurableFilterText(1)], SORT_NAME_RANDOM, false);
 
-export const randomizeSalt = () : AnyAction => {
+const randomizeSalt = () : AnyAction => {
 	return {
 		type: RANDOMIZE_SALT,
 	};
