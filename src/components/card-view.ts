@@ -426,7 +426,7 @@ class CardView extends connect(store)(PageViewElement) {
 				<button id='configure-collection' class='small' title='Configure collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure collection</label>
 			</div>
 			${this._collection.description.isRandom ? html`<div slot='visible-info'>
-				<button id='randomize' class='small' title='Randomize' @click=${this._handleRandomizeClicked}>${CASINO_ICON}</button><label for='randomize'>Randomize</label>
+				<button id='randomize' class='small' title='Randomize (⌥Z)' @click=${this._handleRandomizeClicked}>${CASINO_ICON}</button><label for='randomize'>Randomize</label>
 			</div>` : ''}
 		</card-drawer>
         <div id='center'>
