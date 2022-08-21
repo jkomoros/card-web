@@ -67,8 +67,7 @@ import {
 
 import {
 	canonicalizeURL,
-	updateRenderOffset,
-	randomizeSalt
+	updateRenderOffset
 } from '../actions/collection.js';
 
 import {
@@ -709,7 +708,7 @@ class CardView extends connect(store)(PageViewElement) {
 			}
 			//If you hold Alt then e.key will not be z
 		} else if (e.code == 'KeyZ') {
-			if (e.altKey) store.dispatch(randomizeSalt());
+			if (e.altKey) store.dispatch(randomizeCollection());
 		}
 	}
 
