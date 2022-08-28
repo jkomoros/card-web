@@ -426,7 +426,7 @@ class CardView extends connect(store)(PageViewElement) {
 				<button id='configure-collection' class='small' title='Configure collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure collection</label>
 			</div>
 			${this._collection.description.isRandom ? html`<div slot='visible-info'>
-				<button id='randomize' class='small' title='Randomize (⌥Z)' @click=${this._handleRandomizeClicked}>${CASINO_ICON}</button><label for='randomize'>Randomize</label>
+				<button id='randomize' class='small' title='Randomize (⌘⌥R)' @click=${this._handleRandomizeClicked}>${CASINO_ICON}</button><label for='randomize'>Randomize</label>
 			</div>` : ''}
 		</card-drawer>
         <div id='center'>
@@ -682,7 +682,7 @@ class CardView extends connect(store)(PageViewElement) {
 			if (activeEle instanceof HTMLElement) activeEle.blur();
 			return killEvent(e);
 		}
-		if (!e.metaKey && !e.ctrlKey && !e.altKey) return false;
+		if (!e.metaKey && !e.ctrlKey) return false;
 		if (this._editing) return false;
 
 		if (e.key == 'm') {
@@ -704,8 +704,8 @@ class CardView extends connect(store)(PageViewElement) {
 				if (newLocation == location) return false;
 				store.dispatch(navigatePathTo(newLocation, false));
 			}
-			//If you hold Alt then e.key will not be z
-		} else if (e.code == 'KeyZ') {
+			//If you hold Alt then e.key will not be r
+		} else if (e.code == 'KeyR') {
 			if (e.altKey) {
 				if (e.shiftKey) {
 					store.dispatch(navigateToRandomCard());

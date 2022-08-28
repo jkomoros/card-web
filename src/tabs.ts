@@ -233,7 +233,7 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 	[TAB_CONFIG_RANDOM]: [
 		{
 			icon: icons.CASINO_ICON,
-			display_name: 'Random card (⌥⇧z)',
+			display_name: 'Random card (⌘⌥⇧R)',
 			collection: RANDOM_CARD_COLLECTION,
 			action: () => store.dispatch(randomizeCollection())
 		}
