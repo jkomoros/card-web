@@ -13,7 +13,7 @@ const inject = require('gulp-inject-string');
 let projectConfig;
 try {
 	projectConfig = require('./config.SECRET.json');
-} catch {
+} catch(err) {
 	console.log('config.SECRET.json didn\'t exist. Check README.md on how to create one');
 	process.exit(1);
 }
