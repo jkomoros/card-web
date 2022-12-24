@@ -331,7 +331,7 @@ const updateFontSizeBoost : MaintenanceTaskFunction = async () => {
 
 const EXPORT_FINE_TUNING_EXAMPLES = 'export-fine-tuning-examples';
 
-const PROMPT_WORD_COUNT = 5;
+const PROMPT_WORD_COUNT = 9;
 
 const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) => {
 	const state = getState();
