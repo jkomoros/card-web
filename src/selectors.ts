@@ -702,7 +702,7 @@ export const selectUidsWithPermissions = createSelector(
 	(allPermissions, cardsMap) => Object.fromEntries(Object.entries(allPermissions).map(entry => [entry[0], true]).concat(Object.entries(cardsMap).map(entry => [entry[0], true])))
 );
 
-const selectFingerprintGenerator = createSelector(
+export const selectFingerprintGenerator = createSelector(
 	selectCards,
 	(cards) => new FingerprintGenerator(cards)
 );

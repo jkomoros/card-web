@@ -42,7 +42,7 @@ import {
 	selectCards,
 	selectDefaultSet,
 	selectEverythingSet,
-	getSemanticFingerprintForCard
+	selectFingerprintGenerator
 } from '../selectors.js';
 
 import {
@@ -339,9 +339,10 @@ const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) =
 	const cards = selectCards(state);
 	const result : {words: string, content: string}[] = [];
 	const div = document.createElement('div');
+	const generator = selectFingerprintGenerator(state);
 	for (const card of Object.values(cards)) {
 		if (card.card_type != 'working-notes' && card.card_type != 'content') continue;
-		const fingerprint = getSemanticFingerprintForCard(state, card);
+		const fingerprint = generator.fingerprintForCardID(card.id);
 		const words = fingerprint.dedupedPrettyItemsFromCard();
 		const wordCount = Math.floor(Math.random() * (PROMPT_WORD_COUNT_MAX - PROMPT_WORD_COUNT_MIN + 1)) + PROMPT_WORD_COUNT_MIN;
 		const trimmedWords = words.split(' ').slice(0, wordCount).join(' ');
