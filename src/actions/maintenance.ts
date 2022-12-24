@@ -30,6 +30,7 @@ import {
 import { 
 	downloadFile,
 	newID,
+	timestampForFilename,
 } from '../util.js';
 
 import {
@@ -350,8 +351,7 @@ const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) =
 	const examples : {prompt: string, completion: string}[] = result.map(record => ({prompt: `\nGenerate a prompt in the style of ${APP_TITLE} that includes the following words:\n` + record.words + '\n\n#START#:\n\n', completion: record.content + '\n#END#'}));
 	const fileContent = examples.map(example => JSON.stringify(example)).join('\n');
 	const blob = new Blob([fileContent], {type: 'application/jsonl+json'});
-	//TODO: names based on timestamp
-	downloadFile(blob, 'training-data.jsonl');
+	downloadFile(blob, 'training-data-' +  timestampForFilename() +  '.jsonl');
 };
 
 const CONVERT_MULTI_LINKS_DELIMITER = 'convert-multi-links-delimiter';
