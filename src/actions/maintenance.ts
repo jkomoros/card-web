@@ -331,6 +331,9 @@ const EXPORT_FINE_TUNING_EXAMPLES = 'export-fine-tuning-examples';
 const PROMPT_WORD_COUNT_MIN = 3;
 const PROMPT_WORD_COUNT_MAX = 10;
 
+//The limit is 2048 tokens. There are more tokens than words; this is a conservative limit.
+const TRAINING_CONTENT_CUTOFF = 1500;
+
 const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) => {
 	const state = getState();
 	const cards = selectCards(state);
@@ -350,6 +353,10 @@ const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) =
 		const body = div.innerText;
 		const title = card.card_type == 'content' ? card.title + '\n' : '';
 		const content = title + body;
+		if (content.split(' ').length > TRAINING_CONTENT_CUTOFF) {
+			console.warn('Skipping one very long row starting with: ' + content.split(' ').slice(0, 50).join(' '));
+			continue;
+		}
 		result.push({words: trimmedWords, content: content});
 	}
 	const examples : {prompt: string, completion: string}[] = result.map(record => ({prompt: record.words + '\n\n#START#:\n\n', completion: ' ' + record.content + '\n#END#'}));
