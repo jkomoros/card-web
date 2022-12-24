@@ -605,6 +605,18 @@ export const markdownElement = (content : string) : HTMLElement | null => {
 	return div;
 };
 
+export const downloadFile = (content : Blob, filename : string) => {
+	//Based on https://stackoverflow.com/a/24922761
+	const link = document.createElement('a');
+	const url = URL.createObjectURL(content);
+	link.setAttribute('href', url);
+	link.setAttribute('download', filename);
+	link.style.visibility = 'hidden';
+	document.body.appendChild(link);
+	link.click();
+	document.body.removeChild(link);
+};
+
 //date may be a firestore timestamp or a date object.
 export const prettyTime = (date : Timestamp | Date) => {
 	if (!date) return '';
