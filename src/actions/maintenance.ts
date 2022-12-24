@@ -325,6 +325,8 @@ const updateFontSizeBoost : MaintenanceTaskFunction = async () => {
 
 const EXPORT_FINE_TUNING_EXAMPLES = 'export-fine-tuning-examples';
 
+const PROMPT_WORD_COUNT = 5;
+
 const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) => {
 	const state = getState();
 	const cards = selectCards(state);
@@ -334,11 +336,11 @@ const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) =
 		if (card.card_type != 'working-notes') continue;
 		const fingerprint = getSemanticFingerprintForCard(state, card);
 		const words = fingerprint.dedupedPrettyItemsFromCard();
-		//TODO: trim words
+		const trimmedWords = words.split(' ').slice(0, PROMPT_WORD_COUNT).join(' ');
 		const htmlContent = card.body;
 		div.innerHTML = htmlContent;
 		const content = div.innerText;
-		result.push({prompt: words, completion: content});
+		result.push({prompt: trimmedWords, completion: content});
 	}
 	//TODO: better export
 	alert(result.map(record => 'PROMPT:\n' + record.prompt + '\n\nCOMPLETION:\n' + record.completion).join('\n\n####\n\n'));
