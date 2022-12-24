@@ -330,7 +330,7 @@ const PROMPT_WORD_COUNT = 5;
 const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) => {
 	const state = getState();
 	const cards = selectCards(state);
-	const result : {prompt: string, completion: string}[] = [];
+	const result : {words: string, content: string}[] = [];
 	const div = document.createElement('div');
 	for (const card of Object.values(cards)) {
 		if (card.card_type != 'working-notes') continue;
@@ -340,10 +340,10 @@ const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) =
 		const htmlContent = card.body;
 		div.innerHTML = htmlContent;
 		const content = div.innerText;
-		result.push({prompt: trimmedWords, completion: content});
+		result.push({words: trimmedWords, content: content});
 	}
 	//TODO: better export
-	alert(result.map(record => 'PROMPT:\n' + record.prompt + '\n\nCOMPLETION:\n' + record.completion).join('\n\n####\n\n'));
+	alert(result.map(record => 'PROMPT:\n' + record.words + '\n\nCOMPLETION:\n' + record.content).join('\n\n####\n\n'));
 };
 
 const CONVERT_MULTI_LINKS_DELIMITER = 'convert-multi-links-delimiter';
