@@ -322,6 +322,12 @@ const updateFontSizeBoost : MaintenanceTaskFunction = async () => {
 
 };
 
+const EXPORT_FINE_TUNING_EXAMPLES = 'export-fine-tuning-examples';
+
+const exportFineTuningExamples : MaintenanceTaskFunction = async () => {
+	alert('Not yet implemented');
+};
+
 const CONVERT_MULTI_LINKS_DELIMITER = 'convert-multi-links-delimiter';
 
 const convertMultiLinksDelimiter : MaintenanceTaskFunction = async () => {
@@ -654,6 +660,11 @@ const RAW_TASKS : {[id : MaintenanceTaskID]: RawMaintenanceTaskDefinition} = {
 		fn: rerunCardFinishers,
 		recurring: true,
 		minVersion: 0,
+	},
+	[EXPORT_FINE_TUNING_EXAMPLES]: {
+		fn: exportFineTuningExamples,
+		recurring: true,
+		minVersion: 0
 	},
 	[ADD_SORT_ORDER_PROPERTY]: {
 		fn: addSortOrderProperty,
