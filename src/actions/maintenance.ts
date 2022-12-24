@@ -339,13 +339,15 @@ const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) =
 	const result : {words: string, content: string}[] = [];
 	const div = document.createElement('div');
 	for (const card of Object.values(cards)) {
-		if (card.card_type != 'working-notes') continue;
+		if (card.card_type != 'working-notes' && card.card_type != 'content') continue;
 		const fingerprint = getSemanticFingerprintForCard(state, card);
 		const words = fingerprint.dedupedPrettyItemsFromCard();
 		const trimmedWords = words.split(' ').slice(0, PROMPT_WORD_COUNT).join(' ');
 		const htmlContent = card.body;
 		div.innerHTML = htmlContent;
-		const content = div.innerText;
+		const body = div.innerText;
+		const title = card.card_type == 'content' ? card.title + '\n' : '';
+		const content = title + body;
 		result.push({words: trimmedWords, content: content});
 	}
 	const examples : {prompt: string, completion: string}[] = result.map(record => ({prompt: `\nGenerate a prompt in the style of ${TRAINING_DATA_NAME} that includes the following words:\n` + record.words + '\n\n#START#:\n\n', completion: record.content + '\n#END#'}));
