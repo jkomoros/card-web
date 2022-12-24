@@ -28,7 +28,6 @@ const FIREBASE_DEV_PROJECT = CONFIG_FIREBASE_DEV.projectId;
 const BACKUP_BUCKET_NAME = projectConfig.backup_bucket_name && projectConfig.backup_bucket_name != CHANGE_ME_SENTINEL ? projectConfig.backup_bucket_name : ''; 
 
 const APP_TITLE = projectConfig.app_title ? projectConfig.app_title : 'Cards Web';
-const TRAINING_DATA_NAME = projectConfig.training_data_name || APP_TITLE;
 const APP_DESCRIPTION = projectConfig.app_description || APP_TITLE;
 const GOOGLE_ANALYTICS = projectConfig.google_analytics && projectConfig.google_analytics != CHANGE_ME_SENTINEL ? projectConfig.google_analytics : 'UA-321674-11';
 
@@ -127,7 +126,6 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	CONFIG_JS_CONTENT += 'export const FIREBASE_DEV_CONFIG : FirebaseOptions = ' + JSON.stringify(CONFIG_FIREBASE_DEV).split('"').join('\'') + ';\n';
 	CONFIG_JS_CONTENT += 'export const FIREBASE_PROD_CONFIG : FirebaseOptions = ' + JSON.stringify(CONFIG_FIREBASE_PROD).split('"').join('\'') + ';\n';
 	CONFIG_JS_CONTENT += 'export const APP_TITLE = \'' + APP_TITLE + '\';\n';
-	CONFIG_JS_CONTENT += 'export const TRAINING_DATA_NAME = \'' + TRAINING_DATA_NAME + '\';\n';
 	CONFIG_JS_CONTENT += 'export const USER_TYPE_ALL_PERMISSIONS : UserPermissions = ' + JSON.stringify(USER_TYPE_ALL_PERMISSIONS).split('"').join('\'') + ';\n';
 	CONFIG_JS_CONTENT += 'export const USER_TYPE_ANONYMOUS_PERMISSIONS : UserPermissions = ' + JSON.stringify(USER_TYPE_ANONYMOUS_PERMISSIONS).split('"').join('\'') + ';\n';
 	CONFIG_JS_CONTENT += 'export const USER_TYPE_SIGNED_IN_PERMISSIONS : UserPermissions = ' + JSON.stringify(USER_TYPE_SIGNED_IN_PERMISSIONS).split('"').join('\'') + ';\n';

@@ -233,10 +233,6 @@ The name of your app, to show up in the titlebar of the web page, the web app
 header, and in the manifest. If the string starts with 'The ' then the The will
 be rendered a lighter color in the header.
 
-### training_data_name
-
-The name to include in the training data generation. If not provided defaults to app_title.
-
 ### app_description
 
 The description of your application, for use in the meta tag.
@@ -451,8 +447,6 @@ When you want to navigate to a card, you use actions/navigateToCard, which uses 
 It's possible to export your cards in a way suitable for fine-tuning an OpenAI model.
 
 The instructions for fine-tuning are here: https://beta.openai.com/docs/guides/fine-tuning
-
-You can set config.training_data_name to something distinctive if your app_title isn't particularly distinctive. This is how the prompt will tell the model to generate text in your particular style.
 
 To generate a fine-tuning file, go to `https://DOMAIN/maintenance` and then tap the `export-fine-tuning-examples` button. This will download a JSONL file with prompts and completions based on all of your working notes and content cards.
 
