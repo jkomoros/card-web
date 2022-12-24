@@ -2,6 +2,10 @@ export const UPDATE_EXECUTED_MAINTENANCE_TASKS = 'UPDATE_EXECUTED_MAINTENANCE_TA
 export const UPDATE_MAINTENANCE_TASK_ACTIVE = 'UPDATE_MAINTENANCE_TASK_ACTIVE';
 
 import {
+	APP_TITLE
+} from '../config.GENERATED.SECRET.js';
+
+import {
 	CARDS_COLLECTION,
 	SECTIONS_COLLECTION,
 	MAINTENANCE_COLLECTION,
@@ -343,7 +347,8 @@ const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) =
 		result.push({words: trimmedWords, content: content});
 	}
 	//TODO: better export
-	alert(result.map(record => 'PROMPT:\n' + record.words + '\n\nCOMPLETION:\n' + record.content).join('\n\n####\n\n'));
+	const examples = result.map(record => `Generate a prompt in the style of ${APP_TITLE} that includes the following words:\n` + record.words + '\n\n#START#:\n' + record.content + '\n#END#');
+	alert(examples.join('\n\n####\n\n'));
 };
 
 const CONVERT_MULTI_LINKS_DELIMITER = 'convert-multi-links-delimiter';
