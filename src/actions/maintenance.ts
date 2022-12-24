@@ -42,7 +42,8 @@ import {
 	selectCards,
 	selectDefaultSet,
 	selectEverythingSet,
-	selectFingerprintGenerator
+	selectFingerprintGenerator,
+	selectCardsLoaded
 } from '../selectors.js';
 
 import {
@@ -340,6 +341,8 @@ const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) =
 	const result : {words: string, content: string}[] = [];
 	const div = document.createElement('div');
 	const generator = selectFingerprintGenerator(state);
+	const fullyLoaded = selectCardsLoaded(state);
+	if (!fullyLoaded && confirm('Unpublished cards arent loaded yet. Hit cancel to continue anyway or OK to exit and wait.')) return;
 	for (const card of Object.values(cards)) {
 		if (card.card_type != 'working-notes' && card.card_type != 'content') continue;
 		const fingerprint = generator.fingerprintForCardID(card.id);
