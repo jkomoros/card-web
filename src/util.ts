@@ -617,6 +617,12 @@ export const downloadFile = (content : Blob, filename : string) => {
 	document.body.removeChild(link);
 };
 
+export const timestampForFilename = () : string => {
+	const timestamp = new Date();
+	const timeString = new Intl.DateTimeFormat('en-US', {hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false}).format(timestamp);
+	return '' + timestamp.getFullYear() + '-' + (timestamp.getMonth() + 1) + '-' + timestamp.getDate() + '-' + timeString.split(':').join('-');
+};
+
 //date may be a firestore timestamp or a date object.
 export const prettyTime = (date : Timestamp | Date) => {
 	if (!date) return '';
