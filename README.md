@@ -233,6 +233,10 @@ The name of your app, to show up in the titlebar of the web page, the web app
 header, and in the manifest. If the string starts with 'The ' then the The will
 be rendered a lighter color in the header.
 
+### training_data_name
+
+The name to include in the training data generation. If not provided defaults to app_title.
+
 ### app_description
 
 The description of your application, for use in the meta tag.
