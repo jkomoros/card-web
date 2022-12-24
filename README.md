@@ -455,3 +455,7 @@ The instructions for fine-tuning are here: https://beta.openai.com/docs/guides/f
 You can set config.training_data_name to something distinctive if your app_title isn't particularly distinctive. This is how the prompt will tell the model to generate text in your particular style.
 
 To generate a fine-tuning file, go to `https://DOMAIN/maintenance` and then tap the `export-fine-tuning-examples` button. This will download a JSONL file with prompts and completions based on all of your working notes and content cards.
+
+Run `pip install --upgrade openai` to install openai.
+
+Run `export OPENAI_API_KEY="<OPENAI_API_KEY>"` (or add to your `.bash_profile`).
