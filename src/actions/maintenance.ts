@@ -35,7 +35,8 @@ import {
 	selectUser,
 	selectCards,
 	selectDefaultSet,
-	selectEverythingSet
+	selectEverythingSet,
+	getSemanticFingerprintForCard
 } from '../selectors.js';
 
 import {
@@ -324,8 +325,23 @@ const updateFontSizeBoost : MaintenanceTaskFunction = async () => {
 
 const EXPORT_FINE_TUNING_EXAMPLES = 'export-fine-tuning-examples';
 
-const exportFineTuningExamples : MaintenanceTaskFunction = async () => {
-	alert('Not yet implemented');
+const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) => {
+	const state = getState();
+	const cards = selectCards(state);
+	const result : {prompt: string, completion: string}[] = [];
+	const div = document.createElement('div');
+	for (const card of Object.values(cards)) {
+		if (card.card_type != 'working-notes') continue;
+		const fingerprint = getSemanticFingerprintForCard(state, card);
+		const words = fingerprint.dedupedPrettyItemsFromCard();
+		//TODO: trim words
+		const htmlContent = card.body;
+		div.innerHTML = htmlContent;
+		const content = div.innerText;
+		result.push({prompt: words, completion: content});
+	}
+	//TODO: better export
+	alert(result.map(record => 'PROMPT:\n' + record.prompt + '\n\nCOMPLETION:\n' + record.completion).join('\n\n####\n\n'));
 };
 
 const CONVERT_MULTI_LINKS_DELIMITER = 'convert-multi-links-delimiter';
