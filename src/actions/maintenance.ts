@@ -2,7 +2,7 @@ export const UPDATE_EXECUTED_MAINTENANCE_TASKS = 'UPDATE_EXECUTED_MAINTENANCE_TA
 export const UPDATE_MAINTENANCE_TASK_ACTIVE = 'UPDATE_MAINTENANCE_TASK_ACTIVE';
 
 import {
-	APP_TITLE
+	TRAINING_DATA_NAME
 } from '../config.GENERATED.SECRET.js';
 
 import {
@@ -348,7 +348,7 @@ const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) =
 		const content = div.innerText;
 		result.push({words: trimmedWords, content: content});
 	}
-	const examples : {prompt: string, completion: string}[] = result.map(record => ({prompt: `\nGenerate a prompt in the style of ${APP_TITLE} that includes the following words:\n` + record.words + '\n\n#START#:\n\n', completion: record.content + '\n#END#'}));
+	const examples : {prompt: string, completion: string}[] = result.map(record => ({prompt: `\nGenerate a prompt in the style of ${TRAINING_DATA_NAME} that includes the following words:\n` + record.words + '\n\n#START#:\n\n', completion: record.content + '\n#END#'}));
 	const fileContent = examples.map(example => JSON.stringify(example)).join('\n');
 	const blob = new Blob([fileContent], {type: 'application/jsonl+json'});
 	downloadFile(blob, 'training-data-' +  timestampForFilename() +  '.jsonl');
