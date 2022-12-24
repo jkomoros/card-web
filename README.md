@@ -445,3 +445,13 @@ The card-web-app reads from the URL and then calls navigate() based on it. Navig
 That then causes card-view to be activated, with a different page-extra, which it then tells the store to show a specific card. It also checks to ensure that the URL showing is the actual card name; if not it silently updates it.
 
 When you want to navigate to a card, you use actions/navigateToCard, which uses history.pushState, and then calls the router to extract out the URL and operate.
+
+## OpenAI fine-tuning
+
+It's possible to export your cards in a way suitable for fine-tuning an OpenAI model.
+
+The instructions for fine-tuning are here: https://beta.openai.com/docs/guides/fine-tuning
+
+You can set config.training_data_name to something distinctive if your app_title isn't particularly distinctive. This is how the prompt will tell the model to generate text in your particular style.
+
+To generate a fine-tuning file, go to `https://DOMAIN/maintenance` and then tap the `export-fine-tuning-examples` button. This will download a JSONL file with prompts and completions based on all of your working notes and content cards.
