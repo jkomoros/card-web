@@ -346,7 +346,7 @@ const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) =
 		const content = div.innerText;
 		result.push({words: trimmedWords, content: content});
 	}
-	const examples : {prompt: string, completion: string}[] = result.map(record => ({prompt: `Generate a prompt in the style of ${APP_TITLE} that includes the following words:\n` + record.words + '\n\n#START#:\n', completion: record.content + '\n#END#'}));
+	const examples : {prompt: string, completion: string}[] = result.map(record => ({prompt: `\nGenerate a prompt in the style of ${APP_TITLE} that includes the following words:\n` + record.words + '\n\n#START#:\n\n', completion: record.content + '\n#END#'}));
 	alert(examples.map(example => example.prompt + '\n' + example.completion).join('\n\n####\n\n'));
 };
 
