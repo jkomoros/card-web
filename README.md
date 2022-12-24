@@ -453,3 +453,5 @@ To generate a fine-tuning file, go to `https://DOMAIN/maintenance` and then tap 
 Run `pip3 install --upgrade openai` to install openai.
 
 Run `export OPENAI_API_KEY="<OPENAI_API_KEY>"` (or add to your `.bash_profile`).
+
+Run `openai api fine_tunes.create -m davinci -t <PATH>`
