@@ -456,6 +456,6 @@ You can set config.training_data_name to something distinctive if your app_title
 
 To generate a fine-tuning file, go to `https://DOMAIN/maintenance` and then tap the `export-fine-tuning-examples` button. This will download a JSONL file with prompts and completions based on all of your working notes and content cards.
 
-Run `pip install --upgrade openai` to install openai.
+Run `pip3 install --upgrade openai` to install openai.
 
 Run `export OPENAI_API_KEY="<OPENAI_API_KEY>"` (or add to your `.bash_profile`).
