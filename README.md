@@ -448,7 +448,7 @@ It's possible to export your cards in a way suitable for fine-tuning an OpenAI m
 
 The instructions for fine-tuning are here: https://beta.openai.com/docs/guides/fine-tuning
 
-To generate a fine-tuning file, go to `https://DOMAIN/maintenance` and then tap the `export-fine-tuning-examples` button. This will download a JSONL file with prompts and completions based on all of your working notes and content cards.
+To generate a fine-tuning file, go to `https://DOMAIN/maintenance` and then tap the `export-fine-tuning-examples` button. This will download a JSONL file with prompts and completions based on all of your working notes and content cards. This file does NOT need to be run through `openai tools fine_tunes.prepare_data` because card-web will have already output clean results.
 
 Run `pip3 install --upgrade openai` to install openai.
 
