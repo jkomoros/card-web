@@ -446,7 +446,9 @@ When you want to navigate to a card, you use actions/navigateToCard, which uses 
 
 It's possible to export your cards in a way suitable for fine-tuning an OpenAI model.
 
-The instructions for fine-tuning are here: https://beta.openai.com/docs/guides/fine-tuning
+Conceptually waht it does is take all of the content and working-notes cards in your collection. It generates a prompt that is the most disctintive words in each card (the fingerprint, the TF-IDF), and then a 'completion' of the body of the card. Then, to generate a new card you can hand it just a few distinctive words and it will generate content.
+
+The general instructions for fine-tuning are here: https://beta.openai.com/docs/guides/fine-tuning
 
 To generate a fine-tuning file, go to `https://DOMAIN/maintenance` and then tap the `export-fine-tuning-examples` button. This will download a JSONL file with prompts and completions based on all of your working notes and content cards. This file does NOT need to be run through `openai tools fine_tunes.prepare_data` because card-web will have already output clean results.
 
