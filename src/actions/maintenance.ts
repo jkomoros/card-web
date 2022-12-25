@@ -331,6 +331,9 @@ const EXPORT_FINE_TUNING_EXAMPLES = 'export-fine-tuning-examples';
 const PROMPT_WORD_COUNT_MIN = 3;
 const PROMPT_WORD_COUNT_MAX = 10;
 
+const PROMPT_START = '\n\n#START#:\n\n';
+const PROMPT_END = '\n#END#';
+
 //The limit is 2048 tokens. There are more tokens than words; this is a conservative limit.
 const TRAINING_CONTENT_CUTOFF = 1500;
 
@@ -359,7 +362,7 @@ const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) =
 		}
 		result.push({words: trimmedWords, content: content});
 	}
-	const examples : {prompt: string, completion: string}[] = result.map(record => ({prompt: record.words + '\n\n#START#:\n\n', completion: ' ' + record.content + '\n#END#'}));
+	const examples : {prompt: string, completion: string}[] = result.map(record => ({prompt: record.words + PROMPT_START, completion: ' ' + record.content + PROMPT_END}));
 	const fileContent = examples.map(example => JSON.stringify(example)).join('\n');
 	const blob = new Blob([fileContent], {type: 'application/jsonl+json'});
 	downloadFile(blob, 'training-data-' +  timestampForFilename() +  '.jsonl');
