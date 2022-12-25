@@ -340,7 +340,7 @@ const TRAINING_CONTENT_CUTOFF = 1500;
 const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) => {
 	const state = getState();
 	const cards = selectCards(state);
-	const result : {words: string, content: string}[] = [];
+	const result : {id: CardID, words: string, content: string}[] = [];
 	const div = document.createElement('div');
 	const generator = selectFingerprintGenerator(state);
 	const fullyLoaded = selectCardsLoaded(state);
@@ -360,9 +360,9 @@ const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) =
 			console.warn('Skipping one very long row starting with: ' + content.split(' ').slice(0, 50).join(' '));
 			continue;
 		}
-		result.push({words: trimmedWords, content: content});
+		result.push({id: card.id, words: trimmedWords, content: content});
 	}
-	const examples : {prompt: string, completion: string}[] = result.map(record => ({prompt: record.words + PROMPT_START, completion: ' ' + record.content + PROMPT_END}));
+	const examples : {id : CardID, prompt: string, completion: string}[] = result.map(record => ({id: record.id, prompt: record.words + PROMPT_START, completion: ' ' + record.content + PROMPT_END}));
 	const fileContent = examples.map(example => JSON.stringify(example)).join('\n');
 	const blob = new Blob([fileContent], {type: 'application/jsonl+json'});
 	downloadFile(blob, 'training-data-' +  timestampForFilename() +  '.jsonl');
