@@ -454,4 +454,6 @@ Run `pip3 install --upgrade openai` to install openai.
 
 Run `export OPENAI_API_KEY="<OPENAI_API_KEY>"` (or add to your `.bash_profile`).
 
-Run `openai api fine_tunes.create -m davinci -t <PATH>`
+Run `openai api fine_tunes.create -m davinci -t <PATH>` (You can replace it with a different, cheaper model if you'd like)
+
+Then once you have the model to get a completed bit of content, run `openai api completions.create -m <MODEL_NAME> --stop='\n#END#' --max-tokens=512 -p "word1 word2 word3\n\n#START\n\n"` (replacing the name of the model and the words you want to use ot seed it)
