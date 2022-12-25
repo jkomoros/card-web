@@ -444,18 +444,20 @@ When you want to navigate to a card, you use actions/navigateToCard, which uses 
 
 ## OpenAI fine-tuning
 
-It's possible to export your cards in a way suitable for fine-tuning an OpenAI model.
+It's possible to export your cards in a way suitable for fine-tuning an OpenAI model. The results aren't great. The results sound superficially like you but are mostly vapid, and regress to the mean of corporate speak in a way that almost feels like it cheapens your actual cards.
 
 Conceptually waht it does is take all of the content and working-notes cards in your collection. It generates a prompt that is the most disctintive words in each card (the fingerprint, the TF-IDF), and then a 'completion' of the body of the card. Then, to generate a new card you can hand it just a few distinctive words and it will generate content.
 
 The general instructions for fine-tuning are here: https://beta.openai.com/docs/guides/fine-tuning
 
-To generate a fine-tuning file, go to `https://DOMAIN/maintenance` and then tap the `export-fine-tuning-examples` button. This will download a JSONL file with prompts and completions based on all of your working notes and content cards. This file does NOT need to be run through `openai tools fine_tunes.prepare_data` because card-web will have already output clean results.
+To generate a fine-tuning file, go to `https://DOMAIN/maintenance` and then tap the `export-fine-tuning-examples` button. This will download a JSONL file with prompts and completions based on all of your working notes and content cards.
 
 Run `pip3 install --upgrade openai` to install openai.
 
 Run `export OPENAI_API_KEY="<OPENAI_API_KEY>"` (or add to your `.bash_profile`).
 
-Run `openai api fine_tunes.create -m davinci -t <PATH>` (You can replace it with a different, cheaper model if you'd like)
+Run `openai tools fine_tunes.prepare_data -q -f <LOCAL_FILE>` to prepare the file for use (e.g. removing fields like the the card id). This will produce a file named like the training file but with `_prepared` just before the extensiuon.
+
+Run `openai api fine_tunes.create -m davinci -t <PATH_TO_PREPARED_FILE>` (You can replace `davinci` with a different, cheaper model like `curie` if you'd like)
 
 Then once you have the model to get a completed bit of content, run `openai api completions.create -m <MODEL_NAME> --stop "#END#" --max-tokens 512 -p "word1 word2 word3\n\n#START#\n\n"` (replacing the name of the model and the words you want to use ot seed it)
