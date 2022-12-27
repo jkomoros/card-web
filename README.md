@@ -461,3 +461,5 @@ Run `openai tools fine_tunes.prepare_data -q -f <LOCAL_FILE>` to prepare the fil
 Run `openai api fine_tunes.create -m davinci -t <PATH_TO_PREPARED_FILE>` (You can replace `davinci` with a different, cheaper model like `curie` if you'd like)
 
 Then once you have the model to get a completed bit of content, run `openai api completions.create -m <MODEL_NAME> --stop "#END#" --max-tokens 512 -p "word1 word2 word3\n\n#START#\n\n"` (replacing the name of the model and the words you want to use ot seed it)
+
+You can also do an export appropriate for importing into https://github.com/dglazkov/polymath via the `export-polymath-data` action.

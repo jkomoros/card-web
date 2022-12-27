@@ -109,6 +109,10 @@ import {
 } from '../types.js';
 
 import {
+	urlForCard
+} from './app.js';
+
+import {
 	AnyAction
 } from 'redux';
 
@@ -374,6 +378,18 @@ const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) =
 	const fileContent = examples.map(example => JSON.stringify(example)).join('\n');
 	const blob = new Blob([fileContent], {type: 'application/jsonl+json'});
 	downloadFile(blob, 'training-data-' +  timestampForFilename() +  '.jsonl');
+};
+
+const EXPORT_POLYMATH_DATA = 'export-polymath-data';
+
+const exportPolymathData : MaintenanceTaskFunction = async (_, getState) => {
+	const data = extractCardContent(getState);
+	if (data.length == 0) return;
+	const origin = window.location.origin;
+	const examples : {id : CardID, }[] = data.map(record => ({id: record.id, text: record.content, url: origin + urlForCard(record.id)}));
+	const fileContent = JSON.stringify({chunks: examples}, null, '\t');
+	const blob = new Blob([fileContent], {type: 'application/json'});
+	downloadFile(blob, 'polymath-export-' +  timestampForFilename() +  '.json');
 };
 
 const CONVERT_MULTI_LINKS_DELIMITER = 'convert-multi-links-delimiter';
@@ -711,6 +727,11 @@ const RAW_TASKS : {[id : MaintenanceTaskID]: RawMaintenanceTaskDefinition} = {
 	},
 	[EXPORT_FINE_TUNING_EXAMPLES]: {
 		fn: exportFineTuningExamples,
+		recurring: true,
+		minVersion: 0
+	},
+	[EXPORT_POLYMATH_DATA]: {
+		fn: exportPolymathData,
 		recurring: true,
 		minVersion: 0
 	},
