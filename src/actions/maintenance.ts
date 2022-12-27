@@ -337,14 +337,16 @@ const PROMPT_END = '\n#END#';
 //The limit is 2048 tokens. There are more tokens than words; this is a conservative limit.
 const TRAINING_CONTENT_CUTOFF = 1500;
 
-const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) => {
+type ExtractedCardContent =  {id: CardID, words: string, content: string}[];
+
+const extractCardContent = (getState : AppGetState) : ExtractedCardContent => {
 	const state = getState();
 	const cards = selectCards(state);
-	const result : {id: CardID, words: string, content: string}[] = [];
+	const result : ExtractedCardContent = [];
 	const div = document.createElement('div');
 	const generator = selectFingerprintGenerator(state);
 	const fullyLoaded = selectCardsLoaded(state);
-	if (!fullyLoaded && confirm('Unpublished cards arent loaded yet. Hit cancel to continue anyway or OK to exit and wait.')) return;
+	if (!fullyLoaded && confirm('Unpublished cards arent loaded yet. Hit cancel to continue anyway or OK to exit and wait.')) return[];
 	for (const card of Object.values(cards)) {
 		if (card.card_type != 'working-notes' && card.card_type != 'content') continue;
 		const fingerprint = generator.fingerprintForCardID(card.id);
@@ -362,6 +364,12 @@ const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) =
 		}
 		result.push({id: card.id, words: trimmedWords, content: content});
 	}
+	return result;
+};
+
+const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) => {
+	const result = extractCardContent(getState);
+	if (result.length == 0) return;
 	const examples : {id : CardID, prompt: string, completion: string}[] = result.map(record => ({id: record.id, prompt: record.words + PROMPT_START, completion: ' ' + record.content + PROMPT_END}));
 	const fileContent = examples.map(example => JSON.stringify(example)).join('\n');
 	const blob = new Blob([fileContent], {type: 'application/jsonl+json'});
