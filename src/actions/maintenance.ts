@@ -341,7 +341,7 @@ const PROMPT_END = '\n#END#';
 //The limit is 2048 tokens. There are more tokens than words; this is a conservative limit.
 const TRAINING_CONTENT_CUTOFF = 1500;
 
-type ExtractedCardContent =  {id: CardID, words: string, content: string}[];
+type ExtractedCardContent =  {id: CardID, words: string, content: string, title: string}[];
 
 const extractCardContent = (getState : AppGetState) : ExtractedCardContent => {
 	const state = getState();
@@ -366,7 +366,7 @@ const extractCardContent = (getState : AppGetState) : ExtractedCardContent => {
 			console.warn('Skipping one very long row starting with: ' + content.split(' ').slice(0, 50).join(' '));
 			continue;
 		}
-		result.push({id: card.id, words: trimmedWords, content: content});
+		result.push({id: card.id, words: trimmedWords, content: content, title: card.title || ''});
 	}
 	return result;
 };
@@ -386,7 +386,7 @@ const exportPolymathData : MaintenanceTaskFunction = async (_, getState) => {
 	const data = extractCardContent(getState);
 	if (data.length == 0) return;
 	const origin = window.location.origin;
-	const examples : {id : CardID, }[] = data.map(record => ({id: record.id, text: record.content, url: origin + urlForCard(record.id)}));
+	const examples : {id : CardID, }[] = data.map(record => ({id: record.id, text: record.content, url: origin + urlForCard(record.id), title: record.title}));
 	const fileContent = JSON.stringify({chunks: examples}, null, '\t');
 	const blob = new Blob([fileContent], {type: 'application/json'});
 	downloadFile(blob, 'polymath-export-' +  timestampForFilename() +  '.json');
