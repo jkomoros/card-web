@@ -386,7 +386,8 @@ const exportPolymathData : MaintenanceTaskFunction = async (_, getState) => {
 	const data = extractCardContent(getState);
 	if (data.length == 0) return;
 	const origin = window.location.origin;
-	const examples : {id : CardID, }[] = data.map(record => ({id: record.id, text: record.content, url: origin + urlForCard(record.id), title: record.title}));
+	const image = origin + '/images/android-chrome-512x512.png';
+	const examples = data.map(record => ({id: record.id, text: record.content, url: origin + urlForCard(record.id), title: record.title, description: record.content, image_url:image}));
 	const fileContent = JSON.stringify({chunks: examples}, null, '\t');
 	const blob = new Blob([fileContent], {type: 'application/json'});
 	downloadFile(blob, 'polymath-export-' +  timestampForFilename() +  '.json');
