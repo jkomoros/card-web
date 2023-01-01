@@ -343,7 +343,7 @@ const TRAINING_CONTENT_CUTOFF = 1500;
 
 type ExtractedCardContent =  {id: CardID, words: string, content: string, title: string}[];
 
-const extractCardContent = (getState : AppGetState) : ExtractedCardContent => {
+const extractCardContent = (getState : AppGetState, filter : (card : Card) => boolean = () => true) : ExtractedCardContent => {
 	const state = getState();
 	const cards = selectCards(state);
 	const result : ExtractedCardContent = [];
@@ -353,6 +353,7 @@ const extractCardContent = (getState : AppGetState) : ExtractedCardContent => {
 	if (!fullyLoaded && confirm('Unpublished cards arent loaded yet. Hit cancel to continue anyway or OK to exit and wait.')) return[];
 	for (const card of Object.values(cards)) {
 		if (card.card_type != 'working-notes' && card.card_type != 'content') continue;
+		if (!filter(card)) continue;
 		const fingerprint = generator.fingerprintForCardID(card.id);
 		const words = fingerprint.dedupedPrettyItemsFromCard();
 		const wordCount = Math.floor(Math.random() * (PROMPT_WORD_COUNT_MAX - PROMPT_WORD_COUNT_MIN + 1)) + PROMPT_WORD_COUNT_MIN;
