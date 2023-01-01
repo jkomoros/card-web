@@ -384,7 +384,9 @@ const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) =
 const EXPORT_POLYMATH_DATA = 'export-polymath-data';
 
 const exportPolymathData : MaintenanceTaskFunction = async (_, getState) => {
-	const data = extractCardContent(getState);
+	const includeUnpublished = confirm('Include unpublished cards? OK for yes, Cancel for no.');
+	const filter = (card : Card) => card.published ? true : includeUnpublished;
+	const data = extractCardContent(getState, filter);
 	if (data.length == 0) return;
 	const origin = prompt('What is the origin?', window.location.origin);
 	if (!origin) return;
