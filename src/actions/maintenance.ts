@@ -386,7 +386,8 @@ const EXPORT_POLYMATH_DATA = 'export-polymath-data';
 const exportPolymathData : MaintenanceTaskFunction = async (_, getState) => {
 	const data = extractCardContent(getState);
 	if (data.length == 0) return;
-	const origin = window.location.origin;
+	const origin = prompt('What is the origin?', window.location.origin);
+	if (!origin) return;
 	const image = origin + '/images/android-chrome-512x512.png';
 	const examples = Object.fromEntries(data.map(record => [record.id, {text: record.content, info: {url: origin + urlForCard(record.id), title: record.title, description: record.content.split('\n').join(' ').split(' ').slice(0, 25).join(' '), image_url:image}}]));
 	const fileContent = JSON.stringify({content: examples}, null, '\t');
