@@ -385,7 +385,12 @@ const EXPORT_POLYMATH_DATA = 'export-polymath-data';
 
 const exportPolymathData : MaintenanceTaskFunction = async (_, getState) => {
 	const includeUnpublished = confirm('Include unpublished cards? OK for yes, Cancel for no.');
-	const origin = prompt('What is the origin?', window.location.origin);
+	let origin = window.location.origin;
+	if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+		origin = prompt('What is the origin?', origin);
+	}
+	if (!origin.includes('https://') && !origin.includes('http://')) return;
+	if (origin.endsWith('/')) return;
 	if (!origin) return;
 	const filter = (card : Card) => card.published ? true : includeUnpublished;
 	const data = extractCardContent(getState, filter);
