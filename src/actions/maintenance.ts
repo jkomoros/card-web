@@ -394,7 +394,8 @@ const exportPolymathData : MaintenanceTaskFunction = async (_, getState) => {
 	const examples = Object.fromEntries(data.map(record => [record.id, {text: record.content, info: {url: origin + urlForCard(record.id), title: record.title, description: record.content.split('\n').join(' ').split(' ').slice(0, 25).join(' '), image_url:image}}]));
 	const fileContent = JSON.stringify({content: examples}, null, '\t');
 	const blob = new Blob([fileContent], {type: 'application/json'});
-	downloadFile(blob, 'polymath-export-' +  timestampForFilename() +  '.json');
+	const sanitized_origin = origin.split('http://').join('https://').split('https://').join('').split('.').join('_').split(':').join('_');
+	downloadFile(blob, 'card-web-' + sanitized_origin +  '.json');
 };
 
 const CONVERT_MULTI_LINKS_DELIMITER = 'convert-multi-links-delimiter';
