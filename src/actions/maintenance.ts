@@ -384,7 +384,7 @@ const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) =
 const EXPORT_POLYMATH_DATA = 'export-polymath-data';
 
 const exportPolymathData : MaintenanceTaskFunction = async (_, getState) => {
-	const includePublished = confirm('Includ PUBLISHED cards? OK for yes, cancel for no');
+	const includePublished = confirm('Include PUBLISHED cards? OK for yes, cancel for no');
 	const includeUnpublished = confirm('Include UNpublished cards? OK for yes, Cancel for no.');
 	if (!includePublished && !includeUnpublished) return;
 	let origin = window.location.origin;
@@ -402,7 +402,7 @@ const exportPolymathData : MaintenanceTaskFunction = async (_, getState) => {
 	const fileContent = JSON.stringify({content: examples}, null, '\t');
 	const blob = new Blob([fileContent], {type: 'application/json'});
 	const sanitized_origin = origin.split('http://').join('https://').split('https://').join('').split('.').join('-').split(':').join('-');
-	const suffix = includeUnpublished ? (includePublished ? '-unpublished' : '-full') : '-published';
+	const suffix = includeUnpublished ? (includePublished ? '-full' : '-unpublished') : '-published';
 	downloadFile(blob, 'card-web-export-' + sanitized_origin + suffix + '.json');
 };
 
