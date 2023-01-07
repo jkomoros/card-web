@@ -384,7 +384,9 @@ const exportFineTuningExamples : MaintenanceTaskFunction = async (_, getState) =
 const EXPORT_POLYMATH_DATA = 'export-polymath-data';
 
 const exportPolymathData : MaintenanceTaskFunction = async (_, getState) => {
-	const includeUnpublished = confirm('Include unpublished cards? OK for yes, Cancel for no.');
+	const includePublished = confirm('Includ PUBLISHED cards? OK for yes, cancel for no');
+	const includeUnpublished = confirm('Include UNpublished cards? OK for yes, Cancel for no.');
+	if (!includePublished && !includeUnpublished) return;
 	let origin = window.location.origin;
 	if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
 		origin = prompt('What is the origin?', origin);
@@ -392,7 +394,7 @@ const exportPolymathData : MaintenanceTaskFunction = async (_, getState) => {
 	if (!origin.includes('https://') && !origin.includes('http://')) return;
 	if (origin.endsWith('/')) return;
 	if (!origin) return;
-	const filter = (card : Card) => card.published ? true : includeUnpublished;
+	const filter = (card : Card) => card.published ? includePublished : includeUnpublished;
 	const data = extractCardContent(getState, filter);
 	if (data.length == 0) return;
 	const image = origin + '/images/android-chrome-512x512.png';
@@ -400,7 +402,7 @@ const exportPolymathData : MaintenanceTaskFunction = async (_, getState) => {
 	const fileContent = JSON.stringify({content: examples}, null, '\t');
 	const blob = new Blob([fileContent], {type: 'application/json'});
 	const sanitized_origin = origin.split('http://').join('https://').split('https://').join('').split('.').join('-').split(':').join('-');
-	const suffix = includeUnpublished ? '-full' : '-published';
+	const suffix = includeUnpublished ? (includePublished ? '-unpublished' : '-full') : '-published';
 	downloadFile(blob, 'card-web-export-' + sanitized_origin + suffix + '.json');
 };
 
