@@ -1,15 +1,18 @@
-const admin = require('firebase-admin');
-admin.initializeApp();
+const { initializeApp } = require('firebase-admin/app');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getAuth } = require('firebase-admin/auth');
+const { getStorage } = require('firebase-admin/storage');
+
+initializeApp();
 
 const functions = require('firebase-functions');
 const fromEntries = require('fromentries');
 
 //We use this so often we might as well make it more common
-const FieldValue = admin.firestore.FieldValue;
-const db = admin.firestore();
-const auth = admin.auth();
+const db = getFirestore();
+const auth = getAuth();
 const config = functions.config();
-const storage = admin.storage();
+const storage = getStorage();
 
 const PROJECT_NAME = process.env.GCLOUD_PROJECT.toLowerCase();
 
@@ -76,7 +79,6 @@ const prettyCardURL = (card) => {
 	return 'https://' + DOMAIN + '/' +  PAGE_DEFAULT + '/' + card.name;
 };
 
-exports.admin = admin;
 exports.FieldValue = FieldValue;
 exports.db = db;
 exports.auth = auth;
