@@ -204,6 +204,12 @@ If your firebase project name starts with `dev-` or ends with `-dev` then it
 will update the db and pretend like it tweeted, but not actually post anything
 to twitter.
 
+If you want to configure a twitter handle but disable it from tweeting or
+fetching tweet engagement (e.g. you don't want to pay the egregious monthly fee
+to use the Twitter API), add a `disable_twitter` key and set it to true. If you
+had already deployed, then you will need to delete the `autoTweet` and
+`fetchTweetEngagement` cloud functions.
+
 To send a tweet outside of the normal schedule, load up the Firebase functions console, tap the three dots next to the autoTweet function, choose View in Cloud Scheduler, and hit 'Run Now'.
 
 ## Config file keys

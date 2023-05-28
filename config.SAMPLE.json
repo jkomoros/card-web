@@ -11,6 +11,7 @@
 		"messagingSenderId": "NUMBER"
 	},
 	"twitter_handle": "CHANGE-ME",
+	"disable_twitter": false,
 	"backup_bucket_name": "CHANGE-ME",
 	"permissions" : {
 		"all" : {

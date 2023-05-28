@@ -32,6 +32,8 @@ const APP_DESCRIPTION = projectConfig.app_description || APP_TITLE;
 const GOOGLE_ANALYTICS = projectConfig.google_analytics && projectConfig.google_analytics != CHANGE_ME_SENTINEL ? projectConfig.google_analytics : 'UA-321674-11';
 
 const TWITTER_HANDLE = projectConfig.twitter_handle && projectConfig.twitter_handle != CHANGE_ME_SENTINEL ? projectConfig.twitter_handle : '';
+const DISABLE_TWITTER = projectConfig.disable_twitter || false;
+const ENABLE_TWITTER = TWITTER_HANDLE && !DISABLE_TWITTER;
 
 const DO_TAG_RELEASES = projectConfig.tag_releases || false;
 
@@ -269,7 +271,7 @@ gulp.task(GCLOUD_ENSURE_DEV_TASK, (cb) => {
 
 gulp.task(BUILD_TASK, makeExecutor('npm run build'));
 
-gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(TWITTER_HANDLE ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal'));
+gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(ENABLE_TWITTER ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal'));
 
 gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, makeExecutor('firebase functions:config:set site.last_deploy_affecting_rendering=' + RELEASE_TAG));
 
