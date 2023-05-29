@@ -58,6 +58,10 @@ import {
 	TypedObject
 } from './typed_object.js';
 
+import {
+	normalizeLineBreaks,
+} from './contenteditable.js';
+
 //define this here and then re-export form app.js so this file doesn't need any
 //other imports.
 export const _PAGE_BASIC_CARD = 'basic-card';
@@ -206,6 +210,18 @@ export const cardHasTodo = (card : Card) => {
 	if (!card) return false;
 	const content = card.todo ? card.todo.trim() : '';
 	return content ? true : false;
+};
+
+export const innerTextForHTML = (body : string) : string => {
+	//This shouldn't be an XSS vulnerability even though body is supplied by
+	//users and thus untrusted, because the temporary element is never actually
+	//appended into the DOM
+	const ele = getDocument().createElement('section');
+	// makes sure line breaks are in the right place after each legal block level element
+	body = normalizeLineBreaks(body);
+	ele.innerHTML = body;
+	//textContent would return things like style and script contents, but those shouldn't be included anyway.
+	return ele.textContent;
 };
 
 export const cardPlainContent = (card : Card) : string => {
