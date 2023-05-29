@@ -150,6 +150,10 @@ import {
 	reorderCard
 } from '../actions/data.js';
 
+import {
+	startAIAssistant
+} from '../actions/ai.js';
+
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
 
@@ -511,7 +515,7 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	_handleAIAssistantClicked() {
-		alert('Not yet implemented');
+		store.dispatch(startAIAssistant());
 	}
 
 	_handleSuggestMissingConceptsChanged(e : Event) {
