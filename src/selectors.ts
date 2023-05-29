@@ -117,7 +117,8 @@ import {
 import {
 	USER_DOMAIN,
 	TAB_CONFIGURATION,
-	TAB_OVERRIDES_CONFIGURATION
+	TAB_OVERRIDES_CONFIGURATION,
+	OPENAI_ENABLED
 } from './config.GENERATED.SECRET.js';
 
 import {
@@ -488,6 +489,12 @@ export const selectUid = createSelector(
 export const selectUserIsAdmin = createSelector(
 	selectComposedPermissions,
 	(permissions) => permissions[PERMISSION_ADMIN]
+);
+
+export const selectUserMayUseAI = createSelector(
+	selectUserIsAdmin,
+	//TODO: also support a PERMISSION_USE_AI
+	(admin) => OPENAI_ENABLED && admin
 );
 
 export const selectUserMayEdit = createSelector(
