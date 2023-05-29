@@ -122,7 +122,12 @@ export const slugLegal = async (newSlug : Slug) : Promise<LegalResult>  => {
 };
 
 export const openaiRemote = async () : Promise<null> => {
-	await openaiCallable();
+	//TODO: factor this out into ai.ts
+	//TODO: allow passing an endpoint and payload type of the right shape (a keyed union)
+	await openaiCallable({
+		endpoint: 'createCompletion',
+		payload: {}
+	});
 	return null;
 };
 
