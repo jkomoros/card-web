@@ -95,7 +95,6 @@ export const PERMISSIONS_COLLECTION = 'permissions';
 export const TWEETS_COLLECTION = 'tweets';
 
 const legalCallable = httpsCallable(functions, 'legal');
-const openaiCallable = httpsCallable(functions, 'openai');
 
 type LegalResult = {
 	legal : boolean,
@@ -119,16 +118,6 @@ export const slugLegal = async (newSlug : Slug) : Promise<LegalResult>  => {
 
 	const result = await legalCallable({type:'slug', value:newSlug});
 	return result.data as LegalResult;
-};
-
-export const openaiRemote = async () : Promise<null> => {
-	//TODO: factor this out into ai.ts
-	//TODO: allow passing an endpoint and payload type of the right shape (a keyed union)
-	await openaiCallable({
-		endpoint: 'createCompletion',
-		payload: {}
-	});
-	return null;
 };
 
 const warmupSlugLegal = (force = false) : void => {

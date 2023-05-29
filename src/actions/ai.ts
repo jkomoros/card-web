@@ -1,10 +1,25 @@
 import {
 	AppActionCreator
-} from '../store';
+} from '../store.js';
 
 import {
-	openaiRemote
-} from './database';
+	httpsCallable
+} from 'firebase/functions';
+
+import {
+	functions
+} from '../firebase.js';
+
+const openaiCallable = httpsCallable(functions, 'openai');
+
+const openaiRemote = async () : Promise<null> => {
+	//TODO: allow passing an endpoint and payload type of the right shape (a keyed union)
+	await openaiCallable({
+		endpoint: 'createCompletion',
+		payload: {}
+	});
+	return null;
+};
 
 export const startAIAssistant : AppActionCreator = () => async () => {
 	console.log('Starting AI Assistant. If this is the first time it can take awhile...');
