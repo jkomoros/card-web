@@ -98,7 +98,7 @@ const completion = async (prompt: string, uid: Uid, useChat = false) : Promise<s
 	return result.choices[0].text;
 };
 
-const USE_CHAT = false;
+const USE_CHAT = true;
 
 const cardsAISummary = async (cards : Card[], uid : Uid) : Promise<string> => {
 	const content = cards.map(card => cardPlainContent(card)).filter(content => content).join(CARD_SEPARATOR);
