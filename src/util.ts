@@ -230,7 +230,7 @@ export const cardPlainContent = (card : Card) : string => {
 		const fieldConfiguration = TEXT_FIELD_CONFIGURATION[field];
 		const content = fieldConfiguration.html ? innerTextForHTML(rawContent) : rawContent;
 		if (!content) continue;
-		result.push(content);
+		result.push(content.trim());
 	}
 	return result.join('\n');
 };
