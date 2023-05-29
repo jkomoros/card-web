@@ -55,7 +55,10 @@ const handler = async (data, context) => {
     }
 
     //TODO: if it throws an error with a code, is it possible to pass that along directly?
-    return openai[data.endpoint](data.payload);
+    const result = await openai[data.endpoint](data.payload);
+
+    //TODO: pass more JSON-able properties back
+    return result.data;
 };
 
 exports.handler = handler;
