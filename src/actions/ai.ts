@@ -25,7 +25,8 @@ import {
 } from '../util.js';
 
 import {
-	Card
+	Card,
+	Uid
 } from '../types.js';
 
 const openaiCallable = httpsCallable(functions, 'openai');
@@ -59,31 +60,32 @@ const openai = new OpenAIProxy();
 
 const CARD_SEPARATOR = '\n-----\n';
 
-const cardsAISummary = async (cards : Card[]) : Promise<string> => {
+const cardsAISummary = async (cards : Card[], uid : Uid) : Promise<string> => {
 	const content = cards.map(card => cardPlainContent(card)).filter(content => content).join(CARD_SEPARATOR);
-	//TODO: actually do something
-	console.log(content);
-	return content;
+	const promptPreamble = 'Here is a collection of cards, separated by ' + CARD_SEPARATOR + '. Create a succinct but comprehensive summary of all cards that is no longer than 8 sentences. The summary should combine similar insights but keep distinctive insights where possible.\n\nCards:\n';
+
+	//TODO: smarter clipping and clip at card boundaries.
+	const clippedContent = content.slice(0, 2000);
+
+	const prompt = promptPreamble + clippedContent + CARD_SEPARATOR + 'Summary:\n';
+
+	console.log('Asking AI assistant. Depending on how recently you ran it this might take some time to warmup.');
+
+	console.log('Prompt\n',prompt);
+
+	const result = await openai.createCompletion({
+		model: 'text-davinci-003',
+		prompt: prompt + clippedContent,
+		max_tokens: 2048,
+		user: uid
+	});
+
+	return result.choices[0].text;
 };
 
 export const startAIAssistant : AppActionCreator = () => async (_, getState) => {
 	const state = getState();
 	const uid = selectUid(state);
 	const cards = selectActiveCollectionCards(state);
-	//TODO: use the result;
-	await cardsAISummary(cards);
-	console.log('Starting AI Assistant. If this is the first time it can take awhile...');
-	let result = null;
-	try {
-		result = await openai.createCompletion({
-			model: 'text-davinci-003',
-			prompt: 'Generate a clever but also strategic limerick about doorbells in the jungle',
-			max_tokens: 2048,
-			user: uid
-		});
-	} catch(err) {
-		console.warn('Error:', err);
-		return;
-	}
-	console.log(result);
+	console.log(await cardsAISummary(cards, uid));
 };
