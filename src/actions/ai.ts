@@ -50,7 +50,8 @@ export const startAIAssistant : AppActionCreator = () => async () => {
 	try {
 		//TODO: fix the error from hitting the endpoint (500)
 		result = await openai.createCompletion({
-			model: 'text-davinci-003'
+			model: 'text-davinci-003',
+			prompt: 'Generate a clever but also strategic limerick about doorbells in the jungle'
 		});
 	} catch(err) {
 		console.warn('Error:', err);
