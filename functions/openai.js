@@ -1,8 +1,14 @@
 const functions = require('firebase-functions');
 const common = require('./common.js');
+const { Configuration, OpenAIApi } = require("openai");
 
 const openaiConfig = common.config.openai || null;
 const openai_api_key = openaiConfig ? (openaiConfig.api_key || '') : '';
+
+const configuration = new Configuration({
+  apiKey: openai_api_key,
+});
+const openai = new OpenAIApi(configuration);
 
 const mayUseAI = (permissions) => {
     if (!permissions) return false;
@@ -11,7 +17,12 @@ const mayUseAI = (permissions) => {
     return false;
 }
 
-const handler = async (_, context) => {
+const ALLOWED_ENDPOINTS = {
+    'createCompletion': true
+};
+
+//data should have endpoint and payload
+const handler = async (data, context) => {
 
     if (!openai_api_key) {
         throw new functions.https.HttpsError('failed-precondition', 'OPENAI_API_KEY not set');
@@ -27,9 +38,23 @@ const handler = async (_, context) => {
         throw new functions.https.HttpsError('permission-denied', 'The user does not have adequate permissions to perrform this action');
     }
 
-    //TODO: Take the provided openai API request, inject the secret key, and proxy results.
-    
-    throw new functions.https.HttpsError('unimplemented', 'Not yet implemented');
+    if (!data || typeof data !== "object") {
+        throw new functions.https.HttpsError('invalid-argument', 'data must be an object');
+    }
+
+    if (!data.endpoint) {
+        throw new functions.https.HttpsError('invalid-argument', 'endpoint must be provided');
+    }
+
+    if (!data.payload) {
+        throw new functions.https.HttpsError('invalid-argument', 'payload must be provided');
+    }
+
+    if (!ALLOWED_ENDPOINTS[data.endpoint]) {
+        throw new functions.https.HttpsError('invalid-argument', 'endpoint must be set to an allowed endpoint type');
+    }
+
+    return openai[data.endpoint](data.payload);
 };
 
 exports.handler = handler;
