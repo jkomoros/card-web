@@ -235,6 +235,7 @@ export const cardPlainContent = (card : Card) : string => {
 		const rawContent = card[field];
 		const fieldConfiguration = TEXT_FIELD_CONFIGURATION[field];
 		const content = fieldConfiguration.html ? innerTextForHTML(rawContent) : rawContent;
+		if (!content) continue;
 		result.push(content);
 	}
 	return result.join('\n');
