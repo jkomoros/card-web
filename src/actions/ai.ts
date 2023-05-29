@@ -3,6 +3,7 @@ import {
 } from '../store.js';
 
 import {
+	HttpsCallableResult,
 	httpsCallable
 } from 'firebase/functions';
 
@@ -23,20 +24,30 @@ type OpenAIRemoteCallCreateCompletion = {
 
 type OpenAIRemoteCall = OpenAIRemoteCallCreateCompletion;
 
-const openaiRemoteBridge = async (data : OpenAIRemoteCall) : Promise<null> => {
-	await openaiCallable(data);
-	return null;
-};
+
+class OpenAIProxy {
+	createCompletion(request : CreateCompletionRequest) {
+		return this._bridge({
+			endpoint: 'createCompletion',
+			payload: request
+		});
+	}
+
+	_bridge(data: OpenAIRemoteCall): Promise<HttpsCallableResult<unknown>> {
+		//TODO: unwrap the HTTPSCallableResult before returning
+		return openaiCallable(data);
+	}
+}
+
+const openai = new OpenAIProxy();
 
 export const startAIAssistant : AppActionCreator = () => async () => {
 	console.log('Starting AI Assistant. If this is the first time it can take awhile...');
 	let result = null;
 	try {
-		result = await openaiRemoteBridge({
-			endpoint: 'createCompletion',
-			payload: {
-				model: 'text-davinci-003'
-			}
+		//TODO: fix the error from hitting the endpoint (500)
+		result = await openai.createCompletion({
+			model: 'text-davinci-003'
 		});
 	} catch(err) {
 		console.warn('Error:', err);
