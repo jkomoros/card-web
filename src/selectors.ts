@@ -369,7 +369,7 @@ export const selectCards : (state : State) => ProcessedCards = createZippedObjec
 	(cardAndFallbackMap, concepts, synonyms) => cardWithNormalizedTextProperties(cardAndFallbackMap[0], cardAndFallbackMap[1], concepts, synonyms)
 );
 
-const selectCardsSnapshot = createZippedObjectSelector(
+const selectCardsSnapshot : (state : State) => ProcessedCards = createZippedObjectSelector(
 	selectSnapshotZippedCardAndFallbackMap,
 	selectConcepts,
 	selectSynonymMap,
