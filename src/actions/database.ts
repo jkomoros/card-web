@@ -95,6 +95,7 @@ export const PERMISSIONS_COLLECTION = 'permissions';
 export const TWEETS_COLLECTION = 'tweets';
 
 const legalCallable = httpsCallable(functions, 'legal');
+const openaiCallable = httpsCallable(functions, 'openai');
 
 type LegalResult = {
 	legal : boolean,
@@ -118,6 +119,11 @@ export const slugLegal = async (newSlug : Slug) : Promise<LegalResult>  => {
 
 	const result = await legalCallable({type:'slug', value:newSlug});
 	return result.data as LegalResult;
+};
+
+export const openaiRemote = async () : Promise<null> => {
+	await openaiCallable();
+	return null;
 };
 
 const warmupSlugLegal = (force = false) : void => {
