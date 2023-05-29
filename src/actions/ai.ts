@@ -62,10 +62,10 @@ const CARD_SEPARATOR = '\n-----\n';
 
 const cardsAISummary = async (cards : Card[], uid : Uid) : Promise<string> => {
 	const content = cards.map(card => cardPlainContent(card)).filter(content => content).join(CARD_SEPARATOR);
-	const promptPreamble = 'Here is a collection of cards, separated by ' + CARD_SEPARATOR + '. Create a succinct but comprehensive summary of all cards that is no longer than 8 sentences. The summary should combine similar insights but keep distinctive insights where possible.\n\nCards:\n';
+	const promptPreamble = 'Below is a collection of cards. Create a succinct but comprehensive summary of all cards that is no longer than 8 sentences. The summary should combine similar insights but keep distinctive insights where possible.\n\nCards:\n';
 
 	//TODO: smarter clipping and clip at card boundaries.
-	const clippedContent = content.slice(0, 2000);
+	const clippedContent = content.slice(0, 4000);
 
 	const prompt = promptPreamble + clippedContent + CARD_SEPARATOR + 'Summary:\n';
 
