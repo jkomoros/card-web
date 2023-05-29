@@ -16,8 +16,17 @@ import {
 } from 'openai';
 
 import {
+	selectActiveCollectionCards,
 	selectUid
 } from '../selectors.js';
+
+import {
+	cardPlainContent
+} from '../util.js';
+
+import {
+	Card
+} from '../types.js';
 
 const openaiCallable = httpsCallable(functions, 'openai');
 
@@ -48,9 +57,21 @@ class OpenAIProxy {
 
 const openai = new OpenAIProxy();
 
+const CARD_SEPARATOR = '\n-----\n';
+
+const cardsAISummary = async (cards : Card[]) : Promise<string> => {
+	const content = cards.map(card => cardPlainContent(card)).filter(content => content).join(CARD_SEPARATOR);
+	//TODO: actually do something
+	console.log(content);
+	return content;
+};
+
 export const startAIAssistant : AppActionCreator = () => async (_, getState) => {
 	const state = getState();
 	const uid = selectUid(state);
+	const cards = selectActiveCollectionCards(state);
+	//TODO: use the result;
+	await cardsAISummary(cards);
 	console.log('Starting AI Assistant. If this is the first time it can take awhile...');
 	let result = null;
 	try {
