@@ -3,7 +3,6 @@ import {
 } from '../store.js';
 
 import {
-	HttpsCallableResult,
 	httpsCallable
 } from 'firebase/functions';
 
@@ -12,7 +11,8 @@ import {
 } from '../firebase.js';
 
 import {
-	CreateCompletionRequest
+	CreateCompletionRequest,
+	CreateCompletionResponse
 } from 'openai';
 
 const openaiCallable = httpsCallable(functions, 'openai');
@@ -24,18 +24,21 @@ type OpenAIRemoteCallCreateCompletion = {
 
 type OpenAIRemoteCall = OpenAIRemoteCallCreateCompletion;
 
+type OpenAIRemoteResult = CreateCompletionResponse;
+
 
 class OpenAIProxy {
-	createCompletion(request : CreateCompletionRequest) {
+	createCompletion(request : CreateCompletionRequest) : Promise<CreateCompletionResponse> {
 		return this._bridge({
 			endpoint: 'createCompletion',
 			payload: request
 		});
 	}
 
-	_bridge(data: OpenAIRemoteCall): Promise<HttpsCallableResult<unknown>> {
-		//TODO: unwrap the HTTPSCallableResult before returning
-		return openaiCallable(data);
+	async _bridge(data: OpenAIRemoteCall): Promise<OpenAIRemoteResult> {
+		const result = await openaiCallable(data);
+		//TODO: what if it's an error?
+		return result.data as OpenAIRemoteResult;
 	}
 }
 
