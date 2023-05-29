@@ -22,7 +22,8 @@ import {
 	BODY_CARD_TYPES,
 	LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE,
 	IMAGE_CARD_TYPES,
-	getCardTitleForBackporting
+	getCardTitleForBackporting,
+	TEXT_FIELD_CONFIGURATION
 } from './card_fields.js';
 
 import {
@@ -231,7 +232,10 @@ export const cardPlainContent = (card : Card) : string => {
 	for (const field of TypedObject.keys(TEXT_FIELD_TYPES_EDITABLE)) {
 		//Skip derived fields
 		if (DERIVED_FIELDS_FOR_CARD_TYPE[cardType][field]) continue;
-		result.push(card[field]);
+		const rawContent = card[field];
+		const fieldConfiguration = TEXT_FIELD_CONFIGURATION[field];
+		const content = fieldConfiguration.html ? innerTextForHTML(rawContent) : rawContent;
+		result.push(content);
 	}
 	return result.join('\n');
 };
