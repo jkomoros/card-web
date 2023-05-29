@@ -10,14 +10,21 @@ import {
 	functions
 } from '../firebase.js';
 
+import {
+	CreateCompletionRequest
+} from 'openai';
+
 const openaiCallable = httpsCallable(functions, 'openai');
 
-const openaiRemote = async () : Promise<null> => {
-	//TODO: allow passing an endpoint and payload type of the right shape (a keyed union)
-	await openaiCallable({
-		endpoint: 'createCompletion',
-		payload: {}
-	});
+type OpenAIRemoteCallCreateCompletion = {
+	endpoint: 'createCompletion',
+	payload: CreateCompletionRequest
+};
+
+type OpenAIRemoteCall = OpenAIRemoteCallCreateCompletion;
+
+const openaiRemoteBridge = async (data : OpenAIRemoteCall) : Promise<null> => {
+	await openaiCallable(data);
 	return null;
 };
 
@@ -25,7 +32,12 @@ export const startAIAssistant : AppActionCreator = () => async () => {
 	console.log('Starting AI Assistant. If this is the first time it can take awhile...');
 	let result = null;
 	try {
-		result = await openaiRemote();
+		result = await openaiRemoteBridge({
+			endpoint: 'createCompletion',
+			payload: {
+				model: 'text-davinci-003'
+			}
+		});
 	} catch(err) {
 		console.warn('Error:', err);
 		return;
