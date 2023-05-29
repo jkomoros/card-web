@@ -73,6 +73,33 @@ const openai = new OpenAIProxy();
 
 const CARD_SEPARATOR = '\n-----\n';
 
+const completion = async (prompt: string, uid: Uid, useChat = false) : Promise<string> => {
+	if (useChat) {
+		const result = await openai.createChatCompletion({
+			model: 'gpt-3.5-turbo',
+			messages: [
+				{
+					role: 'user',
+					content: prompt
+				}
+			],
+			//maxTokens defaults to inf
+			user: uid
+		});
+		return result.choices[0].message.content;
+	}
+	//Use normal completion API
+	const result = await openai.createCompletion({
+		model: 'text-davinci-003',
+		prompt: prompt,
+		max_tokens: 4096,
+		user: uid
+	});
+	return result.choices[0].text;
+};
+
+const USE_CHAT = false;
+
 const cardsAISummary = async (cards : Card[], uid : Uid) : Promise<string> => {
 	const content = cards.map(card => cardPlainContent(card)).filter(content => content).join(CARD_SEPARATOR);
 	const promptPreamble = 'Below is a collection of cards. Create a succinct but comprehensive summary of all cards that is no longer than 8 sentences. The summary should combine similar insights but keep distinctive insights where possible.\n\nCards:' + CARD_SEPARATOR;
@@ -86,14 +113,7 @@ const cardsAISummary = async (cards : Card[], uid : Uid) : Promise<string> => {
 
 	console.log('Prompt\n',prompt);
 
-	const result = await openai.createCompletion({
-		model: 'text-davinci-003',
-		prompt: prompt + clippedContent,
-		max_tokens: 4096,
-		user: uid
-	});
-
-	return result.choices[0].text;
+	return await completion(prompt, uid, USE_CHAT);
 };
 
 export const startAIAssistant : AppActionCreator = () => async (_, getState) => {
