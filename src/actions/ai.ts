@@ -100,14 +100,59 @@ const completion = async (prompt: string, uid: Uid, useChat = false) : Promise<s
 
 const USE_CHAT = true;
 
+type FitPromptArguments = {
+	prefix?: string,
+	delimiter?: string,
+	items?: string[],
+	suffix?: string,
+	maxTokenLength?: number
+};
+
+const DEFAULT_FIT_PROMPT : Required<FitPromptArguments> = {
+	prefix: '',
+	delimiter: CARD_SEPARATOR,
+	items: [],
+	suffix: '',
+	maxTokenLength: 4000,
+};
+
+const estimateTokenCount = (input : string | string[]) : number => {
+	if (Array.isArray(input)) {
+		return input.map(item => estimateTokenCount(item)).reduce((a, b) => a + b);
+	}
+	//TODO: figure out how to get a better token estimate
+	return input.length / 4;
+};
+
+const fitPrompt = (args: FitPromptArguments) : string => {
+	const options = {
+		...DEFAULT_FIT_PROMPT,
+		...args
+	};
+	const nonItemsTokenCount = estimateTokenCount([options.prefix, options.suffix, options.delimiter]);
+	let itemsTokenCount = 0;
+	let result = options.prefix + options.delimiter;
+	let i = 0;
+	while ((itemsTokenCount + nonItemsTokenCount) < options.maxTokenLength) {
+		if (options.items.length <= i) break;
+		const item = options.items[i];
+		itemsTokenCount += estimateTokenCount([item, options.delimiter]);
+		if ((itemsTokenCount + nonItemsTokenCount) >= options.maxTokenLength) break;
+		result += item + options.delimiter;
+		i++;
+	}
+	result += options.suffix;
+	return result;
+};
+
 const cardsAISummary = async (cards : Card[], uid : Uid) : Promise<string> => {
-	const content = cards.map(card => cardPlainContent(card)).filter(content => content).join(CARD_SEPARATOR);
-	const promptPreamble = 'Below is a collection of cards. Create a succinct but comprehensive summary of all cards that is no longer than 8 sentences. The summary should combine similar insights but keep distinctive insights where possible.\n\nCards:' + CARD_SEPARATOR;
+	const items = cards.map(card => cardPlainContent(card)).filter(content => content);
 
-	//TODO: smarter clipping and clip at card boundaries.
-	const clippedContent = content.slice(0, 6000);
-
-	const prompt = promptPreamble + clippedContent + CARD_SEPARATOR + 'Summary:\n';
+	const prompt = fitPrompt({
+		prefix: 'Below is a collection of cards. Create a succinct but comprehensive summary of all cards that is no longer than 8 sentences. The summary should combine similar insights but keep distinctive insights where possible.\n\nCards:',
+		suffix: 'Summary:\n',
+		items
+	});
 
 	console.log('Asking AI assistant. Depending on how recently you ran it this might take some time to warmup.');
 
