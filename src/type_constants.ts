@@ -27,7 +27,7 @@ export const TEXT_FIELD_TYPES_EDITABLE = {
 	[TEXT_FIELD_TITLE]: true,
 	[TEXT_FIELD_SUBTITLE]: true,
 	[TEXT_FIELD_TITLE_ALTERNATES]: true
-};
+} as const;
 
 export const TEXT_FIELD_TYPES = {
 	...TEXT_FIELD_TYPES_EDITABLE,

@@ -46,6 +46,18 @@ import {
 	Timestamp
 } from 'firebase/firestore';
 
+import {
+	TEXT_FIELD_TYPES_EDITABLE
+} from './type_constants.js';
+
+import {
+	DERIVED_FIELDS_FOR_CARD_TYPE
+} from './card_fields.js';
+
+import {
+	TypedObject
+} from './typed_object.js';
+
 //define this here and then re-export form app.js so this file doesn't need any
 //other imports.
 export const _PAGE_BASIC_CARD = 'basic-card';
@@ -194,6 +206,18 @@ export const cardHasTodo = (card : Card) => {
 	if (!card) return false;
 	const content = card.todo ? card.todo.trim() : '';
 	return content ? true : false;
+};
+
+export const cardPlainContent = (card : Card) : string => {
+	const cardType = card.card_type;
+	if (!BODY_CARD_TYPES[cardType]) return '';
+	const result : string[] = [];
+	for (const field of TypedObject.keys(TEXT_FIELD_TYPES_EDITABLE)) {
+		//Skip derived fields
+		if (DERIVED_FIELDS_FOR_CARD_TYPE[cardType][field]) continue;
+		result.push(card[field]);
+	}
+	return result.join('\n');
 };
 
 //Returns a string with the reason that the proposed card type is not legal for
