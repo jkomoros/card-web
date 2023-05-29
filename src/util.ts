@@ -218,6 +218,8 @@ export const innerTextForHTML = (body : string) : string => {
 	return ele.textContent;
 };
 
+//Extracts the user-provided title and body from the card, without HTML
+//formatting.
 export const cardPlainContent = (card : Card) : string => {
 	const cardType = card.card_type;
 	if (!BODY_CARD_TYPES[cardType]) return '';
