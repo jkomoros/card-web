@@ -54,6 +54,7 @@ const handler = async (data, context) => {
         throw new functions.https.HttpsError('invalid-argument', 'endpoint must be set to an allowed endpoint type');
     }
 
+    //TODO: if it throws an error with a code, is it possible to pass that along directly?
     return openai[data.endpoint](data.payload);
 };
 
