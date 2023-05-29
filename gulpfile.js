@@ -36,6 +36,7 @@ const DISABLE_TWITTER = projectConfig.disable_twitter || false;
 const ENABLE_TWITTER = TWITTER_HANDLE && !DISABLE_TWITTER;
 
 const OPENAI_API_KEY = projectConfig.openai_api_key || '';
+const OPENAI_ENABLED = OPENAI_API_KEY != '';
 
 const DO_TAG_RELEASES = projectConfig.tag_releases || false;
 
@@ -144,6 +145,7 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	CONFIG_JS_CONTENT += 'export const DISABLE_PERSISTENCE = ' + (DISABLE_PERSISTENCE ? 'true' : 'false') + ';\n';
 	CONFIG_JS_CONTENT += 'export const DISABLE_ANONYMOUS_LOGIN = ' + (DISABLE_ANONYMOUS_LOGIN ? 'true' : 'false') + ';\n';
 	CONFIG_JS_CONTENT += 'export const DISABLE_CALLABLE_CLOUD_FUNCTIONS = ' + (DISABLE_CALLABLE_CLOUD_FUNCTIONS ? 'true' : 'false') + ';\n';
+	CONFIG_JS_CONTENT += 'export const OPENAI_ENABLED = ' + (OPENAI_ENABLED ? 'true' : 'false') + ';\n';
 	fs.writeFileSync('src/config.GENERATED.SECRET.ts', CONFIG_JS_CONTENT);
 
 	let META_STRING = '\n    <meta name="application-name" content="' + APP_TITLE + '">\n';
