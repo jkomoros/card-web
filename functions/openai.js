@@ -18,7 +18,8 @@ const mayUseAI = (permissions) => {
 }
 
 const ALLOWED_ENDPOINTS = {
-    'createCompletion': true
+    'createCompletion': true,
+    'createChatCompletion': true
 };
 
 //data should have endpoint and payload

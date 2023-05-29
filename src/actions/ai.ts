@@ -11,6 +11,8 @@ import {
 } from '../firebase.js';
 
 import {
+	CreateChatCompletionRequest,
+	CreateChatCompletionResponse,
 	CreateCompletionRequest,
 	CreateCompletionResponse
 } from 'openai';
@@ -36,15 +38,26 @@ type OpenAIRemoteCallCreateCompletion = {
 	payload: CreateCompletionRequest
 };
 
-type OpenAIRemoteCall = OpenAIRemoteCallCreateCompletion;
+type OpenAIRemoteCallCreateChatCompletion = {
+	endpoint: 'createChatCompletion',
+	payload: CreateChatCompletionRequest
+};
 
-type OpenAIRemoteResult = CreateCompletionResponse;
+type OpenAIRemoteCall = OpenAIRemoteCallCreateCompletion | OpenAIRemoteCallCreateChatCompletion;
 
+type OpenAIRemoteResult = CreateCompletionResponse | CreateChatCompletionResponse;
 
 class OpenAIProxy {
 	createCompletion(request : CreateCompletionRequest) : Promise<CreateCompletionResponse> {
 		return this._bridge({
 			endpoint: 'createCompletion',
+			payload: request
+		});
+	}
+
+	createChatCompletion(request: CreateChatCompletionRequest): Promise<CreateChatCompletionResponse> {
+		return this._bridge({
+			endpoint: 'createChatCompletion',
 			payload: request
 		});
 	}
