@@ -29,6 +29,7 @@ import {
 import {
 	TEXT_FIELD_BODY,
 	CARD_TYPE_CONTENT,
+	TEXT_FIELD_TITLE,
 } from './type_constants.js';
 
 import {
@@ -48,16 +49,8 @@ import {
 } from 'firebase/firestore';
 
 import {
-	TEXT_FIELD_TYPES_EDITABLE
-} from './type_constants.js';
-
-import {
 	DERIVED_FIELDS_FOR_CARD_TYPE
 } from './card_fields.js';
-
-import {
-	TypedObject
-} from './typed_object.js';
 
 import {
 	normalizeLineBreaks,
@@ -229,7 +222,8 @@ export const cardPlainContent = (card : Card) : string => {
 	const cardType = card.card_type;
 	if (!BODY_CARD_TYPES[cardType]) return '';
 	const result : string[] = [];
-	for (const field of TypedObject.keys(TEXT_FIELD_TYPES_EDITABLE)) {
+	const fieldsInOrder = [TEXT_FIELD_TITLE, TEXT_FIELD_BODY] as const;
+	for (const field of fieldsInOrder) {
 		//Skip derived fields
 		if (DERIVED_FIELDS_FOR_CARD_TYPE[cardType][field]) continue;
 		const rawContent = card[field];
