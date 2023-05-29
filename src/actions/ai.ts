@@ -15,6 +15,10 @@ import {
 	CreateCompletionResponse
 } from 'openai';
 
+import {
+	selectUid
+} from '../selectors.js';
+
 const openaiCallable = httpsCallable(functions, 'openai');
 
 type OpenAIRemoteCallCreateCompletion = {
@@ -44,18 +48,22 @@ class OpenAIProxy {
 
 const openai = new OpenAIProxy();
 
-export const startAIAssistant : AppActionCreator = () => async () => {
+export const startAIAssistant : AppActionCreator = () => async (_, getState) => {
+	const state = getState();
+	const uid = selectUid(state);
 	console.log('Starting AI Assistant. If this is the first time it can take awhile...');
 	let result = null;
 	try {
 		//TODO: fix the error from hitting the endpoint (500)
 		result = await openai.createCompletion({
 			model: 'text-davinci-003',
-			prompt: 'Generate a clever but also strategic limerick about doorbells in the jungle'
+			prompt: 'Generate a clever but also strategic limerick about doorbells in the jungle',
+			max_tokens: 2048,
+			user: uid
 		});
 	} catch(err) {
 		console.warn('Error:', err);
 		return;
 	}
-	alert(result);
+	console.log(result);
 };
