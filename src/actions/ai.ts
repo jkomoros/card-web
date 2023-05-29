@@ -111,7 +111,7 @@ const cardsAISummary = async (cards : Card[], uid : Uid) : Promise<string> => {
 
 	console.log('Asking AI assistant. Depending on how recently you ran it this might take some time to warmup.');
 
-	console.log('Prompt\n',prompt);
+	console.log('Prompt (' + (USE_CHAT ? 'Completion' : 'Chat') + ')\n',prompt);
 
 	return await completion(prompt, uid, USE_CHAT);
 };
