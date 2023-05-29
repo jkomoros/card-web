@@ -35,6 +35,8 @@ const TWITTER_HANDLE = projectConfig.twitter_handle && projectConfig.twitter_han
 const DISABLE_TWITTER = projectConfig.disable_twitter || false;
 const ENABLE_TWITTER = TWITTER_HANDLE && !DISABLE_TWITTER;
 
+const OPENAI_API_KEY = projectConfig.openai_api_key || '';
+
 const DO_TAG_RELEASES = projectConfig.tag_releases || false;
 
 const USER_TYPE_ALL_PERMISSIONS = projectConfig.permissions && projectConfig.permissions.all || {};
@@ -104,6 +106,8 @@ const GCLOUD_ENSURE_PROD_TASK = 'gcloud-ensure-prod';
 const GCLOUD_BACKUP_TASK = 'gcloud-backup';
 const MAKE_TAG_TASK = 'make-tag';
 const PUSH_TAG_TASK = 'push-tag';
+const CONFIGURE_API_KEYS_IF_SET = 'configure-api-keys-if-set';
+const CONFIGURE_API_KEYS = 'configure-api-keys';
 const SET_LAST_DEPLOY_IF_AFFECTS_RENDERING = 'set-last-deploy-if-affects-rendering';
 const ASK_IF_DEPLOY_AFFECTS_RENDERING = 'ask-if-deploy-affects-rendering';
 const ASK_BACKUP_MESSAGE = 'ask-backup-message';
@@ -359,6 +363,18 @@ gulp.task(ASK_IF_DEPLOY_AFFECTS_RENDERING, async (cb) => {
 
 });
 
+gulp.task(CONFIGURE_API_KEYS, makeExecutor('firebase functions:config:set openai.api_key=' + OPENAI_API_KEY));
+
+gulp.task(CONFIGURE_API_KEYS_IF_SET, (cb) => {
+	const task = gulp.task(CONFIGURE_API_KEYS);
+	if (!OPENAI_API_KEY) {
+		console.log('Skipping uploading of api keys because they weren\'t set');
+		cb();
+		return;
+	}
+	task(cb);
+});
+
 gulp.task(SET_LAST_DEPLOY_IF_AFFECTS_RENDERING, (cb) => {
 	let task = gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING);
 	if (!deployAffectsRendering) {
@@ -428,6 +444,7 @@ gulp.task('dev-deploy',
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		FIREBASE_ENSURE_DEV_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
+		CONFIGURE_API_KEYS_IF_SET,
 		FIREBASE_DEPLOY_TASK
 	)
 );
@@ -440,6 +457,7 @@ gulp.task('deploy',
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		FIREBASE_ENSURE_PROD_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
+		CONFIGURE_API_KEYS_IF_SET,
 		FIREBASE_DEPLOY_TASK,
 		WARN_MAINTENANCE_TASKS,
 	)
