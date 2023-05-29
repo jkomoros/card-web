@@ -65,7 +65,7 @@ const cardsAISummary = async (cards : Card[], uid : Uid) : Promise<string> => {
 	const promptPreamble = 'Below is a collection of cards. Create a succinct but comprehensive summary of all cards that is no longer than 8 sentences. The summary should combine similar insights but keep distinctive insights where possible.\n\nCards:' + CARD_SEPARATOR;
 
 	//TODO: smarter clipping and clip at card boundaries.
-	const clippedContent = content.slice(0, 4000);
+	const clippedContent = content.slice(0, 6000);
 
 	const prompt = promptPreamble + clippedContent + CARD_SEPARATOR + 'Summary:\n';
 
@@ -76,7 +76,7 @@ const cardsAISummary = async (cards : Card[], uid : Uid) : Promise<string> => {
 	const result = await openai.createCompletion({
 		model: 'text-davinci-003',
 		prompt: prompt + clippedContent,
-		max_tokens: 2048,
+		max_tokens: 4096,
 		user: uid
 	});
 
