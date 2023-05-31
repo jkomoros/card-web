@@ -15,6 +15,7 @@ export const PERMISSION_COMMENT = 'comment';
 export const PERMISSION_STAR = 'star';
 export const PERMISSION_MARK_READ = 'markRead';
 export const PERMISSION_MODIFY_READING_LIST = 'modifyReadingList';
+export const PERMISSION_REMOTE_AI = 'remoteAI';
 
 import {
 	USER_TYPE_ALL_PERMISSIONS,
@@ -81,6 +82,10 @@ export const PERMISSIONS_INFO : PermissionInfoCollection = {
 		displayName: 'Modify Reading List',
 		description: 'whether the user may add to or remove from their reading list',
 	},
+	[PERMISSION_REMOTE_AI]: {
+		displayName: 'Use Remote AI Calls',
+		description: 'whether the user may use remote OpenAI calls, which costs per call. This powers AI Assitant features.'
+	}
 };
 
 export const PERMISSIONS_LEGAL_ON_CARD_INFO : PermissionInfoCollection = Object.fromEntries(Object.entries(PERMISSIONS_INFO).filter(entry => entry[1].legalOnCard));

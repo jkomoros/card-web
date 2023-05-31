@@ -10,9 +10,11 @@ const configuration = new Configuration({
 });
 const openai = new OpenAIApi(configuration);
 
+//The server-side analogue of selectUserMayUseAI
 const mayUseAI = (permissions) => {
     if (!permissions) return false;
     if (permissions.admin) return true;
+    if (permissions.remoteAI) return true;
     //TODO: also allow it if the ai permission is true.
     return false;
 }

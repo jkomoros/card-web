@@ -767,6 +767,7 @@ type UserPermissionsCore = {
 	star? : boolean,
 	markRead? : boolean,
 	modifyReadingList? : boolean,
+	remoteAI?: boolean
 }
 
 export interface UserPermissions extends UserPermissionsCore {

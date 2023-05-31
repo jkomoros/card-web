@@ -96,7 +96,8 @@ import {
 	PERMISSION_STAR,
 	PERMISSION_MARK_READ,
 	PERMISSION_MODIFY_READING_LIST,
-	PERMISSION_EDIT_CARD
+	PERMISSION_EDIT_CARD,
+	PERMISSION_REMOTE_AI
 } from './permissions.js';
 
 import {
@@ -491,10 +492,11 @@ export const selectUserIsAdmin = createSelector(
 	(permissions) => permissions[PERMISSION_ADMIN]
 );
 
+//Effectively recreated in functions/openai.ts:mayUseAI
 export const selectUserMayUseAI = createSelector(
 	selectUserIsAdmin,
-	//TODO: also support a PERMISSION_USE_AI
-	(admin) => OPENAI_ENABLED && admin
+	selectComposedPermissions,
+	(admin, permissions) => OPENAI_ENABLED && (admin || permissions[PERMISSION_REMOTE_AI])
 );
 
 export const selectUserMayEdit = createSelector(
