@@ -170,7 +170,7 @@ const cardsAISummary = async (cards : Card[], uid : Uid) : Promise<string> => {
 	return await completion(prompt, uid, USE_CHAT);
 };
 
-export const startAIAssistant : AppActionCreator = () => async (dispatch, getState) => {
+export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, getState) => {
 	const state = getState();
 	const mayUseAI = selectUserMayUseAI(state);
 	if (!mayUseAI) {

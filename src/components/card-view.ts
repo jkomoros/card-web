@@ -151,7 +151,7 @@ import {
 } from '../actions/data.js';
 
 import {
-	startAIAssistant
+	summarizeCardsWithAI
 } from '../actions/ai.js';
 
 // These are the shared styles needed by this element.
@@ -433,7 +433,7 @@ class CardView extends connect(store)(PageViewElement) {
 				<button id='edit-multi' class='small' title='Edit all cards' @click=${this._handleMultiEditClicked}>${EDIT_ICON}</button><label for='edit-multi'>Edit All Cards</label><br/>
 				` : ''}
 				${this._userMayUseAI ? html`
-				<button id ='ai-assistant' class='small' title='AI Assistant' @click=${this._handleAIAssistantClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assitant'>AI Assistant</label><br/>` : ''}
+				<button id ='ai-assistant' class='small' title='Summarize Cards With AI' @click=${this._handleAIAssistantClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assitant'>Summarize Cards</label><br/>` : ''}
 				<button id='configure-collection' class='small' title='Configure collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure collection</label>
 			</div>
 			${this._collection.description.isRandom ? html`<div slot='visible-info'>
@@ -515,7 +515,7 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	_handleAIAssistantClicked() {
-		store.dispatch(startAIAssistant());
+		store.dispatch(summarizeCardsWithAI());
 	}
 
 	_handleSuggestMissingConceptsChanged(e : Event) {
