@@ -15,11 +15,13 @@ import editor from '../reducers/editor.js';
 import collection from '../reducers/collection.js';
 import prompt from '../reducers/prompt.js';
 import comments from '../reducers/comments.js';
+import ai from '../reducers/ai.js';
 store.addReducers({
 	editor,
 	collection,
 	prompt,
-	comments
+	comments,
+	ai
 });
 
 import {

@@ -1171,6 +1171,11 @@ export type MultiEditState = {
 	referencesDiff: ReferencesEntriesDiff,
 };
 
+export type AIState = {
+	active: boolean;
+	result: string;
+};
+
 export type PermissionsState = {
 	permissions: UserPermissionsMap,
 	pendingUid : Uid,

@@ -31,6 +31,9 @@ import {
 	Uid
 } from '../types.js';
 
+export const AI_REQUEST_STARTED = 'AI_REQUEST_STARTED';
+export const AI_RESULT = 'AI_RESULT';
+
 const openaiCallable = httpsCallable(functions, 'openai');
 
 type OpenAIRemoteCallCreateCompletion = {
@@ -161,9 +164,14 @@ const cardsAISummary = async (cards : Card[], uid : Uid) : Promise<string> => {
 	return await completion(prompt, uid, USE_CHAT);
 };
 
-export const startAIAssistant : AppActionCreator = () => async (_, getState) => {
+export const startAIAssistant : AppActionCreator = () => async (dispatch, getState) => {
 	const state = getState();
 	const uid = selectUid(state);
 	const cards = selectActiveCollectionCards(state);
-	console.log(await cardsAISummary(cards, uid));
+	dispatch({type: AI_REQUEST_STARTED});
+	//TODO: catch errors
+	const result = await cardsAISummary(cards, uid);
+	//TODO: show a dialog
+	console.log(result);
+	dispatch({type: AI_RESULT, result});
 };
