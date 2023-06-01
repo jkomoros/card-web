@@ -31,8 +31,13 @@ import {
 	Uid
 } from '../types.js';
 
+import {
+	AnyAction
+} from 'redux';
+
 export const AI_REQUEST_STARTED = 'AI_REQUEST_STARTED';
 export const AI_RESULT = 'AI_RESULT';
+export const AI_DIALOG_CLOSE = 'AI_DIALOG_CLOSE';
 
 const openaiCallable = httpsCallable(functions, 'openai');
 
@@ -174,4 +179,10 @@ export const startAIAssistant : AppActionCreator = () => async (dispatch, getSta
 	//TODO: show a dialog
 	console.log(result);
 	dispatch({type: AI_RESULT, result});
+};
+
+export const closeAIDialog = () : AnyAction => {
+	return {
+		type: AI_DIALOG_CLOSE
+	};
 };

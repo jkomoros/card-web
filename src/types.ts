@@ -1172,6 +1172,7 @@ export type MultiEditState = {
 };
 
 export type AIState = {
+	open: boolean;
 	active: boolean;
 	result: string;
 };
