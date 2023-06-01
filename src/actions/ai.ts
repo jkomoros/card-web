@@ -19,7 +19,8 @@ import {
 
 import {
 	selectActiveCollectionCards,
-	selectUid
+	selectUid,
+	selectUserMayUseAI
 } from '../selectors.js';
 
 import {
@@ -171,6 +172,10 @@ const cardsAISummary = async (cards : Card[], uid : Uid) : Promise<string> => {
 
 export const startAIAssistant : AppActionCreator = () => async (dispatch, getState) => {
 	const state = getState();
+	const mayUseAI = selectUserMayUseAI(state);
+	if (!mayUseAI) {
+		throw new Error('User does not have permission to use AI');
+	}
 	const uid = selectUid(state);
 	const cards = selectActiveCollectionCards(state);
 	dispatch({type: AI_REQUEST_STARTED});
