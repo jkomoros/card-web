@@ -187,6 +187,10 @@ export const selectFindPermissions = (state : State) => state.find && state.find
 export const selectMultiEditDialogOpen = (state : State) => state.multiedit && state.multiedit.open;
 export const selectMultiEditReferencesDiff = (state : State) => state.multiedit ? state.multiedit.referencesDiff : [];
 
+export const selectAIDialogOpen = (state : State) => state.ai ? state.ai.open : false;
+export const selectAIActive = (state : State) => state.ai ? state.ai.active : false;
+export const selectAIResult = (state : State) => state.ai ? state.ai.result : '';
+
 export const selectCommentsAndInfoPanelOpen = (state : State) => state.app ? state.app.commentsAndInfoPanelOpen : false;
 
 export const selectImagePropertiesDialogOpen = (state : State) => state.editor ? state.editor.imagePropertiesDialogOpen : false;
