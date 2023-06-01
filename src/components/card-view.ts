@@ -433,8 +433,8 @@ class CardView extends connect(store)(PageViewElement) {
 				<button id='edit-multi' class='small' title='Edit all cards' @click=${this._handleMultiEditClicked}>${EDIT_ICON}</button><label for='edit-multi'>Edit All Cards</label><br/>
 				` : ''}
 				${this._userMayUseAI ? html`
-				<button id ='ai-assistant' class='small' title='Summarize Cards With AI' @click=${this._handleAIAssistantClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assitant'>Summarize Cards</label><br/>` : ''}
-				<button id='configure-collection' class='small' title='Configure collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure collection</label>
+				<button id ='ai-assistant' class='small' title='Summarize Cards with AI' @click=${this._handleAIAssistantClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assitant'>Summarize Cards</label><br/>` : ''}
+				<button id='configure-collection' class='small' title='Configure Collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure Collection</label>
 			</div>
 			${this._collection.description.isRandom ? html`<div slot='visible-info'>
 				<button id='randomize' class='small' title='Randomize (⌘⌥R)' @click=${this._handleRandomizeClicked}>${CASINO_ICON}</button><label for='randomize'>Randomize</label>
