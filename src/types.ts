@@ -1226,6 +1226,7 @@ export type UserState = {
 }
 
 export type State = {
+	ai?: AIState,
 	app: AppState,
 	data: DataState,
 	find? : FindState,
