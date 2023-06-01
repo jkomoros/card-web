@@ -176,8 +176,6 @@ export const startAIAssistant : AppActionCreator = () => async (dispatch, getSta
 	dispatch({type: AI_REQUEST_STARTED});
 	//TODO: catch errors
 	const result = await cardsAISummary(cards, uid);
-	//TODO: show a dialog
-	console.log(result);
 	dispatch({type: AI_RESULT, result});
 };
 

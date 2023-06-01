@@ -81,6 +81,7 @@ import './compose-dialog.js';
 import './configure-collection-dialog.js';
 import './card-preview.js';
 import './multi-edit-dialog.js';
+import './ai-dialog.js';
 import { 
 	CARD_WIDTH_IN_EMS,
 	CARD_HEIGHT_IN_EMS
@@ -339,6 +340,7 @@ class MainView extends connect(store)(PageViewElement) {
 			<find-dialog></find-dialog>
 			<compose-dialog></compose-dialog>
 			<configure-collection-dialog></configure-collection-dialog>
+			<ai-dialog></ai-dialog>
 			<card-preview .card=${this._activePreviewCard} .x=${this._previewCardX} .y=${this._previewCardY} .badgeMap=${this._badgeMap} .expandedReferenceBlocks=${this._previewCardReferenceBlocks}></card-preview>
 			<!-- Header -->
 			<div class='header' ?hidden=${!this._headerPanelOpen}>
