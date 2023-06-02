@@ -21,7 +21,8 @@ import {
 	selectAIDialogOpen,
 	selectAIActive,
 	selectAIResult,
-	selectAIAllCards
+	selectAIAllCards,
+	selectAIFilteredCards
 } from '../selectors.js';
 
 import {
@@ -93,7 +94,7 @@ class AIDialog extends connect(store)(DialogElement) {
 		this._active = selectAIActive(state);
 		this._result = selectAIResult(state);
 		this._allCards = selectAIAllCards(state);
-		this._filteredCards = selectAIAllCards(state);
+		this._filteredCards = selectAIFilteredCards(state);
 	}
 
 }
