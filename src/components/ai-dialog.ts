@@ -30,6 +30,8 @@ import {
 	State
 } from '../types.js';
 
+import './tag-list.js';
+
 @customElement('ai-dialog')
 class AIDialog extends connect(store)(DialogElement) {
 
@@ -67,7 +69,13 @@ class AIDialog extends connect(store)(DialogElement) {
 		if (!this.open) return html``;
 		return html`
 		<div class='${this._active ? 'active' : ''}'>
-			${this._active ? html`<em>Loading... (This may take up to a minute...)</em>` : html`<textarea .value=${this._result}></textarea>`}
+			<div>
+				<label>Cards</label><tag-list .previousTags=${this._allCards} .tags=${this._filteredCards}></tag-list>
+			</div>
+			<div>
+				<label>Result</label>
+				${this._active ? html`<em>Loading... (This may take up to a minute...)</em>` : html`<textarea .value=${this._result}></textarea>`}
+			</div>
 			<div class='buttons'>
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
