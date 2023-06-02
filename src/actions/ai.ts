@@ -29,6 +29,7 @@ import {
 
 import {
 	Card,
+	CardID,
 	Uid
 } from '../types.js';
 
@@ -133,7 +134,7 @@ const estimateTokenCount = (input : string | string[]) : number => {
 	return input.length / 4;
 };
 
-const fitPrompt = (args: FitPromptArguments) : string => {
+const fitPrompt = (args: FitPromptArguments) : [prompt: string, maxItemIndex : number] => {
 	const options = {
 		...DEFAULT_FIT_PROMPT,
 		...args
@@ -151,23 +152,27 @@ const fitPrompt = (args: FitPromptArguments) : string => {
 		i++;
 	}
 	result += options.suffix;
-	return result;
+	return [result, i];
 };
 
-const cardsAISummaryPrompt = (cards : Card[]) : string => {
-	const items = cards.map(card => cardPlainContent(card)).filter(content => content);
+const cardsAISummaryPrompt = (cards : Card[]) : [prompt : string, ids : CardID[]] => {
+	const cardContent = Object.fromEntries(cards.map(card => [card.id, cardPlainContent(card)]));
+	const filteredCards = cards.filter(card => cardContent[card.id]);
+	const items = filteredCards.map(card => cardContent[card.id]);
 
-	const prompt = fitPrompt({
+	const [prompt, maxItemIndex] = fitPrompt({
 		prefix: 'Below is a collection of cards. Create a succinct but comprehensive summary of all cards that is no longer than 8 sentences. The summary should combine similar insights but keep distinctive insights where possible.\n\nCards:',
 		suffix: 'Summary:\n',
 		items
 	});
 
+	const ids = filteredCards.slice(0,maxItemIndex).map(card => card.id);
+
 	console.log('Asking AI assistant. Depending on how recently you ran it this might take some time to warmup.');
 
 	console.log('Prompt (' + (USE_CHAT ? 'Completion' : 'Chat') + ')\n',prompt);
 
-	return prompt;
+	return [prompt, ids];
 };
 
 export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, getState) => {
@@ -180,7 +185,9 @@ export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, ge
 	const cards = selectActiveCollectionCards(state);
 	dispatch({type: AI_REQUEST_STARTED});
 	//TODO: catch errors
-	const prompt = cardsAISummaryPrompt(cards);
+	const [prompt, ids] = cardsAISummaryPrompt(cards);
+	//TODO: render out in a prettier way.
+	console.log(ids);
 	const result = await completion(prompt, uid, USE_CHAT);
 	dispatch({type: AI_RESULT, result});
 };
