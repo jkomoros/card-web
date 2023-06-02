@@ -22,12 +22,14 @@ import {
 	BODY_CARD_TYPES,
 	LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE,
 	IMAGE_CARD_TYPES,
-	getCardTitleForBackporting
+	getCardTitleForBackporting,
+	TEXT_FIELD_CONFIGURATION
 } from './card_fields.js';
 
 import {
 	TEXT_FIELD_BODY,
 	CARD_TYPE_CONTENT,
+	TEXT_FIELD_TITLE,
 } from './type_constants.js';
 
 import {
@@ -45,6 +47,14 @@ import {
 import {
 	Timestamp
 } from 'firebase/firestore';
+
+import {
+	DERIVED_FIELDS_FOR_CARD_TYPE
+} from './card_fields.js';
+
+import {
+	normalizeLineBreaks,
+} from './contenteditable.js';
 
 //define this here and then re-export form app.js so this file doesn't need any
 //other imports.
@@ -194,6 +204,37 @@ export const cardHasTodo = (card : Card) => {
 	if (!card) return false;
 	const content = card.todo ? card.todo.trim() : '';
 	return content ? true : false;
+};
+
+export const innerTextForHTML = (body : string) : string => {
+	//This shouldn't be an XSS vulnerability even though body is supplied by
+	//users and thus untrusted, because the temporary element is never actually
+	//appended into the DOM
+	const ele = getDocument().createElement('section');
+	// makes sure line breaks are in the right place after each legal block level element
+	body = normalizeLineBreaks(body);
+	ele.innerHTML = body;
+	//textContent would return things like style and script contents, but those shouldn't be included anyway.
+	return ele.textContent;
+};
+
+//Extracts the user-provided title and body from the card, without HTML
+//formatting.
+export const cardPlainContent = (card : Card) : string => {
+	const cardType = card.card_type;
+	if (!BODY_CARD_TYPES[cardType]) return '';
+	const result : string[] = [];
+	const fieldsInOrder = [TEXT_FIELD_TITLE, TEXT_FIELD_BODY] as const;
+	for (const field of fieldsInOrder) {
+		//Skip derived fields
+		if (DERIVED_FIELDS_FOR_CARD_TYPE[cardType][field]) continue;
+		const rawContent = card[field];
+		const fieldConfiguration = TEXT_FIELD_CONFIGURATION[field];
+		const content = fieldConfiguration.html ? innerTextForHTML(rawContent) : rawContent;
+		if (!content) continue;
+		result.push(content.trim());
+	}
+	return result.join('\n');
 };
 
 //Returns a string with the reason that the proposed card type is not legal for

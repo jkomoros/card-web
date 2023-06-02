@@ -96,7 +96,8 @@ import {
 	PERMISSION_STAR,
 	PERMISSION_MARK_READ,
 	PERMISSION_MODIFY_READING_LIST,
-	PERMISSION_EDIT_CARD
+	PERMISSION_EDIT_CARD,
+	PERMISSION_REMOTE_AI
 } from './permissions.js';
 
 import {
@@ -117,7 +118,8 @@ import {
 import {
 	USER_DOMAIN,
 	TAB_CONFIGURATION,
-	TAB_OVERRIDES_CONFIGURATION
+	TAB_OVERRIDES_CONFIGURATION,
+	OPENAI_ENABLED
 } from './config.GENERATED.SECRET.js';
 
 import {
@@ -184,6 +186,12 @@ export const selectFindPermissions = (state : State) => state.find && state.find
 
 export const selectMultiEditDialogOpen = (state : State) => state.multiedit && state.multiedit.open;
 export const selectMultiEditReferencesDiff = (state : State) => state.multiedit ? state.multiedit.referencesDiff : [];
+
+export const selectAIDialogOpen = (state : State) => state.ai ? state.ai.open : false;
+export const selectAIActive = (state : State) => state.ai ? state.ai.active : false;
+export const selectAIResult = (state : State) => state.ai ? state.ai.result : '';
+export const selectAIAllCards = (state : State) => state.ai ? state.ai.allCards : [];
+export const selectAIFilteredCards = (state : State) => state.ai ? state.ai.filteredCards : [];
 
 export const selectCommentsAndInfoPanelOpen = (state : State) => state.app ? state.app.commentsAndInfoPanelOpen : false;
 
@@ -488,6 +496,13 @@ export const selectUid = createSelector(
 export const selectUserIsAdmin = createSelector(
 	selectComposedPermissions,
 	(permissions) => permissions[PERMISSION_ADMIN]
+);
+
+//Effectively recreated in functions/openai.ts:mayUseAI
+export const selectUserMayUseAI = createSelector(
+	selectUserIsAdmin,
+	selectComposedPermissions,
+	(admin, permissions) => OPENAI_ENABLED && (admin || permissions[PERMISSION_REMOTE_AI])
 );
 
 export const selectUserMayEdit = createSelector(

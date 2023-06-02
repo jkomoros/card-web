@@ -38,10 +38,6 @@ import {
 } from './document.js';
 
 import {
-	normalizeLineBreaks,
-} from './contenteditable.js';
-
-import {
 	memoizeFirstArg,
 	deepEqualReturnSame
 } from './memoize.js';
@@ -65,6 +61,7 @@ import {
 	FilterMap,
 	SortExtra
 } from './types.js';
+import { innerTextForHTML } from './util.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
 export const conceptCardsFromCards = deepEqualReturnSame(memoizeFirstArg((allCards : Cards) : Cards => {
@@ -492,18 +489,6 @@ export const cardMatchesString = (card : ProcessedCard, fieldName : CardFieldTyp
 		if (run.withoutStopWords == normalizedString) return true;
 	}
 	return false;
-};
-
-const innerTextForHTML = (body : string) : string => {
-	//This shouldn't be an XSS vulnerability even though body is supplied by
-	//users and thus untrusted, because the temporary element is never actually
-	//appended into the DOM
-	const ele = getDocument().createElement('section');
-	// makes sure line breaks are in the right place after each legal block level element
-	body = normalizeLineBreaks(body);
-	ele.innerHTML = body;
-	//textContent would return things like style and script contents, but those shouldn't be included anyway.
-	return ele.textContent;
 };
 
 //Returns a string, where if it's an array or object (or any of their subkeys

@@ -9,6 +9,7 @@ const email = require('./email.js');
 const twitter = require('./twitter.js');
 const screenshot = require('./screenshot.js');
 const legal = require('./legal.js');
+const openai = require('./openai.js');
 
 //Runs every three hours
 exports.fetchTweetEngagement = functions.pubsub.schedule('0 */3 * * *').timeZone('America/Los_Angeles').onRun(twitter.fetchTweetEngagement);
@@ -62,3 +63,5 @@ exports.legal = functions.https.onCall(async (data) => {
 		reason: result
 	};
 });
+
+exports.openai = functions.https.onCall(openai.handler);

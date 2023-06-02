@@ -579,6 +579,7 @@ const extractSubFilters = (parts : URLPart[]) : FilterName[] => {
 	return combinedDescription.filters;
 };
 
+//This allows the use case "search for cards that match a given query, and then also include any cards that are within 1 inbound or outbound link"
 const makeExpandConfigurableFilter = (_ : ConfigurableFilterType, ...remainingParts : URLPart[]) : ConfigurableFilterFuncFactoryResult => {
 	const [mainFilter, expandFilter] = extractSubFilters(remainingParts);
 	if (!mainFilter || !expandFilter) {

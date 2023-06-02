@@ -37,6 +37,13 @@ const REFERENCES_INFO_INBOUND_CARD_PROPERTY = 'references_info_inbound';
 const REFERENCES_CARD_PROPERTY = 'references';
 const REFERENCES_INBOUND_CARD_PROPERTY = 'references_inbound';
 
+const userPermissions = async (uid) => {
+	const user = await db.collection('permissions').doc(uid).get();
+	if (!user) return null;
+	if (!user.exists) return null;
+	return user.data();
+};
+
 const urlForBasicCard = (idOrSlug) => {
 	//we use HOSTING_DOMAIN so that we use the prod or dev card renderer
 	//depending on our mode.
@@ -90,6 +97,7 @@ exports.getCardLinkCardsForCard = getCardLinkCardsForCard;
 exports.urlForBasicCard = urlForBasicCard;
 exports.getCardName = getCardName;
 exports.prettyCardURL = prettyCardURL;
+exports.userPermissions = userPermissions;
 exports.DEV_MODE = DEV_MODE;
 exports.HOSTING_DOMAIN = HOSTING_DOMAIN;
 exports.DOMAIN = DOMAIN;

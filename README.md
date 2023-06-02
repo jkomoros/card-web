@@ -469,3 +469,7 @@ Run `openai api fine_tunes.create -m davinci -t <PATH_TO_PREPARED_FILE>` (You ca
 Then once you have the model to get a completed bit of content, run `openai api completions.create -m <MODEL_NAME> --stop "#END#" --max-tokens 512 -p "word1 word2 word3\n\n#START#\n\n"` (replacing the name of the model and the words you want to use ot seed it)
 
 You can also do an export appropriate for importing into https://github.com/dglazkov/polymath via the `export-polymath-data` action.
+
+## OpenAI AI Features
+
+In `config.SECRET.json` add a key called `openai_api_key`. This will allow users with the proper permissions to do OpenAI API calls with your budget.

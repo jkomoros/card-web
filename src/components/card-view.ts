@@ -39,7 +39,8 @@ import {
 	selectUserIsAdmin,
 	selectEditingCardSuggestedConceptReferences,
 	selectActiveRenderOffset,
-	selectEditorMinimized
+	selectEditorMinimized,
+	selectUserMayUseAI
 } from '../selectors.js';
 
 import {
@@ -141,12 +142,17 @@ import {
 	PLAYLIST_ADD_ICON,
 	FILE_COPY_ICON,
 	RULE_ICON,
-	CASINO_ICON
+	CASINO_ICON,
+	AUTO_AWESOME_ICON
 } from './my-icons.js';
 
 import {
 	reorderCard
 } from '../actions/data.js';
+
+import {
+	summarizeCardsWithAI
+} from '../actions/ai.js';
 
 // These are the shared styles needed by this element.
 import { SharedStyles } from './shared-styles.js';
@@ -214,6 +220,9 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_userMayStar: boolean;
+
+	@state()
+		_userMayUseAI: boolean;
 
 	@state()
 		_userMayMarkRead: boolean;
@@ -423,7 +432,9 @@ class CardView extends connect(store)(PageViewElement) {
 				<input type='checkbox' .checked=${this._suggestMissingConceptsEnabled} @change=${this._handleSuggestMissingConceptsChanged} id='suggested-concepts-enabled'><label for='suggested-concepts-enabled'>Suggest Missing Concepts <strong>(SLOW)</strong></label><br/>
 				<button id='edit-multi' class='small' title='Edit all cards' @click=${this._handleMultiEditClicked}>${EDIT_ICON}</button><label for='edit-multi'>Edit All Cards</label><br/>
 				` : ''}
-				<button id='configure-collection' class='small' title='Configure collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure collection</label>
+				${this._userMayUseAI ? html`
+				<button id ='ai-assistant' class='small' title='Summarize Cards with AI' @click=${this._handleAIAssistantClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assitant'>Summarize Cards</label><br/>` : ''}
+				<button id='configure-collection' class='small' title='Configure Collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure Collection</label>
 			</div>
 			${this._collection.description.isRandom ? html`<div slot='visible-info'>
 				<button id='randomize' class='small' title='Randomize (⌘⌥R)' @click=${this._handleRandomizeClicked}>${CASINO_ICON}</button><label for='randomize'>Randomize</label>
@@ -501,6 +512,10 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_handleConfigureCollectionClicked() {
 		store.dispatch(openConfigureCollectionDialog());
+	}
+
+	_handleAIAssistantClicked() {
+		store.dispatch(summarizeCardsWithAI());
 	}
 
 	_handleSuggestMissingConceptsChanged(e : Event) {
@@ -625,6 +640,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._signedIn = selectUserSignedIn(state);
 		this._userMayStar  =  selectUserMayStar(state);
 		this._userMayMarkRead =  selectUserMayMarkRead(state);
+		this._userMayUseAI = selectUserMayUseAI(state);
 		this._userMayModifyReadingList = selectUserMayModifyReadingList(state);
 		this._autoMarkReadPending = state.user.autoMarkReadPending;
 		this._userMayEdit = selectUserMayEditActiveCard(state);

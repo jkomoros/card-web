@@ -767,6 +767,7 @@ type UserPermissionsCore = {
 	star? : boolean,
 	markRead? : boolean,
 	modifyReadingList? : boolean,
+	remoteAI?: boolean
 }
 
 export interface UserPermissions extends UserPermissionsCore {
@@ -1170,6 +1171,16 @@ export type MultiEditState = {
 	referencesDiff: ReferencesEntriesDiff,
 };
 
+export type AIState = {
+	open: boolean;
+	active: boolean;
+	result: string;
+	//All cards that it was told to operate on
+	allCards: CardID[];
+	//The actual cards the prompt includes
+	filteredCards: CardID[];
+};
+
 export type PermissionsState = {
 	permissions: UserPermissionsMap,
 	pendingUid : Uid,
@@ -1219,6 +1230,7 @@ export type UserState = {
 }
 
 export type State = {
+	ai?: AIState,
 	app: AppState,
 	data: DataState,
 	find? : FindState,
