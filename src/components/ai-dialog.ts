@@ -85,7 +85,7 @@ class AIDialog extends connect(store)(DialogElement) {
 			</div>
 			<div>
 				<label>Result</label>
-				${this._active ? html`<div><em>Loading... (This may take up to a minute...)</em></div>` : html`<textarea .value=${this._result}></textarea>`}
+				${this._active ? html`<div><em>Loading... (This may take up to a minute...)</em></div>` : html`<textarea id='result' .value=${this._result}></textarea>`}
 			</div>
 			<div class='buttons'>
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
@@ -115,6 +115,15 @@ class AIDialog extends connect(store)(DialogElement) {
 		this._allCards = selectAIAllCards(state);
 		this._filteredCards = selectAIFilteredCards(state);
 		this._cardTagInfos = selectTagInfosForCards(state);
+	}
+
+	override updated(changedProps : Map<string, AIDialog[keyof AIDialog]>) {
+		if (changedProps.has('_result') && this._result) {
+			//Select the text of the textarea for easy copying when it loads.
+			
+			const ele = this.shadowRoot.getElementById('result') as HTMLTextAreaElement;
+			ele.select();
+		}
 	}
 
 }
