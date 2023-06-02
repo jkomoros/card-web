@@ -40,6 +40,7 @@ import {
 export const AI_REQUEST_STARTED = 'AI_REQUEST_STARTED';
 export const AI_RESULT = 'AI_RESULT';
 export const AI_DIALOG_CLOSE = 'AI_DIALOG_CLOSE';
+export const AI_SET_ACTIVE_CARDS = 'AI_SET_ACTIVE_CARDS';
 
 const openaiCallable = httpsCallable(functions, 'openai');
 
@@ -186,8 +187,11 @@ export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, ge
 	dispatch({type: AI_REQUEST_STARTED});
 	//TODO: catch errors
 	const [prompt, ids] = cardsAISummaryPrompt(cards);
-	//TODO: render out in a prettier way.
-	console.log(ids);
+	dispatch({
+		type: AI_SET_ACTIVE_CARDS,
+		allCards: cards.map(card => card.id),
+		filteredCards: ids
+	});
 	const result = await completion(prompt, uid, USE_CHAT);
 	dispatch({type: AI_RESULT, result});
 };

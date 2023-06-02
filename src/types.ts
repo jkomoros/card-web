@@ -1175,6 +1175,10 @@ export type AIState = {
 	open: boolean;
 	active: boolean;
 	result: string;
+	//All cards that it was told to operate on
+	allCards: CardID[];
+	//The actual cards the prompt includes
+	filteredCards: CardID[];
 };
 
 export type PermissionsState = {
