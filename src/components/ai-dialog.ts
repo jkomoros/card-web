@@ -14,6 +14,11 @@ import {
 } from '../actions/ai.js';
 
 import {
+	help,
+	HelpStyles,
+} from './help-badges.js';
+
+import {
 	CHECK_CIRCLE_OUTLINE_ICON
 } from './my-icons.js';
 
@@ -50,6 +55,7 @@ class AIDialog extends connect(store)(DialogElement) {
 	static override styles = [
 		...DialogElement.styles,
 		ButtonSharedStyles,
+		HelpStyles,
 		css`
 			.buttons {
 				display:flex;
@@ -70,7 +76,7 @@ class AIDialog extends connect(store)(DialogElement) {
 		return html`
 		<div class='${this._active ? 'active' : ''}'>
 			<div>
-				<label>Cards</label><tag-list .previousTags=${this._allCards} .tags=${this._filteredCards}></tag-list>
+				<label>Cards ${help('Cards that are crossed out are not included in the summary, either because they have no content or do not fit in the context window.')}</label><tag-list .previousTags=${this._allCards} .tags=${this._filteredCards}></tag-list>
 			</div>
 			<div>
 				<label>Result</label>
