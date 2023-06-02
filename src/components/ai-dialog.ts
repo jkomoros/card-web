@@ -20,10 +20,12 @@ import {
 import {
 	selectAIDialogOpen,
 	selectAIActive,
-	selectAIResult
+	selectAIResult,
+	selectAIAllCards
 } from '../selectors.js';
 
 import {
+	CardID,
 	State
 } from '../types.js';
 
@@ -35,6 +37,12 @@ class AIDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_result: string;
+
+	@state()
+		_allCards : CardID[];
+	
+	@state()
+		_filteredCards: CardID[];
 
 	static override styles = [
 		...DialogElement.styles,
@@ -84,7 +92,8 @@ class AIDialog extends connect(store)(DialogElement) {
 		this.open = selectAIDialogOpen(state);
 		this._active = selectAIActive(state);
 		this._result = selectAIResult(state);
-
+		this._allCards = selectAIAllCards(state);
+		this._filteredCards = selectAIAllCards(state);
 	}
 
 }
