@@ -190,6 +190,8 @@ export const selectMultiEditReferencesDiff = (state : State) => state.multiedit 
 export const selectAIDialogOpen = (state : State) => state.ai ? state.ai.open : false;
 export const selectAIActive = (state : State) => state.ai ? state.ai.active : false;
 export const selectAIResult = (state : State) => state.ai ? state.ai.result : '';
+export const selectAIAllCards = (state : State) => state.ai ? state.ai.allCards : [];
+export const selectAIFilteredCards = (state : State) => state.ai ? state.ai.filteredCards : [];
 
 export const selectCommentsAndInfoPanelOpen = (state : State) => state.app ? state.app.commentsAndInfoPanelOpen : false;
 
