@@ -85,7 +85,7 @@ class AIDialog extends connect(store)(DialogElement) {
 			</div>
 			<div>
 				<label>Result</label>
-				${this._active ? html`<em>Loading... (This may take up to a minute...)</em>` : html`<textarea .value=${this._result}></textarea>`}
+				${this._active ? html`<div><em>Loading... (This may take up to a minute...)</em></div>` : html`<textarea .value=${this._result}></textarea>`}
 			</div>
 			<div class='buttons'>
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
