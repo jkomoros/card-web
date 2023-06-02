@@ -27,12 +27,14 @@ import {
 	selectAIActive,
 	selectAIResult,
 	selectAIAllCards,
-	selectAIFilteredCards
+	selectAIFilteredCards,
+	selectTagInfosForCards
 } from '../selectors.js';
 
 import {
 	CardID,
-	State
+	State,
+	TagInfos
 } from '../types.js';
 
 import './tag-list.js';
@@ -51,6 +53,9 @@ class AIDialog extends connect(store)(DialogElement) {
 	
 	@state()
 		_filteredCards: CardID[];
+
+	@state()
+		_cardTagInfos: TagInfos;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -76,7 +81,7 @@ class AIDialog extends connect(store)(DialogElement) {
 		return html`
 		<div class='${this._active ? 'active' : ''}'>
 			<div>
-				<label>Cards ${help('Cards that are crossed out are not included in the summary, either because they have no content or do not fit in the context window.')}</label><tag-list .previousTags=${this._allCards} .tags=${this._filteredCards}></tag-list>
+				<label>Cards ${help('Cards that are crossed out are not included in the summary, either because they have no content or do not fit in the context window.')}</label><tag-list .tagInfos=${this._cardTagInfos} .previousTags=${this._allCards} .tags=${this._filteredCards}></tag-list>
 			</div>
 			<div>
 				<label>Result</label>
@@ -109,6 +114,7 @@ class AIDialog extends connect(store)(DialogElement) {
 		this._result = selectAIResult(state);
 		this._allCards = selectAIAllCards(state);
 		this._filteredCards = selectAIFilteredCards(state);
+		this._cardTagInfos = selectTagInfosForCards(state);
 	}
 
 }
