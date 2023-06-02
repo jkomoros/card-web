@@ -154,7 +154,7 @@ const fitPrompt = (args: FitPromptArguments) : string => {
 	return result;
 };
 
-const cardsAISummary = async (cards : Card[], uid : Uid) : Promise<string> => {
+const cardsAISummaryPrompt = (cards : Card[]) : string => {
 	const items = cards.map(card => cardPlainContent(card)).filter(content => content);
 
 	const prompt = fitPrompt({
@@ -167,7 +167,7 @@ const cardsAISummary = async (cards : Card[], uid : Uid) : Promise<string> => {
 
 	console.log('Prompt (' + (USE_CHAT ? 'Completion' : 'Chat') + ')\n',prompt);
 
-	return await completion(prompt, uid, USE_CHAT);
+	return prompt;
 };
 
 export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, getState) => {
@@ -180,7 +180,8 @@ export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, ge
 	const cards = selectActiveCollectionCards(state);
 	dispatch({type: AI_REQUEST_STARTED});
 	//TODO: catch errors
-	const result = await cardsAISummary(cards, uid);
+	const prompt = cardsAISummaryPrompt(cards);
+	const result = await completion(prompt, uid, USE_CHAT);
 	dispatch({type: AI_RESULT, result});
 };
 
