@@ -245,11 +245,11 @@ export const titleForEditingCardWithAI : AppActionCreator = () => async (dispatc
 	dispatch(aiRequestStarted(AI_DIALOG_TYPE_SUGGEST_TITLE));
 
 	let prompt = 'The following is a short essay: ' + CARD_SEPARATOR + body + CARD_SEPARATOR;
-	prompt += 'Append a good, punchy summary for use as a title in 35 characters or less with no other text or quotation marks. The title should not use punctuation.';
+	prompt += 'Append 5 suggested titles. Each should be a good, punchy summary for use as a title in 35 characters or less with no other text or quotation marks. The title should not use punctuation. Put one title on each line.';
 
 	try {
 		const result = await completion(prompt, uid, USE_CHAT);
-		dispatch(aiResult(result));
+		dispatch(aiResult(result.split('\n')));
 	} catch(err) {
 		dispatch(showAIError(err));
 	}
