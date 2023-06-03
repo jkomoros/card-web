@@ -11,6 +11,7 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	AI_DIALOG_TYPE_CONFIGURATION,
+	aiSelectResultIndex,
 	closeAIDialog,
 } from '../actions/ai.js';
 
@@ -31,7 +32,8 @@ import {
 	selectAIFilteredCards,
 	selectTagInfosForCards,
 	selectAIError,
-	selectAIDialogKind
+	selectAIDialogKind,
+	selectAIResultIndex
 } from '../selectors.js';
 
 import {
@@ -67,6 +69,9 @@ class AIDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_kind : AIDialogType;
+
+	@state()
+		_selectedIndex : number;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -113,9 +118,16 @@ class AIDialog extends connect(store)(DialogElement) {
 		let result = this._result;
 		if (!result || result.length == 0) result = [''];
 		if (this._kindConfig.multiResult) {
-			return result.map((item, index) => html`<div><input type='radio' name='result' .value=${index} id=${'result-' + index}></input><label class='large' for=${'result-' + index}>${item}</label></div>`);
+			return result.map((item, index) => html`<div><input type='radio' name='result' .value=${index} id=${'result-' + index} .checked=${this._selectedIndex == index} @change=${this._selectedIndexChanged}></input><label class='large' for=${'result-' + index}>${item}</label></div>`);
 		}
 		return html`<textarea readonly id='result' .value=${result[0]}></textarea>`;
+	}
+
+	_selectedIndexChanged(e : InputEvent) {
+		const ele = e.target;
+		if (!(ele instanceof HTMLInputElement)) throw new Error('not input ele');
+		const index = parseInt(ele.value);
+		store.dispatch(aiSelectResultIndex(index));
 	}
 
 	override innerRender() {
@@ -158,6 +170,7 @@ class AIDialog extends connect(store)(DialogElement) {
 		this._filteredCards = selectAIFilteredCards(state);
 		this._cardTagInfos = selectTagInfosForCards(state);
 		this._kind = selectAIDialogKind(state);
+		this._selectedIndex = selectAIResultIndex(state);
 
 		this.title = this._kindConfig.title;
 	}
