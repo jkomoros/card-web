@@ -96,10 +96,22 @@ class AIDialog extends connect(store)(DialogElement) {
 		`
 	];
 
-	override innerRender() {
-		if (!this.open) return html``;
+	_renderLoading() {
+		return html`<div><em>Loading... (This may take up to a minute...)</em></div>`;
+	}
+
+	_renderError() {
+		return html`<div class='error'>${help('An error occurred', true)} <strong>Error</strong> <em>${this._error}</em></div>`;
+	}
+
+	_renderResult() {
 		let result = this._result;
 		if (!result || result.length == 0) result = [''];
+		return html`<textarea readonly id='result' .value=${result[0]}></textarea>`;
+	}
+
+	override innerRender() {
+		if (!this.open) return html``;
 		return html`
 		<div class='${this._active ? 'active' : ''}'>
 			<div>
@@ -107,12 +119,7 @@ class AIDialog extends connect(store)(DialogElement) {
 			</div>
 			<div>
 				<label>Result</label>
-				${this._active ? 
-		html`<div><em>Loading... (This may take up to a minute...)</em></div>` : 
-		(this._error ? html`<div class='error'>${help('An error occurred', true)} <strong>Error</strong> <em>${this._error}</em></div>` : 
-			html`<textarea readonly id='result' .value=${result[0]}></textarea>`
-		)
-}
+				${this._active ? this._renderLoading() : (this._error ? this._renderError() : this._renderResult())}
 			</div>
 			<div class='buttons'>
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
