@@ -277,8 +277,6 @@ export const titleForEditingCardWithAI : AppActionCreator = () => async (dispatc
 	} catch(err) {
 		dispatch(showAIError(err));
 	}
-
-	//TODO: when using check mark, commit it back to TEXT_FIELD_TITLE.
 };
 
 export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, getState) => {
