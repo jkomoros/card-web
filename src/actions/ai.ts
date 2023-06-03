@@ -19,7 +19,9 @@ import {
 } from 'openai';
 
 import {
+	selectAIDialogKind,
 	selectAIResult,
+	selectAIResultIndex,
 	selectActiveCollectionCards,
 	selectEditingCard,
 	selectIsEditing,
@@ -45,8 +47,13 @@ import {
 
 import {
 	AI_DIALOG_TYPE_CARD_SUMMARY,
-	AI_DIALOG_TYPE_SUGGEST_TITLE
+	AI_DIALOG_TYPE_SUGGEST_TITLE,
+	TEXT_FIELD_TITLE
 } from '../type_constants.js';
+
+import {
+	textFieldUpdated
+} from './editor.js';
 
 export const AI_REQUEST_STARTED = 'AI_REQUEST_STARTED';
 export const AI_RESULT = 'AI_RESULT';
@@ -58,6 +65,16 @@ export const AI_SHOW_ERROR = 'AI_SHOW_ERROR';
 export type AIDialogTypeConfiguration = {
 	title: string;
 	multiResult: boolean;
+	commitAction? : AppActionCreator;
+};
+
+const commitTitleSuggestion : AppActionCreator  = () => (dispatch, getState) => {
+	const state = getState();
+	const index = selectAIResultIndex(state);
+	const result = selectAIResult(state);
+	if (index < 0 || index >= result.length) throw new Error('Invalid index');
+	const item = result[index];
+	dispatch(textFieldUpdated(TEXT_FIELD_TITLE, item));
 };
 
 export const AI_DIALOG_TYPE_CONFIGURATION : {[key in AIDialogType] : AIDialogTypeConfiguration} = {
@@ -67,7 +84,8 @@ export const AI_DIALOG_TYPE_CONFIGURATION : {[key in AIDialogType] : AIDialogTyp
 	},
 	[AI_DIALOG_TYPE_SUGGEST_TITLE]: {
 		title: 'Suggest Title',
-		multiResult: true
+		multiResult: true,
+		commitAction: commitTitleSuggestion,
 	}
 };
 
@@ -316,13 +334,15 @@ export const aiSelectResultIndex : AppActionCreator = (index : number) => (dispa
 	});
 };
 
-export const closeAIDialog : AppActionCreator = (commit : boolean) => (dispatch) => {
+export const closeAIDialog : AppActionCreator = (commit : boolean) => (dispatch, getState) => {
 	dispatch({
 		type: AI_DIALOG_CLOSE
 	});
 
 	if (commit) {
-		//TODO: do a different commit action if one is configured
-		alert('Commit was chosen');
+		const state = getState();
+		const kind = selectAIDialogKind(state);
+		const config = AI_DIALOG_TYPE_CONFIGURATION[kind];
+		if (config.commitAction) dispatch(config.commitAction());
 	}
 };
