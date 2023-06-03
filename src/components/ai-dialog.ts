@@ -77,6 +77,15 @@ class AIDialog extends connect(store)(DialogElement) {
 				width:100%;
 				height:250px;
 			}
+
+			.error {
+				color: var(--app-warning-color);
+			}
+
+			.error svg {
+				/* get equal specificifity to override help badges color */
+				fill: var(--app-warning-color);
+			}
 		`
 	];
 
@@ -91,7 +100,7 @@ class AIDialog extends connect(store)(DialogElement) {
 				<label>Result</label>
 				${this._active ? 
 		html`<div><em>Loading... (This may take up to a minute...)</em></div>` : 
-		(this._error ? html`<div><em class='error'>${this._error}</em></div>` : 
+		(this._error ? html`<div class='error'>${help('An error occurred', true)} <strong>Error</strong> <em>${this._error}</em></div>` : 
 			html`<textarea readonly id='result' .value=${this._result}></textarea>`
 		)
 }
