@@ -261,7 +261,7 @@ const FALLBACK_TITLES = [
 
 //returns good examples of titles to emulate, assuming that highly-starred cards
 //in this collection are the best ones.
-const selectGoodTitles = (state : State, count = 10) : string[] => {
+const selectGoodTitles = (state : State, count = 20) : string[] => {
 	//TODO: memoize
 	const description = new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_CONTENT, limitConfigurableFilterText(count)], SORT_NAME_STARS);
 	const collection = description.collection(selectCollectionConstructorArguments(state));
