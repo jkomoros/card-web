@@ -7,7 +7,7 @@ import {
 	AI_RESULT,
 	AI_DIALOG_CLOSE,
 	AI_SET_ACTIVE_CARDS,
-	AI_ERROR
+	AI_SHOW_ERROR
 } from '../actions/ai.js';
 
 import {
@@ -39,7 +39,7 @@ const app = (state : AIState = INITIAL_STATE, action : AnyAction) : AIState => {
 			active: false,
 			result: action.result
 		};
-	case AI_ERROR:
+	case AI_SHOW_ERROR:
 		return {
 			...state,
 			active: false,

@@ -42,7 +42,7 @@ export const AI_REQUEST_STARTED = 'AI_REQUEST_STARTED';
 export const AI_RESULT = 'AI_RESULT';
 export const AI_DIALOG_CLOSE = 'AI_DIALOG_CLOSE';
 export const AI_SET_ACTIVE_CARDS = 'AI_SET_ACTIVE_CARDS';
-export const AI_ERROR = 'AI_ERROR';
+export const AI_SHOW_ERROR = 'AI_SHOW_ERROR';
 
 const openaiCallable = httpsCallable(functions, 'openai');
 
@@ -196,9 +196,9 @@ const extractAIError = (err : FunctionsError) : string => {
 	return message;
 };
 
-const aiError : AppActionCreator = (err : FunctionsError) => async (dispatch) => {
+const showAIError : AppActionCreator = (err : FunctionsError) => async (dispatch) => {
 	dispatch({
-		type: AI_ERROR,
+		type: AI_SHOW_ERROR,
 		error: extractAIError(err)
 	});
 
@@ -225,7 +225,7 @@ export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, ge
 		result = await completion(prompt, uid, USE_CHAT);
 		dispatch({type: AI_RESULT, result});
 	} catch(err) {
-		dispatch(aiError(err));
+		dispatch(showAIError(err));
 	}
 
 };
