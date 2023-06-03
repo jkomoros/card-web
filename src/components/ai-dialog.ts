@@ -22,7 +22,8 @@ import {
 } from './help-badges.js';
 
 import {
-	CHECK_CIRCLE_OUTLINE_ICON
+	CHECK_CIRCLE_OUTLINE_ICON,
+	CANCEL_ICON
 } from './my-icons.js';
 
 import {
@@ -142,6 +143,7 @@ class AIDialog extends connect(store)(DialogElement) {
 				${this._active ? this._renderLoading() : (this._error ? this._renderError() : this._renderResult())}
 			</div>
 			<div class='buttons'>
+				${this._kindConfig.commitAction ? html`<button class='round' @click=${this._shouldClose}>${CANCEL_ICON}</button>` : ''}
 				<button class='round' @click='${this._handleDoneClicked}' .disabled=${this._kindConfig.multiResult && this._selectedIndex < 0}>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
 		</div>`;
