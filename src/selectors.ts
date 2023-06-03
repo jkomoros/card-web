@@ -52,7 +52,7 @@ import {
 	EVERYTHING_SET_NAME,
 	SORT_NAME_RECENT,
 	SORT_NAME_DEFAULT,
-	AI_DIALOG_CARD_SUMMARY
+	AI_DIALOG_TYPE_CARD_SUMMARY
 } from './type_constants.js';
 
 import {
@@ -191,7 +191,7 @@ export const selectMultiEditReferencesDiff = (state : State) => state.multiedit 
 
 export const selectAIDialogOpen = (state : State) => state.ai ? state.ai.open : false;
 export const selectAIActive = (state : State) => state.ai ? state.ai.active : false;
-export const selectAIDialogKind = (state : State) : AIDialogType => state.ai ? state.ai.kind : AI_DIALOG_CARD_SUMMARY;
+export const selectAIDialogKind = (state : State) : AIDialogType => state.ai ? state.ai.kind : AI_DIALOG_TYPE_CARD_SUMMARY;
 export const selectAIResult = (state : State) => state.ai ? state.ai.result : '';
 export const selectAIError = (state : State) => state.ai ? state.ai.error : '';
 export const selectAIAllCards = (state : State) => state.ai ? state.ai.allCards : [];

@@ -15,13 +15,13 @@ import {
 } from '../types.js';
 
 import {
-	AI_DIALOG_CARD_SUMMARY
+	AI_DIALOG_TYPE_CARD_SUMMARY
 } from '../type_constants.js';
 
 const INITIAL_STATE : AIState = {
 	open: false,
 	active: false,
-	kind: AI_DIALOG_CARD_SUMMARY,
+	kind: AI_DIALOG_TYPE_CARD_SUMMARY,
 	result: '',
 	error: '',
 	allCards: [],
