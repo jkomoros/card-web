@@ -66,6 +66,8 @@ export type AIDialogTypeConfiguration = {
 	title: string;
 	multiResult: boolean;
 	commitAction? : AppActionCreator;
+	//For prompts that give different results, a rerun action.
+	rerunAction? : AppActionCreator;
 };
 
 const commitTitleSuggestion : AppActionCreator  = () => (dispatch, getState) => {
@@ -75,18 +77,6 @@ const commitTitleSuggestion : AppActionCreator  = () => (dispatch, getState) => 
 	if (index < 0 || index >= result.length) throw new Error('Invalid index');
 	const item = result[index];
 	dispatch(textFieldUpdated(TEXT_FIELD_TITLE, item));
-};
-
-export const AI_DIALOG_TYPE_CONFIGURATION : {[key in AIDialogType] : AIDialogTypeConfiguration} = {
-	[AI_DIALOG_TYPE_CARD_SUMMARY]: {
-		title: 'Summarize Cards',
-		multiResult: false,
-	},
-	[AI_DIALOG_TYPE_SUGGEST_TITLE]: {
-		title: 'Suggest Title',
-		multiResult: true,
-		commitAction: commitTitleSuggestion,
-	}
 };
 
 const openaiCallable = httpsCallable(functions, 'openai');
@@ -302,6 +292,19 @@ export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, ge
 		dispatch(showAIError(err));
 	}
 
+};
+
+export const AI_DIALOG_TYPE_CONFIGURATION : {[key in AIDialogType] : AIDialogTypeConfiguration} = {
+	[AI_DIALOG_TYPE_CARD_SUMMARY]: {
+		title: 'Summarize Cards',
+		multiResult: false,
+	},
+	[AI_DIALOG_TYPE_SUGGEST_TITLE]: {
+		title: 'Suggest Title',
+		multiResult: true,
+		commitAction: commitTitleSuggestion,
+		rerunAction: titleForEditingCardWithAI
+	}
 };
 
 const aiRequestStarted = (kind : AIDialogType) : AnyAction => {

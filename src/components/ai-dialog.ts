@@ -23,7 +23,8 @@ import {
 
 import {
 	CHECK_CIRCLE_OUTLINE_ICON,
-	CANCEL_ICON
+	CANCEL_ICON,
+	CASINO_ICON
 } from './my-icons.js';
 
 import {
@@ -143,6 +144,7 @@ class AIDialog extends connect(store)(DialogElement) {
 				${this._active ? this._renderLoading() : (this._error ? this._renderError() : this._renderResult())}
 			</div>
 			<div class='buttons'>
+				${this._kindConfig.rerunAction ? html`<button class='round' @click=${this._rerunAction}>${CASINO_ICON}</button>` : ''}
 				${this._kindConfig.commitAction ? html`<button class='round' @click=${this._shouldClose}>${CANCEL_ICON}</button>` : ''}
 				<button class='round' @click='${this._handleDoneClicked}' .disabled=${this._kindConfig.multiResult && this._selectedIndex < 0}>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
@@ -160,6 +162,10 @@ class AIDialog extends connect(store)(DialogElement) {
 	override _shouldClose() {
 		//Override base class.
 		store.dispatch(closeAIDialog(false));
+	}
+
+	_rerunAction() {
+		store.dispatch(this._kindConfig.rerunAction());
 	}
 
 	override stateChanged(state : State) {
