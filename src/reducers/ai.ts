@@ -14,9 +14,14 @@ import {
 	AIState
 } from '../types.js';
 
+import {
+	AI_DIALOG_CARD_SUMMARY
+} from '../type_constants.js';
+
 const INITIAL_STATE : AIState = {
 	open: false,
 	active: false,
+	kind: AI_DIALOG_CARD_SUMMARY,
 	result: '',
 	error: '',
 	allCards: [],
@@ -30,6 +35,7 @@ const app = (state : AIState = INITIAL_STATE, action : AnyAction) : AIState => {
 			...state,
 			active: true,
 			open: true,
+			kind: action.kind,
 			allCards: [],
 			filteredCards: []
 		};

@@ -34,7 +34,9 @@ import {
 import {
 	Card,
 	CardID,
-	Uid
+	Uid,
+	AIDialogTypeConfiguration,
+	AIDialogType
 } from '../types.js';
 
 import {
@@ -46,6 +48,7 @@ import {
 } from './editor.js';
 
 import {
+	AI_DIALOG_CARD_SUMMARY,
 	TEXT_FIELD_TITLE
 } from '../type_constants.js';
 
@@ -54,6 +57,12 @@ export const AI_RESULT = 'AI_RESULT';
 export const AI_DIALOG_CLOSE = 'AI_DIALOG_CLOSE';
 export const AI_SET_ACTIVE_CARDS = 'AI_SET_ACTIVE_CARDS';
 export const AI_SHOW_ERROR = 'AI_SHOW_ERROR';
+
+export const AI_DIALOG_TYPE_CONFIGURATION : {[key in AIDialogType] : AIDialogTypeConfiguration} = {
+	[AI_DIALOG_CARD_SUMMARY]: {
+		title: 'Summarize Cards'
+	}
+};
 
 const openaiCallable = httpsCallable(functions, 'openai');
 
@@ -255,8 +264,10 @@ export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, ge
 	}
 	const uid = selectUid(state);
 	const cards = selectActiveCollectionCards(state);
-	dispatch({type: AI_REQUEST_STARTED});
-	//TODO: catch errors
+	dispatch({
+		type: AI_REQUEST_STARTED,
+		kind: AI_DIALOG_CARD_SUMMARY
+	});
 	const [prompt, ids] = cardsAISummaryPrompt(cards);
 	dispatch({
 		type: AI_SET_ACTIVE_CARDS,

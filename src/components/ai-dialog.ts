@@ -10,6 +10,7 @@ import { DialogElement } from './dialog-element.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
+	AI_DIALOG_TYPE_CONFIGURATION,
 	closeAIDialog,
 } from '../actions/ai.js';
 
@@ -29,10 +30,13 @@ import {
 	selectAIAllCards,
 	selectAIFilteredCards,
 	selectTagInfosForCards,
-	selectAIError
+	selectAIError,
+	selectAIDialogKind
 } from '../selectors.js';
 
 import {
+	AIDialogType,
+	AIDialogTypeConfiguration,
 	CardID,
 	State,
 	TagInfos
@@ -60,6 +64,9 @@ class AIDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_cardTagInfos: TagInfos;
+
+	@state()
+		_kind : AIDialogType;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -111,13 +118,12 @@ class AIDialog extends connect(store)(DialogElement) {
 		</div>`;
 	}
 
-	constructor() {
-		super();
-		this.title = 'Summarize Cards';
-	}
-
 	_handleDoneClicked() {
 		this._shouldClose();
+	}
+
+	get _kindConfig() : AIDialogTypeConfiguration {
+		return AI_DIALOG_TYPE_CONFIGURATION[this._kind];
 	}
 
 	override _shouldClose() {
@@ -134,6 +140,9 @@ class AIDialog extends connect(store)(DialogElement) {
 		this._allCards = selectAIAllCards(state);
 		this._filteredCards = selectAIFilteredCards(state);
 		this._cardTagInfos = selectTagInfosForCards(state);
+		this._kind = selectAIDialogKind(state);
+
+		this.title = this._kindConfig.title;
 	}
 
 	override updated(changedProps : Map<string, AIDialog[keyof AIDialog]>) {

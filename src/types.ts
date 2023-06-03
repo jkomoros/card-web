@@ -17,7 +17,8 @@ import {
 	EDITOR_CONTENT_TAB_TYPES,
 	COMMIT_ACTION_TYPES,
 	SORT_NAME_TYPES,
-	TAB_CONFIG_TYPES
+	TAB_CONFIG_TYPES,
+	AI_DIALOG_TYPES
 } from './type_constants.js';
 
 import * as icons from './components/my-icons.js';
@@ -1171,9 +1172,16 @@ export type MultiEditState = {
 	referencesDiff: ReferencesEntriesDiff,
 };
 
+export type AIDialogType = keyof(typeof AI_DIALOG_TYPES);
+
+export type AIDialogTypeConfiguration = {
+	title: string
+};
+
 export type AIState = {
 	open: boolean;
 	active: boolean;
+	kind : AIDialogType;
 	result: string;
 	error: string;
 	//All cards that it was told to operate on
