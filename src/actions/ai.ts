@@ -274,7 +274,7 @@ export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, ge
 	let result = '';
 	try {
 		result = await completion(prompt, uid, USE_CHAT);
-		dispatch({type: AI_RESULT, result});
+		dispatch(aiResult(result));
 	} catch(err) {
 		dispatch(showAIError(err));
 	}
@@ -285,6 +285,13 @@ const aiRequestStarted = (kind : AIDialogType) : AnyAction => {
 	return {
 		type: AI_REQUEST_STARTED,
 		kind
+	};
+};
+
+const aiResult = (result : string) : AnyAction => {
+	return {
+		type: AI_RESULT,
+		result
 	};
 };
 
