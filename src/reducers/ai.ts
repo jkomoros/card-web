@@ -22,7 +22,7 @@ const INITIAL_STATE : AIState = {
 	open: false,
 	active: false,
 	kind: AI_DIALOG_TYPE_CARD_SUMMARY,
-	result: '',
+	result: [],
 	error: '',
 	allCards: [],
 	filteredCards: []
@@ -43,7 +43,7 @@ const app = (state : AIState = INITIAL_STATE, action : AnyAction) : AIState => {
 		return {
 			...state,
 			active: false,
-			result: action.result
+			result: [...action.result]
 		};
 	case AI_SHOW_ERROR:
 		return {

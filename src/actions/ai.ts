@@ -287,7 +287,8 @@ const aiRequestStarted = (kind : AIDialogType) : AnyAction => {
 	};
 };
 
-const aiResult = (result : string) : AnyAction => {
+const aiResult = (result : string | string[]) : AnyAction => {
+	if (typeof result == 'string') result = [result];
 	return {
 		type: AI_RESULT,
 		result

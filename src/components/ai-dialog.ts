@@ -51,7 +51,7 @@ class AIDialog extends connect(store)(DialogElement) {
 		_active: boolean;
 
 	@state()
-		_result: string;
+		_result: string[];
 
 	@state()
 		_error: string;
@@ -98,6 +98,8 @@ class AIDialog extends connect(store)(DialogElement) {
 
 	override innerRender() {
 		if (!this.open) return html``;
+		let result = this._result;
+		if (!result || result.length == 0) result = [''];
 		return html`
 		<div class='${this._active ? 'active' : ''}'>
 			<div>
@@ -108,7 +110,7 @@ class AIDialog extends connect(store)(DialogElement) {
 				${this._active ? 
 		html`<div><em>Loading... (This may take up to a minute...)</em></div>` : 
 		(this._error ? html`<div class='error'>${help('An error occurred', true)} <strong>Error</strong> <em>${this._error}</em></div>` : 
-			html`<textarea readonly id='result' .value=${this._result}></textarea>`
+			html`<textarea readonly id='result' .value=${result[0]}></textarea>`
 		)
 }
 			</div>

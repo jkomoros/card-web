@@ -1182,7 +1182,7 @@ export type AIState = {
 	open: boolean;
 	active: boolean;
 	kind : AIDialogType;
-	result: string;
+	result: string[];
 	error: string;
 	//All cards that it was told to operate on
 	allCards: CardID[];
