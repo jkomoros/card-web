@@ -261,7 +261,7 @@ const FALLBACK_TITLES = [
 
 //returns good examples of titles to emulate, assuming that highly-starred cards
 //in this collection are the best ones.
-export const selectGoodTitles = (state : State) : string[] => {
+const selectGoodTitles = (state : State) : string[] => {
 	//TODO: memoize
 	const NUM_TITLES = 10;
 	const description = new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_CONTENT, limitConfigurableFilterText(NUM_TITLES)], SORT_NAME_STARS);
@@ -290,7 +290,8 @@ export const titleForEditingCardWithAI : AppActionCreator = () => async (dispatc
 	dispatch(aiRequestStarted(AI_DIALOG_TYPE_SUGGEST_TITLE));
 
 	let prompt = 'The following is a short essay: ' + CARD_SEPARATOR + body + CARD_SEPARATOR;
-	prompt += 'Append 5 suggested titles. Each should be a good, punchy summary for use as a title in 35 characters or less with no other text or quotation marks. The title should not use punctuation. Put one title on each line.';
+	prompt += 'Here are examples of good titles of other essays:' + CARD_SEPARATOR + selectGoodTitles(state).join('\n') + CARD_SEPARATOR;
+	prompt += 'Append 5 suggested titles for this essay. Each should be a good, punchy summary for use as a title in 35 characters or less with no other text or quotation marks. The title should not use punctuation. Put one title on each line.';
 
 	try {
 		const result = await completion(prompt, uid, USE_CHAT);
