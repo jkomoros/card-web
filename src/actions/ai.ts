@@ -44,12 +44,8 @@ import {
 } from 'redux';
 
 import {
-	textFieldUpdated
-} from './editor.js';
-
-import {
 	AI_DIALOG_TYPE_CARD_SUMMARY,
-	TEXT_FIELD_TITLE
+	AI_DIALOG_TYPE_SUGGEST_TITLE
 } from '../type_constants.js';
 
 export const AI_REQUEST_STARTED = 'AI_REQUEST_STARTED';
@@ -61,6 +57,9 @@ export const AI_SHOW_ERROR = 'AI_SHOW_ERROR';
 export const AI_DIALOG_TYPE_CONFIGURATION : {[key in AIDialogType] : AIDialogTypeConfiguration} = {
 	[AI_DIALOG_TYPE_CARD_SUMMARY]: {
 		title: 'Summarize Cards'
+	},
+	[AI_DIALOG_TYPE_SUGGEST_TITLE]: {
+		title: 'Suggest Title'
 	}
 };
 
@@ -241,19 +240,19 @@ export const titleForEditingCardWithAI : AppActionCreator = () => async (dispatc
 
 	if (!body) throw new Error('No body provided');
 
+	dispatch(aiRequestStarted(AI_DIALOG_TYPE_SUGGEST_TITLE));
+
 	let prompt = 'The following is a short essay: ' + CARD_SEPARATOR + body + CARD_SEPARATOR;
 	prompt += 'Append a good, punchy summary for use as a title in 35 characters or less with no other text or quotation marks. The title should not use punctuation.';
 
-	//TODO: Refactor other action creators to not assume it always is a summary.
-
-	//TODO: show a state in UI that this is actively working
 	try {
 		const result = await completion(prompt, uid, USE_CHAT);
-		dispatch(textFieldUpdated(TEXT_FIELD_TITLE, result));
+		dispatch(aiResult(result));
 	} catch(err) {
-		const message = extractAIError(err);
-		alert('Error: ' + message);
+		dispatch(showAIError(err));
 	}
+
+	//TODO: when using check mark, commit it back to TEXT_FIELD_TITLE.
 };
 
 export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, getState) => {

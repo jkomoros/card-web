@@ -295,7 +295,9 @@ export const TAB_CONFIG_TYPES = {
 };
 
 export const AI_DIALOG_TYPE_CARD_SUMMARY = 'summary';
+export const AI_DIALOG_TYPE_SUGGEST_TITLE = 'title';
 
 export const AI_DIALOG_TYPES = {
-	[AI_DIALOG_TYPE_CARD_SUMMARY]: true
+	[AI_DIALOG_TYPE_CARD_SUMMARY]: true,
+	[AI_DIALOG_TYPE_SUGGEST_TITLE]: true
 };
