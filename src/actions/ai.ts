@@ -40,8 +40,14 @@ import {
 import {
 	AnyAction
 } from 'redux';
-import { textFieldUpdated } from './editor.js';
-import { TEXT_FIELD_TITLE } from '../type_constants.js';
+
+import {
+	textFieldUpdated
+} from './editor.js';
+
+import {
+	TEXT_FIELD_TITLE
+} from '../type_constants.js';
 
 export const AI_REQUEST_STARTED = 'AI_REQUEST_STARTED';
 export const AI_RESULT = 'AI_RESULT';
