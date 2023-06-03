@@ -1174,11 +1174,6 @@ export type MultiEditState = {
 
 export type AIDialogType = keyof(typeof AI_DIALOG_TYPES);
 
-export type AIDialogTypeConfiguration = {
-	title: string;
-	multiResult: boolean;
-};
-
 export type AIState = {
 	open: boolean;
 	active: boolean;

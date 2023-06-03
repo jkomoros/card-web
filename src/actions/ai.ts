@@ -36,7 +36,6 @@ import {
 	Card,
 	CardID,
 	Uid,
-	AIDialogTypeConfiguration,
 	AIDialogType
 } from '../types.js';
 
@@ -55,6 +54,11 @@ export const AI_SELECT_RESULT_INDEX = 'AI_SELECT_RESULT_INDEX';
 export const AI_DIALOG_CLOSE = 'AI_DIALOG_CLOSE';
 export const AI_SET_ACTIVE_CARDS = 'AI_SET_ACTIVE_CARDS';
 export const AI_SHOW_ERROR = 'AI_SHOW_ERROR';
+
+export type AIDialogTypeConfiguration = {
+	title: string;
+	multiResult: boolean;
+};
 
 export const AI_DIALOG_TYPE_CONFIGURATION : {[key in AIDialogType] : AIDialogTypeConfiguration} = {
 	[AI_DIALOG_TYPE_CARD_SUMMARY]: {

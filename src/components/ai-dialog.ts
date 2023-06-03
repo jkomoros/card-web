@@ -11,6 +11,7 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	AI_DIALOG_TYPE_CONFIGURATION,
+	AIDialogTypeConfiguration,
 	aiSelectResultIndex,
 	closeAIDialog,
 } from '../actions/ai.js';
@@ -38,7 +39,6 @@ import {
 
 import {
 	AIDialogType,
-	AIDialogTypeConfiguration,
 	CardID,
 	State,
 	TagInfos
