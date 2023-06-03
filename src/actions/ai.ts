@@ -3,6 +3,7 @@ import {
 } from '../store.js';
 
 import {
+	FunctionsError,
 	httpsCallable
 } from 'firebase/functions';
 
@@ -177,6 +178,31 @@ const cardsAISummaryPrompt = (cards : Card[]) : [prompt : string, ids : CardID[]
 	return [prompt, ids];
 };
 
+type aiErrorDetails = {
+	status: number;
+	statusText: string;
+}
+
+const aiError : AppActionCreator = (err : FunctionsError) => async (dispatch) => {
+	
+	let message = String(err);
+	
+	if (err.name == 'FirebaseError') {
+		if (err.details) {
+			const details = err.details as aiErrorDetails;
+			message = 'AI Endpoint Error: ' + details.status + ': ' + details.statusText;
+		} else {
+			message = err.message;
+		}
+	}
+
+	dispatch({
+		type: AI_ERROR,
+		error: message
+	});
+
+};
+
 export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, getState) => {
 	const state = getState();
 	const mayUseAI = selectUserMayUseAI(state);
@@ -198,10 +224,7 @@ export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, ge
 		result = await completion(prompt, uid, USE_CHAT);
 		dispatch({type: AI_RESULT, result});
 	} catch(err) {
-		dispatch({
-			type: AI_ERROR,
-			error: '' + err,
-		});
+		dispatch(aiError(err));
 	}
 
 };

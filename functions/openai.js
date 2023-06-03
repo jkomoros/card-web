@@ -57,10 +57,23 @@ const handler = async (data, context) => {
         throw new functions.https.HttpsError('invalid-argument', 'endpoint must be set to an allowed endpoint type');
     }
 
-    //TODO: if it throws an error with a code, is it possible to pass that along directly?
-    const result = await openai[data.endpoint](data.payload);
+    let result = {
+        data: 'INVALID'
+    };
 
-    //TODO: pass more JSON-able properties back
+    try {
+        result = await openai[data.endpoint](data.payload);
+    } catch(err) {
+        //err is either an err.response.statusText/status or err.message
+        if (err.response) {
+            throw new functions.https.HttpsError('unknown', err.response.statusText, {
+                status: err.response.status,
+                statusText: err.response.statusText
+            });
+        }
+        throw new functions.https.HttpsError('unknown', err.message);
+    }
+
     return result.data;
 };
 
