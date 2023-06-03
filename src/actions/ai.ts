@@ -193,8 +193,17 @@ export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, ge
 		allCards: cards.map(card => card.id),
 		filteredCards: ids
 	});
-	const result = await completion(prompt, uid, USE_CHAT);
-	dispatch({type: AI_RESULT, result});
+	let result = '';
+	try {
+		result = await completion(prompt, uid, USE_CHAT);
+		dispatch({type: AI_RESULT, result});
+	} catch(err) {
+		dispatch({
+			type: AI_ERROR,
+			error: '' + err,
+		});
+	}
+
 };
 
 export const closeAIDialog = () : AnyAction => {
