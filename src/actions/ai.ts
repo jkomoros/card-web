@@ -183,10 +183,8 @@ type aiErrorDetails = {
 	statusText: string;
 }
 
-const aiError : AppActionCreator = (err : FunctionsError) => async (dispatch) => {
-	
+const extractAIError = (err : FunctionsError) : string => {
 	let message = String(err);
-	
 	if (err.name == 'FirebaseError') {
 		if (err.details) {
 			const details = err.details as aiErrorDetails;
@@ -195,10 +193,13 @@ const aiError : AppActionCreator = (err : FunctionsError) => async (dispatch) =>
 			message = err.message;
 		}
 	}
+	return message;
+};
 
+const aiError : AppActionCreator = (err : FunctionsError) => async (dispatch) => {
 	dispatch({
 		type: AI_ERROR,
-		error: message
+		error: extractAIError(err)
 	});
 
 };
