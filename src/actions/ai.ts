@@ -291,7 +291,7 @@ export const titleForEditingCardWithAI : AppActionCreator = () => async (dispatc
 
 	let prompt = 'The following is a short essay: ' + CARD_SEPARATOR + body + CARD_SEPARATOR;
 	prompt += 'Here are examples of good titles of other essays:' + CARD_SEPARATOR + selectGoodTitles(state).join('\n') + CARD_SEPARATOR;
-	prompt += 'Append 5 suggested titles for this essay. Each should be a pithy, clever summary for use as a title in 35 characters or less. Put one title on each line.';
+	prompt += 'Append 5 suggested titles for this essay. Each should be a pithy, clever summary that includes a verb in 35 characters or less. Put one title on each line.';
 
 	try {
 		const result = await completion(prompt, uid, USE_CHAT);
