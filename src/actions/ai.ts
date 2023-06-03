@@ -224,6 +224,8 @@ export const titleForEditingCardWithAI : AppActionCreator = () => async (dispatc
 	const editingCard = selectEditingCard(state);
 	const body = innerTextForHTML(editingCard.body);
 
+	if (!body) throw new Error('No body provided');
+
 	let prompt = 'The following is a short essay: ' + CARD_SEPARATOR + body + CARD_SEPARATOR;
 	prompt += 'Append a good, punchy summary for use as a title in 35 characters or less with no other text or quotation marks. The title should not use punctuation.';
 
