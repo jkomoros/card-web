@@ -264,10 +264,7 @@ export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, ge
 	}
 	const uid = selectUid(state);
 	const cards = selectActiveCollectionCards(state);
-	dispatch({
-		type: AI_REQUEST_STARTED,
-		kind: AI_DIALOG_CARD_SUMMARY
-	});
+	dispatch(aiRequestStarted(AI_DIALOG_CARD_SUMMARY));
 	const [prompt, ids] = cardsAISummaryPrompt(cards);
 	dispatch({
 		type: AI_SET_ACTIVE_CARDS,
@@ -282,6 +279,13 @@ export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, ge
 		dispatch(showAIError(err));
 	}
 
+};
+
+const aiRequestStarted = (kind : AIDialogType) : AnyAction => {
+	return {
+		type: AI_REQUEST_STARTED,
+		kind
+	};
 };
 
 export const closeAIDialog = () : AnyAction => {
