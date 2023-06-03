@@ -312,8 +312,13 @@ export const aiSelectResultIndex : AppActionCreator = (index : number) => (dispa
 	});
 };
 
-export const closeAIDialog = () : AnyAction => {
-	return {
+export const closeAIDialog : AppActionCreator = (commit : boolean) => (dispatch) => {
+	dispatch({
 		type: AI_DIALOG_CLOSE
-	};
+	});
+
+	if (commit) {
+		//TODO: do a different commit action if one is configured
+		alert('Commit was chosen');
+	}
 };

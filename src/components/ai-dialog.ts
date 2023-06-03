@@ -148,7 +148,7 @@ class AIDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleDoneClicked() {
-		this._shouldClose();
+		store.dispatch(closeAIDialog(true));
 	}
 
 	get _kindConfig() : AIDialogTypeConfiguration {
@@ -157,7 +157,7 @@ class AIDialog extends connect(store)(DialogElement) {
 
 	override _shouldClose() {
 		//Override base class.
-		store.dispatch(closeAIDialog());
+		store.dispatch(closeAIDialog(false));
 	}
 
 	override stateChanged(state : State) {
