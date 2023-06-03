@@ -4,10 +4,10 @@
 import { initializeApp } from 'firebase/app';
 
 import { 
-	getFirestore,
 	serverTimestamp,
 	deleteField,
-	Timestamp
+	Timestamp,
+	initializeFirestore
 } from 'firebase/firestore';
 
 import {
@@ -41,7 +41,14 @@ const config = DEV_MODE ? FIREBASE_DEV_CONFIG : FIREBASE_PROD_CONFIG;
 // Initialize Firebase
 const firebaseApp = initializeApp(config);
 
-export const db = getFirestore(firebaseApp);
+//Firestore without long polling has a potential to OOM during load with lots of
+//long document. See
+//https://github.com/firebase/firebase-js-sdk/issues/4416#issuecomment-788225325
+//and #659.
+export const db = initializeFirestore(firebaseApp, {
+	experimentalForceLongPolling: true
+});
+
 export const auth = getAuth(firebaseApp);
 export const functions = getFunctions(firebaseApp, FIREBASE_REGION);
 export const storage = getStorage(firebaseApp);
