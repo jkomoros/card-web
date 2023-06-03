@@ -1183,6 +1183,7 @@ export type AIState = {
 	open: boolean;
 	active: boolean;
 	kind : AIDialogType;
+	selectedIndex: number;
 	result: string[];
 	error: string;
 	//All cards that it was told to operate on

@@ -7,7 +7,8 @@ import {
 	AI_RESULT,
 	AI_DIALOG_CLOSE,
 	AI_SET_ACTIVE_CARDS,
-	AI_SHOW_ERROR
+	AI_SHOW_ERROR,
+	AI_SELECT_RESULT_INDEX
 } from '../actions/ai.js';
 
 import {
@@ -22,6 +23,7 @@ const INITIAL_STATE : AIState = {
 	open: false,
 	active: false,
 	kind: AI_DIALOG_TYPE_CARD_SUMMARY,
+	selectedIndex: -1,
 	result: [],
 	error: '',
 	allCards: [],
@@ -36,6 +38,7 @@ const app = (state : AIState = INITIAL_STATE, action : AnyAction) : AIState => {
 			active: true,
 			open: true,
 			kind: action.kind,
+			selectedIndex: -1,
 			allCards: [],
 			filteredCards: []
 		};
@@ -44,6 +47,11 @@ const app = (state : AIState = INITIAL_STATE, action : AnyAction) : AIState => {
 			...state,
 			active: false,
 			result: [...action.result]
+		};
+	case AI_SELECT_RESULT_INDEX:
+		return {
+			...state,
+			selectedIndex: action.index
 		};
 	case AI_SHOW_ERROR:
 		return {
