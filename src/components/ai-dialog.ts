@@ -135,7 +135,7 @@ class AIDialog extends connect(store)(DialogElement) {
 		if (!this.open) return html``;
 		return html`
 		<div class='${this._active ? 'active' : ''}'>
-			<div>
+			<div ?hidden=${this._allCards.length == 0 && this._filteredCards.length == 0}>
 				<label>Cards ${this._allCards.length == this._filteredCards.length ? '' : help('Cards that are crossed out are not included in the summary, either because they have no content or do not fit in the context window.', true)}</label><tag-list .tagInfos=${this._cardTagInfos} .previousTags=${this._allCards} .tags=${this._filteredCards}></tag-list>
 			</div>
 			<div>
