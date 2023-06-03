@@ -232,11 +232,13 @@ export const titleForEditingCardWithAI : AppActionCreator = () => async (dispatc
 	//TODO: Refactor other action creators to not assume it always is a summary.
 
 	//TODO: show a state in UI that this is actively working
-	const result = await completion(prompt, uid, USE_CHAT);
-	console.log(result);
-
-	//TODO: handle errors
-	dispatch(textFieldUpdated(TEXT_FIELD_TITLE, result));
+	try {
+		const result = await completion(prompt, uid, USE_CHAT);
+		dispatch(textFieldUpdated(TEXT_FIELD_TITLE, result));
+	} catch(err) {
+		const message = extractAIError(err);
+		alert('Error: ' + message);
+	}
 };
 
 export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, getState) => {
