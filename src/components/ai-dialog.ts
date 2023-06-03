@@ -93,6 +93,11 @@ class AIDialog extends connect(store)(DialogElement) {
 				/* get equal specificifity to override help badges color */
 				fill: var(--app-warning-color);
 			}
+
+			label.large {
+				font-size: 1.0em;
+				color: var(--app-dark-text-color);
+			}
 		`
 	];
 
@@ -108,7 +113,7 @@ class AIDialog extends connect(store)(DialogElement) {
 		let result = this._result;
 		if (!result || result.length == 0) result = [''];
 		if (this._kindConfig.multiResult) {
-			return result.map((item, index) => html`<input type='radio' name='result' .value=${index} id=${'result-' + index}></input><label for=${'result-' + index}>${item}</label>`)
+			return result.map((item, index) => html`<div><input type='radio' name='result' .value=${index} id=${'result-' + index}></input><label class='large' for=${'result-' + index}>${item}</label></div>`);
 		}
 		return html`<textarea readonly id='result' .value=${result[0]}></textarea>`;
 	}
