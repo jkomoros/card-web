@@ -261,13 +261,12 @@ const FALLBACK_TITLES = [
 
 //returns good examples of titles to emulate, assuming that highly-starred cards
 //in this collection are the best ones.
-const selectGoodTitles = (state : State) : string[] => {
+const selectGoodTitles = (state : State, count = 10) : string[] => {
 	//TODO: memoize
-	const NUM_TITLES = 10;
-	const description = new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_CONTENT, limitConfigurableFilterText(NUM_TITLES)], SORT_NAME_STARS);
+	const description = new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_CONTENT, limitConfigurableFilterText(count)], SORT_NAME_STARS);
 	const collection = description.collection(selectCollectionConstructorArguments(state));
 	const titles = collection.sortedCards.map(card => card.title);
-	return [...titles, ...FALLBACK_TITLES].slice(0,NUM_TITLES);
+	return [...titles, ...FALLBACK_TITLES].slice(0,count);
 };
 
 export const titleForEditingCardWithAI : AppActionCreator = () => async (dispatch, getState) => {
