@@ -23,6 +23,7 @@ import {
 	selectAIResult,
 	selectAIResultIndex,
 	selectActiveCollectionCards,
+	selectCollectionConstructorArguments,
 	selectEditingCard,
 	selectIsEditing,
 	selectUid,
@@ -38,7 +39,8 @@ import {
 	Card,
 	CardID,
 	Uid,
-	AIDialogType
+	AIDialogType,
+	State
 } from '../types.js';
 
 import {
@@ -48,12 +50,17 @@ import {
 import {
 	AI_DIALOG_TYPE_CARD_SUMMARY,
 	AI_DIALOG_TYPE_SUGGEST_TITLE,
+	CARD_TYPE_CONTENT,
+	EVERYTHING_SET_NAME,
+	SORT_NAME_STARS,
 	TEXT_FIELD_TITLE
 } from '../type_constants.js';
 
 import {
 	textFieldUpdated
 } from './editor.js';
+import { CollectionDescription } from '../collection_description.js';
+import { limitConfigurableFilterText } from '../filters.js';
 
 export const AI_REQUEST_STARTED = 'AI_REQUEST_STARTED';
 export const AI_RESULT = 'AI_RESULT';
@@ -237,6 +244,30 @@ const showAIError : AppActionCreator = (err : FunctionsError) => async (dispatch
 		error: extractAIError(err)
 	});
 
+};
+
+const FALLBACK_TITLES = [
+	'Make space for long-term thinking',
+	'Good leaders have 1:1s that decrease stress',
+	'Beware illustory consensus due to ill-defined terms',
+	'Start by assuming there\'s no villain ',
+	'Systems Theory is a powerful lens in complex spaces',
+	'The power of asking “Why?”',
+	'Focus on direction, not solution, in complex problem spaces',
+	'In complex spaces, avoid collapsing the wave function early',
+	'Prefer simpler models in uncertainty',
+	'McNamara fallacy: What can\'t be measured doesn\'t matter'
+];
+
+//returns good examples of titles to emulate, assuming that highly-starred cards
+//in this collection are the best ones.
+export const selectGoodTitles = (state : State) : string[] => {
+	//TODO: memoize
+	const NUM_TITLES = 10;
+	const description = new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_CONTENT, limitConfigurableFilterText(NUM_TITLES)], SORT_NAME_STARS);
+	const collection = description.collection(selectCollectionConstructorArguments(state));
+	const titles = collection.sortedCards.map(card => card.title);
+	return [...titles, ...FALLBACK_TITLES].slice(0,NUM_TITLES);
 };
 
 export const titleForEditingCardWithAI : AppActionCreator = () => async (dispatch, getState) => {
