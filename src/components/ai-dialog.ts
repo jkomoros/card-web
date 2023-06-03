@@ -28,7 +28,8 @@ import {
 	selectAIResult,
 	selectAIAllCards,
 	selectAIFilteredCards,
-	selectTagInfosForCards
+	selectTagInfosForCards,
+	selectAIError
 } from '../selectors.js';
 
 import {
@@ -47,6 +48,9 @@ class AIDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_result: string;
+
+	@state()
+		_error: string;
 
 	@state()
 		_allCards : CardID[];
@@ -85,7 +89,12 @@ class AIDialog extends connect(store)(DialogElement) {
 			</div>
 			<div>
 				<label>Result</label>
-				${this._active ? html`<div><em>Loading... (This may take up to a minute...)</em></div>` : html`<textarea readonly id='result' .value=${this._result}></textarea>`}
+				${this._active ? 
+		html`<div><em>Loading... (This may take up to a minute...)</em></div>` : 
+		(this._error ? html`<div><em class='error'>${this._error}</em></div>` : 
+			html`<textarea readonly id='result' .value=${this._result}></textarea>`
+		)
+}
 			</div>
 			<div class='buttons'>
 				<button class='round' @click='${this._handleDoneClicked}'>${CHECK_CIRCLE_OUTLINE_ICON}</button>
@@ -112,6 +121,7 @@ class AIDialog extends connect(store)(DialogElement) {
 		this.open = selectAIDialogOpen(state);
 		this._active = selectAIActive(state);
 		this._result = selectAIResult(state);
+		this._error = selectAIError(state);
 		this._allCards = selectAIAllCards(state);
 		this._filteredCards = selectAIFilteredCards(state);
 		this._cardTagInfos = selectTagInfosForCards(state);
