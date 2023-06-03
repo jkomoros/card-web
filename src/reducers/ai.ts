@@ -6,7 +6,8 @@ import {
 	AI_REQUEST_STARTED,
 	AI_RESULT,
 	AI_DIALOG_CLOSE,
-	AI_SET_ACTIVE_CARDS
+	AI_SET_ACTIVE_CARDS,
+	AI_ERROR
 } from '../actions/ai.js';
 
 import {
@@ -17,6 +18,7 @@ const INITIAL_STATE : AIState = {
 	open: false,
 	active: false,
 	result: '',
+	error: '',
 	allCards: [],
 	filteredCards: []
 };
@@ -36,6 +38,12 @@ const app = (state : AIState = INITIAL_STATE, action : AnyAction) : AIState => {
 			...state,
 			active: false,
 			result: action.result
+		};
+	case AI_ERROR:
+		return {
+			...state,
+			active: false,
+			error: action.error
 		};
 	case AI_DIALOG_CLOSE:
 		return {
