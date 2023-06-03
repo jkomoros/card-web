@@ -34,7 +34,8 @@ import {
 	selectEditingUnderlyingCardSnapshotDiffDescription,
 	selectOvershadowedUnderlyingCardChangesDiffDescription,
 	selectEditingCardHasUnsavedChanges,
-	selectEditorMinimized
+	selectEditorMinimized,
+	selectUserMayUseAI
 } from '../selectors.js';
 
 import {
@@ -76,7 +77,8 @@ import {
 	DELETE_FOREVER_ICON,
 	PLUS_ICON,
 	HIGHLIGHT_OFF_ICON,
-	MERGE_TYPE_ICON
+	MERGE_TYPE_ICON,
+	AUTO_AWESOME_ICON
 } from './my-icons.js';
 
 import {
@@ -112,6 +114,7 @@ import {
 
 import {
 	TEXT_FIELD_BODY,
+	TEXT_FIELD_TITLE,
 	REFERENCE_TYPE_ACK,
 	REFERENCE_TYPE_CONCEPT,
 	TAB_CONTENT,
@@ -161,6 +164,7 @@ import {
 	ARROW_UP_ICON,
 	ARROW_RIGHT_ICON
 } from './my-icons';
+import { titleForEditingCardWithAI } from '../actions/ai.js';
 
 @customElement('card-editor')
 class CardEditor extends connect(store)(LitElement) {
@@ -182,6 +186,9 @@ class CardEditor extends connect(store)(LitElement) {
 
 	@state()
 		_userMayChangeEditingCardSection: boolean;
+
+	@state()
+		_userMayUseAI: boolean;
 
 	@state()
 		_mayNotDeleteReason: string;
@@ -458,7 +465,7 @@ class CardEditor extends connect(store)(LitElement) {
 				${TypedObject.entries(editableFieldsForCardType(this._card.card_type)).map(entry => html`<label>${toTitleCase(entry[0])}${entry[1].description ? help(entry[1].description) : ''}</label>
 					${entry[1].html
 		? html`<textarea @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${this._card[entry[0]]}></textarea>`
-		: html`<input type='text' @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${this._card[entry[0]] || ''}></input>`}
+		: html`<div class='row'><input type='text' @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${this._card[entry[0]] || ''}></input>${this._userMayUseAI && entry[0] == TEXT_FIELD_TITLE ? html`<button class='small' @click=${this._handleAITitleClicked} title='Suggest title with AI'>${AUTO_AWESOME_ICON}</button>` : ''}</div>`}
 				`)}
 				<label>Images</label><card-images-editor></card-images-editor>
 			</div>
@@ -626,6 +633,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._active = state.editor.editing;
 		this._minimized = selectEditorMinimized(state);
 		this._userMayChangeEditingCardSection = selectUserMayChangeEditingCardSection(state);
+		this._userMayUseAI = selectUserMayUseAI(state);
 		this._sectionsUserMayEdit = selectSectionsUserMayEdit(state);
 		this._mayNotDeleteReason = selectReasonsUserMayNotDeleteActiveCard(state);
 		this._substantive = state.editor.substantive;
@@ -785,6 +793,10 @@ class CardEditor extends connect(store)(LitElement) {
 		const name = ele.getAttribute('data-name') as EditorContentTab;
 		if (!name) return;
 		store.dispatch(editingSelectEditorTab(name));
+	}
+
+	_handleAITitleClicked() {
+		store.dispatch(titleForEditingCardWithAI());
 	}
 
 	_handleNewTag() {
