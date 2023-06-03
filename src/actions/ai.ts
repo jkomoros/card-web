@@ -20,12 +20,15 @@ import {
 
 import {
 	selectActiveCollectionCards,
+	selectEditingCard,
+	selectIsEditing,
 	selectUid,
 	selectUserMayUseAI
 } from '../selectors.js';
 
 import {
-	cardPlainContent
+	cardPlainContent,
+	innerTextForHTML
 } from '../util.js';
 
 import {
@@ -37,6 +40,8 @@ import {
 import {
 	AnyAction
 } from 'redux';
+import { textFieldUpdated } from './editor.js';
+import { TEXT_FIELD_TITLE } from '../type_constants.js';
 
 export const AI_REQUEST_STARTED = 'AI_REQUEST_STARTED';
 export const AI_RESULT = 'AI_RESULT';
@@ -202,6 +207,34 @@ const showAIError : AppActionCreator = (err : FunctionsError) => async (dispatch
 		error: extractAIError(err)
 	});
 
+};
+
+export const titleForEditingCardWithAI : AppActionCreator = () => async (dispatch, getState) => {
+	const state = getState();
+	const mayUseAI = selectUserMayUseAI(state);
+	if (!mayUseAI) {
+		throw new Error('User does not have permission to use AI');
+	}
+	if (!selectIsEditing(state)) {
+		throw new Error('Not editing a card');
+	}
+
+	const uid = selectUid(state);
+
+	const editingCard = selectEditingCard(state);
+	const body = innerTextForHTML(editingCard.body);
+
+	let prompt = 'The following is a short essay: ' + CARD_SEPARATOR + body + CARD_SEPARATOR;
+	prompt += 'Append a good, punchy summary for use as a title in 35 characters or less with no other text or quotation marks. The title should not use punctuation.';
+
+	//TODO: Refactor other action creators to not assume it always is a summary.
+
+	//TODO: show a state in UI that this is actively working
+	const result = await completion(prompt, uid, USE_CHAT);
+	console.log(result);
+
+	//TODO: handle errors
+	dispatch(textFieldUpdated(TEXT_FIELD_TITLE, result));
 };
 
 export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, getState) => {
