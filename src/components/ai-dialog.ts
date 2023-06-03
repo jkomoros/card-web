@@ -150,7 +150,7 @@ class AIDialog extends connect(store)(DialogElement) {
 			//Select the text of the textarea for easy copying when it loads.
 			
 			const ele = this.shadowRoot.getElementById('result') as HTMLTextAreaElement;
-			ele.select();
+			if (ele) ele.select();
 		}
 	}
 
