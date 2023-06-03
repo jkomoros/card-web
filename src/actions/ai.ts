@@ -56,10 +56,12 @@ export const AI_SHOW_ERROR = 'AI_SHOW_ERROR';
 
 export const AI_DIALOG_TYPE_CONFIGURATION : {[key in AIDialogType] : AIDialogTypeConfiguration} = {
 	[AI_DIALOG_TYPE_CARD_SUMMARY]: {
-		title: 'Summarize Cards'
+		title: 'Summarize Cards',
+		multiResult: false,
 	},
 	[AI_DIALOG_TYPE_SUGGEST_TITLE]: {
-		title: 'Suggest Title'
+		title: 'Suggest Title',
+		multiResult: true
 	}
 };
 
