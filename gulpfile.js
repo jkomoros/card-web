@@ -1,18 +1,16 @@
 /*eslint-env node*/
 
-const gulp = require('gulp');
-const rename = require('gulp-rename');
-const spawnSync = require('child_process').spawnSync;
-//Only used for `reset-dev` because htat uses subcommands
-const exec = require('child_process').exec;
-const prompts = require('prompts');
-const fs = require('fs');
-const process = require('process');
-const inject = require('gulp-inject-string');
+import gulp from 'gulp';
+import rename from 'gulp-rename';
+import { spawnSync, exec } from 'child_process';
+import prompts from 'prompts';
+import fs from 'fs';
+import process from 'process';
+import inject from 'gulp-inject-string';
 
 let projectConfig;
 try {
-	projectConfig = require('./config.SECRET.json');
+	projectConfig = JSON.parse(fs.readFileSync('./config.SECRET.json').toString());
 } catch(err) {
 	console.log('config.SECRET.json didn\'t exist. Check README.md on how to create one');
 	process.exit(1);
@@ -511,7 +509,7 @@ gulp.task('reset-dev',
 	)
 );
 
-var realFavicon = require ('gulp-real-favicon');
+import realFavicon from 'gulp-real-favicon';
 
 // File where the favicon markups are stored
 var FAVICON_DATA_FILE = 'favicon_data.json';
