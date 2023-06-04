@@ -23,7 +23,6 @@ import {
 } from '../selectors.js';
 
 import {
-	CardType,
 	FindDialogType
 } from '../types.js';
 
@@ -90,7 +89,7 @@ export const findUpdateRenderOffset = (renderOffset : number) : AnyAction => {
 	};
 };
 
-const launchFind : AppActionCreator = (typ : FindDialogType, starterQuery? : string, lockedCardTypeFilter? : CardType) => (dispatch, getState) => {
+const launchFind : AppActionCreator = (typ : FindDialogType, starterQuery? : string, lockedCardTypeFilter? : string) => (dispatch, getState) => {
 	if (!starterQuery) {
 		const description = selectActiveCollectionDescription(getState());
 		starterQuery = queryTextFromCollectionDescription(description);
