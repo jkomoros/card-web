@@ -13,7 +13,8 @@ import {
 	query,
 	getDocs,
 	where,
-	getFirestore
+	getFirestore,
+	limit
 } from 'firebase/firestore';
 
 import {
@@ -26,6 +27,8 @@ import {
 
 const CONFIG_PATH = 'config.SECRET.json';
 const SEO_PATH = 'seo/';
+
+const DEVELOPMENT_MODE = false;
 
 type FirebaseProdDevOptions = {
 	prod?: FirebaseOptions,
@@ -81,7 +84,9 @@ const fetchCards = async (config : FirebaseOptions) : Promise<Card[]> => {
 	// Initialize Firebase
 	const firebaseApp = initializeApp(config);
 	const db = getFirestore(firebaseApp);
-	const docs = await getDocs(query(collection(db, CARDS_COLLECTION), where('published', '==', true)));
+	let q = query(collection(db, CARDS_COLLECTION), where('published', '==', true));
+	if (DEVELOPMENT_MODE) q = query(collection(db, CARDS_COLLECTION), where('published', '==', true), limit(5));
+	const docs = await getDocs(q);
 	const result : Card[] = [];
 	for (const doc of docs.docs) {
 		result.push({
