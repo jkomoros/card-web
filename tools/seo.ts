@@ -38,6 +38,17 @@ type FirebaseProdDevOptions = {
 	dev?: FirebaseOptions
 };
 
+type Rewrite = {
+	source: string,
+	destination: string
+}
+
+type FirebaseConfig = {
+	hosting: {
+		rewrites: Rewrite[]
+	}
+}
+
 type Config = {
 	app_title : string;
 	app_description : string;
@@ -127,6 +138,31 @@ const createSEOEndpoints = (config : Config, cards : Card[]) => {
 	}
 };
 
+const updateFirebaseConfig = () => {
+	log('Updating rewrite rules in firebase.json');
+	const config = JSON.parse(fs.readFileSync('firebase.json').toString()) as FirebaseConfig;
+	const files = fs.readdirSync(SEO_PATH);
+	//We will use our own base rules, because we don't know if firebase.json
+	//already has rules in it from a previous run of this.
+	const rewrites : Rewrite[] = [
+		{
+			'source': '**',
+			'destination': '/index.html'
+		}
+	];
+	for (const file of files) {
+		const baseFileName = path.parse(file).name;
+		//TODO: verify these rules work OK
+		rewrites.unshift({
+			source: '/c/**/' + baseFileName,
+			destination: '/' + path.join(SEO_PATH, file)
+		});
+	}
+	config.hosting.rewrites = rewrites;
+	//firebase.json is OK to overwrite because a fresh one is created each time `gulp inject-config` is run.
+	fs.writeFileSync('firebase.json', JSON.stringify(config, null, '\t'));
+};
+
 const run = async () => {
 	const file = fs.readFileSync(CONFIG_PATH).toString();
 	const json = JSON.parse(file) as Config;
@@ -140,6 +176,7 @@ const run = async () => {
 	const cards = await fetchCards(firebaseConfig);
 	log(`Fetched ${cards.length} cards`);
 	createSEOEndpoints(json, cards);
+	updateFirebaseConfig();
 };
 
 (async() => {
