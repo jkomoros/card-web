@@ -29,7 +29,7 @@ import {
 const CONFIG_PATH = 'config.SECRET.json';
 const SEO_PATH = 'seo/';
 //How many characters to allow description to be
-const MAX_DESCRIPTION_LENGTH = 60;
+const MAX_DESCRIPTION_LENGTH = 200;
 
 const DEVELOPMENT_MODE = false;
 
@@ -107,7 +107,6 @@ const saveSEOForCard = (config : Config, rawContent : string, card : Card) => {
 	const fileName = path.join(SEO_PATH, name + '.html');
 	log(`Creating ${fileName}`);
 	const title = card.title || config.app_title;
-	//TODO: remove html
 	let description = striptags(card.body) || config.app_description;
 	description = description.split('\n').join(' ');
 	description = description.slice(0, MAX_DESCRIPTION_LENGTH);
