@@ -13,4 +13,5 @@ src/**/*.map
 #Ensure that no one checks in the secret config
 *.SECRET.*
 index.html
+index.PARTIAL.html
 firestore.rules

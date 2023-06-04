@@ -154,10 +154,14 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	let templateHTML = fs.readFileSync('index.TEMPLATE.html').toString();
 	if (META_STRING)templateHTML = templateHTML.split('<!-- INJECT-META-HERE -->').join(META_STRING);
 	templateHTML = templateHTML.split('@GOOGLE_ANALYTICS@').join(GOOGLE_ANALYTICS);
-	templateHTML = templateHTML.split('@TITLE@').join(APP_TITLE);
-	templateHTML = templateHTML.split('@DESCRIPTION@').join(APP_DESCRIPTION);
 	if (DISABLE_SERVICE_WORKER) templateHTML = templateHTML.split('SERVICE-WORKER-START*/').join('SERVICE-WORKER-START*//*');
-	fs.writeFileSync('index.html', templateHTML);
+	fs.writeFileSync('index.PARTIAL.html', templateHTML);
+
+	//We split this into two parts so build:seo can use the partial results that only need title and description changed.
+	let templatePartialHTML = fs.readFileSync('index.PARTIAL.html').toString();
+	templatePartialHTML = templatePartialHTML.split('@TITLE@').join(APP_TITLE);
+	templatePartialHTML = templatePartialHTML.split('@DESCRIPTION@').join(APP_DESCRIPTION);
+	fs.writeFileSync('index.html', templatePartialHTML);
 	
 	const COMPOSED_USER_TYPE_ALL_PERMISSIONS = {...USER_TYPE_ALL_PERMISSIONS};
 	const COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS = {...COMPOSED_USER_TYPE_ALL_PERMISSIONS, ...USER_TYPE_ANONYMOUS_PERMISSIONS};
