@@ -1,7 +1,27 @@
 import * as fs from 'fs';
 import * as process from 'process';
 import { exec } from 'child_process';
-import { FirebaseOptions } from 'firebase/app';
+
+import {
+	FirebaseOptions,
+	initializeApp
+} from 'firebase/app';
+
+import {
+	collection,
+	query,
+	getDocs,
+	where,
+	getFirestore
+} from 'firebase/firestore';
+
+import {
+	Card
+} from '../src/types.js';
+
+import {
+	CARDS_COLLECTION
+} from '../src/type_constants.js';
 
 const CONFIG_PATH = 'config.SECRET.json';
 
@@ -53,6 +73,21 @@ const getFirebaseConfig = async (config : Config) : Promise<FirebaseOptions> => 
 	throw new Error(`Neither prod nor dev options matched projectid ${projectID}`);
 };
 
+const fetchCards = async (config : FirebaseOptions) : Promise<Card[]> => {
+	// Initialize Firebase
+	const firebaseApp = initializeApp(config);
+	const db = getFirestore(firebaseApp);
+	const docs = await getDocs(query(collection(db, CARDS_COLLECTION), where('published', '==', true)));
+	const result : Card[] = [];
+	for (const doc of docs.docs) {
+		result.push({
+			...doc.data(),
+			id: doc.id
+		} as Card);
+	}
+	return result;
+};
+
 const run = async () => {
 	const file = fs.readFileSync(CONFIG_PATH).toString();
 	const json = JSON.parse(file) as Config;
@@ -61,8 +96,8 @@ const run = async () => {
 		process.exit(0);
 	}
 	const firebaseConfig = await getFirebaseConfig(json);
-	//TODO: actually fetch the items
-	console.log(firebaseConfig);
+	const cards = await fetchCards(firebaseConfig);
+	console.log(cards.map(card => card.title));
 };
 
 (async() => {
