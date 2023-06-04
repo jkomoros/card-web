@@ -294,7 +294,9 @@ export const titleForEditingCardWithAI : AppActionCreator = () => async (dispatc
 
 	try {
 		const result = await completion(prompt, uid, USE_CHAT);
-		dispatch(aiResult(result.split('\n')));
+		//The prompt keeps on returning numbered results no matter how I tweak it, so just remove that.
+		const lines = result.split('\n').map(str => str.replace(/^\d+\.\s*/, '').trim());
+		dispatch(aiResult(lines));
 	} catch(err) {
 		dispatch(showAIError(err));
 	}
