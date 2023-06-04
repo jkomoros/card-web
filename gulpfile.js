@@ -154,6 +154,7 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	let templateHTML = fs.readFileSync('index.TEMPLATE.html').toString();
 	if (META_STRING)templateHTML = templateHTML.split('<!-- INJECT-META-HERE -->').join(META_STRING);
 	templateHTML = templateHTML.split('@GOOGLE_ANALYTICS@').join(GOOGLE_ANALYTICS);
+	templateHTML = templateHTML.split('@APP_TITLE@').join(APP_TITLE);
 	if (DISABLE_SERVICE_WORKER) templateHTML = templateHTML.split('SERVICE-WORKER-START*/').join('SERVICE-WORKER-START*//*');
 	fs.writeFileSync('index.PARTIAL.html', templateHTML);
 
