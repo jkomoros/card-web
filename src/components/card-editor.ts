@@ -150,7 +150,6 @@ import {
 	CardID,
 	State,
 	ReferenceType,
-	CardFieldType,
 	CardFieldTypeEditable
 } from '../types.js';
 
@@ -918,7 +917,7 @@ class CardEditor extends connect(store)(LitElement) {
 		store.dispatch(textFieldUpdated(field, ele.value, false));
 	}
 
-	textFieldUpdatedFromContentEditable(field : CardFieldType, value : string) {
+	textFieldUpdatedFromContentEditable(field : CardFieldTypeEditable, value : string) {
 		store.dispatch(textFieldUpdated(field, value, true));
 	}
 
