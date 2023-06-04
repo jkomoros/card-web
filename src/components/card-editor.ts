@@ -121,7 +121,8 @@ import {
 	TAB_CONFIG,
 	EDITOR_TAB_CONTENT,
 	EDITOR_TAB_NOTES,
-	EDITOR_TAB_TODO
+	EDITOR_TAB_TODO,
+	TEXT_FIELD_TYPES_EDITABLE
 } from '../type_constants.js';
 
 import {
@@ -149,7 +150,8 @@ import {
 	CardID,
 	State,
 	ReferenceType,
-	CardFieldType
+	CardFieldType,
+	CardFieldTypeEditable
 } from '../types.js';
 
 import {
@@ -911,7 +913,9 @@ class CardEditor extends connect(store)(LitElement) {
 		if (!this._active) return;
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLTextAreaElement) && !(ele instanceof HTMLInputElement)) throw new Error('ele not textarea or text input');
-		store.dispatch(textFieldUpdated(ele.dataset.field, ele.value, false));
+		const field : CardFieldTypeEditable = ele.dataset.field as CardFieldTypeEditable;
+		if (!TEXT_FIELD_TYPES_EDITABLE[field]) throw new Error('Unknown editable field');
+		store.dispatch(textFieldUpdated(field, ele.value, false));
 	}
 
 	textFieldUpdatedFromContentEditable(field : CardFieldType, value : string) {
