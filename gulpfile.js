@@ -151,19 +151,14 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 		META_STRING += '\n    <meta name="twitter:site" content="@' + TWITTER_HANDLE + '">';
 	}
 
-	let stream = gulp.src('./index.TEMPLATE.html')
-		.pipe(inject.after('<!-- INJECT-META-HERE -->', META_STRING))
-		.pipe(inject.replace('@TITLE@', APP_TITLE))
-		.pipe(inject.replace('@DESCRIPTION@',APP_DESCRIPTION))
-		.pipe(inject.replace('@GOOGLE_ANALYTICS@', GOOGLE_ANALYTICS));
-
-	if (DISABLE_SERVICE_WORKER) {
-		stream = stream.pipe(inject.after('SERVICE-WORKER-START*/', '/*'));
-	}
+	let templateHTML = fs.readFileSync('index.TEMPLATE.html').toString();
+	if (META_STRING)templateHTML = templateHTML.split('<!-- INJECT-META-HERE -->').join(META_STRING);
+	templateHTML = templateHTML.split('@GOOGLE_ANALYTICS@').join(GOOGLE_ANALYTICS);
+	templateHTML = templateHTML.split('@TITLE@').join(APP_TITLE);
+	templateHTML = templateHTML.split('@DESCRIPTION@').join(APP_DESCRIPTION);
+	if (DISABLE_SERVICE_WORKER) templateHTML = templateHTML.split('SERVICE-WORKER-START*/').join('SERVICE-WORKER-START*//*');
+	fs.writeFileSync('index.html', templateHTML);
 	
-	stream.pipe(rename('index.html'))
-		.pipe(gulp.dest('./'));
-
 	const COMPOSED_USER_TYPE_ALL_PERMISSIONS = {...USER_TYPE_ALL_PERMISSIONS};
 	const COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS = {...COMPOSED_USER_TYPE_ALL_PERMISSIONS, ...USER_TYPE_ANONYMOUS_PERMISSIONS};
 	const COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS = {...COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS, ...USER_TYPE_SIGNED_IN_PERMISSIONS};
