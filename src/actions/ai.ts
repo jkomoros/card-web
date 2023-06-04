@@ -1,5 +1,5 @@
 import {
-	AppActionCreator
+	ThunkResult
 } from '../store.js';
 
 import {
@@ -72,12 +72,12 @@ export const AI_SHOW_ERROR = 'AI_SHOW_ERROR';
 export type AIDialogTypeConfiguration = {
 	title: string;
 	multiResult: boolean;
-	commitAction? : AppActionCreator;
+	commitAction? : () => ThunkResult;
 	//For prompts that give different results, a rerun action.
-	rerunAction? : AppActionCreator;
+	rerunAction? : () => ThunkResult;
 };
 
-const commitTitleSuggestion : AppActionCreator  = () => (dispatch, getState) => {
+const commitTitleSuggestion  = () : ThunkResult => (dispatch, getState) => {
 	const state = getState();
 	const index = selectAIResultIndex(state);
 	const result = selectAIResult(state);
@@ -238,7 +238,7 @@ const extractAIError = (err : FunctionsError) : string => {
 	return message;
 };
 
-const showAIError : AppActionCreator = (err : FunctionsError) => async (dispatch) => {
+const showAIError = (err : FunctionsError) : ThunkResult => async (dispatch) => {
 	dispatch({
 		type: AI_SHOW_ERROR,
 		error: extractAIError(err)
@@ -269,7 +269,7 @@ const selectGoodTitles = (state : State, count = 20) : string[] => {
 	return [...titles, ...FALLBACK_TITLES].slice(0,count);
 };
 
-export const titleForEditingCardWithAI : AppActionCreator = (count = 5) => async (dispatch, getState) => {
+export const titleForEditingCardWithAI = (count = 5) : ThunkResult => async (dispatch, getState) => {
 	const state = getState();
 	const mayUseAI = selectUserMayUseAI(state);
 	if (!mayUseAI) {
@@ -302,7 +302,7 @@ export const titleForEditingCardWithAI : AppActionCreator = (count = 5) => async
 	}
 };
 
-export const summarizeCardsWithAI : AppActionCreator = () => async (dispatch, getState) => {
+export const summarizeCardsWithAI = () : ThunkResult => async (dispatch, getState) => {
 	const state = getState();
 	const mayUseAI = selectUserMayUseAI(state);
 	if (!mayUseAI) {
@@ -355,7 +355,7 @@ const aiResult = (result : string | string[]) : AnyAction => {
 	};
 };
 
-export const aiSelectResultIndex : AppActionCreator = (index : number) => (dispatch, getState) => {
+export const aiSelectResultIndex = (index : number) : ThunkResult => (dispatch, getState) => {
 	const result = selectAIResult(getState());
 	if (index < 0) {
 		index = -1;
@@ -368,7 +368,7 @@ export const aiSelectResultIndex : AppActionCreator = (index : number) => (dispa
 	});
 };
 
-export const closeAIDialog : AppActionCreator = (commit : boolean) => (dispatch, getState) => {
+export const closeAIDialog = (commit : boolean) : ThunkResult => (dispatch, getState) => {
 	dispatch({
 		type: AI_DIALOG_CLOSE
 	});

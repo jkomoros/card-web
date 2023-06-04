@@ -160,7 +160,7 @@ import {
 } from '../references.js';
 
 import {
-	AppActionCreator,
+	ThunkResult,
 	store
 } from '../store.js';
 
@@ -252,7 +252,7 @@ export const modifyCard = (card : Card, update : CardDiff, substantive = false) 
 	return modifyCards([card], update, substantive, true);
 };
 
-export const modifyCards : AppActionCreator = (cards : Card[], update : CardDiff, substantive = false, failOnError = false) => async (dispatch, getState) => {
+export const modifyCards = (cards : Card[], update : CardDiff, substantive = false, failOnError = false) : ThunkResult => async (dispatch, getState) => {
 	const state = getState();
 
 	if (selectCardModificationPending(state)) {
@@ -427,7 +427,7 @@ export const modifyCardWithBatch = (state : State, card : Card, update : CardDif
 };
 
 //beforeID is the ID of hte card we should place ourselves immediately before.
-export const reorderCard : AppActionCreator = (cardID : CardID, otherID: CardID, isAfter : boolean) => async (dispatch, getState) => {
+export const reorderCard = (cardID : CardID, otherID: CardID, isAfter : boolean) : ThunkResult => async (dispatch, getState) => {
 
 	const state = getState();
 
@@ -501,7 +501,7 @@ const addLegalSlugToCard = (cardID : CardID, legalSlug : Slug, setName? : boolea
 	return batch.commit();
 };
 
-export const addSlug : AppActionCreator = (cardId : CardID, newSlug : Slug) => async (dispatch, getState) => {
+export const addSlug = (cardId : CardID, newSlug : Slug) : ThunkResult => async (dispatch, getState) => {
  
 	newSlug = normalizeSlug(newSlug);
 
@@ -564,7 +564,7 @@ const reservedCollectionName = (state : State, name : string) : boolean => {
 	return false;
 };
 
-export const createTag : AppActionCreator = (name : TagID, displayName : string) => async (dispatch, getState) => {
+export const createTag = (name : TagID, displayName : string) : ThunkResult => async (dispatch, getState) => {
 
 	if (!name) {
 		console.warn('No short name provided');
@@ -710,7 +710,7 @@ export const defaultCardObject = (id : CardID, user : UserInfo, section : Sectio
 // noNavigate: if true, will not navigate to the card when created
 // title: title of card
 
-export const createCard : AppActionCreator = (opts : CreateCardOpts) => async (dispatch, getState) => {
+export const createCard = (opts : CreateCardOpts) : ThunkResult => async (dispatch, getState) => {
 
 	//NOTE: if you modify this card you may also want to modify createForkedCard
 
@@ -914,7 +914,7 @@ export const createCard : AppActionCreator = (opts : CreateCardOpts) => async (d
 
 };
 
-export const createForkedCard : AppActionCreator = (cardToFork) => async (dispatch, getState) => {
+export const createForkedCard = (cardToFork : Card) : ThunkResult => async (dispatch, getState) => {
 	//NOTE: if you modify this card you likely also want to modify
 	//createWorkingNotesCard too and likely also createForkedCard
 
@@ -957,7 +957,7 @@ export const createForkedCard : AppActionCreator = (cardToFork) => async (dispat
 	for (const key of TypedObject.keys(CARD_FIELDS_TO_COPY_ON_FORK)) {
 		//We can literally leave these as the same object because they'll just
 		//be sent to firestore and the actual card we'll store will be new
-				
+		
 		//eslint-disable-next-line @typescript-eslint/no-explicit-any
 		newCard[key] = cardToFork[key] as any;
 	}
@@ -1079,7 +1079,7 @@ export const createForkedCard : AppActionCreator = (cardToFork) => async (dispat
 	//(if EXPECT_NEW_CARD was dispatched above)
 };
 
-export const deleteCard : AppActionCreator = (card : Card) => async (dispatch, getState) => {
+export const deleteCard = (card : Card) : ThunkResult => async (dispatch, getState) => {
 
 	const state = getState();
 
@@ -1125,7 +1125,7 @@ export const deleteCard : AppActionCreator = (card : Card) => async (dispatch, g
 
 };
 
-export const navigateToNewCard : AppActionCreator = () => (dispatch, getState) => {
+export const navigateToNewCard = () : ThunkResult => (dispatch, getState) => {
 	const ID = selectPendingNewCardIDToNavigateTo(getState());
 	if (!ID) return;
 	//navigateToNewCard is called when the expected cards/sections are loaded.
@@ -1153,7 +1153,7 @@ const modifyCardAction = () : AnyAction => {
 	};
 };
 
-const modifyCardSuccess : AppActionCreator = () => (dispatch, getState) => {
+const modifyCardSuccess = () : ThunkResult => (dispatch, getState) => {
 	const state = getState();
 	if (selectIsEditing(state)) {
 		dispatch(editingFinish());
@@ -1185,7 +1185,7 @@ export const reorderStatus = (pending : boolean) : AnyAction => {
 	};
 };
 
-export const updateSections : AppActionCreator = (sections : Sections) => (dispatch, getState) => {
+export const updateSections = (sections : Sections) : ThunkResult => (dispatch, getState) => {
 	dispatch({
 		type: UPDATE_SECTIONS,
 		sections,
@@ -1200,7 +1200,7 @@ export const updateSections : AppActionCreator = (sections : Sections) => (dispa
 	dispatch(refreshCardSelector(force));
 };
 
-export const updateAuthors : AppActionCreator = (authors : AuthorsMap) => (dispatch, getState) => {
+export const updateAuthors = (authors : AuthorsMap) : ThunkResult => (dispatch, getState) => {
 
 	const state = getState();
 
@@ -1230,7 +1230,7 @@ export const updateAuthors : AppActionCreator = (authors : AuthorsMap) => (dispa
 	});
 };
 
-export const updateTags : AppActionCreator = (tags : Tags) => (dispatch) => {
+export const updateTags = (tags : Tags) : ThunkResult => (dispatch) => {
 	dispatch({
 		type:UPDATE_TAGS,
 		tags,
@@ -1238,7 +1238,7 @@ export const updateTags : AppActionCreator = (tags : Tags) => (dispatch) => {
 	dispatch(refreshCardSelector(false));
 };
 
-export const updateCards : AppActionCreator = (cards: Cards, unpublished? : boolean) => (dispatch, getState) => {
+export const updateCards = (cards: Cards, unpublished? : boolean) : ThunkResult => (dispatch, getState) => {
 	const existingCards = selectRawCards(getState());
 	const cardsToUpdate : Cards = {};
 	for (const card of Object.values(cards)) {
@@ -1269,7 +1269,7 @@ export const updateCards : AppActionCreator = (cards: Cards, unpublished? : bool
 //when it fires.
 const REMOVE_CARDS_TIMEOUT = 3000;
 
-export const removeCards : AppActionCreator = (cardIDs : CardID[], unpublished : boolean) => (dispatch, getState) => {
+export const removeCards = (cardIDs : CardID[], unpublished : boolean) : ThunkResult => (dispatch, getState) => {
 
 	//cards that we expected to be deleted won't show up in the other query
 	//ever, so we don't have to wait for the timeout and can delete them now.
@@ -1314,7 +1314,7 @@ export const removeCards : AppActionCreator = (cardIDs : CardID[], unpublished :
 //card in the state wasn't put there by the unpublished side when this runs,
 //then it shouldn't be removed, because a more recent copy was put there by the
 //published side.
-const actuallyRemoveCards : AppActionCreator = (cardIDs : CardID[], unpublished : boolean) => (dispatch, getState) => {
+const actuallyRemoveCards = (cardIDs : CardID[], unpublished : boolean) : ThunkResult => (dispatch, getState) => {
 
 	const published = !unpublished;
 	const cards = selectCards(getState());
@@ -1332,7 +1332,7 @@ const actuallyRemoveCards : AppActionCreator = (cardIDs : CardID[], unpublished 
 	});
 };
 
-export const fetchTweets : AppActionCreator = (card : Card) => async (dispatch) => {
+export const fetchTweets = (card : Card) : ThunkResult => async (dispatch) => {
 
 	if (!card || Object.values(card).length == 0 || card.id == EMPTY_CARD_ID) return;
 

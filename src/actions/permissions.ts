@@ -3,7 +3,7 @@ export const PERMISSIONS_START_ADD_CARD = 'PERMISSIONS_START_ADD_CARD';
 export const PERMISSIONS_RESET_ADD_CARD = 'PERMISSIONS_RESET_ADD_CARD';
 
 import {
-	AppActionCreator,
+	ThunkResult,
 	store
 } from '../store.js';
 
@@ -56,7 +56,7 @@ import {
 	AnyAction
 } from 'redux';
 
-export const setCardToAddPermissionTo : AppActionCreator = (cardID : CardID) => (dispatch, getState) => {
+export const setCardToAddPermissionTo = (cardID : CardID) : ThunkResult => (dispatch, getState) => {
 	const state = getState();
 	const permissionType = selectPermissionsPendingPermissionType(state);
 	const uid = selectPermissionsPendingUid(state);
@@ -66,7 +66,7 @@ export const setCardToAddPermissionTo : AppActionCreator = (cardID : CardID) => 
 	});
 };
 
-export const selectCardToAddPermissionTo : AppActionCreator = (permissionType : PermissionType, uid : Uid) => (dispatch) => {
+export const selectCardToAddPermissionTo = (permissionType : PermissionType, uid : Uid) : ThunkResult => (dispatch) => {
 	dispatch({
 		type:PERMISSIONS_START_ADD_CARD,
 		permissionType,
@@ -75,7 +75,7 @@ export const selectCardToAddPermissionTo : AppActionCreator = (permissionType : 
 	dispatch(findCardToPermission());
 };
 
-const addUserPermissionToCard : AppActionCreator = (cardID : CardID, permissionType : PermissionType, uid : Uid) => (dispatch, getState) => {
+const addUserPermissionToCard = (cardID : CardID, permissionType : PermissionType, uid : Uid) : ThunkResult => (dispatch, getState) => {
 	if (permissionType != PERMISSION_EDIT_CARD) {
 		console.warn('Illegal permission type');
 		return;
@@ -92,7 +92,7 @@ const addUserPermissionToCard : AppActionCreator = (cardID : CardID, permissionT
 	dispatch(modifyCard(card, update, false));
 };
 
-export const removeUserPermissionFromCard : AppActionCreator = (cardID : CardID, permissionType : PermissionType, uid : Uid) => (dispatch, getState) => {
+export const removeUserPermissionFromCard = (cardID : CardID, permissionType : PermissionType, uid : Uid) : ThunkResult => (dispatch, getState) => {
 	if (permissionType != PERMISSION_EDIT_CARD) {
 		console.warn('Illegal permission type');
 		return;
@@ -141,22 +141,22 @@ const updatePermissions = (permissionsToAdd : UserPermissionsMap, permissionsToR
 	};
 };
 
-export const addPermissionsObjectForUser : AppActionCreator = (uid : Uid) => () => {
+export const addPermissionsObjectForUser = (uid : Uid) : ThunkResult => () => {
 	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {}, {merge: true});
 };
 
-export const deletePermissionsObjectForUser : AppActionCreator = (uid : Uid) => () => {
+export const deletePermissionsObjectForUser = (uid : Uid) : ThunkResult => () => {
 	deleteDoc(doc(db, PERMISSIONS_COLLECTION, uid));
 };
 
-export const updateUserNote : AppActionCreator = (uid : Uid, note : string) => () => {
+export const updateUserNote = (uid : Uid, note : string) : ThunkResult => () => {
 	updateDoc(doc(db, PERMISSIONS_COLLECTION, uid), {notes:note});
 };
 
-export const addEnabledPermission : AppActionCreator = (uid: Uid, key : PermissionType) => () => {
+export const addEnabledPermission = (uid: Uid, key : PermissionType) : ThunkResult => () => {
 	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {[key]: true}, {merge: true});
 };
 
-export const clearPermission : AppActionCreator = (uid : Uid, key : PermissionType) => () => {
+export const clearPermission = (uid : Uid, key : PermissionType) : ThunkResult => () => {
 	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {[key]: deleteField()}, {merge: true});
 };

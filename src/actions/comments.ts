@@ -41,7 +41,7 @@ import {
 } from './app.js';
 
 import {
-	AppActionCreator
+	ThunkResult
 } from '../store.js';
 
 import {
@@ -80,7 +80,7 @@ export const createAuthorStub = (uid : Uid) => {
 	batch.commit();
 };
 
-export const resolveThread : AppActionCreator = (thread : CommentThread) => (_, getState) => {
+export const resolveThread = (thread : CommentThread) : ThunkResult => (_, getState) => {
 	const state = getState();
 
 	if (!thread || !thread.id) {
@@ -112,7 +112,7 @@ export const resolveThread : AppActionCreator = (thread : CommentThread) => (_, 
 	});
 };
 
-export const deleteMessage : AppActionCreator = (message : CommentMessage) => (_, getState) => {
+export const deleteMessage = (message : CommentMessage) : ThunkResult => (_, getState) => {
 	const state = getState();
 	if (!getUserMayEditMessage(state, message)) {
 		console.log('User isn\'t allowed to edit that message!');
@@ -135,7 +135,7 @@ export const deleteMessage : AppActionCreator = (message : CommentMessage) => (_
 	batch.commit();
 };
 
-export const editMessage : AppActionCreator = (message : CommentMessage, newMessage : string) => (_, getState) => {
+export const editMessage = (message : CommentMessage, newMessage : string) : ThunkResult => (_, getState) => {
   
 	const state = getState();
 
@@ -161,7 +161,7 @@ export const editMessage : AppActionCreator = (message : CommentMessage, newMess
 
 };
 
-export const addMessage : AppActionCreator = (thread : CommentThread, message : string) => (_, getState) => {
+export const addMessage = (thread : CommentThread, message : string) : ThunkResult => (_, getState) => {
 	const state = getState();
 	const card = selectActiveCard(state);
 	if (!card || !card.id) {
@@ -227,7 +227,7 @@ export const addMessage : AppActionCreator = (thread : CommentThread, message : 
 
 };
 
-export const createThread : AppActionCreator = (message : string) => (_, getState) => {
+export const createThread = (message : string) : ThunkResult => (_, getState) => {
 	const state = getState();
 	const card = selectActiveCard(state);
 	if (!card || !card.id) {
@@ -303,7 +303,7 @@ export const createThread : AppActionCreator = (message : string) => (_, getStat
 
 };
 
-export const updateThreads : AppActionCreator = (threads : CommentThreads) => (dispatch) => {
+export const updateThreads = (threads : CommentThreads) : ThunkResult => (dispatch) => {
 	dispatch({
 		type: COMMENTS_UPDATE_THREADS,
 		threads
@@ -311,7 +311,7 @@ export const updateThreads : AppActionCreator = (threads : CommentThreads) => (d
 	dispatch(refreshCommentRedirect());
 };
 
-export const updateMessages : AppActionCreator = (messages : CommentMessages) => (dispatch) => {
+export const updateMessages = (messages : CommentMessages) : ThunkResult => (dispatch) => {
 	dispatch({
 		type: COMMENTS_UPDATE_MESSAGES,
 		messages

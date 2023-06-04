@@ -130,7 +130,7 @@ import {
 } from '../types.js';
 
 import {
-	AppActionCreator
+	ThunkResult
 } from '../store.js';
 
 import {
@@ -138,7 +138,7 @@ import {
 } from 'redux';
 
 //if silent is true, then just passively updates the URL to reflect what it should be.
-export const navigatePathTo : AppActionCreator = (path : string, silent? : boolean) => (dispatch, getState) => {
+export const navigatePathTo = (path : string, silent? : boolean) : ThunkResult => (dispatch, getState) => {
 	const state = getState();
 	//If we're already pointed there, no need to navigate
 	if ('/' + path === window.location.pathname) return;
@@ -154,7 +154,7 @@ export const navigatePathTo : AppActionCreator = (path : string, silent? : boole
 	dispatch(navigated(path, location.search));
 };
 
-export const navigateToNextCard : AppActionCreator = () => (dispatch, getState) => {
+export const navigateToNextCard = () : ThunkResult => (dispatch, getState) => {
 	const state = getState();
 	let index = selectActiveCardIndex(state);
 	index++;
@@ -165,7 +165,7 @@ export const navigateToNextCard : AppActionCreator = () => (dispatch, getState) 
 	dispatch(navigateToCardInCurrentCollection(newCard.id));
 };
 
-export const navigateToPreviousCard : AppActionCreator = () => (dispatch, getState) => {
+export const navigateToPreviousCard = () : ThunkResult => (dispatch, getState) => {
 	const state = getState();
 	let index = selectActiveCardIndex(state);
 	index--;
@@ -194,7 +194,7 @@ export const urlForTag = (tagName : TagID, optCardId? : CardID) : string => {
 //Should be called any time we might want to redirect to the given comment. For
 //example, when the redirect comment view boots, or when threads or messages are
 //loaded.
-export const refreshCommentRedirect : AppActionCreator = () => (dispatch, getState) => {
+export const refreshCommentRedirect = () : ThunkResult => (dispatch, getState) => {
 	//Called when cards and sections update, just in case we now have
 	//information to do this better. Also called when stars and reads update,
 	//because if we're filtering to one of those filters we might not yet know
@@ -207,7 +207,7 @@ export const refreshCommentRedirect : AppActionCreator = () => (dispatch, getSta
 	dispatch(navigateToComment(pageExtra));
 };
 
-export const navigateToComment : AppActionCreator = (commentId : CommentMessageID | CommentThreadID) => (dispatch, getState) => {
+export const navigateToComment = (commentId : CommentMessageID | CommentThreadID) : ThunkResult => (dispatch, getState) => {
 	//commentId is either a thread or message id.
 	const state = getState();
 	if (!selectCommentsAreFullyLoaded(state)) return;
@@ -228,7 +228,7 @@ export const navigateToComment : AppActionCreator = (commentId : CommentMessageI
 
 //navigateToDefaultIfSectionsLoaded will navigate to default if sections are
 //loaded. If they aren't, it won't do anything.
-export const navigateToDefaultIfSectionsAndTagsLoaded : AppActionCreator = (silent? : boolean) => (dispatch, getState) => {
+export const navigateToDefaultIfSectionsAndTagsLoaded = (silent? : boolean) : ThunkResult => (dispatch, getState) => {
 	const defaultCollectionDescription = selectDefaultCollectionDescription(getState());
 	if (!defaultCollectionDescription) {
 		//must not have loaded yet
@@ -237,7 +237,7 @@ export const navigateToDefaultIfSectionsAndTagsLoaded : AppActionCreator = (sile
 	dispatch(navigatePathTo('/' + PAGE_DEFAULT + '/' + defaultCollectionDescription.serialize(), silent));
 };
 
-export const navigateToCardInCurrentCollection : AppActionCreator = (cardID : CardID, silent? : boolean) => (dispatch, getState) => {
+export const navigateToCardInCurrentCollection = (cardID : CardID, silent? : boolean) : ThunkResult => (dispatch, getState) => {
 	const state = getState();
 	const cardIndexinActiveCollection = getCardIndexForActiveCollection(state, cardID);
 	if (cardIndexinActiveCollection < 0) {
@@ -256,7 +256,7 @@ export const navigateToCardInCurrentCollection : AppActionCreator = (cardID : Ca
 };
 
 //if card is not provided, will try to navigate to default if sections loaded.
-export const navigateToCardInDefaultCollection : AppActionCreator = (cardOrId : Card | CardID, silent? : boolean) => (dispatch) => {
+export const navigateToCardInDefaultCollection = (cardOrId : Card | CardID, silent? : boolean) : ThunkResult => (dispatch) => {
 	const path = urlForCard(cardOrId);
 	if (!path) {
 		dispatch(navigateToDefaultIfSectionsAndTagsLoaded(silent));
@@ -264,13 +264,13 @@ export const navigateToCardInDefaultCollection : AppActionCreator = (cardOrId : 
 	dispatch(navigatePathTo(path, silent));
 };
 
-export const navigateToCollectionWithAboutConcept : AppActionCreator = (conceptStr : string) => (dispatch, getState) => {
+export const navigateToCollectionWithAboutConcept = (conceptStr : string) : ThunkResult => (dispatch, getState) => {
 	const collection = selectActiveCollectionDescription(getState());
 	const newCollection = collectionDescriptionWithConfigurableFilter(collection, aboutConceptConfigurableFilterText(conceptStr));
 	dispatch(navigateToCollection(newCollection));
 };
 
-export const navigateToCollectionWithQuery : AppActionCreator = (queryText : string) => (dispatch, getState) => {
+export const navigateToCollectionWithQuery = (queryText : string) : ThunkResult => (dispatch, getState) => {
 	const collection = selectActiveCollectionDescription(getState());
 	const newCollection = collectionDescriptionWithQuery(collection, queryText);
 	dispatch(navigateToCollection(newCollection));
@@ -284,7 +284,7 @@ export const navigateToCollection = (collection : CollectionDescription) => {
 	return navigatePathTo(urlForCollection(collection));
 };
 
-export const navigated : AppActionCreator = (path : string, query : string) => (dispatch) => {
+export const navigated = (path : string, query : string) : ThunkResult => (dispatch) => {
 
 	// Extract the page name from path.
 	const page = path === '/' ? PAGE_DEFAULT : path.slice(1);
@@ -295,7 +295,7 @@ export const navigated : AppActionCreator = (path : string, query : string) => (
 
 };
 
-const loadPage : AppActionCreator = (pathname : string, query : string) => (dispatch) => {
+const loadPage = (pathname : string, query : string) : ThunkResult => (dispatch) => {
 
 	//pathname is the whole path minus starting '/', like 'c/VIEW_ID'
 	const pieces = pathname.split('/');
@@ -372,7 +372,7 @@ export const updateFetchedCard = (card : Card) : AnyAction => {
 	};
 };
 
-export const fetchCardLinkCardsForFetchedCard : AppActionCreator = (fetchedCard : Card) => async (dispatch, getState) =>{
+export const fetchCardLinkCardsForFetchedCard = (fetchedCard : Card) : ThunkResult => async (dispatch, getState) =>{
 	if (!fetchedCard || Object.values(fetchedCard).length == 0) return;
 
 	//If all of the cards were already fetched we can bail early.
@@ -392,7 +392,7 @@ export const fetchCardLinkCardsForFetchedCard : AppActionCreator = (fetchedCard 
 	dispatch(updateCards(cards, false));
 };
 
-export const fetchCard : AppActionCreator = (cardIDOrSlug : CardIdentifier) => async (dispatch, getState) =>  {
+export const fetchCard = (cardIDOrSlug : CardIdentifier) : ThunkResult => async (dispatch, getState) =>  {
 	if (!cardIDOrSlug) return;
 
 	//If we already fetched the card in question we can stop.
@@ -424,7 +424,7 @@ export const fetchCard : AppActionCreator = (cardIDOrSlug : CardIdentifier) => a
 
 //A generic commit action, depending on what is happening. If editing, commit
 //the edit. If composing, commit the compose.
-export const doCommit : AppActionCreator = () => (dispatch, getState) => {
+export const doCommit = () : ThunkResult => (dispatch, getState) => {
 	const state = getState();
 	if (selectIsEditing(state)) {
 		dispatch(editingCommit());
@@ -450,14 +450,14 @@ export const cancelHoverTimeout = () => {
 	hoverPreviewTimer = 0;
 };
 
-export const hoveredCardMouseMoved : AppActionCreator = () => (dispatch, getState) => {
+export const hoveredCardMouseMoved = () : ThunkResult => (dispatch, getState) => {
 	cancelHoverTimeout();
 	const activePreviewCardId = selectActivePreviewCardId(getState());
 	if (!activePreviewCardId) return;
 	dispatch({ type: UPDATE_HOVERED_CARD, x: 0, y: 0, cardId: ''});
 };
 
-export const updateHoveredCard : AppActionCreator = (x : number,y : number,cardId : CardID) => (dispatch) => {
+export const updateHoveredCard = (x : number,y : number,cardId : CardID) : ThunkResult => (dispatch) => {
 	cancelHoverTimeout();
 	hoverPreviewTimer = window.setTimeout(() => {
 		hoverPreviewTimer = 0;
@@ -467,7 +467,7 @@ export const updateHoveredCard : AppActionCreator = (x : number,y : number,cardI
 
 let snackbarTimer : number;
 
-export const showSnackbar : AppActionCreator = () => (dispatch) => {
+export const showSnackbar = () : ThunkResult => (dispatch) => {
 	dispatch({
 		type: OPEN_SNACKBAR
 	});
@@ -476,7 +476,7 @@ export const showSnackbar : AppActionCreator = () => (dispatch) => {
 		dispatch({ type: CLOSE_SNACKBAR }), 3000);
 };
 
-export const updateOffline : AppActionCreator = (offline : boolean) => (dispatch, getState) => {
+export const updateOffline = (offline : boolean) : ThunkResult => (dispatch, getState) => {
 	// Show the snackbar only if offline status changes.
 	if (offline !== getState().app.offline) {
 		dispatch(showSnackbar());
@@ -548,7 +548,7 @@ export const disablePresentationMode = () : AnyAction => {
 	};
 };
 
-export const turnMobileMode : AppActionCreator= (on : boolean) => (dispatch) => {
+export const turnMobileMode= (on : boolean) : ThunkResult => (dispatch) => {
 	if (on) {
 		dispatch(enablePresentationMode());
 		dispatch({type:ENABLE_MOBILE_MODE});
@@ -558,7 +558,7 @@ export const turnMobileMode : AppActionCreator= (on : boolean) => (dispatch) => 
 	dispatch({type:DISABLE_MOBILE_MODE});
 };
 
-export const ctrlKeyPressed : AppActionCreator= (pressed : boolean) => (dispatch, getState) => {
+export const ctrlKeyPressed= (pressed : boolean) : ThunkResult => (dispatch, getState) => {
 	//Only dispatch if it will make a change
 	if (selectCtrlKeyPressed(getState()) === pressed) return;
 	dispatch({
@@ -583,7 +583,7 @@ const closeCardsDrawerInfo = () : AnyAction => {
 	};
 };
 
-export const toggleCardsDrawerInfo : AppActionCreator = () => (dispatch, getState) => {
+export const toggleCardsDrawerInfo = () : ThunkResult => (dispatch, getState) => {
 	const isOpen = selectCardsDrawerInfoExpanded(getState());
 	dispatch(isOpen ? closeCardsDrawerInfo() : openCardsDrawerInfo());
 };

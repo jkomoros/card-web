@@ -27,7 +27,7 @@ import {
 } from '../types.js';
 
 import {
-	AppActionCreator
+	ThunkResult
 } from '../store.js';
 
 import {
@@ -48,7 +48,7 @@ let updateActiveQueryTimeout = 0;
 //This time should be how long after the user stops typing to wait.
 const QUERY_UPDATE_INTERVAL = 250;
 
-export const updateQuery : AppActionCreator  = (query) => (dispatch) => {
+export const updateQuery  = (query : string) : ThunkResult => (dispatch) => {
 
 	if (updateActiveQueryTimeout) {
 		window.clearTimeout(updateActiveQueryTimeout);
@@ -89,7 +89,7 @@ export const findUpdateRenderOffset = (renderOffset : number) : AnyAction => {
 	};
 };
 
-const launchFind : AppActionCreator = (typ : FindDialogType, starterQuery? : string, lockedCardTypeFilter? : string) => (dispatch, getState) => {
+const launchFind = (typ : FindDialogType, starterQuery? : string, lockedCardTypeFilter? : string) : ThunkResult => (dispatch, getState) => {
 	if (!starterQuery) {
 		const description = selectActiveCollectionDescription(getState());
 		starterQuery = queryTextFromCollectionDescription(description);
@@ -102,7 +102,7 @@ const launchFind : AppActionCreator = (typ : FindDialogType, starterQuery? : str
 	});
 };
 
-export const findUpdateCardTypeFilter : AppActionCreator = (filter) => (dispatch, getState) =>  {
+export const findUpdateCardTypeFilter = (filter : string) : ThunkResult => (dispatch, getState) =>  {
 
 	const cardTypeFilterLocked = selectFindCardTypeFilterLocked(getState());
 

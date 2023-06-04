@@ -71,7 +71,7 @@ import {
 } from './editor.js';
 
 import {
-	AppActionCreator
+	ThunkResult
 } from '../store.js';
 
 import {
@@ -90,7 +90,7 @@ export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
 
 export const PLACEHOLDER_CARD_ID_CHARACTER = '_';
 
-export const updateCardSelector : AppActionCreator = (cardSelector : string) => (dispatch, getState) => {
+export const updateCardSelector = (cardSelector : string) : ThunkResult => (dispatch, getState) => {
 
 	const queryParts = cardSelector.split('?');
 
@@ -166,7 +166,7 @@ export const updateCardSelector : AppActionCreator = (cardSelector : string) => 
 	dispatch(showCard(cardIdOrSlug));
 };
 
-export const updateCollection : AppActionCreator = (setName : SetName, filters : string[], sortName : SortName, sortReversed : boolean, viewMode : ViewMode, viewModeExtra : string) => (dispatch, getState) =>{	
+export const updateCollection = (setName : SetName, filters : string[], sortName : SortName, sortReversed : boolean, viewMode : ViewMode, viewModeExtra : string) : ThunkResult => (dispatch, getState) =>{	
 	const state = getState();
 	const activeCollectionDescription = selectActiveCollectionDescription(state);
 	const newCollectionDescription = new CollectionDescription(setName, filters, sortName, sortReversed, viewMode, viewModeExtra);
@@ -203,7 +203,7 @@ export const updateRenderOffset = (renderOffset : number) : AnyAction => {
 	};
 };
 
-export const refreshCardSelector : AppActionCreator = (forceCommit? : boolean) => (dispatch, getState) => {
+export const refreshCardSelector = (forceCommit? : boolean) : ThunkResult => (dispatch, getState) => {
 	//Called when cards and sections update, just in case we now have
 	//information to do this better. Also called when stars and reads update,
 	//because if we're filtering to one of those filters we might not yet know
@@ -245,7 +245,7 @@ export const refreshCardSelector : AppActionCreator = (forceCommit? : boolean) =
 	dispatch(updateCardSelector(pageExtra));
 };
 
-export const canonicalizeURL : AppActionCreator = () => (dispatch, getState) => {
+export const canonicalizeURL = () : ThunkResult => (dispatch, getState) => {
 
 	//Called to ensure that the URL is canonical given activeSet, activeFilters, etc.
 
@@ -338,7 +338,7 @@ const cardIdForPlaceholder = (requestedCard : CardID, collection : Card[]) : Car
 	return collection[0].id;
 };
 
-export const redirectIfInvalidCardOrCollection : AppActionCreator = () => (dispatch, getState) => {
+export const redirectIfInvalidCardOrCollection = () : ThunkResult => (dispatch, getState) => {
 
 	//This routine is called to make sure that if there is a valid card, we're
 	//actually sitting in a collection that contains it. If we aren't, we
@@ -368,7 +368,7 @@ export const redirectIfInvalidCardOrCollection : AppActionCreator = () => (dispa
 	dispatch(navigateToCardInDefaultCollection(card, false));
 };
 
-export const showCard : AppActionCreator = (requestedCard : CardID = PLACEHOLDER_CARD_ID_CHARACTER) => (dispatch, getState) => {
+export const showCard = (requestedCard : CardID = PLACEHOLDER_CARD_ID_CHARACTER) : ThunkResult => (dispatch, getState) => {
 
 	const state = getState();
 
@@ -435,7 +435,7 @@ const randomizeSalt = () : AnyAction => {
 	};
 };
 
-export const randomizeCollection : AppActionCreator = () => (dispatch, getState) => {
+export const randomizeCollection = () : ThunkResult => (dispatch, getState) => {
 	dispatch(randomizeSalt());
 	//Only show card if it's the default page ('c') where a card collection is selected
 	if (selectPage(getState()) != PAGE_DEFAULT) return;
@@ -445,7 +445,7 @@ export const randomizeCollection : AppActionCreator = () => (dispatch, getState)
 	dispatch(showCard());
 };
 
-export const navigateToRandomCard : AppActionCreator = () => (dispatch) => {
+export const navigateToRandomCard = () : ThunkResult => (dispatch) => {
 	dispatch(navigateToCollection(RANDOM_CARD_COLLECTION));
 	dispatch(randomizeCollection());
 };

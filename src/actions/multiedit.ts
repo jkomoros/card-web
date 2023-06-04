@@ -12,7 +12,7 @@ import {
 } from '../selectors.js';
 
 import {
-	AppActionCreator
+	ThunkResult
 } from '../store.js';
 
 import {
@@ -20,7 +20,7 @@ import {
 	ReferenceType
 } from '../types.js';
 
-export const openMultiEditDialog : AppActionCreator = () => (dispatch, getState) => {
+export const openMultiEditDialog = () : ThunkResult => (dispatch, getState) => {
 
 	const state = getState();
 

@@ -12,7 +12,7 @@ import {
 	AppThunkDispatch,
 	AppGetState,
 	store,
-	AppActionCreator
+	ThunkResult
 } from '../store.js';
 
 import {
@@ -608,7 +608,7 @@ export const nextMaintenanceTaskName = (executedTasks : MaintenanceTaskMap) => {
 	return '';
 };
 
-const makeMaintenanceActionCreator = (taskName : MaintenanceTaskID, taskConfig : RawMaintenanceTaskDefinition) : AppActionCreator => {
+const makeMaintenanceActionCreator = (taskName : MaintenanceTaskID, taskConfig : RawMaintenanceTaskDefinition) : () => ThunkResult => {
 	const fn = taskConfig.fn;
 	return () => async (dispatch, getState) => {
 		const ref = doc(db, MAINTENANCE_COLLECTION, taskName);
@@ -681,7 +681,7 @@ interface RawMaintenanceTaskDefinition {
 }
 
 interface MaintenanceTaskDefinition extends RawMaintenanceTaskDefinition {
-	actionCreator: AppActionCreator,
+	actionCreator: () => ThunkResult,
 }
 
 /*

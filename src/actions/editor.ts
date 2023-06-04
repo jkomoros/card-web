@@ -128,6 +128,7 @@ import {
 	ImageInfoProperty,
 	ImageInfoPropertyValue,
 	ReferenceType,
+	SectionID,
 	Slug,
 	TagID,
 	TODOType,
@@ -135,7 +136,7 @@ import {
 } from '../types.js';
 
 import {
-	AppActionCreator
+	ThunkResult
 } from '../store.js';
 
 import {
@@ -249,7 +250,7 @@ export const editingSelectEditorTab = (tab : EditorContentTab) : AnyAction => {
 	};
 };
 
-export const editingStart : AppActionCreator = () => (dispatch, getState) => {
+export const editingStart = () : ThunkResult => (dispatch, getState) => {
 	const state = getState();
 	if (selectIsEditing(state)) {
 		console.warn('Can\'t start editing because already editing');
@@ -267,7 +268,7 @@ export const editingStart : AppActionCreator = () => (dispatch, getState) => {
 	dispatch({type: EDITING_START, card: card});
 };
 
-export const editingCommit : AppActionCreator = () => async (dispatch, getState) => {
+export const editingCommit = () : ThunkResult => async (dispatch, getState) => {
 	const state = getState();
 	if (!selectIsEditing(state)) {
 		console.warn('Editing not active');
@@ -326,7 +327,7 @@ export const cancelLink = () => () => {
 	restoreSelectionRange();
 };
 
-export const linkURL : AppActionCreator = (href) => (_, getState) => {
+export const linkURL = (href : string) : ThunkResult => (_, getState) => {
 	const state = getState();
 	if (!state.editor.editing) return;
 	//TODO: it's weird we do this here, it really should be done on the card-
@@ -339,7 +340,7 @@ export const linkURL : AppActionCreator = (href) => (_, getState) => {
 	}
 };
 
-export const linkCard : AppActionCreator = (cardID : CardID) => (_, getState) => {
+export const linkCard = (cardID : CardID) : ThunkResult => (_, getState) => {
 	const state = getState();
 	if (!state.editor.editing) return;
 	//TODO: it's weird we do this here, it really should be done on the card-
@@ -368,7 +369,7 @@ export const todoUpdated = (newTodo : string) : AnyAction => {
 
 let processNormalizedTextPropertiesTimeout : number;
 
-export const textFieldUpdated : AppActionCreator = (fieldName : CardFieldTypeEditable, value : string, fromContentEditable = false) => (dispatch, getState) => {
+export const textFieldUpdated = (fieldName : CardFieldTypeEditable, value : string, fromContentEditable = false) : ThunkResult => (dispatch, getState) => {
 	if (!fromContentEditable) fromContentEditable = false;
 
 	const config = TEXT_FIELD_CONFIGURATION[fieldName] || {};
@@ -407,7 +408,7 @@ export const textFieldUpdated : AppActionCreator = (fieldName : CardFieldTypeEdi
 	}, 1000);
 };
 
-export const sectionUpdated : AppActionCreator = (newSection) => (dispatch, getState) => {
+export const sectionUpdated = (newSection : SectionID) : ThunkResult => (dispatch, getState) => {
 	const state = getState();
 	const baseCard = selectActiveCard(state);
 	const sections = selectSections(state);
@@ -453,7 +454,7 @@ export const nameUpdated = (newName : CardIdentifier) : AnyAction => {
 	};
 };
 
-export const substantiveUpdated : AppActionCreator = (checked: boolean, auto? : boolean) => (dispatch, getState) => {
+export const substantiveUpdated = (checked: boolean, auto? : boolean) : ThunkResult => (dispatch, getState) => {
 
 	const state = getState();
 	const editingCard = selectEditingCard(state);
@@ -474,7 +475,7 @@ export const substantiveUpdated : AppActionCreator = (checked: boolean, auto? : 
 	});
 };
 
-export const cardTypeUpdated : AppActionCreator = (cardType : CardType) => (dispatch, getState) => {
+export const cardTypeUpdated = (cardType : CardType) :  ThunkResult => (dispatch, getState) => {
 	const state = getState();
 	const baseCard = selectActiveCard(state);
 	const currentlySubstantive = state.editor.substantive;
@@ -499,7 +500,7 @@ export const cardTypeUpdated : AppActionCreator = (cardType : CardType) => (disp
 	});
 };
 
-export const publishedUpdated : AppActionCreator = (published) => (dispatch, getState) => {
+export const publishedUpdated = (published : boolean) : ThunkResult => (dispatch, getState) => {
 
 	const state = getState();
 	const baseCard = selectActiveCard(state);
@@ -564,7 +565,7 @@ export const tagRemoved = (tag : TagID) : AnyAction => {
 	};
 };
 
-export const editorAdded : AppActionCreator = (editorUid) => (dispatch, getState) => {
+export const editorAdded = (editorUid : Uid) : ThunkResult => (dispatch, getState) => {
 	const card = selectEditingCard(getState());
 	if (!card) return;
 	if (editorUid == card.author) {
@@ -589,7 +590,7 @@ export const manualEditorAdded = (editorUid : Uid) => {
 	return editorAdded(editorUid);
 };
 
-export const collaboratorAdded : AppActionCreator = (collaboratorUid : Uid, auto? : boolean) => (dispatch, getState) => {
+export const collaboratorAdded = (collaboratorUid : Uid, auto? : boolean) : ThunkResult => (dispatch, getState) => {
 	const card = selectEditingCard(getState());
 	if (!card) return;
 	if (collaboratorUid == card.author) {
@@ -617,7 +618,7 @@ export const manualCollaboratorAdded = (collaboratorUid : Uid) => {
 };
 
 //If index is undefined, it will add a new item to the end of the list
-export const addImageWithFile : AppActionCreator = (file : File, index : number) => async (dispatch, getState) => {
+export const addImageWithFile = (file : File, index : number) : ThunkResult => async (dispatch, getState) => {
 
 	const state = getState();
 
@@ -656,7 +657,7 @@ export const addImageWithFile : AppActionCreator = (file : File, index : number)
 
 //src must be a fully qualified URL. uploadPath is the filename in the upload
 //bucket, if applicable. If index is undefined, it will add a new item to the end of the list
-export const addImageWithURL : AppActionCreator = (src : string, uploadPath = '', index? : number) => async (dispatch, getState) => {
+export const addImageWithURL = (src : string, uploadPath = '', index? : number) : ThunkResult => async (dispatch, getState) => {
 
 	if (!srcSeemsValid(src)) {
 		alert('Src doesn\'t seem valid. It should start with https or http');
@@ -700,7 +701,7 @@ export const addImageWithURL : AppActionCreator = (src : string, uploadPath = ''
 	dispatch(substantiveUpdated(true, true));
 };
 
-export const removeImageAtIndex : AppActionCreator = (index) => (dispatch) => {
+export const removeImageAtIndex = (index : number) : ThunkResult => (dispatch) => {
 	dispatch({
 		type: EDITING_REMOVE_IMAGE_AT_INDEX,
 		index
@@ -756,7 +757,7 @@ export const closeImageBrowserDialog = () : AnyAction => {
 	};
 };
 
-export const setCardToReference : AppActionCreator = (cardID : CardID) => (dispatch, getState) => {
+export const setCardToReference = (cardID : CardID) : ThunkResult => (dispatch, getState) => {
 	const state = getState();
 	const referenceType = selectEditingPendingReferenceType(state);
 	if (selectMultiEditDialogOpen(state)) {
@@ -769,7 +770,7 @@ export const setCardToReference : AppActionCreator = (cardID : CardID) => (dispa
 	});
 };
 
-export const selectCardToReference : AppActionCreator = (referenceType : ReferenceType) => (dispatch, getState) => {
+export const selectCardToReference = (referenceType : ReferenceType) : ThunkResult => (dispatch, getState) => {
 
 	const referenceTypeConfig = REFERENCE_TYPES[referenceType];
 	if (!referenceTypeConfig) {
@@ -802,7 +803,7 @@ export const selectCardToReference : AppActionCreator = (referenceType : Referen
 	dispatch(findCardToReference(cardTypeFilter));
 };
 
-export const addReferenceToCard : AppActionCreator = (cardID, referenceType) => (dispatch, getState) => {
+export const addReferenceToCard = (cardID : CardID, referenceType : ReferenceType) : ThunkResult => (dispatch, getState) => {
 	const state = getState();
 
 	const editingCard = selectEditingCard(state);
@@ -834,7 +835,7 @@ export const removeReferenceFromCard = (cardID : CardID, referenceType : Referen
 	};
 };
 
-export const updateUnderlyingCard : AppActionCreator = () => (dispatch, getState) => {
+export const updateUnderlyingCard = () : ThunkResult => (dispatch, getState) => {
 	const state = getState();
 
 	if (!selectEditingCard(state)) {
@@ -862,7 +863,7 @@ export const updateUnderlyingCard : AppActionCreator = () => (dispatch, getState
 	});
 };
 
-export const mergeOvershadowedUnderlyingChanges : AppActionCreator = () => (dispatch, getState) => {
+export const mergeOvershadowedUnderlyingChanges = () : ThunkResult => (dispatch, getState) => {
 
 	const state = getState();
 

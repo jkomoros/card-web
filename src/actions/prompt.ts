@@ -33,14 +33,15 @@ import {
 } from '../type_constants.js';
 
 import {
-	AppActionCreator, AppThunkDispatch 
+	AppThunkDispatch,
+	ThunkResult
 } from '../store.js';
 
 import {
 	AnyAction
 } from 'redux';
 
-export const configureCommitAction = (commitAction : CommitActionType, associatedId? : CommentMessageID | CommentThreadID) => {
+export const configureCommitAction = (commitAction : CommitActionType, associatedId? : CommentMessageID | CommentThreadID) : AnyAction => {
 	if (!associatedId) associatedId = '';
 	return {
 		type: PROMPT_CONFIGURE_ACTION,
@@ -64,7 +65,7 @@ export const composeCancel = () : AnyAction => {
 	};
 };
 
-export const composeCommit : AppActionCreator = () => (dispatch, getState) => {
+export const composeCommit = () : ThunkResult => (dispatch, getState) => {
 
 	const state = getState();
 
