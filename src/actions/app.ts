@@ -160,9 +160,9 @@ export const navigateToNextCard : AppActionCreator = () => (dispatch, getState) 
 	index++;
 	const collection = selectActiveCollectionCards(state);
 	if (!collection) return;
-	const newId = collection[index];
-	if (!newId) return;
-	dispatch(navigateToCardInCurrentCollection(newId));
+	const newCard = collection[index];
+	if (!newCard) return;
+	dispatch(navigateToCardInCurrentCollection(newCard.id));
 };
 
 export const navigateToPreviousCard : AppActionCreator = () => (dispatch, getState) => {
@@ -171,9 +171,9 @@ export const navigateToPreviousCard : AppActionCreator = () => (dispatch, getSta
 	index--;
 	const collection = selectActiveCollectionCards(state);
 	if (!collection) return;
-	const newId = collection[index];
-	if (!newId) return;
-	dispatch(navigateToCardInCurrentCollection(newId));
+	const newCard = collection[index];
+	if (!newCard) return;
+	dispatch(navigateToCardInCurrentCollection(newCard.id));
 };
 
 export const urlForCard = (cardOrId : Card | CardID) : string => {
