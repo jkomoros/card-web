@@ -40,7 +40,8 @@ import {
 	UserPermissionsMap,
 	UserPermissionsForCards,
 	AuthorsMap,
-	TagInfos
+	TagInfos,
+	PermissionType
 } from '../types.js';
 
 import {
@@ -200,7 +201,8 @@ class PermissionsEditor extends connect(store)(LitElement) {
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		if (!ele.value) return;
-		const value = ele.value;
+		const value : PermissionType = ele.value as PermissionType;
+		if (!PERMISSIONS_INFO[value]) throw new Error('Unknown permission type');
 		//Set it back to default
 		ele.value = '';
 		store.dispatch(selectCardToAddPermissionTo(value, this.uid));
@@ -213,11 +215,15 @@ class PermissionsEditor extends connect(store)(LitElement) {
 	}
 
 	_handleAddEnabled(e : TagEvent){
-		store.dispatch(addEnabledPermission(this.uid, e.detail.tag));
+		const value = e.detail.tag as PermissionType;
+		if (!PERMISSIONS_INFO[value]) throw new Error('Unknown permission type');
+		store.dispatch(addEnabledPermission(this.uid, value));
 	}
 
 	_handleRemove(e : TagEvent){
-		store.dispatch(clearPermission(this.uid, e.detail.tag));
+		const value = e.detail.tag as PermissionType;
+		if (!PERMISSIONS_INFO[value]) throw new Error('Unknown permission type');
+		store.dispatch(clearPermission(this.uid, value));
 	}
 
 	_handleDelete() {
