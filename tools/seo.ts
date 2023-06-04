@@ -1,10 +1,15 @@
 import * as fs from 'fs';
 import * as process from 'process';
+import { FirebaseOptions } from 'firebase/app';
 
 const CONFIG_PATH = 'config.SECRET.json';
 
 type Config = {
 	seo : boolean;
+	firebase: {
+		prod: FirebaseOptions,
+		dev: FirebaseOptions
+	} | FirebaseOptions;
 };
 
 const run = () => {
