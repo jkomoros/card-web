@@ -452,9 +452,9 @@ When you want to navigate to a card, you use actions/navigateToCard, which uses 
 
 card-web creates a single page app. That means that the descriptions and metadata that show up on social platforms will be constant and not related to the specific card.
 
-The solution to this is to generate at deploy time many copies of index.html, one for each published card.
+The solution to this is to generate at deploy time many copies of index.html, one for each published card. These contain Open Graph markup so that even before the single page app loads the title and description of the linked card can be fetched by social services.
 
-You can opt into this behavior by adding "seo": true in your `config.SECRET.json` file.
+You can opt into this behavior by adding "seo": true in your `config.SECRET.json` file, and answering yes to the deploy prompts that ask if you want to generate SEO pages (or running it manually with `npm run generate:seo:pages`). Every time you change your cards and want the previews updated you should rerun.
 
 ## OpenAI fine-tuning
 
