@@ -1,4 +1,5 @@
 build/
+seo/
 node_modules/
 test/integration/screenshots-current/
 _site/
@@ -12,4 +13,6 @@ src/**/*.map
 #Ensure that no one checks in the secret config
 *.SECRET.*
 index.html
+index.PARTIAL.html
 firestore.rules
+firebase.json

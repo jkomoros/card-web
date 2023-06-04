@@ -18,6 +18,7 @@ export default {
 				{ src: 'node_modules/@webcomponents', dest: 'build/node_modules' },
 				{ src: 'images', dest: 'build' },
 				{ src: 'fonts', dest: 'build' },
+				{ src: 'seo', dest: 'build'},
 				{ src: 'manifest.json', dest: 'build' },
 				{ src: 'index.html', dest: 'build' },
 			],

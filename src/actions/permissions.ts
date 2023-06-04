@@ -16,7 +16,7 @@ import {
 
 import {
 	PERMISSIONS_COLLECTION
-} from './database.js';
+} from '../type_constants.js';
 
 import {
 	db,

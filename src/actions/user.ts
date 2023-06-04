@@ -35,14 +35,7 @@ import {
 	connectLiveReads,
 	disconnectLiveReads,
 	connectLiveReadingList,
-	disconnectLiveReadingList,
-	CARDS_COLLECTION,
-	STARS_COLLECTION,
-	READS_COLLECTION,
-	USERS_COLLECTION,
-	READING_LISTS_COLLECTION,
-	READING_LISTS_UPDATES_COLLECTION,
-	PERMISSIONS_COLLECTION
+	disconnectLiveReadingList
 } from './database.js';
 
 import {
@@ -96,6 +89,16 @@ import {
 import {
 	MultiBatch
 } from '../multi_batch.js';
+
+import {
+	CARDS_COLLECTION,
+	STARS_COLLECTION,
+	READS_COLLECTION,
+	USERS_COLLECTION,
+	READING_LISTS_COLLECTION,
+	READING_LISTS_UPDATES_COLLECTION,
+	PERMISSIONS_COLLECTION
+} from '../type_constants.js';
 
 let prevAnonymousMergeUser : User = null;
 

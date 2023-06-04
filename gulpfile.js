@@ -1,18 +1,16 @@
 /*eslint-env node*/
 
-const gulp = require('gulp');
-const rename = require('gulp-rename');
-const spawnSync = require('child_process').spawnSync;
-//Only used for `reset-dev` because htat uses subcommands
-const exec = require('child_process').exec;
-const prompts = require('prompts');
-const fs = require('fs');
-const process = require('process');
-const inject = require('gulp-inject-string');
+import gulp from 'gulp';
+import rename from 'gulp-rename';
+import { spawnSync, exec } from 'child_process';
+import prompts from 'prompts';
+import fs from 'fs';
+import process from 'process';
+import inject from 'gulp-inject-string';
 
 let projectConfig;
 try {
-	projectConfig = require('./config.SECRET.json');
+	projectConfig = JSON.parse(fs.readFileSync('./config.SECRET.json').toString());
 } catch(err) {
 	console.log('config.SECRET.json didn\'t exist. Check README.md on how to create one');
 	process.exit(1);
@@ -38,6 +36,8 @@ const ENABLE_TWITTER = TWITTER_HANDLE && !DISABLE_TWITTER;
 const OPENAI_API_KEY = projectConfig.openai_api_key || '';
 const OPENAI_ENABLED = OPENAI_API_KEY != '';
 
+const SEO_ENABLED = projectConfig.seo;
+
 const DO_TAG_RELEASES = projectConfig.tag_releases || false;
 
 const USER_TYPE_ALL_PERMISSIONS = projectConfig.permissions && projectConfig.permissions.all || {};
@@ -54,7 +54,7 @@ const TAB_CONFIGURATION = projectConfig.tabs || null;
 const TAB_OVERRIDES_CONFIGURATION = projectConfig.tab_overrides || null;
 
 const verifyPermissionsLegal = (permissions) => {
-	for (let [key, val] of Object.entries(permissions)) {
+	for (const [key, val] of Object.entries(permissions)) {
 		if (key == 'admin') {
 			throw new Error('Permissions objects may not list admin privileges for all users of a given type; it must be on the user object in firestore directly');
 		}
@@ -100,6 +100,9 @@ const makeExecutor = cmdAndArgs => {
 const BUILD_TASK = 'build';
 const BUILD_OPTIONALLY = 'build-optionally';
 const ASK_IF_WANT_BUILD = 'ask-if-want-build';
+const GENERATE_SEO_PAGES = 'generate-seo-pages';
+const GENERATE_SEO_PAGES_OPTIONALLY = 'generate-seo-pages-optionally';
+const ASK_IF_WANT_SEO_PAGES = 'ask-if-want-seo-pages';
 const FIREBASE_ENSURE_PROD_TASK = 'firebase-ensure-prod';
 const FIREBASE_DEPLOY_TASK = 'firebase-deploy';
 const FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING = 'firebase-set-config-last-deploy-affecting-rendering';
@@ -148,25 +151,24 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	CONFIG_JS_CONTENT += 'export const OPENAI_ENABLED = ' + (OPENAI_ENABLED ? 'true' : 'false') + ';\n';
 	fs.writeFileSync('src/config.GENERATED.SECRET.ts', CONFIG_JS_CONTENT);
 
-	let META_STRING = '\n    <meta name="application-name" content="' + APP_TITLE + '">\n';
-	META_STRING += '    <meta property="og:site_name" content="' + APP_TITLE + '">\n';
+	let META_STRING = '';
 	if (TWITTER_HANDLE) {
-		META_STRING += '    <meta name="twitter:site" content="@' + TWITTER_HANDLE + '">\n';
+		META_STRING += '\n    <meta name="twitter:site" content="@' + TWITTER_HANDLE + '">';
 	}
 
-	let stream = gulp.src('./index.TEMPLATE.html')
-		.pipe(inject.after('<!-- INJECT-META-HERE -->', META_STRING))
-		.pipe(inject.replace('@TITLE@', APP_TITLE))
-		.pipe(inject.replace('@DESCRIPTION@',APP_DESCRIPTION))
-		.pipe(inject.replace('@GOOGLE_ANALYTICS@', GOOGLE_ANALYTICS));
+	let templateHTML = fs.readFileSync('index.TEMPLATE.html').toString();
+	if (META_STRING)templateHTML = templateHTML.split('<!-- INJECT-META-HERE -->').join(META_STRING);
+	templateHTML = templateHTML.split('@GOOGLE_ANALYTICS@').join(GOOGLE_ANALYTICS);
+	templateHTML = templateHTML.split('@APP_TITLE@').join(APP_TITLE);
+	if (DISABLE_SERVICE_WORKER) templateHTML = templateHTML.split('SERVICE-WORKER-START*/').join('SERVICE-WORKER-START*//*');
+	fs.writeFileSync('index.PARTIAL.html', templateHTML);
 
-	if (DISABLE_SERVICE_WORKER) {
-		stream = stream.pipe(inject.after('SERVICE-WORKER-START*/', '/*'));
-	}
+	//We split this into two parts so build:seo can use the partial results that only need title and description changed.
+	let templatePartialHTML = fs.readFileSync('index.PARTIAL.html').toString();
+	templatePartialHTML = templatePartialHTML.split('@TITLE@').join(APP_TITLE);
+	templatePartialHTML = templatePartialHTML.split('@DESCRIPTION@').join(APP_DESCRIPTION);
+	fs.writeFileSync('index.html', templatePartialHTML);
 	
-	stream.pipe(rename('index.html'))
-		.pipe(gulp.dest('./'));
-
 	const COMPOSED_USER_TYPE_ALL_PERMISSIONS = {...USER_TYPE_ALL_PERMISSIONS};
 	const COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS = {...COMPOSED_USER_TYPE_ALL_PERMISSIONS, ...USER_TYPE_ANONYMOUS_PERMISSIONS};
 	const COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS = {...COMPOSED_USER_TYPE_ANOYMOUS_PERMISSIONS, ...USER_TYPE_SIGNED_IN_PERMISSIONS};
@@ -199,7 +201,7 @@ const pad = (num) => {
 };
 
 const releaseTag = () =>{
-	let d = new Date();
+	const d = new Date();
 	//need to pad all items to ensure that the lexicographic sorting is in the rihgt order
 	return 'deploy-' + d.getFullYear() + '-' + pad((d.getMonth() + 1)) + '-' + pad(d.getDate()) + '-' + pad(d.getHours()) + '-' + pad(d.getMinutes());
 };
@@ -276,6 +278,8 @@ gulp.task(GCLOUD_ENSURE_DEV_TASK, (cb) => {
 });
 
 gulp.task(BUILD_TASK, makeExecutor('npm run build'));
+
+gulp.task(GENERATE_SEO_PAGES, makeExecutor('npm run generate:seo:pages'));
 
 gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(ENABLE_TWITTER ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal' + (OPENAI_ENABLED ? 'functions:openai' : '')));
 
@@ -378,7 +382,7 @@ gulp.task(CONFIGURE_API_KEYS_IF_SET, (cb) => {
 });
 
 gulp.task(SET_LAST_DEPLOY_IF_AFFECTS_RENDERING, (cb) => {
-	let task = gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING);
+	const task = gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING);
 	if (!deployAffectsRendering) {
 		console.log('Skipping setting config because deploy doesn\'t affect rendering');
 		cb();
@@ -407,6 +411,31 @@ gulp.task(ASK_IF_WANT_BUILD, async (cb) => {
 
 });
 
+let wantsToSkipSEO = undefined;
+
+gulp.task(ASK_IF_WANT_SEO_PAGES, async (cb) => {
+	if (wantsToSkipSEO !== undefined) {
+		console.log('Already asked if the user wants an SEO');
+		cb();
+		return;
+	}
+	if (!SEO_ENABLED) {
+		console.log('SEO not enabled in config.SECRET.json');
+		cb();
+		return;
+	}
+	const response = await prompts({
+		type:'confirm',
+		name: 'value',
+		initial: false,
+		message: 'Do you want to skip SEO generation? This can take a long time and only needs to be re-run if published card content has changed.',
+	});
+
+	wantsToSkipSEO = response.value;
+	cb();
+
+});
+
 gulp.task(WARN_MAINTENANCE_TASKS, (cb) => {
 	console.log(`******************************************************************
 *                 WARNING 
@@ -421,9 +450,19 @@ gulp.task(WARN_MAINTENANCE_TASKS, (cb) => {
 });
 
 gulp.task(BUILD_OPTIONALLY, async (cb) => {
-	let task = gulp.task(BUILD_TASK);
+	const task = gulp.task(BUILD_TASK);
 	if (wantsToSkipBuild) {
 		console.log('Skipping build because the user asked to skip it');
+		cb();
+		return;
+	}
+	task(cb);
+});
+
+gulp.task(GENERATE_SEO_PAGES_OPTIONALLY, async (cb) => {
+	const task = gulp.task(GENERATE_SEO_PAGES);
+	if (wantsToSkipSEO) {
+		console.log('Skipping SEO because the user asked to skip it');
 		cb();
 		return;
 	}
@@ -442,8 +481,10 @@ gulp.task('dev-deploy',
 	gulp.series(
 		REGENERATE_FILES_FROM_CONFIG_TASK,
 		ASK_IF_WANT_BUILD,
-		BUILD_OPTIONALLY,
+		ASK_IF_WANT_SEO_PAGES,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
+		BUILD_OPTIONALLY,
+		GENERATE_SEO_PAGES_OPTIONALLY,
 		FIREBASE_ENSURE_DEV_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
 		CONFIGURE_API_KEYS_IF_SET,
@@ -455,8 +496,10 @@ gulp.task('deploy',
 	gulp.series(
 		REGENERATE_FILES_FROM_CONFIG_TASK,
 		ASK_IF_WANT_BUILD,
-		BUILD_OPTIONALLY,
+		ASK_IF_WANT_SEO_PAGES,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
+		BUILD_OPTIONALLY,
+		GENERATE_SEO_PAGES_OPTIONALLY,
 		FIREBASE_ENSURE_PROD_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
 		CONFIGURE_API_KEYS_IF_SET,
@@ -511,7 +554,7 @@ gulp.task('reset-dev',
 	)
 );
 
-var realFavicon = require ('gulp-real-favicon');
+import realFavicon from 'gulp-real-favicon';
 
 // File where the favicon markups are stored
 var FAVICON_DATA_FILE = 'favicon_data.json';
