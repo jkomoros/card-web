@@ -161,7 +161,7 @@ export const editMessage : AppActionCreator = (message : CommentMessage, newMess
 
 };
 
-export const addMessage : AppActionCreator = (thread : CommentThread, message : CommentMessage) => (_, getState) => {
+export const addMessage : AppActionCreator = (thread : CommentThread, message : string) => (_, getState) => {
 	const state = getState();
 	const card = selectActiveCard(state);
 	if (!card || !card.id) {
@@ -227,7 +227,7 @@ export const addMessage : AppActionCreator = (thread : CommentThread, message : 
 
 };
 
-export const createThread : AppActionCreator = (message : CommentMessage) => (_, getState) => {
+export const createThread : AppActionCreator = (message : string) => (_, getState) => {
 	const state = getState();
 	const card = selectActiveCard(state);
 	if (!card || !card.id) {
