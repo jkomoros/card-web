@@ -36,6 +36,8 @@ type FirebaseProdDevOptions = {
 };
 
 type Config = {
+	app_title : string;
+	app_description : string;
 	seo : boolean;
 	firebase: FirebaseProdDevOptions | FirebaseOptions;
 };
@@ -97,23 +99,27 @@ const fetchCards = async (config : FirebaseOptions) : Promise<Card[]> => {
 	return result;
 };
 
-const saveSEOForCard = (rawContent : string, card : Card) => {
+const saveSEOForCard = (config : Config, rawContent : string, card : Card) => {
 	const name = card.name;
 	const fileName = path.join(SEO_PATH, name + '.html');
 	log(`Creating ${fileName}`);
-	//TODO: write something different for each file.
-	fs.writeFileSync(fileName, rawContent);
+	const title = card.title || config.app_title;
+	//TODO: remove html
+	const description = card.body || config.app_description;
+	let content = rawContent.split('@TITLE@').join(title);
+	content = content.split('@DESCRIPTION@').join(description);
+	fs.writeFileSync(fileName, content);
 };
 
-const createSEOEndpoints = (cards : Card[]) => {
+const createSEOEndpoints = (config : Config, cards : Card[]) => {
 	if(fs.existsSync(SEO_PATH)) {
 		log(`Removing ${SEO_PATH}`);
 		fs.rmSync(SEO_PATH, {recursive: true, force: true});
 	}
 	fs.mkdirSync(SEO_PATH);
-	const indexContent = fs.readFileSync('index.html').toString();
+	const indexContent = fs.readFileSync('index.PARTIAL.html').toString();
 	for (const card of cards) {
-		saveSEOForCard(indexContent, card);
+		saveSEOForCard(config, indexContent, card);
 	}
 };
 
@@ -129,7 +135,7 @@ const run = async () => {
 	//TODO: support a limit on how many cards to fetch.
 	const cards = await fetchCards(firebaseConfig);
 	log(`Fetched ${cards.length} cards`);
-	createSEOEndpoints(cards);
+	createSEOEndpoints(json, cards);
 };
 
 (async() => {
