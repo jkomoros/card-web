@@ -37,6 +37,8 @@ type Config = {
 	firebase: FirebaseProdDevOptions | FirebaseOptions;
 };
 
+const log = (msg : string) => console.log(msg);
+
 const runCommand = async (command : string) : Promise<string> => {
 	return new Promise((resolve, reject) => {
 		exec(command, (error, stdout) => {
@@ -93,12 +95,14 @@ const fetchCards = async (config : FirebaseOptions) : Promise<Card[]> => {
 const saveSEOForCard = (rawContent : string, card : Card) => {
 	const name = card.name;
 	const fileName = path.join(SEO_PATH, name + '.html');
+	log(`Creating ${fileName}`);
 	//TODO: write something different for each file.
 	fs.writeFileSync(fileName, rawContent);
 };
 
 const createSEOEndpoints = (cards : Card[]) => {
 	if(fs.existsSync(SEO_PATH)) {
+		log(`Removing ${SEO_PATH}`);
 		fs.rmSync(SEO_PATH, {recursive: true, force: true});
 	}
 	fs.mkdirSync(SEO_PATH);
@@ -116,9 +120,10 @@ const run = async () => {
 		process.exit(0);
 	}
 	const firebaseConfig = await getFirebaseConfig(json);
-	//TDOO: log as things are happening.
+	log('Fetching cards');
 	//TODO: support a limit on how many cards to fetch.
 	const cards = await fetchCards(firebaseConfig);
+	log(`Fetched ${cards.length} cards`);
 	createSEOEndpoints(cards);
 };
 
