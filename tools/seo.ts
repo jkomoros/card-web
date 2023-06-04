@@ -5,6 +5,11 @@ import striptags from 'striptags';
 import { exec } from 'child_process';
 
 import {
+	Config,
+	FirebaseProdDevOptions
+} from './types.js';
+
+import {
 	FirebaseOptions,
 	initializeApp
 } from 'firebase/app';
@@ -35,11 +40,6 @@ const MAX_DESCRIPTION_LENGTH = 200;
 //small, because that fetching can take a long time.
 const DEVELOPMENT_MODE = false;
 
-type FirebaseProdDevOptions = {
-	prod?: FirebaseOptions,
-	dev?: FirebaseOptions
-};
-
 type Rewrite = {
 	source: string,
 	destination: string
@@ -50,13 +50,6 @@ type FirebaseConfig = {
 		rewrites: Rewrite[]
 	}
 }
-
-type Config = {
-	app_title : string;
-	app_description : string;
-	seo : boolean;
-	firebase: FirebaseProdDevOptions | FirebaseOptions;
-};
 
 const log = (msg : string) => console.log(msg);
 
