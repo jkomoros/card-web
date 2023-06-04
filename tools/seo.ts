@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as path from 'path';
 import * as process from 'process';
 import { exec } from 'child_process';
 
@@ -24,6 +25,7 @@ import {
 } from '../src/type_constants.js';
 
 const CONFIG_PATH = 'config.SECRET.json';
+const SEO_PATH = 'seo/';
 
 type FirebaseProdDevOptions = {
 	prod?: FirebaseOptions,
@@ -88,6 +90,24 @@ const fetchCards = async (config : FirebaseOptions) : Promise<Card[]> => {
 	return result;
 };
 
+const saveSEOForCard = (rawContent : string, card : Card) => {
+	const name = card.name;
+	const fileName = path.join(SEO_PATH, name + '.html');
+	//TODO: write something different for each file.
+	fs.writeFileSync(fileName, rawContent);
+};
+
+const createSEOEndpoints = (cards : Card[]) => {
+	if(fs.existsSync(SEO_PATH)) {
+		fs.rmSync(SEO_PATH, {recursive: true, force: true});
+	}
+	fs.mkdirSync(SEO_PATH);
+	const indexContent = fs.readFileSync('index.html').toString();
+	for (const card of cards) {
+		saveSEOForCard(indexContent, card);
+	}
+};
+
 const run = async () => {
 	const file = fs.readFileSync(CONFIG_PATH).toString();
 	const json = JSON.parse(file) as Config;
@@ -96,8 +116,10 @@ const run = async () => {
 		process.exit(0);
 	}
 	const firebaseConfig = await getFirebaseConfig(json);
+	//TDOO: log as things are happening.
+	//TODO: support a limit on how many cards to fetch.
 	const cards = await fetchCards(firebaseConfig);
-	console.log(cards.map(card => card.title));
+	createSEOEndpoints(cards);
 };
 
 (async() => {
