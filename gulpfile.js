@@ -146,10 +146,9 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	CONFIG_JS_CONTENT += 'export const OPENAI_ENABLED = ' + (OPENAI_ENABLED ? 'true' : 'false') + ';\n';
 	fs.writeFileSync('src/config.GENERATED.SECRET.ts', CONFIG_JS_CONTENT);
 
-	let META_STRING = '\n    <meta name="application-name" content="' + APP_TITLE + '">\n';
-	META_STRING += '    <meta property="og:site_name" content="' + APP_TITLE + '">\n';
+	let META_STRING = '';
 	if (TWITTER_HANDLE) {
-		META_STRING += '    <meta name="twitter:site" content="@' + TWITTER_HANDLE + '">\n';
+		META_STRING += '\n    <meta name="twitter:site" content="@' + TWITTER_HANDLE + '">';
 	}
 
 	let stream = gulp.src('./index.TEMPLATE.html')
