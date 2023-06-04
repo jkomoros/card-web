@@ -184,6 +184,7 @@ import {
 	AuthorsMap,
 	Tags,
 	CardBooleanMap,
+	CreateCardOpts,
 } from '../types.js';
 
 import {
@@ -708,14 +709,6 @@ export const defaultCardObject = (id : CardID, user : UserInfo, section : Sectio
 // id: ID to use
 // noNavigate: if true, will not navigate to the card when created
 // title: title of card
-
-type CreateCardOpts = {
-	cardType? : CardType;
-	section? : SectionID;
-	id? : CardID;
-	noNavigate? : boolean;
-	title? : string,
-}
 
 export const createCard : AppActionCreator = (opts : CreateCardOpts) => async (dispatch, getState) => {
 

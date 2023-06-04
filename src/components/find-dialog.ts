@@ -89,6 +89,7 @@ import {
 
 import {
 	CardType,
+	CreateCardOpts,
 	ReferenceType,
 	State
 } from '../types.js';
@@ -286,7 +287,7 @@ class FindDialog extends connect(store)(DialogElement) {
 			}
 		}
 		const id = newID();
-		const opts = {
+		const opts : CreateCardOpts = {
 			id,
 			title,
 			cardType: cardType,
