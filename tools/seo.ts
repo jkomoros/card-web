@@ -31,6 +31,8 @@ const SEO_PATH = 'seo/';
 //How many characters to allow description to be
 const MAX_DESCRIPTION_LENGTH = 200;
 
+//The primary difference when this is flipped is the number of cards to fetch is
+//small, because that fetching can take a long time.
 const DEVELOPMENT_MODE = false;
 
 type FirebaseProdDevOptions = {
