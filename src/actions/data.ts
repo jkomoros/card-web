@@ -1200,7 +1200,7 @@ export const updateSections : AppActionCreator = (sections : Sections) => (dispa
 	//visible then we should update collections. This could happen for example
 	//if a new card is added, or if cards are reordered.
 	const currentSectionId = selectActiveSectionId(getState());
-	const force = Object.keys(sections).length == 1 && sections[currentSectionId];
+	const force = Object.keys(sections).length == 1 && sections[currentSectionId] !== undefined;
 
 	dispatch(refreshCardSelector(force));
 };
