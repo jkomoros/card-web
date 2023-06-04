@@ -448,6 +448,14 @@ That then causes card-view to be activated, with a different page-extra, which i
 
 When you want to navigate to a card, you use actions/navigateToCard, which uses history.pushState, and then calls the router to extract out the URL and operate.
 
+## SEO
+
+card-web creates a single page app. That means that the descriptions and metadata that show up on social platforms will be constant and not related to the specific card.
+
+The solution to this is to generate at deploy time many copies of index.html, one for each published card.
+
+You can opt into this behavior by adding "seo": true in your `config.SECRET.json` file.
+
 ## OpenAI fine-tuning
 
 It's possible to export your cards in a way suitable for fine-tuning an OpenAI model. The results aren't great. The results sound superficially like you but are mostly vapid, and regress to the mean of corporate speak in a way that almost feels like it cheapens your actual cards.

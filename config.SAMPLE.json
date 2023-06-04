@@ -14,6 +14,7 @@
 	"disable_twitter": false,
 	"openai_api_key": "CHANGE-ME",
 	"backup_bucket_name": "CHANGE-ME",
+	"seo": false,
 	"permissions" : {
 		"all" : {
 			"viewApp": true
