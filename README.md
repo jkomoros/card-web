@@ -27,7 +27,7 @@ Go to https://console.firebase.google.com. Create a new project. On the project 
 
 Paste that JSON blob in your `config.SECRET.json` file, where the sample "firebase" value is. You might have to change the formatting to make it valid JSON. (You can read more about all of the valid settings for this in the Config file keys section later in this README).
 
-Run `gulp inject-config`. This copies the config you just set into various static files in the project.
+Run `npm run generate:config`. This copies the config you just set into various static files in the project.
 
 Go back to the Firebase console. Go to the project overview for your app. Tap the Firestore Database item in the navigation to the right. Tap 'Create Database'. Choose Production Mode. Tap next. Pick the location (the default is fine for US--if you change it, set that in your config `region` (see below)). Tap Done.
 
@@ -214,7 +214,7 @@ To send a tweet outside of the normal schedule, load up the Firebase functions c
 
 ## Config file keys
 
-**Re-run `gulp inject-config` every time you change the config file!**
+**Re-run `npm run generate:config` every time you change the config file!**
 
 ### firebase
 

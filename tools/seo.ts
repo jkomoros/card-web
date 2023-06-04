@@ -148,7 +148,6 @@ const updateFirebaseConfig = () => {
 			});
 		}
 	}
-	//firebase.json is OK to overwrite because a fresh one is created each time `gulp inject-config` is run.
 	fs.writeFileSync('firebase.json', JSON.stringify(config, null, '\t'));
 };
 
