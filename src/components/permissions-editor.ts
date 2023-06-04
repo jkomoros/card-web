@@ -236,7 +236,9 @@ class PermissionsEditor extends connect(store)(LitElement) {
 	_handleAddCardPermission(e : MouseEvent) {
 		const button = e.composedPath()[0];
 		if (!(button instanceof HTMLButtonElement)) throw new Error('not button element');
-		store.dispatch(selectCardToAddPermissionTo(button.dataset.permission, this.uid));
+		const value = button.dataset.permission as PermissionType;
+		if (!PERMISSIONS_INFO[value]) throw new Error('Unknown permission type');
+		store.dispatch(selectCardToAddPermissionTo(value, this.uid));
 	}
 
 	_handleRemoveCardPermission(e : TagEvent) {
@@ -252,7 +254,9 @@ class PermissionsEditor extends connect(store)(LitElement) {
 			console.warn('Couldn\'t find tag list');
 			return;
 		}
-		store.dispatch(removeUserPermissionFromCard(e.detail.tag, tagList.dataset.permission, this.uid));
+		const value = tagList.dataset.permission as PermissionType;
+		if (!PERMISSIONS_INFO[value]) throw new Error('Unknown permission type');
+		store.dispatch(removeUserPermissionFromCard(e.detail.tag, value, this.uid));
 	}
 
 }
