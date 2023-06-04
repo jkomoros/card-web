@@ -2,6 +2,7 @@
   "name": "card-web-app",
   "license": "BSD-3-Clause",
   "repository": "jkomoros/card-web",
+  "type": "module",
   "scripts": {
     "start": "gulp inject-config && npm run serve",
     "serve": "tsc --watch --preserveWatchOutput & wds --node-resolve --port=8081",
@@ -13,7 +14,7 @@
     "build:typescript": "tsc",
     "build:rollup": "rollup -c",
     "build:seo": "npx ts-node-esm tools/seo.ts",
-    "build:service-worker": "workbox generateSW workbox-config.js",
+    "build:service-worker": "workbox generateSW workbox-config.cjs",
     "test": "npm run test:security && npm run test:url && npm run test:contenteditable && npm run test:references && npm run test:fingerprint && npm run test:ngram && npm run test:objpath",
     "test:security": "gulp inject-config && firebase emulators:exec --only firestore 'npm run test:security-impl'",
     "test:security-impl": "mocha test/security --timeout=10000",
