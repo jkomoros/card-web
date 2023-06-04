@@ -1482,7 +1482,7 @@ export class Fingerprint {
 				for (const card of this._cards) {
 					for (const runs of Object.values(card.nlp)) {
 						for (const run of runs) {
-							const originalNgram = extractOriginalNgramFromRun(ngram, run);
+							const originalNgram = extractOriginalNgramFromRun(ngram, run, true);
 							if (originalNgram) {
 								originalNgrams[originalNgram] = (originalNgrams[originalNgram] || 0) + 1;
 							}
