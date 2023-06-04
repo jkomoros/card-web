@@ -98,6 +98,7 @@ const makeExecutor = cmdAndArgs => {
 const BUILD_TASK = 'build';
 const BUILD_OPTIONALLY = 'build-optionally';
 const ASK_IF_WANT_BUILD = 'ask-if-want-build';
+const GENERATE_SEO_TASK = 'generate-seo';
 const FIREBASE_ENSURE_PROD_TASK = 'firebase-ensure-prod';
 const FIREBASE_DEPLOY_TASK = 'firebase-deploy';
 const FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING = 'firebase-set-config-last-deploy-affecting-rendering';
@@ -274,6 +275,8 @@ gulp.task(GCLOUD_ENSURE_DEV_TASK, (cb) => {
 
 gulp.task(BUILD_TASK, makeExecutor('npm run build'));
 
+gulp.task(GENERATE_SEO_TASK, makeExecutor('npm run generate:seo'));
+
 gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(ENABLE_TWITTER ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal' + (OPENAI_ENABLED ? 'functions:openai' : '')));
 
 gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, makeExecutor('firebase functions:config:set site.last_deploy_affecting_rendering=' + RELEASE_TAG));
@@ -440,6 +443,7 @@ gulp.task('dev-deploy',
 		REGENERATE_FILES_FROM_CONFIG_TASK,
 		ASK_IF_WANT_BUILD,
 		BUILD_OPTIONALLY,
+		GENERATE_SEO_TASK,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		FIREBASE_ENSURE_DEV_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
@@ -453,6 +457,7 @@ gulp.task('deploy',
 		REGENERATE_FILES_FROM_CONFIG_TASK,
 		ASK_IF_WANT_BUILD,
 		BUILD_OPTIONALLY,
+		GENERATE_SEO_TASK,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		FIREBASE_ENSURE_PROD_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
