@@ -9,6 +9,10 @@ import {
 	FirebaseProdDevOptions
 } from './types.js';
 
+import {
+	getProjectConfig
+} from './util.js';
+
 const devProdConfig = (config : Config) : {prod: FirebaseOptions, dev: FirebaseOptions} => {
 	if ('apiKey' in config.firebase) {
 		return {prod: config.firebase, dev: config.firebase};
@@ -22,7 +26,7 @@ const devProdConfig = (config : Config) : {prod: FirebaseOptions, dev: FirebaseO
 
 const generateConfig = () => {
 
-	const projectConfig = JSON.parse(fs.readFileSync('config.SECRET.json').toString()) as Config;
+	const projectConfig = getProjectConfig();
 
 	const {prod: CONFIG_FIREBASE_PROD, dev: CONFIG_FIREBASE_DEV} = devProdConfig(projectConfig);
 

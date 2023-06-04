@@ -31,7 +31,10 @@ import {
 	CARDS_COLLECTION
 } from '../src/type_constants.js';
 
-const CONFIG_PATH = 'config.SECRET.json';
+import {
+	getProjectConfig
+} from './util.js';
+
 const SEO_PATH = 'seo/';
 //How many characters to allow description to be
 const MAX_DESCRIPTION_LENGTH = 200;
@@ -152,8 +155,7 @@ const updateFirebaseConfig = () => {
 };
 
 const generatePages = async () => {
-	const file = fs.readFileSync(CONFIG_PATH).toString();
-	const json = JSON.parse(file) as Config;
+	const json = getProjectConfig();
 	if (!json.seo) {
 		console.log('SEO mode is not enabled in config');
 		process.exit(0);
