@@ -140,30 +140,24 @@ const createSEOEndpoints = (config : Config, cards : Card[]) => {
 
 const updateFirebaseConfig = () => {
 	log('Updating rewrite rules in firebase.json');
-	const config = JSON.parse(fs.readFileSync('firebase.json').toString()) as FirebaseConfig;
-	const files = fs.readdirSync(SEO_PATH);
-	//We will use our own base rules, because we don't know if firebase.json
-	//already has rules in it from a previous run of this.
-	const rewrites : Rewrite[] = [
-		{
-			'source': '**',
-			'destination': '/index.html'
+	const config = JSON.parse(fs.readFileSync('firebase.TEMPLATE.json').toString()) as FirebaseConfig;
+	if (fs.existsSync(SEO_PATH)) {
+		const files = fs.readdirSync(SEO_PATH);
+		const rewrites : Rewrite[] = config.hosting.rewrites;
+		for (const file of files) {
+			const baseFileName = path.parse(file).name;
+			//TODO: verify these rules work OK
+			rewrites.unshift({
+				source: '/c/**/' + baseFileName,
+				destination: '/' + path.join(SEO_PATH, file)
+			});
 		}
-	];
-	for (const file of files) {
-		const baseFileName = path.parse(file).name;
-		//TODO: verify these rules work OK
-		rewrites.unshift({
-			source: '/c/**/' + baseFileName,
-			destination: '/' + path.join(SEO_PATH, file)
-		});
 	}
-	config.hosting.rewrites = rewrites;
 	//firebase.json is OK to overwrite because a fresh one is created each time `gulp inject-config` is run.
 	fs.writeFileSync('firebase.json', JSON.stringify(config, null, '\t'));
 };
 
-const run = async () => {
+const generatePages = async () => {
 	const file = fs.readFileSync(CONFIG_PATH).toString();
 	const json = JSON.parse(file) as Config;
 	if (!json.seo) {
@@ -176,11 +170,33 @@ const run = async () => {
 	const cards = await fetchCards(firebaseConfig);
 	log(`Fetched ${cards.length} cards`);
 	createSEOEndpoints(json, cards);
-	updateFirebaseConfig();
+};
+
+const COMMAND_PAGES = 'pages';
+const COMMAND_CONFIG = 'config';
+const COMMAND_ALL = 'all';
+
+const DEFAULT_ARGS = {
+	[COMMAND_PAGES]: true,
+	[COMMAND_CONFIG]: true
 };
 
 (async() => {
-	await run();
+
+	let args = Object.fromEntries(process.argv.slice(2).map(item => [item, true]));
+
+	if (Object.keys(args).length == 0 || args[COMMAND_ALL]) {
+		args = DEFAULT_ARGS;
+	}
+
+	if (args[COMMAND_PAGES]) {
+		await generatePages();
+	}
+
+	if (args[COMMAND_CONFIG]) {
+		updateFirebaseConfig();
+	}
+
 	process.exit(0);
 })();
 

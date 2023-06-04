@@ -100,9 +100,9 @@ const makeExecutor = cmdAndArgs => {
 const BUILD_TASK = 'build';
 const BUILD_OPTIONALLY = 'build-optionally';
 const ASK_IF_WANT_BUILD = 'ask-if-want-build';
-const GENERATE_SEO_TASK = 'generate-seo';
-const GENERATE_SEO_OPTIONALLY = 'generate-seo-optionally';
-const ASK_IF_WANT_SEO = 'ask-if-want-seo';
+const GENERATE_SEO_PAGES = 'generate-seo-pages';
+const GENERATE_SEO_PAGES_OPTIONALLY = 'generate-seo-pages-optionally';
+const ASK_IF_WANT_SEO_PAGES = 'ask-if-want-seo-pages';
 const FIREBASE_ENSURE_PROD_TASK = 'firebase-ensure-prod';
 const FIREBASE_DEPLOY_TASK = 'firebase-deploy';
 const FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING = 'firebase-set-config-last-deploy-affecting-rendering';
@@ -179,8 +179,6 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	const USER_TYPE_SIGNED_IN_RULES_STRING = '\n      let rules=' + JSON.stringify(COMPOSED_USER_TYPE_SIGNED_IN_PERMISSIONS) + ';';
 	const USER_TYPE_SIGNED_IN_DOMAIN_RULES_STRING = '\n      let rules=' + JSON.stringify(COMPOSED_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS) + ';';
 	const USER_DOMAIN_RULES_STRING = '\n      let domain="' + USER_DOMAIN  + '";';
-
-	fs.copyFileSync('firebase.TEMPLATE.json', 'firebase.json');
 
 	gulp.src('./firestore.TEMPLATE.rules')
 		.pipe(inject.after('//inject here:all', USER_TYPE_ALL_RULES_STRING))
@@ -281,7 +279,7 @@ gulp.task(GCLOUD_ENSURE_DEV_TASK, (cb) => {
 
 gulp.task(BUILD_TASK, makeExecutor('npm run build'));
 
-gulp.task(GENERATE_SEO_TASK, makeExecutor('npm run generate:seo'));
+gulp.task(GENERATE_SEO_PAGES, makeExecutor('npm run generate:seo:pages'));
 
 gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(ENABLE_TWITTER ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal' + (OPENAI_ENABLED ? 'functions:openai' : '')));
 
@@ -415,7 +413,7 @@ gulp.task(ASK_IF_WANT_BUILD, async (cb) => {
 
 let wantsToSkipSEO = undefined;
 
-gulp.task(ASK_IF_WANT_SEO, async (cb) => {
+gulp.task(ASK_IF_WANT_SEO_PAGES, async (cb) => {
 	if (wantsToSkipSEO !== undefined) {
 		console.log('Already asked if the user wants an SEO');
 		cb();
@@ -461,8 +459,8 @@ gulp.task(BUILD_OPTIONALLY, async (cb) => {
 	task(cb);
 });
 
-gulp.task(GENERATE_SEO_OPTIONALLY, async (cb) => {
-	const task = gulp.task(GENERATE_SEO_TASK);
+gulp.task(GENERATE_SEO_PAGES_OPTIONALLY, async (cb) => {
+	const task = gulp.task(GENERATE_SEO_PAGES);
 	if (wantsToSkipSEO) {
 		console.log('Skipping SEO because the user asked to skip it');
 		cb();
@@ -483,10 +481,10 @@ gulp.task('dev-deploy',
 	gulp.series(
 		REGENERATE_FILES_FROM_CONFIG_TASK,
 		ASK_IF_WANT_BUILD,
-		ASK_IF_WANT_SEO,
+		ASK_IF_WANT_SEO_PAGES,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		BUILD_OPTIONALLY,
-		GENERATE_SEO_OPTIONALLY,
+		GENERATE_SEO_PAGES_OPTIONALLY,
 		FIREBASE_ENSURE_DEV_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
 		CONFIGURE_API_KEYS_IF_SET,
@@ -498,10 +496,10 @@ gulp.task('deploy',
 	gulp.series(
 		REGENERATE_FILES_FROM_CONFIG_TASK,
 		ASK_IF_WANT_BUILD,
-		ASK_IF_WANT_SEO,
+		ASK_IF_WANT_SEO_PAGES,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		BUILD_OPTIONALLY,
-		GENERATE_SEO_OPTIONALLY,
+		GENERATE_SEO_PAGES_OPTIONALLY,
 		FIREBASE_ENSURE_PROD_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
 		CONFIGURE_API_KEYS_IF_SET,
