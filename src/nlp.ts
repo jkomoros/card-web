@@ -389,8 +389,10 @@ const highlightStringInEle = (ele : Element, re :RegExp, cardID : CardID, within
 	}
 };
 
-const lowercaseSplitWords = (str : string) : string[] => {
-	return str.toLowerCase().split(/\s+/);
+//If originalCase is not true, then lowercases everything.
+const lowercaseSplitWords = (str : string, originalCase = false) : string[] => {
+	if (!originalCase) str = str.toLowerCase();
+	return str.split(/\s+/);
 };
 
 const wordIsUrl = (word : string) : boolean => {
@@ -410,10 +412,10 @@ const splitSlashNonURLs = (word : string) : string[]  => {
 	return wordIsUrl(word) ? [word] : word.split('/');
 };
 
-const normalizedWords = (str : string) : string => {
+const normalizedWords = (str : string, originalCase = false) : string => {
 	if (!str) str = '';
 
-	const splitWords = lowercaseSplitWords(str);
+	const splitWords = lowercaseSplitWords(str, originalCase);
 	const result = [];
 	for (const word of splitWords) {
 		for (let subWord of splitSlashNonURLs(word)) {
