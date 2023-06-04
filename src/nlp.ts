@@ -1359,6 +1359,7 @@ const capitalizeTitleWord = (word : string) : boolean => {
 	return !LOWERCASE_STOP_WORDS[stemmedWord];
 };
 
+//Note that because we use the original second parts of the string, this correctly handles cases like "APIs"
 const titleCase = (str : string) : string => str.split(' ').map(word => capitalizeTitleWord(word) ? word.charAt(0).toUpperCase() + word.slice(1) : word).join(' ');
 
 //Returns a map of ngrams that, if they are present on the card, come directly
