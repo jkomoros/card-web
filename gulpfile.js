@@ -180,6 +180,8 @@ gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, function(done) {
 	const USER_TYPE_SIGNED_IN_DOMAIN_RULES_STRING = '\n      let rules=' + JSON.stringify(COMPOSED_USER_TYPE_SIGNED_IN_DOMAIN_PERMISSIONS) + ';';
 	const USER_DOMAIN_RULES_STRING = '\n      let domain="' + USER_DOMAIN  + '";';
 
+	fs.copyFileSync('firebase.TEMPLATE.json', 'firebase.json');
+
 	gulp.src('./firestore.TEMPLATE.rules')
 		.pipe(inject.after('//inject here:all', USER_TYPE_ALL_RULES_STRING))
 		.pipe(inject.after('//inject here:anonymous', USER_TYPE_ANONYMOUS_RULES_STRING))

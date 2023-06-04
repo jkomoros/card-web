@@ -15,3 +15,4 @@ src/**/*.map
 index.html
 index.PARTIAL.html
 firestore.rules
+firebase.json
