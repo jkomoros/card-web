@@ -964,7 +964,9 @@ export const createForkedCard : AppActionCreator = (cardToFork) => async (dispat
 	for (const key of TypedObject.keys(CARD_FIELDS_TO_COPY_ON_FORK)) {
 		//We can literally leave these as the same object because they'll just
 		//be sent to firestore and the actual card we'll store will be new
-		newCard[key] = cardToFork[key];
+				
+		//eslint-disable-next-line @typescript-eslint/no-explicit-any
+		newCard[key] = cardToFork[key] as any;
 	}
 	//references accessor will copy the references on setting something
 	//If the card we're copying was itself a fork, we want to overwrite that otherwise it gets confusing.
