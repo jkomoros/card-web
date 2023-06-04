@@ -116,7 +116,7 @@ export const updateCardSelector : AppActionCreator = (cardSelector : string) => 
 	let filters = description.filters;
 	let doUpdateCollection = true;
 
-	let set = description.set;
+	let set : SetName = description.set;
 
 	if (filters.length == 0) {
 		const state = getState();
