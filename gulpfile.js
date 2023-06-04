@@ -52,7 +52,7 @@ const TAB_CONFIGURATION = projectConfig.tabs || null;
 const TAB_OVERRIDES_CONFIGURATION = projectConfig.tab_overrides || null;
 
 const verifyPermissionsLegal = (permissions) => {
-	for (let [key, val] of Object.entries(permissions)) {
+	for (const [key, val] of Object.entries(permissions)) {
 		if (key == 'admin') {
 			throw new Error('Permissions objects may not list admin privileges for all users of a given type; it must be on the user object in firestore directly');
 		}
@@ -197,7 +197,7 @@ const pad = (num) => {
 };
 
 const releaseTag = () =>{
-	let d = new Date();
+	const d = new Date();
 	//need to pad all items to ensure that the lexicographic sorting is in the rihgt order
 	return 'deploy-' + d.getFullYear() + '-' + pad((d.getMonth() + 1)) + '-' + pad(d.getDate()) + '-' + pad(d.getHours()) + '-' + pad(d.getMinutes());
 };
@@ -376,7 +376,7 @@ gulp.task(CONFIGURE_API_KEYS_IF_SET, (cb) => {
 });
 
 gulp.task(SET_LAST_DEPLOY_IF_AFFECTS_RENDERING, (cb) => {
-	let task = gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING);
+	const task = gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING);
 	if (!deployAffectsRendering) {
 		console.log('Skipping setting config because deploy doesn\'t affect rendering');
 		cb();
@@ -419,7 +419,7 @@ gulp.task(WARN_MAINTENANCE_TASKS, (cb) => {
 });
 
 gulp.task(BUILD_OPTIONALLY, async (cb) => {
-	let task = gulp.task(BUILD_TASK);
+	const task = gulp.task(BUILD_TASK);
 	if (wantsToSkipBuild) {
 		console.log('Skipping build because the user asked to skip it');
 		cb();
