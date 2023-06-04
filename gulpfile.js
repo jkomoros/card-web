@@ -36,6 +36,8 @@ const ENABLE_TWITTER = TWITTER_HANDLE && !DISABLE_TWITTER;
 const OPENAI_API_KEY = projectConfig.openai_api_key || '';
 const OPENAI_ENABLED = OPENAI_API_KEY != '';
 
+const SEO_ENABLED = projectConfig.seo;
+
 const DO_TAG_RELEASES = projectConfig.tag_releases || false;
 
 const USER_TYPE_ALL_PERMISSIONS = projectConfig.permissions && projectConfig.permissions.all || {};
@@ -99,6 +101,8 @@ const BUILD_TASK = 'build';
 const BUILD_OPTIONALLY = 'build-optionally';
 const ASK_IF_WANT_BUILD = 'ask-if-want-build';
 const GENERATE_SEO_TASK = 'generate-seo';
+const GENERATE_SEO_OPTIONALLY = 'generate-seo-optionally';
+const ASK_IF_WANT_SEO = 'ask-if-want-seo';
 const FIREBASE_ENSURE_PROD_TASK = 'firebase-ensure-prod';
 const FIREBASE_DEPLOY_TASK = 'firebase-deploy';
 const FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING = 'firebase-set-config-last-deploy-affecting-rendering';
@@ -407,6 +411,31 @@ gulp.task(ASK_IF_WANT_BUILD, async (cb) => {
 
 });
 
+let wantsToSkipSEO = undefined;
+
+gulp.task(ASK_IF_WANT_SEO, async (cb) => {
+	if (wantsToSkipSEO !== undefined) {
+		console.log('Already asked if the user wants an SEO');
+		cb();
+		return;
+	}
+	if (!SEO_ENABLED) {
+		console.log('SEO not enabled in config.SECRET.json');
+		cb();
+		return;
+	}
+	const response = await prompts({
+		type:'confirm',
+		name: 'value',
+		initial: false,
+		message: 'Do you want to skip SEO generation? This can take a long time and only needs to be re-run if published card content has changed.',
+	});
+
+	wantsToSkipSEO = response.value;
+	cb();
+
+});
+
 gulp.task(WARN_MAINTENANCE_TASKS, (cb) => {
 	console.log(`******************************************************************
 *                 WARNING 
@@ -430,6 +459,16 @@ gulp.task(BUILD_OPTIONALLY, async (cb) => {
 	task(cb);
 });
 
+gulp.task(GENERATE_SEO_OPTIONALLY, async (cb) => {
+	const task = gulp.task(GENERATE_SEO_TASK);
+	if (wantsToSkipSEO) {
+		console.log('Skipping SEO because the user asked to skip it');
+		cb();
+		return;
+	}
+	task(cb);
+});
+
 gulp.task('set-up-deploy',
 	gulp.series(
 		SET_UP_CORS,
@@ -442,9 +481,10 @@ gulp.task('dev-deploy',
 	gulp.series(
 		REGENERATE_FILES_FROM_CONFIG_TASK,
 		ASK_IF_WANT_BUILD,
-		BUILD_OPTIONALLY,
-		GENERATE_SEO_TASK,
+		ASK_IF_WANT_SEO,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
+		BUILD_OPTIONALLY,
+		GENERATE_SEO_OPTIONALLY,
 		FIREBASE_ENSURE_DEV_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
 		CONFIGURE_API_KEYS_IF_SET,
@@ -456,9 +496,10 @@ gulp.task('deploy',
 	gulp.series(
 		REGENERATE_FILES_FROM_CONFIG_TASK,
 		ASK_IF_WANT_BUILD,
-		BUILD_OPTIONALLY,
-		GENERATE_SEO_TASK,
+		ASK_IF_WANT_SEO,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
+		BUILD_OPTIONALLY,
+		GENERATE_SEO_OPTIONALLY,
 		FIREBASE_ENSURE_PROD_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
 		CONFIGURE_API_KEYS_IF_SET,
