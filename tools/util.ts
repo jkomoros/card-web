@@ -1,10 +1,22 @@
 import {
-	Config
+	Config,
+	FirebaseProdDevOptions
 } from './types.js';
 
 import fs from 'fs';
 
 const PROJECT_CONFIG = 'config.SECRET.json';
+
+export const devProdFirebaseConfig = (config : Config) : Required<FirebaseProdDevOptions> => {
+	if ('apiKey' in config.firebase) {
+		return {prod: config.firebase, dev: config.firebase};
+	}
+	const fb = config.firebase as FirebaseProdDevOptions;
+	if (!fb.prod) throw new Error('No prod');
+	const prod = fb.prod;
+	const dev = fb.dev || prod;
+	return {prod, dev};
+};
 
 export const getProjectConfig = () : Config => {
 

@@ -1,34 +1,15 @@
 import fs from 'fs';
 
 import {
-	FirebaseOptions
-} from 'firebase/app';
-
-import {
-	Config,
-	FirebaseProdDevOptions
-} from './types.js';
-
-import {
-	getProjectConfig
+	getProjectConfig,
+	devProdFirebaseConfig
 } from './util.js';
-
-const devProdConfig = (config : Config) : {prod: FirebaseOptions, dev: FirebaseOptions} => {
-	if ('apiKey' in config.firebase) {
-		return {prod: config.firebase, dev: config.firebase};
-	}
-	const fb = config.firebase as FirebaseProdDevOptions;
-	if (!fb.prod) throw new Error('No prod');
-	const prod = fb.prod;
-	const dev = fb.dev || prod;
-	return {prod, dev};
-};
 
 const generateConfig = () => {
 
 	const projectConfig = getProjectConfig();
 
-	const {prod: CONFIG_FIREBASE_PROD, dev: CONFIG_FIREBASE_DEV} = devProdConfig(projectConfig);
+	const {prod: CONFIG_FIREBASE_PROD, dev: CONFIG_FIREBASE_DEV} = devProdFirebaseConfig(projectConfig);
 
 	const CHANGE_ME_SENTINEL = 'CHANGE-ME';
 
