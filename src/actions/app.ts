@@ -70,10 +70,6 @@ import {
 } from '../util.js';
 
 import {
-	CARDS_COLLECTION,
-} from './database.js';
-
-import {
 	db
 } from '../firebase.js';
 
@@ -91,7 +87,8 @@ import {
 } from './prompt.js';
 
 import {
-	REFERENCES_INBOUND_CARD_PROPERTY
+	REFERENCES_INBOUND_CARD_PROPERTY,
+	CARDS_COLLECTION
 } from '../type_constants.js';
 
 import {
