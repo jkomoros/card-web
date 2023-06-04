@@ -92,8 +92,9 @@ const generateConfig = () => {
 	let firestoreRules = fs.readFileSync('firestore.TEMPLATE.rules').toString();
 	firestoreRules = firestoreRules.split('//inject here:all').join(USER_TYPE_ALL_RULES_STRING);
 	firestoreRules = firestoreRules.split('//inject here:anonymous').join(USER_TYPE_ANONYMOUS_RULES_STRING);
-	firestoreRules = firestoreRules.split('//inject here:signed_in').join(USER_TYPE_SIGNED_IN_RULES_STRING);
+	//signed_in_domain has to go before signed_in, otherwise signed_in will replace the signed_in_domain ones and leave extra.
 	firestoreRules = firestoreRules.split('//inject here:signed_in_domain').join(USER_TYPE_SIGNED_IN_DOMAIN_RULES_STRING);
+	firestoreRules = firestoreRules.split('//inject here:signed_in').join(USER_TYPE_SIGNED_IN_RULES_STRING);
 	firestoreRules = firestoreRules.split('//inject here:domain').join(USER_DOMAIN_RULES_STRING);
 	fs.writeFileSync('firestore.rules', firestoreRules);
 };
