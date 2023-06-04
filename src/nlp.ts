@@ -973,7 +973,7 @@ const wordCountsForSemantics = memoizeFirstArg((cardObj : ProcessedCard, maxFing
 //processedRun to look within. The result will be a substring out of
 //normalizedRun corresponding to targetNgram. This will return '' if the
 //targetNgram doesn't exist as a word-boundary subset of withoutStopWordsRun.
-const extractOriginalNgramFromRun = (targetNgram : string, run : ProcessedRun) : string => {
+const extractOriginalNgramFromRun = (targetNgram : string, run : ProcessedRun, originalCase = false) : string => {
 	if (!ngramWithinOther(targetNgram, run.withoutStopWords)) return '';
 	//We know that targetNgram is within withoutStopWordsRun. Now, look for its
 	//word index (start and length) within stemmedRun.
@@ -1030,8 +1030,9 @@ const extractOriginalNgramFromRun = (targetNgram : string, run : ProcessedRun) :
 		return '';
 	}
 
+	const normalized = originalCase ? normalizedWords(run.original, true) : run.normalized;
 	//If we get to here, we have a startWordIndex and wordCount that index into normalizedRun.
-	return run.normalized.split(' ').slice(startWordIndex, startWordIndex + wordCount).join(' ');
+	return normalized.split(' ').slice(startWordIndex, startWordIndex + wordCount).join(' ');
 
 };
 
