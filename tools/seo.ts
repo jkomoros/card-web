@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as process from 'process';
+import striptags from 'striptags';
 import { exec } from 'child_process';
 
 import {
@@ -105,7 +106,7 @@ const saveSEOForCard = (config : Config, rawContent : string, card : Card) => {
 	log(`Creating ${fileName}`);
 	const title = card.title || config.app_title;
 	//TODO: remove html
-	const description = card.body || config.app_description;
+	const description = striptags(card.body) || config.app_description;
 	let content = rawContent.split('@TITLE@').join(title);
 	content = content.split('@DESCRIPTION@').join(description);
 	fs.writeFileSync(fileName, content);
