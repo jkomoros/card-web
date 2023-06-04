@@ -717,7 +717,9 @@ class CardEditor extends connect(store)(LitElement) {
 		if (!this._active) return;
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLSelectElement)) throw new Error('ele not select');
-		store.dispatch(cardTypeUpdated(ele.value));
+		const value : CardType = ele.value as CardType;
+		if (!CARD_TYPE_CONFIGURATION[value]) throw new Error('Unknown card type');
+		store.dispatch(cardTypeUpdated(value));
 	}
 
 	_handleMinimizedClicked() {
