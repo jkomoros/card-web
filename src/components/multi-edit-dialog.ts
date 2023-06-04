@@ -196,7 +196,8 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		if (!ele.value) return;
-		const value = ele.value;
+		const value = ele.value as ReferenceType;
+		if (!REFERENCE_TYPES[value]) throw new Error('Unknown reference type');
 		//Set it back to default
 		ele.value = '';
 		store.dispatch(selectCardToReference(value));
