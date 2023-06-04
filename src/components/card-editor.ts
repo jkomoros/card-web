@@ -734,7 +734,8 @@ class CardEditor extends connect(store)(LitElement) {
 		const ele = e.composedPath()[0];
 		if(!(ele instanceof HTMLSelectElement)) throw new Error('ele not select');
 		if (!ele.value) return;
-		const value = ele.value;
+		const value : ReferenceType = ele.value as ReferenceType;
+		if (!REFERENCE_TYPES[value]) throw new Error('Unknown reference types');
 		//Set it back to default
 		ele.value = '';
 		store.dispatch(selectCardToReference(value));
