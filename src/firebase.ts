@@ -7,7 +7,8 @@ import {
 	serverTimestamp,
 	deleteField,
 	Timestamp,
-	initializeFirestore
+	initializeFirestore,
+	persistentLocalCache
 } from 'firebase/firestore';
 
 import {
@@ -46,7 +47,8 @@ const firebaseApp = initializeApp(config);
 //https://github.com/firebase/firebase-js-sdk/issues/4416#issuecomment-788225325
 //and #659.
 export const db = initializeFirestore(firebaseApp, {
-	experimentalForceLongPolling: true
+	experimentalForceLongPolling: true,
+	localCache: persistentLocalCache()
 });
 
 export const auth = getAuth(firebaseApp);
