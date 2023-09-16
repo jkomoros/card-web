@@ -13,9 +13,7 @@ import {
 
 import {
 	CreateChatCompletionRequest,
-	CreateChatCompletionResponse,
-	CreateCompletionRequest,
-	CreateCompletionResponse
+	CreateChatCompletionResponse
 } from 'openai';
 
 import {
@@ -88,27 +86,16 @@ const commitTitleSuggestion  = () : ThunkResult => (dispatch, getState) => {
 
 const openaiCallable = httpsCallable(functions, 'openai');
 
-type OpenAIRemoteCallCreateCompletion = {
-	endpoint: 'createCompletion',
-	payload: CreateCompletionRequest
-};
-
 type OpenAIRemoteCallCreateChatCompletion = {
 	endpoint: 'createChatCompletion',
 	payload: CreateChatCompletionRequest
 };
 
-type OpenAIRemoteCall = OpenAIRemoteCallCreateCompletion | OpenAIRemoteCallCreateChatCompletion;
+type OpenAIRemoteCall = OpenAIRemoteCallCreateChatCompletion;
 
-type OpenAIRemoteResult = CreateCompletionResponse | CreateChatCompletionResponse;
+type OpenAIRemoteResult = CreateChatCompletionResponse;
 
 class OpenAIProxy {
-	createCompletion(request : CreateCompletionRequest) : Promise<CreateCompletionResponse> {
-		return this._bridge({
-			endpoint: 'createCompletion',
-			payload: request
-		});
-	}
 
 	createChatCompletion(request: CreateChatCompletionRequest): Promise<CreateChatCompletionResponse> {
 		return this._bridge({
@@ -128,32 +115,20 @@ const openai = new OpenAIProxy();
 
 const CARD_SEPARATOR = '\n-----\n';
 
-const completion = async (prompt: string, uid: Uid, useChat = false) : Promise<string> => {
-	if (useChat) {
-		const result = await openai.createChatCompletion({
-			model: 'gpt-3.5-turbo',
-			messages: [
-				{
-					role: 'user',
-					content: prompt
-				}
-			],
-			//maxTokens defaults to inf
-			user: uid
-		});
-		return result.choices[0].message.content;
-	}
-	//Use normal completion API
-	const result = await openai.createCompletion({
-		model: 'text-davinci-003',
-		prompt: prompt,
-		max_tokens: 4096,
+const completion = async (prompt: string, uid: Uid) : Promise<string> => {
+	const result = await openai.createChatCompletion({
+		model: 'gpt-3.5-turbo',
+		messages: [
+			{
+				role: 'user',
+				content: prompt
+			}
+		],
+		//maxTokens defaults to inf
 		user: uid
 	});
-	return result.choices[0].text;
+	return result.choices[0].message.content;
 };
-
-const USE_CHAT = true;
 
 type FitPromptArguments = {
 	prefix?: string,
@@ -215,7 +190,7 @@ const cardsAISummaryPrompt = (cards : Card[]) : [prompt : string, ids : CardID[]
 
 	console.log('Asking AI assistant. Depending on how recently you ran it this might take some time to warmup.');
 
-	console.log('Prompt (' + (USE_CHAT ? 'Completion' : 'Chat') + ')\n',prompt);
+	console.log('Prompt\n',prompt);
 
 	return [prompt, ids];
 };
@@ -293,7 +268,7 @@ export const titleForEditingCardWithAI = (count = 5) : ThunkResult => async (dis
 	prompt += `Append ${count} suggested titles for this essay. Each should be a pithy, clever summary that includes a verb in 35 characters or less. Put one title on each line.`;
 
 	try {
-		const result = await completion(prompt, uid, USE_CHAT);
+		const result = await completion(prompt, uid);
 		//The prompt keeps on returning numbered results no matter how I tweak it, so just remove that.
 		const lines = result.split('\n').map(str => str.replace(/^\d+\.\s*/, '').trim());
 		dispatch(aiResult(lines));
@@ -319,7 +294,7 @@ export const summarizeCardsWithAI = () : ThunkResult => async (dispatch, getStat
 	});
 	let result = '';
 	try {
-		result = await completion(prompt, uid, USE_CHAT);
+		result = await completion(prompt, uid);
 		dispatch(aiResult(result));
 	} catch(err) {
 		dispatch(showAIError(err));
