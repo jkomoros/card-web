@@ -15,6 +15,7 @@ import { State } from './types.js';
 
 import app from './reducers/app.js';
 import data from './reducers/data.js';
+import { SomeAction } from './actions.js';
 
 declare global {
 	interface Window {
@@ -57,3 +58,5 @@ export type ThunkResult = ThunkAction<void, State, undefined, AnyAction>;
 export type AppThunkDispatch = ThunkDispatch<State, undefined, AnyAction>;
 
 export type AppGetState = () => State;
+
+export type ThunkSomeAction = ThunkAction<void, State, undefined, SomeAction>;
