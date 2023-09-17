@@ -18,7 +18,11 @@ import {
 	COMMIT_ACTION_TYPES,
 	SORT_NAME_TYPES,
 	TAB_CONFIG_TYPES,
-	AI_DIALOG_TYPES
+	AI_DIALOG_TYPES,
+	FIND_CARD_TO_LINK,
+	FIND_CARD_TO_PERMISSION,
+	FIND_CARD_TO_REFERENCE,
+	FIND_CARD_OPEN
 } from './type_constants.js';
 
 import * as icons from './components/my-icons.js';
@@ -925,8 +929,7 @@ export interface HTMLElementWithStashedSelectionOffset extends HTMLElement {
 	stashedSelectionOffset?: [number, number]
 }
 
-//TODO: tighten to things like FIND_CARD_TO_PERMISSION et al
-export type FindDialogType = string;
+export type FindDialogType = typeof FIND_CARD_OPEN | typeof FIND_CARD_TO_LINK | typeof FIND_CARD_TO_PERMISSION | typeof FIND_CARD_TO_REFERENCE;
 
 export type AppState = {
 	location: string,
@@ -1161,7 +1164,8 @@ export type FindState = {
 	referencing: boolean,
 	//If true, sort by recent. Otherwise, sort by query match.
 	sortByRecent: boolean,
-	cardTypeFilter: CardType,
+	//Can be a single cardType, or a union filter.
+	cardTypeFilter: string,
 	//if true, the filter shouldn't be able to be changed
 	cardTypeFilterLocked: boolean,
 }

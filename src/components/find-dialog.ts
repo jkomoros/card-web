@@ -134,7 +134,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		_legalCardTypeFilters: CardType[];
 	
 	@state()
-		_cardTypeFilter: CardType;
+		_cardTypeFilter: string;
 
 	@state()
 		_sortByRecent: boolean;

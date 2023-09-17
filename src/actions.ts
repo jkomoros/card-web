@@ -1,4 +1,11 @@
 import {
+	FIND_CARD_OPEN as OPEN,
+	FIND_CARD_TO_LINK as LINK,
+	FIND_CARD_TO_PERMISSION as PERMISSION,
+	FIND_CARD_TO_REFERENCE as REFRENCE
+} from './type_constants';
+
+import {
 	AIDialogType,
 	AIModelName,
 	AuthorsMap,
@@ -131,6 +138,17 @@ export const EDITING_OPEN_IMAGE_BROWSER_DIALOG = 'EDITING_OPEN_IMAGE_BROWSER_DIA
 export const EDITING_CLOSE_IMAGE_BROWSER_DIALOG = 'EDITING_CLOSE_IMAGE_BROWSER_DIALOG';
 export const EDITING_UPDATE_UNDERLYING_CARD = 'EDITING_UPDATE_UNDERLYING_CARD';
 export const EDITING_MERGE_OVERSHADOWED_CHANGES = 'EDITING_MERGE_OVERSHADOWED_CHANGES';
+//Find
+export const FIND_DIALOG_OPEN = OPEN;
+export const FIND_DIALOG_CLOSE ='FIND_DIALOG_CLOSE';
+export const FIND_UPDATE_QUERY = 'FIND_UPDATE_QUERY';
+export const FIND_CARD_TO_LINK = LINK;
+export const FIND_UPDATE_RENDER_OFFSET = 'FIND_UPDATE_RENDER_OFFSET';
+export const FIND_UPDATE_ACTIVE_QUERY = 'FIND_UPDATE_ACTIVE_QUERY';
+export const FIND_CARD_TO_PERMISSION = PERMISSION;
+export const FIND_CARD_TO_REFERENCE = REFRENCE;
+export const FIND_UPDATE_CARD_TYPE_FILTER = 'FIND_UPDATE_CARD_TYPE_FILTER';
+export const FIND_UPDATE_SORT_BY_RECENT = 'FIND_UPDATE_SORT_BY_RECENT';
 
 type ActionAIRequestStarted = {
 	type: typeof AI_REQUEST_STARTED,
@@ -595,6 +613,57 @@ type ActionEditingMergeOvershadowedChanges = {
 	diff: CardDiff
 };
 
+type ActionFindDialogOpen = {
+	type: typeof FIND_DIALOG_OPEN,
+	query: string,
+	cardTypeFilter: string
+};
+
+type ActionFindDialogClose = {
+	type: typeof FIND_DIALOG_CLOSE
+};
+
+type ActionFindUpdateQuery = {
+	type: typeof FIND_UPDATE_QUERY,
+	query: string
+};
+
+type ActionFindCardToLink = {
+	type: typeof FIND_CARD_TO_LINK,
+	query: string
+};
+
+type ActionFindUpdateRenderOffset = {
+	type: typeof FIND_UPDATE_RENDER_OFFSET,
+	renderOffset: number
+};
+
+type ActionFindUpdateActiveQuery = {
+	type: typeof FIND_UPDATE_ACTIVE_QUERY
+};
+
+type ActionFindCardToPermission = {
+	type: typeof FIND_CARD_TO_PERMISSION,
+	query: string,
+	cardTypeFilter: string
+};
+
+type ActionFindCardToReference = {
+	type: typeof FIND_CARD_TO_REFERENCE,
+	query: string,
+	cardTypeFilter: string
+};
+
+type ActionFindUpdateCardTypeFilter = {
+	type: typeof FIND_UPDATE_CARD_TYPE_FILTER,
+	filter: string
+};
+
+type ActionFindUpdateSortByRecent = {
+	type: typeof FIND_UPDATE_SORT_BY_RECENT,
+	sortByRecent: boolean
+};
+
 export type SomeAction = ActionAIRequestStarted
 	| ActionAIResult
 	| ActionAISelectResultIndex
@@ -687,4 +756,14 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionEditingOpenImageBrowserDialog
 	| ActionEditingCloseImageBrowserDialog
 	| ActionEditingUpdateUnderlyingCard
-	| ActionEditingMergeOvershadowedChanges;
+	| ActionEditingMergeOvershadowedChanges
+	| ActionFindDialogOpen
+	| ActionFindDialogClose
+	| ActionFindUpdateQuery
+	| ActionFindCardToLink
+	| ActionFindUpdateRenderOffset
+	| ActionFindUpdateActiveQuery
+	| ActionFindCardToPermission
+	| ActionFindCardToReference
+	| ActionFindUpdateCardTypeFilter
+	| ActionFindUpdateSortByRecent;

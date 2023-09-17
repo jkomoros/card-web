@@ -1,8 +1,4 @@
 import {
-	AnyAction
-} from 'redux';
-
-import {
 	FIND_DIALOG_OPEN,
 	FIND_DIALOG_CLOSE,
 	FIND_UPDATE_QUERY,
@@ -12,8 +8,9 @@ import {
 	FIND_CARD_TO_PERMISSION,
 	FIND_CARD_TO_REFERENCE,
 	FIND_UPDATE_CARD_TYPE_FILTER,
-	FIND_UPDATE_SORT_BY_RECENT
-} from '../actions/find.js';
+	FIND_UPDATE_SORT_BY_RECENT,
+	SomeAction
+} from '../actions.js';
 
 import {
 	FindState
@@ -32,7 +29,7 @@ const INITIAL_STATE : FindState = {
 	cardTypeFilterLocked: false,
 };
 
-const app = (state : FindState = INITIAL_STATE, action : AnyAction) : FindState => {
+const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState => {
 	switch (action.type) {
 	case FIND_DIALOG_OPEN:
 		return {

@@ -325,3 +325,8 @@ export const READING_LISTS_COLLECTION = 'reading_lists';
 export const READING_LISTS_UPDATES_COLLECTION = 'updates';
 export const PERMISSIONS_COLLECTION = 'permissions';
 export const TWEETS_COLLECTION = 'tweets';
+
+export const FIND_CARD_OPEN = 'FIND_CARD_OPEN';
+export const FIND_CARD_TO_LINK = 'FIND_CARD_TO_LINK';
+export const FIND_CARD_TO_REFERENCE = 'FIND_CARD_TO_REFERENCE';
+export const FIND_CARD_TO_PERMISSION = 'FIND_CARD_TO_PERMISSION';

@@ -1,14 +1,3 @@
-export const FIND_DIALOG_OPEN = 'FIND_DIALOG_OPEN';
-export const FIND_DIALOG_CLOSE ='FIND_DIALOG_CLOSE';
-export const FIND_UPDATE_QUERY = 'FIND_UPDATE_QUERY';
-export const FIND_CARD_TO_LINK = 'FIND_CARD_TO_LINK';
-export const FIND_UPDATE_RENDER_OFFSET = 'FIND_UPDATE_RENDER_OFFSET';
-export const FIND_UPDATE_ACTIVE_QUERY = 'FIND_UPDATE_ACTIVE_QUERY';
-export const FIND_CARD_TO_PERMISSION = 'FIND_CARD_TO_PERMISSION';
-export const FIND_CARD_TO_REFERENCE = 'FIND_CARD_TO_REFERENCE';
-export const FIND_UPDATE_CARD_TYPE_FILTER = 'FIND_UPDATE_CARD_TYPE_FILTER';
-export const FIND_UPDATE_SORT_BY_RECENT = 'FIND_UPDATE_SORT_BY_RECENT';
-
 import {
 	saveSelectionRange
 } from './editor.js';
@@ -27,18 +16,28 @@ import {
 } from '../types.js';
 
 import {
-	ThunkResult
+	ThunkSomeAction
 } from '../store.js';
 
 import {
-	AnyAction
-} from 'redux';
+	FIND_CARD_TO_LINK,
+	FIND_CARD_TO_PERMISSION,
+	FIND_CARD_TO_REFERENCE,
+	FIND_DIALOG_CLOSE,
+	FIND_DIALOG_OPEN,
+	FIND_UPDATE_ACTIVE_QUERY,
+	FIND_UPDATE_CARD_TYPE_FILTER,
+	FIND_UPDATE_QUERY,
+	FIND_UPDATE_RENDER_OFFSET,
+	FIND_UPDATE_SORT_BY_RECENT,
+	SomeAction
+} from '../actions.js';
 
 export const openFindDialog = () => {
 	return launchFind(FIND_DIALOG_OPEN);
 };
 
-export const closeFindDialog = () : AnyAction => {
+export const closeFindDialog = () : SomeAction => {
 	return {
 		type: FIND_DIALOG_CLOSE
 	};
@@ -48,7 +47,7 @@ let updateActiveQueryTimeout = 0;
 //This time should be how long after the user stops typing to wait.
 const QUERY_UPDATE_INTERVAL = 250;
 
-export const updateQuery  = (query : string) : ThunkResult => (dispatch) => {
+export const updateQuery  = (query : string) : ThunkSomeAction => (dispatch) => {
 
 	if (updateActiveQueryTimeout) {
 		window.clearTimeout(updateActiveQueryTimeout);
@@ -82,14 +81,14 @@ export const findCardToReference = (lockedCardTypeFilter : string) => {
 	return launchFind(FIND_CARD_TO_REFERENCE, '', lockedCardTypeFilter);
 };
 
-export const findUpdateRenderOffset = (renderOffset : number) : AnyAction => {
+export const findUpdateRenderOffset = (renderOffset : number) : SomeAction => {
 	return {
 		type: FIND_UPDATE_RENDER_OFFSET,
 		renderOffset,
 	};
 };
 
-const launchFind = (typ : FindDialogType, starterQuery? : string, lockedCardTypeFilter? : string) : ThunkResult => (dispatch, getState) => {
+const launchFind = (typ : FindDialogType, starterQuery? : string, lockedCardTypeFilter? : string) : ThunkSomeAction => (dispatch, getState) => {
 	if (!starterQuery) {
 		const description = selectActiveCollectionDescription(getState());
 		starterQuery = queryTextFromCollectionDescription(description);
@@ -102,7 +101,7 @@ const launchFind = (typ : FindDialogType, starterQuery? : string, lockedCardType
 	});
 };
 
-export const findUpdateCardTypeFilter = (filter : string) : ThunkResult => (dispatch, getState) =>  {
+export const findUpdateCardTypeFilter = (filter : string) : ThunkSomeAction => (dispatch, getState) =>  {
 
 	const cardTypeFilterLocked = selectFindCardTypeFilterLocked(getState());
 
@@ -114,7 +113,7 @@ export const findUpdateCardTypeFilter = (filter : string) : ThunkResult => (disp
 	});
 };
 
-export const findUpdateSortByRecent = (sortByRecent : boolean) : AnyAction => {
+export const findUpdateSortByRecent = (sortByRecent : boolean) : SomeAction => {
 	return {
 		type: FIND_UPDATE_SORT_BY_RECENT,
 		sortByRecent,
