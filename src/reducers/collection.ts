@@ -1,8 +1,4 @@
 import {
-	AnyAction
-} from 'redux';
-
-import {
 	SHOW_CARD,
 	UPDATE_COLLECTION,
 	UPDATE_RENDER_OFFSET,
@@ -15,6 +11,7 @@ import {
 	UPDATE_STARS,
 	UPDATE_READS,
 	UPDATE_READING_LIST,
+	SomeAction,
 } from '../actions.js';
 
 import {
@@ -51,7 +48,7 @@ import {
 	randomString
 } from '../util.js';
 
-const app = (state : CollectionState = INITIAL_STATE, action : AnyAction) : CollectionState => {
+const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : CollectionState => {
 	switch (action.type) {
 	case SHOW_CARD:
 		return {
