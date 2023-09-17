@@ -32,7 +32,7 @@ type ActionAIDialogClose = {
 type ActionAISetActiveCards = {
 	type: typeof AI_SET_ACTIVE_CARDS,
 	allCards: CardID[],
-	filtererCards: CardID[]
+	filteredCards: CardID[]
 };
 
 type ActionAIShowError = {
