@@ -9,7 +9,7 @@ import {
 	AI_SET_ACTIVE_CARDS,
 	AI_SHOW_ERROR,
 	AI_SELECT_RESULT_INDEX
-} from '../actions/ai.js';
+} from '../actions.js';
 
 import {
 	AIState
