@@ -1029,6 +1029,7 @@ export const createForkedCard = (cardToFork : Card) : ThunkResult => async (disp
 		cardType: cardType,
 		navigate: true,
 		noSectionChange: !section,
+		published: newCard.published
 	});
 
 	const batch = new MultiBatch(db);
