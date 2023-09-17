@@ -40,6 +40,8 @@ import {
 	Tags,
 	TweetMap,
 	Uid,
+	UserInfo,
+	UserPermissions,
 	UserPermissionsMap,
 	ViewMode
 } from './types';
@@ -173,6 +175,17 @@ export const PROMPT_COMPOSE_CANCEL = 'PROMPT_COMPOSE_CANCEL';
 export const PROMPT_COMPOSE_COMMIT = 'PROMPT_COMPOSE_COMMIT';
 export const PROMPT_COMPOSE_UPDATE_CONTENT = 'PROMPT_COMPOSE_UPDATE_CONTENT';
 export const PROMPT_CONFIGURE_ACTION = 'PROMPT_CONFIGURE_ACTION';
+//User
+export const SIGNIN_USER = 'SIGNIN_USER';
+export const SIGNIN_SUCCESS = 'SIGNIN_SUCCESS';
+export const SIGNIN_FAILURE = 'SIGNIN_FAILURE';
+export const SIGNOUT_USER = 'SIGNOUT_USER';
+export const SIGNOUT_SUCCESS = 'SIGNOUT_SUCCESS';
+export const UPDATE_STARS = 'UPDATE_STARS';
+export const UPDATE_READS = 'UPDATE_READS';
+export const UPDATE_READING_LIST = 'UPDATE_READING_LIST';
+export const AUTO_MARK_READ_PENDING_CHANGED = 'AUTO_MARK_READ_PENDING_CHANGED';
+export const UPDATE_USER_PERMISSIONS = 'UPDATE_USER_PERMISSIONS';
 
 type ActionAIRequestStarted = {
 	type: typeof AI_REQUEST_STARTED,
@@ -759,6 +772,55 @@ type ActionPromptConfigureAction = {
 	associatedId: CommentMessageID | CommentThreadID
 };
 
+type ActionSigninUser = {
+	type: typeof SIGNIN_USER,
+};
+
+type ActionSigninSuccess = {
+	type: typeof SIGNIN_SUCCESS,
+	user: UserInfo
+};
+
+type ActionSigninFailure = {
+	type: typeof SIGNIN_FAILURE,
+	error: Error
+};
+
+type ActionSignoutUser = {
+	type: typeof SIGNOUT_USER,
+};
+
+type ActionSignoutSuccess = {
+	type: typeof SIGNOUT_SUCCESS
+};
+
+type ActionUpdateStars = {
+	type: typeof UPDATE_STARS,
+	starsToAdd: CardID[],
+	starsToRemove: CardID[]
+};
+
+type ActionUpdateReads = {
+	type: typeof UPDATE_READS,
+	readsToAdd: CardID[],
+	readsToRemove: CardID[]
+};
+
+type ActionUpdateReadingList = {
+	type: typeof UPDATE_READING_LIST,
+	list: CardID[]
+};
+
+type ActionAutoMarkReadPendingChanged = {
+	type: typeof AUTO_MARK_READ_PENDING_CHANGED,
+	pending: boolean
+};
+
+type ActionUpdateUserPermissions = {
+	type: typeof UPDATE_USER_PERMISSIONS,
+	permissions: UserPermissions
+};
+
 export type SomeAction = ActionAIRequestStarted
 	| ActionAIResult
 	| ActionAISelectResultIndex
@@ -875,4 +937,14 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionPromptComposeCancel
 	| ActionPromptComposeCommit
 	| ActionPromptComposeUpdateContent
-	| ActionPromptConfigureAction;
+	| ActionPromptConfigureAction
+	| ActionSigninUser
+	| ActionSigninSuccess
+	| ActionSigninFailure
+	| ActionSignoutUser
+	| ActionSignoutSuccess
+	| ActionUpdateStars
+	| ActionUpdateReads
+	| ActionUpdateReadingList
+	| ActionAutoMarkReadPendingChanged
+	| ActionUpdateUserPermissions;

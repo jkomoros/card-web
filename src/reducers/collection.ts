@@ -12,13 +12,10 @@ import {
 	UPDATE_CARDS,
 	UPDATE_TAGS,
 	REMOVE_CARDS,
-} from '../actions.js';
-
-import {
 	UPDATE_STARS,
 	UPDATE_READS,
 	UPDATE_READING_LIST,
-} from '../actions/user.js';
+} from '../actions.js';
 
 import {
 	setUnion,

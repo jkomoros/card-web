@@ -1,7 +1,3 @@
-import {
-	AnyAction
-} from 'redux';
-
 import { 
 	SIGNIN_USER,
 	SIGNIN_SUCCESS,
@@ -12,8 +8,9 @@ import {
 	UPDATE_READS,
 	AUTO_MARK_READ_PENDING_CHANGED,
 	UPDATE_READING_LIST,
-	UPDATE_USER_PERMISSIONS
-} from '../actions/user.js';
+	UPDATE_USER_PERMISSIONS,
+	SomeAction
+} from '../actions.js';
 
 import {
 	setRemove,
@@ -44,7 +41,7 @@ const INITIAL_STATE : UserState = {
 	autoMarkReadPending: false,
 };
 
-const app = (state : UserState = INITIAL_STATE, action : AnyAction) : UserState => {
+const app = (state : UserState = INITIAL_STATE, action : SomeAction) : UserState => {
 	switch (action.type) {
 	case SIGNIN_USER:
 		return {

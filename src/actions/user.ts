@@ -1,14 +1,3 @@
-export const SIGNIN_USER = 'SIGNIN_USER';
-export const SIGNIN_SUCCESS = 'SIGNIN_SUCCESS';
-export const SIGNIN_FAILURE = 'SIGNIN_FAILURE';
-export const SIGNOUT_USER = 'SIGNOUT_USER';
-export const SIGNOUT_SUCCESS = 'SIGNOUT_SUCCESS';
-export const UPDATE_STARS = 'UPDATE_STARS';
-export const UPDATE_READS = 'UPDATE_READS';
-export const UPDATE_READING_LIST = 'UPDATE_READING_LIST';
-export const AUTO_MARK_READ_PENDING_CHANGED = 'AUTO_MARK_READ_PENDING_CHANGED';
-export const UPDATE_USER_PERMISSIONS = 'UPDATE_USER_PERMISSIONS';
-
 export const AUTO_MARK_READ_DELAY = 5000;
 
 import {
@@ -83,7 +72,7 @@ import {
 } from '../types.js';
 
 import {
-	ThunkResult
+	ThunkSomeAction
 } from '../store.js';
 
 import {
@@ -99,6 +88,19 @@ import {
 	READING_LISTS_UPDATES_COLLECTION,
 	PERMISSIONS_COLLECTION
 } from '../type_constants.js';
+
+import {
+	AUTO_MARK_READ_PENDING_CHANGED,
+	SIGNIN_FAILURE,
+	SIGNIN_SUCCESS,
+	SIGNIN_USER,
+	SIGNOUT_SUCCESS,
+	SIGNOUT_USER,
+	UPDATE_READING_LIST,
+	UPDATE_READS,
+	UPDATE_STARS,
+	UPDATE_USER_PERMISSIONS
+} from '../actions.js';
 
 let prevAnonymousMergeUser : User = null;
 
@@ -131,7 +133,7 @@ getRedirectResult(auth).catch( async (err : FirebaseError) => {
 
 });
 
-export const saveUserInfo = () : ThunkResult => (_, getState) => {
+export const saveUserInfo = () : ThunkSomeAction => (_, getState) => {
 
 	const state = getState();
 
@@ -170,13 +172,13 @@ export const ensureUserInfo = (batch : MultiBatch, user : UserInfo) => {
 	batch.set(doc(db, USERS_COLLECTION, user.uid), data, {merge: true});
 };
 
-export const showNeedSignin = () : ThunkResult => (dispatch) => {
+export const showNeedSignin = () : ThunkSomeAction => (dispatch) => {
 	const doSignIn = confirm('Doing that action requires signing in with your Google account. Do you want to sign in?');
 	if (!doSignIn) return;
 	dispatch(signIn());
 };
 
-export const signIn = () : ThunkResult => (dispatch, getState) => {
+export const signIn = () : ThunkSomeAction => (dispatch, getState) => {
 
 	const state = getState();
 
@@ -203,7 +205,7 @@ export const signIn = () : ThunkResult => (dispatch, getState) => {
 
 };
 
-export const signOutSuccess = () : ThunkResult => (dispatch) =>  {
+export const signOutSuccess = () : ThunkSomeAction => (dispatch) =>  {
 
 	//Note that this is actually called anytime onAuthStateChange notices we're not signed
 	//in, which can both be a manual sign out, as well as a page load with no user.
@@ -236,7 +238,7 @@ const hasPreviousSignIn = () => {
 	return localStorage.getItem(HAS_PREVIOUS_SIGN_IN_KEY) ? true : false;
 };
 
-const ensureRichestDataForUser = (firebaseUser : User) : ThunkResult => async (dispatch) => {
+const ensureRichestDataForUser = (firebaseUser : User) : ThunkSomeAction => async (dispatch) => {
 	//Whatever the first account was will be the default photoUrl, displayName,
 	//etc. So if your first account was an anonymous one (no photoUrl or
 	//displayName) then even when you sign in with e.g. gmail we'll still have
@@ -281,7 +283,7 @@ const ensureRichestDataForUser = (firebaseUser : User) : ThunkResult => async (d
 
 };
 
-const updateUserInfo = (firebaseUser : User) : ThunkResult => (dispatch) => {
+const updateUserInfo = (firebaseUser : User) : ThunkSomeAction => (dispatch) => {
 	const info = _userInfo(firebaseUser);
 	dispatch({
 		type: SIGNIN_SUCCESS,
@@ -289,7 +291,7 @@ const updateUserInfo = (firebaseUser : User) : ThunkResult => (dispatch) => {
 	});
 };
 
-export const updatePermissions = (uid : Uid) : ThunkResult => async (dispatch) => {
+export const updatePermissions = (uid : Uid) : ThunkSomeAction => async (dispatch) => {
 	if (!uid) {
 		//This is only trigger on e.g. logout
 		dispatch({
@@ -316,7 +318,7 @@ export const updatePermissions = (uid : Uid) : ThunkResult => async (dispatch) =
 	});
 };
 
-export const signInSuccess = (firebaseUser : User) : ThunkResult => (dispatch) => {
+export const signInSuccess = (firebaseUser : User) : ThunkSomeAction => (dispatch) => {
 
 	//Note that even when this is done, selectUserSignedIn might still return
 	//false, if the user is signed in anonymously.
@@ -343,7 +345,7 @@ const _userInfo = (info : User) : UserInfo => {
 	};
 };
 
-export const signOut = () : ThunkResult => (dispatch, getState) => {
+export const signOut = () : ThunkSomeAction => (dispatch, getState) => {
 
 	const state = getState();
 
@@ -359,7 +361,7 @@ export const signOut = () : ThunkResult => (dispatch, getState) => {
 	firebaseSignOut(auth);
 };
 
-export const updateStars = (starsToAdd : CardID[] = [], starsToRemove : CardID[] = []) : ThunkResult => (dispatch) => {
+export const updateStars = (starsToAdd : CardID[] = [], starsToRemove : CardID[] = []) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: UPDATE_STARS,
 		starsToAdd,
@@ -368,7 +370,7 @@ export const updateStars = (starsToAdd : CardID[] = [], starsToRemove : CardID[]
 	dispatch(refreshCardSelector(false));
 };
 
-export const toggleOnReadingList = (cardToToggle : CardID) : ThunkResult => (dispatch, getState) => {
+export const toggleOnReadingList = (cardToToggle : CardID) : ThunkSomeAction => (dispatch, getState) => {
 
 	if (!cardToToggle) {
 		console.log('Invalid card provided');
@@ -381,7 +383,7 @@ export const toggleOnReadingList = (cardToToggle : CardID) : ThunkResult => (dis
 	dispatch(onReadingList ? removeFromReadingList(cardToToggle) : addToReadingList(cardToToggle));
 };
 
-export const addToReadingList = (cardToAdd : CardID) : ThunkResult => (_, getState) => {
+export const addToReadingList = (cardToAdd : CardID) : ThunkSomeAction => (_, getState) => {
 	if (!cardToAdd) {
 		console.log('Invalid card provided');
 		return;
@@ -424,7 +426,7 @@ export const addToReadingList = (cardToAdd : CardID) : ThunkResult => (_, getSta
 	batch.commit();
 };
 
-export const removeFromReadingList = (cardToRemove : CardID) : ThunkResult => (_, getState) => {
+export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction => (_, getState) => {
 	if (!cardToRemove) {
 		console.log('Invalid card provided');
 		return;
@@ -467,7 +469,7 @@ export const removeFromReadingList = (cardToRemove : CardID) : ThunkResult => (_
 	batch.commit();
 };
 
-export const addStar = (cardToStar : Card) : ThunkResult => (_, getState) => {
+export const addStar = (cardToStar : Card) : ThunkSomeAction => (_, getState) => {
 
 	if (!cardToStar || !cardToStar.id) {
 		console.log('Invalid card provided');
@@ -505,7 +507,7 @@ export const addStar = (cardToStar : Card) : ThunkResult => (_, getState) => {
 	batch.commit();
 };
 
-export const removeStar = (cardToStar : Card) : ThunkResult => (_, getState) => {
+export const removeStar = (cardToStar : Card) : ThunkSomeAction => (_, getState) => {
 	if (!cardToStar || !cardToStar.id) {
 		console.log('Invalid card provided');
 		return;
@@ -539,7 +541,7 @@ export const removeStar = (cardToStar : Card) : ThunkResult => (_, getState) => 
 
 };
 
-export const updateReads = (readsToAdd : CardID[] = [], readsToRemove : CardID[] = []) : ThunkResult => (dispatch) => {
+export const updateReads = (readsToAdd : CardID[] = [], readsToRemove : CardID[] = []) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: UPDATE_READS,
 		readsToAdd,
@@ -548,7 +550,7 @@ export const updateReads = (readsToAdd : CardID[] = [], readsToRemove : CardID[]
 	dispatch(refreshCardSelector(false));
 };
 
-export const updateReadingList = (list : CardID[] = []) : ThunkResult => (dispatch) => {
+export const updateReadingList = (list : CardID[] = []) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: UPDATE_READING_LIST,
 		list,
@@ -558,7 +560,7 @@ export const updateReadingList = (list : CardID[] = []) : ThunkResult => (dispat
 
 let autoMarkReadTimeoutId : number;
 
-export const scheduleAutoMarkRead = () : ThunkResult => (dispatch, getState) => {
+export const scheduleAutoMarkRead = () : ThunkSomeAction => (dispatch, getState) => {
 
 	cancelPendingAutoMarkRead();
 
@@ -581,7 +583,7 @@ export const scheduleAutoMarkRead = () : ThunkResult => (dispatch, getState) => 
 	dispatch({type: AUTO_MARK_READ_PENDING_CHANGED, pending: true});
 };
 
-export const cancelPendingAutoMarkRead = () : ThunkResult => (dispatch) => {
+export const cancelPendingAutoMarkRead = () : ThunkSomeAction => (dispatch) => {
 	if (autoMarkReadTimeoutId) {
 		dispatch({type: AUTO_MARK_READ_PENDING_CHANGED, pending: false});
 		clearTimeout(autoMarkReadTimeoutId);
@@ -589,7 +591,7 @@ export const cancelPendingAutoMarkRead = () : ThunkResult => (dispatch) => {
 	}
 };
 
-export const markActiveCardReadIfLoggedIn = () : ThunkResult => (dispatch, getState) => {
+export const markActiveCardReadIfLoggedIn = () : ThunkSomeAction => (dispatch, getState) => {
 	//It's the responsibility of the thing that scheduled this to ensure that it
 	//only fires if the card we wnat to mark read is still active.
 	const state = getState();
@@ -601,7 +603,7 @@ export const markActiveCardReadIfLoggedIn = () : ThunkResult => (dispatch, getSt
 	dispatch(markRead(activeCard, true));
 };
 
-export const markRead = (cardToMarkRead : Card, existingReadDoesNotError? : boolean) : ThunkResult => (_, getState) => {
+export const markRead = (cardToMarkRead : Card, existingReadDoesNotError? : boolean) : ThunkSomeAction => (_, getState) => {
 
 	if (!cardToMarkRead || !cardToMarkRead.id) {
 		console.log('Invalid card provided');
@@ -637,7 +639,7 @@ export const markRead = (cardToMarkRead : Card, existingReadDoesNotError? : bool
 	batch.commit();
 };
 
-export const markUnread = (cardToMarkUnread : Card) : ThunkResult => (_, getState) => {
+export const markUnread = (cardToMarkUnread : Card) : ThunkSomeAction => (_, getState) => {
 	if (!cardToMarkUnread || !cardToMarkUnread.id) {
 		console.log('Invalid card provided');
 		return;
