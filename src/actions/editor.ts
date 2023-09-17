@@ -1,43 +1,3 @@
-export const EDITING_START = 'EDITING_START';
-export const EDITING_FINISH = 'EDITING_FINISH';
-export const EDITING_EDITOR_MINIMIZED = 'EDITING_EDITOR_MINIMIZED';
-export const EDITING_SELECT_TAB = 'EDITING_SELECT_TAB';
-export const EDITING_SELECT_EDITOR_TAB = 'EDITING_SELECT_EDITOR_TAB';
-export const EDITING_TEXT_FIELD_UPDATED = 'EDITING_TEXT_FIELD_UPDATED';
-export const EDITING_SECTION_UPDATED = 'EDITING_SECTION_UPDATED';
-export const EDITING_SLUG_ADDED = 'EDITING_SLUG_ADDED';
-export const EDITING_NAME_UPDATED = 'EDITING_NAME_UPDATED';
-export const EDITING_SUBSTANTIVE_UPDATED = 'EDITING_SUBSTANTIVE_UPDATED';
-export const EDITING_CARD_TYPE_UPDATED = 'EDITING_CARD_TYPE_UPDATED';
-export const EDITING_PUBLISHED_UPDATED = 'EDITING_PUBLISHED_UPDATED';
-export const EDITING_FULL_BLEED_UPDATED = 'EDITING_FULL_BLEED_UPDATED';
-export const EDITING_NOTES_UPDATED = 'EDITING_NOTES_UPDATED';
-export const EDITING_TODO_UPDATED = 'EDITING_TODO_UPDATED';
-export const EDITING_AUTO_TODO_OVERRIDE_ENABLED = 'EDITING_AUTO_TODO_OVERRIDE_ENABLED';
-export const EDITING_AUTO_TODO_OVERRIDE_DISABLED = 'EDITING_AUTO_TODO_OVERRIDE_DISABLED';
-export const EDITING_AUTO_TODO_OVERRIDE_REMOVED = 'EDITING_AUTO_TODO_OVERRIDE_REMOVED';
-export const EDITING_TAG_ADDED = 'EDITING_TAG_ADDED';
-export const EDITING_TAG_REMOVED = 'EDITING_TAG_REMOVED';
-export const EDITING_PROCESS_NORMALIZED_TEXT_PROPERTIES = 'EDITING_PROCESS_NORMALIZED_TEXT_PROPERTIES';
-export const EDITING_EDITOR_ADDED = 'EDITING_EDITOR_ADDED';
-export const EDITING_EDITOR_REMOVED = 'EDITING_EDITOR_REMOVED';
-export const EDITING_COLLABORATOR_ADDED = 'EDITING_COLLABORATOR_ADDED';
-export const EDITING_COLLABORATOR_REMOVED = 'EDITING_COLLABORATOR_REMOVED';
-export const EDITING_START_REFERENCE_CARD = 'EDITING_START_REFERENCE_CARD';
-export const EDITING_RESET_REFERENCE_CARD = 'EDITING_RESET_REFERENCE_CARD';
-export const EDITING_ADD_REFERENCE = 'EDITING_ADD_REFERENCE';
-export const EDITING_REMOVE_REFERENCE = 'EDITING_REMOVE_REFERENCE';
-export const EDITING_ADD_IMAGE_URL = 'EDITING_ADD_IMAGE_URL';
-export const EDITING_REMOVE_IMAGE_AT_INDEX = 'EDITING_REMOVE_IMAGE_AT_INDEX';
-export const EDITING_MOVE_IMAGE_AT_INDEX = 'EDITING_MOVE_IMAGE_AT_INDEX';
-export const EDITING_CHANGE_IMAGE_PROPERTY = 'EDITING_CHANGE_IMAGE_PROPERTY';
-export const EDITING_OPEN_IMAGE_PROPERTIES_DIALOG = 'EDITING_OPEN_IMAGE_PROPERTIES_DIALOG';
-export const EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG = 'EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG';
-export const EDITING_OPEN_IMAGE_BROWSER_DIALOG = 'EDITING_OPEN_IMAGE_BROWSER_DIALOG';
-export const EDITING_CLOSE_IMAGE_BROWSER_DIALOG = 'EDITING_CLOSE_IMAGE_BROWSER_DIALOG';
-export const EDITING_UPDATE_UNDERLYING_CARD = 'EDITING_UPDATE_UNDERLYING_CARD';
-export const EDITING_MERGE_OVERSHADOWED_CHANGES = 'EDITING_MERGE_OVERSHADOWED_CHANGES';
-
 import {
 	selectActiveCard,
 	selectUserMayEditActiveCard,
@@ -136,16 +96,55 @@ import {
 } from '../types.js';
 
 import {
-	ThunkResult
+	ThunkSomeAction
 } from '../store.js';
-
-import {
-	AnyAction
-} from 'redux';
 
 import {
 	TypedObject
 } from '../typed_object.js';
+
+import {
+	EDITING_ADD_IMAGE_URL,
+	EDITING_ADD_REFERENCE,
+	EDITING_AUTO_TODO_OVERRIDE_DISABLED,
+	EDITING_AUTO_TODO_OVERRIDE_ENABLED,
+	EDITING_AUTO_TODO_OVERRIDE_REMOVED,
+	EDITING_CARD_TYPE_UPDATED,
+	EDITING_CHANGE_IMAGE_PROPERTY,
+	EDITING_CLOSE_IMAGE_BROWSER_DIALOG,
+	EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG,
+	EDITING_COLLABORATOR_ADDED,
+	EDITING_COLLABORATOR_REMOVED,
+	EDITING_EDITOR_ADDED,
+	EDITING_EDITOR_MINIMIZED,
+	EDITING_EDITOR_REMOVED,
+	EDITING_FINISH,
+	EDITING_FULL_BLEED_UPDATED,
+	EDITING_MERGE_OVERSHADOWED_CHANGES,
+	EDITING_MOVE_IMAGE_AT_INDEX,
+	EDITING_NAME_UPDATED,
+	EDITING_NOTES_UPDATED,
+	EDITING_OPEN_IMAGE_BROWSER_DIALOG,
+	EDITING_OPEN_IMAGE_PROPERTIES_DIALOG,
+	EDITING_PROCESS_NORMALIZED_TEXT_PROPERTIES,
+	EDITING_PUBLISHED_UPDATED,
+	EDITING_REMOVE_IMAGE_AT_INDEX,
+	EDITING_REMOVE_REFERENCE,
+	EDITING_RESET_REFERENCE_CARD,
+	EDITING_SECTION_UPDATED,
+	EDITING_SELECT_EDITOR_TAB,
+	EDITING_SELECT_TAB,
+	EDITING_SLUG_ADDED,
+	EDITING_START,
+	EDITING_START_REFERENCE_CARD,
+	EDITING_SUBSTANTIVE_UPDATED,
+	EDITING_TAG_ADDED,
+	EDITING_TAG_REMOVED,
+	EDITING_TEXT_FIELD_UPDATED,
+	EDITING_TODO_UPDATED,
+	EDITING_UPDATE_UNDERLYING_CARD,
+	SomeAction
+} from '../actions.js';
 
 let lastReportedSelectionRange : Range = null;
 let savedSelectionRange : Range = null;
@@ -236,21 +235,21 @@ export const savedSelectionRangeIsLink = () => {
 	return false;
 };
 
-export const editingSelectTab = (tab : EditorTab) : AnyAction => {
+export const editingSelectTab = (tab : EditorTab) : SomeAction => {
 	return {
 		type: EDITING_SELECT_TAB,
 		tab,
 	};
 };
 
-export const editingSelectEditorTab = (tab : EditorContentTab) : AnyAction => {
+export const editingSelectEditorTab = (tab : EditorContentTab) : SomeAction => {
 	return {
 		type: EDITING_SELECT_EDITOR_TAB,
 		tab,
 	};
 };
 
-export const editingStart = () : ThunkResult => (dispatch, getState) => {
+export const editingStart = () : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	if (selectIsEditing(state)) {
 		console.warn('Can\'t start editing because already editing');
@@ -268,7 +267,7 @@ export const editingStart = () : ThunkResult => (dispatch, getState) => {
 	dispatch({type: EDITING_START, card: card});
 };
 
-export const editingCommit = () : ThunkResult => async (dispatch, getState) => {
+export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState();
 	if (!selectIsEditing(state)) {
 		console.warn('Editing not active');
@@ -327,7 +326,7 @@ export const cancelLink = () => () => {
 	restoreSelectionRange();
 };
 
-export const linkURL = (href : string) : ThunkResult => (_, getState) => {
+export const linkURL = (href : string) : ThunkSomeAction => (_, getState) => {
 	const state = getState();
 	if (!state.editor.editing) return;
 	//TODO: it's weird we do this here, it really should be done on the card-
@@ -340,7 +339,7 @@ export const linkURL = (href : string) : ThunkResult => (_, getState) => {
 	}
 };
 
-export const linkCard = (cardID : CardID) : ThunkResult => (_, getState) => {
+export const linkCard = (cardID : CardID) : ThunkSomeAction => (_, getState) => {
 	const state = getState();
 	if (!state.editor.editing) return;
 	//TODO: it's weird we do this here, it really should be done on the card-
@@ -349,18 +348,18 @@ export const linkCard = (cardID : CardID) : ThunkResult => (_, getState) => {
 	document.execCommand('createLink', null, cardID);
 };
 
-export const editingFinish = () : AnyAction => {
+export const editingFinish = () : SomeAction => {
 	return {type: EDITING_FINISH};
 };
 
-export const notesUpdated = (newNotes : string) : AnyAction => {
+export const notesUpdated = (newNotes : string) : SomeAction => {
 	return {
 		type: EDITING_NOTES_UPDATED,
 		notes:newNotes,
 	};
 };
 
-export const todoUpdated = (newTodo : string) : AnyAction => {
+export const todoUpdated = (newTodo : string) : SomeAction => {
 	return {
 		type: EDITING_TODO_UPDATED,
 		todo: newTodo,
@@ -369,7 +368,7 @@ export const todoUpdated = (newTodo : string) : AnyAction => {
 
 let processNormalizedTextPropertiesTimeout : number;
 
-export const textFieldUpdated = (fieldName : CardFieldTypeEditable, value : string, fromContentEditable = false) : ThunkResult => (dispatch, getState) => {
+export const textFieldUpdated = (fieldName : CardFieldTypeEditable, value : string, fromContentEditable = false) : ThunkSomeAction => (dispatch, getState) => {
 	if (!fromContentEditable) fromContentEditable = false;
 
 	const config = TEXT_FIELD_CONFIGURATION[fieldName] || {};
@@ -408,7 +407,7 @@ export const textFieldUpdated = (fieldName : CardFieldTypeEditable, value : stri
 	}, 1000);
 };
 
-export const sectionUpdated = (newSection : SectionID) : ThunkResult => (dispatch, getState) => {
+export const sectionUpdated = (newSection : SectionID) : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	const baseCard = selectActiveCard(state);
 	const sections = selectSections(state);
@@ -440,21 +439,21 @@ export const sectionUpdated = (newSection : SectionID) : ThunkResult => (dispatc
 	});
 };
 
-export const slugAdded = (newSlug : Slug) : AnyAction => {
+export const slugAdded = (newSlug : Slug) : SomeAction => {
 	return {
 		type: EDITING_SLUG_ADDED,
 		slug: newSlug
 	};
 };
 
-export const nameUpdated = (newName : CardIdentifier) : AnyAction => {
+export const nameUpdated = (newName : CardIdentifier) : SomeAction => {
 	return {
 		type: EDITING_NAME_UPDATED,
 		name: newName
 	};
 };
 
-export const substantiveUpdated = (checked: boolean, auto? : boolean) : ThunkResult => (dispatch, getState) => {
+export const substantiveUpdated = (checked: boolean, auto? : boolean) : ThunkSomeAction => (dispatch, getState) => {
 
 	const state = getState();
 	const editingCard = selectEditingCard(state);
@@ -475,7 +474,7 @@ export const substantiveUpdated = (checked: boolean, auto? : boolean) : ThunkRes
 	});
 };
 
-export const cardTypeUpdated = (cardType : CardType) :  ThunkResult => (dispatch, getState) => {
+export const cardTypeUpdated = (cardType : CardType) :  ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	const baseCard = selectActiveCard(state);
 	const currentlySubstantive = state.editor.substantive;
@@ -500,7 +499,7 @@ export const cardTypeUpdated = (cardType : CardType) :  ThunkResult => (dispatch
 	});
 };
 
-export const publishedUpdated = (published : boolean) : ThunkResult => (dispatch, getState) => {
+export const publishedUpdated = (published : boolean) : ThunkSomeAction => (dispatch, getState) => {
 
 	const state = getState();
 	const baseCard = selectActiveCard(state);
@@ -523,49 +522,49 @@ export const publishedUpdated = (published : boolean) : ThunkResult => (dispatch
 	});
 };
 
-export const fullBleedUpdated = (fullBleed : boolean) : AnyAction => {
+export const fullBleedUpdated = (fullBleed : boolean) : SomeAction => {
 	return {
 		type: EDITING_FULL_BLEED_UPDATED,
 		fullBleed
 	};
 };
 
-export const autoTodoOverrideEnabled = (todo : TODOType) : AnyAction => {
+export const autoTodoOverrideEnabled = (todo : TODOType) : SomeAction => {
 	return {
 		type: EDITING_AUTO_TODO_OVERRIDE_ENABLED,
 		todo
 	};
 };
 
-export const autoTodoOverrideDisabled = (todo : TODOType) : AnyAction => {
+export const autoTodoOverrideDisabled = (todo : TODOType) : SomeAction => {
 	return {
 		type: EDITING_AUTO_TODO_OVERRIDE_DISABLED,
 		todo
 	};
 };
 
-export const autoTodoOverrideRemoved = (todo : TODOType) : AnyAction => {
+export const autoTodoOverrideRemoved = (todo : TODOType) : SomeAction => {
 	return {
 		type: EDITING_AUTO_TODO_OVERRIDE_REMOVED,
 		todo
 	};
 };
 
-export const tagAdded = (tag : TagID) : AnyAction => {
+export const tagAdded = (tag : TagID) : SomeAction => {
 	return {
 		type: EDITING_TAG_ADDED,
 		tag
 	};
 };
 
-export const tagRemoved = (tag : TagID) : AnyAction => {
+export const tagRemoved = (tag : TagID) : SomeAction => {
 	return {
 		type: EDITING_TAG_REMOVED,
 		tag
 	};
 };
 
-export const editorAdded = (editorUid : Uid) : ThunkResult => (dispatch, getState) => {
+export const editorAdded = (editorUid : Uid) : ThunkSomeAction => (dispatch, getState) => {
 	const card = selectEditingCard(getState());
 	if (!card) return;
 	if (editorUid == card.author) {
@@ -578,7 +577,7 @@ export const editorAdded = (editorUid : Uid) : ThunkResult => (dispatch, getStat
 	});
 };
 
-export const editorRemoved = (editorUid : Uid) : AnyAction => {
+export const editorRemoved = (editorUid : Uid) : SomeAction => {
 	return {
 		type: EDITING_EDITOR_REMOVED,
 		editor:editorUid
@@ -590,7 +589,7 @@ export const manualEditorAdded = (editorUid : Uid) => {
 	return editorAdded(editorUid);
 };
 
-export const collaboratorAdded = (collaboratorUid : Uid, auto? : boolean) : ThunkResult => (dispatch, getState) => {
+export const collaboratorAdded = (collaboratorUid : Uid, auto? : boolean) : ThunkSomeAction => (dispatch, getState) => {
 	const card = selectEditingCard(getState());
 	if (!card) return;
 	if (collaboratorUid == card.author) {
@@ -604,7 +603,7 @@ export const collaboratorAdded = (collaboratorUid : Uid, auto? : boolean) : Thun
 	});
 };
 
-export const collaboratorRemoved = (collaboratorUid : Uid, auto? : boolean) : AnyAction => {
+export const collaboratorRemoved = (collaboratorUid : Uid, auto? : boolean) : SomeAction => {
 	return {
 		type: EDITING_COLLABORATOR_REMOVED,
 		collaborator:collaboratorUid,
@@ -618,7 +617,7 @@ export const manualCollaboratorAdded = (collaboratorUid : Uid) => {
 };
 
 //If index is undefined, it will add a new item to the end of the list
-export const addImageWithFile = (file : File, index : number) : ThunkResult => async (dispatch, getState) => {
+export const addImageWithFile = (file : File, index : number) : ThunkSomeAction => async (dispatch, getState) => {
 
 	const state = getState();
 
@@ -657,7 +656,7 @@ export const addImageWithFile = (file : File, index : number) : ThunkResult => a
 
 //src must be a fully qualified URL. uploadPath is the filename in the upload
 //bucket, if applicable. If index is undefined, it will add a new item to the end of the list
-export const addImageWithURL = (src : string, uploadPath = '', index? : number) : ThunkResult => async (dispatch, getState) => {
+export const addImageWithURL = (src : string, uploadPath = '', index? : number) : ThunkSomeAction => async (dispatch, getState) => {
 
 	if (!srcSeemsValid(src)) {
 		alert('Src doesn\'t seem valid. It should start with https or http');
@@ -701,7 +700,7 @@ export const addImageWithURL = (src : string, uploadPath = '', index? : number) 
 	dispatch(substantiveUpdated(true, true));
 };
 
-export const removeImageAtIndex = (index : number) : ThunkResult => (dispatch) => {
+export const removeImageAtIndex = (index : number) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: EDITING_REMOVE_IMAGE_AT_INDEX,
 		index
@@ -711,7 +710,7 @@ export const removeImageAtIndex = (index : number) : ThunkResult => (dispatch) =
 	dispatch(substantiveUpdated(true, true));
 };
 
-export const moveImageAtIndex = (index : number, isRight : boolean) : AnyAction => {
+export const moveImageAtIndex = (index : number, isRight : boolean) : SomeAction => {
 	return {
 		type: EDITING_MOVE_IMAGE_AT_INDEX,
 		index,
@@ -721,7 +720,7 @@ export const moveImageAtIndex = (index : number, isRight : boolean) : AnyAction 
 
 //We considered doing the same function alternates as we do in
 //images.ts:changeImagePropertyAtIndex but the callsit for this can't do the proper casting anyway so :shrug:
-export const changeImagePropertyAtIndex = (index : number, property : ImageInfoProperty, value : ImageInfoPropertyValue) : AnyAction => {
+export const changeImagePropertyAtIndex = (index : number, property : ImageInfoProperty, value : ImageInfoPropertyValue) : SomeAction => {
 	return {
 		type: EDITING_CHANGE_IMAGE_PROPERTY,
 		index,
@@ -730,34 +729,34 @@ export const changeImagePropertyAtIndex = (index : number, property : ImageInfoP
 	};
 };
 
-export const openImagePropertiesDialog = (index : number) : AnyAction => {
+export const openImagePropertiesDialog = (index : number) : SomeAction => {
 	return {
 		type: EDITING_OPEN_IMAGE_PROPERTIES_DIALOG,
 		index,
 	};
 };
 
-export const closeImagePropertiesDialog = () : AnyAction => {
+export const closeImagePropertiesDialog = () : SomeAction => {
 	return {
 		type: EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG,
 	};
 };
 
 //index can be not provided, which defaults to adding to end.
-export const openImageBrowserDialog = (index? : number) : AnyAction => {
+export const openImageBrowserDialog = (index? : number) : SomeAction => {
 	return {
 		type: EDITING_OPEN_IMAGE_BROWSER_DIALOG,
 		index,
 	};
 };
 
-export const closeImageBrowserDialog = () : AnyAction => {
+export const closeImageBrowserDialog = () : SomeAction => {
 	return {
 		type: EDITING_CLOSE_IMAGE_BROWSER_DIALOG,
 	};
 };
 
-export const setCardToReference = (cardID : CardID) : ThunkResult => (dispatch, getState) => {
+export const setCardToReference = (cardID : CardID) : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	const referenceType = selectEditingPendingReferenceType(state);
 	if (selectMultiEditDialogOpen(state)) {
@@ -770,7 +769,7 @@ export const setCardToReference = (cardID : CardID) : ThunkResult => (dispatch, 
 	});
 };
 
-export const selectCardToReference = (referenceType : ReferenceType) : ThunkResult => (dispatch, getState) => {
+export const selectCardToReference = (referenceType : ReferenceType) : ThunkSomeAction => (dispatch, getState) => {
 
 	const referenceTypeConfig = REFERENCE_TYPES[referenceType];
 	if (!referenceTypeConfig) {
@@ -803,7 +802,7 @@ export const selectCardToReference = (referenceType : ReferenceType) : ThunkResu
 	dispatch(findCardToReference(cardTypeFilter));
 };
 
-export const addReferenceToCard = (cardID : CardID, referenceType : ReferenceType) : ThunkResult => (dispatch, getState) => {
+export const addReferenceToCard = (cardID : CardID, referenceType : ReferenceType) : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 
 	const editingCard = selectEditingCard(state);
@@ -827,7 +826,7 @@ export const addReferenceToCard = (cardID : CardID, referenceType : ReferenceTyp
 
 };
 
-export const removeReferenceFromCard = (cardID : CardID, referenceType : ReferenceType) : AnyAction => {
+export const removeReferenceFromCard = (cardID : CardID, referenceType : ReferenceType) : SomeAction => {
 	return {
 		type:EDITING_REMOVE_REFERENCE,
 		cardID,
@@ -835,7 +834,7 @@ export const removeReferenceFromCard = (cardID : CardID, referenceType : Referen
 	};
 };
 
-export const updateUnderlyingCard = () : ThunkResult => (dispatch, getState) => {
+export const updateUnderlyingCard = () : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 
 	if (!selectEditingCard(state)) {
@@ -863,7 +862,7 @@ export const updateUnderlyingCard = () : ThunkResult => (dispatch, getState) => 
 	});
 };
 
-export const mergeOvershadowedUnderlyingChanges = () : ThunkResult => (dispatch, getState) => {
+export const mergeOvershadowedUnderlyingChanges = () : ThunkSomeAction => (dispatch, getState) => {
 
 	const state = getState();
 
@@ -902,7 +901,7 @@ export const mergeOvershadowedUnderlyingChanges = () : ThunkResult => (dispatch,
 	});
 };
 
-export const setEditorMinimized = (minimized : boolean) : AnyAction => {
+export const setEditorMinimized = (minimized : boolean) : SomeAction => {
 	return {
 		type: EDITING_EDITOR_MINIMIZED,
 		minimized

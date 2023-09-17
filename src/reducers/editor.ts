@@ -1,7 +1,3 @@
-import {
-	AnyAction
-} from 'redux';
-
 import { 
 	EDITING_START,
 	EDITING_FINISH,
@@ -42,7 +38,8 @@ import {
 	EDITING_CLOSE_IMAGE_BROWSER_DIALOG,
 	EDITING_UPDATE_UNDERLYING_CARD,
 	EDITING_MERGE_OVERSHADOWED_CHANGES,
-} from '../actions/editor.js';
+	SomeAction,
+} from '../actions.js';
 
 import {
 	TAB_CONFIG,
@@ -85,7 +82,7 @@ import {
 } from '../images.js';
 
 import {
-	EditorState
+	EditorState, ImageInfoStringProperty
 } from '../types.js';
 
 const DEFAULT_TAB = TAB_CONFIG;
@@ -110,7 +107,7 @@ const INITIAL_STATE : EditorState = {
 	imageBrowserDialogIndex: undefined,
 };
 
-const app = (state : EditorState = INITIAL_STATE, action : AnyAction) : EditorState => {
+const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorState => {
 	let card;
 	switch (action.type) {
 	case EDITING_START:
@@ -364,7 +361,8 @@ const app = (state : EditorState = INITIAL_STATE, action : AnyAction) : EditorSt
 	case EDITING_CHANGE_IMAGE_PROPERTY:
 		return {
 			...state,
-			card: {...state.card, images: changeImagePropertyAtIndex(state.card.images, action.index, action.property, action.value)},
+			//TODO: get rid of this cast to trick typescript into allowing a changeImagePropertyAtIndex with unknown types.
+			card: {...state.card, images: changeImagePropertyAtIndex(state.card.images, action.index, action.property as ImageInfoStringProperty, action.value as string)},
 		};
 	case EDITING_OPEN_IMAGE_PROPERTIES_DIALOG:
 		return {

@@ -4,17 +4,30 @@ import {
 	AuthorsMap,
 	Card,
 	CardBooleanMap,
+	CardDiff,
+	CardFieldTypeEditable,
 	CardID,
+	CardIdentifier,
 	CardType,
 	Cards,
 	CommentMessages,
 	CommentThreads,
+	EditorContentTab,
+	EditorTab,
+	ImageInfoProperty,
+	ImageInfoPropertyValue,
+	ProcessedCard,
+	ReferenceType,
+	SectionID,
 	Sections,
 	SetName,
 	Slug,
 	SortName,
+	TODOType,
+	TagID,
 	Tags,
 	TweetMap,
+	Uid,
 	ViewMode
 } from './types';
 
@@ -78,6 +91,46 @@ export const NAVIGATED_TO_NEW_CARD = 'NAVIGATED_TO_NEW_CARD';
 export const EXPECT_CARD_DELETIONS = 'EXPECT_CARD_DELETIONS';
 export const COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED = 'COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED';
 export const EXPECT_UNPUBLISHED_CARDS = 'EXPECT_UNPUBLISHED_CARDS';
+//Editor
+export const EDITING_START = 'EDITING_START';
+export const EDITING_FINISH = 'EDITING_FINISH';
+export const EDITING_EDITOR_MINIMIZED = 'EDITING_EDITOR_MINIMIZED';
+export const EDITING_SELECT_TAB = 'EDITING_SELECT_TAB';
+export const EDITING_SELECT_EDITOR_TAB = 'EDITING_SELECT_EDITOR_TAB';
+export const EDITING_TEXT_FIELD_UPDATED = 'EDITING_TEXT_FIELD_UPDATED';
+export const EDITING_SECTION_UPDATED = 'EDITING_SECTION_UPDATED';
+export const EDITING_SLUG_ADDED = 'EDITING_SLUG_ADDED';
+export const EDITING_NAME_UPDATED = 'EDITING_NAME_UPDATED';
+export const EDITING_SUBSTANTIVE_UPDATED = 'EDITING_SUBSTANTIVE_UPDATED';
+export const EDITING_CARD_TYPE_UPDATED = 'EDITING_CARD_TYPE_UPDATED';
+export const EDITING_PUBLISHED_UPDATED = 'EDITING_PUBLISHED_UPDATED';
+export const EDITING_FULL_BLEED_UPDATED = 'EDITING_FULL_BLEED_UPDATED';
+export const EDITING_NOTES_UPDATED = 'EDITING_NOTES_UPDATED';
+export const EDITING_TODO_UPDATED = 'EDITING_TODO_UPDATED';
+export const EDITING_AUTO_TODO_OVERRIDE_ENABLED = 'EDITING_AUTO_TODO_OVERRIDE_ENABLED';
+export const EDITING_AUTO_TODO_OVERRIDE_DISABLED = 'EDITING_AUTO_TODO_OVERRIDE_DISABLED';
+export const EDITING_AUTO_TODO_OVERRIDE_REMOVED = 'EDITING_AUTO_TODO_OVERRIDE_REMOVED';
+export const EDITING_TAG_ADDED = 'EDITING_TAG_ADDED';
+export const EDITING_TAG_REMOVED = 'EDITING_TAG_REMOVED';
+export const EDITING_PROCESS_NORMALIZED_TEXT_PROPERTIES = 'EDITING_PROCESS_NORMALIZED_TEXT_PROPERTIES';
+export const EDITING_EDITOR_ADDED = 'EDITING_EDITOR_ADDED';
+export const EDITING_EDITOR_REMOVED = 'EDITING_EDITOR_REMOVED';
+export const EDITING_COLLABORATOR_ADDED = 'EDITING_COLLABORATOR_ADDED';
+export const EDITING_COLLABORATOR_REMOVED = 'EDITING_COLLABORATOR_REMOVED';
+export const EDITING_START_REFERENCE_CARD = 'EDITING_START_REFERENCE_CARD';
+export const EDITING_RESET_REFERENCE_CARD = 'EDITING_RESET_REFERENCE_CARD';
+export const EDITING_ADD_REFERENCE = 'EDITING_ADD_REFERENCE';
+export const EDITING_REMOVE_REFERENCE = 'EDITING_REMOVE_REFERENCE';
+export const EDITING_ADD_IMAGE_URL = 'EDITING_ADD_IMAGE_URL';
+export const EDITING_REMOVE_IMAGE_AT_INDEX = 'EDITING_REMOVE_IMAGE_AT_INDEX';
+export const EDITING_MOVE_IMAGE_AT_INDEX = 'EDITING_MOVE_IMAGE_AT_INDEX';
+export const EDITING_CHANGE_IMAGE_PROPERTY = 'EDITING_CHANGE_IMAGE_PROPERTY';
+export const EDITING_OPEN_IMAGE_PROPERTIES_DIALOG = 'EDITING_OPEN_IMAGE_PROPERTIES_DIALOG';
+export const EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG = 'EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG';
+export const EDITING_OPEN_IMAGE_BROWSER_DIALOG = 'EDITING_OPEN_IMAGE_BROWSER_DIALOG';
+export const EDITING_CLOSE_IMAGE_BROWSER_DIALOG = 'EDITING_CLOSE_IMAGE_BROWSER_DIALOG';
+export const EDITING_UPDATE_UNDERLYING_CARD = 'EDITING_UPDATE_UNDERLYING_CARD';
+export const EDITING_MERGE_OVERSHADOWED_CHANGES = 'EDITING_MERGE_OVERSHADOWED_CHANGES';
 
 type ActionAIRequestStarted = {
 	type: typeof AI_REQUEST_STARTED,
@@ -340,6 +393,208 @@ type ActionExpectUnpublishedCards = {
 	type: typeof EXPECT_UNPUBLISHED_CARDS
 };
 
+type ActionEditingStart = {
+	type: typeof EDITING_START,
+	card: ProcessedCard
+};
+
+type ActionEditingFinish = {
+	type: typeof EDITING_FINISH
+};
+
+type ActionEditingEditorMinimized = {
+	type: typeof EDITING_EDITOR_MINIMIZED,
+	minimized: boolean
+};
+
+type ActionEditingSelectTab = {
+	type: typeof EDITING_SELECT_TAB,
+	tab: EditorTab
+};
+
+type ActionEditingSelectEditorTab = {
+	type: typeof EDITING_SELECT_EDITOR_TAB,
+	tab: EditorContentTab
+};
+
+type ActionEditingTextFieldUpdated = {
+	type: typeof EDITING_TEXT_FIELD_UPDATED,
+	fieldName: CardFieldTypeEditable,
+	value: string,
+	fromContentEditable: boolean
+};
+
+type ActionEditingSectionUpdated = {
+	type: typeof EDITING_SECTION_UPDATED,
+	section: SectionID
+};
+
+type ActionEditingSlugAdded = {
+	type: typeof EDITING_SLUG_ADDED,
+	slug: Slug
+};
+
+type ActionEditingNameUpdated = {
+	type: typeof EDITING_NAME_UPDATED,
+	name: CardIdentifier
+};
+
+type ActionEditingSubstantiveUpdated = {
+	type: typeof EDITING_SUBSTANTIVE_UPDATED,
+	checked: boolean,
+	auto: boolean
+};
+
+type ActionEditingCardTypeUpdated = {
+	type: typeof EDITING_CARD_TYPE_UPDATED,
+	cardType: CardType
+};
+
+type ActionEditingPublishedUpdated = {
+	type: typeof EDITING_PUBLISHED_UPDATED,
+	published: boolean
+};
+
+type ActionEditingFullBleedUpdated = {
+	type: typeof EDITING_FULL_BLEED_UPDATED,
+	fullBleed: boolean
+};
+
+type ActionEditingNotesUpdated = {
+	type: typeof EDITING_NOTES_UPDATED,
+	notes: string
+};
+
+type ActionEditingTODOUpdated = {
+	type: typeof EDITING_TODO_UPDATED,
+	todo: string
+};
+
+type ActionEditingAutoTODOOverrideEnabled = {
+	type: typeof EDITING_AUTO_TODO_OVERRIDE_ENABLED,
+	todo: TODOType
+};
+
+type ActionEditingAutoTODOOverrideDisabled = {
+	type: typeof EDITING_AUTO_TODO_OVERRIDE_DISABLED,
+	todo: TODOType
+};
+
+type ActionEditingAutoTODOOverrideRemoved = {
+	type: typeof EDITING_AUTO_TODO_OVERRIDE_REMOVED,
+	todo: TODOType
+};
+
+type ActionEditingTagAdded = {
+	type: typeof EDITING_TAG_ADDED,
+	tag: TagID
+};
+
+type ActionEditingTagRemoved = {
+	type: typeof EDITING_TAG_REMOVED,
+	tag: TagID
+};
+
+type ActionEditingProcessNormalizedTextProperties = {
+	type: typeof EDITING_PROCESS_NORMALIZED_TEXT_PROPERTIES
+};
+
+type ActionEditingEditorAdded = {
+	type: typeof EDITING_EDITOR_ADDED,
+	editor: Uid
+};
+
+type ActionEditingEditorRemoved = {
+	type: typeof EDITING_EDITOR_REMOVED,
+	editor: Uid
+};
+
+type ActionEditingCollaboratorAdded = {
+	type: typeof EDITING_COLLABORATOR_ADDED,
+	collaborator: Uid,
+	auto: boolean
+};
+
+type ActionEditingCollaboratorRemoved = {
+	type: typeof EDITING_COLLABORATOR_REMOVED,
+	collaborator: Uid,
+	auto: boolean
+};
+
+type ActionEditingStartReferenceCard = {
+	type: typeof EDITING_START_REFERENCE_CARD,
+	referenceType: ReferenceType
+};
+
+type ActionEditingResetReferenceCard = {
+	type: typeof EDITING_RESET_REFERENCE_CARD
+};
+
+type ActionEditingAddReference = {
+	type: typeof EDITING_ADD_REFERENCE,
+	cardID: CardID,
+	referenceType: ReferenceType
+};
+
+type ActionEditingRemoveReference = {
+	type: typeof EDITING_REMOVE_REFERENCE,
+	cardID: CardID,
+	referenceType: ReferenceType
+};
+
+type ActionEditingAddImageURL = {
+	type: typeof EDITING_ADD_IMAGE_URL,
+	src: string,
+	uploadPath: string,
+	index: number
+};
+
+type ActionEditingRemoveImageAtIndex = {
+	type: typeof EDITING_REMOVE_IMAGE_AT_INDEX,
+	index: number
+};
+
+type ActionEditingMoveImageAtIndex = {
+	type: typeof EDITING_MOVE_IMAGE_AT_INDEX,
+	index: number,
+	isRight: boolean
+};
+
+type ActionEditingChangeImageProperty = {
+	type: typeof EDITING_CHANGE_IMAGE_PROPERTY,
+	index: number,
+	property: ImageInfoProperty,
+	value: ImageInfoPropertyValue
+};
+
+type ActionEditingOpenImagePropertiesDialog = {
+	type: typeof EDITING_OPEN_IMAGE_PROPERTIES_DIALOG,
+	index: number
+};
+
+type ActionEditingCloseImagePropertiesDialog = {
+	type: typeof EDITING_CLOSE_IMAGE_PROPERTIES_DIALOG
+};
+
+type ActionEditingOpenImageBrowserDialog = {
+	type: typeof EDITING_OPEN_IMAGE_BROWSER_DIALOG,
+	index: number
+};
+
+type ActionEditingCloseImageBrowserDialog = {
+	type: typeof EDITING_CLOSE_IMAGE_BROWSER_DIALOG
+};
+
+type ActionEditingUpdateUnderlyingCard = {
+	type: typeof EDITING_UPDATE_UNDERLYING_CARD,
+	updatedUnderlyingCard: ProcessedCard
+};
+
+type ActionEditingMergeOvershadowedChanges = {
+	type: typeof EDITING_MERGE_OVERSHADOWED_CHANGES,
+	diff: CardDiff
+};
+
 export type SomeAction = ActionAIRequestStarted
 	| ActionAIResult
 	| ActionAISelectResultIndex
@@ -393,4 +648,43 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionNavigatedToNewCard
 	| ActionExpectCardDeletions
 	| ActionCommittedPendingFiltersWhenFullyLoaded
-	| ActionExpectUnpublishedCards;
+	| ActionExpectUnpublishedCards
+	| ActionEditingStart
+	| ActionEditingFinish
+	| ActionEditingEditorMinimized
+	| ActionEditingSelectTab
+	| ActionEditingSelectEditorTab
+	| ActionEditingTextFieldUpdated
+	| ActionEditingSectionUpdated
+	| ActionEditingSlugAdded
+	| ActionEditingNameUpdated
+	| ActionEditingSubstantiveUpdated
+	| ActionEditingCardTypeUpdated
+	| ActionEditingPublishedUpdated
+	| ActionEditingFullBleedUpdated
+	| ActionEditingNotesUpdated
+	| ActionEditingTODOUpdated
+	| ActionEditingAutoTODOOverrideEnabled
+	| ActionEditingAutoTODOOverrideDisabled
+	| ActionEditingAutoTODOOverrideRemoved
+	| ActionEditingTagAdded
+	| ActionEditingTagRemoved
+	| ActionEditingProcessNormalizedTextProperties
+	| ActionEditingEditorAdded
+	| ActionEditingEditorRemoved
+	| ActionEditingCollaboratorAdded
+	| ActionEditingCollaboratorRemoved
+	| ActionEditingStartReferenceCard
+	| ActionEditingResetReferenceCard
+	| ActionEditingAddReference
+	| ActionEditingRemoveReference
+	| ActionEditingAddImageURL
+	| ActionEditingRemoveImageAtIndex
+	| ActionEditingMoveImageAtIndex
+	| ActionEditingChangeImageProperty
+	| ActionEditingOpenImagePropertiesDialog
+	| ActionEditingCloseImagePropertiesDialog
+	| ActionEditingOpenImageBrowserDialog
+	| ActionEditingCloseImageBrowserDialog
+	| ActionEditingUpdateUnderlyingCard
+	| ActionEditingMergeOvershadowedChanges;
