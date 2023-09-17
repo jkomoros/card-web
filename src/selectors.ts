@@ -157,7 +157,8 @@ import {
 	CollectionConstructorArguments,
 	ExpandedTabConfig,
 	SortName,
-	AIDialogType
+	AIDialogType,
+	AIModelName
 } from './types.js';
 
 import {
@@ -197,6 +198,7 @@ export const selectAIResultIndex = (state : State) => state.ai ? state.ai.select
 export const selectAIError = (state : State) => state.ai ? state.ai.error : '';
 export const selectAIAllCards = (state : State) => state.ai ? state.ai.allCards : [];
 export const selectAIFilteredCards = (state : State) => state.ai ? state.ai.filteredCards : [];
+export const selectAIModel = (state : State) : AIModelName => state.ai ? state.ai.model : 'gpt-3.5-turbo';
 
 export const selectCommentsAndInfoPanelOpen = (state : State) => state.app ? state.app.commentsAndInfoPanelOpen : false;
 
