@@ -1,8 +1,4 @@
 import {
-	AnyAction
-} from 'redux';
-
-import {
 	UPDATE_PAGE,
 	UPDATE_OFFLINE,
 	OPEN_SNACKBAR,
@@ -25,8 +21,9 @@ import {
 	UPDATE_CTRL_KEY_PRESSED,
 	OPEN_CARDS_DRAWER_INFO,
 	CLOSE_CARDS_DRAWER_INFO,
-	TURN_SUGGEST_MISSING_CONCEPTS
-} from '../actions/app.js';
+	TURN_SUGGEST_MISSING_CONCEPTS,
+	SomeAction
+} from '../actions.js';
 
 import {
 	EMPTY_CARD
@@ -65,7 +62,7 @@ const INITIAL_STATE : AppState = {
 	suggestMissingConceptsEnabled: false,
 };
 
-const app = (state : AppState = INITIAL_STATE, action : AnyAction) : AppState => {
+const app = (state : AppState = INITIAL_STATE, action : SomeAction) : AppState => {
 	switch (action.type) {
 	case UPDATE_PAGE:
 		return {

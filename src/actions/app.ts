@@ -8,30 +8,6 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 */
 
-export const UPDATE_PAGE = 'UPDATE_PAGE';
-export const UPDATE_OFFLINE = 'UPDATE_OFFLINE';
-export const OPEN_SNACKBAR = 'OPEN_SNACKBAR';
-export const CLOSE_SNACKBAR = 'CLOSE_SNACKBAR';
-export const OPEN_HEADER_PANEL = 'OPEN_HEADER_PANEL';
-export const CLOSE_HEADER_PANEL = 'CLOSE_HEADER_PANEL';
-export const OPEN_COMMENTS_AND_INFO_PANEL = 'OPEN_COMMENTS_AND_INFO_PANEL';
-export const CLOSE_COMMENTS_AND_INFO_PANEL = 'CLOSE_COMMENTS_AND_INFO_PANEL';
-export const OPEN_CARDS_DRAWER_PANEL = 'OPEN_CARDS_DRAWER_PANEL';
-export const CLOSE_CARDS_DRAWER_PANEL = 'CLOSE_CARDS_DRAWER_PANEL';
-export const OPEN_CONFIGURE_COLLECTION_DIALOG = 'OPEN_CONFIGURE_COLLECTION_DIALOG';
-export const CLOSE_CONFIGURE_COLLECTION_DIALOG = 'CLOSE_CONFIGURE_COLLECTION_DIALOG';
-export const ENABLE_PRESENTATION_MODE = 'ENABLE_PRESENTATION_MODE';
-export const DISABLE_PRESENTATION_MODE = 'DISABLE_PRESENTATION_MODE';
-export const ENABLE_MOBILE_MODE = 'ENABLE_MOBILE_MODE';
-export const DISABLE_MOBILE_MODE = 'DISABLE_MOBILE_MODE';
-export const UPDATE_HOVERED_CARD = 'UPDATE_HOVERED_CARD';
-export const UPDATE_FETCHED_CARD = 'UPDATE_FETCHED_CARD';
-export const CARD_BEING_FETCHED = 'CARD_BEING_FETCHED';
-export const UPDATE_CTRL_KEY_PRESSED = 'UPDATE_CTRL_KEY_PRESSED';
-export const OPEN_CARDS_DRAWER_INFO = 'OPEN_CARDS_DRAWER_INFO';
-export const CLOSE_CARDS_DRAWER_INFO = 'CLOSE_CARDS_DRAWER_INFO';
-export const TURN_SUGGEST_MISSING_CONCEPTS = 'TURN_SUGGEST_MISSING_CONCEPTS';
-
 import {
 	_PAGE_BASIC_CARD
 } from '../util.js';
@@ -127,12 +103,36 @@ import {
 } from '../types.js';
 
 import {
-	ThunkResult
+	ThunkResult,
+	ThunkSomeAction
 } from '../store.js';
 
 import {
-	AnyAction
-} from 'redux';
+	CARD_BEING_FETCHED,
+	CLOSE_CARDS_DRAWER_INFO,
+	CLOSE_CARDS_DRAWER_PANEL,
+	CLOSE_COMMENTS_AND_INFO_PANEL,
+	CLOSE_CONFIGURE_COLLECTION_DIALOG,
+	CLOSE_HEADER_PANEL,
+	CLOSE_SNACKBAR,
+	DISABLE_MOBILE_MODE,
+	DISABLE_PRESENTATION_MODE,
+	ENABLE_MOBILE_MODE,
+	ENABLE_PRESENTATION_MODE,
+	OPEN_CARDS_DRAWER_INFO,
+	OPEN_CARDS_DRAWER_PANEL,
+	OPEN_COMMENTS_AND_INFO_PANEL,
+	OPEN_CONFIGURE_COLLECTION_DIALOG,
+	OPEN_HEADER_PANEL,
+	OPEN_SNACKBAR,
+	SomeAction,
+	TURN_SUGGEST_MISSING_CONCEPTS,
+	UPDATE_CTRL_KEY_PRESSED,
+	UPDATE_FETCHED_CARD,
+	UPDATE_HOVERED_CARD,
+	UPDATE_OFFLINE,
+	UPDATE_PAGE
+} from '../actions.js';
 
 //if silent is true, then just passively updates the URL to reflect what it should be.
 export const navigatePathTo = (path : string, silent? : boolean) : ThunkResult => (dispatch, getState) => {
@@ -331,7 +331,7 @@ const loadPage = (pathname : string, query : string) : ThunkResult => (dispatch)
 	dispatch(updatePage(pathname, page, pageExtra));
 };
 
-const updatePage = (location : string, page : string, pageExtra : string) : AnyAction => {
+const updatePage = (location : string, page : string, pageExtra : string) : SomeAction => {
 	return {
 		type: UPDATE_PAGE,
 		location,
@@ -362,7 +362,7 @@ const fetchCardLinkCardsForFetchedCardFromDb : ((card : Card) => Promise<Cards>)
 
 //Exposed so basic-card-view can expose an endpoint. Typically you use
 //fetchCard.
-export const updateFetchedCard = (card : Card) : AnyAction => {
+export const updateFetchedCard = (card : Card) : SomeAction => {
 	return {
 		type: UPDATE_FETCHED_CARD,
 		card
@@ -389,7 +389,7 @@ export const fetchCardLinkCardsForFetchedCard = (fetchedCard : Card) : ThunkResu
 	dispatch(updateCards(cards, false));
 };
 
-export const fetchCard = (cardIDOrSlug : CardIdentifier) : ThunkResult => async (dispatch, getState) =>  {
+export const fetchCard = (cardIDOrSlug : CardIdentifier) : ThunkSomeAction => async (dispatch, getState) =>  {
 	if (!cardIDOrSlug) return;
 
 	//If we already fetched the card in question we can stop.
@@ -447,14 +447,14 @@ export const cancelHoverTimeout = () => {
 	hoverPreviewTimer = 0;
 };
 
-export const hoveredCardMouseMoved = () : ThunkResult => (dispatch, getState) => {
+export const hoveredCardMouseMoved = () : ThunkSomeAction => (dispatch, getState) => {
 	cancelHoverTimeout();
 	const activePreviewCardId = selectActivePreviewCardId(getState());
 	if (!activePreviewCardId) return;
 	dispatch({ type: UPDATE_HOVERED_CARD, x: 0, y: 0, cardId: ''});
 };
 
-export const updateHoveredCard = (x : number,y : number,cardId : CardID) : ThunkResult => (dispatch) => {
+export const updateHoveredCard = (x : number,y : number,cardId : CardID) : ThunkSomeAction => (dispatch) => {
 	cancelHoverTimeout();
 	hoverPreviewTimer = window.setTimeout(() => {
 		hoverPreviewTimer = 0;
@@ -464,7 +464,7 @@ export const updateHoveredCard = (x : number,y : number,cardId : CardID) : Thunk
 
 let snackbarTimer : number;
 
-export const showSnackbar = () : ThunkResult => (dispatch) => {
+export const showSnackbar = () : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: OPEN_SNACKBAR
 	});
@@ -473,7 +473,7 @@ export const showSnackbar = () : ThunkResult => (dispatch) => {
 		dispatch({ type: CLOSE_SNACKBAR }), 3000);
 };
 
-export const updateOffline = (offline : boolean) : ThunkResult => (dispatch, getState) => {
+export const updateOffline = (offline : boolean) : ThunkSomeAction => (dispatch, getState) => {
 	// Show the snackbar only if offline status changes.
 	if (offline !== getState().app.offline) {
 		dispatch(showSnackbar());
@@ -484,68 +484,68 @@ export const updateOffline = (offline : boolean) : ThunkResult => (dispatch, get
 	});
 };
 
-export const openHeaderPanel = () : AnyAction => {
+export const openHeaderPanel = () : SomeAction => {
 	return {
 		type: OPEN_HEADER_PANEL
 	};
 };
 
-export const closeHeaderPanel = () : AnyAction => {
+export const closeHeaderPanel = () : SomeAction => {
 	return {
 		type: CLOSE_HEADER_PANEL
 	};
 };
 
-export const openCommentsAndInfoPanel = () : AnyAction => {
+export const openCommentsAndInfoPanel = () : SomeAction => {
 	return {
 		type: OPEN_COMMENTS_AND_INFO_PANEL
 	};
 };
 
-export const closeCommentsAndInfoPanel = () : AnyAction => {
+export const closeCommentsAndInfoPanel = () : SomeAction => {
 	return {
 		type: CLOSE_COMMENTS_AND_INFO_PANEL
 	};
 };
 
-export const openCardsDrawerPanel = () : AnyAction => {
+export const openCardsDrawerPanel = () : SomeAction => {
 	return {
 		type: OPEN_CARDS_DRAWER_PANEL
 	};
 };
 
-export const closeCardsDrawerPanel = () : AnyAction => {
+export const closeCardsDrawerPanel = () : SomeAction => {
 	return {
 		type: CLOSE_CARDS_DRAWER_PANEL
 	};
 };
 
-export const openConfigureCollectionDialog = () : AnyAction => {
+export const openConfigureCollectionDialog = () : SomeAction => {
 	return {
 		type: OPEN_CONFIGURE_COLLECTION_DIALOG,
 	};
 };
 
-export const closeConfigureCollectionDialog = () : AnyAction => {
+export const closeConfigureCollectionDialog = () : SomeAction => {
 	return {
 		type: CLOSE_CONFIGURE_COLLECTION_DIALOG
 	};
 };
 
 
-export const enablePresentationMode = () : AnyAction => {
+export const enablePresentationMode = () : SomeAction => {
 	return {
 		type: ENABLE_PRESENTATION_MODE,
 	};
 };
 
-export const disablePresentationMode = () : AnyAction => {
+export const disablePresentationMode = () : SomeAction => {
 	return {
 		type: DISABLE_PRESENTATION_MODE,
 	};
 };
 
-export const turnMobileMode= (on : boolean) : ThunkResult => (dispatch) => {
+export const turnMobileMode= (on : boolean) : ThunkSomeAction => (dispatch) => {
 	if (on) {
 		dispatch(enablePresentationMode());
 		dispatch({type:ENABLE_MOBILE_MODE});
@@ -555,7 +555,7 @@ export const turnMobileMode= (on : boolean) : ThunkResult => (dispatch) => {
 	dispatch({type:DISABLE_MOBILE_MODE});
 };
 
-export const ctrlKeyPressed= (pressed : boolean) : ThunkResult => (dispatch, getState) => {
+export const ctrlKeyPressed= (pressed : boolean) : ThunkSomeAction => (dispatch, getState) => {
 	//Only dispatch if it will make a change
 	if (selectCtrlKeyPressed(getState()) === pressed) return;
 	dispatch({
@@ -567,14 +567,14 @@ export const ctrlKeyPressed= (pressed : boolean) : ThunkResult => (dispatch, get
 //export const OPEN_CARDS_DRAWER_INFO_PANEL = 'OPEN_CARDS_DRAWER_INFO_PANEL';
 //export const CLOSE_CARDS_DRAWER_INFO_PANEL = 'CLOSE_CARDS_DRAWER_INFO_PANEL';
 
-const openCardsDrawerInfo = () : AnyAction => {
+const openCardsDrawerInfo = () : SomeAction => {
 	return {
 		type:OPEN_CARDS_DRAWER_INFO,
 	};
 };
 
 
-const closeCardsDrawerInfo = () : AnyAction => {
+const closeCardsDrawerInfo = () : SomeAction => {
 	return {
 		type:CLOSE_CARDS_DRAWER_INFO,
 	};
@@ -585,7 +585,7 @@ export const toggleCardsDrawerInfo = () : ThunkResult => (dispatch, getState) =>
 	dispatch(isOpen ? closeCardsDrawerInfo() : openCardsDrawerInfo());
 };
 
-export const turnSuggestMissingConcepts = (on : boolean) : AnyAction => {
+export const turnSuggestMissingConcepts = (on : boolean) : SomeAction => {
 	return {
 		type: TURN_SUGGEST_MISSING_CONCEPTS,
 		on,
