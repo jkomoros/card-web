@@ -53,8 +53,6 @@ store.addReducers({
 //Stash this here so it's easy to get access to it via console.
 window['DEBUG_STORE'] = store;
 
-export type ThunkResult = ThunkAction<void, State, undefined, AnyAction>;
-
 export type AppThunkDispatch = ThunkDispatch<State, undefined, AnyAction>;
 
 export type AppGetState = () => State;
