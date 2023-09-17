@@ -2,17 +2,21 @@ import {
 	AIDialogType,
 	Card,
 	CardID,
+	CommentMessages,
+	CommentThreads,
 	SetName,
 	SortName,
 	ViewMode
 } from './types';
 
+//AI
 export const AI_REQUEST_STARTED = 'AI_REQUEST_STARTED';
 export const AI_RESULT = 'AI_RESULT';
 export const AI_SELECT_RESULT_INDEX = 'AI_SELECT_RESULT_INDEX';
 export const AI_DIALOG_CLOSE = 'AI_DIALOG_CLOSE';
 export const AI_SET_ACTIVE_CARDS = 'AI_SET_ACTIVE_CARDS';
 export const AI_SHOW_ERROR = 'AI_SHOW_ERROR';
+//App
 export const UPDATE_PAGE = 'UPDATE_PAGE';
 export const UPDATE_OFFLINE = 'UPDATE_OFFLINE';
 export const OPEN_SNACKBAR = 'OPEN_SNACKBAR';
@@ -36,11 +40,16 @@ export const UPDATE_CTRL_KEY_PRESSED = 'UPDATE_CTRL_KEY_PRESSED';
 export const OPEN_CARDS_DRAWER_INFO = 'OPEN_CARDS_DRAWER_INFO';
 export const CLOSE_CARDS_DRAWER_INFO = 'CLOSE_CARDS_DRAWER_INFO';
 export const TURN_SUGGEST_MISSING_CONCEPTS = 'TURN_SUGGEST_MISSING_CONCEPTS';
+//Collection.js
 export const SHOW_CARD = 'SHOW_CARD';
 export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
 export const UPDATE_RENDER_OFFSET = 'UPDATE_RENDER_OFFSET';
 export const UPDATE_COLLECTION_SHAPSHOT = 'UPDATE_COLLECTION_SHAPSHOT';
 export const RANDOMIZE_SALT = 'RANDOMIZE_SALT';
+//Comments
+export const COMMENTS_UPDATE_THREADS = 'COMMENTS_UPDATE_THREADS';
+export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
+export const COMMENTS_UPDATE_CARD_THREADS = 'COMMENTS_UPDATE_CARD_THREADS';
 
 type ActionAIRequestStarted = {
 	type: typeof AI_REQUEST_STARTED,
@@ -203,6 +212,16 @@ type ActionRandomizeSalt = {
 	type: typeof RANDOMIZE_SALT
 };
 
+type ActionCommentsUpdateThreads = {
+	type: typeof COMMENTS_UPDATE_THREADS,
+	threads: CommentThreads
+};
+
+type ActionCommentsUpdateMessages = {
+	type: typeof COMMENTS_UPDATE_MESSAGES,
+	messages: CommentMessages
+};
+
 export type SomeAction = ActionAIRequestStarted
 	| ActionAIResult
 	| ActionAISelectResultIndex
@@ -236,4 +255,6 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionUpdateCollection
 	| ActionUpdateRenderOffset
 	| ActionUpdateCollectionSnapshot
-	| ActionRandomizeSalt;
+	| ActionRandomizeSalt
+	| ActionCommentsUpdateThreads
+	| ActionCommentsUpdateMessages;

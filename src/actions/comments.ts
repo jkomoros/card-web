@@ -1,9 +1,3 @@
-//This apends the threads in the whole local collection for all cards
-export const COMMENTS_UPDATE_THREADS = 'COMMENTS_UPDATE_THREADS';
-export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
-//This is a list of the thread_ids for all top-level threads in this card.
-export const COMMENTS_UPDATE_CARD_THREADS = 'COMMENTS_UPDATE_CARD_THREADS';
-
 import {
 	AUTHORS_COLLECTION,
 	THREADS_COLLECTION,
@@ -41,7 +35,7 @@ import {
 } from './app.js';
 
 import {
-	ThunkResult
+	ThunkSomeAction
 } from '../store.js';
 
 import {
@@ -56,6 +50,11 @@ import {
 import {
 	MultiBatch
 } from '../multi_batch.js';
+
+import {
+	COMMENTS_UPDATE_MESSAGES,
+	COMMENTS_UPDATE_THREADS
+} from '../actions.js';
 
 type BatchLikeSet = {
 	set(ref : DocumentReference, data : object) : void
@@ -80,7 +79,7 @@ export const createAuthorStub = (uid : Uid) => {
 	batch.commit();
 };
 
-export const resolveThread = (thread : CommentThread) : ThunkResult => (_, getState) => {
+export const resolveThread = (thread : CommentThread) : ThunkSomeAction => (_, getState) => {
 	const state = getState();
 
 	if (!thread || !thread.id) {
@@ -112,7 +111,7 @@ export const resolveThread = (thread : CommentThread) : ThunkResult => (_, getSt
 	});
 };
 
-export const deleteMessage = (message : CommentMessage) : ThunkResult => (_, getState) => {
+export const deleteMessage = (message : CommentMessage) : ThunkSomeAction => (_, getState) => {
 	const state = getState();
 	if (!getUserMayEditMessage(state, message)) {
 		console.log('User isn\'t allowed to edit that message!');
@@ -135,7 +134,7 @@ export const deleteMessage = (message : CommentMessage) : ThunkResult => (_, get
 	batch.commit();
 };
 
-export const editMessage = (message : CommentMessage, newMessage : string) : ThunkResult => (_, getState) => {
+export const editMessage = (message : CommentMessage, newMessage : string) : ThunkSomeAction => (_, getState) => {
   
 	const state = getState();
 
@@ -161,7 +160,7 @@ export const editMessage = (message : CommentMessage, newMessage : string) : Thu
 
 };
 
-export const addMessage = (thread : CommentThread, message : string) : ThunkResult => (_, getState) => {
+export const addMessage = (thread : CommentThread, message : string) : ThunkSomeAction => (_, getState) => {
 	const state = getState();
 	const card = selectActiveCard(state);
 	if (!card || !card.id) {
@@ -227,7 +226,7 @@ export const addMessage = (thread : CommentThread, message : string) : ThunkResu
 
 };
 
-export const createThread = (message : string) : ThunkResult => (_, getState) => {
+export const createThread = (message : string) : ThunkSomeAction => (_, getState) => {
 	const state = getState();
 	const card = selectActiveCard(state);
 	if (!card || !card.id) {
@@ -303,7 +302,7 @@ export const createThread = (message : string) : ThunkResult => (_, getState) =>
 
 };
 
-export const updateThreads = (threads : CommentThreads) : ThunkResult => (dispatch) => {
+export const updateThreads = (threads : CommentThreads) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: COMMENTS_UPDATE_THREADS,
 		threads
@@ -311,7 +310,7 @@ export const updateThreads = (threads : CommentThreads) : ThunkResult => (dispat
 	dispatch(refreshCommentRedirect());
 };
 
-export const updateMessages = (messages : CommentMessages) : ThunkResult => (dispatch) => {
+export const updateMessages = (messages : CommentMessages) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: COMMENTS_UPDATE_MESSAGES,
 		messages
