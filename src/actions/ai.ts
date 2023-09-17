@@ -40,7 +40,8 @@ import {
 	Uid,
 	AIDialogType,
 	State,
-	AIModelName
+	AIModelName,
+	StringCardMap
 } from '../types.js';
 
 import {
@@ -366,6 +367,20 @@ export const summarizeCardsWithAI = () : ThunkSomeAction => async (dispatch, get
 
 };
 
+//Takes the concept map and returns things like 'Coordination Headwind (AKA Herding Cats)'
+const distilledConceptStrings = (reversedConcepts : StringCardMap) : string[] => {
+	const concepts : {[concept : string] : string[]} = {};
+	for (const [str, concept] of Object.entries(reversedConcepts)) {
+		if (!concepts[concept]) concepts[concept] = [];
+		concepts[concept].push(str);
+	}
+	const conceptStrings = Object.values(concepts).map(strs => {
+		if (strs.length == 1) return strs[0];
+		return strs[0] + ' (AKA ' + strs.slice(1).join(', ') + ')';
+	});
+	return conceptStrings;
+};
+
 export const missingConceptsWithAI = () : ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState();
 	const mayUseAI = selectUserMayUseAI(state);
@@ -378,8 +393,8 @@ export const missingConceptsWithAI = () : ThunkSomeAction => async (dispatch, ge
 	dispatch(aiRequestStarted(AI_DIALOG_TYPE_MISSING_CONCEPTS, model));
 
 	const reversedConcepts = selectConcepts(state);
-	const concepts = Object.keys(reversedConcepts);
-	const [prompt, ids] = await cardsAIConceptsPrompt(concepts, cards, model);
+	const conceptStrings = distilledConceptStrings(reversedConcepts);
+	const [prompt, ids] = await cardsAIConceptsPrompt(conceptStrings, cards, model);
 	dispatch({
 		type: AI_SET_ACTIVE_CARDS,
 		allCards: cards.map(card => card.id),
