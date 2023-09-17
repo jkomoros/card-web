@@ -24,6 +24,7 @@ import {
 	ImageInfoProperty,
 	ImageInfoPropertyValue,
 	MaintenanceTaskMap,
+	PermissionType,
 	ProcessedCard,
 	ReferenceType,
 	SectionID,
@@ -36,6 +37,7 @@ import {
 	Tags,
 	TweetMap,
 	Uid,
+	UserPermissionsMap,
 	ViewMode
 } from './types';
 
@@ -158,6 +160,10 @@ export const MULTI_EDIT_DIALOG_OPEN = 'MULTI_EDIT_DIALOG_OPEN';
 export const MULTI_EDIT_DIALOG_CLOSE ='MULTI_EDIT_DIALOG_CLOSE';
 export const MULTI_EDIT_DIALOG_ADD_REFERENCE = 'MULTI_EDIT_DIALOG_ADD_REFERENCE';
 export const MULTI_EDIT_DIALOG_REMOVE_REFERENCE = 'MULTI_EDIT_DIALOG_REMOVE_REFERENCE';
+//Permissions
+export const PERMISSIONS_UPDATE_PERMISSIONS = 'PERMISSIONS_UPDATE_PERMISSIONS';
+export const PERMISSIONS_START_ADD_CARD = 'PERMISSIONS_START_ADD_CARD';
+export const PERMISSIONS_RESET_ADD_CARD = 'PERMISSIONS_RESET_ADD_CARD';
 
 type ActionAIRequestStarted = {
 	type: typeof AI_REQUEST_STARTED,
@@ -703,6 +709,22 @@ type ActionMultiEditDialogRemoveReference = {
 	referenceType: ReferenceType
 };
 
+type ActionPermissionsUpdatePermissions = {
+	type: typeof PERMISSIONS_UPDATE_PERMISSIONS,
+	permissionsToAdd: UserPermissionsMap,
+	permissionsToRemove: {[user : Uid]: true}
+};
+
+type ActionPermissionsStartAddCard = {
+	type: typeof PERMISSIONS_START_ADD_CARD,
+	permissionType: PermissionType,
+	uid: Uid
+};
+
+type ActionPermissionsResetAddCard = {
+	type: typeof PERMISSIONS_RESET_ADD_CARD
+};
+
 export type SomeAction = ActionAIRequestStarted
 	| ActionAIResult
 	| ActionAISelectResultIndex
@@ -811,4 +833,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionMultiEditDialogOpen
 	| ActionMultiEditDialogClose
 	| ActionMultiEditDialogAddReference
-	| ActionMultiEditDialogRemoveReference;
+	| ActionMultiEditDialogRemoveReference
+	| ActionPermissionsUpdatePermissions
+	| ActionPermissionsStartAddCard
+	| ActionPermissionsResetAddCard;

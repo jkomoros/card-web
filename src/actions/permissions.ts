@@ -1,9 +1,5 @@
-export const PERMISSIONS_UPDATE_PERMISSIONS = 'PERMISSIONS_UPDATE_PERMISSIONS';
-export const PERMISSIONS_START_ADD_CARD = 'PERMISSIONS_START_ADD_CARD';
-export const PERMISSIONS_RESET_ADD_CARD = 'PERMISSIONS_RESET_ADD_CARD';
-
 import {
-	ThunkResult,
+	ThunkSomeAction,
 	store
 } from '../store.js';
 
@@ -53,10 +49,13 @@ import {
 } from '../types.js';
 
 import {
-	AnyAction
-} from 'redux';
+	PERMISSIONS_RESET_ADD_CARD,
+	PERMISSIONS_START_ADD_CARD,
+	PERMISSIONS_UPDATE_PERMISSIONS,
+	SomeAction
+} from '../actions.js';
 
-export const setCardToAddPermissionTo = (cardID : CardID) : ThunkResult => (dispatch, getState) => {
+export const setCardToAddPermissionTo = (cardID : CardID) : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	const permissionType = selectPermissionsPendingPermissionType(state);
 	const uid = selectPermissionsPendingUid(state);
@@ -66,7 +65,7 @@ export const setCardToAddPermissionTo = (cardID : CardID) : ThunkResult => (disp
 	});
 };
 
-export const selectCardToAddPermissionTo = (permissionType : PermissionType, uid : Uid) : ThunkResult => (dispatch) => {
+export const selectCardToAddPermissionTo = (permissionType : PermissionType, uid : Uid) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type:PERMISSIONS_START_ADD_CARD,
 		permissionType,
@@ -75,7 +74,7 @@ export const selectCardToAddPermissionTo = (permissionType : PermissionType, uid
 	dispatch(findCardToPermission());
 };
 
-const addUserPermissionToCard = (cardID : CardID, permissionType : PermissionType, uid : Uid) : ThunkResult => (dispatch, getState) => {
+const addUserPermissionToCard = (cardID : CardID, permissionType : PermissionType, uid : Uid) : ThunkSomeAction => (dispatch, getState) => {
 	if (permissionType != PERMISSION_EDIT_CARD) {
 		console.warn('Illegal permission type');
 		return;
@@ -92,7 +91,7 @@ const addUserPermissionToCard = (cardID : CardID, permissionType : PermissionTyp
 	dispatch(modifyCard(card, update, false));
 };
 
-export const removeUserPermissionFromCard = (cardID : CardID, permissionType : PermissionType, uid : Uid) : ThunkResult => (dispatch, getState) => {
+export const removeUserPermissionFromCard = (cardID : CardID, permissionType : PermissionType, uid : Uid) : ThunkSomeAction => (dispatch, getState) => {
 	if (permissionType != PERMISSION_EDIT_CARD) {
 		console.warn('Illegal permission type');
 		return;
@@ -133,7 +132,7 @@ export const connectLivePermissions = () => {
 	});
 };
 
-const updatePermissions = (permissionsToAdd : UserPermissionsMap, permissionsToRemove : {[user : Uid]: true}) : AnyAction => {
+const updatePermissions = (permissionsToAdd : UserPermissionsMap, permissionsToRemove : {[user : Uid]: true}) : SomeAction => {
 	return {
 		type:PERMISSIONS_UPDATE_PERMISSIONS,
 		permissionsToAdd,
@@ -141,22 +140,22 @@ const updatePermissions = (permissionsToAdd : UserPermissionsMap, permissionsToR
 	};
 };
 
-export const addPermissionsObjectForUser = (uid : Uid) : ThunkResult => () => {
+export const addPermissionsObjectForUser = (uid : Uid) : ThunkSomeAction => () => {
 	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {}, {merge: true});
 };
 
-export const deletePermissionsObjectForUser = (uid : Uid) : ThunkResult => () => {
+export const deletePermissionsObjectForUser = (uid : Uid) : ThunkSomeAction => () => {
 	deleteDoc(doc(db, PERMISSIONS_COLLECTION, uid));
 };
 
-export const updateUserNote = (uid : Uid, note : string) : ThunkResult => () => {
+export const updateUserNote = (uid : Uid, note : string) : ThunkSomeAction => () => {
 	updateDoc(doc(db, PERMISSIONS_COLLECTION, uid), {notes:note});
 };
 
-export const addEnabledPermission = (uid: Uid, key : PermissionType) : ThunkResult => () => {
+export const addEnabledPermission = (uid: Uid, key : PermissionType) : ThunkSomeAction => () => {
 	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {[key]: true}, {merge: true});
 };
 
-export const clearPermission = (uid : Uid, key : PermissionType) : ThunkResult => () => {
+export const clearPermission = (uid : Uid, key : PermissionType) : ThunkSomeAction => () => {
 	setDoc(doc(db, PERMISSIONS_COLLECTION, uid), {[key]: deleteField()}, {merge: true});
 };
