@@ -1176,7 +1176,7 @@ export type MaintenanceTaskMap = {
 
 export type MaintenanceState = {
 	executedTasks: MaintenanceTaskMap,
-	taskActive: false,
+	taskActive: boolean,
 }
 
 export type MultiEditState = {
