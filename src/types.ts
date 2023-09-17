@@ -1180,6 +1180,8 @@ export type MultiEditState = {
 	referencesDiff: ReferencesEntriesDiff,
 };
 
+export type AIModelName = 'gpt-3.5-turbo' | 'gpt-3.5-turbo-16k' | 'gpt-4' | 'gpt-4-32k';
+
 export type AIDialogType = keyof(typeof AI_DIALOG_TYPES);
 
 export type AIState = {
