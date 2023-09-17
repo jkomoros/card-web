@@ -146,27 +146,28 @@ const DEFAULT_FIT_PROMPT : Required<FitPromptArguments> = {
 	maxTokenLength: 4000,
 };
 
-const estimateTokenCount = (input : string | string[]) : number => {
-	if (Array.isArray(input)) {
-		return input.map(item => estimateTokenCount(item)).reduce((a, b) => a + b);
-	}
-	//TODO: figure out how to get a better token estimate
-	return input.length / 4;
+//NOTE: this downloads the tokenizer file if not already loaded, which is multiple MB.
+const computeTokenCount = async (text : string | string[]) : Promise<number> => {
+	//Note: the types are declared in src/gpt-tok.d.ts, which is set to not be visible in VSCode.
+	const {default: module } = await import('gpt-tok');
+	if (typeof text == 'string') text = [text];
+	const counts = text.map(str => module.encode(str).length);
+	return counts.reduce((a, b) => a + b, 0);
 };
 
-const fitPrompt = (args: FitPromptArguments) : [prompt: string, maxItemIndex : number] => {
+const fitPrompt = async (args: FitPromptArguments) : Promise<[prompt: string, maxItemIndex : number]> => {
 	const options = {
 		...DEFAULT_FIT_PROMPT,
 		...args
 	};
-	const nonItemsTokenCount = estimateTokenCount([options.prefix, options.suffix, options.delimiter]);
+	const nonItemsTokenCount = await computeTokenCount([options.prefix, options.suffix, options.delimiter]);
 	let itemsTokenCount = 0;
 	let result = options.prefix + options.delimiter;
 	let i = 0;
 	while ((itemsTokenCount + nonItemsTokenCount) < options.maxTokenLength) {
 		if (options.items.length <= i) break;
 		const item = options.items[i];
-		itemsTokenCount += estimateTokenCount([item, options.delimiter]);
+		itemsTokenCount += await computeTokenCount([item, options.delimiter]);
 		if ((itemsTokenCount + nonItemsTokenCount) >= options.maxTokenLength) break;
 		result += item + options.delimiter;
 		i++;
@@ -175,12 +176,12 @@ const fitPrompt = (args: FitPromptArguments) : [prompt: string, maxItemIndex : n
 	return [result, i];
 };
 
-const cardsAISummaryPrompt = (cards : Card[]) : [prompt : string, ids : CardID[]] => {
+const cardsAISummaryPrompt = async (cards : Card[]) : Promise<[prompt : string, ids : CardID[]]> => {
 	const cardContent = Object.fromEntries(cards.map(card => [card.id, cardPlainContent(card)]));
 	const filteredCards = cards.filter(card => cardContent[card.id]);
 	const items = filteredCards.map(card => cardContent[card.id]);
 
-	const [prompt, maxItemIndex] = fitPrompt({
+	const [prompt, maxItemIndex] = await fitPrompt({
 		prefix: 'Below is a collection of cards. Create a succinct but comprehensive summary of all cards that is no longer than 8 sentences. The summary should combine similar insights but keep distinctive insights where possible.\n\nCards:',
 		suffix: 'Summary:\n',
 		items
@@ -286,7 +287,7 @@ export const summarizeCardsWithAI = () : ThunkResult => async (dispatch, getStat
 	const uid = selectUid(state);
 	const cards = selectActiveCollectionCards(state);
 	dispatch(aiRequestStarted(AI_DIALOG_TYPE_CARD_SUMMARY));
-	const [prompt, ids] = cardsAISummaryPrompt(cards);
+	const [prompt, ids] = await cardsAISummaryPrompt(cards);
 	dispatch({
 		type: AI_SET_ACTIVE_CARDS,
 		allCards: cards.map(card => card.id),
