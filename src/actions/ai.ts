@@ -42,10 +42,6 @@ import {
 } from '../types.js';
 
 import {
-	AnyAction
-} from 'redux';
-
-import {
 	AI_DIALOG_TYPE_CARD_SUMMARY,
 	AI_DIALOG_TYPE_SUGGEST_TITLE,
 	CARD_TYPE_CONTENT,
@@ -62,7 +58,7 @@ import { limitConfigurableFilterText } from '../filters.js';
 
 import {
 	AI_DIALOG_CLOSE,
-	AI_REQUEST_STARTED, AI_RESULT, AI_SELECT_RESULT_INDEX, AI_SET_ACTIVE_CARDS, AI_SHOW_ERROR
+	AI_REQUEST_STARTED, AI_RESULT, AI_SELECT_RESULT_INDEX, AI_SET_ACTIVE_CARDS, AI_SHOW_ERROR, SomeAction
 } from '../actions.js';
 
 export type AIDialogTypeConfiguration = {
@@ -336,14 +332,14 @@ export const AI_DIALOG_TYPE_CONFIGURATION : {[key in AIDialogType] : AIDialogTyp
 	}
 };
 
-const aiRequestStarted = (kind : AIDialogType) : AnyAction => {
+const aiRequestStarted = (kind : AIDialogType) : SomeAction => {
 	return {
 		type: AI_REQUEST_STARTED,
 		kind
 	};
 };
 
-const aiResult = (result : string | string[]) : AnyAction => {
+const aiResult = (result : string | string[]) : SomeAction => {
 	if (typeof result == 'string') result = [result];
 	return {
 		type: AI_RESULT,
