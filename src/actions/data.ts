@@ -141,7 +141,6 @@ import {
 } from '../references.js';
 
 import {
-	ThunkResult,
 	ThunkSomeAction,
 	store
 } from '../store.js';
@@ -252,7 +251,7 @@ export const modifyCard = (card : Card, update : CardDiff, substantive = false) 
 	return modifyCards([card], update, substantive, true);
 };
 
-export const modifyCards = (cards : Card[], update : CardDiff, substantive = false, failOnError = false) : ThunkResult => async (dispatch, getState) => {
+export const modifyCards = (cards : Card[], update : CardDiff, substantive = false, failOnError = false) : ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState();
 
 	if (selectCardModificationPending(state)) {
@@ -427,7 +426,7 @@ export const modifyCardWithBatch = (state : State, card : Card, update : CardDif
 };
 
 //beforeID is the ID of hte card we should place ourselves immediately before.
-export const reorderCard = (cardID : CardID, otherID: CardID, isAfter : boolean) : ThunkResult => async (dispatch, getState) => {
+export const reorderCard = (cardID : CardID, otherID: CardID, isAfter : boolean) : ThunkSomeAction => async (dispatch, getState) => {
 
 	const state = getState();
 
@@ -501,7 +500,7 @@ const addLegalSlugToCard = (cardID : CardID, legalSlug : Slug, setName? : boolea
 	return batch.commit();
 };
 
-export const addSlug = (cardId : CardID, newSlug : Slug) : ThunkResult => async (dispatch, getState) => {
+export const addSlug = (cardId : CardID, newSlug : Slug) : ThunkSomeAction => async (dispatch, getState) => {
  
 	newSlug = normalizeSlug(newSlug);
 
@@ -564,7 +563,7 @@ const reservedCollectionName = (state : State, name : string) : boolean => {
 	return false;
 };
 
-export const createTag = (name : TagID, displayName : string) : ThunkResult => async (dispatch, getState) => {
+export const createTag = (name : TagID, displayName : string) : ThunkSomeAction => async (dispatch, getState) => {
 
 	if (!name) {
 		console.warn('No short name provided');
@@ -914,7 +913,7 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 
 };
 
-export const createForkedCard = (cardToFork : Card) : ThunkResult => async (dispatch, getState) => {
+export const createForkedCard = (cardToFork : Card) : ThunkSomeAction => async (dispatch, getState) => {
 	//NOTE: if you modify this card you likely also want to modify
 	//createWorkingNotesCard too and likely also createForkedCard
 
@@ -1126,7 +1125,7 @@ export const deleteCard = (card : Card) : ThunkSomeAction => async (dispatch, ge
 
 };
 
-export const navigateToNewCard = () : ThunkResult => (dispatch, getState) => {
+export const navigateToNewCard = () : ThunkSomeAction => (dispatch, getState) => {
 	const ID = selectPendingNewCardIDToNavigateTo(getState());
 	if (!ID) return;
 	//navigateToNewCard is called when the expected cards/sections are loaded.
@@ -1239,7 +1238,7 @@ export const updateTags = (tags : Tags) : ThunkSomeAction => (dispatch) => {
 	dispatch(refreshCardSelector(false));
 };
 
-export const updateCards = (cards: Cards, unpublished? : boolean) : ThunkResult => (dispatch, getState) => {
+export const updateCards = (cards: Cards, unpublished? : boolean) : ThunkSomeAction => (dispatch, getState) => {
 	const existingCards = selectRawCards(getState());
 	const cardsToUpdate : Cards = {};
 	for (const card of Object.values(cards)) {
@@ -1270,7 +1269,7 @@ export const updateCards = (cards: Cards, unpublished? : boolean) : ThunkResult 
 //when it fires.
 const REMOVE_CARDS_TIMEOUT = 3000;
 
-export const removeCards = (cardIDs : CardID[], unpublished : boolean) : ThunkResult => (dispatch, getState) => {
+export const removeCards = (cardIDs : CardID[], unpublished : boolean) : ThunkSomeAction => (dispatch, getState) => {
 
 	//cards that we expected to be deleted won't show up in the other query
 	//ever, so we don't have to wait for the timeout and can delete them now.
