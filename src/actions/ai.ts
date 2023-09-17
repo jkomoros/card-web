@@ -115,7 +115,7 @@ const openai = new OpenAIProxy();
 
 const CARD_SEPARATOR = '\n-----\n';
 
-type modelName = 'gpt-3.5-turbo';
+type modelName = 'gpt-3.5-turbo' | 'gpt-3.5-turbo-16k';
 
 type modelInfo = {
 	maxTokens: number
@@ -124,10 +124,16 @@ type modelInfo = {
 const MODEL_INFO : {[name in modelName]: modelInfo} = {
 	'gpt-3.5-turbo': {
 		maxTokens: 4096
+	},
+	'gpt-3.5-turbo-16k': {
+		//According to https://platform.openai.com/docs/models/gpt-3-5
+		maxTokens: 16384
 	}
 };
 
 const DEFAULT_MODEL : modelName = 'gpt-3.5-turbo';
+
+const DEFAULT_LONG_MODEL : modelName = 'gpt-3.5-turbo-16k';
 
 const completion = async (prompt: string, uid: Uid, model: modelName = DEFAULT_MODEL) : Promise<string> => {
 	const result = await openai.createChatCompletion({
@@ -302,7 +308,7 @@ export const summarizeCardsWithAI = () : ThunkResult => async (dispatch, getStat
 	const uid = selectUid(state);
 	const cards = selectActiveCollectionCards(state);
 	dispatch(aiRequestStarted(AI_DIALOG_TYPE_CARD_SUMMARY));
-	const model = DEFAULT_MODEL;
+	const model = DEFAULT_LONG_MODEL;
 	const [prompt, ids] = await cardsAISummaryPrompt(cards, model);
 	dispatch({
 		type: AI_SET_ACTIVE_CARDS,
