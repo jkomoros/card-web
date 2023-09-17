@@ -115,9 +115,23 @@ const openai = new OpenAIProxy();
 
 const CARD_SEPARATOR = '\n-----\n';
 
-const completion = async (prompt: string, uid: Uid) : Promise<string> => {
+type modelName = 'gpt-3.5-turbo';
+
+type modelInfo = {
+	maxTokens: number
+};
+
+const MODEL_INFO : {[name in modelName]: modelInfo} = {
+	'gpt-3.5-turbo': {
+		maxTokens: 4096
+	}
+};
+
+const DEFAULT_MODEL : modelName = 'gpt-3.5-turbo';
+
+const completion = async (prompt: string, uid: Uid, model: modelName = DEFAULT_MODEL) : Promise<string> => {
 	const result = await openai.createChatCompletion({
-		model: 'gpt-3.5-turbo',
+		model,
 		messages: [
 			{
 				role: 'user',
@@ -176,7 +190,7 @@ const fitPrompt = async (args: FitPromptArguments) : Promise<[prompt: string, ma
 	return [result, i];
 };
 
-const cardsAISummaryPrompt = async (cards : Card[]) : Promise<[prompt : string, ids : CardID[]]> => {
+const cardsAISummaryPrompt = async (cards : Card[], model : modelName) : Promise<[prompt : string, ids : CardID[]]> => {
 	const cardContent = Object.fromEntries(cards.map(card => [card.id, cardPlainContent(card)]));
 	const filteredCards = cards.filter(card => cardContent[card.id]);
 	const items = filteredCards.map(card => cardContent[card.id]);
@@ -184,7 +198,8 @@ const cardsAISummaryPrompt = async (cards : Card[]) : Promise<[prompt : string, 
 	const [prompt, maxItemIndex] = await fitPrompt({
 		prefix: 'Below is a collection of cards. Create a succinct but comprehensive summary of all cards that is no longer than 8 sentences. The summary should combine similar insights but keep distinctive insights where possible.\n\nCards:',
 		suffix: 'Summary:\n',
-		items
+		items,
+		maxTokenLength: MODEL_INFO[model].maxTokens
 	});
 
 	const ids = filteredCards.slice(0,maxItemIndex).map(card => card.id);
@@ -287,7 +302,8 @@ export const summarizeCardsWithAI = () : ThunkResult => async (dispatch, getStat
 	const uid = selectUid(state);
 	const cards = selectActiveCollectionCards(state);
 	dispatch(aiRequestStarted(AI_DIALOG_TYPE_CARD_SUMMARY));
-	const [prompt, ids] = await cardsAISummaryPrompt(cards);
+	const model = DEFAULT_MODEL;
+	const [prompt, ids] = await cardsAISummaryPrompt(cards, model);
 	dispatch({
 		type: AI_SET_ACTIVE_CARDS,
 		allCards: cards.map(card => card.id),
@@ -295,7 +311,7 @@ export const summarizeCardsWithAI = () : ThunkResult => async (dispatch, getStat
 	});
 	let result = '';
 	try {
-		result = await completion(prompt, uid);
+		result = await completion(prompt, uid, model);
 		dispatch(aiResult(result));
 	} catch(err) {
 		dispatch(showAIError(err));
