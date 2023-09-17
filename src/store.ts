@@ -4,8 +4,7 @@ import {
 	applyMiddleware,
 	combineReducers,
 	StoreEnhancer,
-	Reducer,
-	AnyAction
+	Reducer
 } from 'redux';
 
 import thunk, { ThunkAction, ThunkDispatch, ThunkMiddleware } from 'redux-thunk';
@@ -38,10 +37,10 @@ const devCompose: <Ext0, Ext1, StateExt0, StateExt1>(
 // section of the wiki for more details:
 // https://github.com/Polymer/pwa-starter-kit/wiki/4.-Redux-and-state-management
 export const store = createStore(
-	state => state as Reducer<State,AnyAction>,
+	state => state as Reducer<State,SomeAction>,
 	devCompose(
 		lazyReducerEnhancer(combineReducers),
-		applyMiddleware(thunk as ThunkMiddleware<State, AnyAction>))
+		applyMiddleware(thunk as ThunkMiddleware<State, SomeAction>))
 );
 
 // Initially loaded reducers.
@@ -53,7 +52,7 @@ store.addReducers({
 //Stash this here so it's easy to get access to it via console.
 window['DEBUG_STORE'] = store;
 
-export type AppThunkDispatch = ThunkDispatch<State, undefined, AnyAction>;
+export type AppThunkDispatch = ThunkDispatch<State, undefined, SomeAction>;
 
 export type AppGetState = () => State;
 
