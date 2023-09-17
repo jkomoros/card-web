@@ -419,7 +419,7 @@ export const AI_DIALOG_TYPE_CONFIGURATION : {[key in AIDialogType] : AIDialogTyp
 	},
 	[AI_DIALOG_TYPE_MISSING_CONCEPTS]: {
 		title: 'Missing Concepts',
-		resultType: 'multi-line'
+		resultType: 'tag-list'
 	}
 };
 
