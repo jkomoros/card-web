@@ -40,7 +40,6 @@ import {
 	Uid,
 	AIDialogType,
 	State,
-	StringCardMap,
 	AIModelName
 } from '../types.js';
 
@@ -50,7 +49,6 @@ import {
 	AI_DIALOG_TYPE_SUGGEST_TITLE,
 	CARD_TYPE_CONTENT,
 	EVERYTHING_SET_NAME,
-	REFERENCE_TYPE_CONCEPT,
 	SORT_NAME_STARS,
 	TEXT_FIELD_TITLE
 } from '../type_constants.js';
@@ -76,10 +74,6 @@ import {
 	AI_SHOW_ERROR,
 	SomeAction
 } from '../actions.js';
-
-import {
-	references
-} from '../references.js';
 
 export type AIDialogTypeConfiguration = {
 	title: string;
@@ -240,19 +234,13 @@ const cardsAISummaryPrompt = async (cards : Card[], model : AIModelName) : Promi
 	return [prompt, ids];
 };
 
-const conceptsPromptForCard = (card : Card, conceptsMap: StringCardMap) : string => {
-	const content = cardPlainContent(card);
-	const concepts = references(card).typeClassArray(REFERENCE_TYPE_CONCEPT).map(conceptID => conceptsMap[conceptID]).filter(content => content);
-	return `${content}\nConcepts:${concepts.join(', ')}`;
-};
-
-const cardsAIConceptsPrompt = async (cards : Card[], concepts : StringCardMap, model : AIModelName) : Promise<[prompt : string, ids : CardID[]]> => {
-	const cardContent = Object.fromEntries(cards.map(card => [card.id, conceptsPromptForCard(card, concepts)]));
+const cardsAIConceptsPrompt = async (concepts: string[], cards : Card[], model : AIModelName) : Promise<[prompt : string, ids : CardID[]]> => {
+	const cardContent = Object.fromEntries(cards.map(card => [card.id, cardPlainContent(card)]));
 	const filteredCards = cards.filter(card => cardContent[card.id]);
 	const items = filteredCards.map(card => cardContent[card.id]);
 
 	const [prompt, maxItemIndex] = await fitPrompt({
-		prefix: 'Below is a collection of cards, along with concepts from each card. Please suggest concepts that appear to be missing, prioritizing concepts that occur across multiple cards. Concepts should be text that comes directly from the card. Each concept should be just the concept itself, with no explanation. Return a JSON array.\n\nCards:',
+		prefix: `Here is a collection of all concepts:\n\n${concepts.join(', ')}\n\nBelow is a collection of cards. Please suggest concepts that appear to be missing, prioritizing concepts that occur across multiple cards. Concepts should be text that comes directly from the card. Each concept should be just the concept itself, with no explanation. Return a JSON array.\n\nCards:`,
 		suffix: 'Missing concepts:\n',
 		items,
 		maxTokenLength: MODEL_INFO[model].maxTokens
@@ -390,8 +378,8 @@ export const missingConceptsWithAI = () : ThunkSomeAction => async (dispatch, ge
 	dispatch(aiRequestStarted(AI_DIALOG_TYPE_MISSING_CONCEPTS, model));
 
 	const reversedConcepts = selectConcepts(state);
-	const concepts : StringCardMap = Object.fromEntries(Object.entries(reversedConcepts).map(entry => [entry[1], entry[0]]));
-	const [prompt, ids] = await cardsAIConceptsPrompt(cards, concepts, model);
+	const concepts = Object.keys(reversedConcepts);
+	const [prompt, ids] = await cardsAIConceptsPrompt(concepts, cards, model);
 	dispatch({
 		type: AI_SET_ACTIVE_CARDS,
 		allCards: cards.map(card => card.id),
