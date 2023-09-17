@@ -120,7 +120,7 @@ const openai = new OpenAIProxy();
 
 const CARD_SEPARATOR = '\n-----\n';
 
-type modelName = 'gpt-3.5-turbo' | 'gpt-3.5-turbo-16k';
+type modelName = 'gpt-3.5-turbo' | 'gpt-3.5-turbo-16k' | 'gpt-4' | 'gpt-4-32k';
 
 type modelInfo = {
 	maxTokens: number
@@ -133,12 +133,20 @@ const MODEL_INFO : {[name in modelName]: modelInfo} = {
 	'gpt-3.5-turbo-16k': {
 		//According to https://platform.openai.com/docs/models/gpt-3-5
 		maxTokens: 16384
+	},
+	'gpt-4': {
+		maxTokens: 8192
+	},
+	'gpt-4-32k': {
+		maxTokens: 32768
 	}
 };
 
-const DEFAULT_MODEL : modelName = 'gpt-3.5-turbo';
+const USE_HIGH_FIDELITY_MODEL = false;
 
-const DEFAULT_LONG_MODEL : modelName = 'gpt-3.5-turbo-16k';
+const DEFAULT_MODEL : modelName = USE_HIGH_FIDELITY_MODEL ? 'gpt-4' : 'gpt-3.5-turbo';
+
+const DEFAULT_LONG_MODEL : modelName = USE_HIGH_FIDELITY_MODEL ? 'gpt-4-32k' : 'gpt-3.5-turbo-16k';
 
 const completion = async (prompt: string, uid: Uid, model: modelName = DEFAULT_MODEL) : Promise<string> => {
 	const result = await openai.createChatCompletion({
