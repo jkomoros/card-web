@@ -64,7 +64,7 @@ import {
 } from './editor.js';
 
 import {
-	ThunkResult, ThunkSomeAction
+	ThunkSomeAction
 } from '../store.js';
 
 import {
@@ -88,7 +88,7 @@ export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
 
 export const PLACEHOLDER_CARD_ID_CHARACTER = '_';
 
-export const updateCardSelector = (cardSelector : string) : ThunkResult => (dispatch, getState) => {
+export const updateCardSelector = (cardSelector : string) : ThunkSomeAction => (dispatch, getState) => {
 
 	const queryParts = cardSelector.split('?');
 
@@ -201,7 +201,7 @@ export const updateRenderOffset = (renderOffset : number) : SomeAction => {
 	};
 };
 
-export const refreshCardSelector = (forceCommit? : boolean) : ThunkResult => (dispatch, getState) => {
+export const refreshCardSelector = (forceCommit? : boolean) : ThunkSomeAction => (dispatch, getState) => {
 	//Called when cards and sections update, just in case we now have
 	//information to do this better. Also called when stars and reads update,
 	//because if we're filtering to one of those filters we might not yet know
@@ -243,7 +243,7 @@ export const refreshCardSelector = (forceCommit? : boolean) : ThunkResult => (di
 	dispatch(updateCardSelector(pageExtra));
 };
 
-export const canonicalizeURL = () : ThunkResult => (dispatch, getState) => {
+export const canonicalizeURL = () : ThunkSomeAction => (dispatch, getState) => {
 
 	//Called to ensure that the URL is canonical given activeSet, activeFilters, etc.
 
@@ -336,7 +336,7 @@ const cardIdForPlaceholder = (requestedCard : CardID, collection : Card[]) : Car
 	return collection[0].id;
 };
 
-export const redirectIfInvalidCardOrCollection = () : ThunkResult => (dispatch, getState) => {
+export const redirectIfInvalidCardOrCollection = () : ThunkSomeAction => (dispatch, getState) => {
 
 	//This routine is called to make sure that if there is a valid card, we're
 	//actually sitting in a collection that contains it. If we aren't, we
@@ -433,7 +433,7 @@ const randomizeSalt = () : SomeAction => {
 	};
 };
 
-export const randomizeCollection = () : ThunkResult => (dispatch, getState) => {
+export const randomizeCollection = () : ThunkSomeAction => (dispatch, getState) => {
 	dispatch(randomizeSalt());
 	//Only show card if it's the default page ('c') where a card collection is selected
 	if (selectPage(getState()) != PAGE_DEFAULT) return;
@@ -443,7 +443,7 @@ export const randomizeCollection = () : ThunkResult => (dispatch, getState) => {
 	dispatch(showCard());
 };
 
-export const navigateToRandomCard = () : ThunkResult => (dispatch) => {
+export const navigateToRandomCard = () : ThunkSomeAction => (dispatch) => {
 	dispatch(navigateToCollection(RANDOM_CARD_COLLECTION));
 	dispatch(randomizeCollection());
 };
