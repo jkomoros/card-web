@@ -1,22 +1,3 @@
-export const UPDATE_CARDS = 'UPDATE_CARDS';
-export const UPDATE_SECTIONS = 'UPDATE_SECTIONS';
-export const UPDATE_TAGS = 'UPDATE_TAGS';
-export const UPDATE_AUTHORS= 'UPDATE_AUTHORS';
-export const UPDATE_TWEETS = 'UPDATE_TWEETS';
-export const REMOVE_CARDS = 'REMOVE_CARDS';
-export const TWEETS_LOADING = 'TWEETS_LOADING';
-export const MODIFY_CARD = 'MODIFY_CARD';
-export const MODIFY_CARD_SUCCESS = 'MODIFY_CARD_SUCCESS';
-export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
-export const REORDER_STATUS = 'REORDER_STATUS';
-export const SET_PENDING_SLUG = 'SET_PENDING_SLUG';
-export const EXPECT_NEW_CARD = 'EXPECT_NEW_CARD';
-export const EXPECTED_NEW_CARD_FAILED = 'EXPECTED_NEW_CARD_FAILED';
-export const NAVIGATED_TO_NEW_CARD = 'NAVIGATED_TO_NEW_CARD';
-export const EXPECT_CARD_DELETIONS = 'EXPECT_CARD_DELETIONS';
-export const COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED = 'COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED';
-export const EXPECT_UNPUBLISHED_CARDS = 'EXPECT_UNPUBLISHED_CARDS';
-
 import {
 	slugLegal
 } from './database.js';
@@ -161,6 +142,7 @@ import {
 
 import {
 	ThunkResult,
+	ThunkSomeAction,
 	store
 } from '../store.js';
 
@@ -185,12 +167,30 @@ import {
 	Tags,
 	CardBooleanMap,
 	CreateCardOpts,
+	TweetMap,
 } from '../types.js';
 
 import {
-	AnyAction
-} from 'redux';
-
+	COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED,
+	EXPECTED_NEW_CARD_FAILED,
+	EXPECT_CARD_DELETIONS,
+	EXPECT_NEW_CARD,
+	EXPECT_UNPUBLISHED_CARDS,
+	MODIFY_CARD,
+	MODIFY_CARD_FAILURE,
+	MODIFY_CARD_SUCCESS,
+	NAVIGATED_TO_NEW_CARD,
+	REMOVE_CARDS,
+	REORDER_STATUS,
+	SET_PENDING_SLUG,
+	SomeAction,
+	TWEETS_LOADING,
+	UPDATE_AUTHORS,
+	UPDATE_CARDS,
+	UPDATE_SECTIONS,
+	UPDATE_TAGS,
+	UPDATE_TWEETS
+} from '../actions.js';
 
 //map of cardID => promiseResolver that's waiting
 const waitingForCards : {[id : CardID]: ((card : Card) => void)[]} = {};
@@ -481,7 +481,7 @@ export const reorderCard = (cardID : CardID, otherID: CardID, isAfter : boolean)
 
 };
 
-const setPendingSlug = (slug : Slug) : AnyAction => {
+const setPendingSlug = (slug : Slug) : SomeAction => {
 	return {
 		type:SET_PENDING_SLUG,
 		slug
@@ -710,7 +710,7 @@ export const defaultCardObject = (id : CardID, user : UserInfo, section : Sectio
 // noNavigate: if true, will not navigate to the card when created
 // title: title of card
 
-export const createCard = (opts : CreateCardOpts) : ThunkResult => async (dispatch, getState) => {
+export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (dispatch, getState) => {
 
 	//NOTE: if you modify this card you may also want to modify createForkedCard
 
@@ -1079,7 +1079,7 @@ export const createForkedCard = (cardToFork : Card) : ThunkResult => async (disp
 	//(if EXPECT_NEW_CARD was dispatched above)
 };
 
-export const deleteCard = (card : Card) : ThunkResult => async (dispatch, getState) => {
+export const deleteCard = (card : Card) : ThunkSomeAction => async (dispatch, getState) => {
 
 	const state = getState();
 
@@ -1141,19 +1141,19 @@ export const navigateToNewCard = () : ThunkResult => (dispatch, getState) => {
 	dispatch(navigateToCardInCurrentCollection(ID));
 };
 
-export const navigatedToNewCard = () : AnyAction => {
+export const navigatedToNewCard = () : SomeAction => {
 	return {
 		type:NAVIGATED_TO_NEW_CARD,
 	};
 };
 
-const modifyCardAction = () : AnyAction => {
+const modifyCardAction = () : SomeAction => {
 	return {
 		type: MODIFY_CARD,
 	};
 };
 
-const modifyCardSuccess = () : ThunkResult => (dispatch, getState) => {
+const modifyCardSuccess = () : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	if (selectIsEditing(state)) {
 		dispatch(editingFinish());
@@ -1166,7 +1166,7 @@ const modifyCardSuccess = () : ThunkResult => (dispatch, getState) => {
 	});
 };
 
-const modifyCardFailure = (err : Error, skipAlert? : boolean) : AnyAction => {
+const modifyCardFailure = (err : Error, skipAlert? : boolean) : SomeAction => {
 	if (skipAlert) {
 		console.warn(err);
 	} else {
@@ -1178,14 +1178,14 @@ const modifyCardFailure = (err : Error, skipAlert? : boolean) : AnyAction => {
 	};
 };
 
-export const reorderStatus = (pending : boolean) : AnyAction => {
+export const reorderStatus = (pending : boolean) : SomeAction => {
 	return {
 		type: REORDER_STATUS,
 		pending
 	};
 };
 
-export const updateSections = (sections : Sections) : ThunkResult => (dispatch, getState) => {
+export const updateSections = (sections : Sections) : ThunkSomeAction => (dispatch, getState) => {
 	dispatch({
 		type: UPDATE_SECTIONS,
 		sections,
@@ -1200,7 +1200,7 @@ export const updateSections = (sections : Sections) : ThunkResult => (dispatch, 
 	dispatch(refreshCardSelector(force));
 };
 
-export const updateAuthors = (authors : AuthorsMap) : ThunkResult => (dispatch, getState) => {
+export const updateAuthors = (authors : AuthorsMap) : ThunkSomeAction => (dispatch, getState) => {
 
 	const state = getState();
 
@@ -1230,7 +1230,7 @@ export const updateAuthors = (authors : AuthorsMap) : ThunkResult => (dispatch, 
 	});
 };
 
-export const updateTags = (tags : Tags) : ThunkResult => (dispatch) => {
+export const updateTags = (tags : Tags) : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type:UPDATE_TAGS,
 		tags,
@@ -1314,7 +1314,7 @@ export const removeCards = (cardIDs : CardID[], unpublished : boolean) : ThunkRe
 //card in the state wasn't put there by the unpublished side when this runs,
 //then it shouldn't be removed, because a more recent copy was put there by the
 //published side.
-const actuallyRemoveCards = (cardIDs : CardID[], unpublished : boolean) : ThunkResult => (dispatch, getState) => {
+const actuallyRemoveCards = (cardIDs : CardID[], unpublished : boolean) : ThunkSomeAction => (dispatch, getState) => {
 
 	const published = !unpublished;
 	const cards = selectCards(getState());
@@ -1332,7 +1332,7 @@ const actuallyRemoveCards = (cardIDs : CardID[], unpublished : boolean) : ThunkR
 	});
 };
 
-export const fetchTweets = (card : Card) : ThunkResult => async (dispatch) => {
+export const fetchTweets = (card : Card) : ThunkSomeAction => async (dispatch) => {
 
 	if (!card || Object.values(card).length == 0 || card.id == EMPTY_CARD_ID) return;
 
@@ -1352,7 +1352,7 @@ export const fetchTweets = (card : Card) : ThunkResult => async (dispatch) => {
 		return;
 	}
 
-	const tweets = Object.fromEntries(snapshot.docs.map(doc => [doc.id, doc.data()]));
+	const tweets = Object.fromEntries(snapshot.docs.map(doc => [doc.id, doc.data()])) as TweetMap;
 
 	dispatch({
 		type: UPDATE_TWEETS,
@@ -1360,7 +1360,7 @@ export const fetchTweets = (card : Card) : ThunkResult => async (dispatch) => {
 	});
 };
 
-export const expectUnpublishedCards = () : AnyAction => {
+export const expectUnpublishedCards = () : SomeAction => {
 	return {
 		type: EXPECT_UNPUBLISHED_CARDS,
 	};
@@ -1368,7 +1368,7 @@ export const expectUnpublishedCards = () : AnyAction => {
 
 //Denotes that we just did a pending filters commit when the data was fully
 //loaded... and shouldn't do it again.
-export const committedFiltersWhenFullyLoaded = () : AnyAction => {
+export const committedFiltersWhenFullyLoaded = () : SomeAction => {
 	return {
 		type: COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED,
 	};

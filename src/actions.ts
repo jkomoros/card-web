@@ -1,11 +1,19 @@
 import {
 	AIDialogType,
+	AuthorsMap,
 	Card,
+	CardBooleanMap,
 	CardID,
+	CardType,
+	Cards,
 	CommentMessages,
 	CommentThreads,
+	Sections,
 	SetName,
+	Slug,
 	SortName,
+	Tags,
+	TweetMap,
 	ViewMode
 } from './types';
 
@@ -50,6 +58,25 @@ export const RANDOMIZE_SALT = 'RANDOMIZE_SALT';
 export const COMMENTS_UPDATE_THREADS = 'COMMENTS_UPDATE_THREADS';
 export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
 export const COMMENTS_UPDATE_CARD_THREADS = 'COMMENTS_UPDATE_CARD_THREADS';
+//Data
+export const UPDATE_CARDS = 'UPDATE_CARDS';
+export const UPDATE_SECTIONS = 'UPDATE_SECTIONS';
+export const UPDATE_TAGS = 'UPDATE_TAGS';
+export const UPDATE_AUTHORS= 'UPDATE_AUTHORS';
+export const UPDATE_TWEETS = 'UPDATE_TWEETS';
+export const REMOVE_CARDS = 'REMOVE_CARDS';
+export const TWEETS_LOADING = 'TWEETS_LOADING';
+export const MODIFY_CARD = 'MODIFY_CARD';
+export const MODIFY_CARD_SUCCESS = 'MODIFY_CARD_SUCCESS';
+export const MODIFY_CARD_FAILURE = 'MODIFY_CARD_FAILURE';
+export const REORDER_STATUS = 'REORDER_STATUS';
+export const SET_PENDING_SLUG = 'SET_PENDING_SLUG';
+export const EXPECT_NEW_CARD = 'EXPECT_NEW_CARD';
+export const EXPECTED_NEW_CARD_FAILED = 'EXPECTED_NEW_CARD_FAILED';
+export const NAVIGATED_TO_NEW_CARD = 'NAVIGATED_TO_NEW_CARD';
+export const EXPECT_CARD_DELETIONS = 'EXPECT_CARD_DELETIONS';
+export const COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED = 'COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED';
+export const EXPECT_UNPUBLISHED_CARDS = 'EXPECT_UNPUBLISHED_CARDS';
 
 type ActionAIRequestStarted = {
 	type: typeof AI_REQUEST_STARTED,
@@ -222,6 +249,95 @@ type ActionCommentsUpdateMessages = {
 	messages: CommentMessages
 };
 
+type ActionUpdateCards = {
+	type: typeof UPDATE_CARDS,
+	cards: Cards,
+	unpublished: boolean
+};
+
+type ActionUpdateSections = {
+	type: typeof UPDATE_SECTIONS,
+	sections: Sections
+};
+
+type ActionUpdateTags = {
+	type: typeof UPDATE_TAGS,
+	tags: Tags
+};
+
+type ActionUpdateAuthors = {
+	type: typeof UPDATE_AUTHORS,
+	authors: AuthorsMap
+};
+
+type ActionUpdateTweets = {
+	type: typeof UPDATE_TWEETS,
+	tweets: TweetMap
+};
+
+type ActionRemoveCards = {
+	type: typeof REMOVE_CARDS,
+	cardIDs: CardID[]
+};
+
+type ActionTweetsLoading = {
+	type: typeof TWEETS_LOADING,
+	loading: boolean
+};
+
+type ActionModifyCard = {
+	type: typeof MODIFY_CARD
+};
+
+type ActionModifyCardSuccess = {
+	type: typeof MODIFY_CARD_SUCCESS
+};
+
+type ActionModifyCardFailure = {
+	type: typeof MODIFY_CARD_FAILURE,
+	error: Error
+};
+
+type ActionReorderStatus = {
+	type: typeof REORDER_STATUS,
+	pending: boolean
+};
+
+type ActionSetPendingSlug = {
+	type: typeof SET_PENDING_SLUG,
+	slug: Slug
+};
+
+type ActionExpectNewCard = {
+	type: typeof EXPECT_NEW_CARD,
+	ID: CardID
+	cardType: CardType,
+	navigate: boolean,
+	noSectionChange: boolean,
+	published: boolean
+};
+
+type ActionExpectedNewCardFailed = {
+	type: typeof EXPECTED_NEW_CARD_FAILED
+};
+
+type ActionNavigatedToNewCard = {
+	type: typeof NAVIGATED_TO_NEW_CARD
+};
+
+type ActionExpectCardDeletions = {
+	type: typeof EXPECT_CARD_DELETIONS,
+	cards: CardBooleanMap
+};
+
+type ActionCommittedPendingFiltersWhenFullyLoaded = {
+	type: typeof COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED,
+};
+
+type ActionExpectUnpublishedCards = {
+	type: typeof EXPECT_UNPUBLISHED_CARDS
+};
+
 export type SomeAction = ActionAIRequestStarted
 	| ActionAIResult
 	| ActionAISelectResultIndex
@@ -257,4 +373,22 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionUpdateCollectionSnapshot
 	| ActionRandomizeSalt
 	| ActionCommentsUpdateThreads
-	| ActionCommentsUpdateMessages;
+	| ActionCommentsUpdateMessages
+	| ActionUpdateCards
+	| ActionUpdateSections
+	| ActionUpdateTags
+	| ActionUpdateAuthors
+	| ActionUpdateTweets
+	| ActionRemoveCards
+	| ActionTweetsLoading
+	| ActionModifyCard
+	| ActionModifyCardSuccess
+	| ActionModifyCardFailure
+	| ActionReorderStatus
+	| ActionSetPendingSlug
+	| ActionExpectNewCard
+	| ActionExpectedNewCardFailed
+	| ActionNavigatedToNewCard
+	| ActionExpectCardDeletions
+	| ActionCommittedPendingFiltersWhenFullyLoaded
+	| ActionExpectUnpublishedCards;

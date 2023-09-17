@@ -7,15 +7,12 @@ import {
 	UPDATE_COLLECTION,
 	UPDATE_RENDER_OFFSET,
 	UPDATE_COLLECTION_SHAPSHOT,
-	RANDOMIZE_SALT
-} from '../actions.js';
-
-import {
+	RANDOMIZE_SALT,
 	UPDATE_SECTIONS,
 	UPDATE_CARDS,
 	UPDATE_TAGS,
 	REMOVE_CARDS,
-} from '../actions/data.js';
+} from '../actions.js';
 
 import {
 	UPDATE_STARS,

@@ -1,7 +1,3 @@
-import {
-	AnyAction
-} from 'redux';
-
 import { 
 	UPDATE_CARDS,
 	UPDATE_SECTIONS,
@@ -20,7 +16,8 @@ import {
 	EXPECT_CARD_DELETIONS,
 	COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED,
 	EXPECT_UNPUBLISHED_CARDS,
-} from '../actions/data.js';
+	SomeAction,
+} from '../actions.js';
 
 import {
 	UPDATE_COLLECTION_SHAPSHOT
@@ -62,7 +59,7 @@ const INITIAL_STATE : DataState = {
 	pendingNewCardIDToNavigateTo: ''
 };
 
-const app = (state: DataState = INITIAL_STATE, action : AnyAction) : DataState => {
+const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState => {
 	switch (action.type) {
 	case EXPECT_NEW_CARD:
 		//This means that although we may think we're fully loaded now, there's

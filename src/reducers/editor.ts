@@ -51,7 +51,7 @@ import {
 
 import {
 	SET_PENDING_SLUG
-} from '../actions/data.js';
+} from '../actions.js';
 
 import {
 	arrayRemoveUtil,
