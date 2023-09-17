@@ -151,6 +151,7 @@ import {
 } from '../actions/data.js';
 
 import {
+	missingConceptsWithAI,
 	summarizeCardsWithAI
 } from '../actions/ai.js';
 
@@ -433,7 +434,8 @@ class CardView extends connect(store)(PageViewElement) {
 				<button id='edit-multi' class='small' title='Edit all cards' @click=${this._handleMultiEditClicked}>${EDIT_ICON}</button><label for='edit-multi'>Edit All Cards</label><br/>
 				` : ''}
 				${this._userMayUseAI ? html`
-				<button id ='ai-assistant' class='small' title='Summarize Cards with AI' @click=${this._handleAIAssistantClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assitant'>Summarize Cards</label><br/>` : ''}
+				<button id ='ai-assistant-summary' class='small' title='Summarize Cards with AI' @click=${this._handleAIAssistantSummaryClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assitant-summary'>Summarize Cards</label><br/>
+				<button id ='ai-assistant-concepts' class='small' title='Suggest Missing Concepts with AI' @click=${this._handleAIAssistantConceptsClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assitant-concepts'>Suggest Missing Concepts</label><br/>` : ''}
 				<button id='configure-collection' class='small' title='Configure Collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure Collection</label>
 			</div>
 			${this._collection.description.isRandom ? html`<div slot='visible-info'>
@@ -514,8 +516,12 @@ class CardView extends connect(store)(PageViewElement) {
 		store.dispatch(openConfigureCollectionDialog());
 	}
 
-	_handleAIAssistantClicked() {
+	_handleAIAssistantSummaryClicked() {
 		store.dispatch(summarizeCardsWithAI());
+	}
+
+	_handleAIAssistantConceptsClicked() {
+		store.dispatch(missingConceptsWithAI());
 	}
 
 	_handleSuggestMissingConceptsChanged(e : Event) {

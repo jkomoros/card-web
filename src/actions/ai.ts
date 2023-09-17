@@ -22,6 +22,7 @@ import {
 	selectAIResultIndex,
 	selectActiveCollectionCards,
 	selectCollectionConstructorArguments,
+	selectConcepts,
 	selectEditingCard,
 	selectIsEditing,
 	selectUid,
@@ -38,14 +39,17 @@ import {
 	CardID,
 	Uid,
 	AIDialogType,
-	State
+	State,
+	StringCardMap
 } from '../types.js';
 
 import {
 	AI_DIALOG_TYPE_CARD_SUMMARY,
+	AI_DIALOG_TYPE_MISSING_CONCEPTS,
 	AI_DIALOG_TYPE_SUGGEST_TITLE,
 	CARD_TYPE_CONTENT,
 	EVERYTHING_SET_NAME,
+	REFERENCE_TYPE_CONCEPT,
 	SORT_NAME_STARS,
 	TEXT_FIELD_TITLE
 } from '../type_constants.js';
@@ -71,6 +75,10 @@ import {
 	AI_SHOW_ERROR,
 	SomeAction
 } from '../actions.js';
+
+import {
+	references
+} from '../references.js';
 
 export type AIDialogTypeConfiguration = {
 	title: string;
@@ -233,6 +241,33 @@ const cardsAISummaryPrompt = async (cards : Card[], model : modelName) : Promise
 	return [prompt, ids];
 };
 
+const conceptsPromptForCard = (card : Card, conceptsMap: StringCardMap) : string => {
+	const content = cardPlainContent(card);
+	const concepts = references(card).typeClassArray(REFERENCE_TYPE_CONCEPT).map(conceptID => conceptsMap[conceptID]).filter(content => content);
+	return `${content}\nConcepts:${concepts.join(', ')}`;
+};
+
+const cardsAIConceptsPrompt = async (cards : Card[], concepts : StringCardMap, model : modelName) : Promise<[prompt : string, ids : CardID[]]> => {
+	const cardContent = Object.fromEntries(cards.map(card => [card.id, conceptsPromptForCard(card, concepts)]));
+	const filteredCards = cards.filter(card => cardContent[card.id]);
+	const items = filteredCards.map(card => cardContent[card.id]);
+
+	const [prompt, maxItemIndex] = await fitPrompt({
+		prefix: 'Below is a collection of cards, along with concepts from each card. Please suggest concepts that appear to be missing, prioritizing concepts that occur across multiple cards. Concepts should be text that comes directly from the card. Each concept should be just the concept itself, with no explanation. Return a JSON array.\n\nCards:',
+		suffix: 'Missing concepts:\n',
+		items,
+		maxTokenLength: MODEL_INFO[model].maxTokens
+	});
+
+	const ids = filteredCards.slice(0,maxItemIndex).map(card => card.id);
+
+	console.log('Asking AI assistant. Depending on how recently you ran it this might take some time to warmup.');
+
+	console.log('Prompt\n',prompt);
+
+	return [prompt, ids];
+};
+
 type aiErrorDetails = {
 	status: number;
 	statusText: string;
@@ -341,6 +376,36 @@ export const summarizeCardsWithAI = () : ThunkSomeAction => async (dispatch, get
 
 };
 
+export const missingConceptsWithAI = () : ThunkSomeAction => async (dispatch, getState) => {
+	const state = getState();
+	const mayUseAI = selectUserMayUseAI(state);
+	if (!mayUseAI) {
+		throw new Error('User does not have permission to use AI');
+	}
+	const uid = selectUid(state);
+	const cards = selectActiveCollectionCards(state);
+	dispatch(aiRequestStarted(AI_DIALOG_TYPE_MISSING_CONCEPTS));
+	const model = DEFAULT_HIGH_FIDELITY_MODEL;
+	const reversedConcepts = selectConcepts(state);
+	const concepts : StringCardMap = Object.fromEntries(Object.entries(reversedConcepts).map(entry => [entry[1], entry[0]]));
+	const [prompt, ids] = await cardsAIConceptsPrompt(cards, concepts, model);
+	dispatch({
+		type: AI_SET_ACTIVE_CARDS,
+		allCards: cards.map(card => card.id),
+		filteredCards: ids
+	});
+	let result = '';
+	try {
+		result = await completion(prompt, uid, model);
+		const lines = JSON.parse(result);
+		if (!Array.isArray(lines)) throw new Error('Not lines as expected');
+		dispatch(aiResult(lines));
+	} catch(err) {
+		dispatch(showAIError(err));
+	}
+
+};
+
 export const AI_DIALOG_TYPE_CONFIGURATION : {[key in AIDialogType] : AIDialogTypeConfiguration} = {
 	[AI_DIALOG_TYPE_CARD_SUMMARY]: {
 		title: 'Summarize Cards',
@@ -351,6 +416,10 @@ export const AI_DIALOG_TYPE_CONFIGURATION : {[key in AIDialogType] : AIDialogTyp
 		multiResult: true,
 		commitAction: commitTitleSuggestion,
 		rerunAction: titleForEditingCardWithAI
+	},
+	[AI_DIALOG_TYPE_MISSING_CONCEPTS]: {
+		title: 'Missing Concepts',
+		multiResult: true
 	}
 };
 
