@@ -153,6 +153,11 @@ export const FIND_UPDATE_SORT_BY_RECENT = 'FIND_UPDATE_SORT_BY_RECENT';
 //Maintenance
 export const UPDATE_EXECUTED_MAINTENANCE_TASKS = 'UPDATE_EXECUTED_MAINTENANCE_TASKS';
 export const UPDATE_MAINTENANCE_TASK_ACTIVE = 'UPDATE_MAINTENANCE_TASK_ACTIVE';
+//Multi-edit
+export const MULTI_EDIT_DIALOG_OPEN = 'MULTI_EDIT_DIALOG_OPEN';
+export const MULTI_EDIT_DIALOG_CLOSE ='MULTI_EDIT_DIALOG_CLOSE';
+export const MULTI_EDIT_DIALOG_ADD_REFERENCE = 'MULTI_EDIT_DIALOG_ADD_REFERENCE';
+export const MULTI_EDIT_DIALOG_REMOVE_REFERENCE = 'MULTI_EDIT_DIALOG_REMOVE_REFERENCE';
 
 type ActionAIRequestStarted = {
 	type: typeof AI_REQUEST_STARTED,
@@ -678,6 +683,26 @@ type ActionUpdateMaintenanceTaskActive = {
 	active: boolean
 };
 
+type ActionMultiEditDialogOpen = {
+	type: typeof MULTI_EDIT_DIALOG_OPEN
+};
+
+type ActionMultiEditDialogClose = {
+	type: typeof MULTI_EDIT_DIALOG_CLOSE
+};
+
+type ActionMultiEditDialogAddReference = {
+	type: typeof MULTI_EDIT_DIALOG_ADD_REFERENCE,
+	cardID: CardID,
+	referenceType: ReferenceType
+};
+
+type ActionMultiEditDialogRemoveReference = {
+	type: typeof MULTI_EDIT_DIALOG_REMOVE_REFERENCE,
+	cardID: CardID,
+	referenceType: ReferenceType
+};
+
 export type SomeAction = ActionAIRequestStarted
 	| ActionAIResult
 	| ActionAISelectResultIndex
@@ -782,4 +807,8 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionFindUpdateCardTypeFilter
 	| ActionFindUpdateSortByRecent
 	| ActionUpdateExecutedMaintenanceTasks
-	| ActionUpdateMaintenanceTaskActive;
+	| ActionUpdateMaintenanceTaskActive
+	| ActionMultiEditDialogOpen
+	| ActionMultiEditDialogClose
+	| ActionMultiEditDialogAddReference
+	| ActionMultiEditDialogRemoveReference;

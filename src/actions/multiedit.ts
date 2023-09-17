@@ -1,18 +1,9 @@
-export const MULTI_EDIT_DIALOG_OPEN = 'MULTI_EDIT_DIALOG_OPEN';
-export const MULTI_EDIT_DIALOG_CLOSE ='MULTI_EDIT_DIALOG_CLOSE';
-export const MULTI_EDIT_DIALOG_ADD_REFERENCE = 'MULTI_EDIT_DIALOG_ADD_REFERENCE';
-export const MULTI_EDIT_DIALOG_REMOVE_REFERENCE = 'MULTI_EDIT_DIALOG_REMOVE_REFERENCE';
-
-import {
-	AnyAction
-} from 'redux';
-
 import {
 	selectIsEditing
 } from '../selectors.js';
 
 import {
-	ThunkResult
+	ThunkSomeAction
 } from '../store.js';
 
 import {
@@ -20,7 +11,15 @@ import {
 	ReferenceType
 } from '../types.js';
 
-export const openMultiEditDialog = () : ThunkResult => (dispatch, getState) => {
+import {
+	MULTI_EDIT_DIALOG_ADD_REFERENCE,
+	MULTI_EDIT_DIALOG_CLOSE,
+	MULTI_EDIT_DIALOG_OPEN,
+	MULTI_EDIT_DIALOG_REMOVE_REFERENCE,
+	SomeAction
+} from '../actions.js';
+
+export const openMultiEditDialog = () : ThunkSomeAction => (dispatch, getState) => {
 
 	const state = getState();
 
@@ -33,13 +32,13 @@ export const openMultiEditDialog = () : ThunkResult => (dispatch, getState) => {
 	});
 };
 
-export const closeMultiEditDialog = () : AnyAction => {
+export const closeMultiEditDialog = () : SomeAction => {
 	return {
 		type: MULTI_EDIT_DIALOG_CLOSE
 	};
 };
 
-export const addReference = (cardID : CardID, referenceType : ReferenceType) : AnyAction => {
+export const addReference = (cardID : CardID, referenceType : ReferenceType) : SomeAction => {
 	return {
 		type: MULTI_EDIT_DIALOG_ADD_REFERENCE,
 		cardID,
@@ -47,7 +46,7 @@ export const addReference = (cardID : CardID, referenceType : ReferenceType) : A
 	};
 };
 
-export const removeReference = (cardID : CardID, referenceType : ReferenceType) : AnyAction => {
+export const removeReference = (cardID : CardID, referenceType : ReferenceType) : SomeAction => {
 	return {
 		type: MULTI_EDIT_DIALOG_REMOVE_REFERENCE,
 		cardID,

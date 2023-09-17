@@ -1,13 +1,9 @@
 import {
-	AnyAction
-} from 'redux';
-
-import {
 	MULTI_EDIT_DIALOG_OPEN,
 	MULTI_EDIT_DIALOG_CLOSE,
 	MULTI_EDIT_DIALOG_ADD_REFERENCE,
 	MULTI_EDIT_DIALOG_REMOVE_REFERENCE
-} from '../actions/multiedit.js';
+} from '../actions.js';
 
 import {
 	referencesEntriesDiffWithSet,
@@ -18,12 +14,16 @@ import {
 	MultiEditState
 } from '../types.js';
 
+import {
+	SomeAction
+} from '../actions.js';
+
 const INITIAL_STATE : MultiEditState = {
 	open: false,
 	referencesDiff: [],
 };
 
-const app = (state : MultiEditState = INITIAL_STATE, action : AnyAction) : MultiEditState => {
+const app = (state : MultiEditState = INITIAL_STATE, action : SomeAction) : MultiEditState => {
 	switch (action.type) {
 	case MULTI_EDIT_DIALOG_OPEN:
 		return {
