@@ -53,12 +53,23 @@ import {
 import {
 	textFieldUpdated
 } from './editor.js';
-import { CollectionDescription } from '../collection_description.js';
-import { limitConfigurableFilterText } from '../filters.js';
+
+import {
+	CollectionDescription
+} from '../collection_description.js';
+
+import {
+	limitConfigurableFilterText
+} from '../filters.js';
 
 import {
 	AI_DIALOG_CLOSE,
-	AI_REQUEST_STARTED, AI_RESULT, AI_SELECT_RESULT_INDEX, AI_SET_ACTIVE_CARDS, AI_SHOW_ERROR, SomeAction
+	AI_REQUEST_STARTED,
+	AI_RESULT,
+	AI_SELECT_RESULT_INDEX,
+	AI_SET_ACTIVE_CARDS,
+	AI_SHOW_ERROR,
+	SomeAction
 } from '../actions.js';
 
 export type AIDialogTypeConfiguration = {
