@@ -128,13 +128,13 @@ const openai = new OpenAIProxy();
 
 const CARD_SEPARATOR = '\n-----\n';
 
-type modelName = 'gpt-3.5-turbo' | 'gpt-3.5-turbo-16k' | 'gpt-4' | 'gpt-4-32k';
+type AIModelName = 'gpt-3.5-turbo' | 'gpt-3.5-turbo-16k' | 'gpt-4' | 'gpt-4-32k';
 
 type modelInfo = {
 	maxTokens: number
 };
 
-const MODEL_INFO : {[name in modelName]: modelInfo} = {
+const MODEL_INFO : {[name in AIModelName]: modelInfo} = {
 	'gpt-3.5-turbo': {
 		maxTokens: 4096
 	},
@@ -154,12 +154,12 @@ const USE_HIGH_FIDELITY_MODEL = false;
 
 const DEFAULT_HIGH_FIDELITY_MODEL = 'gpt-4';
 
-const DEFAULT_MODEL : modelName = USE_HIGH_FIDELITY_MODEL ? DEFAULT_HIGH_FIDELITY_MODEL : 'gpt-3.5-turbo';
+const DEFAULT_MODEL : AIModelName = USE_HIGH_FIDELITY_MODEL ? DEFAULT_HIGH_FIDELITY_MODEL : 'gpt-3.5-turbo';
 
 //gpt-4-32k is limited access
-const DEFAULT_LONG_MODEL : modelName = USE_HIGH_FIDELITY_MODEL ? DEFAULT_HIGH_FIDELITY_MODEL : 'gpt-3.5-turbo-16k';
+const DEFAULT_LONG_MODEL : AIModelName = USE_HIGH_FIDELITY_MODEL ? DEFAULT_HIGH_FIDELITY_MODEL : 'gpt-3.5-turbo-16k';
 
-const completion = async (prompt: string, uid: Uid, model: modelName = DEFAULT_MODEL) : Promise<string> => {
+const completion = async (prompt: string, uid: Uid, model: AIModelName = DEFAULT_MODEL) : Promise<string> => {
 	const result = await openai.createChatCompletion({
 		model,
 		messages: [
@@ -220,7 +220,7 @@ const fitPrompt = async (args: FitPromptArguments) : Promise<[prompt: string, ma
 	return [result, i];
 };
 
-const cardsAISummaryPrompt = async (cards : Card[], model : modelName) : Promise<[prompt : string, ids : CardID[]]> => {
+const cardsAISummaryPrompt = async (cards : Card[], model : AIModelName) : Promise<[prompt : string, ids : CardID[]]> => {
 	const cardContent = Object.fromEntries(cards.map(card => [card.id, cardPlainContent(card)]));
 	const filteredCards = cards.filter(card => cardContent[card.id]);
 	const items = filteredCards.map(card => cardContent[card.id]);
@@ -247,7 +247,7 @@ const conceptsPromptForCard = (card : Card, conceptsMap: StringCardMap) : string
 	return `${content}\nConcepts:${concepts.join(', ')}`;
 };
 
-const cardsAIConceptsPrompt = async (cards : Card[], concepts : StringCardMap, model : modelName) : Promise<[prompt : string, ids : CardID[]]> => {
+const cardsAIConceptsPrompt = async (cards : Card[], concepts : StringCardMap, model : AIModelName) : Promise<[prompt : string, ids : CardID[]]> => {
 	const cardContent = Object.fromEntries(cards.map(card => [card.id, conceptsPromptForCard(card, concepts)]));
 	const filteredCards = cards.filter(card => cardContent[card.id]);
 	const items = filteredCards.map(card => cardContent[card.id]);
