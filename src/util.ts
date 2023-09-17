@@ -56,6 +56,10 @@ import {
 	normalizeLineBreaks,
 } from './contenteditable.js';
 
+export const assertUnreachable = (x : never) : never => {
+	throw new Error('Exhaustiveness check failed: ' + String(x));
+};
+
 //define this here and then re-export form app.js so this file doesn't need any
 //other imports.
 export const _PAGE_BASIC_CARD = 'basic-card';
@@ -839,7 +843,7 @@ export const setValueOnObj = (obj : {[field : string]: unknown}, fieldParts : st
 	const firstFieldPart = fieldParts[0];
 	//Modifies obj in place.
 	if (fieldParts.length == 1) {
-		//Base case, operate in place.
+		//Base case, operate in place.x
 		obj[firstFieldPart] = value;
 		return;
 	}
