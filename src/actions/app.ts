@@ -103,7 +103,6 @@ import {
 } from '../types.js';
 
 import {
-	ThunkResult,
 	ThunkSomeAction
 } from '../store.js';
 
@@ -135,7 +134,7 @@ import {
 } from '../actions.js';
 
 //if silent is true, then just passively updates the URL to reflect what it should be.
-export const navigatePathTo = (path : string, silent? : boolean) : ThunkResult => (dispatch, getState) => {
+export const navigatePathTo = (path : string, silent? : boolean) : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	//If we're already pointed there, no need to navigate
 	if ('/' + path === window.location.pathname) return;
@@ -151,7 +150,7 @@ export const navigatePathTo = (path : string, silent? : boolean) : ThunkResult =
 	dispatch(navigated(path, location.search));
 };
 
-export const navigateToNextCard = () : ThunkResult => (dispatch, getState) => {
+export const navigateToNextCard = () : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	let index = selectActiveCardIndex(state);
 	index++;
@@ -162,7 +161,7 @@ export const navigateToNextCard = () : ThunkResult => (dispatch, getState) => {
 	dispatch(navigateToCardInCurrentCollection(newCard.id));
 };
 
-export const navigateToPreviousCard = () : ThunkResult => (dispatch, getState) => {
+export const navigateToPreviousCard = () : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	let index = selectActiveCardIndex(state);
 	index--;
@@ -191,7 +190,7 @@ export const urlForTag = (tagName : TagID, optCardId? : CardID) : string => {
 //Should be called any time we might want to redirect to the given comment. For
 //example, when the redirect comment view boots, or when threads or messages are
 //loaded.
-export const refreshCommentRedirect = () : ThunkResult => (dispatch, getState) => {
+export const refreshCommentRedirect = () : ThunkSomeAction => (dispatch, getState) => {
 	//Called when cards and sections update, just in case we now have
 	//information to do this better. Also called when stars and reads update,
 	//because if we're filtering to one of those filters we might not yet know
@@ -204,7 +203,7 @@ export const refreshCommentRedirect = () : ThunkResult => (dispatch, getState) =
 	dispatch(navigateToComment(pageExtra));
 };
 
-export const navigateToComment = (commentId : CommentMessageID | CommentThreadID) : ThunkResult => (dispatch, getState) => {
+export const navigateToComment = (commentId : CommentMessageID | CommentThreadID) : ThunkSomeAction => (dispatch, getState) => {
 	//commentId is either a thread or message id.
 	const state = getState();
 	if (!selectCommentsAreFullyLoaded(state)) return;
@@ -225,7 +224,7 @@ export const navigateToComment = (commentId : CommentMessageID | CommentThreadID
 
 //navigateToDefaultIfSectionsLoaded will navigate to default if sections are
 //loaded. If they aren't, it won't do anything.
-export const navigateToDefaultIfSectionsAndTagsLoaded = (silent? : boolean) : ThunkResult => (dispatch, getState) => {
+export const navigateToDefaultIfSectionsAndTagsLoaded = (silent? : boolean) : ThunkSomeAction => (dispatch, getState) => {
 	const defaultCollectionDescription = selectDefaultCollectionDescription(getState());
 	if (!defaultCollectionDescription) {
 		//must not have loaded yet
@@ -234,7 +233,7 @@ export const navigateToDefaultIfSectionsAndTagsLoaded = (silent? : boolean) : Th
 	dispatch(navigatePathTo('/' + PAGE_DEFAULT + '/' + defaultCollectionDescription.serialize(), silent));
 };
 
-export const navigateToCardInCurrentCollection = (cardID : CardID, silent? : boolean) : ThunkResult => (dispatch, getState) => {
+export const navigateToCardInCurrentCollection = (cardID : CardID, silent? : boolean) : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	const cardIndexinActiveCollection = getCardIndexForActiveCollection(state, cardID);
 	if (cardIndexinActiveCollection < 0) {
@@ -253,7 +252,7 @@ export const navigateToCardInCurrentCollection = (cardID : CardID, silent? : boo
 };
 
 //if card is not provided, will try to navigate to default if sections loaded.
-export const navigateToCardInDefaultCollection = (cardOrId : Card | CardID, silent? : boolean) : ThunkResult => (dispatch) => {
+export const navigateToCardInDefaultCollection = (cardOrId : Card | CardID, silent? : boolean) : ThunkSomeAction => (dispatch) => {
 	const path = urlForCard(cardOrId);
 	if (!path) {
 		dispatch(navigateToDefaultIfSectionsAndTagsLoaded(silent));
@@ -261,13 +260,13 @@ export const navigateToCardInDefaultCollection = (cardOrId : Card | CardID, sile
 	dispatch(navigatePathTo(path, silent));
 };
 
-export const navigateToCollectionWithAboutConcept = (conceptStr : string) : ThunkResult => (dispatch, getState) => {
+export const navigateToCollectionWithAboutConcept = (conceptStr : string) : ThunkSomeAction => (dispatch, getState) => {
 	const collection = selectActiveCollectionDescription(getState());
 	const newCollection = collectionDescriptionWithConfigurableFilter(collection, aboutConceptConfigurableFilterText(conceptStr));
 	dispatch(navigateToCollection(newCollection));
 };
 
-export const navigateToCollectionWithQuery = (queryText : string) : ThunkResult => (dispatch, getState) => {
+export const navigateToCollectionWithQuery = (queryText : string) : ThunkSomeAction => (dispatch, getState) => {
 	const collection = selectActiveCollectionDescription(getState());
 	const newCollection = collectionDescriptionWithQuery(collection, queryText);
 	dispatch(navigateToCollection(newCollection));
@@ -281,7 +280,7 @@ export const navigateToCollection = (collection : CollectionDescription) => {
 	return navigatePathTo(urlForCollection(collection));
 };
 
-export const navigated = (path : string, query : string) : ThunkResult => (dispatch) => {
+export const navigated = (path : string, query : string) : ThunkSomeAction => (dispatch) => {
 
 	// Extract the page name from path.
 	const page = path === '/' ? PAGE_DEFAULT : path.slice(1);
@@ -292,7 +291,7 @@ export const navigated = (path : string, query : string) : ThunkResult => (dispa
 
 };
 
-const loadPage = (pathname : string, query : string) : ThunkResult => (dispatch) => {
+const loadPage = (pathname : string, query : string) : ThunkSomeAction => (dispatch) => {
 
 	//pathname is the whole path minus starting '/', like 'c/VIEW_ID'
 	const pieces = pathname.split('/');
@@ -369,7 +368,7 @@ export const updateFetchedCard = (card : Card) : SomeAction => {
 	};
 };
 
-export const fetchCardLinkCardsForFetchedCard = (fetchedCard : Card) : ThunkResult => async (dispatch, getState) =>{
+export const fetchCardLinkCardsForFetchedCard = (fetchedCard : Card) : ThunkSomeAction => async (dispatch, getState) =>{
 	if (!fetchedCard || Object.values(fetchedCard).length == 0) return;
 
 	//If all of the cards were already fetched we can bail early.
@@ -421,7 +420,7 @@ export const fetchCard = (cardIDOrSlug : CardIdentifier) : ThunkSomeAction => as
 
 //A generic commit action, depending on what is happening. If editing, commit
 //the edit. If composing, commit the compose.
-export const doCommit = () : ThunkResult => (dispatch, getState) => {
+export const doCommit = () : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	if (selectIsEditing(state)) {
 		dispatch(editingCommit());
@@ -580,7 +579,7 @@ const closeCardsDrawerInfo = () : SomeAction => {
 	};
 };
 
-export const toggleCardsDrawerInfo = () : ThunkResult => (dispatch, getState) => {
+export const toggleCardsDrawerInfo = () : ThunkSomeAction => (dispatch, getState) => {
 	const isOpen = selectCardsDrawerInfoExpanded(getState());
 	dispatch(isOpen ? closeCardsDrawerInfo() : openCardsDrawerInfo());
 };
