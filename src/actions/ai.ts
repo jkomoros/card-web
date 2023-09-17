@@ -82,7 +82,7 @@ import {
 
 export type AIDialogTypeConfiguration = {
 	title: string;
-	multiResult: boolean;
+	resultType: 'text-block' | 'multi-line';
 	commitAction? : () => ThunkSomeAction;
 	//For prompts that give different results, a rerun action.
 	rerunAction? : () => ThunkSomeAction;
@@ -409,17 +409,17 @@ export const missingConceptsWithAI = () : ThunkSomeAction => async (dispatch, ge
 export const AI_DIALOG_TYPE_CONFIGURATION : {[key in AIDialogType] : AIDialogTypeConfiguration} = {
 	[AI_DIALOG_TYPE_CARD_SUMMARY]: {
 		title: 'Summarize Cards',
-		multiResult: false,
+		resultType: 'text-block',
 	},
 	[AI_DIALOG_TYPE_SUGGEST_TITLE]: {
 		title: 'Suggest Title',
-		multiResult: true,
+		resultType: 'multi-line',
 		commitAction: commitTitleSuggestion,
 		rerunAction: titleForEditingCardWithAI
 	},
 	[AI_DIALOG_TYPE_MISSING_CONCEPTS]: {
 		title: 'Missing Concepts',
-		multiResult: true
+		resultType: 'multi-line'
 	}
 };
 

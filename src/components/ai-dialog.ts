@@ -47,6 +47,7 @@ import {
 } from '../types.js';
 
 import './tag-list.js';
+import { assertUnreachable } from '../util.js';
 
 @customElement('ai-dialog')
 class AIDialog extends connect(store)(DialogElement) {
@@ -119,10 +120,14 @@ class AIDialog extends connect(store)(DialogElement) {
 	_renderResult() {
 		let result = this._result;
 		if (!result || result.length == 0) result = [''];
-		if (this._kindConfig.multiResult) {
+		switch(this._kindConfig.resultType) {
+		case 'text-block':
+			return html`<textarea readonly id='result' .value=${result[0]}></textarea>`;
+		case 'multi-line':
 			return result.map((item, index) => html`<div><input type='radio' name='result' .value=${index} id=${'result-' + index} .checked=${this._selectedIndex == index} @change=${this._selectedIndexChanged}></input><label class='large' for=${'result-' + index}>${item}</label></div>`);
+		default:
+			return assertUnreachable(this._kindConfig.resultType);
 		}
-		return html`<textarea readonly id='result' .value=${result[0]}></textarea>`;
 	}
 
 	_selectedIndexChanged(e : InputEvent) {
@@ -146,7 +151,7 @@ class AIDialog extends connect(store)(DialogElement) {
 			<div class='buttons'>
 				${this._kindConfig.rerunAction ? html`<button class='round' @click=${this._rerunAction}>${CASINO_ICON}</button>` : ''}
 				${this._kindConfig.commitAction ? html`<button class='round' @click=${this._shouldClose}>${CANCEL_ICON}</button>` : ''}
-				<button class='round' @click='${this._handleDoneClicked}' .disabled=${this._kindConfig.multiResult && this._selectedIndex < 0}>${CHECK_CIRCLE_OUTLINE_ICON}</button>
+				<button class='round' @click='${this._handleDoneClicked}' .disabled=${this._kindConfig.resultType == 'multi-line' && this._selectedIndex < 0}>${CHECK_CIRCLE_OUTLINE_ICON}</button>
 			</div>
 		</div>`;
 	}
