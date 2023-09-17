@@ -1,14 +1,11 @@
 import {
-	AnyAction
-} from 'redux';
-
-import {
 	AI_REQUEST_STARTED,
 	AI_RESULT,
 	AI_DIALOG_CLOSE,
 	AI_SET_ACTIVE_CARDS,
 	AI_SHOW_ERROR,
-	AI_SELECT_RESULT_INDEX
+	AI_SELECT_RESULT_INDEX,
+	SomeAction
 } from '../actions.js';
 
 import {
@@ -30,7 +27,7 @@ const INITIAL_STATE : AIState = {
 	filteredCards: []
 };
 
-const app = (state : AIState = INITIAL_STATE, action : AnyAction) : AIState => {
+const app = (state : AIState = INITIAL_STATE, action : SomeAction) : AIState => {
 	switch (action.type) {
 	case AI_REQUEST_STARTED:
 		return {
