@@ -144,10 +144,12 @@ const MODEL_INFO : {[name in modelName]: modelInfo} = {
 
 const USE_HIGH_FIDELITY_MODEL = false;
 
-const DEFAULT_MODEL : modelName = USE_HIGH_FIDELITY_MODEL ? 'gpt-4' : 'gpt-3.5-turbo';
+const DEFAULT_HIGH_FIDELITY_MODEL = 'gpt-4';
+
+const DEFAULT_MODEL : modelName = USE_HIGH_FIDELITY_MODEL ? DEFAULT_HIGH_FIDELITY_MODEL : 'gpt-3.5-turbo';
 
 //gpt-4-32k is limited access
-const DEFAULT_LONG_MODEL : modelName = USE_HIGH_FIDELITY_MODEL ? 'gpt-4' : 'gpt-3.5-turbo-16k';
+const DEFAULT_LONG_MODEL : modelName = USE_HIGH_FIDELITY_MODEL ? DEFAULT_HIGH_FIDELITY_MODEL : 'gpt-3.5-turbo-16k';
 
 const completion = async (prompt: string, uid: Uid, model: modelName = DEFAULT_MODEL) : Promise<string> => {
 	const result = await openai.createChatCompletion({
