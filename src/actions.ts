@@ -23,6 +23,7 @@ import {
 	EditorTab,
 	ImageInfoProperty,
 	ImageInfoPropertyValue,
+	MaintenanceTaskMap,
 	ProcessedCard,
 	ReferenceType,
 	SectionID,
@@ -149,6 +150,9 @@ export const FIND_CARD_TO_PERMISSION = PERMISSION;
 export const FIND_CARD_TO_REFERENCE = REFRENCE;
 export const FIND_UPDATE_CARD_TYPE_FILTER = 'FIND_UPDATE_CARD_TYPE_FILTER';
 export const FIND_UPDATE_SORT_BY_RECENT = 'FIND_UPDATE_SORT_BY_RECENT';
+//Maintenance
+export const UPDATE_EXECUTED_MAINTENANCE_TASKS = 'UPDATE_EXECUTED_MAINTENANCE_TASKS';
+export const UPDATE_MAINTENANCE_TASK_ACTIVE = 'UPDATE_MAINTENANCE_TASK_ACTIVE';
 
 type ActionAIRequestStarted = {
 	type: typeof AI_REQUEST_STARTED,
@@ -664,6 +668,16 @@ type ActionFindUpdateSortByRecent = {
 	sortByRecent: boolean
 };
 
+type ActionUpdateExecutedMaintenanceTasks = {
+	type: typeof UPDATE_EXECUTED_MAINTENANCE_TASKS,
+	executedTasks: MaintenanceTaskMap
+};
+
+type ActionUpdateMaintenanceTaskActive = {
+	type: typeof UPDATE_MAINTENANCE_TASK_ACTIVE,
+	active: boolean
+};
+
 export type SomeAction = ActionAIRequestStarted
 	| ActionAIResult
 	| ActionAISelectResultIndex
@@ -766,4 +780,6 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionFindCardToPermission
 	| ActionFindCardToReference
 	| ActionFindUpdateCardTypeFilter
-	| ActionFindUpdateSortByRecent;
+	| ActionFindUpdateSortByRecent
+	| ActionUpdateExecutedMaintenanceTasks
+	| ActionUpdateMaintenanceTaskActive;

@@ -1,11 +1,8 @@
-export const UPDATE_EXECUTED_MAINTENANCE_TASKS = 'UPDATE_EXECUTED_MAINTENANCE_TASKS';
-export const UPDATE_MAINTENANCE_TASK_ACTIVE = 'UPDATE_MAINTENANCE_TASK_ACTIVE';
-
 import {
 	AppThunkDispatch,
 	AppGetState,
 	store,
-	ThunkResult
+	ThunkSomeAction
 } from '../store.js';
 
 import {
@@ -110,12 +107,14 @@ import {
 } from './app.js';
 
 import {
-	AnyAction
-} from 'redux';
-
-import {
 	TypedObject
 } from '../typed_object.js';
+
+import {
+	SomeAction,
+	UPDATE_EXECUTED_MAINTENANCE_TASKS,
+	UPDATE_MAINTENANCE_TASK_ACTIVE
+} from '../actions.js';
 
 export const connectLiveExecutedMaintenanceTasks = () => {
 	onSnapshot(collection(db, MAINTENANCE_COLLECTION), snapshot => {
@@ -135,7 +134,7 @@ export const connectLiveExecutedMaintenanceTasks = () => {
 	});
 };
 
-const updateExecutedMaintenanceTasks = (executedTasks : MaintenanceTaskMap) : AnyAction => {
+const updateExecutedMaintenanceTasks = (executedTasks : MaintenanceTaskMap) : SomeAction => {
 	return {
 		type: UPDATE_EXECUTED_MAINTENANCE_TASKS,
 		executedTasks,
@@ -605,7 +604,7 @@ export const nextMaintenanceTaskName = (executedTasks : MaintenanceTaskMap) => {
 	return '';
 };
 
-const makeMaintenanceActionCreator = (taskName : MaintenanceTaskID, taskConfig : RawMaintenanceTaskDefinition) : () => ThunkResult => {
+const makeMaintenanceActionCreator = (taskName : MaintenanceTaskID, taskConfig : RawMaintenanceTaskDefinition) : () => ThunkSomeAction => {
 	const fn = taskConfig.fn;
 	return () => async (dispatch, getState) => {
 		const ref = doc(db, MAINTENANCE_COLLECTION, taskName);
@@ -678,7 +677,7 @@ interface RawMaintenanceTaskDefinition {
 }
 
 interface MaintenanceTaskDefinition extends RawMaintenanceTaskDefinition {
-	actionCreator: () => ThunkResult,
+	actionCreator: () => ThunkSomeAction,
 }
 
 /*
