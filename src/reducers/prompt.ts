@@ -1,14 +1,11 @@
 import {
-	AnyAction
-} from 'redux';
-
-import {
 	PROMPT_COMPOSE_SHOW,
 	PROMPT_COMPOSE_CANCEL,
 	PROMPT_COMPOSE_COMMIT,
 	PROMPT_COMPOSE_UPDATE_CONTENT,
 	PROMPT_CONFIGURE_ACTION,
-} from '../actions/prompt.js';
+	SomeAction
+} from '../actions.js';
 
 import {
 	PromptState
@@ -26,7 +23,7 @@ const INITIAL_STATE : PromptState = {
 	associatedId: '',
 };
 
-const app = (state : PromptState = INITIAL_STATE, action : AnyAction) : PromptState => {
+const app = (state : PromptState = INITIAL_STATE, action : SomeAction) : PromptState => {
 	switch (action.type) {
 	case PROMPT_COMPOSE_SHOW:
 		return {

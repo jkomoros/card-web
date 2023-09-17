@@ -17,8 +17,11 @@ import {
 	CardIdentifier,
 	CardType,
 	Cards,
+	CommentMessageID,
 	CommentMessages,
+	CommentThreadID,
 	CommentThreads,
+	CommitActionType,
 	EditorContentTab,
 	EditorTab,
 	ImageInfoProperty,
@@ -164,6 +167,12 @@ export const MULTI_EDIT_DIALOG_REMOVE_REFERENCE = 'MULTI_EDIT_DIALOG_REMOVE_REFE
 export const PERMISSIONS_UPDATE_PERMISSIONS = 'PERMISSIONS_UPDATE_PERMISSIONS';
 export const PERMISSIONS_START_ADD_CARD = 'PERMISSIONS_START_ADD_CARD';
 export const PERMISSIONS_RESET_ADD_CARD = 'PERMISSIONS_RESET_ADD_CARD';
+//Prompt
+export const PROMPT_COMPOSE_SHOW = 'PROMPT_COMPOSE_SHOW';
+export const PROMPT_COMPOSE_CANCEL = 'PROMPT_COMPOSE_CANCEL';
+export const PROMPT_COMPOSE_COMMIT = 'PROMPT_COMPOSE_COMMIT';
+export const PROMPT_COMPOSE_UPDATE_CONTENT = 'PROMPT_COMPOSE_UPDATE_CONTENT';
+export const PROMPT_CONFIGURE_ACTION = 'PROMPT_CONFIGURE_ACTION';
 
 type ActionAIRequestStarted = {
 	type: typeof AI_REQUEST_STARTED,
@@ -725,6 +734,31 @@ type ActionPermissionsResetAddCard = {
 	type: typeof PERMISSIONS_RESET_ADD_CARD
 };
 
+type ActionPromptComposeShow = {
+	type: typeof PROMPT_COMPOSE_SHOW,
+	message: string,
+	content: string
+};
+
+type ActionPromptComposeCancel = {
+	type: typeof PROMPT_COMPOSE_CANCEL
+};
+
+type ActionPromptComposeCommit = {
+	type: typeof PROMPT_COMPOSE_COMMIT
+};
+
+type ActionPromptComposeUpdateContent = {
+	type: typeof PROMPT_COMPOSE_UPDATE_CONTENT,
+	content: string
+};
+
+type ActionPromptConfigureAction = {
+	type: typeof PROMPT_CONFIGURE_ACTION,
+	action: CommitActionType,
+	associatedId: CommentMessageID | CommentThreadID
+};
+
 export type SomeAction = ActionAIRequestStarted
 	| ActionAIResult
 	| ActionAISelectResultIndex
@@ -836,4 +870,9 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionMultiEditDialogRemoveReference
 	| ActionPermissionsUpdatePermissions
 	| ActionPermissionsStartAddCard
-	| ActionPermissionsResetAddCard;
+	| ActionPermissionsResetAddCard
+	| ActionPromptComposeShow
+	| ActionPromptComposeCancel
+	| ActionPromptComposeCommit
+	| ActionPromptComposeUpdateContent
+	| ActionPromptConfigureAction;

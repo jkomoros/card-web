@@ -1,9 +1,3 @@
-export const PROMPT_COMPOSE_SHOW = 'PROMPT_COMPOSE_SHOW';
-export const PROMPT_COMPOSE_CANCEL = 'PROMPT_COMPOSE_CANCEL';
-export const PROMPT_COMPOSE_COMMIT = 'PROMPT_COMPOSE_COMMIT';
-export const PROMPT_COMPOSE_UPDATE_CONTENT = 'PROMPT_COMPOSE_UPDATE_CONTENT';
-export const PROMPT_CONFIGURE_ACTION = 'PROMPT_CONFIGURE_ACTION';
-
 import {
 	selectPromptAction,
 	selectPromptContent,
@@ -34,14 +28,19 @@ import {
 
 import {
 	AppThunkDispatch,
-	ThunkResult
+	ThunkSomeAction
 } from '../store.js';
 
 import {
-	AnyAction
-} from 'redux';
+	PROMPT_COMPOSE_CANCEL,
+	PROMPT_COMPOSE_COMMIT,
+	PROMPT_COMPOSE_SHOW,
+	PROMPT_COMPOSE_UPDATE_CONTENT,
+	PROMPT_CONFIGURE_ACTION,
+	SomeAction
+} from '../actions.js';
 
-export const configureCommitAction = (commitAction : CommitActionType, associatedId? : CommentMessageID | CommentThreadID) : AnyAction => {
+export const configureCommitAction = (commitAction : CommitActionType, associatedId? : CommentMessageID | CommentThreadID) : SomeAction => {
 	if (!associatedId) associatedId = '';
 	return {
 		type: PROMPT_CONFIGURE_ACTION,
@@ -50,7 +49,7 @@ export const configureCommitAction = (commitAction : CommitActionType, associate
 	};
 };
 
-export const composeShow = (message : string, starterContent : string) : AnyAction => {
+export const composeShow = (message : string, starterContent : string) : SomeAction => {
 	if (!starterContent) starterContent = '';
 	return {
 		type: PROMPT_COMPOSE_SHOW,
@@ -59,13 +58,13 @@ export const composeShow = (message : string, starterContent : string) : AnyActi
 	};
 };
 
-export const composeCancel = () : AnyAction => {
+export const composeCancel = () : SomeAction => {
 	return {
 		type: PROMPT_COMPOSE_CANCEL
 	};
 };
 
-export const composeCommit = () : ThunkResult => (dispatch, getState) => {
+export const composeCommit = () : ThunkSomeAction => (dispatch, getState) => {
 
 	const state = getState();
 
@@ -77,7 +76,7 @@ export const composeCommit = () : ThunkResult => (dispatch, getState) => {
 
 };
 
-export const composeUpdateContent = (content : string) : AnyAction => {
+export const composeUpdateContent = (content : string) : SomeAction => {
 	return {
 		type: PROMPT_COMPOSE_UPDATE_CONTENT,
 		content
