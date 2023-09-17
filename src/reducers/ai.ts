@@ -16,11 +16,16 @@ import {
 	AI_DIALOG_TYPE_CARD_SUMMARY
 } from '../type_constants.js';
 
+import {
+	DEFAULT_MODEL
+} from '../actions/ai.js';
+
 const INITIAL_STATE : AIState = {
 	open: false,
 	active: false,
 	kind: AI_DIALOG_TYPE_CARD_SUMMARY,
 	selectedIndex: -1,
+	model: DEFAULT_MODEL,
 	result: [],
 	error: '',
 	allCards: [],
@@ -35,6 +40,7 @@ const app = (state : AIState = INITIAL_STATE, action : SomeAction) : AIState => 
 			active: true,
 			open: true,
 			kind: action.kind,
+			model: action.model,
 			selectedIndex: -1,
 			allCards: [],
 			filteredCards: []

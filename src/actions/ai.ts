@@ -153,7 +153,7 @@ const USE_HIGH_FIDELITY_MODEL = false;
 
 const DEFAULT_HIGH_FIDELITY_MODEL = 'gpt-4';
 
-const DEFAULT_MODEL : AIModelName = USE_HIGH_FIDELITY_MODEL ? DEFAULT_HIGH_FIDELITY_MODEL : 'gpt-3.5-turbo';
+export const DEFAULT_MODEL : AIModelName = USE_HIGH_FIDELITY_MODEL ? DEFAULT_HIGH_FIDELITY_MODEL : 'gpt-3.5-turbo';
 
 //gpt-4-32k is limited access
 const DEFAULT_LONG_MODEL : AIModelName = USE_HIGH_FIDELITY_MODEL ? DEFAULT_HIGH_FIDELITY_MODEL : 'gpt-3.5-turbo-16k';
@@ -333,14 +333,16 @@ export const titleForEditingCardWithAI = (count = 5) : ThunkSomeAction => async 
 
 	if (!body) throw new Error('No body provided');
 
-	dispatch(aiRequestStarted(AI_DIALOG_TYPE_SUGGEST_TITLE));
+	const model = DEFAULT_MODEL;
+
+	dispatch(aiRequestStarted(AI_DIALOG_TYPE_SUGGEST_TITLE, model));
 
 	let prompt = 'The following is a short essay: ' + CARD_SEPARATOR + body + CARD_SEPARATOR;
 	prompt += 'Here are examples of good titles of other essays:' + CARD_SEPARATOR + selectGoodTitles(state).join('\n') + CARD_SEPARATOR;
 	prompt += `Append ${count} suggested titles for this essay. Each should be a pithy, clever summary that includes a verb in 35 characters or less. Put one title on each line.`;
 
 	try {
-		const result = await completion(prompt, uid);
+		const result = await completion(prompt, uid, model);
 		//The prompt keeps on returning numbered results no matter how I tweak it, so just remove that.
 		const lines = result.split('\n').map(str => str.replace(/^\d+\.\s*/, '').trim());
 		dispatch(aiResult(lines));
@@ -357,8 +359,9 @@ export const summarizeCardsWithAI = () : ThunkSomeAction => async (dispatch, get
 	}
 	const uid = selectUid(state);
 	const cards = selectActiveCollectionCards(state);
-	dispatch(aiRequestStarted(AI_DIALOG_TYPE_CARD_SUMMARY));
 	const model = DEFAULT_LONG_MODEL;
+	dispatch(aiRequestStarted(AI_DIALOG_TYPE_CARD_SUMMARY, model));
+
 	const [prompt, ids] = await cardsAISummaryPrompt(cards, model);
 	dispatch({
 		type: AI_SET_ACTIVE_CARDS,
@@ -383,8 +386,9 @@ export const missingConceptsWithAI = () : ThunkSomeAction => async (dispatch, ge
 	}
 	const uid = selectUid(state);
 	const cards = selectActiveCollectionCards(state);
-	dispatch(aiRequestStarted(AI_DIALOG_TYPE_MISSING_CONCEPTS));
 	const model = DEFAULT_HIGH_FIDELITY_MODEL;
+	dispatch(aiRequestStarted(AI_DIALOG_TYPE_MISSING_CONCEPTS, model));
+
 	const reversedConcepts = selectConcepts(state);
 	const concepts : StringCardMap = Object.fromEntries(Object.entries(reversedConcepts).map(entry => [entry[1], entry[0]]));
 	const [prompt, ids] = await cardsAIConceptsPrompt(cards, concepts, model);
@@ -422,10 +426,11 @@ export const AI_DIALOG_TYPE_CONFIGURATION : {[key in AIDialogType] : AIDialogTyp
 	}
 };
 
-const aiRequestStarted = (kind : AIDialogType) : SomeAction => {
+const aiRequestStarted = (kind : AIDialogType, model: AIModelName) : SomeAction => {
 	return {
 		type: AI_REQUEST_STARTED,
-		kind
+		kind,
+		model
 	};
 };
 

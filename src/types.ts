@@ -1191,6 +1191,7 @@ export type AIState = {
 	selectedIndex: number;
 	result: string[];
 	error: string;
+	model: AIModelName;
 	//All cards that it was told to operate on
 	allCards: CardID[];
 	//The actual cards the prompt includes

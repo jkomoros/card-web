@@ -1,5 +1,6 @@
 import {
 	AIDialogType,
+	AIModelName,
 	AuthorsMap,
 	Card,
 	CardBooleanMap,
@@ -80,7 +81,8 @@ export const EXPECT_UNPUBLISHED_CARDS = 'EXPECT_UNPUBLISHED_CARDS';
 
 type ActionAIRequestStarted = {
 	type: typeof AI_REQUEST_STARTED,
-	kind: AIDialogType
+	kind: AIDialogType,
+	model: AIModelName
 };
 
 type ActionAIResult = {
