@@ -8,7 +8,7 @@ import {
 	UPDATE_RENDER_OFFSET,
 	UPDATE_COLLECTION_SHAPSHOT,
 	RANDOMIZE_SALT
-} from '../actions/collection.js';
+} from '../actions.js';
 
 import {
 	UPDATE_SECTIONS,

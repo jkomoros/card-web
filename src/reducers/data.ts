@@ -24,7 +24,7 @@ import {
 
 import {
 	UPDATE_COLLECTION_SHAPSHOT
-} from '../actions/collection.js';
+} from '../actions.js';
 
 import {
 	DataState,

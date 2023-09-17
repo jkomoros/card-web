@@ -1,9 +1,3 @@
-export const SHOW_CARD = 'SHOW_CARD';
-export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
-export const UPDATE_RENDER_OFFSET = 'UPDATE_RENDER_OFFSET';
-export const UPDATE_COLLECTION_SHAPSHOT = 'UPDATE_COLLECTION_SHAPSHOT';
-export const RANDOMIZE_SALT = 'RANDOMIZE_SALT';
-
 //Collections are a complex conccept. The canonical (slightly out of date) documentation is at https://github.com/jkomoros/complexity-compendium/issues/60#issuecomment-451705854
 
 import {
@@ -70,7 +64,7 @@ import {
 } from './editor.js';
 
 import {
-	ThunkResult
+	ThunkResult, ThunkSomeAction
 } from '../store.js';
 
 import {
@@ -82,8 +76,13 @@ import {
 } from '../types.js';
 
 import {
-	AnyAction
-} from 'redux';
+	RANDOMIZE_SALT,
+	SHOW_CARD,
+	SomeAction,
+	UPDATE_COLLECTION,
+	UPDATE_COLLECTION_SHAPSHOT,
+	UPDATE_RENDER_OFFSET
+} from '../actions.js';
 
 export const FORCE_COLLECTION_URL_PARAM = 'force-collection';
 
@@ -165,7 +164,7 @@ export const updateCardSelector = (cardSelector : string) : ThunkResult => (disp
 	dispatch(showCard(cardIdOrSlug));
 };
 
-export const updateCollection = (setName : SetName, filters : string[], sortName : SortName, sortReversed : boolean, viewMode : ViewMode, viewModeExtra : string) : ThunkResult => (dispatch, getState) =>{	
+export const updateCollection = (setName : SetName, filters : string[], sortName : SortName, sortReversed : boolean, viewMode : ViewMode, viewModeExtra : string) : ThunkSomeAction => (dispatch, getState) =>{	
 	const state = getState();
 	const activeCollectionDescription = selectActiveCollectionDescription(state);
 	const newCollectionDescription = new CollectionDescription(setName, filters, sortName, sortReversed, viewMode, viewModeExtra);
@@ -191,11 +190,11 @@ export const updateCollection = (setName : SetName, filters : string[], sortName
 //the collection to cahnge at that moment. Often, we DON'T want it to change, to
 //emphasize consistency and so collections don't change as, for exmaple, a card
 //is read and you're viewing an unread filter set.
-export const updateCollectionSnapshot = () : AnyAction => {
+export const updateCollectionSnapshot = () : SomeAction => {
 	return {type:UPDATE_COLLECTION_SHAPSHOT};
 };
 
-export const updateRenderOffset = (renderOffset : number) : AnyAction => {
+export const updateRenderOffset = (renderOffset : number) : SomeAction => {
 	return {
 		type: UPDATE_RENDER_OFFSET,
 		renderOffset
@@ -367,7 +366,7 @@ export const redirectIfInvalidCardOrCollection = () : ThunkResult => (dispatch, 
 	dispatch(navigateToCardInDefaultCollection(card, false));
 };
 
-export const showCard = (requestedCard : CardID = PLACEHOLDER_CARD_ID_CHARACTER) : ThunkResult => (dispatch, getState) => {
+export const showCard = (requestedCard : CardID = PLACEHOLDER_CARD_ID_CHARACTER) : ThunkSomeAction => (dispatch, getState) => {
 
 	const state = getState();
 
@@ -428,7 +427,7 @@ export const showCard = (requestedCard : CardID = PLACEHOLDER_CARD_ID_CHARACTER)
 
 export const RANDOM_CARD_COLLECTION = new CollectionDescription(EVERYTHING_SET_NAME, [limitConfigurableFilterText(1)], SORT_NAME_RANDOM, false);
 
-const randomizeSalt = () : AnyAction => {
+const randomizeSalt = () : SomeAction => {
 	return {
 		type: RANDOMIZE_SALT,
 	};

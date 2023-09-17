@@ -1,7 +1,10 @@
 import {
 	AIDialogType,
 	Card,
-	CardID
+	CardID,
+	SetName,
+	SortName,
+	ViewMode
 } from './types';
 
 export const AI_REQUEST_STARTED = 'AI_REQUEST_STARTED';
@@ -33,6 +36,11 @@ export const UPDATE_CTRL_KEY_PRESSED = 'UPDATE_CTRL_KEY_PRESSED';
 export const OPEN_CARDS_DRAWER_INFO = 'OPEN_CARDS_DRAWER_INFO';
 export const CLOSE_CARDS_DRAWER_INFO = 'CLOSE_CARDS_DRAWER_INFO';
 export const TURN_SUGGEST_MISSING_CONCEPTS = 'TURN_SUGGEST_MISSING_CONCEPTS';
+export const SHOW_CARD = 'SHOW_CARD';
+export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
+export const UPDATE_RENDER_OFFSET = 'UPDATE_RENDER_OFFSET';
+export const UPDATE_COLLECTION_SHAPSHOT = 'UPDATE_COLLECTION_SHAPSHOT';
+export const RANDOMIZE_SALT = 'RANDOMIZE_SALT';
 
 type ActionAIRequestStarted = {
 	type: typeof AI_REQUEST_STARTED,
@@ -166,6 +174,35 @@ type ActionTurnSuggestedMissingConcepts = {
 	on: boolean
 };
 
+type ActionShowCard = {
+	type: typeof SHOW_CARD,
+	requestedCard: CardID,
+	card: CardID
+};
+
+type ActionUpdateCollection = {
+	type: typeof UPDATE_COLLECTION,
+	setName: SetName,
+	filters: string[],
+	sortName: SortName,
+	sortReversed: boolean,
+	viewMode: ViewMode,
+	viewModeExtra: string
+};
+
+type ActionUpdateRenderOffset = {
+	type: typeof UPDATE_RENDER_OFFSET,
+	renderOffset: number
+};
+
+type ActionUpdateCollectionSnapshot = {
+	type: typeof UPDATE_COLLECTION_SHAPSHOT
+};
+
+type ActionRandomizeSalt = {
+	type: typeof RANDOMIZE_SALT
+};
+
 export type SomeAction = ActionAIRequestStarted
 	| ActionAIResult
 	| ActionAISelectResultIndex
@@ -194,4 +231,9 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionUpdateCtrlKeyPressed
 	| ActionOpenCardsDrawerInfo
 	| ActionCloseCardsDrawerInfo
-	| ActionTurnSuggestedMissingConcepts;
+	| ActionTurnSuggestedMissingConcepts
+	| ActionShowCard
+	| ActionUpdateCollection
+	| ActionUpdateRenderOffset
+	| ActionUpdateCollectionSnapshot
+	| ActionRandomizeSalt;
