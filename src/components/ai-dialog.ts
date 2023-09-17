@@ -125,6 +125,8 @@ class AIDialog extends connect(store)(DialogElement) {
 			return html`<textarea readonly id='result' .value=${result[0]}></textarea>`;
 		case 'multi-line':
 			return result.map((item, index) => html`<div><input type='radio' name='result' .value=${index} id=${'result-' + index} .checked=${this._selectedIndex == index} @change=${this._selectedIndexChanged}></input><label class='large' for=${'result-' + index}>${item}</label></div>`);
+		case 'tag-list':
+			return html`<tag-list .tags=${result} .defaultColor=${'#006400'}></tag-list>`;
 		default:
 			return assertUnreachable(this._kindConfig.resultType);
 		}

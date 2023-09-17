@@ -82,7 +82,7 @@ import {
 
 export type AIDialogTypeConfiguration = {
 	title: string;
-	resultType: 'text-block' | 'multi-line';
+	resultType: 'text-block' | 'multi-line' | 'tag-list';
 	commitAction? : () => ThunkSomeAction;
 	//For prompts that give different results, a rerun action.
 	rerunAction? : () => ThunkSomeAction;
