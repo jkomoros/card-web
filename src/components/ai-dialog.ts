@@ -36,18 +36,23 @@ import {
 	selectTagInfosForCards,
 	selectAIError,
 	selectAIDialogKind,
-	selectAIResultIndex
+	selectAIResultIndex,
+	selectAIModel
 } from '../selectors.js';
 
 import {
 	AIDialogType,
+	AIModelName,
 	CardID,
 	State,
 	TagInfos
 } from '../types.js';
 
+import {
+	assertUnreachable
+} from '../util.js';
+
 import './tag-list.js';
-import { assertUnreachable } from '../util.js';
 
 @customElement('ai-dialog')
 class AIDialog extends connect(store)(DialogElement) {
@@ -76,6 +81,9 @@ class AIDialog extends connect(store)(DialogElement) {
 	@state()
 		_selectedIndex : number;
 
+	@state()
+		_model : AIModelName;
+
 	static override styles = [
 		...DialogElement.styles,
 		ButtonSharedStyles,
@@ -91,6 +99,10 @@ class AIDialog extends connect(store)(DialogElement) {
 				flex-grow:1;
 				width:100%;
 				height:250px;
+			}
+
+			span {
+				font-size: 0.75em;
 			}
 
 			.error {
@@ -143,6 +155,10 @@ class AIDialog extends connect(store)(DialogElement) {
 		if (!this.open) return html``;
 		return html`
 		<div class='${this._active ? 'active' : ''}'>
+			<div>
+				<label>Model</label>
+				<span>${this._model}</span>
+			</div>
 			<div ?hidden=${this._allCards.length == 0 && this._filteredCards.length == 0}>
 				<label>Cards ${this._allCards.length == this._filteredCards.length ? '' : help('Cards that are crossed out are not included in the summary, either because they have no content or do not fit in the context window.', true)}</label><tag-list .tagInfos=${this._cardTagInfos} .previousTags=${this._allCards} .tags=${this._filteredCards}></tag-list>
 			</div>
@@ -186,6 +202,7 @@ class AIDialog extends connect(store)(DialogElement) {
 		this._cardTagInfos = selectTagInfosForCards(state);
 		this._kind = selectAIDialogKind(state);
 		this._selectedIndex = selectAIResultIndex(state);
+		this._model = selectAIModel(state);
 
 		this.title = this._kindConfig.title;
 	}
