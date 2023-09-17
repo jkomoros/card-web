@@ -1346,7 +1346,7 @@ export const fetchTweets = (card : Card) : ThunkResult => async (dispatch) => {
 
 	if (snapshot.empty) {
 		dispatch({
-			type: UPDATE_TWEETS,
+			type: TWEETS_LOADING,
 			loading: false,
 		});
 		return;
