@@ -197,6 +197,7 @@ const INFO_PANEL_REFERENCE_BLOCKS : ReferenceBlocks = [
 		title: 'Cards That Link Here',
 		description: 'Cards that link to this one.',
 		emptyMessage: 'No cards link to this one.',
+		showNavigate: true,
 		cardsToBoldFilterFactory: (keyCard) => {
 			return (card) => cardNeedsReciprocalLinkTo(keyCard, card);
 		}
