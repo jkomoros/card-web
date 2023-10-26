@@ -12,5 +12,14 @@
 	"ignorePatterns": [
 		"/lib/**/*"
 	],
-	"extends": "eslint:recommended"
+	"extends": "eslint:recommended",
+	"rules": {
+		"no-unused-vars": [
+			"error",
+			{
+				"varsIgnorePattern": "^_",
+				"argsIgnorePattern": "^_"
+			}
+		]
+	}
 }
