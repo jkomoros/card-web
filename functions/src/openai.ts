@@ -1,8 +1,20 @@
-const functions = require('firebase-functions');
-const common = require('./common.js');
-const { Configuration, OpenAIApi } = require("openai");
+import * as functions from 'firebase-functions';
 
-const openaiConfig = common.config.openai || null;
+import {
+    Configuration,
+    OpenAIApi
+} from 'openai';
+
+import {
+    config,
+    userPermissions
+} from './common.js';
+
+import {
+    UserPermissions
+} from './types.js';
+
+const openaiConfig = config.openai || null;
 const openai_api_key = openaiConfig ? (openaiConfig.api_key || '') : '';
 
 const configuration = new Configuration({
@@ -11,7 +23,7 @@ const configuration = new Configuration({
 const openai = new OpenAIApi(configuration);
 
 //The server-side analogue of selectUserMayUseAI
-const mayUseAI = (permissions) => {
+const mayUseAI = (permissions : UserPermissions | null) => {
     if (!permissions) return false;
     if (permissions.admin) return true;
     if (permissions.remoteAI) return true;
@@ -24,8 +36,13 @@ const ALLOWED_ENDPOINTS = {
     'createChatCompletion': true
 };
 
+type OpenAIData = {
+    endpoint: keyof (typeof ALLOWED_ENDPOINTS)
+    payload: unknown
+};
+
 //data should have endpoint and payload
-const handler = async (data, context) => {
+export const handler = async (data : OpenAIData, context : functions.https.CallableContext) => {
 
     if (!openai_api_key) {
         throw new functions.https.HttpsError('failed-precondition', 'OPENAI_API_KEY not set');
@@ -35,7 +52,7 @@ const handler = async (data, context) => {
         throw new functions.https.HttpsError('unauthenticated', 'A valid user authentication must be passed');
     }
 
-    const permissions = await common.userPermissions(context.auth.uid);
+    const permissions = await userPermissions(context.auth.uid);
 
     if (!mayUseAI(permissions)) {
         throw new functions.https.HttpsError('permission-denied', 'The user does not have adequate permissions to perrform this action');
@@ -57,24 +74,20 @@ const handler = async (data, context) => {
         throw new functions.https.HttpsError('invalid-argument', 'endpoint must be set to an allowed endpoint type');
     }
 
-    let result = {
-        data: 'INVALID'
-    };
-
     try {
-        result = await openai[data.endpoint](data.payload);
+        const result = await openai[data.endpoint](data.payload as any);
+        return result.data;
     } catch(err) {
+        if (!err || typeof err != 'object') throw new functions.https.HttpsError('unknown', String(err));
         //err is either an err.response.statusText/status or err.message
-        if (err.response) {
-            throw new functions.https.HttpsError('unknown', err.response.statusText, {
-                status: err.response.status,
-                statusText: err.response.statusText
+        if ('response' in err) {
+            const response = err.response as {statusText: string, status: number};
+            throw new functions.https.HttpsError('unknown', response.statusText, {
+                status: response.status,
+                statusText: response.statusText
             });
         }
-        throw new functions.https.HttpsError('unknown', err.message);
+        const errAsError = err as Error;
+        throw new functions.https.HttpsError('unknown', errAsError.message);
     }
-
-    return result.data;
 };
-
-exports.handler = handler;

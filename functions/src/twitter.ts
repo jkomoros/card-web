@@ -1,11 +1,38 @@
 
-const common = require('./common.js');
-const db = common.db;
-const FieldValue = common.FieldValue;
-const Twitter = require('twitter');
-const stable = require('stable');
-const fromEntries = require('fromentries');
-const screenshot = require('./screenshot.js');
+import {
+	db,
+	config,
+	prettyCardURL,
+	DEV_MODE
+} from './common.js';
+
+import {
+	FieldValue
+} from 'firebase-admin/firestore';
+
+import {
+	fetchScreenshot
+} from './screenshot.js';
+
+
+import {
+	Card,
+	CardID,
+	CardUpdate,
+	Sections,
+	TweetInfo,
+	TweetInfoUpdate
+} from './types.js';
+
+import {
+	tweetOrderExtractor
+} from './tweet-helpers.js';
+
+import Twitter from 'twitter';
+
+import stable from 'stable';
+
+type SortInfos = Map<CardID, [number, string]>;
 
 //In DEV_MODE generally we don't actually send a tweet. but sometimes you need
 //to test the actual tweet sending works, and in those cases you can flip this
@@ -23,13 +50,11 @@ const MAX_TWEETS_TO_FETCH = 100;
 //If set to false, won't include a picture in generated tweets
 const INCLUDE_PICTURE_IN_TWEET = true;
 
-let twitterClient = null;
-
-const tweetSorter = require('./tweet-helpers.js');
+let twitterClient : Twitter | null = null;
 
 //Fetch once to save typing but also to guard against the case where no twitter
 //configs are set, so this whole object will be undefined.
-const twitterConfig = common.config.twitter;
+const twitterConfig = config.twitter;
 
 if (!twitterConfig || !twitterConfig.consumer_key || !twitterConfig.consumer_secret || !twitterConfig.access_token_key || !twitterConfig.access_token_secret) {
 	console.warn('The twitter keys are not configured, so tweets will not actually be sent. See README.md for how to set them up.');
@@ -44,8 +69,8 @@ if (!twitterConfig || !twitterConfig.consumer_key || !twitterConfig.consumer_sec
 
 //sendTweet sends the tweet and returns a tweet ID if the database shoould be
 //marked that a tweet was sent.
-const sendTweet = async (message, image) => {
-	if (common.DEV_MODE && !OVERRIDE_TWEET_IN_DEV_MODE) {
+const sendTweet = async (message : string, image : Buffer | null) : Promise<Twitter.ResponseData | null> => {
+	if (DEV_MODE && !OVERRIDE_TWEET_IN_DEV_MODE) {
 		console.log('Tweet that would have been sent if this weren\'t a dev project: ' + message);
 		return {
 			'id': 'FAKE_TWEET_ID_' + Math.floor(Math.random() * 10000000),
@@ -65,7 +90,7 @@ const sendTweet = async (message, image) => {
 		console.log('Twitter client not set up. Tweet that would have been sent: ' + message);
 		return null;
 	}
-	const tweetOptions = {
+	const tweetOptions : Twitter.RequestParams = {
 		status: message, 
 	};
 	if (image) {
@@ -113,8 +138,8 @@ const selectCardToTweet = async () => {
 	const rawCards = await db.collection('cards').where('published', '==', true).where('card_type', '==', 'content').get();
 	const rawSections = await db.collection('sections').orderBy('order').get();
 
-	const sectionsMap = fromEntries(rawSections.docs.map(snapshot => [snapshot.id, snapshot.data()]));
-	const cardsMap = fromEntries(rawCards.docs.map(snapshot => [snapshot.id, Object.assign({id: snapshot.id}, snapshot.data())]));
+	const sectionsMap = Object.fromEntries(rawSections.docs.map(snapshot => [snapshot.id, snapshot.data()])) as Sections;
+	const cardsMap = Object.fromEntries(rawCards.docs.map(snapshot => [snapshot.id, Object.assign({id: snapshot.id}, snapshot.data())])) as Record<CardID, Card>;
 
 	//We want the order of cards to be the same as the default order in the
 	//client so we see the same thing there. The last reduce step is equivalent
@@ -130,9 +155,9 @@ const selectCardToTweet = async () => {
 	//list but weren't fetched)
 	const cards = cardIDsInOrder.map(id => cardsMap[id]).filter(card => card && card.name !== card.id);
     
-	const sortInfos = new Map(cards.map(card => [card.id, tweetSorter.tweetOrderExtractor(card, sectionsMap, cardsMap)]));
+	const sortInfos = new Map(cards.map(card => [card.id, tweetOrderExtractor(card, sectionsMap, cardsMap)])) as SortInfos;
     
-	const sorter = (left, right) => {
+	const sorter = (left : Card, right : Card) => {
 		if(!left || !right) return 0;
 		//Info is the underlying sort value, then the label value.
 		const leftInfo = sortInfos.get(left.id);
@@ -150,16 +175,16 @@ const selectCardToTweet = async () => {
 
 //cards is a sorted list of expanded cards. sortInfos is a Map of card.id =>
 //[sort-value, sort-value]
-const selectCardToTweetFromSortedList = (cards, sortInfos) => {
+const selectCardToTweetFromSortedList = (cards : Card[], sortInfos : SortInfos) => {
 	if (!cards || cards.length === 0) return null;
 
 	//Collect all of the cards at the front that are the same sort value, so
 	//equivalent.
-	const firstEquivalenceClass = [];
-	const equivalentClassSortValue = sortInfos.get(cards[0].id)[0];
+	const firstEquivalenceClass : Card[] = [];
+	const equivalentClassSortValue = (sortInfos.get(cards[0].id) || [0])[0];
 	for (let i = 0; i < cards.length; i++) {
 		const card = cards[i];
-		if (sortInfos.get(card.id)[0] !== equivalentClassSortValue) {
+		if ((sortInfos.get(card.id) || [0])[0] !== equivalentClassSortValue) {
 			break;
 		}
 		firstEquivalenceClass.push(card);
@@ -170,7 +195,7 @@ const selectCardToTweetFromSortedList = (cards, sortInfos) => {
 	return firstEquivalenceClass[Math.floor(Math.random()*firstEquivalenceClass.length)];
 };
 
-const markCardTweeted = async (card, tweetInfo) => {
+const markCardTweeted = async (card : Card, tweetInfo : Twitter.ResponseData | null) => {
 
 	//If the tweetInfo doesn't exist then a tweet didn't go out (or we shouldn't
 	//even bother pretending one did).
@@ -206,7 +231,7 @@ const markCardTweeted = async (card, tweetInfo) => {
 	await batch.commit();
 };
 
-const fetchTweetEngagement = async() => {
+export const fetchTweetEngagement = async() => {
 
 	if (!twitterClient) {
 		console.warn('Twitter client not configured, so cant\' fetch tweets');
@@ -263,33 +288,35 @@ const fetchTweetEngagement = async() => {
 				throw new Error('Tweet with id ' + tweetID + ' not found in tweets collection');
 			}
 
-			const tweetDocUpdate = {'engagement_last_fetched': FieldValue.serverTimestamp()};
+			const tweetDocUpdate : TweetInfoUpdate = {'engagement_last_fetched': FieldValue.serverTimestamp()};
 
-			if (retweet_count !== tweetDoc.data().retweet_count || favorite_count !== tweetDoc.data().favorite_count) {
+			const tweetDocData = tweetDoc.data() as TweetInfo;
+
+			if (retweet_count !== tweetDocData.retweet_count || favorite_count !== tweetDocData.favorite_count) {
 
 				//Something has changed since we last fetched.
 				tweetDocUpdate.engagement_last_changed = FieldValue.serverTimestamp();
 				tweetDocUpdate.retweet_count = retweet_count;
 				tweetDocUpdate.favorite_count = favorite_count;
 
-				const cardID = tweetDoc.data().card;
+				const cardID = tweetDocData.card;
 				const cardRef = db.collection('cards').doc(cardID);
 				const cardDoc = await transaction.get(cardRef);
 				if (!cardDoc.exists) {
 					throw new Error('Card with ID ' + cardID + ' doesn\'t exist!');
 				}
 
-				const cardUpdateDoc = {};
+				const cardUpdateDoc : CardUpdate = {};
 				let starCountDiff = 0;
 
-				if (retweet_count !== tweetDoc.data().retweet_count) {
-					const retweetDiff = retweet_count - tweetDoc.data().retweet_count;
+				if (retweet_count !== tweetDocData.retweet_count) {
+					const retweetDiff = retweet_count - tweetDocData.retweet_count;
 					starCountDiff += retweetDiff;
 					cardUpdateDoc.tweet_retweet_count = FieldValue.increment(retweetDiff);
 				}
 
-				if (favorite_count !== tweetDoc.data().favorite_count) {
-					const favoriteDiff = favorite_count - tweetDoc.data().favorite_count;
+				if (favorite_count !== tweetDocData.favorite_count) {
+					const favoriteDiff = favorite_count - tweetDocData.favorite_count;
 					starCountDiff += favoriteDiff;
 					cardUpdateDoc.tweet_favorite_count = FieldValue.increment(favoriteDiff);
 				}
@@ -309,17 +336,15 @@ const fetchTweetEngagement = async() => {
 
 };
 
-const tweetCard = async () => {
+export const tweetCard = async () => {
 	const card = await selectCardToTweet();
-	const url = common.prettyCardURL(card);
+	if (!card) throw new Error('No card');
+	const url = prettyCardURL(card);
 	const message = card.title + ' ' + url;
-	let image = null;
+	let image : Buffer | null = null;
 	if (INCLUDE_PICTURE_IN_TWEET) {
-		image =  await screenshot.fetchScreenshot(card);
+		image =  await fetchScreenshot(card);
 	}
 	const tweetInfo = await sendTweet(message, image);
 	await markCardTweeted(card, tweetInfo);
 };
-
-exports.tweetCard = tweetCard;
-exports.fetchTweetEngagement = fetchTweetEngagement;

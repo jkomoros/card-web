@@ -1,9 +1,15 @@
-const common = require('./common.js');
+import {
+	db
+} from './common.js';
+
+import {
+	Slug
+} from './types.js';
 
 //note: these are from util.js
 const slugRegularExpression = /^[a-zA-Z0-9-_]+$/;
 
-const normalizeSlug = (slug) => {
+const normalizeSlug = (slug : Slug) => {
 	slug = slug.trim();
 	slug = slug.toLowerCase();
 	slug = slug.split(' ').join('-');
@@ -15,15 +21,13 @@ const normalizeSlug = (slug) => {
 };
 
 //returns a reason why the slug is not legal, or '' if it is legal.
-const slug = async (newSlug) => {
+export const slug = async (newSlug : Slug) : Promise<string> => {
 	newSlug = normalizeSlug(newSlug);
 
 	if (!newSlug) {
 		return 'Provided slug is not a valid slug';
 	}
 
-	const db = common.db;
-    
 	const doc = await db.collection('cards').doc(newSlug).get();
     
 	if (doc.exists) {
@@ -38,5 +42,3 @@ const slug = async (newSlug) => {
 	return '';
     
 };
-
-exports.slug = slug;
