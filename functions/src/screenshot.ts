@@ -126,7 +126,9 @@ const makeScreenshot = async (card : Card, cardLinkCards : Record<CardID, Card>)
 	//Inject in the card directly, which should short-circuit the firebase fetch.
 	//This function is run in the context of the page, where in injectFetchedCard exists. We'll do some checks to convince typescript to not freak out.
 	await page.evaluate((card, cards) => {
+		//eslint-disable-next-line no-undef
 		if (!('injectFetchedCard' in window) || typeof window.injectFetchedCard != 'function') throw new Error('no inject card');
+		//eslint-disable-next-line no-undef
 		window.injectFetchedCard(card, cards);
 	}, card, cardLinkCards) ;
 

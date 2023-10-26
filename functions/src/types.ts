@@ -97,7 +97,7 @@ export interface Card {
 	//Defaul to epoch 1970 for things not yet tweeted
 	last_tweeted: Timestamp,
 	tweet_count: number,
-};
+}
 
 export type Cards = Record<CardID, Card>;
 
