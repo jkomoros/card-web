@@ -104,7 +104,7 @@ const app = (state : FindState = INITIAL_STATE, action : SomeAction) : FindState
 			query: action.query || '',
 			activeQuery: action.query || '',
 			renderOffset: 0,
-			sortByRecent: false,
+			sortByRecent: true,
 			cardTypeFilter: action.cardTypeFilter || '',
 			cardTypeFilterLocked: !!action.cardTypeFilter,
 		};
