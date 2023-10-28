@@ -20,7 +20,7 @@ const openai_api_key = openaiConfig ? (openaiConfig.api_key || '') : '';
 const configuration = new Configuration({
   apiKey: openai_api_key,
 });
-const openai = new OpenAIApi(configuration);
+export const openai_endpoint = new OpenAIApi(configuration);
 
 //The server-side analogue of selectUserMayUseAI
 const mayUseAI = (permissions : UserPermissions | null) => {
@@ -75,7 +75,7 @@ export const handler = async (data : OpenAIData, context : functions.https.Calla
     }
 
     try {
-        const result = await openai[data.endpoint](data.payload as any);
+        const result = await openai_endpoint[data.endpoint](data.payload as any);
         return result.data;
     } catch(err) {
         if (!err || typeof err != 'object') throw new functions.https.HttpsError('unknown', String(err));
