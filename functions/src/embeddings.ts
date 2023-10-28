@@ -69,20 +69,25 @@ const textContentForEmbeddingForCard = (card : Card) : string => {
 
 };
 
-export const embeddingForCard = async (card : Card) : Promise<Embedding | null> => {
-    const text = textContentForEmbeddingForCard(card);
-
-    if (!text) return null;
+const embeddingForContent = async (cardContent : string) : Promise<Embedding> => {
 
     if (DEFAULT_EMBEDDING_TYPE_INFO.provider != 'openai.com') throw new Error(`Unsupported provider: ${DEFAULT_EMBEDDING_TYPE_INFO.provider}`);
 
     //TODO: try/catch
     const result = await openai_endpoint.createEmbedding({
         model: DEFAULT_EMBEDDING_TYPE_INFO.model,
-        input: text
+        input: cardContent
     });
 
     const vector = result.data.data[0].embedding;
 
     return new Embedding(DEFAULT_EMBEDDING_TYPE, vector);
+};
+
+export const embeddingForCard = async (card : Card) : Promise<Embedding | null> => {
+    const text = textContentForEmbeddingForCard(card);
+
+    if (!text) return null;
+
+    return embeddingForContent(text);
 };
