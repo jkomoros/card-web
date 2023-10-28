@@ -767,6 +767,7 @@ export type PermissionInfoCollection = {
 }
 
 //This is the the type that PermissionType is driven off of.
+//functions/types/ts:UserPermissions is also based on this
 type UserPermissionsCore = {
 	admin? : boolean,
 	viewApp? : boolean,

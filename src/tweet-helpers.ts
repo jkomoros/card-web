@@ -15,9 +15,9 @@ type SectionTwiddlerMap = Map<SectionID, number>;
 
 //cachedSectionTwidderMapForSections is the sections map we were last passed; if
 //it's different then we should regenerate cachedSectionTwidderMap.
-let cachedSectionTwidderMapForSections : Sections = null;
+let cachedSectionTwidderMapForSections : Sections | null = null;
 //The cached map to pass back out if cachedSectionTwidderMapForSections is the same as last time.
-let cachedSectionTwiddlerMap : SectionTwiddlerMap = null;
+let cachedSectionTwiddlerMap : SectionTwiddlerMap | null = null;
 
 const SECTION_TWIDDLE_AMOUNT = 0.20;
 const UNPUBLISHED_LINKS_TWIDDLE_AMOUNT = 0.2;

@@ -1,8 +1,20 @@
-const common = require('./common.js');
-const puppeteer = require('puppeteer');
-const md5 = require('md5');
+import {
+	storage,
+	getCardByIDOrSlug,
+	getCardLinkCardsForCard,
+	urlForBasicCard,
+	DEV_MODE,
+	LAST_DEPLOY_AFFECTING_RENDERING,
+	WINDOW_INJECT_FETCHED_CARD_NAME,
+	WINDOW_CARD_RENDERED_VARIABLE
+} from './common.js';
+
+import * as puppeteer from 'puppeteer';
+import md5 from 'md5';
+
 //JSON.stringify is not deterministic, but we need it to be to use as a hash.
-const stringify = require('json-stringify-deterministic');
+import stringify from 'json-stringify-deterministic';
+import { Card, CardID, CardIdentifier } from './types.js';
 
 //SCREENSHOT_VERSION should be incremented whenever the settings or generation
 //logic changes, such that a fetch for an unchanged card should generate a new
@@ -19,12 +31,12 @@ const DISABLE_SCREENSHOT_CACHE_IN_DEV = true;
 //one. Shouldn't be left on in production.
 const MANUAL_DISABLE_SCREENSHOT_CACHE_IN_PROD = false;
 
-const DISABLE_SCREENSHOT_CACHE = common.DEV_MODE ? DISABLE_SCREENSHOT_CACHE_IN_DEV : MANUAL_DISABLE_SCREENSHOT_CACHE_IN_PROD;
+const DISABLE_SCREENSHOT_CACHE = DEV_MODE ? DISABLE_SCREENSHOT_CACHE_IN_DEV : MANUAL_DISABLE_SCREENSHOT_CACHE_IN_PROD;
 
 //The default bucket is already configured, just use that
-const screenshotBucket = common.storage.bucket();
+const screenshotBucket = storage.bucket();
 
-const screenshotFileNameForCard = (card, cardLinkCards) => {
+const screenshotFileNameForCard = (card : Card, cardLinkCards : Record<CardID, Card>) => {
 	//This logic should include any parts of the card that might change the
 	//visual display of the card. The logic can change anytime the
 	//SCREENSHOT_VERSION increments.
@@ -47,11 +59,11 @@ const screenshotFileNameForCard = (card, cardLinkCards) => {
 	//prod is deployed, the card rendering might have changed. Note that this is
 	//slightly in error because now we use the card renderer that is deployed
 	//for this project, not just the prod rendrer as before.
-	return 'screenshots/v' + SCREENSHOT_VERSION + '/' + common.LAST_DEPLOY_AFFECTING_RENDERING + '/' + card.id + '/' + hash + '.png';
+	return 'screenshots/v' + SCREENSHOT_VERSION + '/' + LAST_DEPLOY_AFFECTING_RENDERING + '/' + card.id + '/' + hash + '.png';
 };
 
-const fetchScreenshotByIDOrSlug = async (idOrSlug) => {
-	const card = await common.getCardByIDOrSlug(idOrSlug);
+export const fetchScreenshotByIDOrSlug = async (idOrSlug : CardIdentifier) => {
+	const card = await getCardByIDOrSlug(idOrSlug);
 	if (!card) {
 		console.warn('No such card: ' + idOrSlug);
 		return null;
@@ -59,7 +71,7 @@ const fetchScreenshotByIDOrSlug = async (idOrSlug) => {
 	return await fetchScreenshot(card);
 };
 
-const fetchScreenshot = async(card) =>{
+export const fetchScreenshot = async(card : Card) =>{
 	if (!card) {
 		console.warn('No card provided');
 		return null;
@@ -68,7 +80,7 @@ const fetchScreenshot = async(card) =>{
 		console.warn('The card wasn\'t published');
 		return null;
 	}
-	const cardLinkCards = await common.getCardLinkCardsForCard(card);
+	const cardLinkCards = await getCardLinkCardsForCard(card);
 	const filename = screenshotFileNameForCard(card, cardLinkCards);
 	const file = screenshotBucket.file(filename);
 	const existsResponse = await file.exists();
@@ -87,7 +99,7 @@ const fetchScreenshot = async(card) =>{
 	return screenshot;
 };
 
-const makeScreenshot = async (card, cardLinkCards) => {
+const makeScreenshot = async (card : Card, cardLinkCards : Record<CardID, Card>) => {
 	const browser = await puppeteer.launch({
 		defaultViewport: {
 			width: SCREENSHOT_WIDTH,
@@ -104,31 +116,33 @@ const makeScreenshot = async (card, cardLinkCards) => {
 
 	//Wait for networkidle0, otherwise bold fonts etc might not have finished
 	//loading.
-	await page.goto(common.urlForBasicCard(card.id), {
+	await page.goto(urlForBasicCard(card.id), {
 		waitUntil: 'networkidle2',
 	});
 
 	//networkidle2 doesn't wait long enough, so wait until we can inject the card
-	await page.waitForFunction('window[\'' + common.WINDOW_INJECT_FETCHED_CARD_NAME + '\'] !== undefined');
+	await page.waitForFunction('window[\'' + WINDOW_INJECT_FETCHED_CARD_NAME + '\'] !== undefined');
 
 	//Inject in the card directly, which should short-circuit the firebase fetch.
-	//Disabling no-undef because that function is defined in the context of the page
-	// eslint-disable-next-line no-undef
-	await page.evaluate((card, cards) => injectFetchedCard(card, cards), card, cardLinkCards);
+	//This function is run in the context of the page, where in injectFetchedCard exists. We'll do some checks to convince typescript to not freak out.
+	await page.evaluate((card, cards) => {
+		//eslint-disable-next-line no-undef
+		if (!('injectFetchedCard' in window) || typeof window.injectFetchedCard != 'function') throw new Error('no inject card');
+		//eslint-disable-next-line no-undef
+		window.injectFetchedCard(card, cards);
+	}, card, cardLinkCards) ;
 
 	//Make sure the fonts are fully loaded, since networkidle2 likely won't wait for them
 	await page.waitForFunction('document.fonts.status == \'loaded\'');
 
 	//Wait for the signal that the card has been fetched and rendered
-	await page.waitForFunction('window.' + common.WINDOW_CARD_RENDERED_VARIABLE);
+	await page.waitForFunction('window.' + WINDOW_CARD_RENDERED_VARIABLE);
 
 	//Wait a little bit longer just for good measure, especially since the card
 	//fades in as it loads in basic-card-viewer.
 	await page.waitForTimeout(1000);
 	const png = await page.screenshot();
+	if (typeof png == 'string') throw new Error('Png was string');
 	await browser.close();
 	return png;
 };
-
-exports.fetchScreenshotByIDOrSlug = fetchScreenshotByIDOrSlug;
-exports.fetchScreenshot = fetchScreenshot;
