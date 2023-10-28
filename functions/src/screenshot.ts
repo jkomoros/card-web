@@ -142,6 +142,7 @@ const makeScreenshot = async (card : Card, cardLinkCards : Record<CardID, Card>)
 	//fades in as it loads in basic-card-viewer.
 	await page.waitForTimeout(1000);
 	const png = await page.screenshot();
+	if (typeof png == 'string') throw new Error('Png was string');
 	await browser.close();
 	return png;
 };

@@ -24,7 +24,7 @@
     "nodemailer": "^6.6.1",
     "nodemailer-postmark-transport": "^2.2.0",
     "openai": "^3.2.1",
-    "puppeteer": "^19.4.1",
+    "puppeteer": "^18.2.1",
     "stable": "^0.1.8",
     "twitter": "^1.7.1"
   },
