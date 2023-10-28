@@ -3,14 +3,25 @@ import {
 } from './openai.js';
 
 import {
-    Card
+    Card, CardID
 } from './types.js';
 
 import {
     JSDOM
 } from 'jsdom';
 
+import {
+    db
+} from './common.js';
+
+import {
+    FieldValue,
+    Timestamp
+} from 'firebase-admin/firestore';
+
 const DOM = new JSDOM();
+
+const EMBEDDINGS_COLLECTION = 'embeddings';
 
 const EMBEDDING_TYPES = {
     'openai.com:text-embedding-ada-002': {
@@ -19,6 +30,12 @@ const EMBEDDING_TYPES = {
         model: 'text-embedding-ada-002'
     }
 } as const;
+
+//All of the versions of content extraction pipelines; when a new one is
+//created, a new index should be added an CURRENT_EMBEDDING_VERSION Should be
+//incremented.
+type EmbeddingVersion = 0;
+const CURRENT_EMBEDDING_VERSION : EmbeddingVersion = 0;
 
 type EmbeddingType = keyof typeof EMBEDDING_TYPES;
 type EmbeddingVector = number[];
@@ -84,10 +101,44 @@ const embeddingForContent = async (cardContent : string) : Promise<Embedding> =>
     return new Embedding(DEFAULT_EMBEDDING_TYPE, vector);
 };
 
-export const embeddingForCard = async (card : Card) : Promise<Embedding | null> => {
+type EmbeddingInfoID = string;
+
+type EmbeddingInfo = {
+    card: CardID,
+    embedding_type: EmbeddingType,
+    content: string,
+    version: EmbeddingVersion,
+    lastUpdated: Timestamp | FieldValue
+    //TODO: store the index in the hsnw index of the item.
+}
+
+const embeddingInfoIDForCard = (card : Card, embeddingType : EmbeddingType = DEFAULT_EMBEDDING_TYPE, version : EmbeddingVersion = CURRENT_EMBEDDING_VERSION) : EmbeddingInfoID => {
+    return card.id + '+' + embeddingType + '+' + version;
+};
+
+export const processCard = async (card : Card) : Promise<void> => {
+    const id = embeddingInfoIDForCard(card);
+    const record = await db.collection(EMBEDDINGS_COLLECTION).doc(id).get();
     const text = textContentForEmbeddingForCard(card);
+    if (record.exists) {
+        const info = record.data() as EmbeddingInfo;
+        //The embedding exists and is up to date, no need to do anything else.
+        if (text == info.content) return;
+    }
+    const embedding = await embeddingForContent(text);
 
-    if (!text) return null;
+    //TODO: stop logging
+    console.log(`Embedding: ${text}\n${embedding}`);
+    //TODO: also insert into HSNW index.
 
-    return embeddingForContent(text);
+    const info : EmbeddingInfo = {
+        card: card.id,
+        embedding_type: DEFAULT_EMBEDDING_TYPE,
+        content: text,
+        version: CURRENT_EMBEDDING_VERSION,
+        lastUpdated: FieldValue.serverTimestamp()
+    };
+
+    await db.collection(EMBEDDINGS_COLLECTION).doc(id).update(info);
+
 };
