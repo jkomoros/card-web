@@ -260,6 +260,10 @@ service cloud.firestore {
       }
     }
 
+    match /embeddings/{card} {
+      allow read, write: if false;
+    }
+
     match /maintenance_tasks/{task} {
       allow read: if userIsAdmin();
       allow write: if userIsAdmin();
