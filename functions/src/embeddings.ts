@@ -6,6 +6,12 @@ import {
     Card
 } from './types.js';
 
+import {
+    JSDOM
+} from 'jsdom';
+
+const DOM = new JSDOM();
+
 const EMBEDDING_TYPES = {
     'openai.com:text-embedding-ada-002': {
         length: 1536,
@@ -41,9 +47,26 @@ class Embedding {
     }
 }
 
+//Copied from src/type_constants.ts
+const TEXT_FIELD_BODY = 'body';
+const TEXT_FIELD_TITLE = 'title';
+const CARD_TYPE_CONTENT = 'content';
+const CARD_TYPE_WORKING_NOTES = 'working-notes';
+
+const innerTextForHTML = (html : string) : string => {
+    const ele = DOM.window.document.createElement('section');
+	ele.innerHTML = html;
+	//textContent would return things like style and script contents, but those shouldn't be included anyway.
+	return ele.textContent || '';
+};
+
 const textContentForEmbeddingForCard = (card : Card) : string => {
-    //TODO: use the same basic logic as cardPlainContent clientside (which requires all kinds of constants...)
-    return card.body;
+    //TODO: ideally this would literally be the cardPlainContent implementation from src/util.ts
+    if (card.card_type != CARD_TYPE_CONTENT && card.card_type != CARD_TYPE_WORKING_NOTES) return '';
+    const body = innerTextForHTML(card[TEXT_FIELD_BODY]);
+    const title = card[TEXT_FIELD_TITLE] || '';
+    return title ? title + '\n' + body : body;
+
 };
 
 export const embeddingForCard = async (card : Card) : Promise<Embedding> => {
