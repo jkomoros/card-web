@@ -259,7 +259,7 @@ export const fetchTweetEngagement = async() => {
 	tweetInfos = tweetInfos.id;
 	//tweetInfos is now a map of id_str to tweetInfoOrNull
 
-	const transactionPromises = [];
+	const transactionPromises : Promise<unknown>[] = [];
 
 	for (const entry of Object.entries(tweetInfos)) {
 		const tweetInfo = entry[1];
