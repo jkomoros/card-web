@@ -127,7 +127,7 @@ type EmbeddingInfo = {
 	content: string,
 	version: EmbeddingVersion,
 	lastUpdated: Timestamp | FieldValue
-	//TODO: store the index in the hsnw index of the item.
+	vectorIndex: number
 }
 
 const embeddingInfoIDForCard = (card : Card, embeddingType : EmbeddingType = DEFAULT_EMBEDDING_TYPE, version : EmbeddingVersion = CURRENT_EMBEDDING_VERSION) : EmbeddingInfoID => {
@@ -183,6 +183,10 @@ class EmbeddingStore {
 		return hnsw;
 	}
 
+	async _saveHNSW(): Promise<void> {
+		//TODO actually do something
+	}
+
 	async updateCard(card : Card) : Promise<void> {
 		const id = embeddingInfoIDForCard(card);
 		const record = await db.collection(EMBEDDINGS_COLLECTION).doc(id).get();
@@ -196,14 +200,27 @@ class EmbeddingStore {
 	
 		//TODO: stop logging
 		console.log(`Embedding: ${text}\n${JSON.stringify(embedding)}`);
-		//TODO: also insert into HSNW index.
-	
+
+		const hnsw = await this._getHNSW();
+		//hsnw requires an integer key, so do one higher than has ever been in it.
+		const vectorIndex = hnsw.getCurrentCount();
+		//Double the index size if we were about to run over.
+		if (vectorIndex >= hnsw.getMaxElements()) {
+			const newSize = hnsw.getMaxElements() * 2;
+			console.log(`Resizing hnsw index to ${newSize}`);
+			hnsw.resizeIndex(newSize);
+		}
+
+		hnsw.addPoint(embedding.vector, vectorIndex);
+		await this._saveHNSW();
+
 		const info : EmbeddingInfo = {
 			card: card.id,
 			embedding_type: DEFAULT_EMBEDDING_TYPE,
 			content: text,
 			version: CURRENT_EMBEDDING_VERSION,
-			lastUpdated: FieldValue.serverTimestamp()
+			lastUpdated: FieldValue.serverTimestamp(),
+			vectorIndex
 		};
 	
 		await db.collection(EMBEDDINGS_COLLECTION).doc(id).set(info, {merge: true});
@@ -211,8 +228,13 @@ class EmbeddingStore {
 
 	async deleteCard(card : Card) : Promise<void> {
 		const id = embeddingInfoIDForCard(card);
-		await db.collection(EMBEDDINGS_COLLECTION).doc(id).delete();
-		//TODO: also delete item from hnsw index.
+		const ref = db.collection(EMBEDDINGS_COLLECTION).doc(id);
+		const doc = await ref.get();
+		const info = doc.data() as EmbeddingInfo;
+		const hnsw = await this._getHNSW();
+		hnsw.markDelete(info.vectorIndex);
+		await this._saveHNSW();
+		await ref.delete();
 	}
 }
 
