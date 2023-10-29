@@ -145,7 +145,7 @@ const processCard = async (card : Card) : Promise<void> => {
         lastUpdated: FieldValue.serverTimestamp()
     };
 
-    await db.collection(EMBEDDINGS_COLLECTION).doc(id).update(info);
+    await db.collection(EMBEDDINGS_COLLECTION).doc(id).set(info, {merge: true});
 
 };
 
