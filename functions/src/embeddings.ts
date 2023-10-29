@@ -125,22 +125,6 @@ const embeddingInfoIDForCard = (card : Card, embeddingType : EmbeddingType = DEF
 	return card.id + '+' + embeddingType + '+' + version;
 };
 
-export const processCardEmbedding = async (change : Change<firestore.DocumentSnapshot>) : Promise<void> => {
-	if (!openai_endpoint) {
-		console.warn('OpenAI endpoint not configured, skipping.');
-		return;
-	}
-	if (!change.after.exists) {
-		//Put ID after the data because of issue #672.
-		const card = {...change.before.data(), id : change.before.id} as Card;
-		await EMBEDDING_STORE.deleteCard(card);
-		return;
-	}
-	//Put ID after the data because of issue #672.
-	const card = {...change.after.data(), id : change.after.id} as Card;
-	await EMBEDDING_STORE.updateCard(card);
-};
-
 class EmbeddingStore {
 	_type : EmbeddingType = 'openai.com:text-embedding-ada-002';
 	_version : EmbeddingVersion = 0;
@@ -184,3 +168,19 @@ class EmbeddingStore {
 }
 
 const EMBEDDING_STORE = new EmbeddingStore();
+
+export const processCardEmbedding = async (change : Change<firestore.DocumentSnapshot>) : Promise<void> => {
+	if (!openai_endpoint) {
+		console.warn('OpenAI endpoint not configured, skipping.');
+		return;
+	}
+	if (!change.after.exists) {
+		//Put ID after the data because of issue #672.
+		const card = {...change.before.data(), id : change.before.id} as Card;
+		await EMBEDDING_STORE.deleteCard(card);
+		return;
+	}
+	//Put ID after the data because of issue #672.
+	const card = {...change.after.data(), id : change.after.id} as Card;
+	await EMBEDDING_STORE.updateCard(card);
+};
