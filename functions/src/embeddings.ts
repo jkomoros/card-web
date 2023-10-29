@@ -164,10 +164,12 @@ export const processCardEmbedding = async (change : Change<firestore.DocumentSna
 		return;
 	}
 	if (!change.after.exists) {
+		//Put ID after the data because of issue #672.
 		const card = {...change.before.data(), id : change.before.id} as Card;
 		await deleteCard(card);
 		return;
 	}
+	//Put ID after the data because of issue #672.
 	const card = {...change.after.data(), id : change.after.id} as Card;
 	await processCard(card);
 };
