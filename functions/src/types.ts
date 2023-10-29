@@ -1,8 +1,8 @@
 //TODO: reuse the types from the main project
 
 import {
-    Timestamp,
-    FieldValue
+	Timestamp,
+	FieldValue
 } from 'firebase-admin/firestore';
 
 export type Uid = string;
@@ -14,7 +14,7 @@ export type SectionID = string;
 export type TagID = string;
 
 export type Section = {
-    cards: CardID[]
+	cards: CardID[]
 };
 
 //Just pretned it's a string for simplicity
@@ -24,9 +24,9 @@ export type CardType = string;
 export type Sections = Record<SectionID, Section>;
 
 export interface UserPermissions {
-    //This is a cut-down version that only has the fields we need
-    admin?: boolean,
-    remoteAI?: boolean
+	//This is a cut-down version that only has the fields we need
+	admin?: boolean,
+	remoteAI?: boolean
 }
 
 export interface Card {
