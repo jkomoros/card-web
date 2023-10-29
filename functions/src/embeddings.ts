@@ -127,7 +127,8 @@ type EmbeddingInfo = {
 	content: string,
 	version: EmbeddingVersion,
 	lastUpdated: Timestamp | FieldValue
-	vectorIndex: number
+	vectorIndex: number,
+	previousVectorIndexes: number[]
 }
 
 const embeddingInfoIDForCard = (card : Card, embeddingType : EmbeddingType = DEFAULT_EMBEDDING_TYPE, version : EmbeddingVersion = CURRENT_EMBEDDING_VERSION) : EmbeddingInfoID => {
@@ -221,10 +222,14 @@ class EmbeddingStore {
 
 		const hnsw = await this._getHNSW();
 
+		
+		let previousVectorIndexes : number[] = [];
+
 		if (record.exists) {
 			//We want to remove the earlier index item for it so we don't get duplicates
 			const info = record.data() as EmbeddingInfo;
 			hnsw.markDelete(info.vectorIndex);
+			previousVectorIndexes = [info.vectorIndex, ...info.previousVectorIndexes];
 		}
 
 		//hsnw requires an integer key, so do one higher than has ever been in it.
@@ -245,7 +250,8 @@ class EmbeddingStore {
 			content: text,
 			version: CURRENT_EMBEDDING_VERSION,
 			lastUpdated: FieldValue.serverTimestamp(),
-			vectorIndex
+			vectorIndex,
+			previousVectorIndexes
 		};
 	
 		await db.collection(EMBEDDINGS_COLLECTION).doc(id).set(info, {merge: true});
