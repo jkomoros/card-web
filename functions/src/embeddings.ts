@@ -150,6 +150,15 @@ const readIndex = async (hnsw : hnswlib.HierarchicalNSW, file : File) => {
 	fs.unlinkSync(HNSW_TEMP_LOCATION);
 };
 
+const saveIndex = async (hnsw : hnswlib.HierarchicalNSW, file : File) => {
+	//hnsw only knows how to load from filesystem, so downlaod and write a file.
+	//Cloud Functions has a whole fake filesystem in memory.
+	await hnsw.writeIndex(HNSW_TEMP_LOCATION);
+	const data = fs.readFileSync(HNSW_TEMP_LOCATION);
+	await file.save(data);
+	fs.unlinkSync(HNSW_TEMP_LOCATION);
+};
+
 class EmbeddingStore {
 	_type : EmbeddingType = 'openai.com:text-embedding-ada-002';
 	_version : EmbeddingVersion = 0;
@@ -164,13 +173,14 @@ class EmbeddingStore {
 		return EMBEDDING_TYPES[this._type].length;
 	}
 
-	get hnswFileRemoteLocation() : string {
-		return '/embeddings/' + this._type + '/' + this._version + '/' + HNSW_FILENAME;
+	get hnswFile() : File {
+		const path = '/embeddings/' + this._type + '/' + this._version + '/' + HNSW_FILENAME;
+		return hnswBucket.file(path);
 	}
 
 	async _getHNSW() : Promise<hnswlib.HierarchicalNSW> {
 		if (this._hnsw) return this._hnsw;
-		const memoryFile = hnswBucket.file(this.hnswFileRemoteLocation);
+		const memoryFile = this.hnswFile;
 		const memoryExists = await memoryFile.exists();
 		const hnsw = new hnswlib.HierarchicalNSW('cosine', this.dim);
 		if (memoryExists) {
@@ -184,7 +194,8 @@ class EmbeddingStore {
 	}
 
 	async _saveHNSW(): Promise<void> {
-		//TODO actually do something
+		const hnsw = await this._getHNSW();
+		saveIndex(hnsw, this.hnswFile);
 	}
 
 	async updateCard(card : Card) : Promise<void> {
