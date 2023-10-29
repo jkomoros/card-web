@@ -16,8 +16,13 @@ import {
 
 import {
     FieldValue,
-    Timestamp
+    Timestamp,
 } from 'firebase-admin/firestore';
+
+import {
+    Change,
+    firestore
+} from 'firebase-functions'
 
 const DOM = new JSDOM();
 
@@ -79,6 +84,7 @@ const innerTextForHTML = (html : string) : string => {
 
 const textContentForEmbeddingForCard = (card : Card) : string => {
     //TODO: ideally this would literally be the cardPlainContent implementation from src/util.ts
+    //TODO: this shouldn't use the title for working-notes cards, since it's computed.
     if (card.card_type != CARD_TYPE_CONTENT && card.card_type != CARD_TYPE_WORKING_NOTES) return '';
     const body = innerTextForHTML(card[TEXT_FIELD_BODY]);
     const title = card[TEXT_FIELD_TITLE] || '';
@@ -116,7 +122,7 @@ const embeddingInfoIDForCard = (card : Card, embeddingType : EmbeddingType = DEF
     return card.id + '+' + embeddingType + '+' + version;
 };
 
-export const processCard = async (card : Card) : Promise<void> => {
+const processCard = async (card : Card) : Promise<void> => {
     const id = embeddingInfoIDForCard(card);
     const record = await db.collection(EMBEDDINGS_COLLECTION).doc(id).get();
     const text = textContentForEmbeddingForCard(card);
@@ -141,4 +147,21 @@ export const processCard = async (card : Card) : Promise<void> => {
 
     await db.collection(EMBEDDINGS_COLLECTION).doc(id).update(info);
 
+};
+
+const deleteCard = async (card : Card) : Promise<void> => {
+    const id = embeddingInfoIDForCard(card);
+    await db.collection(EMBEDDINGS_COLLECTION).doc(id).delete();
+    //TODO: also delete item from hnsw index.
+};
+
+export const processCardEmbedding = async (change : Change<firestore.DocumentSnapshot>) : Promise<void> => {
+    //TODO: if openai key not set, then silently exit.
+    if (!change.after.exists) {
+        const card = {id : change.before.id, ...change.before.data()} as Card;
+        await deleteCard(card);
+        return;
+    }
+    const card = {id : change.after.id, ...change.after.data()} as Card;
+    await processCard(card);
 };

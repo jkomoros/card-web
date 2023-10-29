@@ -17,6 +17,10 @@ import {
 	slug
 } from "./legal.js";
 
+import {
+	processCardEmbedding
+} from "./embeddings.js";
+
 import * as openaiimpl from "./openai.js";
 
 //Runs every three hours
@@ -40,6 +44,11 @@ export const emailAdminOnStar = functions.firestore.
 export const emailAdminOnMessage = functions.firestore.
 	document('messages/{messageId}').
 	onCreate(email.onMessage);
+
+//TODO: only allow a single instance
+export const updateCardEmbedding = functions.firestore.
+	document('cards/{cardID}').
+	onWrite(processCardEmbedding);
 
 const screenshotApp = express();
 screenshotApp.get('/:id', async (req, res) => {
