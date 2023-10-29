@@ -185,9 +185,11 @@ class EmbeddingStore {
 		const hnsw = new hnswlib.HierarchicalNSW('cosine', this.dim);
 		if (memoryExists) {
 			await readIndex(hnsw, memoryFile);
+			console.log(`Loaded ${memoryFile.name} with ${hnsw.getCurrentCount()} items`);
 		} else {
 			//We'll start small and keep growing if necessary.
 			hnsw.initIndex(32);
+			console.log('Created a new hnsw index');
 		}
 		this._hnsw = hnsw;
 		return hnsw;
