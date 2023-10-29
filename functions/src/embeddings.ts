@@ -158,10 +158,10 @@ const deleteCard = async (card : Card) : Promise<void> => {
 export const processCardEmbedding = async (change : Change<firestore.DocumentSnapshot>) : Promise<void> => {
     //TODO: if openai key not set, then silently exit.
     if (!change.after.exists) {
-        const card = {id : change.before.id, ...change.before.data()} as Card;
+        const card = {...change.before.data(), id : change.before.id} as Card;
         await deleteCard(card);
         return;
     }
-    const card = {id : change.after.id, ...change.after.data()} as Card;
+    const card = {...change.after.data(), id : change.after.id} as Card;
     await processCard(card);
 };
