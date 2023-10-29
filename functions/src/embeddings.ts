@@ -97,6 +97,8 @@ const embeddingForContent = async (cardContent : string) : Promise<Embedding> =>
 
     if (DEFAULT_EMBEDDING_TYPE_INFO.provider != 'openai.com') throw new Error(`Unsupported provider: ${DEFAULT_EMBEDDING_TYPE_INFO.provider}`);
 
+    if (!openai_endpoint) throw new Error('No openai_endpoint');
+
     //TODO: try/catch
     const result = await openai_endpoint.createEmbedding({
         model: DEFAULT_EMBEDDING_TYPE_INFO.model,

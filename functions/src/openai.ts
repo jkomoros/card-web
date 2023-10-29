@@ -6,6 +6,7 @@ import {
 } from 'openai';
 
 import {
+    CHANGE_ME_SENTINEL,
     config,
     userPermissions
 } from './common.js';
@@ -17,10 +18,9 @@ import {
 const openaiConfig = config.openai || null;
 const openai_api_key = openaiConfig ? (openaiConfig.api_key || '') : '';
 
-const configuration = new Configuration({
-  apiKey: openai_api_key,
-});
-export const openai_endpoint = new OpenAIApi(configuration);
+export const openai_endpoint = (openai_api_key && openai_api_key != CHANGE_ME_SENTINEL) ? new OpenAIApi(new Configuration({
+    apiKey: openai_api_key,
+})) : null;
 
 //The server-side analogue of selectUserMayUseAI
 const mayUseAI = (permissions : UserPermissions | null) => {
@@ -44,7 +44,7 @@ type OpenAIData = {
 //data should have endpoint and payload
 export const handler = async (data : OpenAIData, context : functions.https.CallableContext) => {
 
-    if (!openai_api_key) {
+    if (!openai_endpoint) {
         throw new functions.https.HttpsError('failed-precondition', 'OPENAI_API_KEY not set');
     }
 

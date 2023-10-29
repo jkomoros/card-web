@@ -16,6 +16,7 @@ try {
 const CONFIG_FIREBASE_PROD = projectConfig.firebase.prod ? projectConfig.firebase.prod : projectConfig.firebase;
 const CONFIG_FIREBASE_DEV = projectConfig.firebase.dev ? projectConfig.firebase.dev : CONFIG_FIREBASE_PROD;
 
+//Also in functions/src/common.ts
 const CHANGE_ME_SENTINEL = 'CHANGE-ME';
 
 const FIREBASE_PROD_PROJECT = CONFIG_FIREBASE_PROD.projectId;

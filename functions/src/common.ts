@@ -35,6 +35,9 @@ export const storage = getStorage();
 
 const PROJECT_NAME = (process.env.GCLOUD_PROJECT || '').toLowerCase();
 
+//Also in gulpfile.js
+export const CHANGE_ME_SENTINEL = 'CHANGE-ME';
+
 //DEV_MODE is true if the project name contains 'dev-' or '-dev'
 export const DEV_MODE = PROJECT_NAME.includes('dev-') || PROJECT_NAME.includes('-dev');
 //firebaseapp.com is whitelisted automatically in auth, but '*.web.app' isn't
