@@ -45,8 +45,12 @@ export const emailAdminOnMessage = functions.firestore.
 	document('messages/{messageId}').
 	onCreate(email.onMessage);
 
-//TODO: only allow a single instance
-export const updateCardEmbedding = functions.firestore.
+export const updateCardEmbedding = functions.runWith({
+		//Since we'll hit the hnsw saving/restoring, and we should only have a
+		//very small number of concurrent editors, set to a max instance of one
+		//to make it less likely we have collisions.
+		maxInstances: 1
+	}).firestore.
 	document('cards/{cardID}').
 	onWrite(processCardEmbedding);
 
