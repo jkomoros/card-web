@@ -174,14 +174,15 @@ class EmbeddingStore {
 	}
 
 	get hnswFile() : File {
-		const path = '/embeddings/' + this._type + '/' + this._version + '/' + HNSW_FILENAME;
+		const path = 'embeddings/' + this._type + '/' + this._version + '/' + HNSW_FILENAME;
 		return hnswBucket.file(path);
 	}
 
 	async _getHNSW() : Promise<hnswlib.HierarchicalNSW> {
 		if (this._hnsw) return this._hnsw;
 		const memoryFile = this.hnswFile;
-		const memoryExists = await memoryFile.exists();
+		const memoryExistsResponse = await memoryFile.exists();
+		const memoryExists = memoryExistsResponse[0];
 		const hnsw = new hnswlib.HierarchicalNSW('cosine', this.dim);
 		if (memoryExists) {
 			await readIndex(hnsw, memoryFile);
