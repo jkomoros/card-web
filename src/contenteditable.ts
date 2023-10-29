@@ -170,6 +170,7 @@ const removeZombieSpans = (ele : Element) => {
 	if (removedZombies) ele.normalize();
 };
 
+//Recreated in functions/src/embeddings.ts
 const legalTopLevelNodes : {[tag in HTMLTagName]+?: true} = {
 	'p': true,
 	'ol': true,
@@ -247,6 +248,7 @@ const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
 
 };
 
+//Also recreated in functions/src/embeddings.ts
 export const normalizeLineBreaks = (html : string) => {
 	if (!html) return html;
 	//Remove all line breaks. We'll put them back in.

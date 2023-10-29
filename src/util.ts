@@ -210,6 +210,7 @@ export const cardHasTodo = (card : Card) => {
 	return content ? true : false;
 };
 
+//Recreated in functions/src/embeddings.ts
 export const innerTextForHTML = (body : string) : string => {
 	//This shouldn't be an XSS vulnerability even though body is supplied by
 	//users and thus untrusted, because the temporary element is never actually

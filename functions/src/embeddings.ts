@@ -84,9 +84,42 @@ const TEXT_FIELD_TITLE = 'title';
 const CARD_TYPE_CONTENT = 'content';
 const CARD_TYPE_WORKING_NOTES = 'working-notes';
 
-const innerTextForHTML = (html : string) : string => {
+//Recreated from src/contenteditable.ts
+const legalTopLevelNodes = {
+	'p': true,
+	'ol': true,
+	'ul': true,
+	'h1': true,
+	'h2': true,
+	'h3': true,
+	'h4': true,
+};
+
+//Recreated from src/contenteditable.ts
+const normalizeLineBreaks = (html : string) => {
+	if (!html) return html;
+	//Remove all line breaks. We'll put them back in.
+	html = html.split('\n').join('');
+
+	//Add in line breaks
+	for (const key of Object.keys(legalTopLevelNodes)) {
+		const closeTag = '</' + key + '>';
+		html = html.split(closeTag).join(closeTag + '\n');
+	}
+
+	html = html.split('<ul>').join('<ul>\n');
+	html = html.split('<ol>').join('<ol>\n');
+	html = html.split('<li>').join('\t<li>');
+	html = html.split('</li>').join('</li>\n');
+	return html;
+};
+
+//Recreated from src/util.ts
+const innerTextForHTML = (body : string) : string => {
 	const ele = DOM.window.document.createElement('section');
-	ele.innerHTML = html;
+	ele.innerHTML = body;
+	// makes sure line breaks are in the right place after each legal block level element
+	body = normalizeLineBreaks(body);
 	//textContent would return things like style and script contents, but those shouldn't be included anyway.
 	return ele.textContent || '';
 };
@@ -94,7 +127,6 @@ const innerTextForHTML = (html : string) : string => {
 const textContentForEmbeddingForCard = (card : Card) : string => {
 	//TODO: ideally this would literally be the cardPlainContent implementation from src/util.ts
 	//TODO: this shouldn't use the title for working-notes cards, since it's computed.
-	//TODO: this needs the new line behavior after blocks from innerTextForHTML.
 	if (card.card_type != CARD_TYPE_CONTENT && card.card_type != CARD_TYPE_WORKING_NOTES) return '';
 	const body = innerTextForHTML(card[TEXT_FIELD_BODY]);
 	const title = card[TEXT_FIELD_TITLE] || '';
