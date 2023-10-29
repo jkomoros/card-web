@@ -239,6 +239,12 @@ class EmbeddingStore {
 		const id = embeddingInfoIDForCard(card);
 		const record = await db.collection(EMBEDDINGS_COLLECTION).doc(id).get();
 		const text = textContentForEmbeddingForCard(card);
+
+		if (!text.trim()) {
+			console.log(`Skipping ${id} because text to embed is empty`);
+			return;
+		}
+
 		if (record.exists) {
 			const info = record.data() as EmbeddingInfo;
 			//The embedding exists and is up to date, no need to do anything else.
