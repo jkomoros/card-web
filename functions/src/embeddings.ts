@@ -3,7 +3,8 @@ import {
 } from './openai.js';
 
 import {
-	Card, CardID
+	Card,
+	CardID
 } from './types.js';
 
 import {
@@ -11,8 +12,13 @@ import {
 } from 'jsdom';
 
 import {
-	db
+	db,
+	storage
 } from './common.js';
+
+import {
+	File
+} from '@google-cloud/storage';
 
 import {
 	FieldValue,
@@ -23,6 +29,9 @@ import {
 	Change,
 	firestore
 } from 'firebase-functions';
+
+import hnswlib from 'hnswlib-node';
+import fs from 'fs';
 
 const DOM = new JSDOM();
 
@@ -125,13 +134,53 @@ const embeddingInfoIDForCard = (card : Card, embeddingType : EmbeddingType = DEF
 	return card.id + '+' + embeddingType + '+' + version;
 };
 
+const HNSW_FILENAME = 'hnsw.db';
+const HNSW_TEMP_LOCATION = '/tmp/' + HNSW_FILENAME;
+
+//The default bucket is already configured, just use that
+const hnswBucket = storage.bucket();
+
+const readIndex = async (hnsw : hnswlib.HierarchicalNSW, file : File) => {
+	//hnsw only knows how to load from filesystem, so downlaod and write a file.
+	//Cloud Functions has a whole fake filesystem in memory.
+	const response = await file.download();
+	const data = response[0];
+	fs.writeFileSync(HNSW_TEMP_LOCATION, data);
+	await hnsw.readIndex(HNSW_TEMP_LOCATION);
+	fs.unlinkSync(HNSW_TEMP_LOCATION);
+};
+
 class EmbeddingStore {
 	_type : EmbeddingType = 'openai.com:text-embedding-ada-002';
 	_version : EmbeddingVersion = 0;
+	_hnsw : hnswlib.HierarchicalNSW | null = null;
 
 	constructor(type : EmbeddingType = 'openai.com:text-embedding-ada-002', version : EmbeddingVersion = 0) {
 		this._type = type;
 		this._version = version;
+	}
+
+	get dim() : number {
+		return EMBEDDING_TYPES[this._type].length;
+	}
+
+	get hnswFileRemoteLocation() : string {
+		return '/embeddings/' + this._type + '/' + this._version + '/' + HNSW_FILENAME;
+	}
+
+	async _getHNSW() : Promise<hnswlib.HierarchicalNSW> {
+		if (this._hnsw) return this._hnsw;
+		const memoryFile = hnswBucket.file(this.hnswFileRemoteLocation);
+		const memoryExists = await memoryFile.exists();
+		const hnsw = new hnswlib.HierarchicalNSW('cosine', this.dim);
+		if (memoryExists) {
+			await readIndex(hnsw, memoryFile);
+		} else {
+			//We'll start small and keep growing if necessary.
+			hnsw.initIndex(32);
+		}
+		this._hnsw = hnsw;
+		return hnsw;
 	}
 
 	async updateCard(card : Card) : Promise<void> {
