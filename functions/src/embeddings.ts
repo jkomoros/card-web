@@ -183,4 +183,4 @@ class EmbeddingStore {
 	}
 }
 
-export const EMBEDDING_STORE = new EmbeddingStore();
+const EMBEDDING_STORE = new EmbeddingStore();
