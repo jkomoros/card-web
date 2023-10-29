@@ -134,7 +134,7 @@ const processCard = async (card : Card) : Promise<void> => {
     const embedding = await embeddingForContent(text);
 
     //TODO: stop logging
-    console.log(`Embedding: ${text}\n${embedding}`);
+    console.log(`Embedding: ${text}\n${JSON.stringify(embedding)}`);
     //TODO: also insert into HSNW index.
 
     const info : EmbeddingInfo = {
