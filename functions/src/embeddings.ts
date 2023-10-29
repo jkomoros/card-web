@@ -199,6 +199,7 @@ class EmbeddingStore {
 	async _saveHNSW(): Promise<void> {
 		const hnsw = await this._getHNSW();
 		saveIndex(hnsw, this.hnswFile);
+		console.log(`Saving hnsw with ${hnsw.getCurrentCount()} items.`);
 	}
 
 	async updateCard(card : Card) : Promise<void> {
