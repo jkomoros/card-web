@@ -209,7 +209,10 @@ class EmbeddingStore {
 		if (record.exists) {
 			const info = record.data() as EmbeddingInfo;
 			//The embedding exists and is up to date, no need to do anything else.
-			if (text == info.content) return;
+			if (text == info.content) {
+				console.log(`The embedding content had not changed for ${id} so stopping early`);
+				return;
+			}
 		}
 		const embedding = await embeddingForContent(text);
 	
