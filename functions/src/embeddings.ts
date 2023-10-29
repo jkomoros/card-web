@@ -138,7 +138,7 @@ export const processCardEmbedding = async (change : Change<firestore.DocumentSna
 	}
 	//Put ID after the data because of issue #672.
 	const card = {...change.after.data(), id : change.after.id} as Card;
-	await EMBEDDING_STORE.processCard(card);
+	await EMBEDDING_STORE.updateCard(card);
 };
 
 class EmbeddingStore {
@@ -150,7 +150,7 @@ class EmbeddingStore {
 		this._version = version;
 	}
 
-	async processCard(card : Card) : Promise<void> {
+	async updateCard(card : Card) : Promise<void> {
 		const id = embeddingInfoIDForCard(card);
 		const record = await db.collection(EMBEDDINGS_COLLECTION).doc(id).get();
 		const text = textContentForEmbeddingForCard(card);
