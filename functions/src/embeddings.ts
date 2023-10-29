@@ -220,6 +220,13 @@ class EmbeddingStore {
 		console.log(`Embedding: ${text}\n${JSON.stringify(embedding)}`);
 
 		const hnsw = await this._getHNSW();
+
+		if (record.exists) {
+			//We want to remove the earlier index item for it so we don't get duplicates
+			const info = record.data() as EmbeddingInfo;
+			hnsw.markDelete(info.vectorIndex);
+		}
+
 		//hsnw requires an integer key, so do one higher than has ever been in it.
 		const vectorIndex = hnsw.getCurrentCount();
 		//Double the index size if we were about to run over.
