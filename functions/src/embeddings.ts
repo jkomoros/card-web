@@ -85,6 +85,7 @@ const innerTextForHTML = (html : string) : string => {
 const textContentForEmbeddingForCard = (card : Card) : string => {
     //TODO: ideally this would literally be the cardPlainContent implementation from src/util.ts
     //TODO: this shouldn't use the title for working-notes cards, since it's computed.
+    //TODO: this needs the new line behavior after blocks from innerTextForHTML.
     if (card.card_type != CARD_TYPE_CONTENT && card.card_type != CARD_TYPE_WORKING_NOTES) return '';
     const body = innerTextForHTML(card[TEXT_FIELD_BODY]);
     const title = card[TEXT_FIELD_TITLE] || '';
