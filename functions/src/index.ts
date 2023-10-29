@@ -1,27 +1,27 @@
 
-import * as functions from "firebase-functions";
+import * as functions from 'firebase-functions';
 
 //TODO: include the same file as we do for the client for the canonical names of
 //collections.
 
-import express from "express";
+import express from 'express';
 
-import * as email from "./email.js";
-import * as twitter from "./twitter.js";
+import * as email from './email.js';
+import * as twitter from './twitter.js';
 
 import {
 	fetchScreenshotByIDOrSlug
-} from "./screenshot.js";
+} from './screenshot.js';
 
 import {
 	slug
-} from "./legal.js";
+} from './legal.js';
 
 import {
 	processCardEmbedding
-} from "./embeddings.js";
+} from './embeddings.js';
 
-import * as openaiimpl from "./openai.js";
+import * as openaiimpl from './openai.js';
 
 //Runs every three hours
 export const fetchTweetEngagement = functions.pubsub.schedule('0 */3 * * *').timeZone('America/Los_Angeles').onRun(twitter.fetchTweetEngagement);
@@ -46,11 +46,11 @@ export const emailAdminOnMessage = functions.firestore.
 	onCreate(email.onMessage);
 
 export const updateCardEmbedding = functions.runWith({
-		//Since we'll hit the hnsw saving/restoring, and we should only have a
-		//very small number of concurrent editors, set to a max instance of one
-		//to make it less likely we have collisions.
-		maxInstances: 1
-	}).firestore.
+	//Since we'll hit the hnsw saving/restoring, and we should only have a
+	//very small number of concurrent editors, set to a max instance of one
+	//to make it less likely we have collisions.
+	maxInstances: 1
+}).firestore.
 	document('cards/{cardID}').
 	onWrite(processCardEmbedding);
 
