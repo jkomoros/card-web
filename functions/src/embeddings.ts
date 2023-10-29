@@ -125,39 +125,6 @@ const embeddingInfoIDForCard = (card : Card, embeddingType : EmbeddingType = DEF
 	return card.id + '+' + embeddingType + '+' + version;
 };
 
-const processCard = async (card : Card) : Promise<void> => {
-	const id = embeddingInfoIDForCard(card);
-	const record = await db.collection(EMBEDDINGS_COLLECTION).doc(id).get();
-	const text = textContentForEmbeddingForCard(card);
-	if (record.exists) {
-		const info = record.data() as EmbeddingInfo;
-		//The embedding exists and is up to date, no need to do anything else.
-		if (text == info.content) return;
-	}
-	const embedding = await embeddingForContent(text);
-
-	//TODO: stop logging
-	console.log(`Embedding: ${text}\n${JSON.stringify(embedding)}`);
-	//TODO: also insert into HSNW index.
-
-	const info : EmbeddingInfo = {
-		card: card.id,
-		embedding_type: DEFAULT_EMBEDDING_TYPE,
-		content: text,
-		version: CURRENT_EMBEDDING_VERSION,
-		lastUpdated: FieldValue.serverTimestamp()
-	};
-
-	await db.collection(EMBEDDINGS_COLLECTION).doc(id).set(info, {merge: true});
-
-};
-
-const deleteCard = async (card : Card) : Promise<void> => {
-	const id = embeddingInfoIDForCard(card);
-	await db.collection(EMBEDDINGS_COLLECTION).doc(id).delete();
-	//TODO: also delete item from hnsw index.
-};
-
 export const processCardEmbedding = async (change : Change<firestore.DocumentSnapshot>) : Promise<void> => {
 	if (!openai_endpoint) {
 		console.warn('OpenAI endpoint not configured, skipping.');
@@ -166,10 +133,54 @@ export const processCardEmbedding = async (change : Change<firestore.DocumentSna
 	if (!change.after.exists) {
 		//Put ID after the data because of issue #672.
 		const card = {...change.before.data(), id : change.before.id} as Card;
-		await deleteCard(card);
+		await EMBEDDING_STORE.deleteCard(card);
 		return;
 	}
 	//Put ID after the data because of issue #672.
 	const card = {...change.after.data(), id : change.after.id} as Card;
-	await processCard(card);
+	await EMBEDDING_STORE.processCard(card);
 };
+
+class EmbeddingStore {
+	_type : EmbeddingType = 'openai.com:text-embedding-ada-002';
+	_version : EmbeddingVersion = 0;
+
+	constructor(type : EmbeddingType = 'openai.com:text-embedding-ada-002', version : EmbeddingVersion = 0) {
+		this._type = type;
+		this._version = version;
+	}
+
+	async processCard(card : Card) : Promise<void> {
+		const id = embeddingInfoIDForCard(card);
+		const record = await db.collection(EMBEDDINGS_COLLECTION).doc(id).get();
+		const text = textContentForEmbeddingForCard(card);
+		if (record.exists) {
+			const info = record.data() as EmbeddingInfo;
+			//The embedding exists and is up to date, no need to do anything else.
+			if (text == info.content) return;
+		}
+		const embedding = await embeddingForContent(text);
+	
+		//TODO: stop logging
+		console.log(`Embedding: ${text}\n${JSON.stringify(embedding)}`);
+		//TODO: also insert into HSNW index.
+	
+		const info : EmbeddingInfo = {
+			card: card.id,
+			embedding_type: DEFAULT_EMBEDDING_TYPE,
+			content: text,
+			version: CURRENT_EMBEDDING_VERSION,
+			lastUpdated: FieldValue.serverTimestamp()
+		};
+	
+		await db.collection(EMBEDDINGS_COLLECTION).doc(id).set(info, {merge: true});
+	}
+
+	async deleteCard(card : Card) : Promise<void> {
+		const id = embeddingInfoIDForCard(card);
+		await db.collection(EMBEDDINGS_COLLECTION).doc(id).delete();
+		//TODO: also delete item from hnsw index.
+	}
+}
+
+export const EMBEDDING_STORE = new EmbeddingStore();
