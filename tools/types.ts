@@ -10,7 +10,9 @@ import {
 
 export type FirebaseProdDevOptions = {
 	prod?: FirebaseOptions,
-	dev?: FirebaseOptions
+	dev?: FirebaseOptions,
+	//Whether dev was passed explicitly
+	devConfigured?: boolean
 };
 
 export type Config = {

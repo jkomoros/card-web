@@ -47,14 +47,22 @@ export const devProdFirebaseConfig = (config : Config) : Required<FirebaseProdDe
 		throw new Error('No firebase property');
 	}
 	if ('apiKey' in config.firebase) {
-		return {prod: config.firebase, dev: config.firebase};
+		return {
+			prod: config.firebase,
+			dev: config.firebase,
+			devConfigured: false
+		};
 	}
 	const fb = config.firebase as FirebaseProdDevOptions;
 	if (!fb.prod) throw new Error('No prod');
 	const prod = fb.prod;
 	const dev = fb.dev || prod;
 	if (!prod && !dev) throw new Error('No sub configs provided');
-	return {prod, dev};
+	return {
+		prod,
+		dev,
+		devConfigured: fb.dev != undefined
+	};
 };
 
 export const getProjectConfig = () : Config => {
