@@ -22,6 +22,10 @@ export type Config = {
 	google_analytics? : string;
 	twitter_handle? : string;
 	openai_api_key? : string;
+	qdrant?: {
+		cluster_url: string,
+		api_key: string
+	},
 	disable_persistence? : boolean;
 	disable_anonymous_login? : boolean;
 	disable_service_worker? : boolean;

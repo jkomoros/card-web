@@ -33,6 +33,16 @@ const ENABLE_TWITTER = TWITTER_HANDLE && !DISABLE_TWITTER;
 const OPENAI_API_KEY = projectConfig.openai_api_key || '';
 const OPENAI_ENABLED = OPENAI_API_KEY != '';
 
+const QDRANT_INFO = projectConfig.qdrant || {};
+const QDRANT_CLUSTER_URL = QDRANT_INFO.cluster_url && QDRANT_INFO.cluster_url != CHANGE_ME_SENTINEL ? QDRANT_INFO.cluster_url : '';
+const QDRANT_API_KEY = QDRANT_INFO.api_key && QDRANT_INFO.api_key != CHANGE_ME_SENTINEL ? QDRANT_INFO.api_key : '';
+//eslint-disable-next-line @typescript-eslint/no-unused-vars
+const QDRANT_ENABLED = OPENAI_ENABLED && QDRANT_CLUSTER_URL && QDRANT_API_KEY;
+
+if (QDRANT_API_KEY && !OPENAI_ENABLED) {
+	console.warn('Qdrant is configured but openai_api_key is not');
+}
+
 const SEO_ENABLED = projectConfig.seo;
 
 const DO_TAG_RELEASES = projectConfig.tag_releases || false;

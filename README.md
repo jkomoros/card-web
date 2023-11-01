@@ -485,3 +485,28 @@ In `config.SECRET.json` add a key called `openai_api_key`. This will allow users
 The features show up in two places currently:
  - **Summarize a collection of cards** - In the zippy in the cards collection, a button will show up to Summarize Cards with AI. This will attempt to summarize as many cards as fit in the context window into text that could be used for a new card.
  - **Suggest a card title** - When editing a card, flip to the content tab and hit the AI button next to the title field to suggest a title for the card based on the card's body.
+
+ ## Embedding Similarity
+
+ It's possible to enable a deeper similarity score for cards by using embeddings.
+
+ To do so you will need to provide an OpenAI_API_Key and also configure Qdrant, which is used as the vector database.
+
+ Go to https://cloud.qdrant.io and create a cluster. You can create small clusters (which should be more than sufficient) for free. Choose Google Cloud Platform option. You'll also need to generate an API key that gives access to that cluster.
+
+ Add to the `config.SECRET.json` the following configuration:
+
+```
+{
+  //...other configuration
+
+  //openai_api_key must also be set
+  "openai_api_key",
+  "qdrant": {
+	"cluster_url": "https://${YOUR_CLUSTER_ID}.us-east4-0.gcp.cloud.qdrant.io",
+	"api_key": "${YOUR_API_KEY}"
+  }
+}
+```
+
+The next time you deploy, the clusters will be configured and set up.

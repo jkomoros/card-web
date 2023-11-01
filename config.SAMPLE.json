@@ -14,6 +14,10 @@
 	"disable_twitter": false,
 	"openai_api_key": "CHANGE-ME",
 	"backup_bucket_name": "CHANGE-ME",
+	"qdrant": {
+		"cluster_url": "CHANGE-ME",
+		"api_key": "CHANGE-ME"
+	},
 	"seo": false,
 	"permissions" : {
 		"all" : {
