@@ -305,6 +305,8 @@ export const processCardEmbedding = async (change : Change<firestore.DocumentSna
 	await EMBEDDING_STORE.updateCard(card);
 };
 
+const TOO_MANY_ERRORS = 5;
+
 export const reindexCardEmbeddings = async () : Promise<void> => {
 	if (!EMBEDDING_STORE) {
 		console.warn('Qdrant not enabled, skipping');
@@ -318,13 +320,19 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 		} as Card;
 	});
 	let i = 1;
+	let errCount = 0;
 	for (const card of cards) {
 		console.log(`Processing card ${i}/${cards.length}`);
 		//This could fail for example for too-long embeddings
 		try {
 			await EMBEDDING_STORE.updateCard(card);
+			errCount = 0;
 		} catch(err) {
 			console.warn(`${card.id} failed: ${String(err)}`);
+			errCount++;
+		}
+		if (errCount > TOO_MANY_ERRORS) {
+			throw new Error(`Received ${TOO_MANY_ERRORS} in a row so quitting`);
 		}
 		i++;
 	}
