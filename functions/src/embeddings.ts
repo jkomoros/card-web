@@ -165,6 +165,8 @@ type PointPayload = {
 	//Same as PAYLOAD_VERSION_KEY
 	version: EmbeddingVersion;
 	content: string,
+	//timestamp in milliseconds since epoch
+	last_updated: number
 }
 
 type Point = {
@@ -248,7 +250,8 @@ class EmbeddingStore {
 		const payload : PointPayload = {
 			card_id: card.id,
 			version: CURRENT_EMBEDDING_VERSION,
-			content: text
+			content: text,
+			last_updated: Date.now()
 		};
 
 		await this._qdrant.upsert(QDRANT_COLLECTION_NAME, {
