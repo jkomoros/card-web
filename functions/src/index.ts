@@ -18,7 +18,8 @@ import {
 } from './legal.js';
 
 import {
-	processCardEmbedding
+	processCardEmbedding,
+	reindexCardEmbeddings as reindexCardEmbeddingsImpl
 } from './embeddings.js';
 
 import * as openaiimpl from './openai.js';
@@ -53,6 +54,20 @@ export const updateCardEmbedding = functions.runWith({
 }).firestore.
 	document('cards/{cardID}').
 	onWrite(processCardEmbedding);
+
+const reindexCardEmbeddingsApp = express();
+reindexCardEmbeddingsApp.post('/', async(req, res) => {
+	try{
+		await reindexCardEmbeddingsImpl();
+	} catch(err) {
+		res.status(500).send(String(err));
+	}
+	res.status(200).send('Success');
+});
+
+export const reindexCardEmbeddings = functions.runWith({
+	memory: '512MB'
+}).https.onRequest(reindexCardEmbeddingsApp);
 
 const screenshotApp = express();
 screenshotApp.get('/:id', async (req, res) => {

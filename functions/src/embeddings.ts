@@ -12,6 +12,7 @@ import {
 } from 'jsdom';
 
 import {
+	db,
 	config,
 	DEV_MODE
 } from './common.js';
@@ -300,4 +301,25 @@ export const processCardEmbedding = async (change : Change<firestore.DocumentSna
 	//Put ID after the data because of issue #672.
 	const card = {...change.after.data(), id : change.after.id} as Card;
 	await EMBEDDING_STORE.updateCard(card);
+};
+
+export const reindexCardEmbeddings = async () : Promise<void> => {
+	if (!EMBEDDING_STORE) {
+		console.warn('Qdrant not enabled, skipping');
+		return;
+	}
+	const rawCards = await db.collection('cards').get();
+	const cards : Card[] = rawCards.docs.map(snapshot => {
+		return {
+			...snapshot.data(),
+			id: snapshot.id
+		} as Card;
+	});
+	let i = 1;
+	for (const card of cards) {
+		console.log(`Processing card ${i}/${cards.length}`);
+		await EMBEDDING_STORE.updateCard(card);
+		i++;
+	}
+	console.log('Done indexing cards');
 };

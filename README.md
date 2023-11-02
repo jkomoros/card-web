@@ -524,3 +524,5 @@ gulp firebase-ensure-prod
 firebase functions:config:set qdrant.cluster_url="YOUR-URL-HERE"
 firebase functions:config:set qdrant.api_key="YOUR-SECRET-KEY-HERE"
 ```
+
+You can trigger a reindexing by hitting the endpoint e.g. `curl -X POST https://us-central1-${YOUR_PROJECT_ID}.cloudfunctions.net/reindexCardEmbeddings`
