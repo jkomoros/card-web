@@ -127,9 +127,18 @@ const innerTextForHTML = (body : string) : string => {
 	return ele.textContent || '';
 };
 
+const formatDate = (date :  Date) : string => {
+	const year = date.getFullYear();
+	const month = (date.getMonth() + 1).toString().padStart(2, '0'); // Months are 0-indexed, so add 1
+	const day = date.getDate().toString().padStart(2, '0');
+
+	return `${year}/${month}/${day}`;
+};
+
 const textContentForEmbeddingForCard = (card : Card) : string => {
 	//TODO: ideally this would literally be the cardPlainContent implementation from src/util.ts
-	const parts : string[] = [card.card_type, '\n'];
+	const created = card.created.toDate();
+	const parts : string[] = [formatDate(created), card.card_type, '\n'];
 	const body = innerTextForHTML(card.body);
 	if (body) parts.push(body);
 	//Skip the computed title on working-notes cards since they are entire
