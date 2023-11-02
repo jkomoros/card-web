@@ -57,7 +57,7 @@ const DEFAULT_EMBEDDING_TYPE : EmbeddingType = 'openai.com-text-embedding-ada-00
 const DEFAULT_EMBEDDING_TYPE_INFO = EMBEDDING_TYPES[DEFAULT_EMBEDDING_TYPE];
 
 const PAYLOAD_CARD_ID_KEY = 'card_id';
-const PAYLOAD_VERSION_KEY = 'version';
+const PAYLOAD_VERSION_KEY = 'extraction_version';
 const QDRANT_BASE_COLLECTION_NAME = DEFAULT_EMBEDDING_TYPE;
 const QDRANT_DEV_COLLECTION_NAME = 'dev-' + QDRANT_BASE_COLLECTION_NAME;
 const QDRANT_PROD_COLLECTION_NAME = 'prod-' + QDRANT_BASE_COLLECTION_NAME;
@@ -162,7 +162,7 @@ type PointPayload = {
 	card_id: CardID;
 	//Indexed
 	//Same as PAYLOAD_VERSION_KEY
-	version: EmbeddingVersion;
+	extraction_version: EmbeddingVersion;
 	content: string,
 	//timestamp in milliseconds since epoch
 	last_updated: number
@@ -248,7 +248,7 @@ class EmbeddingStore {
 
 		const payload : PointPayload = {
 			card_id: card.id,
-			version: CURRENT_EMBEDDING_VERSION,
+			extraction_version: CURRENT_EMBEDDING_VERSION,
 			content: text,
 			last_updated: Date.now()
 		};
