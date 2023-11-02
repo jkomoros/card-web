@@ -56,6 +56,8 @@ type EmbeddingVector = number[];
 const DEFAULT_EMBEDDING_TYPE : EmbeddingType = 'openai.com-text-embedding-ada-002';
 const DEFAULT_EMBEDDING_TYPE_INFO = EMBEDDING_TYPES[DEFAULT_EMBEDDING_TYPE];
 
+const PAYLOAD_CARD_ID_KEY = 'card_id';
+const PAYLOAD_VERSION_KEY = 'version';
 const QDRANT_BASE_COLLECTION_NAME = DEFAULT_EMBEDDING_TYPE;
 const QDRANT_DEV_COLLECTION_NAME = 'dev-' + QDRANT_BASE_COLLECTION_NAME;
 const QDRANT_PROD_COLLECTION_NAME = 'prod-' + QDRANT_BASE_COLLECTION_NAME;
@@ -155,15 +157,12 @@ const embeddingForContent = async (cardContent : string) : Promise<Embedding> =>
 	return new Embedding(DEFAULT_EMBEDDING_TYPE, vector);
 };
 
-const CARD_ID_KEY = 'card_id';
-const VERSION_KEY = 'version';
-
 type PointPayload = {
 	//Indexed
-	//Same as CARD_ID_KEY
+	//Same as PAYLOAD_CARD_ID_KEY
 	card_id: CardID;
 	//Indexed
-	//Same as VERSION_KEY
+	//Same as PAYLOAD_VERSION_KEY
 	version: EmbeddingVersion;
 	content: string,
 }
@@ -197,13 +196,13 @@ class EmbeddingStore {
 			filter: {
 				must: [
 					{
-						key: CARD_ID_KEY,
+						key: PAYLOAD_CARD_ID_KEY,
 						match: {
 							value: cardID
 						}
 					},
 					{
-						key: VERSION_KEY,
+						key: PAYLOAD_VERSION_KEY,
 						match: {
 							value: CURRENT_EMBEDDING_VERSION
 						}

@@ -29,10 +29,8 @@ const EMBEDDING_TYPES = {
 
 const DEFAULT_EMBEDDING_TYPE = 'openai.com-text-embedding-ada-002';
 const DEFAULT_EMBEDDING_TYPE_INFO = EMBEDDING_TYPES[DEFAULT_EMBEDDING_TYPE];
-
-const PAYLOAD_CARD_ID = 'card_id';
-const PAYLOAD_VERSION = 'version';
-
+const PAYLOAD_CARD_ID_KEY = 'card_id';
+const PAYLOAD_VERSION_KEY = 'version';
 const QDRANT_BASE_COLLECTION_NAME = DEFAULT_EMBEDDING_TYPE;
 const QDRANT_DEV_COLLECTION_NAME = 'dev-' + QDRANT_BASE_COLLECTION_NAME;
 const QDRANT_PROD_COLLECTION_NAME = 'prod-' + QDRANT_BASE_COLLECTION_NAME;
@@ -254,20 +252,20 @@ const configureQdrantCollection = async (client, collectionName) => {
 		});
 	}
 
-	if (!collectionInfo || !collectionInfo.payload_schema[PAYLOAD_CARD_ID]) {
+	if (!collectionInfo || !collectionInfo.payload_schema[PAYLOAD_CARD_ID_KEY]) {
 		//Need to index card_id
-		console.log(`Creating index for ${collectionName}.${PAYLOAD_CARD_ID}`);
+		console.log(`Creating index for ${collectionName}.${PAYLOAD_CARD_ID_KEY}`);
 		await client.createPayloadIndex(collectionName, {
-			field_name: PAYLOAD_CARD_ID,
+			field_name: PAYLOAD_CARD_ID_KEY,
 			field_schema: 'keyword'
 		});
 	}
 
-	if (!collectionInfo || !collectionInfo.payload_schema[PAYLOAD_VERSION]) {
+	if (!collectionInfo || !collectionInfo.payload_schema[PAYLOAD_VERSION_KEY]) {
 		//Need to index version
-		console.log(`Creating index for ${collectionName}.${PAYLOAD_VERSION}`);
+		console.log(`Creating index for ${collectionName}.${PAYLOAD_VERSION_KEY}`);
 		await client.createPayloadIndex(collectionName, {
-			field_name: PAYLOAD_VERSION,
+			field_name: PAYLOAD_VERSION_KEY,
 			field_schema: 'integer'
 		});
 	}
