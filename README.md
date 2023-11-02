@@ -510,3 +510,17 @@ The features show up in two places currently:
 ```
 
 You can run `gulp configure-qdrant` to run the configuration and set up the endpoint. It will also be run for you automatically on the next deploy.
+
+You also need to set these keys on the cloud function:
+
+```
+gulp firebase-ensure-dev
+firebase functions:config:set qdrant.cluster_url="YOUR-URL-HERE"
+firebase functions:config:set qdrant.api_key="YOUR-SECRET-KEY-HERE"
+```
+
+```
+gulp firebase-ensure-prod
+firebase functions:config:set qdrant.cluster_url="YOUR-URL-HERE"
+firebase functions:config:set qdrant.api_key="YOUR-SECRET-KEY-HERE"
+```
