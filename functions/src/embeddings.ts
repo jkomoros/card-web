@@ -85,8 +85,6 @@ class Embedding {
 }
 
 //Copied from src/type_constants.ts
-const TEXT_FIELD_BODY = 'body';
-const TEXT_FIELD_TITLE = 'title';
 const CARD_TYPE_CONTENT = 'content';
 const CARD_TYPE_WORKING_NOTES = 'working-notes';
 
@@ -133,9 +131,10 @@ const innerTextForHTML = (body : string) : string => {
 const textContentForEmbeddingForCard = (card : Card) : string => {
 	//TODO: ideally this would literally be the cardPlainContent implementation from src/util.ts
 	if (card.card_type != CARD_TYPE_CONTENT && card.card_type != CARD_TYPE_WORKING_NOTES) return '';
-	const body = innerTextForHTML(card[TEXT_FIELD_BODY]);
-	//Skip the computed title on working-notes cards since they are entire computed.
-	const title = card.card_type == CARD_TYPE_CONTENT ? (card[TEXT_FIELD_TITLE] || '') : '';
+	const body = innerTextForHTML(card.body);
+	//Skip the computed title on working-notes cards since they are entire
+	//computed. No other field for any card-type is computed yet.
+	const title = card.card_type != CARD_TYPE_WORKING_NOTES ? (card.title || '') : '';
 	return title ? title + '\n' + body : body;
 
 };
