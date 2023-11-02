@@ -501,12 +501,12 @@ The features show up in two places currently:
   //...other configuration
 
   //openai_api_key must also be set
-  "openai_api_key",
+  "openai_api_key": "${YOUR_OPENAI_API_KEY}"
   "qdrant": {
 	"cluster_url": "https://${YOUR_CLUSTER_ID}.us-east4-0.gcp.cloud.qdrant.io",
-	"api_key": "${YOUR_API_KEY}"
+	"api_key": "${YOUR_QDRANT_API_KEY}"
   }
 }
 ```
 
-The next time you deploy, the clusters will be configured and set up.
+You can run `gulp configure-qdrant` to run the configuration and set up the endpoint. It will also be run for you automatically on the next deploy.

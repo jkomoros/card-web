@@ -5,6 +5,7 @@ import { spawnSync, exec } from 'child_process';
 import prompts from 'prompts';
 import fs from 'fs';
 import process from 'process';
+import {QdrantClient} from '@qdrant/js-client-rest';
 
 let projectConfig;
 try {
@@ -15,6 +16,26 @@ try {
 }
 const CONFIG_FIREBASE_PROD = projectConfig.firebase.prod ? projectConfig.firebase.prod : projectConfig.firebase;
 const CONFIG_FIREBASE_DEV = projectConfig.firebase.dev ? projectConfig.firebase.dev : CONFIG_FIREBASE_PROD;
+const CONFIG_INCLUDES_DEV = projectConfig.firebase.prod != undefined;
+
+//Duplicated from `functions/src/embedding.ts`;
+const EMBEDDING_TYPES = {
+	'openai.com-text-embedding-ada-002': {
+		length: 1536,
+		provider: 'openai.com',
+		model: 'text-embedding-ada-002'
+	}
+};
+
+const DEFAULT_EMBEDDING_TYPE = 'openai.com-text-embedding-ada-002';
+const DEFAULT_EMBEDDING_TYPE_INFO = EMBEDDING_TYPES[DEFAULT_EMBEDDING_TYPE];
+
+const PAYLOAD_CARD_ID = 'card_id';
+const PAYLOAD_VERSION = 'version';
+
+const QDRANT_BASE_COLLECTION_NAME = DEFAULT_EMBEDDING_TYPE;
+const QDRANT_DEV_COLLECTION_NAME = 'dev-' + QDRANT_BASE_COLLECTION_NAME;
+const QDRANT_PROD_COLLECTION_NAME = 'prod-' + QDRANT_BASE_COLLECTION_NAME;
 
 //Also in functions/src/common.ts
 const CHANGE_ME_SENTINEL = 'CHANGE-ME';
@@ -36,7 +57,6 @@ const OPENAI_ENABLED = OPENAI_API_KEY != '';
 const QDRANT_INFO = projectConfig.qdrant || {};
 const QDRANT_CLUSTER_URL = QDRANT_INFO.cluster_url && QDRANT_INFO.cluster_url != CHANGE_ME_SENTINEL ? QDRANT_INFO.cluster_url : '';
 const QDRANT_API_KEY = QDRANT_INFO.api_key && QDRANT_INFO.api_key != CHANGE_ME_SENTINEL ? QDRANT_INFO.api_key : '';
-//eslint-disable-next-line @typescript-eslint/no-unused-vars
 const QDRANT_ENABLED = OPENAI_ENABLED && QDRANT_CLUSTER_URL && QDRANT_API_KEY;
 
 if (QDRANT_API_KEY && !OPENAI_ENABLED) {
@@ -110,6 +130,7 @@ const SET_LAST_DEPLOY_IF_AFFECTS_RENDERING = 'set-last-deploy-if-affects-renderi
 const ASK_IF_DEPLOY_AFFECTS_RENDERING = 'ask-if-deploy-affects-rendering';
 const ASK_BACKUP_MESSAGE = 'ask-backup-message';
 const SET_UP_CORS = 'set-up-cors';
+const CONFIGURE_QDRANT = 'configure-qdrant';
 
 const GCLOUD_ENSURE_DEV_TASK = 'gcloud-ensure-dev';
 const FIREBASE_ENSURE_DEV_TASK = 'firebase-ensure-dev';
@@ -207,6 +228,72 @@ gulp.task(GCLOUD_ENSURE_DEV_TASK, (cb) => {
 	}
 	gcloud_is_prod = false;
 	gcloudUseDev(cb);
+});
+
+const configureQdrantCollection = async (client, collectionName) => {
+
+	let collectionInfo = null;
+	try {
+		collectionInfo = await client.getCollection(collectionName);
+	} catch(e) {
+		//A 400 is the way it siganls that it doesn't exist.
+		if (e.status !== 404) {
+			throw e;
+		}
+	}
+
+	if (!collectionInfo) {
+		//Needs to be created
+		const size = DEFAULT_EMBEDDING_TYPE_INFO.length;
+		console.log(`Creating ${collectionName}`);
+		await client.createCollection(collectionName, {
+			vectors: {
+				size,
+				distance: 'Cosine'
+			}
+		});
+	}
+
+	if (!collectionInfo || !collectionInfo.payload_schema[PAYLOAD_CARD_ID]) {
+		//Need to index card_id
+		console.log(`Creating index for ${collectionName}.${PAYLOAD_CARD_ID}`);
+		await client.createPayloadIndex(collectionName, {
+			field_name: PAYLOAD_CARD_ID,
+			field_schema: 'keyword'
+		});
+	}
+
+	if (!collectionInfo || !collectionInfo.payload_schema[PAYLOAD_VERSION]) {
+		//Need to index version
+		console.log(`Creating index for ${collectionName}.${PAYLOAD_VERSION}`);
+		await client.createPayloadIndex(collectionName, {
+			field_name: PAYLOAD_VERSION,
+			field_schema: 'integer'
+		});
+	}
+
+};
+
+gulp.task(CONFIGURE_QDRANT, async (cb) => {
+
+	//TODO: consider splitting into a dev and prod deploy? The deploy is easy
+	//enough that it's fine to do both at the same time.
+
+	if (!QDRANT_ENABLED) {
+		console.log('Skipping qdrant deploy because it\'s not configured');
+		cb();
+		return;
+	}
+	const client = new QdrantClient({
+		url: QDRANT_CLUSTER_URL,
+		apiKey: QDRANT_API_KEY
+	});
+
+	if (CONFIG_INCLUDES_DEV) {
+		await configureQdrantCollection(client, QDRANT_DEV_COLLECTION_NAME);
+	}
+	await configureQdrantCollection(client, QDRANT_PROD_COLLECTION_NAME);
+	cb();
 });
 
 gulp.task(BUILD_TASK, makeExecutor('npm run build'));
@@ -420,6 +507,7 @@ gulp.task('dev-deploy',
 		FIREBASE_ENSURE_DEV_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
 		CONFIGURE_API_KEYS_IF_SET,
+		CONFIGURE_QDRANT,
 		FIREBASE_DEPLOY_TASK
 	)
 );
@@ -435,6 +523,7 @@ gulp.task('deploy',
 		FIREBASE_ENSURE_PROD_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
 		CONFIGURE_API_KEYS_IF_SET,
+		CONFIGURE_QDRANT,
 		FIREBASE_DEPLOY_TASK,
 		WARN_MAINTENANCE_TASKS,
 	)

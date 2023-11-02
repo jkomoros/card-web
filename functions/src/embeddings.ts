@@ -37,8 +37,9 @@ const DOM = new JSDOM();
 
 const EMBEDDINGS_COLLECTION = 'embeddings';
 
+//Duplicated in gulpfile.js as QDRANT_COLLECTION_NAME
 const EMBEDDING_TYPES = {
-	'openai.com:text-embedding-ada-002': {
+	'openai.com-text-embedding-ada-002': {
 		length: 1536,
 		provider: 'openai.com',
 		model: 'text-embedding-ada-002'
@@ -54,11 +55,11 @@ const CURRENT_EMBEDDING_VERSION : EmbeddingVersion = 0;
 type EmbeddingType = keyof typeof EMBEDDING_TYPES;
 type EmbeddingVector = number[];
 
-const DEFAULT_EMBEDDING_TYPE : EmbeddingType = 'openai.com:text-embedding-ada-002';
+const DEFAULT_EMBEDDING_TYPE : EmbeddingType = 'openai.com-text-embedding-ada-002';
 const DEFAULT_EMBEDDING_TYPE_INFO = EMBEDDING_TYPES[DEFAULT_EMBEDDING_TYPE];
 
 class Embedding {
-	_type : EmbeddingType = 'openai.com:text-embedding-ada-002';
+	_type : EmbeddingType = 'openai.com-text-embedding-ada-002';
 	_vector : EmbeddingVector = [];
 
 	constructor(type: EmbeddingType, vector : EmbeddingVector) {
@@ -193,11 +194,11 @@ const saveIndex = async (hnsw : hnswlib.HierarchicalNSW, file : File) => {
 };
 
 class EmbeddingStore {
-	_type : EmbeddingType = 'openai.com:text-embedding-ada-002';
+	_type : EmbeddingType = 'openai.com-text-embedding-ada-002';
 	_version : EmbeddingVersion = 0;
 	_hnsw : hnswlib.HierarchicalNSW | null = null;
 
-	constructor(type : EmbeddingType = 'openai.com:text-embedding-ada-002', version : EmbeddingVersion = 0) {
+	constructor(type : EmbeddingType = 'openai.com-text-embedding-ada-002', version : EmbeddingVersion = 0) {
 		this._type = type;
 		this._version = version;
 	}
