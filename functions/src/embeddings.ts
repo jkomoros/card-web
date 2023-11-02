@@ -277,10 +277,6 @@ class EmbeddingStore {
 const EMBEDDING_STORE = QDRANT_ENABLED ? new EmbeddingStore() : null; 
 
 export const processCardEmbedding = async (change : Change<firestore.DocumentSnapshot>) : Promise<void> => {
-	if (!openai_endpoint) {
-		console.warn('OpenAI endpoint not configured, skipping.');
-		return;
-	}
 	if (!EMBEDDING_STORE) {
 		console.warn('Qdrant not enabled, skipping');
 		return;
