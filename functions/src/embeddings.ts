@@ -320,7 +320,12 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 	let i = 1;
 	for (const card of cards) {
 		console.log(`Processing card ${i}/${cards.length}`);
-		await EMBEDDING_STORE.updateCard(card);
+		//This could fail for example for too-long embeddings
+		try {
+			await EMBEDDING_STORE.updateCard(card);
+		} catch(err) {
+			console.warn(`${card.id} failed: ${String(err)}`);
+		}
 		i++;
 	}
 	console.log('Done indexing cards');
