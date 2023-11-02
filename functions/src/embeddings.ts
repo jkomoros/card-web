@@ -129,7 +129,7 @@ const innerTextForHTML = (body : string) : string => {
 
 const textContentForEmbeddingForCard = (card : Card) : string => {
 	//TODO: ideally this would literally be the cardPlainContent implementation from src/util.ts
-	const parts : string[] = [];
+	const parts : string[] = [card.card_type, '\n'];
 	const body = innerTextForHTML(card.body);
 	if (body) parts.push(body);
 	//Skip the computed title on working-notes cards since they are entire
