@@ -12,30 +12,28 @@ import {
 } from 'jsdom';
 
 import {
-	db,
-	storage
+	config,
+	DEV_MODE
 } from './common.js';
-
-import {
-	File
-} from '@google-cloud/storage';
-
-import {
-	FieldValue,
-	Timestamp,
-} from 'firebase-admin/firestore';
 
 import {
 	Change,
 	firestore
 } from 'firebase-functions';
 
-import hnswlib from 'hnswlib-node';
-import fs from 'fs';
+import {
+	QdrantClient
+} from '@qdrant/js-client-rest';
+
+import {
+	v4 as uuidv4
+} from 'uuid';
 
 const DOM = new JSDOM();
 
-const EMBEDDINGS_COLLECTION = 'embeddings';
+const QDRANT_CLUSTER_URL = (config.qdrant || {}).cluster_url || '';
+const QDRANT_API_KEY = (config.qdrant || {}).api_key || '';
+const QDRANT_ENABLED = openai_endpoint && QDRANT_API_KEY && QDRANT_CLUSTER_URL;
 
 //Duplicated in gulpfile.js as QDRANT_COLLECTION_NAME
 const EMBEDDING_TYPES = {
@@ -57,6 +55,11 @@ type EmbeddingVector = number[];
 
 const DEFAULT_EMBEDDING_TYPE : EmbeddingType = 'openai.com-text-embedding-ada-002';
 const DEFAULT_EMBEDDING_TYPE_INFO = EMBEDDING_TYPES[DEFAULT_EMBEDDING_TYPE];
+
+const QDRANT_BASE_COLLECTION_NAME = DEFAULT_EMBEDDING_TYPE;
+const QDRANT_DEV_COLLECTION_NAME = 'dev-' + QDRANT_BASE_COLLECTION_NAME;
+const QDRANT_PROD_COLLECTION_NAME = 'prod-' + QDRANT_BASE_COLLECTION_NAME;
+const QDRANT_COLLECTION_NAME = DEV_MODE ? QDRANT_DEV_COLLECTION_NAME : QDRANT_PROD_COLLECTION_NAME;
 
 class Embedding {
 	_type : EmbeddingType = 'openai.com-text-embedding-ada-002';
@@ -152,167 +155,134 @@ const embeddingForContent = async (cardContent : string) : Promise<Embedding> =>
 	return new Embedding(DEFAULT_EMBEDDING_TYPE, vector);
 };
 
-type EmbeddingInfoID = string;
+const CARD_ID_KEY = 'card_id';
+const VERSION_KEY = 'version';
 
-type EmbeddingInfo = {
-	card: CardID,
-	embedding_type: EmbeddingType,
+type PointPayload = {
+	//Indexed
+	//Same as CARD_ID_KEY
+	card_id: CardID;
+	//Indexed
+	//Same as VERSION_KEY
+	version: EmbeddingVersion;
 	content: string,
-	version: EmbeddingVersion,
-	lastUpdated: Timestamp | FieldValue
-	vectorIndex: number,
-	previousVectorIndexes: number[]
 }
 
-const embeddingInfoIDForCard = (card : Card, embeddingType : EmbeddingType = DEFAULT_EMBEDDING_TYPE, version : EmbeddingVersion = CURRENT_EMBEDDING_VERSION) : EmbeddingInfoID => {
-	return card.id + '+' + embeddingType + '+' + version;
-};
-
-const HNSW_FILENAME = 'hnsw.db';
-const HNSW_TEMP_LOCATION = '/tmp/' + HNSW_FILENAME;
-
-//The default bucket is already configured, just use that
-const hnswBucket = storage.bucket();
-
-const readIndex = async (hnsw : hnswlib.HierarchicalNSW, file : File) => {
-	//hnsw only knows how to load from filesystem, so downlaod and write a file.
-	//Cloud Functions has a whole fake filesystem in memory.
-	const response = await file.download();
-	const data = response[0];
-	fs.writeFileSync(HNSW_TEMP_LOCATION, data);
-	await hnsw.readIndex(HNSW_TEMP_LOCATION);
-	fs.unlinkSync(HNSW_TEMP_LOCATION);
-};
-
-const saveIndex = async (hnsw : hnswlib.HierarchicalNSW, file : File) => {
-	//hnsw only knows how to load from filesystem, so downlaod and write a file.
-	//Cloud Functions has a whole fake filesystem in memory.
-	await hnsw.writeIndex(HNSW_TEMP_LOCATION);
-	const data = fs.readFileSync(HNSW_TEMP_LOCATION);
-	await file.save(data);
-	fs.unlinkSync(HNSW_TEMP_LOCATION);
+type Point = {
+	id: string,
+	payload: PointPayload
 };
 
 class EmbeddingStore {
 	_type : EmbeddingType = 'openai.com-text-embedding-ada-002';
 	_version : EmbeddingVersion = 0;
-	_hnsw : hnswlib.HierarchicalNSW | null = null;
+	_qdrant : QdrantClient;
 
 	constructor(type : EmbeddingType = 'openai.com-text-embedding-ada-002', version : EmbeddingVersion = 0) {
+		if (!QDRANT_ENABLED) throw new Error('Qdrant not enabled');
 		this._type = type;
 		this._version = version;
+		this._qdrant = new QdrantClient({
+			url: QDRANT_CLUSTER_URL,
+			apiKey: QDRANT_API_KEY
+		});
 	}
 
 	get dim() : number {
 		return EMBEDDING_TYPES[this._type].length;
 	}
 
-	get hnswFile() : File {
-		const path = 'embeddings/' + this._type + '/' + this._version + '/' + HNSW_FILENAME;
-		return hnswBucket.file(path);
-	}
-
-	async _getHNSW() : Promise<hnswlib.HierarchicalNSW> {
-		if (this._hnsw) return this._hnsw;
-		const memoryFile = this.hnswFile;
-		const memoryExistsResponse = await memoryFile.exists();
-		const memoryExists = memoryExistsResponse[0];
-		const hnsw = new hnswlib.HierarchicalNSW('cosine', this.dim);
-		if (memoryExists) {
-			await readIndex(hnsw, memoryFile);
-			console.log(`Loaded ${memoryFile.name} with ${hnsw.getCurrentCount()} items`);
-		} else {
-			//We'll start small and keep growing if necessary.
-			hnsw.initIndex(32);
-			console.log('Created a new hnsw index');
-		}
-		this._hnsw = hnsw;
-		return hnsw;
-	}
-
-	async _saveHNSW(): Promise<void> {
-		const hnsw = await this._getHNSW();
-		saveIndex(hnsw, this.hnswFile);
-		console.log(`Saving hnsw with ${hnsw.getCurrentCount()} items.`);
+	async getExistingPoint(cardID : CardID) : Promise<Point | null> {
+		const existingPoints = await this._qdrant.scroll(QDRANT_COLLECTION_NAME, {
+			filter: {
+				must: [
+					{
+						key: CARD_ID_KEY,
+						match: {
+							value: cardID
+						}
+					},
+					{
+						key: VERSION_KEY,
+						match: {
+							value: CURRENT_EMBEDDING_VERSION
+						}
+					}
+				]
+			}
+		});
+		if (existingPoints.points.length == 0) return null;
+		const existingPoint = existingPoints.points[0];
+		return {
+			id: existingPoint.id as string,
+			payload: existingPoint.payload as PointPayload
+		};
 	}
 
 	async updateCard(card : Card) : Promise<void> {
-		const id = embeddingInfoIDForCard(card);
-		const record = await db.collection(EMBEDDINGS_COLLECTION).doc(id).get();
+
+		const existingPoint = await this.getExistingPoint(card.id);
+
 		const text = textContentForEmbeddingForCard(card);
 
 		if (!text.trim()) {
-			console.log(`Skipping ${id} because text to embed is empty`);
+			console.log(`Skipping ${card.id} because text to embed is empty`);
 			return;
 		}
 
-		if (record.exists) {
-			const info = record.data() as EmbeddingInfo;
+		if (existingPoint) {
 			//The embedding exists and is up to date, no need to do anything else.
-			if (text == info.content) {
-				console.log(`The embedding content had not changed for ${id} so stopping early`);
+			if (text == existingPoint.payload.content) {
+				console.log(`The embedding content had not changed for ${card.id} so stopping early`);
 				return;
 			}
 		}
+
 		const embedding = await embeddingForContent(text);
 	
 		//TODO: stop logging
 		console.log(`Embedding: ${text}\n${JSON.stringify(embedding)}`);
 
-		const hnsw = await this._getHNSW();
+		//Qdrant requires either an integer key or a literal UUID
+		const id = uuidv4();
 
-		
-		let previousVectorIndexes : number[] = [];
-
-		if (record.exists) {
-			//We want to remove the earlier index item for it so we don't get duplicates
-			const info = record.data() as EmbeddingInfo;
-			hnsw.markDelete(info.vectorIndex);
-			previousVectorIndexes = [info.vectorIndex, ...info.previousVectorIndexes];
-		}
-
-		//hsnw requires an integer key, so do one higher than has ever been in it.
-		const vectorIndex = hnsw.getCurrentCount();
-		//Double the index size if we were about to run over.
-		if (vectorIndex >= hnsw.getMaxElements()) {
-			const newSize = hnsw.getMaxElements() * 2;
-			console.log(`Resizing hnsw index to ${newSize}`);
-			hnsw.resizeIndex(newSize);
-		}
-
-		hnsw.addPoint(embedding.vector, vectorIndex);
-		await this._saveHNSW();
-
-		const info : EmbeddingInfo = {
-			card: card.id,
-			embedding_type: DEFAULT_EMBEDDING_TYPE,
-			content: text,
+		const payload : PointPayload = {
+			card_id: card.id,
 			version: CURRENT_EMBEDDING_VERSION,
-			lastUpdated: FieldValue.serverTimestamp(),
-			vectorIndex,
-			previousVectorIndexes
+			content: text
 		};
-	
-		await db.collection(EMBEDDINGS_COLLECTION).doc(id).set(info, {merge: true});
+
+		await this._qdrant.upsert(QDRANT_COLLECTION_NAME, {
+			points: [
+				{
+					id,
+					vector: embedding.vector,
+					payload
+				}
+			]
+		});
 	}
 
 	async deleteCard(card : Card) : Promise<void> {
-		const id = embeddingInfoIDForCard(card);
-		const ref = db.collection(EMBEDDINGS_COLLECTION).doc(id);
-		const doc = await ref.get();
-		const info = doc.data() as EmbeddingInfo;
-		const hnsw = await this._getHNSW();
-		hnsw.markDelete(info.vectorIndex);
-		await this._saveHNSW();
-		await ref.delete();
+		const existingPoint = await this.getExistingPoint(card.id);
+		if (!existingPoint) return;
+		await this._qdrant.delete(QDRANT_COLLECTION_NAME, {
+			points: [
+				existingPoint.id
+			]
+		});
 	}
 }
 
-const EMBEDDING_STORE = new EmbeddingStore();
+const EMBEDDING_STORE = QDRANT_ENABLED ? new EmbeddingStore() : null; 
 
 export const processCardEmbedding = async (change : Change<firestore.DocumentSnapshot>) : Promise<void> => {
 	if (!openai_endpoint) {
 		console.warn('OpenAI endpoint not configured, skipping.');
+		return;
+	}
+	if (!EMBEDDING_STORE) {
+		console.warn('Qdrant not enabled, skipping');
 		return;
 	}
 	if (!change.after.exists) {
