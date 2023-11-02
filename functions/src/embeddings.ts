@@ -129,12 +129,14 @@ const innerTextForHTML = (body : string) : string => {
 
 const textContentForEmbeddingForCard = (card : Card) : string => {
 	//TODO: ideally this would literally be the cardPlainContent implementation from src/util.ts
+	const parts : string[] = [];
 	const body = innerTextForHTML(card.body);
+	if (body) parts.push(body);
 	//Skip the computed title on working-notes cards since they are entire
 	//computed. No other field for any card-type is computed yet.
 	const title = card.card_type != CARD_TYPE_WORKING_NOTES ? (card.title || '') : '';
-	return title ? title + '\n' + body : body;
-
+	if (title) parts.push(title);
+	return parts.join('\n');
 };
 
 const embeddingForContent = async (cardContent : string) : Promise<Embedding> => {
