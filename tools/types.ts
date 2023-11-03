@@ -21,12 +21,15 @@ export type Config = {
 	app_description : string;
 	seo : boolean;
 	google_analytics? : string;
+	disable_twitter? : boolean;
 	twitter_handle? : string;
 	openai_api_key? : string;
 	qdrant?: {
 		cluster_url: string,
 		api_key: string
 	},
+	backup_bucket_name? : string,
+	tag_releases? : boolean;
 	disable_persistence? : boolean;
 	disable_anonymous_login? : boolean;
 	disable_service_worker? : boolean;

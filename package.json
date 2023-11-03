@@ -18,7 +18,7 @@
     "generate:seo": "npx ts-node-esm tools/seo.ts all",
     "generate:seo:pages": "npx ts-node-esm tools/seo.ts pages",
     "generate:seo:config": "npx ts-node-esm tools/seo.ts config",
-    "generate:schema": "npx typescript-json-schema tools/types.ts Config > .vscode/config_schema.json",
+    "generate:schema": "npx typescript-json-schema tools/types.ts Config --noExtraProps > .vscode/config_schema.json",
     "test": "npm run test:security && npm run test:url && npm run test:contenteditable && npm run test:references && npm run test:fingerprint && npm run test:ngram && npm run test:objpath",
     "test:security": "npm run generate:config && npm run generate:seo:config && firebase emulators:exec --only firestore 'npm run test:security-impl'",
     "test:security-impl": "mocha -r esm test/security --timeout=10000",

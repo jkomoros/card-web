@@ -1,7 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
+    "additionalProperties": false,
     "definitions": {
         "FirebaseOptions": {
+            "additionalProperties": false,
             "properties": {
                 "apiKey": {
                     "description": "An encrypted string used when calling certain APIs that don't need to\naccess private user data\n(example value: `AIzaSyDOCAbC123dEf456GhI789jKl012-MnO`).",
@@ -96,8 +98,10 @@
             "type": "string"
         },
         "TabConfigItemInput": {
+            "additionalProperties": false,
             "properties": {
                 "action": {
+                    "additionalProperties": false,
                     "type": "object"
                 },
                 "collection": {
@@ -166,6 +170,7 @@
             "type": "string"
         },
         "{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}": {
+            "additionalProperties": false,
             "properties": {
                 "concepts": {
                     "$ref": "#/definitions/TabConfigItemInput"
@@ -216,6 +221,7 @@
             "type": "object"
         },
         "{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}_1": {
+            "additionalProperties": false,
             "properties": {
                 "concepts": {
                     "$ref": "#/definitions/TabConfigItemInput"
@@ -273,6 +279,9 @@
         "app_title": {
             "type": "string"
         },
+        "backup_bucket_name": {
+            "type": "string"
+        },
         "disable_anonymous_login": {
             "type": "boolean"
         },
@@ -285,12 +294,16 @@
         "disable_service_worker": {
             "type": "boolean"
         },
+        "disable_twitter": {
+            "type": "boolean"
+        },
         "firebase": {
             "anyOf": [
                 {
                     "$ref": "#/definitions/FirebaseOptions"
                 },
                 {
+                    "additionalProperties": false,
                     "properties": {
                         "dev": {
                             "$ref": "#/definitions/FirebaseOptions"
@@ -313,8 +326,10 @@
             "type": "string"
         },
         "permissions": {
+            "additionalProperties": false,
             "properties": {
                 "all": {
+                    "additionalProperties": false,
                     "properties": {
                         "admin": {
                             "type": "boolean"
@@ -359,6 +374,7 @@
                     "type": "object"
                 },
                 "anonymous": {
+                    "additionalProperties": false,
                     "properties": {
                         "admin": {
                             "type": "boolean"
@@ -403,6 +419,7 @@
                     "type": "object"
                 },
                 "signed_in": {
+                    "additionalProperties": false,
                     "properties": {
                         "admin": {
                             "type": "boolean"
@@ -447,6 +464,7 @@
                     "type": "object"
                 },
                 "signed_in_domain": {
+                    "additionalProperties": false,
                     "properties": {
                         "admin": {
                             "type": "boolean"
@@ -494,6 +512,7 @@
             "type": "object"
         },
         "qdrant": {
+            "additionalProperties": false,
             "properties": {
                 "api_key": {
                     "type": "string"
@@ -511,6 +530,7 @@
             "type": "boolean"
         },
         "tab_overrides": {
+            "additionalProperties": false,
             "properties": {
                 "after": {
                     "$ref": "#/definitions/{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}_1"
@@ -550,6 +570,9 @@
                 ]
             },
             "type": "array"
+        },
+        "tag_releases": {
+            "type": "boolean"
         },
         "twitter_handle": {
             "type": "string"
