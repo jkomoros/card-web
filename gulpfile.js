@@ -8,19 +8,23 @@ import process from 'process';
 import {QdrantClient} from '@qdrant/js-client-rest';
 
 import {
-	getProjectConfig,
-	devProdFirebaseConfig
+	devProdConfig
 } from './tools/util.js';
 
-let projectConfig;
+let config;
 try {
-	projectConfig = getProjectConfig();
+	config = devProdConfig();
 } catch(err) {
 	console.log('config.SECRET.json didn\'t exist. Check README.md on how to create one');
 	process.exit(1);
 }
 
-const {prod: CONFIG_FIREBASE_PROD, dev: CONFIG_FIREBASE_DEV, devConfigured: CONFIG_INCLUDES_DEV} = devProdFirebaseConfig(projectConfig);
+const projectConfig = config.prod;
+const devProjectConfig = config.dev;
+
+const CONFIG_FIREBASE_PROD = projectConfig.firebase;
+const CONFIG_FIREBASE_DEV = devProjectConfig.firebase;
+const CONFIG_INCLUDES_DEV = config.devProvided;
 
 //Duplicated from `functions/src/embedding.ts`;
 const EMBEDDING_TYPES = {
@@ -40,6 +44,7 @@ const QDRANT_DEV_COLLECTION_NAME = 'dev-' + QDRANT_BASE_COLLECTION_NAME;
 const QDRANT_PROD_COLLECTION_NAME = 'prod-' + QDRANT_BASE_COLLECTION_NAME;
 
 //Also in functions/src/common.ts
+//Also in tools/util.ts
 const CHANGE_ME_SENTINEL = 'CHANGE-ME';
 
 const FIREBASE_PROD_PROJECT = CONFIG_FIREBASE_PROD.projectId;

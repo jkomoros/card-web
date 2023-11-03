@@ -8,15 +8,13 @@ import {
 	UserPermissionsCore
 } from '../src/types_simple.js';
 
-export type FirebaseProdDevOptions = {
-	prod?: FirebaseOptions,
-	dev?: FirebaseOptions,
-	//Whether dev was passed explicitly
-	devConfigured?: boolean
+export type ExpandedConfig = {
+	dev: ModeConfig,
+	prod: ModeConfig,
+	devProvided : boolean
 };
 
-//When this changes, run `npm run generate:schema`
-export type Config = {
+export type ModeConfig = {
 	app_title : string;
 	app_description : string;
 	seo : boolean;
@@ -45,5 +43,12 @@ export type Config = {
 		signed_in? : UserPermissionsCore;
 		signed_in_domain? : UserPermissionsCore;
 	}
-	firebase: FirebaseProdDevOptions | FirebaseOptions;
+	firebase: FirebaseOptions;
+};
+
+//When this changes, run `npm run generate:schema`
+export type Config = {
+	base: ModeConfig,
+	prod? : ModeConfig,
+	dev? : ModeConfig
 };

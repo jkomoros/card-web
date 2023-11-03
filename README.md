@@ -158,7 +158,7 @@ If you don't have a dev/prod account, just a prod one, it will ask for confirmat
 
 By default, your `config.SECRET.json` will only configure a single firebase project. But if you're going to be doing serious work in your instance, or especially if you'll be hacking on the web app code, it's a good idea to have seperate dev and prod instances.
 
-To do that, create a separate firebase project in firebase and then modify your `config.SECRET.json` so that instead of the "firebase" key having the one project's config, it instead has two keys: "dev" and "prod", each with their corresponding keys.
+To do that, create a separate firebase project in firebase and then modify your `config.SECRET.json` to add a `dev` key to top-level with `firebase` underneath, with the dev configuration. You can also overwrite other aspects in the dev part.
 
 When you do this, you'll want to do *most* of the set-up steps described for a
 new project, but not run the set-up maintence task.

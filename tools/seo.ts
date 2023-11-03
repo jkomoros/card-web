@@ -4,7 +4,7 @@ import * as process from 'process';
 import striptags from 'striptags';
 
 import {
-	Config
+	ModeConfig
 } from './types.js';
 
 import {
@@ -30,8 +30,7 @@ import {
 } from '../src/type_constants.js';
 
 import {
-	getProjectConfig,
-	getFirebaseConfig
+	getActiveConfig
 } from './util.js';
 
 const SEO_PATH = 'seo/';
@@ -72,7 +71,7 @@ const fetchCards = async (config : FirebaseOptions) : Promise<Card[]> => {
 	return result;
 };
 
-const saveSEOForCard = (config : Config, rawContent : string, card : Card) => {
+const saveSEOForCard = (config : ModeConfig, rawContent : string, card : Card) => {
 	const name = card.name;
 	const fileName = path.join(SEO_PATH, name + '.html');
 	log(`Creating ${fileName}`);
@@ -85,7 +84,7 @@ const saveSEOForCard = (config : Config, rawContent : string, card : Card) => {
 	fs.writeFileSync(fileName, content);
 };
 
-const createSEOEndpoints = (config : Config, cards : Card[]) => {
+const createSEOEndpoints = (config : ModeConfig, cards : Card[]) => {
 	if(fs.existsSync(SEO_PATH)) {
 		log(`Removing ${SEO_PATH}`);
 		fs.rmSync(SEO_PATH, {recursive: true, force: true});
@@ -116,17 +115,18 @@ const updateFirebaseConfig = () => {
 };
 
 const generatePages = async () => {
-	const json = getProjectConfig();
-	if (!json.seo) {
+
+	const config = await getActiveConfig();
+
+	if (!config.seo) {
 		console.log('SEO mode is not enabled in config');
 		process.exit(0);
 	}
-	const firebaseConfig = await getFirebaseConfig(json);
 	log('Fetching cards');
 	//TODO: support a limit on how many cards to fetch.
-	const cards = await fetchCards(firebaseConfig);
+	const cards = await fetchCards(config.firebase);
 	log(`Fetched ${cards.length} cards`);
-	createSEOEndpoints(json, cards);
+	createSEOEndpoints(config, cards);
 };
 
 const COMMAND_PAGES = 'pages';

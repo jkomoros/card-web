@@ -36,6 +36,7 @@ export const storage = getStorage();
 const PROJECT_NAME = (process.env.GCLOUD_PROJECT || '').toLowerCase();
 
 //Also in gulpfile.js
+//Also in tools/util.ts
 export const CHANGE_ME_SENTINEL = 'CHANGE-ME';
 
 //DEV_MODE is true if the project name contains 'dev-' or '-dev'
