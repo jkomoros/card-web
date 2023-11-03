@@ -59,6 +59,7 @@ const DEFAULT_EMBEDDING_TYPE_INFO = EMBEDDING_TYPES[DEFAULT_EMBEDDING_TYPE];
 
 const PAYLOAD_CARD_ID_KEY = 'card_id';
 const PAYLOAD_VERSION_KEY = 'extraction_version';
+const PAYLOAD_CONTENT_KEY = 'content';
 const QDRANT_BASE_COLLECTION_NAME = DEFAULT_EMBEDDING_TYPE;
 const QDRANT_DEV_COLLECTION_NAME = 'dev-' + QDRANT_BASE_COLLECTION_NAME;
 const QDRANT_PROD_COLLECTION_NAME = 'prod-' + QDRANT_BASE_COLLECTION_NAME;
@@ -175,6 +176,7 @@ type PointPayload = {
 	//Indexed
 	//Same as PAYLOAD_VERSION_KEY
 	extraction_version: EmbeddingVersion;
+	//Same as PAYLOAD_CONTENT_KEY
 	content: string,
 	//timestamp in milliseconds since epoch
 	last_updated: number
@@ -231,9 +233,10 @@ class EmbeddingStore {
 		};
 	}
 
-	async updateCard(card : Card) : Promise<void> {
+	//cardInfo if provided will be consulted instead of going out to hit the endpoint.
+	async updateCard(card : Card, cardsContent? : Record<CardID, string>) : Promise<void> {
 
-		const existingPoint = await this.getExistingPoint(card.id);
+		if (!cardsContent) cardsContent = {};
 
 		const text = textContentForEmbeddingForCard(card);
 
@@ -242,19 +245,21 @@ class EmbeddingStore {
 			return;
 		}
 
-		if (existingPoint) {
+		let existingContent = cardsContent[card.id];
+
+		if (existingContent === undefined) {
+			const existingPoint = await this.getExistingPoint(card.id);
+			if (existingPoint) existingContent = existingPoint.payload.content;
+		}
+
+		if (existingContent === text) {
 			//The embedding exists and is up to date, no need to do anything else.
-			if (text == existingPoint.payload.content) {
-				console.log(`The embedding content had not changed for ${card.id} so stopping early`);
-				return;
-			}
+			console.log(`The embedding content had not changed for ${card.id} so stopping early`);
+			return;
 		}
 
 		const embedding = await embeddingForContent(text);
 	
-		//TODO: stop logging
-		console.log(`Embedding: ${text}\n${JSON.stringify(embedding)}`);
-
 		//Qdrant requires either an integer key or a literal UUID
 		const id = uuidv4();
 
@@ -319,13 +324,32 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 			id: snapshot.id
 		} as Card;
 	});
+
+	const indexedCardInfoResult = await EMBEDDING_STORE._qdrant.scroll(QDRANT_COLLECTION_NAME, {
+		filter: {
+			must: [
+				{
+					key: PAYLOAD_VERSION_KEY,
+					match: {
+						value: CURRENT_EMBEDDING_VERSION
+					}
+				}
+			]
+		},
+		with_payload: {
+			include: [PAYLOAD_CONTENT_KEY]
+		}
+	});
+
+	const cardsInfo = Object.fromEntries(indexedCardInfoResult.points.map(point => [point.payload?.card_id, point.payload?.content])) as Record<CardID, string>;
+
 	let i = 1;
 	let errCount = 0;
 	for (const card of cards) {
 		console.log(`Processing card ${i}/${cards.length}`);
 		//This could fail for example for too-long embeddings
 		try {
-			await EMBEDDING_STORE.updateCard(card);
+			await EMBEDDING_STORE.updateCard(card, cardsInfo);
 			errCount = 0;
 		} catch(err) {
 			console.warn(`${card.id} failed: ${String(err)}`);
