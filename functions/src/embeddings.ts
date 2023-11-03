@@ -142,12 +142,12 @@ const textContentForEmbeddingForCard = (card : Card) : string => {
 	const created = card.created.toDate();
 	const prefix = formatDate(created) + '\n' + card.card_type + '\n\n';
 	const parts : string[] = [];
-	const body = innerTextForHTML(card.body);
-	if (body) parts.push(body);
 	//Skip the computed title on working-notes cards since they are entire
 	//computed. No other field for any card-type is computed yet.
 	const title = card.card_type != CARD_TYPE_WORKING_NOTES ? (card.title || '') : '';
 	if (title) parts.push(title);
+	const body = innerTextForHTML(card.body);
+	if (body) parts.push(body);
 	if (parts.length == 0) return '';
 	return prefix + parts.join('\n');
 };
