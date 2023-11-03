@@ -178,8 +178,12 @@ type PointPayload = {
 	extraction_version: EmbeddingVersion;
 	//Same as PAYLOAD_CONTENT_KEY
 	content: string,
+	//when the point was updated. timestamp in milliseconds since epoch
+	last_updated: number,
+	//These next two fields are just useful for visualization in the dashboard.
+	card_type: string,
 	//timestamp in milliseconds since epoch
-	last_updated: number
+	card_created: number
 }
 
 type Point = {
@@ -267,7 +271,9 @@ class EmbeddingStore {
 			card_id: card.id,
 			extraction_version: CURRENT_EMBEDDING_VERSION,
 			content: text,
-			last_updated: Date.now()
+			last_updated: Date.now(),
+			card_type: card.card_type,
+			card_created: card.created.nanoseconds
 		};
 
 		await this._qdrant.upsert(QDRANT_COLLECTION_NAME, {
