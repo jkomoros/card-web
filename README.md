@@ -37,9 +37,9 @@ By default (unless you set disable_anonymous_login to your config.SECRET.json) a
 
 In the navigation to the right, go to the Storage tab. Tap 'Get Started'. Click Next. It will show you a location selection, which you can't change (since you set it in an earlier step). Tap 'Done'.
 
-Run `gulp set-up-deploy`
+Run `npm run start` to run the server. This also starts building files the gulp file relies on.
 
-Run `npm run start` to run the server.
+Run `gulp set-up-deploy`
 
 Visit https://localhost:8081/maintenance in your browser.
 

@@ -2,7 +2,10 @@
     "files.exclude": {
         "src/**/*.d.ts": true,
         "src/**/*.js": true,
-        "src/**/*.map": true
+        "src/**/*.map": true,
+        "tools/**/*.d.ts": true,
+        "tools/**/*.js": true,
+        "tools/**/*.map": true
     },
     "json.schemas": [
         {

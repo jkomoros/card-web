@@ -7,6 +7,9 @@ _site/
 src/**/*.js
 src/**/*.d.ts
 src/**/*.map
+tools/**/*.js
+tools/**/*.d.ts
+tools/**/*.map
 
 .runtimeconfig.json
 
