@@ -3,10 +3,10 @@ import {
 } from 'firebase/app';
 
 import {
-	TabConfig,
+	TabConfigInput,
 	TabConfigOverrides,
-	UserPermissions
-} from '../src/types.js';
+	UserPermissionsCore
+} from '../src/types_simple.js';
 
 export type FirebaseProdDevOptions = {
 	prod?: FirebaseOptions,
@@ -30,16 +30,16 @@ export type Config = {
 	disable_anonymous_login? : boolean;
 	disable_service_worker? : boolean;
 	disable_callable_cloud_functions? : boolean;
-	tabs? : TabConfig;
+	tabs? : TabConfigInput;
 	tab_overrides? : TabConfigOverrides;
 	//TODO: type this more tightly
 	region? : string;
 	user_domain? : string;
 	permissions? : {
-		all? : UserPermissions;
-		anonymous? : UserPermissions;
-		signed_in? : UserPermissions;
-		signed_in_domain? : UserPermissions;
+		all? : UserPermissionsCore;
+		anonymous? : UserPermissionsCore;
+		signed_in? : UserPermissionsCore;
+		signed_in_domain? : UserPermissionsCore;
 	}
 	firebase: FirebaseProdDevOptions | FirebaseOptions;
 };

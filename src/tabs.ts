@@ -38,9 +38,13 @@ import {
 	ExpandedTabConfig,
 	ExpandedTabConfigItem,
 	Sections,
+
+} from './types.js';
+
+import {
 	TabConfigName,
 	TabConfigOverrides
-} from './types.js';
+} from './types_simple.js';
 
 import {
 	store
