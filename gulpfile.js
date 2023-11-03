@@ -8,7 +8,8 @@ import process from 'process';
 import {QdrantClient} from '@qdrant/js-client-rest';
 
 import {
-	getProjectConfig
+	getProjectConfig,
+	devProdFirebaseConfig
 } from './tools/util.js';
 
 let projectConfig;
@@ -18,9 +19,8 @@ try {
 	console.log('config.SECRET.json didn\'t exist. Check README.md on how to create one');
 	process.exit(1);
 }
-const CONFIG_FIREBASE_PROD = projectConfig.firebase.prod ? projectConfig.firebase.prod : projectConfig.firebase;
-const CONFIG_FIREBASE_DEV = projectConfig.firebase.dev ? projectConfig.firebase.dev : CONFIG_FIREBASE_PROD;
-const CONFIG_INCLUDES_DEV = projectConfig.firebase.prod != undefined;
+
+const {prod: CONFIG_FIREBASE_PROD, dev: CONFIG_FIREBASE_DEV, devConfigured: CONFIG_INCLUDES_DEV} = devProdFirebaseConfig(projectConfig);
 
 //Duplicated from `functions/src/embedding.ts`;
 const EMBEDDING_TYPES = {
