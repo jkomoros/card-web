@@ -7,9 +7,13 @@ import fs from 'fs';
 import process from 'process';
 import {QdrantClient} from '@qdrant/js-client-rest';
 
+import {
+	getProjectConfig
+} from './tools/util.js';
+
 let projectConfig;
 try {
-	projectConfig = JSON.parse(fs.readFileSync('./config.SECRET.json').toString());
+	projectConfig = getProjectConfig();
 } catch(err) {
 	console.log('config.SECRET.json didn\'t exist. Check README.md on how to create one');
 	process.exit(1);
