@@ -3,5 +3,13 @@
         "src/**/*.d.ts": true,
         "src/**/*.js": true,
         "src/**/*.map": true
-    }
+    },
+    "json.schemas": [
+        {
+            "fileMatch": [
+                "config.*.json"
+            ],
+            "url": ".vscode/config_schema.json"
+        }
+    ]
 }

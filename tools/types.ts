@@ -15,6 +15,7 @@ export type FirebaseProdDevOptions = {
 	devConfigured?: boolean
 };
 
+//When this changes, run `npm run generate:schema`
 export type Config = {
 	app_title : string;
 	app_description : string;

@@ -1,0 +1,563 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "definitions": {
+        "FirebaseOptions": {
+            "properties": {
+                "apiKey": {
+                    "description": "An encrypted string used when calling certain APIs that don't need to\naccess private user data\n(example value: `AIzaSyDOCAbC123dEf456GhI789jKl012-MnO`).",
+                    "type": "string"
+                },
+                "appId": {
+                    "description": "Unique identifier for the app.",
+                    "type": "string"
+                },
+                "authDomain": {
+                    "description": "Auth domain for the project ID.",
+                    "type": "string"
+                },
+                "databaseURL": {
+                    "description": "Default Realtime Database URL.",
+                    "type": "string"
+                },
+                "measurementId": {
+                    "description": "An ID automatically created when you enable Analytics in your\nFirebase project and register a web app. In versions 7.20.0\nand higher, this parameter is optional.",
+                    "type": "string"
+                },
+                "messagingSenderId": {
+                    "description": "Unique numerical value used to identify each sender that can send\nFirebase Cloud Messaging messages to client apps.",
+                    "type": "string"
+                },
+                "projectId": {
+                    "description": "The unique identifier for the project across all of Firebase and\nGoogle Cloud.",
+                    "type": "string"
+                },
+                "storageBucket": {
+                    "description": "The default Cloud Storage bucket name.",
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "IconName": {
+            "enum": [
+                "ADD_COMMENT_ICON",
+                "ARROW_BACK_ICON",
+                "ARROW_DOWNWARD_ICON",
+                "ARROW_DOWN_ICON",
+                "ARROW_FORWARD_ICON",
+                "ARROW_RIGHT_ICON",
+                "ARROW_UPWARD_ICON",
+                "ARROW_UP_ICON",
+                "ASSIGNMENT_TURNED_IN_ICON",
+                "AUTO_AWESOME_ICON",
+                "BASELINK_LINK_ICON",
+                "CANCEL_ICON",
+                "CASINO_ICON",
+                "CHECK_CIRCLE_OUTLINE_ICON",
+                "COMMENT_ICON",
+                "COPY_ALL_ICON",
+                "DELETE_FOREVER_ICON",
+                "EDIT_ICON",
+                "FAVORITE_ICON",
+                "FILE_COPY_ICON",
+                "FORUM_ICON",
+                "FULL_SCREEN_ICON",
+                "HELP_ICON",
+                "HIGHLIGHT_OFF_ICON",
+                "INFO_ICON",
+                "INSERT_DRIVE_FILE_ICON",
+                "INSIGHTS_ICON",
+                "LINK_ICON",
+                "LINK_OFF_ICON",
+                "MENU_BOOK_ICON",
+                "MERGE_TYPE_ICON",
+                "OPEN_IN_BROWSER_ICON",
+                "PERSON_ICON",
+                "PLAYLISLT_ADD_CHECK_ICON",
+                "PLAYLIST_ADD_ICON",
+                "PLAYLIST_PLAY_ICON",
+                "PLUS_ICON",
+                "RECEIPT_ICON",
+                "REPEAT_ICON",
+                "REPLY_ICON",
+                "RULE_ICON",
+                "SAVE_ICON",
+                "SCHEDULE_ICON",
+                "SCREEN_ROTATION_ICON",
+                "SEARCH_ICON",
+                "SHUFFLE_ICON",
+                "STAR_BORDER_ICON",
+                "STAR_ICON",
+                "TWITTER_ICON",
+                "VIEW_DAY_ICON",
+                "VISIBILITY_ICON",
+                "WARNING_ICON"
+            ],
+            "type": "string"
+        },
+        "TabConfigItemInput": {
+            "properties": {
+                "action": {
+                    "type": "object"
+                },
+                "collection": {
+                    "type": "string"
+                },
+                "count": {
+                    "type": "boolean"
+                },
+                "default": {
+                    "type": "boolean"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "expand": {
+                    "$ref": "#/definitions/TabConfigName"
+                },
+                "fallback_cards": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "hide": {
+                    "type": "boolean"
+                },
+                "hideIfEmpty": {
+                    "type": "boolean"
+                },
+                "href": {
+                    "type": "string"
+                },
+                "icon": {
+                    "$ref": "#/definitions/IconName"
+                },
+                "italics": {
+                    "type": "boolean"
+                },
+                "start_cards": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                }
+            },
+            "type": "object"
+        },
+        "TabConfigName": {
+            "enum": [
+                "concepts",
+                "default_end_tabs",
+                "default_tabs",
+                "hidden_sections",
+                "hidden_tags",
+                "popular",
+                "random",
+                "reading-list",
+                "recent",
+                "sections",
+                "starred",
+                "tags",
+                "twitter",
+                "unread",
+                "working-notes"
+            ],
+            "type": "string"
+        },
+        "{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}": {
+            "properties": {
+                "concepts": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "default_end_tabs": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "default_tabs": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "hidden_sections": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "hidden_tags": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "popular": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "random": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "reading-list": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "recent": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "sections": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "starred": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "tags": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "twitter": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "unread": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "working-notes": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                }
+            },
+            "type": "object"
+        },
+        "{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}_1": {
+            "properties": {
+                "concepts": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "default_end_tabs": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "default_tabs": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "hidden_sections": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "hidden_tags": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "popular": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "random": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "reading-list": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "recent": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "sections": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "starred": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "tags": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "twitter": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "unread": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                },
+                "working-notes": {
+                    "$ref": "#/definitions/TabConfigItemInput"
+                }
+            },
+            "type": "object"
+        }
+    },
+    "properties": {
+        "app_description": {
+            "type": "string"
+        },
+        "app_title": {
+            "type": "string"
+        },
+        "disable_anonymous_login": {
+            "type": "boolean"
+        },
+        "disable_callable_cloud_functions": {
+            "type": "boolean"
+        },
+        "disable_persistence": {
+            "type": "boolean"
+        },
+        "disable_service_worker": {
+            "type": "boolean"
+        },
+        "firebase": {
+            "anyOf": [
+                {
+                    "$ref": "#/definitions/FirebaseOptions"
+                },
+                {
+                    "properties": {
+                        "dev": {
+                            "$ref": "#/definitions/FirebaseOptions"
+                        },
+                        "devConfigured": {
+                            "type": "boolean"
+                        },
+                        "prod": {
+                            "$ref": "#/definitions/FirebaseOptions"
+                        }
+                    },
+                    "type": "object"
+                }
+            ]
+        },
+        "google_analytics": {
+            "type": "string"
+        },
+        "openai_api_key": {
+            "type": "string"
+        },
+        "permissions": {
+            "properties": {
+                "all": {
+                    "properties": {
+                        "admin": {
+                            "type": "boolean"
+                        },
+                        "comment": {
+                            "type": "boolean"
+                        },
+                        "createCard": {
+                            "type": "boolean"
+                        },
+                        "edit": {
+                            "type": "boolean"
+                        },
+                        "editCard": {
+                            "type": "boolean"
+                        },
+                        "editSection": {
+                            "type": "boolean"
+                        },
+                        "editTag": {
+                            "type": "boolean"
+                        },
+                        "markRead": {
+                            "type": "boolean"
+                        },
+                        "modifyReadingList": {
+                            "type": "boolean"
+                        },
+                        "remoteAI": {
+                            "type": "boolean"
+                        },
+                        "star": {
+                            "type": "boolean"
+                        },
+                        "viewApp": {
+                            "type": "boolean"
+                        },
+                        "viewUnpublished": {
+                            "type": "boolean"
+                        }
+                    },
+                    "type": "object"
+                },
+                "anonymous": {
+                    "properties": {
+                        "admin": {
+                            "type": "boolean"
+                        },
+                        "comment": {
+                            "type": "boolean"
+                        },
+                        "createCard": {
+                            "type": "boolean"
+                        },
+                        "edit": {
+                            "type": "boolean"
+                        },
+                        "editCard": {
+                            "type": "boolean"
+                        },
+                        "editSection": {
+                            "type": "boolean"
+                        },
+                        "editTag": {
+                            "type": "boolean"
+                        },
+                        "markRead": {
+                            "type": "boolean"
+                        },
+                        "modifyReadingList": {
+                            "type": "boolean"
+                        },
+                        "remoteAI": {
+                            "type": "boolean"
+                        },
+                        "star": {
+                            "type": "boolean"
+                        },
+                        "viewApp": {
+                            "type": "boolean"
+                        },
+                        "viewUnpublished": {
+                            "type": "boolean"
+                        }
+                    },
+                    "type": "object"
+                },
+                "signed_in": {
+                    "properties": {
+                        "admin": {
+                            "type": "boolean"
+                        },
+                        "comment": {
+                            "type": "boolean"
+                        },
+                        "createCard": {
+                            "type": "boolean"
+                        },
+                        "edit": {
+                            "type": "boolean"
+                        },
+                        "editCard": {
+                            "type": "boolean"
+                        },
+                        "editSection": {
+                            "type": "boolean"
+                        },
+                        "editTag": {
+                            "type": "boolean"
+                        },
+                        "markRead": {
+                            "type": "boolean"
+                        },
+                        "modifyReadingList": {
+                            "type": "boolean"
+                        },
+                        "remoteAI": {
+                            "type": "boolean"
+                        },
+                        "star": {
+                            "type": "boolean"
+                        },
+                        "viewApp": {
+                            "type": "boolean"
+                        },
+                        "viewUnpublished": {
+                            "type": "boolean"
+                        }
+                    },
+                    "type": "object"
+                },
+                "signed_in_domain": {
+                    "properties": {
+                        "admin": {
+                            "type": "boolean"
+                        },
+                        "comment": {
+                            "type": "boolean"
+                        },
+                        "createCard": {
+                            "type": "boolean"
+                        },
+                        "edit": {
+                            "type": "boolean"
+                        },
+                        "editCard": {
+                            "type": "boolean"
+                        },
+                        "editSection": {
+                            "type": "boolean"
+                        },
+                        "editTag": {
+                            "type": "boolean"
+                        },
+                        "markRead": {
+                            "type": "boolean"
+                        },
+                        "modifyReadingList": {
+                            "type": "boolean"
+                        },
+                        "remoteAI": {
+                            "type": "boolean"
+                        },
+                        "star": {
+                            "type": "boolean"
+                        },
+                        "viewApp": {
+                            "type": "boolean"
+                        },
+                        "viewUnpublished": {
+                            "type": "boolean"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        },
+        "qdrant": {
+            "properties": {
+                "api_key": {
+                    "type": "string"
+                },
+                "cluster_url": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "region": {
+            "type": "string"
+        },
+        "seo": {
+            "type": "boolean"
+        },
+        "tab_overrides": {
+            "properties": {
+                "after": {
+                    "$ref": "#/definitions/{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}_1"
+                },
+                "before": {
+                    "$ref": "#/definitions/{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}"
+                }
+            },
+            "type": "object"
+        },
+        "tabs": {
+            "items": {
+                "anyOf": [
+                    {
+                        "$ref": "#/definitions/TabConfigItemInput"
+                    },
+                    {
+                        "enum": [
+                            "concepts",
+                            "default_end_tabs",
+                            "default_tabs",
+                            "hidden_sections",
+                            "hidden_tags",
+                            "popular",
+                            "random",
+                            "reading-list",
+                            "recent",
+                            "sections",
+                            "starred",
+                            "tags",
+                            "twitter",
+                            "unread",
+                            "working-notes"
+                        ],
+                        "type": "string"
+                    }
+                ]
+            },
+            "type": "array"
+        },
+        "twitter_handle": {
+            "type": "string"
+        },
+        "user_domain": {
+            "type": "string"
+        }
+    },
+    "type": "object"
+}
+
