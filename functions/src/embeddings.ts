@@ -240,8 +240,6 @@ class EmbeddingStore {
 	//cardInfo if provided will be consulted instead of going out to hit the endpoint.
 	async updateCard(card : Card, cardsContent? : Record<CardID, string>) : Promise<void> {
 
-		if (!cardsContent) cardsContent = {};
-
 		const text = textContentForEmbeddingForCard(card);
 
 		if (!text.trim()) {
@@ -249,11 +247,12 @@ class EmbeddingStore {
 			return;
 		}
 
-		let existingContent = cardsContent[card.id];
-
-		if (existingContent === undefined) {
+		let existingContent = '';
+		if (cardsContent === undefined) {
 			const existingPoint = await this.getExistingPoint(card.id);
 			if (existingPoint) existingContent = existingPoint.payload.content;
+		} else {
+			existingContent = cardsContent[card.id];
 		}
 
 		if (existingContent === text) {
