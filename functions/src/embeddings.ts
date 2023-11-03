@@ -139,8 +139,6 @@ const formatDate = (date :  Date) : string => {
 
 const textContentForEmbeddingForCard = (card : Card) : string => {
 	//TODO: ideally this would literally be the cardPlainContent implementation from src/util.ts
-	const created = card.created.toDate();
-	const prefix = formatDate(created) + '\n' + card.card_type + '\n\n';
 	const parts : string[] = [];
 	//Skip the computed title on working-notes cards since they are entire
 	//computed. No other field for any card-type is computed yet.
@@ -149,7 +147,9 @@ const textContentForEmbeddingForCard = (card : Card) : string => {
 	const body = innerTextForHTML(card.body);
 	if (body) parts.push(body);
 	if (parts.length == 0) return '';
-	return prefix + parts.join('\n');
+	const created = card.created.toDate();
+	const suffix = '\n\n' + formatDate(created) + '\n' + card.card_type;
+	return parts.join('\n') + suffix;
 };
 
 const embeddingForContent = async (cardContent : string) : Promise<Embedding> => {
