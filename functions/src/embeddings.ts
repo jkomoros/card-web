@@ -194,6 +194,7 @@ type PointPayload = {
 
 type Point = {
 	id: string,
+	vector? : number[],
 	payload: PointPayload
 };
 
@@ -204,6 +205,11 @@ type PointSummary = {
 	payload: {
 		content: string
 	}
+};
+
+type GetPointsOptions = {
+	includePayload? : boolean,
+	includeVector? : boolean
 };
 
 class EmbeddingStore {
@@ -225,7 +231,10 @@ class EmbeddingStore {
 		return EMBEDDING_TYPES[this._type].length;
 	}
 
-	async getExistingPoint(cardID : CardID) : Promise<Point | null> {
+	async getExistingPoint(cardID : CardID, opts : GetPointsOptions = {}) : Promise<Point | null> {
+		const defaultOpts : Required<GetPointsOptions> = {includePayload: false, includeVector: false};
+		const finalOpts : Required<GetPointsOptions> = {...defaultOpts, ...opts};
+
 		const existingPoints = await this._qdrant.scroll(QDRANT_COLLECTION_NAME, {
 			filter: {
 				must: [
@@ -242,12 +251,15 @@ class EmbeddingStore {
 						}
 					}
 				]
-			}
+			},
+			with_vector: finalOpts.includeVector,
+			with_payload: finalOpts.includePayload
 		});
 		if (existingPoints.points.length == 0) return null;
 		const existingPoint = existingPoints.points[0];
 		return {
 			id: existingPoint.id as string,
+			vector: existingPoint.vector ? existingPoint.vector as number[] : undefined,
 			payload: existingPoint.payload as PointPayload
 		};
 	}
@@ -264,7 +276,7 @@ class EmbeddingStore {
 
 		let existingPoint : PointSummary | null = null;
 		if (cardsContent === undefined) {
-			existingPoint = await this.getExistingPoint(card.id);
+			existingPoint = await this.getExistingPoint(card.id, {includePayload: true});
 		} else {
 			existingPoint = cardsContent[card.id];
 		}
@@ -398,7 +410,7 @@ export const similarCards = async (request : CallableRequest<SimilarCardsRequest
 	if (!EMBEDDING_STORE) {
 		throw new Error('No embedding store');
 	}
-	const point = await EMBEDDING_STORE.getExistingPoint(data.card_id);
+	const point = await EMBEDDING_STORE.getExistingPoint(data.card_id, {includeVector: true});
 	if (!point) {
 		return {
 			success: false,
