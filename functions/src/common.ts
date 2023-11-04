@@ -49,6 +49,7 @@ export const LAST_DEPLOY_AFFECTING_RENDERING = (config.site || {}).last_deploy_a
 export const EMAIL_POSTMARK_KEY = (config.postmark || {}).key;
 export const EMAIL_FROM_ADDRESS = (config.email || {}).from;
 export const EMAIL_TO_ADDRESS = (config.email || {}).to;
+export const OPENAI_API_KEY = (config.openai || {}).api_key;
 
 //Copied from src/actions/app.js
 export const PAGE_DEFAULT = 'c';

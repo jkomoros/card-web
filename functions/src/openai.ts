@@ -6,8 +6,7 @@ import {
 } from 'openai';
 
 import {
-	CHANGE_ME_SENTINEL,
-	config,
+	OPENAI_API_KEY,
 	userPermissions
 } from './common.js';
 
@@ -15,11 +14,8 @@ import {
 	UserPermissions
 } from './types.js';
 
-const openaiConfig = config.openai || null;
-const openai_api_key = openaiConfig ? (openaiConfig.api_key || '') : '';
-
-export const openai_endpoint = (openai_api_key && openai_api_key != CHANGE_ME_SENTINEL) ? new OpenAIApi(new Configuration({
-	apiKey: openai_api_key,
+export const openai_endpoint = OPENAI_API_KEY ? new OpenAIApi(new Configuration({
+	apiKey: OPENAI_API_KEY,
 })) : null;
 
 //The server-side analogue of selectUserMayUseAI
