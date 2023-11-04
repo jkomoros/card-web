@@ -179,7 +179,11 @@ Add to your `config.SECRET.json` (likely in the "prod" overlay so it doesn't hap
 
 ```
 {
-  	//...
+	"base": {
+		//...
+		//The pointer to your site so links in the email work
+		"site_domain": "thecompendium.cards"
+	},
 	"prod": {
 		"email": {
 			"postmark_key": "YOUR-SECRET-KEY-HERE",
