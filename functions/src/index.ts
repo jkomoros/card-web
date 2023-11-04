@@ -11,7 +11,8 @@ import {
 } from 'firebase-functions/v2/scheduler';
 
 import {
-	onDocumentCreated
+	onDocumentCreated,
+	onDocumentWritten
 } from 'firebase-functions/v2/firestore';
 
 //TODO: include the same file as we do for the client for the canonical names of
@@ -60,14 +61,7 @@ export const emailAdminOnStar = onDocumentCreated('stars/{starId}', email.onStar
 
 export const emailAdminOnMessage = onDocumentCreated('messages/{messageId}', email.onMessage);
 
-export const updateCardEmbedding = functions.runWith({
-	//Since we'll hit the hnsw saving/restoring, and we should only have a
-	//very small number of concurrent editors, set to a max instance of one
-	//to make it less likely we have collisions.
-	maxInstances: 1
-}).firestore.
-	document('cards/{cardID}').
-	onWrite(processCardEmbedding);
+export const updateCardEmbedding = onDocumentWritten('cards/{cardID}', processCardEmbedding);
 
 const reindexCardEmbeddingsApp = express();
 reindexCardEmbeddingsApp.post('/', async(req, res) => {

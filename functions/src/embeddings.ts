@@ -19,17 +19,18 @@ import {
 } from './common.js';
 
 import {
-	Change,
-	firestore
-} from 'firebase-functions';
-
-import {
 	QdrantClient
 } from '@qdrant/js-client-rest';
 
 import {
 	v4 as uuidv4
 } from 'uuid';
+
+import {
+	FirestoreEvent,
+	Change,
+	DocumentSnapshot
+} from 'firebase-functions/v2/firestore';
 
 const DOM = new JSDOM();
 
@@ -298,7 +299,15 @@ class EmbeddingStore {
 
 const EMBEDDING_STORE = QDRANT_ENABLED ? new EmbeddingStore() : null; 
 
-export const processCardEmbedding = async (change : Change<firestore.DocumentSnapshot>) : Promise<void> => {
+export const processCardEmbedding = async (event : FirestoreEvent<Change<DocumentSnapshot> | undefined, {cardID: string;}>) => {
+
+	const change = event.data;
+
+	if (!change) {
+		console.warn('No data');
+		return;
+	}
+
 	if (!EMBEDDING_STORE) {
 		console.warn('Qdrant not enabled, skipping');
 		return;
