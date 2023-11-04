@@ -46,10 +46,15 @@ export const HOSTING_DOMAIN =  PROJECT_NAME + '.firebaseapp.com';
 export const DOMAIN = (config.site || {})  .domain || HOSTING_DOMAIN;
 export const LAST_DEPLOY_AFFECTING_RENDERING = (config.site || {}).last_deploy_affecting_rendering || 'deploy-not-set';
 
+//These are the same names as tools/env.ts
 export const EMAIL_POSTMARK_KEY = (config.postmark || {}).key;
 export const EMAIL_FROM_ADDRESS = (config.email || {}).from;
 export const EMAIL_TO_ADDRESS = (config.email || {}).to;
 export const OPENAI_API_KEY = (config.openai || {}).api_key;
+export const TWITTER_ACCESS_TOKEN_SECRET = (config.twitter || {}).access_token_secret;
+export const TWITTER_CONSUMER_SECRET = (config.twitter || {}).consumer_secret;
+export const TWITTER_ACCESS_TOKEN_KEY = (config.twitter || {}).access_token_key;
+export const TWITTER_CONSUMER_KEY = (config.twitter || {}).consumer_key;
 
 //Copied from src/actions/app.js
 export const PAGE_DEFAULT = 'c';

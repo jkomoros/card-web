@@ -9,6 +9,7 @@ import {
 	ExpandedModeConfig
 } from './types.js';
 
+//The values of these are duplicated in functions/src/common.ts
 const OPENAI_API_KEY_VAR = 'OPENAI_API_KEY';
 const SITE_DOMAIN_VAR = 'SITE_DOMAIN';
 const LAST_DEPLOY_AFFECTING_RENDERING_VAR = 'LAST_DEPLOY_AFFECTING_RENDERING';
