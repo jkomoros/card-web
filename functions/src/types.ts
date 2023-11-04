@@ -164,7 +164,7 @@ export type LegalResponseData = {
 //subset of properties picked out of Card definition, necessary to call
 //textContentForEmbeddingForCard
 export type SimilarCardsRequestData = {
-	card_id: Card
+	card_id: CardID
 };
 
 type CardSimilarityItem = [CardID, number];
