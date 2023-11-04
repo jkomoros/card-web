@@ -2,7 +2,8 @@
 import {
 	onRequest,
 	onCall,
-	HttpsError
+	HttpsError,
+	CallableRequest
 } from 'firebase-functions/v2/https';
 
 import {
@@ -81,6 +82,8 @@ export const reindexCardEmbeddings = onRequest({
 	timeoutSeconds: 3600
 }, reindexCardEmbeddingsApp);
 
+
+
 const screenshotApp = express();
 screenshotApp.get('/:id', async (req, res) => {
 	const png = await fetchScreenshotByIDOrSlug(req.params.id);
@@ -94,8 +97,13 @@ export const screenshot = onRequest({
 	memory: '1GiB'
 }, screenshotApp);
 
+type LegalRequestData = {
+	type: 'warmup' | 'slug';
+	value: string
+};
+
 //expects data to have type:{slug},  and value be the string to check
-export const legal = onCall({}, async (request) => {
+export const legal = onCall({}, async (request : CallableRequest<LegalRequestData>) => {
 	const data = request.data;
 	if (data.type === 'warmup') {
 		return {
