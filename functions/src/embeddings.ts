@@ -195,14 +195,14 @@ type PointPayload = {
 type Point = {
 	id: string,
 	vector? : number[],
-	payload: PointPayload
+	payload?: PointPayload
 };
 
 
 //A subset of Point
 type PointSummary = {
 	id: string,
-	payload: {
+	payload?: {
 		content: string
 	}
 };
@@ -231,6 +231,7 @@ class EmbeddingStore {
 		return EMBEDDING_TYPES[this._type].length;
 	}
 
+	//TODO: more clever typing so we can affirmatively say if the Point has a payload and/or vector fields
 	async getExistingPoint(cardID : CardID, opts : GetPointsOptions = {}) : Promise<Point | null> {
 		const defaultOpts : Required<GetPointsOptions> = {includePayload: false, includeVector: false};
 		const finalOpts : Required<GetPointsOptions> = {...defaultOpts, ...opts};
@@ -281,7 +282,7 @@ class EmbeddingStore {
 			existingPoint = cardsContent[card.id];
 		}
 
-		if (existingPoint && existingPoint.payload.content === text) {
+		if (existingPoint && existingPoint.payload && existingPoint.payload.content === text) {
 			//The embedding exists and is up to date, no need to do anything else.
 			console.log(`The embedding content had not changed for ${card.id} so stopping early`);
 			return;
