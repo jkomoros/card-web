@@ -395,9 +395,23 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 
 export const similarCards = async (request : CallableRequest<SimilarCardsRequestData>) : Promise<SimilarCardsResponseData> => {
 	const data = request.data;
-	//TODO: actually do something
-	console.log(data);
+	if (!EMBEDDING_STORE) {
+		throw new Error('No embedding store');
+	}
+	const point = await EMBEDDING_STORE.getExistingPoint(data.card_id);
+	if (!point) {
+		return {
+			success: false,
+			error: `Could not find embedding for ${data.card_id}`,
+			cards: []
+		};
+	}
+
+	//TODO: actually fetch similar items to this vector.
+	console.log(point);
+
 	return {
+		success: true,
 		cards: []
 	};
 };

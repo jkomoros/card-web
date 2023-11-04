@@ -165,10 +165,14 @@ export type LegalResponseData = {
 //textContentForEmbeddingForCard
 export type SimilarCardsRequestData = {
 	card_id: CardID
+	//TODO: include a limit
 };
 
 type CardSimilarityItem = [CardID, number];
 
 export type SimilarCardsResponseData = {
+	success: boolean,
+	//Will be set if success = false
+	error? : string
 	cards: CardSimilarityItem[]
 };
