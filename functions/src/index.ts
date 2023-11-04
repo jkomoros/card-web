@@ -41,6 +41,7 @@ import {
 } from './embeddings.js';
 
 import * as openaiimpl from './openai.js';
+import { LegalRequestData, LegalResponseData } from './types.js';
 
 //Runs every three hours
 export const fetchTweetEngagement = onSchedule({
@@ -97,13 +98,8 @@ export const screenshot = onRequest({
 	memory: '1GiB'
 }, screenshotApp);
 
-type LegalRequestData = {
-	type: 'warmup' | 'slug';
-	value: string
-};
-
 //expects data to have type:{slug},  and value be the string to check
-export const legal = onCall({}, async (request : CallableRequest<LegalRequestData>) => {
+export const legal = onCall({}, async (request : CallableRequest<LegalRequestData>) : Promise<LegalResponseData> => {
 	const data = request.data;
 	if (data.type === 'warmup') {
 		return {
@@ -112,7 +108,9 @@ export const legal = onCall({}, async (request : CallableRequest<LegalRequestDat
 		};
 	}
 	if (data.type !== 'slug') {
-		throw new HttpsError('invalid-argument', 'Invalid type: ' + data.type);
+		//Typescript says "don't worry, it's not possible to get a different type", but we want to be sure.
+		//eslint-disable-next-line @typescript-eslint/no-explicit-any
+		throw new HttpsError('invalid-argument', 'Invalid type: ' + (data as any).type);
 	}
 	const result = await slug(data.value);
 	return {
