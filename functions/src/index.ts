@@ -74,7 +74,7 @@ reindexCardEmbeddingsApp.post('/', async(req, res) => {
 
 export const reindexCardEmbeddings = onRequest({
 	memory: '512MiB',
-	timeoutSeconds: 540
+	timeoutSeconds: 3600
 }, reindexCardEmbeddingsApp);
 
 const screenshotApp = express();
