@@ -47,6 +47,7 @@ export type ModeConfig = {
 	tab_overrides? : TabConfigOverrides;
 	//TODO: type this more tightly
 	region? : string;
+	//The domain of users that should be considered in signed_in_domain.
 	user_domain? : string;
 	permissions? : {
 		all? : UserPermissionsCore;
