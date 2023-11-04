@@ -9,7 +9,7 @@ import {QdrantClient} from '@qdrant/js-client-rest';
 
 import {
 	devProdConfig,
-	selectedProjectID
+	selectedProjectID,
 } from './tools/util.js';
 
 let config;
@@ -48,6 +48,7 @@ const QDRANT_PROD_COLLECTION_NAME = 'prod-' + QDRANT_BASE_COLLECTION_NAME;
 //Also in tools/util.ts
 const CHANGE_ME_SENTINEL = 'CHANGE-ME';
 
+//Also in tools/util.ts, for some reason it doesn't want to import it
 const CONFIG_EXTRA_FILE = 'config.EXTRA.json';
 
 const FIREBASE_PROD_PROJECT = CONFIG_FIREBASE_PROD.projectId;

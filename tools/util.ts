@@ -8,6 +8,8 @@ import fs from 'fs';
 import { exec } from 'child_process';
 
 const PROJECT_CONFIG = 'config.SECRET.json';
+//Also in gulpfile.js
+const EXTRA_PROJECT_CONFIG = 'config.EXTRA.json';
 
 //Also in gulpfile and functsions/src/common.ts
 const CHANGE_ME_SENTINEL = 'CHANGE-ME';
@@ -99,5 +101,12 @@ const getProjectConfig = () : Config => {
 		console.log(PROJECT_CONFIG + ' didn\'t exist. Check README.md on how to create one');
 		throw new Error('No project config');
 	}
-	return JSON.parse(fs.readFileSync(PROJECT_CONFIG).toString()) as Config;
+
+	const extraFile = fs.existsSync(EXTRA_PROJECT_CONFIG) ? fs.readFileSync(EXTRA_PROJECT_CONFIG).toString() : '{}';
+	const mainFile = fs.readFileSync(PROJECT_CONFIG).toString();
+
+	const main = JSON.parse(mainFile) as Config;
+	const extra = JSON.parse(extraFile) as Config;
+
+	return deepMerge(extra, main) as Config;
 };
