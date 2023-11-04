@@ -15,6 +15,7 @@
     "build:rollup": "rollup -c",
     "build:service-worker": "workbox generateSW workbox-config.cjs",
     "generate:config": "npx ts-node-esm tools/config.ts",
+    "generate:env": "npx ts-node-esm tools/env.ts",
     "generate:seo": "npx ts-node-esm tools/seo.ts all",
     "generate:seo:pages": "npx ts-node-esm tools/seo.ts pages",
     "generate:seo:config": "npx ts-node-esm tools/seo.ts config",
