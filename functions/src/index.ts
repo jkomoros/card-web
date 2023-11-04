@@ -77,7 +77,7 @@ reindexCardEmbeddingsApp.post('/', async(req, res) => {
 });
 
 export const reindexCardEmbeddings = onRequest({
-	memory: '512MiB',
+	memory: '1GiB',
 	timeoutSeconds: 3600
 }, reindexCardEmbeddingsApp);
 
