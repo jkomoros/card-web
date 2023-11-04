@@ -528,6 +528,9 @@
                 "seo": {
                     "type": "boolean"
                 },
+                "site_domain": {
+                    "type": "string"
+                },
                 "tab_overrides": {
                     "additionalProperties": false,
                     "properties": {
@@ -855,6 +858,9 @@
                 "seo": {
                     "type": "boolean"
                 },
+                "site_domain": {
+                    "type": "string"
+                },
                 "tab_overrides": {
                     "additionalProperties": false,
                     "properties": {
@@ -1181,6 +1187,9 @@
                 },
                 "seo": {
                     "type": "boolean"
+                },
+                "site_domain": {
+                    "type": "string"
                 },
                 "tab_overrides": {
                     "additionalProperties": false,

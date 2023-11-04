@@ -17,6 +17,8 @@ export type ExpandedConfig = {
 export type ModeConfig = {
 	app_title : string;
 	app_description : string;
+	//The domain where this webapp resides. Currently not used very broadly.
+	site_domain? : string;
 	seo : boolean;
 	google_analytics? : string;
 	disable_twitter? : boolean;
