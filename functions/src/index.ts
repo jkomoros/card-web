@@ -6,6 +6,10 @@ import {
 	onCall
 } from 'firebase-functions/v2/https';
 
+import {
+	onSchedule
+} from 'firebase-functions/v2/scheduler';
+
 //TODO: include the same file as we do for the client for the canonical names of
 //collections.
 
@@ -30,18 +34,23 @@ import {
 import * as openaiimpl from './openai.js';
 
 //Runs every three hours
-export const fetchTweetEngagement = functions.pubsub.schedule('0 */3 * * *').timeZone('America/Los_Angeles').onRun(twitter.fetchTweetEngagement);
+export const fetchTweetEngagement = onSchedule({
+	schedule: '0 */3 * * *',
+	timeZone: 'America/Los_Angeles'
+}, twitter.fetchTweetEngagement);
 
 //Run four times a day, at 8:07, 12:07, 17:07, and 20:07.
 //NOTE: if you update this schedule in code,it
 //likely won't update the cloud scheduler, you'll have to delete the cloud
 //function and redeploy, or manually change hte cloud schedule.
-export const autoTweet = functions.runWith({
+export const autoTweet = onSchedule({
+	schedule: '7 8,12,17,20 * * *',
+	timeZone: 'America/Los_Angeles',
 	//Set to a larger amount of memory and longer timeout since sometimes the
 	//tweet will need to generate a screenshot which might take up to a minute
-	memory: '1GB',
-	timeoutSeconds: 300,
-}).pubsub.schedule('7 8,12,17,20 * * *').timeZone('America/Los_Angeles').onRun(twitter.tweetCard);
+	memory: '1GiB',
+	timeoutSeconds: 300
+}, twitter.tweetCard);
 
 export const emailAdminOnStar = functions.firestore.
 	document('stars/{starId}').
