@@ -168,7 +168,7 @@ export type SimilarCardsRequestData = {
 	//TODO: include a limit
 };
 
-type CardSimilarityItem = [CardID, number];
+export type CardSimilarityItem = [CardID, number];
 
 export type SimilarCardsResponseData = {
 	success: boolean,

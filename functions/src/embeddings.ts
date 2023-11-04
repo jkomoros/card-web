@@ -5,6 +5,7 @@ import {
 import {
 	Card,
 	CardID,
+	CardSimilarityItem,
 	SimilarCardsRequestData,
 	SimilarCardsResponseData
 } from './types.js';
@@ -212,6 +213,8 @@ type GetPointsOptions = {
 	includeVector? : boolean
 };
 
+const DEFAULT_SIMLIAR_POINTS_LIMIT = 500;
+
 class EmbeddingStore {
 	_type : EmbeddingType = 'openai.com-text-embedding-ada-002';
 	_version : EmbeddingVersion = 0;
@@ -229,6 +232,39 @@ class EmbeddingStore {
 
 	get dim() : number {
 		return EMBEDDING_TYPES[this._type].length;
+	}
+
+	async similarPoints(cardID : CardID, vector : number[], limit : number = DEFAULT_SIMLIAR_POINTS_LIMIT) : Promise<CardSimilarityItem[]> {
+		const points = await this._qdrant.search(QDRANT_COLLECTION_NAME, {
+			vector,
+			limit,
+			filter: {
+				must: [
+					{
+						key: PAYLOAD_CARD_ID_KEY,
+						match: {
+							value: cardID
+						}
+					},
+					{
+						key: PAYLOAD_VERSION_KEY,
+						match: {
+							value: CURRENT_EMBEDDING_VERSION
+						}
+					}
+				]
+			},
+			with_payload: [
+				PAYLOAD_CARD_ID_KEY
+			],
+			with_vector: false
+		});
+
+		return points.map(point => {
+			if (!point.payload) throw new Error('No payload as expected');
+			const cardID = point.payload[PAYLOAD_CARD_ID_KEY] as string || '';
+			return [cardID, point.score];
+		});
 	}
 
 	//TODO: more clever typing so we can affirmatively say if the Point has a payload and/or vector fields
@@ -419,6 +455,8 @@ export const similarCards = async (request : CallableRequest<SimilarCardsRequest
 			cards: []
 		};
 	}
+
+	//TODO: allow passing a custom limit (validate it)
 
 	//TODO: actually fetch similar items to this vector.
 	console.log(point);
