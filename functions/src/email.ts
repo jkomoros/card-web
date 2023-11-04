@@ -15,8 +15,8 @@ import {
 } from './common.js';
 
 import {
-	EventContext
-} from 'firebase-functions';
+	FirestoreEvent
+} from 'firebase-functions/v2/firestore';
 
 import * as nodemailer from 'nodemailer';
 
@@ -61,7 +61,12 @@ const sendEmail = async (subject : string, message : string) => {
 	console.log('Sent email with message ' + subject);
 };
 
-export const onStar = async (snapshot : QueryDocumentSnapshot) => {
+export const onStar = async (event : FirestoreEvent<QueryDocumentSnapshot | undefined, Record<string, unknown>>) => {
+
+	const snapshot = event.data;
+
+	if (!snapshot) throw new Error('No document');
+
 	const cardId = snapshot.data().card;
 	const authorId = snapshot.data().owner;
 
@@ -75,11 +80,16 @@ export const onStar = async (snapshot : QueryDocumentSnapshot) => {
 
 };
 
-export const onMessage = async (snapshot : QueryDocumentSnapshot, context : EventContext<{messageId: string}>) => {
+export const onMessage = async (event : FirestoreEvent<QueryDocumentSnapshot | undefined, {messageId: string}>) => {
+
+	const snapshot = event.data;
+
+	if (!snapshot) throw new Error('No document');
+
 	const cardId = snapshot.data().card;
 	const authorId = snapshot.data().author;
 	const messageText = snapshot.data().message;
-	const messageId = context.params.messageId;
+	const messageId = event.params.messageId;
 
 	const authorString = await getUserDisplayName(authorId);
 	const cardTitle = await getCardName(cardId);

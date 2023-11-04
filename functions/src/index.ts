@@ -10,6 +10,10 @@ import {
 	onSchedule
 } from 'firebase-functions/v2/scheduler';
 
+import {
+	onDocumentCreated
+} from 'firebase-functions/v2/firestore';
+
 //TODO: include the same file as we do for the client for the canonical names of
 //collections.
 
@@ -52,13 +56,9 @@ export const autoTweet = onSchedule({
 	timeoutSeconds: 300
 }, twitter.tweetCard);
 
-export const emailAdminOnStar = functions.firestore.
-	document('stars/{starId}').
-	onCreate(email.onStar);
+export const emailAdminOnStar = onDocumentCreated('stars/{starId}', email.onStar);
 
-export const emailAdminOnMessage = functions.firestore.
-	document('messages/{messageId}').
-	onCreate(email.onMessage);
+export const emailAdminOnMessage = onDocumentCreated('messages/{messageId}', email.onMessage);
 
 export const updateCardEmbedding = functions.runWith({
 	//Since we'll hit the hnsw saving/restoring, and we should only have a
