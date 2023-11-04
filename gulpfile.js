@@ -142,6 +142,7 @@ const ASK_IF_DEPLOY_AFFECTS_RENDERING = 'ask-if-deploy-affects-rendering';
 const ASK_BACKUP_MESSAGE = 'ask-backup-message';
 const SET_UP_CORS = 'set-up-cors';
 const CONFIGURE_QDRANT = 'configure-qdrant';
+const CONFIGURE_ENVIRONMENT = 'configure-environment';
 
 const GCLOUD_ENSURE_DEV_TASK = 'gcloud-ensure-dev';
 const FIREBASE_ENSURE_DEV_TASK = 'firebase-ensure-dev';
@@ -155,6 +156,8 @@ const WARN_MAINTENANCE_TASKS = 'warn-maintenance-tasks';
 const REGENERATE_FILES_FROM_CONFIG_TASK = 'inject-config';
 
 gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, makeExecutor('npm run generate:config'));
+
+gulp.task(CONFIGURE_ENVIRONMENT, makeExecutor('npm run generate:env'));
 
 const pad = (num) => {
 	let str =  '' + num;
@@ -532,6 +535,7 @@ gulp.task('dev-deploy',
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
 		CONFIGURE_API_KEYS_IF_SET,
 		CONFIGURE_QDRANT,
+		CONFIGURE_ENVIRONMENT,
 		FIREBASE_DEPLOY_TASK
 	)
 );
@@ -548,6 +552,7 @@ gulp.task('deploy',
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
 		CONFIGURE_API_KEYS_IF_SET,
 		CONFIGURE_QDRANT,
+		CONFIGURE_ENVIRONMENT,
 		FIREBASE_DEPLOY_TASK,
 		WARN_MAINTENANCE_TASKS,
 	)
