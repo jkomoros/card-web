@@ -458,11 +458,11 @@ export const similarCards = async (request : CallableRequest<SimilarCardsRequest
 
 	//TODO: allow passing a custom limit (validate it)
 
-	//TODO: actually fetch similar items to this vector.
-	console.log(point);
+	if (!point.vector) throw new Error('Point did not include vector as expected');
+	const points = await EMBEDDING_STORE.similarPoints(data.card_id, point.vector);
 
 	return {
 		success: true,
-		cards: []
+		cards:points
 	};
 };
