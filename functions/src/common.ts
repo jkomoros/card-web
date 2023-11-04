@@ -24,13 +24,9 @@ import {
 
 initializeApp();
 
-import * as functions from 'firebase-functions';
-
-
 //We use this so often we might as well make it more common
 export const db = getFirestore();
 export const auth = getAuth();
-export const config = functions.config();
 export const storage = getStorage();
 
 const PROJECT_NAME = (process.env.GCLOUD_PROJECT || '').toLowerCase();
@@ -41,22 +37,38 @@ export const CHANGE_ME_SENTINEL = 'CHANGE-ME';
 
 //DEV_MODE is true if the project name contains 'dev-' or '-dev'
 export const DEV_MODE = PROJECT_NAME.includes('dev-') || PROJECT_NAME.includes('-dev');
-//firebaseapp.com is whitelisted automatically in auth, but '*.web.app' isn't
-export const HOSTING_DOMAIN =  PROJECT_NAME + '.firebaseapp.com';
-export const DOMAIN = (config.site || {})  .domain || HOSTING_DOMAIN;
-export const LAST_DEPLOY_AFFECTING_RENDERING = (config.site || {}).last_deploy_affecting_rendering || 'deploy-not-set';
+
+//Duplicated from tools/src.ts;
+const OPENAI_API_KEY_VAR = 'OPENAI_API_KEY';
+const SITE_DOMAIN_VAR = 'SITE_DOMAIN';
+const LAST_DEPLOY_AFFECTING_RENDERING_VAR = 'LAST_DEPLOY_AFFECTING_RENDERING';
+const TWITTER_ACCESS_TOKEN_SECRET_VAR = 'TWITTER_ACCESS_TOKEN_SECRET';
+const TWITTER_CONSUMER_SECRET_VAR = 'TWITTER_CONSUMER_SECRET';
+const TWITTER_ACCESS_TOKEN_KEY_VAR = 'TWITTER_ACCESS_TOKEN_KEY';
+const TWITTER_CONSUMER_KEY_VAR = 'TWITTER_CONSUMER_KEY';
+const EMAIL_POSTMARK_KEY_VAR = 'EMAIL_POSTMARK_KEY';
+const EMAIL_TO_ADDRESS_VAR = 'EMAIL_TO_ADDRESS';
+const EMAIL_FROM_ADDRESS_VAR = 'EMAIL_FROM_ADDRESS';
+const QDRANT_CLUSTER_URL_VAR = 'QDRANT_CLUSTER_URL';
+const QDRANT_API_KEY_VAR = 'QDRANT_API_KEY';
 
 //These are the same names as tools/env.ts
-export const EMAIL_POSTMARK_KEY = (config.postmark || {}).key;
-export const EMAIL_FROM_ADDRESS = (config.email || {}).from;
-export const EMAIL_TO_ADDRESS = (config.email || {}).to;
-export const OPENAI_API_KEY = (config.openai || {}).api_key;
-export const TWITTER_ACCESS_TOKEN_SECRET = (config.twitter || {}).access_token_secret;
-export const TWITTER_CONSUMER_SECRET = (config.twitter || {}).consumer_secret;
-export const TWITTER_ACCESS_TOKEN_KEY = (config.twitter || {}).access_token_key;
-export const TWITTER_CONSUMER_KEY = (config.twitter || {}).consumer_key;
-export const QDRANT_API_KEY = (config.qdrant || {}).api_key;
-export const QDRANT_CLUSTER_URL = (config.qdrant || {}).cluster_url;
+export const EMAIL_POSTMARK_KEY = process.env[EMAIL_POSTMARK_KEY_VAR];
+export const EMAIL_FROM_ADDRESS = process.env[EMAIL_FROM_ADDRESS_VAR];
+export const EMAIL_TO_ADDRESS = process.env[EMAIL_TO_ADDRESS_VAR];
+export const OPENAI_API_KEY = process.env[OPENAI_API_KEY_VAR];
+export const TWITTER_ACCESS_TOKEN_SECRET = process.env[TWITTER_ACCESS_TOKEN_SECRET_VAR];
+export const TWITTER_CONSUMER_SECRET = process.env[TWITTER_CONSUMER_SECRET_VAR];
+export const TWITTER_ACCESS_TOKEN_KEY = process.env[TWITTER_ACCESS_TOKEN_KEY_VAR];
+export const TWITTER_CONSUMER_KEY = process.env[TWITTER_CONSUMER_KEY_VAR];
+export const QDRANT_API_KEY = process.env[QDRANT_API_KEY_VAR];
+export const QDRANT_CLUSTER_URL = process.env[QDRANT_CLUSTER_URL_VAR];
+export const LAST_DEPLOY_AFFECTING_RENDERING = process.env[LAST_DEPLOY_AFFECTING_RENDERING_VAR] || 'deploy-not-set';
+const SITE_DOMAIN = process.env[SITE_DOMAIN_VAR];
+
+//firebaseapp.com is whitelisted automatically in auth, but '*.web.app' isn't
+export const HOSTING_DOMAIN =  PROJECT_NAME + '.firebaseapp.com';
+export const DOMAIN =  SITE_DOMAIN || HOSTING_DOMAIN;
 
 //Copied from src/actions/app.js
 export const PAGE_DEFAULT = 'c';

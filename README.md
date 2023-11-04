@@ -194,15 +194,6 @@ Add to your `config.SECRET.json` (likely in the "prod" overlay so it doesn't hap
 }
 ```
 
-Then run the following:
-
-```
-gulp firebase-ensure-prod
-firebase functions:config:set postmark.key="YOUR-SECRET-KEY-HERE"
-firebase functions:config:set email.to="emailaccountyouwantalertssentto@gmail.com"
-firebase functions:config:set email.from="emailaccountitshouldcomefrom@gmail.com"
-```
-
 ### Twitter bot
 
 If you also want to set up auto-tweeting, you'll need to set additional values,
@@ -223,14 +214,6 @@ Add to your `config.SECRET.json`:
 		}
 	}
 }
-```
-
-```
-gulp firebase-ensure-prod
-firebase functions:config:set twitter.consumer_key="YOUR-SECRET-KEY"
-firebase functions:config:set twitter.consumer_secret="YOUR-SECRET-KEY"
-firebase functions:config:set twitter.access_token_key="YOUR-SECRET-KEY"
-firebase functions:config:set twitter.access_token_secret="YOUR-SECRET-KEY"
 ```
 
 You also need to add the `twitter_handle` property in your `config.SECRET.json`
@@ -546,19 +529,5 @@ The features show up in two places currently:
 ```
 
 You can run `gulp configure-qdrant` to run the configuration and set up the endpoint. It will also be run for you automatically on the next deploy.
-
-You also need to set these keys on the cloud function:
-
-```
-gulp firebase-ensure-dev
-firebase functions:config:set qdrant.cluster_url="YOUR-URL-HERE"
-firebase functions:config:set qdrant.api_key="YOUR-SECRET-KEY-HERE"
-```
-
-```
-gulp firebase-ensure-prod
-firebase functions:config:set qdrant.cluster_url="YOUR-URL-HERE"
-firebase functions:config:set qdrant.api_key="YOUR-SECRET-KEY-HERE"
-```
 
 You can trigger a reindexing by hitting the endpoint e.g. `curl -X POST https://us-central1-${YOUR_PROJECT_ID}.cloudfunctions.net/reindexCardEmbeddings`
