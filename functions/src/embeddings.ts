@@ -191,6 +191,15 @@ type Point = {
 	payload: PointPayload
 };
 
+
+//A subset of Point
+type PointSummary = {
+	id: string,
+	payload: {
+		content: string
+	}
+};
+
 class EmbeddingStore {
 	_type : EmbeddingType = 'openai.com-text-embedding-ada-002';
 	_version : EmbeddingVersion = 0;
@@ -238,7 +247,7 @@ class EmbeddingStore {
 	}
 
 	//cardInfo if provided will be consulted instead of going out to hit the endpoint.
-	async updateCard(card : Card, cardsContent? : Record<CardID, string>) : Promise<void> {
+	async updateCard(card : Card, cardsContent? : Record<CardID, PointSummary>) : Promise<void> {
 
 		const text = textContentForEmbeddingForCard(card);
 
@@ -247,15 +256,14 @@ class EmbeddingStore {
 			return;
 		}
 
-		let existingContent = '';
+		let existingPoint : PointSummary | null = null;
 		if (cardsContent === undefined) {
-			const existingPoint = await this.getExistingPoint(card.id);
-			if (existingPoint) existingContent = existingPoint.payload.content;
+			existingPoint = await this.getExistingPoint(card.id);
 		} else {
-			existingContent = cardsContent[card.id];
+			existingPoint = cardsContent[card.id];
 		}
 
-		if (existingContent === text) {
+		if (existingPoint && existingPoint.payload.content === text) {
 			//The embedding exists and is up to date, no need to do anything else.
 			console.log(`The embedding content had not changed for ${card.id} so stopping early`);
 			return;
@@ -264,7 +272,8 @@ class EmbeddingStore {
 		const embedding = await embeddingForContent(text);
 	
 		//Qdrant requires either an integer key or a literal UUID
-		const id = uuidv4();
+		//We want to reuse the id to upsert if we can.
+		const id = existingPoint ? existingPoint.id : uuidv4();
 
 		const payload : PointPayload = {
 			card_id: card.id,
@@ -356,7 +365,7 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 		}
 	});
 
-	const cardsInfo = Object.fromEntries(indexedCardInfoResult.points.map(point => [point.payload?.card_id, point.payload?.content])) as Record<CardID, string>;
+	const cardsInfo = Object.fromEntries(indexedCardInfoResult.points.map(point => [point.payload?.card_id, {id: point.id, payload: {content: point.payload?.content}}])) as Record<CardID, PointSummary>;
 
 	let i = 1;
 	let errCount = 0;
