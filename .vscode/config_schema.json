@@ -321,6 +321,9 @@
                 "google_analytics": {
                     "type": "string"
                 },
+                "last_deploy_affecting_rendering": {
+                    "type": "string"
+                },
                 "openai_api_key": {
                     "type": "string"
                 },
@@ -651,6 +654,9 @@
                 "google_analytics": {
                     "type": "string"
                 },
+                "last_deploy_affecting_rendering": {
+                    "type": "string"
+                },
                 "openai_api_key": {
                     "type": "string"
                 },
@@ -979,6 +985,9 @@
                     "$ref": "#/definitions/FirebaseOptions"
                 },
                 "google_analytics": {
+                    "type": "string"
+                },
+                "last_deploy_affecting_rendering": {
                     "type": "string"
                 },
                 "openai_api_key": {

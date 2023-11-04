@@ -24,7 +24,7 @@ const runCommand = async (command : string) : Promise<string> => {
 	});
 };
 
-const selectedProjectID = async () : Promise<string> => {
+export const selectedProjectID = async () : Promise<string> => {
 	//Oddly enough firebase use I guess does something special for stderr and
 	//stdout, because this just returns the direct project ID.
 	const result = await runCommand('firebase use');

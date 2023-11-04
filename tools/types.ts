@@ -58,6 +58,8 @@ export type ModeConfig = {
 		signed_in_domain? : UserPermissionsCore;
 	}
 	firebase: FirebaseOptions;
+	//This is typically set via gulp
+	last_deploy_affecting_rendering? : string;
 };
 
 export type ExpandedModeConfig = ModeConfig & {

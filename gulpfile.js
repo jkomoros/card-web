@@ -8,7 +8,8 @@ import process from 'process';
 import {QdrantClient} from '@qdrant/js-client-rest';
 
 import {
-	devProdConfig
+	devProdConfig,
+	selectedProjectID
 } from './tools/util.js';
 
 let config;
@@ -46,6 +47,8 @@ const QDRANT_PROD_COLLECTION_NAME = 'prod-' + QDRANT_BASE_COLLECTION_NAME;
 //Also in functions/src/common.ts
 //Also in tools/util.ts
 const CHANGE_ME_SENTINEL = 'CHANGE-ME';
+
+const CONFIG_EXTRA_FILE = 'config.EXTRA.json';
 
 const FIREBASE_PROD_PROJECT = CONFIG_FIREBASE_PROD.projectId;
 const FIREBASE_DEV_PROJECT = CONFIG_FIREBASE_DEV.projectId;
@@ -309,7 +312,20 @@ gulp.task(GENERATE_SEO_PAGES, makeExecutor('npm run generate:seo:pages'));
 
 gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(ENABLE_TWITTER ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal' + (OPENAI_ENABLED ? ',functions:openai,functions:updateCardEmbedding,functions:reindexCardEmbeddings' : '')));
 
-gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, makeExecutor('firebase functions:config:set site.last_deploy_affecting_rendering=' + RELEASE_TAG));
+gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, async (cb) => {
+	const projectID = await selectedProjectID();
+	const isDev = projectID == devProjectConfig.firebase.projectId;
+	const data = fs.existsSync(CONFIG_EXTRA_FILE) ? fs.readFileSync(CONFIG_EXTRA_FILE).toString() : '{}';
+	const result = JSON.parse(data);
+	const key = isDev ? 'dev' : 'prod';
+	const subObj = result[key] || {};
+	subObj.last_deploy_affecting_rendering = RELEASE_TAG;
+	//Just in case this was created
+	result[key] = subObj;
+	fs.writeFileSync(CONFIG_EXTRA_FILE, JSON.stringify(result, null, '\t'));
+	cb();
+	return;
+});
 
 //If there is no dev then we'll just set it twice, no bigge
 gulp.task(SET_UP_CORS, gulp.series(
