@@ -9,8 +9,8 @@ import {
 } from '../src/types_simple.js';
 
 export type ExpandedConfig = {
-	dev: ModeConfig,
-	prod: ModeConfig,
+	dev: ExpandedModeConfig,
+	prod: ExpandedModeConfig,
 	devProvided : boolean
 };
 
@@ -58,6 +58,11 @@ export type ModeConfig = {
 		signed_in_domain? : UserPermissionsCore;
 	}
 	firebase: FirebaseOptions;
+};
+
+export type ExpandedModeConfig = ModeConfig & {
+	//The dev config will have is_dev:true, and the prod one will not
+	is_dev: boolean
 };
 
 //When this changes, run `npm run generate:schema`

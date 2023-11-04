@@ -66,8 +66,8 @@ export const devProdConfig = () : ExpandedConfig => {
 	const dev = deepMerge(rawBase, rawDev) as ModeConfig;
 	const devProvided = config.dev !== undefined;
 	return {
-		prod,
-		dev,
+		prod: {...prod, is_dev: false},
+		dev: {...dev, is_dev: true},
 		devProvided
 	};
 };
