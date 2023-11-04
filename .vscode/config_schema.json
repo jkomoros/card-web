@@ -300,6 +300,21 @@
                 "disable_twitter": {
                     "type": "boolean"
                 },
+                "email": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "from_address": {
+                            "type": "string"
+                        },
+                        "postmark_key": {
+                            "type": "string"
+                        },
+                        "to_address": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
                 "firebase": {
                     "$ref": "#/definitions/FirebaseOptions"
                 },
@@ -557,6 +572,24 @@
                 },
                 "tag_releases": {
                     "type": "boolean"
+                },
+                "twitter": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "access_token_key": {
+                            "type": "string"
+                        },
+                        "access_token_secret": {
+                            "type": "string"
+                        },
+                        "consumer_key": {
+                            "type": "string"
+                        },
+                        "consumer_secret": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
                 },
                 "twitter_handle": {
                     "type": "string"
@@ -594,6 +627,21 @@
                 "disable_twitter": {
                     "type": "boolean"
                 },
+                "email": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "from_address": {
+                            "type": "string"
+                        },
+                        "postmark_key": {
+                            "type": "string"
+                        },
+                        "to_address": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
                 "firebase": {
                     "$ref": "#/definitions/FirebaseOptions"
                 },
@@ -851,6 +899,24 @@
                 },
                 "tag_releases": {
                     "type": "boolean"
+                },
+                "twitter": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "access_token_key": {
+                            "type": "string"
+                        },
+                        "access_token_secret": {
+                            "type": "string"
+                        },
+                        "consumer_key": {
+                            "type": "string"
+                        },
+                        "consumer_secret": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
                 },
                 "twitter_handle": {
                     "type": "string"
@@ -888,6 +954,21 @@
                 "disable_twitter": {
                     "type": "boolean"
                 },
+                "email": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "from_address": {
+                            "type": "string"
+                        },
+                        "postmark_key": {
+                            "type": "string"
+                        },
+                        "to_address": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
                 "firebase": {
                     "$ref": "#/definitions/FirebaseOptions"
                 },
@@ -1145,6 +1226,24 @@
                 },
                 "tag_releases": {
                     "type": "boolean"
+                },
+                "twitter": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "access_token_key": {
+                            "type": "string"
+                        },
+                        "access_token_secret": {
+                            "type": "string"
+                        },
+                        "consumer_key": {
+                            "type": "string"
+                        },
+                        "consumer_secret": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
                 },
                 "twitter_handle": {
                     "type": "string"

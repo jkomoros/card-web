@@ -175,6 +175,21 @@ To do that, go to Postmark and get it set up, which takes awhile and lots of
 confirmation emails.  Part of the set up is configuring the email that the
 emails will appear to come from.
 
+Add to your `config.SECRET.json` (likely in the "prod" overlay so it doesn't happen in dev if you have one)
+
+```
+{
+  	//...
+	"prod": {
+		"email": {
+			"postmark_key": "YOUR-SECRET-KEY-HERE",
+			"to_address": "emailaccountyouwantalertssentto@gmail.com",
+			"from_address": "emailaccountitshouldcomefrom@gmail.com"
+		},
+	}
+}
+```
+
 Then run the following:
 
 ```
@@ -189,6 +204,23 @@ firebase functions:config:set email.from="emailaccountitshouldcomefrom@gmail.com
 If you also want to set up auto-tweeting, you'll need to set additional values,
 with the values for your app (generated from the specific bot account you want
 to tweet from) from here: https://developer.twitter.com/en/apps
+
+Add to your `config.SECRET.json`:
+
+```
+{
+	"base": {
+		//...
+		"twitter": {
+			"access_token_key": "YOUR-SECRET-KEY",
+			"consumer_key": "YOUR-SECRET-KEY",
+			"consumer_secret": "YOUR-SECRET-KEY",
+			"access_token_secret": "YOUR-SECRET-KEY"
+		}
+	}
+}
+```
+
 ```
 gulp firebase-ensure-prod
 firebase functions:config:set twitter.consumer_key="YOUR-SECRET-KEY"

@@ -26,6 +26,17 @@ export type ModeConfig = {
 		cluster_url: string,
 		api_key: string
 	},
+	email?: {
+		postmark_key: string,
+		to_address: string,
+		from_address: string
+	},
+	twitter? : {
+		access_token_key: string,
+		consumer_key: string,
+		access_token_secret: string,
+		consumer_secret: string
+	},
 	backup_bucket_name? : string,
 	tag_releases? : boolean;
 	disable_persistence? : boolean;
