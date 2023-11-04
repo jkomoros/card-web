@@ -348,7 +348,7 @@ gulp.task(BUILD_TASK, makeExecutor('npm run build'));
 
 gulp.task(GENERATE_SEO_PAGES, makeExecutor('npm run generate:seo:pages'));
 
-gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(ENABLE_TWITTER ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal' + (OPENAI_ENABLED ? ',functions:openai,functions:updateCardEmbedding,functions:reindexCardEmbeddings' : '')));
+gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(ENABLE_TWITTER ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal' + (OPENAI_ENABLED ? ',functions:openai,functions:updateCardEmbedding,functions:reindexCardEmbeddings,functions:similarCards' : '')));
 
 gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, async (cb) => {
 	const projectID = await selectedProjectID();

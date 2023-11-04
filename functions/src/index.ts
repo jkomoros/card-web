@@ -37,7 +37,8 @@ import {
 
 import {
 	processCardEmbedding,
-	reindexCardEmbeddings as reindexCardEmbeddingsImpl
+	reindexCardEmbeddings as reindexCardEmbeddingsImpl,
+	similarCards as similarCardsImpl
 } from './embeddings.js';
 
 import * as openaiimpl from './openai.js';
@@ -93,6 +94,8 @@ screenshotApp.get('/:id', async (req, res) => {
 	}
 	res.status(404).end();
 });
+
+export const similarCards = onCall({}, similarCardsImpl);
 
 export const screenshot = onRequest({
 	memory: '1GiB'

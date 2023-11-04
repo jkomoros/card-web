@@ -159,3 +159,7 @@ export type LegalResponseData = {
 	legal: boolean,
 	reason: string
 };
+
+export type SimilarCardsRequestData = {
+	card_id: Card
+};

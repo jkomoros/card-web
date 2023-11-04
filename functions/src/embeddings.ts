@@ -4,7 +4,8 @@ import {
 
 import {
 	Card,
-	CardID
+	CardID,
+	SimilarCardsRequestData
 } from './types.js';
 
 import {
@@ -31,6 +32,10 @@ import {
 	Change,
 	DocumentSnapshot
 } from 'firebase-functions/v2/firestore';
+
+import {
+	CallableRequest
+} from 'firebase-functions/v2/https';
 
 const DOM = new JSDOM();
 
@@ -385,4 +390,10 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 		i++;
 	}
 	console.log('Done indexing cards');
+};
+
+export const similarCards = async (request : CallableRequest<SimilarCardsRequestData>) => {
+	const data = request.data;
+	//TODO: actually do something
+	console.log(data);
 };
