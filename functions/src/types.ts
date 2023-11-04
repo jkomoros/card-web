@@ -160,6 +160,9 @@ export type LegalResponseData = {
 	reason: string
 };
 
+//TODO: allow providing not a card_id but a CardForEmbedding, which is the
+//subset of properties picked out of Card definition, necessary to call
+//textContentForEmbeddingForCard
 export type SimilarCardsRequestData = {
 	card_id: Card
 };
