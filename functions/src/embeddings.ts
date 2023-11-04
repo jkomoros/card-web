@@ -284,6 +284,8 @@ class EmbeddingStore {
 				}
 			]
 		});
+
+		console.log(`Stored embedding for ${card.id}`);
 	}
 
 	async deleteCard(card : Card) : Promise<void> {
