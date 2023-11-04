@@ -55,6 +55,8 @@ export const TWITTER_ACCESS_TOKEN_SECRET = (config.twitter || {}).access_token_s
 export const TWITTER_CONSUMER_SECRET = (config.twitter || {}).consumer_secret;
 export const TWITTER_ACCESS_TOKEN_KEY = (config.twitter || {}).access_token_key;
 export const TWITTER_CONSUMER_KEY = (config.twitter || {}).consumer_key;
+export const QDRANT_API_KEY = (config.qdrant || {}).api_key;
+export const QDRANT_CLUSTER_URL = (config.qdrant || {}).cluster_url;
 
 //Copied from src/actions/app.js
 export const PAGE_DEFAULT = 'c';

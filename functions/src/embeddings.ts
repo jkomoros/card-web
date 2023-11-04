@@ -13,8 +13,9 @@ import {
 
 import {
 	db,
-	config,
-	DEV_MODE
+	DEV_MODE,
+	QDRANT_API_KEY,
+	QDRANT_CLUSTER_URL
 } from './common.js';
 
 import {
@@ -32,8 +33,6 @@ import {
 
 const DOM = new JSDOM();
 
-const QDRANT_CLUSTER_URL = (config.qdrant || {}).cluster_url || '';
-const QDRANT_API_KEY = (config.qdrant || {}).api_key || '';
 const QDRANT_ENABLED = openai_endpoint && QDRANT_API_KEY && QDRANT_CLUSTER_URL;
 
 //Duplicated in gulpfile.js as QDRANT_COLLECTION_NAME
