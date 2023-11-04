@@ -14,6 +14,10 @@ import {
 	UserPermissions
 } from './types.js';
 
+import {
+	CallableRequest
+} from 'firebase-functions/v2/https';
+
 export const openai_endpoint = OPENAI_API_KEY ? new OpenAIApi(new Configuration({
 	apiKey: OPENAI_API_KEY,
 })) : null;
@@ -38,17 +42,19 @@ type OpenAIData = {
 };
 
 //data should have endpoint and payload
-export const handler = async (data : OpenAIData, context : functions.https.CallableContext) => {
+export const handler = async (request : CallableRequest<OpenAIData>) => {
+
+	const data = request.data;
 
 	if (!openai_endpoint) {
 		throw new functions.https.HttpsError('failed-precondition', 'OPENAI_API_KEY not set');
 	}
 
-	if (!context.auth) {
+	if (!request.auth) {
 		throw new functions.https.HttpsError('unauthenticated', 'A valid user authentication must be passed');
 	}
 
-	const permissions = await userPermissions(context.auth.uid);
+	const permissions = await userPermissions(request.auth.uid);
 
 	if (!mayUseAI(permissions)) {
 		throw new functions.https.HttpsError('permission-denied', 'The user does not have adequate permissions to perrform this action');

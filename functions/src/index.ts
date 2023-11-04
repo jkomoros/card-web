@@ -1,6 +1,11 @@
 
 import * as functions from 'firebase-functions';
 
+import {
+	onRequest,
+	onCall
+} from 'firebase-functions/v2/https';
+
 //TODO: include the same file as we do for the client for the canonical names of
 //collections.
 
@@ -65,10 +70,10 @@ reindexCardEmbeddingsApp.post('/', async(req, res) => {
 	res.status(200).send('Success');
 });
 
-export const reindexCardEmbeddings = functions.runWith({
-	memory: '512MB',
+export const reindexCardEmbeddings = onRequest({
+	memory: '512MiB',
 	timeoutSeconds: 540
-}).https.onRequest(reindexCardEmbeddingsApp);
+}, reindexCardEmbeddingsApp);
 
 const screenshotApp = express();
 screenshotApp.get('/:id', async (req, res) => {
@@ -79,12 +84,13 @@ screenshotApp.get('/:id', async (req, res) => {
 	res.status(404).end();
 });
 
-export const screenshot = functions.runWith({
-	memory: '1GB'
-}).https.onRequest(screenshotApp);
+export const screenshot = onRequest({
+	memory: '1GiB'
+}, screenshotApp);
 
 //expects data to have type:{slug},  and value be the string to check
-export const legal = functions.https.onCall(async (data) => {
+export const legal = onCall({}, async (request) => {
+	const data = request.data;
 	if (data.type === 'warmup') {
 		return {
 			legal: true,
@@ -101,4 +107,4 @@ export const legal = functions.https.onCall(async (data) => {
 	};
 });
 
-export const openai = functions.https.onCall(openaiimpl.handler);
+export const openai = onCall({}, openaiimpl.handler);
