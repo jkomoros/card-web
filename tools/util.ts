@@ -11,7 +11,7 @@ const PROJECT_CONFIG = 'config.SECRET.json';
 //Also in gulpfile.js
 const EXTRA_PROJECT_CONFIG = 'config.EXTRA.json';
 
-//Also in gulpfile and functsions/src/common.ts
+//Also in gulpfile
 const CHANGE_ME_SENTINEL = 'CHANGE-ME';
 
 const runCommand = async (command : string) : Promise<string> => {
