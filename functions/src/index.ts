@@ -1,9 +1,8 @@
 
-import * as functions from 'firebase-functions';
-
 import {
 	onRequest,
-	onCall
+	onCall,
+	HttpsError
 } from 'firebase-functions/v2/https';
 
 import {
@@ -101,7 +100,7 @@ export const legal = onCall({}, async (request) => {
 		};
 	}
 	if (data.type !== 'slug') {
-		throw new functions.https.HttpsError('invalid-argument', 'Invalid type: ' + data.type);
+		throw new HttpsError('invalid-argument', 'Invalid type: ' + data.type);
 	}
 	const result = await slug(data.value);
 	return {
