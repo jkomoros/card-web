@@ -166,3 +166,9 @@ export type LegalResponseData = {
 export type SimilarCardsRequestData = {
 	card_id: Card
 };
+
+type CardSimilarityItem = [CardID, number];
+
+export type SimilarCardsResponseData = {
+	cards: CardSimilarityItem[]
+};

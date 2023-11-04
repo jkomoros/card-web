@@ -5,7 +5,8 @@ import {
 import {
 	Card,
 	CardID,
-	SimilarCardsRequestData
+	SimilarCardsRequestData,
+	SimilarCardsResponseData
 } from './types.js';
 
 import {
@@ -392,8 +393,11 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 	console.log('Done indexing cards');
 };
 
-export const similarCards = async (request : CallableRequest<SimilarCardsRequestData>) => {
+export const similarCards = async (request : CallableRequest<SimilarCardsRequestData>) : Promise<SimilarCardsResponseData> => {
 	const data = request.data;
 	//TODO: actually do something
 	console.log(data);
+	return {
+		cards: []
+	};
 };
