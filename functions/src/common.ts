@@ -45,6 +45,11 @@ export const DEV_MODE = PROJECT_NAME.includes('dev-') || PROJECT_NAME.includes('
 export const HOSTING_DOMAIN =  PROJECT_NAME + '.firebaseapp.com';
 export const DOMAIN = (config.site || {})  .domain || HOSTING_DOMAIN;
 export const LAST_DEPLOY_AFFECTING_RENDERING = (config.site || {}).last_deploy_affecting_rendering || 'deploy-not-set';
+
+export const EMAIL_POSTMARK_KEY = (config.postmark || {}).key;
+export const EMAIL_FROM_ADDRESS = (config.email || {}).from;
+export const EMAIL_TO_ADDRESS = (config.email || {}).to;
+
 //Copied from src/actions/app.js
 export const PAGE_DEFAULT = 'c';
 export const PAGE_COMMENT = 'comment';
