@@ -530,4 +530,4 @@ The features show up in two places currently:
 
 You can run `gulp configure-qdrant` to run the configuration and set up the endpoint. It will also be run for you automatically on the next deploy.
 
-You can trigger a reindexing by hitting the endpoint e.g. `curl -X POST https://us-central1-${YOUR_PROJECT_ID}.cloudfunctions.net/reindexCardEmbeddings`
+You can trigger a reindexing of all cards that need an embedding updated by running `gulp reindex-card-embeddings`. It will hit the endpoint to trigger an index, running in the background. It will also be run automatically when you do a release.

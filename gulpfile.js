@@ -1,7 +1,7 @@
 /*eslint-env node*/
 
 import gulp from 'gulp';
-import { spawnSync, exec } from 'child_process';
+import { spawnSync, exec, spawn } from 'child_process';
 import prompts from 'prompts';
 import fs from 'fs';
 import process from 'process';
@@ -26,6 +26,8 @@ const devProjectConfig = config.dev;
 const CONFIG_FIREBASE_PROD = projectConfig.firebase;
 const CONFIG_FIREBASE_DEV = devProjectConfig.firebase;
 const CONFIG_INCLUDES_DEV = config.devProvided;
+
+const REGION = projectConfig.region || 'us-central1';
 
 //Duplicated from `functions/src/embedding.ts`;
 const EMBEDDING_TYPES = {
@@ -121,6 +123,23 @@ const makeExecutor = cmdAndArgs => {
 	};
 };
 
+const makeBackgroundExecutor = cmdAndArgs => {
+	return (cb) => {
+		const splitCmd = cmdAndArgs.split(' ');
+		const cmd = splitCmd[0];
+		const args = splitCmd.slice(1);
+		const result = spawn(cmd, args, {
+			stdio: 'inherit',
+			detached: true
+		});
+
+		// This ensures that the parent process can exit independently of the child
+		result.unref();
+
+		cb();
+	};
+};
+
 const BUILD_TASK = 'build';
 const BUILD_OPTIONALLY = 'build-optionally';
 const ASK_IF_WANT_BUILD = 'ask-if-want-build';
@@ -149,6 +168,7 @@ const FIREBASE_DELETE_FIRESTORE_IF_SAFE_TASK = 'firebase-delete-firestore-if-saf
 const FIREBASE_DELETE_FIRESTORE_TASK = 'DANGEROUS-firebase-delete-firestore';
 const GCLOUD_RESTORE_TASK = 'gcloud-restore';
 const GSUTIL_RSYNC_UPLOADS = 'gsutil-rsync-uploads';
+const REINDEX_CARD_EMBEDDINGS = 'reindex-card-embeddings';
 
 const WARN_MAINTENANCE_TASKS = 'warn-maintenance-tasks';
 
@@ -307,6 +327,21 @@ gulp.task(CONFIGURE_QDRANT, async (cb) => {
 	}
 	await configureQdrantCollection(client, QDRANT_PROD_COLLECTION_NAME);
 	cb();
+});
+
+gulp.task(REINDEX_CARD_EMBEDDINGS, async (cb) => {
+	if (!QDRANT_ENABLED) {
+		console.log('Skipping reindexing cards because qdrant is not enabled');
+		cb();
+		return;
+	}
+
+	const projectId = await selectedProjectID();
+
+	const url = 'https://' + REGION + '-' + projectId + '.cloudfunctions.net/reindexCardEmbeddings';
+	console.log('Running in the background: ' + url);
+	const task = makeBackgroundExecutor('curl -X POST ' + url);
+	task(cb);
 });
 
 gulp.task(BUILD_TASK, makeExecutor('npm run build'));
@@ -535,7 +570,8 @@ gulp.task('dev-deploy',
 		CONFIGURE_API_KEYS_IF_SET,
 		CONFIGURE_QDRANT,
 		CONFIGURE_ENVIRONMENT,
-		FIREBASE_DEPLOY_TASK
+		FIREBASE_DEPLOY_TASK,
+		REINDEX_CARD_EMBEDDINGS
 	)
 );
 
@@ -554,6 +590,7 @@ gulp.task('deploy',
 		CONFIGURE_ENVIRONMENT,
 		FIREBASE_DEPLOY_TASK,
 		WARN_MAINTENANCE_TASKS,
+		REINDEX_CARD_EMBEDDINGS
 	)
 );
 
