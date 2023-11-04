@@ -14,6 +14,10 @@ import {
 	onDocumentWritten
 } from 'firebase-functions/v2/firestore';
 
+//Necessary to make console.log work in v2 functions:
+//https://firebase.google.com/docs/functions/writing-and-viewing-logs?gen=2nd#console-log
+import 'firebase-functions/logger/compat';
+
 //TODO: include the same file as we do for the client for the canonical names of
 //collections.
 
