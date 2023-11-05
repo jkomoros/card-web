@@ -162,7 +162,9 @@ export type LegalResponseData = {
 
 //TODO: allow providing not a card_id but a CardForEmbedding, which is the
 //subset of properties picked out of Card definition, necessary to call
-//textContentForEmbeddingForCard
+//textContentForEmbeddingForCard. In that case you'd still want the card_id
+//(since that tells us which card to exclude from the matching) but would use
+//the details of the card.
 export type SimilarCardsRequestData = {
 	card_id: CardID
 	//TODO: include a limit
