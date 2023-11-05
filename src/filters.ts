@@ -333,7 +333,7 @@ const INVALID_FILTER_NAME_SENTINEL = () => ({});
 //Returns a function that takes cards, activeCardID, and editingCard and returns
 //a map of cardID -> depth from the keycard. If optOverrideCards is defined,
 //then cardID is ignored, and instead it passes the keys of that map to the BFS.
-const cardBFSMaker = (filterName : ConfigurableFilterType, cardID : CardID, countOrTypeStr : string, countStr : string, optOverrideCards? : CardIDMap) => {
+const cardBFSMaker = (filterName : ConfigurableFilterType, cardID : CardID, countOrTypeStr : string, countStr : string, optOverrideCards? : CardIDMap) : (cards : Cards, activeCardID : CardID, editingCard : Card) => SortExtra => {
 	//note: makeExpandConfigurableFilter needs to be updated if the number or order of parameters changes.
 
 	if (!LINKS_FILTER_NAMES[filterName]) {
