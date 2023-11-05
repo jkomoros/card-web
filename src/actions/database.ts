@@ -50,7 +50,7 @@ import {
 } from 'firebase/functions';
 
 import {
-	DISABLE_CALLABLE_CLOUD_FUNCTIONS
+	DISABLE_CALLABLE_CLOUD_FUNCTIONS, QDRANT_ENABLED
 } from '../config.GENERATED.SECRET.js';
 
 import {
@@ -168,6 +168,13 @@ export const keepSlugLegalWarm = () => {
 };
 
 export const similarCards = async (cardID : CardID) : Promise<SimilarCardsResponseData> => {
+	if (!QDRANT_ENABLED) {
+		return {
+			success: false,
+			error: 'Qdrant isn\'t enabled',
+			cards: []
+		};
+	}
 	const request = {
 		card_id: cardID
 	};
