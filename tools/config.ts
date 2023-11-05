@@ -18,6 +18,8 @@ const generateConfig = () => {
 	const OPENAI_API_KEY = projectConfig.openai_api_key || '';
 	const OPENAI_ENABLED = OPENAI_API_KEY != '';
 
+	const QDRANT_ENABLED = projectConfig.qdrant && OPENAI_ENABLED;
+
 	const USER_TYPE_ALL_PERMISSIONS = projectConfig.permissions && projectConfig.permissions.all || {};
 	const USER_TYPE_ANONYMOUS_PERMISSIONS = projectConfig.permissions && projectConfig.permissions.anonymous || {};
 	const USER_TYPE_SIGNED_IN_PERMISSIONS = projectConfig.permissions && projectConfig.permissions.signed_in || {};
@@ -54,6 +56,7 @@ const generateConfig = () => {
 	CONFIG_JS_CONTENT += 'export const DISABLE_ANONYMOUS_LOGIN = ' + (DISABLE_ANONYMOUS_LOGIN ? 'true' : 'false') + ';\n';
 	CONFIG_JS_CONTENT += 'export const DISABLE_CALLABLE_CLOUD_FUNCTIONS = ' + (DISABLE_CALLABLE_CLOUD_FUNCTIONS ? 'true' : 'false') + ';\n';
 	CONFIG_JS_CONTENT += 'export const OPENAI_ENABLED = ' + (OPENAI_ENABLED ? 'true' : 'false') + ';\n';
+	CONFIG_JS_CONTENT += 'export const QDRANT_ENABLED = ' + (QDRANT_ENABLED ? 'true' : 'false') + ';\n';
 	fs.writeFileSync('src/config.GENERATED.SECRET.ts', CONFIG_JS_CONTENT);
 
 	let META_STRING = '';
