@@ -84,8 +84,6 @@ export const reindexCardEmbeddings = onRequest({
 	timeoutSeconds: 3600
 }, reindexCardEmbeddingsApp);
 
-
-
 const screenshotApp = express();
 screenshotApp.get('/:id', async (req, res) => {
 	const png = await fetchScreenshotByIDOrSlug(req.params.id);
