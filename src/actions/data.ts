@@ -1,4 +1,5 @@
 import {
+	similarCards,
 	slugLegal
 } from './database.js';
 
@@ -1330,6 +1331,21 @@ const actuallyRemoveCards = (cardIDs : CardID[], unpublished : boolean) : ThunkS
 		type: REMOVE_CARDS,
 		cardIDs: filteredCardIDs,
 	});
+};
+
+export const fetchSimilarCards = (card : Card) : ThunkSomeAction => async () => {
+	if (!card || Object.values(card).length == 0 || card.id == EMPTY_CARD_ID) return;
+
+	const result = await similarCards(card.id);
+
+	if (!result.success) {
+		console.warn(`similarCards failed: ${result.error}`);
+		return;
+	}
+
+	//TODO: actually do something real.
+	console.log(result.cards);
+	
 };
 
 export const fetchTweets = (card : Card) : ThunkSomeAction => async (dispatch) => {
