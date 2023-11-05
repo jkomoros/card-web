@@ -132,6 +132,14 @@ import {
 	TypedObject
 } from './typed_object.js';
 
+import {
+	store
+} from './store.js';
+
+import {
+	fetchSimilarCards
+} from './actions/similarity.js';
+
 const INBOUND_SUFFIX = '-inbound';
 const OUTBOUND_SUFFIX = '-outbound';
 const DIRECT_PREFIX = 'direct-';
@@ -735,7 +743,9 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 				//TODO: merge in fingerprint cards for the ones not in top amount
 				return new Map(Object.entries(cardSimilarity[cardID]));
 			}
-			//TODO: fetch similarities that we don't currently have.
+			//Kick off a request for similarities we don't currently have, so
+			//we'll have them next time. We'll get called again once it's fetched.
+			store.dispatch(fetchSimilarCards(cardID));
 		}
 
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
@@ -785,7 +795,9 @@ const makeSimilarCutoffConfigurableFilter = (_ : ConfigurableFilterType, rawCard
 				//TODO: merge in fingerprint cards for the ones not in top amount
 				return new Map(Object.entries(cardSimilarity[cardID]));
 			}
-			//TODO: fetch similarities that we don't currently have.
+			//Kick off a request for similarities we don't currently have, so
+			//we'll have them next time. We'll get called again once it's fetched.
+			store.dispatch(fetchSimilarCards(cardID));
 		}
 
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
