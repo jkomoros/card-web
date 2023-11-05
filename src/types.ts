@@ -865,7 +865,8 @@ export type FilterExtras = {
 	keyCardID : CardID,
 	editingCard : ProcessedCard,
 	userID : Uid,
-	randomSalt: string
+	randomSalt: string,
+	cardSimilarity: CardSimilarityMap
 };
 
 export type CardBooleanMap = {
@@ -896,7 +897,8 @@ export interface CollectionConstructorArguments {
 	keyCardID? : CardID,
 	cardsSnapshot? : ProcessedCards,
 	filtersSnapshot? : Filters,
-	editingCard? : ProcessedCard
+	editingCard? : ProcessedCard,
+	cardSimilarity? : CardSimilarityMap
 }
 
 export interface BadgeMap {
@@ -1019,7 +1021,7 @@ export type ExpandedTabConfig = ExpandedTabConfigItem[];
 
 //A map of card_id to similarity to that ID.
 //Note the map will likely only have a subset of the other cards.
-type CardSimilarityMap = Record<CardID, SortExtra>;
+export type CardSimilarityMap = Record<CardID, SortExtra>;
 
 export type DataState = {
 	cards: Cards,

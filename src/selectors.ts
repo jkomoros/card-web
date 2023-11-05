@@ -1436,7 +1436,8 @@ export const selectCollectionConstructorArguments = createSelector(
 	selectTabCollectionStartCards,
 	selectUid,
 	selectRandomSalt,
-	(cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt) => ({cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt})
+	selectCardSimilarity,
+	(cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity) => ({cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity})
 );
 
 //Like selectCollectionConstructorArguments, but for the active collection. The
