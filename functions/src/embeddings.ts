@@ -239,13 +239,16 @@ class EmbeddingStore {
 			vector,
 			limit,
 			filter: {
-				must: [
+				must_not: [
 					{
 						key: PAYLOAD_CARD_ID_KEY,
 						match: {
 							value: cardID
 						}
 					},
+				],
+				must: [
+
 					{
 						key: PAYLOAD_VERSION_KEY,
 						match: {
