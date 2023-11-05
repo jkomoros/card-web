@@ -1,5 +1,4 @@
 import {
-	similarCards,
 	slugLegal
 } from './database.js';
 
@@ -82,8 +81,7 @@ import {
 	selectUserMayReorderActiveCollection,
 	selectActiveCollectionDescription,
 	selectRawCards,
-	getUserMayEditTag,
-	selectCardSimilarity
+	getUserMayEditTag
 } from '../selectors.js';
 
 import {
@@ -188,7 +186,6 @@ import {
 	TWEETS_LOADING,
 	UPDATE_AUTHORS,
 	UPDATE_CARDS,
-	UPDATE_CARD_SIMILARITY,
 	UPDATE_SECTIONS,
 	UPDATE_TAGS,
 	UPDATE_TWEETS
@@ -1333,33 +1330,6 @@ const actuallyRemoveCards = (cardIDs : CardID[], unpublished : boolean) : ThunkS
 		type: REMOVE_CARDS,
 		cardIDs: filteredCardIDs,
 	});
-};
-
-export const fetchSimilarCards = (cardID : CardID) : ThunkSomeAction => async (dispatch, getState) => {
-	if (!cardID) return;
-
-	const state = getState();
-
-	const similarity = selectCardSimilarity(state);
-
-	if (similarity[cardID]) {
-		console.log(`${cardID} already had similarity fetched`);
-		return;
-	}
-
-	const result = await similarCards(cardID);
-
-	if (!result.success) {
-		console.warn(`similarCards failed: ${result.error}`);
-		return;
-	}
-
-	dispatch({
-		type: UPDATE_CARD_SIMILARITY,
-		card_id: cardID,
-		similarity: Object.fromEntries(result.cards)
-	});
-	
 };
 
 export const fetchTweets = (card : Card) : ThunkSomeAction => async (dispatch) => {

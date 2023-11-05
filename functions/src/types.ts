@@ -165,16 +165,16 @@ export type LegalResponseData = {
 //textContentForEmbeddingForCard. In that case you'd still want the card_id
 //(since that tells us which card to exclude from the matching) but would use
 //the details of the card.
-//Replicated in `src/actions/database.ts`
+//Replicated in `src/actions/similarity.ts`
 export type SimilarCardsRequestData = {
 	card_id: CardID
 	//TODO: include a limit
 };
 
-//Replicated in `src/actions/database.ts`
+//Replicated in `src/actions/similarity.ts`
 export type CardSimilarityItem = [CardID, number];
 
-//Replicated in `src/actions/database.ts`
+//Replicated in `src/actions/similarity.ts`
 export type SimilarCardsResponseData = {
 	success: boolean,
 	//Will be set if success = false

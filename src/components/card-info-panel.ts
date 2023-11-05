@@ -18,9 +18,12 @@ import {
 } from '../reducers/data.js';
 
 import { 
-	fetchSimilarCards,
 	fetchTweets
 } from '../actions/data.js';
+
+import {
+	fetchSimilarCards
+} from '../actions/similarity.js';
 
 import {
 	TWITTER_HANDLE

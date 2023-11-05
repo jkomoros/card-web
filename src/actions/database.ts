@@ -50,7 +50,7 @@ import {
 } from 'firebase/functions';
 
 import {
-	DISABLE_CALLABLE_CLOUD_FUNCTIONS, QDRANT_ENABLED
+	DISABLE_CALLABLE_CLOUD_FUNCTIONS
 } from '../config.GENERATED.SECRET.js';
 
 import {
@@ -99,24 +99,6 @@ type LegalResponseData = {
 };
 
 const legalCallable = httpsCallable<LegalRequestData, LegalResponseData>(functions, 'legal');
-
-//Replicated in `functions/src/types.ts`
-type SimilarCardsRequestData = {
-	card_id: CardID
-};
-
-//Replicated in `functions/src/types.ts`
-type CardSimilarityItem = [CardID, number];
-
-//Replicated in `functions/src/types.ts`
-type SimilarCardsResponseData = {
-	success: boolean,
-	//Will be set if success = false
-	error? : string
-	cards: CardSimilarityItem[]
-};
-
-const similarCardsCallable = httpsCallable<SimilarCardsRequestData, SimilarCardsResponseData>(functions, 'similarCards');
 
 //slugLegal returns an object with {legal: bool, reason: string}
 export const slugLegal = async (newSlug : Slug) : Promise<LegalResponseData>  => {
@@ -167,20 +149,7 @@ export const keepSlugLegalWarm = () => {
 	slugLegalInterval = window.setInterval(warmupSlugLegal, KEEP_WARM_INTERVAL);
 };
 
-export const similarCards = async (cardID : CardID) : Promise<SimilarCardsResponseData> => {
-	if (!QDRANT_ENABLED) {
-		return {
-			success: false,
-			error: 'Qdrant isn\'t enabled',
-			cards: []
-		};
-	}
-	const request = {
-		card_id: cardID
-	};
-	const result = await similarCardsCallable(request);
-	return result.data;
-};
+
 
 export const connectLiveMessages = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
