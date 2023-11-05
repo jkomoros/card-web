@@ -1059,7 +1059,10 @@ export type DataState = {
 	//where the new card has been received, so pendingNewCardID is cleared, but
 	//pendingNewCardIDToNavigateTo is not yet cleared, because the navigation
 	//hasn't yet happened.
-	pendingNewCardIDToNavigateTo: CardID
+	pendingNewCardIDToNavigateTo: CardID,
+	//When we're doing card similarity based on embedings, we have to reach out
+	//to a cloud function. This is where we store that information.
+	cardSimilarity: Record<CardID, SortExtra>;
 }
 
 export type EditorState = {

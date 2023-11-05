@@ -187,6 +187,7 @@ import {
 	TWEETS_LOADING,
 	UPDATE_AUTHORS,
 	UPDATE_CARDS,
+	UPDATE_CARD_SIMILARITY,
 	UPDATE_SECTIONS,
 	UPDATE_TAGS,
 	UPDATE_TWEETS
@@ -1333,7 +1334,7 @@ const actuallyRemoveCards = (cardIDs : CardID[], unpublished : boolean) : ThunkS
 	});
 };
 
-export const fetchSimilarCards = (card : Card) : ThunkSomeAction => async () => {
+export const fetchSimilarCards = (card : Card) : ThunkSomeAction => async (dispatch) => {
 	if (!card || Object.values(card).length == 0 || card.id == EMPTY_CARD_ID) return;
 
 	const result = await similarCards(card.id);
@@ -1343,8 +1344,11 @@ export const fetchSimilarCards = (card : Card) : ThunkSomeAction => async () => 
 		return;
 	}
 
-	//TODO: actually do something real.
-	console.log(result.cards);
+	dispatch({
+		type: UPDATE_CARD_SIMILARITY,
+		card_id: card.id,
+		similarity: Object.fromEntries(result.cards)
+	});
 	
 };
 
