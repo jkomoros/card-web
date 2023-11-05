@@ -284,7 +284,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		if (changedProps.has('_card') || changedProps.has('_open')) {
 			if (this._open && this._card && Object.values(this._card).length != 0) {
 				store.dispatch(fetchTweets(this._card));
-				store.dispatch(fetchSimilarCards(this._card));
+				store.dispatch(fetchSimilarCards(this._card.id));
 			}
 		}
 	}

@@ -1335,19 +1335,19 @@ const actuallyRemoveCards = (cardIDs : CardID[], unpublished : boolean) : ThunkS
 	});
 };
 
-export const fetchSimilarCards = (card : Card) : ThunkSomeAction => async (dispatch, getState) => {
-	if (!card || Object.values(card).length == 0 || card.id == EMPTY_CARD_ID) return;
+export const fetchSimilarCards = (cardID : CardID) : ThunkSomeAction => async (dispatch, getState) => {
+	if (!cardID) return;
 
 	const state = getState();
 
 	const similarity = selectCardSimilarity(state);
 
-	if (similarity[card.id]) {
-		console.log(`${card.id} already had similarity fetched`);
+	if (similarity[cardID]) {
+		console.log(`${cardID} already had similarity fetched`);
 		return;
 	}
 
-	const result = await similarCards(card.id);
+	const result = await similarCards(cardID);
 
 	if (!result.success) {
 		console.warn(`similarCards failed: ${result.error}`);
@@ -1356,7 +1356,7 @@ export const fetchSimilarCards = (card : Card) : ThunkSomeAction => async (dispa
 
 	dispatch({
 		type: UPDATE_CARD_SIMILARITY,
-		card_id: card.id,
+		card_id: cardID,
 		similarity: Object.fromEntries(result.cards)
 	});
 	
