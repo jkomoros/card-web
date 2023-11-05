@@ -84,8 +84,6 @@ import {
 	TAGS_COLLECTION
 } from '../type_constants.js';
 
-const legalCallable = httpsCallable<LegalRequestData, LegalResponseData>(functions, 'legal');
-
 //Replicated in `functions/src/types.ts`;
 type LegalRequestData = {
 	type: 'warmup'
@@ -99,6 +97,26 @@ type LegalResponseData = {
 	legal: boolean,
 	reason: string
 };
+
+const legalCallable = httpsCallable<LegalRequestData, LegalResponseData>(functions, 'legal');
+
+//Replicated in `functions/src/types.ts`
+type SimilarCardsRequestData = {
+	card_id: CardID
+};
+
+//Replicated in `functions/src/types.ts`
+type CardSimilarityItem = [CardID, number];
+
+//Replicated in `functions/src/types.ts`
+type SimilarCardsResponseData = {
+	success: boolean,
+	//Will be set if success = false
+	error? : string
+	cards: CardSimilarityItem[]
+};
+
+const similarCardsCallable = httpsCallable<SimilarCardsRequestData, SimilarCardsResponseData>(functions, 'similarCards');
 
 //slugLegal returns an object with {legal: bool, reason: string}
 export const slugLegal = async (newSlug : Slug) : Promise<LegalResponseData>  => {
@@ -147,6 +165,14 @@ export const keepSlugLegalWarm = () => {
 	document.addEventListener('keydown', userActivity);
 	warmupSlugLegal(true);
 	slugLegalInterval = window.setInterval(warmupSlugLegal, KEEP_WARM_INTERVAL);
+};
+
+export const similarCards = async (cardID : CardID) : Promise<SimilarCardsResponseData> => {
+	const request = {
+		card_id: cardID
+	};
+	const result = await similarCardsCallable(request);
+	return result.data;
 };
 
 export const connectLiveMessages = () => {
