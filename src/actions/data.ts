@@ -82,7 +82,8 @@ import {
 	selectUserMayReorderActiveCollection,
 	selectActiveCollectionDescription,
 	selectRawCards,
-	getUserMayEditTag
+	getUserMayEditTag,
+	selectCardSimilarity
 } from '../selectors.js';
 
 import {
@@ -1334,8 +1335,17 @@ const actuallyRemoveCards = (cardIDs : CardID[], unpublished : boolean) : ThunkS
 	});
 };
 
-export const fetchSimilarCards = (card : Card) : ThunkSomeAction => async (dispatch) => {
+export const fetchSimilarCards = (card : Card) : ThunkSomeAction => async (dispatch, getState) => {
 	if (!card || Object.values(card).length == 0 || card.id == EMPTY_CARD_ID) return;
+
+	const state = getState();
+
+	const similarity = selectCardSimilarity(state);
+
+	if (similarity[card.id]) {
+		console.log(`${card.id} already had similarity fetched`);
+		return;
+	}
 
 	const result = await similarCards(card.id);
 
