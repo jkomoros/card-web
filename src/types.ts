@@ -865,7 +865,7 @@ export type FilterExtras = {
 	keyCardID : CardID,
 	editingCard : ProcessedCard,
 	userID : Uid,
-	randomSalt: string,
+	randomSalt: string
 };
 
 export type CardBooleanMap = {
@@ -1017,6 +1017,10 @@ export interface ExpandedTabConfigItem extends TabConfigItem {
 
 export type ExpandedTabConfig = ExpandedTabConfigItem[];
 
+//A map of card_id to similarity to that ID.
+//Note the map will likely only have a subset of the other cards.
+type CardSimilarityMap = Record<CardID, SortExtra>;
+
 export type DataState = {
 	cards: Cards,
 	authors: AuthorsMap,
@@ -1062,7 +1066,7 @@ export type DataState = {
 	pendingNewCardIDToNavigateTo: CardID,
 	//When we're doing card similarity based on embedings, we have to reach out
 	//to a cloud function. This is where we store that information.
-	cardSimilarity: Record<CardID, SortExtra>;
+	cardSimilarity: CardSimilarityMap;
 }
 
 export type EditorState = {
