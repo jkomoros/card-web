@@ -140,7 +140,7 @@ type ArrayToFieldValueUnion<Type> = {
 	[Property in keyof Type]: Type[Property] extends unknown[] ? Type[Property] | FieldValue : Type[Property]
 }
 
-export type EmbeddableCard = Pick<Card, 'body' | 'title' | 'subtitle' | 'card_type' | 'created'>;
+export type EmbeddableCard = Pick<Card, 'body' | 'title' | 'subtitle' | 'card_type' | 'created' | 'id'>;
 
 export type CardUpdate = Partial<NumberToFieldValue<ArrayToFieldValueUnion<TimestampToFieldValue<Card>>>>;
 
@@ -162,15 +162,16 @@ export type LegalResponseData = {
 	reason: string
 };
 
-//TODO: allow providing not a card_id but a CardForEmbedding, which is the
-//subset of properties picked out of Card definition, necessary to call
-//textContentForEmbeddingForCard. In that case you'd still want the card_id
-//(since that tells us which card to exclude from the matching) but would use
-//the details of the card.
 //Replicated in `src/actions/similarity.ts`
 export type SimilarCardsRequestData = {
 	card_id: CardID
+
 	//TODO: include a limit
+
+	//If card is provided, it will be used to get the content to embed, live.
+	//The user must have AI permission or it will fail.
+	//The card provided should match the card_id
+	card?: EmbeddableCard
 };
 
 //Replicated in `src/actions/similarity.ts`

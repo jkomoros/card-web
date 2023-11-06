@@ -1,5 +1,5 @@
 import {
-	openai_endpoint
+	openai_endpoint, throwIfUserMayNotUseAI
 } from './openai.js';
 
 import {
@@ -451,19 +451,39 @@ export const similarCards = async (request : CallableRequest<SimilarCardsRequest
 	if (!EMBEDDING_STORE) {
 		throw new Error('No embedding store');
 	}
-	const point = await EMBEDDING_STORE.getExistingPoint(data.card_id, {includeVector: true});
-	if (!point) {
-		return {
-			success: false,
-			error: `Could not find embedding for ${data.card_id}`,
-			cards: []
-		};
+
+	let vector : number[] | null = null;
+
+	if (data.card) {
+		//We will hit the openai endpoint, so verify we're allowed.
+		await throwIfUserMayNotUseAI(request);
+
+		if (data.card.id != data.card_id) throw new Error(`Card.id was ${data.card.id} which did not match card_id: ${data.card_id}`);
+
+		const content = textContentForEmbeddingForCard(data.card);
+		const embedding = await embeddingForContent(content);
+		vector = embedding.vector;
+
+	} else {
+		//We'll use the embeddeding that is already stored.
+		const point = await EMBEDDING_STORE.getExistingPoint(data.card_id, {includeVector: true});
+		if (!point) {
+			return {
+				success: false,
+				error: `Could not find embedding for ${data.card_id}`,
+				cards: []
+			};
+		}
+	
+		//TODO: allow passing a custom limit (validate it)
+	
+		if (!point.vector) throw new Error('Point did not include vector as expected');
+		vector = point.vector;
 	}
 
-	//TODO: allow passing a custom limit (validate it)
+	if (!vector) throw new Error('vector was empty');
 
-	if (!point.vector) throw new Error('Point did not include vector as expected');
-	const points = await EMBEDDING_STORE.similarPoints(data.card_id, point.vector);
+	const points = await EMBEDDING_STORE.similarPoints(data.card_id, vector);
 
 	return {
 		success: true,
