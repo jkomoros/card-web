@@ -340,7 +340,7 @@ class EmbeddingStore {
 			content: text,
 			last_updated: Date.now(),
 			card_type: card.card_type,
-			card_created: card.created.nanoseconds
+			card_created: card.created.toMillis()
 		};
 
 		await this._qdrant.upsert(QDRANT_COLLECTION_NAME, {
