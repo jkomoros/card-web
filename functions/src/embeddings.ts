@@ -196,7 +196,7 @@ type PointPayload = {
 
 type Point = {
 	id: string,
-	vector? : number[],
+	vector? : EmbeddingVector,
 	payload?: PointPayload
 };
 
@@ -235,7 +235,7 @@ class EmbeddingStore {
 		return EMBEDDING_TYPES[this._type].length;
 	}
 
-	async similarPoints(cardID : CardID, vector : number[], limit : number = DEFAULT_SIMLIAR_POINTS_LIMIT) : Promise<CardSimilarityItem[]> {
+	async similarPoints(cardID : CardID, vector : EmbeddingVector, limit : number = DEFAULT_SIMLIAR_POINTS_LIMIT) : Promise<CardSimilarityItem[]> {
 		const points = await this._qdrant.search(QDRANT_COLLECTION_NAME, {
 			vector,
 			limit,
@@ -300,7 +300,7 @@ class EmbeddingStore {
 		const existingPoint = existingPoints.points[0];
 		return {
 			id: existingPoint.id as string,
-			vector: existingPoint.vector ? existingPoint.vector as number[] : undefined,
+			vector: existingPoint.vector ? existingPoint.vector as EmbeddingVector : undefined,
 			payload: existingPoint.payload as PointPayload
 		};
 	}
@@ -452,7 +452,7 @@ export const similarCards = async (request : CallableRequest<SimilarCardsRequest
 		throw new Error('No embedding store');
 	}
 
-	let vector : number[] | null = null;
+	let vector : EmbeddingVector | null = null;
 
 	if (data.card) {
 		//We will hit the openai endpoint, so verify we're allowed.
