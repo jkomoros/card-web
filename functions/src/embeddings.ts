@@ -6,6 +6,7 @@ import {
 	Card,
 	CardID,
 	CardSimilarityItem,
+	EmbeddableCard,
 	SimilarCardsRequestData,
 	SimilarCardsResponseData
 } from './types.js';
@@ -144,7 +145,7 @@ const formatDate = (date :  Date) : string => {
 	return `${year}/${month}/${day}`;
 };
 
-const textContentForEmbeddingForCard = (card : Card) : string => {
+const textContentForEmbeddingForCard = (card : EmbeddableCard) : string => {
 	//TODO: ideally this would literally be the cardPlainContent implementation from src/util.ts
 	const parts : string[] = [];
 	//Skip the computed title on working-notes cards since they are entire
