@@ -140,6 +140,7 @@ type ArrayToFieldValueUnion<Type> = {
 	[Property in keyof Type]: Type[Property] extends unknown[] ? Type[Property] | FieldValue : Type[Property]
 }
 
+//Replicated in src/actions/similarity.ts
 export type EmbeddableCard = Pick<Card, 'body' | 'title' | 'subtitle' | 'card_type' | 'created' | 'id'>;
 
 export type CardUpdate = Partial<NumberToFieldValue<ArrayToFieldValueUnion<TimestampToFieldValue<Card>>>>;

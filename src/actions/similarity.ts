@@ -26,12 +26,26 @@ import {
 } from '../types_simple.js';
 
 import {
+	Card
+} from '../types.js';
+
+import {
 	functions
 } from '../firebase.js';
 
-//Replicated in `functions/src/types.ts`
+//Replicated in src/actions/similarity.ts
+type EmbeddableCard = Pick<Card, 'body' | 'title' | 'subtitle' | 'card_type' | 'created' | 'id'>;
+
+//Replicated in `src/actions/similarity.ts`
 type SimilarCardsRequestData = {
 	card_id: CardID
+
+	//TODO: include a limit
+
+	//If card is provided, it will be used to get the content to embed, live.
+	//The user must have AI permission or it will fail.
+	//The card provided should match the card_id
+	card?: EmbeddableCard
 };
 
 //Replicated in `functions/src/types.ts`
