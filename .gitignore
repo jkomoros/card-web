@@ -7,11 +7,15 @@ _site/
 src/**/*.js
 src/**/*.d.ts
 src/**/*.map
+tools/**/*.js
+tools/**/*.d.ts
+tools/**/*.map
 
 .runtimeconfig.json
 
 #Ensure that no one checks in the secret config
 *.SECRET.*
+config.EXTRA.json
 index.html
 index.PARTIAL.html
 firestore.rules

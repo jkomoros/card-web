@@ -1,36 +1,41 @@
 {
-	"app_title": "My Card Collection",
-	"training_data_name": "My card collection",
-	"app_description": "My card collection is a collection of cards",
-	"firebase": {
-		"apiKey": "APIKEYHERE",
-		"authDomain": "PROJECT_ID.firebaseapp.com",
-		"databaseURL": "https://PROJECT_ID.firebaseio.com",
-		"projectId": "PROJECT_ID",
-		"storageBucket": "PROJECT_ID.appspot.com",
-		"messagingSenderId": "NUMBER"
-	},
-	"twitter_handle": "CHANGE-ME",
-	"disable_twitter": false,
-	"openai_api_key": "CHANGE-ME",
-	"backup_bucket_name": "CHANGE-ME",
-	"seo": false,
-	"permissions" : {
-		"all" : {
-			"viewApp": true
+	"base": {
+		"app_title": "My Card Collection",
+		"app_description": "My card collection is a collection of cards",
+		"firebase": {
+			"apiKey": "APIKEYHERE",
+			"authDomain": "PROJECT_ID.firebaseapp.com",
+			"databaseURL": "https://PROJECT_ID.firebaseio.com",
+			"projectId": "PROJECT_ID",
+			"storageBucket": "PROJECT_ID.appspot.com",
+			"messagingSenderId": "NUMBER"
 		},
-		"anonymous": {
-			"star": true,
-			"markRead": true,
-			"modifyReadingList": true
+		"twitter_handle": "CHANGE-ME",
+		"disable_twitter": false,
+		"openai_api_key": "CHANGE-ME",
+		"backup_bucket_name": "CHANGE-ME",
+		"qdrant": {
+			"cluster_url": "CHANGE-ME",
+			"api_key": "CHANGE-ME"
 		},
-		"signed_in": {
-			"comment": true
-		}
-	},
-	"google_analytics": "CHANGE-ME",
-	"disable_persistence": false,
-	"disable_anonymous_login": false,
-	"disable_service_worker": false,
-	"disable_callable_cloud_functions": false
+		"seo": false,
+		"permissions" : {
+			"all" : {
+				"viewApp": true
+			},
+			"anonymous": {
+				"star": true,
+				"markRead": true,
+				"modifyReadingList": true
+			},
+			"signed_in": {
+				"comment": true
+			}
+		},
+		"google_analytics": "CHANGE-ME",
+		"disable_persistence": false,
+		"disable_anonymous_login": false,
+		"disable_service_worker": false,
+		"disable_callable_cloud_functions": false
+	}
 }

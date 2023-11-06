@@ -53,7 +53,8 @@ import {
 	FilterName,
 	URLPart,
 	ConfigurableFilterName,
-	UnionFilterName
+	UnionFilterName,
+	CardSimilarityMap
 } from './types.js';
 
 import {
@@ -617,14 +618,15 @@ export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterNa
 //we use an extras object that the filter func can unpack as necessary. The
 //extras object is memoized so you can check for equality to see if any
 //individual portion changed.
-const makeExtrasForFilterFunc = memoize((filterSetMemberships : Filters, cards : ProcessedCards, keyCardID : CardID, editingCard : ProcessedCard, userID : Uid, randomSalt : string) : FilterExtras => {
+const makeExtrasForFilterFunc = memoize((filterSetMemberships : Filters, cards : ProcessedCards, keyCardID : CardID, editingCard : ProcessedCard, userID : Uid, randomSalt : string, cardSimilarity: CardSimilarityMap) : FilterExtras => {
 	return {
 		filterSetMemberships,
 		cards,
 		keyCardID,
 		editingCard,
 		userID,
-		randomSalt
+		randomSalt,
+		cardSimilarity
 	};
 });
 
@@ -691,6 +693,7 @@ export class Collection {
 	_startCardsConfig : SerializedDescriptionToCardList;
 	_userID : Uid;
 	_randomSalt : string;
+	_cardSimilarity : CardSimilarityMap;
 	_filteredCards : ProcessedCard[] | null;
 	_cachedFilterExtras : FilterExtras;
 	_collectionIsFallback : boolean;
@@ -731,6 +734,7 @@ export class Collection {
 		this._startCardsConfig = collectionArguments.startCards || {};
 		this._userID = collectionArguments.userID || '';
 		this._randomSalt = collectionArguments.randomSalt || '';
+		this._cardSimilarity = collectionArguments.cardSimilarity || {};
 		//The filtered cards... before any size limit has been applied, if necessary
 		this._filteredCards = null;
 		this._preLimitlength = 0;
@@ -752,7 +756,7 @@ export class Collection {
 
 	get _filterExtras() : FilterExtras {
 		if (!this._cachedFilterExtras) {
-			this._cachedFilterExtras = makeExtrasForFilterFunc(this._filtersSnapshot || this._filters, this._cardsForFiltering, this._keyCardID, this._editingCard, this._userID, this._randomSalt);
+			this._cachedFilterExtras = makeExtrasForFilterFunc(this._filtersSnapshot || this._filters, this._cardsForFiltering, this._keyCardID, this._editingCard, this._userID, this._randomSalt, this._cardSimilarity);
 		}
 		return this._cachedFilterExtras;
 	}
@@ -835,8 +839,8 @@ export class Collection {
 		const filterEquivalentForActiveSet = FILTER_EQUIVALENTS_FOR_SET[this._description.set];
 		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
 
-		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._filtersSnapshot, this._cardsForFiltering, this._keyCardID, this._editingCard, this._userID, this._randomSalt));
-		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._filters, this._cardsForExpansion, this._keyCardID, this._editingCard, this._userID, this._randomSalt));
+		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._filtersSnapshot, this._cardsForFiltering, this._keyCardID, this._editingCard, this._userID, this._randomSalt, this._cardSimilarity));
+		const [pendingFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._filters, this._cardsForExpansion, this._keyCardID, this._editingCard, this._userID, this._randomSalt, this._cardSimilarity));
 		//Return the set of items that pass the current filters but won't pass the pending filters.
 		const itemsThatWillBeRemoved = Object.keys(this._cardsForFiltering).filter(item => currentFilterFunc(item) && !pendingFilterFunc(item));
 		return Object.fromEntries(itemsThatWillBeRemoved.map(item => [item, true]));

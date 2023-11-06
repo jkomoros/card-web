@@ -34,6 +34,7 @@ import {
 	Sections,
 	SetName,
 	Slug,
+	SortExtra,
 	SortName,
 	TODOType,
 	TagID,
@@ -106,6 +107,7 @@ export const NAVIGATED_TO_NEW_CARD = 'NAVIGATED_TO_NEW_CARD';
 export const EXPECT_CARD_DELETIONS = 'EXPECT_CARD_DELETIONS';
 export const COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED = 'COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED';
 export const EXPECT_UNPUBLISHED_CARDS = 'EXPECT_UNPUBLISHED_CARDS';
+export const UPDATE_CARD_SIMILARITY = 'UPDATE_CARD_SIMILARITY';
 //Editor
 export const EDITING_START = 'EDITING_START';
 export const EDITING_FINISH = 'EDITING_FINISH';
@@ -438,6 +440,12 @@ type ActionNavigatedToNewCard = {
 type ActionExpectCardDeletions = {
 	type: typeof EXPECT_CARD_DELETIONS,
 	cards: CardBooleanMap
+};
+
+type ActionUpdateCardSimilarity = {
+	type: typeof UPDATE_CARD_SIMILARITY,
+	card_id : CardID,
+	similarity: SortExtra
 };
 
 type ActionCommittedPendingFiltersWhenFullyLoaded = {
@@ -875,6 +883,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionExpectCardDeletions
 	| ActionCommittedPendingFiltersWhenFullyLoaded
 	| ActionExpectUnpublishedCards
+	| ActionUpdateCardSimilarity
 	| ActionEditingStart
 	| ActionEditingFinish
 	| ActionEditingEditorMinimized

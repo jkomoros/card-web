@@ -37,9 +37,9 @@ By default (unless you set disable_anonymous_login to your config.SECRET.json) a
 
 In the navigation to the right, go to the Storage tab. Tap 'Get Started'. Click Next. It will show you a location selection, which you can't change (since you set it in an earlier step). Tap 'Done'.
 
-Run `gulp set-up-deploy`
+Run `npm run start` to run the server. This also starts building files the gulp file relies on.
 
-Run `npm run start` to run the server.
+Run `gulp set-up-deploy`
 
 Visit https://localhost:8081/maintenance in your browser.
 
@@ -158,7 +158,7 @@ If you don't have a dev/prod account, just a prod one, it will ask for confirmat
 
 By default, your `config.SECRET.json` will only configure a single firebase project. But if you're going to be doing serious work in your instance, or especially if you'll be hacking on the web app code, it's a good idea to have seperate dev and prod instances.
 
-To do that, create a separate firebase project in firebase and then modify your `config.SECRET.json` so that instead of the "firebase" key having the one project's config, it instead has two keys: "dev" and "prod", each with their corresponding keys.
+To do that, create a separate firebase project in firebase and then modify your `config.SECRET.json` to add a `dev` key to top-level with `firebase` underneath, with the dev configuration. You can also overwrite other aspects in the dev part.
 
 When you do this, you'll want to do *most* of the set-up steps described for a
 new project, but not run the set-up maintence task.
@@ -175,13 +175,23 @@ To do that, go to Postmark and get it set up, which takes awhile and lots of
 confirmation emails.  Part of the set up is configuring the email that the
 emails will appear to come from.
 
-Then run the following:
+Add to your `config.SECRET.json` (likely in the "prod" overlay so it doesn't happen in dev if you have one)
 
 ```
-gulp firebase-ensure-prod
-firebase functions:config:set postmark.key="YOUR-SECRET-KEY-HERE"
-firebase functions:config:set email.to="emailaccountyouwantalertssentto@gmail.com"
-firebase functions:config:set email.from="emailaccountitshouldcomefrom@gmail.com"
+{
+	"base": {
+		//...
+		//The pointer to your site so links in the email work
+		"site_domain": "thecompendium.cards"
+	},
+	"prod": {
+		"email": {
+			"postmark_key": "YOUR-SECRET-KEY-HERE",
+			"to_address": "emailaccountyouwantalertssentto@gmail.com",
+			"from_address": "emailaccountitshouldcomefrom@gmail.com"
+		},
+	}
+}
 ```
 
 ### Twitter bot
@@ -189,12 +199,21 @@ firebase functions:config:set email.from="emailaccountitshouldcomefrom@gmail.com
 If you also want to set up auto-tweeting, you'll need to set additional values,
 with the values for your app (generated from the specific bot account you want
 to tweet from) from here: https://developer.twitter.com/en/apps
+
+Add to your `config.SECRET.json`:
+
 ```
-gulp firebase-ensure-prod
-firebase functions:config:set twitter.consumer_key="YOUR-SECRET-KEY"
-firebase functions:config:set twitter.consumer_secret="YOUR-SECRET-KEY"
-firebase functions:config:set twitter.access_token_key="YOUR-SECRET-KEY"
-firebase functions:config:set twitter.access_token_secret="YOUR-SECRET-KEY"
+{
+	"base": {
+		//...
+		"twitter": {
+			"access_token_key": "YOUR-SECRET-KEY",
+			"consumer_key": "YOUR-SECRET-KEY",
+			"consumer_secret": "YOUR-SECRET-KEY",
+			"access_token_secret": "YOUR-SECRET-KEY"
+		}
+	}
+}
 ```
 
 You also need to add the `twitter_handle` property in your `config.SECRET.json`
@@ -485,3 +504,30 @@ In `config.SECRET.json` add a key called `openai_api_key`. This will allow users
 The features show up in two places currently:
  - **Summarize a collection of cards** - In the zippy in the cards collection, a button will show up to Summarize Cards with AI. This will attempt to summarize as many cards as fit in the context window into text that could be used for a new card.
  - **Suggest a card title** - When editing a card, flip to the content tab and hit the AI button next to the title field to suggest a title for the card based on the card's body.
+
+ ## Embedding Similarity
+
+ It's possible to enable a deeper similarity score for cards by using embeddings.
+
+ To do so you will need to provide an OpenAI_API_Key and also configure Qdrant, which is used as the vector database.
+
+ Go to https://cloud.qdrant.io and create a cluster. You can create small clusters (which should be more than sufficient) for free. Choose Google Cloud Platform option. You'll also need to generate an API key that gives access to that cluster.
+
+ Add to the `config.SECRET.json` the following configuration:
+
+```
+{
+  //...other configuration
+
+  //openai_api_key must also be set
+  "openai_api_key": "${YOUR_OPENAI_API_KEY}"
+  "qdrant": {
+	"cluster_url": "https://${YOUR_CLUSTER_ID}.us-east4-0.gcp.cloud.qdrant.io",
+	"api_key": "${YOUR_QDRANT_API_KEY}"
+  }
+}
+```
+
+You can run `gulp configure-qdrant` to run the configuration and set up the endpoint. It will also be run for you automatically on the next deploy.
+
+You can trigger a reindexing of all cards that need an embedding updated by running `gulp reindex-card-embeddings`. It will hit the endpoint to trigger an index, running in the background. It will also be run automatically when you do a release.

@@ -1,22 +1,56 @@
 /*eslint-env node*/
 
 import gulp from 'gulp';
-import { spawnSync, exec } from 'child_process';
+import { spawnSync, exec, spawn } from 'child_process';
 import prompts from 'prompts';
 import fs from 'fs';
 import process from 'process';
+import {QdrantClient} from '@qdrant/js-client-rest';
 
-let projectConfig;
+import {
+	devProdConfig,
+	selectedProjectID,
+} from './tools/util.js';
+
+let config;
 try {
-	projectConfig = JSON.parse(fs.readFileSync('./config.SECRET.json').toString());
+	config = devProdConfig();
 } catch(err) {
 	console.log('config.SECRET.json didn\'t exist. Check README.md on how to create one');
 	process.exit(1);
 }
-const CONFIG_FIREBASE_PROD = projectConfig.firebase.prod ? projectConfig.firebase.prod : projectConfig.firebase;
-const CONFIG_FIREBASE_DEV = projectConfig.firebase.dev ? projectConfig.firebase.dev : CONFIG_FIREBASE_PROD;
 
+const projectConfig = config.prod;
+const devProjectConfig = config.dev;
+
+const CONFIG_FIREBASE_PROD = projectConfig.firebase;
+const CONFIG_FIREBASE_DEV = devProjectConfig.firebase;
+const CONFIG_INCLUDES_DEV = config.devProvided;
+
+const REGION = projectConfig.region || 'us-central1';
+
+//Duplicated from `functions/src/embedding.ts`;
+const EMBEDDING_TYPES = {
+	'openai.com-text-embedding-ada-002': {
+		length: 1536,
+		provider: 'openai.com',
+		model: 'text-embedding-ada-002'
+	}
+};
+
+const DEFAULT_EMBEDDING_TYPE = 'openai.com-text-embedding-ada-002';
+const DEFAULT_EMBEDDING_TYPE_INFO = EMBEDDING_TYPES[DEFAULT_EMBEDDING_TYPE];
+const PAYLOAD_CARD_ID_KEY = 'card_id';
+const PAYLOAD_VERSION_KEY = 'extraction_version';
+const QDRANT_BASE_COLLECTION_NAME = DEFAULT_EMBEDDING_TYPE;
+const QDRANT_DEV_COLLECTION_NAME = 'dev-' + QDRANT_BASE_COLLECTION_NAME;
+const QDRANT_PROD_COLLECTION_NAME = 'prod-' + QDRANT_BASE_COLLECTION_NAME;
+
+//Also in tools/util.ts
 const CHANGE_ME_SENTINEL = 'CHANGE-ME';
+
+//Also in tools/util.ts, for some reason it doesn't want to import it
+const CONFIG_EXTRA_FILE = 'config.EXTRA.json';
 
 const FIREBASE_PROD_PROJECT = CONFIG_FIREBASE_PROD.projectId;
 const FIREBASE_DEV_PROJECT = CONFIG_FIREBASE_DEV.projectId;
@@ -31,6 +65,15 @@ const ENABLE_TWITTER = TWITTER_HANDLE && !DISABLE_TWITTER;
 
 const OPENAI_API_KEY = projectConfig.openai_api_key || '';
 const OPENAI_ENABLED = OPENAI_API_KEY != '';
+
+const QDRANT_INFO = projectConfig.qdrant || {};
+const QDRANT_CLUSTER_URL = QDRANT_INFO.cluster_url && QDRANT_INFO.cluster_url != CHANGE_ME_SENTINEL ? QDRANT_INFO.cluster_url : '';
+const QDRANT_API_KEY = QDRANT_INFO.api_key && QDRANT_INFO.api_key != CHANGE_ME_SENTINEL ? QDRANT_INFO.api_key : '';
+const QDRANT_ENABLED = OPENAI_ENABLED && QDRANT_CLUSTER_URL && QDRANT_API_KEY;
+
+if (QDRANT_API_KEY && !OPENAI_ENABLED) {
+	console.warn('Qdrant is configured but openai_api_key is not');
+}
 
 const SEO_ENABLED = projectConfig.seo;
 
@@ -80,6 +123,23 @@ const makeExecutor = cmdAndArgs => {
 	};
 };
 
+const makeBackgroundExecutor = cmdAndArgs => {
+	return (cb) => {
+		const splitCmd = cmdAndArgs.split(' ');
+		const cmd = splitCmd[0];
+		const args = splitCmd.slice(1);
+		const result = spawn(cmd, args, {
+			stdio: 'inherit',
+			detached: true
+		});
+
+		// This ensures that the parent process can exit independently of the child
+		result.unref();
+
+		cb();
+	};
+};
+
 const BUILD_TASK = 'build';
 const BUILD_OPTIONALLY = 'build-optionally';
 const ASK_IF_WANT_BUILD = 'ask-if-want-build';
@@ -99,6 +159,8 @@ const SET_LAST_DEPLOY_IF_AFFECTS_RENDERING = 'set-last-deploy-if-affects-renderi
 const ASK_IF_DEPLOY_AFFECTS_RENDERING = 'ask-if-deploy-affects-rendering';
 const ASK_BACKUP_MESSAGE = 'ask-backup-message';
 const SET_UP_CORS = 'set-up-cors';
+const CONFIGURE_QDRANT = 'configure-qdrant';
+const CONFIGURE_ENVIRONMENT = 'configure-environment';
 
 const GCLOUD_ENSURE_DEV_TASK = 'gcloud-ensure-dev';
 const FIREBASE_ENSURE_DEV_TASK = 'firebase-ensure-dev';
@@ -106,12 +168,15 @@ const FIREBASE_DELETE_FIRESTORE_IF_SAFE_TASK = 'firebase-delete-firestore-if-saf
 const FIREBASE_DELETE_FIRESTORE_TASK = 'DANGEROUS-firebase-delete-firestore';
 const GCLOUD_RESTORE_TASK = 'gcloud-restore';
 const GSUTIL_RSYNC_UPLOADS = 'gsutil-rsync-uploads';
+const REINDEX_CARD_EMBEDDINGS = 'reindex-card-embeddings';
 
 const WARN_MAINTENANCE_TASKS = 'warn-maintenance-tasks';
 
 const REGENERATE_FILES_FROM_CONFIG_TASK = 'inject-config';
 
 gulp.task(REGENERATE_FILES_FROM_CONFIG_TASK, makeExecutor('npm run generate:config'));
+
+gulp.task(CONFIGURE_ENVIRONMENT, makeExecutor('npm run generate:env'));
 
 const pad = (num) => {
 	let str =  '' + num;
@@ -198,13 +263,107 @@ gulp.task(GCLOUD_ENSURE_DEV_TASK, (cb) => {
 	gcloudUseDev(cb);
 });
 
+const configureQdrantCollection = async (client, collectionName) => {
+
+	let collectionInfo = null;
+	try {
+		collectionInfo = await client.getCollection(collectionName);
+	} catch(e) {
+		//A 400 is the way it siganls that it doesn't exist.
+		if (e.status !== 404) {
+			throw e;
+		}
+	}
+
+	if (!collectionInfo) {
+		//Needs to be created
+		const size = DEFAULT_EMBEDDING_TYPE_INFO.length;
+		console.log(`Creating ${collectionName}`);
+		await client.createCollection(collectionName, {
+			vectors: {
+				size,
+				distance: 'Cosine'
+			}
+		});
+	}
+
+	if (!collectionInfo || !collectionInfo.payload_schema[PAYLOAD_CARD_ID_KEY]) {
+		//Need to index card_id
+		console.log(`Creating index for ${collectionName}.${PAYLOAD_CARD_ID_KEY}`);
+		await client.createPayloadIndex(collectionName, {
+			field_name: PAYLOAD_CARD_ID_KEY,
+			field_schema: 'keyword'
+		});
+	}
+
+	if (!collectionInfo || !collectionInfo.payload_schema[PAYLOAD_VERSION_KEY]) {
+		//Need to index version
+		console.log(`Creating index for ${collectionName}.${PAYLOAD_VERSION_KEY}`);
+		await client.createPayloadIndex(collectionName, {
+			field_name: PAYLOAD_VERSION_KEY,
+			field_schema: 'integer'
+		});
+	}
+
+};
+
+gulp.task(CONFIGURE_QDRANT, async (cb) => {
+
+	//TODO: consider splitting into a dev and prod deploy? The deploy is easy
+	//enough that it's fine to do both at the same time.
+
+	if (!QDRANT_ENABLED) {
+		console.log('Skipping qdrant deploy because it\'s not configured');
+		cb();
+		return;
+	}
+	const client = new QdrantClient({
+		url: QDRANT_CLUSTER_URL,
+		apiKey: QDRANT_API_KEY
+	});
+
+	if (CONFIG_INCLUDES_DEV) {
+		await configureQdrantCollection(client, QDRANT_DEV_COLLECTION_NAME);
+	}
+	await configureQdrantCollection(client, QDRANT_PROD_COLLECTION_NAME);
+	cb();
+});
+
+gulp.task(REINDEX_CARD_EMBEDDINGS, async (cb) => {
+	if (!QDRANT_ENABLED) {
+		console.log('Skipping reindexing cards because qdrant is not enabled');
+		cb();
+		return;
+	}
+
+	const projectId = await selectedProjectID();
+
+	const url = 'https://' + REGION + '-' + projectId + '.cloudfunctions.net/reindexCardEmbeddings';
+	console.log('Running in the background: ' + url);
+	const task = makeBackgroundExecutor('curl -X POST ' + url);
+	task(cb);
+});
+
 gulp.task(BUILD_TASK, makeExecutor('npm run build'));
 
 gulp.task(GENERATE_SEO_PAGES, makeExecutor('npm run generate:seo:pages'));
 
-gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(ENABLE_TWITTER ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal' + (OPENAI_ENABLED ? 'functions:openai' : '')));
+gulp.task(FIREBASE_DEPLOY_TASK, makeExecutor(ENABLE_TWITTER ? 'firebase deploy' : 'firebase deploy --only hosting,storage,firestore,functions:emailAdminOnMessage,functions:emailAdminOnStar,functions:legal' + (OPENAI_ENABLED ? ',functions:openai,functions:updateCardEmbedding,functions:reindexCardEmbeddings,functions:similarCards' : '')));
 
-gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, makeExecutor('firebase functions:config:set site.last_deploy_affecting_rendering=' + RELEASE_TAG));
+gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING, async (cb) => {
+	const projectID = await selectedProjectID();
+	const isDev = projectID == devProjectConfig.firebase.projectId;
+	const data = fs.existsSync(CONFIG_EXTRA_FILE) ? fs.readFileSync(CONFIG_EXTRA_FILE).toString() : '{}';
+	const result = JSON.parse(data);
+	const key = isDev ? 'dev' : 'prod';
+	const subObj = result[key] || {};
+	subObj.last_deploy_affecting_rendering = RELEASE_TAG;
+	//Just in case this was created
+	result[key] = subObj;
+	fs.writeFileSync(CONFIG_EXTRA_FILE, JSON.stringify(result, null, '\t'));
+	cb();
+	return;
+});
 
 //If there is no dev then we'll just set it twice, no bigge
 gulp.task(SET_UP_CORS, gulp.series(
@@ -409,7 +568,10 @@ gulp.task('dev-deploy',
 		FIREBASE_ENSURE_DEV_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
 		CONFIGURE_API_KEYS_IF_SET,
-		FIREBASE_DEPLOY_TASK
+		CONFIGURE_QDRANT,
+		CONFIGURE_ENVIRONMENT,
+		FIREBASE_DEPLOY_TASK,
+		REINDEX_CARD_EMBEDDINGS
 	)
 );
 
@@ -424,8 +586,11 @@ gulp.task('deploy',
 		FIREBASE_ENSURE_PROD_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
 		CONFIGURE_API_KEYS_IF_SET,
+		CONFIGURE_QDRANT,
+		CONFIGURE_ENVIRONMENT,
 		FIREBASE_DEPLOY_TASK,
 		WARN_MAINTENANCE_TASKS,
+		REINDEX_CARD_EMBEDDINGS
 	)
 );
 

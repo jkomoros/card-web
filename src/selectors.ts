@@ -257,6 +257,7 @@ export const selectPermissionsPendingUid = (state : State) => state.permissions 
 export const selectPermissionsPendingPermissionType = (state : State) => state.permissions ? state.permissions.pendingPermissionType : '';
 const selectTweets = (state : State) => state.data ? state.data.tweets : {};
 export const selectTweetsLoading = (state : State) => state.data ? state.data.tweetsLoading : false;
+export const selectCardSimilarity = (state : State) => state.data ? state.data.cardSimilarity : {};
 export const selectActivePreviewCardId = (state : State) => state.app ? state.app.hoverCardId : '';
 export const selectPreviewCardX = (state : State) => state.app ? state.app.hoverX : 0;
 export const selectPreviewCardY = (state : State) => state.app ? state.app.hoverY : 0;
@@ -1435,7 +1436,8 @@ export const selectCollectionConstructorArguments = createSelector(
 	selectTabCollectionStartCards,
 	selectUid,
 	selectRandomSalt,
-	(cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt) => ({cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt})
+	selectCardSimilarity,
+	(cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity) => ({cards, sets, filters, sections, fallbacks, startCards, userID, randomSalt, cardSimilarity})
 );
 
 //Like selectCollectionConstructorArguments, but for the active collection. The

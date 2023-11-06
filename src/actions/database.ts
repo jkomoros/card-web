@@ -84,15 +84,24 @@ import {
 	TAGS_COLLECTION
 } from '../type_constants.js';
 
-const legalCallable = httpsCallable(functions, 'legal');
+//Replicated in `functions/src/types.ts`;
+type LegalRequestData = {
+	type: 'warmup'
+} | {
+	type: 'slug',
+	value: string
+};
 
-type LegalResult = {
-	legal : boolean,
-	reason : string,
-}
+//Replicated in `functions/src/types.ts`;
+type LegalResponseData = {
+	legal: boolean,
+	reason: string
+};
+
+const legalCallable = httpsCallable<LegalRequestData, LegalResponseData>(functions, 'legal');
 
 //slugLegal returns an object with {legal: bool, reason: string}
-export const slugLegal = async (newSlug : Slug) : Promise<LegalResult>  => {
+export const slugLegal = async (newSlug : Slug) : Promise<LegalResponseData>  => {
 
 	//First, early reject any slugs we already know exist.
 	const slugIndex = selectSlugIndex(store.getState() as State);
@@ -107,7 +116,7 @@ export const slugLegal = async (newSlug : Slug) : Promise<LegalResult>  => {
 	if (DISABLE_CALLABLE_CLOUD_FUNCTIONS) return {legal: true, reason: ''};
 
 	const result = await legalCallable({type:'slug', value:newSlug});
-	return result.data as LegalResult;
+	return result.data;
 };
 
 const warmupSlugLegal = (force = false) : void => {
@@ -139,6 +148,8 @@ export const keepSlugLegalWarm = () => {
 	warmupSlugLegal(true);
 	slugLegalInterval = window.setInterval(warmupSlugLegal, KEEP_WARM_INTERVAL);
 };
+
+
 
 export const connectLiveMessages = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;

@@ -1,8 +1,8 @@
 //TODO: reuse the types from the main project
 
 import {
-    Timestamp,
-    FieldValue
+	Timestamp,
+	FieldValue
 } from 'firebase-admin/firestore';
 
 export type Uid = string;
@@ -14,7 +14,7 @@ export type SectionID = string;
 export type TagID = string;
 
 export type Section = {
-    cards: CardID[]
+	cards: CardID[]
 };
 
 //Just pretned it's a string for simplicity
@@ -24,9 +24,9 @@ export type CardType = string;
 export type Sections = Record<SectionID, Section>;
 
 export interface UserPermissions {
-    //This is a cut-down version that only has the fields we need
-    admin?: boolean,
-    remoteAI?: boolean
+	//This is a cut-down version that only has the fields we need
+	admin?: boolean,
+	remoteAI?: boolean
 }
 
 export interface Card {
@@ -140,8 +140,48 @@ type ArrayToFieldValueUnion<Type> = {
 	[Property in keyof Type]: Type[Property] extends unknown[] ? Type[Property] | FieldValue : Type[Property]
 }
 
+//Replicated in src/actions/similarity.ts
+export type EmbeddableCard = Pick<Card, 'body' | 'title' | 'subtitle' | 'card_type' | 'created' | 'id'>;
+
 export type CardUpdate = Partial<NumberToFieldValue<ArrayToFieldValueUnion<TimestampToFieldValue<Card>>>>;
 
 export type CardLike = Card | CardUpdate;
 
 export type TweetInfoUpdate = Partial<TimestampToFieldValue<TweetInfo>>;
+
+//Replicated in `src/actions/database.ts`
+export type LegalRequestData = {
+	type: 'warmup'
+} | {
+	type: 'slug',
+	value: string
+};
+
+//Replicated in `src/actions/database.ts`
+export type LegalResponseData = {
+	legal: boolean,
+	reason: string
+};
+
+//Replicated in `src/actions/similarity.ts`
+export type SimilarCardsRequestData = {
+	card_id: CardID
+
+	//TODO: include a limit
+
+	//If card is provided, it will be used to get the content to embed, live.
+	//The user must have AI permission or it will fail.
+	//The card provided should match the card_id
+	card?: EmbeddableCard
+};
+
+//Replicated in `src/actions/similarity.ts`
+export type CardSimilarityItem = [CardID, number];
+
+//Replicated in `src/actions/similarity.ts`
+export type SimilarCardsResponseData = {
+	success: boolean,
+	//Will be set if success = false
+	error? : string
+	cards: CardSimilarityItem[]
+};

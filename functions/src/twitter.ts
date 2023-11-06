@@ -1,9 +1,12 @@
 
 import {
 	db,
-	config,
 	prettyCardURL,
-	DEV_MODE
+	DEV_MODE,
+	TWITTER_ACCESS_TOKEN_KEY,
+	TWITTER_ACCESS_TOKEN_SECRET,
+	TWITTER_CONSUMER_KEY,
+	TWITTER_CONSUMER_SECRET
 } from './common.js';
 
 import {
@@ -52,18 +55,14 @@ const INCLUDE_PICTURE_IN_TWEET = true;
 
 let twitterClient : Twitter | null = null;
 
-//Fetch once to save typing but also to guard against the case where no twitter
-//configs are set, so this whole object will be undefined.
-const twitterConfig = config.twitter;
-
-if (!twitterConfig || !twitterConfig.consumer_key || !twitterConfig.consumer_secret || !twitterConfig.access_token_key || !twitterConfig.access_token_secret) {
+if (!TWITTER_ACCESS_TOKEN_KEY || !TWITTER_CONSUMER_KEY || !TWITTER_ACCESS_TOKEN_SECRET || !TWITTER_CONSUMER_SECRET) {
 	console.warn('The twitter keys are not configured, so tweets will not actually be sent. See README.md for how to set them up.');
 } else {
 	twitterClient = new Twitter({
-		consumer_key: twitterConfig.consumer_key,
-		consumer_secret: twitterConfig.consumer_secret,
-		access_token_key: twitterConfig.access_token_key,
-		access_token_secret: twitterConfig.access_token_secret
+		consumer_key: TWITTER_CONSUMER_KEY,
+		consumer_secret: TWITTER_CONSUMER_SECRET,
+		access_token_key: TWITTER_ACCESS_TOKEN_KEY,
+		access_token_secret: TWITTER_ACCESS_TOKEN_SECRET
 	});
 }
 

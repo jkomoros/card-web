@@ -1,16 +1,18 @@
 import {
 	Config,
-	FirebaseProdDevOptions
+	ExpandedConfig,
+	ModeConfig
 } from './types.js';
 
 import fs from 'fs';
 import { exec } from 'child_process';
 
-import {
-	FirebaseOptions
-} from 'firebase/app';
-
 const PROJECT_CONFIG = 'config.SECRET.json';
+//Also in gulpfile.js
+const EXTRA_PROJECT_CONFIG = 'config.EXTRA.json';
+
+//Also in gulpfile
+const CHANGE_ME_SENTINEL = 'CHANGE-ME';
 
 const runCommand = async (command : string) : Promise<string> => {
 	return new Promise((resolve, reject) => {
@@ -24,44 +26,87 @@ const runCommand = async (command : string) : Promise<string> => {
 	});
 };
 
-const selectedProjectID = async () : Promise<string> => {
+export const selectedProjectID = async () : Promise<string> => {
 	//Oddly enough firebase use I guess does something special for stderr and
 	//stdout, because this just returns the direct project ID.
 	const result = await runCommand('firebase use');
 	return result;
 };
 
-export const getFirebaseConfig = async (config : Config) : Promise<FirebaseOptions> => {
+export const getActiveConfig = async () : Promise<ModeConfig> => {
 
-	const {prod, dev} = devProdFirebaseConfig(config);
+	const {prod, dev} = devProdConfig();
 
 	//We have both prod and dev and need to select which one to use.
 	const projectID = await selectedProjectID();
-	if (prod?.projectId == projectID) return prod;
-	if (dev?.projectId == projectID) return dev;
+	if (prod.firebase.projectId == projectID) return prod;
+	if (dev.firebase.projectId == projectID) return dev;
 	throw new Error(`Neither prod nor dev options matched projectid ${projectID}`);
 };
 
-export const devProdFirebaseConfig = (config : Config) : Required<FirebaseProdDevOptions> => {
-	if (!config.firebase) {
-		throw new Error('No firebase property');
+const replaceChangeMe = (obj : AnyObject) : AnyObject => {
+	const result = {...obj};
+	for (const key of Object.keys(obj)) {
+		const val = obj[key];
+		if (typeof val == 'object' && val) {
+			result[key] = val;
+		} else if(typeof val == 'string' && val == CHANGE_ME_SENTINEL) {
+			result[key] = '';
+		}
 	}
-	if ('apiKey' in config.firebase) {
-		return {prod: config.firebase, dev: config.firebase};
-	}
-	const fb = config.firebase as FirebaseProdDevOptions;
-	if (!fb.prod) throw new Error('No prod');
-	const prod = fb.prod;
-	const dev = fb.dev || prod;
-	if (!prod && !dev) throw new Error('No sub configs provided');
-	return {prod, dev};
+	return result;
 };
 
-export const getProjectConfig = () : Config => {
+export const devProdConfig = () : ExpandedConfig => {
+	const config = getProjectConfig();
+
+	const rawBase = replaceChangeMe(config.base) as ModeConfig;
+	const rawProd = replaceChangeMe(config.prod || {}) as ModeConfig;
+	const rawDev = replaceChangeMe(config.dev || {}) as ModeConfig;
+
+	const prod = deepMerge(rawBase, rawProd) as ModeConfig;
+	const dev = deepMerge(rawBase, rawDev) as ModeConfig;
+	const devProvided = config.dev !== undefined;
+	return {
+		prod: {...prod, is_dev: false},
+		dev: {...dev, is_dev: true},
+		devProvided
+	};
+};
+
+type AnyObject = { [key: string]: unknown };
+
+const deepMerge = (base: AnyObject, overlay: AnyObject): AnyObject => {
+	const result: AnyObject = { ...base };
+
+	for (const key in overlay) {
+		if (
+			typeof overlay[key] === 'object' &&
+			!Array.isArray(overlay[key]) &&
+			overlay[key] !== null &&
+			base[key] &&
+			typeof base[key] === 'object'
+		) {
+			result[key] = deepMerge(base[key] as AnyObject, overlay[key] as AnyObject);
+		} else {
+			result[key] = overlay[key];
+		}
+	}
+	return result;
+};
+
+const getProjectConfig = () : Config => {
 
 	if (!fs.existsSync(PROJECT_CONFIG)) {
 		console.log(PROJECT_CONFIG + ' didn\'t exist. Check README.md on how to create one');
 		throw new Error('No project config');
 	}
-	return JSON.parse(fs.readFileSync(PROJECT_CONFIG).toString()) as Config;
+
+	const extraFile = fs.existsSync(EXTRA_PROJECT_CONFIG) ? fs.readFileSync(EXTRA_PROJECT_CONFIG).toString() : '{}';
+	const mainFile = fs.readFileSync(PROJECT_CONFIG).toString();
+
+	const main = JSON.parse(mainFile) as Config;
+	const extra = JSON.parse(extraFile) as Config;
+
+	return deepMerge(extra, main) as Config;
 };

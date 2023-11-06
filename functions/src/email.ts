@@ -4,8 +4,10 @@ import {
 } from 'firebase-admin/firestore';
 
 import {
-	config,
 	getUserDisplayName,
+	EMAIL_POSTMARK_KEY,
+	EMAIL_FROM_ADDRESS,
+	EMAIL_TO_ADDRESS,
 	getCardName,
 	DOMAIN,
 	PAGE_DEFAULT,
@@ -13,8 +15,8 @@ import {
 } from './common.js';
 
 import {
-	EventContext
-} from 'firebase-functions';
+	FirestoreEvent
+} from 'firebase-functions/v2/firestore';
 
 import * as nodemailer from 'nodemailer';
 
@@ -22,21 +24,20 @@ import postmarkTransport from 'nodemailer-postmark-transport';
 
 let mailTransport : nodemailer.Transporter | null = null;
 
-const postmarkKey = (config.postmark || {}).key;
-if (postmarkKey) {
+if (EMAIL_POSTMARK_KEY) {
 	mailTransport = nodemailer.createTransport(postmarkTransport({
 		auth: {
-			apiKey: postmarkKey
+			apiKey: EMAIL_POSTMARK_KEY
 		}
 	}));
 } else {
 	console.warn('No postmark key provided. See README.md on how to set it up.');
 }
 
-const adminEmail = (config.email || {}).to;
+const adminEmail = EMAIL_TO_ADDRESS;
 if (!adminEmail) console.warn('No admin email provided. See README.md on how to set it up.');
 
-const fromEmail = (config.email || {}).from;
+const fromEmail = EMAIL_FROM_ADDRESS;
 if (!fromEmail) console.warn('No from email provided. See README.md on how to set it up.');
 
 const sendEmail = async (subject : string, message : string) => {
@@ -60,7 +61,12 @@ const sendEmail = async (subject : string, message : string) => {
 	console.log('Sent email with message ' + subject);
 };
 
-export const onStar = async (snapshot : QueryDocumentSnapshot) => {
+export const onStar = async (event : FirestoreEvent<QueryDocumentSnapshot | undefined, Record<string, unknown>>) => {
+
+	const snapshot = event.data;
+
+	if (!snapshot) throw new Error('No document');
+
 	const cardId = snapshot.data().card;
 	const authorId = snapshot.data().owner;
 
@@ -74,11 +80,16 @@ export const onStar = async (snapshot : QueryDocumentSnapshot) => {
 
 };
 
-export const onMessage = async (snapshot : QueryDocumentSnapshot, context : EventContext<{messageId: string}>) => {
+export const onMessage = async (event : FirestoreEvent<QueryDocumentSnapshot | undefined, {messageId: string}>) => {
+
+	const snapshot = event.data;
+
+	if (!snapshot) throw new Error('No document');
+
 	const cardId = snapshot.data().card;
 	const authorId = snapshot.data().author;
 	const messageText = snapshot.data().message;
-	const messageId = context.params.messageId;
+	const messageId = event.params.messageId;
 
 	const authorString = await getUserDisplayName(authorId);
 	const cardTitle = await getCardName(cardId);

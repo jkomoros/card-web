@@ -17,6 +17,7 @@ import {
 	COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED,
 	EXPECT_UNPUBLISHED_CARDS,
 	SomeAction,
+	UPDATE_CARD_SIMILARITY,
 } from '../actions.js';
 
 import {
@@ -56,7 +57,8 @@ const INITIAL_STATE : DataState = {
 	reorderPending: false,
 	pendingNewCardID: '',
 	pendingNewCardType: '',
-	pendingNewCardIDToNavigateTo: ''
+	pendingNewCardIDToNavigateTo: '',
+	cardSimilarity: {}
 };
 
 const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState => {
@@ -107,6 +109,10 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			result.pendingNewCardID = '';
 			result.pendingNewCardType = '';
 		}
+		//Reset the card similarity map because if the card that was just change
+		//was in any map, it is now invalid.
+		//TODO: couldn't we only remove the entries that explicitly include that item?
+		result.cardSimilarity = {};
 		return result;
 	case UPDATE_COLLECTION_SHAPSHOT:
 		return {
@@ -191,6 +197,14 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			...state,
 			unpublishedCardsLoaded: false,
 			alreadyCommittedModificationsWhenFullyLoaded: false,
+		};
+	case UPDATE_CARD_SIMILARITY:
+		return {
+			...state,
+			cardSimilarity: {
+				...state.cardSimilarity,
+				[action.card_id] : action.similarity
+			}
 		};
 	default:
 		return state;

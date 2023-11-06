@@ -9,6 +9,7 @@ export const REFERENCES_CARD_PROPERTY = 'references';
 //Also referenced directly in firestore.TEMPLATE.rules
 export const REFERENCES_INBOUND_CARD_PROPERTY = 'references_inbound';
 
+//Recreated in functions/src/embedding.ts
 export const TEXT_FIELD_BODY = 'body';
 export const TEXT_FIELD_TITLE = 'title';
 export const TEXT_FIELD_SUBTITLE = 'subtitle';
@@ -36,6 +37,7 @@ export const TEXT_FIELD_TYPES = {
 	[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: true,
 };
 
+//Recreated in functions/src/embedding.ts
 export const CARD_TYPE_CONTENT = 'content';
 export const CARD_TYPE_SECTION_HEAD = 'section-head';
 export const CARD_TYPE_WORKING_NOTES = 'working-notes';

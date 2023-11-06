@@ -120,7 +120,8 @@ import {
 	FilterName,
 	ConfigurableFilterRest,
 	UnionFilterName,
-	ConcreteFilterName
+	ConcreteFilterName,
+	CardSimilarityMap
 } from './types.js';
 
 import {
@@ -130,6 +131,14 @@ import {
 import {
 	TypedObject
 } from './typed_object.js';
+
+import {
+	store
+} from './store.js';
+
+import {
+	fetchSimilarCards
+} from './actions/similarity.js';
 
 const INBOUND_SUFFIX = '-inbound';
 const OUTBOUND_SUFFIX = '-outbound';
@@ -333,7 +342,7 @@ const INVALID_FILTER_NAME_SENTINEL = () => ({});
 //Returns a function that takes cards, activeCardID, and editingCard and returns
 //a map of cardID -> depth from the keycard. If optOverrideCards is defined,
 //then cardID is ignored, and instead it passes the keys of that map to the BFS.
-const cardBFSMaker = (filterName : ConfigurableFilterType, cardID : CardID, countOrTypeStr : string, countStr : string, optOverrideCards? : CardIDMap) => {
+const cardBFSMaker = (filterName : ConfigurableFilterType, cardID : CardID, countOrTypeStr : string, countStr : string, optOverrideCards? : CardIDMap) : (cards : Cards, activeCardID : CardID, editingCard : Card) => SortExtra => {
 	//note: makeExpandConfigurableFilter needs to be updated if the number or order of parameters changes.
 
 	if (!LINKS_FILTER_NAMES[filterName]) {
@@ -725,8 +734,20 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 
 	const [, includeKeyCard, cardIDs] = parseKeyCardID(rawCardID);
 	
-	const generator = memoize((cards : ProcessedCards, rawCardIDsToUse : CardID[], editingCard : ProcessedCard) => {
+	const generator = memoize((cards : ProcessedCards, rawCardIDsToUse : CardID[], editingCard : ProcessedCard, cardSimilarity : CardSimilarityMap) : Map<CardID, number> => {
 		const cardIDsToUse = normalizeCardSlugOrIDList(rawCardIDsToUse, cards);
+
+		//TODO: figure out a way to support multiple key cards
+		for (const cardID of cardIDsToUse) {
+			if (cardSimilarity[cardID]) {
+				//TODO: merge in fingerprint cards for the ones not in top amount
+				return new Map(Object.entries(cardSimilarity[cardID]));
+			}
+			//Kick off a request for similarities we don't currently have, so
+			//we'll have them next time. We'll get called again once it's fetched.
+			store.dispatch(fetchSimilarCards(cardID));
+		}
+
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
 		const editingCardFingerprint = editingCard && cardIDsToUse.some(id => id == editingCard.id) ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
 		const fingerprint = editingCardFingerprint || fingerprintGenerator.fingerprintForCardIDList(cardIDsToUse);
@@ -745,12 +766,13 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 			return [false, Number.MIN_SAFE_INTEGER];
 		}
 
-		const closestItems = generator(extras.cards, cardIDsToUse, extras.editingCard);
+		const closestItems = generator(extras.cards, cardIDsToUse, extras.editingCard, extras.cardSimilarity);
 
 		//It's a bit odd that this 'filter' is only used to filter out the
 		//keycard (sometimes), but is really used for its sort value. But sorts
 		//don't have machinery for configurable sorts, so :shrug:
-		return [true, closestItems.get(card.id)];
+		//Return 0 if the map is missing the item, which could happen if it's server similarity
+		return [true, closestItems.get(card.id) || 0];
 	};
 
 	return [func, false];
@@ -764,8 +786,20 @@ const makeSimilarCutoffConfigurableFilter = (_ : ConfigurableFilterType, rawCard
 	let floatCutoff = parseFloat(rawFloatCutoff || '0');
 	if (isNaN(floatCutoff)) floatCutoff = 0;
 	
-	const generator = memoize((cards : ProcessedCards, rawCardIDsToUse : CardID[], editingCard : ProcessedCard) => {
+	const generator = memoize((cards : ProcessedCards, rawCardIDsToUse : CardID[], editingCard : ProcessedCard, cardSimilarity: CardSimilarityMap) => {
 		const cardIDsToUse = normalizeCardSlugOrIDList(rawCardIDsToUse, cards);
+
+		//TODO: figure out a way to support multiple key cards
+		for (const cardID of cardIDsToUse) {
+			if (cardSimilarity[cardID]) {
+				//TODO: merge in fingerprint cards for the ones not in top amount
+				return new Map(Object.entries(cardSimilarity[cardID]));
+			}
+			//Kick off a request for similarities we don't currently have, so
+			//we'll have them next time. We'll get called again once it's fetched.
+			store.dispatch(fetchSimilarCards(cardID));
+		}
+
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
 		const editingCardFingerprint = editingCard && cardIDsToUse.some(id => id == editingCard.id) ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
 		const fingerprint = editingCardFingerprint || fingerprintGenerator.fingerprintForCardIDList(cardIDsToUse);
@@ -784,9 +818,10 @@ const makeSimilarCutoffConfigurableFilter = (_ : ConfigurableFilterType, rawCard
 			return [false, Number.MIN_SAFE_INTEGER];
 		}
 
-		const closestItems = generator(extras.cards, cardIDsToUse, extras.editingCard);
+		const closestItems = generator(extras.cards, cardIDsToUse, extras.editingCard, extras.cardSimilarity);
 
-		const value : number = closestItems.get(card.id);
+		//Return 0 if the map is missing the item, which could happen if it's server similarity
+		const value : number = closestItems.get(card.id) || 0;
 
 		return [value ? value > floatCutoff : false, value];
 	};

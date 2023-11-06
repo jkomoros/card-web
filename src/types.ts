@@ -17,15 +17,12 @@ import {
 	EDITOR_CONTENT_TAB_TYPES,
 	COMMIT_ACTION_TYPES,
 	SORT_NAME_TYPES,
-	TAB_CONFIG_TYPES,
 	AI_DIALOG_TYPES,
 	FIND_CARD_TO_LINK,
 	FIND_CARD_TO_PERMISSION,
 	FIND_CARD_TO_REFERENCE,
 	FIND_CARD_OPEN
 } from './type_constants.js';
-
-import * as icons from './components/my-icons.js';
 
 import {
 	CollectionDescription
@@ -35,11 +32,21 @@ import {
 	TemplateResult
 } from 'lit';
 
+import {
+	TabConfigItemInput,
+	TabConfigName,
+	IconName,
+	UserPermissionsCore,
+	CardID as CardIDType,
+	Slug as SlugType,
+	CardIdentifier as CardIdentifierType
+} from './types_simple.js';
+
 export type Uid = string;
 
-export type CardID = string;
-export type Slug = string;
-export type CardIdentifier = CardID | Slug;
+export type CardID = CardIDType;
+export type Slug = SlugType;
+export type CardIdentifier = CardIdentifierType;
 
 type CardPermissionType = PermissionType;
 
@@ -198,7 +205,6 @@ export interface TweetInfo {
 	engagement_last_changed : Timestamp
 }
 
-export type IconName = keyof(typeof icons);
 
 export type SelectorStyleMap = {
 	[selector : string]: string[]
@@ -766,24 +772,6 @@ export type PermissionInfoCollection = {
 	[permissionType in PermissionType]+?: PermissionInfo
 }
 
-//This is the the type that PermissionType is driven off of.
-//functions/types/ts:UserPermissions is also based on this
-type UserPermissionsCore = {
-	admin? : boolean,
-	viewApp? : boolean,
-	edit? : boolean,
-	editSection? : boolean,
-	editTag? : boolean,
-	editCard? : boolean,
-	createCard? : boolean,
-	viewUnpublished? : boolean,
-	comment? : boolean,
-	star? : boolean,
-	markRead? : boolean,
-	modifyReadingList? : boolean,
-	remoteAI?: boolean
-}
-
 export interface UserPermissions extends UserPermissionsCore {
 	id? : Uid,
 	notes? : string,
@@ -878,6 +866,7 @@ export type FilterExtras = {
 	editingCard : ProcessedCard,
 	userID : Uid,
 	randomSalt: string,
+	cardSimilarity: CardSimilarityMap
 };
 
 export type CardBooleanMap = {
@@ -908,7 +897,8 @@ export interface CollectionConstructorArguments {
 	keyCardID? : CardID,
 	cardsSnapshot? : ProcessedCards,
 	filtersSnapshot? : Filters,
-	editingCard? : ProcessedCard
+	editingCard? : ProcessedCard,
+	cardSimilarity? : CardSimilarityMap
 }
 
 export interface BadgeMap {
@@ -1009,59 +999,17 @@ export type CardFieldMap = {
 	[field in CardFieldType]+?: true
 }
 
-export type TabConfigName = keyof(typeof TAB_CONFIG_TYPES);
-
-//If a TabConfigName is given, then it will be treated as though it were {expand:"<NAME>"}
 export type TabConfig = (TabConfigName | TabConfigItem)[];
 
-export interface TabConfigItem {
-	//If set, will expand in line for the named expansion. See src/tabs.js for named expansions.
-	//Applies recursively until no expansions remain.
-	//Note that 'sections' is a special value that will expand to the current values of sections.
-	expand?: TabConfigName,
+//We add the live versions that aren't allowed in inputs.
+export type TabConfigItem = Omit<TabConfigItemInput, 'icon' | 'collection'> & {
 	//collection can be either a string that can be deserialized into a CollectionDescription, or an actual 
 	//CollectionDescription. It will be expanded to be a CollectionDescription either way. Each item should have a collection
 	//or an href. If it's a string, remember it should start with a setname, e/g. 'everything/working-notes'
 	collection?: string | CollectionDescription,
-	//If set, the item will render an <a href='href' target='_blank'>
-	href?: string,
 	//Can be either a string naming an ICON constant in src/components/my-icons.js, or an actual Icon template.
 	//If provided, will render that instead of the display_name text.
 	icon?: IconName | TemplateResult,
-	//The text string to show. Alway used for title of the tab, but also will use if no icon provided.
-	display_name?: string,
-	//If true, the display_name will be rendered with italics
-	italics?: boolean,
-	//If true, a count of how many cards are in the collection will be calculated and rendered.
-	count?: boolean,
-	//If true, will not show the item if the count is 0.
-	hideIfEmpty?: boolean,
-	//If true, the item will not be rendered. This is useful if you want fallback_cards or start_cards 
-	//to be available but don't want the tab to show up.
-	hide?: boolean,
-	//If provided, will show these fallback cards if no real cards match the collection. The strings can be IDs or 
-	//slugs for the target cards.
-	fallback_cards?: CardIdentifier[],
-	//If provided, will show these start cards if the collection being show is precisely the collection described 
-	//by this descripton. The strings can be IDS or slugs for the target cards.
-	start_cards?: CardIdentifier[],
-	//The first item that has default:true will be used as the default collection if the app is loaded without a 
-	//collection. The auto sections portion will automatically select at least one item to be default.
-	default?: boolean
-	//If provided, will also execute the action when the user taps
-	action? : () => void;
-}
-
-//Items in the before map will be placed immediately before any item matching
-//the name. Items in the after map will be placed immediately after the item
-//matching hte name.
-export type TabConfigOverrides = {
-	before?: {
-		[name in TabConfigName]+? : TabConfigItem
-	},
-	after?: {
-		[name in TabConfigName]+?: TabConfigItem
-	}
 }
 
 export interface ExpandedTabConfigItem extends TabConfigItem {
@@ -1070,6 +1018,10 @@ export interface ExpandedTabConfigItem extends TabConfigItem {
 }
 
 export type ExpandedTabConfig = ExpandedTabConfigItem[];
+
+//A map of card_id to similarity to that ID.
+//Note the map will likely only have a subset of the other cards.
+export type CardSimilarityMap = Record<CardID, SortExtra>;
 
 export type DataState = {
 	cards: Cards,
@@ -1113,7 +1065,10 @@ export type DataState = {
 	//where the new card has been received, so pendingNewCardID is cleared, but
 	//pendingNewCardIDToNavigateTo is not yet cleared, because the navigation
 	//hasn't yet happened.
-	pendingNewCardIDToNavigateTo: CardID
+	pendingNewCardIDToNavigateTo: CardID,
+	//When we're doing card similarity based on embedings, we have to reach out
+	//to a cloud function. This is where we store that information.
+	cardSimilarity: CardSimilarityMap;
 }
 
 export type EditorState = {
