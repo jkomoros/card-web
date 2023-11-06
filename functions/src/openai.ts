@@ -40,15 +40,7 @@ type OpenAIData = {
 	payload: unknown
 };
 
-//data should have endpoint and payload
-export const handler = async (request : CallableRequest<OpenAIData>) => {
-
-	const data = request.data;
-
-	if (!openai_endpoint) {
-		throw new HttpsError('failed-precondition', 'OPENAI_API_KEY not set');
-	}
-
+export const throwIfUserMayNotUseAI = async (request : CallableRequest<unknown>) : Promise<void> => {
 	if (!request.auth) {
 		throw new HttpsError('unauthenticated', 'A valid user authentication must be passed');
 	}
@@ -58,6 +50,18 @@ export const handler = async (request : CallableRequest<OpenAIData>) => {
 	if (!mayUseAI(permissions)) {
 		throw new HttpsError('permission-denied', 'The user does not have adequate permissions to perrform this action');
 	}
+};
+
+//data should have endpoint and payload
+export const handler = async (request : CallableRequest<OpenAIData>) => {
+
+	const data = request.data;
+
+	if (!openai_endpoint) {
+		throw new HttpsError('failed-precondition', 'OPENAI_API_KEY not set');
+	}
+
+	await throwIfUserMayNotUseAI(request);
 
 	if (!data || typeof data !== 'object') {
 		throw new HttpsError('invalid-argument', 'data must be an object');
