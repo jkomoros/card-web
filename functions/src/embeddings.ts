@@ -55,7 +55,13 @@ const EMBEDDING_TYPES = {
 
 //All of the versions of content extraction pipelines; when a new one is
 //created, a new index should be added an CURRENT_EMBEDDING_VERSION Should be
-//incremented.
+//incremented. When adding one, add it like: `0 | 1` and set
+//CURRENT_EMBEDDING_VERSION to the new number. When you deploy
+//updateCardEmbedding, reindexCardEmbeddings, and similarCards, it will use only
+//the new version, which means you should call `gulp reindex-card-embeddings`.
+//Note there's currently no tool to remove the old embeddings, although it
+//should be pretty simple to do one by looking at getExistingPoint and using
+//client.delete() with the filter condition for the old version.
 type EmbeddingVersion = 0;
 const CURRENT_EMBEDDING_VERSION : EmbeddingVersion = 0;
 
@@ -146,6 +152,8 @@ const formatDate = (date :  Date) : string => {
 };
 
 const textContentForEmbeddingForCard = (card : EmbeddableCard) : string => {
+	//Every time this function is updated, CURRENT_EMBEDDING_VERSION should be incremented.
+
 	//TODO: ideally this would literally be the cardPlainContent implementation from src/util.ts
 	const parts : string[] = [];
 	//Skip the computed title on working-notes cards since they are entire
