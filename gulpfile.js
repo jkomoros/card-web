@@ -129,7 +129,8 @@ const makeBackgroundExecutor = cmdAndArgs => {
 		const cmd = splitCmd[0];
 		const args = splitCmd.slice(1);
 		const result = spawn(cmd, args, {
-			stdio: 'inherit',
+			//Drop stdin, stdout, stderr on the floor
+			stdio: 'ignore',
 			detached: true
 		});
 
