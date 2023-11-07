@@ -381,6 +381,11 @@ export const processCardEmbedding = async (event : FirestoreEvent<Change<Documen
 
 	const change = event.data;
 
+	//Note: this will be called not only when a card's text properties change,
+	//but also for example when a referenced card's references_inbound changes.
+	//When cards are created and first saved they often are empty, and then
+	//later they have their first text and concepts added.
+
 	if (!change) {
 		console.warn('No data');
 		return;
