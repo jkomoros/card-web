@@ -35,8 +35,8 @@ import {
 	missingConceptConfigurableFilterText,
 	aboutConceptConfigurableFilterText,
 	LIMIT_FILTER_NAME,
-	SAME_TYPE_FILTER,
-	DIFFERENT_TYPE_FILTER,
+	SAME_TYPE_FILTER_NAME,
+	DIFFERENT_TYPE_FILTER_NAME,
 	UNION_FILTER_DELIMITER,
 } from './filters.js';
 
@@ -205,15 +205,15 @@ const INFO_PANEL_REFERENCE_BLOCKS : ReferenceBlocks = [
 		}
 	},
 	{
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, SAME_TYPE_FILTER + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES), LIMIT_FILTER_NAME + '/' + NUM_SIMILAR_CARDS_TO_SHOW]),
-		navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, SAME_TYPE_FILTER + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES)]),
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, SAME_TYPE_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES), LIMIT_FILTER_NAME + '/' + NUM_SIMILAR_CARDS_TO_SHOW]),
+		navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, SAME_TYPE_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES)]),
 		showNavigate: true,
 		title: 'Similar Cards',
 		description: 'Cards that are neither linked to or from here but that have distinctive terms that overlap with this card and are the same type of card.',
 	},
 	{
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, CARD_TYPE_WORKING_NOTES + UNION_FILTER_DELIMITER + CARD_TYPE_CONTENT, DIFFERENT_TYPE_FILTER + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES), LIMIT_FILTER_NAME + '/' + NUM_SIMILAR_CARDS_TO_SHOW]),
-		navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, CARD_TYPE_WORKING_NOTES + UNION_FILTER_DELIMITER + CARD_TYPE_CONTENT, DIFFERENT_TYPE_FILTER + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES)]),
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, CARD_TYPE_WORKING_NOTES + UNION_FILTER_DELIMITER + CARD_TYPE_CONTENT, DIFFERENT_TYPE_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES), LIMIT_FILTER_NAME + '/' + NUM_SIMILAR_CARDS_TO_SHOW]),
+		navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, CARD_TYPE_WORKING_NOTES + UNION_FILTER_DELIMITER + CARD_TYPE_CONTENT, DIFFERENT_TYPE_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES)]),
 		showNavigate: true,
 		title: 'Similar Cards (Other Type)',
 		description: 'Cards that are neither linked to or from here but that have distinctive terms that overlap with this card but are a different type (either working-notes or content)',

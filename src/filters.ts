@@ -173,8 +173,8 @@ const SIMILAR_CUTOFF_FILTER_NAME = 'similar-cutoff';
 //conflicts with section name in production.
 const ABOUT_CONCEPT_FILTER_NAME = 'about-concept';
 const MISSING_CONCEPT_FILTER_NAME = 'missing-concept';
-export const SAME_TYPE_FILTER = 'same-type';
-export const DIFFERENT_TYPE_FILTER = 'different-type';
+export const SAME_TYPE_FILTER_NAME = 'same-type';
+export const DIFFERENT_TYPE_FILTER_NAME = 'different-type';
 
 /*
 * filterEquivalent - the name of the filter that, when applied to the everything
@@ -486,7 +486,7 @@ export const missingConceptConfigurableFilterText = (conceptStr : string) : Conf
 
 const makeSameTypeConfigurableFilter = (filterName : ConfigurableFilterType, inputCardID : string) : ConfigurableFilterFuncFactoryResult => {
 	//We use this function for both same and different type
-	const sameType = filterName == SAME_TYPE_FILTER;
+	const sameType = filterName == SAME_TYPE_FILTER_NAME;
 	//Technically the '+' prefix doesn't make any sense here, but temporarily
 	//we're using hte dialog config type that might give us one as a prefix, so
 	//look for it just in case.
@@ -835,8 +835,8 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[SIMILAR_CUTOFF_FILTER_NAME]: 2,
 	[ABOUT_CONCEPT_FILTER_NAME]: 1,
 	[MISSING_CONCEPT_FILTER_NAME]: 1,
-	[SAME_TYPE_FILTER]: 1,
-	[DIFFERENT_TYPE_FILTER]: 1,
+	[SAME_TYPE_FILTER_NAME]: 1,
+	[DIFFERENT_TYPE_FILTER_NAME]: 1,
 };
 
 const beforeTodayDefaultsFactory = () => {
@@ -1209,7 +1209,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 			default: 'concept-name',
 		}],
 	},
-	[SAME_TYPE_FILTER]: {
+	[SAME_TYPE_FILTER_NAME]: {
 		factory: makeSameTypeConfigurableFilter,
 		description: 'Cards with the same type as the provided card',
 		arguments: [{
@@ -1218,7 +1218,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 			default: KEY_CARD_ID_PLACEHOLDER,
 		}]
 	},
-	[DIFFERENT_TYPE_FILTER]: {
+	[DIFFERENT_TYPE_FILTER_NAME]: {
 		factory: makeSameTypeConfigurableFilter,
 		description: 'Cards with a different type as the provided card',
 		arguments: [{
