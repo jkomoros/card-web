@@ -156,6 +156,7 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBloc
 
 const REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].excludeFromInfoPanel).map(entry => entry[0]) as ReferenceType[];
 const SUBSTANTIVE_REFERENCE_TYPES = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].substantive).map(entry => entry[0]) as ReferenceType[];
+const SUBSTANTIVE_WITHOUT_SEE_ALSO_REFERENCE_TYPES = SUBSTANTIVE_REFERENCE_TYPES.filter(type => type != 'see-also');
 
 const NUM_SIMILAR_CARDS_TO_SHOW = 5;
 
@@ -178,7 +179,7 @@ const INFO_PANEL_REFERENCE_BLOCKS : ReferenceBlocks = [
 	{
 		title: 'See Also',
 		description: 'Cards that are related to this card and make sense to consume together',
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_SEE_ALSO)])
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_SEE_ALSO)])
 	},
 	{
 		title: 'Citations',
@@ -193,7 +194,8 @@ const INFO_PANEL_REFERENCE_BLOCKS : ReferenceBlocks = [
 		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL, true)])
 	},
 	{
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_CONCEPT,referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES)]),
+		//We filter out see-also types because we already show those reciprocally in see-also.
+		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_CONCEPT,referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_WITHOUT_SEE_ALSO_REFERENCE_TYPES)]),
 		title: 'Cards That Link Here',
 		description: 'Cards that link to this one.',
 		emptyMessage: 'No cards link to this one.',
