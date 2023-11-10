@@ -317,7 +317,13 @@ export type ConfigurableFilterControlPiece = {
 	value : string
 }
 
-export type ConfigurableFilterFunc = (card : ProcessedCard, extras? : FilterExtras) => ([matches : boolean] | [ matches : boolean, sortExtra : number] | [ matches : boolean, sortExtra : number, partialMatch : boolean]);
+export type FilterFuncResult = {
+	matches: boolean,
+	sortExtra? : number,
+	partialMatch? : boolean
+}
+
+export type ConfigurableFilterFunc = (card : ProcessedCard, extras? : FilterExtras) => FilterFuncResult;
 
 export type ConfigurableFilterFuncFactoryResult = [func : ConfigurableFilterFunc, reverse : boolean];
 

@@ -121,7 +121,8 @@ import {
 	ConfigurableFilterRest,
 	UnionFilterName,
 	ConcreteFilterName,
-	CardSimilarityMap
+	CardSimilarityMap,
+	FilterFuncResult
 } from './types.js';
 
 import {
@@ -255,23 +256,23 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName | typeo
 	const firstDate = firstDateStr ? new Date(firstDateStr) : null;
 	const secondDate = secondDateStr ? new Date(secondDateStr) : null;
 
-	let func : ((card : ProcessedCard) => [boolean]) = () => [false];
+	let func : ((card : ProcessedCard) => FilterFuncResult) = () => ({matches: false});
 
 	switch (comparisonType) {
 	case BEFORE_FILTER_NAME:
 		func = function(card) {
 			const val = card[cardKey] as Timestamp;
-			if (!val) return [false];
+			if (!val) return {matches: false};
 			const difference = val.toMillis() - firstDate.getTime();
-			return [difference < 0];
+			return {matches: difference < 0};
 		};
 		break;
 	case AFTER_FILTER_NAME:
 		func = function(card) {
 			const val = card[cardKey] as Timestamp;
-			if (!val) return [false];
+			if (!val) return {matches: false};
 			const difference = val.toMillis() - firstDate.getTime();
-			return [difference > 0];
+			return {matches: difference > 0};
 		};
 		break;
 	case BETWEEN_FILTER_NAME:
@@ -279,10 +280,10 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName | typeo
 		if (secondDate) {
 			func = function(card) {
 				const val = card[cardKey] as Timestamp;
-				if (!val) return [false];
+				if (!val) return {matches: false};
 				const firstDifference = val.toMillis() - firstDate.getTime();
 				const secondDifference = val.toMillis() - secondDate.getTime();
-				return [(firstDifference > 0 && secondDifference < 0) || (firstDifference < 0 && secondDifference > 0)] ;
+				return {matches: (firstDifference > 0 && secondDifference < 0) || (firstDifference < 0 && secondDifference > 0)} ;
 			};
 		}
 		break;
@@ -399,11 +400,11 @@ const makeCardLinksConfigurableFilter = (filterName : ConfigurableFilterType, ca
 
 	const mapCreator = cardBFSMaker(filterName, cardID, countOrTypeStr, countStr);
 
-	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean, number] {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : FilterFuncResult {
 		
 		const val = mapCreator(extras.cards, extras.keyCardID, extras.editingCard)[card.id];
 		//Return the degree of separation so it's available to sort on
-		return [val !== undefined, val];
+		return {matches: val !== undefined, sortExtra: val};
 	};
 
 	return [func, false];
@@ -422,14 +423,14 @@ const makeCardsConfigurableFilter = (_ : ConfigurableFilterType, idString : stri
 	const generator = memoize((keyCardID : CardID) : {[id : CardIdentifier] : true} => Object.fromEntries(Object.entries(rawIdsToMatch).map(entry => [entry[0] == KEY_CARD_ID_PLACEHOLDER ? keyCardID : entry[0], entry[1]])));
 
 	//TODO: only calculate the slug --> id once so subsequent matches can be done with one lookup
-	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean] {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : FilterFuncResult {
 		const idsToMatch = generator(extras.keyCardID);
-		if (idsToMatch[card.id]) return [true];
-		if (!card.slugs) return [false];
+		if (idsToMatch[card.id]) return {matches: true};
+		if (!card.slugs) return {matches: false};
 		for (const slug of card.slugs) {
-			if (idsToMatch[slug]) return [true];
+			if (idsToMatch[slug]) return {matches: true};
 		}
-		return [false];
+		return {matches: false};
 	};
 	return [func, false];
 };
@@ -465,12 +466,12 @@ const makeAboutConceptConfigurableFilter = (_ : ConfigurableFilterType, conceptS
 		return [matchingCards, conceptCardID];
 	});
 
-	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean, number] {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : FilterFuncResult {
 		const [matchingCards, conceptCardID] = matchingCardsFunc(extras.cards, extras.keyCardID);
 		if (card.id == conceptCardID) {
-			return [true, 1];
+			return {matches: true, sortExtra: 1};
 		}
-		return [matchingCards[card.id], 0];
+		return {matches: matchingCards[card.id], sortExtra: 0};
 	};
 	return [func, false];
 };
@@ -490,11 +491,11 @@ const makeSameTypeConfigurableFilter = (filterName : ConfigurableFilterType, inp
 	//look for it just in case.
 	const [cardID, ] = parseKeyCardID(inputCardID);
 
-	const func = (card : ProcessedCard, extras : FilterExtras) : [boolean] => {
+	const func = (card : ProcessedCard, extras : FilterExtras) : FilterFuncResult => {
 		const actualCardID = cardID == KEY_CARD_ID_PLACEHOLDER ? extras.keyCardID : cardID;
 		const mainCard = extras.cards[actualCardID];
-		if (!mainCard) return [false];
-		return [sameType ? mainCard.card_type == card.card_type : mainCard.card_type != card.card_type];
+		if (!mainCard) return {matches: false};
+		return {matches: sameType ? mainCard.card_type == card.card_type : mainCard.card_type != card.card_type};
 	};
 
 	return [func, false];
@@ -536,12 +537,12 @@ const makeMissingConceptConfigurableFilter = (_ : ConfigurableFilterType, concep
 		return [concepts, keyConceptCardID];
 	});
 
-	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean, number] {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : FilterFuncResult {
 		const [concepts, keyConceptCardID] = generator(extras.cards, extras.keyCardID);
 		const suggestedReferences = suggestedConceptReferencesForCard(card, concepts);
 		const filteredSuggestedReferences = keyConceptCard ? suggestedReferences.filter(id => id == keyConceptCardID) : suggestedReferences;
-		if (filteredSuggestedReferences.length == 0) return [false, 0];
-		return [true, filteredSuggestedReferences.length];
+		if (filteredSuggestedReferences.length == 0) return {matches: false, sortExtra: 0};
+		return {matches: true, sortExtra: filteredSuggestedReferences.length};
 	};
 	return [func, false];
 };
@@ -554,7 +555,7 @@ const makeExcludeConfigurableFilter = (_ : ConfigurableFilterType, ...remainingP
 	});
 
 	//our func is just checking in the expanded filter.
-	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean] {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : FilterFuncResult {
 
 		const [filterSet, reversed] = generator(extras);
 
@@ -565,7 +566,7 @@ const makeExcludeConfigurableFilter = (_ : ConfigurableFilterType, ...remainingP
 		//good way to figure out if it will be reversed early enough to say
 		//whether the function's results should be reversed. The current
 		//approach works, it just requires a bit more memory.
-		return reversed ? [!filterSet[id]] : [filterSet[id]];
+		return {matches: reversed ? !filterSet[id] : filterSet[id]};
 	};
 	//The true is the whole business end of this configurable filter,
 	//reversing the filter it operates on.
@@ -589,7 +590,7 @@ const makeExpandConfigurableFilter = (_ : ConfigurableFilterType, ...remainingPa
 	const [mainFilter, expandFilter] = extractSubFilters(remainingParts);
 	if (!mainFilter || !expandFilter) {
 		console.warn('Expected two sub-filters for expand but didn\'t get it');
-		return [() => [false], false];
+		return makeNoOpConfigurableFilter();
 	}
 
 	const generator = memoize((extras : FilterExtras) : FilterMap => {
@@ -605,7 +606,7 @@ const makeExpandConfigurableFilter = (_ : ConfigurableFilterType, ...remainingPa
 			const [similarFilter] = makeSimilarCutoffConfigurableFilter(SIMILAR_CUTOFF_FILTER_NAME, keyCardID(Object.keys(filterMembershipMain), false), expandFilterPieces[2]);
 			//Walk through each card and run the similarFilter manually.
 			for (const card of Object.values(extras.cards)) {
-				const [include] = similarFilter(card, extras);
+				const {matches: include} = similarFilter(card, extras);
 				if (include) expandedSet[card.id] = true;
 			}
 		} else {
@@ -624,9 +625,9 @@ const makeExpandConfigurableFilter = (_ : ConfigurableFilterType, ...remainingPa
 		return unionSet(filterMembershipMain, expandedSet);
 	});
 	
-	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean] {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : FilterFuncResult {
 		const filterSet = generator(extras);
-		return [filterSet[card.id]];
+		return {matches: filterSet[card.id]};
 	};
 
 	return [func, false];
@@ -638,7 +639,7 @@ const makeCombineConfigurableFilter = (_ : ConfigurableFilterType, ...remainingP
 
 	if (!subFilterOne || !subFilterTwo) {
 		console.warn('Expected two sub-filters for combine but didn\'t get it');
-		return [() => [false], false];
+		return makeNoOpConfigurableFilter();
 	}
 
 	const generator = memoize((extras : FilterExtras) : FilterMap => {
@@ -659,9 +660,9 @@ const makeCombineConfigurableFilter = (_ : ConfigurableFilterType, ...remainingP
 		return result;
 	});
 	
-	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean] {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : FilterFuncResult {
 		const filterSet = generator(extras);
-		return [filterSet[card.id]];
+		return {matches: filterSet[card.id]};
 	};
 
 	return [func, false];
@@ -689,11 +690,11 @@ const makeQueryConfigurableFilter = (filterName : ConfigurableFilterType, rawQue
 
 	const strict = filterName === QUERY_STRICT_FILTER_NAME;
 
-	const func = function(card : ProcessedCard) : [boolean, number, boolean] {
+	const func = function(card : ProcessedCard) : FilterFuncResult {
 		const [score, fullMatch] = query.cardScore(card);
 		const matches = strict ? fullMatch && score > 0.0 : score > 0.0;
 		//TODO: is returning a boolean for last argument intentional?
-		return [matches, score, !fullMatch];
+		return {matches, sortExtra: score, partialMatch: !fullMatch};
 	};
 
 	return [func, false];
@@ -706,17 +707,17 @@ const makeAuthorConfigurableFilter = (_ : ConfigurableFilterName, idString : URL
 	const ids = Object.fromEntries(idString.split(INCLUDE_KEY_CARD_PREFIX).map(id => [id, true]));
 	//Technically the IDs are case sensitive, but the URL machinery lowercases everything.
 	//Realistically, collisions are astronomically unlikely
-	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean] {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : FilterFuncResult {
 		if (ids[ME_AUTHOR_ID]) {
 			const userID = extras.userID;
-			if (card.author == userID) return [true];
-			if (card.collaborators.some(id => id == userID)) return [true];
+			if (card.author == userID) return {matches: true};
+			if (card.collaborators.some(id => id == userID)) return {matches: true};
 		}
-		if (ids[card.author.toLowerCase()]) return [true];
+		if (ids[card.author.toLowerCase()]) return {matches: true};
 		for (const collab of card.collaborators) {
-			if (ids[collab.toLowerCase()]) return [true];
+			if (ids[collab.toLowerCase()]) return {matches: true};
 		}
-		return [false];
+		return {matches: false};
 	};
 	return [func, false];
 };
@@ -754,13 +755,13 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 	//Make sure that the key of the IDs list will have object equality for a downstream memoized thing
 	const replacedCardIDsGenerator = memoize((cardIDs : CardID[], keyCardID : CardID) => cardIDs.map(id => id == KEY_CARD_ID_PLACEHOLDER ? keyCardID : id));
 
-	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean, number] {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : FilterFuncResult {
 		const cardIDsToUse = replacedCardIDsGenerator(cardIDs, extras.keyCardID);
 		if (cardIDsToUse.some(id => id == card.id)) {
 			if (includeKeyCard) {
-				return [true, Number.MAX_SAFE_INTEGER];
+				return {matches: true, sortExtra: Number.MAX_SAFE_INTEGER};
 			}
-			return [false, Number.MIN_SAFE_INTEGER];
+			return {matches: false, sortExtra: Number.MIN_SAFE_INTEGER};
 		}
 
 		const closestItems = generator(extras.cards, cardIDsToUse, extras.editingCard, extras.cardSimilarity);
@@ -769,7 +770,7 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 		//keycard (sometimes), but is really used for its sort value. But sorts
 		//don't have machinery for configurable sorts, so :shrug:
 		//Return 0 if the map is missing the item, which could happen if it's server similarity
-		return [true, closestItems.get(card.id) || 0];
+		return {matches: true, sortExtra: closestItems.get(card.id) || 0};
 	};
 
 	return [func, false];
@@ -807,13 +808,13 @@ const makeSimilarCutoffConfigurableFilter = (_ : ConfigurableFilterType, rawCard
 	//Make sure that the key of the IDs list will have object equality for a downstream memoized thing
 	const replacedCardIDsGenerator = memoize((cardIDs : CardID[], keyCardID : CardID) => cardIDs.map(id => id == KEY_CARD_ID_PLACEHOLDER ? keyCardID : id));
 
-	const func = function(card : ProcessedCard, extras : FilterExtras) : [boolean, number] {
+	const func = function(card : ProcessedCard, extras : FilterExtras) : FilterFuncResult{
 		const cardIDsToUse = replacedCardIDsGenerator(cardIDs, extras.keyCardID);
 		if (cardIDsToUse.some(id => id == card.id)) {
 			if (includeKeyCard) {
-				return [true, Number.MAX_SAFE_INTEGER];
+				return {matches: true, sortExtra: Number.MAX_SAFE_INTEGER};
 			}
-			return [false, Number.MIN_SAFE_INTEGER];
+			return {matches: false, sortExtra: Number.MIN_SAFE_INTEGER};
 		}
 
 		const closestItems = generator(extras.cards, cardIDsToUse, extras.editingCard, extras.cardSimilarity);
@@ -821,7 +822,7 @@ const makeSimilarCutoffConfigurableFilter = (_ : ConfigurableFilterType, rawCard
 		//Return 0 if the map is missing the item, which could happen if it's server similarity
 		const value : number = closestItems.get(card.id) || 0;
 
-		return [value ? value > floatCutoff : false, value];
+		return {matches: value ? value > floatCutoff : false, sortExtra: value};
 	};
 
 	return [func, false];
@@ -829,7 +830,7 @@ const makeSimilarCutoffConfigurableFilter = (_ : ConfigurableFilterType, rawCard
 
 //Fallback configurable filter
 const makeNoOpConfigurableFilter = () : ConfigurableFilterFuncFactoryResult => {
-	return [() => [true], false];
+	return [() => ({matches: true}),  false];
 };
 
 //When these are seen in the URL as parts, how many more pieces to expect, to be

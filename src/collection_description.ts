@@ -533,13 +533,13 @@ const makeFilterFromConfigurableFilter = (name : ConfigurableFilterName, extras 
 	let sortValues : SortExtra = {};
 	let partialMatches : CardBooleanMap = {};
 	for (const [id, card] of TypedObject.entries(extras.cards)) {
-		const [matches, sortValue, partialMatch] = func(card, extras);
+		const {matches, sortExtra, partialMatch} = func(card, extras);
 		//TODO: this doesn't handle cases where the func is a reversed func,
 		//right? This isn't currently exercised, since none of the reversed
 		//configurable filters emit sortValues.
 		if (matches) {
 			result[id] = true;
-			if (sortValue !== undefined) sortValues[id] = sortValue;
+			if (sortExtra !== undefined) sortValues[id] = sortExtra;
 			if (partialMatch) partialMatches[id] = true;
 		}
 	}
