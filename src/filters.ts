@@ -737,7 +737,7 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 		//TODO: figure out a way to support multiple key cards
 		for (const cardID of cardIDsToUse) {
 			//Sometimes a cardSimilarity might be empty, but it's still final
-			if (cardSimilarity[cardID] && Object.keys(cardSimilarity[cardID].length)) {
+			if (cardSimilarity[cardID] && Object.keys(cardSimilarity[cardID]).length) {
 				//TODO: merge in fingerprint cards for the ones not in top amount
 				return new Map(Object.entries(cardSimilarity[cardID]));
 			}
@@ -790,7 +790,7 @@ const makeSimilarCutoffConfigurableFilter = (_ : ConfigurableFilterType, rawCard
 		//TODO: figure out a way to support multiple key cards
 		for (const cardID of cardIDsToUse) {
 			//Sometimes a cardSimilarity might be empty, but it's still final
-			if (cardSimilarity[cardID] && Object.keys(cardSimilarity[cardID].length)) {
+			if (cardSimilarity[cardID] && Object.keys(cardSimilarity[cardID]).length) {
 				//TODO: merge in fingerprint cards for the ones not in top amount
 				return new Map(Object.entries(cardSimilarity[cardID]));
 			}
