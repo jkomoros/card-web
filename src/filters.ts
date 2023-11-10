@@ -122,7 +122,8 @@ import {
 	UnionFilterName,
 	ConcreteFilterName,
 	CardSimilarityMap,
-	FilterFuncResult
+	FilterFuncResult,
+	ConfigurableFilterResult
 } from './types.js';
 
 import {
@@ -550,7 +551,7 @@ const makeMissingConceptConfigurableFilter = (_ : ConfigurableFilterType, concep
 const makeExcludeConfigurableFilter = (_ : ConfigurableFilterType, ...remainingParts : URLPart[]) : ConfigurableFilterFuncFactoryResult => {
 	const rest = remainingParts.join('/');
 
-	const generator = memoize((extras : FilterExtras) : [filter : FilterMap, reverse : boolean, sortExtra : SortExtra | null, partialMathces : {[id : CardID] : boolean} | null ] => {
+	const generator = memoize((extras : FilterExtras) : ConfigurableFilterResult => {
 		return filterSetForFilterDefinitionItem(rest, extras);
 	});
 

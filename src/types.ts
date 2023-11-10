@@ -326,6 +326,9 @@ export type FilterFuncResult = {
 	preview? : boolean
 }
 
+//preview is true if any item returned preview:true in the whole set
+export type ConfigurableFilterResult = [result : FilterMap, reverse : boolean, sortValues : SortExtra, partialMatches: CardBooleanMap, preview : boolean];
+
 export type ConfigurableFilterFunc = (card : ProcessedCard, extras? : FilterExtras) => FilterFuncResult;
 
 export type ConfigurableFilterFuncFactoryResult = [func : ConfigurableFilterFunc, reverse : boolean];

@@ -54,7 +54,8 @@ import {
 	URLPart,
 	ConfigurableFilterName,
 	UnionFilterName,
-	CardSimilarityMap
+	CardSimilarityMap,
+	ConfigurableFilterResult
 } from './types.js';
 
 import {
@@ -511,8 +512,6 @@ const filterNameIsConfigurableFilter = (filterName : FilterName) : filterName is
 	return filterName.includes('/');
 };
 
-type ConfigurableFilterResult = [result : FilterMap, reverse : boolean, sortValues : SortExtra, partialMatches: CardBooleanMap ]
-
 let memoizedConfigurableFiltersExtras : FilterExtras = null;
 let memoizedConfigurableFilters : {[name : string] : ConfigurableFilterResult} = {};
 
@@ -532,8 +531,9 @@ const makeFilterFromConfigurableFilter = (name : ConfigurableFilterName, extras 
 	const result : FilterMap = {};
 	let sortValues : SortExtra = {};
 	let partialMatches : CardBooleanMap = {};
+	let hasPreview = false;
 	for (const [id, card] of TypedObject.entries(extras.cards)) {
-		const {matches, sortExtra, partialMatch} = func(card, extras);
+		const {matches, sortExtra, partialMatch, preview} = func(card, extras);
 		//TODO: this doesn't handle cases where the func is a reversed func,
 		//right? This isn't currently exercised, since none of the reversed
 		//configurable filters emit sortValues.
@@ -542,12 +542,13 @@ const makeFilterFromConfigurableFilter = (name : ConfigurableFilterName, extras 
 			if (sortExtra !== undefined) sortValues[id] = sortExtra;
 			if (partialMatch) partialMatches[id] = true;
 		}
+		if (preview) hasPreview = true;
 	}
 
 	if (Object.keys(sortValues).length == 0) sortValues = null;
 	if (Object.keys(partialMatches).length == 0) partialMatches = null;
 
-	const fullResult : ConfigurableFilterResult = [result, reverse, sortValues, partialMatches];
+	const fullResult : ConfigurableFilterResult = [result, reverse, sortValues, partialMatches, hasPreview];
 
 	memoizedConfigurableFilters[name] = fullResult;
 
@@ -592,22 +593,22 @@ const makeCombinedFilter = (includeSets : FilterMap[], excludeSets : FilterMap[]
 	};
 };
 
-export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterName, extras : FilterExtras) : [filter : FilterMap, reverse : boolean, sortExtra : SortExtra | null, partialMathces : CardBooleanMap | null ]=> {
+export const filterSetForFilterDefinitionItem = (filterDefinitionItem : FilterName, extras : FilterExtras) : ConfigurableFilterResult => {
 	const filterSetMemberships = extras.filterSetMemberships;
 	if (filterNameIsUnionFilter(filterDefinitionItem)) {
-		return [makeFilterUnionSet(filterDefinitionItem, filterSetMemberships, extras.cards), false, null, null];
+		return [makeFilterUnionSet(filterDefinitionItem, filterSetMemberships, extras.cards), false, null, null, false];
 	}
 	if (filterNameIsConfigurableFilter(filterDefinitionItem)) {
 		return makeFilterFromConfigurableFilter(filterDefinitionItem, extras);
 	}
 	if (filterSetMemberships[filterDefinitionItem]) {
-		return [filterSetMemberships[filterDefinitionItem], false, null, null];
+		return [filterSetMemberships[filterDefinitionItem], false, null, null, false];
 	}
 	if (INVERSE_FILTER_NAMES[filterDefinitionItem]) {
-		return [filterSetMemberships[INVERSE_FILTER_NAMES[filterDefinitionItem]], true, null, null];
+		return [filterSetMemberships[INVERSE_FILTER_NAMES[filterDefinitionItem]], true, null, null, false];
 	}
 	//If unknown, then just treat it like a no op, excluding nothing
-	return [{}, true, null, null];
+	return [{}, true, null, null, false];
 };
 
 //makeExtrasForFilterFunc makes a new extras object containing the extra
@@ -635,13 +636,14 @@ type FilterFunc = (id : CardID) => boolean;
 type FilterDefinition = FilterName[];
 
 //filterDefinition is an array of filter-set names (concrete or inverse or union-set)
-const combinedFilterForFilterDefinition = (filterDefinition : FilterDefinition, extras : FilterExtras) : [filter : FilterFunc, sortExtras : SortExtras, partialMatches : CardBooleanMap] => {
+const combinedFilterForFilterDefinition = (filterDefinition : FilterDefinition, extras : FilterExtras) : [filter : FilterFunc, sortExtras : SortExtras, partialMatches : CardBooleanMap, preview: boolean] => {
 	const includeSets = [];
 	const excludeSets = [];
 	const sortExtras : SortExtras = {};
 	let partialExtras : CardBooleanMap = {};
+	let hasPreview = false;
 	for (const name of filterDefinition) {
-		const [filterSet, reverse, sortInfos, partialMatches] = filterSetForFilterDefinitionItem(name, extras);
+		const [filterSet, reverse, sortInfos, partialMatches, preview] = filterSetForFilterDefinitionItem(name, extras);
 		if (reverse) {
 			excludeSets.push(filterSet);
 		} else {
@@ -650,8 +652,9 @@ const combinedFilterForFilterDefinition = (filterDefinition : FilterDefinition, 
 		const configurableFilterFirstPart = name.split('/')[0];
 		if (sortInfos) sortExtras[configurableFilterFirstPart] = sortInfos;
 		if (partialMatches) partialExtras = {...partialExtras, ...partialMatches};
+		if (preview) hasPreview = true;
 	}
-	return [makeCombinedFilter(includeSets, excludeSets), sortExtras, partialExtras];
+	return [makeCombinedFilter(includeSets, excludeSets), sortExtras, partialExtras, hasPreview];
 };
 
 //Removes labels that are the same as the one htat came before them.
@@ -704,6 +707,7 @@ export class Collection {
 	_preLimitlength : number;
 	_sortExtras : SortExtras;
 	_partialMatches : CardBooleanMap;
+	_preview = false;
 	_sortInfo : Map<CardID, [sortValue : number, label : string]>;
 	_webInfo : WebInfo;
 
@@ -761,15 +765,21 @@ export class Collection {
 		return this._cachedFilterExtras;
 	}
 
+	//This will return true if any card in any filter used to make this collection returned preview:true
+	get preview() : boolean {
+		return this._preview;
+	}
+
 	_makeFilteredCards() {
 		const baseSet = this._sets[this._description.set] || [];
 		let filteredItems = baseSet;
 		//Only bother filtering down the items if there are filters defined.
 		if (this._description.filters && this._description.filters.length) {
-			const [combinedFilter, sortExtras, partialMatches] = combinedFilterForFilterDefinition(this._description.filters, this._filterExtras);
+			const [combinedFilter, sortExtras, partialMatches, preview] = combinedFilterForFilterDefinition(this._description.filters, this._filterExtras);
 			filteredItems = baseSet.filter(item => combinedFilter(item));
 			this._sortExtras = sortExtras;
 			this._partialMatches = partialMatches;
+			this._preview = preview;
 		}
 		this._preLimitlength = filteredItems.length;
 		if (filteredItems.length == 0) {
