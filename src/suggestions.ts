@@ -1,7 +1,12 @@
 import {
+	selectCards
+} from './selectors.js';
+
+import {
 	CardDiff,
 	ProcessedCard,
-	ProcessedCards
+	ProcessedCards,
+	State
 } from './types.js';
 
 import {
@@ -39,10 +44,30 @@ type Suggestor = {
 	generator: (args: SuggestorArgs) => Promise<Suggestion[] | null>
 }
 
-export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
+const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 	'noop': {
 		generator: async(_args: SuggestorArgs) : Promise<Suggestion[] | null> => {
 			return null;
 		}
 	}
+};
+
+export const suggestionsForCard = async (card : ProcessedCard, state : State) : Promise<Suggestion[]> => {
+
+	const result : Suggestion[] = [];
+
+	const cards = selectCards(state);
+
+	const args : SuggestorArgs = {
+		card,
+		cards
+	};
+
+	for (const suggestor of Object.values(SUGGESTORS)) {
+		const innerResult = await suggestor.generator(args);
+		if (!innerResult) continue;
+		result.push(...innerResult);
+	}
+
+	return result;
 };
