@@ -30,13 +30,18 @@ export type Suggestion = {
 	rejection?: SuggestionDiff
 };
 
+type SuggestorArgs = {
+	card: ProcessedCard,
+	cards: ProcessedCards
+};
+
 type Suggestor = {
-	generator: (card : ProcessedCard, cards: ProcessedCards) => Promise<Suggestion[] | null>
+	generator: (args: SuggestorArgs) => Promise<Suggestion[] | null>
 }
 
 export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 	'noop': {
-		generator: async(_card : ProcessedCard, _cards: ProcessedCards) : Promise<Suggestion[] | null> => {
+		generator: async(_args: SuggestorArgs) : Promise<Suggestion[] | null> => {
 			return null;
 		}
 	}
