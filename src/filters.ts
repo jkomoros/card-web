@@ -603,7 +603,7 @@ const makeExpandConfigurableFilter = (_ : ConfigurableFilterType, ...remainingPa
 		let expandedSet : FilterMap = {};
 
 		if (expandFilterPieces[0] == SIMILAR_CUTOFF_FILTER_NAME) {
-			const [similarFilter] = makeSimilarCutoffConfigurableFilter(SIMILAR_CUTOFF_FILTER_NAME, keyCardID(Object.keys(filterMembershipMain), false), expandFilterPieces[2]);
+			const [similarFilter] = makeSimilarConfigurableFilter(SIMILAR_CUTOFF_FILTER_NAME, keyCardID(Object.keys(filterMembershipMain), false), expandFilterPieces[2]);
 			//Walk through each card and run the similarFilter manually.
 			for (const card of Object.values(extras.cards)) {
 				const {matches: include} = similarFilter(card, extras);
@@ -727,56 +727,7 @@ const makeAuthorConfigurableFilter = (_ : ConfigurableFilterName, idString : URL
 //underlying card set, and that should be fast.
 const memoizedFingerprintGenerator = memoize((cards : ProcessedCards) => new FingerprintGenerator(cards));
 
-const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : URLPart) : ConfigurableFilterFuncFactoryResult => {
-
-	const [, includeKeyCard, cardIDs] = parseKeyCardID(rawCardID);
-	
-	const generator = memoize((cards : ProcessedCards, rawCardIDsToUse : CardID[], editingCard : ProcessedCard, cardSimilarity : CardSimilarityMap) : Map<CardID, number> => {
-		const cardIDsToUse = normalizeCardSlugOrIDList(rawCardIDsToUse, cards);
-
-		//TODO: figure out a way to support multiple key cards
-		for (const cardID of cardIDsToUse) {
-			//Sometimes a cardSimilarity might be empty, but it's still final
-			if (cardSimilarity[cardID] && Object.keys(cardSimilarity[cardID]).length) {
-				//TODO: merge in fingerprint cards for the ones not in top amount
-				return new Map(Object.entries(cardSimilarity[cardID]));
-			}
-			//Kick off a request for similarities we don't currently have, so
-			//we'll have them next time. We'll get called again once it's fetched.
-			fetchSimilarCardsIfEnabled(cardID);
-		}
-
-		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
-		const editingCardFingerprint = editingCard && cardIDsToUse.some(id => id == editingCard.id) ? fingerprintGenerator.fingerprintForCardObj(editingCard) : null;
-		const fingerprint = editingCardFingerprint || fingerprintGenerator.fingerprintForCardIDList(cardIDsToUse);
-		return fingerprintGenerator.closestOverlappingItems('', fingerprint);
-	});
-
-	//Make sure that the key of the IDs list will have object equality for a downstream memoized thing
-	const replacedCardIDsGenerator = memoize((cardIDs : CardID[], keyCardID : CardID) => cardIDs.map(id => id == KEY_CARD_ID_PLACEHOLDER ? keyCardID : id));
-
-	const func = function(card : ProcessedCard, extras : FilterExtras) : FilterFuncResult {
-		const cardIDsToUse = replacedCardIDsGenerator(cardIDs, extras.keyCardID);
-		if (cardIDsToUse.some(id => id == card.id)) {
-			if (includeKeyCard) {
-				return {matches: true, sortExtra: Number.MAX_SAFE_INTEGER};
-			}
-			return {matches: false, sortExtra: Number.MIN_SAFE_INTEGER};
-		}
-
-		const closestItems = generator(extras.cards, cardIDsToUse, extras.editingCard, extras.cardSimilarity);
-
-		//It's a bit odd that this 'filter' is only used to filter out the
-		//keycard (sometimes), but is really used for its sort value. But sorts
-		//don't have machinery for configurable sorts, so :shrug:
-		//Return 0 if the map is missing the item, which could happen if it's server similarity
-		return {matches: true, sortExtra: closestItems.get(card.id) || 0};
-	};
-
-	return [func, false];
-};
-
-const makeSimilarCutoffConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : URLPart, rawFloatCutoff : URLPart) : ConfigurableFilterFuncFactoryResult => {
+const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : URLPart, rawFloatCutoff : URLPart = String(Number.MIN_SAFE_INTEGER)) : ConfigurableFilterFuncFactoryResult => {
 	//note: makeExpandConfigurableFilter needs to be updated if the number or order of parameters changes.
 
 	const [, includeKeyCard, cardIDs] = parseKeyCardID(rawCardID);
@@ -1216,7 +1167,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		}],
 	},
 	[SIMILAR_CUTOFF_FILTER_NAME]: {
-		factory: makeSimilarCutoffConfigurableFilter,
+		factory: makeSimilarConfigurableFilter,
 		suppressLabels: true,
 		description: 'Selects cards that are similar to a given key card and above some float threshold of similarity',
 		arguments: [{
