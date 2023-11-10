@@ -320,7 +320,10 @@ export type ConfigurableFilterControlPiece = {
 export type FilterFuncResult = {
 	matches: boolean,
 	sortExtra? : number,
-	partialMatch? : boolean
+	partialMatch? : boolean,
+	//Whether this result should be considered a preview--e.g the final result
+	//relies on a value from the server that has not been downloaded yet.
+	preview? : boolean
 }
 
 export type ConfigurableFilterFunc = (card : ProcessedCard, extras? : FilterExtras) => FilterFuncResult;
