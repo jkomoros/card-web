@@ -18,7 +18,8 @@ import {
 } from '../selectors.js';
 
 import {
-	ThunkSomeAction
+	ThunkSomeAction,
+	store
 } from '../store.js';
 
 import {
@@ -26,7 +27,8 @@ import {
 } from '../types_simple.js';
 
 import {
-	Card
+	Card,
+	State
 } from '../types.js';
 
 import {
@@ -76,22 +78,19 @@ const similarCards = async (cardID : CardID) : Promise<SimilarCardsResponseData>
 	return result.data;
 };
 
-export const fetchSimilarCards = (cardID : CardID) : ThunkSomeAction => async (dispatch, getState) => {
+const fetchSimilarCards = (cardID : CardID) : ThunkSomeAction => async (dispatch) => {
 	if (!cardID) return;
-
-	const state = getState();
-
-	const similarity = selectCardSimilarity(state);
-
-	if (similarity[cardID]) {
-		console.log(`${cardID} already had similarity fetched`);
-		return;
-	}
 
 	const result = await similarCards(cardID);
 
 	if (!result.success) {
 		console.warn(`similarCards failed: ${result.error}`);
+		dispatch({
+			type: UPDATE_CARD_SIMILARITY,
+			card_id: cardID,
+			//Signal that it failed but still did get a response, so the results are now final.
+			similarity: {}
+		});
 		return;
 	}
 
@@ -101,4 +100,19 @@ export const fetchSimilarCards = (cardID : CardID) : ThunkSomeAction => async (d
 		similarity: Object.fromEntries(result.cards)
 	});
 	
+};
+
+//Returns true if you should expect an UPDATE_CARD_SIMLIARITY for that cardID in the future, and false if not.
+export const fetchSimilarCardsIfEnabled = (cardID : CardID) : boolean => {
+	if (!QDRANT_ENABLED) return false;
+	const state = store.getState() as State;
+
+	const similarity = selectCardSimilarity(state);
+
+	if (similarity[cardID]) {
+		return false;
+	}
+	//This will return immediately.
+	store.dispatch(fetchSimilarCards(cardID));
+	return true;
 };

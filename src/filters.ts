@@ -133,11 +133,7 @@ import {
 } from './typed_object.js';
 
 import {
-	store
-} from './store.js';
-
-import {
-	fetchSimilarCards
+	fetchSimilarCardsIfEnabled
 } from './actions/similarity.js';
 
 const INBOUND_SUFFIX = '-inbound';
@@ -739,13 +735,14 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 
 		//TODO: figure out a way to support multiple key cards
 		for (const cardID of cardIDsToUse) {
-			if (cardSimilarity[cardID]) {
+			//Sometimes a cardSimilarity might be empty, but it's still final
+			if (cardSimilarity[cardID] && Object.keys(cardSimilarity[cardID].length)) {
 				//TODO: merge in fingerprint cards for the ones not in top amount
 				return new Map(Object.entries(cardSimilarity[cardID]));
 			}
 			//Kick off a request for similarities we don't currently have, so
 			//we'll have them next time. We'll get called again once it's fetched.
-			store.dispatch(fetchSimilarCards(cardID));
+			fetchSimilarCardsIfEnabled(cardID);
 		}
 
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
@@ -791,13 +788,14 @@ const makeSimilarCutoffConfigurableFilter = (_ : ConfigurableFilterType, rawCard
 
 		//TODO: figure out a way to support multiple key cards
 		for (const cardID of cardIDsToUse) {
-			if (cardSimilarity[cardID]) {
+			//Sometimes a cardSimilarity might be empty, but it's still final
+			if (cardSimilarity[cardID] && Object.keys(cardSimilarity[cardID].length)) {
 				//TODO: merge in fingerprint cards for the ones not in top amount
 				return new Map(Object.entries(cardSimilarity[cardID]));
 			}
 			//Kick off a request for similarities we don't currently have, so
 			//we'll have them next time. We'll get called again once it's fetched.
-			store.dispatch(fetchSimilarCards(cardID));
+			fetchSimilarCardsIfEnabled(cardID);
 		}
 
 		const fingerprintGenerator = memoizedFingerprintGenerator(cards);
