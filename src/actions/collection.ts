@@ -28,6 +28,7 @@ import {
 } from '../type_constants.js';
 
 import {
+	Collection,
 	CollectionDescription,
 } from '../collection_description.js';
 
@@ -47,7 +48,8 @@ import {
 	selectActiveCollectionDescription,
 	selectActiveCollection,
 	selectPendingNewCardIDToNavigateTo,
-	selectAlreadyCommittedModificationsWhenFullyLoaded
+	selectAlreadyCommittedModificationsWhenFullyLoaded,
+	selectCollectionConstructorArguments
 } from '../selectors.js';
 
 import {
@@ -64,7 +66,7 @@ import {
 } from './editor.js';
 
 import {
-	ThunkSomeAction
+	ThunkSomeAction, store
 } from '../store.js';
 
 import {
@@ -72,7 +74,9 @@ import {
 	SortName,
 	ViewMode,
 	CardID,
-	Card
+	Card,
+	State,
+	CollectionConstructorArguments
 } from '../types.js';
 
 import {
@@ -446,4 +450,41 @@ export const randomizeCollection = () : ThunkSomeAction => (dispatch, getState) 
 export const navigateToRandomCard = () : ThunkSomeAction => (dispatch) => {
 	dispatch(navigateToCollection(RANDOM_CARD_COLLECTION));
 	dispatch(randomizeCollection());
+};
+
+//Allows awaiting a new state
+const waitForStateChange = async () : Promise<void> => {
+	return new Promise((resolve) => {
+		const unsubscribe = store.subscribe(() => {
+			unsubscribe();
+			resolve();
+		});
+	});
+};
+
+//Waits until the given collection can be created with no preview filter
+//results. In practice this is useful to wait until the similar cards has
+//settled and used the embedding based similarity.
+export const waitForFinalCollection = async (description : CollectionDescription, argGetter? : (state : State) => CollectionConstructorArguments) : Promise<Collection> => {
+
+	if (!argGetter) argGetter = selectCollectionConstructorArguments;
+
+	let continueLooping = true;
+
+	let collection : Collection | null = null;
+
+	do {
+		const state = store.getState() as State;
+		collection = description.collection(argGetter(state));
+		if (!collection.preview) {
+			continueLooping = false;
+			break;
+		}
+		//wait until the state updates again to try again
+		await waitForStateChange();
+	} while(continueLooping);
+
+	if (!collection) throw new Error('We somehow settled without a collection');
+
+	return collection;
 };
