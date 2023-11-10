@@ -1,5 +1,7 @@
 import {
-	CardDiff
+	CardDiff,
+	ProcessedCard,
+	ProcessedCards
 } from './types.js';
 
 import {
@@ -26,4 +28,16 @@ export type Suggestion = {
 	alternateAction?: SuggestionDiff
 	//The diff to apply if the action is rejected. Typically an `ack` reference.
 	rejection?: SuggestionDiff
+};
+
+type Suggestor = {
+	generator: (card : ProcessedCard, cards: ProcessedCards) => Promise<Suggestion[] | null>
+}
+
+export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
+	'noop': {
+		generator: async(_card : ProcessedCard, _cards: ProcessedCards) : Promise<Suggestion[] | null> => {
+			return null;
+		}
+	}
 };
