@@ -1,17 +1,30 @@
 import {
-	selectCards
+	selectCards, selectCollectionConstructorArguments
 } from './selectors.js';
 
 import {
 	CardDiff,
+	CollectionConstructorArguments,
 	ProcessedCard,
 	ProcessedCards,
 	State
 } from './types.js';
 
 import {
+	SIMILAR_SAME_TYPE
+} from './reference_blocks.js';
+
+import {
 	CardID
 } from './types_simple.js';
+
+import {
+	collectionDescription
+} from './filters.js';
+
+import {
+	waitForFinalCollection
+} from './actions/collection.js';
 
 type SuggestionDiff = {
 	keyCard: CardDiff,
@@ -19,7 +32,7 @@ type SuggestionDiff = {
 	supportingCards?: CardDiff
 };
 
-type SuggestionType = 'noop';
+type SuggestionType = 'missing-see-also';
 
 export type Suggestion = {
 	type: SuggestionType,
@@ -38,17 +51,31 @@ export type Suggestion = {
 type SuggestorArgs = {
 	card: ProcessedCard,
 	cards: ProcessedCards
+	collectionArguments: CollectionConstructorArguments
 };
 
 type Suggestor = {
 	generator: (args: SuggestorArgs) => Promise<Suggestion[] | null>
 }
 
+const DUPE_SIMILARITY_CUT_OFF = 0.95;
+
+const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Suggestion[] | null> => {
+	const {collectionArguments} = args;
+	const description = collectionDescription(...SIMILAR_SAME_TYPE);
+	const collection = await waitForFinalCollection(description, {keyCardID: collectionArguments.keyCardID});
+	const topCard = collection.finalSortedCards[0];
+	if (!topCard) return null;
+	const similarity = collection.sortValueForCard(topCard.id);
+	if (similarity < DUPE_SIMILARITY_CUT_OFF) return null;
+	//TODO: actually provide a suggestion
+	console.log('Similarity', similarity);
+	return null;
+};
+
 const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
-	'noop': {
-		generator: async(_args: SuggestorArgs) : Promise<Suggestion[] | null> => {
-			return null;
-		}
+	'missing-see-also': {
+		generator: suggestMissingSeeAlso
 	}
 };
 
@@ -56,11 +83,13 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 
 	const result : Suggestion[] = [];
 
-	const cards = selectCards(state);
-
 	const args : SuggestorArgs = {
 		card,
-		cards
+		cards: selectCards(state),
+		collectionArguments: {
+			...selectCollectionConstructorArguments(state),
+			keyCardID: card.id
+		}	
 	};
 
 	for (const suggestor of Object.values(SUGGESTORS)) {
