@@ -156,7 +156,7 @@ const SUBSTANTIVE_WITHOUT_SEE_ALSO_REFERENCE_TYPES = SUBSTANTIVE_REFERENCE_TYPES
 
 const NUM_SIMILAR_CARDS_TO_SHOW = 5;
 
-const SIMILAR_SAME_TYPE = [
+export const SIMILAR_SAME_TYPE = [
 	'has-body',
 	similarFilter(),
 	sameTypeFilter(),
