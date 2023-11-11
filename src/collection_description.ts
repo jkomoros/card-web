@@ -906,6 +906,14 @@ export class Collection {
 		this._sortedCards = this._makeSortedCards();
 	}
 
+	//The raw numerical value for a card. Note that this might not be reversed as desired.
+	sortValueForCard(id : CardID) : number {
+		this._ensureSortInfo();
+		const record = this._sortInfo.get(id);
+		if (!record) return Number.MIN_SAFE_INTEGER;
+		return record[0];
+	}
+
 	get reorderable() {
 		const config = this._description.sortConfig;
 		if (!config.reorderable) return false;
