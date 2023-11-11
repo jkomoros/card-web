@@ -462,12 +462,19 @@ const waitForStateChange = async () : Promise<void> => {
 	});
 };
 
+type WaitForFinalCollectionArgs = {
+	argGetter? : (state : State) => CollectionConstructorArguments,
+	keyCardID? : CardID
+};
+
 //Waits until the given collection can be created with no preview filter
 //results. In practice this is useful to wait until the similar cards has
-//settled and used the embedding based similarity.
-export const waitForFinalCollection = async (description : CollectionDescription, argGetter? : (state : State) => CollectionConstructorArguments) : Promise<Collection> => {
+//settled and used the embedding based similarity. If keyCardID is provided,
+//then the args to the collection will be overriden with that keyCardID.
+export const waitForFinalCollection = async (description : CollectionDescription, options : WaitForFinalCollectionArgs = {}) : Promise<Collection> => {
 
-	if (!argGetter) argGetter = selectCollectionConstructorArguments;
+	const argGetter = options.argGetter || selectCollectionConstructorArguments;
+	const keyCardID = options.keyCardID;
 
 	let continueLooping = true;
 
@@ -475,7 +482,12 @@ export const waitForFinalCollection = async (description : CollectionDescription
 
 	do {
 		const state = store.getState() as State;
-		collection = description.collection(argGetter(state));
+		let args = argGetter(state);
+		if (keyCardID) args = {
+			...args,
+			keyCardID
+		};
+		collection = description.collection(args);
 		if (!collection.preview) {
 			continueLooping = false;
 			break;
