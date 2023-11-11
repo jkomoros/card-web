@@ -24,7 +24,8 @@ import {
 	similarFilter,
 	limitFilter,
 	excludeFilter,
-	cardsFilter
+	cardsFilter,
+	cardTypeFilter
 } from './filters.js';
 
 import {
@@ -46,7 +47,6 @@ import {
 } from './card_fields.js';
 
 import {
-	CARD_TYPE_WORKING_NOTES,
 	DEFAULT_SET_NAME,
 	READING_LIST_SET_NAME,
 	EVERYTHING_SET_NAME,
@@ -1175,7 +1175,7 @@ export const selectActiveCollectionCardTypeToAdd = createSelector(
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[possibleCardType];
 		if (!cardTypeConfig) return DEFAULT_CARD_TYPE;
 		//Working notes already has its own button
-		if (possibleCardType === CARD_TYPE_WORKING_NOTES) return DEFAULT_CARD_TYPE;
+		if (possibleCardType === cardTypeFilter('working-notes')) return DEFAULT_CARD_TYPE;
 		if (!cardTypeConfig.orphanedByDefault) return DEFAULT_CARD_TYPE;
 		return possibleCardType as CardType;
 	}

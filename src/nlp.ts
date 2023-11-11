@@ -23,7 +23,6 @@ import {
 	REFERENCE_TYPE_LINK,
 	TEXT_FIELD_BODY,
 	REFERENCE_TYPE_ACK,
-	CARD_TYPE_CONCEPT,
 	TEXT_FIELD_TITLE,
 	REFERENCE_TYPE_SYNONYM,
 	REFERENCE_TYPE_CONCEPT,
@@ -65,12 +64,12 @@ import { innerTextForHTML } from './util.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
 export const conceptCardsFromCards = deepEqualReturnSame(memoizeFirstArg((allCards : Cards) : Cards => {
-	return Object.fromEntries(Object.entries(allCards).filter(entry => entry[1].card_type == CARD_TYPE_CONCEPT));
+	return Object.fromEntries(Object.entries(allCards).filter(entry => entry[1].card_type == 'concept'));
 }));
 
 //Rturns the primary concept string only (the title). See also getAllConceptStringsFromConceptCard
 export const getConceptStringFromConceptCard = (rawConceptCard : Card) : string => {
-	if (rawConceptCard.card_type != CARD_TYPE_CONCEPT) return '';
+	if (rawConceptCard.card_type != 'concept') return '';
 	return rawConceptCard[TEXT_FIELD_TITLE];
 };
 
@@ -79,13 +78,13 @@ const extractSynonymsFromCardTitleAlternates = (rawCard : Card) : string[] => {
 };
 
 const getAllNormalizedConceptStringsFromConceptCard = (processedConceptCard : ProcessedCard) : string[] => {
-	if (processedConceptCard.card_type != CARD_TYPE_CONCEPT) return [];
+	if (processedConceptCard.card_type != 'concept') return [];
 	return [...processedConceptCard.nlp[TEXT_FIELD_TITLE].map(run => run.withoutStopWords), ...processedConceptCard.nlp[TEXT_FIELD_TITLE_ALTERNATES].map(run => run.withoutStopWords)];
 };
 
 //REturns all strings that cardMatchesConcept would work for.
 export const getAllConceptStringsFromConceptCard = (rawConceptCard : Card) : string[] => {
-	if (rawConceptCard.card_type != CARD_TYPE_CONCEPT) return [];
+	if (rawConceptCard.card_type != 'concept') return [];
 	return [getConceptStringFromConceptCard(rawConceptCard), ...extractSynonymsFromCardTitleAlternates(rawConceptCard)];
 };
 
@@ -105,7 +104,7 @@ export const getConceptsFromConceptCards = deepEqualReturnSame(memoizeFirstArg((
 }));
 
 const cardMatchesConcept = (card : ProcessedCard, conceptStr : string) : boolean => {
-	if (card.card_type !== CARD_TYPE_CONCEPT) return false;
+	if (card.card_type !== 'concept') return false;
 	if (cardMatchesString(card, TEXT_FIELD_TITLE, conceptStr)) return true;
 	if (cardMatchesString(card, TEXT_FIELD_TITLE_ALTERNATES, conceptStr)) return true;
 	return false;

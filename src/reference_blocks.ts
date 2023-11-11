@@ -4,17 +4,12 @@ import {
 } from './card_fields.js';
 
 import {
-	CARD_TYPE_CONCEPT,
-	CARD_TYPE_WORK,
-	CARD_TYPE_PERSON,
-	CARD_TYPE_WORKING_NOTES,
 	REFERENCE_TYPE_CONCEPT,
 	REFERENCE_TYPE_CITATION,
 	REFERENCE_TYPE_CITATION_PERSON,
 	REFERENCE_TYPE_SEE_ALSO,
 	REFERENCE_TYPE_EXAMPLE_OF,
-	REFERENCE_TYPE_METAPHOR_FOR,
-	CARD_TYPE_CONTENT
+	REFERENCE_TYPE_METAPHOR_FOR
 } from './type_constants.js';
 
 import {
@@ -33,7 +28,8 @@ import {
 	differentTypeFilter,
 	limitFilter,
 	aboutConceptFilter,
-	missingConceptFilter
+	missingConceptFilter,
+	cardTypeFilter
 } from './filters.js';
 
 import {
@@ -110,10 +106,10 @@ const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS : ReferenceBlocks = Object.entries
 }).flat();
 
 const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBlocks} = {
-	[CARD_TYPE_CONCEPT]: [
+	'concept': [
 		...CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS,
 		{
-			collectionDescription: collectionDescription('not' + CARD_TYPE_CONCEPT, referencesFilter('inbound', TypedObject.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT]))),
+			collectionDescription: collectionDescription('not' + cardTypeFilter('concept'), referencesFilter('inbound', TypedObject.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT]))),
 			navigationCollectionDescription: collectionDescription(aboutConceptFilter()),
 			title: 'Cards that reference this concept',
 			showNavigate: true,
@@ -125,7 +121,7 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBloc
 			onlyForEditors: true,
 		}
 	],
-	[CARD_TYPE_WORK]: [
+	'work': [
 		{
 			collectionDescription: collectionDescription(referencesFilter('outbound', REFERENCE_TYPE_CITATION_PERSON)),
 			title: 'Authors',
@@ -138,15 +134,15 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBloc
 			emptyMessage: 'No cards cite this work'
 		},
 	],
-	[CARD_TYPE_PERSON]: [
+	'person': [
 		{
-			collectionDescription: collectionDescription(CARD_TYPE_WORK, referencesFilter('inbound', REFERENCE_TYPE_CITATION_PERSON)),
+			collectionDescription: collectionDescription(cardTypeFilter('work'), referencesFilter('inbound', REFERENCE_TYPE_CITATION_PERSON)),
 			title: 'Works that cite this person',
 			showNavigate: true,
 			emptyMessage: 'No works cite this person'
 		},
 		{
-			collectionDescription: collectionDescription('not-' + CARD_TYPE_WORK, referencesFilter('inbound', REFERENCE_TYPE_CITATION_PERSON)),
+			collectionDescription: collectionDescription('not-' + cardTypeFilter('work'), referencesFilter('inbound', REFERENCE_TYPE_CITATION_PERSON)),
 			title: 'Cards that cite this person',
 			showNavigate: true,
 			emptyMessage: 'No cards cite this person'
@@ -170,7 +166,7 @@ const SIMILAR_SAME_TYPE = [
 const SIMILAR_DIFFERENT_TYPE = [
 	'has-body',
 	similarFilter(),
-	unionFilter(CARD_TYPE_CONTENT, CARD_TYPE_WORKING_NOTES),
+	unionFilter(cardTypeFilter('content'), cardTypeFilter('working-notes')),
 	differentTypeFilter(),
 	excludeFilter(referencesFilter('both', SUBSTANTIVE_REFERENCE_TYPES))
 ];
@@ -210,7 +206,7 @@ const INFO_PANEL_REFERENCE_BLOCKS : ReferenceBlocks = [
 	},
 	{
 		//We filter out see-also types because we already show those reciprocally in see-also.
-		collectionDescription: collectionDescription('not-' + CARD_TYPE_CONCEPT, referencesFilter('inbound', SUBSTANTIVE_WITHOUT_SEE_ALSO_REFERENCE_TYPES)),
+		collectionDescription: collectionDescription('not-' + cardTypeFilter('concept'), referencesFilter('inbound', SUBSTANTIVE_WITHOUT_SEE_ALSO_REFERENCE_TYPES)),
 		title: 'Cards That Link Here',
 		description: 'Cards that link to this one.',
 		emptyMessage: 'No cards link to this one.',

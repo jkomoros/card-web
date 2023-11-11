@@ -5,8 +5,6 @@ import {
 import * as icons from './components/my-icons.js';
 
 import {
-	CARD_TYPE_WORKING_NOTES,
-	CARD_TYPE_CONCEPT,
 	READING_LIST_SET_NAME,
 	EVERYTHING_SET_NAME,
 	SORT_NAME_RECENT,
@@ -54,6 +52,7 @@ import {
 	randomizeCollection,
 	RANDOM_CARD_COLLECTION
 } from './actions/collection.js';
+import { cardTypeFilter } from './filters.js';
 
 export const READING_LIST_FALLBACK_CARD = 'about-reading-lists';
 export const STARS_FALLBACK_CARD = 'about-stars';
@@ -211,7 +210,7 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 		{
 			icon: icons.INSERT_DRIVE_FILE_ICON,
 			display_name: 'Working note cards',
-			collection: new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_WORKING_NOTES, 'unpublished'], SORT_NAME_RECENT, false),
+			collection: new CollectionDescription(EVERYTHING_SET_NAME, [cardTypeFilter('working-notes'), 'unpublished'], SORT_NAME_RECENT, false),
 			count:true,
 			hideIfEmpty: true,
 		}
@@ -220,7 +219,7 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 		{
 			icon: icons.MENU_BOOK_ICON,
 			display_name: 'Concept cards',
-			collection: new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_CONCEPT]),
+			collection: new CollectionDescription(EVERYTHING_SET_NAME, [cardTypeFilter('concept')]),
 			count:true,
 			hideIfEmpty: true,
 		}

@@ -37,24 +37,6 @@ export const TEXT_FIELD_TYPES = {
 	[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: true,
 };
 
-//Recreated in functions/src/embedding.ts
-export const CARD_TYPE_CONTENT = 'content';
-export const CARD_TYPE_SECTION_HEAD = 'section-head';
-export const CARD_TYPE_WORKING_NOTES = 'working-notes';
-export const CARD_TYPE_CONCEPT = 'concept';
-export const CARD_TYPE_WORK = 'work';
-export const CARD_TYPE_PERSON = 'person';
-
-//CardType literal values are driven off of this object
-export const CARD_TYPE_TYPES = {
-	[CARD_TYPE_CONTENT]: true,
-	[CARD_TYPE_SECTION_HEAD]: true,
-	[CARD_TYPE_WORKING_NOTES]: true,
-	[CARD_TYPE_CONCEPT]: true,
-	[CARD_TYPE_WORK]: true,
-	[CARD_TYPE_PERSON]: true,
-};
-
 //For card-links within body content
 //NOTE: duplicated in tweet-helpers.js
 export const REFERENCE_TYPE_LINK = 'link';

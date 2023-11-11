@@ -5,6 +5,10 @@ import {
 	FieldValue
 } from 'firebase-admin/firestore';
 
+import {
+	z
+} from 'zod';
+
 export type Uid = string;
 
 export type CardID = string;
@@ -19,7 +23,18 @@ export type Section = {
 
 //Just pretned it's a string for simplicity
 export type ReferenceType = string;
-export type CardType = string;
+
+//duplicated in src/types.ts
+export const cardType = z.enum([
+	'content',
+	'section-head',
+	'working-notes',
+	'concept',
+	'work',
+	'person'
+]);
+
+export type CardType = '' | z.infer<typeof cardType>;
 
 export type Sections = Record<SectionID, Section>;
 

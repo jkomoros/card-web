@@ -106,7 +106,6 @@ import {
 
 import {
 	TEXT_FIELD_BODY,
-	CARD_TYPE_SECTION_HEAD,
 	REFERENCES_CARD_PROPERTY,
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY, 
@@ -634,7 +633,7 @@ export const createTag = (name : TagID, displayName : string) : ThunkSomeAction 
 		color: color,
 	});
 
-	const cardObject = defaultCardObject(startCardId, user, '', CARD_TYPE_SECTION_HEAD, selectSortOrderForGlobalAppend(state));
+	const cardObject = defaultCardObject(startCardId, user, '', 'section-head', selectSortOrderForGlobalAppend(state));
 	cardObject.title = displayName;
 	cardObject.subtitle = displayName + ' is a topical tag';
 	cardObject.published = true;

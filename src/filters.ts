@@ -27,9 +27,6 @@ import {
 } from './card_fields.js';
 
 import {
-	CARD_TYPE_CONTENT,
-	CARD_TYPE_WORKING_NOTES,
-	CARD_TYPE_CONCEPT,
 	REFERENCE_TYPE_CONCEPT,
 	REFERENCE_TYPE_LINK,
 	URL_PART_DATE_SECTION,
@@ -249,6 +246,8 @@ export const similarFilter = (cardID : CardID = KEY_CARD_ID_PLACEHOLDER) : Confi
 export const sameTypeFilter = (cardID : CardID = KEY_CARD_ID_PLACEHOLDER) : ConfigurableFilterName => SAME_TYPE_FILTER_NAME + '/' + cardID;
 export const differentTypeFilter = (cardID : CardID = KEY_CARD_ID_PLACEHOLDER) : ConfigurableFilterName => DIFFERENT_TYPE_FILTER_NAME + '/' + cardID;
 export const cardsFilter = (input : CardIdentifier | UnionFilterName) : ConfigurableFilterName => CARDS_FILTER_NAME + '/' + input;
+//This one is mainly useful for type checking
+export const cardTypeFilter = (type : CardType) : FilterName => type;
 export const aboutConceptFilter = (conceptStr : string | CardID = KEY_CARD_ID_PLACEHOLDER) : ConfigurableFilterName => {
 	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
 	return ABOUT_CONCEPT_FILTER_NAME + '/' + createSlugFromArbitraryString(conceptStr);
@@ -1525,62 +1524,6 @@ const cardMayHaveAutoTODO = (card : Card, todoConfig : TODOTypeInfo) : boolean =
 //These are the enum values in CARD_FILTER_CONFIGS that configure whether an
 //item is a TODO or not.
 
-//TODO_TYPE_NA is for card filters that are not TODOs
-const TODO_TYPE_NA = {
-	type: 'na',
-	isTODO: false,
-	autoApply: false,
-};
-
-//TODO_TYPE_AUTO_CONTENT is for card filters that are TODOs and are auto-set on
-//cards of type CONTENT, meaning that their key is legal in auto_todo_overrides.
-const TODO_TYPE_AUTO_CONTENT = {
-	type: 'auto',
-	autoApply: true,
-	//cardTypes is the types of cards that will have it autoapplied. However,
-	//any card that has it actively set to false in their auto_todo_overrides
-	//will show as having that TODO.
-	cardTypes: {
-		[CARD_TYPE_CONTENT]: true,
-	},
-	isTODO: true,
-};
-
-//TODO_TYPE_AUTO_CONTENT is for card filters that are TODOs and are auto-set on
-//cards of type CONTENT, meaning that their key is legal in auto_todo_overrides.
-const TODO_TYPE_AUTO_CONTENT_AND_CONCEPT = {
-	type: 'auto',
-	autoApply: true,
-	//cardTypes is the types of cards that will have it autoapplied. However,
-	//any card that has it actively set to false in their auto_todo_overrides
-	//will show as having that TODO.
-	cardTypes: {
-		[CARD_TYPE_CONTENT]: true,
-		[CARD_TYPE_CONCEPT]: true,
-	},
-	isTODO: true,
-};
-
-//TODO_TYPE_AUTO_WORKING_NOTES is for card filters that are TODOs and are auto-set on
-//cards of type WORKING_NOTES, meaning that their key is legal in auto_todo_overrides.
-const TODO_TYPE_AUTO_WORKING_NOTES = {
-	type: 'auto',
-	autoApply: true,
-	//Will only ever be auto-applied to working-notes card
-	cardTypes: {
-		[CARD_TYPE_WORKING_NOTES]: true,
-	},
-	isTODO: true,
-};
-
-//TODO_TYPE_FREEFORM is for card filters that are TODOs but are set via the freeform
-//notes property and are not valid keys in auto_todo_overrides.
-const TODO_TYPE_FREEFORM = {
-	type: 'freeform',
-	isTODO: true,
-	autoApply: false,
-};
-
 type TODOTypeInfo = {
 	type : string,
 	isTODO : boolean,
@@ -1589,6 +1532,62 @@ type TODOTypeInfo = {
 		[type in CardType]+? : true
 	}
 }
+
+//TODO_TYPE_NA is for card filters that are not TODOs
+const TODO_TYPE_NA : TODOTypeInfo = {
+	type: 'na',
+	isTODO: false,
+	autoApply: false,
+};
+
+//TODO_TYPE_AUTO_CONTENT is for card filters that are TODOs and are auto-set on
+//cards of type CONTENT, meaning that their key is legal in auto_todo_overrides.
+const TODO_TYPE_AUTO_CONTENT : TODOTypeInfo = {
+	type: 'auto',
+	autoApply: true,
+	//cardTypes is the types of cards that will have it autoapplied. However,
+	//any card that has it actively set to false in their auto_todo_overrides
+	//will show as having that TODO.
+	cardTypes: {
+		'content': true,
+	},
+	isTODO: true,
+};
+
+//TODO_TYPE_AUTO_CONTENT is for card filters that are TODOs and are auto-set on
+//cards of type CONTENT, meaning that their key is legal in auto_todo_overrides.
+const TODO_TYPE_AUTO_CONTENT_AND_CONCEPT : TODOTypeInfo = {
+	type: 'auto',
+	autoApply: true,
+	//cardTypes is the types of cards that will have it autoapplied. However,
+	//any card that has it actively set to false in their auto_todo_overrides
+	//will show as having that TODO.
+	cardTypes: {
+		'content': true,
+		'concept': true,
+	},
+	isTODO: true,
+};
+
+//TODO_TYPE_AUTO_WORKING_NOTES is for card filters that are TODOs and are auto-set on
+//cards of type WORKING_NOTES, meaning that their key is legal in auto_todo_overrides.
+const TODO_TYPE_AUTO_WORKING_NOTES : TODOTypeInfo = {
+	type: 'auto',
+	autoApply: true,
+	//Will only ever be auto-applied to working-notes card
+	cardTypes: {
+		'working-notes': true,
+	},
+	isTODO: true,
+};
+
+//TODO_TYPE_FREEFORM is for card filters that are TODOs but are set via the freeform
+//notes property and are not valid keys in auto_todo_overrides.
+const TODO_TYPE_FREEFORM : TODOTypeInfo = {
+	type: 'freeform',
+	isTODO: true,
+	autoApply: false,
+};
 
 type CardFilterConfigItem = [filterNames: [string, string, string, string], test: CardTestFunc, typ : TODOTypeInfo, weight : number, description : string];
 

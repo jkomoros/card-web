@@ -30,7 +30,8 @@
     "puppeteer": "^18.2.1",
     "stable": "^0.1.8",
     "twitter": "^1.7.1",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/md5": "^2.3.4",

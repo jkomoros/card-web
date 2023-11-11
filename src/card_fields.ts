@@ -56,7 +56,7 @@ export const EMPTY_CARD : Card = {
 	[CONSTANTS.REFERENCES_CARD_PROPERTY]: {},
 	[CONSTANTS.REFERENCES_INBOUND_CARD_PROPERTY]: {},
 	font_size_boost: {},
-	card_type: CONSTANTS.CARD_TYPE_CONTENT,
+	card_type: 'content',
 	notes: '',
 	todo: '',
 	slugs: [],
@@ -144,7 +144,7 @@ export const sortOrderIsDangerous = (proposedSortOrder : number) : boolean => {
 };
 
 //The card type to assume if none is specified.
-export const DEFAULT_CARD_TYPE = CONSTANTS.CARD_TYPE_CONTENT;
+export const DEFAULT_CARD_TYPE : CardType = 'content';
 
 export const CONCEPT_DEFAULT_BODY = 'This is a concept card. The following cards reference this concept.';
 export const WORK_DEFAULT_BODY = 'This is a card about a work (e.g. a book, article, tweet). The following cards cite this work.';
@@ -157,13 +157,13 @@ export const PERSON_DEFAULT_BODY = 'This is a card about a person. The following
 const styleBlockForCardType = (cardType : CardType, selectors : SelectorStyleMap) : string => Object.entries(selectors).map(selectorEntry => '.container.' + cardType + ' ' + selectorEntry[0] + ' {\n' + selectorEntry[1].map(propertyEntry => '\t' + propertyEntry + (propertyEntry.endsWith(';') ? '' : (!propertyEntry.startsWith('/') ? ';' : ''))).join('\n') + '\n}\n').join('\n');
 
 export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
-	[CONSTANTS.CARD_TYPE_CONTENT]: {
+	'content': {
 		description: 'The primary type of card, with a title and body.'
 	},
-	[CONSTANTS.CARD_TYPE_SECTION_HEAD]: {
+	'section-head': {
 		description: 'A section head for a section or tag. You typically don\'t create these manually',
 		dark: true,
-		styleBlock: styleBlockForCardType(CONSTANTS.CARD_TYPE_SECTION_HEAD, {
+		styleBlock: styleBlockForCardType('section-head', {
 			'.background': [
 				'position: absolute',
 				'display: block',
@@ -189,11 +189,11 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 			],
 		})
 	},
-	[CONSTANTS.CARD_TYPE_WORKING_NOTES]: {
+	'working-notes': {
 		description: 'A card of private rough notes, to later be forked and developed into one or more content cards',
 		invertContentPublishWarning: true,
 		orphanedByDefault: true,
-		styleBlock: styleBlockForCardType(CONSTANTS.CARD_TYPE_WORKING_NOTES, {
+		styleBlock: styleBlockForCardType('working-notes', {
 			'section': [
 				'font-size:0.8em;',
 				'line-height:1.2;',
@@ -201,7 +201,7 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 		}),
 		iconName: 'INSERT_DRIVE_FILE_ICON',
 	},
-	[CONSTANTS.CARD_TYPE_CONCEPT]: {
+	'concept': {
 		description: 'A card denoting a concept that can be highlighted on other cards',
 		orphanedByDefault: true,
 		publishedByDefault: true,
@@ -209,7 +209,7 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 		autoSlug: true,
 		defaultBody: CONCEPT_DEFAULT_BODY,
 	},
-	[CONSTANTS.CARD_TYPE_PERSON]: {
+	'person': {
 		description: 'A card of information about a person that other cards can point to as a citation',
 		orphanedByDefault: true,
 		publishedByDefault: true,
@@ -217,7 +217,7 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 		autoSlug: true,
 		defaultBody: PERSON_DEFAULT_BODY,
 	},
-	[CONSTANTS.CARD_TYPE_WORK]: {
+	'work': {
 		description: 'A card of information about an external work (article, book, tweet) that other cards can point to as a citation',
 		orphanedByDefault: true,
 		publishedByDefault: true,
@@ -313,7 +313,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//It's included in its own section
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
-			[CONSTANTS.CARD_TYPE_CONCEPT]: true,
+			'concept': true,
 		},
 		backportMissingText: true,
 	},
@@ -329,10 +329,10 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Printed out on concept cards, which are the only cards that can be on the from side.
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
-			[CONSTANTS.CARD_TYPE_CONCEPT]: true,
+			'concept': true,
 		},
 		fromCardTypeAllowList: {
-			[CONSTANTS.CARD_TYPE_CONCEPT]: true,
+			'concept': true,
 		},
 		backportMissingText: true,
 		//Effectively a sub-type of concept reference.
@@ -349,10 +349,10 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Printed out on concept cards, which are the only cards that can be on the from side.
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
-			[CONSTANTS.CARD_TYPE_CONCEPT]: true,
+			'concept': true,
 		},
 		fromCardTypeAllowList: {
-			[CONSTANTS.CARD_TYPE_CONCEPT]: true,
+			'concept': true,
 		},
 		//Don't backport text since they're the opposite!
 		backportMissingText: false,
@@ -370,10 +370,10 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Printed out on concept cards, which are the only cards that can be on the from side.
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
-			[CONSTANTS.CARD_TYPE_CONCEPT]: true,
+			'concept': true,
 		},
 		fromCardTypeAllowList: {
-			[CONSTANTS.CARD_TYPE_CONCEPT]: true,
+			'concept': true,
 		},
 		//Don't backport text since they aren't literally that thing, just kind of similar.
 		backportMissingText: false,
@@ -392,7 +392,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Printed out in info panel
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
-			[CONSTANTS.CARD_TYPE_CONCEPT]: true,
+			'concept': true,
 		},
 		backportMissingText: true,
 		subTypeOf: CONSTANTS.REFERENCE_TYPE_CONCEPT,
@@ -408,7 +408,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Printed out in info panel
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
-			[CONSTANTS.CARD_TYPE_CONCEPT]: true,
+			'concept': true,
 		},
 		backportMissingText: true,
 		subTypeOf: CONSTANTS.REFERENCE_TYPE_CONCEPT,
@@ -424,10 +424,10 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Printed out separately in info panel
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
-			[CONSTANTS.CARD_TYPE_WORK]: true,
+			'work': true,
 		},
 		//Allow inbound from any type of card that is not also a work, or a person (works can point to persons but not vice versa)
-		fromCardTypeAllowList: Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).filter(key => key != CONSTANTS.CARD_TYPE_WORK && key != CONSTANTS.CARD_TYPE_PERSON).map(key => [key, true])),
+		fromCardTypeAllowList: Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).filter(key => key != 'work' && key != 'person').map(key => [key, true])),
 		backportMissingText: true,
 	},
 	[CONSTANTS.REFERENCE_TYPE_CITATION_PERSON]: {
@@ -441,10 +441,10 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Printed out separately in info panel
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
-			[CONSTANTS.CARD_TYPE_PERSON]: true,
+			'person': true,
 		},
 		//Allow inbound from any card that is not also a person, to avoid loops.
-		fromCardTypeAllowList: Object.fromEntries(Object.keys(CARD_TYPE_CONFIGURATION).filter(key => key != CONSTANTS.CARD_TYPE_PERSON).map(key => [key, true])),
+		fromCardTypeAllowList: Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).filter(key => key != 'person').map(key => [key, true])),
 		backportMissingText: true,
 		subTypeOf: CONSTANTS.REFERENCE_TYPE_CITATION,
 	},
@@ -507,14 +507,14 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		container: 'h1',
 		nonScrollable: true,
 		legalCardTypes: {
-			[CONSTANTS.CARD_TYPE_CONTENT]: true,
-			[CONSTANTS.CARD_TYPE_SECTION_HEAD]: true,
-			[CONSTANTS.CARD_TYPE_CONCEPT]: true,
-			[CONSTANTS.CARD_TYPE_WORK]: true,
-			[CONSTANTS.CARD_TYPE_PERSON]: true,
+			'content': true,
+			'section-head': true,
+			'concept': true,
+			'work': true,
+			'person': true,
 		},
 		derivedForCardTypes: {
-			[CONSTANTS.CARD_TYPE_WORKING_NOTES]: true
+			'working-notes': true
 		},
 		autoFontSizeBoostForCardTypes: {},
 		matchWeight: 1.0,
@@ -523,7 +523,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		html: false,
 		container: 'h5',
 		nonScrollable: true,
-		legalCardTypes: {[CONSTANTS.CARD_TYPE_CONCEPT]: true},
+		legalCardTypes: {'concept': true},
 		derivedForCardTypes: {},
 		autoFontSizeBoostForCardTypes: {},
 		matchWeight:0.95,
@@ -537,22 +537,22 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		html: true,
 		container: 'section',
 		legalCardTypes: {
-			[CONSTANTS.CARD_TYPE_CONTENT]: true,
-			[CONSTANTS.CARD_TYPE_WORKING_NOTES]: true,
-			[CONSTANTS.CARD_TYPE_CONCEPT]: true,
-			[CONSTANTS.CARD_TYPE_WORK]: true,
-			[CONSTANTS.CARD_TYPE_PERSON]: true,
+			'content': true,
+			'working-notes': true,
+			'concept': true,
+			'work': true,
+			'person': true,
 		},
 		derivedForCardTypes: {},
 		autoFontSizeBoostForCardTypes: {
-			[CONSTANTS.CARD_TYPE_WORKING_NOTES]: DEFAULT_MAX_FONT_BOOST
+			'working-notes': DEFAULT_MAX_FONT_BOOST
 		},
 		matchWeight:0.5
 	},
 	[CONSTANTS.TEXT_FIELD_SUBTITLE]: {
 		html: false,
 		container: 'h2',
-		legalCardTypes: {[CONSTANTS.CARD_TYPE_SECTION_HEAD]: true},
+		legalCardTypes: {'section-head': true},
 		derivedForCardTypes: {},
 		autoFontSizeBoostForCardTypes: {},
 		matchWeight:0.75,

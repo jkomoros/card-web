@@ -8,7 +8,6 @@ import {
 } from 'firebase/firestore';
 
 import {
-	CARD_TYPE_TYPES,
 	TEXT_FIELD_TYPES,
 	REFERENCE_TYPE_TYPES,
 	TEXT_FIELD_TYPES_EDITABLE,
@@ -81,7 +80,17 @@ export type CreateCardOpts = {
 	title? : string,
 }
 
-export type CardType = '' | keyof(typeof CARD_TYPE_TYPES);
+//duplicated in functions/src/type.ts
+export const cardType = z.enum([
+	'content',
+	'section-head',
+	'working-notes',
+	'concept',
+	'work',
+	'person'
+]);
+
+export type CardType = '' | z.infer<typeof cardType>;
 
 type CSSPartString = string;
 

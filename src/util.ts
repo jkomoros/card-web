@@ -28,7 +28,6 @@ import {
 
 import {
 	TEXT_FIELD_BODY,
-	CARD_TYPE_CONTENT,
 	TEXT_FIELD_TITLE,
 } from './type_constants.js';
 
@@ -193,7 +192,7 @@ export const cardHasSubstantiveContent = (card : ProcessedCard) => {
 	if (!card) return false;
 	//We treat all non-content cards as having content, since the main reason to
 	//count a card has not having content is if there's nothing to see on it.
-	if (card.card_type != CARD_TYPE_CONTENT) return true;
+	if (card.card_type != 'content') return true;
 	const content = card.nlp && card.nlp[TEXT_FIELD_BODY] ? card.nlp[TEXT_FIELD_BODY].map(run => run.stemmed).join(' ') : '';
 	return content.length > SUBSTANTIVE_CONTENT_THRESHOLD;
 };

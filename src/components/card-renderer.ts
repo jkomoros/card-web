@@ -38,8 +38,7 @@ import {
 
 import {
 	TEXT_FIELD_BODY,
-	TEXT_FIELD_TITLE,
-	CARD_TYPE_CONTENT,
+	TEXT_FIELD_TITLE
 } from '../type_constants.js';
 
 import {
@@ -378,7 +377,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 	];
 
 	override render() {
-		const cardType = this._card.card_type || CARD_TYPE_CONTENT;
+		const cardType = this._card.card_type || 'content';
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[cardType];
 		const fieldsToRender = editableFieldsForCardType(cardType);
 		const titleFields : CardFieldTypeEditable[] = [];
