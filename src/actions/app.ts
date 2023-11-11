@@ -78,7 +78,7 @@ import {
 } from '../collection_description.js';
 
 import {
-	aboutConceptConfigurableFilterText,
+	aboutConceptFilter,
 } from '../filters.js';
 
 import {
@@ -262,7 +262,7 @@ export const navigateToCardInDefaultCollection = (cardOrId : Card | CardID, sile
 
 export const navigateToCollectionWithAboutConcept = (conceptStr : string) : ThunkSomeAction => (dispatch, getState) => {
 	const collection = selectActiveCollectionDescription(getState());
-	const newCollection = collectionDescriptionWithConfigurableFilter(collection, aboutConceptConfigurableFilterText(conceptStr));
+	const newCollection = collectionDescriptionWithConfigurableFilter(collection, aboutConceptFilter(conceptStr));
 	dispatch(navigateToCollection(newCollection));
 };
 

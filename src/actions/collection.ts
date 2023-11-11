@@ -16,7 +16,7 @@ import {
 	SORT_URL_KEYWORD,
 	VIEW_MODE_URL_KEYWORD,
 	NONE_FILTER_NAME,
-	limitConfigurableFilterText
+	limitFilter
 } from '../filters.js';
 
 import {
@@ -429,7 +429,7 @@ export const showCard = (requestedCard : CardID = PLACEHOLDER_CARD_ID_CHARACTER)
 	}
 };
 
-export const RANDOM_CARD_COLLECTION = new CollectionDescription(EVERYTHING_SET_NAME, [limitConfigurableFilterText(1)], SORT_NAME_RANDOM, false);
+export const RANDOM_CARD_COLLECTION = new CollectionDescription(EVERYTHING_SET_NAME, [limitFilter(1)], SORT_NAME_RANDOM, false);
 
 const randomizeSalt = () : SomeAction => {
 	return {

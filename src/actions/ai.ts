@@ -63,7 +63,7 @@ import {
 } from '../collection_description.js';
 
 import {
-	limitConfigurableFilterText
+	limitFilter
 } from '../filters.js';
 
 import {
@@ -299,7 +299,7 @@ const FALLBACK_TITLES = [
 //in this collection are the best ones.
 const selectGoodTitles = (state : State, count = 20) : string[] => {
 	//TODO: memoize
-	const description = new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_CONTENT, limitConfigurableFilterText(count)], SORT_NAME_STARS);
+	const description = new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_CONTENT, limitFilter(count)], SORT_NAME_STARS);
 	const collection = description.collection(selectCollectionConstructorArguments(state));
 	const titles = collection.sortedCards.map(card => card.title);
 	return [...titles, ...FALLBACK_TITLES].slice(0,count);

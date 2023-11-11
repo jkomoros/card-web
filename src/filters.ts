@@ -11,7 +11,8 @@ import {
 	cardBFS,
 	pageRank,
 	createSlugFromArbitraryString,
-	normalizeCardSlugOrIDList
+	normalizeCardSlugOrIDList,
+	assertUnreachable
 } from './util.js';
 
 import {
@@ -158,23 +159,23 @@ export const DIRECT_REFERENCES_FILTER_NAME = DIRECT_PREFIX + REFERENCES_FILTER_N
 export const DIRECT_REFERENCES_INBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_INBOUND_FILTER_NAME;
 export const DIRECT_REFERENCES_OUTBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_OUTBOUND_FILTER_NAME;
 const AUTHOR_FILTER_NAME = 'author';
-export const CARDS_FILTER_NAME = 'cards';
+const CARDS_FILTER_NAME = 'cards';
 export const EXCLUDE_FILTER_NAME = 'exclude';
 export const COMBINE_FILTER_NAME = 'combine';
-export const EXPAND_FILTER_NAME = 'expand';
+const EXPAND_FILTER_NAME = 'expand';
 export const QUERY_FILTER_NAME = 'query';
 const QUERY_STRICT_FILTER_NAME = 'query-strict';
 export const LIMIT_FILTER_NAME = 'limit';
 export const OFFSET_FILTER_NAME = 'offset';
-export const SIMILAR_FILTER_NAME = 'similar';
+const SIMILAR_FILTER_NAME = 'similar';
 const SIMILAR_CUTOFF_FILTER_NAME = 'similar-cutoff';
 //About as in 'about this concept'. Ideally it would have been 'concept', but
 //that's reserved for the cardType filter. It used to be 'about' but that
 //conflicts with section name in production.
 const ABOUT_CONCEPT_FILTER_NAME = 'about-concept';
 const MISSING_CONCEPT_FILTER_NAME = 'missing-concept';
-export const SAME_TYPE_FILTER_NAME = 'same-type';
-export const DIFFERENT_TYPE_FILTER_NAME = 'different-type';
+const SAME_TYPE_FILTER_NAME = 'same-type';
+const DIFFERENT_TYPE_FILTER_NAME = 'different-type';
 
 /*
 * filterEquivalent - the name of the filter that, when applied to the everything
@@ -221,6 +222,45 @@ export const LEGAL_VIEW_MODES : {[mode in ViewMode]+?: boolean} = {
 	//Note: collection_description logic assumes that default_view_mode takes not extra option.
 	[DEFAULT_VIEW_MODE]: false,
 	[VIEW_MODE_WEB]: true,
+};
+
+export const collectionDescription = (...parts : FilterName[]) : CollectionDescription => new CollectionDescription(EVERYTHING_SET_NAME, parts);
+
+export const referencesFilter = (direction : 'inbound' | 'outbound' | 'both', referenceType : ReferenceType | ReferenceType[], invertReferencesTypes? : boolean) : ConfigurableFilterName => {
+	let filter = '';
+	switch(direction) {
+	case 'inbound':
+		filter = DIRECT_REFERENCES_INBOUND_FILTER_NAME;
+		break;
+	case 'outbound':
+		filter = DIRECT_REFERENCES_OUTBOUND_FILTER_NAME;
+		break;
+	case 'both':
+		filter = DIRECT_REFERENCES_FILTER_NAME;
+		break;
+	default:
+		assertUnreachable(direction);
+	}
+	if (!filter) throw new Error('Unexpected no error');
+	return referencesConfigurableFilterText(filter, KEY_CARD_ID_PLACEHOLDER, referenceType, invertReferencesTypes);
+};
+
+export const excludeFilter = (filter : FilterName) : ConfigurableFilterName => EXCLUDE_FILTER_NAME + '/' + filter;
+export const limitFilter = (count : number) : ConfigurableFilterName => LIMIT_FILTER_NAME + '/' + String(count);
+export const unionFilter = (...parts : CardID[]) : UnionFilterName => parts.join(UNION_FILTER_DELIMITER);
+export const similarFilter = (cardID : CardID = KEY_CARD_ID_PLACEHOLDER) : ConfigurableFilterName => SIMILAR_FILTER_NAME + '/' + cardID;
+export const sameTypeFilter = (cardID : CardID = KEY_CARD_ID_PLACEHOLDER) : ConfigurableFilterName => SAME_TYPE_FILTER_NAME + '/' + cardID;
+export const differentTypeFilter = (cardID : CardID = KEY_CARD_ID_PLACEHOLDER) : ConfigurableFilterName => DIFFERENT_TYPE_FILTER_NAME + '/' + cardID;
+export const cardsFilter = (input : CardIdentifier | UnionFilterName) : ConfigurableFilterName => CARDS_FILTER_NAME + '/' + input;
+export const aboutConceptFilter = (conceptStr : string | CardID = KEY_CARD_ID_PLACEHOLDER) : ConfigurableFilterName => {
+	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
+	return ABOUT_CONCEPT_FILTER_NAME + '/' + createSlugFromArbitraryString(conceptStr);
+};
+//if conceptStr is blank, it means 'all cards missing any concept'
+export const missingConceptFilter = (conceptStr : string = KEY_CARD_ID_PLACEHOLDER) : ConfigurableFilterName => {
+	const arg = conceptStr ? createSlugFromArbitraryString(conceptStr) : '+';
+	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
+	return MISSING_CONCEPT_FILTER_NAME + '/' + arg;
 };
 
 export const parseDateSection = (str : string) : [dateType : DateRangeType, firstDate : Date, secondDate : Date] => {
@@ -307,7 +347,7 @@ function unionSet<T>(...sets : {[name : string] : T}[]) : {[name : string] : T} 
 	return result;
 }
 
-export const referencesConfigurableFilterText = (referencesFilterType : string, cardID : CardID, referencesTypes : ReferenceType | ReferenceType[], invertReferencesTypes? : boolean, ply? : number) => {
+const referencesConfigurableFilterText = (referencesFilterType : string, cardID : CardID, referencesTypes : ReferenceType | ReferenceType[], invertReferencesTypes? : boolean, ply? : number) => {
 	if (!referencesFilterType.includes(REFERENCES_FILTER_NAME)) throw new Error(referencesFilterType + ' is not a valid type for this function');
 	if (!referencesTypes) throw new Error('referenceTypes must be a string or array');
 	if (typeof referencesTypes != 'string' && !Array.isArray(referencesTypes)) throw new Error('referencesTypes must be a string or array');
@@ -436,15 +476,6 @@ const makeCardsConfigurableFilter = (_ : ConfigurableFilterType, idString : stri
 	return [func, false];
 };
 
-export const limitConfigurableFilterText = (limit : number) : ConfigurableFilterName => {
-	return LIMIT_FILTER_NAME + '/' + String(limit);
-};
-
-export const aboutConceptConfigurableFilterText = (conceptStr : string) : ConfigurableFilterName => {
-	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
-	return ABOUT_CONCEPT_FILTER_NAME + '/' + createSlugFromArbitraryString(conceptStr);
-};
-
 const makeAboutConceptConfigurableFilter = (_ : ConfigurableFilterType, conceptStrOrID : string) : ConfigurableFilterFuncFactoryResult => {
 	//conceptStr should have '-' delimiting its terms; normalize text
 	//will automatically handle them the same.
@@ -475,13 +506,6 @@ const makeAboutConceptConfigurableFilter = (_ : ConfigurableFilterType, conceptS
 		return {matches: matchingCards[card.id], sortExtra: 0};
 	};
 	return [func, false];
-};
-
-//if conceptStr is blank, it means 'all cards missing any concept'
-export const missingConceptConfigurableFilterText = (conceptStr : string) : ConfigurableFilterName => {
-	const arg = conceptStr ? createSlugFromArbitraryString(conceptStr) : '+';
-	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
-	return MISSING_CONCEPT_FILTER_NAME + '/' + arg;
 };
 
 const makeSameTypeConfigurableFilter = (filterName : ConfigurableFilterType, inputCardID : string) : ConfigurableFilterFuncFactoryResult => {

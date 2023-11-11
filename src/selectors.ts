@@ -20,11 +20,11 @@ import {
 	TODO_COMBINED_FILTER_NAME,
 	cardTODOConfigKeys,
 	queryConfigurableFilterText,
-	SIMILAR_FILTER_NAME,
-	LIMIT_FILTER_NAME,
-	EXCLUDE_FILTER_NAME,
-	CARDS_FILTER_NAME,
-	CARD_FILTER_DESCRIPTIONS
+	CARD_FILTER_DESCRIPTIONS,
+	similarFilter,
+	limitFilter,
+	excludeFilter,
+	cardsFilter
 } from './filters.js';
 
 import {
@@ -1588,7 +1588,7 @@ export const selectCollectionDescriptionForQuery = createSelector(
 		const wordsAndFilters = extractFiltersFromQuery(queryText);
 		const baseFilters = ['has-body'];
 		let sort : SortName = undefined;
-		if (cardID && !generic) baseFilters.push(EXCLUDE_FILTER_NAME + '/' + CARDS_FILTER_NAME + '/' + cardID);
+		if (cardID && !generic) baseFilters.push(excludeFilter(cardsFilter(cardID)));
 		if (cardTypeFilter) baseFilters.push(cardTypeFilter);
 		if (!wordsAndFilters[0] && !wordsAndFilters[1].length) {
 			if (generic) {
@@ -1599,9 +1599,9 @@ export const selectCollectionDescriptionForQuery = createSelector(
 			} else {
 				//If it's a search to find a card to link etc we do want it to
 				//be related to the card we're on.
-				baseFilters.push(SIMILAR_FILTER_NAME + '/' + cardID);
+				baseFilters.push(similarFilter(cardID));
 			}
-			baseFilters.push(LIMIT_FILTER_NAME + '/' + 10);
+			baseFilters.push(limitFilter(10));
 			//If there's no query, return the similar cards to the current card
 			return new CollectionDescription(EVERYTHING_SET_NAME, baseFilters, sort);
 		}

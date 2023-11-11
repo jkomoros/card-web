@@ -1,5 +1,4 @@
 import {
-	KEY_CARD_ID_PLACEHOLDER,
 	REFERENCE_TYPES,
 	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
 } from './card_fields.js';
@@ -15,8 +14,7 @@ import {
 	REFERENCE_TYPE_SEE_ALSO,
 	REFERENCE_TYPE_EXAMPLE_OF,
 	REFERENCE_TYPE_METAPHOR_FOR,
-	CARD_TYPE_CONTENT,
-	EVERYTHING_SET_NAME,
+	CARD_TYPE_CONTENT
 } from './type_constants.js';
 
 import {
@@ -26,18 +24,16 @@ import {
 } from './collection_description.js';
 
 import {
-	DIRECT_REFERENCES_FILTER_NAME,
-	DIRECT_REFERENCES_INBOUND_FILTER_NAME,
-	DIRECT_REFERENCES_OUTBOUND_FILTER_NAME,
-	SIMILAR_FILTER_NAME,
-	EXCLUDE_FILTER_NAME,
-	referencesConfigurableFilterText,
-	missingConceptConfigurableFilterText,
-	aboutConceptConfigurableFilterText,
-	LIMIT_FILTER_NAME,
-	SAME_TYPE_FILTER_NAME,
-	DIFFERENT_TYPE_FILTER_NAME,
-	UNION_FILTER_DELIMITER,
+	similarFilter,
+	sameTypeFilter,
+	excludeFilter,
+	referencesFilter,
+	unionFilter,
+	collectionDescription,
+	differentTypeFilter,
+	limitFilter,
+	aboutConceptFilter,
+	missingConceptFilter
 } from './filters.js';
 
 import {
@@ -50,7 +46,6 @@ import {
 } from './types.js';
 
 import {
-	assertUnreachable,
 	cardNeedsReciprocalLinkTo
 } from './util.js';
 
@@ -95,19 +90,19 @@ const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS : ReferenceBlocks = Object.entries
 	const referenceConfig = entry[1];
 	if (referenceConfig.reciprocal) {
 		return {
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME,[referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, referenceType)]),
+			collectionDescription: collectionDescription(referencesFilter('both', referenceType)),
 			title: referenceConfig.name,
 			condensed: true,
 		};
 	}
 	return [
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME,[referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, referenceType)]),
+			collectionDescription: collectionDescription(referencesFilter('outbound', referenceType)),
 			title: referenceConfig.name,
 			condensed: true,
 		},
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME,[referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, referenceType)]),
+			collectionDescription: collectionDescription(referencesFilter('inbound', referenceType)),
 			title: referenceConfig.inboundName,
 			condensed: true,
 		},
@@ -118,13 +113,13 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBloc
 	[CARD_TYPE_CONCEPT]: [
 		...CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS,
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_CONCEPT, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT]) as ReferenceType[]])]),
-			navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [aboutConceptConfigurableFilterText(KEY_CARD_ID_PLACEHOLDER)]),
+			collectionDescription: collectionDescription('not' + CARD_TYPE_CONCEPT, referencesFilter('inbound', TypedObject.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT]))),
+			navigationCollectionDescription: collectionDescription(aboutConceptFilter()),
 			title: 'Cards that reference this concept',
 			showNavigate: true,
 		},
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [missingConceptConfigurableFilterText(KEY_CARD_ID_PLACEHOLDER)]),
+			collectionDescription: collectionDescription(missingConceptFilter()),
 			title: 'Cards that should reference this concept but don\'t',
 			showNavigate: true,
 			onlyForEditors: true,
@@ -132,12 +127,12 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBloc
 	],
 	[CARD_TYPE_WORK]: [
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME,[referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CITATION_PERSON)]),
+			collectionDescription: collectionDescription(referencesFilter('outbound', REFERENCE_TYPE_CITATION_PERSON)),
 			title: 'Authors',
 			condensed: true,
 		},
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CITATION)]),
+			collectionDescription: collectionDescription(referencesFilter('inbound', REFERENCE_TYPE_CITATION)),
 			title: 'Cards that cite this work',
 			showNavigate: true,
 			emptyMessage: 'No cards cite this work'
@@ -145,13 +140,13 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBloc
 	],
 	[CARD_TYPE_PERSON]: [
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_WORK, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CITATION_PERSON)]),
+			collectionDescription: collectionDescription(CARD_TYPE_WORK, referencesFilter('inbound', REFERENCE_TYPE_CITATION_PERSON)),
 			title: 'Works that cite this person',
 			showNavigate: true,
 			emptyMessage: 'No works cite this person'
 		},
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_WORK, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CITATION_PERSON)]),
+			collectionDescription: collectionDescription('not-' + CARD_TYPE_WORK, referencesFilter('inbound', REFERENCE_TYPE_CITATION_PERSON)),
 			title: 'Cards that cite this person',
 			showNavigate: true,
 			emptyMessage: 'No cards cite this person'
@@ -165,47 +160,18 @@ const SUBSTANTIVE_WITHOUT_SEE_ALSO_REFERENCE_TYPES = SUBSTANTIVE_REFERENCE_TYPES
 
 const NUM_SIMILAR_CARDS_TO_SHOW = 5;
 
-const collectionDescription = (...parts : string[]) : CollectionDescription => new CollectionDescription(EVERYTHING_SET_NAME, parts);
-
-const referencesFilter = (direction : 'inbound' | 'outbound' | 'both', referenceType : ReferenceType | ReferenceType[], invertReferencesTypes? : boolean) : string => {
-	let filter = '';
-	switch(direction) {
-	case 'inbound':
-		filter = DIRECT_REFERENCES_INBOUND_FILTER_NAME;
-		break;
-	case 'outbound':
-		filter = DIRECT_REFERENCES_OUTBOUND_FILTER_NAME;
-		break;
-	case 'both':
-		filter = DIRECT_REFERENCES_FILTER_NAME;
-		break;
-	default:
-		assertUnreachable(direction);
-	}
-	if (!filter) throw new Error('Unexpected no error');
-	return referencesConfigurableFilterText(filter, KEY_CARD_ID_PLACEHOLDER, referenceType, invertReferencesTypes);
-};
-
-const excludeFilter = (filter : string) : string => EXCLUDE_FILTER_NAME + '/' + filter;
-const limitFilter = (count : number) : string => LIMIT_FILTER_NAME + '/' + String(count);
-const unionFilter = (...parts : string[]) : string => parts.join(UNION_FILTER_DELIMITER);
-
-const SIMILAR_FILTER = SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER;
-const SAME_TYPE_FILTER = SAME_TYPE_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER;
-const DIFFERENT_TYPE_FILTER = DIFFERENT_TYPE_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER;
-
 const SIMILAR_SAME_TYPE = [
 	'has-body',
-	SIMILAR_FILTER,
-	SAME_TYPE_FILTER,
+	similarFilter(),
+	sameTypeFilter(),
 	excludeFilter(referencesFilter('both', SUBSTANTIVE_REFERENCE_TYPES))
 ];
 
 const SIMILAR_DIFFERENT_TYPE = [
 	'has-body',
-	SIMILAR_FILTER,
+	similarFilter(),
 	unionFilter(CARD_TYPE_CONTENT, CARD_TYPE_WORKING_NOTES),
-	DIFFERENT_TYPE_FILTER,
+	differentTypeFilter(),
 	excludeFilter(referencesFilter('both', SUBSTANTIVE_REFERENCE_TYPES))
 ];
 
