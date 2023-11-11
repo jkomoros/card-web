@@ -32,9 +32,6 @@ import {
 	CARD_TYPE_CONCEPT,
 	REFERENCE_TYPE_CONCEPT,
 	REFERENCE_TYPE_LINK,
-	BEFORE_FILTER_NAME,
-	AFTER_FILTER_NAME,
-	BETWEEN_FILTER_NAME,
 	URL_PART_DATE_SECTION,
 	URL_PART_FREE_TEXT,
 	URL_PART_KEY_CARD,
@@ -276,7 +273,7 @@ export const parseDateSection = (str : string) : [dateType : DateRangeType, firs
 };
 
 export const makeDateSection = (comparsionType : DateRangeType, dateOne : Date, dateTwo : Date) : string => {
-	const result = [comparsionType];
+	const result : string[] = [comparsionType];
 	result.push('' + dateOne.getFullYear() + '-' + (dateOne.getMonth() + 1) + '-' + dateOne.getDate());
 	if (CONFIGURABLE_FILTER_URL_PARTS[comparsionType] == 2) {
 		if (!dateTwo) dateTwo = new Date();
@@ -300,7 +297,7 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName | typeo
 	let func : ((card : ProcessedCard) => FilterFuncResult) = () => ({matches: false});
 
 	switch (comparisonType) {
-	case BEFORE_FILTER_NAME:
+	case 'before':
 		func = function(card) {
 			const val = card[cardKey] as Timestamp;
 			if (!val) return {matches: false};
@@ -308,7 +305,7 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName | typeo
 			return {matches: difference < 0};
 		};
 		break;
-	case AFTER_FILTER_NAME:
+	case 'after':
 		func = function(card) {
 			const val = card[cardKey] as Timestamp;
 			if (!val) return {matches: false};
@@ -316,7 +313,7 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName | typeo
 			return {matches: difference > 0};
 		};
 		break;
-	case BETWEEN_FILTER_NAME:
+	case 'between':
 		//Bail if the second date isn't provided
 		if (secondDate) {
 			func = function(card) {
@@ -329,8 +326,7 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName | typeo
 		}
 		break;
 	default:
-		const _exhaustiveCheck : never = comparisonType;
-		return _exhaustiveCheck ? [func, false] : [func, false];
+		assertUnreachable(comparisonType);
 	}
 
 	return [func, false];
@@ -815,6 +811,10 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 const makeNoOpConfigurableFilter = () : ConfigurableFilterFuncFactoryResult => {
 	return [() => ({matches: true}),  false];
 };
+
+const BEFORE_FILTER_NAME : DateRangeType = 'before';
+const AFTER_FILTER_NAME : DateRangeType = 'after';
+const BETWEEN_FILTER_NAME : DateRangeType = 'between';
 
 //When these are seen in the URL as parts, how many more pieces to expect, to be
 //combined later. For things like `updated`, they want more than 1 piece more

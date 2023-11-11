@@ -115,16 +115,6 @@ export const REFERENCE_TYPE_TYPES = {
 	[REFERENCE_TYPE_CITATION_PERSON]: true
 };
 
-export const BEFORE_FILTER_NAME = 'before';
-export const AFTER_FILTER_NAME = 'after';
-export const BETWEEN_FILTER_NAME = 'between';
-
-export const DATE_RANGE_TYPES = {
-	[BEFORE_FILTER_NAME]: true,
-	[AFTER_FILTER_NAME]: true,
-	[BETWEEN_FILTER_NAME]: true,
-};
-
 export const URL_PART_DATE_SECTION = 'date';
 export const URL_PART_FREE_TEXT = 'text';
 export const URL_PART_KEY_CARD = 'key-card';

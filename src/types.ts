@@ -1,4 +1,8 @@
 import {
+	z
+} from 'zod';
+
+import {
 	FieldValue,
 	Timestamp
 } from 'firebase/firestore';
@@ -8,7 +12,6 @@ import {
 	TEXT_FIELD_TYPES,
 	REFERENCE_TYPE_TYPES,
 	TEXT_FIELD_TYPES_EDITABLE,
-	DATE_RANGE_TYPES,
 	URL_PART_TYPES,
 	IMAGE_POSITION_TYPES,
 	SET_NAME_TYPES,
@@ -58,7 +61,13 @@ export type CardFieldTypeEditable = keyof(typeof TEXT_FIELD_TYPES_EDITABLE)
 
 export type CardFieldType = keyof(typeof TEXT_FIELD_TYPES);
 
-export type DateRangeType = keyof(typeof DATE_RANGE_TYPES);
+export const dateRangeType = z.enum([
+	'before',
+	'after',
+	'between'
+]);
+
+export type DateRangeType = z.infer<typeof dateRangeType>;
 
 export type FontSizeBoostMap = {
 	[name in CardFieldType]+?: number
