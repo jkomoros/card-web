@@ -49,7 +49,6 @@ import {
 	AI_DIALOG_TYPE_CARD_SUMMARY,
 	AI_DIALOG_TYPE_MISSING_CONCEPTS,
 	AI_DIALOG_TYPE_SUGGEST_TITLE,
-	EVERYTHING_SET_NAME,
 	SORT_NAME_STARS,
 	TEXT_FIELD_TITLE
 } from '../type_constants.js';
@@ -300,7 +299,7 @@ const FALLBACK_TITLES = [
 const selectGoodTitles = (state : State, count = 20) : string[] => {
 	//TODO: memoize
 	const contentFilter : CardType = 'content';
-	const description = new CollectionDescription(EVERYTHING_SET_NAME, [contentFilter, limitFilter(count)], SORT_NAME_STARS);
+	const description = new CollectionDescription('everything', [contentFilter, limitFilter(count)], SORT_NAME_STARS);
 	const collection = description.collection(selectCollectionConstructorArguments(state));
 	const titles = collection.sortedCards.map(card => card.title);
 	return [...titles, ...FALLBACK_TITLES].slice(0,count);

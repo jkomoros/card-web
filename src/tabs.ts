@@ -5,8 +5,6 @@ import {
 import * as icons from './components/my-icons.js';
 
 import {
-	READING_LIST_SET_NAME,
-	EVERYTHING_SET_NAME,
 	SORT_NAME_RECENT,
 	SORT_NAME_STARS,
 	TAB_CONFIG_DEFAULT_TABS,
@@ -168,7 +166,7 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 			icon: icons.INSIGHTS_ICON,
 			display_name: 'Popular',
 			//TODO: this should be DEFAULT_SET_NAME, but if you click on the tab with DEFAULT_SET_NAME and a sort and no filters, it breaks
-			collection: new CollectionDescription(EVERYTHING_SET_NAME,[], SORT_NAME_STARS, false),
+			collection: new CollectionDescription('everything',[], SORT_NAME_STARS, false),
 			//If any section has default set to true first, it will be default. This is thus a fallback.
 			default:true,
 		}
@@ -177,14 +175,14 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 		{
 			icon: icons.SCHEDULE_ICON,
 			display_name: 'Recent',
-			collection: new CollectionDescription(EVERYTHING_SET_NAME, ['has-content'], SORT_NAME_RECENT, false),
+			collection: new CollectionDescription('everything', ['has-content'], SORT_NAME_RECENT, false),
 		}
 	],
 	[TAB_CONFIG_READING_LIST]: [
 		{
 			icon: icons.PLAYLIST_PLAY_ICON,
 			display_name: 'Your reading list',
-			collection: new CollectionDescription(READING_LIST_SET_NAME),
+			collection: new CollectionDescription('reading-list'),
 			count: true,
 			fallback_cards: [READING_LIST_FALLBACK_CARD],
 		}
@@ -193,7 +191,7 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 		{
 			icon: icons.STAR_ICON,
 			display_name: 'Your starred cards',
-			collection: new CollectionDescription(EVERYTHING_SET_NAME, ['starred']),
+			collection: new CollectionDescription('everything', ['starred']),
 			count: true,
 			fallback_cards: [STARS_FALLBACK_CARD],
 		}
@@ -210,7 +208,7 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 		{
 			icon: icons.INSERT_DRIVE_FILE_ICON,
 			display_name: 'Working note cards',
-			collection: new CollectionDescription(EVERYTHING_SET_NAME, [cardTypeFilter('working-notes'), 'unpublished'], SORT_NAME_RECENT, false),
+			collection: new CollectionDescription('everything', [cardTypeFilter('working-notes'), 'unpublished'], SORT_NAME_RECENT, false),
 			count:true,
 			hideIfEmpty: true,
 		}
@@ -219,7 +217,7 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 		{
 			icon: icons.MENU_BOOK_ICON,
 			display_name: 'Concept cards',
-			collection: new CollectionDescription(EVERYTHING_SET_NAME, [cardTypeFilter('concept')]),
+			collection: new CollectionDescription('everything', [cardTypeFilter('concept')]),
 			count:true,
 			hideIfEmpty: true,
 		}

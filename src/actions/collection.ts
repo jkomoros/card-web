@@ -20,8 +20,6 @@ import {
 } from '../filters.js';
 
 import {
-	DEFAULT_SET_NAME,
-	EVERYTHING_SET_NAME,
 	DEFAULT_VIEW_MODE,
 	SORT_NAME_DEFAULT,
 	SORT_NAME_RANDOM
@@ -146,7 +144,7 @@ export const updateCardSelector = (cardSelector : string) : ThunkSomeAction => (
 				if (CARD_TYPE_CONFIGURATION[card.card_type].orphanedByDefault && !description.setNameExplicitlySet) {
 					//If it's a working notes card then by default we'll view it
 					//in the collection including all of its other cards.
-					set = EVERYTHING_SET_NAME;
+					set = 'everything';
 					filters = [card.card_type];
 				} else {
 					filters = [NONE_FILTER_NAME];
@@ -280,7 +278,7 @@ export const canonicalizeURL = () : ThunkSomeAction => (dispatch, getState) => {
 		//We need to show the set name if it's not the default set, or if its
 		//the default set and there are no filters active (e.g.
 		//`c/main/sort/recent/_`)
-		if (description.set != DEFAULT_SET_NAME || description.filters.length == 0) {
+		if (description.set != 'main' || description.filters.length == 0) {
 			result.push(description.set);
 		}
 
@@ -429,7 +427,7 @@ export const showCard = (requestedCard : CardID = PLACEHOLDER_CARD_ID_CHARACTER)
 	}
 };
 
-export const RANDOM_CARD_COLLECTION = new CollectionDescription(EVERYTHING_SET_NAME, [limitFilter(1)], SORT_NAME_RANDOM, false);
+export const RANDOM_CARD_COLLECTION = new CollectionDescription('everything', [limitFilter(1)], SORT_NAME_RANDOM, false);
 
 const randomizeSalt = () : SomeAction => {
 	return {

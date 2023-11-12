@@ -29,9 +29,6 @@ import {
 import {
 	REFERENCE_TYPE_CONCEPT,
 	REFERENCE_TYPE_LINK,
-	DEFAULT_SET_NAME,
-	READING_LIST_SET_NAME,
-	EVERYTHING_SET_NAME,
 	VIEW_MODE_WEB,
 	DEFAULT_VIEW_MODE,
 	SORT_NAME_DEFAULT,
@@ -107,7 +104,9 @@ import {
 	ConcreteFilterName,
 	CardSimilarityMap,
 	FilterFuncResult,
-	ConfigurableFilterResult
+	ConfigurableFilterResult,
+	SetName,
+	setName
 } from './types.js';
 
 import {
@@ -168,22 +167,20 @@ const DIFFERENT_TYPE_FILTER_NAME = 'different-type';
 * description - the description for the set, to be shown to potentially all
   users.
 */
-export const SET_INFOS = {
-	[DEFAULT_SET_NAME]: {
+export const SET_INFOS : {[name in Exclude<SetName, ''>]: {filterEquivalent: FilterName, description: string}} = {
+	'main': {
 		filterEquivalent: 'in-all-set',
 		description: 'The default set, typically containing only content cards that are specifically included in a section'
 	},
-	[READING_LIST_SET_NAME]: {
+	'reading-list': {
 		filterEquivalent: 'in-reading-list',
 		description: 'This user\'s list of cards they\'ve put on their reading list',
 	},
-	[EVERYTHING_SET_NAME]: {
+	'everything': {
 		filterEquivalent: 'in-everything-set',
 		description: 'Every single card of every type, including cards that aren\'t in any section (orphaned)'
 	}
 };
-
-export const FILTER_EQUIVALENTS_FOR_SET = Object.fromEntries(Object.entries(SET_INFOS).map(entry => [entry[0], entry[1].filterEquivalent]));
 
 //If filter names have this character in them then they're actually a union of
 //the filters
@@ -207,7 +204,7 @@ export const LEGAL_VIEW_MODES : {[mode in ViewMode]+?: boolean} = {
 	[VIEW_MODE_WEB]: true,
 };
 
-export const collectionDescription = (...parts : FilterName[]) : CollectionDescription => new CollectionDescription(EVERYTHING_SET_NAME, parts);
+export const collectionDescription = (...parts : FilterName[]) : CollectionDescription => new CollectionDescription('everything', parts);
 
 export const referencesFilter = (direction : 'inbound' | 'outbound' | 'both', referenceType : ReferenceType | ReferenceType[], invertReferencesTypes? : boolean) : ConfigurableFilterName => {
 	let filter = '';
@@ -1626,7 +1623,7 @@ const CARD_FILTER_CONFIGS : CardFilterConfigMap = Object.assign(
 		//Mined is always flagged on cards that it might be autoapplied to. The only way to make it go away is to add a true to the auto_todo_overrides for it.
 		//To find cards that are _partially_ mined, use the 'has-inbound-mined-from-references/not-mined' filters.
 		'content-mined': [['mined-for-content', 'not-mined-for-content', 'does-not-need-to-be-mined-for-content', 'needs-to-be-mined-for-content'], () => false, TODO_TYPE_AUTO_WORKING_NOTES, 2.0, 'Whether the card has had its insights \'mined\' into other cards. Only automatically applied to working-notes cards. The only way to clear it is to add a force TODO disable for it'],
-		[EVERYTHING_SET_NAME]: [defaultNonTodoCardFilterName(FILTER_EQUIVALENTS_FOR_SET[EVERYTHING_SET_NAME]), () => true, TODO_TYPE_NA, 0.0, 'Every card is in the everything set'],
+		[setName('everything')]: [defaultNonTodoCardFilterName(SET_INFOS['everything'].filterEquivalent), () => true, TODO_TYPE_NA, 0.0, 'Every card is in the everything set'],
 		//note: a number of things rely on `has-body` filter which is derived from this configuration
 		'body': [defaultCardFilterName('body'), (card : Card) => card && BODY_CARD_TYPES[card.card_type], TODO_TYPE_NA, 0.0, 'Cards that are of a type that has a body field'],
 		'substantive-references': [defaultCardFilterName('substantive-references'), (card : Card) => references(card).substantiveArray().length, TODO_TYPE_NA, 0.0, 'Whether the card has any substantive references of any type'],
@@ -1713,7 +1710,7 @@ export const INVERSE_FILTER_NAMES = Object.assign(
 		[ALL_FILTER_NAME]: NONE_FILTER_NAME,
 		[TODO_COMBINED_INVERSE_FILTER_NAME]: TODO_COMBINED_FILTER_NAME,
 	},
-	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => ['not-' + entry[1], entry[1]])),
+	Object.fromEntries(Object.entries(SET_INFOS).map(entry => ['not-' + entry[1].filterEquivalent, entry[1].filterEquivalent])),
 	//extend with ones for all of the card filters badsed on that config
 	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][1], entry[1][0][0]])),
 	//Add the inverse need filters (skipping ones htat are not a TODO)
@@ -1762,7 +1759,7 @@ const CARD_NON_INVERTED_FILTER_DESCRIPTIONS = Object.assign(
 		[NONE_FILTER_NAME]: 'Matches no cards',
 		'read': 'Cards that you have read',
 	},
-	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => [entry[1], 'A filter equivalent of the set ' + entry[0]])),
+	Object.fromEntries(Object.entries(SET_INFOS).map(entry => [entry[1].filterEquivalent, 'A filter equivalent of the set ' + entry[0]])),
 	Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_INFO).map(entry => [entry[0], entry[1].description])),
 );
 
@@ -1780,14 +1777,14 @@ const INITIAL_STATE_FILTERS = Object.assign(
 		starred: {},
 		read: {},
 	},
-	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => [entry[1], {}])),
+	Object.fromEntries(Object.entries(SET_INFOS).map(entry => [entry[1].filterEquivalent, {}])),
 	//note: `in-everything-set` will be included in the above set and this next
 	//one, but that's OK, they'll both be the same.
 	Object.fromEntries(Object.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], {}])),
 );
 
 export const INITIAL_STATE : CollectionState = {
-	activeSetName: DEFAULT_SET_NAME,
+	activeSetName: 'main',
 	activeFilterNames: [],
 	activeSortName: SORT_NAME_DEFAULT,
 	activeSortReversed: false,

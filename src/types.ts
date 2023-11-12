@@ -11,7 +11,6 @@ import {
 	TEXT_FIELD_TYPES,
 	REFERENCE_TYPE_TYPES,
 	TEXT_FIELD_TYPES_EDITABLE,
-	SET_NAME_TYPES,
 	VIEW_MODE_TYPES,
 	EDITOR_TAB_TYPES,
 	EDITOR_CONTENT_TAB_TYPES,
@@ -841,7 +840,21 @@ export type UserPermissionsMap = {
 
 export type CommitActionType = keyof(typeof COMMIT_ACTION_TYPES);
 
-export type SetName = '' | keyof(typeof SET_NAME_TYPES);
+const setNameSchema = z.enum([
+	//The default set
+	'main',
+	//reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
+	//order matters and is customizable by the user. Every other collection starts
+	//from the `all` set and then filters and then maybe sorts, but reading-list
+	//lets a custom order.
+	'reading-list',
+	'everything'
+]);
+
+export type SetName = '' | z.infer<typeof setNameSchema>;
+
+//Convenience for verifying a type in a more permissive context is of a given type at compile time.
+export const setName = (input : SetName) => input;
 
 export type SortName = '' | keyof(typeof SORT_NAME_TYPES);
 

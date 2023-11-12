@@ -21,14 +21,9 @@ import {
 
 import {
 	INITIAL_STATE,
-	FILTER_EQUIVALENTS_FOR_SET,
 	CARD_FILTER_FUNCS,
+	SET_INFOS,
 } from '../filters.js';
-
-import {
-	DEFAULT_SET_NAME,
-	READING_LIST_SET_NAME,
-} from '../type_constants.js';
 
 import {
 	CollectionState,
@@ -123,7 +118,7 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 
 const makeFilterFromReadingList = (readingList : CardID[]) : {[filterName : string] : FilterMap} => {
 	return {
-		[FILTER_EQUIVALENTS_FOR_SET[READING_LIST_SET_NAME]]: Object.fromEntries(readingList.map(id => [id, true]))
+		[SET_INFOS['reading-list'].filterEquivalent]: Object.fromEntries(readingList.map(id => [id, true]))
 	};
 };
 
@@ -139,7 +134,7 @@ const makeFilterFromSection = (sections : Sections, includeDefaultSet? : boolean
 		});
 		result[key] = filter;
 	}
-	if (includeDefaultSet) result[FILTER_EQUIVALENTS_FOR_SET[DEFAULT_SET_NAME]] = combinedSet;
+	if (includeDefaultSet) result[SET_INFOS.main.filterEquivalent] = combinedSet;
 	return result;
 };
 

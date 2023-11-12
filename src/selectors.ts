@@ -47,9 +47,6 @@ import {
 } from './card_fields.js';
 
 import {
-	DEFAULT_SET_NAME,
-	READING_LIST_SET_NAME,
-	EVERYTHING_SET_NAME,
 	SORT_NAME_RECENT,
 	SORT_NAME_DEFAULT,
 	AI_DIALOG_TYPE_CARD_SUMMARY
@@ -158,7 +155,8 @@ import {
 	ExpandedTabConfig,
 	SortName,
 	AIDialogType,
-	AIModelName
+	AIModelName,
+	SetName
 } from './types.js';
 
 import {
@@ -1153,7 +1151,7 @@ export const selectActiveSectionId = createSelector(
 	(collectionDescription, sections) => {
 		//The activeSectionId is only true if it's the default set and there
 		//is precisely one filter who is also a set.
-		if(collectionDescription.set != DEFAULT_SET_NAME) return '';
+		if(collectionDescription.set != 'main') return '';
 		if (collectionDescription.filters.length != 1) return '';
 		return sections[collectionDescription.filters[0]] ? collectionDescription.filters[0] : '';
 	}
@@ -1169,7 +1167,7 @@ const selectUserMayEditActiveSection = createSelector(
 export const selectActiveCollectionCardTypeToAdd = createSelector(
 	selectActiveCollectionDescription,
 	(collectionDescription) : CardType => {
-		if (collectionDescription.set != EVERYTHING_SET_NAME) return DEFAULT_CARD_TYPE;
+		if (collectionDescription.set != 'everything') return DEFAULT_CARD_TYPE;
 		if (collectionDescription.filters.length != 1) return DEFAULT_CARD_TYPE;
 		//Note: we aren't sure that the first filter is a CardType, but it's
 		//safe to try because we're just using it to index.
@@ -1268,7 +1266,7 @@ export const selectActiveTagId = createSelector(
 	(collectionDescription, tags) => {
 		//The activeSectionId is only true if it's the default set and there
 		//is precisely one filter who is also a set.
-		if( collectionDescription.set != DEFAULT_SET_NAME) return '';
+		if( collectionDescription.set != 'main') return '';
 		if (collectionDescription.filters.length != 1) return '';
 		return tags[collectionDescription.filters[0]] ? collectionDescription.filters[0] : '';
 	}
@@ -1314,16 +1312,21 @@ const selectEverythingSetSnapshot = createSelector(
 	makeEverythingSetFromCards,
 );
 
+type SetCollection = {
+	[set in Exclude<SetName, ''>]: CardID[]
+};
+
 const selectAllSets = createSelector(
 	selectDefaultSet,
 	selectUserReadingList,
 	selectEverythingSet,
 	(defaultSet, readingListSet, everythingSet) => {
-		return {
-			[DEFAULT_SET_NAME]: defaultSet,
-			[READING_LIST_SET_NAME]: readingListSet,
-			[EVERYTHING_SET_NAME]: everythingSet,
+		const result : SetCollection = {
+			'main': defaultSet,
+			'reading-list': readingListSet,
+			'everything': everythingSet,
 		};
+		return result;
 	}
 );
 
@@ -1334,11 +1337,14 @@ const selectSetsSnapshot = createSelector(
 	selectAllSets,
 	selectEverythingSetSnapshot,
 	selectUserReadingListSnapshot,
-	(allSets, everythingSetSnapshot, readingListSet) => ({
-		...allSets, 
-		[EVERYTHING_SET_NAME]: everythingSetSnapshot,
-		[READING_LIST_SET_NAME]: readingListSet,
-	})
+	(allSets, everythingSetSnapshot, readingListSet) => {
+		const result : SetCollection = {
+			...allSets, 
+			'everything': everythingSetSnapshot,
+			'reading-list': readingListSet,
+		};
+		return result;
+	}
 );
 
 
@@ -1605,10 +1611,10 @@ export const selectCollectionDescriptionForQuery = createSelector(
 			}
 			baseFilters.push(limitFilter(10));
 			//If there's no query, return the similar cards to the current card
-			return new CollectionDescription(EVERYTHING_SET_NAME, baseFilters, sort);
+			return new CollectionDescription('everything', baseFilters, sort);
 		}
 		const queryFilter = queryConfigurableFilterText(wordsAndFilters[0]);
-		return new CollectionDescription(EVERYTHING_SET_NAME,[...baseFilters, queryFilter, ...wordsAndFilters[1]], sortByRecent ? SORT_NAME_RECENT : SORT_NAME_DEFAULT);
+		return new CollectionDescription('everything',[...baseFilters, queryFilter, ...wordsAndFilters[1]], sortByRecent ? SORT_NAME_RECENT : SORT_NAME_DEFAULT);
 	}
 );
 

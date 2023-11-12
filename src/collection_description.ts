@@ -5,7 +5,6 @@ import {
 	SORT_REVERSED_URL_KEYWORD,
 	SET_NAMES,
 	UNION_FILTER_DELIMITER,
-	FILTER_EQUIVALENTS_FOR_SET,
 	CONFIGURABLE_FILTER_URL_PARTS,
 	CONFIGURABLE_FILTER_NAMES,
 	LIMIT_FILTER_NAME,
@@ -15,10 +14,10 @@ import {
 	makeConfigurableFilter,
 	queryConfigurableFilterText,
 	queryTextFromQueryFilter,
+	SET_INFOS,
 } from './filters.js';
 
 import {
-	DEFAULT_SET_NAME,
 	DEFAULT_VIEW_MODE,
 	VIEW_MODE_WEB,
 	SORT_NAME_DEFAULT,
@@ -277,7 +276,7 @@ export class CollectionDescription {
 	constructor(setName? : SetName, filterNames? : FilterName[], sortName? : SortName, sortReversed? : boolean, viewMode? : ViewMode, viewModeExtra? : string) {
 		let setNameExplicitlySet = true;
 		if (!setName) {
-			setName = DEFAULT_SET_NAME;
+			setName = 'main';
 			setNameExplicitlySet = false;
 		}
 		if (!sortName) sortName = SORT_NAME_DEFAULT;
@@ -384,7 +383,7 @@ export class CollectionDescription {
 	//all items are in a canonical sorted order but the URL is optimized to stay
 	//as the user wrote it.
 	_serialize(unsorted? : boolean) : string {
-		let result = [this.set];
+		let result : string[] = [this.set];
 
 		const filterNames = [...this.filters];
 		if (!unsorted) filterNames.sort();
@@ -421,7 +420,7 @@ export class CollectionDescription {
 	_serializeShort(unsorted? : boolean) : string {
 		let result = [];
 
-		if (this.set != DEFAULT_SET_NAME) result.push(this.set);
+		if (this.set != 'main') result.push(this.set);
 
 		const filterNames = [...this.filters];
 		if (!unsorted) filterNames.sort();
@@ -847,7 +846,10 @@ export class Collection {
 		//cards and then filter them down to the list that was in the set
 		//originally. This is OK because we're returning a set, not an array,
 		//from this method, so order doesn't matter.
-		const filterEquivalentForActiveSet = FILTER_EQUIVALENTS_FOR_SET[this._description.set];
+
+		if (this._description.set == '') throw new Error('Empty set name');
+
+		const filterEquivalentForActiveSet = SET_INFOS[this._description.set].filterEquivalent;
 		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
 
 		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._filtersSnapshot, this._cardsForFiltering, this._keyCardID, this._editingCard, this._userID, this._randomSalt, this._cardSimilarity));
@@ -885,7 +887,7 @@ export class Collection {
 		this._ensureSortInfo();
 		//Skip the work of sorting in the default case, as everything is already
 		//sorted. No-op collections still might be created and should be fast.
-		if (this._description.set == DEFAULT_SET_NAME && this._description.sort == SORT_NAME_DEFAULT && !this._description.sortReversed && (!this._sortExtras || Object.keys(this._sortExtras).length == 0)) {
+		if (this._description.set == 'main' && this._description.sort == SORT_NAME_DEFAULT && !this._description.sortReversed && (!this._sortExtras || Object.keys(this._sortExtras).length == 0)) {
 			return collection;
 		}
 		const sortInfo = this._sortInfo;
