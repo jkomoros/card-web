@@ -767,6 +767,7 @@ export class Collection {
 
 	//This will return true if any card in any filter used to make this collection returned preview:true
 	get preview() : boolean {
+		this._ensureFilteredCards();
 		return this._preview;
 	}
 
