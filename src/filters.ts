@@ -772,7 +772,8 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 				//Kick off a request for similarities we don't currently have, so
 				//we'll have them next time. We'll get called again once it's fetched.
 				//fetchSimilarCardsIfEnabled will tell us if we should expect values in the future.
-				preview = fetchSimilarCardsIfEnabled(cardID);
+				//We want it to be a preview if any of the cards is positive.
+				preview = preview || fetchSimilarCardsIfEnabled(cardID);
 			}
 		}
 
