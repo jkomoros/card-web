@@ -56,7 +56,7 @@ const INITIAL_STATE : DataState = {
 	cardModificationError: null,
 	reorderPending: false,
 	pendingNewCardID: '',
-	pendingNewCardType: '',
+	pendingNewCardType: 'content',
 	pendingNewCardIDToNavigateTo: '',
 	cardSimilarity: {}
 };
@@ -71,7 +71,7 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			return {
 				...state,
 				pendingNewCardID: action.ID,
-				pendingNewCardType: action.cardType || '',
+				pendingNewCardType: action.cardType
 			};
 		}
 		return {
@@ -84,14 +84,14 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			reorderPending: true,
 			pendingNewCardID: action.ID,
 			pendingNewCardIDToNavigateTo: action.ID,
-			pendingNewCardType: action.cardType || '',
+			pendingNewCardType: action.cardType,
 		};
 	case NAVIGATED_TO_NEW_CARD:
 		return {
 			...state,
 			reorderPending: false,
 			pendingNewCardID: '',
-			pendingNewCardType: '',
+			pendingNewCardType: 'content',
 			pendingNewCardIDToNavigateTo: '',
 		};
 	case UPDATE_CARDS:
@@ -107,7 +107,7 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 		}
 		if (Object.keys(action.cards).some(key => key === state.pendingNewCardID)) {
 			result.pendingNewCardID = '';
-			result.pendingNewCardType = '';
+			result.pendingNewCardType = 'content';
 		}
 		//Reset the card similarity map because if the card that was just change
 		//was in any map, it is now invalid.
@@ -129,7 +129,7 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			publishedCardsLoaded: true,
 			unpublishedCardsLoaded: true,
 			pendingNewCardID: '',
-			pendingNewCardType: '',
+			pendingNewCardType: 'content',
 			pendingNewCardIDToNavigateTo: '',
 		};
 	case EXPECT_CARD_DELETIONS:

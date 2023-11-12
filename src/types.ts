@@ -86,7 +86,7 @@ export const cardType = z.enum([
 	'person'
 ]);
 
-export type CardType = '' | z.infer<typeof cardType>;
+export type CardType = z.infer<typeof cardType>;
 
 type CSSPartString = string;
 
