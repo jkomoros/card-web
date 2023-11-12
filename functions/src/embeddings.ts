@@ -315,11 +315,6 @@ class EmbeddingStore {
 
 		const text = textContentForEmbeddingForCard(card);
 
-		if (!text.trim()) {
-			console.log(`Skipping ${card.id} because text to embed is empty`);
-			return;
-		}
-
 		let existingPoint : PointSummary | null = null;
 		if (cardsContent === undefined) {
 			existingPoint = await this.getExistingPoint(card.id, {includePayload: true});
