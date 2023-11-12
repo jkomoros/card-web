@@ -173,6 +173,8 @@ const SIMILAR_DIFFERENT_TYPE = [
 	excludeFilter(referencesFilter('both', SUBSTANTIVE_REFERENCE_TYPES))
 ];
 
+const SIMLIAR_PREVIEW_MESSAGE = 'These cards are based on the lower-quality local similarity, not embedding based similarity.';
+
 const INFO_PANEL_REFERENCE_BLOCKS : ReferenceBlocks = [
 	{
 		title: 'Example of',
@@ -221,6 +223,7 @@ const INFO_PANEL_REFERENCE_BLOCKS : ReferenceBlocks = [
 		collectionDescription: collectionDescription(...SIMILAR_SAME_TYPE, limitFilter(NUM_SIMILAR_CARDS_TO_SHOW)),
 		navigationCollectionDescription: collectionDescription(...SIMILAR_SAME_TYPE),
 		showNavigate: true,
+		showPreview: SIMLIAR_PREVIEW_MESSAGE,
 		title: 'Similar Cards',
 		description: 'Cards that are neither linked to or from here but that have distinctive terms that overlap with this card and are the same type of card.',
 	},
@@ -228,6 +231,7 @@ const INFO_PANEL_REFERENCE_BLOCKS : ReferenceBlocks = [
 		collectionDescription: collectionDescription(...SIMILAR_DIFFERENT_TYPE, limitFilter(NUM_SIMILAR_CARDS_TO_SHOW)),
 		navigationCollectionDescription: collectionDescription(...SIMILAR_DIFFERENT_TYPE),
 		showNavigate: true,
+		showPreview: SIMLIAR_PREVIEW_MESSAGE,
 		title: 'Similar Cards (Other Type)',
 		description: 'Cards that are neither linked to or from here but that have distinctive terms that overlap with this card but are a different type (either working-notes or content)',
 	}
