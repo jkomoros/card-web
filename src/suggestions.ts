@@ -1,5 +1,5 @@
 import {
-	selectCards, selectCollectionConstructorArguments
+	selectCards, selectCollectionConstructorArguments, userMayEditCard
 } from './selectors.js';
 
 import {
@@ -49,6 +49,7 @@ export type Suggestion = {
 };
 
 type SuggestorArgs = {
+	//TODO: pass a verbose: true for debugging scenarios.
 	card: ProcessedCard,
 	cards: ProcessedCards
 	collectionArguments: CollectionConstructorArguments
@@ -82,6 +83,9 @@ const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 export const suggestionsForCard = async (card : ProcessedCard, state : State) : Promise<Suggestion[]> => {
 
 	const result : Suggestion[] = [];
+
+	//Only suggest things for cards the user may actually edit.
+	if (!userMayEditCard(state, card.id)) return [];
 
 	const args : SuggestorArgs = {
 		card,
