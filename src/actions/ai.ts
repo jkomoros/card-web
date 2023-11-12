@@ -46,9 +46,6 @@ import {
 } from '../types.js';
 
 import {
-	AI_DIALOG_TYPE_CARD_SUMMARY,
-	AI_DIALOG_TYPE_MISSING_CONCEPTS,
-	AI_DIALOG_TYPE_SUGGEST_TITLE,
 	TEXT_FIELD_TITLE
 } from '../type_constants.js';
 
@@ -323,7 +320,7 @@ export const titleForEditingCardWithAI = (count = 5) : ThunkSomeAction => async 
 
 	const model = DEFAULT_MODEL;
 
-	dispatch(aiRequestStarted(AI_DIALOG_TYPE_SUGGEST_TITLE, model));
+	dispatch(aiRequestStarted('title', model));
 
 	let prompt = 'The following is a short essay: ' + CARD_SEPARATOR + body + CARD_SEPARATOR;
 	prompt += 'Here are examples of good titles of other essays:' + CARD_SEPARATOR + selectGoodTitles(state).join('\n') + CARD_SEPARATOR;
@@ -348,7 +345,7 @@ export const summarizeCardsWithAI = () : ThunkSomeAction => async (dispatch, get
 	const uid = selectUid(state);
 	const cards = selectActiveCollectionCards(state);
 	const model = DEFAULT_LONG_MODEL;
-	dispatch(aiRequestStarted(AI_DIALOG_TYPE_CARD_SUMMARY, model));
+	dispatch(aiRequestStarted('summary', model));
 
 	const [prompt, ids] = await cardsAISummaryPrompt(cards, model);
 	dispatch({
@@ -389,7 +386,7 @@ export const missingConceptsWithAI = () : ThunkSomeAction => async (dispatch, ge
 	const uid = selectUid(state);
 	const cards = selectActiveCollectionCards(state);
 	const model = DEFAULT_HIGH_FIDELITY_MODEL;
-	dispatch(aiRequestStarted(AI_DIALOG_TYPE_MISSING_CONCEPTS, model));
+	dispatch(aiRequestStarted('concepts', model));
 
 	const reversedConcepts = selectConcepts(state);
 	const conceptStrings = distilledConceptStrings(reversedConcepts);
@@ -412,17 +409,17 @@ export const missingConceptsWithAI = () : ThunkSomeAction => async (dispatch, ge
 };
 
 export const AI_DIALOG_TYPE_CONFIGURATION : {[key in AIDialogType] : AIDialogTypeConfiguration} = {
-	[AI_DIALOG_TYPE_CARD_SUMMARY]: {
+	'summary': {
 		title: 'Summarize Cards',
 		resultType: 'text-block',
 	},
-	[AI_DIALOG_TYPE_SUGGEST_TITLE]: {
+	'title': {
 		title: 'Suggest Title',
 		resultType: 'multi-line',
 		commitAction: commitTitleSuggestion,
 		rerunAction: titleForEditingCardWithAI
 	},
-	[AI_DIALOG_TYPE_MISSING_CONCEPTS]: {
+	'concepts': {
 		title: 'Missing Concepts',
 		resultType: 'tag-list'
 	}

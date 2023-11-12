@@ -13,7 +13,6 @@ import {
 	TEXT_FIELD_TYPES_EDITABLE,
 	EDITOR_TAB_TYPES,
 	EDITOR_CONTENT_TAB_TYPES,
-	AI_DIALOG_TYPES,
 	FIND_CARD_TO_LINK,
 	FIND_CARD_TO_PERMISSION,
 	FIND_CARD_TO_REFERENCE,
@@ -1240,7 +1239,13 @@ export type MultiEditState = {
 
 export type AIModelName = 'gpt-3.5-turbo' | 'gpt-3.5-turbo-16k' | 'gpt-4' | 'gpt-4-32k';
 
-export type AIDialogType = keyof(typeof AI_DIALOG_TYPES);
+const aiDialogType = z.enum([
+	'summary',
+	'title',
+	'concepts'
+]);
+
+export type AIDialogType = z.infer<typeof aiDialogType>;
 
 export type AIState = {
 	open: boolean;
