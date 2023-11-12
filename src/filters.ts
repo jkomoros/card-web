@@ -28,21 +28,7 @@ import {
 
 import {
 	REFERENCE_TYPE_CONCEPT,
-	REFERENCE_TYPE_LINK,
-	SORT_NAME_DEFAULT,
-	SORT_NAME_RECENT,
-	SORT_NAME_STARS,
-	SORT_NAME_ORIGINAL_ORDER,
-	SORT_NAME_LINK_COUNT,
-	SORT_NAME_UPDATED,
-	SORT_NAME_CREATED,
-	SORT_NAME_COMMENTED,
-	SORT_NAME_LAST_TWEETED,
-	SORT_NAME_TWEET_COUNT,
-	SORT_NAME_TWEET_ORDER,
-	SORT_NAME_TODO_DIFFICULTY,
-	SORT_NAME_RANDOM,
-	SORT_NAME_CARD_RANK
+	REFERENCE_TYPE_LINK
 } from './type_constants.js';
 
 import {
@@ -1360,7 +1346,7 @@ export const SORTS : SortConfigurationMap = {
 	//sortValues, in which case it uses those. Note that
 	//collection._makeSortedCards has logic tailored to this to know when it can
 	//bail out early
-	[SORT_NAME_DEFAULT]: {
+	'default': {
 		extractor: (card, sections, _, sortExtra) : [number, string] => {
 			if (!sortExtra || Object.keys(sortExtra).length == 0) return [0, sectionNameForCard(card, sections)];
 			//Pick whatever is the first key stored, which will be the first
@@ -1388,13 +1374,13 @@ export const SORTS : SortConfigurationMap = {
 		},
 		reorderable: (sortExtra) => !sortExtra || Object.keys(sortExtra).length == 0
 	},
-	[SORT_NAME_ORIGINAL_ORDER]: {
+	'original-order': {
 		extractor: (card, sections) => [0, sectionNameForCard(card, sections)],
 		description: 'The default order of the cards within each section in order',
 		labelName: 'Section',
 		reorderable: () => true
 	},
-	[SORT_NAME_LINK_COUNT]: {
+	'link-count': {
 		extractor: (card) => {
 			const inbound_links = references(card).inboundLinksArray();
 			return [inbound_links.length, '' + inbound_links.length];
@@ -1402,7 +1388,7 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In descending order by number of inbound links',
 		labelName: 'Link Count',
 	},
-	[SORT_NAME_UPDATED]: {
+	'updated': {
 		extractor: (card) => {
 			const timestamp = card.updated_substantive;
 			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
@@ -1410,7 +1396,7 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In descending order by when each card was last substantively updated',
 		labelName:'Updated',
 	},
-	[SORT_NAME_CREATED]: {
+	'created': {
 		extractor: (card) => {
 			const timestamp = card.updated_substantive;
 			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
@@ -1418,11 +1404,11 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In descending order by when each card was created',
 		labelName:'Created',
 	},
-	[SORT_NAME_STARS]: {
+	'stars': {
 		extractor: (card) => [card.star_count || 0, ''],
 		description: 'In descending order by number of stars',
 	},
-	[SORT_NAME_COMMENTED]: {
+	'commented': {
 		extractor: (card) => {
 			const timestamp = card.updated_message;
 			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
@@ -1430,7 +1416,7 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In descending order by when each card last had a new message',
 		labelName: 'Commented',
 	},
-	[SORT_NAME_RECENT]: {
+	'recent': {
 		extractor: (card) => {
 			const messageValue = card.updated_message ? card.updated_message.seconds : 0;
 			const updatedValue = card.updated_substantive ? card.updated_substantive.seconds : 0;
@@ -1442,24 +1428,24 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In descending order by when each card was last updated or had a new message',
 		labelName: 'Last Activity',
 	},
-	[SORT_NAME_LAST_TWEETED]: {
+	'last-tweeted': {
 		extractor: (card) => {
 			return [card.last_tweeted.seconds, prettyTime(card.last_tweeted)];
 		},
 		description: 'In descending order of when they were last auto-tweeted',
 		labelName: 'Tweeted'
 	},	
-	[SORT_NAME_TWEET_COUNT]: {
+	'tweet-count': {
 		extractor: (card) => [card.tweet_count, '' + card.tweet_count],
 		description: 'In descending order of how many times the card has been tweeted',
 		labelName: 'Tweet Count',
 	},
-	[SORT_NAME_TWEET_ORDER]: {
+	'tweet-order': {
 		extractor: tweetOrderExtractor as (card : ProcessedCard, sections : Sections, allCards : ProcessedCards) => [number, string],
 		description: 'In descending order of the ones that are most deserving of a tweet',
 		labelName: 'Tweet Worthiness',
 	},
-	[SORT_NAME_TODO_DIFFICULTY]: {
+	'todo-difficulty': {
 		extractor: (card : ProcessedCard) => {
 			const result = MAX_TOTAL_TODO_DIFFICULTY - cardTODOConfigKeys(card).map(key => TODO_DIFFICULTY_MAP[key]).reduce((prev, curr) => prev + curr, 0.0);
 			return [result, '' + result];
@@ -1467,14 +1453,14 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In ascending order of how difficult remaining TODOs are',
 		labelName: 'TODO Difficulty'
 	},
-	[SORT_NAME_RANDOM]: {
+	'random': {
 		extractor: (card, _, __, ___, filterExtras) => {
 			return [hash(card.id + filterExtras.randomSalt), ''];
 		},
 		description: 'A random order',
 		labelName: 'Random Order'
 	},
-	[SORT_NAME_CARD_RANK]: {
+	'card-rank': {
 		extractor: (card, _, cards) => {
 			//This is memoized so as long as cards is the same it won't be re-run.
 			const ranks = pageRank(cards);
@@ -1784,7 +1770,7 @@ const INITIAL_STATE_FILTERS = Object.assign(
 export const INITIAL_STATE : CollectionState = {
 	activeSetName: 'main',
 	activeFilterNames: [],
-	activeSortName: SORT_NAME_DEFAULT,
+	activeSortName: 'default',
 	activeSortReversed: false,
 	activeViewMode: 'list',
 	activeViewModeExtra: '',

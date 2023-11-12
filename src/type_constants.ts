@@ -117,38 +117,6 @@ export const EDITOR_CONTENT_TAB_TYPES = {
 	[EDITOR_TAB_TODO]: true,
 };
 
-export const SORT_NAME_DEFAULT = 'default';
-export const SORT_NAME_RECENT = 'recent';
-export const SORT_NAME_STARS = 'stars';
-export const SORT_NAME_ORIGINAL_ORDER = 'original-order';
-export const SORT_NAME_LINK_COUNT = 'link-count';
-export const SORT_NAME_UPDATED = 'updated';
-export const SORT_NAME_CREATED = 'created';
-export const SORT_NAME_COMMENTED = 'commented';
-export const SORT_NAME_LAST_TWEETED = 'last-tweeted';
-export const SORT_NAME_TWEET_COUNT = 'tweet-count';
-export const SORT_NAME_TWEET_ORDER = 'tweet-order';
-export const SORT_NAME_TODO_DIFFICULTY = 'todo-difficulty';
-export const SORT_NAME_RANDOM = 'random';
-export const SORT_NAME_CARD_RANK = 'card-rank';
-
-export const SORT_NAME_TYPES = {
-	[SORT_NAME_DEFAULT]: true,
-	[SORT_NAME_RECENT]: true,
-	[SORT_NAME_STARS]: true,
-	[SORT_NAME_ORIGINAL_ORDER]: true,
-	[SORT_NAME_LINK_COUNT]: true,
-	[SORT_NAME_UPDATED]: true,
-	[SORT_NAME_CREATED]: true,
-	[SORT_NAME_COMMENTED]: true,
-	[SORT_NAME_LAST_TWEETED]: true,
-	[SORT_NAME_TWEET_COUNT]: true,
-	[SORT_NAME_TWEET_ORDER]: true,
-	[SORT_NAME_TODO_DIFFICULTY]: true,
-	[SORT_NAME_RANDOM]: true,
-	[SORT_NAME_CARD_RANK]: true
-};
-
 export const TAB_CONFIG_DEFAULT_TABS = 'default_tabs';
 export const TAB_CONFIG_DEFAULT_END_TABS = 'default_end_tabs';
 export const TAB_CONFIG_SECTIONS = 'sections';

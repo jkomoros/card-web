@@ -18,11 +18,6 @@ import {
 } from './filters.js';
 
 import {
-	SORT_NAME_DEFAULT,
-	SORT_NAME_RANDOM
-} from './type_constants.js';
-
-import {
 	TypedObject
 } from './typed_object.js';
 
@@ -70,9 +65,9 @@ const extractFilterNamesSortAndView = (parts : URLPart[]) : [FilterName[], SortN
 	//returns the filter names, the sort name, and whether the sort is reversed
 	//parts is all of the unconsumed portions of the path that aren't the set
 	//name or the card name.
-	if (!parts.length) return [[], SORT_NAME_DEFAULT, false, 'list', ''];
+	if (!parts.length) return [[], 'default', false, 'list', ''];
 	const filters : FilterName[] = [];
-	let sortName : SortName = SORT_NAME_DEFAULT;
+	let sortName : SortName = 'default';
 	let sortReversed = false;
 	let viewMode : ViewMode = 'list';
 	let viewModeExtra = '';
@@ -278,7 +273,7 @@ export class CollectionDescription {
 			setName = 'main';
 			setNameExplicitlySet = false;
 		}
-		if (!sortName) sortName = SORT_NAME_DEFAULT;
+		if (!sortName) sortName = 'default';
 		if (!sortReversed) sortReversed = false;
 		if (!filterNames) filterNames = [];
 		if (!viewMode) viewMode = 'list';
@@ -344,7 +339,7 @@ export class CollectionDescription {
 	}
 
 	get sortConfig() {
-		return SORTS[this.sort] || SORTS[SORT_NAME_DEFAULT];
+		return SORTS[this.sort];
 	}
 
 	//IF the collection wants to limit how many items to return, this will
@@ -355,7 +350,7 @@ export class CollectionDescription {
 	}
 
 	get isRandom() {
-		return this.sort == SORT_NAME_RANDOM;
+		return this.sort == 'random';
 	}
 
 	//IF the collection wants to offset how many items to return, this will
@@ -389,7 +384,7 @@ export class CollectionDescription {
 	
 		result = result.concat(filterNames);
 	
-		if (this.sort != SORT_NAME_DEFAULT || this.sortReversed) {
+		if (this.sort != 'default' || this.sortReversed) {
 			result.push(SORT_URL_KEYWORD);
 			if (this.sortReversed) result.push(SORT_REVERSED_URL_KEYWORD);
 			result.push(this.sort);
@@ -426,7 +421,7 @@ export class CollectionDescription {
 
 		result = result.concat(filterNames);
 
-		if (this.sort != SORT_NAME_DEFAULT || this.sortReversed) {
+		if (this.sort != 'default' || this.sortReversed) {
 			result.push(SORT_URL_KEYWORD);
 			if (this.sortReversed) result.push(SORT_REVERSED_URL_KEYWORD);
 			result.push(this.sort);
@@ -884,7 +879,7 @@ export class Collection {
 		this._ensureSortInfo();
 		//Skip the work of sorting in the default case, as everything is already
 		//sorted. No-op collections still might be created and should be fast.
-		if (this._description.set == 'main' && this._description.sort == SORT_NAME_DEFAULT && !this._description.sortReversed && (!this._sortExtras || Object.keys(this._sortExtras).length == 0)) {
+		if (this._description.set == 'main' && this._description.sort == 'default' && !this._description.sortReversed && (!this._sortExtras || Object.keys(this._sortExtras).length == 0)) {
 			return collection;
 		}
 		const sortInfo = this._sortInfo;

@@ -13,7 +13,6 @@ import {
 	TEXT_FIELD_TYPES_EDITABLE,
 	EDITOR_TAB_TYPES,
 	EDITOR_CONTENT_TAB_TYPES,
-	SORT_NAME_TYPES,
 	AI_DIALOG_TYPES,
 	FIND_CARD_TO_LINK,
 	FIND_CARD_TO_PERMISSION,
@@ -331,7 +330,7 @@ export type SortConfigurationMap = {
 	//TODO: make it so no field is optional, which will help detect places where
 	//you forgot to add a configuration block for a type. And then do this for
 	//others, too.
-	[sortName in SortName]+?: {
+	[sortName in SortName]: {
 		extractor : (card : ProcessedCard, sections : Sections, cards : ProcessedCards, sortExtras : SortExtras, filterExtras: FilterExtras) => SortExtractorResult ,
 		description : string,
 		labelName? : string | ((sortExtras : SortExtras) => string),
@@ -861,7 +860,25 @@ export type SetName = z.infer<typeof setNameSchema>;
 //Convenience for verifying a type in a more permissive context is of a given type at compile time.
 export const setName = (input : SetName) => input;
 
-export type SortName = '' | keyof(typeof SORT_NAME_TYPES);
+
+const sortName = z.enum([
+	'default',
+	'recent',
+	'stars',
+	'original-order',
+	'link-count',
+	'updated',
+	'created',
+	'commented',
+	'last-tweeted',
+	'tweet-count',
+	'tweet-order',
+	'todo-difficulty',
+	'random',
+	'card-rank'
+]);
+
+export type SortName = z.infer<typeof sortName>;
 
 //A part of a URL in a collection description. These pieces are delimited by '/' in the URL.
 export type URLPart = string;

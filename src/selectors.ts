@@ -47,8 +47,6 @@ import {
 } from './card_fields.js';
 
 import {
-	SORT_NAME_RECENT,
-	SORT_NAME_DEFAULT,
 	AI_DIALOG_TYPE_CARD_SUMMARY
 } from './type_constants.js';
 
@@ -210,7 +208,7 @@ export const selectImageBrowserDialogIndex = (state : State) => state.editor ? s
 export const selectActiveRenderOffset = (state : State) => state.collection ? state.collection.activeRenderOffset : 0;
 const selectActiveSetName = (state : State) : SetName => state.collection ? state.collection.activeSetName : 'main';
 const selectActiveFilterNames = (state : State) => state.collection ? state.collection.activeFilterNames : [];
-const selectActiveSortName = (state : State) => state.collection ? state.collection.activeSortName : '';
+const selectActiveSortName = (state : State) : SortName => state.collection ? state.collection.activeSortName : 'default';
 const selectActiveSortReversed = (state : State) => state.collection ? state.collection.activeSortReversed : false;
 const selectActiveViewMode = (state : State) : ViewMode => state.collection ? state.collection.activeViewMode : 'list';
 const selectActiveViewModeExtra = (state : State) => state.collection ? state.collection.activeViewModeExtra : '';
@@ -1604,7 +1602,7 @@ export const selectCollectionDescriptionForQuery = createSelector(
 				//If it's a generic search, we don't want similar cards to
 				//current card (which might be a boring section title card), we
 				//just want recent cards.
-				sort = SORT_NAME_RECENT;
+				sort = 'recent';
 			} else {
 				//If it's a search to find a card to link etc we do want it to
 				//be related to the card we're on.
@@ -1615,7 +1613,7 @@ export const selectCollectionDescriptionForQuery = createSelector(
 			return new CollectionDescription('everything', baseFilters, sort);
 		}
 		const queryFilter = queryConfigurableFilterText(wordsAndFilters[0]);
-		return new CollectionDescription('everything',[...baseFilters, queryFilter, ...wordsAndFilters[1]], sortByRecent ? SORT_NAME_RECENT : SORT_NAME_DEFAULT);
+		return new CollectionDescription('everything',[...baseFilters, queryFilter, ...wordsAndFilters[1]], sortByRecent ? 'recent' : 'default');
 	}
 );
 

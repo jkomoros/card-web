@@ -20,11 +20,6 @@ import {
 } from '../filters.js';
 
 import {
-	SORT_NAME_DEFAULT,
-	SORT_NAME_RANDOM
-} from '../type_constants.js';
-
-import {
 	Collection,
 	CollectionDescription,
 } from '../collection_description.js';
@@ -291,7 +286,7 @@ export const canonicalizeURL = () : ThunkSomeAction => (dispatch, getState) => {
 	}
 
 	//TODO: it's weird to recreate the logic of CollectionDescription.serialize() here.
-	if (description.sort != SORT_NAME_DEFAULT || description.sortReversed) {
+	if (description.sort != 'default' || description.sortReversed) {
 		result.push(SORT_URL_KEYWORD);
 		if(description.sortReversed) {
 			result.push(SORT_REVERSED_URL_KEYWORD);
@@ -426,7 +421,7 @@ export const showCard = (requestedCard : CardID = PLACEHOLDER_CARD_ID_CHARACTER)
 	}
 };
 
-export const RANDOM_CARD_COLLECTION = new CollectionDescription('everything', [limitFilter(1)], SORT_NAME_RANDOM, false);
+export const RANDOM_CARD_COLLECTION = new CollectionDescription('everything', [limitFilter(1)], 'random', false);
 
 const randomizeSalt = () : SomeAction => {
 	return {
