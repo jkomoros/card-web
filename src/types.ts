@@ -13,7 +13,6 @@ import {
 	TEXT_FIELD_TYPES_EDITABLE,
 	EDITOR_TAB_TYPES,
 	EDITOR_CONTENT_TAB_TYPES,
-	COMMIT_ACTION_TYPES,
 	SORT_NAME_TYPES,
 	AI_DIALOG_TYPES,
 	FIND_CARD_TO_LINK,
@@ -837,7 +836,14 @@ export type UserPermissionsMap = {
 	[person: Uid]: UserPermissions
 };
 
-export type CommitActionType = keyof(typeof COMMIT_ACTION_TYPES);
+const commitActionType = z.enum([
+	'CONSOLE_LOG',
+	'EDIT_MESSAGE',
+	'ADD_MESSAGE',
+	'CREATE_THREAD'
+]);
+
+export type CommitActionType = z.infer<typeof commitActionType>;
 
 const setNameSchema = z.enum([
 	//The default set

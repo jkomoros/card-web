@@ -117,18 +117,6 @@ export const EDITOR_CONTENT_TAB_TYPES = {
 	[EDITOR_TAB_TODO]: true,
 };
 
-export const COMMIT_ACTION_CONSOLE_LOG = 'CONSOLE_LOG';
-export const COMMIT_ACTION_EDIT_MESSAGE = 'EDIT_MESSAGE';
-export const COMMIT_ACTION_ADD_MESSAGE = 'ADD_MESSAGE';
-export const COMMIT_ACTION_CREATE_THREAD = 'CREATE_THREAD';
-
-export const COMMIT_ACTION_TYPES = {
-	[COMMIT_ACTION_CONSOLE_LOG]: true,
-	[COMMIT_ACTION_EDIT_MESSAGE]: true,
-	[COMMIT_ACTION_ADD_MESSAGE]: true,
-	[COMMIT_ACTION_CREATE_THREAD]: true
-};
-
 export const SORT_NAME_DEFAULT = 'default';
 export const SORT_NAME_RECENT = 'recent';
 export const SORT_NAME_STARS = 'stars';

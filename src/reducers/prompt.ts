@@ -11,15 +11,11 @@ import {
 	PromptState
 } from '../types.js';
 
-import {
-	COMMIT_ACTION_CONSOLE_LOG
-} from '../type_constants.js';
-
 const INITIAL_STATE : PromptState = {
 	composeOpen: false,
 	content: '',
 	message: '',
-	action: COMMIT_ACTION_CONSOLE_LOG,
+	action: 'CONSOLE_LOG',
 	associatedId: '',
 };
 
