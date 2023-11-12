@@ -55,9 +55,10 @@ type CardSimilarityItem = [CardID, number];
 
 //Replicated in `functions/src/types.ts`
 type SimilarCardsResponseData = {
-	success: boolean,
-	//Will be set if success = false
-	error? : string
+	success: false,
+	error: string
+} | {
+	success: true
 	cards: CardSimilarityItem[]
 };
 
@@ -67,8 +68,7 @@ const similarCards = async (cardID : CardID) : Promise<SimilarCardsResponseData>
 	if (!QDRANT_ENABLED) {
 		return {
 			success: false,
-			error: 'Qdrant isn\'t enabled',
-			cards: []
+			error: 'Qdrant isn\'t enabled'
 		};
 	}
 	const request = {
@@ -83,7 +83,7 @@ const fetchSimilarCards = (cardID : CardID) : ThunkSomeAction => async (dispatch
 
 	const result = await similarCards(cardID);
 
-	if (!result.success) {
+	if (result.success == false) {
 		console.warn(`similarCards failed: ${result.error}`);
 		dispatch({
 			type: UPDATE_CARD_SIMILARITY,

@@ -195,8 +195,9 @@ export type CardSimilarityItem = [CardID, number];
 
 //Replicated in `src/actions/similarity.ts`
 export type SimilarCardsResponseData = {
-	success: boolean,
-	//Will be set if success = false
-	error? : string
+	success: false,
+	error: string
+} | {
+	success: true
 	cards: CardSimilarityItem[]
 };

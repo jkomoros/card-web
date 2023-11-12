@@ -480,8 +480,7 @@ export const similarCards = async (request : CallableRequest<SimilarCardsRequest
 		if (!point) {
 			return {
 				success: false,
-				error: `Could not find embedding for ${data.card_id}`,
-				cards: []
+				error: `Could not find embedding for ${data.card_id}`
 			};
 		}
 	
