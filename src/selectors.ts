@@ -544,6 +544,8 @@ export const selectCardIDsUserMayEdit : ((state: State) => CardBooleanMap) = cre
 	}
 );
 
+export const userMayEditCard = (state : State, cardID : CardID) : boolean => selectCardIDsUserMayEdit(state)[cardID] || false;
+
 export const selectUserMayEditActiveCard = createSelector(
 	selectCardIDsUserMayEdit,
 	selectActiveCardId,
@@ -645,7 +647,7 @@ export const getReasonUserMayNotDeleteCard = (state : State, card : Card) => {
 	//NOTE: this logic is recreatedin the firestore security rules for card deletion
 	if (!card) return 'No card provided';
 
-	if (!selectCardIDsUserMayEdit(state)[card.id]) return 'User may not edit card.';
+	if (!userMayEditCard(state, card.id)) return 'User may not edit card.';
 
 	if (card.section) return 'Card must be orphaned to be deleted';
 
