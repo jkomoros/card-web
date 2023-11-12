@@ -48,7 +48,10 @@ export type Suggestion = {
 	rejection?: SuggestionDiff
 };
 
-type Logger = (...msg: unknown[]) => void;
+type Logger = {
+	log(...msg: unknown[]): void;
+	warn(...msg: unknown[]): void;
+}
 
 type SuggestorArgs = {
 	logger : Logger,
@@ -84,8 +87,12 @@ const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 
 const VERBOSE = false;
 
-//eslint-disable-next-line @typescript-eslint/no-empty-function
-const devNull : Logger = () => {};
+const devNull : Logger = {
+	//eslint-disable-next-line @typescript-eslint/no-empty-function
+	log: () => {},
+	//eslint-disable-next-line @typescript-eslint/no-empty-function
+	warn: () => {}
+};
 
 export const suggestionsForCard = async (card : ProcessedCard, state : State) : Promise<Suggestion[]> => {
 
@@ -101,7 +108,7 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 			...selectCollectionConstructorArguments(state),
 			keyCardID: card.id
 		},
-		logger : VERBOSE ? console.log : devNull
+		logger : VERBOSE ? console : devNull
 	};
 
 	for (const suggestor of Object.values(SUGGESTORS)) {
