@@ -66,6 +66,8 @@ export interface ReferenceBlock {
 	emptyMessage? : string;
     // showNavigate: if true, then will show a button to navigate to that collection
 	showNavigate? : boolean;
+	//If provided, then if the collection is a preview, a warning icon will be shown, and it will have this message.
+	showPreview? : string;
     // onlyForEditors: if true, will only show this block if the keyCard is one the user may edit
 	onlyForEditors? : boolean;
 }
