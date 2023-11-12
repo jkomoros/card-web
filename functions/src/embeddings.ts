@@ -456,6 +456,10 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 	console.log('Done indexing cards');
 };
 
+//How many milliseconds of slop do we allow for last_updated check? This gets
+//across that the server and client times might be out of sync.
+const LAST_UPDATED_EPISLON = 10 * 1000;
+
 export const similarCards = async (request : CallableRequest<SimilarCardsRequestData>) : Promise<SimilarCardsResponseData> => {
 	const data = request.data;
 	if (!EMBEDDING_STORE) {
@@ -483,6 +487,18 @@ export const similarCards = async (request : CallableRequest<SimilarCardsRequest
 				code: 'no-embedding',
 				error: `Could not find embedding for ${data.card_id}`
 			};
+		}
+
+		if (data.last_updated !== undefined) {
+			const point_last_updated = point.payload?.last_updated || 0;
+			if (!(point_last_updated >= data.last_updated - LAST_UPDATED_EPISLON)) {
+				//Point is less current than epsilon
+				return {
+					success: false,
+					code: 'stale-embedding',
+					error: `Embedding has timestamp of ${point_last_updated} but card last_updated is ${data.last_updated}`
+				};
+			}
 		}
 	
 		//TODO: allow passing a custom limit (validate it)

@@ -182,6 +182,11 @@ export type LegalResponseData = {
 export type SimilarCardsRequestData = {
 	card_id: CardID
 
+	//timestamp in milliseconds since epoch. If provided, results will only be
+	//provided if the Vector point has a last-updated since then, otherwise
+	//error of `stale`.
+	last_updated? : number
+
 	//TODO: include a limit
 
 	//If card is provided, it will be used to get the content to embed, live.
@@ -196,7 +201,7 @@ export type CardSimilarityItem = [CardID, number];
 //Replicated in `src/actions/similarity.ts`
 export type SimilarCardsResponseData = {
 	success: false,
-	code: 'qdrant-disabled' | 'no-embedding' | 'unknown'
+	code: 'qdrant-disabled' | 'no-embedding' | 'stale-embedding' | 'unknown'
 	error: string
 } | {
 	success: true

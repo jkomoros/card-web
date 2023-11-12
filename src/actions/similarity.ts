@@ -42,6 +42,11 @@ type EmbeddableCard = Pick<Card, 'body' | 'title' | 'subtitle' | 'card_type' | '
 type SimilarCardsRequestData = {
 	card_id: CardID
 
+	//timestamp in milliseconds since epoch. If provided, results will only be
+	//provided if the Vector point has a last-updated since then, otherwise
+	//error of `stale`.
+	last_updated? : number
+
 	//TODO: include a limit
 
 	//If card is provided, it will be used to get the content to embed, live.
@@ -56,7 +61,7 @@ type CardSimilarityItem = [CardID, number];
 //Replicated in `functions/src/types.ts`
 type SimilarCardsResponseData = {
 	success: false,
-	code: 'qdrant-disabled' | 'no-embedding' | 'unknown'
+	code: 'qdrant-disabled' | 'no-embedding' | 'stale-embedding' | 'unknown'
 	error: string
 } | {
 	success: true
@@ -86,6 +91,11 @@ const fetchSimilarCards = (cardID : CardID) : ThunkSomeAction => async (dispatch
 	const result = await similarCards(cardID);
 
 	if (result.success == false) {
+
+		//TODO: if it failed because of `stale-embedding`, then try again... as
+		//long as it's been under 10 minutes since the card was updated, at
+		//which point we just give up.
+
 		console.warn(`similarCards failed: ${result.error}`);
 		dispatch({
 			type: UPDATE_CARD_SIMILARITY,
