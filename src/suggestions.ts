@@ -107,8 +107,15 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 
 	const result : Suggestion[] = [];
 
+	const logger = VERBOSE ? console : devNull;
+
+	logger.info(`Starting suggestions for ${card.id}`);
+
 	//Only suggest things for cards the user may actually edit.
-	if (!userMayEditCard(state, card.id)) return [];
+	if (!userMayEditCard(state, card.id)) {
+		logger.info('User may not edit card');
+		return [];
+	}
 
 	const args : SuggestorArgs = {
 		card,
@@ -117,11 +124,13 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 			...selectCollectionConstructorArguments(state),
 			keyCardID: card.id
 		},
-		logger : VERBOSE ? console : devNull
+		logger
 	};
 
-	for (const suggestor of Object.values(SUGGESTORS)) {
+	for (const [name, suggestor] of Object.entries(SUGGESTORS)) {
+		logger.info(`Starting suggestor ${name}`);
 		const innerResult = await suggestor.generator(args);
+		logger.info(`Suggestor ${name} returned ${JSON.stringify(innerResult, null, '\t')}`);
 		if (!innerResult) continue;
 		result.push(...innerResult);
 	}
