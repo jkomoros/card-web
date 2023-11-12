@@ -2,7 +2,34 @@ import {
 	references
 } from './references.js';
 
-import * as CONSTANTS from './type_constants.js';
+import {
+	REFERENCES_INFO_CARD_PROPERTY,
+	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
+	REFERENCES_CARD_PROPERTY,
+	REFERENCES_INBOUND_CARD_PROPERTY,
+	REFERENCE_TYPE_CITATION_PERSON,
+	REFERENCE_TYPE_LINK,
+	REFERENCE_TYPE_DUPE_OF,
+	REFERENCE_TYPE_ACK,
+	REFERENCE_TYPE_GENERIC,
+	REFERENCE_TYPE_FORK_OF,
+	REFERENCE_TYPE_MINED_FROM,
+	REFERENCE_TYPE_SEE_ALSO,
+	REFERENCE_TYPE_CITATION,
+	REFERENCE_TYPE_CONCEPT,
+	REFERENCE_TYPE_EXAMPLE_OF,
+	REFERENCE_TYPE_METAPHOR_FOR,
+	REFERENCE_TYPE_OPPOSITE_OF,
+	REFERENCE_TYPE_PARALLEL_TO,
+	REFERENCE_TYPE_SYNONYM,
+	TEXT_FIELD_BODY,
+	TEXT_FIELD_TITLE,
+	TEXT_FIELD_SUBTITLE,
+	TEXT_FIELD_TITLE_ALTERNATES,
+	TEXT_FIELD_REFERENCES_INFO_INBOUND,
+	TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND,
+	TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND
+} from './type_constants.js';
 
 import {
 	Card,
@@ -51,10 +78,10 @@ export const EMPTY_CARD : Card = {
 	title: '',
 	section: '',
 	body: '',
-	[CONSTANTS.REFERENCES_INFO_CARD_PROPERTY]: {},
-	[CONSTANTS.REFERENCES_INFO_INBOUND_CARD_PROPERTY]: {},
-	[CONSTANTS.REFERENCES_CARD_PROPERTY]: {},
-	[CONSTANTS.REFERENCES_INBOUND_CARD_PROPERTY]: {},
+	[REFERENCES_INFO_CARD_PROPERTY]: {},
+	[REFERENCES_INFO_INBOUND_CARD_PROPERTY]: {},
+	[REFERENCES_CARD_PROPERTY]: {},
+	[REFERENCES_INBOUND_CARD_PROPERTY]: {},
 	font_size_boost: {},
 	card_type: 'content',
 	notes: '',
@@ -226,10 +253,10 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 		defaultBody: WORK_DEFAULT_BODY,
 		backportTitleExtractor : (rawCard, _, rawCards) => {
 			const authors = [];
-			for (const otherID of (references(rawCard).byTypeArray()[CONSTANTS.REFERENCE_TYPE_CITATION_PERSON] || [])) {
+			for (const otherID of (references(rawCard).byTypeArray()[REFERENCE_TYPE_CITATION_PERSON] || [])) {
 				const otherCard = rawCards[otherID];
 				if (!otherCard) continue;
-				authors.push(getCardTitleForBackporting(otherCard, CONSTANTS.REFERENCE_TYPE_CITATION_PERSON, rawCards));
+				authors.push(getCardTitleForBackporting(otherCard, REFERENCE_TYPE_CITATION_PERSON, rawCards));
 			}
 			return rawCard.title + '\n' + authors.join('\n');
 		}
@@ -238,7 +265,7 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 
 //Any key in this object is a legal reference type
 export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
-	[CONSTANTS.REFERENCE_TYPE_LINK]: {
+	[REFERENCE_TYPE_LINK]: {
 		name: 'Body link',
 		description: 'Automatically extracted links from the body of the card',
 		editable: false,
@@ -249,7 +276,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		excludeFromInfoPanel: true,
 		needsReciprocation: true,
 	},
-	[CONSTANTS.REFERENCE_TYPE_DUPE_OF]: {
+	[REFERENCE_TYPE_DUPE_OF]: {
 		name: 'Duplicate of',
 		description: 'Denotes that this card is a duplicate of the card that it\'s pointing to',
 		editable: true,
@@ -257,7 +284,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//darkcyan
 		color: '#008B8B',
 	},
-	[CONSTANTS.REFERENCE_TYPE_ACK]: {
+	[REFERENCE_TYPE_ACK]: {
 		name: 'Non-substantive acknowledgement',
 		description: 'For when a card wants to acknowledge another card, but not form a substantive link. Useful for making the missing-reference or suggested-concept go away',
 		editable: true,
@@ -266,7 +293,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Not important enough
 		excludeFromInfoPanel: true,
 	},
-	[CONSTANTS.REFERENCE_TYPE_GENERIC]: {
+	[REFERENCE_TYPE_GENERIC]: {
 		name: 'Generic reference',
 		description: 'For a card to reference another where no other reference type makes sense',
 		editable: true,
@@ -275,7 +302,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		color: '#F4A460',
 		excludeFromInfoPanel: false,
 	},
-	[CONSTANTS.REFERENCE_TYPE_FORK_OF]: {
+	[REFERENCE_TYPE_FORK_OF]: {
 		name: 'Forked from',
 		description: 'For a card that was forked from another card',
 		editable: true,
@@ -284,7 +311,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		color: '#8B008B',
 		excludeFromInfoPanel: false,
 	},
-	[CONSTANTS.REFERENCE_TYPE_MINED_FROM]: {
+	[REFERENCE_TYPE_MINED_FROM]: {
 		name: 'Insights mined from',
 		description: 'For a card that denotes that its insights are at least partially based on insights in another card',
 		editable: true,
@@ -293,7 +320,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		color: '#4169E1',
 		excludeFromInfoPanel: false,
 	},
-	[CONSTANTS.REFERENCE_TYPE_SEE_ALSO]: {
+	[REFERENCE_TYPE_SEE_ALSO]: {
 		name: 'See also',
 		description: 'For cards that make similar points and make sense to consume as a set',
 		editable: true,
@@ -303,7 +330,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Already included in its own block
 		excludeFromInfoPanel: true,
 	},
-	[CONSTANTS.REFERENCE_TYPE_CONCEPT]: {
+	[REFERENCE_TYPE_CONCEPT]: {
 		name: 'Concept',
 		description: 'For cards that are about a concept this card uses',
 		editable: true,
@@ -317,7 +344,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		},
 		backportMissingText: true,
 	},
-	[CONSTANTS.REFERENCE_TYPE_SYNONYM]: {
+	[REFERENCE_TYPE_SYNONYM]: {
 		//NOTE: synonymMap effectivley pretends that an inbound synonym
 		//reference should count as a reciprocal outbound reference, too.
 		name: 'Interchangeable with',
@@ -336,10 +363,10 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		},
 		backportMissingText: true,
 		//Effectively a sub-type of concept reference.
-		subTypeOf: CONSTANTS.REFERENCE_TYPE_CONCEPT,
+		subTypeOf: REFERENCE_TYPE_CONCEPT,
 		reciprocal: true,
 	},
-	[CONSTANTS.REFERENCE_TYPE_OPPOSITE_OF]: {
+	[REFERENCE_TYPE_OPPOSITE_OF]: {
 		name: 'In contrast to',
 		description: 'For concept cards that are antonyms of another concept card',
 		editable: true,
@@ -357,10 +384,10 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Don't backport text since they're the opposite!
 		backportMissingText: false,
 		//Effectively a sub-type of concept reference.
-		subTypeOf: CONSTANTS.REFERENCE_TYPE_CONCEPT,
+		subTypeOf: REFERENCE_TYPE_CONCEPT,
 		reciprocal: true,
 	},
-	[CONSTANTS.REFERENCE_TYPE_PARALLEL_TO]: {
+	[REFERENCE_TYPE_PARALLEL_TO]: {
 		name: 'Parallel to',
 		description: 'For concept cards that are not quite interchangeable with other concepts, but have a parallel',
 		editable: true,
@@ -378,10 +405,10 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Don't backport text since they aren't literally that thing, just kind of similar.
 		backportMissingText: false,
 		//Effectively a sub-type of concept reference.
-		subTypeOf: CONSTANTS.REFERENCE_TYPE_CONCEPT,
+		subTypeOf: REFERENCE_TYPE_CONCEPT,
 		reciprocal: true,
 	},
-	[CONSTANTS.REFERENCE_TYPE_EXAMPLE_OF]: {
+	[REFERENCE_TYPE_EXAMPLE_OF]: {
 		name: 'Example of',
 		inboundName: 'Examples',
 		description: 'For cards that are an example of a more general concept',
@@ -395,9 +422,9 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 			'concept': true,
 		},
 		backportMissingText: true,
-		subTypeOf: CONSTANTS.REFERENCE_TYPE_CONCEPT,
+		subTypeOf: REFERENCE_TYPE_CONCEPT,
 	},
-	[CONSTANTS.REFERENCE_TYPE_METAPHOR_FOR]: {
+	[REFERENCE_TYPE_METAPHOR_FOR]: {
 		name: 'Metaphor for',
 		inboundName: 'Metaphors',
 		description: 'For cards that are a metaphor for a concept',
@@ -411,9 +438,9 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 			'concept': true,
 		},
 		backportMissingText: true,
-		subTypeOf: CONSTANTS.REFERENCE_TYPE_CONCEPT,
+		subTypeOf: REFERENCE_TYPE_CONCEPT,
 	},
-	[CONSTANTS.REFERENCE_TYPE_CITATION]: {
+	[REFERENCE_TYPE_CITATION]: {
 		name: 'Citation (Work)',
 		inboundName: 'Citations',
 		description: 'For citing works (books, articles, tweets) that this card is partially based on.',
@@ -430,7 +457,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		fromCardTypeAllowList: Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).filter(key => key != 'work' && key != 'person').map(key => [key, true])),
 		backportMissingText: true,
 	},
-	[CONSTANTS.REFERENCE_TYPE_CITATION_PERSON]: {
+	[REFERENCE_TYPE_CITATION_PERSON]: {
 		name: 'Citation (Person)',
 		inboundName: 'Person Citations',
 		description: 'For citing people whose insights this card is partially based on. Used either for citing authors from a work card, or when there isn\'t a specific work to cite, because such a card either hasn\'t been created yet or because there is no work to cite.',
@@ -446,7 +473,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Allow inbound from any card that is not also a person, to avoid loops.
 		fromCardTypeAllowList: Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).filter(key => key != 'person').map(key => [key, true])),
 		backportMissingText: true,
-		subTypeOf: CONSTANTS.REFERENCE_TYPE_CITATION,
+		subTypeOf: REFERENCE_TYPE_CITATION,
 	},
 };
 
@@ -497,12 +524,12 @@ const titleAlternatesHTMLFormatter = (value : string) : string => {
 };
 
 //The field that images will be inserted into
-export const IMAGES_TEXT_FIELD = CONSTANTS.TEXT_FIELD_BODY;
+export const IMAGES_TEXT_FIELD = TEXT_FIELD_BODY;
 
 const DEFAULT_MAX_FONT_BOOST = 0.3;
 
 export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
-	[CONSTANTS.TEXT_FIELD_TITLE]: {
+	[TEXT_FIELD_TITLE]: {
 		html: false,
 		container: 'h1',
 		nonScrollable: true,
@@ -519,7 +546,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		autoFontSizeBoostForCardTypes: {},
 		matchWeight: 1.0,
 	},
-	[CONSTANTS.TEXT_FIELD_TITLE_ALTERNATES]: {
+	[TEXT_FIELD_TITLE_ALTERNATES]: {
 		html: false,
 		container: 'h5',
 		nonScrollable: true,
@@ -533,7 +560,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		extraRunDelimiter: TITLE_ALTERNATE_DELIMITER,
 		description: 'Words to treat as synonyms that don\'t have their own concept cards. A \'' + TITLE_ALTERNATE_DELIMITER + '\' separates multiple ones, and ones that start with \'' +  TITLE_ALTERNATE_NEGATION + '\' will render as antonyms.' 
 	},
-	[CONSTANTS.TEXT_FIELD_BODY]: {
+	[TEXT_FIELD_BODY]: {
 		html: true,
 		container: 'section',
 		legalCardTypes: {
@@ -549,7 +576,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		},
 		matchWeight:0.5
 	},
-	[CONSTANTS.TEXT_FIELD_SUBTITLE]: {
+	[TEXT_FIELD_SUBTITLE]: {
 		html: false,
 		container: 'h2',
 		legalCardTypes: {'section-head': true},
@@ -557,7 +584,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		autoFontSizeBoostForCardTypes: {},
 		matchWeight:0.75,
 	},
-	[CONSTANTS.TEXT_FIELD_REFERENCES_INFO_INBOUND]: {
+	[TEXT_FIELD_REFERENCES_INFO_INBOUND]: {
 		html: false,
 		readOnly: true,
 		//null signals it's legal for all card types
@@ -571,7 +598,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 	//logic is that links are already represented in text in the body, but every
 	//other type of reference is not, so it should count for indexing. This is
 	//also where backported reference text shows up.
-	[CONSTANTS.TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND]: {
+	[TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND]: {
 		html: false,
 		readOnly: true,
 		//null signals it's legal for all card types
@@ -585,7 +612,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 	//already been counted in TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND, so this
 	//has the effect of triple counting concepts since theyr'e so important.
 	//NOTE: fingerprint.itemsFromConceptReferences in nlp.js relies on this configuration
-	[CONSTANTS.TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: {
+	[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: {
 		html: false,
 		readOnly: true,
 		//null signals it's legal for all card types
@@ -607,7 +634,7 @@ const AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE : {[cardType in CardType]+?: {[f
 }));
 
 //types of card that have a body
-export const BODY_CARD_TYPES = TEXT_FIELD_CONFIGURATION[CONSTANTS.TEXT_FIELD_BODY].legalCardTypes;
+export const BODY_CARD_TYPES = TEXT_FIELD_CONFIGURATION[TEXT_FIELD_BODY].legalCardTypes;
 
 //types of card that may have an image
 export const IMAGE_CARD_TYPES = TEXT_FIELD_CONFIGURATION[IMAGES_TEXT_FIELD].legalCardTypes;
