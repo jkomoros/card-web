@@ -406,8 +406,6 @@ const editorContentTabSchema = z.enum([
 //TODO: this name is confusing, in the state this is called editorTab
 export type EditorContentTab = z.infer<typeof editorContentTabSchema>;
 
-export const editorContentTab = (input : EditorContentTab) => input;
-
 export type UserInfo = {
 	uid: Uid,
 	isAnonymous: boolean,
@@ -863,10 +861,6 @@ const setNameSchema = z.enum([
 ]);
 
 export type SetName = z.infer<typeof setNameSchema>;
-
-//Convenience for verifying a type in a more permissive context is of a given type at compile time.
-export const setName = (input : SetName) => input;
-
 
 const sortName = z.enum([
 	'default',
@@ -1331,3 +1325,9 @@ export type State = {
 	permissions? : PermissionsState,
 	user? : UserState
 }
+
+//The following are convenience functions for when you have a given enum that
+//will be used in a generic string context and want type-checking to verify it
+//is part of the enum.
+export const setName = (input : SetName) => input;
+export const editorContentTab = (input : EditorContentTab) => input;
