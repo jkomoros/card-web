@@ -11,7 +11,6 @@ import {
 	TEXT_FIELD_TYPES,
 	REFERENCE_TYPE_TYPES,
 	TEXT_FIELD_TYPES_EDITABLE,
-	VIEW_MODE_TYPES,
 	EDITOR_TAB_TYPES,
 	EDITOR_CONTENT_TAB_TYPES,
 	COMMIT_ACTION_TYPES,
@@ -880,7 +879,12 @@ export type ConfigurableFilterRest = string;
 //A full description of one filter
 export type FilterName = ConcreteFilterName | UnionFilterName | ConfigurableFilterName;
 
-export type ViewMode = '' | keyof(typeof VIEW_MODE_TYPES);
+export const viewMode = z.enum([
+	'list',
+	'web'
+]);
+
+export type ViewMode = '' | z.infer<typeof viewMode>;
 
 export type SectionID = string;
 

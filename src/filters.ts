@@ -29,8 +29,6 @@ import {
 import {
 	REFERENCE_TYPE_CONCEPT,
 	REFERENCE_TYPE_LINK,
-	VIEW_MODE_WEB,
-	DEFAULT_VIEW_MODE,
 	SORT_NAME_DEFAULT,
 	SORT_NAME_RECENT,
 	SORT_NAME_STARS,
@@ -198,10 +196,10 @@ export const NONE_FILTER_NAME = 'none';
 export const ALL_FILTER_NAME = 'all-cards';
 
 //Legal view modes, including whether an option is expected or not.
-export const LEGAL_VIEW_MODES : {[mode in ViewMode]+?: boolean} = {
+export const LEGAL_VIEW_MODES : {[mode in Exclude<ViewMode, ''>]: boolean} = {
 	//Note: collection_description logic assumes that default_view_mode takes not extra option.
-	[DEFAULT_VIEW_MODE]: false,
-	[VIEW_MODE_WEB]: true,
+	'list': false,
+	'web': true,
 };
 
 export const collectionDescription = (...parts : FilterName[]) : CollectionDescription => new CollectionDescription('everything', parts);
@@ -1788,7 +1786,7 @@ export const INITIAL_STATE : CollectionState = {
 	activeFilterNames: [],
 	activeSortName: SORT_NAME_DEFAULT,
 	activeSortReversed: false,
-	activeViewMode: DEFAULT_VIEW_MODE,
+	activeViewMode: 'list',
 	activeViewModeExtra: '',
 	filters: INITIAL_STATE_FILTERS,
 	filtersSnapshot: INITIAL_STATE_FILTERS,

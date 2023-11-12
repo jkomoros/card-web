@@ -40,10 +40,6 @@ import {
 	makeInfoZippyClickedEvent
 } from '../events.js';
 
-import {
-	VIEW_MODE_WEB
-} from '../type_constants.js';
-
 @customElement('card-drawer')
 class CardDrawer extends LitElement {
 
@@ -172,7 +168,7 @@ class CardDrawer extends LitElement {
 							<slot name='visible-info'></slot>
 						</div>
 					</div>
-					${this.collection && this.collection.description.viewMode == VIEW_MODE_WEB ?
+					${this.collection && this.collection.description.viewMode == 'web' ?
 		html`<web-renderer .webInfo=${this.collection.webInfo} .highlightedCardId=${this.highlightedCardId}></web-renderer>` :
 		html`<card-thumbnail-list .collection=${this.collection} .grid=${this.grid} .reorderable=${this.reorderable} .fullCards=${this.fullCards} .highlightedCardId=${this.highlightedCardId} .ghostCardsThatWillBeRemoved=${this.ghostCardsThatWillBeRemoved} .renderOffset=${this.renderOffset}></card-thumbnail-list>`
 }

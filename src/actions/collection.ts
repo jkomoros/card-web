@@ -20,7 +20,6 @@ import {
 } from '../filters.js';
 
 import {
-	DEFAULT_VIEW_MODE,
 	SORT_NAME_DEFAULT,
 	SORT_NAME_RANDOM
 } from '../type_constants.js';
@@ -300,7 +299,7 @@ export const canonicalizeURL = () : ThunkSomeAction => (dispatch, getState) => {
 		result.push(description.sort);
 	}
 
-	if (description.viewMode != DEFAULT_VIEW_MODE) {
+	if (description.viewMode != 'list') {
 		result.push(VIEW_MODE_URL_KEYWORD);
 		result.push(description.viewMode);
 		if (description.viewModeExtra) result.push(description.viewModeExtra);

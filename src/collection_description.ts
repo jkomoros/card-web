@@ -18,8 +18,6 @@ import {
 } from './filters.js';
 
 import {
-	DEFAULT_VIEW_MODE,
-	VIEW_MODE_WEB,
 	SORT_NAME_DEFAULT,
 	SORT_NAME_RANDOM
 } from './type_constants.js';
@@ -54,7 +52,8 @@ import {
 	ConfigurableFilterName,
 	UnionFilterName,
 	CardSimilarityMap,
-	ConfigurableFilterResult
+	ConfigurableFilterResult,
+	viewMode as viewModeSchema
 } from './types.js';
 
 import {
@@ -71,11 +70,11 @@ const extractFilterNamesSortAndView = (parts : URLPart[]) : [FilterName[], SortN
 	//returns the filter names, the sort name, and whether the sort is reversed
 	//parts is all of the unconsumed portions of the path that aren't the set
 	//name or the card name.
-	if (!parts.length) return [[], SORT_NAME_DEFAULT, false, DEFAULT_VIEW_MODE, ''];
+	if (!parts.length) return [[], SORT_NAME_DEFAULT, false, 'list', ''];
 	const filters : FilterName[] = [];
 	let sortName : SortName = SORT_NAME_DEFAULT;
 	let sortReversed = false;
-	let viewMode : ViewMode = DEFAULT_VIEW_MODE;
+	let viewMode : ViewMode = 'list';
 	let viewModeExtra = '';
 	let nextPartIsSort = false;
 	let nextPartIsView = false;
@@ -112,12 +111,12 @@ const extractFilterNamesSortAndView = (parts : URLPart[]) : [FilterName[], SortN
 			continue;
 		}
 		if (nextPartIsView) {
-			viewMode = part as ViewMode;
+			viewMode = viewModeSchema.parse(part);
 			nextPartIsView = false;
 			//LEGA_VIEW_MODES is a map of view mode to whether or not it expects
 			//an extra. Note that we have no way of signaling an error, so we
 			//just assume the viewMode is legal.
-			if (LEGAL_VIEW_MODES[part as ViewMode]) nextPartIsViewExtra = true;
+			if (LEGAL_VIEW_MODES[viewMode]) nextPartIsViewExtra = true;
 			continue;
 		}
 		if (nextPartIsViewExtra) {
@@ -282,7 +281,7 @@ export class CollectionDescription {
 		if (!sortName) sortName = SORT_NAME_DEFAULT;
 		if (!sortReversed) sortReversed = false;
 		if (!filterNames) filterNames = [];
-		if (!viewMode) viewMode = DEFAULT_VIEW_MODE;
+		if (!viewMode) viewMode = 'list';
 		if (!viewModeExtra) viewModeExtra = '';
 
 		let limit = 0;
@@ -396,7 +395,7 @@ export class CollectionDescription {
 			result.push(this.sort);
 		}
 
-		if (this.viewMode != DEFAULT_VIEW_MODE) {
+		if (this.viewMode != 'list') {
 			result.push(VIEW_MODE_URL_KEYWORD);
 			result.push(this.viewMode);
 			if (this.viewModeExtra) result.push(this.viewModeExtra);
@@ -433,7 +432,7 @@ export class CollectionDescription {
 			result.push(this.sort);
 		}
 
-		if (this.viewMode != DEFAULT_VIEW_MODE) {
+		if (this.viewMode != 'list') {
 			result.push(VIEW_MODE_URL_KEYWORD);
 			result.push(this.viewMode);
 			if (this.viewModeExtra) result.push(this.viewModeExtra);
@@ -992,7 +991,7 @@ export class Collection {
 
 	_ensureWebInfo() {
 		if (this._webInfo) return;
-		if (this._description.viewMode != VIEW_MODE_WEB) {
+		if (this._description.viewMode != 'web') {
 			this._webInfo = {nodes:[], edges:[]};
 			return;
 		}

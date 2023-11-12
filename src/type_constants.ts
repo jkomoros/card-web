@@ -97,15 +97,6 @@ export const REFERENCE_TYPE_TYPES = {
 	[REFERENCE_TYPE_CITATION_PERSON]: true
 };
 
-export const DEFAULT_VIEW_MODE = 'list';
-export const VIEW_MODE_WEB = 'web';
-
-//Drives ViewMode type
-export const VIEW_MODE_TYPES = {
-	[DEFAULT_VIEW_MODE]: true,
-	[VIEW_MODE_WEB]: true
-};
-
 export const TAB_CONTENT = 'content';
 export const TAB_CONFIG = 'config';
 
