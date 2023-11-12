@@ -82,9 +82,6 @@ const similarCards = async (cardID : CardID, lastUpdated : MillisecondsSinceEpoc
 		};
 	}
 
-	//TODO: there's a massive problem with this flow currently... if a card is updated but
-	//doesn't have an embedding updated.
-
 	const request : SimilarCardsRequestData = {
 		card_id: cardID,
 		last_updated: lastUpdated

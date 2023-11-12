@@ -328,8 +328,22 @@ class EmbeddingStore {
 		}
 
 		if (existingPoint && existingPoint.payload && existingPoint.payload.content === text) {
-			//The embedding exists and is up to date, no need to do anything else.
-			console.log(`The embedding content had not changed for ${card.id} so stopping early`);
+			//The embedding exists and is up to date, no need to recompute the
+			//embedding. We do still want to update the timestamp in the vector
+			//store though, so in the future last_updated will note that it's
+			//current as of this moment, not when the embedding changed...
+			//because a card itself doesn't know the timestamp when the
+			//embeddable content last changed.
+			await this._qdrant.setPayload(QDRANT_COLLECTION_NAME, {
+				points: [
+					existingPoint.id
+				],
+				payload: {
+					last_updated: Date.now()
+				}
+			});
+
+			console.log(`Updated the metadata for ${card.id} because its embedding had not changed`);
 			return;
 		}
 
