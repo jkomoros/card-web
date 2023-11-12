@@ -11,7 +11,6 @@ import {
 	TEXT_FIELD_TYPES,
 	REFERENCE_TYPE_TYPES,
 	TEXT_FIELD_TYPES_EDITABLE,
-	URL_PART_TYPES,
 	IMAGE_POSITION_TYPES,
 	SET_NAME_TYPES,
 	VIEW_MODE_TYPES,
@@ -330,7 +329,7 @@ export type SortConfigurationMap = {
 }
 
 export type ConfigurableFilterControlPiece = {
-	controlType : string,
+	controlType : ConfigurableFilterFuncURLPart,
 	description : string,
 	value : string
 }
@@ -353,7 +352,22 @@ export type ConfigurableFilterFuncFactoryResult = [func : ConfigurableFilterFunc
 
 type ConfigurableFilterFuncFactory = (filterType : ConfigurableFilterType, ...parts : URLPart[]) => ConfigurableFilterFuncFactoryResult;
 
-type ConfigurableFilterFuncURLPart = keyof(typeof URL_PART_TYPES);
+const configurableFilterFuncURLPart = z.enum([
+	'date',
+	'text',
+	'key-card',
+	'int',
+	'float',
+	'reference-type',
+	'user-id',
+	'sub-filter',
+	'multiple-cards',
+	'concept-str-or-id',
+	//A sub-filter that expand knows how to pass multiple cards to
+	'expand-filter'
+]);
+
+type ConfigurableFilterFuncURLPart = z.infer<typeof configurableFilterFuncURLPart>;
 
 type ConfigurableFilterFuncArgument = {
 	type : ConfigurableFilterFuncURLPart,

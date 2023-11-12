@@ -29,17 +29,6 @@ import {
 import {
 	REFERENCE_TYPE_CONCEPT,
 	REFERENCE_TYPE_LINK,
-	URL_PART_DATE_SECTION,
-	URL_PART_FREE_TEXT,
-	URL_PART_KEY_CARD,
-	URL_PART_INT,
-	URL_PART_FLOAT,
-	URL_PART_REFERENCE_TYPE,
-	URL_PART_USER_ID,
-	URL_PART_SUB_FILTER,
-	URL_PART_MULTIPLE_CARDS,
-	URL_PART_CONCEPT_STR_OR_ID,
-	URL_PART_EXPAND_FILTER,
 	DEFAULT_SET_NAME,
 	READING_LIST_SET_NAME,
 	EVERYTHING_SET_NAME,
@@ -892,7 +881,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeDateConfigurableFilter,
 		description: 'Selects cards that were updated within a given date range',
 		arguments: [{
-			type: URL_PART_DATE_SECTION,
+			type: 'date',
 			description: 'Date Range',
 			default: DEFAULT_DATE_FILTER,
 		}],
@@ -901,7 +890,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeDateConfigurableFilter,
 		description: 'Selects cards that had a tweet within a given date range',
 		arguments: [{
-			type: URL_PART_DATE_SECTION,
+			type: 'date',
 			description: 'Date Range',
 			default: DEFAULT_DATE_FILTER,
 		}],
@@ -912,7 +901,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that are directly referenced by a given card',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		}]
@@ -923,11 +912,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that are direct or indirectly referenced by a given card',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type:URL_PART_INT,
+			type: 'int',
 			description: 'Ply',
 			default: '2',
 		}]
@@ -938,7 +927,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that directly reference the given card',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		}]
@@ -949,11 +938,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that directly or indirectly reference the given card',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type:URL_PART_INT,
+			type: 'int',
 			description: 'Ply',
 			default: '2',
 		}]
@@ -964,7 +953,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that directly reference or are referenced by a given card',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		}]
@@ -975,11 +964,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that directly or indirectly reference (or are referenced by) a given card',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type:URL_PART_INT,
+			type: 'int',
 			description: 'Ply',
 			default: '2',
 		}]
@@ -990,15 +979,15 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that reference or are referenced by other cards with a particular type of reference',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type: URL_PART_REFERENCE_TYPE,
+			type: 'reference-type',
 			description: 'Reference types',
 			default: REFERENCE_TYPE_LINK,
 		},{
-			type:URL_PART_INT,
+			type: 'int',
 			description: 'Ply',
 			default: '2',
 		}]
@@ -1009,15 +998,15 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that is referenced by other cards with a particular type of reference',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type: URL_PART_REFERENCE_TYPE,
+			type: 'reference-type',
 			description: 'Reference types',
 			default: REFERENCE_TYPE_LINK,
 		},{
-			type:URL_PART_INT,
+			type: 'int',
 			description: 'Ply',
 			default: '2',
 		}]
@@ -1028,15 +1017,15 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that reference other cards with a particular type of reference',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type: URL_PART_REFERENCE_TYPE,
+			type: 'reference-type',
 			description: 'Reference types',
 			default: REFERENCE_TYPE_LINK,
 		},{
-			type:URL_PART_INT,
+			type: 'int',
 			description: 'Ply',
 			default: '2',
 		}]
@@ -1047,11 +1036,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that directly reference or are referenced by other cards with a particular type of reference',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type: URL_PART_REFERENCE_TYPE,
+			type: 'reference-type',
 			description: 'Reference types',
 			default: REFERENCE_TYPE_LINK,
 		}]
@@ -1062,11 +1051,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that reference other cards with a particular type of reference',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type: URL_PART_REFERENCE_TYPE,
+			type: 'reference-type',
 			description: 'Reference types',
 			default: REFERENCE_TYPE_LINK,
 		}]
@@ -1077,11 +1066,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that are referenced by other cards with a particular type of reference',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type: URL_PART_REFERENCE_TYPE,
+			type: 'reference-type',
 			description: 'Reference types',
 			default: REFERENCE_TYPE_LINK,
 		}]
@@ -1090,7 +1079,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeAuthorConfigurableFilter,
 		description: 'Selects cards that are authored by the give user ID',
 		arguments: [{
-			type: URL_PART_USER_ID,
+			type: 'user-id',
 			description: 'User ID',
 			default: ME_AUTHOR_ID
 		}]
@@ -1099,7 +1088,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeExcludeConfigurableFilter,
 		description: 'Inverts a sub-filter expression',
 		arguments: [{
-			type: URL_PART_SUB_FILTER,
+			type: 'sub-filter',
 			description: 'Sub filter to negate',
 			default: ALL_FILTER_NAME
 		}]
@@ -1108,11 +1097,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeCombineConfigurableFilter,
 		description: 'Returns the union of two sub-filter expressions',
 		arguments: [{
-			type: URL_PART_SUB_FILTER,
+			type: 'sub-filter',
 			description: 'First sub filter to combine',
 			default: ALL_FILTER_NAME
 		}, {
-			type: URL_PART_SUB_FILTER,
+			type: 'sub-filter',
 			description: 'Second sub filter to combine',
 			default: ALL_FILTER_NAME
 		}]
@@ -1121,11 +1110,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeExpandConfigurableFilter,
 		description: 'Filters the first sub expression, but then expands the result set to be any cards connected given the given connection type',
 		arguments: [{
-			type: URL_PART_SUB_FILTER,
+			type: 'sub-filter',
 			description: 'First sub filter to select the starter set of cards to expand',
 			default: ALL_FILTER_NAME
 		}, {
-			type: URL_PART_EXPAND_FILTER,
+			type: 'expand-filter',
 			description: 'The link filter to expand the result set from the first part by',
 			default: DEFAULT_LINK_SUB_FILTER
 		}]
@@ -1136,7 +1125,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeCardsConfigurableFilter,
 		description: 'Selects a precise list of specific cards. It\'s typically used in conjunction with the ' + EXCLUDE_FILTER_NAME + ' filter',
 		arguments: [{
-			type: URL_PART_MULTIPLE_CARDS,
+			type: 'multiple-cards',
 			description: 'Cards to include',
 			default: KEY_CARD_ID_PLACEHOLDER,
 		}]
@@ -1146,7 +1135,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		suppressLabels: true,
 		description: 'Selects cards that contain text that at least partially matches a provided query',
 		arguments: [{
-			type: URL_PART_FREE_TEXT,
+			type: 'text',
 			description: 'Query text',
 			default: 'foo',
 		}],
@@ -1156,7 +1145,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		suppressLabels: true,
 		description: 'Selects cards that contain text that exactly matches a provided query',
 		arguments: [{
-			type: URL_PART_FREE_TEXT,
+			type: 'text',
 			description: 'Query text',
 			default: 'foo',
 		}],
@@ -1169,7 +1158,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeNoOpConfigurableFilter,
 		description: 'Selects only up to a certain number of cards. Limit is a special type of filter that can only apply at the top-level, and there can only be one.',
 		arguments: [{
-			type: URL_PART_INT,
+			type: 'int',
 			description: 'Limit',
 			default: '10'
 		}],
@@ -1182,7 +1171,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeNoOpConfigurableFilter,
 		description: 'Drops the first n cards from the returned set. When used in conjunction with limit, allows pagination. Offset is a special type of filter that can only apply at the top-level, and there can only be one.',
 		arguments: [{
-			type: URL_PART_INT,
+			type: 'int',
 			description: 'Offset',
 			default: '10'
 		}],
@@ -1192,7 +1181,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		suppressLabels: true,
 		description: 'Selects cards that are similar to a given key card. It is primarily used for its sort order.',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'Key card',
 			default: KEY_CARD_ID_PLACEHOLDER
 		}],
@@ -1202,12 +1191,12 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		suppressLabels: true,
 		description: 'Selects cards that are similar to a given key card and above some float threshold of similarity',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'Key card',
 			default: KEY_CARD_ID_PLACEHOLDER
 		},
 		{
-			type: URL_PART_FLOAT,
+			type: 'float',
 			description: 'Float cutoff',
 			default: 0.5,
 		}],
@@ -1217,7 +1206,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		suppressLabels: true,
 		description: 'Selects cards that reference a given text concept',
 		arguments: [{
-			type: URL_PART_CONCEPT_STR_OR_ID,
+			type: 'concept-str-or-id',
 			description: 'Concept or CardID',
 			default: 'concept-name',
 		}],
@@ -1227,7 +1216,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		labelName: 'Suggested Concept Count',
 		description: 'Selects cards that appear to be missing a particular concept reference',
 		arguments: [{
-			type: URL_PART_CONCEPT_STR_OR_ID,
+			type: 'concept-str-or-id',
 			description: 'Concept or CardID',
 			default: 'concept-name',
 		}],
@@ -1236,7 +1225,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeSameTypeConfigurableFilter,
 		description: 'Cards with the same type as the provided card',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'Key Card',
 			default: KEY_CARD_ID_PLACEHOLDER,
 		}]
@@ -1245,7 +1234,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeSameTypeConfigurableFilter,
 		description: 'Cards with a different type as the provided card',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'Key Card',
 			default: KEY_CARD_ID_PLACEHOLDER,
 		}]
@@ -1294,7 +1283,7 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 		return [];
 	}
 	const pieces = rest.split('/');
-	const result = [];
+	const result : ConfigurableFilterControlPiece[] = [];
 	let pieceIndex = 0;
 	for (const arg of config.arguments) {
 		const controlType = arg.type;
@@ -1303,7 +1292,7 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 			continue;
 		}
 		switch (controlType) {
-		case URL_PART_DATE_SECTION:
+		case 'date':
 			const subPieces = pieces.slice(pieceIndex, 2);
 			pieceIndex += 2;
 			if (subPieces[0] == BETWEEN_FILTER_NAME) {
@@ -1317,8 +1306,8 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 				value: subPieces.join('/')
 			});
 			break;
-		case URL_PART_SUB_FILTER:
-		case URL_PART_EXPAND_FILTER:
+		case 'sub-filter':
+		case 'expand-filter':
 			//consume the pices for this first subfilter
 			const [nextSubFilter] = extractSubFilters(pieces.slice(pieceIndex));
 			result.push({
@@ -1328,14 +1317,14 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 			});
 			pieceIndex += nextSubFilter.split('/').length;
 			break;
-		case URL_PART_FREE_TEXT:
-		case URL_PART_KEY_CARD:
-		case URL_PART_INT:
-		case URL_PART_FLOAT:
-		case URL_PART_REFERENCE_TYPE:
-		case URL_PART_USER_ID:
-		case URL_PART_MULTIPLE_CARDS:
-		case URL_PART_CONCEPT_STR_OR_ID:
+		case 'text':
+		case 'key-card':
+		case 'int':
+		case 'float':
+		case 'reference-type':
+		case 'user-id':
+		case 'multiple-cards':
+		case 'concept-str-or-id':
 			//The majority of filters are one piece for one argument.
 			result.push({
 				controlType,
@@ -1345,8 +1334,7 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 			pieceIndex++;
 			break;
 		default:
-			const _exhaustiveCheck : never = controlType;
-			throw new Error(_exhaustiveCheck);
+			assertUnreachable(controlType);
 		}
 	}
 	return result;

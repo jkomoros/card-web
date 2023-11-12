@@ -97,34 +97,6 @@ export const REFERENCE_TYPE_TYPES = {
 	[REFERENCE_TYPE_CITATION_PERSON]: true
 };
 
-export const URL_PART_DATE_SECTION = 'date';
-export const URL_PART_FREE_TEXT = 'text';
-export const URL_PART_KEY_CARD = 'key-card';
-export const URL_PART_INT = 'int';
-export const URL_PART_FLOAT = 'float';
-export const URL_PART_REFERENCE_TYPE = 'reference-type';
-export const URL_PART_USER_ID = 'user-id';
-export const URL_PART_SUB_FILTER = 'sub-filter';
-export const URL_PART_MULTIPLE_CARDS = 'multiple-cards';
-export const URL_PART_CONCEPT_STR_OR_ID = 'concept-str-or-id';
-//A sub-filter that expand knows how to pass multiple cards to
-export const URL_PART_EXPAND_FILTER = 'expand-filter';
-
-//These drive ConfigurableFilterFuncURLPart type
-export const URL_PART_TYPES = {
-	[URL_PART_DATE_SECTION]: true,
-	[URL_PART_FREE_TEXT] : true,
-	[URL_PART_KEY_CARD] : true,
-	[URL_PART_INT] : true,
-	[URL_PART_FLOAT] : true,
-	[URL_PART_REFERENCE_TYPE] : true,
-	[URL_PART_USER_ID] : true,
-	[URL_PART_SUB_FILTER] : true,
-	[URL_PART_MULTIPLE_CARDS] : true,
-	[URL_PART_CONCEPT_STR_OR_ID] : true,
-	[URL_PART_EXPAND_FILTER] : true
-};
-
 //Will position left. Multiple images will go to the right of the one
 //immediatebly before them.
 export const IMAGE_POSITION_TOP_LEFT = 'top-left';
