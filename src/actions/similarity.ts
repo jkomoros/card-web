@@ -14,7 +14,7 @@ import {
 } from '../config.GENERATED.SECRET.js';
 
 import {
-	selectCardSimilarity
+	selectCardSimilarity, selectRawCards
 } from '../selectors.js';
 
 import {
@@ -38,6 +38,9 @@ import {
 //Replicated in src/actions/similarity.ts
 type EmbeddableCard = Pick<Card, 'body' | 'title' | 'subtitle' | 'card_type' | 'created' | 'id'>;
 
+//Replicated in src/actions/similarity.ts
+type MillisecondsSinceEpoch = number;
+
 //Replicated in `src/actions/similarity.ts`
 type SimilarCardsRequestData = {
 	card_id: CardID
@@ -45,7 +48,7 @@ type SimilarCardsRequestData = {
 	//timestamp in milliseconds since epoch. If provided, results will only be
 	//provided if the Vector point has a last-updated since then, otherwise
 	//error of `stale`.
-	last_updated? : number
+	last_updated? : MillisecondsSinceEpoch
 
 	//TODO: include a limit
 
@@ -70,7 +73,7 @@ type SimilarCardsResponseData = {
 
 const similarCardsCallable = httpsCallable<SimilarCardsRequestData, SimilarCardsResponseData>(functions, 'similarCards');
 
-const similarCards = async (cardID : CardID) : Promise<SimilarCardsResponseData> => {
+const similarCards = async (cardID : CardID, lastUpdated : MillisecondsSinceEpoch) : Promise<SimilarCardsResponseData> => {
 	if (!QDRANT_ENABLED) {
 		return {
 			success: false,
@@ -78,17 +81,22 @@ const similarCards = async (cardID : CardID) : Promise<SimilarCardsResponseData>
 			error: 'Qdrant isn\'t enabled'
 		};
 	}
-	const request = {
-		card_id: cardID
+
+	//TODO: there's a massive problem with this flow currently... if a card is updated but
+	//doesn't have an embedding updated.
+
+	const request : SimilarCardsRequestData = {
+		card_id: cardID,
+		last_updated: lastUpdated
 	};
 	const result = await similarCardsCallable(request);
 	return result.data;
 };
 
-const fetchSimilarCards = (cardID : CardID) : ThunkSomeAction => async (dispatch) => {
+const fetchSimilarCards = (cardID : CardID, lastUpdated: MillisecondsSinceEpoch) : ThunkSomeAction => async (dispatch) => {
 	if (!cardID) return;
 
-	const result = await similarCards(cardID);
+	const result = await similarCards(cardID, lastUpdated);
 
 	if (result.success == false) {
 
@@ -124,7 +132,11 @@ export const fetchSimilarCardsIfEnabled = (cardID : CardID) : boolean => {
 	if (similarity[cardID]) {
 		return false;
 	}
+
+	const cards = selectRawCards(state);
+	const card = cards[cardID];
+	if (!card) throw new Error(`Couldn't find card ${cardID}`);
 	//This will return immediately.
-	store.dispatch(fetchSimilarCards(cardID));
+	store.dispatch(fetchSimilarCards(cardID, card.updated.toMillis()));
 	return true;
 };

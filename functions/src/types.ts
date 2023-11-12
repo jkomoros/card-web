@@ -178,6 +178,8 @@ export type LegalResponseData = {
 	reason: string
 };
 
+type MillisecondsSinceEpoch = number;
+
 //Replicated in `src/actions/similarity.ts`
 export type SimilarCardsRequestData = {
 	card_id: CardID
@@ -185,7 +187,7 @@ export type SimilarCardsRequestData = {
 	//timestamp in milliseconds since epoch. If provided, results will only be
 	//provided if the Vector point has a last-updated since then, otherwise
 	//error of `stale`.
-	last_updated? : number
+	last_updated? : MillisecondsSinceEpoch
 
 	//TODO: include a limit
 
