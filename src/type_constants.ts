@@ -97,27 +97,6 @@ export const REFERENCE_TYPE_TYPES = {
 	[REFERENCE_TYPE_CITATION_PERSON]: true
 };
 
-//Will position left. Multiple images will go to the right of the one
-//immediatebly before them.
-export const IMAGE_POSITION_TOP_LEFT = 'top-left';
-//Like top-left, but images after the first will stack below the ones before
-//them. For the first image, equivalent to top-left.
-export const IMAGE_POSITION_LEFT = 'left';
-//Will position right. Multiple images will go to the left of the one
-//immediately before them.
-export const IMAGE_POSITION_TOP_RIGHT = 'top-right';
-//Like top-right, but images after the first will stack below the ones before
-//them. For the first image, equivalent to top-right.
-export const IMAGE_POSITION_RIGHT = 'right';
-
-//Drives ImagePositionType
-export const IMAGE_POSITION_TYPES = {
-	[IMAGE_POSITION_LEFT]: true,
-	[IMAGE_POSITION_RIGHT]: true,
-	[IMAGE_POSITION_TOP_LEFT]: true,
-	[IMAGE_POSITION_TOP_RIGHT]: true,
-};
-
 export const DEFAULT_SET_NAME = 'main';
 //reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
 //order matters and is customizable by the user. Every other collection starts

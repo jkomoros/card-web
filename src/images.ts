@@ -11,17 +11,10 @@ import {
 } from './types.js';
 
 import {
-	IMAGE_POSITION_TOP_LEFT,
-	IMAGE_POSITION_TOP_RIGHT,
-	IMAGE_POSITION_LEFT,
-	IMAGE_POSITION_RIGHT
-} from './type_constants.js';
-
-import {
 	TypedObject
 } from './typed_object.js';
 
-const DEFAULT_IMAGE_POSITION = IMAGE_POSITION_TOP_LEFT;
+const DEFAULT_IMAGE_POSITION : ImagePositionType = 'top-left';
 
 //A distinctive thing to stand in for "the image's margin value" when setting
 //styles.
@@ -37,23 +30,23 @@ type ImagePositionConfiguration = {
 
 //Each one is the style property/values to set on image eles with that value.
 export const LEGAL_IMAGE_POSITIONS : {[type in ImagePositionType]: ImagePositionConfiguration} = {
-	[IMAGE_POSITION_TOP_LEFT]: {
+	'top-left': {
 		float: 'left',
 		marginRight: MARGIN_SENTINEL,
 		marginBottom: MARGIN_SENTINEL,
 	},
-	[IMAGE_POSITION_LEFT]: {
+	'left': {
 		float: 'left',
 		clear: 'left',
 		marginRight: MARGIN_SENTINEL,
 		marginBottom: MARGIN_SENTINEL,
 	},
-	[IMAGE_POSITION_TOP_RIGHT]: {
+	'top-right': {
 		float: 'right',
 		marginLeft: MARGIN_SENTINEL,
 		marginBottom: MARGIN_SENTINEL,
 	},
-	[IMAGE_POSITION_RIGHT]: {
+	'right': {
 		float: 'right',
 		clear: 'right',
 		marginLeft: MARGIN_SENTINEL,

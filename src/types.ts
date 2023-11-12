@@ -11,7 +11,6 @@ import {
 	TEXT_FIELD_TYPES,
 	REFERENCE_TYPE_TYPES,
 	TEXT_FIELD_TYPES_EDITABLE,
-	IMAGE_POSITION_TYPES,
 	SET_NAME_TYPES,
 	VIEW_MODE_TYPES,
 	EDITOR_TAB_TYPES,
@@ -113,7 +112,22 @@ export type WordCloud = [
 //Inspired by https://stackoverflow.com/a/54520829
 type KeysMatching<T, V> = {[K in keyof T]-?: T[K] extends V ? K : never}[keyof T];
 
-export type ImagePositionType = keyof(typeof IMAGE_POSITION_TYPES);
+const imagePositionType = z.enum([
+	//Will position left. Multiple images will go to the right of the one
+	//immediatebly before them.
+	'top-left',
+	//Like top-left, but images after the first will stack below the ones before
+	//them. For the first image, equivalent to top-left.
+	'left',
+	//Will position right. Multiple images will go to the left of the one
+	//immediately before them.
+	'top-right',
+	//Like top-right, but images after the first will stack below the ones before
+	//them. For the first image, equivalent to top-right.
+	'right'
+]);
+
+export type ImagePositionType = z.infer<typeof imagePositionType>;
 
 //Note: images.ts:isImagePositionTypeProperty relies on position being the only
 //key for ImagePositionType
