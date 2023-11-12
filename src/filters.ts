@@ -762,18 +762,17 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 
 		//TODO: figure out a way to support multiple key cards
 		for (const cardID of cardIDsToUse) {
-			//Sometimes a cardSimilarity might be empty, but it's still final
 			if (cardSimilarity[cardID]) {
 				if (Object.keys(cardSimilarity[cardID]).length) {
 					//TODO: merge in fingerprint cards for the ones not in top amount
 					return {map: new Map(Object.entries(cardSimilarity[cardID])), preview: false};
 				}
+				//If there are no keys, that's how the backend signals that it's a final error.
 			} else {
 				//Kick off a request for similarities we don't currently have, so
 				//we'll have them next time. We'll get called again once it's fetched.
-				fetchSimilarCardsIfEnabled(cardID);
-				//Note that we're expecting more values later.
-				preview = true;
+				//fetchSimilarCardsIfEnabled will tell us if we should expect values in the future.
+				preview = fetchSimilarCardsIfEnabled(cardID);
 			}
 		}
 
