@@ -494,7 +494,8 @@ export const similarCards = async (request : CallableRequest<SimilarCardsRequest
 
 	} else {
 		//We'll use the embeddeding that is already stored.
-		const point = await EMBEDDING_STORE.getExistingPoint(data.card_id, {includeVector: true});
+		//TODO: we really only need the last_updated field in payload, not all of it.
+		const point = await EMBEDDING_STORE.getExistingPoint(data.card_id, {includeVector: true, includePayload: true});
 		if (!point) {
 			return {
 				success: false,
@@ -504,7 +505,8 @@ export const similarCards = async (request : CallableRequest<SimilarCardsRequest
 		}
 
 		if (data.last_updated !== undefined) {
-			const point_last_updated = point.payload?.last_updated || 0;
+			const point_last_updated = point.payload?.last_updated;
+			if (!point_last_updated) throw new Error('Point didn\'t have last_updated as expected');
 			if (!(point_last_updated >= data.last_updated - LAST_UPDATED_EPISLON)) {
 				//Point is less current than epsilon
 				return {
