@@ -196,7 +196,7 @@ interface CollectionDescriptionOverrides {
 
 const collectionDescriptionWithOverrides = (description : CollectionDescription, overrides : CollectionDescriptionOverrides) => {
 	const baseValues : CollectionDescriptionOverrides = {
-		set: description.setNameExplicitlySet ? description.set : '',
+		set: description.setNameExplicitlySet ? description.set : undefined,
 		filters: description.filters,
 		sort: description.sort,
 		sortReversed: description.sortReversed,
@@ -482,7 +482,7 @@ export class CollectionDescription {
 		//happens... for a second.
 		const firstPart = parts.length ? parts[0] : '';
 
-		let setName : SetName = '';
+		let setName : SetName = 'main';
 
 		for (const name of SET_NAMES) {
 			if (name == firstPart) {
@@ -845,8 +845,6 @@ export class Collection {
 		//cards and then filter them down to the list that was in the set
 		//originally. This is OK because we're returning a set, not an array,
 		//from this method, so order doesn't matter.
-
-		if (this._description.set == '') throw new Error('Empty set name');
 
 		const filterEquivalentForActiveSet = SET_INFOS[this._description.set].filterEquivalent;
 		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];

@@ -850,7 +850,7 @@ const setNameSchema = z.enum([
 	'everything'
 ]);
 
-export type SetName = '' | z.infer<typeof setNameSchema>;
+export type SetName = z.infer<typeof setNameSchema>;
 
 //Convenience for verifying a type in a more permissive context is of a given type at compile time.
 export const setName = (input : SetName) => input;

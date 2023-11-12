@@ -200,7 +200,7 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 		{
 			icon: icons.VISIBILITY_ICON,
 			display_name: 'Cards you haven\'t read yet',
-			collection: new CollectionDescription('', ['unread']),
+			collection: new CollectionDescription('main', ['unread']),
 			count: true,
 		}
 	],
@@ -257,7 +257,7 @@ const tabsForSections = (sections : Sections, doHide? : boolean) : TabConfig => 
 
 	const result = Object.values(sections).map(section => ({
 		display_name: section.title,
-		collection: new CollectionDescription('', [section.id]),
+		collection: new CollectionDescription('main', [section.id]),
 		start_cards: section.start_cards,
 		hide: doHide,
 		default: section.default,

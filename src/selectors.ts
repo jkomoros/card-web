@@ -207,7 +207,7 @@ export const selectImageBrowserDialogOpen = (state : State) => state.editor ? st
 export const selectImageBrowserDialogIndex = (state : State) => state.editor ? state.editor.imageBrowserDialogIndex : undefined;
 
 export const selectActiveRenderOffset = (state : State) => state.collection ? state.collection.activeRenderOffset : 0;
-const selectActiveSetName = (state : State) => state.collection ? state.collection.activeSetName : '';
+const selectActiveSetName = (state : State) : SetName => state.collection ? state.collection.activeSetName : 'main';
 const selectActiveFilterNames = (state : State) => state.collection ? state.collection.activeFilterNames : [];
 const selectActiveSortName = (state : State) => state.collection ? state.collection.activeSortName : '';
 const selectActiveSortReversed = (state : State) => state.collection ? state.collection.activeSortReversed : false;
@@ -1313,7 +1313,7 @@ const selectEverythingSetSnapshot = createSelector(
 );
 
 type SetCollection = {
-	[set in Exclude<SetName, ''>]: CardID[]
+	[set in SetName]: CardID[]
 };
 
 const selectAllSets = createSelector(

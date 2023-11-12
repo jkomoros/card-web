@@ -165,7 +165,7 @@ const DIFFERENT_TYPE_FILTER_NAME = 'different-type';
 * description - the description for the set, to be shown to potentially all
   users.
 */
-export const SET_INFOS : {[name in Exclude<SetName, ''>]: {filterEquivalent: FilterName, description: string}} = {
+export const SET_INFOS : {[name in SetName]: {filterEquivalent: FilterName, description: string}} = {
 	'main': {
 		filterEquivalent: 'in-all-set',
 		description: 'The default set, typically containing only content cards that are specifically included in a section'
