@@ -12,7 +12,6 @@ import {
 	REFERENCE_TYPE_TYPES,
 	TEXT_FIELD_TYPES_EDITABLE,
 	EDITOR_TAB_TYPES,
-	EDITOR_CONTENT_TAB_TYPES,
 	FIND_CARD_TO_LINK,
 	FIND_CARD_TO_PERMISSION,
 	FIND_CARD_TO_REFERENCE,
@@ -397,8 +396,17 @@ export type ConfigurableFilterConfigurationMap = {
 
 //TODO: this name is confusing, in the state this is just called tab
 export type EditorTab = keyof(typeof EDITOR_TAB_TYPES);
+
+const editorContentTabSchema = z.enum([
+	'content',
+	'notes',
+	'todo'
+]);
+
 //TODO: this name is confusing, in the state this is called editorTab
-export type EditorContentTab = keyof(typeof EDITOR_CONTENT_TAB_TYPES);
+export type EditorContentTab = z.infer<typeof editorContentTabSchema>;
+
+export const editorContentTab = (input : EditorContentTab) => input;
 
 export type UserInfo = {
 	uid: Uid,

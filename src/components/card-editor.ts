@@ -119,9 +119,6 @@ import {
 	REFERENCE_TYPE_CONCEPT,
 	TAB_CONTENT,
 	TAB_CONFIG,
-	EDITOR_TAB_CONTENT,
-	EDITOR_TAB_NOTES,
-	EDITOR_TAB_TODO,
 	TEXT_FIELD_TYPES_EDITABLE
 } from '../type_constants.js';
 
@@ -150,7 +147,8 @@ import {
 	CardID,
 	State,
 	ReferenceType,
-	CardFieldTypeEditable
+	CardFieldTypeEditable,
+	editorContentTab
 } from '../types.js';
 
 import {
@@ -453,16 +451,16 @@ class CardEditor extends connect(store)(LitElement) {
         <div class='inputs'>
 		  <div ?hidden=${this._selectedTab !== TAB_CONTENT} class='flex body'>
 			<div class='tabs' @click=${this._handleEditorTabClicked}>
-				<label data-name='${EDITOR_TAB_CONTENT}' ?data-selected=${this._selectedEditorTab == EDITOR_TAB_CONTENT} ?data-empty=${!hasContent} ?data-modified=${contentModified}>Content</label>
-				<label data-name='${EDITOR_TAB_NOTES}' ?data-selected=${this._selectedEditorTab == EDITOR_TAB_NOTES} ?data-empty=${!hasNotes} ?data-modified=${notesModified}>Notes</label>
-				<label data-name='${EDITOR_TAB_TODO}' ?data-selected=${this._selectedEditorTab == EDITOR_TAB_TODO} ?data-empty=${!hasTodo} ?data-modified=${todoModified}>Freeform TODO</label>
+				<label data-name='${editorContentTab('content')}' ?data-selected=${this._selectedEditorTab == 'content'} ?data-empty=${!hasContent} ?data-modified=${contentModified}>Content</label>
+				<label data-name='${editorContentTab('notes')}' ?data-selected=${this._selectedEditorTab == 'notes'} ?data-empty=${!hasNotes} ?data-modified=${notesModified}>Notes</label>
+				<label data-name='${editorContentTab('todo')}' ?data-selected=${this._selectedEditorTab == 'todo'} ?data-empty=${!hasTodo} ?data-modified=${todoModified}>Freeform TODO</label>
 				<span class='flex'></span>
-				<label class='help' ?hidden=${this._selectedEditorTab !== EDITOR_TAB_CONTENT}>Content is what shows up on the main body of the card</label>
-				<label class='help' ?hidden=${this._selectedEditorTab !== EDITOR_TAB_NOTES}>Notes are visible in the info panel to all readers and are for permanent asides</label>
-				<label class='help' ?hidden=${this._selectedEditorTab !== EDITOR_TAB_TODO}>Freeform TODOs are only visible to editors and mark a temporary thing to do so it shows up in the has-freeform-todo filter</label>
+				<label class='help' ?hidden=${this._selectedEditorTab !== 'content'}>Content is what shows up on the main body of the card</label>
+				<label class='help' ?hidden=${this._selectedEditorTab !== 'notes'}>Notes are visible in the info panel to all readers and are for permanent asides</label>
+				<label class='help' ?hidden=${this._selectedEditorTab !== 'todo'}>Freeform TODOs are only visible to editors and mark a temporary thing to do so it shows up in the has-freeform-todo filter</label>
 
 			</div>
-			<div ?hidden=${this._selectedEditorTab !== EDITOR_TAB_CONTENT} class='body flex'>
+			<div ?hidden=${this._selectedEditorTab !== 'content'} class='body flex'>
 				${TypedObject.entries(editableFieldsForCardType(this._card.card_type)).map(entry => html`<label>${toTitleCase(entry[0])}${entry[1].description ? help(entry[1].description) : ''}</label>
 					${entry[1].html
 		? html`<textarea @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${this._card[entry[0]]}></textarea>`
@@ -470,8 +468,8 @@ class CardEditor extends connect(store)(LitElement) {
 				`)}
 				<label>Images</label><card-images-editor></card-images-editor>
 			</div>
-			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_NOTES} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
-			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_TODO} @input='${this._handleTodoUpdated}' .value=${this._card.todo}></textarea>
+			<textarea ?hidden=${this._selectedEditorTab !== 'notes'} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
+			<textarea ?hidden=${this._selectedEditorTab !== 'todo'} @input='${this._handleTodoUpdated}' .value=${this._card.todo}></textarea>
 		  </div>
 		  <div ?hidden=${this._selectedTab !== TAB_CONFIG}>
 			<div class='row'>

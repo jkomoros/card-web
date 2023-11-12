@@ -42,8 +42,7 @@ import {
 } from '../actions.js';
 
 import {
-	TAB_CONFIG,
-	EDITOR_TAB_CONTENT,
+	TAB_CONFIG
 } from '../type_constants.js';
 
 import {
@@ -82,11 +81,13 @@ import {
 } from '../images.js';
 
 import {
-	EditorState, ImageInfoStringProperty
+	EditorContentTab,
+	EditorState,
+	ImageInfoStringProperty
 } from '../types.js';
 
 const DEFAULT_TAB = TAB_CONFIG;
-const DEFAULT_EDITOR_TAB = EDITOR_TAB_CONTENT;
+const DEFAULT_EDITOR_TAB : EditorContentTab = 'content';
 
 const INITIAL_STATE : EditorState = {
 	editing: false,
