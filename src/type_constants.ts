@@ -117,40 +117,6 @@ export const EDITOR_CONTENT_TAB_TYPES = {
 	[EDITOR_TAB_TODO]: true,
 };
 
-export const TAB_CONFIG_DEFAULT_TABS = 'default_tabs';
-export const TAB_CONFIG_DEFAULT_END_TABS = 'default_end_tabs';
-export const TAB_CONFIG_SECTIONS = 'sections';
-export const TAB_CONFIG_HIDDEN_SECTIONS = 'hidden_sections';
-export const TAB_CONFIG_TAGS = 'tags';
-export const TAB_CONFIG_HIDDEN_TAGS = 'hidden_tags';
-export const TAB_CONFIG_POPULAR = 'popular';
-export const TAB_CONFIG_RECENT = 'recent';
-export const TAB_CONFIG_READING_LIST = 'reading-list';
-export const TAB_CONFIG_STARRED = 'starred';
-export const TAB_CONFIG_UNREAD = 'unread';
-export const TAB_CONFIG_WORKING_NOTES = 'working-notes';
-export const TAB_CONFIG_CONCEPTS = 'concepts';
-export const TAB_CONFIG_TWITTER = 'twitter';
-export const TAB_CONFIG_RANDOM = 'random';
-
-export const TAB_CONFIG_TYPES = {
-	[TAB_CONFIG_DEFAULT_TABS]: true,
-	[TAB_CONFIG_DEFAULT_END_TABS]: true,
-	[TAB_CONFIG_SECTIONS]: true,
-	[TAB_CONFIG_HIDDEN_SECTIONS]: true,
-	[TAB_CONFIG_TAGS]: true,
-	[TAB_CONFIG_HIDDEN_TAGS]: true,
-	[TAB_CONFIG_POPULAR]: true,
-	[TAB_CONFIG_RECENT]: true,
-	[TAB_CONFIG_READING_LIST]: true,
-	[TAB_CONFIG_STARRED]: true,
-	[TAB_CONFIG_UNREAD]: true,
-	[TAB_CONFIG_WORKING_NOTES]: true,
-	[TAB_CONFIG_CONCEPTS]: true,
-	[TAB_CONFIG_TWITTER]: true,
-	[TAB_CONFIG_RANDOM]: true
-};
-
 export const CARDS_COLLECTION = 'cards';
 export const CARD_UPDATES_COLLECTION = 'updates';
 export const SECTION_UPDATES_COLLECTION = 'updates';

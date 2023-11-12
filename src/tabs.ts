@@ -5,24 +5,6 @@ import {
 import * as icons from './components/my-icons.js';
 
 import {
-	TAB_CONFIG_DEFAULT_TABS,
-	TAB_CONFIG_DEFAULT_END_TABS,
-	TAB_CONFIG_SECTIONS,
-	TAB_CONFIG_HIDDEN_SECTIONS,
-	TAB_CONFIG_TAGS,
-	TAB_CONFIG_HIDDEN_TAGS,
-	TAB_CONFIG_POPULAR,
-	TAB_CONFIG_RECENT,
-	TAB_CONFIG_READING_LIST,
-	TAB_CONFIG_STARRED,
-	TAB_CONFIG_UNREAD,
-	TAB_CONFIG_WORKING_NOTES,
-	TAB_CONFIG_CONCEPTS,
-	TAB_CONFIG_TWITTER,
-	TAB_CONFIG_RANDOM
-} from './type_constants.js';
-
-import {
 	TWITTER_HANDLE
 } from './config.GENERATED.SECRET.js';
 
@@ -114,52 +96,52 @@ const inflateCollectionsAndIcons = (config : TabConfig) : ExpandedTabConfig => {
 
 const DEFAULT_CONFIG : TabConfig = [
 	{
-		expand: TAB_CONFIG_DEFAULT_TABS
+		expand: 'default_tabs'
 	}
 ];
 
-const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
-	[TAB_CONFIG_DEFAULT_TABS]: [
+const EXPANSION_ITEMS : {[name in Exclude<TabConfigName, 'sections' | 'hidden_sections' | 'tags' | 'hidden_tags'>]: TabConfig} = {
+	'default_tabs': [
 		{
-			expand: TAB_CONFIG_SECTIONS,
+			expand: 'sections',
 		},
 		{
-			expand: TAB_CONFIG_HIDDEN_TAGS,
+			expand: 'hidden_tags',
 		},
 		{
-			expand: TAB_CONFIG_DEFAULT_END_TABS,
+			expand: 'default_end_tabs',
 		}
 	],
-	[TAB_CONFIG_DEFAULT_END_TABS]: [
+	'default_end_tabs': [
 		{
-			expand: TAB_CONFIG_POPULAR,
+			expand: 'popular',
 		},
 		{
-			expand: TAB_CONFIG_RECENT,
+			expand: 'recent',
 		},
 		{
-			expand: TAB_CONFIG_READING_LIST,
+			expand: 'reading-list',
 		},
 		{
-			expand: TAB_CONFIG_STARRED,
+			expand: 'starred',
 		},
 		{
-			expand: TAB_CONFIG_UNREAD,
+			expand: 'unread',
 		},
 		{
-			expand: TAB_CONFIG_WORKING_NOTES,
+			expand: 'working-notes',
 		},
 		{
-			expand: TAB_CONFIG_CONCEPTS,
+			expand: 'concepts',
 		},
 		{
-			expand: TAB_CONFIG_RANDOM,
+			expand: 'random',
 		},
 		{
-			expand: TAB_CONFIG_TWITTER,
+			expand: 'twitter',
 		}
 	],
-	[TAB_CONFIG_POPULAR]: [
+	'popular': [
 		{
 			icon: icons.INSIGHTS_ICON,
 			display_name: 'Popular',
@@ -169,14 +151,14 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 			default:true,
 		}
 	],
-	[TAB_CONFIG_RECENT]: [
+	'recent': [
 		{
 			icon: icons.SCHEDULE_ICON,
 			display_name: 'Recent',
 			collection: new CollectionDescription('everything', ['has-content'], 'recent', false),
 		}
 	],
-	[TAB_CONFIG_READING_LIST]: [
+	'reading-list': [
 		{
 			icon: icons.PLAYLIST_PLAY_ICON,
 			display_name: 'Your reading list',
@@ -185,7 +167,7 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 			fallback_cards: [READING_LIST_FALLBACK_CARD],
 		}
 	],
-	[TAB_CONFIG_STARRED]: [
+	'starred': [
 		{
 			icon: icons.STAR_ICON,
 			display_name: 'Your starred cards',
@@ -194,7 +176,7 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 			fallback_cards: [STARS_FALLBACK_CARD],
 		}
 	],
-	[TAB_CONFIG_UNREAD]: [
+	'unread': [
 		{
 			icon: icons.VISIBILITY_ICON,
 			display_name: 'Cards you haven\'t read yet',
@@ -202,7 +184,7 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 			count: true,
 		}
 	],
-	[TAB_CONFIG_WORKING_NOTES]: [
+	'working-notes': [
 		{
 			icon: icons.INSERT_DRIVE_FILE_ICON,
 			display_name: 'Working note cards',
@@ -211,7 +193,7 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 			hideIfEmpty: true,
 		}
 	],
-	[TAB_CONFIG_CONCEPTS]: [
+	'concepts': [
 		{
 			icon: icons.MENU_BOOK_ICON,
 			display_name: 'Concept cards',
@@ -220,7 +202,7 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 			hideIfEmpty: true,
 		}
 	],
-	[TAB_CONFIG_TWITTER]: [
+	'twitter': [
 		{
 			icon: icons.TWITTER_ICON,
 			display_name: '@' + TWITTER_HANDLE + ' tweets multiple times a day with cards from this collection. It\'s a great way to dip your toe in the content.',
@@ -229,7 +211,7 @@ const EXPANSION_ITEMS : {[name in TabConfigName]+?: TabConfig} = {
 			hide: !TWITTER_HANDLE,
 		}
 	],
-	[TAB_CONFIG_RANDOM]: [
+	'random': [
 		{
 			icon: icons.CASINO_ICON,
 			display_name: 'Random card (⌘⌥⇧R)',
@@ -275,18 +257,22 @@ const expandTabConfigItem = (configItem : TabConfigItem, sections : Sections, ta
 	//expansion item (once each for each item in the expansion). That means you
 	//can set non-default properties, e.g. {expand:'concept', default:true} and
 	//have the default:true still exist after expansion.
-	if (EXPANSION_ITEMS[configItem.expand]) return [[...EXPANSION_ITEMS[configItem.expand].map(item => ({...configItemWithoutExpand, ...tabConfigItem(item)}))], true];
+	if (configItem.expand in EXPANSION_ITEMS) {
+		//eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const items = (EXPANSION_ITEMS as any)[configItem.expand] as TabConfig;
+		return [[...items.map(item => ({...configItemWithoutExpand, ...tabConfigItem(item)}))], true];
+	}
 
-	if (configItem.expand == TAB_CONFIG_SECTIONS) {
+	if (configItem.expand == 'sections') {
 		return [tabsForSections(sections, false), true];
 	}
-	if (configItem.expand == TAB_CONFIG_HIDDEN_SECTIONS) {
+	if (configItem.expand == 'hidden_sections') {
 		return [tabsForSections(sections, true), true];
 	}
-	if (configItem.expand == TAB_CONFIG_TAGS) {
+	if (configItem.expand == 'tags') {
 		return [tabsForSections(tags), true];
 	}
-	if (configItem.expand == TAB_CONFIG_HIDDEN_TAGS) {
+	if (configItem.expand == 'hidden_tags') {
 		return [tabsForSections(tags, true), true];
 	}
 

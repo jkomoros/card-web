@@ -169,7 +169,7 @@
             ],
             "type": "string"
         },
-        "{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}": {
+        "{default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;recent?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;\"working-notes\"?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;random?:TabConfigItemInput;}": {
             "additionalProperties": false,
             "properties": {
                 "concepts": {
@@ -220,7 +220,7 @@
             },
             "type": "object"
         },
-        "{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}_1": {
+        "{default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;recent?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;\"working-notes\"?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;random?:TabConfigItemInput;}_1": {
             "additionalProperties": false,
             "properties": {
                 "concepts": {
@@ -538,10 +538,10 @@
                     "additionalProperties": false,
                     "properties": {
                         "after": {
-                            "$ref": "#/definitions/{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}_1"
+                            "$ref": "#/definitions/{default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;recent?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;\"working-notes\"?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;random?:TabConfigItemInput;}_1"
                         },
                         "before": {
-                            "$ref": "#/definitions/{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}"
+                            "$ref": "#/definitions/{default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;recent?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;\"working-notes\"?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;random?:TabConfigItemInput;}"
                         }
                     },
                     "type": "object"
@@ -871,10 +871,10 @@
                     "additionalProperties": false,
                     "properties": {
                         "after": {
-                            "$ref": "#/definitions/{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}_1"
+                            "$ref": "#/definitions/{default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;recent?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;\"working-notes\"?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;random?:TabConfigItemInput;}_1"
                         },
                         "before": {
-                            "$ref": "#/definitions/{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}"
+                            "$ref": "#/definitions/{default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;recent?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;\"working-notes\"?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;random?:TabConfigItemInput;}"
                         }
                     },
                     "type": "object"
@@ -1204,10 +1204,10 @@
                     "additionalProperties": false,
                     "properties": {
                         "after": {
-                            "$ref": "#/definitions/{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}_1"
+                            "$ref": "#/definitions/{default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;recent?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;\"working-notes\"?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;random?:TabConfigItemInput;}_1"
                         },
                         "before": {
-                            "$ref": "#/definitions/{\"working-notes\"?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;recent?:TabConfigItemInput;random?:TabConfigItemInput;default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;}"
+                            "$ref": "#/definitions/{default_tabs?:TabConfigItemInput;default_end_tabs?:TabConfigItemInput;sections?:TabConfigItemInput;hidden_sections?:TabConfigItemInput;tags?:TabConfigItemInput;hidden_tags?:TabConfigItemInput;popular?:TabConfigItemInput;recent?:TabConfigItemInput;\"reading-list\"?:TabConfigItemInput;starred?:TabConfigItemInput;unread?:TabConfigItemInput;\"working-notes\"?:TabConfigItemInput;concepts?:TabConfigItemInput;twitter?:TabConfigItemInput;random?:TabConfigItemInput;}"
                         }
                     },
                     "type": "object"
