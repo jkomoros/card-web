@@ -26,6 +26,10 @@ import {
 	waitForFinalCollection
 } from './actions/collection.js';
 
+import {
+	references
+} from './references.js';
+
 type SuggestionDiff = {
 	keyCard: CardDiff,
 	//The diff to apply to each supportingCard.
@@ -69,20 +73,32 @@ type Suggestor = {
 const DUPE_SIMILARITY_CUT_OFF = 0.95;
 
 const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Suggestion[] | null> => {
-	const {collectionArguments, logger} = args;
+	const {card, collectionArguments, logger} = args;
 	const description = collectionDescription(...SIMILAR_SAME_TYPE);
 	const collection = await waitForFinalCollection(description, {keyCardID: collectionArguments.keyCardID});
-	const topCard = collection.finalSortedCards[0];
-	logger.info(`topCard: ${topCard ? topCard.id : 'NULL'}`);
-	if (!topCard) return null;
-	const similarity = collection.sortValueForCard(topCard.id);
-	logger.info(`similarity: ${similarity}`);
-	if (similarity < DUPE_SIMILARITY_CUT_OFF) {
-		logger.info('Similarity too low.');
-		return null;
+	const topCards = collection.finalSortedCards;
+	const result : Suggestion[] = [];
+	for (const topCard of topCards) {
+		logger.info(`topCard: ${topCard.id}`);
+		const similarity = collection.sortValueForCard(topCard.id);
+		logger.info(`similarity: ${similarity}`);
+		if (similarity < DUPE_SIMILARITY_CUT_OFF) {
+			logger.info('Similarity too low.');
+			break;
+		}
+		const refs = references(topCard);
+		if (refs.byType['see-also'][card.id] !== undefined) {
+			logger.info('Other has this card as see-also already');
+			break;
+		}
+		if (refs.byTypeInbound['see-also'][card.id] !== undefined) {
+			logger.info('This card has other as see-also already');
+			break;
+		}
+		//TODO: actually suggest an item
+		logger.info('Would have suggested see-also');
 	}
-	//TODO: actually suggestion an item
-	return null;
+	return result;
 };
 
 const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
