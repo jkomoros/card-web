@@ -69,15 +69,19 @@ type Suggestor = {
 const DUPE_SIMILARITY_CUT_OFF = 0.95;
 
 const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Suggestion[] | null> => {
-	const {collectionArguments} = args;
+	const {collectionArguments, logger} = args;
 	const description = collectionDescription(...SIMILAR_SAME_TYPE);
 	const collection = await waitForFinalCollection(description, {keyCardID: collectionArguments.keyCardID});
 	const topCard = collection.finalSortedCards[0];
+	logger.info(`topCard: ${topCard ? topCard.id : 'NULL'}`);
 	if (!topCard) return null;
 	const similarity = collection.sortValueForCard(topCard.id);
-	if (similarity < DUPE_SIMILARITY_CUT_OFF) return null;
-	//TODO: actually provide a suggestion
-	console.log('Similarity', similarity);
+	logger.info(`similarity: ${similarity}`);
+	if (similarity < DUPE_SIMILARITY_CUT_OFF) {
+		logger.info('Similarity too low.');
+		return null;
+	}
+	//TODO: actually suggestion an item
 	return null;
 };
 
