@@ -97,15 +97,6 @@ export const REFERENCE_TYPE_TYPES = {
 	[REFERENCE_TYPE_CITATION_PERSON]: true
 };
 
-export const TAB_CONTENT = 'content';
-export const TAB_CONFIG = 'config';
-
-//Drives EditorTab type
-export const EDITOR_TAB_TYPES = {
-	[TAB_CONTENT]: true,
-	[TAB_CONFIG]: true
-};
-
 export const CARDS_COLLECTION = 'cards';
 export const CARD_UPDATES_COLLECTION = 'updates';
 export const SECTION_UPDATES_COLLECTION = 'updates';

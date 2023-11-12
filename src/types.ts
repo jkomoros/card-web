@@ -11,7 +11,6 @@ import {
 	TEXT_FIELD_TYPES,
 	REFERENCE_TYPE_TYPES,
 	TEXT_FIELD_TYPES_EDITABLE,
-	EDITOR_TAB_TYPES,
 	FIND_CARD_TO_LINK,
 	FIND_CARD_TO_PERMISSION,
 	FIND_CARD_TO_REFERENCE,
@@ -395,7 +394,13 @@ export type ConfigurableFilterConfigurationMap = {
 };
 
 //TODO: this name is confusing, in the state this is just called tab
-export type EditorTab = keyof(typeof EDITOR_TAB_TYPES);
+
+const editorTabSchema = z.enum([
+	'content',
+	'config'
+]);
+
+export type EditorTab = z.infer<typeof editorTabSchema>;
 
 const editorContentTabSchema = z.enum([
 	'content',
@@ -1330,4 +1335,5 @@ export type State = {
 //will be used in a generic string context and want type-checking to verify it
 //is part of the enum.
 export const setName = (input : SetName) => input;
+export const editorTab = (input : EditorTab) => input;
 export const editorContentTab = (input : EditorContentTab) => input;

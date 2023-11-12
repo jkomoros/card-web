@@ -42,10 +42,6 @@ import {
 } from '../actions.js';
 
 import {
-	TAB_CONFIG
-} from '../type_constants.js';
-
-import {
 	SET_PENDING_SLUG
 } from '../actions.js';
 
@@ -83,10 +79,11 @@ import {
 import {
 	EditorContentTab,
 	EditorState,
+	EditorTab,
 	ImageInfoStringProperty
 } from '../types.js';
 
-const DEFAULT_TAB = TAB_CONFIG;
+const DEFAULT_TAB : EditorTab = 'config';
 const DEFAULT_EDITOR_TAB : EditorContentTab = 'content';
 
 const INITIAL_STATE : EditorState = {

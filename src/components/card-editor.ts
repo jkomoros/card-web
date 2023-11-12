@@ -117,8 +117,6 @@ import {
 	TEXT_FIELD_TITLE,
 	REFERENCE_TYPE_ACK,
 	REFERENCE_TYPE_CONCEPT,
-	TAB_CONTENT,
-	TAB_CONFIG,
 	TEXT_FIELD_TYPES_EDITABLE
 } from '../type_constants.js';
 
@@ -148,7 +146,8 @@ import {
 	State,
 	ReferenceType,
 	CardFieldTypeEditable,
-	editorContentTab
+	editorContentTab,
+	editorTab
 } from '../types.js';
 
 import {
@@ -163,7 +162,10 @@ import {
 	ARROW_UP_ICON,
 	ARROW_RIGHT_ICON
 } from './my-icons';
-import { titleForEditingCardWithAI } from '../actions/ai.js';
+
+import {
+	titleForEditingCardWithAI
+} from '../actions/ai.js';
 
 @customElement('card-editor')
 class CardEditor extends connect(store)(LitElement) {
@@ -449,7 +451,7 @@ class CardEditor extends connect(store)(LitElement) {
       <div class='container ${this._cardModificationPending ? 'modification-pending' : ''} ${this._minimized ? 'minimized' : 'not-minimized'}'>
 		<div class='scrim'></div>
         <div class='inputs'>
-		  <div ?hidden=${this._selectedTab !== TAB_CONTENT} class='flex body'>
+		  <div ?hidden=${this._selectedTab !== 'content'} class='flex body'>
 			<div class='tabs' @click=${this._handleEditorTabClicked}>
 				<label data-name='${editorContentTab('content')}' ?data-selected=${this._selectedEditorTab == 'content'} ?data-empty=${!hasContent} ?data-modified=${contentModified}>Content</label>
 				<label data-name='${editorContentTab('notes')}' ?data-selected=${this._selectedEditorTab == 'notes'} ?data-empty=${!hasNotes} ?data-modified=${notesModified}>Notes</label>
@@ -471,7 +473,7 @@ class CardEditor extends connect(store)(LitElement) {
 			<textarea ?hidden=${this._selectedEditorTab !== 'notes'} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
 			<textarea ?hidden=${this._selectedEditorTab !== 'todo'} @input='${this._handleTodoUpdated}' .value=${this._card.todo}></textarea>
 		  </div>
-		  <div ?hidden=${this._selectedTab !== TAB_CONFIG}>
+		  <div ?hidden=${this._selectedTab !== 'config'}>
 			<div class='row'>
 				<div>
 				<label>Section ${help('Cards are in 0 or 1 sections, which determines the default order they show up in. Cards that are orphaned will not show up in any default collection.')}</label>
@@ -754,8 +756,8 @@ class CardEditor extends connect(store)(LitElement) {
 			</div>
 		` :
 		html`<div class='tabs main' @click=${this._handleTabClicked}>
-				<label data-name='${TAB_CONFIG}' ?data-selected=${this._selectedTab == TAB_CONFIG}>Configuration</label>
-				<label data-name='${TAB_CONTENT}' ?data-selected=${this._selectedTab == TAB_CONTENT}>Content</label>
+				<label data-name='${editorTab('config')}' ?data-selected=${this._selectedTab == 'config'}>Configuration</label>
+				<label data-name='${editorTab('content')}' ?data-selected=${this._selectedTab == 'content'}>Content</label>
 			</div>`}
 			<div class='flex'>
 			</div>
