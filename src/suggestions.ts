@@ -49,7 +49,6 @@ export type Suggestion = {
 };
 
 type Logger = {
-	debug(...msg: unknown[]): void;
 	info(...msg: unknown[]): void;
 	error(...msg: unknown[]): void;
 	log(...msg: unknown[]): void;
@@ -98,9 +97,7 @@ const devNull : Logger = {
 	//eslint-disable-next-line @typescript-eslint/no-empty-function
 	error: () => {},
 	//eslint-disable-next-line @typescript-eslint/no-empty-function
-	info: () => {},
-	//eslint-disable-next-line @typescript-eslint/no-empty-function
-	debug: () => {}
+	info: () => {}
 };
 
 export const suggestionsForCard = async (card : ProcessedCard, state : State) : Promise<Suggestion[]> => {
