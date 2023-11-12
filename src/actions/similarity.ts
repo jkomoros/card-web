@@ -56,6 +56,7 @@ type CardSimilarityItem = [CardID, number];
 //Replicated in `functions/src/types.ts`
 type SimilarCardsResponseData = {
 	success: false,
+	code: 'qdrant-disabled' | 'no-embedding' | 'unknown'
 	error: string
 } | {
 	success: true
@@ -68,6 +69,7 @@ const similarCards = async (cardID : CardID) : Promise<SimilarCardsResponseData>
 	if (!QDRANT_ENABLED) {
 		return {
 			success: false,
+			code: 'qdrant-disabled',
 			error: 'Qdrant isn\'t enabled'
 		};
 	}

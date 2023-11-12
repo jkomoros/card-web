@@ -196,6 +196,7 @@ export type CardSimilarityItem = [CardID, number];
 //Replicated in `src/actions/similarity.ts`
 export type SimilarCardsResponseData = {
 	success: false,
+	code: 'qdrant-disabled' | 'no-embedding' | 'unknown'
 	error: string
 } | {
 	success: true
