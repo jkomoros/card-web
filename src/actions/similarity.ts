@@ -90,6 +90,9 @@ const similarCards = async (cardID : CardID, lastUpdated : MillisecondsSinceEpoc
 	return result.data;
 };
 
+const TIME_TO_WAIT_FOR_STALE : MillisecondsSinceEpoch = 10 * 60 * 1000;
+const DELAY_FOR_STALE : MillisecondsSinceEpoch = 2.5 * 1000;
+
 const fetchSimilarCards = (cardID : CardID, lastUpdated: MillisecondsSinceEpoch) : ThunkSomeAction => async (dispatch) => {
 	if (!cardID) return;
 
@@ -97,11 +100,18 @@ const fetchSimilarCards = (cardID : CardID, lastUpdated: MillisecondsSinceEpoch)
 
 	if (result.success == false) {
 
-		//TODO: if it failed because of `stale-embedding`, then try again... as
-		//long as it's been under 10 minutes since the card was updated, at
-		//which point we just give up.
+		if (result.code == 'stale-embedding') {
+			//This error happens when there might be a new one coming
+			const timeSinceUpdated = Date.now() - lastUpdated;
+			if (timeSinceUpdated < TIME_TO_WAIT_FOR_STALE) {
+				//Wait a bit and try again
+				console.log(`The card was stale, but it was last updated recently enough that we'll wait ${DELAY_FOR_STALE} ms and try again`);
+				setTimeout(() => dispatch(fetchSimilarCards(cardID, lastUpdated)), DELAY_FOR_STALE);
+				return;
+			}
+		}
 
-		console.warn(`similarCards failed: ${result.error}`);
+		console.warn(`similarCards failed: ${result.code}: ${result.error}`);
 		dispatch({
 			type: UPDATE_CARD_SIMILARITY,
 			card_id: cardID,
