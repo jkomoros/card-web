@@ -215,7 +215,7 @@ type PointSummary = {
 };
 
 type GetPointsOptions = {
-	includePayload? : boolean,
+	includePayload? : boolean | (keyof PointPayload)[],
 	includeVector? : boolean
 };
 
@@ -489,8 +489,7 @@ export const similarCards = async (request : CallableRequest<SimilarCardsRequest
 
 	} else {
 		//We'll use the embeddeding that is already stored.
-		//TODO: we really only need the last_updated field in payload, not all of it.
-		const point = await EMBEDDING_STORE.getExistingPoint(data.card_id, {includeVector: true, includePayload: true});
+		const point = await EMBEDDING_STORE.getExistingPoint(data.card_id, {includeVector: true, includePayload: ['last_updated']});
 		if (!point) {
 			return {
 				success: false,
