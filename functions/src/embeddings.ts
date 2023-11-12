@@ -343,7 +343,7 @@ class EmbeddingStore {
 				}
 			});
 
-			console.log(`Updated the metadata for ${card.id} because its embedding had not changed`);
+			console.log(`Updated the metadata for ${card.id} (${existingPoint.id}) because its embedding had not changed`);
 			return;
 		}
 
@@ -372,7 +372,7 @@ class EmbeddingStore {
 			]
 		});
 
-		console.log(`Stored embedding for ${card.id}`);
+		console.log(`Stored embedding for ${card.id} (${id})`);
 	}
 
 	async deleteCard(card : Card) : Promise<void> {
