@@ -196,7 +196,7 @@ export const NONE_FILTER_NAME = 'none';
 export const ALL_FILTER_NAME = 'all-cards';
 
 //Legal view modes, including whether an option is expected or not.
-export const LEGAL_VIEW_MODES : {[mode in Exclude<ViewMode, ''>]: boolean} = {
+export const LEGAL_VIEW_MODES : {[mode in ViewMode]: boolean} = {
 	//Note: collection_description logic assumes that default_view_mode takes not extra option.
 	'list': false,
 	'web': true,

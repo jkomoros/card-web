@@ -884,7 +884,7 @@ export const viewMode = z.enum([
 	'web'
 ]);
 
-export type ViewMode = '' | z.infer<typeof viewMode>;
+export type ViewMode = z.infer<typeof viewMode>;
 
 export type SectionID = string;
 

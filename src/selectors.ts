@@ -156,7 +156,8 @@ import {
 	SortName,
 	AIDialogType,
 	AIModelName,
-	SetName
+	SetName,
+	ViewMode
 } from './types.js';
 
 import {
@@ -211,7 +212,7 @@ const selectActiveSetName = (state : State) : SetName => state.collection ? stat
 const selectActiveFilterNames = (state : State) => state.collection ? state.collection.activeFilterNames : [];
 const selectActiveSortName = (state : State) => state.collection ? state.collection.activeSortName : '';
 const selectActiveSortReversed = (state : State) => state.collection ? state.collection.activeSortReversed : false;
-const selectActiveViewMode = (state : State) => state.collection ? state.collection.activeViewMode : '';
+const selectActiveViewMode = (state : State) : ViewMode => state.collection ? state.collection.activeViewMode : 'list';
 const selectActiveViewModeExtra = (state : State) => state.collection ? state.collection.activeViewModeExtra : '';
 export const selectRequestedCard = (state : State) => state.collection.requestedCard;
 export const selectActiveCardId = (state : State) => state.collection ? state.collection.activeCardId : '';
