@@ -37,16 +37,16 @@ export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Sugge
 			break;
 		}
 		const refs = references(topCard);
-		const refsOutbound = refs.byType['see-also'];
-		if (refsOutbound && refsOutbound[card.id] !== undefined) {
-			logger.info('Other has this card as see-also already');
+		//We look at array, not substantiveArray, because if there's already an ACK then we want to skip it.
+		if (refs.array().includes(card.id)) {
+			logger.info('Other has this card referenced already');
 			break;
 		}
-		const refsInbound = refs.byTypeInbound['see-also'];
-		if (refsInbound && refsInbound[card.id] !== undefined) {
-			logger.info('This card has other as see-also already');
+		if (refs.inboundArray().includes(card.id)) {
+			logger.info('This card has other referenced already');
 			break;
 		}
+		logger.info('Suggesting this as a card');
 		const suggestion = makeReferenceSuggestion('missing-see-also', card.id, topCard.id, 'see-also');
 		result.push(suggestion);
 	}
