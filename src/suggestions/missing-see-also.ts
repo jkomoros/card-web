@@ -53,7 +53,9 @@ export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Sugge
 			break;
 		}
 
-		//TODO: if one card is priority and the other is not, then the other card should be the key card.
+		//TODO: if one card is priority and the other is not, then the other
+		//card should be the key card. This is actually pretty hard because
+		//TODOOverrides and TODOType aren't tightly locked down.
 		logger.info('Suggesting this as a card');
 		const suggestion = makeReferenceSuggestion(type, card.id, topCard.id, 'see-also');
 		result.push(suggestion);
