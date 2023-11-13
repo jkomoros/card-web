@@ -31,6 +31,11 @@ export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Sugge
 	const result : Suggestion[] = [];
 	for (const topCard of topCards) {
 		logger.info(`topCard: ${topCard.id}`);
+		//TODO: this currently assumes that we'll get back an embedding-based
+		//similarity, which is true only if qdrant is enabled and there aren't
+		//errors in this card. We need another signal that's not preview (which
+		//means, try again), but this is low-fidelity. Maybe just have a
+		//`meaning` filter which simply doesn't return any results if it's not embedding filter.
 		const similarity = collection.sortValueForCard(topCard.id);
 		logger.info(`similarity: ${similarity}`);
 		if (similarity < SIMILARITY_CUT_OFF) {
