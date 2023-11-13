@@ -1580,14 +1580,14 @@ const CARD_FILTER_CONFIGS : CardFilterConfigMap = Object.assign(
 	*/
 	{
 		//First all the AUTO_TODO ones.
-		'slug': [defaultCardFilterName('slug'), (card : Card) => card.slugs && card.slugs.length, TODO_TYPE_AUTO_CONTENT, 0.2, 'Whether the card has a slug set'],
+		'slug': [defaultCardFilterName('slug'), (card : Card) => card.slugs && card.slugs.length > 0, TODO_TYPE_AUTO_CONTENT, 0.2, 'Whether the card has a slug set'],
 		'content': [defaultCardFilterName('content'), (card : Card) => cardHasContent(card), TODO_TYPE_AUTO_CONTENT_AND_CONCEPT, 5.0, 'Whether the card has any content whatsoever'],
 		'substantive-content': [defaultCardFilterName('substantive-content'), (card : ProcessedCard) => cardHasSubstantiveContent(card), TODO_TYPE_AUTO_CONTENT, 3.0, 'Whether the card has more than a reasonable minimum amount of content'],
 		//NOTE: links and inbound-links are very similar to link-reference, but whereas those are TODO_TYPE_NA, these are TODO_TYPE_AUTO
-		'links': [defaultCardFilterName('links'), (card : Card) => references(card).linksArray().length, TODO_TYPE_AUTO_CONTENT, 1.0, 'Whether the card links out to other cards'],
-		'inbound-links': [defaultCardFilterName('inbound-links'), (card : Card) => references(card).inboundLinksArray().length, TODO_TYPE_AUTO_CONTENT, 2.0, 'Whether the card has other cards that link to it'],
+		'links': [defaultCardFilterName('links'), (card : Card) => references(card).linksArray().length > 0, TODO_TYPE_AUTO_CONTENT, 1.0, 'Whether the card links out to other cards'],
+		'inbound-links': [defaultCardFilterName('inbound-links'), (card : Card) => references(card).inboundLinksArray().length > 0, TODO_TYPE_AUTO_CONTENT, 2.0, 'Whether the card has other cards that link to it'],
 		'reciprocal-links': [['has-all-reciprocal-links', 'missing-reciprocal-links', 'does-not-need-reciprocal-links', 'needs-reciprocal-links'], (card : Card) => cardMissingReciprocalLinks(card).length == 0, TODO_TYPE_AUTO_CONTENT, 1.0, 'Whether every inbound link has a matching outbound link'],
-		'tags': [defaultCardFilterName('tags'), (card : Card) => card.tags && card.tags.length, TODO_TYPE_AUTO_CONTENT, 1.0, 'Whether the card has any tags'],
+		'tags': [defaultCardFilterName('tags'), (card : Card) => card.tags && card.tags.length > 0, TODO_TYPE_AUTO_CONTENT, 1.0, 'Whether the card has any tags'],
 		'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], (card : Card) => card.published, TODO_TYPE_AUTO_CONTENT, 0.5, 'Whether the card is published'],
 		//The following TODO types will never be automatically applied, because their test function always returns false, but they can be manually applied.
 		'prose': [defaultCardFilterName('prose'), () => true, TODO_TYPE_AUTO_CONTENT, 0.5, 'Whether the card has manually been marked as needing to be turned into flowing prose, as opposed to disjoint details'],
