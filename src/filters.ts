@@ -1680,13 +1680,6 @@ export const TODO_ALL_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONF
 //TODO_INFOS are appropriate to pass into tag-list.tagInfos as options to enable or disable.
 export const TODO_AUTO_INFOS = Object.fromEntries(Object.entries(TODO_ALL_INFOS).filter(entry => CARD_FILTER_CONFIGS[entry[0]][2].autoApply));
 
-//TODO_CONFIG_KEYS is all of the keys into CARD_FILTER_CONFIG that represent the
-//set of items that count as a TODO.
-const TODO_CONFIG_KEYS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1][2].isTODO).map(entry => [entry[0], true]));
-
-//TODO_OVERRIDE_LEGAL_KEYS reflects the only keys that are legal to set in card.auto_todo_overrides
-export const TODO_OVERRIDE_LEGAL_KEYS = Object.fromEntries(Object.entries(TODO_CONFIG_KEYS).filter(entry => CARD_FILTER_CONFIGS[entry[0]][2].autoApply));
-
 const TODO_DIFFICULTY_MAP = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[0], entry[1][3]]));
 const MAX_TOTAL_TODO_DIFFICULTY = Object.entries(TODO_DIFFICULTY_MAP).map(entry => entry[1]).reduce((prev, curr) => prev + curr, 0.0);
 

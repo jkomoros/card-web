@@ -60,10 +60,6 @@ import {
 } from '../permissions.js';
 
 import {
-	TODO_OVERRIDE_LEGAL_KEYS
-} from '../filters.js';
-
-import {
 	applyCardDiff,
 	generateCardDiff,
 	applyCardFirebaseUpdate
@@ -80,7 +76,8 @@ import {
 	EditorContentTab,
 	EditorState,
 	EditorTab,
-	ImageInfoStringProperty
+	ImageInfoStringProperty,
+	autoTODOType
 } from '../types.js';
 
 const DEFAULT_TAB : EditorTab = 'config';
@@ -228,7 +225,7 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 	case EDITING_AUTO_TODO_OVERRIDE_ENABLED:
 		if (!state.card) return state;
 		//Only allow legal keys to be set
-		if (!TODO_OVERRIDE_LEGAL_KEYS[action.todo]) {
+		if (!autoTODOType.safeParse(action.todo).success) {
 			console.warn('Rejecting illegal todo override key: ' + action.todo);
 			return state;
 		}
@@ -239,7 +236,7 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 	case EDITING_AUTO_TODO_OVERRIDE_DISABLED:
 		if (!state.card) return state;
 		//Only allow legal keys to be set
-		if (!TODO_OVERRIDE_LEGAL_KEYS[action.todo]) {
+		if (!autoTODOType.safeParse(action.todo).success) {
 			console.warn('Rejecting illegal todo override key: ' + action.todo);
 			return state;
 		}
