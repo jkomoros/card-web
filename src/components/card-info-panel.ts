@@ -64,7 +64,7 @@ import './reference-block.js';
 
 import {
 	Author,
-	Card,
+	ProcessedCard,
 	State,
 	TagInfos,
 	TweetInfo,
@@ -76,6 +76,10 @@ import {
 	ExpandedReferenceBlocks
 } from '../reference_blocks.js';
 
+import {
+	suggestionsForCard
+} from '../suggestions.js';
+
 @customElement('card-info-panel')
 class CardInfoPanel extends connect(store)(PageViewElement) {
 
@@ -83,7 +87,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		_open: boolean;
 
 	@state()
-		_card: Card;
+		_card: ProcessedCard;
 
 	@state()
 		_sectionTitle: string;
@@ -279,10 +283,15 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		
 	}
 
-	override updated(changedProps : Map<string, CardInfoPanel[keyof CardInfoPanel]>) {
+	override async updated(changedProps : Map<string, CardInfoPanel[keyof CardInfoPanel]>) {
 		if (changedProps.has('_card') || changedProps.has('_open')) {
 			if (this._open && this._card && Object.values(this._card).length != 0) {
 				store.dispatch(fetchTweets(this._card));
+				//TODO: integrate this in a place that makes more sense We won't
+				//even wait for the response from this; the point is to trigger
+				//the code. For example, it's a one line change to have it log
+				//to the console.
+				suggestionsForCard(this._card, store.getState() as State);
 			}
 		}
 	}
