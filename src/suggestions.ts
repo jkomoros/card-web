@@ -87,11 +87,13 @@ const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Suggestion[]
 			break;
 		}
 		const refs = references(topCard);
-		if (refs.byType['see-also'][card.id] !== undefined) {
+		const refsOutbound = refs.byType['see-also'];
+		if (refsOutbound && refsOutbound[card.id] !== undefined) {
 			logger.info('Other has this card as see-also already');
 			break;
 		}
-		if (refs.byTypeInbound['see-also'][card.id] !== undefined) {
+		const refsInbound = refs.byTypeInbound['see-also'];
+		if (refsInbound && refsInbound[card.id] !== undefined) {
 			logger.info('This card has other as see-also already');
 			break;
 		}
