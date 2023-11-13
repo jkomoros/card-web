@@ -55,7 +55,7 @@ export type SuggestorArgs = {
 };
 
 type Suggestor = {
-	generator: (args: SuggestorArgs) => Promise<Suggestion[] | null>
+	generator: (args: SuggestorArgs) => Promise<Suggestion[]>
 }
 
 const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {

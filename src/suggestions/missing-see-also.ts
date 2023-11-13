@@ -21,7 +21,7 @@ import {
 
 const DUPE_SIMILARITY_CUT_OFF = 0.95;
 
-export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Suggestion[] | null> => {
+export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
 	const {card, collectionArguments, logger} = args;
 	const description = collectionDescription(...SIMILAR_SAME_TYPE);
 	const collection = await waitForFinalCollection(description, {keyCardID: collectionArguments.keyCardID});
