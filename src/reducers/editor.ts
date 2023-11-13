@@ -98,7 +98,7 @@ const INITIAL_STATE : EditorState = {
 	selectedTab: DEFAULT_TAB,
 	selectedEditorTab: DEFAULT_EDITOR_TAB,
 	pendingSlug: '',
-	pendingReferenceType: '',
+	pendingReferenceType: 'ack',
 	imagePropertiesDialogOpen: false,
 	imagePropertiesDialogIndex: 0,
 	imageBrowserDialogOpen: false,
@@ -332,7 +332,7 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 	case EDITING_RESET_REFERENCE_CARD:
 		return {
 			...state,
-			pendingReferenceType: '',
+			pendingReferenceType: 'ack',
 		};
 	case EDITING_ADD_IMAGE_URL:
 		return {

@@ -7,21 +7,6 @@ import {
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY,
 	REFERENCES_INBOUND_CARD_PROPERTY,
-	REFERENCE_TYPE_CITATION_PERSON,
-	REFERENCE_TYPE_LINK,
-	REFERENCE_TYPE_DUPE_OF,
-	REFERENCE_TYPE_ACK,
-	REFERENCE_TYPE_GENERIC,
-	REFERENCE_TYPE_FORK_OF,
-	REFERENCE_TYPE_MINED_FROM,
-	REFERENCE_TYPE_SEE_ALSO,
-	REFERENCE_TYPE_CITATION,
-	REFERENCE_TYPE_CONCEPT,
-	REFERENCE_TYPE_EXAMPLE_OF,
-	REFERENCE_TYPE_METAPHOR_FOR,
-	REFERENCE_TYPE_OPPOSITE_OF,
-	REFERENCE_TYPE_PARALLEL_TO,
-	REFERENCE_TYPE_SYNONYM,
 	TEXT_FIELD_BODY,
 	TEXT_FIELD_TITLE,
 	TEXT_FIELD_SUBTITLE,
@@ -253,10 +238,10 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 		defaultBody: WORK_DEFAULT_BODY,
 		backportTitleExtractor : (rawCard, _, rawCards) => {
 			const authors = [];
-			for (const otherID of (references(rawCard).byTypeArray()[REFERENCE_TYPE_CITATION_PERSON] || [])) {
+			for (const otherID of (references(rawCard).byTypeArray()['citation-person'] || [])) {
 				const otherCard = rawCards[otherID];
 				if (!otherCard) continue;
-				authors.push(getCardTitleForBackporting(otherCard, REFERENCE_TYPE_CITATION_PERSON, rawCards));
+				authors.push(getCardTitleForBackporting(otherCard, 'citation-person', rawCards));
 			}
 			return rawCard.title + '\n' + authors.join('\n');
 		}
@@ -265,7 +250,7 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 
 //Any key in this object is a legal reference type
 export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
-	[REFERENCE_TYPE_LINK]: {
+	'link': {
 		name: 'Body link',
 		description: 'Automatically extracted links from the body of the card',
 		editable: false,
@@ -276,7 +261,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		excludeFromInfoPanel: true,
 		needsReciprocation: true,
 	},
-	[REFERENCE_TYPE_DUPE_OF]: {
+	'dupe-of': {
 		name: 'Duplicate of',
 		description: 'Denotes that this card is a duplicate of the card that it\'s pointing to',
 		editable: true,
@@ -284,7 +269,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//darkcyan
 		color: '#008B8B',
 	},
-	[REFERENCE_TYPE_ACK]: {
+	'ack': {
 		name: 'Non-substantive acknowledgement',
 		description: 'For when a card wants to acknowledge another card, but not form a substantive link. Useful for making the missing-reference or suggested-concept go away',
 		editable: true,
@@ -293,7 +278,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Not important enough
 		excludeFromInfoPanel: true,
 	},
-	[REFERENCE_TYPE_GENERIC]: {
+	'generic': {
 		name: 'Generic reference',
 		description: 'For a card to reference another where no other reference type makes sense',
 		editable: true,
@@ -302,7 +287,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		color: '#F4A460',
 		excludeFromInfoPanel: false,
 	},
-	[REFERENCE_TYPE_FORK_OF]: {
+	'fork-of': {
 		name: 'Forked from',
 		description: 'For a card that was forked from another card',
 		editable: true,
@@ -311,7 +296,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		color: '#8B008B',
 		excludeFromInfoPanel: false,
 	},
-	[REFERENCE_TYPE_MINED_FROM]: {
+	'mined-from': {
 		name: 'Insights mined from',
 		description: 'For a card that denotes that its insights are at least partially based on insights in another card',
 		editable: true,
@@ -320,7 +305,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		color: '#4169E1',
 		excludeFromInfoPanel: false,
 	},
-	[REFERENCE_TYPE_SEE_ALSO]: {
+	'see-also': {
 		name: 'See also',
 		description: 'For cards that make similar points and make sense to consume as a set',
 		editable: true,
@@ -330,7 +315,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Already included in its own block
 		excludeFromInfoPanel: true,
 	},
-	[REFERENCE_TYPE_CONCEPT]: {
+	'concept': {
 		name: 'Concept',
 		description: 'For cards that are about a concept this card uses',
 		editable: true,
@@ -344,7 +329,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		},
 		backportMissingText: true,
 	},
-	[REFERENCE_TYPE_SYNONYM]: {
+	'synonym': {
 		//NOTE: synonymMap effectivley pretends that an inbound synonym
 		//reference should count as a reciprocal outbound reference, too.
 		name: 'Interchangeable with',
@@ -363,10 +348,10 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		},
 		backportMissingText: true,
 		//Effectively a sub-type of concept reference.
-		subTypeOf: REFERENCE_TYPE_CONCEPT,
+		subTypeOf: 'concept',
 		reciprocal: true,
 	},
-	[REFERENCE_TYPE_OPPOSITE_OF]: {
+	'opposite-of': {
 		name: 'In contrast to',
 		description: 'For concept cards that are antonyms of another concept card',
 		editable: true,
@@ -384,10 +369,10 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Don't backport text since they're the opposite!
 		backportMissingText: false,
 		//Effectively a sub-type of concept reference.
-		subTypeOf: REFERENCE_TYPE_CONCEPT,
+		subTypeOf: 'concept',
 		reciprocal: true,
 	},
-	[REFERENCE_TYPE_PARALLEL_TO]: {
+	'parallel-to': {
 		name: 'Parallel to',
 		description: 'For concept cards that are not quite interchangeable with other concepts, but have a parallel',
 		editable: true,
@@ -405,10 +390,10 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Don't backport text since they aren't literally that thing, just kind of similar.
 		backportMissingText: false,
 		//Effectively a sub-type of concept reference.
-		subTypeOf: REFERENCE_TYPE_CONCEPT,
+		subTypeOf: 'concept',
 		reciprocal: true,
 	},
-	[REFERENCE_TYPE_EXAMPLE_OF]: {
+	'example-of': {
 		name: 'Example of',
 		inboundName: 'Examples',
 		description: 'For cards that are an example of a more general concept',
@@ -422,9 +407,9 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 			'concept': true,
 		},
 		backportMissingText: true,
-		subTypeOf: REFERENCE_TYPE_CONCEPT,
+		subTypeOf: 'concept',
 	},
-	[REFERENCE_TYPE_METAPHOR_FOR]: {
+	'metaphor-for': {
 		name: 'Metaphor for',
 		inboundName: 'Metaphors',
 		description: 'For cards that are a metaphor for a concept',
@@ -438,9 +423,9 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 			'concept': true,
 		},
 		backportMissingText: true,
-		subTypeOf: REFERENCE_TYPE_CONCEPT,
+		subTypeOf: 'concept',
 	},
-	[REFERENCE_TYPE_CITATION]: {
+	'citation': {
 		name: 'Citation (Work)',
 		inboundName: 'Citations',
 		description: 'For citing works (books, articles, tweets) that this card is partially based on.',
@@ -457,7 +442,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		fromCardTypeAllowList: Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).filter(key => key != 'work' && key != 'person').map(key => [key, true])),
 		backportMissingText: true,
 	},
-	[REFERENCE_TYPE_CITATION_PERSON]: {
+	'citation-person': {
 		name: 'Citation (Person)',
 		inboundName: 'Person Citations',
 		description: 'For citing people whose insights this card is partially based on. Used either for citing authors from a work card, or when there isn\'t a specific work to cite, because such a card either hasn\'t been created yet or because there is no work to cite.',
@@ -473,7 +458,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Allow inbound from any card that is not also a person, to avoid loops.
 		fromCardTypeAllowList: Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).filter(key => key != 'person').map(key => [key, true])),
 		backportMissingText: true,
-		subTypeOf: REFERENCE_TYPE_CITATION,
+		subTypeOf: 'citation',
 	},
 };
 

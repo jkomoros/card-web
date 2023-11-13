@@ -4,15 +4,6 @@ import {
 } from './card_fields.js';
 
 import {
-	REFERENCE_TYPE_CONCEPT,
-	REFERENCE_TYPE_CITATION,
-	REFERENCE_TYPE_CITATION_PERSON,
-	REFERENCE_TYPE_SEE_ALSO,
-	REFERENCE_TYPE_EXAMPLE_OF,
-	REFERENCE_TYPE_METAPHOR_FOR
-} from './type_constants.js';
-
-import {
 	Collection,
 	CollectionDescription,
 	collectionDescriptionWithKeyCard
@@ -83,7 +74,7 @@ export type ReferenceBlocks = readonly ReferenceBlock[];
 
 export type ExpandedReferenceBlocks = readonly ExpandedReferenceBlock[];
 
-const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS : ReferenceBlocks = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].subTypeOf == REFERENCE_TYPE_CONCEPT && entry[0] != REFERENCE_TYPE_CONCEPT).map(entry => {
+const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS : ReferenceBlocks = TypedObject.entries(REFERENCE_TYPES).filter(entry => entry[1].subTypeOf == 'concept' && entry[0] != 'concept').map(entry => {
 	const referenceType = entry[0] as ReferenceType;
 	const referenceConfig = entry[1];
 	if (referenceConfig.reciprocal) {
@@ -111,7 +102,7 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBloc
 	'concept': [
 		...CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS,
 		{
-			collectionDescription: collectionDescription('not' + cardTypeFilter('concept'), referencesFilter('inbound', TypedObject.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT]))),
+			collectionDescription: collectionDescription('not' + cardTypeFilter('concept'), referencesFilter('inbound', TypedObject.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES.concept))),
 			navigationCollectionDescription: collectionDescription(aboutConceptFilter()),
 			title: 'Cards that reference this concept',
 			showNavigate: true,
@@ -125,12 +116,12 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBloc
 	],
 	'work': [
 		{
-			collectionDescription: collectionDescription(referencesFilter('outbound', REFERENCE_TYPE_CITATION_PERSON)),
+			collectionDescription: collectionDescription(referencesFilter('outbound', 'citation-person')),
 			title: 'Authors',
 			condensed: true,
 		},
 		{
-			collectionDescription: collectionDescription(referencesFilter('inbound', REFERENCE_TYPE_CITATION)),
+			collectionDescription: collectionDescription(referencesFilter('inbound', 'citation')),
 			title: 'Cards that cite this work',
 			showNavigate: true,
 			emptyMessage: 'No cards cite this work'
@@ -138,13 +129,13 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBloc
 	],
 	'person': [
 		{
-			collectionDescription: collectionDescription(cardTypeFilter('work'), referencesFilter('inbound', REFERENCE_TYPE_CITATION_PERSON)),
+			collectionDescription: collectionDescription(cardTypeFilter('work'), referencesFilter('inbound', 'citation-person')),
 			title: 'Works that cite this person',
 			showNavigate: true,
 			emptyMessage: 'No works cite this person'
 		},
 		{
-			collectionDescription: collectionDescription('not-' + cardTypeFilter('work'), referencesFilter('inbound', REFERENCE_TYPE_CITATION_PERSON)),
+			collectionDescription: collectionDescription('not-' + cardTypeFilter('work'), referencesFilter('inbound', 'citation-person')),
 			title: 'Cards that cite this person',
 			showNavigate: true,
 			emptyMessage: 'No cards cite this person'
@@ -179,28 +170,28 @@ const INFO_PANEL_REFERENCE_BLOCKS : ReferenceBlocks = [
 	{
 		title: 'Example of',
 		description: 'Concepts this card is an example of',
-		collectionDescription: collectionDescription(referencesFilter('outbound', REFERENCE_TYPE_EXAMPLE_OF))
+		collectionDescription: collectionDescription(referencesFilter('outbound', 'example-of'))
 	},
 	{
 		title: 'Metaphor for',
 		description: 'Concepts this card is an example of',
-		collectionDescription: collectionDescription(referencesFilter('outbound', REFERENCE_TYPE_METAPHOR_FOR))
+		collectionDescription: collectionDescription(referencesFilter('outbound', 'metaphor-for'))
 	},
 	{
 		title: 'Concepts',
 		description: 'Concepts this card references',
-		collectionDescription: collectionDescription(referencesFilter('outbound', REFERENCE_TYPE_CONCEPT))
+		collectionDescription: collectionDescription(referencesFilter('outbound', 'concept'))
 	},
 	{
 		title: 'See Also',
 		description: 'Cards that are related to this card and make sense to consume together',
-		collectionDescription: collectionDescription(referencesFilter('both', REFERENCE_TYPE_SEE_ALSO))
+		collectionDescription: collectionDescription(referencesFilter('both', 'see-also'))
 	},
 	{
 		title: 'Citations',
 		emptyMessage: 'No citations',
 		description: 'Works or people that insights for this card were based on',
-		collectionDescription: collectionDescription(referencesFilter('outbound', TypedObject.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CITATION])))
+		collectionDescription: collectionDescription(referencesFilter('outbound', TypedObject.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES.citation)))
 
 	},
 	{

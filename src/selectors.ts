@@ -151,7 +151,8 @@ import {
 	AIDialogType,
 	AIModelName,
 	SetName,
-	ViewMode
+	ViewMode,
+	ReferenceType
 } from './types.js';
 
 import {
@@ -219,7 +220,7 @@ const selectEditingOriginalUnderlyingCardSnapshot = (state : State) => state.edi
 const selectEditingCardExtractionVersion = (state : State) => state.editor ? state.editor.cardExtractionVersion : 0;
 export const selectEditorMinimized = (state : State) => state.editor ? state.editor.editorMinimized : false;
 export const selectEditingUpdatedFromContentEditable = (state : State) => state.editor ? state.editor.updatedFromContentEditable : {};
-export const selectEditingPendingReferenceType = (state : State) => state.editor ? state.editor.pendingReferenceType : '';
+export const selectEditingPendingReferenceType = (state : State) : ReferenceType => state.editor ? state.editor.pendingReferenceType : 'ack';
 export const selectPendingSlug = (state : State) => state.editor ? state.editor.pendingSlug : '';
 export const selectFilters = (state : State) => state.collection.filters;
 const selectFiltersSnapshot = (state : State) => state.collection.filtersSnapshot;

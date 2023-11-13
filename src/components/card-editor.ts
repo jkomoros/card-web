@@ -115,8 +115,6 @@ import {
 import {
 	TEXT_FIELD_BODY,
 	TEXT_FIELD_TITLE,
-	REFERENCE_TYPE_ACK,
-	REFERENCE_TYPE_CONCEPT,
 	TEXT_FIELD_TYPES_EDITABLE
 } from '../type_constants.js';
 
@@ -147,7 +145,8 @@ import {
 	ReferenceType,
 	CardFieldTypeEditable,
 	editorContentTab,
-	editorTab
+	editorTab,
+	referenceTypeSchema
 } from '../types.js';
 
 import {
@@ -546,7 +545,7 @@ class CardEditor extends connect(store)(LitElement) {
 							.tags=${this._suggestedConcepts}
 							.tagInfos=${this._cardTagInfos}
 							.editing=${true}
-							.defaultColor=${REFERENCE_TYPES[REFERENCE_TYPE_CONCEPT].color}
+							.defaultColor=${REFERENCE_TYPES.concept.color}
 							.tapEvents=${true}
 							.disableAdd=${true}
 							@tag-tapped=${this._handleSuggestedConceptTapped}
@@ -725,7 +724,7 @@ class CardEditor extends connect(store)(LitElement) {
 					.tags=${this._suggestedConcepts}
 					.tagInfos=${this._cardTagInfos}
 					.editing=${true}
-					.defaultColor=${REFERENCE_TYPES[REFERENCE_TYPE_CONCEPT].color}
+					.defaultColor=${REFERENCE_TYPES.concept.color}
 					.tapEvents=${true}
 					.disableAdd=${true}
 					@tag-tapped=${this._handleSuggestedConceptTapped}
@@ -833,7 +832,7 @@ class CardEditor extends connect(store)(LitElement) {
 
 	_handleSuggestedConceptTapped(e : TagEvent) {
 		const cardID = e.detail.tag;
-		store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_CONCEPT));
+		store.dispatch(addReferenceToCard(cardID, 'concept'));
 	}
 
 	_handleMergeClicked() {
@@ -842,31 +841,31 @@ class CardEditor extends connect(store)(LitElement) {
 
 	_handleAddAllConceptsClicked() {
 		for (const cardID of this._suggestedConcepts) {
-			store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_CONCEPT));
+			store.dispatch(addReferenceToCard(cardID, 'concept'));
 		}
 	}
 
 	_handleIgnoreAllConceptsClicked() {
 		for (const cardID of this._suggestedConcepts) {
-			store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_ACK));
+			store.dispatch(addReferenceToCard(cardID, 'ack'));
 		}
 	}
 
 	_handleRemoveAllReferencesOfTypeClicked(e : MouseEvent) {
-		let referenceType : ReferenceType = '';
+		let refType : ReferenceType | undefined = undefined;
 		for (const ele of e.composedPath()) {
 			//Could be a documentfragment
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
-				referenceType = ele.dataset.referenceType as ReferenceType;
+				refType = referenceTypeSchema.parse(ele.dataset.referenceType);
 				break;
 			}
 		}
-		if (!referenceType) return;
-		const ids = references(this._card).byTypeArray()[referenceType as ReferenceType];
+		if (!refType) return;
+		const ids = references(this._card).byTypeArray()[refType];
 		if (!ids) return;
 		for (const cardID of ids) {
-			store.dispatch(removeReferenceFromCard(cardID, referenceType));
+			store.dispatch(removeReferenceFromCard(cardID, refType));
 		}
 	}
 
@@ -891,7 +890,7 @@ class CardEditor extends connect(store)(LitElement) {
 		const ele = e.composedPath()[0];
 		if(!(ele instanceof HTMLSelectElement)) throw new Error('ele not select');
 		if (!ele.value) return;
-		const value : ReferenceType = ele.value as ReferenceType;
+		const value = referenceTypeSchema.parse(ele.value);
 		if (!REFERENCE_TYPES[value]) throw new Error('Unknown reference types');
 		//Set it back to default
 		ele.value = '';
@@ -900,43 +899,43 @@ class CardEditor extends connect(store)(LitElement) {
 
 	_handleAddAckReference(e : TagEvent) {
 		const cardID = e.detail.tag;
-		store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_ACK));
+		store.dispatch(addReferenceToCard(cardID, 'ack'));
 	}
 
 	_handleReAddReference(e : TagEvent) {
 		const cardID = e.detail.tag;
-		let referenceType : ReferenceType = '';
+		let refType : ReferenceType | undefined = undefined;
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
 		for (const ele of e.composedPath()) {
 			//Could be a documentfragment
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
-				referenceType = ele.dataset.referenceType as ReferenceType;
+				refType = referenceTypeSchema.parse(ele.dataset.referenceType);
 				break;
 			}
 		}
-		if (!referenceType) throw new Error('couldn\'t find referenceType');
-		store.dispatch(addReferenceToCard(cardID, referenceType));
+		if (!refType) throw new Error('couldn\'t find referenceType');
+		store.dispatch(addReferenceToCard(cardID, refType));
 	}
 
 	_handleRemoveReference(e : TagEvent) {
 		const cardID = e.detail.tag;
-		let referenceType : ReferenceType = '';
+		let refType : ReferenceType | undefined = undefined;
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
 		for (const ele of e.composedPath()) {
 			//Could be a documentfragment
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
-				referenceType = ele.dataset.referenceType as ReferenceType;
+				refType = referenceTypeSchema.parse(ele.dataset.referenceType);
 				break;
 			}
 		}
-		if (!referenceType) {
+		if (!refType) {
 			console.warn('No reference type found on parents');
 		}
-		store.dispatch(removeReferenceFromCard(cardID, referenceType));
+		store.dispatch(removeReferenceFromCard(cardID, refType));
 	}
 
 	_handleTabClicked(e : MouseEvent) {
@@ -1080,9 +1079,9 @@ class CardEditor extends connect(store)(LitElement) {
 	disabledCardHighlightClicked(cardID : CardID, alternate : boolean) {
 		if (!this._active) return;
 		if(alternate) {
-			store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_CONCEPT));
+			store.dispatch(addReferenceToCard(cardID, 'concept'));
 		} else {
-			store.dispatch(removeReferenceFromCard(cardID, REFERENCE_TYPE_CONCEPT));
+			store.dispatch(removeReferenceFromCard(cardID, 'concept'));
 		}
 	}
 

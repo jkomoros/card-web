@@ -9,7 +9,6 @@ import {
 
 import {
 	TEXT_FIELD_TYPES,
-	REFERENCE_TYPE_TYPES,
 	TEXT_FIELD_TYPES_EDITABLE,
 	FIND_CARD_TO_LINK,
 	FIND_CARD_TO_PERMISSION,
@@ -186,7 +185,50 @@ type TODOOverrides = {
 	[name: TODOType]: boolean
 }
 
-export type ReferenceType = '' | keyof(typeof REFERENCE_TYPE_TYPES);
+export const referenceTypeSchema = z.enum([
+	//For card-links within body content
+	//NOTE: duplicated in tweet-helpers.js
+	'link',
+	//For cards that are dupes of another card
+	'dupe-of',
+	//For cards that want to acknowledge another card (e.g. to get the 'missing
+	//reciprocal links' to go away) without actually doing a more substantive
+	//reference. These references typically shouldn't 'count' in many cases.
+	'ack',
+	//For references that aren't any of the other types
+	'generic',
+	//For cards that were forked from another--that is, whose content started as a
+	//direct copy of the other card at some point
+	'fork-of',
+	//For cards that want to express they are based on insights 'mined' from the
+	//other card--typically a working-notes card.
+	'mined-from',
+	//For cards that want to say you should also see a related card that is similar,
+	//a kind of peer.
+	'see-also',
+	//For saying that the card that is pointing from uses the concept pointed to at
+	//the other card. The other card may only be a concept card.
+	'concept',
+	//For concept cards that are synonym of another concept card. Conceptually a
+	//sub-type of the concept reference type.
+	'synonym',
+	//For concept cards that are the antonym of another concept card. Conceptually a
+	//sub-type of the concept reference type.
+	'opposite-of',
+	//For concept cards that are not strict synonyms of another card, but have a
+	//parallel to them. Conceptually a sub-type of the concept reference type.
+	'parallel-to',
+	//For cards that are an example of a more generic concept that is pointed to.
+	//Conceptually a sub-type of the concept reference type.
+	'example-of',
+	//For cards that are a metaphor for a concept. Conceptually a sub-type of the
+	//concept reference type.
+	'metaphor-for',
+	'citation',
+	'citation-person'
+]);
+
+export type ReferenceType = z.infer<typeof referenceTypeSchema>;
 
 export type ReferencesInfoMap = {
 	[id : CardID]: {
@@ -563,7 +605,7 @@ export type CardFieldTypeEditableConfigurationMap = {
 export type CSSColorString = string;
 
 export type ReferenceTypeConfigurationMap = {
-	[type in ReferenceType]+?: {
+	[type in ReferenceType]: {
 		//name - name of the reference type, for presenting in UIs
 		name : string,
 		//inboundName - the name of the reference type when inbound, for presenting in UIs.
@@ -1335,5 +1377,6 @@ export type State = {
 //will be used in a generic string context and want type-checking to verify it
 //is part of the enum.
 export const setName = (input : SetName) => input;
+export const referenceType = (input : ReferenceType) => input;
 export const editorTab = (input : EditorTab) => input;
 export const editorContentTab = (input : EditorContentTab) => input;

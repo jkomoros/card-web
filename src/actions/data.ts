@@ -110,10 +110,7 @@ import {
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY, 
 	REFERENCES_INBOUND_CARD_PROPERTY,
-	REFERENCE_TYPE_FORK_OF,
-	REFERENCE_TYPE_MINED_FROM,
 	TEXT_FIELD_TITLE,
-	REFERENCE_TYPE_LINK,
 	CARDS_COLLECTION,
 	CARD_UPDATES_COLLECTION,
 	SECTION_UPDATES_COLLECTION,
@@ -961,8 +958,8 @@ export const createForkedCard = (cardToFork : Card) : ThunkSomeAction => async (
 	}
 	//references accessor will copy the references on setting something
 	//If the card we're copying was itself a fork, we want to overwrite that otherwise it gets confusing.
-	references(newCard).setCardReferencesOfType(REFERENCE_TYPE_FORK_OF, [cardToFork.id]);
-	references(newCard).setCardReference(cardToFork.id, REFERENCE_TYPE_MINED_FROM);
+	references(newCard).setCardReferencesOfType('fork-of', [cardToFork.id]);
+	references(newCard).setCardReference(cardToFork.id, 'mined-from');
 
 	let inboundUpdates = inboundLinksUpdates(id, null, newCard);
 	const existingCards = selectCards(state);
@@ -978,7 +975,7 @@ export const createForkedCard = (cardToFork : Card) : ThunkSomeAction => async (
 		//We can forcibly remove most references to illegal cards in the next
 		//step, but not link references (which are fully implied by links in
 		//body), so verify none of the illegal card IDs are from links.
-		const linkReferences = references(newCard).byType[REFERENCE_TYPE_LINK] || {};
+		const linkReferences = references(newCard).byType.link || {};
 		for (const otherCardID of Object.keys(illegalOtherCards)) {
 			if (linkReferences[otherCardID]) {
 				alert('The card you are trying to fork links to a card that you do not have access to: ' + otherCardID + '. To fork the card, remove that link and try again.');

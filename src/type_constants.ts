@@ -37,66 +37,6 @@ export const TEXT_FIELD_TYPES = {
 	[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: true,
 };
 
-//For card-links within body content
-//NOTE: duplicated in tweet-helpers.js
-export const REFERENCE_TYPE_LINK = 'link';
-//For cards that are dupes of another card
-export const REFERENCE_TYPE_DUPE_OF = 'dupe-of';
-//For cards that want to acknowledge another card (e.g. to get the 'missing
-//reciprocal links' to go away) without actually doing a more substantive
-//reference. These references typically shouldn't 'count' in many cases.
-export const REFERENCE_TYPE_ACK = 'ack';
-//For references that aren't any of the other types
-export const REFERENCE_TYPE_GENERIC = 'generic';
-//For cards that were forked from another--that is, whose content started as a
-//direct copy of the other card at some point
-export const REFERENCE_TYPE_FORK_OF = 'fork-of';
-//For cards that want to express they are based on insights 'mined' from the
-//other card--typically a working-notes card.
-export const REFERENCE_TYPE_MINED_FROM = 'mined-from';
-//For cards that want to say you should also see a related card that is similar,
-//a kind of peer.
-export const REFERENCE_TYPE_SEE_ALSO = 'see-also';
-//For saying that the card that is pointing from uses the concept pointed to at
-//the other card. The other card may only be a concept card.
-export const REFERENCE_TYPE_CONCEPT = 'concept';
-//For concept cards that are synonym of another concept card. Conceptually a
-//sub-type of the concept reference type.
-export const REFERENCE_TYPE_SYNONYM = 'synonym';
-//For concept cards that are the antonym of another concept card. Conceptually a
-//sub-type of the concept reference type.
-export const REFERENCE_TYPE_OPPOSITE_OF = 'opposite-of';
-//For concept cards that are not strict synonyms of another card, but have a
-//parallel to them. Conceptually a sub-type of the concept reference type.
-export const REFERENCE_TYPE_PARALLEL_TO = 'parallel-to';
-//For cards that are an example of a more generic concept that is pointed to.
-//Conceptually a sub-type of the concept reference type.
-export const REFERENCE_TYPE_EXAMPLE_OF = 'example-of';
-//For cards that are a metaphor for a concept. Conceptually a sub-type of the
-//concept reference type.
-export const REFERENCE_TYPE_METAPHOR_FOR = 'metaphor-for';
-export const REFERENCE_TYPE_CITATION = 'citation';
-export const REFERENCE_TYPE_CITATION_PERSON = 'citation-person';
-
-//ReferenceType literal values are driven off of this object
-export const REFERENCE_TYPE_TYPES = {
-	[REFERENCE_TYPE_LINK]: true,
-	[REFERENCE_TYPE_DUPE_OF]: true,
-	[REFERENCE_TYPE_ACK] : true,
-	[REFERENCE_TYPE_GENERIC]: true,
-	[REFERENCE_TYPE_FORK_OF]: true,
-	[REFERENCE_TYPE_MINED_FROM]: true,
-	[REFERENCE_TYPE_SEE_ALSO]: true,
-	[REFERENCE_TYPE_CONCEPT]: true,
-	[REFERENCE_TYPE_SYNONYM]: true,
-	[REFERENCE_TYPE_OPPOSITE_OF]: true,
-	[REFERENCE_TYPE_PARALLEL_TO]: true,
-	[REFERENCE_TYPE_EXAMPLE_OF]: true,
-	[REFERENCE_TYPE_METAPHOR_FOR]: true,
-	[REFERENCE_TYPE_CITATION]: true,
-	[REFERENCE_TYPE_CITATION_PERSON]: true
-};
-
 export const CARDS_COLLECTION = 'cards';
 export const CARD_UPDATES_COLLECTION = 'updates';
 export const SECTION_UPDATES_COLLECTION = 'updates';
