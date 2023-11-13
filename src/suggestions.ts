@@ -18,6 +18,7 @@ import {
 import {
 	suggestMissingSeeAlso
 } from './suggestions/missing-see-also.js';
+import { TypedObject } from './typed_object.js';
 
 type SuggestionDiff = {
 	keyCard: CardDiff,
@@ -83,6 +84,9 @@ type Logger = {
 }
 
 export type SuggestorArgs = {
+	//The type of hte suggestor being called. This is convenient so they don't
+	//have to remember what literal they are.
+	type: SuggestionType,
 	logger : Logger,
 	card: ProcessedCard,
 	cards: ProcessedCards,
@@ -126,7 +130,7 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 		return [];
 	}
 
-	const args : SuggestorArgs = {
+	const args : Omit<SuggestorArgs, 'type'> = {
 		card,
 		cards: selectCards(state),
 		collectionArguments: {
@@ -136,9 +140,12 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 		logger
 	};
 
-	for (const [name, suggestor] of Object.entries(SUGGESTORS)) {
+	for (const [name, suggestor] of TypedObject.entries(SUGGESTORS)) {
 		logger.info(`Starting suggestor ${name}`);
-		const innerResult = await suggestor.generator(args);
+		const innerResult = await suggestor.generator({
+			...args,
+			type: name
+		});
 		logger.info(`Suggestor ${name} returned ${JSON.stringify(innerResult, null, '\t')}`);
 		if (!innerResult) continue;
 		result.push(...innerResult);
