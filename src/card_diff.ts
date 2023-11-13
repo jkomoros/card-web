@@ -75,7 +75,8 @@ import {
 	OptionalFieldsCard,
 	CardLike,
 	DottedCardUpdate,
-	FirestoreLeafValue
+	FirestoreLeafValue,
+	autoTODOTypeArray
 } from './types.js';
 
 import {
@@ -170,9 +171,9 @@ export const generateCardDiff = (underlyingCardIn : Card, updatedCardIn : Card, 
 	if (updatedCard.sort_order !== underlyingCard.sort_order) update.sort_order = updatedCard.sort_order;
 
 	const [todoEnablements, todoDisablements, todoRemovals] = triStateMapDiff(underlyingCard.auto_todo_overrides || {}, updatedCard.auto_todo_overrides || {});
-	if (todoEnablements.length) update.auto_todo_overrides_enablements = todoEnablements;
-	if (todoDisablements.length) update.auto_todo_overrides_disablements = todoDisablements;
-	if (todoRemovals.length) update.auto_todo_overrides_removals = todoRemovals;
+	if (todoEnablements.length) update.auto_todo_overrides_enablements = autoTODOTypeArray.parse(todoEnablements);
+	if (todoDisablements.length) update.auto_todo_overrides_disablements = autoTODOTypeArray.parse(todoDisablements);
+	if (todoRemovals.length) update.auto_todo_overrides_removals = autoTODOTypeArray.parse(todoRemovals);
 
 	const [tagAdditions, tagDeletions] = arrayDiff(underlyingCard.tags || [], updatedCard.tags || []);
 	if (tagAdditions.length) update.addTags = tagAdditions;

@@ -132,7 +132,6 @@ import './card-images-editor.js';
 
 import {
 	Card,
-	TODOType,
 	CardType,
 	Sections,
 	EditorTab,
@@ -146,7 +145,9 @@ import {
 	CardFieldTypeEditable,
 	editorContentTab,
 	editorTab,
-	referenceTypeSchema
+	referenceTypeSchema,
+	TODOType,
+	autoTODOType
 } from '../types.js';
 
 import {
@@ -1012,15 +1013,15 @@ class CardEditor extends connect(store)(LitElement) {
 	}
 
 	_handleAddTodoOverrideEnabled(e : TagEvent) {
-		store.dispatch(autoTodoOverrideEnabled(e.detail.tag));
+		store.dispatch(autoTodoOverrideEnabled(autoTODOType.parse(e.detail.tag)));
 	}
 
 	_handleAddTodoOverrideDisabled(e : TagEvent) {
-		store.dispatch(autoTodoOverrideDisabled(e.detail.tag));
+		store.dispatch(autoTodoOverrideDisabled(autoTODOType.parse(e.detail.tag)));
 	}
 
 	_handleRemoveTodoOverride(e : TagEvent) {
-		store.dispatch(autoTodoOverrideRemoved(e.detail.tag));
+		store.dispatch(autoTodoOverrideRemoved(autoTODOType.parse(e.detail.tag)));
 	}
 
 	_handleKeyDown(e : KeyboardEvent) {

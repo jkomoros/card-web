@@ -77,6 +77,7 @@ import {
 } from 'firebase/storage';
 
 import {
+	AutoTODOType,
 	CardDiff,
 	CardFieldTypeEditable,
 	CardID,
@@ -91,7 +92,6 @@ import {
 	SectionID,
 	Slug,
 	TagID,
-	TODOType,
 	Uid 
 } from '../types.js';
 
@@ -529,21 +529,21 @@ export const fullBleedUpdated = (fullBleed : boolean) : SomeAction => {
 	};
 };
 
-export const autoTodoOverrideEnabled = (todo : TODOType) : SomeAction => {
+export const autoTodoOverrideEnabled = (todo : AutoTODOType) : SomeAction => {
 	return {
 		type: EDITING_AUTO_TODO_OVERRIDE_ENABLED,
 		todo
 	};
 };
 
-export const autoTodoOverrideDisabled = (todo : TODOType) : SomeAction => {
+export const autoTodoOverrideDisabled = (todo : AutoTODOType) : SomeAction => {
 	return {
 		type: EDITING_AUTO_TODO_OVERRIDE_DISABLED,
 		todo
 	};
 };
 
-export const autoTodoOverrideRemoved = (todo : TODOType) : SomeAction => {
+export const autoTodoOverrideRemoved = (todo : AutoTODOType) : SomeAction => {
 	return {
 		type: EDITING_AUTO_TODO_OVERRIDE_REMOVED,
 		todo

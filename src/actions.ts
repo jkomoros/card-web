@@ -9,6 +9,7 @@ import {
 	AIDialogType,
 	AIModelName,
 	AuthorsMap,
+	AutoTODOType,
 	Card,
 	CardBooleanMap,
 	CardDiff,
@@ -36,7 +37,6 @@ import {
 	Slug,
 	SortExtra,
 	SortName,
-	TODOType,
 	TagID,
 	Tags,
 	TweetMap,
@@ -535,17 +535,17 @@ type ActionEditingTODOUpdated = {
 
 type ActionEditingAutoTODOOverrideEnabled = {
 	type: typeof EDITING_AUTO_TODO_OVERRIDE_ENABLED,
-	todo: TODOType
+	todo: AutoTODOType
 };
 
 type ActionEditingAutoTODOOverrideDisabled = {
 	type: typeof EDITING_AUTO_TODO_OVERRIDE_DISABLED,
-	todo: TODOType
+	todo: AutoTODOType
 };
 
 type ActionEditingAutoTODOOverrideRemoved = {
 	type: typeof EDITING_AUTO_TODO_OVERRIDE_REMOVED,
-	todo: TODOType
+	todo: AutoTODOType
 };
 
 type ActionEditingTagAdded = {

@@ -178,11 +178,36 @@ export type ReferencesCardsDiff = [additionsOrModifications : CardBooleanMap, de
 
 export type ImageBlock = ImageInfo[];
 
-//TODO: lock this down more
-export type TODOType = string;
+export const autoTODOType = z.enum([
+	'citations',
+	'content',
+	'content-mined',
+	'diagram',
+	'inbound-links',
+	'links',
+	'prioritized',
+	'prose',
+	'published',
+	'reciprocal-links',
+	'slug',
+	'substantive-content',
+	'tags'
+]);
+
+export type AutoTODOType = z.infer<typeof autoTODOType>;
+
+const freeformTODOKey = z.literal('freeform-todo');
+
+export type FreeformTODOKey = z.infer<typeof freeformTODOKey>;
+
+export const todoType = autoTODOType.or(freeformTODOKey);
+
+export type TODOType = z.infer<typeof todoType>;
+
+export const autoTODOTypeArray = z.array(autoTODOType);
 
 type TODOOverrides = {
-	[name: TODOType]: boolean
+	[name in AutoTODOType]+?: boolean
 }
 
 export const referenceTypeSchema = z.enum([
@@ -802,9 +827,9 @@ export interface CardDiff extends NonAutoMergeableCardDiff  {
 	font_size_boost? : FontSizeBoostMap,
 	references_diff? : ReferencesEntriesDiff,
 
-	auto_todo_overrides_enablements? : TODOType[],
-	auto_todo_overrides_disablements? : TODOType[],
-	auto_todo_overrides_removals? : TODOType[],
+	auto_todo_overrides_enablements? : AutoTODOType[],
+	auto_todo_overrides_disablements? : AutoTODOType[],
+	auto_todo_overrides_removals? : AutoTODOType[],
 	add_editors? : Uid[],
 	remove_editors? : Uid[],
 	add_collaborators? : Uid[],
