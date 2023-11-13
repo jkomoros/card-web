@@ -52,6 +52,8 @@ export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Sugge
 			logger.info('This card has other referenced already');
 			break;
 		}
+
+		//TODO: if one card is priority and the other is not, then the other card should be the key card.
 		logger.info('Suggesting this as a card');
 		const suggestion = makeReferenceSuggestion(type, card.id, topCard.id, 'see-also');
 		result.push(suggestion);
