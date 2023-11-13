@@ -99,6 +99,7 @@ type Suggestor = {
 
 const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 	//TODO: a dupe one
+	//TODO: one to remove priority for near dupes
 	'missing-see-also': {
 		generator: suggestMissingSeeAlso
 	}
