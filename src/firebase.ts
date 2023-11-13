@@ -8,7 +8,8 @@ import {
 	deleteField,
 	Timestamp,
 	initializeFirestore,
-	persistentLocalCache
+	persistentLocalCache,
+	persistentMultipleTabManager
 } from 'firebase/firestore';
 
 import {
@@ -31,7 +32,10 @@ import {
 	FIREBASE_PROD_CONFIG,
 	FIREBASE_REGION,
 } from './config.GENERATED.SECRET.js';
-import { FirestoreLeafValue } from './types.js';
+
+import {
+	FirestoreLeafValue
+} from './types.js';
 
 export let DEV_MODE = false;
 //Deliberately only do devmode if the host is localhost. If you want it
@@ -48,7 +52,9 @@ const firebaseApp = initializeApp(config);
 //and #659.
 export const db = initializeFirestore(firebaseApp, {
 	experimentalForceLongPolling: true,
-	localCache: persistentLocalCache()
+	localCache: persistentLocalCache({
+		tabManager: persistentMultipleTabManager()
+	})
 });
 
 export const auth = getAuth(firebaseApp);
