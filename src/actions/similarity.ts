@@ -73,7 +73,7 @@ type SimilarCardsResponseData = {
 
 const similarCardsCallable = httpsCallable<SimilarCardsRequestData, SimilarCardsResponseData>(functions, 'similarCards');
 
-const similarCards = async (cardID : CardID, lastUpdated : MillisecondsSinceEpoch) : Promise<SimilarCardsResponseData> => {
+const similarCards = async (cardID : CardID, lastUpdated? : MillisecondsSinceEpoch) : Promise<SimilarCardsResponseData> => {
 	if (!QDRANT_ENABLED) {
 		return {
 			success: false,
@@ -83,9 +83,9 @@ const similarCards = async (cardID : CardID, lastUpdated : MillisecondsSinceEpoc
 	}
 
 	const request : SimilarCardsRequestData = {
-		card_id: cardID,
-		last_updated: lastUpdated
+		card_id: cardID
 	};
+	if (lastUpdated) request.last_updated = lastUpdated;
 	const result = await similarCardsCallable(request);
 	return result.data;
 };
@@ -93,7 +93,7 @@ const similarCards = async (cardID : CardID, lastUpdated : MillisecondsSinceEpoc
 const TIME_TO_WAIT_FOR_STALE : MillisecondsSinceEpoch = 10 * 60 * 1000;
 const DELAY_FOR_STALE : MillisecondsSinceEpoch = 2.5 * 1000;
 
-const fetchSimilarCards = (cardID : CardID, lastUpdated: MillisecondsSinceEpoch) : ThunkSomeAction => async (dispatch) => {
+const fetchSimilarCards = (cardID : CardID, lastUpdated?: MillisecondsSinceEpoch) : ThunkSomeAction => async (dispatch) => {
 	if (!cardID) return;
 
 	const result = await similarCards(cardID, lastUpdated);
@@ -144,6 +144,6 @@ export const fetchSimilarCardsIfEnabled = (cardID : CardID) : boolean => {
 	const card = cards[cardID];
 	if (!card) throw new Error(`Couldn't find card ${cardID}`);
 	//This will return immediately.
-	store.dispatch(fetchSimilarCards(cardID, card.updated.toMillis()));
+	store.dispatch(fetchSimilarCards(cardID, card?.updated?.toMillis()));
 	return true;
 };
