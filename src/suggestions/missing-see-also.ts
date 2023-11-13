@@ -23,7 +23,7 @@ import {
 const DUPE_SIMILARITY_CUT_OFF = 0.95;
 
 export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
-	const {card, collectionArguments, logger} = args;
+	const {type, card, collectionArguments, logger} = args;
 	const description = collectionDescription(...SIMILAR_SAME_TYPE);
 	const collection = await waitForFinalCollection(description, {keyCardID: collectionArguments.keyCardID});
 	const topCards = collection.finalSortedCards;
@@ -47,7 +47,7 @@ export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Sugge
 			break;
 		}
 		logger.info('Suggesting this as a card');
-		const suggestion = makeReferenceSuggestion('missing-see-also', card.id, topCard.id, 'see-also');
+		const suggestion = makeReferenceSuggestion(type, card.id, topCard.id, 'see-also');
 		result.push(suggestion);
 	}
 	return result;
