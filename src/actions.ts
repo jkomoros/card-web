@@ -3,7 +3,7 @@ import {
 	FIND_CARD_TO_LINK as LINK,
 	FIND_CARD_TO_PERMISSION as PERMISSION,
 	FIND_CARD_TO_REFERENCE as REFRENCE
-} from './type_constants';
+} from './type_constants.js';
 
 import {
 	AIDialogType,
@@ -45,7 +45,7 @@ import {
 	UserPermissions,
 	UserPermissionsMap,
 	ViewMode
-} from './types';
+} from './types.js';
 
 //AI
 export const AI_REQUEST_STARTED = 'AI_REQUEST_STARTED';
