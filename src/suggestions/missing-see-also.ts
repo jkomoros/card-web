@@ -20,7 +20,8 @@ import {
 	SIMILAR_SAME_TYPE
 } from '../reference_blocks.js';
 
-const SIMILARITY_CUT_OFF = 0.95;
+//Set by looking at a few examples
+const SIMILARITY_CUT_OFF = 0.89;
 
 export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
 	const {type, card, collectionArguments, logger} = args;
