@@ -7,6 +7,7 @@ import {
 	CollectionConstructorArguments,
 	ProcessedCard,
 	ProcessedCards,
+	ReferenceType,
 	State
 } from './types.js';
 
@@ -22,6 +23,9 @@ type SuggestionDiff = {
 	keyCard: CardDiff,
 	//The diff to apply to each supportingCard.
 	supportingCards?: CardDiff
+} | {
+	keyCard? : CardDiff,
+	supportingCards: CardDiff
 };
 
 type SuggestionType = 'missing-see-also';
@@ -38,6 +42,37 @@ export type Suggestion = {
 	alternateAction?: SuggestionDiff
 	//The diff to apply if the action is rejected. Typically an `ack` reference.
 	rejection?: SuggestionDiff
+};
+
+export const makeReferenceSuggestion = (type : SuggestionType, keyCard: CardID, otherCard: CardID, referenceType : ReferenceType) : Suggestion => {
+	return {
+		type,
+		keyCard,
+		supportingCards: [otherCard],
+
+		action: {
+			keyCard: {
+				references_diff: [
+					{
+						cardID: otherCard,
+						referenceType,
+						value: ''
+					}
+				]
+			}
+		},
+		alternateAction: {
+			supportingCards: {
+				references_diff: [
+					{
+						cardID: keyCard,
+						referenceType,
+						value: ''
+					}
+				]
+			}
+		}
+	};
 };
 
 type Logger = {
