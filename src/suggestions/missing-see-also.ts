@@ -20,7 +20,7 @@ import {
 	SIMILAR_SAME_TYPE
 } from '../reference_blocks.js';
 
-const DUPE_SIMILARITY_CUT_OFF = 0.95;
+const SIMILARITY_CUT_OFF = 0.95;
 
 export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
 	const {type, card, collectionArguments, logger} = args;
@@ -32,7 +32,7 @@ export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Sugge
 		logger.info(`topCard: ${topCard.id}`);
 		const similarity = collection.sortValueForCard(topCard.id);
 		logger.info(`similarity: ${similarity}`);
-		if (similarity < DUPE_SIMILARITY_CUT_OFF) {
+		if (similarity < SIMILARITY_CUT_OFF) {
 			logger.info('Similarity too low.');
 			break;
 		}
