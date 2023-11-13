@@ -38,7 +38,7 @@
     "@webcomponents/webcomponentsjs": "^2.4.4",
     "d3": "^6.7.0",
     "dompurify": "^2.1.1",
-    "firebase": "^9.23.0",
+    "firebase": "^10.6.0",
     "gpt-tok": "^0.0.1",
     "lit": "^2.2.4",
     "openai": "^3.2.1",
