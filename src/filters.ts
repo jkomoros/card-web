@@ -1579,10 +1579,7 @@ const CARD_FILTER_CONFIGS : CardFilterConfigMap = Object.assign(
 		4) then a description of what the TODO means.
 	*/
 	{
-		'comments': [defaultCardFilterName('comments'), (card : Card) => card.thread_count, TODO_TYPE_NA, 0.0, 'Whether the card has comments'],
-		'notes': [defaultCardFilterName('notes'), (card : Card) => cardHasNotes(card), TODO_TYPE_NA, 0.0, 'Whether the card has notes'],
-		'images': [defaultCardFilterName('images'), (card : Card) => card && card.images && card.images.length, TODO_TYPE_NA, 0.0, 'Whether the card has images'],
-		'orphaned': [defaultNonTodoCardFilterName('orphaned'), (card : Card) => !card.section, TODO_TYPE_NA, 0.0, 'Whether the card is part of a section or not'],
+		//First all the AUTO_TODO ones.
 		'slug': [defaultCardFilterName('slug'), (card : Card) => card.slugs && card.slugs.length, TODO_TYPE_AUTO_CONTENT, 0.2, 'Whether the card has a slug set'],
 		'content': [defaultCardFilterName('content'), (card : Card) => cardHasContent(card), TODO_TYPE_AUTO_CONTENT_AND_CONCEPT, 5.0, 'Whether the card has any content whatsoever'],
 		'substantive-content': [defaultCardFilterName('substantive-content'), (card : ProcessedCard) => cardHasSubstantiveContent(card), TODO_TYPE_AUTO_CONTENT, 3.0, 'Whether the card has more than a reasonable minimum amount of content'],
@@ -1592,7 +1589,6 @@ const CARD_FILTER_CONFIGS : CardFilterConfigMap = Object.assign(
 		'reciprocal-links': [['has-all-reciprocal-links', 'missing-reciprocal-links', 'does-not-need-reciprocal-links', 'needs-reciprocal-links'], (card : Card) => cardMissingReciprocalLinks(card).length == 0, TODO_TYPE_AUTO_CONTENT, 1.0, 'Whether every inbound link has a matching outbound link'],
 		'tags': [defaultCardFilterName('tags'), (card : Card) => card.tags && card.tags.length, TODO_TYPE_AUTO_CONTENT, 1.0, 'Whether the card has any tags'],
 		'published': [['published', 'unpublished', 'does-not-need-to-be-published', 'needs-to-be-published'], (card : Card) => card.published, TODO_TYPE_AUTO_CONTENT, 0.5, 'Whether the card is published'],
-		'tweet': [defaultCardFilterName('tweet'), (card : Card) => card.tweet_count > 0, TODO_TYPE_NA, 0.0, 'Whether the card has any tweets from the bot'],
 		//The following TODO types will never be automatically applied, because their test function always returns false, but they can be manually applied.
 		'prose': [defaultCardFilterName('prose'), () => true, TODO_TYPE_AUTO_CONTENT, 0.5, 'Whether the card has manually been marked as needing to be turned into flowing prose, as opposed to disjoint details'],
 		'citations': [defaultCardFilterName('citations'), () => true, TODO_TYPE_AUTO_CONTENT, 0.3, 'Whether the card has citations that need to be formally represented'],
@@ -1603,6 +1599,13 @@ const CARD_FILTER_CONFIGS : CardFilterConfigMap = Object.assign(
 		//Mined is always flagged on cards that it might be autoapplied to. The only way to make it go away is to add a true to the auto_todo_overrides for it.
 		//To find cards that are _partially_ mined, use the 'has-inbound-mined-from-references/not-mined' filters.
 		'content-mined': [['mined-for-content', 'not-mined-for-content', 'does-not-need-to-be-mined-for-content', 'needs-to-be-mined-for-content'], () => false, TODO_TYPE_AUTO_WORKING_NOTES, 2.0, 'Whether the card has had its insights \'mined\' into other cards. Only automatically applied to working-notes cards. The only way to clear it is to add a force TODO disable for it'],
+
+		//Now all non-auto TODOs.
+		'comments': [defaultCardFilterName('comments'), (card : Card) => card.thread_count, TODO_TYPE_NA, 0.0, 'Whether the card has comments'],
+		'notes': [defaultCardFilterName('notes'), (card : Card) => cardHasNotes(card), TODO_TYPE_NA, 0.0, 'Whether the card has notes'],
+		'images': [defaultCardFilterName('images'), (card : Card) => card && card.images && card.images.length, TODO_TYPE_NA, 0.0, 'Whether the card has images'],
+		'orphaned': [defaultNonTodoCardFilterName('orphaned'), (card : Card) => !card.section, TODO_TYPE_NA, 0.0, 'Whether the card is part of a section or not'],		
+		'tweet': [defaultCardFilterName('tweet'), (card : Card) => card.tweet_count > 0, TODO_TYPE_NA, 0.0, 'Whether the card has any tweets from the bot'],
 		[setName('everything')]: [defaultNonTodoCardFilterName(SET_INFOS['everything'].filterEquivalent), () => true, TODO_TYPE_NA, 0.0, 'Every card is in the everything set'],
 		//note: a number of things rely on `has-body` filter which is derived from this configuration
 		'body': [defaultCardFilterName('body'), (card : Card) => card && BODY_CARD_TYPES[card.card_type], TODO_TYPE_NA, 0.0, 'Cards that are of a type that has a body field'],
