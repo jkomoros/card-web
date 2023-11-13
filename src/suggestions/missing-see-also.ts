@@ -12,7 +12,8 @@ import {
 
 import {
 	SuggestorArgs,
-	Suggestion
+	Suggestion,
+	makeReferenceSuggestion
 } from '../suggestions.js';
 
 import {
@@ -46,8 +47,8 @@ export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Sugge
 			logger.info('This card has other as see-also already');
 			break;
 		}
-		//TODO: actually suggest an item
-		logger.info('Would have suggested see-also');
+		const suggestion = makeReferenceSuggestion('missing-see-also', card.id, topCard.id, 'see-also');
+		result.push(suggestion);
 	}
 	return result;
 };
