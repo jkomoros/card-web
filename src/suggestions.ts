@@ -8,6 +8,7 @@ import {
 	ProcessedCard,
 	ProcessedCards,
 	ReferenceType,
+	ReferencesEntriesDiffItem,
 	State
 } from './types.js';
 
@@ -45,21 +46,23 @@ export type Suggestion = {
 	rejection?: SuggestionDiff
 };
 
-export const makeReferenceSuggestion = (type : SuggestionType, keyCard: CardID, otherCard: CardID, referenceType : ReferenceType) : Suggestion => {
+export const makeReferenceSuggestion = (type : SuggestionType, keyCard: CardID, otherCards: CardID | CardID[], referenceType : ReferenceType) : Suggestion => {
+	//TODO: it's kind of finicky to have to keep track of which ID is which... shouldn't the actions have a sentinel for each that is overriden before being executed?
+
+	if (typeof otherCards == 'string') otherCards = [otherCards];
+
 	return {
 		type,
 		keyCard,
-		supportingCards: [otherCard],
+		supportingCards: otherCards,
 
 		action: {
 			keyCard: {
-				references_diff: [
-					{
-						cardID: otherCard,
-						referenceType,
-						value: ''
-					}
-				]
+				references_diff: otherCards.map((otherCard : CardID) : ReferencesEntriesDiffItem => ({
+					cardID: otherCard,
+					referenceType,
+					value: ''
+				}))
 			}
 		},
 		alternateAction: {
