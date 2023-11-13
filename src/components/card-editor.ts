@@ -115,13 +115,6 @@ import {
 import {
 	TEXT_FIELD_BODY,
 	TEXT_FIELD_TITLE,
-	REFERENCE_TYPE_ACK,
-	REFERENCE_TYPE_CONCEPT,
-	TAB_CONTENT,
-	TAB_CONFIG,
-	EDITOR_TAB_CONTENT,
-	EDITOR_TAB_NOTES,
-	EDITOR_TAB_TODO,
 	TEXT_FIELD_TYPES_EDITABLE
 } from '../type_constants.js';
 
@@ -150,7 +143,10 @@ import {
 	CardID,
 	State,
 	ReferenceType,
-	CardFieldTypeEditable
+	CardFieldTypeEditable,
+	editorContentTab,
+	editorTab,
+	referenceTypeSchema
 } from '../types.js';
 
 import {
@@ -165,7 +161,10 @@ import {
 	ARROW_UP_ICON,
 	ARROW_RIGHT_ICON
 } from './my-icons';
-import { titleForEditingCardWithAI } from '../actions/ai.js';
+
+import {
+	titleForEditingCardWithAI
+} from '../actions/ai.js';
 
 @customElement('card-editor')
 class CardEditor extends connect(store)(LitElement) {
@@ -451,18 +450,18 @@ class CardEditor extends connect(store)(LitElement) {
       <div class='container ${this._cardModificationPending ? 'modification-pending' : ''} ${this._minimized ? 'minimized' : 'not-minimized'}'>
 		<div class='scrim'></div>
         <div class='inputs'>
-		  <div ?hidden=${this._selectedTab !== TAB_CONTENT} class='flex body'>
+		  <div ?hidden=${this._selectedTab !== 'content'} class='flex body'>
 			<div class='tabs' @click=${this._handleEditorTabClicked}>
-				<label data-name='${EDITOR_TAB_CONTENT}' ?data-selected=${this._selectedEditorTab == EDITOR_TAB_CONTENT} ?data-empty=${!hasContent} ?data-modified=${contentModified}>Content</label>
-				<label data-name='${EDITOR_TAB_NOTES}' ?data-selected=${this._selectedEditorTab == EDITOR_TAB_NOTES} ?data-empty=${!hasNotes} ?data-modified=${notesModified}>Notes</label>
-				<label data-name='${EDITOR_TAB_TODO}' ?data-selected=${this._selectedEditorTab == EDITOR_TAB_TODO} ?data-empty=${!hasTodo} ?data-modified=${todoModified}>Freeform TODO</label>
+				<label data-name='${editorContentTab('content')}' ?data-selected=${this._selectedEditorTab == 'content'} ?data-empty=${!hasContent} ?data-modified=${contentModified}>Content</label>
+				<label data-name='${editorContentTab('notes')}' ?data-selected=${this._selectedEditorTab == 'notes'} ?data-empty=${!hasNotes} ?data-modified=${notesModified}>Notes</label>
+				<label data-name='${editorContentTab('todo')}' ?data-selected=${this._selectedEditorTab == 'todo'} ?data-empty=${!hasTodo} ?data-modified=${todoModified}>Freeform TODO</label>
 				<span class='flex'></span>
-				<label class='help' ?hidden=${this._selectedEditorTab !== EDITOR_TAB_CONTENT}>Content is what shows up on the main body of the card</label>
-				<label class='help' ?hidden=${this._selectedEditorTab !== EDITOR_TAB_NOTES}>Notes are visible in the info panel to all readers and are for permanent asides</label>
-				<label class='help' ?hidden=${this._selectedEditorTab !== EDITOR_TAB_TODO}>Freeform TODOs are only visible to editors and mark a temporary thing to do so it shows up in the has-freeform-todo filter</label>
+				<label class='help' ?hidden=${this._selectedEditorTab !== 'content'}>Content is what shows up on the main body of the card</label>
+				<label class='help' ?hidden=${this._selectedEditorTab !== 'notes'}>Notes are visible in the info panel to all readers and are for permanent asides</label>
+				<label class='help' ?hidden=${this._selectedEditorTab !== 'todo'}>Freeform TODOs are only visible to editors and mark a temporary thing to do so it shows up in the has-freeform-todo filter</label>
 
 			</div>
-			<div ?hidden=${this._selectedEditorTab !== EDITOR_TAB_CONTENT} class='body flex'>
+			<div ?hidden=${this._selectedEditorTab !== 'content'} class='body flex'>
 				${TypedObject.entries(editableFieldsForCardType(this._card.card_type)).map(entry => html`<label>${toTitleCase(entry[0])}${entry[1].description ? help(entry[1].description) : ''}</label>
 					${entry[1].html
 		? html`<textarea @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${this._card[entry[0]]}></textarea>`
@@ -470,10 +469,10 @@ class CardEditor extends connect(store)(LitElement) {
 				`)}
 				<label>Images</label><card-images-editor></card-images-editor>
 			</div>
-			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_NOTES} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
-			<textarea ?hidden=${this._selectedEditorTab !== EDITOR_TAB_TODO} @input='${this._handleTodoUpdated}' .value=${this._card.todo}></textarea>
+			<textarea ?hidden=${this._selectedEditorTab !== 'notes'} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
+			<textarea ?hidden=${this._selectedEditorTab !== 'todo'} @input='${this._handleTodoUpdated}' .value=${this._card.todo}></textarea>
 		  </div>
-		  <div ?hidden=${this._selectedTab !== TAB_CONFIG}>
+		  <div ?hidden=${this._selectedTab !== 'config'}>
 			<div class='row'>
 				<div>
 				<label>Section ${help('Cards are in 0 or 1 sections, which determines the default order they show up in. Cards that are orphaned will not show up in any default collection.')}</label>
@@ -546,7 +545,7 @@ class CardEditor extends connect(store)(LitElement) {
 							.tags=${this._suggestedConcepts}
 							.tagInfos=${this._cardTagInfos}
 							.editing=${true}
-							.defaultColor=${REFERENCE_TYPES[REFERENCE_TYPE_CONCEPT].color}
+							.defaultColor=${REFERENCE_TYPES.concept.color}
 							.tapEvents=${true}
 							.disableAdd=${true}
 							@tag-tapped=${this._handleSuggestedConceptTapped}
@@ -725,7 +724,7 @@ class CardEditor extends connect(store)(LitElement) {
 					.tags=${this._suggestedConcepts}
 					.tagInfos=${this._cardTagInfos}
 					.editing=${true}
-					.defaultColor=${REFERENCE_TYPES[REFERENCE_TYPE_CONCEPT].color}
+					.defaultColor=${REFERENCE_TYPES.concept.color}
 					.tapEvents=${true}
 					.disableAdd=${true}
 					@tag-tapped=${this._handleSuggestedConceptTapped}
@@ -756,8 +755,8 @@ class CardEditor extends connect(store)(LitElement) {
 			</div>
 		` :
 		html`<div class='tabs main' @click=${this._handleTabClicked}>
-				<label data-name='${TAB_CONFIG}' ?data-selected=${this._selectedTab == TAB_CONFIG}>Configuration</label>
-				<label data-name='${TAB_CONTENT}' ?data-selected=${this._selectedTab == TAB_CONTENT}>Content</label>
+				<label data-name='${editorTab('config')}' ?data-selected=${this._selectedTab == 'config'}>Configuration</label>
+				<label data-name='${editorTab('content')}' ?data-selected=${this._selectedTab == 'content'}>Content</label>
 			</div>`}
 			<div class='flex'>
 			</div>
@@ -833,7 +832,7 @@ class CardEditor extends connect(store)(LitElement) {
 
 	_handleSuggestedConceptTapped(e : TagEvent) {
 		const cardID = e.detail.tag;
-		store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_CONCEPT));
+		store.dispatch(addReferenceToCard(cardID, 'concept'));
 	}
 
 	_handleMergeClicked() {
@@ -842,31 +841,31 @@ class CardEditor extends connect(store)(LitElement) {
 
 	_handleAddAllConceptsClicked() {
 		for (const cardID of this._suggestedConcepts) {
-			store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_CONCEPT));
+			store.dispatch(addReferenceToCard(cardID, 'concept'));
 		}
 	}
 
 	_handleIgnoreAllConceptsClicked() {
 		for (const cardID of this._suggestedConcepts) {
-			store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_ACK));
+			store.dispatch(addReferenceToCard(cardID, 'ack'));
 		}
 	}
 
 	_handleRemoveAllReferencesOfTypeClicked(e : MouseEvent) {
-		let referenceType : ReferenceType = '';
+		let refType : ReferenceType | undefined = undefined;
 		for (const ele of e.composedPath()) {
 			//Could be a documentfragment
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
-				referenceType = ele.dataset.referenceType as ReferenceType;
+				refType = referenceTypeSchema.parse(ele.dataset.referenceType);
 				break;
 			}
 		}
-		if (!referenceType) return;
-		const ids = references(this._card).byTypeArray()[referenceType as ReferenceType];
+		if (!refType) return;
+		const ids = references(this._card).byTypeArray()[refType];
 		if (!ids) return;
 		for (const cardID of ids) {
-			store.dispatch(removeReferenceFromCard(cardID, referenceType));
+			store.dispatch(removeReferenceFromCard(cardID, refType));
 		}
 	}
 
@@ -891,7 +890,7 @@ class CardEditor extends connect(store)(LitElement) {
 		const ele = e.composedPath()[0];
 		if(!(ele instanceof HTMLSelectElement)) throw new Error('ele not select');
 		if (!ele.value) return;
-		const value : ReferenceType = ele.value as ReferenceType;
+		const value = referenceTypeSchema.parse(ele.value);
 		if (!REFERENCE_TYPES[value]) throw new Error('Unknown reference types');
 		//Set it back to default
 		ele.value = '';
@@ -900,43 +899,43 @@ class CardEditor extends connect(store)(LitElement) {
 
 	_handleAddAckReference(e : TagEvent) {
 		const cardID = e.detail.tag;
-		store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_ACK));
+		store.dispatch(addReferenceToCard(cardID, 'ack'));
 	}
 
 	_handleReAddReference(e : TagEvent) {
 		const cardID = e.detail.tag;
-		let referenceType : ReferenceType = '';
+		let refType : ReferenceType | undefined = undefined;
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
 		for (const ele of e.composedPath()) {
 			//Could be a documentfragment
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
-				referenceType = ele.dataset.referenceType as ReferenceType;
+				refType = referenceTypeSchema.parse(ele.dataset.referenceType);
 				break;
 			}
 		}
-		if (!referenceType) throw new Error('couldn\'t find referenceType');
-		store.dispatch(addReferenceToCard(cardID, referenceType));
+		if (!refType) throw new Error('couldn\'t find referenceType');
+		store.dispatch(addReferenceToCard(cardID, refType));
 	}
 
 	_handleRemoveReference(e : TagEvent) {
 		const cardID = e.detail.tag;
-		let referenceType : ReferenceType = '';
+		let refType : ReferenceType | undefined = undefined;
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
 		for (const ele of e.composedPath()) {
 			//Could be a documentfragment
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
-				referenceType = ele.dataset.referenceType as ReferenceType;
+				refType = referenceTypeSchema.parse(ele.dataset.referenceType);
 				break;
 			}
 		}
-		if (!referenceType) {
+		if (!refType) {
 			console.warn('No reference type found on parents');
 		}
-		store.dispatch(removeReferenceFromCard(cardID, referenceType));
+		store.dispatch(removeReferenceFromCard(cardID, refType));
 	}
 
 	_handleTabClicked(e : MouseEvent) {
@@ -1080,9 +1079,9 @@ class CardEditor extends connect(store)(LitElement) {
 	disabledCardHighlightClicked(cardID : CardID, alternate : boolean) {
 		if (!this._active) return;
 		if(alternate) {
-			store.dispatch(addReferenceToCard(cardID, REFERENCE_TYPE_CONCEPT));
+			store.dispatch(addReferenceToCard(cardID, 'concept'));
 		} else {
-			store.dispatch(removeReferenceFromCard(cardID, REFERENCE_TYPE_CONCEPT));
+			store.dispatch(removeReferenceFromCard(cardID, 'concept'));
 		}
 	}
 

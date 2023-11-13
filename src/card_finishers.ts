@@ -1,6 +1,4 @@
 import {
-	CARD_TYPE_WORKING_NOTES,
-	CARD_TYPE_CONCEPT,
 	TEXT_FIELD_BODY
 } from './type_constants.js';
 
@@ -68,8 +66,8 @@ const conceptValidator = (card : Card, state : State) => {
 //Note that the card might not have ever been saved before, so its timestamp
 //fields in particular might be empty or sentinel values.
 export const CARD_TYPE_EDITING_FINISHERS : {[type in CardType]+?: (card : Card, state : State) => void} = {
-	[CARD_TYPE_WORKING_NOTES]: workingNotesExtractor,
-	[CARD_TYPE_CONCEPT]: conceptValidator, 
+	'working-notes': workingNotesExtractor,
+	'concept': conceptValidator, 
 };
 
 //TODO: ideally the above would be fields in CARD_TYPE_CONFIGURATION if the

@@ -30,16 +30,6 @@ import {
 	REFERENCE_TYPES
 } from '../card_fields.js';
 
-import {
-	URL_PART_INT,
-	URL_PART_FLOAT,
-	URL_PART_REFERENCE_TYPE,
-	URL_PART_USER_ID,
-	URL_PART_KEY_CARD,
-	URL_PART_MULTIPLE_CARDS,
-	URL_PART_DATE_SECTION
-} from '../type_constants.js';
-
 import './configure-collection-key-card.js';
 import './configure-collection-multiple-cards.js';
 import './configure-collection-date.js';
@@ -119,18 +109,18 @@ class ConfigureCollectionFilter extends LitElement {
 	_configurableFilterPart(piece : ConfigurableFilterControlPiece, subIndex : number) : TemplateResult {
 		//piece is obj with controlType, description, and value
 		switch (piece.controlType) {
-		case URL_PART_DATE_SECTION:
+		case 'date':
 			return html`<configure-collection-date .value=${piece.value} @filter-modified-complex=${this._handleModifyFilterRestChangedComplex} data-sub-index=${subIndex}></configure-collection-date>`;
-		case URL_PART_MULTIPLE_CARDS:
+		case 'multiple-cards':
 			return html`<configure-collection-multiple-cards .value=${piece.value} .cardTagInfos=${this.cardTagInfos} @filter-modified-complex=${this._handleModifyFilterRestChangedComplex} data-sub-index=${subIndex}></configure-collection-multiple-cards>`;
-		case URL_PART_KEY_CARD:
+		case 'key-card':
 			return html`<configure-collection-key-card .value=${piece.value} .cardTagInfos=${this.cardTagInfos} @filter-modified-complex=${this._handleModifyFilterRestChangedComplex} data-sub-index=${subIndex}></configure-collection-key-card>`;
-		case URL_PART_USER_ID:
+		case 'user-id':
 			return html`<select data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${[ME_AUTHOR_ID,...this.userIDs].map(item => html`<option .value=${item.toLowerCase()}>${item.toLowerCase()}</option>`)}</select>`;
-		case URL_PART_REFERENCE_TYPE:
+		case 'reference-type':
 			return html`<select data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>${Object.entries(REFERENCE_TYPES).map(entry => html`<option .value=${entry[0]} .title=${entry[1].description}>${entry[0]}</option>`)}</select>`;
 		default:
-			return html`<input type=${piece.controlType == URL_PART_INT ? 'number' : 'text'} min='0' step=${piece.controlType == URL_PART_FLOAT ? 0.0001 : 1} data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>`;
+			return html`<input type=${piece.controlType == 'int' ? 'number' : 'text'} min='0' step=${piece.controlType == 'float' ? 0.0001 : 1} data-sub-index=${subIndex} @change=${this._handleModifyFilterRestChanged} .value=${piece.value}>`;
 		}
 	}
 

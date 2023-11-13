@@ -303,7 +303,7 @@ export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) 
 
 	const rawUpdatedCard = selectEditingCard(state);
 
-	let update;
+	let update : CardDiff;
 	try {
 		update = await generateFinalCardDiff(state, underlyingCard, rawUpdatedCard);
 	} catch(err) {

@@ -41,16 +41,11 @@ import {
 	AIDialogType,
 	State,
 	AIModelName,
-	StringCardMap
+	StringCardMap,
+	CardType
 } from '../types.js';
 
 import {
-	AI_DIALOG_TYPE_CARD_SUMMARY,
-	AI_DIALOG_TYPE_MISSING_CONCEPTS,
-	AI_DIALOG_TYPE_SUGGEST_TITLE,
-	CARD_TYPE_CONTENT,
-	EVERYTHING_SET_NAME,
-	SORT_NAME_STARS,
 	TEXT_FIELD_TITLE
 } from '../type_constants.js';
 
@@ -63,7 +58,7 @@ import {
 } from '../collection_description.js';
 
 import {
-	limitConfigurableFilterText
+	limitFilter
 } from '../filters.js';
 
 import {
@@ -299,7 +294,8 @@ const FALLBACK_TITLES = [
 //in this collection are the best ones.
 const selectGoodTitles = (state : State, count = 20) : string[] => {
 	//TODO: memoize
-	const description = new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_CONTENT, limitConfigurableFilterText(count)], SORT_NAME_STARS);
+	const contentFilter : CardType = 'content';
+	const description = new CollectionDescription('everything', [contentFilter, limitFilter(count)], 'stars');
 	const collection = description.collection(selectCollectionConstructorArguments(state));
 	const titles = collection.sortedCards.map(card => card.title);
 	return [...titles, ...FALLBACK_TITLES].slice(0,count);
@@ -324,7 +320,7 @@ export const titleForEditingCardWithAI = (count = 5) : ThunkSomeAction => async 
 
 	const model = DEFAULT_MODEL;
 
-	dispatch(aiRequestStarted(AI_DIALOG_TYPE_SUGGEST_TITLE, model));
+	dispatch(aiRequestStarted('title', model));
 
 	let prompt = 'The following is a short essay: ' + CARD_SEPARATOR + body + CARD_SEPARATOR;
 	prompt += 'Here are examples of good titles of other essays:' + CARD_SEPARATOR + selectGoodTitles(state).join('\n') + CARD_SEPARATOR;
@@ -349,7 +345,7 @@ export const summarizeCardsWithAI = () : ThunkSomeAction => async (dispatch, get
 	const uid = selectUid(state);
 	const cards = selectActiveCollectionCards(state);
 	const model = DEFAULT_LONG_MODEL;
-	dispatch(aiRequestStarted(AI_DIALOG_TYPE_CARD_SUMMARY, model));
+	dispatch(aiRequestStarted('summary', model));
 
 	const [prompt, ids] = await cardsAISummaryPrompt(cards, model);
 	dispatch({
@@ -390,7 +386,7 @@ export const missingConceptsWithAI = () : ThunkSomeAction => async (dispatch, ge
 	const uid = selectUid(state);
 	const cards = selectActiveCollectionCards(state);
 	const model = DEFAULT_HIGH_FIDELITY_MODEL;
-	dispatch(aiRequestStarted(AI_DIALOG_TYPE_MISSING_CONCEPTS, model));
+	dispatch(aiRequestStarted('concepts', model));
 
 	const reversedConcepts = selectConcepts(state);
 	const conceptStrings = distilledConceptStrings(reversedConcepts);
@@ -413,17 +409,17 @@ export const missingConceptsWithAI = () : ThunkSomeAction => async (dispatch, ge
 };
 
 export const AI_DIALOG_TYPE_CONFIGURATION : {[key in AIDialogType] : AIDialogTypeConfiguration} = {
-	[AI_DIALOG_TYPE_CARD_SUMMARY]: {
+	'summary': {
 		title: 'Summarize Cards',
 		resultType: 'text-block',
 	},
-	[AI_DIALOG_TYPE_SUGGEST_TITLE]: {
+	'title': {
 		title: 'Suggest Title',
 		resultType: 'multi-line',
 		commitAction: commitTitleSuggestion,
 		rerunAction: titleForEditingCardWithAI
 	},
-	[AI_DIALOG_TYPE_MISSING_CONCEPTS]: {
+	'concepts': {
 		title: 'Missing Concepts',
 		resultType: 'tag-list'
 	}

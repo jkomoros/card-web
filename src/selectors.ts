@@ -20,11 +20,12 @@ import {
 	TODO_COMBINED_FILTER_NAME,
 	cardTODOConfigKeys,
 	queryConfigurableFilterText,
-	SIMILAR_FILTER_NAME,
-	LIMIT_FILTER_NAME,
-	EXCLUDE_FILTER_NAME,
-	CARDS_FILTER_NAME,
-	CARD_FILTER_DESCRIPTIONS
+	CARD_FILTER_DESCRIPTIONS,
+	similarFilter,
+	limitFilter,
+	excludeFilter,
+	cardsFilter,
+	cardTypeFilter
 } from './filters.js';
 
 import {
@@ -44,16 +45,6 @@ import {
 	MIN_SORT_ORDER_VALUE,
 	MAX_SORT_ORDER_VALUE
 } from './card_fields.js';
-
-import {
-	CARD_TYPE_WORKING_NOTES,
-	DEFAULT_SET_NAME,
-	READING_LIST_SET_NAME,
-	EVERYTHING_SET_NAME,
-	SORT_NAME_RECENT,
-	SORT_NAME_DEFAULT,
-	AI_DIALOG_TYPE_CARD_SUMMARY
-} from './type_constants.js';
 
 import {
 	references,
@@ -158,7 +149,10 @@ import {
 	ExpandedTabConfig,
 	SortName,
 	AIDialogType,
-	AIModelName
+	AIModelName,
+	SetName,
+	ViewMode,
+	ReferenceType
 } from './types.js';
 
 import {
@@ -192,7 +186,7 @@ export const selectMultiEditReferencesDiff = (state : State) => state.multiedit 
 
 export const selectAIDialogOpen = (state : State) => state.ai ? state.ai.open : false;
 export const selectAIActive = (state : State) => state.ai ? state.ai.active : false;
-export const selectAIDialogKind = (state : State) : AIDialogType => state.ai ? state.ai.kind : AI_DIALOG_TYPE_CARD_SUMMARY;
+export const selectAIDialogKind = (state : State) : AIDialogType => state.ai ? state.ai.kind : 'summary';
 export const selectAIResult = (state : State) => state.ai ? state.ai.result : [];
 export const selectAIResultIndex = (state : State) => state.ai ? state.ai.selectedIndex : -1;
 export const selectAIError = (state : State) => state.ai ? state.ai.error : '';
@@ -209,11 +203,11 @@ export const selectImageBrowserDialogOpen = (state : State) => state.editor ? st
 export const selectImageBrowserDialogIndex = (state : State) => state.editor ? state.editor.imageBrowserDialogIndex : undefined;
 
 export const selectActiveRenderOffset = (state : State) => state.collection ? state.collection.activeRenderOffset : 0;
-const selectActiveSetName = (state : State) => state.collection ? state.collection.activeSetName : '';
+const selectActiveSetName = (state : State) : SetName => state.collection ? state.collection.activeSetName : 'main';
 const selectActiveFilterNames = (state : State) => state.collection ? state.collection.activeFilterNames : [];
-const selectActiveSortName = (state : State) => state.collection ? state.collection.activeSortName : '';
+const selectActiveSortName = (state : State) : SortName => state.collection ? state.collection.activeSortName : 'default';
 const selectActiveSortReversed = (state : State) => state.collection ? state.collection.activeSortReversed : false;
-const selectActiveViewMode = (state : State) => state.collection ? state.collection.activeViewMode : '';
+const selectActiveViewMode = (state : State) : ViewMode => state.collection ? state.collection.activeViewMode : 'list';
 const selectActiveViewModeExtra = (state : State) => state.collection ? state.collection.activeViewModeExtra : '';
 export const selectRequestedCard = (state : State) => state.collection.requestedCard;
 export const selectActiveCardId = (state : State) => state.collection ? state.collection.activeCardId : '';
@@ -226,7 +220,7 @@ const selectEditingOriginalUnderlyingCardSnapshot = (state : State) => state.edi
 const selectEditingCardExtractionVersion = (state : State) => state.editor ? state.editor.cardExtractionVersion : 0;
 export const selectEditorMinimized = (state : State) => state.editor ? state.editor.editorMinimized : false;
 export const selectEditingUpdatedFromContentEditable = (state : State) => state.editor ? state.editor.updatedFromContentEditable : {};
-export const selectEditingPendingReferenceType = (state : State) => state.editor ? state.editor.pendingReferenceType : '';
+export const selectEditingPendingReferenceType = (state : State) : ReferenceType => state.editor ? state.editor.pendingReferenceType : 'ack';
 export const selectPendingSlug = (state : State) => state.editor ? state.editor.pendingSlug : '';
 export const selectFilters = (state : State) => state.collection.filters;
 const selectFiltersSnapshot = (state : State) => state.collection.filtersSnapshot;
@@ -544,6 +538,8 @@ export const selectCardIDsUserMayEdit : ((state: State) => CardBooleanMap) = cre
 	}
 );
 
+export const userMayEditCard = (state : State, cardID : CardID) : boolean => selectCardIDsUserMayEdit(state)[cardID] || false;
+
 export const selectUserMayEditActiveCard = createSelector(
 	selectCardIDsUserMayEdit,
 	selectActiveCardId,
@@ -645,7 +641,7 @@ export const getReasonUserMayNotDeleteCard = (state : State, card : Card) => {
 	//NOTE: this logic is recreatedin the firestore security rules for card deletion
 	if (!card) return 'No card provided';
 
-	if (!selectCardIDsUserMayEdit(state)[card.id]) return 'User may not edit card.';
+	if (!userMayEditCard(state, card.id)) return 'User may not edit card.';
 
 	if (card.section) return 'Card must be orphaned to be deleted';
 
@@ -1151,7 +1147,7 @@ export const selectActiveSectionId = createSelector(
 	(collectionDescription, sections) => {
 		//The activeSectionId is only true if it's the default set and there
 		//is precisely one filter who is also a set.
-		if(collectionDescription.set != DEFAULT_SET_NAME) return '';
+		if(collectionDescription.set != 'main') return '';
 		if (collectionDescription.filters.length != 1) return '';
 		return sections[collectionDescription.filters[0]] ? collectionDescription.filters[0] : '';
 	}
@@ -1167,7 +1163,7 @@ const selectUserMayEditActiveSection = createSelector(
 export const selectActiveCollectionCardTypeToAdd = createSelector(
 	selectActiveCollectionDescription,
 	(collectionDescription) : CardType => {
-		if (collectionDescription.set != EVERYTHING_SET_NAME) return DEFAULT_CARD_TYPE;
+		if (collectionDescription.set != 'everything') return DEFAULT_CARD_TYPE;
 		if (collectionDescription.filters.length != 1) return DEFAULT_CARD_TYPE;
 		//Note: we aren't sure that the first filter is a CardType, but it's
 		//safe to try because we're just using it to index.
@@ -1175,7 +1171,7 @@ export const selectActiveCollectionCardTypeToAdd = createSelector(
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[possibleCardType];
 		if (!cardTypeConfig) return DEFAULT_CARD_TYPE;
 		//Working notes already has its own button
-		if (possibleCardType === CARD_TYPE_WORKING_NOTES) return DEFAULT_CARD_TYPE;
+		if (possibleCardType === cardTypeFilter('working-notes')) return DEFAULT_CARD_TYPE;
 		if (!cardTypeConfig.orphanedByDefault) return DEFAULT_CARD_TYPE;
 		return possibleCardType as CardType;
 	}
@@ -1266,7 +1262,7 @@ export const selectActiveTagId = createSelector(
 	(collectionDescription, tags) => {
 		//The activeSectionId is only true if it's the default set and there
 		//is precisely one filter who is also a set.
-		if( collectionDescription.set != DEFAULT_SET_NAME) return '';
+		if( collectionDescription.set != 'main') return '';
 		if (collectionDescription.filters.length != 1) return '';
 		return tags[collectionDescription.filters[0]] ? collectionDescription.filters[0] : '';
 	}
@@ -1312,16 +1308,21 @@ const selectEverythingSetSnapshot = createSelector(
 	makeEverythingSetFromCards,
 );
 
+type SetCollection = {
+	[set in SetName]: CardID[]
+};
+
 const selectAllSets = createSelector(
 	selectDefaultSet,
 	selectUserReadingList,
 	selectEverythingSet,
 	(defaultSet, readingListSet, everythingSet) => {
-		return {
-			[DEFAULT_SET_NAME]: defaultSet,
-			[READING_LIST_SET_NAME]: readingListSet,
-			[EVERYTHING_SET_NAME]: everythingSet,
+		const result : SetCollection = {
+			'main': defaultSet,
+			'reading-list': readingListSet,
+			'everything': everythingSet,
 		};
+		return result;
 	}
 );
 
@@ -1332,11 +1333,14 @@ const selectSetsSnapshot = createSelector(
 	selectAllSets,
 	selectEverythingSetSnapshot,
 	selectUserReadingListSnapshot,
-	(allSets, everythingSetSnapshot, readingListSet) => ({
-		...allSets, 
-		[EVERYTHING_SET_NAME]: everythingSetSnapshot,
-		[READING_LIST_SET_NAME]: readingListSet,
-	})
+	(allSets, everythingSetSnapshot, readingListSet) => {
+		const result : SetCollection = {
+			...allSets, 
+			'everything': everythingSetSnapshot,
+			'reading-list': readingListSet,
+		};
+		return result;
+	}
 );
 
 
@@ -1588,25 +1592,25 @@ export const selectCollectionDescriptionForQuery = createSelector(
 		const wordsAndFilters = extractFiltersFromQuery(queryText);
 		const baseFilters = ['has-body'];
 		let sort : SortName = undefined;
-		if (cardID && !generic) baseFilters.push(EXCLUDE_FILTER_NAME + '/' + CARDS_FILTER_NAME + '/' + cardID);
+		if (cardID && !generic) baseFilters.push(excludeFilter(cardsFilter(cardID)));
 		if (cardTypeFilter) baseFilters.push(cardTypeFilter);
 		if (!wordsAndFilters[0] && !wordsAndFilters[1].length) {
 			if (generic) {
 				//If it's a generic search, we don't want similar cards to
 				//current card (which might be a boring section title card), we
 				//just want recent cards.
-				sort = SORT_NAME_RECENT;
+				sort = 'recent';
 			} else {
 				//If it's a search to find a card to link etc we do want it to
 				//be related to the card we're on.
-				baseFilters.push(SIMILAR_FILTER_NAME + '/' + cardID);
+				baseFilters.push(similarFilter(cardID));
 			}
-			baseFilters.push(LIMIT_FILTER_NAME + '/' + 10);
+			baseFilters.push(limitFilter(10));
 			//If there's no query, return the similar cards to the current card
-			return new CollectionDescription(EVERYTHING_SET_NAME, baseFilters, sort);
+			return new CollectionDescription('everything', baseFilters, sort);
 		}
 		const queryFilter = queryConfigurableFilterText(wordsAndFilters[0]);
-		return new CollectionDescription(EVERYTHING_SET_NAME,[...baseFilters, queryFilter, ...wordsAndFilters[1]], sortByRecent ? SORT_NAME_RECENT : SORT_NAME_DEFAULT);
+		return new CollectionDescription('everything',[...baseFilters, queryFilter, ...wordsAndFilters[1]], sortByRecent ? 'recent' : 'default');
 	}
 );
 

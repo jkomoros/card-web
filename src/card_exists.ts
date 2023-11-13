@@ -7,7 +7,7 @@ import {
 //selectRawCards is duplicated from selectors.js
 const selectRawCards = (state : State) => state.data ? state.data.cards : {};
 const selectPendingNewCardID = (state : State) => state.data ? state.data.pendingNewCardID : '';
-const selectPendingNewCardType = (state : State) => state.data ? state.data.pendingNewCardType : '';
+const selectPendingNewCardType = (state : State) : CardType => state.data ? state.data.pendingNewCardType : 'content';
 
 //getCardExists checks if the card with the given ID is known to exist. This is
 //typicaly because a card with that ID is in the set of cards on the client, but
@@ -25,6 +25,6 @@ export const getCardType = (state : State, cardID : CardID) : CardType => {
 	if (cardID == selectPendingNewCardID(state)) return selectPendingNewCardType(state);
 	const cards = selectRawCards(state);
 	const card = cards[cardID];
-	if (!card) return '';
+	if (!card) return 'content';
 	return card.card_type;
 };

@@ -11,7 +11,8 @@ import {
 	cardBFS,
 	pageRank,
 	createSlugFromArbitraryString,
-	normalizeCardSlugOrIDList
+	normalizeCardSlugOrIDList,
+	assertUnreachable
 } from './util.js';
 
 import {
@@ -24,47 +25,6 @@ import {
 	REFERENCE_TYPES,
 	KEY_CARD_ID_PLACEHOLDER,
 } from './card_fields.js';
-
-import {
-	CARD_TYPE_CONTENT,
-	CARD_TYPE_WORKING_NOTES,
-	CARD_TYPE_CONCEPT,
-	REFERENCE_TYPE_CONCEPT,
-	REFERENCE_TYPE_LINK,
-	BEFORE_FILTER_NAME,
-	AFTER_FILTER_NAME,
-	BETWEEN_FILTER_NAME,
-	URL_PART_DATE_SECTION,
-	URL_PART_FREE_TEXT,
-	URL_PART_KEY_CARD,
-	URL_PART_INT,
-	URL_PART_FLOAT,
-	URL_PART_REFERENCE_TYPE,
-	URL_PART_USER_ID,
-	URL_PART_SUB_FILTER,
-	URL_PART_MULTIPLE_CARDS,
-	URL_PART_CONCEPT_STR_OR_ID,
-	URL_PART_EXPAND_FILTER,
-	DEFAULT_SET_NAME,
-	READING_LIST_SET_NAME,
-	EVERYTHING_SET_NAME,
-	VIEW_MODE_WEB,
-	DEFAULT_VIEW_MODE,
-	SORT_NAME_DEFAULT,
-	SORT_NAME_RECENT,
-	SORT_NAME_STARS,
-	SORT_NAME_ORIGINAL_ORDER,
-	SORT_NAME_LINK_COUNT,
-	SORT_NAME_UPDATED,
-	SORT_NAME_CREATED,
-	SORT_NAME_COMMENTED,
-	SORT_NAME_LAST_TWEETED,
-	SORT_NAME_TWEET_COUNT,
-	SORT_NAME_TWEET_ORDER,
-	SORT_NAME_TODO_DIFFICULTY,
-	SORT_NAME_RANDOM,
-	SORT_NAME_CARD_RANK
-} from './type_constants.js';
 
 import {
 	references
@@ -123,7 +83,10 @@ import {
 	ConcreteFilterName,
 	CardSimilarityMap,
 	FilterFuncResult,
-	ConfigurableFilterResult
+	ConfigurableFilterResult,
+	SetName,
+	setName,
+	referenceType
 } from './types.js';
 
 import {
@@ -158,23 +121,23 @@ export const DIRECT_REFERENCES_FILTER_NAME = DIRECT_PREFIX + REFERENCES_FILTER_N
 export const DIRECT_REFERENCES_INBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_INBOUND_FILTER_NAME;
 export const DIRECT_REFERENCES_OUTBOUND_FILTER_NAME = DIRECT_PREFIX + REFERENCES_OUTBOUND_FILTER_NAME;
 const AUTHOR_FILTER_NAME = 'author';
-export const CARDS_FILTER_NAME = 'cards';
+const CARDS_FILTER_NAME = 'cards';
 export const EXCLUDE_FILTER_NAME = 'exclude';
 export const COMBINE_FILTER_NAME = 'combine';
-export const EXPAND_FILTER_NAME = 'expand';
+const EXPAND_FILTER_NAME = 'expand';
 export const QUERY_FILTER_NAME = 'query';
 const QUERY_STRICT_FILTER_NAME = 'query-strict';
 export const LIMIT_FILTER_NAME = 'limit';
 export const OFFSET_FILTER_NAME = 'offset';
-export const SIMILAR_FILTER_NAME = 'similar';
+const SIMILAR_FILTER_NAME = 'similar';
 const SIMILAR_CUTOFF_FILTER_NAME = 'similar-cutoff';
 //About as in 'about this concept'. Ideally it would have been 'concept', but
 //that's reserved for the cardType filter. It used to be 'about' but that
 //conflicts with section name in production.
 const ABOUT_CONCEPT_FILTER_NAME = 'about-concept';
 const MISSING_CONCEPT_FILTER_NAME = 'missing-concept';
-export const SAME_TYPE_FILTER = 'same-type';
-export const DIFFERENT_TYPE_FILTER = 'different-type';
+const SAME_TYPE_FILTER_NAME = 'same-type';
+const DIFFERENT_TYPE_FILTER_NAME = 'different-type';
 
 /*
 * filterEquivalent - the name of the filter that, when applied to the everything
@@ -184,22 +147,20 @@ export const DIFFERENT_TYPE_FILTER = 'different-type';
 * description - the description for the set, to be shown to potentially all
   users.
 */
-export const SET_INFOS = {
-	[DEFAULT_SET_NAME]: {
+export const SET_INFOS : {[name in SetName]: {filterEquivalent: FilterName, description: string}} = {
+	'main': {
 		filterEquivalent: 'in-all-set',
 		description: 'The default set, typically containing only content cards that are specifically included in a section'
 	},
-	[READING_LIST_SET_NAME]: {
+	'reading-list': {
 		filterEquivalent: 'in-reading-list',
 		description: 'This user\'s list of cards they\'ve put on their reading list',
 	},
-	[EVERYTHING_SET_NAME]: {
+	'everything': {
 		filterEquivalent: 'in-everything-set',
 		description: 'Every single card of every type, including cards that aren\'t in any section (orphaned)'
 	}
 };
-
-export const FILTER_EQUIVALENTS_FOR_SET = Object.fromEntries(Object.entries(SET_INFOS).map(entry => [entry[0], entry[1].filterEquivalent]));
 
 //If filter names have this character in them then they're actually a union of
 //the filters
@@ -217,10 +178,51 @@ export const NONE_FILTER_NAME = 'none';
 export const ALL_FILTER_NAME = 'all-cards';
 
 //Legal view modes, including whether an option is expected or not.
-export const LEGAL_VIEW_MODES : {[mode in ViewMode]+?: boolean} = {
+export const LEGAL_VIEW_MODES : {[mode in ViewMode]: boolean} = {
 	//Note: collection_description logic assumes that default_view_mode takes not extra option.
-	[DEFAULT_VIEW_MODE]: false,
-	[VIEW_MODE_WEB]: true,
+	'list': false,
+	'web': true,
+};
+
+export const collectionDescription = (...parts : FilterName[]) : CollectionDescription => new CollectionDescription('everything', parts);
+
+export const referencesFilter = (direction : 'inbound' | 'outbound' | 'both', referenceType : ReferenceType | ReferenceType[], invertReferencesTypes? : boolean) : ConfigurableFilterName => {
+	let filter = '';
+	switch(direction) {
+	case 'inbound':
+		filter = DIRECT_REFERENCES_INBOUND_FILTER_NAME;
+		break;
+	case 'outbound':
+		filter = DIRECT_REFERENCES_OUTBOUND_FILTER_NAME;
+		break;
+	case 'both':
+		filter = DIRECT_REFERENCES_FILTER_NAME;
+		break;
+	default:
+		assertUnreachable(direction);
+	}
+	if (!filter) throw new Error('Unexpected no error');
+	return referencesConfigurableFilterText(filter, KEY_CARD_ID_PLACEHOLDER, referenceType, invertReferencesTypes);
+};
+
+export const excludeFilter = (filter : FilterName) : ConfigurableFilterName => EXCLUDE_FILTER_NAME + '/' + filter;
+export const limitFilter = (count : number) : ConfigurableFilterName => LIMIT_FILTER_NAME + '/' + String(count);
+export const unionFilter = (...parts : CardID[]) : UnionFilterName => parts.join(UNION_FILTER_DELIMITER);
+export const similarFilter = (cardID : CardID = KEY_CARD_ID_PLACEHOLDER) : ConfigurableFilterName => SIMILAR_FILTER_NAME + '/' + cardID;
+export const sameTypeFilter = (cardID : CardID = KEY_CARD_ID_PLACEHOLDER) : ConfigurableFilterName => SAME_TYPE_FILTER_NAME + '/' + cardID;
+export const differentTypeFilter = (cardID : CardID = KEY_CARD_ID_PLACEHOLDER) : ConfigurableFilterName => DIFFERENT_TYPE_FILTER_NAME + '/' + cardID;
+export const cardsFilter = (input : CardIdentifier | UnionFilterName) : ConfigurableFilterName => CARDS_FILTER_NAME + '/' + input;
+//This one is mainly useful for type checking
+export const cardTypeFilter = (type : CardType) : FilterName => type;
+export const aboutConceptFilter = (conceptStr : string | CardID = KEY_CARD_ID_PLACEHOLDER) : ConfigurableFilterName => {
+	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
+	return ABOUT_CONCEPT_FILTER_NAME + '/' + createSlugFromArbitraryString(conceptStr);
+};
+//if conceptStr is blank, it means 'all cards missing any concept'
+export const missingConceptFilter = (conceptStr : string = KEY_CARD_ID_PLACEHOLDER) : ConfigurableFilterName => {
+	const arg = conceptStr ? createSlugFromArbitraryString(conceptStr) : '+';
+	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
+	return MISSING_CONCEPT_FILTER_NAME + '/' + arg;
 };
 
 export const parseDateSection = (str : string) : [dateType : DateRangeType, firstDate : Date, secondDate : Date] => {
@@ -236,7 +238,7 @@ export const parseDateSection = (str : string) : [dateType : DateRangeType, firs
 };
 
 export const makeDateSection = (comparsionType : DateRangeType, dateOne : Date, dateTwo : Date) : string => {
-	const result = [comparsionType];
+	const result : string[] = [comparsionType];
 	result.push('' + dateOne.getFullYear() + '-' + (dateOne.getMonth() + 1) + '-' + dateOne.getDate());
 	if (CONFIGURABLE_FILTER_URL_PARTS[comparsionType] == 2) {
 		if (!dateTwo) dateTwo = new Date();
@@ -260,7 +262,7 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName | typeo
 	let func : ((card : ProcessedCard) => FilterFuncResult) = () => ({matches: false});
 
 	switch (comparisonType) {
-	case BEFORE_FILTER_NAME:
+	case 'before':
 		func = function(card) {
 			const val = card[cardKey] as Timestamp;
 			if (!val) return {matches: false};
@@ -268,7 +270,7 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName | typeo
 			return {matches: difference < 0};
 		};
 		break;
-	case AFTER_FILTER_NAME:
+	case 'after':
 		func = function(card) {
 			const val = card[cardKey] as Timestamp;
 			if (!val) return {matches: false};
@@ -276,7 +278,7 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName | typeo
 			return {matches: difference > 0};
 		};
 		break;
-	case BETWEEN_FILTER_NAME:
+	case 'between':
 		//Bail if the second date isn't provided
 		if (secondDate) {
 			func = function(card) {
@@ -289,8 +291,7 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName | typeo
 		}
 		break;
 	default:
-		const _exhaustiveCheck : never = comparisonType;
-		return _exhaustiveCheck ? [func, false] : [func, false];
+		assertUnreachable(comparisonType);
 	}
 
 	return [func, false];
@@ -307,7 +308,7 @@ function unionSet<T>(...sets : {[name : string] : T}[]) : {[name : string] : T} 
 	return result;
 }
 
-export const referencesConfigurableFilterText = (referencesFilterType : string, cardID : CardID, referencesTypes : ReferenceType | ReferenceType[], invertReferencesTypes? : boolean, ply? : number) => {
+const referencesConfigurableFilterText = (referencesFilterType : string, cardID : CardID, referencesTypes : ReferenceType | ReferenceType[], invertReferencesTypes? : boolean, ply? : number) => {
 	if (!referencesFilterType.includes(REFERENCES_FILTER_NAME)) throw new Error(referencesFilterType + ' is not a valid type for this function');
 	if (!referencesTypes) throw new Error('referenceTypes must be a string or array');
 	if (typeof referencesTypes != 'string' && !Array.isArray(referencesTypes)) throw new Error('referencesTypes must be a string or array');
@@ -436,15 +437,6 @@ const makeCardsConfigurableFilter = (_ : ConfigurableFilterType, idString : stri
 	return [func, false];
 };
 
-export const limitConfigurableFilterText = (limit : number) : ConfigurableFilterName => {
-	return LIMIT_FILTER_NAME + '/' + String(limit);
-};
-
-export const aboutConceptConfigurableFilterText = (conceptStr : string) : ConfigurableFilterName => {
-	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
-	return ABOUT_CONCEPT_FILTER_NAME + '/' + createSlugFromArbitraryString(conceptStr);
-};
-
 const makeAboutConceptConfigurableFilter = (_ : ConfigurableFilterType, conceptStrOrID : string) : ConfigurableFilterFuncFactoryResult => {
 	//conceptStr should have '-' delimiting its terms; normalize text
 	//will automatically handle them the same.
@@ -456,7 +448,7 @@ const makeAboutConceptConfigurableFilter = (_ : ConfigurableFilterType, conceptS
 		const expandedConceptStrOrId = conceptStrOrID == KEY_CARD_ID_PLACEHOLDER ? keyCardID : conceptStrOrID;
 		const conceptCard = cards[expandedConceptStrOrId] || getConceptCardForConcept(cards, expandedConceptStrOrId);
 		if (!conceptCard) return [{}, ''];
-		const conceptReferenceMap = references(conceptCard).byTypeClassInbound(REFERENCE_TYPE_CONCEPT);
+		const conceptReferenceMap = references(conceptCard).byTypeClassInbound('concept');
 		const matchingCards : FilterMap = {};
 		for (const cardMap of Object.values(conceptReferenceMap)) {
 			for (const cardID of Object.keys(cardMap)) {
@@ -477,16 +469,9 @@ const makeAboutConceptConfigurableFilter = (_ : ConfigurableFilterType, conceptS
 	return [func, false];
 };
 
-//if conceptStr is blank, it means 'all cards missing any concept'
-export const missingConceptConfigurableFilterText = (conceptStr : string) : ConfigurableFilterName => {
-	const arg = conceptStr ? createSlugFromArbitraryString(conceptStr) : '+';
-	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
-	return MISSING_CONCEPT_FILTER_NAME + '/' + arg;
-};
-
 const makeSameTypeConfigurableFilter = (filterName : ConfigurableFilterType, inputCardID : string) : ConfigurableFilterFuncFactoryResult => {
 	//We use this function for both same and different type
-	const sameType = filterName == SAME_TYPE_FILTER;
+	const sameType = filterName == SAME_TYPE_FILTER_NAME;
 	//Technically the '+' prefix doesn't make any sense here, but temporarily
 	//we're using hte dialog config type that might give us one as a prefix, so
 	//look for it just in case.
@@ -743,18 +728,18 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 
 		//TODO: figure out a way to support multiple key cards
 		for (const cardID of cardIDsToUse) {
-			//Sometimes a cardSimilarity might be empty, but it's still final
 			if (cardSimilarity[cardID]) {
 				if (Object.keys(cardSimilarity[cardID]).length) {
 					//TODO: merge in fingerprint cards for the ones not in top amount
 					return {map: new Map(Object.entries(cardSimilarity[cardID])), preview: false};
 				}
+				//If there are no keys, that's how the backend signals that it's a final error.
 			} else {
 				//Kick off a request for similarities we don't currently have, so
 				//we'll have them next time. We'll get called again once it's fetched.
-				fetchSimilarCardsIfEnabled(cardID);
-				//Note that we're expecting more values later.
-				preview = true;
+				//fetchSimilarCardsIfEnabled will tell us if we should expect values in the future.
+				//We want it to be a preview if any of the cards is positive.
+				preview = preview || fetchSimilarCardsIfEnabled(cardID);
 			}
 		}
 
@@ -791,6 +776,10 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 const makeNoOpConfigurableFilter = () : ConfigurableFilterFuncFactoryResult => {
 	return [() => ({matches: true}),  false];
 };
+
+const BEFORE_FILTER_NAME : DateRangeType = 'before';
+const AFTER_FILTER_NAME : DateRangeType = 'after';
+const BETWEEN_FILTER_NAME : DateRangeType = 'between';
 
 //When these are seen in the URL as parts, how many more pieces to expect, to be
 //combined later. For things like `updated`, they want more than 1 piece more
@@ -835,8 +824,8 @@ export const CONFIGURABLE_FILTER_URL_PARTS = {
 	[SIMILAR_CUTOFF_FILTER_NAME]: 2,
 	[ABOUT_CONCEPT_FILTER_NAME]: 1,
 	[MISSING_CONCEPT_FILTER_NAME]: 1,
-	[SAME_TYPE_FILTER]: 1,
-	[DIFFERENT_TYPE_FILTER]: 1,
+	[SAME_TYPE_FILTER_NAME]: 1,
+	[DIFFERENT_TYPE_FILTER_NAME]: 1,
 };
 
 const beforeTodayDefaultsFactory = () => {
@@ -869,7 +858,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeDateConfigurableFilter,
 		description: 'Selects cards that were updated within a given date range',
 		arguments: [{
-			type: URL_PART_DATE_SECTION,
+			type: 'date',
 			description: 'Date Range',
 			default: DEFAULT_DATE_FILTER,
 		}],
@@ -878,7 +867,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeDateConfigurableFilter,
 		description: 'Selects cards that had a tweet within a given date range',
 		arguments: [{
-			type: URL_PART_DATE_SECTION,
+			type: 'date',
 			description: 'Date Range',
 			default: DEFAULT_DATE_FILTER,
 		}],
@@ -889,7 +878,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that are directly referenced by a given card',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		}]
@@ -900,11 +889,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that are direct or indirectly referenced by a given card',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type:URL_PART_INT,
+			type: 'int',
 			description: 'Ply',
 			default: '2',
 		}]
@@ -915,7 +904,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that directly reference the given card',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		}]
@@ -926,11 +915,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that directly or indirectly reference the given card',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type:URL_PART_INT,
+			type: 'int',
 			description: 'Ply',
 			default: '2',
 		}]
@@ -941,7 +930,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that directly reference or are referenced by a given card',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		}]
@@ -952,11 +941,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that directly or indirectly reference (or are referenced by) a given card',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type:URL_PART_INT,
+			type: 'int',
 			description: 'Ply',
 			default: '2',
 		}]
@@ -967,15 +956,15 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that reference or are referenced by other cards with a particular type of reference',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type: URL_PART_REFERENCE_TYPE,
+			type: 'reference-type',
 			description: 'Reference types',
-			default: REFERENCE_TYPE_LINK,
+			default: referenceType('link'),
 		},{
-			type:URL_PART_INT,
+			type: 'int',
 			description: 'Ply',
 			default: '2',
 		}]
@@ -986,15 +975,15 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that is referenced by other cards with a particular type of reference',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type: URL_PART_REFERENCE_TYPE,
+			type: 'reference-type',
 			description: 'Reference types',
-			default: REFERENCE_TYPE_LINK,
+			default: referenceType('link'),
 		},{
-			type:URL_PART_INT,
+			type: 'int',
 			description: 'Ply',
 			default: '2',
 		}]
@@ -1005,15 +994,15 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that reference other cards with a particular type of reference',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type: URL_PART_REFERENCE_TYPE,
+			type: 'reference-type',
 			description: 'Reference types',
-			default: REFERENCE_TYPE_LINK,
+			default: referenceType('link'),
 		},{
-			type:URL_PART_INT,
+			type: 'int',
 			description: 'Ply',
 			default: '2',
 		}]
@@ -1024,13 +1013,13 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that directly reference or are referenced by other cards with a particular type of reference',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type: URL_PART_REFERENCE_TYPE,
+			type: 'reference-type',
 			description: 'Reference types',
-			default: REFERENCE_TYPE_LINK,
+			default: referenceType('link'),
 		}]
 	},
 	[DIRECT_REFERENCES_INBOUND_FILTER_NAME]: {
@@ -1039,13 +1028,13 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that reference other cards with a particular type of reference',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type: URL_PART_REFERENCE_TYPE,
+			type: 'reference-type',
 			description: 'Reference types',
-			default: REFERENCE_TYPE_LINK,
+			default: referenceType('link'),
 		}]
 	},
 	[DIRECT_REFERENCES_OUTBOUND_FILTER_NAME]: {
@@ -1054,20 +1043,20 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		flipOrder: true,
 		description: 'Selects cards that are referenced by other cards with a particular type of reference',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'The key card',
 			default: LINK_FILTER_BASE
 		},{
-			type: URL_PART_REFERENCE_TYPE,
+			type: 'reference-type',
 			description: 'Reference types',
-			default: REFERENCE_TYPE_LINK,
+			default: referenceType('link'),
 		}]
 	},
 	[AUTHOR_FILTER_NAME]: {
 		factory: makeAuthorConfigurableFilter,
 		description: 'Selects cards that are authored by the give user ID',
 		arguments: [{
-			type: URL_PART_USER_ID,
+			type: 'user-id',
 			description: 'User ID',
 			default: ME_AUTHOR_ID
 		}]
@@ -1076,7 +1065,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeExcludeConfigurableFilter,
 		description: 'Inverts a sub-filter expression',
 		arguments: [{
-			type: URL_PART_SUB_FILTER,
+			type: 'sub-filter',
 			description: 'Sub filter to negate',
 			default: ALL_FILTER_NAME
 		}]
@@ -1085,11 +1074,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeCombineConfigurableFilter,
 		description: 'Returns the union of two sub-filter expressions',
 		arguments: [{
-			type: URL_PART_SUB_FILTER,
+			type: 'sub-filter',
 			description: 'First sub filter to combine',
 			default: ALL_FILTER_NAME
 		}, {
-			type: URL_PART_SUB_FILTER,
+			type: 'sub-filter',
 			description: 'Second sub filter to combine',
 			default: ALL_FILTER_NAME
 		}]
@@ -1098,11 +1087,11 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeExpandConfigurableFilter,
 		description: 'Filters the first sub expression, but then expands the result set to be any cards connected given the given connection type',
 		arguments: [{
-			type: URL_PART_SUB_FILTER,
+			type: 'sub-filter',
 			description: 'First sub filter to select the starter set of cards to expand',
 			default: ALL_FILTER_NAME
 		}, {
-			type: URL_PART_EXPAND_FILTER,
+			type: 'expand-filter',
 			description: 'The link filter to expand the result set from the first part by',
 			default: DEFAULT_LINK_SUB_FILTER
 		}]
@@ -1113,7 +1102,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeCardsConfigurableFilter,
 		description: 'Selects a precise list of specific cards. It\'s typically used in conjunction with the ' + EXCLUDE_FILTER_NAME + ' filter',
 		arguments: [{
-			type: URL_PART_MULTIPLE_CARDS,
+			type: 'multiple-cards',
 			description: 'Cards to include',
 			default: KEY_CARD_ID_PLACEHOLDER,
 		}]
@@ -1123,7 +1112,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		suppressLabels: true,
 		description: 'Selects cards that contain text that at least partially matches a provided query',
 		arguments: [{
-			type: URL_PART_FREE_TEXT,
+			type: 'text',
 			description: 'Query text',
 			default: 'foo',
 		}],
@@ -1133,7 +1122,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		suppressLabels: true,
 		description: 'Selects cards that contain text that exactly matches a provided query',
 		arguments: [{
-			type: URL_PART_FREE_TEXT,
+			type: 'text',
 			description: 'Query text',
 			default: 'foo',
 		}],
@@ -1146,7 +1135,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeNoOpConfigurableFilter,
 		description: 'Selects only up to a certain number of cards. Limit is a special type of filter that can only apply at the top-level, and there can only be one.',
 		arguments: [{
-			type: URL_PART_INT,
+			type: 'int',
 			description: 'Limit',
 			default: '10'
 		}],
@@ -1159,7 +1148,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		factory: makeNoOpConfigurableFilter,
 		description: 'Drops the first n cards from the returned set. When used in conjunction with limit, allows pagination. Offset is a special type of filter that can only apply at the top-level, and there can only be one.',
 		arguments: [{
-			type: URL_PART_INT,
+			type: 'int',
 			description: 'Offset',
 			default: '10'
 		}],
@@ -1169,7 +1158,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		suppressLabels: true,
 		description: 'Selects cards that are similar to a given key card. It is primarily used for its sort order.',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'Key card',
 			default: KEY_CARD_ID_PLACEHOLDER
 		}],
@@ -1179,12 +1168,12 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		suppressLabels: true,
 		description: 'Selects cards that are similar to a given key card and above some float threshold of similarity',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'Key card',
 			default: KEY_CARD_ID_PLACEHOLDER
 		},
 		{
-			type: URL_PART_FLOAT,
+			type: 'float',
 			description: 'Float cutoff',
 			default: 0.5,
 		}],
@@ -1194,7 +1183,7 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		suppressLabels: true,
 		description: 'Selects cards that reference a given text concept',
 		arguments: [{
-			type: URL_PART_CONCEPT_STR_OR_ID,
+			type: 'concept-str-or-id',
 			description: 'Concept or CardID',
 			default: 'concept-name',
 		}],
@@ -1204,25 +1193,25 @@ export const CONFIGURABLE_FILTER_INFO : ConfigurableFilterConfigurationMap = {
 		labelName: 'Suggested Concept Count',
 		description: 'Selects cards that appear to be missing a particular concept reference',
 		arguments: [{
-			type: URL_PART_CONCEPT_STR_OR_ID,
+			type: 'concept-str-or-id',
 			description: 'Concept or CardID',
 			default: 'concept-name',
 		}],
 	},
-	[SAME_TYPE_FILTER]: {
+	[SAME_TYPE_FILTER_NAME]: {
 		factory: makeSameTypeConfigurableFilter,
 		description: 'Cards with the same type as the provided card',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'Key Card',
 			default: KEY_CARD_ID_PLACEHOLDER,
 		}]
 	},
-	[DIFFERENT_TYPE_FILTER]: {
+	[DIFFERENT_TYPE_FILTER_NAME]: {
 		factory: makeSameTypeConfigurableFilter,
 		description: 'Cards with a different type as the provided card',
 		arguments: [{
-			type: URL_PART_KEY_CARD,
+			type: 'key-card',
 			description: 'Key Card',
 			default: KEY_CARD_ID_PLACEHOLDER,
 		}]
@@ -1271,7 +1260,7 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 		return [];
 	}
 	const pieces = rest.split('/');
-	const result = [];
+	const result : ConfigurableFilterControlPiece[] = [];
 	let pieceIndex = 0;
 	for (const arg of config.arguments) {
 		const controlType = arg.type;
@@ -1280,7 +1269,7 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 			continue;
 		}
 		switch (controlType) {
-		case URL_PART_DATE_SECTION:
+		case 'date':
 			const subPieces = pieces.slice(pieceIndex, 2);
 			pieceIndex += 2;
 			if (subPieces[0] == BETWEEN_FILTER_NAME) {
@@ -1294,8 +1283,8 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 				value: subPieces.join('/')
 			});
 			break;
-		case URL_PART_SUB_FILTER:
-		case URL_PART_EXPAND_FILTER:
+		case 'sub-filter':
+		case 'expand-filter':
 			//consume the pices for this first subfilter
 			const [nextSubFilter] = extractSubFilters(pieces.slice(pieceIndex));
 			result.push({
@@ -1305,14 +1294,14 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 			});
 			pieceIndex += nextSubFilter.split('/').length;
 			break;
-		case URL_PART_FREE_TEXT:
-		case URL_PART_KEY_CARD:
-		case URL_PART_INT:
-		case URL_PART_FLOAT:
-		case URL_PART_REFERENCE_TYPE:
-		case URL_PART_USER_ID:
-		case URL_PART_MULTIPLE_CARDS:
-		case URL_PART_CONCEPT_STR_OR_ID:
+		case 'text':
+		case 'key-card':
+		case 'int':
+		case 'float':
+		case 'reference-type':
+		case 'user-id':
+		case 'multiple-cards':
+		case 'concept-str-or-id':
 			//The majority of filters are one piece for one argument.
 			result.push({
 				controlType,
@@ -1322,8 +1311,7 @@ export const piecesForConfigurableFilter = (fullFilterName : FilterName) : Confi
 			pieceIndex++;
 			break;
 		default:
-			const _exhaustiveCheck : never = controlType;
-			throw new Error(_exhaustiveCheck);
+			assertUnreachable(controlType);
 		}
 	}
 	return result;
@@ -1354,7 +1342,7 @@ export const SORTS : SortConfigurationMap = {
 	//sortValues, in which case it uses those. Note that
 	//collection._makeSortedCards has logic tailored to this to know when it can
 	//bail out early
-	[SORT_NAME_DEFAULT]: {
+	'default': {
 		extractor: (card, sections, _, sortExtra) : [number, string] => {
 			if (!sortExtra || Object.keys(sortExtra).length == 0) return [0, sectionNameForCard(card, sections)];
 			//Pick whatever is the first key stored, which will be the first
@@ -1382,13 +1370,13 @@ export const SORTS : SortConfigurationMap = {
 		},
 		reorderable: (sortExtra) => !sortExtra || Object.keys(sortExtra).length == 0
 	},
-	[SORT_NAME_ORIGINAL_ORDER]: {
+	'original-order': {
 		extractor: (card, sections) => [0, sectionNameForCard(card, sections)],
 		description: 'The default order of the cards within each section in order',
 		labelName: 'Section',
 		reorderable: () => true
 	},
-	[SORT_NAME_LINK_COUNT]: {
+	'link-count': {
 		extractor: (card) => {
 			const inbound_links = references(card).inboundLinksArray();
 			return [inbound_links.length, '' + inbound_links.length];
@@ -1396,7 +1384,7 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In descending order by number of inbound links',
 		labelName: 'Link Count',
 	},
-	[SORT_NAME_UPDATED]: {
+	'updated': {
 		extractor: (card) => {
 			const timestamp = card.updated_substantive;
 			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
@@ -1404,7 +1392,7 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In descending order by when each card was last substantively updated',
 		labelName:'Updated',
 	},
-	[SORT_NAME_CREATED]: {
+	'created': {
 		extractor: (card) => {
 			const timestamp = card.updated_substantive;
 			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
@@ -1412,11 +1400,11 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In descending order by when each card was created',
 		labelName:'Created',
 	},
-	[SORT_NAME_STARS]: {
+	'stars': {
 		extractor: (card) => [card.star_count || 0, ''],
 		description: 'In descending order by number of stars',
 	},
-	[SORT_NAME_COMMENTED]: {
+	'commented': {
 		extractor: (card) => {
 			const timestamp = card.updated_message;
 			return [timestamp ? timestamp.seconds : 0, prettyTime(timestamp)];
@@ -1424,7 +1412,7 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In descending order by when each card last had a new message',
 		labelName: 'Commented',
 	},
-	[SORT_NAME_RECENT]: {
+	'recent': {
 		extractor: (card) => {
 			const messageValue = card.updated_message ? card.updated_message.seconds : 0;
 			const updatedValue = card.updated_substantive ? card.updated_substantive.seconds : 0;
@@ -1436,24 +1424,24 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In descending order by when each card was last updated or had a new message',
 		labelName: 'Last Activity',
 	},
-	[SORT_NAME_LAST_TWEETED]: {
+	'last-tweeted': {
 		extractor: (card) => {
 			return [card.last_tweeted.seconds, prettyTime(card.last_tweeted)];
 		},
 		description: 'In descending order of when they were last auto-tweeted',
 		labelName: 'Tweeted'
 	},	
-	[SORT_NAME_TWEET_COUNT]: {
+	'tweet-count': {
 		extractor: (card) => [card.tweet_count, '' + card.tweet_count],
 		description: 'In descending order of how many times the card has been tweeted',
 		labelName: 'Tweet Count',
 	},
-	[SORT_NAME_TWEET_ORDER]: {
+	'tweet-order': {
 		extractor: tweetOrderExtractor as (card : ProcessedCard, sections : Sections, allCards : ProcessedCards) => [number, string],
 		description: 'In descending order of the ones that are most deserving of a tweet',
 		labelName: 'Tweet Worthiness',
 	},
-	[SORT_NAME_TODO_DIFFICULTY]: {
+	'todo-difficulty': {
 		extractor: (card : ProcessedCard) => {
 			const result = MAX_TOTAL_TODO_DIFFICULTY - cardTODOConfigKeys(card).map(key => TODO_DIFFICULTY_MAP[key]).reduce((prev, curr) => prev + curr, 0.0);
 			return [result, '' + result];
@@ -1461,14 +1449,14 @@ export const SORTS : SortConfigurationMap = {
 		description: 'In ascending order of how difficult remaining TODOs are',
 		labelName: 'TODO Difficulty'
 	},
-	[SORT_NAME_RANDOM]: {
+	'random': {
 		extractor: (card, _, __, ___, filterExtras) => {
 			return [hash(card.id + filterExtras.randomSalt), ''];
 		},
 		description: 'A random order',
 		labelName: 'Random Order'
 	},
-	[SORT_NAME_CARD_RANK]: {
+	'card-rank': {
 		extractor: (card, _, cards) => {
 			//This is memoized so as long as cards is the same it won't be re-run.
 			const ranks = pageRank(cards);
@@ -1501,62 +1489,6 @@ const cardMayHaveAutoTODO = (card : Card, todoConfig : TODOTypeInfo) : boolean =
 //These are the enum values in CARD_FILTER_CONFIGS that configure whether an
 //item is a TODO or not.
 
-//TODO_TYPE_NA is for card filters that are not TODOs
-const TODO_TYPE_NA = {
-	type: 'na',
-	isTODO: false,
-	autoApply: false,
-};
-
-//TODO_TYPE_AUTO_CONTENT is for card filters that are TODOs and are auto-set on
-//cards of type CONTENT, meaning that their key is legal in auto_todo_overrides.
-const TODO_TYPE_AUTO_CONTENT = {
-	type: 'auto',
-	autoApply: true,
-	//cardTypes is the types of cards that will have it autoapplied. However,
-	//any card that has it actively set to false in their auto_todo_overrides
-	//will show as having that TODO.
-	cardTypes: {
-		[CARD_TYPE_CONTENT]: true,
-	},
-	isTODO: true,
-};
-
-//TODO_TYPE_AUTO_CONTENT is for card filters that are TODOs and are auto-set on
-//cards of type CONTENT, meaning that their key is legal in auto_todo_overrides.
-const TODO_TYPE_AUTO_CONTENT_AND_CONCEPT = {
-	type: 'auto',
-	autoApply: true,
-	//cardTypes is the types of cards that will have it autoapplied. However,
-	//any card that has it actively set to false in their auto_todo_overrides
-	//will show as having that TODO.
-	cardTypes: {
-		[CARD_TYPE_CONTENT]: true,
-		[CARD_TYPE_CONCEPT]: true,
-	},
-	isTODO: true,
-};
-
-//TODO_TYPE_AUTO_WORKING_NOTES is for card filters that are TODOs and are auto-set on
-//cards of type WORKING_NOTES, meaning that their key is legal in auto_todo_overrides.
-const TODO_TYPE_AUTO_WORKING_NOTES = {
-	type: 'auto',
-	autoApply: true,
-	//Will only ever be auto-applied to working-notes card
-	cardTypes: {
-		[CARD_TYPE_WORKING_NOTES]: true,
-	},
-	isTODO: true,
-};
-
-//TODO_TYPE_FREEFORM is for card filters that are TODOs but are set via the freeform
-//notes property and are not valid keys in auto_todo_overrides.
-const TODO_TYPE_FREEFORM = {
-	type: 'freeform',
-	isTODO: true,
-	autoApply: false,
-};
-
 type TODOTypeInfo = {
 	type : string,
 	isTODO : boolean,
@@ -1565,6 +1497,62 @@ type TODOTypeInfo = {
 		[type in CardType]+? : true
 	}
 }
+
+//TODO_TYPE_NA is for card filters that are not TODOs
+const TODO_TYPE_NA : TODOTypeInfo = {
+	type: 'na',
+	isTODO: false,
+	autoApply: false,
+};
+
+//TODO_TYPE_AUTO_CONTENT is for card filters that are TODOs and are auto-set on
+//cards of type CONTENT, meaning that their key is legal in auto_todo_overrides.
+const TODO_TYPE_AUTO_CONTENT : TODOTypeInfo = {
+	type: 'auto',
+	autoApply: true,
+	//cardTypes is the types of cards that will have it autoapplied. However,
+	//any card that has it actively set to false in their auto_todo_overrides
+	//will show as having that TODO.
+	cardTypes: {
+		'content': true,
+	},
+	isTODO: true,
+};
+
+//TODO_TYPE_AUTO_CONTENT is for card filters that are TODOs and are auto-set on
+//cards of type CONTENT, meaning that their key is legal in auto_todo_overrides.
+const TODO_TYPE_AUTO_CONTENT_AND_CONCEPT : TODOTypeInfo = {
+	type: 'auto',
+	autoApply: true,
+	//cardTypes is the types of cards that will have it autoapplied. However,
+	//any card that has it actively set to false in their auto_todo_overrides
+	//will show as having that TODO.
+	cardTypes: {
+		'content': true,
+		'concept': true,
+	},
+	isTODO: true,
+};
+
+//TODO_TYPE_AUTO_WORKING_NOTES is for card filters that are TODOs and are auto-set on
+//cards of type WORKING_NOTES, meaning that their key is legal in auto_todo_overrides.
+const TODO_TYPE_AUTO_WORKING_NOTES : TODOTypeInfo = {
+	type: 'auto',
+	autoApply: true,
+	//Will only ever be auto-applied to working-notes card
+	cardTypes: {
+		'working-notes': true,
+	},
+	isTODO: true,
+};
+
+//TODO_TYPE_FREEFORM is for card filters that are TODOs but are set via the freeform
+//notes property and are not valid keys in auto_todo_overrides.
+const TODO_TYPE_FREEFORM : TODOTypeInfo = {
+	type: 'freeform',
+	isTODO: true,
+	autoApply: false,
+};
 
 type CardFilterConfigItem = [filterNames: [string, string, string, string], test: CardTestFunc, typ : TODOTypeInfo, weight : number, description : string];
 
@@ -1615,13 +1603,13 @@ const CARD_FILTER_CONFIGS : CardFilterConfigMap = Object.assign(
 		//Mined is always flagged on cards that it might be autoapplied to. The only way to make it go away is to add a true to the auto_todo_overrides for it.
 		//To find cards that are _partially_ mined, use the 'has-inbound-mined-from-references/not-mined' filters.
 		'content-mined': [['mined-for-content', 'not-mined-for-content', 'does-not-need-to-be-mined-for-content', 'needs-to-be-mined-for-content'], () => false, TODO_TYPE_AUTO_WORKING_NOTES, 2.0, 'Whether the card has had its insights \'mined\' into other cards. Only automatically applied to working-notes cards. The only way to clear it is to add a force TODO disable for it'],
-		[EVERYTHING_SET_NAME]: [defaultNonTodoCardFilterName(FILTER_EQUIVALENTS_FOR_SET[EVERYTHING_SET_NAME]), () => true, TODO_TYPE_NA, 0.0, 'Every card is in the everything set'],
+		[setName('everything')]: [defaultNonTodoCardFilterName(SET_INFOS['everything'].filterEquivalent), () => true, TODO_TYPE_NA, 0.0, 'Every card is in the everything set'],
 		//note: a number of things rely on `has-body` filter which is derived from this configuration
 		'body': [defaultCardFilterName('body'), (card : Card) => card && BODY_CARD_TYPES[card.card_type], TODO_TYPE_NA, 0.0, 'Cards that are of a type that has a body field'],
 		'substantive-references': [defaultCardFilterName('substantive-references'), (card : Card) => references(card).substantiveArray().length, TODO_TYPE_NA, 0.0, 'Whether the card has any substantive references of any type'],
 		'inbound-substantive-references': [defaultCardFilterName('inbound-substantive-references'), (card : Card) => references(card).inboundSubstantiveArray().length, TODO_TYPE_NA, 0.0, 'Whether the card has any substantive inbound references of any type'],
-		'concept-references': [defaultCardFilterName('concept-references'), (card : Card) => references(card).typeClassArray(REFERENCE_TYPE_CONCEPT).length, TODO_TYPE_NA, 0.0, 'Whether the card has any concept references of any type'],
-		'inbound-concept-references': [defaultCardFilterName('inbound-concept-references'), (card : Card) => references(card).inboundTypeClassArray(REFERENCE_TYPE_CONCEPT).length, TODO_TYPE_NA, 0.0, 'Whether the card has any concept inbound references of any type'],
+		'concept-references': [defaultCardFilterName('concept-references'), (card : Card) => references(card).typeClassArray('concept').length, TODO_TYPE_NA, 0.0, 'Whether the card has any concept references of any type'],
+		'inbound-concept-references': [defaultCardFilterName('inbound-concept-references'), (card : Card) => references(card).inboundTypeClassArray('concept').length, TODO_TYPE_NA, 0.0, 'Whether the card has any concept inbound references of any type'],
 		//TODO_COMBINED_FILTERS looks for the fourth key in the filtername array, so
 		//we just duplicate the first two since they're the same (the reason they'd
 		//differ is if there's an override key and that could make the has- and
@@ -1702,7 +1690,7 @@ export const INVERSE_FILTER_NAMES = Object.assign(
 		[ALL_FILTER_NAME]: NONE_FILTER_NAME,
 		[TODO_COMBINED_INVERSE_FILTER_NAME]: TODO_COMBINED_FILTER_NAME,
 	},
-	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => ['not-' + entry[1], entry[1]])),
+	Object.fromEntries(Object.entries(SET_INFOS).map(entry => ['not-' + entry[1].filterEquivalent, entry[1].filterEquivalent])),
 	//extend with ones for all of the card filters badsed on that config
 	Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).map(entry => [entry[1][0][1], entry[1][0][0]])),
 	//Add the inverse need filters (skipping ones htat are not a TODO)
@@ -1751,7 +1739,7 @@ const CARD_NON_INVERTED_FILTER_DESCRIPTIONS = Object.assign(
 		[NONE_FILTER_NAME]: 'Matches no cards',
 		'read': 'Cards that you have read',
 	},
-	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => [entry[1], 'A filter equivalent of the set ' + entry[0]])),
+	Object.fromEntries(Object.entries(SET_INFOS).map(entry => [entry[1].filterEquivalent, 'A filter equivalent of the set ' + entry[0]])),
 	Object.fromEntries(Object.entries(CONFIGURABLE_FILTER_INFO).map(entry => [entry[0], entry[1].description])),
 );
 
@@ -1769,18 +1757,18 @@ const INITIAL_STATE_FILTERS = Object.assign(
 		starred: {},
 		read: {},
 	},
-	Object.fromEntries(Object.entries(FILTER_EQUIVALENTS_FOR_SET).map(entry => [entry[1], {}])),
+	Object.fromEntries(Object.entries(SET_INFOS).map(entry => [entry[1].filterEquivalent, {}])),
 	//note: `in-everything-set` will be included in the above set and this next
 	//one, but that's OK, they'll both be the same.
 	Object.fromEntries(Object.entries(CARD_FILTER_FUNCS).map(entry => [entry[0], {}])),
 );
 
 export const INITIAL_STATE : CollectionState = {
-	activeSetName: DEFAULT_SET_NAME,
+	activeSetName: 'main',
 	activeFilterNames: [],
-	activeSortName: SORT_NAME_DEFAULT,
+	activeSortName: 'default',
 	activeSortReversed: false,
-	activeViewMode: DEFAULT_VIEW_MODE,
+	activeViewMode: 'list',
 	activeViewModeExtra: '',
 	filters: INITIAL_STATE_FILTERS,
 	filtersSnapshot: INITIAL_STATE_FILTERS,

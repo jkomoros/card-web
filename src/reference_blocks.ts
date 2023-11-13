@@ -1,23 +1,7 @@
 import {
-	KEY_CARD_ID_PLACEHOLDER,
 	REFERENCE_TYPES,
 	REFERENCE_TYPES_EQUIVALENCE_CLASSES,
 } from './card_fields.js';
-
-import {
-	CARD_TYPE_CONCEPT,
-	CARD_TYPE_WORK,
-	CARD_TYPE_PERSON,
-	CARD_TYPE_WORKING_NOTES,
-	REFERENCE_TYPE_CONCEPT,
-	REFERENCE_TYPE_CITATION,
-	REFERENCE_TYPE_CITATION_PERSON,
-	REFERENCE_TYPE_SEE_ALSO,
-	REFERENCE_TYPE_EXAMPLE_OF,
-	REFERENCE_TYPE_METAPHOR_FOR,
-	CARD_TYPE_CONTENT,
-	EVERYTHING_SET_NAME,
-} from './type_constants.js';
 
 import {
 	Collection,
@@ -26,18 +10,17 @@ import {
 } from './collection_description.js';
 
 import {
-	DIRECT_REFERENCES_FILTER_NAME,
-	DIRECT_REFERENCES_INBOUND_FILTER_NAME,
-	DIRECT_REFERENCES_OUTBOUND_FILTER_NAME,
-	SIMILAR_FILTER_NAME,
-	EXCLUDE_FILTER_NAME,
-	referencesConfigurableFilterText,
-	missingConceptConfigurableFilterText,
-	aboutConceptConfigurableFilterText,
-	LIMIT_FILTER_NAME,
-	SAME_TYPE_FILTER,
-	DIFFERENT_TYPE_FILTER,
-	UNION_FILTER_DELIMITER,
+	similarFilter,
+	sameTypeFilter,
+	excludeFilter,
+	referencesFilter,
+	unionFilter,
+	collectionDescription,
+	differentTypeFilter,
+	limitFilter,
+	aboutConceptFilter,
+	missingConceptFilter,
+	cardTypeFilter
 } from './filters.js';
 
 import {
@@ -52,6 +35,10 @@ import {
 import {
 	cardNeedsReciprocalLinkTo
 } from './util.js';
+
+import {
+	TypedObject
+} from './typed_object.js';
 
 export interface ReferenceBlock {
     // collectionDescription: a collection description, possibly using KEY_CARD_ID_PLACEHOLDER as a placeholder
@@ -70,6 +57,8 @@ export interface ReferenceBlock {
 	emptyMessage? : string;
     // showNavigate: if true, then will show a button to navigate to that collection
 	showNavigate? : boolean;
+	//If provided, then if the collection is a preview, a warning icon will be shown, and it will have this message.
+	showPreview? : string;
     // onlyForEditors: if true, will only show this block if the keyCard is one the user may edit
 	onlyForEditors? : boolean;
 }
@@ -85,24 +74,24 @@ export type ReferenceBlocks = readonly ReferenceBlock[];
 
 export type ExpandedReferenceBlocks = readonly ExpandedReferenceBlock[];
 
-const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS : ReferenceBlocks = Object.entries(REFERENCE_TYPES).filter(entry => entry[1].subTypeOf == REFERENCE_TYPE_CONCEPT && entry[0] != REFERENCE_TYPE_CONCEPT).map(entry => {
+const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS : ReferenceBlocks = TypedObject.entries(REFERENCE_TYPES).filter(entry => entry[1].subTypeOf == 'concept' && entry[0] != 'concept').map(entry => {
 	const referenceType = entry[0] as ReferenceType;
 	const referenceConfig = entry[1];
 	if (referenceConfig.reciprocal) {
 		return {
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME,[referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, referenceType)]),
+			collectionDescription: collectionDescription(referencesFilter('both', referenceType)),
 			title: referenceConfig.name,
 			condensed: true,
 		};
 	}
 	return [
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME,[referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, referenceType)]),
+			collectionDescription: collectionDescription(referencesFilter('outbound', referenceType)),
 			title: referenceConfig.name,
 			condensed: true,
 		},
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME,[referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, referenceType)]),
+			collectionDescription: collectionDescription(referencesFilter('inbound', referenceType)),
 			title: referenceConfig.inboundName,
 			condensed: true,
 		},
@@ -110,43 +99,43 @@ const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS : ReferenceBlocks = Object.entries
 }).flat();
 
 const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBlocks} = {
-	[CARD_TYPE_CONCEPT]: [
+	'concept': [
 		...CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS,
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_CONCEPT, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT]) as ReferenceType[]])]),
-			navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [aboutConceptConfigurableFilterText(KEY_CARD_ID_PLACEHOLDER)]),
+			collectionDescription: collectionDescription('not' + cardTypeFilter('concept'), referencesFilter('inbound', TypedObject.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES.concept))),
+			navigationCollectionDescription: collectionDescription(aboutConceptFilter()),
 			title: 'Cards that reference this concept',
 			showNavigate: true,
 		},
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [missingConceptConfigurableFilterText(KEY_CARD_ID_PLACEHOLDER)]),
+			collectionDescription: collectionDescription(missingConceptFilter()),
 			title: 'Cards that should reference this concept but don\'t',
 			showNavigate: true,
 			onlyForEditors: true,
 		}
 	],
-	[CARD_TYPE_WORK]: [
+	'work': [
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME,[referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CITATION_PERSON)]),
+			collectionDescription: collectionDescription(referencesFilter('outbound', 'citation-person')),
 			title: 'Authors',
 			condensed: true,
 		},
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CITATION)]),
+			collectionDescription: collectionDescription(referencesFilter('inbound', 'citation')),
 			title: 'Cards that cite this work',
 			showNavigate: true,
 			emptyMessage: 'No cards cite this work'
 		},
 	],
-	[CARD_TYPE_PERSON]: [
+	'person': [
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [CARD_TYPE_WORK, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CITATION_PERSON)]),
+			collectionDescription: collectionDescription(cardTypeFilter('work'), referencesFilter('inbound', 'citation-person')),
 			title: 'Works that cite this person',
 			showNavigate: true,
 			emptyMessage: 'No works cite this person'
 		},
 		{
-			collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_WORK, referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CITATION_PERSON)]),
+			collectionDescription: collectionDescription('not-' + cardTypeFilter('work'), referencesFilter('inbound', 'citation-person')),
 			title: 'Cards that cite this person',
 			showNavigate: true,
 			emptyMessage: 'No cards cite this person'
@@ -160,42 +149,59 @@ const SUBSTANTIVE_WITHOUT_SEE_ALSO_REFERENCE_TYPES = SUBSTANTIVE_REFERENCE_TYPES
 
 const NUM_SIMILAR_CARDS_TO_SHOW = 5;
 
+export const SIMILAR_SAME_TYPE = [
+	'has-body',
+	similarFilter(),
+	sameTypeFilter(),
+	excludeFilter(referencesFilter('both', SUBSTANTIVE_REFERENCE_TYPES))
+];
+
+const SIMILAR_DIFFERENT_TYPE = [
+	'has-body',
+	similarFilter(),
+	unionFilter(cardTypeFilter('content'), cardTypeFilter('working-notes')),
+	differentTypeFilter(),
+	excludeFilter(referencesFilter('both', SUBSTANTIVE_REFERENCE_TYPES))
+];
+
+const SIMLIAR_PREVIEW_MESSAGE = 'These cards are based on the lower-quality local similarity, not embedding based similarity.';
+
 const INFO_PANEL_REFERENCE_BLOCKS : ReferenceBlocks = [
 	{
 		title: 'Example of',
 		description: 'Concepts this card is an example of',
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_EXAMPLE_OF)]),
+		collectionDescription: collectionDescription(referencesFilter('outbound', 'example-of'))
 	},
 	{
 		title: 'Metaphor for',
 		description: 'Concepts this card is an example of',
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_METAPHOR_FOR)]),
+		collectionDescription: collectionDescription(referencesFilter('outbound', 'metaphor-for'))
 	},
 	{
 		title: 'Concepts',
 		description: 'Concepts this card references',
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_CONCEPT)])
+		collectionDescription: collectionDescription(referencesFilter('outbound', 'concept'))
 	},
 	{
 		title: 'See Also',
 		description: 'Cards that are related to this card and make sense to consume together',
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPE_SEE_ALSO)])
+		collectionDescription: collectionDescription(referencesFilter('both', 'see-also'))
 	},
 	{
 		title: 'Citations',
 		emptyMessage: 'No citations',
 		description: 'Works or people that insights for this card were based on',
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, [...Object.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CITATION]) as ReferenceType[]])])
+		collectionDescription: collectionDescription(referencesFilter('outbound', TypedObject.keys(REFERENCE_TYPES_EQUIVALENCE_CLASSES.citation)))
 
 	},
 	{
 		title: 'Other referenced cards',
 		description: 'Cards that this card references that are not links',
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, [referencesConfigurableFilterText(DIRECT_REFERENCES_OUTBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL, true)])
+		collectionDescription: collectionDescription(referencesFilter('outbound', REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL, true))
 	},
 	{
 		//We filter out see-also types because we already show those reciprocally in see-also.
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['not-' + CARD_TYPE_CONCEPT,referencesConfigurableFilterText(DIRECT_REFERENCES_INBOUND_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_WITHOUT_SEE_ALSO_REFERENCE_TYPES)]),
+		collectionDescription: collectionDescription('not-' + cardTypeFilter('concept'), referencesFilter('inbound', SUBSTANTIVE_WITHOUT_SEE_ALSO_REFERENCE_TYPES)),
 		title: 'Cards That Link Here',
 		description: 'Cards that link to this one.',
 		emptyMessage: 'No cards link to this one.',
@@ -205,16 +211,18 @@ const INFO_PANEL_REFERENCE_BLOCKS : ReferenceBlocks = [
 		}
 	},
 	{
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, SAME_TYPE_FILTER + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES), LIMIT_FILTER_NAME + '/' + NUM_SIMILAR_CARDS_TO_SHOW]),
-		navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, SAME_TYPE_FILTER + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES)]),
+		collectionDescription: collectionDescription(...SIMILAR_SAME_TYPE, limitFilter(NUM_SIMILAR_CARDS_TO_SHOW)),
+		navigationCollectionDescription: collectionDescription(...SIMILAR_SAME_TYPE),
 		showNavigate: true,
+		showPreview: SIMLIAR_PREVIEW_MESSAGE,
 		title: 'Similar Cards',
 		description: 'Cards that are neither linked to or from here but that have distinctive terms that overlap with this card and are the same type of card.',
 	},
 	{
-		collectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, CARD_TYPE_WORKING_NOTES + UNION_FILTER_DELIMITER + CARD_TYPE_CONTENT, DIFFERENT_TYPE_FILTER + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES), LIMIT_FILTER_NAME + '/' + NUM_SIMILAR_CARDS_TO_SHOW]),
-		navigationCollectionDescription: new CollectionDescription(EVERYTHING_SET_NAME, ['has-body', SIMILAR_FILTER_NAME + '/' + KEY_CARD_ID_PLACEHOLDER, CARD_TYPE_WORKING_NOTES + UNION_FILTER_DELIMITER + CARD_TYPE_CONTENT, DIFFERENT_TYPE_FILTER + '/' + KEY_CARD_ID_PLACEHOLDER, EXCLUDE_FILTER_NAME + '/' + referencesConfigurableFilterText(DIRECT_REFERENCES_FILTER_NAME, KEY_CARD_ID_PLACEHOLDER, SUBSTANTIVE_REFERENCE_TYPES)]),
+		collectionDescription: collectionDescription(...SIMILAR_DIFFERENT_TYPE, limitFilter(NUM_SIMILAR_CARDS_TO_SHOW)),
+		navigationCollectionDescription: collectionDescription(...SIMILAR_DIFFERENT_TYPE),
 		showNavigate: true,
+		showPreview: SIMLIAR_PREVIEW_MESSAGE,
 		title: 'Similar Cards (Other Type)',
 		description: 'Cards that are neither linked to or from here but that have distinctive terms that overlap with this card but are a different type (either working-notes or content)',
 	}

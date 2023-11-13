@@ -34,7 +34,6 @@ import {
 import {
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
-	REFERENCE_TYPE_LINK,
 	REFERENCES_CARD_PROPERTY,
 } from './type_constants.js';
 
@@ -121,7 +120,7 @@ class ReferencesAccessor {
 
 	linksArray() : CardID[] {
 		//NOTE: similar manual logic is duplicated manually in tweets-helper.js
-		return [...Object.keys(this.byType[REFERENCE_TYPE_LINK] || {})];
+		return [...Object.keys(this.byType.link || {})];
 	}
 
 	substantiveArray() : CardID[] {
@@ -143,7 +142,7 @@ class ReferencesAccessor {
 	}
 
 	inboundLinksArray() : CardID[] {
-		return [...Object.keys(this.byTypeInbound[REFERENCE_TYPE_LINK] || {})];
+		return [...Object.keys(this.byTypeInbound.link || {})];
 	}
 
 	inboundSubstantiveArray() : CardID[] {
@@ -414,7 +413,7 @@ class ReferencesAccessor {
 	//currently set references of the current type. A simple wrapper around
 	//setCardReferencesOfType with the constant for links burned in
 	setLinks(linksObj: {[id : CardID]: string}) : void {
-		this.setCardReferencesOfType(REFERENCE_TYPE_LINK, linksObj);
+		this.setCardReferencesOfType('link', linksObj);
 	}
 
 	equivalentTo(otherCardObj : CardLike) : boolean {

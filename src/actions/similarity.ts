@@ -14,7 +14,7 @@ import {
 } from '../config.GENERATED.SECRET.js';
 
 import {
-	selectCardSimilarity
+	selectCardSimilarity, selectRawCards
 } from '../selectors.js';
 
 import {
@@ -38,9 +38,17 @@ import {
 //Replicated in src/actions/similarity.ts
 type EmbeddableCard = Pick<Card, 'body' | 'title' | 'subtitle' | 'card_type' | 'created' | 'id'>;
 
+//Replicated in src/actions/similarity.ts
+type MillisecondsSinceEpoch = number;
+
 //Replicated in `src/actions/similarity.ts`
 type SimilarCardsRequestData = {
 	card_id: CardID
+
+	//timestamp in milliseconds since epoch. If provided, results will only be
+	//provided if the Vector point has a last-updated since then, otherwise
+	//error of `stale`.
+	last_updated? : MillisecondsSinceEpoch
 
 	//TODO: include a limit
 
@@ -55,36 +63,55 @@ type CardSimilarityItem = [CardID, number];
 
 //Replicated in `functions/src/types.ts`
 type SimilarCardsResponseData = {
-	success: boolean,
-	//Will be set if success = false
-	error? : string
+	success: false,
+	code: 'qdrant-disabled' | 'no-embedding' | 'stale-embedding' | 'unknown'
+	error: string
+} | {
+	success: true
 	cards: CardSimilarityItem[]
 };
 
 const similarCardsCallable = httpsCallable<SimilarCardsRequestData, SimilarCardsResponseData>(functions, 'similarCards');
 
-const similarCards = async (cardID : CardID) : Promise<SimilarCardsResponseData> => {
+const similarCards = async (cardID : CardID, lastUpdated : MillisecondsSinceEpoch) : Promise<SimilarCardsResponseData> => {
 	if (!QDRANT_ENABLED) {
 		return {
 			success: false,
-			error: 'Qdrant isn\'t enabled',
-			cards: []
+			code: 'qdrant-disabled',
+			error: 'Qdrant isn\'t enabled'
 		};
 	}
-	const request = {
-		card_id: cardID
+
+	const request : SimilarCardsRequestData = {
+		card_id: cardID,
+		last_updated: lastUpdated
 	};
 	const result = await similarCardsCallable(request);
 	return result.data;
 };
 
-const fetchSimilarCards = (cardID : CardID) : ThunkSomeAction => async (dispatch) => {
+const TIME_TO_WAIT_FOR_STALE : MillisecondsSinceEpoch = 10 * 60 * 1000;
+const DELAY_FOR_STALE : MillisecondsSinceEpoch = 2.5 * 1000;
+
+const fetchSimilarCards = (cardID : CardID, lastUpdated: MillisecondsSinceEpoch) : ThunkSomeAction => async (dispatch) => {
 	if (!cardID) return;
 
-	const result = await similarCards(cardID);
+	const result = await similarCards(cardID, lastUpdated);
 
-	if (!result.success) {
-		console.warn(`similarCards failed: ${result.error}`);
+	if (result.success == false) {
+
+		if (result.code == 'stale-embedding') {
+			//This error happens when there might be a new one coming
+			const timeSinceUpdated = Date.now() - lastUpdated;
+			if (timeSinceUpdated < TIME_TO_WAIT_FOR_STALE) {
+				//Wait a bit and try again
+				console.log(`The card was stale, but it was last updated recently enough that we'll wait ${DELAY_FOR_STALE} ms and try again`);
+				setTimeout(() => dispatch(fetchSimilarCards(cardID, lastUpdated)), DELAY_FOR_STALE);
+				return;
+			}
+		}
+
+		console.warn(`similarCards failed: ${result.code}: ${result.error}`);
 		dispatch({
 			type: UPDATE_CARD_SIMILARITY,
 			card_id: cardID,
@@ -112,7 +139,11 @@ export const fetchSimilarCardsIfEnabled = (cardID : CardID) : boolean => {
 	if (similarity[cardID]) {
 		return false;
 	}
+
+	const cards = selectRawCards(state);
+	const card = cards[cardID];
+	if (!card) throw new Error(`Couldn't find card ${cardID}`);
 	//This will return immediately.
-	store.dispatch(fetchSimilarCards(cardID));
+	store.dispatch(fetchSimilarCards(cardID, card.updated.toMillis()));
 	return true;
 };

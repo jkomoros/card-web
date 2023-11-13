@@ -1,23 +1,15 @@
 import {
+	z
+} from 'zod';
+
+import {
 	FieldValue,
 	Timestamp
 } from 'firebase/firestore';
 
 import {
-	CARD_TYPE_TYPES,
 	TEXT_FIELD_TYPES,
-	REFERENCE_TYPE_TYPES,
 	TEXT_FIELD_TYPES_EDITABLE,
-	DATE_RANGE_TYPES,
-	URL_PART_TYPES,
-	IMAGE_POSITION_TYPES,
-	SET_NAME_TYPES,
-	VIEW_MODE_TYPES,
-	EDITOR_TAB_TYPES,
-	EDITOR_CONTENT_TAB_TYPES,
-	COMMIT_ACTION_TYPES,
-	SORT_NAME_TYPES,
-	AI_DIALOG_TYPES,
 	FIND_CARD_TO_LINK,
 	FIND_CARD_TO_PERMISSION,
 	FIND_CARD_TO_REFERENCE,
@@ -58,7 +50,13 @@ export type CardFieldTypeEditable = keyof(typeof TEXT_FIELD_TYPES_EDITABLE)
 
 export type CardFieldType = keyof(typeof TEXT_FIELD_TYPES);
 
-export type DateRangeType = keyof(typeof DATE_RANGE_TYPES);
+export const dateRangeType = z.enum([
+	'before',
+	'after',
+	'between'
+]);
+
+export type DateRangeType = z.infer<typeof dateRangeType>;
 
 export type FontSizeBoostMap = {
 	[name in CardFieldType]+?: number
@@ -72,7 +70,17 @@ export type CreateCardOpts = {
 	title? : string,
 }
 
-export type CardType = '' | keyof(typeof CARD_TYPE_TYPES);
+//duplicated in functions/src/type.ts
+export const cardType = z.enum([
+	'content',
+	'section-head',
+	'working-notes',
+	'concept',
+	'work',
+	'person'
+]);
+
+export type CardType = z.infer<typeof cardType>;
 
 type CSSPartString = string;
 
@@ -96,7 +104,22 @@ export type WordCloud = [
 //Inspired by https://stackoverflow.com/a/54520829
 type KeysMatching<T, V> = {[K in keyof T]-?: T[K] extends V ? K : never}[keyof T];
 
-export type ImagePositionType = keyof(typeof IMAGE_POSITION_TYPES);
+const imagePositionType = z.enum([
+	//Will position left. Multiple images will go to the right of the one
+	//immediatebly before them.
+	'top-left',
+	//Like top-left, but images after the first will stack below the ones before
+	//them. For the first image, equivalent to top-left.
+	'left',
+	//Will position right. Multiple images will go to the left of the one
+	//immediately before them.
+	'top-right',
+	//Like top-right, but images after the first will stack below the ones before
+	//them. For the first image, equivalent to top-right.
+	'right'
+]);
+
+export type ImagePositionType = z.infer<typeof imagePositionType>;
 
 //Note: images.ts:isImagePositionTypeProperty relies on position being the only
 //key for ImagePositionType
@@ -162,7 +185,50 @@ type TODOOverrides = {
 	[name: TODOType]: boolean
 }
 
-export type ReferenceType = '' | keyof(typeof REFERENCE_TYPE_TYPES);
+export const referenceTypeSchema = z.enum([
+	//For card-links within body content
+	//NOTE: duplicated in tweet-helpers.js
+	'link',
+	//For cards that are dupes of another card
+	'dupe-of',
+	//For cards that want to acknowledge another card (e.g. to get the 'missing
+	//reciprocal links' to go away) without actually doing a more substantive
+	//reference. These references typically shouldn't 'count' in many cases.
+	'ack',
+	//For references that aren't any of the other types
+	'generic',
+	//For cards that were forked from another--that is, whose content started as a
+	//direct copy of the other card at some point
+	'fork-of',
+	//For cards that want to express they are based on insights 'mined' from the
+	//other card--typically a working-notes card.
+	'mined-from',
+	//For cards that want to say you should also see a related card that is similar,
+	//a kind of peer.
+	'see-also',
+	//For saying that the card that is pointing from uses the concept pointed to at
+	//the other card. The other card may only be a concept card.
+	'concept',
+	//For concept cards that are synonym of another concept card. Conceptually a
+	//sub-type of the concept reference type.
+	'synonym',
+	//For concept cards that are the antonym of another concept card. Conceptually a
+	//sub-type of the concept reference type.
+	'opposite-of',
+	//For concept cards that are not strict synonyms of another card, but have a
+	//parallel to them. Conceptually a sub-type of the concept reference type.
+	'parallel-to',
+	//For cards that are an example of a more generic concept that is pointed to.
+	//Conceptually a sub-type of the concept reference type.
+	'example-of',
+	//For cards that are a metaphor for a concept. Conceptually a sub-type of the
+	//concept reference type.
+	'metaphor-for',
+	'citation',
+	'citation-person'
+]);
+
+export type ReferenceType = z.infer<typeof referenceTypeSchema>;
 
 export type ReferencesInfoMap = {
 	[id : CardID]: {
@@ -303,7 +369,7 @@ export type SortConfigurationMap = {
 	//TODO: make it so no field is optional, which will help detect places where
 	//you forgot to add a configuration block for a type. And then do this for
 	//others, too.
-	[sortName in SortName]+?: {
+	[sortName in SortName]: {
 		extractor : (card : ProcessedCard, sections : Sections, cards : ProcessedCards, sortExtras : SortExtras, filterExtras: FilterExtras) => SortExtractorResult ,
 		description : string,
 		labelName? : string | ((sortExtras : SortExtras) => string),
@@ -312,7 +378,7 @@ export type SortConfigurationMap = {
 }
 
 export type ConfigurableFilterControlPiece = {
-	controlType : string,
+	controlType : ConfigurableFilterFuncURLPart,
 	description : string,
 	value : string
 }
@@ -335,7 +401,22 @@ export type ConfigurableFilterFuncFactoryResult = [func : ConfigurableFilterFunc
 
 type ConfigurableFilterFuncFactory = (filterType : ConfigurableFilterType, ...parts : URLPart[]) => ConfigurableFilterFuncFactoryResult;
 
-type ConfigurableFilterFuncURLPart = keyof(typeof URL_PART_TYPES);
+const configurableFilterFuncURLPart = z.enum([
+	'date',
+	'text',
+	'key-card',
+	'int',
+	'float',
+	'reference-type',
+	'user-id',
+	'sub-filter',
+	'multiple-cards',
+	'concept-str-or-id',
+	//A sub-filter that expand knows how to pass multiple cards to
+	'expand-filter'
+]);
+
+type ConfigurableFilterFuncURLPart = z.infer<typeof configurableFilterFuncURLPart>;
 
 type ConfigurableFilterFuncArgument = {
 	type : ConfigurableFilterFuncURLPart,
@@ -355,9 +436,22 @@ export type ConfigurableFilterConfigurationMap = {
 };
 
 //TODO: this name is confusing, in the state this is just called tab
-export type EditorTab = keyof(typeof EDITOR_TAB_TYPES);
+
+const editorTabSchema = z.enum([
+	'content',
+	'config'
+]);
+
+export type EditorTab = z.infer<typeof editorTabSchema>;
+
+const editorContentTabSchema = z.enum([
+	'content',
+	'notes',
+	'todo'
+]);
+
 //TODO: this name is confusing, in the state this is called editorTab
-export type EditorContentTab = keyof(typeof EDITOR_CONTENT_TAB_TYPES);
+export type EditorContentTab = z.infer<typeof editorContentTabSchema>;
 
 export type UserInfo = {
 	uid: Uid,
@@ -511,7 +605,7 @@ export type CardFieldTypeEditableConfigurationMap = {
 export type CSSColorString = string;
 
 export type ReferenceTypeConfigurationMap = {
-	[type in ReferenceType]+?: {
+	[type in ReferenceType]: {
 		//name - name of the reference type, for presenting in UIs
 		name : string,
 		//inboundName - the name of the reference type when inbound, for presenting in UIs.
@@ -793,11 +887,46 @@ export type UserPermissionsMap = {
 	[person: Uid]: UserPermissions
 };
 
-export type CommitActionType = keyof(typeof COMMIT_ACTION_TYPES);
+const commitActionType = z.enum([
+	'CONSOLE_LOG',
+	'EDIT_MESSAGE',
+	'ADD_MESSAGE',
+	'CREATE_THREAD'
+]);
 
-export type SetName = '' | keyof(typeof SET_NAME_TYPES);
+export type CommitActionType = z.infer<typeof commitActionType>;
 
-export type SortName = '' | keyof(typeof SORT_NAME_TYPES);
+const setNameSchema = z.enum([
+	//The default set
+	'main',
+	//reading-list is a set (as well as filters, e.g. `in-reading-list`) since the
+	//order matters and is customizable by the user. Every other collection starts
+	//from the `all` set and then filters and then maybe sorts, but reading-list
+	//lets a custom order.
+	'reading-list',
+	'everything'
+]);
+
+export type SetName = z.infer<typeof setNameSchema>;
+
+const sortName = z.enum([
+	'default',
+	'recent',
+	'stars',
+	'original-order',
+	'link-count',
+	'updated',
+	'created',
+	'commented',
+	'last-tweeted',
+	'tweet-count',
+	'tweet-order',
+	'todo-difficulty',
+	'random',
+	'card-rank'
+]);
+
+export type SortName = z.infer<typeof sortName>;
 
 //A part of a URL in a collection description. These pieces are delimited by '/' in the URL.
 export type URLPart = string;
@@ -821,7 +950,12 @@ export type ConfigurableFilterRest = string;
 //A full description of one filter
 export type FilterName = ConcreteFilterName | UnionFilterName | ConfigurableFilterName;
 
-export type ViewMode = '' | keyof(typeof VIEW_MODE_TYPES);
+export const viewMode = z.enum([
+	'list',
+	'web'
+]);
+
+export type ViewMode = z.infer<typeof viewMode>;
 
 export type SectionID = string;
 
@@ -1154,7 +1288,13 @@ export type MultiEditState = {
 
 export type AIModelName = 'gpt-3.5-turbo' | 'gpt-3.5-turbo-16k' | 'gpt-4' | 'gpt-4-32k';
 
-export type AIDialogType = keyof(typeof AI_DIALOG_TYPES);
+const aiDialogType = z.enum([
+	'summary',
+	'title',
+	'concepts'
+]);
+
+export type AIDialogType = z.infer<typeof aiDialogType>;
 
 export type AIState = {
 	open: boolean;
@@ -1232,3 +1372,11 @@ export type State = {
 	permissions? : PermissionsState,
 	user? : UserState
 }
+
+//The following are convenience functions for when you have a given enum that
+//will be used in a generic string context and want type-checking to verify it
+//is part of the enum.
+export const setName = (input : SetName) => input;
+export const referenceType = (input : ReferenceType) => input;
+export const editorTab = (input : EditorTab) => input;
+export const editorContentTab = (input : EditorContentTab) => input;

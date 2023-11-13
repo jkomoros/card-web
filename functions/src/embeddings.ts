@@ -100,9 +100,6 @@ class Embedding {
 	}
 }
 
-//Copied from src/type_constants.ts
-const CARD_TYPE_WORKING_NOTES = 'working-notes';
-
 //Recreated from src/contenteditable.ts
 const legalTopLevelNodes = {
 	'p': true,
@@ -158,7 +155,7 @@ const textContentForEmbeddingForCard = (card : EmbeddableCard) : string => {
 	const parts : string[] = [];
 	//Skip the computed title on working-notes cards since they are entire
 	//computed. No other field for any card-type is computed yet.
-	const title = card.card_type != CARD_TYPE_WORKING_NOTES ? (card.title || '') : '';
+	const title = card.card_type != 'working-notes' ? (card.title || '') : '';
 	if (title) parts.push(title);
 	const body = innerTextForHTML(card.body);
 	if (body) parts.push(body);
@@ -218,7 +215,7 @@ type PointSummary = {
 };
 
 type GetPointsOptions = {
-	includePayload? : boolean,
+	includePayload? : boolean | (keyof PointPayload)[],
 	includeVector? : boolean
 };
 
@@ -318,11 +315,6 @@ class EmbeddingStore {
 
 		const text = textContentForEmbeddingForCard(card);
 
-		if (!text.trim()) {
-			console.log(`Skipping ${card.id} because text to embed is empty`);
-			return;
-		}
-
 		let existingPoint : PointSummary | null = null;
 		if (cardsContent === undefined) {
 			existingPoint = await this.getExistingPoint(card.id, {includePayload: true});
@@ -331,8 +323,22 @@ class EmbeddingStore {
 		}
 
 		if (existingPoint && existingPoint.payload && existingPoint.payload.content === text) {
-			//The embedding exists and is up to date, no need to do anything else.
-			console.log(`The embedding content had not changed for ${card.id} so stopping early`);
+			//The embedding exists and is up to date, no need to recompute the
+			//embedding. We do still want to update the timestamp in the vector
+			//store though, so in the future last_updated will note that it's
+			//current as of this moment, not when the embedding changed...
+			//because a card itself doesn't know the timestamp when the
+			//embeddable content last changed.
+			await this._qdrant.setPayload(QDRANT_COLLECTION_NAME, {
+				points: [
+					existingPoint.id
+				],
+				payload: {
+					last_updated: Date.now()
+				}
+			});
+
+			console.log(`Updated the metadata for ${card.id} (${existingPoint.id}) because its embedding had not changed`);
 			return;
 		}
 
@@ -361,7 +367,7 @@ class EmbeddingStore {
 			]
 		});
 
-		console.log(`Stored embedding for ${card.id}`);
+		console.log(`Stored embedding for ${card.id} (${id})`);
 	}
 
 	async deleteCard(card : Card) : Promise<void> {
@@ -459,6 +465,10 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 	console.log('Done indexing cards');
 };
 
+//How many milliseconds of slop do we allow for last_updated check? This gets
+//across that the server and client times might be out of sync.
+const LAST_UPDATED_EPISLON = 10 * 1000;
+
 export const similarCards = async (request : CallableRequest<SimilarCardsRequestData>) : Promise<SimilarCardsResponseData> => {
 	const data = request.data;
 	if (!EMBEDDING_STORE) {
@@ -479,13 +489,26 @@ export const similarCards = async (request : CallableRequest<SimilarCardsRequest
 
 	} else {
 		//We'll use the embeddeding that is already stored.
-		const point = await EMBEDDING_STORE.getExistingPoint(data.card_id, {includeVector: true});
+		const point = await EMBEDDING_STORE.getExistingPoint(data.card_id, {includeVector: true, includePayload: ['last_updated']});
 		if (!point) {
 			return {
 				success: false,
-				error: `Could not find embedding for ${data.card_id}`,
-				cards: []
+				code: 'no-embedding',
+				error: `Could not find embedding for ${data.card_id}`
 			};
+		}
+
+		if (data.last_updated !== undefined) {
+			const point_last_updated = point.payload?.last_updated;
+			if (!point_last_updated) throw new Error('Point didn\'t have last_updated as expected');
+			if (!(point_last_updated >= data.last_updated - LAST_UPDATED_EPISLON)) {
+				//Point is less current than epsilon
+				return {
+					success: false,
+					code: 'stale-embedding',
+					error: `Embedding has timestamp of ${point_last_updated} but card last_updated is ${data.last_updated}`
+				};
+			}
 		}
 	
 		//TODO: allow passing a custom limit (validate it)

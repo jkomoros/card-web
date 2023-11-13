@@ -81,10 +81,6 @@ import {
 } from '../util.js';
 
 import {
-	CARD_TYPE_WORKING_NOTES
-} from '../type_constants.js';
-
-import {
 	addStar,
 	removeStar,
 	markRead,
@@ -628,7 +624,7 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	_handleAddWorkingNotesCard() {
-		store.dispatch(createCard({cardType: CARD_TYPE_WORKING_NOTES}));
+		store.dispatch(createCard({cardType: 'working-notes'}));
 	}
 
 	_handleReorderCard(e : ReorderCardEvent) {
@@ -710,7 +706,7 @@ class CardView extends connect(store)(PageViewElement) {
 		if (e.key == 'm') {
 			//these action creators will fail if the user may not do these now.
 			if (e.shiftKey) {
-				store.dispatch(createCard({cardType: CARD_TYPE_WORKING_NOTES}));
+				store.dispatch(createCard({cardType: 'working-notes'}));
 			} else {
 				store.dispatch(createCard({section: this._activeSectionId}));
 			}

@@ -20,13 +20,6 @@ import {
 } from '../types.js';
 
 import {
-	COMMIT_ACTION_CONSOLE_LOG,
-	COMMIT_ACTION_EDIT_MESSAGE,
-	COMMIT_ACTION_ADD_MESSAGE,
-	COMMIT_ACTION_CREATE_THREAD
-} from '../type_constants.js';
-
-import {
 	AppThunkDispatch,
 	ThunkSomeAction
 } from '../store.js';
@@ -39,6 +32,10 @@ import {
 	PROMPT_CONFIGURE_ACTION,
 	SomeAction
 } from '../actions.js';
+
+import {
+	assertUnreachable
+} from '../util.js';
 
 export const configureCommitAction = (commitAction : CommitActionType, associatedId? : CommentMessageID | CommentThreadID) : SomeAction => {
 	if (!associatedId) associatedId = '';
@@ -88,20 +85,22 @@ export const composeUpdateContent = (content : string) : SomeAction => {
 const doAction = (dispatch : AppThunkDispatch, state : State, action : CommitActionType, content? : string, associatedId? : CommentMessageID | CommentThreadID) => {
 	if (!action) return;
 	switch (action) {
-	case COMMIT_ACTION_CONSOLE_LOG:
+	case 'CONSOLE_LOG':
 		console.log(content, associatedId);
 		return;
-	case COMMIT_ACTION_EDIT_MESSAGE:
+	case 'EDIT_MESSAGE':
 		const message = getMessageById(state, associatedId);
 		dispatch(editMessage(message, content));
 		return;
-	case COMMIT_ACTION_ADD_MESSAGE:
+	case 'ADD_MESSAGE':
 		const thread = getThreadById(state, associatedId);
 		dispatch(addMessage(thread, content));
 		return;
-	case COMMIT_ACTION_CREATE_THREAD:
+	case 'CREATE_THREAD':
 		dispatch(createThread(content));
 		return;
+	default:
+		assertUnreachable(action);
 	}
 	console.warn('Unknown action: ' + action);
 };

@@ -2,8 +2,8 @@
 //generate:schema doens't have to import the whole project.
 
 import {
-	TAB_CONFIG_TYPES
-} from './type_constants.js';
+	z
+} from 'zod';
 
 //Ugh doesn't this import kind of ruin the point?
 import * as icons from './components/my-icons.js';
@@ -12,7 +12,25 @@ export type CardID = string;
 export type Slug = string;
 export type CardIdentifier = CardID | Slug;
 
-export type TabConfigName = keyof(typeof TAB_CONFIG_TYPES);
+const tabConfigName = z.enum([
+	'default_tabs',
+	'default_end_tabs',
+	'sections',
+	'hidden_sections',
+	'tags',
+	'hidden_tags',
+	'popular',
+	'recent',
+	'reading-list',
+	'starred',
+	'unread',
+	'working-notes',
+	'concepts',
+	'twitter',
+	'random'
+]);
+
+export type TabConfigName = z.infer<typeof tabConfigName>;
 
 export type IconName = keyof(typeof icons);
 

@@ -10,10 +10,6 @@ import {
 } from './my-icons.js';
 
 import {
-	REFERENCE_TYPE_DUPE_OF
-} from '../type_constants.js';
-
-import {
 	references
 } from '../references.js';
 
@@ -132,7 +128,7 @@ export const cardBadges = (light : boolean, card : OptionalFieldsCard, badgeMap 
 	const readingListMap = badgeMap.readingList || {};
 	const nonBlankCard = card || {};
 	const id = nonBlankCard.id;
-	const refs = references(nonBlankCard).byTypeArray()[REFERENCE_TYPE_DUPE_OF];
+	const refs = references(nonBlankCard).byTypeArray()['dupe-of'];
 	const isDupe = refs && refs.length > 0;
 	return html`
 	  <div class="badges-container ${light ? 'light' : ''}">

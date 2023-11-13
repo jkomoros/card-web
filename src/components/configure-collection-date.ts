@@ -7,10 +7,6 @@ import {
 	CONFIGURABLE_FILTER_URL_PARTS
 } from '../filters.js';
 
-import {
-	DATE_RANGE_TYPES
-} from '../type_constants.js';
-
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
@@ -18,7 +14,7 @@ import {
 } from '../events.js';
 
 import {
-	DateRangeType
+	dateRangeType
 } from '../types.js';
 
 @customElement('configure-collection-date')
@@ -46,7 +42,7 @@ class ConfigureCollectionDate extends LitElement {
 		return html`
 			<div>
 				<select .value=${typ} @change=${this._handleTypeChanged}>
-					${Object.keys(DATE_RANGE_TYPES).map(typ => html`<option .value=${typ}>${typ}</option>`)}
+					${dateRangeType.options.map(typ => html`<option .value=${typ}>${typ}</option>`)}
 				</select>
 				<input type='date' .value=${String(dateOne)} data-first=${true} @change=${this._handleDateChanged}>
 				<input type='date' .value=${String(dateTwo)} ?hidden=${!typeRequiresSecondDate} @change=${this._handleDateChanged}>
@@ -62,7 +58,8 @@ class ConfigureCollectionDate extends LitElement {
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
 		const [, dateOne, dateTwo] = parseDateSection(this.value);
-		this._dispatchNewValue(makeDateSection(ele.value as DateRangeType, dateOne, dateTwo));
+		const val = dateRangeType.parse(ele.value);
+		this._dispatchNewValue(makeDateSection(val, dateOne, dateTwo));
 	}
 
 	_handleDateChanged(e : Event) {

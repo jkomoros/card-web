@@ -68,6 +68,7 @@ import {
 	CardLike,
 	ReferencesEntriesDiff,
 	ReferenceType,
+	referenceTypeSchema,
 	State,
 	TagInfos
 } from '../types.js';
@@ -206,56 +207,56 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	_handleTagTapped(e : TagEvent) {
 		//Only add it if not all cards already have it
 		if (!e.detail.subtle) return;
-		let referenceType : ReferenceType = '';
+		let refType : ReferenceType | undefined = undefined;
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
 		for (const ele of e.composedPath()) {
 			//e.g. documentFragment
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
-				referenceType = ele.dataset.referenceType as ReferenceType;
+				refType = referenceTypeSchema.parse(ele.dataset.referenceType);
 				break;
 			}
 		}
-		if (!referenceType) {
+		if (!refType) {
 			console.warn('No reference type found on parents');
 		}
-		store.dispatch(addReference(e.detail.tag, referenceType));
+		store.dispatch(addReference(e.detail.tag, refType));
 	}
 
 	_handleUnremoveReference(e : TagEvent) {
-		let referenceType : ReferenceType = '';
+		let refType : ReferenceType | undefined = undefined;
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
 		for (const ele of e.composedPath()) {
 			//e.g. documentFragment
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
-				referenceType = ele.dataset.referenceType as ReferenceType;
+				refType = referenceTypeSchema.parse(ele.dataset.referenceType);
 				break;
 			}
 		}
-		if (!referenceType) {
+		if (!refType) {
 			console.warn('No reference type found on parents');
 		}
-		store.dispatch(addReference(e.detail.tag, referenceType));
+		store.dispatch(addReference(e.detail.tag, refType));
 	}
 
 	_handleRemoveReference(e : TagEvent) {
-		let referenceType : ReferenceType = '';
+		let refType : ReferenceType | undefined = undefined;
 		//Walk up the chain to find which tag-list has it (which will have the
 		//referenceType we set explicitly on it)
 		for (const ele of e.composedPath()) {
 			if (!(ele instanceof HTMLElement)) continue;
 			if (ele.dataset.referenceType) {
-				referenceType = ele.dataset.referenceType as ReferenceType;
+				refType = referenceTypeSchema.parse(ele.dataset.referenceType);
 				break;
 			}
 		}
-		if (!referenceType) {
+		if (!refType) {
 			console.warn('No reference type found on parents');
 		}
-		store.dispatch(removeReference(e.detail.tag, referenceType));
+		store.dispatch(removeReference(e.detail.tag, refType));
 	}
 
 	override stateChanged(state : State) {

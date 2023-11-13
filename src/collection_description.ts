@@ -5,7 +5,6 @@ import {
 	SORT_REVERSED_URL_KEYWORD,
 	SET_NAMES,
 	UNION_FILTER_DELIMITER,
-	FILTER_EQUIVALENTS_FOR_SET,
 	CONFIGURABLE_FILTER_URL_PARTS,
 	CONFIGURABLE_FILTER_NAMES,
 	LIMIT_FILTER_NAME,
@@ -15,15 +14,8 @@ import {
 	makeConfigurableFilter,
 	queryConfigurableFilterText,
 	queryTextFromQueryFilter,
+	SET_INFOS,
 } from './filters.js';
-
-import {
-	DEFAULT_SET_NAME,
-	DEFAULT_VIEW_MODE,
-	VIEW_MODE_WEB,
-	SORT_NAME_DEFAULT,
-	SORT_NAME_RANDOM
-} from './type_constants.js';
 
 import {
 	TypedObject
@@ -55,7 +47,8 @@ import {
 	ConfigurableFilterName,
 	UnionFilterName,
 	CardSimilarityMap,
-	ConfigurableFilterResult
+	ConfigurableFilterResult,
+	viewMode as viewModeSchema
 } from './types.js';
 
 import {
@@ -72,11 +65,11 @@ const extractFilterNamesSortAndView = (parts : URLPart[]) : [FilterName[], SortN
 	//returns the filter names, the sort name, and whether the sort is reversed
 	//parts is all of the unconsumed portions of the path that aren't the set
 	//name or the card name.
-	if (!parts.length) return [[], SORT_NAME_DEFAULT, false, DEFAULT_VIEW_MODE, ''];
+	if (!parts.length) return [[], 'default', false, 'list', ''];
 	const filters : FilterName[] = [];
-	let sortName : SortName = SORT_NAME_DEFAULT;
+	let sortName : SortName = 'default';
 	let sortReversed = false;
-	let viewMode : ViewMode = DEFAULT_VIEW_MODE;
+	let viewMode : ViewMode = 'list';
 	let viewModeExtra = '';
 	let nextPartIsSort = false;
 	let nextPartIsView = false;
@@ -113,12 +106,12 @@ const extractFilterNamesSortAndView = (parts : URLPart[]) : [FilterName[], SortN
 			continue;
 		}
 		if (nextPartIsView) {
-			viewMode = part as ViewMode;
+			viewMode = viewModeSchema.parse(part);
 			nextPartIsView = false;
 			//LEGA_VIEW_MODES is a map of view mode to whether or not it expects
 			//an extra. Note that we have no way of signaling an error, so we
 			//just assume the viewMode is legal.
-			if (LEGAL_VIEW_MODES[part as ViewMode]) nextPartIsViewExtra = true;
+			if (LEGAL_VIEW_MODES[viewMode]) nextPartIsViewExtra = true;
 			continue;
 		}
 		if (nextPartIsViewExtra) {
@@ -198,7 +191,7 @@ interface CollectionDescriptionOverrides {
 
 const collectionDescriptionWithOverrides = (description : CollectionDescription, overrides : CollectionDescriptionOverrides) => {
 	const baseValues : CollectionDescriptionOverrides = {
-		set: description.setNameExplicitlySet ? description.set : '',
+		set: description.setNameExplicitlySet ? description.set : undefined,
 		filters: description.filters,
 		sort: description.sort,
 		sortReversed: description.sortReversed,
@@ -277,13 +270,13 @@ export class CollectionDescription {
 	constructor(setName? : SetName, filterNames? : FilterName[], sortName? : SortName, sortReversed? : boolean, viewMode? : ViewMode, viewModeExtra? : string) {
 		let setNameExplicitlySet = true;
 		if (!setName) {
-			setName = DEFAULT_SET_NAME;
+			setName = 'main';
 			setNameExplicitlySet = false;
 		}
-		if (!sortName) sortName = SORT_NAME_DEFAULT;
+		if (!sortName) sortName = 'default';
 		if (!sortReversed) sortReversed = false;
 		if (!filterNames) filterNames = [];
-		if (!viewMode) viewMode = DEFAULT_VIEW_MODE;
+		if (!viewMode) viewMode = 'list';
 		if (!viewModeExtra) viewModeExtra = '';
 
 		let limit = 0;
@@ -346,7 +339,7 @@ export class CollectionDescription {
 	}
 
 	get sortConfig() {
-		return SORTS[this.sort] || SORTS[SORT_NAME_DEFAULT];
+		return SORTS[this.sort];
 	}
 
 	//IF the collection wants to limit how many items to return, this will
@@ -357,7 +350,7 @@ export class CollectionDescription {
 	}
 
 	get isRandom() {
-		return this.sort == SORT_NAME_RANDOM;
+		return this.sort == 'random';
 	}
 
 	//IF the collection wants to offset how many items to return, this will
@@ -384,20 +377,20 @@ export class CollectionDescription {
 	//all items are in a canonical sorted order but the URL is optimized to stay
 	//as the user wrote it.
 	_serialize(unsorted? : boolean) : string {
-		let result = [this.set];
+		let result : string[] = [this.set];
 
 		const filterNames = [...this.filters];
 		if (!unsorted) filterNames.sort();
 	
 		result = result.concat(filterNames);
 	
-		if (this.sort != SORT_NAME_DEFAULT || this.sortReversed) {
+		if (this.sort != 'default' || this.sortReversed) {
 			result.push(SORT_URL_KEYWORD);
 			if (this.sortReversed) result.push(SORT_REVERSED_URL_KEYWORD);
 			result.push(this.sort);
 		}
 
-		if (this.viewMode != DEFAULT_VIEW_MODE) {
+		if (this.viewMode != 'list') {
 			result.push(VIEW_MODE_URL_KEYWORD);
 			result.push(this.viewMode);
 			if (this.viewModeExtra) result.push(this.viewModeExtra);
@@ -421,20 +414,20 @@ export class CollectionDescription {
 	_serializeShort(unsorted? : boolean) : string {
 		let result = [];
 
-		if (this.set != DEFAULT_SET_NAME) result.push(this.set);
+		if (this.set != 'main') result.push(this.set);
 
 		const filterNames = [...this.filters];
 		if (!unsorted) filterNames.sort();
 
 		result = result.concat(filterNames);
 
-		if (this.sort != SORT_NAME_DEFAULT || this.sortReversed) {
+		if (this.sort != 'default' || this.sortReversed) {
 			result.push(SORT_URL_KEYWORD);
 			if (this.sortReversed) result.push(SORT_REVERSED_URL_KEYWORD);
 			result.push(this.sort);
 		}
 
-		if (this.viewMode != DEFAULT_VIEW_MODE) {
+		if (this.viewMode != 'list') {
 			result.push(VIEW_MODE_URL_KEYWORD);
 			result.push(this.viewMode);
 			if (this.viewModeExtra) result.push(this.viewModeExtra);
@@ -484,7 +477,7 @@ export class CollectionDescription {
 		//happens... for a second.
 		const firstPart = parts.length ? parts[0] : '';
 
-		let setName : SetName = '';
+		let setName : SetName = 'main';
 
 		for (const name of SET_NAMES) {
 			if (name == firstPart) {
@@ -767,6 +760,7 @@ export class Collection {
 
 	//This will return true if any card in any filter used to make this collection returned preview:true
 	get preview() : boolean {
+		this._ensureFilteredCards();
 		return this._preview;
 	}
 
@@ -846,7 +840,8 @@ export class Collection {
 		//cards and then filter them down to the list that was in the set
 		//originally. This is OK because we're returning a set, not an array,
 		//from this method, so order doesn't matter.
-		const filterEquivalentForActiveSet = FILTER_EQUIVALENTS_FOR_SET[this._description.set];
+
+		const filterEquivalentForActiveSet = SET_INFOS[this._description.set].filterEquivalent;
 		if (filterEquivalentForActiveSet) filterDefinition = [...filterDefinition, filterEquivalentForActiveSet];
 
 		const [currentFilterFunc,,] = combinedFilterForFilterDefinition(filterDefinition, makeExtrasForFilterFunc(this._filtersSnapshot, this._cardsForFiltering, this._keyCardID, this._editingCard, this._userID, this._randomSalt, this._cardSimilarity));
@@ -884,7 +879,7 @@ export class Collection {
 		this._ensureSortInfo();
 		//Skip the work of sorting in the default case, as everything is already
 		//sorted. No-op collections still might be created and should be fast.
-		if (this._description.set == DEFAULT_SET_NAME && this._description.sort == SORT_NAME_DEFAULT && !this._description.sortReversed && (!this._sortExtras || Object.keys(this._sortExtras).length == 0)) {
+		if (this._description.set == 'main' && this._description.sort == 'default' && !this._description.sortReversed && (!this._sortExtras || Object.keys(this._sortExtras).length == 0)) {
 			return collection;
 		}
 		const sortInfo = this._sortInfo;
@@ -904,6 +899,14 @@ export class Collection {
 	_ensureSortedCards() {
 		if(this._sortedCards) return;
 		this._sortedCards = this._makeSortedCards();
+	}
+
+	//The raw numerical value for a card. Note that this might not be reversed as desired.
+	sortValueForCard(id : CardID) : number {
+		this._ensureSortInfo();
+		const record = this._sortInfo.get(id);
+		if (!record) return Number.MIN_SAFE_INTEGER;
+		return record[0];
 	}
 
 	get reorderable() {
@@ -981,7 +984,7 @@ export class Collection {
 
 	_ensureWebInfo() {
 		if (this._webInfo) return;
-		if (this._description.viewMode != VIEW_MODE_WEB) {
+		if (this._description.viewMode != 'web') {
 			this._webInfo = {nodes:[], edges:[]};
 			return;
 		}

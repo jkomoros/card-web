@@ -16,16 +16,8 @@ import {
 	SORT_URL_KEYWORD,
 	VIEW_MODE_URL_KEYWORD,
 	NONE_FILTER_NAME,
-	limitConfigurableFilterText
+	limitFilter
 } from '../filters.js';
-
-import {
-	DEFAULT_SET_NAME,
-	EVERYTHING_SET_NAME,
-	DEFAULT_VIEW_MODE,
-	SORT_NAME_DEFAULT,
-	SORT_NAME_RANDOM
-} from '../type_constants.js';
 
 import {
 	Collection,
@@ -146,7 +138,7 @@ export const updateCardSelector = (cardSelector : string) : ThunkSomeAction => (
 				if (CARD_TYPE_CONFIGURATION[card.card_type].orphanedByDefault && !description.setNameExplicitlySet) {
 					//If it's a working notes card then by default we'll view it
 					//in the collection including all of its other cards.
-					set = EVERYTHING_SET_NAME;
+					set = 'everything';
 					filters = [card.card_type];
 				} else {
 					filters = [NONE_FILTER_NAME];
@@ -280,7 +272,7 @@ export const canonicalizeURL = () : ThunkSomeAction => (dispatch, getState) => {
 		//We need to show the set name if it's not the default set, or if its
 		//the default set and there are no filters active (e.g.
 		//`c/main/sort/recent/_`)
-		if (description.set != DEFAULT_SET_NAME || description.filters.length == 0) {
+		if (description.set != 'main' || description.filters.length == 0) {
 			result.push(description.set);
 		}
 
@@ -294,7 +286,7 @@ export const canonicalizeURL = () : ThunkSomeAction => (dispatch, getState) => {
 	}
 
 	//TODO: it's weird to recreate the logic of CollectionDescription.serialize() here.
-	if (description.sort != SORT_NAME_DEFAULT || description.sortReversed) {
+	if (description.sort != 'default' || description.sortReversed) {
 		result.push(SORT_URL_KEYWORD);
 		if(description.sortReversed) {
 			result.push(SORT_REVERSED_URL_KEYWORD);
@@ -302,7 +294,7 @@ export const canonicalizeURL = () : ThunkSomeAction => (dispatch, getState) => {
 		result.push(description.sort);
 	}
 
-	if (description.viewMode != DEFAULT_VIEW_MODE) {
+	if (description.viewMode != 'list') {
 		result.push(VIEW_MODE_URL_KEYWORD);
 		result.push(description.viewMode);
 		if (description.viewModeExtra) result.push(description.viewModeExtra);
@@ -429,7 +421,7 @@ export const showCard = (requestedCard : CardID = PLACEHOLDER_CARD_ID_CHARACTER)
 	}
 };
 
-export const RANDOM_CARD_COLLECTION = new CollectionDescription(EVERYTHING_SET_NAME, [limitConfigurableFilterText(1)], SORT_NAME_RANDOM, false);
+export const RANDOM_CARD_COLLECTION = new CollectionDescription('everything', [limitFilter(1)], 'random', false);
 
 const randomizeSalt = () : SomeAction => {
 	return {
@@ -462,12 +454,19 @@ const waitForStateChange = async () : Promise<void> => {
 	});
 };
 
+type WaitForFinalCollectionArgs = {
+	argGetter? : (state : State) => CollectionConstructorArguments,
+	keyCardID? : CardID
+};
+
 //Waits until the given collection can be created with no preview filter
 //results. In practice this is useful to wait until the similar cards has
-//settled and used the embedding based similarity.
-export const waitForFinalCollection = async (description : CollectionDescription, argGetter? : (state : State) => CollectionConstructorArguments) : Promise<Collection> => {
+//settled and used the embedding based similarity. If keyCardID is provided,
+//then the args to the collection will be overriden with that keyCardID.
+export const waitForFinalCollection = async (description : CollectionDescription, options : WaitForFinalCollectionArgs = {}) : Promise<Collection> => {
 
-	if (!argGetter) argGetter = selectCollectionConstructorArguments;
+	const argGetter = options.argGetter || selectCollectionConstructorArguments;
+	const keyCardID = options.keyCardID;
 
 	let continueLooping = true;
 
@@ -475,7 +474,12 @@ export const waitForFinalCollection = async (description : CollectionDescription
 
 	do {
 		const state = store.getState() as State;
-		collection = description.collection(argGetter(state));
+		let args = argGetter(state);
+		if (keyCardID) args = {
+			...args,
+			keyCardID
+		};
+		collection = description.collection(args);
 		if (!collection.preview) {
 			continueLooping = false;
 			break;

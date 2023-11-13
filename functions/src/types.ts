@@ -5,6 +5,10 @@ import {
 	FieldValue
 } from 'firebase-admin/firestore';
 
+import {
+	z
+} from 'zod';
+
 export type Uid = string;
 
 export type CardID = string;
@@ -19,7 +23,18 @@ export type Section = {
 
 //Just pretned it's a string for simplicity
 export type ReferenceType = string;
-export type CardType = string;
+
+//duplicated in src/types.ts
+export const cardType = z.enum([
+	'content',
+	'section-head',
+	'working-notes',
+	'concept',
+	'work',
+	'person'
+]);
+
+export type CardType = '' | z.infer<typeof cardType>;
 
 export type Sections = Record<SectionID, Section>;
 
@@ -163,9 +178,16 @@ export type LegalResponseData = {
 	reason: string
 };
 
+type MillisecondsSinceEpoch = number;
+
 //Replicated in `src/actions/similarity.ts`
 export type SimilarCardsRequestData = {
 	card_id: CardID
+
+	//timestamp in milliseconds since epoch. If provided, results will only be
+	//provided if the Vector point has a last-updated since then, otherwise
+	//error of `stale`.
+	last_updated? : MillisecondsSinceEpoch
 
 	//TODO: include a limit
 
@@ -180,8 +202,10 @@ export type CardSimilarityItem = [CardID, number];
 
 //Replicated in `src/actions/similarity.ts`
 export type SimilarCardsResponseData = {
-	success: boolean,
-	//Will be set if success = false
-	error? : string
+	success: false,
+	code: 'qdrant-disabled' | 'no-embedding' | 'stale-embedding' | 'unknown'
+	error: string
+} | {
+	success: true
 	cards: CardSimilarityItem[]
 };

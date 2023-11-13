@@ -24,10 +24,6 @@ import {
 	CARD_TYPE_CONFIGURATION
 } from '../card_fields.js';
 
-import {
-	CARD_TYPE_CONTENT
-} from '../type_constants.js';
-
 import * as icons from './my-icons.js';
 
 import {
@@ -237,7 +233,7 @@ class CardLink extends connect(store)(LitElement) {
 	}
 
 	get _cardIsNotContent() {
-		return this._cardObj ? this._cardObj.card_type != CARD_TYPE_CONTENT : false;
+		return this._cardObj ? this._cardObj.card_type != 'content' : false;
 	}
 
 	get _computedHref() {

@@ -20,13 +20,8 @@ import {
 	TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND,
 	TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND,
 	TEXT_FIELD_TITLE_ALTERNATES,
-	REFERENCE_TYPE_LINK,
 	TEXT_FIELD_BODY,
-	REFERENCE_TYPE_ACK,
-	CARD_TYPE_CONCEPT,
-	TEXT_FIELD_TITLE,
-	REFERENCE_TYPE_SYNONYM,
-	REFERENCE_TYPE_CONCEPT,
+	TEXT_FIELD_TITLE
 } from './type_constants.js';
 
 import {
@@ -65,12 +60,12 @@ import { innerTextForHTML } from './util.js';
 
 //allCards can be raw or normalized. Memoized so downstream memoizing things will get the same thing for the same values
 export const conceptCardsFromCards = deepEqualReturnSame(memoizeFirstArg((allCards : Cards) : Cards => {
-	return Object.fromEntries(Object.entries(allCards).filter(entry => entry[1].card_type == CARD_TYPE_CONCEPT));
+	return Object.fromEntries(Object.entries(allCards).filter(entry => entry[1].card_type == 'concept'));
 }));
 
 //Rturns the primary concept string only (the title). See also getAllConceptStringsFromConceptCard
 export const getConceptStringFromConceptCard = (rawConceptCard : Card) : string => {
-	if (rawConceptCard.card_type != CARD_TYPE_CONCEPT) return '';
+	if (rawConceptCard.card_type != 'concept') return '';
 	return rawConceptCard[TEXT_FIELD_TITLE];
 };
 
@@ -79,13 +74,13 @@ const extractSynonymsFromCardTitleAlternates = (rawCard : Card) : string[] => {
 };
 
 const getAllNormalizedConceptStringsFromConceptCard = (processedConceptCard : ProcessedCard) : string[] => {
-	if (processedConceptCard.card_type != CARD_TYPE_CONCEPT) return [];
+	if (processedConceptCard.card_type != 'concept') return [];
 	return [...processedConceptCard.nlp[TEXT_FIELD_TITLE].map(run => run.withoutStopWords), ...processedConceptCard.nlp[TEXT_FIELD_TITLE_ALTERNATES].map(run => run.withoutStopWords)];
 };
 
 //REturns all strings that cardMatchesConcept would work for.
 export const getAllConceptStringsFromConceptCard = (rawConceptCard : Card) : string[] => {
-	if (rawConceptCard.card_type != CARD_TYPE_CONCEPT) return [];
+	if (rawConceptCard.card_type != 'concept') return [];
 	return [getConceptStringFromConceptCard(rawConceptCard), ...extractSynonymsFromCardTitleAlternates(rawConceptCard)];
 };
 
@@ -105,7 +100,7 @@ export const getConceptsFromConceptCards = deepEqualReturnSame(memoizeFirstArg((
 }));
 
 const cardMatchesConcept = (card : ProcessedCard, conceptStr : string) : boolean => {
-	if (card.card_type !== CARD_TYPE_CONCEPT) return false;
+	if (card.card_type !== 'concept') return false;
 	if (cardMatchesString(card, TEXT_FIELD_TITLE, conceptStr)) return true;
 	if (cardMatchesString(card, TEXT_FIELD_TITLE_ALTERNATES, conceptStr)) return true;
 	return false;
@@ -136,8 +131,8 @@ export const synonymMap = (rawCards : Cards) : SynonymMap => {
 		//We treat synonym as a bidirectional link, so if a card links to US as
 		//a synonym, we'll also consider them our sysnonym.
 		//TODO: handle bidirectional linking more resiliently
-		const synonymReferencesOutbound = references(card).byType[REFERENCE_TYPE_SYNONYM] || {};
-		const synonymReferencesInbound = references(card).byTypeInbound[REFERENCE_TYPE_SYNONYM] || {};
+		const synonymReferencesOutbound = references(card).byType.synonym || {};
+		const synonymReferencesInbound = references(card).byTypeInbound.synonym || {};
 		//We'll use a map so we get a unique result. In particular, the card we
 		//point to as a synonym might point to us as a synonym, too.
 		const synonyms : {[synonym : string] : true} = {};
@@ -307,7 +302,7 @@ export const highlightConceptReferences = memoizeFirstArg((card : ProcessedCard,
 	if (!fieldConfig) return '';
 	if (!fieldConfig.html) return card[fieldName];
 	const extraIDMap = Object.fromEntries(extraIDs.map(id => [id, true]));
-	const conceptCardReferences = Object.fromEntries(references(card).typeClassArray(REFERENCE_TYPE_CONCEPT).map(item => [item, true]));
+	const conceptCardReferences = Object.fromEntries(references(card).typeClassArray('concept').map(item => [item, true]));
 	const allConceptCardReferences = {...extraIDMap, ...conceptCardReferences};
 	const filteredHighlightMap = Object.fromEntries(Object.entries(card.importantNgrams || {}).filter(entry => allConceptCardReferences[entry[1]]));
 	return highlightHTMLForCard(card, fieldName, filteredHighlightMap, extraIDMap);
@@ -521,9 +516,9 @@ const OVERRIDE_EXTRACTORS : {[field in CardFieldType]+? : (card : CardWithOption
 	[TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND]: (card : CardWithOptionalFallbackText) : string => {
 		const refsByType = references(card).withFallbackText(card.fallbackText).byType;
 		const result = [];
-		for (const [referenceType, cardMap] of Object.entries(refsByType)) {
+		for (const [refType, cardMap] of TypedObject.entries(refsByType)) {
 			//Skip links because they're already represented in body
-			if (referenceType == REFERENCE_TYPE_LINK) continue;
+			if (refType == 'link') continue;
 			for (const str of Object.values(cardMap)) {
 				if (str) result.push(str);
 			}
@@ -531,7 +526,7 @@ const OVERRIDE_EXTRACTORS : {[field in CardFieldType]+? : (card : CardWithOption
 		return result.join('\n');
 	},
 	[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: (card : CardWithOptionalFallbackText) : string => {
-		const conceptRefs = references(card).withFallbackText(card.fallbackText).byTypeClass(REFERENCE_TYPE_CONCEPT);
+		const conceptRefs = references(card).withFallbackText(card.fallbackText).byTypeClass('concept');
 		if (!conceptRefs) return '';
 		const result = [];
 		for (const cardMap of Object.values(conceptRefs)) {
@@ -544,7 +539,7 @@ const OVERRIDE_EXTRACTORS : {[field in CardFieldType]+? : (card : CardWithOption
 };
 
 const extractRawContentRunsForCardField = (card : Card, fieldName : CardFieldType) : string[] => {
-	const cardType = card.card_type || '';
+	const cardType = card.card_type;
 	const config = TEXT_FIELD_CONFIGURATION[fieldName];
 	if ((DERIVED_FIELDS_FOR_CARD_TYPE[cardType] || {})[fieldName]) return [];
 	const safeFieldName = fieldName as CardFieldTypeEditable;
@@ -1271,7 +1266,7 @@ export const suggestedConceptReferencesForCard = memoizeFirstArg((card : Process
 	if (!BODY_CARD_TYPES[card.card_type]) return [];
 	const itemsFromConceptReferences = explicitConceptNgrams(card);
 	const existingReferences = references(card).byType;
-	const REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT = TypedObject.keys(REFERENCE_TYPES).filter(key => REFERENCE_TYPES_EQUIVALENCE_CLASSES[REFERENCE_TYPE_CONCEPT][key] || key == REFERENCE_TYPE_ACK);
+	const REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT = TypedObject.keys(REFERENCE_TYPES).filter(key => REFERENCE_TYPES_EQUIVALENCE_CLASSES['concept'][key] || key == 'ack');
 	const normalizedConcepts = normalizeNgramMap(concepts);
 	const conceptStrForCandidateCard : {[id : CardID] : string } = {};
 	//We want to get only words actually on the card. So restrict to ngrams on editable fields, and also exclude synonyms.
