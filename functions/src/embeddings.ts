@@ -466,8 +466,15 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 };
 
 //How many milliseconds of slop do we allow for last_updated check? This gets
-//across that the server and client times might be out of sync.
-const LAST_UPDATED_EPISLON = 10 * 1000;
+//across that the server and client times might be out of sync. If this is too
+//big, then the common case of 'create-a-card' (which gets a generic embedding
+//for '') and then 'edit and paste' will erronously report that the old
+//embedding is current, which will give a faux, generic embedding similiarity
+//even after the card is edited (until the client refetches). We can set this
+//quite small because the timestamps we're preparing all come from Google
+//Servers (never a user's client machine), and we can assume their time is
+//extremely accurate.
+const LAST_UPDATED_EPISLON = 500;
 
 export const similarCards = async (request : CallableRequest<SimilarCardsRequestData>) : Promise<SimilarCardsResponseData> => {
 	const data = request.data;
