@@ -1,9 +1,6 @@
 /*eslint-env node*/
 
 import {
-	REFERENCE_TYPE_LINK,
-	REFERENCE_TYPE_DUPE_OF,
-	REFERENCE_TYPE_ACK,
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY
 } from '../../src/type_constants.js';
@@ -25,6 +22,14 @@ import {
 } from 'firebase/firestore';
 
 import assert from 'assert';
+
+import {
+	referenceType
+} from '../../src/types.js';
+
+const REFERENCE_TYPE_ACK = referenceType('ack');
+const REFERENCE_TYPE_DUPE_OF = referenceType('dupe-of');
+const REFERENCE_TYPE_LINK = referenceType('link');
 
 describe('card referencesLegalShape util functions', () => {
 	it('missing either references and references_info not legal', async () => {
