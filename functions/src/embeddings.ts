@@ -489,7 +489,13 @@ export const similarCards = async (request : CallableRequest<SimilarCardsRequest
 			};
 		}
 
-		if (data.card.id != data.card_id) throw new Error(`Card.id was ${data.card.id} which did not match card_id: ${data.card_id}`);
+		if (data.card.id != data.card_id) {
+			return {
+				success: false,
+				code: 'unknown',
+				error: `Card.id was ${data.card.id} which did not match card_id: ${data.card_id}`
+			};
+		}
 
 		const content = textContentForEmbeddingForCard(data.card);
 		const embedding = await embeddingForContent(content);
@@ -508,7 +514,13 @@ export const similarCards = async (request : CallableRequest<SimilarCardsRequest
 
 		if (data.last_updated !== undefined) {
 			const point_last_updated = point.payload?.last_updated;
-			if (!point_last_updated) throw new Error('Point didn\'t have last_updated as expected');
+			if (!point_last_updated) {
+				return {
+					success: false,
+					code: 'unknown',
+					error: 'Point didn\'t have last_updated as expected'
+				};
+			}
 			if (!(point_last_updated >= data.last_updated - LAST_UPDATED_EPISLON)) {
 				//Point is less current than epsilon
 				return {
@@ -521,11 +533,24 @@ export const similarCards = async (request : CallableRequest<SimilarCardsRequest
 	
 		//TODO: allow passing a custom limit (validate it)
 	
-		if (!point.vector) throw new Error('Point did not include vector as expected');
+		if (!point.vector) {
+			return {
+				success: false,
+				code: 'unknown',
+				error: 'Point did not include vector as expected'
+			};
+		}
+
 		vector = point.vector;
 	}
 
-	if (!vector) throw new Error('vector was empty');
+	if (!vector) {
+		return {
+			success: false,
+			code: 'unknown',
+			error: 'vector was empty'
+		};
+	}
 
 	const points = await EMBEDDING_STORE.similarPoints(data.card_id, vector);
 
