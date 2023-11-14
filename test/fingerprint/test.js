@@ -112,7 +112,7 @@ const baseCards = (extras) => {
 		...BASE_DATA,
 	};
 
-	for (let [id, card] of Object.entries(cards)) {
+	for (const [id, card] of Object.entries(cards)) {
 		if (!card.card_type) card.card_type = CARD_TYPE_CONTENT;
 		cards[id] = cardWithNormalizedTextProperties(card, FALLBACK_TEXT_MAP, CONCEPT_MAP, SYNONYM_MAP);
 	}
@@ -211,9 +211,9 @@ describe('fingerprint generation', () => {
 				'title_alternates': [],
 			},
 		};
-		for (let cardID of CARD_IDS_TO_TEST) {
-			let card = cards[cardID];
-			let normalized = expectedNormalized[cardID];
+		for (const cardID of CARD_IDS_TO_TEST) {
+			const card = cards[cardID];
+			const normalized = expectedNormalized[cardID];
 			assert.deepStrictEqual(Object.fromEntries(Object.entries(card.nlp).map(entry => [entry[0], entry[1].map(run => run.stemmed)])), normalized);
 		}
 	});
@@ -408,9 +408,9 @@ describe('fingerprint generation', () => {
 				[ 'not not', 0.019221848728888158 ]
 			])
 		};
-		for (let cardID of CARD_IDS_TO_TEST) {
-			let expectedFingerprint = expectFingerprints[cardID];
-			let fingerprint = generator.fingerprintForCardID(cardID);
+		for (const cardID of CARD_IDS_TO_TEST) {
+			const expectedFingerprint = expectFingerprints[cardID];
+			const fingerprint = generator.fingerprintForCardID(cardID);
 			assert.deepStrictEqual(fingerprint.entries(), expectedFingerprint.entries());
 		}
 	});
@@ -451,10 +451,10 @@ describe('fingerprint generation', () => {
 			]),
 		};
 		//Filter down to only cards in the test set so we don't compare like 300 fingerprints
-		let filteredFingerprints = Object.fromEntries(Object.entries(generator.fingerprints()).filter(entry => CARD_IDS_TO_TEST.some(item => item == entry[0])));
-		for (let cardID of CARD_IDS_TO_TEST) {
-			let expectedOverlap = expectedOverlaps[cardID];
-			let overlap = generator.closestOverlappingItems(cardID, null, filteredFingerprints);
+		const filteredFingerprints = Object.fromEntries(Object.entries(generator.fingerprints()).filter(entry => CARD_IDS_TO_TEST.some(item => item == entry[0])));
+		for (const cardID of CARD_IDS_TO_TEST) {
+			const expectedOverlap = expectedOverlaps[cardID];
+			const overlap = generator.closestOverlappingItems(cardID, null, filteredFingerprints);
 			assert.deepStrictEqual(overlap, expectedOverlap);
 		}
 	});
@@ -603,11 +603,11 @@ describe('fingerprint generation', () => {
 //subtitle, and references_info_inbound block that's the same but with different
 //match weights.
 const expandExpectedQueryProperties = (titleBlock) => {
-	let result = {[TEXT_FIELD_TITLE]: titleBlock};
-	let titleMatchWeight = TEXT_FIELD_CONFIGURATION[TEXT_FIELD_TITLE].matchWeight;
-	for (let [fieldName, fieldConfig] of Object.entries(TEXT_FIELD_CONFIGURATION)) {
+	const result = {[TEXT_FIELD_TITLE]: titleBlock};
+	const titleMatchWeight = TEXT_FIELD_CONFIGURATION[TEXT_FIELD_TITLE].matchWeight;
+	for (const [fieldName, fieldConfig] of Object.entries(TEXT_FIELD_CONFIGURATION)) {
 		if (fieldName == TEXT_FIELD_TITLE) continue;
-		let fieldMatchWeight = fieldConfig.matchWeight;
+		const fieldMatchWeight = fieldConfig.matchWeight;
 		result[fieldName] = titleBlock.map(item => [item[0], item[1] / titleMatchWeight * fieldMatchWeight ,item[2]]);
 	}
 	return result;
