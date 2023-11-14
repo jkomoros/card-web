@@ -1401,7 +1401,7 @@ export type State = {
 //The following are convenience functions for when you have a given enum that
 //will be used in a generic string context and want type-checking to verify it
 //is part of the enum.
-export const setName = (input : SetName) => input;
-export const referenceType = (input : ReferenceType) => input;
-export const editorTab = (input : EditorTab) => input;
-export const editorContentTab = (input : EditorContentTab) => input;
+export const setName = (input : SetName) => setNameSchema.parse(input);
+export const referenceType = (input : ReferenceType) => referenceTypeSchema.parse(input);
+export const editorTab = (input : EditorTab) => editorTabSchema.parse(input);
+export const editorContentTab = (input : EditorContentTab) => editorContentTabSchema.parse(input);
