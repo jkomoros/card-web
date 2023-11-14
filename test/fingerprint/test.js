@@ -29,13 +29,20 @@ import {
 } from '../../src/card_fields.js';
 
 import {
-	CARD_TYPE_CONTENT,
-	CARD_TYPE_WORKING_NOTES,
-	REFERENCE_TYPE_LINK,
-	REFERENCE_TYPE_ACK,
-	REFERENCE_TYPE_DUPE_OF,
 	TEXT_FIELD_TITLE,
 } from '../../src/type_constants.js';
+
+import {
+	cardType,
+	referenceType
+} from '../../src/types.js';
+
+const REFERENCE_TYPE_ACK = referenceType('ack');
+const REFERENCE_TYPE_DUPE_OF = referenceType('dupe-of');
+const REFERENCE_TYPE_LINK = referenceType('link');
+
+const CARD_TYPE_WORKING_NOTES = cardType('working-notes');
+const CARD_TYPE_CONTENT = cardType('content');
 
 import assert from 'assert';
 
