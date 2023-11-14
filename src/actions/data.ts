@@ -105,12 +105,10 @@ import {
 } from '../card_fields.js';
 
 import {
-	TEXT_FIELD_BODY,
 	REFERENCES_CARD_PROPERTY,
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY, 
 	REFERENCES_INBOUND_CARD_PROPERTY,
-	TEXT_FIELD_TITLE,
 	CARDS_COLLECTION,
 	CARD_UPDATES_COLLECTION,
 	SECTION_UPDATES_COLLECTION,
@@ -760,7 +758,7 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 
 	let title = opts.title || '';
 
-	if (CARD_TYPE_CONFIG.publishedByDefault && editableFieldsForCardType(cardType)[TEXT_FIELD_TITLE] && !title) {
+	if (CARD_TYPE_CONFIG.publishedByDefault && editableFieldsForCardType(cardType).title && !title) {
 		const titleFromPrompt = prompt('What should the card\'s title be?');
 		if (!titleFromPrompt) {
 			console.log('No title provided');
@@ -787,7 +785,7 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 	const obj = defaultCardObject(id, user, section, cardType, sortOrder);
 	obj.title = title;
 	if (CARD_TYPE_CONFIG.publishedByDefault) obj.published = true;
-	if (CARD_TYPE_CONFIG.defaultBody) obj[TEXT_FIELD_BODY] = CARD_TYPE_CONFIG.defaultBody;
+	if (CARD_TYPE_CONFIG.defaultBody) obj.body = CARD_TYPE_CONFIG.defaultBody;
 
 	const cardFinisher = CARD_TYPE_EDITING_FINISHERS[cardType];
 

@@ -37,11 +37,6 @@ import {
 } from '../card_fields.js';
 
 import {
-	TEXT_FIELD_BODY,
-	TEXT_FIELD_TITLE
-} from '../type_constants.js';
-
-import {
 	highlightConceptReferences
 } from '../nlp.js';
 
@@ -384,7 +379,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		const nonScrollableFields : CardFieldTypeEditable[] = [];
 		const scrollableFields : CardFieldTypeEditable[] = [];
 		for (const [fieldName,fieldConfig] of TypedObject.entries(fieldsToRender)) {
-			if (fieldName == TEXT_FIELD_TITLE) {
+			if (fieldName == 'title') {
 				titleFields.push(fieldName);
 			} else if (fieldConfig.nonScrollable) {
 				nonScrollableFields.push(fieldName);
@@ -664,13 +659,13 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		if (changedProps.has('editing') && this.editing) {
 			//If we just started editing, focus the content editable immediately
 			//(the title if there's no title)
-			if (this._elements[TEXT_FIELD_BODY]) {
-				this._elements[TEXT_FIELD_BODY].focus();
+			if (this._elements.body) {
+				this._elements.body.focus();
 
 				//Move the selection to the end of the content editable.
-				if (this._card[TEXT_FIELD_BODY]) {
+				if (this._card.body) {
 					const range = document.createRange();
-					range.selectNodeContents(this._elements[TEXT_FIELD_BODY]);
+					range.selectNodeContents(this._elements.body);
 					range.collapse(false);
 					const sel = window.getSelection();
 					sel.removeAllRanges();
@@ -684,12 +679,12 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				}
 			}
 			//If the title is empty we _always_ want to select it
-			if (!this._card[TEXT_FIELD_TITLE] && this._elements[TEXT_FIELD_TITLE]) {
+			if (!this._card.title && this._elements.title) {
 				//If there isn't a title, we actually want the title focused
 				//(after clearing out hte extra 'nbsp'. For some reason
 				//Chrome doesn't actually focus the second item, unless we
 				//do a timeout. :shrug:
-				setTimeout(() => this._elements[TEXT_FIELD_TITLE].focus(), 0);
+				setTimeout(() => this._elements.title.focus(), 0);
 			}
 		}
 		//TODO: only run this if things that could have caused this to change

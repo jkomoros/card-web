@@ -17,14 +17,6 @@ import {
 } from './card_fields.js';
 
 import {
-	TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND,
-	TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND,
-	TEXT_FIELD_TITLE_ALTERNATES,
-	TEXT_FIELD_BODY,
-	TEXT_FIELD_TITLE
-} from './type_constants.js';
-
-import {
 	references,
 } from './references.js';
 
@@ -66,16 +58,16 @@ export const conceptCardsFromCards = deepEqualReturnSame(memoizeFirstArg((allCar
 //Rturns the primary concept string only (the title). See also getAllConceptStringsFromConceptCard
 export const getConceptStringFromConceptCard = (rawConceptCard : Card) : string => {
 	if (rawConceptCard.card_type != 'concept') return '';
-	return rawConceptCard[TEXT_FIELD_TITLE];
+	return rawConceptCard.title;
 };
 
 const extractSynonymsFromCardTitleAlternates = (rawCard : Card) : string[] => {
-	return extractRawContentRunsForCardField(rawCard,TEXT_FIELD_TITLE_ALTERNATES).map((str : string) => str.trim()).filter((str : string) => str);
+	return extractRawContentRunsForCardField(rawCard,'title_alternates').map((str : string) => str.trim()).filter((str : string) => str);
 };
 
 const getAllNormalizedConceptStringsFromConceptCard = (processedConceptCard : ProcessedCard) : string[] => {
 	if (processedConceptCard.card_type != 'concept') return [];
-	return [...processedConceptCard.nlp[TEXT_FIELD_TITLE].map(run => run.withoutStopWords), ...processedConceptCard.nlp[TEXT_FIELD_TITLE_ALTERNATES].map(run => run.withoutStopWords)];
+	return [...processedConceptCard.nlp.title.map(run => run.withoutStopWords), ...processedConceptCard.nlp.title_alternates.map(run => run.withoutStopWords)];
 };
 
 //REturns all strings that cardMatchesConcept would work for.
@@ -101,8 +93,8 @@ export const getConceptsFromConceptCards = deepEqualReturnSame(memoizeFirstArg((
 
 const cardMatchesConcept = (card : ProcessedCard, conceptStr : string) : boolean => {
 	if (card.card_type !== 'concept') return false;
-	if (cardMatchesString(card, TEXT_FIELD_TITLE, conceptStr)) return true;
-	if (cardMatchesString(card, TEXT_FIELD_TITLE_ALTERNATES, conceptStr)) return true;
+	if (cardMatchesString(card, 'title', conceptStr)) return true;
+	if (cardMatchesString(card, 'title_alternates', conceptStr)) return true;
 	return false;
 };
 
@@ -513,7 +505,7 @@ const splitRuns = (text : string) : string[] => {
 //overrideExtractor in card_fields.js. The function should take a card. It will
 //use the stashed fallbackText if it exists.
 const OVERRIDE_EXTRACTORS : {[field in CardFieldType]+? : (card : CardWithOptionalFallbackText) => string}= {
-	[TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND]: (card : CardWithOptionalFallbackText) : string => {
+	'non_link_references': (card : CardWithOptionalFallbackText) : string => {
 		const refsByType = references(card).withFallbackText(card.fallbackText).byType;
 		const result = [];
 		for (const [refType, cardMap] of TypedObject.entries(refsByType)) {
@@ -525,7 +517,7 @@ const OVERRIDE_EXTRACTORS : {[field in CardFieldType]+? : (card : CardWithOption
 		}
 		return result.join('\n');
 	},
-	[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: (card : CardWithOptionalFallbackText) : string => {
+	'concept_references': (card : CardWithOptionalFallbackText) : string => {
 		const conceptRefs = references(card).withFallbackText(card.fallbackText).byTypeClass('concept');
 		if (!conceptRefs) return '';
 		const result = [];
@@ -555,7 +547,7 @@ const extractRawContentRunsForCardField = (card : Card, fieldName : CardFieldTyp
 	//If the text is the defaultBody for that card type, just pretend
 	//like it doesn't exist. Otherwise it will show up VERY high in the
 	//various NLP pipelines.
-	if (safeFieldName == TEXT_FIELD_BODY && (CARD_TYPE_CONFIGURATION[cardType] || {}).defaultBody == fieldValue) fieldValue = '';
+	if (safeFieldName == 'body' && (CARD_TYPE_CONFIGURATION[cardType] || {}).defaultBody == fieldValue) fieldValue = '';
 	if (config.extraRunDelimiter) fieldValue = fieldValue.split(config.extraRunDelimiter).join('\n');
 	const content = config.html ? innerTextForHTML(fieldValue) : fieldValue;
 	return splitRuns(content);
@@ -1367,7 +1359,7 @@ const explicitConceptNgrams = (cardObj : ProcessedCard) : StringCardMap=> {
 	//A concept card should count its own title/title-alts as coming
 	//from itself. getAllNormalizedConceptStringsFromConceptCard will
 	//return an empty array if the card is not a concept card.
-	const strs = [...cardObj.nlp[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND].map(run => run.withoutStopWords), ...getAllNormalizedConceptStringsFromConceptCard(cardObj)];
+	const strs = [...cardObj.nlp.concept_references.map(run => run.withoutStopWords), ...getAllNormalizedConceptStringsFromConceptCard(cardObj)];
 	for (const str of strs) {
 		//The fingerprint will have STOP_WORDs filtered, since it's
 		//downstream of wordCountsForSemantics, so do the same to check for

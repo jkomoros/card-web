@@ -71,10 +71,6 @@ import {
 } from '../card_fields.js';
 
 import {
-	TEXT_FIELD_TITLE,
-} from '../type_constants.js';
-
-import {
 	UNION_FILTER_DELIMITER
 } from '../filters.js';
 
@@ -276,7 +272,7 @@ class FindDialog extends connect(store)(DialogElement) {
 
 		const cardType = this._cardTypeToAdd;
 
-		const needTitle = editableFieldsForCardType(cardType)[TEXT_FIELD_TITLE];
+		const needTitle = editableFieldsForCardType(cardType).title;
 		let title = '';
 		if (needTitle) {
 			const query = this._query || '';

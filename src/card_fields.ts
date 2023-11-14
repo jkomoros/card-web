@@ -6,14 +6,7 @@ import {
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY,
-	REFERENCES_INBOUND_CARD_PROPERTY,
-	TEXT_FIELD_BODY,
-	TEXT_FIELD_TITLE,
-	TEXT_FIELD_SUBTITLE,
-	TEXT_FIELD_TITLE_ALTERNATES,
-	TEXT_FIELD_REFERENCES_INFO_INBOUND,
-	TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND,
-	TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND
+	REFERENCES_INBOUND_CARD_PROPERTY
 } from './type_constants.js';
 
 import {
@@ -28,7 +21,8 @@ import {
 	ReferenceType,
 	FontSizeBoostMap,
 	CardFieldTypeEditable,
-	CardFieldTypeEditableConfigurationMap
+	CardFieldTypeEditableConfigurationMap,
+	CardFieldType
 } from './types.js';
 
 import {
@@ -509,12 +503,12 @@ const titleAlternatesHTMLFormatter = (value : string) : string => {
 };
 
 //The field that images will be inserted into
-export const IMAGES_TEXT_FIELD = TEXT_FIELD_BODY;
+export const IMAGES_TEXT_FIELD : CardFieldType = 'body';
 
 const DEFAULT_MAX_FONT_BOOST = 0.3;
 
 export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
-	[TEXT_FIELD_TITLE]: {
+	'title': {
 		html: false,
 		container: 'h1',
 		nonScrollable: true,
@@ -531,7 +525,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		autoFontSizeBoostForCardTypes: {},
 		matchWeight: 1.0,
 	},
-	[TEXT_FIELD_TITLE_ALTERNATES]: {
+	'title_alternates': {
 		html: false,
 		container: 'h5',
 		nonScrollable: true,
@@ -545,7 +539,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		extraRunDelimiter: TITLE_ALTERNATE_DELIMITER,
 		description: 'Words to treat as synonyms that don\'t have their own concept cards. A \'' + TITLE_ALTERNATE_DELIMITER + '\' separates multiple ones, and ones that start with \'' +  TITLE_ALTERNATE_NEGATION + '\' will render as antonyms.' 
 	},
-	[TEXT_FIELD_BODY]: {
+	'body': {
 		html: true,
 		container: 'section',
 		legalCardTypes: {
@@ -561,7 +555,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		},
 		matchWeight:0.5
 	},
-	[TEXT_FIELD_SUBTITLE]: {
+	'subtitle': {
 		html: false,
 		container: 'h2',
 		legalCardTypes: {'section-head': true},
@@ -569,7 +563,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		autoFontSizeBoostForCardTypes: {},
 		matchWeight:0.75,
 	},
-	[TEXT_FIELD_REFERENCES_INFO_INBOUND]: {
+	'references_info_inbound': {
 		html: false,
 		readOnly: true,
 		//null signals it's legal for all card types
@@ -583,7 +577,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 	//logic is that links are already represented in text in the body, but every
 	//other type of reference is not, so it should count for indexing. This is
 	//also where backported reference text shows up.
-	[TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND]: {
+	'non_link_references': {
 		html: false,
 		readOnly: true,
 		//null signals it's legal for all card types
@@ -597,7 +591,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 	//already been counted in TEXT_FIELD_REFERENCES_NON_LINK_OUTBOUND, so this
 	//has the effect of triple counting concepts since theyr'e so important.
 	//NOTE: fingerprint.itemsFromConceptReferences in nlp.js relies on this configuration
-	[TEXT_FIELD_RERERENCES_CONCEPT_OUTBOUND]: {
+	'concept_references': {
 		html: false,
 		readOnly: true,
 		//null signals it's legal for all card types
@@ -619,13 +613,13 @@ const AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE : {[cardType in CardType]+?: {[f
 }));
 
 //types of card that have a body
-export const BODY_CARD_TYPES = TEXT_FIELD_CONFIGURATION[TEXT_FIELD_BODY].legalCardTypes;
+export const BODY_CARD_TYPES = TEXT_FIELD_CONFIGURATION.body.legalCardTypes;
 
 //types of card that may have an image
 export const IMAGE_CARD_TYPES = TEXT_FIELD_CONFIGURATION[IMAGES_TEXT_FIELD].legalCardTypes;
 
 export const editableFieldsForCardType = (cardType : CardType) : CardFieldTypeEditableConfigurationMap => {
-	const result : CardFieldTypeConfigurationMap = {};
+	const result : Partial<CardFieldTypeConfigurationMap> = {};
 	for (const key of TypedObject.keys(TEXT_FIELD_CONFIGURATION)) {
 		const config = TEXT_FIELD_CONFIGURATION[key];
 		//Items with null for legalCardTypes are legal in all card types
@@ -633,7 +627,8 @@ export const editableFieldsForCardType = (cardType : CardType) : CardFieldTypeEd
 		if (config.readOnly) continue;
 		result[key] = config;
 	}
-	return result;
+	//TODO: verify it actually has all the fields.
+	return result as CardFieldTypeConfigurationMap;
 };
 
 //The special key card ID that will be replaced with a given card in reference

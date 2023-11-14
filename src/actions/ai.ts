@@ -46,10 +46,6 @@ import {
 } from '../types.js';
 
 import {
-	TEXT_FIELD_TITLE
-} from '../type_constants.js';
-
-import {
 	textFieldUpdated
 } from './editor.js';
 
@@ -85,7 +81,7 @@ const commitTitleSuggestion  = () : ThunkSomeAction => (dispatch, getState) => {
 	const result = selectAIResult(state);
 	if (index < 0 || index >= result.length) throw new Error('Invalid index');
 	const item = result[index];
-	dispatch(textFieldUpdated(TEXT_FIELD_TITLE, item));
+	dispatch(textFieldUpdated('title', item));
 };
 
 const openaiCallable = httpsCallable(functions, 'openai');

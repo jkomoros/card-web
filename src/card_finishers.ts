@@ -1,8 +1,4 @@
 import {
-	TEXT_FIELD_BODY
-} from './type_constants.js';
-
-import {
 	cardWithNormalizedTextProperties,
 	getAllConceptStringsFromConceptCard,
 	getAllConceptCardsForConcept
@@ -37,7 +33,7 @@ const workingNotesExtractor = (card : Card, state : State) => {
 	const conceptsMap = selectConcepts(state);
 	const synonymMap = selectSynonymMap(state);
 	const cardCopy = cardWithNormalizedTextProperties(card, fallbackMap, conceptsMap, synonymMap);
-	const fingerprint = getSemanticFingerprintForCard(state, cardCopy, [TEXT_FIELD_BODY]);
+	const fingerprint = getSemanticFingerprintForCard(state, cardCopy, ['body']);
 	const pretty = fingerprint.dedupedPrettyItemsFromCard();
 	const title = date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'2-digit'}) + ' ' + pretty.split(' ').slice(0, NUM_TERMS_OF_FINGERPRINT).join(' ');
 	card.title = title;

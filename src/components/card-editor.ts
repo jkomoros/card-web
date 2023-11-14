@@ -113,12 +113,6 @@ import {
 } from '../card_fields.js';
 
 import {
-	TEXT_FIELD_BODY,
-	TEXT_FIELD_TITLE,
-	TEXT_FIELD_TYPES_EDITABLE
-} from '../type_constants.js';
-
-import {
 	references,
 } from '../references.js';
 
@@ -147,7 +141,8 @@ import {
 	editorTab,
 	referenceTypeSchema,
 	TODOType,
-	autoTODOType
+	autoTODOType,
+	cardFieldTypeEditableSchema
 } from '../types.js';
 
 import {
@@ -429,7 +424,7 @@ class CardEditor extends connect(store)(LitElement) {
 		const hasContent = cardHasContent(this._card);
 		const hasNotes = cardHasNotes(this._card);
 		const hasTodo = cardHasTodo(this._card);
-		const contentModified = this._card[TEXT_FIELD_BODY] != this._underlyingCard[TEXT_FIELD_BODY];
+		const contentModified = this._card.body != this._underlyingCard.body;
 		const notesModified = this._card.notes != this._underlyingCard.notes;
 		const todoModified = this._card.todo != this._underlyingCard.todo;
 
@@ -466,7 +461,7 @@ class CardEditor extends connect(store)(LitElement) {
 				${TypedObject.entries(editableFieldsForCardType(this._card.card_type)).map(entry => html`<label>${toTitleCase(entry[0])}${entry[1].description ? help(entry[1].description) : ''}</label>
 					${entry[1].html
 		? html`<textarea @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${this._card[entry[0]]}></textarea>`
-		: html`<div class='row'><input type='text' @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${this._card[entry[0]] || ''}></input>${this._userMayUseAI && entry[0] == TEXT_FIELD_TITLE ? html`<button class='small' @click=${this._handleAITitleClicked} title='Suggest title with AI'>${AUTO_AWESOME_ICON}</button>` : ''}</div>`}
+		: html`<div class='row'><input type='text' @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${this._card[entry[0]] || ''}></input>${this._userMayUseAI && entry[0] == 'title' ? html`<button class='small' @click=${this._handleAITitleClicked} title='Suggest title with AI'>${AUTO_AWESOME_ICON}</button>` : ''}</div>`}
 				`)}
 				<label>Images</label><card-images-editor></card-images-editor>
 			</div>
@@ -1068,8 +1063,7 @@ class CardEditor extends connect(store)(LitElement) {
 		if (!this._active) return;
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLTextAreaElement) && !(ele instanceof HTMLInputElement)) throw new Error('ele not textarea or text input');
-		const field : CardFieldTypeEditable = ele.dataset.field as CardFieldTypeEditable;
-		if (!TEXT_FIELD_TYPES_EDITABLE[field]) throw new Error('Unknown editable field');
+		const field = cardFieldTypeEditableSchema.parse(ele.dataset.field);
 		store.dispatch(textFieldUpdated(field, ele.value, false));
 	}
 

@@ -22,12 +22,10 @@ import {
 } from './card_fields.js';
 
 import {
-	TEXT_FIELD_BODY,
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
-	REFERENCES_INBOUND_CARD_PROPERTY,
-	TEXT_FIELD_TYPES_EDITABLE
+	REFERENCES_INBOUND_CARD_PROPERTY
 } from './type_constants.js';
 
 import {
@@ -76,7 +74,8 @@ import {
 	CardLike,
 	DottedCardUpdate,
 	FirestoreLeafValue,
-	autoTODOTypeArray
+	autoTODOTypeArray,
+	cardFieldTypeEditableSchema
 } from './types.js';
 
 import {
@@ -143,7 +142,7 @@ export const generateCardDiff = (underlyingCardIn : Card, updatedCardIn : Card, 
 
 	const update : CardDiff = {};
 
-	for (const field of TypedObject.keys(TEXT_FIELD_TYPES_EDITABLE)) {
+	for (const field of cardFieldTypeEditableSchema.options) {
 		if (updatedCard[field] == underlyingCard[field]) continue;
 		const config = TEXT_FIELD_CONFIGURATION[field];
 		if (config.readOnly) continue;
@@ -156,7 +155,7 @@ export const generateCardDiff = (underlyingCardIn : Card, updatedCardIn : Card, 
 			}
 		}
 		update[field] = value;
-		if (field !== TEXT_FIELD_BODY) continue;
+		if (field !== 'body') continue;
 		const linkInfo = extractCardLinksFromBody(value);
 		references(updatedCard).setLinks(linkInfo);
 	}
@@ -293,7 +292,7 @@ export const applyCardDiff = (underlyingCard : Card, diff : CardDiff) : CardUpda
 
 	const cardUpdateObject : CardUpdate = {};
 
-	for (const field of TypedObject.keys(TEXT_FIELD_TYPES_EDITABLE)) {
+	for (const field of cardFieldTypeEditableSchema.options) {
 		if (diff[field] === undefined) continue;
 		cardUpdateObject[field] = diff[field];
 	}

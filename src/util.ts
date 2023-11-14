@@ -12,7 +12,8 @@ import {
 	CardType,
 	ReferencesInfoMap,
 	TweetInfo,
-	ReferenceType
+	ReferenceType,
+	CardFieldTypeEditable
 } from './types.js';
 
 import {
@@ -25,11 +26,6 @@ import {
 	getCardTitleForBackporting,
 	TEXT_FIELD_CONFIGURATION
 } from './card_fields.js';
-
-import {
-	TEXT_FIELD_BODY,
-	TEXT_FIELD_TITLE,
-} from './type_constants.js';
 
 import {
 	references
@@ -182,8 +178,8 @@ export const cardHasContent = (card : Card) => {
 	const cardTypeConfig = CARD_TYPE_CONFIGURATION[card.card_type];
 	//If it just uses the default content for that card type then it's as though
 	//it doesn't have content at all.
-	if (cardTypeConfig && cardTypeConfig.defaultBody == card[TEXT_FIELD_BODY]) return false;
-	const content = card[TEXT_FIELD_BODY] ? card[TEXT_FIELD_BODY].trim() : '';
+	if (cardTypeConfig && cardTypeConfig.defaultBody == card.body) return false;
+	const content = card.body ? card.body.trim() : '';
 	return content ? true : false;
 };
 
@@ -193,7 +189,7 @@ export const cardHasSubstantiveContent = (card : ProcessedCard) => {
 	//We treat all non-content cards as having content, since the main reason to
 	//count a card has not having content is if there's nothing to see on it.
 	if (card.card_type != 'content') return true;
-	const content = card.nlp && card.nlp[TEXT_FIELD_BODY] ? card.nlp[TEXT_FIELD_BODY].map(run => run.stemmed).join(' ') : '';
+	const content = card.nlp && card.nlp.body ? card.nlp.body.map(run => run.stemmed).join(' ') : '';
 	return content.length > SUBSTANTIVE_CONTENT_THRESHOLD;
 };
 
@@ -228,7 +224,7 @@ export const cardPlainContent = (card : Card) : string => {
 	const cardType = card.card_type;
 	if (!BODY_CARD_TYPES[cardType]) return '';
 	const result : string[] = [];
-	const fieldsInOrder = [TEXT_FIELD_TITLE, TEXT_FIELD_BODY] as const;
+	const fieldsInOrder : CardFieldTypeEditable[] = ['title', 'body'];
 	for (const field of fieldsInOrder) {
 		//Skip derived fields
 		if (DERIVED_FIELDS_FOR_CARD_TYPE[cardType][field]) continue;

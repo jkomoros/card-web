@@ -8,8 +8,6 @@ import {
 } from 'firebase/firestore';
 
 import {
-	TEXT_FIELD_TYPES,
-	TEXT_FIELD_TYPES_EDITABLE,
 	FIND_CARD_TO_LINK,
 	FIND_CARD_TO_PERMISSION,
 	FIND_CARD_TO_REFERENCE,
@@ -46,9 +44,34 @@ type CardPermissions = {
 	[name in CardPermissionType]+?: Uid[]
 }
 
-export type CardFieldTypeEditable = keyof(typeof TEXT_FIELD_TYPES_EDITABLE)
+//CardFieldType and EditableCardFieldType is driven off of these keys. Note the
+//membership in each object need to be consistent with
+//TEXT_fIELD_CONIGURATION.readOnly
 
-export type CardFieldType = keyof(typeof TEXT_FIELD_TYPES);
+export const cardFieldTypeEditableSchema = z.enum([
+	'body',
+	'title',
+	'subtitle',
+	//Also duplicated in card-renderer styles
+	'title_alternates'
+]);
+
+const cardFieldTypeNonEditableSchema = z.enum([
+	'references_info_inbound',
+	'non_link_references',
+	'concept_references'
+]);
+
+export type CardFieldTypeEditable = z.infer<typeof cardFieldTypeEditableSchema>;
+
+export type CardFieldTypeNonEditable = z.infer<typeof cardFieldTypeNonEditableSchema>;
+
+const cardFieldTypeSchema = z.union([
+	cardFieldTypeEditableSchema,
+	cardFieldTypeNonEditableSchema
+]);
+
+export type CardFieldType = z.infer<typeof cardFieldTypeSchema>;
 
 export const dateRangeType = z.enum([
 	'before',
@@ -620,11 +643,11 @@ type CardFieldTypeConfiguration = {
 };
 
 export type CardFieldTypeConfigurationMap = {
-	[typ in CardFieldType]+?: CardFieldTypeConfiguration
+	[typ in CardFieldType]: CardFieldTypeConfiguration
 }
 
 export type CardFieldTypeEditableConfigurationMap = {
-	[typ in CardFieldTypeEditable]+?: CardFieldTypeConfiguration
+	[typ in CardFieldTypeEditable]: CardFieldTypeConfiguration
 }
 
 export type CSSColorString = string;
@@ -1404,5 +1427,6 @@ export type State = {
 export const setName = (input : SetName) => setNameSchema.parse(input);
 export const cardType = (input : CardType) => cardTypeSchema.parse(input);
 export const referenceType = (input : ReferenceType) => referenceTypeSchema.parse(input);
+export const cardFieldType = (input : CardFieldType) => cardFieldTypeSchema.parse(input);
 export const editorTab = (input : EditorTab) => editorTabSchema.parse(input);
 export const editorContentTab = (input : EditorContentTab) => editorContentTabSchema.parse(input);

@@ -29,10 +29,7 @@ import {
 } from '../../src/card_fields.js';
 
 import {
-	TEXT_FIELD_TITLE,
-} from '../../src/type_constants.js';
-
-import {
+	cardFieldType,
 	cardType,
 	referenceType
 } from '../../src/types.js';
@@ -43,6 +40,8 @@ const REFERENCE_TYPE_LINK = referenceType('link');
 
 const CARD_TYPE_WORKING_NOTES = cardType('working-notes');
 const CARD_TYPE_CONTENT = cardType('content');
+
+const TEXT_FIELD_TITLE = cardFieldType('title');
 
 import assert from 'assert';
 
