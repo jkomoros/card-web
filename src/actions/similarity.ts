@@ -102,7 +102,8 @@ const fetchSimilarCards = (cardID : CardID, lastUpdated?: MillisecondsSinceEpoch
 
 		if (result.code == 'stale-embedding') {
 			//This error happens when there might be a new one coming
-			const timeSinceUpdated = Date.now() - lastUpdated;
+			//lastUpdated if not provided is safe to pretend it was in like 1970.
+			const timeSinceUpdated = Date.now() - (lastUpdated || 0);
 			if (timeSinceUpdated < TIME_TO_WAIT_FOR_STALE) {
 				//Wait a bit and try again
 				console.log(`The card was stale, but it was last updated recently enough that we'll wait ${DELAY_FOR_STALE} ms and try again`);
