@@ -730,20 +730,26 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 
 		let preview = false;
 
-		//TODO: figure out a way to support multiple key cards
-		for (const cardID of cardIDsToUse) {
-			if (cardSimilarity[cardID]) {
-				if (Object.keys(cardSimilarity[cardID]).length) {
-					//TODO: merge in fingerprint cards for the ones not in top amount
-					return {map: new Map(Object.entries(cardSimilarity[cardID])), preview: false};
+		//If there's an editing card, skip trying the embedding based similarity (for now).
+		//When you create a card, the embedding is very likely a '' embedding anyway, so actively bad results.
+		//Falling back on normal tfidf pipeline works great. 
+		//In the future, we'll be constantly updating the card based on recent edits.
+		if (!editingCard) {
+			//TODO: figure out a way to support multiple key cards
+			for (const cardID of cardIDsToUse) {
+				if (cardSimilarity[cardID]) {
+					if (Object.keys(cardSimilarity[cardID]).length) {
+						//TODO: merge in fingerprint cards for the ones not in top amount
+						return {map: new Map(Object.entries(cardSimilarity[cardID])), preview: false};
+					}
+					//If there are no keys, that's how the backend signals that it's a final error.
+				} else {
+					//Kick off a request for similarities we don't currently have, so
+					//we'll have them next time. We'll get called again once it's fetched.
+					//fetchSimilarCardsIfEnabled will tell us if we should expect values in the future.
+					//We want it to be a preview if any of the cards is positive.
+					preview = preview || fetchSimilarCardsIfEnabled(cardID);
 				}
-				//If there are no keys, that's how the backend signals that it's a final error.
-			} else {
-				//Kick off a request for similarities we don't currently have, so
-				//we'll have them next time. We'll get called again once it's fetched.
-				//fetchSimilarCardsIfEnabled will tell us if we should expect values in the future.
-				//We want it to be a preview if any of the cards is positive.
-				preview = preview || fetchSimilarCardsIfEnabled(cardID);
 			}
 		}
 
