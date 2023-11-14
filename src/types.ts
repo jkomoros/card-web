@@ -71,7 +71,7 @@ export type CreateCardOpts = {
 }
 
 //duplicated in functions/src/type.ts
-export const cardType = z.enum([
+const cardTypeSchema = z.enum([
 	'content',
 	'section-head',
 	'working-notes',
@@ -80,7 +80,7 @@ export const cardType = z.enum([
 	'person'
 ]);
 
-export type CardType = z.infer<typeof cardType>;
+export type CardType = z.infer<typeof cardTypeSchema>;
 
 type CSSPartString = string;
 
@@ -1402,6 +1402,7 @@ export type State = {
 //will be used in a generic string context and want type-checking to verify it
 //is part of the enum.
 export const setName = (input : SetName) => setNameSchema.parse(input);
+export const cardType = (input : CardType) => cardTypeSchema.parse(input);
 export const referenceType = (input : ReferenceType) => referenceTypeSchema.parse(input);
 export const editorTab = (input : EditorTab) => editorTabSchema.parse(input);
 export const editorContentTab = (input : EditorContentTab) => editorContentTabSchema.parse(input);
