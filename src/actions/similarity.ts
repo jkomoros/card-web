@@ -64,7 +64,7 @@ type CardSimilarityItem = [CardID, number];
 //Replicated in `functions/src/types.ts`
 type SimilarCardsResponseData = {
 	success: false,
-	code: 'qdrant-disabled' | 'no-embedding' | 'stale-embedding' | 'unknown'
+	code: 'qdrant-disabled' | 'insufficient-permissions' | 'no-embedding' | 'stale-embedding' | 'unknown'
 	error: string
 } | {
 	success: true

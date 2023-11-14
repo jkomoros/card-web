@@ -479,7 +479,15 @@ export const similarCards = async (request : CallableRequest<SimilarCardsRequest
 
 	if (data.card) {
 		//We will hit the openai endpoint, so verify we're allowed.
-		await throwIfUserMayNotUseAI(request);
+		try {
+			await throwIfUserMayNotUseAI(request);
+		} catch(err) {
+			return {
+				success: false,
+				code: 'insufficient-permissions',
+				error: String(err)
+			};
+		}
 
 		if (data.card.id != data.card_id) throw new Error(`Card.id was ${data.card.id} which did not match card_id: ${data.card_id}`);
 
