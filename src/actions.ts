@@ -148,6 +148,7 @@ export const EDITING_OPEN_IMAGE_BROWSER_DIALOG = 'EDITING_OPEN_IMAGE_BROWSER_DIA
 export const EDITING_CLOSE_IMAGE_BROWSER_DIALOG = 'EDITING_CLOSE_IMAGE_BROWSER_DIALOG';
 export const EDITING_UPDATE_UNDERLYING_CARD = 'EDITING_UPDATE_UNDERLYING_CARD';
 export const EDITING_MERGE_OVERSHADOWED_CHANGES = 'EDITING_MERGE_OVERSHADOWED_CHANGES';
+export const EDITING_UPDATE_SIMILAR_CARDS = 'EDITING_UPDATE_SIMILAR_CARDS';
 //Find
 export const FIND_DIALOG_OPEN = OPEN;
 export const FIND_DIALOG_CLOSE ='FIND_DIALOG_CLOSE';
@@ -658,6 +659,11 @@ type ActionEditingMergeOvershadowedChanges = {
 	diff: CardDiff
 };
 
+type ActionEditingUpdateSimilarCards = {
+	type: typeof EDITING_UPDATE_SIMILAR_CARDS,
+	similarity: SortExtra
+};
+
 type ActionFindDialogOpen = {
 	type: typeof FIND_DIALOG_OPEN,
 	query: string,
@@ -923,6 +929,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionEditingCloseImageBrowserDialog
 	| ActionEditingUpdateUnderlyingCard
 	| ActionEditingMergeOvershadowedChanges
+	| ActionEditingUpdateSimilarCards
 	| ActionFindDialogOpen
 	| ActionFindDialogClose
 	| ActionFindUpdateQuery

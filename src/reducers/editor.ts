@@ -38,6 +38,7 @@ import {
 	EDITING_CLOSE_IMAGE_BROWSER_DIALOG,
 	EDITING_UPDATE_UNDERLYING_CARD,
 	EDITING_MERGE_OVERSHADOWED_CHANGES,
+	EDITING_UPDATE_SIMILAR_CARDS,
 	SomeAction,
 } from '../actions.js';
 
@@ -409,6 +410,11 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 			card: applyCardFirebaseUpdate(state.card, applyCardDiff(state.card, action.diff)),
 			//The state could have changed e.g. references or body.
 			cardExtractionVersion: state.cardExtractionVersion + 1,
+		};
+	case EDITING_UPDATE_SIMILAR_CARDS:
+		return {
+			...state,
+			editingCardSimilarity: action.similarity
 		};
 	default:
 		return state;
