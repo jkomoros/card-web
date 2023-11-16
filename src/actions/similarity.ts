@@ -71,6 +71,18 @@ type SimilarCardsResponseData = {
 	cards: CardSimilarityItem[]
 };
 
+//Extracts only the properties necessary for EmbeddableCard, which for example
+//is useful when transmitting to similarCards endpoint.
+export const pickEmbeddableCard = (card : Card) : EmbeddableCard => {
+	return {
+		id: card.id,
+		body: card.body,
+		title: card.title,
+		card_type: card.card_type,
+		created: card.created
+	};
+};
+
 const similarCardsCallable = httpsCallable<SimilarCardsRequestData, SimilarCardsResponseData>(functions, 'similarCards');
 
 const similarCards = async (cardID : CardID, lastUpdated? : MillisecondsSinceEpoch) : Promise<SimilarCardsResponseData> => {
