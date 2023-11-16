@@ -1060,7 +1060,8 @@ export type FilterExtras = {
 	editingCard : ProcessedCard | null,
 	userID : Uid,
 	randomSalt: string,
-	cardSimilarity: CardSimilarityMap
+	cardSimilarity: CardSimilarityMap,
+	editingCardSimilarity: SortExtra | null
 };
 
 export type CardBooleanMap = {
@@ -1092,7 +1093,8 @@ export interface CollectionConstructorArguments {
 	cardsSnapshot? : ProcessedCards,
 	filtersSnapshot? : Filters,
 	editingCard? : ProcessedCard,
-	cardSimilarity? : CardSimilarityMap
+	cardSimilarity? : CardSimilarityMap,
+	editingCardSimilarity? : SortExtra
 }
 
 export interface BadgeMap {
