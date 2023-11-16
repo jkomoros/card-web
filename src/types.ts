@@ -1057,7 +1057,7 @@ export type FilterExtras = {
 	filterSetMemberships : Filters,
 	cards : ProcessedCards,
 	keyCardID : CardID,
-	editingCard : ProcessedCard,
+	editingCard : ProcessedCard | null,
 	userID : Uid,
 	randomSalt: string,
 	cardSimilarity: CardSimilarityMap
