@@ -1262,7 +1262,7 @@ export type DataState = {
 	pendingNewCardIDToNavigateTo: CardID,
 	//When we're doing card similarity based on embedings, we have to reach out
 	//to a cloud function. This is where we store that information.
-	cardSimilarity: CardSimilarityMap;
+	cardSimilarity: CardSimilarityMap
 }
 
 export type EditorState = {
@@ -1294,6 +1294,8 @@ export type EditorState = {
 	imageBrowserDialogOpen: boolean,
 	//Undefined communicates 'add to end'
 	imageBrowserDialogIndex?: number,
+	//The same as data.cardSimilarity, but for the editing card
+	editingCardSimilarity: SortExtra
 }
 
 export type FindState = {

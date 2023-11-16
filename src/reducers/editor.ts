@@ -100,6 +100,7 @@ const INITIAL_STATE : EditorState = {
 	imagePropertiesDialogIndex: 0,
 	imageBrowserDialogOpen: false,
 	imageBrowserDialogIndex: undefined,
+	editingCardSimilarity: {}
 };
 
 const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorState => {
@@ -117,6 +118,8 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 			updatedFromContentEditable: {},
 			selectedTab: DEFAULT_TAB,
 			selectedEditorTab: DEFAULT_EDITOR_TAB,
+			//Throw out any editing card similarity
+			editingCardSimilarity: {}
 		};
 	case EDITING_FINISH:
 		return {
@@ -129,6 +132,7 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 			cardExtractionVersion: -1,
 			substantive:false,
 			updatedFromContentEditable: {},
+			editingCardSimilarity: {}
 		};
 	case EDITING_EDITOR_MINIMIZED:
 		return {
