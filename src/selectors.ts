@@ -152,7 +152,8 @@ import {
 	AIModelName,
 	SetName,
 	ViewMode,
-	ReferenceType
+	ReferenceType,
+	SortExtra
 } from './types.js';
 
 import {
@@ -252,7 +253,7 @@ export const selectPermissionsPendingPermissionType = (state : State) => state.p
 const selectTweets = (state : State) => state.data ? state.data.tweets : {};
 export const selectTweetsLoading = (state : State) => state.data ? state.data.tweetsLoading : false;
 export const selectCardSimilarity = (state : State) => state.data ? state.data.cardSimilarity : {};
-export const selectEditingCardSimilarity = (state : State) => state.editor ? state.editor.editingCardSimilarity : {};
+export const selectEditingCardSimilarity = (state : State) : SortExtra | undefined => state.editor ? state.editor.editingCardSimilarity : undefined;
 export const selectActivePreviewCardId = (state : State) => state.app ? state.app.hoverCardId : '';
 export const selectPreviewCardX = (state : State) => state.app ? state.app.hoverX : 0;
 export const selectPreviewCardY = (state : State) => state.app ? state.app.hoverY : 0;

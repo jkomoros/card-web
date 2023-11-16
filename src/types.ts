@@ -1294,8 +1294,9 @@ export type EditorState = {
 	imageBrowserDialogOpen: boolean,
 	//Undefined communicates 'add to end'
 	imageBrowserDialogIndex?: number,
-	//The same as data.cardSimilarity, but for the editing card
-	editingCardSimilarity: SortExtra
+	//The same as data.cardSimilarity, but for the editing card. If undefined,
+	//then it's not up ot date for the current card.
+	editingCardSimilarity?: SortExtra
 }
 
 export type FindState = {
