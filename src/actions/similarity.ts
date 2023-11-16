@@ -6,6 +6,7 @@ import {
 } from 'firebase/functions';
 
 import {
+	EDITING_UPDATE_SIMILAR_CARDS,
 	UPDATE_CARD_SIMILARITY
 } from '../actions.js';
 
@@ -73,7 +74,7 @@ type SimilarCardsResponseData = {
 
 //Extracts only the properties necessary for EmbeddableCard, which for example
 //is useful when transmitting to similarCards endpoint.
-export const pickEmbeddableCard = (card : Card) : EmbeddableCard => {
+const pickEmbeddableCard = (card : Card) : EmbeddableCard => {
 	return {
 		id: card.id,
 		body: card.body,
@@ -98,6 +99,23 @@ const similarCards = async (cardID : CardID, lastUpdated? : MillisecondsSinceEpo
 		card_id: cardID
 	};
 	if (lastUpdated) request.last_updated = lastUpdated;
+	const result = await similarCardsCallable(request);
+	return result.data;
+};
+
+const similarCardsForRawCard = async (card : EmbeddableCard) : Promise<SimilarCardsResponseData> => {
+	if (!QDRANT_ENABLED) {
+		return {
+			success: false,
+			code: 'qdrant-disabled',
+			error: 'Qdrant isn\'t enabled'
+		};
+	}
+
+	const request : SimilarCardsRequestData = {
+		card_id: card.id,
+		card: card
+	};
 	const result = await similarCardsCallable(request);
 	return result.data;
 };
@@ -158,5 +176,36 @@ export const fetchSimilarCardsIfEnabled = (cardID : CardID) : boolean => {
 	if (!card) throw new Error(`Couldn't find card ${cardID}`);
 	//This will return immediately.
 	store.dispatch(fetchSimilarCards(cardID, card?.updated?.toMillis()));
+	return true;
+};
+
+const fetchSimilarCardsToCardContent = (card : Card) : ThunkSomeAction => async (dispatch) => {
+	const embeddableCard = pickEmbeddableCard(card);
+
+	const result = await similarCardsForRawCard(embeddableCard);
+
+	if (result.success == false) {
+		console.warn(`similarCards failed: ${result.code}: ${result.error}`);
+		dispatch({
+			type: EDITING_UPDATE_SIMILAR_CARDS,
+			//Signal that it failed but still did get a response, so the results are now final.
+			similarity: {}
+		});
+		return;
+	}
+
+	dispatch({
+		type: EDITING_UPDATE_SIMILAR_CARDS,
+		similarity: Object.fromEntries(result.cards)
+	});
+
+};
+
+//Returns true if you should expect an UPDATE_CARD_SIMLIARITY for that cardID in the future, and false if not.
+export const fetchSimilarCardsForCardIfEnabled = (card : Card) : boolean => {
+	if (!QDRANT_ENABLED) return false;
+
+	//This will return immediately.
+	store.dispatch(fetchSimilarCardsToCardContent(card));
 	return true;
 };
