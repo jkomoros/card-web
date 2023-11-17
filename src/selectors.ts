@@ -432,7 +432,7 @@ export const selectUser = (state : State) => {
 
 export const selectUserIsAnonymous = createSelector(
 	selectUser,
-	(user) => userObjectExists(user) && user.isAnonymous
+	(user) => user && userObjectExists(user) && user.isAnonymous
 );
 
 //UserSignedIn means that there is a user object, and that user is not
@@ -441,18 +441,18 @@ export const selectUserIsAnonymous = createSelector(
 //user is signed in anonymously.
 export const selectUserSignedIn = createSelector(
 	selectUser,
-	(user) => userSignedIn(user)
+	(user) => user && userSignedIn(user)
 );
 
 const selectUserSignedInDomain = createSelector(
 	selectUserSignedIn,
 	selectUser,
-	(signedIn, user) => signedIn && user.email && user.email.toLowerCase().split('@')[1] == USER_DOMAIN
+	(signedIn, user) => signedIn && user && user.email && user.email.toLowerCase().split('@')[1] == USER_DOMAIN
 );
 
 export const selectUserObjectExists = createSelector(
 	selectUser,
-	(user) => userObjectExists(user)
+	(user) => user && userObjectExists(user)
 );
 
 const selectUserTypePermissions = createSelector(
@@ -689,13 +689,13 @@ export const selectUserMayModifyReadingList = createSelector(
 
 export const selectAuthorsForTagList = createSelector(
 	selectAuthors,
-	(authors) => Object.fromEntries(Object.entries(authors).map(entry => [entry[0], {id:entry[0], title:entry[1].displayName || entry[0]}]))
+	(authors) => authors ? Object.fromEntries(Object.entries(authors).map(entry => [entry[0], {id:entry[0], title:entry[1].displayName || entry[0]}])) : {}
 );
 
 export const selectCollaboratorInfosForActiveCard = createSelector(
 	selectActiveCard,
 	selectAuthors,
-	(card, authors) => card ? card.collaborators.map((uid : Uid) => authors[uid]) : []
+	(card, authors) => card ? card.collaborators.map((uid : Uid) => (authors || {})[uid]) : []
 );
 
 //A map of uid -> permissionKey -> [cardID], for any uid that is listed in any card's permissions object.
