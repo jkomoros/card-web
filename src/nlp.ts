@@ -1399,10 +1399,10 @@ const SEMANTIC_FINGERPRINT_MATCH_CONSTANT = 1.0;
 export class Fingerprint {
 
 	_cards : ProcessedCard[];
-	_generator : FingerprintGenerator;
+	_generator : FingerprintGenerator | undefined;
 	_items : Map<string, number>;
-	_memoizedWordCloud : WordCloud;
-	_memoizedFullWordCloud : WordCloud;
+	_memoizedWordCloud : WordCloud | null;
+	_memoizedFullWordCloud : WordCloud | null;
 
 	constructor(items? : Map<string, number>, cardOrCards? : ProcessedCard | ProcessedCard[], generator? : FingerprintGenerator) {
 		this._cards = Array.isArray(cardOrCards) ? cardOrCards : (cardOrCards ? [cardOrCards] : []);
