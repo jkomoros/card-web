@@ -88,6 +88,7 @@ export const stemmer = (function(){
 		re2 = /^(.+?)(ed|ing)$/;
 		if (re.test(w)) {
 			var fp = re.exec(w);
+			if (!fp) throw new Error('null');
 			re = new RegExp(mgr0);
 			if (re.test(fp[1])) {
 				re = /.$/;
@@ -95,6 +96,7 @@ export const stemmer = (function(){
 			}
 		} else if (re2.test(w)) {
 			var fp = re2.exec(w);
+			if (!fp) throw new Error('null');
 			stem = fp[1];
 			re2 = new RegExp(s_v);
 			if (re2.test(stem)) {
@@ -112,6 +114,7 @@ export const stemmer = (function(){
 		re = /^(.+?)y$/;
 		if (re.test(w)) {
 			var fp = re.exec(w);
+			if (!fp) throw new Error('null');
 			stem = fp[1];
 			re = new RegExp(s_v);
 			if (re.test(stem)) { w = stem + "i"; }
@@ -121,6 +124,7 @@ export const stemmer = (function(){
 		re = /^(.+?)(ational|tional|enci|anci|izer|bli|alli|entli|eli|ousli|ization|ation|ator|alism|iveness|fulness|ousness|aliti|iviti|biliti|logi)$/;
 		if (re.test(w)) {
 			var fp = re.exec(w);
+			if (!fp) throw new Error('null');
 			stem = fp[1];
 			suffix = fp[2];
 			re = new RegExp(mgr0);
@@ -133,6 +137,7 @@ export const stemmer = (function(){
 		re = /^(.+?)(icate|ative|alize|iciti|ical|ful|ness)$/;
 		if (re.test(w)) {
 			var fp = re.exec(w);
+			if (!fp) throw new Error('null');
 			stem = fp[1];
 			suffix = fp[2];
 			re = new RegExp(mgr0);
@@ -146,6 +151,7 @@ export const stemmer = (function(){
 		re2 = /^(.+?)(s|t)(ion)$/;
 		if (re.test(w)) {
 			var fp = re.exec(w);
+			if (!fp) throw new Error('null');
 			stem = fp[1];
 			re = new RegExp(mgr1);
 			if (re.test(stem)) {
@@ -153,6 +159,7 @@ export const stemmer = (function(){
 			}
 		} else if (re2.test(w)) {
 			var fp = re2.exec(w);
+			if (!fp) throw new Error('null');
 			stem = fp[1] + fp[2];
 			re2 = new RegExp(mgr1);
 			if (re2.test(stem)) {
@@ -164,6 +171,7 @@ export const stemmer = (function(){
 		re = /^(.+?)e$/;
 		if (re.test(w)) {
 			var fp = re.exec(w);
+			if (!fp) throw new Error('null');
 			stem = fp[1];
 			re = new RegExp(mgr1);
 			re2 = new RegExp(meq1);
