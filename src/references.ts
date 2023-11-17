@@ -427,7 +427,7 @@ class ReferencesAccessor {
 	//where any outbound references we have that had an empty text value will be
 	//set to the given value in fallbackText, if it exists. fallbackMap is a map
 	//of CardID to (ReferenceType -> string)
-	withFallbackText(fallbackMap : ReferencesInfoMap) : ReferencesAccessor {
+	withFallbackText(fallbackMap? : ReferencesInfoMap) : ReferencesAccessor {
 		if (!fallbackMap) fallbackMap = {};
 		//First, effectively clone the references object we're based on, by
 		//creating a fake card (which won't ever be accesible)
