@@ -294,12 +294,12 @@ export const selectNextMaintenanceTaskName = createSelector(
 //suitable to being passed to references.withFallbackText. The only items that
 //will be created are for refrence types that opt into backporting via
 //backportMissingText, and where the card has some text that needs to be filled.
-const selectBackportTextFallbackMapCollection : (state : State) => ReferencesInfoMap = createObjectSelector(
+const selectBackportTextFallbackMapCollection = createObjectSelector(
 	selectRawCards,
 	selectRawCards,
 	//Because this is a createObjectSelector, this will be called once per card
 	//in selectRawCards.
-	(card : Card, cards : Cards) : ReferencesInfoMap => backportFallbackTextMapForCard(card, cards)
+	(card : Card, cards : Cards) : ReferencesInfoMap | null => backportFallbackTextMapForCard(card, cards)
 );
 
 const selectRawConceptCards = createSelector(
