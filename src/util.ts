@@ -428,7 +428,8 @@ export const extractCardLinksFromBody = (body : string) : {[name : CardID] : str
 	return result;
 };
 
-export function arrayRemoveUtil<T>(arr : T[], items : T[]) : T[] {
+export function arrayRemoveUtil<T>(arr : T[] | undefined, items : T[]) : T[] {
+	if (!arr) arr = [];
 	if (!items) {
 		console.warn('arrayRemoveUtil called without a second argument, which means you probably wanted arrayRemoveSentinel');
 	}
@@ -444,7 +445,8 @@ export function arrayRemoveUtil<T>(arr : T[], items : T[]) : T[] {
 	return result;
 }
 
-export function arrayUnionUtil<T>(arr : T[], items : T[]) : T[]{
+export function arrayUnionUtil<T>(arr : T[] | undefined, items : T[]) : T[]{
+	if (!arr) arr = [];
 	if (!items) {
 		console.warn('arrayUnionUtil called without a second argument, which means you probably wanted arrayUnionSentinel');
 	}

@@ -337,16 +337,28 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 			pendingReferenceType: 'ack',
 		};
 	case EDITING_ADD_IMAGE_URL:
+		if (!state.card) {
+			console.warn('No card');
+			return state;
+		}
 		return {
 			...state,
 			card: {...state.card, images: addImageWithURL(state.card.images, action.src, action.uploadPath, action.index)}
 		};
 	case EDITING_REMOVE_IMAGE_AT_INDEX:
+		if (!state.card) {
+			console.warn('No card');
+			return state;
+		}
 		return {
 			...state,
 			card: {...state.card, images: removeImageAtIndex(state.card.images, action.index)},
 		};
 	case EDITING_MOVE_IMAGE_AT_INDEX:
+		if (!state.card) {
+			console.warn('No card');
+			return state;
+		}
 		//If we were looking at that item (which is the common case), also
 		//modify which element is open
 		let newIndex = state.imagePropertiesDialogIndex;
@@ -359,6 +371,10 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 			card: {...state.card, images: moveImageAtIndex(state.card.images, action.index, action.isRight)},
 		};
 	case EDITING_CHANGE_IMAGE_PROPERTY:
+		if (!state.card) {
+			console.warn('No card');
+			return state;
+		}
 		return {
 			...state,
 			//TODO: get rid of this cast to trick typescript into allowing a changeImagePropertyAtIndex with unknown types.
