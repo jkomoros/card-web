@@ -661,7 +661,7 @@ const normalizedCount : {[id : CardID] : number } = {};
 //      normalized: the extracted text runs for that field, with all words normalized. Note that some logical runs from the original text field may already have been filtered by this step. punctuation between words will be removed, everything will be lower case.
 //		stemmed: the normalized values, but also each word will have been stemmed. Each word will still line up with each word in normalized (stemming never removes words)
 //		withoutStopWords: the stemmed values, but also with stop words removed. The number of words in this field set will likely be smaller than the two above.
-export const cardWithNormalizedTextProperties = memoizeFirstArg((card : Card, fallbackText : ReferencesInfoMap, importantNgrams : StringCardMap, synonyms : SynonymMap) : ProcessedCard => {
+export const cardWithNormalizedTextProperties = memoizeFirstArg((card : Card, fallbackText : ReferencesInfoMap, importantNgrams : StringCardMap, synonyms : SynonymMap) : ProcessedCard | undefined | null => {
 	if (!card) return card === undefined ? undefined : null;
 	if (DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES) {
 		normalizedCount[card.id] = (normalizedCount[card.id] || 0) + 1;
@@ -783,7 +783,7 @@ const rewriteQueryFilters = (query : string) : string => {
 };
 
 const textSubQueryForWords = (words : string) : PreparedQueryConfiguration => {
-	return Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).map(entry => [entry[0], textPropertySubQueryForWords(words, entry[1].matchWeight)]));
+	return Object.fromEntries(Object.entries(TEXT_FIELD_CONFIGURATION).map(entry => [entry[0], textPropertySubQueryForWords(words, entry[1].matchWeight || 0)]));
 };
 
 const textPropertySubQueryForWords = (joinedWords : string, startValue : number) : PreparedQueryConfigurationLeaf[] => {
@@ -1197,7 +1197,7 @@ export const possibleMissingConcepts = (cards : ProcessedCards) : Fingerprint =>
 	//concept ngrams, but add items as we add more things to finalNgrams.
 	const excludeNgrams = Object.keys(existingConcepts);
 	for (const ngram of sortedNgramBundleKeys) {
-		let knockedOut : missingConceptsKnockedOutBundle = null;
+		let knockedOut : missingConceptsKnockedOutBundle | null = null;
 		//Skip ngrams that are full supersets or subsets of ones that have already been selected, or ones that are just permutations of an ngram that was already selected
 		for (const includedNgram of excludeNgrams) {
 			if (ngramWithinOther(ngram, includedNgram)) {
