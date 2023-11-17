@@ -95,10 +95,10 @@ class ReferencesAccessor {
 
 	private _cardObj : CardLike;
 	private _modified : boolean;
-	private _memoizedByType : ReferencesInfoMapByType;
-	private _memoizedByTypeInbound : ReferencesInfoMapByType;
-	private _memoizedByTypeSubstantive : ReferencesInfoMapByType;
-	private _memoizedByTypeInboundSubstantive : ReferencesInfoMapByType;
+	private _memoizedByType : ReferencesInfoMapByType | null;
+	private _memoizedByTypeInbound : ReferencesInfoMapByType | null;
+	private _memoizedByTypeSubstantive : ReferencesInfoMapByType | null;
+	private _memoizedByTypeInboundSubstantive : ReferencesInfoMapByType | null;
 	private _referencesInfo : ReferencesInfoMap;
 	private _referencesInfoInbound : ReferencesInfoMap;
 
@@ -160,7 +160,9 @@ class ReferencesAccessor {
 	}
 
 	_cloneReferencesInfo() {
-		return cloneReferences(this._cardObj[REFERENCES_INFO_CARD_PROPERTY]);
+		const refs = this._cardObj.references_info;
+		if (!refs) throw new Error('no refs');
+		return cloneReferences(refs);
 	}
 
 	//ensureReferences ensures that the cardObj we're associated with has valid
