@@ -46,7 +46,8 @@ import {
 	StringCardMap,
 	ReferencesInfoMap,
 	FilterMap,
-	SortExtra
+	SortExtra,
+	cardFieldTypeEditableSchema
 } from './types.js';
 import { innerTextForHTML } from './util.js';
 
@@ -541,14 +542,14 @@ const extractRawContentRunsForCardField = (card : Card, fieldName : CardFieldTyp
 	const cardType = card.card_type;
 	const config = TEXT_FIELD_CONFIGURATION[fieldName];
 	if ((DERIVED_FIELDS_FOR_CARD_TYPE[cardType] || {})[fieldName]) return [];
-	const safeFieldName = fieldName as CardFieldTypeEditable;
+	const safeFieldName = cardFieldTypeEditableSchema.parse(fieldName);
 	let fieldValue = '';
 	if (config.overrideExtractor) {
 		const extractor = OVERRIDE_EXTRACTORS[safeFieldName];
 		if (!extractor) throw new Error(safeFieldName + ' had overrideExtractor set, but no entry in OVERRIDE_EXTRACTORS');
 		fieldValue = extractor(card);
 	} else {
-		fieldValue = extractFieldValueForIndexing(card[safeFieldName]);
+		fieldValue = extractFieldValueForIndexing(card[safeFieldName] || '');
 	}
 	if (!fieldValue) fieldValue = '';
 	//If the text is the defaultBody for that card type, just pretend
