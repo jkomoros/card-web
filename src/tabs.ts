@@ -85,8 +85,8 @@ const inflateCollectionsAndIcons = (config : TabConfig) : ExpandedTabConfig => {
 		const item = tabConfigItem(rawItem);
 		const itemToAdd : ExpandedTabConfigItem = {
 			...item,
-			expandedCollection:  (item.collection instanceof CollectionDescription) ? item.collection : (item.collection ? CollectionDescription.deserialize(item.collection as string) : null),
-			expandedIcon: (typeof item.icon != 'string') ? item.icon : icons[item.icon]
+			expandedCollection:  (item.collection instanceof CollectionDescription) ? item.collection : (item.collection ? CollectionDescription.deserialize(item.collection as string) : new CollectionDescription()),
+			expandedIcon: (typeof item.icon != 'string') ? (item.icon || icons.CANCEL_ICON) : (icons[item.icon] || icons.CANCEL_ICON)
 		};
 		if (item.icon && !itemToAdd.expandedIcon) console.warn('Invalid icon name: ' + item.icon);
 		result.push(itemToAdd);
