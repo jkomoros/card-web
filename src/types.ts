@@ -1275,14 +1275,14 @@ export type EditorState = {
 	//this is a map of field name to true if it was updated last from content
 	//editable, or false or missing if it wasn't.
 	updatedFromContentEditable: CardFieldMap,
-	card: Card,
+	card: Card | null,
 	//A direct reference to the card, as it was when editing started, in the
 	//cards array. Useful for detecting when the underlying card has changed.
-	underlyingCardSnapshot: Card,
+	underlyingCardSnapshot: Card | null,
 	//The very original card snapshot from when editing started. This allows us
 	//to figure out what edits have been merged in from other users while we're
 	//open for editing.
-	originalUnderlyingCardSnapshot: Card,
+	originalUnderlyingCardSnapshot: Card | null,
 	//This number should increment every time EDITING_EXTRACT_LINKS fires. The
 	//selector for selectEditingNormalizedCard will return the same result until this changes.
 	cardExtractionVersion: number,
