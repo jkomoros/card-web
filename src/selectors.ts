@@ -170,11 +170,11 @@ export const selectCardsDrawerInfoExpanded = (state : State) => state.app.cardsD
 export const selectConfigureCollectionDialogOpen = (state : State) => state.app ? state.app.configureCollectionDialogOpen : false;
 export const selectSuggestMissingConceptsEnabled = (state : State) => state.app.suggestMissingConceptsEnabled;
 
-export const selectComposeOpen = (state : State) => state.prompt.composeOpen;
-export const selectPromptContent = (state : State) => state.prompt.content;
-export const selectPromptMessage = (state : State) => state.prompt.message;
-export const selectPromptAction = (state : State) => state.prompt.action;
-export const selectPromptAssociatedId = (state : State) => state.prompt.associatedId;
+export const selectComposeOpen = (state : State) => state.prompt ? state.prompt.composeOpen : false;
+export const selectPromptContent = (state : State) => state.prompt ? state.prompt.content : '';
+export const selectPromptMessage = (state : State) => state.prompt ? state.prompt.message : '';
+export const selectPromptAction = (state : State) => state.prompt ? state.prompt.action : 'CONSOLE_LOG';
+export const selectPromptAssociatedId = (state : State) => state.prompt ? state.prompt.associatedId : '';
 
 export const selectIsEditing = (state : State) => state.editor && state.editor.editing;
 const selectFindDialogOpen = (state : State) => state.find && state.find.open;
@@ -210,7 +210,7 @@ const selectActiveSortName = (state : State) : SortName => state.collection ? st
 const selectActiveSortReversed = (state : State) => state.collection ? state.collection.activeSortReversed : false;
 const selectActiveViewMode = (state : State) : ViewMode => state.collection ? state.collection.activeViewMode : 'list';
 const selectActiveViewModeExtra = (state : State) => state.collection ? state.collection.activeViewModeExtra : '';
-export const selectRequestedCard = (state : State) => state.collection.requestedCard;
+export const selectRequestedCard = (state : State) => state.collection? state.collection.requestedCard : '';
 export const selectActiveCardId = (state : State) => state.collection ? state.collection.activeCardId : '';
 const selectRandomSalt = (state : State) => state.collection ? state.collection.randomSalt : '';
 //Note that the editing card doesn't have nlp/normalized text properties set. If
@@ -223,8 +223,8 @@ export const selectEditorMinimized = (state : State) => state.editor ? state.edi
 export const selectEditingUpdatedFromContentEditable = (state : State) => state.editor ? state.editor.updatedFromContentEditable : {};
 export const selectEditingPendingReferenceType = (state : State) : ReferenceType => state.editor ? state.editor.pendingReferenceType : 'ack';
 export const selectPendingSlug = (state : State) => state.editor ? state.editor.pendingSlug : '';
-export const selectFilters = (state : State) => state.collection.filters;
-const selectFiltersSnapshot = (state : State) => state.collection.filtersSnapshot;
+export const selectFilters = (state : State) => state.collection ? state.collection.filters : {};
+const selectFiltersSnapshot = (state : State) => state.collection ? state.collection.filtersSnapshot : {};
 export const selectSections = (state : State) => state.data ? state.data.sections : {};
 export const selectTags = (state : State) => state.data ? state.data.tags : {};
 export const selectExpectedDeletions = (state : State) => state.data ? state.data.expectedDeletions : {};
@@ -269,11 +269,11 @@ export const selectExecutedMaintenanceTasks = (state : State) => state.maintenan
 export const selectMaintenanceTaskActive = (state : State) => state.maintenance ? state.maintenance.taskActive : false;
 
 //selectQuery is what you should use to update the UI with the literal query
-export const selectQuery = (state : State) => state.find.query;
+export const selectQuery = (state : State) => state.find ? state.find.query : '';
 export const selectFindRenderOffset = (state : State) => state.find ? state.find.renderOffset : 0;
 //activeQuery is the query that should be routed into the query pipeline.
-const selectActiveQueryText = (state : State) => state.find.activeQuery;
-export const selectFindSortByRecent = (state : State) => state.find.sortByRecent;
+const selectActiveQueryText = (state : State) => state.find ? state.find.activeQuery : '';
+export const selectFindSortByRecent = (state : State) => state.find ? state.find.sortByRecent : false;
 export const selectFindCardTypeFilter = (state : State) => state.find ? state.find.cardTypeFilter : '';
 export const selectFindCardTypeFilterLocked = (state : State) => state.find ? state.find.cardTypeFilterLocked : false;
 
