@@ -262,6 +262,8 @@ export const reasonCardTypeNotLegalForCard = (card : Card, proposedCardType : Ca
 		}
 	}
 
+	if (!IMAGE_CARD_TYPES) throw new Error('No image card types');
+
 	if (getImagesFromCard(card).length > 0 && !IMAGE_CARD_TYPES[proposedCardType]) return 'The card has images but the new card type does not allow images';
 
 	return '';
@@ -272,7 +274,7 @@ export const reasonCardTypeNotLegalForCard = (card : Card, proposedCardType : Ca
 //opt into backporting via backportMissingText that don't have text will fetch
 //it from the title of the card they point to. Cards that don't have any
 //references that need backporting will return null.
-export const backportFallbackTextMapForCard = (card : Card, cards : Cards) : ReferencesInfoMap => {
+export const backportFallbackTextMapForCard = (card : Card, cards : Cards) : ReferencesInfoMap | null => {
 	//TODO: anotehr approach is to iterate through byTypeInbound, and contribute
 	//to one, shared, global fallbackMap. That would create fewer objects, but
 	//it would mean that every time the fallbackMap changed, every card would
@@ -870,7 +872,7 @@ export const getObjectPath = (obj : unknown, path : string[]) : unknown => {
 };
 
 //Returns a path within the given object to find an occurance of sentinel value.
-export const objectPathToValue = (obj : unknown, sentinel : unknown) : string[] => {
+export const objectPathToValue = (obj : unknown, sentinel : unknown) : string[] | undefined => {
 	if (!obj) return undefined;
 	if (typeof obj !== 'object') return undefined;
 	for (const [key, value] of Object.entries(obj)) {
