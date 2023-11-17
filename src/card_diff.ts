@@ -97,6 +97,7 @@ const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
 //any), false if the user has said to not proceed.
 export const confirmationsForCardDiff = (update :CardDiff, updatedCard : Card) => {
 	const CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[update.card_type || updatedCard.card_type];
+	if (!CARD_TYPE_CONFIG) throw new Error('No card config');
 	if (CARD_TYPE_CONFIG.publishedByDefault) {
 		if (!updatedCard.published) {
 			if (!window.confirm('This card is of a type that is typically always published, but it\'s not currently published. Do you want to continue?')) return false;
@@ -146,7 +147,7 @@ export const generateCardDiff = (underlyingCardIn : Card, updatedCardIn : Card, 
 		if (updatedCard[field] == underlyingCard[field]) continue;
 		const config = TEXT_FIELD_CONFIGURATION[field];
 		if (config.readOnly) continue;
-		let value = updatedCard[field];
+		let value = updatedCard[field] || '';
 		if (config.html && normalizeHTMLFields) {
 			try {
 				value = normalizeBodyHTML(value);
@@ -359,7 +360,7 @@ export const applyCardDiff = (underlyingCard : Card, diff : CardDiff) : CardUpda
 	}
 
 	if (diff.add_editors || diff.remove_editors) {
-		let editors = underlyingCard.permissions[PERMISSION_EDIT_CARD];
+		let editors = underlyingCard.permissions[PERMISSION_EDIT_CARD] || [];
 		if (diff.remove_editors) editors = arrayRemoveUtil(editors, diff.remove_editors);
 		if (diff.add_editors) {
 			editors = arrayUnionUtil(editors, diff.add_editors);
