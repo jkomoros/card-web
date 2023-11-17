@@ -39,6 +39,7 @@ import {
 import {
 	CallableRequest
 } from 'firebase-functions/v2/https';
+import { Timestamp } from 'firebase-admin/firestore';
 
 const DOM = new JSDOM();
 
@@ -148,6 +149,14 @@ const formatDate = (date :  Date) : string => {
 	return `${year}/${month}/${day}`;
 };
 
+//Gets the date when it might be a literal Timestamp or just an object with {seconds, nanoseconds}
+const toDate = (time : Timestamp) : Date => {
+	if ('toDate' in time && typeof time.toDate == 'function') return time.toDate();
+	if ('seconds' in time) return new Date(time.seconds * 1000);
+	console.warn(`No time, using now: ${time}`);
+	return new Date();
+};
+
 const textContentForEmbeddingForCard = (card : EmbeddableCard) : string => {
 	//Every time this function is updated, CURRENT_EMBEDDING_VERSION should be incremented.
 
@@ -160,7 +169,7 @@ const textContentForEmbeddingForCard = (card : EmbeddableCard) : string => {
 	const body = innerTextForHTML(card.body);
 	if (body) parts.push(body);
 	if (parts.length == 0) return '';
-	const created = card.created.toDate();
+	const created = toDate(card.created);
 	const suffix = '\n\n' + formatDate(created) + '\n' + card.card_type;
 	return parts.join('\n') + suffix;
 };
