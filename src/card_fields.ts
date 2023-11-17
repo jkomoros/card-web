@@ -81,7 +81,15 @@ export const EMPTY_PROCESSED_CARD : ProcessedCard = {
 	fallbackText: {},
 	importantNgrams: {},
 	synonymMap: {},
-	nlp: {}
+	nlp: {
+		body: [],
+		title: [],
+		subtitle: [],
+		title_alternates: [],
+		references_info_inbound: [],
+		non_link_references: [],
+		concept_references: []
+	}
 };
 
 /*

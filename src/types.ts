@@ -875,7 +875,7 @@ export interface ProcessedRunInterface {
 }
 
 type NLPInfo = {
-	[field in CardFieldType]+?: ProcessedRunInterface[]
+	[field in CardFieldType]: ProcessedRunInterface[]
 }
 
 export interface CardWithOptionalFallbackText extends Card {

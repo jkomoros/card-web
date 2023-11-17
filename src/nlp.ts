@@ -292,7 +292,7 @@ export const highlightConceptReferences = memoizeFirstArg((card : ProcessedCard,
 	if (!extraIDs) extraIDs = [];
 	const fieldConfig = TEXT_FIELD_CONFIGURATION[fieldName];
 	if (!fieldConfig) return '';
-	if (!fieldConfig.html) return card[fieldName];
+	if (!fieldConfig.html) return card[fieldName] || '';
 	const extraIDMap = Object.fromEntries(extraIDs.map(id => [id, true]));
 	const conceptCardReferences = Object.fromEntries(references(card).typeClassArray('concept').map(item => [item, true]));
 	const allConceptCardReferences = {...extraIDMap, ...conceptCardReferences};
@@ -325,7 +325,7 @@ const highlightHTMLForCard = (card : ProcessedCard, fieldName : CardFieldTypeEdi
 	//destemmed, not stop-word-removed) form, mapped to the concept they come
 	//from. We need to replace every occurance of them in the whole text, but
 	//there might be arbitrary whitespace or punctuation in between.
-	let result = card[fieldName];
+	let result = card[fieldName] || '';
 	for (const originalConceptStr of sortedOriginalConceptStrs) {
 		const cardID = originalConceptStrs[originalConceptStr];
 		result = highlightStringInHTML(result,originalConceptStr, cardID, alternateIDMap[cardID] || false);
@@ -337,10 +337,12 @@ const highlightHTMLForCard = (card : ProcessedCard, fieldName : CardFieldTypeEdi
 const highlightStringInHTML = (html : string, targetStr : string, cardID : CardID, isAlternate? : boolean) : string => {
 	//even though html, targetStr, and cardID aren't necessarily sanitized, it's
 	//OK as long as we never put the element into the DOM.
-	const ele = getDocument().createElement('section');
+	const document = getDocument();
+	if (!document) throw new Error('No document');
+	const ele = document.createElement('section');
 	ele.innerHTML = html;
 	const re = regularExpressionForOriginalNgram(targetStr);
-	highlightStringInEle(ele, re, cardID, false, isAlternate);
+	highlightStringInEle(ele, re, cardID, false, isAlternate || false);
 	//reading back innerHTML replaces control characters like '&gt;' with '&amp;gt;
 	return ele.innerHTML.split('&amp;').join('&');
 };
@@ -355,19 +357,24 @@ const highlightStringInEle = (ele : Element, re :RegExp, cardID : CardID, within
 		if (!ele.innerHTML) return;
 		//A leaf node.
 		//We read back out of textContent because in innerHTML escape & will be replaced by &amp;
-		ele.innerHTML = ele.textContent.replace(re,(wholeMatch) => '<card-highlight ' + (withinLink ? 'disabled ' : '' ) + (isAlternate ? 'alternate ' : '') + 'card="' + cardID + '">' + wholeMatch + '</card-highlight>');
+		const textContent = ele.textContent || '';
+		ele.innerHTML = textContent.replace(re,(wholeMatch) => '<card-highlight ' + (withinLink ? 'disabled ' : '' ) + (isAlternate ? 'alternate ' : '') + 'card="' + cardID + '">' + wholeMatch + '</card-highlight>');
 		return;
 	}
+	const document = getDocument();
+	if (!document) throw new Error('No document');
 	//ele.childNodes is a live node list but we'll be adding nodes potentially
 	//so take a snapshot.
 	for (const node of [...ele.childNodes]) {
 		if (node.nodeType == node.ELEMENT_NODE) {
 			highlightStringInEle(node as Element, re, cardID, withinLink, isAlternate);
 		} else if (node.nodeType == node.TEXT_NODE) {
-			if (!re.test(node.textContent)) continue;
+			const textContent = node.textContent;
+			if (textContent == null) continue;
+			if (!re.test(textContent)) continue;
 			//OK, the text is in there. We need to swap out this text node with multiple children (up to three).
-			const tempEle = getDocument().createElement('span');
-			tempEle.innerHTML = node.textContent;
+			const tempEle = document.createElement('span');
+			tempEle.innerHTML = textContent;
 			highlightStringInEle(tempEle, re, cardID, withinLink, isAlternate);
 			//Now, read back out tempEle's children and reparent in place to our parent.
 			node.replaceWith(...tempEle.childNodes);
@@ -587,7 +594,15 @@ const extractContentWords = (card : CardWithOptionalFallbackText) => {
 	//For thse fields, skip them in normalized*, since they'll otherwise be part
 	//of the fingerprint, and for cards with not much content that use the
 	//fingerprint in a derived field that can create reinforcing loops.
-	const obj : {[field in CardFieldType]+?: ProcessedRun[]} = {};
+	const obj : {[field in CardFieldType]: ProcessedRun[]} = {
+		body: [],
+		title: [],
+		subtitle: [],
+		title_alternates: [],
+		references_info_inbound: [],
+		non_link_references: [],
+		concept_references: []
+	};
 	for (const fieldName of TypedObject.keys(TEXT_FIELD_CONFIGURATION)) {
 		const runs = extractRawContentRunsForCardField(card, fieldName);
 		//splitRuns checks for empty runs, but they could be things that will be normalized to nothing, so filter again
