@@ -234,8 +234,8 @@ export const parseDateSection = (str : string) : [dateType : DateRangeType, firs
 	let pieces = str.split('/');
 	const targetLength = CONFIGURABLE_FILTER_URL_PARTS[pieces[0]] + 1;
 	pieces = pieces.slice(0, targetLength);
-	let firstDate = null;
-	let secondDate = null;
+	let firstDate = new Date();
+	let secondDate = new Date();
 	if (pieces.length > 1) firstDate = new Date(pieces[1]);
 	//make sure there's always a second date, defaulting to now.
 	if (pieces.length > 2) secondDate = pieces[2] ? new Date(pieces[2]) : new Date();
@@ -271,7 +271,7 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName | typeo
 		func = function(card) {
 			const val = card[cardKey] as Timestamp;
 			if (!val) return {matches: false};
-			const difference = val.toMillis() - firstDate.getTime();
+			const difference = val.toMillis() - (firstDate ? firstDate.getTime() : 0);
 			return {matches: difference < 0};
 		};
 		break;
@@ -279,7 +279,7 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName | typeo
 		func = function(card) {
 			const val = card[cardKey] as Timestamp;
 			if (!val) return {matches: false};
-			const difference = val.toMillis() - firstDate.getTime();
+			const difference = val.toMillis() - (firstDate ? firstDate.getTime() : 0);
 			return {matches: difference > 0};
 		};
 		break;
@@ -289,7 +289,7 @@ const makeDateConfigurableFilter = (propName : CardTimestampPropertyName | typeo
 			func = function(card) {
 				const val = card[cardKey] as Timestamp;
 				if (!val) return {matches: false};
-				const firstDifference = val.toMillis() - firstDate.getTime();
+				const firstDifference = val.toMillis() - (firstDate ? firstDate.getTime() : 0);
 				const secondDifference = val.toMillis() - secondDate.getTime();
 				return {matches: (firstDifference > 0 && secondDifference < 0) || (firstDifference < 0 && secondDifference > 0)} ;
 			};
@@ -357,7 +357,7 @@ const cardBFSMaker = (filterName : ConfigurableFilterType, cardID : CardID, coun
 	//refernces filters take typeStr as second parameter, but others skip those.
 	const referenceFilter = filterName.includes(REFERENCES_FILTER_NAME);
 	//we always pass referenceTypes to cardBFS, so make sure it's falsey unless it's a reference filter.
-	let referenceTypes : ReferenceType[] = null;
+	let referenceTypes : ReferenceType[] | null = null;
 	if (referenceFilter) {
 		let typeStr = countOrTypeStr;
 		const invertReferenceTypes = typeStr.startsWith(INVERT_REFERENCE_TYPES_PREFIX);

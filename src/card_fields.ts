@@ -613,7 +613,7 @@ const AUTO_FONT_SIZE_BOOST_FIELDS_FOR_CARD_TYPE : {[cardType in CardType]+?: {[f
 }));
 
 //types of card that have a body
-export const BODY_CARD_TYPES = TEXT_FIELD_CONFIGURATION.body.legalCardTypes;
+export const BODY_CARD_TYPES = TEXT_FIELD_CONFIGURATION.body.legalCardTypes || {};
 
 //types of card that may have an image
 export const IMAGE_CARD_TYPES = TEXT_FIELD_CONFIGURATION[IMAGES_TEXT_FIELD].legalCardTypes;
