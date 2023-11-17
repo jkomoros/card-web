@@ -1379,13 +1379,13 @@ export type PromptState = {
 }
 
 export type UserState = {
-	user : UserInfo,
+	user : UserInfo | null,
 	//pending is true whenever we are expecting either a SIGNIN_SUCCESS or
 	//SIGNOUT_SUCCESS. That's true both when the page loads before we get the
 	//initial auth state (which is why it defaults to true), and also when the
 	//user has proactively hit the signIn or signOut buttons.
 	pending: boolean,
-	error: Error,
+	error: Error | null,
 	//userPermissions is the object that tells us what we're allowed to do. The
 	//security rules will actually enforce this; this is mainly just to not have
 	//affordances in the client UI if they won't work. See BASE_PERMISSIONS
