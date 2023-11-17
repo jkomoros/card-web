@@ -1274,7 +1274,9 @@ export const suggestedConceptReferencesForCard = memoizeFirstArg((card : Process
 	if (!BODY_CARD_TYPES[card.card_type]) return [];
 	const itemsFromConceptReferences = explicitConceptNgrams(card);
 	const existingReferences = references(card).byType;
-	const REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT = TypedObject.keys(REFERENCE_TYPES).filter(key => REFERENCE_TYPES_EQUIVALENCE_CLASSES['concept'][key] || key == 'ack');
+	const REFERENCE_CLASS_CONCEPT = REFERENCE_TYPES_EQUIVALENCE_CLASSES.concept;
+	if (!REFERENCE_CLASS_CONCEPT) return [];
+	const REFERENCE_TYPES_THAT_SUPPRESS_SUGGESTED_CONCEPT = TypedObject.keys(REFERENCE_TYPES).filter(key => REFERENCE_CLASS_CONCEPT[key] || key == 'ack');
 	const normalizedConcepts = normalizeNgramMap(concepts);
 	const conceptStrForCandidateCard : {[id : CardID] : string } = {};
 	//We want to get only words actually on the card. So restrict to ngrams on editable fields, and also exclude synonyms.
