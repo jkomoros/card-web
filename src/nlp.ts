@@ -1591,7 +1591,7 @@ type WordNumbers = {
 
 export class FingerprintGenerator {
 
-	_cards : ProcessedCards;
+	_cards? : ProcessedCards;
 	_idfMap : {
 		[ngram : string] : number
 	};
@@ -1701,6 +1701,8 @@ export class FingerprintGenerator {
 
 	fingerprintForCardIDList(cardIDs : CardID[]) : Fingerprint {
 		if (!cardIDs || !cardIDs.length) return new Fingerprint();
+		const cards = this._cards;
+		if (!cards) return new Fingerprint();
 		//Special case the generation of a single card ID
 		if (cardIDs.length == 1) return this.fingerprintForCardID(cardIDs[0]);
 		const combinedTFIDF : WordNumbers = {};
@@ -1711,7 +1713,7 @@ export class FingerprintGenerator {
 				combinedTFIDF[word] = (combinedTFIDF[word] || 0) + idf;
 			}
 		}
-		return this._fingerprintForTFIDF(combinedTFIDF, cardIDs.map(id => this._cards[id]));
+		return this._fingerprintForTFIDF(combinedTFIDF, cardIDs.map(id => cards[id]));
 	}
 
 	//returns a map of cardID => fingerprint for the cards that were provided to the constructor
