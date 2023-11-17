@@ -102,6 +102,7 @@ import {
 } from './typed_object.js';
 
 import {
+	fetchSimilarCardsForCardIfEnabled,
 	fetchSimilarCardsIfEnabled
 } from './actions/similarity.js';
 
@@ -717,6 +718,9 @@ const makeAuthorConfigurableFilter = (_ : ConfigurableFilterName, idString : URL
 //underlying card set, and that should be fast.
 const memoizedFingerprintGenerator = memoize((cards : ProcessedCards) => new FingerprintGenerator(cards));
 
+//This is how we'll keep track of if we need to fetch updated similarCard embeddings or not.
+let lastSeenEditingCard : ProcessedCard | null = null;
+
 const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : URLPart, rawFloatCutoff : URLPart = String(Number.MIN_SAFE_INTEGER)) : ConfigurableFilterFuncFactoryResult => {
 	//note: makeExpandConfigurableFilter needs to be updated if the number or order of parameters changes.
 
@@ -725,31 +729,38 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 	let floatCutoff = parseFloat(rawFloatCutoff || '0');
 	if (isNaN(floatCutoff)) floatCutoff = 0;
 	
-	const generator = memoize((cards : ProcessedCards, rawCardIDsToUse : CardID[], editingCard : ProcessedCard, cardSimilarity : CardSimilarityMap) : {map: Map<CardID, number>, preview: boolean}  => {
+	const generator = memoize((cards : ProcessedCards, rawCardIDsToUse : CardID[], editingCard : ProcessedCard | null, cardSimilarity : CardSimilarityMap, editingCardSimilarity : SortExtra | null) : {map: Map<CardID, number>, preview: boolean}  => {
 		const cardIDsToUse = normalizeCardSlugOrIDList(rawCardIDsToUse, cards);
 
 		let preview = false;
 
-		//If there's an editing card, skip trying the embedding based similarity (for now).
-		//When you create a card, the embedding is very likely a '' embedding anyway, so actively bad results.
-		//Falling back on normal tfidf pipeline works great. 
-		//In the future, we'll be constantly updating the card based on recent edits.
-		if (!editingCard) {
-			//TODO: figure out a way to support multiple key cards
-			for (const cardID of cardIDsToUse) {
-				if (cardSimilarity[cardID]) {
-					if (Object.keys(cardSimilarity[cardID]).length) {
-						//TODO: merge in fingerprint cards for the ones not in top amount
-						return {map: new Map(Object.entries(cardSimilarity[cardID])), preview: false};
-					}
-					//If there are no keys, that's how the backend signals that it's a final error.
-				} else {
-					//Kick off a request for similarities we don't currently have, so
-					//we'll have them next time. We'll get called again once it's fetched.
-					//fetchSimilarCardsIfEnabled will tell us if we should expect values in the future.
-					//We want it to be a preview if any of the cards is positive.
-					preview = preview || fetchSimilarCardsIfEnabled(cardID);
+		//Overlay any current editing card similarity on the similarity.
+		const similarity = editingCard && editingCardSimilarity ? {...cardSimilarity, [editingCard.id]: editingCardSimilarity} : cardSimilarity;
+
+		if (lastSeenEditingCard != editingCard) {
+			//Normalized editing card has changed. Fetch an update.
+			//Mark that it's a preview if we expect updated values
+			preview = fetchSimilarCardsForCardIfEnabled(editingCard);
+			//Keep track of the last card identity, so when it changes (which
+			//should happen when the editing card normalized properites is
+			//updated) we'll kick off a new request.
+			lastSeenEditingCard = editingCard;
+		}
+
+		//TODO: figure out a way to support multiple key cards
+		for (const cardID of cardIDsToUse) {
+			if (cardSimilarity[cardID]) {
+				if (Object.keys(similarity[cardID]).length) {
+					//TODO: merge in fingerprint cards for the ones not in top amount
+					return {map: new Map(Object.entries(similarity[cardID])), preview: false};
 				}
+				//If there are no keys, that's how the backend signals that it's a final error.
+			} else {
+				//Kick off a request for similarities we don't currently have, so
+				//we'll have them next time. We'll get called again once it's fetched.
+				//fetchSimilarCardsIfEnabled will tell us if we should expect values in the future.
+				//We want it to be a preview if any of the cards is positive.
+				preview = preview || fetchSimilarCardsIfEnabled(cardID);
 			}
 		}
 
@@ -771,7 +782,7 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 			return {matches: false, sortExtra: Number.MIN_SAFE_INTEGER};
 		}
 
-		const {map: closestItems, preview} = generator(extras.cards, cardIDsToUse, extras.editingCard, extras.cardSimilarity);
+		const {map: closestItems, preview} = generator(extras.cards, cardIDsToUse, extras.editingCard, extras.cardSimilarity, extras.editingCardSimilarity);
 
 		//Return 0 if the map is missing the item, which could happen if it's server similarity
 		const value : number = closestItems.get(card.id) || 0;
