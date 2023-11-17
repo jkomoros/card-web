@@ -457,8 +457,8 @@ export const inboundLinksUpdates = (cardID : CardID, beforeCard : CardLike, afte
 	const updatesToApply : {[id : CardID] : DottedCardUpdate } = {};
 
 	if (Object.keys(changes).length) {
-		const afterReferencesInfo = afterCard[REFERENCES_INFO_CARD_PROPERTY];
-		const afterReferences = afterCard[REFERENCES_CARD_PROPERTY];
+		const afterReferencesInfo = afterCard[REFERENCES_INFO_CARD_PROPERTY] || {};
+		const afterReferences = afterCard[REFERENCES_CARD_PROPERTY] || {};
 		for (const otherCardID of Object.keys(changes)) {
 			const update = {
 				//I have confirmed that multiple sets like this (to an object)
