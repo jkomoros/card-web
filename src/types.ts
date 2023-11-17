@@ -578,7 +578,7 @@ type CardFieldTypeConfiguration = {
 	container? : HTMLTagName,
 	// legalCardTypes: a map of CARD_TYPE constant to true for cards it is legal on. If
 	// this field is null, it signals it's legal on all card types.
-	legalCardTypes? : CardTypeMap,
+	legalCardTypes? : CardTypeMap | null,
 	// derivedForCardTypes: a map of CARD_TYPE constant to true for card types for
 	// which the field is fully derived based on OTHER enumrated fields. Derived fields
 	// are already "counted" so should be skipped when extracting normalized card

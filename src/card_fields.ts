@@ -462,7 +462,8 @@ export const REFERENCE_TYPES_EQUIVALENCE_CLASSES : {[base in ReferenceType]+?: {
 for (const [referenceType, config] of TypedObject.entries(REFERENCE_TYPES)) {
 	const baseType = config.subTypeOf || referenceType;
 	if (!REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType]) REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType] = {};
-	REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][referenceType] = true;
+	const base = REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType] || {};
+	base[referenceType] = true;
 }
 
 //map of card-type -> map of reference-type -> true. So for a given card type,
@@ -667,7 +668,7 @@ type CardRendererProvider = {
 	sizingCardRenderer : CardRenderer
 }
 
-let cardRendererProvider : CardRendererProvider = null;
+let cardRendererProvider : CardRendererProvider | null = null;
 
 //Custom elements that have a sizing card-renderer should all this to offer
 //themselves up. This module can't create its own card-renderer because a)
@@ -687,7 +688,11 @@ const MAX_FONT_BOOST_BISECT_STEPS = 3;
 //less than 15ms or so on a normal computer.
 const calculateBoostForCardField = async (card : Card, field : CardFieldTypeEditable) : Promise<number> => {
 
-	const max = TEXT_FIELD_CONFIGURATION[field].autoFontSizeBoostForCardTypes[card.card_type];
+	const config = TEXT_FIELD_CONFIGURATION[field].autoFontSizeBoostForCardTypes;
+
+	if (!config) throw new Error('no config');
+
+	const max = config[card.card_type] || 0;
 	let low = 0.0;
 	let high = max;
 	let alwaysLow = true;

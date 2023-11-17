@@ -210,12 +210,14 @@ export const innerTextForHTML = (body : string) : string => {
 	//This shouldn't be an XSS vulnerability even though body is supplied by
 	//users and thus untrusted, because the temporary element is never actually
 	//appended into the DOM
-	const ele = getDocument().createElement('section');
+	const document = getDocument();
+	if (!document) throw new Error('missing document');
+	const ele = document.createElement('section');
 	// makes sure line breaks are in the right place after each legal block level element
 	body = normalizeLineBreaks(body);
 	ele.innerHTML = body;
 	//textContent would return things like style and script contents, but those shouldn't be included anyway.
-	return ele.textContent;
+	return ele.textContent || '';
 };
 
 //Extracts the user-provided title and body from the card, without HTML
@@ -228,7 +230,7 @@ export const cardPlainContent = (card : Card) : string => {
 	for (const field of fieldsInOrder) {
 		//Skip derived fields
 		if (DERIVED_FIELDS_FOR_CARD_TYPE[cardType][field]) continue;
-		const rawContent = card[field];
+		const rawContent = card[field] || '';
 		const fieldConfiguration = TEXT_FIELD_CONFIGURATION[field];
 		const content = fieldConfiguration.html ? innerTextForHTML(rawContent) : rawContent;
 		if (!content) continue;
