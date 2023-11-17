@@ -58,8 +58,8 @@ export const DEFAULT_IMAGE : ImageInfo = {
 	src: '',
 	emSize: 15.0,
 	margin: 1.0,
-	width: undefined,
-	height: undefined,
+	width: 0,
+	height: 0,
 	position: DEFAULT_IMAGE_POSITION,
 	uploadPath: '',
 	original: '',
@@ -118,7 +118,7 @@ export const getImageDimensionsForImageAtURL = async (url : string) : Promise<im
 		await p;
 	} catch(err) {
 		console.warn(err);
-		return null;
+		return {height: 0, width: 0};
 	}
 	const result = {
 		height: imgEle.naturalHeight,
