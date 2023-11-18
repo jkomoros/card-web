@@ -78,6 +78,7 @@ const cardAttributeToHref = (a : HTMLAnchorElement) => {
 
 const spliceEle = (ele : Element) => {
 	const parent = ele.parentNode;
+	if (!parent) return;
 	ele.replaceWith(...ele.childNodes);
 	parent.normalize();
 };
@@ -94,7 +95,10 @@ const normalizeBodyFromContentEditable = (html : string) => {
 	//This is the part where we do live-node fix-ups of stuff that
 	//contenteditable might have erroneously spewed in.
 
-	const section = getDocument().createElement('section');
+	const document = getDocument();
+	if (!document) throw new Error('no document');
+
+	const section = document.createElement('section');
 	//TODO: catch syntax errors
 	section.innerHTML = html;
 
@@ -120,7 +124,10 @@ export const normalizeBodyToContentEditable = (html : string) => {
 	//This is the part where we do live-node fix-ups of stuff that
 	//contenteditable might have erroneously spewed in.
 
-	const section = getDocument().createElement('section');
+	const document = getDocument();
+	if (!document) throw new Error('no document');
+
+	const section = document.createElement('section');
 	//TODO: catch syntax errors
 	section.innerHTML = html;
 
@@ -185,7 +192,9 @@ const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
 	//Does deeper changes that require parsing.
 	//1) make sure all text in top is within a p tag.
 	//2) make sure that p elements don't have any line breaks inside.
-	const section = getDocument().createElement('section');
+	const document = getDocument();
+	if (!document) throw new Error('no document');
+	const section = document.createElement('section');
 	section.innerHTML = html;
 	const children = section.childNodes;
 	let hoistNode = null;
@@ -193,7 +202,7 @@ const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
 	for (const child of Object.values(children)) {
 		if (child.nodeType == TEXT_NODE) {
 			if (!hoistNode) {
-				hoistNode = getDocument().createElement(tag);
+				hoistNode = document.createElement(tag);
 				child.replaceWith(hoistNode);
 			} else {
 				child.parentNode.removeChild(child);
@@ -211,7 +220,7 @@ const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
 				continue;
 			}
 			if (!hoistNode) {
-				hoistNode = getDocument().createElement(tag);
+				hoistNode = document.createElement(tag);
 				child.replaceWith(hoistNode);
 			} else {
 				child.parentNode.removeChild(child);
