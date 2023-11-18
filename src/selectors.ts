@@ -844,7 +844,7 @@ const selectWordCloudForPossibleMissingConcepts = createSelector(
 const selectEditingCardSemanticFingerprint = createSelector(
 	selectEditingNormalizedCard,
 	selectFingerprintGenerator,
-	(card, fingerprintGenerator) => fingerprintGenerator.fingerprintForCardObj(card)
+	(card, fingerprintGenerator) => card ? fingerprintGenerator.fingerprintForCardObj(card) : new Fingerprint()
 );
 
 export const selectEditingCardSuggestedConceptReferences = createSelector(
