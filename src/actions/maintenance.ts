@@ -580,7 +580,7 @@ const lastExecutedMaintenanceTask = (executedTasks : MaintenanceTaskMap) => {
 };
 
 //Returns the name of the next maintenance task to run, or '' if there aren't any.
-export const nextMaintenanceTaskName = (executedTasks : MaintenanceTaskMap) => {
+export const nextMaintenanceTaskName = (executedTasks : MaintenanceTaskMap) : MaintenanceTaskID => {
 	const initialVersion = setUpVersion(executedTasks);
 	const lastTask = lastExecutedMaintenanceTask(executedTasks);
 	if (lastTask && MAINTENANCE_TASKS[lastTask] && MAINTENANCE_TASKS[lastTask].nextTaskName) {
