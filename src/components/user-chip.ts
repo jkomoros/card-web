@@ -56,7 +56,7 @@ class UserChip extends connect(store)(LitElement) {
 		_signedIn: boolean;
 
 	@state()
-		_error: Error;
+		_error: Error | null;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -128,7 +128,7 @@ class UserChip extends connect(store)(LitElement) {
 		this._pending = state.user?.pending || false;
 		this._user = selectUser(state);
 		this._signedIn = selectUserSignedIn(state);
-		this._error = state.user.error;
+		this._error = state.user?.error || null;
 	}
 
 
