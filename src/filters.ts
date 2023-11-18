@@ -387,7 +387,7 @@ const cardBFSMaker = (filterName : ConfigurableFilterType, cardID : CardID, coun
 	//We have to memoize the functor we return, even though the filter machinery
 	//will memoize too, because otherwise literally every card in a given run
 	//will have a NEW BFS done. So memoize as long as cards are the same.
-	return memoize((cards : Cards, activeCardID : CardID, editingCard : Card) => {
+	return memoize((cards : Cards, activeCardID : CardID, editingCard? : Card | null) => {
 		const cardIDToUse = cardID == KEY_CARD_ID_PLACEHOLDER ? activeCardID : cardID;
 		//If editingCard is provided, use it to shadow the unedited version of itself.
 		if (editingCard) cards = {...cards, [editingCard.id]: editingCard};
