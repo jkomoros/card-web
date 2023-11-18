@@ -703,7 +703,7 @@ export const referencesDiff = (beforeCard : CardLike, afterCard : CardLike) : Re
 		}
 
 		for (const key of TypedObject.keys(keyAdditions)) {
-			result[0][cardID + '.' + key] = afterCardBlock[key];
+			result[0][cardID + '.' + key] = afterCardBlock[key] || '';
 		}
 
 		for (const key of TypedObject.keys(keyDeletions)) {
@@ -712,7 +712,7 @@ export const referencesDiff = (beforeCard : CardLike, afterCard : CardLike) : Re
 
 		for (const key of TypedObject.keys(keySame)) {
 			if (beforeCardBlock[key] === afterCardBlock[key]) continue;
-			result[1][cardID + '.' + key] = afterCardBlock[key];
+			result[1][cardID + '.' + key] = afterCardBlock[key] || '';
 		}
 	}
 
@@ -742,8 +742,8 @@ export const referencesCardsDiff = (beforeCard : CardLike, afterCard : CardLike)
 	if (!afterCard || Object.keys(afterCard).length === 0) afterCard = emptyCard;
 	if (!referencesLegalShape(beforeCard)) return result;
 	if (!referencesLegalShape(afterCard)) return result;
-	const before = beforeCard[REFERENCES_INFO_CARD_PROPERTY];
-	const after = afterCard[REFERENCES_INFO_CARD_PROPERTY];
+	const before = beforeCard.references_info || {};
+	const after = afterCard.references_info || {};
 	//For card blocks that exist in both before and after... but might have modifications within them
 	const cardSame : CardBooleanMap = {};
 	for (const cardID of Object.keys(before)) {

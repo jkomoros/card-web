@@ -706,10 +706,12 @@ export const selectUserPermissionsForCardsMap = createSelector(
 		for (const card of Object.values(cards)) {
 			if (!card.permissions) continue;
 			for (const [permissionKey, uids] of TypedObject.entries(card.permissions)) {
-				for (const uid of uids) {
+				for (const uid of (uids || [])) {
 					if (!result[uid]) result[uid] = {};
 					if (!result[uid][permissionKey]) result[uid][permissionKey] = [];
-					result[uid][permissionKey].push(card.id);
+					const arr = result[uid][permissionKey];
+					if (!arr) throw new Error('We just set arr but it wasnt set');
+					arr.push(card.id);
 				}
 			}
 		}
