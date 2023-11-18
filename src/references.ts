@@ -54,7 +54,8 @@ export const referencesNonModifying = (cardObj : CardLike) : ReferencesAccessor 
 
 //References returns a ReferencesAccessor to access references for this cardObj.
 //It may return one that's already been returned for this card obj.
-export const references = (cardObj : CardLike) : ReferencesAccessor => {
+export const references = (cardObj : CardLike | null) : ReferencesAccessor => {
+	if (!cardObj) return new ReferencesAccessor({});
 	let accessor = memoizedCardAccessors.get(cardObj);
 	if (!accessor) {
 		accessor = new ReferencesAccessor(cardObj);
