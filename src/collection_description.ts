@@ -810,11 +810,13 @@ export class Collection {
 
 	get _preLimitFilteredCards() {
 		this._ensureFilteredCards();
+		if (!this._filteredCards) throw new Error('ensurefilteredCards didn\'t work');
 		return this._filteredCards;
 	}
 
 	get filteredCards() {
 		this._ensureFilteredCards();
+		if (!this._filteredCards) throw new Error('ensurefilteredCards didn\'t work');
 		//a limit of 0 is 'all cards'. If there is a limit (or a non-zero
 		//offset), we have to sort the cards before taking the limit/offset.
 		//this.sortedCards will also include the limited subset.
