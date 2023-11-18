@@ -284,6 +284,20 @@ const configureQdrantCollection = async (client, collectionName) => {
 			vectors: {
 				size,
 				distance: 'Cosine'
+			},
+			//Our payloads are quite large because they have the content field,
+			//but those are not indexed. This setting keeps memory use (only
+			//indexed fields, which are all small)
+			on_disk_payload: true
+		});
+	}
+
+	if (collectionInfo && !collectionInfo.config.params.on_disk_payload) {
+		//Need to switch to on_disk_payload
+		console.log(`Switching to on_disk_payload for ${collectionName}`);
+		await client.updateCollection(collectionName, {
+			params: {
+				on_disk_payload: true
 			}
 		});
 	}
