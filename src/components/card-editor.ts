@@ -460,7 +460,7 @@ class CardEditor extends connect(store)(LitElement) {
 			<div ?hidden=${this._selectedEditorTab !== 'content'} class='body flex'>
 				${TypedObject.entries(editableFieldsForCardType(this._card.card_type)).map(entry => html`<label>${toTitleCase(entry[0])}${entry[1].description ? help(entry[1].description) : ''}</label>
 					${entry[1].html
-		? html`<textarea @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${this._card[entry[0]]}></textarea>`
+		? html`<textarea @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${this._card[entry[0]] || ''}></textarea>`
 		: html`<div class='row'><input type='text' @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${this._card[entry[0]] || ''}></input>${this._userMayUseAI && entry[0] == 'title' ? html`<button class='small' @click=${this._handleAITitleClicked} title='Suggest title with AI'>${AUTO_AWESOME_ICON}</button>` : ''}</div>`}
 				`)}
 				<label>Images</label><card-images-editor></card-images-editor>
@@ -494,7 +494,9 @@ class CardEditor extends connect(store)(LitElement) {
 					<select .value=${this._card.card_type} @change=${this._handleCardTypeChanged}>
 					${(Object.keys(CARD_TYPE_CONFIGURATION) as CardType[]).map(item => {
 		const illegalCardTypeReason = reasonCardTypeNotLegalForCard(this._card, item);
-		const title = CARD_TYPE_CONFIGURATION[item].description + (illegalCardTypeReason ? '' : '\n' + illegalCardTypeReason);
+		const configuration = CARD_TYPE_CONFIGURATION[item];
+		if (!configuration) return '';
+		const title = configuration.description + (illegalCardTypeReason ? '' : '\n' + illegalCardTypeReason);
 		return html`<option .value=${item} .disabled=${illegalCardTypeReason 
 		!= ''} .title=${title} .selected=${item == this._card.card_type}>${item}</option>`;
 	})}
@@ -515,7 +517,7 @@ class CardEditor extends connect(store)(LitElement) {
 					<label>Tags ${help('Tags are collections, visible to all viewers, that a card can be in. A card can be in 0 or more tags.')}</label>
 					<tag-list
 						.tags=${this._card.tags}
-						.previousTags=${this._underlyingCard ? this._underlyingCard.tags : null}
+						.previousTags=${this._underlyingCard ? this._underlyingCard.tags : []}
 						.editing=${this._userMayEditSomeTags}
 						.excludeItems=${this._tagsUserMayNotEdit}
 						.tagInfos=${this._tagInfos}
@@ -613,7 +615,7 @@ class CardEditor extends connect(store)(LitElement) {
 						<tag-list
 							.overrideTypeName=${'Editor'}
 							.tagInfos=${this._authors}
-							.tags=${this._card.permissions[PERMISSION_EDIT_CARD]}
+							.tags=${this._card.permissions[PERMISSION_EDIT_CARD] || []}
 							.editing=${true}
 							@tag-removed=${this._handleRemoveEditor}
 							@tag-added=${this._handleAddEditor}
@@ -668,9 +670,9 @@ class CardEditor extends connect(store)(LitElement) {
 								data-reference-type=${entry[0]}
 								.tagInfos=${this._cardTagInfos}
 								.defaultColor=${entry[1].color}
-								.tags=${referencesMap[entry[0]]}
+								.tags=${referencesMap[entry[0]] || []}
 								.previousTags=${previousReferencesMap[entry[0]] || []}
-								.editing=${entry[1].editable}
+								.editing=${entry[1].editable || false}
 								.subtle=${!entry[1].editable}
 								.tapEvents=${true}
 								.disableAdd=${true}
