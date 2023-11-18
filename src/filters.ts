@@ -1503,7 +1503,10 @@ const TODO_COMBINED_INVERSE_FILTER_NAME = 'no-todo';
 //this is whether the given type of TODO might be _automaticaly_ applied. Any
 //card can manually have a TODO applied via auto_todo_overrides.
 const cardMayHaveAutoTODO = (card : Card, todoConfig : TODOTypeInfo) : boolean => {
-	return card && todoConfig.autoApply && (todoConfig.cardTypes ? todoConfig.cardTypes[card.card_type] : true);
+	if (!card) return false;
+	if (!todoConfig.autoApply) return false;
+	if (!todoConfig.cardTypes) return true;
+	return Boolean(todoConfig.cardTypes[card.card_type]);
 };
 
 //These are the enum values in CARD_FILTER_CONFIGS that configure whether an
