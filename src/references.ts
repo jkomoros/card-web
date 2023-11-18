@@ -247,7 +247,7 @@ class ReferencesAccessor {
 	}
 
 	_modificationsFinished() : void {
-		this._cardObj[REFERENCES_CARD_PROPERTY] = Object.fromEntries(Object.entries(this._cardObj[REFERENCES_INFO_CARD_PROPERTY]).map(entry => [entry[0], true]));
+		this._cardObj.references = Object.fromEntries(Object.entries(this._cardObj.references_info || {}).map(entry => [entry[0], true]));
 		this._memoizedByType = null;
 		this._memoizedByTypeInbound = null;
 		this._memoizedByTypeSubstantive = null;
