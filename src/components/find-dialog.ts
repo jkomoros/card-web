@@ -337,7 +337,9 @@ class FindDialog extends connect(store)(DialogElement) {
 			//When first opened, select the text in query, so if the starter
 			//query is wrong as you long keep typing it will be no cost
 			
-			const ele = this.shadowRoot.getElementById('query') as HTMLInputElement;
+			const shadowRoot = this.shadowRoot;
+			if (!shadowRoot) throw new Error('no shadowroot');
+			const ele = shadowRoot.getElementById('query') as HTMLInputElement;
 			ele.select();
 		}
 		if (changedProps.has('_linking') || changedProps.has('_referencing') || changedProps.has('_permissions')) {
@@ -347,9 +349,9 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	override stateChanged(state : State) {
 		//tODO: it's weird that we manually set our superclasses' public property
-		this.open = state.find.open;
-		this.mobile = state.app.mobileMode;
-		this._query = state.find.query;
+		this.open = state.find ? state.find.open : false;
+		this.mobile = state.app ? state.app.mobileMode : false;
+		this._query = state.find ? state.find.query : '';
 		//coalling the collection into being is expensive so only do it if we're open.
 		this._collection = this.open ? selectCollectionForQuery(state) : null;
 		this._collectionDescription = this.open ? selectCollectionDescriptionForQuery(state) : null;
