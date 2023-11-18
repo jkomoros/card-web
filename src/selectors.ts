@@ -159,6 +159,7 @@ import {
 import {
 	TypedObject
 } from './typed_object.js';
+import { Timestamp } from 'firebase/firestore';
 
 const selectState = (state : State) : State => state;
 
@@ -959,7 +960,7 @@ const authorOrDefault = (authorId : Uid, authors : AuthorsMap) : Author => {
 		return {
 			id: '',
 			photoURL: '',
-			updated: null,
+			updated: new Timestamp(0, 0),
 			displayName: 'Unknown user'
 		};
 	}
