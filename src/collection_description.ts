@@ -997,7 +997,9 @@ export class Collection {
 
 	get finalLabels() {
 		this._ensureStartCards();
-		return [...this._startCards.map(() => ''), ...this.labels];
+		const startCards = this._startCards;
+		if (!startCards) throw new Error('no start cards as expected');
+		return [...startCards.map(() => ''), ...this.labels];
 	}
 
 	_ensureWebInfo() {
