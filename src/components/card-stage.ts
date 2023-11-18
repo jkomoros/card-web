@@ -217,7 +217,9 @@ export class CardStage extends LitElement {
 	//window resizing, which the component will call itself)
 	resizeCard() {
 		let fontSize = 20;
-		const canvas = this.shadowRoot.getElementById('canvas');
+		const shadowRoot = this.shadowRoot;
+		if (!shadowRoot) throw new Error('no shadowroot');
+		const canvas = shadowRoot.getElementById('canvas');
 		if (!canvas) {
 			console.warn('Couldn\'t find canvas element');
 			return;
@@ -259,11 +261,15 @@ export class CardStage extends LitElement {
 	}
 
 	get mainCardRenderer() : CardRenderer {
-		return this.shadowRoot.querySelector('#main') as CardRenderer;
+		const shadowRoot = this.shadowRoot;
+		if (!shadowRoot) throw new Error('no shadowroot');
+		return shadowRoot.querySelector('#main') as CardRenderer;
 	}
 
 	get sizingCardRenderer() : CardRenderer {
-		return this.shadowRoot.querySelector('#sizing') as CardRenderer;
+		const shadowRoot = this.shadowRoot;
+		if (!shadowRoot) throw new Error('no shadowroot');
+		return shadowRoot.querySelector('#sizing') as CardRenderer;
 	}
 
 	override firstUpdated() {
