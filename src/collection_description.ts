@@ -887,6 +887,7 @@ export class Collection {
 			return collection;
 		}
 		const sortInfo = this._sortInfo;
+		if (!sortInfo) throw new Error('no sortInfo as expected');
 		const sort = (left : ProcessedCard, right : ProcessedCard) => {
 			if(!left || !right) return 0;
 			//Info is the underlying sort value, then the label value.
