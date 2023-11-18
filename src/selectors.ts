@@ -179,9 +179,9 @@ export const selectPromptAssociatedId = (state : State) => state.prompt ? state.
 
 export const selectIsEditing = (state : State) => state.editor && state.editor.editing;
 const selectFindDialogOpen = (state : State) => state.find && state.find.open;
-export const selectFindReferencing = (state : State) => state.find && state.find.referencing;
-export const selectFindLinking = (state : State) => state.find && state.find.linking;
-export const selectFindPermissions = (state : State) => state.find && state.find.permissions;
+export const selectFindReferencing = (state : State) => state.find ? state.find.referencing : false;
+export const selectFindLinking = (state : State) => state.find ? state.find.linking : false;
+export const selectFindPermissions = (state : State) => state.find ? state.find.permissions : false;
 
 export const selectMultiEditDialogOpen = (state : State) => state.multiedit ? state.multiedit.open : false;
 export const selectMultiEditReferencesDiff = (state : State) => state.multiedit ? state.multiedit.referencesDiff : [];
@@ -629,7 +629,7 @@ export const tagsUserMayNotEdit = createSelector(
 export const selectUserMayCreateCard = createSelector(
 	selectUserMayEdit,
 	selectComposedPermissions,
-	(userMayEdit, permissions) => userMayEdit || permissions[PERMISSION_CREATE_CARD]
+	(userMayEdit, permissions) => userMayEdit || permissions[PERMISSION_CREATE_CARD] || false
 );
 
 export const selectUserMayForkActiveCard = createSelector(

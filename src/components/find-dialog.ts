@@ -106,7 +106,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		_query: string;
 
 	@state()
-		_collection: Collection;
+		_collection: Collection | null;
 
 	@state()
 		_renderOffset: number;
@@ -136,7 +136,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		_sortByRecent: boolean;
 
 	@state()
-		_collectionDescription: CollectionDescription;
+		_collectionDescription: CollectionDescription | null;
 
 	@state()
 		_cardTypeFilterLocked: boolean;
@@ -227,6 +227,7 @@ class FindDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleNavigateCollection() {
+		if (!this._collectionDescription) return;
 		store.dispatch(navigateToCollection(this._collectionDescription));
 		this._shouldClose();
 	}
