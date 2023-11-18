@@ -298,6 +298,6 @@ export const getExpandedPrimaryReferenceBlocksForCard = (collectionConstructorAr
 		memoizedExpandedPrimaryBlocksForCard.set(card, expandedBlocks);
 	}
 
-	return memoizedExpandedPrimaryBlocksForCard.get(card);
+	return memoizedExpandedPrimaryBlocksForCard.get(card) || [];
 
 };
