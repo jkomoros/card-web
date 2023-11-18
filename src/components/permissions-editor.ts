@@ -211,6 +211,10 @@ class PermissionsEditor extends connect(store)(LitElement) {
 	_handleEditNotes() {
 		if (!this._editable) return;
 		const notes = prompt('What should notes be?', this._effectivePermissions.notes);
+		if (!notes) {
+			console.warn('No notes provided');
+			return;
+		}
 		store.dispatch(updateUserNote(this.uid, notes));
 	}
 
