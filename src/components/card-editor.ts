@@ -421,6 +421,8 @@ class CardEditor extends connect(store)(LitElement) {
 
 	override render() {
 
+		if (!this._card) return html`No card`;
+
 		const hasContent = cardHasContent(this._card);
 		const hasNotes = cardHasNotes(this._card);
 		const hasTodo = cardHasTodo(this._card);
