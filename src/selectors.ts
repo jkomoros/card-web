@@ -500,27 +500,27 @@ export const selectUid = createSelector(
 
 export const selectUserIsAdmin = createSelector(
 	selectComposedPermissions,
-	(permissions) => permissions[PERMISSION_ADMIN]
+	(permissions) => permissions[PERMISSION_ADMIN] || false
 );
 
 //Effectively recreated in functions/openai.ts:mayUseAI
 export const selectUserMayUseAI = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
-	(admin, permissions) => OPENAI_ENABLED && (admin || permissions[PERMISSION_REMOTE_AI])
+	(admin, permissions) => OPENAI_ENABLED && (admin || permissions[PERMISSION_REMOTE_AI] || false)
 );
 
 export const selectUserMayEdit = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
-	(admin, permissions) => admin || permissions[PERMISSION_EDIT]
+	(admin, permissions) => admin || permissions[PERMISSION_EDIT] || false
 );
 
 //if the user may edit ANY cards
 const selectUserMayEditCards = createSelector(
 	selectUserMayEdit,
 	selectComposedPermissions,
-	(userMayEdit, permissions) => userMayEdit || permissions[PERMISSION_EDIT_CARD]
+	(userMayEdit, permissions) => userMayEdit || permissions[PERMISSION_EDIT_CARD] || false
 );
 
 export const selectCardIDsUserMayEdit : ((state: State) => CardBooleanMap) = createObjectSelector(
