@@ -127,18 +127,18 @@ export const cardBadges = (light : boolean, card : OptionalFieldsCard, badgeMap 
 	const todoMap = badgeMap.todos || {};
 	const readingListMap = badgeMap.readingList || {};
 	const nonBlankCard = card || {};
-	const id = nonBlankCard.id;
+	const id = nonBlankCard?.id || '';
 	const refs = references(nonBlankCard).byTypeArray()['dupe-of'];
-	const isDupe = refs && refs.length > 0;
+	const isDupe = Boolean(refs && refs.length > 0);
 	return html`
 	  <div class="badges-container ${light ? 'light' : ''}">
 		<div class='top-right'>
-			${badge('star-count', STAR_ICON, nonBlankCard.star_count, starMap[id])}
+			${badge('star-count', STAR_ICON, nonBlankCard?.star_count || 0, starMap[id])}
 			${badge('todo', ASSIGNMENT_TURNED_IN_ICON, todoMap[id])}
 		</div>
 		${badge('read', VISIBILITY_ICON, readMap[id])}
 		<div class='bottom-right'>
-			${badge('thread-count', FORUM_ICON, nonBlankCard.thread_count)}
+			${badge('thread-count', FORUM_ICON, nonBlankCard?.thread_count || 0)}
 			${badge('duplicate', COPY_ALL_ICON, isDupe, true)}
 		</div>
 		${badge('reading-list', PLAYLISLT_ADD_CHECK_ICON, readingListMap[id])}
