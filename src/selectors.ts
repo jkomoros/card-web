@@ -925,19 +925,19 @@ export const getCardInReadingList = (state : State, cardId : CardID) : boolean =
 export const getUserMayResolveThread = userMayResolveThread;
 export const getUserMayEditMessage = userMayEditMessage;
 
-export const getMessageById = (state : State, messageId : CommentMessageID) : CommentMessage => {
+export const getMessageById = (state : State, messageId : CommentMessageID) : CommentMessage | null => {
 	const messages = selectMessages(state);
 	if (!messages) return null;
 	return messages[messageId];
 };
 
-export const getThreadById = (state : State, threadId : CommentThreadID) : CommentThread => {
+export const getThreadById = (state : State, threadId : CommentThreadID) : CommentThread | null => {
 	const threads = selectThreads(state);
 	if (!threads) return null;
 	return threads[threadId];
 };
 
-export const getCardById = (state : State, cardId : CardID) : ProcessedCard => {
+export const getCardById = (state : State, cardId : CardID) : ProcessedCard | null => {
 	const cards = selectCards(state);
 	if (!cards) return null;
 	return cards[cardId];
@@ -950,7 +950,7 @@ export const getIdForCard = (state : State, idOrSlug : CardIdentifier) : CardID 
 
 export const getAuthorForId = (state : State, authorId : Uid) : Author => {
 	const authors = selectAuthors(state);
-	return authorOrDefault(authorId, authors);
+	return authorOrDefault(authorId, authors || {});
 };
 
 const authorOrDefault = (authorId : Uid, authors : AuthorsMap) : Author => {
