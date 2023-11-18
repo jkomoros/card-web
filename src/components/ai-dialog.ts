@@ -136,7 +136,7 @@ class AIDialog extends connect(store)(DialogElement) {
 		case 'text-block':
 			return html`<textarea readonly id='result' .value=${result[0]}></textarea>`;
 		case 'multi-line':
-			return result.map((item, index) => html`<div><input type='radio' name='result' .value=${index} id=${'result-' + index} .checked=${this._selectedIndex == index} @change=${this._selectedIndexChanged}></input><label class='large' for=${'result-' + index}>${item}</label></div>`);
+			return result.map((item, index) => html`<div><input type='radio' name='result' .value=${String(index)} id=${'result-' + index} .checked=${this._selectedIndex == index} @change=${this._selectedIndexChanged}></input><label class='large' for=${'result-' + index}>${item}</label></div>`);
 		case 'tag-list':
 			return html`<tag-list .tags=${result} .defaultColor=${'#006400'}></tag-list>`;
 		default:
@@ -188,7 +188,9 @@ class AIDialog extends connect(store)(DialogElement) {
 	}
 
 	_rerunAction() {
-		store.dispatch(this._kindConfig.rerunAction());
+		const config = this._kindConfig;
+		if (!config || !config.rerunAction) return;
+		store.dispatch(config.rerunAction());
 	}
 
 	override stateChanged(state : State) {
@@ -210,8 +212,9 @@ class AIDialog extends connect(store)(DialogElement) {
 	override updated(changedProps : Map<string, AIDialog[keyof AIDialog]>) {
 		if (changedProps.has('_result') && this._result) {
 			//Select the text of the textarea for easy copying when it loads.
-			
-			const ele = this.shadowRoot.getElementById('result') as HTMLTextAreaElement;
+			const shadowRoot = this.shadowRoot;
+			if (!shadowRoot) throw new Error('no shadow root');
+			const ele = shadowRoot.getElementById('result') as HTMLTextAreaElement;
 			if (ele) ele.select();
 		}
 	}
