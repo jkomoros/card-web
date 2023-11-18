@@ -1121,7 +1121,7 @@ export const selectActiveCardTweets = createSelector(
 //that has been updated with the current editingCard values.
 export const selectEditingCardAutoTodos = createSelector(
 	selectEditingCard,
-	(card) => cardTODOConfigKeys(card, true)
+	(card) => card ? cardTODOConfigKeys(card, true) : []
 );
 
 //Map of filterName -> filterDescription for all legal filter-names (normal and configurable)
@@ -1493,14 +1493,14 @@ export const selectActiveCollection = createSelector(
 export const selectUserMayReorderActiveCollection = createSelector(
 	selectUserMayEditCards,
 	selectActiveCollection,
-	(userMayEditCards, collection) => userMayEditCards && collection.reorderable
+	(userMayEditCards, collection) => userMayEditCards && collection && collection.reorderable
 );
 
 //TODO: implement a proper notion of selected cards. For now we just use all
 //active cards in the collection.
 export const selectSelectedCards = createSelector(
 	selectActiveCollection,
-	(collection) => collection.filteredCards
+	(collection) => collection ? collection.filteredCards || [] : []
 );
 
 export const selectSelectedCardsReferencesUnion = createSelector(
