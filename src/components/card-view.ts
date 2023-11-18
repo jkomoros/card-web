@@ -528,11 +528,19 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	_handleTextFieldUpdated(e : EditabledCardFieldUpdatedEvent) {
-		this.shadowRoot.querySelector('card-editor').textFieldUpdatedFromContentEditable(e.detail.field, e.detail.value);
+		const shadowRoot = this.shadowRoot;
+		if (!shadowRoot) throw new Error('no shadow root');
+		const ele = shadowRoot.querySelector('card-editor');
+		if (!ele) throw new Error('no card-editor');
+		ele.textFieldUpdatedFromContentEditable(e.detail.field, e.detail.value);
 	}
 
 	_handleDisabledCardHighlightClicked(e : DisabledCardHighlightClickedEvent) {
-		this.shadowRoot.querySelector('card-editor').disabledCardHighlightClicked(e.detail.card, e.detail.alternate);
+		const shadowRoot = this.shadowRoot;
+		if (!shadowRoot) throw new Error('no shadow root');
+		const ele = shadowRoot.querySelector('card-editor');
+		if (!ele) throw new Error('no card-editor');
+		ele.disabledCardHighlightClicked(e.detail.card, e.detail.alternate);
 	}
 
 	_handleRandomizeClicked() {
