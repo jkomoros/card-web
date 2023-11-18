@@ -239,7 +239,7 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 		autoSlug: true,
 		defaultBody: WORK_DEFAULT_BODY,
 		backportTitleExtractor : (rawCard, _, rawCards) => {
-			const authors = [];
+			const authors : string[] = [];
 			for (const otherID of (references(rawCard).byTypeArray()['citation-person'] || [])) {
 				const otherCard = rawCards[otherID];
 				if (!otherCard) continue;
@@ -494,8 +494,8 @@ text processing works, while still making it clear that the term is the opposite
 */
 const titleAlternatesHTMLFormatter = (value : string) : string => {
 	if (!value) return value;
-	const synonyms = [];
-	const antonyms = [];
+	const synonyms : string[] = [];
+	const antonyms : string[] = [];
 	for (const str of value.split(TITLE_ALTERNATE_DELIMITER)) {
 		const trimmedStr = str.trim();
 		if (!trimmedStr) continue;
