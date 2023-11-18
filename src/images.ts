@@ -81,7 +81,7 @@ export const setImageProperties = (img : ImageInfo, ele : HTMLImageElement) : vo
 };
 
 //getImagesFromCard gets the images from a card, filling in every item as a default.
-export const getImagesFromCard = (card : CardLike) : ImageBlock => {
+export const getImagesFromCard = (card : CardLike | null) : ImageBlock => {
 	if (!card) return [];
 	const images = card.images || [];
 	//Just in case, worst case pretend like there aren't images

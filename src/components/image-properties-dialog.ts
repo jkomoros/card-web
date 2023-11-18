@@ -48,7 +48,7 @@ class ImagePropertiesDialog extends connect(store)(DialogElement) {
 		_index: number;
 
 	@state()
-		_card: Card;
+		_card: Card | null;
 
 	static override styles = [
 		...DialogElement.styles,
