@@ -348,7 +348,7 @@ class MainView extends connect(store)(PageViewElement) {
 					<div data-main-title>${this._appTitleFirstPart}<span>${this._appTitleSecondPart}</span></div>
 					<div class='spacer'></div>
 					<nav class="toolbar-list">
-						${this._tabs.map(tab => html`<a class='${tab.icon ? 'icon-item' : ''}' title='${tab.display_name}' ?data-selected=${tab.expandedCollection && tab.expandedCollection.equivalent(this._collectionDescription)} @click=${tab.action ? tab.action : () => {return;}} href='${tab.href ? tab.href : '/' + PAGE_DEFAULT + '/' + tab.expandedCollection.serializeShort()}' target=${tab.href ? '_blank': ''} ?hidden=${tab.hide || (tab.hideIfEmpty && this._countsForTabs[tab.expandedCollection.serialize()] === 0)}>${tab.icon ? html`${tab.icon} ${tab.count ? html`<span>${this._countsForTabs[tab.expandedCollection.serialize()]}</span>` : ''}` : tab.italics ? html`<em>${tab.display_name}</em>` : html`${tab.display_name}`}</a>`)}
+						${this._tabs.map(tab => html`<a class='${tab.icon ? 'icon-item' : ''}' title='${tab.display_name || ''}' ?data-selected=${tab.expandedCollection && tab.expandedCollection.equivalent(this._collectionDescription)} @click=${tab.action ? tab.action : () => {return;}} href='${tab.href ? tab.href : '/' + PAGE_DEFAULT + '/' + tab.expandedCollection.serializeShort()}' target=${tab.href ? '_blank': ''} ?hidden=${tab.hide || (tab.hideIfEmpty && this._countsForTabs[tab.expandedCollection.serialize()] === 0)}>${tab.icon ? html`${tab.icon} ${tab.count ? html`<span>${this._countsForTabs[tab.expandedCollection.serialize()]}</span>` : ''}` : tab.italics ? html`<em>${tab.display_name}</em>` : html`${tab.display_name}`}</a>`)}
 					</nav>
 					<div class='spacer dev'>
 						${this._devMode ? html`DEVMODE` : ''}
@@ -419,12 +419,16 @@ class MainView extends connect(store)(PageViewElement) {
 		//which can be HUGE in landscape mode. So set it to innerHeight
 		//automatically.  See
 		//https://medium.com/@susiekim9/how-to-compensate-for-the-ios-viewport-unit-bug-46e78d54af0d
-		const ele = this.shadowRoot.querySelector('.container') as HTMLElement;
+		const shadowRoot = this.shadowRoot;
+		if (!shadowRoot) throw new Error('no shadow root');
+		const ele = shadowRoot.querySelector('.container') as HTMLElement;
 		ele.style.height = '' + window.innerHeight + 'px';
 	}
 
 	_updatePreviewSize() {
-		const ele = this.shadowRoot.querySelector('card-preview');
+		const shadowRoot = this.shadowRoot;
+		if (!shadowRoot) throw new Error('no shadow root');
+		const ele = shadowRoot.querySelector('card-preview');
 		if (!ele) return;
 
 		// The width should never be more than 40% of available size, which also
@@ -490,7 +494,7 @@ class MainView extends connect(store)(PageViewElement) {
 		this._card = selectActiveCard(state);
 		this._headerPanelOpen = state.app.headerPanelOpen;
 		this._page = state.app.page;
-		this._editing = state.editor.editing;
+		this._editing = state.editor ? state.editor.editing : false;
 		this._devMode = DEV_MODE;
 		this._collectionDescription = selectActiveCollectionDescription(state);
 		this._tabs = selectExpandedTabConfig(state);

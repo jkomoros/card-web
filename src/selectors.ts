@@ -552,14 +552,14 @@ export const selectUserMayEditActiveCard = createSelector(
 export const selectUserMayViewApp = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
-	(admin, permissions) => admin || permissions[PERMISSION_VIEW_APP]
+	(admin, permissions) => admin || permissions[PERMISSION_VIEW_APP] || false
 );
 
 export const selectUserMayViewUnpublished = createSelector(
 	selectUserIsAdmin,
 	selectUserMayViewApp,
 	selectComposedPermissions,
-	(admin, mayViewApp, permissions) => mayViewApp && (admin || permissions[PERMISSION_EDIT] || permissions[PERMISSION_EDIT_CARD] || permissions[PERMISSION_VIEW_UNPUBLISHED])
+	(admin, mayViewApp, permissions) => (mayViewApp || false) && (admin || permissions[PERMISSION_EDIT] || permissions[PERMISSION_EDIT_CARD] || permissions[PERMISSION_VIEW_UNPUBLISHED] || false)
 );
 
 export const selectUserMayEditPermissions = createSelector(
