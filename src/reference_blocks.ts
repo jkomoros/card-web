@@ -80,19 +80,19 @@ const CONCEPT_CARD_CONDENSED_REFERENCE_BLOCKS : ReferenceBlocks = TypedObject.en
 	if (referenceConfig.reciprocal) {
 		return {
 			collectionDescription: collectionDescription(referencesFilter('both', referenceType)),
-			title: referenceConfig.name,
+			title: referenceConfig.name || '',
 			condensed: true,
 		};
 	}
 	return [
 		{
 			collectionDescription: collectionDescription(referencesFilter('outbound', referenceType)),
-			title: referenceConfig.name,
+			title: referenceConfig.name || '',
 			condensed: true,
 		},
 		{
 			collectionDescription: collectionDescription(referencesFilter('inbound', referenceType)),
-			title: referenceConfig.inboundName,
+			title: referenceConfig.inboundName || '',
 			condensed: true,
 		},
 	];
@@ -230,7 +230,7 @@ const INFO_PANEL_REFERENCE_BLOCKS : ReferenceBlocks = [
 
 export const primaryReferenceBlocksForCard = (card : Card) : ReferenceBlocks => {
 	if (!card) return []; 
-	return expandReferenceBlockConfig(card, REFERENCE_BLOCKS_FOR_CARD_TYPE[card.card_type]);
+	return expandReferenceBlockConfig(card, REFERENCE_BLOCKS_FOR_CARD_TYPE[card.card_type] || []);
 };
 
 export const infoPanelReferenceBlocksForCard = (card : Card) : ReferenceBlocks => {
