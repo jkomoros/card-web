@@ -174,7 +174,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 		this._open = selectCommentsAndInfoPanelOpen(state);
 		this._card = selectActiveCard(state);
 		const activeCollection = selectActiveCollection(state);
-		this._collectionIsFallback = activeCollection && activeCollection.isFallback;
+		this._collectionIsFallback = Boolean(activeCollection && activeCollection.isFallback);
 		this._composedThreads = selectActiveCardComposedThreads(state);
 		this._userMayComment = selectUserMayComment(state);
 	}

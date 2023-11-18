@@ -667,7 +667,7 @@ export const selectReasonsUserMayNotDeleteActiveCard = createSelector(
 export const selectUserMayComment = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
-	(admin, permissions) => admin || permissions[PERMISSION_COMMENT]
+	(admin, permissions) => admin || permissions[PERMISSION_COMMENT] || false
 );
 
 export const selectUserMayStar = createSelector(
