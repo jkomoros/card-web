@@ -722,7 +722,7 @@ export const selectUserPermissionsForCardsMap = createSelector(
 export const selectUidsWithPermissions = createSelector(
 	selectAllPermissions,
 	selectUserPermissionsForCardsMap,
-	(allPermissions, cardsMap) => Object.fromEntries(Object.entries(allPermissions).map(entry => [entry[0], true]).concat(Object.entries(cardsMap).map(entry => [entry[0], true])))
+	(allPermissions, cardsMap) => Object.fromEntries(Object.entries(allPermissions || {}).map(entry => [entry[0], true]).concat(Object.entries(cardsMap).map(entry => [entry[0], true])))
 );
 
 export const selectFingerprintGenerator = createSelector(
@@ -753,7 +753,7 @@ const selectTagsSemanticFingerprint = createSelector(
 	}
 );
 
-let memoizedEditingNormalizedCard : ProcessedCard = undefined;
+let memoizedEditingNormalizedCard : ProcessedCard | undefined = undefined;
 let memoizedEditingNormalizedCardExtractionVersion = -1;
 
 //selectEditingNormalizedCard is like editing card, but with nlp properties set.
@@ -773,7 +773,7 @@ const selectEditingNormalizedCard = (state : State) : ProcessedCard => {
 		const editingCard = selectEditingCard(state);
 		if (editingCard) {
 			const cards = selectRawCards(state);
-			const fallbackMap = backportFallbackTextMapForCard(editingCard, cards);
+			const fallbackMap = backportFallbackTextMapForCard(editingCard, cards) || {};
 			const conceptsMap = selectConcepts(state);
 			const synonyms = selectSynonymMap(state);
 			memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap, conceptsMap, synonyms);
@@ -782,6 +782,7 @@ const selectEditingNormalizedCard = (state : State) : ProcessedCard => {
 		}
 		memoizedEditingNormalizedCardExtractionVersion = extractionVersion;
 	}
+	if (!memoizedEditingNormalizedCard) throw new Error('Still not set somehow');
 	return memoizedEditingNormalizedCard;
 };
 
