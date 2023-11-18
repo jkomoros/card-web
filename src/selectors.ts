@@ -967,9 +967,9 @@ const authorOrDefault = (authorId : Uid, authors : AuthorsMap) : Author => {
 	return author;
 };
 
-export const getCard = (state : State, cardIdOrSlug : CardIdentifier) : ProcessedCard  => getCardById(state, getIdForCard(state, cardIdOrSlug));
+export const getCard = (state : State, cardIdOrSlug : CardIdentifier) : ProcessedCard | null  => getCardById(state, getIdForCard(state, cardIdOrSlug));
 
-export const getSection = (state : State, sectionId : SectionID) : Section => {
+export const getSection = (state : State, sectionId : SectionID) : Section | null => {
 	if (!state.data) return null;
 	return state.data.sections[sectionId] || null;
 };
