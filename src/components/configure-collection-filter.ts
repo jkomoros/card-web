@@ -144,13 +144,13 @@ class ConfigureCollectionFilter extends LitElement {
 	_handleModifyFilterRestChangedComplex(e : FilterModifiedEvent) {
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLElement)) throw new Error('not html element');
-		this._modifyFilterChanged(parseInt(ele.dataset.subIndex), e.detail.value);
+		this._modifyFilterChanged(parseInt(ele.dataset.subIndex || '0'), e.detail.value);
 	}
 
 	_handleModifyFilterRestChanged(e : Event) {
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
-		this._modifyFilterChanged(parseInt(ele.dataset.subIndex), ele.value);
+		this._modifyFilterChanged(parseInt(ele.dataset.subIndex || '0'), ele.value);
 	}
 
 	_handleAddUnionFilterClicked(e : MouseEvent) {
@@ -187,7 +187,7 @@ class ConfigureCollectionFilter extends LitElement {
 		}
 		const filterPieces = splitUnionFilter(this.value);
 		if (filterPieces.length > 1) {
-			filterPieces.splice(parseInt(ele.dataset.subIndex), 1);
+			filterPieces.splice(parseInt(ele.dataset.subIndex || '0'), 1);
 			this.dispatchEvent(makeFilterModifiedEvent(filterPieces.join(UNION_FILTER_DELIMITER), this.index));
 			return;
 		}
@@ -197,7 +197,7 @@ class ConfigureCollectionFilter extends LitElement {
 	_handleModifyFilterChanged(e : Event) {
 		const ele = e.composedPath()[0];
 		if (!(ele instanceof HTMLSelectElement)) throw new Error('not select element');
-		const subIndex = parseInt(ele.dataset.subIndex);
+		const subIndex = parseInt(ele.dataset.subIndex || '0');
 		const fullFilterText = this.value;
 		const unionPieces = splitUnionFilter(fullFilterText);
 		const firstPart = ele.value;
