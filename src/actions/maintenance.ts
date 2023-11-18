@@ -674,7 +674,7 @@ interface RawMaintenanceTaskDefinition {
 	nextTaskName? : MaintenanceTaskID
 }
 
-interface MaintenanceTaskDefinition extends RawMaintenanceTaskDefinition {
+export interface MaintenanceTaskDefinition extends RawMaintenanceTaskDefinition {
 	actionCreator: () => ThunkSomeAction,
 }
 

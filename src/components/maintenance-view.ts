@@ -23,6 +23,7 @@ import {
 import {
 	connectLiveExecutedMaintenanceTasks,
 	MAINTENANCE_TASKS,
+	MaintenanceTaskDefinition,
 } from '../actions/maintenance.js';
 
 // These are the shared styles needed by this element.
@@ -162,8 +163,8 @@ class MaintenanceView extends connect(store)(PageViewElement) {
 		return html`<button value=${taskName} @click=${this._handleClick} .disabled=${disabled}>${displayName}</button>`;
 	}
 
-	get _nextTaskConfig() {
-		return MAINTENANCE_TASKS[this._nextTaskName] || {};
+	get _nextTaskConfig() : MaintenanceTaskDefinition {
+		return MAINTENANCE_TASKS[this._nextTaskName];
 	}
 
 	override connectedCallback() {
