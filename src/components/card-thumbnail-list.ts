@@ -100,10 +100,10 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		renderLimit: number;
 
 	@state()
-		_memoizedGhostItems: CardBooleanMap;
+		_memoizedGhostItems: CardBooleanMap | null;
 
 	@state()
-		_dragging: HTMLElement;
+		_dragging: HTMLElement | null;
 
 	@state()
 		_highlightedViaClick: boolean;
@@ -350,10 +350,12 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[card.card_type];
 
+		if (!cardTypeConfig) throw new Error('No such cardType');
+
 		return html`
 			<div  data-card=${card.id} data-index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.reorderable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${cardTypeConfig.dark ? 'dark' : ''} ${card && card.published ? '' : 'unpublished'} ${this._collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
-					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${getExpandedPrimaryReferenceBlocksForCard(this.collection.constructorArguments, card, this._cardIDsUserMayEdit)}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'}'>${icons[cardTypeConfig.iconName] || ''}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
-					${cardBadges(cardTypeConfig.dark, card, this._badgeMap)}
+					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${getExpandedPrimaryReferenceBlocksForCard(this.collection.constructorArguments, card, this._cardIDsUserMayEdit)}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'}'>${icons[cardTypeConfig.iconName || 'WARNING_ICON']}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
+					${cardBadges(cardTypeConfig.dark || false, card, this._badgeMap)}
 			</div>
 		`;
 	}
@@ -393,7 +395,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 		if (!this.reorderable) return;
 
-		let thumbnail : HTMLElement = null;
+		let thumbnail : HTMLElement | null = null;
 		for (const item of e.composedPath()) {
 			//e.g. documentFragment
 			if (!(item instanceof HTMLElement)) continue;
@@ -434,13 +436,14 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		if (!(target instanceof HTMLElement)) throw new Error('not HTML element');
 		target.classList.remove('drag-active');
 		const thumbnail = this._dragging;
-		const index = parseInt(thumbnail.dataset.index);
+		if (!thumbnail) return;
+		const index = parseInt(thumbnail.dataset.index || '0');
 		if (index < this.collection.numStartCards) {
 			console.log('Start card can\'t be reordered');
 			return;
 		}
-		const cardID = thumbnail.dataset.card;
-		const otherID = target.dataset.cardid;
+		const cardID = thumbnail.dataset.card || '';
+		const otherID = target.dataset.cardid || '';
 		const isAfter = target.dataset.after ? true : false;
 		this.dispatchEvent(makeReorderCardEvent(cardID,otherID, isAfter));
 	}
@@ -487,7 +490,9 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		if (!this._highlightedViaClick && !this._highlightedScrolled) {
 			//we prepend 'id-' to the front of the ID because ids must start
 			//with a letter, and some card IDs in production start with numbers.
-			const ele = this.shadowRoot.querySelector('#id-' + this.highlightedCardId);
+			const shadowRoot = this.shadowRoot;
+			if (!shadowRoot) throw new Error('no shadowRoot');
+			const ele = shadowRoot.querySelector('#id-' + this.highlightedCardId);
 			if (ele) {
 				ele.scrollIntoView({behavior:'auto', block:'center'});
 				this._highlightedScrolled = true;
