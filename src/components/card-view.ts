@@ -40,7 +40,8 @@ import {
 	selectEditingCardSuggestedConceptReferences,
 	selectActiveRenderOffset,
 	selectEditorMinimized,
-	selectUserMayUseAI
+	selectUserMayUseAI,
+	selectIsEditing
 } from '../selectors.js';
 
 import {
@@ -237,7 +238,7 @@ class CardView extends connect(store)(PageViewElement) {
 		_displayCard: Card;
 
 	@state()
-		_editingCard: Card;
+		_editingCard: Card | null;
 
 	@state()
 		_commentsAndInfoPanelOpen : boolean;
@@ -645,7 +646,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._cardReferenceBlocks = selectExpandedPrimaryReferenceBlocksForEditingOrActiveCard(state);
 		this._displayCard = this._editingCard ? this._editingCard : this._card;
 		this._pageExtra = state.app.pageExtra;
-		this._editing = state.editor.editing; 
+		this._editing = selectIsEditing(state);
 		this._editorMinimized = selectEditorMinimized(state);
 		this._signedIn = selectUserSignedIn(state);
 		this._userMayStar  =  selectUserMayStar(state);
