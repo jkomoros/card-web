@@ -992,7 +992,9 @@ export class Collection {
 	//labels is the labels for the collection WITHOUT start cards. See also finalLabels
 	get labels() {
 		this._ensureLabels();
-		return this._labels;
+		const labels = this._labels;
+		if (!labels) throw new Error('no labels as expected');
+		return labels;
 	}
 
 	get finalLabels() {
