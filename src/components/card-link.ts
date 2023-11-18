@@ -174,7 +174,7 @@ class CardLink extends connect(store)(LitElement) {
 	_handleMouseClick(e : MouseEvent) {
 		//If the user ctrl- or cmd-clicks, we should toggle reading list,
 		//otherwise we should return and allow default action.
-		if (!this.card) return;
+		if (!this.card || !this._cardObj) return;
 		if (this.noNavigate) {
 			e.preventDefault();
 			return;
@@ -211,7 +211,7 @@ class CardLink extends connect(store)(LitElement) {
 		if (!this._cardObj) return '';
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[this._cardObj.card_type];
 		if (!cardTypeConfig) return '';
-		return icons[cardTypeConfig.iconName] || '';
+		return icons[cardTypeConfig.iconName || 'WARNING_ICON'] || '';
 	}
 
 	get _inReadingList() {
