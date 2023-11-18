@@ -1654,7 +1654,7 @@ const CARD_FILTER_NON_TODO_CONFIGS : CardFilterConfigMapNonTODO = {
 	'tweet': [defaultCardFilterName('tweet'), (card : Card) => card.tweet_count > 0, TODO_TYPE_NA, 0.0, 'Whether the card has any tweets from the bot'],
 	[setName('everything')]: [defaultNonTodoCardFilterName(SET_INFOS['everything'].filterEquivalent), () => true, TODO_TYPE_NA, 0.0, 'Every card is in the everything set'],
 	//note: a number of things rely on `has-body` filter which is derived from this configuration
-	'body': [defaultCardFilterName('body'), (card : Card) => card && BODY_CARD_TYPES[card.card_type], TODO_TYPE_NA, 0.0, 'Cards that are of a type that has a body field'],
+	'body': [defaultCardFilterName('body'), (card : Card) => card && (BODY_CARD_TYPES[card.card_type] || false), TODO_TYPE_NA, 0.0, 'Cards that are of a type that has a body field'],
 	'substantive-references': [defaultCardFilterName('substantive-references'), (card : Card) => references(card).substantiveArray().length > 0, TODO_TYPE_NA, 0.0, 'Whether the card has any substantive references of any type'],
 	'inbound-substantive-references': [defaultCardFilterName('inbound-substantive-references'), (card : Card) => references(card).inboundSubstantiveArray().length > 0, TODO_TYPE_NA, 0.0, 'Whether the card has any substantive inbound references of any type'],
 	'concept-references': [defaultCardFilterName('concept-references'), (card : Card) => references(card).typeClassArray('concept').length > 0, TODO_TYPE_NA, 0.0, 'Whether the card has any concept references of any type'],
