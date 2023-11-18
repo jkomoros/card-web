@@ -251,7 +251,7 @@ export class CardStage extends LitElement {
 		fontSize = widthFontSize;
 		if (heightFontSize < fontSize) fontSize = heightFontSize;
 
-		const renderer = this.shadowRoot.querySelector('card-renderer');
+		const renderer = shadowRoot.querySelector('card-renderer');
 		if (!renderer) {
 			console.warn('Couldn\'t find card-renderer to update its size');
 			return;
