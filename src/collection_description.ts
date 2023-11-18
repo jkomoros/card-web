@@ -946,7 +946,7 @@ export class Collection {
 		return sortedCards;
 	}
 
-	get finalSortedCards() {
+	get finalSortedCards() : ProcessedCard[] {
 		this._ensureStartCards();
 		return [...this._startCards, ...this.sortedCards];
 	}
