@@ -719,7 +719,9 @@ export class Collection {
 		//Most of our logic operates on the old snapshot of cards, so when
 		//things are edited they don't pop out of the collection but rather get
 		//ghosted.
-		this._cardsForFiltering = collectionArguments.cardsSnapshot || collectionArguments.cards;
+		const cardsForFilter = collectionArguments.cardsSnapshot || collectionArguments.cards;
+		if (!cardsForFilter) throw new Error('No cards for filtering');
+		this._cardsForFiltering = cardsForFilter;
 		//This is the most recent version of cards. We use it for the expanded
 		//cards, and also when doing pendingFilters.
 		this._cardsForExpansion = collectionArguments.cards;
