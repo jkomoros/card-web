@@ -178,7 +178,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		<form @submit=${this._handleFormSubmitted}>
 			<div>
 				${this._legalCardTypeFilters.length > 1 ? html`<span>Card type:</span>
-					${this._legalCardTypeFilters.map(typ => html`<input type='radio' name='card-type' .disabled=${this._cardTypeFilterLocked} @change=${this._handleCardTypeChanged} .checked=${this._cardTypeFilter === typ} .title=${CARD_TYPE_CONFIGURATION[typ] ? CARD_TYPE_CONFIGURATION[typ].description : 'All card types'} value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}' .title=${CARD_TYPE_CONFIGURATION[typ] ? CARD_TYPE_CONFIGURATION[typ].description : 'All card types'}>${typ || html`<em>Default</em>`}</label>`)}
+					${this._legalCardTypeFilters.map(typ => html`<input type='radio' name='card-type' .disabled=${this._cardTypeFilterLocked} @change=${this._handleCardTypeChanged} .checked=${this._cardTypeFilter === typ} .title=${CARD_TYPE_CONFIGURATION[typ]?.description || 'All card types'} value='${typ}' id='card-type-${typ}'><label for='card-type-${typ}' .title=${CARD_TYPE_CONFIGURATION[typ]?.description || 'All card types'}>${typ || html`<em>Default</em>`}</label>`)}
 				` : ''}
 				<input type='checkbox' .checked=${this._sortByRecent} id='sort-by-recent' @change=${this._handleSortByRecentChanged}><label for='sort-by-recent'>Sort by Recent</label>
 			</div>
@@ -252,6 +252,10 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	_handleAddLink() {
 		const href = prompt('Where should the URL point?', this._query);
+		if (!href) {
+			console.warn('No href provided');
+			return;
+		}
 		store.dispatch(linkURL(href));
 		this._shouldClose();
 	}
@@ -273,7 +277,7 @@ class FindDialog extends connect(store)(DialogElement) {
 		const cardType = this._cardTypeToAdd;
 
 		const needTitle = editableFieldsForCardType(cardType).title;
-		let title = '';
+		let title : string | null = '';
 		if (needTitle) {
 			const query = this._query || '';
 			title = prompt('What should the title be?', capitalizeFirstLetter(query.trim()));
