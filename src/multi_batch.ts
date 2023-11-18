@@ -25,6 +25,7 @@ import {
 
 //serverTimestampSentinel is the most basic one.
 const SENTINEL_FIELD_PATH = objectPathToValue(serverTimestamp(), 'serverTimestamp');
+if (!SENTINEL_FIELD_PATH) throw new Error('no sentinel field path');
 
 const extraOperationCountForValue = (val : unknown) : boolean => {
 	//Note: this function is very tied to the implementation of
