@@ -357,7 +357,7 @@ const cardBFSMaker = (filterName : ConfigurableFilterType, cardID : CardID, coun
 	//refernces filters take typeStr as second parameter, but others skip those.
 	const referenceFilter = filterName.includes(REFERENCES_FILTER_NAME);
 	//we always pass referenceTypes to cardBFS, so make sure it's falsey unless it's a reference filter.
-	let referenceTypes : ReferenceType[] | null = null;
+	let referenceTypes : ReferenceType[] | undefined = undefined;
 	if (referenceFilter) {
 		let typeStr = countOrTypeStr;
 		const invertReferenceTypes = typeStr.startsWith(INVERT_REFERENCE_TYPES_PREFIX);
