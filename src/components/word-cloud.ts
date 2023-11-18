@@ -29,7 +29,7 @@ import {
 export class WordCloud extends connect(store)(LitElement) {
 
 	@property({ type : Array })
-		wordCloud: WordCloudType;
+		wordCloud: WordCloudType | null;
 
 	override render() {
 		return html`
