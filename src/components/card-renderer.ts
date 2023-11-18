@@ -146,7 +146,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		_elements: {[cardType in CardFieldType]+?: ExtendedHTMLElement};
 
 	@state()
-		_currentImagesResolve: (imagesLoaded : boolean) => void;
+		_currentImagesResolve: ((imagesLoaded : boolean) => void) | null;
 
 	@state()
 		_currentImagesPromise : Promise<boolean> | null;
@@ -716,7 +716,11 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		//can show a 1px line intermittently even if they're not
 		//necessary--which is the vast majority of cards. This helps avoid that
 		//artifact except in cases where the scrollbars might be necessary.
-		for (const ele of this.shadowRoot.querySelectorAll('.show-scroll-if-needed') as NodeListOf<HTMLElement>) {
+
+		const shadowRoot = this.shadowRoot;
+		if(!shadowRoot) throw new Error('no shadowroot');
+
+		for (const ele of shadowRoot.querySelectorAll('.show-scroll-if-needed') as NodeListOf<HTMLElement>) {
 			const isScrollable = ele.scrollHeight > ele.offsetHeight;
 			const hasScrollbars = isScrollable && ele.offsetWidth > ele.scrollWidth;
 			if (isScrollable && !hasScrollbars) {
@@ -740,11 +744,15 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 
 	//returns true if all images are loaded
 	_allImagesLoaded() {
-		return [...this.shadowRoot.querySelectorAll('img')].every(img => img.complete);
+		const shadowRoot = this.shadowRoot;
+		if (!shadowRoot) throw new Error('no shadowroot');
+		return [...shadowRoot.querySelectorAll('img')].every(img => img.complete);
 	}
 
 	_listenForImageLoads() {
-		const imgs = [...this.shadowRoot.querySelectorAll('img')] as ExtenedHTMLImageElement[];
+		const shadowRoot = this.shadowRoot;
+		if (!shadowRoot) throw new Error('no shadowroot');
+		const imgs = [...shadowRoot.querySelectorAll('img')] as ExtenedHTMLImageElement[];
 		for (const img of imgs) {
 			if (img.complete) continue;
 			if (img.hasImageLoadHandler) continue;
@@ -775,7 +783,9 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 	//optFieldNames is provided, it will check just those fields, and if
 	//optFieldNames is not provided it will check all of them.
 	isOverflowing() {
-		const ele = this.shadowRoot.querySelector('.primary') as HTMLElement;
+		const shadowRoot = this.shadowRoot;
+		if (!shadowRoot) throw new Error('no shadowroot');
+		const ele = shadowRoot.querySelector('.primary') as HTMLElement;
 		return ele.scrollHeight > ele.offsetHeight;
 	}
 
