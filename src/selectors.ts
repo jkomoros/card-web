@@ -1517,13 +1517,15 @@ const selectActiveCollectionWordCloud = createSelector(
 	selectActiveCollection,
 	selectFingerprintGenerator,
 	(collection, fingerprintGenerator) => {
+		if (!collection) return null;
+		if (!collection.filteredCards) return null;
 		const fingerprint = fingerprintGenerator.fingerprintForCardIDList(collection.filteredCards.map(card => card.id));
 		return fingerprint.wordCloud();
 	}
 );
 
 //NOTE: this can be EXTREMELY expensive.
-export const selectWordCloudForMainCardDrawer = (state : State) : WordCloud => {
+export const selectWordCloudForMainCardDrawer = (state : State) : WordCloud | null => {
 	return selectSuggestMissingConceptsEnabled(state) ? selectWordCloudForPossibleMissingConcepts(state) : selectActiveCollectionWordCloud(state);
 };
 
