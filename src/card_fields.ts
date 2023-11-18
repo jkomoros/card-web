@@ -465,14 +465,16 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 };
 
 export const REFERENCE_TYPES_THAT_BACKPORT_MISSING_TEXT = Object.fromEntries(Object.entries(REFERENCE_TYPES).filter(entry => entry[1].backportMissingText).map(entry => [entry[0], true]));
-//Map of baseType ==> subTypeName ==> true. The base type will also be in its own set
-export const REFERENCE_TYPES_EQUIVALENCE_CLASSES : {[base in ReferenceType]+?: {[other in ReferenceType]+?: true}} = {};
+const TEMP_REFERENCE_TYPES_EQUIVALENCE_CLASSES : {[base in ReferenceType]+?: {[other in ReferenceType]+?: true}} = {};
+
 for (const [referenceType, config] of TypedObject.entries(REFERENCE_TYPES)) {
 	const baseType = config.subTypeOf || referenceType;
-	if (!REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType]) REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType] = {};
-	const base = REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType] || {};
+	if (!TEMP_REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType]) TEMP_REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType] = {};
+	const base = TEMP_REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType] || {};
 	base[referenceType] = true;
 }
+//Map of baseType ==> subTypeName ==> true. The base type will also be in its own set
+export const REFERENCE_TYPES_EQUIVALENCE_CLASSES = TEMP_REFERENCE_TYPES_EQUIVALENCE_CLASSES as Required<typeof TEMP_REFERENCE_TYPES_EQUIVALENCE_CLASSES>;
 
 //map of card-type -> map of reference-type -> true. So for a given card type,
 //you can check if there are any inbound references to the card that should not
