@@ -850,7 +850,7 @@ const selectEditingCardSemanticFingerprint = createSelector(
 export const selectEditingCardSuggestedConceptReferences = createSelector(
 	selectEditingNormalizedCard,
 	selectConcepts,
-	(card, concepts) => suggestedConceptReferencesForCard(card, concepts)
+	(card, concepts) => card ? suggestedConceptReferencesForCard(card, concepts) : []
 );
 
 const NUM_SIMILAR_TAGS_TO_SHOW = 3;
