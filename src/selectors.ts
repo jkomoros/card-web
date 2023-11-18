@@ -999,7 +999,10 @@ export const selectBadgeMap = createSelector(
 export const selectActiveCardThreadIds = createSelector(
 	selectActiveCardId,
 	selectThreads,
-	(cardId, threads) => Object.keys(threads).filter(threadId => threads[threadId].card == cardId)
+	(cardId, rawThreads) => {
+		const threads = rawThreads || {};
+		return Object.keys(threads).filter(threadId => threads[threadId].card == cardId);
+	}
 );
 
 export const selectActiveCardComposedThreads = createSelector(
@@ -1008,10 +1011,10 @@ export const selectActiveCardComposedThreads = createSelector(
 	selectThreads,
 	selectMessages,
 	selectAuthors,
-	(state, threadIds, threads, messages, authors) => threadIds.map(id => composedThread(state, id, threads, messages, authors)).filter(thread => !!thread)
+	(state, threadIds, threads, messages, authors) => threadIds.map(id => composedThread(state, id, threads || {}, messages || {}, authors || {})).filter(thread => !!thread)
 );
 
-const composedThread = (state : State, threadId : CommentThreadID, threads : CommentThreads, messages : CommentMessages , authors : AuthorsMap) : ComposedCommentThread => {
+const composedThread = (state : State, threadId : CommentThreadID, threads : CommentThreads, messages : CommentMessages , authors : AuthorsMap) : ComposedCommentThread | null => {
 	const originalThread = threads[threadId];
 	if (!originalThread) return null;
 	const expandedMessages = [];
@@ -1027,7 +1030,7 @@ const composedThread = (state : State, threadId : CommentThreadID, threads : Com
 	};
 };
 
-const composedMessage = (state : State, messageId : CommentMessageID, messages : CommentMessages, authors : AuthorsMap) : ComposedCommentMessage => {
+const composedMessage = (state : State, messageId : CommentMessageID, messages : CommentMessages, authors : AuthorsMap) : ComposedCommentMessage | null => {
 	//TODO: return composed children for threads if there are parents
 	const originalMessage = messages[messageId];
 	if (!originalMessage) return null;
