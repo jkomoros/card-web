@@ -86,7 +86,7 @@ class CardDrawer extends LitElement {
 		showing: boolean;
 
 	@property({ type : Array })
-		wordCloud: WordCloud;
+		wordCloud: WordCloud | null;
 
 	@property({ type : Boolean })
 		infoExpanded: boolean;

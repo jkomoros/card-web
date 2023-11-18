@@ -301,7 +301,7 @@ class CardView extends connect(store)(PageViewElement) {
 		_pendingNewCardIDToNavigateTo: CardID;
 
 	@state()
-		_collectionWordCloud: WordCloud;
+		_collectionWordCloud: WordCloud | null;
 
 	@state()
 		_infoExpanded: boolean;
@@ -310,7 +310,7 @@ class CardView extends connect(store)(PageViewElement) {
 		_suggestMissingConceptsEnabled: boolean;
 
 	@state()
-		_suggestedConcepts: CardID[];
+		_suggestedConcepts: CardID[] | null;
 
 	@state()
 		_userIsAdmin: boolean;
@@ -440,7 +440,7 @@ class CardView extends connect(store)(PageViewElement) {
 			</div>` : ''}
 		</card-drawer>
         <div id='center'>
-			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
+			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
 				<div slot='actions' class='presentation'>
 					<button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${FULL_SCREEN_ICON}</button>
 				</div>
