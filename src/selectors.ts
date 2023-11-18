@@ -1010,7 +1010,7 @@ export const selectActiveCardComposedThreads = createSelector(
 	selectThreads,
 	selectMessages,
 	selectAuthors,
-	(state, threadIds, threads, messages, authors) => threadIds.map(id => composedThread(state, id, threads || {}, messages || {}, authors || {})).filter(thread => !!thread)
+	(state, threadIds, threads, messages, authors) => threadIds.map(id => composedThread(state, id, threads || {}, messages || {}, authors || {})).filter(thread => !!thread) as ComposedCommentThread[]
 );
 
 const composedThread = (state : State, threadId : CommentThreadID, threads : CommentThreads, messages : CommentMessages , authors : AuthorsMap) : ComposedCommentThread | null => {
