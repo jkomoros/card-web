@@ -709,6 +709,7 @@ type NodeInfo = {
 export const pageRank = (cards : Cards) => {
 
 	if (memoizedPageRankInput === cards) {
+		if (!memoizedPageRank) throw new Error('not page rank as expected');
 		return memoizedPageRank;
 	}
 
@@ -787,6 +788,7 @@ export const pageRank = (cards : Cards) => {
 	const result =  Object.fromEntries(Object.entries(nodes).map(entry => [entry[0], entry[1].previousRank]));
 	memoizedPageRankInput = cards;
 	memoizedPageRank = result;
+	if (!memoizedPageRank) throw new Error('no page rank as expected');
 	return result;
 };
 
