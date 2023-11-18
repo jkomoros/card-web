@@ -247,8 +247,8 @@ export const selectAlreadyCommittedModificationsWhenFullyLoaded = (state : State
 export const selectSlugIndex = (state : State) => state.data ? state.data.slugIndex : {};
 export const selectMessages = (state : State) => state.comments ? state.comments.messages : null;
 export const selectThreads = (state : State) => state.comments ? state.comments.threads : null;
-export const selectAuthors = (state : State) => state.data.authors ? state.data.authors : null;
-export const selectAllPermissions = (state : State) => state.permissions ? state.permissions.permissions : null;
+export const selectAuthors = (state : State) => state.data.authors ? state.data.authors : {};
+export const selectAllPermissions = (state : State) => state.permissions ? state.permissions.permissions : {};
 export const selectPermissionsPendingUid = (state : State) => state.permissions ? state.permissions.pendingUid : '';
 export const selectPermissionsPendingPermissionType = (state : State) => state.permissions ? state.permissions.pendingPermissionType : '';
 const selectTweets = (state : State) => state.data ? state.data.tweets : {};
