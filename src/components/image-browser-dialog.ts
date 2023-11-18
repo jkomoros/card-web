@@ -32,7 +32,7 @@ import {
 class ImageBrowserDialog extends connect(store)(DialogElement) {
 
 	@state()
-		_index: number;
+		_index: number | undefined;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -71,7 +71,9 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleDoneClicked() {
-		const ele = this.shadowRoot.querySelector('#src') as HTMLInputElement;
+		const shadowRoot = this.shadowRoot;
+		if (!shadowRoot) throw new Error('no shadow root');
+		const ele = shadowRoot.querySelector('#src') as HTMLInputElement;
 		const url = ele.value;
 		if (url) store.dispatch(addImageWithURL(url, '', this._index));
 		store.dispatch(closeImageBrowserDialog());
@@ -82,7 +84,10 @@ class ImageBrowserDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleFileInput() {
-		const ele = this.shadowRoot.querySelector('#file') as HTMLInputElement;
+		const shadowRoot = this.shadowRoot;
+		if (!shadowRoot) throw new Error('no shadow root');
+		const ele = shadowRoot.querySelector('#file') as HTMLInputElement;
+		if (!ele.files) throw new Error('No files');
 		store.dispatch(addImageWithFile(ele.files[0], this._index));
 		store.dispatch(closeImageBrowserDialog());
 	}

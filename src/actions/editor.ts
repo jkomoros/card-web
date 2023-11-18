@@ -617,7 +617,7 @@ export const manualCollaboratorAdded = (collaboratorUid : Uid) => {
 };
 
 //If index is undefined, it will add a new item to the end of the list
-export const addImageWithFile = (file : File, index : number) : ThunkSomeAction => async (dispatch, getState) => {
+export const addImageWithFile = (file : File, index : number | undefined) : ThunkSomeAction => async (dispatch, getState) => {
 
 	const state = getState();
 
