@@ -66,7 +66,7 @@ export type CardFieldTypeEditable = z.infer<typeof cardFieldTypeEditableSchema>;
 
 export type CardFieldTypeNonEditable = z.infer<typeof cardFieldTypeNonEditableSchema>;
 
-const cardFieldTypeSchema = z.union([
+export const cardFieldTypeSchema = z.union([
 	cardFieldTypeEditableSchema,
 	cardFieldTypeNonEditableSchema
 ]);
