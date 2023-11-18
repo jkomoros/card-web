@@ -975,7 +975,12 @@ export class Collection {
 		const sortedCards = this.sortedCards;
 		//sortedCards requires sortInfo to be created so we can just grab it.
 		const sortInfo = this._sortInfo;
-		const rawLabels = sortedCards.map(card => sortInfo.get(card.id) ? sortInfo.get(card.id)[1] : '');
+		if (!sortInfo) throw new Error('no sort info as expected');
+		const rawLabels = sortedCards.map(card => {
+			const info = sortInfo.get(card.id);
+			if (!info) return '';
+			return info[1];
+		});
 		return removeUnnecessaryLabels(rawLabels);
 	}
 
