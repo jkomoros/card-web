@@ -664,8 +664,9 @@ const normalizedCount : {[id : CardID] : number } = {};
 //      normalized: the extracted text runs for that field, with all words normalized. Note that some logical runs from the original text field may already have been filtered by this step. punctuation between words will be removed, everything will be lower case.
 //		stemmed: the normalized values, but also each word will have been stemmed. Each word will still line up with each word in normalized (stemming never removes words)
 //		withoutStopWords: the stemmed values, but also with stop words removed. The number of words in this field set will likely be smaller than the two above.
-export const cardWithNormalizedTextProperties = memoizeFirstArg((card : Card, fallbackText : ReferencesInfoMap, importantNgrams : StringCardMap, synonyms : SynonymMap) : ProcessedCard | undefined | null => {
-	if (!card) return card === undefined ? undefined : null;
+export const cardWithNormalizedTextProperties = memoizeFirstArg((card : Card, fallbackText : ReferencesInfoMap, importantNgrams : StringCardMap, synonyms : SynonymMap) : ProcessedCard => {
+	//This next line is not expected to happen.
+	if (!card) throw new Error('No card');
 	if (DEBUG_COUNT_NORMALIZED_TEXT_PROPERTIES) {
 		normalizedCount[card.id] = (normalizedCount[card.id] || 0) + 1;
 		if(normalizedCount[card.id] > 1) console.log(card.id, card, normalizedCount[card.id]);
