@@ -208,7 +208,7 @@ export const cardDiffDescription = (diff : CardDiff) : string => {
 
 //Returns a diff that includes only fields that were modified between original
 //and snapshot and then shadowed by changes between snapshot and current.
-export const overshadowedDiffChanges = (original : Card, snapshot : Card, current : Card) : CardDiff => {
+export const overshadowedDiffChanges = (original : Card | null, snapshot : Card | null, current : Card | null) : CardDiff => {
 	const snapshotDiff = generateCardDiff(original, snapshot);
 	const currentDiff = generateCardDiff(snapshot, current);
 	return Object.fromEntries(TypedObject.entries(currentDiff).filter(entry => !NON_AUTOMATIC_MERGE_FIELDS[entry[0]] && snapshotDiff[entry[0]] !== undefined));

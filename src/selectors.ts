@@ -803,7 +803,7 @@ export const selectEditingCardwithDelayedNormalizedProperties = createSelector(
 export const selectEditingUnderlyingCard = createSelector(
 	selectCards,
 	selectEditingCard,
-	(cards : ProcessedCards, editingCard : Card) : ProcessedCard => editingCard ? cards[editingCard.id] : null
+	(cards : ProcessedCards, editingCard : Card) : ProcessedCard | null => editingCard ? cards[editingCard.id] : null
 );
 
 export const selectEditingCardHasUnsavedChanges = createSelector(
