@@ -1556,7 +1556,7 @@ export const selectCardsDrawerPanelShowing = createSelector(
 //This is the final expanded, sorted collection, including start cards.
 export const selectActiveCollectionCards = createSelector(
 	selectActiveCollection,
-	(collection) => collection.finalSortedCards
+	(collection) => collection ? collection.finalSortedCards : []
 );
 
 export const selectActiveCardIndex = createSelector(
@@ -1603,7 +1603,7 @@ export const selectCollectionDescriptionForQuery = createSelector(
 	(queryText, cardTypeFilter, sortByRecent, cardID, generic) => {
 		const wordsAndFilters = extractFiltersFromQuery(queryText);
 		const baseFilters = ['has-body'];
-		let sort : SortName = undefined;
+		let sort : SortName = 'default';
 		if (cardID && !generic) baseFilters.push(excludeFilter(cardsFilter(cardID)));
 		if (cardTypeFilter) baseFilters.push(cardTypeFilter);
 		if (!wordsAndFilters[0] && !wordsAndFilters[1].length) {
