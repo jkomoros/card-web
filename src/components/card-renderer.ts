@@ -374,6 +374,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 	override render() {
 		const cardType = this._card.card_type || 'content';
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[cardType];
+		if (!cardTypeConfig) throw new Error('No cardType');
 		const fieldsToRender = editableFieldsForCardType(cardType);
 		const titleFields : CardFieldTypeEditable[] = [];
 		const nonScrollableFields : CardFieldTypeEditable[] = [];
