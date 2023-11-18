@@ -478,7 +478,7 @@ export const intersectionReferences = (cardObjs : Card[]) : CardLike => {
 	const refs = references(fauxCard);
 	const firstCard = cardObjs.length ? cardObjs[0] : null;
 	refs.ensureReferences(firstCard);
-	const fauxCardReferencesInfo = fauxCard[REFERENCES_INFO_CARD_PROPERTY];
+	const fauxCardReferencesInfo = fauxCard.references_info || {};
 	//skip the first card, which we basically copied, and remove everything else.
 	for (const card of cardObjs.slice(1)){
 		const referencesInfo = card[REFERENCES_INFO_CARD_PROPERTY];
@@ -576,7 +576,7 @@ const expandedReferences = (referencesInfo : ReferencesInfoMap) : {[key : Expand
 	for (const [cardID, cardRefs] of Object.entries(referencesInfo)) {
 		for (const [referenceType, value] of TypedObject.entries(cardRefs)) {
 			const key = expandedReferenceKey(cardID, referenceType);
-			const obj = expandedReferenceObject(cardID, referenceType, value);
+			const obj = expandedReferenceObject(cardID, referenceType, value || '');
 			result[key] = obj;
 		}
 	}
@@ -621,8 +621,8 @@ export const referencesEntriesDiff = (beforeCard : CardLike, afterCard : CardLik
 	const deletionsResult = [];
 	if (!referencesLegalShape(beforeCard)) return [];
 	if (!referencesLegalShape(afterCard)) return [];
-	const before = beforeCard[REFERENCES_INFO_CARD_PROPERTY];
-	const after = afterCard[REFERENCES_INFO_CARD_PROPERTY];
+	const before = beforeCard.references_info || {};
+	const after = afterCard.references_info || {};
 	const expandedBefore = expandedReferences(before);
 	const expandedAfter = expandedReferences(after);
 	const seenInAfter : {[key : ExpandedReferenceKey] : true} = {};
