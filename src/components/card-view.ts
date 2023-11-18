@@ -760,7 +760,9 @@ class CardView extends connect(store)(PageViewElement) {
 	_resizeCard() {
 		//This is called when we've changed something that should resize the
 		//card.
-		const stage = this.shadowRoot.querySelector('card-stage');
+		const shadowRoot = this.shadowRoot;
+		if (!shadowRoot) throw new Error('no shadow root');
+		const stage = shadowRoot.querySelector('card-stage');
 		if (!stage) return;
 		stage.resizeCard();
 	}
