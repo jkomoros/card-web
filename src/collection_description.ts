@@ -945,7 +945,9 @@ export class Collection {
 		//filter happens, since the cards have to be sorted first before taking
 		//the limit or offset. filteredCards will return the results from this if there's
 		//a limit in place.
-		let sortedCards = this._sortedCards.slice(this._description.offset);
+		const rawSortedCards = this._sortedCards;
+		if (!rawSortedCards) throw new Error('no sorted cards as expected');
+		let sortedCards = rawSortedCards.slice(this._description.offset);
 		if (this._description.limit) sortedCards = sortedCards.slice(0, this._description.limit);
 		return sortedCards;
 	}
