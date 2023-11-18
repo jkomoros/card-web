@@ -442,7 +442,7 @@ export const selectUserIsAnonymous = createSelector(
 //user is signed in anonymously.
 export const selectUserSignedIn = createSelector(
 	selectUser,
-	(user) => user && userSignedIn(user)
+	(user) => user !== null && userSignedIn(user)
 );
 
 const selectUserSignedInDomain = createSelector(

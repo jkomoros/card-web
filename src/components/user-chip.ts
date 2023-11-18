@@ -50,7 +50,7 @@ class UserChip extends connect(store)(LitElement) {
 		_pending: boolean;
 
 	@state()
-		_user: UserInfo;
+		_user: UserInfo | null;
 
 	@state()
 		_signedIn: boolean;
@@ -125,7 +125,7 @@ class UserChip extends connect(store)(LitElement) {
 	}
 
 	override stateChanged(state : State) {
-		this._pending = state.user.pending;
+		this._pending = state.user?.pending || false;
 		this._user = selectUser(state);
 		this._signedIn = selectUserSignedIn(state);
 		this._error = state.user.error;
