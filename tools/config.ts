@@ -51,7 +51,7 @@ const generateConfig = () => {
 	CONFIG_JS_CONTENT += 'export const FIREBASE_REGION = \'' + FIREBASE_REGION + '\';\n';
 	CONFIG_JS_CONTENT += 'export const TWITTER_HANDLE = \'' + TWITTER_HANDLE + '\';\n';
 	CONFIG_JS_CONTENT += 'export const TAB_CONFIGURATION : TabConfigInput | null = ' + JSON.stringify(TAB_CONFIGURATION).split('"').join('\'') + ';\n';
-	CONFIG_JS_CONTENT += 'export const TAB_OVERRIDES_CONFIGURATION : TabConfigOverrides = ' + JSON.stringify(TAB_OVERRIDES_CONFIGURATION).split('"').join('\'') + ';\n';
+	CONFIG_JS_CONTENT += 'export const TAB_OVERRIDES_CONFIGURATION : TabConfigOverrides | null = ' + JSON.stringify(TAB_OVERRIDES_CONFIGURATION).split('"').join('\'') + ';\n';
 	CONFIG_JS_CONTENT += 'export const DISABLE_PERSISTENCE = ' + (DISABLE_PERSISTENCE ? 'true' : 'false') + ';\n';
 	CONFIG_JS_CONTENT += 'export const DISABLE_ANONYMOUS_LOGIN = ' + (DISABLE_ANONYMOUS_LOGIN ? 'true' : 'false') + ';\n';
 	CONFIG_JS_CONTENT += 'export const DISABLE_CALLABLE_CLOUD_FUNCTIONS = ' + (DISABLE_CALLABLE_CLOUD_FUNCTIONS ? 'true' : 'false') + ';\n';

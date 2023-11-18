@@ -37,7 +37,7 @@ export const STARS_FALLBACK_CARD = 'about-stars';
 
 const DEFAULT_OVERRIDES : TabConfigOverrides = {before: {}, after: {}};
 
-export const tabConfiguration = (config : TabConfig | null, overrides : TabConfigOverrides, sections : Sections, tags : Sections) : ExpandedTabConfig => {
+export const tabConfiguration = (config : TabConfig | null, overrides : TabConfigOverrides | null, sections : Sections, tags : Sections) : ExpandedTabConfig => {
 	if (!config) config = DEFAULT_CONFIG;
 	if (!overrides) overrides = DEFAULT_OVERRIDES;
 	let array = config;
