@@ -703,8 +703,8 @@ export class Collection {
 	_sortExtras : SortExtras;
 	_partialMatches : CardBooleanMap;
 	_preview = false;
-	_sortInfo : Map<CardID, [sortValue : number, label : string]>;
-	_webInfo : WebInfo;
+	_sortInfo : Map<CardID, [sortValue : number, label : string]> | null;
+	_webInfo : WebInfo | null;
 
 	//See CollectionDescription.collection() for the shape of the
 	//collectionArguments object. It's passed in as an object and not as an
