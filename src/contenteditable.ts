@@ -205,6 +205,7 @@ const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
 				hoistNode = document.createElement(tag);
 				child.replaceWith(hoistNode);
 			} else {
+				if (!child.parentNode) throw new Error('no parent node');
 				child.parentNode.removeChild(child);
 			}
 			hoistNode.innerHTML += child.textContent;
@@ -223,6 +224,7 @@ const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
 				hoistNode = document.createElement(tag);
 				child.replaceWith(hoistNode);
 			} else {
+				if (!child.parentNode) throw new Error('no parent node');
 				child.parentNode.removeChild(child);
 			}
 			hoistNode.innerHTML += ele.outerHTML;
@@ -230,7 +232,8 @@ const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
 	}
 	//OK, we now know all top-level children are valid types. Do additional cleanup.
 	for (const child of Object.values(children)) {
-		if (isWhitespace(child.textContent)) {
+		if (isWhitespace(child.textContent || '')) {
+			if (!child.parentNode) throw new Error('No parent node');
 			//It's all text content, just get rid of it
 			child.parentNode.removeChild(child);
 			continue;
