@@ -75,7 +75,7 @@ const extractFilterNamesSortAndView = (parts : URLPart[]) : [FilterName[], SortN
 	let nextPartIsView = false;
 	let nextPartIsViewExtra = false;
 	//The actual multi-part filter we're accumulating
-	let multiPartFilter = [];
+	let multiPartFilter : string[] = [];
 	//How many more ports we need until multiPartFilter is done.
 	let expectedRemainingMultiParts = 0;
 	for (let i = 0; i < parts.length; i++) {
@@ -163,7 +163,7 @@ export const queryTextFromCollectionDescription = (description : CollectionDescr
 //newConfigurableFilter added (and the first filter of the same type that
 //already exists removed).
 export const collectionDescriptionWithConfigurableFilter = (description : CollectionDescription, newConfigurableFilter : string) : CollectionDescription => {
-	const newFilters = [];
+	const newFilters : string[] = [];
 	const filterName = newConfigurableFilter.split('/')[0];
 	let replacedFilter = false;
 	for (const filter of description.filters) {
@@ -412,7 +412,7 @@ export class CollectionDescription {
 	//serializeShort is like serialize, but skips leading set name if it's
 	//default.
 	_serializeShort(unsorted? : boolean) : string {
-		let result = [];
+		let result : string[] = [];
 
 		if (this.set != 'main') result.push(this.set);
 
