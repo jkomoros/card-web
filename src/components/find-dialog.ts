@@ -53,7 +53,8 @@ import {
 	selectFindPermissions,
 	selectFindLinking,
 	selectFindSortByRecent,
-	selectFindRenderOffset
+	selectFindRenderOffset,
+	selectFindDialogOpen
 } from '../selectors.js';
 
 import { 
@@ -350,7 +351,7 @@ class FindDialog extends connect(store)(DialogElement) {
 
 	override stateChanged(state : State) {
 		//tODO: it's weird that we manually set our superclasses' public property
-		this.open = state.find ? state.find.open : false;
+		this.open = selectFindDialogOpen(state);
 		this.mobile = state.app ? state.app.mobileMode : false;
 		this._query = state.find ? state.find.query : '';
 		//coalling the collection into being is expensive so only do it if we're open.

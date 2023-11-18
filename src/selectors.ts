@@ -178,7 +178,7 @@ export const selectPromptAction = (state : State) => state.prompt ? state.prompt
 export const selectPromptAssociatedId = (state : State) => state.prompt ? state.prompt.associatedId : '';
 
 export const selectIsEditing = (state : State) => state.editor && state.editor.editing;
-const selectFindDialogOpen = (state : State) => state.find && state.find.open;
+export const selectFindDialogOpen = (state : State) => state.find ? state.find.open : false;
 export const selectFindReferencing = (state : State) => state.find ? state.find.referencing : false;
 export const selectFindLinking = (state : State) => state.find ? state.find.linking : false;
 export const selectFindPermissions = (state : State) => state.find ? state.find.permissions : false;
