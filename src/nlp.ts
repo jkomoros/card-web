@@ -519,6 +519,7 @@ const OVERRIDE_EXTRACTORS : {[field in CardFieldType]+? : (card : CardWithOption
 		for (const [refType, cardMap] of TypedObject.entries(refsByType)) {
 			//Skip links because they're already represented in body
 			if (refType == 'link') continue;
+			if (!cardMap) continue;
 			for (const str of Object.values(cardMap)) {
 				if (str) result.push(str);
 			}
@@ -902,7 +903,8 @@ const wordCountsForSemantics = memoizeFirstArg((cardObj : ProcessedCard, maxFing
 	//configurable filter.
 	const cardMap : {[str : string] : number}= {};
 	const importantNgrams = cardObj.importantNgrams || {};
-	for (const [fieldName, strs] of TypedObject.entries(strsMap)) {
+	for (let [fieldName, strs] of TypedObject.entries(strsMap)) {
+		if (!strs) strs = [];
 		const textFieldConfig = TEXT_FIELD_CONFIGURATION[fieldName] || {};
 		const totalIndexingCount = (textFieldConfig.extraIndexingCount || 0) + 1;
 		for (const words of strs) {
