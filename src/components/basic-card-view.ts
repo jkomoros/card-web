@@ -115,7 +115,10 @@ class BasicCardView extends connect(store)(PageViewElement) {
 			//Screenshot service will check for this to know when to take a
 			//screenshot.
 			this.updateComplete.then(() => {
-				const cardStage : CardStage = this.shadowRoot.querySelector('card-stage') as CardStage;
+				const shadowRoot = this.shadowRoot;
+				if (!shadowRoot) throw new Error('no shaddow root');
+				const cardStage = shadowRoot.querySelector('card-stage') as CardStage;
+				if (!cardStage) throw new Error('No stage');
 				cardStage.mainCardRenderer.imagesLoaded().then(() => {
 					window[WINDOW_CARD_RENDERED_VARIABLE] = true;
 				});
