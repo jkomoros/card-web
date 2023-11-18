@@ -673,19 +673,19 @@ export const selectUserMayComment = createSelector(
 export const selectUserMayStar = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
-	(admin, permissions) => admin || permissions[PERMISSION_STAR]
+	(admin, permissions) => admin || permissions[PERMISSION_STAR] || false
 );
 
 export const selectUserMayMarkRead = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
-	(admin, permissions) => admin || permissions[PERMISSION_MARK_READ]
+	(admin, permissions) => admin || permissions[PERMISSION_MARK_READ] || false
 );
 
 export const selectUserMayModifyReadingList = createSelector(
 	selectUserIsAdmin,
 	selectComposedPermissions,
-	(admin, permissions) => admin || permissions[PERMISSION_MODIFY_READING_LIST]
+	(admin, permissions) => admin || permissions[PERMISSION_MODIFY_READING_LIST] || false
 );
 
 export const selectAuthorsForTagList = createSelector(
