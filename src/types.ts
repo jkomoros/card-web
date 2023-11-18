@@ -1248,7 +1248,7 @@ export type DataState = {
 	alreadyCommittedModificationsWhenFullyLoaded: boolean,
 	//Whether a card modification is pending
 	cardModificationPending: boolean,
-	cardModificationError: Error,
+	cardModificationError: Error | null,
 	reorderPending: boolean,
 	//A card that we created, but is not yet in the cards collection. This will
 	//be cleared as soon as that card is received and added.

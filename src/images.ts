@@ -69,7 +69,7 @@ export const DEFAULT_IMAGE : ImageInfo = {
 export const setImageProperties = (img : ImageInfo, ele : HTMLImageElement) : void => {
 	ele.src = img.src;
 	ele.alt = img.alt || '';
-	const styleInfo = LEGAL_IMAGE_POSITIONS[img.position] || {};
+	const styleInfo : ImagePositionConfiguration = LEGAL_IMAGE_POSITIONS[img.position] || {};
 	for (const [property, value] of TypedObject.entries(styleInfo)) {
 		//Tedhnically it's possible that value is not LITERALLY MARGIN_SENTINEL but that should be rare
 		const finalValue : string = value == MARGIN_SENTINEL ? '' + img.margin + 'em' : value as string;
