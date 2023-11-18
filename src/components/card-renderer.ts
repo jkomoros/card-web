@@ -123,7 +123,7 @@ type GestureEvent = CustomEvent<GestureEventDetail>;
 export class CardRenderer extends GestureEventListeners(LitElement) {
 
 	@property({ type : Object })
-		card: ProcessedCard | Card;
+		card: ProcessedCard | Card | null;
 
 	@property({ type : Boolean })
 		editing: boolean;

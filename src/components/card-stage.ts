@@ -54,7 +54,7 @@ export class CardStage extends LitElement {
 		editing: boolean;
 
 	@property({ type : Object })
-		card: ProcessedCard | Card;
+		card: ProcessedCard | Card | null;
 
 	@property({ type : Object })
 		updatedFromContentEditable: CardFieldMap;

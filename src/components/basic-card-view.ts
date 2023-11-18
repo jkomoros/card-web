@@ -53,7 +53,7 @@ declare global {
 class BasicCardView extends connect(store)(PageViewElement) {
 
 	@state()
-	protected _card: Card;
+	protected _card: Card | null;
 	
 	@state()
 	protected _pageExtra: string;
