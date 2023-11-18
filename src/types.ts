@@ -1081,10 +1081,10 @@ export type SerializedDescriptionToCardList = {
 }
 
 export interface CollectionConstructorArguments {
-	cards? : ProcessedCards,
-	sets? : Sets,
-	filters? : Filters,
-	sections? : Sections,
+	cards : ProcessedCards,
+	sets : Sets,
+	filters : Filters,
+	sections : Sections,
 	fallbacks? : SerializedDescriptionToCardList,
 	startCards? : SerializedDescriptionToCardList,
 	userID? : Uid,

@@ -711,7 +711,6 @@ export class Collection {
 	//unpacked array so we can maintain the object identity so that memoizing
 	//machinery can keep track. You can get one from selectCollectionConstructorArguments
 	constructor(description : CollectionDescription, collectionArguments : CollectionConstructorArguments) {
-		if (!collectionArguments) collectionArguments = {};
 		this._arguments = collectionArguments;
 		Object.freeze(this._arguments);
 		this._description = description;
