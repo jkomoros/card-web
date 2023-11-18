@@ -737,7 +737,7 @@ const makeSimilarConfigurableFilter = (_ : ConfigurableFilterType, rawCardID : U
 		//Overlay any current editing card similarity on the similarity.
 		const similarity = editingCard && editingCardSimilarity ? {...cardSimilarity, [editingCard.id]: editingCardSimilarity} : cardSimilarity;
 
-		if (lastSeenEditingCard != editingCard) {
+		if (editingCard && lastSeenEditingCard != editingCard) {
 			//Normalized editing card has changed. Fetch an update.
 			//Mark that it's a preview if we expect updated values
 			preview = fetchSimilarCardsForCardIfEnabled(editingCard);
