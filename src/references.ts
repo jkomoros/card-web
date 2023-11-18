@@ -172,11 +172,12 @@ class ReferencesAccessor {
 	//references. If it doesn, and otherCardObj does, it clones it from there.
 	//If otherCardObj doesn't and we don't as well, then we set the trivial
 	//empty reerences. Returns itself for convenience in chaining.
-	ensureReferences(otherCardObj : CardLike) {
+	ensureReferences(otherCardObj : CardLike | null) {
 		if (referencesLegalShape(this._cardObj)) return this;
 		let referencesInfo = {};
 		if (referencesLegalShape(otherCardObj)) {
-			referencesInfo = references(otherCardObj)._cloneReferencesInfo();
+			const otherCardObjNonNull = otherCardObj as CardLike;
+			referencesInfo = references(otherCardObjNonNull)._cloneReferencesInfo();
 		}
 		this._setReferencesInfo(referencesInfo);
 		return this;
@@ -371,7 +372,7 @@ class ReferencesAccessor {
 		}
 	
 		if (referenceTypeConfig.fromCardTypeAllowList) {
-			if (!referenceTypeConfig.fromCardTypeAllowList[this._cardObj.card_type]) {
+			if (this._cardObj.card_type && !referenceTypeConfig.fromCardTypeAllowList[this._cardObj.card_type]) {
 				return 'That reference type may not originate from cards of type ' + this._cardObj.card_type;
 			}
 		}
@@ -501,7 +502,7 @@ export const intersectionReferences = (cardObjs : Card[]) : CardLike => {
 };
 
 //referencesLegalShape is a sanity check that the referencesBlock looks like it's expected to.
-export const referencesLegalShape = (cardObj : CardLike) : boolean => {
+export const referencesLegalShape = (cardObj : CardLike | null) : boolean => {
 	if (!cardObj) return false;
 	if (typeof cardObj !== 'object') return false;
 	const referencesInfoBlock = cardObj[REFERENCES_INFO_CARD_PROPERTY];
