@@ -68,6 +68,10 @@ class ConfigureCollectionKeyCard extends LitElement {
 	_handleEditClicked() {
 		//TODO: pop a dialog
 		const cardID = prompt('What is the ID of the card?');
+		if (!cardID) {
+			console.warn('No key card');
+			return;
+		}
 		const [, includeKeyCard] = parseKeyCardID(this.value);
 		this._dispatchNewValue(keyCardID(cardID, includeKeyCard));
 	}
