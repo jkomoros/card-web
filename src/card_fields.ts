@@ -628,6 +628,8 @@ export const BODY_CARD_TYPES = TEXT_FIELD_CONFIGURATION.body.legalCardTypes || {
 
 //types of card that may have an image
 export const IMAGE_CARD_TYPES = TEXT_FIELD_CONFIGURATION[IMAGES_TEXT_FIELD].legalCardTypes;
+//Throw now if it's not valid to find invalid configuration earlier.
+if (!IMAGE_CARD_TYPES) throw new Error('invalid image_card_types');
 
 export const editableFieldsForCardType = (cardType : CardType) : CardFieldTypeEditableConfigurationMap => {
 	const result : Partial<CardFieldTypeConfigurationMap> = {};

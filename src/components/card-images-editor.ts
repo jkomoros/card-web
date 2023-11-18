@@ -44,9 +44,12 @@ class CardImagesEditor extends connect(store)(LitElement) {
 
 
 	@state()
-		_card: Card;
+		_card: Card | null;
 
 	override render() {
+
+		//This is safe to throw now because the place where it was defined would have thrown too.
+		if (!IMAGE_CARD_TYPES) throw new Error('no image card types');
 
 		if (!IMAGE_CARD_TYPES[this._effectiveCard.card_type]) return html`<em>This card type does not support images.</em>`;
 
