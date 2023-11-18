@@ -777,7 +777,7 @@ const selectEditingNormalizedCard = (state : State) : ProcessedCard | undefined 
 			const fallbackMap = backportFallbackTextMapForCard(editingCard, cards);
 			const conceptsMap = selectConcepts(state);
 			const synonyms = selectSynonymMap(state);
-			memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap, conceptsMap, synonyms);
+			memoizedEditingNormalizedCard = cardWithNormalizedTextProperties(editingCard, fallbackMap || {}, conceptsMap, synonyms);
 		} else {
 			memoizedEditingNormalizedCard = undefined;
 		}
