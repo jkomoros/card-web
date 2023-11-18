@@ -3,7 +3,7 @@
 
 //Use: instead of Object.keys(), do TypedObject.keys()
 
-type Entries<T> = { [K in keyof T]: [K, T[K]] }[keyof T];
+type Entries<T> = { [K in keyof T]: [K, T[K]] }[keyof T][];
 
 export class TypedObject {
 
@@ -13,9 +13,8 @@ export class TypedObject {
 		return Object.keys(t) as any;
 	}
 
-	//Based on https://stackoverflow.com/a/62055863
-	static entries<T extends object>(t: T): Entries<T>[] {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		return Object.entries(t) as any;
+	//Based on https://stackoverflow.com/a/62055863 and https://chat.openai.com/c/83d8e6d6-8ac1-4301-9bc3-6c0eb4f2af36
+	static entries<T extends object>(t: T): Entries<T> {
+		return Object.entries(t) as Entries<T>;
 	}
 }
