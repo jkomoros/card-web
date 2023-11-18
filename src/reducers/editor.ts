@@ -421,6 +421,10 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 			cardExtractionVersion: state.cardExtractionVersion + 1,
 		};
 	case EDITING_MERGE_OVERSHADOWED_CHANGES:
+		if (!state.card) {
+			console.warn('No card');
+			return state;
+		}
 		return {
 			...state,
 			card: applyCardFirebaseUpdate(state.card, applyCardDiff(state.card, action.diff)),

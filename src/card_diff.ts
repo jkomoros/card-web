@@ -134,7 +134,7 @@ export const confirmationsForCardDiff = (update :CardDiff, updatedCard : Card) =
 	return true;
 };
 
-export const generateCardDiff = (underlyingCardIn : Card | null | undefined, updatedCardIn : Card | undefined, normalizeHTMLFields  = false) : CardDiff => {
+export const generateCardDiff = (underlyingCardIn : Card | null | undefined, updatedCardIn : Card | undefined | null, normalizeHTMLFields  = false) : CardDiff => {
 
 	const underlyingCard : OptionalFieldsCard = underlyingCardIn || {};
 	const updatedCard : OptionalFieldsCard = updatedCardIn || {};
