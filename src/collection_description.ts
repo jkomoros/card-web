@@ -488,7 +488,7 @@ export class CollectionDescription {
 		}
 
 		//Get last part, which is the card selector (and might be "").
-		const extra = parts.pop();
+		const extra = parts.pop() || '';
 
 		const [filters, sortName, sortReversed, viewMode, viewModeExtra] = extractFilterNamesSortAndView(parts);
 
@@ -505,7 +505,7 @@ const filterNameIsConfigurableFilter = (filterName : FilterName) : filterName is
 	return filterName.includes('/');
 };
 
-let memoizedConfigurableFiltersExtras : FilterExtras = null;
+let memoizedConfigurableFiltersExtras : FilterExtras | null = null;
 let memoizedConfigurableFilters : {[name : string] : ConfigurableFilterResult} = {};
 
 //The first filter here means 'map of card id to bools', not 'filter func'
@@ -522,8 +522,8 @@ const makeFilterFromConfigurableFilter = (name : ConfigurableFilterName, extras 
 
 	const [func, reverse] = makeConfigurableFilter(name);
 	const result : FilterMap = {};
-	let sortValues : SortExtra = {};
-	let partialMatches : CardBooleanMap = {};
+	let sortValues : SortExtra | null = {};
+	let partialMatches : CardBooleanMap | null = {};
 	let hasPreview = false;
 	for (const [id, card] of TypedObject.entries(extras.cards)) {
 		const {matches, sortExtra, partialMatch, preview} = func(card, extras);
