@@ -35,7 +35,8 @@ import {
 	selectOvershadowedUnderlyingCardChangesDiffDescription,
 	selectEditingCardHasUnsavedChanges,
 	selectEditorMinimized,
-	selectUserMayUseAI
+	selectUserMayUseAI,
+	selectIsEditing
 } from '../selectors.js';
 
 import {
@@ -790,15 +791,15 @@ class CardEditor extends connect(store)(LitElement) {
 		this._card= selectEditingCard(state);
 		this._autoTodos = selectEditingCardAutoTodos(state);
 		this._underlyingCard = selectEditingUnderlyingCardSnapshot(state);
-		this._active = state.editor.editing;
+		this._active = selectIsEditing(state);
 		this._minimized = selectEditorMinimized(state);
 		this._userMayChangeEditingCardSection = selectUserMayChangeEditingCardSection(state);
 		this._userMayUseAI = selectUserMayUseAI(state);
 		this._sectionsUserMayEdit = selectSectionsUserMayEdit(state);
 		this._mayNotDeleteReason = selectReasonsUserMayNotDeleteActiveCard(state);
-		this._substantive = state.editor.substantive;
-		this._selectedTab = state.editor.selectedTab;
-		this._selectedEditorTab = state.editor.selectedEditorTab;
+		this._substantive = state.editor ? state.editor.substantive : false;
+		this._selectedTab = state.editor ? state.editor.selectedTab : 'content';
+		this._selectedEditorTab = state.editor ? state.editor.selectedEditorTab : 'content';
 		this._tagInfos = selectTags(state);
 		this._userMayEditSomeTags = selectUserMayEditSomeTags(state);
 		this._tagsUserMayNotEdit = tagsUserMayNotEdit(state);
@@ -887,6 +888,7 @@ class CardEditor extends connect(store)(LitElement) {
 	}
 
 	_handleDeleteClicked() {
+		if (!this._card) throw new Error('No card');
 		store.dispatch(deleteCard(this._card));
 	}
 
@@ -938,6 +940,7 @@ class CardEditor extends connect(store)(LitElement) {
 		}
 		if (!refType) {
 			console.warn('No reference type found on parents');
+			return;
 		}
 		store.dispatch(removeReferenceFromCard(cardID, refType));
 	}
@@ -1062,7 +1065,8 @@ class CardEditor extends connect(store)(LitElement) {
 			return killEvent(e);
 		case 'k':
 			//Default to searching for the text that's selected
-			store.dispatch(findCardToLink(document.getSelection().toString()));
+			const sel = document.getSelection();
+			if (sel) store.dispatch(findCardToLink(sel.toString()));
 			return killEvent(e);
 		}
 	}
