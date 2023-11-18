@@ -73,7 +73,9 @@ const referencesToByType = (referencesMap : ReferencesInfoMap) : ReferencesInfoM
 	for (const [cardID, referenceBlock] of TypedObject.entries(referencesMap)) {
 		for (const [referenceType, str] of TypedObject.entries(referenceBlock)) {
 			if (!result[referenceType]) result[referenceType] = {};
-			result[referenceType][cardID] = str;
+			const obj = result[referenceType];
+			if (!obj) throw new Error('Didn\'t set new obj as expected');
+			obj[cardID] = str || '';
 		}
 	}
 	return result;
