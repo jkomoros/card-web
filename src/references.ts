@@ -85,6 +85,7 @@ const byTypeToReferences = (byTypeMap : ReferencesInfoMapByType) : ReferencesInf
 	const result : ReferencesInfoMap = {};
 	if (!byTypeMap) byTypeMap = {};
 	for (const [referenceType, referenceBlock] of TypedObject.entries(byTypeMap)) {
+		if (!referenceBlock) continue;
 		for (const [cardID, str] of TypedObject.entries(referenceBlock)) {
 			if (!result[cardID]) result[cardID] = {};
 			result[cardID][referenceType] = str;
@@ -239,8 +240,8 @@ class ReferencesAccessor {
 	//over from their original values.
 	_prepareForModifications() : void {
 		if (this._modified) return;
-		this._cardObj[REFERENCES_INFO_CARD_PROPERTY] = cloneReferences(this._cardObj[REFERENCES_INFO_CARD_PROPERTY]);
-		this._cardObj[REFERENCES_CARD_PROPERTY] = cloneReferencesBoolean(this._cardObj[REFERENCES_CARD_PROPERTY]);
+		this._cardObj.references_info = cloneReferences(this._cardObj.references_info || {});
+		this._cardObj.references = cloneReferencesBoolean(this._cardObj.references || {});
 		this._referencesInfo = this._cardObj[REFERENCES_INFO_CARD_PROPERTY];
 		this._modified = true;
 	}
