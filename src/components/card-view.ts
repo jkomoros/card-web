@@ -271,7 +271,7 @@ class CardView extends connect(store)(PageViewElement) {
 		_cardInReadingList: boolean;
 
 	@state()
-		_collection: Collection;
+		_collection: Collection | null;
 
 	@state()
 		_collectionIsFallback: boolean;
@@ -435,7 +435,7 @@ class CardView extends connect(store)(PageViewElement) {
 				<button id ='ai-assistant-concepts' class='small' title='Suggest Missing Concepts with AI' @click=${this._handleAIAssistantConceptsClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assitant-concepts'>Suggest Missing Concepts</label><br/>` : ''}
 				<button id='configure-collection' class='small' title='Configure Collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure Collection</label>
 			</div>
-			${this._collection.description.isRandom ? html`<div slot='visible-info'>
+			${this._collection?.description.isRandom ? html`<div slot='visible-info'>
 				<button id='randomize' class='small' title='Randomize (⌘⌥R)' @click=${this._handleRandomizeClicked}>${CASINO_ICON}</button><label for='randomize'>Randomize</label>
 			</div>` : ''}
 		</card-drawer>
@@ -653,7 +653,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._userMayMarkRead =  selectUserMayMarkRead(state);
 		this._userMayUseAI = selectUserMayUseAI(state);
 		this._userMayModifyReadingList = selectUserMayModifyReadingList(state);
-		this._autoMarkReadPending = state.user.autoMarkReadPending;
+		this._autoMarkReadPending = state.user ? state.user.autoMarkReadPending : false;
 		this._userMayEdit = selectUserMayEditActiveCard(state);
 		this._cardTypeToAdd = selectActiveCollectionCardTypeToAdd(state);
 		this._userMayAddCardToActiveCollection = selectUserMayAddCardToActiveCollection(state);
@@ -672,7 +672,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._cardIsRead = getCardIsRead(state, this._card ? this._card.id : '');
 		this._cardInReadingList = getCardInReadingList(state, this._card ? this._card.id : '');
 		this._collection = selectActiveCollection(state);
-		this._collectionIsFallback = this._collection && this._collection.isFallback;
+		this._collectionIsFallback = Boolean(this._collection && this._collection.isFallback);
 		this._renderOffset = selectActiveRenderOffset(state);
 		this._tagInfos = selectTags(state);
 		this._drawerReorderPending = state.data.reorderPending;

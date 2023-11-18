@@ -1492,7 +1492,7 @@ export const selectActiveCollection = createSelector(
 export const selectUserMayReorderActiveCollection = createSelector(
 	selectUserMayEditCards,
 	selectActiveCollection,
-	(userMayEditCards, collection) => userMayEditCards && collection && collection.reorderable
+	(userMayEditCards, collection) => Boolean(userMayEditCards && collection && collection.reorderable)
 );
 
 //TODO: implement a proper notion of selected cards. For now we just use all
