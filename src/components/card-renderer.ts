@@ -149,7 +149,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		_currentImagesResolve: (imagesLoaded : boolean) => void;
 
 	@state()
-		_currentImagesPromise : Promise<boolean>;
+		_currentImagesPromise : Promise<boolean> | null;
 
 	static override styles = [
 		badgeStyles,
@@ -518,7 +518,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		//it's not focused, then we can update it however we want.
 		const isActiveElement = deepActiveElement() == this._elements[field];
 		const doHighlightConcepts = !this.editing || !isActiveElement;
-		if (updatedFromContentEditable && this._elements[field] && isActiveElement && this._elements[field].conceptReferencesHighlighted == doHighlightConcepts) {
+		if (updatedFromContentEditable && this._elements[field] && isActiveElement && this._elements[field]?.conceptReferencesHighlighted == doHighlightConcepts) {
 			return this._elements[field];
 		}
 
@@ -562,7 +562,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		//Add or remove a font size boost if there is one for this card and fieldName.
 		let fontSizeBoost = '';
 		if (!this.editing && this._card.font_size_boost && this._card.font_size_boost[field]) {
-			fontSizeBoost = (1.0 + this._card.font_size_boost[field]) + 'em';
+			fontSizeBoost = (1.0 + (this._card.font_size_boost[field] || 0)) + 'em';
 		}
 		ele.style.fontSize = fontSizeBoost;
 
@@ -588,12 +588,12 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				//managed by the browser so :shrug:.
 				ele.addEventListener('blur', () => {
 					//If there's a stashed selection offset, then we're being defocused to go to a find dialog.
-					if (!ele.stashedSelectionOffset) this.requestUpdate();
+					if (ele && !ele.stashedSelectionOffset) this.requestUpdate();
 				});
 				//Highlights disappear on focus
 				ele.addEventListener('focus', () => {
 					//If there's a stashed selection offset, then when we're refocused, we'll have a paste happen.
-					if (!ele.stashedSelectionOffset) this.requestUpdate();
+					if (ele && !ele.stashedSelectionOffset) this.requestUpdate();
 				});
 				ele.hasContentEditableListeners = true;
 			}
@@ -669,8 +669,10 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 					range.selectNodeContents(this._elements.body);
 					range.collapse(false);
 					const sel = window.getSelection();
-					sel.removeAllRanges();
-					sel.addRange(range);
+					if (sel) {
+						sel.removeAllRanges();
+						sel.addRange(range);
+					}
 				} else {
 					//This is a total hack, but in the special case where the
 					//body is empty, we had to include an nbsp; so that the
@@ -685,7 +687,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				//(after clearing out hte extra 'nbsp'. For some reason
 				//Chrome doesn't actually focus the second item, unless we
 				//do a timeout. :shrug:
-				setTimeout(() => this._elements.title.focus(), 0);
+				setTimeout(() => this._elements && this._elements.title ? this._elements.title.focus() : '', 0);
 			}
 		}
 		//TODO: only run this if things that could have caused this to change
