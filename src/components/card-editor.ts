@@ -421,18 +421,20 @@ class CardEditor extends connect(store)(LitElement) {
 
 	override render() {
 
-		if (!this._card) return html`No card`;
+		const card = this._card;
 
-		const hasContent = cardHasContent(this._card);
-		const hasNotes = cardHasNotes(this._card);
-		const hasTodo = cardHasTodo(this._card);
-		const contentModified = this._card?.body != this._underlyingCard.body;
-		const notesModified = this._card?.notes != this._underlyingCard.notes;
-		const todoModified = this._card?.todo != this._underlyingCard.todo;
+		if (!card) return html`No card`;
 
-		const todoOverridesEnabled = Object.entries(this._card?.auto_todo_overrides || {}).filter(entry => entry[1] == false).map(entry => entry[0]);
+		const hasContent = cardHasContent(card);
+		const hasNotes = cardHasNotes(card);
+		const hasTodo = cardHasTodo(card);
+		const contentModified = card.body != this._underlyingCard.body;
+		const notesModified = card.notes != this._underlyingCard.notes;
+		const todoModified = card.todo != this._underlyingCard.todo;
+
+		const todoOverridesEnabled = Object.entries(card.auto_todo_overrides).filter(entry => entry[1] == false).map(entry => entry[0]);
 		const todoOverridesPreviouslyEnabled = Object.entries(this._underlyingCard.auto_todo_overrides).filter(entry => entry[1] == false).map(entry => entry[0]);
-		const todoOverridesDisabled = Object.entries(this._card?.auto_todo_overrides || {}).filter(entry => entry[1] == true).map(entry => entry[0]);
+		const todoOverridesDisabled = Object.entries(card.auto_todo_overrides).filter(entry => entry[1] == true).map(entry => entry[0]);
 		const todoOverridesPreviouslyDisabled = Object.entries(this._underlyingCard.auto_todo_overrides).filter(entry => entry[1] == true).map(entry => entry[0]);
 
 		
@@ -460,47 +462,47 @@ class CardEditor extends connect(store)(LitElement) {
 
 			</div>
 			<div ?hidden=${this._selectedEditorTab !== 'content'} class='body flex'>
-				${TypedObject.entries(editableFieldsForCardType(this._card.card_type)).map(entry => html`<label>${toTitleCase(entry[0])}${entry[1].description ? help(entry[1].description) : ''}</label>
+				${TypedObject.entries(editableFieldsForCardType(card.card_type)).map(entry => html`<label>${toTitleCase(entry[0])}${entry[1].description ? help(entry[1].description) : ''}</label>
 					${entry[1].html
-		? html`<textarea @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${this._card[entry[0]] || ''}></textarea>`
-		: html`<div class='row'><input type='text' @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${this._card[entry[0]] || ''}></input>${this._userMayUseAI && entry[0] == 'title' ? html`<button class='small' @click=${this._handleAITitleClicked} title='Suggest title with AI'>${AUTO_AWESOME_ICON}</button>` : ''}</div>`}
+		? html`<textarea @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${card[entry[0]] || ''}></textarea>`
+		: html`<div class='row'><input type='text' @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${card[entry[0]] || ''}></input>${this._userMayUseAI && entry[0] == 'title' ? html`<button class='small' @click=${this._handleAITitleClicked} title='Suggest title with AI'>${AUTO_AWESOME_ICON}</button>` : ''}</div>`}
 				`)}
 				<label>Images</label><card-images-editor></card-images-editor>
 			</div>
-			<textarea ?hidden=${this._selectedEditorTab !== 'notes'} @input='${this._handleNotesUpdated}' .value=${this._card.notes}></textarea>
-			<textarea ?hidden=${this._selectedEditorTab !== 'todo'} @input='${this._handleTodoUpdated}' .value=${this._card.todo}></textarea>
+			<textarea ?hidden=${this._selectedEditorTab !== 'notes'} @input='${this._handleNotesUpdated}' .value=${card.notes}></textarea>
+			<textarea ?hidden=${this._selectedEditorTab !== 'todo'} @input='${this._handleTodoUpdated}' .value=${card.todo}></textarea>
 		  </div>
 		  <div ?hidden=${this._selectedTab !== 'config'}>
 			<div class='row'>
 				<div>
 				<label>Section ${help('Cards are in 0 or 1 sections, which determines the default order they show up in. Cards that are orphaned will not show up in any default collection.')}</label>
 				${this._userMayChangeEditingCardSection ? 
-		html`<select @change='${this._handleSectionUpdated}' .value=${this._card.section}>
+		html`<select @change='${this._handleSectionUpdated}' .value=${card.section}>
 					${repeat(Object.values(this._sectionsUserMayEdit), (item) => item, (item) => html`
-					<option value="${item.id}" ?selected=${item.id == this._card.section}>${item.title}</option>`)}
-					<option value='' ?selected=${this._card.section == ''}>[orphaned]</option>
-				</select>` : html`<em>${this._card.section}</em>`}
+					<option value="${item.id}" ?selected=${item.id == card.section}>${item.title}</option>`)}
+					<option value='' ?selected=${card.section == ''}>[orphaned]</option>
+				</select>` : html`<em>${card.section}</em>`}
 				</div>
 				<div>
 				<Label>Slugs ${help('Slugs are alternate identifiers for the card. You may not remove slugs. The one that is selected in this drop down is the default one that will be shown in end-user visible URLs')}</label>
 				${this._pendingSlug ? html`<em>${this._pendingSlug}</em><button disabled>+</button>` : html`
-					<select .value=${this._card.name} @change='${this._handleNameUpdated}'>
-						${repeat([this._card.id, ...this._card.slugs], (item) => item, (item) => html`
-						<option value="${item}" ?selected=${item == this._card.name}>${item}</option>`)}
+					<select .value=${card.name} @change='${this._handleNameUpdated}'>
+						${repeat([card.id, ...card.slugs], (item) => item, (item) => html`
+						<option value="${item}" ?selected=${item == card.name}>${item}</option>`)}
 					</select>
 					<button @click='${this._handleAddSlug}'>+</button>
 				`}
 				</div>
 				<div>
 					<label>Card Type ${help('The type of card. Typically all published cards are content')}</label>
-					<select .value=${this._card.card_type} @change=${this._handleCardTypeChanged}>
+					<select .value=${card.card_type} @change=${this._handleCardTypeChanged}>
 					${(Object.keys(CARD_TYPE_CONFIGURATION) as CardType[]).map(item => {
-		const illegalCardTypeReason = reasonCardTypeNotLegalForCard(this._card, item);
+		const illegalCardTypeReason = reasonCardTypeNotLegalForCard(card, item);
 		const configuration = CARD_TYPE_CONFIGURATION[item];
 		if (!configuration) return '';
 		const title = configuration.description + (illegalCardTypeReason ? '' : '\n' + illegalCardTypeReason);
 		return html`<option .value=${item} .disabled=${illegalCardTypeReason 
-		!= ''} .title=${title} .selected=${item == this._card.card_type}>${item}</option>`;
+		!= ''} .title=${title} .selected=${item == card.card_type}>${item}</option>`;
 	})}
 					</select>
 				</div>
@@ -518,7 +520,7 @@ class CardEditor extends connect(store)(LitElement) {
 				<div>
 					<label>Tags ${help('Tags are collections, visible to all viewers, that a card can be in. A card can be in 0 or more tags.')}</label>
 					<tag-list
-						.tags=${this._card.tags}
+						.tags=${card.tags}
 						.previousTags=${this._underlyingCard ? this._underlyingCard.tags : []}
 						.editing=${this._userMayEditSomeTags}
 						.excludeItems=${this._tagsUserMayNotEdit}
@@ -617,13 +619,13 @@ class CardEditor extends connect(store)(LitElement) {
 						<tag-list
 							.overrideTypeName=${'Editor'}
 							.tagInfos=${this._authors}
-							.tags=${this._card.permissions[PERMISSION_EDIT_CARD] || []}
+							.tags=${card.permissions[PERMISSION_EDIT_CARD] || []}
 							.editing=${true}
 							@tag-removed=${this._handleRemoveEditor}
 							@tag-added=${this._handleAddEditor}
 							.disableNew=${!this._isAdmin}
 							@tag-new=${this._handleNewEditor}
-							.excludeItems=${[this._card.author]}>
+							.excludeItems=${[card.author]}>
 						</tag-list>
 					</div>
 					<div>
@@ -631,13 +633,13 @@ class CardEditor extends connect(store)(LitElement) {
 						<tag-list
 							.overrideTypeName=${'Collaborator'}
 							.tagInfos=${this._authors}
-							.tags=${this._card.collaborators}
+							.tags=${card.collaborators}
 							.editing=${true}
 							@tag-removed=${this._handleRemoveCollaborator}
 							@tag-added=${this._handleAddCollaborator}
 							.disableNew=${!this._isAdmin}
 							@tag-new=${this._handleNewCollaborator}
-							.excludeItems=${[this._card.author]}>
+							.excludeItems=${[card.author]}>
 						</tag-list>
 					</div>
 				</div>
@@ -648,7 +650,7 @@ class CardEditor extends connect(store)(LitElement) {
 							.overrideTypeName=${'Link'}
 							.tagInfos=${this._cardTagInfos}
 							.defaultColor=${enableTODOColor}
-							.tags=${cardMissingReciprocalLinks(this._card)}
+							.tags=${cardMissingReciprocalLinks(card)}
 							.editing=${true}
 							.disableAdd=${true}
 							@tag-removed=${this._handleAddAckReference}>
@@ -657,7 +659,7 @@ class CardEditor extends connect(store)(LitElement) {
 					<div>
 						<select @change=${this._handleAddReference}>
 							<option value=''><em>Add a reference to a card type...</option>
-							${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]} title=${entry[1].description} ?disabled=${!LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[this._card.card_type][entry[0]]}>${entry[1].name}</option>`)}
+							${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]} title=${entry[1].description} ?disabled=${!LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[card.card_type][entry[0]]}>${entry[1].name}</option>`)}
 						</select>
 					</div>
 				</div>
@@ -750,7 +752,7 @@ class CardEditor extends connect(store)(LitElement) {
 			<div class='tags'>
 				<select @change=${this._handleAddReference} style='max-width:10em'>
 					<option value=''><em>Add reference...</em></option>
-					${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]} title=${entry[1].description} ?disabled=${!LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[this._card.card_type][entry[0]]}>${entry[1].name}</option>`)}
+					${Object.entries(REFERENCE_TYPES).filter(entry => entry[1].editable).map(entry => html`<option value=${entry[0]} title=${entry[1].description} ?disabled=${!LEGAL_OUTBOUND_REFERENCES_BY_CARD_TYPE[card.card_type][entry[0]]}>${entry[1].name}</option>`)}
 				</select>
 			</div>
 		` :
@@ -763,11 +765,11 @@ class CardEditor extends connect(store)(LitElement) {
 			<div class='checkboxes'>
 				<div>
 					<label>Full Bleed</label>
-					<input type='checkbox' ?checked='${this._card.full_bleed}' @change='${this._handleFullBleedUpdated}'></input>
+					<input type='checkbox' ?checked='${card.full_bleed}' @change='${this._handleFullBleedUpdated}'></input>
 					</div>
 				<div>
 					<label>Published</label>
-					<input type='checkbox' .checked=${this._card.published} @change='${this._handlePublishedUpdated}'></input>
+					<input type='checkbox' .checked=${card.published} @change='${this._handlePublishedUpdated}'></input>
 				</div>
 				<div>
 					<label>Substantive</label>
