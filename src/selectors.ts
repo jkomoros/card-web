@@ -565,7 +565,7 @@ export const selectUserMayViewUnpublished = createSelector(
 export const selectUserMayEditPermissions = createSelector(
 	selectUserIsAdmin,
 	//For now, only admins may edit permissions.
-	(admin) => admin
+	(admin) => admin || false
 );
 
 export const getUserMayEditSection = (state : State, sectionID : SectionID) => {
