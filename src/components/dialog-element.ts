@@ -135,7 +135,9 @@ export class DialogElement extends LitElement {
 	}
 
 	_handleBackgroundClicked(e : MouseEvent) {
-		const background = this.shadowRoot.querySelector('.background');
+		const shadowRoot = this.shadowRoot;
+		if (!shadowRoot) throw new Error('No shadowroot');
+		const background = shadowRoot.querySelector('.background');
 		//If the click wasn't actualy directly on the background then ignore it.
 		if (e.composedPath()[0] != background) return;
 		this._shouldClose();
@@ -156,9 +158,11 @@ export class DialogElement extends LitElement {
 
 		//Make sure if there's a text field it's focused.
 
-		let input = this.shadowRoot.querySelector('input[type=text]');
-		if (!input) input = this.shadowRoot.querySelector('input[type=search]');
-		if (!input) input = this.shadowRoot.querySelector('textarea');
+		const shadowRoot = this.shadowRoot;
+		if (!shadowRoot) throw new Error('No shadowroot');
+		let input = shadowRoot.querySelector('input[type=text]');
+		if (!input) input = shadowRoot.querySelector('input[type=search]');
+		if (!input) input = shadowRoot.querySelector('textarea');
 		if (!input) return;
 		if (input instanceof HTMLElement) input.focus();
 	}
