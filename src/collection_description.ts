@@ -954,12 +954,16 @@ export class Collection {
 
 	get finalSortedCards() : ProcessedCard[] {
 		this._ensureStartCards();
-		return [...this._startCards, ...this.sortedCards];
+		const startCards = this._startCards;
+		if (!startCards) throw new Error('No start cards as expected');
+		return [...startCards, ...this.sortedCards];
 	}
 
 	get numStartCards() {
 		this._ensureStartCards();
-		return this._startCards.length;
+		const startCards = this._startCards;
+		if (!startCards) throw new Error('No start cards as expected');
+		return startCards.length;
 	}
 
 	get partialMatches() {
