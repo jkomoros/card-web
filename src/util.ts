@@ -170,7 +170,7 @@ export const urlForTweet = (tweet : TweetInfo) => {
 	return 'https://twitter.com/' + tweet.user_screen_name + '/status/' + tweet.id;
 };
 
-export const cardHasContent = (card : Card) => {
+export const cardHasContent = (card : Card | null) => {
 	if (!card) return false;
 	//We treat all non-body-card cards as having content, since the main reason
 	//to count a card has not having content is if there's nothing to see on it.
@@ -184,7 +184,7 @@ export const cardHasContent = (card : Card) => {
 };
 
 const SUBSTANTIVE_CONTENT_THRESHOLD = 300;
-export const cardHasSubstantiveContent = (card : ProcessedCard) => {
+export const cardHasSubstantiveContent = (card : ProcessedCard | null) => {
 	if (!card) return false;
 	//We treat all non-content cards as having content, since the main reason to
 	//count a card has not having content is if there's nothing to see on it.
@@ -193,13 +193,13 @@ export const cardHasSubstantiveContent = (card : ProcessedCard) => {
 	return content.length > SUBSTANTIVE_CONTENT_THRESHOLD;
 };
 
-export const cardHasNotes = (card : Card) => {
+export const cardHasNotes = (card : Card | null) => {
 	if (!card) return false;
 	const content = card.notes ? card.notes.trim() : '';
 	return content ? true : false;
 };
 
-export const cardHasTodo = (card : Card) => {
+export const cardHasTodo = (card : Card | null) => {
 	if (!card) return false;
 	const content = card.todo ? card.todo.trim() : '';
 	return content ? true : false;

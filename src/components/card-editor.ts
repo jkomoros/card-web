@@ -424,13 +424,13 @@ class CardEditor extends connect(store)(LitElement) {
 		const hasContent = cardHasContent(this._card);
 		const hasNotes = cardHasNotes(this._card);
 		const hasTodo = cardHasTodo(this._card);
-		const contentModified = this._card.body != this._underlyingCard.body;
-		const notesModified = this._card.notes != this._underlyingCard.notes;
-		const todoModified = this._card.todo != this._underlyingCard.todo;
+		const contentModified = this._card?.body != this._underlyingCard.body;
+		const notesModified = this._card?.notes != this._underlyingCard.notes;
+		const todoModified = this._card?.todo != this._underlyingCard.todo;
 
-		const todoOverridesEnabled = Object.entries(this._card.auto_todo_overrides).filter(entry => entry[1] == false).map(entry => entry[0]);
+		const todoOverridesEnabled = Object.entries(this._card?.auto_todo_overrides || {}).filter(entry => entry[1] == false).map(entry => entry[0]);
 		const todoOverridesPreviouslyEnabled = Object.entries(this._underlyingCard.auto_todo_overrides).filter(entry => entry[1] == false).map(entry => entry[0]);
-		const todoOverridesDisabled = Object.entries(this._card.auto_todo_overrides).filter(entry => entry[1] == true).map(entry => entry[0]);
+		const todoOverridesDisabled = Object.entries(this._card?.auto_todo_overrides || {}).filter(entry => entry[1] == true).map(entry => entry[0]);
 		const todoOverridesPreviouslyDisabled = Object.entries(this._underlyingCard.auto_todo_overrides).filter(entry => entry[1] == true).map(entry => entry[0]);
 
 		
