@@ -909,7 +909,9 @@ export class Collection {
 	//The raw numerical value for a card. Note that this might not be reversed as desired.
 	sortValueForCard(id : CardID) : number {
 		this._ensureSortInfo();
-		const record = this._sortInfo.get(id);
+		const sortInfo = this._sortInfo;
+		if (!sortInfo) throw new Error('no sort info as expected');
+		const record = sortInfo.get(id);
 		if (!record) return Number.MIN_SAFE_INTEGER;
 		return record[0];
 	}
