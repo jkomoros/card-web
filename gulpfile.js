@@ -506,31 +506,6 @@ gulp.task(ASK_IF_WANT_BUILD, async (cb) => {
 
 });
 
-let wantsToSkipSEO = undefined;
-
-gulp.task(ASK_IF_WANT_SEO_PAGES, async (cb) => {
-	if (wantsToSkipSEO !== undefined) {
-		console.log('Already asked if the user wants an SEO');
-		cb();
-		return;
-	}
-	if (!SEO_ENABLED) {
-		console.log('SEO not enabled in config.SECRET.json');
-		cb();
-		return;
-	}
-	const response = await prompts({
-		type:'confirm',
-		name: 'value',
-		initial: false,
-		message: 'Do you want to skip SEO generation? This can take a long time and only needs to be re-run if published card content has changed.',
-	});
-
-	wantsToSkipSEO = response.value;
-	cb();
-
-});
-
 gulp.task(WARN_MAINTENANCE_TASKS, (cb) => {
 	console.log(`******************************************************************
 *                 WARNING 
@@ -556,8 +531,8 @@ gulp.task(BUILD_OPTIONALLY, async (cb) => {
 
 gulp.task(GENERATE_SEO_PAGES_OPTIONALLY, async (cb) => {
 	const task = gulp.task(GENERATE_SEO_PAGES);
-	if (wantsToSkipSEO) {
-		console.log('Skipping SEO because the user asked to skip it');
+	if (!SEO_ENABLED) {
+		console.log('Skipping SEO because it\'s not enabled');
 		cb();
 		return;
 	}
