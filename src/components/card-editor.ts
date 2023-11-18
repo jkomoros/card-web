@@ -212,7 +212,7 @@ class CardEditor extends connect(store)(LitElement) {
 
 	//The card before any edits
 	@state()
-		_underlyingCard: Card;
+		_underlyingCard: Card | null;
 
 	@state()
 		_suggestedTags: TagID[];
@@ -422,20 +422,22 @@ class CardEditor extends connect(store)(LitElement) {
 	override render() {
 
 		const card = this._card;
+		const underlyingCard = this._underlyingCard;
 
 		if (!card) return html`No card`;
+		if (!underlyingCard) return html`No underlying card`;
 
 		const hasContent = cardHasContent(card);
 		const hasNotes = cardHasNotes(card);
 		const hasTodo = cardHasTodo(card);
-		const contentModified = card.body != this._underlyingCard.body;
-		const notesModified = card.notes != this._underlyingCard.notes;
-		const todoModified = card.todo != this._underlyingCard.todo;
+		const contentModified = card.body != underlyingCard.body;
+		const notesModified = card.notes != underlyingCard.notes;
+		const todoModified = card.todo != underlyingCard.todo;
 
 		const todoOverridesEnabled = Object.entries(card.auto_todo_overrides).filter(entry => entry[1] == false).map(entry => entry[0]);
-		const todoOverridesPreviouslyEnabled = Object.entries(this._underlyingCard.auto_todo_overrides).filter(entry => entry[1] == false).map(entry => entry[0]);
+		const todoOverridesPreviouslyEnabled = Object.entries(underlyingCard.auto_todo_overrides).filter(entry => entry[1] == false).map(entry => entry[0]);
 		const todoOverridesDisabled = Object.entries(card.auto_todo_overrides).filter(entry => entry[1] == true).map(entry => entry[0]);
-		const todoOverridesPreviouslyDisabled = Object.entries(this._underlyingCard.auto_todo_overrides).filter(entry => entry[1] == true).map(entry => entry[0]);
+		const todoOverridesPreviouslyDisabled = Object.entries(underlyingCard.auto_todo_overrides).filter(entry => entry[1] == true).map(entry => entry[0]);
 
 		
 		const enableTODOColor = '#b22222'; //firebrick
