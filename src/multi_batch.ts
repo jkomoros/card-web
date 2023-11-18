@@ -59,7 +59,7 @@ export class MultiBatch {
 
 	_db : Firestore;
 	_currentBatchOperationCount : number;
-	_currentBatch? : WriteBatch;
+	_currentBatch? : WriteBatch | null;
 	_batches : WriteBatch[];
 	_id : string;
 
@@ -111,7 +111,7 @@ export class MultiBatch {
 	//A wrapper around batch.set that also calls installServerTimestamps on the object
 	set(ref : DocumentReference, data : object, options? : SetOptions) {
 		data = installServerTimestamps(data);
-		this._batch.set(ref, data, options);
+		this._batch.set(ref, data, options || {});
 		this._currentBatchOperationCount += this._writeCountForUpdate(data);
 		return this;
 	}
