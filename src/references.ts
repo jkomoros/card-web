@@ -643,8 +643,8 @@ export const referencesDiff = (beforeCard : CardLike, afterCard : CardLike) : Re
 	const result : ReferencesDiff = [{}, {}, {}, {}];
 	if (!referencesLegalShape(beforeCard)) return result;
 	if (!referencesLegalShape(afterCard)) return result;
-	const before = beforeCard[REFERENCES_INFO_CARD_PROPERTY];
-	const after = afterCard[REFERENCES_INFO_CARD_PROPERTY];
+	const before = beforeCard[REFERENCES_INFO_CARD_PROPERTY] || {};
+	const after = afterCard[REFERENCES_INFO_CARD_PROPERTY] || {};
 	//For cards that were not in before but are in after
 	const cardAdditions : CardBooleanMap = {};
 	//For card blocks that exist in both before and after... but might have modifications within them
