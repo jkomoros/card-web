@@ -736,7 +736,7 @@ const cardReferenceBlockHasDifference = (before : {[typ in ReferenceType]+?: str
 //Inspired by referencesDiff from card_fields.js Returns
 //[cardIDAdditionsOrModifications, cardIDDeletions]. each is a map of cardID =>
 //true, and say that you should copy over the whole block.
-export const referencesCardsDiff = (beforeCard : CardLike, afterCard : CardLike) : ReferencesCardsDiff => {
+export const referencesCardsDiff = (beforeCard : CardLike | null, afterCard : CardLike | null) : ReferencesCardsDiff => {
 	const result : ReferencesCardsDiff = [{}, {}];
 	const emptyCard = {[REFERENCES_INFO_CARD_PROPERTY]:{}, [REFERENCES_CARD_PROPERTY]: {}};
 	if (!beforeCard || Object.keys(beforeCard).length === 0) beforeCard = emptyCard;
