@@ -200,12 +200,12 @@ const waitingForCardToExistStoreUpdated = () => {
 		itemDeleted = true;
 	}
 	if (itemDeleted && Object.keys(waitingForCards).length == 0) {
-		unsubscribeFromStore();
+		if (unsubscribeFromStore) unsubscribeFromStore();
 		unsubscribeFromStore = null;
 	}
 };
 
-let unsubscribeFromStore : () => void = null;
+let unsubscribeFromStore : (() => void) | null = null;
 
 //returns a promise that will be resolved when a card with that ID exists, returning the card.
 export const waitForCardToExist = (cardID : CardID) => {
