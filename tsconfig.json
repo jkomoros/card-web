@@ -12,6 +12,7 @@
     "useDefineForClassFields": false,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
+    "strictNullChecks": true,
     "noFallthroughCasesInSwitch": true,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
