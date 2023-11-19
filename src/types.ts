@@ -1021,7 +1021,7 @@ export type Section = {
 	default? : boolean,
 }
 
-export type SectionUpdate = TimestampToFieldValue<OptionalFields<Section>>;
+export type SectionUpdate = OptionalFields<TimestampToFieldValue<Section>>;
 
 export type Tags = {
 	[tagName : TagID] : Section
