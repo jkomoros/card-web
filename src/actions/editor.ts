@@ -339,7 +339,7 @@ export const linkURL = (href : string) : ThunkSomeAction => (_, getState) => {
 	//editor component.
 	restoreSelectionRange();
 	if (href) {
-		document.execCommand('createLink', null, href);
+		document.execCommand('createLink', false, href);
 	} else {
 		document.execCommand('unlink');
 	}
@@ -347,11 +347,11 @@ export const linkURL = (href : string) : ThunkSomeAction => (_, getState) => {
 
 export const linkCard = (cardID : CardID) : ThunkSomeAction => (_, getState) => {
 	const state = getState();
-	if (!state.editor.editing) return;
+	if (!selectIsEditing(state)) return;
 	//TODO: it's weird we do this here, it really should be done on the card-
 	//editor component.
 	restoreSelectionRange();
-	document.execCommand('createLink', null, cardID);
+	document.execCommand('createLink', false, cardID);
 };
 
 export const editingFinish = () : SomeAction => {
@@ -417,7 +417,7 @@ export const sectionUpdated = (newSection : SectionID) : ThunkSomeAction => (dis
 	const state = getState();
 	const baseCard = selectActiveCard(state);
 	const sections = selectSections(state);
-	const currentlySubstantive = state.editor.substantive;
+	const currentlySubstantive = state?.editor?.substantive || false;
 	if (baseCard && sections) {
 		const oldSection = baseCard.section;
 		const sectionKeys = Object.keys(sections);
@@ -459,7 +459,7 @@ export const nameUpdated = (newName : CardIdentifier) : SomeAction => {
 	};
 };
 
-export const substantiveUpdated = (checked: boolean, auto? : boolean) : ThunkSomeAction => (dispatch, getState) => {
+export const substantiveUpdated = (checked: boolean, auto = false) : ThunkSomeAction => (dispatch, getState) => {
 
 	const state = getState();
 	const editingCard = selectEditingCard(state);
@@ -483,7 +483,7 @@ export const substantiveUpdated = (checked: boolean, auto? : boolean) : ThunkSom
 export const cardTypeUpdated = (cardType : CardType) :  ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	const baseCard = selectActiveCard(state);
-	const currentlySubstantive = state.editor.substantive;
+	const currentlySubstantive = state?.editor?.substantive || false;
 
 	if (!CARD_TYPE_CONFIGURATION[cardType]) {
 		console.warn('Illegal card type');
@@ -509,7 +509,7 @@ export const publishedUpdated = (published : boolean) : ThunkSomeAction => (disp
 
 	const state = getState();
 	const baseCard = selectActiveCard(state);
-	const currentlySubstantive = state.editor.substantive;
+	const currentlySubstantive = state?.editor?.substantive || false;
 
 	//If the base card wasn't published, and now is, and substantive isn't
 	//already checked, check it. If we're setting to unpublished (as base card
@@ -595,7 +595,7 @@ export const manualEditorAdded = (editorUid : Uid) => {
 	return editorAdded(editorUid);
 };
 
-export const collaboratorAdded = (collaboratorUid : Uid, auto? : boolean) : ThunkSomeAction => (dispatch, getState) => {
+export const collaboratorAdded = (collaboratorUid : Uid, auto = false) : ThunkSomeAction => (dispatch, getState) => {
 	const card = selectEditingCard(getState());
 	if (!card) return;
 	if (collaboratorUid == card.author) {
@@ -609,7 +609,7 @@ export const collaboratorAdded = (collaboratorUid : Uid, auto? : boolean) : Thun
 	});
 };
 
-export const collaboratorRemoved = (collaboratorUid : Uid, auto? : boolean) : SomeAction => {
+export const collaboratorRemoved = (collaboratorUid : Uid, auto = false) : SomeAction => {
 	return {
 		type: EDITING_COLLABORATOR_REMOVED,
 		collaborator:collaboratorUid,
