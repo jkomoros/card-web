@@ -189,9 +189,9 @@ export const connectLiveThreads = () => {
 	});
 };
 
-let liveStarsUnsubscribe : () => void = null;
-let liveReadsUnsubscribe : () => void  = null;
-let liveReadingListUnsubscribe : () => void = null;
+let liveStarsUnsubscribe : (() => void) | null = null;
+let liveReadsUnsubscribe : (() => void) | null  = null;
+let liveReadingListUnsubscribe : (() => void) | null = null;
 
 export const disconnectLiveStars = () => {
 	if (liveStarsUnsubscribe) {
@@ -316,8 +316,8 @@ export const connectLivePublishedCards = () => {
 	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', true)), cardSnapshotReceiver(false));
 };
 
-let liveUnpublishedCardsForUserAuthorUnsubscribe : () => void = null;
-let liveUnpublishedCardsForUserEditorUnsubscribe : () => void  = null;
+let liveUnpublishedCardsForUserAuthorUnsubscribe : (() => void) | null = null;
+let liveUnpublishedCardsForUserEditorUnsubscribe : (() => void) | null  = null;
 
 export const connectLiveUnpublishedCardsForUser = (uid : Uid) => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
