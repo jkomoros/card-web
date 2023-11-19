@@ -82,18 +82,22 @@ export const composeUpdateContent = (content : string) : SomeAction => {
 
 
 //TODO: use functionOverloading on expected types
-const doAction = (dispatch : AppThunkDispatch, state : State, action : CommitActionType, content? : string, associatedId? : CommentMessageID | CommentThreadID) => {
+const doAction = (dispatch : AppThunkDispatch, state : State, action : CommitActionType, content = '', associatedId? : CommentMessageID | CommentThreadID) => {
 	if (!action) return;
 	switch (action) {
 	case 'CONSOLE_LOG':
 		console.log(content, associatedId);
 		return;
 	case 'EDIT_MESSAGE':
+		if (!associatedId) throw new Error('No associated ID');
 		const message = getMessageById(state, associatedId);
+		if (!message) throw new Error('No message');
 		dispatch(editMessage(message, content));
 		return;
 	case 'ADD_MESSAGE':
+		if (!associatedId) throw new Error('No associated ID');
 		const thread = getThreadById(state, associatedId);
+		if (!thread) throw new Error('No thread');
 		dispatch(addMessage(thread, content));
 		return;
 	case 'CREATE_THREAD':
