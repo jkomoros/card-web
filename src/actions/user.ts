@@ -102,7 +102,7 @@ import {
 	UPDATE_USER_PERMISSIONS
 } from '../actions.js';
 
-let prevAnonymousMergeUser : User = null;
+let prevAnonymousMergeUser : User | null = null;
 
 getRedirectResult(auth).catch( async (err : FirebaseError) => {
 
@@ -339,9 +339,9 @@ const _userInfo = (info : User) : UserInfo => {
 	return {
 		uid: info.uid,
 		isAnonymous: info.isAnonymous,
-		photoURL: info.photoURL,
-		displayName: info.displayName,
-		email: info.email
+		photoURL: info.photoURL || '',
+		displayName: info.displayName || '',
+		email: info.email || ''
 	};
 };
 
@@ -558,7 +558,7 @@ export const updateReadingList = (list : CardID[] = []) : ThunkSomeAction => (di
 	dispatch(refreshCardSelector(false));
 };
 
-let autoMarkReadTimeoutId : number;
+let autoMarkReadTimeoutId : number | null = null;
 
 export const scheduleAutoMarkRead = () : ThunkSomeAction => (dispatch, getState) => {
 
