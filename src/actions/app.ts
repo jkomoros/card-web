@@ -138,7 +138,7 @@ export const navigatePathTo = (path : string, silent? : boolean) : ThunkSomeActi
 	const state = getState();
 	//If we're already pointed there, no need to navigate
 	if ('/' + path === window.location.pathname) return;
-	if (state.editor.editing) {
+	if (selectIsEditing(state)) {
 		console.log('Can\'t navigate while editing');
 		return;
 	}
@@ -339,7 +339,7 @@ const updatePage = (location : string, page : string, pageExtra : string) : Some
 	};
 };
 
-const fetchCardFromDb = async (cardIDOrSlug : CardIdentifier) : Promise<DocumentSnapshot> => {
+const fetchCardFromDb = async (cardIDOrSlug : CardIdentifier) : Promise<DocumentSnapshot | null> => {
 	//Cards are more likely to be fetched via slug, so try that first
 	const cards = await getDocs(query(collection(db, CARDS_COLLECTION), where('published', '==', true), where('slugs', 'array-contains', cardIDOrSlug), limit(1)));
 	if (cards && !cards.empty) {
