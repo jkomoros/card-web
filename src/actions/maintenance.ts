@@ -387,7 +387,8 @@ const exportPolymathData : MaintenanceTaskFunction = async (_, getState) => {
 	if (!includePublished && !includeUnpublished) return;
 	let origin = window.location.origin;
 	if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-		origin = prompt('What is the origin?', origin);
+		origin = prompt('What is the origin?', origin) || '';
+		if (!origin) throw new Error('Need origin');
 	}
 	if (!origin.includes('https://') && !origin.includes('http://')) return;
 	if (origin.endsWith('/')) return;
