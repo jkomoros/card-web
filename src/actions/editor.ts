@@ -191,7 +191,8 @@ const startEndOffsetInEle = (ele : Node, range : Range, previousCount : number) 
 		const [innerStart, innerEnd] = startEndOffsetInEle(child, range, previousCount);
 		if (start == -1 && innerStart != -1) start = innerStart;
 		if (end == -1 && innerEnd != -1) end = innerEnd;
-		previousCount += child.textContent.length;
+		const childTextContent = child.textContent;
+		previousCount += childTextContent ? childTextContent.length : 0;
 	}
 	return [start, end];
 };
@@ -207,12 +208,13 @@ const rangeFromOffsetsInEle = (ele : Node, startOffset = -1, endOffset = -1) => 
 const setOffsetRange = (node : Node, range : Range, startOffset : number, endOffset : number, offsetCount : number) => {
 	if (node.nodeType == node.TEXT_NODE) {
 		//We might be the candidate!
-		if (startOffset >= offsetCount && startOffset < offsetCount + node.textContent.length) range.setStart(node, startOffset - offsetCount);
-		if (endOffset >= offsetCount && endOffset < offsetCount + node.textContent.length) range.setEnd(node, endOffset - offsetCount);
+		const nodeTextContentLength = node.textContent ? node.textContent.length : 0;
+		if (startOffset >= offsetCount && startOffset < offsetCount + nodeTextContentLength) range.setStart(node, startOffset - offsetCount);
+		if (endOffset >= offsetCount && endOffset < offsetCount + nodeTextContentLength) range.setEnd(node, endOffset - offsetCount);
 	}
 	for (const child of node.childNodes) {
 		setOffsetRange(child, range, startOffset, endOffset, offsetCount);
-		offsetCount += child.textContent.length;
+		offsetCount += (child.textContent ? child.textContent.length : 0);
 	}
 };
 
