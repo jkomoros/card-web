@@ -81,7 +81,8 @@ import {
 	selectUserMayReorderActiveCollection,
 	selectActiveCollectionDescription,
 	selectRawCards,
-	getUserMayEditTag
+	getUserMayEditTag,
+	selectEditingCard
 } from '../selectors.js';
 
 import {
@@ -504,7 +505,9 @@ export const addSlug = (cardId : CardID, newSlug : Slug) : ThunkSomeAction => as
 	}
 
 	const state = getState();
-	const isEditingCard = state.editor.card && state.editor.card.id == cardId;
+	const editingCard = selectEditingCard(state);
+	if (!editingCard) throw new Error('No editing card');
+	const isEditingCard = editingCard.id == cardId;
 
 	//slugLegal is a http callable, and it might take multiple seconds if the
 	//cloud function is cold.
