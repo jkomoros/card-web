@@ -662,7 +662,7 @@ export const addImageWithFile = (file : File, index : number | undefined) : Thun
 
 //src must be a fully qualified URL. uploadPath is the filename in the upload
 //bucket, if applicable. If index is undefined, it will add a new item to the end of the list
-export const addImageWithURL = (src : string, uploadPath = '', index? : number) : ThunkSomeAction => async (dispatch, getState) => {
+export const addImageWithURL = (src : string, uploadPath = '', index = 0) : ThunkSomeAction => async (dispatch, getState) => {
 
 	if (!srcSeemsValid(src)) {
 		alert('Src doesn\'t seem valid. It should start with https or http');
@@ -749,7 +749,7 @@ export const closeImagePropertiesDialog = () : SomeAction => {
 };
 
 //index can be not provided, which defaults to adding to end.
-export const openImageBrowserDialog = (index? : number) : SomeAction => {
+export const openImageBrowserDialog = (index = 0) : SomeAction => {
 	return {
 		type: EDITING_OPEN_IMAGE_BROWSER_DIALOG,
 		index,
