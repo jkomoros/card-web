@@ -146,10 +146,9 @@ import {
 	SomeAction
 } from '../actions.js';
 
-let lastReportedSelectionRange : Range = null;
-let savedSelectionRange : Range = null;
-let selectionParent : HTMLElementWithStashedSelectionOffset = null;
-
+let lastReportedSelectionRange : Range | null = null;
+let savedSelectionRange : Range | null = null;
+let selectionParent : HTMLElementWithStashedSelectionOffset | null = null;
 
 //selection range is weird; you can only listen for changes at the document
 //level, but selections wihtin a shadow root are hidden from outside. Certain
