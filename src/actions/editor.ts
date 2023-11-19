@@ -221,11 +221,11 @@ const setOffsetRange = (node : Node, range : Range, startOffset : number, endOff
 export const restoreSelectionRange = () => {
 	if (!selectionParent) return;
 	const selection = document.getSelection();
-	selection.removeAllRanges();
+	if (selection) selection.removeAllRanges();
 	//Note that this assumes that selectionParent is still literally the same element as when selection was saved.
 	const offsets = selectionParent.stashedSelectionOffset || [-1, -1];
 	const range = rangeFromOffsetsInEle(selectionParent, offsets[0], offsets[1]);
-	if (range) selection.addRange(range);
+	if (range && selection) selection.addRange(range);
 	selectionParent.stashedSelectionOffset = undefined;
 };
 
@@ -304,6 +304,11 @@ export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) 
 
 	const rawUpdatedCard = selectEditingCard(state);
 
+	if (!rawUpdatedCard) {
+		console.warn('No updated card');
+		return;
+	}
+
 	let update : CardDiff;
 	try {
 		update = await generateFinalCardDiff(state, underlyingCard, rawUpdatedCard);
@@ -319,7 +324,7 @@ export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) 
 	if (!confirmationsForCardDiff(update, rawUpdatedCard)) return;
 
 	//modifyCard will fail if the update is a no-op.
-	dispatch(modifyCard(underlyingCard, update, state.editor.substantive));
+	dispatch(modifyCard(underlyingCard, update, state?.editor?.substantive));
 
 };
 
@@ -329,7 +334,7 @@ export const cancelLink = () => () => {
 
 export const linkURL = (href : string) : ThunkSomeAction => (_, getState) => {
 	const state = getState();
-	if (!state.editor.editing) return;
+	if (!selectIsEditing(state)) return;
 	//TODO: it's weird we do this here, it really should be done on the card-
 	//editor component.
 	restoreSelectionRange();
