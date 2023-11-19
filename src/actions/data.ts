@@ -1235,7 +1235,7 @@ export const updateTags = (tags : Tags) : ThunkSomeAction => (dispatch) => {
 	dispatch(refreshCardSelector(false));
 };
 
-export const updateCards = (cards: Cards, unpublished? : boolean) : ThunkSomeAction => (dispatch, getState) => {
+export const updateCards = (cards: Cards, unpublished = false) : ThunkSomeAction => (dispatch, getState) => {
 	const existingCards = selectRawCards(getState());
 	const cardsToUpdate : Cards = {};
 	for (const card of Object.values(cards)) {
