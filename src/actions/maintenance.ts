@@ -180,8 +180,10 @@ const updateInboundLinks : MaintenanceTaskFunction = async() => {
 			const referencesInbound : ReferencesInfoMap = {};
 			const referencesInboundSentinel: {[name : CardID] : boolean} = {};
 			linkingCardsSnapshot.forEach((linkingCard : DocumentSnapshot) => {
-				referencesInbound[linkingCard.id] = linkingCard.data()[REFERENCES_INFO_CARD_PROPERTY][doc.id];
-				referencesInboundSentinel[linkingCard.id] = linkingCard.data()[REFERENCES_CARD_PROPERTY][doc.id];
+				const linkingCardData = linkingCard.data() as Card | undefined;
+				if (!linkingCardData) return;
+				referencesInbound[linkingCard.id] = linkingCardData.references_info[doc.id];
+				referencesInboundSentinel[linkingCard.id] = linkingCardData.references[doc.id];
 			});
 			batch.update(doc.ref, {
 				updated_references_inbound: serverTimestamp(),
