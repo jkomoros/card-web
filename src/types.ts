@@ -793,7 +793,7 @@ type ArrayToFieldValueUnion<Type> = {
 	[Property in keyof Type]: Type[Property] extends unknown[] ? Type[Property] | FieldValue : Type[Property]
 }
 
-type CardUpdateIntermediate = ArrayToFieldValueUnion<TimestampToFieldValue<OptionalFieldsCard>>;
+type CardUpdateIntermediate = OptionalFields<ArrayToFieldValueUnion<TimestampToFieldValue<Card>>>;
 
 export type FirestoreLeafValue = boolean | string | number | object | FieldValue;
 
