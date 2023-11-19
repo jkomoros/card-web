@@ -134,8 +134,9 @@ export const updateCardSelector = (cardSelector : string) : ThunkSomeAction => (
 				//in the filter to the section it's. in.
 				filters = [card.section];
 			} else {
+				const configuration = CARD_TYPE_CONFIGURATION[card.card_type];
 				//If it's oprhaned...
-				if (CARD_TYPE_CONFIGURATION[card.card_type].orphanedByDefault && !description.setNameExplicitlySet) {
+				if (configuration && configuration.orphanedByDefault && !description.setNameExplicitlySet) {
 					//If it's a working notes card then by default we'll view it
 					//in the collection including all of its other cards.
 					set = 'everything';
