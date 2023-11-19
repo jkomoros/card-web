@@ -32,7 +32,7 @@ const workingNotesExtractor = (card : Card, state : State) => {
 	const fallbackMap = backportFallbackTextMapForCard(card, selectCards(state));
 	const conceptsMap = selectConcepts(state);
 	const synonymMap = selectSynonymMap(state);
-	const cardCopy = cardWithNormalizedTextProperties(card, fallbackMap, conceptsMap, synonymMap);
+	const cardCopy = cardWithNormalizedTextProperties(card, fallbackMap || {}, conceptsMap, synonymMap);
 	const fingerprint = getSemanticFingerprintForCard(state, cardCopy, ['body']);
 	const pretty = fingerprint.dedupedPrettyItemsFromCard();
 	const title = date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'2-digit'}) + ' ' + pretty.split(' ').slice(0, NUM_TERMS_OF_FINGERPRINT).join(' ');
