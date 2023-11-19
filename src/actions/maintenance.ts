@@ -413,7 +413,11 @@ const convertMultiLinksDelimiter : MaintenanceTaskFunction = async () => {
 	const batch = new MultiBatch(db);
 	const snapshot = await getDocs(collection(db, CARDS_COLLECTION));
 	snapshot.forEach(doc => {
-		const card = doc.data();
+		const docData = doc.data();
+		if (!docData) {
+			console.warn(`Missing doc data for ${doc.id}`);
+		}
+		const card = {...docData, id: doc.id} as Card;
 		const update : DottedCardUpdate = {};
 
 		const referencesInfo = card[REFERENCES_INFO_CARD_PROPERTY];
