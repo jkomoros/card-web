@@ -593,7 +593,7 @@ export const nextMaintenanceTaskName = (executedTasks : MaintenanceTaskMap) : Ma
 	const initialVersion = setUpVersion(executedTasks);
 	const lastTask = lastExecutedMaintenanceTask(executedTasks);
 	if (lastTask && MAINTENANCE_TASKS[lastTask] && MAINTENANCE_TASKS[lastTask].nextTaskName) {
-		const nextTask = MAINTENANCE_TASKS[lastTask].nextTaskName;
+		const nextTask = MAINTENANCE_TASKS[lastTask].nextTaskName || '';
 		//If the next task was never run, suggest it
 		if (!executedTasks[nextTask]) return nextTask;
 		//If the next task was run, but BEFORE the last task, suggest it.
