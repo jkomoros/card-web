@@ -895,12 +895,12 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 	const autoSlugLegalResult = await autoSlugLegalPromise;
 	const fallbackAutoSlugLegalResult = await fallbackAutoSlugLegalPromise;
 
-	if (!autoSlugLegalResult.legal && !fallbackAutoSlugLegalResult.legal) {
+	if (autoSlugLegalResult && fallbackAutoSlugLegalResult && !autoSlugLegalResult.legal && !fallbackAutoSlugLegalResult.legal) {
 		console.warn('The autoSlug, ' + autoSlug + ' (and its fallback ' + fallbackAutoSlug + ') was not legal, so it will not be proposed. Reason: ' + autoSlugLegalResult.reason + ' and ' + fallbackAutoSlugLegalResult.reason);
 		return;
 	}
 
-	const slugToUse = autoSlugLegalResult.legal ? autoSlug : fallbackAutoSlug;
+	const slugToUse = (autoSlugLegalResult && autoSlugLegalResult.legal) ? autoSlug : fallbackAutoSlug;
 
 	try {
 		await addLegalSlugToCard(id, slugToUse, true);
