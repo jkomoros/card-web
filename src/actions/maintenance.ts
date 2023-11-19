@@ -221,6 +221,8 @@ const initialSetup : MaintenanceTaskFunction = async (_, getState) => {
 
 	const user = selectUser(getState());
 
+	if (!user) throw new Error('No user');
+
 	const starterSections : {[sectionName : string] : SectionUpdate} = {
 		main: {
 			title: 'Main',
@@ -250,7 +252,7 @@ const initialSetup : MaintenanceTaskFunction = async (_, getState) => {
 		//get sortOreder ready for next user
 		sortOrder -= DEFAULT_SORT_ORDER_INCREMENT;
 
-		sectionHeadCard.title = update.title;
+		sectionHeadCard.title = update.title || '';
 		sectionHeadCard.subtitle = update.subtitle;
 		sectionHeadCard.published = true;
 		batch.set(doc(cardsCollection, startCardId), sectionHeadCard);
