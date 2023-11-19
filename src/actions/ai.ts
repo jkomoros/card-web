@@ -156,6 +156,10 @@ const completion = async (prompt: string, uid: Uid, model: AIModelName = DEFAULT
 		//maxTokens defaults to inf
 		user: uid
 	});
+	if (!result) throw new Error('no result');
+	if (!result.choices) throw new Error('no result choices');
+	if (!result.choices[0]) throw new Error('no result choice');
+	if (!result.choices[0].message) throw new Error('No choices message');
 	return result.choices[0].message.content;
 };
 
@@ -310,6 +314,7 @@ export const titleForEditingCardWithAI = (count = 5) : ThunkSomeAction => async 
 	const uid = selectUid(state);
 
 	const editingCard = selectEditingCard(state);
+	if (!editingCard) throw new Error('Editing but no card');
 	const body = innerTextForHTML(editingCard.body);
 
 	if (!body) throw new Error('No body provided');
