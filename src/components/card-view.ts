@@ -196,7 +196,7 @@ import {
 class CardView extends connect(store)(PageViewElement) {
 
 	@state()
-		_card: ProcessedCard;
+		_card: ProcessedCard | null;
 
 	@state()
 		_editing: boolean;
@@ -241,7 +241,7 @@ class CardView extends connect(store)(PageViewElement) {
 		_autoMarkReadPending: boolean;
 
 	@state()
-		_displayCard: Card;
+		_displayCard: Card | null;
 
 	@state()
 		_editingCard: Card | null;
@@ -452,7 +452,7 @@ class CardView extends connect(store)(PageViewElement) {
 				</div>
 				<div slot='actions' class='panels'>
 					<button class='round ${this._cardsDrawerPanelOpen ? 'selected' : ''}' @click=${this._handleCardsDrawerClicked}>${VIEW_DAY_ICON}</button>
-					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''} ${this._card?.thread_count > 0 ? 'primary' : ''}' @click='${this._handleCommentsOrInfoPanelClicked}'>${FORUM_ICON}</button>
+					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''} ${(this._card?.thread_count || 0) > 0 ? 'primary' : ''}' @click='${this._handleCommentsOrInfoPanelClicked}'>${FORUM_ICON}</button>
 					<button class='round ${this._commentsAndInfoPanelOpen ? 'selected' : ''}' @click='${this._handleCommentsOrInfoPanelClicked}'>${INFO_ICON}</button>
 				</div>
 				<div slot='actions' class='modify'>
@@ -468,7 +468,7 @@ class CardView extends connect(store)(PageViewElement) {
 					<button class='round' @click=${this._handleForwardClicked}>${ARROW_FORWARD_ICON}</button>
 				</div>
 				<div slot='tags'>
-					<tag-list .card=${this._displayCard} .hideOnEmpty=${true} .subtle=${true} .tags=${this._displayCard?.tags} .tagInfos=${this._tagInfos}></tag-list>
+					<tag-list .card=${this._displayCard} .hideOnEmpty=${true} .subtle=${true} .tags=${this._displayCard?.tags || []} .tagInfos=${this._tagInfos}></tag-list>
 					<tag-list .hideOnEmpty=${true} .tags=${this._cardTodos} .tagInfos=${TODO_ALL_INFOS}></tag-list>
 				</div>
           </card-stage>
@@ -617,9 +617,9 @@ class CardView extends connect(store)(PageViewElement) {
 			return;
 		}
 		if (this._cardInReadingList) {
-			store.dispatch(removeFromReadingList(this._card?.id));
+			store.dispatch(removeFromReadingList(this._card?.id || ''));
 		} else {
-			store.dispatch(addToReadingList(this._card?.id));
+			store.dispatch(addToReadingList(this._card?.id || ''));
 		}
 	}
 

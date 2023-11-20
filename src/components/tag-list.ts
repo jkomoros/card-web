@@ -104,7 +104,7 @@ class TagList  extends LitElement {
 		defaultColor: CSSColorString;
 
 	@property({ type : Object })
-		card: Card;
+		card: Card | null;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -140,7 +140,7 @@ class TagList  extends LitElement {
 		(this.disableSelect ? html`<button class='small' @click=${this._handleNew} title=${'New ' + this.typeName}>${PLUS_ICON}</button>` :
 			html`<select @change=${this._handleSelectChanged}>
 				<option value='#noop' selected>Add ${this.typeName}...</option>
-				${Object.keys(tagInfos).map(item => html`<option value='${tagInfos[item].id}' title=${tagInfos[item].description}>${tagInfos[item].title}</option>`)}
+				${Object.keys(tagInfos).map(item => html`<option value='${tagInfos[item].id}' title=${tagInfos[item].description || ''}>${tagInfos[item].title}</option>`)}
 				${this.disableNew ? '' : html`<option value='#new'>New ${this.typeName}</option>`}
 			</select>`)}
 			</div>

@@ -228,12 +228,12 @@ const INFO_PANEL_REFERENCE_BLOCKS : ReferenceBlocks = [
 	}
 ];
 
-export const primaryReferenceBlocksForCard = (card : Card) : ReferenceBlocks => {
+export const primaryReferenceBlocksForCard = (card : Card | null) : ReferenceBlocks => {
 	if (!card) return []; 
 	return expandReferenceBlockConfig(card, REFERENCE_BLOCKS_FOR_CARD_TYPE[card.card_type] || []);
 };
 
-export const infoPanelReferenceBlocksForCard = (card : Card) : ReferenceBlocks => {
+export const infoPanelReferenceBlocksForCard = (card : Card | null) : ReferenceBlocks => {
 	return expandReferenceBlockConfig(card, INFO_PANEL_REFERENCE_BLOCKS);
 };
 
@@ -241,7 +241,7 @@ export const infoPanelReferenceBlocksForCard = (card : Card) : ReferenceBlocks =
 //same thing so that selectors won't re-run.
 const EMPTY_ARRAY = Object.freeze([]);
 
-const expandReferenceBlockConfig = (card : Card, configs : ReferenceBlocks) : ReferenceBlocks => {
+const expandReferenceBlockConfig = (card : Card | null, configs : ReferenceBlocks) : ReferenceBlocks => {
 	if (!configs) return EMPTY_ARRAY as ReferenceBlocks;
 	if (!card || !card.id) return EMPTY_ARRAY as ReferenceBlocks;
 	return configs.map(block => ({
@@ -254,7 +254,8 @@ const expandReferenceBlockConfig = (card : Card, configs : ReferenceBlocks) : Re
 	}));
 };
 
-export const expandReferenceBlocks = (card : Card, blocks : ReferenceBlocks, collectionConstructorArgs : CollectionConstructorArguments, cardIDsUserMayEdit : CardBooleanMap) : ExpandedReferenceBlocks => {
+export const expandReferenceBlocks = (card : Card | null, blocks : ReferenceBlocks, collectionConstructorArgs : CollectionConstructorArguments, cardIDsUserMayEdit : CardBooleanMap) : ExpandedReferenceBlocks => {
+	if (!card) return EMPTY_ARRAY;
 	if (blocks.length == 0) return EMPTY_ARRAY;
 	const keyCardCollectionConstructorArgs = {
 		...collectionConstructorArgs,
@@ -281,7 +282,8 @@ let memoizedExpandedPrimaryBlocksForCard : Map<Card, ExpandedReferenceBlocks> = 
 //card hasn't changed, it won't have to recalculate the results. You can get a
 //collectionConstructorArguments from selectCollectionConstructorArguments.
 //cardIDsUserMayEdit can be passed with result from selectCardIDsUserMayEdit.
-export const getExpandedPrimaryReferenceBlocksForCard = (collectionConstructorArguments : CollectionConstructorArguments, card : Card, cardIDsUserMayEdit? : CardBooleanMap) : ExpandedReferenceBlocks => {
+export const getExpandedPrimaryReferenceBlocksForCard = (collectionConstructorArguments : CollectionConstructorArguments, card : Card | null, cardIDsUserMayEdit? : CardBooleanMap) : ExpandedReferenceBlocks => {
+	if (!card) return EMPTY_ARRAY;
 	if (!cardIDsUserMayEdit) cardIDsUserMayEdit = {};
 
 	if (memoizedCollectionConstructorArguments != collectionConstructorArguments || cardIDsUserMayEdit != memoizedCardIDsUserMayEdit) {

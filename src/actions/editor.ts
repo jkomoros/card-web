@@ -483,6 +483,12 @@ export const substantiveUpdated = (checked: boolean, auto = false) : ThunkSomeAc
 export const cardTypeUpdated = (cardType : CardType) :  ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	const baseCard = selectActiveCard(state);
+
+	if (!baseCard) {
+		console.warn('No card');
+		return;
+	}
+
 	const currentlySubstantive = state?.editor?.substantive || false;
 
 	if (!CARD_TYPE_CONFIGURATION[cardType]) {

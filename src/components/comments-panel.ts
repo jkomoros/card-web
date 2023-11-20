@@ -57,7 +57,7 @@ class CommentsPanel extends connect(store)(PageViewElement) {
 		_open: boolean;
 
 	@state()
-		_card: Card;
+		_card: Card | null;
 
 	//If the card showing is a fallback card shown for an empty thing,
 	//disallow comments.

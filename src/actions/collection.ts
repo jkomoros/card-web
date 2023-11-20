@@ -404,6 +404,7 @@ export const showCard = (requestedCard : CardID = PLACEHOLDER_CARD_ID_CHARACTER)
 		dispatch(navigatedToNewCard());
 
 		const card = selectActiveCard(state);
+		if (!card) return;
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[card.card_type];
 		//If it's a card type that autoSlugs (like concept card) then don't open
 		//for editing immediately, because the autoSlug will come in later, and

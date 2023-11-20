@@ -469,7 +469,7 @@ export const removeFromReadingList = (cardToRemove : CardID) : ThunkSomeAction =
 	batch.commit();
 };
 
-export const addStar = (cardToStar : Card) : ThunkSomeAction => (_, getState) => {
+export const addStar = (cardToStar : Card | null) : ThunkSomeAction => (_, getState) => {
 
 	if (!cardToStar || !cardToStar.id) {
 		console.log('Invalid card provided');
@@ -507,7 +507,7 @@ export const addStar = (cardToStar : Card) : ThunkSomeAction => (_, getState) =>
 	batch.commit();
 };
 
-export const removeStar = (cardToStar : Card) : ThunkSomeAction => (_, getState) => {
+export const removeStar = (cardToStar : Card | null) : ThunkSomeAction => (_, getState) => {
 	if (!cardToStar || !cardToStar.id) {
 		console.log('Invalid card provided');
 		return;
@@ -603,7 +603,7 @@ export const markActiveCardReadIfLoggedIn = () : ThunkSomeAction => (dispatch, g
 	dispatch(markRead(activeCard, true));
 };
 
-export const markRead = (cardToMarkRead : Card, existingReadDoesNotError? : boolean) : ThunkSomeAction => (_, getState) => {
+export const markRead = (cardToMarkRead : Card | null, existingReadDoesNotError? : boolean) : ThunkSomeAction => (_, getState) => {
 
 	if (!cardToMarkRead || !cardToMarkRead.id) {
 		console.log('Invalid card provided');
@@ -639,7 +639,7 @@ export const markRead = (cardToMarkRead : Card, existingReadDoesNotError? : bool
 	batch.commit();
 };
 
-export const markUnread = (cardToMarkUnread : Card) : ThunkSomeAction => (_, getState) => {
+export const markUnread = (cardToMarkUnread : Card | null) : ThunkSomeAction => (_, getState) => {
 	if (!cardToMarkUnread || !cardToMarkUnread.id) {
 		console.log('Invalid card provided');
 		return;

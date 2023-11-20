@@ -38,7 +38,7 @@ import {
 class CardWebApp extends connect(store)(LitElement) {
 
 	@state()
-		_card: Card;
+		_card: Card | null;
 
 	@state()
 		_page: string;

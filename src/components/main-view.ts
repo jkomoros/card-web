@@ -126,7 +126,7 @@ class MainView extends connect(store)(PageViewElement) {
 		_devMode: boolean;
 
 	@state()
-		_card: Card;
+		_card: Card | null;
 
 	@state()
 		_collectionDescription: CollectionDescription;

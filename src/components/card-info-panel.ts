@@ -83,7 +83,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		_open: boolean;
 
 	@state()
-		_card: ProcessedCard;
+		_card: ProcessedCard | null;
 
 	@state()
 		_sectionTitle: string;
@@ -194,7 +194,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 				</div>` : html``}
 				<div>
 					<h4>Tags</h4>
-					<tag-list .card=${this._card} .tags=${this._card?.tags} .tagInfos=${this._tagInfos}></tag-list>
+					<tag-list .card=${this._card} .tags=${this._card?.tags || []} .tagInfos=${this._tagInfos}></tag-list>
 				</div>
 				<div>
 					<h4>Word Cloud</h4>
@@ -257,7 +257,7 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		this._open = selectCommentsAndInfoPanelOpen(state);
 		this._card = selectActiveCard(state);
 		this._sectionTitle = sectionTitle(state, this._card ? this._card.section : '');
-		this._author = getAuthorForId(state, this._card?.author);
+		this._author = getAuthorForId(state, this._card?.author || '');
 		this._collaborators = selectCollaboratorInfosForActiveCard(state);
 		this._tagInfos = selectTags(state);
 		this._tweets = selectActiveCardTweets(state);

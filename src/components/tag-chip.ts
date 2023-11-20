@@ -59,7 +59,7 @@ class TagChip  extends LitElement {
 		defaultColor: CSSColorString;
 
 	@property({ type : Object })
-		card: Card;
+		card: Card | null;
 
 	static override styles = [
 		css`

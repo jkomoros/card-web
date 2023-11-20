@@ -1708,7 +1708,7 @@ const MAX_TOTAL_TODO_DIFFICULTY = Object.entries(TODO_DIFFICULTY_MAP).map(entry 
 //TODOs that are NOT marked done. If onlyNonOverrides is true, then it will skip
 //any keys that are only true (not done) because they're overridden to be marked
 //as not done.
-export const cardTODOConfigKeys = (card : Card, onlyNonOverrides  = false) : TODOType[] => {
+export const cardTODOConfigKeys = (card : Card | null, onlyNonOverrides  = false) : TODOType[] => {
 	//TODO: this ideally should be in util.js (with the other cardHasContent
 	//functions), but because of entanglement of constants this has to live next
 	//to these constants.

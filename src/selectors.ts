@@ -409,7 +409,7 @@ export const selectAuthorAndCollaboratorUserIDs = createSelector(
 export const selectActiveCard = createSelector(
 	selectCards,
 	selectActiveCardId,
-	(cards : ProcessedCards, activeCard : CardID ) : ProcessedCard => cards[activeCard] || null
+	(cards : ProcessedCards, activeCard : CardID ) : ProcessedCard | null => cards[activeCard] || null
 );
 
 export const selectKeyboardNavigates = createSelector(
@@ -639,11 +639,11 @@ export const selectUserMayForkActiveCard = createSelector(
 	selectUserMayCreateCard,
 	selectState,
 	selectActiveCard,
-	(mayCreateCard, state, activeCard) => mayCreateCard && activeCard && getUserMayEditSection(state, activeCard.section)
+	(mayCreateCard, state, activeCard) => Boolean(mayCreateCard && activeCard && getUserMayEditSection(state, activeCard.section))
 );
 
 //If it's the empty string, then user MAY delete the card
-export const getReasonUserMayNotDeleteCard = (state : State, card : Card) => {
+export const getReasonUserMayNotDeleteCard = (state : State, card : Card | null) => {
 	//NOTE: this logic is recreatedin the firestore security rules for card deletion
 	if (!card) return 'No card provided';
 
@@ -1663,5 +1663,5 @@ export const selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard = crea
 export const selectSuggestionsForActiveCard = createSelector(
 	selectActiveCard,
 	selectSuggestionsForCards,
-	(card, suggestionsForCard) => suggestionsForCard[card.id] || []
+	(card, suggestionsForCard) => suggestionsForCard[card?.id || ''] || []
 );

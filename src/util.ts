@@ -401,9 +401,9 @@ export const cardMissingReciprocalLinks = (card : Card) => {
 };
 
 //other can be a card ID or a card
-export const cardNeedsReciprocalLinkTo = (card : Card, other: CardID | Card) => {
-	if (typeof other == 'object') other = other.id;
+export const cardNeedsReciprocalLinkTo = (card : Card | null, other: CardID | Card | null) => {
 	if (!card || !other) return false;
+	if (typeof other == 'object') other = other.id;
 	const missingReciprocalLinks = cardMissingReciprocalLinks(card);
 	for (const link of missingReciprocalLinks) {
 		if (link == other) return true;

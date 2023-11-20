@@ -910,12 +910,11 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 
 };
 
-export const createForkedCard = (cardToFork : Card) : ThunkSomeAction => async (dispatch, getState) => {
+export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => async (dispatch, getState) => {
 	//NOTE: if you modify this card you likely also want to modify
 	//createWorkingNotesCard too and likely also createForkedCard
 
 	//newCard creates and inserts a new card in the givne section with the given id.
-
 	if (typeof cardToFork !== 'object' || !cardToFork) {
 		console.warn('cardToFork wasn\'t valid object');
 		return;
