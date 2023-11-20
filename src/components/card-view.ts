@@ -767,7 +767,7 @@ class CardView extends connect(store)(PageViewElement) {
 		stage.resizeCard();
 	}
 
-	override updated(changedProps : Map<string, CardView[keyof CardView]>) {
+	override updated(changedProps : Map<keyof CardView, CardView[keyof CardView]>) {
 		if (changedProps.has('_pageExtra')) {
 			if (this._pageExtra) {
 				store.dispatch(updateCardSelector(this._pageExtra));
