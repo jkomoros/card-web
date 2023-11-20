@@ -1,0 +1,98 @@
+import { LitElement, html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
+import { connect } from 'pwa-helpers/connect-mixin.js';
+
+// This element is connected to the Redux store.
+import { store } from '../store.js';
+
+import { ButtonSharedStyles } from './button-shared-styles.js';
+
+import {
+	selectEditingCard,
+	selectEditorMinimized,
+	selectIsEditing
+} from '../selectors.js';
+
+import {
+	HelpStyles,
+} from './help-badges.js';
+
+
+import {
+	Card,
+	State
+} from '../types.js';
+
+@customElement('suggestions-viewer')
+class SuggestionsViewer extends connect(store)(LitElement) {
+
+	@state()
+		_card: Card | null;
+
+	@state()
+		_active: boolean;
+
+	@state()
+		_minimized: boolean;
+
+	static override styles = [
+		ButtonSharedStyles,
+		HelpStyles,
+		css`
+			:host {
+				position:relative;
+				background-color: white;
+			}
+
+			.container {
+				width: 100%;
+				height:100%;
+				display:flex;
+				flex-direction: column;
+				/* The up-down padding comes from margins in the top and bottom elements */
+				padding: 0 0.5em;
+				box-sizing:border-box;
+			}
+
+			.container.not-minimized {
+				position:absolute;
+			}
+
+			.flex {
+				flex-grow:1;
+			}
+
+			[hidden] {
+				display:none;
+			}
+
+		`
+	];
+
+	override render() {
+
+		const card = this._card;
+
+		if (!card) return html`No card`;
+		return html`<div class='container'>
+		TODO: show content here
+	</div>`;
+	}
+
+	override stateChanged(state : State) {
+		this._card= selectEditingCard(state);
+		this._active = selectIsEditing(state);
+		this._minimized = selectEditorMinimized(state);
+	}
+
+	override shouldUpdate() {
+		return this._active;
+	}
+
+}
+
+declare global {
+	interface HTMLElementTagNameMap {
+		'suggestions-viewer': SuggestionsViewer;
+	}
+}
