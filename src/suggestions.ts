@@ -3,13 +3,14 @@ import {
 } from './selectors.js';
 
 import {
-	CardDiff,
 	CollectionConstructorArguments,
 	ProcessedCard,
 	ProcessedCards,
 	ReferenceType,
 	ReferencesEntriesDiffItem,
-	State
+	State,
+	Suggestion,
+	SuggestionType
 } from './types.js';
 
 import {
@@ -19,32 +20,10 @@ import {
 import {
 	suggestMissingSeeAlso
 } from './suggestions/missing-see-also.js';
-import { TypedObject } from './typed_object.js';
 
-type SuggestionDiff = {
-	keyCard: CardDiff,
-	//The diff to apply to each supportingCard.
-	supportingCards?: CardDiff
-} | {
-	keyCard? : CardDiff,
-	supportingCards: CardDiff
-};
-
-type SuggestionType = 'missing-see-also';
-
-export type Suggestion = {
-	type: SuggestionType,
-	keyCard: CardID,
-	supportingCards: CardID[],
-	//TODO: add contextCards
-
-	//The diff to apply if the action is accepted
-	action: SuggestionDiff,
-	//An alternate action. Often the mirror of the primary.
-	alternateAction?: SuggestionDiff
-	//The diff to apply if the action is rejected. Typically an `ack` reference.
-	rejection?: SuggestionDiff
-};
+import {
+	TypedObject
+} from './typed_object.js';
 
 export const makeReferenceSuggestion = (type : SuggestionType, keyCard: CardID, otherCards: CardID | CardID[], referenceType : ReferenceType) : Suggestion => {
 	//TODO: it's kind of finicky to have to keep track of which ID is which... shouldn't the actions have a sentinel for each that is overriden before being executed?

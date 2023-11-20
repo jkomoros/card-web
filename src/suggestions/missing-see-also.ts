@@ -12,14 +12,20 @@ import {
 
 import {
 	SuggestorArgs,
-	Suggestion,
 	makeReferenceSuggestion
 } from '../suggestions.js';
 
 import {
 	SIMILAR_SAME_TYPE
 } from '../reference_blocks.js';
-import { cardIsPrioritized } from '../util.js';
+
+import {
+	cardIsPrioritized
+} from '../util.js';
+
+import {
+	Suggestion
+} from '../types.js';
 
 //Set by looking at a few examples
 const SIMILARITY_CUT_OFF = 0.89;
