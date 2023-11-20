@@ -33,10 +33,12 @@ import {
 } from './my-icons.js';
 
 import {
+	suggestionsChangeSelected,
 	suggestionsHidePanel
 } from '../actions/suggestions.js';
 
 import './suggestions-summary.js';
+import { TagEvent } from '../events.js';
 
 @customElement('suggestions-viewer')
 class SuggestionsViewer extends connect(store)(LitElement) {
@@ -135,8 +137,8 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		this._suggestions = selectSuggestionsForActiveCard(state);
 	}
 
-	_handleSuggestionTapped() {
-		console.warn('TODO: implement selection');
+	_handleSuggestionTapped(e : TagEvent) {
+		store.dispatch(suggestionsChangeSelected(e.detail.tag));
 	}
 
 	_handleCloseClicked() {
