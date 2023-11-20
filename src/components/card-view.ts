@@ -188,12 +188,13 @@ import {
 	DisabledCardHighlightClickedEvent,
 	EditabledCardFieldUpdatedEvent,
 	ReorderCardEvent,
+	TagEvent,
 	ThumbnailTappedEvent,
 	UpdateRenderOffsetEvent
 } from '../events.js';
 
 import {
-	suggestionsActiveCardChanged, suggestionsShowPanel
+	suggestionsActiveCardChanged, suggestionsChangeSelected, suggestionsShowPanel
 } from '../actions/suggestions.js';
 
 @customElement('card-view')
@@ -543,8 +544,8 @@ class CardView extends connect(store)(PageViewElement) {
 		store.dispatch(turnSuggestMissingConcepts(on));
 	}
 
-	_handleSuggestionTapped() {
-		//TODO: also select tapped selection.
+	_handleSuggestionTapped(e : TagEvent) {
+		store.dispatch(suggestionsChangeSelected(e.detail.tag));
 		store.dispatch(suggestionsShowPanel());
 	}
 
