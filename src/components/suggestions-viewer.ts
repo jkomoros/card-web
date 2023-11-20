@@ -9,6 +9,7 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	selectActiveCard,
+	selectSuggestionsEffectiveSelectedIndex,
 	selectSuggestionsForActiveCard,
 	selectSuggestionsOpen
 } from '../selectors.js';
@@ -51,6 +52,9 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 	@state()
 		_suggestions : Suggestion[];
+
+	@state()
+		_selectedIndex: number;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -135,6 +139,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		this._card= selectActiveCard(state);
 		this._active = selectSuggestionsOpen(state);
 		this._suggestions = selectSuggestionsForActiveCard(state);
+		this._selectedIndex = selectSuggestionsEffectiveSelectedIndex(state);
 	}
 
 	_handleSuggestionTapped(e : TagEvent) {
