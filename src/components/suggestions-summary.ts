@@ -17,6 +17,9 @@ class SuggestionsSummary extends LitElement {
 	@property( { type: Array })
 		suggestions : Suggestion[] = [];
 
+	@property( { type : Number } )
+		selectedIndex : number | undefined;
+
 	static override styles = [
 		SharedStyles,
 		ButtonSharedStyles,
@@ -27,7 +30,20 @@ class SuggestionsSummary extends LitElement {
 	override render() {
 		if (!this.suggestions || this.suggestions.length == 0) return '';
 
-		const tagInfos = tagInfosForSuggestions(this.suggestions);
+		let tagInfos = tagInfosForSuggestions(this.suggestions);
+
+		if (this.selectedIndex !== undefined) {
+			const id = String(this.selectedIndex);
+			//Make a copy because tagInfosForSuggestions returns a memoized object
+			tagInfos = {
+				...tagInfos,
+				[id]: {
+					...tagInfos[id],
+					//navy
+					color: '#000080'
+				}
+			};
+		}
 
 		const defaultColor = '#006400'; //darkgreen
 
