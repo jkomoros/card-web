@@ -162,6 +162,7 @@ import {
 	CardFieldMap,
 	CardID,
 	CardType,
+	ProcessedCard,
 	SectionID,
 	State,
 	TagInfos,
@@ -190,7 +191,7 @@ import {
 class CardView extends connect(store)(PageViewElement) {
 
 	@state()
-		_card: Card;
+		_card: ProcessedCard;
 
 	@state()
 		_editing: boolean;
