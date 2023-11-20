@@ -679,7 +679,7 @@ export const timestampForFilename = () : string => {
 };
 
 //date may be a firestore timestamp or a date object.
-export const prettyTime = (date : Timestamp | Date) => {
+export const prettyTime = (date? : Timestamp | Date) => {
 	if (!date) return '';
 	const dateDate : Date = typeof (date as Timestamp).toDate == 'function' ? (date as Timestamp).toDate() : date as Date;
 	return dateDate.toDateString();
