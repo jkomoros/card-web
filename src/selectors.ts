@@ -1672,3 +1672,11 @@ export const selectSuggestionsForActiveCard = createSelector(
 	selectSuggestionsForCards,
 	(card, suggestionsForCard) => suggestionsForCard[card?.id || ''] || []
 );
+
+//This is useful because the selectedIndex might be larger than the number of
+//suggestions, and this clips it.
+export const selectSuggestionsEffectiveSelectedIndex = createSelector(
+	selectSuggestionsForActiveCard,
+	selectSuggestionsSelectedIndex,
+	(suggestions, rawIndex) => rawIndex < suggestions.length ? rawIndex : suggestions.length - 1
+);
