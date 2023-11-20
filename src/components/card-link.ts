@@ -211,7 +211,8 @@ class CardLink extends connect(store)(LitElement) {
 		if (!this._cardObj) return '';
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[this._cardObj.card_type];
 		if (!cardTypeConfig) return '';
-		return icons[cardTypeConfig.iconName || 'WARNING_ICON'] || '';
+		if (!cardTypeConfig.iconName) return '';
+		return icons[cardTypeConfig.iconName] || '';
 	}
 
 	get _inReadingList() {
