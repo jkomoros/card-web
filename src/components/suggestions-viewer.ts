@@ -114,6 +114,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				<div class='flex'></div>
 				<suggestions-summary
 					.suggestions=${this._suggestions}
+					.selectedIndex=${this._selectedIndex}
 					@tag-tapped=${this._handleSuggestionTapped}
 				>
 				</suggestions-summary>
