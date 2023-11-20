@@ -39,7 +39,9 @@ export const suggestionsHidePanel = () : SomeAction => {
 	};
 };
 
-export const suggestionsChangeSelected = (index : number) : SomeAction => {
+export const suggestionsChangeSelected = (index : number | string) : SomeAction => {
+	if (typeof index == 'string') index = parseInt(index);
+	if (isNaN(index)) throw new Error('Index not a number');
 	if (index < 0) throw new Error('Index must be at least 0');
 	return {
 		type: SUGGESTIONS_CHANGE_SELECTED,
