@@ -279,6 +279,7 @@ export const selectFindCardTypeFilter = (state : State) => state.find ? state.fi
 export const selectFindCardTypeFilterLocked = (state : State) => state.find ? state.find.cardTypeFilterLocked : false;
 
 export const selectSuggestionsOpen = (state : State) => state.suggestions ? state.suggestions.open : false;
+const selectSuggestionsForCard = (state : State) => state.suggestions ? state.suggestions.suggestionsForCard : {};
 
 export const selectAuthPending = (state : State) => state.user ? state.user.pending : false;
 //Note: this will return false unless stars have been loading, even if there is
@@ -1657,4 +1658,10 @@ export const selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard = crea
 		//reference-block will hide any ones that shouldn't render because of an empty collection so we don't need to filter
 		return expandReferenceBlocks(card, blocks, args, cardIDsUserMayEdit);
 	}
+);
+
+export const selectSuggestionsForActiveCard = createSelector(
+	selectActiveCard,
+	selectSuggestionsForCard,
+	(card, suggestionsForCard) => suggestionsForCard[card.id] || []
 );
