@@ -35,7 +35,7 @@ class SuggestionsSummary extends LitElement {
 		//TODO: even when empty render some vertical space (so it doesn't jump on a card with one and without one.)
 		return html`
 			<tag-list
-				.tags=${this.suggestions.map(suggestion => suggestion.type)}
+				.tags=${this.suggestions.map((_, index) => String(index))}
 				.defaultColor=${defaultColor}
 				.hideOnEmpty=${true}
 				.tapEvents=${true}

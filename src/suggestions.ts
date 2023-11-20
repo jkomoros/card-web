@@ -149,10 +149,9 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 };
 
 export const tagInfosForSuggestions = memoize((suggestions : Suggestion[]) : TagInfos => {
-	return Object.fromEntries(suggestions.map(suggestion => {
+	return Object.fromEntries(suggestions.map((suggestion, index) => {
 		const suggestorInfo = SUGGESTORS[suggestion.type];
-		//TODO: allow duplicates
-		const id = suggestion.type;
+		const id = String(index);
 		return [id, {
 			id,
 			title: suggestorInfo.title
