@@ -9,6 +9,7 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	selectActiveCard,
+	selectSuggestionsForActiveCard,
 	selectSuggestionsOpen
 } from '../selectors.js';
 
@@ -21,16 +22,21 @@ import {
 	HelpStyles,
 } from './help-badges.js';
 
-
 import {
 	Card,
-	State
+	State,
+	Suggestion
 } from '../types.js';
 
 import {
 	CANCEL_ICON
 } from './my-icons.js';
-import { suggestionsHidePanel } from '../actions/suggestions.js';
+
+import {
+	suggestionsHidePanel
+} from '../actions/suggestions.js';
+
+import './suggestions-summary.js';
 
 @customElement('suggestions-viewer')
 class SuggestionsViewer extends connect(store)(LitElement) {
@@ -40,6 +46,9 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 	@state()
 		_active: boolean;
+
+	@state()
+		_suggestions : Suggestion[];
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -66,6 +75,12 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				width:100%;
 			}
 
+			.row {
+				display: flex;
+				flex-direction: row;
+				width: 100%;
+			}
+
 			.container.not-minimized {
 				position:absolute;
 			}
@@ -90,6 +105,15 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		if (!card) return html`No card`;
 		return html`<div class='container'>
 			<div class='row'>
+				<div class='flex'></div>
+				<suggestions-summary
+					.suggestions=${this._suggestions}
+					@tag-tapped=${this._handleSuggestionTapped}
+				>
+				</suggestions-summary>
+				<div class='flex'></div>
+			</div>
+			<div class='row'>
 				This is where suggestions will show up.
 			</div>
 			<div class='buttons'>
@@ -108,6 +132,11 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 	override stateChanged(state : State) {
 		this._card= selectActiveCard(state);
 		this._active = selectSuggestionsOpen(state);
+		this._suggestions = selectSuggestionsForActiveCard(state);
+	}
+
+	_handleSuggestionTapped() {
+		console.warn('TODO: implement selection');
 	}
 
 	_handleCloseClicked() {
