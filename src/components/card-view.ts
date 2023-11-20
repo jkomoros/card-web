@@ -192,7 +192,7 @@ import {
 } from '../events.js';
 
 import {
-	suggestionsActiveCardChanged
+	suggestionsActiveCardChanged, suggestionsShowPanel
 } from '../actions/suggestions.js';
 
 @customElement('card-view')
@@ -476,7 +476,7 @@ class CardView extends connect(store)(PageViewElement) {
 				<div slot='tags'>
 					<tag-list .card=${this._displayCard} .hideOnEmpty=${true} .subtle=${true} .tags=${this._displayCard?.tags || []} .tagInfos=${this._tagInfos}></tag-list>
 					<tag-list .hideOnEmpty=${true} .tags=${this._cardTodos} .tagInfos=${TODO_ALL_INFOS}></tag-list>
-					<suggestions-summary .suggestions=${this._suggestionsForCard}></suggestions-summary>
+					<suggestions-summary .suggestions=${this._suggestionsForCard} @tag-tapped=${this._handleSuggestionTapped}></suggestions-summary>
 				</div>
           </card-stage>
 		  <suggestions-viewer></suggestions-viewer>
@@ -540,6 +540,11 @@ class CardView extends connect(store)(PageViewElement) {
 		if (!(ele instanceof HTMLInputElement)) throw new Error('not input element');
 		const on = ele.checked;
 		store.dispatch(turnSuggestMissingConcepts(on));
+	}
+
+	_handleSuggestionTapped() {
+		//TODO: also select tapped selection.
+		store.dispatch(suggestionsShowPanel());
 	}
 
 	_handleTextFieldUpdated(e : EditabledCardFieldUpdatedEvent) {

@@ -80,7 +80,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 		if (!card) return html`No card`;
 		return html`<div class='container'>
-		TODO: show content here
+		This is where suggestions will show up
 	</div>`;
 	}
 
