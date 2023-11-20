@@ -6,6 +6,19 @@ import {
 } from '../actions.js';
 
 import {
+	selectSuggestionsForCards
+} from '../selectors.js';
+
+import {
+	ThunkSomeAction
+} from '../store.js';
+
+import {
+	suggestionsForCard
+} from '../suggestions.js';
+
+import {
+	ProcessedCard,
 	Suggestion
 } from '../types.js';
 
@@ -25,10 +38,23 @@ export const suggestionsHidePanel = () : SomeAction => {
 	};
 };
 
-export const suggestionsAddSuggestionsForCard = (card : CardID, suggestions: Suggestion[]) : SomeAction => {
+const suggestionsAddSuggestionsForCard = (card : CardID, suggestions: Suggestion[]) : SomeAction => {
 	return {
 		type: SUGGESTIONS_ADD_SUGGESTIONS_FOR_CARD,
 		card,
 		suggestions
 	};
+};
+
+//This is called when card-view has noticed the active card has changed, and is time to add suggestions.
+export const suggestionsActiveCardChanged = (card : ProcessedCard) : ThunkSomeAction => async (dispatch, getState) => {
+	const state = getState();
+	const suggestionsForCards = selectSuggestionsForCards(state);
+	const suggestions = suggestionsForCards[card.id];
+	if (suggestions) {
+		//TODO: clean out any old suggestions
+		return;
+	}
+	const newSuggestions = await suggestionsForCard(card, state);
+	dispatch(suggestionsAddSuggestionsForCard(card.id,newSuggestions));
 };
