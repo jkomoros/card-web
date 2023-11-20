@@ -42,7 +42,8 @@ import {
 	selectEditorMinimized,
 	selectUserMayUseAI,
 	selectIsEditing,
-	selectSuggestionsForActiveCard
+	selectSuggestionsForActiveCard,
+	selectSuggestionsOpen
 } from '../selectors.js';
 
 import {
@@ -703,7 +704,8 @@ class CardView extends connect(store)(PageViewElement) {
 		this._infoExpanded = selectCardsDrawerInfoExpanded(state);
 		this._suggestMissingConceptsEnabled = selectSuggestMissingConceptsEnabled(state);
 		this._userIsAdmin = selectUserIsAdmin(state);
-		this._suggestionsForCard = selectSuggestionsForActiveCard(state);
+		//Only show suggestions summary if the viewer isn't open.
+		this._suggestionsForCard = selectSuggestionsOpen(state) ? [] : selectSuggestionsForActiveCard(state);
 
 		//selectEditingCardSuggestedConceptReferences is expensive so only do it if editing
 		this._suggestedConcepts = this._editing ? selectEditingCardSuggestedConceptReferences(state) : null;
