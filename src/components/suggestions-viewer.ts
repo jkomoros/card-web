@@ -102,6 +102,11 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		`
 	];
 
+	get _selectedSuggestion() : Suggestion {
+		//The index is known to fit within our suggestions because of selectSuggestionsEffectiveSelectedIndex
+		return this._suggestions[this._selectedIndex];
+	}
+
 	override render() {
 
 		if (!this._active) return '';
