@@ -178,6 +178,9 @@ export const PROMPT_COMPOSE_CANCEL = 'PROMPT_COMPOSE_CANCEL';
 export const PROMPT_COMPOSE_COMMIT = 'PROMPT_COMPOSE_COMMIT';
 export const PROMPT_COMPOSE_UPDATE_CONTENT = 'PROMPT_COMPOSE_UPDATE_CONTENT';
 export const PROMPT_CONFIGURE_ACTION = 'PROMPT_CONFIGURE_ACTION';
+//Suggestions
+export const SUGGESTIONS_SHOW_PANEL = 'SUGGESTIONS_SHOW_PANEL';
+export const SUGGESTIONS_HIDE_PANEL = 'SUGGESTIONS_HIDE_PANEL';
 //User
 export const SIGNIN_USER = 'SIGNIN_USER';
 export const SIGNIN_SUCCESS = 'SIGNIN_SUCCESS';
@@ -786,6 +789,14 @@ type ActionPromptConfigureAction = {
 	associatedId: CommentMessageID | CommentThreadID
 };
 
+type ActionSuggestionsShowPanel = {
+	type: typeof SUGGESTIONS_SHOW_PANEL
+};
+
+type ActionSuggestionsHidePanel = {
+	type: typeof SUGGESTIONS_HIDE_PANEL
+};
+
 type ActionSigninUser = {
 	type: typeof SIGNIN_USER,
 };
@@ -954,6 +965,8 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionPromptComposeCommit
 	| ActionPromptComposeUpdateContent
 	| ActionPromptConfigureAction
+	| ActionSuggestionsShowPanel
+	| ActionSuggestionsHidePanel
 	| ActionSigninUser
 	| ActionSigninSuccess
 	| ActionSigninFailure

@@ -1378,6 +1378,10 @@ export type PromptState = {
 	associatedId: CommentMessageID | CommentThreadID,
 }
 
+export type SuggestionsState = {
+	open: boolean,
+}
+
 export type UserState = {
 	user : UserInfo | null,
 	//pending is true whenever we are expecting either a SIGNIN_SUCCESS or
@@ -1423,6 +1427,7 @@ export type State = {
 	maintenance? : MaintenanceState,
 	multiedit? : MultiEditState,
 	permissions? : PermissionsState,
+	suggestions? :SuggestionsState,
 	user? : UserState
 }
 
