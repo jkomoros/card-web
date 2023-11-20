@@ -24,6 +24,7 @@ class SuggestionsSummary extends LitElement {
 		//TODO: use a tab-strip
 		//TODO: show that it's loading (signal with a null?)
 		//TODO: even when empty render some vertical space (so it doesn't jump on a card with one and without one.)
+		//TODO: when clicking a suggestion show suggestion-viewer
 		return html`<label>Suggestions</label>
 			${this.suggestions.map(suggestion => html`<label>${suggestion.type}</label>`)}
 			`;
