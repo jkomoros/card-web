@@ -186,7 +186,10 @@ import {
 	ThumbnailTappedEvent,
 	UpdateRenderOffsetEvent
 } from '../events.js';
-import { suggestionsActiveCardChanged } from '../actions/suggestions.js';
+
+import {
+	suggestionsActiveCardChanged
+} from '../actions/suggestions.js';
 
 @customElement('card-view')
 class CardView extends connect(store)(PageViewElement) {
