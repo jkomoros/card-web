@@ -186,6 +186,7 @@ import {
 	ThumbnailTappedEvent,
 	UpdateRenderOffsetEvent
 } from '../events.js';
+import { suggestionsActiveCardChanged } from '../actions/suggestions.js';
 
 @customElement('card-view')
 class CardView extends connect(store)(PageViewElement) {
@@ -799,6 +800,9 @@ class CardView extends connect(store)(PageViewElement) {
 		if (changedProps.has('_card') && this._card && this._card.name) {
 			store.dispatch(canonicalizeURL());
 		}
+		if (changedProps.has('_card') || changedProps.has('_dataIsFullyLoaded')) {
+			if (this._card && this._dataIsFullyLoaded) store.dispatch(suggestionsActiveCardChanged(this._card));
+		} 
 		if (changedProps.has('_activeSectionId')) {
 			store.dispatch(canonicalizeURL());
 		}

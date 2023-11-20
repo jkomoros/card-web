@@ -76,10 +76,6 @@ import {
 	ExpandedReferenceBlocks
 } from '../reference_blocks.js';
 
-import {
-	suggestionsForCard
-} from '../suggestions.js';
-
 @customElement('card-info-panel')
 class CardInfoPanel extends connect(store)(PageViewElement) {
 
@@ -287,11 +283,6 @@ class CardInfoPanel extends connect(store)(PageViewElement) {
 		if (changedProps.has('_card') || changedProps.has('_open')) {
 			if (this._open && this._card && Object.values(this._card).length != 0) {
 				store.dispatch(fetchTweets(this._card));
-				//TODO: integrate this in a place that makes more sense We won't
-				//even wait for the response from this; the point is to trigger
-				//the code. For example, it's a one line change to have it log
-				//to the console.
-				suggestionsForCard(this._card, store.getState() as State);
 			}
 		}
 	}
