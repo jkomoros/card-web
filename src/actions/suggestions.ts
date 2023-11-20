@@ -55,6 +55,5 @@ export const suggestionsActiveCardChanged = (card : ProcessedCard) : ThunkSomeAc
 		//TODO: clean out any old suggestions
 		return;
 	}
-	const newSuggestions = await suggestionsForCard(card, state);
-	dispatch(suggestionsAddSuggestionsForCard(card.id,newSuggestions));
+	suggestionsForCard(card, state).then((newSuggestions) => dispatch(suggestionsAddSuggestionsForCard(card.id,newSuggestions)));
 };
