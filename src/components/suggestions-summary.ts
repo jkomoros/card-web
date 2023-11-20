@@ -19,7 +19,7 @@ class SuggestionsSummary extends LitElement {
 		//TODO: use an icon
 		//TODO: use a tab-strip
 		return html`Suggestions:
-			${this.suggestions.map(suggestion => html`${suggestion.type}`)};
+			${this.suggestions.map(suggestion => html`${suggestion.type}`)}
 			`;
 	}
 }
