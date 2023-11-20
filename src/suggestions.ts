@@ -10,7 +10,8 @@ import {
 	ReferencesEntriesDiffItem,
 	State,
 	Suggestion,
-	SuggestionType
+	SuggestionType,
+	TagInfos
 } from './types.js';
 
 import {
@@ -24,6 +25,7 @@ import {
 import {
 	TypedObject
 } from './typed_object.js';
+import { memoize } from './memoize.js';
 
 export const makeReferenceSuggestion = (type : SuggestionType, keyCard: CardID, otherCards: CardID | CardID[], referenceType : ReferenceType) : Suggestion => {
 	//TODO: it's kind of finicky to have to keep track of which ID is which... shouldn't the actions have a sentinel for each that is overriden before being executed?
@@ -145,3 +147,15 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 
 	return result;
 };
+
+export const tagInfosForSuggestions = memoize((suggestions : Suggestion[]) : TagInfos => {
+	return Object.fromEntries(suggestions.map(suggestion => {
+		const suggestorInfo = SUGGESTORS[suggestion.type];
+		//TODO: allow duplicates
+		const id = suggestion.type;
+		return [id, {
+			id,
+			title: suggestorInfo.title
+		}];
+	}));
+});

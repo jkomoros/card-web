@@ -5,8 +5,11 @@ import { Suggestion } from '../types.js';
 import { SharedStyles } from './shared-styles.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
+import {
+	tagInfosForSuggestions
+} from '../suggestions.js';
+
 import './tag-list.js';
-import { SUGGESTORS } from '../suggestions.js';
 
 @customElement('suggestions-summary')
 class SuggestionsSummary extends LitElement {
@@ -24,6 +27,8 @@ class SuggestionsSummary extends LitElement {
 	override render() {
 		if (!this.suggestions || this.suggestions.length == 0) return '';
 
+		const tagInfos = tagInfosForSuggestions(this.suggestions);
+
 		const defaultColor = '#006400'; //darkgreen
 
 		//TODO: show that it's loading (signal with a null?)
@@ -34,7 +39,7 @@ class SuggestionsSummary extends LitElement {
 				.defaultColor=${defaultColor}
 				.hideOnEmpty=${true}
 				.tapEvents=${true}
-				.tagInfos=${SUGGESTORS}
+				.tagInfos=${tagInfos}
 			>
 			</tag-list>
 			`;
