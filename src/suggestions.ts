@@ -76,14 +76,16 @@ export type SuggestorArgs = {
 };
 
 type Suggestor = {
-	generator: (args: SuggestorArgs) => Promise<Suggestion[]>
+	generator: (args: SuggestorArgs) => Promise<Suggestion[]>,
+	title: string
 }
 
-const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
+export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 	//TODO: a dupe one
 	//TODO: one to remove priority for near dupes
 	'missing-see-also': {
-		generator: suggestMissingSeeAlso
+		generator: suggestMissingSeeAlso,
+		title: 'Missing See Also'
 	}
 };
 
