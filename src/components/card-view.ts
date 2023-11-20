@@ -41,7 +41,8 @@ import {
 	selectActiveRenderOffset,
 	selectEditorMinimized,
 	selectUserMayUseAI,
-	selectIsEditing
+	selectIsEditing,
+	selectSuggestionsForActiveCard
 } from '../selectors.js';
 
 import {
@@ -119,6 +120,7 @@ import './tag-list.js';
 import './comments-panel.js';
 import './card-info-panel.js';
 import './suggestions-viewer.js';
+import './suggestions-summary.js';
 
 import {
 	TODO_ALL_INFOS
@@ -166,6 +168,7 @@ import {
 	ProcessedCard,
 	SectionID,
 	State,
+	Suggestion,
 	TagInfos,
 	TODOType,
 	WordCloud
@@ -327,6 +330,9 @@ class CardView extends connect(store)(PageViewElement) {
 	@state()
 		_signedIn: boolean;
 
+	@state()
+		_suggestionsForCard : Suggestion[];
+
 	static override styles = [
 		ButtonSharedStyles,
 		SharedStyles,
@@ -470,6 +476,7 @@ class CardView extends connect(store)(PageViewElement) {
 				<div slot='tags'>
 					<tag-list .card=${this._displayCard} .hideOnEmpty=${true} .subtle=${true} .tags=${this._displayCard?.tags || []} .tagInfos=${this._tagInfos}></tag-list>
 					<tag-list .hideOnEmpty=${true} .tags=${this._cardTodos} .tagInfos=${TODO_ALL_INFOS}></tag-list>
+					<suggestions-summary .suggestions=${this._suggestionsForCard}></suggestions-summary>
 				</div>
           </card-stage>
 		  <suggestions-viewer></suggestions-viewer>
@@ -691,6 +698,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._infoExpanded = selectCardsDrawerInfoExpanded(state);
 		this._suggestMissingConceptsEnabled = selectSuggestMissingConceptsEnabled(state);
 		this._userIsAdmin = selectUserIsAdmin(state);
+		this._suggestionsForCard = selectSuggestionsForActiveCard(state);
 
 		//selectEditingCardSuggestedConceptReferences is expensive so only do it if editing
 		this._suggestedConcepts = this._editing ? selectEditingCardSuggestedConceptReferences(state) : null;
