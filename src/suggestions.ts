@@ -1,5 +1,5 @@
 import {
-	selectCards, selectCollectionConstructorArguments, userMayEditCard
+	selectCards, selectCollectionConstructorArguments, selectDataIsFullyLoaded, userMayEditCard
 } from './selectors.js';
 
 import {
@@ -111,6 +111,12 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 	//Only suggest things for cards the user may actually edit.
 	if (!userMayEditCard(state, card.id)) {
 		logger.info('User may not edit card');
+		return [];
+	}
+
+	if (!selectDataIsFullyLoaded(state)) {
+		//A lot of suggestions rely on having all cards.
+		logger.info('Data isn\'t fully loaded');
 		return [];
 	}
 
