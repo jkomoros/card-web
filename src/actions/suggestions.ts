@@ -2,7 +2,8 @@ import {
 	SUGGESTIONS_HIDE_PANEL,
 	SUGGESTIONS_SHOW_PANEL,
 	SUGGESTIONS_ADD_SUGGESTIONS_FOR_CARD,
-	SomeAction
+	SomeAction,
+	SUGGESTIONS_CHANGE_SELECTED
 } from '../actions.js';
 
 import {
@@ -35,6 +36,14 @@ export const suggestionsShowPanel = () : SomeAction => {
 export const suggestionsHidePanel = () : SomeAction => {
 	return {
 		type: SUGGESTIONS_HIDE_PANEL,
+	};
+};
+
+export const suggestionsChangeSelected = (index : number) : SomeAction => {
+	if (index < 0) throw new Error('Index must be at least 0');
+	return {
+		type: SUGGESTIONS_CHANGE_SELECTED,
+		index
 	};
 };
 

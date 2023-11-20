@@ -182,6 +182,7 @@ export const PROMPT_CONFIGURE_ACTION = 'PROMPT_CONFIGURE_ACTION';
 //Suggestions
 export const SUGGESTIONS_SHOW_PANEL = 'SUGGESTIONS_SHOW_PANEL';
 export const SUGGESTIONS_HIDE_PANEL = 'SUGGESTIONS_HIDE_PANEL';
+export const SUGGESTIONS_CHANGE_SELECTED = 'SUGGESTIONS_CHANGE_SELECTED';
 export const SUGGESTIONS_ADD_SUGGESTIONS_FOR_CARD = 'SUGGESTIONS_ADD_SUGGESTIONS_FOR_CARD';
 //User
 export const SIGNIN_USER = 'SIGNIN_USER';
@@ -799,6 +800,11 @@ type ActionSuggestionsHidePanel = {
 	type: typeof SUGGESTIONS_HIDE_PANEL
 };
 
+type ActionSuggestionsChangeSelected = {
+	type: typeof SUGGESTIONS_CHANGE_SELECTED;
+	index: number
+};
+
 type ActionSuggestionsAddSuggestionsForCard = {
 	type: typeof SUGGESTIONS_ADD_SUGGESTIONS_FOR_CARD,
 	card: CardID,
@@ -975,6 +981,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionPromptConfigureAction
 	| ActionSuggestionsShowPanel
 	| ActionSuggestionsHidePanel
+	| ActionSuggestionsChangeSelected
 	| ActionSuggestionsAddSuggestionsForCard
 	| ActionSigninUser
 	| ActionSigninSuccess

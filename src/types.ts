@@ -1405,6 +1405,7 @@ export type PromptState = {
 
 export type SuggestionsState = {
 	open: boolean,
+	selectedIndex: number,
 	suggestionsForCard : {
 		[card : CardID] : Suggestion[]
 	}
