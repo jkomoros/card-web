@@ -28,6 +28,11 @@ import {
 	State
 } from '../types.js';
 
+import {
+	CANCEL_ICON
+} from './my-icons.js';
+import { suggestionsHidePanel } from '../actions/suggestions.js';
+
 @customElement('suggestions-viewer')
 class SuggestionsViewer extends connect(store)(LitElement) {
 
@@ -59,6 +64,12 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				box-sizing:border-box;
 			}
 
+			.buttons {
+				display:flex;
+				flex-direction:row;
+				width:100%;
+			}
+
 			.container.not-minimized {
 				position:absolute;
 			}
@@ -82,14 +93,30 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 		if (!card) return html`No card`;
 		return html`<div class='container'>
-		This is where suggestions will show up
-	</div>`;
+			<div class='row'>
+				This is where suggestions will show up.
+			</div>
+			<div class='buttons'>
+				<div class='flex'></div>
+				<button
+					class='round primary'
+					@click=${this._handleCloseClicked}
+					title='Close'
+				>
+					${CANCEL_ICON}
+				</button>
+			</div>
+		</div>`;
 	}
 
 	override stateChanged(state : State) {
 		this._card= selectActiveCard(state);
 		this._active = selectSuggestionsOpen(state);
 		this._minimized = selectEditorMinimized(state);
+	}
+
+	_handleCloseClicked() {
+		store.dispatch(suggestionsHidePanel());
 	}
 
 }
