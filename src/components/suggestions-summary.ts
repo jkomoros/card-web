@@ -26,10 +26,8 @@ class SuggestionsSummary extends LitElement {
 
 		const defaultColor = '#006400'; //darkgreen
 
-		//TODO: use an icon
 		//TODO: show that it's loading (signal with a null?)
 		//TODO: even when empty render some vertical space (so it doesn't jump on a card with one and without one.)
-		//TODO: when clicking a suggestion show suggestion-viewer
 		return html`
 			<tag-list
 				.tags=${this.suggestions.map(suggestion => suggestion.type)}
