@@ -278,7 +278,7 @@ export const selectFindSortByRecent = (state : State) => state.find ? state.find
 export const selectFindCardTypeFilter = (state : State) => state.find ? state.find.cardTypeFilter : '';
 export const selectFindCardTypeFilterLocked = (state : State) => state.find ? state.find.cardTypeFilterLocked : false;
 
-export const selectSuggestionsOpen = (state : State) => state.suggestions ? state.suggestions.open : false;
+const selectSuggestionsRawOpen = (state : State) => state.suggestions ? state.suggestions.open : false;
 export const selectSuggestionsForCards = (state : State) => state.suggestions ? state.suggestions.suggestionsForCard : {};
 
 export const selectAuthPending = (state : State) => state.user ? state.user.pending : false;
@@ -1658,6 +1658,12 @@ export const selectExpandedInfoPanelReferenceBlocksForEditingOrActiveCard = crea
 		//reference-block will hide any ones that shouldn't render because of an empty collection so we don't need to filter
 		return expandReferenceBlocks(card, blocks, args, cardIDsUserMayEdit);
 	}
+);
+
+export const selectSuggestionsOpen = createSelector(
+	selectIsEditing,
+	selectSuggestionsRawOpen,
+	(editing, suggestionsOpen) => !editing && suggestionsOpen
 );
 
 export const selectSuggestionsForActiveCard = createSelector(

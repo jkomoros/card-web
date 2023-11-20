@@ -76,6 +76,8 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 	override render() {
 
+		if (!this._active) return '';
+
 		const card = this._card;
 
 		if (!card) return html`No card`;
@@ -88,10 +90,6 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		this._card= selectActiveCard(state);
 		this._active = selectSuggestionsOpen(state);
 		this._minimized = selectEditorMinimized(state);
-	}
-
-	override shouldUpdate() {
-		return this._active;
 	}
 
 }
