@@ -183,6 +183,14 @@ export const cardHasContent = (card : Card | null) => {
 	return content ? true : false;
 };
 
+//The logic for auto_todo_overrides.prioritized is backwards from what it
+//intuitvely feels, so introduce this helper.
+export const cardIsPrioritized = (card : Card | null) : boolean => {
+	if (!card) return false;
+	if (card.auto_todo_overrides.prioritized === false) return true;
+	return false;
+};
+
 const SUBSTANTIVE_CONTENT_THRESHOLD = 300;
 export const cardHasSubstantiveContent = (card : ProcessedCard | null) => {
 	if (!card) return false;
