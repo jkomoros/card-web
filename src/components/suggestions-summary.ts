@@ -22,6 +22,8 @@ class SuggestionsSummary extends LitElement {
 		if (!this.suggestions || this.suggestions.length == 0) return '';
 		//TODO: use an icon
 		//TODO: use a tab-strip
+		//TODO: show that it's loading (signal with a null?)
+		//TODO: even when empty render some vertical space (so it doesn't jump on a card with one and without one.)
 		return html`<label>Suggestions</label>
 			${this.suggestions.map(suggestion => html`<label>${suggestion.type}</label>`)}
 			`;
