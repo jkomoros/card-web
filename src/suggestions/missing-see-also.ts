@@ -19,6 +19,7 @@ import {
 import {
 	SIMILAR_SAME_TYPE
 } from '../reference_blocks.js';
+import { cardIsPrioritized } from '../util.js';
 
 //Set by looking at a few examples
 const SIMILARITY_CUT_OFF = 0.89;
@@ -53,11 +54,18 @@ export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Sugge
 			break;
 		}
 
-		//TODO: if one card is priority and the other is not, then the other
-		//card should be the key card. This is actually pretty hard because
-		//TODOOverrides and TODOType aren't tightly locked down.
+		let firstCardID = card.id;
+		let secondCardID = topCard.id;
+
+		if (!cardIsPrioritized(card) && cardIsPrioritized(topCard)) {
+			logger.info('Flipping which card is priority because the other card is prioritized and this one isn\'t');
+			//If the other card is prioritized and this one isn't, then reverse suggestions.
+			firstCardID = topCard.id;
+			secondCardID = card.id;
+		}
+
 		logger.info('Suggesting this as a card');
-		const suggestion = makeReferenceSuggestion(type, card.id, topCard.id, 'see-also');
+		const suggestion = makeReferenceSuggestion(type, firstCardID, secondCardID, 'see-also');
 		result.push(suggestion);
 	}
 	return result;
