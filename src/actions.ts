@@ -37,6 +37,7 @@ import {
 	Slug,
 	SortExtra,
 	SortName,
+	Suggestion,
 	TagID,
 	Tags,
 	TweetMap,
@@ -181,6 +182,7 @@ export const PROMPT_CONFIGURE_ACTION = 'PROMPT_CONFIGURE_ACTION';
 //Suggestions
 export const SUGGESTIONS_SHOW_PANEL = 'SUGGESTIONS_SHOW_PANEL';
 export const SUGGESTIONS_HIDE_PANEL = 'SUGGESTIONS_HIDE_PANEL';
+export const SUGGESTIONS_ADD_SUGGESTIONS_FOR_CARD = 'SUGGESTIONS_ADD_SUGGESTIONS_FOR_CARD';
 //User
 export const SIGNIN_USER = 'SIGNIN_USER';
 export const SIGNIN_SUCCESS = 'SIGNIN_SUCCESS';
@@ -797,6 +799,12 @@ type ActionSuggestionsHidePanel = {
 	type: typeof SUGGESTIONS_HIDE_PANEL
 };
 
+type ActionSuggestionsAddSuggestionsForCard = {
+	type: typeof SUGGESTIONS_ADD_SUGGESTIONS_FOR_CARD,
+	card: CardID,
+	suggestions: Suggestion[]
+};
+
 type ActionSigninUser = {
 	type: typeof SIGNIN_USER,
 };
@@ -967,6 +975,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionPromptConfigureAction
 	| ActionSuggestionsShowPanel
 	| ActionSuggestionsHidePanel
+	| ActionSuggestionsAddSuggestionsForCard
 	| ActionSigninUser
 	| ActionSigninSuccess
 	| ActionSigninFailure
