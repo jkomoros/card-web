@@ -9,7 +9,6 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	selectActiveCard,
-	selectEditorMinimized,
 	selectSuggestionsOpen
 } from '../selectors.js';
 
@@ -41,9 +40,6 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 	@state()
 		_active: boolean;
-
-	@state()
-		_minimized: boolean;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -112,7 +108,6 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 	override stateChanged(state : State) {
 		this._card= selectActiveCard(state);
 		this._active = selectSuggestionsOpen(state);
-		this._minimized = selectEditorMinimized(state);
 	}
 
 	_handleCloseClicked() {
