@@ -118,6 +118,7 @@ import './card-editor.js';
 import './tag-list.js';
 import './comments-panel.js';
 import './card-info-panel.js';
+import './suggestions-viewer.js';
 
 import {
 	TODO_ALL_INFOS
@@ -471,6 +472,7 @@ class CardView extends connect(store)(PageViewElement) {
 					<tag-list .hideOnEmpty=${true} .tags=${this._cardTodos} .tagInfos=${TODO_ALL_INFOS}></tag-list>
 				</div>
           </card-stage>
+		  <suggestions-viewer></suggestions-viewer>
           <card-editor ?data-active=${this._editing} ?data-minimized=${this._editorMinimized}></card-editor>
         </div>
 		<div class='right-panel'>
