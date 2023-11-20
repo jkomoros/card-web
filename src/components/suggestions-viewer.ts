@@ -87,6 +87,11 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				width: 100%;
 			}
 
+			.row > div {
+				display: flex;
+				flex-direction: column;
+			}
+
 			.container.not-minimized {
 				position:absolute;
 			}
@@ -113,6 +118,8 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 		const card = this._card;
 
+		const suggestion = this._selectedSuggestion;
+
 		if (!card) return html`No card`;
 		return html`<div class='container'>
 			<div class='row'>
@@ -126,7 +133,10 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				<div class='flex'></div>
 			</div>
 			<div class='row'>
-				This is where suggestions will show up.
+				<div>
+					<label>Type</label>
+					<span>${suggestion.type}</span>
+				</div>
 			</div>
 			<div class='buttons'>
 				<div class='flex'></div>
