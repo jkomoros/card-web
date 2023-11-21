@@ -32,11 +32,11 @@ class SuggestionsSummary extends LitElement {
 
 		const tagInfos = tagInfosForSuggestions(this.suggestions);
 
-		let subtleTags : string[] = [];
+		let subtleTags : {[name : string] : true} = {};
 
 		if (this.selectedIndex !== undefined) {
 			const id = String(this.selectedIndex);
-			subtleTags = this.suggestions.map((_, index) => String(index)).filter(index => index != id);
+			subtleTags = Object.fromEntries(this.suggestions.map((_, index) => String(index)).filter(index => index != id).map(id => [id, true]));
 		}
 
 		const defaultColor = '#006400'; //darkgreen
