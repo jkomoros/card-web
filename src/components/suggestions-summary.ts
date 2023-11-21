@@ -30,19 +30,13 @@ class SuggestionsSummary extends LitElement {
 	override render() {
 		if (!this.suggestions || this.suggestions.length == 0) return '';
 
-		let tagInfos = tagInfosForSuggestions(this.suggestions);
+		const tagInfos = tagInfosForSuggestions(this.suggestions);
+
+		let subtleTags : string[] = [];
 
 		if (this.selectedIndex !== undefined) {
 			const id = String(this.selectedIndex);
-			//Make a copy because tagInfosForSuggestions returns a memoized object
-			tagInfos = {
-				...tagInfos,
-				[id]: {
-					...tagInfos[id],
-					//navy
-					color: '#000080'
-				}
-			};
+			subtleTags = this.suggestions.map((_, index) => String(index)).filter(index => index != id);
 		}
 
 		const defaultColor = '#006400'; //darkgreen
@@ -56,6 +50,7 @@ class SuggestionsSummary extends LitElement {
 				.hideOnEmpty=${true}
 				.tapEvents=${true}
 				.tagInfos=${tagInfos}
+				.subtleTags=${subtleTags}
 			>
 			</tag-list>
 			`;
