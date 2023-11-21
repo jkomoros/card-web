@@ -1228,7 +1228,7 @@ export type SuggestionDiff = {
 	supportingCards: CardDiff
 };
 
-export type SuggestionType = 'missing-see-also';
+export type SuggestionType = 'missing-see-also' | 'dupe-of';
 
 export type Suggestion = {
 	type: SuggestionType,

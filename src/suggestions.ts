@@ -32,6 +32,7 @@ import {
 import {
 	memoize
 } from './memoize.js';
+import { suggestDupeOf } from './suggestions/dupe-of.js';
 
 export const makeReferenceSuggestion = (type : SuggestionType, keyCards: CardID | CardID[], otherCards: CardID | CardID[], referenceType : ReferenceType, reverse = false) : Suggestion => {
 	//TODO: it's kind of finicky to have to keep track of which ID is which... shouldn't the actions have a sentinel for each that is overriden before being executed?
@@ -131,8 +132,11 @@ type Suggestor = {
 }
 
 export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
-	//TODO: a dupe one
 	//TODO: one to remove priority for near dupes
+	'dupe-of': {
+		generator: suggestDupeOf,
+		title: 'Duplicate Of'
+	},
 	'missing-see-also': {
 		generator: suggestMissingSeeAlso,
 		title: 'Missing See Also'

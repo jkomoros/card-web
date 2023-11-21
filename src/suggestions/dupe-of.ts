@@ -28,10 +28,10 @@ import {
 } from '../types.js';
 
 //Set by looking at a few examples
-const SIMILARITY_CUT_OFF = 0.89;
+const DUPLICATE_CUT_OFF = 0.97;
 
-//TODO: this is largely recreated in dupe-of.ts
-export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
+//TODO: this is largely recreated in missing-see-also
+export const suggestDupeOf = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
 	const {type, card, collectionArguments, logger} = args;
 	const description = collectionDescription(...SIMILAR_SAME_TYPE);
 	const collection = await waitForFinalCollection(description, {keyCardID: collectionArguments.keyCardID});
@@ -46,7 +46,7 @@ export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Sugge
 		//`meaning` filter which simply doesn't return any results if it's not embedding filter.
 		const similarity = collection.sortValueForCard(topCard.id);
 		logger.info(`similarity: ${similarity}`);
-		if (similarity < SIMILARITY_CUT_OFF) {
+		if (similarity < DUPLICATE_CUT_OFF) {
 			logger.info('Similarity too low.');
 			break;
 		}
@@ -70,7 +70,7 @@ export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Sugge
 		}
 
 		logger.info('Suggesting this as a card');
-		const suggestion = makeReferenceSuggestion(type, card.id, topCard.id, 'see-also', reverse);
+		const suggestion = makeReferenceSuggestion(type, card.id, topCard.id, 'dupe-of', reverse);
 		result.push(suggestion);
 	}
 	return result;
