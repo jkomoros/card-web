@@ -238,6 +238,26 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 }
 					</td>
 				</tr>
+				<tr>
+					<td>
+						${this.descriptionForDiff(suggestion.rejection?.keyCards)}
+					</td>
+					<td>
+						${this.descriptionForDiff(suggestion.rejection?.supportingCards)}
+					</td>
+					<td>
+						${suggestion.rejection ? 
+		html`<button
+								class='round'
+								title='Reject Suggestion'
+								@click=${this._handleRejectActionClicked}
+								>
+									${CANCEL_ICON}
+								</button>` :
+		''
+}
+					</td>
+				</tr>
 			</table>
 		</div>`;
 	}
@@ -268,6 +288,12 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		const suggestion = this._selectedSuggestion;
 		if (!suggestion) throw new Error('No suggestion');
 		store.dispatch(applySuggestion(suggestion, 'primary'));
+	}
+
+	_handleRejectActionClicked() {
+		const suggestion = this._selectedSuggestion;
+		if (!suggestion) throw new Error('No suggestion');
+		store.dispatch(applySuggestion(suggestion, 'rejection'));
 	}
 
 }
