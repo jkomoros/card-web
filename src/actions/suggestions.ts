@@ -75,11 +75,12 @@ export const applySuggestion = (suggestion : Suggestion, which : SuggestionItem 
 	}
 
 	const state = getState();
-	
-	const cardIDs = [...suggestion.keyCard, ...suggestion.supportingCards];
-
 	const allCards = selectCards(state);
-
+	
+	const cardIDs = [
+		...(item.keyCard ? suggestion.keyCard : []), 
+		...(item.supportingCards ? suggestion.supportingCards : [])
+	];
 	const cards = cardIDs.map(id => allCards[id]);
 
 	if (cards.some(card => card === undefined)) throw new Error('Some cards were undefined');
