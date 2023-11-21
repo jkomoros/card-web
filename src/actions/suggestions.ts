@@ -7,6 +7,7 @@ import {
 } from '../actions.js';
 
 import {
+	selectCardModificationError,
 	selectCards,
 	selectSuggestionsForCards
 } from '../selectors.js';
@@ -29,8 +30,14 @@ import {
 import {
 	CardID
 } from '../types_simple.js';
-import { assertUnreachable } from '../util.js';
-import { modifyCardsIndividually } from './data.js';
+
+import {
+	assertUnreachable
+} from '../util.js';
+
+import {
+	modifyCardsIndividually
+} from './data.js';
 
 export const suggestionsShowPanel = () : SomeAction => {
 	return {
@@ -56,7 +63,7 @@ export const suggestionsChangeSelected = (index : number | string) : SomeAction 
 
 type SuggestionItem = 'primary' | 'alternate' | 'rejection';
 
-export const applySuggestion = (suggestion : Suggestion, which : SuggestionItem = 'primary') : ThunkSomeAction => (dispatch, getState) => {
+export const applySuggestion = (suggestion : Suggestion, which : SuggestionItem = 'primary', suggestionIndex? : number) : ThunkSomeAction => (dispatch, getState) => {
 	let item : SuggestionDiff = suggestion.action;
 	switch (which) {
 	case 'primary':
@@ -91,7 +98,18 @@ export const applySuggestion = (suggestion : Suggestion, which : SuggestionItem 
 	const modifications = Object.fromEntries([...modificationsKeyCard, ...modificationsSupportingCard]);
 
 	dispatch(modifyCardsIndividually(cards, modifications));
+
+	if (suggestionIndex === undefined) return;
+
+	//Mark that suggestion as no longer valid.
+
+	//Fetch a fresh state
+	const err = selectCardModificationError(getState());
+	if (err) return;
+	
+	//TODO: mark that suggestion as no longer valid.
 };
+	
 
 const suggestionsAddSuggestionsForCard = (card : CardID, suggestions: Suggestion[]) : SomeAction => {
 	return {

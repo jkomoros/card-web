@@ -281,19 +281,19 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 	_handleAcceptAlternateActionClicked() {
 		const suggestion = this._selectedSuggestion;
 		if (!suggestion) throw new Error('No suggestion');
-		store.dispatch(applySuggestion(suggestion, 'alternate'));
+		store.dispatch(applySuggestion(suggestion, 'alternate', this._selectedIndex));
 	}
 
 	_handleAcceptPrimaryActionClicked() {
 		const suggestion = this._selectedSuggestion;
 		if (!suggestion) throw new Error('No suggestion');
-		store.dispatch(applySuggestion(suggestion, 'primary'));
+		store.dispatch(applySuggestion(suggestion, 'primary', this._selectedIndex));
 	}
 
 	_handleRejectActionClicked() {
 		const suggestion = this._selectedSuggestion;
 		if (!suggestion) throw new Error('No suggestion');
-		store.dispatch(applySuggestion(suggestion, 'rejection'));
+		store.dispatch(applySuggestion(suggestion, 'rejection', this._selectedIndex));
 	}
 
 }
