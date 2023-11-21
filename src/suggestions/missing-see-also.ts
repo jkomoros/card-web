@@ -60,18 +60,16 @@ export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Sugge
 			break;
 		}
 
-		let firstCardID = card.id;
-		let secondCardID = topCard.id;
+		let reverse = false;
 
 		if (!cardIsPrioritized(card) && cardIsPrioritized(topCard)) {
 			logger.info('Flipping which card is priority because the other card is prioritized and this one isn\'t');
 			//If the other card is prioritized and this one isn't, then reverse suggestions.
-			firstCardID = topCard.id;
-			secondCardID = card.id;
+			reverse = true;
 		}
 
 		logger.info('Suggesting this as a card');
-		const suggestion = makeReferenceSuggestion(type, firstCardID, secondCardID, 'see-also');
+		const suggestion = makeReferenceSuggestion(type, card.id, topCard.id, 'see-also', reverse);
 		result.push(suggestion);
 	}
 	return result;
