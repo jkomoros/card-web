@@ -1,5 +1,8 @@
 import {
-	selectCards, selectCollectionConstructorArguments, selectDataIsFullyLoaded, userMayEditCard
+	selectCards,
+	selectCollectionConstructorArguments,
+	selectDataIsFullyLoaded,
+	userMayEditCard
 } from './selectors.js';
 
 import {
