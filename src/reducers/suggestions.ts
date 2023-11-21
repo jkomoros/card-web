@@ -42,8 +42,14 @@ const app = (state : SuggestionsState = INITIAL_STATE, action : SomeAction) : Su
 	case SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD:
 		const updatedSuggestions = [...(state.suggestionsForCard[action.card] || [])];
 		updatedSuggestions.splice(action.index);
+		//If that was the last suggestion, and we were open, close. Note: this
+		//assumes that we are currently viewing the card that just had its
+		//suggestion removed, which is currently true but might not be true in
+		//the future.
+		const remainOpen = state.open && updatedSuggestions.length > 0;
 		return {
 			...state,
+			open: remainOpen,
 			suggestionsForCard: {
 				...state.suggestionsForCard,
 				[action.card]: updatedSuggestions
