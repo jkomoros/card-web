@@ -167,6 +167,13 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				>
 				</suggestions-summary>
 				<div class='flex'></div>
+				<button
+					class='small'
+					@click=${this._handleCloseClicked}
+					title='Close'
+				>
+					${CANCEL_ICON}
+				</button>
 			</div>
 			<table>
 				<tr>
@@ -229,16 +236,6 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 					</td>
 				</tr>
 			</table>
-			<div class='buttons'>
-				<div class='flex'></div>
-				<button
-					class='round'
-					@click=${this._handleCloseClicked}
-					title='Close'
-				>
-					${CANCEL_ICON}
-				</button>
-			</div>
 		</div>`;
 	}
 
