@@ -40,7 +40,8 @@ import {
 	references,
 	applyReferencesDiff,
 	referencesEntriesDiff,
-	referencesCardsDiff
+	referencesCardsDiff,
+	isExpandedReferenceDelete
 } from './references.js';
 
 import {
@@ -75,7 +76,8 @@ import {
 	DottedCardUpdate,
 	FirestoreLeafValue,
 	autoTODOTypeArray,
-	cardFieldTypeEditableSchema
+	cardFieldTypeEditableSchema,
+	ReferencesEntriesDiff
 } from './types.js';
 
 import {
@@ -96,6 +98,15 @@ const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
 	todo : true,
 	notes : true,
 	images : true,
+};
+
+//descriptionForReferencesDiff assumes card-link is imported, so make sure.
+import './components/card-link.js';
+
+export const descriptionForReferencesDiff = (diff : ReferencesEntriesDiff) : TemplateResult[] => {
+	return diff.map(item => {
+		return html`${isExpandedReferenceDelete(item) ? 'Remove' : 'Add'} ${item.referenceType} reference to <card-link auto='title' card='${item.cardID}' .noNavigate=${true}></card-link>`;
+	});
 };
 
 export const descriptionForCardDiff = (update : CardDiff): TemplateResult[] => {
