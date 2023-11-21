@@ -279,21 +279,18 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 	}
 
 	_handleAcceptAlternateActionClicked() {
-		const suggestion = this._selectedSuggestion;
-		if (!suggestion) throw new Error('No suggestion');
-		store.dispatch(applySuggestion(suggestion, 'alternate', this._selectedIndex));
+		if (!this._card) throw new Error('No card');
+		store.dispatch(applySuggestion(this._card.id, this._selectedIndex, 'alternate',));
 	}
 
 	_handleAcceptPrimaryActionClicked() {
-		const suggestion = this._selectedSuggestion;
-		if (!suggestion) throw new Error('No suggestion');
-		store.dispatch(applySuggestion(suggestion, 'primary', this._selectedIndex));
+		if (!this._card) throw new Error('No card');
+		store.dispatch(applySuggestion(this._card.id, this._selectedIndex, 'primary',));
 	}
 
 	_handleRejectActionClicked() {
-		const suggestion = this._selectedSuggestion;
-		if (!suggestion) throw new Error('No suggestion');
-		store.dispatch(applySuggestion(suggestion, 'rejection', this._selectedIndex));
+		if (!this._card) throw new Error('No card');
+		store.dispatch(applySuggestion(this._card.id, this._selectedIndex, 'rejection',));
 	}
 
 }

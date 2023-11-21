@@ -63,7 +63,16 @@ export const suggestionsChangeSelected = (index : number | string) : SomeAction 
 
 type SuggestionItem = 'primary' | 'alternate' | 'rejection';
 
-export const applySuggestion = (suggestion : Suggestion, which : SuggestionItem = 'primary', suggestionIndex? : number) : ThunkSomeAction => (dispatch, getState) => {
+export const applySuggestion = (cardID : CardID, suggestionIndex : number, which : SuggestionItem = 'primary') : ThunkSomeAction => (dispatch, getState) => {
+
+	const state = getState();
+
+	const suggestionsByCard = selectSuggestionsForCards(state);
+	const suggestions = suggestionsByCard[cardID];
+	if (!suggestions) throw new Error(`No suggestions for card ${cardID}`);
+	const suggestion = suggestions[suggestionIndex];
+	if (!suggestion) throw new Error(`No suggestion at index ${suggestionIndex} for card ${cardID}`);
+
 	let item : SuggestionDiff = suggestion.action;
 	switch (which) {
 	case 'primary':
@@ -81,7 +90,7 @@ export const applySuggestion = (suggestion : Suggestion, which : SuggestionItem 
 		assertUnreachable(which);
 	}
 
-	const state = getState();
+	
 	const allCards = selectCards(state);
 	
 	const cardIDs = [
