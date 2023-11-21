@@ -30,10 +30,11 @@ import {
 } from './typed_object.js';
 import { memoize } from './memoize.js';
 
-export const makeReferenceSuggestion = (type : SuggestionType, keyCard: CardID, otherCards: CardID | CardID[], referenceType : ReferenceType) : Suggestion => {
+export const makeReferenceSuggestion = (type : SuggestionType, keyCard: CardID | CardID[], otherCards: CardID | CardID[], referenceType : ReferenceType) : Suggestion => {
 	//TODO: it's kind of finicky to have to keep track of which ID is which... shouldn't the actions have a sentinel for each that is overriden before being executed?
 
 	if (typeof otherCards == 'string') otherCards = [otherCards];
+	if (typeof keyCard == 'string') keyCard = [keyCard];
 
 	return {
 		type,
@@ -51,13 +52,11 @@ export const makeReferenceSuggestion = (type : SuggestionType, keyCard: CardID, 
 		},
 		alternateAction: {
 			supportingCards: {
-				references_diff: [
-					{
-						cardID: keyCard,
-						referenceType,
-						value: ''
-					}
-				]
+				references_diff: keyCard.map((card : CardID) : ReferencesEntriesDiffItem => ({
+					cardID: card,
+					referenceType,
+					value: ''
+				}))
 			}
 		}
 	};
