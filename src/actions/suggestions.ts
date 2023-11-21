@@ -7,6 +7,7 @@ import {
 } from '../actions.js';
 
 import {
+	selectCards,
 	selectSuggestionsForCards
 } from '../selectors.js';
 
@@ -19,13 +20,17 @@ import {
 } from '../suggestions.js';
 
 import {
+	CardDiff,
 	ProcessedCard,
-	Suggestion
+	Suggestion,
+	SuggestionDiff
 } from '../types.js';
 
 import {
 	CardID
 } from '../types_simple.js';
+import { assertUnreachable } from '../util.js';
+import { modifyCardsIndividually } from './data.js';
 
 export const suggestionsShowPanel = () : SomeAction => {
 	return {
@@ -47,6 +52,44 @@ export const suggestionsChangeSelected = (index : number | string) : SomeAction 
 		type: SUGGESTIONS_CHANGE_SELECTED,
 		index
 	};
+};
+
+type SuggestionItem = 'primary' | 'alternate' | 'rejection';
+
+export const applySuggestion = (suggestion : Suggestion, which : SuggestionItem = 'primary') : ThunkSomeAction => (dispatch, getState) => {
+	let item : SuggestionDiff = suggestion.action;
+	switch (which) {
+	case 'primary':
+		item = suggestion.action;
+		break;
+	case 'alternate':
+		if (!suggestion.alternateAction) throw new Error('No alternate');
+		item = suggestion.alternateAction;
+		break;
+	case 'rejection':
+		if (!suggestion.rejection) throw new Error('No rejection');
+		item = suggestion.rejection;
+		break;
+	default:
+		assertUnreachable(which);
+	}
+
+	const state = getState();
+	
+	const cardIDs = [...suggestion.keyCard, ...suggestion.supportingCards];
+
+	const allCards = selectCards(state);
+
+	const cards = cardIDs.map(id => allCards[id]);
+
+	if (cards.some(card => card === undefined)) throw new Error('Some cards were undefined');
+
+	const modificationsKeyCard = item.keyCard ? suggestion.keyCard.map((id : CardID) : [CardID, CardDiff] => [id, item.keyCard as CardDiff]) : [];
+	const modificationsSupportingCard = item.supportingCards ? suggestion.supportingCards.map((id : CardID) : [CardID, CardDiff] => [id, item.supportingCards as CardDiff]) : [];
+
+	const modifications = Object.fromEntries([...modificationsKeyCard, ...modificationsSupportingCard]);
+
+	dispatch(modifyCardsIndividually(cards, modifications));
 };
 
 const suggestionsAddSuggestionsForCard = (card : CardID, suggestions: Suggestion[]) : SomeAction => {
