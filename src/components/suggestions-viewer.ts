@@ -180,7 +180,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 					<td>
 						<label>Key Card</label>
 						<tag-list
-							.tags=${[suggestion.keyCard]}
+							.tags=${suggestion.keyCard}
 							.tagInfos=${this._tagInfosForCards}
 							.tapEvents=${true}
 						></tag-list>
