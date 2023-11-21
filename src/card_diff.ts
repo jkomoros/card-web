@@ -132,7 +132,7 @@ export const descriptionForCardDiff = (update : CardDiff): TemplateResult[] => {
 		}
 
 		//TODO: handle non diffable fields
-		return [html`Set ${key} to ${value}`];
+		return [html`Set ${key} to ${JSON.stringify(value, null, '\t')}`];
 	}).flat();
 };
 
