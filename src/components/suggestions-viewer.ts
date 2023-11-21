@@ -129,6 +129,10 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				margin: 0;
 			}
 
+			button.round {
+				margin: 0;
+			}
+
 		`
 	];
 
