@@ -201,7 +201,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				</tr>
 				<tr>
 					<td>
-						${this.descriptionForDiff(suggestion.action.keyCard)}
+						${this.descriptionForDiff(suggestion.action.keyCards)}
 					</td>
 					<td>
 						${this.descriptionForDiff(suggestion.action.supportingCards)}
@@ -218,7 +218,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				</tr>
 				<tr>
 					<td>
-						${this.descriptionForDiff(suggestion.alternateAction?.keyCard)}
+						${this.descriptionForDiff(suggestion.alternateAction?.keyCards)}
 					</td>
 					<td>
 						${this.descriptionForDiff(suggestion.alternateAction?.supportingCards)}

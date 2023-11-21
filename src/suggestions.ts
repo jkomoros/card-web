@@ -54,7 +54,7 @@ export const makeReferenceSuggestion = (type : SuggestionType, keyCards: CardID 
 				}
 			},
 			alternateAction: {
-				keyCard: {
+				keyCards: {
 					references_diff: otherCards.map((card : CardID) : ReferencesEntriesDiffItem => ({
 						cardID: card,
 						referenceType,
@@ -70,7 +70,7 @@ export const makeReferenceSuggestion = (type : SuggestionType, keyCards: CardID 
 		keyCards,
 		supportingCards: otherCards,
 		action: {
-			keyCard: {
+			keyCards: {
 				references_diff: otherCards.map((card : CardID) : ReferencesEntriesDiffItem => ({
 					cardID: card,
 					referenceType,

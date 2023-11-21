@@ -78,14 +78,14 @@ export const applySuggestion = (suggestion : Suggestion, which : SuggestionItem 
 	const allCards = selectCards(state);
 	
 	const cardIDs = [
-		...(item.keyCard ? suggestion.keyCards : []), 
+		...(item.keyCards ? suggestion.keyCards : []), 
 		...(item.supportingCards ? suggestion.supportingCards : [])
 	];
 	const cards = cardIDs.map(id => allCards[id]);
 
 	if (cards.some(card => card === undefined)) throw new Error('Some cards were undefined');
 
-	const modificationsKeyCard = item.keyCard ? suggestion.keyCards.map((id : CardID) : [CardID, CardDiff] => [id, item.keyCard as CardDiff]) : [];
+	const modificationsKeyCard = item.keyCards ? suggestion.keyCards.map((id : CardID) : [CardID, CardDiff] => [id, item.keyCards as CardDiff]) : [];
 	const modificationsSupportingCard = item.supportingCards ? suggestion.supportingCards.map((id : CardID) : [CardID, CardDiff] => [id, item.supportingCards as CardDiff]) : [];
 
 	const modifications = Object.fromEntries([...modificationsKeyCard, ...modificationsSupportingCard]);

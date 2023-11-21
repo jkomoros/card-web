@@ -1220,11 +1220,11 @@ export type ExpandedTabConfig = ExpandedTabConfigItem[];
 export type CardSimilarityMap = Record<CardID, SortExtra>;
 
 export type SuggestionDiff = {
-	keyCard: CardDiff,
+	keyCards: CardDiff,
 	//The diff to apply to each supportingCard.
 	supportingCards?: CardDiff
 } | {
-	keyCard? : CardDiff,
+	keyCards? : CardDiff,
 	supportingCards: CardDiff
 };
 
