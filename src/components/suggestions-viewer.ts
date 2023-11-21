@@ -128,7 +128,11 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 	}
 
 	descriptionForDiff(diff? : CardDiff) : TemplateResult {
-		if (!diff) return html`<em>No changes</em>`;
+		if (!diff) return html`<ul>
+			<li>
+				<em>No changes</em>
+			</li>
+		</ul>`;
 
 		return html`<ul>
 			${descriptionForCardDiff(diff).map(line => html`<li>${line}</li>`)}
