@@ -246,13 +246,25 @@ export const modifyCard = (card : Card, update : CardDiff, substantive = false) 
 	return modifyCards([card], update, substantive, true);
 };
 
-export const modifyCards = (cards : Card[], update : CardDiff, substantive = false, failOnError = false) : ThunkSomeAction => async (dispatch, getState) => {
+export const modifyCards = (cards : Card[], update : CardDiff, substantive = false, failOnError = false) => {
+	const updates = Object.fromEntries(cards.map(card => [card.id, update]));
+	return modifyCardsIndividually(cards, updates, substantive, failOnError);
+};
+
+export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID] : CardDiff}, substantive = false, failOnError = false) : ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState();
 
 	if (selectCardModificationPending(state)) {
 		console.log('Can\'t modify card; another card is being modified.');
 		return;
 	}
+
+	cards.forEach((card) => {
+		if (!updates[card.id]) {
+			//We throw even if failOnError is false because this is something that affects all cards
+			throw new Error(`Missing update for ${card.id}`);
+		}
+	});
 
 	dispatch(modifyCardAction());
 
@@ -267,6 +279,12 @@ export const modifyCards = (cards : Card[], update : CardDiff, substantive = fal
 			if (failOnError) return;
 			continue;
 		}
+
+		const update = updates[card.id];
+
+		//This shouldn't happen since we verified it above, but tell typescript
+		//we know there's an update.
+		if (!update) continue;
 
 		try {
 			if (modifyCardWithBatch(state, card, update, substantive, batch)) modifiedCount++;
