@@ -33,7 +33,8 @@ import {
 } from '../types.js';
 
 import {
-	CANCEL_ICON
+	CANCEL_ICON,
+	CHECK_CIRCLE_OUTLINE_ICON
 } from './my-icons.js';
 
 import {
@@ -198,6 +199,13 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 						${this.descriptionForDiff(suggestion.action.supportingCards)}
 					</td>
 					<td>
+						<button
+							class='round primary'
+							title='Accept Primary Action'
+							@click=${this._handleAcceptPrimaryActionClicked}
+						>
+							${CHECK_CIRCLE_OUTLINE_ICON}
+						</button>
 					</td>
 				</tr>
 				<tr>
@@ -208,13 +216,23 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 						${this.descriptionForDiff(suggestion.alternateAction?.supportingCards)}
 					</td>
 					<td>
+						${suggestion.alternateAction ? 
+		html`<button
+								class='round'
+								title='Accept Alternate Action'
+								@click=${this._handleAcceptAlternateActionClicked}
+								>
+									${CHECK_CIRCLE_OUTLINE_ICON}
+								</button>` :
+		''
+}
 					</td>
 				</tr>
 			</table>
 			<div class='buttons'>
 				<div class='flex'></div>
 				<button
-					class='round primary'
+					class='round'
 					@click=${this._handleCloseClicked}
 					title='Close'
 				>
@@ -238,6 +256,14 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 	_handleCloseClicked() {
 		store.dispatch(suggestionsHidePanel());
+	}
+
+	_handleAcceptAlternateActionClicked() {
+		alert('Not yet implemented');
+	}
+
+	_handleAcceptPrimaryActionClicked() {
+		alert('Not yet implemented');
 	}
 
 }
