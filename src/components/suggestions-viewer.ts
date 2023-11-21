@@ -38,6 +38,7 @@ import {
 } from './my-icons.js';
 
 import {
+	applySuggestion,
 	suggestionsChangeSelected,
 	suggestionsHidePanel
 } from '../actions/suggestions.js';
@@ -256,11 +257,11 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 	}
 
 	_handleAcceptAlternateActionClicked() {
-		alert('Not yet implemented');
+		store.dispatch(applySuggestion(this._selectedSuggestion, 'alternate'));
 	}
 
 	_handleAcceptPrimaryActionClicked() {
-		alert('Not yet implemented');
+		store.dispatch(applySuggestion(this._selectedSuggestion, 'primary'));
 	}
 
 }
