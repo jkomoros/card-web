@@ -184,6 +184,7 @@ export const SUGGESTIONS_SHOW_PANEL = 'SUGGESTIONS_SHOW_PANEL';
 export const SUGGESTIONS_HIDE_PANEL = 'SUGGESTIONS_HIDE_PANEL';
 export const SUGGESTIONS_CHANGE_SELECTED = 'SUGGESTIONS_CHANGE_SELECTED';
 export const SUGGESTIONS_ADD_SUGGESTIONS_FOR_CARD = 'SUGGESTIONS_ADD_SUGGESTIONS_FOR_CARD';
+export const SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD = 'SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD';
 //User
 export const SIGNIN_USER = 'SIGNIN_USER';
 export const SIGNIN_SUCCESS = 'SIGNIN_SUCCESS';
@@ -811,6 +812,12 @@ type ActionSuggestionsAddSuggestionsForCard = {
 	suggestions: Suggestion[]
 };
 
+type ActionSuggestionsRemoveSuggestionForCard = {
+	type: typeof SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD,
+	card: CardID,
+	index: number
+};
+
 type ActionSigninUser = {
 	type: typeof SIGNIN_USER,
 };
@@ -983,6 +990,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionSuggestionsHidePanel
 	| ActionSuggestionsChangeSelected
 	| ActionSuggestionsAddSuggestionsForCard
+	| ActionSuggestionsRemoveSuggestionForCard
 	| ActionSigninUser
 	| ActionSigninSuccess
 	| ActionSigninFailure

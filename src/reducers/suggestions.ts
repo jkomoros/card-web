@@ -3,7 +3,8 @@ import {
 	SUGGESTIONS_HIDE_PANEL,
 	SomeAction,
 	SUGGESTIONS_ADD_SUGGESTIONS_FOR_CARD,
-	SUGGESTIONS_CHANGE_SELECTED
+	SUGGESTIONS_CHANGE_SELECTED,
+	SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD
 } from '../actions.js';
 
 import {
@@ -36,6 +37,16 @@ const app = (state : SuggestionsState = INITIAL_STATE, action : SomeAction) : Su
 			suggestionsForCard: {
 				...state.suggestionsForCard,
 				[action.card]: suggestions
+			}
+		};
+	case SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD:
+		const updatedSuggestions = [...(state.suggestionsForCard[action.card] || [])];
+		updatedSuggestions.splice(action.index);
+		return {
+			...state,
+			suggestionsForCard: {
+				...state.suggestionsForCard,
+				[action.card]: updatedSuggestions
 			}
 		};
 	case SUGGESTIONS_CHANGE_SELECTED:
