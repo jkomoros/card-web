@@ -53,6 +53,9 @@ export class CardStage extends LitElement {
 	@property({ type : Boolean })
 		editing: boolean;
 
+	@property({ type : Boolean})
+		hideActions: boolean;
+
 	@property({ type : Object })
 		card: ProcessedCard | Card | null;
 
@@ -134,7 +137,7 @@ export class CardStage extends LitElement {
 				flex-direction:row;
 			}
 
-			.editing [name="actions"], .editing [name="tags"] {
+			.hide-actions [name="actions"], .hide-actions [name="tags"] {
 				display:none;
 			}
 
@@ -200,7 +203,7 @@ export class CardStage extends LitElement {
 
 	override render() {
 		return html`
-		<div id='canvas' class="${this.presenting ? 'presenting' : ''} ${this.editing ? 'editing' : ''} ${this.mobile ? 'mobile' : ''} ${this.loading ? 'loading' : ''}">
+		<div id='canvas' class="${this.presenting ? 'presenting' : ''} ${this.editing ? 'editing' : ''} ${this.mobile ? 'mobile' : ''} ${this.loading ? 'loading' : ''} ${this.hideActions ? 'hide-actions' : ''}">
 			<div id='portrait-message'>
 				<div>${SCREEN_ROTATION_ICON}</div>
 				<div>Rotate your device for larger text</div>

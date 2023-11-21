@@ -207,6 +207,9 @@ class CardView extends connect(store)(PageViewElement) {
 		_editing: boolean;
 
 	@state()
+		_hideActions: boolean;
+
+	@state()
 		_editorMinimized: boolean;
 
 	@state()
@@ -454,7 +457,7 @@ class CardView extends connect(store)(PageViewElement) {
 			</div>` : ''}
 		</card-drawer>
         <div id='center'>
-			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
+			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .hideActions=${this._hideActions} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
 				<div slot='actions' class='presentation'>
 					<button class='round ${this._presentationMode ? 'selected' : ''}' ?hidden='${this._mobileMode}' @click=${this._handlePresentationModeClicked}>${FULL_SCREEN_ICON}</button>
 				</div>
@@ -668,6 +671,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._displayCard = this._editingCard ? this._editingCard : this._card;
 		this._pageExtra = state.app.pageExtra;
 		this._editing = selectIsEditing(state);
+		this._hideActions = selectIsEditing(state) || selectSuggestionsOpen(state);
 		this._editorMinimized = selectEditorMinimized(state);
 		this._signedIn = selectUserSignedIn(state);
 		this._userMayStar  =  selectUserMayStar(state);
@@ -705,8 +709,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._infoExpanded = selectCardsDrawerInfoExpanded(state);
 		this._suggestMissingConceptsEnabled = selectSuggestMissingConceptsEnabled(state);
 		this._userIsAdmin = selectUserIsAdmin(state);
-		//Only show suggestions summary if the viewer isn't open.
-		this._suggestionsForCard = selectSuggestionsOpen(state) ? [] : selectSuggestionsForActiveCard(state);
+		this._suggestionsForCard = selectSuggestionsForActiveCard(state);
 
 		//selectEditingCardSuggestedConceptReferences is expensive so only do it if editing
 		this._suggestedConcepts = this._editing ? selectEditingCardSuggestedConceptReferences(state) : null;
