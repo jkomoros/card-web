@@ -11,7 +11,8 @@ import {
 	selectActiveCard,
 	selectSuggestionsEffectiveSelectedIndex,
 	selectSuggestionsForActiveCard,
-	selectSuggestionsOpen
+	selectSuggestionsOpen,
+	selectTagInfosForCards
 } from '../selectors.js';
 
 import suggestions from '../reducers/suggestions.js';
@@ -26,7 +27,8 @@ import {
 import {
 	Card,
 	State,
-	Suggestion
+	Suggestion,
+	TagInfos
 } from '../types.js';
 
 import {
@@ -38,8 +40,12 @@ import {
 	suggestionsHidePanel
 } from '../actions/suggestions.js';
 
+import {
+	TagEvent
+} from '../events.js';
+
 import './suggestions-summary.js';
-import { TagEvent } from '../events.js';
+import './tag-list.js';
 
 @customElement('suggestions-viewer')
 class SuggestionsViewer extends connect(store)(LitElement) {
@@ -55,6 +61,9 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 	@state()
 		_selectedIndex: number;
+
+	@state()
+		_tagInfosForCards : TagInfos;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -137,6 +146,22 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 					<label>Type</label>
 					<span>${suggestion.type}</span>
 				</div>
+				<div>
+					<label>Key Card</label>
+					<tag-list
+						.tags=${[suggestion.keyCard]}
+						.tagInfos=${this._tagInfosForCards}
+						.tapEvents=${true}
+					></tag-list>
+				</div>
+				<div>
+					<label>Supporting Cards</label>
+					<tag-list
+						.tags=${suggestion.supportingCards}
+						.tagInfos=${this._tagInfosForCards}
+						.tapEvents=${true}
+					></tag-list>
+				</div>
 			</div>
 			<div class='buttons'>
 				<div class='flex'></div>
@@ -156,6 +181,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		this._active = selectSuggestionsOpen(state);
 		this._suggestions = selectSuggestionsForActiveCard(state);
 		this._selectedIndex = selectSuggestionsEffectiveSelectedIndex(state);
+		this._tagInfosForCards = selectTagInfosForCards(state);
 	}
 
 	_handleSuggestionTapped(e : TagEvent) {
