@@ -170,10 +170,6 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 			<table>
 				<tr>
 					<td>
-						<label>Type</label>
-						<span>${suggestion.type}</span>
-					</td>
-					<td>
 						<label>Key Card</label>
 						<tag-list
 							.tags=${[suggestion.keyCard]}
@@ -189,25 +185,29 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 							.tapEvents=${true}
 						></tag-list>
 					</td>
+					<td>
+						<label>Type</label>
+						<span>${suggestion.type}</span>
+					</td>
 				</tr>
 				<tr>
-					<td>
-					</td>
 					<td>
 						${this.descriptionForDiff(suggestion.action.keyCard)}
 					</td>
 					<td>
 						${this.descriptionForDiff(suggestion.action.supportingCards)}
 					</td>
-				</tr>
-				<tr>
 					<td>
 					</td>
+				</tr>
+				<tr>
 					<td>
 						${this.descriptionForDiff(suggestion.alternateAction?.keyCard)}
 					</td>
 					<td>
 						${this.descriptionForDiff(suggestion.alternateAction?.supportingCards)}
+					</td>
+					<td>
 					</td>
 				</tr>
 			</table>
