@@ -96,6 +96,10 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				width: 100%;
 			}
 
+			.row.distributed {
+				justify-content: space-evenly;
+			}
+
 			.row > div {
 				display: flex;
 				flex-direction: column;
@@ -141,7 +145,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				</suggestions-summary>
 				<div class='flex'></div>
 			</div>
-			<div class='row'>
+			<div class='row distributed'>
 				<div>
 					<label>Type</label>
 					<span>${suggestion.type}</span>
