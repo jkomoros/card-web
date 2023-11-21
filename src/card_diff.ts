@@ -105,7 +105,7 @@ import './components/card-link.js';
 
 export const descriptionForReferencesDiff = (diff : ReferencesEntriesDiff) : TemplateResult[] => {
 	return diff.map(item => {
-		return html`${isExpandedReferenceDelete(item) ? 'Remove' : 'Add'} ${item.referenceType} reference to <card-link auto='title' card='${item.cardID}' .noNavigate=${true}></card-link>`;
+		return html`${isExpandedReferenceDelete(item) ? 'Remove' : 'Add'} <strong>${item.referenceType}</strong> reference to <card-link auto='title' card='${item.cardID}' .noNavigate=${true}></card-link>`;
 	});
 };
 
