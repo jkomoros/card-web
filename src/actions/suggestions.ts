@@ -1,7 +1,7 @@
 import {
 	SUGGESTIONS_HIDE_PANEL,
 	SUGGESTIONS_SHOW_PANEL,
-	SUGGESTIONS_ADD_SUGGESTIONS_FOR_CARD,
+	SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD,
 	SomeAction,
 	SUGGESTIONS_CHANGE_SELECTED,
 	SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD
@@ -125,9 +125,9 @@ export const applySuggestion = (cardID : CardID, suggestionIndex : number, which
 };
 	
 
-const suggestionsAddSuggestionsForCard = (card : CardID, suggestions: Suggestion[]) : SomeAction => {
+const suggestionsReplaceSuggestionsForCard = (card : CardID, suggestions: Suggestion[]) : SomeAction => {
 	return {
-		type: SUGGESTIONS_ADD_SUGGESTIONS_FOR_CARD,
+		type: SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD,
 		card,
 		suggestions
 	};
@@ -142,5 +142,5 @@ export const suggestionsActiveCardChanged = (card : ProcessedCard) : ThunkSomeAc
 		//TODO: clean out any old suggestions
 		return;
 	}
-	suggestionsForCard(card, state).then((newSuggestions) => dispatch(suggestionsAddSuggestionsForCard(card.id,newSuggestions)));
+	suggestionsForCard(card, state).then((newSuggestions) => dispatch(suggestionsReplaceSuggestionsForCard(card.id,newSuggestions)));
 };

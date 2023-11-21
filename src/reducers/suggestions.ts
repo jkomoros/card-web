@@ -2,7 +2,7 @@ import {
 	SUGGESTIONS_SHOW_PANEL,
 	SUGGESTIONS_HIDE_PANEL,
 	SomeAction,
-	SUGGESTIONS_ADD_SUGGESTIONS_FOR_CARD,
+	SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD,
 	SUGGESTIONS_CHANGE_SELECTED,
 	SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD
 } from '../actions.js';
@@ -29,14 +29,12 @@ const app = (state : SuggestionsState = INITIAL_STATE, action : SomeAction) : Su
 			...state,
 			open: false
 		};
-	case SUGGESTIONS_ADD_SUGGESTIONS_FOR_CARD:
-		const previousSuggestions = state.suggestionsForCard[action.card] || [];
-		const suggestions = [...previousSuggestions, ...action.suggestions];
+	case SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD:
 		return {
 			...state,
 			suggestionsForCard: {
 				...state.suggestionsForCard,
-				[action.card]: suggestions
+				[action.card]: [...action.suggestions]
 			}
 		};
 	case SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD:
