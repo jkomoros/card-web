@@ -61,6 +61,15 @@ export const makeReferenceSuggestion = (type : SuggestionType, keyCards: CardID 
 						value: ''
 					}))
 				}
+			},
+			rejection: {
+				supportingCards: {
+					references_diff: keyCards.map((card : CardID) : ReferencesEntriesDiffItem => ({
+						cardID: card,
+						referenceType: 'ack',
+						value: ''
+					}))
+				}
 			}
 		};
 	}
@@ -83,6 +92,15 @@ export const makeReferenceSuggestion = (type : SuggestionType, keyCards: CardID 
 				references_diff: keyCards.map((card : CardID) : ReferencesEntriesDiffItem => ({
 					cardID: card,
 					referenceType,
+					value: ''
+				}))
+			}
+		},
+		rejection: {
+			keyCards: {
+				references_diff: otherCards.map((card : CardID) : ReferencesEntriesDiffItem => ({
+					cardID: card,
+					referenceType: 'ack',
 					value: ''
 				}))
 			}
