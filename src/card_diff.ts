@@ -119,6 +119,18 @@ export const descriptionForCardDiff = (update : CardDiff): TemplateResult[] => {
 			return descriptionForReferencesDiff(value as ReferencesEntriesDiff);
 		}
 
+		if (key == 'auto_todo_overrides_removals') {
+			return html`Set back to auto ${value} TODO`;
+		}
+
+		if (key == 'auto_todo_overrides_disablements') {
+			return html`Set TODO ${value} off`;
+		}
+
+		if (key == 'auto_todo_overrides_enablements') {
+			return html`Set TODO ${value} on`;
+		}
+
 		//TODO: handle non diffable fields
 		return [html`Set ${key} to ${value}`];
 	}).flat();
