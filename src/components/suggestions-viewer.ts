@@ -179,9 +179,9 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 			<table>
 				<tr>
 					<td>
-						<label>Key Card</label>
+						<label>Key Cards</label>
 						<tag-list
-							.tags=${suggestion.keyCard}
+							.tags=${suggestion.keyCards}
 							.tagInfos=${this._tagInfosForCards}
 							.tapEvents=${true}
 						></tag-list>

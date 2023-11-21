@@ -1232,7 +1232,7 @@ export type SuggestionType = 'missing-see-also';
 
 export type Suggestion = {
 	type: SuggestionType,
-	keyCard: CardID[],
+	keyCards: CardID[],
 	supportingCards: CardID[],
 	//TODO: add contextCards
 

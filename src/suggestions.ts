@@ -33,20 +33,20 @@ import {
 	memoize
 } from './memoize.js';
 
-export const makeReferenceSuggestion = (type : SuggestionType, keyCard: CardID | CardID[], otherCards: CardID | CardID[], referenceType : ReferenceType, reverse = false) : Suggestion => {
+export const makeReferenceSuggestion = (type : SuggestionType, keyCards: CardID | CardID[], otherCards: CardID | CardID[], referenceType : ReferenceType, reverse = false) : Suggestion => {
 	//TODO: it's kind of finicky to have to keep track of which ID is which... shouldn't the actions have a sentinel for each that is overriden before being executed?
 
 	if (typeof otherCards == 'string') otherCards = [otherCards];
-	if (typeof keyCard == 'string') keyCard = [keyCard];
+	if (typeof keyCards == 'string') keyCards = [keyCards];
 
 	if (reverse) {
 		return {
 			type,
-			keyCard,
+			keyCards,
 			supportingCards: otherCards,
 			action: {
 				supportingCards: {
-					references_diff: keyCard.map((card : CardID) : ReferencesEntriesDiffItem => ({
+					references_diff: keyCards.map((card : CardID) : ReferencesEntriesDiffItem => ({
 						cardID: card,
 						referenceType,
 						value: ''
@@ -67,7 +67,7 @@ export const makeReferenceSuggestion = (type : SuggestionType, keyCard: CardID |
 
 	return {
 		type,
-		keyCard,
+		keyCards,
 		supportingCards: otherCards,
 		action: {
 			keyCard: {
@@ -80,7 +80,7 @@ export const makeReferenceSuggestion = (type : SuggestionType, keyCard: CardID |
 		},
 		alternateAction: {
 			supportingCards: {
-				references_diff: keyCard.map((card : CardID) : ReferencesEntriesDiffItem => ({
+				references_diff: keyCards.map((card : CardID) : ReferencesEntriesDiffItem => ({
 					cardID: card,
 					referenceType,
 					value: ''
