@@ -114,9 +114,14 @@ export const descriptionForCardDiff = (update : CardDiff): TemplateResult[] => {
 	return TypedObject.entries(update).map(entry => {
 		const key = entry[0];
 		const value = entry[1];
+
+		if (key == 'references_diff') {
+			return descriptionForReferencesDiff(value as ReferencesEntriesDiff);
+		}
+
 		//TODO: handle non diffable fields
-		return html`Set ${key} to ${value}`;
-	});
+		return [html`Set ${key} to ${value}`];
+	}).flat();
 };
 
 //Returns true if the user has said to proceed to any confirmation warnings (if
