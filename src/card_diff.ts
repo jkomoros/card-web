@@ -93,6 +93,16 @@ const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
 	images : true,
 };
 
+export const descriptionForCardDiff = (update : CardDiff): string[] => {
+	//TODO: do a much prettier job
+	return TypedObject.entries(update).map(entry => {
+		const key = entry[0];
+		const value = entry[1];
+		//TODO: handle non diffable fields
+		return `Set ${key} to ${value}`;
+	});
+};
+
 //Returns true if the user has said to proceed to any confirmation warnings (if
 //any), false if the user has said to not proceed.
 export const confirmationsForCardDiff = (update :CardDiff, updatedCard : Card) => {
