@@ -119,6 +119,14 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				display:none;
 			}
 
+			table {
+				width: 100%;
+			}
+
+			ul {
+				margin: 0;
+			}
+
 		`
 	];
 
@@ -159,32 +167,50 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				</suggestions-summary>
 				<div class='flex'></div>
 			</div>
-			<div class='row distributed'>
-				<div>
-					<label>Type</label>
-					<span>${suggestion.type}</span>
-				</div>
-				<div>
-					<label>Key Card</label>
-					<tag-list
-						.tags=${[suggestion.keyCard]}
-						.tagInfos=${this._tagInfosForCards}
-						.tapEvents=${true}
-					></tag-list>
-					${this.descriptionForDiff(suggestion.action.keyCard)}
-					${this.descriptionForDiff(suggestion.alternateAction?.keyCard)}
-				</div>
-				<div>
-					<label>Supporting Cards</label>
-					<tag-list
-						.tags=${suggestion.supportingCards}
-						.tagInfos=${this._tagInfosForCards}
-						.tapEvents=${true}
-					></tag-list>
-					${this.descriptionForDiff(suggestion.action.supportingCards)}
-					${this.descriptionForDiff(suggestion.alternateAction?.supportingCards)}
-				</div>
-			</div>
+			<table>
+				<tr>
+					<td>
+						<label>Type</label>
+						<span>${suggestion.type}</span>
+					</td>
+					<td>
+						<label>Key Card</label>
+						<tag-list
+							.tags=${[suggestion.keyCard]}
+							.tagInfos=${this._tagInfosForCards}
+							.tapEvents=${true}
+						></tag-list>
+					</td>
+					<td>
+						<label>Supporting Cards</label>
+						<tag-list
+							.tags=${suggestion.supportingCards}
+							.tagInfos=${this._tagInfosForCards}
+							.tapEvents=${true}
+						></tag-list>
+					</td>
+				</tr>
+				<tr>
+					<td>
+					</td>
+					<td>
+						${this.descriptionForDiff(suggestion.action.keyCard)}
+					</td>
+					<td>
+						${this.descriptionForDiff(suggestion.action.supportingCards)}
+					</td>
+				</tr>
+				<tr>
+					<td>
+					</td>
+					<td>
+						${this.descriptionForDiff(suggestion.alternateAction?.keyCard)}
+					</td>
+					<td>
+						${this.descriptionForDiff(suggestion.alternateAction?.supportingCards)}
+					</td>
+				</tr>
+			</table>
 			<div class='buttons'>
 				<div class='flex'></div>
 				<button
