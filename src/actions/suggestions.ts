@@ -3,7 +3,8 @@ import {
 	SUGGESTIONS_SHOW_PANEL,
 	SUGGESTIONS_ADD_SUGGESTIONS_FOR_CARD,
 	SomeAction,
-	SUGGESTIONS_CHANGE_SELECTED
+	SUGGESTIONS_CHANGE_SELECTED,
+	SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD
 } from '../actions.js';
 
 import {
@@ -115,8 +116,12 @@ export const applySuggestion = (cardID : CardID, suggestionIndex : number, which
 	//Fetch a fresh state
 	const err = selectCardModificationError(getState());
 	if (err) return;
-	
-	//TODO: mark that suggestion as no longer valid.
+
+	dispatch({
+		type: SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD,
+		card: cardID,
+		index: suggestionIndex
+	});
 };
 	
 
