@@ -48,7 +48,6 @@ import {
 
 import {
 	referencesNonModifying,
-	isExpandedReferenceDelete
 } from '../references.js';
 
 import {
@@ -80,6 +79,7 @@ import {
 import {
 	TypedObject
 } from '../typed_object.js';
+import { descriptionForReferencesDiff } from '../card_diff.js';
 
 @customElement('multi-edit-dialog')
 class MultiEditDialog extends connect(store)(DialogElement) {
@@ -156,7 +156,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	})}
 			${this._referencesDiff.length ? html`<h4>Changes that will be made to selected cards</h4>` : ''}
 			<ul class='readout'>
-				${this._referencesDiff.map(item => html`<li>${isExpandedReferenceDelete(item) ? 'Remove' : 'Add'} ${item.referenceType} reference to <card-link auto='title' card='${item.cardID}' .noNavigate=${true}></card-link></li>`)}
+				${descriptionForReferencesDiff(this._referencesDiff).map(item => html`<li>${item}</li>`)}
 			</ul>
 			<details>
 				<summary><strong>${this._selectedCards.length}</strong> cards selected</summary>
