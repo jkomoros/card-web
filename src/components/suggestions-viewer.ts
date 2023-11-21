@@ -132,7 +132,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		`
 	];
 
-	get _selectedSuggestion() : Suggestion {
+	get _selectedSuggestion() : Suggestion | undefined {
 		//The index is known to fit within our suggestions because of selectSuggestionsEffectiveSelectedIndex
 		return this._suggestions[this._selectedIndex];
 	}
@@ -156,6 +156,8 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		const card = this._card;
 
 		const suggestion = this._selectedSuggestion;
+
+		if (!suggestion) return html`<em>No suggestions</em>`;
 
 		if (!card) return html`No card`;
 		return html`<div class='container'>
@@ -257,11 +259,15 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 	}
 
 	_handleAcceptAlternateActionClicked() {
-		store.dispatch(applySuggestion(this._selectedSuggestion, 'alternate'));
+		const suggestion = this._selectedSuggestion;
+		if (!suggestion) throw new Error('No suggestion');
+		store.dispatch(applySuggestion(suggestion, 'alternate'));
 	}
 
 	_handleAcceptPrimaryActionClicked() {
-		store.dispatch(applySuggestion(this._selectedSuggestion, 'primary'));
+		const suggestion = this._selectedSuggestion;
+		if (!suggestion) throw new Error('No suggestion');
+		store.dispatch(applySuggestion(suggestion, 'primary'));
 	}
 
 }
