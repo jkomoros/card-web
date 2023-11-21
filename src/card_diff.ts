@@ -82,6 +82,11 @@ import {
 	TypedObject
 } from './typed_object.js';
 
+import {
+	TemplateResult,
+	html
+} from 'lit';
+
 //A JS-native version of the allowed fields in type NonAutoMergeableCardDiff
 const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
 	title : true,
@@ -93,13 +98,13 @@ const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
 	images : true,
 };
 
-export const descriptionForCardDiff = (update : CardDiff): string[] => {
+export const descriptionForCardDiff = (update : CardDiff): TemplateResult[] => {
 	//TODO: do a much prettier job
 	return TypedObject.entries(update).map(entry => {
 		const key = entry[0];
 		const value = entry[1];
 		//TODO: handle non diffable fields
-		return `Set ${key} to ${value}`;
+		return html`Set ${key} to ${value}`;
 	});
 };
 
