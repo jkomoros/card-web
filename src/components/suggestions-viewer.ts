@@ -172,6 +172,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 						.tapEvents=${true}
 					></tag-list>
 					${this.descriptionForDiff(suggestion.action.keyCard)}
+					${this.descriptionForDiff(suggestion.alternateAction?.keyCard)}
 				</div>
 				<div>
 					<label>Supporting Cards</label>
@@ -181,6 +182,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 						.tapEvents=${true}
 					></tag-list>
 					${this.descriptionForDiff(suggestion.action.supportingCards)}
+					${this.descriptionForDiff(suggestion.alternateAction?.supportingCards)}
 				</div>
 			</div>
 			<div class='buttons'>
