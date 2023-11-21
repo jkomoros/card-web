@@ -135,12 +135,13 @@ const suggestionsReplaceSuggestionsForCard = (card : CardID, suggestions: Sugges
 
 //This is called when card-view has noticed the active card has changed, and is time to add suggestions.
 export const suggestionsActiveCardChanged = (card : ProcessedCard) : ThunkSomeAction => async (dispatch, getState) => {
-	const state = getState();
-	const suggestionsForCards = selectSuggestionsForCards(state);
-	const suggestions = suggestionsForCards[card.id];
-	if (suggestions) {
-		//TODO: clean out any old suggestions
-		return;
-	}
-	suggestionsForCard(card, state).then((newSuggestions) => dispatch(suggestionsReplaceSuggestionsForCard(card.id,newSuggestions)));
+	//Every time a card is activated, kick off new suggestions. This is
+	//expensive but helps avoid the stale-suggestion case, but also more
+	//importantly the stale-no-suggestion case (where it concluded prviously
+	//that no suggestion was warranted but the conditions were changed and now
+	//they are warranted). It seems like something smarter like only removing
+	//suggestions that were based on cards that have since changed are
+	//invalidated (but again, in that case you have the problem of
+	//not-suggestions that now would be suggestions))
+	suggestionsForCard(card, getState()).then((newSuggestions) => dispatch(suggestionsReplaceSuggestionsForCard(card.id,newSuggestions)));
 };
