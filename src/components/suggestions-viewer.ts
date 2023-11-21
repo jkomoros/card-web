@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, TemplateResult } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -26,6 +26,7 @@ import {
 
 import {
 	Card,
+	CardDiff,
 	State,
 	Suggestion,
 	TagInfos
@@ -46,6 +47,7 @@ import {
 
 import './suggestions-summary.js';
 import './tag-list.js';
+import { descriptionForCardDiff } from '../card_diff.js';
 
 @customElement('suggestions-viewer')
 class SuggestionsViewer extends connect(store)(LitElement) {
@@ -125,6 +127,14 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		return this._suggestions[this._selectedIndex];
 	}
 
+	descriptionForDiff(diff? : CardDiff) : TemplateResult {
+		if (!diff) return html`<em>No changes</em>`;
+
+		return html`<ul>
+			${descriptionForCardDiff(diff).map(line => html`<li>${line}</li>`)}
+		</ul>`;
+	}
+
 	override render() {
 
 		if (!this._active) return '';
@@ -157,6 +167,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 						.tagInfos=${this._tagInfosForCards}
 						.tapEvents=${true}
 					></tag-list>
+					${this.descriptionForDiff(suggestion.action.keyCard)}
 				</div>
 				<div>
 					<label>Supporting Cards</label>
@@ -165,6 +176,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 						.tagInfos=${this._tagInfosForCards}
 						.tapEvents=${true}
 					></tag-list>
+					${this.descriptionForDiff(suggestion.action.supportingCards)}
 				</div>
 			</div>
 			<div class='buttons'>
