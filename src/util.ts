@@ -70,7 +70,7 @@ export const allSubstrings = (str : string) => {
 	return result;
 };
 
-export const hash = (str : string) => {
+export const hash = (str : string) : number => {
 	//Adapted from https://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript
 	let hash = 0, i, chr;
 	for (i = 0; i < str.length; i++) {
@@ -80,6 +80,8 @@ export const hash = (str : string) => {
 	}
 	return hash;
 };
+
+export const stringHash = (s : string) : string => Math.abs(hash(s)).toString(16);
 
 const randomCharSetNumbers = '0123456789';
 const randomCharSetLetters = 'abcdef';
