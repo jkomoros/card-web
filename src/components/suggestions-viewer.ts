@@ -1,4 +1,4 @@
-import { LitElement, html, css, TemplateResult } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
@@ -26,7 +26,6 @@ import {
 
 import {
 	Card,
-	CardDiff,
 	State,
 	Suggestion,
 	TagInfos
@@ -47,9 +46,13 @@ import {
 	TagEvent
 } from '../events.js';
 
+import {
+	descriptionForSuggestion
+} from '../card_diff.js';
+
+
 import './suggestions-summary.js';
 import './tag-list.js';
-import { descriptionForCardDiff } from '../card_diff.js';
 
 @customElement('suggestions-viewer')
 class SuggestionsViewer extends connect(store)(LitElement) {
@@ -141,18 +144,6 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		return this._suggestions[this._selectedIndex];
 	}
 
-	descriptionForDiff(diff? : CardDiff) : TemplateResult {
-		if (!diff) return html`<ul>
-			<li>
-				<em>No changes</em>
-			</li>
-		</ul>`;
-
-		return html`<ul>
-			${descriptionForCardDiff(diff).map(line => html`<li>${line}</li>`)}
-		</ul>`;
-	}
-
 	override render() {
 
 		if (!this._active) return '';
@@ -164,6 +155,9 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		if (!suggestion) return html`<em>No suggestions</em>`;
 
 		if (!card) return html`No card`;
+
+		const diffTemplates = descriptionForSuggestion(suggestion);
+
 		return html`<div class='container'>
 			<div class='row'>
 				<div class='flex'></div>
@@ -182,87 +176,47 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 					${CANCEL_ICON}
 				</button>
 			</div>
-			<table>
-				<tr>
-					<td>
-						<label>Key Cards</label>
-						<tag-list
-							.tags=${suggestion.keyCards}
-							.tagInfos=${this._tagInfosForCards}
-							.tapEvents=${true}
-						></tag-list>
-					</td>
-					<td>
-						<label>Supporting Cards</label>
-						<tag-list
-							.tags=${suggestion.supportingCards}
-							.tagInfos=${this._tagInfosForCards}
-							.tapEvents=${true}
-						></tag-list>
-					</td>
-					<td>
-						<label>Type</label>
-						<span>${suggestion.type}</span>
-					</td>
-				</tr>
-				<tr>
-					<td>
-						${this.descriptionForDiff(suggestion.action.keyCards)}
-					</td>
-					<td>
-						${this.descriptionForDiff(suggestion.action.supportingCards)}
-					</td>
-					<td>
-						<button
+			<div class='row'>
+				${diffTemplates.primary}
+				<div class='flex'></div>
+				<button
 							class='round primary'
 							title='Accept Primary Action'
 							@click=${this._handleAcceptPrimaryActionClicked}
 						>
 							${CHECK_CIRCLE_OUTLINE_ICON}
 						</button>
-					</td>
-				</tr>
-				<tr>
-					<td>
-						${this.descriptionForDiff(suggestion.alternateAction?.keyCards)}
-					</td>
-					<td>
-						${this.descriptionForDiff(suggestion.alternateAction?.supportingCards)}
-					</td>
-					<td>
-						${suggestion.alternateAction ? 
-		html`<button
+			</div>
+			${diffTemplates.alternate ? 
+		html`
+					<div class='row'>
+						${diffTemplates.alternate}
+						<div class='flex'></div>
+						<button
 								class='round'
 								title='Accept Alternate Action'
 								@click=${this._handleAcceptAlternateActionClicked}
 								>
 									${CHECK_CIRCLE_OUTLINE_ICON}
-								</button>` :
-		''
+								</button>
+					</div>
+				` : ''
 }
-					</td>
-				</tr>
-				<tr>
-					<td>
-						${this.descriptionForDiff(suggestion.rejection?.keyCards)}
-					</td>
-					<td>
-						${this.descriptionForDiff(suggestion.rejection?.supportingCards)}
-					</td>
-					<td>
-						${suggestion.rejection ? 
-		html`<button
+			${diffTemplates.rejection ? 
+		html`
+					<div class='row'>
+						${diffTemplates.rejection}
+						<div class='flex'></div>
+						<button
 								class='round'
 								title='Reject Suggestion'
 								@click=${this._handleRejectActionClicked}
 								>
 									${CANCEL_ICON}
-								</button>` :
-		''
+								</button>
+					</div>
+				` : ''
 }
-					</td>
-				</tr>
-			</table>
 		</div>`;
 	}
 
