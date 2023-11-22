@@ -140,7 +140,7 @@ export const descriptionForCardDiff = (update : CardDiff): TemplateResult[] => {
 
 const descriptionForSuggestionDiffCards = (cards: CardID[], diff : CardDiff) : TemplateResult => {
 	//TODO: render a tag-list here
-	return html`For the cards ${cards.join(', ')}: ${descriptionForCardDiff(diff).map(tmpl => html`${tmpl}. `)}`;
+	return html`For the card${cards.length > 1 ? 's' : ''} ${cards.join(', ')}: ${descriptionForCardDiff(diff).map(tmpl => html`${tmpl}. `)}`;
 };
 
 const descriptionForSuggestionDiff = (suggestion : Suggestion, diff : SuggestionDiff) : TemplateResult => {
