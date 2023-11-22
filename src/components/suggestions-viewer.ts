@@ -32,6 +32,10 @@ import {
 } from '../types.js';
 
 import {
+	CardID
+} from '../types_simple.js';
+
+import {
 	CANCEL_ICON,
 	CHECK_CIRCLE_OUTLINE_ICON
 } from './my-icons.js';
@@ -53,6 +57,9 @@ import {
 
 import './suggestions-summary.js';
 import './tag-list.js';
+
+const KEY_CARD_COLOR = '#006400'; //darkgreen
+const SUPPORTING_CARD_COLOR = '#000080'; //navy
 
 @customElement('suggestions-viewer')
 class SuggestionsViewer extends connect(store)(LitElement) {
@@ -144,6 +151,25 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		return this._suggestions[this._selectedIndex];
 	}
 
+	_modifiedTagInfos(keyCards : CardID[], supportingCards: CardID[]) : TagInfos {
+		if (!this._tagInfosForCards) return {};
+		const result = {...this._tagInfosForCards};
+		for (const card of keyCards) {
+			result[card] = {
+				...result[card],
+				color: KEY_CARD_COLOR
+			};
+		}
+		for (const card of supportingCards) {
+			result[card] = {
+				...result[card],
+				color: SUPPORTING_CARD_COLOR
+			};
+		}
+		//TODO: special color for new card
+		return result;
+	}
+
 	override render() {
 
 		if (!this._active) return '';
@@ -156,7 +182,9 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 		if (!card) return html`No card`;
 
-		const diffTemplates = descriptionForSuggestion(suggestion, this._tagInfosForCards);
+		const tagInfos = this._modifiedTagInfos(suggestion.keyCards, suggestion.supportingCards);
+
+		const diffTemplates = descriptionForSuggestion(suggestion, tagInfos);
 
 		return html`<div class='container'>
 			<div class='row'>
