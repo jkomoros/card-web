@@ -655,6 +655,10 @@ export const editableFieldsForCardType = (cardType : CardType) : CardFieldTypeEd
 //'pivot' off of, and is typically the active card, but not always.
 export const KEY_CARD_ID_PLACEHOLDER = 'key-card-id';
 
+//This placeholder is useful in e.g. the suggestions pipeline where a new card
+//is created.
+export const NEW_CARD_ID_PLACEHOLDER = 'new-card-id';
+
 //Returns an object with field -> boosts to set. It will return
 //card.font_size_boosts if no change, or an object like font_size_boosts, but
 //with modifications made as appropriate leaving any untouched keys the same,
