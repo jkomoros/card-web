@@ -152,7 +152,7 @@ const descriptionForCreateCard = (diff : SuggestionDiffCreateCard, cardInfos : T
 	const typePart = diff.card_type ? html` of type ${diff.card_type}` : html``;
 	const titlePart = diff.title ? html` with title ${diff.title}` : html``;
 	//TODO: better summarizing, and some way to see full body.
-	const bodyPart = diff.body ? html` with body ${diff.body.slice(100)}` : html``;
+	const bodyPart = diff.body ? html` with body "${diff.body.slice(0, 100)}"` : html``;
 	return html`${mainPart}${typePart}${titlePart}${bodyPart}. `;
 };
 
