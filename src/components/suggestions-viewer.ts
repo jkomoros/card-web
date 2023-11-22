@@ -156,7 +156,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 		if (!card) return html`No card`;
 
-		const diffTemplates = descriptionForSuggestion(suggestion);
+		const diffTemplates = descriptionForSuggestion(suggestion, this._tagInfosForCards);
 
 		return html`<div class='container'>
 			<div class='row'>

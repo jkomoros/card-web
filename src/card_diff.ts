@@ -79,7 +79,8 @@ import {
 	cardFieldTypeEditableSchema,
 	ReferencesEntriesDiff,
 	SuggestionDiff,
-	Suggestion
+	Suggestion,
+	TagInfos
 } from './types.js';
 
 import {
@@ -104,6 +105,8 @@ const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
 
 //descriptionForReferencesDiff assumes card-link is imported, so make sure.
 import './components/card-link.js';
+//descriptionForSuggestionDiffCards assumes tag-list is imported, so make sure
+import './components/tag-list.js';
 
 export const descriptionForReferencesDiff = (diff : ReferencesEntriesDiff) : TemplateResult[] => {
 	return diff.map(item => {
@@ -138,15 +141,14 @@ export const descriptionForCardDiff = (update : CardDiff): TemplateResult[] => {
 	}).flat();
 };
 
-const descriptionForSuggestionDiffCards = (cards: CardID[], diff : CardDiff) : TemplateResult => {
-	//TODO: render a tag-list here
-	return html`For the card${cards.length > 1 ? 's' : ''} ${cards.join(', ')}: ${descriptionForCardDiff(diff).map(tmpl => html`${tmpl}. `)}`;
+const descriptionForSuggestionDiffCards = (cards: CardID[], diff : CardDiff, cardInfos : TagInfos) : TemplateResult => {
+	return html`For the card${cards.length > 1 ? 's' : ''} <tag-list .tags=${cards} .tagInfos=${cardInfos} .tapEvents=${true}></tag-list> ${descriptionForCardDiff(diff).map(tmpl => html`${tmpl}. `)}`;
 };
 
-const descriptionForSuggestionDiff = (suggestion : Suggestion, diff : SuggestionDiff) : TemplateResult => {
+const descriptionForSuggestionDiff = (suggestion : Suggestion, diff : SuggestionDiff, cardInfos : TagInfos) : TemplateResult => {
 	//TODO - switch to using tag-chip instead of card-link
-	const keyCardsDiff = diff.keyCards ? descriptionForSuggestionDiffCards(suggestion.keyCards, diff.keyCards) : undefined;
-	const supportingCardsDiff = diff.supportingCards ? descriptionForSuggestionDiffCards(suggestion.supportingCards, diff.supportingCards) : undefined;
+	const keyCardsDiff = diff.keyCards ? descriptionForSuggestionDiffCards(suggestion.keyCards, diff.keyCards, cardInfos) : undefined;
+	const supportingCardsDiff = diff.supportingCards ? descriptionForSuggestionDiffCards(suggestion.supportingCards, diff.supportingCards, cardInfos) : undefined;
 	//This shouldn't happen, but just in case.
 	if (!keyCardsDiff && !supportingCardsDiff) return html``;
 	if (!keyCardsDiff && supportingCardsDiff) return supportingCardsDiff;
@@ -160,12 +162,12 @@ type SuggestionDescription = {
 	rejection?: TemplateResult
 };
 
-export const descriptionForSuggestion = (suggestion : Suggestion) : SuggestionDescription => {
+export const descriptionForSuggestion = (suggestion : Suggestion, cardInfos : TagInfos) : SuggestionDescription => {
 	const result : SuggestionDescription = {
-		primary: descriptionForSuggestionDiff(suggestion, suggestion.action),
+		primary: descriptionForSuggestionDiff(suggestion, suggestion.action, cardInfos),
 	};
-	if (suggestion.alternateAction) result.alternate = descriptionForSuggestionDiff(suggestion, suggestion.alternateAction);
-	if (suggestion.rejection) result.rejection = descriptionForSuggestionDiff(suggestion, suggestion.rejection);
+	if (suggestion.alternateAction) result.alternate = descriptionForSuggestionDiff(suggestion, suggestion.alternateAction, cardInfos);
+	if (suggestion.rejection) result.rejection = descriptionForSuggestionDiff(suggestion, suggestion.rejection, cardInfos);
 	return result;
 };
 
