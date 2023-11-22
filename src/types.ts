@@ -91,6 +91,7 @@ export type CreateCardOpts = {
 	id? : CardID;
 	noNavigate? : boolean;
 	title? : string,
+	body? : string;
 }
 
 //duplicated in functions/src/type.ts

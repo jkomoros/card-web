@@ -807,6 +807,7 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 	obj.title = title;
 	if (CARD_TYPE_CONFIG.publishedByDefault) obj.published = true;
 	if (CARD_TYPE_CONFIG.defaultBody) obj.body = CARD_TYPE_CONFIG.defaultBody;
+	if (opts.body !== undefined) obj.body = opts.body;
 
 	const cardFinisher = CARD_TYPE_EDITING_FINISHERS[cardType];
 
