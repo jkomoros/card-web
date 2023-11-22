@@ -77,7 +77,9 @@ import {
 	FirestoreLeafValue,
 	autoTODOTypeArray,
 	cardFieldTypeEditableSchema,
-	ReferencesEntriesDiff
+	ReferencesEntriesDiff,
+	SuggestionDiff,
+	Suggestion
 } from './types.js';
 
 import {
@@ -134,6 +136,37 @@ export const descriptionForCardDiff = (update : CardDiff): TemplateResult[] => {
 		//TODO: handle non diffable fields
 		return [html`Set ${key} to ${JSON.stringify(value, null, '\t')}`];
 	}).flat();
+};
+
+const descriptionForSuggestionDiffCards = (cards: CardID[], diff : CardDiff) : TemplateResult => {
+	//TODO: render a tag-list here
+	return html`For the cards ${cards.join(', ')}: ${descriptionForCardDiff(diff).map(tmpl => html`${tmpl}. `)}`;
+};
+
+const descriptionForSuggestionDiff = (suggestion : Suggestion, diff : SuggestionDiff) : TemplateResult => {
+	//TODO - switch to using tag-chip instead of card-link
+	const keyCardsDiff = diff.keyCards ? descriptionForSuggestionDiffCards(suggestion.keyCards, diff.keyCards) : undefined;
+	const supportingCardsDiff = diff.supportingCards ? descriptionForSuggestionDiffCards(suggestion.supportingCards, diff.supportingCards) : undefined;
+	//This shouldn't happen, but just in case.
+	if (!keyCardsDiff && !supportingCardsDiff) return html``;
+	if (!keyCardsDiff && supportingCardsDiff) return supportingCardsDiff;
+	if (keyCardsDiff && !supportingCardsDiff) return keyCardsDiff;
+	return html`${keyCardsDiff} ${supportingCardsDiff}`;
+};
+
+type SuggestionDescription = {
+	primary: TemplateResult,
+	alternate?: TemplateResult,
+	rejection?: TemplateResult
+};
+
+export const descriptionForSuggestion = (suggestion : Suggestion) : SuggestionDescription => {
+	const result : SuggestionDescription = {
+		primary: descriptionForSuggestionDiff(suggestion, suggestion.action),
+	};
+	if (suggestion.alternateAction) result.alternate = descriptionForSuggestionDiff(suggestion, suggestion.alternateAction);
+	if (suggestion.rejection) result.rejection = descriptionForSuggestionDiff(suggestion, suggestion.rejection);
+	return result;
 };
 
 //Returns true if the user has said to proceed to any confirmation warnings (if
