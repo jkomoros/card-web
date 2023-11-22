@@ -3,6 +3,7 @@ import {
 	selectCollectionConstructorArguments,
 	selectDataIsFullyLoaded,
 	selectUid,
+	selectUserMayUseAI,
 	userMayEditCard
 } from './selectors.js';
 
@@ -34,7 +35,13 @@ import {
 import {
 	memoize
 } from './memoize.js';
-import { suggestDupeOf } from './suggestions/dupe-of.js';
+
+import {
+	suggestDupeOf} from './suggestions/dupe-of.js';
+
+import {
+	OPENAI_ENABLED
+} from './config.GENERATED.SECRET.js';
 
 export const makeReferenceSuggestion = (type : SuggestionType, keyCards: CardID | CardID[], otherCards: CardID | CardID[], referenceType : ReferenceType, reverse = false) : Suggestion => {
 	//TODO: it's kind of finicky to have to keep track of which ID is which... shouldn't the actions have a sentinel for each that is overriden before being executed?
@@ -126,7 +133,10 @@ export type SuggestorArgs = {
 	card: ProcessedCard,
 	cards: ProcessedCards,
 	collectionArguments: CollectionConstructorArguments,
-	uid: Uid
+	uid: Uid,
+	//Whether it's OK to use LLMs for suggestions. It will be true IFF LLMs are
+	//configured in this instance and it's OK to use them.
+	useLLMs: boolean
 };
 
 type Suggestor = {
@@ -145,6 +155,9 @@ export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 		title: 'Missing See Also'
 	}
 };
+
+//TODO: have this be a thing that can be changed in state.
+const USE_LLMS = false;
 
 const VERBOSE = false;
 
@@ -196,7 +209,8 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 			keyCardID: card.id
 		},
 		logger,
-		uid: selectUid(state)
+		uid: selectUid(state),
+		useLLMs: OPENAI_ENABLED && USE_LLMS && selectUserMayUseAI(state)
 	};
 
 	for (const [name, suggestor] of TypedObject.entries(SUGGESTORS)) {
