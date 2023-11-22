@@ -47,4 +47,11 @@ export const COLORS = {
 	GOLD: '#FFD700',
 	DARK_MAGENTA: '#8B008B',
 	ROYAL_BLUE: '#4169E1',
+	//The following were not traditionally tag_colors.
+	DARK_GREEN: '#006400',
+	FIRE_BRICK: '#B22222'
+	//TODO: 7f7f7f is also used in one location. Pop out?
 } as const;
+
+//Colors that are used for special purposes
+export const COLOR_LIGHT_FIRE_BRICK = '#CC9494';

@@ -6,6 +6,10 @@ import { SharedStyles } from './shared-styles.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
+	COLORS
+} from '../type_constants.js';
+
+import {
 	tagInfosForSuggestions
 } from '../suggestions.js';
 
@@ -39,7 +43,7 @@ class SuggestionsSummary extends LitElement {
 			subtleTags = Object.fromEntries(this.suggestions.map((_, index) => String(index)).filter(index => index != id).map(id => [id, true]));
 		}
 
-		const defaultColor = '#006400'; //darkgreen
+		const defaultColor = COLORS.DARK_GREEN;
 
 		//TODO: show that it's loading (signal with a null?)
 		//TODO: even when empty render some vertical space (so it doesn't jump on a card with one and without one.)

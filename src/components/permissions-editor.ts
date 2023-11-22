@@ -45,6 +45,10 @@ import {
 } from '../types.js';
 
 import {
+	COLORS
+} from '../type_constants.js';
+
+import {
 	TagEvent
 } from '../events.js';
 
@@ -133,8 +137,9 @@ class PermissionsEditor extends connect(store)(LitElement) {
 	];
 
 	override render() {
+		//TODO: pop out into COLORs?
 		const lockedPermissionColor = '#7f7f7f';
-		const enabledPermissionColor = '#006400'; //darkgreen
+		const enabledPermissionColor = COLORS.DARK_GREEN;
 
 		return html`
 			<div class="container ${this._editable ? 'editable' : ''}">

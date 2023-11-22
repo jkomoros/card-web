@@ -25,10 +25,6 @@ import {
 	getImagesFromCard
 } from '../images.js';
 
-import './tag-list.js';
-import './image-properties-dialog.js';
-import './image-browser-dialog.js';
-
 import {
 	Card,
 	State,
@@ -36,8 +32,16 @@ import {
 } from '../types.js';
 
 import {
+	COLORS
+} from '../type_constants.js';
+
+import {
 	TagEvent
 } from '../events.js';
+
+import './tag-list.js';
+import './image-properties-dialog.js';
+import './image-browser-dialog.js';
 
 @customElement('card-images-editor')
 class CardImagesEditor extends connect(store)(LitElement) {
@@ -55,8 +59,8 @@ class CardImagesEditor extends connect(store)(LitElement) {
 
 		const images = getImagesFromCard(this._card);
 
-		const invalidColor = '#b22222'; //firebrick
-		const loadedColor = '#006400'; //darkgreen
+		const invalidColor = COLORS.FIRE_BRICK;
+		const loadedColor = COLORS.DARK_GREEN;
 
 		const imgTagNames = [];
 		const tagInfos : TagInfos = {};

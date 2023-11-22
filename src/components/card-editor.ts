@@ -147,6 +147,11 @@ import {
 } from '../types.js';
 
 import {
+	COLOR_LIGHT_FIRE_BRICK,
+	COLORS
+} from '../type_constants.js';
+
+import {
 	TagEvent
 } from '../events.js';
 
@@ -441,10 +446,10 @@ class CardEditor extends connect(store)(LitElement) {
 		const todoOverridesPreviouslyDisabled = Object.entries(underlyingCard.auto_todo_overrides).filter(entry => entry[1] == true).map(entry => entry[0]);
 
 		
-		const enableTODOColor = '#b22222'; //firebrick
+		const enableTODOColor = COLORS.FIRE_BRICK;
 		//When you're disabling a TODO, you're marking it done, so it should be green.
-		const disableTODOColor = '#006400'; //darkgreen
-		const autoTODOColor = '#cc9494'; //firebrick, but less saturated and lighter
+		const disableTODOColor = COLORS.DARK_GREEN;
+		const autoTODOColor = COLOR_LIGHT_FIRE_BRICK;
 
 		const referencesMap = references(this._card).byTypeArray();
 		const previousReferencesMap = references(this._underlyingCard).byTypeArray();

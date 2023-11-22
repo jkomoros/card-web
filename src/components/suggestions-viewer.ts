@@ -61,7 +61,7 @@ import {
 import './suggestions-summary.js';
 import './tag-list.js';
 
-const KEY_CARD_COLOR = '#006400'; //darkgreen
+const KEY_CARD_COLOR = COLORS.DARK_GREEN;
 const SUPPORTING_CARD_COLOR = COLORS.NAVY;
 
 @customElement('suggestions-viewer')
