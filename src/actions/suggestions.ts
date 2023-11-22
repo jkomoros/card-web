@@ -99,9 +99,9 @@ export const applySuggestion = (cardID : CardID, suggestionIndex : number, which
 		assertUnreachable(which);
 	}
 
-	//TODO: throw up a scrim / prevent navigation while this flow is active.
-
+	let keyCards = suggestion.keyCards;
 	let keyCardsDiff = item.keyCards;
+	let supportingCards = suggestion.supportingCards;
 	let supportingCardsDiff = item.supportingCards;
 
 	if (item.createCard) {
@@ -131,22 +131,27 @@ export const applySuggestion = (cardID : CardID, suggestionIndex : number, which
 				references_diff: supportingCardsDiff.references_diff.map((d : ReferencesEntriesDiffItem) : ReferencesEntriesDiffItem => ({...d, cardID: d.cardID == NEW_CARD_ID_PLACEHOLDER ? newCardID : d.cardID}))
 			};
 		}
+		keyCards = keyCards.map(id => id == NEW_CARD_ID_PLACEHOLDER ? newCardID : id);
+		supportingCards = keyCards.map(id => id == NEW_CARD_ID_PLACEHOLDER ? newCardID : id);
 	}
 	
 	const allCards = selectCards(getState());
 	
 	const cardIDs = [
-		...(item.keyCards ? suggestion.keyCards : []), 
-		...(item.supportingCards ? suggestion.supportingCards : [])
+		...(item.keyCards ? keyCards : []), 
+		...(item.supportingCards ? supportingCards : [])
 	];
 	const cards = cardIDs.map(id => allCards[id]);
 
 	if (cards.some(card => card === undefined)) throw new Error('Some cards were undefined');
 
-	const modificationsKeyCard = keyCardsDiff ? suggestion.keyCards.map((id : CardID) : [CardID, CardDiff] => [id, keyCardsDiff as CardDiff]) : [];
-	const modificationsSupportingCard = supportingCardsDiff ? suggestion.supportingCards.map((id : CardID) : [CardID, CardDiff] => [id, supportingCardsDiff as CardDiff]) : [];
+	const modificationsKeyCard = keyCardsDiff ? keyCards.map((id : CardID) : [CardID, CardDiff] => [id, keyCardsDiff as CardDiff]) : [];
+	const modificationsSupportingCard = supportingCardsDiff ? supportingCards.map((id : CardID) : [CardID, CardDiff] => [id, supportingCardsDiff as CardDiff]) : [];
 
 	const modifications = Object.fromEntries([...modificationsKeyCard, ...modificationsSupportingCard]);
+
+	//Sanity check
+	if (modifications[NEW_CARD_ID_PLACEHOLDER]) throw new Error('NEW_CARD_ID_PLACEHOLDER remained');
 
 	dispatch(modifyCardsIndividually(cards, modifications));
 
