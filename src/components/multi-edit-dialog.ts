@@ -156,7 +156,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	})}
 			${this._referencesDiff.length ? html`<h4>Changes that will be made to selected cards</h4>` : ''}
 			<ul class='readout'>
-				${descriptionForReferencesDiff(this._referencesDiff).map(item => html`<li>${item}</li>`)}
+				${descriptionForReferencesDiff(this._referencesDiff, this._cardTagInfos).map(item => html`<li>${item}</li>`)}
 			</ul>
 			<details>
 				<summary><strong>${this._selectedCards.length}</strong> cards selected</summary>

@@ -105,25 +105,23 @@ const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
 	images : true,
 };
 
-//descriptionForReferencesDiff assumes card-link is imported, so make sure.
-import './components/card-link.js';
-//descriptionForSuggestionDiffCards assumes tag-list is imported, so make sure
+//descriptionForReferencesDiff and descriptionForSuggestionDiffCards assumes tag-list is imported, so make sure
 import './components/tag-list.js';
 
-export const descriptionForReferencesDiff = (diff : ReferencesEntriesDiff) : TemplateResult[] => {
+export const descriptionForReferencesDiff = (diff : ReferencesEntriesDiff, cardInfos : TagInfos) : TemplateResult[] => {
 	return diff.map(item => {
-		return html`${isExpandedReferenceDelete(item) ? 'Remove' : 'Add'} <strong>${item.referenceType}</strong> reference pointing to <card-link auto='title' card='${item.cardID}' .noNavigate=${true}></card-link>`;
+		return html`${isExpandedReferenceDelete(item) ? 'Remove' : 'Add'} <strong>${item.referenceType}</strong> reference pointing to <tag-list .tags=${[item.cardID]} .tagInfos=${cardInfos} .tapEvents=${true}></tag-list>`;
 	});
 };
 
-export const descriptionForCardDiff = (update : CardDiff): TemplateResult[] => {
+export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos): TemplateResult[] => {
 	//TODO: do a much prettier job
 	return TypedObject.entries(update).map(entry => {
 		const key = entry[0];
 		const value = entry[1];
 
 		if (key == 'references_diff') {
-			return descriptionForReferencesDiff(value as ReferencesEntriesDiff);
+			return descriptionForReferencesDiff(value as ReferencesEntriesDiff, cardInfos);
 		}
 
 		if (key == 'auto_todo_overrides_removals') {
@@ -144,7 +142,7 @@ export const descriptionForCardDiff = (update : CardDiff): TemplateResult[] => {
 };
 
 const descriptionForSuggestionDiffCards = (cards: CardID[], diff : CardDiff, cardInfos : TagInfos) : TemplateResult => {
-	return html`For the card${cards.length > 1 ? 's' : ''} <tag-list .tags=${cards} .tagInfos=${cardInfos} .tapEvents=${true}></tag-list> ${descriptionForCardDiff(diff).map(tmpl => html`${tmpl}. `)}`;
+	return html`For the card${cards.length > 1 ? 's' : ''} <tag-list .tags=${cards} .tagInfos=${cardInfos} .tapEvents=${true}></tag-list> ${descriptionForCardDiff(diff, cardInfos).map(tmpl => html`${tmpl}. `)}`;
 };
 
 const descriptionForCreateCard = (diff : SuggestionDiffCreateCard, cardInfos : TagInfos) : TemplateResult => {
@@ -157,7 +155,6 @@ const descriptionForCreateCard = (diff : SuggestionDiffCreateCard, cardInfos : T
 };
 
 const descriptionForSuggestionDiff = (suggestion : Suggestion, diff : SuggestionDiff, cardInfos : TagInfos) : TemplateResult => {
-	//TODO - switch to using tag-chip instead of card-link
 	//TODO: if createCard, then modify tagInfos too.
 	const newCardDiff = diff.createCard ? descriptionForCreateCard(diff.createCard, cardInfos) : html``;
 	const keyCardsDiff = diff.keyCards ? descriptionForSuggestionDiffCards(suggestion.keyCards, diff.keyCards, cardInfos) : html``;
