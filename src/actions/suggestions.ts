@@ -15,7 +15,8 @@ import {
 import {
 	selectCardModificationError,
 	selectCards,
-	selectSuggestionsForCards
+	selectSuggestionsForCards,
+	selectSuggestionsUseLLMs
 } from '../selectors.js';
 
 import {
@@ -195,9 +196,14 @@ export const suggestionsActiveCardChanged = (card : ProcessedCard) : ThunkSomeAc
 	suggestionsForCard(card, getState()).then((newSuggestions) => dispatch(suggestionsReplaceSuggestionsForCard(card.id,newSuggestions)));
 };
 
-export const suggestionsSetUseLLMs = (useLLMs : boolean) : SomeAction => {
-	return {
+export const suggestionsSetUseLLMs = (useLLMs : boolean, card? : ProcessedCard | null) : ThunkSomeAction => (dispatch, getState) => {
+	const current = selectSuggestionsUseLLMs(getState());
+	if (current == useLLMs) return;
+	dispatch({
 		type: SUGGESTIONS_SET_USE_LLMS,
 		useLLMs
-	};
+	});
+	if (!card) return;
+	//Refetch suggestions now that LLM value has changed.
+	dispatch(suggestionsActiveCardChanged(card));
 };

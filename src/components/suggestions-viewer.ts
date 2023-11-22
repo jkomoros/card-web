@@ -12,7 +12,9 @@ import {
 	selectSuggestionsEffectiveSelectedIndex,
 	selectSuggestionsForActiveCard,
 	selectSuggestionsOpen,
-	selectTagInfosForCards
+	selectSuggestionsUseLLMs,
+	selectTagInfosForCards,
+	selectUserMayUseAI
 } from '../selectors.js';
 
 import suggestions from '../reducers/suggestions.js';
@@ -25,7 +27,7 @@ import {
 } from './help-badges.js';
 
 import {
-	Card,
+	ProcessedCard,
 	State,
 	Suggestion,
 	TagInfos
@@ -47,7 +49,8 @@ import {
 import {
 	applySuggestion,
 	suggestionsChangeSelected,
-	suggestionsHidePanel
+	suggestionsHidePanel,
+	suggestionsSetUseLLMs
 } from '../actions/suggestions.js';
 
 import {
@@ -73,7 +76,7 @@ const NEW_CARD_COLOR = COLORS.DARK_MAGENTA;
 class SuggestionsViewer extends connect(store)(LitElement) {
 
 	@state()
-		_card: Card | null;
+		_card: ProcessedCard | null;
 
 	@state()
 		_active: boolean;
@@ -86,6 +89,12 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 	@state()
 		_tagInfosForCards : TagInfos;
+
+	@state()
+		_useLLMs : boolean;
+
+	@state()
+		_userMayUseAI : boolean;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -208,6 +217,10 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				>
 				</suggestions-summary>
 				<div class='flex'></div>
+				${this._userMayUseAI ? 
+		html`<label for='use-llm'>Enable LLM Suggestions</label>
+						<input type='checkbox' id='use-llm' .checked=${this._useLLMs} @change=${this._handleUseLLMsChanged}></input>` :
+		''}
 				<button
 					class='small'
 					@click=${this._handleCloseClicked}
@@ -266,6 +279,8 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		this._suggestions = selectSuggestionsForActiveCard(state);
 		this._selectedIndex = selectSuggestionsEffectiveSelectedIndex(state);
 		this._tagInfosForCards = selectTagInfosForCards(state);
+		this._userMayUseAI = selectUserMayUseAI(state);
+		this._useLLMs = selectSuggestionsUseLLMs(state);
 	}
 
 	_handleSuggestionTapped(e : TagEvent) {
@@ -289,6 +304,13 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 	_handleRejectActionClicked() {
 		if (!this._card) throw new Error('No card');
 		store.dispatch(applySuggestion(this._card.id, this._selectedIndex, 'rejection',));
+	}
+
+	_handleUseLLMsChanged(e : InputEvent) {
+		const ele = e.target;
+		if (!(ele instanceof HTMLInputElement)) throw new Error('not input ele');
+		const checked = ele.checked;
+		store.dispatch(suggestionsSetUseLLMs(checked, this._card));
 	}
 
 }
