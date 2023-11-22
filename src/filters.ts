@@ -191,7 +191,13 @@ export const LEGAL_VIEW_MODES : {[mode in ViewMode]: boolean} = {
 
 export const collectionDescription = (...parts : FilterName[]) : CollectionDescription => new CollectionDescription('everything', parts);
 
-export const referencesFilter = (direction : 'inbound' | 'outbound' | 'both', referenceType : ReferenceType | ReferenceType[], invertReferencesTypes? : boolean, ply? : number) : ConfigurableFilterName => {
+type ReferencesFilterOptions = {
+	invertReferencesTypes? : boolean,
+	ply? : number
+};
+
+export const referencesFilter = (direction : 'inbound' | 'outbound' | 'both', referenceType : ReferenceType | ReferenceType[], opts : ReferencesFilterOptions = {}) : ConfigurableFilterName => {
+	const {invertReferencesTypes, ply} = opts;
 	let filter = '';
 	switch(direction) {
 	case 'inbound':

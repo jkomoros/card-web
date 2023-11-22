@@ -197,7 +197,7 @@ const INFO_PANEL_REFERENCE_BLOCKS : ReferenceBlocks = [
 	{
 		title: 'Other referenced cards',
 		description: 'Cards that this card references that are not links',
-		collectionDescription: collectionDescription(referencesFilter('outbound', REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL, true))
+		collectionDescription: collectionDescription(referencesFilter('outbound', REFERENCE_TYPES_TO_EXCLUDE_FROM_INFO_PANEL, {invertReferencesTypes: true}))
 	},
 	{
 		//We filter out see-also types because we already show those reciprocally in see-also.
