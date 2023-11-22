@@ -2,6 +2,7 @@ import {
 	selectCards,
 	selectCollectionConstructorArguments,
 	selectDataIsFullyLoaded,
+	selectUid,
 	userMayEditCard
 } from './selectors.js';
 
@@ -14,7 +15,8 @@ import {
 	State,
 	Suggestion,
 	SuggestionType,
-	TagInfos
+	TagInfos,
+	Uid
 } from './types.js';
 
 import {
@@ -123,7 +125,8 @@ export type SuggestorArgs = {
 	logger : Logger,
 	card: ProcessedCard,
 	cards: ProcessedCards,
-	collectionArguments: CollectionConstructorArguments
+	collectionArguments: CollectionConstructorArguments,
+	uid: Uid
 };
 
 type Suggestor = {
@@ -192,7 +195,8 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 			...selectCollectionConstructorArguments(state),
 			keyCardID: card.id
 		},
-		logger
+		logger,
+		uid: selectUid(state)
 	};
 
 	for (const [name, suggestor] of TypedObject.entries(SUGGESTORS)) {
