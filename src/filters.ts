@@ -193,11 +193,12 @@ export const collectionDescription = (...parts : FilterName[]) : CollectionDescr
 
 type ReferencesFilterOptions = {
 	invertReferencesTypes? : boolean,
-	ply? : number
+	ply? : number,
+	includeKeyCard? : boolean
 };
 
 export const referencesFilter = (direction : 'inbound' | 'outbound' | 'both', referenceType : ReferenceType | ReferenceType[], opts : ReferencesFilterOptions = {}) : ConfigurableFilterName => {
-	const {invertReferencesTypes, ply} = opts;
+	const {invertReferencesTypes, ply, includeKeyCard} = opts;
 	let filter = '';
 	switch(direction) {
 	case 'inbound':
@@ -213,7 +214,8 @@ export const referencesFilter = (direction : 'inbound' | 'outbound' | 'both', re
 		assertUnreachable(direction);
 	}
 	if (!filter) throw new Error('Unexpected no error');
-	return referencesConfigurableFilterText(filter, KEY_CARD_ID_PLACEHOLDER, referenceType, invertReferencesTypes, ply);
+	const cardID = (includeKeyCard ? INCLUDE_KEY_CARD_PREFIX : '') + KEY_CARD_ID_PLACEHOLDER;
+	return referencesConfigurableFilterText(filter, cardID, referenceType, invertReferencesTypes, ply);
 };
 
 export const excludeFilter = (filter : FilterName) : ConfigurableFilterName => EXCLUDE_FILTER_NAME + '/' + filter;
