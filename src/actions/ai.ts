@@ -31,7 +31,8 @@ import {
 
 import {
 	cardPlainContent,
-	innerTextForHTML
+	innerTextForHTML,
+	stringHash
 } from '../util.js';
 
 import {
@@ -66,6 +67,7 @@ import {
 	AI_SHOW_ERROR,
 	SomeAction
 } from '../actions.js';
+import { OPENAI_ENABLED } from '../config.GENERATED.SECRET.js';
 
 export type AIDialogTypeConfiguration = {
 	title: string;
@@ -143,6 +145,17 @@ export const DEFAULT_MODEL : AIModelName = USE_HIGH_FIDELITY_MODEL ? DEFAULT_HIG
 
 //gpt-4-32k is limited access
 const DEFAULT_LONG_MODEL : AIModelName = USE_HIGH_FIDELITY_MODEL ? DEFAULT_HIGH_FIDELITY_MODEL : 'gpt-3.5-turbo-16k';
+
+const COMPLETION_CACHE : {[hash : string] : string} = {};
+
+export const cachedCompletion = async (prompt : string, uid: Uid, model : AIModelName = DEFAULT_MODEL) : Promise<string> => {
+	if (!OPENAI_ENABLED) throw new Error('AI not enabled');
+	const key = stringHash(model + prompt);
+	if (COMPLETION_CACHE[key]) return COMPLETION_CACHE[key];
+	const result = await completion(prompt, uid, model);
+	COMPLETION_CACHE[key] = result;
+	return result;
+};
 
 const completion = async (prompt: string, uid: Uid, model: AIModelName = DEFAULT_MODEL) : Promise<string> => {
 	const result = await openai.createChatCompletion({
