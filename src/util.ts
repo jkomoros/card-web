@@ -251,7 +251,7 @@ export const cardPlainContent = (card : Card) : string => {
 
 //Takes plain content and wraps it in <p>
 export const wrapPlainContent = (content : string) : string => {
-	return content.split('\n').map(line => `<p>${line}</p>`).join('\n');
+	return content.split('\n').filter(line => line.trim()).map(line => `<p>${line}</p>`).join('\n');
 };
 
 //Returns a string with the reason that the proposed card type is not legal for
