@@ -1242,7 +1242,7 @@ export type SuggestionDiff = {
 	supportingCards: CardDiff
 };
 
-export type SuggestionType = 'missing-see-also' | 'dupe-of';
+export type SuggestionType = 'missing-see-also' | 'dupe-of' | 'synthesize-cluster';
 
 export type Suggestion = {
 	type: SuggestionType,

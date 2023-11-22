@@ -37,7 +37,12 @@ import {
 } from './memoize.js';
 
 import {
-	suggestDupeOf} from './suggestions/dupe-of.js';
+	suggestDupeOf
+} from './suggestions/dupe-of.js';
+
+import {
+	synthesizeCluster
+} from './suggestions/synthesize-cluster.js';
 
 import {
 	OPENAI_ENABLED
@@ -153,6 +158,10 @@ export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 	'missing-see-also': {
 		generator: suggestMissingSeeAlso,
 		title: 'Missing See Also'
+	},
+	'synthesize-cluster': {
+		generator: synthesizeCluster,
+		title: 'Synthesize Cluster'
 	}
 };
 
