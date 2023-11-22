@@ -45,10 +45,6 @@ import {
 	synthesizeCluster
 } from './suggestions/synthesize-cluster.js';
 
-import {
-	OPENAI_ENABLED
-} from './config.GENERATED.SECRET.js';
-
 export const makeReferenceSuggestion = (type : SuggestionType, keyCards: CardID | CardID[], otherCards: CardID | CardID[], referenceType : ReferenceType, reverse = false) : Suggestion => {
 	//TODO: it's kind of finicky to have to keep track of which ID is which... shouldn't the actions have a sentinel for each that is overriden before being executed?
 
@@ -217,7 +213,7 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 		},
 		logger,
 		uid: selectUid(state),
-		useLLMs: OPENAI_ENABLED && selectSuggestionsUseLLMs(state) && selectUserMayUseAI(state)
+		useLLMs: selectUserMayUseAI(state) && selectSuggestionsUseLLMs(state)
 	};
 
 	for (const [name, suggestor] of TypedObject.entries(SUGGESTORS)) {
