@@ -191,7 +191,7 @@ export const LEGAL_VIEW_MODES : {[mode in ViewMode]: boolean} = {
 
 export const collectionDescription = (...parts : FilterName[]) : CollectionDescription => new CollectionDescription('everything', parts);
 
-export const referencesFilter = (direction : 'inbound' | 'outbound' | 'both', referenceType : ReferenceType | ReferenceType[], invertReferencesTypes? : boolean) : ConfigurableFilterName => {
+export const referencesFilter = (direction : 'inbound' | 'outbound' | 'both', referenceType : ReferenceType | ReferenceType[], invertReferencesTypes? : boolean, ply? : number) : ConfigurableFilterName => {
 	let filter = '';
 	switch(direction) {
 	case 'inbound':
@@ -207,7 +207,7 @@ export const referencesFilter = (direction : 'inbound' | 'outbound' | 'both', re
 		assertUnreachable(direction);
 	}
 	if (!filter) throw new Error('Unexpected no error');
-	return referencesConfigurableFilterText(filter, KEY_CARD_ID_PLACEHOLDER, referenceType, invertReferencesTypes);
+	return referencesConfigurableFilterText(filter, KEY_CARD_ID_PLACEHOLDER, referenceType, invertReferencesTypes, ply);
 };
 
 export const excludeFilter = (filter : FilterName) : ConfigurableFilterName => EXCLUDE_FILTER_NAME + '/' + filter;
