@@ -8,6 +8,10 @@ import {
 } from '../actions.js';
 
 import {
+	NEW_CARD_ID_PLACEHOLDER
+} from '../card_fields.js';
+
+import {
 	selectCardModificationError,
 	selectCards,
 	selectSuggestionsForCards
@@ -23,7 +27,9 @@ import {
 
 import {
 	CardDiff,
+	CreateCardOpts,
 	ProcessedCard,
+	ReferencesEntriesDiffItem,
 	Suggestion,
 	SuggestionDiff
 } from '../types.js';
@@ -33,11 +39,13 @@ import {
 } from '../types_simple.js';
 
 import {
-	assertUnreachable
+	assertUnreachable, newID
 } from '../util.js';
 
 import {
-	modifyCardsIndividually
+	createCard,
+	modifyCardsIndividually,
+	waitForCardToExist
 } from './data.js';
 
 export const suggestionsShowPanel = () : SomeAction => {
@@ -64,11 +72,11 @@ export const suggestionsChangeSelected = (index : number | string) : SomeAction 
 
 type SuggestionItem = 'primary' | 'alternate' | 'rejection';
 
-export const applySuggestion = (cardID : CardID, suggestionIndex : number, which : SuggestionItem = 'primary') : ThunkSomeAction => (dispatch, getState) => {
+export const applySuggestion = (cardID : CardID, suggestionIndex : number, which : SuggestionItem = 'primary') : ThunkSomeAction => async (dispatch, getState) => {
 
-	const state = getState();
-
-	const suggestionsByCard = selectSuggestionsForCards(state);
+	//We're going to change state a few times within this, so don't cache it,
+	//just always fetch the newest state throughout the logic.
+	const suggestionsByCard = selectSuggestionsForCards(getState());
 	const suggestions = suggestionsByCard[cardID];
 	if (!suggestions) throw new Error(`No suggestions for card ${cardID}`);
 	const suggestion = suggestions[suggestionIndex];
@@ -91,8 +99,41 @@ export const applySuggestion = (cardID : CardID, suggestionIndex : number, which
 		assertUnreachable(which);
 	}
 
+	//TODO: throw up a scrim / prevent navigation while this flow is active.
+
+	let keyCardsDiff = item.keyCards;
+	let supportingCardsDiff = item.supportingCards;
+
+	if (item.createCard) {
+		//createCard will not check the validity of this id since it was
+		//recently vended from newID().
+		const newCardID = newID();
+		const opts : CreateCardOpts = {
+			id: newCardID,
+			noNavigate: true
+		};
+		if (item.createCard.card_type) opts.cardType = item.createCard.card_type;
+		if (item.createCard.title !== undefined) opts.title = item.createCard.title;
+		if (item.createCard.body !== undefined) opts.body = item.createCard.body;
+		dispatch(createCard(opts));
+		await waitForCardToExist(newCardID);
+
+		//Replace any NEW_CARD_ID_PLACEHOLDER with the new card ID.
+		if (keyCardsDiff && keyCardsDiff.references_diff) {
+			keyCardsDiff = {
+				...keyCardsDiff,
+				references_diff: keyCardsDiff.references_diff.map((d : ReferencesEntriesDiffItem) : ReferencesEntriesDiffItem => ({...d, cardID: d.cardID == NEW_CARD_ID_PLACEHOLDER ? newCardID : d.cardID}))
+			};
+		}
+		if (supportingCardsDiff && supportingCardsDiff.references_diff) {
+			supportingCardsDiff = {
+				...supportingCardsDiff,
+				references_diff: supportingCardsDiff.references_diff.map((d : ReferencesEntriesDiffItem) : ReferencesEntriesDiffItem => ({...d, cardID: d.cardID == NEW_CARD_ID_PLACEHOLDER ? newCardID : d.cardID}))
+			};
+		}
+	}
 	
-	const allCards = selectCards(state);
+	const allCards = selectCards(getState());
 	
 	const cardIDs = [
 		...(item.keyCards ? suggestion.keyCards : []), 
@@ -102,12 +143,14 @@ export const applySuggestion = (cardID : CardID, suggestionIndex : number, which
 
 	if (cards.some(card => card === undefined)) throw new Error('Some cards were undefined');
 
-	const modificationsKeyCard = item.keyCards ? suggestion.keyCards.map((id : CardID) : [CardID, CardDiff] => [id, item.keyCards as CardDiff]) : [];
-	const modificationsSupportingCard = item.supportingCards ? suggestion.supportingCards.map((id : CardID) : [CardID, CardDiff] => [id, item.supportingCards as CardDiff]) : [];
+	const modificationsKeyCard = keyCardsDiff ? suggestion.keyCards.map((id : CardID) : [CardID, CardDiff] => [id, keyCardsDiff as CardDiff]) : [];
+	const modificationsSupportingCard = supportingCardsDiff ? suggestion.supportingCards.map((id : CardID) : [CardID, CardDiff] => [id, supportingCardsDiff as CardDiff]) : [];
 
 	const modifications = Object.fromEntries([...modificationsKeyCard, ...modificationsSupportingCard]);
 
 	dispatch(modifyCardsIndividually(cards, modifications));
+
+	//TODO: wait for edit to complete?
 
 	if (suggestionIndex === undefined) return;
 

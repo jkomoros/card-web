@@ -58,11 +58,16 @@ import {
 	descriptionForSuggestion
 } from '../card_diff.js';
 
+import {
+	NEW_CARD_ID_PLACEHOLDER
+} from '../card_fields.js';
+
 import './suggestions-summary.js';
 import './tag-list.js';
 
 const KEY_CARD_COLOR = COLORS.DARK_GREEN;
 const SUPPORTING_CARD_COLOR = COLORS.NAVY;
+const NEW_CARD_COLOR = COLORS.DARK_MAGENTA;
 
 @customElement('suggestions-viewer')
 class SuggestionsViewer extends connect(store)(LitElement) {
@@ -169,7 +174,11 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				color: SUPPORTING_CARD_COLOR
 			};
 		}
-		//TODO: special color for new card
+		result[NEW_CARD_ID_PLACEHOLDER] = {
+			id: NEW_CARD_ID_PLACEHOLDER,
+			title: 'New Card',
+			color: NEW_CARD_COLOR
+		};
 		return result;
 	}
 

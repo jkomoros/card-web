@@ -1220,11 +1220,24 @@ export type ExpandedTabConfig = ExpandedTabConfigItem[];
 //Note the map will likely only have a subset of the other cards.
 export type CardSimilarityMap = Record<CardID, SortExtra>;
 
+export type SuggestionDiffCreateCard = {
+	card_type? : CardType,
+	title? : string,
+	body? : string
+};
+
+//At least one part of diff is required.
 export type SuggestionDiff = {
+	createCard : SuggestionDiffCreateCard,
+	keyCards?: CardDiff,
+	supportingCards?: CardDiff
+} | {
+	createCard? : SuggestionDiffCreateCard,
 	keyCards: CardDiff,
 	//The diff to apply to each supportingCard.
 	supportingCards?: CardDiff
 } | {
+	createCard? : SuggestionDiffCreateCard,
 	keyCards? : CardDiff,
 	supportingCards: CardDiff
 };
