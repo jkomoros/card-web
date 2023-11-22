@@ -4,7 +4,8 @@ import {
 	SomeAction,
 	SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD,
 	SUGGESTIONS_CHANGE_SELECTED,
-	SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD
+	SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD,
+	SUGGESTIONS_SET_USE_LLMS
 } from '../actions.js';
 
 import {
@@ -13,6 +14,7 @@ import {
 
 const INITIAL_STATE : SuggestionsState = {
 	open: false,
+	useLLMs: false,
 	selectedIndex: 0,
 	suggestionsForCard: {}
 };
@@ -57,6 +59,11 @@ const app = (state : SuggestionsState = INITIAL_STATE, action : SomeAction) : Su
 		return {
 			...state,
 			selectedIndex: action.index
+		};
+	case SUGGESTIONS_SET_USE_LLMS:
+		return {
+			...state,
+			useLLMs: action.useLLMs
 		};
 	default:
 		return state;

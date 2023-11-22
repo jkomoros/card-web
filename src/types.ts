@@ -1419,6 +1419,9 @@ export type PromptState = {
 
 export type SuggestionsState = {
 	open: boolean,
+	//Note: this does not say LLMs will be used, just that if OPEN_AI_ENABLED
+	//and the user has permission suggestors will be told to use them.
+	useLLMs: boolean,
 	selectedIndex: number,
 	suggestionsForCard : {
 		[card : CardID] : Suggestion[]

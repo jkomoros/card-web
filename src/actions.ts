@@ -185,6 +185,7 @@ export const SUGGESTIONS_HIDE_PANEL = 'SUGGESTIONS_HIDE_PANEL';
 export const SUGGESTIONS_CHANGE_SELECTED = 'SUGGESTIONS_CHANGE_SELECTED';
 export const SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD = 'SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD';
 export const SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD = 'SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD';
+export const SUGGESTIONS_SET_USE_LLMS = 'SUGGESTIONS_SET_USE_LLMS';
 //User
 export const SIGNIN_USER = 'SIGNIN_USER';
 export const SIGNIN_SUCCESS = 'SIGNIN_SUCCESS';
@@ -818,6 +819,11 @@ type ActionSuggestionsRemoveSuggestionForCard = {
 	index: number
 };
 
+type ActionSuggestionsSetUseLLMs = {
+	type: typeof SUGGESTIONS_SET_USE_LLMS,
+	useLLMs: boolean
+};
+
 type ActionSigninUser = {
 	type: typeof SIGNIN_USER,
 };
@@ -991,6 +997,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionSuggestionsChangeSelected
 	| ActionSuggestionsReplaceSuggestionsForCard
 	| ActionSuggestionsRemoveSuggestionForCard
+	| ActionSuggestionsSetUseLLMs
 	| ActionSigninUser
 	| ActionSigninSuccess
 	| ActionSigninFailure

@@ -4,7 +4,8 @@ import {
 	SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD,
 	SomeAction,
 	SUGGESTIONS_CHANGE_SELECTED,
-	SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD
+	SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD,
+	SUGGESTIONS_SET_USE_LLMS
 } from '../actions.js';
 
 import {
@@ -192,4 +193,11 @@ export const suggestionsActiveCardChanged = (card : ProcessedCard) : ThunkSomeAc
 	//invalidated (but again, in that case you have the problem of
 	//not-suggestions that now would be suggestions))
 	suggestionsForCard(card, getState()).then((newSuggestions) => dispatch(suggestionsReplaceSuggestionsForCard(card.id,newSuggestions)));
+};
+
+export const suggestionsSetUseLLMs = (useLLMs : boolean) : SomeAction => {
+	return {
+		type: SUGGESTIONS_SET_USE_LLMS,
+		useLLMs
+	};
 };

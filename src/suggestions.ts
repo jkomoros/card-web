@@ -2,6 +2,7 @@ import {
 	selectCards,
 	selectCollectionConstructorArguments,
 	selectDataIsFullyLoaded,
+	selectSuggestionsUseLLMs,
 	selectUid,
 	selectUserMayUseAI,
 	userMayEditCard
@@ -165,9 +166,6 @@ export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 	}
 };
 
-//TODO: have this be a thing that can be changed in state.
-const USE_LLMS = false;
-
 const VERBOSE = false;
 
 //This makes it so no suggestions are ever returned, effectively hiding the
@@ -219,7 +217,7 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 		},
 		logger,
 		uid: selectUid(state),
-		useLLMs: OPENAI_ENABLED && USE_LLMS && selectUserMayUseAI(state)
+		useLLMs: OPENAI_ENABLED && selectSuggestionsUseLLMs(state) && selectUserMayUseAI(state)
 	};
 
 	for (const [name, suggestor] of TypedObject.entries(SUGGESTORS)) {
