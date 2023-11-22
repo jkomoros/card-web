@@ -144,7 +144,7 @@ const DEFAULT_HIGH_FIDELITY_MODEL = 'gpt-4';
 export const DEFAULT_MODEL : AIModelName = USE_HIGH_FIDELITY_MODEL ? DEFAULT_HIGH_FIDELITY_MODEL : 'gpt-3.5-turbo';
 
 //gpt-4-32k is limited access
-const DEFAULT_LONG_MODEL : AIModelName = USE_HIGH_FIDELITY_MODEL ? DEFAULT_HIGH_FIDELITY_MODEL : 'gpt-3.5-turbo-16k';
+export const DEFAULT_LONG_MODEL : AIModelName = USE_HIGH_FIDELITY_MODEL ? DEFAULT_HIGH_FIDELITY_MODEL : 'gpt-3.5-turbo-16k';
 
 const COMPLETION_CACHE : {[hash : string] : string} = {};
 
@@ -181,15 +181,17 @@ type FitPromptArguments = {
 	delimiter?: string,
 	items?: string[],
 	suffix?: string,
-	maxTokenLength?: number
+	//if this is not defined but modelName is, will use the type for modelName.
+	maxTokenLength?: number,
+	modelName? : AIModelName
 };
 
-const DEFAULT_FIT_PROMPT : Required<FitPromptArguments> = {
+const DEFAULT_FIT_PROMPT : Required<Omit<FitPromptArguments, 'maxTokenLength'>> = {
 	prefix: '',
 	delimiter: CARD_SEPARATOR,
 	items: [],
 	suffix: '',
-	maxTokenLength: 4000,
+	modelName: DEFAULT_MODEL,
 };
 
 //NOTE: this downloads the tokenizer file if not already loaded, which is multiple MB.
@@ -201,11 +203,14 @@ const computeTokenCount = async (text : string | string[]) : Promise<number> => 
 	return counts.reduce((a, b) => a + b, 0);
 };
 
-const fitPrompt = async (args: FitPromptArguments) : Promise<[prompt: string, maxItemIndex : number]> => {
+export const fitPrompt = async (args: FitPromptArguments) : Promise<[prompt: string, maxItemIndex : number]> => {
 	const options = {
 		...DEFAULT_FIT_PROMPT,
 		...args
 	};
+	if (options.maxTokenLength === undefined) {
+		options.maxTokenLength = options.modelName ? MODEL_INFO[options.modelName].maxTokens : 4000;
+	}
 	const nonItemsTokenCount = await computeTokenCount([options.prefix, options.suffix, options.delimiter]);
 	let itemsTokenCount = 0;
 	let result = options.prefix + options.delimiter;
