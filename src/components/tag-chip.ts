@@ -20,6 +20,10 @@ import {
 	TagInfos
 } from '../types.js';
 
+import {
+	COLORS
+} from '../type_constants.js';
+
 @customElement('tag-chip')
 class TagChip  extends LitElement {
 
@@ -164,7 +168,7 @@ class TagChip  extends LitElement {
 	}
 
 	get _effectiveDefaultColor() {
-		return this.defaultColor || '#CD5C5C';
+		return this.defaultColor || COLORS.INDIAN_RED;
 	}
 
 	get _previewCard() {

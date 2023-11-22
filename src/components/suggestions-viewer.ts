@@ -36,6 +36,10 @@ import {
 } from '../types_simple.js';
 
 import {
+	COLORS
+} from '../type_constants.js';
+
+import {
 	CANCEL_ICON,
 	CHECK_CIRCLE_OUTLINE_ICON
 } from './my-icons.js';
@@ -54,12 +58,11 @@ import {
 	descriptionForSuggestion
 } from '../card_diff.js';
 
-
 import './suggestions-summary.js';
 import './tag-list.js';
 
 const KEY_CARD_COLOR = '#006400'; //darkgreen
-const SUPPORTING_CARD_COLOR = '#000080'; //navy
+const SUPPORTING_CARD_COLOR = COLORS.NAVY;
 
 @customElement('suggestions-viewer')
 class SuggestionsViewer extends connect(store)(LitElement) {

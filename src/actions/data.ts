@@ -117,7 +117,8 @@ import {
 	SECTIONS_COLLECTION,
 	TAGS_COLLECTION,
 	TAG_UPDATES_COLLECTION,
-	TWEETS_COLLECTION
+	TWEETS_COLLECTION,
+	COLORS
 } from '../type_constants.js';
 
 import {
@@ -222,26 +223,7 @@ export const waitForCardToExist = (cardID : CardID) => {
 };
 
 //When a new tag is created, it is randomly assigned one of these values.
-const TAG_COLORS = [
-	//Indianred
-	'#CD5C5C',
-	//darkkhahki
-	'#BDB76B',
-	//limegreen
-	'#32CD32',
-	//darkcyan
-	'#008B8B',
-	//navy
-	'#000080',
-	//sandybrown
-	'#F4A460',
-	//gold
-	'#FFD700',
-	//darkmagenta
-	'#8B008B',
-	//royalblue
-	'#4169E1',
-];
+const TAG_COLORS = Object.values(COLORS);
 
 export const modifyCard = (card : Card, update : CardDiff, substantive = false) => {
 	return modifyCards([card], update, substantive, true);

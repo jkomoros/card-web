@@ -6,7 +6,8 @@ import {
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_INFO_INBOUND_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY,
-	REFERENCES_INBOUND_CARD_PROPERTY
+	REFERENCES_INBOUND_CARD_PROPERTY,
+	COLORS
 } from './type_constants.js';
 
 import {
@@ -257,8 +258,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		description: 'Automatically extracted links from the body of the card',
 		editable: false,
 		substantive: true,
-		//limegreen
-		color: '#32CD32',
+		color: COLORS.LIME_GREEN,
 		//already visible on the card itself
 		excludeFromInfoPanel: true,
 		needsReciprocation: true,
@@ -268,8 +268,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		description: 'Denotes that this card is a duplicate of the card that it\'s pointing to',
 		editable: true,
 		substantive: true,
-		//darkcyan
-		color: '#008B8B',
+		color: COLORS.DARK_CYAN,
 	},
 	'ack': {
 		name: 'Non-substantive acknowledgement',
@@ -285,8 +284,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		description: 'For a card to reference another where no other reference type makes sense',
 		editable: true,
 		substantive: true,
-		//sandybrown
-		color: '#F4A460',
+		color: COLORS.SANDY_BROWN,
 		excludeFromInfoPanel: false,
 	},
 	'fork-of': {
@@ -294,8 +292,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		description: 'For a card that was forked from another card',
 		editable: true,
 		substantive: true,
-		//darkmagenta
-		color: '#8B008B',
+		color: COLORS.DARK_MAGENTA,
 		excludeFromInfoPanel: false,
 	},
 	'mined-from': {
@@ -303,8 +300,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		description: 'For a card that denotes that its insights are at least partially based on insights in another card',
 		editable: true,
 		substantive: true,
-		//royalblue
-		color: '#4169E1',
+		color: COLORS.ROYAL_BLUE,
 		excludeFromInfoPanel: false,
 	},
 	'see-also': {
@@ -312,8 +308,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		description: 'For cards that make similar points and make sense to consume as a set',
 		editable: true,
 		substantive: true,
-		//navy
-		color: '#000080',
+		color: COLORS.NAVY,
 		//Already included in its own block
 		excludeFromInfoPanel: true,
 	},
@@ -322,8 +317,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		description: 'For cards that are about a concept this card uses',
 		editable: true,
 		substantive: true,
-		//darkkhahki
-		color: '#BDB76B',
+		color: COLORS.DARK_KHAKI,
 		//It's included in its own section
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
@@ -338,8 +332,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		description: 'For concept cards that are synonyms of another concept card',
 		editable: true,
 		substantive: true,
-		//darkkhahki
-		color: '#BDB76B',
+		color: COLORS.DARK_KHAKI,
 		//Printed out on concept cards, which are the only cards that can be on the from side.
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
@@ -358,8 +351,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		description: 'For concept cards that are antonyms of another concept card',
 		editable: true,
 		substantive: true,
-		//darkkhahki
-		color: '#BDB76B',
+		color: COLORS.DARK_KHAKI,
 		//Printed out on concept cards, which are the only cards that can be on the from side.
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
@@ -379,8 +371,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		description: 'For concept cards that are not quite interchangeable with other concepts, but have a parallel',
 		editable: true,
 		substantive: true,
-		//darkkhahki
-		color: '#BDB76B',
+		color: COLORS.DARK_KHAKI,
 		//Printed out on concept cards, which are the only cards that can be on the from side.
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
@@ -401,8 +392,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		description: 'For cards that are an example of a more general concept',
 		editable: true,
 		substantive: true,
-		//darkkhahki
-		color: '#BDB76B',
+		color: COLORS.DARK_KHAKI,
 		//Printed out in info panel
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
@@ -417,8 +407,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		description: 'For cards that are a metaphor for a concept',
 		editable: true,
 		substantive: true,
-		//darkkhahki
-		color: '#BDB76B',
+		color: COLORS.DARK_KHAKI,
 		//Printed out in info panel
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
@@ -433,8 +422,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		description: 'For citing works (books, articles, tweets) that this card is partially based on.',
 		editable: true,
 		substantive: true,
-		//royalblue
-		color: '#4169E1',
+		color: COLORS.ROYAL_BLUE,
 		//Printed out separately in info panel
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
@@ -450,8 +438,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		description: 'For citing people whose insights this card is partially based on. Used either for citing authors from a work card, or when there isn\'t a specific work to cite, because such a card either hasn\'t been created yet or because there is no work to cite.',
 		editable: true,
 		substantive: true,
-		//royalblue
-		color: '#4169E1',
+		color: COLORS.ROYAL_BLUE,
 		//Printed out separately in info panel
 		excludeFromInfoPanel: true,
 		toCardTypeAllowList: {
