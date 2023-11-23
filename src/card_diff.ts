@@ -84,7 +84,8 @@ import {
 	SuggestionDiff,
 	Suggestion,
 	TagInfos,
-	SuggestionDiffCreateCard
+	SuggestionDiffCreateCard,
+	CardFlags
 } from './types.js';
 
 import {
@@ -124,6 +125,14 @@ export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos):
 
 		if (key == 'references_diff') {
 			return descriptionForReferencesDiff(value as ReferencesEntriesDiff, cardInfos);
+		}
+
+		if (key == 'set_flags') {
+			return TypedObject.entries(value as CardFlags).map(entry => html`Set flag ${entry[0]} to ${JSON.stringify(entry[1])}.`);
+		}
+
+		if (key == 'remove_flags') {
+			return TypedObject.keys(value as CardFlags).map(key => html`Remove flag ${key}.`);
 		}
 
 		if (key == 'auto_todo_overrides_removals') {
