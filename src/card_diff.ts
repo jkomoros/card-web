@@ -198,7 +198,11 @@ const descriptionForSuggestionDiff = (suggestion : Suggestion, diff : Suggestion
 	const newCardDiff = diff.createCard ? descriptionForCreateCard(diff.createCard) : html``;
 	const keyCardsDiff = diff.keyCards ? descriptionForSuggestionDiffCards(suggestion.keyCards, diff.keyCards, cardInfos) : html``;
 	const supportingCardsDiff = diff.supportingCards ? descriptionForSuggestionDiffCards(suggestion.supportingCards, diff.supportingCards, cardInfos) : html``;
-	return html`${newCardDiff}${keyCardsDiff}${supportingCardsDiff}`;
+	return html`
+		${newCardDiff ? html`<p>${newCardDiff}</p>` : html``}
+		${keyCardsDiff ? html`<p>${keyCardsDiff}</p>` : html``}
+		${supportingCardsDiff ? html`<p>${supportingCardsDiff}</p>` : html``}
+	`;
 };
 
 type SuggestionDescription = {
