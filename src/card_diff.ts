@@ -112,7 +112,7 @@ import './components/tag-list.js';
 
 export const descriptionForReferencesDiff = (diff : ReferencesEntriesDiff, cardInfos : TagInfos) : TemplateResult[] => {
 	return diff.map(item => {
-		return html`${isExpandedReferenceDelete(item) ? 'Remove' : 'Add'} <strong>${item.referenceType}</strong> reference pointing to <tag-list .tags=${[item.cardID]} .tagInfos=${cardInfos} .tapEvents=${true}></tag-list>`;
+		return html`${isExpandedReferenceDelete(item) ? 'Remove' : 'Add'} <strong>${item.referenceType}</strong> reference pointing to <tag-list .tags=${[item.cardID]} .tagInfos=${cardInfos} .tapEvents=${true} .inline=${true}></tag-list>`;
 	});
 };
 
@@ -144,11 +144,11 @@ export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos):
 };
 
 const descriptionForSuggestionDiffCards = (cards: CardID[], diff : CardDiff, cardInfos : TagInfos) : TemplateResult => {
-	return html`For the card${cards.length > 1 ? 's' : ''} <tag-list .tags=${cards} .tagInfos=${cardInfos} .tapEvents=${true}></tag-list> ${descriptionForCardDiff(diff, cardInfos).map(tmpl => html`${tmpl}. `)}`;
+	return html`For the card${cards.length > 1 ? 's' : ''} <tag-list .tags=${cards} .tagInfos=${cardInfos} .tapEvents=${true} .inline=${true}></tag-list> ${descriptionForCardDiff(diff, cardInfos).map(tmpl => html`${tmpl}. `)}`;
 };
 
 const descriptionForCreateCard = (diff : SuggestionDiffCreateCard, cardInfos : TagInfos) : TemplateResult => {
-	const mainPart = html`Create card <tag-list .tags=${[NEW_CARD_ID_PLACEHOLDER]} .tagInfos=${cardInfos} .tapEvents=${true}></tag-list>`;
+	const mainPart = html`Create card <tag-list .tags=${[NEW_CARD_ID_PLACEHOLDER]} .tagInfos=${cardInfos} .tapEvents=${true} .inline=${true}></tag-list>`;
 	const typePart = diff.card_type ? html` of type <strong>${diff.card_type}</strong>` : html``;
 	const titlePart = diff.title ? html` with title ${diff.title}` : html``;
 	//TODO: better summarizing, and some way to see full body.
