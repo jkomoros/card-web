@@ -310,7 +310,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		const ele = e.target;
 		if (!(ele instanceof HTMLInputElement)) throw new Error('not input ele');
 		const checked = ele.checked;
-		store.dispatch(suggestionsSetUseLLMs(checked, this._card));
+		store.dispatch(suggestionsSetUseLLMs(checked));
 	}
 
 }

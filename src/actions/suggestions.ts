@@ -13,6 +13,7 @@ import {
 } from '../card_fields.js';
 
 import {
+	selectActiveCard,
 	selectCardModificationError,
 	selectCards,
 	selectSuggestionsForCards,
@@ -31,7 +32,6 @@ import {
 import {
 	CardDiff,
 	CreateCardOpts,
-	ProcessedCard,
 	ReferencesEntriesDiffItem,
 	Suggestion,
 	SuggestionDiff
@@ -190,7 +190,9 @@ const suggestionsReplaceSuggestionsForCard = (card : CardID, suggestions: Sugges
 };
 
 //This is called when card-view has noticed the active card has changed, and is time to add suggestions.
-export const suggestionsActiveCardChanged = (card : ProcessedCard) : ThunkSomeAction => async (dispatch, getState) => {
+export const calculateSuggestionsForActiveCard = () : ThunkSomeAction => async (dispatch, getState) => {
+	const card = selectActiveCard(getState());
+	if (!card) return;
 	//Every time a card is activated, kick off new suggestions. This is
 	//expensive but helps avoid the stale-suggestion case, but also more
 	//importantly the stale-no-suggestion case (where it concluded prviously
@@ -202,14 +204,13 @@ export const suggestionsActiveCardChanged = (card : ProcessedCard) : ThunkSomeAc
 	suggestionsForCard(card, getState()).then((newSuggestions) => dispatch(suggestionsReplaceSuggestionsForCard(card.id,newSuggestions)));
 };
 
-export const suggestionsSetUseLLMs = (useLLMs : boolean, card? : ProcessedCard | null) : ThunkSomeAction => (dispatch, getState) => {
+export const suggestionsSetUseLLMs = (useLLMs : boolean) : ThunkSomeAction => (dispatch, getState) => {
 	const current = selectSuggestionsUseLLMs(getState());
 	if (current == useLLMs) return;
 	dispatch({
 		type: SUGGESTIONS_SET_USE_LLMS,
 		useLLMs
 	});
-	if (!card) return;
 	//Refetch suggestions now that LLM value has changed.
-	dispatch(suggestionsActiveCardChanged(card));
+	dispatch(calculateSuggestionsForActiveCard());
 };

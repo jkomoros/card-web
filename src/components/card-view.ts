@@ -192,7 +192,7 @@ import {
 } from '../events.js';
 
 import {
-	suggestionsActiveCardChanged,
+	calculateSuggestionsForActiveCard,
 	suggestionsTogglePanel
 } from '../actions/suggestions.js';
 
@@ -827,7 +827,7 @@ class CardView extends connect(store)(PageViewElement) {
 			store.dispatch(canonicalizeURL());
 		}
 		if (changedProps.has('_card') || changedProps.has('_dataIsFullyLoaded')) {
-			if (this._card && this._dataIsFullyLoaded) store.dispatch(suggestionsActiveCardChanged(this._card));
+			if (this._card && this._dataIsFullyLoaded) store.dispatch(calculateSuggestionsForActiveCard());
 		} 
 		if (changedProps.has('_activeSectionId')) {
 			store.dispatch(canonicalizeURL());
