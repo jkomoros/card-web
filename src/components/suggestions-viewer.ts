@@ -121,6 +121,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				display: flex;
 				flex-direction: row;
 				width: 100%;
+				align-items: center;
 			}
 
 			.row.distributed {
