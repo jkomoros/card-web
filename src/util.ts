@@ -13,7 +13,9 @@ import {
 	ReferencesInfoMap,
 	TweetInfo,
 	ReferenceType,
-	CardFieldTypeEditable
+	CardFieldTypeEditable,
+	CardFlags,
+	CardFlagsRemovals
 } from './types.js';
 
 import {
@@ -50,6 +52,7 @@ import {
 import {
 	normalizeLineBreaks,
 } from './contenteditable.js';
+import { TypedObject } from './typed_object.js';
 
 export const assertUnreachable = (x : never) : never => {
 	throw new Error('Exhaustiveness check failed: ' + String(x));
@@ -637,6 +640,45 @@ export function setUnion(obj : {[name : string] : true}, items : string[]) : {[n
 	}
 	return result;
 }
+
+export const applyCardFlags = (base? : CardFlags, setFlags? : CardFlags, removeFlags? : CardFlagsRemovals) : CardFlags => {
+	const result = base ? {...base} : {};
+	if (setFlags) {
+		for (const flag of TypedObject.keys(setFlags)) {
+			//We know the types match since it's the same keys
+			//eslint-disable-next-line @typescript-eslint/no-explicit-any
+			result[flag] = setFlags[flag] as any;
+		}
+	}
+	if (removeFlags) {
+		for (const flag of TypedObject.keys(removeFlags)) {
+			delete result[flag];
+		}
+	}
+	return result;
+};
+
+export const diffCardFlags = (before? : CardFlags, after? :CardFlags) : [set_flags? : CardFlags, remove_flags? : CardFlagsRemovals] => {
+	if (!before) before = {};
+	if (!after) after = {};
+	const set_flags : CardFlags = {};
+	const remove_flags : CardFlagsRemovals = {};
+
+	for (const flag of TypedObject.keys(after)) {
+		if (before[flag] == after[flag]) continue;
+		set_flags[flag] = after[flag];
+	}
+
+	for (const flag of TypedObject.keys(before)) {
+		if (after[flag] !== undefined) continue;
+		remove_flags[flag] = true;
+	}
+
+	return [
+		Object.keys(set_flags).length ? set_flags : undefined,
+		Object.keys(remove_flags).length ? remove_flags : undefined
+	];
+};
 
 //This logic is finicky and we have a few defaults we want to have, so wrap it
 //in a util.

@@ -684,6 +684,7 @@ export const defaultCardObject = (id : CardID, user : UserInfo, section : Sectio
 		[REFERENCES_INFO_INBOUND_CARD_PROPERTY]: {},
 		[REFERENCES_CARD_PROPERTY]: {},
 		[REFERENCES_INBOUND_CARD_PROPERTY]: {},
+		flags: {},
 		font_size_boost: {},
 		card_type: cardType,
 		notes: '',

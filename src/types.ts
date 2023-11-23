@@ -692,6 +692,13 @@ export type ReferenceTypeConfigurationMap = {
 
 export type CardTestFunc = (card : Card) => boolean;
 
+//A set of extra little metadata
+export type CardFlags = {
+	created_by_suggestor? : SuggestionType
+};
+
+export type CardFlagsRemovals = Partial<Record<keyof CardFlags, true>>;
+
 //When adding a field here, consider whether it should also be in CardDiff.
 export interface Card {
 	id: CardID,
@@ -713,6 +720,9 @@ export interface Card {
 	section: SectionID,
 	tags: TagID[],
 
+	//A spot for stashing various flags and metadata.
+	//TODO: consider adding a maintenance task to set this on all cards.
+	flags? : CardFlags,
 
 	published: boolean,
 	//TODO: we should have this explicitly set on all cards, but in practice only some do.
@@ -854,6 +864,8 @@ export interface CardDiff extends NonAutoMergeableCardDiff  {
 	auto_todo_overrides_enablements? : AutoTODOType[],
 	auto_todo_overrides_disablements? : AutoTODOType[],
 	auto_todo_overrides_removals? : AutoTODOType[],
+	set_flags? : CardFlags,
+	remove_flags? : CardFlagsRemovals
 	add_editors? : Uid[],
 	remove_editors? : Uid[],
 	add_collaborators? : Uid[],

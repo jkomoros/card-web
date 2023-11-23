@@ -65,6 +65,9 @@ export interface Card {
 	section: SectionID,
 	tags: TagID[],
 
+	//A spot for stashing various flags and metadata.
+	//TODO: add better typing like what client has
+	flags? : Record<string, unknown>,
 
 	published: boolean,
 	//TODO: we should have this explicitly set on all cards, but in practice only some do.

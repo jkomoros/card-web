@@ -1,7 +1,9 @@
 
 import {
+	applyCardFlags,
 	arrayRemoveUtil,
 	arrayUnionUtil,
+	diffCardFlags,
 	extractCardLinksFromBody,
 	reasonCardTypeNotLegalForCard,
 } from './util.js';
@@ -271,6 +273,10 @@ export const generateCardDiff = (underlyingCardIn : Card | null | undefined, upd
 	if (collaboratorAdditions.length) update.add_collaborators = collaboratorAdditions;
 	if (collaboratorDeletions.length) update.remove_collaborators = collaboratorDeletions;
 
+	const [set_flags, remove_flags] = diffCardFlags(underlyingCard.flags, updatedCard.flags);
+	if (set_flags) update.set_flags = set_flags;
+	if (remove_flags) update.remove_flags = remove_flags;
+
 	if (!imageBlocksEquivalent(underlyingCard, updatedCard)) update.images = updatedCard.images;
 
 	//references might have changed outside of this function, or because the
@@ -430,6 +436,10 @@ export const applyCardDiff = (underlyingCard : Card, diff : CardDiff) : CardUpda
 
 	if (diff.full_bleed !== undefined) {
 		cardUpdateObject.full_bleed = diff.full_bleed;
+	}
+
+	if (diff.set_flags || diff.remove_flags) {
+		cardUpdateObject.flags = applyCardFlags(underlyingCard.flags ,diff.set_flags, diff.remove_flags);
 	}
 
 	if (diff.addTags || diff.removeTags) {
