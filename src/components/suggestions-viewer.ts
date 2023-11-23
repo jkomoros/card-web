@@ -238,13 +238,15 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 					${diffTemplates.primary}
 				</div>
 				<div class='flex'></div>
-				<button
-							class='round primary'
-							title='Accept Primary Action'
-							@click=${this._handleAcceptPrimaryActionClicked}
-						>
-							${CHECK_CIRCLE_OUTLINE_ICON}
-						</button>
+				<div>
+					<button
+								class='round primary'
+								title='Accept Primary Action'
+								@click=${this._handleAcceptPrimaryActionClicked}
+							>
+								${CHECK_CIRCLE_OUTLINE_ICON}
+							</button>
+				</div>
 			</div>
 			` : 
 		html`<div class='empty'><em>No suggestions for this card</em></div>`
@@ -256,13 +258,15 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 							${diffTemplates.alternate}
 						</div>
 						<div class='flex'></div>
-						<button
-								class='round'
-								title='Accept Alternate Action'
-								@click=${this._handleAcceptAlternateActionClicked}
-								>
-									${CHECK_CIRCLE_OUTLINE_ICON}
-								</button>
+						<div>
+							<button
+									class='round'
+									title='Accept Alternate Action'
+									@click=${this._handleAcceptAlternateActionClicked}
+									>
+										${CHECK_CIRCLE_OUTLINE_ICON}
+									</button>
+						</div>
 					</div>
 				` : ''
 }
@@ -273,13 +277,15 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 							${diffTemplates.rejection}
 						</div>
 						<div class='flex'></div>
-						<button
-								class='round'
-								title='Reject Suggestion'
-								@click=${this._handleRejectActionClicked}
-								>
-									${CANCEL_ICON}
-								</button>
+						<div>
+							<button
+									class='round'
+									title='Reject Suggestion'
+									@click=${this._handleRejectActionClicked}
+									>
+										${CANCEL_ICON}
+									</button>
+						</div>
 					</div>
 				` : ''
 }
