@@ -164,10 +164,6 @@ export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 
 const VERBOSE = false;
 
-//This makes it so no suggestions are ever returned, effectively hiding the
-//feature. This allows development behind a guard.
-const DISABLE_SUGGESTIONS = false;
-
 const devNull : Logger = {
 	//eslint-disable-next-line @typescript-eslint/no-empty-function
 	log: () => {},
@@ -184,11 +180,6 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 	const result : Suggestion[] = [];
 
 	const logger = VERBOSE ? console : devNull;
-
-	if (DISABLE_SUGGESTIONS) {
-		logger.info('Suggestions disabled');
-		return [];
-	}
 
 	logger.info(`Starting suggestions for ${card.id}`);
 
