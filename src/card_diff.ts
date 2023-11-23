@@ -195,7 +195,6 @@ const descriptionForCreateCard = (diff : SuggestionDiffCreateCard) : TemplateRes
 	const mainPart = html`Create card`;
 	const typePart = diff.card_type ? html` of type <strong>${diff.card_type}</strong>` : html``;
 	const titlePart = diff.title ? html` with title ${diff.title}` : html``;
-	//TODO: better summarizing, and some way to see full body.
 	let bodyPart = html``;
 	if (diff.body) {
 		let plainBody = innerTextForHTML(diff.body);
