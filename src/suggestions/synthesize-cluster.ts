@@ -76,7 +76,10 @@ export const synthesizeCluster = async (args: SuggestorArgs) : Promise<Suggestio
 						cardID: id,
 						referenceType: 'mined-from',
 						value: ''
-					}))
+					})),
+					set_flags: {
+						created_by_suggestor: type
+					}
 				}
 			}
 			//TODO: figure out a way to signal a reject action. Perhaps set a
