@@ -173,7 +173,11 @@ export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos):
 };
 
 const descriptionForSuggestionDiffCards = (cards: CardID[], diff : CardDiff, cardInfos : TagInfos) : TemplateResult => {
-	return html`For the card${cards.length > 1 ? 's' : ''} <tag-list .tags=${cards} .tagInfos=${cardInfos} .tapEvents=${true} .inline=${true}></tag-list> ${descriptionForCardDiff(diff, cardInfos).map(tmpl => html`${tmpl}. `)}`;
+	return html`For the card${cards.length > 1 ? 's' : ''} <tag-list .tags=${cards} .tagInfos=${cardInfos} .tapEvents=${true} .inline=${true}></tag-list>
+		<ul>
+			${descriptionForCardDiff(diff, cardInfos).map(tmpl => html`<li>${tmpl}</li>`)}
+		</ul>
+	`;
 };
 
 //At how many characters should we show?
