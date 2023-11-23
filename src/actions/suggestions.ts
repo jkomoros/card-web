@@ -55,12 +55,14 @@ export const suggestionsShowPanel = () : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: SUGGESTIONS_SHOW_PANEL,
 	});
+	dispatch(calculateSuggestionsForActiveCard());
 };
 
 export const suggestionsHidePanel = () : ThunkSomeAction => (dispatch) => {
 	dispatch({
 		type: SUGGESTIONS_HIDE_PANEL,
 	});
+	//No need to calculate suggestions if the panel is now hidden.
 };
 
 export const suggestionsTogglePanel = () : ThunkSomeAction => (dispatch, getState) => {
@@ -193,6 +195,9 @@ const suggestionsReplaceSuggestionsForCard = (card : CardID, suggestions: Sugges
 export const calculateSuggestionsForActiveCard = () : ThunkSomeAction => async (dispatch, getState) => {
 	const card = selectActiveCard(getState());
 	if (!card) return;
+	//Only calculate new suggestions if panel is open.
+	//This makes it so the feature has low cost if the panel is not open.
+	if (!selectSuggestionsOpen(getState())) return;
 	//Every time a card is activated, kick off new suggestions. This is
 	//expensive but helps avoid the stale-suggestion case, but also more
 	//importantly the stale-no-suggestion case (where it concluded prviously
