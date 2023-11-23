@@ -167,6 +167,14 @@ export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos):
 			return html`Set TODO ${value} on`;
 		}
 
+		if (key == 'body') {
+			//TODO: generalize this to any text_field
+			const body = value as string;
+			let plainBody = innerTextForHTML(body);
+			if (plainBody.length > BODY_SUMMARY_LENGTH) plainBody = plainBody.slice(0, BODY_SUMMARY_LENGTH) + '...';
+			return  html`Set <strong>body</strong> to "<span title=${body}>${plainBody}</span>"`;
+		}
+
 		//TODO: handle non diffable fields
 		return [html`Set <strong>${key}</strong> to ${JSON.stringify(value, null, '\t')}`];
 	}).flat();
