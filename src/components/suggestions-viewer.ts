@@ -13,6 +13,7 @@ import {
 	selectSuggestionsForActiveCard,
 	selectSuggestionsLoadingForCard,
 	selectSuggestionsOpen,
+	selectSuggestionsPending,
 	selectSuggestionsUseLLMs,
 	selectTagInfosForCards,
 	selectUserMayUseAI
@@ -98,6 +99,9 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 	@state()
 		_userMayUseAI : boolean;
 
+	@state()
+		_pending : boolean;
+
 	static override styles = [
 		ButtonSharedStyles,
 		HelpStyles,
@@ -115,6 +119,19 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				/* The up-down padding comes from margins in the top and bottom elements */
 				padding: 0 0.5em;
 				box-sizing:border-box;
+			}
+
+			.scrim {
+				z-index:100;
+				height:100%;
+				width:100%;
+				position:absolute;
+				background-color:rgba(255,255,255,0.7);
+				display:none;
+			}
+
+			.pending .scrim {
+				display:block;
 			}
 
 			.buttons {
@@ -220,7 +237,8 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 		const diffTemplates = descriptionForSuggestion(suggestion, tagInfos);
 
-		return html`<div class='container'>
+		return html`<div class='container ${this._pending ? 'pending' : ''}'>
+			<div class='scrim'></div>
 			<div class='row'>
 				${this._userMayUseAI ? 
 		html`<input type='checkbox' id='use-llm' .checked=${this._useLLMs} @change=${this._handleUseLLMsChanged}></input>
@@ -316,6 +334,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		this._userMayUseAI = selectUserMayUseAI(state);
 		this._useLLMs = selectSuggestionsUseLLMs(state);
 		this._loadingForCard = selectSuggestionsLoadingForCard(state);
+		this._pending = selectSuggestionsPending(state);
 	}
 
 	_handleSuggestionTapped(e : TagEvent) {
