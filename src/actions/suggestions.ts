@@ -18,7 +18,8 @@ import {
 	selectCards,
 	selectSuggestionsForCards,
 	selectSuggestionsOpen,
-	selectSuggestionsUseLLMs
+	selectSuggestionsUseLLMs,
+	selectUserMayEditActiveCard
 } from '../selectors.js';
 
 import {
@@ -83,6 +84,9 @@ export const suggestionsChangeSelected = (index : number | string) : SomeAction 
 type SuggestionItem = 'primary' | 'alternate' | 'rejection';
 
 export const applySuggestion = (cardID : CardID, suggestionIndex : number, which : SuggestionItem = 'primary') : ThunkSomeAction => async (dispatch, getState) => {
+
+	//Bail early if the rest will fail.
+	if (!selectUserMayEditActiveCard(getState())) throw new Error('User does not have permission to edit card');
 
 	//We're going to change state a few times within this, so don't cache it,
 	//just always fetch the newest state throughout the logic.
