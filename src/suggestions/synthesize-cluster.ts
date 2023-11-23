@@ -50,7 +50,7 @@ export const synthesizeCluster = async (args: SuggestorArgs) : Promise<Suggestio
 			items: cliqueCards.map(card => cardPlainContent(card)),
 			delimiter: '\n\n',
 			//TODO: this prompt still gets a lot of unncessary editing of words.
-			suffix: '----\nPlay back the essay word for word, omitting any direct duplication, keeping as much of the original\'s precide wording and content as possible.',
+			suffix: '----\nPlay back the essay word for word, omitting any direct duplication, keeping as much of the original\'s precise wording and content as possible.',
 			modelName: model
 		});
 		logger.info(`Prompt: ${prompt}`);
