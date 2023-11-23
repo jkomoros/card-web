@@ -5,6 +5,7 @@ import {
 	arrayUnionUtil,
 	diffCardFlags,
 	extractCardLinksFromBody,
+	innerTextForHTML,
 	reasonCardTypeNotLegalForCard,
 } from './util.js';
 
@@ -175,12 +176,20 @@ const descriptionForSuggestionDiffCards = (cards: CardID[], diff : CardDiff, car
 	return html`For the card${cards.length > 1 ? 's' : ''} <tag-list .tags=${cards} .tagInfos=${cardInfos} .tapEvents=${true} .inline=${true}></tag-list> ${descriptionForCardDiff(diff, cardInfos).map(tmpl => html`${tmpl}. `)}`;
 };
 
+//At how many characters should we show?
+const BODY_SUMMARY_LENGTH = 100;
+
 const descriptionForCreateCard = (diff : SuggestionDiffCreateCard) : TemplateResult => {
 	const mainPart = html`Create card`;
 	const typePart = diff.card_type ? html` of type <strong>${diff.card_type}</strong>` : html``;
 	const titlePart = diff.title ? html` with title ${diff.title}` : html``;
 	//TODO: better summarizing, and some way to see full body.
-	const bodyPart = diff.body ? html` with body "${diff.body.slice(0, 100)}"` : html``;
+	let bodyPart = html``;
+	if (diff.body) {
+		let plainBody = innerTextForHTML(diff.body);
+		if (plainBody.length > BODY_SUMMARY_LENGTH) plainBody = plainBody.slice(0, BODY_SUMMARY_LENGTH) + '...';
+		bodyPart = html` with body "<span title=${diff.body}>${plainBody}</span>"`;
+	}
 	return html`${mainPart}${typePart}${titlePart}${bodyPart}. `;
 };
 
