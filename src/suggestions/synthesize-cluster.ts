@@ -25,6 +25,9 @@ import {
 	wrapPlainContent
 } from '../util.js';
 
+//Increment this when substantively changing the implementation/quality of this prompt.
+const CURRENT_VERSION = 0;
+
 export const synthesizeCluster = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
 	const {type, collectionArguments, logger, uid, useLLMs} = args;
 	if (!useLLMs) {
@@ -78,7 +81,8 @@ export const synthesizeCluster = async (args: SuggestorArgs) : Promise<Suggestio
 						value: ''
 					})),
 					set_flags: {
-						created_by_suggestor: type
+						created_by_suggestor: type,
+						created_by_suggestor_version: CURRENT_VERSION
 					}
 				}
 			}

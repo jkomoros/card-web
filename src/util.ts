@@ -666,7 +666,8 @@ export const diffCardFlags = (before? : CardFlags, after? :CardFlags) : [set_fla
 
 	for (const flag of TypedObject.keys(after)) {
 		if (before[flag] == after[flag]) continue;
-		set_flags[flag] = after[flag];
+		//eslint-disable-next-line @typescript-eslint/no-explicit-any
+		set_flags[flag] = after[flag] as any;
 	}
 
 	for (const flag of TypedObject.keys(before)) {
