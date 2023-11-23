@@ -20,6 +20,7 @@ import {
 	selectCards,
 	selectSuggestionsForCards,
 	selectSuggestionsOpen,
+	selectSuggestionsPending,
 	selectSuggestionsUseLLMs,
 	selectUserMayEditActiveCard
 } from '../selectors.js';
@@ -89,6 +90,8 @@ export const applySuggestion = (cardID : CardID, suggestionIndex : number, which
 
 	//Bail early if the rest will fail.
 	if (!selectUserMayEditActiveCard(getState())) throw new Error('User does not have permission to edit card');
+
+	if (selectSuggestionsPending(getState())) throw new Error('Another suggestion is pending');
 
 	//We're going to change state a few times within this, so don't cache it,
 	//just always fetch the newest state throughout the logic.
