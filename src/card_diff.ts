@@ -272,8 +272,8 @@ export const generateCardDiff = (underlyingCardIn : Card | null | undefined, upd
 	if (todoRemovals.length) update.auto_todo_overrides_removals = autoTODOTypeArray.parse(todoRemovals);
 
 	const [tagAdditions, tagDeletions] = arrayDiff(underlyingCard.tags || [], updatedCard.tags || []);
-	if (tagAdditions.length) update.addTags = tagAdditions;
-	if (tagDeletions.length) update.removeTags = tagDeletions;
+	if (tagAdditions.length) update.add_tags = tagAdditions;
+	if (tagDeletions.length) update.remove_tags = tagDeletions;
 
 	const [editorAdditions, editorDeletions] = arrayDiff((underlyingCard.permissions && underlyingCard.permissions[PERMISSION_EDIT_CARD] ? underlyingCard.permissions[PERMISSION_EDIT_CARD] : []), (updatedCard.permissions && updatedCard.permissions[PERMISSION_EDIT_CARD] ? updatedCard.permissions[PERMISSION_EDIT_CARD] : []));
 	if (editorAdditions.length) update.add_editors = editorAdditions;
@@ -452,13 +452,13 @@ export const applyCardDiff = (underlyingCard : Card, diff : CardDiff) : CardUpda
 		cardUpdateObject.flags = applyCardFlags(underlyingCard.flags ,diff.set_flags, diff.remove_flags);
 	}
 
-	if (diff.addTags || diff.removeTags) {
+	if (diff.add_tags || diff.remove_tags) {
 		let tags = underlyingCard.tags;
-		if (diff.removeTags) {
-			tags = arrayRemoveUtil(tags, diff.removeTags);
+		if (diff.remove_tags) {
+			tags = arrayRemoveUtil(tags, diff.remove_tags);
 		}
-		if (diff.addTags) {
-			tags = arrayUnionUtil(tags, diff.addTags);
+		if (diff.add_tags) {
+			tags = arrayUnionUtil(tags, diff.add_tags);
 		}
 		cardUpdateObject.tags = tags;
 	}
@@ -510,16 +510,16 @@ export const validateCardDiff = (state : State, underlyingCard : Card, diff : Ca
 		}
 	}
 
-	if (diff.addTags || diff.removeTags) {
-		if (diff.removeTags) {
-			for (const tag of diff.removeTags) {
+	if (diff.add_tags || diff.remove_tags) {
+		if (diff.remove_tags) {
+			for (const tag of diff.remove_tags) {
 				if (!getUserMayEditTag(state, tag)) {
 					throw new Error('User is not allowed to edit tag: ' + tag);
 				}
 			}
 		}
-		if (diff.addTags) {
-			for (const tag of diff.addTags) {
+		if (diff.add_tags) {
+			for (const tag of diff.add_tags) {
 				if (!getUserMayEditTag(state, tag)) {
 					throw new Error('User is not allowed to edit tag: ' + tag);
 				}

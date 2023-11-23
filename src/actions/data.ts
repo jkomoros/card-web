@@ -378,9 +378,9 @@ export const modifyCardWithBatch = (state : State, card : Card, update : CardDif
 		}
 	}
 
-	if (update.addTags && update.addTags.length) {
+	if (update.add_tags && update.add_tags.length) {
 		//Note: similar logic is replicated in createForkedCard
-		for (const tagName of update.addTags) {
+		for (const tagName of update.add_tags) {
 			const tagRef = doc(db, TAGS_COLLECTION, tagName);
 			const tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
 			const newTagObject = {
@@ -396,8 +396,8 @@ export const modifyCardWithBatch = (state : State, card : Card, update : CardDif
 		}
 	}
 
-	if (update.removeTags && update.removeTags.length) {
-		for (const tagName of update.removeTags) {
+	if (update.remove_tags && update.remove_tags.length) {
+		for (const tagName of update.remove_tags) {
 			const tagRef = doc(db, TAGS_COLLECTION, tagName);
 			const tagUpdateRef = doc(tagRef, TAG_UPDATES_COLLECTION, '' + Date.now());
 			const newTagObject = {

@@ -870,8 +870,8 @@ export interface CardDiff extends NonAutoMergeableCardDiff  {
 	remove_editors? : Uid[],
 	add_collaborators? : Uid[],
 	remove_collaborators? : Uid[],
-	addTags? : TagID[],
-	removeTags? : TagID[],
+	add_tags? : TagID[],
+	remove_tags? : TagID[],
 }
 
 export type SynonymMap = {
