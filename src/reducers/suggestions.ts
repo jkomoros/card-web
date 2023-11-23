@@ -5,7 +5,8 @@ import {
 	SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD,
 	SUGGESTIONS_CHANGE_SELECTED,
 	SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD,
-	SUGGESTIONS_SET_USE_LLMS
+	SUGGESTIONS_SET_USE_LLMS,
+	SUGGESTIONS_LOADING_FOR_CARD
 } from '../actions.js';
 
 import {
@@ -16,6 +17,7 @@ const INITIAL_STATE : SuggestionsState = {
 	open: false,
 	useLLMs: true,
 	selectedIndex: 0,
+	loadingForCard: {},
 	suggestionsForCard: {}
 };
 
@@ -31,13 +33,24 @@ const app = (state : SuggestionsState = INITIAL_STATE, action : SomeAction) : Su
 			...state,
 			open: false
 		};
+	case SUGGESTIONS_LOADING_FOR_CARD:
+		return {
+			...state,
+			loadingForCard: {
+				...state.loadingForCard,
+				[action.card]: true
+			}
+		};
 	case SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD:
+		const loadingForCard = {...state.loadingForCard};
+		delete loadingForCard[action.card];
 		return {
 			...state,
 			suggestionsForCard: {
 				...state.suggestionsForCard,
 				[action.card]: [...action.suggestions]
-			}
+			},
+			loadingForCard
 		};
 	case SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD:
 		const updatedSuggestions = [...(state.suggestionsForCard[action.card] || [])];

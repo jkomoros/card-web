@@ -5,7 +5,8 @@ import {
 	SomeAction,
 	SUGGESTIONS_CHANGE_SELECTED,
 	SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD,
-	SUGGESTIONS_SET_USE_LLMS
+	SUGGESTIONS_SET_USE_LLMS,
+	SUGGESTIONS_LOADING_FOR_CARD
 } from '../actions.js';
 
 import {
@@ -202,6 +203,10 @@ export const calculateSuggestionsForActiveCard = () : ThunkSomeAction => async (
 	//Only calculate new suggestions if panel is open.
 	//This makes it so the feature has low cost if the panel is not open.
 	if (!selectSuggestionsOpen(getState())) return;
+	dispatch({
+		type: SUGGESTIONS_LOADING_FOR_CARD,
+		card: card.id
+	});
 	//Every time a card is activated, kick off new suggestions. This is
 	//expensive but helps avoid the stale-suggestion case, but also more
 	//importantly the stale-no-suggestion case (where it concluded prviously
@@ -210,6 +215,7 @@ export const calculateSuggestionsForActiveCard = () : ThunkSomeAction => async (
 	//suggestions that were based on cards that have since changed are
 	//invalidated (but again, in that case you have the problem of
 	//not-suggestions that now would be suggestions))
+	//Note that suggestionsReplaceSuggestionsForCard will set the loading to false.
 	suggestionsForCard(card, getState()).then((newSuggestions) => dispatch(suggestionsReplaceSuggestionsForCard(card.id,newSuggestions)));
 };
 
