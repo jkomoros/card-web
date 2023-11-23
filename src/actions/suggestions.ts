@@ -51,16 +51,16 @@ import {
 	waitForCardToExist
 } from './data.js';
 
-export const suggestionsShowPanel = () : SomeAction => {
-	return {
+export const suggestionsShowPanel = () : ThunkSomeAction => (dispatch) => {
+	dispatch({
 		type: SUGGESTIONS_SHOW_PANEL,
-	};
+	});
 };
 
-export const suggestionsHidePanel = () : SomeAction => {
-	return {
+export const suggestionsHidePanel = () : ThunkSomeAction => (dispatch) => {
+	dispatch({
 		type: SUGGESTIONS_HIDE_PANEL,
-	};
+	});
 };
 
 export const suggestionsTogglePanel = () : ThunkSomeAction => (dispatch, getState) => {
