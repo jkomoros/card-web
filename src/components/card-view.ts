@@ -121,7 +121,6 @@ import './tag-list.js';
 import './comments-panel.js';
 import './card-info-panel.js';
 import './suggestions-viewer.js';
-import './suggestions-summary.js';
 
 import {
 	TODO_ALL_INFOS
@@ -188,13 +187,13 @@ import {
 	DisabledCardHighlightClickedEvent,
 	EditabledCardFieldUpdatedEvent,
 	ReorderCardEvent,
-	TagEvent,
 	ThumbnailTappedEvent,
 	UpdateRenderOffsetEvent
 } from '../events.js';
 
 import {
-	suggestionsActiveCardChanged, suggestionsChangeSelected, suggestionsShowPanel, suggestionsTogglePanel
+	suggestionsActiveCardChanged,
+	suggestionsTogglePanel
 } from '../actions/suggestions.js';
 
 @customElement('card-view')
@@ -485,7 +484,6 @@ class CardView extends connect(store)(PageViewElement) {
 				<div slot='tags'>
 					<tag-list .card=${this._displayCard} .hideOnEmpty=${true} .subtle=${true} .tags=${this._displayCard?.tags || []} .tagInfos=${this._tagInfos}></tag-list>
 					<tag-list .hideOnEmpty=${true} .tags=${this._cardTodos} .tagInfos=${TODO_ALL_INFOS}></tag-list>
-					<suggestions-summary .suggestions=${this._suggestionsForCard} @tag-tapped=${this._handleSuggestionTapped}></suggestions-summary>
 				</div>
           </card-stage>
 		  <suggestions-viewer></suggestions-viewer>
@@ -549,11 +547,6 @@ class CardView extends connect(store)(PageViewElement) {
 		if (!(ele instanceof HTMLInputElement)) throw new Error('not input element');
 		const on = ele.checked;
 		store.dispatch(turnSuggestMissingConcepts(on));
-	}
-
-	_handleSuggestionTapped(e : TagEvent) {
-		store.dispatch(suggestionsChangeSelected(e.detail.tag));
-		store.dispatch(suggestionsShowPanel());
 	}
 
 	_handleShowSuggestionsClicked() {
