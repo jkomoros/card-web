@@ -85,7 +85,8 @@ import {
 	Suggestion,
 	TagInfos,
 	SuggestionDiffCreateCard,
-	CardFlags
+	CardFlags,
+	ReferenceType
 } from './types.js';
 
 import {
@@ -112,9 +113,28 @@ const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
 import './components/tag-list.js';
 
 export const descriptionForReferencesDiff = (diff : ReferencesEntriesDiff, cardInfos : TagInfos) : TemplateResult[] => {
-	return diff.map(item => {
-		return html`${isExpandedReferenceDelete(item) ? 'Remove' : 'Add'} <strong>${item.referenceType}</strong> reference pointing to <tag-list .tags=${[item.cardID]} .tagInfos=${cardInfos} .tapEvents=${true} .inline=${true}></tag-list>`;
-	});
+	//For space, we'll combine the summary by similar reference types.
+	const cardsByReferenceTypeAdditions : {[ref in ReferenceType]+?: CardID[]} = {};
+	const cardsByReferenceTypeDeletions : {[ref in ReferenceType]+? : CardID[]} = {};
+	for (const item of diff) {
+		const map = isExpandedReferenceDelete(item) ? cardsByReferenceTypeDeletions : cardsByReferenceTypeAdditions;
+		let arr = map[item.referenceType];
+		if (!arr) {
+			arr = [];
+			map[item.referenceType] = arr;
+		}
+		arr.push(item.cardID);
+	}
+	const result : TemplateResult[] = [];
+	for (const [referenceType, cards] of TypedObject.entries(cardsByReferenceTypeAdditions)) {
+		if (!cards) continue;
+		result.push(html`Add <strong>${referenceType}</strong> reference${cards.length > 1 ? 's' : ''} pointing to <tag-list .tags=${cards} .tagInfos=${cardInfos} .tapEvents=${true} .inline=${true}></tag-list>`);
+	}
+	for (const [referenceType, cards] of TypedObject.entries(cardsByReferenceTypeDeletions)) {
+		if (!cards) continue;
+		result.push(html`Remove <strong>${referenceType}</strong> reference${cards.length > 1 ? 's' : ''} pointing to <tag-list .tags=${cards} .tagInfos=${cardInfos} .tapEvents=${true} .inline=${true}></tag-list>`);
+	}
+	return result;
 };
 
 export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos): TemplateResult[] => {
