@@ -194,7 +194,7 @@ import {
 } from '../events.js';
 
 import {
-	suggestionsActiveCardChanged, suggestionsChangeSelected, suggestionsShowPanel
+	suggestionsActiveCardChanged, suggestionsChangeSelected, suggestionsShowPanel, suggestionsTogglePanel
 } from '../actions/suggestions.js';
 
 @customElement('card-view')
@@ -338,6 +338,9 @@ class CardView extends connect(store)(PageViewElement) {
 	@state()
 		_suggestionsForCard : Suggestion[];
 
+	@state()
+		_suggestionsPanelOpen : boolean;
+
 	static override styles = [
 		ButtonSharedStyles,
 		SharedStyles,
@@ -472,7 +475,8 @@ class CardView extends connect(store)(PageViewElement) {
 					<button ?disabled=${this._collectionIsFallback} class='round ${this._cardHasStar ? 'selected' : ''} ${this._userMayStar ? '' : 'need-signin'}' @click='${this._handleStarClicked}'>${this._cardHasStar ? STAR_ICON : STAR_BORDER_ICON }</button>
 					<button ?disabled=${this._collectionIsFallback} class='round ${this._cardIsRead ? 'selected' : ''} ${this._userMayMarkRead ? '' : 'need-signin'}' @click='${this._handleReadClicked}'><div class='auto-read ${this._autoMarkReadPending ? 'pending' : ''}'></div>${VISIBILITY_ICON}</button>
 					<button class='round' ?hidden='${!this._userMayForkCard}' @click='${this._handleForkClicked}'>${FILE_COPY_ICON}</button>
-					<button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${EDIT_ICON}</button>
+					<button class='round ${this._suggestionsForCard.length ? 'selected' : ''}' ?hidden='${!this._userMayEdit}' @click=${this._handleShowSuggestionsClicked} title='Show Suggestions'>${AUTO_AWESOME_ICON}</button>
+					<button class='round' ?hidden='${!this._userMayEdit}' @click='${this._handleEditClicked}'>${EDIT_ICON}</button>					
 				</div>
 				<div slot='actions' class='next-prev'>
 					<button class='round' @click=${this._handleBackClicked}>${ARROW_BACK_ICON}</button>
@@ -550,6 +554,10 @@ class CardView extends connect(store)(PageViewElement) {
 	_handleSuggestionTapped(e : TagEvent) {
 		store.dispatch(suggestionsChangeSelected(e.detail.tag));
 		store.dispatch(suggestionsShowPanel());
+	}
+
+	_handleShowSuggestionsClicked() {
+		store.dispatch(suggestionsTogglePanel());
 	}
 
 	_handleTextFieldUpdated(e : EditabledCardFieldUpdatedEvent) {
@@ -710,6 +718,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._suggestMissingConceptsEnabled = selectSuggestMissingConceptsEnabled(state);
 		this._userIsAdmin = selectUserIsAdmin(state);
 		this._suggestionsForCard = selectSuggestionsForActiveCard(state);
+		this._suggestionsPanelOpen = selectSuggestionsOpen(state);
 
 		//selectEditingCardSuggestedConceptReferences is expensive so only do it if editing
 		this._suggestedConcepts = this._editing ? selectEditingCardSuggestedConceptReferences(state) : null;

@@ -16,6 +16,7 @@ import {
 	selectCardModificationError,
 	selectCards,
 	selectSuggestionsForCards,
+	selectSuggestionsOpen,
 	selectSuggestionsUseLLMs
 } from '../selectors.js';
 
@@ -60,6 +61,11 @@ export const suggestionsHidePanel = () : SomeAction => {
 	return {
 		type: SUGGESTIONS_HIDE_PANEL,
 	};
+};
+
+export const suggestionsTogglePanel = () : ThunkSomeAction => (dispatch, getState) => {
+	const open = selectSuggestionsOpen(getState());
+	dispatch(open ? suggestionsHidePanel() : suggestionsShowPanel());
 };
 
 export const suggestionsChangeSelected = (index : number | string) : SomeAction => {
