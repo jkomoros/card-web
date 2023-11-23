@@ -14,7 +14,7 @@ import {
 
 const INITIAL_STATE : SuggestionsState = {
 	open: false,
-	useLLMs: false,
+	useLLMs: true,
 	selectedIndex: 0,
 	suggestionsForCard: {}
 };
