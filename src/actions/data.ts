@@ -107,8 +107,6 @@ import {
 } from '../card_fields.js';
 
 import {
-	REFERENCES_CARD_PROPERTY,
-	REFERENCES_INFO_CARD_PROPERTY,
 	CARDS_COLLECTION,
 	CARD_UPDATES_COLLECTION,
 	SECTION_UPDATES_COLLECTION,
@@ -643,12 +641,12 @@ export const createTag = (name : TagID, displayName : string) : ThunkSomeAction 
 };
 
 //This omits fields that are already covered in defaultCardObject's arguments
-const CARD_FIELDS_TO_COPY_ON_FORK = {
+const CARD_FIELDS_TO_COPY_ON_FORK : Partial<Record<keyof Card, true>> = {
 	permissions: true,
 	title: true,
 	body: true,
-	[REFERENCES_INFO_CARD_PROPERTY]: true,
-	[REFERENCES_CARD_PROPERTY]: true,
+	references_info: true,
+	references: true,
 	font_size_boost: true,
 	notes: true,
 	todo: true,
@@ -956,7 +954,7 @@ export const createForkedCard = (cardToFork : Card | null) : ThunkSomeAction => 
 		//be sent to firestore and the actual card we'll store will be new
 		
 		//eslint-disable-next-line @typescript-eslint/no-explicit-any
-		newCard[key] = cardToFork[key] as any;
+		(newCard as any)[key] = cardToFork[key] as any;
 	}
 	//references accessor will copy the references on setting something
 	//If the card we're copying was itself a fork, we want to overwrite that otherwise it gets confusing.
