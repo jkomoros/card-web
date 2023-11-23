@@ -165,12 +165,13 @@ const descriptionForSuggestionDiff = (suggestion : Suggestion, diff : Suggestion
 };
 
 type SuggestionDescription = {
-	primary: TemplateResult,
+	primary?: TemplateResult,
 	alternate?: TemplateResult,
 	rejection?: TemplateResult
 };
 
-export const descriptionForSuggestion = (suggestion : Suggestion, cardInfos : TagInfos) : SuggestionDescription => {
+export const descriptionForSuggestion = (suggestion : Suggestion | undefined, cardInfos : TagInfos) : SuggestionDescription => {
+	if (!suggestion) return {};
 	const result : SuggestionDescription = {
 		primary: descriptionForSuggestionDiff(suggestion, suggestion.action, cardInfos),
 	};

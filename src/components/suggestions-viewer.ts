@@ -34,10 +34,6 @@ import {
 } from '../types.js';
 
 import {
-	CardID
-} from '../types_simple.js';
-
-import {
 	COLORS
 } from '../type_constants.js';
 
@@ -160,6 +156,14 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				margin: 0;
 			}
 
+			.empty {
+				width: 100%;
+				min-height: 6em;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+			}
+
 		`
 	];
 
@@ -168,16 +172,17 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		return this._suggestions[this._selectedIndex];
 	}
 
-	_modifiedTagInfos(keyCards : CardID[], supportingCards: CardID[]) : TagInfos {
+	_modifiedTagInfos(suggestion? : Suggestion) : TagInfos {
 		if (!this._tagInfosForCards) return {};
 		const result = {...this._tagInfosForCards};
-		for (const card of keyCards) {
+		if (!suggestion) return result;
+		for (const card of suggestion.keyCards) {
 			result[card] = {
 				...result[card],
 				color: KEY_CARD_COLOR
 			};
 		}
-		for (const card of supportingCards) {
+		for (const card of suggestion.supportingCards) {
 			result[card] = {
 				...result[card],
 				color: SUPPORTING_CARD_COLOR
@@ -199,11 +204,9 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 		const suggestion = this._selectedSuggestion;
 
-		if (!suggestion) return html`<em>No suggestions</em>`;
-
 		if (!card) return html`No card`;
 
-		const tagInfos = this._modifiedTagInfos(suggestion.keyCards, suggestion.supportingCards);
+		const tagInfos = this._modifiedTagInfos(suggestion);
 
 		const diffTemplates = descriptionForSuggestion(suggestion, tagInfos);
 
@@ -229,6 +232,8 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 					${CANCEL_ICON}
 				</button>
 			</div>
+			${diffTemplates.primary ? 
+		html`
 			<div class='row'>
 				${diffTemplates.primary}
 				<div class='flex'></div>
@@ -240,6 +245,9 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 							${CHECK_CIRCLE_OUTLINE_ICON}
 						</button>
 			</div>
+			` : 
+		html`<div class='empty'><em>No suggestions for this card</em></div>`
+}
 			${diffTemplates.alternate ? 
 		html`
 					<div class='row'>
