@@ -284,6 +284,7 @@ export const selectSuggestionsForCards = (state : State) => state.suggestions ? 
 export const selectSuggestionsSelectedIndex = (state : State) => state.suggestions ? state.suggestions.selectedIndex : 0;
 export const selectSuggestionsUseLLMs = (state : State) => state.suggestions ? state.suggestions.useLLMs : false;
 export const selectSuggestionsLoadingForCard = (state : State) => state.suggestions ? state.suggestions.loadingForCard : {};
+export const selectSuggestionsPending = (state : State) => state.suggestions ? state.suggestions.pending : false;
 
 export const selectAuthPending = (state : State) => state.user ? state.user.pending : false;
 //Note: this will return false unless stars have been loading, even if there is

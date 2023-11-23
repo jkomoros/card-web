@@ -1435,6 +1435,8 @@ export type SuggestionsState = {
 	//and the user has permission suggestors will be told to use them.
 	useLLMs: boolean,
 	selectedIndex: number,
+	//Whether a suggestion is being applied.
+	pending: boolean,
 	loadingForCard: {
 		[card: CardID] : true
 	},

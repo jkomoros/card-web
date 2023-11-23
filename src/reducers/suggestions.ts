@@ -6,7 +6,8 @@ import {
 	SUGGESTIONS_CHANGE_SELECTED,
 	SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD,
 	SUGGESTIONS_SET_USE_LLMS,
-	SUGGESTIONS_LOADING_FOR_CARD
+	SUGGESTIONS_LOADING_FOR_CARD,
+	SUGGESTIONS_SET_PENDING
 } from '../actions.js';
 
 import {
@@ -16,6 +17,7 @@ import {
 const INITIAL_STATE : SuggestionsState = {
 	open: false,
 	useLLMs: true,
+	pending: false,
 	selectedIndex: 0,
 	loadingForCard: {},
 	suggestionsForCard: {}
@@ -32,6 +34,11 @@ const app = (state : SuggestionsState = INITIAL_STATE, action : SomeAction) : Su
 		return {
 			...state,
 			open: false
+		};
+	case SUGGESTIONS_SET_PENDING:
+		return {
+			...state,
+			pending: action.pending
 		};
 	case SUGGESTIONS_LOADING_FOR_CARD:
 		return {

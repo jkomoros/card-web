@@ -6,7 +6,8 @@ import {
 	SUGGESTIONS_CHANGE_SELECTED,
 	SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD,
 	SUGGESTIONS_SET_USE_LLMS,
-	SUGGESTIONS_LOADING_FOR_CARD
+	SUGGESTIONS_LOADING_FOR_CARD,
+	SUGGESTIONS_SET_PENDING
 } from '../actions.js';
 
 import {
@@ -119,6 +120,11 @@ export const applySuggestion = (cardID : CardID, suggestionIndex : number, which
 	let supportingCards = suggestion.supportingCards;
 	let supportingCardsDiff = item.supportingCards;
 
+	dispatch({
+		type: SUGGESTIONS_SET_PENDING,
+		pending: true
+	});
+
 	if (item.createCard) {
 		//createCard will not check the validity of this id since it was
 		//recently vended from newID().
@@ -172,8 +178,6 @@ export const applySuggestion = (cardID : CardID, suggestionIndex : number, which
 
 	//TODO: wait for edit to complete?
 
-	if (suggestionIndex === undefined) return;
-
 	//Mark that suggestion as no longer valid.
 
 	//Fetch a fresh state
@@ -184,6 +188,10 @@ export const applySuggestion = (cardID : CardID, suggestionIndex : number, which
 		type: SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD,
 		card: cardID,
 		index: suggestionIndex
+	});
+	dispatch({
+		type: SUGGESTIONS_SET_PENDING,
+		pending: false
 	});
 };
 	
