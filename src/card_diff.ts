@@ -147,11 +147,11 @@ export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos):
 		}
 
 		if (key == 'set_flags') {
-			return TypedObject.entries(value as CardFlags).map(entry => html`Set flag ${entry[0]} to ${JSON.stringify(entry[1])}`);
+			return TypedObject.entries(value as CardFlags).map(entry => html`Set flag <strong>${entry[0]}</strong> to ${JSON.stringify(entry[1])}`);
 		}
 
 		if (key == 'remove_flags') {
-			return TypedObject.keys(value as CardFlags).map(key => html`Remove flag ${key}`);
+			return TypedObject.keys(value as CardFlags).map(key => html`Remove flag <strong>${key}</strong>`);
 		}
 
 		if (key == 'auto_todo_overrides_removals') {
@@ -167,7 +167,7 @@ export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos):
 		}
 
 		//TODO: handle non diffable fields
-		return [html`Set ${key} to ${JSON.stringify(value, null, '\t')}`];
+		return [html`Set <strong>${key}</strong> to ${JSON.stringify(value, null, '\t')}`];
 	}).flat();
 };
 
