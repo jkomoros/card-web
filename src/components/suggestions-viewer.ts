@@ -212,6 +212,10 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 		return html`<div class='container'>
 			<div class='row'>
+				${this._userMayUseAI ? 
+		html`<input type='checkbox' id='use-llm' .checked=${this._useLLMs} @change=${this._handleUseLLMsChanged}></input>
+		<label for='use-llm'>Enable LLM Suggestions</label>` :
+		''}
 				<div class='flex'></div>
 				<suggestions-summary
 					.suggestions=${this._suggestions}
@@ -220,10 +224,6 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				>
 				</suggestions-summary>
 				<div class='flex'></div>
-				${this._userMayUseAI ? 
-		html`<label for='use-llm'>Enable LLM Suggestions</label>
-						<input type='checkbox' id='use-llm' .checked=${this._useLLMs} @change=${this._handleUseLLMsChanged}></input>` :
-		''}
 				<button
 					class='small'
 					@click=${this._handleCloseClicked}
