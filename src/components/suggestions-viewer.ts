@@ -163,6 +163,10 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				align-items: center;
 			}
 
+			.separator {
+				border-top: 1px solid var(--app-divider-color);
+			}
+
 		`
 	];
 
@@ -253,7 +257,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 }
 			${diffTemplates.alternate ? 
 		html`
-					<div class='row suggestion'>
+					<div class='row suggestion separator'>
 						<div class='suggestion-text'>
 							${diffTemplates.alternate}
 						</div>
@@ -272,7 +276,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 }
 			${diffTemplates.rejection ? 
 		html`
-					<div class='row suggestion'>
+					<div class='row suggestion separator'>
 						<div class='suggestion-text'>
 							${diffTemplates.rejection}
 						</div>
