@@ -11,6 +11,7 @@ import {
 	selectActiveCard,
 	selectSuggestionsEffectiveSelectedIndex,
 	selectSuggestionsForActiveCard,
+	selectSuggestionsLoadingForCard,
 	selectSuggestionsOpen,
 	selectSuggestionsUseLLMs,
 	selectTagInfosForCards,
@@ -39,7 +40,8 @@ import {
 
 import {
 	CANCEL_ICON,
-	CHECK_CIRCLE_OUTLINE_ICON
+	CHECK_CIRCLE_OUTLINE_ICON,
+	REPEAT_ICON
 } from './my-icons.js';
 
 import {
@@ -63,6 +65,7 @@ import {
 
 import './suggestions-summary.js';
 import './tag-list.js';
+import { CardID } from '../types_simple.js';
 
 const KEY_CARD_COLOR = COLORS.DARK_GREEN;
 const SUPPORTING_CARD_COLOR = COLORS.NAVY;
@@ -85,6 +88,9 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 	@state()
 		_tagInfosForCards : TagInfos;
+
+	@state()
+		_loadingForCard: {[card : CardID]: true};
 
 	@state()
 		_useLLMs : boolean;
@@ -228,6 +234,10 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				>
 				</suggestions-summary>
 				<div class='flex'></div>
+				${this._loadingForCard && this._card && this._loadingForCard[this._card.id] ?
+		html`<button class='small' disabled title='Suggestions loading'>${REPEAT_ICON}</button>`:
+		''
+}
 				<button
 					class='small'
 					@click=${this._handleCloseClicked}
@@ -305,6 +315,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		this._tagInfosForCards = selectTagInfosForCards(state);
 		this._userMayUseAI = selectUserMayUseAI(state);
 		this._useLLMs = selectSuggestionsUseLLMs(state);
+		this._loadingForCard = selectSuggestionsLoadingForCard(state);
 	}
 
 	_handleSuggestionTapped(e : TagEvent) {
