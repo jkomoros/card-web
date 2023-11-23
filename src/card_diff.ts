@@ -19,7 +19,6 @@ import {
 
 import {
 	CARD_TYPE_CONFIGURATION,
-	NEW_CARD_ID_PLACEHOLDER,
 	TEXT_FIELD_CONFIGURATION,
 	fontSizeBoosts
 } from './card_fields.js';
@@ -176,8 +175,8 @@ const descriptionForSuggestionDiffCards = (cards: CardID[], diff : CardDiff, car
 	return html`For the card${cards.length > 1 ? 's' : ''} <tag-list .tags=${cards} .tagInfos=${cardInfos} .tapEvents=${true} .inline=${true}></tag-list> ${descriptionForCardDiff(diff, cardInfos).map(tmpl => html`${tmpl}. `)}`;
 };
 
-const descriptionForCreateCard = (diff : SuggestionDiffCreateCard, cardInfos : TagInfos) : TemplateResult => {
-	const mainPart = html`Create card <tag-list .tags=${[NEW_CARD_ID_PLACEHOLDER]} .tagInfos=${cardInfos} .tapEvents=${true} .inline=${true}></tag-list>`;
+const descriptionForCreateCard = (diff : SuggestionDiffCreateCard) : TemplateResult => {
+	const mainPart = html`Create card`;
 	const typePart = diff.card_type ? html` of type <strong>${diff.card_type}</strong>` : html``;
 	const titlePart = diff.title ? html` with title ${diff.title}` : html``;
 	//TODO: better summarizing, and some way to see full body.
@@ -187,7 +186,7 @@ const descriptionForCreateCard = (diff : SuggestionDiffCreateCard, cardInfos : T
 
 const descriptionForSuggestionDiff = (suggestion : Suggestion, diff : SuggestionDiff, cardInfos : TagInfos) : TemplateResult => {
 	//TODO: if createCard, then modify tagInfos too.
-	const newCardDiff = diff.createCard ? descriptionForCreateCard(diff.createCard, cardInfos) : html``;
+	const newCardDiff = diff.createCard ? descriptionForCreateCard(diff.createCard) : html``;
 	const keyCardsDiff = diff.keyCards ? descriptionForSuggestionDiffCards(suggestion.keyCards, diff.keyCards, cardInfos) : html``;
 	const supportingCardsDiff = diff.supportingCards ? descriptionForSuggestionDiffCards(suggestion.supportingCards, diff.supportingCards, cardInfos) : html``;
 	return html`${newCardDiff}${keyCardsDiff}${supportingCardsDiff}`;
