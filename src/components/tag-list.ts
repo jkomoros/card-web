@@ -106,6 +106,13 @@ class TagList  extends LitElement {
 	@property({ type : Object })
 		card: Card | null;
 
+	//By default hte tag-list has a display:block, which means it cannot occur
+	//as a peer to inline elements. This swaps it to an inline behavior. TODO:
+	//consider flipping the default to be inline:true and have an override for
+	//the old behavior, captured in issue #678.
+	@property({ type: Boolean })
+		inline: boolean;
+
 	static override styles = [
 		ButtonSharedStyles,
 		css`
@@ -114,6 +121,9 @@ class TagList  extends LitElement {
 			}
 			.editing select {
 				display:inline;
+			}
+			.inline {
+				display:inline-block;
 			}
 		`
 	];
@@ -132,7 +142,7 @@ class TagList  extends LitElement {
 		effectiveExcludeItems.forEach(item => excludeItemsAsMap[item] = true);
 		tagInfos = Object.fromEntries(Object.entries(tagInfos).filter(entry => !excludeItemsAsMap[entry[0]]));
 		return html`
-			<div class='${this.editing ? 'editing' : ''} ${this.subtle ? 'subtle' :''}'>
+			<div class='${this.editing ? 'editing' : ''} ${this.subtle ? 'subtle' :''} ${this.inline ? 'inline' : ''}'>
 			${allTags && allTags.length ?
 		allTags.map(item => html`<tag-chip .card=${this.card} .tagName=${item} .tagInfos=${this.tagInfos} .addition=${additions[item]} .deletion=${deletions[item]} .editing=${this.editing} .defaultColor=${this.defaultColor} .disabled=${this.disableTagIfMissingTagInfo && this.tagInfos && !this.tagInfos[item]} .disabledDescription=${this.disabledDescription || 'Disabled'} .tapEvents=${this.tapEvents} .subtle=${this.subtle || (this.subtleTags && this.subtleTags[item])}></tag-chip>`) :
 		(this.hideOnEmpty || this.hideMessageOnEmpty ? html`` : html`<em>No ${this.typeName.toLowerCase()}s</em>`)}
