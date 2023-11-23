@@ -220,6 +220,12 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 			title: 'New Card',
 			color: NEW_CARD_COLOR
 		};
+		if (this._card && result[this._card.id]) {
+			result[this._card.id] = {
+				...result[this._card.id],
+				title: 'Current Card'
+			};
+		}
 		return result;
 	}
 
