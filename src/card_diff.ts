@@ -181,7 +181,7 @@ const descriptionForSuggestionDiffCards = (cards: CardID[], diff : CardDiff, car
 };
 
 //At how many characters should we show?
-const BODY_SUMMARY_LENGTH = 100;
+const BODY_SUMMARY_LENGTH = 200;
 
 const descriptionForCreateCard = (diff : SuggestionDiffCreateCard) : TemplateResult => {
 	const mainPart = html`Create card`;
