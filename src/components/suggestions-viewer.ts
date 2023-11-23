@@ -132,6 +132,10 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				flex-direction: column;
 			}
 
+			.suggestion {
+				font-size: 0.9em;
+			}
+
 			.container.not-minimized {
 				position:absolute;
 			}
@@ -234,7 +238,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 			</div>
 			${diffTemplates.primary ? 
 		html`
-			<div class='row'>
+			<div class='row suggestion'>
 				${diffTemplates.primary}
 				<div class='flex'></div>
 				<button
@@ -250,7 +254,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 }
 			${diffTemplates.alternate ? 
 		html`
-					<div class='row'>
+					<div class='row suggestion'>
 						${diffTemplates.alternate}
 						<div class='flex'></div>
 						<button
@@ -265,7 +269,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 }
 			${diffTemplates.rejection ? 
 		html`
-					<div class='row'>
+					<div class='row suggestion'>
 						${diffTemplates.rejection}
 						<div class='flex'></div>
 						<button
