@@ -127,11 +127,6 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				justify-content: space-evenly;
 			}
 
-			.row > div {
-				display: flex;
-				flex-direction: column;
-			}
-
 			.suggestion {
 				font-size: 0.9em;
 			}
@@ -239,7 +234,9 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 			${diffTemplates.primary ? 
 		html`
 			<div class='row suggestion'>
-				${diffTemplates.primary}
+				<div class='suggestion-text'>
+					${diffTemplates.primary}
+				</div>
 				<div class='flex'></div>
 				<button
 							class='round primary'
@@ -255,7 +252,9 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 			${diffTemplates.alternate ? 
 		html`
 					<div class='row suggestion'>
-						${diffTemplates.alternate}
+						<div class='suggestion-text'>
+							${diffTemplates.alternate}
+						</div>
 						<div class='flex'></div>
 						<button
 								class='round'
@@ -270,7 +269,9 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 			${diffTemplates.rejection ? 
 		html`
 					<div class='row suggestion'>
-						${diffTemplates.rejection}
+						<div class='suggestion-text'>
+							${diffTemplates.rejection}
+						</div>
 						<div class='flex'></div>
 						<button
 								class='round'
