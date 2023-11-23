@@ -166,7 +166,7 @@ const VERBOSE = false;
 
 //This makes it so no suggestions are ever returned, effectively hiding the
 //feature. This allows development behind a guard.
-const DISABLE_SUGGESTIONS = true;
+const DISABLE_SUGGESTIONS = false;
 
 const devNull : Logger = {
 	//eslint-disable-next-line @typescript-eslint/no-empty-function
