@@ -149,7 +149,7 @@ const descriptionForSuggestionDiffCards = (cards: CardID[], diff : CardDiff, car
 
 const descriptionForCreateCard = (diff : SuggestionDiffCreateCard, cardInfos : TagInfos) : TemplateResult => {
 	const mainPart = html`Create card <tag-list .tags=${[NEW_CARD_ID_PLACEHOLDER]} .tagInfos=${cardInfos} .tapEvents=${true}></tag-list>`;
-	const typePart = diff.card_type ? html` of type ${diff.card_type}` : html``;
+	const typePart = diff.card_type ? html` of type <strong>${diff.card_type}</strong>` : html``;
 	const titlePart = diff.title ? html` with title ${diff.title}` : html``;
 	//TODO: better summarizing, and some way to see full body.
 	const bodyPart = diff.body ? html` with body "${diff.body.slice(0, 100)}"` : html``;
