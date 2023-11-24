@@ -189,7 +189,7 @@ export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 const VERBOSE = false;
 
 //This will stream results by passing an array of results, or null to signal no more will come.
-type StreamingSuggestionProvider = (result : Suggestion[] | null) => void;
+type StreamingSuggestionProvider = (partialResult : Suggestion[]) => void;
 
 const devNull : Logger = {
 	//eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -204,28 +204,18 @@ const devNull : Logger = {
 
 export const suggestionsForCard = async (card : ProcessedCard, state : State) : Promise<Suggestion[]> => {
 
-	let resolver : ((suggestions : Suggestion[]) => void) | null = null;
-
-	const resultPromise = new Promise<Suggestion[]>((resolve) => {
-		resolver = resolve;
-	});
-
 	const result : Suggestion[] = [];
 
-	const provider : StreamingSuggestionProvider = (suggestions) => {
-		if (suggestions === null) {
-			if (!resolver) throw new Error('No resolver');
-			resolver(result);
-			return;
-		}
-		result.push(...suggestions);
+	const provider = (partialSuggestions : Suggestion[]) => {
+		result.push(...partialSuggestions);
 	};
 
-	streamSuggestionsForCard(card, state, provider);
+	await streamSuggestionsForCard(card, state, provider);
 
-	return await resultPromise;
+	return result;
 };
 
+//The returned promise will be resolved when provider() has been called for all of the items it will be.
 export const streamSuggestionsForCard = async (card : ProcessedCard, state : State, provider : StreamingSuggestionProvider) : Promise<void> => {
 
 	const logger = VERBOSE ? console : devNull;
@@ -235,14 +225,12 @@ export const streamSuggestionsForCard = async (card : ProcessedCard, state : Sta
 	//Only suggest things for cards the user may actually edit.
 	if (!userMayEditCard(state, card.id)) {
 		logger.info('User may not edit card');
-		provider(null);
 		return;
 	}
 
 	if (!selectDataIsFullyLoaded(state)) {
 		//A lot of suggestions rely on having all cards.
 		logger.info('Data isn\'t fully loaded');
-		provider(null);
 		return;
 	}
 
@@ -273,7 +261,6 @@ export const streamSuggestionsForCard = async (card : ProcessedCard, state : Sta
 		provider(innerResult);
 	}
 
-	provider(null);
 	return;
 };
 
