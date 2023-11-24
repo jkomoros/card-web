@@ -1259,7 +1259,8 @@ export type SuggestionDiff = {
 export type SuggestionType = 'missing-see-also'
 	| 'dupe-of'
 	| 'synthesize-cluster'
-	| 'remove-priority';
+	| 'remove-priority'
+	| 'missing-concept-links';
 
 export type Suggestion = {
 	type: SuggestionType,

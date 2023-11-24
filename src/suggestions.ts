@@ -1,6 +1,7 @@
 import {
 	selectCards,
 	selectCollectionConstructorArguments,
+	selectConcepts,
 	selectDataIsFullyLoaded,
 	selectSuggestionsUseLLMs,
 	selectUid,
@@ -16,6 +17,7 @@ import {
 	ReferenceType,
 	ReferencesEntriesDiffItem,
 	State,
+	StringCardMap,
 	Suggestion,
 	SuggestionType,
 	TagInfo,
@@ -28,16 +30,20 @@ import {
 } from './types_simple.js';
 
 import {
-	suggestMissingSeeAlso
-} from './suggestions/missing-see-also.js';
-
-import {
 	TypedObject
 } from './typed_object.js';
 
 import {
 	memoize
 } from './memoize.js';
+
+import {
+	COLORS
+} from './type_constants.js';
+
+import {
+	suggestMissingSeeAlso
+} from './suggestions/missing-see-also.js';
 
 import {
 	suggestDupeOf
@@ -50,7 +56,10 @@ import {
 import {
 	removePriority
 } from './suggestions/remove-priority.js';
-import { COLORS } from './type_constants.js';
+
+import {
+	missingConceptLinks
+} from './suggestions/missing-concept-links.js';
 
 export const makeReferenceSuggestion = (type : SuggestionType, keyCards: CardID | CardID[], otherCards: CardID | CardID[], referenceType : ReferenceType, reverse = false) : Suggestion => {
 	//TODO: it's kind of finicky to have to keep track of which ID is which... shouldn't the actions have a sentinel for each that is overriden before being executed?
@@ -143,6 +152,7 @@ export type SuggestorArgs = {
 	cards: ProcessedCards,
 	collectionArguments: CollectionConstructorArguments,
 	uid: Uid,
+	concepts: StringCardMap,
 	//Whether it's OK to use LLMs for suggestions. It will be true IFF LLMs are
 	//configured in this instance and it's OK to use them.
 	useLLMs: boolean
@@ -174,6 +184,11 @@ export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 		generator: removePriority,
 		title: 'Remove Prioritized',
 		color: COLORS.DARK_MAGENTA
+	},
+	'missing-concept-links': {
+		generator: missingConceptLinks,
+		title: 'Missing Concepts',
+		color: COLORS.DARK_KHAKI
 	}
 };
 
@@ -218,6 +233,7 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 			keyCardID: card.id
 		},
 		logger,
+		concepts: selectConcepts(state),
 		uid: selectUid(state),
 		useLLMs: selectUserMayUseAI(state) && selectSuggestionsUseLLMs(state)
 	};
