@@ -138,7 +138,6 @@ export const descriptionForReferencesDiff = (diff : ReferencesEntriesDiff, cardI
 };
 
 export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos): TemplateResult[] => {
-	//TODO: do a much prettier job
 	return TypedObject.entries(update).map(entry => {
 		const key = entry[0];
 		const value = entry[1];
