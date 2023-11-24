@@ -30,7 +30,7 @@ import {
 } from '../store.js';
 
 import {
-	suggestionsForCard
+	streamSuggestionsForCard
 } from '../suggestions.js';
 
 import {
@@ -228,8 +228,18 @@ export const calculateSuggestionsForActiveCard = () : ThunkSomeAction => async (
 	//suggestions that were based on cards that have since changed are
 	//invalidated (but again, in that case you have the problem of
 	//not-suggestions that now would be suggestions))
-	//Note that suggestionsReplaceSuggestionsForCard will set the loading to false.
-	suggestionsForCard(card, getState()).then((newSuggestions) => dispatch(suggestionsReplaceSuggestionsForCard(card.id,newSuggestions, true)));
+
+	//We're going to stream suggestions. That means we're responsible for
+	//setting the loading to false by calling final.
+	let firstSuggestionsReceived = false;
+	const provider = (partialSuggestions : Suggestion[]) => {
+		//the first time we get partialSuggestions, replace what was there.
+		dispatch(suggestionsReplaceSuggestionsForCard(card.id, partialSuggestions, false, firstSuggestionsReceived));
+		//All future times, extend.
+		firstSuggestionsReceived = true;
+	};
+	//Kick off the suggestions and also the finalizer
+	streamSuggestionsForCard(card, getState(), provider).then(() => dispatch(suggestionsReplaceSuggestionsForCard(card.id, [], true, true)));
 };
 
 export const suggestionsSetUseLLMs = (useLLMs : boolean) : ThunkSomeAction => (dispatch, getState) => {
