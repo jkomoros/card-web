@@ -49,7 +49,7 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 		return {
 			...state,
 			requestedCard: action.requestedCard,
-			activeCardId: action.card,
+			activeCardID: action.card,
 		};
 	case UPDATE_RENDER_OFFSET:
 		return {

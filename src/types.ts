@@ -1184,7 +1184,7 @@ export type CollectionState = {
 	requestedCard: CardID,
 	//the fully resolved literal ID of the active card (not slug, not special
 	//placeholder).
-	activeCardId: CardID,
+	activeCardID: CardID,
 	//The sale for the random sort, which should stay the same within a session (so
 	//the sort order doesn't change randomly) but be different across sessions.
 	randomSalt: string,

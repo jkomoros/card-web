@@ -70,7 +70,7 @@ import {
 	selectUserMayCreateCard,
 	selectPendingNewCardIDToNavigateTo,
 	selectIsEditing,
-	selectActiveCardId,
+	selectActiveCardID,
 	getReasonUserMayNotDeleteCard,
 	selectExpectedDeletions,
 	selectCardModificationPending,
@@ -776,7 +776,7 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 
 	let sortOrder = selectSortOrderForGlobalAppend(state);
 	if (section && selectActiveSectionId(state) == section) {
-		sortOrder = getSortOrderImmediatelyAdjacentToCard(state, selectActiveCardId(state), false);
+		sortOrder = getSortOrderImmediatelyAdjacentToCard(state, selectActiveCardID(state), false);
 	}
 
 	if (sortOrderIsDangerous(sortOrder)) {
@@ -1095,7 +1095,7 @@ export const deleteCard = (card : Card) : ThunkSomeAction => async (dispatch, ge
 		dispatch(editingFinish());
 	}
 
-	if (selectActiveCardId(state) == card.id) {
+	if (selectActiveCardID(state) == card.id) {
 		//If we're currently selected, then when we're deleted it will say 'no card found'.
 		dispatch(navigateToNextCard());
 	}

@@ -29,7 +29,7 @@ import {
 	getCard,
 	selectDataIsFullyLoaded,
 	selectActiveCollectionCards,
-	selectActiveCardId,
+	selectActiveCardID,
 	selectActiveSectionId,
 	selectRequestedCard,
 	selectActiveCard,
@@ -369,7 +369,7 @@ export const showCard = (requestedCard : CardID = PLACEHOLDER_CARD_ID_CHARACTER)
 
 	let cardId = getIdForCard(state, requestedCard);
 	//If it'll be a no op don't worry about it.
-	if (selectActiveCardId(state) == cardId) {
+	if (selectActiveCardID(state) == cardId) {
 		dispatch(redirectIfInvalidCardOrCollection());
 		return;
 	}

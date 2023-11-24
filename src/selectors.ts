@@ -212,7 +212,7 @@ const selectActiveSortReversed = (state : State) => state.collection ? state.col
 const selectActiveViewMode = (state : State) : ViewMode => state.collection ? state.collection.activeViewMode : 'list';
 const selectActiveViewModeExtra = (state : State) => state.collection ? state.collection.activeViewModeExtra : '';
 export const selectRequestedCard = (state : State) => state.collection? state.collection.requestedCard : '';
-export const selectActiveCardId = (state : State) => state.collection ? state.collection.activeCardId : '';
+export const selectActiveCardID = (state : State) => state.collection ? state.collection.activeCardID : '';
 const selectRandomSalt = (state : State) => state.collection ? state.collection.randomSalt : '';
 //Note that the editing card doesn't have nlp/normalized text properties set. If
 //you want the one with that, look at selectEditingNormalizedCard.
@@ -413,7 +413,7 @@ export const selectAuthorAndCollaboratorUserIDs = createSelector(
 
 export const selectActiveCard = createSelector(
 	selectCards,
-	selectActiveCardId,
+	selectActiveCardID,
 	(cards : ProcessedCards, activeCard : CardID ) : ProcessedCard | null => cards[activeCard] || null
 );
 
@@ -553,7 +553,7 @@ export const userMayEditCard = (state : State, cardID : CardID) : boolean => sel
 
 export const selectUserMayEditActiveCard = createSelector(
 	selectCardIDsUserMayEdit,
-	selectActiveCardId,
+	selectActiveCardID,
 	(editableCardIDs : CardBooleanMap, cardID : CardID) : boolean => editableCardIDs[cardID] || false
 );
 
@@ -1004,7 +1004,7 @@ export const selectBadgeMap = createSelector(
 //TODO: once factoring the composed threads selctors into this file, refactor
 //this to just select the composed threads.
 export const selectActiveCardThreadIds = createSelector(
-	selectActiveCardId,
+	selectActiveCardID,
 	selectThreads,
 	(cardId, rawThreads) => {
 		const threads = rawThreads || {};
@@ -1567,7 +1567,7 @@ export const selectActiveCollectionCards = createSelector(
 );
 
 export const selectActiveCardIndex = createSelector(
-	selectActiveCardId,
+	selectActiveCardID,
 	selectActiveCollectionCards,
 	(cardId, collection) => collection.map(card => card.id).indexOf(cardId)
 );
@@ -1605,7 +1605,7 @@ export const selectCollectionDescriptionForQuery = createSelector(
 	selectActiveQueryText,
 	selectFindCardTypeFilter,
 	selectFindSortByRecent,
-	selectActiveCardId,
+	selectActiveCardID,
 	selectFindGeneric,
 	(queryText, cardTypeFilter, sortByRecent, cardID, generic) => {
 		const wordsAndFilters = extractFiltersFromQuery(queryText);

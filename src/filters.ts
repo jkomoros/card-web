@@ -1841,7 +1841,7 @@ export const INITIAL_STATE : CollectionState = {
 	filters: INITIAL_STATE_FILTERS,
 	filtersSnapshot: INITIAL_STATE_FILTERS,
 	requestedCard: '',
-	activeCardId: '',
+	activeCardID: '',
 	randomSalt: randomString(16),
 	activeRenderOffset: 0,
 };
