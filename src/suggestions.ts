@@ -261,6 +261,7 @@ export const streamSuggestionsForCard = async (card : ProcessedCard, state : Sta
 
 	for (const [name, suggestor] of TypedObject.entries(SUGGESTORS)) {
 		logger.info(`Starting suggestor ${name}`);
+		//TODO: run these in parallel.
 		const innerResult = await suggestor.generator({
 			...args,
 			type: name
