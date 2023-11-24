@@ -812,7 +812,9 @@ type ActionSuggestionsChangeSelected = {
 type ActionSuggestionsReplaceSuggestionsForCard = {
 	type: typeof SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD,
 	card: CardID,
-	suggestions: Suggestion[]
+	suggestions: Suggestion[],
+	//If true, will not replace the suggestions that are there but extend them.
+	extend: boolean
 };
 
 type ActionSuggestionsRemoveSuggestionForCard = {

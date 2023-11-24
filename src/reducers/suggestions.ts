@@ -57,11 +57,12 @@ const app = (state : SuggestionsState = INITIAL_STATE, action : SomeAction) : Su
 	case SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD:
 		const loadingForCard = {...state.loadingForCard};
 		delete loadingForCard[action.card];
+		const existing = action.extend ? state.suggestionsForCard[action.card] || [] : [];
 		return {
 			...state,
 			suggestionsForCard: {
 				...state.suggestionsForCard,
-				[action.card]: [...action.suggestions]
+				[action.card]: [...existing, ...action.suggestions]
 			},
 			loadingForCard
 		};

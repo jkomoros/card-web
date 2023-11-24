@@ -199,11 +199,12 @@ export const applySuggestion = (cardID : CardID, suggestionIndex : number, which
 };
 	
 
-const suggestionsReplaceSuggestionsForCard = (card : CardID, suggestions: Suggestion[]) : SomeAction => {
+const suggestionsReplaceSuggestionsForCard = (card : CardID, suggestions: Suggestion[], extend = false) : SomeAction => {
 	return {
 		type: SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD,
 		card,
-		suggestions
+		suggestions,
+		extend
 	};
 };
 
