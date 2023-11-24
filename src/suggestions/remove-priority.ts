@@ -38,9 +38,15 @@ const comparisonResultSchema = z.object({
 
 type ComparisonResult = z.infer<typeof comparisonResultSchema>;
 
+export const pickBetterCard = (result : ComparisonResult) : 'a' | 'b' | 'unknown' => {
+	if (result.better_written == 'a' && result.more_substantive == 'a') return 'a';
+	if (result.better_written != result.more_substantive) return 'unknown';
+	return 'b';
+};
+
 //If a or b is a Card, then it will extract the content. If it's a string, it
 //assumes it's already the cardPlainContent.
-const chooseBetterCardWithAI = async (a : Card | string, b : Card | string, uid : string, logger : Logger) : Promise<ComparisonResult> => {
+export const chooseBetterCardWithAI = async (a : Card | string, b : Card | string, uid : string, logger : Logger) : Promise<ComparisonResult> => {
 	if (typeof a != 'string') a = cardPlainContent(a);
 	if (typeof b != 'string') b = cardPlainContent(b);
 	const model = DEFAULT_LONG_MODEL;
