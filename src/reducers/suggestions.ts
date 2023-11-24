@@ -55,8 +55,12 @@ const app = (state : SuggestionsState = INITIAL_STATE, action : SomeAction) : Su
 			}
 		};
 	case SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD:
-		const loadingForCard = {...state.loadingForCard};
-		delete loadingForCard[action.card];
+		let loadingForCard = state.loadingForCard;
+		if (action.final) {
+			//Only change the object if we'll be changing part o fit.
+			loadingForCard = {...state.loadingForCard};
+			delete loadingForCard[action.card];
+		}
 		const existing = action.extend ? state.suggestionsForCard[action.card] || [] : [];
 		return {
 			...state,

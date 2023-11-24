@@ -813,6 +813,8 @@ type ActionSuggestionsReplaceSuggestionsForCard = {
 	type: typeof SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD,
 	card: CardID,
 	suggestions: Suggestion[],
+	//Unless final is true, will not be marked as done loading for this card.
+	final: boolean,
 	//If true, will not replace the suggestions that are there but extend them.
 	extend: boolean
 };

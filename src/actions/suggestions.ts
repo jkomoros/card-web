@@ -199,12 +199,13 @@ export const applySuggestion = (cardID : CardID, suggestionIndex : number, which
 };
 	
 
-const suggestionsReplaceSuggestionsForCard = (card : CardID, suggestions: Suggestion[], extend = false) : SomeAction => {
+const suggestionsReplaceSuggestionsForCard = (card : CardID, suggestions: Suggestion[], final : boolean, extend = false) : SomeAction => {
 	return {
 		type: SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD,
 		card,
 		suggestions,
-		extend
+		extend,
+		final
 	};
 };
 
@@ -228,7 +229,7 @@ export const calculateSuggestionsForActiveCard = () : ThunkSomeAction => async (
 	//invalidated (but again, in that case you have the problem of
 	//not-suggestions that now would be suggestions))
 	//Note that suggestionsReplaceSuggestionsForCard will set the loading to false.
-	suggestionsForCard(card, getState()).then((newSuggestions) => dispatch(suggestionsReplaceSuggestionsForCard(card.id,newSuggestions)));
+	suggestionsForCard(card, getState()).then((newSuggestions) => dispatch(suggestionsReplaceSuggestionsForCard(card.id,newSuggestions, true)));
 };
 
 export const suggestionsSetUseLLMs = (useLLMs : boolean) : ThunkSomeAction => (dispatch, getState) => {
