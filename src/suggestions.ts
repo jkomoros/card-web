@@ -188,6 +188,9 @@ export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 
 const VERBOSE = false;
 
+//This will stream results by passing an array of results, or null to signal no more will come.
+type StreamingSuggestionProvider = (result : Suggestion[] | null) => void;
+
 const devNull : Logger = {
 	//eslint-disable-next-line @typescript-eslint/no-empty-function
 	log: () => {},
@@ -201,7 +204,29 @@ const devNull : Logger = {
 
 export const suggestionsForCard = async (card : ProcessedCard, state : State) : Promise<Suggestion[]> => {
 
+	let resolver : ((suggestions : Suggestion[]) => void) | null = null;
+
+	const resultPromise = new Promise<Suggestion[]>((resolve) => {
+		resolver = resolve;
+	});
+
 	const result : Suggestion[] = [];
+
+	const provider : StreamingSuggestionProvider = (suggestions) => {
+		if (suggestions === null) {
+			if (!resolver) throw new Error('No resolver');
+			resolver(result);
+			return;
+		}
+		result.push(...suggestions);
+	};
+
+	streamSuggestionsForCard(card, state, provider);
+
+	return await resultPromise;
+};
+
+export const streamSuggestionsForCard = async (card : ProcessedCard, state : State, provider : StreamingSuggestionProvider) : Promise<void> => {
 
 	const logger = VERBOSE ? console : devNull;
 
@@ -210,13 +235,15 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 	//Only suggest things for cards the user may actually edit.
 	if (!userMayEditCard(state, card.id)) {
 		logger.info('User may not edit card');
-		return [];
+		provider(null);
+		return;
 	}
 
 	if (!selectDataIsFullyLoaded(state)) {
 		//A lot of suggestions rely on having all cards.
 		logger.info('Data isn\'t fully loaded');
-		return [];
+		provider(null);
+		return;
 	}
 
 	const args : Omit<SuggestorArgs, 'type'> = {
@@ -240,10 +267,13 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 		});
 		logger.info(`Suggestor ${name} returned ${JSON.stringify(innerResult, null, '\t')}`);
 		if (!innerResult) continue;
-		result.push(...innerResult);
+		//Don't reset results until we have one to show.
+		if (innerResult.length == 0) continue;
+		provider(innerResult);
 	}
 
-	return result;
+	provider(null);
+	return;
 };
 
 export const tagInfosForSuggestions = memoize((suggestions : Suggestion[]) : TagInfos => {
