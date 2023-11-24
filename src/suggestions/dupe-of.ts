@@ -91,6 +91,7 @@ export const suggestDupeOf = async (args: SuggestorArgs) : Promise<Suggestion[]>
 
 		logger.info('Suggesting this as a card');
 		const suggestion = makeReferenceSuggestion(type, card.id, topCard.id, 'dupe-of', reverse);
+		//TODO: remove prioirty from whichever card is the other.
 		result.push(suggestion);
 	}
 	return result;
