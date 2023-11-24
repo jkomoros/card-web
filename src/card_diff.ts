@@ -86,7 +86,8 @@ import {
 	TagInfos,
 	SuggestionDiffCreateCard,
 	CardFlags,
-	ReferenceType
+	ReferenceType,
+	TagID
 } from './types.js';
 
 import {
@@ -152,6 +153,14 @@ export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos):
 
 		if (key == 'remove_flags') {
 			return TypedObject.keys(value as CardFlags).map(key => html`Remove flag <strong>${key}</strong>`);
+		}
+
+		if (key == 'add_tags') {
+			return (value as TagID[]).map(key => html`Add tag <strong>${key}</strong>`);
+		}
+
+		if (key == 'remove_tags') {
+			return (value as TagID[]).map(key => html`Remove tag <strong>${key}</strong>`); 
 		}
 
 		if (key == 'auto_todo_overrides_removals') {
