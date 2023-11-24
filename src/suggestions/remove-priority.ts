@@ -17,6 +17,7 @@ import {
 } from '../suggestions.js';
 
 import {
+	Card,
 	Logger,
 	Suggestion
 } from '../types.js';
@@ -37,15 +38,19 @@ const comparisonResultSchema = z.object({
 
 type ComparisonResult = z.infer<typeof comparisonResultSchema>;
 
-const chooseBetterCardWithAI = async (aContent : string, bContent : string, uid : string, logger : Logger) : Promise<ComparisonResult> => {
+//If a or b is a Card, then it will extract the content. If it's a string, it
+//assumes it's already the cardPlainContent.
+const chooseBetterCardWithAI = async (a : Card | string, b : Card | string, uid : string, logger : Logger) : Promise<ComparisonResult> => {
+	if (typeof a != 'string') a = cardPlainContent(a);
+	if (typeof b != 'string') b = cardPlainContent(b);
 	const model = DEFAULT_LONG_MODEL;
 	//TODO: use function calling?
 	const prompt = `The following are two essays:
 	Essay A:
-	${aContent}
+	${a}
 	-----
 	Essay B:
-	${bContent}
+	${b}
 	-----
 	Compare which essay is better by being more substantive, and also better written (flows the best, stands on its own, not just a rough thought).
 	Return ONLY JSON (no other text!) matching the following TypeScript schema:
