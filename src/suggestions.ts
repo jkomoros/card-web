@@ -9,6 +9,7 @@ import {
 } from './selectors.js';
 
 import {
+	CSSColorString,
 	CollectionConstructorArguments,
 	ProcessedCard,
 	ProcessedCards,
@@ -17,6 +18,7 @@ import {
 	State,
 	Suggestion,
 	SuggestionType,
+	TagInfo,
 	TagInfos,
 	Uid
 } from './types.js';
@@ -48,6 +50,7 @@ import {
 import {
 	removePriority
 } from './suggestions/remove-priority.js';
+import { COLORS } from './type_constants.js';
 
 export const makeReferenceSuggestion = (type : SuggestionType, keyCards: CardID | CardID[], otherCards: CardID | CardID[], referenceType : ReferenceType, reverse = false) : Suggestion => {
 	//TODO: it's kind of finicky to have to keep track of which ID is which... shouldn't the actions have a sentinel for each that is overriden before being executed?
@@ -147,26 +150,30 @@ export type SuggestorArgs = {
 
 type Suggestor = {
 	generator: (args: SuggestorArgs) => Promise<Suggestion[]>,
-	title: string
+	title: string,
+	color: CSSColorString
 }
 
 export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
-	//TODO: one to remove priority for near dupes
 	'dupe-of': {
 		generator: suggestDupeOf,
-		title: 'Duplicate Of'
+		title: 'Duplicate Of',
+		color: COLORS.DARK_CYAN
 	},
 	'missing-see-also': {
 		generator: suggestMissingSeeAlso,
-		title: 'Missing See Also'
+		title: 'Missing See Also',
+		color: COLORS.DARK_GREEN
 	},
 	'synthesize-cluster': {
 		generator: synthesizeCluster,
-		title: 'Synthesize Cluster'
+		title: 'Synthesize Cluster',
+		color: COLORS.FIRE_BRICK
 	},
 	'remove-priority': {
 		generator: removePriority,
-		title: 'Remove Prioritized'
+		title: 'Remove Prioritized',
+		color: COLORS.DARK_MAGENTA
 	}
 };
 
@@ -230,12 +237,13 @@ export const suggestionsForCard = async (card : ProcessedCard, state : State) : 
 };
 
 export const tagInfosForSuggestions = memoize((suggestions : Suggestion[]) : TagInfos => {
-	return Object.fromEntries(suggestions.map((suggestion, index) => {
+	return Object.fromEntries(suggestions.map((suggestion : Suggestion, index : number) : [string, TagInfo] => {
 		const suggestorInfo = SUGGESTORS[suggestion.type];
 		const id = String(index);
 		return [id, {
 			id,
-			title: suggestorInfo.title
+			title: suggestorInfo.title,
+			color: suggestorInfo.color
 		}];
 	}));
 });
