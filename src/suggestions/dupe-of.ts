@@ -26,13 +26,14 @@ import {
 import {
 	Suggestion
 } from '../types.js';
+import { chooseBetterCardWithAI, pickBetterCard } from './remove-priority.js';
 
 //Set by looking at a few examples
 const DUPLICATE_CUT_OFF = 0.97;
 
 //TODO: this is largely recreated in missing-see-also
 export const suggestDupeOf = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
-	const {type, card, collectionArguments, logger} = args;
+	const {type, card, collectionArguments, logger, useLLMs, uid} = args;
 	const description = collectionDescription(...SIMILAR_SAME_TYPE);
 	const collection = await waitForFinalCollection(description, {keyCardID: collectionArguments.keyCardID});
 	const topCards = collection.finalSortedCards;
@@ -67,6 +68,25 @@ export const suggestDupeOf = async (args: SuggestorArgs) : Promise<Suggestion[]>
 			logger.info('Flipping which card is priority because the other card is prioritized and this one isn\'t');
 			//If the other card is prioritized and this one isn't, then reverse suggestions.
 			reverse = true;
+		}
+
+		if (useLLMs) {
+			logger.info('Asking AI for its opinion on which card is better');
+			const result = pickBetterCard(await chooseBetterCardWithAI(card, topCard, uid, logger));
+			switch (result) {
+			case 'a':
+				logger.info('Picking key card because of AI\'s decision on which is better');
+				reverse = false;
+				break;
+			case 'b':
+				logger.info('Picking other card because of AI\'s decision on which is better');
+				reverse = true;
+				break;
+			case 'unknown':
+				logger.info('It was a draw which one was better.');
+				//Whatever it was is fine.
+				break;
+			}
 		}
 
 		logger.info('Suggesting this as a card');
