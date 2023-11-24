@@ -257,11 +257,11 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 					@tag-tapped=${this._handleSuggestionTapped}
 				>
 				</suggestions-summary>
-				<div class='flex'></div>
 				${this._loadingForCard && this._card && this._loadingForCard[this._card.id] ?
 		html`<button class='small' disabled title='Suggestions loading'>${REPEAT_ICON}</button>`:
 		''
 }
+				<div class='flex'></div>
 				<button
 					class='small'
 					@click=${this._handleCloseClicked}
