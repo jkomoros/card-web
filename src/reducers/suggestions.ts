@@ -7,7 +7,8 @@ import {
 	SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD,
 	SUGGESTIONS_SET_USE_LLMS,
 	SUGGESTIONS_LOADING_FOR_CARD,
-	SUGGESTIONS_SET_PENDING
+	SUGGESTIONS_SET_PENDING,
+	SHOW_CARD
 } from '../actions.js';
 
 import {
@@ -25,6 +26,11 @@ const INITIAL_STATE : SuggestionsState = {
 
 const app = (state : SuggestionsState = INITIAL_STATE, action : SomeAction) : SuggestionsState => {
 	switch (action.type) {
+	case SHOW_CARD:
+		return {
+			...state,
+			selectedIndex: 0
+		};
 	case SUGGESTIONS_SHOW_PANEL: 
 		return {
 			...state,
