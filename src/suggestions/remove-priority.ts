@@ -7,6 +7,7 @@ import {
 	collectionDescription,
 	referencesFilter
 } from '../filters.js';
+import { references } from '../references.js';
 
 import {
 	SuggestorArgs
@@ -42,9 +43,30 @@ export const removePriority = async (args: SuggestorArgs) : Promise<Suggestion[]
 		logger.info('Card was not prioritized');
 		return [];
 	}
-	//TODO: a stable sort (by card_id?) so the caching of prompts works.
+
 	//dupe-of SHOULD be rare, because the dupe-of suggestor should remove priortiy already.
-	const description = collectionDescription(referencesFilter('both', ['see-also', 'dupe-of']));
+	const refs = references(card);
+	if (refs.byType['dupe-of']) {
+		const otherCards = refs.byTypeArray()['dupe-of'];
+		if (!otherCards) throw new Error('Unexpectedly no dupe-of cards');
+		logger.info(`Card is dupe-of ${otherCards.join(', ')}`);
+		//It doesn't matter if the other cards are priortized; dupe-of should
+		//never be prioritized.
+		return [{
+			type,
+			keyCards: [card.id],
+			supportingCards: otherCards,
+			action: {
+				keyCards: {
+					auto_todo_overrides_removals: ['prioritized']
+				}
+			}
+		}];
+	}
+	//TODO: we likely don't need the whole collectionDescription here and can just use references.
+
+	//TODO: a stable sort (by card_id?) so the caching of prompts works.
+	const description = collectionDescription(referencesFilter('both', 'see-also'));
 	const collection = description.collection(collectionArguments);
 	//TODO: figure out a way so that we don't duplicate basically the exact same
 	//suggestion each time anyone visits any of the clique cards. Perhaps sort
