@@ -1256,7 +1256,10 @@ export type SuggestionDiff = {
 	supportingCards: CardDiff
 };
 
-export type SuggestionType = 'missing-see-also' | 'dupe-of' | 'synthesize-cluster';
+export type SuggestionType = 'missing-see-also'
+	| 'dupe-of'
+	| 'synthesize-cluster'
+	| 'remove-priority';
 
 export type Suggestion = {
 	type: SuggestionType,

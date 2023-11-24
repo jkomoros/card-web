@@ -45,6 +45,10 @@ import {
 	synthesizeCluster
 } from './suggestions/synthesize-cluster.js';
 
+import {
+	removePriority
+} from './suggestions/remove-priority.js';
+
 export const makeReferenceSuggestion = (type : SuggestionType, keyCards: CardID | CardID[], otherCards: CardID | CardID[], referenceType : ReferenceType, reverse = false) : Suggestion => {
 	//TODO: it's kind of finicky to have to keep track of which ID is which... shouldn't the actions have a sentinel for each that is overriden before being executed?
 
@@ -159,6 +163,10 @@ export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 	'synthesize-cluster': {
 		generator: synthesizeCluster,
 		title: 'Synthesize Cluster'
+	},
+	'remove-priority': {
+		generator: removePriority,
+		title: 'Remove Prioritized'
 	}
 };
 
