@@ -12,6 +12,7 @@ import {
 import {
 	CSSColorString,
 	CollectionConstructorArguments,
+	Logger,
 	ProcessedCard,
 	ProcessedCards,
 	ReferenceType,
@@ -135,13 +136,6 @@ export const makeReferenceSuggestion = (type : SuggestionType, keyCards: CardID 
 		}
 	};
 };
-
-type Logger = {
-	info(...msg: unknown[]): void;
-	error(...msg: unknown[]): void;
-	log(...msg: unknown[]): void;
-	warn(...msg: unknown[]): void;
-}
 
 export type SuggestorArgs = {
 	//The type of hte suggestor being called. This is convenient so they don't

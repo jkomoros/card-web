@@ -1112,6 +1112,13 @@ export interface CollectionConstructorArguments {
 	editingCardSimilarity? : SortExtra
 }
 
+export type Logger = {
+	info(...msg: unknown[]): void;
+	error(...msg: unknown[]): void;
+	log(...msg: unknown[]): void;
+	warn(...msg: unknown[]): void;
+}
+
 export interface BadgeMap {
 	stars: FilterMap,
 	reads: FilterMap,
