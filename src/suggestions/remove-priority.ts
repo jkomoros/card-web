@@ -33,10 +33,6 @@ const comparisonResultSchema = z.object({
 
 export const removePriority = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
 	const {type, card, collectionArguments, logger, uid, useLLMs} = args;
-	if (!useLLMs) {
-		logger.info('LLMs are not enabled, skipping');
-		return [];
-	}
 	//This suggstor is about removing priority for cards that are associted with
 	//better cards that are already prioritized.
 	if (!cardIsPrioritized(card)) {
@@ -63,8 +59,13 @@ export const removePriority = async (args: SuggestorArgs) : Promise<Suggestion[]
 			}
 		}];
 	}
-	//TODO: we likely don't need the whole collectionDescription here and can just use references.
 
+	if (!useLLMs) {
+		logger.info('LLMs are not enabled, skipping the rest');
+		return [];
+	}
+
+	//TODO: we likely don't need the whole collectionDescription here and can just use references.
 	//TODO: a stable sort (by card_id?) so the caching of prompts works.
 	const description = collectionDescription(referencesFilter('both', 'see-also'));
 	const collection = description.collection(collectionArguments);
