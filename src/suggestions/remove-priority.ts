@@ -7,13 +7,17 @@ import {
 	collectionDescription,
 	referencesFilter
 } from '../filters.js';
-import { references } from '../references.js';
+
+import {
+	references
+} from '../references.js';
 
 import {
 	SuggestorArgs
 } from '../suggestions.js';
 
 import {
+	Logger,
 	Suggestion
 } from '../types.js';
 
@@ -30,6 +34,36 @@ const comparisonResultSchema = z.object({
 	more_substantive: z.enum(['a', 'b']),
 	better_written: z.enum(['a', 'b'])
 });
+
+type ComparisonResult = z.infer<typeof comparisonResultSchema>;
+
+const chooseBetterCardWithAI = async (aContent : string, bContent : string, uid : string, logger : Logger) : Promise<ComparisonResult> => {
+	const model = DEFAULT_LONG_MODEL;
+	//TODO: use function calling?
+	const prompt = `The following are two essays:
+	Essay A:
+	${aContent}
+	-----
+	Essay B:
+	${bContent}
+	-----
+	Compare which essay is better by being more substantive, and also better written (flows the best, stands on its own, not just a rough thought).
+	Return ONLY JSON (no other text!) matching the following TypeScript schema:
+	type Result = {
+		more_substantive: 'a' | 'b';
+		better_written: 'a' | 'b';
+	}
+	`;
+	logger.info(`Prompt: ${prompt}`);
+	//cachedCompletion will return the result without hitting the backend if
+	//we already have asked for it. This makes repeats, as long as sort is
+	//stable, fast.
+	const rawComparisonResult = await cachedCompletion(prompt, uid, model);
+	logger.info(`Comparison result: ${rawComparisonResult}`);
+	const comparisonJSON = JSON.parse(rawComparisonResult);
+	//This will throw if it gives a bad result and that's fine.
+	return comparisonResultSchema.parse(comparisonJSON);
+};
 
 export const removePriority = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
 	const {type, card, collectionArguments, logger, uid, useLLMs} = args;
@@ -76,7 +110,6 @@ export const removePriority = async (args: SuggestorArgs) : Promise<Suggestion[]
 	logger.info(`See Also cards: ${seeAlsoCards.map(card => card.id).join(', ')}`);
 	const selfPlainContent = cardPlainContent(card);
 	try {
-		const model = DEFAULT_LONG_MODEL;
 		for (const other of seeAlsoCards) {
 			logger.info(`Considering ${other.id}`);
 			if (!cardIsPrioritized(other)) {
@@ -84,30 +117,7 @@ export const removePriority = async (args: SuggestorArgs) : Promise<Suggestion[]
 				continue;
 			}
 			const otherPlainContent = cardPlainContent(other);
-			//TODO: use function calling?
-			const prompt = `The following are two essays:
-			Essay A:
-			${selfPlainContent}
-			-----
-			Essay B:
-			${otherPlainContent}
-			-----
-			Compare which essay is better by being more substantive, and also better written (flows the best, stands on its own, not just a rough thought).
-			Return ONLY JSON (no other text!) matching the following TypeScript schema:
-			type Result = {
-				more_substantive: 'a' | 'b';
-				better_written: 'a' | 'b';
-			}
-			`;
-			logger.info(`Prompt: ${prompt}`);
-			//cachedCompletion will return the result without hitting the backend if
-			//we already have asked for it. This makes repeats, as long as sort is
-			//stable, fast.
-			const rawComparisonResult = await cachedCompletion(prompt, uid, model);
-			logger.info(`Comparison result: ${rawComparisonResult}`);
-			const comparisonJSON = JSON.parse(rawComparisonResult);
-			//This will throw if it gives a bad result and that's fine.
-			const comparisonResult = comparisonResultSchema.parse(comparisonJSON);
+			const comparisonResult = await chooseBetterCardWithAI(selfPlainContent, otherPlainContent, uid, logger);
 			if (comparisonResult.better_written == 'a') {
 				logger.info('The key card was better written');
 				continue;
