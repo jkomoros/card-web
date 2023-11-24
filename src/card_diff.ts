@@ -167,12 +167,14 @@ export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos):
 			return html`Set TODO ${value} on`;
 		}
 
-		if (key == 'body') {
-			//TODO: generalize this to any text_field
-			const body = value as string;
-			let plainBody = innerTextForHTML(body);
-			if (plainBody.length > BODY_SUMMARY_LENGTH) plainBody = plainBody.slice(0, BODY_SUMMARY_LENGTH) + '...';
-			return  html`Set <strong>body</strong> to "<span title=${body}>${plainBody}</span>"`;
+		const editableFieldParseResult = cardFieldTypeEditableSchema.safeParse(key);
+		if (editableFieldParseResult.success) {
+			const editableField = editableFieldParseResult.data;
+			const fieldConfig = TEXT_FIELD_CONFIGURATION[editableField];
+			const fieldValue = value as string;
+			let plainFieldValue = fieldConfig.html ? innerTextForHTML(fieldValue) : fieldValue;
+			if (plainFieldValue.length > BODY_SUMMARY_LENGTH) plainFieldValue = plainFieldValue.slice(0, BODY_SUMMARY_LENGTH) + '...';
+			return  html`Set <strong>${editableField}</strong> to "<span title=${fieldValue}>${plainFieldValue}</span>"`;
 		}
 
 		//TODO: handle non diffable fields
