@@ -146,7 +146,6 @@ const BUILD_OPTIONALLY = 'build-optionally';
 const ASK_IF_WANT_BUILD = 'ask-if-want-build';
 const GENERATE_SEO_PAGES = 'generate-seo-pages';
 const GENERATE_SEO_PAGES_OPTIONALLY = 'generate-seo-pages-optionally';
-const ASK_IF_WANT_SEO_PAGES = 'ask-if-want-seo-pages';
 const FIREBASE_ENSURE_PROD_TASK = 'firebase-ensure-prod';
 const FIREBASE_DEPLOY_TASK = 'firebase-deploy';
 const FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING = 'firebase-set-config-last-deploy-affecting-rendering';
@@ -551,7 +550,6 @@ gulp.task('dev-deploy',
 	gulp.series(
 		REGENERATE_FILES_FROM_CONFIG_TASK,
 		ASK_IF_WANT_BUILD,
-		ASK_IF_WANT_SEO_PAGES,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		BUILD_OPTIONALLY,
 		GENERATE_SEO_PAGES_OPTIONALLY,
@@ -569,7 +567,6 @@ gulp.task('deploy',
 	gulp.series(
 		REGENERATE_FILES_FROM_CONFIG_TASK,
 		ASK_IF_WANT_BUILD,
-		ASK_IF_WANT_SEO_PAGES,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		BUILD_OPTIONALLY,
 		GENERATE_SEO_PAGES_OPTIONALLY,
