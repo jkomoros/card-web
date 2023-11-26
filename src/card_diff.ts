@@ -87,7 +87,8 @@ import {
 	SuggestionDiffCreateCard,
 	CardFlags,
 	ReferenceType,
-	TagID
+	TagID,
+	AutoTODOType
 } from './types.js';
 
 import {
@@ -164,15 +165,15 @@ export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos):
 		}
 
 		if (key == 'auto_todo_overrides_removals') {
-			return html`Set back to auto ${value} TODO`;
+			return (value as AutoTODOType[]).map(value => html`Set back to auto ${value} TODO`);
 		}
 
 		if (key == 'auto_todo_overrides_disablements') {
-			return html`Set TODO ${value} off`;
+			return (value as AutoTODOType[]).map(value => html`Set TODO ${value} off`);
 		}
 
 		if (key == 'auto_todo_overrides_enablements') {
-			return html`Set TODO ${value} on`;
+			return (value as AutoTODOType[]).map(value => html`Set TODO ${value} on`);
 		}
 
 		const editableFieldParseResult = cardFieldTypeEditableSchema.safeParse(key);
