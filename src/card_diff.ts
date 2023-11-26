@@ -100,6 +100,9 @@ import {
 	html
 } from 'lit';
 
+//descriptionForReferencesDiff and descriptionForSuggestionDiffCards assumes tag-list is imported, so make sure
+import './components/tag-list.js';
+
 //A JS-native version of the allowed fields in type NonAutoMergeableCardDiff
 const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
 	title : true,
@@ -110,9 +113,6 @@ const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
 	notes : true,
 	images : true,
 };
-
-//descriptionForReferencesDiff and descriptionForSuggestionDiffCards assumes tag-list is imported, so make sure
-import './components/tag-list.js';
 
 export const descriptionForReferencesDiff = (diff : ReferencesEntriesDiff, cardInfos : TagInfos) : TemplateResult[] => {
 	//For space, we'll combine the summary by similar reference types.
