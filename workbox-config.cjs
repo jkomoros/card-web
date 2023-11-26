@@ -15,7 +15,7 @@ module.exports = {
 	swDest: 'build/service-worker.js',
 	globPatterns: [
 		'manifest.json',
-		'src/**/*',
+		'lib/src/**/*',
 	],
 	skipWaiting: true,
 	runtimeCaching: [

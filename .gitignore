@@ -4,9 +4,7 @@ node_modules/
 test/integration/screenshots-current/
 _site/
 .DS_Store
-src/**/*.js
-src/**/*.d.ts
-src/**/*.map
+lib/
 tools/**/*.js
 tools/**/*.d.ts
 tools/**/*.map

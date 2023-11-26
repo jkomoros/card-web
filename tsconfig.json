@@ -4,6 +4,7 @@
     "module": "es2020",
     "lib": ["es2020", "DOM", "DOM.Iterable"],
     "declaration": true,
+    "outDir": "lib/",
     "declarationMap": true,
     "sourceMap": true,
     "inlineSources": true,

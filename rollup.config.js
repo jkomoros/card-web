@@ -6,9 +6,9 @@ import commonjs from '@rollup/plugin-commonjs';
 import summary from 'rollup-plugin-summary';
 
 export default {
-	input: 'src/components/card-web-app.js',
+	input: 'lib/src/components/card-web-app.js',
 	output: {
-		dir: 'build/src/components',
+		dir: 'build/lib/src/components',
 		format: 'es',
 	},
 	plugins: [

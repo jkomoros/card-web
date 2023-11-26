@@ -10,7 +10,7 @@
     "build": "npm run build:clean && npm run build:typescript && npm run generate:seo:config && npm run build:rollup && npm run build:service-worker",
     "build:clean": "npm run build:clean:build && npm run build:clean:typescript",
     "build:clean:build": "rm -rf build/",
-    "build:clean:typescript": "find src -name '*.map' -type f -delete && find src -name '*.js' -type f -delete && find src -name '*.d.ts' ! -path 'src/gpt-tok.d.ts' -type f -delete",
+    "build:clean:typescript": "rm -rf lib/",
     "build:typescript": "tsc",
     "build:rollup": "rollup -c",
     "build:service-worker": "workbox generateSW workbox-config.cjs",

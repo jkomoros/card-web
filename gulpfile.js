@@ -10,7 +10,7 @@ import {QdrantClient} from '@qdrant/js-client-rest';
 import {
 	devProdConfig,
 	selectedProjectID,
-} from './tools/util.js';
+} from './lib/tools/util.js';
 
 let config;
 try {
