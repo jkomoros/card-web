@@ -140,40 +140,47 @@ export const descriptionForReferencesDiff = (diff : ReferencesEntriesDiff, cardI
 };
 
 export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos): TemplateResult[] => {
-	return TypedObject.entries(update).map(entry => {
-		const key = entry[0];
-		const value = entry[1];
 
+	const pieces : {[key in keyof CardDiff]+?: TemplateResult[]} = {};
+	for (const [key, value] of TypedObject.entries(update)) {
 		if (key == 'references_diff') {
-			return descriptionForReferencesDiff(value as ReferencesEntriesDiff, cardInfos);
+			pieces[key] = descriptionForReferencesDiff(value as ReferencesEntriesDiff, cardInfos);
+			continue;
 		}
 
 		if (key == 'set_flags') {
-			return TypedObject.entries(value as CardFlags).map(entry => html`Set flag <strong>${entry[0]}</strong> to ${JSON.stringify(entry[1])}`);
+			pieces[key] = TypedObject.entries(value as CardFlags).map(entry => html`Set flag <strong>${entry[0]}</strong> to ${JSON.stringify(entry[1])}`);
+			continue;
 		}
 
 		if (key == 'remove_flags') {
-			return TypedObject.keys(value as CardFlags).map(key => html`Remove flag <strong>${key}</strong>`);
+			pieces[key] = TypedObject.keys(value as CardFlags).map(key => html`Remove flag <strong>${key}</strong>`);
+			continue;
 		}
 
 		if (key == 'add_tags') {
-			return (value as TagID[]).map(key => html`Add tag <strong>${key}</strong>`);
+			pieces[key] = (value as TagID[]).map(key => html`Add tag <strong>${key}</strong>`);
+			continue;
 		}
 
 		if (key == 'remove_tags') {
-			return (value as TagID[]).map(key => html`Remove tag <strong>${key}</strong>`); 
+			pieces[key] = (value as TagID[]).map(key => html`Remove tag <strong>${key}</strong>`);
+			continue;
 		}
 
 		if (key == 'auto_todo_overrides_removals') {
-			return (value as AutoTODOType[]).map(value => html`Set back to auto ${value} TODO`);
+			pieces[key] = (value as AutoTODOType[]).map(value => html`Set back to auto ${value} TODO`);
+			continue;
 		}
 
 		if (key == 'auto_todo_overrides_disablements') {
-			return (value as AutoTODOType[]).map(value => html`Set TODO ${value} off`);
+			pieces[key] = (value as AutoTODOType[]).map(value => html`Set TODO ${value} off`);
+			continue;
 		}
 
 		if (key == 'auto_todo_overrides_enablements') {
-			return (value as AutoTODOType[]).map(value => html`Set TODO ${value} on`);
+			pieces[key] = (value as AutoTODOType[]).map(value => html`Set TODO ${value} on`);
+			continue;
 		}
 
 		const editableFieldParseResult = cardFieldTypeEditableSchema.safeParse(key);
@@ -183,12 +190,16 @@ export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos):
 			const fieldValue = value as string;
 			let plainFieldValue = fieldConfig.html ? innerTextForHTML(fieldValue) : fieldValue;
 			if (plainFieldValue.length > BODY_SUMMARY_LENGTH) plainFieldValue = plainFieldValue.slice(0, BODY_SUMMARY_LENGTH) + '...';
-			return  html`Set <strong>${editableField}</strong> to "<span title=${fieldValue}>${plainFieldValue}</span>"`;
+			pieces[key] = [html`Set <strong>${editableField}</strong> to "<span title=${fieldValue}>${plainFieldValue}</span>"`];
+			continue;
 		}
 
 		//TODO: handle non diffable fields
-		return [html`Set <strong>${key}</strong> to ${JSON.stringify(value, null, '\t')}`];
-	}).flat();
+		pieces[key] = [html`Set <strong>${key}</strong> to ${JSON.stringify(value, null, '\t')}`];
+	}
+	return Object.values(pieces).flat();
+
+
 };
 
 const descriptionForSuggestionDiffCards = (cards: CardID[], diff : CardDiff, cardInfos : TagInfos) : TemplateResult => {
