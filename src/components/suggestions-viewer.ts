@@ -243,6 +243,8 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 		const diffTemplates = descriptionForSuggestion(suggestion, tagInfos);
 
+		const loadingForThisCard = Boolean(this._loadingForCard && this._card && this._loadingForCard[this._card.id]);
+
 		return html`<div class='container ${this._pending ? 'pending' : ''}'>
 			<div class='scrim'></div>
 			<div class='row'>
@@ -257,7 +259,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 					@tag-tapped=${this._handleSuggestionTapped}
 				>
 				</suggestions-summary>
-				${this._loadingForCard && this._card && this._loadingForCard[this._card.id] ?
+				${loadingForThisCard ?
 		html`<button class='small' disabled title='Suggestions loading'>${REPEAT_ICON}</button>`:
 		''
 }
@@ -288,7 +290,12 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				</div>
 			</div>
 			` : 
-		html`<div class='empty'><em>No suggestions for this card</em></div>`
+		html`<div class='empty'>
+			${loadingForThisCard ? 
+		html`<em>Loading suggestions for this card</em>` : 
+		html`<em>No suggestions for this card</em>`}
+				
+			</div>`
 }
 			${diffTemplates.alternate ? 
 		html`
