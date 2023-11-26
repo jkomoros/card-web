@@ -148,6 +148,11 @@ export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos):
 			continue;
 		}
 
+		//TODO: set_flags and remove_flags should say "Minor <span
+		//title=${key_diff}>bookkeeping changes</span>.". And if there are both
+		//set_flags and remove_flags, then it should only say it once and
+		//include all changes in the tooltip.
+
 		if (key == 'set_flags') {
 			pieces[key] = TypedObject.entries(value as CardFlags).map(entry => html`Set flag <strong>${entry[0]}</strong> to ${JSON.stringify(entry[1])}`);
 			continue;
