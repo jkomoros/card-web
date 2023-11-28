@@ -20,13 +20,18 @@ import {
 } from '../reference_blocks.js';
 
 import {
+	assertUnreachable,
 	cardIsPrioritized
 } from '../util.js';
 
 import {
 	Suggestion
 } from '../types.js';
-import { chooseBetterCardWithAI, pickBetterCard } from './remove-priority.js';
+
+import {
+	chooseBetterCardWithAI,
+	pickBetterCard
+} from './remove-priority.js';
 
 //Set by looking at a few examples
 const DUPLICATE_CUT_OFF = 0.95;
@@ -86,11 +91,14 @@ export const suggestDupeOf = async (args: SuggestorArgs) : Promise<Suggestion[]>
 				logger.info('It was a draw which one was better.');
 				//Whatever it was is fine.
 				break;
+			default:
+				assertUnreachable(result);
 			}
 		}
 
 		logger.info('Suggesting this as a card');
-		const suggestion = makeReferenceSuggestion(type, card.id, topCard.id, 'dupe-of', reverse);
+		//We want the weaker card to point to the stronger card with dupe-of.
+		const suggestion = makeReferenceSuggestion(type, topCard.id, card.id, 'dupe-of', reverse);
 		//TODO: remove prioirty from whichever card is the other.
 		result.push(suggestion);
 	}
