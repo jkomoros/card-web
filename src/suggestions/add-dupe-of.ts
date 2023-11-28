@@ -73,7 +73,7 @@ export const suggestDupeOf = async (args: SuggestorArgs) : Promise<Suggestion[]>
 		logger.info('Asking grader for its opinion on which card is better');
 		const grade = await gradeCards(card, topCard, useLLMs, uid, logger);
 		logger.info(`Grade: ${JSON.stringify(grade, null, '\t')}`);
-		const finalGrade = pickBetterCard(grade);
+		const finalGrade = pickBetterCard(grade, logger);
 		switch (finalGrade) {
 		case 'a':
 			logger.info('Picking key card because of AI\'s decision on which is better');

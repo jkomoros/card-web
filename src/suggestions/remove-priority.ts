@@ -64,7 +64,7 @@ const COMPARISON_RESULT_SCORES : Record<keyof ComparisonResult, number> = {
 
 const UNKNOWN_TRESHOLD = 0.2;
 
-export const pickBetterCard = (result : ComparisonResult) : TriStateComparisonItem => {
+export const pickBetterCard = (result : ComparisonResult, logger? : Logger) : TriStateComparisonItem => {
 	//positive is better for a. negative is better for b.
 	let runningCount = 0;
 	for (const [key, multiplier] of TypedObject.entries(COMPARISON_RESULT_SCORES)) {
@@ -84,6 +84,7 @@ export const pickBetterCard = (result : ComparisonResult) : TriStateComparisonIt
 			assertUnreachable(value);
 		}
 	}
+	if (logger) logger.info(`Grade is ${runningCount}`);
 	if (Math.abs(runningCount) < UNKNOWN_TRESHOLD) return 'unknown';
 	return runningCount > 0 ? 'a' : 'b';
 };
