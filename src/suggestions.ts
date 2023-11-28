@@ -60,7 +60,7 @@ import {
 
 import {
 	missingConceptLinks
-} from './suggestions/missing-concept-links.js';
+} from './suggestions/add-concept.js';
 
 export const makeReferenceSuggestion = (type : SuggestionType, keyCards: CardID | CardID[], otherCards: CardID | CardID[], referenceType : ReferenceType, reverse = false) : Suggestion => {
 	//TODO: it's kind of finicky to have to keep track of which ID is which... shouldn't the actions have a sentinel for each that is overriden before being executed?
@@ -179,9 +179,9 @@ export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 		title: 'Remove Prioritized',
 		color: COLORS.DARK_MAGENTA
 	},
-	'missing-concept-links': {
+	'add-concept': {
 		generator: missingConceptLinks,
-		title: 'Missing Concepts',
+		title: 'Add Concept',
 		color: COLORS.DARK_KHAKI
 	}
 };

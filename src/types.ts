@@ -1267,7 +1267,7 @@ export type SuggestionType = 'add-see-also'
 	| 'add-dupe-of'
 	| 'synthesize-cluster'
 	| 'remove-priority'
-	| 'missing-concept-links';
+	| 'add-concept';
 
 export type Suggestion = {
 	type: SuggestionType,
