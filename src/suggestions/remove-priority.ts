@@ -66,17 +66,15 @@ export const gradeCards = async (a : Card, b : Card, useLLMs = false, uid : stri
 
 //If a or b is a Card, then it will extract the content. If it's a string, it
 //assumes it's already the cardPlainContent.
-export const chooseBetterCardWithAI = async (a : Card | string, b : Card | string, uid : string, logger : Logger) : Promise<AIComparisonResult> => {
-	if (typeof a != 'string') a = cardPlainContent(a);
-	if (typeof b != 'string') b = cardPlainContent(b);
+export const chooseBetterCardWithAI = async (a : Card, b : Card, uid : string, logger : Logger) : Promise<AIComparisonResult> => {
 	const model = DEFAULT_LONG_MODEL;
 	//TODO: use function calling?
 	const prompt = `The following are two essays:
 	Essay A:
-	${a}
+	${cardPlainContent(a)}
 	-----
 	Essay B:
-	${b}
+	${cardPlainContent(b)}
 	-----
 	Compare which essay is better by being more substantive, and also better written (flows the best, stands on its own, not just a rough thought).
 	Return ONLY JSON (no other text!) matching the following TypeScript schema:
@@ -139,7 +137,6 @@ export const removePriority = async (args: SuggestorArgs) : Promise<Suggestion[]
 	//by card_id, so the same clique always gets the same text/
 	const seeAlsoCards = collection.finalSortedCards;
 	logger.info(`See Also cards: ${seeAlsoCards.map(card => card.id).join(', ')}`);
-	const selfPlainContent = cardPlainContent(card);
 	try {
 		for (const other of seeAlsoCards) {
 			logger.info(`Considering ${other.id}`);
@@ -147,8 +144,7 @@ export const removePriority = async (args: SuggestorArgs) : Promise<Suggestion[]
 				logger.info('Other is not prioritized');
 				continue;
 			}
-			const otherPlainContent = cardPlainContent(other);
-			const comparisonResult = await chooseBetterCardWithAI(selfPlainContent, otherPlainContent, uid, logger);
+			const comparisonResult = await chooseBetterCardWithAI(card, other, uid, logger);
 			if (comparisonResult.better_written == 'a') {
 				logger.info('The key card was better written');
 				continue;
