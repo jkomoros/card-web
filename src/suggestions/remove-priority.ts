@@ -32,6 +32,9 @@ import {
 } from 'zod';
 
 const comparsionItem = z.enum(['a', 'b']);
+const triStateComparisonItem = z.enum(['a', 'b', 'unknown']);
+
+type TriStateComparisonItem = z.infer<typeof triStateComparisonItem>;
 
 const aiComparisonResultSchema = z.object({
 	more_substantive: comparsionItem,
@@ -40,21 +43,28 @@ const aiComparisonResultSchema = z.object({
 
 const comparisonResultSchema = aiComparisonResultSchema.partial().extend({
 	more_recent: z.optional(comparsionItem),
-	prioritized: z.optional(comparsionItem)
+	prioritized: z.optional(triStateComparisonItem)
 });
 
 type AIComparisonResult = z.infer<typeof aiComparisonResultSchema>;
 
 type ComparisonResult = z.infer<typeof comparisonResultSchema>;
 
-export const pickBetterCard = (result : ComparisonResult) : 'a' | 'b' | 'unknown' => {
+export const pickBetterCard = (result : ComparisonResult) : TriStateComparisonItem => {
 	if (result.better_written == 'a' && result.more_substantive == 'a') return 'a';
 	if (result.better_written != result.more_substantive) return 'unknown';
 	return 'b';
 };
 
 export const gradeCards = async (a : Card, b : Card, useLLMs = false, uid : string, logger : Logger) : Promise<ComparisonResult> => {
-	let result : ComparisonResult = {};
+	let prioritized : TriStateComparisonItem = 'unknown';
+	if (cardIsPrioritized(a) && !cardIsPrioritized(b)) prioritized = 'a';
+	if (!cardIsPrioritized(a) && cardIsPrioritized(b)) prioritized = 'b';
+	const more_recent = a.created.seconds > b.created.seconds ? 'a' : 'b';
+	let result : ComparisonResult = {
+		prioritized,
+		more_recent
+	};
 	if (useLLMs) {
 		result = {
 			...result,
