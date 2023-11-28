@@ -28,7 +28,7 @@ import {
 } from '../types.js';
 
 //Set by looking at a few examples
-const SIMILARITY_CUT_OFF = 0.89;
+const SIMILARITY_CUT_OFF = 0.88;
 
 //TODO: this is largely recreated in dupe-of.ts
 export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Suggestion[]> => {

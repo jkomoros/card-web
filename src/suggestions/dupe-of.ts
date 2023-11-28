@@ -29,7 +29,7 @@ import {
 import { chooseBetterCardWithAI, pickBetterCard } from './remove-priority.js';
 
 //Set by looking at a few examples
-const DUPLICATE_CUT_OFF = 0.97;
+const DUPLICATE_CUT_OFF = 0.95;
 
 //TODO: this is largely recreated in missing-see-also
 export const suggestDupeOf = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
