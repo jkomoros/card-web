@@ -177,17 +177,26 @@ export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos):
 		//key, whose specific values are very idiosyncratic.
 
 		if (key == 'auto_todo_overrides_removals') {
-			pieces[key] = (value as AutoTODOType[]).map(value => html`Set back to auto ${value} TODO`);
+			pieces[key] = (value as AutoTODOType[]).map(value => {
+				if (value == 'prioritized') return html`Un-prioritize card`;
+				return html`Set back to auto ${value} TODO`;
+			});
 			continue;
 		}
 
 		if (key == 'auto_todo_overrides_disablements') {
-			pieces[key] = (value as AutoTODOType[]).map(value => html`Set TODO ${value} off`);
+			pieces[key] = (value as AutoTODOType[]).map(value => {
+				if (value == 'prioritized') return html`Prioritize card`;
+				return html`Set TODO ${value} off`;
+			});
 			continue;
 		}
 
 		if (key == 'auto_todo_overrides_enablements') {
-			pieces[key] = (value as AutoTODOType[]).map(value => html`Set TODO ${value} on`);
+			pieces[key] = (value as AutoTODOType[]).map(value => {
+				if (value == 'prioritized') return html`Un-prioritize card`;
+				return html`Set TODO ${value} on`;
+			});
 			continue;
 		}
 
