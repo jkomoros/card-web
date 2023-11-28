@@ -108,7 +108,7 @@ export const gradeCards = async (a : Card, b : Card, useLLMs = false, uid : stri
 
 //If a or b is a Card, then it will extract the content. If it's a string, it
 //assumes it's already the cardPlainContent.
-export const chooseBetterCardWithAI = async (a : Card, b : Card, uid : string, logger : Logger) : Promise<AIComparisonResult> => {
+const chooseBetterCardWithAI = async (a : Card, b : Card, uid : string, logger : Logger) : Promise<AIComparisonResult> => {
 	const model = DEFAULT_LONG_MODEL;
 	//TODO: use function calling?
 	const prompt = `The following are two essays:

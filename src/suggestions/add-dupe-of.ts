@@ -29,7 +29,7 @@ import {
 } from '../types.js';
 
 import {
-	chooseBetterCardWithAI,
+	gradeCards,
 	pickBetterCard
 } from './remove-priority.js';
 
@@ -69,31 +69,26 @@ export const suggestDupeOf = async (args: SuggestorArgs) : Promise<Suggestion[]>
 
 		let weakCardIsTopCard = true;
 
-		if (!cardIsPrioritized(card) && cardIsPrioritized(topCard)) {
-			logger.info('Flipping which card is priority because the other card is prioritized and this one isn\'t');
-			//If the other card is prioritized and this one isn't, then reverse suggestions.
-			weakCardIsTopCard = false;
-		}
 
-		if (useLLMs) {
-			logger.info('Asking AI for its opinion on which card is better');
-			const result = pickBetterCard(await chooseBetterCardWithAI(card, topCard, uid, logger));
-			switch (result) {
-			case 'a':
-				logger.info('Picking key card because of AI\'s decision on which is better');
-				weakCardIsTopCard = true;
-				break;
-			case 'b':
-				logger.info('Picking other card because of AI\'s decision on which is better');
-				weakCardIsTopCard = false;
-				break;
-			case 'unknown':
-				logger.info('It was a draw which one was better.');
-				//Whatever it was is fine.
-				break;
-			default:
-				assertUnreachable(result);
-			}
+		logger.info('Asking grader for its opinion on which card is better');
+		const grade = await gradeCards(card, topCard, useLLMs, uid, logger);
+		logger.info(`Grade: ${JSON.stringify(grade, null, '\t')}`);
+		const finalGrade = pickBetterCard(grade);
+		switch (finalGrade) {
+		case 'a':
+			logger.info('Picking key card because of AI\'s decision on which is better');
+			weakCardIsTopCard = true;
+			break;
+		case 'b':
+			logger.info('Picking other card because of AI\'s decision on which is better');
+			weakCardIsTopCard = false;
+			break;
+		case 'unknown':
+			logger.info('It was a draw which one was better.');
+			//Whatever it was is fine.
+			break;
+		default:
+			assertUnreachable(finalGrade);
 		}
 
 		logger.info('Suggesting this as a card');
