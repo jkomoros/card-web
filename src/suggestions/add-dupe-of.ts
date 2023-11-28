@@ -67,12 +67,12 @@ export const suggestDupeOf = async (args: SuggestorArgs) : Promise<Suggestion[]>
 			break;
 		}
 
-		let reverse = false;
+		let weakCardIsTopCard = true;
 
 		if (!cardIsPrioritized(card) && cardIsPrioritized(topCard)) {
 			logger.info('Flipping which card is priority because the other card is prioritized and this one isn\'t');
 			//If the other card is prioritized and this one isn't, then reverse suggestions.
-			reverse = true;
+			weakCardIsTopCard = false;
 		}
 
 		if (useLLMs) {
@@ -81,11 +81,11 @@ export const suggestDupeOf = async (args: SuggestorArgs) : Promise<Suggestion[]>
 			switch (result) {
 			case 'a':
 				logger.info('Picking key card because of AI\'s decision on which is better');
-				reverse = false;
+				weakCardIsTopCard = true;
 				break;
 			case 'b':
 				logger.info('Picking other card because of AI\'s decision on which is better');
-				reverse = true;
+				weakCardIsTopCard = false;
 				break;
 			case 'unknown':
 				logger.info('It was a draw which one was better.');
@@ -96,10 +96,21 @@ export const suggestDupeOf = async (args: SuggestorArgs) : Promise<Suggestion[]>
 			}
 		}
 
+		//TODO: more recent card should typically get the precedence in ties.
+		//Combine the logic of comparisonResult into one thing.
+
 		logger.info('Suggesting this as a card');
-		//We want the weaker card to point to the stronger card with dupe-of.
-		const suggestion = makeReferenceSuggestion(type, topCard.id, card.id, 'dupe-of', reverse);
-		//TODO: remove prioirty from whichever card is the other.
+		//We want the weaker card to point to the stronger card with dupe-of, which is backwards from normal reverse.
+		const suggestion = makeReferenceSuggestion(type, card.id, topCard.id, 'dupe-of', weakCardIsTopCard);
+		//Remove priorized from any prioritized cards, whenever it shows up, because only the weaker card will be mentioned.
+		if (cardIsPrioritized(card)) {
+			if (suggestion.action.keyCards) suggestion.action.keyCards.auto_todo_overrides_removals = ['prioritized'];
+			if (suggestion.alternateAction?.keyCards) suggestion.alternateAction.keyCards.auto_todo_overrides_removals = ['prioritized'];
+		}
+		if (cardIsPrioritized(topCard)) {
+			if (suggestion.action.supportingCards) suggestion.action.supportingCards.auto_todo_overrides_removals = ['prioritized'];
+			if (suggestion.alternateAction?.supportingCards) suggestion.alternateAction.supportingCards.auto_todo_overrides_removals = ['prioritized'];
+		}
 		result.push(suggestion);
 	}
 	return result;
