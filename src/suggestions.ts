@@ -48,7 +48,7 @@ import {
 
 import {
 	suggestDupeOf
-} from './suggestions/dupe-of.js';
+} from './suggestions/add-dupe-of.js';
 
 import {
 	synthesizeCluster
@@ -159,9 +159,9 @@ type Suggestor = {
 }
 
 export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
-	'dupe-of': {
+	'add-dupe-of': {
 		generator: suggestDupeOf,
-		title: 'Duplicate Of',
+		title: 'Add Dupe Of',
 		color: COLORS.DARK_CYAN
 	},
 	'add-see-also': {

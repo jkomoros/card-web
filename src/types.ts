@@ -1264,7 +1264,7 @@ export type SuggestionDiff = {
 };
 
 export type SuggestionType = 'add-see-also'
-	| 'dupe-of'
+	| 'add-dupe-of'
 	| 'synthesize-cluster'
 	| 'remove-priority'
 	| 'missing-concept-links';
