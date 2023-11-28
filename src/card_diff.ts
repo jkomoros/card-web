@@ -173,6 +173,9 @@ export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos):
 			continue;
 		}
 
+		//TODO: the wording of these messages is confusing for the prioritized
+		//key, whose specific values are very idiosyncratic.
+
 		if (key == 'auto_todo_overrides_removals') {
 			pieces[key] = (value as AutoTODOType[]).map(value => html`Set back to auto ${value} TODO`);
 			continue;
