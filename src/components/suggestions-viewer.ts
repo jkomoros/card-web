@@ -191,6 +191,11 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				border-top: 1px solid var(--app-divider-color);
 			}
 
+			p {
+				margin-block-start: 0.25em;
+				margin-block-end: 0.25em;
+			}
+
 		`
 	];
 
