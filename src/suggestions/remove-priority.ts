@@ -17,12 +17,17 @@ import {
 } from '../suggestions.js';
 
 import {
+	TypedObject
+} from '../typed_object.js';
+
+import {
 	Card,
 	Logger,
 	Suggestion
 } from '../types.js';
 
 import {
+	assertUnreachable,
 	cardIsPrioritized,
 	cardPlainContent
 } from '../util.js';
@@ -50,10 +55,37 @@ type AIComparisonResult = z.infer<typeof aiComparisonResultSchema>;
 
 type ComparisonResult = z.infer<typeof comparisonResultSchema>;
 
+const COMPARISON_RESULT_SCORES : Record<keyof ComparisonResult, number> = {
+	more_recent: 0.3,
+	more_substantive: 0.2,
+	better_written: 0.2,
+	prioritized: 0.1
+};
+
+const UNKNOWN_TRESHOLD = 0.2;
+
 export const pickBetterCard = (result : ComparisonResult) : TriStateComparisonItem => {
-	if (result.better_written == 'a' && result.more_substantive == 'a') return 'a';
-	if (result.better_written != result.more_substantive) return 'unknown';
-	return 'b';
+	//positive is better for a. negative is better for b.
+	let runningCount = 0;
+	for (const [key, multiplier] of TypedObject.entries(COMPARISON_RESULT_SCORES)) {
+		const value = result[key];
+		if (value === undefined) continue;
+		switch (value) {
+		case 'a':
+			runningCount += 1.0 * multiplier;
+			break;
+		case 'b':
+			runningCount += -1.0 * multiplier;
+			break;
+		case 'unknown':
+			//pass
+			break;
+		default:
+			assertUnreachable(value);
+		}
+	}
+	if (Math.abs(runningCount) < UNKNOWN_TRESHOLD) return 'unknown';
+	return runningCount > 0 ? 'a' : 'b';
 };
 
 export const gradeCards = async (a : Card, b : Card, useLLMs = false, uid : string, logger : Logger) : Promise<ComparisonResult> => {

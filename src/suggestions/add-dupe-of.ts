@@ -96,9 +96,6 @@ export const suggestDupeOf = async (args: SuggestorArgs) : Promise<Suggestion[]>
 			}
 		}
 
-		//TODO: more recent card should typically get the precedence in ties.
-		//Combine the logic of comparisonResult into one thing.
-
 		logger.info('Suggesting this as a card');
 		//We want the weaker card to point to the stronger card with dupe-of, which is backwards from normal reverse.
 		const suggestion = makeReferenceSuggestion(type, card.id, topCard.id, 'dupe-of', weakCardIsTopCard);
