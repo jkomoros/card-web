@@ -141,6 +141,8 @@ export const descriptionForReferencesDiff = (diff : ReferencesEntriesDiff, cardI
 
 export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos): TemplateResult[] => {
 
+	let flagsMessages : string[] = [];
+
 	const pieces : {[key in keyof CardDiff]+?: TemplateResult[]} = {};
 	for (const [key, value] of TypedObject.entries(update)) {
 		if (key == 'references_diff') {
@@ -148,18 +150,15 @@ export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos):
 			continue;
 		}
 
-		//TODO: set_flags and remove_flags should say "Minor <span
-		//title=${key_diff}>bookkeeping changes</span>.". And if there are both
-		//set_flags and remove_flags, then it should only say it once and
-		//include all changes in the tooltip.
-
 		if (key == 'set_flags') {
-			pieces[key] = TypedObject.entries(value as CardFlags).map(entry => html`Set flag <strong>${entry[0]}</strong> to ${JSON.stringify(entry[1])}`);
+			flagsMessages = [...flagsMessages, ...TypedObject.entries(value as CardFlags).map(entry => `Set flag ${entry[0]} to ${JSON.stringify(entry[1])}`)];
+			//We'll set the message at the end
 			continue;
 		}
 
 		if (key == 'remove_flags') {
-			pieces[key] = TypedObject.keys(value as CardFlags).map(key => html`Remove flag <strong>${key}</strong>`);
+			flagsMessages = [...flagsMessages, ...TypedObject.keys(value as CardFlags).map(key => `Remove flag ${key}`)];
+			//We'll set the message at the end
 			continue;
 		}
 
@@ -214,6 +213,15 @@ export const descriptionForCardDiff = (update : CardDiff, cardInfos : TagInfos):
 		//TODO: handle non diffable fields
 		pieces[key] = [html`Set <strong>${key}</strong> to ${JSON.stringify(value, null, '\t')}`];
 	}
+
+	if (flagsMessages.length) {
+		//We set these specially since set_Flags and remove_flags both show
+		//similarly to a user (but with different tool tips) and we don't awnt
+		//to have a visible dupe if both set_flags and remove_flags are set
+		//(which is rare, but possible)
+		pieces['set_flags'] =[html`Minor <span title=${flagsMessages.join('\n')}>bookkeeping changes</span>`];
+	}
+
 	return Object.values(pieces).flat();
 
 
