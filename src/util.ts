@@ -233,9 +233,9 @@ export const innerTextForHTML = (body : string) : string => {
 	return ele.textContent || '';
 };
 
-//Extracts the user-provided title and body from the card, without HTML
-//formatting.
-export const cardPlainContent = (card : Card) : string => {
+const plainContentCache = new WeakMap<Card, string>();
+
+const cardPlainContentImpl = (card : Card) : string => {
 	const cardType = card.card_type;
 	if (!BODY_CARD_TYPES[cardType]) return '';
 	const result : string[] = [];
@@ -250,6 +250,17 @@ export const cardPlainContent = (card : Card) : string => {
 		result.push(content.trim());
 	}
 	return result.join('\n');
+};
+
+//Extracts the user-provided title and body from the card, without HTML
+//formatting.
+export const cardPlainContent = (card : Card) : string => {
+	if (!plainContentCache.has(card)) {
+		plainContentCache.set(card, cardPlainContentImpl(card));
+	}
+	const value = plainContentCache.get(card);
+	if (!value) throw new Error('No content cache as expected');
+	return value;
 };
 
 //Takes plain content and wraps it in <p>
