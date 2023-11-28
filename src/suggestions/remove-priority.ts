@@ -31,10 +31,19 @@ import {
 	z
 } from 'zod';
 
-const comparisonResultSchema = z.object({
-	more_substantive: z.enum(['a', 'b']),
-	better_written: z.enum(['a', 'b'])
+const comparsionItem = z.enum(['a', 'b']);
+
+const aiComparisonResultSchema = z.object({
+	more_substantive: comparsionItem,
+	better_written: comparsionItem,
 });
+
+const comparisonResultSchema = aiComparisonResultSchema.partial().extend({
+	more_recent: z.optional(comparsionItem),
+	prioritized: z.optional(comparsionItem)
+});
+
+type AIComparisonResult = z.infer<typeof aiComparisonResultSchema>;
 
 type ComparisonResult = z.infer<typeof comparisonResultSchema>;
 
@@ -44,9 +53,20 @@ export const pickBetterCard = (result : ComparisonResult) : 'a' | 'b' | 'unknown
 	return 'b';
 };
 
+export const gradeCards = async (a : Card, b : Card, useLLMs = false, uid : string, logger : Logger) : Promise<ComparisonResult> => {
+	let result : ComparisonResult = {};
+	if (useLLMs) {
+		result = {
+			...result,
+			...(await chooseBetterCardWithAI(a, b, uid, logger))
+		};
+	}
+	return result;
+};
+
 //If a or b is a Card, then it will extract the content. If it's a string, it
 //assumes it's already the cardPlainContent.
-export const chooseBetterCardWithAI = async (a : Card | string, b : Card | string, uid : string, logger : Logger) : Promise<ComparisonResult> => {
+export const chooseBetterCardWithAI = async (a : Card | string, b : Card | string, uid : string, logger : Logger) : Promise<AIComparisonResult> => {
 	if (typeof a != 'string') a = cardPlainContent(a);
 	if (typeof b != 'string') b = cardPlainContent(b);
 	const model = DEFAULT_LONG_MODEL;
@@ -73,7 +93,7 @@ export const chooseBetterCardWithAI = async (a : Card | string, b : Card | strin
 	logger.info(`Comparison result: ${rawComparisonResult}`);
 	const comparisonJSON = JSON.parse(rawComparisonResult);
 	//This will throw if it gives a bad result and that's fine.
-	return comparisonResultSchema.parse(comparisonJSON);
+	return aiComparisonResultSchema.parse(comparisonJSON);
 };
 
 export const removePriority = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
