@@ -1263,7 +1263,7 @@ export type SuggestionDiff = {
 	supportingCards: CardDiff
 };
 
-export type SuggestionType = 'missing-see-also'
+export type SuggestionType = 'add-see-also'
 	| 'dupe-of'
 	| 'synthesize-cluster'
 	| 'remove-priority'

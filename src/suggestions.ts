@@ -44,7 +44,7 @@ import {
 
 import {
 	suggestMissingSeeAlso
-} from './suggestions/missing-see-also.js';
+} from './suggestions/add-see-also.js';
 
 import {
 	suggestDupeOf
@@ -164,9 +164,9 @@ export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 		title: 'Duplicate Of',
 		color: COLORS.DARK_CYAN
 	},
-	'missing-see-also': {
+	'add-see-also': {
 		generator: suggestMissingSeeAlso,
-		title: 'Missing See Also',
+		title: 'Add See Also',
 		color: COLORS.DARK_GREEN
 	},
 	'synthesize-cluster': {
