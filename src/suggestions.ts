@@ -247,19 +247,32 @@ export const streamSuggestionsForCard = async (card : ProcessedCard, state : Sta
 		useLLMs: selectUserMayUseAI(state) && selectSuggestionsUseLLMs(state)
 	};
 
+	const promises : Promise<void>[] = [];
+
 	for (const [name, suggestor] of TypedObject.entries(SUGGESTORS)) {
-		logger.info(`Starting suggestor ${name}`);
-		//TODO: run these in parallel.
-		const innerResult = await suggestor.generator({
-			...args,
-			type: name
-		});
-		logger.info(`Suggestor ${name} returned ${JSON.stringify(innerResult, null, '\t')}`);
-		if (!innerResult) continue;
-		//Don't reset results until we have one to show.
-		if (innerResult.length == 0) continue;
-		provider(innerResult);
+		//We'll run all of these in parallel. This is way better/faster than
+		//doing it in serial, but there are two problems: 1) the better
+		//techniques (which tend to take longer) show up at the end of the list,
+		//and 2) the log messages might get interleaved in a confusing way if
+		//VERBOSE is true.
+
+		const promise = (async () => {
+			//TODO: create a loggerWithPrefix to pass in to each in case they run out of order
+			logger.info(`Starting suggestor ${name}`);
+			const innerResult = await suggestor.generator({
+				...args,
+				type: name
+			});
+			logger.info(`Suggestor ${name} returned ${JSON.stringify(innerResult, null, '\t')}`);
+			if (!innerResult) return;
+			//Don't reset results until we have one to show.
+			if (innerResult.length == 0) return;
+			provider(innerResult);
+		})();
+		promises.push(promise);
 	}
+
+	await Promise.all(promises);
 
 	return;
 };
