@@ -191,6 +191,33 @@ const VERBOSE = false;
 //This will stream results by passing an array of results, or null to signal no more will come.
 type StreamingSuggestionProvider = (partialResult : Suggestion[]) => void;
 
+class PrefixedLogger {
+
+	_inner : Logger;
+	_prefix : string;
+
+	constructor(logger : Logger, prefix : string) {
+		this._inner = logger;
+		this._prefix = prefix;
+	}
+
+	info(...msg: unknown[]): void {
+		this._inner.info(this._prefix, ...msg);
+	}
+
+	error(...msg: unknown[]): void {
+		this._inner.error(this._prefix, ...msg);
+	}
+
+	log(...msg: unknown[]): void {
+		this._inner.log(this._prefix, ...msg);
+	}
+
+	warn(...msg: unknown[]): void {
+		this._inner.warn(this._prefix, ...msg);
+	}
+}
+
 const devNull : Logger = {
 	//eslint-disable-next-line @typescript-eslint/no-empty-function
 	log: () => {},
@@ -257,13 +284,15 @@ export const streamSuggestionsForCard = async (card : ProcessedCard, state : Sta
 		//VERBOSE is true.
 
 		const promise = (async () => {
-			//TODO: create a loggerWithPrefix to pass in to each in case they run out of order
-			logger.info(`Starting suggestor ${name}`);
+			//Since the log messages might be interleaved, add a prefix for each one.
+			const innerLogger = new PrefixedLogger(logger, name);
+			innerLogger.info(`Starting suggestor ${name}`);
 			const innerResult = await suggestor.generator({
 				...args,
-				type: name
+				type: name,
+				logger: innerLogger
 			});
-			logger.info(`Suggestor ${name} returned ${JSON.stringify(innerResult, null, '\t')}`);
+			innerLogger.info(`Suggestor ${name} returned ${JSON.stringify(innerResult, null, '\t')}`);
 			if (!innerResult) return;
 			//Don't reset results until we have one to show.
 			if (innerResult.length == 0) return;
