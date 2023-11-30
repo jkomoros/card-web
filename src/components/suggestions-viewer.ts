@@ -43,7 +43,7 @@ import {
 	CANCEL_ICON,
 	CHECK_CIRCLE_OUTLINE_ICON,
 	REPEAT_ICON,
-	AUTO_AWESOME_ICON
+	PSYCHOLOGY_ICON
 } from './my-icons.js';
 
 import {
@@ -271,7 +271,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				@click=${this._handleUseLLMsClicked}
 				title='Use LLM Suggestions - ${this._useLLMs ? 'Enabled' : 'Disabled'}'
 			>
-				${AUTO_AWESOME_ICON}
+				${PSYCHOLOGY_ICON}
 			</button>` :
 		''}
 				<div class='flex'></div>
