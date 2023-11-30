@@ -246,10 +246,18 @@ export const calculateSuggestionsForActiveCard = () : ThunkSomeAction => async (
 
 export const suggestionsToggleAggressive = () : ThunkSomeAction => (dispatch, getState) => {
 	const current = selectSuggestionsAggressive(getState());
+	dispatch(suggestionsSetAggressive(!current));
+};
+
+const suggestionsSetAggressive = (aggressive : boolean) : ThunkSomeAction => (dispatch, getState) => {
+	const current = selectSuggestionsAggressive(getState());
+	if (current == aggressive) return;
 	dispatch({
 		type: SUGGESTIONS_SET_AGGRESSIVE,
-		aggressive: !current
+		aggressive
 	});
+	//Refetch suggestions now that aggressive value has changed;
+	dispatch(calculateSuggestionsForActiveCard());
 };
 
 export const suggestionsToggleUseLLMs = () : ThunkSomeAction => (dispatch, getState) => {
