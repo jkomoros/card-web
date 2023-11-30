@@ -242,6 +242,11 @@ export const calculateSuggestionsForActiveCard = () : ThunkSomeAction => async (
 	streamSuggestionsForCard(card, getState(), provider).then(() => dispatch(suggestionsReplaceSuggestionsForCard(card.id, [], true, true)));
 };
 
+export const suggestionsToggleUseLLMs = () : ThunkSomeAction => (dispatch, getState) => {
+	const current = selectSuggestionsUseLLMs(getState());
+	dispatch(suggestionsSetUseLLMs(!current));
+};
+
 export const suggestionsSetUseLLMs = (useLLMs : boolean) : ThunkSomeAction => (dispatch, getState) => {
 	const current = selectSuggestionsUseLLMs(getState());
 	if (current == useLLMs) return;

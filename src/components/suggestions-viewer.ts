@@ -42,19 +42,24 @@ import {
 import {
 	CANCEL_ICON,
 	CHECK_CIRCLE_OUTLINE_ICON,
-	REPEAT_ICON
+	REPEAT_ICON,
+	AUTO_AWESOME_ICON
 } from './my-icons.js';
 
 import {
 	applySuggestion,
 	suggestionsChangeSelected,
 	suggestionsHidePanel,
-	suggestionsSetUseLLMs
+	suggestionsToggleUseLLMs
 } from '../actions/suggestions.js';
 
 import {
 	TagEvent
 } from '../events.js';
+
+import {
+	CardID
+} from '../types_simple.js';
 
 import {
 	descriptionForSuggestion
@@ -66,7 +71,6 @@ import {
 
 import './suggestions-summary.js';
 import './tag-list.js';
-import { CardID } from '../types_simple.js';
 
 const KEY_CARD_COLOR = COLORS.DARK_GREEN;
 const SUPPORTING_CARD_COLOR = COLORS.NAVY;
@@ -138,6 +142,14 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				display:flex;
 				flex-direction:row;
 				width:100%;
+			}
+			
+			button.small.selected svg {
+				fill: var(--app-primary-color);
+			}
+
+			button.small.selected:hover svg {
+				fill: var(--app-primary-color-light);
 			}
 
 			.row {
@@ -254,8 +266,13 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 			<div class='scrim'></div>
 			<div class='row'>
 				${this._userMayUseAI ? 
-		html`<input type='checkbox' id='use-llm' .checked=${this._useLLMs} @change=${this._handleUseLLMsChanged}></input>
-		<label for='use-llm'>Enable LLM Suggestions</label>` :
+		html`<button
+				class='small ${this._useLLMs ? 'selected' : ''}'
+				@click=${this._handleUseLLMsClicked}
+				title='Use LLM Suggestions - ${this._useLLMs ? 'Enabled' : 'Disabled'}'
+			>
+				${AUTO_AWESOME_ICON}
+			</button>` :
 		''}
 				<div class='flex'></div>
 				<suggestions-summary
@@ -378,11 +395,8 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		store.dispatch(applySuggestion(this._card.id, this._selectedIndex, 'rejection',));
 	}
 
-	_handleUseLLMsChanged(e : InputEvent) {
-		const ele = e.target;
-		if (!(ele instanceof HTMLInputElement)) throw new Error('not input ele');
-		const checked = ele.checked;
-		store.dispatch(suggestionsSetUseLLMs(checked));
+	_handleUseLLMsClicked() {
+		store.dispatch(suggestionsToggleUseLLMs());
 	}
 
 }
