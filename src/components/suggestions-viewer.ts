@@ -9,6 +9,7 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
 	selectActiveCard,
+	selectSuggestionsAggressive,
 	selectSuggestionsEffectiveSelectedIndex,
 	selectSuggestionsForActiveCard,
 	selectSuggestionsLoadingForCard,
@@ -43,13 +44,15 @@ import {
 	CANCEL_ICON,
 	CHECK_CIRCLE_OUTLINE_ICON,
 	REPEAT_ICON,
-	PSYCHOLOGY_ICON
+	PSYCHOLOGY_ICON,
+	WARNING_ICON
 } from './my-icons.js';
 
 import {
 	applySuggestion,
 	suggestionsChangeSelected,
 	suggestionsHidePanel,
+	suggestionsToggleAggressive,
 	suggestionsToggleUseLLMs
 } from '../actions/suggestions.js';
 
@@ -99,6 +102,9 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 	@state()
 		_useLLMs : boolean;
+
+	@state()
+		_aggressive : boolean;
 
 	@state()
 		_userMayUseAI : boolean;
@@ -274,6 +280,13 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				${PSYCHOLOGY_ICON}
 			</button>` :
 		''}
+				<button
+					class='small ${this._aggressive ? 'selected' : ''}'
+					@click=${this._handleAggressiveClicked}
+					title='Aggressive Thesholds - ${this._aggressive ? 'Enabled' : 'Disabled'}'
+				>
+					${WARNING_ICON}
+				</button>
 				<div class='flex'></div>
 				<suggestions-summary
 					.suggestions=${this._suggestions}
@@ -368,6 +381,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 		this._tagInfosForCards = selectTagInfosForCards(state);
 		this._userMayUseAI = selectUserMayUseAI(state);
 		this._useLLMs = selectSuggestionsUseLLMs(state);
+		this._aggressive = selectSuggestionsAggressive(state);
 		this._loadingForCard = selectSuggestionsLoadingForCard(state);
 		this._pending = selectSuggestionsPending(state);
 	}
@@ -397,6 +411,10 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 
 	_handleUseLLMsClicked() {
 		store.dispatch(suggestionsToggleUseLLMs());
+	}
+
+	_handleAggressiveClicked() {
+		store.dispatch(suggestionsToggleAggressive());
 	}
 
 }
