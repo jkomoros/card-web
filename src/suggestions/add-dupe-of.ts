@@ -43,7 +43,8 @@ const AGGRESSIVE_DUPLICATE_CUT_OFF = 0.92;
 const RECENT_SIMILARITY_CUT_OFF = 0.92;
 const AGGRESSIVE_RECENT_SIMLIARITY_CUT_OFF = 0.87;
 
-//TODO: this is largely recreated in missing-see-also
+//An example card in production where aggressive is necessary to get the right results: c-949-cbb418
+
 export const suggestDupeOf = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
 	const {type, card, collectionArguments, logger, useLLMs, uid} = args;
 	const description = collectionDescription(...SIMILAR_SAME_TYPE);
