@@ -33,12 +33,15 @@ import {
 	pickBetterCard
 } from './remove-priority.js';
 
-//Set by looking at a few examples
-const DUPLICATE_CUT_OFF = 0.95;
 //Number of seconds difference a card-created can be to be considered recent.
 const RECENT_THRESHOLD = 2 * 7 * 24 * 60 * 60; // 2 weeks
+
+//Set by looking at a few examples
+const DUPLICATE_CUT_OFF = 0.95;
+const AGGRESSIVE_DUPLICATE_CUT_OFF = 0.92;
 //For cards that are within a few weeks of each other, the cutoff is lower.
 const RECENT_SIMILARITY_CUT_OFF = 0.92;
+const AGGRESSIVE_RECENT_SIMLIARITY_CUT_OFF = 0.87;
 
 //TODO: this is largely recreated in missing-see-also
 export const suggestDupeOf = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
@@ -47,6 +50,12 @@ export const suggestDupeOf = async (args: SuggestorArgs) : Promise<Suggestion[]>
 	const collection = await waitForFinalCollection(description, {keyCardID: collectionArguments.keyCardID});
 	const topCards = collection.finalSortedCards;
 	const result : Suggestion[] = [];
+
+	if (args.aggressive) logger.info('Setting aggressive cutoff thresholds');
+
+	const CUT_OFF = args.aggressive ? AGGRESSIVE_DUPLICATE_CUT_OFF : DUPLICATE_CUT_OFF;
+	const RECENT_CUT_OFF = args.aggressive ? AGGRESSIVE_RECENT_SIMLIARITY_CUT_OFF : RECENT_SIMILARITY_CUT_OFF;
+
 	for (const topCard of topCards) {
 		logger.info(`topCard: ${topCard.id}`);
 		//TODO: this currently assumes that we'll get back an embedding-based
@@ -56,9 +65,9 @@ export const suggestDupeOf = async (args: SuggestorArgs) : Promise<Suggestion[]>
 		//`meaning` filter which simply doesn't return any results if it's not embedding filter.
 		const similarity = collection.sortValueForCard(topCard.id);
 		logger.info(`similarity: ${similarity}`);
-		if (similarity < DUPLICATE_CUT_OFF) {
+		if (similarity < CUT_OFF) {
 			const timeDiff = Math.abs(card.created.seconds - topCard.created.seconds);
-			if (timeDiff < RECENT_THRESHOLD && similarity > RECENT_SIMILARITY_CUT_OFF) {
+			if (timeDiff < RECENT_THRESHOLD && similarity > RECENT_CUT_OFF) {
 				logger.info(`The card's were not similar enough on their own, but because they were ${timeDiff / (60 * 60 * 24)} days different, they cleared the modified threshold.`);
 			} else {
 				logger.info('Similarity too low.');
