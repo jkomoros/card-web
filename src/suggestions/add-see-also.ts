@@ -29,6 +29,7 @@ import {
 
 //Set by looking at a few examples
 const SIMILARITY_CUT_OFF = 0.88;
+const AGGRESSIVE_SIMILARITY_CUT_OFF = 0.84;
 
 //TODO: this is largely recreated in dupe-of.ts
 export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
@@ -36,6 +37,8 @@ export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Sugge
 	const description = collectionDescription(...SIMILAR_SAME_TYPE);
 	const collection = await waitForFinalCollection(description, {keyCardID: collectionArguments.keyCardID});
 	const topCards = collection.finalSortedCards;
+	if (args.aggressive) logger.info('Using aggressive thresholds');
+	const CUT_OFF = args.aggressive ? AGGRESSIVE_SIMILARITY_CUT_OFF : SIMILARITY_CUT_OFF;
 	const result : Suggestion[] = [];
 	for (const topCard of topCards) {
 		logger.info(`topCard: ${topCard.id}`);
@@ -46,7 +49,7 @@ export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Sugge
 		//`meaning` filter which simply doesn't return any results if it's not embedding filter.
 		const similarity = collection.sortValueForCard(topCard.id);
 		logger.info(`similarity: ${similarity}`);
-		if (similarity < SIMILARITY_CUT_OFF) {
+		if (similarity < CUT_OFF) {
 			logger.info('Similarity too low.');
 			break;
 		}
