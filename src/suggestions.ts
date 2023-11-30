@@ -3,6 +3,7 @@ import {
 	selectCollectionConstructorArguments,
 	selectConcepts,
 	selectDataIsFullyLoaded,
+	selectSuggestionsAggressive,
 	selectSuggestionsUseLLMs,
 	selectUid,
 	selectUserMayUseAI,
@@ -149,7 +150,10 @@ export type SuggestorArgs = {
 	concepts: StringCardMap,
 	//Whether it's OK to use LLMs for suggestions. It will be true IFF LLMs are
 	//configured in this instance and it's OK to use them.
-	useLLMs: boolean
+	useLLMs: boolean,
+	//How aggressive to be. If aggressive, it's appropraite to use lower
+	//triggering thresholds, to suggest more items.
+	aggressive: boolean
 };
 
 type Suggestor = {
@@ -271,7 +275,8 @@ export const streamSuggestionsForCard = async (card : ProcessedCard, state : Sta
 		logger,
 		concepts: selectConcepts(state),
 		uid: selectUid(state),
-		useLLMs: selectUserMayUseAI(state) && selectSuggestionsUseLLMs(state)
+		useLLMs: selectUserMayUseAI(state) && selectSuggestionsUseLLMs(state),
+		aggressive: selectSuggestionsAggressive(state)
 	};
 
 	const promises : Promise<void>[] = [];
