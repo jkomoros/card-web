@@ -6,6 +6,7 @@ import {
 	SUGGESTIONS_CHANGE_SELECTED,
 	SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD,
 	SUGGESTIONS_SET_USE_LLMS,
+	SUGGESTIONS_SET_AGGRESSIVE,
 	SUGGESTIONS_LOADING_FOR_CARD,
 	SUGGESTIONS_SET_PENDING,
 	SHOW_CARD
@@ -18,6 +19,7 @@ import {
 const INITIAL_STATE : SuggestionsState = {
 	open: false,
 	useLLMs: true,
+	aggressive: false,
 	pending: false,
 	selectedIndex: 0,
 	loadingForCard: {},
@@ -89,6 +91,11 @@ const app = (state : SuggestionsState = INITIAL_STATE, action : SomeAction) : Su
 		return {
 			...state,
 			useLLMs: action.useLLMs
+		};
+	case SUGGESTIONS_SET_AGGRESSIVE:
+		return {
+			...state,
+			aggressive: action.aggressive
 		};
 	default:
 		return state;

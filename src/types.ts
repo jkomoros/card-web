@@ -1447,6 +1447,8 @@ export type SuggestionsState = {
 	//Note: this does not say LLMs will be used, just that if OPEN_AI_ENABLED
 	//and the user has permission suggestors will be told to use them.
 	useLLMs: boolean,
+	//Whether the thresholds for suggesting something should be lowered to suggest more thigs.
+	aggressive: boolean,
 	selectedIndex: number,
 	//Whether a suggestion is being applied.
 	pending: boolean,

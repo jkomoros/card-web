@@ -186,6 +186,7 @@ export const SUGGESTIONS_CHANGE_SELECTED = 'SUGGESTIONS_CHANGE_SELECTED';
 export const SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD = 'SUGGESTIONS_REPLACE_SUGGESTIONS_FOR_CARD';
 export const SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD = 'SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD';
 export const SUGGESTIONS_SET_USE_LLMS = 'SUGGESTIONS_SET_USE_LLMS';
+export const SUGGESTIONS_SET_AGGRESSIVE = 'SUGGESTIONS_SET_AGGRESSIVE';
 export const SUGGESTIONS_LOADING_FOR_CARD = 'SUGGESTIONS_LOADING_FOR_CARD';
 export const SUGGESTIONS_SET_PENDING = 'SUGGESTIONS_SET_PENDING';
 //User
@@ -840,6 +841,11 @@ type ActionSuggestionsSetUseLLMs = {
 	useLLMs: boolean
 };
 
+type ActionSuggestionsSetAggressive = {
+	type: typeof SUGGESTIONS_SET_AGGRESSIVE,
+	aggressive: boolean
+};
+
 type ActionSigninUser = {
 	type: typeof SIGNIN_USER,
 };
@@ -1014,6 +1020,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionSuggestionsReplaceSuggestionsForCard
 	| ActionSuggestionsRemoveSuggestionForCard
 	| ActionSuggestionsSetUseLLMs
+	| ActionSuggestionsSetAggressive
 	| ActionSuggestionsLoadingForCard
 	| ActionSuggestionsSetPending
 	| ActionSigninUser

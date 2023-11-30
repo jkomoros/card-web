@@ -283,6 +283,7 @@ const selectSuggestionsRawOpen = (state : State) => state.suggestions ? state.su
 export const selectSuggestionsForCards = (state : State) => state.suggestions ? state.suggestions.suggestionsForCard : {};
 export const selectSuggestionsSelectedIndex = (state : State) => state.suggestions ? state.suggestions.selectedIndex : 0;
 export const selectSuggestionsUseLLMs = (state : State) => state.suggestions ? state.suggestions.useLLMs : false;
+export const selectSuggestionsAggressive = (state : State) => state.suggestions ? state.suggestions.aggressive : false;
 export const selectSuggestionsLoadingForCard = (state : State) => state.suggestions ? state.suggestions.loadingForCard : {};
 export const selectSuggestionsPending = (state : State) => state.suggestions ? state.suggestions.pending : false;
 

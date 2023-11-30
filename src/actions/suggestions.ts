@@ -7,7 +7,8 @@ import {
 	SUGGESTIONS_REMOVE_SUGGESTION_FOR_CARD,
 	SUGGESTIONS_SET_USE_LLMS,
 	SUGGESTIONS_LOADING_FOR_CARD,
-	SUGGESTIONS_SET_PENDING
+	SUGGESTIONS_SET_PENDING,
+	SUGGESTIONS_SET_AGGRESSIVE
 } from '../actions.js';
 
 import {
@@ -18,6 +19,7 @@ import {
 	selectActiveCard,
 	selectCardModificationError,
 	selectCards,
+	selectSuggestionsAggressive,
 	selectSuggestionsForCards,
 	selectSuggestionsOpen,
 	selectSuggestionsPending,
@@ -240,6 +242,14 @@ export const calculateSuggestionsForActiveCard = () : ThunkSomeAction => async (
 	};
 	//Kick off the suggestions and also the finalizer
 	streamSuggestionsForCard(card, getState(), provider).then(() => dispatch(suggestionsReplaceSuggestionsForCard(card.id, [], true, true)));
+};
+
+export const suggestionsToggleAggressive = () : ThunkSomeAction => (dispatch, getState) => {
+	const current = selectSuggestionsAggressive(getState());
+	dispatch({
+		type: SUGGESTIONS_SET_AGGRESSIVE,
+		aggressive: !current
+	});
 };
 
 export const suggestionsToggleUseLLMs = () : ThunkSomeAction => (dispatch, getState) => {
