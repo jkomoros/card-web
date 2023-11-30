@@ -45,7 +45,7 @@ import {
 	CHECK_CIRCLE_OUTLINE_ICON,
 	REPEAT_ICON,
 	PSYCHOLOGY_ICON,
-	WARNING_ICON
+	HIGHLIGHT_ICON
 } from './my-icons.js';
 
 import {
@@ -285,7 +285,7 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 					@click=${this._handleAggressiveClicked}
 					title='Aggressive Thesholds - ${this._aggressive ? 'Enabled' : 'Disabled'}'
 				>
-					${WARNING_ICON}
+					${HIGHLIGHT_ICON}
 				</button>
 				<div class='flex'></div>
 				<suggestions-summary
