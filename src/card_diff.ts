@@ -111,6 +111,7 @@ const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
 	subtitle : true,
 	todo : true,
 	notes : true,
+	external_link: true,
 	images : true,
 };
 

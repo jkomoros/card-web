@@ -53,7 +53,8 @@ export const cardFieldTypeEditableSchema = z.enum([
 	'title',
 	'subtitle',
 	//Also duplicated in card-renderer styles
-	'title_alternates'
+	'title_alternates',
+	'external_link'
 ]);
 
 const cardFieldTypeNonEditableSchema = z.enum([
@@ -764,6 +765,10 @@ export interface Card {
 	//function said for that key based on being passed the card"
 	auto_todo_overrides: TODOOverrides,
 
+	//A pointer to an external link for this card. Most commonly used for
+	//work and person cards.
+	external_link? : string,
+
 	created: Timestamp,
 	updated: Timestamp,
 	updated_substantive: Timestamp,
@@ -841,6 +846,7 @@ interface NonAutoMergeableCardDiff {
 	subtitle? : string,
 	todo? : string,
 	notes? : string,
+	external_link? : string,
 
 	//Special sub-objec that doesn't have diffing yet.
 	images? : ImageBlock,

@@ -87,6 +87,7 @@ export const EMPTY_PROCESSED_CARD : ProcessedCard = {
 		title: [],
 		subtitle: [],
 		title_alternates: [],
+		external_link: [],
 		references_info_inbound: [],
 		non_link_references: [],
 		concept_references: []
@@ -560,6 +561,17 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		derivedForCardTypes: {},
 		autoFontSizeBoostForCardTypes: {},
 		matchWeight:0.75,
+	},
+	'external_link': {
+		html: false,
+		container:'h5',
+		legalCardTypes: {
+			person: true,
+			work: true
+		},
+		nonScrollable: true,
+		hideIfEmpty: true,
+		//TODO: consider having an override extractor to return '' so it doesn't get mucked up in indexing?
 	},
 	'references_info_inbound': {
 		html: false,
