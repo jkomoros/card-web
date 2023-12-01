@@ -575,7 +575,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		htmlFormatter(input) {
 			return `<card-link href=${input}>Reference</card-link>`;
 		},
-		//TODO: consider having an override extractor to return '' so it doesn't get mucked up in indexing?
+		skipIndexing: true
 	},
 	'references_info_inbound': {
 		html: false,
