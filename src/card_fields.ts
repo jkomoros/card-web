@@ -573,7 +573,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		hideIfEmpty: true,
 		noContentEditable: true,
 		htmlFormatter(input) {
-			return `<card-link href=${input}>Reference</card-link>`;
+			return `<card-link href=${input} iconname="LINK_ICON">Reference</card-link>`;
 		},
 		skipIndexing: true
 	},
