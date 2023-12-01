@@ -39,6 +39,10 @@ import {
 	makeCardHoveredEvent
 } from '../events.js';
 
+import {
+	IconName
+} from '../types_simple.js';
+
 @customElement('card-link')
 class CardLink extends connect(store)(LitElement) {
 	
@@ -56,6 +60,9 @@ class CardLink extends connect(store)(LitElement) {
 
 	@property({ type : Boolean })
 		noNavigate: boolean;
+
+	@property({ type: String })
+		iconName? : IconName;
 
 	@state()
 		_reads: FilterMap;
@@ -159,16 +166,17 @@ class CardLink extends connect(store)(LitElement) {
 	}
 
 	get _inner() {
+		const icon = this._icon;
 		if (this.auto) {
 			const card = this._cardObj;
 			if (card) {
 				const val = card[this.auto];
 				if (val) {
-					return html`${this._icon} ${val}`;
+					return html`${icon} ${val}`;
 				}
 			}
 		}
-		return html`<slot></slot>`;
+		return icon ? html`${icon} <slot></slot>` : html`<slot></slot>`;
 	}
 
 	_handleMouseClick(e : MouseEvent) {
@@ -207,12 +215,19 @@ class CardLink extends connect(store)(LitElement) {
 		return this._cards[this.card];
 	}
 
-	get _icon() {
+	get _iconName() : IconName | '' {
+		if (this.iconName) return this.iconName;
 		if (!this._cardObj) return '';
 		const cardTypeConfig = CARD_TYPE_CONFIGURATION[this._cardObj.card_type];
 		if (!cardTypeConfig) return '';
 		if (!cardTypeConfig.iconName) return '';
-		return icons[cardTypeConfig.iconName] || '';
+		return cardTypeConfig.iconName;
+	}
+
+	get _icon() {
+		const iconName = this._iconName;
+		if (!iconName) return '';
+		return icons[iconName] || '';
 	}
 
 	get _inReadingList() {
