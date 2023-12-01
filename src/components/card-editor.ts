@@ -358,6 +358,16 @@ class CardEditor extends connect(store)(LitElement) {
 			flex-grow:1;
 			}
 
+			.tags.stack {
+				display: flex;
+				flex-direction: column;
+			}
+
+			.tags.stack > div {
+				display: flex;
+				flex-direction: row;
+			}
+
 			.tabs {
 				display:flex;
 				flex-direction:row;
@@ -703,29 +713,44 @@ class CardEditor extends connect(store)(LitElement) {
 			</div>
 			${this._minimized ? 
 		html`
-			<div class='tags'>
-				<tag-list
-					.defaultColor=${autoTODOColor}
-					.tags=${this._autoTodos}
-					.overrideTypeName=${'Auto TODO'}
-					.tagInfos=${TODO_ALL_INFOS}
-					.hideOnEmpty=${true}
-					.disableAdd=${true}
-					.editing=${true}
-					@tag-removed=${this._handleAddTodoOverrideDisabled}>
-				</tag-list>
-				<tag-list
-					.defaultColor=${enableTODOColor}
-					.tags=${todoOverridesEnabled}
-					.previousTags=${todoOverridesPreviouslyEnabled}
-					.disableNew=${true}
-					.overrideTypeName=${'TODO'}
-					.editing=${true}
-					.tagInfos=${TODO_AUTO_INFOS}
-					@tag-added=${this._handleAddTodoOverrideEnabled}
-					@tag-removed=${this._handleRemoveTodoOverride}
-					.hideMessageOnEmpty=${true}>
-				</tag-list>
+			<div class='tags stack'>
+				<div>
+					<tag-list
+						.defaultColor=${autoTODOColor}
+						.tags=${this._autoTodos}
+						.overrideTypeName=${'Auto TODO'}
+						.tagInfos=${TODO_ALL_INFOS}
+						.hideOnEmpty=${true}
+						.disableAdd=${true}
+						.editing=${true}
+						@tag-removed=${this._handleAddTodoOverrideDisabled}>
+					</tag-list>
+					<tag-list
+						.defaultColor=${enableTODOColor}
+						.tags=${todoOverridesEnabled}
+						.previousTags=${todoOverridesPreviouslyEnabled}
+						.disableNew=${true}
+						.overrideTypeName=${'TODO'}
+						.editing=${true}
+						.tagInfos=${TODO_AUTO_INFOS}
+						@tag-added=${this._handleAddTodoOverrideEnabled}
+						@tag-removed=${this._handleRemoveTodoOverride}
+						.hideMessageOnEmpty=${true}>
+					</tag-list>
+				</div>
+				<div>
+					<tag-list
+						.tags=${card.tags}
+						.previousTags=${this._underlyingCard ? this._underlyingCard.tags : []}
+						.editing=${this._userMayEditSomeTags}
+						.excludeItems=${this._tagsUserMayNotEdit}
+						.tagInfos=${this._tagInfos}
+						@tag-added=${this._handleAddTag}
+						@tag-removed=${this._handleRemoveTag}
+						@tag-new=${this._handleNewTag}
+						.hideMessageOnEmpty=${true}
+					></tag-list>
+				</div>
 			</div>
 			<div class='flex'></div>
 			<div class='tags'>
