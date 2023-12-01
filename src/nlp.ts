@@ -542,6 +542,7 @@ const OVERRIDE_EXTRACTORS : {[field in CardFieldType]+? : (card : CardWithOption
 const extractRawContentRunsForCardField = (card : Card, fieldName : CardFieldType) : string[] => {
 	const cardType = card.card_type;
 	const config = TEXT_FIELD_CONFIGURATION[fieldName];
+	if (config.skipIndexing) return [];
 	if ((DERIVED_FIELDS_FOR_CARD_TYPE[cardType] || {})[fieldName]) return [];
 	const safeFieldName = cardFieldTypeSchema.parse(fieldName);
 	let fieldValue = '';

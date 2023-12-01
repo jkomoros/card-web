@@ -627,6 +627,8 @@ type CardFieldTypeConfiguration = {
 	autoFontSizeBoostForCardTypes? : {
 		[typ in CardType]+?: number
 	},
+	//if true, then the nlp pipeline will act like the content is empty.
+	skipIndexing? : boolean,
 	// overrideExtractor: boolean. If true, then nlp.js will expect there to be an
 	// override extractor defined in nlp.js. That is, instead of literally just
 	// fetching a field with that name from card, it will instead rely on an extractor
