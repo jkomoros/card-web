@@ -703,7 +703,6 @@ class CardEditor extends connect(store)(LitElement) {
 			</div>
 			${this._minimized ? 
 		html`
-			<div class='flex'></div>
 			<div class='tags'>
 				<tag-list
 					.defaultColor=${autoTODOColor}
@@ -767,9 +766,10 @@ class CardEditor extends connect(store)(LitElement) {
 		html`<div class='tabs main' @click=${this._handleTabClicked}>
 				<label data-name='${editorTab('config')}' ?data-selected=${this._selectedTab == 'config'}>Configuration</label>
 				<label data-name='${editorTab('content')}' ?data-selected=${this._selectedTab == 'content'}>Content</label>
-			</div>`}
+			</div>
 			<div class='flex'>
 			</div>
+			`}
 			<div class='checkboxes'>
 				<div>
 					<label>Full Bleed</label>
