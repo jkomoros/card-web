@@ -571,6 +571,10 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		},
 		nonScrollable: true,
 		hideIfEmpty: true,
+		noContentEditable: true,
+		htmlFormatter(input) {
+			return `<card-link href=${input}>Reference</card-link>`;
+		},
 		//TODO: consider having an override extractor to return '' so it doesn't get mucked up in indexing?
 	},
 	'references_info_inbound': {
