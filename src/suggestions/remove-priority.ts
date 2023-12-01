@@ -99,10 +99,18 @@ export const gradeCards = async (a : Card, b : Card, useLLMs = false, uid : stri
 		more_recent
 	};
 	if (useLLMs) {
-		result = {
-			...result,
-			...(await chooseBetterCardWithAI(a, b, uid, logger))
-		};
+		try {
+			//Sometimes the AI gives an erroneous result that doesn't schema
+			//check, like giving 'B' instead of 'b', which it's been doing in
+			//production for c-949-cbb418.
+			const aiResult = await chooseBetterCardWithAI(a, b, uid, logger);
+			result = {
+				...result,
+				...aiResult
+			};
+		} catch(err) {
+			logger.error(`LLM had an error: ${err}`);
+		}
 	}
 	return result;
 };
