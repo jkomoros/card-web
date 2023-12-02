@@ -599,6 +599,10 @@ type CardFieldTypeConfiguration = {
 	// use displayPrefix. Should be combined with noContentEditable otherwise the
 	// formated HTML will get mixed into the underlying value.
 	htmlFormatter? : (input : string) => string,
+	//Validator takes the proposed stirng and returns an error string or '' if
+	//no problem. If it is provided and returns a non-empty string, then edits
+	//to that field will not be allowed to be saved.
+	validator? : (input : string) => string,
 	// extraRunDelimiter: if provided, then when deciding where to break runs, that
 	// character will also be considered as a run break (in addition to the default
 	// `\n`)

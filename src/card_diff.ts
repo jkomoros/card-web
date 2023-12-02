@@ -585,6 +585,15 @@ export const applyCardDiff = (underlyingCard : Card, diff : CardDiff) : CardUpda
 //validateCardDiff returns true if sections update. It throws an error if the diff isn't valid or was rejected by a user.
 export const validateCardDiff = (state : State, underlyingCard : Card, diff : CardDiff) => {
 
+	for (const field of cardFieldTypeEditableSchema.options) {
+		if (diff[field] === undefined) continue;
+		const config = TEXT_FIELD_CONFIGURATION[field];
+		if (!config.validator) continue;
+		const err = config.validator(diff[field] || '');
+		if (!err) continue;
+		throw new Error(`Field ${field} didn't pass the validator: ${err}`);
+	}
+
 	if (diff.references_diff !== undefined) {
 		const cardCopy = {...underlyingCard};
 		const refs = references(cardCopy);
