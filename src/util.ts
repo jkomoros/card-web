@@ -242,12 +242,13 @@ const cardPlainContentImpl = (card : Card) : string => {
 //Extracts the user-provided title and body from the card, without HTML
 //formatting.
 export const cardPlainContent = (card : Card) : string => {
-	if (!plainContentCache.has(card)) {
-		plainContentCache.set(card, cardPlainContentImpl(card));
+	const currentContent = plainContentCache.get(card);
+	if (currentContent == undefined) {
+		const value = cardPlainContentImpl(card);
+		plainContentCache.set(card, value);
+		return value;
 	}
-	const value = plainContentCache.get(card);
-	if (!value) throw new Error('No content cache as expected');
-	return value;
+	return currentContent;
 };
 
 export const cardHasContent = (card : Card | null) => {
