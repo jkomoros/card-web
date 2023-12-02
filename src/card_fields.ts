@@ -265,6 +265,7 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 	'quote': {
 		description: 'A quote from an external source',
 		orphanedByDefault: true,
+		defaultBody: '<blockquote><p>This is a quote</p></blockquote>',
 		iconName: 'FORMAT_QUOTE_ICON',
 		styleBlock: styleBlockForCardType('quote', {
 			'.primary': [
