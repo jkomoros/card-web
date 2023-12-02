@@ -584,7 +584,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		hideIfEmpty: true,
 		noContentEditable: true,
 		htmlFormatter(input) {
-			return `<card-link href=${input} iconname="${LINK_ICON_NAME}">Reference</card-link>`;
+			return `<card-link href=${input} iconname="${LINK_ICON_NAME}">External Link</card-link>`;
 		},
 		validator(input) {
 			return !input || isURL(input) ? '' : `${input} is not a valid url`;
