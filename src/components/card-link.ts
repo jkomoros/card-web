@@ -65,7 +65,7 @@ class CardLink extends connect(store)(LitElement) {
 		iconName? : IconName;
 
 	@property({ type: Boolean })
-		noIcon = false;
+		subtle = false;
 
 	@state()
 		_reads: FilterMap;
@@ -165,7 +165,7 @@ class CardLink extends connect(store)(LitElement) {
 	override render() {
 
 		return html`
-			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''} ${this.strong ? 'strong' : ''} ${this._cardIsNotContent ? 'not-content' : ''} ${this._ctrlKeyPressed ? 'add-reading-list' : ''} ${this.noNavigate ? 'no-navigate' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
+			<a @mousemove=${this._handleMouseMove} @click=${this._handleMouseClick} title='' class='${this.card ? 'card' : ''} ${this._read ? 'read' : ''} ${this._cardExists ? 'exists' : 'does-not-exist'} ${this._cardIsUnpublished ? 'unpublished' : ''} ${this._inReadingList ? 'reading-list' : ''} ${this.strong ? 'strong' : ''} ${this._cardIsNotContent ? 'not-content' : ''} ${this._ctrlKeyPressed ? 'add-reading-list' : ''} ${this.noNavigate ? 'no-navigate' : ''} ${this.subtle ? 'subtle' : ''}' href='${this._computedHref}' target='${this._computedTarget}'>${this._inner}</a>`;
 	}
 
 	get _inner() {
@@ -228,7 +228,7 @@ class CardLink extends connect(store)(LitElement) {
 	}
 
 	get _icon() {
-		if (this.noIcon) return '';
+		if (this.subtle) return '';
 		const iconName = this._iconName;
 		if (!iconName) return '';
 		return icons[iconName] || '';
