@@ -582,6 +582,10 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		htmlFormatter(input) {
 			return `<card-link href=${input} iconname="${LINK_ICON_NAME}">Reference</card-link>`;
 		},
+		validator(input) {
+			//TODO: a proper URL check
+			return input.startsWith('https://') || input.startsWith('http://') ? '' : `${input} is not a valid url`;
+		},
 		skipIndexing: true
 	},
 	'references_info_inbound': {
