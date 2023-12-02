@@ -270,6 +270,12 @@ export const wrapPlainContent = (content : string) : string => {
 	return content.split('\n').filter(line => line.trim()).map(line => `<p>${line}</p>`).join('\n');
 };
 
+export const clipTitle = (title : string, maxWords = 12) : string => {
+	const parts = title.split(' ');
+	if (parts.length <= maxWords) return title;
+	return parts.slice(0, maxWords).join(' ') + '...';
+};
+
 export const isURL = (str: string) : boolean => {
 	try {
 		new URL(str);

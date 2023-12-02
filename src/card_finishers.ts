@@ -13,7 +13,8 @@ import {
 
 import {
 	backportFallbackTextMapForCard,
-	cardPlainContent
+	clipTitle,
+	innerTextForHTML
 } from './util.js';
 
 import {
@@ -66,8 +67,8 @@ export const CARD_TYPE_EDITING_FINISHERS : {[type in CardType]+?: (card : Card, 
 	'working-notes': workingNotesExtractor,
 	'concept': conceptValidator,
 	'quote': (card : Card) => {
-		//TODO: much better handling and word breaks, etc.
-		card.title = cardPlainContent(card).slice(0, 20) + '...';
+		const title = innerTextForHTML(card.body);
+		card.title = clipTitle(title);
 	}
 };
 
