@@ -271,6 +271,11 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 				'display: flex;',
 				'flex-direction: column;',
 				'justify-content: center;'
+			],
+			'.primary-references': [
+				'display: flex;',
+				'flex-direction: column;',
+				'align-items: center;'
 			]
 		})
 	}

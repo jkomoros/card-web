@@ -155,11 +155,15 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBloc
 				//cards link to a person directly or indirectly each card can
 				//only show up once.
 			),
-			title: ''
+			title: '',
+			primary: true,
+			condensed: true
 		},
 		{
 			collectionDescription: collectionDescription(cardTypeFilter('work'), referencesFilter('outbound', 'citation')),
-			title: ''
+			title: '',
+			primary: true,
+			condensed: true
 		}
 	]
 };
