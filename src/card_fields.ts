@@ -596,6 +596,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 	'commentary': {
 		container: 'section',
 		hideIfEmpty: true,
+		footer: true,
 		html: true,
 		legalCardTypes: {
 			'quote': true
