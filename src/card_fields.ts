@@ -38,6 +38,10 @@ import {
 	Timestamp
 } from 'firebase/firestore';
 
+import {
+	IconName
+} from './types_simple.js';
+
 export const EMPTY_CARD_ID = '?EMPTY-CARD?';
 
 export const EMPTY_CARD : Card = {
@@ -506,6 +510,9 @@ export const IMAGES_TEXT_FIELD : CardFieldType = 'body';
 
 const DEFAULT_MAX_FONT_BOOST = 0.3;
 
+//Use typechecking to catch errors
+const LINK_ICON_NAME : IconName = 'LINK_ICON';
+
 export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 	'title': {
 		html: false,
@@ -573,7 +580,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		hideIfEmpty: true,
 		noContentEditable: true,
 		htmlFormatter(input) {
-			return `<card-link href=${input} iconname="LINK_ICON">Reference</card-link>`;
+			return `<card-link href=${input} iconname="${LINK_ICON_NAME}">Reference</card-link>`;
 		},
 		skipIndexing: true
 	},
