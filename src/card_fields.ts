@@ -23,7 +23,8 @@ import {
 	FontSizeBoostMap,
 	CardFieldTypeEditable,
 	CardFieldTypeEditableConfigurationMap,
-	CardFieldType
+	CardFieldType,
+	CardFieldTypeConfiguration
 } from './types.js';
 
 import {
@@ -43,8 +44,10 @@ import {
 } from './types_simple.js';
 
 import {
+	innerTextForHTML,
 	isURL
 } from './util.js';
+import { validateTopLevelNodes } from './contenteditable.js';
 
 export const EMPTY_CARD_ID = '?EMPTY-CARD?';
 
@@ -523,6 +526,17 @@ const DEFAULT_MAX_FONT_BOOST = 0.3;
 //Use typechecking to catch errors
 const LINK_ICON_NAME : IconName = 'LINK_ICON';
 
+const bodyValidator = (body : string, cardType : CardType, config : CardFieldTypeConfiguration) : string => {
+	if (cardType != 'quote') return '';
+	const plainContent = innerTextForHTML(body).trim();
+	if (plainContent.startsWith('"') || plainContent.startsWith('\'')) {
+		return 'Quote cards should not contain their quoted content in quotes.';
+	}
+	const err = validateTopLevelNodes(body, config.overrideLegalTopLevelNodes?.[cardType]);
+	if (err) return err;
+	return '';
+};
+
 export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 	'title': {
 		html: false,
@@ -576,7 +590,8 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 		autoFontSizeBoostForCardTypes: {
 			'working-notes': DEFAULT_MAX_FONT_BOOST
 		},
-		matchWeight:0.5
+		matchWeight:0.5,
+		validator: bodyValidator
 	},
 	'commentary': {
 		container: 'section',
