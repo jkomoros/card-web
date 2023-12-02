@@ -42,6 +42,7 @@ import {
 
 import {
 	cardHasContent,
+	defaultTopLevelElement,
 	randomString,
 } from '../util.js';
 
@@ -378,17 +379,18 @@ let processNormalizedTextPropertiesTimeout : number;
 export const textFieldUpdated = (fieldName : CardFieldTypeEditable, value : string, fromContentEditable = false) : ThunkSomeAction => (dispatch, getState) => {
 	if (!fromContentEditable) fromContentEditable = false;
 
-	const config = TEXT_FIELD_CONFIGURATION[fieldName] || {};
+	const config = TEXT_FIELD_CONFIGURATION[fieldName];
+
+	const currentCard = selectEditingCard(getState());
 
 	if (config.html) {
 		//We only run it if it's coming from contentEditable because
 		//normalizeBodyHTML assumes the contnet is valid HTML, and if it's been
 		//updated in the editor textbox, and for example the end says `</p`,
 		//then it's not valid HTML.
-		value = fromContentEditable ? normalizeBodyHTML(value) : value;
+		value = fromContentEditable ? normalizeBodyHTML(value, defaultTopLevelElement(config, currentCard?.card_type)) : value;
 	}
 
-	const currentCard = selectEditingCard(getState());
 	if (currentCard && currentCard[fieldName] === value) {
 		//The values are exactly the same, skip dispatching the update. This
 		//could happen for example when a blank card is opened for editing and

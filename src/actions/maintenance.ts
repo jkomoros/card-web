@@ -14,6 +14,7 @@ import {
 } from '../contenteditable.js';
 
 import { 
+	defaultTopLevelElement,
 	downloadFile,
 	newID,
 	timestampForFilename,
@@ -58,7 +59,8 @@ import {
 	fontSizeBoosts,
 	MAX_SORT_ORDER_VALUE,
 	MIN_SORT_ORDER_VALUE,
-	DEFAULT_SORT_ORDER_INCREMENT
+	DEFAULT_SORT_ORDER_INCREMENT,
+	TEXT_FIELD_CONFIGURATION
 } from '../card_fields.js';
 
 import {
@@ -97,7 +99,8 @@ import {
 	MaintenanceTask,
 	ImageBlock,
 	ReferencesInfoMap,
-	DottedCardUpdate
+	DottedCardUpdate,
+	CardType
 } from '../types.js';
 
 import {
@@ -146,13 +149,14 @@ const normalizeContentBody : MaintenanceTaskFunction = async() => {
 
 	let counter = 0;
 	const size = snapshot.size;
+	const config = TEXT_FIELD_CONFIGURATION.body;
 
 	for (const doc of snapshot.docs) {
 		counter++;
 		const body = doc.data().body;
 		if (body) {
 			await updateDoc(doc.ref,{
-				body: normalizeBodyHTML(body),
+				body: normalizeBodyHTML(body, defaultTopLevelElement(config, doc.data().card_type as CardType)),
 				updated_normalize_body: serverTimestamp(),
 			});
 		}

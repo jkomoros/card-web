@@ -280,7 +280,7 @@ export const normalizeLineBreaks = (html : string) => {
 	return html;
 };
 
-export const normalizeBodyHTML = (html : string) => {
+export const normalizeBodyHTML = (html : string, defaultTopLevelElement : HTMLTagName = 'p') => {
 
 	if (!html) return html;
 
@@ -307,7 +307,7 @@ export const normalizeBodyHTML = (html : string) => {
 	html = html.split('<i>').join('<em>');
 	html = html.split('</i>').join('</em>');
 
-	html = cleanUpTopLevelHTML(html);
+	html = cleanUpTopLevelHTML(html, defaultTopLevelElement);
 
 	html = normalizeLineBreaks(html);
 

@@ -15,7 +15,9 @@ import {
 	ReferenceType,
 	CardFieldTypeEditable,
 	CardFlags,
-	CardFlagsRemovals
+	CardFlagsRemovals,
+	CardFieldTypeConfiguration,
+	HTMLTagName
 } from './types.js';
 
 import {
@@ -203,6 +205,13 @@ export const cardHasTodo = (card : Card | null) => {
 	if (!card) return false;
 	const content = card.todo ? card.todo.trim() : '';
 	return content ? true : false;
+};
+
+export const defaultTopLevelElement = (config? : CardFieldTypeConfiguration, cardType? : CardType) : HTMLTagName | undefined => {
+	if (!config) return undefined;
+	if (!config.defaultTopLevelElementForCardType) return undefined;
+	if (!cardType) return undefined;
+	return config.defaultTopLevelElementForCardType[cardType];
 };
 
 //Recreated in functions/src/embeddings.ts

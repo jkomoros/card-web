@@ -572,11 +572,15 @@ type CardTypeMap = {
 	[typ in CardType]+?: boolean
 }
 
-type CardFieldTypeConfiguration = {
+export type CardFieldTypeConfiguration = {
 	// html: whether or not the field allows html. NOTE: currently it's only supported
 	// for a single field to be marked as html, and it must be called 'body'. See #345
 	// for fixing that.
 	html? : boolean,
+	//Naked content will be hoisted into this type of element. 
+	defaultTopLevelElementForCardType? : {
+		[typ in CardType]+?: HTMLTagName
+	}
 	// container: the type of container element the field should be printed out into
 	// (the actual card custom element will decide whether to print it out in the first
 	// place)
