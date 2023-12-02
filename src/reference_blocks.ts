@@ -49,6 +49,8 @@ export interface ReferenceBlock {
 	title: string;
     // condensed: if true, will show up in a much smaller, inline style
 	condensed?: boolean;
+	//If provided, will render card-link subtly (e.g. no icon)
+	subtle? : boolean;
 	//if true, then even if it's condensed it will show up in the primary section.
 	primary? : boolean;
     // description: if provided, will render a help badge with this text
