@@ -159,13 +159,15 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBloc
 			),
 			title: '',
 			primary: true,
-			condensed: true
+			condensed: true,
+			subtle: true
 		},
 		{
 			collectionDescription: collectionDescription(cardTypeFilter('work'), referencesFilter('outbound', 'citation')),
 			title: '',
 			primary: true,
-			condensed: true
+			condensed: true,
+			subtle: true
 		}
 	]
 };
