@@ -568,6 +568,8 @@ export type CommentThreads = {
 
 export type HTMLTagName = 'div' | 'p' | 'ol' | 'ul' | 'li' | 'h1' | 'h2' | 'h3'| 'h4' | 'h5' | 'section' | 'blockquote';
 
+export type HTMLTagMap = {[tag in HTMLTagName]+?: true};
+
 type CardTypeMap = {
 	[typ in CardType]+?: boolean
 }
@@ -577,9 +579,10 @@ export type CardFieldTypeConfiguration = {
 	// for a single field to be marked as html, and it must be called 'body'. See #345
 	// for fixing that.
 	html? : boolean,
-	//Naked content will be hoisted into this type of element. 
-	defaultTopLevelElementForCardType? : {
-		[typ in CardType]+?: HTMLTagName
+	//These are the types of nodes that will be allowed for that card type.
+	//Illegal nodes will be hoisted into the first one.
+	overrideLegalTopLevelNodes? : {
+		[typ in CardType]+?: HTMLTagMap
 	}
 	// container: the type of container element the field should be printed out into
 	// (the actual card custom element will decide whether to print it out in the first

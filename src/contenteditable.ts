@@ -8,6 +8,7 @@ import {
 } from './document.js';
 
 import {
+	HTMLTagMap,
 	HTMLTagName
 } from './types.js';
 
@@ -177,10 +178,8 @@ const removeZombieSpans = (ele : Element) => {
 	if (removedZombies) ele.normalize();
 };
 
-type NodeMap = {[tag in HTMLTagName]+?: true};
-
 //Recreated in functions/src/embeddings.ts
-const DEFAULT_LEGAL_TOP_LEVEL_NODES : NodeMap = {
+const DEFAULT_LEGAL_TOP_LEVEL_NODES : HTMLTagMap = {
 	'p': true,
 	'ol': true,
 	'ul': true,
@@ -191,7 +190,7 @@ const DEFAULT_LEGAL_TOP_LEVEL_NODES : NodeMap = {
 	'blockquote': true
 };
 
-const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p', legalTopLevelNodes : NodeMap = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
+const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p', legalTopLevelNodes : HTMLTagMap = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
 
 	//Does deeper changes that require parsing.
 	//1) make sure all text in top is within a p tag.
@@ -265,7 +264,7 @@ const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p', legalTopLev
 };
 
 //Also recreated in functions/src/embeddings.ts
-export const normalizeLineBreaks = (html : string, legalTopLevelNodes : NodeMap = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
+export const normalizeLineBreaks = (html : string, legalTopLevelNodes : HTMLTagMap = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
 
 	if (!html) return html;
 	//Remove all line breaks. We'll put them back in.
@@ -284,7 +283,7 @@ export const normalizeLineBreaks = (html : string, legalTopLevelNodes : NodeMap 
 	return html;
 };
 
-export const normalizeBodyHTML = (html : string, defaultTopLevelElement : HTMLTagName = 'p', legalTopLevelNodes : NodeMap = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
+export const normalizeBodyHTML = (html : string, defaultTopLevelElement : HTMLTagName = 'p', legalTopLevelNodes : HTMLTagMap = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
 
 	if (!html) return html;
 

@@ -209,9 +209,13 @@ export const cardHasTodo = (card : Card | null) => {
 
 export const defaultTopLevelElement = (config? : CardFieldTypeConfiguration, cardType? : CardType) : HTMLTagName | undefined => {
 	if (!config) return undefined;
-	if (!config.defaultTopLevelElementForCardType) return undefined;
+	if (!config.overrideLegalTopLevelNodes) return undefined;
 	if (!cardType) return undefined;
-	return config.defaultTopLevelElementForCardType[cardType];
+	const map = config.overrideLegalTopLevelNodes[cardType];
+	if (!map) return undefined;
+	const keys = TypedObject.keys(map);
+	if (keys.length == 0) return undefined;
+	return keys[0];
 };
 
 //Recreated in functions/src/embeddings.ts

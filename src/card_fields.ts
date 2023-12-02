@@ -567,8 +567,10 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 			'person': true,
 			'quote': true
 		},
-		defaultTopLevelElementForCardType: {
-			'quote': 'blockquote'
+		overrideLegalTopLevelNodes: {
+			'quote': {
+				'blockquote': true
+			}
 		},
 		derivedForCardTypes: {},
 		autoFontSizeBoostForCardTypes: {
