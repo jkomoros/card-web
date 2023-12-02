@@ -328,7 +328,7 @@ export type SelectorStyleMap = {
 }
 
 export type CardTypeConfigurationMap = {
-	[typ in CardType]+?: {
+	[typ in CardType]: {
 		//invertContentPublishWarning: if true, then the 'There's content but unpublished,
 		//are you sure?' will not trigger... unelss you try to publish in which case it
 		//will ask for confirmation.
