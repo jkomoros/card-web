@@ -110,6 +110,7 @@ const legalTopLevelNodes = {
 	'h2': true,
 	'h3': true,
 	'h4': true,
+	'blockquote': true
 };
 
 //Recreated from src/contenteditable.ts

@@ -565,7 +565,7 @@ export type CommentThreads = {
 	[id : CommentThreadID]: CommentThread
 }
 
-export type HTMLTagName = 'div' | 'p' | 'ol' | 'ul' | 'li' | 'h1' | 'h2' | 'h3'| 'h4' | 'h5' | 'section';
+export type HTMLTagName = 'div' | 'p' | 'ol' | 'ul' | 'li' | 'h1' | 'h2' | 'h3'| 'h4' | 'h5' | 'section' | 'blockquote';
 
 type CardTypeMap = {
 	[typ in CardType]+?: boolean

@@ -186,6 +186,7 @@ const legalTopLevelNodes : {[tag in HTMLTagName]+?: true} = {
 	'h2': true,
 	'h3': true,
 	'h4': true,
+	'blockquote': true
 };
 
 const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
