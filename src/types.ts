@@ -219,7 +219,8 @@ export const autoTODOType = z.enum([
 	'slug',
 	'substantive-content',
 	'tags',
-	'author-citation'
+	'author-citation',
+	'quote-citation'
 ]);
 
 export type AutoTODOType = z.infer<typeof autoTODOType>;
