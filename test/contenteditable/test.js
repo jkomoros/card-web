@@ -6,7 +6,7 @@ import {
 
 import {
 	overrideDocument
-} from '../../src/document.js';
+} from '../../lib/src/document.js';
 
 const dom = new JSDOM('');
 
@@ -14,11 +14,11 @@ overrideDocument(dom.window.document);
 
 import {
 	normalizeBodyHTML,
-} from '../../src/contenteditable.js';
+} from '../../lib/src/contenteditable.js';
 
 import {
 	TESTING
-} from '../../src/nlp.js';
+} from '../../lib/src/nlp.js';
 
 import assert from 'assert';
 

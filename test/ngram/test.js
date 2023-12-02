@@ -2,7 +2,7 @@
 
 import {
 	ngramWithinOther
-} from '../../src/nlp.js';
+} from '../../lib/src/nlp.js';
 
 import assert from 'assert';
 

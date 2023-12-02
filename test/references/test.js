@@ -3,7 +3,7 @@
 import {
 	REFERENCES_INFO_CARD_PROPERTY,
 	REFERENCES_CARD_PROPERTY
-} from '../../src/type_constants.js';
+} from '../../lib/src/type_constants.js';
 
 import {
 	references,
@@ -14,7 +14,7 @@ import {
 	referencesEntriesDiff,
 	unionReferences,
 	intersectionReferences
-} from '../../src/references.js';
+} from '../../lib/src/references.js';
 
 //We import these only to get deleteField without importing from firebase.js.
 import {
@@ -25,7 +25,7 @@ import assert from 'assert';
 
 import {
 	referenceType
-} from '../../src/types.js';
+} from '../../lib/src/types.js';
 
 const REFERENCE_TYPE_ACK = referenceType('ack');
 const REFERENCE_TYPE_DUPE_OF = referenceType('dupe-of');

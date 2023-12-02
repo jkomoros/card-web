@@ -3,14 +3,13 @@
 import {
 	CollectionDescription,
 	collectionDescriptionWithQuery,
-} from '../../src/collection_description.js';
+} from '../../lib/src/collection_description.js';
 
 import {
 	UNION_FILTER_DELIMITER
-} from '../../src/filters.js';
+} from '../../lib/src/filters.js';
 
 import assert from 'assert';
-
 
 describe('card-web url parsing', () => {
 	it('supports basic url parsing', async () => {

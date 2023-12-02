@@ -6,7 +6,7 @@ import {
 
 import {
 	overrideDocument
-} from '../../src/document.js';
+} from '../../lib/src/document.js';
 
 import {
 	BASE_DATA

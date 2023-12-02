@@ -3,7 +3,7 @@
 import {
 	getObjectPath,
 	objectPathToValue
-} from '../../src/util.js';
+} from '../../lib/src/util.js';
 
 import assert from 'assert';
 
