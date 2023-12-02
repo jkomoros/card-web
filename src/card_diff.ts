@@ -589,7 +589,7 @@ export const validateCardDiff = (state : State, underlyingCard : Card, diff : Ca
 		if (diff[field] === undefined) continue;
 		const config = TEXT_FIELD_CONFIGURATION[field];
 		if (!config.validator) continue;
-		const err = config.validator(diff[field] || '');
+		const err = config.validator(diff[field]);
 		if (!err) continue;
 		throw new Error(`Field ${field} didn't pass the validator: ${err}`);
 	}
