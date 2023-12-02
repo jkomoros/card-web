@@ -268,6 +268,10 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 		defaultBody: '<blockquote><p>This is a quote</p></blockquote>',
 		iconName: 'FORMAT_QUOTE_ICON',
 		styleBlock: styleBlockForCardType('quote', {
+			'.primary section': [
+				'display: flex;',
+				'justify-content: center;'
+			],
 			'.primary': [
 				'display: flex;',
 				'flex-direction: column;',
