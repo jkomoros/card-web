@@ -587,7 +587,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 			return `<card-link href=${input} iconname="${LINK_ICON_NAME}">Reference</card-link>`;
 		},
 		validator(input) {
-			return isURL(input) ? '' : `${input} is not a valid url`;
+			return !input || isURL(input) ? '' : `${input} is not a valid url`;
 		},
 		skipIndexing: true
 	},
