@@ -567,6 +567,9 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 			'person': true,
 			'quote': true
 		},
+		defaultTopLevelElementForCardType: {
+			'quote': 'blockquote'
+		},
 		derivedForCardTypes: {},
 		autoFontSizeBoostForCardTypes: {
 			'working-notes': DEFAULT_MAX_FONT_BOOST
