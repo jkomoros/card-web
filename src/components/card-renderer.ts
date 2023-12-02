@@ -452,7 +452,9 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 						</div>
 					</div>
 					<div class='primary show-scroll-if-needed scroller'>
-						${scrollableFields.map(fieldName => this._templateForField(fieldName))}
+						<div class='primary-inner'>
+							${scrollableFields.map(fieldName => this._templateForField(fieldName))}
+						</div>
 					</div>
 					<div class='reference-blocks show-scroll-if-needed scroller'>
 						${normalReferenceBlocks.map(block => html`<reference-block .block=${block}></reference-block>`)}
