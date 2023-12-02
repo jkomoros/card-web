@@ -329,3 +329,17 @@ export const normalizeBodyHTML = (html : string, legalTopLevelNodes : HTMLTagMap
 	return normalizeBodyFromContentEditable(html);
 
 };
+
+//Returns an empty string if it's OK, and a non-empty string if it's not.
+export const validateTopLevelNodes = (input : string, legalTopLevelNodes : HTMLTagMap = DEFAULT_LEGAL_TOP_LEVEL_NODES) : string => {
+	const doc = getDocument();
+	if (!doc) throw new Error('No document');
+	const ele = doc.createElement('section');
+	ele.innerHTML = input;
+	for (const child of ele.children) {
+		if (!legalTopLevelNodes[child.localName as HTMLTagName]) {
+			return `${child.localName} was in top-level but only legal values are ${Object.keys(legalTopLevelNodes).join(',')}`;
+		}
+	}
+	return '';
+};
