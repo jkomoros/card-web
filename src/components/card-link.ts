@@ -64,6 +64,9 @@ class CardLink extends connect(store)(LitElement) {
 	@property({ type: String })
 		iconName? : IconName;
 
+	@property({ type: Boolean })
+		noIcon = false;
+
 	@state()
 		_reads: FilterMap;
 
@@ -225,6 +228,7 @@ class CardLink extends connect(store)(LitElement) {
 	}
 
 	get _icon() {
+		if (this.noIcon) return '';
 		const iconName = this._iconName;
 		if (!iconName) return '';
 		return icons[iconName] || '';
