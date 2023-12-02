@@ -14,7 +14,6 @@ import {
 } from '../contenteditable.js';
 
 import { 
-	defaultTopLevelElement,
 	downloadFile,
 	newID,
 	timestampForFilename,
@@ -154,9 +153,10 @@ const normalizeContentBody : MaintenanceTaskFunction = async() => {
 	for (const doc of snapshot.docs) {
 		counter++;
 		const body = doc.data().body;
+		const card_type = doc.data().card_type as CardType;
 		if (body) {
 			await updateDoc(doc.ref,{
-				body: normalizeBodyHTML(body, defaultTopLevelElement(config, doc.data().card_type as CardType)),
+				body: normalizeBodyHTML(body, config.overrideLegalTopLevelNodes?.[card_type]),
 				updated_normalize_body: serverTimestamp(),
 			});
 		}

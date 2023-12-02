@@ -42,7 +42,6 @@ import {
 
 import {
 	cardHasContent,
-	defaultTopLevelElement,
 	randomString,
 } from '../util.js';
 
@@ -383,12 +382,14 @@ export const textFieldUpdated = (fieldName : CardFieldTypeEditable, value : stri
 
 	const currentCard = selectEditingCard(getState());
 
+	if (!currentCard) return;
+
 	if (config.html) {
 		//We only run it if it's coming from contentEditable because
 		//normalizeBodyHTML assumes the contnet is valid HTML, and if it's been
 		//updated in the editor textbox, and for example the end says `</p`,
 		//then it's not valid HTML.
-		value = fromContentEditable ? normalizeBodyHTML(value, defaultTopLevelElement(config, currentCard?.card_type)) : value;
+		value = fromContentEditable ? normalizeBodyHTML(value, config.overrideLegalTopLevelNodes?.[currentCard.card_type]) : value;
 	}
 
 	if (currentCard && currentCard[fieldName] === value) {

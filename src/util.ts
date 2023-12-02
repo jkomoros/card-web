@@ -15,9 +15,7 @@ import {
 	ReferenceType,
 	CardFieldTypeEditable,
 	CardFlags,
-	CardFlagsRemovals,
-	CardFieldTypeConfiguration,
-	HTMLTagName
+	CardFlagsRemovals
 } from './types.js';
 
 import {
@@ -205,17 +203,6 @@ export const cardHasTodo = (card : Card | null) => {
 	if (!card) return false;
 	const content = card.todo ? card.todo.trim() : '';
 	return content ? true : false;
-};
-
-export const defaultTopLevelElement = (config? : CardFieldTypeConfiguration, cardType? : CardType) : HTMLTagName | undefined => {
-	if (!config) return undefined;
-	if (!config.overrideLegalTopLevelNodes) return undefined;
-	if (!cardType) return undefined;
-	const map = config.overrideLegalTopLevelNodes[cardType];
-	if (!map) return undefined;
-	const keys = TypedObject.keys(map);
-	if (keys.length == 0) return undefined;
-	return keys[0];
 };
 
 //Recreated in functions/src/embeddings.ts

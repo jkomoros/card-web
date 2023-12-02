@@ -12,6 +12,10 @@ import {
 	HTMLTagName
 } from './types.js';
 
+import {
+	TypedObject
+} from './typed_object.js';
+
 //We don't just use Node.ELEMENT_NODE and friends because this also runs in the
 //Node context for testing.
 const ELEMENT_NODE = 1;
@@ -190,7 +194,10 @@ const DEFAULT_LEGAL_TOP_LEVEL_NODES : HTMLTagMap = {
 	'blockquote': true
 };
 
-const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p', legalTopLevelNodes : HTMLTagMap = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
+const cleanUpTopLevelHTML = (html : string, legalTopLevelNodes : HTMLTagMap = DEFAULT_LEGAL_TOP_LEVEL_NODES, tag? : HTMLTagName) => {
+
+	if (!tag) tag = TypedObject.keys(legalTopLevelNodes)[0];
+	if (!tag) throw new Error('No tag');
 
 	//Does deeper changes that require parsing.
 	//1) make sure all text in top is within a p tag.
@@ -254,7 +261,7 @@ const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p', legalTopLev
 			ele.innerHTML = inner;
 
 			if (ele.localName == 'ol' || ele.localName == 'ul') {
-				ele.innerHTML = cleanUpTopLevelHTML(ele.innerHTML, 'li');
+				ele.innerHTML = cleanUpTopLevelHTML(ele.innerHTML, legalTopLevelNodes, 'li');
 			}
 		}
 	}
@@ -283,7 +290,7 @@ export const normalizeLineBreaks = (html : string, legalTopLevelNodes : HTMLTagM
 	return html;
 };
 
-export const normalizeBodyHTML = (html : string, defaultTopLevelElement : HTMLTagName = 'p', legalTopLevelNodes : HTMLTagMap = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
+export const normalizeBodyHTML = (html : string, legalTopLevelNodes : HTMLTagMap = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
 
 	if (!html) return html;
 
@@ -310,7 +317,7 @@ export const normalizeBodyHTML = (html : string, defaultTopLevelElement : HTMLTa
 	html = html.split('<i>').join('<em>');
 	html = html.split('</i>').join('</em>');
 
-	html = cleanUpTopLevelHTML(html, defaultTopLevelElement, legalTopLevelNodes);
+	html = cleanUpTopLevelHTML(html, legalTopLevelNodes);
 
 	html = normalizeLineBreaks(html, legalTopLevelNodes);
 

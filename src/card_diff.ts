@@ -3,7 +3,6 @@ import {
 	applyCardFlags,
 	arrayRemoveUtil,
 	arrayUnionUtil,
-	defaultTopLevelElement,
 	diffCardFlags,
 	extractCardLinksFromBody,
 	innerTextForHTML,
@@ -338,7 +337,7 @@ export const generateCardDiff = (underlyingCardIn : Card | null | undefined, upd
 		let value = updatedCard[field] || '';
 		if (config.html && normalizeHTMLFields) {
 			try {
-				value = normalizeBodyHTML(value, defaultTopLevelElement(config, updatedCardIn?.card_type));
+				value = normalizeBodyHTML(value, config.overrideLegalTopLevelNodes?.[updatedCardIn?.card_type || underlyingCardIn?.card_type || 'content']);
 			} catch(err) {
 				throw new Error('Couldn\'t save: invalid HTML: ' + err);
 			}
