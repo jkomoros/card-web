@@ -429,8 +429,11 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		}
 		const condensedReferenceBlocks = [];
 		const normalReferenceBlocks = [];
+		const primaryReferenceBlocks = [];
 		for (const block of this.expandedReferenceBlocks || []) {
-			if (block.condensed) {
+			if (block.primary) {
+				primaryReferenceBlocks.push(block);
+			} else if (block.condensed) {
 				condensedReferenceBlocks.push(block);
 			} else {
 				normalReferenceBlocks.push(block);
@@ -454,6 +457,9 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 					<div class='primary show-scroll-if-needed scroller'>
 						<div class='primary-inner'>
 							${scrollableFields.map(fieldName => this._templateForField(fieldName))}
+							<div class='primary-references'>
+								${primaryReferenceBlocks.map(block => html`<reference-block .block=${block}></reference-block>`)}
+							</div>
 						</div>
 					</div>
 					<div class='reference-blocks show-scroll-if-needed scroller'>

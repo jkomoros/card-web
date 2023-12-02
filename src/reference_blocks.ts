@@ -49,6 +49,8 @@ export interface ReferenceBlock {
 	title: string;
     // condensed: if true, will show up in a much smaller, inline style
 	condensed?: boolean;
+	//if true, then even if it's condensed it will show up in the primary section.
+	primary? : boolean;
     // description: if provided, will render a help badge with this text
 	description? : string;
     // cardsToBoldFilterFactory: if not null, should be a factory that, given the expanded card object, will return a filter function to then be passed other expanded card objects to test if they should be bold. The items that return true from that second item will be shown as strong in the reference block.
