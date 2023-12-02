@@ -480,7 +480,7 @@ class CardEditor extends connect(store)(LitElement) {
 
 			</div>
 			<div ?hidden=${this._selectedEditorTab !== 'content'} class='body flex'>
-				${TypedObject.entries(editableFieldsForCardType(card.card_type)).map(entry => html`<label>${toTitleCase(entry[0])}${entry[1].description ? help(entry[1].description) : ''}</label>
+				${TypedObject.entries(editableFieldsForCardType(card.card_type)).map(entry => html`<label>${toTitleCase(entry[0].split('_').join(' '))}${entry[1].description ? help(entry[1].description) : ''}</label>
 					${entry[1].html
 		? html`<textarea @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${card[entry[0]] || ''}></textarea>`
 		: html`<div class='row'><input type='text' @input='${this._handleTextFieldUpdated}' data-field=${entry[0]} .value=${card[entry[0]] || ''}></input>${this._userMayUseAI && entry[0] == 'title' ? html`<button class='small' @click=${this._handleAITitleClicked} title='Suggest title with AI'>${AUTO_AWESOME_ICON}</button>` : ''}</div>`}
