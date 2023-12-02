@@ -199,6 +199,13 @@ describe('content editable scrubbing', () => {
 		assert.equal(actual, expected);
 	});
 
+	it('content with an alternate top level tag', async () => {
+		const input = 'Here\'s some <card-link card="card-id">content</card-link>';
+		const actual = normalizeBodyHTML(input, 'blockquote');
+		const expected = '<blockquote>Here\'s some <card-link card="card-id">content</card-link></blockquote>\n';
+		assert.equal(actual, expected);
+	});
+
 });
 
 describe('html highlighting', () => {
