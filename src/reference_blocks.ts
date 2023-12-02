@@ -140,6 +140,25 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBloc
 			showNavigate: true,
 			emptyMessage: 'No cards cite this person'
 		},
+	],
+	'quote': [
+		{
+			collectionDescription: collectionDescription(cardTypeFilter('work'), referencesFilter('outbound', 'citation')),
+			title: ''
+		},
+		{
+			//Reach through a work citation to the person citation.
+			collectionDescription: collectionDescription(
+				//Only show person
+				cardTypeFilter('person'),
+				//We have to reach through both types, because the first connection might be to a work, and then to a person.
+				referencesFilter('outbound', ['citation', 'citation-person'], {ply: 2}),
+				//We don't need to do a limitFilter(1) because even if multiple
+				//cards link to a person directly or indirectly each card can
+				//only show up once.
+			),
+			title: ''
+		}
 	]
 };
 
