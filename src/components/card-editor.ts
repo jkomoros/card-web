@@ -484,6 +484,7 @@ class CardEditor extends connect(store)(LitElement) {
 					<label>
 						${toTitleCase(entry[0].split('_').join(' '))}
 						${entry[1].description ? help(entry[1].description) : ''}
+						${entry[1].validator && entry[1].validator(card[entry[0]] || '') ? help(entry[1].validator(card[entry[0]] || ''), true, true) : ''}
 					</label>
 					${entry[1].html
 		? html`<textarea 
