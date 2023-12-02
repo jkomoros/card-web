@@ -415,11 +415,14 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 		const titleFields : CardFieldTypeEditable[] = [];
 		const nonScrollableFields : CardFieldTypeEditable[] = [];
 		const scrollableFields : CardFieldTypeEditable[] = [];
+		const scrollableFooterFields : CardFieldTypeEditable[] = [];
 		for (const [fieldName,fieldConfig] of TypedObject.entries(fieldsToRender)) {
 			if (fieldName == 'title') {
 				titleFields.push(fieldName);
 			} else if (fieldConfig.nonScrollable) {
 				nonScrollableFields.push(fieldName);
+			} else if (fieldConfig.footer) {
+				scrollableFooterFields.push(fieldName);
 			} else {
 				scrollableFields.push(fieldName);
 			}
@@ -453,6 +456,9 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 					</div>
 					<div class='reference-blocks show-scroll-if-needed scroller'>
 						${normalReferenceBlocks.map(block => html`<reference-block .block=${block}></reference-block>`)}
+					</div>
+					<div class='footer show-scroll-if-needed scroller'>
+						${scrollableFooterFields.map(fieldName => this._templateForField(fieldName))}
 					</div>
 				</div>
 				${starBadge(this._card.star_count)}

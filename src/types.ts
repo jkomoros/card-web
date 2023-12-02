@@ -627,6 +627,9 @@ export type CardFieldTypeConfiguration = {
 	// non-scrollable top region, before the scrollable portions are printed out in
 	// order.
 	nonScrollable? : boolean,
+	//If true and nonScrollable is false, will print out at the very bottom
+	//below any other items.
+	footer?: boolean,
 	// readOnly: if true, a form field to edit this won't be printed out in
 	// cardEditor. Note: if you flip this value, you need to also change the
 	// boolean value in TEXT_FIELD_TYPES in type_constants.ts
