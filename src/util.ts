@@ -175,19 +175,6 @@ export const urlForTweet = (tweet : TweetInfo) => {
 	return 'https://twitter.com/' + tweet.user_screen_name + '/status/' + tweet.id;
 };
 
-export const cardHasContent = (card : Card | null) => {
-	if (!card) return false;
-	//We treat all non-body-card cards as having content, since the main reason
-	//to count a card has not having content is if there's nothing to see on it.
-	if (!BODY_CARD_TYPES[card.card_type]) return true;
-	const cardTypeConfig = CARD_TYPE_CONFIGURATION[card.card_type];
-	//If it just uses the default content for that card type then it's as though
-	//it doesn't have content at all.
-	if (cardTypeConfig && cardTypeConfig.defaultBody == card.body) return false;
-	const content = card.body ? card.body.trim() : '';
-	return content ? true : false;
-};
-
 //The logic for auto_todo_overrides.prioritized is backwards from what it
 //intuitvely feels, so introduce this helper.
 export const cardIsPrioritized = (card : Card | null) : boolean => {
@@ -261,6 +248,19 @@ export const cardPlainContent = (card : Card) : string => {
 	const value = plainContentCache.get(card);
 	if (!value) throw new Error('No content cache as expected');
 	return value;
+};
+
+export const cardHasContent = (card : Card | null) => {
+	if (!card) return false;
+	//We treat all non-body-card cards as having content, since the main reason
+	//to count a card has not having content is if there's nothing to see on it.
+	if (!BODY_CARD_TYPES[card.card_type]) return true;
+	const cardTypeConfig = CARD_TYPE_CONFIGURATION[card.card_type];
+	//If it just uses the default content for that card type then it's as though
+	//it doesn't have content at all.
+	if (cardTypeConfig && cardTypeConfig.defaultBody == card.body) return false;
+	const content = card.body ? card.body.trim() : '';
+	return content ? true : false;
 };
 
 //Takes plain content and wraps it in <p>
