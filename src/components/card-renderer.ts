@@ -355,7 +355,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 
 			[data-field=body] blockquote::after {
 				content: close-quote;
-				bottom: -0.6em;
+				bottom: -0.7em;
 				right: 0em;
 			}
 
