@@ -178,7 +178,7 @@ const removeZombieSpans = (ele : Element) => {
 };
 
 //Recreated in functions/src/embeddings.ts
-const legalTopLevelNodes : {[tag in HTMLTagName]+?: true} = {
+const DEFAULT_LEGAL_TOP_LEVEL_NODES : {[tag in HTMLTagName]+?: true} = {
 	'p': true,
 	'ol': true,
 	'ul': true,
@@ -190,6 +190,9 @@ const legalTopLevelNodes : {[tag in HTMLTagName]+?: true} = {
 };
 
 const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
+
+	const legalTopLevelNodes = DEFAULT_LEGAL_TOP_LEVEL_NODES;
+
 	//Does deeper changes that require parsing.
 	//1) make sure all text in top is within a p tag.
 	//2) make sure that p elements don't have any line breaks inside.
@@ -263,6 +266,9 @@ const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
 
 //Also recreated in functions/src/embeddings.ts
 export const normalizeLineBreaks = (html : string) => {
+
+	const legalTopLevelNodes = DEFAULT_LEGAL_TOP_LEVEL_NODES;
+
 	if (!html) return html;
 	//Remove all line breaks. We'll put them back in.
 	html = html.split('\n').join('');
