@@ -226,7 +226,7 @@ const cardPlainContentImpl = (card : Card) : string => {
 	const cardType = card.card_type;
 	if (!BODY_CARD_TYPES[cardType]) return '';
 	const result : string[] = [];
-	const fieldsInOrder : CardFieldTypeEditable[] = ['title', 'body'];
+	const fieldsInOrder : CardFieldTypeEditable[] = ['title', 'body', 'commentary'];
 	for (const field of fieldsInOrder) {
 		//Skip derived fields
 		if (DERIVED_FIELDS_FOR_CARD_TYPE[cardType][field]) continue;
@@ -259,8 +259,9 @@ export const cardHasContent = (card : Card | null) => {
 	//If it just uses the default content for that card type then it's as though
 	//it doesn't have content at all.
 	if (cardTypeConfig && cardTypeConfig.defaultBody == card.body) return false;
-	const content = card.body ? card.body.trim() : '';
-	return content ? true : false;
+	if (card.body && card.body.trim()) return true;
+	if (card.commentary && card.commentary.trim()) return true;
+	return false;
 };
 
 //Takes plain content and wraps it in <p>

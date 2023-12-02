@@ -50,6 +50,7 @@ type CardPermissions = {
 
 export const cardFieldTypeEditableSchema = z.enum([
 	'body',
+	'commentary',
 	'title',
 	'subtitle',
 	//Also duplicated in card-renderer styles
@@ -743,6 +744,7 @@ export interface Card {
 	subtitle? : string,
 	title_alternates? : string,
 	body: string,
+	commentary? : string,
 	notes: string,
 	todo: string,
 
@@ -852,6 +854,7 @@ interface NonAutoMergeableCardDiff {
 	title_alternates? : string,
 	body? : string,
 	subtitle? : string,
+	commentary? : string,
 	todo? : string,
 	notes? : string,
 	external_link? : string,

@@ -604,6 +604,7 @@ const extractContentWords = (card : CardWithOptionalFallbackText) => {
 		body: [],
 		title: [],
 		subtitle: [],
+		commentary: [],
 		title_alternates: [],
 		external_link: [],
 		references_info_inbound: [],

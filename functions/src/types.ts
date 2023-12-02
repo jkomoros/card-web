@@ -77,6 +77,7 @@ export interface Card {
 	subtitle? : string,
 	title_alternates? : string,
 	body: string,
+	commentary? : string,
 	notes: string,
 	todo: string,
 
@@ -159,7 +160,7 @@ type ArrayToFieldValueUnion<Type> = {
 }
 
 //Replicated in src/actions/similarity.ts
-export type EmbeddableCard = Pick<Card, 'body' | 'title' | 'subtitle' | 'card_type' | 'created' | 'id'>;
+export type EmbeddableCard = Pick<Card, 'body' | 'title' | 'commentary' | 'subtitle' | 'card_type' | 'created' | 'id'>;
 
 export type CardUpdate = Partial<NumberToFieldValue<ArrayToFieldValueUnion<TimestampToFieldValue<Card>>>>;
 

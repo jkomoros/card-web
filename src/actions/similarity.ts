@@ -37,7 +37,7 @@ import {
 } from '../firebase.js';
 
 //Replicated in src/actions/similarity.ts
-type EmbeddableCard = Pick<Card, 'body' | 'title' | 'subtitle' | 'card_type' | 'created' | 'id'>;
+type EmbeddableCard = Pick<Card, 'body' | 'title' | 'commentary' | 'subtitle' | 'card_type' | 'created' | 'id'>;
 
 //Replicated in src/actions/similarity.ts
 type MillisecondsSinceEpoch = number;
@@ -75,13 +75,15 @@ type SimilarCardsResponseData = {
 //Extracts only the properties necessary for EmbeddableCard, which for example
 //is useful when transmitting to similarCards endpoint.
 const pickEmbeddableCard = (card : Card) : EmbeddableCard => {
-	return {
+	const result : EmbeddableCard = {
 		id: card.id,
 		body: card.body,
 		title: card.title,
 		card_type: card.card_type,
 		created: card.created
 	};
+	if (card.commentary) result.commentary = card.commentary;
+	return result;
 };
 
 const similarCardsCallable = httpsCallable<SimilarCardsRequestData, SimilarCardsResponseData>(functions, 'similarCards');

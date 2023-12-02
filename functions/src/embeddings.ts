@@ -169,6 +169,8 @@ const textContentForEmbeddingForCard = (card : EmbeddableCard) : string => {
 	if (title) parts.push(title);
 	const body = innerTextForHTML(card.body);
 	if (body) parts.push(body);
+	const commentary = innerTextForHTML(card.commentary || '');
+	if (commentary) parts.push(commentary);
 	if (parts.length == 0) return '';
 	const created = toDate(card.created);
 	const suffix = '\n\n' + formatDate(created) + '\n' + card.card_type;

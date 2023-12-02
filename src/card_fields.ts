@@ -94,6 +94,7 @@ export const EMPTY_PROCESSED_CARD : ProcessedCard = {
 		body: [],
 		title: [],
 		subtitle: [],
+		commentary: [],
 		title_alternates: [],
 		external_link: [],
 		references_info_inbound: [],
@@ -571,6 +572,15 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 			'working-notes': DEFAULT_MAX_FONT_BOOST
 		},
 		matchWeight:0.5
+	},
+	'commentary': {
+		container: 'section',
+		hideIfEmpty: true,
+		html: true,
+		legalCardTypes: {
+			'quote': true
+		},
+		description: 'Extra discussion about the body, useful for commentary on quote cards.'
 	},
 	'subtitle': {
 		html: false,
