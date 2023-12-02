@@ -41,6 +41,7 @@ import {
 } from '../references.js';
 
 import {
+	cardHasContent,
 	randomString,
 } from '../util.js';
 
@@ -489,9 +490,18 @@ export const cardTypeUpdated = (cardType : CardType) :  ThunkSomeAction => (disp
 		return;
 	}
 
+	const editingCard = selectEditingCard(state);
+
+	if (!editingCard) {
+		console.warn('No editing card');
+		return;
+	}
+
 	const currentlySubstantive = state?.editor?.substantive || false;
 
-	if (!CARD_TYPE_CONFIGURATION[cardType]) {
+	const config = CARD_TYPE_CONFIGURATION[cardType];
+
+	if (!config) {
 		console.warn('Illegal card type');
 		return;
 	}
@@ -503,6 +513,10 @@ export const cardTypeUpdated = (cardType : CardType) :  ThunkSomeAction => (disp
 		dispatch(substantiveUpdated(true, true));
 	} else if(currentlySubstantive && baseCard.card_type == cardType) {
 		dispatch(substantiveUpdated(false, true));
+	}
+
+	if (!cardHasContent(editingCard) && config.defaultBody) {
+		dispatch(textFieldUpdated('body', config.defaultBody));
 	}
 
 	dispatch({
