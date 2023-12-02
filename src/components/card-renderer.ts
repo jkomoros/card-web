@@ -334,6 +334,8 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				/* Make it so ::before and ::after will postion relative to it. */
 				position: relative;
 				padding: 1.0em;
+				color: var(--app-dark-text-color-light);
+				font-style: italic;
 			}
 
 			[data-field=body] blockquote::before, [data-field=body] blockquote::after {
@@ -342,6 +344,7 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				color: var(--app-dark-text-color);
 				opacity: 0.15;
 				position: absolute;
+				font-style: initial;
 			}
 
 			[data-field=body] blockquote::before {
