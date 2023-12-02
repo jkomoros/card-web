@@ -42,6 +42,10 @@ import {
 	IconName
 } from './types_simple.js';
 
+import {
+	isURL
+} from './util.js';
+
 export const EMPTY_CARD_ID = '?EMPTY-CARD?';
 
 export const EMPTY_CARD : Card = {
@@ -583,8 +587,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 			return `<card-link href=${input} iconname="${LINK_ICON_NAME}">Reference</card-link>`;
 		},
 		validator(input) {
-			//TODO: a proper URL check
-			return input.startsWith('https://') || input.startsWith('http://') ? '' : `${input} is not a valid url`;
+			return isURL(input) ? '' : `${input} is not a valid url`;
 		},
 		skipIndexing: true
 	},
