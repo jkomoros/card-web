@@ -202,13 +202,13 @@ export const referencesFilter = (direction : 'inbound' | 'outbound' | 'both', re
 	let filter = '';
 	switch(direction) {
 	case 'inbound':
-		filter = DIRECT_REFERENCES_INBOUND_FILTER_NAME;
+		filter = ply && ply > 1 ? REFERENCES_INBOUND_FILTER_NAME : DIRECT_REFERENCES_INBOUND_FILTER_NAME;
 		break;
 	case 'outbound':
-		filter = DIRECT_REFERENCES_OUTBOUND_FILTER_NAME;
+		filter = ply && ply > 1 ? REFERENCES_OUTBOUND_FILTER_NAME : DIRECT_REFERENCES_OUTBOUND_FILTER_NAME;
 		break;
 	case 'both':
-		filter = DIRECT_REFERENCES_FILTER_NAME;
+		filter = ply && ply > 1 ? REFERENCES_FILTER_NAME : DIRECT_REFERENCES_FILTER_NAME;
 		break;
 	default:
 		assertUnreachable(direction);
