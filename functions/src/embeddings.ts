@@ -114,8 +114,7 @@ const DEFAULT_LEGAL_TOP_LEVEL_NODES = {
 };
 
 //Recreated from src/contenteditable.ts
-const normalizeLineBreaks = (html : string) => {
-	const legalTopLevelNodes = DEFAULT_LEGAL_TOP_LEVEL_NODES;
+const normalizeLineBreaks = (html : string, legalTopLevelNodes = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
 	if (!html) return html;
 	//Remove all line breaks. We'll put them back in.
 	html = html.split('\n').join('');

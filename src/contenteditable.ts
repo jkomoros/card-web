@@ -177,8 +177,10 @@ const removeZombieSpans = (ele : Element) => {
 	if (removedZombies) ele.normalize();
 };
 
+type NodeMap = {[tag in HTMLTagName]+?: true};
+
 //Recreated in functions/src/embeddings.ts
-const DEFAULT_LEGAL_TOP_LEVEL_NODES : {[tag in HTMLTagName]+?: true} = {
+const DEFAULT_LEGAL_TOP_LEVEL_NODES : NodeMap = {
 	'p': true,
 	'ol': true,
 	'ul': true,
@@ -189,9 +191,7 @@ const DEFAULT_LEGAL_TOP_LEVEL_NODES : {[tag in HTMLTagName]+?: true} = {
 	'blockquote': true
 };
 
-const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
-
-	const legalTopLevelNodes = DEFAULT_LEGAL_TOP_LEVEL_NODES;
+const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p', legalTopLevelNodes : NodeMap = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
 
 	//Does deeper changes that require parsing.
 	//1) make sure all text in top is within a p tag.
@@ -265,9 +265,7 @@ const cleanUpTopLevelHTML = (html : string, tag : HTMLTagName = 'p') => {
 };
 
 //Also recreated in functions/src/embeddings.ts
-export const normalizeLineBreaks = (html : string) => {
-
-	const legalTopLevelNodes = DEFAULT_LEGAL_TOP_LEVEL_NODES;
+export const normalizeLineBreaks = (html : string, legalTopLevelNodes : NodeMap = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
 
 	if (!html) return html;
 	//Remove all line breaks. We'll put them back in.
@@ -286,7 +284,7 @@ export const normalizeLineBreaks = (html : string) => {
 	return html;
 };
 
-export const normalizeBodyHTML = (html : string, defaultTopLevelElement : HTMLTagName = 'p') => {
+export const normalizeBodyHTML = (html : string, defaultTopLevelElement : HTMLTagName = 'p', legalTopLevelNodes : NodeMap = DEFAULT_LEGAL_TOP_LEVEL_NODES) => {
 
 	if (!html) return html;
 
@@ -313,9 +311,9 @@ export const normalizeBodyHTML = (html : string, defaultTopLevelElement : HTMLTa
 	html = html.split('<i>').join('<em>');
 	html = html.split('</i>').join('</em>');
 
-	html = cleanUpTopLevelHTML(html, defaultTopLevelElement);
+	html = cleanUpTopLevelHTML(html, defaultTopLevelElement, legalTopLevelNodes);
 
-	html = normalizeLineBreaks(html);
+	html = normalizeLineBreaks(html, legalTopLevelNodes);
 
 	html = html.split('&nbsp;').join(' ');
 
