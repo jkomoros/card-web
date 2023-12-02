@@ -339,7 +339,8 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 			[data-field=body] blockquote::before, [data-field=body] blockquote::after {
 				display: inline-block;
 				font-size: 8.0em;
-				color: var(--app-dark-text-color-subtle);
+				color: var(--app-dark-text-color);
+				opacity: 0.15;
 				position: absolute;
 			}
 
