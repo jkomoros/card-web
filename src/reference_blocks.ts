@@ -143,10 +143,6 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBloc
 	],
 	'quote': [
 		{
-			collectionDescription: collectionDescription(cardTypeFilter('work'), referencesFilter('outbound', 'citation')),
-			title: ''
-		},
-		{
 			//Reach through a work citation to the person citation.
 			collectionDescription: collectionDescription(
 				//Only show person
@@ -157,6 +153,10 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBloc
 				//cards link to a person directly or indirectly each card can
 				//only show up once.
 			),
+			title: ''
+		},
+		{
+			collectionDescription: collectionDescription(cardTypeFilter('work'), referencesFilter('outbound', 'citation')),
 			title: ''
 		}
 	]
