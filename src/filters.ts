@@ -1581,6 +1581,20 @@ const TODO_TYPE_AUTO_CONTENT_AND_CONCEPT : TODOTypeInfoAutoTODO = {
 	isTODO: true,
 };
 
+//TODO_TYPE_AUTO_WORK is for card filters that are TODOs and are auto-set on
+//cards of type WORK, meaning that their key is legal in auto_todo_overrides.
+const TODO_TYPE_AUTO_WORK : TODOTypeInfoAutoTODO = {
+	type: 'auto',
+	autoApply: true,
+	//cardTypes is the types of cards that will have it autoapplied. However,
+	//any card that has it actively set to false in their auto_todo_overrides
+	//will show as having that TODO.
+	cardTypes: {
+		'work': true,
+	},
+	isTODO: true,
+};
+
 //TODO_TYPE_AUTO_WORKING_NOTES is for card filters that are TODOs and are auto-set on
 //cards of type WORKING_NOTES, meaning that their key is legal in auto_todo_overrides.
 const TODO_TYPE_AUTO_WORKING_NOTES : TODOTypeInfoAutoTODO = {
@@ -1643,6 +1657,7 @@ const CARD_FILTER_AUTO_TODO_CONFIGS : CardFilterConfigMapAutoTODO = {
 	//Mined is always flagged on cards that it might be autoapplied to. The only way to make it go away is to add a true to the auto_todo_overrides for it.
 	//To find cards that are _partially_ mined, use the 'has-inbound-mined-from-references/not-mined' filters.
 	'content-mined': [['mined-for-content', 'not-mined-for-content', 'does-not-need-to-be-mined-for-content', 'needs-to-be-mined-for-content'], () => false, TODO_TYPE_AUTO_WORKING_NOTES, 2.0, 'Whether the card has had its insights \'mined\' into other cards. Only automatically applied to working-notes cards. The only way to clear it is to add a force TODO disable for it'],
+	'author-citation': [defaultCardFilterName('author-citation'), (card : Card) => (references(card).byTypeArray()['citation-person'] || []).length > 0, TODO_TYPE_AUTO_WORK, 0.2, 'Whether a work card has a reference to its author' ]
 };
 
 const CARD_FILTER_FREEFORM_TODO_CONFIGS : CardFilterConfigMapFreeformTODO = {

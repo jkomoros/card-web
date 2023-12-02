@@ -216,7 +216,8 @@ export const autoTODOType = z.enum([
 	'reciprocal-links',
 	'slug',
 	'substantive-content',
-	'tags'
+	'tags',
+	'author-citation'
 ]);
 
 export type AutoTODOType = z.infer<typeof autoTODOType>;
