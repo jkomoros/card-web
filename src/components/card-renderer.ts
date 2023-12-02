@@ -359,6 +359,10 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				right: 0em;
 			}
 
+			[data-field=body] blockquote :last-child {
+				margin-bottom: 0;
+			}
+
 			[data-field=title_alternates]{
 				color: var(--app-dark-text-color);
 				font-size: 0.7em;
