@@ -328,6 +328,33 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				flex:1;
 			}
 
+			[data-field=body] blockquote {
+				margin: 0;
+				quotes: "“" "”";
+				/* Make it so ::before and ::after will postion relative to it. */
+				position: relative;
+				padding: 1.0em;
+			}
+
+			[data-field=body] blockquote::before, [data-field=body] blockquote::after {
+				display: inline-block;
+				font-size: 8.0em;
+				color: var(--app-dark-text-color-subtle);
+				position: absolute;
+			}
+
+			[data-field=body] blockquote::before {
+				content: open-quote;
+				top: -0.3em;
+				left: 0em;
+			}
+
+			[data-field=body] blockquote::after {
+				content: close-quote;
+				bottom: -0.5em;
+				right: 0.2em;
+			}
+
 			[data-field=title_alternates]{
 				color: var(--app-dark-text-color);
 				font-size: 0.7em;
