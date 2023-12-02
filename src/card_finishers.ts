@@ -13,6 +13,7 @@ import {
 
 import {
 	backportFallbackTextMapForCard,
+	cardPlainContent
 } from './util.js';
 
 import {
@@ -63,7 +64,11 @@ const conceptValidator = (card : Card, state : State) => {
 //fields in particular might be empty or sentinel values.
 export const CARD_TYPE_EDITING_FINISHERS : {[type in CardType]+?: (card : Card, state : State) => void} = {
 	'working-notes': workingNotesExtractor,
-	'concept': conceptValidator, 
+	'concept': conceptValidator,
+	'quote': (card : Card) => {
+		//TODO: much better handling and word breaks, etc.
+		card.title = cardPlainContent(card).slice(0, 20) + '...';
+	}
 };
 
 //TODO: ideally the above would be fields in CARD_TYPE_CONFIGURATION if the

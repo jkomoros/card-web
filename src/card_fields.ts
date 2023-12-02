@@ -258,6 +258,11 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 			return rawCard.title + '\n' + authors.join('\n');
 		}
 	},
+	'quote': {
+		description: 'A quote from an external source',
+		orphanedByDefault: true,
+		iconName: 'FORMAT_QUOTE_ICON'
+	}
 };
 
 //Any key in this object is a legal reference type
@@ -530,7 +535,8 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 			'person': true,
 		},
 		derivedForCardTypes: {
-			'working-notes': true
+			'working-notes': true,
+			'quote': true
 		},
 		autoFontSizeBoostForCardTypes: {},
 		matchWeight: 1.0,
@@ -558,6 +564,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 			'concept': true,
 			'work': true,
 			'person': true,
+			'quote': true
 		},
 		derivedForCardTypes: {},
 		autoFontSizeBoostForCardTypes: {

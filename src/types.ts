@@ -102,7 +102,8 @@ const cardTypeSchema = z.enum([
 	'working-notes',
 	'concept',
 	'work',
-	'person'
+	'person',
+	'quote'
 ]);
 
 export type CardType = z.infer<typeof cardTypeSchema>;
