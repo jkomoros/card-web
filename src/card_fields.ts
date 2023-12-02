@@ -571,7 +571,7 @@ export const TEXT_FIELD_CONFIGURATION : CardFieldTypeConfigurationMap = {
 	},
 	'external_link': {
 		html: false,
-		container:'h5',
+		container:'h4',
 		legalCardTypes: {
 			person: true,
 			work: true

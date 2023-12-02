@@ -340,6 +340,14 @@ export class CardRenderer extends GestureEventListeners(LitElement) {
 				font-weight: normal;
 			}
 
+			/* work for future external_link sub-types too by using ^= */
+			[data-field^=external_link] {
+				font-size: 0.7em;
+				font-weight: normal;
+				margin: 0;
+				margin-right: 0.5em;
+			}
+
 			.scroll-indicators {
 				/* inspired by https://stackoverflow.com/questions/9333379/check-if-an-elements-content-is-overflowing */
 				background:
