@@ -66,7 +66,7 @@ import {
 } from '../types_simple.js';
 
 import {
-	descriptionForSuggestion
+	descriptionForSuggestion, largestNewCardIndex
 } from '../card_diff.js';
 
 import {
@@ -239,8 +239,8 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				color: SUPPORTING_CARD_COLOR
 			};
 		}
-		for (let i = 0; i < 5; i++) {
-			//TODO: only create as many as we need.
+		const max = largestNewCardIndex(suggestion);
+		for (let i = 0; i < max; i++) {
 			const id = newCardIDPlaceholder(i);
 			let color : CSSColorString = NEW_CARD_COLOR;
 			if (i > 0) {

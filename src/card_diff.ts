@@ -277,6 +277,28 @@ const descriptionForSuggestionDiff = (suggestion : Suggestion, diff : Suggestion
 	`;
 };
 
+const newCardLength = (diff? : SuggestionDiff) : number => {
+	if (!diff) return 0;
+	if (!diff.createCard) return 0;
+	return Array.isArray(diff.createCard) ? diff.createCard.length : 1;
+};
+
+export const largestNewCardIndex = (suggestion : Suggestion) : number => {
+	let result = 0;
+	for (const diff of suggestionDiffs(suggestion)) {
+		result = Math.max(result, newCardLength(diff));
+	}
+	return result;
+};
+
+//Enumerates all sub diffs.
+const suggestionDiffs = (suggestion : Suggestion) : SuggestionDiff[] => {
+	const result = [suggestion.action];
+	if (suggestion.alternateAction) result.push(suggestion.alternateAction);
+	if (suggestion.rejection) result.push(suggestion.rejection);
+	return result;
+};
+
 type SuggestionDescription = {
 	primary?: TemplateResult,
 	alternate?: TemplateResult,
