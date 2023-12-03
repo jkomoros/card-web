@@ -24,6 +24,12 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 		return [];
 	}
 
+	if (card.card_type == 'quote') {
+		//TODO: are there other card types to skip, e.g. ones without a body?
+		logger.info('Already a quote card');
+		return [];
+	}
+
 	const plainContent = cardPlainContent(card);
 
 	const lines = plainContent.split('\n');
