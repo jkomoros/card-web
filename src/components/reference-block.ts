@@ -70,7 +70,7 @@ export class ReferenceBlock extends LitElement {
 				padding-inline-start: 0.5em;
 			}
 
-			.condensed li {
+			.inline li {
 				margin-right: 0.5em;
 			}
 
