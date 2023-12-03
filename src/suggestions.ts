@@ -194,7 +194,7 @@ export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 	},
 	'convert-to-quote': {
 		generator: convertToQuote,
-		title: 'Conver to Quote',
+		title: 'Convert to Quote',
 		color: COLORS.NAVY
 	}
 };
