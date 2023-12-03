@@ -37,12 +37,25 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 	const quoteLines : {line: string, startsQuote: boolean}[] = [];
 	const nonQuoteLines : string[] = [];
 
+	let inQuote = false;
+
 	for (let line of lines) {
 		line = line.trim();
+		let startsQuote = false;
+		let endsQuote = false;
 		if (line.startsWith('\'') || line.startsWith('"')) {
+			startsQuote = true;
 			line = line.slice(1);
-			if (line.endsWith('\'') || line.endsWith('"')) line = line.slice(0, -1);
-			quoteLines.push({line, startsQuote: true});
+		}
+			
+		if (line.endsWith('\'') || line.endsWith('"')) {
+			endsQuote = true;
+			line = line.slice(0, -1);
+		}
+		if (startsQuote || inQuote) {
+			quoteLines.push({line, startsQuote});
+			if (startsQuote) inQuote = true;
+			if (endsQuote) inQuote = false;
 		} else {
 			nonQuoteLines.push(line);
 		}
