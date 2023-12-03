@@ -49,13 +49,17 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 		return [];
 	}
 
+	if (nonQuoteLines.length == 0) {
+		//TODO: in some cases you do want to suggest a quote even in this case.
+		logger.info('There are no non-quote lines, so there\'s no one to attribute the quote to.');
+		return [];
+	}
+
 	//If aggressive, then we only need a single quote line to suggest something.
 	if (!aggressive && (quoteLines.length - nonQuoteLines.length) < 0) {
 		logger.info('Fewer quote lines than non-quote lines and not aggressive');
 		return [];
 	}
-
-	//TODO: if no-non-quote lines, then there's no one to attribute it to, and don't suggest it.
 
 	//TODO: allow an ack action to not convert quote
 
