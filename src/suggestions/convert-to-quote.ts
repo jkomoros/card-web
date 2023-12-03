@@ -31,18 +31,12 @@ import {
 	isURL
 } from '../util.js';
 
-const ENABLE_CONVERT_TO_QUOTE = true;
 
 const CONVERT_TO_QUOTE_SUGGESTOR_VERSION = 0;
 
 export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
 
 	const {type, card, cards, logger, aggressive} = args;
-
-	if (!ENABLE_CONVERT_TO_QUOTE) {
-		logger.info('Covert to quote not enabled');
-		return [];
-	}
 
 	if (card.card_type == 'quote') {
 		//TODO: are there other card types to skip, e.g. ones without a body?
