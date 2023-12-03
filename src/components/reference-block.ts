@@ -62,11 +62,15 @@ export class ReferenceBlock extends LitElement {
 			}
 
 			.inline ul {
-				padding-inline-start: 0.5em;
+				padding-inline-start: 0;
 				list-style-type: none;
 			}
 
-			.inline li {
+			.condensed ul {
+				padding-inline-start: 0.5em;
+			}
+
+			.condensed li {
 				margin-right: 0.5em;
 			}
 
