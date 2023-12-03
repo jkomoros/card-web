@@ -13,6 +13,8 @@ import {
 //TODO: once this is reliably suggesting changes, flip to true and then remove flag.
 const ENABLE_CONVERT_TO_QUOTE = false;
 
+const CONVERT_TO_QUOTE_SUGGESTOR_VERSION = 0;
+
 export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
 
 	const {type, card, logger, aggressive} = args;
@@ -53,9 +55,9 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 		return [];
 	}
 
-	//TODO: allow an ack action to not convert quote
+	//TODO: if no-non-quote lines, then there's no one to attribute it to, and don't suggest it.
 
-	//TODO: add a flag to show it was converted.
+	//TODO: allow an ack action to not convert quote
 
 	//TODO: start a new block quote for any line that strated with a quote.
 	const body = '<blockquote>' + quoteLines.map(line => `<p>${line}</p>`).join('\n') + '</blockquote>';
@@ -73,7 +75,11 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 			keyCards: {
 				card_type: 'quote',
 				body,
-				commentary
+				commentary,
+				set_flags: {
+					converted_by_suggestor: type,
+					converted_by_suggestor_version: CONVERT_TO_QUOTE_SUGGESTOR_VERSION
+				}
 			}
 		}
 	}];

@@ -719,7 +719,9 @@ export type CardTestFunc = (card : Card) => boolean;
 export type CardFlags = {
 	created_by_suggestor? : SuggestionType
 	//The version the suggestor was that created the card. Helps trace quality errors.
-	created_by_suggestor_version? : number
+	created_by_suggestor_version? : number,
+	converted_by_suggestor? : SuggestionType,
+	converted_by_suggestor_version? : number
 };
 
 export type CardFlagsRemovals = Partial<Record<keyof CardFlags, true>>;
