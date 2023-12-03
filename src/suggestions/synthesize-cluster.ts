@@ -37,6 +37,11 @@ export const synthesizeCluster = async (args: SuggestorArgs) : Promise<Suggestio
 	//TODO: a stable sort (by card_id?) so the caching of prompts works.
 	const description = collectionDescription(referencesFilter('both', 'see-also', {ply: 5, includeKeyCard: true}));
 	const collection = description.collection(collectionArguments);
+
+	//TODO: check to see if there's a mined-from card that covers all of these
+	//see-also things already and has the created_by_suggestor flag (which is
+	//basicaly that it was done already by this) and if so, bail.
+
 	//TODO: figure out a way so that we don't duplicate basically the exact same
 	//suggestion each time anyone visits any of the clique cards. Perhaps sort
 	//by card_id, so the same clique always gets the same text/
