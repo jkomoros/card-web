@@ -103,7 +103,8 @@ import {
 	editableFieldsForCardType,
 	sortOrderIsDangerous,
 	EMPTY_CARD_ID,
-	NEW_CARD_ID_PLACEHOLDER
+	isNewCardIDPlaceholder,
+
 } from '../card_fields.js';
 
 import {
@@ -545,7 +546,7 @@ const reservedCollectionName = (state : State, name : string) : boolean => {
 
 	if (name == SORT_URL_KEYWORD) return true;
 	if (name == KEY_CARD_ID_PLACEHOLDER) return true;
-	if (name == NEW_CARD_ID_PLACEHOLDER) return true;
+	if (isNewCardIDPlaceholder(name)) return true;
 
 	//Filters already contains section names if data is fully loaded.
 	const filters = selectFilters(state) || {};

@@ -30,6 +30,7 @@ import {
 } from './help-badges.js';
 
 import {
+	CSSColorString,
 	ProcessedCard,
 	State,
 	Suggestion,
@@ -69,7 +70,7 @@ import {
 } from '../card_diff.js';
 
 import {
-	NEW_CARD_ID_PLACEHOLDER
+	newCardIDPlaceholder
 } from '../card_fields.js';
 
 import './suggestions-summary.js';
@@ -238,11 +239,20 @@ class SuggestionsViewer extends connect(store)(LitElement) {
 				color: SUPPORTING_CARD_COLOR
 			};
 		}
-		result[NEW_CARD_ID_PLACEHOLDER] = {
-			id: NEW_CARD_ID_PLACEHOLDER,
-			title: 'New Card',
-			color: NEW_CARD_COLOR
-		};
+		for (let i = 0; i < 5; i++) {
+			//TODO: only create as many as we need.
+			const id = newCardIDPlaceholder(i);
+			let color : CSSColorString = NEW_CARD_COLOR;
+			if (i > 0) {
+				color = Object.values(COLORS)[i];
+			}
+			result[id] = {
+				id,
+				title: 'New Card' + (i > 0 ? ' ' + String(i) : ''),
+				color
+			};
+		}
+
 		if (this._card && result[this._card.id]) {
 			result[this._card.id] = {
 				...result[this._card.id],

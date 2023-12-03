@@ -12,7 +12,8 @@ import {
 } from '../actions.js';
 
 import {
-	NEW_CARD_ID_PLACEHOLDER
+	isNewCardIDPlaceholder,
+	replaceNewCardIDPlaceholder
 } from '../card_fields.js';
 
 import {
@@ -144,21 +145,23 @@ export const applySuggestion = (cardID : CardID, suggestionIndex : number, which
 		dispatch(createCard(opts));
 		await waitForCardToExist(newCardID);
 
+		const newCardIDs = [newCardID];
+
 		//Replace any NEW_CARD_ID_PLACEHOLDER with the new card ID.
 		if (keyCardsDiff && keyCardsDiff.references_diff) {
 			keyCardsDiff = {
 				...keyCardsDiff,
-				references_diff: keyCardsDiff.references_diff.map((d : ReferencesEntriesDiffItem) : ReferencesEntriesDiffItem => ({...d, cardID: d.cardID == NEW_CARD_ID_PLACEHOLDER ? newCardID : d.cardID}))
+				references_diff: keyCardsDiff.references_diff.map((d : ReferencesEntriesDiffItem) : ReferencesEntriesDiffItem => ({...d, cardID: replaceNewCardIDPlaceholder(d.cardID, newCardIDs)}))
 			};
 		}
 		if (supportingCardsDiff && supportingCardsDiff.references_diff) {
 			supportingCardsDiff = {
 				...supportingCardsDiff,
-				references_diff: supportingCardsDiff.references_diff.map((d : ReferencesEntriesDiffItem) : ReferencesEntriesDiffItem => ({...d, cardID: d.cardID == NEW_CARD_ID_PLACEHOLDER ? newCardID : d.cardID}))
+				references_diff: supportingCardsDiff.references_diff.map((d : ReferencesEntriesDiffItem) : ReferencesEntriesDiffItem => ({...d, cardID: replaceNewCardIDPlaceholder(d.cardID, newCardIDs)}))
 			};
 		}
-		keyCards = keyCards.map(id => id == NEW_CARD_ID_PLACEHOLDER ? newCardID : id);
-		supportingCards = keyCards.map(id => id == NEW_CARD_ID_PLACEHOLDER ? newCardID : id);
+		keyCards = keyCards.map(id => replaceNewCardIDPlaceholder(id, newCardIDs));
+		supportingCards = keyCards.map(id => replaceNewCardIDPlaceholder(id, newCardIDs));
 	}
 	
 	const allCards = selectCards(getState());
@@ -177,7 +180,7 @@ export const applySuggestion = (cardID : CardID, suggestionIndex : number, which
 	const modifications = Object.fromEntries([...modificationsKeyCard, ...modificationsSupportingCard]);
 
 	//Sanity check
-	if (modifications[NEW_CARD_ID_PLACEHOLDER]) throw new Error('NEW_CARD_ID_PLACEHOLDER remained');
+	if (Object.keys(modifications).filter(key => isNewCardIDPlaceholder(key)).length) throw new Error('NEW_CARD_ID_PLACEHOLDER remained');
 
 	dispatch(modifyCardsIndividually(cards, modifications));
 

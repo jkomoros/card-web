@@ -4,7 +4,7 @@ import {
 } from '../actions/ai.js';
 
 import {
-	NEW_CARD_ID_PLACEHOLDER
+	newCardIDPlaceholder
 } from '../card_fields.js';
 
 import {
@@ -66,7 +66,7 @@ export const synthesizeCluster = async (args: SuggestorArgs) : Promise<Suggestio
 		const suggestedRichBody = wrapPlainContent(suggestedBody);
 		return [{
 			type,
-			keyCards: [NEW_CARD_ID_PLACEHOLDER],
+			keyCards: [newCardIDPlaceholder()],
 			supportingCards: cliqueIDs,
 			action: {
 				createCard: {

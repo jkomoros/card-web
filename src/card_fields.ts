@@ -40,6 +40,7 @@ import {
 } from 'firebase/firestore';
 
 import {
+	CardID,
 	IconName
 } from './types_simple.js';
 
@@ -732,7 +733,32 @@ export const KEY_CARD_ID_PLACEHOLDER = 'key-card-id';
 
 //This placeholder is useful in e.g. the suggestions pipeline where a new card
 //is created.
-export const NEW_CARD_ID_PLACEHOLDER = 'new-card-id';
+const NEW_CARD_ID_PLACEHOLDER = 'new-card-id';
+
+export const newCardIDPlaceholder = (index = 0) : CardID => {
+	const suffix = index ? '-' + String(index) : '';
+	return NEW_CARD_ID_PLACEHOLDER + suffix;
+};
+
+export const isNewCardIDPlaceholder = (id : CardID) : boolean => {
+	return id.startsWith(NEW_CARD_ID_PLACEHOLDER);
+};
+
+const newCardIDIndex = (id : CardID) : number => {
+	if (!isNewCardIDPlaceholder(id)) return -1;
+	if (id === NEW_CARD_ID_PLACEHOLDER) return 0;
+	const rawNum = id.slice((NEW_CARD_ID_PLACEHOLDER + '-').length);
+	return parseInt(rawNum);
+};
+
+//If input is a new_card_id placeholder then convert it, otherwise just pass through.
+export const replaceNewCardIDPlaceholder = (input : CardID, actualNewCardIDs : CardID[]) : CardID => {
+	if (!isNewCardIDPlaceholder(input)) return input;
+	const index = newCardIDIndex(input);
+	const result = actualNewCardIDs[index];
+	if (result === undefined) throw new Error(`${index} does not exist in ${actualNewCardIDs}`);
+	return result;
+};
 
 //Returns an object with field -> boosts to set. It will return
 //card.font_size_boosts if no change, or an object like font_size_boosts, but
