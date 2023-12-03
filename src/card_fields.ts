@@ -234,7 +234,7 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 		orphanedByDefault: true,
 		publishedByDefault: true,
 		iconName: 'MENU_BOOK_ICON',
-		autoSlug: true,
+		autoSlug: 'primary',
 		defaultBody: CONCEPT_DEFAULT_BODY,
 	},
 	'person': {
@@ -242,7 +242,7 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 		orphanedByDefault: true,
 		publishedByDefault: true,
 		iconName: 'PERSON_ICON',
-		autoSlug: true,
+		autoSlug: 'primary',
 		defaultBody: PERSON_DEFAULT_BODY,
 	},
 	'work': {
@@ -250,7 +250,10 @@ export const CARD_TYPE_CONFIGURATION : CardTypeConfigurationMap  = {
 		orphanedByDefault: true,
 		publishedByDefault: true,
 		iconName: 'RECEIPT_ICON',
-		autoSlug: true,
+		//Don't try primary, because there are a lot of Work cards that overlap
+		//with useful concepts (e.g. 'Situated Software') that we'd rather not
+		//have squat on that slug.
+		autoSlug: 'prefixed',
 		defaultBody: WORK_DEFAULT_BODY,
 		backportTitleExtractor : (rawCard, _, rawCards) => {
 			const authors : string[] = [];

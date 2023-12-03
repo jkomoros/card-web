@@ -807,10 +807,15 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 	if (CARD_TYPE_CONFIG.autoSlug) {
 		autoSlug = createSlugFromArbitraryString(title);
 		fallbackAutoSlug = normalizeSlug(cardType + '-' + autoSlug);
+		if (CARD_TYPE_CONFIG.autoSlug == 'prefixed') {
+			//Don't even try the non-card prefixed one.
+			autoSlug = fallbackAutoSlug;
+			fallbackAutoSlug = '';
+		}
 	}
 
 	if (CARD_TYPE_CONFIG.publishedByDefault && CARD_TYPE_CONFIG.autoSlug) {
-		if (!confirm('You\'re creating a card that will be published by default and have its slug set automatically. Is it spelled correctly?\n\nTitle: ' + title + '\nSlug:' + autoSlug + '\nAlternate Slug: ' + fallbackAutoSlug + '\n\nDo you want to proceed?')) {
+		if (!confirm(`You're creating a card that will be published by default and have its slug set automatically. Is it spelled correctly?\n\nTitle: ${title}\nSlug: ${autoSlug}${fallbackAutoSlug ? `\nAlternate Slug: ${fallbackAutoSlug}` : ''}\n\nDo you want to proceed?`)) {
 			console.log('Aborted by user');
 			return;
 		}
@@ -856,7 +861,7 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 	if (CARD_TYPE_CONFIG.autoSlug) {
 		//Kick this off in parallel. We'll await it later.
 		autoSlugLegalPromise = slugLegal(autoSlug);
-		fallbackAutoSlugLegalPromise = slugLegal(fallbackAutoSlug);
+		fallbackAutoSlugLegalPromise = fallbackAutoSlug ?  slugLegal(fallbackAutoSlug) : null;
 	}
 
 	const batch = new MultiBatch(db);
@@ -893,14 +898,19 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 
 	await waitForCardToExist(id);
 	const autoSlugLegalResult = await autoSlugLegalPromise;
-	const fallbackAutoSlugLegalResult = await fallbackAutoSlugLegalPromise;
+	const fallbackAutoSlugLegalResult = fallbackAutoSlugLegalPromise ? await fallbackAutoSlugLegalPromise : null;
 
-	if (autoSlugLegalResult && fallbackAutoSlugLegalResult && !autoSlugLegalResult.legal && !fallbackAutoSlugLegalResult.legal) {
-		console.warn('The autoSlug, ' + autoSlug + ' (and its fallback ' + fallbackAutoSlug + ') was not legal, so it will not be proposed. Reason: ' + autoSlugLegalResult.reason + ' and ' + fallbackAutoSlugLegalResult.reason);
-		return;
+	if (autoSlugLegalResult && !autoSlugLegalResult.legal) {
+		if (!fallbackAutoSlug || (fallbackAutoSlugLegalResult && !fallbackAutoSlugLegalResult.legal)) {
+			console.warn(`The autoSlug, ${autoSlug} ${fallbackAutoSlug ? `(and its fallback ${fallbackAutoSlug}) ` : ''}was not legal, so it will not be proposed. Reason: ${autoSlugLegalResult.reason}${fallbackAutoSlugLegalResult ? `and ${fallbackAutoSlugLegalResult.reason}` : ''}`);
+			return;
+		}
 	}
 
 	const slugToUse = (autoSlugLegalResult && autoSlugLegalResult.legal) ? autoSlug : fallbackAutoSlug;
+
+	//Just triple check that we didn't fall back on a non-existent fallbackAutoSlug.
+	if (!slugToUse) return;
 
 	try {
 		await addLegalSlugToCard(id, slugToUse, true);

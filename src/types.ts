@@ -358,9 +358,11 @@ export type CardTypeConfigurationMap = {
 		// shows up. A string that indexes into icons. This isn't an html tag to avoid
 		// having heavyweight imports so this can be included in tests.
 		iconName? : IconName,
-		// autoSlug: if true, then when a new card is created, it will try to automatically
-		// add a name to the card that is `CARD_TYPE-NORMALIZED-TITLE`.
-		autoSlug? : true,
+		// autoSlug: if set, then when a new card is created, it will try to
+		// automatically add a name to the card that is
+		// `CARD_TYPE-NORMALIZED-TITLE`. If it's primary it will prefer the non
+		// card-type prefixed title if it is available.
+		autoSlug? : 'primary' | 'prefixed';
 		// defaultBody: if set, then when a card of this type is created, it will have this
 		// string.
 		defaultBody? : string,
