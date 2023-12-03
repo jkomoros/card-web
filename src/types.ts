@@ -1297,7 +1297,8 @@ export type SuggestionType = 'add-see-also'
 	| 'add-dupe-of'
 	| 'synthesize-cluster'
 	| 'remove-priority'
-	| 'add-concept';
+	| 'add-concept'
+	| 'convert-to-quote';
 
 export type Suggestion = {
 	type: SuggestionType,

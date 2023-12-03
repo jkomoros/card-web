@@ -63,6 +63,10 @@ import {
 	missingConceptLinks
 } from './suggestions/add-concept.js';
 
+import {
+	convertToQuote
+} from './suggestions/convert-to-quote.js';
+
 export const makeReferenceSuggestion = (type : SuggestionType, keyCards: CardID | CardID[], otherCards: CardID | CardID[], referenceType : ReferenceType, reverse = false) : Suggestion => {
 	//TODO: it's kind of finicky to have to keep track of which ID is which... shouldn't the actions have a sentinel for each that is overriden before being executed?
 
@@ -187,6 +191,11 @@ export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 		generator: missingConceptLinks,
 		title: 'Add Concept',
 		color: COLORS.DARK_KHAKI
+	},
+	'convert-to-quote': {
+		generator: convertToQuote,
+		title: 'Conver to Quote',
+		color: COLORS.NAVY
 	}
 };
 
