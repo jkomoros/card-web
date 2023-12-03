@@ -15,7 +15,7 @@ const ENABLE_CONVERT_TO_QUOTE = false;
 
 export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
 
-	const {card, logger, aggressive} = args;
+	const {type, card, logger, aggressive} = args;
 
 	if (!ENABLE_CONVERT_TO_QUOTE) {
 		logger.info('Covert to quote not enabled');
@@ -53,8 +53,29 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 		return [];
 	}
 
-	//TODO: add a flag to note it was converted
+	//TODO: allow an ack action to not convert quote
 
-	return [];
+	//TODO: add a flag to show it was converted.
+
+	//TODO: start a new block quote for any line that strated with a quote.
+	const body = '<blockquote>' + quoteLines.map(line => `<p>${line}</p>`).join('\n') + '</blockquote>';
+
+	//TODO: remove any lines that are entirely about a person or work citation.
+	const commentary = nonQuoteLines.map(line => `<p>${line}</p>`).join('\n');
+
+	//TODO: link to person or work (creating if necessary)
+
+	return [{
+		type,
+		keyCards: [card.id],
+		supportingCards: [],
+		action: {
+			keyCards: {
+				card_type: 'quote',
+				body,
+				commentary
+			}
+		}
+	}];
 
 };
