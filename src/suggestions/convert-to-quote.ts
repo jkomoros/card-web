@@ -119,7 +119,6 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 
 	const referencesDiff : ReferencesEntriesDiff = [];
 
-	//TODO: actually look for preexisting cards or suggest creating one.
 	if (workURL) {
 		logger.info(`Work URL: ${workURL}`);
 		let workCardID : CardID = '';
@@ -130,17 +129,21 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 			workCardID = id;
 			break;
 		}
+
 		if (workCardID) {
 			logger.info(`Found a work card with external_link ${workURL}: ${workCardID}`);
+		} else {
+			//TODO: create a work card if necessary.
+			logger.info(`No existing work card foudn with external_link ${workURL}`);
+		}
+
+		if (workCardID) {
 			supportingCard = workCardID;
 			referencesDiff.push({
 				cardID: workCardID,
 				referenceType: 'citation',
 				value: ''
 			});
-		} else {
-			//TODO: create a work card if necessary.
-			logger.info(`No existing work card foudn with external_link ${workURL}`);
 		}
 	}
 	if (personName) logger.info(`Person: ${personName}`);
