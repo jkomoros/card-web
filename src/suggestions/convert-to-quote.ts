@@ -82,8 +82,9 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 
 	//TODO: allow an ack action to not convert quote
 
-	//TODO: start a new block quote for any line that strated with a quote.
-	const body = '<blockquote>' + quoteLines.map(info => `<p>${info.line}</p>`).join('\n') + '</blockquote>';
+	const body = quoteLines.map(info => {
+		return `${info.startsQuote ? '<blockquote>' : ''}<p>${info.line}</p>${info.endsQuote ? '</blockquote>' : ''}`;
+	}).join('\n');
 
 	//TODO: remove any lines that are entirely about a person or work citation.
 	const commentary = nonQuoteLines.map(line => `<p>${line}</p>`).join('\n');
