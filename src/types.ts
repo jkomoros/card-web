@@ -1280,7 +1280,8 @@ export type CardSimilarityMap = Record<CardID, SortExtra>;
 export type SuggestionDiffCreateCard = {
 	card_type? : CardType,
 	title? : string,
-	body? : string
+	body? : string,
+	autoSlug? : AutoSlugConfig
 };
 
 //At least one part of diff is required.

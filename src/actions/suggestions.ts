@@ -142,6 +142,7 @@ export const applySuggestion = (cardID : CardID, suggestionIndex : number, which
 		if (item.createCard.card_type) opts.cardType = item.createCard.card_type;
 		if (item.createCard.title !== undefined) opts.title = item.createCard.title;
 		if (item.createCard.body !== undefined) opts.body = item.createCard.body;
+		if (item.createCard.autoSlug !== undefined) opts.autoSlug = item.createCard.autoSlug;
 		dispatch(createCard(opts));
 		await waitForCardToExist(newCardID);
 
