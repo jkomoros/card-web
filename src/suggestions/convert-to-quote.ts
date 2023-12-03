@@ -1,3 +1,4 @@
+import { newCardIDPlaceholder } from '../card_fields.js';
 import {
 	SuggestorArgs
 } from '../suggestions.js';
@@ -9,7 +10,9 @@ import {
 import {
 	CardDiff,
 	ReferencesEntriesDiff,
-	Suggestion
+	Suggestion,
+	SuggestionDiff,
+	SuggestionDiffCreateCard
 } from '../types.js';
 
 import {
@@ -118,6 +121,7 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 	let supportingCard : CardID = '';
 
 	const referencesDiff : ReferencesEntriesDiff = [];
+	const createCards : SuggestionDiffCreateCard[] = [];
 
 	if (workURL) {
 		logger.info(`Work URL: ${workURL}`);
@@ -134,7 +138,15 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 			logger.info(`Found a work card with external_link ${workURL}: ${workCardID}`);
 		} else {
 			//TODO: create a work card if necessary.
-			logger.info(`No existing work card foudn with external_link ${workURL}`);
+			logger.info(`No existing work card found with external_link ${workURL}. Will propose creating one.`);
+			workCardID = newCardIDPlaceholder();
+			createCards.push({
+				card_type: 'work',
+				//TODO: a better title.
+				title: workURL,
+				//Since we have a bad title, don't suggest a slug.
+				autoSlug: false
+			});
 		}
 
 		if (workCardID) {
@@ -168,13 +180,17 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 	if (commentary) keyCardDiff.commentary = commentary;
 	if (referencesDiff.length) keyCardDiff.references_diff = referencesDiff;
 
+	const action : SuggestionDiff = {
+		keyCards: keyCardDiff
+	};
+
+	if (createCards.length) action.createCard = createCards;
+
 	return [{
 		type,
 		keyCards: [card.id],
 		supportingCards: (supportingCard ? [supportingCard] : []),
-		action: {
-			keyCards: keyCardDiff
-		}
+		action
 	}];
 
 };
