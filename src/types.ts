@@ -362,7 +362,7 @@ export type CardTypeConfigurationMap = {
 		// automatically add a name to the card that is
 		// `CARD_TYPE-NORMALIZED-TITLE`. If it's primary it will prefer the non
 		// card-type prefixed title if it is available.
-		autoSlug? : 'primary' | 'prefixed';
+		autoSlug? : false | 'primary' | 'prefixed';
 		// defaultBody: if set, then when a card of this type is created, it will have this
 		// string.
 		defaultBody? : string,
