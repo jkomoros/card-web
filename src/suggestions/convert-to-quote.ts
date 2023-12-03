@@ -80,16 +80,22 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 		return [];
 	}
 
+	const commentaryLines : string[] = [];
+
+	for (const line of nonQuoteLines) {
+
+		//TODO: check for if it's a person or a work. (preexisting or needs to be created.)
+
+		commentaryLines.push(line);
+	}
+
 	//TODO: allow an ack action to not convert quote
 
 	const body = quoteLines.map(info => {
 		return `${info.startsQuote ? '<blockquote>' : ''}<p>${info.line}</p>${info.endsQuote ? '</blockquote>' : ''}`;
 	}).join('\n');
 
-	//TODO: remove any lines that are entirely about a person or work citation.
-	const commentary = nonQuoteLines.map(line => `<p>${line}</p>`).join('\n');
-
-	//TODO: link to person or work (creating if necessary)
+	const commentary = commentaryLines.map(line => `<p>${line}</p>`).join('\n');
 
 	return [{
 		type,
