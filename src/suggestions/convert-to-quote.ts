@@ -3,6 +3,7 @@ import {
 } from '../suggestions.js';
 
 import {
+	CardDiff,
 	Suggestion
 } from '../types.js';
 
@@ -115,23 +116,25 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 		return `${info.startsQuote ? '<blockquote>' : ''}<p>${info.line}</p>${info.endsQuote ? '</blockquote>' : ''}`;
 	}).join('\n');
 
-	//TODO: if commentary is empty, don't suggest it at all.
 	const commentary = commentaryLines.map(line => `<p>${line}</p>`).join('\n');
+
+	const keyCardDiff : CardDiff = {
+		card_type: 'quote',
+		body,
+		set_flags: {
+			converted_by_suggestor: type,
+			converted_by_suggestor_version: CONVERT_TO_QUOTE_SUGGESTOR_VERSION
+		}
+	};
+
+	if (commentary) keyCardDiff.commentary = commentary;
 
 	return [{
 		type,
 		keyCards: [card.id],
 		supportingCards: [],
 		action: {
-			keyCards: {
-				card_type: 'quote',
-				body,
-				commentary,
-				set_flags: {
-					converted_by_suggestor: type,
-					converted_by_suggestor_version: CONVERT_TO_QUOTE_SUGGESTOR_VERSION
-				}
-			}
+			keyCards: keyCardDiff
 		}
 	}];
 
