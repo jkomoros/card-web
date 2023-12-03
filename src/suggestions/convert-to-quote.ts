@@ -1,4 +1,11 @@
-import { newCardIDPlaceholder } from '../card_fields.js';
+import {
+	newCardIDPlaceholder
+} from '../card_fields.js';
+
+import {
+	PreparedQuery
+} from '../nlp.js';
+
 import {
 	SuggestorArgs
 } from '../suggestions.js';
@@ -102,7 +109,6 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 	for (const line of nonQuoteLines) {
 
 		if (isURL(line)) {
-			logger.info(`Found URL: ${line}`);
 			workURL = line;
 			continue;
 		}
@@ -124,6 +130,7 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 	const createCards : SuggestionDiffCreateCard[] = [];
 
 	let workCardID : CardID = '';
+	let personCardID : CardID = '';
 
 	//See if we can find a workCardID.
 	if (workURL) {
@@ -137,13 +144,29 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 		}
 	}
 
-	if (personName) logger.info(`Person: ${personName}`);
+	if (personName) {
+		logger.info(`Person: ${personName}`);
+		//We're going to iterate through cards ourselves to avoid expensive
+		//filter machinery, but also so we can ask it to search only within
+		//Title.
+		//TODO: allow passing in a restriction to only title and do that.
+		const query = new PreparedQuery(personName);
+		let bestScore = Number.MIN_SAFE_INTEGER;
+		for (const [id, card] of TypedObject.entries(cards)) {
+			if (card.card_type != 'person') continue;
+			const [score, fullMatch] = query.cardScore(card);
+			if (!fullMatch) continue;
+			if (score > bestScore) {
+				bestScore = score;
+				personCardID = id;
+			}
+		}
+	}
 
 	if (workURL) {
 		if (workCardID) {
 			logger.info(`Found a work card with external_link ${workURL}: ${workCardID}`);
 		} else {
-			//TODO: create a work card if necessary.
 			logger.info(`No existing work card found with external_link ${workURL}. Will propose creating one.`);
 			workCardID = newCardIDPlaceholder();
 			createCards.push({
@@ -161,6 +184,15 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 			referenceType: 'citation',
 			value: ''
 		});
+	}
+
+	if (personName) {
+		if (personCardID) {
+			logger.info(`Found a person card with name: ${personName}: ${personCardID}`);
+		} else {
+			//TODO: create a card here if we aren't already going to create a card for the person.
+			logger.info(`Could not find a card for person: ${personName}`);
+		}
 	}
 
 	//TODO: allow an ack action to not convert quote
