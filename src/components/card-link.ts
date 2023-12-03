@@ -98,6 +98,8 @@ class CardLink extends connect(store)(LitElement) {
 
 			a {
 				color: var(--app-primary-color);
+				cursor: var(--card-link-cursor, pointer);
+				transition: text-decoration-color var(--transition-fade);
 			}
 
 			a svg{
@@ -147,10 +149,6 @@ class CardLink extends connect(store)(LitElement) {
 				fill: var(--app-warning-color-light);
 			}
 
-			a {
-				cursor: var(--card-link-cursor, pointer);
-			}
-
 			a.add-reading-list {
 				cursor: var(--card-link-cursor, copy);
 			}
@@ -159,13 +157,10 @@ class CardLink extends connect(store)(LitElement) {
 				font-style: italic;
 			}
 
-			a {
-				transition: text-decoration-color var(--transition-fade);
-			}
-
 			a.subtle {
 				/* TODO: consider having more styles change in subtle mode */
 				text-decoration-color: transparent;
+				font-style: revert;
 			}
 
 			a.subtle:hover {
