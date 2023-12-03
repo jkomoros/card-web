@@ -1286,16 +1286,16 @@ export type SuggestionDiffCreateCard = {
 
 //At least one part of diff is required.
 export type SuggestionDiff = {
-	createCard : SuggestionDiffCreateCard,
+	createCard : SuggestionDiffCreateCard | SuggestionDiffCreateCard[],
 	keyCards?: CardDiff,
 	supportingCards?: CardDiff
 } | {
-	createCard? : SuggestionDiffCreateCard,
+	createCard? : SuggestionDiffCreateCard | SuggestionDiffCreateCard[],
 	keyCards: CardDiff,
 	//The diff to apply to each supportingCard.
 	supportingCards?: CardDiff
 } | {
-	createCard? : SuggestionDiffCreateCard,
+	createCard? : SuggestionDiffCreateCard | SuggestionDiffCreateCard[],
 	keyCards? : CardDiff,
 	supportingCards: CardDiff
 };

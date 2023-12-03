@@ -132,21 +132,24 @@ export const applySuggestion = (cardID : CardID, suggestionIndex : number, which
 	});
 
 	if (item.createCard) {
-		//createCard will not check the validity of this id since it was
-		//recently vended from newID().
-		const newCardID = newID();
-		const opts : CreateCardOpts = {
-			id: newCardID,
-			noNavigate: true
-		};
-		if (item.createCard.card_type) opts.cardType = item.createCard.card_type;
-		if (item.createCard.title !== undefined) opts.title = item.createCard.title;
-		if (item.createCard.body !== undefined) opts.body = item.createCard.body;
-		if (item.createCard.autoSlug !== undefined) opts.autoSlug = item.createCard.autoSlug;
-		dispatch(createCard(opts));
-		await waitForCardToExist(newCardID);
-
-		const newCardIDs = [newCardID];
+		const createCardsDiff = Array.isArray(item.createCard) ? item.createCard : [item.createCard];
+		const newCardIDs : CardID[] = [];
+		for (const creatCardDiff of createCardsDiff) {
+			//createCard will not check the validity of this id since it was
+			//recently vended from newID().
+			const newCardID = newID();
+			const opts : CreateCardOpts = {
+				id: newCardID,
+				noNavigate: true
+			};
+			if (creatCardDiff.card_type) opts.cardType = creatCardDiff.card_type;
+			if (creatCardDiff.title !== undefined) opts.title = creatCardDiff.title;
+			if (creatCardDiff.body !== undefined) opts.body = creatCardDiff.body;
+			if (creatCardDiff.autoSlug !== undefined) opts.autoSlug = creatCardDiff.autoSlug;
+			dispatch(createCard(opts));
+			await waitForCardToExist(newCardID);
+			newCardIDs.push(newCardID);
+		}
 
 		//Replace any NEW_CARD_ID_PLACEHOLDER with the new card ID.
 		if (keyCardsDiff && keyCardsDiff.references_diff) {

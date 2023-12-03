@@ -100,6 +100,10 @@ import {
 	html
 } from 'lit';
 
+import {
+	join
+} from 'lit/directives/join.js';
+
 //descriptionForReferencesDiff and descriptionForSuggestionDiffCards assumes tag-list is imported, so make sure
 import './components/tag-list.js';
 
@@ -239,17 +243,25 @@ const descriptionForSuggestionDiffCards = (cards: CardID[], diff : CardDiff, car
 //At how many characters should we show?
 const BODY_SUMMARY_LENGTH = 200;
 
-const descriptionForCreateCard = (diff : SuggestionDiffCreateCard) : TemplateResult => {
-	const mainPart = html`Create card`;
-	const typePart = diff.card_type ? html` of type <strong>${diff.card_type}</strong>` : html``;
-	const titlePart = diff.title ? html` with title ${diff.title}` : html``;
-	let bodyPart = html``;
-	if (diff.body) {
-		let plainBody = innerTextForHTML(diff.body);
-		if (plainBody.length > BODY_SUMMARY_LENGTH) plainBody = plainBody.slice(0, BODY_SUMMARY_LENGTH) + '...';
-		bodyPart = html` with body "<span title=${diff.body}>${plainBody}</span>"`;
+const descriptionForCreateCard = (input : SuggestionDiffCreateCard | SuggestionDiffCreateCard[])  : TemplateResult => {
+	const diffs = Array.isArray(input) ? input : [input];
+
+	const results : TemplateResult[] = [];
+
+	for (const diff of diffs) {
+		const mainPart = html`Create card`;
+		const typePart = diff.card_type ? html` of type <strong>${diff.card_type}</strong>` : html``;
+		const titlePart = diff.title ? html` with title ${diff.title}` : html``;
+		let bodyPart = html``;
+		if (diff.body) {
+			let plainBody = innerTextForHTML(diff.body);
+			if (plainBody.length > BODY_SUMMARY_LENGTH) plainBody = plainBody.slice(0, BODY_SUMMARY_LENGTH) + '...';
+			bodyPart = html` with body "<span title=${diff.body}>${plainBody}</span>"`;
+		}
+		results.push(html`${mainPart}${typePart}${titlePart}${bodyPart}. `);
 	}
-	return html`${mainPart}${typePart}${titlePart}${bodyPart}. `;
+
+	return html`${join(results, html``)}`;
 };
 
 const descriptionForSuggestionDiff = (suggestion : Suggestion, diff : SuggestionDiff, cardInfos : TagInfos) : TemplateResult => {
