@@ -55,18 +55,18 @@ export class ReferenceBlock extends LitElement {
 				line-height: 1.0em;
 			}
 
-			.condensed, .condensed ul {
+			.inline, .inline ul {
 				display: flex;
 				flex-direction: row;
 				align-items: center;
 			}
 
-			.condensed ul {
+			.inline ul {
 				padding-inline-start: 0.5em;
 				list-style-type: none;
 			}
 
-			.condensed li {
+			.inline li {
 				margin-right: 0.5em;
 			}
 
@@ -77,9 +77,12 @@ export class ReferenceBlock extends LitElement {
 	];
 
 	override render() {
+
+		const inline = this.block.inline || this.block.condensed || false;
+
 		if (this._shouldHide()) return html``;
 		return html`
-			<div class='${this.block.onlyForEditors ? 'editor' :''} ${this.block.condensed ? 'condensed' : ''}'>
+			<div class='${this.block.onlyForEditors ? 'editor' :''} ${this.block.condensed ? 'condensed' : ''} ${inline ? 'inline' : ''}'>
 			<h4>
 				${this.block.title}
 				${this.block.description ? help(this.block.description) : ''}

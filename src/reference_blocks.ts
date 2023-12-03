@@ -47,8 +47,10 @@ export interface ReferenceBlock {
 	navigationCollectionDescription? : CollectionDescription;
     // title: a title to display,
 	title: string;
-    // condensed: if true, will show up in a much smaller, inline style
+    // condensed: if true, will show up in a much smaller, inline style. Implies inline.
 	condensed?: boolean;
+	//If true, will show up inline style.
+	inline? : boolean;
 	//If provided, will render card-link subtly (e.g. no icon)
 	subtle? : boolean;
 	//if true, then even if it's condensed it will show up in the primary section.
@@ -159,14 +161,14 @@ const REFERENCE_BLOCKS_FOR_CARD_TYPE : {[cardType in CardType]+? : ReferenceBloc
 			),
 			title: '',
 			primary: true,
-			condensed: true,
+			inline: true,
 			subtle: true
 		},
 		{
 			collectionDescription: collectionDescription(cardTypeFilter('work'), referencesFilter('outbound', 'citation')),
 			title: '',
 			primary: true,
-			condensed: true,
+			inline: true,
 			subtle: true
 		}
 	]
