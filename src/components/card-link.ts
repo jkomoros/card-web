@@ -159,6 +159,19 @@ class CardLink extends connect(store)(LitElement) {
 				font-style: italic;
 			}
 
+			a {
+				transition: text-decoration-color var(--transition-fade);
+			}
+
+			a.subtle {
+				/* TODO: consider having more styles change in subtle mode */
+				text-decoration-color: transparent;
+			}
+
+			a.subtle:hover {
+				text-decoration-color: currentColor;
+			}
+
 		`
 	];
 	
