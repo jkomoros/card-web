@@ -7,7 +7,8 @@ import {
 } from '../types.js';
 
 import {
-	cardPlainContent
+	cardPlainContent,
+	isURL
 } from '../util.js';
 
 //TODO: once this is reliably suggesting changes, flip to true and then remove flag.
@@ -82,12 +83,31 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 
 	const commentaryLines : string[] = [];
 
+	let workURL = '';
+	let personName = '';
+
 	for (const line of nonQuoteLines) {
 
-		//TODO: check for if it's a person or a work. (preexisting or needs to be created.)
+		if (isURL(line)) {
+			logger.info(`Found URL: ${line}`);
+			workURL = line;
+			continue;
+		}
+
+		const words = line.split(' ');
+
+		if (words.length == 1 || words.length == 2) {
+			//Likely a person, especially since we know it's not a URL.
+			personName = line;
+			continue;
+		}
 
 		commentaryLines.push(line);
 	}
+
+	//TODO: actually look for preexisting cards or suggest creating one.
+	if (workURL) logger.info(`Work URL: ${workURL}`);
+	if (personName) logger.info(`Person: ${personName}`);
 
 	//TODO: allow an ack action to not convert quote
 
@@ -95,6 +115,7 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 		return `${info.startsQuote ? '<blockquote>' : ''}<p>${info.line}</p>${info.endsQuote ? '</blockquote>' : ''}`;
 	}).join('\n');
 
+	//TODO: if commentary is empty, don't suggest it at all.
 	const commentary = commentaryLines.map(line => `<p>${line}</p>`).join('\n');
 
 	return [{
