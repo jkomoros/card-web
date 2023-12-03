@@ -139,6 +139,7 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 			if (card.card_type != 'work') continue;
 			if (card.external_link != workURL) continue;
 			//Found a match!
+			logger.info(`Found a work card with external_link ${workURL}: ${workCardID}`);
 			workCardID = id;
 			break;
 		}
@@ -161,23 +162,40 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 				personCardID = id;
 			}
 		}
+		if (personCardID) logger.info(`Found a person card with name: ${personName}: ${personCardID}`);
 	}
 
-	if (workURL) {
-		if (workCardID) {
-			logger.info(`Found a work card with external_link ${workURL}: ${workCardID}`);
-		} else {
-			logger.info(`No existing work card found with external_link ${workURL}. Will propose creating one.`);
-			workCardID = newCardIDPlaceholder();
-			createCards.push({
-				card_type: 'work',
-				//TODO: a better title.
-				title: workURL,
-				//Since we have a bad title, don't suggest a slug.
-				autoSlug: false
-			});
-		}
+	/*
+		Now we have possibly set workURL, personName, and workCardID.
+		We want to point to a work if it exists first, and then fall back on a person.
+		And if we have neither, create a new work card if we have a workURL.
+		And if we have neither and no workURL but do have a personName, then create a new person card.
+	*/
 
+	if (workURL && !workCardID && !personCardID) {
+		logger.info(`No existing work card found with external_link ${workURL}. Will propose creating one.`);
+		workCardID = newCardIDPlaceholder();
+		createCards.push({
+			card_type: 'work',
+			//TODO: a better title.
+			title: workURL,
+			//Since we have a bad title, don't suggest a slug.
+			autoSlug: false
+		});
+	}
+
+	if (personName && !personCardID && !workURL) {
+		logger.info(`Could not find a card for person: ${personName}. Will propose creating one.`);
+		personCardID = newCardIDPlaceholder();
+		createCards.push({
+			card_type: 'person',
+			title: personName,
+			//Since we don't have confidence in the title, don't auto slug.
+			autoSlug: false
+		});
+	}
+
+	if (workCardID) {
 		supportingCard = workCardID;
 		referencesDiff.push({
 			cardID: workCardID,
@@ -186,13 +204,13 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 		});
 	}
 
-	if (personName) {
-		if (personCardID) {
-			logger.info(`Found a person card with name: ${personName}: ${personCardID}`);
-		} else {
-			//TODO: create a card here if we aren't already going to create a card for the person.
-			logger.info(`Could not find a card for person: ${personName}`);
-		}
+	if (personCardID && !workCardID) {
+		supportingCard = personCardID;
+		referencesDiff.push({
+			cardID: personCardID,
+			referenceType: 'citation-person',
+			value: ''
+		});
 	}
 
 	//TODO: allow an ack action to not convert quote
