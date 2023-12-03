@@ -3,9 +3,18 @@ import {
 } from '../suggestions.js';
 
 import {
+	TypedObject
+} from '../typed_object.js';
+
+import {
 	CardDiff,
+	ReferencesEntriesDiff,
 	Suggestion
 } from '../types.js';
+
+import {
+	CardID
+} from '../types_simple.js';
 
 import {
 	cardPlainContent,
@@ -19,7 +28,7 @@ const CONVERT_TO_QUOTE_SUGGESTOR_VERSION = 0;
 
 export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
 
-	const {type, card, logger, aggressive} = args;
+	const {type, card, cards, logger, aggressive} = args;
 
 	if (!ENABLE_CONVERT_TO_QUOTE) {
 		logger.info('Covert to quote not enabled');
@@ -106,8 +115,34 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 		commentaryLines.push(line);
 	}
 
+	let supportingCard : CardID = '';
+
+	const referencesDiff : ReferencesEntriesDiff = [];
+
 	//TODO: actually look for preexisting cards or suggest creating one.
-	if (workURL) logger.info(`Work URL: ${workURL}`);
+	if (workURL) {
+		logger.info(`Work URL: ${workURL}`);
+		let workCardID : CardID = '';
+		for (const [id, card] of TypedObject.entries(cards)) {
+			if (card.card_type != 'work') continue;
+			if (card.external_link != workURL) continue;
+			//Found a match!
+			workCardID = id;
+			break;
+		}
+		if (workCardID) {
+			logger.info(`Found a work card with external_link ${workURL}: ${workCardID}`);
+			supportingCard = workCardID;
+			referencesDiff.push({
+				cardID: workCardID,
+				referenceType: 'citation',
+				value: ''
+			});
+		} else {
+			//TODO: create a work card if necessary.
+			logger.info(`No existing work card foudn with external_link ${workURL}`);
+		}
+	}
 	if (personName) logger.info(`Person: ${personName}`);
 
 	//TODO: allow an ack action to not convert quote
@@ -128,11 +163,12 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 	};
 
 	if (commentary) keyCardDiff.commentary = commentary;
+	if (referencesDiff.length) keyCardDiff.references_diff = referencesDiff;
 
 	return [{
 		type,
 		keyCards: [card.id],
-		supportingCards: [],
+		supportingCards: (supportingCard ? [supportingCard] : []),
 		action: {
 			keyCards: keyCardDiff
 		}
