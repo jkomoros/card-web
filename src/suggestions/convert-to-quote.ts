@@ -34,7 +34,7 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 
 	const lines = plainContent.split('\n');
 
-	const quoteLines : string[] = [];
+	const quoteLines : {line: string, startsQuote: boolean}[] = [];
 	const nonQuoteLines : string[] = [];
 
 	for (let line of lines) {
@@ -42,7 +42,7 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 		if (line.startsWith('\'') || line.startsWith('"')) {
 			line = line.slice(1);
 			if (line.endsWith('\'') || line.endsWith('"')) line = line.slice(0, -1);
-			quoteLines.push(line);
+			quoteLines.push({line, startsQuote: true});
 		} else {
 			nonQuoteLines.push(line);
 		}
@@ -70,7 +70,7 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 	//TODO: allow an ack action to not convert quote
 
 	//TODO: start a new block quote for any line that strated with a quote.
-	const body = '<blockquote>' + quoteLines.map(line => `<p>${line}</p>`).join('\n') + '</blockquote>';
+	const body = '<blockquote>' + quoteLines.map(info => `<p>${info.line}</p>`).join('\n') + '</blockquote>';
 
 	//TODO: remove any lines that are entirely about a person or work citation.
 	const commentary = nonQuoteLines.map(line => `<p>${line}</p>`).join('\n');
