@@ -123,9 +123,11 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 	const referencesDiff : ReferencesEntriesDiff = [];
 	const createCards : SuggestionDiffCreateCard[] = [];
 
+	let workCardID : CardID = '';
+
+	//See if we can find a workCardID.
 	if (workURL) {
 		logger.info(`Work URL: ${workURL}`);
-		let workCardID : CardID = '';
 		for (const [id, card] of TypedObject.entries(cards)) {
 			if (card.card_type != 'work') continue;
 			if (card.external_link != workURL) continue;
@@ -133,7 +135,11 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 			workCardID = id;
 			break;
 		}
+	}
 
+	if (personName) logger.info(`Person: ${personName}`);
+
+	if (workURL) {
 		if (workCardID) {
 			logger.info(`Found a work card with external_link ${workURL}: ${workCardID}`);
 		} else {
@@ -149,16 +155,13 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 			});
 		}
 
-		if (workCardID) {
-			supportingCard = workCardID;
-			referencesDiff.push({
-				cardID: workCardID,
-				referenceType: 'citation',
-				value: ''
-			});
-		}
+		supportingCard = workCardID;
+		referencesDiff.push({
+			cardID: workCardID,
+			referenceType: 'citation',
+			value: ''
+		});
 	}
-	if (personName) logger.info(`Person: ${personName}`);
 
 	//TODO: allow an ack action to not convert quote
 
