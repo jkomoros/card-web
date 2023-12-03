@@ -15,7 +15,7 @@ const ENABLE_CONVERT_TO_QUOTE = false;
 
 export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
 
-	const {card, logger} = args;
+	const {card, logger, aggressive} = args;
 
 	if (!ENABLE_CONVERT_TO_QUOTE) {
 		logger.info('Covert to quote not enabled');
@@ -42,7 +42,16 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 
 	logger.info(`Quote lines: ${JSON.stringify(quoteLines, null, '\t')}\nNon-quote lines: ${JSON.stringify(nonQuoteLines, null, '\t')}`);
 
-	//TODO: suggest converting card.
+	if (quoteLines.length == 0) {
+		logger.info('No quote lines');
+		return [];
+	}
+
+	//If aggressive, then we only need a single quote line to suggest something.
+	if (!aggressive && (quoteLines.length - nonQuoteLines.length) < 0) {
+		logger.info('Fewer quote lines than non-quote lines and not aggressive');
+		return [];
+	}
 
 	//TODO: add a flag to note it was converted
 
