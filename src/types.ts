@@ -92,6 +92,8 @@ export type CreateCardOpts = {
 	section? : SectionID;
 	id? : CardID;
 	noNavigate? : boolean;
+	//If provided, this will be used instead of CardTypeConfig.autoSlug.
+	autoSlug?: AutoSlugConfig;
 	title? : string,
 	body? : string;
 }
@@ -330,6 +332,8 @@ export type SelectorStyleMap = {
 	[selector : string]: string[]
 }
 
+type AutoSlugConfig = false | 'primary' | 'prefixed';
+
 export type CardTypeConfigurationMap = {
 	[typ in CardType]: {
 		//invertContentPublishWarning: if true, then the 'There's content but unpublished,
@@ -362,7 +366,7 @@ export type CardTypeConfigurationMap = {
 		// automatically add a name to the card that is
 		// `CARD_TYPE-NORMALIZED-TITLE`. If it's primary it will prefer the non
 		// card-type prefixed title if it is available.
-		autoSlug? : false | 'primary' | 'prefixed';
+		autoSlug? : AutoSlugConfig,
 		// defaultBody: if set, then when a card of this type is created, it will have this
 		// string.
 		defaultBody? : string,

@@ -802,19 +802,21 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 		}
 	}
 
+	const autoSlugConfig = opts.autoSlug !== undefined ? opts.autoSlug : CARD_TYPE_CONFIG.autoSlug;
+
 	let autoSlug = '';
 	let fallbackAutoSlug = '';
-	if (CARD_TYPE_CONFIG.autoSlug) {
+	if (autoSlugConfig) {
 		autoSlug = createSlugFromArbitraryString(title);
 		fallbackAutoSlug = normalizeSlug(cardType + '-' + autoSlug);
-		if (CARD_TYPE_CONFIG.autoSlug == 'prefixed') {
+		if (autoSlugConfig == 'prefixed') {
 			//Don't even try the non-card prefixed one.
 			autoSlug = fallbackAutoSlug;
 			fallbackAutoSlug = '';
 		}
 	}
 
-	if (CARD_TYPE_CONFIG.publishedByDefault && CARD_TYPE_CONFIG.autoSlug) {
+	if (CARD_TYPE_CONFIG.publishedByDefault && autoSlugConfig) {
 		if (!confirm(`You're creating a card that will be published by default and have its slug set automatically. Is it spelled correctly?\n\nTitle: ${title}\nSlug: ${autoSlug}${fallbackAutoSlug ? `\nAlternate Slug: ${fallbackAutoSlug}` : ''}\n\nDo you want to proceed?`)) {
 			console.log('Aborted by user');
 			return;
@@ -858,7 +860,7 @@ export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (di
 
 	let autoSlugLegalPromise = null;
 	let fallbackAutoSlugLegalPromise = null;
-	if (CARD_TYPE_CONFIG.autoSlug) {
+	if (autoSlugConfig) {
 		//Kick this off in parallel. We'll await it later.
 		autoSlugLegalPromise = slugLegal(autoSlug);
 		fallbackAutoSlugLegalPromise = fallbackAutoSlug ?  slugLegal(fallbackAutoSlug) : null;
