@@ -34,7 +34,7 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 
 	const lines = plainContent.split('\n');
 
-	const quoteLines : {line: string, startsQuote: boolean}[] = [];
+	const quoteLines : {line: string, startsQuote: boolean, endsQuote: boolean}[] = [];
 	const nonQuoteLines : string[] = [];
 
 	let inQuote = false;
@@ -53,7 +53,7 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 			line = line.slice(0, -1);
 		}
 		if (startsQuote || inQuote) {
-			quoteLines.push({line, startsQuote});
+			quoteLines.push({line, startsQuote, endsQuote});
 			if (startsQuote) inQuote = true;
 			if (endsQuote) inQuote = false;
 		} else {
