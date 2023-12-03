@@ -12,7 +12,7 @@ import {
 	VIEW_MODE_URL_KEYWORD,
 	LEGAL_VIEW_MODES,
 	makeConfigurableFilter,
-	queryConfigurableFilterText,
+	queryFilter,
 	queryTextFromQueryFilter,
 	SET_INFOS,
 } from './filters.js';
@@ -235,7 +235,7 @@ export const collectionDescriptionWithSortReversed = (description : CollectionDe
 //but that includes a configurable filter for the given queryText, replacing the
 //first existing query filter if one exists, otherwise appending it.
 export const collectionDescriptionWithQuery = (description : CollectionDescription, queryText : string) : CollectionDescription => {
-	return collectionDescriptionWithConfigurableFilter(description, queryConfigurableFilterText(queryText));
+	return collectionDescriptionWithConfigurableFilter(description, queryFilter(queryText));
 };
 
 //collectionDescriptionWithKeyCard returns the description, but with each instance of 'self' replaced with the given keyCardID

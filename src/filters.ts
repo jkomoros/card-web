@@ -237,6 +237,9 @@ export const missingConceptFilter = (conceptStr : string = KEY_CARD_ID_PLACEHOLD
 	//yes, this is a bit of a hack that the slug happens to be a valid concept string argument...
 	return MISSING_CONCEPT_FILTER_NAME + '/' + arg;
 };
+export const queryFilter = (queryText : string, strict = false) : ConfigurableFilterName => {
+	return (strict ? QUERY_STRICT_FILTER_NAME : QUERY_FILTER_NAME)  + '/' + encodeURIComponent(queryText).split('%20').join('+');
+};
 
 export const parseDateSection = (str : string) : [dateType : DateRangeType, firstDate : Date, secondDate : Date] => {
 	let pieces = str.split('/');
@@ -665,10 +668,6 @@ const makeCombineConfigurableFilter = (_ : ConfigurableFilterType, ...remainingP
 	};
 
 	return [func, false];
-};
-
-export const queryConfigurableFilterText = (queryText : string) : ConfigurableFilterName => {
-	return QUERY_FILTER_NAME + '/' + encodeURIComponent(queryText).split('%20').join('+');
 };
 
 const configurableFilterIsQuery = (filterName : string) : boolean => {

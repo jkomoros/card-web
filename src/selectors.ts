@@ -19,7 +19,7 @@ import {
 import {
 	TODO_COMBINED_FILTER_NAME,
 	cardTODOConfigKeys,
-	queryConfigurableFilterText,
+	queryFilter,
 	CARD_FILTER_DESCRIPTIONS,
 	similarFilter,
 	limitFilter,
@@ -1629,8 +1629,8 @@ export const selectCollectionDescriptionForQuery = createSelector(
 			//If there's no query, return the similar cards to the current card
 			return new CollectionDescription('everything', baseFilters, sort);
 		}
-		const queryFilter = queryConfigurableFilterText(wordsAndFilters[0]);
-		return new CollectionDescription('everything',[...baseFilters, queryFilter, ...wordsAndFilters[1]], sortByRecent ? 'recent' : 'default');
+		const query = queryFilter(wordsAndFilters[0]);
+		return new CollectionDescription('everything',[...baseFilters, query, ...wordsAndFilters[1]], sortByRecent ? 'recent' : 'default');
 	}
 );
 
