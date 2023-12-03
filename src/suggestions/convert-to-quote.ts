@@ -31,8 +31,7 @@ import {
 	isURL
 } from '../util.js';
 
-//TODO: once this is reliably suggesting changes, flip to true and then remove flag.
-const ENABLE_CONVERT_TO_QUOTE = false;
+const ENABLE_CONVERT_TO_QUOTE = true;
 
 const CONVERT_TO_QUOTE_SUGGESTOR_VERSION = 0;
 
