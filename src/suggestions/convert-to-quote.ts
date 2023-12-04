@@ -215,6 +215,7 @@ export const convertToQuote = async (args: SuggestorArgs) : Promise<Suggestion[]
 	const commentary = commentaryLines.map(line => `<p>${line}</p>`).join('\n');
 
 	const keyCardDiff : CardDiff = {
+		//TODO: note that cardFinishers are not run in this pipeline, so the title will still be the old one.
 		card_type: 'quote',
 		body,
 		set_flags: {
