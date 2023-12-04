@@ -253,13 +253,14 @@ const descriptionForCreateCard = (input : SuggestionDiffCreateCard | SuggestionD
 		const mainPart = html`Create <tag-list .tags=${[newCardIDPlaceholder(i)]} .tagInfos=${cardInfos} .tapEvents=${true} .inline=${true}></tag-list>`;
 		const typePart = diff.card_type ? html` of type <strong>${diff.card_type}</strong>` : html``;
 		const titlePart = diff.title ? html` with title ${diff.title}` : html``;
+		const autoSlugPart = diff.autoSlug === false ? html` and skip creating slugs` : html``;
 		let bodyPart = html``;
 		if (diff.body) {
 			let plainBody = innerTextForHTML(diff.body);
 			if (plainBody.length > BODY_SUMMARY_LENGTH) plainBody = plainBody.slice(0, BODY_SUMMARY_LENGTH) + '...';
 			bodyPart = html` with body "<span title=${diff.body}>${plainBody}</span>"`;
 		}
-		results.push(html`${mainPart}${typePart}${titlePart}${bodyPart}. `);
+		results.push(html`${mainPart}${typePart}${titlePart}${bodyPart}${autoSlugPart}. `);
 	}
 
 	return html`${join(results, html``)}`;
