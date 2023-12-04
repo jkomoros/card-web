@@ -34,6 +34,12 @@ const AGGRESSIVE_SIMILARITY_CUT_OFF = 0.84;
 //TODO: this is largely recreated in dupe-of.ts
 export const suggestMissingSeeAlso = async (args: SuggestorArgs) : Promise<Suggestion[]> => {
 	const {type, card, collectionArguments, logger} = args;
+
+	if (card.card_type != 'content' && card.card_type != 'working-notes') {
+		logger.info(`Skipping because card_type is ${card.card_type}`);
+		return [];
+	}
+
 	const description = collectionDescription(...SIMILAR_SAME_TYPE);
 	const collection = await waitForFinalCollection(description, {keyCardID: collectionArguments.keyCardID});
 	const topCards = collection.finalSortedCards;
