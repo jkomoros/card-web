@@ -559,6 +559,8 @@ const bodyValidator = (body : string, cardType : CardType, config : CardFieldTyp
 	if (config.overrideLegalTopLevelNodes && config.overrideLegalTopLevelNodes[cardType]) {
 		//TODO: really this behavior is just hyper-specialized for validating
 		//body-for-quote cards. Should it be a separate config line?
+
+		//Verify that all of the content within the blockquote is also wrapped in paragraphs.
 		for (const child of ele.children) {
 			if (!(child instanceof HTMLElement)) continue;
 			const err = validateTopLevelNodes(child, undefined, true);
