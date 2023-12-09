@@ -379,6 +379,7 @@ export const generateCardDiff = (underlyingCardIn : Card | null | undefined, upd
 			}
 		}
 		update[field] = value;
+		//TODO: theoretically this should be ALL html-enabled fields, which includes commentary.
 		if (field !== 'body') continue;
 		const linkInfo = extractCardLinksFromBody(value);
 		references(updatedCard).setLinks(linkInfo);
