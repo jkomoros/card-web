@@ -341,7 +341,9 @@ class ReferencesAccessor {
 
 	//Returns a string describing why that reference may not be set, or '' if
 	//it's legal.
-	mayNotSetCardReferenceReason(state : State, cardID : CardID, referenceType : ReferenceType) : string {
+	mayNotSetCardReferenceReason(state : State, cardID : CardID, referenceType : ReferenceType, value? : string) : string {
+
+		if (!value) value = '';
 
 		if (this._cardObj.id == cardID) {
 			return 'The card references itself which is not allowed';
@@ -361,7 +363,14 @@ class ReferencesAccessor {
 		const baseType = referenceTypeConfig.subTypeOf || referenceType;
 
 		if (REFERENCE_TYPES_EQUIVALENCE_CLASSES[baseType][referenceType] && this.typeClassArray(baseType).some(id => id == cardID)) {
-			return 'The editing card already has a ' + baseType + ' reference (or subtype) to that card';
+			//TODO: could this logic be simpler if it just checked "if the reason the typeClassArray conflicts is because this referenceType already exists, that's fine"?
+			const currentValue = this._referencesInfo[cardID]?.[referenceType];
+
+			if( currentValue != undefined && currentValue != value) {
+				//This is a special case; the reference already exists, yes, but we're changing its value, and that's OK.
+			} else {
+				return 'The editing card already has a ' + baseType + ' reference (or subtype) to that card';
+			}
 		}
 	
 		//if the reference type doesn't have a toCardTypeAllowList then any of them

@@ -832,6 +832,7 @@ export const selectCardToReference = (referenceType : ReferenceType) : ThunkSome
 };
 
 export const addReferenceToCard = (cardID : CardID, referenceType : ReferenceType, value? : string) : ThunkSomeAction => (dispatch, getState) => {
+		
 	const state = getState();
 
 	const editingCard = selectEditingCard(state);
@@ -840,7 +841,7 @@ export const addReferenceToCard = (cardID : CardID, referenceType : ReferenceTyp
 		return;
 	}
 
-	const reason = referencesNonModifying(editingCard).mayNotSetCardReferenceReason(state, cardID, referenceType); 
+	const reason = referencesNonModifying(editingCard).mayNotSetCardReferenceReason(state, cardID, referenceType, value); 
 
 	if (reason) {
 		console.warn(reason);
