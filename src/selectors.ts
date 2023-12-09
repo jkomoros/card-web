@@ -43,7 +43,8 @@ import {
 	CARD_TYPE_CONFIGURATION,
 	DEFAULT_SORT_ORDER_INCREMENT,
 	MIN_SORT_ORDER_VALUE,
-	MAX_SORT_ORDER_VALUE
+	MAX_SORT_ORDER_VALUE,
+	editableFieldsForCardType
 } from './card_fields.js';
 
 import {
@@ -1486,6 +1487,19 @@ export const selectCollectionConstructorArgumentsWithEditingCard = createSelecto
 	selectCollectionConstructorArguments,
 	selectEditingNormalizedCard,
 	(args, editingCard) => ({...args, editingCard})
+);
+
+export const selectFieldValidationErrorsForEditingCard = createSelector(
+	selectEditingNormalizedCard,
+	(card) :{[field in CardFieldType]+?: string}  => {
+		const result : {[field in CardFieldType]+?: string} = {};
+		if (!card) return result;
+		for (const [field, config] of TypedObject.entries(editableFieldsForCardType(card.card_type))) {
+			if (!config.validator) continue;
+			result[field] = config.validator(card[field], card.card_type, config);
+		}
+		return result;
+	}
 );
 
 export const selectActiveCollection = createSelector(

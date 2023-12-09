@@ -36,7 +36,8 @@ import {
 	selectEditingCardHasUnsavedChanges,
 	selectEditorMinimized,
 	selectUserMayUseAI,
-	selectIsEditing
+	selectIsEditing,
+	selectFieldValidationErrorsForEditingCard
 } from '../selectors.js';
 
 import {
@@ -143,7 +144,8 @@ import {
 	referenceTypeSchema,
 	TODOType,
 	autoTODOType,
-	cardFieldTypeEditableSchema
+	cardFieldTypeEditableSchema,
+	CardFieldType
 } from '../types.js';
 
 import {
@@ -246,6 +248,9 @@ class CardEditor extends connect(store)(LitElement) {
 
 	@state()
 		_hasUnsavedChanges: boolean;
+
+	@state()
+		_fieldValidationErrors: {[field in CardFieldType]+?: string};
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -484,7 +489,7 @@ class CardEditor extends connect(store)(LitElement) {
 					<label>
 						${toTitleCase(entry[0].split('_').join(' '))}
 						${entry[1].description ? help(entry[1].description) : ''}
-						${entry[1].validator && entry[1].validator(card[entry[0]], card.card_type, entry[1]) ? help(entry[1].validator(card[entry[0]], card.card_type, entry[1]), true, true) : ''}
+						${this._fieldValidationErrors[entry[0]] ? help(this._fieldValidationErrors[entry[0]] || '', true, true) : ''}
 					</label>
 					${entry[1].html
 		? html`<textarea 
@@ -867,6 +872,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._underlyingCardDifferences = selectEditingUnderlyingCardSnapshotDiffDescription(state);
 		this._overshadowedDifferences = selectOvershadowedUnderlyingCardChangesDiffDescription(state);
 		this._hasUnsavedChanges = selectEditingCardHasUnsavedChanges(state);
+		this._fieldValidationErrors = selectFieldValidationErrorsForEditingCard(state);
 	}
 
 	override updated(changedProps : Map<string, CardEditor[keyof CardEditor]>) {
