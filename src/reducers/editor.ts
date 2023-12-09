@@ -199,7 +199,7 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 	case EDITING_ADD_REFERENCE:
 		if (!state.card) return state;
 		card = {...state.card};
-		references(card).setCardReference(action.cardID, action.referenceType);
+		references(card).setCardReference(action.cardID, action.referenceType, action.value);
 		return {
 			...state,
 			//references could change e.g.similar cards, word clouds (if text is

@@ -831,7 +831,7 @@ export const selectCardToReference = (referenceType : ReferenceType) : ThunkSome
 	dispatch(findCardToReference(cardTypeFilter));
 };
 
-export const addReferenceToCard = (cardID : CardID, referenceType : ReferenceType) : ThunkSomeAction => (dispatch, getState) => {
+export const addReferenceToCard = (cardID : CardID, referenceType : ReferenceType, value? : string) : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 
 	const editingCard = selectEditingCard(state);
@@ -851,6 +851,7 @@ export const addReferenceToCard = (cardID : CardID, referenceType : ReferenceTyp
 		type: EDITING_ADD_REFERENCE,
 		cardID,
 		referenceType,
+		value
 	});
 
 };

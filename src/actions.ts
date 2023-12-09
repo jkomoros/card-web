@@ -608,7 +608,8 @@ type ActionEditingResetReferenceCard = {
 type ActionEditingAddReference = {
 	type: typeof EDITING_ADD_REFERENCE,
 	cardID: CardID,
-	referenceType: ReferenceType
+	referenceType: ReferenceType,
+	value? : string
 };
 
 type ActionEditingRemoveReference = {
