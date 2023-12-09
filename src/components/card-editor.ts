@@ -726,6 +726,7 @@ class CardEditor extends connect(store)(LitElement) {
 								.subtle=${!entry[1].editable}
 								.tapEvents=${true}
 								.disableAdd=${true}
+								@tag-tapped=${this._handleReferenceTapped}
 								@tag-removed=${this._handleRemoveReference}
 								@tag-added=${this._handleReAddReference}>
 							</tag-list>
@@ -965,6 +966,39 @@ class CardEditor extends connect(store)(LitElement) {
 	_handleAddAckReference(e : TagEvent) {
 		const cardID = e.detail.tag;
 		store.dispatch(addReferenceToCard(cardID, 'ack'));
+	}
+
+	_handleReferenceTapped(e : TagEvent) {
+		if (!this._card) return;
+		const cardID = e.detail.tag;
+		let refType : ReferenceType | undefined = undefined;
+		//Walk up the chain to find which tag-list has it (which will have the
+		//referenceType we set explicitly on it)
+		for (const ele of e.composedPath()) {
+			//Could be a documentfragment
+			if (!(ele instanceof HTMLElement)) continue;
+			if (ele.dataset.referenceType) {
+				refType = referenceTypeSchema.parse(ele.dataset.referenceType);
+				break;
+			}
+		}
+		if (!refType) {
+			console.warn('No reference type found on parents');
+			return;
+		}
+
+		const config = REFERENCE_TYPES[refType];
+		if (!config.editable) {
+			console.warn('This reference type is not editable');
+		}
+		const map = this._card.references_info[cardID];
+		let val = '';
+		if (map) {
+			val = map[refType] || '';
+		}
+		const newVal = prompt('What do you want the value to be?', val);
+		if (newVal == null) return;
+		store.dispatch(addReferenceToCard(cardID, refType, newVal));
 	}
 
 	_handleReAddReference(e : TagEvent) {
