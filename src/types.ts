@@ -716,6 +716,9 @@ export type ReferenceTypeConfigurationMap = {
 		reciprocal? : boolean,
 		//needsReciprocation - if true, then cards that don't reciprocate with a link will be called out.
 		needsReciprocation? : boolean
+		//If set, this will be shown in the prompt for changing the value.
+		//Different reference types have different idiomatic uses.
+		valueHint? : string
 	}
 }
 

@@ -996,7 +996,7 @@ class CardEditor extends connect(store)(LitElement) {
 		if (map) {
 			val = map[refType] || '';
 		}
-		const newVal = prompt('What do you want the value to be?', val);
+		const newVal = prompt(`What do you want the value to be?${config.valueHint ? '\n' + config.valueHint : ''}`, val);
 		if (newVal == null) return;
 		store.dispatch(addReferenceToCard(cardID, refType, newVal));
 	}
