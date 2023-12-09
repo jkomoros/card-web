@@ -340,11 +340,20 @@ export const elementForHTML = (input : string) : HTMLElement => {
 };
 
 //Returns an empty string if it's OK, and a non-empty string if it's not.
-export const validateTopLevelNodes = (input : string | HTMLElement, legalTopLevelNodes : HTMLTagMap = DEFAULT_LEGAL_TOP_LEVEL_NODES) : string => {
+export const validateTopLevelNodes = (input : string | HTMLElement, legalTopLevelNodes : HTMLTagMap = DEFAULT_LEGAL_TOP_LEVEL_NODES, disallowNakedSpans = false) : string => {
 	const ele = typeof input == 'string' ? elementForHTML(input) : input;
-	for (const child of ele.children) {
-		if (!legalTopLevelNodes[child.localName as HTMLTagName]) {
-			return `${child.localName} was in top-level but only legal values are ${Object.keys(legalTopLevelNodes).join(',')}`;
+	for (const node of ele.childNodes) {
+		if (node instanceof HTMLElement) {
+			if (!legalTopLevelNodes[node.localName as HTMLTagName]) {
+				return `${node.localName} was in top-level but only legal values are ${Object.keys(legalTopLevelNodes).join(',')}`;
+			}
+		}
+		if (!disallowNakedSpans) continue;
+		if (node.nodeType == node.TEXT_NODE) {
+			if (!node.nodeValue) continue;
+			const value = node.nodeValue.trim();
+			if (!value) continue;
+			return `'${value}' was found at top-level but that is not allowed`;
 		}
 	}
 	return '';
