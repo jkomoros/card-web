@@ -330,17 +330,19 @@ export const normalizeBodyHTML = (html : string, legalTopLevelNodes : HTMLTagMap
 
 };
 
+//Returns an HTMLElement whose innerHTML is input.
+export const elementForHTML = (input : string) : HTMLElement => {
+	const doc = getDocument();
+	if (!doc) throw new Error('No document');
+	const ele = doc.createElement('section');
+	ele.innerHTML = input;
+	return ele;
+};
+
 //Returns an empty string if it's OK, and a non-empty string if it's not.
 export const validateTopLevelNodes = (input : string | HTMLElement, legalTopLevelNodes : HTMLTagMap = DEFAULT_LEGAL_TOP_LEVEL_NODES) : string => {
-	if (typeof input == 'string') {
-		const doc = getDocument();
-		if (!doc) throw new Error('No document');
-		const ele = doc.createElement('section');
-		ele.innerHTML = input;
-		input = ele;
-	}
-
-	for (const child of input.children) {
+	const ele = typeof input == 'string' ? elementForHTML(input) : input;
+	for (const child of ele.children) {
 		if (!legalTopLevelNodes[child.localName as HTMLTagName]) {
 			return `${child.localName} was in top-level but only legal values are ${Object.keys(legalTopLevelNodes).join(',')}`;
 		}
