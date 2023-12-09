@@ -470,6 +470,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		//Allow inbound from any type of card that is not also a work, or a person (works can point to persons but not vice versa)
 		fromCardTypeAllowList: Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).filter(key => key != 'work' && key != 'person').map(key => [key, true])),
 		backportMissingText: true,
+		valueHint: 'A value in this context should be the page numbers, separated by commas'
 	},
 	'citation-person': {
 		name: 'Citation (Person)',
@@ -487,6 +488,7 @@ export const REFERENCE_TYPES : ReferenceTypeConfigurationMap = {
 		fromCardTypeAllowList: Object.fromEntries(TypedObject.keys(CARD_TYPE_CONFIGURATION).filter(key => key != 'person').map(key => [key, true])),
 		backportMissingText: true,
 		subTypeOf: 'citation',
+		valueHint: 'A value in this context is typically to a URL you dont want to bother creating a work card for'
 	},
 };
 
