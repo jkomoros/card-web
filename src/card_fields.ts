@@ -48,7 +48,7 @@ import {
 	innerTextForHTML,
 	isURL
 } from './util.js';
-import { validateTopLevelNodes } from './contenteditable.js';
+import { elementForHTML, validateTopLevelNodes } from './contenteditable.js';
 
 export const EMPTY_CARD_ID = '?EMPTY-CARD?';
 
@@ -553,8 +553,19 @@ const bodyValidator = (body : string, cardType : CardType, config : CardFieldTyp
 	if (plainContent.startsWith('"') || plainContent.startsWith('\'')) {
 		return 'Quote cards should not contain their quoted content in quotes.';
 	}
-	const err = validateTopLevelNodes(body, config.overrideLegalTopLevelNodes?.[cardType]);
+	const ele = elementForHTML(body);
+	const err = validateTopLevelNodes(ele, config.overrideLegalTopLevelNodes?.[cardType], true);
 	if (err) return err;
+	if (config.overrideLegalTopLevelNodes && config.overrideLegalTopLevelNodes[cardType]) {
+		//TODO: really this behavior is just hyper-specialized for validating
+		//body-for-quote cards. Should it be a separate config line?
+		for (const child of ele.children) {
+			if (!(child instanceof HTMLElement)) continue;
+			const err = validateTopLevelNodes(child, undefined, true);
+			if (err) return err;
+		}
+	}
+
 	return '';
 };
 
