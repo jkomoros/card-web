@@ -618,7 +618,9 @@ export type CardFieldTypeConfiguration = {
 	htmlFormatter? : (input : string) => string,
 	//Validator takes the proposed stirng and returns an error string or '' if
 	//no problem. If it is provided and returns a non-empty string, then edits
-	//to that field will not be allowed to be saved.
+	//to that field will not be allowed to be saved. This is conceptually
+	//similar to a cardFinisher, which can throw an error if a card doesn't
+	//validate... but it's on the field level.
 	validator? : (input : string | undefined, cardType : CardType, config : CardFieldTypeConfiguration) => string,
 	// extraRunDelimiter: if provided, then when deciding where to break runs, that
 	// character will also be considered as a run break (in addition to the default
