@@ -624,6 +624,9 @@ export const validateCardDiff = (state : State, underlyingCard : Card, diff : Ca
 	for (const field of cardFieldTypeEditableSchema.options) {
 		if (diff[field] === undefined) continue;
 		const config = TEXT_FIELD_CONFIGURATION[field];
+		//TODO: consider running this in confirmationsForCardDiff instead. Here,
+		//it's more a "this is a required thing to fix." There it's more a "are
+		//you sure you meant to do this?"
 		if (!config.validator) continue;
 		const err = config.validator(diff[field], diff.card_type || underlyingCard.card_type, config);
 		if (!err) continue;
