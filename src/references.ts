@@ -282,7 +282,7 @@ class ReferencesAccessor {
 
 	_mayNotApplyEntryDiffItemReason(state : State, item : ReferencesEntriesDiffItem) : string {
 		if (isExpandedReferenceDelete(item)) return this.mayNotRemoveCardReferenceReason(state, item.cardID, item.referenceType);
-		return this.mayNotSetCardReferenceReason(state, item.cardID, item.referenceType);
+		return this.mayNotSetCardReferenceReason(state, item.cardID, item.referenceType, item.value);
 	}
 
 	//Removes all references for the given card.
@@ -341,7 +341,7 @@ class ReferencesAccessor {
 
 	//Returns a string describing why that reference may not be set, or '' if
 	//it's legal.
-	mayNotSetCardReferenceReason(state : State, cardID : CardID, referenceType : ReferenceType, value? : string) : string {
+	mayNotSetCardReferenceReason(state : State, cardID : CardID, referenceType : ReferenceType, value : string) : string {
 
 		if (!value) value = '';
 

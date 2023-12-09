@@ -841,6 +841,8 @@ export const addReferenceToCard = (cardID : CardID, referenceType : ReferenceTyp
 		return;
 	}
 
+	if (!value) value = '';
+
 	const reason = referencesNonModifying(editingCard).mayNotSetCardReferenceReason(state, cardID, referenceType, value); 
 
 	if (reason) {
