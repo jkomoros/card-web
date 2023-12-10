@@ -170,6 +170,9 @@ import {
 	titleForEditingCardWithAI
 } from '../actions/ai.js';
 
+
+type TagInfosByReferenceType = {[typ in ReferenceType]: TagInfos};
+
 @customElement('card-editor')
 class CardEditor extends connect(store)(LitElement) {
 
@@ -217,6 +220,11 @@ class CardEditor extends connect(store)(LitElement) {
 
 	@state()
 		_cardTagInfos: TagInfos;
+
+	//This isn't set until after cardInfos and card updated, so sometimes it
+	//will render while it's empyt, so make sure we defend against that.
+	@state()
+		_cardTagInfosForReferenceTypes?: TagInfosByReferenceType;
 
 	//The card before any edits
 	@state()
@@ -718,7 +726,7 @@ class CardEditor extends connect(store)(LitElement) {
 								.disableTagIfMissingTagInfo=${true}
 								.disabledDescription=${'You do not have permission to view this card so you may not remove the reference to it.'}
 								data-reference-type=${entry[0]}
-								.tagInfos=${this._cardTagInfos}
+								.tagInfos=${this._cardTagInfosForReferenceTypes?.[entry[0]] || this._cardTagInfos}
 								.defaultColor=${entry[1].color}
 								.tags=${referencesMap[entry[0]] || []}
 								.previousTags=${previousReferencesMap[entry[0]] || []}
@@ -876,7 +884,7 @@ class CardEditor extends connect(store)(LitElement) {
 		this._fieldValidationErrors = selectFieldValidationErrorsForEditingCard(state);
 	}
 
-	override updated(changedProps : Map<string, CardEditor[keyof CardEditor]>) {
+	override updated(changedProps : Map<keyof CardEditor, CardEditor[keyof CardEditor]>) {
 		if (changedProps.has('_underlyingCardDifferences') && this._underlyingCardDifferences) {
 			//TODO: isn't it kind of weird to have the view be the thing thta
 			//triggers the autoMerge? Shouldn't it be some wrapper around
@@ -884,6 +892,10 @@ class CardEditor extends connect(store)(LitElement) {
 			console.log('Updating underlying card:\n', this._underlyingCardDifferences);
 			//auto apply the changes
 			store.dispatch(updateUnderlyingCard());
+		}
+		if (changedProps.has('_cardTagInfos') || changedProps.has('_card')) {
+			//TODO: ideally we would only re-run this if the references have changed since last time it ran.
+			this._cardTagInfosForReferenceTypes = this._makeCardTagInfosForReferenceTypes();
 		}
 	}
 
@@ -893,6 +905,44 @@ class CardEditor extends connect(store)(LitElement) {
 
 	override firstUpdated() {
 		document.addEventListener('keydown', e => this._handleKeyDown(e));
+	}
+
+	_makeCardTagInfosForReferenceTypes() : TagInfosByReferenceType {
+		const card = this._card;
+		const baseInfos = this._cardTagInfos;
+		const byType = references(card).byType;
+		const result : Partial<TagInfosByReferenceType> = {};
+		for (const referenceType of referenceTypeSchema.options) {
+			let infos = baseInfos;
+			if (this._card) {
+				const refs = byType[referenceType];
+				if (refs) {
+					//We want to keep info object identity as much as possible for the multiple caching layers.
+					let overlayChanged = false;
+					const overlay = Object.fromEntries(TypedObject.entries(refs).map(entry => {
+						const [cardID, value] = entry;
+						let info = baseInfos[cardID] || {};
+						if (value) {
+							//This is the meat of overriding the tagInfo based on references.
+							info = {
+								...info,
+								description: (info.description || info.title) + ' : ' + value
+							};
+							overlayChanged = true;
+						}
+						return [cardID, info];
+					}));
+					if (overlayChanged) {
+						infos = {
+							...infos,
+							...overlay
+						};
+					}
+				}
+			}
+			result[referenceType] = infos;
+		}
+		return result as TagInfosByReferenceType;
 	}
 
 	_handleSuggestedConceptTapped(e : TagEvent) {
