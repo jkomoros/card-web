@@ -1796,14 +1796,16 @@ const CARD_FILTER_AUTO_TODO_CONFIGS : CardFilterConfigMapAutoTODO = {
 		test: (card : Card) => (references(card).byTypeArray()['citation-person'] || []).length > 0,
 		type: TODO_TYPE_AUTO_WORK,
 		weight: 0.2,
-		description: 'Whether a work card has a reference to its author'
+		description: 'Whether a work card has a reference to its author',
+		warnOnSave: true
 	},
 	'quote-citation': {
 		filterNames: defaultCardFilterName('quote-citation'),
 		test: quoteCitation,
 		type: TODO_TYPE_AUTO_QUOTE,
 		weight: 0.2,
-		description: 'Whether a quote card has at least one citation'
+		description: 'Whether a quote card has at least one citation',
+		warnOnSave: true
 	}
 };
 
