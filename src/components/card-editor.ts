@@ -926,7 +926,8 @@ class CardEditor extends connect(store)(LitElement) {
 							//This is the meat of overriding the tagInfo based on references.
 							info = {
 								...info,
-								description: (info.description || info.title) + ' : ' + value
+								description: (info.description || info.title) + ' : ' + value,
+								iconName: 'INFO_ICON'
 							};
 							overlayChanged = true;
 						}
