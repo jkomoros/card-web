@@ -1,5 +1,5 @@
 
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { StyleInfo, styleMap } from 'lit/directives/style-map.js';
 
@@ -23,6 +23,8 @@ import {
 import {
 	COLORS
 } from '../type_constants.js';
+
+import * as icons from './my-icons.js';
 
 @customElement('tag-chip')
 class TagChip  extends LitElement {
@@ -106,6 +108,13 @@ class TagChip  extends LitElement {
 			span.enabled.editing a.delete {
 				display:inline;
 			}
+
+			svg {
+				height:1.0em;
+				width:1.0em;
+				margin-right: 0.3em;
+				fill: var(--app-light-text-color);
+			}
 		`
 	];
 
@@ -115,8 +124,16 @@ class TagChip  extends LitElement {
 		};
 		if (this._filter) styles.filter = this._filter;
 		return html`
-			<span style=${styleMap(styles)} class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''} ${this._disabled ? 'disabled' : 'enabled'}' title='${this._description}' @mousemove=${this._handleMouseMove}><a class='primary' href='${this._url}' @click=${this._handleTagClicked}>${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
+			<span style=${styleMap(styles)} class='${this.editing ? 'editing' : ''} ${this.addition ? 'addition' : ''} ${this.deletion ? 'deletion' : ''} ${this._disabled ? 'disabled' : 'enabled'}' title='${this._description}' @mousemove=${this._handleMouseMove}><a class='primary' href='${this._url}' @click=${this._handleTagClicked}>${this._icon}${this._displayName}</a><a class='delete' href='#' @click=${this._handleXClicked}>X</a></span>
 			`;
+	}
+
+	get _icon() : TemplateResult {
+		if (!this.tagInfos) return html``;
+		const info = this.tagInfos[this.tagName];
+		if (!info) return html``;
+		if (!info.iconName) return html ``;
+		return icons[info.iconName];
 	}
 
 	_handleMouseMove(e : MouseEvent) {

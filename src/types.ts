@@ -1092,6 +1092,7 @@ export type TagInfo = {
 	previewCard? : CardID,
 	suppressLink? : boolean,
 	subtle? : boolean,
+	iconName? : IconName,
 	color? : CSSColorString,
 	filter? : CSSFilterString,
 	disabled? : boolean,
