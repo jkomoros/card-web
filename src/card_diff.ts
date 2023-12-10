@@ -335,6 +335,7 @@ export const confirmationsForCardDiff = (update :CardDiff, updatedCard : Card) =
 	
 	const CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[update.card_type || updatedCard.card_type];
 	if (!CARD_TYPE_CONFIG) throw new Error('No card config');
+	//TODO: the publishedByDefault / invertContentPublishWarning might make more sense to be framed as a TODO with warnOnSave.
 	if (CARD_TYPE_CONFIG.publishedByDefault) {
 		if (!updatedCard.published) {
 			if (!window.confirm('This card is of a type that is typically always published, but it\'s not currently published. Do you want to continue?')) return false;
