@@ -107,6 +107,7 @@ import {
 
 //descriptionForReferencesDiff and descriptionForSuggestionDiffCards assumes tag-list is imported, so make sure
 import './components/tag-list.js';
+import { TODO_ALL_INFOS, cardTODOConfigKeys } from './filters.js';
 
 //A JS-native version of the allowed fields in type NonAutoMergeableCardDiff
 const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
@@ -319,6 +320,19 @@ export const descriptionForSuggestion = (suggestion : Suggestion | undefined, ca
 //Returns true if the user has said to proceed to any confirmation warnings (if
 //any), false if the user has said to not proceed.
 export const confirmationsForCardDiff = (update :CardDiff, updatedCard : Card) => {
+	
+	const todos = cardTODOConfigKeys(updatedCard);
+
+	//TODO: show only one message (listing all of them) no matter how many are warnOnSave.
+	for (const todo of todos) {
+		const config = TODO_ALL_INFOS[todo];
+		if (config.warnOnSave) {
+			if (!confirm(`The card has an auto TODO of type ${config.title}, which are typically dealt with before saving. Proceed?`)) {
+				return false;
+			}
+		}
+	}
+	
 	const CARD_TYPE_CONFIG = CARD_TYPE_CONFIGURATION[update.card_type || updatedCard.card_type];
 	if (!CARD_TYPE_CONFIG) throw new Error('No card config');
 	if (CARD_TYPE_CONFIG.publishedByDefault) {

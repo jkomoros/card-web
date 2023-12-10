@@ -1634,7 +1634,10 @@ type CardFilterConfigItem<T extends TODOTypeBase> = {
 	test: CardTestFunc,
 	type : T,
 	weight : number,
-	description : string
+	description : string,
+	//If true, then when a user saves a card that has one of these autoTodos
+	//active, it will show a confirmation dialog.
+	warnOnSave? : boolean
 };
 
 type CardFilterConfigMap = {
@@ -1934,7 +1937,7 @@ export const REVERSE_CARD_FILTER_CONFIG_MAP = Object.fromEntries(Object.entries(
 //TODO_INFOS for any tag-list in editing mode as the FREEFORM_TODO_KEY isn't a
 //valid key to set inoverrides; this is useful for the case where we want to
 //non-editing show auto-todos.
-export const TODO_ALL_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1].type.isTODO).map(entry => [entry[0], {id: entry[0], suppressLink: true, description: entry[1].description, title: toTitleCase(entry[0].split('-').join(' '))}]));
+export const TODO_ALL_INFOS = Object.fromEntries(Object.entries(CARD_FILTER_CONFIGS).filter(entry => entry[1].type.isTODO).map(entry => [entry[0], {id: entry[0], suppressLink: true, description: entry[1].description, title: toTitleCase(entry[0].split('-').join(' ')), warnOnSave: entry[1].warnOnSave || false}]));
 
 //TODO_INFOS are appropriate to pass into tag-list.tagInfos as options to enable or disable.
 export const TODO_AUTO_INFOS = Object.fromEntries(Object.entries(TODO_ALL_INFOS).filter(entry => CARD_FILTER_CONFIGS[entry[0]].type.autoApply));
