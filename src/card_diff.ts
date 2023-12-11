@@ -381,6 +381,8 @@ export const generateCardDiff = (underlyingCardIn : Card | null | undefined, upd
 
 	const update : CardDiff = {};
 
+	let reextractLinks = false;
+
 	for (const field of cardFieldTypeEditableSchema.options) {
 		if (updatedCard[field] == underlyingCard[field]) continue;
 		const config = TEXT_FIELD_CONFIGURATION[field];
@@ -394,9 +396,23 @@ export const generateCardDiff = (underlyingCardIn : Card | null | undefined, upd
 			}
 		}
 		update[field] = value;
-		//TODO: theoretically this should be ALL html-enabled fields, which includes commentary.
-		if (field !== 'body') continue;
-		const linkInfo = extractCardLinksFromBody(value);
+		if (config.html) reextractLinks = true;
+	}
+
+	if (reextractLinks) {
+		//At least one field that is html was updated. So extract all links. We
+		//will do this by concatenating all html field content, since there
+		//might be links in multiple sections and we ant to get the value out of
+		//each one.
+		const values : string[] = [];
+		for (const field of cardFieldTypeEditableSchema.options) {
+			const config = TEXT_FIELD_CONFIGURATION[field];
+			if (!config.html) continue;
+			//Get the most recent/normalized value for this field.
+			const value = update[field] || updatedCard[field] || underlyingCard[field] || '';
+			values.push(value);
+		}
+		const linkInfo = extractCardLinksFromBody(values.join('\n'));
 		references(updatedCard).setLinks(linkInfo);
 	}
 
