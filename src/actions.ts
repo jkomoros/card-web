@@ -108,6 +108,7 @@ export const NAVIGATED_TO_NEW_CARD = 'NAVIGATED_TO_NEW_CARD';
 export const EXPECT_CARD_DELETIONS = 'EXPECT_CARD_DELETIONS';
 export const COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED = 'COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED';
 export const EXPECT_UNPUBLISHED_CARDS = 'EXPECT_UNPUBLISHED_CARDS';
+export const STOP_EXPECTING_UNPUBLISHED_CARDS = 'STOP_EXPECTING_UNPUBLISHED_CARDS';
 export const UPDATE_CARD_SIMILARITY = 'UPDATE_CARD_SIMILARITY';
 //Editor
 export const EDITING_START = 'EDITING_START';
@@ -466,6 +467,10 @@ type ActionCommittedPendingFiltersWhenFullyLoaded = {
 
 type ActionExpectUnpublishedCards = {
 	type: typeof EXPECT_UNPUBLISHED_CARDS
+};
+
+type ActionStopExpectingUnpublishedCards = {
+	type: typeof STOP_EXPECTING_UNPUBLISHED_CARDS
 };
 
 type ActionEditingStart = {
@@ -950,6 +955,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionExpectCardDeletions
 	| ActionCommittedPendingFiltersWhenFullyLoaded
 	| ActionExpectUnpublishedCards
+	| ActionStopExpectingUnpublishedCards
 	| ActionUpdateCardSimilarity
 	| ActionEditingStart
 	| ActionEditingFinish

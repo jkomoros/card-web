@@ -4,6 +4,7 @@ import {
 } from '../firebase.js';
 
 import {
+	ThunkSomeAction,
 	store
 } from '../store.js';
 
@@ -83,6 +84,7 @@ import {
 	SECTIONS_COLLECTION,
 	TAGS_COLLECTION
 } from '../type_constants.js';
+import { STOP_EXPECTING_UNPUBLISHED_CARDS, SomeAction } from '../actions.js';
 
 //Replicated in `functions/src/types.ts`;
 type LegalRequestData = {
@@ -329,7 +331,15 @@ export const connectLiveUnpublishedCardsForUser = (uid : Uid) => {
 	liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)), cardSnapshotReceiver(true));
 };
 
-const disconnectLiveUnpublishedCardsForUser = () => {
+const stopExpectingUnpublishedCards = () : SomeAction => {
+	return {
+		type: STOP_EXPECTING_UNPUBLISHED_CARDS
+	};
+};
+
+const disconnectLiveUnpublishedCardsForUser = () : ThunkSomeAction => (dispatch, getState) => {
+	const expectingUnpublished = !(getState().data?.unpublishedCardsLoaded);
+	if (expectingUnpublished) dispatch(stopExpectingUnpublishedCards());
 	if (liveUnpublishedCardsForUserAuthorUnsubscribe) {
 		liveUnpublishedCardsForUserAuthorUnsubscribe();
 		liveUnpublishedCardsForUserAuthorUnsubscribe = null;

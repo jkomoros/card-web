@@ -18,6 +18,7 @@ import {
 	EXPECT_UNPUBLISHED_CARDS,
 	SomeAction,
 	UPDATE_CARD_SIMILARITY,
+	STOP_EXPECTING_UNPUBLISHED_CARDS,
 } from '../actions.js';
 
 import {
@@ -197,6 +198,11 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			...state,
 			unpublishedCardsLoaded: false,
 			alreadyCommittedModificationsWhenFullyLoaded: false,
+		};
+	case STOP_EXPECTING_UNPUBLISHED_CARDS:
+		return {
+			...state,
+			unpublishedCardsLoaded: true,
 		};
 	case UPDATE_CARD_SIMILARITY:
 		return {
