@@ -66,15 +66,6 @@ const ENABLE_TWITTER = TWITTER_HANDLE && !DISABLE_TWITTER;
 const OPENAI_API_KEY = projectConfig.openai_api_key || '';
 const OPENAI_ENABLED = OPENAI_API_KEY != '';
 
-const QDRANT_INFO = projectConfig.qdrant || {};
-const QDRANT_CLUSTER_URL = QDRANT_INFO.cluster_url && QDRANT_INFO.cluster_url != CHANGE_ME_SENTINEL ? QDRANT_INFO.cluster_url : '';
-const QDRANT_API_KEY = QDRANT_INFO.api_key && QDRANT_INFO.api_key != CHANGE_ME_SENTINEL ? QDRANT_INFO.api_key : '';
-const QDRANT_ENABLED = OPENAI_ENABLED && QDRANT_CLUSTER_URL && QDRANT_API_KEY;
-
-if (QDRANT_API_KEY && !OPENAI_ENABLED) {
-	console.warn('Qdrant is configured but openai_api_key is not');
-}
-
 const SEO_ENABLED = projectConfig.seo;
 
 const DO_TAG_RELEASES = projectConfig.tag_releases || false;
@@ -263,7 +254,25 @@ gulp.task(GCLOUD_ENSURE_DEV_TASK, (cb) => {
 	gcloudUseDev(cb);
 });
 
-const configureQdrantCollection = async (client, collectionName) => {
+const qdrantEnabled = (config) => {
+	if (!config.qdrant) return false;
+	const info = config.qdrant;
+	return OPENAI_ENABLED && info.api_key && info.cluster_url;	
+};
+
+const configureQdrantCollection = async (config, collectionName) => {
+
+	if (!qdrantEnabled(config)) {
+		console.warn('Qdrant not enabled');
+		return;
+	}
+
+	const info = config.qdrant;
+
+	const client = new QdrantClient({
+		url: info.cluster_url,
+		apiKey: info.api_key
+	});
 
 	let collectionInfo = null;
 	try {
@@ -326,25 +335,16 @@ gulp.task(CONFIGURE_QDRANT, async (cb) => {
 	//TODO: consider splitting into a dev and prod deploy? The deploy is easy
 	//enough that it's fine to do both at the same time.
 
-	if (!QDRANT_ENABLED) {
-		console.log('Skipping qdrant deploy because it\'s not configured');
-		cb();
-		return;
-	}
-	const client = new QdrantClient({
-		url: QDRANT_CLUSTER_URL,
-		apiKey: QDRANT_API_KEY
-	});
-
 	if (CONFIG_INCLUDES_DEV) {
-		await configureQdrantCollection(client, QDRANT_DEV_COLLECTION_NAME);
+		await configureQdrantCollection(devProjectConfig, QDRANT_DEV_COLLECTION_NAME);
 	}
-	await configureQdrantCollection(client, QDRANT_PROD_COLLECTION_NAME);
+	await configureQdrantCollection(projectConfig, QDRANT_PROD_COLLECTION_NAME);
 	cb();
 });
 
 gulp.task(REINDEX_CARD_EMBEDDINGS, async (cb) => {
-	if (!QDRANT_ENABLED) {
+
+	if (!qdrantEnabled(projectConfig)) {
 		console.log('Skipping reindexing cards because qdrant is not enabled');
 		cb();
 		return;
