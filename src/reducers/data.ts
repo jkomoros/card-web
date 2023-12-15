@@ -18,7 +18,7 @@ import {
 	EXPECT_FETCHED_CARDS,
 	SomeAction,
 	UPDATE_CARD_SIMILARITY,
-	STOP_EXPECTING_UNPUBLISHED_CARDS,
+	STOP_EXPECTING_FETCHED_CARDS,
 } from '../actions.js';
 
 import {
@@ -204,7 +204,7 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			},
 			alreadyCommittedModificationsWhenFullyLoaded: false,
 		};
-	case STOP_EXPECTING_UNPUBLISHED_CARDS:
+	case STOP_EXPECTING_FETCHED_CARDS:
 		const loading = {...state.loadingCardFetchTypes};
 		delete loading[action.fetchType];
 		return {

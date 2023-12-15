@@ -109,7 +109,7 @@ export const NAVIGATED_TO_NEW_CARD = 'NAVIGATED_TO_NEW_CARD';
 export const EXPECT_CARD_DELETIONS = 'EXPECT_CARD_DELETIONS';
 export const COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED = 'COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED';
 export const EXPECT_FETCHED_CARDS = 'EXPECT_FETCHED_CARDS';
-export const STOP_EXPECTING_UNPUBLISHED_CARDS = 'STOP_EXPECTING_UNPUBLISHED_CARDS';
+export const STOP_EXPECTING_FETCHED_CARDS = 'STOP_EXPECTING_FETCHED_CARDS';
 export const UPDATE_CARD_SIMILARITY = 'UPDATE_CARD_SIMILARITY';
 //Editor
 export const EDITING_START = 'EDITING_START';
@@ -471,9 +471,8 @@ type ActionExpectFetchedCards = {
 	fetchType: CardFetchType
 };
 
-//TODO: rename this action to be aligned with EXPECT_FETCHED_CARDS?
-type ActionStopExpectingUnpublishedCards = {
-	type: typeof STOP_EXPECTING_UNPUBLISHED_CARDS,
+type ActionStopExpectingFetchedCards = {
+	type: typeof STOP_EXPECTING_FETCHED_CARDS,
 	fetchType: CardFetchType
 };
 
@@ -959,7 +958,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionExpectCardDeletions
 	| ActionCommittedPendingFiltersWhenFullyLoaded
 	| ActionExpectFetchedCards
-	| ActionStopExpectingUnpublishedCards
+	| ActionStopExpectingFetchedCards
 	| ActionUpdateCardSimilarity
 	| ActionEditingStart
 	| ActionEditingFinish
