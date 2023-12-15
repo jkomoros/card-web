@@ -1327,6 +1327,17 @@ export type Suggestion = {
 	rejection?: SuggestionDiff
 };
 
+const cardFetchTypeSchema = z.enum([
+	'published',
+	'unpublished-all',
+	'unpublished-editor',
+	'unpublished-author'
+]);
+
+export type CardFetchType = z.infer<typeof cardFetchTypeSchema>;
+
+export type CardFetchTypeMap = {[type in CardFetchType]+?: true};
+
 export type DataState = {
 	cards: Cards,
 	authors: AuthorsMap,
@@ -1344,10 +1355,13 @@ export type DataState = {
 	tweetsLoading: boolean,
 	//We only fetch tweets for cards that we have already viewed.
 	tweets: TweetMap,
+	//The types of card fetch updates that are in flight. These flags are raised
+	//when the fetch starts, and lowered when the first result of that fetchtyep
+	//is provided (although there might be subsequent of htat type too and that's OK)
+	loadingCardFetchTypes: CardFetchTypeMap,
 	//These three are flipped to true on the first UPDATE_type entry, primarily
 	//as a flag to  selectDataisFullyLoaded.
-	publishedCardsLoaded: boolean,
-	unpublishedCardsLoaded: boolean,
+	//TODO: consider flipping these to be loading (vs loadED) to align with loadingCardFetchTypes.
 	sectionsLoaded: boolean,
 	tagsLoaded: boolean,
 	//keeps track of whether we committed any pending collections on being fully

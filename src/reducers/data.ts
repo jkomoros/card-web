@@ -15,7 +15,7 @@ import {
 	NAVIGATED_TO_NEW_CARD,
 	EXPECT_CARD_DELETIONS,
 	COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED,
-	EXPECT_UNPUBLISHED_CARDS,
+	EXPECT_FETCHED_CARDS,
 	SomeAction,
 	UPDATE_CARD_SIMILARITY,
 	STOP_EXPECTING_UNPUBLISHED_CARDS,
@@ -48,8 +48,10 @@ const INITIAL_STATE : DataState = {
 	expectedDeletions: {},
 	tweetsLoading: false,
 	tweets: {},
-	publishedCardsLoaded: false,
-	unpublishedCardsLoaded: false,
+	//We start off saying that published cards are expected to be fetched.
+	loadingCardFetchTypes: {
+		published: true
+	},
 	sectionsLoaded: false,
 	tagsLoaded: false,
 	alreadyCommittedModificationsWhenFullyLoaded: false,
@@ -98,14 +100,15 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 	case UPDATE_CARDS:
 		const result = {
 			...state,
-			cards: {...state.cards, ...action.cards},
+			//Only actually change cards identity (which kicks of many
+			//downstream recalculations) if the update actually has items. If it
+			//doesn't, it's primarily about setting the flag down for loading of
+			//a certain type.
+			cards: Object.keys(action.cards).length ? {...state.cards, ...action.cards} : state.cards,
 			slugIndex: {...state.slugIndex, ...extractSlugIndex(action.cards)},
 		};
-		if (action.unpublished) {
-			result.unpublishedCardsLoaded = true;
-		} else {
-			result.publishedCardsLoaded = true;
-		}
+		result.loadingCardFetchTypes = {...state.loadingCardFetchTypes};
+		if (result.loadingCardFetchTypes[action.fetchType]) delete result.loadingCardFetchTypes[action.fetchType];
 		if (Object.keys(action.cards).some(key => key === state.pendingNewCardID)) {
 			result.pendingNewCardID = '';
 			result.pendingNewCardType = 'content';
@@ -127,8 +130,7 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			...state,
 			reorderPending: false,
 			sectionsLoaded: true,
-			publishedCardsLoaded: true,
-			unpublishedCardsLoaded: true,
+			loadingCardFetchTypes: {},
 			pendingNewCardID: '',
 			pendingNewCardType: 'content',
 			pendingNewCardIDToNavigateTo: '',
@@ -193,16 +195,21 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			...state,
 			alreadyCommittedModificationsWhenFullyLoaded: true,
 		};
-	case EXPECT_UNPUBLISHED_CARDS:
+	case EXPECT_FETCHED_CARDS:
 		return {
 			...state,
-			unpublishedCardsLoaded: false,
+			loadingCardFetchTypes: {
+				...state.loadingCardFetchTypes,
+				[action.fetchType] : true
+			},
 			alreadyCommittedModificationsWhenFullyLoaded: false,
 		};
 	case STOP_EXPECTING_UNPUBLISHED_CARDS:
+		const loading = {...state.loadingCardFetchTypes};
+		delete loading[action.fetchType];
 		return {
 			...state,
-			unpublishedCardsLoaded: true,
+			loadingCardFetchTypes: loading
 		};
 	case UPDATE_CARD_SIMILARITY:
 		return {

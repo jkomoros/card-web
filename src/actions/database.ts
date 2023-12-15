@@ -30,7 +30,8 @@ import {
 
 import {
 	selectUserMayViewApp,
-	selectSlugIndex
+	selectSlugIndex,
+	selectLoadingCardFetchTypes
 } from '../selectors.js';
 
 import {
@@ -71,6 +72,7 @@ import {
 	Sections,
 	Tags,
 	Section,
+	CardFetchType,
 } from '../types.js';
 
 import {
@@ -84,7 +86,15 @@ import {
 	SECTIONS_COLLECTION,
 	TAGS_COLLECTION
 } from '../type_constants.js';
-import { STOP_EXPECTING_UNPUBLISHED_CARDS, SomeAction } from '../actions.js';
+
+import {
+	STOP_EXPECTING_UNPUBLISHED_CARDS,
+	SomeAction
+} from '../actions.js';
+
+import {
+	fetchTypeIsUnpublished
+} from '../util.js';
 
 //Replicated in `functions/src/types.ts`;
 type LegalRequestData = {
@@ -284,7 +294,7 @@ export const connectLiveAuthors = () => {
 	});
 };
 
-const cardSnapshotReceiver = (unpublished : boolean) =>{
+const cardSnapshotReceiver = (fetchType : CardFetchType) =>{
 	
 	return (snapshot : QuerySnapshot) => {
 		const cards : Cards = {};
@@ -307,15 +317,15 @@ const cardSnapshotReceiver = (unpublished : boolean) =>{
 			cards[id] = card;
 		});
 
-		store.dispatch(updateCards(cards, unpublished));
-		if (cardIDsToRemove.length) store.dispatch(removeCards(cardIDsToRemove, unpublished));
+		store.dispatch(updateCards(cards, fetchType));
+		if (cardIDsToRemove.length) store.dispatch(removeCards(cardIDsToRemove, fetchTypeIsUnpublished(fetchType)));
 	};
 
 };
 
 export const connectLivePublishedCards = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
-	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', true)), cardSnapshotReceiver(false));
+	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', true)), cardSnapshotReceiver('published'));
 };
 
 let liveUnpublishedCardsForUserAuthorUnsubscribe : (() => void) | null = null;
@@ -326,20 +336,23 @@ export const connectLiveUnpublishedCardsForUser = (uid : Uid) => {
 	disconnectLiveUnpublishedCardsForUser();
 	if (!uid) return;
 	//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
-	store.dispatch(expectUnpublishedCards());
-	liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false)), cardSnapshotReceiver(true));
-	liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)), cardSnapshotReceiver(true));
+	store.dispatch(expectUnpublishedCards('unpublished-author'));
+	liveUnpublishedCardsForUserAuthorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('author', '==', uid), where('published', '==', false)), cardSnapshotReceiver('unpublished-author'));
+	store.dispatch(expectUnpublishedCards('unpublished-editor'));
+	liveUnpublishedCardsForUserEditorUnsubscribe = onSnapshot(query(collection(db, CARDS_COLLECTION), where('permissions.' + PERMISSION_EDIT_CARD, 'array-contains', uid), where('published', '==', false)), cardSnapshotReceiver('unpublished-editor'));
 };
 
-const stopExpectingUnpublishedCards = () : SomeAction => {
+const stopExpectingUnpublishedCards = (fetchType : CardFetchType) : SomeAction => {
 	return {
-		type: STOP_EXPECTING_UNPUBLISHED_CARDS
+		type: STOP_EXPECTING_UNPUBLISHED_CARDS,
+		fetchType
 	};
 };
 
 const disconnectLiveUnpublishedCardsForUser = () : ThunkSomeAction => (dispatch, getState) => {
-	const expectingUnpublished = !(getState().data?.unpublishedCardsLoaded);
-	if (expectingUnpublished) dispatch(stopExpectingUnpublishedCards());
+	const loading = selectLoadingCardFetchTypes(getState());
+	if (loading['unpublished-author']) dispatch(stopExpectingUnpublishedCards('unpublished-author'));
+	if (loading['unpublished-editor']) dispatch(stopExpectingUnpublishedCards('unpublished-editor'));
 	if (liveUnpublishedCardsForUserAuthorUnsubscribe) {
 		liveUnpublishedCardsForUserAuthorUnsubscribe();
 		liveUnpublishedCardsForUserAuthorUnsubscribe = null;
@@ -354,8 +367,8 @@ export const connectLiveUnpublishedCards = () => {
 	if (!selectUserMayViewApp(store.getState() as State)) return;
 	disconnectLiveUnpublishedCardsForUser();
 	//Tell the store to expect new unpublished cards to load, and that we shouldn't consider ourselves loaded yet
-	store.dispatch(expectUnpublishedCards());
-	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false)), cardSnapshotReceiver(true));
+	store.dispatch(expectUnpublishedCards('unpublished-all'));
+	onSnapshot(query(collection(db, CARDS_COLLECTION), where('published', '==', false)), cardSnapshotReceiver('unpublished-all'));
 };
 
 export const connectLiveSections = () => {

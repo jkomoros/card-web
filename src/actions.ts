@@ -13,6 +13,7 @@ import {
 	Card,
 	CardBooleanMap,
 	CardDiff,
+	CardFetchType,
 	CardFieldTypeEditable,
 	CardID,
 	CardIdentifier,
@@ -107,7 +108,7 @@ export const EXPECTED_NEW_CARD_FAILED = 'EXPECTED_NEW_CARD_FAILED';
 export const NAVIGATED_TO_NEW_CARD = 'NAVIGATED_TO_NEW_CARD';
 export const EXPECT_CARD_DELETIONS = 'EXPECT_CARD_DELETIONS';
 export const COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED = 'COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED';
-export const EXPECT_UNPUBLISHED_CARDS = 'EXPECT_UNPUBLISHED_CARDS';
+export const EXPECT_FETCHED_CARDS = 'EXPECT_FETCHED_CARDS';
 export const STOP_EXPECTING_UNPUBLISHED_CARDS = 'STOP_EXPECTING_UNPUBLISHED_CARDS';
 export const UPDATE_CARD_SIMILARITY = 'UPDATE_CARD_SIMILARITY';
 //Editor
@@ -377,7 +378,7 @@ type ActionCommentsUpdateMessages = {
 type ActionUpdateCards = {
 	type: typeof UPDATE_CARDS,
 	cards: Cards,
-	unpublished: boolean
+	fetchType: CardFetchType
 };
 
 type ActionUpdateSections = {
@@ -465,12 +466,15 @@ type ActionCommittedPendingFiltersWhenFullyLoaded = {
 	type: typeof COMMITTED_PENDING_FILTERS_WHEN_FULLY_LOADED,
 };
 
-type ActionExpectUnpublishedCards = {
-	type: typeof EXPECT_UNPUBLISHED_CARDS
+type ActionExpectFetchedCards = {
+	type: typeof EXPECT_FETCHED_CARDS,
+	fetchType: CardFetchType
 };
 
+//TODO: rename this action to be aligned with EXPECT_FETCHED_CARDS?
 type ActionStopExpectingUnpublishedCards = {
-	type: typeof STOP_EXPECTING_UNPUBLISHED_CARDS
+	type: typeof STOP_EXPECTING_UNPUBLISHED_CARDS,
+	fetchType: CardFetchType
 };
 
 type ActionEditingStart = {
@@ -954,7 +958,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionNavigatedToNewCard
 	| ActionExpectCardDeletions
 	| ActionCommittedPendingFiltersWhenFullyLoaded
-	| ActionExpectUnpublishedCards
+	| ActionExpectFetchedCards
 	| ActionStopExpectingUnpublishedCards
 	| ActionUpdateCardSimilarity
 	| ActionEditingStart

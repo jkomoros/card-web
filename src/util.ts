@@ -15,7 +15,8 @@ import {
 	ReferenceType,
 	CardFieldTypeEditable,
 	CardFlags,
-	CardFlagsRemovals
+	CardFlagsRemovals,
+	CardFetchType
 } from './types.js';
 
 import {
@@ -52,10 +53,29 @@ import {
 import {
 	normalizeLineBreaks,
 } from './contenteditable.js';
-import { TypedObject } from './typed_object.js';
+
+import {
+	TypedObject
+} from './typed_object.js';
 
 export const assertUnreachable = (x : never) : never => {
 	throw new Error('Exhaustiveness check failed: ' + String(x));
+};
+
+export const fetchTypeIsUnpublished = (fetchType : CardFetchType) : boolean => {
+	//We'll do a switch so we can do an exhaustivness check so we never forget to update this logic.
+	switch (fetchType) {
+	case 'published':
+		return false;
+	case 'unpublished-all':
+		return true;
+	case 'unpublished-author':
+		return true;
+	case 'unpublished-editor':
+		return true;
+	default:
+		return assertUnreachable(fetchType);
+	}
 };
 
 //define this here and then re-export form app.js so this file doesn't need any

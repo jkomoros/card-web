@@ -161,6 +161,7 @@ import {
 	CardBooleanMap,
 	CreateCardOpts,
 	TweetMap,
+	CardFetchType,
 } from '../types.js';
 
 import {
@@ -168,7 +169,7 @@ import {
 	EXPECTED_NEW_CARD_FAILED,
 	EXPECT_CARD_DELETIONS,
 	EXPECT_NEW_CARD,
-	EXPECT_UNPUBLISHED_CARDS,
+	EXPECT_FETCHED_CARDS,
 	MODIFY_CARD,
 	MODIFY_CARD_FAILURE,
 	MODIFY_CARD_SUCCESS,
@@ -1247,7 +1248,7 @@ export const updateTags = (tags : Tags) : ThunkSomeAction => (dispatch) => {
 	dispatch(refreshCardSelector(false));
 };
 
-export const updateCards = (cards: Cards, unpublished = false) : ThunkSomeAction => (dispatch, getState) => {
+export const updateCards = (cards: Cards, fetchType : CardFetchType) : ThunkSomeAction => (dispatch, getState) => {
 	const existingCards = selectRawCards(getState());
 	const cardsToUpdate : Cards = {};
 	for (const card of Object.values(cards)) {
@@ -1256,19 +1257,10 @@ export const updateCards = (cards: Cards, unpublished = false) : ThunkSomeAction
 		cardsToUpdate[card.id] = card;
 	}
 
-	if (Object.keys(cardsToUpdate).length == 0) {
-		//There's an empty update. Sometimes that's becasue cards was
-		//deliberately passed an empty cards set to signal later in the
-		//pipeline. But if it's because we filtered out all the cards update,
-		//then just drop the whole dispatch.
-		if (Object.keys(cards).length != 0) {
-			return;
-		}
-	}
 	dispatch({
 		type: UPDATE_CARDS,
 		cards: cardsToUpdate,
-		unpublished
+		fetchType
 	});
 	dispatch(refreshCardSelector(false));
 };
@@ -1369,9 +1361,10 @@ export const fetchTweets = (card : Card) : ThunkSomeAction => async (dispatch) =
 	});
 };
 
-export const expectUnpublishedCards = () : SomeAction => {
+export const expectUnpublishedCards = (fetchType : CardFetchType) : SomeAction => {
 	return {
-		type: EXPECT_UNPUBLISHED_CARDS,
+		type: EXPECT_FETCHED_CARDS,
+		fetchType
 	};
 };
 

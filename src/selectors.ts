@@ -239,8 +239,7 @@ export const selectCardModificationError = (state : State) => state.data ? state
 export const selectRawCards = (state : State) => state.data ? state.data.cards : {};
 const selectRawCardsSnapshot = (state : State) => state.data ? state.data.cardsSnapshot : {};
 export const selectPendingNewCardIDToNavigateTo = (state : State) => state.data ? state.data.pendingNewCardIDToNavigateTo : '';
-const selectPublishedCardsLoaded = (state : State) => state.data ? state.data.publishedCardsLoaded : false;
-const selectUnpublishedCardsLoaded = (state : State) => state.data ? state.data.unpublishedCardsLoaded : false;
+export const selectLoadingCardFetchTypes = (state : State) => state.data ? state.data.loadingCardFetchTypes : {};
 export const selectSectionsLoaded = (state : State) => state.data ? state.data.sectionsLoaded : false;
 export const selectTagsLoaded = (state : State) => state.data ? state.data.tagsLoaded : false;
 export const selectMessagesLoaded = (state : State) => state.comments ? state.comments.messagesLoaded : false;
@@ -1086,10 +1085,8 @@ export const selectUserPermissionsFinal = createSelector(
 
 export const selectCardsLoaded = createSelector(
 	selectUserPermissionsFinal,
-	selectPublishedCardsLoaded,
-	selectUserMayViewUnpublished,
-	selectUnpublishedCardsLoaded,
-	(permissionsFinal, publishedCardsLoaded, userMayViewUnpublished, unpublishedCardsLoaded) => permissionsFinal && publishedCardsLoaded && (userMayViewUnpublished ? unpublishedCardsLoaded : true)
+	selectLoadingCardFetchTypes,
+	(permissionsFinal, fetchTypes) => permissionsFinal && Object.keys(fetchTypes).length == 0
 );
 
 export const selectSectionsAndTagsLoaded = createSelector(

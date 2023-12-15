@@ -380,12 +380,12 @@ export const fetchCardLinkCardsForFetchedCard = (fetchedCard : Card) : ThunkSome
 		//Dispatching updateCards, even with any empty one, is how we signal
 		//that everything is done loading, so the card viewer knows to fade it
 		//in.
-		dispatch(updateCards({}, false));
+		dispatch(updateCards({}, 'published'));
 		return;
 	}
 
 	const cards = await fetchCardLinkCardsForFetchedCardFromDb(fetchedCard);
-	dispatch(updateCards(cards, false));
+	dispatch(updateCards(cards, 'published'));
 };
 
 export const fetchCard = (cardIDOrSlug : CardIdentifier) : ThunkSomeAction => async (dispatch, getState) =>  {
