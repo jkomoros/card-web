@@ -124,6 +124,7 @@ import {
 	applyCardDiff,
 	applyCardFirebaseUpdate,
 	inboundLinksUpdates,
+	generateFinalCardDiff,
 } from '../card_diff.js';
 
 import {
@@ -268,7 +269,8 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 		if (!update) continue;
 
 		try {
-			if (modifyCardWithBatch(state, card, update, substantive, batch)) modifiedCount++;
+			const bool = await modifyCardWithBatch(state, card, update, substantive, batch);
+			if (bool) modifiedCount++;
 		} catch (err) {
 			console.warn('Couldn\'t modify card: ' + err);
 			errorCount++;
@@ -293,11 +295,11 @@ export const modifyCardsIndividually = (cards : Card[], updates : {[id : CardID]
 
 //returns true if a modificatioon was made to the card, or false if it was a no
 //op. When an error is thrown, that's an implied 'false'.
-export const modifyCardWithBatch = (state : State, card : Card, update : CardDiff, substantive : boolean, batch : MultiBatch) : boolean => {
+export const modifyCardWithBatch = async (state : State, card : Card, rawUpdate : CardDiff, substantive : boolean, batch : MultiBatch) : Promise<boolean> => {
 
 	//If there aren't any updates to a card, that's OK. This might happen in a
 	//multiModify where some cards already have the items, for example.
-	if (!cardDiffHasChanges(update)) return false;
+	if (!cardDiffHasChanges(rawUpdate)) return false;
 
 	const user = selectUser(state);
 
@@ -308,6 +310,9 @@ export const modifyCardWithBatch = (state : State, card : Card, update : CardDif
 	if (!selectCardIDsUserMayEdit(state)[card.id]) {
 		throw new Error('User isn\'t allowed to edit the given card');
 	}
+
+	//This is where cardFinishers and fontSizeBoosts are actually applied.
+	const update = await generateFinalCardDiff(state, card, rawUpdate);
 
 	const updateObject = {
 		...update,

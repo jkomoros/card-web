@@ -24,10 +24,10 @@ import {
 } from './data.js';
 
 import {
-	generateFinalCardDiff,
 	confirmationsForCardDiff,
 	cardDiffHasChanges,
-	cardDiffDescription
+	cardDiffDescription,
+	generateCardDiff
 } from '../card_diff.js';
 
 import {
@@ -312,7 +312,7 @@ export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) 
 
 	let update : CardDiff;
 	try {
-		update = await generateFinalCardDiff(state, underlyingCard, rawUpdatedCard);
+		update = await generateCardDiff(underlyingCard, rawUpdatedCard);
 	} catch(err) {
 		alert(err);
 		return;
@@ -320,8 +320,8 @@ export const editingCommit = () : ThunkSomeAction => async (dispatch, getState) 
 
 	if (!update) return;
 
-	//TODO: technically we shouldn't pass rawUpdatedCard, but the one that has
-	//been run through any cardFinishers in generateFinalCardDiff.
+	//Note: cardFinishers are run later; so they will not get any confirmations.
+	//But they;'re mostly used for setting computed fields.
 	if (!confirmationsForCardDiff(update, rawUpdatedCard)) return;
 
 	//modifyCard will fail if the update is a no-op.

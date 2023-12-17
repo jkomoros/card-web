@@ -473,13 +473,14 @@ export const overshadowedDiffChanges = (original : Card | null, snapshot : Card 
 	return Object.fromEntries(TypedObject.entries(currentDiff).filter(entry => !NON_AUTOMATIC_MERGE_FIELDS[entry[0]] && snapshotDiff[entry[0]] !== undefined));
 };
 
-//generateFinalCardDiff is like generateCardDiff but also handles fields set by cardFinishers and font size boosts.
-export const generateFinalCardDiff = async (state : State, underlyingCard : Card, rawUpdatedCard : Card) : Promise<CardDiff> => {
+//generateFinalCardDiff is like generateCardDiff but also handles fields set by
+//cardFinishers and font size boosts. modifyCardWithBatch runs it at the very
+//last moment to see if anything different happens.
+export const generateFinalCardDiff = async (state : State, underlyingCard : Card, diff : CardDiff) : Promise<CardDiff> => {
 
-	const cardFinisher = CARD_TYPE_EDITING_FINISHERS[rawUpdatedCard.card_type];
+	const updatedCard = cardFromDiff(underlyingCard, diff);
 
-	//updatedCard is a copy so may be modified
-	const updatedCard = {...rawUpdatedCard};
+	const cardFinisher = CARD_TYPE_EDITING_FINISHERS[updatedCard.card_type];
 
 	try {
 		if(cardFinisher) cardFinisher(updatedCard, state);
