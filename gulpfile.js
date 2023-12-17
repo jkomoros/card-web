@@ -144,8 +144,6 @@ const MAKE_TAG_TASK = 'make-tag';
 const PUSH_TAG_TASK = 'push-tag';
 const CONFIGURE_API_KEYS_IF_SET = 'configure-api-keys-if-set';
 const CONFIGURE_API_KEYS = 'configure-api-keys';
-const SET_LAST_DEPLOY_IF_AFFECTS_RENDERING = 'set-last-deploy-if-affects-rendering';
-const ASK_IF_DEPLOY_AFFECTS_RENDERING = 'ask-if-deploy-affects-rendering';
 const ASK_BACKUP_MESSAGE = 'ask-backup-message';
 const SET_UP_CORS = 'set-up-cors';
 const CONFIGURE_QDRANT = 'configure-qdrant';
@@ -441,42 +439,12 @@ gulp.task(ASK_BACKUP_MESSAGE, async (cb) => {
 	cb();
 });
 
-let deployAffectsRendering = undefined;
-
-gulp.task(ASK_IF_DEPLOY_AFFECTS_RENDERING, async (cb) => {
-	if (deployAffectsRendering !== undefined) {
-		console.log('Already asked if deploy affects rendering');
-		cb();
-		return;
-	}
-	const response = await prompts({
-		type:'confirm',
-		name: 'value',
-		initial: false,
-		message: 'Could the webapp in this deploy possibly affect rendering of cards?',
-	});
-
-	deployAffectsRendering = response.value;
-	cb();
-
-});
-
 gulp.task(CONFIGURE_API_KEYS, makeExecutor('firebase functions:config:set openai.api_key=' + OPENAI_API_KEY));
 
 gulp.task(CONFIGURE_API_KEYS_IF_SET, (cb) => {
 	const task = gulp.task(CONFIGURE_API_KEYS);
 	if (!OPENAI_API_KEY) {
 		console.log('Skipping uploading of api keys because they weren\'t set');
-		cb();
-		return;
-	}
-	task(cb);
-});
-
-gulp.task(SET_LAST_DEPLOY_IF_AFFECTS_RENDERING, (cb) => {
-	const task = gulp.task(FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING);
-	if (!deployAffectsRendering) {
-		console.log('Skipping setting config because deploy doesn\'t affect rendering');
 		cb();
 		return;
 	}
@@ -517,11 +485,10 @@ gulp.task('set-up-deploy',
 gulp.task('dev-deploy',
 	gulp.series(
 		REGENERATE_FILES_FROM_CONFIG_TASK,
-		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		BUILD_TASK,
 		GENERATE_SEO_PAGES_OPTIONALLY,
 		FIREBASE_ENSURE_DEV_TASK,
-		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
+		FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING,
 		CONFIGURE_API_KEYS_IF_SET,
 		CONFIGURE_QDRANT,
 		CONFIGURE_ENVIRONMENT,
@@ -533,11 +500,10 @@ gulp.task('dev-deploy',
 gulp.task('deploy', 
 	gulp.series(
 		REGENERATE_FILES_FROM_CONFIG_TASK,
-		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		BUILD_TASK,
 		GENERATE_SEO_PAGES_OPTIONALLY,
 		FIREBASE_ENSURE_PROD_TASK,
-		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
+		FIREBASE_SET_CONFIG_LAST_DEPLOY_AFFECTING_RENDERING,
 		CONFIGURE_API_KEYS_IF_SET,
 		CONFIGURE_QDRANT,
 		CONFIGURE_ENVIRONMENT,
@@ -573,8 +539,6 @@ gulp.task('maybe-tag-release', (cb) => {
 
 gulp.task('release', 
 	gulp.series(
-		//Ask at the beginning so the user can walk away after running
-		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		ASK_BACKUP_MESSAGE,
 		'backup',
 		'deploy',
