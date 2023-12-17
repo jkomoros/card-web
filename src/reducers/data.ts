@@ -77,18 +77,26 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 				pendingNewCardType: action.cardType
 			};
 		}
-		return {
+		const newState : DataState = {
 			...state,
 			//by default we assume we need a section to load, but if it's a card
 			//without a section, that won't happen.
 			sectionsLoaded: action.noSectionChange ? true : false,
-			//some cards, like concept cards, default to being published
-			[action.published ? 'publishedCardsLoaded' : 'unpublishedCardsLoaded']: false,
 			reorderPending: true,
 			pendingNewCardID: action.ID,
 			pendingNewCardIDToNavigateTo: action.ID,
 			pendingNewCardType: action.cardType,
 		};
+		//Which collection do we expect to be updated when the card is loaded?
+		if (action.published) {
+			newState.loadingCardFetchTypes.published = true;
+		} else {
+			//Some users might get the update via unpublished-all, but some
+			//won't. All users who can create it will get it via
+			//unpublished-author channel, so we'll flag to wait for that one.
+			newState.loadingCardFetchTypes['unpublished-author'] = true;
+		}
+		return newState;
 	case NAVIGATED_TO_NEW_CARD:
 		return {
 			...state,
