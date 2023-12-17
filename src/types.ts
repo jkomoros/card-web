@@ -1311,7 +1311,8 @@ export type SuggestionType = 'add-see-also'
 	| 'synthesize-cluster'
 	| 'remove-priority'
 	| 'add-concept'
-	| 'convert-to-quote';
+	| 'convert-to-quote'
+	| 'convert-markdown';
 
 export type Suggestion = {
 	type: SuggestionType,

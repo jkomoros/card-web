@@ -66,6 +66,7 @@ import {
 import {
 	convertToQuote
 } from './suggestions/convert-to-quote.js';
+import { convertMarkdown } from './suggestions/convert-markdown.js';
 
 export const makeReferenceSuggestion = (type : SuggestionType, keyCards: CardID | CardID[], otherCards: CardID | CardID[], referenceType : ReferenceType, reverse = false) : Suggestion => {
 	//TODO: it's kind of finicky to have to keep track of which ID is which... shouldn't the actions have a sentinel for each that is overriden before being executed?
@@ -196,6 +197,11 @@ export const SUGGESTORS : {[suggestor in SuggestionType]: Suggestor} = {
 		generator: convertToQuote,
 		title: 'Convert to Quote',
 		color: COLORS.NAVY
+	},
+	'convert-markdown': {
+		generator: convertMarkdown,
+		title: 'Convert Markdown',
+		color: COLORS.ROYAL_BLUE
 	}
 };
 

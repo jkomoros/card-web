@@ -305,6 +305,21 @@ export const isURL = (str: string) : boolean => {
 	}
 };
 
+export const htmlIsEquivalent = (a : string, b: string) : boolean => {
+	const doc = getDocument();
+	if (!doc) throw new Error('no document');
+	const aDiv = doc.createElement('div');
+	const bDiv = doc.createElement('div');
+
+	aDiv.innerHTML = a;
+	bDiv.innerHTML = b;
+
+	const serializedHTMLA = aDiv.innerHTML.replace(/\s/g, '');
+	const serializedHTMLB = bDiv.innerHTML.replace(/\s/g, '');
+
+	return serializedHTMLA === serializedHTMLB;
+};
+
 //Returns a string with the reason that the proposed card type is not legal for
 //this card. If the string is '' then it is legal.
 export const reasonCardTypeNotLegalForCard = (card : Card, proposedCardType : CardType) => {
