@@ -133,8 +133,6 @@ const makeBackgroundExecutor = cmdAndArgs => {
 };
 
 const BUILD_TASK = 'build';
-const BUILD_OPTIONALLY = 'build-optionally';
-const ASK_IF_WANT_BUILD = 'ask-if-want-build';
 const GENERATE_SEO_PAGES = 'generate-seo-pages';
 const GENERATE_SEO_PAGES_OPTIONALLY = 'generate-seo-pages-optionally';
 const FIREBASE_ENSURE_PROD_TASK = 'firebase-ensure-prod';
@@ -485,26 +483,6 @@ gulp.task(SET_LAST_DEPLOY_IF_AFFECTS_RENDERING, (cb) => {
 	task(cb);
 });
 
-let wantsToSkipBuild = undefined;
-
-gulp.task(ASK_IF_WANT_BUILD, async (cb) => {
-	if (wantsToSkipBuild !== undefined) {
-		console.log('Already asked if the user wants a build');
-		cb();
-		return;
-	}
-	const response = await prompts({
-		type:'confirm',
-		name: 'value',
-		initial: false,
-		message: 'Do you want to skip building, because the build output is already up to date?',
-	});
-
-	wantsToSkipBuild = response.value;
-	cb();
-
-});
-
 gulp.task(WARN_MAINTENANCE_TASKS, (cb) => {
 	console.log(`******************************************************************
 *                 WARNING 
@@ -516,16 +494,6 @@ gulp.task(WARN_MAINTENANCE_TASKS, (cb) => {
 *
 ******************************************************************`);
 	cb();
-});
-
-gulp.task(BUILD_OPTIONALLY, async (cb) => {
-	const task = gulp.task(BUILD_TASK);
-	if (wantsToSkipBuild) {
-		console.log('Skipping build because the user asked to skip it');
-		cb();
-		return;
-	}
-	task(cb);
 });
 
 gulp.task(GENERATE_SEO_PAGES_OPTIONALLY, async (cb) => {
@@ -549,9 +517,8 @@ gulp.task('set-up-deploy',
 gulp.task('dev-deploy',
 	gulp.series(
 		REGENERATE_FILES_FROM_CONFIG_TASK,
-		ASK_IF_WANT_BUILD,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
-		BUILD_OPTIONALLY,
+		BUILD_TASK,
 		GENERATE_SEO_PAGES_OPTIONALLY,
 		FIREBASE_ENSURE_DEV_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
@@ -566,9 +533,8 @@ gulp.task('dev-deploy',
 gulp.task('deploy', 
 	gulp.series(
 		REGENERATE_FILES_FROM_CONFIG_TASK,
-		ASK_IF_WANT_BUILD,
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
-		BUILD_OPTIONALLY,
+		BUILD_TASK,
 		GENERATE_SEO_PAGES_OPTIONALLY,
 		FIREBASE_ENSURE_PROD_TASK,
 		SET_LAST_DEPLOY_IF_AFFECTS_RENDERING,
@@ -610,7 +576,6 @@ gulp.task('release',
 		//Ask at the beginning so the user can walk away after running
 		ASK_IF_DEPLOY_AFFECTS_RENDERING,
 		ASK_BACKUP_MESSAGE,
-		ASK_IF_WANT_BUILD,
 		'backup',
 		'deploy',
 		'maybe-tag-release'
