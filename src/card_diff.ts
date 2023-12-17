@@ -544,10 +544,16 @@ const setFirebaseValueOnObj = (obj : {[field : string]: unknown}, fieldParts : s
 	setFirebaseValueOnObj(newObj, fieldParts.slice(1), value, replaceTimestampSentinels);
 };
 
+//Returns the result of applying diffT to underlyingCard. This is a bit fincky
+//to know how to do so just wrap it in a convenience wrapper.
+export const cardFromDiff = (underlyingCard : Card, diff : CardDiff) : Card => {
+	return applyCardFirebaseUpdate(underlyingCard, applyCardDiff(underlyingCard, diff));
+};
+
 //applyCardDiff returns a cardFirebaseUpdate object with only the fields that
 //change in diff set. This function does not do any validation that these
 //changes are legal. You can apply this change ot an underlying card with
-//applyCardFirebaseUpdate.
+//applyCardFirebaseUpdate. cardFromDiff also does the kind of finagaly logic itself.
 export const applyCardDiff = (underlyingCard : Card, diff : CardDiff) : CardUpdate => {
 
 	const cardUpdateObject : CardUpdate = {};

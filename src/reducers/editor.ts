@@ -61,9 +61,8 @@ import {
 } from '../permissions.js';
 
 import {
-	applyCardDiff,
 	generateCardDiff,
-	applyCardFirebaseUpdate
+	cardFromDiff
 } from '../card_diff.js';
 
 import {
@@ -410,12 +409,9 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 		//intra-text-field diff and the one that came in from the commit was
 		//presumably normalized.
 		const userEditsDiff = generateCardDiff(state.underlyingCardSnapshot, state.card);
-		//Now apply back the user's edits on top of the new underlying card.
-		const editingFirebaseUpdate = applyCardDiff(updatedSnapshotCard, userEditsDiff);
-		const updatedCard = applyCardFirebaseUpdate(updatedSnapshotCard, editingFirebaseUpdate);
 		return {
 			...state,
-			card: updatedCard,
+			card: cardFromDiff(updatedSnapshotCard, userEditsDiff),
 			underlyingCardSnapshot: updatedSnapshotCard,
 			//The state could have changed e.g. references or body.
 			cardExtractionVersion: state.cardExtractionVersion + 1,
@@ -427,7 +423,7 @@ const app = (state : EditorState = INITIAL_STATE, action : SomeAction) : EditorS
 		}
 		return {
 			...state,
-			card: applyCardFirebaseUpdate(state.card, applyCardDiff(state.card, action.diff)),
+			card: cardFromDiff(state.card, action.diff),
 			//The state could have changed e.g. references or body.
 			cardExtractionVersion: state.cardExtractionVersion + 1,
 		};
