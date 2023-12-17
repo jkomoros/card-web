@@ -86,6 +86,8 @@ const app = (state: DataState = INITIAL_STATE, action : SomeAction) : DataState 
 			pendingNewCardID: action.ID,
 			pendingNewCardIDToNavigateTo: action.ID,
 			pendingNewCardType: action.cardType,
+			//We'll be modifying them in the next few lines
+			loadingCardFetchTypes: {...state.loadingCardFetchTypes}
 		};
 		//Which collection do we expect to be updated when the card is loaded?
 		if (action.published) {
