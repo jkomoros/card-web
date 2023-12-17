@@ -194,6 +194,18 @@ const DEFAULT_LEGAL_TOP_LEVEL_NODES : HTMLTagMap = {
 	'blockquote': true
 };
 
+const removeWhitespace = (ele : Element) => {
+	for (const child of Object.values(ele.childNodes)) {
+		if (isWhitespace(child.textContent || '')) {
+			if (!child.parentNode) throw new Error('No parent node');
+			//It's all text content, just get rid of it
+			child.parentNode.removeChild(child);
+			continue;
+		}
+		if (child.nodeType == ELEMENT_NODE) removeWhitespace(child as Element);
+	}
+};
+
 const cleanUpTopLevelHTML = (html : string, legalTopLevelNodes : HTMLTagMap = DEFAULT_LEGAL_TOP_LEVEL_NODES, tag? : HTMLTagName) => {
 
 	if (!tag) tag = TypedObject.keys(legalTopLevelNodes)[0];
@@ -240,14 +252,9 @@ const cleanUpTopLevelHTML = (html : string, legalTopLevelNodes : HTMLTagMap = DE
 			hoistNode.innerHTML += ele.outerHTML;
 		}
 	}
+
 	//OK, we now know all top-level children are valid types. Do additional cleanup.
 	for (const child of Object.values(children)) {
-		if (isWhitespace(child.textContent || '')) {
-			if (!child.parentNode) throw new Error('No parent node');
-			//It's all text content, just get rid of it
-			child.parentNode.removeChild(child);
-			continue;
-		}
 		if (child.nodeType == ELEMENT_NODE) {
 			const ele = child as HTMLElement;
 			ele.removeAttribute('style');
@@ -265,6 +272,8 @@ const cleanUpTopLevelHTML = (html : string, legalTopLevelNodes : HTMLTagMap = DE
 			}
 		}
 	}
+
+	removeWhitespace(section);
 
 	return section.innerHTML;
 

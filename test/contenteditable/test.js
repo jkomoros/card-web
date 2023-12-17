@@ -213,6 +213,13 @@ describe('content editable scrubbing', () => {
 		assert.equal(actual, expected);
 	});
 
+	it('content with extra empty second-level items are normalized away', async () => {
+		const input = '<blockquote><p>Blammo</p><p></p></blockquote>';
+		const actual = normalizeBodyHTML(input, {'blockquote': true});
+		const expected = '<blockquote><p>Blammo</p></blockquote>\n';
+		assert.equal(actual, expected);
+	});
+
 });
 
 describe('html highlighting', () => {
