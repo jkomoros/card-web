@@ -121,7 +121,7 @@ const NON_AUTOMATIC_MERGE_FIELDS : {[cardDiffFields : string]: true} = {
 	images : true,
 };
 
-export const descriptionForReferencesDiff = (diff : ReferencesEntriesDiff, cardInfos : TagInfos) : TemplateResult[] => {
+const descriptionForReferencesDiff = (diff : ReferencesEntriesDiff, cardInfos : TagInfos) : TemplateResult[] => {
 	//For space, we'll combine the summary by similar reference types.
 	const cardsByReferenceTypeAdditions : {[ref in ReferenceType]+?: CardID[]} = {};
 	const cardsByReferenceTypeDeletions : {[ref in ReferenceType]+? : CardID[]} = {};

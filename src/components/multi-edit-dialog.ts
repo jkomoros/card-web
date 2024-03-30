@@ -38,7 +38,8 @@ import {
 	selectCardModificationPending,
 	selectSelectedCardsReferencesIntersection,
 	selectMultiEditAddTags,
-	selectMultiEditRemoveTags
+	selectMultiEditRemoveTags,
+	selectMultiEditCardDiff
 } from '../selectors.js';
 
 import {
@@ -63,6 +64,7 @@ import './card-link.js';
 
 import {
 	Card,
+	CardDiff,
 	CardLike,
 	ReferencesEntriesDiff,
 	ReferenceType,
@@ -79,7 +81,10 @@ import {
 import {
 	TypedObject
 } from '../typed_object.js';
-import { descriptionForReferencesDiff } from '../card_diff.js';
+
+import {
+	descriptionForCardDiff
+} from '../card_diff.js';
 
 @customElement('multi-edit-dialog')
 class MultiEditDialog extends connect(store)(DialogElement) {
@@ -101,6 +106,9 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_removeTags: TagID[];
+
+	@state()
+		_diff : CardDiff;
 
 	@state()
 		_selectedCards: Card[];
@@ -160,9 +168,9 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 								<tag-list .overrideTypeName=${'Reference'} data-reference-type=${entry[0]} .tagInfos=${this._cardTagInfos} .subtleTags=${subtleItems} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]] || []} .previousTags=${previousReferencesMap[entry[0]] || []} .editing=${true} .tapEvents=${true} .disableAdd=${true} @tag-tapped=${this._handleTagTapped} @tag-added=${this._handleUnremoveReference} @tag-removed=${this._handleRemoveReference}></tag-list>
 							</div>`;
 	})}
-			${this._referencesDiff.length ? html`<h4>Changes that will be made to selected cards</h4>` : ''}
+			${Object.values(this._diff).length ? html`<h4>Changes that will be made to selected cards</h4>` : ''}
 			<ul class='readout'>
-				${descriptionForReferencesDiff(this._referencesDiff, this._cardTagInfos).map(item => html`<li>${item}</li>`)}
+				${descriptionForCardDiff(this._diff, this._cardTagInfos).map(item => html`<li>${item}</li>`)}
 			</ul>
 			<details>
 				<summary><strong>${this._selectedCards.length}</strong> cards selected</summary>
@@ -271,6 +279,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		this._removeTags = selectMultiEditRemoveTags(state);
 		this._selectedCards = selectSelectedCards(state);
 		this._cardModificationPending = selectCardModificationPending(state);
+		this._diff = selectMultiEditCardDiff(state);
 	}
 
 }
