@@ -168,8 +168,9 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		const intersectionReferencesMap = intersectionRefs.byTypeArray();
 		const previousReferencesMap = referencesNonModifying(this._unionReferencesCard).byTypeArray();
 
-		const unionTags = arrayUnique([...this._unionTags, ...this._addTags, ...this._removeTags]);
-		const intersectionTags = arrayUnique([...this._intersectionTags, ...this._addTags, ...this._removeTags]);
+		const allTags = arrayUnique([...this._unionTags, ...this._addTags, ...this._removeTags]);
+		const unionTags = arrayUnique([...this._unionTags, ...this._addTags]).filter(tag => !this._removeTags.includes(tag));
+		const intersectionTags = arrayUnique([...this._intersectionTags, ...this._addTags]);
 		const subtleTags = arrayDiffAsSets(unionTags, intersectionTags)[1];
 
 		return html`
@@ -203,6 +204,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 			<label>Tags</label>
 			<tag-list
 				.tags=${unionTags}
+				.previousTags=${allTags}
 				.subtleTags=${subtleTags}
 				.tagInfos=${this._tagInfos}
 				.editing=${true}
