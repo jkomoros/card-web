@@ -18,7 +18,9 @@ import {
 	closeMultiEditDialog,
 	removeReference,
 	addReference,
-	commitMultiEditDialog
+	commitMultiEditDialog,
+	addTag,
+	removeTag
 } from '../actions/multiedit.js';
 
 import {
@@ -203,6 +205,9 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				.tagInfos=${this._tagInfos}
 				.editing=${true}
 				.tapEvents=${true}
+				@tag-tapped=${this._handleTagTagTapped}
+				@tag-added=${this._handleUnremoveTag}
+				@tag-removed=${this._handleRemoveTag}>
 			>
 			</tag-list>
 			${Object.values(this._diff).length ? html`<h4>Changes that will be made to selected cards</h4>` : ''}
@@ -302,6 +307,20 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 			return;
 		}
 		store.dispatch(removeReference(e.detail.tag, refType));
+	}
+
+	_handleTagTagTapped(e : TagEvent) {
+		//Only add it if not all cards already have it
+		if (!e.detail.subtle) return;
+		store.dispatch(addTag(e.detail.tag));
+	}
+
+	_handleUnremoveTag(e : TagEvent) {
+		store.dispatch(addTag(e.detail.tag));
+	}
+
+	_handleRemoveTag(e : TagEvent) {
+		store.dispatch(removeTag(e.detail.tag));
 	}
 
 	override stateChanged(state : State) {
