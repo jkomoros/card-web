@@ -39,7 +39,9 @@ import {
 	selectSelectedCardsReferencesIntersection,
 	selectMultiEditAddTags,
 	selectMultiEditRemoveTags,
-	selectMultiEditCardDiff
+	selectMultiEditCardDiff,
+	selectSelectedCardsTagsUnion,
+	selectSelectedCardsTagsIntersection
 } from '../selectors.js';
 
 import {
@@ -106,6 +108,12 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_removeTags: TagID[];
+
+	@state()
+		_unionTags : TagID[];
+
+	@state()
+		_intersectionTags : TagID[];
 
 	@state()
 		_diff : CardDiff;
@@ -277,6 +285,8 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		this._referencesDiff = selectMultiEditReferencesDiff(state);
 		this._addTags = selectMultiEditAddTags(state);
 		this._removeTags = selectMultiEditRemoveTags(state);
+		this._unionTags = this.open ? selectSelectedCardsTagsUnion(state) : [];
+		this._intersectionTags = this.open ? selectSelectedCardsTagsIntersection(state) : [];
 		this._selectedCards = selectSelectedCards(state);
 		this._cardModificationPending = selectCardModificationPending(state);
 		this._diff = selectMultiEditCardDiff(state);
