@@ -53,18 +53,28 @@ const app = (state : MultiEditState = INITIAL_STATE, action : SomeAction) : Mult
 			referencesDiff: referencesEntriesDiffWithRemove(state.referencesDiff, action.cardID, action.referenceType)
 		};
 	case MULTI_EDIT_DIALOG_ADD_TAG:
+		if (state.removeTags.includes(action.tagID)) {
+			return {
+				...state,
+				//Remove it from removeTags, don't add it to add tags.
+				removeTags: state.removeTags.filter(tagID => tagID !== action.tagID)
+			};
+		}
 		return {
 			...state,
 			addTags: [...state.addTags, action.tagID],
-			//Make sure we don't have the tag in both add and remove
-			removeTags: state.removeTags.filter(tagID => tagID !== action.tagID)
 		};
 	case MULTI_EDIT_DIALOG_REMOVE_TAG:
+		if (state.addTags.includes(action.tagID)) {
+			return {
+				...state,
+				//Remove it from add tags, don't add to removeTags.
+				addTags: state.addTags.filter(tagID => tagID !== action.tagID)
+			};
+		}
 		return {
 			...state,
 			removeTags: [...state.removeTags, action.tagID],
-			//Make sure we don't have the tag in both add and remove
-			addTags: state.addTags.filter(tagID => tagID !== action.tagID)
 		};
 	default:
 		return state;
