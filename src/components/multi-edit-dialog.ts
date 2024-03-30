@@ -36,7 +36,9 @@ import {
 	selectMultiEditReferencesDiff,
 	selectSelectedCards,
 	selectCardModificationPending,
-	selectSelectedCardsReferencesIntersection
+	selectSelectedCardsReferencesIntersection,
+	selectMultiEditAddTags,
+	selectMultiEditRemoveTags
 } from '../selectors.js';
 
 import {
@@ -66,6 +68,7 @@ import {
 	ReferenceType,
 	referenceTypeSchema,
 	State,
+	TagID,
 	TagInfos
 } from '../types.js';
 
@@ -92,6 +95,12 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_referencesDiff: ReferencesEntriesDiff;
+	
+	@state()
+		_addTags: TagID[];
+
+	@state()
+		_removeTags: TagID[];
 
 	@state()
 		_selectedCards: Card[];
@@ -258,6 +267,8 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		this._intersectionReferencesCard = this.open ? selectSelectedCardsReferencesIntersection(state) : {};
 		this._cardTagInfos = selectTagInfosForCards(state);
 		this._referencesDiff = selectMultiEditReferencesDiff(state);
+		this._addTags = selectMultiEditAddTags(state);
+		this._removeTags = selectMultiEditRemoveTags(state);
 		this._selectedCards = selectSelectedCards(state);
 		this._cardModificationPending = selectCardModificationPending(state);
 	}
