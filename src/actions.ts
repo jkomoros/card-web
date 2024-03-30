@@ -171,6 +171,8 @@ export const MULTI_EDIT_DIALOG_OPEN = 'MULTI_EDIT_DIALOG_OPEN';
 export const MULTI_EDIT_DIALOG_CLOSE ='MULTI_EDIT_DIALOG_CLOSE';
 export const MULTI_EDIT_DIALOG_ADD_REFERENCE = 'MULTI_EDIT_DIALOG_ADD_REFERENCE';
 export const MULTI_EDIT_DIALOG_REMOVE_REFERENCE = 'MULTI_EDIT_DIALOG_REMOVE_REFERENCE';
+export const MULTI_EDIT_DIALOG_ADD_TAG = 'MULTI_EDIT_DIALOG_ADD_TAG';
+export const MULTI_EDIT_DIALOG_REMOVE_TAG = 'MULTI_EDIT_DIALOG_REMOVE_TAG';
 //Permissions
 export const PERMISSIONS_UPDATE_PERMISSIONS = 'PERMISSIONS_UPDATE_PERMISSIONS';
 export const PERMISSIONS_START_ADD_CARD = 'PERMISSIONS_START_ADD_CARD';
@@ -765,6 +767,16 @@ type ActionMultiEditDialogRemoveReference = {
 	referenceType: ReferenceType
 };
 
+type ActionMultiEditDialogAddTag = {
+	type: typeof MULTI_EDIT_DIALOG_ADD_TAG,
+	tagID: TagID
+};
+
+type ActionMultiEditDialogRemoveTag = {
+	type: typeof MULTI_EDIT_DIALOG_REMOVE_TAG,
+	tagID: TagID
+};
+
 type ActionPermissionsUpdatePermissions = {
 	type: typeof PERMISSIONS_UPDATE_PERMISSIONS,
 	permissionsToAdd: UserPermissionsMap,
@@ -1016,6 +1028,8 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionMultiEditDialogClose
 	| ActionMultiEditDialogAddReference
 	| ActionMultiEditDialogRemoveReference
+	| ActionMultiEditDialogAddTag
+	| ActionMultiEditDialogRemoveTag
 	| ActionPermissionsUpdatePermissions
 	| ActionPermissionsStartAddCard
 	| ActionPermissionsResetAddCard
