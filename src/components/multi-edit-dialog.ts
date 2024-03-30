@@ -41,7 +41,8 @@ import {
 	selectMultiEditRemoveTags,
 	selectMultiEditCardDiff,
 	selectSelectedCardsTagsUnion,
-	selectSelectedCardsTagsIntersection
+	selectSelectedCardsTagsIntersection,
+	selectTags
 } from '../selectors.js';
 
 import {
@@ -99,6 +100,9 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_cardTagInfos: TagInfos;
+
+	@state()
+		_tagInfos : TagInfos;
 
 	@state()
 		_referencesDiff: ReferencesEntriesDiff;
@@ -176,6 +180,15 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 								<tag-list .overrideTypeName=${'Reference'} data-reference-type=${entry[0]} .tagInfos=${this._cardTagInfos} .subtleTags=${subtleItems} .defaultColor=${entry[1].color} .tags=${referencesMap[entry[0]] || []} .previousTags=${previousReferencesMap[entry[0]] || []} .editing=${true} .tapEvents=${true} .disableAdd=${true} @tag-tapped=${this._handleTagTapped} @tag-added=${this._handleUnremoveReference} @tag-removed=${this._handleRemoveReference}></tag-list>
 							</div>`;
 	})}
+			<label>Tags</label>
+			<tag-list
+				.tags=${this._unionTags}
+				.subtleTags=${this._intersectionTags}
+				.tagInfos=${this._tagInfos}
+				.editing=${true}
+				.tapEvents=${true}
+			>
+			</tag-list>
 			${Object.values(this._diff).length ? html`<h4>Changes that will be made to selected cards</h4>` : ''}
 			<ul class='readout'>
 				${descriptionForCardDiff(this._diff, this._cardTagInfos).map(item => html`<li>${item}</li>`)}
@@ -282,6 +295,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		this._unionReferencesCard = this.open ? selectSelectedCardsReferencesUnion(state) : {};
 		this._intersectionReferencesCard = this.open ? selectSelectedCardsReferencesIntersection(state) : {};
 		this._cardTagInfos = selectTagInfosForCards(state);
+		this._tagInfos = selectTags(state);
 		this._referencesDiff = selectMultiEditReferencesDiff(state);
 		this._addTags = selectMultiEditAddTags(state);
 		this._removeTags = selectMultiEditRemoveTags(state);
