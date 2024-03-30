@@ -166,6 +166,8 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		const intersectionReferencesMap = intersectionRefs.byTypeArray();
 		const previousReferencesMap = referencesNonModifying(this._unionReferencesCard).byTypeArray();
 
+		const subtleTags = arrayDiffAsSets(this._unionTags, this._intersectionTags)[1];
+
 		return html`
 		<div class='${this._cardModificationPending ? 'modification-pending' : ''}'>
 			<div class='scrim'></div>
@@ -183,7 +185,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 			<label>Tags</label>
 			<tag-list
 				.tags=${this._unionTags}
-				.subtleTags=${this._intersectionTags}
+				.subtleTags=${subtleTags}
 				.tagInfos=${this._tagInfos}
 				.editing=${true}
 				.tapEvents=${true}
