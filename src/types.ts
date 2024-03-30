@@ -1460,6 +1460,8 @@ export type MaintenanceState = {
 export type MultiEditState = {
 	open: boolean,
 	referencesDiff: ReferencesEntriesDiff,
+	addTags: TagID[],
+	removeTags: TagID[]
 };
 
 export type AIModelName = 'gpt-3.5-turbo' | 'gpt-3.5-turbo-16k' | 'gpt-4' | 'gpt-4-32k';

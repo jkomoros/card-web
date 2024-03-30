@@ -1,5 +1,5 @@
 import {
-	selectIsEditing, selectMultiEditReferencesDiff, selectSelectedCards
+	selectIsEditing, selectMultiEditAddTags, selectMultiEditReferencesDiff, selectMultiEditRemoveTags, selectSelectedCards
 } from '../selectors.js';
 
 import {
@@ -43,17 +43,30 @@ export const closeMultiEditDialog = () : SomeAction => {
 export const commitMultiEditDialog = () : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	const referencesDiff = selectMultiEditReferencesDiff(state);
-	if (referencesDiff.length == 0) {
+	const addTags = selectMultiEditAddTags(state);
+	const removeTags = selectMultiEditRemoveTags(state);
+
+	const update : CardDiff = {};
+
+	if (referencesDiff.length > 0) {
+		update.references_diff = referencesDiff;
+	}
+
+	if (addTags.length > 0) {
+		update.add_tags = addTags;
+	}
+
+	if (removeTags.length > 0) {
+		update.remove_tags = removeTags;
+	}
+
+	if (Object.keys(update).length === 0) {
 		//If there's nothing to do, we can close the dialog now.
 		dispatch(closeMultiEditDialog());
 		return;
 	}
 
 	//There's a change to make. modifyCardsSuccess will close the dialog.
-
-	const update : CardDiff = {
-		references_diff: referencesDiff
-	};
 
 	const selectedCards = selectSelectedCards(state);
 

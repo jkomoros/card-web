@@ -186,6 +186,8 @@ export const selectFindPermissions = (state : State) => state.find ? state.find.
 
 export const selectMultiEditDialogOpen = (state : State) => state.multiedit ? state.multiedit.open : false;
 export const selectMultiEditReferencesDiff = (state : State) => state.multiedit ? state.multiedit.referencesDiff : [];
+export const selectMultiEditAddTags = (state : State) => state.multiedit ? state.multiedit.addTags : [];
+export const selectMultiEditRemoveTags = (state : State) => state.multiedit ? state.multiedit.removeTags : [];
 
 export const selectAIDialogOpen = (state : State) => state.ai ? state.ai.open : false;
 export const selectAIActive = (state : State) => state.ai ? state.ai.active : false;
