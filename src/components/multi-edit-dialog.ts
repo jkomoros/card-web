@@ -44,7 +44,9 @@ import {
 	selectMultiEditCardDiff,
 	selectSelectedCardsTagsUnion,
 	selectSelectedCardsTagsIntersection,
-	selectTags
+	selectTags,
+	selectMultiEditAddTODOEnablements,
+	selectMultiEditAddTODODisablements
 } from '../selectors.js';
 
 import {
@@ -68,6 +70,7 @@ import {
 import './card-link.js';
 
 import {
+	AutoTODOType,
 	Card,
 	CardDiff,
 	CardLike,
@@ -120,6 +123,12 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_intersectionTags : TagID[];
+
+	@state()
+		_todoEnablements : AutoTODOType[];
+
+	@state()
+		_todoDisablements : AutoTODOType[];
 
 	@state()
 		_diff : CardDiff;
@@ -340,6 +349,8 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		this._removeTags = selectMultiEditRemoveTags(state);
 		this._unionTags = this.open ? selectSelectedCardsTagsUnion(state) : [];
 		this._intersectionTags = this.open ? selectSelectedCardsTagsIntersection(state) : [];
+		this._todoEnablements = selectMultiEditAddTODOEnablements(state);
+		this._todoDisablements = selectMultiEditAddTODODisablements(state);
 		this._selectedCards = selectSelectedCards(state);
 		this._cardModificationPending = selectCardModificationPending(state);
 		this._diff = selectMultiEditCardDiff(state);
