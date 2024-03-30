@@ -24,7 +24,9 @@ const INITIAL_STATE : MultiEditState = {
 	open: false,
 	referencesDiff: [],
 	addTags: [],
-	removeTags: []
+	removeTags: [],
+	addTODOEnablements: [],
+	addTODODisablements: []
 };
 
 const app = (state : MultiEditState = INITIAL_STATE, action : SomeAction) : MultiEditState => {
@@ -35,7 +37,9 @@ const app = (state : MultiEditState = INITIAL_STATE, action : SomeAction) : Mult
 			open: true,
 			referencesDiff: [],
 			addTags: [],
-			removeTags: []
+			removeTags: [],
+			addTODOEnablements: [],
+			addTODODisablements: []
 		};
 	case MULTI_EDIT_DIALOG_CLOSE:
 		return {

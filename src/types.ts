@@ -1461,7 +1461,9 @@ export type MultiEditState = {
 	open: boolean,
 	referencesDiff: ReferencesEntriesDiff,
 	addTags: TagID[],
-	removeTags: TagID[]
+	removeTags: TagID[],
+	addTODOEnablements: AutoTODOType[]
+	addTODODisablements: AutoTODOType[]
 };
 
 export type AIModelName = 'gpt-3.5-turbo' | 'gpt-3.5-turbo-16k' | 'gpt-4' | 'gpt-4-32k';

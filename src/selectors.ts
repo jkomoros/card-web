@@ -189,6 +189,8 @@ export const selectMultiEditDialogOpen = (state : State) => state.multiedit ? st
 export const selectMultiEditReferencesDiff = (state : State) => state.multiedit ? state.multiedit.referencesDiff : [];
 export const selectMultiEditAddTags = (state : State) => state.multiedit ? state.multiedit.addTags : [];
 export const selectMultiEditRemoveTags = (state : State) => state.multiedit ? state.multiedit.removeTags : [];
+export const selectMultiEditAddTODOEnablements = (state : State) => state.multiedit ? state.multiedit.addTODOEnablements : [];
+export const selectMultiEditAddTODODisablements = (state : State) => state.multiedit ? state.multiedit.addTODODisablements : [];
 
 export const selectAIDialogOpen = (state : State) => state.ai ? state.ai.open : false;
 export const selectAIActive = (state : State) => state.ai ? state.ai.active : false;
