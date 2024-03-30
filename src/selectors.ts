@@ -1733,9 +1733,9 @@ export const selectMultiEditCardDiff = createSelector(
 	selectMultiEditRemoveTags,
 	(referencesDiff, addTags, removeTags) => {
 		const result : CardDiff = {};
-		if (referencesDiff) result.references_diff = referencesDiff;
-		if (addTags) result.add_tags = addTags;
-		if (removeTags) result.remove_tags = removeTags;
+		if (referencesDiff.length) result.references_diff = referencesDiff;
+		if (addTags.length) result.add_tags = addTags;
+		if (removeTags.length) result.remove_tags = removeTags;
 		return result;
 	}
 );
