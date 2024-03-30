@@ -188,6 +188,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		const subtleTags = arrayDiffAsSets(unionTags, intersectionTags)[1];
 
 		//Because TODOs are a weird tri-state, we won't even try to show a intersection/union kind of thing.
+		//And also, yes, the naming of the items feels backwards, see #689.
 
 		return html`
 		<div class='${this._cardModificationPending ? 'modification-pending' : ''}'>
@@ -232,23 +233,23 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 			</tag-list>
 			<label>Enable TODOs</label>
 			<tag-list
-				.tags=${this._todoEnablements}
-				.editing=${true}
-				.tapEvents=${true}
-				.tagInfos=${TODO_AUTO_INFOS}
-				.overrideTypeName=${'Enabled'}
-				@tag-added=${this._handleAddTODOEnablement}
-				@tag-removed=${this._handleRemoveTODOEnablement}>
-			></tag-list>
-			<label>Disable TODOs</label>
-			<tag-list
 				.tags=${this._todoDisablements}
 				.editing=${true}
 				.tapEvents=${true}
 				.tagInfos=${TODO_AUTO_INFOS}
-				.overrideTypeName=${'Disabled'}
+				.overrideTypeName=${'Enabled'}
 				@tag-added=${this._handleAddTODODisablement}
 				@tag-removed=${this._handleRemoveTODODisablement}>
+			></tag-list>
+			<label>Disable TODOs</label>
+			<tag-list
+				.tags=${this._todoEnablements}
+				.editing=${true}
+				.tapEvents=${true}
+				.tagInfos=${TODO_AUTO_INFOS}
+				.overrideTypeName=${'Disabled'}
+				@tag-added=${this._handleAddTODOEnablement}
+				@tag-removed=${this._handleRemoveTODOEnablement}>
 			></tag-list>
 			${Object.values(this._diff).length ? html`<h4>Changes that will be made to selected cards</h4>` : ''}
 			<ul class='readout'>
