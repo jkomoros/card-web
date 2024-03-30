@@ -154,7 +154,8 @@ import {
 	SetName,
 	ViewMode,
 	ReferenceType,
-	SortExtra
+	SortExtra,
+	CardDiff
 } from './types.js';
 
 import {
@@ -1697,4 +1698,17 @@ export const selectSuggestionsEffectiveSelectedIndex = createSelector(
 	selectSuggestionsForActiveCard,
 	selectSuggestionsSelectedIndex,
 	(suggestions, rawIndex) => rawIndex < suggestions.length ? rawIndex : suggestions.length - 1
+);
+
+export const selectMultiEditCardDiff = createSelector(
+	selectMultiEditReferencesDiff,
+	selectMultiEditAddTags,
+	selectMultiEditRemoveTags,
+	(referencesDiff, addTags, removeTags) => {
+		const result : CardDiff = {};
+		if (referencesDiff) result.references_diff = referencesDiff;
+		if (addTags) result.add_tags = addTags;
+		if (removeTags) result.remove_tags = removeTags;
+		return result;
+	}
 );

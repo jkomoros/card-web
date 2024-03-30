@@ -1,5 +1,7 @@
 import {
-	selectIsEditing, selectMultiEditAddTags, selectMultiEditReferencesDiff, selectMultiEditRemoveTags, selectSelectedCards
+	selectIsEditing,
+	selectMultiEditCardDiff,
+	selectSelectedCards
 } from '../selectors.js';
 
 import {
@@ -7,7 +9,6 @@ import {
 } from '../store.js';
 
 import {
-	CardDiff,
 	CardID,
 	ReferenceType,
 	TagID
@@ -45,23 +46,8 @@ export const closeMultiEditDialog = () : SomeAction => {
 
 export const commitMultiEditDialog = () : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
-	const referencesDiff = selectMultiEditReferencesDiff(state);
-	const addTags = selectMultiEditAddTags(state);
-	const removeTags = selectMultiEditRemoveTags(state);
 
-	const update : CardDiff = {};
-
-	if (referencesDiff.length > 0) {
-		update.references_diff = referencesDiff;
-	}
-
-	if (addTags.length > 0) {
-		update.add_tags = addTags;
-	}
-
-	if (removeTags.length > 0) {
-		update.remove_tags = removeTags;
-	}
+	const update = selectMultiEditCardDiff(state);
 
 	if (Object.keys(update).length === 0) {
 		//If there's nothing to do, we can close the dialog now.
