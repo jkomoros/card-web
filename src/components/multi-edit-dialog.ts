@@ -20,7 +20,11 @@ import {
 	addReference,
 	commitMultiEditDialog,
 	addTag,
-	removeTag
+	removeTag,
+	addTODOEnablement,
+	addTODODisablement,
+	removeTODOEnablement,
+	removeTODODisablement
 } from '../actions/multiedit.js';
 
 import {
@@ -93,6 +97,7 @@ import {
 import {
 	descriptionForCardDiff
 } from '../card_diff.js';
+import { TODO_AUTO_INFOS } from '../filters.js';
 
 @customElement('multi-edit-dialog')
 class MultiEditDialog extends connect(store)(DialogElement) {
@@ -182,6 +187,8 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		const intersectionTags = arrayUnique([...this._intersectionTags, ...this._addTags]);
 		const subtleTags = arrayDiffAsSets(unionTags, intersectionTags)[1];
 
+		//Because TODOs are a weird tri-state, we won't even try to show a intersection/union kind of thing.
+
 		return html`
 		<div class='${this._cardModificationPending ? 'modification-pending' : ''}'>
 			<div class='scrim'></div>
@@ -223,6 +230,26 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 				@tag-removed=${this._handleRemoveTag}>
 			>
 			</tag-list>
+			<label>Enable TODOs</label>
+			<tag-list
+				.tags=${this._todoEnablements}
+				.editing=${true}
+				.tapEvents=${true}
+				.tagInfos=${TODO_AUTO_INFOS}
+				.overrideTypeName=${'Enabled'}
+				@tag-added=${this._handleAddTODOEnablement}
+				@tag-removed=${this._handleRemoveTODOEnablement}>
+			></tag-list>
+			<label>Disable TODOs</label>
+			<tag-list
+				.tags=${this._todoDisablements}
+				.editing=${true}
+				.tapEvents=${true}
+				.tagInfos=${TODO_AUTO_INFOS}
+				.overrideTypeName=${'Disabled'}
+				@tag-added=${this._handleAddTODODisablement}
+				@tag-removed=${this._handleRemoveTODODisablement}>
+			></tag-list>
 			${Object.values(this._diff).length ? html`<h4>Changes that will be made to selected cards</h4>` : ''}
 			<ul class='readout'>
 				${descriptionForCardDiff(this._diff, this._cardTagInfos).map(item => html`<li>${item}</li>`)}
@@ -335,6 +362,23 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	_handleRemoveTag(e : TagEvent) {
 		store.dispatch(removeTag(e.detail.tag));
 	}
+
+	_handleAddTODOEnablement(e : TagEvent) {
+		store.dispatch(addTODOEnablement(e.detail.tag as AutoTODOType));
+	}
+
+	_handleRemoveTODOEnablement(e : TagEvent) {
+		store.dispatch(removeTODOEnablement(e.detail.tag as AutoTODOType));
+	}
+
+	_handleAddTODODisablement(e : TagEvent) {
+		store.dispatch(addTODODisablement(e.detail.tag as AutoTODOType));
+	}
+
+	_handleRemoveTODODisablement(e : TagEvent) {
+		store.dispatch(removeTODODisablement(e.detail.tag as AutoTODOType));
+	}
+
 
 	override stateChanged(state : State) {
 		//tODO: it's weird that we manually set our superclasses' public property
