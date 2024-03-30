@@ -4,7 +4,11 @@ import {
 	MULTI_EDIT_DIALOG_ADD_REFERENCE,
 	MULTI_EDIT_DIALOG_REMOVE_REFERENCE,
 	MULTI_EDIT_DIALOG_ADD_TAG,
-	MULTI_EDIT_DIALOG_REMOVE_TAG
+	MULTI_EDIT_DIALOG_REMOVE_TAG,
+	MULTI_EDIT_DIALOG_ADD_TODO_ENABLEMENT,
+	MULTI_EDIT_DIALOG_REMOVE_TODO_ENABLEMENT,
+	MULTI_EDIT_DIALOG_ADD_TODO_DISABLEMENT,
+	MULTI_EDIT_DIALOG_REMOVE_TODO_DISABLEMENT
 } from '../actions.js';
 
 import {
@@ -79,6 +83,26 @@ const app = (state : MultiEditState = INITIAL_STATE, action : SomeAction) : Mult
 		return {
 			...state,
 			removeTags: [...state.removeTags, action.tagID],
+		};
+	case MULTI_EDIT_DIALOG_ADD_TODO_ENABLEMENT:
+		return {
+			...state,
+			addTODOEnablements: [...state.addTODOEnablements, action.todo]
+		};
+	case MULTI_EDIT_DIALOG_REMOVE_TODO_ENABLEMENT:
+		return {
+			...state,
+			addTODOEnablements: state.addTODOEnablements.filter(todo => todo !== action.todo)
+		};
+	case MULTI_EDIT_DIALOG_ADD_TODO_DISABLEMENT:
+		return {
+			...state,
+			addTODODisablements: [...state.addTODODisablements, action.todo]
+		};
+	case MULTI_EDIT_DIALOG_REMOVE_TODO_DISABLEMENT:
+		return {
+			...state,
+			addTODODisablements: state.addTODODisablements.filter(todo => todo !== action.todo)
 		};
 	default:
 		return state;

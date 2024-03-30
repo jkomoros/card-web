@@ -173,6 +173,10 @@ export const MULTI_EDIT_DIALOG_ADD_REFERENCE = 'MULTI_EDIT_DIALOG_ADD_REFERENCE'
 export const MULTI_EDIT_DIALOG_REMOVE_REFERENCE = 'MULTI_EDIT_DIALOG_REMOVE_REFERENCE';
 export const MULTI_EDIT_DIALOG_ADD_TAG = 'MULTI_EDIT_DIALOG_ADD_TAG';
 export const MULTI_EDIT_DIALOG_REMOVE_TAG = 'MULTI_EDIT_DIALOG_REMOVE_TAG';
+export const MULTI_EDIT_DIALOG_ADD_TODO_ENABLEMENT = 'MULTI_EDIT_DIALOG_ADD_TODO_ENABLEMENT';
+export const MULTI_EDIT_DIALOG_REMOVE_TODO_ENABLEMENT = 'MULTI_EDIT_DIALOG_REMOVE_TODO_ENABLEMENT';
+export const MULTI_EDIT_DIALOG_ADD_TODO_DISABLEMENT = 'MULTI_EDIT_DIALOG_ADD_TODO_DISABLEMENT';
+export const MULTI_EDIT_DIALOG_REMOVE_TODO_DISABLEMENT = 'MULTI_EDIT_DIALOG_REMOVE_TODO_DISABLEMENT';
 //Permissions
 export const PERMISSIONS_UPDATE_PERMISSIONS = 'PERMISSIONS_UPDATE_PERMISSIONS';
 export const PERMISSIONS_START_ADD_CARD = 'PERMISSIONS_START_ADD_CARD';
@@ -777,6 +781,26 @@ type ActionMultiEditDialogRemoveTag = {
 	tagID: TagID
 };
 
+type ActionMultiEditDialogAddTODOEnablement = {
+	type: typeof MULTI_EDIT_DIALOG_ADD_TODO_ENABLEMENT,
+	todo: AutoTODOType
+};
+
+type ActionMultiEditDialogRemoveTODOEnablement = {
+	type: typeof MULTI_EDIT_DIALOG_REMOVE_TODO_ENABLEMENT,
+	todo: AutoTODOType
+};
+
+type ActionMultiEditDialogAddTODODisablement = {
+	type: typeof MULTI_EDIT_DIALOG_ADD_TODO_DISABLEMENT,
+	todo: AutoTODOType
+};
+
+type ActionMultiEditDialogRemoveTODODisablement = {
+	type: typeof MULTI_EDIT_DIALOG_REMOVE_TODO_DISABLEMENT,
+	todo: AutoTODOType
+};
+
 type ActionPermissionsUpdatePermissions = {
 	type: typeof PERMISSIONS_UPDATE_PERMISSIONS,
 	permissionsToAdd: UserPermissionsMap,
@@ -1030,6 +1054,10 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionMultiEditDialogRemoveReference
 	| ActionMultiEditDialogAddTag
 	| ActionMultiEditDialogRemoveTag
+	| ActionMultiEditDialogAddTODOEnablement
+	| ActionMultiEditDialogRemoveTODOEnablement
+	| ActionMultiEditDialogAddTODODisablement
+	| ActionMultiEditDialogRemoveTODODisablement
 	| ActionPermissionsUpdatePermissions
 	| ActionPermissionsStartAddCard
 	| ActionPermissionsResetAddCard

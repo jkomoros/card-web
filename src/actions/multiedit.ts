@@ -9,6 +9,7 @@ import {
 } from '../store.js';
 
 import {
+	AutoTODOType,
 	CardID,
 	ReferenceType,
 	TagID
@@ -17,10 +18,14 @@ import {
 import {
 	MULTI_EDIT_DIALOG_ADD_REFERENCE,
 	MULTI_EDIT_DIALOG_ADD_TAG,
+	MULTI_EDIT_DIALOG_ADD_TODO_DISABLEMENT,
+	MULTI_EDIT_DIALOG_ADD_TODO_ENABLEMENT,
 	MULTI_EDIT_DIALOG_CLOSE,
 	MULTI_EDIT_DIALOG_OPEN,
 	MULTI_EDIT_DIALOG_REMOVE_REFERENCE,
 	MULTI_EDIT_DIALOG_REMOVE_TAG,
+	MULTI_EDIT_DIALOG_REMOVE_TODO_DISABLEMENT,
+	MULTI_EDIT_DIALOG_REMOVE_TODO_ENABLEMENT,
 	SomeAction
 } from '../actions.js';
 import { modifyCards } from './data.js';
@@ -90,5 +95,33 @@ export const removeTag = (tagID : TagID) : SomeAction => {
 	return {
 		type: MULTI_EDIT_DIALOG_REMOVE_TAG,
 		tagID,
+	};
+};
+
+export const addTODOEnablement = (todo: AutoTODOType) : SomeAction => {
+	return {
+		type: MULTI_EDIT_DIALOG_ADD_TODO_ENABLEMENT,
+		todo
+	};
+};
+
+export const removeTODOEnablement = (todo: AutoTODOType) : SomeAction => {
+	return {
+		type: MULTI_EDIT_DIALOG_REMOVE_TODO_ENABLEMENT,
+		todo
+	};
+};
+
+export const addTODODisablement = (todo: AutoTODOType) : SomeAction => {
+	return {
+		type: MULTI_EDIT_DIALOG_ADD_TODO_DISABLEMENT,
+		todo
+	};
+};
+
+export const removeTODODisablement = (todo: AutoTODOType) : SomeAction => {
+	return {
+		type: MULTI_EDIT_DIALOG_REMOVE_TODO_DISABLEMENT,
+		todo
 	};
 };
