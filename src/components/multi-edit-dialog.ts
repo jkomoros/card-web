@@ -17,12 +17,9 @@ import { ButtonSharedStyles } from './button-shared-styles.js';
 import {
 	closeMultiEditDialog,
 	removeReference,
-	addReference
+	addReference,
+	commitMultiEditDialog
 } from '../actions/multiedit.js';
-
-import {
-	modifyCards
-} from '../actions/data.js';
 
 import {
 	selectCardToReference
@@ -176,16 +173,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleDoneClicked() {
-		if (this._referencesDiff.length) {
-			const update = {
-				references_diff: this._referencesDiff,
-			};
-			store.dispatch(modifyCards(this._selectedCards, update, false, false));
-			//We'll close the dialog when modifyCardSuccess is triggered.
-			return;
-		}
-		//If we didn't have anything to do, close it now.
-		this._shouldClose();
+		store.dispatch(commitMultiEditDialog());
 	}
 
 	override _shouldClose() {
