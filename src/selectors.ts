@@ -1733,11 +1733,15 @@ export const selectMultiEditCardDiff = createSelector(
 	selectMultiEditReferencesDiff,
 	selectMultiEditAddTags,
 	selectMultiEditRemoveTags,
-	(referencesDiff, addTags, removeTags) => {
+	selectMultiEditAddTODOEnablements,
+	selectMultiEditAddTODODisablements,
+	(referencesDiff, addTags, removeTags, todoEnablements, todoDisablements) => {
 		const result : CardDiff = {};
 		if (referencesDiff.length) result.references_diff = referencesDiff;
 		if (addTags.length) result.add_tags = addTags;
 		if (removeTags.length) result.remove_tags = removeTags;
+		if (todoEnablements.length) result.auto_todo_overrides_enablements = todoEnablements;
+		if (todoDisablements.length) result.auto_todo_overrides_disablements = todoDisablements;
 		return result;
 	}
 );
