@@ -61,7 +61,7 @@ import {
 } from './help-badges.js';
 
 import {
-	arrayDiffAsSets
+	arrayDiffAsSets, arrayUnique
 } from '../util.js';
 
 
@@ -168,7 +168,9 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 		const intersectionReferencesMap = intersectionRefs.byTypeArray();
 		const previousReferencesMap = referencesNonModifying(this._unionReferencesCard).byTypeArray();
 
-		const subtleTags = arrayDiffAsSets(this._unionTags, this._intersectionTags)[1];
+		const unionTags = arrayUnique([...this._unionTags, ...this._addTags, ...this._removeTags]);
+		const intersectionTags = arrayUnique([...this._intersectionTags, ...this._addTags, ...this._removeTags]);
+		const subtleTags = arrayDiffAsSets(unionTags, intersectionTags)[1];
 
 		return html`
 		<div class='${this._cardModificationPending ? 'modification-pending' : ''}'>
@@ -200,7 +202,7 @@ class MultiEditDialog extends connect(store)(DialogElement) {
 	})}
 			<label>Tags</label>
 			<tag-list
-				.tags=${this._unionTags}
+				.tags=${unionTags}
 				.subtleTags=${subtleTags}
 				.tagInfos=${this._tagInfos}
 				.editing=${true}
