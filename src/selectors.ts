@@ -1535,6 +1535,33 @@ export const selectSelectedCardsReferencesIntersection = createSelector(
 	(cards) => intersectionReferences(cards)
 );
 
+export const selectSelectedCardsTagsUnion = createSelector(
+	selectSelectedCards,
+	(cards) => {
+		const tags : {[tag : TagID] : true} = {};
+		for (const card of cards) {
+			for (const tag of card.tags) {
+				tags[tag] = true;
+			}
+		}
+		return Object.keys(tags);
+	}
+);
+
+export const selectSelectedCardsTagsIntersection = createSelector(
+	selectSelectedCards,
+	(cards) => {
+		if (!cards.length) return [];
+		const tags : {[tag : TagID] : number} = {};
+		for (const card of cards) {
+			for (const tag of card.tags) {
+				tags[tag] = (tags[tag] || 0) + 1;
+			}
+		}
+		return Object.keys(tags).filter(tag => tags[tag] == cards.length);
+	}
+);
+
 const selectActiveCollectionWordCloud = createSelector(
 	selectActiveCollection,
 	selectFingerprintGenerator,
