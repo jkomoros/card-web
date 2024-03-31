@@ -28,6 +28,7 @@ import {
 
 import {
 	navigateToCardInCurrentCollection,
+	navigateToCollection,
 	navigateToNextCard
 } from './app.js';
 
@@ -92,6 +93,8 @@ import {
 	SET_NAMES,
 	SORT_URL_KEYWORD,
 	CONFIGURABLE_FILTER_URL_PARTS,
+	collectionDescription,
+	SELECTED_FILTER_NAME,
 } from '../filters.js';
 
 import {
@@ -765,7 +768,9 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 
 	dispatch(clearSelectedCards());
 	dispatch(doSelectCards(ids));
-	//TODO: navigate to `everything/selected`
+
+	const selectedCards = collectionDescription(SELECTED_FILTER_NAME);
+	dispatch(navigateToCollection(selectedCards));
 
 };
 
