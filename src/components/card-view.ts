@@ -54,7 +54,8 @@ import {
 	updateRenderOffset,
 	navigateToRandomCard,
 	selectCards,
-	unselectCards
+	unselectCards,
+	clearSelectedCards
 } from '../actions/collection.js';
 
 import {
@@ -147,7 +148,8 @@ import {
 	RULE_ICON,
 	CASINO_ICON,
 	AUTO_AWESOME_ICON,
-	PSYCHOLOGY_ICON
+	PSYCHOLOGY_ICON,
+	CANCEL_ICON
 } from './my-icons.js';
 
 import {
@@ -486,6 +488,19 @@ class CardView extends connect(store)(PageViewElement) {
 				<button id='configure-collection' class='small' title='Configure Collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure Collection</label>
 			</div>
 			<div slot='visible-info'>
+				${this._cardsSelected ? 
+		html`<button
+				id='clear-selection'
+				class='small'
+				title='Clear Selected Cards'
+				@click=${this._handleClearSelectionClicked}
+			>
+			${CANCEL_ICON}
+			</button>
+			<label for='clear-selection'>Clear Selection</label>
+			`
+		: ''
+}
 				${this._collection?.description.isRandom ? html`
 					<button
 						id='randomize'
@@ -560,6 +575,10 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_handleEditClicked() {
 		store.dispatch(editingStart());
+	}
+
+	_handleClearSelectionClicked() {
+		store.dispatch(clearSelectedCards());
 	}
 
 	_handleForkClicked() {
