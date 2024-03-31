@@ -448,7 +448,7 @@ class CardView extends connect(store)(PageViewElement) {
 				class='${this._cardsDrawerPanelShowing ? 'showing' : ''}'
 				.showing=${this._cardsDrawerPanelShowing}
 				.collection=${this._collection}
-				.selectable=${true}
+				.selectable=${this._userMayEdit}
 				@info-zippy-clicked=${this._handleInfoZippyClicked}
 				@thumbnail-tapped=${this._thumbnailActivatedHandler}
 				@reorder-card=${this._handleReorderCard}
