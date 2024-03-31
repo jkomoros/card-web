@@ -194,6 +194,8 @@ export const selectMultiEditRemoveTags = (state : State) => state.multiedit ? st
 export const selectMultiEditAddTODOEnablements = (state : State) => state.multiedit ? state.multiedit.addTODOEnablements : [];
 export const selectMultiEditAddTODODisablements = (state : State) => state.multiedit ? state.multiedit.addTODODisablements : [];
 
+export const selectBulkImportDialogOpen = (state : State) => state.bulkImport ? state.bulkImport.open : false;
+
 export const selectAIDialogOpen = (state : State) => state.ai ? state.ai.open : false;
 export const selectAIActive = (state : State) => state.ai ? state.ai.active : false;
 export const selectAIDialogKind = (state : State) : AIDialogType => state.ai ? state.ai.kind : 'summary';

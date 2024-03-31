@@ -18,7 +18,7 @@ import {
 } from './my-icons.js';
 
 import {
-	selectAIDialogOpen,
+	selectBulkImportDialogOpen
 } from '../selectors.js';
 
 import {
@@ -69,7 +69,7 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 
 	override stateChanged(state : State) {
 		//tODO: it's weird that we manually set our superclasses' public property
-		this.open = selectAIDialogOpen(state);
+		this.open = selectBulkImportDialogOpen(state);
 		this.title = 'Bulk Import';
 	}
 

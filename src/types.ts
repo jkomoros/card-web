@@ -1494,6 +1494,10 @@ export type AIState = {
 	filteredCards: CardID[];
 };
 
+export type BulkImportState = {
+	open: boolean
+};
+
 export type PermissionsState = {
 	permissions: UserPermissionsMap,
 	pendingUid : Uid,
@@ -1563,6 +1567,7 @@ export type UserState = {
 export type State = {
 	ai?: AIState,
 	app: AppState,
+	bulkImport? : BulkImportState,
 	data: DataState,
 	find? : FindState,
 	editor? : EditorState,
