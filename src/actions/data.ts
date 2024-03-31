@@ -715,6 +715,8 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 	if (!WORKING_NOTES_CONFIG.orphanedByDefault) throw new Error('Working notes are not orphaned by default');
 	if (CARD_TYPE_EDITING_FINISHERS['working-notes']) throw new Error('Working notes have a card finisher');
 
+	if (bodies.length == 0) return;
+
 	const state = getState();
 	if (!selectUserMayCreateCard(state)) throw new Error('User may not create cards');
 
@@ -742,11 +744,24 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		sortOrder -= DEFAULT_SORT_ORDER_INCREMENT;
 	}
 
-	//TODO: do we need to do anything with EXPECT_NEW_CARD here?
+	const firstID = ids[0];
+
+	//Tell card-view to expect a new card to be loaded, so the machinery to wait
+	//for the new cards works.
+	dispatch({
+		type: EXPECT_NEW_CARD,
+		//We'll only tell it to expect the first one, since they'll all come
+		//back in one batch anyway.
+		ID: firstID,
+		cardType: 'working-notes',
+		navigate: false,
+		noSectionChange: true,
+		published: false,
+	});
 
 	await batch.commit();
 
-	//TODO: wait for the cards to be known to all exist.
+	await waitForCardToExist(firstID);
 
 	dispatch(clearSelectedCards());
 	dispatch(doSelectCards(ids));
