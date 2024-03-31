@@ -62,7 +62,8 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 			${this._bodies.length ?
 		html`<p>Verify these bodies are ones you want to create!</p>
 			${this._bodies.map((body) => html`<textarea disabled .value=${body}></textarea>`)}` :
-		html`<p>Paste Google Docs bullets here to import them</p>
+		html`<input type='checkbox' id='bulleted' .checked=${false}><label for='bulleted'>Maintain list formatting</label><br />
+			<p>Paste Google Docs bullets here to import them</p>
 			<textarea
 				id='input'
 				@paste=${this._handleRawPaste}
@@ -88,7 +89,10 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		const target = e.target;
 		if (!target) throw new Error('No target');
 		if (!(target instanceof HTMLTextAreaElement)) throw new Error('target not textarea');
-		store.dispatch(processBulkImportContent(pastedData, false));
+		const checkbox = this.shadowRoot?.querySelector('input#bulleted') as HTMLInputElement | null;
+		//TODO: it's weird that this state is maintained not in actual state but just in the component itself.
+		if (!checkbox) throw new Error('No checkbox');
+		store.dispatch(processBulkImportContent(pastedData, !checkbox.checked));
 	}
 
 	_handleDoneClicked() {
