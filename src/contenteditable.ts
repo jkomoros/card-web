@@ -387,7 +387,7 @@ const processExtractedCardRun = (eles : HTMLElement[]) : string => {
 	//TODO: allow passing a topLevel node name, instead of assuming `ul`.
 	//The body machinery is actually pretty good at handling a lot of the weird
 	//formatting, so just lean on it!
-	const raw =`<ul>${eles.map(ele => ele.outerHTML)}</ul>`;
+	const raw =`<ul>${eles.map(ele => ele.outerHTML).join('')}</ul>`;
 	const clean = normalizeBodyHTML(raw);
 	return clean;
 };
