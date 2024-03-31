@@ -237,7 +237,7 @@ export const selectEditingUpdatedFromContentEditable = (state : State) => state.
 export const selectEditingPendingReferenceType = (state : State) : ReferenceType => state.editor ? state.editor.pendingReferenceType : 'ack';
 export const selectPendingSlug = (state : State) => state.editor ? state.editor.pendingSlug : '';
 const selectBaseFilters = (state : State) => state.collection ? state.collection.filters : {};
-const selectFiltersSnapshot = (state : State) => state.collection ? state.collection.filtersSnapshot : {};
+const selectBaseFiltersSnapshot = (state : State) => state.collection ? state.collection.filtersSnapshot : {};
 export const selectSections = (state : State) => state.data ? state.data.sections : {};
 export const selectTags = (state : State) => state.data ? state.data.tags : {};
 export const selectExpectedDeletions = (state : State) => state.data ? state.data.expectedDeletions : {};
@@ -438,6 +438,15 @@ export const selectKeyboardNavigates = createSelector(
 
 export const selectFilters = createSelector(
 	selectBaseFilters,
+	selectExplicitlySelectedCardIDs,
+	(baseFilters, selectedCards) : Filters => ({
+		...baseFilters,
+		[SELECTED_FILTER_NAME]: selectedCards
+	})
+);
+
+export const selectFiltersSnapshot = createSelector(
+	selectBaseFiltersSnapshot,
 	selectExplicitlySelectedCardIDs,
 	(baseFilters, selectedCards) : Filters => ({
 		...baseFilters,
