@@ -106,7 +106,7 @@ export const cardBadgesStyles = css`
 		right: 0.25em;
 	}
 
-	.badges-container .reading-list {
+	.badges-container .bottom-left {
 		position: absolute;
 		bottom:0.25em;
 		left: 0.25em;
@@ -141,7 +141,9 @@ export const cardBadges = (light : boolean, card : OptionalFieldsCard, badgeMap 
 			${badge('thread-count', FORUM_ICON, nonBlankCard?.thread_count || 0)}
 			${badge('duplicate', COPY_ALL_ICON, isDupe, true)}
 		</div>
-		${badge('reading-list', PLAYLISLT_ADD_CHECK_ICON, readingListMap[id])}
+		<div class='bottom-left'>
+			${badge('reading-list', PLAYLISLT_ADD_CHECK_ICON, readingListMap[id])}
+		</div>
 	</div>
     `;
 };
