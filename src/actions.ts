@@ -80,6 +80,9 @@ export const UPDATE_CTRL_KEY_PRESSED = 'UPDATE_CTRL_KEY_PRESSED';
 export const OPEN_CARDS_DRAWER_INFO = 'OPEN_CARDS_DRAWER_INFO';
 export const CLOSE_CARDS_DRAWER_INFO = 'CLOSE_CARDS_DRAWER_INFO';
 export const TURN_SUGGEST_MISSING_CONCEPTS = 'TURN_SUGGEST_MISSING_CONCEPTS';
+//BulkImport
+export const BULK_IMPORT_DIALOG_OPEN = 'BULK_IMPORT_DIALOG_OPEN';
+export const BULK_IMPORT_DIALOG_CLOSE = 'BULK_IMPORT_DIAOG_CLOSE';
 //Collection.js
 export const SHOW_CARD = 'SHOW_CARD';
 export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
@@ -343,6 +346,14 @@ type ActionCloseCardsDrawerInfo = {
 type ActionTurnSuggestedMissingConcepts = {
 	type: typeof TURN_SUGGEST_MISSING_CONCEPTS,
 	on: boolean
+};
+
+type ActionBulkImportDialogOpen = {
+	type: typeof BULK_IMPORT_DIALOG_OPEN
+};
+
+type ActionBulkImportDialogClose = {
+	type: typeof BULK_IMPORT_DIALOG_CLOSE
 };
 
 type ActionShowCard = {
@@ -987,6 +998,8 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionCloseCardsDrawerInfo
 	| ActionTurnSuggestedMissingConcepts
 	| ActionShowCard
+	| ActionBulkImportDialogOpen
+	| ActionBulkImportDialogClose
 	| ActionUpdateCollection
 	| ActionUpdateRenderOffset
 	| ActionUpdateCollectionSnapshot

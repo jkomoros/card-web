@@ -25,6 +25,11 @@ import {
 	State,
 } from '../types.js';
 
+import bulkImport from '../reducers/bulk-import.js';
+store.addReducers({
+	bulkImport
+});
+
 @customElement('bulk-import-dialog')
 class BulkImportDialog extends connect(store)(DialogElement) {
 
