@@ -75,7 +75,7 @@ class CardPreview extends LitElement {
 		return html`
       <div ?hidden='${!this.card}'>
 		<card-renderer .card=${this.card} .expandedReferenceBlocks=${this.expandedReferenceBlocks} style=${styleMap(cardRendererStyles)}></card-renderer>
-		${cardBadges(false, this.card, this.badgeMap)}
+		${cardBadges(false, this.card, this.badgeMap, false)}
       </div>
     `;
 	}

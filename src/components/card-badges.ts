@@ -115,12 +115,13 @@ export const cardBadgesStyles = css`
 `;
 
 //badgeMap is the result of selectBadgeMap (or null is fine); Warning: you also need to embed cardBadgeStyles at least once
-export const cardBadges = (light : boolean, card : OptionalFieldsCard, badgeMap : BadgeMap) => {
+export const cardBadges = (light : boolean, card : OptionalFieldsCard, badgeMap : BadgeMap, selectable : boolean) => {
 	if (!badgeMap) badgeMap = {
 		stars: {},
 		reads: {},
 		todos: {},
 		readingList: {},
+		selected: {}
 	};
 	const starMap = badgeMap.stars || {};
 	const readMap = badgeMap.reads || {};
@@ -142,6 +143,12 @@ export const cardBadges = (light : boolean, card : OptionalFieldsCard, badgeMap 
 			${badge('duplicate', COPY_ALL_ICON, isDupe, true)}
 		</div>
 		<div class='bottom-left'>
+			${selectable ? html`<input
+				type='checkbox'
+				.checked=${badgeMap.selected[id]}
+				data-card-id=${id}
+				></input>
+			` : ''}
 			${badge('reading-list', PLAYLISLT_ADD_CHECK_ICON, readingListMap[id])}
 		</div>
 	</div>

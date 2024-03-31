@@ -1166,6 +1166,7 @@ export interface BadgeMap {
 	reads: FilterMap,
 	todos: FilterMap,
 	readingList: CardBooleanMap,
+	selected: FilterMap
 }
 
 //TODO: tighten this
