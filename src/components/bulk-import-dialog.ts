@@ -70,6 +70,7 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 			<div class='buttons'>
 				<button
 					class='round'
+					?disabled=${!this._bodies.length}
 					@click='${this._handleDoneClicked}'
 				>
 					${CHECK_CIRCLE_OUTLINE_ICON}
@@ -86,19 +87,11 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		const target = e.target;
 		if (!target) throw new Error('No target');
 		if (!(target instanceof HTMLTextAreaElement)) throw new Error('target not textarea');
-		target.value = pastedData;
+		store.dispatch(processBulkImportContent(pastedData));
 	}
 
 	_handleDoneClicked() {
-		if (this._bodies.length) {
-			alert('Actually creating bodies not yet supported');
-			return;
-		}
-		if (!this.shadowRoot) throw new Error('No shadowRoot');
-		const input = this.shadowRoot.getElementById('input') as HTMLTextAreaElement;
-		if (!input) throw new Error('No input element');
-		const content = input.value;
-		store.dispatch(processBulkImportContent(content));
+		alert('Not yet implemented');
 	}
 
 	override _shouldClose() {
