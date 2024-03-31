@@ -340,6 +340,8 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	_handleSelectedClicked(e : MouseEvent) {
 
+		e.stopPropagation();
+
 		const target = e.composedPath()[0];
 
 		if (!(target instanceof HTMLInputElement)) {
