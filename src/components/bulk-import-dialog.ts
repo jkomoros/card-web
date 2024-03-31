@@ -60,11 +60,13 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		if (!this.open) return html``;
 		return html`<div>
 			${this._bodies.length ?
-		html`${this._bodies.map((body) => html`<textarea disabled>${body}</textarea>`)}` :
-		html`<textarea
-			id='input'
-			@paste=${this._handleRawPaste}
-			placeholder='Paste html here'>
+		html`<p>Verify these bodies are ones you want to create!</p>
+			${this._bodies.map((body) => html`<textarea disabled>${body}</textarea>`)}` :
+		html`<p>Paste Google Docs bullets here to import them</p>
+			<textarea
+				id='input'
+				@paste=${this._handleRawPaste}
+				placeholder='Paste html here'>
 			</textarea>`
 }
 			<div class='buttons'>
