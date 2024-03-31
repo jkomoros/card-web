@@ -176,6 +176,7 @@ const removeZombieSpans = (ele : Element) => {
 				const newChild = document.createElement('em');
 				newChild.innerHTML = child.innerHTML;
 				child.replaceWith(newChild);
+				//TODO: also check for bold formatting.
 			} else {
 				//Replace it with either just the text if it's only got 
 				child.replaceWith(...child.childNodes);
