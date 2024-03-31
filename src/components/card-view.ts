@@ -444,7 +444,29 @@ class CardView extends connect(store)(PageViewElement) {
 	override render() {
 		return html`
       <div class='container${this._editing ? ' editing' : ''} ${this._presentationMode ? 'presenting' : ''} ${this._mobileMode ? 'mobile' : ''}'>
-        <card-drawer class='${this._cardsDrawerPanelShowing ? 'showing' : ''}' .showing=${this._cardsDrawerPanelShowing} .collection=${this._collection} @info-zippy-clicked=${this._handleInfoZippyClicked} @thumbnail-tapped=${this._thumbnailActivatedHandler} @reorder-card=${this._handleReorderCard} @add-card='${this._handleAddCard}' @add-working-notes-card='${this._handleAddWorkingNotesCard}' @update-render-offset=${this._handleUpdateRenderOffset} .reorderable=${this._userMayReorderCollection} .showCreateCard=${this._userMayAddCardToActiveCollection} .showCreateWorkingNotes=${this._userMayCreateCard} .highlightedCardId=${this._card ? this._card.id : ''} .reorderPending=${this._drawerReorderPending} .ghostCardsThatWillBeRemoved=${true} .wordCloud=${this._collectionWordCloud} .infoExpanded=${this._infoExpanded} .infoCanBeExpanded=${true} .cardTypeToAdd=${this._cardTypeToAdd} .renderOffset=${this._renderOffset}>
+        <card-drawer
+				class='${this._cardsDrawerPanelShowing ? 'showing' : ''}'
+				.showing=${this._cardsDrawerPanelShowing}
+				.collection=${this._collection}
+				.selectable=${true}
+				@info-zippy-clicked=${this._handleInfoZippyClicked}
+				@thumbnail-tapped=${this._thumbnailActivatedHandler}
+				@reorder-card=${this._handleReorderCard}
+				@add-card='${this._handleAddCard}'
+				@add-working-notes-card='${this._handleAddWorkingNotesCard}'
+				@update-render-offset=${this._handleUpdateRenderOffset} 
+				.reorderable=${this._userMayReorderCollection}
+				.showCreateCard=${this._userMayAddCardToActiveCollection}
+				.showCreateWorkingNotes=${this._userMayCreateCard}
+				.highlightedCardId=${this._card ? this._card.id : ''}
+				.reorderPending=${this._drawerReorderPending}
+				.ghostCardsThatWillBeRemoved=${true}
+				.wordCloud=${this._collectionWordCloud}
+				.infoExpanded=${this._infoExpanded}
+				.infoCanBeExpanded=${true}
+				.cardTypeToAdd=${this._cardTypeToAdd}
+				.renderOffset=${this._renderOffset}
+			>
 			<div slot='info'>
 				${this._userIsAdmin ? html`
 				<input type='checkbox' .checked=${this._suggestMissingConceptsEnabled} @change=${this._handleSuggestMissingConceptsChanged} id='suggested-concepts-enabled'><label for='suggested-concepts-enabled'>Suggest Missing Concepts <strong>(SLOW)</strong></label><br/>

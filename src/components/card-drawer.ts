@@ -49,6 +49,9 @@ class CardDrawer extends LitElement {
 	@property({ type : Boolean })
 		reorderable: boolean;
 
+	@property({ type : Boolean })
+		selectable: boolean;
+
 	//If set, this is what type of card type will be added when add is
 	//pressed. This is used entirely for display within this component;
 	//the actual card adding is done by the parent component based on
@@ -173,7 +176,16 @@ class CardDrawer extends LitElement {
 					</div>
 					${this.collection && this.collection.description.viewMode == 'web' ?
 		html`<web-renderer .webInfo=${this.collection.webInfo} .highlightedCardId=${this.highlightedCardId}></web-renderer>` :
-		html`<card-thumbnail-list .collection=${this.collection} .grid=${this.grid} .reorderable=${this.reorderable} .fullCards=${this.fullCards} .highlightedCardId=${this.highlightedCardId} .ghostCardsThatWillBeRemoved=${this.ghostCardsThatWillBeRemoved} .renderOffset=${this.renderOffset}></card-thumbnail-list>`
+		html`<card-thumbnail-list
+				.collection=${this.collection}
+				.grid=${this.grid}
+				.reorderable=${this.reorderable}
+				.selectable=${this.selectable}
+				.fullCards=${this.fullCards}
+				.highlightedCardId=${this.highlightedCardId}
+				.ghostCardsThatWillBeRemoved=${this.ghostCardsThatWillBeRemoved}
+				.renderOffset=${this.renderOffset}>
+			</card-thumbnail-list>`
 }
 					
 				</div>

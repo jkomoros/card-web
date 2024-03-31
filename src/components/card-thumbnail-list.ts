@@ -79,6 +79,9 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		reorderable: boolean;
 
 	@property({ type : Boolean })
+		selectable: boolean;
+
+	@property({ type : Boolean })
 		ghostCardsThatWillBeRemoved: boolean;
 
 	@property({ type : String })
