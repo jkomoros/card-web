@@ -164,13 +164,23 @@ const removeZombieSpans = (ele : Element) => {
 		}
 	}
 
+	const document = getDocument();
+	if (!document) throw new Error('no document');
+
 	let removedZombies = false;
 	for (const child of Object.values(ele.children)) {
 		//Spans are legal to use if they have a classname, like 'small'.
 		if (!child.className && (child.localName == 'span' || child.localName == 'font')) {
-			//Replace it with either just the text if it's only got 
-			child.replaceWith(...child.childNodes);
-			removedZombies = true;
+			//Google Docs formatingg doesn't use em or strong, it uses a span with italics.
+			if (child.nodeType == ELEMENT_NODE && (child as HTMLElement).style.fontStyle == 'italic') {
+				const newChild = document.createElement('em');
+				newChild.innerHTML = child.innerHTML;
+				child.replaceWith(newChild);
+			} else {
+				//Replace it with either just the text if it's only got 
+				child.replaceWith(...child.childNodes);
+				removedZombies = true;
+			}
 		}
 		child.removeAttribute('style');
 		//content pasted from Google docs has these

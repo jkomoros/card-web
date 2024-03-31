@@ -368,7 +368,7 @@ describe('google doc bulk import', () => {
 		<ul>
 			<li><p>What’s the biggest thing I’ve noticed so far?</p>
 		</li>
-			<li><p>The quiet that comes from being disconnected from Slack.</p>
+			<li><p>The <em>quiet </em>that comes from being disconnected from Slack.</p>
 		</li>
 			<li><p>Slack is a background cacophony, a constant reminder that there are things happening all around you in your organization.</p>
 		</li>
