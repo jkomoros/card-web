@@ -36,6 +36,7 @@
           "tag-added",
           "tag-removed",
           "tag-new",
+          "card-selected",
           "show-need-signin",
           "thumbnail-tapped",
           "update-render-offset",

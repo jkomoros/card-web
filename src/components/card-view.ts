@@ -51,7 +51,9 @@ import {
 	updateCardSelector,
 	canonicalizeURL,
 	updateRenderOffset,
-	navigateToRandomCard
+	navigateToRandomCard,
+	selectCards,
+	unselectCards
 } from '../actions/collection.js';
 
 import {
@@ -184,6 +186,7 @@ import {
 } from '../reference_blocks.js';
 
 import {
+	CardSelectedEvent,
 	CardSwipedEvent,
 	DisabledCardHighlightClickedEvent,
 	EditabledCardFieldUpdatedEvent,
@@ -455,6 +458,7 @@ class CardView extends connect(store)(PageViewElement) {
 				@add-card='${this._handleAddCard}'
 				@add-working-notes-card='${this._handleAddWorkingNotesCard}'
 				@update-render-offset=${this._handleUpdateRenderOffset} 
+				@card-selected=${this._handleCardSelected}
 				.reorderable=${this._userMayReorderCollection}
 				.showCreateCard=${this._userMayAddCardToActiveCollection}
 				.showCreateWorkingNotes=${this._userMayCreateCard}
@@ -531,6 +535,13 @@ class CardView extends connect(store)(PageViewElement) {
 	_handleUpdateRenderOffset(e : UpdateRenderOffsetEvent) {
 		if (this._editing) return;
 		store.dispatch(updateRenderOffset(e.detail.value));
+	}
+
+	_handleCardSelected(e : CardSelectedEvent) {
+		if (e.detail.selected) {
+			store.dispatch(selectCards([e.detail.card]));
+		}
+		store.dispatch(unselectCards([e.detail.card]));
 	}
 
 	_handleEditClicked() {
