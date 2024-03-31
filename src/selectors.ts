@@ -219,6 +219,7 @@ const selectActiveViewMode = (state : State) : ViewMode => state.collection ? st
 const selectActiveViewModeExtra = (state : State) => state.collection ? state.collection.activeViewModeExtra : '';
 export const selectRequestedCard = (state : State) => state.collection? state.collection.requestedCard : '';
 export const selectActiveCardID = (state : State) => state.collection ? state.collection.activeCardID : '';
+export const selectExplicitlySelectedCardIDs = (state : State) => state.collection ? state.collection.selectedCards : {};
 const selectRandomSalt = (state : State) => state.collection ? state.collection.randomSalt : '';
 //Note that the editing card doesn't have nlp/normalized text properties set. If
 //you want the one with that, look at selectEditingNormalizedCard.
@@ -1520,11 +1521,16 @@ export const selectUserMayReorderActiveCollection = createSelector(
 	(userMayEditCards, collection) => Boolean(userMayEditCards && collection && collection.reorderable)
 );
 
-//TODO: implement a proper notion of selected cards. For now we just use all
-//active cards in the collection.
+//This is the effective selected cards, which is either the explicitly selected
+//cards, or just the active collection if there are no explicitly selected cards.
 export const selectSelectedCards = createSelector(
+	selectCards,
+	selectExplicitlySelectedCardIDs,
 	selectActiveCollection,
-	(collection) => collection ? collection.filteredCards || [] : []
+	(cards, selected, collection) => {
+		if (Object.keys(selected).length) return Object.keys(selected).map(id => cards[id]);
+		return collection ? collection.filteredCards || [] : [];
+	}
 );
 
 export const selectSelectedCardsReferencesUnion = createSelector(

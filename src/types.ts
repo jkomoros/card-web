@@ -1238,6 +1238,9 @@ export type CollectionState = {
 	//the sort order doesn't change randomly) but be different across sessions.
 	randomSalt: string,
 	activeRenderOffset: number,
+	//This is the set of cards that are currently selected. Selection state is
+	//ephemeral and not persisted.
+	selectedCards: FilterMap
 }
 
 export type CommentsState = {
