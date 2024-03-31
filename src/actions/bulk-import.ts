@@ -29,12 +29,12 @@ export const closeBulkImportDialog = () : SomeAction =>  ({
 	type: BULK_IMPORT_DIALOG_CLOSE
 });
 
-export const processBulkImportContent = (content : string) : SomeAction => {
-	const bodies = importBodiesFromGoogleDocs(content, 'bulleted');
+export const processBulkImportContent = (content : string, flat : boolean) : SomeAction => {
+	const bodies = importBodiesFromGoogleDocs(content, flat ? 'flat' : 'bulleted');
 	return {
 		type: BULK_IMPORT_SET_BODIES,
 		bodies,
-		importer: 'google-docs-bulleted',
+		importer: flat ? 'google-docs-flat' : 'google-docs-bulleted',
 		importerVersion: 1
 	};
 };

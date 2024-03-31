@@ -88,7 +88,7 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		const target = e.target;
 		if (!target) throw new Error('No target');
 		if (!(target instanceof HTMLTextAreaElement)) throw new Error('target not textarea');
-		store.dispatch(processBulkImportContent(pastedData));
+		store.dispatch(processBulkImportContent(pastedData, false));
 	}
 
 	_handleDoneClicked() {

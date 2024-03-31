@@ -724,7 +724,7 @@ export type ReferenceTypeConfigurationMap = {
 
 export type CardTestFunc = (card : Card) => boolean;
 
-export type ImporterType = 'google-docs-bulleted';
+export type ImporterType = 'google-docs-bulleted' | 'google-docs-flat';
 
 //A set of extra little metadata
 export type CardFlags = {
