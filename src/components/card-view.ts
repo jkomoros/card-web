@@ -43,7 +43,8 @@ import {
 	selectUserMayUseAI,
 	selectIsEditing,
 	selectSuggestionsForActiveCard,
-	selectSuggestionsOpen
+	selectSuggestionsOpen,
+	selectCardsSelected
 } from '../selectors.js';
 
 import {
@@ -256,6 +257,9 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_editingCard: Card | null;
+
+	@state()
+		_cardsSelected : boolean;
 
 	@state()
 		_commentsAndInfoPanelOpen : boolean;
@@ -716,6 +720,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._displayCard = this._editingCard ? this._editingCard : this._card;
 		this._pageExtra = state.app.pageExtra;
 		this._editing = selectIsEditing(state);
+		this._cardsSelected = selectCardsSelected(state);
 		this._hideActions = selectIsEditing(state) || selectSuggestionsOpen(state);
 		this._editorMinimized = selectEditorMinimized(state);
 		this._signedIn = selectUserSignedIn(state);
