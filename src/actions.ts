@@ -86,6 +86,9 @@ export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
 export const UPDATE_RENDER_OFFSET = 'UPDATE_RENDER_OFFSET';
 export const UPDATE_COLLECTION_SHAPSHOT = 'UPDATE_COLLECTION_SHAPSHOT';
 export const RANDOMIZE_SALT = 'RANDOMIZE_SALT';
+export const SELECT_CARDS = 'SELECT_CARDS';
+export const UNSELECT_CARDS = 'UNSELECT_CARDS';
+export const CLEAR_SELECTED_CARDS = 'CLEAR_SELECTED_CARDS';
 //Comments
 export const COMMENTS_UPDATE_THREADS = 'COMMENTS_UPDATE_THREADS';
 export const COMMENTS_UPDATE_MESSAGES = 'COMMENTS_UPDATE_MESSAGES';
@@ -369,6 +372,20 @@ type ActionUpdateCollectionSnapshot = {
 
 type ActionRandomizeSalt = {
 	type: typeof RANDOMIZE_SALT
+};
+
+type ActionSelectCards = {
+	type: typeof SELECT_CARDS,
+	cards: CardID[]
+};
+
+type ActionUnselectCards = {
+	type: typeof UNSELECT_CARDS,
+	cards: CardID[]
+};
+
+type ActionClearSelectedCards = {
+	type: typeof CLEAR_SELECTED_CARDS
 };
 
 type ActionCommentsUpdateThreads = {
@@ -974,6 +991,9 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionUpdateRenderOffset
 	| ActionUpdateCollectionSnapshot
 	| ActionRandomizeSalt
+	| ActionSelectCards
+	| ActionUnselectCards
+	| ActionClearSelectedCards
 	| ActionCommentsUpdateThreads
 	| ActionCommentsUpdateMessages
 	| ActionUpdateCards

@@ -72,9 +72,12 @@ import {
 } from '../types.js';
 
 import {
+	CLEAR_SELECTED_CARDS,
 	RANDOMIZE_SALT,
+	SELECT_CARDS,
 	SHOW_CARD,
 	SomeAction,
+	UNSELECT_CARDS,
 	UPDATE_COLLECTION,
 	UPDATE_COLLECTION_SHAPSHOT,
 	UPDATE_RENDER_OFFSET
@@ -493,4 +496,24 @@ export const waitForFinalCollection = async (description : CollectionDescription
 	if (!collection) throw new Error('We somehow settled without a collection');
 
 	return collection;
+};
+
+export const selectCards = (cards : CardID[]) : SomeAction => {
+	return {
+		type: SELECT_CARDS,
+		cards
+	};
+};
+
+export const unselectCards = (cards : CardID[]) : SomeAction => {
+	return {
+		type: UNSELECT_CARDS,
+		cards
+	};
+};
+
+export const clearSelectedCards = () : SomeAction => {
+	return {
+		type: CLEAR_SELECTED_CARDS
+	};
 };

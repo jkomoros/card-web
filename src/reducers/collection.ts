@@ -12,6 +12,9 @@ import {
 	UPDATE_READS,
 	UPDATE_READING_LIST,
 	SomeAction,
+	SELECT_CARDS,
+	UNSELECT_CARDS,
+	CLEAR_SELECTED_CARDS,
 } from '../actions.js';
 
 import {
@@ -110,6 +113,24 @@ const app = (state : CollectionState = INITIAL_STATE, action : SomeAction) : Col
 		return {
 			...state,
 			randomSalt: randomString(16)
+		};
+	case SELECT_CARDS:
+		return {
+			...state,
+			selectedCards: {
+				...state.selectedCards,
+				...Object.fromEntries(action.cards.map(id => [id, true]))
+			}
+		};
+	case UNSELECT_CARDS:
+		return {
+			...state,
+			selectedCards: Object.fromEntries(Object.entries(state.selectedCards).filter(([id, _]) => !action.cards.includes(id)))
+		};
+	case CLEAR_SELECTED_CARDS:
+		return {
+			...state,
+			selectedCards: {}
 		};
 	default:
 		return state;
