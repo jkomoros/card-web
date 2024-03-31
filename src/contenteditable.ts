@@ -261,6 +261,7 @@ const cleanUpTopLevelHTML = (html : string, legalTopLevelNodes : HTMLTagMap = DE
 			//content pasted from Google docs has these
 			ele.removeAttribute('role');
 			ele.removeAttribute('dir');
+			ele.removeAttribute('aria-level');
 			removeZombieSpans(ele);
 
 			let inner = ele.innerHTML;
