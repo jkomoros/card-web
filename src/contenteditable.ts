@@ -388,7 +388,9 @@ const processUL = (ul : HTMLUListElement) : string => {
 };
 
 export const importBodiesFromGoogleDocs = (content : string) : string[] => {
-	const ele = document.createElement('div');
+	const doc = getDocument();
+	if (!doc) throw new Error('No document');
+	const ele = doc.createElement('div');
 	ele.innerHTML = content;
 	const uls = extractTopLevelULs(ele);
 	return uls.map(processUL);
