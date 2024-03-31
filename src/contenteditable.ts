@@ -425,13 +425,43 @@ const extractGoogleDocCardRuns = (ele : HTMLUListElement) : HTMLElement[][] => {
 	return result;
 };
 
+const flattenAppendChildren = (ele : HTMLElement, result : string[]) => {
+	for (const child of ele.children) {
+		if (child.nodeType != ELEMENT_NODE) continue;
+		const childEle = child as HTMLElement;
+		if (childEle.nodeName == 'LI') {
+			result.push(childEle.innerHTML);
+			continue;
+		}
+		if (childEle.nodeName == 'UL') {
+			flattenAppendChildren(childEle, result);
+			continue;
+		}
+		result.push(childEle.outerHTML);
+	}
+};
+
+const flattenLists = (body : string) : string => {
+	//Takes an html string that includes ul / li and makes them just a flat list of paragraphs.
+	const ele = elementForHTML(body);
+	const result : string[] = [];
+	flattenAppendChildren(ele, result);
+	const html = result.join('\n');
+	return normalizeBodyHTML(html);
+};
+
 export const importBodiesFromGoogleDocs = (content : string, mode : 'bulleted' | 'flat') : string[] => {
-	if (mode == 'flat') throw new Error('not yet supported');
 	const doc = getDocument();
 	if (!doc) throw new Error('No document');
 	const ele = doc.createElement('div');
 	ele.innerHTML = content;
 	const uls = extractTopLevelULs(ele);
 	const runs = uls.map(extractGoogleDocCardRuns).flat();
-	return runs.map(processExtractedCardRun);
+	const result : string[] = [];
+	for (const run of runs) {
+		let body = processExtractedCardRun(run);
+		if (mode == 'flat') body = flattenLists(body);
+		result.push(body);
+	}
+	return result;
 };
