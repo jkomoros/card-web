@@ -10,8 +10,8 @@ import { DialogElement } from './dialog-element.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
-	closeAIDialog,
-} from '../actions/ai.js';
+	closeBulkImportDialog
+} from '../actions/bulk-import.js';
 
 import {
 	CHECK_CIRCLE_OUTLINE_ICON,
@@ -64,12 +64,12 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleDoneClicked() {
-		store.dispatch(closeAIDialog(true));
+		store.dispatch(closeBulkImportDialog());
 	}
 
 	override _shouldClose() {
 		//Override base class.
-		store.dispatch(closeAIDialog(false));
+		store.dispatch(closeBulkImportDialog());
 	}
 
 	override stateChanged(state : State) {
