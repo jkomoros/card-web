@@ -41,6 +41,13 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		...DialogElement.styles,
 		ButtonSharedStyles,
 		css`
+
+			textarea {
+				flex-grow:1;
+				width:100%;
+				height:5em;
+			}
+
 			.buttons {
 				display:flex;
 				flex-direction: row;
