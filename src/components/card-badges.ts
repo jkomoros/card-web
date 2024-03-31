@@ -114,8 +114,11 @@ export const cardBadgesStyles = css`
 	${badgeStyles}
 `;
 
-//badgeMap is the result of selectBadgeMap (or null is fine); Warning: you also need to embed cardBadgeStyles at least once
-export const cardBadges = (light : boolean, card : OptionalFieldsCard, badgeMap : BadgeMap, selectable : boolean) => {
+//badgeMap is the result of selectBadgeMap (or null is fine); Warning: you also
+//need to embed cardBadgeStyles at least once If selectTarget is passed, then it
+//will render a checkbox that will have that method called with the ven ton
+//change. If not provided, it will not render a select checkbox.
+export const cardBadges = (light : boolean, card : OptionalFieldsCard, badgeMap : BadgeMap, selectTarget? : (e : MouseEvent) => void) => {
 	if (!badgeMap) badgeMap = {
 		stars: {},
 		reads: {},
@@ -143,9 +146,10 @@ export const cardBadges = (light : boolean, card : OptionalFieldsCard, badgeMap 
 			${badge('duplicate', COPY_ALL_ICON, isDupe, true)}
 		</div>
 		<div class='bottom-left'>
-			${selectable ? html`<input
+			${selectTarget ? html`<input
 				type='checkbox'
 				.checked=${badgeMap.selected[id]}
+				@change=${selectTarget}
 				data-card-id=${id}
 				></input>
 			` : ''}
