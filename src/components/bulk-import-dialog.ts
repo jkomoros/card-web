@@ -10,7 +10,7 @@ import { DialogElement } from './dialog-element.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
-	closeBulkImportDialog
+	closeBulkImportDialog, processBulkImportContent
 } from '../actions/bulk-import.js';
 
 import {
@@ -52,7 +52,10 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 	override innerRender() {
 		if (!this.open) return html``;
 		return html`<div>
-			<h1>Hello, world!</h1>
+			${this._bodies.length ?
+		html`${this._bodies.map((body) => html`<textarea disabled>${body}</textarea>`)}` :
+		html`<textarea id='input' placeholder='Paste html here'></textarea>`
+}
 			<div class='buttons'>
 				<button
 					class='round'
@@ -65,7 +68,15 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleDoneClicked() {
-		store.dispatch(closeBulkImportDialog());
+		if (this._bodies.length) {
+			alert('Actually creating bodies not yet supported');
+			return;
+		}
+		if (!this.shadowRoot) throw new Error('No shadowRoot');
+		const input = this.shadowRoot.getElementById('input') as HTMLTextAreaElement;
+		if (!input) throw new Error('No input element');
+		const content = input.value;
+		store.dispatch(processBulkImportContent(content));
 	}
 
 	override _shouldClose() {
