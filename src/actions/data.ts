@@ -106,6 +106,7 @@ import {
 	sortOrderIsDangerous,
 	EMPTY_CARD_ID,
 	isNewCardIDPlaceholder,
+	DEFAULT_SORT_ORDER_INCREMENT,
 
 } from '../card_fields.js';
 
@@ -724,9 +725,10 @@ export const bulkCreateWorkingNotes = (bodies : string[]) : ThunkSomeAction => a
 
 	const ids : CardID[] = [];
 
+	let sortOrder = selectSortOrderForGlobalAppend(state);
+
 	for (const body of bodies) {
 		const id = newID();
-		const sortOrder = selectSortOrderForGlobalAppend(state);
 		if (sortOrderIsDangerous(sortOrder)) {
 			console.warn('Dangerous sort order proposed: ', sortOrder, sortOrder / Number.MAX_VALUE, ' See issue #199');
 			return;
@@ -735,6 +737,7 @@ export const bulkCreateWorkingNotes = (bodies : string[]) : ThunkSomeAction => a
 		obj.body = body;
 		batch.set(doc(db, CARDS_COLLECTION, id), obj);
 		ids.push(id);
+		sortOrder -= DEFAULT_SORT_ORDER_INCREMENT;
 	}
 
 	//TODO: do we need to do anything with EXPECT_NEW_CARD here?
