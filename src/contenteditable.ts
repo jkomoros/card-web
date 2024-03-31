@@ -392,6 +392,8 @@ const processExtractedCardRun = (eles : HTMLElement[]) : string => {
 	return clean;
 };
 
+//A run is one or more elements that should go together into a card.
+//Right now it's assuming that it's a li plus the ul after it (if there is one).
 const extractGoogleDocCardRuns = (ele : HTMLUListElement) : HTMLElement[][] => {
 	const result : HTMLElement[][] = [];
 	let innerResult : HTMLElement[] = [];
