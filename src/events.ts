@@ -25,6 +25,7 @@ const SHOW_NEED_SIGNIN_EVENT_NAME = 'show-need-signin';
 const THUMBNAIL_TAPPED_EVENT_NAME = 'thumbnail-tapped';
 const UPDATE_RENDER_OFFSET_EVENT_NAME = 'update-render-offset';
 export const CARD_HOVERED_EVENT_NAME = 'card-hovered';
+const CARD_SELECTED_EVENT_NAME = 'card-selected';
 const DIALOG_SHOULD_CLOSE_EVENT_NAME = 'dialog-should-close';
 const COMMENT_EDIT_MESSAGE_NAME = 'message-edit';
 const COMMENT_DELETE_MESSAGE_NAME = 'message-delete';
@@ -81,6 +82,17 @@ export type CardHoveredEvent = CustomEvent<CardHoveredEventDetail>;
 
 export const makeCardHoveredEvent = (card : CardID, x : number, y : number) : CardHoveredEvent => {
 	return new CustomEvent(CARD_HOVERED_EVENT_NAME, {composed : true, detail: {card, x, y}});
+};
+
+type CardSelectedEventDetail = {
+	card : CardID;
+	selected: boolean;
+}
+
+export type CardSelectedEvent = CustomEvent<CardSelectedEventDetail>;
+
+export const makeCardSelectedEvent = (card : CardID, selected: boolean) : CardSelectedEvent => {
+	return new CustomEvent(CARD_SELECTED_EVENT_NAME, {composed : true, detail: {card, selected}});
 };
 
 type ThumbnailTappedDetail = {
