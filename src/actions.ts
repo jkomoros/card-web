@@ -83,6 +83,7 @@ export const TURN_SUGGEST_MISSING_CONCEPTS = 'TURN_SUGGEST_MISSING_CONCEPTS';
 //BulkImport
 export const BULK_IMPORT_DIALOG_OPEN = 'BULK_IMPORT_DIALOG_OPEN';
 export const BULK_IMPORT_DIALOG_CLOSE = 'BULK_IMPORT_DIAOG_CLOSE';
+export const BULK_IMPORT_SET_BODIES = 'BULK_IMPORT_SET_BODIES';
 //Collection.js
 export const SHOW_CARD = 'SHOW_CARD';
 export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
@@ -354,6 +355,11 @@ type ActionBulkImportDialogOpen = {
 
 type ActionBulkImportDialogClose = {
 	type: typeof BULK_IMPORT_DIALOG_CLOSE
+};
+
+type ActionBulkImportSetBodies = {
+	type: typeof BULK_IMPORT_SET_BODIES,
+	bodies: string[]
 };
 
 type ActionShowCard = {
@@ -1000,6 +1006,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionShowCard
 	| ActionBulkImportDialogOpen
 	| ActionBulkImportDialogClose
+	| ActionBulkImportSetBodies
 	| ActionUpdateCollection
 	| ActionUpdateRenderOffset
 	| ActionUpdateCollectionSnapshot

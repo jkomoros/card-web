@@ -1,6 +1,7 @@
 import {
 	BULK_IMPORT_DIALOG_CLOSE,
 	BULK_IMPORT_DIALOG_OPEN,
+	BULK_IMPORT_SET_BODIES,
 	SomeAction
 } from '../actions.js';
 
@@ -25,6 +26,11 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 			...state,
 			open: true,
 			bodies: []
+		};
+	case BULK_IMPORT_SET_BODIES:
+		return {
+			...state,
+			bodies: [...action.bodies]
 		};
 	default:
 		return state;
