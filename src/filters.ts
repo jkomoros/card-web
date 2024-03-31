@@ -144,6 +144,9 @@ const MISSING_CONCEPT_FILTER_NAME = 'missing-concept';
 const SAME_TYPE_FILTER_NAME = 'same-type';
 const DIFFERENT_TYPE_FILTER_NAME = 'different-type';
 
+export const SELECTED_FILTER_NAME = 'selected';
+const NOT_SELECTED_FILTER_NAME = 'not-selected';
+
 /*
 * filterEquivalent - the name of the filter that, when applied to the everything
   set, will filter down to contain just the items in that set (although
@@ -1991,6 +1994,7 @@ export const INVERSE_FILTER_NAMES = Object.assign(
 	{
 		'unstarred': 'starred',
 		'unread': 'read',
+		[NOT_SELECTED_FILTER_NAME]: SELECTED_FILTER_NAME,
 		[ALL_FILTER_NAME]: NONE_FILTER_NAME,
 		[TODO_COMBINED_INVERSE_FILTER_NAME]: TODO_COMBINED_FILTER_NAME,
 	},

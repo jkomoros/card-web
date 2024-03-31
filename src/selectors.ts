@@ -25,7 +25,8 @@ import {
 	limitFilter,
 	excludeFilter,
 	cardsFilter,
-	cardTypeFilter
+	cardTypeFilter,
+	SELECTED_FILTER_NAME
 } from './filters.js';
 
 import {
@@ -155,7 +156,8 @@ import {
 	ViewMode,
 	ReferenceType,
 	SortExtra,
-	CardDiff
+	CardDiff,
+	Filters
 } from './types.js';
 
 import {
@@ -231,7 +233,7 @@ export const selectEditorMinimized = (state : State) => state.editor ? state.edi
 export const selectEditingUpdatedFromContentEditable = (state : State) => state.editor ? state.editor.updatedFromContentEditable : {};
 export const selectEditingPendingReferenceType = (state : State) : ReferenceType => state.editor ? state.editor.pendingReferenceType : 'ack';
 export const selectPendingSlug = (state : State) => state.editor ? state.editor.pendingSlug : '';
-export const selectFilters = (state : State) => state.collection ? state.collection.filters : {};
+const selectBaseFilters = (state : State) => state.collection ? state.collection.filters : {};
 const selectFiltersSnapshot = (state : State) => state.collection ? state.collection.filtersSnapshot : {};
 export const selectSections = (state : State) => state.data ? state.data.sections : {};
 export const selectTags = (state : State) => state.data ? state.data.tags : {};
@@ -429,6 +431,15 @@ export const selectKeyboardNavigates = createSelector(
 	selectFindDialogOpen,
 	selectComposeOpen,
 	(editing, find, compose) => !editing && !find && !compose
+);
+
+export const selectFilters = createSelector(
+	selectBaseFilters,
+	selectExplicitlySelectedCardIDs,
+	(baseFilters, selectedCards) : Filters => ({
+		...baseFilters,
+		[SELECTED_FILTER_NAME]: selectedCards
+	})
 );
 
 //This is just the userPermissions fetched; for the actual permissions object in
