@@ -10,7 +10,7 @@ import { DialogElement } from './dialog-element.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
-	closeBulkImportDialog, processBulkImportContent
+	closeBulkImportDialog, commitBulkImport, processBulkImportContent
 } from '../actions/bulk-import.js';
 
 import {
@@ -93,7 +93,7 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 	}
 
 	_handleDoneClicked() {
-		alert('Not yet implemented');
+		store.dispatch(commitBulkImport());
 	}
 
 	override _shouldClose() {
