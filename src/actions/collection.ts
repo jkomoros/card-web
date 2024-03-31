@@ -498,7 +498,8 @@ export const waitForFinalCollection = async (description : CollectionDescription
 	return collection;
 };
 
-export const selectCards = (cards : CardID[]) : SomeAction => {
+//Funky name to avoid colliding with selectCards selector
+export const doSelectCards = (cards : CardID[]) : SomeAction => {
 	return {
 		type: SELECT_CARDS,
 		cards

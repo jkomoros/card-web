@@ -53,7 +53,7 @@ import {
 	canonicalizeURL,
 	updateRenderOffset,
 	navigateToRandomCard,
-	selectCards,
+	doSelectCards,
 	unselectCards,
 	clearSelectedCards
 } from '../actions/collection.js';
@@ -578,7 +578,7 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_handleCardSelected(e : CardSelectedEvent) {
 		if (e.detail.selected) {
-			store.dispatch(selectCards([e.detail.card]));
+			store.dispatch(doSelectCards([e.detail.card]));
 			return;
 		}
 		store.dispatch(unselectCards([e.detail.card]));
@@ -594,7 +594,7 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_handleAddCollectionToSelectionClicked() {
 		if (!this._collection) return;
-		store.dispatch(selectCards(this._collection.filteredCards.map(c => c.id)));
+		store.dispatch(doSelectCards(this._collection.filteredCards.map(c => c.id)));
 	}
 
 	_handleForkClicked() {
