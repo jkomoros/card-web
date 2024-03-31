@@ -57,7 +57,8 @@ import {
 	makeCardHoveredEvent,
 	makeThumbnailTappedEvent,
 	makeUpdateRenderOffsetEvent,
-	makeReorderCardEvent
+	makeReorderCardEvent,
+	makeCardSelectedEvent
 } from '../events.js';
 
 //How many cards to cap the rendering limit at (unless overriden by the parent
@@ -333,6 +334,22 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	_handlePreviousClicked() {
 		this.dispatchEvent(makeUpdateRenderOffsetEvent(Math.max(0, this.renderOffset - this._offsetChunk)));
+	}
+
+	_handleSelectedClicked(e : MouseEvent) {
+
+		const target = e.composedPath()[0];
+
+		if (!(target instanceof HTMLInputElement)) {
+			throw new Error('not an input element');
+		}
+
+		const card = target.dataset.card;
+		const selected = target.checked;
+
+		if (!card) throw new Error('no card');
+
+		this.dispatchEvent(makeCardSelectedEvent(card, selected));
 	}
 
 	get _cards() {
