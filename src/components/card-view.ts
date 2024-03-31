@@ -481,9 +481,18 @@ class CardView extends connect(store)(PageViewElement) {
 				<button id ='ai-assistant-concepts' class='small' title='Suggest Missing Concepts with AI' @click=${this._handleAIAssistantConceptsClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assitant-concepts'>Suggest Missing Concepts</label><br/>` : ''}
 				<button id='configure-collection' class='small' title='Configure Collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure Collection</label>
 			</div>
-			${this._collection?.description.isRandom ? html`<div slot='visible-info'>
-				<button id='randomize' class='small' title='Randomize (⌘⌥R)' @click=${this._handleRandomizeClicked}>${CASINO_ICON}</button><label for='randomize'>Randomize</label>
-			</div>` : ''}
+			<div slot='visible-info'>
+				${this._collection?.description.isRandom ? html`
+					<button
+						id='randomize'
+						class='small'
+						title='Randomize (⌘⌥R)'
+						@click=${this._handleRandomizeClicked}>
+							${CASINO_ICON}
+						</button>
+						<label for='randomize'>Randomize</label>
+				` : ''}
+			</div>
 		</card-drawer>
         <div id='center'>
 			<card-stage .highPadding=${true} .presenting=${this._presentationMode} .dataIsFullyLoaded=${this._dataIsFullyLoaded} .editing=${this._editing} .hideActions=${this._hideActions} .mobile=${this._mobileMode} .card=${this._displayCard} .expandedReferenceBlocks=${this._cardReferenceBlocks} .suggestedConcepts=${this._suggestedConcepts || []} .updatedFromContentEditable=${this._updatedFromContentEditable} @editable-card-field-updated=${this._handleTextFieldUpdated} @card-swiped=${this._handleCardSwiped} @disabled-card-highlight-clicked=${this._handleDisabledCardHighlightClicked}>
