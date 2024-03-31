@@ -166,6 +166,7 @@ import {
 	CreateCardOpts,
 	TweetMap,
 	CardFetchType,
+	CardFlags,
 } from '../types.js';
 
 import {
@@ -706,7 +707,7 @@ export const defaultCardObject = (id : CardID, user : UserInfo, section : Sectio
 	};
 };
 
-export const bulkCreateWorkingNotes = (bodies : string[]) : ThunkSomeAction => async (dispatch, getState) => {
+export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : ThunkSomeAction => async (dispatch, getState) => {
 	const WORKING_NOTES_CONFIG = CARD_TYPE_CONFIGURATION['working-notes'];
 	//Sanity check that working-notes is configured in a way we expect.
 	if (!WORKING_NOTES_CONFIG) throw new Error('No working notes config');
@@ -735,6 +736,7 @@ export const bulkCreateWorkingNotes = (bodies : string[]) : ThunkSomeAction => a
 		}
 		const obj = defaultCardObject(id, user, '', 'working-notes', sortOrder);
 		obj.body = body;
+		if (flags) obj.flags = {...flags};
 		batch.set(doc(db, CARDS_COLLECTION, id), obj);
 		ids.push(id);
 		sortOrder -= DEFAULT_SORT_ORDER_INCREMENT;

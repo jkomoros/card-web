@@ -724,13 +724,17 @@ export type ReferenceTypeConfigurationMap = {
 
 export type CardTestFunc = (card : Card) => boolean;
 
+type ImporterType = 'google-docs-bulleted';
+
 //A set of extra little metadata
 export type CardFlags = {
 	created_by_suggestor? : SuggestionType
 	//The version the suggestor was that created the card. Helps trace quality errors.
 	created_by_suggestor_version? : number,
 	converted_by_suggestor? : SuggestionType,
-	converted_by_suggestor_version? : number
+	converted_by_suggestor_version? : number,
+	importer? : ImporterType,
+	importer_version? : number
 };
 
 export type CardFlagsRemovals = Partial<Record<keyof CardFlags, true>>;
