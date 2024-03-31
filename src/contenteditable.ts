@@ -382,19 +382,31 @@ const extractTopLevelULs = (ele : HTMLElement) : HTMLUListElement[] => {
 	return result;
 };
 
-const processLI = (li : HTMLLIElement) : string => {
-	//TODO: process and simplify
-	return li.innerHTML;
+const processExtractedCardRun = (eles : HTMLElement[]) : string => {
+	//The body machinery is actually pretty good at handling a lot of the weird
+	//formatting, so just lean on it!
+	const raw =`<ul>${eles.map(ele => ele.outerHTML)}</ul>`;
+	const clean = normalizeBodyHTML(raw);
+	return clean;
 };
 
-const extractTopLevelLIs = (ele : HTMLUListElement) : HTMLLIElement[] => {
-	const result : HTMLLIElement[] = [];
+const extractGoogleDocCardRuns = (ele : HTMLUListElement) : HTMLElement[][] => {
+	const result : HTMLElement[][] = [];
+	let innerResult : HTMLElement[] = [];
 	for (const child of ele.children) {
 		if (child.tagName === 'LI') {
-			result.push(child as HTMLLIElement);
+			if (innerResult.length) {
+				result.push(innerResult);
+				innerResult = [];
+			}
+			innerResult.push(child as HTMLLIElement);
 			continue;
 		}
+		if (child.tagName === 'UL') {
+			innerResult.push(child as HTMLUListElement);
+		}
 	}
+	if (innerResult.length) result.push(innerResult);
 	return result;
 };
 
@@ -404,6 +416,6 @@ export const importBodiesFromGoogleDocs = (content : string) : string[] => {
 	const ele = doc.createElement('div');
 	ele.innerHTML = content;
 	const uls = extractTopLevelULs(ele);
-	const lis = uls.map(extractTopLevelLIs).flat();
-	return lis.map(processLI);
+	const runs = uls.map(extractGoogleDocCardRuns).flat();
+	return runs.map(processExtractedCardRun);
 };
