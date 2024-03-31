@@ -28,6 +28,7 @@ import {
 	EditorTab,
 	ImageInfoProperty,
 	ImageInfoPropertyValue,
+	ImporterType,
 	MaintenanceTaskMap,
 	PermissionType,
 	ProcessedCard,
@@ -359,7 +360,9 @@ type ActionBulkImportDialogClose = {
 
 type ActionBulkImportSetBodies = {
 	type: typeof BULK_IMPORT_SET_BODIES,
-	bodies: string[]
+	bodies: string[],
+	importer: ImporterType,
+	importerVersion: number
 };
 
 type ActionShowCard = {

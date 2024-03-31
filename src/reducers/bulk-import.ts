@@ -11,7 +11,9 @@ import {
 
 const INITIAL_STATE : BulkImportState = {
 	open: false,
-	bodies: []
+	bodies: [],
+	importer: '',
+	importerVersion: 0
 };
 
 const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : BulkImportState => {
@@ -25,12 +27,16 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 		return {
 			...state,
 			open: true,
-			bodies: []
+			bodies: [],
+			importer: '',
+			importerVersion: 0
 		};
 	case BULK_IMPORT_SET_BODIES:
 		return {
 			...state,
-			bodies: [...action.bodies]
+			bodies: [...action.bodies],
+			importer: action.importer,
+			importerVersion: action.importerVersion
 		};
 	default:
 		return state;

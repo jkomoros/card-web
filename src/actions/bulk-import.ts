@@ -10,7 +10,7 @@ import {
 } from '../contenteditable.js';
 
 import {
-	selectBulkImportDialogBodies
+	selectBulkImportDialogBodies, selectBulkImportDialogImporter, selectBulkImportDialogImporterVersion
 } from '../selectors.js';
 
 import {
@@ -33,7 +33,9 @@ export const processBulkImportContent = (content : string) : SomeAction => {
 	const bodies = importBodiesFromGoogleDocs(content);
 	return {
 		type: BULK_IMPORT_SET_BODIES,
-		bodies
+		bodies,
+		importer: 'google-docs-bulleted',
+		importerVersion: 1
 	};
 };
 
@@ -41,5 +43,8 @@ export const commitBulkImport = () : ThunkSomeAction => (dispatch, getState) => 
 	const state = getState();
 	const bodies = selectBulkImportDialogBodies(state);
 	dispatch(closeBulkImportDialog());
-	dispatch(bulkCreateWorkingNotes(bodies, {importer:'google-docs-bulleted', importer_version:1}));
+	const importer = selectBulkImportDialogImporter(state);
+	if (!importer) throw new Error('importer not set');
+	const importer_version = selectBulkImportDialogImporterVersion(state);
+	dispatch(bulkCreateWorkingNotes(bodies, {importer, importer_version}));
 };
