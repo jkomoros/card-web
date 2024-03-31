@@ -382,9 +382,20 @@ const extractTopLevelULs = (ele : HTMLElement) : HTMLUListElement[] => {
 	return result;
 };
 
-const processUL = (ul : HTMLUListElement) : string => {
+const processLI = (li : HTMLLIElement) : string => {
 	//TODO: process and simplify
-	return ul.innerHTML;
+	return li.innerHTML;
+};
+
+const extractTopLevelLIs = (ele : HTMLUListElement) : HTMLLIElement[] => {
+	const result : HTMLLIElement[] = [];
+	for (const child of ele.children) {
+		if (child.tagName === 'LI') {
+			result.push(child as HTMLLIElement);
+			continue;
+		}
+	}
+	return result;
 };
 
 export const importBodiesFromGoogleDocs = (content : string) : string[] => {
@@ -393,5 +404,6 @@ export const importBodiesFromGoogleDocs = (content : string) : string[] => {
 	const ele = doc.createElement('div');
 	ele.innerHTML = content;
 	const uls = extractTopLevelULs(ele);
-	return uls.map(processUL);
+	const lis = uls.map(extractTopLevelLIs).flat();
+	return lis.map(processLI);
 };
