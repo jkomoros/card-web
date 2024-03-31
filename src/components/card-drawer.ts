@@ -67,7 +67,7 @@ class CardDrawer extends LitElement {
 		showCreateWorkingNotes: boolean;
 
 	@property({ type : Object })
-		collection: Collection;
+		collection: Collection | null;
 
 	@property({ type : Number })
 		renderOffset: number;

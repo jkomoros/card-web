@@ -20,7 +20,7 @@ export class WebRenderer extends LitElement {
 
 	//as returned from e.g. collection.webInfo
 	@property({ type : Object })
-		webInfo: WebInfo;
+		webInfo: WebInfo | null;
 
 	@property({ type : String })
 		highlightedCardId: CardID;
@@ -91,6 +91,7 @@ export class WebRenderer extends LitElement {
 	}
 
 	_recalcGraph() : WebInfoWithLayout {
+		if (!this.webInfo) return {nodes:[], edges:[]};
 		//Make a deep copy of the graph, because d3 will operate on it.
 		const graph = {...this.webInfo};
 		if (Object.keys(graph).length == 0) return {nodes:[], edges:[]};
