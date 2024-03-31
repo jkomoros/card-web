@@ -204,6 +204,10 @@ import {
 	suggestionsTogglePanel
 } from '../actions/suggestions.js';
 
+import {
+	openBulkImportDialog
+} from '../actions/bulk-import.js';
+
 @customElement('card-view')
 class CardView extends connect(store)(PageViewElement) {
 
@@ -486,6 +490,18 @@ class CardView extends connect(store)(PageViewElement) {
 				${this._userMayUseAI ? html`
 				<button id ='ai-assistant-summary' class='small' title='Summarize Cards with AI' @click=${this._handleAIAssistantSummaryClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assitant-summary'>Summarize Cards</label><br/>
 				<button id ='ai-assistant-concepts' class='small' title='Suggest Missing Concepts with AI' @click=${this._handleAIAssistantConceptsClicked}>${AUTO_AWESOME_ICON}</button><label for='ai-assitant-concepts'>Suggest Missing Concepts</label><br/>` : ''}
+				${this._userMayCreateCard ? html`
+					<button
+						id='bulk-import'
+						class='small'
+						title='Bulk Import Cards'
+						@click=${this._handleBulkImportClicked}
+					>
+						${PLUS_ICON}
+					</button>
+					<label for='bulk-import'>Bulk Import</label>
+					<br />
+				`: ''}
 				<button id='configure-collection' class='small' title='Configure Collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure Collection</label>
 			</div>
 			<div slot='visible-info'>
@@ -582,6 +598,10 @@ class CardView extends connect(store)(PageViewElement) {
 			return;
 		}
 		store.dispatch(unselectCards([e.detail.card]));
+	}
+
+	_handleBulkImportClicked() {
+		store.dispatch(openBulkImportDialog());
 	}
 
 	_handleEditClicked() {
