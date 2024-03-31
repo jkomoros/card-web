@@ -29,7 +29,8 @@ import { cancelHoverTimeout } from '../actions/app.js';
 
 import {
 	selectBadgeMap,
-	selectCardIDsUserMayEdit
+	selectCardIDsUserMayEdit,
+	selectCardsSelected
 } from '../selectors';
 
 import {
@@ -121,6 +122,9 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	@state()
 		_cardIDsUserMayEdit: CardBooleanMap;
+
+	@state()
+		_cardsSelected: boolean;
 
 	static override styles = [
 		ButtonSharedStyles,
@@ -293,13 +297,25 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 			.thumbnail.dark:hover {
 				border:2px solid var(--app-primary-color-subtle);
 			}
+
+			.thumbnail input {
+				opacity: 0;
+			}
+
+			.thumbnail:hover input {
+				opacity: 1;
+			}
+
+			.cards-selected .thumbnail input {
+				opacity: 1;
+			}
 		`
 	];
 
 	override render() {
 		return html`
 			${this.renderOffset ? html`<div class='row'><button id='prev' class='small' title='Previous cards' @click=${this._handlePreviousClicked}>${ARROW_UPWARD_ICON}</button><label class='interactive' for='prev'>Previous ${this._offsetChunk} cards</label></div>` : ''}
-			<div class='${this._dragging ? 'dragging' : ''} ${this.grid ? 'grid' : ''}'>
+			<div class='${this._dragging ? 'dragging' : ''} ${this.grid ? 'grid' : ''} ${this._cardsSelected ? 'cards-selected' : ''}'>
 				${repeat(this._cards, (i) => i.id, (i, index) => html`
 				${index >= this.collection.numStartCards ? html`<div class='spacer' data-cardid=${i.id} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
 				${this._labels && this._labels[index] !== undefined && this._labels[index] !== '' ? html`<div class='label'><span>${this.collection ? this.collection.sortLabelName : ''} <strong>${this._labels[index]}</strong></span></div>` : html``}
@@ -543,6 +559,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 	override stateChanged(state : State) {
 		this._badgeMap = selectBadgeMap(state);
 		this._cardIDsUserMayEdit = selectCardIDsUserMayEdit(state);
+		this._cardsSelected = selectCardsSelected(state);
 	}
 
 	override updated(changedProps : Map<string, CardThumbnailList[keyof CardThumbnailList]>) {

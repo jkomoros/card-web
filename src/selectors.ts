@@ -1533,6 +1533,11 @@ export const selectUserMayReorderActiveCollection = createSelector(
 	(userMayEditCards, collection) => Boolean(userMayEditCards && collection && collection.reorderable)
 );
 
+export const selectCardsSelected = createSelector(
+	selectExplicitlySelectedCardIDs,
+	(selected) => Object.keys(selected).length > 0
+);
+
 //This is the effective selected cards, which is either the explicitly selected
 //cards, or just the active collection if there are no explicitly selected cards.
 export const selectSelectedCards = createSelector(
