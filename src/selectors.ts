@@ -1016,7 +1016,8 @@ export const selectBadgeMap = createSelector(
 	selectUserReads,
 	selectCardTodosMapForCurrentUser,
 	selectUserReadingListMap,
-	(stars, reads, todos, readingList) => ({stars, reads, todos, readingList})
+	selectExplicitlySelectedCardIDs,
+	(stars, reads, todos, readingList, selected) => ({stars, reads, todos, readingList, selected})
 );
 
 //TODO: once factoring the composed threads selctors into this file, refactor
