@@ -367,3 +367,29 @@ export const validateTopLevelNodes = (input : string | HTMLElement, legalTopLeve
 	}
 	return '';
 };
+
+const extractTopLevelULs = (ele : HTMLElement) : HTMLUListElement[] => {
+	const result : HTMLUListElement[] = [];
+	for (const child of ele.children) {
+		if (child.tagName === 'UL') {
+			result.push(child as HTMLUListElement);
+			continue;
+		}
+		if (child.children.length && child instanceof HTMLElement) {
+			result.push(...extractTopLevelULs(child));
+		}
+	}
+	return result;
+};
+
+const processUL = (ul : HTMLUListElement) : string => {
+	//TODO: process and simplify
+	return ul.innerHTML;
+};
+
+export const importBodiesFromGoogleDocs = (content : string) : string[] => {
+	const ele = document.createElement('div');
+	ele.innerHTML = content;
+	const uls = extractTopLevelULs(ele);
+	return uls.map(processUL);
+};
