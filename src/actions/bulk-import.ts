@@ -30,7 +30,7 @@ export const closeBulkImportDialog = () : SomeAction =>  ({
 });
 
 export const processBulkImportContent = (content : string) : SomeAction => {
-	const bodies = importBodiesFromGoogleDocs(content);
+	const bodies = importBodiesFromGoogleDocs(content, 'bulleted');
 	return {
 		type: BULK_IMPORT_SET_BODIES,
 		bodies,

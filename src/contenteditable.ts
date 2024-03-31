@@ -425,7 +425,8 @@ const extractGoogleDocCardRuns = (ele : HTMLUListElement) : HTMLElement[][] => {
 	return result;
 };
 
-export const importBodiesFromGoogleDocs = (content : string) : string[] => {
+export const importBodiesFromGoogleDocs = (content : string, mode : 'bulleted' | 'flat') : string[] => {
+	if (mode == 'flat') throw new Error('not yet supported');
 	const doc = getDocument();
 	if (!doc) throw new Error('No document');
 	const ele = doc.createElement('div');
