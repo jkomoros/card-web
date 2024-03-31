@@ -61,7 +61,11 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		return html`<div>
 			${this._bodies.length ?
 		html`${this._bodies.map((body) => html`<textarea disabled>${body}</textarea>`)}` :
-		html`<textarea id='input' placeholder='Paste html here'></textarea>`
+		html`<textarea
+			id='input'
+			@paste=${this._handleRawPaste}
+			placeholder='Paste html here'>
+			</textarea>`
 }
 			<div class='buttons'>
 				<button
@@ -72,6 +76,17 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 				</button>
 			</div>
 		</div>`;
+	}
+
+	_handleRawPaste(e : ClipboardEvent) {
+		e.preventDefault();
+		const clipboardData = e.clipboardData;
+		if (!clipboardData) throw new Error('No clipboardData');
+		const pastedData = clipboardData.getData('text/html');
+		const target = e.target;
+		if (!target) throw new Error('No target');
+		if (!(target instanceof HTMLTextAreaElement)) throw new Error('target not textarea');
+		target.value = pastedData;
 	}
 
 	_handleDoneClicked() {

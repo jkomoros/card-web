@@ -32,6 +32,7 @@
           "no-unknown-event": "error"
         },
         "globalEvents": [
+          "paste",
           "tag-tapped",
           "tag-added",
           "tag-removed",
