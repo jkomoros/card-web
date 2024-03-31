@@ -376,8 +376,8 @@ const extractTopLevelULs = (ele : HTMLElement) : HTMLUListElement[] => {
 			result.push(child as HTMLUListElement);
 			continue;
 		}
-		if (child.children.length && child instanceof HTMLElement) {
-			result.push(...extractTopLevelULs(child));
+		if (child.children.length && child.nodeType == 1) {
+			result.push(...extractTopLevelULs(child as HTMLElement));
 		}
 	}
 	return result;
