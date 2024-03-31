@@ -1495,7 +1495,8 @@ export type AIState = {
 };
 
 export type BulkImportState = {
-	open: boolean
+	open: boolean,
+	bodies: string[]
 };
 
 export type PermissionsState = {

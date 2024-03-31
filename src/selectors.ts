@@ -195,6 +195,7 @@ export const selectMultiEditAddTODOEnablements = (state : State) => state.multie
 export const selectMultiEditAddTODODisablements = (state : State) => state.multiedit ? state.multiedit.addTODODisablements : [];
 
 export const selectBulkImportDialogOpen = (state : State) => state.bulkImport ? state.bulkImport.open : false;
+export const selectBulkImportDialogBodies = (state : State) => state.bulkImport ? state.bulkImport.bodies : [];
 
 export const selectAIDialogOpen = (state : State) => state.ai ? state.ai.open : false;
 export const selectAIActive = (state : State) => state.ai ? state.ai.active : false;

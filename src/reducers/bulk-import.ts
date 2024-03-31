@@ -9,7 +9,8 @@ import {
 } from '../types.js';
 
 const INITIAL_STATE : BulkImportState = {
-	open: false
+	open: false,
+	bodies: []
 };
 
 const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : BulkImportState => {
@@ -22,7 +23,8 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 	case BULK_IMPORT_DIALOG_OPEN:
 		return {
 			...state,
-			open: true
+			open: true,
+			bodies: []
 		};
 	default:
 		return state;
