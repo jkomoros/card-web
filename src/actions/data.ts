@@ -716,7 +716,8 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 	if (!WORKING_NOTES_CONFIG) throw new Error('No working notes config');
 	if (WORKING_NOTES_CONFIG.publishedByDefault) throw new Error('Working notes are not published by default');
 	if (!WORKING_NOTES_CONFIG.orphanedByDefault) throw new Error('Working notes are not orphaned by default');
-	if (CARD_TYPE_EDITING_FINISHERS['working-notes']) throw new Error('Working notes have a card finisher');
+	const cardFinisher = CARD_TYPE_EDITING_FINISHERS['working-notes'];
+	if (!cardFinisher) throw new Error('Working notes didn\'t a card finisher');
 
 	if (bodies.length == 0) return;
 
@@ -741,6 +742,7 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 		}
 		const obj = defaultCardObject(id, user, '', 'working-notes', sortOrder);
 		obj.body = body;
+		cardFinisher(obj, state);
 		if (flags) obj.flags = {...flags};
 		batch.set(doc(db, CARDS_COLLECTION, id), obj);
 		ids.push(id);
