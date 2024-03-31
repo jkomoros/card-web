@@ -75,7 +75,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		grid: boolean;
 
 	@property({ type : Object })
-		collection: Collection;
+		collection: Collection | null;
 
 	@property({ type : Boolean })
 		reorderable: boolean;
@@ -314,14 +314,16 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 	];
 
 	override render() {
+		const collection = this.collection;
+		if (!collection) return html``;
 		return html`
 			${this.renderOffset ? html`<div class='row'><button id='prev' class='small' title='Previous cards' @click=${this._handlePreviousClicked}>${ARROW_UPWARD_ICON}</button><label class='interactive' for='prev'>Previous ${this._offsetChunk} cards</label></div>` : ''}
 			<div class='${this._dragging ? 'dragging' : ''} ${this.grid ? 'grid' : ''} ${this._cardsSelected ? 'cards-selected' : ''}'>
 				${repeat(this._cards, (i) => i.id, (i, index) => html`
-				${index >= this.collection.numStartCards ? html`<div class='spacer' data-cardid=${i.id} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
+				${index >= collection.numStartCards ? html`<div class='spacer' data-cardid=${i.id} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
 				${this._labels && this._labels[index] !== undefined && this._labels[index] !== '' ? html`<div class='label'><span>${this.collection ? this.collection.sortLabelName : ''} <strong>${this._labels[index]}</strong></span></div>` : html``}
 				${this._thumbnail(i, index)}
-				${index == (this.collection.finalSortedCards.length - 1) ? html`<div class='spacer' data-cardid=${i.id} data-after=${true} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
+				${index == (collection.finalSortedCards.length - 1) ? html`<div class='spacer' data-cardid=${i.id} data-after=${true} @dragover='${this._handleDragOver}' @dragenter='${this._handleDragEnter}' @dragleave='${this._handleDragLeave}' @drop='${this._handleDrop}'></div>` : ''}
 				`)}
 			</div>
 			${this._cardsClipped ? html`<div class='row'><button id='next' class='small' title='Next cards' @click=${this._handleNextClicked}>${ARROW_DOWNWARD_ICON}</button><label class='interactive' for='next'>Next ${this._offsetChunk} cards</label></div>` : ''}
@@ -381,6 +383,9 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 	_thumbnail(card : ProcessedCard, index : number) : TemplateResult {
 
+		const collection = this.collection;
+		if (!collection) throw new Error('no collection');
+
 		const title = this._titleForCard(card);
 		const hasContent = cardHasContent(card);
 
@@ -392,7 +397,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 
 		return html`
 			<div  data-card=${card.id} data-index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.reorderable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${cardTypeConfig.dark ? 'dark' : ''} ${card && card.published ? '' : 'unpublished'} ${this._collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
-					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${getExpandedPrimaryReferenceBlocksForCard(this.collection.constructorArguments, card, this._cardIDsUserMayEdit)}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'}'>${icon}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
+					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${getExpandedPrimaryReferenceBlocksForCard(collection.constructorArguments, card, this._cardIDsUserMayEdit)}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'}'>${icon}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
 					${cardBadges(cardTypeConfig.dark || false, card, this._badgeMap, this.selectable)}
 			</div>
 		`;
@@ -476,7 +481,9 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		const thumbnail = this._dragging;
 		if (!thumbnail) return;
 		const index = parseInt(thumbnail.dataset.index || '0');
-		if (index < this.collection.numStartCards) {
+		const collection = this.collection;
+		if (!collection) throw new Error('no collection');
+		if (index < collection.numStartCards) {
 			console.log('Start card can\'t be reordered');
 			return;
 		}
