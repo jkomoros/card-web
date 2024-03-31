@@ -53,6 +53,8 @@ import {
 } from './comments.js';
 
 import {
+	clearSelectedCards,
+	doSelectCards,
 	refreshCardSelector,
 	updateCollectionSnapshot,
 } from './collection.js';
@@ -703,6 +705,50 @@ export const defaultCardObject = (id : CardID, user : UserInfo, section : Sectio
 	};
 };
 
+export const bulkCreateWorkingNotes = (bodies : string[]) : ThunkSomeAction => async (dispatch, getState) => {
+	const WORKING_NOTES_CONFIG = CARD_TYPE_CONFIGURATION['working-notes'];
+	//Sanity check that working-notes is configured in a way we expect.
+	if (!WORKING_NOTES_CONFIG) throw new Error('No working notes config');
+	if (WORKING_NOTES_CONFIG.publishedByDefault) throw new Error('Working notes are not published by default');
+	if (!WORKING_NOTES_CONFIG.orphanedByDefault) throw new Error('Working notes are not orphaned by default');
+	if (CARD_TYPE_EDITING_FINISHERS['working-notes']) throw new Error('Working notes have a card finisher');
+
+	const state = getState();
+	if (!selectUserMayCreateCard(state)) throw new Error('User may not create cards');
+
+	const user = selectUser(state);
+	if (!user) throw new Error('No user');
+
+	const batch = new MultiBatch(db);
+	ensureAuthor(batch, user);
+
+	const ids : CardID[] = [];
+
+	for (const body of bodies) {
+		const id = newID();
+		const sortOrder = selectSortOrderForGlobalAppend(state);
+		if (sortOrderIsDangerous(sortOrder)) {
+			console.warn('Dangerous sort order proposed: ', sortOrder, sortOrder / Number.MAX_VALUE, ' See issue #199');
+			return;
+		}
+		const obj = defaultCardObject(id, user, '', 'working-notes', sortOrder);
+		obj.body = body;
+		batch.set(doc(db, CARDS_COLLECTION, id), obj);
+		ids.push(id);
+	}
+
+	//TODO: do we need to do anything with EXPECT_NEW_CARD here?
+
+	await batch.commit();
+
+	//TODO: wait for the cards to be known to all exist.
+
+	dispatch(clearSelectedCards());
+	dispatch(doSelectCards(ids));
+	//TODO: navigate to `everything/selected`
+
+};
+
 //createCard creates an inserts a new card. see also createWorkingNotesCard
 //which is similar but simpler.
 //Valid arguments of opts:
@@ -714,7 +760,7 @@ export const defaultCardObject = (id : CardID, user : UserInfo, section : Sectio
 
 export const createCard = (opts : CreateCardOpts) : ThunkSomeAction => async (dispatch, getState) => {
 
-	//NOTE: if you modify this card you may also want to modify createForkedCard
+	//NOTE: if you modify this card you may also want to modify createForkedCard and bulkCreateWorkingNotes
 
 	//newCard creates and inserts a new card in the givne section with the given id.
 
