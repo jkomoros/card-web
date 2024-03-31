@@ -149,7 +149,8 @@ import {
 	CASINO_ICON,
 	AUTO_AWESOME_ICON,
 	PSYCHOLOGY_ICON,
-	CANCEL_ICON
+	CANCEL_ICON,
+	PLUS_ICON
 } from './my-icons.js';
 
 import {
@@ -498,6 +499,16 @@ class CardView extends connect(store)(PageViewElement) {
 			${CANCEL_ICON}
 			</button>
 			<label for='clear-selection'>Clear Selection</label>
+			<br />
+			<button
+				id='add-to-selection'
+				class='small'
+				title='Add all cards to selection'
+				@click=${this._handleAddCollectionToSelectionClicked}
+			>
+			${PLUS_ICON}
+			</button>
+			<label for='add-to-selection'>Add all cards to selection</label>
 			`
 		: ''
 }
@@ -579,6 +590,11 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_handleClearSelectionClicked() {
 		store.dispatch(clearSelectedCards());
+	}
+
+	_handleAddCollectionToSelectionClicked() {
+		if (!this._collection) return;
+		store.dispatch(selectCards(this._collection.filteredCards.map(c => c.id)));
 	}
 
 	_handleForkClicked() {
