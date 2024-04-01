@@ -646,7 +646,7 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_handleAddCollectionToSelectionClicked() {
 		if (!this._collection) return;
-		store.dispatch(doSelectCards(this._collection.filteredCards.map(c => c.id)));
+		store.dispatch(doSelectCards(this._collection.finalSortedCards.map(c => c.id)));
 	}
 
 	_handleForkClicked() {
