@@ -1560,7 +1560,7 @@ export const selectActiveCollectionNotFullySelected = createSelector(
 		if (!collection) return false;
 		//If there's no selection, then bail.
 		if (Object.keys(selected).length == 0) return false;
-		return !collection.filteredCards.every(card => selected[card.id]);
+		return !collection.finalSortedCards.every(card => selected[card.id]);
 	}
 );
 
