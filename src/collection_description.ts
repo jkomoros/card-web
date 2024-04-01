@@ -15,6 +15,7 @@ import {
 	queryFilter,
 	queryTextFromQueryFilter,
 	SET_INFOS,
+	SELECTED_FILTER_NAME,
 } from './filters.js';
 
 import {
@@ -209,6 +210,11 @@ export const collectionDescriptionWithSet = (description : CollectionDescription
 export const collectionDescriptionWithFilterRemoved = (description : CollectionDescription, index : number) : CollectionDescription => {
 	const filters = [...description.filters];
 	filters.splice(index, 1);
+	return collectionDescriptionWithOverrides(description, {filters});
+};
+
+export const collectionDescriptionWithSelected = (description : CollectionDescription) : CollectionDescription => {
+	const filters = [...description.filters, SELECTED_FILTER_NAME];
 	return collectionDescriptionWithOverrides(description, {filters});
 };
 

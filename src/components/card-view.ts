@@ -45,7 +45,8 @@ import {
 	selectSuggestionsForActiveCard,
 	selectSuggestionsOpen,
 	selectCardsSelected,
-	selectActiveCollectionNotFullySelected
+	selectActiveCollectionNotFullySelected,
+	selectActiveCollectionNotFilteredToSelected
 } from '../selectors.js';
 
 import {
@@ -80,7 +81,8 @@ import {
 import {
 	navigatePathTo,
 	toggleCardsDrawerInfo,
-	openConfigureCollectionDialog
+	openConfigureCollectionDialog,
+	navigateToCollectionWithSelected
 } from '../actions/app.js';
 
 import {
@@ -271,6 +273,9 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_collectionNotFullySelected : boolean;
+
+	@state()
+		_collectionNotFilteredToSelected : boolean;
 
 	@state()
 		_commentsAndInfoPanelOpen : boolean;
@@ -520,6 +525,21 @@ class CardView extends connect(store)(PageViewElement) {
 			</button>
 			<label for='clear-selection'>Clear Selection</label>
 			<br />
+			${this._collectionNotFilteredToSelected ?
+		html`
+				<button
+					id='filter-to-selected'
+					class='small'
+					title='Filter to Selected Cards'
+					@click=${this._handleFilterToSelectedClicked}
+				>
+				${VISIBILITY_ICON}
+				</button>
+				<label for='filter-to-selected'>Show Only Selected</label>
+				<br />
+			` 
+		:''	
+}
 			${this._collectionNotFullySelected ?
 		html`<button
 			id='add-to-selection'
@@ -605,6 +625,10 @@ class CardView extends connect(store)(PageViewElement) {
 			return;
 		}
 		store.dispatch(unselectCards([e.detail.card]));
+	}
+
+	_handleFilterToSelectedClicked() {
+		store.dispatch(navigateToCollectionWithSelected());
 	}
 
 	_handleBulkImportClicked() {
@@ -784,6 +808,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._editing = selectIsEditing(state);
 		this._cardsSelected = selectCardsSelected(state);
 		this._collectionNotFullySelected = selectActiveCollectionNotFullySelected(state);
+		this._collectionNotFilteredToSelected = selectActiveCollectionNotFilteredToSelected(state);
 		this._hideActions = selectIsEditing(state) || selectSuggestionsOpen(state);
 		this._editorMinimized = selectEditorMinimized(state);
 		this._signedIn = selectUserSignedIn(state);

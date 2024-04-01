@@ -1564,6 +1564,23 @@ export const selectActiveCollectionNotFullySelected = createSelector(
 	}
 );
 
+//This is effectively: "would it be useful to offer to only filter to selected cards?"
+export const selectActiveCollectionNotFilteredToSelected = createSelector(
+	selectActiveCollection,
+	selectExplicitlySelectedCardIDs,
+	(collection, selected) => {
+		//If no collection, bail.
+		if (!collection) return false;
+		//If there's no selection, then bail.
+		if (Object.keys(selected).length == 0) return false;
+		const every = collection.finalSortedCards.every(card => selected[card.id]);
+		//It's effectively filtered to selected if every card is selected.
+		if (every) return false;
+		if (collection.description.filters.includes(SELECTED_FILTER_NAME)) return false;
+		return true;
+	}
+);
+
 //This is the effective selected cards, which is either the explicitly selected
 //cards, or just the active collection if there are no explicitly selected cards.
 export const selectSelectedCards = createSelector(

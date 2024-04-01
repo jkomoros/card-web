@@ -74,7 +74,8 @@ import {
 import {
 	collectionDescriptionWithQuery,
 	collectionDescriptionWithConfigurableFilter,
-	CollectionDescription
+	CollectionDescription,
+	collectionDescriptionWithSelected
 } from '../collection_description.js';
 
 import {
@@ -269,6 +270,12 @@ export const navigateToCollectionWithAboutConcept = (conceptStr : string) : Thun
 export const navigateToCollectionWithQuery = (queryText : string) : ThunkSomeAction => (dispatch, getState) => {
 	const collection = selectActiveCollectionDescription(getState());
 	const newCollection = collectionDescriptionWithQuery(collection, queryText);
+	dispatch(navigateToCollection(newCollection));
+};
+
+export const navigateToCollectionWithSelected = () : ThunkSomeAction => (dispatch, getState) => {
+	const collection = selectActiveCollectionDescription(getState());
+	const newCollection = collectionDescriptionWithSelected(collection);
 	dispatch(navigateToCollection(newCollection));
 };
 
