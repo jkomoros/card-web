@@ -153,7 +153,8 @@ import {
 	AUTO_AWESOME_ICON,
 	PSYCHOLOGY_ICON,
 	CANCEL_ICON,
-	PLUS_ICON
+	PLUS_ICON,
+	FILTER_ALT_ICON
 } from './my-icons.js';
 
 import {
@@ -533,7 +534,7 @@ class CardView extends connect(store)(PageViewElement) {
 					title='Filter to Selected Cards'
 					@click=${this._handleFilterToSelectedClicked}
 				>
-				${VISIBILITY_ICON}
+				${FILTER_ALT_ICON}
 				</button>
 				<label for='filter-to-selected'>Show Only Selected</label>
 				<br />
