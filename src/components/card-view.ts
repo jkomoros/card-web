@@ -44,7 +44,8 @@ import {
 	selectIsEditing,
 	selectSuggestionsForActiveCard,
 	selectSuggestionsOpen,
-	selectCardsSelected
+	selectCardsSelected,
+	selectActiveCollectionNotFullySelected
 } from '../selectors.js';
 
 import {
@@ -267,6 +268,9 @@ class CardView extends connect(store)(PageViewElement) {
 
 	@state()
 		_cardsSelected : boolean;
+
+	@state()
+		_collectionNotFullySelected : boolean;
 
 	@state()
 		_commentsAndInfoPanelOpen : boolean;
@@ -516,15 +520,18 @@ class CardView extends connect(store)(PageViewElement) {
 			</button>
 			<label for='clear-selection'>Clear Selection</label>
 			<br />
-			<button
-				id='add-to-selection'
-				class='small'
-				title='Add all cards to selection'
-				@click=${this._handleAddCollectionToSelectionClicked}
-			>
-			${PLUS_ICON}
-			</button>
-			<label for='add-to-selection'>Add all cards to selection</label>
+			${this._collectionNotFullySelected ?
+		html`<button
+			id='add-to-selection'
+			class='small'
+			title='Add all cards to selection'
+			@click=${this._handleAddCollectionToSelectionClicked}
+		>
+		${PLUS_ICON}
+		</button>
+		<label for='add-to-selection'>Add all cards to selection</label>`
+		: ''}
+
 			`
 		: ''
 }
@@ -776,6 +783,7 @@ class CardView extends connect(store)(PageViewElement) {
 		this._pageExtra = state.app.pageExtra;
 		this._editing = selectIsEditing(state);
 		this._cardsSelected = selectCardsSelected(state);
+		this._collectionNotFullySelected = selectActiveCollectionNotFullySelected(state);
 		this._hideActions = selectIsEditing(state) || selectSuggestionsOpen(state);
 		this._editorMinimized = selectEditorMinimized(state);
 		this._signedIn = selectUserSignedIn(state);

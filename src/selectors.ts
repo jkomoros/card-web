@@ -1552,6 +1552,18 @@ export const selectCardsSelected = createSelector(
 	(selected) => Object.keys(selected).length > 0
 );
 
+export const selectActiveCollectionNotFullySelected = createSelector(
+	selectActiveCollection,
+	selectExplicitlySelectedCardIDs,
+	(collection, selected) => {
+		//If no collection, bail.
+		if (!collection) return false;
+		//If there's no selection, then bail.
+		if (Object.keys(selected).length == 0) return false;
+		return !collection.filteredCards.every(card => selected[card.id]);
+	}
+);
+
 //This is the effective selected cards, which is either the explicitly selected
 //cards, or just the active collection if there are no explicitly selected cards.
 export const selectSelectedCards = createSelector(
