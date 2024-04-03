@@ -19,7 +19,8 @@ import {
 
 import {
 	selectBulkImportDialogBodies,
-	selectBulkImportDialogOpen
+	selectBulkImportDialogOpen,
+	selectBulkImportPending
 } from '../selectors.js';
 
 import {
@@ -37,10 +38,26 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 	@state()
 		_bodies: string[];
 
+	@state()
+		_pending : boolean;
+
 	static override styles = [
 		...DialogElement.styles,
 		ButtonSharedStyles,
 		css`
+
+			.scrim {
+				z-index:100;
+				height:100%;
+				width:100%;
+				position:absolute;
+				background-color:rgba(255,255,255,0.7);
+				display:none;
+			}
+
+			.pending .scrim {
+				display:block;
+			}
 
 			textarea {
 				flex-grow:1;
@@ -58,7 +75,8 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 
 	override innerRender() {
 		if (!this.open) return html``;
-		return html`<div>
+		return html`<div class='${this._pending ? 'pending' : ''}'>
+			<div class='scrim'></div>
 			${this._bodies.length ?
 		html`<p>Verify these bodies are ones you want to create!</p>
 			${this._bodies.map((body) => html`<textarea disabled .value=${body}></textarea>`)}` :
@@ -108,6 +126,7 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		//tODO: it's weird that we manually set our superclasses' public property
 		this.open = selectBulkImportDialogOpen(state);
 		this._bodies = selectBulkImportDialogBodies(state);
+		this._pending = selectBulkImportPending(state);
 		this.title = 'Bulk Import';
 	}
 

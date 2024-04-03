@@ -10,7 +10,9 @@ import {
 } from '../contenteditable.js';
 
 import {
-	selectBulkImportDialogBodies, selectBulkImportDialogImporter, selectBulkImportDialogImporterVersion
+	selectBulkImportDialogBodies,
+	selectBulkImportDialogImporter,
+	selectBulkImportDialogImporterVersion
 } from '../selectors.js';
 
 import {
@@ -42,9 +44,10 @@ export const processBulkImportContent = (content : string, flat : boolean) : Som
 export const commitBulkImport = () : ThunkSomeAction => (dispatch, getState) => {
 	const state = getState();
 	const bodies = selectBulkImportDialogBodies(state);
-	dispatch(closeBulkImportDialog());
 	const importer = selectBulkImportDialogImporter(state);
 	if (!importer) throw new Error('importer not set');
 	const importer_version = selectBulkImportDialogImporterVersion(state);
+	//bulkCreateWorkingNotes will both set the pending flag and also success
+	//when done, which will close the dialog.
 	dispatch(bulkCreateWorkingNotes(bodies, {importer, importer_version}));
 };

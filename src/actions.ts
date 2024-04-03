@@ -83,6 +83,8 @@ export const CLOSE_CARDS_DRAWER_INFO = 'CLOSE_CARDS_DRAWER_INFO';
 export const TURN_SUGGEST_MISSING_CONCEPTS = 'TURN_SUGGEST_MISSING_CONCEPTS';
 //BulkImport
 export const BULK_IMPORT_DIALOG_OPEN = 'BULK_IMPORT_DIALOG_OPEN';
+export const BULK_IMPORT_PENDING = 'BULK_IMPORT_DIALOG_PENDING';
+export const BULK_IMPORT_SUCCESS = 'BULK_IMPORT_SUCCESS';
 export const BULK_IMPORT_DIALOG_CLOSE = 'BULK_IMPORT_DIAOG_CLOSE';
 export const BULK_IMPORT_SET_BODIES = 'BULK_IMPORT_SET_BODIES';
 //Collection.js
@@ -353,6 +355,14 @@ type ActionTurnSuggestedMissingConcepts = {
 type ActionBulkImportDialogOpen = {
 	type: typeof BULK_IMPORT_DIALOG_OPEN
 };
+
+type ActionBulkImportPending = {
+	type: typeof BULK_IMPORT_PENDING
+};
+
+type ActionBulkImportSuccees = {
+	type: typeof BULK_IMPORT_SUCCESS
+}
 
 type ActionBulkImportDialogClose = {
 	type: typeof BULK_IMPORT_DIALOG_CLOSE
@@ -1008,6 +1018,8 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionTurnSuggestedMissingConcepts
 	| ActionShowCard
 	| ActionBulkImportDialogOpen
+	| ActionBulkImportPending
+	| ActionBulkImportSuccees
 	| ActionBulkImportDialogClose
 	| ActionBulkImportSetBodies
 	| ActionUpdateCollection

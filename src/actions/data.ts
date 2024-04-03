@@ -191,7 +191,9 @@ import {
 	UPDATE_CARDS,
 	UPDATE_SECTIONS,
 	UPDATE_TAGS,
-	UPDATE_TWEETS
+	UPDATE_TWEETS,
+	BULK_IMPORT_PENDING,
+	BULK_IMPORT_SUCCESS
 } from '../actions.js';
 
 //map of cardID => promiseResolver that's waiting
@@ -727,6 +729,10 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 	const user = selectUser(state);
 	if (!user) throw new Error('No user');
 
+	dispatch({
+		type: BULK_IMPORT_PENDING
+	});
+
 	const batch = new MultiBatch(db);
 	ensureAuthor(batch, user);
 
@@ -770,6 +776,10 @@ export const bulkCreateWorkingNotes = (bodies : string[], flags? : CardFlags) : 
 
 	dispatch(clearSelectedCards());
 	dispatch(doSelectCards(ids));
+	
+	dispatch({
+		type: BULK_IMPORT_SUCCESS
+	});
 
 	const selectedCards = collectionDescription(SELECTED_FILTER_NAME);
 	dispatch(navigateToCollection(selectedCards));

@@ -1,7 +1,9 @@
 import {
 	BULK_IMPORT_DIALOG_CLOSE,
 	BULK_IMPORT_DIALOG_OPEN,
+	BULK_IMPORT_PENDING,
 	BULK_IMPORT_SET_BODIES,
+	BULK_IMPORT_SUCCESS,
 	SomeAction
 } from '../actions.js';
 
@@ -11,6 +13,7 @@ import {
 
 const INITIAL_STATE : BulkImportState = {
 	open: false,
+	pending: false,
 	bodies: [],
 	importer: '',
 	importerVersion: 0
@@ -27,9 +30,21 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 		return {
 			...state,
 			open: true,
+			pending: false,
 			bodies: [],
 			importer: '',
 			importerVersion: 0
+		};
+	case BULK_IMPORT_PENDING:
+		return {
+			...state,
+			pending: true
+		};
+	case BULK_IMPORT_SUCCESS:
+		return {
+			...state,
+			pending: false,
+			open: false
 		};
 	case BULK_IMPORT_SET_BODIES:
 		return {

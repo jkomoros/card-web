@@ -1500,6 +1500,8 @@ export type AIState = {
 
 export type BulkImportState = {
 	open: boolean,
+	//Whether or not the import is running
+	pending: boolean,
 	bodies: string[],
 	importer: ImporterType | '',
 	importerVersion: number
