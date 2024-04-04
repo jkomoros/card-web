@@ -400,7 +400,7 @@ class CardThumbnailList  extends connect(store)(LitElement) {
 		return html`
 			<div  data-card=${card.id} data-index=${index} id=${'id-' + card.id} @dragstart='${this._handleDragStart}' @dragend='${this._handleDragEnd}' @mousemove=${this._handleThumbnailMouseMove} @click=${this._handleThumbnailClick} draggable='${this.reorderable ? 'true' : 'false'}' class="thumbnail ${card.id == this.highlightedCardId ? 'highlighted' : ''} ${cardTypeConfig.dark ? 'dark' : ''} ${card && card.published ? '' : 'unpublished'} ${this._collectionItemsToGhost[card.id] ? 'ghost' : ''} ${this.fullCards ? 'full' : 'partial'}">
 					${this.fullCards ? html`<card-renderer .card=${card} .expandedReferenceBlocks=${getExpandedPrimaryReferenceBlocksForCard(collection.constructorArguments, card, this._cardIDsUserMayEdit)}></card-renderer>` : html`<h3 class='${hasContent ? '' : 'nocontent'}'>${icon}${title ? title : html`<span class='empty'>[Untitled]</span>`}</h3>`}
-					${cardBadges(cardTypeConfig.dark || false, card, this._badgeMap, this._handleSelectedClicked)}
+					${cardBadges(cardTypeConfig.dark || false, card, this._badgeMap, this.selectable ? this._handleSelectedClicked : undefined)}
 			</div>
 		`;
 	}
