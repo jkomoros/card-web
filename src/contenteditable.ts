@@ -17,6 +17,8 @@ import {
 	TypedObject
 } from './typed_object.js';
 
+import dompurify from 'dompurify';
+
 //We don't just use Node.ELEMENT_NODE and friends because this also runs in the
 //Node context for testing.
 const ELEMENT_NODE = 1;
@@ -469,5 +471,5 @@ export const importBodiesFromGoogleDocs = (content : string, mode : 'bulleted' |
 
 export const exportContentForCards = (cards : ProcessedCard[]) : string => {
 	//TODO: convert markup.
-	return cards.map(card => card.body).join('\n');
+	return  dompurify.sanitize(cards.map(card => card.body).join('\n'));
 };

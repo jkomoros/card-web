@@ -1,5 +1,6 @@
 import { html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
+import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { connect } from 'pwa-helpers/connect-mixin.js';
 
 // This element is connected to the Redux store.
@@ -54,6 +55,9 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_exportContent : string;
+
+	@state()
+		_exportNode : HTMLElement | null = null;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -116,7 +120,9 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		//TODO: render as selectable HTML
 		return html`<div>
 			<p>Copy this content to import it elsewhere:</p>
-			<textarea .value=${this._exportContent} readonly></textarea>
+			<div class='output'>
+				${unsafeHTML(this._exportContent)}
+			</div>
 		</div>`;
 	}
 
