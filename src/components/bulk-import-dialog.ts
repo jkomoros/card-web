@@ -88,6 +88,10 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 				flex-direction: row;
 				justify-content:flex-end;
 			}
+
+			.output p {
+				margin: 0;
+			}
 		`
 	];
 
