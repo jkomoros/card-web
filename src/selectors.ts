@@ -161,9 +161,16 @@ import {
 } from './types.js';
 
 import {
+	exportContentForCards
+} from './contenteditable.js';
+
+import {
 	TypedObject
 } from './typed_object.js';
-import { Timestamp } from 'firebase/firestore';
+
+import {
+	Timestamp
+} from 'firebase/firestore';
 
 const selectState = (state : State) : State => state;
 
@@ -1811,5 +1818,15 @@ export const selectMultiEditCardDiff = createSelector(
 		if (todoEnablements.length) result.auto_todo_overrides_enablements = todoEnablements;
 		if (todoDisablements.length) result.auto_todo_overrides_disablements = todoDisablements;
 		return result;
+	}
+);
+
+export const selectBulkImportDialogExportContent = createSelector(
+	selectBulkImportDialogOpen,
+	selectBulKimportDialogMode,
+	selectActiveCollectionCards,
+	(open, mode, cards) => {
+		if (!open || mode != 'export') return '';
+		return exportContentForCards(cards);
 	}
 );

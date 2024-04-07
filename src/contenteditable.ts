@@ -9,7 +9,8 @@ import {
 
 import {
 	HTMLTagMap,
-	HTMLTagName
+	HTMLTagName,
+	ProcessedCard
 } from './types.js';
 
 import {
@@ -464,4 +465,9 @@ export const importBodiesFromGoogleDocs = (content : string, mode : 'bulleted' |
 		result.push(body);
 	}
 	return result;
+};
+
+export const exportContentForCards = (cards : ProcessedCard[]) : string => {
+	//TODO: convert markup.
+	return cards.map(card => card.body).join('\n');
 };
