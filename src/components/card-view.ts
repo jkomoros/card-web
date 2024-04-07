@@ -154,7 +154,8 @@ import {
 	PSYCHOLOGY_ICON,
 	CANCEL_ICON,
 	PLUS_ICON,
-	FILTER_ALT_ICON
+	FILTER_ALT_ICON,
+	SAVE_ICON
 } from './my-icons.js';
 
 import {
@@ -511,6 +512,17 @@ class CardView extends connect(store)(PageViewElement) {
 					</button>
 					<label for='bulk-import'>Bulk Import</label>
 					<br />
+					<!-- technically you don't need to have create card ability to use this, but don't clutter up most user's UI with it -->
+					<button
+						id='bulk-export'
+						class='small'
+						title='Bulk Export Cards'
+						@click=${this._handleBulkExportClicked}
+					>
+						${SAVE_ICON}
+					</button>
+					<label for='bulk-export'>Bulk Export</label>
+					<br />
 				`: ''}
 				<button id='configure-collection' class='small' title='Configure Collection' @click=${this._handleConfigureCollectionClicked}>${RULE_ICON}</button><label for='configure-collection'>Configure Collection</label>
 			</div>
@@ -634,6 +646,10 @@ class CardView extends connect(store)(PageViewElement) {
 
 	_handleBulkImportClicked() {
 		store.dispatch(openBulkImportDialog('import'));
+	}
+
+	_handleBulkExportClicked() {
+		store.dispatch(openBulkImportDialog('export'));
 	}
 
 	_handleEditClicked() {
