@@ -470,6 +470,30 @@ export const importBodiesFromGoogleDocs = (content : string, mode : 'bulleted' |
 };
 
 export const exportContentForCards = (cards : ProcessedCard[]) : string => {
-	//TODO: convert markup.
-	return  dompurify.sanitize(cards.map(card => card.body).join('\n'));
+	const doc = getDocument();
+	if (!doc) throw new Error('No document');
+	const ele = doc.createElement('div');
+	const result : string[] = [];
+	//This is a hideous implementation.
+	//Indent and wrap all content.
+	for (const card of cards) {
+		//Undo any cards that are already in list style so we have something of a known shape.
+		ele.innerHTML = flattenLists(card.body);
+		let firstEle = true;
+		let hasOtherEles = false;
+		const parts : string[] = [];
+		for (const child of ele.children) {
+			if (firstEle) {
+				parts.push(child.outerHTML);
+				parts.push('<ul>');
+			} else {
+				hasOtherEles = true;
+				parts.push('<li>' + child.outerHTML + '</li>');
+			}
+			firstEle = false;
+		}
+		if (hasOtherEles) parts.push('</ul>');
+		result.push('<li>' + parts.join('\n') + '</li>');
+	}
+	return  dompurify.sanitize('<ul>' + result.join('\n') + '</ul>');
 };
