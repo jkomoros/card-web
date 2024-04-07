@@ -18,12 +18,14 @@ import {
 } from './my-icons.js';
 
 import {
+	selectBulKimportDialogMode,
 	selectBulkImportDialogBodies,
 	selectBulkImportDialogOpen,
 	selectBulkImportPending
 } from '../selectors.js';
 
 import {
+	BulkImportDialogMode,
 	State,
 } from '../types.js';
 
@@ -40,6 +42,10 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_pending : boolean;
+
+	
+	@state()
+		_mode : BulkImportDialogMode = 'import';
 
 	static override styles = [
 		...DialogElement.styles,
@@ -127,7 +133,8 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		this.open = selectBulkImportDialogOpen(state);
 		this._bodies = selectBulkImportDialogBodies(state);
 		this._pending = selectBulkImportPending(state);
-		this.title = 'Bulk Import';
+		this._mode = selectBulKimportDialogMode(state);
+		this.title = 'Bulk ' + (this._mode === 'import' ? 'Import' : 'Export');
 	}
 
 }

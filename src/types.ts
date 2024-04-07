@@ -1498,8 +1498,11 @@ export type AIState = {
 	filteredCards: CardID[];
 };
 
+export type BulkImportDialogMode = 'import' | 'export';
+
 export type BulkImportState = {
 	open: boolean,
+	mode: BulkImportDialogMode,
 	//Whether or not the import is running
 	pending: boolean,
 	bodies: string[],

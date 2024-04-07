@@ -13,6 +13,7 @@ import {
 
 const INITIAL_STATE : BulkImportState = {
 	open: false,
+	mode: 'import',
 	pending: false,
 	bodies: [],
 	importer: '',
@@ -30,6 +31,7 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 		return {
 			...state,
 			open: true,
+			mode: 'import',
 			pending: false,
 			bodies: [],
 			importer: '',
