@@ -1506,6 +1506,8 @@ export type BulkImportState = {
 	//Whether or not the import is running
 	pending: boolean,
 	bodies: string[],
+	//If provided, will use this order, not the implicit order of the collection.
+	overrideCardOrder: CardID[] | null,
 	importer: ImporterType | '',
 	importerVersion: number
 };

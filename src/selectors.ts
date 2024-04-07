@@ -207,6 +207,7 @@ export const selectBulkImportPending = (state : State) => state.bulkImport ? sta
 export const selectBulkImportDialogBodies = (state : State) => state.bulkImport ? state.bulkImport.bodies : [];
 export const selectBulkImportDialogImporter = (state : State) => state.bulkImport ? state.bulkImport.importer : '';
 export const selectBulkImportDialogImporterVersion = (state : State) => state.bulkImport ? state.bulkImport.importerVersion : 0;
+export const selectBulkImportDialogOverrideCardOrder = (state : State) => state.bulkImport ? state.bulkImport.overrideCardOrder : null;
 
 export const selectAIDialogOpen = (state : State) => state.ai ? state.ai.open : false;
 export const selectAIActive = (state : State) => state.ai ? state.ai.active : false;
@@ -1824,9 +1825,15 @@ export const selectMultiEditCardDiff = createSelector(
 export const selectBulkImportDialogExportContent = createSelector(
 	selectBulkImportDialogOpen,
 	selectBulKimportDialogMode,
+	selectBulkImportDialogOverrideCardOrder,
 	selectActiveCollectionCards,
-	(open, mode, cards) => {
+	(open, mode, cardOrder, cards) => {
 		if (!open || mode != 'export') return '';
-		return exportContentForCards(cards);
+		let finalCards = cards;
+		if (cardOrder) {
+			const allCards = Object.fromEntries(cards.map(card => [card.id, card]));
+			finalCards = cardOrder.map(id => allCards[id]);
+		}
+		return exportContentForCards(finalCards);
 	}
 );

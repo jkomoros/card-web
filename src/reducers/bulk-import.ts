@@ -4,6 +4,7 @@ import {
 	BULK_IMPORT_PENDING,
 	BULK_IMPORT_SET_BODIES,
 	BULK_IMPORT_SUCCESS,
+	BULK_IMPORT_SET_OVERRIDE_CARD_ORDER,
 	SomeAction
 } from '../actions.js';
 
@@ -15,6 +16,7 @@ const INITIAL_STATE : BulkImportState = {
 	open: false,
 	mode: 'import',
 	pending: false,
+	overrideCardOrder: null,
 	bodies: [],
 	importer: '',
 	importerVersion: 0
@@ -34,6 +36,7 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 			mode: action.mode,
 			pending: false,
 			bodies: [],
+			overrideCardOrder: null,
 			importer: '',
 			importerVersion: 0
 		};
@@ -54,6 +57,11 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 			bodies: [...action.bodies],
 			importer: action.importer,
 			importerVersion: action.importerVersion
+		};
+	case BULK_IMPORT_SET_OVERRIDE_CARD_ORDER:
+		return {
+			...state,
+			overrideCardOrder: action.order
 		};
 	default:
 		return state;

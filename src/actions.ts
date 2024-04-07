@@ -88,6 +88,7 @@ export const BULK_IMPORT_PENDING = 'BULK_IMPORT_DIALOG_PENDING';
 export const BULK_IMPORT_SUCCESS = 'BULK_IMPORT_SUCCESS';
 export const BULK_IMPORT_DIALOG_CLOSE = 'BULK_IMPORT_DIAOG_CLOSE';
 export const BULK_IMPORT_SET_BODIES = 'BULK_IMPORT_SET_BODIES';
+export const BULK_IMPORT_SET_OVERRIDE_CARD_ORDER = 'BULK_IMPORT_SET_OVERRIDE_CARD_ORDER';
 //Collection.js
 export const SHOW_CARD = 'SHOW_CARD';
 export const UPDATE_COLLECTION = 'UPDATE_COLLECTION';
@@ -360,6 +361,11 @@ type ActionBulkImportDialogOpen = {
 
 type ActionBulkImportPending = {
 	type: typeof BULK_IMPORT_PENDING
+};
+
+type ActionBulkImportDialogSetOverrideCardOrder = {
+	type: typeof BULK_IMPORT_SET_OVERRIDE_CARD_ORDER,
+	order: CardID[]
 };
 
 type ActionBulkImportSuccees = {
@@ -1024,6 +1030,7 @@ export type SomeAction = ActionAIRequestStarted
 	| ActionBulkImportSuccees
 	| ActionBulkImportDialogClose
 	| ActionBulkImportSetBodies
+	| ActionBulkImportDialogSetOverrideCardOrder
 	| ActionUpdateCollection
 	| ActionUpdateRenderOffset
 	| ActionUpdateCollectionSnapshot
