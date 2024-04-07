@@ -31,7 +31,7 @@ const app = (state : BulkImportState = INITIAL_STATE, action : SomeAction) : Bul
 		return {
 			...state,
 			open: true,
-			mode: 'import',
+			mode: action.mode,
 			pending: false,
 			bodies: [],
 			importer: '',

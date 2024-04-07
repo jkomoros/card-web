@@ -633,7 +633,7 @@ class CardView extends connect(store)(PageViewElement) {
 	}
 
 	_handleBulkImportClicked() {
-		store.dispatch(openBulkImportDialog());
+		store.dispatch(openBulkImportDialog('import'));
 	}
 
 	_handleEditClicked() {

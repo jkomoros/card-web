@@ -20,11 +20,16 @@ import {
 } from '../store.js';
 
 import {
+	BulkImportDialogMode
+} from '../types.js';
+
+import {
 	bulkCreateWorkingNotes
 } from './data.js';
 
-export const openBulkImportDialog = () : SomeAction => ({
+export const openBulkImportDialog = (mode : BulkImportDialogMode) : SomeAction => ({
 	type : BULK_IMPORT_DIALOG_OPEN,
+	mode
 });
 
 export const closeBulkImportDialog = () : SomeAction =>  ({

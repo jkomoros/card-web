@@ -10,6 +10,7 @@ import {
 	AIModelName,
 	AuthorsMap,
 	AutoTODOType,
+	BulkImportDialogMode,
 	Card,
 	CardBooleanMap,
 	CardDiff,
@@ -354,6 +355,7 @@ type ActionTurnSuggestedMissingConcepts = {
 
 type ActionBulkImportDialogOpen = {
 	type: typeof BULK_IMPORT_DIALOG_OPEN
+	mode: BulkImportDialogMode
 };
 
 type ActionBulkImportPending = {
