@@ -20,6 +20,7 @@ import {
 import {
 	selectBulKimportDialogMode,
 	selectBulkImportDialogBodies,
+	selectBulkImportDialogExportContent,
 	selectBulkImportDialogOpen,
 	selectBulkImportPending
 } from '../selectors.js';
@@ -28,6 +29,10 @@ import {
 	BulkImportDialogMode,
 	State,
 } from '../types.js';
+
+import {
+	assertUnreachable
+} from '../util.js';
 
 import bulkImport from '../reducers/bulk-import.js';
 store.addReducers({
@@ -46,6 +51,9 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 	
 	@state()
 		_mode : BulkImportDialogMode = 'import';
+
+	@state()
+		_exportContent : string;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -79,8 +87,7 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		`
 	];
 
-	override innerRender() {
-		if (!this.open) return html``;
+	private innerRenderImport() {
 		return html`<div class='${this._pending ? 'pending' : ''}'>
 			<div class='scrim'></div>
 			${this._bodies.length ?
@@ -103,6 +110,26 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 				</button>
 			</div>
 		</div>`;
+	}
+
+	private innerRenderExport() {
+		//TODO: render as selectable HTML
+		return html`<div>
+			<p>Copy this content to import it elsewhere:</p>
+			<textarea .value=${this._exportContent} readonly></textarea>
+		</div>`;
+	}
+
+	override innerRender() {
+		if (!this.open) return html``;
+		switch (this._mode) {
+		case 'import':
+			return this.innerRenderImport();
+		case 'export':
+			return this.innerRenderExport();
+		default:
+			return assertUnreachable(this._mode);
+		}
 	}
 
 	_handleRawPaste(e : ClipboardEvent) {
@@ -134,6 +161,7 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		this._bodies = selectBulkImportDialogBodies(state);
 		this._pending = selectBulkImportPending(state);
 		this._mode = selectBulKimportDialogMode(state);
+		this._exportContent = selectBulkImportDialogExportContent(state);
 		this.title = 'Bulk ' + (this._mode === 'import' ? 'Import' : 'Export');
 	}
 
