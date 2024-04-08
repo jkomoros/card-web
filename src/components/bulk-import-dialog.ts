@@ -27,7 +27,8 @@ import {
 	selectBulkImportDialogBodies,
 	selectBulkImportDialogExportContent,
 	selectBulkImportDialogOpen,
-	selectBulkImportPending
+	selectBulkImportPending,
+	selectUserMayUseAI
 } from '../selectors.js';
 
 import {
@@ -62,6 +63,9 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 
 	@state()
 		_exportNode : HTMLElement | null = null;
+
+	@state()
+		_aiEnabled : boolean;
 
 	static override styles = [
 		...DialogElement.styles,
@@ -130,6 +134,7 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 			<button	
 				class='small'
 				@click=${this._handleSemanticSortClicked}
+				?disabled=${!this._aiEnabled}
 				id='semantic-sort'
 			>${SHUFFLE_ICON}</button>
 			<label for='semantic-sort'>Semantic Sort</label>
@@ -186,6 +191,7 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		this._pending = selectBulkImportPending(state);
 		this._mode = selectBulKimportDialogMode(state);
 		this._exportContent = selectBulkImportDialogExportContent(state);
+		this._aiEnabled = selectUserMayUseAI(state);
 		this.title = 'Bulk ' + (this._mode === 'import' ? 'Import' : 'Export');
 	}
 

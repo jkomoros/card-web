@@ -14,7 +14,8 @@ import {
 	selectActiveCollectionCards,
 	selectBulkImportDialogBodies,
 	selectBulkImportDialogImporter,
-	selectBulkImportDialogImporterVersion
+	selectBulkImportDialogImporterVersion,
+	selectUserMayUseAI
 } from '../selectors.js';
 
 import {
@@ -85,6 +86,7 @@ const semanticSortCallable = httpsCallable<SemanticSortRequestData, SemanticSort
 
 export const semanticSortExport = () : ThunkSomeAction => async (dispatch, getState) => {
 	const state = getState();
+	if (!selectUserMayUseAI(state)) throw new Error('User may not use AI');
 	const cards = selectActiveCollectionCards(state);
 	const cardIDs = cards.map(card => card.id);
 	const result = await semanticSortCallable({cards: cardIDs});
