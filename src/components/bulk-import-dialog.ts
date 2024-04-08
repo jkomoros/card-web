@@ -11,11 +11,15 @@ import { DialogElement } from './dialog-element.js';
 import { ButtonSharedStyles } from './button-shared-styles.js';
 
 import {
-	closeBulkImportDialog, commitBulkImport, processBulkImportContent
+	closeBulkImportDialog,
+	commitBulkImport,
+	processBulkImportContent,
+	semanticSortExport
 } from '../actions/bulk-import.js';
 
 import {
 	CHECK_CIRCLE_OUTLINE_ICON,
+	SHUFFLE_ICON
 } from './my-icons.js';
 
 import {
@@ -123,6 +127,12 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 	private innerRenderExport() {
 		//TODO: render as selectable HTML
 		return html`<div>
+			<button	
+				class='small'
+				@click=${this._handleSemanticSortClicked}
+				id='semantic-sort'
+			>${SHUFFLE_ICON}</button>
+			<label for='semantic-sort'>Semantic Sort</label>
 			<p>Copy this content to import it elsewhere:</p>
 			<div class='output'>
 				${unsafeHTML(this._exportContent)}
@@ -154,6 +164,10 @@ class BulkImportDialog extends connect(store)(DialogElement) {
 		//TODO: it's weird that this state is maintained not in actual state but just in the component itself.
 		if (!checkbox) throw new Error('No checkbox');
 		store.dispatch(processBulkImportContent(pastedData, !checkbox.checked));
+	}
+
+	_handleSemanticSortClicked() {
+		store.dispatch(semanticSortExport());
 	}
 
 	_handleDoneClicked() {
