@@ -290,6 +290,34 @@ class EmbeddingStore {
 		});
 	}
 
+	async getExistingPointsVectors(cardIDs : CardID[]) : Promise<Record<CardID, EmbeddingVector>> {
+		const existingPoints = await this._qdrant.scroll(QDRANT_COLLECTION_NAME, {
+			filter: {
+				must: [
+					{
+						key: PAYLOAD_CARD_ID_KEY,
+						match: {
+							any: cardIDs
+						}
+					},
+					{
+						key: PAYLOAD_VERSION_KEY,
+						match: {
+							value: CURRENT_EMBEDDING_VERSION
+						}
+					}
+				]
+			},
+			with_vector: true
+		});
+		return Object.fromEntries(existingPoints.points.map(point => {
+			const cardID = point.payload?.card_id;
+			if (!cardID) throw new Error('No card_id as expected');
+			if (!point.vector) throw new Error('No vector as expected');
+			return [cardID, point.vector];
+		}));
+	}
+
 	//TODO: more clever typing so we can affirmatively say if the Point has a payload and/or vector fields
 	async getExistingPoint(cardID : CardID, opts : GetPointsOptions = {}) : Promise<Point | null> {
 		const defaultOpts : Required<GetPointsOptions> = {includePayload: false, includeVector: false};
@@ -479,10 +507,99 @@ export const reindexCardEmbeddings = async () : Promise<void> => {
 	console.log('Done indexing cards');
 };
 
+//Higher cosineSimilarity means more similar
+const cosineSimilarity = (a : EmbeddingVector, b : EmbeddingVector) : number => {
+	if (a.length != b.length) throw new Error(`Vectors are different lengths: ${a.length} and ${b.length}`);
+	let dot = 0;
+	let magA = 0;
+	let magB = 0;
+	for (let i = 0; i < a.length; i++) {
+		dot += a[i] * b[i];
+		magA += a[i] * a[i];
+		magB += b[i] * b[i];
+	}
+	magA = Math.sqrt(magA);
+	magB = Math.sqrt(magB);
+	return dot / (magA * magB);
+};
+
+const MAXIMUM_SEMANTIC_SORT_CARDS = 100;
+
+//Will swap two items in the array if it makes the array more sorted.
+const swapIfBetter = (index: number, cards : CardID[], vectors: Record<CardID, EmbeddingVector>) : boolean => {
+	if (index < 2) return false;
+	//TODO: handle a 3-item swap if one of hte edges is off the edge.
+	if (index >= cards.length - 2) return false;
+	const aID = cards[index - 1];
+	const bID = cards[index];
+	const cID = cards[index + 1];
+	const dID = cards[index + 2];
+
+	if (!aID) throw new Error('No aID');
+	if (!bID) throw new Error('No bID');
+	if (!cID) throw new Error('No cID');
+	if (!dID) throw new Error('No dID');
+
+	const a = vectors[aID];
+	const b = vectors[bID];
+	const c = vectors[cID];
+	const d = vectors[dID];
+
+	//This might happen for cards that don't have embeddings yet.
+	if (!a || !b || !c || !d) return false;
+
+	//b anc c will be next to each other no matter what. We're seeing which is
+	//better, similarity(a,b) + similarity(c,d) (in which case there should be
+	//no swap) vs similarity(a,c) + similarity(b,d) (in which case there should be a swap.
+
+	const simAB = cosineSimilarity(a, b);
+	const simCD = cosineSimilarity(c, d);
+
+	const simAC = cosineSimilarity(a, c);
+	const simBD = cosineSimilarity(b, d);
+
+	if (simAB + simCD >= simAC + simBD) return false;
+
+	//A swap is better!
+	const temp = cards[index];
+	cards[index] = cards[index + 1];
+	cards[index + 1] = temp;
+	return true;
+};
+
+//How many times to go through the list of cards while changes are being made.
+//At some point it should settle, but this is a sanity check.
+const MAX_SEMANTIC_ITERATIONS = 10;
+
 export const semanticSort = async (request : CallableRequest<SemanticSortRequestData>) : Promise<SemanticSortResponseData> => {
 	//For now, we'll just reverse the cards as a distinctive no-op style.
 	const cards =[...request.data.cards];
-	cards.reverse();
+	if (!EMBEDDING_STORE) {
+		throw new Error('No embedding store');
+	}
+
+	if (cards.length < 2) return {cards};
+
+	//Sanity check, because this calculation will be expensive!
+	if (cards.length > MAXIMUM_SEMANTIC_SORT_CARDS) throw new Error(`Too many cards: ${cards.length}`);
+
+	const vectors = await EMBEDDING_STORE.getExistingPointsVectors(cards);
+
+	//We'll go through the list of cards a few time and continually swap pairs if swapping will give a better result.
+	let changesMade = true;
+	let counter = 0;
+	while(changesMade && counter < MAX_SEMANTIC_ITERATIONS) {
+		//TODO: don't log this information
+		console.log(`Iteration ${counter}`);
+		changesMade = false;
+		for (let i = 0; i < cards.length; i++) {
+			const localChangeMade = swapIfBetter(i, cards, vectors);
+			if (localChangeMade) console.log(`Made a change at ${i}`);
+			changesMade = localChangeMade || changesMade;
+		}
+		counter++;
+	}
+
 	return {cards};
 };
 
