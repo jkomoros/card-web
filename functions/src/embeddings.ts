@@ -523,7 +523,7 @@ const cosineSimilarity = (a : EmbeddingVector, b : EmbeddingVector) : number => 
 	return dot / (magA * magB);
 };
 
-const MAXIMUM_SEMANTIC_SORT_CARDS = 100;
+const MAXIMUM_SEMANTIC_SORT_CARDS = 500;
 
 //Will swap two items in the array if it makes the array more sorted.
 const swapIfBetter = (index: number, cards : CardID[], vectors: Record<CardID, EmbeddingVector>) : boolean => {
@@ -588,17 +588,20 @@ export const semanticSort = async (request : CallableRequest<SemanticSortRequest
 	//We'll go through the list of cards a few time and continually swap pairs if swapping will give a better result.
 	let changesMade = true;
 	let counter = 0;
+	let changesMadeCounter = 0;
 	while(changesMade && counter < MAX_SEMANTIC_ITERATIONS) {
-		//TODO: don't log this information
-		console.log(`Iteration ${counter}`);
 		changesMade = false;
 		for (let i = 0; i < cards.length; i++) {
 			const localChangeMade = swapIfBetter(i, cards, vectors);
-			if (localChangeMade) console.log(`Made a change at ${i}`);
+			if (localChangeMade) {
+				changesMadeCounter++;
+			}
 			changesMade = localChangeMade || changesMade;
 		}
 		counter++;
 	}
+
+	console.log(`Made ${changesMadeCounter} changes in ${counter} iterations over ${cards.length} cards`);
 
 	return {cards};
 };
