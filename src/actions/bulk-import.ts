@@ -2,6 +2,7 @@ import {
 	BULK_IMPORT_DIALOG_CLOSE,
 	BULK_IMPORT_DIALOG_OPEN,
 	BULK_IMPORT_SET_BODIES,
+	BULK_IMPORT_SET_OVERRIDE_CARD_ORDER,
 	SomeAction
 } from '../actions.js';
 
@@ -10,10 +11,19 @@ import {
 } from '../contenteditable.js';
 
 import {
+	selectActiveCollectionCards,
 	selectBulkImportDialogBodies,
 	selectBulkImportDialogImporter,
 	selectBulkImportDialogImporterVersion
 } from '../selectors.js';
+
+import {
+	httpsCallable
+} from 'firebase/functions';
+
+import {
+	functions
+} from '../firebase.js';
 
 import {
 	ThunkSomeAction
@@ -26,6 +36,20 @@ import {
 import {
 	bulkCreateWorkingNotes
 } from './data.js';
+
+import {
+	CardID
+} from '../types_simple.js';
+
+//Replicated in `functions/src/types.ts`
+export type SemanticSortRequestData = {
+	cards: CardID[]
+}
+
+//Replicated in `functions/src/types.ts
+export type SemanticSortResponseData = {
+	cards: CardID[]
+}
 
 export const openBulkImportDialog = (mode : BulkImportDialogMode) : SomeAction => ({
 	type : BULK_IMPORT_DIALOG_OPEN,
@@ -55,4 +79,17 @@ export const commitBulkImport = () : ThunkSomeAction => (dispatch, getState) => 
 	//bulkCreateWorkingNotes will both set the pending flag and also success
 	//when done, which will close the dialog.
 	dispatch(bulkCreateWorkingNotes(bodies, {importer, importer_version}));
+};
+
+const semanticSortCallable = httpsCallable<SemanticSortRequestData, SemanticSortResponseData>(functions, 'semanticSort');
+
+export const semanticSortExport = () : ThunkSomeAction => async (dispatch, getState) => {
+	const state = getState();
+	const cards = selectActiveCollectionCards(state);
+	const cardIDs = cards.map(card => card.id);
+	const result = await semanticSortCallable({cards: cardIDs});
+	dispatch({
+		type: BULK_IMPORT_SET_OVERRIDE_CARD_ORDER,
+		order: result.data.cards
+	});
 };

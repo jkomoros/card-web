@@ -214,10 +214,12 @@ export type SimilarCardsResponseData = {
 	cards: CardSimilarityItem[]
 };
 
+//Replicated in `src/actions/bulk-import.ts`
 export type SemanticSortRequestData = {
 	cards: CardID[]
 }
 
+//Replicated in `src/actions/bulk-import.ts`
 export type SemanticSortResponseData = {
 	cards: CardID[]
 }
